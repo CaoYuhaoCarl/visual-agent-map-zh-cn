@@ -227,8 +227,9 @@ export default class VisualAgentMapPlugin extends Plugin {
       }).catch(error => { this.logs.appendLog("warn", `初始化未完成：${error instanceof Error ? error.message : String(error)}`); console.warn("Visual Agent Map initialization", error); });
     });
     this.registerEvent(this.app.vault.on("modify", file => { if (!this.writing && file instanceof TFile) for (const view of this.views()) view.changed(file); }));
-    this.registerEvent(this.app.vault.on("delete", file => { if (!this.writing && file instanceof TFile) { for (const view of this.views()) view.deleted(file); this.scheduleExternalReconciliation(file.path); if (file.path.startsWith(`${this.settings.mapsFolder}/`) || file.path.startsWith(`${this.settings.topicsFolder}/`) && file.name === "Map.md") this.runMutation(() => this.repo.rebuildDerivedData()); } }));
-    this.registerEvent(this.app.vault.on("rename", (file, oldPath) => { if (!this.writing && file instanceof TFile) this.runMutation(async () => {
+    this.registerEvent(this.app.vault.on("delete", file => { if (file instanceof TFile) this.scheduleExternalReconciliation(file.path); if (!this.writing && file instanceof TFile) { for (const view of this.views()) view.deleted(file); if (file.path.startsWith(`${this.settings.mapsFolder}/`) || file.path.startsWith(`${this.settings.topicsFolder}/`) && file.name === "Map.md") this.runMutation(() => this.repo.rebuildDerivedData()); } }));
+    // Renames are queued even while VAM is writing (handling is idempotent), so a user rename during a write is not lost.
+    this.registerEvent(this.app.vault.on("rename", (file, oldPath) => { if (!(file instanceof TFile) || !this.repo.renameAffectsVam(file, oldPath)) return; const external = !this.writing; this.runMutation(async () => {
       await this.repo.replaceSourcePath(oldPath, file.path);
       let mapChanged = false;
       for (const mapFile of await this.repo.mapFiles()) { const map = await this.repo.readMap(mapFile.path); let changed = false; for (const node of map.nodes) if (node.path === oldPath) { node.path = file.path; changed = true; } if (changed) { await this.repo.saveMap(mapFile.path, map); mapChanged = true; } }
@@ -236,7 +237,8 @@ export default class VisualAgentMapPlugin extends Plugin {
       const frontmatter = this.app.metadataCache.getFileCache(file)?.frontmatter;
       const vamFile = [frontmatter?.["agent-map-node"], frontmatter?.["visual-agent-map"]].some(value => value === true || value === "true");
       if (mapChanged || vamFile) await this.rebuildDerivedData();
-      for (const view of this.views()) await view.renamed(file, oldPath);
+      // VAM's own renames already update open views (and must keep their undo history).
+      if (external) for (const view of this.views()) await view.renamed(file, oldPath);
     }); }));
   }
   consumeFirstInstallSample(): boolean { const pending = this.firstInstallSamplePending; this.firstInstallSamplePending = false; return pending; }
@@ -446,7 +448,6 @@ export default class VisualAgentMapPlugin extends Plugin {
   async confirmCodexUsage(run: () => Promise<void>): Promise<void> { await this.confirmAiUsage(this.settings.cliModel, run); }
   async rebuildDerivedData(): Promise<void> { try { await this.repo.rebuildDerivedData(); } catch (error) { console.error("Visual Agent Map reference rebuild", error); new Notice(t("ui.map_saved_but_reference_update_failed_0", error instanceof Error ? error.message : String(error))); } }
   private scheduleExternalReconciliation(deletedPath: string): void {
-    if (this.writing) return;
     this.externalReconcilePaths.add(deletedPath);
     if (this.externalReconcileTimer !== null) window.clearTimeout(this.externalReconcileTimer);
     this.externalReconcileTimer = window.setTimeout(() => {

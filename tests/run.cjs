@@ -3135,6 +3135,13 @@ integrationTest('large vaults: map discovery, unrelated renames and rebuilds rea
   assert.equal(await repo.isMapNodePath(node.path), true);
   await repo.rebuildDerivedData();
   assert.deepEqual(reads.filter(item => item.startsWith('Personal/')), [], 'no unrelated note was read');
+  // Rename relevance is decided from the metadata cache alone.
+  reads.length = 0;
+  assert.equal(repo.renameAffectsVam(app.vault.getAbstractFileByPath('Personal/note-2.md'), 'Personal/old-2.md'), false);
+  assert.equal(repo.renameAffectsVam(app.vault.getAbstractFileByPath(node.path), 'Elsewhere/tracked.md'), true, 'a VAM note is relevant');
+  await repo.updateNote(node.path, { sourcePaths: ['Personal/old-3.md'] });
+  assert.equal(repo.renameAffectsVam(app.vault.getAbstractFileByPath('Personal/note-3.md'), 'Personal/old-3.md'), true, 'a note cited by a VAM note is relevant');
+  assert.deepEqual(reads, [], 'relevance checks read no file');
 });
 integrationTest('external rename reconciliation only follows a unique matching node-id', async () => {
   const { repo, app, contents } = fixture(); const n = await topicNote(repo, 'External rename');

@@ -8696,6 +8696,21 @@ ${body}`);
   async mapFiles() {
     return (await this.markedFiles("visual-agent-map")).sort((a, b) => a.path.localeCompare(b.path));
   }
+  /**
+   * Whether a rename of `file` (previously at `oldPath`) can affect VAM data, decided from the metadata cache without
+   * reading notes: the file is a VAM note or map, or a VAM note cites the old path. Uncached files count as relevant.
+   */
+  renameAffectsVam(file, oldPath) {
+    var _a, _b, _c;
+    const own = this.app.metadataCache.getFileCache(file);
+    if (!own || marker((_a = own.frontmatter) == null ? void 0 : _a["agent-map-node"]) || marker((_b = own.frontmatter) == null ? void 0 : _b["visual-agent-map"])) return true;
+    for (const note of this.app.vault.getMarkdownFiles()) {
+      const fm = (_c = this.app.metadataCache.getFileCache(note)) == null ? void 0 : _c.frontmatter;
+      if (!fm || !marker(fm["agent-map-node"])) continue;
+      if ([fm["source-notes"], fm["reference-materials"]].some((list) => Array.isArray(list) && list.includes(oldPath))) return true;
+    }
+    return false;
+  }
   /** Whether any map lists `path` as a node; only map files are read. */
   async isMapNodePath(path) {
     for (const file of await this.mapFiles()) if ((await this.readMap(file.path)).nodes.some((node) => node.path === path)) return true;
@@ -20056,14 +20071,16 @@ var VisualAgentMapPlugin = class extends import_obsidian19.Plugin {
       if (!this.writing && file instanceof import_obsidian19.TFile) for (const view of this.views()) view.changed(file);
     }));
     this.registerEvent(this.app.vault.on("delete", (file) => {
+      if (file instanceof import_obsidian19.TFile) this.scheduleExternalReconciliation(file.path);
       if (!this.writing && file instanceof import_obsidian19.TFile) {
         for (const view of this.views()) view.deleted(file);
-        this.scheduleExternalReconciliation(file.path);
         if (file.path.startsWith(`${this.settings.mapsFolder}/`) || file.path.startsWith(`${this.settings.topicsFolder}/`) && file.name === "Map.md") this.runMutation(() => this.repo.rebuildDerivedData());
       }
     }));
     this.registerEvent(this.app.vault.on("rename", (file, oldPath) => {
-      if (!this.writing && file instanceof import_obsidian19.TFile) this.runMutation(async () => {
+      if (!(file instanceof import_obsidian19.TFile) || !this.repo.renameAffectsVam(file, oldPath)) return;
+      const external = !this.writing;
+      this.runMutation(async () => {
         var _a2;
         await this.repo.replaceSourcePath(oldPath, file.path);
         let mapChanged = false;
@@ -20082,7 +20099,7 @@ var VisualAgentMapPlugin = class extends import_obsidian19.Plugin {
         const frontmatter2 = (_a2 = this.app.metadataCache.getFileCache(file)) == null ? void 0 : _a2.frontmatter;
         const vamFile = [frontmatter2 == null ? void 0 : frontmatter2["agent-map-node"], frontmatter2 == null ? void 0 : frontmatter2["visual-agent-map"]].some((value) => value === true || value === "true");
         if (mapChanged || vamFile) await this.rebuildDerivedData();
-        for (const view of this.views()) await view.renamed(file, oldPath);
+        if (external) for (const view of this.views()) await view.renamed(file, oldPath);
       });
     }));
   }
@@ -20397,7 +20414,6 @@ var VisualAgentMapPlugin = class extends import_obsidian19.Plugin {
     }
   }
   scheduleExternalReconciliation(deletedPath) {
-    if (this.writing) return;
     this.externalReconcilePaths.add(deletedPath);
     if (this.externalReconcileTimer !== null) window.clearTimeout(this.externalReconcileTimer);
     this.externalReconcileTimer = window.setTimeout(() => {

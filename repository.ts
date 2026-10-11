@@ -568,6 +568,21 @@ export class Repository {
     return (await this.markedFiles("visual-agent-map")).sort((a, b) => a.path.localeCompare(b.path));
   }
 
+  /**
+   * Whether a rename of `file` (previously at `oldPath`) can affect VAM data, decided from the metadata cache without
+   * reading notes: the file is a VAM note or map, or a VAM note cites the old path. Uncached files count as relevant.
+   */
+  renameAffectsVam(file: TFile, oldPath: string): boolean {
+    const own = this.app.metadataCache.getFileCache(file);
+    if (!own || marker(own.frontmatter?.["agent-map-node"]) || marker(own.frontmatter?.["visual-agent-map"])) return true;
+    for (const note of this.app.vault.getMarkdownFiles()) {
+      const fm = this.app.metadataCache.getFileCache(note)?.frontmatter;
+      if (!fm || !marker(fm["agent-map-node"])) continue;
+      if ([fm["source-notes"], fm["reference-materials"]].some(list => Array.isArray(list) && list.includes(oldPath))) return true;
+    }
+    return false;
+  }
+
   /** Whether any map lists `path` as a node; only map files are read. */
   async isMapNodePath(path: string): Promise<boolean> {
     for (const file of await this.mapFiles()) if ((await this.readMap(file.path)).nodes.some(node => node.path === path)) return true;
