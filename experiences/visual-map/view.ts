@@ -24,6 +24,7 @@ import { MindSearchAnswerModal } from "../../ui/modals/mind-search-answer-modal"
 import { MindSearchManualFlow, countMindSearchAnsweredQuestions, MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION, type ManualResearchResult, type PlannerQuestionResult } from "../mind-search/manual-flow";
 import { MindSearchRunStore } from "../../mindsearch-mve/research-run-store";
 import { matchMindSearchFailedReportTargets } from "../mind-search/retry-targets";
+import { mindSearchRepairHint, mindSearchTimedOut } from "../mind-search/failure-hint";
 
 export const VIEW_TYPE = "visual-agent-map-view";
 interface Action { undo: () => Promise<void>; redo: () => Promise<void>; label?: string }
@@ -933,10 +934,9 @@ export class VisualAgentMapView extends ItemView {
       "delivery-writing": t("ui.mindsearch_stage_delivery-writing"), "delivery-acceptance": t("ui.mindsearch_stage_delivery-acceptance")
     };
     if (phase && labels[phase]) box.createEl("p", { text: t("ui.mindsearch_failure_stage", labels[phase]) });
-    const timedOut = /超過.*分鐘|timed?\s*out|timeout|exceeded.*minutes/i.test(attempt?.stopReason ?? branch.researchPlanError ?? "");
     const reason = attempt?.stopReason ?? branch.researchPlanError ?? "";
-    const remedy = timedOut ? "ui.mindsearch_repair_timeout_hint" : /auth|login|sign.in|登入|unauthorized|quota|rate.limit/i.test(reason) ? "ui.mindsearch_repair_auth_hint" : /format|schema|JSON|marker|格式|分類/i.test(reason) ? "ui.mindsearch_repair_format_hint" : /search|搜尋|網路|network/i.test(reason) ? "ui.mindsearch_repair_search_hint" : "ui.mindsearch_repair_retry_hint";
-    box.createEl("p", { text: t(remedy) });
+    const timedOut = mindSearchTimedOut(reason);
+    box.createEl("p", { text: t(mindSearchRepairHint(reason)) });
     if (timedOut) this.button(box, t("ui.mindsearch_repair_timeout"), () => {
       const terminal = [...branch.results].reverse().find(result => result.kind !== "research");
       if (terminal) void this.continueMindSearchResearch(branch.questionNodeId, terminal.runId, 600_000);

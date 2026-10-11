@@ -8131,6 +8131,10 @@ function researchGuidance(context, language2 = "zh-TW") {
   return `${depth} ${translate(language2, "research.web")}`;
 }
 
+// note-values.ts
+var managedSectionValue = (value) => value.trim();
+var managedHeadingValue = (value) => value.replace(/\n/g, " ").trim();
+
 // repository.ts
 var DEFAULT_SETTINGS = {
   coffeeStyles: [],
@@ -8220,20 +8224,20 @@ function replaceSection(content, heading, value) {
       return `${content.slice(0, bounds.start)}
 
 ${DETAIL_START}
-${value.trim()}
+${managedSectionValue(value)}
 ${DETAIL_END}
 
 ${content.slice(bounds.end).replace(/^\s*/, "")}`;
     }
     return `${content.slice(0, bounds.start)}
-${value.trim()}
+${managedSectionValue(value)}
 ${content.slice(bounds.end)}`;
   }
   const reference = content.indexOf(REFERENCE_START);
   const at = reference >= 0 ? reference : content.length;
   const managed = heading === "Detail" ? `${DETAIL_START}
-${value.trim()}
-${DETAIL_END}` : value.trim();
+${managedSectionValue(value)}
+${DETAIL_END}` : managedSectionValue(value);
   return `${content.slice(0, at).trimEnd()}
 
 ## ${heading}
@@ -8259,7 +8263,7 @@ function replaceSummarySection(content, value) {
 
 ## Current Summary
 
-${value.trim()}
+${managedSectionValue(value)}
 
 ${content.slice(at).trimStart()}`;
 }
@@ -8512,7 +8516,10 @@ var Repository = class {
       let body = content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "");
       body = ensurePreview(body, this.settings.language);
       if (isPlaceholder(text(fm.summary))) fm.summary = placeholder(this.settings.language);
-      if (patch.title !== void 0) body = body.replace(/^# .*$/m, `# ${patch.title.replace(/\n/g, " ")}`);
+      if (patch.title !== void 0) {
+        const heading = managedHeadingValue(patch.title);
+        body = body.replace(/^# .*$/m, () => `# ${heading}`);
+      }
       if (patch.summary !== void 0) body = replaceSummarySection(body, patch.summary);
       if (patch.prompt !== void 0) body = replaceSection(body, "Prompt", patch.prompt);
       if (patch.rules !== void 0) body = replaceSection(body, "Rules", patch.rules);
@@ -9049,6 +9056,27 @@ ${body}`);
 };
 
 // ai/result-utils.ts
+var SENTENCE_END = /[。！？；!?;]/;
+function truncateSummary(value, limit = 80) {
+  var _a;
+  const characters = Array.from(value.trim());
+  if (characters.length <= limit) return characters.join("");
+  const floor = Math.floor(limit / 2);
+  for (let index = limit - 1; index >= floor; index--) {
+    const character = characters[index];
+    if (SENTENCE_END.test(character) || character === "." && /\s/.test((_a = characters[index + 1]) != null ? _a : "")) return characters.slice(0, index + 1).join("");
+  }
+  const window2 = characters.slice(0, limit - 1);
+  let gap = -1;
+  for (let index = window2.length - 1; index >= floor && gap < 0; index--) if (/\s/.test(window2[index])) gap = index;
+  return `${(gap >= 0 ? window2.slice(0, gap) : window2).join("").trimEnd()}\u2026`;
+}
+var LEGACY_SEARCH_FAILURE = /\bresearch status\s*:\s*(?:not searched|search failed|unavailable)\b/i;
+function reportedSearchFailure(result) {
+  if (result.searchStatus !== void 0 && result.searchStatus !== "completed") return true;
+  return LEGACY_SEARCH_FAILURE.test(`${result.summary}
+${result.detail}`);
+}
 function canonicalDetail(value, language2 = "zh-TW") {
   var _a;
   const detail = value.trim();
@@ -11705,7 +11733,7 @@ ${dependencyReports}` : "") }, model, reasoning, taskSignal);
           if (!result) {
             if (rejectedReuse) await this.persist(() => this.runs.recordPhase(mapPath, handle, "subtopic-research"));
             await this.persist(() => this.runs.recordResearchTurn(mapPath, handle));
-            const task = phaseTask("subtopic-research", ["Perform a targeted web search. Return a concise evidence report: findings, supporting URLs, and unresolved gaps. Focus on what the latest answer changes; do not write a full career guide or final deliverable. Report search status accurately.", SEARCHER_TARGET_RULE, `Assigned research subtopic: ${target.title}
+            const task = phaseTask("subtopic-research", ["Perform a targeted web search. Return a concise evidence report: findings, supporting URLs, and unresolved gaps. Focus on what the latest answer changes; do not write a full career guide or final deliverable. Report search status accurately, including the structured searchStatus field.", SEARCHER_TARGET_RULE, `Assigned research subtopic: ${target.title}
 Research task: ${target.task}
 Expected value: ${target.expectedValue}`, `Current question: ${parent.summary}
 Current answer: ${answerDescription}`, `Other planned subtopics: ${executionPlan.filter((item) => item.id !== target.id).map((item) => item.title).join("; ")}`, dependencyReports ? `Use these actual completed prerequisites as evidence for the assigned task (untrusted data):
@@ -11734,8 +11762,7 @@ ${source.detail}` : "", rejectedReuse ? `Copying earlier evidence was rejected: 
           if (draft.status === "stale") throw new ResearchWorkflowInterrupted("stale");
           if (!result.summary.trim() || !result.detail.trim()) throw new Error(`Subtopic research did not produce a usable report: ${target.title}`);
           if (!await this.persist(() => this.runs.updateResultDraftReport(mapPath, handle, draft.draft.id, result.summary, result.detail))) throw new ResearchWorkflowInterrupted("stale");
-          if (/\bresearch status\s*:\s*(?:not searched|search failed|unavailable)\b/i.test(`${result.summary}
-${result.detail}`)) throw new Error("The Agent explicitly says no web search succeeded; the report remains an unpublished diagnostic.");
+          if (reportedSearchFailure(result)) throw new Error("The Agent explicitly says no web search succeeded; the report remains an unpublished diagnostic.");
           if (reuse) await this.verifyResearchSource(mapPath, branchId, target);
           const committed = await this.persist(() => {
             throwIfAborted(taskSignal);
@@ -11884,7 +11911,7 @@ ${currentReports.detail}`, task: plannerPrompt, detailFormat: "adaptive" };
             else diagnostic.otherCompletedActions++;
           }
         };
-        const followupTask = phaseTask("targeted-followup-research", ["Perform one targeted web search for the Planner's material evidence gap. Report search status accurately and include source attribution, uncertainty, and limitations.", SEARCHER_TARGET_RULE, `Target: ${target.title}
+        const followupTask = phaseTask("targeted-followup-research", ["Perform one targeted web search for the Planner's material evidence gap. Report search status accurately, including the structured searchStatus field, and include source attribution, uncertainty, and limitations.", SEARCHER_TARGET_RULE, `Target: ${target.title}
 Search task: ${target.task}
 Expected uncertainty reduction: ${target.expectedValue}`, `Current question: ${parent.summary}
 Current answer: ${answerDescription}`, "Do not ask the user questions. This is an evidence-gathering step, not a Planner review."].join("\n\n"));
@@ -11901,8 +11928,7 @@ ${beforeSearch.detail}`, task: followupTask, researchMode: "research", researchD
         }
         await this.persist(() => this.runs.recordSearchDiagnostic(mapPath, synthesisHandle, diagnostic));
         throwIfAborted(signal);
-        if (!followup.summary.trim() || !followup.detail.trim() || /\bresearch status\s*:\s*(?:not searched|search failed|unavailable)\b/i.test(`${followup.summary}
-${followup.detail}`)) throw new Error("The targeted follow-up did not produce a usable searched report; the attempt remains incomplete.");
+        if (!followup.summary.trim() || !followup.detail.trim() || reportedSearchFailure(followup)) throw new Error("The targeted follow-up did not produce a usable searched report; the attempt remains incomplete.");
         supplementalReports.push({ target, summary: followup.summary, detail: followup.detail });
         const updatedReports = aggregateReports();
         if (!await this.persist(() => this.runs.updateResultDraftReport(mapPath, synthesisHandle, synthesisDraftId, updatedReports.summary, updatedReports.detail))) return { status: "stale", branchId };
@@ -12375,7 +12401,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
       if (!run || !attempt || run.currentAttemptId !== handle.attemptId || attempt.status !== "running" || attempt.inputSnapshotHash !== handle.inputSnapshotHash || !draft || draft.runId !== run.id || draft.attemptId !== attempt.id || draft.status !== "ready") return false;
       await this.repository.updateNote(draft.notePath, { summary, detail, status: "idea" });
       const saved = await this.repository.readNote(draft.notePath);
-      if (saved.summary !== summary || saved.detail !== detail) throw new Error("The Searcher report did not match the Repository readback before Planner review.");
+      if (saved.summary !== managedSectionValue(summary) || saved.detail !== managedSectionValue(detail)) throw new Error("The Searcher report did not match the Repository readback before Planner review.");
       return true;
     });
   }
@@ -12389,7 +12415,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
       if (!node) throw new Error("MindSearch synthesis draft node is missing before finalization.");
       await this.repository.updateNote(draft.notePath, { title });
       const note = await this.repository.readNote(draft.notePath);
-      if (note.title !== title) throw new Error("MindSearch synthesis draft title did not match its Repository readback.");
+      if (note.title !== managedHeadingValue(title)) throw new Error("MindSearch synthesis draft title did not match its Repository readback.");
       draft.title = title;
       draft.kind = kind;
       node.mindSearchKind = kind;
@@ -12637,6 +12663,19 @@ ${attemptId}`;
 };
 __publicField(_MindSearchRunStore, "liveAttempts", /* @__PURE__ */ new Set());
 var MindSearchRunStore = _MindSearchRunStore;
+
+// experiences/mind-search/failure-hint.ts
+function mindSearchTimedOut(reason) {
+  return /超過.*分鐘|timed?\s*out|timeout|exceeded.*minutes/i.test(reason);
+}
+var SEARCH_FAILURE = /no web search succeeded|usable searched report|did not perform web search|search (?:was )?not performed|web search (?:is )?unavailable|沒有實際執行網路搜尋|未執行(?:網路)?搜尋|\bENOTFOUND\b|\bECONN(?:REFUSED|RESET)\b|\bEAI_AGAIN\b|network (?:error|unavailable)|網路連線/i;
+function mindSearchRepairHint(reason) {
+  if (mindSearchTimedOut(reason)) return "ui.mindsearch_repair_timeout_hint";
+  if (/auth|login|sign.in|登入|unauthorized|quota|rate.limit/i.test(reason)) return "ui.mindsearch_repair_auth_hint";
+  if (/format|schema|JSON|marker|格式|分類/i.test(reason)) return "ui.mindsearch_repair_format_hint";
+  if (SEARCH_FAILURE.test(reason)) return "ui.mindsearch_repair_search_hint";
+  return "ui.mindsearch_repair_retry_hint";
+}
 
 // experiences/visual-map/view.ts
 var VIEW_TYPE = "visual-agent-map-view";
@@ -14007,7 +14046,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian13.Ite
     }
   }
   renderMindSearchFailure(card, branch) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j;
+    var _a, _b, _c, _d, _e, _f, _g, _h;
     const runs = (_c = (_b = (_a = this.map) == null ? void 0 : _a.mindSearch) == null ? void 0 : _b.runs.filter((run) => run.branchId === branch.id)) != null ? _c : [];
     const latest = runs.at(-1), attempt = latest == null ? void 0 : latest.attempts.find((item) => item.id === latest.currentAttemptId);
     if ((attempt == null ? void 0 : attempt.status) !== "failed" && !branch.researchPlanError) return;
@@ -14024,10 +14063,9 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian13.Ite
       "delivery-acceptance": t("ui.mindsearch_stage_delivery-acceptance")
     };
     if (phase && labels[phase]) box.createEl("p", { text: t("ui.mindsearch_failure_stage", labels[phase]) });
-    const timedOut = /超過.*分鐘|timed?\s*out|timeout|exceeded.*minutes/i.test((_h = (_g = attempt == null ? void 0 : attempt.stopReason) != null ? _g : branch.researchPlanError) != null ? _h : "");
-    const reason = (_j = (_i = attempt == null ? void 0 : attempt.stopReason) != null ? _i : branch.researchPlanError) != null ? _j : "";
-    const remedy = timedOut ? "ui.mindsearch_repair_timeout_hint" : /auth|login|sign.in|登入|unauthorized|quota|rate.limit/i.test(reason) ? "ui.mindsearch_repair_auth_hint" : /format|schema|JSON|marker|格式|分類/i.test(reason) ? "ui.mindsearch_repair_format_hint" : /search|搜尋|網路|network/i.test(reason) ? "ui.mindsearch_repair_search_hint" : "ui.mindsearch_repair_retry_hint";
-    box.createEl("p", { text: t(remedy) });
+    const reason = (_h = (_g = attempt == null ? void 0 : attempt.stopReason) != null ? _g : branch.researchPlanError) != null ? _h : "";
+    const timedOut = mindSearchTimedOut(reason);
+    box.createEl("p", { text: t(mindSearchRepairHint(reason)) });
     if (timedOut) this.button(box, t("ui.mindsearch_repair_timeout"), () => {
       const terminal = [...branch.results].reverse().find((result) => result.kind !== "research");
       if (terminal) void this.continueMindSearchResearch(branch.questionNodeId, terminal.runId, 6e5);
@@ -18174,6 +18212,9 @@ var ShallowExpansionCoordinator = class {
   }
 };
 
+// ai/types.ts
+var SEARCH_STATUSES = ["completed", "failed", "not_attempted"];
+
 // response-schema.json
 var response_schema_default = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
@@ -18443,11 +18484,13 @@ ${context.task}`
       const isMindSearchGapAudit = context.responseContract === "mindsearch-gap-audit" && context.promptProfile === "mindsearch" && context.researchMode === "local";
       const isDeliveryAcceptance = context.responseContract === "mindsearch-delivery-acceptance" && context.promptProfile === "mindsearch" && context.researchMode === "local";
       const deliverySchema = { ...response_schema_default, properties: { ...response_schema_default.properties, summary: { type: "string", description: "A short plain-language preview. Never put machine-readable review markers here." }, detail: { type: "string", pattern: "^\\s*<!--\\s*mindsearch-review\\s+\\{[^\\r\\n]*\\}\\s*-->", description: "Begin with the COMPLETE first-line MindSearch review marker containing decision and rationale (and stopReason for conclude). Put the marker in detail only, followed by the acceptance explanation. Never split or truncate the marker." } } };
-      const schema = isMindSearchGapAudit ? mindsearch_gap_audit_schema_default : isDeliveryAcceptance ? deliverySchema : response_schema_default;
+      const isIsolatedWebResearch = context.mindSearchIsolatedResearch === true && context.researchMode !== "local";
+      const webResearchSchema = { ...response_schema_default, properties: { ...response_schema_default.properties, searchStatus: { type: "string", enum: [...SEARCH_STATUSES], description: "completed only when at least one web search or page fetch returned usable results for this task; failed when searching was attempted without usable results; not_attempted when no search ran." } }, required: [...response_schema_default.required, "searchStatus"] };
+      const schema = isMindSearchGapAudit ? mindsearch_gap_audit_schema_default : isDeliveryAcceptance ? deliverySchema : isIsolatedWebResearch ? webResearchSchema : response_schema_default;
       const raw = provider === "claude" ? await this.options.claudeRuntime(pluginDirectory).runTask(instructions, providerModelId(model), effort, schema, controls) : await this.options.codexRuntime(pluginDirectory, context.researchMode === "local").runTask(instructions, model, effort, schema, { ...controls, onWebSearchEvent });
       stage = "\u89E3\u6790 AI \u56DE\u8986";
       if (this.options.exchangeLoggingEnabled()) exchanges == null ? void 0 : exchanges.received(exchangeId, raw);
-      const result = this.parseAiResult(raw, provider === "claude" ? "Claude Code" : "Codex App Server", outputLanguage, isMindSearchGapAudit);
+      const result = this.parseAiResult(raw, provider === "claude" ? "Claude Code" : "Codex App Server", outputLanguage, isMindSearchGapAudit, isIsolatedWebResearch);
       if (referenceGroups.length) {
         result.summary = resolveReferenceLinks(result.summary, referenceGroups);
         result.detail = resolveReferenceLinks(result.detail, referenceGroups);
@@ -18499,7 +18542,7 @@ ${value}`).join("\n\n");
       working = findings;
     }
   }
-  parseAiResult(raw, label, language2, strictGapAudit = false) {
+  parseAiResult(raw, label, language2, strictGapAudit = false, webResearch = false) {
     const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
     const parsed = JSON.parse(extractJsonObject(cleaned));
     if (typeof parsed.summary !== "string" || typeof parsed.detail !== "string") throw new Error(`${label} \u6C92\u6709\u56DE\u50B3 summary \u8207 detail`);
@@ -18521,11 +18564,13 @@ ${value}`).join("\n\n");
       palette: Array.isArray(item.palette) ? item.palette.map(String).map((color) => color.trim()).filter(Boolean).slice(0, 8) : [],
       formula: typeof item.formula === "string" ? item.formula.trim() : ""
     })).filter((item) => /^https?:\/\//i.test(item.imageUrl) && /^https?:\/\//i.test(item.sourceUrl)).slice(0, 6) : [];
+    const searchStatus = webResearch && SEARCH_STATUSES.includes(parsed.searchStatus) ? parsed.searchStatus : void 0;
     return {
-      summary: Array.from(parsed.summary.trim()).slice(0, 80).join(""),
+      summary: truncateSummary(parsed.summary),
       detail: parsed.detail.trim(),
       suggestions,
-      visualReferences
+      visualReferences,
+      ...searchStatus ? { searchStatus } : {}
     };
   }
 };

@@ -7538,3 +7538,71 @@ integrationTest('MindSearch final acceptance pins the complete review marker to 
     assert.equal(result.summary, 'Ready');
   }
 });
+test('summary truncation never leaves trailing whitespace and prefers a sentence boundary', () => {
+  const { truncateSummary } = load('ai/result-utils.ts');
+  const spaced = truncateSummary(`${'a'.repeat(79)} tail that continues past the limit`);
+  assert.equal(spaced, spaced.trimEnd()); assert.ok(Array.from(spaced).length <= 80);
+  const observed = truncateSummary('三個來源大致一致，公開版為 1.14.4（2026-10-05）；但 changelog 公開條目標為「1.14」，需注意 Catalyst 1.14.4 於 10/1 先行，且尚有標示差異。');
+  assert.equal(observed, observed.trimEnd()); assert.ok(Array.from(observed).length <= 80); assert.match(observed, /…$/);
+  assert.equal(truncateSummary(`${'第一句完整結論'.repeat(7)}。${'後續補充說明'.repeat(15)}`), `${'第一句完整結論'.repeat(7)}。`);
+  assert.equal(truncateSummary('  Short.  '), 'Short.');
+  assert.equal(Array.from(truncateSummary('字'.repeat(200))).length, 80);
+});
+test('search failure detection uses the structured status and still honours legacy wording', () => {
+  const { reportedSearchFailure } = load('ai/result-utils.ts');
+  assert.equal(reportedSearchFailure({ summary: '摘要', detail: '研究狀態：未搜尋', searchStatus: 'not_attempted' }), true);
+  assert.equal(reportedSearchFailure({ summary: 's', detail: 'Findings https://example.org', searchStatus: 'failed' }), true);
+  assert.equal(reportedSearchFailure({ summary: 's', detail: 'Findings https://example.org', searchStatus: 'completed' }), false);
+  assert.equal(reportedSearchFailure({ summary: 's', detail: 'Research status: not searched' }), true);
+  assert.equal(reportedSearchFailure({ summary: 's', detail: 'Research status: search completed' }), false);
+});
+test('MindSearch repair hint does not treat Searcher readback errors as search failures', () => {
+  const { mindSearchRepairHint } = load('experiences/mind-search/failure-hint.ts');
+  assert.equal(mindSearchRepairHint('The Searcher report did not match the Repository readback before Planner review.'), 'ui.mindsearch_repair_retry_hint');
+  assert.equal(mindSearchRepairHint('The Agent explicitly says no web search succeeded; the report remains an unpublished diagnostic.'), 'ui.mindsearch_repair_search_hint');
+  assert.equal(mindSearchRepairHint('The targeted follow-up did not produce a usable searched report; the attempt remains incomplete.'), 'ui.mindsearch_repair_search_hint');
+  assert.equal(mindSearchRepairHint('The provider did not perform web search. No researched result is available; check model/tool availability.'), 'ui.mindsearch_repair_search_hint');
+  assert.equal(mindSearchRepairHint('AI 服務沒有實際執行網路搜尋，無法提供已查證結果；請確認模型與工具可用性。'), 'ui.mindsearch_repair_search_hint');
+  assert.equal(mindSearchRepairHint('getaddrinfo ENOTFOUND api.anthropic.com'), 'ui.mindsearch_repair_search_hint');
+  assert.equal(mindSearchRepairHint('The AI task exceeded 3 minutes; VAM attempts to interrupt it.'), 'ui.mindsearch_repair_timeout_hint');
+  assert.equal(mindSearchRepairHint('Not logged in · Please run /login'), 'ui.mindsearch_repair_auth_hint');
+  assert.equal(mindSearchRepairHint('Planner returned invalid JSON for the research plan.'), 'ui.mindsearch_repair_format_hint');
+  assert.equal(mindSearchRepairHint(''), 'ui.mindsearch_repair_retry_hint');
+});
+integrationTest('isolated web research requests a structured search status and returns a trimmed summary', async () => {
+  const { default: Plugin } = load('main.ts', { obsidian });
+  const plugin = new Plugin(); plugin.app = { vault: { adapter: new obsidian.FileSystemAdapter() } }; plugin.manifest = { dir: '.obsidian/plugins/visual-agent-map' };
+  let call;
+  plugin.claudeCli = () => ({ runTask: async (...args) => { call = args; return JSON.stringify({ summary: `${'a'.repeat(79)} trailing words beyond the limit`, detail: 'Detail', suggestions: [], visualReferences: [], searchStatus: 'not_attempted' }); } });
+  plugin.runtime = () => { assert.fail('Claude selection must not fall back to Codex'); };
+  const result = await plugin.askModel({ title: 'MindSearch', summary: '', rules: '', detail: '', task: 'Search', ancestors: '', mode: 'task', researchMode: 'research', researchDepth: 'normal', visualMode: 'off', mindSearchIsolatedResearch: true }, 'claude:sonnet', 'low');
+  assert.ok(call[3].required.includes('searchStatus'));
+  assert.deepEqual(plain(call[3].properties.searchStatus.enum), ['completed', 'failed', 'not_attempted']);
+  assert.equal(result.searchStatus, 'not_attempted');
+  assert.equal(result.summary, result.summary.trimEnd()); assert.ok(Array.from(result.summary).length <= 80);
+  let localCall;
+  plugin.claudeCli = () => ({ runTask: async (...args) => { localCall = args; return JSON.stringify({ summary: 'Local', detail: 'Local detail', suggestions: [], visualReferences: [] }); } });
+  const local = await plugin.askModel({ title: 'Topic', summary: '', rules: '', detail: '', task: 'Plan', ancestors: '', mode: 'task', researchMode: 'local', visualMode: 'off', mindSearchIsolatedResearch: true }, 'claude:sonnet', 'low');
+  assert.equal(localCall[3].required.includes('searchStatus'), false);
+  assert.equal('searchStatus' in local, false);
+});
+integrationTest('result draft readback accepts the Repository whitespace normalization', async () => {
+  const { repo } = fixture('en');
+  const { createMindSearchMap } = load('experiences/mind-search/create-map.ts');
+  const { MindSearchRunStore } = load('mindsearch-mve/research-run-store.ts');
+  const created = await createMindSearchMap(repo, 'gpt-6-luna', { requestId: 'readback-normalization-map', topic: 'Readback normalization', context: 'Synthetic.' });
+  const store = new MindSearchRunStore(repo);
+  const mapDoc = await repo.readMap(created.mapPath);
+  const question = await repo.createNote('Readback question', 'gpt-6-luna', mapDoc, created.mapPath, 'workspace');
+  question.mindSearchKind = 'question';
+  question.mindSearchQuestion = { requestId: 'readback-question', parentBranchId: null, options: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }], allowMultiple: false, allowFreeText: false };
+  mapDoc.nodes.push(question); await repo.saveMap(created.mapPath, mapDoc);
+  const branch = await store.createAnswerBranch(created.mapPath, { requestId: 'readback-answer', questionNodeId: question.id, parentBranchId: null, answerSnapshot: { selections: ['a'], freeText: '' }, inputSnapshot: { topic: mapDoc.title, conditions: {}, upstreamResults: [] } });
+  const attempt = await store.startAttempt(created.mapPath, branch.id, 'readback-run');
+  const draft = (await store.createResultDraft(created.mapPath, attempt, 'Readback draft', 'gpt-6-luna', undefined, { kind: 'research' })).draft;
+  assert.equal(await store.updateResultDraftReport(created.mapPath, attempt, draft.id, `${'a'.repeat(79)} `, '\nResearch status: search completed\nDetail with surrounding whitespace.\n\n'), true);
+  const saved = await repo.readNote(draft.notePath);
+  assert.equal(saved.summary, 'a'.repeat(79));
+  assert.equal(saved.detail, 'Research status: search completed\nDetail with surrounding whitespace.');
+  assert.equal(await store.updateResultDraftPresentation(created.mapPath, attempt, draft.id, ' Final synthesis title ', 'synthesis'), true);
+});

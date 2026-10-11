@@ -48,6 +48,9 @@ export interface TaskContext {
   researchDepth?: ResearchDepth;
   visualMode?: VisualMode;
 }
-export interface AiResult { summary: string; detail: string; suggestions: Suggestion[]; visualReferences: VisualReference[] }
+export type SearchStatus = "completed" | "failed" | "not_attempted";
+export const SEARCH_STATUSES: readonly SearchStatus[] = ["completed", "failed", "not_attempted"];
+/** searchStatus is present only for isolated web-research tasks, whose schema requires it. */
+export interface AiResult { summary: string; detail: string; suggestions: Suggestion[]; visualReferences: VisualReference[]; searchStatus?: SearchStatus }
 export interface AiRunMetrics { provider: string; model: string; mode: AiTaskKind | "task"; estimatedInputTokens: number; contextBreakdown: Record<string, number>; contextBuildMs: number; providerMs?: number; totalMs?: number; sessionStrategy: string }
 export interface PreparedTaskContext { context: TaskContext; metrics: AiRunMetrics }
