@@ -118,8 +118,10 @@ export function extractPlannerQuestionCandidate(result: Pick<AiResult, "detail" 
   // a summary can be rhetorical, so only use it as a last-resort direct question.
   const body = marked?.body ?? result.detail;
   const lines = body.split(/\r?\n/).map(line => line.trim());
-  const labeledQuestion = lines.find(line => /^(?:question|問題)\s*[:：]\s*.+[?？]\s*$/i.test(line));
-  if (labeledQuestion) return labeledQuestion.replace(/^(?:question|問題)\s*[:：]\s*/i, "").trim();
+  // The label may be emphasised ("**問題：**…"); the emphasis is formatting, not part of the question.
+  const label = /^(?:\*\*|__)?(?:question|問題)\s*[:：]\s*(?:\*\*|__)?\s*/i;
+  const labeledQuestion = lines.find(line => label.test(line) && /[?？]\s*$/.test(line.replace(label, "")));
+  if (labeledQuestion) return labeledQuestion.replace(label, "").trim();
   const bodyQuestion = lines.map(line => line.replace(/^(?:[-*•]|\d+[.)、])\s+/, ""))
     .find(candidate => candidate && candidate.length <= 500 && /[?？]\s*$/.test(candidate));
   if (bodyQuestion) return bodyQuestion;
@@ -160,16 +162,37 @@ export async function parseMindSearchPlannerReviewWithRecovery(
       if (context.requiredDecision !== "ask_user") {
         throw new Error(`Format recovery does not support an imposed ${context.requiredDecision} decision.`);
       }
-      const question = context.preferredQuestion?.trim() || originalQuestion;
-      if (!question) throw new Error("Planner format repair cannot invent a question that was absent from the original response.");
+      let question = context.preferredQuestion?.trim() || originalQuestion;
       const preservedBody = originalMarker?.body ?? original.detail.replace(/^\s*<!--\s*mindsearch-review\s+[^\n]*?-->\s*/, "").trim();
-      const existingOptions = [...new Set(original.suggestions.map(item => item.title.trim()).filter(Boolean))];
+      let stated: AiResult | undefined;
+      if (!question) {
+        // The response chose to clarify but phrased it without a written question (for example as an
+        // instruction). The model, not VAM, must author the question, so ask it once to state it.
+        const task = [
+          "Complete the format of this already-required ask_user Planner response. The workflow has imposed decision=ask_user; you have no authority to reconsider the decision or research evidence.",
+          "The response below asks for a clarification but never writes the question itself. State the one clarification question you intended, phrased as a direct question, in aim.question, and return 2–5 distinct answer choices in aim.answerOptions. Do not change the summary or answer body, add facts, search, or reinterpret evidence.",
+          `Required decision: ${context.requiredDecision}`,
+          `Required rationale: ${context.requiredDecisionRationale ?? "The workflow requires a clarification question at this step."}`,
+          `Original summary (preserve): ${originalSummary}`,
+          `Original response body (preserve; not research evidence):\n${preservedBody}`,
+          `Original suggestions: ${JSON.stringify(original.suggestions)}`,
+          `Format validation error: ${formatError instanceof Error ? formatError.message : String(formatError)}`,
+          "Return decision ask_user with the required rationale in aim.rationale and the clarification question you intended in aim.question."
+        ].join("\n\n");
+        stated = await recover(task);
+        const statedMarker = readMarker(stated.detail);
+        question = statedMarker?.raw.decision === "ask_user" && typeof statedMarker.raw.question === "string" ? statedMarker.raw.question.trim() : "";
+      }
+      if (!question) throw new Error("Planner format repair cannot invent a question that was absent from the original response.");
+      const statedOptions = [...new Set((stated?.suggestions ?? []).map(item => item.title.trim()).filter(Boolean))];
+      const originalOptions = [...new Set(original.suggestions.map(item => item.title.trim()).filter(Boolean))];
+      const existingOptions = statedOptions.length >= 2 && statedOptions.length <= 5 ? statedOptions : originalOptions;
       const explicitOptions = extractExplicitOptions(preservedBody, question);
       let answerOptions = existingOptions.length >= 2 && existingOptions.length <= 5 ? existingOptions : explicitOptions;
       if (answerOptions.length < 2 || answerOptions.length > 5) {
         const task = [
           "Complete the format of this already-required ask_user Planner response. The workflow has imposed decision=ask_user; you have no authority to reconsider the decision or research evidence.",
-          "Preserve the exact original question below. Return 2–5 distinct answer choices in suggestions[].title. Do not change the summary or answer body, infer a new question, add facts, search, or reinterpret evidence. If the original question cannot be formatted, repeat it exactly in the decision marker.",
+          "Preserve the exact original question below. Return 2–5 distinct answer choices in aim.answerOptions. Do not change the summary or answer body, infer a new question, add facts, search, or reinterpret evidence. Repeat the original question exactly in aim.question.",
           `Required decision: ${context.requiredDecision}`,
           `Required rationale: ${context.requiredDecisionRationale ?? "The workflow requires a clarification question at this step."}`,
           `Exact original question to preserve: ${question}`,
@@ -177,7 +200,7 @@ export async function parseMindSearchPlannerReviewWithRecovery(
           `Original response body (preserve; not research evidence):\n${preservedBody}`,
           `Original suggestions: ${JSON.stringify(original.suggestions)}`,
           `Format validation error: ${formatError instanceof Error ? formatError.message : String(formatError)}`,
-          'Return the ordinary VAM structured response with this exact decision marker: <!-- mindsearch-review {"decision":"ask_user","rationale":"required rationale","question":"exact original question"} -->.'
+          "Return decision ask_user with the required rationale in aim.rationale and the exact original question in aim.question."
         ].join("\n\n");
         const repaired = await recover(task);
         const repairedMarker = readMarker(repaired.detail);
@@ -214,7 +237,7 @@ export async function parseMindSearchPlannerReviewWithRecovery(
 
       const task = [
         "Repair only the missing answer choices in this already valid ask_user Planner decision.",
-        "Keep decision=ask_user. Do not change the question, rationale, summary, answer body, or any evidence. Return the ordinary VAM structured response with the same decision marker and 2–5 distinct choices in suggestions[].title. Do not infer choices from prose or add facts.",
+        "Keep decision=ask_user. Do not change the question, rationale, summary, answer body, or any evidence. Return decision ask_user with the original question in aim.question and 2–5 distinct choices in aim.answerOptions. Do not infer choices from prose or add facts.",
         `Original question: ${originalQuestion}`,
         `Original rationale: ${originalRationale}`,
         `Original summary: ${originalSummary}`,
@@ -245,8 +268,8 @@ export async function parseMindSearchPlannerReviewWithRecovery(
         ? `Repair only the malformed fields in the original ${preserveDecision} decision. Preserve that decision and every valid original field; do not switch to another decision.`
         : "Make one local format-repair review using only the same saved report and answer snapshot below. Do not search, repeat research, add evidence, or invent facts. The original decision marker is unusable, so determine a decision from the supplied evidence; do not claim the original decision is known.",
       "Do not search, repeat research, add evidence, or invent facts. Do not default to any decision merely to repair the format.",
-      "Return the ordinary VAM structured response with a useful conditional answer in summary/detail and exactly one valid decision marker as the first line of detail: <!-- mindsearch-review {\"decision\":\"research_more|ask_user|conclude\",\"rationale\":\"evidence-based reason\",\"stopReason\":\"why research stops, for conclude only\",\"question\":\"user question, for ask_user only\"} -->. Use valid single-line JSON and only fields needed for the selected decision.",
-      "For research_more, provide exactly one targeted suggestion with title, search task, and expected uncertainty reduction. For ask_user, provide 2–5 distinct choices in suggestions[].title. For conclude, include a stopReason. Preserve supplied values and provenance; never answer for the user or ask whether synthetic test data is real. Keep source claims, inference, uncertainty, and limits distinct.",
+      "Return a useful conditional answer in summary/detail and the decision in the aim fields with an evidence-based aim.rationale.",
+      "For research_more, provide exactly one aim.researchTarget with title, search task, and expected uncertainty reduction. For ask_user, provide one direct aim.question and 2–5 distinct choices in aim.answerOptions. For conclude, include aim.stopReason. Preserve supplied values and provenance; never answer for the user or ask whether synthetic test data is real. Keep source claims, inference, uncertainty, and limits distinct.",
       `Format validation error: ${formatError instanceof Error ? formatError.message : String(formatError)}`,
       ...(preserveDecision ? [] : [
         `Original question: ${context.question}`,

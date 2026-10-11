@@ -12,3 +12,5 @@ export function evidenceCard(id: string, summary: string, detail: string): strin
 }
 
 export const EVIDENCE_LOOKUP_RULE = 'Evidence cards are incomplete indexes, not full verified reports. Do not infer a missing fact is absent from the report. If a decision or claim depends on omitted detail, return only <!-- mindsearch-evidence-request {"ids":["exact evidence ID"]} --> in detail, with a short summary and empty suggestions. Up to 3 indexed reports can be loaded in one bounded lookup; do not invent IDs. Do not conclude from a card when decisive evidence is missing.';
+/** Same lookup rule for phases whose response schema carries aim.evidenceRequestIds. */
+export const EVIDENCE_LOOKUP_FIELD_RULE = 'Evidence cards are incomplete indexes, not full verified reports. Do not infer a missing fact is absent from the report. If a decision or claim depends on omitted detail, put the exact evidence IDs in aim.evidenceRequestIds (up to 3) with a short summary; the full reports are then loaded once and you answer again. Otherwise leave aim.evidenceRequestIds empty. Do not invent IDs. Do not conclude from a card when decisive evidence is missing.';

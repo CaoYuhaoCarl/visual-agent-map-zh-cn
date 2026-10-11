@@ -4898,6 +4898,30 @@ integrationTest('opening a web page does not consume the search query budget', a
     assert.equal(sent.filter(message => message.method === 'turn/steer').length, 0);
   } finally { runtime.stop(); }
 });
+integrationTest('a web-search-only turn accepts a directly opened page but rejects a turn with no web retrieval', async () => {
+  const run = async items => {
+    const { EventEmitter } = require('node:events');
+    const child = new EventEmitter(); child.stdout = new EventEmitter(); child.stderr = new EventEmitter(); child.kill = () => {};
+    const emit = message => process.nextTick(() => child.stdout.emit('data', Buffer.from(`${JSON.stringify(message)}\n`)));
+    child.stdin = { write: line => {
+      const message = JSON.parse(line.trim());
+      if (message.method === 'initialize') emit({ id: message.id, result: {} });
+      else if (message.method === 'config/read') emit({ id: message.id, result: { config: {} } });
+      else if (message.method === 'thread/start') emit({ id: message.id, result: { thread: { id: 'thread-1' } } });
+      else if (message.method === 'turn/start') {
+        emit({ id: message.id, result: { turn: { id: 'turn-1' } } });
+        for (const item of items) emit({ method: 'item/completed', params: { threadId: 'thread-1', item } });
+        emit({ method: 'item/completed', params: { threadId: 'thread-1', item: { type: 'agentMessage', text: 'answer' } } });
+        emit({ method: 'turn/completed', params: { threadId: 'thread-1', turn: { status: 'completed' } } });
+      } else if (message.method === 'thread/unsubscribe') emit({ id: message.id, result: {} });
+    } };
+    const { CodexAppServerRuntime } = load('ai/runtime/codex-app-server.ts', { 'node:child_process': { spawn: () => child } });
+    const runtime = new CodexAppServerRuntime({ executable: 'codex', cwd: '/plugin', env: {}, clientVersion: 'test' });
+    try { return await runtime.runTask('research', 'model', 'low', {}, { webSearchOnly: true }); } finally { runtime.stop(); }
+  };
+  assert.equal(await run([{ id: 'open-1', type: 'webSearch', action: { type: 'openPage', url: 'https://obsidian.md/changelog/' } }]), 'answer');
+  await assert.rejects(run([]), /did not perform web search|沒有實際執行網路搜尋/);
+});
 integrationTest('cancelling a Codex turn sends interrupt and rejects the result', async () => {
   const { EventEmitter } = require('node:events'); const sent = [], timerDelays = [];
   const child = new EventEmitter(); child.stdout = new EventEmitter(); child.stderr = new EventEmitter(); child.kill = () => {};

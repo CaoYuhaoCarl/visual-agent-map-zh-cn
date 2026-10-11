@@ -44,7 +44,7 @@ interface RpcNotification { method: string; params?: unknown }
 interface RpcServerRequest { id: number | string; method: string; params?: unknown }
 interface PendingRequest { resolve: (value: unknown) => void; reject: (error: Error) => void; timeout: number }
 export interface CodexWebSearchEvent { method: "item/started" | "item/completed"; params: unknown }
-interface TurnState { messages: string[]; visibleMessages: Map<string, string>; resolve: (text: string) => void; reject: (error: Error) => void; timeout: number; turnId: string; searches: number; countedSearchIds: Set<string>; requireSearch?: boolean; searchBudget: number; steered: boolean; streamItem?: string; streamText?: string; onRequest?: (request: unknown) => void; onText?: (text: string) => void; onWebSearchEvent?: (event: CodexWebSearchEvent) => void }
+interface TurnState { messages: string[]; visibleMessages: Map<string, string>; resolve: (text: string) => void; reject: (error: Error) => void; timeout: number; turnId: string; searches: number; countedSearchIds: Set<string>; webRetrievals: Set<string>; requireSearch?: boolean; searchBudget: number; steered: boolean; streamItem?: string; streamText?: string; onRequest?: (request: unknown) => void; onText?: (text: string) => void; onWebSearchEvent?: (event: CodexWebSearchEvent) => void }
 
 const CONTROL_TIMEOUT_MS = 30_000;
 const TURN_TIMEOUT_MS = 3 * 60 * 1000;
@@ -155,7 +155,7 @@ export class CodexAppServerRuntime {
         interrupt(5_000, "逾時後無法停止 AI 任務");
         reject(new Error(controls?.timeoutMessage ?? (controls?.timeoutMs ? "Coffee Tables: generation timed out; received text is saved as a draft." : t("ui.the_ai_task_exceeded_3_minutes_vam_attempts_to_interrupt_it"))));
       }, controls?.timeoutMs ?? TURN_TIMEOUT_MS);
-      this.turns.set(threadId, { messages: [], visibleMessages: new Map(), resolve, reject, timeout, turnId: "", searches: 0, countedSearchIds: new Set(), requireSearch: controls?.webSearchOnly === true, searchBudget: controls?.searchBudget ?? 0, steered: false, onRequest: controls?.onRequest, onText: controls?.onText, onWebSearchEvent: controls?.onWebSearchEvent });
+      this.turns.set(threadId, { messages: [], visibleMessages: new Map(), resolve, reject, timeout, turnId: "", searches: 0, countedSearchIds: new Set(), webRetrievals: new Set(), requireSearch: controls?.webSearchOnly === true, searchBudget: controls?.searchBudget ?? 0, steered: false, onRequest: controls?.onRequest, onText: controls?.onText, onWebSearchEvent: controls?.onWebSearchEvent });
     });
     const state = this.turns.get(threadId)!;
     void completed.catch(() => undefined);
@@ -276,6 +276,8 @@ export class CodexAppServerRuntime {
     if (message.method === "item/completed") {
       const item = params?.item as { type?: unknown; text?: unknown; id?: unknown; action?: { type?: unknown } } | undefined;
       if (item?.type === "webSearch") this.forwardWebSearchEvent(state, message.method, params);
+      // Opening or searching within a page is live web retrieval too; only queries count toward the search budget.
+      if (item?.type === "webSearch") state.webRetrievals.add(typeof item.id === "string" ? item.id : `web-${state.webRetrievals.size}`);
       if (item?.type === "webSearch" && item.action?.type === "search") {
         const id = typeof item.id === "string" ? item.id : undefined;
         if (!id || !state.countedSearchIds.has(id)) {
@@ -291,7 +293,7 @@ export class CodexAppServerRuntime {
       const turn = params?.turn as { status?: unknown; error?: { message?: unknown } | null } | undefined;
       window.clearTimeout(state.timeout);
       this.turns.delete(threadId);
-      if (turn?.status === "completed" && state.requireSearch && !state.searches) state.reject(new Error(t("ui.context_ai_search_not_performed")));
+      if (turn?.status === "completed" && state.requireSearch && !state.webRetrievals.size) state.reject(new Error(t("ui.context_ai_search_not_performed")));
       else if (turn?.status === "completed") state.resolve(state.onText ? [...state.visibleMessages.values()].join("\n\n").trim() || state.messages.at(-1)?.trim() || "" : state.messages.at(-1)?.trim() || "");
       else state.reject(new Error(typeof turn?.error?.message === "string" ? turn.error.message : t("ui.codex_turn_0", typeof turn?.status === "string" ? turn.status : t("ui.failed"))));
     }

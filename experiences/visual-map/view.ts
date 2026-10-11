@@ -962,7 +962,11 @@ export class VisualAgentMapView extends ItemView {
       if (!this.mindSearchViewIsCurrent(epoch, mapPath) || this.mindSearchController !== controller) return;
       const latest = await this.plugin.repo.readMap(mapPath);
       if (this.mindSearchViewIsCurrent(epoch, mapPath)) { this.map = latest; await this.hydrate(() => this.mindSearchViewIsCurrent(epoch, mapPath)); this.render(); this.syncOutline(); }
-      if (result.status === "waiting-user") new Notice(t("ui.mindsearch_waiting_user"));
+      if (result.status === "waiting-user") {
+        const question = this.map?.nodes.find(item => item.id === result.questionNodeId);
+        if (question) { this.selected = question.id; this.render(); this.focusNode(question); }
+        new Notice(t("ui.mindsearch_waiting_user"));
+      }
       else if (result.status === "partial") new Notice(t("ui.mindsearch_research_partial"));
       else if (result.status === "completed") new Notice(t("ui.mindsearch_research_saved"));
       else if (result.status === "in-progress") new Notice(t("ui.mindsearch_research_already_running"));
@@ -1082,7 +1086,8 @@ export class VisualAgentMapView extends ItemView {
       if (timeoutMs && branch) await this.plugin.mutate(() => this.mindSearchRuns.configureRetryTimeout(mapPath, branch.id, timeoutMs));
       const result = await this.mindSearchManual.continuePartial(mapPath, runId, undefined, undefined, controller.signal);
       if (!isCurrent()) return;
-      if (result.status === "waiting-user") new Notice(t("ui.mindsearch_waiting_user"));
+      // Select the new question so the toolbar answers it, not the previously selected one; the finally block re-renders after reloading the map.
+      if (result.status === "waiting-user") { this.selected = result.questionNodeId; new Notice(t("ui.mindsearch_waiting_user")); }
       else if (result.status === "partial") new Notice(t("ui.mindsearch_research_partial"));
       else if (result.status === "completed") new Notice(t("ui.mindsearch_research_saved"));
       else if (result.status === "in-progress") new Notice(t("ui.mindsearch_research_already_running"));
@@ -1694,10 +1699,18 @@ export class VisualAgentMapView extends ItemView {
       attribution.createEl("a", { text: t("ui.mindsearch_source_project"), href: "https://github.com/InternLM/MindSearch", attr: { target: "_blank", rel: "noopener noreferrer" } });
       attribution.createEl("a", { text: t("ui.mindsearch_source_paper"), href: "https://arxiv.org/abs/2407.20183", attr: { target: "_blank", rel: "noopener noreferrer" } });
     }
-    if (!this.builtIn && this.map?.mindSearch && selectedNode?.mindSearchKind === "question" && selectedNode.mindSearchQuestion) {
-      const actions = toolbar.createDiv("vam-mindsearch-actions");
-      this.button(actions, t("ui.mindsearch_answer_question"), () => this.openMindSearchAnswer(selectedNode), this.mindSearchBusy);
-      if (this.mindSearchFailedReports.has(selectedNode.id)) this.button(actions, t("ui.mindsearch_retry_saved_report"), () => { void this.retryMindSearchFromSavedReport(selectedNode.id); }, this.mindSearchBusy);
+    if (!this.builtIn && this.map?.mindSearch) {
+      const data = this.map.mindSearch;
+      const isAnswered = (node: MapNode) => data.branches.some(branch => branch.questionNodeId === node.id);
+      const pending = this.map.nodes.find(node => node.mindSearchKind === "question" && node.mindSearchQuestion && !isAnswered(node));
+      const selectedQuestion = selectedNode?.mindSearchKind === "question" && selectedNode.mindSearchQuestion ? selectedNode : undefined;
+      if (selectedQuestion || pending) {
+        const actions = toolbar.createDiv("vam-mindsearch-actions");
+        // Answering an already answered question opens an alternative branch; label it so it is never mistaken for the pending question.
+        if (pending && pending.id !== selectedQuestion?.id) this.button(actions, t("ui.mindsearch_answer_pending_question"), () => { this.selected = pending.id; this.render(); this.focusNode(pending); this.openMindSearchAnswer(pending); }, this.mindSearchBusy);
+        if (selectedQuestion) this.button(actions, t(isAnswered(selectedQuestion) ? "ui.mindsearch_answer_again_new_branch" : "ui.mindsearch_answer_question"), () => this.openMindSearchAnswer(selectedQuestion), this.mindSearchBusy);
+        if (selectedQuestion && this.mindSearchFailedReports.has(selectedQuestion.id)) this.button(actions, t("ui.mindsearch_retry_saved_report"), () => { void this.retryMindSearchFromSavedReport(selectedQuestion.id); }, this.mindSearchBusy);
+      }
     }
     if (!this.map && (this.history.canUndo || this.history.canRedo)) {
       const undo = this.button(toolbar, t("ui.undo"), () => this.enqueue(() => this.travel(false)), !this.history.canUndo); undo.dataset.history = "undo";

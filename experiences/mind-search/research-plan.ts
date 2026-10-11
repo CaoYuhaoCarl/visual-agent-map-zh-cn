@@ -7,6 +7,14 @@ export function researchContentHash(report: { summary: string; detail: string })
   return createHash("sha256").update(JSON.stringify({ summary: report.summary, detail: report.detail })).digest("hex");
 }
 
+/** Planners sometimes nest validity inside source; move it to the target so the exact source keeps only its identity fields. */
+function hoistNestedValidity(item: MindSearchResearchTarget): MindSearchResearchTarget {
+  const nested = (item.source as { validity?: unknown } | undefined)?.validity;
+  if (item.validity !== undefined || !nested || typeof nested !== "object") return item;
+  const { validity: _validity, ...source } = item.source as NonNullable<MindSearchResearchTarget["source"]> & { validity?: unknown };
+  return { ...item, source, validity: nested as MindSearchResearchTarget["validity"] };
+}
+
 /** Legacy targets remain valid; explicit dependency metadata opts into bounded parallel work. */
 export function validateMindSearchResearchPlan(subtopics: unknown): MindSearchResearchPlan {
   if (!Array.isArray(subtopics) || subtopics.length > 5 || subtopics.some((item: unknown) => {
@@ -14,7 +22,7 @@ export function validateMindSearchResearchPlan(subtopics: unknown): MindSearchRe
     const fields = item as Record<string, unknown>;
     return ["id", "title", "task", "expectedValue"].some(key => typeof fields[key] !== "string" || !fields[key].trim());
   })) throw new Error("Planner must return 0–5 valid research subtopics before the answer can proceed.");
-  const plan = subtopics as MindSearchResearchPlan;
+  const plan = (subtopics as MindSearchResearchPlan).map(hoistNestedValidity);
   const ids = new Set(plan.map(item => item.id));
   if (ids.size !== plan.length || new Set(plan.map(item => item.title.trim().toLowerCase())).size !== plan.length) throw new Error("Planner research subtopics must have unique ids and titles.");
   for (const item of plan) {

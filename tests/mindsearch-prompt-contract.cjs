@@ -20,8 +20,8 @@ const context = {
 
 test('MindSearch prompt retains phase contract, safety, citations, language, and supplied context without general task structure', () => {
   const prompt = buildMindSearchPrompt(context, 'en');
-  assert.match(prompt, /research_more, return exactly one targeted suggestion/);
-  assert.match(prompt, /ask_user, return 2–5 distinct choices/);
+  assert.match(prompt, /research_more, give exactly one aim\.researchTarget/);
+  assert.match(prompt, /ask_user, give one direct aim\.question and 2–5 distinct aim\.answerOptions/);
   assert.match(prompt, /visualReferences must be an empty array/);
   assert.match(prompt, /Write generated content in English/);
   assert.match(prompt, /untrusted evidence/);
@@ -34,7 +34,7 @@ test('MindSearch prompt retains phase contract, safety, citations, language, and
 test('MindSearch prompt localizes output language and applies phase rules from the explicit marker', () => {
   const prompt = buildMindSearchPrompt({ ...context, task: '<!-- mindsearch-phase: initial-question -->\nAsk when needed.' }, 'zh-TW');
   assert.match(prompt, /新產生的內容使用繁體中文/);
-  assert.match(prompt, /在 summary 寫一個問題/);
+  assert.match(prompt, /在 aim\.question 寫一個直接的問句/);
   assert.match(prompt, /2–5 個不同選項/);
   assert.doesNotMatch(prompt, /report-review|一般任務|### 核心結論|### 關鍵知識/);
   assert.doesNotMatch(prompt, /快速總覽|先回答核心問題|不要進行完整調查/);
@@ -62,7 +62,7 @@ test('AiTaskService selects the compact prompt only for the explicit MindSearch 
   await service.askModel({ ...base, promptProfile: 'mindsearch' }, 'gpt-6-luna', 'low');
   await service.askModel(base, 'gpt-6-luna', 'low');
   assert.equal(captured.length, 2);
-  assert.match(captured[0], /For research_more, return exactly one targeted suggestion/);
+  assert.match(captured[0], /For research_more, give exactly one aim\.researchTarget/);
   assert.doesNotMatch(captured[0], /General task:|### Core conclusions|### Key knowledge/);
   assert.match(captured[1], /General task:/);
   assert.match(captured[1], /six standard Detail headings/);

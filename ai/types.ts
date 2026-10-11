@@ -1,3 +1,4 @@
+import type { MindSearchContract } from "./mindsearch-contracts";
 import type { UiLanguage } from "../i18n";
 import type { ReferenceGroup } from "./reference-materials";
 
@@ -38,6 +39,10 @@ export interface TaskContext {
   promptProfile?: PromptProfile;
   /** Selects a narrow trusted response schema for the MindSearch gap audit only. */
   responseContract?: AiResponseContract;
+  /** Provider-enforced AIM control payload for this phase; folded back into the canonical marker form. */
+  mindSearchContract?: MindSearchContract;
+  /** Lets the AIM payload request full evidence reports by ID (trusted workflow flag; never serialized). */
+  mindSearchEvidenceLookup?: boolean;
   /** Trusted workflow lookup allowlist for MindSearch evidence retrieval; never serialize into prompts. */
   mindSearchEvidenceIds?: readonly string[];
   /** Isolate independent research to supplied context and web tools. */
