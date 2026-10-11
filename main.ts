@@ -3,7 +3,8 @@ import { CoffeeTablesView, COFFEE_TABLES_VIEW_TYPE, COFFEE_TABLES_NAME } from ".
 import type { CoffeeRequest, CoffeeSession } from "./experiences/coffee-tables/types";
 import { CoffeeManager } from "./experiences/coffee-tables/engine";
 import { CoffeeStorage } from "./experiences/coffee-tables/storage";
-import { VisualAgentMapView, VIEW_TYPE, type TaskOptions } from "./experiences/visual-map/view";
+import { VisualAgentMapView, VIEW_TYPE } from "./experiences/visual-map/view";
+import type { TaskOptions } from "./experiences/visual-map/modals";
 import { t, setUiLanguage, translate, initialUiLanguage, type TranslationKey } from "./i18n";
 import {
   FileSystemAdapter,
@@ -55,7 +56,8 @@ export { buildPreparedTaskContext } from "./ai/context-builder";
 export { extractJsonObject } from "./core/ai-task-service";
 export { executableCandidates } from "./core/ai-runtime-service";
 export { canonicalDetail, visualReferencesMarkdown } from "./ai/result-utils";
-export { NextStepModal, VisualAgentMapView } from "./experiences/visual-map/view";
+export { VisualAgentMapView } from "./experiences/visual-map/view";
+export { NextStepModal } from "./experiences/visual-map/modals";
 export { VisualAgentMapSettingTab } from "./ui/settings-tab";
 export { firstMarkdownImage, firstMarkdownTable, markdownImages } from "./ui/preview-utils";
 export type { AiRunMetrics, PreparedTaskContext } from "./ai/types";

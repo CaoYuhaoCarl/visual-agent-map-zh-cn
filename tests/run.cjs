@@ -4466,7 +4466,7 @@ test('the first AI task shows a provider-specific usage acknowledgement only onc
 test('Obsidian 1.13 declarative settings expose workspace recovery and App Server diagnostics', () => {
   const source = fs.readFileSync(path.join(root, 'main.ts'), 'utf8');
   const settingsSource = fs.readFileSync(path.join(root, 'ui/settings-tab.ts'), 'utf8');
-  const mapSource = fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8');
+  const mapSource = ['view.ts', 'modals.ts'].map(file => fs.readFileSync(path.join(root, 'experiences/visual-map', file), 'utf8')).join('\n');
   const definitions = settingsSource.slice(settingsSource.indexOf('getSettingDefinitions()'), settingsSource.indexOf('async setControlValue'));
   assert.match(definitions, /ui\.workspace_location/);
   assert.match(definitions, /ui\.repair_agent_workspace/);
@@ -5250,9 +5250,9 @@ test('Claude launch failure before stdin flush never reports accepted', async ()
 });
 
 test('external map conflict UI retains file, screen, and manual merge choices', () => {
-  const source = fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8');
+  const source = fs.readFileSync(path.join(root, 'experiences/visual-map/modals.ts'), 'utf8');
   for (const modal of ['class MapConflictModal']) {
-    const start = source.indexOf(modal), next = source.indexOf('\nclass ', start + modal.length);
+    const start = source.indexOf(modal), next = source.indexOf('\nexport class ', start + modal.length);
     const body = source.slice(start, next < 0 ? source.length : next);
     assert.match(body, /ui\.use_file_contents/); assert.match(body, /ui\.keep_editor_contents/); assert.match(body, /ui\.save_merged_contents/);
   }
