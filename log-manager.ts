@@ -23,8 +23,13 @@ export class LogManager {
     for (const listener of this.listeners) listener();
   }
 
-  getLogs(): readonly LogEntry[] { return this.entries.map(entry => ({ ...entry })); }
-  clear(): void { this.entries = []; for (const listener of this.listeners) listener(); }
+  getLogs(): readonly LogEntry[] {
+    return this.entries.map(entry => ({ ...entry }));
+  }
+  clear(): void {
+    this.entries = [];
+    for (const listener of this.listeners) listener();
+  }
   subscribe(listener: () => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);

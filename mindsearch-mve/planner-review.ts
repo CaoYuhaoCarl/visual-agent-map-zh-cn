@@ -40,8 +40,19 @@ function isDecision(value: unknown): value is MindSearchReviewDecision {
 
 /** Extract only a clearly labeled option list; ordinary report bullets are not answer choices. */
 function extractExplicitOptions(body: string, question: string): string[] {
-  const onlyQuestionAndChoices = body.startsWith(question) ? body.slice(question.length).trim().split(/\r?\n/).map(line => line.trim()).filter(Boolean) : [];
-  if (onlyQuestionAndChoices.length >= 2 && onlyQuestionAndChoices.length <= 5 && onlyQuestionAndChoices.every(line => /^[-*•]\s+\S/.test(line))) {
+  const onlyQuestionAndChoices = body.startsWith(question)
+    ? body
+        .slice(question.length)
+        .trim()
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean)
+    : [];
+  if (
+    onlyQuestionAndChoices.length >= 2 &&
+    onlyQuestionAndChoices.length <= 5 &&
+    onlyQuestionAndChoices.every(line => /^[-*•]\s+\S/.test(line))
+  ) {
     const choices = [...new Set(onlyQuestionAndChoices.map(line => line.replace(/^[-*•]\s+/, "")))];
     if (choices.length >= 2) return choices;
   }
@@ -73,16 +84,22 @@ export function parseMindSearchPlannerReview(result: AiResult): MindSearchPlanne
   const match = result.detail.match(marker);
   if (!match) throw new Error("Planner review is missing its machine-readable decision block.");
   let value: unknown;
-  try { value = JSON.parse(match[1]); } catch { throw new Error("Planner review decision block is not valid JSON."); }
+  try {
+    value = JSON.parse(match[1]);
+  } catch {
+    throw new Error("Planner review decision block is not valid JSON.");
+  }
   if (!value || typeof value !== "object") throw new Error("Planner review decision block must be an object.");
   const raw = value as Record<string, unknown>;
-  if (!isDecision(raw.decision)) throw new Error("Planner review decision must be research_more, ask_user, or conclude.");
+  if (!isDecision(raw.decision))
+    throw new Error("Planner review decision must be research_more, ask_user, or conclude.");
   const decision = raw.decision;
   const rationale = typeof raw.rationale === "string" ? raw.rationale.trim() : "";
   if (!rationale) throw new Error("Planner review must explain the evidence-based reason for its decision.");
   const summary = result.summary.trim();
   const detail = result.detail.slice(match[0].length).trim();
-  if (!summary || !detail) throw new Error("Planner review must include a useful supported answer or interim conclusion.");
+  if (!summary || !detail)
+    throw new Error("Planner review must include a useful supported answer or interim conclusion.");
   const answered = typeof raw.goalAnswered === "boolean" ? { goalAnswered: raw.goalAnswered } : {};
   if (decision === "conclude") {
     const stopReason = typeof raw.stopReason === "string" ? raw.stopReason.trim() : "";
@@ -91,12 +108,27 @@ export function parseMindSearchPlannerReview(result: AiResult): MindSearchPlanne
   }
   if (decision === "research_more") {
     const target = result.suggestions[0];
-    if (!target?.title.trim() || !target.task.trim() || !target.contribution.trim()) throw new Error("research_more requires one targeted question, a search instruction, and the uncertainty it should reduce.");
-    return { decision, rationale, researchTarget: { title: target.title.trim(), task: target.task.trim(), expectedValue: target.contribution.trim() }, summary, detail, ...answered };
+    if (!target?.title.trim() || !target.task.trim() || !target.contribution.trim())
+      throw new Error(
+        "research_more requires one targeted question, a search instruction, and the uncertainty it should reduce."
+      );
+    return {
+      decision,
+      rationale,
+      researchTarget: {
+        title: target.title.trim(),
+        task: target.task.trim(),
+        expectedValue: target.contribution.trim()
+      },
+      summary,
+      detail,
+      ...answered
+    };
   }
   const question = typeof raw.question === "string" ? raw.question.trim() : "";
   const answerOptions = [...new Set(result.suggestions.map(item => item.title.trim()).filter(Boolean))];
-  if (!question || answerOptions.length < 2 || answerOptions.length > 5) throw new Error("ask_user requires one material question and 2–5 distinct answer options.");
+  if (!question || answerOptions.length < 2 || answerOptions.length > 5)
+    throw new Error("ask_user requires one material question and 2–5 distinct answer options.");
   return { decision, rationale, question, answerOptions, summary, detail, ...answered };
 }
 
@@ -116,7 +148,8 @@ export interface PlannerReviewRecoveryContext {
 /** Return an explicitly written interrogative from the current response without deriving one from evidence. */
 export function extractPlannerQuestionCandidate(result: Pick<AiResult, "detail" | "summary">): string | undefined {
   const marked = readMarker(result.detail);
-  if (marked?.raw.decision === "ask_user" && typeof marked.raw.question === "string" && marked.raw.question.trim()) return marked.raw.question.trim();
+  if (marked?.raw.decision === "ask_user" && typeof marked.raw.question === "string" && marked.raw.question.trim())
+    return marked.raw.question.trim();
   // Prefer an explicitly labeled body question, then a standalone body interrogative;
   // a summary can be rhetorical, so only use it as a last-resort direct question.
   const body = marked?.body ?? result.detail;
@@ -125,14 +158,16 @@ export function extractPlannerQuestionCandidate(result: Pick<AiResult, "detail" 
   const label = /^(?:\*\*|__)?(?:question|問題)\s*[:：]\s*(?:\*\*|__)?\s*/i;
   const labeledQuestion = lines.find(line => label.test(line) && /[?？]\s*$/.test(line.replace(label, "")));
   if (labeledQuestion) return labeledQuestion.replace(label, "").trim();
-  const bodyQuestion = lines.map(line => line.replace(/^(?:[-*•]|\d+[.)、])\s+/, ""))
+  const bodyQuestion = lines
+    .map(line => line.replace(/^(?:[-*•]|\d+[.)、])\s+/, ""))
     .find(candidate => candidate && candidate.length <= 500 && /[?？]\s*$/.test(candidate));
   if (bodyQuestion) return bodyQuestion;
   const candidates = [result.summary];
-  for (const text of candidates) for (const line of text.split(/\r?\n/)) {
-    const candidate = line.trim().replace(/^(?:[-*•]|\d+[.)、])\s+/, "");
-    if (candidate && candidate.length <= 500 && /[?？]\s*$/.test(candidate)) return candidate;
-  }
+  for (const text of candidates)
+    for (const line of text.split(/\r?\n/)) {
+      const candidate = line.trim().replace(/^(?:[-*•]|\d+[.)、])\s+/, "");
+      if (candidate && candidate.length <= 500 && /[?？]\s*$/.test(candidate)) return candidate;
+    }
   return undefined;
 }
 
@@ -151,7 +186,8 @@ export async function parseMindSearchPlannerReviewWithRecovery(
   } catch (formatError) {
     const originalMarker = readMarker(original.detail);
     const originalDecision = originalMarker?.raw.decision;
-    const originalRationale = typeof originalMarker?.raw.rationale === "string" ? originalMarker.raw.rationale.trim() : "";
+    const originalRationale =
+      typeof originalMarker?.raw.rationale === "string" ? originalMarker.raw.rationale.trim() : "";
     const originalQuestion = typeof originalMarker?.raw.question === "string" ? originalMarker.raw.question.trim() : "";
     const originalSummary = typeof original.summary === "string" ? original.summary.trim() : "";
     const originalBody = originalMarker?.body ?? "";
@@ -166,7 +202,8 @@ export async function parseMindSearchPlannerReviewWithRecovery(
         throw new Error(`Format recovery does not support an imposed ${context.requiredDecision} decision.`);
       }
       let question = context.preferredQuestion?.trim() || originalQuestion;
-      const preservedBody = originalMarker?.body ?? original.detail.replace(/^\s*<!--\s*mindsearch-review\s+[^\n]*?-->\s*/, "").trim();
+      const preservedBody =
+        originalMarker?.body ?? original.detail.replace(/^\s*<!--\s*mindsearch-review\s+[^\n]*?-->\s*/, "").trim();
       let stated: AiResult | undefined;
       if (!question) {
         // The response chose to clarify but phrased it without a written question (for example as an
@@ -184,14 +221,19 @@ export async function parseMindSearchPlannerReviewWithRecovery(
         ].join("\n\n");
         stated = await recover(task);
         const statedMarker = readMarker(stated.detail);
-        question = statedMarker?.raw.decision === "ask_user" && typeof statedMarker.raw.question === "string" ? statedMarker.raw.question.trim() : "";
+        question =
+          statedMarker?.raw.decision === "ask_user" && typeof statedMarker.raw.question === "string"
+            ? statedMarker.raw.question.trim()
+            : "";
       }
-      if (!question) throw new Error("Planner format repair cannot invent a question that was absent from the original response.");
+      if (!question)
+        throw new Error("Planner format repair cannot invent a question that was absent from the original response.");
       const statedOptions = [...new Set((stated?.suggestions ?? []).map(item => item.title.trim()).filter(Boolean))];
       const originalOptions = [...new Set(original.suggestions.map(item => item.title.trim()).filter(Boolean))];
       const existingOptions = statedOptions.length >= 2 && statedOptions.length <= 5 ? statedOptions : originalOptions;
       const explicitOptions = extractExplicitOptions(preservedBody, question);
-      let answerOptions = existingOptions.length >= 2 && existingOptions.length <= 5 ? existingOptions : explicitOptions;
+      let answerOptions =
+        existingOptions.length >= 2 && existingOptions.length <= 5 ? existingOptions : explicitOptions;
       if (answerOptions.length < 2 || answerOptions.length > 5) {
         const task = [
           "Complete the format of this already-required ask_user Planner response. The workflow has imposed decision=ask_user; you have no authority to reconsider the decision or research evidence.",
@@ -211,9 +253,13 @@ export async function parseMindSearchPlannerReviewWithRecovery(
           throw new Error("Planner format repair changed or omitted the required ask_user decision.");
         }
         answerOptions = [...new Set(repaired.suggestions.map(item => item.title.trim()).filter(Boolean))];
-        if (answerOptions.length < 2 || answerOptions.length > 5) throw new Error("Planner format repair did not provide 2–5 distinct answer choices.");
+        if (answerOptions.length < 2 || answerOptions.length > 5)
+          throw new Error("Planner format repair did not provide 2–5 distinct answer choices.");
       }
-      const rationale = context.requiredDecisionRationale ?? originalRationale ?? "A clarification is required before the workflow can continue.";
+      const rationale =
+        context.requiredDecisionRationale ??
+        originalRationale ??
+        "A clarification is required before the workflow can continue.";
       const constrained = {
         ...original,
         summary: originalSummary || original.summary,
@@ -221,7 +267,8 @@ export async function parseMindSearchPlannerReviewWithRecovery(
         suggestions: answerOptions.map(title => ({ title, task: "", contribution: "" }))
       };
       const parsed = parseMindSearchPlannerReview(constrained);
-      if (parsed.decision !== "ask_user" || parsed.question !== question) throw new Error("Planner recovery did not preserve the required decision and question.");
+      if (parsed.decision !== "ask_user" || parsed.question !== question)
+        throw new Error("Planner recovery did not preserve the required decision and question.");
       return parsed;
     }
 
@@ -274,12 +321,14 @@ export async function parseMindSearchPlannerReviewWithRecovery(
       "Return a useful conditional answer in summary/detail and the decision in the aim fields with an evidence-based aim.rationale.",
       "For research_more, provide exactly one aim.researchTarget with title, search task, and expected uncertainty reduction. For ask_user, provide one direct aim.question and 2–5 distinct choices in aim.answerOptions. For conclude, include aim.stopReason. Preserve supplied values and provenance; never answer for the user or ask whether synthetic test data is real. Keep source claims, inference, uncertainty, and limits distinct.",
       `Format validation error: ${formatError instanceof Error ? formatError.message : String(formatError)}`,
-      ...(preserveDecision ? [] : [
-        `Original question: ${context.question}`,
-        `Answer snapshot (including provenance): ${context.answerSnapshot}`,
-        `Already completed report summary:\n${context.reportSummary}`,
-        `Already completed report detail:\n${context.reportDetail}`
-      ]),
+      ...(preserveDecision
+        ? []
+        : [
+            `Original question: ${context.question}`,
+            `Answer snapshot (including provenance): ${context.answerSnapshot}`,
+            `Already completed report summary:\n${context.reportSummary}`,
+            `Already completed report detail:\n${context.reportDetail}`
+          ]),
       `Original Planner response to review:\nSummary: ${original.summary}\n\nDetail:\n${original.detail}\n\nSuggestions: ${JSON.stringify(original.suggestions)}`
     ].join("\n\n");
     const repaired = await recover(task);

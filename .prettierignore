@@ -1,0 +1,10 @@
+main.js
+node_modules
+tests
+scripts
+*.json
+*.md
+*.css
+*.mjs
+*.cjs
+i18n.ts

@@ -15,7 +15,13 @@ export interface VisualReference {
   formula: string;
 }
 
-export interface Suggestion { title: string; task: string; contribution: string; parentTitle?: string; thinkingOriginBaseline?: string }
+export interface Suggestion {
+  title: string;
+  task: string;
+  contribution: string;
+  parentTitle?: string;
+  thinkingOriginBaseline?: string;
+}
 export type AiTaskKind = "task" | "decompose" | "synthesize";
 export type PromptProfile = "mindsearch";
 export type AiResponseContract = "mindsearch-gap-audit" | "mindsearch-delivery-acceptance";
@@ -54,10 +60,32 @@ export interface TaskContext {
   visualMode?: VisualMode;
 }
 /** Provider-neutral web activity event; Claude events are translated into the Codex App Server shape. */
-export interface WebSearchEvent { method: "item/started" | "item/completed"; params: unknown }
+export interface WebSearchEvent {
+  method: "item/started" | "item/completed";
+  params: unknown;
+}
 export type SearchStatus = "completed" | "failed" | "not_attempted";
 export const SEARCH_STATUSES: readonly SearchStatus[] = ["completed", "failed", "not_attempted"];
 /** searchStatus is present only for isolated web-research tasks, whose schema requires it. */
-export interface AiResult { summary: string; detail: string; suggestions: Suggestion[]; visualReferences: VisualReference[]; searchStatus?: SearchStatus }
-export interface AiRunMetrics { provider: string; model: string; mode: AiTaskKind | "task"; estimatedInputTokens: number; contextBreakdown: Record<string, number>; contextBuildMs: number; providerMs?: number; totalMs?: number; sessionStrategy: string }
-export interface PreparedTaskContext { context: TaskContext; metrics: AiRunMetrics }
+export interface AiResult {
+  summary: string;
+  detail: string;
+  suggestions: Suggestion[];
+  visualReferences: VisualReference[];
+  searchStatus?: SearchStatus;
+}
+export interface AiRunMetrics {
+  provider: string;
+  model: string;
+  mode: AiTaskKind | "task";
+  estimatedInputTokens: number;
+  contextBreakdown: Record<string, number>;
+  contextBuildMs: number;
+  providerMs?: number;
+  totalMs?: number;
+  sessionStrategy: string;
+}
+export interface PreparedTaskContext {
+  context: TaskContext;
+  metrics: AiRunMetrics;
+}

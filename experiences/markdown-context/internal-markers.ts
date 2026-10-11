@@ -13,7 +13,8 @@ function decorations(view: EditorView): DecorationSet {
     const delimiter = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line.text);
     if (delimiter) {
       if (!fence) fence = { character: delimiter[1][0], length: delimiter[1].length };
-      else if (delimiter[1][0] === fence.character && delimiter[1].length >= fence.length && !delimiter[2].trim()) fence = null;
+      else if (delimiter[1][0] === fence.character && delimiter[1].length >= fence.length && !delimiter[2].trim())
+        fence = null;
       continue;
     }
     if (!fence && markerLine.test(line.text) && !/^ {4}|^\t/.test(line.text)) {
@@ -24,13 +25,24 @@ function decorations(view: EditorView): DecorationSet {
 }
 
 export function registerInternalMarkerPresentation(plugin: Plugin): void {
-  plugin.registerEditorExtension(ViewPlugin.fromClass(class {
-    decorations: DecorationSet;
-    constructor(view: EditorView) { this.decorations = decorations(view); }
-    update(update: ViewUpdate): void {
-      if (update.docChanged || update.startState.field(editorLivePreviewField, false) !== update.state.field(editorLivePreviewField, false)) this.decorations = decorations(update.view);
-    }
-  }, { decorations: instance => instance.decorations }));
+  plugin.registerEditorExtension(
+    ViewPlugin.fromClass(
+      class {
+        decorations: DecorationSet;
+        constructor(view: EditorView) {
+          this.decorations = decorations(view);
+        }
+        update(update: ViewUpdate): void {
+          if (
+            update.docChanged ||
+            update.startState.field(editorLivePreviewField, false) !== update.state.field(editorLivePreviewField, false)
+          )
+            this.decorations = decorations(update.view);
+        }
+      },
+      { decorations: instance => instance.decorations }
+    )
+  );
 
   plugin.registerMarkdownPostProcessor(element => {
     const walker = element.ownerDocument.createTreeWalker(element, 4);
@@ -39,11 +51,15 @@ export function registerInternalMarkerPresentation(plugin: Plugin): void {
     for (const node of nodes) {
       if (node.parentElement?.closest("pre, code")) continue;
       const text = node.textContent ?? "";
-      const filtered = text.split("\n").filter(line => !markerLine.test(line)).join("\n");
+      const filtered = text
+        .split("\n")
+        .filter(line => !markerLine.test(line))
+        .join("\n");
       if (filtered === text) continue;
       const parent = node.parentElement;
       node.textContent = filtered;
-      if (parent?.tagName === "P" && !parent.textContent?.trim() && !parent.querySelector("img, video, audio, iframe")) parent.addClass("vam-internal-marker-only");
+      if (parent?.tagName === "P" && !parent.textContent?.trim() && !parent.querySelector("img, video, audio, iframe"))
+        parent.addClass("vam-internal-marker-only");
     }
   });
 }

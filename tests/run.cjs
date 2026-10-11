@@ -767,7 +767,7 @@ integrationTest('MindSearch cards hide generic map actions while ordinary map ca
   ordinaryResultView.renderNode(ordinaryResult);
   assert.equal(ordinaryButtonsForResult.some(button => button['aria-label'] === 'Generate another question from this research, keeping existing branches'), false, 'ordinary maps do not expose the MindSearch action');
   assert.match(fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8'), /if \(!mindSearchMode\) this\.button\(tools, t\("ui\.organize"\)/);
-  assert.match(fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8'), /if \(!mindSearchMode\) \{\s*const integrate = this\.button\(tools/);
+  assert.match(fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8'), /if \(!mindSearchMode\) \{\s*const integrate = this\.button\(\s*tools/);
 });
 integrationTest('MindSearch question cards show branch progress instead of note lifecycle status', () => {
   const { VisualAgentMapView } = load('main.ts', { obsidian });

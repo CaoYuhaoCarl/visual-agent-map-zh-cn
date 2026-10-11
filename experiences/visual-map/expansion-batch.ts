@@ -11,12 +11,28 @@ export interface ExpansionBatchState {
 }
 
 export class ShallowExpansionCoordinator {
-  constructor(private readonly activeTasks: Map<string, AbortController>, private readonly states: Map<string, ExpansionBatchState>) {}
+  constructor(
+    private readonly activeTasks: Map<string, AbortController>,
+    private readonly states: Map<string, ExpansionBatchState>
+  ) {}
 
-  async start(parentPath: string, children: MapNode[], startChild: (child: MapNode, signal: AbortSignal, accepted: () => void) => Promise<void>, changed: () => void, externalSignal?: AbortSignal): Promise<void> {
+  async start(
+    parentPath: string,
+    children: MapNode[],
+    startChild: (child: MapNode, signal: AbortSignal, accepted: () => void) => Promise<void>,
+    changed: () => void,
+    externalSignal?: AbortSignal
+  ): Promise<void> {
     if (this.isRunning(parentPath)) throw new Error("Shallow research is already running for this topic.");
     const controller = new AbortController();
-    const state: ExpansionBatchState = { parentPath, controller, total: children.length, completed: 0, failures: [], status: "running" };
+    const state: ExpansionBatchState = {
+      parentPath,
+      controller,
+      total: children.length,
+      completed: 0,
+      failures: [],
+      status: "running"
+    };
     this.activeTasks.set(parentPath, controller);
     const abortFromOwner = (): void => controller.abort();
     if (externalSignal?.aborted) controller.abort();
@@ -25,12 +41,18 @@ export class ShallowExpansionCoordinator {
     changed();
     let acceptFirst: () => void = () => {};
     let rejectFirst: (error: unknown) => void = () => {};
-    const accepted = new Promise<void>((resolve, reject) => { acceptFirst = resolve; rejectFirst = reject; });
+    const accepted = new Promise<void>((resolve, reject) => {
+      acceptFirst = resolve;
+      rejectFirst = reject;
+    });
     void (async () => {
       let dispatchAccepted = false;
       let nextChild = 0;
       const runningPaths = new Set<string>();
-      const updateCurrent = (): void => { state.currentPath = [...runningPaths][0]; changed(); };
+      const updateCurrent = (): void => {
+        state.currentPath = [...runningPaths][0];
+        changed();
+      };
       const worker = async (): Promise<void> => {
         while (nextChild < children.length) {
           const child = children[nextChild++];
@@ -41,7 +63,11 @@ export class ShallowExpansionCoordinator {
           try {
             await startChild(child, controller.signal, () => {
               acceptedChild = true;
-              if (!dispatchAccepted) { dispatchAccepted = true; externalSignal?.removeEventListener("abort", abortFromOwner); acceptFirst(); }
+              if (!dispatchAccepted) {
+                dispatchAccepted = true;
+                externalSignal?.removeEventListener("abort", abortFromOwner);
+                acceptFirst();
+              }
             });
             if (!acceptedChild) throw new Error("Shallow research did not start.");
           } catch (error) {
@@ -70,7 +96,13 @@ export class ShallowExpansionCoordinator {
     return accepted;
   }
 
-  stop(parentPath: string): void { this.states.get(parentPath)?.controller.abort(); }
-  isRunning(parentPath: string): boolean { return this.states.get(parentPath)?.status === "running"; }
-  stopAll(): void { for (const state of this.states.values()) if (state.status === "running") state.controller.abort(); }
+  stop(parentPath: string): void {
+    this.states.get(parentPath)?.controller.abort();
+  }
+  isRunning(parentPath: string): boolean {
+    return this.states.get(parentPath)?.status === "running";
+  }
+  stopAll(): void {
+    for (const state of this.states.values()) if (state.status === "running") state.controller.abort();
+  }
 }

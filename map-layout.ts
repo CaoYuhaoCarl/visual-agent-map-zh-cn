@@ -5,12 +5,18 @@ const ROW = 220;
 const WIDTH = 300;
 const HEIGHT = 190;
 
-function positions(nodes: MapNode[], roots: MapNode[], left: number, top: number): Map<string, { x: number; y: number }> {
+function positions(
+  nodes: MapNode[],
+  roots: MapNode[],
+  left: number,
+  top: number
+): Map<string, { x: number; y: number }> {
   const children = new Map<string, MapNode[]>();
   for (const node of nodes) {
     if (!node.parentId) continue;
     const list = children.get(node.parentId) ?? [];
-    list.push(node); children.set(node.parentId, list);
+    list.push(node);
+    children.set(node.parentId, list);
   }
   const result = new Map<string, { x: number; y: number }>();
   let row = 0;
@@ -43,10 +49,11 @@ export function arrangeNewBranch(nodes: MapNode[], parentId: string, newIds: Set
   const fixed = nodes.filter(node => !newIds.has(node.id));
   for (;;) {
     let next = offset;
-    for (const point of placed.values()) for (const node of fixed) {
-      if (Math.abs(point.x - node.x) < WIDTH && Math.abs(point.y + offset - node.y) < HEIGHT)
-        next = Math.max(next, node.y + HEIGHT - point.y);
-    }
+    for (const point of placed.values())
+      for (const node of fixed) {
+        if (Math.abs(point.x - node.x) < WIDTH && Math.abs(point.y + offset - node.y) < HEIGHT)
+          next = Math.max(next, node.y + HEIGHT - point.y);
+      }
     if (next === offset) break;
     offset = next;
   }

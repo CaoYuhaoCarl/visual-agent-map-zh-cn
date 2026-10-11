@@ -15,11 +15,17 @@ const formats: MindSearchOutcomeFormat[] = ["steps", "table", "images", "longfor
 /** Validate and trim the user-controlled expectation before it is persisted. */
 export function normalizeMindSearchOutcomeExpectation(value: unknown): MindSearchOutcomeExpectation | undefined {
   if (value === undefined) return undefined;
-  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid MindSearch outcome expectation.");
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error("Invalid MindSearch outcome expectation.");
   const input = value as Record<string, unknown>;
-  if (typeof input.goal !== "string" || !goals.includes(input.goal as MindSearchOutcomeGoal)) throw new Error("Invalid MindSearch outcome goal.");
+  if (typeof input.goal !== "string" || !goals.includes(input.goal as MindSearchOutcomeGoal))
+    throw new Error("Invalid MindSearch outcome goal.");
   if (typeof input.description !== "string") throw new Error("Invalid MindSearch outcome description.");
-  if (!Array.isArray(input.formats) || input.formats.some(format => typeof format !== "string" || !formats.includes(format as MindSearchOutcomeFormat))) throw new Error("Invalid MindSearch presentation preference.");
+  if (
+    !Array.isArray(input.formats) ||
+    input.formats.some(format => typeof format !== "string" || !formats.includes(format as MindSearchOutcomeFormat))
+  )
+    throw new Error("Invalid MindSearch presentation preference.");
   const goal = input.goal as MindSearchOutcomeGoal;
   const description = input.description.trim();
   if (goal === "custom" && !description) throw new Error("Describe the custom MindSearch outcome.");

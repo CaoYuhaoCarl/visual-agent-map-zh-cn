@@ -87,11 +87,17 @@ export class AiRuntimeService {
     const home = environment.HOME || "";
     let nvmVersions: string[] = [];
     if (home) {
-      try { nvmVersions = readdirSync(join(home, ".nvm/versions/node")); }
-      catch { /* nvm is optional. */ }
+      try {
+        nvmVersions = readdirSync(join(home, ".nvm/versions/node"));
+      } catch {
+        /* nvm is optional. */
+      }
     }
-    return executableCandidates(configured, home, environment.PATH || "", nvmVersions)
-      .find(candidate => existsSync(candidate)) || configured;
+    return (
+      executableCandidates(configured, home, environment.PATH || "", nvmVersions).find(candidate =>
+        existsSync(candidate)
+      ) || configured
+    );
   }
 
   cliEnvironment(executable: string): ProcessEnvironment {

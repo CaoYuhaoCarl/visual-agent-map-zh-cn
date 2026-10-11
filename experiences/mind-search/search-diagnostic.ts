@@ -2,10 +2,22 @@ import type { MindSearchSearchDiagnostic } from "../../map-model";
 import type { WebSearchEvent } from "../../ai/types";
 
 /** Counts provider web-search events for one research turn; every provider emits the same event shape. */
-export function createSearchDiagnostic(researchTurn: number): { diagnostic: MindSearchSearchDiagnostic; onEvent: (event: WebSearchEvent) => void } {
-  const diagnostic: MindSearchSearchDiagnostic = { researchTurn, startedEvents: 0, completedEvents: 0, completedSearchActions: 0, otherCompletedActions: 0 };
+export function createSearchDiagnostic(researchTurn: number): {
+  diagnostic: MindSearchSearchDiagnostic;
+  onEvent: (event: WebSearchEvent) => void;
+} {
+  const diagnostic: MindSearchSearchDiagnostic = {
+    researchTurn,
+    startedEvents: 0,
+    completedEvents: 0,
+    completedSearchActions: 0,
+    otherCompletedActions: 0
+  };
   const onEvent = (event: WebSearchEvent): void => {
-    if (event.method === "item/started") { diagnostic.startedEvents++; return; }
+    if (event.method === "item/started") {
+      diagnostic.startedEvents++;
+      return;
+    }
     const params = event.params as { item?: { action?: { type?: unknown } } } | undefined;
     diagnostic.completedEvents++;
     if (params?.item?.action?.type === "search") diagnostic.completedSearchActions++;
