@@ -25,9 +25,10 @@ export function truncateSummary(value: string, limit = 80): string {
 
 const LEGACY_SEARCH_FAILURE = /\bresearch status\s*:\s*(?:not searched|search failed|unavailable)\b/i;
 
-/** A searched report is unusable when its structured status or its legacy wording says no search succeeded. */
+/** A searched report is unusable when its structured status says no search succeeded; legacy wording is consulted only without one. */
 export function reportedSearchFailure(result: Pick<AiResult, "summary" | "detail" | "searchStatus">): boolean {
-  if (result.searchStatus !== undefined && result.searchStatus !== "completed") return true;
+  // A completed report may still mention one unavailable source or subtask in its narrative.
+  if (result.searchStatus !== undefined) return result.searchStatus !== "completed";
   return LEGACY_SEARCH_FAILURE.test(`${result.summary}\n${result.detail}`);
 }
 

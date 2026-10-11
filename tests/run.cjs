@@ -7553,6 +7553,7 @@ test('search failure detection uses the structured status and still honours lega
   assert.equal(reportedSearchFailure({ summary: '摘要', detail: '研究狀態：未搜尋', searchStatus: 'not_attempted' }), true);
   assert.equal(reportedSearchFailure({ summary: 's', detail: 'Findings https://example.org', searchStatus: 'failed' }), true);
   assert.equal(reportedSearchFailure({ summary: 's', detail: 'Findings https://example.org', searchStatus: 'completed' }), false);
+  assert.equal(reportedSearchFailure({ summary: 's', detail: 'Source B — Research status: unavailable; Source A answered it.', searchStatus: 'completed' }), false);
   assert.equal(reportedSearchFailure({ summary: 's', detail: 'Research status: not searched' }), true);
   assert.equal(reportedSearchFailure({ summary: 's', detail: 'Research status: search completed' }), false);
 });

@@ -9073,7 +9073,7 @@ function truncateSummary(value, limit = 80) {
 }
 var LEGACY_SEARCH_FAILURE = /\bresearch status\s*:\s*(?:not searched|search failed|unavailable)\b/i;
 function reportedSearchFailure(result) {
-  if (result.searchStatus !== void 0 && result.searchStatus !== "completed") return true;
+  if (result.searchStatus !== void 0) return result.searchStatus !== "completed";
   return LEGACY_SEARCH_FAILURE.test(`${result.summary}
 ${result.detail}`);
 }
