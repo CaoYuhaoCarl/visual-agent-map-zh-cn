@@ -25,6 +25,7 @@ export type MindSearchContract =
 /** Mirrors manual-flow's sentinel without importing the workflow into the provider layer. */
 export const MINDSEARCH_NO_QUESTION = "__MINDSEARCH_NO_QUESTION__";
 
+const QUESTION_SCOPE = "Ask about the user's goal, preferences, constraints or situation, never about this tool's workflow, counts, nodes or branches.";
 const text = { type: "string" } as const;
 const texts = { type: "array", items: text } as const;
 const nullable = <T extends Record<string, unknown>>(schema: T) => ({ anyOf: [schema, { type: "null" }] });
@@ -37,7 +38,7 @@ function payloadSchema(contract: MindSearchContract): Record<string, unknown> {
     case "question":
       return object({
         decision: { type: "string", enum: contract.requireQuestion ? ["ask_user"] : ["ask_user", "no_question"] },
-        question: { ...text, description: "The one direct question for the user, written as a question. Empty only for no_question." },
+        question: { ...text, description: `The one direct question for the user, written as a question. ${QUESTION_SCOPE} Empty only for no_question.` },
         answerOptions: { ...texts, description: "2–5 distinct answer choices for the question. Empty only for no_question." }
       });
     case "plan":
@@ -59,10 +60,11 @@ function payloadSchema(contract: MindSearchContract): Record<string, unknown> {
       return object({ usable: { type: "boolean" }, rationale: text, conditionKeys: texts, validity: { ...text, description: "Freshness and applicability assessment." } });
     case "review":
       return object({
+        goalAnswered: { type: "boolean", description: "true when the supplied reports already answer the original goal under the known conditions; false when a material evidence gap in the goal itself remains." },
         decision: { type: "string", enum: [...contract.decisions] },
         rationale: { ...text, description: "Evidence-based reason for the decision." },
         stopReason: { ...text, description: "For conclude: why research can stop. Otherwise empty." },
-        question: { ...text, description: "For ask_user: the one direct question for the user, written as a question. Otherwise empty." },
+        question: { ...text, description: `For ask_user: the one direct question for the user, written as a question. ${QUESTION_SCOPE} Otherwise empty.` },
         answerOptions: { ...texts, description: "For ask_user: 2–5 distinct answer choices. Otherwise empty." },
         researchTarget: { ...nullable(object({ title: text, task: { ...text, description: "Search instruction." }, expectedValue: { ...text, description: "Uncertainty the search should reduce." } })), description: "For research_more: the one targeted evidence gap. Otherwise null." }
       });
@@ -120,7 +122,7 @@ function foldPayload(contract: MindSearchContract, aim: Record<string, unknown>,
       return { ...result, detail: prepend(marker("mindsearch-reuse", { usable: aim.usable === true, rationale: clean(aim.rationale), conditionKeys: cleanList(aim.conditionKeys), validity: clean(aim.validity) }), withoutMarker(result.detail, "mindsearch-reuse")) };
     case "review": {
       const decision = aim.decision as MindSearchDecision;
-      const fields: Record<string, string> = { decision, rationale: clean(aim.rationale) };
+      const fields: Record<string, string | boolean> = { decision, rationale: clean(aim.rationale), ...(typeof aim.goalAnswered === "boolean" ? { goalAnswered: aim.goalAnswered } : {}) };
       if (decision === "conclude") fields.stopReason = clean(aim.stopReason);
       if (decision === "ask_user") fields.question = clean(aim.question);
       const target = aim.researchTarget && typeof aim.researchTarget === "object" ? aim.researchTarget as Record<string, unknown> : undefined;

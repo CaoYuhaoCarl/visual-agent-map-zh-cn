@@ -66,6 +66,8 @@ test('MindSearch review fold reads only the chosen decision fields and ignores t
   const more = parseMindSearchPlannerReview(foldMindSearchContract({ kind: 'review', decisions: ['research_more', 'ask_user'] }, { decision: 'research_more', rationale: 'Release date unverified.', stopReason: '', question: 'ignored?', answerOptions: ['a', 'b'], researchTarget: { title: 'Release date', task: 'Check the official changelog', expectedValue: 'Confirms the date' } }, result()));
   assert.deepEqual(plain(more.researchTarget), { title: 'Release date', task: 'Check the official changelog', expectedValue: 'Confirms the date' });
 
+  const more2 = parseMindSearchPlannerReview(foldMindSearchContract({ kind: 'review', decisions: ['research_more'] }, { goalAnswered: true, decision: 'research_more', rationale: 'r', stopReason: '', question: '', answerOptions: [], researchTarget: { title: 't', task: 'k', expectedValue: 'e' } }, result()));
+  assert.equal(more2.goalAnswered, true, 'goalAnswered reaches the parsed review');
   const done = parseMindSearchPlannerReview(foldMindSearchContract({ kind: 'review', decisions: ['conclude'] }, { decision: 'conclude', rationale: 'Supported.', stopReason: 'All sections sourced.', question: '', answerOptions: [], researchTarget: null }, result('<!-- mindsearch-review {"decision":"ask_user"} -->\nBody')));
   assert.equal(done.stopReason, 'All sections sourced.');
   assert.equal(done.detail, 'Body', 'a stale marker in detail is replaced, not duplicated');
@@ -134,4 +136,12 @@ test('AiTaskService sends the contract schema and folds the aim payload for Mind
   assert.deepEqual(plain(parsed.answerOptions), ['A', 'B']);
   await service.askModel(base, 'gpt-6-luna', 'low');
   assert.equal('aim' in schemas[1].properties, false, 'phases without a contract keep the ordinary schema');
+});
+
+test('MindSearch question fields tell the model questions are about the user, never about the workflow', () => {
+  for (const contract of [{ kind: 'question', requireQuestion: true }, { kind: 'review', decisions: ['ask_user'] }]) {
+    const description = mindSearchContractSchema(contract, baseSchema, false).properties.aim.properties.question.description;
+    assert.match(description, /user's goal, preferences, constraints or situation/);
+    assert.match(description, /never about this tool's workflow, counts, nodes or branches/);
+  }
 });

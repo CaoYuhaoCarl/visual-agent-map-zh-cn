@@ -9955,6 +9955,7 @@ function buildPreparedTaskContext(input, model, budget = 32e3, provider = "codex
 
 // ai/mindsearch-contracts.ts
 var MINDSEARCH_NO_QUESTION = "__MINDSEARCH_NO_QUESTION__";
+var QUESTION_SCOPE = "Ask about the user's goal, preferences, constraints or situation, never about this tool's workflow, counts, nodes or branches.";
 var text2 = { type: "string" };
 var texts = { type: "array", items: text2 };
 var nullable = (schema) => ({ anyOf: [schema, { type: "null" }] });
@@ -9966,7 +9967,7 @@ function payloadSchema(contract) {
     case "question":
       return object({
         decision: { type: "string", enum: contract.requireQuestion ? ["ask_user"] : ["ask_user", "no_question"] },
-        question: { ...text2, description: "The one direct question for the user, written as a question. Empty only for no_question." },
+        question: { ...text2, description: `The one direct question for the user, written as a question. ${QUESTION_SCOPE} Empty only for no_question.` },
         answerOptions: { ...texts, description: "2\u20135 distinct answer choices for the question. Empty only for no_question." }
       });
     case "plan":
@@ -9991,10 +9992,11 @@ function payloadSchema(contract) {
       return object({ usable: { type: "boolean" }, rationale: text2, conditionKeys: texts, validity: { ...text2, description: "Freshness and applicability assessment." } });
     case "review":
       return object({
+        goalAnswered: { type: "boolean", description: "true when the supplied reports already answer the original goal under the known conditions; false when a material evidence gap in the goal itself remains." },
         decision: { type: "string", enum: [...contract.decisions] },
         rationale: { ...text2, description: "Evidence-based reason for the decision." },
         stopReason: { ...text2, description: "For conclude: why research can stop. Otherwise empty." },
-        question: { ...text2, description: "For ask_user: the one direct question for the user, written as a question. Otherwise empty." },
+        question: { ...text2, description: `For ask_user: the one direct question for the user, written as a question. ${QUESTION_SCOPE} Otherwise empty.` },
         answerOptions: { ...texts, description: "For ask_user: 2\u20135 distinct answer choices. Otherwise empty." },
         researchTarget: { ...nullable(object({ title: text2, task: { ...text2, description: "Search instruction." }, expectedValue: { ...text2, description: "Uncertainty the search should reduce." } })), description: "For research_more: the one targeted evidence gap. Otherwise null." }
       });
@@ -10047,7 +10049,7 @@ function foldPayload(contract, aim, result) {
       return { ...result, detail: prepend(marker2("mindsearch-reuse", { usable: aim.usable === true, rationale: clean2(aim.rationale), conditionKeys: cleanList(aim.conditionKeys), validity: clean2(aim.validity) }), withoutMarker(result.detail, "mindsearch-reuse")) };
     case "review": {
       const decision = aim.decision;
-      const fields = { decision, rationale: clean2(aim.rationale) };
+      const fields = { decision, rationale: clean2(aim.rationale), ...typeof aim.goalAnswered === "boolean" ? { goalAnswered: aim.goalAnswered } : {} };
       if (decision === "conclude") fields.stopReason = clean2(aim.stopReason);
       if (decision === "ask_user") fields.question = clean2(aim.question);
       const target = aim.researchTarget && typeof aim.researchTarget === "object" ? aim.researchTarget : void 0;
@@ -10137,20 +10139,21 @@ function parseMindSearchPlannerReview(result) {
   const summary = result.summary.trim();
   const detail = result.detail.slice(match[0].length).trim();
   if (!summary || !detail) throw new Error("Planner review must include a useful supported answer or interim conclusion.");
+  const answered = typeof raw.goalAnswered === "boolean" ? { goalAnswered: raw.goalAnswered } : {};
   if (decision === "conclude") {
     const stopReason = typeof raw.stopReason === "string" ? raw.stopReason.trim() : "";
     if (!stopReason) throw new Error("A conclude decision must record why research should stop.");
-    return { decision, rationale, stopReason, summary, detail };
+    return { decision, rationale, stopReason, summary, detail, ...answered };
   }
   if (decision === "research_more") {
     const target = result.suggestions[0];
     if (!(target == null ? void 0 : target.title.trim()) || !target.task.trim() || !target.contribution.trim()) throw new Error("research_more requires one targeted question, a search instruction, and the uncertainty it should reduce.");
-    return { decision, rationale, researchTarget: { title: target.title.trim(), task: target.task.trim(), expectedValue: target.contribution.trim() }, summary, detail };
+    return { decision, rationale, researchTarget: { title: target.title.trim(), task: target.task.trim(), expectedValue: target.contribution.trim() }, summary, detail, ...answered };
   }
   const question = typeof raw.question === "string" ? raw.question.trim() : "";
   const answerOptions = [...new Set(result.suggestions.map((item) => item.title.trim()).filter(Boolean))];
   if (!question || answerOptions.length < 2 || answerOptions.length > 5) throw new Error("ask_user requires one material question and 2\u20135 distinct answer options.");
-  return { decision, rationale, question, answerOptions, summary, detail };
+  return { decision, rationale, question, answerOptions, summary, detail, ...answered };
 }
 function extractPlannerQuestionCandidate(result) {
   var _a;
@@ -10457,6 +10460,7 @@ var MINDSEARCH_UNKNOWN_OPTION_ID = "__mindsearch_unknown__";
 var MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION = 3;
 var PLANNER_COVERAGE_RULE = "Before deciding, compare the original topic and current question with the requested outcome and every persisted report. Name the central outcome(s) the user needs, then mark each answered or still open. A relevant side fact does not answer a missing core outcome. If a core outcome is open and one targeted search could plausibly help, choose research_more for that exact gap. Ask_user only for missing user conditions, not missing evidence. If a core outcome remains open at the research-turn limit, keep research_more so the result is saved as partial, not complete.";
 var SEARCHER_TARGET_RULE = "Answer the assigned research target first. Treat prior reports and side facts as context, not as a substitute for the target. Do not repeat resolved background facts in place of the requested outcome. If the search does not support the target, say explicitly that the target remains unresolved; do not imply it was answered.";
+var USER_QUESTION_RULE = "A question to the user must be about the original goal, the user's preferences, constraints, resources or situation. Never ask about this tool's workflow, question counts, nodes, branches or research process, and never rephrase an earlier question as a new one.";
 var FLOOR_ASK_RULE = "Below the floor, choose research_more only for a material evidence gap in the original goal itself; if the reports already answer the goal, choose ask_user. Never pick research_more to satisfy the floor.";
 var ALL_DECISIONS = ["research_more", "ask_user", "conclude"];
 var reviewContract = (decisions) => ({ kind: "review", decisions });
@@ -10785,6 +10789,7 @@ ${result.detail}`
   async requireUserConditionQuestion(candidate, context, audit, model, reasoning, signal, allowReconciliation = true) {
     const task = phaseTask("decision-quality-review", [
       "The local semantic audit classified the proposed search gap as a user-specific condition that web research cannot determine. Decision=ask_user is mandatory; do not search, conclude, substitute an average, or use another branch's answer.",
+      USER_QUESTION_RULE,
       "Ask one concise question that obtains only the missing user-specific condition. Provide 2\u20135 distinct choices. Preserve the candidate's existing answer content and uncertainty; do not add facts or re-interpret research. The question and options must refer only to the current branch.",
       `Mandatory decision: ask_user. Reason: ${audit.rationale}`,
       `Original goal: ${context.goal}
@@ -10839,11 +10844,14 @@ ${candidate.detail.replace(/^\s*<!--\s*mindsearch-review\s+[^\n]*?-->\s*/, "").t
       var _a2;
       return question.trim().toLocaleLowerCase() === ((_a2 = reviewed.question) == null ? void 0 : _a2.trim().toLocaleLowerCase());
     });
-    if (context.answeredQuestionCount < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION && reviewed.decision === "conclude" || reviewed.decision === "ask_user" && repeatsKnownQuestion) {
+    const belowFloor = context.answeredQuestionCount < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION;
+    const researchesAnsweredGoal = belowFloor && reviewed.decision === "research_more" && reviewed.goalAnswered === true;
+    if (belowFloor && reviewed.decision === "conclude" || researchesAnsweredGoal || reviewed.decision === "ask_user" && repeatsKnownQuestion) {
       throwIfAborted(signal);
       const correctionTask = [
         "Correct the candidate decision before it can be saved. This is the single bounded corrective pass; do not search and do not conclude.",
-        `HARD RULE: the current answer path has ${context.answeredQuestionCount} answered question node(s), minimum for conclusion is ${MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION}. The candidate either violates that floor or repeats a known question. Return ask_user with one meaningful, decision-relevant question on a genuinely unknown dimension (constraints, goals, current skills, resources, or success criteria). No repeated known condition, no quota filler, exactly one question and 2\u20135 distinct answer choices.`,
+        USER_QUESTION_RULE,
+        `HARD RULE: the current answer path has ${context.answeredQuestionCount} answered question node(s), minimum for conclusion is ${MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION}. The candidate either violates that floor, proposes more research although its reports already answer the goal, or repeats a known question. Return ask_user with one meaningful, decision-relevant question on a genuinely unknown dimension (constraints, goals, current skills, resources, or success criteria). No repeated known condition, no quota filler, exactly one question and 2\u20135 distinct answer choices.`,
         "Include the useful conditional answer as the response body, and return the decision in the aim fields. If no meaningful new dimension can be asked, still do not conclude: this correction must be rejected by the caller.",
         `Original user goal: ${context.goal}
 Goal background: ${context.goalDetail}`,
@@ -11047,7 +11055,7 @@ ${report.detail}`).join("\n\n") };
           "You are the Planner reviewing saved Searcher reports in a Manual MindSearch branch. Return a useful conditional answer and exactly one decision in the aim fields with an evidence-based aim.rationale; for conclude, aim.stopReason says why the answer is complete.",
           "Choose research_more only when one specific evidence gap could materially change the answer; give exactly one aim.researchTarget with title, search task, and expected uncertainty reduction. Choose ask_user only when a material user condition is absent from all known context and cannot be handled with a conditional answer; give one direct aim.question and 2\u20135 aim.answerOptions. Treat supplied values as valid scenario conditions even when synthetic: preserve provenance, do not misattribute them as the real person's preferences, and do not ask the user to confirm test data. Otherwise conclude with the strongest honest conditional answer and its limits.",
           PLANNER_COVERAGE_RULE,
-          `Hard floor: ${answeredQuestionCount} answered question node(s) on this branch path; do not conclude before ${MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION}. At the floor, the configured exploration target (${explorationTarget}) is a soft depth preference; do not require reaching 10 or add quota filler. Below the floor, ask one meaningful new question about an unknown decision-relevant dimension. ${FLOOR_ASK_RULE}`,
+          `Hard floor: ${answeredQuestionCount} answered question node(s) on this branch path; do not conclude before ${MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION}. At the floor, the configured exploration target (${explorationTarget}) is a soft depth preference; do not require reaching 10 or add quota filler. Below the floor, ask one meaningful new question about an unknown decision-relevant dimension. ${FLOOR_ASK_RULE} ${USER_QUESTION_RULE}`,
           "Do not search in this Planner turn. Preserve source-reported claims, inference, conditions, contradictions, and uncertainty. VAM does not independently verify sources.",
           `Original user goal: ${topic.title}
 Original question: ${parent.summary}
@@ -11282,7 +11290,7 @@ ${searcher.detail}` };
         const plannerPrompt = [
           "Review all evidence for the original user goal and produce a self-contained answer to that goal. Use saved user answers as conditions that personalize the result; the latest question is not the overall goal. Do not expose the internal research log as the answer. Return exactly one decision in the aim fields with aim.rationale; for conclude, aim.stopReason says why the answer is complete.",
           PLANNER_COVERAGE_RULE,
-          `Hard floor: ${answeredQuestionCount} answered question node(s) on this branch path; do not conclude before ${MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION}. At the floor, the configured exploration target (${explorationTarget}) is a soft depth preference; do not require reaching 10 or add quota filler. Below the floor, ask one meaningful new question about an unknown decision-relevant dimension. ${FLOOR_ASK_RULE} Do not repeat known conditions or prior questions. Use research_more for missing evidence. Prior questions: ${JSON.stringify(questionsAlreadyAsked)}.`,
+          `Hard floor: ${answeredQuestionCount} answered question node(s) on this branch path; do not conclude before ${MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION}. At the floor, the configured exploration target (${explorationTarget}) is a soft depth preference; do not require reaching 10 or add quota filler. Below the floor, ask one meaningful new question about an unknown decision-relevant dimension. ${FLOOR_ASK_RULE} ${USER_QUESTION_RULE} Do not repeat known conditions or prior questions. Use research_more for missing evidence. Prior questions: ${JSON.stringify(questionsAlreadyAsked)}.`,
           "Use research_more only for a specific material evidence gap, with one aim.researchTarget. Use ask_user only for a material user condition that is absent from all known context and cannot be handled with a useful conditional answer; give the exact question in aim.question and 2\u20135 distinct choices in aim.answerOptions. Treat every supplied answer as a valid condition for this branch even when its provenance is labeled synthetic or test data. Such provenance means it is not evidence of the real person's preference; it does not make the supplied scenario value unknown. Do not ask the user to confirm that a test value is real. Phrase the result conditionally and never misattribute synthetic values as the real user's preferences. Otherwise conclude with honest limitations. Do not search in this Planner turn.",
           `Original user goal: ${topicNote.title}
 Current answered question: ${parent.summary}
@@ -11472,6 +11480,7 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
         "Use only the persisted branch conditions and saved reports below to identify a genuinely useful unresolved user choice. Do not repeat any prior or sibling question. Do not answer the question, choose an option, or start research. Return decision ask_user with the actual question in aim.question and 2\u20135 distinct choices in aim.answerOptions."
       ] : [],
       "Plan the next Manual MindSearch interaction for this user's research. Do not answer on the user's behalf and do not search the web in this Planner turn.",
+      USER_QUESTION_RULE,
       "Decide whether one missing user condition could materially change the recommendation. Never re-ask a condition supplied in initial clarification. A question must ask for a NEW decision-relevant unknown, not restate the mother topic or known goals. If yes, return decision ask_user with exactly one concise question in aim.question, written as a direct question (not a background statement), and 2\u20135 distinct answer choices in aim.answerOptions. The application will add an explicit Unknown / no preference choice and free-text input.",
       ...!isSavedTerminalResult ? [`If at least ${MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION} questions on this answer path have already been answered and no user input could materially change the next useful result, return decision no_question and explain briefly in detail. Below that floor, ask the next meaningful new question.`] : [],
       "Preserve uncertainty. Never select an option or infer the user's preference.",
@@ -12021,7 +12030,7 @@ ${item.detail}`)].join("\n\n")
       for (let researchTurn = resumeTurn; researchTurn <= MINDSEARCH_MAX_RESEARCH_TURNS; researchTurn++) {
         throwIfAborted(signal);
         const currentReports = aggregateReports();
-        const plannerPrompt = phaseTask("report-review", ["Review the complete evidence for the original user goal. Return one decision with a brief evidence-based interim answer; do not write the final document yet. Use all known conditions and relevant evidence in this branch lineage. Keep the current question and answer as conditions that personalize the result; they are not the overall goal. Do not expose the internal research log as the answer. Return the decision in the aim fields.", PLANNER_COVERAGE_RULE, `Hard floor: ${answeredQuestionCount} answered question node(s) on this branch path; do not conclude before ${MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION}. At the floor, the configured exploration target (${explorationTarget}) is a soft depth preference; do not require reaching 10 or add quota filler. Below the floor, ask one meaningful new question about an unknown decision-relevant dimension. ${FLOOR_ASK_RULE}`, `Do not repeat known conditions or prior questions. Ask only for a genuinely missing user condition, never to compensate for missing research. Use research_more for missing evidence. Prior questions: ${JSON.stringify(questionsAlreadyAsked)}.`, "Choose research_more only for one specific material evidence gap that targeted web research can resolve; provide exactly one aim.researchTarget with title, search task, and expected uncertainty reduction. Choose ask_user for a missing decision-changing user condition or a genuinely conflicting pair of supplied values. Name the conflict and request one clarification as aim.question; never defer a material conflict into the final document. Include 2\u20135 choices in aim.answerOptions. Do not use ask_user to compensate for missing research. Choose conclude only when the original goal is adequately supported and the hard floor is met; cite source names or links from reports when available and state remaining uncertainty and limits. Do not search in this Planner turn.", "Return the decision in the aim fields with an evidence-based aim.rationale; for conclude, aim.stopReason says why the evidence is sufficient.", `Current question: ${parent.summary}
+        const plannerPrompt = phaseTask("report-review", ["Review the complete evidence for the original user goal. Return one decision with a brief evidence-based interim answer; do not write the final document yet. Use all known conditions and relevant evidence in this branch lineage. Keep the current question and answer as conditions that personalize the result; they are not the overall goal. Do not expose the internal research log as the answer. Return the decision in the aim fields.", PLANNER_COVERAGE_RULE, `Hard floor: ${answeredQuestionCount} answered question node(s) on this branch path; do not conclude before ${MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION}. At the floor, the configured exploration target (${explorationTarget}) is a soft depth preference; do not require reaching 10 or add quota filler. Below the floor, ask one meaningful new question about an unknown decision-relevant dimension. ${FLOOR_ASK_RULE} ${USER_QUESTION_RULE}`, `Do not repeat known conditions or prior questions. Ask only for a genuinely missing user condition, never to compensate for missing research. Use research_more for missing evidence. Prior questions: ${JSON.stringify(questionsAlreadyAsked)}.`, "Choose research_more only for one specific material evidence gap that targeted web research can resolve; provide exactly one aim.researchTarget with title, search task, and expected uncertainty reduction. Choose ask_user for a missing decision-changing user condition or a genuinely conflicting pair of supplied values. Name the conflict and request one clarification as aim.question; never defer a material conflict into the final document. Include 2\u20135 choices in aim.answerOptions. Do not use ask_user to compensate for missing research. Choose conclude only when the original goal is adequately supported and the hard floor is met; cite source names or links from reports when available and state remaining uncertainty and limits. Do not search in this Planner turn.", "Return the decision in the aim fields with an evidence-based aim.rationale; for conclude, aim.stopReason says why the evidence is sufficient.", `Current question: ${parent.summary}
 Current answer: ${answerDescription}`, `Research budget: review ${researchTurn} of ${MINDSEARCH_MAX_RESEARCH_TURNS}. One targeted follow-up search remains when this is review 1; if a material gap remains after review 2, return research_more so VAM saves a partial result.`].join("\n\n"));
         const plannerContext = { ...contextBase, summary: "", detail: `${contextBase.detail}
 

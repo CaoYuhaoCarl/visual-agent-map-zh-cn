@@ -6,6 +6,8 @@ export interface MindSearchPlannerReview {
   decision: MindSearchReviewDecision;
   rationale: string;
   stopReason?: string;
+  /** The Planner's own judgement that the reports already answer the goal; absent in legacy responses. */
+  goalAnswered?: boolean;
   question?: string;
   researchTarget?: { title: string; task: string; expectedValue: string };
   answerOptions?: string[];
@@ -81,20 +83,21 @@ export function parseMindSearchPlannerReview(result: AiResult): MindSearchPlanne
   const summary = result.summary.trim();
   const detail = result.detail.slice(match[0].length).trim();
   if (!summary || !detail) throw new Error("Planner review must include a useful supported answer or interim conclusion.");
+  const answered = typeof raw.goalAnswered === "boolean" ? { goalAnswered: raw.goalAnswered } : {};
   if (decision === "conclude") {
     const stopReason = typeof raw.stopReason === "string" ? raw.stopReason.trim() : "";
     if (!stopReason) throw new Error("A conclude decision must record why research should stop.");
-    return { decision, rationale, stopReason, summary, detail };
+    return { decision, rationale, stopReason, summary, detail, ...answered };
   }
   if (decision === "research_more") {
     const target = result.suggestions[0];
     if (!target?.title.trim() || !target.task.trim() || !target.contribution.trim()) throw new Error("research_more requires one targeted question, a search instruction, and the uncertainty it should reduce.");
-    return { decision, rationale, researchTarget: { title: target.title.trim(), task: target.task.trim(), expectedValue: target.contribution.trim() }, summary, detail };
+    return { decision, rationale, researchTarget: { title: target.title.trim(), task: target.task.trim(), expectedValue: target.contribution.trim() }, summary, detail, ...answered };
   }
   const question = typeof raw.question === "string" ? raw.question.trim() : "";
   const answerOptions = [...new Set(result.suggestions.map(item => item.title.trim()).filter(Boolean))];
   if (!question || answerOptions.length < 2 || answerOptions.length > 5) throw new Error("ask_user requires one material question and 2–5 distinct answer options.");
-  return { decision, rationale, question, answerOptions, summary, detail };
+  return { decision, rationale, question, answerOptions, summary, detail, ...answered };
 }
 
 export interface PlannerReviewRecoveryContext {

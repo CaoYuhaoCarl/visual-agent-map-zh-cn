@@ -143,15 +143,17 @@ test('MindSearch valid ancestor evidence is copied with provenance and no new we
 });
 
 test('MindSearch sends control phases their provider-enforced contract and withholds conclude below the floor', async () => {
-  const subject = fixture(); await subject.setPlan([reuseTarget(subject.source)]); const contracts = {};
+  const subject = fixture(); await subject.setPlan([reuseTarget(subject.source)]); const contracts = {}, prompts = {};
   const flow = new MindSearchManualFlow(subject.repository, subject.store, async context => {
-    contracts[phase(context)] = plain(context.mindSearchContract ?? null);
+    contracts[phase(context)] = plain(context.mindSearchContract ?? null); prompts[phase(context)] = context.task;
     if (phase(context) === 'evidence-reuse-audit') return usable;
     return stopAtReview(context);
   });
   await assert.rejects(flow.resumeAnswerResearch('Map.md', 'current', 'test', 'low'), /STOP_AT_REVIEW/);
   assert.deepEqual(contracts['evidence-reuse-audit'], { kind: 'reuse' });
   assert.deepEqual(contracts['report-review'], { kind: 'review', decisions: ['research_more', 'ask_user'] });
+  assert.match(prompts['report-review'], /Never ask about this tool's workflow, question counts, nodes, branches/);
+  assert.match(prompts['report-review'], /Never pick research_more to satisfy the floor/);
 });
 
 test('MindSearch zero-task plan materializes audited reuse before persistence and can reopen its report', async () => {

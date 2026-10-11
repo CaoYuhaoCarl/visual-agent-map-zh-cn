@@ -6987,6 +6987,36 @@ integrationTest('MindSearch forces ask_user below the answer floor and repairs o
   assert.equal(calls.length, 0, 'the floor does not force another correction once the branch has enough answers');
 });
 
+integrationTest('MindSearch turns below-floor research on an already answered goal into a user question', async () => {
+  const { MindSearchManualFlow } = load('experiences/mind-search/manual-flow.ts', { obsidian });
+  const { parseMindSearchPlannerReview } = load('mindsearch-mve/planner-review.ts');
+  const phases = [];
+  const flow = new MindSearchManualFlow({ settings: { language: 'en' } }, {}, async context => {
+    phases.push(context.task.match(/mindsearch-phase: ([a-z-]+)/)?.[1]);
+    if (mindSearchPhase(context, 'decision-quality-review')) {
+      assert.deepEqual(JSON.parse(JSON.stringify(context.mindSearchContract)), { kind: 'review', decisions: ['ask_user'] });
+      assert.match(context.task, /proposes more research although its reports already answer the goal/);
+      return plannerReview('ask_user', { rationale: 'Shell choice changes the commands.', question: 'Which shell will you use?' }, 'Which shell will you use?', 'Commands differ per shell.', ['bash', 'PowerShell']);
+    }
+    if (mindSearchPhase(context, 'research-gap-audit')) return { summary: 'external_evidence', detail: 'A public source can settle this.', suggestions: [], visualReferences: [] };
+    throw new Error(`Unexpected phase: ${context.task.slice(0, 80)}`);
+  });
+  const context = { goal: 'Create a venv', goalDetail: '', conditions: {}, currentQuestion: 'Which OS?', currentAnswer: 'Unknown', answeredQuestionCount: 1, questionHistory: ['Which OS?'], lineage: '', reportSummary: 'Official docs cover every step.', reportDetail: 'Saved reports.' };
+  const research = (goalAnswered) => {
+    const candidate = plannerReview('research_more', { rationale: 'Double-check version notes.' }, 'Interim answer.', 'Body.', [{ title: 'Version notes', task: 'Check docs', contribution: 'Precision' }]);
+    candidate.detail = candidate.detail.replace('"decision":"research_more"', `"decision":"research_more","goalAnswered":${goalAnswered}`);
+    return parseMindSearchPlannerReview(candidate);
+  };
+  const asked = await flow.reviewPlannerDecisionQuality(research(true), context, 'gpt-6-luna', 'low');
+  assert.equal(asked.decision, 'ask_user');
+  assert.equal(asked.question, 'Which shell will you use?');
+  assert.deepEqual(phases, ['decision-quality-review'], 'no further research or gap audit ran');
+  phases.length = 0;
+  const kept = await flow.reviewPlannerDecisionQuality(research(false), context, 'gpt-6-luna', 'low');
+  assert.equal(kept.decision, 'research_more', 'a genuine evidence gap is still researched below the floor');
+  assert.deepEqual(phases, ['research-gap-audit']);
+});
+
 integrationTest('MindSearch research-gap audit preserves classifications from four saved report summaries without reopening evidence', async () => {
   const { repo } = fixture();
   const { createMindSearchMap } = load('experiences/mind-search/create-map.ts');
