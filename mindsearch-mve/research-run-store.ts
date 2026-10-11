@@ -3,6 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type { AiResult } from "../ai/types";
 import type { MapDocument, MindSearchBranchRecord, MindSearchMapData, MindSearchPendingCommit, MindSearchPlannerReviewRecord, MindSearchResultDraftRecord, MindSearchSearchDiagnostic } from "../map-model";
 import type { Repository } from "../repository";
+import { managedHeadingValue, managedSectionValue } from "../note-values";
 
 export interface NewAnswerBranch {
   requestId?: string;
@@ -314,7 +315,7 @@ export class MindSearchRunStore {
       if (!run || !attempt || run.currentAttemptId !== handle.attemptId || attempt.status !== "running" || attempt.inputSnapshotHash !== handle.inputSnapshotHash || !draft || draft.runId !== run.id || draft.attemptId !== attempt.id || draft.status !== "ready") return false;
       await this.repository.updateNote(draft.notePath, { summary, detail, status: "idea" });
       const saved = await this.repository.readNote(draft.notePath);
-      if (saved.summary !== summary || saved.detail !== detail) throw new Error("The Searcher report did not match the Repository readback before Planner review.");
+      if (saved.summary !== managedSectionValue(summary) || saved.detail !== managedSectionValue(detail)) throw new Error("The Searcher report did not match the Repository readback before Planner review.");
       return true;
     });
   }
@@ -328,7 +329,7 @@ export class MindSearchRunStore {
       if (!node) throw new Error("MindSearch synthesis draft node is missing before finalization.");
       await this.repository.updateNote(draft.notePath, { title });
       const note = await this.repository.readNote(draft.notePath);
-      if (note.title !== title) throw new Error("MindSearch synthesis draft title did not match its Repository readback.");
+      if (note.title !== managedHeadingValue(title)) throw new Error("MindSearch synthesis draft title did not match its Repository readback.");
       draft.title = title; draft.kind = kind; node.mindSearchKind = kind;
       map.mindSearch = state; await this.repository.saveMap(mapPath, map);
       return true;

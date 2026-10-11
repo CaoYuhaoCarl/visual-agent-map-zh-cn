@@ -1,7 +1,8 @@
 import { packReferenceChunks, referenceBatches, referenceCatalog, resolveReferenceLinks } from "../ai/reference-materials";
 import { buildPreparedTaskContext, estimateTokens } from "../ai/context-builder";
 import { effectiveReasoningLevel, normalizeReasoningLevel, researchGuidance } from "../ai/task-policy";
-import type { AiResult, ReasoningLevel, TaskContext } from "../ai/types";
+import { SEARCH_STATUSES, type AiResult, type ReasoningLevel, type SearchStatus, type TaskContext } from "../ai/types";
+import { truncateSummary } from "../ai/result-utils";
 import { translate, t, type TranslationKey, type UiLanguage } from "../i18n";
 import responseSchema from "../response-schema.json";
 import mindSearchGapAuditSchema from "../ai/mindsearch-gap-audit-schema";
@@ -146,13 +147,15 @@ export class AiTaskService {
       const isMindSearchGapAudit = context.responseContract === "mindsearch-gap-audit" && context.promptProfile === "mindsearch" && context.researchMode === "local";
       const isDeliveryAcceptance = context.responseContract === "mindsearch-delivery-acceptance" && context.promptProfile === "mindsearch" && context.researchMode === "local";
       const deliverySchema = { ...responseSchema, properties: { ...responseSchema.properties, summary: { type: "string", description: "A short plain-language preview. Never put machine-readable review markers here." }, detail: { type: "string", pattern: "^\\s*<!--\\s*mindsearch-review\\s+\\{[^\\r\\n]*\\}\\s*-->", description: "Begin with the COMPLETE first-line MindSearch review marker containing decision and rationale (and stopReason for conclude). Put the marker in detail only, followed by the acceptance explanation. Never split or truncate the marker." } } };
-      const schema = isMindSearchGapAudit ? mindSearchGapAuditSchema : isDeliveryAcceptance ? deliverySchema : responseSchema;
+      const isIsolatedWebResearch = context.mindSearchIsolatedResearch === true && context.researchMode !== "local";
+      const webResearchSchema = { ...responseSchema, properties: { ...responseSchema.properties, searchStatus: { type: "string", enum: [...SEARCH_STATUSES], description: "completed only when at least one web search or page fetch returned usable results for this task; failed when searching was attempted without usable results; not_attempted when no search ran." } }, required: [...responseSchema.required, "searchStatus"] };
+      const schema = isMindSearchGapAudit ? mindSearchGapAuditSchema : isDeliveryAcceptance ? deliverySchema : isIsolatedWebResearch ? webResearchSchema : responseSchema;
       const raw = provider === "claude"
         ? await this.options.claudeRuntime(pluginDirectory).runTask(instructions, providerModelId(model), effort, schema, controls)
         : await this.options.codexRuntime(pluginDirectory, context.researchMode === "local").runTask(instructions, model, effort, schema, { ...controls, onWebSearchEvent });
       stage = "解析 AI 回覆";
       if (this.options.exchangeLoggingEnabled()) exchanges?.received(exchangeId, raw);
-      const result = this.parseAiResult(raw, provider === "claude" ? "Claude Code" : "Codex App Server", outputLanguage, isMindSearchGapAudit);
+      const result = this.parseAiResult(raw, provider === "claude" ? "Claude Code" : "Codex App Server", outputLanguage, isMindSearchGapAudit, isIsolatedWebResearch);
       if (referenceGroups.length) {
         result.summary = resolveReferenceLinks(result.summary, referenceGroups);
         result.detail = resolveReferenceLinks(result.detail, referenceGroups);
@@ -201,10 +204,10 @@ export class AiTaskService {
     }
   }
 
-  private parseAiResult(raw: string, label: string, language: UiLanguage, strictGapAudit = false): AiResult {
+  private parseAiResult(raw: string, label: string, language: UiLanguage, strictGapAudit = false, webResearch = false): AiResult {
     const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
-    const parsed: { summary?: unknown; detail?: unknown; suggestions?: unknown; visualReferences?: unknown } =
-      JSON.parse(extractJsonObject(cleaned)) as { summary?: unknown; detail?: unknown; suggestions?: unknown; visualReferences?: unknown };
+    const parsed: { summary?: unknown; detail?: unknown; suggestions?: unknown; visualReferences?: unknown; searchStatus?: unknown } =
+      JSON.parse(extractJsonObject(cleaned)) as { summary?: unknown; detail?: unknown; suggestions?: unknown; visualReferences?: unknown; searchStatus?: unknown };
     if (typeof parsed.summary !== "string" || typeof parsed.detail !== "string") throw new Error(`${label} 沒有回傳 summary 與 detail`);
     if (strictGapAudit && (!(["user_condition", "external_evidence"] as string[]).includes(parsed.summary) || !parsed.detail.trim() || !Array.isArray(parsed.suggestions) || parsed.suggestions.length !== 0 || !Array.isArray(parsed.visualReferences) || parsed.visualReferences.length !== 0)) {
       throw new Error("MindSearch research-gap audit returned an invalid structured classification.");
@@ -235,11 +238,13 @@ export class AiTaskService {
         .filter(item => /^https?:\/\//i.test(item.imageUrl) && /^https?:\/\//i.test(item.sourceUrl))
         .slice(0, 6)
       : [];
+    const searchStatus = webResearch && (SEARCH_STATUSES as readonly unknown[]).includes(parsed.searchStatus) ? parsed.searchStatus as SearchStatus : undefined;
     return {
-      summary: Array.from(parsed.summary.trim()).slice(0, 80).join(""),
+      summary: truncateSummary(parsed.summary),
       detail: parsed.detail.trim(),
       suggestions,
-      visualReferences
+      visualReferences,
+      ...(searchStatus ? { searchStatus } : {})
     };
   }
 }

@@ -5,6 +5,7 @@ import { MapDocument, MapNode, serializeMap, parseMap } from "./map-model";
 import type { CoffeeStyle } from "./experiences/coffee-tables/types";
 import type { ReasoningLevel, ResearchDepth, ResearchMode, VisualMode } from "./ai/types";
 import { normalizeReasoningLevel } from "./ai/task-policy";
+import { managedHeadingValue, managedSectionValue } from "./note-values";
 export type { ReasoningLevel, ResearchDepth, ResearchMode, VisualMode, VisualReference } from "./ai/types";
 export { normalizeReasoningLevel } from "./ai/task-policy";
 
@@ -162,13 +163,13 @@ function replaceSection(content: string, heading: NoteSection, value: string): s
   const bounds = sectionBounds(content, heading);
   if (bounds) {
     if (heading === "Detail" && !content.slice(0, bounds.start).includes(DETAIL_START)) {
-      return `${content.slice(0, bounds.start)}\n\n${DETAIL_START}\n${value.trim()}\n${DETAIL_END}\n\n${content.slice(bounds.end).replace(/^\s*/, "")}`;
+      return `${content.slice(0, bounds.start)}\n\n${DETAIL_START}\n${managedSectionValue(value)}\n${DETAIL_END}\n\n${content.slice(bounds.end).replace(/^\s*/, "")}`;
     }
-    return `${content.slice(0, bounds.start)}\n${value.trim()}\n${content.slice(bounds.end)}`;
+    return `${content.slice(0, bounds.start)}\n${managedSectionValue(value)}\n${content.slice(bounds.end)}`;
   }
   const reference = content.indexOf(REFERENCE_START);
   const at = reference >= 0 ? reference : content.length;
-  const managed = heading === "Detail" ? `${DETAIL_START}\n${value.trim()}\n${DETAIL_END}` : value.trim();
+  const managed = heading === "Detail" ? `${DETAIL_START}\n${managedSectionValue(value)}\n${DETAIL_END}` : managedSectionValue(value);
   return `${content.slice(0, at).trimEnd()}\n\n## ${heading}\n\n${managed}\n\n${content.slice(at).trimStart()}`;
 }
 
@@ -187,7 +188,7 @@ function replaceSummarySection(content: string, value: string): string {
   const title = /^# .*$/m.exec(content);
   if (!title) return replaceSection(content, "Current Summary", value);
   const at = title.index + title[0].length;
-  return `${content.slice(0, at)}\n\n## Current Summary\n\n${value.trim()}\n\n${content.slice(at).trimStart()}`;
+  return `${content.slice(0, at)}\n\n## Current Summary\n\n${managedSectionValue(value)}\n\n${content.slice(at).trimStart()}`;
 }
 
 function removeSection(content: string, heading: NoteSection): string {
@@ -416,7 +417,7 @@ export class Repository {
       let body = content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "");
       body = ensurePreview(body, this.settings.language);
       if (isPlaceholder(text(fm.summary))) fm.summary = placeholder(this.settings.language);
-      if (patch.title !== undefined) body = body.replace(/^# .*$/m, `# ${patch.title.replace(/\n/g, " ")}`);
+      if (patch.title !== undefined) { const heading = managedHeadingValue(patch.title); body = body.replace(/^# .*$/m, () => `# ${heading}`); }
       if (patch.summary !== undefined) body = replaceSummarySection(body, patch.summary);
       if (patch.prompt !== undefined) body = replaceSection(body, "Prompt", patch.prompt);
       if (patch.rules !== undefined) body = replaceSection(body, "Rules", patch.rules);
