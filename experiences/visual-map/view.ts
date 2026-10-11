@@ -742,7 +742,7 @@ export class VisualAgentMapView extends ItemView {
     if (this.refreshTimer !== null) window.clearTimeout(this.refreshTimer);
     if (this.hoverTimer !== null) window.clearTimeout(this.hoverTimer);
     this.hoverCard?.remove();
-    if (this.viewportTimer !== null) { window.clearTimeout(this.viewportTimer); await this.persist(); }
+    if (this.viewportTimer !== null) { window.clearTimeout(this.viewportTimer); this.viewportTimer = null; await this.persistViewport(); }
   }
   private mindSearchViewIsCurrent(epoch: number, mapPath: string): boolean { return !this.closed && this.mindSearchViewEpoch === epoch && this.path === mapPath; }
   async refreshFromPlugin(): Promise<void> {
@@ -803,7 +803,7 @@ export class VisualAgentMapView extends ItemView {
     const viewEpoch = this.mindSearchViewEpoch, openEpoch = ++this.mapOpenEpoch;
     const isCurrent = () => !this.closed && this.mindSearchViewEpoch === viewEpoch && this.mapOpenEpoch === openEpoch;
     if (!isCurrent()) return;
-    if (this.viewportTimer !== null) { window.clearTimeout(this.viewportTimer); this.viewportTimer = null; await this.persist(); if (!isCurrent()) return; }
+    if (this.viewportTimer !== null) { window.clearTimeout(this.viewportTimer); this.viewportTimer = null; await this.persistViewport(); if (!isCurrent()) return; }
     let map = await this.plugin.repo.readMap(path);
     if (!isCurrent()) return;
     if (map.mindSearch?.creationId && map.mindSearch.rootDraft) {
@@ -1161,7 +1161,7 @@ export class VisualAgentMapView extends ItemView {
   async openBuiltInSample(forceTour = false): Promise<void> {
     const viewEpoch = this.mindSearchViewEpoch, openEpoch = ++this.mapOpenEpoch;
     const isCurrent = () => !this.closed && this.mindSearchViewEpoch === viewEpoch && this.mapOpenEpoch === openEpoch;
-    if (this.viewportTimer !== null) { window.clearTimeout(this.viewportTimer); this.viewportTimer = null; await this.persist(); }
+    if (this.viewportTimer !== null) { window.clearTimeout(this.viewportTimer); this.viewportTimer = null; await this.persistViewport(); }
     if (!isCurrent()) return;
     const sample = builtInSample(this.plugin.settings.language);
     if (!this.builtIn) this.plugin.closeStaleDetails();
@@ -1551,7 +1551,7 @@ export class VisualAgentMapView extends ItemView {
     new ChoiceModal(this.app, t("ui.delete_mind_map"), t("ui.move_only_the_map_file_to_the_vault_trash_keep_all_notes_you"), [
       { label: t("ui.delete_0", this.map.title), description: t("ui.topic_notes_will_be_kept"), buttonLabel: t("ui.move_to_trash"), action: () => this.enqueue(async () => {
         if (!this.map) return;
-        if (this.viewportTimer !== null) { window.clearTimeout(this.viewportTimer); this.viewportTimer = null; await this.persist(); }
+        if (this.viewportTimer !== null) { window.clearTimeout(this.viewportTimer); this.viewportTimer = null; await this.persistViewport(); }
         const path = this.path, file = this.plugin.repo.file(path), content = await this.app.vault.read(file), map = clone(this.map);
         this.deletedMap = { path, content, map, deleted: true };
         try { await this.app.fileManager.trashFile(file); }
@@ -1591,7 +1591,7 @@ export class VisualAgentMapView extends ItemView {
     await this.plugin.rebuildDerivedData(); this.render();
   }
   private async restoreDeletedMapFromUi(): Promise<void> {
-    if (this.viewportTimer !== null) { window.clearTimeout(this.viewportTimer); this.viewportTimer = null; await this.persist(); }
+    if (this.viewportTimer !== null) { window.clearTimeout(this.viewportTimer); this.viewportTimer = null; await this.persistViewport(); }
     if (this.history.undoEntry === this.deletedMap?.deleteAction) await this.travel(false);
     else {
       await this.restoreDeletedMap();
@@ -2647,7 +2647,13 @@ export class VisualAgentMapView extends ItemView {
     }
   }
   private transform(): void { if (!this.map || !this.stageEl) return; const { x, y, zoom } = this.map.viewport; this.stageEl.style.transform = `translate(${x}px, ${y}px) scale(${zoom})`; this.zoomLabel?.setText(`${Math.round(zoom * 100)}%`); }
-  private saveViewport(): void { if (this.viewportTimer !== null) window.clearTimeout(this.viewportTimer); this.viewportTimer = window.setTimeout(() => { this.viewportTimer = null; this.enqueue(() => this.persist()); }, 250); }
+  private saveViewport(): void { if (this.viewportTimer !== null) window.clearTimeout(this.viewportTimer); this.viewportTimer = window.setTimeout(() => { this.viewportTimer = null; this.enqueue(() => this.persistViewport()); }, 250); }
+  /** Pan/zoom writes only the viewport onto the current file, never this view's possibly older map copy. */
+  private async persistViewport(): Promise<void> {
+    if (this.builtIn || !this.map || !this.path) return;
+    const viewport = { ...this.map.viewport };
+    await this.plugin.repo.updateMap(this.path, map => { map.viewport = viewport; });
+  }
   private zoomBy(factor: number, point?: { x: number; y: number }): void {
     if (!this.map || !this.viewportEl) return;
     const center = point ?? { x: this.viewportEl.clientWidth / 2, y: this.viewportEl.clientHeight / 2 }, v = this.map.viewport;

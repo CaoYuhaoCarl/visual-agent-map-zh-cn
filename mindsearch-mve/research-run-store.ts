@@ -18,11 +18,23 @@ export type ResultDraftCreation = { status: "ready"; draft: MindSearchResultDraf
 export interface MindSearchAttemptConfig { subtopicId?: string; phase?: string; model: string; reasoning: "low" | "medium" | "high"; maxResearchTurns: number }
 export interface MindSearchResultDraftOptions { reuse?: MindSearchResultDraftRecord["reuse"]; kind?: "research" | "synthesis" | "conclusion"; subtopicId?: string; parentNodeId?: string; convergesFromNodeIds?: string[] }
 
+/** The single definition of a live attempt: still current for its run, running, and on the same input snapshot. */
+function isRunningAttempt(run: { currentAttemptId: string }, attempt: { status: string; inputSnapshotHash: string }, handle: { attemptId: string; inputSnapshotHash: string }): boolean {
+  return run.currentAttemptId === handle.attemptId && attempt.status === "running" && attempt.inputSnapshotHash === handle.inputSnapshotHash;
+}
+
 /** Minimal MVE store: immutable user-answer snapshots, attempt fencing, and idempotent Map/Note recovery. */
 export class MindSearchRunStore {
   private static readonly liveAttempts = new Set<string>();
-  private readonly locks = new Map<string, Promise<void>>();
-  constructor(private readonly repository: Repository, private readonly id: () => string = randomUUID, private readonly now: () => string = () => new Date().toISOString()) {}
+  /** Per-repository map locks, shared by every store instance so that separate views serialize their writes. */
+  private static readonly repositoryLocks = new WeakMap<object, Map<string, Promise<void>>>();
+  private readonly locks: Map<string, Promise<void>>;
+  constructor(private readonly repository: Repository, private readonly id: () => string = randomUUID, private readonly now: () => string = () => new Date().toISOString()) {
+    if (!repository || typeof repository !== "object") { this.locks = new Map(); return; }
+    let shared = MindSearchRunStore.repositoryLocks.get(repository);
+    if (!shared) { shared = new Map(); MindSearchRunStore.repositoryLocks.set(repository, shared); }
+    this.locks = shared;
+  }
 
   async createAnswerBranch(mapPath: string, input: NewAnswerBranch): Promise<MindSearchBranchRecord> {
     return this.locked(mapPath, async () => {
@@ -256,7 +268,7 @@ export class MindSearchRunStore {
       const map = await this.repository.readMap(mapPath), state = this.state(map);
       const run = state.runs.find(item => item.id === handle.runId), attempt = run?.attempts.find(item => item.id === handle.attemptId);
       const branch = state.branches.find(item => item.id === run?.branchId);
-      if (!branch || !run || !attempt || run.currentAttemptId !== handle.attemptId || attempt.status !== "running" || attempt.inputSnapshotHash !== handle.inputSnapshotHash || this.snapshotHash({ branch: branch.inputSnapshot, answer: branch.answerSnapshot }) !== handle.inputSnapshotHash) throw new Error("The MindSearch attempt is no longer current.");
+      if (!branch || !run || !attempt || !isRunningAttempt(run, attempt, handle) || this.snapshotHash({ branch: branch.inputSnapshot, answer: branch.answerSnapshot }) !== handle.inputSnapshotHash) throw new Error("The MindSearch attempt is no longer current.");
       if (recovery?.phase) attempt.phase = recovery.phase;
       branch.deliveryRecovery = recovery ? JSON.parse(JSON.stringify(recovery)) as MindSearchBranchRecord["deliveryRecovery"] : undefined;
       await this.repository.saveMap(mapPath, map);
@@ -267,7 +279,7 @@ export class MindSearchRunStore {
     await this.locked(mapPath, async () => {
       const map = await this.repository.readMap(mapPath), state = this.state(map);
       const run = state.runs.find(item => item.id === handle.runId), attempt = run?.attempts.find(item => item.id === handle.attemptId);
-      if (!run || !attempt || run.currentAttemptId !== handle.attemptId || attempt.status !== "running" || attempt.inputSnapshotHash !== handle.inputSnapshotHash) throw new Error("The MindSearch attempt is no longer current.");
+      if (!run || !attempt || !isRunningAttempt(run, attempt, handle)) throw new Error("The MindSearch attempt is no longer current.");
       attempt.phase = phase;
       await this.repository.saveMap(mapPath, map);
     });
@@ -276,7 +288,7 @@ export class MindSearchRunStore {
   async recordResearchTurn(mapPath: string, handle: AttemptHandle): Promise<number> {
     return this.locked(mapPath, async () => {
       const map = await this.repository.readMap(mapPath), state = this.state(map), run = state.runs.find(item => item.id === handle.runId), attempt = run?.attempts.find(item => item.id === handle.attemptId);
-      if (!run || !attempt || run.currentAttemptId !== handle.attemptId || attempt.status !== "running" || attempt.inputSnapshotHash !== handle.inputSnapshotHash) throw new Error("The MindSearch attempt is no longer current.");
+      if (!run || !attempt || !isRunningAttempt(run, attempt, handle)) throw new Error("The MindSearch attempt is no longer current.");
       const next = (attempt.researchTurns ?? 0) + 1;
       if (next > (attempt.maxResearchTurns ?? 1)) throw new Error("The bounded MindSearch research-turn budget is exhausted.");
       attempt.researchTurns = next; map.mindSearch = state; await this.repository.saveMap(mapPath, map); return next;
@@ -286,7 +298,7 @@ export class MindSearchRunStore {
   async recordPlannerReview(mapPath: string, handle: AttemptHandle, review: MindSearchPlannerReviewRecord, stopReason?: string): Promise<void> {
     return this.locked(mapPath, async () => {
       const map = await this.repository.readMap(mapPath), state = this.state(map), run = state.runs.find(item => item.id === handle.runId), attempt = run?.attempts.find(item => item.id === handle.attemptId);
-      if (!run || !attempt || run.currentAttemptId !== handle.attemptId || attempt.status !== "running" || attempt.inputSnapshotHash !== handle.inputSnapshotHash) throw new Error("The MindSearch attempt is no longer current.");
+      if (!run || !attempt || !isRunningAttempt(run, attempt, handle)) throw new Error("The MindSearch attempt is no longer current.");
       const reviews = attempt.plannerReviews ?? [];
       if (reviews.some(item => item.researchTurn === review.researchTurn)) throw new Error("A Planner review is already recorded for this research turn.");
       if (review.researchTurn !== (attempt.researchTurns ?? 0)) throw new Error("Planner review must follow a completed research turn.");
@@ -299,7 +311,7 @@ export class MindSearchRunStore {
   async recordSearchDiagnostic(mapPath: string, handle: AttemptHandle, diagnostic: MindSearchSearchDiagnostic): Promise<void> {
     return this.locked(mapPath, async () => {
       const map = await this.repository.readMap(mapPath), state = this.state(map), run = state.runs.find(item => item.id === handle.runId), attempt = run?.attempts.find(item => item.id === handle.attemptId);
-      if (!run || !attempt || run.currentAttemptId !== handle.attemptId || attempt.status !== "running" || attempt.inputSnapshotHash !== handle.inputSnapshotHash) throw new Error("The MindSearch attempt is no longer current.");
+      if (!run || !attempt || !isRunningAttempt(run, attempt, handle)) throw new Error("The MindSearch attempt is no longer current.");
       const diagnostics = attempt.searchDiagnostics ?? [];
       const existing = diagnostics.find(item => item.researchTurn === diagnostic.researchTurn);
       if (existing) Object.assign(existing, JSON.parse(JSON.stringify(diagnostic)) as MindSearchSearchDiagnostic);
@@ -312,7 +324,7 @@ export class MindSearchRunStore {
   async updateResultDraftReport(mapPath: string, handle: AttemptHandle, draftId: string, summary: string, detail: string): Promise<boolean> {
     return this.locked(mapPath, async () => {
       const map = await this.repository.readMap(mapPath), state = this.state(map), run = state.runs.find(item => item.id === handle.runId), attempt = run?.attempts.find(item => item.id === handle.attemptId), draft = state.resultDrafts?.find(item => item.id === draftId);
-      if (!run || !attempt || run.currentAttemptId !== handle.attemptId || attempt.status !== "running" || attempt.inputSnapshotHash !== handle.inputSnapshotHash || !draft || draft.runId !== run.id || draft.attemptId !== attempt.id || draft.status !== "ready") return false;
+      if (!run || !attempt || !isRunningAttempt(run, attempt, handle) || !draft || draft.runId !== run.id || draft.attemptId !== attempt.id || draft.status !== "ready") return false;
       await this.repository.updateNote(draft.notePath, { summary, detail, status: "idea" });
       const saved = await this.repository.readNote(draft.notePath);
       if (saved.summary !== managedSectionValue(summary) || saved.detail !== managedSectionValue(detail)) throw new Error("The Searcher report did not match the Repository readback before Planner review.");
@@ -324,7 +336,7 @@ export class MindSearchRunStore {
   async updateResultDraftPresentation(mapPath: string, handle: AttemptHandle, draftId: string, title: string, kind: "synthesis" | "conclusion"): Promise<boolean> {
     return this.locked(mapPath, async () => {
       const map = await this.repository.readMap(mapPath), state = this.state(map), run = state.runs.find(item => item.id === handle.runId), attempt = run?.attempts.find(item => item.id === handle.attemptId), draft = state.resultDrafts?.find(item => item.id === draftId);
-      if (!run || !attempt || run.currentAttemptId !== handle.attemptId || attempt.status !== "running" || attempt.inputSnapshotHash !== handle.inputSnapshotHash || !draft || draft.runId !== run.id || draft.attemptId !== attempt.id || draft.status !== "ready") return false;
+      if (!run || !attempt || !isRunningAttempt(run, attempt, handle) || !draft || draft.runId !== run.id || draft.attemptId !== attempt.id || draft.status !== "ready") return false;
       const node = map.nodes.find(item => item.id === draft.nodeId && item.path === draft.notePath);
       if (!node) throw new Error("MindSearch synthesis draft node is missing before finalization.");
       await this.repository.updateNote(draft.notePath, { title });
@@ -340,7 +352,7 @@ export class MindSearchRunStore {
     return this.locked(mapPath, async () => {
       const map = await this.repository.readMap(mapPath), state = this.state(map);
       const run = state.runs.find(item => item.id === handle.runId), attempt = run?.attempts.find(item => item.id === handle.attemptId);
-      if (!run || !attempt || run.currentAttemptId !== handle.attemptId || attempt.status !== "running" || attempt.inputSnapshotHash !== handle.inputSnapshotHash) return false;
+      if (!run || !attempt || !isRunningAttempt(run, attempt, handle)) return false;
       if (state.pendingCommits.some(item => item.runId === handle.runId && item.attemptId === handle.attemptId)) throw new Error("A saving attempt must be recovered or explicitly cancelled before it can be failed.");
       attempt.status = "failed"; attempt.stopReason = reason;
       this.releaseAttempt(mapPath, handle);
@@ -356,7 +368,7 @@ export class MindSearchRunStore {
     return this.locked(mapPath, async () => {
       const map = await this.repository.readMap(mapPath), state = this.state(map);
       const run = state.runs.find(item => item.id === handle.runId), attempt = run?.attempts.find(item => item.id === handle.attemptId);
-      if (!run || !attempt || run.currentAttemptId !== handle.attemptId || attempt.status !== "running" || attempt.inputSnapshotHash !== handle.inputSnapshotHash) return false;
+      if (!run || !attempt || !isRunningAttempt(run, attempt, handle)) return false;
       if (state.pendingCommits.some(item => item.runId === handle.runId && item.attemptId === handle.attemptId)) return false;
       attempt.status = "cancelled"; attempt.stopReason = reason;
       this.releaseAttempt(mapPath, handle);
@@ -373,7 +385,7 @@ export class MindSearchRunStore {
   async createResultDraft(mapPath: string, handle: AttemptHandle, title: string, model: string, reasoning?: "low" | "medium" | "high", options: MindSearchResultDraftOptions = {}): Promise<ResultDraftCreation> {
     return this.locked(mapPath, async () => {
       const map = await this.repository.readMap(mapPath), state = this.state(map), run = state.runs.find(item => item.id === handle.runId), attempt = run?.attempts.find(item => item.id === handle.attemptId);
-      if (!run || !attempt || run.currentAttemptId !== handle.attemptId || attempt.status !== "running" || attempt.inputSnapshotHash !== handle.inputSnapshotHash) return { status: "stale", runId: handle.runId, attemptId: handle.attemptId };
+      if (!run || !attempt || !isRunningAttempt(run, attempt, handle)) return { status: "stale", runId: handle.runId, attemptId: handle.attemptId };
       const branch = state.branches.find(item => item.id === run.branchId);
       if (!branch) throw new Error("Answer branch does not exist.");
       const folder = this.repository.topicFolder(mapPath, "Notes"); await this.repository.ensureTopicFolders(this.repository.topicRoot(mapPath));
@@ -402,7 +414,7 @@ export class MindSearchRunStore {
   async commitResult(mapPath: string, handle: AttemptHandle, resultDraftId: string, result: Pick<AiResult, "summary" | "detail">, resultStatus: "completed" | "partial" = "completed"): Promise<CommitResult> {
     return this.locked(mapPath, async () => {
       const map = await this.repository.readMap(mapPath), state = this.state(map), run = state.runs.find(item => item.id === handle.runId), attempt = run?.attempts.find(item => item.id === handle.attemptId);
-      if (!run || !attempt || run.currentAttemptId !== handle.attemptId || attempt.status !== "running" || attempt.inputSnapshotHash !== handle.inputSnapshotHash) return { status: "stale", runId: handle.runId, attemptId: handle.attemptId };
+      if (!run || !attempt || !isRunningAttempt(run, attempt, handle)) return { status: "stale", runId: handle.runId, attemptId: handle.attemptId };
       const branch = state.branches.find(item => item.id === run.branchId)!;
       const draft = state.resultDrafts?.find(item => item.id === resultDraftId && item.branchId === branch.id);
       if (!draft || draft.status !== "ready" || draft.runId !== run.id || draft.attemptId !== attempt.id || !map.nodes.some(node => node.id === draft.nodeId && node.path === draft.notePath && node.parentId === (draft.parentNodeId ?? branch.questionNodeId)) || branch.results.some(item => item.notePath === draft.notePath) || state.pendingCommits.some(item => item.notePath === draft.notePath)) throw new Error("MindSearch result must use a fresh, registered result draft owned by this answer attempt.");

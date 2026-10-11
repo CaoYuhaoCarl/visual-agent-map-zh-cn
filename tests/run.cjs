@@ -1108,6 +1108,23 @@ async function mindSearchMapFixture() {
   const { MindSearchRunStore } = load('mindsearch-mve/research-run-store.ts');
   return { ...data, mapPath, question, store: new MindSearchRunStore(data.repo, (() => { let next = 0; return () => `mindsearch-id-${++next}`; })(), () => '2026-10-04T22:30:00.000Z') };
 }
+integrationTest('a stale map copy saving its viewport keeps research state written meanwhile, and separate stores serialize', async () => {
+  const subject = await mindSearchMapFixture();
+  let doc = await subject.repo.readMap(subject.mapPath);
+  const secondQuestion = await subject.repo.createNote('第二個問題', 'gpt-6-luna', doc, subject.mapPath, 'workspace'); doc.nodes.push(secondQuestion); await subject.repo.saveMap(subject.mapPath, doc);
+  const stale = await subject.repo.readMap(subject.mapPath);
+  const input = requestId => ({ requestId, questionNodeId: requestId === 'first' ? subject.question.id : secondQuestion.id, parentBranchId: null, answerSnapshot: { selections: [], freeText: requestId }, inputSnapshot: { topic: 'T', conditions: {}, upstreamResults: [] } });
+  // Two views own two store instances (from the same bundle) on one repository; their writes must not lose each other.
+  const other = new subject.store.constructor(subject.repo);
+  await Promise.all([subject.store.createAnswerBranch(subject.mapPath, input('first')), other.createAnswerBranch(subject.mapPath, input('second'))]);
+  assert.equal((await subject.repo.readMap(subject.mapPath)).mindSearch.branches.length, 2, 'concurrent writes from separate stores are both kept');
+  // A view still holding the pre-research copy pans the map: only the viewport may change.
+  stale.viewport = { x: 120, y: -40, zoom: 1.5 };
+  await subject.repo.updateMap(subject.mapPath, map => { map.viewport = { ...stale.viewport }; });
+  const saved = await subject.repo.readMap(subject.mapPath);
+  assert.deepEqual(JSON.parse(JSON.stringify(saved.viewport)), { x: 120, y: -40, zoom: 1.5 });
+  assert.equal(saved.mindSearch.branches.length, 2, 'the viewport write did not overwrite research state with the stale copy');
+});
 integrationTest('fully specified startup still enforces the minimum answer floor without creating a conclusion', async () => {
   const { repo } = fixture();
   const { createMindSearchMap } = load('experiences/mind-search/create-map.ts');
@@ -4888,6 +4905,34 @@ integrationTest('research budget sends one stop-search steer after three searche
     assert.equal(sent.filter(message => message.method === 'turn/steer').length, 1);
     assert.equal(sent.filter(message => message.method === 'turn/interrupt').length, 0);
     assert.match(sent.find(message => message.method === 'turn/steer').params.input[0].text, /停止搜尋/);
+  } finally { runtime.stop(); }
+});
+integrationTest('a failing caller callback fails only its own Codex turn and keeps the shared process', async () => {
+  const { EventEmitter } = require('node:events'); let spawned = 0, threads = 0; const sent = [];
+  const child = new EventEmitter(); child.stdout = new EventEmitter(); child.stderr = new EventEmitter(); child.kill = () => {};
+  const emit = message => process.nextTick(() => child.stdout.emit('data', Buffer.from(`${JSON.stringify(message)}\n`)));
+  child.stdin = { write: line => {
+    const message = JSON.parse(line.trim()); sent.push(message);
+    if (message.method === 'initialize') emit({ id: message.id, result: {} });
+    else if (message.method === 'thread/start') emit({ id: message.id, result: { thread: { id: `thread-${++threads}` } } });
+    else if (message.method === 'turn/start') {
+      const threadId = message.params.threadId;
+      emit({ id: message.id, result: { turn: { id: `turn-${threadId}` } } });
+      setTimeout(() => {
+        emit({ method: 'item/completed', params: { threadId, item: { type: 'agentMessage', text: `answer ${threadId}` } } });
+        emit({ method: 'turn/completed', params: { threadId, turn: { status: 'completed' } } });
+      }, 5);
+    } else if (message.method === 'turn/interrupt' || message.method === 'thread/unsubscribe') emit({ id: message.id, result: {} });
+  } };
+  const { CodexAppServerRuntime } = load('ai/runtime/codex-app-server.ts', { 'node:child_process': { spawn: () => { spawned++; return child; } } });
+  const runtime = new CodexAppServerRuntime({ executable: 'codex', cwd: '/plugin', env: {}, clientVersion: 'test' });
+  try {
+    const failing = runtime.runTask('a', 'model', 'low', undefined, { onText: () => { throw new Error('UI callback failed'); } });
+    const healthy = runtime.runTask('b', 'model', 'low', undefined, {});
+    await assert.rejects(failing, /UI callback failed/);
+    assert.match(await healthy, /^answer thread-/);
+    assert.equal(spawned, 1, 'the shared app-server process was not restarted');
+    assert.ok(sent.some(message => message.method === 'turn/interrupt'), 'the abandoned turn is interrupted');
   } finally { runtime.stop(); }
 });
 integrationTest('opening a web page does not consume the search query budget', async () => {

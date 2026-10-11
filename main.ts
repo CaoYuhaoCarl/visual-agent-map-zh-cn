@@ -104,6 +104,10 @@ export default class VisualAgentMapPlugin extends Plugin {
     this.queue = result.catch(error => { const message = error instanceof Error ? error.message : String(error); this.logs.appendLog("error", `操作失敗：${message}`); console.error("Visual Agent Map", error); new Notice(message); });
     return result;
   }
+  /** Fire-and-forget mutation for event and command handlers; mutate() has already logged any failure. */
+  runMutation(work: () => Promise<void>): void {
+    this.mutate(work).catch(() => { /* Logged by mutate(). */ });
+  }
   views(): VisualAgentMapView[] { return this.app.workspace.getLeavesOfType(VIEW_TYPE).map(leaf => leaf.view).filter((view): view is VisualAgentMapView => view instanceof VisualAgentMapView); }
   syncOutline(map: MapDocument | null, notes: Map<string, Note>, sample = false): void {
     const titles = new Map([...notes].map(([id, note]) => [id, note.title]));
@@ -190,11 +194,11 @@ export default class VisualAgentMapPlugin extends Plugin {
     this.addLocalizedCommand("open-map", "ui.open_map", () => { void this.activateView().catch(error => new Notice(String(error))); });
     this.addLocalizedCommand("create-mindsearch-map", "ui.mindsearch_create_map", () => { void this.activateView().then(() => this.views()[0]?.openMindSearchStart()).catch(error => new Notice(String(error))); });
     this.addLocalizedCommand("open-topic-outline", "ui.open_topic_outline", () => { void this.activateOutline().catch(error => new Notice(String(error))); });
-    this.addLocalizedCommand("rebuild-references", "ui.refresh_vam_data", () => { void this.mutate(() => this.fullRebuild()); });
-    this.addLocalizedCommand("normalize-note-filenames", "ui.sync_topic_names_and_filenames", () => { void this.mutate(async () => { const count = await this.repo.normalizeGeneratedNoteFilenames(); new Notice(count ? t("ui.synced_0_topic_filenames", count) : t("ui.topic_filenames_are_up_to_date")); }); });
-    this.addLocalizedCommand("repair-note-presentation", "ui.repair_topic_note_display", () => { void this.mutate(async () => { await this.repo.ensureNodePresentation(); new Notice(t("ui.topic_note_display_repaired")); }); });
+    this.addLocalizedCommand("rebuild-references", "ui.refresh_vam_data", () => { this.runMutation(() => this.fullRebuild()); });
+    this.addLocalizedCommand("normalize-note-filenames", "ui.sync_topic_names_and_filenames", () => { this.runMutation(async () => { const count = await this.repo.normalizeGeneratedNoteFilenames(); new Notice(count ? t("ui.synced_0_topic_filenames", count) : t("ui.topic_filenames_are_up_to_date")); }); });
+    this.addLocalizedCommand("repair-note-presentation", "ui.repair_topic_note_display", () => { this.runMutation(async () => { await this.repo.ensureNodePresentation(); new Notice(t("ui.topic_note_display_repaired")); }); });
     this.addLocalizedCommand("open-built-in-sample", "ui.open_the_taiwan_travel_sample", () => { void this.activateBuiltInSample(true); });
-    this.addLocalizedCommand("repair-workspace", "ui.repair_agent_workspace", () => { void this.mutate(() => this.repairWorkspace()); });
+    this.addLocalizedCommand("repair-workspace", "ui.repair_agent_workspace", () => { this.runMutation(() => this.repairWorkspace()); });
     this.addLocalizedCommand("reconnect-workspace", "ui.reconnect_existing_workspace", () => { void this.offerWorkspaceReconnect(); });
     this.addLocalizedCommand("open-prompt-monitor", "ui.prompt_monitor", () => new DebugLogModal(this.app, this.logs, this.exchanges, () => this.settings.aiExchangeLoggingEnabled, async enabled => { this.settings.aiExchangeLoggingEnabled = enabled; await this.saveSettings(); }).open());
     this.addLocalizedCommand("open-debug-log", "ui.open_debug_log", () => new DebugLogModal(this.app, this.logs, this.exchanges, () => this.settings.aiExchangeLoggingEnabled).open());
@@ -223,8 +227,8 @@ export default class VisualAgentMapPlugin extends Plugin {
       }).catch(error => { this.logs.appendLog("warn", `初始化未完成：${error instanceof Error ? error.message : String(error)}`); console.warn("Visual Agent Map initialization", error); });
     });
     this.registerEvent(this.app.vault.on("modify", file => { if (!this.writing && file instanceof TFile) for (const view of this.views()) view.changed(file); }));
-    this.registerEvent(this.app.vault.on("delete", file => { if (!this.writing && file instanceof TFile) { for (const view of this.views()) view.deleted(file); this.scheduleExternalReconciliation(file.path); if (file.path.startsWith(`${this.settings.mapsFolder}/`) || file.path.startsWith(`${this.settings.topicsFolder}/`) && file.name === "Map.md") void this.mutate(() => this.repo.rebuildDerivedData()); } }));
-    this.registerEvent(this.app.vault.on("rename", (file, oldPath) => { if (!this.writing && file instanceof TFile) void this.mutate(async () => {
+    this.registerEvent(this.app.vault.on("delete", file => { if (!this.writing && file instanceof TFile) { for (const view of this.views()) view.deleted(file); this.scheduleExternalReconciliation(file.path); if (file.path.startsWith(`${this.settings.mapsFolder}/`) || file.path.startsWith(`${this.settings.topicsFolder}/`) && file.name === "Map.md") this.runMutation(() => this.repo.rebuildDerivedData()); } }));
+    this.registerEvent(this.app.vault.on("rename", (file, oldPath) => { if (!this.writing && file instanceof TFile) this.runMutation(async () => {
       await this.repo.replaceSourcePath(oldPath, file.path);
       let mapChanged = false;
       for (const mapFile of await this.repo.mapFiles()) { const map = await this.repo.readMap(mapFile.path); let changed = false; for (const node of map.nodes) if (node.path === oldPath) { node.path = file.path; changed = true; } if (changed) { await this.repo.saveMap(mapFile.path, map); mapChanged = true; } }
@@ -505,7 +509,7 @@ export default class VisualAgentMapPlugin extends Plugin {
     this.activeTasks.set(key, controller);
     exchanges?.begin({ id, startedAt: new Date().toISOString(), topic: `Coffee Tables · ${session.topic}`, mode: "task", model: session.model, effort });
     try {
-      const controls = { textOnly: true, signal: controller.signal, searchBudget: 0, timeoutMs: 15 * 60 * 1000, onText: (text: string): void => request.onText?.(text), onSteer: (handler: (text: string) => Promise<void>): void => request.registerIntervention?.(handler), onRequest: (data: unknown): void => { if (this.settings.aiExchangeLoggingEnabled) exchanges?.sent(id, JSON.stringify({ request: data, prompt }, null, 2), prompt); } };
+      const controls = { textOnly: true, signal: controller.signal, searchBudget: 0, timeoutMs: 15 * 60 * 1000, timeoutMessage: t("ui.coffee_generation_timed_out"), onText: (text: string): void => request.onText?.(text), onSteer: (handler: (text: string) => Promise<void>): void => request.registerIntervention?.(handler), onRequest: (data: unknown): void => { if (this.settings.aiExchangeLoggingEnabled) exchanges?.sent(id, JSON.stringify({ request: data, prompt }, null, 2), prompt); } };
       const raw = providerForModel(session.model) === "claude"
         ? await this.claudeCli(directory).runTask(prompt, providerModelId(session.model), effort, undefined, controls)
         : await this.runtime(directory, true).runTask(prompt, session.model, effort, undefined, controls);

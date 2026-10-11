@@ -178,7 +178,7 @@ export class ClaudeCodeCliRuntime {
       const onAbort = (): void => { stop(); finish(abortError()); };
       const timeout = window.setTimeout(() => {
         stop();
-        finish(new Error(controls.timeoutMessage ?? (controls.timeoutMs ? "Coffee Tables: generation timed out; received text is saved as a draft." : t("ui.the_ai_task_exceeded_3_minutes_vam_attempts_to_interrupt_it"))));
+        finish(new Error(controls.timeoutMessage ?? (controls.timeoutMs ? t("ui.ai_task_exceeded_0_minutes", Math.ceil(controls.timeoutMs / 60_000)) : t("ui.the_ai_task_exceeded_3_minutes_vam_attempts_to_interrupt_it"))));
       }, controls.timeoutMs ?? this.options.timeoutMs ?? CLAUDE_TASK_TIMEOUT_MS);
       controls.signal?.addEventListener("abort", onAbort, { once: true });
       child.stdout.on("data", chunk => {

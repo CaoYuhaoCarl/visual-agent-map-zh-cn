@@ -154,7 +154,7 @@ export class CodexAppServerRuntime {
         this.turns.delete(threadId);
         timedOut = true;
         interrupt(5_000, "逾時後無法停止 AI 任務");
-        reject(new Error(controls?.timeoutMessage ?? (controls?.timeoutMs ? "Coffee Tables: generation timed out; received text is saved as a draft." : t("ui.the_ai_task_exceeded_3_minutes_vam_attempts_to_interrupt_it"))));
+        reject(new Error(controls?.timeoutMessage ?? (controls?.timeoutMs ? t("ui.ai_task_exceeded_0_minutes", Math.ceil(controls.timeoutMs / 60_000)) : t("ui.the_ai_task_exceeded_3_minutes_vam_attempts_to_interrupt_it"))));
       }, controls?.timeoutMs ?? TURN_TIMEOUT_MS);
       this.turns.set(threadId, { messages: [], visibleMessages: new Map(), resolve, reject, timeout, turnId: "", searches: 0, countedSearchIds: new Set(), webRetrievals: new Set(), requireSearch: controls?.webSearchOnly === true, searchBudget: controls?.searchBudget ?? 0, steered: false, onRequest: controls?.onRequest, onText: controls?.onText, onWebSearchEvent: controls?.onWebSearchEvent });
     });
@@ -238,8 +238,13 @@ export class CodexAppServerRuntime {
       const line = this.buffer.slice(0, newline).trim();
       this.buffer = this.buffer.slice(newline + 1);
       if (!line) continue;
-      try { this.handle(JSON.parse(line) as RpcResponse | RpcNotification | RpcServerRequest); }
-      catch (error) { this.failProcess(child, new Error(t("ui.could_not_parse_codex_app_server_response_0", error instanceof Error ? error.message : String(error)))); }
+      let message: RpcResponse | RpcNotification | RpcServerRequest;
+      try { message = JSON.parse(line) as RpcResponse | RpcNotification | RpcServerRequest; }
+      catch (error) { this.failProcess(child, new Error(t("ui.could_not_parse_codex_app_server_response_0", error instanceof Error ? error.message : String(error)))); continue; }
+      // A malformed stream breaks the shared process, but an error while handling one message (for example from a
+      // caller's text or telemetry callback) fails only the turn it belongs to, not parallel turns.
+      try { this.handle(message); }
+      catch (error) { this.failTurnOf(message, error instanceof Error ? error : new Error(String(error))); }
     }
   }
 
@@ -348,6 +353,17 @@ export class CodexAppServerRuntime {
   private send(message: object): void {
     if (!this.child) throw new Error(t("ui.codex_app_server_has_not_started"));
     this.child.stdin.write(`${JSON.stringify(message)}\n`);
+  }
+
+  private failTurnOf(message: RpcResponse | RpcNotification | RpcServerRequest, error: Error): void {
+    this.options.onLog?.("warn", `Codex App Server turn failed while handling a message: ${error.message}`);
+    const threadId = "params" in message && typeof (message.params as { threadId?: unknown } | undefined)?.threadId === "string" ? (message.params as { threadId: string }).threadId : "";
+    const state = threadId ? this.turns.get(threadId) : undefined;
+    if (!state) return;
+    window.clearTimeout(state.timeout);
+    this.turns.delete(threadId);
+    if (state.turnId) void this.request("turn/interrupt", { threadId, turnId: state.turnId }).catch(() => { /* The turn is already abandoned locally. */ });
+    state.reject(error);
   }
 
   private failProcess(child: ChildProcessHandle, error: Error): void {

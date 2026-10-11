@@ -5362,6 +5362,8 @@ var english = {
   "ui.mindsearch_repair_auth_hint": "Check the selected model and provider sign-in, then resume. Completed results are retained.",
   "ui.mindsearch_repair_format_hint": "The response did not match the required format. Retry this stage; completed results are retained.",
   "ui.mindsearch_repair_search_hint": "Search did not produce usable evidence. Check connectivity and search availability, then resume.",
+  "ui.ai_task_exceeded_0_minutes": "The AI task exceeded {0} minutes and was interrupted. Incomplete results are not applied.",
+  "ui.coffee_generation_timed_out": "Coffee Tables: generation timed out; received text is saved as a draft.",
   "ui.mindsearch_task_timeout": "This task exceeded {0} minutes. Completed stages are saved; you can resume from the interrupted stage.",
   "ui.mindsearch_failure_reason": "Failure reason: {0}",
   "ui.mindsearch_failure_stage": "Stopped at: {0}",
@@ -6284,6 +6286,8 @@ var traditionalChinese = {
   "ui.mindsearch_repair_auth_hint": "\u8ACB\u78BA\u8A8D\u6240\u9078\u6A21\u578B\u8207\u670D\u52D9\u767B\u5165\u72C0\u614B\uFF0C\u518D\u63A5\u7E8C\u57F7\u884C\uFF1B\u5DF2\u5B8C\u6210\u7D50\u679C\u6703\u4FDD\u7559\u3002",
   "ui.mindsearch_repair_format_hint": "\u56DE\u8986\u672A\u7B26\u5408\u5FC5\u8981\u683C\u5F0F\u3002\u53EF\u91CD\u8A66\u6B64\u968E\u6BB5\uFF0C\u5DF2\u5B8C\u6210\u7D50\u679C\u6703\u4FDD\u7559\u3002",
   "ui.mindsearch_repair_search_hint": "\u641C\u5C0B\u672A\u53D6\u5F97\u53EF\u7528\u8B49\u64DA\u3002\u8ACB\u78BA\u8A8D\u9023\u7DDA\u8207\u641C\u5C0B\u670D\u52D9\u53EF\u7528\uFF0C\u518D\u63A5\u7E8C\u57F7\u884C\u3002",
+  "ui.ai_task_exceeded_0_minutes": "AI \u4EFB\u52D9\u8D85\u904E {0} \u5206\u9418\uFF0C\u5DF2\u4E2D\u65B7\u3002\u672A\u5B8C\u6210\u7684\u7D50\u679C\u4E0D\u6703\u5957\u7528\u3002",
+  "ui.coffee_generation_timed_out": "Coffee Tables\uFF1A\u751F\u6210\u903E\u6642\uFF1B\u5DF2\u6536\u5230\u7684\u6587\u5B57\u5DF2\u5B58\u6210\u8349\u7A3F\u3002",
   "ui.mindsearch_task_timeout": "AI \u4EFB\u52D9\u8D85\u904E {0} \u5206\u9418\u3002\u5DF2\u5B8C\u6210\u968E\u6BB5\u5DF2\u4FDD\u5B58\uFF0C\u53EF\u5F9E\u4E2D\u65B7\u8655\u63A5\u7E8C\u3002",
   "ui.mindsearch_failure_reason": "\u5931\u6557\u539F\u56E0\uFF1A{0}",
   "ui.mindsearch_failure_stage": "\u4E2D\u65B7\u968E\u6BB5\uFF1A{0}",
@@ -8176,6 +8180,11 @@ var REFERENCE_END = "<!-- visual-agent-map:references:end -->";
 var DETAIL_START = "<!-- visual-agent-map:detail:start -->";
 var DETAIL_END = "<!-- visual-agent-map:detail:end -->";
 var NOTE_CSS_CLASS = "visual-agent-map-node";
+function writeMapContent(content, map) {
+  return content.replace(/^# .*$/m, () => `# ${map.title.replace(/\n/g, " ")}`).replace(/```agent-map\s*\n[\s\S]*?\n```/, () => `\`\`\`agent-map
+${JSON.stringify(map, null, 2)}
+\`\`\``);
+}
 function marker(value) {
   return value === true || value === "true";
 }
@@ -8654,10 +8663,22 @@ ${body}`);
   async saveMap(path, map) {
     await this.app.vault.process(this.file(path), (content) => {
       parseMap(content);
-      return content.replace(/^# .*$/m, () => `# ${map.title.replace(/\n/g, " ")}`).replace(/```agent-map\s*\n[\s\S]*?\n```/, () => `\`\`\`agent-map
-${JSON.stringify(map, null, 2)}
-\`\`\``);
+      return writeMapContent(content, map);
     });
+  }
+  /**
+   * Read-modify-write on the current file content in one vault.process call, so a caller holding an older copy of
+   * the map cannot overwrite fields it did not change (for example, research state saved meanwhile).
+   */
+  async updateMap(path, change) {
+    let updated;
+    await this.app.vault.process(this.file(path), (content) => {
+      const map = parseMap(content);
+      change(map);
+      updated = map;
+      return writeMapContent(content, map);
+    });
+    return updated;
   }
   /**
    * Markdown files whose frontmatter sets `key`. Indexed files are judged from the metadata cache; only files the
@@ -12126,12 +12147,25 @@ var MindSearchManualFlow = _MindSearchManualFlow;
 
 // mindsearch-mve/research-run-store.ts
 var import_node_crypto8 = require("node:crypto");
+function isRunningAttempt(run, attempt, handle) {
+  return run.currentAttemptId === handle.attemptId && attempt.status === "running" && attempt.inputSnapshotHash === handle.inputSnapshotHash;
+}
 var _MindSearchRunStore = class _MindSearchRunStore {
   constructor(repository, id = import_node_crypto8.randomUUID, now = () => (/* @__PURE__ */ new Date()).toISOString()) {
     this.repository = repository;
     this.id = id;
     this.now = now;
-    __publicField(this, "locks", /* @__PURE__ */ new Map());
+    __publicField(this, "locks");
+    if (!repository || typeof repository !== "object") {
+      this.locks = /* @__PURE__ */ new Map();
+      return;
+    }
+    let shared = _MindSearchRunStore.repositoryLocks.get(repository);
+    if (!shared) {
+      shared = /* @__PURE__ */ new Map();
+      _MindSearchRunStore.repositoryLocks.set(repository, shared);
+    }
+    this.locks = shared;
   }
   async createAnswerBranch(mapPath, input) {
     return this.locked(mapPath, async () => {
@@ -12399,7 +12433,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
       const map = await this.repository.readMap(mapPath), state = this.state(map);
       const run = state.runs.find((item) => item.id === handle.runId), attempt = run == null ? void 0 : run.attempts.find((item) => item.id === handle.attemptId);
       const branch = state.branches.find((item) => item.id === (run == null ? void 0 : run.branchId));
-      if (!branch || !run || !attempt || run.currentAttemptId !== handle.attemptId || attempt.status !== "running" || attempt.inputSnapshotHash !== handle.inputSnapshotHash || this.snapshotHash({ branch: branch.inputSnapshot, answer: branch.answerSnapshot }) !== handle.inputSnapshotHash) throw new Error("The MindSearch attempt is no longer current.");
+      if (!branch || !run || !attempt || !isRunningAttempt(run, attempt, handle) || this.snapshotHash({ branch: branch.inputSnapshot, answer: branch.answerSnapshot }) !== handle.inputSnapshotHash) throw new Error("The MindSearch attempt is no longer current.");
       if (recovery == null ? void 0 : recovery.phase) attempt.phase = recovery.phase;
       branch.deliveryRecovery = recovery ? JSON.parse(JSON.stringify(recovery)) : void 0;
       await this.repository.saveMap(mapPath, map);
@@ -12409,7 +12443,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
     await this.locked(mapPath, async () => {
       const map = await this.repository.readMap(mapPath), state = this.state(map);
       const run = state.runs.find((item) => item.id === handle.runId), attempt = run == null ? void 0 : run.attempts.find((item) => item.id === handle.attemptId);
-      if (!run || !attempt || run.currentAttemptId !== handle.attemptId || attempt.status !== "running" || attempt.inputSnapshotHash !== handle.inputSnapshotHash) throw new Error("The MindSearch attempt is no longer current.");
+      if (!run || !attempt || !isRunningAttempt(run, attempt, handle)) throw new Error("The MindSearch attempt is no longer current.");
       attempt.phase = phase;
       await this.repository.saveMap(mapPath, map);
     });
@@ -12418,7 +12452,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
     return this.locked(mapPath, async () => {
       var _a, _b;
       const map = await this.repository.readMap(mapPath), state = this.state(map), run = state.runs.find((item) => item.id === handle.runId), attempt = run == null ? void 0 : run.attempts.find((item) => item.id === handle.attemptId);
-      if (!run || !attempt || run.currentAttemptId !== handle.attemptId || attempt.status !== "running" || attempt.inputSnapshotHash !== handle.inputSnapshotHash) throw new Error("The MindSearch attempt is no longer current.");
+      if (!run || !attempt || !isRunningAttempt(run, attempt, handle)) throw new Error("The MindSearch attempt is no longer current.");
       const next = ((_a = attempt.researchTurns) != null ? _a : 0) + 1;
       if (next > ((_b = attempt.maxResearchTurns) != null ? _b : 1)) throw new Error("The bounded MindSearch research-turn budget is exhausted.");
       attempt.researchTurns = next;
@@ -12431,7 +12465,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
     return this.locked(mapPath, async () => {
       var _a, _b;
       const map = await this.repository.readMap(mapPath), state = this.state(map), run = state.runs.find((item) => item.id === handle.runId), attempt = run == null ? void 0 : run.attempts.find((item) => item.id === handle.attemptId);
-      if (!run || !attempt || run.currentAttemptId !== handle.attemptId || attempt.status !== "running" || attempt.inputSnapshotHash !== handle.inputSnapshotHash) throw new Error("The MindSearch attempt is no longer current.");
+      if (!run || !attempt || !isRunningAttempt(run, attempt, handle)) throw new Error("The MindSearch attempt is no longer current.");
       const reviews = (_a = attempt.plannerReviews) != null ? _a : [];
       if (reviews.some((item) => item.researchTurn === review.researchTurn)) throw new Error("A Planner review is already recorded for this research turn.");
       if (review.researchTurn !== ((_b = attempt.researchTurns) != null ? _b : 0)) throw new Error("Planner review must follow a completed research turn.");
@@ -12446,7 +12480,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
     return this.locked(mapPath, async () => {
       var _a;
       const map = await this.repository.readMap(mapPath), state = this.state(map), run = state.runs.find((item) => item.id === handle.runId), attempt = run == null ? void 0 : run.attempts.find((item) => item.id === handle.attemptId);
-      if (!run || !attempt || run.currentAttemptId !== handle.attemptId || attempt.status !== "running" || attempt.inputSnapshotHash !== handle.inputSnapshotHash) throw new Error("The MindSearch attempt is no longer current.");
+      if (!run || !attempt || !isRunningAttempt(run, attempt, handle)) throw new Error("The MindSearch attempt is no longer current.");
       const diagnostics = (_a = attempt.searchDiagnostics) != null ? _a : [];
       const existing = diagnostics.find((item) => item.researchTurn === diagnostic.researchTurn);
       if (existing) Object.assign(existing, JSON.parse(JSON.stringify(diagnostic)));
@@ -12460,7 +12494,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
     return this.locked(mapPath, async () => {
       var _a;
       const map = await this.repository.readMap(mapPath), state = this.state(map), run = state.runs.find((item) => item.id === handle.runId), attempt = run == null ? void 0 : run.attempts.find((item) => item.id === handle.attemptId), draft = (_a = state.resultDrafts) == null ? void 0 : _a.find((item) => item.id === draftId);
-      if (!run || !attempt || run.currentAttemptId !== handle.attemptId || attempt.status !== "running" || attempt.inputSnapshotHash !== handle.inputSnapshotHash || !draft || draft.runId !== run.id || draft.attemptId !== attempt.id || draft.status !== "ready") return false;
+      if (!run || !attempt || !isRunningAttempt(run, attempt, handle) || !draft || draft.runId !== run.id || draft.attemptId !== attempt.id || draft.status !== "ready") return false;
       await this.repository.updateNote(draft.notePath, { summary, detail, status: "idea" });
       const saved = await this.repository.readNote(draft.notePath);
       if (saved.summary !== managedSectionValue(summary) || saved.detail !== managedSectionValue(detail)) throw new Error("The Searcher report did not match the Repository readback before Planner review.");
@@ -12472,7 +12506,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
     return this.locked(mapPath, async () => {
       var _a;
       const map = await this.repository.readMap(mapPath), state = this.state(map), run = state.runs.find((item) => item.id === handle.runId), attempt = run == null ? void 0 : run.attempts.find((item) => item.id === handle.attemptId), draft = (_a = state.resultDrafts) == null ? void 0 : _a.find((item) => item.id === draftId);
-      if (!run || !attempt || run.currentAttemptId !== handle.attemptId || attempt.status !== "running" || attempt.inputSnapshotHash !== handle.inputSnapshotHash || !draft || draft.runId !== run.id || draft.attemptId !== attempt.id || draft.status !== "ready") return false;
+      if (!run || !attempt || !isRunningAttempt(run, attempt, handle) || !draft || draft.runId !== run.id || draft.attemptId !== attempt.id || draft.status !== "ready") return false;
       const node = map.nodes.find((item) => item.id === draft.nodeId && item.path === draft.notePath);
       if (!node) throw new Error("MindSearch synthesis draft node is missing before finalization.");
       await this.repository.updateNote(draft.notePath, { title });
@@ -12491,7 +12525,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
       var _a, _b;
       const map = await this.repository.readMap(mapPath), state = this.state(map);
       const run = state.runs.find((item) => item.id === handle.runId), attempt = run == null ? void 0 : run.attempts.find((item) => item.id === handle.attemptId);
-      if (!run || !attempt || run.currentAttemptId !== handle.attemptId || attempt.status !== "running" || attempt.inputSnapshotHash !== handle.inputSnapshotHash) return false;
+      if (!run || !attempt || !isRunningAttempt(run, attempt, handle)) return false;
       if (state.pendingCommits.some((item) => item.runId === handle.runId && item.attemptId === handle.attemptId)) throw new Error("A saving attempt must be recovered or explicitly cancelled before it can be failed.");
       attempt.status = "failed";
       attempt.stopReason = reason;
@@ -12511,7 +12545,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
       var _a, _b;
       const map = await this.repository.readMap(mapPath), state = this.state(map);
       const run = state.runs.find((item) => item.id === handle.runId), attempt = run == null ? void 0 : run.attempts.find((item) => item.id === handle.attemptId);
-      if (!run || !attempt || run.currentAttemptId !== handle.attemptId || attempt.status !== "running" || attempt.inputSnapshotHash !== handle.inputSnapshotHash) return false;
+      if (!run || !attempt || !isRunningAttempt(run, attempt, handle)) return false;
       if (state.pendingCommits.some((item) => item.runId === handle.runId && item.attemptId === handle.attemptId)) return false;
       attempt.status = "cancelled";
       attempt.stopReason = reason;
@@ -12531,7 +12565,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
     return this.locked(mapPath, async () => {
       var _a, _b, _c, _d, _e, _f, _g, _h;
       const map = await this.repository.readMap(mapPath), state = this.state(map), run = state.runs.find((item) => item.id === handle.runId), attempt = run == null ? void 0 : run.attempts.find((item) => item.id === handle.attemptId);
-      if (!run || !attempt || run.currentAttemptId !== handle.attemptId || attempt.status !== "running" || attempt.inputSnapshotHash !== handle.inputSnapshotHash) return { status: "stale", runId: handle.runId, attemptId: handle.attemptId };
+      if (!run || !attempt || !isRunningAttempt(run, attempt, handle)) return { status: "stale", runId: handle.runId, attemptId: handle.attemptId };
       const branch = state.branches.find((item) => item.id === run.branchId);
       if (!branch) throw new Error("Answer branch does not exist.");
       const folder = this.repository.topicFolder(mapPath, "Notes");
@@ -12569,7 +12603,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
     return this.locked(mapPath, async () => {
       var _a;
       const map = await this.repository.readMap(mapPath), state = this.state(map), run = state.runs.find((item) => item.id === handle.runId), attempt = run == null ? void 0 : run.attempts.find((item) => item.id === handle.attemptId);
-      if (!run || !attempt || run.currentAttemptId !== handle.attemptId || attempt.status !== "running" || attempt.inputSnapshotHash !== handle.inputSnapshotHash) return { status: "stale", runId: handle.runId, attemptId: handle.attemptId };
+      if (!run || !attempt || !isRunningAttempt(run, attempt, handle)) return { status: "stale", runId: handle.runId, attemptId: handle.attemptId };
       const branch = state.branches.find((item) => item.id === run.branchId);
       const draft = (_a = state.resultDrafts) == null ? void 0 : _a.find((item) => item.id === resultDraftId && item.branchId === branch.id);
       if (!draft || draft.status !== "ready" || draft.runId !== run.id || draft.attemptId !== attempt.id || !map.nodes.some((node) => {
@@ -12724,6 +12758,8 @@ ${attemptId}`;
   }
 };
 __publicField(_MindSearchRunStore, "liveAttempts", /* @__PURE__ */ new Set());
+/** Per-repository map locks, shared by every store instance so that separate views serialize their writes. */
+__publicField(_MindSearchRunStore, "repositoryLocks", /* @__PURE__ */ new WeakMap());
 var MindSearchRunStore = _MindSearchRunStore;
 
 // experiences/mind-search/failure-hint.ts
@@ -13849,7 +13885,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian13.Ite
     (_a = this.hoverCard) == null ? void 0 : _a.remove();
     if (this.viewportTimer !== null) {
       window.clearTimeout(this.viewportTimer);
-      await this.persist();
+      this.viewportTimer = null;
+      await this.persistViewport();
     }
   }
   mindSearchViewIsCurrent(epoch, mapPath) {
@@ -13945,7 +13982,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian13.Ite
     if (this.viewportTimer !== null) {
       window.clearTimeout(this.viewportTimer);
       this.viewportTimer = null;
-      await this.persist();
+      await this.persistViewport();
       if (!isCurrent()) return;
     }
     let map = await this.plugin.repo.readMap(path);
@@ -14460,7 +14497,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian13.Ite
     if (this.viewportTimer !== null) {
       window.clearTimeout(this.viewportTimer);
       this.viewportTimer = null;
-      await this.persist();
+      await this.persistViewport();
     }
     if (!isCurrent()) return;
     const sample = builtInSample(this.plugin.settings.language);
@@ -15124,7 +15161,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian13.Ite
         if (this.viewportTimer !== null) {
           window.clearTimeout(this.viewportTimer);
           this.viewportTimer = null;
-          await this.persist();
+          await this.persistViewport();
         }
         const path = this.path, file = this.plugin.repo.file(path), content = await this.app.vault.read(file), map = clone(this.map);
         this.deletedMap = { path, content, map, deleted: true };
@@ -15182,7 +15219,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian13.Ite
     if (this.viewportTimer !== null) {
       window.clearTimeout(this.viewportTimer);
       this.viewportTimer = null;
-      await this.persist();
+      await this.persistViewport();
     }
     if (this.history.undoEntry === ((_a = this.deletedMap) == null ? void 0 : _a.deleteAction)) await this.travel(false);
     else {
@@ -16770,8 +16807,16 @@ ${note.thinkingOrigin}` : ""
     if (this.viewportTimer !== null) window.clearTimeout(this.viewportTimer);
     this.viewportTimer = window.setTimeout(() => {
       this.viewportTimer = null;
-      this.enqueue(() => this.persist());
+      this.enqueue(() => this.persistViewport());
     }, 250);
+  }
+  /** Pan/zoom writes only the viewport onto the current file, never this view's possibly older map copy. */
+  async persistViewport() {
+    if (this.builtIn || !this.map || !this.path) return;
+    const viewport = { ...this.map.viewport };
+    await this.plugin.repo.updateMap(this.path, (map) => {
+      map.viewport = viewport;
+    });
   }
   zoomBy(factor, point) {
     if (!this.map || !this.viewportEl) return;
@@ -17633,7 +17678,7 @@ var CodexAppServerRuntime = class {
         this.turns.delete(threadId);
         timedOut = true;
         interrupt(5e3, "\u903E\u6642\u5F8C\u7121\u6CD5\u505C\u6B62 AI \u4EFB\u52D9");
-        reject(new Error((_a3 = controls == null ? void 0 : controls.timeoutMessage) != null ? _a3 : (controls == null ? void 0 : controls.timeoutMs) ? "Coffee Tables: generation timed out; received text is saved as a draft." : t("ui.the_ai_task_exceeded_3_minutes_vam_attempts_to_interrupt_it")));
+        reject(new Error((_a3 = controls == null ? void 0 : controls.timeoutMessage) != null ? _a3 : (controls == null ? void 0 : controls.timeoutMs) ? t("ui.ai_task_exceeded_0_minutes", Math.ceil(controls.timeoutMs / 6e4)) : t("ui.the_ai_task_exceeded_3_minutes_vam_attempts_to_interrupt_it")));
       }, (_a2 = controls == null ? void 0 : controls.timeoutMs) != null ? _a2 : TURN_TIMEOUT_MS);
       this.turns.set(threadId, { messages: [], visibleMessages: /* @__PURE__ */ new Map(), resolve, reject, timeout, turnId: "", searches: 0, countedSearchIds: /* @__PURE__ */ new Set(), webRetrievals: /* @__PURE__ */ new Set(), requireSearch: (controls == null ? void 0 : controls.webSearchOnly) === true, searchBudget: (_b2 = controls == null ? void 0 : controls.searchBudget) != null ? _b2 : 0, steered: false, onRequest: controls == null ? void 0 : controls.onRequest, onText: controls == null ? void 0 : controls.onText, onWebSearchEvent: controls == null ? void 0 : controls.onWebSearchEvent });
     });
@@ -17736,10 +17781,17 @@ var CodexAppServerRuntime = class {
       const line = this.buffer.slice(0, newline).trim();
       this.buffer = this.buffer.slice(newline + 1);
       if (!line) continue;
+      let message;
       try {
-        this.handle(JSON.parse(line));
+        message = JSON.parse(line);
       } catch (error) {
         this.failProcess(child, new Error(t("ui.could_not_parse_codex_app_server_response_0", error instanceof Error ? error.message : String(error))));
+        continue;
+      }
+      try {
+        this.handle(message);
+      } catch (error) {
+        this.failTurnOf(message, error instanceof Error ? error : new Error(String(error)));
       }
     }
   }
@@ -17854,6 +17906,18 @@ var CodexAppServerRuntime = class {
     if (!this.child) throw new Error(t("ui.codex_app_server_has_not_started"));
     this.child.stdin.write(`${JSON.stringify(message)}
 `);
+  }
+  failTurnOf(message, error) {
+    var _a, _b, _c;
+    (_b = (_a = this.options).onLog) == null ? void 0 : _b.call(_a, "warn", `Codex App Server turn failed while handling a message: ${error.message}`);
+    const threadId = "params" in message && typeof ((_c = message.params) == null ? void 0 : _c.threadId) === "string" ? message.params.threadId : "";
+    const state = threadId ? this.turns.get(threadId) : void 0;
+    if (!state) return;
+    window.clearTimeout(state.timeout);
+    this.turns.delete(threadId);
+    if (state.turnId) void this.request("turn/interrupt", { threadId, turnId: state.turnId }).catch(() => {
+    });
+    state.reject(error);
   }
   failProcess(child, error) {
     var _a, _b;
@@ -18066,7 +18130,7 @@ var ClaudeCodeCliRuntime = class {
       const timeout = window.setTimeout(() => {
         var _a3;
         stop();
-        finish(new Error((_a3 = controls.timeoutMessage) != null ? _a3 : controls.timeoutMs ? "Coffee Tables: generation timed out; received text is saved as a draft." : t("ui.the_ai_task_exceeded_3_minutes_vam_attempts_to_interrupt_it")));
+        finish(new Error((_a3 = controls.timeoutMessage) != null ? _a3 : controls.timeoutMs ? t("ui.ai_task_exceeded_0_minutes", Math.ceil(controls.timeoutMs / 6e4)) : t("ui.the_ai_task_exceeded_3_minutes_vam_attempts_to_interrupt_it")));
       }, (_b2 = (_a2 = controls.timeoutMs) != null ? _a2 : this.options.timeoutMs) != null ? _b2 : CLAUDE_TASK_TIMEOUT_MS);
       (_c2 = controls.signal) == null ? void 0 : _c2.addEventListener("abort", onAbort, { once: true });
       child.stdout.on("data", (chunk) => {
@@ -19787,6 +19851,11 @@ var VisualAgentMapPlugin = class extends import_obsidian19.Plugin {
     });
     return result;
   }
+  /** Fire-and-forget mutation for event and command handlers; mutate() has already logged any failure. */
+  runMutation(work) {
+    this.mutate(work).catch(() => {
+    });
+  }
   views() {
     return this.app.workspace.getLeavesOfType(VIEW_TYPE).map((leaf) => leaf.view).filter((view) => view instanceof VisualAgentMapView);
   }
@@ -19920,16 +19989,16 @@ var VisualAgentMapPlugin = class extends import_obsidian19.Plugin {
       void this.activateOutline().catch((error) => new import_obsidian19.Notice(String(error)));
     });
     this.addLocalizedCommand("rebuild-references", "ui.refresh_vam_data", () => {
-      void this.mutate(() => this.fullRebuild());
+      this.runMutation(() => this.fullRebuild());
     });
     this.addLocalizedCommand("normalize-note-filenames", "ui.sync_topic_names_and_filenames", () => {
-      void this.mutate(async () => {
+      this.runMutation(async () => {
         const count = await this.repo.normalizeGeneratedNoteFilenames();
         new import_obsidian19.Notice(count ? t("ui.synced_0_topic_filenames", count) : t("ui.topic_filenames_are_up_to_date"));
       });
     });
     this.addLocalizedCommand("repair-note-presentation", "ui.repair_topic_note_display", () => {
-      void this.mutate(async () => {
+      this.runMutation(async () => {
         await this.repo.ensureNodePresentation();
         new import_obsidian19.Notice(t("ui.topic_note_display_repaired"));
       });
@@ -19938,7 +20007,7 @@ var VisualAgentMapPlugin = class extends import_obsidian19.Plugin {
       void this.activateBuiltInSample(true);
     });
     this.addLocalizedCommand("repair-workspace", "ui.repair_agent_workspace", () => {
-      void this.mutate(() => this.repairWorkspace());
+      this.runMutation(() => this.repairWorkspace());
     });
     this.addLocalizedCommand("reconnect-workspace", "ui.reconnect_existing_workspace", () => {
       void this.offerWorkspaceReconnect();
@@ -19990,11 +20059,11 @@ var VisualAgentMapPlugin = class extends import_obsidian19.Plugin {
       if (!this.writing && file instanceof import_obsidian19.TFile) {
         for (const view of this.views()) view.deleted(file);
         this.scheduleExternalReconciliation(file.path);
-        if (file.path.startsWith(`${this.settings.mapsFolder}/`) || file.path.startsWith(`${this.settings.topicsFolder}/`) && file.name === "Map.md") void this.mutate(() => this.repo.rebuildDerivedData());
+        if (file.path.startsWith(`${this.settings.mapsFolder}/`) || file.path.startsWith(`${this.settings.topicsFolder}/`) && file.name === "Map.md") this.runMutation(() => this.repo.rebuildDerivedData());
       }
     }));
     this.registerEvent(this.app.vault.on("rename", (file, oldPath) => {
-      if (!this.writing && file instanceof import_obsidian19.TFile) void this.mutate(async () => {
+      if (!this.writing && file instanceof import_obsidian19.TFile) this.runMutation(async () => {
         var _a2;
         await this.repo.replaceSourcePath(oldPath, file.path);
         let mapChanged = false;
@@ -20399,7 +20468,7 @@ var VisualAgentMapPlugin = class extends import_obsidian19.Plugin {
     this.activeTasks.set(key2, controller);
     exchanges == null ? void 0 : exchanges.begin({ id, startedAt: (/* @__PURE__ */ new Date()).toISOString(), topic: `Coffee Tables \xB7 ${session.topic}`, mode: "task", model: session.model, effort });
     try {
-      const controls = { textOnly: true, signal: controller.signal, searchBudget: 0, timeoutMs: 15 * 60 * 1e3, onText: (text3) => {
+      const controls = { textOnly: true, signal: controller.signal, searchBudget: 0, timeoutMs: 15 * 60 * 1e3, timeoutMessage: t("ui.coffee_generation_timed_out"), onText: (text3) => {
         var _a;
         return (_a = request.onText) == null ? void 0 : _a.call(request, text3);
       }, onSteer: (handler) => {

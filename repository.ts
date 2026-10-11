@@ -103,6 +103,11 @@ const REFERENCE_END = "<!-- visual-agent-map:references:end -->";
 const DETAIL_START = "<!-- visual-agent-map:detail:start -->";
 const DETAIL_END = "<!-- visual-agent-map:detail:end -->";
 const NOTE_CSS_CLASS = "visual-agent-map-node";
+function writeMapContent(content: string, map: MapDocument): string {
+  return content
+    .replace(/^# .*$/m, () => `# ${map.title.replace(/\n/g, " ")}`)
+    .replace(/```agent-map\s*\n[\s\S]*?\n```/, () => `\`\`\`agent-map\n${JSON.stringify(map, null, 2)}\n\`\`\``);
+}
 function marker(value: unknown): boolean { return value === true || value === "true"; }
 function text(value: unknown, fallback = ""): string { return typeof value === "string" ? value : fallback; }
 function parentPath(path: string): string { return path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : ""; }
@@ -527,10 +532,23 @@ export class Repository {
   async saveMap(path: string, map: MapDocument): Promise<void> {
     await this.app.vault.process(this.file(path), content => {
       parseMap(content);
-      return content
-        .replace(/^# .*$/m, () => `# ${map.title.replace(/\n/g, " ")}`)
-        .replace(/```agent-map\s*\n[\s\S]*?\n```/, () => `\`\`\`agent-map\n${JSON.stringify(map, null, 2)}\n\`\`\``);
+      return writeMapContent(content, map);
     });
+  }
+
+  /**
+   * Read-modify-write on the current file content in one vault.process call, so a caller holding an older copy of
+   * the map cannot overwrite fields it did not change (for example, research state saved meanwhile).
+   */
+  async updateMap(path: string, change: (map: MapDocument) => void): Promise<MapDocument> {
+    let updated: MapDocument | undefined;
+    await this.app.vault.process(this.file(path), content => {
+      const map = parseMap(content);
+      change(map);
+      updated = map;
+      return writeMapContent(content, map);
+    });
+    return updated!;
   }
 
   /**
