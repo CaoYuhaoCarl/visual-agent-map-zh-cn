@@ -46,6 +46,18 @@ test('MindSearch plan parser reports the specific marker defect instead of the g
   assert.throws(() => parseMindSearchResearchPlan(answer('Plan', '<!-- mindsearch-plan {not json} -->')), /0–5 valid research subtopics/);
 });
 
+test('MindSearch search diagnostics count every provider web action and treat an opened page as recoverable evidence', () => {
+  const { createSearchDiagnostic, hasCompletedWebRetrieval } = load('experiences/mind-search/search-diagnostic.ts');
+  const { diagnostic, onEvent } = createSearchDiagnostic(2);
+  onEvent({ method: 'item/started', params: { item: { type: 'webSearch', action: null } } });
+  onEvent({ method: 'item/completed', params: { item: { type: 'webSearch', action: { type: 'search' } } } });
+  onEvent({ method: 'item/completed', params: { item: { type: 'webSearch', action: { type: 'openPage' } } } });
+  assert.deepEqual(plain(diagnostic), { researchTurn: 2, startedEvents: 1, completedEvents: 2, completedSearchActions: 1, otherCompletedActions: 1 });
+  assert.equal(hasCompletedWebRetrieval([{ researchTurn: 1, startedEvents: 1, completedEvents: 1, completedSearchActions: 0, otherCompletedActions: 1 }]), true);
+  assert.equal(hasCompletedWebRetrieval([{ researchTurn: 1, startedEvents: 0, completedEvents: 0, completedSearchActions: 0, otherCompletedActions: 0 }]), false);
+  assert.equal(hasCompletedWebRetrieval(undefined), false);
+});
+
 test('MindSearch scheduler caps independent work at two and passes actual completed dependency reports', async () => {
   const gates = Object.fromEntries(['a', 'b', 'c', 'd'].map(id => [id, deferred()]));
   const started = [], prerequisites = {}; let active = 0, max = 0;

@@ -53,6 +53,8 @@ export interface TaskContext {
   researchDepth?: ResearchDepth;
   visualMode?: VisualMode;
 }
+/** Provider-neutral web activity event; Claude events are translated into the Codex App Server shape. */
+export interface WebSearchEvent { method: "item/started" | "item/completed"; params: unknown }
 export type SearchStatus = "completed" | "failed" | "not_attempted";
 export const SEARCH_STATUSES: readonly SearchStatus[] = ["completed", "failed", "not_attempted"];
 /** searchStatus is present only for isolated web-research tasks, whose schema requires it. */

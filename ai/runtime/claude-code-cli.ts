@@ -1,8 +1,9 @@
 import { spawn as nodeSpawn } from "node:child_process";
 import { t } from "../../i18n";
+import type { WebSearchEvent } from "../types";
 
 interface ClaudeProcess {
-  stdin: { write(data: string, callback?: (error?: Error | null) => void): boolean; end(data?: string, callback?: (error?: Error | null) => void): void };
+  stdin: { write(data: string, callback?: (error?: Error | null) => void): boolean; end(data?: string, callback?: (error?: Error | null) => void): void; on?(event: "error", listener: (error: Error) => void): void };
   stdout: { on(event: "data", listener: (chunk: { toString(encoding?: string): string }) => void): void };
   stderr: { on(event: "data", listener: (chunk: { toString(encoding?: string): string }) => void): void };
   on(event: "error", listener: (error: Error) => void): void;
@@ -30,6 +31,10 @@ export interface ClaudeTaskControls {
   onSteer?: (steer: (text: string) => Promise<void>) => void;
   timeoutMs?: number;
   timeoutMessage?: string;
+  /** Isolated research: fail the task unless at least one web search or page fetch actually returned. */
+  webSearchOnly?: boolean;
+  /** Receives WebSearch/WebFetch activity in the same shape as Codex App Server web-search items. */
+  onWebSearchEvent?: (event: WebSearchEvent) => void;
 }
 export const CLAUDE_TASK_TIMEOUT_MS = 3 * 60 * 1000;
 
@@ -70,6 +75,40 @@ export function claudeStructuredOutput(stdout: string, plainText = false): strin
   return JSON.stringify(record.structured_output);
 }
 
+/** Above this the verbose transcript is not kept; a truncated JSON array could not be parsed anyway. */
+const CLAUDE_STDOUT_LIMIT = 64 * 1024 * 1024;
+
+type ClaudeRecord = { type?: unknown; parent_tool_use_id?: unknown; message?: { content?: Array<{ type?: unknown; id?: unknown; name?: unknown; tool_use_id?: unknown; is_error?: unknown }> } };
+
+/** Translates the main agent's WebSearch/WebFetch calls into provider-neutral web events and counts successful retrievals. */
+export class ClaudeWebActivity {
+  private readonly pending = new Map<string, "search" | "openPage">();
+  retrievals = 0;
+  constructor(private readonly emit?: (event: WebSearchEvent) => void) {}
+
+  read(value: unknown): void {
+    const record = value as ClaudeRecord | null;
+    if (!record || typeof record !== "object" || record.parent_tool_use_id) return;
+    for (const item of record.message?.content ?? []) {
+      if (record.type === "assistant" && item.type === "tool_use" && typeof item.id === "string" && (item.name === "WebSearch" || item.name === "WebFetch")) {
+        this.pending.set(item.id, item.name === "WebSearch" ? "search" : "openPage");
+        this.send({ method: "item/started", params: { item: { id: item.id, type: "webSearch", action: null } } });
+      } else if (record.type === "user" && item.type === "tool_result" && typeof item.tool_use_id === "string" && this.pending.has(item.tool_use_id)) {
+        const action = this.pending.get(item.tool_use_id)!;
+        this.pending.delete(item.tool_use_id);
+        if (item.is_error === true) continue;
+        this.retrievals++;
+        this.send({ method: "item/completed", params: { item: { id: item.tool_use_id, type: "webSearch", action: { type: action } } } });
+      }
+    }
+  }
+
+  private send(event: WebSearchEvent): void {
+    // Telemetry consumers must not be able to fail the provider task.
+    try { this.emit?.(event); } catch { /* Diagnostics are best effort. */ }
+  }
+}
+
 function abortError(): Error {
   const error = new Error(t("ui.ai_task_cancelled"));
   error.name = "AbortError";
@@ -101,9 +140,13 @@ export class ClaudeCodeCliRuntime {
       let stdout = "", stderr = "", settled = false, accepted = false, inputOpen = Boolean(controls.onSteer);
       let streamBuffer = "", streamText = "", currentText = "", finalResult = "";
       const streaming = !!controls.onText && !outputSchema;
+      const activity = new ClaudeWebActivity(controls.onWebSearchEvent);
       const readStreamLine = (line: string): void => {
-        if (!line.trim()) return;
-        const record = JSON.parse(line) as { type?: string; parent_tool_use_id?: string | null; event?: { type?: string; delta?: { type?: string; text?: string } }; message?: { content?: Array<{ type?: string; text?: string }> } };
+        // The CLI can print plain-text warnings between JSON records; only records carry task state.
+        if (!line.trim().startsWith("{")) return;
+        const parsedLine: unknown = JSON.parse(line);
+        activity.read(parsedLine);
+        const record = parsedLine as { type?: string; parent_tool_use_id?: string | null; event?: { type?: string; delta?: { type?: string; text?: string } }; message?: { content?: Array<{ type?: string; text?: string }> } };
         if (record.parent_tool_use_id) return;
         if (record.type === "result") { finalResult = line; if (inputOpen) { inputOpen = false; child.stdin.end(); } return; }
         if (record.type === "stream_event" && record.event?.type === "message_start") currentText = "";
@@ -140,7 +183,11 @@ export class ClaudeCodeCliRuntime {
       controls.signal?.addEventListener("abort", onAbort, { once: true });
       child.stdout.on("data", chunk => {
         if (settled) return;
-        if (!streaming) { stdout = `${stdout}${chunk.toString("utf8")}`.slice(-4_000_000); return; }
+        if (!streaming) {
+          stdout += chunk.toString("utf8");
+          if (stdout.length > CLAUDE_STDOUT_LIMIT) { stop(); finish(new Error(t("ui.claude_returned_an_invalid_response"))); }
+          return;
+        }
         streamBuffer += chunk.toString("utf8");
         try { let newline: number; while ((newline = streamBuffer.indexOf("\n")) >= 0) { const line = streamBuffer.slice(0, newline); streamBuffer = streamBuffer.slice(newline + 1); readStreamLine(line); } }
         catch (error) { stop(); finish(error instanceof Error ? error : new Error(String(error))); }
@@ -165,12 +212,19 @@ export class ClaudeCodeCliRuntime {
         }
         try {
           if (streaming) readStreamLine(streamBuffer);
+          else {
+            const transcript: unknown = JSON.parse(stdout);
+            if (Array.isArray(transcript)) for (const record of transcript) activity.read(record);
+          }
           const result = claudeStructuredOutput(streaming ? finalResult : stdout, !outputSchema);
+          if (controls.webSearchOnly && !activity.retrievals) throw new Error(t("ui.context_ai_search_not_performed"));
           const streamed = [streamText, currentText].filter(Boolean).join("\n\n");
           finish(undefined, streaming && result.length < streamed.length ? streamed : result);
         }
         catch (error) { finish(error instanceof Error ? error : new Error(String(error))); }
       });
+      // A failed spawn closes stdin; the process error/close events report the cause.
+      child.stdin.on?.("error", () => { /* Surfaced through the process events. */ });
       try {
         if (controls.onSteer) {
           const sendInput = (text: string, accepted?: () => void): void => {

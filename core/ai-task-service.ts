@@ -61,7 +61,7 @@ export class AiTaskService {
     signal?: AbortSignal,
     onExchange?: (id: string) => void,
     onRequestAccepted?: () => void,
-    /** Receives opaque native Codex webSearch events; results may contain snippets only, not page bodies. */
+    /** Receives provider web activity in the Codex webSearch event shape; results may contain snippets only, not page bodies. */
     onWebSearchEvent?: (event: CodexWebSearchEvent) => void
   ): Promise<AiResult> {
     if (input.timeoutMs !== undefined && (!Number.isInteger(input.timeoutMs) || input.timeoutMs < 180_000 || input.timeoutMs > 600_000)) throw new Error("Invalid AI task timeout.");
@@ -154,7 +154,7 @@ export class AiTaskService {
       const schema = contract ? mindSearchContractSchema(contract, isIsolatedWebResearch ? webResearchSchema : responseSchema, context.mindSearchEvidenceLookup === true)
         : isMindSearchGapAudit ? mindSearchGapAuditSchema : isDeliveryAcceptance ? deliverySchema : isIsolatedWebResearch ? webResearchSchema : responseSchema;
       const raw = provider === "claude"
-        ? await this.options.claudeRuntime(pluginDirectory).runTask(instructions, providerModelId(model), effort, schema, controls)
+        ? await this.options.claudeRuntime(pluginDirectory).runTask(instructions, providerModelId(model), effort, schema, { ...controls, onWebSearchEvent })
         : await this.options.codexRuntime(pluginDirectory, context.researchMode === "local").runTask(instructions, model, effort, schema, { ...controls, onWebSearchEvent });
       stage = "解析 AI 回覆";
       if (this.options.exchangeLoggingEnabled()) exchanges?.received(exchangeId, raw);

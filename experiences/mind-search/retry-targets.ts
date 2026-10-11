@@ -1,3 +1,4 @@
+import { hasCompletedWebRetrieval } from "./search-diagnostic";
 import type { MapDocument } from "../../map-model";
 import type { MindSearchAttemptRecord } from "../../map-model";
 import type { Note } from "../../repository";
@@ -28,7 +29,7 @@ export function extractMindSearchFailedReport(note: Note, attempt: MindSearchAtt
   const exactAttempt = `This draft was not published because attempt ${attempt.id} did not complete successfully.`;
   const start = note.detail.indexOf(diagnosticHeading), originalStart = note.detail.indexOf(originalHeading);
   if (start < 0 || originalStart <= start || !note.detail.slice(start, originalStart).includes(exactAttempt)) return null;
-  if (!(attempt.searchDiagnostics ?? []).some(item => item.completedSearchActions > 0)) return null;
+  if (!hasCompletedWebRetrieval(attempt.searchDiagnostics)) return null;
   const body = note.detail.slice(originalStart + originalHeading.length).split(detailEnd, 1)[0].trim();
   const summaryStart = body.indexOf("Original summary:");
   const firstReport = body.indexOf("## Searcher report 1");

@@ -9935,6 +9935,24 @@ ${draft.detail}` }, evidence };
 // experiences/mind-search/manual-flow.ts
 var import_node_crypto7 = require("node:crypto");
 
+// experiences/mind-search/search-diagnostic.ts
+function createSearchDiagnostic(researchTurn) {
+  const diagnostic = { researchTurn, startedEvents: 0, completedEvents: 0, completedSearchActions: 0, otherCompletedActions: 0 };
+  const onEvent = (event) => {
+    var _a, _b;
+    if (event.method === "item/started") {
+      diagnostic.startedEvents++;
+      return;
+    }
+    const params = event.params;
+    diagnostic.completedEvents++;
+    if (((_b = (_a = params == null ? void 0 : params.item) == null ? void 0 : _a.action) == null ? void 0 : _b.type) === "search") diagnostic.completedSearchActions++;
+    else diagnostic.otherCompletedActions++;
+  };
+  return { diagnostic, onEvent };
+}
+var hasCompletedWebRetrieval = (diagnostics) => (diagnostics != null ? diagnostics : []).some((item) => item.completedSearchActions + item.otherCompletedActions > 0);
+
 // ai/context-builder.ts
 var estimateTokens = (value) => Math.ceil((value || "").length / 4);
 var dedupeRules = (value) => Array.from(new Map(value.split("\n").map((line) => line.trim()).filter(Boolean).map((line) => [line.replace(/\s+/g, " ").toLowerCase(), line])).values()).join("\n");
@@ -10341,7 +10359,7 @@ var diagnosticHeading = "### MindSearch incomplete-attempt diagnostic";
 var originalHeading = "### Original draft response";
 var detailEnd = "<!-- visual-agent-map:detail:end -->";
 function extractMindSearchFailedReport(note, attempt) {
-  var _a, _b, _c, _d, _e;
+  var _a, _b, _c, _d;
   if (note.status !== "error" || !note.detail.trim()) return null;
   const reportMarker = "**Source boundary:** ";
   const reportStart = note.detail.indexOf(reportMarker);
@@ -10352,7 +10370,7 @@ function extractMindSearchFailedReport(note, attempt) {
   const exactAttempt = `This draft was not published because attempt ${attempt.id} did not complete successfully.`;
   const start = note.detail.indexOf(diagnosticHeading), originalStart = note.detail.indexOf(originalHeading);
   if (start < 0 || originalStart <= start || !note.detail.slice(start, originalStart).includes(exactAttempt)) return null;
-  if (!((_a = attempt.searchDiagnostics) != null ? _a : []).some((item) => item.completedSearchActions > 0)) return null;
+  if (!hasCompletedWebRetrieval(attempt.searchDiagnostics)) return null;
   const body = note.detail.slice(originalStart + originalHeading.length).split(detailEnd, 1)[0].trim();
   const summaryStart = body.indexOf("Original summary:");
   const firstReport = body.indexOf("## Searcher report 1");
@@ -10362,9 +10380,9 @@ function extractMindSearchFailedReport(note, attempt) {
   const headings = [...body.matchAll(/^## Searcher report (\d+)\s*$/gm)];
   if (!headings.length || headings.length !== summaries.length) return null;
   for (let index = 0; index < headings.length; index++) {
-    const number = Number(headings[index][1]), next = (_c = (_b = headings[index + 1]) == null ? void 0 : _b.index) != null ? _c : body.length;
+    const number = Number(headings[index][1]), next = (_b = (_a = headings[index + 1]) == null ? void 0 : _a.index) != null ? _b : body.length;
     const section2 = body.slice(headings[index].index + headings[index][0].length, next).trim();
-    if (number !== index + 1 || ((_d = summaries[index]) == null ? void 0 : _d.index) !== number || !((_e = summaries[index]) == null ? void 0 : _e.summary) || !section2) return null;
+    if (number !== index + 1 || ((_c = summaries[index]) == null ? void 0 : _c.index) !== number || !((_d = summaries[index]) == null ? void 0 : _d.summary) || !section2) return null;
     reports.push({ summary: summaries[index].summary, detail: section2, suggestions: [], visualReferences: [] });
   }
   return reports;
@@ -11100,26 +11118,14 @@ Answer conditions: ${answerDescription}`,
 ${aggregate.detail}`,
           "Return a concise useful report with findings, reasoning, sources when available, and remaining limitations. Keep the answer's synthetic provenance explicit."
         ].join("\n\n");
-        const diagnosticEvents = { researchTurn: reviewTurn + 1, startedEvents: 0, completedEvents: 0, completedSearchActions: 0, otherCompletedActions: 0 };
-        const onEvent = (event) => {
-          var _a2, _b2;
-          const params = event.params;
-          const action = typeof ((_b2 = (_a2 = params == null ? void 0 : params.item) == null ? void 0 : _a2.action) == null ? void 0 : _b2.type) === "string" ? params.item.action.type : "unknown";
-          if (event.method === "item/started") diagnosticEvents.startedEvents++;
-          else {
-            diagnosticEvents.completedEvents++;
-            if (action === "search") diagnosticEvents.completedSearchActions++;
-            else diagnosticEvents.otherCompletedActions++;
-          }
-        };
+        const { diagnostic: diagnosticEvents, onEvent } = createSearchDiagnostic(reviewTurn + 1);
         const followup = await this.askMindSearchModel({ title: parent.summary, summary: parent.summary, rules: "", detail: parent.detail, task, ancestors: `Topic: ${topic.title}
 
 ${topic.detail}
 
-Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`, outputLanguage: this.repository.settings.language, mode: "task", researchMode: "research", researchDepth: "normal", visualMode: "off", signal }, model, reasoning, signal, onEvent);
+Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`, outputLanguage: this.repository.settings.language, mode: "task", researchMode: "research", researchDepth: "normal", visualMode: "off", mindSearchIsolatedResearch: true, signal }, model, reasoning, signal, onEvent);
         await this.persist(() => this.runs.recordSearchDiagnostic(mapPath, handle, diagnosticEvents));
-        if (!followup.summary.trim() || !followup.detail.trim() || /^Research status:\s*(?:not searched|search failed|unavailable)\b/im.test(`${followup.summary}
-${followup.detail}`)) throw new Error("The bounded follow-up did not produce a usable searched report; the retry remains incomplete.");
+        if (!followup.summary.trim() || !followup.detail.trim() || reportedSearchFailure(followup)) throw new Error("The bounded follow-up did not produce a usable searched report; the retry remains incomplete.");
         reports.push(followup);
         if (!await saveReports()) return { status: "stale", branchId: branch.id };
       }
@@ -11223,18 +11229,7 @@ ${runId}`, fingerprint2 = JSON.stringify({ model, reasoning });
       for (let researchTurn = 1; !review && researchTurn <= MINDSEARCH_MAX_RESEARCH_TURNS; researchTurn++) {
         throwIfAborted(signal);
         await this.persist(() => this.runs.recordResearchTurn(mapPath, handle));
-        const diagnostic = { researchTurn, startedEvents: 0, completedEvents: 0, completedSearchActions: 0, otherCompletedActions: 0 };
-        const onEvent = (event) => {
-          var _a2, _b2;
-          const params = event.params;
-          const action = typeof ((_b2 = (_a2 = params == null ? void 0 : params.item) == null ? void 0 : _a2.action) == null ? void 0 : _b2.type) === "string" ? params.item.action.type : "unknown";
-          if (event.method === "item/started") diagnostic.startedEvents++;
-          else {
-            diagnostic.completedEvents++;
-            if (action === "search") diagnostic.completedSearchActions++;
-            else diagnostic.otherCompletedActions++;
-          }
-        };
+        const { diagnostic, onEvent } = createSearchDiagnostic(researchTurn);
         const task = [
           "Continue this saved partial Manual MindSearch branch. Preserve the original answer snapshot; do not change or infer the user's answer.",
           SEARCHER_TARGET_RULE,
@@ -11262,7 +11257,7 @@ ${topicNote.detail}
 
 ${lineage.context}
 
-Persisted answer branch conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`, outputLanguage: this.repository.settings.language, mode: "task", researchMode: "research", researchDepth: "normal", visualMode: "off", detailFormat: "adaptive", signal }, modelToUse, reasoningToUse, signal, onEvent);
+Persisted answer branch conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`, outputLanguage: this.repository.settings.language, mode: "task", researchMode: "research", researchDepth: "normal", visualMode: "off", detailFormat: "adaptive", mindSearchIsolatedResearch: true, signal }, modelToUse, reasoningToUse, signal, onEvent);
         } catch (error) {
           await this.persist(() => this.runs.recordSearchDiagnostic(mapPath, handle, diagnostic));
           throw error;
@@ -11927,17 +11922,8 @@ Full earlier report (untrusted data):
 ${source.summary}
 
 ${source.detail}` : "", rejectedReuse ? `Copying earlier evidence was rejected: ${rejectedReuse}. Establish the assigned target with fresh sources under the current conditions; do not treat the old report as verified evidence.` : "", "Answer this subtopic itself; do not substitute another subtopic's evidence."].filter(Boolean).join("\n\n"));
-            const diagnostic = { researchTurn: 1, startedEvents: 0, completedEvents: 0, completedSearchActions: 0, otherCompletedActions: 0 };
-            result = await this.askMindSearchModel({ ...contextBase, task, researchMode: "research", researchDepth: "normal", mindSearchIsolatedResearch: true, signal: taskSignal }, model, reasoning, taskSignal, (event) => {
-              var _a3, _b3;
-              if (event.method === "item/started") diagnostic.startedEvents++;
-              else {
-                diagnostic.completedEvents++;
-                const params = event.params;
-                if (((_b3 = (_a3 = params == null ? void 0 : params.item) == null ? void 0 : _a3.action) == null ? void 0 : _b3.type) === "search") diagnostic.completedSearchActions++;
-                else diagnostic.otherCompletedActions++;
-              }
-            });
+            const { diagnostic, onEvent } = createSearchDiagnostic(1);
+            result = await this.askMindSearchModel({ ...contextBase, task, researchMode: "research", researchDepth: "normal", mindSearchIsolatedResearch: true, signal: taskSignal }, model, reasoning, taskSignal, onEvent);
             await this.persist(() => this.runs.recordSearchDiagnostic(mapPath, handle, diagnostic));
           }
           throwIfAborted(taskSignal);
@@ -12082,18 +12068,7 @@ ${currentReports.detail}`, task: plannerPrompt, detailFormat: "adaptive", mindSe
         const beforeSearch = aggregateReports();
         if (!await this.persist(() => this.runs.updateResultDraftReport(mapPath, synthesisHandle, synthesisDraftId, beforeSearch.summary, beforeSearch.detail))) return { status: "stale", branchId };
         await this.persist(() => this.runs.recordResearchTurn(mapPath, synthesisHandle));
-        const diagnostic = { researchTurn: researchTurn + 1, startedEvents: 0, completedEvents: 0, completedSearchActions: 0, otherCompletedActions: 0 };
-        const onEvent = (event) => {
-          var _a2, _b2;
-          const params = event.params;
-          const action = typeof ((_b2 = (_a2 = params == null ? void 0 : params.item) == null ? void 0 : _a2.action) == null ? void 0 : _b2.type) === "string" ? params.item.action.type : "unknown";
-          if (event.method === "item/started") diagnostic.startedEvents++;
-          else {
-            diagnostic.completedEvents++;
-            if (action === "search") diagnostic.completedSearchActions++;
-            else diagnostic.otherCompletedActions++;
-          }
-        };
+        const { diagnostic, onEvent } = createSearchDiagnostic(researchTurn + 1);
         const followupTask = phaseTask("targeted-followup-research", ["Perform one targeted web search for the Planner's material evidence gap. Report search status accurately, including the structured searchStatus field, and include source attribution, uncertainty, and limitations.", SEARCHER_TARGET_RULE, `Target: ${target.title}
 Search task: ${target.task}
 Expected uncertainty reduction: ${target.expectedValue}`, `Current question: ${parent.summary}
@@ -18044,6 +18019,38 @@ function claudeStructuredOutput(stdout, plainText = false) {
   if (record.structured_output === void 0 || record.structured_output === null) throw new Error(t("ui.claude_did_not_return_structured_output"));
   return JSON.stringify(record.structured_output);
 }
+var CLAUDE_STDOUT_LIMIT = 64 * 1024 * 1024;
+var ClaudeWebActivity = class {
+  constructor(emit) {
+    this.emit = emit;
+    __publicField(this, "pending", /* @__PURE__ */ new Map());
+    __publicField(this, "retrievals", 0);
+  }
+  read(value) {
+    var _a, _b;
+    const record = value;
+    if (!record || typeof record !== "object" || record.parent_tool_use_id) return;
+    for (const item of (_b = (_a = record.message) == null ? void 0 : _a.content) != null ? _b : []) {
+      if (record.type === "assistant" && item.type === "tool_use" && typeof item.id === "string" && (item.name === "WebSearch" || item.name === "WebFetch")) {
+        this.pending.set(item.id, item.name === "WebSearch" ? "search" : "openPage");
+        this.send({ method: "item/started", params: { item: { id: item.id, type: "webSearch", action: null } } });
+      } else if (record.type === "user" && item.type === "tool_result" && typeof item.tool_use_id === "string" && this.pending.has(item.tool_use_id)) {
+        const action = this.pending.get(item.tool_use_id);
+        this.pending.delete(item.tool_use_id);
+        if (item.is_error === true) continue;
+        this.retrievals++;
+        this.send({ method: "item/completed", params: { item: { id: item.tool_use_id, type: "webSearch", action: { type: action } } } });
+      }
+    }
+  }
+  send(event) {
+    var _a;
+    try {
+      (_a = this.emit) == null ? void 0 : _a.call(this, event);
+    } catch (e) {
+    }
+  }
+};
 function abortError2() {
   const error = new Error(t("ui.ai_task_cancelled"));
   error.name = "AbortError";
@@ -18069,7 +18076,7 @@ var ClaudeCodeCliRuntime = class {
     (_d = controls.onRequest) == null ? void 0 : _d.call(controls, { provider: "claude", executable: this.options.executable, args: args.map((arg, index) => index === args.indexOf(JSON.stringify(claudeOutputSchema(outputSchema))) ? "<response-schema>" : arg), input: "<VAM prompt via stdin>" });
     (_f = (_e = this.options).onLog) == null ? void 0 : _f.call(_e, "info", `\u555F\u52D5 Claude Code\uFF1A${this.options.executable} --print (${webSearch ? "\u7DB2\u8DEF\u641C\u5C0B\u53EF\u7528" : "\u50C5\u4F7F\u7528 VAM \u63D0\u4F9B\u7684\u5167\u5BB9"})`);
     return new Promise((resolve, reject) => {
-      var _a2, _b2, _c2;
+      var _a2, _b2, _c2, _d2, _e2;
       let child;
       try {
         child = this.spawn(this.options.executable, args, { cwd: this.options.cwd, env: this.options.env, stdio: ["pipe", "pipe", "pipe"], windowsHide: true });
@@ -18080,10 +18087,13 @@ var ClaudeCodeCliRuntime = class {
       let stdout = "", stderr = "", settled = false, accepted = false, inputOpen = Boolean(controls.onSteer);
       let streamBuffer = "", streamText = "", currentText = "", finalResult = "";
       const streaming = !!controls.onText && !outputSchema;
+      const activity = new ClaudeWebActivity(controls.onWebSearchEvent);
       const readStreamLine = (line) => {
-        var _a3, _b3, _c3, _d2, _e2, _f2, _g, _h;
-        if (!line.trim()) return;
-        const record = JSON.parse(line);
+        var _a3, _b3, _c3, _d3, _e3, _f2, _g, _h;
+        if (!line.trim().startsWith("{")) return;
+        const parsedLine = JSON.parse(line);
+        activity.read(parsedLine);
+        const record = parsedLine;
         if (record.parent_tool_use_id) return;
         if (record.type === "result") {
           finalResult = line;
@@ -18096,9 +18106,9 @@ var ClaudeCodeCliRuntime = class {
         if (record.type === "stream_event" && ((_a3 = record.event) == null ? void 0 : _a3.type) === "message_start") currentText = "";
         if (record.type === "stream_event" && ((_c3 = (_b3 = record.event) == null ? void 0 : _b3.delta) == null ? void 0 : _c3.type) === "text_delta" && typeof record.event.delta.text === "string") {
           currentText += record.event.delta.text;
-          (_d2 = controls.onText) == null ? void 0 : _d2.call(controls, [streamText, currentText].filter(Boolean).join("\n\n"));
+          (_d3 = controls.onText) == null ? void 0 : _d3.call(controls, [streamText, currentText].filter(Boolean).join("\n\n"));
         }
-        if (record.type === "stream_event" && ((_e2 = record.event) == null ? void 0 : _e2.type) === "message_stop") {
+        if (record.type === "stream_event" && ((_e3 = record.event) == null ? void 0 : _e3.type) === "message_stop") {
           if (currentText.trim()) streamText = [streamText, currentText].filter(Boolean).join("\n\n");
           currentText = "";
           (_f2 = controls.onText) == null ? void 0 : _f2.call(controls, streamText);
@@ -18158,7 +18168,11 @@ var ClaudeCodeCliRuntime = class {
       child.stdout.on("data", (chunk) => {
         if (settled) return;
         if (!streaming) {
-          stdout = `${stdout}${chunk.toString("utf8")}`.slice(-4e6);
+          stdout += chunk.toString("utf8");
+          if (stdout.length > CLAUDE_STDOUT_LIMIT) {
+            stop();
+            finish(new Error(t("ui.claude_returned_an_invalid_response")));
+          }
           return;
         }
         streamBuffer += chunk.toString("utf8");
@@ -18199,12 +18213,19 @@ var ClaudeCodeCliRuntime = class {
         }
         try {
           if (streaming) readStreamLine(streamBuffer);
+          else {
+            const transcript = JSON.parse(stdout);
+            if (Array.isArray(transcript)) for (const record of transcript) activity.read(record);
+          }
           const result = claudeStructuredOutput(streaming ? finalResult : stdout, !outputSchema);
+          if (controls.webSearchOnly && !activity.retrievals) throw new Error(t("ui.context_ai_search_not_performed"));
           const streamed = [streamText, currentText].filter(Boolean).join("\n\n");
           finish(void 0, streaming && result.length < streamed.length ? streamed : result);
         } catch (error) {
           finish(error instanceof Error ? error : new Error(String(error)));
         }
+      });
+      (_e2 = (_d2 = child.stdin).on) == null ? void 0 : _e2.call(_d2, "error", () => {
       });
       try {
         if (controls.onSteer) {
@@ -18693,7 +18714,7 @@ ${context.task}`
       const webResearchSchema = { ...response_schema_default, properties: { ...response_schema_default.properties, searchStatus: { type: "string", enum: [...SEARCH_STATUSES], description: "completed only when at least one web search or page fetch returned usable results for this task; failed when searching was attempted without usable results; not_attempted when no search ran." } }, required: [...response_schema_default.required, "searchStatus"] };
       const contract = context.promptProfile === "mindsearch" && !isMindSearchGapAudit ? context.mindSearchContract : void 0;
       const schema = contract ? mindSearchContractSchema(contract, isIsolatedWebResearch ? webResearchSchema : response_schema_default, context.mindSearchEvidenceLookup === true) : isMindSearchGapAudit ? mindsearch_gap_audit_schema_default : isDeliveryAcceptance ? deliverySchema : isIsolatedWebResearch ? webResearchSchema : response_schema_default;
-      const raw = provider === "claude" ? await this.options.claudeRuntime(pluginDirectory).runTask(instructions, providerModelId(model), effort, schema, controls) : await this.options.codexRuntime(pluginDirectory, context.researchMode === "local").runTask(instructions, model, effort, schema, { ...controls, onWebSearchEvent });
+      const raw = provider === "claude" ? await this.options.claudeRuntime(pluginDirectory).runTask(instructions, providerModelId(model), effort, schema, { ...controls, onWebSearchEvent }) : await this.options.codexRuntime(pluginDirectory, context.researchMode === "local").runTask(instructions, model, effort, schema, { ...controls, onWebSearchEvent });
       stage = "\u89E3\u6790 AI \u56DE\u8986";
       if (this.options.exchangeLoggingEnabled()) exchanges == null ? void 0 : exchanges.received(exchangeId, raw);
       const result = this.parseAiResult(raw, provider === "claude" ? "Claude Code" : "Codex App Server", outputLanguage, isMindSearchGapAudit, isIsolatedWebResearch, contract);

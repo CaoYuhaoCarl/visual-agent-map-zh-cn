@@ -5021,6 +5021,61 @@ integrationTest('Codex App Server ignores stale child events after a clean resta
   assert.equal(children.length, 2);
   runtime.stop();
 });
+test('Claude isolated research reports web activity in the Codex event shape and requires a real retrieval', async () => {
+  const { EventEmitter } = require('node:events');
+  const output = { summary: 'S', detail: 'D', suggestions: [], visualReferences: [], searchStatus: 'completed' };
+  const runWith = async (records, controls = {}) => {
+    const spawn = () => {
+      const child = new EventEmitter(); child.stdout = new EventEmitter(); child.stderr = new EventEmitter(); child.kill = () => true;
+      child.stdin = { on: () => {}, end: () => process.nextTick(() => {
+        const text = JSON.stringify([...records, { type: 'result', subtype: 'success', is_error: false, structured_output: output }]);
+        for (let index = 0; index < text.length; index += 1_000_000) child.stdout.emit('data', Buffer.from(text.slice(index, index + 1_000_000)));
+        child.emit('close', 0);
+      }) };
+      return child;
+    };
+    const { ClaudeCodeCliRuntime } = load('ai/runtime/claude-code-cli.ts', { 'node:child_process': { spawn } });
+    return new ClaudeCodeCliRuntime({ executable: 'claude', cwd: '/plugin', env: {}, spawn }).runTask('research', 'sonnet', 'low', { type: 'object' }, { webSearch: true, webSearchOnly: true, ...controls });
+  };
+  const use = (id, name) => ({ type: 'assistant', parent_tool_use_id: null, message: { content: [{ type: 'tool_use', id, name, input: {} }] } });
+  const done = (id, extra = {}) => ({ type: 'user', parent_tool_use_id: null, message: { content: [{ type: 'tool_result', tool_use_id: id, content: 'ok', ...extra }] } });
+  const events = [];
+  // A fetched page larger than the former 4 MB stdout tail must not break parsing.
+  assert.equal(JSON.parse(await runWith([use('s1', 'WebSearch'), done('s1'), use('f1', 'WebFetch'), done('f1', { content: 'x'.repeat(5_000_000) })], { onWebSearchEvent: event => { events.push(JSON.parse(JSON.stringify(event))); } })).summary, 'S');
+  assert.deepEqual(events.map(event => [event.method, event.params.item.action?.type ?? null]), [['item/started', null], ['item/completed', 'search'], ['item/started', null], ['item/completed', 'openPage']]);
+  await assert.rejects(runWith([]), /did not perform web search|沒有實際執行網路搜尋/);
+  await assert.rejects(runWith([use('s1', 'WebSearch'), done('s1', { is_error: true })]), /did not perform web search|沒有實際執行網路搜尋/, 'a denied or failed tool call is not a retrieval');
+  const subagent = { ...use('s2', 'WebSearch'), parent_tool_use_id: 'task-1' };
+  await assert.rejects(runWith([subagent, { ...done('s2'), parent_tool_use_id: 'task-1' }]), /did not perform web search|沒有實際執行網路搜尋/, 'only the main agent counts');
+  assert.equal(JSON.parse(await runWith([use('s3', 'WebSearch'), done('s3')], { onWebSearchEvent: () => { throw new Error('UI failure'); } })).summary, 'S', 'a telemetry consumer error does not fail the task');
+  assert.equal(JSON.parse(await runWith([], { webSearchOnly: false })).summary, 'S', 'ordinary tasks do not require search');
+});
+test('Claude stream mode skips plain-text warning lines between JSON records', async () => {
+  const { EventEmitter } = require('node:events');
+  const spawn = () => {
+    const child = new EventEmitter(); child.stdout = new EventEmitter(); child.stderr = new EventEmitter(); child.kill = () => true;
+    child.stdin = { end: () => process.nextTick(() => {
+      child.stdout.emit('data', Buffer.from('Warning: update available\n' + JSON.stringify({ type: 'assistant', message: { content: [{ type: 'text', text: 'hello' }] } }) + '\n' + JSON.stringify({ type: 'result', subtype: 'success', is_error: false, result: 'hello' }) + '\n'));
+      child.emit('close', 0);
+    }) };
+    return child;
+  };
+  const { ClaudeCodeCliRuntime } = load('ai/runtime/claude-code-cli.ts', { 'node:child_process': { spawn } });
+  assert.equal(await new ClaudeCodeCliRuntime({ executable: 'claude', cwd: '/plugin', env: {}, spawn }).runTask('hi', 'sonnet', 'low', undefined, { onText: () => {} }), 'hello');
+});
+test('AiTaskService gives Claude the same web telemetry and search requirement as Codex for isolated research', async () => {
+  const { AiTaskService } = load('core/ai-task-service.ts');
+  let received;
+  const service = new AiTaskService({
+    pluginDirectory: () => '/plugin', language: () => 'en', defaultReasoning: () => 'low', exchangeLoggingEnabled: () => false, exchanges: () => null,
+    codexRuntime: () => { throw new Error('unexpected provider'); },
+    claudeRuntime: () => ({ runTask: async (_prompt, _model, _effort, _schema, controls) => { received = controls; controls.onWebSearchEvent({ method: 'item/completed', params: { item: { type: 'webSearch', action: { type: 'search' } } } }); return JSON.stringify({ summary: 's', detail: 'd', suggestions: [], visualReferences: [], searchStatus: 'completed' }); } })
+  });
+  const events = [];
+  await service.askModel({ title: 'T', summary: '', rules: '', detail: '', task: 'Research', ancestors: '', mode: 'task', researchMode: 'research', researchDepth: 'normal', visualMode: 'off', promptProfile: 'mindsearch', mindSearchIsolatedResearch: true }, 'claude:sonnet', 'low', undefined, undefined, undefined, event => events.push(event));
+  assert.equal(received.webSearchOnly, true);
+  assert.equal(events.length, 1);
+});
 test('Claude CLI uses the local structured-output interface with tools restricted by task mode', async () => {
   const { EventEmitter } = require('node:events'); let args, prompt, cwd;
   const result = { type: 'result', subtype: 'success', is_error: false, structured_output: { summary: 'Summary', detail: 'Evidence', suggestions: [], visualReferences: [] } };

@@ -1,3 +1,4 @@
+import type { WebSearchEvent } from "../types";
 import { spawn as nodeSpawn } from "node:child_process";
 import { t } from "../../i18n";
 
@@ -43,7 +44,7 @@ interface RpcResponse { id: number; result?: unknown; error?: { message?: string
 interface RpcNotification { method: string; params?: unknown }
 interface RpcServerRequest { id: number | string; method: string; params?: unknown }
 interface PendingRequest { resolve: (value: unknown) => void; reject: (error: Error) => void; timeout: number }
-export interface CodexWebSearchEvent { method: "item/started" | "item/completed"; params: unknown }
+export type CodexWebSearchEvent = WebSearchEvent;
 interface TurnState { messages: string[]; visibleMessages: Map<string, string>; resolve: (text: string) => void; reject: (error: Error) => void; timeout: number; turnId: string; searches: number; countedSearchIds: Set<string>; webRetrievals: Set<string>; requireSearch?: boolean; searchBudget: number; steered: boolean; streamItem?: string; streamText?: string; onRequest?: (request: unknown) => void; onText?: (text: string) => void; onWebSearchEvent?: (event: CodexWebSearchEvent) => void }
 
 const CONTROL_TIMEOUT_MS = 30_000;

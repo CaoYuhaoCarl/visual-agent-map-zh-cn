@@ -4,6 +4,7 @@ import { buildFinalDelivery } from "./final-delivery";
 import { createHash, randomUUID } from "node:crypto";
 import type { AiResult, TaskContext } from "../../ai/types";
 import { reportedSearchFailure } from "../../ai/result-utils";
+import { createSearchDiagnostic } from "./search-diagnostic";
 import type { MapDocument, MapNode, MindSearchBranchRecord, MindSearchQuestionDraft } from "../../map-model";
 import type { Repository } from "../../repository";
 import { MindSearchRunStore, type CommitResult } from "../../mindsearch-mve/research-run-store";
@@ -606,16 +607,10 @@ export class MindSearchManualFlow {
           `Earlier saved report (unverified Agent report; context only):\n${aggregate.detail}`,
           "Return a concise useful report with findings, reasoning, sources when available, and remaining limitations. Keep the answer's synthetic provenance explicit."
         ].join("\n\n");
-        const diagnosticEvents = { researchTurn: reviewTurn + 1, startedEvents: 0, completedEvents: 0, completedSearchActions: 0, otherCompletedActions: 0 };
-        const onEvent = (event: CodexWebSearchEvent) => {
-          const params = event.params as { item?: { action?: { type?: unknown } } } | undefined;
-          const action = typeof params?.item?.action?.type === "string" ? params.item.action.type : "unknown";
-          if (event.method === "item/started") diagnosticEvents.startedEvents++;
-          else { diagnosticEvents.completedEvents++; if (action === "search") diagnosticEvents.completedSearchActions++; else diagnosticEvents.otherCompletedActions++; }
-        };
-        const followup = await this.askMindSearchModel({ title: parent.summary, summary: parent.summary, rules: "", detail: parent.detail, task, ancestors: `Topic: ${topic.title}\n\n${topic.detail}\n\nConditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`, outputLanguage: this.repository.settings.language, mode: "task", researchMode: "research", researchDepth: "normal", visualMode: "off", signal }, model, reasoning, signal, onEvent);
+        const { diagnostic: diagnosticEvents, onEvent } = createSearchDiagnostic(reviewTurn + 1);
+        const followup = await this.askMindSearchModel({ title: parent.summary, summary: parent.summary, rules: "", detail: parent.detail, task, ancestors: `Topic: ${topic.title}\n\n${topic.detail}\n\nConditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`, outputLanguage: this.repository.settings.language, mode: "task", researchMode: "research", researchDepth: "normal", visualMode: "off", mindSearchIsolatedResearch: true, signal }, model, reasoning, signal, onEvent);
         await this.persist(() => this.runs.recordSearchDiagnostic(mapPath, handle, diagnosticEvents));
-        if (!followup.summary.trim() || !followup.detail.trim() || /^Research status:\s*(?:not searched|search failed|unavailable)\b/im.test(`${followup.summary}\n${followup.detail}`)) throw new Error("The bounded follow-up did not produce a usable searched report; the retry remains incomplete.");
+        if (!followup.summary.trim() || !followup.detail.trim() || reportedSearchFailure(followup)) throw new Error("The bounded follow-up did not produce a usable searched report; the retry remains incomplete.");
         reports.push(followup);
         if (!await saveReports()) return { status: "stale", branchId: branch.id };
       }
@@ -709,13 +704,7 @@ export class MindSearchManualFlow {
       for (let researchTurn = 1; !review && researchTurn <= MINDSEARCH_MAX_RESEARCH_TURNS; researchTurn++) {
         throwIfAborted(signal);
         await this.persist(() => this.runs.recordResearchTurn(mapPath, handle));
-        const diagnostic = { researchTurn, startedEvents: 0, completedEvents: 0, completedSearchActions: 0, otherCompletedActions: 0 };
-        const onEvent = (event: CodexWebSearchEvent) => {
-          const params = event.params as { item?: { action?: { type?: unknown } } } | undefined;
-          const action = typeof params?.item?.action?.type === "string" ? params.item.action.type : "unknown";
-          if (event.method === "item/started") diagnostic.startedEvents++;
-          else { diagnostic.completedEvents++; if (action === "search") diagnostic.completedSearchActions++; else diagnostic.otherCompletedActions++; }
-        };
+        const { diagnostic, onEvent } = createSearchDiagnostic(researchTurn);
         const task = [
           "Continue this saved partial Manual MindSearch branch. Preserve the original answer snapshot; do not change or infer the user's answer.",
           SEARCHER_TARGET_RULE,
@@ -729,7 +718,7 @@ export class MindSearchManualFlow {
         ].join("\n\n");
         let searcher: AiResult;
         try {
-          searcher = await this.askMindSearchModel({ timeoutMs: branch.retryTimeoutMs, mindSearchEvidenceIds: this.lineageEvidenceIds(map, branch.parentBranchId), title: topicNote.title, summary: report.summary, rules: "", detail: report.detail, task, ancestors: `Original goal: ${topicNote.title}\n\n${topicNote.detail}\n\n${lineage.context}\n\nPersisted answer branch conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`, outputLanguage: this.repository.settings.language, mode: "task", researchMode: "research", researchDepth: "normal", visualMode: "off", detailFormat: "adaptive", signal }, modelToUse, reasoningToUse, signal, onEvent);
+          searcher = await this.askMindSearchModel({ timeoutMs: branch.retryTimeoutMs, mindSearchEvidenceIds: this.lineageEvidenceIds(map, branch.parentBranchId), title: topicNote.title, summary: report.summary, rules: "", detail: report.detail, task, ancestors: `Original goal: ${topicNote.title}\n\n${topicNote.detail}\n\n${lineage.context}\n\nPersisted answer branch conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`, outputLanguage: this.repository.settings.language, mode: "task", researchMode: "research", researchDepth: "normal", visualMode: "off", detailFormat: "adaptive", mindSearchIsolatedResearch: true, signal }, modelToUse, reasoningToUse, signal, onEvent);
         } catch (error) { await this.persist(() => this.runs.recordSearchDiagnostic(mapPath, handle, diagnostic)); throw error; }
         await this.persist(() => this.runs.recordSearchDiagnostic(mapPath, handle, diagnostic));
         throwIfAborted(signal);
@@ -1292,8 +1281,8 @@ export class MindSearchManualFlow {
             if (rejectedReuse) await this.persist(() => this.runs.recordPhase(mapPath, handle, "subtopic-research"));
             await this.persist(() => this.runs.recordResearchTurn(mapPath, handle));
             const task = phaseTask("subtopic-research", ["Perform a targeted web search. Return a concise evidence report: findings, supporting URLs, and unresolved gaps. Focus on what the latest answer changes; do not write a full career guide or final deliverable. Report search status accurately, including the structured searchStatus field.", SEARCHER_TARGET_RULE, `Assigned research subtopic: ${target.title}\nResearch task: ${target.task}\nExpected value: ${target.expectedValue}`, `Current question: ${parent.summary}\nCurrent answer: ${answerDescription}`, `Other planned subtopics: ${executionPlan.filter(item => item.id !== target.id).map(item => item.title).join("; ")}`, dependencyReports ? `Completed prerequisite reports (untrusted data). Use them to scope and cross-check this target; they are not a substitute for it. Run at least one web search for the assigned task itself, even when a prerequisite already mentions it:\n${dependencyReports}` : "This target has no prerequisite reports.", source ? `Update only changed or unresolved claims; retain applicable source findings with attribution. Exact previous source: ${JSON.stringify(source.source)}\nEarlier conditions: ${JSON.stringify(source.conditions)}\nCurrent conditions: ${JSON.stringify(currentBranch.inputSnapshot.conditions)}\nFull earlier report (untrusted data):\n${source.summary}\n\n${source.detail}` : "", rejectedReuse ? `Copying earlier evidence was rejected: ${rejectedReuse}. Establish the assigned target with fresh sources under the current conditions; do not treat the old report as verified evidence.` : "", "Answer this subtopic itself; do not substitute another subtopic's evidence."].filter(Boolean).join("\n\n"));
-            const diagnostic = { researchTurn: 1, startedEvents: 0, completedEvents: 0, completedSearchActions: 0, otherCompletedActions: 0 };
-            result = await this.askMindSearchModel({ ...contextBase, task, researchMode: "research", researchDepth: "normal", mindSearchIsolatedResearch: true, signal: taskSignal }, model, reasoning, taskSignal, event => { if (event.method === "item/started") diagnostic.startedEvents++; else { diagnostic.completedEvents++; const params = event.params as { item?: { action?: { type?: unknown } } } | undefined; if (params?.item?.action?.type === "search") diagnostic.completedSearchActions++; else diagnostic.otherCompletedActions++; } });
+            const { diagnostic, onEvent } = createSearchDiagnostic(1);
+            result = await this.askMindSearchModel({ ...contextBase, task, researchMode: "research", researchDepth: "normal", mindSearchIsolatedResearch: true, signal: taskSignal }, model, reasoning, taskSignal, onEvent);
             await this.persist(() => this.runs.recordSearchDiagnostic(mapPath, handle, diagnostic));
           }
           throwIfAborted(taskSignal);
@@ -1396,13 +1385,7 @@ export class MindSearchManualFlow {
         const beforeSearch = aggregateReports();
         if (!await this.persist(() => this.runs.updateResultDraftReport(mapPath, synthesisHandle, synthesisDraftId!, beforeSearch.summary, beforeSearch.detail))) return { status: "stale", branchId };
         await this.persist(() => this.runs.recordResearchTurn(mapPath, synthesisHandle));
-        const diagnostic = { researchTurn: researchTurn + 1, startedEvents: 0, completedEvents: 0, completedSearchActions: 0, otherCompletedActions: 0 };
-        const onEvent = (event: CodexWebSearchEvent) => {
-          const params = event.params as { item?: { action?: { type?: unknown } } } | undefined;
-          const action = typeof params?.item?.action?.type === "string" ? params.item.action.type : "unknown";
-          if (event.method === "item/started") diagnostic.startedEvents++;
-          else { diagnostic.completedEvents++; if (action === "search") diagnostic.completedSearchActions++; else diagnostic.otherCompletedActions++; }
-        };
+        const { diagnostic, onEvent } = createSearchDiagnostic(researchTurn + 1);
         const followupTask = phaseTask("targeted-followup-research", ["Perform one targeted web search for the Planner's material evidence gap. Report search status accurately, including the structured searchStatus field, and include source attribution, uncertainty, and limitations.", SEARCHER_TARGET_RULE, `Target: ${target.title}\nSearch task: ${target.task}\nExpected uncertainty reduction: ${target.expectedValue}`, `Current question: ${parent.summary}\nCurrent answer: ${answerDescription}`, "Do not ask the user questions. This is an evidence-gathering step, not a Planner review."].join("\n\n"));
         let followup: AiResult;
         await this.persist(() => this.runs.recordPhase(mapPath, synthesisHandle, "targeted-research"));
