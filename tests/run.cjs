@@ -5014,12 +5014,15 @@ test('Claude CLI uses the local structured-output interface with tools restricte
   assert.deepEqual(claudeSchema.required, ['summary']);
   assert.equal(claudeSchema.additionalProperties, false);
   assert.equal(localArgs[localArgs.indexOf('--tools') + 1], '');
+  assert.ok(!localArgs.includes('--allowedTools'));
   assert.ok(localArgs.includes('--safe-mode'));
   assert.ok(localArgs.includes('--strict-mcp-config'));
   assert.deepEqual(JSON.parse(localArgs[localArgs.indexOf('--mcp-config') + 1]), { mcpServers: {} });
   assert.ok(localArgs.includes('--no-session-persistence'));
   const webArgs = claudeTaskArgs('opus', 'high', schema, true);
   assert.equal(webArgs[webArgs.indexOf('--tools') + 1], 'WebSearch,WebFetch');
+  assert.equal(webArgs[webArgs.indexOf('--permission-mode') + 1], 'dontAsk');
+  assert.equal(webArgs[webArgs.indexOf('--allowedTools') + 1], 'WebSearch,WebFetch');
   assert.doesNotMatch(webArgs.join(' '), /\b(Bash|Read|Write|Edit|Agent)\b/);
   const runtime = new ClaudeCodeCliRuntime({ executable: '/usr/local/bin/claude', cwd: '/plugin', env: {}, spawn });
   const raw = await runtime.runTask('VAM prompt', 'sonnet', 'medium', schema, { searchBudget: 0 });

@@ -49,6 +49,8 @@ export function claudeTaskArgs(model: string, effort: string, schema: unknown, w
     "--effort", ["low", "medium", "high"].includes(effort) ? effort : "low",
     "--permission-mode", "dontAsk", "--permission-prompts", "none",
     "--safe-mode", "--strict-mcp-config", "--mcp-config", JSON.stringify({ mcpServers: {} }), "--no-session-persistence",
+    // dontAsk denies every tool that is not pre-approved; --tools alone only makes them available.
+    ...(webSearch ? ["--allowedTools", "WebSearch,WebFetch"] : []),
     "--tools", webSearch ? "WebSearch,WebFetch" : ""
   ];
 }

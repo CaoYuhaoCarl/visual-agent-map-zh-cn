@@ -17781,6 +17781,8 @@ function claudeTaskArgs(model, effort, schema, webSearch) {
     "--mcp-config",
     JSON.stringify({ mcpServers: {} }),
     "--no-session-persistence",
+    // dontAsk denies every tool that is not pre-approved; --tools alone only makes them available.
+    ...webSearch ? ["--allowedTools", "WebSearch,WebFetch"] : [],
     "--tools",
     webSearch ? "WebSearch,WebFetch" : ""
   ];
