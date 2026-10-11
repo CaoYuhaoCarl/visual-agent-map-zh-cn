@@ -533,20 +533,33 @@ export class Repository {
     });
   }
 
-  async mapFiles(): Promise<TFile[]> {
+  /**
+   * Markdown files whose frontmatter sets `key`. Indexed files are judged from the metadata cache; only files the
+   * cache has not indexed yet (for example, created moments ago) are read, so a large vault is not read in full.
+   */
+  async markedFiles(key: "visual-agent-map" | "agent-map-node"): Promise<TFile[]> {
     const files: TFile[] = [];
     for (const file of this.app.vault.getMarkdownFiles()) {
-      const cached: unknown = this.app.metadataCache.getFileCache(file)?.frontmatter?.["visual-agent-map"];
-      if (marker(cached) || /^---\r?\n[\s\S]*?visual-agent-map: true\r?\n/.test(await this.app.vault.cachedRead(file))) files.push(file);
+      const cache = this.app.metadataCache.getFileCache(file);
+      if (cache ? marker(cache.frontmatter?.[key]) : marker(frontmatter(await this.app.vault.cachedRead(file))[key])) files.push(file);
     }
-    return files.sort((a, b) => a.path.localeCompare(b.path));
+    return files;
+  }
+
+  async mapFiles(): Promise<TFile[]> {
+    return (await this.markedFiles("visual-agent-map")).sort((a, b) => a.path.localeCompare(b.path));
+  }
+
+  /** Whether any map lists `path` as a node; only map files are read. */
+  async isMapNodePath(path: string): Promise<boolean> {
+    for (const file of await this.mapFiles()) if ((await this.readMap(file.path)).nodes.some(node => node.path === path)) return true;
+    return false;
   }
 
   async reconcileMissingNodePaths(): Promise<number> {
     const candidates = new Map<string, string[]>();
-    for (const file of this.app.vault.getMarkdownFiles()) {
-      const fm = frontmatter(await this.app.vault.read(file));
-      if (!marker(fm["agent-map-node"])) continue;
+    for (const file of await this.markedFiles("agent-map-node")) {
+      const fm = this.app.metadataCache.getFileCache(file)?.frontmatter ?? frontmatter(await this.app.vault.read(file));
       const id = text(fm["node-id"]);
       if (id) candidates.set(id, [...(candidates.get(id) ?? []), file.path]);
     }
@@ -658,7 +671,10 @@ export class Repository {
   }
 
   async replaceSourcePath(oldPath: string, newPath: string): Promise<void> {
-    for (const file of this.app.vault.getMarkdownFiles()) {
+    for (const file of await this.markedFiles("agent-map-node")) {
+      // Skip notes whose indexed frontmatter does not mention the old path.
+      const cached = this.app.metadataCache.getFileCache(file)?.frontmatter;
+      if (cached && ![cached["source-notes"], cached["reference-materials"]].some(list => Array.isArray(list) && list.includes(oldPath))) continue;
       const note = await this.readNoteIfManaged(file);
       if (note?.referencePaths?.includes(oldPath)) await this.updateNote(file.path, { referencePaths: note.referencePaths.map(path => path === oldPath ? newPath : path) });
       if (!note?.sourcePaths.includes(oldPath)) continue;
@@ -686,7 +702,7 @@ export class Repository {
       }
       if (changed) await this.saveMap(mapFile.path, map);
     }
-    for (const file of [...this.app.vault.getMarkdownFiles()]) {
+    for (const file of await this.markedFiles("agent-map-node")) {
       if (!/^新的子議題(?: \d+)*$/.test(file.basename)) continue;
       const note = await this.readNoteIfManaged(file); if (!note || !note.title.trim() || safeName(note.title) === file.basename) continue;
       const oldPath = file.path, newPath = await this.renameNote(oldPath, note.title);
@@ -712,7 +728,10 @@ export class Repository {
       }
     }
 
-    for (const file of this.app.vault.getMarkdownFiles()) {
+    // Map-owned paths are included even if the metadata cache has not caught up with a just-written note.
+    const nodeFiles = new Map((await this.markedFiles("agent-map-node")).map(file => [file.path, file]));
+    for (const path of ownership.keys()) { const file = this.app.vault.getAbstractFileByPath(path); if (file instanceof TFile) nodeFiles.set(path, file); }
+    for (const file of nodeFiles.values()) {
       if (noteRoot && !file.path.startsWith(`${noteRoot}/`)) continue;
       const content = await this.app.vault.read(file), fm = frontmatter(content);
       if (!marker(fm["agent-map-node"])) continue;
@@ -760,7 +779,7 @@ export class Repository {
   }
 
   async ensureNodePresentation(): Promise<void> {
-    for (const file of this.app.vault.getMarkdownFiles()) {
+    for (const file of await this.markedFiles("agent-map-node")) {
       const content = await this.app.vault.read(file), fm = frontmatter(content);
       if (!marker(fm["agent-map-node"]) || !ensureNoteCssClass(fm)) continue;
       const body = content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "");

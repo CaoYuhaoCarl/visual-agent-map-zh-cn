@@ -90,6 +90,7 @@ export default class VisualAgentMapPlugin extends Plugin {
   private queue: Promise<void> = Promise.resolve();
   private writing = 0;
   private externalReconcileTimer: number | null = null;
+  private readonly externalReconcilePaths = new Set<string>();
   private firstInstallSamplePending = false;
   private workspaceRecoveryCandidates: string[] = [];
   languageSwitchPending = false;
@@ -222,11 +223,15 @@ export default class VisualAgentMapPlugin extends Plugin {
       }).catch(error => { this.logs.appendLog("warn", `初始化未完成：${error instanceof Error ? error.message : String(error)}`); console.warn("Visual Agent Map initialization", error); });
     });
     this.registerEvent(this.app.vault.on("modify", file => { if (!this.writing && file instanceof TFile) for (const view of this.views()) view.changed(file); }));
-    this.registerEvent(this.app.vault.on("delete", file => { if (!this.writing && file instanceof TFile) { for (const view of this.views()) view.deleted(file); this.scheduleExternalReconciliation(); if (file.path.startsWith(`${this.settings.mapsFolder}/`) || file.path.startsWith(`${this.settings.topicsFolder}/`) && file.name === "Map.md") void this.mutate(() => this.repo.rebuildDerivedData()); } }));
+    this.registerEvent(this.app.vault.on("delete", file => { if (!this.writing && file instanceof TFile) { for (const view of this.views()) view.deleted(file); this.scheduleExternalReconciliation(file.path); if (file.path.startsWith(`${this.settings.mapsFolder}/`) || file.path.startsWith(`${this.settings.topicsFolder}/`) && file.name === "Map.md") void this.mutate(() => this.repo.rebuildDerivedData()); } }));
     this.registerEvent(this.app.vault.on("rename", (file, oldPath) => { if (!this.writing && file instanceof TFile) void this.mutate(async () => {
       await this.repo.replaceSourcePath(oldPath, file.path);
-      for (const mapFile of await this.repo.mapFiles()) { const map = await this.repo.readMap(mapFile.path); let changed = false; for (const node of map.nodes) if (node.path === oldPath) { node.path = file.path; changed = true; } if (changed) await this.repo.saveMap(mapFile.path, map); }
-      await this.rebuildDerivedData();
+      let mapChanged = false;
+      for (const mapFile of await this.repo.mapFiles()) { const map = await this.repo.readMap(mapFile.path); let changed = false; for (const node of map.nodes) if (node.path === oldPath) { node.path = file.path; changed = true; } if (changed) { await this.repo.saveMap(mapFile.path, map); mapChanged = true; } }
+      // Derived references depend only on maps and VAM notes; renaming an unrelated note leaves them unchanged.
+      const frontmatter = this.app.metadataCache.getFileCache(file)?.frontmatter;
+      const vamFile = [frontmatter?.["agent-map-node"], frontmatter?.["visual-agent-map"]].some(value => value === true || value === "true");
+      if (mapChanged || vamFile) await this.rebuildDerivedData();
       for (const view of this.views()) await view.renamed(file, oldPath);
     }); }));
   }
@@ -436,12 +441,18 @@ export default class VisualAgentMapPlugin extends Plugin {
   }
   async confirmCodexUsage(run: () => Promise<void>): Promise<void> { await this.confirmAiUsage(this.settings.cliModel, run); }
   async rebuildDerivedData(): Promise<void> { try { await this.repo.rebuildDerivedData(); } catch (error) { console.error("Visual Agent Map reference rebuild", error); new Notice(t("ui.map_saved_but_reference_update_failed_0", error instanceof Error ? error.message : String(error))); } }
-  private scheduleExternalReconciliation(): void {
+  private scheduleExternalReconciliation(deletedPath: string): void {
     if (this.writing) return;
+    this.externalReconcilePaths.add(deletedPath);
     if (this.externalReconcileTimer !== null) window.clearTimeout(this.externalReconcileTimer);
     this.externalReconcileTimer = window.setTimeout(() => {
       this.externalReconcileTimer = null;
+      const deleted = [...this.externalReconcilePaths]; this.externalReconcilePaths.clear();
       void this.mutate(async () => {
+        // Only a deleted map node can leave a dangling path; other deletions need no vault scan.
+        let tracked = false;
+        for (const path of deleted) if (await this.repo.isMapNodePath(path)) { tracked = true; break; }
+        if (!tracked) return;
         const repaired = await this.repo.reconcileMissingNodePaths();
         if (repaired) await this.rebuildDerivedData();
       }).catch(error => console.error("Visual Agent Map external rename reconciliation", error));

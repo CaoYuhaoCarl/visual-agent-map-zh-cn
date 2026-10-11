@@ -8659,23 +8659,34 @@ ${JSON.stringify(map, null, 2)}
 \`\`\``);
     });
   }
-  async mapFiles() {
-    var _a, _b;
+  /**
+   * Markdown files whose frontmatter sets `key`. Indexed files are judged from the metadata cache; only files the
+   * cache has not indexed yet (for example, created moments ago) are read, so a large vault is not read in full.
+   */
+  async markedFiles(key2) {
+    var _a;
     const files = [];
     for (const file of this.app.vault.getMarkdownFiles()) {
-      const cached = (_b = (_a = this.app.metadataCache.getFileCache(file)) == null ? void 0 : _a.frontmatter) == null ? void 0 : _b["visual-agent-map"];
-      if (marker(cached) || /^---\r?\n[\s\S]*?visual-agent-map: true\r?\n/.test(await this.app.vault.cachedRead(file))) files.push(file);
+      const cache = this.app.metadataCache.getFileCache(file);
+      if (cache ? marker((_a = cache.frontmatter) == null ? void 0 : _a[key2]) : marker(frontmatter(await this.app.vault.cachedRead(file))[key2])) files.push(file);
     }
-    return files.sort((a, b) => a.path.localeCompare(b.path));
+    return files;
+  }
+  async mapFiles() {
+    return (await this.markedFiles("visual-agent-map")).sort((a, b) => a.path.localeCompare(b.path));
+  }
+  /** Whether any map lists `path` as a node; only map files are read. */
+  async isMapNodePath(path) {
+    for (const file of await this.mapFiles()) if ((await this.readMap(file.path)).nodes.some((node) => node.path === path)) return true;
+    return false;
   }
   async reconcileMissingNodePaths() {
-    var _a, _b;
+    var _a, _b, _c, _d;
     const candidates = /* @__PURE__ */ new Map();
-    for (const file of this.app.vault.getMarkdownFiles()) {
-      const fm = frontmatter(await this.app.vault.read(file));
-      if (!marker(fm["agent-map-node"])) continue;
+    for (const file of await this.markedFiles("agent-map-node")) {
+      const fm = (_b = (_a = this.app.metadataCache.getFileCache(file)) == null ? void 0 : _a.frontmatter) != null ? _b : frontmatter(await this.app.vault.read(file));
       const id = text(fm["node-id"]);
-      if (id) candidates.set(id, [...(_a = candidates.get(id)) != null ? _a : [], file.path]);
+      if (id) candidates.set(id, [...(_c = candidates.get(id)) != null ? _c : [], file.path]);
     }
     let repaired = 0;
     for (const file of await this.mapFiles()) {
@@ -8683,7 +8694,7 @@ ${JSON.stringify(map, null, 2)}
       let changed = false;
       for (const node of map.nodes) {
         if (this.app.vault.getAbstractFileByPath(node.path) instanceof import_obsidian10.TFile) continue;
-        const matches = (_b = candidates.get(node.id)) != null ? _b : [];
+        const matches = (_d = candidates.get(node.id)) != null ? _d : [];
         if (matches.length !== 1) continue;
         const oldPath = node.path;
         node.path = matches[0];
@@ -8794,10 +8805,12 @@ ${JSON.stringify(map, null, 2)}
     return target;
   }
   async replaceSourcePath(oldPath, newPath) {
-    var _a;
-    for (const file of this.app.vault.getMarkdownFiles()) {
+    var _a, _b;
+    for (const file of await this.markedFiles("agent-map-node")) {
+      const cached = (_a = this.app.metadataCache.getFileCache(file)) == null ? void 0 : _a.frontmatter;
+      if (cached && ![cached["source-notes"], cached["reference-materials"]].some((list) => Array.isArray(list) && list.includes(oldPath))) continue;
       const note = await this.readNoteIfManaged(file);
-      if ((_a = note == null ? void 0 : note.referencePaths) == null ? void 0 : _a.includes(oldPath)) await this.updateNote(file.path, { referencePaths: note.referencePaths.map((path) => path === oldPath ? newPath : path) });
+      if ((_b = note == null ? void 0 : note.referencePaths) == null ? void 0 : _b.includes(oldPath)) await this.updateNote(file.path, { referencePaths: note.referencePaths.map((path) => path === oldPath ? newPath : path) });
       if (!(note == null ? void 0 : note.sourcePaths.includes(oldPath))) continue;
       await this.updateNote(file.path, { sourcePaths: note.sourcePaths.map((path) => path === oldPath ? newPath : path) });
     }
@@ -8824,7 +8837,7 @@ ${JSON.stringify(map, null, 2)}
       }
       if (changed) await this.saveMap(mapFile.path, map);
     }
-    for (const file of [...this.app.vault.getMarkdownFiles()]) {
+    for (const file of await this.markedFiles("agent-map-node")) {
       if (!/^新的子議題(?: \d+)*$/.test(file.basename)) continue;
       const note = await this.readNoteIfManaged(file);
       if (!note || !note.title.trim() || safeName(note.title) === file.basename) continue;
@@ -8850,7 +8863,12 @@ ${JSON.stringify(map, null, 2)}
         ownership.set(node.path, { map, mapPath: mapFile.path, node });
       }
     }
-    for (const file of this.app.vault.getMarkdownFiles()) {
+    const nodeFiles = new Map((await this.markedFiles("agent-map-node")).map((file) => [file.path, file]));
+    for (const path of ownership.keys()) {
+      const file = this.app.vault.getAbstractFileByPath(path);
+      if (file instanceof import_obsidian10.TFile) nodeFiles.set(path, file);
+    }
+    for (const file of nodeFiles.values()) {
       if (noteRoot && !file.path.startsWith(`${noteRoot}/`)) continue;
       const content = await this.app.vault.read(file), fm = frontmatter(content);
       if (!marker(fm["agent-map-node"])) continue;
@@ -8905,7 +8923,7 @@ ${withReferenceLinks(body, fm, this.settings.language)}`;
     }
   }
   async ensureNodePresentation() {
-    for (const file of this.app.vault.getMarkdownFiles()) {
+    for (const file of await this.markedFiles("agent-map-node")) {
       const content = await this.app.vault.read(file), fm = frontmatter(content);
       if (!marker(fm["agent-map-node"]) || !ensureNoteCssClass(fm)) continue;
       const body = content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "");
@@ -19741,6 +19759,7 @@ var VisualAgentMapPlugin = class extends import_obsidian19.Plugin {
     __publicField(this, "queue", Promise.resolve());
     __publicField(this, "writing", 0);
     __publicField(this, "externalReconcileTimer", null);
+    __publicField(this, "externalReconcilePaths", /* @__PURE__ */ new Set());
     __publicField(this, "firstInstallSamplePending", false);
     __publicField(this, "workspaceRecoveryCandidates", []);
     __publicField(this, "languageSwitchPending", false);
@@ -19970,13 +19989,15 @@ var VisualAgentMapPlugin = class extends import_obsidian19.Plugin {
     this.registerEvent(this.app.vault.on("delete", (file) => {
       if (!this.writing && file instanceof import_obsidian19.TFile) {
         for (const view of this.views()) view.deleted(file);
-        this.scheduleExternalReconciliation();
+        this.scheduleExternalReconciliation(file.path);
         if (file.path.startsWith(`${this.settings.mapsFolder}/`) || file.path.startsWith(`${this.settings.topicsFolder}/`) && file.name === "Map.md") void this.mutate(() => this.repo.rebuildDerivedData());
       }
     }));
     this.registerEvent(this.app.vault.on("rename", (file, oldPath) => {
       if (!this.writing && file instanceof import_obsidian19.TFile) void this.mutate(async () => {
+        var _a2;
         await this.repo.replaceSourcePath(oldPath, file.path);
+        let mapChanged = false;
         for (const mapFile of await this.repo.mapFiles()) {
           const map = await this.repo.readMap(mapFile.path);
           let changed = false;
@@ -19984,9 +20005,14 @@ var VisualAgentMapPlugin = class extends import_obsidian19.Plugin {
             node.path = file.path;
             changed = true;
           }
-          if (changed) await this.repo.saveMap(mapFile.path, map);
+          if (changed) {
+            await this.repo.saveMap(mapFile.path, map);
+            mapChanged = true;
+          }
         }
-        await this.rebuildDerivedData();
+        const frontmatter2 = (_a2 = this.app.metadataCache.getFileCache(file)) == null ? void 0 : _a2.frontmatter;
+        const vamFile = [frontmatter2 == null ? void 0 : frontmatter2["agent-map-node"], frontmatter2 == null ? void 0 : frontmatter2["visual-agent-map"]].some((value) => value === true || value === "true");
+        if (mapChanged || vamFile) await this.rebuildDerivedData();
         for (const view of this.views()) await view.renamed(file, oldPath);
       });
     }));
@@ -20301,12 +20327,21 @@ var VisualAgentMapPlugin = class extends import_obsidian19.Plugin {
       new import_obsidian19.Notice(t("ui.map_saved_but_reference_update_failed_0", error instanceof Error ? error.message : String(error)));
     }
   }
-  scheduleExternalReconciliation() {
+  scheduleExternalReconciliation(deletedPath) {
     if (this.writing) return;
+    this.externalReconcilePaths.add(deletedPath);
     if (this.externalReconcileTimer !== null) window.clearTimeout(this.externalReconcileTimer);
     this.externalReconcileTimer = window.setTimeout(() => {
       this.externalReconcileTimer = null;
+      const deleted = [...this.externalReconcilePaths];
+      this.externalReconcilePaths.clear();
       void this.mutate(async () => {
+        let tracked = false;
+        for (const path of deleted) if (await this.repo.isMapNodePath(path)) {
+          tracked = true;
+          break;
+        }
+        if (!tracked) return;
         const repaired = await this.repo.reconcileMissingNodePaths();
         if (repaired) await this.rebuildDerivedData();
       }).catch((error) => console.error("Visual Agent Map external rename reconciliation", error));

@@ -1093,7 +1093,7 @@ function fixture(language = 'zh-TW') {
       write: async (p, value) => { if (!files.has(p)) { const file = new TFile(p); files.set(p, file); attach(file); } contents.set(p, value); },
       process: async (p, change) => { if (!contents.has(p)) throw new Error(`Missing file: ${p}`); const next = change(contents.get(p)); contents.set(p, next); return next; }
     }
-  }, metadataCache: { getFileCache: file => { const text = contents.get(file.path) || ''; return { frontmatter: text.includes('agent-map-node: true') ? { 'agent-map-node': true } : text.includes('visual-agent-map: true') ? { 'visual-agent-map': true } : {} }; }, getFirstLinkpathDest: link => Array.from(files.values()).find(file => file instanceof TFile && (file.basename === link || file.path.replace(/\.md$/, '') === link)) || null }, fileManager: { renameFile: async (item, target) => renameTree(item.path, target), trashFile: async () => {} } };
+  }, metadataCache: { getFileCache: file => { const text = contents.get(file.path) || ''; const block = text.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1]; return { frontmatter: block ? obsidian.parseYaml(block) : {} }; }, getFirstLinkpathDest: link => Array.from(files.values()).find(file => file instanceof TFile && (file.basename === link || file.path.replace(/\.md$/, '') === link)) || null }, fileManager: { renameFile: async (item, target) => renameTree(item.path, target), trashFile: async () => {} } };
   return { app, contents, files, repo: new Repository(app, { ...DEFAULT_SETTINGS, language }) };
 }
 async function topicNote(repo, title = '題目', model = 'model-a', id = 'map-a') {
@@ -3104,6 +3104,20 @@ integrationTest('preview migration rolls back all completed moves when a later m
   assert.ok(app.vault.getAbstractFileByPath('Agent Workspace/Maps/Rollback.md'));
   assert.ok(app.vault.getAbstractFileByPath('Agent Workspace/Nodes/a.md'));
   assert.equal(app.vault.getAbstractFileByPath('Agent Workspace/Topics/Rollback/Map.md'), undefined);
+});
+integrationTest('large vaults: map discovery, unrelated renames and rebuilds read only VAM files', async () => {
+  const { repo, app } = fixture();
+  const path = await repo.createMap('Perf', []), map = await repo.readMap(path);
+  const node = await repo.createNote('Tracked', 'a', map, path, 'workspace'); map.nodes.push(node); await repo.saveMap(path, map);
+  for (let index = 0; index < 5000; index++) await app.vault.create(`Personal/note-${index}.md`, `# Personal ${index}\n\nPlain text.`);
+  const reads = [];
+  for (const method of ['read', 'cachedRead']) { const original = app.vault[method].bind(app.vault); app.vault[method] = async file => { reads.push(file.path); return original(file); }; }
+  assert.deepEqual(JSON.parse(JSON.stringify((await repo.mapFiles()).map(file => file.path))), [path]);
+  await repo.replaceSourcePath('Personal/note-1.md', 'Personal/note-1 renamed.md');
+  assert.equal(await repo.isMapNodePath('Personal/note-1.md'), false);
+  assert.equal(await repo.isMapNodePath(node.path), true);
+  await repo.rebuildDerivedData();
+  assert.deepEqual(reads.filter(item => item.startsWith('Personal/')), [], 'no unrelated note was read');
 });
 integrationTest('external rename reconciliation only follows a unique matching node-id', async () => {
   const { repo, app, contents } = fixture(); const n = await topicNote(repo, 'External rename');
