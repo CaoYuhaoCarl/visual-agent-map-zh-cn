@@ -1,3 +1,4 @@
+import { hasCompletedWebRetrieval } from "../experiences/mind-search/search-diagnostic";
 import { validateMindSearchResearchPlan } from "../experiences/mind-search/research-plan";
 import { createHash, randomUUID } from "node:crypto";
 import type { AiResult } from "../ai/types";
@@ -402,6 +403,8 @@ export class MindSearchRunStore {
             }
           : {})
       });
+      // The new attempt takes over any retained reports; older copies need not stay in the map.
+      for (const previous of run.attempts) if (previous.id !== attemptId) delete previous.retainedReports;
       run.currentAttemptId = attemptId;
       map.mindSearch = state;
       await this.repository.saveMap(mapPath, map);
@@ -546,7 +549,8 @@ export class MindSearchRunStore {
     handle: AttemptHandle,
     draftId: string,
     summary: string,
-    detail: string
+    detail: string,
+    reports?: { summary: string; detail: string }[]
   ): Promise<boolean> {
     return this.locked(mapPath, async () => {
       const map = await this.repository.readMap(mapPath),
@@ -568,6 +572,11 @@ export class MindSearchRunStore {
       const saved = await this.repository.readNote(draft.notePath);
       if (saved.summary !== managedSectionValue(summary) || saved.detail !== managedSectionValue(detail))
         throw new Error("The Searcher report did not match the Repository readback before Planner review.");
+      if (reports) {
+        draft.retainedReports = reports.map(report => ({ summary: report.summary, detail: report.detail }));
+        map.mindSearch = state;
+        await this.repository.saveMap(mapPath, map);
+      }
       return true;
     });
   }
@@ -627,6 +636,10 @@ export class MindSearchRunStore {
         item => item.runId === handle.runId && item.attemptId === handle.attemptId
       );
       for (const draft of drafts) await this.retireDraftNote(draft, reason, "incomplete");
+      // Keep the reports as data only when they rest on completed web retrieval, as saved-report recovery requires.
+      const retained = drafts.find(item => item.retainedReports?.length);
+      if (retained?.retainedReports && hasCompletedWebRetrieval(attempt.searchDiagnostics))
+        attempt.retainedReports = { notePath: retained.notePath, reports: retained.retainedReports };
       const staleNodes = new Set(drafts.map(item => item.nodeId));
       state.resultDrafts = (state.resultDrafts ?? []).filter(item => !staleNodes.has(item.nodeId));
       map.nodes = map.nodes.filter(node => !staleNodes.has(node.id));

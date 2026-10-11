@@ -13,9 +13,31 @@ const diagnosticHeading = "### MindSearch incomplete-attempt diagnostic";
 const originalHeading = "### Original draft response";
 const detailEnd = "<!-- visual-agent-map:detail:end -->";
 
-/** Extract only a retained report that belongs to this failed attempt and has completed-search telemetry. */
-export function extractMindSearchFailedReport(note: Note, attempt: MindSearchAttemptRecord): AiResult[] | null {
+/** Reports stored as data on the failed attempt for exactly this diagnostic note. */
+function structuredReports(attempt: MindSearchAttemptRecord, notePath?: string): AiResult[] | null {
+  const retained = attempt.retainedReports;
+  if (!retained || (notePath !== undefined && retained.notePath !== notePath)) return null;
+  if (!hasCompletedWebRetrieval(attempt.searchDiagnostics)) return null;
+  return retained.reports.map(report => ({
+    summary: report.summary,
+    detail: report.detail,
+    suggestions: [],
+    visualReferences: []
+  }));
+}
+
+/**
+ * Extract only a retained report that belongs to this failed attempt and has completed-search telemetry.
+ * Reports stored on the attempt are used when present; parsing the note's Markdown remains for maps
+ * written before reports were stored as data.
+ */
+export function extractMindSearchFailedReport(
+  note: Note,
+  attempt: MindSearchAttemptRecord,
+  notePath?: string
+): AiResult[] | null {
   if (note.status !== "error" || !note.detail.trim()) return null;
+  if (attempt.retainedReports) return structuredReports(attempt, notePath);
 
   const reportMarker = "**Source boundary:** ";
   const reportStart = note.detail.indexOf(reportMarker);
@@ -87,8 +109,14 @@ export function matchMindSearchFailedReportTargets(
   const matches = new Map<string, MindSearchRetryTarget[]>();
   for (const { path, note } of candidates) {
     const isWrapped = note.detail.includes("**Status:** Diagnostic only.");
-    let selected: typeof failed = [];
-    if (isWrapped) {
+    let selected: typeof failed = failed.filter(
+      item =>
+        item.attempt.retainedReports?.notePath === path &&
+        extractMindSearchFailedReport(note, item.attempt, path) !== null
+    );
+    if (selected.length) {
+      // Identified by the stored note path; no Markdown matching needed.
+    } else if (isWrapped) {
       selected = failed.filter(
         item =>
           note.detail.includes(
@@ -108,7 +136,7 @@ export function matchMindSearchFailedReportTargets(
       }
     }
     for (const item of selected) {
-      if (isWrapped && !note.detail.includes("**Source boundary:** ")) continue;
+      if (!item.attempt.retainedReports && isWrapped && !note.detail.includes("**Source boundary:** ")) continue;
       const list = matches.get(item.questionNodeId) ?? [];
       list.push({ runId: item.runId, diagnosticNotePath: path });
       matches.set(item.questionNodeId, list);

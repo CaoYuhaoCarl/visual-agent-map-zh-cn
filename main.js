@@ -9501,6 +9501,14 @@ function removeNodes(nodes, id, branch) {
   removed.add(id);
   return nodes.filter((node) => !removed.has(node.id)).map((node) => ({ ...node, parentId: node.parentId && removed.has(node.parentId) ? null : node.parentId }));
 }
+function validRetainedReports(reports) {
+  if (!Array.isArray(reports) || reports.length === 0) return false;
+  return reports.every((item) => {
+    if (!item || typeof item !== "object") return false;
+    const { summary, detail } = item;
+    return typeof summary === "string" && summary.trim() !== "" && typeof detail === "string" && detail.trim() !== "";
+  });
+}
 function parseMap(content) {
   const block = content.match(/```agent-map\s*\n([\s\S]*?)\n```/);
   if (!block) throw new Error(t("ui.mind_map_data_was_not_found_keep_the_agent_map_block"));
@@ -9621,6 +9629,8 @@ function validateMindSearchMap(map) {
       )) || review.answerAxis !== void 0 && (!review.answerAxis || typeof review.answerAxis.id !== "string" || !review.answerAxis.id.trim() || typeof review.answerAxis.label !== "string" || !review.answerAxis.label.trim()) || review.researchTarget !== void 0 && (!review.researchTarget || typeof review.researchTarget.title !== "string" || !review.researchTarget.title.trim() || typeof review.researchTarget.task !== "string" || !review.researchTarget.task.trim() || typeof review.researchTarget.expectedValue !== "string" || !review.researchTarget.expectedValue.trim())
     )))
       return false;
+    if (attempt.retainedReports !== void 0 && (!attempt.retainedReports || typeof attempt.retainedReports.notePath !== "string" || !attempt.retainedReports.notePath.endsWith(".md") || !validRetainedReports(attempt.retainedReports.reports)))
+      return false;
     if (attempt.searchDiagnostics !== void 0 && (!Array.isArray(attempt.searchDiagnostics) || attempt.searchDiagnostics.some(
       (item) => !item || !Number.isInteger(item.researchTurn) || item.researchTurn < 1 || !Number.isInteger(item.startedEvents) || item.startedEvents < 0 || !Number.isInteger(item.completedEvents) || item.completedEvents < 0 || !Number.isInteger(item.completedSearchActions) || item.completedSearchActions < 0 || !Number.isInteger(item.otherCompletedActions) || item.otherCompletedActions < 0
     )))
@@ -9650,7 +9660,7 @@ function validateMindSearchMap(map) {
   for (const draft of drafts) {
     const branch = draft && data.branches.find((item) => item.id === draft.branchId);
     const run = draft && data.runs.find((item) => item.id === draft.runId), attempt = run == null ? void 0 : run.attempts.find((item) => item.id === draft.attemptId);
-    if (!draft || !validReuse(draft.reuse) || typeof draft.id !== "string" || draftIds.has(draft.id) || !branch || typeof draft.nodeId !== "string" || typeof draft.notePath !== "string" || !draft.notePath.endsWith(".md") || typeof draft.title !== "string" || draft.status !== "creating" && draft.status !== "ready" || draft.model !== void 0 && (typeof draft.model !== "string" || !draft.model.trim()) || draft.reasoning !== void 0 && !["low", "medium", "high"].includes(draft.reasoning) || draft.kind !== void 0 && !["research", "synthesis", "conclusion"].includes(draft.kind) || draft.subtopicId !== void 0 && !((_g = branch.researchPlan) == null ? void 0 : _g.some((item) => item.id === draft.subtopicId)) || (run == null ? void 0 : run.branchId) !== branch.id || !attempt || attempt.inputSnapshotHash !== draft.inputSnapshotHash || !map.nodes.some(
+    if (!draft || !validReuse(draft.reuse) || draft.retainedReports !== void 0 && !validRetainedReports(draft.retainedReports) || typeof draft.id !== "string" || draftIds.has(draft.id) || !branch || typeof draft.nodeId !== "string" || typeof draft.notePath !== "string" || !draft.notePath.endsWith(".md") || typeof draft.title !== "string" || draft.status !== "creating" && draft.status !== "ready" || draft.model !== void 0 && (typeof draft.model !== "string" || !draft.model.trim()) || draft.reasoning !== void 0 && !["low", "medium", "high"].includes(draft.reasoning) || draft.kind !== void 0 && !["research", "synthesis", "conclusion"].includes(draft.kind) || draft.subtopicId !== void 0 && !((_g = branch.researchPlan) == null ? void 0 : _g.some((item) => item.id === draft.subtopicId)) || (run == null ? void 0 : run.branchId) !== branch.id || !attempt || attempt.inputSnapshotHash !== draft.inputSnapshotHash || !map.nodes.some(
       (node) => {
         var _a2, _b2;
         return node.id === draft.nodeId && node.path === draft.notePath && node.parentId === ((_b2 = (_a2 = draft.parentNodeId) != null ? _a2 : branch.answerNodeId) != null ? _b2 : branch.questionNodeId);
@@ -12623,9 +12633,21 @@ ${mergedBody}`
 var diagnosticHeading = "### MindSearch incomplete-attempt diagnostic";
 var originalHeading = "### Original draft response";
 var detailEnd = "<!-- visual-agent-map:detail:end -->";
-function extractMindSearchFailedReport(note, attempt) {
+function structuredReports(attempt, notePath) {
+  const retained = attempt.retainedReports;
+  if (!retained || notePath !== void 0 && retained.notePath !== notePath) return null;
+  if (!hasCompletedWebRetrieval(attempt.searchDiagnostics)) return null;
+  return retained.reports.map((report) => ({
+    summary: report.summary,
+    detail: report.detail,
+    suggestions: [],
+    visualReferences: []
+  }));
+}
+function extractMindSearchFailedReport(note, attempt, notePath) {
   var _a, _b, _c, _d;
   if (note.status !== "error" || !note.detail.trim()) return null;
+  if (attempt.retainedReports) return structuredReports(attempt, notePath);
   const reportMarker = "**Source boundary:** ";
   const reportStart = note.detail.indexOf(reportMarker);
   if (note.detail.includes("**Status:** Diagnostic only.") && reportStart >= 0 && note.detail.includes(` ${attempt.id}; the persisted attempt remains failed.`)) {
@@ -12675,8 +12697,14 @@ function matchMindSearchFailedReportTargets(map, candidates) {
   const matches = /* @__PURE__ */ new Map();
   for (const { path, note } of candidates) {
     const isWrapped = note.detail.includes("**Status:** Diagnostic only.");
-    let selected = [];
-    if (isWrapped) {
+    let selected = failed.filter(
+      (item) => {
+        var _a2;
+        return ((_a2 = item.attempt.retainedReports) == null ? void 0 : _a2.notePath) === path && extractMindSearchFailedReport(note, item.attempt, path) !== null;
+      }
+    );
+    if (selected.length) {
+    } else if (isWrapped) {
       selected = failed.filter(
         (item) => note.detail.includes(
           `**Prior attempt:** ${item.branchId} / ${item.attempt.id}; the persisted attempt remains failed.`
@@ -12694,7 +12722,7 @@ function matchMindSearchFailedReportTargets(map, candidates) {
       }
     }
     for (const item of selected) {
-      if (isWrapped && !note.detail.includes("**Source boundary:** ")) continue;
+      if (!item.attempt.retainedReports && isWrapped && !note.detail.includes("**Source boundary:** ")) continue;
       const list = (_f = matches.get(item.questionNodeId)) != null ? _f : [];
       list.push({ runId: item.runId, diagnosticNotePath: path });
       matches.set(item.questionNodeId, list);
@@ -13410,12 +13438,13 @@ ${delivery.evidence}` },
     const diagnostic = await this.repository.readNote(diagnosticNotePath);
     const isWrapped = diagnostic.detail.includes("**Status:** Diagnostic only.");
     const provenance = `**Prior attempt:** ${branch.id} / ${priorAttempt.id}; the persisted attempt remains failed.`;
-    const savedReports = extractMindSearchFailedReport(diagnostic, priorAttempt);
-    if (!savedReports || isWrapped && !diagnostic.detail.includes(provenance))
+    const structured = priorAttempt.retainedReports !== void 0;
+    const savedReports = extractMindSearchFailedReport(diagnostic, priorAttempt, diagnosticNotePath);
+    if (!savedReports || !structured && isWrapped && !diagnostic.detail.includes(provenance))
       throw new Error(
         "The note is not a retained Searcher report for this failed attempt with completed-search evidence."
       );
-    if (!isWrapped) {
+    if (!structured && !isWrapped) {
       const sameOrdinalFailures = ((_d = (_c = map.mindSearch) == null ? void 0 : _c.runs) != null ? _d : []).filter((candidate) => {
         const current = candidate.attempts.find((item) => item.id === candidate.currentAttemptId);
         return (current == null ? void 0 : current.id) === priorAttempt.id && current.status === "failed";
@@ -13469,7 +13498,9 @@ ${delivery.evidence}` },
         const detail2 = reports.map((item, index) => `## Searcher report ${index + 1}
 
 ${item.detail}`).join("\n\n");
-        return this.persist(() => this.runs.updateResultDraftReport(mapPath, handle, draft.id, summary, detail2));
+        return this.persist(
+          () => this.runs.updateResultDraftReport(mapPath, handle, draft.id, summary, detail2, reports)
+        );
       };
       if (!await saveReports()) return { status: "stale", branchId: branch.id };
       const answerDescription = JSON.stringify(branch.answerSnapshot);
@@ -16033,6 +16064,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
           plannerReviews: []
         } : {}
       });
+      for (const previous of run.attempts) if (previous.id !== attemptId) delete previous.retainedReports;
       run.currentAttemptId = attemptId;
       map.mindSearch = state;
       await this.repository.saveMap(mapPath, map);
@@ -16131,7 +16163,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
       await this.repository.saveMap(mapPath, map);
     });
   }
-  async updateResultDraftReport(mapPath, handle, draftId, summary, detail) {
+  async updateResultDraftReport(mapPath, handle, draftId, summary, detail, reports) {
     return this.locked(mapPath, async () => {
       var _a;
       const map = await this.repository.readMap(mapPath), state = this.state(map), run = state.runs.find((item) => item.id === handle.runId), attempt = run == null ? void 0 : run.attempts.find((item) => item.id === handle.attemptId), draft = (_a = state.resultDrafts) == null ? void 0 : _a.find((item) => item.id === draftId);
@@ -16141,6 +16173,11 @@ var _MindSearchRunStore = class _MindSearchRunStore {
       const saved = await this.repository.readNote(draft.notePath);
       if (saved.summary !== managedSectionValue(summary) || saved.detail !== managedSectionValue(detail))
         throw new Error("The Searcher report did not match the Repository readback before Planner review.");
+      if (reports) {
+        draft.retainedReports = reports.map((report) => ({ summary: report.summary, detail: report.detail }));
+        map.mindSearch = state;
+        await this.repository.saveMap(mapPath, map);
+      }
       return true;
     });
   }
@@ -16180,6 +16217,12 @@ var _MindSearchRunStore = class _MindSearchRunStore {
         (item) => item.runId === handle.runId && item.attemptId === handle.attemptId
       );
       for (const draft of drafts) await this.retireDraftNote(draft, reason, "incomplete");
+      const retained = drafts.find((item) => {
+        var _a2;
+        return (_a2 = item.retainedReports) == null ? void 0 : _a2.length;
+      });
+      if ((retained == null ? void 0 : retained.retainedReports) && hasCompletedWebRetrieval(attempt.searchDiagnostics))
+        attempt.retainedReports = { notePath: retained.notePath, reports: retained.retainedReports };
       const staleNodes = new Set(drafts.map((item) => item.nodeId));
       state.resultDrafts = ((_b = state.resultDrafts) != null ? _b : []).filter((item) => !staleNodes.has(item.nodeId));
       map.nodes = map.nodes.filter((node) => !staleNodes.has(node.id));

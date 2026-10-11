@@ -206,6 +206,11 @@ export interface MindSearchBranchRecord {
     reuse?: MindSearchReuseRecord;
   }[];
 }
+/** A Searcher report kept as data so recovery never has to parse Markdown headings. */
+export interface MindSearchRetainedReport {
+  summary: string;
+  detail: string;
+}
 export interface MindSearchResultDraftRecord {
   id: string;
   branchId: string;
@@ -223,6 +228,8 @@ export interface MindSearchResultDraftRecord {
   reuse?: MindSearchReuseRecord;
   parentNodeId?: string;
   convergesFromNodeIds?: string[];
+  /** Individual reports behind an aggregated draft, kept for saved-report recovery. */
+  retainedReports?: MindSearchRetainedReport[];
 }
 export interface MindSearchPlannerReviewRecord {
   decision: "research_more" | "ask_user" | "conclude";
@@ -253,6 +260,8 @@ export interface MindSearchAttemptRecord {
   researchTurns?: number;
   plannerReviews?: MindSearchPlannerReviewRecord[];
   searchDiagnostics?: MindSearchSearchDiagnostic[];
+  /** Reports of a failed attempt with completed web retrieval, and the diagnostic note that shows them. */
+  retainedReports?: { notePath: string; reports: MindSearchRetainedReport[] };
 }
 export interface MindSearchRunRecord {
   id: string;
@@ -342,6 +351,15 @@ export function removeNodes(nodes: MapNode[], id: string, branch: boolean): MapN
     .filter(node => !removed.has(node.id))
     .map(node => ({ ...node, parentId: node.parentId && removed.has(node.parentId) ? null : node.parentId }));
 }
+function validRetainedReports(reports: unknown): reports is MindSearchRetainedReport[] {
+  if (!Array.isArray(reports) || reports.length === 0) return false;
+  return (reports as unknown[]).every(item => {
+    if (!item || typeof item !== "object") return false;
+    const { summary, detail } = item as Record<string, unknown>;
+    return typeof summary === "string" && summary.trim() !== "" && typeof detail === "string" && detail.trim() !== "";
+  });
+}
+
 export function parseMap(content: string): MapDocument {
   const block = content.match(/```agent-map\s*\n([\s\S]*?)\n```/);
   if (!block) throw new Error(t("ui.mind_map_data_was_not_found_keep_the_agent_map_block"));
@@ -681,6 +699,14 @@ function validateMindSearchMap(map: MapDocument): void {
     )
       return false;
     if (
+      attempt.retainedReports !== undefined &&
+      (!attempt.retainedReports ||
+        typeof attempt.retainedReports.notePath !== "string" ||
+        !attempt.retainedReports.notePath.endsWith(".md") ||
+        !validRetainedReports(attempt.retainedReports.reports))
+    )
+      return false;
+    if (
       attempt.searchDiagnostics !== undefined &&
       (!Array.isArray(attempt.searchDiagnostics) ||
         attempt.searchDiagnostics.some(
@@ -756,6 +782,7 @@ function validateMindSearchMap(map: MapDocument): void {
     if (
       !draft ||
       !validReuse(draft.reuse) ||
+      (draft.retainedReports !== undefined && !validRetainedReports(draft.retainedReports)) ||
       typeof draft.id !== "string" ||
       draftIds.has(draft.id) ||
       !branch ||

@@ -701,12 +701,13 @@ export class MindSearchManualFlow {
     const diagnostic = await this.repository.readNote(diagnosticNotePath);
     const isWrapped = diagnostic.detail.includes("**Status:** Diagnostic only.");
     const provenance = `**Prior attempt:** ${branch.id} / ${priorAttempt.id}; the persisted attempt remains failed.`;
-    const savedReports = extractMindSearchFailedReport(diagnostic, priorAttempt);
-    if (!savedReports || (isWrapped && !diagnostic.detail.includes(provenance)))
+    const structured = priorAttempt.retainedReports !== undefined;
+    const savedReports = extractMindSearchFailedReport(diagnostic, priorAttempt, diagnosticNotePath);
+    if (!savedReports || (!structured && isWrapped && !diagnostic.detail.includes(provenance)))
       throw new Error(
         "The note is not a retained Searcher report for this failed attempt with completed-search evidence."
       );
-    if (!isWrapped) {
+    if (!structured && !isWrapped) {
       const sameOrdinalFailures = (map.mindSearch?.runs ?? []).filter(candidate => {
         const current = candidate.attempts.find(item => item.id === candidate.currentAttemptId);
         return current?.id === priorAttempt.id && current.status === "failed";
@@ -760,7 +761,9 @@ export class MindSearchManualFlow {
       const saveReports = async (): Promise<boolean> => {
         const summary = reports.map((item, index) => `Report ${index + 1}: ${item.summary}`).join("\n");
         const detail = reports.map((item, index) => `## Searcher report ${index + 1}\n\n${item.detail}`).join("\n\n");
-        return this.persist(() => this.runs.updateResultDraftReport(mapPath, handle, draft.id, summary, detail));
+        return this.persist(() =>
+          this.runs.updateResultDraftReport(mapPath, handle, draft.id, summary, detail, reports)
+        );
       };
       if (!(await saveReports())) return { status: "stale", branchId: branch.id };
       const answerDescription = JSON.stringify(branch.answerSnapshot);

@@ -1945,6 +1945,37 @@ integrationTest('partial continuation invalid repair and cancellation retain onl
     assert.ok(diagnostics.some(note => note.status === 'error' && note.detail.includes('MindSearch incomplete-attempt diagnostic')), 'the failed/cancelled new attempt remains unpublished diagnostic material');
   }
 });
+integrationTest('failed attempts keep their reports as data, so recovery survives an edited diagnostic note', async () => {
+  const { repo, mapPath, question, store } = await mindSearchMapFixture();
+  let map = await repo.readMap(mapPath), questionNode = map.nodes.find(item => item.id === question.id);
+  questionNode.mindSearchKind = 'question';
+  questionNode.mindSearchQuestion = { requestId: 'structured-retry-question', parentBranchId: null, options: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }], allowMultiple: false, allowFreeText: true };
+  await repo.saveMap(mapPath, map);
+  const branch = await store.createAnswerBranch(mapPath, { requestId: 'structured-retry-branch', questionNodeId: question.id, parentBranchId: null, answerSnapshot: { selections: [], freeText: 'Synthetic.' }, inputSnapshot: { topic: 'T', conditions: {}, upstreamResults: [] } });
+  const reports = [{ summary: 'First report.', detail: 'Findings one.' }, { summary: 'Second report.', detail: 'Findings two.' }];
+  const fail = async (runId, diagnostics) => {
+    const handle = await store.startAttempt(mapPath, branch.id, runId, { model: 'gpt-6-luna', reasoning: 'low', maxResearchTurns: 1 });
+    const draft = (await store.createResultDraft(mapPath, handle, 'Saved reports', 'gpt-6-luna', 'low')).draft;
+    await store.updateResultDraftReport(mapPath, handle, draft.id, 'Report 1: First report.\nReport 2: Second report.', '## Searcher report 1\n\nFindings one.\n\n## Searcher report 2\n\nFindings two.', reports);
+    if (diagnostics) await store.recordSearchDiagnostic(mapPath, handle, diagnostics);
+    await store.failAttempt(mapPath, handle, 'Synthetic failure.');
+    return draft.notePath;
+  };
+  const notePath = await fail('structured-run', { researchTurn: 1, startedEvents: 1, completedEvents: 1, completedSearchActions: 0, otherCompletedActions: 1 });
+  const attempt = (await repo.readMap(mapPath)).mindSearch.runs.find(run => run.id === 'structured-run').attempts[0];
+  assert.deepEqual(JSON.parse(JSON.stringify(attempt.retainedReports)), { notePath, reports });
+  // The user rewrites the diagnostic note; its headings no longer follow the generated format.
+  await repo.updateNote(notePath, { detail: 'My own notes about this failure.' });
+  const { extractMindSearchFailedReport, matchMindSearchFailedReportTargets } = load('experiences/mind-search/retry-targets.ts');
+  const note = await repo.readNote(notePath);
+  assert.deepEqual(JSON.parse(JSON.stringify(extractMindSearchFailedReport(note, attempt, notePath).map(item => item.summary))), ['First report.', 'Second report.']);
+  assert.equal(extractMindSearchFailedReport(note, attempt, 'Other/note.md'), null, 'reports belong to their own diagnostic note only');
+  assert.equal(matchMindSearchFailedReportTargets(await repo.readMap(mapPath), [{ path: notePath, note }]).get(question.id)?.runId, 'structured-run');
+  // Without completed web retrieval nothing is retained.
+  await fail('unsearched-run');
+  const unsearched = (await repo.readMap(mapPath)).mindSearch.runs.find(run => run.id === 'unsearched-run').attempts[0];
+  assert.equal(unsearched.retainedReports, undefined);
+});
 integrationTest('native RunStore failed Searcher diagnostic enables the saved-report retry action only with completed-search telemetry', async () => {
   const { MindSearchRunStore } = load('mindsearch-mve/research-run-store.ts');
   const { MindSearchManualFlow } = load('experiences/mind-search/manual-flow.ts');
