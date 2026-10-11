@@ -10558,21 +10558,6 @@ var ResearchWorkflowInterrupted = class extends Error {
 };
 var ReuseEvidenceRejected = class extends Error {
 };
-function findResearchGapSelfCorrection(summaryClass, detail) {
-  const enumOf = (value) => value === "user_condition" || value === "\u4F7F\u7528\u8005\u689D\u4EF6" ? "user_condition" : value === "external_evidence" || value === "\u5916\u90E8\u8B49\u64DA" ? "external_evidence" : void 0;
-  const normalizeForMatch = (value) => value.replace(/[`*~]/g, "").replace(/\s+/g, " ").trim().toLocaleLowerCase();
-  const segments = detail.split(/(?<=[。！？.!?])\s*|\n+/u).map((segment) => segment.trim()).filter(Boolean);
-  const corrections = [];
-  for (const quote of segments) {
-    const normalized = normalizeForMatch(quote);
-    const positivePattern = /(?:本階段結論|本次結論|結論|判定|分類|classification|decision)[^。！？.!?]{0,32}?(?:應為|應分類為|分類為|判定為|should be(?: classified as)?|classified as|classification is|decision is|is)\s*(user_condition|external_evidence|使用者條件|外部證據)/g;
-    const denialPattern = /(?:不應標記為|不應分類為|不應判定為|should not be marked as|must not be marked as|should not be classified as|not classified as)\s*(user_condition|external_evidence|使用者條件|外部證據)/g;
-    const positives = [...normalized.matchAll(positivePattern)].map((match) => enumOf(match[1])).filter((value) => !!value);
-    const denials = [...normalized.matchAll(denialPattern)].map((match) => enumOf(match[1])).filter((value) => !!value);
-    if (positives.length === 1 && denials.length === 1 && positives[0] !== summaryClass && denials[0] === summaryClass) corrections.push({ classification: positives[0], quote });
-  }
-  return corrections.length === 1 ? corrections[0] : void 0;
-}
 var _MindSearchManualFlow = class _MindSearchManualFlow {
   constructor(repository, runs, askModel, id = import_node_crypto7.randomUUID, persist = (operation) => operation()) {
     this.repository = repository;
@@ -10699,110 +10684,11 @@ ${JSON.stringify({ rationale: candidate.rationale, target: candidate.researchTar
     await ((_a = context.setPhase) == null ? void 0 : _a.call(context, "research-gap-audit"));
     const result = await this.askMindSearchModel({ timeoutMs: context.timeoutMs, title: context.goal, summary: "", rules: "", detail: "", task, ancestors: "", outputLanguage: this.repository.settings.language, mode: "task", researchMode: "local", researchDepth: "fast", visualMode: "off", responseContract: "mindsearch-gap-audit", signal }, model, reasoning, signal);
     throwIfAborted(signal);
-    const markerPattern = /<!--\s*mindsearch-gap-audit\s+([\s\S]*?)\s*-->/g;
-    const rawText = `${result.summary}
-${result.detail}`;
-    const classificationText = rawText.replace(/[`*~]/g, "");
-    const markers = [...rawText.matchAll(markerPattern)];
-    if (markers.length > 1) throw new Error("MindSearch returned multiple research-gap markers; no follow-up search was started.");
-    const explicitClasses = /* @__PURE__ */ new Set();
-    const normalizeClassification = (value) => value === "user_condition" || value === "\u4F7F\u7528\u8005\u689D\u4EF6" ? "user_condition" : value === "external_evidence" || value === "\u5916\u90E8\u8B49\u64DA" ? "external_evidence" : void 0;
-    const summaryEnum = normalizeClassification(result.summary.trim());
-    if (summaryEnum) explicitClasses.add(summaryEnum);
-    const negatedClasses = /* @__PURE__ */ new Set();
-    const negatedPattern = /(?:\bnot\s+(?:(?:be|been)\s+)?(?:classified|categorized|considered)\s+as\s+|\bnot\s+(?:an?\s+)?|\bno\s+|\bnever\s+(?:(?:be|been)\s+)?(?:classified|categorized|considered)\s+as\s+|不(?:應(?:標記為|分類為|歸類為|判定為)?|會?(?:被)?(?:標記為|分類為|歸類為|判定為|屬於|是|為)?|屬於|是|為)|並非|不是|非|未(?:被)?(?:標記為|分類為|歸類為|判定為|屬於|是|為)?)(?:\s*)(user_condition|external_evidence|使用者條件|外部證據)/gi;
-    for (const match of classificationText.matchAll(negatedPattern)) {
-      const classification = normalizeClassification(match[1]);
-      if (classification) negatedClasses.add(classification);
-    }
-    const positiveText = classificationText.replace(negatedPattern, " ");
-    const mentionedClasses = /* @__PURE__ */ new Set();
-    if (/\buser_condition\b/.test(positiveText) || /使用者條件/.test(positiveText)) mentionedClasses.add("user_condition");
-    if (/\bexternal_evidence\b/.test(positiveText) || /外部證據/.test(positiveText)) mentionedClasses.add("external_evidence");
-    const addPositiveClassification = (pattern, tokenIndex) => {
-      for (const match of positiveText.matchAll(pattern)) {
-        const token = match[tokenIndex];
-        const classification = normalizeClassification(token);
-        if (classification) explicitClasses.add(classification);
-      }
-    };
-    addPositiveClassification(/(?:classification\s*[:=]\s*["']?|classified\s+as\s+|classification\s+is\s+|(?:should|must)\s+be\s+classified\s+as\s+)(user_condition|external_evidence)\b/gi, 1);
-    addPositiveClassification(/(?:應分類為|分類為|歸類為|判定為)\s*(使用者條件|外部證據|user_condition|external_evidence)/g, 1);
-    addPositiveClassification(/(?:主要缺口|此缺口|缺口)(?:是|屬於?|分類為|歸類為|判定為|而是)\s*(使用者條件|外部證據)/g, 1);
-    let markerClass;
-    let markerRationale;
-    if (markers.length === 1) {
-      try {
-        const value = JSON.parse(markers[0][1]);
-        if ((value == null ? void 0 : value.classification) === "user_condition" || (value == null ? void 0 : value.classification) === "external_evidence") markerClass = value.classification;
-        if (typeof (value == null ? void 0 : value.rationale) === "string" && value.rationale.trim()) markerRationale = value.rationale.trim();
-      } catch (e) {
-      }
-    }
-    if (summaryEnum && markers.length === 0 && mentionedClasses.size > 1) {
-      const correction = findResearchGapSelfCorrection(summaryEnum, result.detail);
-      const positiveDetailClasses = /* @__PURE__ */ new Set();
-      const positiveDetailText = result.detail.replace(/[`*~]/g, "").replace(negatedPattern, " ");
-      if (/\buser_condition\b/.test(positiveDetailText) || /使用者條件/.test(positiveDetailText)) positiveDetailClasses.add("user_condition");
-      if (/\bexternal_evidence\b/.test(positiveDetailText) || /外部證據/.test(positiveDetailText)) positiveDetailClasses.add("external_evidence");
-      if (correction && positiveDetailClasses.size === 1 && positiveDetailClasses.has(correction.classification) && negatedClasses.has(summaryEnum) && !negatedClasses.has(correction.classification)) {
-        const extractionTask = phaseTask("research-gap-audit-conflict-extract", [
-          "Extract only the explicit self-correction already present in the original audit response. Do not make or reconsider a classification decision, and do not use research evidence.",
-          `Set summary to exactly ${correction.classification}. Set detail to exactly this complete original self-correction sentence, preserving its spelling and punctuation: ${correction.quote}`,
-          "No other text, markers, or paraphrase. Return the original sentence exactly as quoted below.",
-          `Original audit summary:
-${result.summary}`,
-          `Original audit detail:
-${result.detail}`
-        ].join("\n\n"));
-        const extracted = await this.askMindSearchModel({ timeoutMs: context.timeoutMs, title: "MindSearch audit label extractor", summary: "", rules: "", detail: "", task: extractionTask, ancestors: "", outputLanguage: this.repository.settings.language, mode: "task", researchMode: "local", researchDepth: "fast", visualMode: "off", signal }, model, reasoning, signal);
-        throwIfAborted(signal);
-        const extractedCorrection = findResearchGapSelfCorrection(summaryEnum, extracted.detail.trim());
-        if (extracted.summary.trim() !== correction.classification || extracted.detail.trim() !== correction.quote || !result.detail.includes(extracted.detail.trim()) || (extractedCorrection == null ? void 0 : extractedCorrection.classification) !== correction.classification) {
-          throw new Error("MindSearch could not extract the original audit self-correction exactly; no follow-up search was started.");
-        }
-        return { classification: correction.classification, rationale: extracted.detail.trim() };
-      }
-    }
-    if (explicitClasses.size > 1 || mentionedClasses.size > 1 || markerClass && explicitClasses.size === 1 && !explicitClasses.has(markerClass) || markerClass && negatedClasses.has(markerClass)) throw new Error("MindSearch returned conflicting research-gap classifications; no follow-up search was started.");
-    if (mentionedClasses.size === 0 && negatedClasses.size > 0) throw new Error("MindSearch returned only a negated research-gap classification; no follow-up search was started.");
-    if (/[?？]/.test(rawText) && mentionedClasses.size > 0) throw new Error("MindSearch returned a question instead of a research-gap classification; no follow-up search was started.");
-    const selectedClass = explicitClasses.size === 1 ? [...explicitClasses][0] : markerClass;
-    if (selectedClass && negatedClasses.has(selectedClass)) throw new Error("MindSearch returned both positive and negated evidence for the same research-gap class; no follow-up search was started.");
-    const rationaleFrom = (text3) => text3.replace(markerPattern, " ").replace(/\s+/g, " ").trim().slice(0, 600);
-    const accept = (classification, rationale) => {
-      const cleanRationale = rationale.trim();
-      if (!cleanRationale) throw new Error("MindSearch returned an empty research-gap rationale; no follow-up search was started.");
-      return { classification, rationale: cleanRationale };
-    };
-    if (selectedClass) {
-      const rationale = markerClass === selectedClass ? markerRationale : void 0;
-      const preservedRationale = rationale != null ? rationale : rationaleFrom(result.detail) || (summaryEnum ? "" : rationaleFrom(result.summary));
-      const fixedAudit = accept(selectedClass, preservedRationale);
-      if (!fixedAudit.rationale) throw new Error("MindSearch returned an empty research-gap rationale; no follow-up search was started.");
-      return fixedAudit;
-    }
-    if (mentionedClasses.size !== 1) throw new Error("MindSearch could not classify the research gap from an explicit audit decision; no follow-up search was started.");
-    const onlyMentionedClass = [...mentionedClasses][0];
-    if (negatedClasses.has(onlyMentionedClass)) throw new Error("MindSearch returned both positive and negated evidence for the same research-gap class; no follow-up search was started.");
-    const repairTask = phaseTask("research-gap-audit-format-only", [
-      "Format only the classification already stated in the original audit. Do not choose, infer, change, or reconsider the class; do not use research reports or branch evidence.",
-      `The only class token present in the source is ${onlyMentionedClass}; set summary to exactly that enum.`,
-      "Set detail to one exact verbatim substring copied from the original audit that contains that same class selection. Do not paraphrase or add words. If no such exact quote exists, return empty summary and detail.",
-      `Original audit summary:
-${result.summary}`,
-      `Original audit detail:
-${result.detail}`
-    ].join("\n\n"));
-    const formatted = await this.askMindSearchModel({ timeoutMs: context.timeoutMs, title: context.goal, summary: "", rules: "", detail: "", task: repairTask, ancestors: "", outputLanguage: this.repository.settings.language, mode: "task", researchMode: "local", researchDepth: "fast", visualMode: "off", signal }, model, reasoning, signal);
-    throwIfAborted(signal);
-    const formattedClass = normalizeClassification(formatted.summary.trim());
-    const verbatimQuote = formatted.detail.trim();
-    const quoteIsNegated = new RegExp(negatedPattern.source, negatedPattern.flags).test(verbatimQuote);
-    if (formattedClass !== onlyMentionedClass || !verbatimQuote || !rawText.includes(verbatimQuote) || quoteIsNegated || !(verbatimQuote.includes(onlyMentionedClass) || (onlyMentionedClass === "user_condition" ? verbatimQuote.includes("\u4F7F\u7528\u8005\u689D\u4EF6") : verbatimQuote.includes("\u5916\u90E8\u8B49\u64DA")))) {
-      throw new Error("MindSearch could not format the original research-gap classification without changing it; no follow-up search was started.");
-    }
-    return accept(onlyMentionedClass, verbatimQuote);
+    const classification = result.summary.trim();
+    if (classification !== "user_condition" && classification !== "external_evidence") throw new Error("MindSearch returned an invalid research-gap classification; no follow-up search was started.");
+    const rationale = result.detail.replace(/\s+/g, " ").trim().slice(0, 600);
+    if (!rationale) throw new Error("MindSearch returned an empty research-gap rationale; no follow-up search was started.");
+    return { classification, rationale };
   }
   async requireUserConditionQuestion(candidate, context, audit, model, reasoning, signal, allowReconciliation = true) {
     const task = phaseTask("decision-quality-review", [

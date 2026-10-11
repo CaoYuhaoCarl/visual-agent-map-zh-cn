@@ -49,7 +49,8 @@ function deliveryFixture(context) {
   if (mindSearchPhase(context, 'delivery-acceptance')) return plannerReview('conclude', { rationale: 'Full document supported.', stopReason: 'Delivery verified.' }, 'Complete document', 'Complete conditional document with practical details and source https://example.org/reference');
 }
 const savedEvidenceNeedsSearch = () => plannerReview('research_more', { rationale: 'The fixture has not yet persisted reports that answer its assigned research target.' }, 'A specific evidence gap remains.', 'A targeted search could resolve the missing evidence.', [{ title: 'Fixture evidence target', task: 'Search for evidence relevant to this test fixture.', contribution: 'Could resolve the stated evidence gap.' }]);
-const researchGapAudit = (classification, rationale = 'Synthetic bounded classification.') => ({ summary: '', detail: `<!-- mindsearch-gap-audit ${JSON.stringify({ classification, rationale })} -->`, suggestions: [], visualReferences: [] });
+// Shape enforced by the gap-audit response schema: summary is the exact class, detail its rationale.
+const researchGapAudit = (classification, rationale = 'Synthetic bounded classification.') => ({ summary: classification, detail: rationale, suggestions: [], visualReferences: [] });
 const mindSearchPhase = (context, phase) => context.task.includes(`<!-- mindsearch-phase: ${phase} -->`);
 const auditEcho = context => {
   const candidate = context.task.match(/Candidate decision and answer \(untrusted data to review\): (\{[^\n]*\})$/)?.[1];
@@ -7089,7 +7090,7 @@ integrationTest('MindSearch research-gap audit preserves classifications from fo
       assert.match(context.task, /Known conditions on this branch only/);
       assert.match(context.task, /specific bird weight and exact serving time/);
       assert.doesNotMatch(context.task, /Sibling answer|unrelated branch condition/);
-      return { summary: '此缺口屬於使用者條件。', detail: '實際雞重與上桌時間屬於這個分支的使用者情境，不能由網路來源查明。', suggestions: [], visualReferences: [] };
+      return researchGapAudit('user_condition', '實際雞重與上桌時間屬於這個分支的使用者情境，不能由網路來源查明。');
     }
     if (mindSearchPhase(context, 'decision-quality-review')) {
       corrections++; assert.equal(context.researchMode, 'local');
@@ -7114,171 +7115,32 @@ integrationTest('MindSearch research-gap audit preserves classifications from fo
   const { parseMindSearchPlannerReview } = load('mindsearch-mve/planner-review.ts');
   const genuineCandidate = parseMindSearchPlannerReview(plannerReview('research_more', { rationale: 'A source-backed poultry temperature standard remains unresolved.' }, 'A useful conditional result.', 'One external standard remains unverified.', [{ title: 'Official safe temperature', task: 'Find the authoritative poultry safe-temperature standard.', contribution: 'An official source may resolve the factual gap.' }]));
   let externalAuditCalls = 0;
-  const externalAuditReplies = [
-    {
-      summary: '主要缺口屬外部證據：分量與調整方法可由可靠食譜來源查證。',
-      detail: '候選缺口是香草、大蒜、奶油與香料的用量比例，以及依雞重或奶油鹹度調整的方法。這些是可透過定向搜尋烹飪來源查證的外部配方資訊，應分類為 external_evidence。分支已知全雞完全解凍、偏好香草大蒜與奶油香料，但這些條件不補足配方比例證據。本階段未進行網路搜尋，尚未核實比例。',
-      suggestions: [], visualReferences: []
-    },
-    {
-      summary: '主要缺口是外部配方證據；目前風味比例未獲可靠來源支持。',
-      detail: 'Candidate research gap 指出，香草、大蒜、奶油與香料的具體用量及適用雞重尚無可靠依據。這是可透過針對食譜比例的來源搜尋查證的外部事實缺口，分類為 external_evidence。已完全解凍是已知個人條件，但與此缺口無關。',
-      suggestions: [], visualReferences: []
-    },
-    {
-      summary: 'external_evidence',
-      detail: 'Saved branch reports do not establish the herb-to-butter ratio; a targeted source search can verify that external recipe fact.',
-      suggestions: [], visualReferences: []
-    }
-  ];
   const externalFlow = new MindSearchManualFlow(repo, store, async context => {
     externalAuditCalls++;
     assert.equal(context.researchMode, 'local');
     assert.match(context.task, /Official safe temperature/);
-    for (const savedSummary of ['Saved report 1: synthetic temperature guidance.', 'Saved report 2: synthetic roasting method.', 'Saved report 3: synthetic seasoning ratios.', 'Saved report 4: synthetic timing ranges.']) assert.equal(context.task.split(savedSummary).length - 1, 1, 'gap audit receives each saved report summary once');
-    assert.doesNotMatch(context.task, /Omitted from gap audit context/);
-    return externalAuditReplies.shift();
+    for (const savedSummary of ['Saved report 1: synthetic temperature guidance.', 'Saved report 2: synthetic roasting method.', 'Saved report 3: synthetic seasoning ratios.', 'Saved report 4: synthetic resting time.']) assert.ok(context.task.includes(savedSummary));
+    return researchGapAudit('external_evidence', 'Saved branch reports do not establish the herb-to-butter ratio; a targeted source search can verify that external recipe fact.');
   });
   const externalContext = {
     goal: 'Roast poultry safely', goalDetail: '', conditions: { flavor: 'Rosemary' }, currentQuestion: 'How should it be cooked?', currentAnswer: 'Roast it.',
-    answeredQuestionCount: 3, questionHistory: [], lineage: '', reportSummary: ['Saved report 1: synthetic temperature guidance.', 'Saved report 2: synthetic roasting method.', 'Saved report 3: synthetic seasoning ratios.', 'Saved report 4: synthetic timing ranges.'].join('\n'), reportDetail: 'Omitted from gap audit context.'
+    answeredQuestionCount: 3, questionHistory: [], lineage: '', reportSummary: ['Saved report 1: synthetic temperature guidance.', 'Saved report 2: synthetic roasting method.', 'Saved report 3: synthetic seasoning ratios.', 'Saved report 4: synthetic resting time.'].join('\n'), reportDetail: 'Full saved reports.'
   };
   const retained = await externalFlow.reviewPlannerDecisionQuality(genuineCandidate, externalContext, 'gpt-6-luna', 'low');
   assert.equal(retained.decision, 'research_more', 'genuine external evidence gaps remain searchable');
-  const retargeted = await externalFlow.reviewPlannerDecisionQuality(genuineCandidate, externalContext, 'gpt-6-luna', 'low');
-  assert.equal(retargeted.decision, 'research_more', 'the alternate wording for the same enum remains searchable');
-  const structured = await externalFlow.reviewPlannerDecisionQuality(genuineCandidate, externalContext, 'gpt-6-luna', 'low');
-  assert.equal(structured.decision, 'research_more', 'the exact structured summary enum is accepted');
-  assert.equal(externalAuditCalls, 3, 'captured natural-language and structured audit replies are accepted without a format-repair call');
+  assert.equal(externalAuditCalls, 1, 'the schema-enforced class needs no extraction or format-only call');
 
-  const savedFourReportSummary = externalContext.reportSummary;
-  const liveConflict = {
-    summary: 'user_condition',
-    detail: '本階段只稽核候選缺口，不查網路。缺口是法式全雞食譜中香草、大蒜、奶油與香料的明確用量及依雞重調整方式，屬可由外部食譜來源查證的配方事實，因此應分類為 `external_evidence`。已知使用者偏好「香草與大蒜」及「奶油與香料」，且全雞已完全解凍；雞重未知只影響個別雞隻的烤時與按重量換算，並非此候選配方比例缺口的主要輸入。現有資料不足以核實任何具體比例。本階段結論應為 `external_evidence`，不應標記為 `user_condition`。',
-    suggestions: [], visualReferences: []
-  };
-  const liveCorrectionQuote = '本階段結論應為 `external_evidence`，不應標記為 `user_condition`。';
-  const selfCorrectionFlow = (repair) => {
-    const calls = [];
-    return {
-      calls,
-      flow: new MindSearchManualFlow(repo, store, async context => {
-        calls.push(context);
-        assert.equal(context.researchMode, 'local');
-        if (mindSearchPhase(context, 'research-gap-audit')) return liveConflict;
-        assert.ok(mindSearchPhase(context, 'research-gap-audit-conflict-extract'));
-        assert.equal(context.title, 'MindSearch audit label extractor');
-        assert.match(context.task, /Original audit summary:[\s\S]*user_condition/);
-        assert.match(context.task, /Original audit detail:[\s\S]*本階段結論應為/);
-        assert.doesNotMatch(context.task, /Roast poultry safely|Saved report [1-4]|Official safe temperature|Known conditions on this branch/);
-        return repair(liveCorrectionQuote);
-      })
-    };
-  };
-  const wrongEnumExtraction = selfCorrectionFlow(quote => ({ summary: 'user_condition', detail: quote, suggestions: [], visualReferences: [] }));
-  await assert.rejects(wrongEnumExtraction.flow.reviewPlannerDecisionQuality(genuineCandidate, externalContext, 'gpt-6-luna', 'low'), /could not extract the original audit self-correction exactly/);
-  assert.deepEqual(wrongEnumExtraction.calls.map(context => mindSearchPhase(context, 'research-gap-audit') ? 'audit' : 'extract'), ['audit', 'extract']);
-  const wrongQuoteExtraction = selfCorrectionFlow(quote => ({ summary: 'external_evidence', detail: quote.replace('external_evidence', 'external evidence'), suggestions: [], visualReferences: [] }));
-  await assert.rejects(wrongQuoteExtraction.flow.reviewPlannerDecisionQuality(genuineCandidate, externalContext, 'gpt-6-luna', 'low'), /could not extract the original audit self-correction exactly/);
-  assert.deepEqual(wrongQuoteExtraction.calls.map(context => mindSearchPhase(context, 'research-gap-audit') ? 'audit' : 'extract'), ['audit', 'extract']);
-  const recoveredExtraction = selfCorrectionFlow(quote => ({ summary: 'external_evidence', detail: quote, suggestions: [], visualReferences: [] }));
-  const recoveredDecision = await recoveredExtraction.flow.reviewPlannerDecisionQuality(genuineCandidate, externalContext, 'gpt-6-luna', 'low');
-  assert.equal(recoveredDecision.decision, 'research_more');
-  assert.deepEqual(recoveredExtraction.calls.map(context => mindSearchPhase(context, 'research-gap-audit') ? 'audit' : 'extract'), ['audit', 'extract']);
-  assert.equal(externalContext.reportSummary, savedFourReportSummary, 'the failed extraction recovery reuses the same four saved report summaries without Searcher work');
+  // A rationale may discuss both classes or contain a question; the schema enum alone is the decision.
+  const discussedFlow = new MindSearchManualFlow(repo, store, async () => researchGapAudit('external_evidence', 'Is this user_condition? No: the herb ratio is a published recipe fact, so it is external_evidence.'));
+  assert.equal((await discussedFlow.reviewPlannerDecisionQuality(genuineCandidate, externalContext, 'gpt-6-luna', 'low')).decision, 'research_more');
 
-  const reverseConflict = {
-    summary: 'external_evidence',
-    detail: '本階段結論應為 `user_condition`，不應標記為 `external_evidence`。',
-    suggestions: [], visualReferences: []
-  };
-  const reverseFlow = new MindSearchManualFlow(repo, store, async context => {
-    if (mindSearchPhase(context, 'research-gap-audit')) return reverseConflict;
-    if (mindSearchPhase(context, 'research-gap-audit-conflict-extract')) return { summary: 'user_condition', detail: reverseConflict.detail, suggestions: [], visualReferences: [] };
-    assert.ok(mindSearchPhase(context, 'decision-quality-review'));
-    return { summary: 'Which weight should I use?', detail: 'The branch needs the user-provided chicken weight.', suggestions: [{ title: 'I will provide it' }, { title: 'Help me estimate it' }], visualReferences: [] };
-  });
-  const reverseDecision = await reverseFlow.reviewPlannerDecisionQuality(genuineCandidate, externalContext, 'gpt-6-luna', 'low');
-  assert.equal(reverseDecision.decision, 'ask_user', 'the reverse summary/detail self-correction is recovered as user_condition');
-
-  const affirmativeConflict = new MindSearchManualFlow(repo, store, async context => ({
-    summary: 'user_condition', detail: '分類為 external_evidence；分類為 user_condition。', suggestions: [], visualReferences: []
-  }));
-  await assert.rejects(affirmativeConflict.reviewPlannerDecisionQuality(genuineCandidate, externalContext, 'gpt-6-luna', 'low'), /conflicting research-gap classifications/);
-
-  const noRationaleFlow = new MindSearchManualFlow(repo, store, async () => ({ summary: 'external_evidence', detail: '', suggestions: [], visualReferences: [] }));
+  const noRationaleFlow = new MindSearchManualFlow(repo, store, async () => researchGapAudit('external_evidence', ''));
   await assert.rejects(noRationaleFlow.reviewPlannerDecisionQuality(genuineCandidate, externalContext, 'gpt-6-luna', 'low'), /empty research-gap rationale/);
 
-  let invalidGapCalls = 0;
-  const invalidGapRepair = new MindSearchManualFlow(repo, store, async context => {
-    invalidGapCalls++;
-    assert.equal(context.researchMode, 'local');
-    assert.doesNotMatch(context.task, /Do not include this report in the repair context/);
-    if (mindSearchPhase(context, 'research-gap-audit')) return { summary: 'The actual chicken weight is a private scenario value.', detail: 'No public source can establish this value.', suggestions: [], visualReferences: [] };
-    throw new Error('No classification was selected, so no format repair or search is allowed.');
-  });
-  await assert.rejects(invalidGapRepair.reviewPlannerDecisionQuality(genuineCandidate, {
-    goal: 'Roast poultry safely', goalDetail: '', conditions: {}, currentQuestion: 'How should it be cooked?', currentAnswer: 'Roast it.',
-    answeredQuestionCount: 3, questionHistory: [], lineage: '', reportSummary: 'Saved report summaries are not part of the format repair.', reportDetail: 'Do not include this report in the repair context.'
-  }, 'gpt-6-luna', 'low'), /could not classify the research gap from an explicit audit decision/);
-  assert.equal(invalidGapCalls, 1, 'an audit without an explicit class fails closed without another model call or Searcher');
-
-  let quoteRepairCalls = 0;
-  const quoteOnlyRepair = new MindSearchManualFlow(repo, store, async context => {
-    assert.equal(context.researchMode, 'local');
-    assert.doesNotMatch(context.task, /Omitted from gap audit context/);
-    if (mindSearchPhase(context, 'research-gap-audit')) return { summary: 'The user_condition enum is the original audit choice.', detail: 'The user_condition enum is the original audit choice.', suggestions: [], visualReferences: [] };
-    if (mindSearchPhase(context, 'research-gap-audit-format-only')) {
-      assert.doesNotMatch(context.task, /Saved report 1|Research status|full report/i);
-      quoteRepairCalls++;
-      return { summary: 'user_condition', detail: 'The user_condition enum is the original audit choice.', suggestions: [], visualReferences: [] };
-    }
-    assert.ok(mindSearchPhase(context, 'decision-quality-review'));
-    return plannerReview('ask_user', { rationale: 'The actual scenario weight is a user-specific condition.', question: 'What is the chicken weight?' }, 'Keep the conditional evidence summary.', 'Do not infer a weight.', ['1 kg', '2 kg']);
-  });
-  const quoted = await quoteOnlyRepair.reviewPlannerDecisionQuality(genuineCandidate, externalContext, 'gpt-6-luna', 'low');
-  assert.equal(quoted.decision, 'ask_user');
-  assert.equal(quoteRepairCalls, 1, 'one quote-only formatting call preserves the sole original class token');
-
-  const changedClassRepair = new MindSearchManualFlow(repo, store, async context => mindSearchPhase(context, 'research-gap-audit')
-    ? { summary: 'The user_condition enum is the original audit choice.', detail: 'The user_condition enum is the original audit choice.', suggestions: [], visualReferences: [] }
-    : { summary: 'external_evidence', detail: 'The user_condition enum is the original audit choice.', suggestions: [], visualReferences: [] });
-  await assert.rejects(changedClassRepair.reviewPlannerDecisionQuality(genuineCandidate, externalContext, 'gpt-6-luna', 'low'), /without changing it/);
-
-  let negativeCalls = 0;
-  const negativeClassFlow = new MindSearchManualFlow(repo, store, async context => {
-    negativeCalls++;
-    assert.equal(context.researchMode, 'local');
-    if (mindSearchPhase(context, 'research-gap-audit')) return { summary: 'The audit does not select an external class.', detail: 'The gap is not classified as external_evidence.', suggestions: [], visualReferences: [] };
-    throw new Error('Negated labels must not reach formatting or Searcher.');
-  });
-  await assert.rejects(negativeClassFlow.reviewPlannerDecisionQuality(genuineCandidate, externalContext, 'gpt-6-luna', 'low'), /negated research-gap classification/);
-  assert.equal(negativeCalls, 1, 'a negated class mention fails before format repair or search');
-
-  const mixedPolarityFlow = new MindSearchManualFlow(repo, store, async () => ({
-    summary: 'external_evidence',
-    detail: 'The gap is not classified as user_condition; it is classified as external_evidence because a source can establish the fact.',
-    suggestions: [], visualReferences: []
-  }));
-  const mixedPolarity = await mixedPolarityFlow.reviewPlannerDecisionQuality(genuineCandidate, externalContext, 'gpt-6-luna', 'low');
-  assert.equal(mixedPolarity.decision, 'research_more', 'a negated alternate class does not hide the single positive classification');
-
-  const samePolarityConflict = new MindSearchManualFlow(repo, store, async () => ({
-    summary: 'external_evidence',
-    detail: 'It is not classified as external_evidence, but classification is external_evidence.',
-    suggestions: [], visualReferences: []
-  }));
-  await assert.rejects(samePolarityConflict.reviewPlannerDecisionQuality(genuineCandidate, externalContext, 'gpt-6-luna', 'low'), /positive and negated evidence/);
-
-  const conflictingGap = new MindSearchManualFlow(repo, store, async context => ({
-    summary: '',
-    detail: `${researchGapAudit('external_evidence', 'An external fact needs a source.').detail}\n<!-- mindsearch-gap-audit ${JSON.stringify({ classification: 'user_condition', rationale: 'A scenario value is missing.' })} -->`,
-    suggestions: [], visualReferences: []
-  }));
-  await assert.rejects(conflictingGap.reviewPlannerDecisionQuality(genuineCandidate, {
-    goal: 'Roast poultry safely', goalDetail: '', conditions: {}, currentQuestion: 'How should it be cooked?', currentAnswer: 'Roast it.',
-    answeredQuestionCount: 3, questionHistory: [], lineage: '', reportSummary: '', reportDetail: ''
-  }, 'gpt-6-luna', 'low'), /multiple research-gap markers/);
+  let invalidCalls = 0;
+  const invalidFlow = new MindSearchManualFlow(repo, store, async () => { invalidCalls++; return { summary: 'The actual chicken weight is a private scenario value.', detail: 'No public source can establish this value.', suggestions: [], visualReferences: [] }; });
+  await assert.rejects(invalidFlow.reviewPlannerDecisionQuality(genuineCandidate, externalContext, 'gpt-6-luna', 'low'), /invalid research-gap classification/);
+  assert.equal(invalidCalls, 1, 'an unschematized class fails closed without another model call or Searcher');
 
   const duplicateFlow = new MindSearchManualFlow(repo, store, async context => mindSearchPhase(context, 'research-gap-audit')
     ? researchGapAudit('user_condition', 'A user-specific condition remains unknown.')
