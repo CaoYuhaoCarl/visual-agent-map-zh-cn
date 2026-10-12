@@ -4,6 +4,8 @@
 
 export const LEGACY_KEY_PREFIX = "mindSearch";
 export const LEGACY_MARKER_PREFIX = "mindsearch-";
+// Obsidian command IDs are user-facing contracts (hotkeys, URIs), so the AIM create command keeps its original ID.
+export const AIM_CREATE_MAP_COMMAND_ID = "create-mindsearch-map";
 export const LEGACY_VALUES: ReadonlyArray<readonly [string, string]> = [
   ["__MINDSEARCH_NO_QUESTION__", "__AIM_NO_QUESTION__"],
   ["__mindsearch_unknown__", "__aim_unknown__"]

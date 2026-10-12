@@ -51,6 +51,7 @@ import { ReframingService, providerReframeRunner } from "./core/reframing-servic
 import { receiveVisualMapHandoff } from "./experiences/visual-map/handoff";
 import { openCoffeeResearchHandoff } from "./experiences/coffee-tables/handoff-modal";
 import { MarkdownSelectionAi } from "./experiences/markdown-context/selection-ai";
+import { AIM_CREATE_MAP_COMMAND_ID } from "./experiences/aim/legacy-names";
 
 export { buildPreparedTaskContext } from "./ai/context-builder";
 export { extractJsonObject } from "./core/ai-task-service";
@@ -362,7 +363,7 @@ export default class VisualAgentMapPlugin extends Plugin {
     this.addLocalizedCommand("open-map", "ui.open_map", () => {
       void this.activateView().catch(error => new Notice(String(error)));
     });
-    this.addLocalizedCommand("create-aim-map", "ui.aim_create_map", () => {
+    this.addLocalizedCommand(AIM_CREATE_MAP_COMMAND_ID, "ui.aim_create_map", () => {
       void this.activateView()
         .then(() => this.views()[0]?.openAimStart())
         .catch(error => new Notice(String(error)));

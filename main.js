@@ -9707,6 +9707,7 @@ function validateAimResearchPlan(subtopics) {
 // experiences/aim/legacy-names.ts
 var LEGACY_KEY_PREFIX = "mindSearch";
 var LEGACY_MARKER_PREFIX = "mindsearch-";
+var AIM_CREATE_MAP_COMMAND_ID = "create-mindsearch-map";
 var LEGACY_VALUES = [
   ["__MINDSEARCH_NO_QUESTION__", "__AIM_NO_QUESTION__"],
   ["__mindsearch_unknown__", "__aim_unknown__"]
@@ -17386,7 +17387,7 @@ function promptMetrics(entry) {
   }
   const characters = Array.from(prompt).length;
   const nonAscii = Array.from(prompt).filter((character) => character.charCodeAt(0) > 127).length;
-  const phase = (_c = (_b = prompt.match(/<!--\s*aim-phase:\s*([a-z-]+)\s*-->/)) == null ? void 0 : _b[1]) != null ? _c : entry.mode;
+  const phase = (_c = (_b = upgradeLegacyAimText(prompt).match(/<!--\s*aim-phase:\s*([a-z-]+)\s*-->/)) == null ? void 0 : _b[1]) != null ? _c : entry.mode;
   const repairReason = /repair/i.test(phase) ? (_e = (_d = prompt.match(/(?:Format validation error|Repair reason):\s*([^\r\n]+)/i)) == null ? void 0 : _d[1]) == null ? void 0 : _e.trim() : void 0;
   return {
     prompt,
@@ -26956,7 +26957,7 @@ var VisualAgentMapPlugin = class extends import_obsidian20.Plugin {
     this.addLocalizedCommand("open-map", "ui.open_map", () => {
       void this.activateView().catch((error) => new import_obsidian20.Notice(String(error)));
     });
-    this.addLocalizedCommand("create-aim-map", "ui.aim_create_map", () => {
+    this.addLocalizedCommand(AIM_CREATE_MAP_COMMAND_ID, "ui.aim_create_map", () => {
       void this.activateView().then(() => {
         var _a2;
         return (_a2 = this.views()[0]) == null ? void 0 : _a2.openAimStart();
