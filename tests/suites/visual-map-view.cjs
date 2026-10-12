@@ -470,3 +470,31 @@ test('preview renderer receives Markdown in original order with no extra Preview
   view.showHoverCard({...element(),dataset:{nodeId:'a'}},{title:'Topic',preview:markdown});
   assert.equal(rendered.markdown,markdown);assert.equal(rendered.path,'a.md');assert.deepEqual(created,[['strong','Topic']]);
 });
+test('multi research modal: defaults, options and immediate close on start', () => {
+  const element = (tag, options = {}) => ({
+    tag, text: options.text ?? '', cls: options.cls ?? '', type: options.type, value: options.value ?? '', checked: false, disabled: false, children: [], listeners: {},
+    createDiv(value) { const c = element('div', typeof value === 'string' ? { cls: value } : value); this.children.push(c); return c; },
+    createEl(name, value = {}) { const c = element(name, value); this.children.push(c); return c; },
+    createSpan(value = {}) { const c = element('span', value); this.children.push(c); return c; },
+    setText(value) { this.text = value; }, setAttr(name, value) { this[name] = value; }, addEventListener(name, fn) { this.listeners[name] = fn; }, addClass(n) { this.cls = `${this.cls} ${n}`.trim(); }, focus() {}
+  });
+  const find = (root, predicate) => predicate(root) ? root : root.children.map(c => find(c, predicate)).find(Boolean);
+  class Modal { constructor(app) { this.app = app; this.titleEl = element('title'); this.contentEl = element('content'); this.closed = 0; } open() { this.onOpen(); } close() { this.closed++; } }
+  const mod = load('experiences/visual-map/multi-research-modal.ts', { obsidian: { ...obsidian, Modal } });
+  const requests = [];
+  const modal = new mod.MultiResearchModal({}, ['Alpha', 'Beta'], request => requests.push(request)); modal.open();
+  assert.ok(find(modal.contentEl, i => i.text === 'Alpha')); assert.ok(find(modal.contentEl, i => i.text === 'Beta'));
+  const web = find(modal.contentEl, i => i.tag === 'input' && i.type === 'checkbox'); assert.equal(web.checked, true);
+  const depth = find(modal.contentEl, i => i.tag === 'select'); assert.equal(depth.value, 'fast');
+  assert.deepEqual(plain(depth.children.map(c => c.value)), ['fast', 'normal', 'deep']);
+  const start = find(modal.contentEl, i => i.tag === 'button' && i.text === 'Start research');
+  start.listeners.click(); start.listeners.click();
+  assert.equal(modal.closed, 1); assert.equal(requests.length, 1);
+  assert.deepEqual(plain(requests[0]), { researchMode: 'research', researchDepth: 'fast', requirements: '' });
+  const second = []; const m2 = new mod.MultiResearchModal({}, ['A'], r => second.push(r)); m2.open();
+  find(m2.contentEl, i => i.tag === 'input' && i.type === 'checkbox').checked = false;
+  const sel = find(m2.contentEl, i => i.tag === 'select'); sel.value = 'deep';
+  find(m2.contentEl, i => i.tag === 'textarea').value = '  only 2025  ';
+  find(m2.contentEl, i => i.tag === 'button' && i.text === 'Start research').listeners.click();
+  assert.deepEqual(plain(second[0]), { researchMode: 'local', researchDepth: 'deep', requirements: 'only 2025' });
+});

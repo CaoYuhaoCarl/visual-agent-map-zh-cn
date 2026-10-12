@@ -45,6 +45,7 @@ import { PendingSuggestions } from "../../pending-suggestions";
 import { createAimMap } from "../aim/create-map";
 import { createOutlineMap } from "./outline-import";
 import { OutlineImportModal, type OutlineImportRequest } from "./outline-import-modal";
+import { MultiResearchModal, type MultiResearchRequest } from "./multi-research-modal";
 import { AimStartModal } from "../../ui/modals/aim-start-modal";
 import { AimAnswerModal } from "../../ui/modals/aim-answer-modal";
 import {
@@ -2518,30 +2519,8 @@ export class VisualAgentMapView extends ItemView {
     const shown = visibleNodes(this.map.nodes);
     if (this.selected && !shown.some(node => node.id === this.selected)) this.selected = null;
     this.multiSelected = new Set([...this.multiSelected].filter(id => shown.some(node => node.id === id)));
-    if (this.integrationMode) {
-      const selection = workspace.createDiv("vam-selection-bar");
-      const names = [...this.multiSelected].map(id => this.notes.get(id)?.title).filter(Boolean);
-      selection.createSpan({
-        text: this.multiSelected.size
-          ? t("ui.selected_0_1_2", this.multiSelected.size, names.slice(0, 2).join("、"), names.length > 2 ? "…" : "")
-          : t("ui.prompt_select_topics")
-      });
-      this.button(
-        selection,
-        t("ui.clear"),
-        () => {
-          this.multiSelected.clear();
-          this.render();
-        },
-        !this.multiSelected.size
-      );
-      this.button(selection, t("ui.remove"), () => this.confirmRemoveSelected(), !this.multiSelected.size);
-      this.button(selection, t("ui.move_to"), () => this.chooseSelectedParent(false), !this.multiSelected.size);
-      this.button(selection, t("ui.copy_to"), () => this.chooseSelectedParent(true), !this.multiSelected.size);
-      this.button(selection, t("ui.synthesize"), () => this.integrateSelected(), this.multiSelected.size < 2).addClass(
-        "mod-cta"
-      );
-    }
+    if (this.integrationMode) this.renderSelectionBar(workspace);
+    else this.renderMultiResearchStatus(workspace);
     for (const node of shown) this.renderNode(node);
     if (!this.map.nodes.length) {
       const emptyMap = this.viewportEl.createDiv("vam-empty");
@@ -3956,41 +3935,7 @@ export class VisualAgentMapView extends ItemView {
     return this.plugin.expansionCoordinator.start(
       parent.path,
       children,
-      async (child, batchSignal, accepted) => {
-        const note = await this.plugin.repo.readNote(child.path);
-        let started = false;
-        let failure: string | undefined;
-        const handle = await this.runAgent(
-          child,
-          undefined,
-          message => {
-            failure = message;
-          },
-          {
-            rules: "",
-            referenceGroups: [],
-            signal: batchSignal,
-            outputLanguage: pendingOptions.outputLanguage,
-            researchMode: pendingOptions.researchMode,
-            researchDepth: pendingOptions.researchDepth,
-            visualMode: pendingOptions.visualMode,
-            task: [
-              note.prompt ||
-                researchTopicTask(pendingOptions.outputLanguage ?? this.plugin.settings.language, note.title),
-              pendingOptions.requirements
-            ]
-              .filter(Boolean)
-              .join("\n\n")
-          },
-          () => {
-            started = true;
-            accepted();
-          }
-        );
-        if (!started || !handle) throw new Error(failure ?? t("ui.shallow_research_did_not_start"));
-        await handle.finished;
-        if (failure && !batchSignal.aborted) throw new Error(failure);
-      },
+      (child, batchSignal, accepted) => this.researchChild(child, batchSignal, accepted, pendingOptions),
       () => {
         const state = this.plugin.expansionBatches.get(parent.path);
         if (state?.status === "running") this.plugin.quickExpandPending.add(parent.path);
@@ -3999,6 +3944,162 @@ export class VisualAgentMapView extends ItemView {
       },
       signal
     );
+  }
+  private async researchChild(
+    child: MapNode,
+    batchSignal: AbortSignal,
+    accepted: () => void,
+    choices: TaskOptions
+  ): Promise<void> {
+    const note = await this.plugin.repo.readNote(child.path);
+    let started = false;
+    let failure: string | undefined;
+    const handle = await this.runAgent(
+      child,
+      undefined,
+      message => {
+        failure = message;
+      },
+      {
+        rules: "",
+        referenceGroups: [],
+        signal: batchSignal,
+        outputLanguage: choices.outputLanguage,
+        researchMode: choices.researchMode,
+        researchDepth: choices.researchDepth,
+        visualMode: choices.visualMode,
+        task: [
+          note.prompt || researchTopicTask(choices.outputLanguage ?? this.plugin.settings.language, note.title),
+          choices.requirements
+        ]
+          .filter(Boolean)
+          .join("\n\n")
+      },
+      () => {
+        started = true;
+        accepted();
+      }
+    );
+    if (!started || !handle) throw new Error(failure ?? t("ui.shallow_research_did_not_start"));
+    await handle.finished;
+    if (failure && !batchSignal.aborted) throw new Error(failure);
+  }
+  private multiResearchKey(): string {
+    return `multi-research:${this.path}`;
+  }
+  private openMultiResearch(): void {
+    if (!this.map || this.map.aim || !this.multiSelected.size) return;
+    const names = [...this.multiSelected].map(id => this.notes.get(id)?.title).filter((name): name is string => !!name);
+    new MultiResearchModal(this.app, names, request => void this.startMultiResearch(request)).open();
+  }
+  stopMultiResearch(): void {
+    this.plugin.expansionCoordinator.stop(this.multiResearchKey());
+  }
+  async startMultiResearch(request: MultiResearchRequest): Promise<void> {
+    if (!this.map || this.map.aim || this.builtIn || !this.multiSelected.size) return;
+    const key = this.multiResearchKey();
+    if (this.plugin.expansionCoordinator.isRunning(key)) {
+      new Notice(t("ui.multi_research_already_running"));
+      return;
+    }
+    const selected = [...this.multiSelected]
+      .map(id => this.map!.nodes.find(node => node.id === id))
+      .filter((node): node is MapNode => !!node);
+    try {
+      await this.plugin.confirmAiUsage(this.plugin.settings.cliModel, async () => {
+        if (this.plugin.expansionCoordinator.isRunning(key)) {
+          new Notice(t("ui.multi_research_already_running"));
+          return;
+        }
+        const busy = (node: MapNode): boolean =>
+          this.plugin.running.has(node.path) ||
+          this.plugin.quickExpandPending.has(node.path) ||
+          this.plugin.activeTasks.has(node.path);
+        const nodes = selected.filter(node => !busy(node));
+        if (!nodes.length) {
+          new Notice(t("ui.multi_research_all_skipped"));
+          return;
+        }
+        if (nodes.length < selected.length) new Notice(t("ui.multi_research_skipped", selected.length - nodes.length));
+        const choices: TaskOptions = {
+          researchMode: request.researchMode,
+          researchDepth: request.researchDepth,
+          visualMode: "off",
+          referenceGroups: [],
+          requirements: request.requirements
+        };
+        let reported = false;
+        await this.plugin.expansionCoordinator.start(
+          key,
+          nodes,
+          (child, batchSignal, accepted) => this.researchChild(child, batchSignal, accepted, choices),
+          () => {
+            const state = this.plugin.expansionBatches.get(key);
+            if (state && state.status !== "running" && !reported) {
+              reported = true;
+              new Notice(
+                t(
+                  state.status === "stopped" ? "ui.multi_research_stopped" : "ui.multi_research_finished",
+                  state.completed,
+                  state.total,
+                  state.failures.length
+                )
+              );
+            }
+            if (!this.closed) this.render();
+          }
+        );
+      });
+    } catch (error) {
+      new Notice(errorMessage(error));
+    }
+  }
+  private renderMultiResearchProgress(bar: HTMLElement): void {
+    const state = this.plugin.expansionBatches.get(this.multiResearchKey());
+    if (state?.status !== "running") return;
+    bar.createSpan({
+      cls: "vam-status vam-status-running",
+      text: t("ui.multi_research_progress", state.completed, state.total)
+    });
+    this.button(bar, t("ui.stop_research"), () => this.stopMultiResearch());
+  }
+  private renderMultiResearchStatus(parent: HTMLElement): void {
+    if (this.plugin.expansionBatches.get(this.multiResearchKey())?.status !== "running") return;
+    this.renderMultiResearchProgress(parent.createDiv("vam-selection-bar vam-multi-research-bar"));
+  }
+  private renderSelectionBar(workspace: HTMLElement): void {
+    const selection = workspace.createDiv("vam-selection-bar");
+    const names = [...this.multiSelected].map(id => this.notes.get(id)?.title).filter(Boolean);
+    selection.createSpan({
+      text: this.multiSelected.size
+        ? t("ui.selected_0_1_2", this.multiSelected.size, names.slice(0, 2).join("、"), names.length > 2 ? "…" : "")
+        : t("ui.prompt_select_topics")
+    });
+    this.button(
+      selection,
+      t("ui.clear"),
+      () => {
+        this.multiSelected.clear();
+        this.render();
+      },
+      !this.multiSelected.size
+    );
+    this.button(selection, t("ui.remove"), () => this.confirmRemoveSelected(), !this.multiSelected.size);
+    this.button(selection, t("ui.move_to"), () => this.chooseSelectedParent(false), !this.multiSelected.size);
+    this.button(selection, t("ui.copy_to"), () => this.chooseSelectedParent(true), !this.multiSelected.size);
+    this.button(selection, t("ui.synthesize"), () => this.integrateSelected(), this.multiSelected.size < 2).addClass(
+      "mod-cta"
+    );
+    if (!this.map?.aim) {
+      const running = this.plugin.expansionBatches.get(this.multiResearchKey())?.status === "running";
+      this.button(
+        selection,
+        t("ui.multi_research"),
+        () => this.openMultiResearch(),
+        !this.multiSelected.size || running
+      );
+    }
+    this.renderMultiResearchProgress(selection);
   }
   private researchChoices(options: TaskOptions): TaskOptions {
     const { signal: _signal, onProgress: _onProgress, ...choices } = options;
