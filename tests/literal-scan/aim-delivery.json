@@ -1,0 +1,139 @@
+{
+  "dirs": [
+    "experiences/aim/planner-review.ts",
+    "experiences/aim/final-delivery.ts",
+    "experiences/aim/manual-flow-support.ts",
+    "experiences/aim/evidence-context.ts",
+    "experiences/aim/request-context.ts",
+    "ai/aim-contracts.ts",
+    "ai/aim-gap-audit-schema.ts",
+    "experiences/aim/steps/format-repair",
+    "experiences/aim/steps/delivery-outline",
+    "experiences/aim/steps/delivery-research",
+    "experiences/aim/steps/delivery-writing",
+    "experiences/aim/steps/delivery-acceptance",
+    "experiences/aim/steps/_shared"
+  ],
+  "allow": [
+    {
+      "file": "experiences/aim/planner-review.ts",
+      "text": "The workflow requires",
+      "reason": "Default rationale value for an imposed ask_user repair, no prompt snapshot reaches it (every covered repair supplies its own rationale); pinned byte for byte in tests/steps-aim-delivery.cjs and left inline per the lane rule to move only snapshot-covered text"
+    },
+    {
+      "file": "experiences/aim/planner-review.ts",
+      "text": "A clarification is required",
+      "reason": "Fallback rationale stored in the merged Planner review marker, never sent in a model prompt and not covered by a snapshot; behavior value of the repair flow, left in place"
+    },
+    {
+      "file": "experiences/aim/final-delivery.ts",
+      "text": "<!-- aim-delivery-research",
+      "reason": "Synthetic stored research result used when the outline asks for no new search; it is checkpoint data that feeds later fingerprints and prompts and no snapshot reaches it, so it stays inline and byte-identical"
+    },
+    {
+      "file": "experiences/aim/final-delivery.ts",
+      "text": "No external source i",
+      "reason": "Section evidence placeholder for an unmapped section; no prompt snapshot covers an unmapped section, so it stays inline (pinned in tests/steps-aim-delivery.cjs)"
+    },
+    {
+      "file": "experiences/aim/request-context.ts",
+      "text": "[This exact passage ",
+      "reason": "Reference marker substituted for a duplicated passage in the request; no prompt snapshot contains a deduplicated passage, so it stays inline (behavior pinned in tests/steps-aim-delivery.cjs)"
+    },
+    {
+      "file": "ai/aim-contracts.ts",
+      "text": "Ask about the user's goal, preferences, ",
+      "reason": "JSON response-schema field description sent as part of the AIM contract schema (checked by the aim-contract.* .schema.json snapshots), not a prompt template; schema description text stays in TypeScript until a later stage"
+    },
+    {
+      "file": "ai/aim-contracts.ts",
+      "text": "0–5 short questions about unknown user c",
+      "reason": "JSON response-schema field description sent as part of the AIM contract schema (checked by the aim-contract.* .schema.json snapshots), not a prompt template; schema description text stays in TypeScript until a later stage"
+    },
+    {
+      "file": "ai/aim-contracts.ts",
+      "text": "The one direct question for the user, wr",
+      "reason": "JSON response-schema field description sent as part of the AIM contract schema (checked by the aim-contract.* .schema.json snapshots), not a prompt template; schema description text stays in TypeScript until a later stage"
+    },
+    {
+      "file": "ai/aim-contracts.ts",
+      "text": "2–5 distinct answer choices for the ques",
+      "reason": "JSON response-schema field description sent as part of the AIM contract schema (checked by the aim-contract.* .schema.json snapshots), not a prompt template; schema description text stays in TypeScript until a later stage"
+    },
+    {
+      "file": "ai/aim-contracts.ts",
+      "text": "Ids of prerequisite targets in this plan",
+      "reason": "JSON response-schema field description sent as part of the AIM contract schema (checked by the aim-contract.* .schema.json snapshots), not a prompt template; schema description text stays in TypeScript until a later stage"
+    },
+    {
+      "file": "ai/aim-contracts.ts",
+      "text": "For reuse/update: the exact source copie",
+      "reason": "JSON response-schema field description sent as part of the AIM contract schema (checked by the aim-contract.* .schema.json snapshots), not a prompt template; schema description text stays in TypeScript until a later stage"
+    },
+    {
+      "file": "ai/aim-contracts.ts",
+      "text": "For reuse/update: which supplied conditi",
+      "reason": "JSON response-schema field description sent as part of the AIM contract schema (checked by the aim-contract.* .schema.json snapshots), not a prompt template; schema description text stays in TypeScript until a later stage"
+    },
+    {
+      "file": "ai/aim-contracts.ts",
+      "text": "true when the supplied reports already a",
+      "reason": "JSON response-schema field description sent as part of the AIM contract schema (checked by the aim-contract.* .schema.json snapshots), not a prompt template; schema description text stays in TypeScript until a later stage"
+    },
+    {
+      "file": "ai/aim-contracts.ts",
+      "text": "For conclude: why research can stop. Oth",
+      "reason": "JSON response-schema field description sent as part of the AIM contract schema (checked by the aim-contract.* .schema.json snapshots), not a prompt template; schema description text stays in TypeScript until a later stage"
+    },
+    {
+      "file": "ai/aim-contracts.ts",
+      "text": "For ask_user: the one direct question fo",
+      "reason": "JSON response-schema field description sent as part of the AIM contract schema (checked by the aim-contract.* .schema.json snapshots), not a prompt template; schema description text stays in TypeScript until a later stage"
+    },
+    {
+      "file": "ai/aim-contracts.ts",
+      "text": "For ask_user: 2–5 distinct answer choice",
+      "reason": "JSON response-schema field description sent as part of the AIM contract schema (checked by the aim-contract.* .schema.json snapshots), not a prompt template; schema description text stays in TypeScript until a later stage"
+    },
+    {
+      "file": "ai/aim-contracts.ts",
+      "text": "For research_more: the one targeted evid",
+      "reason": "JSON response-schema field description sent as part of the AIM contract schema (checked by the aim-contract.* .schema.json snapshots), not a prompt template; schema description text stays in TypeScript until a later stage"
+    },
+    {
+      "file": "ai/aim-contracts.ts",
+      "text": "Specific web search needed for this sect",
+      "reason": "JSON response-schema field description sent as part of the AIM contract schema (checked by the aim-contract.* .schema.json snapshots), not a prompt template; schema description text stays in TypeScript until a later stage"
+    },
+    {
+      "file": "ai/aim-contracts.ts",
+      "text": "Supplied source IDs this section relies ",
+      "reason": "JSON response-schema field description sent as part of the AIM contract schema (checked by the aim-contract.* .schema.json snapshots), not a prompt template; schema description text stays in TypeScript until a later stage"
+    },
+    {
+      "file": "ai/aim-contracts.ts",
+      "text": "Additional supplied source IDs, or null.",
+      "reason": "JSON response-schema field description sent as part of the AIM contract schema (checked by the aim-contract.* .schema.json snapshots), not a prompt template; schema description text stays in TypeScript until a later stage"
+    },
+    {
+      "file": "ai/aim-contracts.ts",
+      "text": "searched only when web search actually r",
+      "reason": "JSON response-schema field description sent as part of the AIM contract schema (checked by the aim-contract.* .schema.json snapshots), not a prompt template; schema description text stays in TypeScript until a later stage"
+    },
+    {
+      "file": "ai/aim-contracts.ts",
+      "text": "Up to 3 exact evidence IDs whose full re",
+      "reason": "JSON response-schema field description sent as part of the AIM contract schema (checked by the aim-contract.* .schema.json snapshots), not a prompt template; schema description text stays in TypeScript until a later stage"
+    },
+    {
+      "file": "ai/aim-gap-audit-schema.ts",
+      "text": "A short rationale, written before the de",
+      "reason": "JSON response-schema field description for the gap-audit contract (checked by the aim-flow.research-gap-audit .schema.json snapshots), not a prompt template; schema text stays in TypeScript"
+    },
+    {
+      "file": "ai/aim-gap-audit-schema.ts",
+      "text": "The exact final classification, written ",
+      "reason": "JSON response-schema field description for the gap-audit contract (checked by the aim-flow.research-gap-audit .schema.json snapshots), not a prompt template; schema text stays in TypeScript"
+    }
+  ]
+}

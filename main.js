@@ -83,9 +83,9 @@ function registerInternalMarkerPresentation(plugin) {
     while (walker.nextNode()) nodes.push(walker.currentNode);
     for (const node of nodes) {
       if ((_a = node.parentElement) == null ? void 0 : _a.closest("pre, code")) continue;
-      const text9 = (_b = node.textContent) != null ? _b : "";
-      const filtered = text9.split("\n").filter((line) => !markerLine.test(line)).join("\n");
-      if (filtered === text9) continue;
+      const text10 = (_b = node.textContent) != null ? _b : "";
+      const filtered = text10.split("\n").filter((line) => !markerLine.test(line)).join("\n");
+      if (filtered === text10) continue;
       const parent = node.parentElement;
       node.textContent = filtered;
       if ((parent == null ? void 0 : parent.tagName) === "P" && !((_c = parent.textContent) == null ? void 0 : _c.trim()) && !parent.querySelector("img, video, audio, iframe"))
@@ -2502,10 +2502,10 @@ function parseOne(markdown) {
       if (sourceLine.length) current.sources = unique([...current.sources, ...sourceLine]);
       const detail = line.replace(MARKER, "").replace(SOURCE_MARKER, "").trim();
       if (detail && !detail.startsWith("<!--")) {
-        const text9 = detail.replace(/^>\s?/, ""), labeled = /^(脈絡|來賓的理由|脈絡與分歧|Context|Reasoning|原疑問|疑問|Question|可能解方|Possible solution|條件與限制|限制|Conditions and limits)[：:]\s*(.*)$/i.exec(
-          text9
+        const text10 = detail.replace(/^>\s?/, ""), labeled = /^(脈絡|來賓的理由|脈絡與分歧|Context|Reasoning|原疑問|疑問|Question|可能解方|Possible solution|條件與限制|限制|Conditions and limits)[：:]\s*(.*)$/i.exec(
+          text10
         );
-        if (!labeled) current.detail = [current.detail, text9].filter(Boolean).join("\n");
+        if (!labeled) current.detail = [current.detail, text10].filter(Boolean).join("\n");
         else {
           const label = labeled[1].toLocaleLowerCase(), value = labeled[2].trim();
           if (["\u539F\u7591\u554F", "\u7591\u554F", "question"].includes(label))
@@ -2848,7 +2848,7 @@ var PLACEHOLDER = /\{\{([^{}]*)\}\}/g;
 function renderTemplate(template, variables4) {
   const body = template.endsWith("\n") ? template.slice(0, -1) : template;
   const used = /* @__PURE__ */ new Set();
-  const text9 = body.replace(PLACEHOLDER, (_match, name) => {
+  const text10 = body.replace(PLACEHOLDER, (_match, name) => {
     if (!Object.prototype.hasOwnProperty.call(variables4, name))
       throw new Error(`Prompt template uses unknown placeholder {{${name}}}`);
     const value = variables4[name];
@@ -2858,7 +2858,7 @@ function renderTemplate(template, variables4) {
   });
   for (const name of Object.keys(variables4))
     if (!used.has(name)) throw new Error(`Prompt template variable "${name}" is not used by the template`);
-  return text9;
+  return text10;
 }
 var preparedSteps = /* @__PURE__ */ new WeakSet();
 function prepareStep(step, input) {
@@ -3028,10 +3028,10 @@ function assembleCoffeeContext(session) {
   var _a, _b, _c, _d, _e;
   const events = [];
   let order = 0;
-  const add = (at, text9) => {
-    if (!text9.trim()) return;
+  const add = (at, text10) => {
+    if (!text10.trim()) return;
     const parsed = at ? Date.parse(at) : Number.NaN;
-    events.push({ at: Number.isFinite(parsed) ? parsed : Number.MAX_SAFE_INTEGER, order: order++, text: text9.trim() });
+    events.push({ at: Number.isFinite(parsed) ? parsed : Number.MAX_SAFE_INTEGER, order: order++, text: text10.trim() });
   };
   const rounds = (_a = session.rounds) != null ? _a : [];
   const attachedInterventions = /* @__PURE__ */ new Set();
@@ -3450,7 +3450,7 @@ function customizationFields(parent, initial, language2, changed = () => void 0)
   const select = (label, options) => {
     const field = controls.createEl("label", { text: label });
     const el = field.createEl("select");
-    for (const [value, text9] of options) el.createEl("option", { value, text: text9 });
+    for (const [value, text10] of options) el.createEl("option", { value, text: text10 });
     return el;
   };
   const merge = select(t2("coffee.merge_level"), [
@@ -3880,7 +3880,7 @@ var navigationSummaryStep = {
   id: "coffee.navigation-summary",
   version: 1,
   render: ({ language: language2, segments }) => renderTemplate(language2 === "zh-TW" ? prompt_zh_default5 : prompt_en_default5, {
-    segments: JSON.stringify(segments.map(({ id, text: text9 }) => ({ id, text: text9 })))
+    segments: JSON.stringify(segments.map(({ id, text: text10 }) => ({ id, text: text10 })))
   }),
   policy: (prompt, { language: language2 }) => {
     if (prompt.length > MAX_COFFEE_CONTEXT_CHARS)
@@ -4051,8 +4051,8 @@ function noteSections(notes) {
     const index = canonical.findIndex((section3) => section3[1].trim() === title);
     if (index < 0) return false;
     const section2 = canonical[index];
-    const text9 = notes.slice(((_a = section2.index) != null ? _a : 0) + section2[0].length, (_c = (_b = canonical[index + 1]) == null ? void 0 : _b.index) != null ? _c : notes.length).replace(/<!--[\s\S]*?-->/g, "").trim();
-    return text9.length >= 15 && /[。！？.!?…](?:[」』”’"\])）】}]*)$/u.test(text9);
+    const text10 = notes.slice(((_a = section2.index) != null ? _a : 0) + section2[0].length, (_c = (_b = canonical[index + 1]) == null ? void 0 : _b.index) != null ? _c : notes.length).replace(/<!--[\s\S]*?-->/g, "").trim();
+    return text10.length >= 15 && /[。！？.!?…](?:[」』”’"\])）】}]*)$/u.test(text10);
   });
   if (completeSections) return [notes];
   const body = notes.replace(/<!--[\s\S]*?-->/g, "").replace(/^# (?:觀察者整理|Observer(?:[’']s)? notes)\s*$/m, "").trim();
@@ -4232,9 +4232,9 @@ var CoffeeEngine = class {
         const { raw: response } = await this.steps.send(source, {
           session: this.session,
           signal: controller.signal,
-          onText: (text9) => {
+          onText: (text10) => {
             if (this.generation !== generation || controller.signal.aborted) return;
-            streamed += text9;
+            streamed += text10;
             this.setSession({ ...this.session, convergenceRawDraft: streamed });
             this.scheduleCheckpoint();
           }
@@ -4442,22 +4442,22 @@ var CoffeeEngine = class {
     }
     await this.persist();
   }
-  updateDraft(text9, roundId, questionId) {
+  updateDraft(text10, roundId, questionId) {
     var _a;
     if (questionId)
       this.setSession({
         ...this.session,
-        questions: this.session.questions.map((item) => item.id === questionId ? { ...item, draftAnswer: text9 } : item)
+        questions: this.session.questions.map((item) => item.id === questionId ? { ...item, draftAnswer: text10 } : item)
       });
     else if (roundId)
       this.setSession({
         ...this.session,
-        draftMarkdown: text9,
+        draftMarkdown: text10,
         rounds: ((_a = this.session.rounds) != null ? _a : []).map(
-          (item) => item.id === roundId ? { ...item, draftMarkdown: text9, status: "generating" } : item
+          (item) => item.id === roundId ? { ...item, draftMarkdown: text10, status: "generating" } : item
         )
       });
-    else this.setSession({ ...this.session, draftMarkdown: text9 });
+    else this.setSession({ ...this.session, draftMarkdown: text10 });
     this.scheduleCheckpoint();
   }
   start() {
@@ -4575,9 +4575,9 @@ var CoffeeEngine = class {
         const { raw: response } = await this.steps.send(source, {
           session: this.session,
           signal: controller.signal,
-          onText: (text9) => {
+          onText: (text10) => {
             if (this.generation !== generation || controller.signal.aborted) return;
-            streamed = appendDraft(previousObserverDraft, text9);
+            streamed = appendDraft(previousObserverDraft, text10);
             this.setSession({ ...this.session, observerDraftMarkdown: streamed, dirtyNotes: true });
             this.scheduleCheckpoint();
           }
@@ -4685,11 +4685,11 @@ var CoffeeEngine = class {
         const { raw: response } = await this.steps.send(prepared, {
           session: this.session,
           signal: controller.signal,
-          onText: (text9) => {
+          onText: (text10) => {
             if (this.generation === generation && !controller.signal.aborted)
               this.updateDraft(previousDraft ? `${previousDraft}
 
-${text9}` : text9, roundId);
+${text10}` : text10, roundId);
           },
           registerIntervention: (steer) => {
             if (this.generation !== generation || controller.signal.aborted) return;
@@ -4766,9 +4766,9 @@ ${text9}` : text9, roundId);
     this.changed();
     return pending;
   }
-  async intervene(kind, text9, target) {
+  async intervene(kind, text10, target) {
     var _a, _b, _c, _d, _e;
-    const value = text9.trim();
+    const value = text10.trim();
     if (this.deleting || this.retired || !this.busy || ((_a = this.controller) == null ? void 0 : _a.signal.aborted) || !value) return;
     const generation = this.generation, controller = this.controller;
     const instruction = kind === "guest-question" ? `The user asks ${target ? `${target} ` : "a guest "}to respond to this question: ${value}. Let that person answer naturally and keep the discussion moving.` : kind === "redirect" ? `The user wants to redirect the discussion: ${value}. Acknowledge this briefly and continue in the new direction.` : `The user adds this comment: ${value}. Respond naturally if relevant, then continue the discussion.`;
@@ -4910,9 +4910,9 @@ ${instruction}`);
         const { raw: response } = await this.steps.send(prepared, {
           session: this.session,
           signal: controller.signal,
-          onText: (text9) => {
+          onText: (text10) => {
             if (this.generation === generation && !controller.signal.aborted) {
-              streamed = appendDraft(previousDraft, text9);
+              streamed = appendDraft(previousDraft, text10);
               this.updateDraft(streamed, void 0, id);
             }
           }
@@ -4986,7 +4986,7 @@ ${instruction}`);
     let prepared;
     const summaryInput = {
       language: this.session.language,
-      segments: missing.map(({ id, text: text9 }) => ({ id, text: text9 }))
+      segments: missing.map(({ id, text: text10 }) => ({ id, text: text10 }))
     };
     try {
       prepared = prepareStep(navigationSummaryStep, summaryInput);
@@ -6858,9 +6858,9 @@ function tokens(value) {
 function paragraphTexts(value) {
   return value.split(/\n\s*\n/).flatMap((part) => part.split(/(?<=[。！？!?；;])\s*/u)).map((part) => part.trim()).filter(Boolean);
 }
-function findRelatedSpeech(text9, targets) {
+function findRelatedSpeech(text10, targets) {
   var _a;
-  const query = normalizeText(text9);
+  const query = normalizeText(text10);
   if ([...query].length < 8) return null;
   const usable = targets.map((target) => ({ ...target, normalized: normalizeText(target.text) })).filter((target) => target.id && [...target.normalized].length >= 8);
   const direct = usable.filter(
@@ -6870,7 +6870,7 @@ function findRelatedSpeech(text9, targets) {
     const distinct = new Set(direct.map((target) => target.normalized));
     if (distinct.size === 1) return direct.sort((a, b) => a.order - b.order)[0].id;
   }
-  const queryTokens = tokens(text9);
+  const queryTokens = tokens(text10);
   if (queryTokens.size < 3) return null;
   const documents = usable.map((target) => new Set(tokens(target.text)));
   const frequencies = /* @__PURE__ */ new Map();
@@ -7401,7 +7401,7 @@ var CoffeeTablesView = class extends import_obsidian4.ItemView {
     if (!confirmed || this.engine !== engine || engine.busy || this.closed) return;
     await this.plugin.confirmAiUsage(engine.session.model, () => engine.fillSegmentSummaries());
   }
-  locateOutlineItem(text9) {
+  locateOutlineItem(text10) {
     var _a;
     const session = (_a = this.engine) == null ? void 0 : _a.session;
     if (!session) return false;
@@ -7416,7 +7416,7 @@ var CoffeeTablesView = class extends import_obsidian4.ItemView {
         });
       }
     );
-    const match = findRelatedSpeech(text9, targetRows);
+    const match = findRelatedSpeech(text10, targetRows);
     if (!match) return false;
     const node = this.contentEl.querySelector(`[data-coffee-speech="${match}"]`);
     if (!node) return false;
@@ -9020,14 +9020,14 @@ ${timestamp.toLocaleString()}${item.model ? ` \xB7 ${item.model}` : ""}`
       input.addEventListener("input", () => this.composerValues.set("intervention-text", input.value));
       this.button(composer, this.t("coffee.send"), async () => {
         if (!input.value.trim()) return;
-        const text9 = input.value;
+        const text10 = input.value;
         input.value = "";
         this.composerValues.delete("intervention-text");
         try {
-          await engine.intervene(select.value, text9, target.value);
+          await engine.intervene(select.value, text10, target.value);
         } catch (error) {
-          input.value = text9;
-          this.composerValues.set("intervention-text", text9);
+          input.value = text10;
+          this.composerValues.set("intervention-text", text10);
           throw error;
         }
       });
@@ -9291,7 +9291,7 @@ ${timestamp.toLocaleString()}${item.model ? ` \xB7 ${item.model}` : ""}`
       const query = state.query.trim().toLocaleLowerCase();
       const categories = /* @__PURE__ */ new Map();
       for (const item of insights) {
-        const text9 = [
+        const text10 = [
           item.summary,
           item.detail,
           item.question,
@@ -9299,7 +9299,7 @@ ${timestamp.toLocaleString()}${item.model ? ` \xB7 ${item.model}` : ""}`
           item.limitations,
           categoryLabel(item.category, this.plugin.settings.language)
         ].filter(Boolean).join("\n").toLocaleLowerCase();
-        if (!query || text9.includes(query))
+        if (!query || text10.includes(query))
           categories.set(item.category, [...(_a2 = categories.get(item.category)) != null ? _a2 : [], item]);
       }
       if (!categories.size) results.createEl("p", { cls: "ct-muted", text: this.t("coffee.no_matching_insights") });
@@ -9402,14 +9402,14 @@ ${timestamp.toLocaleString()}${item.model ? ` \xB7 ${item.model}` : ""}`
       }
     }
   }
-  renderSpeech(name, role, text9, target, anchorKey) {
+  renderSpeech(name, role, text10, target, anchorKey) {
     if (name === "\u4F60" || name.toLowerCase() === "you") {
-      this.renderUserBubble(text9, target);
+      this.renderUserBubble(text10, target);
       return;
     }
     const index = this.speechAnchorIndex++, article = target.createDiv("ct-message");
     article.dataset.coffeeSpeech = `ct-speech-${anchorKey != null ? anchorKey : index}`;
-    article.dataset.coffeeSpeechText = text9;
+    article.dataset.coffeeSpeechText = text10;
     article.createDiv({
       cls: `ct-avatar ct-color-${avatarColor(name)}`,
       text: initials(name),
@@ -9418,7 +9418,7 @@ ${timestamp.toLocaleString()}${item.model ? ` \xB7 ${item.model}` : ""}`
     const content = article.createDiv("ct-message-content");
     content.createEl("strong", { text: name });
     content.createSpan({ cls: "ct-role", text: role });
-    this.renderMarkdown(text9, content.createDiv("ct-bubble markdown-rendered"));
+    this.renderMarkdown(text10, content.createDiv("ct-bubble markdown-rendered"));
   }
   renderStreaming(markdown, target, anchorPrefix) {
     const speeches = parseSpeeches(markdown);
@@ -9428,12 +9428,12 @@ ${timestamp.toLocaleString()}${item.model ? ` \xB7 ${item.model}` : ""}`
     }
     this.renderBubbles(markdown, target, anchorPrefix);
   }
-  renderUserBubble(text9, target) {
+  renderUserBubble(text10, target) {
     const article = target.createDiv("ct-message ct-message-user");
     article.createDiv({ cls: "ct-avatar ct-user-avatar", text: this.t("coffee.you") });
     const content = article.createDiv("ct-message-content");
     content.createEl("strong", { text: this.t("coffee.you") });
-    this.renderMarkdown(text9, content.createDiv("ct-bubble markdown-rendered"));
+    this.renderMarkdown(text10, content.createDiv("ct-bubble markdown-rendered"));
   }
   renderMarkdown(markdown, target) {
     var _a, _b, _c;
@@ -9597,27 +9597,27 @@ var AimClarificationModal = class extends import_obsidian5.Modal {
   }
   onOpen() {
     var _a;
-    const text9 = (key2) => translate(this.english ? "en" : "zh-TW", key2);
-    this.titleEl.setText(text9("ui.aim_clarify_title"));
+    const text10 = (key2) => translate(this.english ? "en" : "zh-TW", key2);
+    this.titleEl.setText(text10("ui.aim_clarify_title"));
     this.contentEl.createEl("p", {
-      text: text9("ui.aim_clarify_intro")
+      text: text10("ui.aim_clarify_intro")
     });
     const fields = this.questions.map((question) => {
       const label = this.contentEl.createEl("label", { cls: "vam-field" });
       label.createSpan({ text: question });
       const input = label.createEl("textarea", { attr: { rows: "2" } });
       input.setAttr("aria-label", question);
-      input.placeholder = text9("ui.aim_clarify_placeholder");
+      input.placeholder = text10("ui.aim_clarify_placeholder");
       return { question, input };
     });
     const status = this.contentEl.createEl("p", { cls: "vam-hint", attr: { "aria-live": "polite" } });
     let pending = false;
     new import_obsidian5.Setting(this.contentEl).addButton(
-      (button) => button.setButtonText(text9("ui.cancel")).onClick(() => {
+      (button) => button.setButtonText(text10("ui.cancel")).onClick(() => {
         if (!pending) this.close();
       })
     ).addButton(
-      (button) => button.setButtonText(text9("ui.aim_clarify_save")).setCta().onClick(() => {
+      (button) => button.setButtonText(text10("ui.aim_clarify_save")).setCta().onClick(() => {
         if (pending) return;
         pending = true;
         button.setDisabled(true);
@@ -9626,7 +9626,7 @@ var AimClarificationModal = class extends import_obsidian5.Modal {
         });
         const answers = fields.map(
           ({ question, input }) => `- ${question}
-  ${input.value.trim() || text9("note.aim_clarify_blank_answer")}`
+  ${input.value.trim() || text10("note.aim_clarify_blank_answer")}`
         ).join("\n\n");
         void this.submit(answers).then(() => this.close()).catch((error) => {
           pending = false;
@@ -10078,8 +10078,8 @@ var LEGACY_VALUES = [
 ];
 var LEGACY_MARKER = new RegExp(`<!--(\\s*)${LEGACY_MARKER_PREFIX}`, "g");
 var upgradeKey = (key2) => key2.startsWith(LEGACY_KEY_PREFIX) ? `aim${key2.slice(LEGACY_KEY_PREFIX.length)}` : key2;
-function upgradeLegacyAimText(text9) {
-  let upgraded = text9.replace(LEGACY_MARKER, "<!--$1aim-");
+function upgradeLegacyAimText(text10) {
+  let upgraded = text10.replace(LEGACY_MARKER, "<!--$1aim-");
   for (const [legacy, current] of LEGACY_VALUES) upgraded = upgraded.split(legacy).join(current);
   return upgraded;
 }
@@ -10678,7 +10678,7 @@ function detailWithVisualReferences(detail, visualReferences) {
     const block = reference.replace(/^### (.+)$/gm, "**$1**").trim();
     const title = (_a = block.match(/^\*\*(.+)\*\*/)) == null ? void 0 : _a[1];
     const paragraphs = current.split("\n\n");
-    const related = title ? paragraphs.findIndex((text9) => !/^#{1,6} /.test(text9) && text9.includes(title)) : -1;
+    const related = title ? paragraphs.findIndex((text10) => !/^#{1,6} /.test(text10) && text10.includes(title)) : -1;
     if (related >= 0) {
       paragraphs.splice(related + 1, 0, block);
       current = paragraphs.join("\n\n");
@@ -10761,7 +10761,7 @@ function localizeReference(value, language2) {
 }
 function withReferenceLinks(body, fm, language2) {
   const sources2 = Array.isArray(fm["source-notes"]) ? fm["source-notes"].map(String).filter(Boolean) : [];
-  const relationships = Array.isArray(fm["agent-map-references"]) ? fm["agent-map-references"].map(String).filter((text9) => text9.includes("[[")) : [];
+  const relationships = Array.isArray(fm["agent-map-references"]) ? fm["agent-map-references"].map(String).filter((text10) => text10.includes("[[")) : [];
   const label = translate(language2, "note.source_topic_label");
   const links = [
     ...relationships.map((value) => localizeReference(value, language2)),
@@ -12298,21 +12298,71 @@ var AimAnswerModal = class extends import_obsidian10.Modal {
   }
 };
 
+// experiences/aim/steps/_shared/evidence-card.md
+var evidence_card_default = "Evidence ID: {{id}}\nSummary: {{summary}}\nLimitations excerpt (not exhaustive): {{limitations}}\nSource index (first 6 of {{urlCount}}): {{sourceIndex}}\nFull report retained ({{length}} characters). This index is incomplete; request the evidence ID when detail is needed.\n";
+
+// experiences/aim/steps/_shared/evidence-card-no-limitations.md
+var evidence_card_no_limitations_default = "Consult the full report before inferring that there are no limitations.\n";
+
+// experiences/aim/steps/_shared/evidence-card-no-sources.md
+var evidence_card_no_sources_default = "No source URLs recorded.\n";
+
+// experiences/aim/steps/_shared/evidence-card.ts
+function renderEvidenceCard(variables4) {
+  return renderTemplate(evidence_card_default, {
+    id: variables4.id,
+    summary: variables4.summary,
+    limitations: variables4.limitations || renderTemplate(evidence_card_no_limitations_default, {}),
+    urlCount: String(variables4.urls.length),
+    sourceIndex: variables4.urls.slice(0, 6).join(" ") || renderTemplate(evidence_card_no_sources_default, {}),
+    length: String(variables4.length)
+  });
+}
+
+// experiences/aim/steps/_shared/planner-coverage-rule.md
+var planner_coverage_rule_default = "Before deciding, compare the original topic and current question with the requested outcome and every persisted report. Name the central outcome(s) the user needs, then mark each answered or still open. A relevant side fact does not answer a missing core outcome. If a core outcome is open and one targeted search could plausibly help, choose research_more for that exact gap. Ask_user only for missing user conditions, not missing evidence. If a core outcome remains open at the research-turn limit, keep research_more so the result is saved as partial, not complete.\n";
+
+// experiences/aim/steps/_shared/searcher-target-rule.md
+var searcher_target_rule_default = "Answer the assigned research target first. Treat prior reports and side facts as context, not as a substitute for the target. Do not repeat resolved background facts in place of the requested outcome. If the search does not support the target, say explicitly that the target remains unresolved; do not imply it was answered.\n";
+
+// experiences/aim/steps/_shared/user-question-rule.md
+var user_question_rule_default = "A question to the user must be about the original goal, the user's preferences, constraints, resources or situation. Never ask about this tool's workflow, question counts, nodes, branches or research process, and never rephrase an earlier question as a new one.\n";
+
+// experiences/aim/steps/_shared/floor-ask-rule.md
+var floor_ask_rule_default = "Below the floor, choose research_more only for a material evidence gap in the original goal itself; if the reports already answer the goal, choose ask_user. Never pick research_more to satisfy the floor.\n";
+
+// experiences/aim/steps/_shared/outcome-expectation-rule.md
+var outcome_expectation_rule_default = "Use the original goal, known user conditions and outcome preferences. Resolve important contradictions before concluding. Preserve evidence attribution and uncertainty. Do only the current phase; a research report is not the final deliverable.\n";
+
+// experiences/aim/steps/_shared/evidence-lookup-rule.md
+var evidence_lookup_rule_default = 'Evidence cards are incomplete indexes, not full verified reports. Do not infer a missing fact is absent from the report. If a decision or claim depends on omitted detail, return only <!-- aim-evidence-request {"ids":["exact evidence ID"]} --> in detail, with a short summary and empty suggestions. Up to 3 indexed reports can be loaded in one bounded lookup; do not invent IDs. Do not conclude from a card when decisive evidence is missing.\n';
+
+// experiences/aim/steps/_shared/evidence-lookup-field-rule.md
+var evidence_lookup_field_rule_default = "Evidence cards are incomplete indexes, not full verified reports. Do not infer a missing fact is absent from the report. If a decision or claim depends on omitted detail, put the exact evidence IDs in aim.evidenceRequestIds (up to 3) with a short summary; the full reports are then loaded once and you answer again. Otherwise leave aim.evidenceRequestIds empty. Do not invent IDs. Do not conclude from a card when decisive evidence is missing.\n";
+
+// experiences/aim/steps/_shared/rules.ts
+var text5 = (template) => renderTemplate(template, {});
+var PLANNER_COVERAGE_RULE = text5(planner_coverage_rule_default);
+var SEARCHER_TARGET_RULE = text5(searcher_target_rule_default);
+var USER_QUESTION_RULE = text5(user_question_rule_default);
+var FLOOR_ASK_RULE = text5(floor_ask_rule_default);
+var OUTCOME_EXPECTATION_RULE = text5(outcome_expectation_rule_default);
+var EVIDENCE_LOOKUP_RULE = text5(evidence_lookup_rule_default);
+var EVIDENCE_LOOKUP_FIELD_RULE = text5(evidence_lookup_field_rule_default);
+
 // experiences/aim/evidence-context.ts
 function evidenceCard(id, summary, detail) {
   var _a;
   const urls = [...new Set((_a = detail.match(/https?:\/\/[^\s)<>\]"']+/g)) != null ? _a : [])];
   const limits = detail.split(/\n\n/).filter((part) => /uncertain|unresolved|limitation|unknown|不足|不確定|限制|缺口|尚未|待確認/i.test(part));
-  return [
-    `Evidence ID: ${id}`,
-    `Summary: ${summary}`,
-    `Limitations excerpt (not exhaustive): ${limits.join("\n").slice(0, 600) || "Consult the full report before inferring that there are no limitations."}`,
-    `Source index (first 6 of ${urls.length}): ${urls.slice(0, 6).join(" ") || "No source URLs recorded."}`,
-    `Full report retained (${detail.length} characters). This index is incomplete; request the evidence ID when detail is needed.`
-  ].join("\n");
+  return renderEvidenceCard({
+    id,
+    summary,
+    limitations: limits.join("\n").slice(0, 600),
+    urls,
+    length: detail.length
+  });
 }
-var EVIDENCE_LOOKUP_RULE = 'Evidence cards are incomplete indexes, not full verified reports. Do not infer a missing fact is absent from the report. If a decision or claim depends on omitted detail, return only <!-- aim-evidence-request {"ids":["exact evidence ID"]} --> in detail, with a short summary and empty suggestions. Up to 3 indexed reports can be loaded in one bounded lookup; do not invent IDs. Do not conclude from a card when decisive evidence is missing.';
-var EVIDENCE_LOOKUP_FIELD_RULE = "Evidence cards are incomplete indexes, not full verified reports. Do not infer a missing fact is absent from the report. If a decision or claim depends on omitted detail, put the exact evidence IDs in aim.evidenceRequestIds (up to 3) with a short summary; the full reports are then loaded once and you answer again. Otherwise leave aim.evidenceRequestIds empty. Do not invent IDs. Do not conclude from a card when decisive evidence is missing.";
 
 // experiences/aim/request-context.ts
 function deduplicateAimRequest(context) {
@@ -12343,6 +12393,42 @@ function deduplicateAimRequest(context) {
 
 // experiences/aim/final-delivery.ts
 var import_node_crypto6 = require("node:crypto");
+
+// experiences/aim/steps/delivery-outline/task.md
+var task_default = "You are the final-delivery Synthesizer. Design the actual document needed to answer the ORIGINAL user goal with all supplied conditions and outcome preferences. Previous research informs the outline; do not merely concatenate reports or reuse their headings. Return the outline in aim.sections: each section has heading, purpose (what the reader can do or understand after it), searchTask (specific web search needed, or empty if already supported), evidenceIds and dependencies (supplied source IDs). Choose a suitable structure, not a fixed template. Include concrete examples, resources, execution details or comparisons when required by this user. Map each section to the minimal supplied evidenceIds it needs. Dependencies also name supplied source IDs. Leave searchTask empty when mapped supplied reports already support the section; do not request a full search merely to repeat them. Identify exact source gaps for the deliverable. Do not ask the user or deliver the document yet.\nSupplied evidence IDs and reports:\n{{sourceCatalog}}\n";
+
+// experiences/aim/steps/delivery-outline/step.ts
+var renderOutlineTask = (sourceCatalog) => renderTemplate(task_default, { sourceCatalog });
+
+// experiences/aim/steps/delivery-research/task.md
+var task_default2 = "You are the Researcher for the FINAL DOCUMENT. Search the web to fill and verify the sections of this agreed outline: {{outline}}. Prioritize the explicit searchTasks and the concrete resources, examples, steps, or current facts required to deliver this user's requested result. Reuse supported prior findings; do not search irrelevant topics. Return a section-by-section evidence report. Use a Markdown H2 heading exactly matching each agreed section heading with a nonempty searchTask; place only that section's findings under it. Include explicit source IDs (delivery-research:<section-heading>:<number>) and direct source URLs, what each source supports, usable concrete details and unresolved gaps. Actually use available search tools; never claim a search occurred if it did not. Set aim.status to searched only when search actually ran. If tools fail or are unavailable, set aim.status to unavailable rather than replacing research with memory. Do not write the final document or ask questions.\n";
+
+// experiences/aim/steps/delivery-research/step.ts
+var renderResearchTask = (outline) => renderTemplate(task_default2, { outline });
+
+// experiences/aim/steps/delivery-writing/task.md
+var task_default3 = 'Write only the complete section "{{heading}}" of the final document. Purpose: {{purpose}}. Full outline (structure only): {{outline}}.\nKnown goal and user conditions:\n{{knownConditions}}\nSection evidence (cite these explicit source IDs and URLs where used):\n{{scopedEvidence}}\n{{additionalResearch}}\nDevelop this section into useful specific content answering the original user goal. Include steps, examples and resources when required. Preserve all necessary detail; summary is only a canvas preview. Do not write other sections, an audit, or a synopsis. Do not fabricate or imply independent source verification. Output reader-facing Markdown in detail; cite sources where used and place limitations beside affected claims.\n';
+
+// experiences/aim/steps/delivery-writing/additional-research.md
+var additional_research_default = "Additional final-document research:\n{{research}}\n";
+
+// experiences/aim/steps/delivery-writing/step.ts
+var renderWritingTask = (variables4) => renderTemplate(task_default3, {
+  heading: variables4.heading,
+  purpose: variables4.purpose,
+  outline: variables4.outline,
+  knownConditions: variables4.knownConditions,
+  scopedEvidence: variables4.scopedEvidence,
+  additionalResearch: variables4.scopedResearch === void 0 ? "" : renderTemplate(additional_research_default, { research: variables4.scopedResearch })
+});
+
+// experiences/aim/steps/delivery-acceptance/task.md
+var task_default4 = "Perform the final join review: check cross-section coherence, repeated advice or duplicate passages, source IDs or URLs attributed to the wrong claims, and missing sections. Do not rewrite sections. Review the full draft against the ORIGINAL goal, supplied conditions, requested format, and agreed outline. Outline: {{outline}}\nFinal research:\n{{research}}\nSupplied source reports:\n{{sourceCatalog}}\nDraft:\n{{draft}}\nReturn the decision in the aim fields. Choose conclude ONLY if the document is usable and complete for this request: every required section is developed, necessary examples/resources/steps are concrete and supported, and sources are linked where used. Mere general direction is insufficient for a requested actionable plan. For conclude, put only a short acceptance note in detail; do not rewrite or repeat the draft. Explain readiness in aim.rationale and aim.stopReason. For shortcomings, list the specific missing outcomes and return research_more. If important delivery evidence remains missing, choose research_more with exactly one concrete aim.researchTarget (title, task, expectedValue) and explain the missing outcome. Do not ask the user and do not invent evidence.\n";
+
+// experiences/aim/steps/delivery-acceptance/step.ts
+var renderAcceptanceTask = (variables4) => renderTemplate(task_default4, { ...variables4 });
+
+// experiences/aim/final-delivery.ts
 var fingerprint = (value) => (0, import_node_crypto6.createHash)("sha256").update(JSON.stringify(value)).digest("hex");
 function parseDeliveryOutline(detail) {
   const marker4 = detail.match(/<!--\s*aim-delivery-outline\s+([\s\S]*?)\s*-->/);
@@ -12466,12 +12552,7 @@ ${task}`,
 ${source.detail}`).join("\n\n");
   const outlineResult = await stage(
     "outline",
-    () => run(
-      "delivery-outline",
-      `You are the final-delivery Synthesizer. Design the actual document needed to answer the ORIGINAL user goal with all supplied conditions and outcome preferences. Previous research informs the outline; do not merely concatenate reports or reuse their headings. Return the outline in aim.sections: each section has heading, purpose (what the reader can do or understand after it), searchTask (specific web search needed, or empty if already supported), evidenceIds and dependencies (supplied source IDs). Choose a suitable structure, not a fixed template. Include concrete examples, resources, execution details or comparisons when required by this user. Map each section to the minimal supplied evidenceIds it needs. Dependencies also name supplied source IDs. Leave searchTask empty when mapped supplied reports already support the section; do not request a full search merely to repeat them. Identify exact source gaps for the deliverable. Do not ask the user or deliver the document yet.
-Supplied evidence IDs and reports:
-${sourceCatalog}`
-    ),
+    () => run("delivery-outline", renderOutlineTask(sourceCatalog)),
     (result2) => {
       parseDeliveryOutline(result2.detail);
     }
@@ -12498,7 +12579,7 @@ ${sourceCatalog}`
     "research",
     async () => needsResearch ? await run(
       "delivery-research",
-      `You are the Researcher for the FINAL DOCUMENT. Search the web to fill and verify the sections of this agreed outline: ${outline}. Prioritize the explicit searchTasks and the concrete resources, examples, steps, or current facts required to deliver this user's requested result. Reuse supported prior findings; do not search irrelevant topics. Return a section-by-section evidence report. Use a Markdown H2 heading exactly matching each agreed section heading with a nonempty searchTask; place only that section's findings under it. Include explicit source IDs (delivery-research:<section-heading>:<number>) and direct source URLs, what each source supports, usable concrete details and unresolved gaps. Actually use available search tools; never claim a search occurred if it did not. Set aim.status to searched only when search actually ran. If tools fail or are unavailable, set aim.status to unavailable rather than replacing research with memory. Do not write the final document or ask questions.`,
+      renderResearchTask(outline),
       true
     ) : {
       summary: "Existing evidence",
@@ -12596,14 +12677,14 @@ ${research.detail}`;
       if (completed[plan.key]) continue;
       const written = await run(
         "delivery-writing",
-        `Write only the complete section "${plan.section.heading}" of the final document. Purpose: ${plan.section.purpose}. Full outline (structure only): ${outline}.
-Known goal and user conditions:
-${(_h = options.knownConditions) != null ? _h : base.detail}
-Section evidence (cite these explicit source IDs and URLs where used):
-${plan.scopedEvidence}
-${plan.section.searchTask.trim() ? `Additional final-document research:
-${plan.scopedResearch}` : ""}
-Develop this section into useful specific content answering the original user goal. Include steps, examples and resources when required. Preserve all necessary detail; summary is only a canvas preview. Do not write other sections, an audit, or a synopsis. Do not fabricate or imply independent source verification. Output reader-facing Markdown in detail; cite sources where used and place limitations beside affected claims.`
+        renderWritingTask({
+          heading: plan.section.heading,
+          purpose: plan.section.purpose,
+          outline,
+          knownConditions: (_h = options.knownConditions) != null ? _h : base.detail,
+          scopedEvidence: plan.scopedEvidence,
+          ...plan.section.searchTask.trim() ? { scopedResearch: plan.scopedResearch } : {}
+        })
       );
       (_i = base.signal) == null ? void 0 : _i.throwIfAborted();
       completed[plan.key] = {
@@ -12645,14 +12726,7 @@ ${written.detail}`
     "acceptance",
     () => run(
       "delivery-acceptance",
-      `Perform the final join review: check cross-section coherence, repeated advice or duplicate passages, source IDs or URLs attributed to the wrong claims, and missing sections. Do not rewrite sections. Review the full draft against the ORIGINAL goal, supplied conditions, requested format, and agreed outline. Outline: ${outline}
-Final research:
-${research.detail}
-Supplied source reports:
-${sourceCatalog}
-Draft:
-${draft.detail}
-Return the decision in the aim fields. Choose conclude ONLY if the document is usable and complete for this request: every required section is developed, necessary examples/resources/steps are concrete and supported, and sources are linked where used. Mere general direction is insufficient for a requested actionable plan. For conclude, put only a short acceptance note in detail; do not rewrite or repeat the draft. Explain readiness in aim.rationale and aim.stopReason. For shortcomings, list the specific missing outcomes and return research_more. If important delivery evidence remains missing, choose research_more with exactly one concrete aim.researchTarget (title, task, expectedValue) and explain the missing outcome. Do not ask the user and do not invent evidence.`
+      renderAcceptanceTask({ outline, research: research.detail, sourceCatalog, draft: draft.detail })
     ),
     (result2) => {
       parseAcceptance(result2);
@@ -12776,8 +12850,8 @@ function buildPreparedTaskContext(input, model, budget = 32e3, provider = "codex
 // ai/aim-contracts.ts
 var AIM_NO_QUESTION = "__AIM_NO_QUESTION__";
 var QUESTION_SCOPE = "Ask about the user's goal, preferences, constraints or situation, never about this tool's workflow, counts, nodes or branches.";
-var text5 = { type: "string" };
-var texts = { type: "array", items: text5 };
+var text6 = { type: "string" };
+var texts = { type: "array", items: text6 };
 var nullable = (schema) => ({ anyOf: [schema, { type: "null" }] });
 var object = (properties) => ({
   type: "object",
@@ -12798,7 +12872,7 @@ function payloadSchema(contract) {
       return object({
         decision: { type: "string", enum: contract.requireQuestion ? ["ask_user"] : ["ask_user", "no_question"] },
         question: {
-          ...text5,
+          ...text6,
           description: `The one direct question for the user, written as a question. ${QUESTION_SCOPE} Empty only for no_question.`
         },
         answerOptions: {
@@ -12812,27 +12886,27 @@ function payloadSchema(contract) {
           type: "array",
           description: "0\u20135 distinct evidence tasks.",
           items: object({
-            id: text5,
-            title: text5,
-            task: text5,
-            expectedValue: text5,
+            id: text6,
+            title: text6,
+            task: text6,
+            expectedValue: text6,
             action: { type: "string", enum: ["research", "update", "reuse"] },
             dependsOn: { ...texts, description: "Ids of prerequisite targets in this plan; empty when independent." },
-            rationale: text5,
+            rationale: text6,
             source: {
               ...nullable(
                 object({
-                  branchId: text5,
-                  resultId: text5,
-                  notePath: text5,
+                  branchId: text6,
+                  resultId: text6,
+                  notePath: text6,
                   version: { type: "integer" },
-                  contentHash: text5
+                  contentHash: text6
                 })
               ),
               description: "For reuse/update: the exact source copied from the supplied ancestor report. Null for research."
             },
             validity: {
-              ...nullable(object({ conditionKeys: texts, reason: text5 })),
+              ...nullable(object({ conditionKeys: texts, reason: text6 })),
               description: "For reuse/update: which supplied condition keys the source depends on and why it still applies. Null for research."
             }
           })
@@ -12841,9 +12915,9 @@ function payloadSchema(contract) {
     case "reuse":
       return object({
         usable: { type: "boolean" },
-        rationale: text5,
+        rationale: text6,
         conditionKeys: texts,
-        validity: { ...text5, description: "Freshness and applicability assessment." }
+        validity: { ...text6, description: "Freshness and applicability assessment." }
       });
     case "review":
       return object({
@@ -12852,19 +12926,19 @@ function payloadSchema(contract) {
           description: "true when the supplied reports already answer the original goal under the known conditions; false when a material evidence gap in the goal itself remains."
         },
         decision: { type: "string", enum: [...contract.decisions] },
-        rationale: { ...text5, description: "Evidence-based reason for the decision." },
-        stopReason: { ...text5, description: "For conclude: why research can stop. Otherwise empty." },
+        rationale: { ...text6, description: "Evidence-based reason for the decision." },
+        stopReason: { ...text6, description: "For conclude: why research can stop. Otherwise empty." },
         question: {
-          ...text5,
+          ...text6,
           description: `For ask_user: the one direct question for the user, written as a question. ${QUESTION_SCOPE} Otherwise empty.`
         },
         answerOptions: { ...texts, description: "For ask_user: 2\u20135 distinct answer choices. Otherwise empty." },
         researchTarget: {
           ...nullable(
             object({
-              title: text5,
-              task: { ...text5, description: "Search instruction." },
-              expectedValue: { ...text5, description: "Uncertainty the search should reduce." }
+              title: text6,
+              task: { ...text6, description: "Search instruction." },
+              expectedValue: { ...text6, description: "Uncertainty the search should reduce." }
             })
           ),
           description: "For research_more: the one targeted evidence gap. Otherwise null."
@@ -12875,10 +12949,10 @@ function payloadSchema(contract) {
         sections: {
           type: "array",
           items: object({
-            heading: text5,
-            purpose: text5,
+            heading: text6,
+            purpose: text6,
             searchTask: {
-              ...text5,
+              ...text6,
               description: "Specific web search needed for this section, or empty if already supported."
             },
             evidenceIds: {
@@ -13029,8 +13103,52 @@ function foldAimContract(contract, aim, result) {
   return foldPayload(contract, payload, result);
 }
 
+// experiences/aim/steps/format-repair/task.state-question.md
+var task_state_question_default = "Complete the format of this already-required ask_user Planner response. The workflow has imposed decision=ask_user; you have no authority to reconsider the decision or research evidence.\n\nThe response below asks for a clarification but never writes the question itself. State the one clarification question you intended, phrased as a direct question, in aim.question, and return 2\u20135 distinct answer choices in aim.answerOptions. Do not change the summary or answer body, add facts, search, or reinterpret evidence.\n\nRequired decision: {{requiredDecision}}\n\nRequired rationale: {{requiredRationale}}\n\nOriginal summary (preserve): {{originalSummary}}\n\nOriginal response body (preserve; not research evidence):\n{{preservedBody}}\n\nOriginal suggestions: {{originalSuggestions}}\n\nFormat validation error: {{formatError}}\n\nReturn decision ask_user with the required rationale in aim.rationale and the clarification question you intended in aim.question.\n";
+
+// experiences/aim/steps/format-repair/task.imposed-options.md
+var task_imposed_options_default = "Complete the format of this already-required ask_user Planner response. The workflow has imposed decision=ask_user; you have no authority to reconsider the decision or research evidence.\n\nPreserve the exact original question below. Return 2\u20135 distinct answer choices in aim.answerOptions. Do not change the summary or answer body, infer a new question, add facts, search, or reinterpret evidence. Repeat the original question exactly in aim.question.\n\nRequired decision: {{requiredDecision}}\n\nRequired rationale: {{requiredRationale}}\n\nExact original question to preserve: {{question}}\n\nOriginal summary (preserve): {{originalSummary}}\n\nOriginal response body (preserve; not research evidence):\n{{preservedBody}}\n\nOriginal suggestions: {{originalSuggestions}}\n\nFormat validation error: {{formatError}}\n\nReturn decision ask_user with the required rationale in aim.rationale and the exact original question in aim.question.\n";
+
+// experiences/aim/steps/format-repair/task.missing-choices.md
+var task_missing_choices_default = "Repair only the missing answer choices in this already valid ask_user Planner decision.\n\nKeep decision=ask_user. Do not change the question, rationale, summary, answer body, or any evidence. Return decision ask_user with the original question in aim.question and 2\u20135 distinct choices in aim.answerOptions. Do not infer choices from prose or add facts.\n\nOriginal question: {{originalQuestion}}\n\nOriginal rationale: {{originalRationale}}\n\nOriginal summary: {{originalSummary}}\n\nOriginal answer body (preserve exactly):\n{{originalBody}}\n\nFormat validation error: {{formatError}}\n\nOriginal suggestions: {{originalSuggestions}}\n";
+
+// experiences/aim/steps/format-repair/task.general.md
+var task_general_default = "The preceding Planner response did not satisfy the required machine-readable decision contract.\n\n{{variant}}\n\nDo not search, repeat research, add evidence, or invent facts. Do not default to any decision merely to repair the format.\n\nReturn a useful conditional answer in summary/detail and the decision in the aim fields with an evidence-based aim.rationale.\n\nFor research_more, provide exactly one aim.researchTarget with title, search task, and expected uncertainty reduction. For ask_user, provide one direct aim.question and 2\u20135 distinct choices in aim.answerOptions. For conclude, include aim.stopReason. Preserve supplied values and provenance; never answer for the user or ask whether synthetic test data is real. Keep source claims, inference, uncertainty, and limits distinct.\n\nFormat validation error: {{formatError}}\n\n{{context}}Original Planner response to review:\nSummary: {{originalSummary}}\n\nDetail:\n{{originalDetail}}\n\nSuggestions: {{originalSuggestions}}\n";
+
+// experiences/aim/steps/format-repair/variant.answered-without-target.md
+var variant_answered_without_target_default = "The original response chose research_more but named no research target and marked the goal as already answered, so it identified no evidence gap to search. Make the decision again from the same saved report and answer snapshot below; research_more is not available. Do not search, repeat research, add evidence, or invent facts.\n";
+
+// experiences/aim/steps/format-repair/variant.preserve-decision.md
+var variant_preserve_decision_default = "Repair only the malformed fields in the original {{decision}} decision. Preserve that decision and every valid original field; do not switch to another decision.\n";
+
+// experiences/aim/steps/format-repair/variant.no-decision.md
+var variant_no_decision_default = "Make one local format-repair review using only the same saved report and answer snapshot below. Do not search, repeat research, add evidence, or invent facts. The original decision marker is unusable, so determine a decision from the supplied evidence; do not claim the original decision is known.\n";
+
+// experiences/aim/steps/format-repair/context.md
+var context_default = "Original question: {{question}}\n\nAnswer snapshot (including provenance): {{answerSnapshot}}\n\nAlready completed report summary:\n{{reportSummary}}\n\nAlready completed report detail:\n{{reportDetail}}\n";
+
+// experiences/aim/steps/format-repair/step.ts
+var renderStateQuestionRepair = (variables4) => renderTemplate(task_state_question_default, { ...variables4 });
+var renderImposedOptionsRepair = (variables4) => renderTemplate(task_imposed_options_default, { ...variables4 });
+var renderMissingChoicesRepair = (variables4) => renderTemplate(task_missing_choices_default, { ...variables4 });
+function renderGeneralRepair(repair) {
+  const variant = repair.variant.kind === "answered-without-target" ? renderTemplate(variant_answered_without_target_default, {}) : repair.variant.kind === "preserve-decision" ? renderTemplate(variant_preserve_decision_default, { decision: repair.variant.decision }) : renderTemplate(variant_no_decision_default, {});
+  return renderTemplate(task_general_default, {
+    variant,
+    formatError: repair.formatError,
+    context: repair.context ? `${renderTemplate(context_default, { ...repair.context })}
+
+` : "",
+    originalSummary: repair.originalSummary,
+    originalDetail: repair.originalDetail,
+    originalSuggestions: repair.originalSuggestions
+  });
+}
+
 // experiences/aim/planner-review.ts
 var AIM_MAX_RESEARCH_TURNS = 2;
+var CLARIFICATION_REQUIRED_RATIONALE = "The workflow requires a clarification question at this step.";
+var errorText = (error) => error instanceof Error ? error.message : String(error);
 var marker3 = /^\s*<!--\s*aim-review\s+(\{[^\n]*\})\s*-->\s*/;
 function readMarker(detail) {
   const match = detail.match(marker3);
@@ -13139,8 +13257,8 @@ function extractPlannerQuestionCandidate(result) {
   const bodyQuestion = lines.map((line) => line.replace(/^(?:[-*•]|\d+[.)、])\s+/, "")).find((candidate) => candidate && candidate.length <= 500 && /[?？]\s*$/.test(candidate));
   if (bodyQuestion) return bodyQuestion;
   const candidates = [result.summary];
-  for (const text9 of candidates)
-    for (const line of text9.split(/\r?\n/)) {
+  for (const text10 of candidates)
+    for (const line of text10.split(/\r?\n/)) {
       const candidate = line.trim().replace(/^(?:[-*•]|\d+[.)、])\s+/, "");
       if (candidate && candidate.length <= 500 && /[?？]\s*$/.test(candidate)) return candidate;
     }
@@ -13172,18 +13290,14 @@ async function parseAimPlannerReviewWithRecovery(original, context, recover) {
       const preservedBody = (_c = originalMarker == null ? void 0 : originalMarker.body) != null ? _c : original.detail.replace(/^\s*<!--\s*aim-review\s+[^\n]*?-->\s*/, "").trim();
       let stated;
       if (!question) {
-        const task2 = [
-          "Complete the format of this already-required ask_user Planner response. The workflow has imposed decision=ask_user; you have no authority to reconsider the decision or research evidence.",
-          "The response below asks for a clarification but never writes the question itself. State the one clarification question you intended, phrased as a direct question, in aim.question, and return 2\u20135 distinct answer choices in aim.answerOptions. Do not change the summary or answer body, add facts, search, or reinterpret evidence.",
-          `Required decision: ${context.requiredDecision}`,
-          `Required rationale: ${(_d = context.requiredDecisionRationale) != null ? _d : "The workflow requires a clarification question at this step."}`,
-          `Original summary (preserve): ${originalSummary}`,
-          `Original response body (preserve; not research evidence):
-${preservedBody}`,
-          `Original suggestions: ${JSON.stringify(original.suggestions)}`,
-          `Format validation error: ${formatError instanceof Error ? formatError.message : String(formatError)}`,
-          "Return decision ask_user with the required rationale in aim.rationale and the clarification question you intended in aim.question."
-        ].join("\n\n");
+        const task2 = renderStateQuestionRepair({
+          requiredDecision: context.requiredDecision,
+          requiredRationale: (_d = context.requiredDecisionRationale) != null ? _d : CLARIFICATION_REQUIRED_RATIONALE,
+          originalSummary,
+          preservedBody,
+          originalSuggestions: JSON.stringify(original.suggestions),
+          formatError: errorText(formatError)
+        });
         stated = await recover(task2);
         const statedMarker = readMarker(stated.detail);
         question = (statedMarker == null ? void 0 : statedMarker.raw.decision) === "ask_user" && typeof statedMarker.raw.question === "string" ? statedMarker.raw.question.trim() : "";
@@ -13196,19 +13310,15 @@ ${preservedBody}`,
       const explicitOptions = extractExplicitOptions(preservedBody, question);
       let answerOptions = existingOptions.length >= 2 && existingOptions.length <= 5 ? existingOptions : explicitOptions;
       if (answerOptions.length < 2 || answerOptions.length > 5) {
-        const task2 = [
-          "Complete the format of this already-required ask_user Planner response. The workflow has imposed decision=ask_user; you have no authority to reconsider the decision or research evidence.",
-          "Preserve the exact original question below. Return 2\u20135 distinct answer choices in aim.answerOptions. Do not change the summary or answer body, infer a new question, add facts, search, or reinterpret evidence. Repeat the original question exactly in aim.question.",
-          `Required decision: ${context.requiredDecision}`,
-          `Required rationale: ${(_f = context.requiredDecisionRationale) != null ? _f : "The workflow requires a clarification question at this step."}`,
-          `Exact original question to preserve: ${question}`,
-          `Original summary (preserve): ${originalSummary}`,
-          `Original response body (preserve; not research evidence):
-${preservedBody}`,
-          `Original suggestions: ${JSON.stringify(original.suggestions)}`,
-          `Format validation error: ${formatError instanceof Error ? formatError.message : String(formatError)}`,
-          "Return decision ask_user with the required rationale in aim.rationale and the exact original question in aim.question."
-        ].join("\n\n");
+        const task2 = renderImposedOptionsRepair({
+          requiredDecision: context.requiredDecision,
+          requiredRationale: (_f = context.requiredDecisionRationale) != null ? _f : CLARIFICATION_REQUIRED_RATIONALE,
+          question,
+          originalSummary,
+          preservedBody,
+          originalSuggestions: JSON.stringify(original.suggestions),
+          formatError: errorText(formatError)
+        });
         const repaired2 = await recover(task2);
         const repairedMarker = readMarker(repaired2.detail);
         if (!repairedMarker || repairedMarker.raw.decision !== "ask_user") {
@@ -13241,17 +13351,14 @@ ${preservedBody}`,
         };
         return parseAimPlannerReview(recovered);
       }
-      const task2 = [
-        "Repair only the missing answer choices in this already valid ask_user Planner decision.",
-        "Keep decision=ask_user. Do not change the question, rationale, summary, answer body, or any evidence. Return decision ask_user with the original question in aim.question and 2\u20135 distinct choices in aim.answerOptions. Do not infer choices from prose or add facts.",
-        `Original question: ${originalQuestion}`,
-        `Original rationale: ${originalRationale}`,
-        `Original summary: ${originalSummary}`,
-        `Original answer body (preserve exactly):
-${originalBody}`,
-        `Format validation error: ${formatError instanceof Error ? formatError.message : String(formatError)}`,
-        `Original suggestions: ${JSON.stringify(original.suggestions)}`
-      ].join("\n\n");
+      const task2 = renderMissingChoicesRepair({
+        originalQuestion,
+        originalRationale,
+        originalSummary,
+        originalBody,
+        formatError: errorText(formatError),
+        originalSuggestions: JSON.stringify(original.suggestions)
+      });
       const repaired2 = await recover(task2);
       const repairedMarker = readMarker(repaired2.detail);
       if (!repairedMarker || repairedMarker.raw.decision !== "ask_user") {
@@ -13269,29 +13376,21 @@ ${originalBody}`,
     }
     const answeredWithoutTarget = originalDecision === "research_more" && (originalMarker == null ? void 0 : originalMarker.raw.goalAnswered) === true && !original.suggestions.some((item) => item.title.trim() && item.task.trim() && item.contribution.trim());
     const preserveDecision = !answeredWithoutTarget && isDecision(originalDecision) ? originalDecision : void 0;
-    const task = [
-      "The preceding Planner response did not satisfy the required machine-readable decision contract.",
-      answeredWithoutTarget ? "The original response chose research_more but named no research target and marked the goal as already answered, so it identified no evidence gap to search. Make the decision again from the same saved report and answer snapshot below; research_more is not available. Do not search, repeat research, add evidence, or invent facts." : preserveDecision ? `Repair only the malformed fields in the original ${preserveDecision} decision. Preserve that decision and every valid original field; do not switch to another decision.` : "Make one local format-repair review using only the same saved report and answer snapshot below. Do not search, repeat research, add evidence, or invent facts. The original decision marker is unusable, so determine a decision from the supplied evidence; do not claim the original decision is known.",
-      "Do not search, repeat research, add evidence, or invent facts. Do not default to any decision merely to repair the format.",
-      "Return a useful conditional answer in summary/detail and the decision in the aim fields with an evidence-based aim.rationale.",
-      "For research_more, provide exactly one aim.researchTarget with title, search task, and expected uncertainty reduction. For ask_user, provide one direct aim.question and 2\u20135 distinct choices in aim.answerOptions. For conclude, include aim.stopReason. Preserve supplied values and provenance; never answer for the user or ask whether synthetic test data is real. Keep source claims, inference, uncertainty, and limits distinct.",
-      `Format validation error: ${formatError instanceof Error ? formatError.message : String(formatError)}`,
-      ...preserveDecision ? [] : [
-        `Original question: ${context.question}`,
-        `Answer snapshot (including provenance): ${context.answerSnapshot}`,
-        `Already completed report summary:
-${context.reportSummary}`,
-        `Already completed report detail:
-${context.reportDetail}`
-      ],
-      `Original Planner response to review:
-Summary: ${original.summary}
-
-Detail:
-${original.detail}
-
-Suggestions: ${JSON.stringify(original.suggestions)}`
-    ].join("\n\n");
+    const task = renderGeneralRepair({
+      variant: answeredWithoutTarget ? { kind: "answered-without-target" } : preserveDecision ? { kind: "preserve-decision", decision: preserveDecision } : { kind: "no-decision" },
+      formatError: errorText(formatError),
+      ...preserveDecision ? {} : {
+        context: {
+          question: context.question,
+          answerSnapshot: context.answerSnapshot,
+          reportSummary: context.reportSummary,
+          reportDetail: context.reportDetail
+        }
+      },
+      originalSummary: original.summary,
+      originalDetail: original.detail,
+      originalSuggestions: JSON.stringify(original.suggestions)
+    });
     const repaired = await recover(task, answeredWithoutTarget ? { excludeDecisions: ["research_more"] } : void 0);
     const parsed = parseAimPlannerReview(repaired);
     if (answeredWithoutTarget && parsed.decision === "research_more")
@@ -13473,10 +13572,6 @@ async function scheduleAimResearch(plan, execute, signal) {
 // experiences/aim/manual-flow-support.ts
 var AIM_UNKNOWN_OPTION_ID = "__aim_unknown__";
 var MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION = 3;
-var PLANNER_COVERAGE_RULE = "Before deciding, compare the original topic and current question with the requested outcome and every persisted report. Name the central outcome(s) the user needs, then mark each answered or still open. A relevant side fact does not answer a missing core outcome. If a core outcome is open and one targeted search could plausibly help, choose research_more for that exact gap. Ask_user only for missing user conditions, not missing evidence. If a core outcome remains open at the research-turn limit, keep research_more so the result is saved as partial, not complete.";
-var SEARCHER_TARGET_RULE = "Answer the assigned research target first. Treat prior reports and side facts as context, not as a substitute for the target. Do not repeat resolved background facts in place of the requested outcome. If the search does not support the target, say explicitly that the target remains unresolved; do not imply it was answered.";
-var USER_QUESTION_RULE = "A question to the user must be about the original goal, the user's preferences, constraints, resources or situation. Never ask about this tool's workflow, question counts, nodes, branches or research process, and never rephrase an earlier question as a new one.";
-var FLOOR_ASK_RULE = "Below the floor, choose research_more only for a material evidence gap in the original goal itself; if the reports already answer the goal, choose ask_user. Never pick research_more to satisfy the floor.";
 var ALL_DECISIONS = ["research_more", "ask_user", "conclude"];
 var reviewContract = (decisions) => ({
   kind: "review",
@@ -13496,7 +13591,6 @@ function countAimAnsweredQuestions(map, branchId) {
   }
   return count;
 }
-var OUTCOME_EXPECTATION_RULE = "Use the original goal, known user conditions and outcome preferences. Resolve important contradictions before concluding. Preserve evidence attribution and uncertainty. Do only the current phase; a research report is not the final deliverable.";
 function lineageWithoutRepeatedReports(lineage, reportDetail) {
   return lineage.split(/\n\n(?=(?:User answer to |Saved research result v))/g).filter((section2) => {
     var _a, _b;
@@ -17941,13 +18035,13 @@ var DebugLogModal = class extends import_obsidian12.Modal {
     actions.addButton((button) => button.setButtonText(t("ui.refresh_logs")).onClick(() => this.renderLogs()));
     actions.addButton(
       (button) => button.setButtonText(t("ui.copy_logs")).setCta().onClick(async () => {
-        const text9 = formatDebugLogs(this.logs.getLogs());
-        if (!text9) {
+        const text10 = formatDebugLogs(this.logs.getLogs());
+        if (!text10) {
           new import_obsidian12.Notice(t("ui.there_are_no_debug_logs_yet"));
           return;
         }
         try {
-          await navigator.clipboard.writeText(text9);
+          await navigator.clipboard.writeText(text10);
           new import_obsidian12.Notice(t("ui.debug_log_copied"));
         } catch (e) {
           new import_obsidian12.Notice(t("ui.unable_to_copy_the_debug_log"));
@@ -20247,8 +20341,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       this.render();
     } else this.changed(file);
   }
-  button(parent, text9, action, disabled = false) {
-    const button = parent.createEl("button", { text: text9 });
+  button(parent, text10, action, disabled = false) {
+    const button = parent.createEl("button", { text: text10 });
     button.disabled = disabled;
     button.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -23938,7 +24032,7 @@ var VisualAgentMapSettingTab = class extends import_obsidian15.PluginSettingTab 
     selector == null ? void 0 : selector.focus();
   }
   getSettingDefinitions() {
-    const text9 = (name, key2, desc) => ({
+    const text10 = (name, key2, desc) => ({
       name,
       desc,
       control: { type: "text", key: key2 }
@@ -23957,8 +24051,8 @@ var VisualAgentMapSettingTab = class extends import_obsidian15.PluginSettingTab 
           });
         }
       },
-      text9(t("ui.codex_cli_path"), "codexPath", t("ui.vam_uses_this_executable_to_start_codex_app_server")),
-      text9(t("ui.claude_cli_path"), "claudePath", t("ui.vam_uses_the_claude_code_cli_installed_on_this_computer")),
+      text10(t("ui.codex_cli_path"), "codexPath", t("ui.vam_uses_this_executable_to_start_codex_app_server")),
+      text10(t("ui.claude_cli_path"), "claudePath", t("ui.vam_uses_the_claude_code_cli_installed_on_this_computer")),
       {
         name: t("ui.workspace_default_model"),
         desc: t("ui.models_are_loaded_from_each_installed_ai_service_changes_apply_only_to_new_root_topics"),
@@ -24662,10 +24756,10 @@ var CodexAppServerRuntime = class {
       state.turnId = typeof ((_h = startedTurn.turn) == null ? void 0 : _h.id) === "string" ? startedTurn.turn.id : "";
       if (!state.turnId) throw new Error("Codex App Server accepted no turn id.");
       if (!timedOut && !((_i = controls == null ? void 0 : controls.signal) == null ? void 0 : _i.aborted) && this.turns.get(threadId) === state) (_j = controls == null ? void 0 : controls.onAccepted) == null ? void 0 : _j.call(controls);
-      (_k = controls == null ? void 0 : controls.onSteer) == null ? void 0 : _k.call(controls, async (text9) => {
+      (_k = controls == null ? void 0 : controls.onSteer) == null ? void 0 : _k.call(controls, async (text10) => {
         var _a2, _b2;
         if (((_a2 = controls.signal) == null ? void 0 : _a2.aborted) || this.turns.get(threadId) !== state || !state.turnId) throw cancelledError();
-        const steerRequest = { threadId, expectedTurnId: state.turnId, input: [{ type: "text", text: text9 }] };
+        const steerRequest = { threadId, expectedTurnId: state.turnId, input: [{ type: "text", text: text10 }] };
         (_b2 = controls == null ? void 0 : controls.onRequest) == null ? void 0 : _b2.call(controls, steerRequest);
         await this.request("turn/steer", steerRequest);
       });
@@ -25228,10 +25322,10 @@ var ClaudeCodeCliRuntime = class {
       });
       try {
         if (controls.onSteer) {
-          const sendInput = (text9, accepted2) => {
+          const sendInput = (text10, accepted2) => {
             if (!inputOpen || settled) throw new Error("This Coffee Tables response has already ended.");
             child.stdin.write(
-              `${JSON.stringify({ type: "user", message: { role: "user", content: [{ type: "text", text: text9 }] } })}
+              `${JSON.stringify({ type: "user", message: { role: "user", content: [{ type: "text", text: text10 }] } })}
 `,
               (error) => {
                 var _a3;
@@ -25245,8 +25339,8 @@ var ClaudeCodeCliRuntime = class {
             );
           };
           sendInput(prompt, markAccepted);
-          controls.onSteer(async (text9) => {
-            sendInput(text9);
+          controls.onSteer(async (text10) => {
+            sendInput(text10);
           });
         } else if (controls.onAccepted) {
           child.stdin.end(prompt, (error) => {
@@ -25462,9 +25556,9 @@ var reduce_zh_default = "\u6574\u5408\u6240\u63D0\u4F9B\u7684\u8B49\u64DA\u6458\
 var reduce_en_default = "Combine the supplied extracted evidence without dropping materially different facts, disagreements, caveats, source identifiers, or source mappings. Keep every original [S#] citation attached to its supported claims and preserve every exact [S#]-to-path mapping; never replace an identifier or alter a path.\n";
 
 // core/steps/reference/step.ts
-var text6 = (template) => renderTemplate(template, {});
-var EXTRACT = { zh: text6(extract_zh_default), en: text6(extract_en_default) };
-var REDUCE = { zh: text6(reduce_zh_default), en: text6(reduce_en_default) };
+var text7 = (template) => renderTemplate(template, {});
+var EXTRACT = { zh: text7(extract_zh_default), en: text7(extract_en_default) };
+var REDUCE = { zh: text7(reduce_zh_default), en: text7(reduce_en_default) };
 function referenceTask(round, language2) {
   return inLanguage(round === "extract" ? EXTRACT : REDUCE, language2);
 }
@@ -25663,8 +25757,8 @@ var visual_preserve_zh_default = "\u6574\u5408\u6642\u82E5\u63D0\u4F9B\u7684\u4F
 var visual_preserve_en_default = "When reusing one, preserve its original image and source URLs.\n";
 
 // core/steps/task/fragments.ts
-var text7 = (template) => renderTemplate(template, {});
-var pair4 = (zh, en) => ({ zh: text7(zh), en: text7(en) });
+var text8 = (template) => renderTemplate(template, {});
+var pair4 = (zh, en) => ({ zh: text8(zh), en: text8(en) });
 var ADAPTIVE_DETAIL_STRUCTURE = pair4(adaptive_detail_structure_zh_default, adaptive_detail_structure_en_default);
 var DECOMPOSE = pair4(decompose_zh_default, decompose_en_default);
 var DEFAULT_TASK = pair4(default_task_zh_default, default_task_en_default);
@@ -26321,7 +26415,7 @@ function coffeeCommittedKey(session) {
 function insightText(item) {
   return [item.summary, item.detail, item.question, item.proposedSolution, item.limitations].filter(Boolean).join("\n\n");
 }
-var normalize2 = (text9) => text9.normalize("NFKC").replace(/[*_`]/g, "").replace(/\s+/g, " ").trim();
+var normalize2 = (text10) => text10.normalize("NFKC").replace(/[*_`]/g, "").replace(/\s+/g, " ").trim();
 function buildCoffeeSource(session, insightId) {
   var _a, _b, _c, _d, _e, _f;
   const insights = baselineFromVersions((_a = session.observerNotes) != null ? _a : [], session.language);
@@ -26338,8 +26432,8 @@ ${item.answer}`);
   for (const source of (_c = selected == null ? void 0 : selected.sources) != null ? _c : []) {
     const needle = normalize2(source);
     let count = 0;
-    for (const text9 of committed) {
-      const haystack = normalize2(text9);
+    for (const text10 of committed) {
+      const haystack = normalize2(text10);
       let at = 0;
       while (needle && (at = haystack.indexOf(needle, at)) >= 0) {
         count++;
@@ -26759,7 +26853,7 @@ var diagram_default = "Return ONLY one fenced mermaid diagram. Do not include HT
 var image_default = "The attached image is source data. Apply the request to visible content; state unreadable content instead of inventing it.\n";
 
 // experiences/markdown-context/steps/transform/step.ts
-var text8 = (fragment) => renderTemplate(fragment, {});
+var text9 = (fragment) => renderTemplate(fragment, {});
 var transformStep = {
   id: "markdown.transform",
   version: 1,
@@ -26767,9 +26861,9 @@ var transformStep = {
     instruction: JSON.stringify(instruction),
     selected: JSON.stringify(selected),
     context: JSON.stringify(context),
-    research: action === "research" ? text8(research_default) : "",
-    diagram: action === "diagram" ? text8(diagram_default) : "",
-    image: hasImage ? text8(image_default) : ""
+    research: action === "research" ? text9(research_default) : "",
+    diagram: action === "diagram" ? text9(diagram_default) : "",
+    image: hasImage ? text9(image_default) : ""
   }),
   parse: (raw) => raw
 };
@@ -26939,24 +27033,24 @@ var MarkdownSelectionAi = class extends import_obsidian19.Component {
       this.hideLauncher();
       return;
     }
-    const text9 = (view.getMode() === "source" ? view.editor.getSelection() : (_b = selection == null ? void 0 : selection.toString()) != null ? _b : "").trim();
+    const text10 = (view.getMode() === "source" ? view.editor.getSelection() : (_b = selection == null ? void 0 : selection.toString()) != null ? _b : "").trim();
     const rects = range == null ? void 0 : range.getClientRects();
     const editorSelection = view.containerEl.querySelector(".cm-selectionBackground");
     const rangeRect = (rects == null ? void 0 : rects.length) ? rects[rects.length - 1] : range == null ? void 0 : range.getBoundingClientRect();
     const rect = rangeRect && (rangeRect.width || rangeRect.height) ? rangeRect : editorSelection == null ? void 0 : editorSelection.getBoundingClientRect();
-    if (!text9 || !rect || !rect.width && !rect.height) {
+    if (!text10 || !rect || !rect.width && !rect.height) {
       this.hideLauncher();
       return;
     }
     const markdown = view.editor.getValue();
-    let matchAt = findUnique(markdown, text9);
+    let matchAt = findUnique(markdown, text10);
     if (view.getMode() === "source") {
       const from = view.editor.posToOffset(view.editor.getCursor("from"));
       const selected = view.editor.getSelection();
-      const start = from + selected.indexOf(text9);
-      if (markdown.slice(start, start + text9.length) === text9) matchAt = start;
+      const start = from + selected.indexOf(text10);
+      if (markdown.slice(start, start + text10.length) === text10) matchAt = start;
     }
-    this.snapshot = { view, path: view.file.path, text: text9, markdown, matchAt, rect };
+    this.snapshot = { view, path: view.file.path, text: text10, markdown, matchAt, rect };
     const launcher = this.launcher;
     if (!launcher) return;
     launcher.hidden = false;
@@ -27362,7 +27456,7 @@ ${caption.trim()}`;
   }
   applyResult(result, action, status) {
     var _a;
-    const { view, path, markdown, text: text9, matchAt } = this.snapshot;
+    const { view, path, markdown, text: text10, matchAt } = this.snapshot;
     const viewStillOpen = this.app.workspace.getLeavesOfType("markdown").some((leaf) => leaf.view === view);
     if (!viewStillOpen || ((_a = view.file) == null ? void 0 : _a.path) !== path || view.editor.getValue() !== markdown) {
       status.setText(t("ui.context_ai_note_changed"));
@@ -27375,17 +27469,17 @@ ${caption.trim()}`;
       return;
     }
     if (action === "replace") {
-      if (!text9 || matchAt < 0 || editor.getValue().slice(matchAt, matchAt + text9.length) !== text9) {
+      if (!text10 || matchAt < 0 || editor.getValue().slice(matchAt, matchAt + text10.length) !== text10) {
         status.setText(t("ui.context_ai_replace_unavailable"));
         return;
       }
-      editor.replaceRange(value, positionAt(markdown, matchAt), positionAt(markdown, matchAt + text9.length));
+      editor.replaceRange(value, positionAt(markdown, matchAt), positionAt(markdown, matchAt + text10.length));
     } else if (action === "after") {
       if (matchAt < 0) {
         status.setText(t("ui.context_ai_replace_unavailable"));
         return;
       }
-      const end = text9 ? markdown.indexOf("\n", matchAt + text9.length) : matchAt;
+      const end = text10 ? markdown.indexOf("\n", matchAt + text10.length) : matchAt;
       const offset = end < 0 ? markdown.length : end;
       editor.replaceRange(`
 
@@ -28286,9 +28380,9 @@ var VisualAgentMapPlugin = class extends import_obsidian20.Plugin {
         searchBudget: 0,
         timeoutMs: 15 * 60 * 1e3,
         timeoutMessage: t("ui.coffee_generation_timed_out"),
-        onText: (text9) => {
+        onText: (text10) => {
           var _a;
-          return (_a = request.onText) == null ? void 0 : _a.call(request, text9);
+          return (_a = request.onText) == null ? void 0 : _a.call(request, text10);
         },
         onSteer: (handler) => {
           var _a;
