@@ -1,6 +1,7 @@
 import type { WebSearchEvent } from "../types";
 import { spawn as nodeSpawn } from "node:child_process";
 import { t } from "../../i18n";
+import { searchBudgetExhaustedMessage } from "./messages";
 
 type ProcessEnvironment = Record<string, string | undefined>;
 interface NodeChunk {
@@ -535,7 +536,7 @@ export class CodexAppServerRuntime {
     const steerRequest = {
       threadId,
       expectedTurnId: state.turnId,
-      input: [{ type: "text", text: t("prompt.search_budget_exhausted") }]
+      input: [{ type: "text", text: searchBudgetExhaustedMessage() }]
     };
     state.onRequest?.(steerRequest);
     void this.request("turn/steer", steerRequest).catch(error =>
