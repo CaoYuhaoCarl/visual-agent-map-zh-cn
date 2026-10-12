@@ -1,16 +1,5 @@
 # Changelog
 
-## [0.15.1] - 2026-10-12
-
-### Fixed
-
-- AIM writes its research and notes in the language of your question, even when the VAM interface uses the other language. Notices, buttons and cards stay in the interface language. Maps created by earlier versions take the language from their title.
-- Editing a note while VAM rebuilds its references no longer loses the edit. Reference rebuilds are also faster on large vaults.
-
-### Changed
-
-- Source files follow one formatting style, checked in CI. The plugin behaves the same.
-
 ## [0.15.0] - 2026-10-12
 
 ### Added
