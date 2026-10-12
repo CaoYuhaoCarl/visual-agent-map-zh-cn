@@ -8,7 +8,7 @@
 
 **Start with a question. See the pieces. Follow the ideas worth exploring.** Build a visual research map, let AIM investigate a question, or talk through a new idea in Coffee Tables. Keep what you learn in editable Markdown notes.
 
-[**Get started**](#get-started) · [See the 0.14.1 release](https://github.com/kevcltsai/visual-agent-map/releases/tag/0.14.1) · [Installation guide](INSTALL.md)
+[**Get started**](#get-started) · [See the 0.15.0 release](https://github.com/kevcltsai/visual-agent-map/releases/tag/0.15.0) · [Installation guide](INSTALL.md)
 
 ### Take a look
 
@@ -36,7 +36,7 @@ For detailed setup, manual installation, and troubleshooting, see [INSTALL.md](I
 
 Maps, research reports, Coffee Tables conversations, and observer notes are readable Markdown in your vault. You can edit and keep them outside VAM.
 
-AI actions for selected Markdown text and clicked images produce editable drafts. You explicitly accept a draft before it changes a note. Image interpretation currently requires Codex and sends the selected image data when you run the action; original images remain unchanged.
+AI actions for selected Markdown text and clicked images produce editable drafts. You explicitly accept a draft before it changes a note. To stop the automatic selection button and image-click panel, turn off **Show “Use AI on selection” automatically** in settings; the **Use AI on selection** command still works. Image interpretation currently requires Codex and sends the selected image data when you run the action; original images remain unchanged.
 
 VAM has no telemetry and does not store API keys. AI tasks send relevant content, including research context, selected background files, or guest profiles, through your local CLI to OpenAI or Anthropic. Your provider allowance or charges may apply. AI request/reply logging is off by default; enabled logs may contain private note content.
 
@@ -75,7 +75,7 @@ Copyright © 2026 Kevin Tsai
 
 **從一個問題出發，看見各個部分，再追你想探索的線索。** 建立視覺化研究地圖、讓 AIM 深入查證問題，或到 Coffee Tables 聊出新角度；想留下的發現都能存成可編輯的 Markdown 筆記。
 
-[**開始使用**](#開始使用) · [查看 0.14.1 正式版](https://github.com/kevcltsai/visual-agent-map/releases/tag/0.14.1) · [安裝指南](INSTALL.md)
+[**開始使用**](#開始使用) · [查看 0.15.0 正式版](https://github.com/kevcltsai/visual-agent-map/releases/tag/0.15.0) · [安裝指南](INSTALL.md)
 
 ### 看看畫面
 
@@ -103,7 +103,7 @@ Coffee Tables 來賓是模擬角色，不是真實專家；對談內容不會自
 
 地圖、研究報告、Coffee Tables 對談與觀察者筆記，都是 Vault 裡可閱讀的 Markdown。你可以編輯它們，也可以離開 VAM 繼續使用。
 
-選取 Markdown 文字與點選圖片的 AI 操作會產生可編輯草稿。你必須明確接受草稿，才會改動筆記。圖片辨識目前需要 Codex，執行時才傳送選取圖片的資料；原始圖片保持不變。
+選取 Markdown 文字與點選圖片的 AI 操作會產生可編輯草稿。你必須明確接受草稿，才會改動筆記。若不想在選取文字或點選圖片時自動出現 AI 操作，可在設定關閉「自動顯示『用 AI 處理選取文字』」；「用 AI 處理選取文字」命令仍可使用。圖片辨識目前需要 Codex，執行時才傳送選取圖片的資料；原始圖片保持不變。
 
 VAM 不含遙測，也不儲存 API key。AI 任務會透過本機 CLI 將相關內容，包括研究脈絡、選取的背景檔或來賓設定，傳送至 OpenAI 或 Anthropic，可能使用帳號額度或產生費用。AI 請求／回覆紀錄預設關閉；啟用後的紀錄可能包含私人筆記。
 

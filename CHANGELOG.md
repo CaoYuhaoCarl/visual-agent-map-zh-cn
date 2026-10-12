@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.15.0] - 2026-10-12
+
+### Added
+
+- A setting, **Show “Use AI on selection” automatically** (on by default), turns off the button that appears when you select text in a Markdown note and stops image clicks from opening the AI panel. With it off, the **Use AI on selection** command and its hotkey still open the panel for the current selection.
+
+### Changed
+
+- AI prompts now live in separate template files, and every model call goes through one shared path. What is sent to the model is unchanged. AI request/reply log entries now name the prompt step they came from.
+- Internal names for the Adaptive Inquiry Map (AIM) research data now match its visible name. Maps and notes saved by earlier versions open and continue as before; they are updated to the new names when opened.
+
 ## [0.14.1] - 2026-10-12
 
 ### Changed
