@@ -319,6 +319,22 @@ integrationTest('one shallow-research startup failure marks that child and does 
   assert.match(failures[0], /startup failed/);
   assert.deepEqual(plugin.expansionBatches.get(parent.path).failures.length, 1);
 });
+integrationTest('shallow research uses the research-topic task when a child has no research question', async () => {
+  const { repo, app } = fixture('en'), parent = await topicNote(repo, 'Parent', 'model-a');
+  const mapPath = 'Agent Workspace/Topics/map-s/Map.md', mapDoc = map([parent]); mapDoc.id = 'map-s';
+  await app.vault.create(mapPath, core.serializeMap(mapDoc));
+  const tasks = [];
+  const plugin = withExpansionCoordinator({ repo, settings: { ...DEFAULT_SETTINGS, language: 'en' }, running: new Set(), quickExpandFailures: new Map(), pendingSuggestions: new Map(), pendingResearchOptions: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), recordFailure: (_context, error) => error.message });
+  const { VisualAgentMapView } = load('main.ts', { obsidian });
+  const view = new VisualAgentMapView({ app }, plugin); view.path = mapPath; view.map = mapDoc; view.contentEl = { querySelector: () => null }; view.render = () => {}; view.hydrate = async () => {};
+  view.runAgent = async (_child, _done, _failed, options, accepted) => { tasks.push(options.task); accepted?.(); return { finished: Promise.resolve() }; };
+  const options = { researchMode: 'research', researchDepth: 'fast', visualMode: 'off', referenceGroups: [], outputLanguage: 'en', requirements: '' };
+  const children = await view.createChildBatch(parent, [{ title: 'Night markets', task: '', contribution: '' }, { title: 'Asked', task: 'Why do they exist?', contribution: '' }], options);
+  await view.startShallowResearch(parent, children, options);
+  await until(() => plugin.expansionBatches.get(parent.path).status !== 'running');
+  const { researchTopicTask } = load('experiences/visual-map/steps/fragments.ts');
+  assert.deepEqual(Array.from(tasks), [researchTopicTask('en', 'Night markets'), 'Why do they exist?']);
+});
 integrationTest('cancelling shallow research stops the batch without marking unstarted children as errors', async () => {
   const { repo, app } = fixture(), parent = await topicNote(repo, 'Parent', 'model-a');
   const mapPath = 'Agent Workspace/Topics/map-a/Map.md', mapDoc = map([parent]); mapDoc.id = 'map-a';

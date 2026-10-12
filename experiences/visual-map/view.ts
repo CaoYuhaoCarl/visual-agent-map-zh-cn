@@ -3925,7 +3925,13 @@ export class VisualAgentMapView extends ItemView {
             researchMode: pendingOptions.researchMode,
             researchDepth: pendingOptions.researchDepth,
             visualMode: pendingOptions.visualMode,
-            task: [note.prompt, pendingOptions.requirements].filter(Boolean).join("\n\n")
+            task: [
+              note.prompt ||
+                researchTopicTask(pendingOptions.outputLanguage ?? this.plugin.settings.language, note.title),
+              pendingOptions.requirements
+            ]
+              .filter(Boolean)
+              .join("\n\n")
           },
           () => {
             started = true;

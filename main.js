@@ -23807,6 +23807,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       parent.path,
       children,
       async (child, batchSignal, accepted) => {
+        var _a;
         const note = await this.plugin.repo.readNote(child.path);
         let started = false;
         let failure;
@@ -23824,7 +23825,10 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
             researchMode: pendingOptions.researchMode,
             researchDepth: pendingOptions.researchDepth,
             visualMode: pendingOptions.visualMode,
-            task: [note.prompt, pendingOptions.requirements].filter(Boolean).join("\n\n")
+            task: [
+              note.prompt || researchTopicTask((_a = pendingOptions.outputLanguage) != null ? _a : this.plugin.settings.language, note.title),
+              pendingOptions.requirements
+            ].filter(Boolean).join("\n\n")
           },
           () => {
             started = true;
