@@ -11428,77 +11428,92 @@ ${body}`);
     }
     for (const file of nodeFiles.values()) {
       if (noteRoot && !file.path.startsWith(`${noteRoot}/`)) continue;
-      const content = await this.app.vault.read(file), fm = frontmatter(content);
-      if (!marker(fm["agent-map-node"])) continue;
-      ensureNoteCssClass(fm);
-      fm.title = noteTitle(content, fm, file.basename);
-      const owner = ownership.get(file.path);
-      let state = file.path.startsWith(`${this.settings.inboxFolder}/`) ? "inbox" : file.path.includes("/Archive/") ? "archived" : file.path.includes("/Unassigned/") ? "unassigned" : owner ? "active" : text4(fm["topic-state"], "unassigned");
-      if (owner) {
-        fm["agent-map-id"] = owner.map.id;
-        fm["topic-id"] = owner.map.id;
-        fm["topic-state"] = "active";
-        state = "active";
-        if (fm["model-source"] === void 0) fm["model-source"] = owner.node.parentId ? "inherited" : "workspace";
-      } else {
-        delete fm["agent-map-id"];
-        if (state === "inbox") {
-          delete fm["topic-id"];
-          fm["topic-state"] = "inbox";
-        } else fm["topic-state"] = state;
-      }
-      let body = ensurePreview(content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, ""), this.settings.language);
-      if (isPlaceholder(text4(fm.summary))) fm.summary = placeholder(this.settings.language);
-      const topicId = text4(fm["topic-id"]), topic = topics.get(topicId);
-      if (owner) {
-        if (!body.includes(DETAIL_START)) body = replaceSection(body, "Detail", section(body, "Detail"));
-        const parent = owner.node.parentId ? owner.map.nodes.find((item) => item.id === owner.node.parentId) : void 0;
-        const children = owner.map.nodes.filter((item) => item.parentId === owner.node.id);
-        fm["agent-map-references"] = this.settings.language === "en" ? [
-          `Topic: [[${noteLink(owner.mapPath)}|${owner.map.title}]]`,
-          `Mind map: [[${noteLink(owner.mapPath)}]]`,
-          parent ? `Parent topic: [[${noteLink(parent.path)}]]` : "Parent topic: None",
-          children.length ? `Child topics: ${children.map((child) => `[[${noteLink(child.path)}]]`).join(", ")}` : "Child topics: None"
-        ] : [
-          `\u6240\u5C6C\u4E3B\u984C\uFF1A[[${noteLink(owner.mapPath)}|${owner.map.title}]]`,
-          `\u6240\u5C6C\u5FC3\u667A\u5716\uFF1A[[${noteLink(owner.mapPath)}]]`,
-          parent ? `\u6BCD\u8B70\u984C\uFF1A[[${noteLink(parent.path)}]]` : "\u6BCD\u8B70\u984C\uFF1A\u7121",
-          children.length ? `\u5B50\u8B70\u984C\uFF1A${children.map((child) => `[[${noteLink(child.path)}]]`).join("\u3001")}` : "\u5B50\u8B70\u984C\uFF1A\u7121"
-        ];
-        body = withoutReference(body);
-      } else if (topic && (state === "unassigned" || state === "archived")) {
-        fm["agent-map-references"] = this.settings.language === "en" ? [
-          `Topic: [[${noteLink(topic.mapPath)}|${topic.map.title}]]`,
-          `Status: ${state === "archived" ? "Archived" : "Unassigned"}`
-        ] : [
-          `\u6240\u5C6C\u4E3B\u984C\uFF1A[[${noteLink(topic.mapPath)}|${topic.map.title}]]`,
-          `\u72C0\u614B\uFF1A${state === "archived" ? "\u5DF2\u5C01\u5B58" : "\u672A\u6B78\u985E"}`
-        ];
-        body = withoutReference(body);
-      } else {
-        delete fm["agent-map-references"];
-        body = withoutReference(body);
-      }
-      body = normalizeBodyOrder(
-        body,
-        text4(fm.title, file.basename),
-        text4(fm.summary, placeholder(this.settings.language)),
-        this.settings.language
+      const cached = await this.app.vault.cachedRead(file), derived = this.derivedNoteContent(file, cached, ownership, topics);
+      if (derived === null || derived === cached) continue;
+      await this.app.vault.process(
+        file,
+        (content) => {
+          var _a;
+          return (_a = this.derivedNoteContent(file, content, ownership, topics)) != null ? _a : content;
+        }
       );
-      const next = `---
+    }
+  }
+  /** The node note with derived lifecycle fields and references applied, or null when it is not a VAM node note. */
+  derivedNoteContent(file, content, ownership, topics) {
+    const fm = frontmatter(content);
+    if (!marker(fm["agent-map-node"])) return null;
+    ensureNoteCssClass(fm);
+    fm.title = noteTitle(content, fm, file.basename);
+    const owner = ownership.get(file.path);
+    let state = file.path.startsWith(`${this.settings.inboxFolder}/`) ? "inbox" : file.path.includes("/Archive/") ? "archived" : file.path.includes("/Unassigned/") ? "unassigned" : owner ? "active" : text4(fm["topic-state"], "unassigned");
+    if (owner) {
+      fm["agent-map-id"] = owner.map.id;
+      fm["topic-id"] = owner.map.id;
+      fm["topic-state"] = "active";
+      state = "active";
+      if (fm["model-source"] === void 0) fm["model-source"] = owner.node.parentId ? "inherited" : "workspace";
+    } else {
+      delete fm["agent-map-id"];
+      if (state === "inbox") {
+        delete fm["topic-id"];
+        fm["topic-state"] = "inbox";
+      } else fm["topic-state"] = state;
+    }
+    let body = ensurePreview(content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, ""), this.settings.language);
+    if (isPlaceholder(text4(fm.summary))) fm.summary = placeholder(this.settings.language);
+    const topicId = text4(fm["topic-id"]), topic = topics.get(topicId);
+    if (owner) {
+      if (!body.includes(DETAIL_START)) body = replaceSection(body, "Detail", section(body, "Detail"));
+      const parent = owner.node.parentId ? owner.map.nodes.find((item) => item.id === owner.node.parentId) : void 0;
+      const children = owner.map.nodes.filter((item) => item.parentId === owner.node.id);
+      fm["agent-map-references"] = this.settings.language === "en" ? [
+        `Topic: [[${noteLink(owner.mapPath)}|${owner.map.title}]]`,
+        `Mind map: [[${noteLink(owner.mapPath)}]]`,
+        parent ? `Parent topic: [[${noteLink(parent.path)}]]` : "Parent topic: None",
+        children.length ? `Child topics: ${children.map((child) => `[[${noteLink(child.path)}]]`).join(", ")}` : "Child topics: None"
+      ] : [
+        `\u6240\u5C6C\u4E3B\u984C\uFF1A[[${noteLink(owner.mapPath)}|${owner.map.title}]]`,
+        `\u6240\u5C6C\u5FC3\u667A\u5716\uFF1A[[${noteLink(owner.mapPath)}]]`,
+        parent ? `\u6BCD\u8B70\u984C\uFF1A[[${noteLink(parent.path)}]]` : "\u6BCD\u8B70\u984C\uFF1A\u7121",
+        children.length ? `\u5B50\u8B70\u984C\uFF1A${children.map((child) => `[[${noteLink(child.path)}]]`).join("\u3001")}` : "\u5B50\u8B70\u984C\uFF1A\u7121"
+      ];
+      body = withoutReference(body);
+    } else if (topic && (state === "unassigned" || state === "archived")) {
+      fm["agent-map-references"] = this.settings.language === "en" ? [
+        `Topic: [[${noteLink(topic.mapPath)}|${topic.map.title}]]`,
+        `Status: ${state === "archived" ? "Archived" : "Unassigned"}`
+      ] : [
+        `\u6240\u5C6C\u4E3B\u984C\uFF1A[[${noteLink(topic.mapPath)}|${topic.map.title}]]`,
+        `\u72C0\u614B\uFF1A${state === "archived" ? "\u5DF2\u5C01\u5B58" : "\u672A\u6B78\u985E"}`
+      ];
+      body = withoutReference(body);
+    } else {
+      delete fm["agent-map-references"];
+      body = withoutReference(body);
+    }
+    body = normalizeBodyOrder(
+      body,
+      text4(fm.title, file.basename),
+      text4(fm.summary, placeholder(this.settings.language)),
+      this.settings.language
+    );
+    return `---
 ${(0, import_obsidian8.stringifyYaml)(fm)}---
 ${withReferenceLinks(body, fm, this.settings.language)}`;
-      if (next !== content) await this.app.vault.process(file, () => next);
-    }
   }
   async ensureNodePresentation() {
     for (const file of await this.markedFiles("agent-map-node")) {
-      const content = await this.app.vault.read(file), fm = frontmatter(content);
+      const fm = frontmatter(await this.app.vault.cachedRead(file));
       if (!marker(fm["agent-map-node"]) || !ensureNoteCssClass(fm)) continue;
-      const body = content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "");
-      await this.app.vault.process(file, () => `---
-${(0, import_obsidian8.stringifyYaml)(fm)}---
-${body}`);
+      await this.app.vault.process(file, (content) => {
+        const current = frontmatter(content);
+        if (!marker(current["agent-map-node"]) || !ensureNoteCssClass(current)) return content;
+        const body = content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "");
+        return `---
+${(0, import_obsidian8.stringifyYaml)(current)}---
+${body}`;
+      });
     }
   }
   async createMap(title, nodes = [], onRootCreated, aim) {

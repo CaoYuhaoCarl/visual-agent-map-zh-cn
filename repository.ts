@@ -1040,95 +1040,115 @@ export class Repository {
     }
     for (const file of nodeFiles.values()) {
       if (noteRoot && !file.path.startsWith(`${noteRoot}/`)) continue;
-      const content = await this.app.vault.read(file),
-        fm = frontmatter(content);
-      if (!marker(fm["agent-map-node"])) continue;
-      ensureNoteCssClass(fm);
-      fm.title = noteTitle(content, fm, file.basename);
-      const owner = ownership.get(file.path);
-      let state: TopicState = file.path.startsWith(`${this.settings.inboxFolder}/`)
-        ? "inbox"
-        : file.path.includes("/Archive/")
-          ? "archived"
-          : file.path.includes("/Unassigned/")
-            ? "unassigned"
-            : owner
-              ? "active"
-              : (text(fm["topic-state"], "unassigned") as TopicState);
-      if (owner) {
-        fm["agent-map-id"] = owner.map.id;
-        fm["topic-id"] = owner.map.id;
-        fm["topic-state"] = "active";
-        state = "active";
-        if (fm["model-source"] === undefined) fm["model-source"] = owner.node.parentId ? "inherited" : "workspace";
-      } else {
-        delete fm["agent-map-id"];
-        if (state === "inbox") {
-          delete fm["topic-id"];
-          fm["topic-state"] = "inbox";
-        } else fm["topic-state"] = state;
-      }
-      let body = ensurePreview(content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, ""), this.settings.language);
-      if (isPlaceholder(text(fm.summary))) fm.summary = placeholder(this.settings.language);
-      const topicId = text(fm["topic-id"]),
-        topic = topics.get(topicId);
-      if (owner) {
-        if (!body.includes(DETAIL_START)) body = replaceSection(body, "Detail", section(body, "Detail"));
-        const parent = owner.node.parentId ? owner.map.nodes.find(item => item.id === owner.node.parentId) : undefined;
-        const children = owner.map.nodes.filter(item => item.parentId === owner.node.id);
-        fm["agent-map-references"] =
-          this.settings.language === "en"
-            ? [
-                `Topic: [[${noteLink(owner.mapPath)}|${owner.map.title}]]`,
-                `Mind map: [[${noteLink(owner.mapPath)}]]`,
-                parent ? `Parent topic: [[${noteLink(parent.path)}]]` : "Parent topic: None",
-                children.length
-                  ? `Child topics: ${children.map(child => `[[${noteLink(child.path)}]]`).join(", ")}`
-                  : "Child topics: None"
-              ]
-            : [
-                `所屬主題：[[${noteLink(owner.mapPath)}|${owner.map.title}]]`,
-                `所屬心智圖：[[${noteLink(owner.mapPath)}]]`,
-                parent ? `母議題：[[${noteLink(parent.path)}]]` : "母議題：無",
-                children.length
-                  ? `子議題：${children.map(child => `[[${noteLink(child.path)}]]`).join("、")}`
-                  : "子議題：無"
-              ];
-        body = withoutReference(body);
-      } else if (topic && (state === "unassigned" || state === "archived")) {
-        fm["agent-map-references"] =
-          this.settings.language === "en"
-            ? [
-                `Topic: [[${noteLink(topic.mapPath)}|${topic.map.title}]]`,
-                `Status: ${state === "archived" ? "Archived" : "Unassigned"}`
-              ]
-            : [
-                `所屬主題：[[${noteLink(topic.mapPath)}|${topic.map.title}]]`,
-                `狀態：${state === "archived" ? "已封存" : "未歸類"}`
-              ];
-        body = withoutReference(body);
-      } else {
-        delete fm["agent-map-references"];
-        body = withoutReference(body);
-      }
-      body = normalizeBodyOrder(
-        body,
-        text(fm.title, file.basename),
-        text(fm.summary, placeholder(this.settings.language)),
-        this.settings.language
+      // Compare against the in-memory copy, then derive again from the file's current content inside the write,
+      // so an edit made after this read is not replaced by stale text.
+      const cached = await this.app.vault.cachedRead(file),
+        derived = this.derivedNoteContent(file, cached, ownership, topics);
+      if (derived === null || derived === cached) continue;
+      await this.app.vault.process(
+        file,
+        content => this.derivedNoteContent(file, content, ownership, topics) ?? content
       );
-      const next = `---\n${stringifyYaml(fm)}---\n${withReferenceLinks(body, fm, this.settings.language)}`;
-      if (next !== content) await this.app.vault.process(file, () => next);
     }
+  }
+
+  /** The node note with derived lifecycle fields and references applied, or null when it is not a VAM node note. */
+  private derivedNoteContent(
+    file: TFile,
+    content: string,
+    ownership: Map<string, { map: MapDocument; mapPath: string; node: MapNode }>,
+    topics: Map<string, { map: MapDocument; mapPath: string }>
+  ): string | null {
+    const fm = frontmatter(content);
+    if (!marker(fm["agent-map-node"])) return null;
+    ensureNoteCssClass(fm);
+    fm.title = noteTitle(content, fm, file.basename);
+    const owner = ownership.get(file.path);
+    let state: TopicState = file.path.startsWith(`${this.settings.inboxFolder}/`)
+      ? "inbox"
+      : file.path.includes("/Archive/")
+        ? "archived"
+        : file.path.includes("/Unassigned/")
+          ? "unassigned"
+          : owner
+            ? "active"
+            : (text(fm["topic-state"], "unassigned") as TopicState);
+    if (owner) {
+      fm["agent-map-id"] = owner.map.id;
+      fm["topic-id"] = owner.map.id;
+      fm["topic-state"] = "active";
+      state = "active";
+      if (fm["model-source"] === undefined) fm["model-source"] = owner.node.parentId ? "inherited" : "workspace";
+    } else {
+      delete fm["agent-map-id"];
+      if (state === "inbox") {
+        delete fm["topic-id"];
+        fm["topic-state"] = "inbox";
+      } else fm["topic-state"] = state;
+    }
+    let body = ensurePreview(content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, ""), this.settings.language);
+    if (isPlaceholder(text(fm.summary))) fm.summary = placeholder(this.settings.language);
+    const topicId = text(fm["topic-id"]),
+      topic = topics.get(topicId);
+    if (owner) {
+      if (!body.includes(DETAIL_START)) body = replaceSection(body, "Detail", section(body, "Detail"));
+      const parent = owner.node.parentId ? owner.map.nodes.find(item => item.id === owner.node.parentId) : undefined;
+      const children = owner.map.nodes.filter(item => item.parentId === owner.node.id);
+      fm["agent-map-references"] =
+        this.settings.language === "en"
+          ? [
+              `Topic: [[${noteLink(owner.mapPath)}|${owner.map.title}]]`,
+              `Mind map: [[${noteLink(owner.mapPath)}]]`,
+              parent ? `Parent topic: [[${noteLink(parent.path)}]]` : "Parent topic: None",
+              children.length
+                ? `Child topics: ${children.map(child => `[[${noteLink(child.path)}]]`).join(", ")}`
+                : "Child topics: None"
+            ]
+          : [
+              `所屬主題：[[${noteLink(owner.mapPath)}|${owner.map.title}]]`,
+              `所屬心智圖：[[${noteLink(owner.mapPath)}]]`,
+              parent ? `母議題：[[${noteLink(parent.path)}]]` : "母議題：無",
+              children.length
+                ? `子議題：${children.map(child => `[[${noteLink(child.path)}]]`).join("、")}`
+                : "子議題：無"
+            ];
+      body = withoutReference(body);
+    } else if (topic && (state === "unassigned" || state === "archived")) {
+      fm["agent-map-references"] =
+        this.settings.language === "en"
+          ? [
+              `Topic: [[${noteLink(topic.mapPath)}|${topic.map.title}]]`,
+              `Status: ${state === "archived" ? "Archived" : "Unassigned"}`
+            ]
+          : [
+              `所屬主題：[[${noteLink(topic.mapPath)}|${topic.map.title}]]`,
+              `狀態：${state === "archived" ? "已封存" : "未歸類"}`
+            ];
+      body = withoutReference(body);
+    } else {
+      delete fm["agent-map-references"];
+      body = withoutReference(body);
+    }
+    body = normalizeBodyOrder(
+      body,
+      text(fm.title, file.basename),
+      text(fm.summary, placeholder(this.settings.language)),
+      this.settings.language
+    );
+    return `---\n${stringifyYaml(fm)}---\n${withReferenceLinks(body, fm, this.settings.language)}`;
   }
 
   async ensureNodePresentation(): Promise<void> {
     for (const file of await this.markedFiles("agent-map-node")) {
-      const content = await this.app.vault.read(file),
-        fm = frontmatter(content);
+      const fm = frontmatter(await this.app.vault.cachedRead(file));
       if (!marker(fm["agent-map-node"]) || !ensureNoteCssClass(fm)) continue;
-      const body = content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "");
-      await this.app.vault.process(file, () => `---\n${stringifyYaml(fm)}---\n${body}`);
+      // Rebuild from the current content so an edit after the check above is kept.
+      await this.app.vault.process(file, content => {
+        const current = frontmatter(content);
+        if (!marker(current["agent-map-node"]) || !ensureNoteCssClass(current)) return content;
+        const body = content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "");
+        return `---\n${stringifyYaml(current)}---\n${body}`;
+      });
     }
   }
 

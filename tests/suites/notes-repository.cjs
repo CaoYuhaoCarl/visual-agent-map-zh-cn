@@ -112,6 +112,35 @@ integrationTest('visual references are stored inside the editable Detail section
   assert.equal(note.visualReferences, '');
   assert.doesNotMatch(contents.get(n.path), /## Visual References/);
 });
+integrationTest('reference rebuild keeps a note edit made after the rebuild read the note', async () => {
+  const { repo, contents, app } = fixture(); const n = await topicNote(repo);
+  await repo.createMap('Map A', [n]);
+  const process = app.vault.process;
+  let edited = false;
+  app.vault.process = async (file, change) => {
+    if (file.path === n.path && !edited) {
+      edited = true;
+      contents.set(n.path, `${contents.get(n.path)}\n\nEdited while references were rebuilding`);
+    }
+    return process(file, change);
+  };
+  await repo.rebuildDerivedData();
+  assert.equal(edited, true);
+  assert.match(contents.get(n.path), /Edited while references were rebuilding/);
+  assert.match(contents.get(n.path), /agent-map-references:/);
+});
+integrationTest('node presentation repair keeps a note edit made after the check', async () => {
+  const { repo, contents, app } = fixture(); const n = await topicNote(repo);
+  contents.set(n.path, contents.get(n.path).replace(/^cssclasses: .*\n/m, ''));
+  const process = app.vault.process;
+  app.vault.process = async (file, change) => {
+    contents.set(file.path, `${contents.get(file.path)}\n\nLate edit`);
+    return process(file, change);
+  };
+  await repo.ensureNodePresentation();
+  assert.match(contents.get(n.path), /Late edit/);
+  assert.match(contents.get(n.path), /cssclasses:/);
+});
 integrationTest('managed references stay outside Detail and preserve user-authored content', async () => {
   const { repo, contents, app } = fixture(); const n = await topicNote(repo);
   const mapPath = await repo.createMap('Map A', [n]);
