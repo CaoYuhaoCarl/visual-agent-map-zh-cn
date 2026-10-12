@@ -68,9 +68,20 @@ export function runtimeStepProvider(options: RuntimeStepProviderOptions): StepPr
         finish = "completed",
         requestLog = "request-and-prompt"
       } = call.controls;
-      const exchanges = options.exchanges();
+      // Log only when logging was on at the start, and re-check before every later write so turning it off mid-call stops recording.
+      const started = options.exchanges();
+      const exchanges = {
+        sent: (...args: Parameters<ExchangeSink["sent"]>): void =>
+          started ? options.exchanges()?.sent(...args) : undefined,
+        received: (...args: Parameters<ExchangeSink["received"]>): void =>
+          started ? options.exchanges()?.received(...args) : undefined,
+        completed: (...args: Parameters<ExchangeSink["completed"]>): void =>
+          started ? options.exchanges()?.completed(...args) : undefined,
+        failed: (...args: Parameters<ExchangeSink["failed"]>): void =>
+          started ? options.exchanges()?.failed(...args) : undefined
+      };
       const id = randomUUID();
-      exchanges?.begin({
+      started?.begin({
         id,
         startedAt: new Date().toISOString(),
         topic,
@@ -79,13 +90,13 @@ export function runtimeStepProvider(options: RuntimeStepProviderOptions): StepPr
         effort,
         step: stepLabel({ id: call.stepId, version: call.version })
       });
-      if (exchanges) onExchange?.(id);
+      if (started) onExchange?.(id);
       try {
         const controls: RuntimeTaskControls = {
           ...task,
           onRequest: (data: unknown): void => {
             task.onRequest?.(data);
-            exchanges?.sent(
+            exchanges.sent(
               id,
               JSON.stringify(requestLog === "request" ? data : { request: data, prompt: call.prompt }, null, 2),
               call.prompt
@@ -98,11 +109,11 @@ export function runtimeStepProvider(options: RuntimeStepProviderOptions): StepPr
             : await options
                 .codex(options.localCodex === true)
                 .runTask(call.prompt, model, effort, call.schema, controls);
-        exchanges?.received(id, raw);
-        if (finish === "completed") exchanges?.completed(id);
+        exchanges.received(id, raw);
+        if (finish === "completed") exchanges.completed(id);
         return raw;
       } catch (error) {
-        if (finish === "completed") exchanges?.failed(id, error instanceof Error ? error.message : String(error));
+        if (finish === "completed") exchanges.failed(id, error instanceof Error ? error.message : String(error));
         throw error;
       }
     }

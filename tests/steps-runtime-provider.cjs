@@ -102,3 +102,16 @@ test('finish "caller": a runtime error is rethrown unchanged and not logged as f
   log.failed(ids[0], 'stage: custom message');
   assert.equal(log.getEntries()[0].status, 'failed'); assert.equal(log.getEntries()[0].error, 'stage: custom message');
 });
+
+test('turning logging off during a call stops recording; logging off at the start never begins an entry', async () => {
+  let logging = true;
+  const log = new AiExchangeLog(path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'vam-runtime-provider-')), 'ai-exchanges.json'), error => { throw error; });
+  const runtime = { runTask: async (...args) => { args[4].onRequest?.({ provider: 'codex' }); logging = false; return 'late reply'; } };
+  const provider = runtimeStepProvider({ claude: () => runtime, codex: () => runtime, exchanges: () => (logging ? log : null) });
+  assert.equal(await provider.complete(call({})), 'late reply');
+  const [entry] = log.getEntries();
+  assert.equal(entry.status, 'sent'); assert.equal(entry.response, '');
+  let ids = 0;
+  assert.equal(await provider.complete(call({ onExchange: () => ids++ })), 'late reply');
+  assert.equal(log.getEntries().length, 1); assert.equal(ids, 0);
+});
