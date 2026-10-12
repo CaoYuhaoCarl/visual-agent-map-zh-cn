@@ -58,7 +58,7 @@ export function extractJsonObject(raw: string): string {
       /* Continue to an earlier balanced object. */
     }
   }
-  throw new SyntaxError("Codex 回應中找不到完整 JSON object");
+  throw new SyntaxError(t("error.codex_reply_no_json"));
 }
 
 export interface AiTaskServiceOptions {
@@ -198,7 +198,7 @@ export class AiTaskService {
       onExchange?.(exchangeId);
     }
 
-    let stage = "啟動 AI";
+    let stage = t("log.stage_starting_ai");
     try {
       const controls = {
         signal,
@@ -221,7 +221,7 @@ export class AiTaskService {
         searchBudget: 0,
         webSearch: context.researchMode !== "local",
         onRequest: (request: unknown): void => {
-          stage = "等待 AI 回覆";
+          stage = t("log.stage_waiting_reply");
           if (this.options.exchangeLoggingEnabled())
             exchanges?.sent(exchangeId, JSON.stringify(request, null, 2), instructions);
         }
@@ -287,7 +287,7 @@ export class AiTaskService {
           : await this.options
               .codexRuntime(pluginDirectory, context.researchMode === "local")
               .runTask(instructions, model, effort, schema, { ...controls, onWebSearchEvent });
-      stage = "解析 AI 回覆";
+      stage = t("log.stage_parsing_reply");
       if (this.options.exchangeLoggingEnabled()) exchanges?.received(exchangeId, raw);
       const result = this.parseAiResult(
         raw,
@@ -310,7 +310,10 @@ export class AiTaskService {
       return result;
     } catch (error) {
       if (this.options.exchangeLoggingEnabled())
-        exchanges?.failed(exchangeId, `${stage}：${error instanceof Error ? error.message : String(error)}`);
+        exchanges?.failed(
+          exchangeId,
+          t("log.stage_failure_0_1", stage, error instanceof Error ? error.message : String(error))
+        );
       throw error;
     }
   }
@@ -394,7 +397,7 @@ export class AiTaskService {
       aim?: unknown;
     };
     if (typeof parsed.summary !== "string" || typeof parsed.detail !== "string")
-      throw new Error(`${label} 沒有回傳 summary 與 detail`);
+      throw new Error(t("error.ai_reply_missing_summary_0", label));
     if (
       strictGapAudit &&
       (!(["user_condition", "external_evidence"] as string[]).includes(parsed.summary) ||
@@ -428,8 +431,7 @@ export class AiTaskService {
               isRecord(item) && typeof item.imageUrl === "string" && typeof item.sourceUrl === "string"
           )
           .map(item => ({
-            title:
-              typeof item.title === "string" ? item.title.trim() : language === "en" ? "Visual reference" : "視覺參考",
+            title: typeof item.title === "string" ? item.title.trim() : translate(language, "note.visual_reference"),
             imageUrl: String(item.imageUrl).trim(),
             sourceUrl: String(item.sourceUrl).trim(),
             description: typeof item.description === "string" ? item.description.trim() : "",

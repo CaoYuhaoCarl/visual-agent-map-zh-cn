@@ -63,7 +63,7 @@ export function canonicalDetail(value: string, language: UiLanguage = "zh-TW"): 
   }
   if (sections.size === 0) sections.set(0, [detail]);
   else if (leading.join("\n").trim()) sections.set(0, [leading.join("\n").trim(), ...(sections.get(0) ?? [])]);
-  const empty = language === "en" ? "No new information in this task." : "本次無新增內容。";
+  const empty = translate(language, "note.no_new_information");
   return headings
     .map((heading, index) => `### ${heading}\n\n${sections.get(index)?.join("\n").trim() || empty}`)
     .join("\n\n");

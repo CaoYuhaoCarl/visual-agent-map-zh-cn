@@ -1,5 +1,6 @@
 import { readFile, rename, writeFile } from "node:fs/promises";
 import type { Suggestion } from "./ai/types";
+import { t } from "./i18n";
 
 export class PendingSuggestions extends Map<string, Suggestion[]> {
   private writes: Promise<void> = Promise.resolve();
@@ -15,11 +16,11 @@ export class PendingSuggestions extends Map<string, Suggestion[]> {
   async load(): Promise<void> {
     try {
       const parsed: unknown = JSON.parse(await readFile(this.path, "utf8"));
-      if (!Array.isArray(parsed)) throw new Error("待確認建議格式錯誤");
+      if (!Array.isArray(parsed)) throw new Error(t("error.pending_suggestions_invalid"));
       const entries: Array<[string, Suggestion[]]> = [];
       for (const item of parsed as unknown[]) {
         if (!Array.isArray(item) || item.length !== 2 || typeof item[0] !== "string" || !Array.isArray(item[1]))
-          throw new Error("待確認建議欄位格式錯誤；保留原檔並停止寫入");
+          throw new Error(t("error.pending_suggestions_fields_invalid"));
         const suggestions = (item[1] as unknown[]).filter((value): value is Suggestion => {
           if (!value || typeof value !== "object") return false;
           const suggestion = value as Record<string, unknown>;
@@ -31,7 +32,7 @@ export class PendingSuggestions extends Map<string, Suggestion[]> {
             (suggestion.thinkingOriginBaseline === undefined || typeof suggestion.thinkingOriginBaseline === "string")
           );
         });
-        if (suggestions.length !== item[1].length) throw new Error("待確認建議欄位格式錯誤；保留原檔並停止寫入");
+        if (suggestions.length !== item[1].length) throw new Error(t("error.pending_suggestions_fields_invalid"));
         entries.push([item[0], suggestions]);
       }
       for (const [key, suggestions] of entries) if (suggestions.length) super.set(key, suggestions);
@@ -61,7 +62,8 @@ export class PendingSuggestions extends Map<string, Suggestion[]> {
   }
   async flush(): Promise<void> {
     await this.writes;
-    if (this.writeError) throw this.writeError instanceof Error ? this.writeError : new Error("待確認建議儲存失敗");
+    if (this.writeError)
+      throw this.writeError instanceof Error ? this.writeError : new Error(t("error.pending_suggestions_save_failed"));
   }
   private save(): void {
     if (this.loadError) {

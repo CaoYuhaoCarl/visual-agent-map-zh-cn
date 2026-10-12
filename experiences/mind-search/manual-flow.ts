@@ -61,6 +61,7 @@ import {
   type PlannerQualityContext,
   type ResearchGapClassification
 } from "./manual-flow-support";
+import { translate } from "../../i18n";
 // Public API kept here for existing importers.
 export {
   MINDSEARCH_NO_QUESTION,
@@ -756,7 +757,13 @@ export class MindSearchManualFlow {
       await this.persist(() => this.runs.recordResearchTurn(mapPath, handle));
       let reports: AiResult[] = savedReports;
       const draftResult = await this.persist(() =>
-        this.runs.createResultDraft(mapPath, handle, `${parent.summary}・回答研究`, model, reasoning)
+        this.runs.createResultDraft(
+          mapPath,
+          handle,
+          translate(this.repository.settings.language, "note.mindsearch_answer_research_0", parent.summary),
+          model,
+          reasoning
+        )
       );
       if (draftResult.status === "stale") return { status: "stale", branchId: branch.id };
       const draft = draftResult.draft;
@@ -939,8 +946,19 @@ export class MindSearchManualFlow {
             ].join("\n\n");
       const presentation =
         finalReview.decision === "conclude"
-          ? { title: "研究結論", kind: "conclusion" as const }
-          : { title: finalReview.decision === "research_more" ? "研究待補查" : "研究收斂", kind: "synthesis" as const };
+          ? {
+              title: translate(this.repository.settings.language, "note.mindsearch_conclusion"),
+              kind: "conclusion" as const
+            }
+          : {
+              title: translate(
+                this.repository.settings.language,
+                finalReview.decision === "research_more"
+                  ? "note.mindsearch_needs_followup"
+                  : "note.mindsearch_synthesis"
+              ),
+              kind: "synthesis" as const
+            };
       if (
         !(await this.persist(() =>
           this.runs.updateResultDraftPresentation(mapPath, handle, draft.id, presentation.title, presentation.kind)
@@ -1407,10 +1425,10 @@ export class MindSearchManualFlow {
       const finalKind = finalReview.decision === "conclude" ? ("conclusion" as const) : ("synthesis" as const);
       const finalTitle =
         finalReview.decision === "conclude"
-          ? "研究結論"
+          ? translate(this.repository.settings.language, "note.mindsearch_conclusion")
           : finalReview.decision === "research_more"
-            ? "研究待補查"
-            : "研究收斂";
+            ? translate(this.repository.settings.language, "note.mindsearch_needs_followup")
+            : translate(this.repository.settings.language, "note.mindsearch_synthesis");
       if (
         !(await this.persist(() =>
           this.runs.updateResultDraftPresentation(mapPath, handle, finalDraft.id, finalTitle, finalKind)
@@ -1426,7 +1444,7 @@ export class MindSearchManualFlow {
           {
             summary:
               finalReview.decision === "research_more"
-                ? `部分研究，仍待補查：${finalReview.summary}`
+                ? translate(this.repository.settings.language, "note.mindsearch_partial_summary_0", finalReview.summary)
                 : finalReview.summary,
             detail
           },
@@ -1889,18 +1907,16 @@ export class MindSearchManualFlow {
     const options = labels.map(label => ({ id: this.id(), label }));
     options.push({
       id: MINDSEARCH_UNKNOWN_OPTION_ID,
-      label: language === "en" ? "Unknown / no preference" : "未知／無偏好"
+      label: translate(language, "note.mindsearch_unknown_option")
     });
-    const noteTitle = language === "en" ? `Question · ${questionText}` : `問題 · ${questionText}`;
+    const noteTitle = translate(language, "note.mindsearch_question_title_0", questionText);
     const notePath = this.repository.unique(this.repository.topicFolder(mapPath, "Notes"), noteTitle);
     const questionNodeId = this.id();
     const detail = [
       plannerDetail.trim(),
-      language === "en" ? "## Answer options" : "## 回答選項",
+      translate(language, "note.mindsearch_answer_options_heading"),
       ...options.map(option => `- ${option.label}`),
-      language === "en"
-        ? "Select any applicable choices, add free text, or choose Unknown / no preference."
-        : "可複選、補充自由文字，或選擇「未知／無偏好」。"
+      translate(language, "note.mindsearch_answer_hint")
     ]
       .filter(Boolean)
       .join("\n\n");
@@ -2103,7 +2119,7 @@ export class MindSearchManualFlow {
       : undefined;
     const condition =
       [answerLabels.join("; "), freeText].filter(Boolean).join(" — ") ||
-      (this.repository.settings.language === "en" ? "Unknown / no preference" : "未知／無偏好");
+      translate(this.repository.settings.language, "note.mindsearch_unknown_option");
     const branch = await this.persist(() =>
       this.runs.createAnswerBranch(mapPath, {
         requestId: input.requestId,
@@ -2835,21 +2851,41 @@ export class MindSearchManualFlow {
           ? {
               summary: [
                 resumeReports.summary,
-                ...supplementalReports.map(item => `補查：${item.target.title}: ${item.summary}`)
+                ...supplementalReports.map(item =>
+                  translate(
+                    this.repository.settings.language,
+                    "note.mindsearch_followup_summary_0_1",
+                    item.target.title,
+                    item.summary
+                  )
+                )
               ].join("\n"),
               detail: [
                 resumeReports.detail,
-                ...supplementalReports.map(item => `## 補查：${item.target.title}\n\n${item.detail}`)
+                ...supplementalReports.map(
+                  item =>
+                    `${translate(this.repository.settings.language, "note.mindsearch_followup_heading_0", item.target.title)}\n\n${item.detail}`
+                )
               ].join("\n\n")
             }
           : {
               summary: [
                 ...reports.map(item => `${item.title}: ${item.summary}`),
-                ...supplementalReports.map(item => `補查：${item.target.title}: ${item.summary}`)
+                ...supplementalReports.map(item =>
+                  translate(
+                    this.repository.settings.language,
+                    "note.mindsearch_followup_summary_0_1",
+                    item.target.title,
+                    item.summary
+                  )
+                )
               ].join("\n"),
               detail: [
                 ...reports.map(item => `## ${item.title}\n\n${item.detail}`),
-                ...supplementalReports.map(item => `## 補查：${item.target.title}\n\n${item.detail}`)
+                ...supplementalReports.map(
+                  item =>
+                    `${translate(this.repository.settings.language, "note.mindsearch_followup_heading_0", item.target.title)}\n\n${item.detail}`
+                )
               ].join("\n\n")
             };
       let synthesisDraftId: string | undefined;
@@ -2972,11 +3008,18 @@ export class MindSearchManualFlow {
           if (!lastReport)
             throw new Error("MindSearch cannot save a follow-up without persisted initial subtopic reports.");
           const draft = await this.persist(() =>
-            this.runs.createResultDraft(mapPath, synthesisHandle, "研究補查草稿", model, undefined, {
-              kind: "synthesis",
-              parentNodeId: lastReport.nodeId,
-              convergesFromNodeIds: reports.map(item => item.nodeId)
-            })
+            this.runs.createResultDraft(
+              mapPath,
+              synthesisHandle,
+              translate(this.repository.settings.language, "note.mindsearch_followup_draft"),
+              model,
+              undefined,
+              {
+                kind: "synthesis",
+                parentNodeId: lastReport.nodeId,
+                convergesFromNodeIds: reports.map(item => item.nodeId)
+              }
+            )
           );
           if (draft.status === "stale") return { status: "stale", branchId };
           synthesisDraftId = draft.draft.id;
@@ -3060,7 +3103,14 @@ export class MindSearchManualFlow {
           this.runs.createResultDraft(
             mapPath,
             synthesisHandle,
-            isPartial ? "研究待補查" : isQuestion ? "研究收斂" : "研究結論",
+            translate(
+              this.repository.settings.language,
+              isPartial
+                ? "note.mindsearch_needs_followup"
+                : isQuestion
+                  ? "note.mindsearch_synthesis"
+                  : "note.mindsearch_conclusion"
+            ),
             model,
             undefined,
             {
@@ -3074,17 +3124,29 @@ export class MindSearchManualFlow {
         synthesisDraftId = draft.draft.id;
       }
       const stopReason = isPartial
-        ? `研究輪數已達上限，仍有重要證據缺口：${finalReview.rationale}`
+        ? translate(this.repository.settings.language, "note.mindsearch_round_limit_0", finalReview.rationale)
         : isQuestion
           ? `Awaiting the user's answer to: ${finalReview.question}`
           : finalReview.stopReason!;
       const partialSection =
         isPartial && finalReview.researchTarget
           ? [
-              "## 研究狀態：部分完成，可繼續研究",
-              `尚待補查：${finalReview.researchTarget.title}`,
-              `補查任務：${finalReview.researchTarget.task}`,
-              `預期釐清：${finalReview.researchTarget.expectedValue}`
+              translate(this.repository.settings.language, "note.mindsearch_partial_heading"),
+              translate(
+                this.repository.settings.language,
+                "note.mindsearch_pending_target_0",
+                finalReview.researchTarget.title
+              ),
+              translate(
+                this.repository.settings.language,
+                "note.mindsearch_pending_task_0",
+                finalReview.researchTarget.task
+              ),
+              translate(
+                this.repository.settings.language,
+                "note.mindsearch_pending_value_0",
+                finalReview.researchTarget.expectedValue
+              )
             ].join("\n\n")
           : "";
       const detail =
@@ -3101,10 +3163,19 @@ export class MindSearchManualFlow {
             ].join("\n\n")
           : finalReview.detail;
       const presentation = isPartial
-        ? { title: "研究待補查", kind: "synthesis" as const }
+        ? {
+            title: translate(this.repository.settings.language, "note.mindsearch_needs_followup"),
+            kind: "synthesis" as const
+          }
         : isQuestion
-          ? { title: "研究收斂", kind: "synthesis" as const }
-          : { title: "研究結論", kind: "conclusion" as const };
+          ? {
+              title: translate(this.repository.settings.language, "note.mindsearch_synthesis"),
+              kind: "synthesis" as const
+            }
+          : {
+              title: translate(this.repository.settings.language, "note.mindsearch_conclusion"),
+              kind: "conclusion" as const
+            };
       if (
         !(await this.persist(() =>
           this.runs.updateResultDraftPresentation(
@@ -3123,7 +3194,12 @@ export class MindSearchManualFlow {
           mapPath,
           synthesisHandle,
           synthesisDraftId,
-          { summary: isPartial ? `部分研究，仍待補查：${finalReview.summary}` : finalReview.summary, detail },
+          {
+            summary: isPartial
+              ? translate(this.repository.settings.language, "note.mindsearch_partial_summary_0", finalReview.summary)
+              : finalReview.summary,
+            detail
+          },
           isPartial ? "partial" : "completed"
         );
       });

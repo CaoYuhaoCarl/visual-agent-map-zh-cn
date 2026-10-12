@@ -53,7 +53,7 @@ test('debug log command opens the custom modal and exposes copy and clear action
   assert.match(modal, /this\.logs\.subscribe/);
   assert.match(source, /codexReadyForAi\(\)/);
   assert.match(source, /ui\.codex_app_server_is_ready_0/);
-  assert.match(mapSource, /AI 任務失敗/);
+  assert.match(mapSource, /log\.ai_task_failed/);
 });
 integrationTest('AI exchange logging captures the sent payload, raw reply and parse failure', async () => {
   const { default: Plugin } = load('main.ts', { obsidian });
@@ -73,7 +73,7 @@ integrationTest('AI exchange logging captures the sent payload, raw reply and pa
     const entries = plugin.exchanges.getEntries();
     assert.equal(entries.length, 2);
     assert.match(entries[0].request, /private summary/); assert.match(entries[0].response, /"summary":"done"/); assert.equal(entries[0].status, 'parsed');
-    assert.equal(entries[1].response, 'invalid raw answer'); assert.equal(entries[1].status, 'failed'); assert.match(entries[1].error, /解析 AI 回覆/);
+    assert.equal(entries[1].response, 'invalid raw answer'); assert.equal(entries[1].status, 'failed'); assert.match(entries[1].error, /Parsing the AI reply/);
   } finally { fs.rmSync(directory, { recursive: true, force: true }); }
 });
 integrationTest('turning exchange logging off during a task stops recording its reply', async () => {

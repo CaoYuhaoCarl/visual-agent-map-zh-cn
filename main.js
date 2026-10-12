@@ -1140,7 +1140,93 @@ var english = {
   "coffee.preferences_must_be_text": "Observer and convergence preferences must be text.",
   "coffee.today": "Today",
   "coffee.yesterday": "Yesterday",
-  "ui.coffee_outline_segment": "Segment {0} \xB7 {1}"
+  "ui.coffee_outline_segment": "Segment {0} \xB7 {1}",
+  "log.exchange_full_prompt": "Full prompt:",
+  "log.exchange_legacy_prompt_missing": "(older record without the full prompt)",
+  "log.exchange_request": "Request sent to AI:",
+  "log.exchange_not_sent": "(not sent yet)",
+  "log.exchange_raw_reply": "Raw AI reply:",
+  "log.exchange_error": "Error:",
+  "log.exchange_none": "(none)",
+  "error.exchange_log_invalid": "The AI exchange log has an invalid format",
+  "error.exchange_log_fields_invalid": "The AI exchange log has invalid fields; the original file is kept and writing stopped",
+  "error.pending_suggestions_invalid": "Pending suggestions have an invalid format",
+  "error.pending_suggestions_fields_invalid": "Pending suggestions have invalid fields; the original file is kept and writing stopped",
+  "error.pending_suggestions_save_failed": "Saving pending suggestions failed",
+  "log.stage_starting_ai": "Starting AI",
+  "log.stage_waiting_reply": "Waiting for the AI reply",
+  "log.stage_parsing_reply": "Parsing the AI reply",
+  "log.stage_failure_0_1": "{0}: {1}",
+  "error.ai_reply_missing_summary_0": "{0} did not return a summary and detail",
+  "error.codex_reply_no_json": "No complete JSON object was found in the Codex reply",
+  "error.ai_task_stop_after_timeout_failed": "Could not stop the AI task after it timed out",
+  "error.ai_task_cancel_failed": "Cancelling the AI task failed",
+  "log.codex_unsubscribe_failed_0": "Codex App Server could not cancel a thread subscription: {0}",
+  "log.codex_starting_0": "Starting Codex App Server: {0} app-server",
+  "log.codex_ready": "Codex App Server is ready",
+  "log.codex_search_callback_failed_0": "Native search event callback failed: {0}",
+  "prompt.search_budget_exhausted": "The web search budget is used up. Stop searching and finish the answer from the information already gathered; list anything missing as unconfirmed.",
+  "log.codex_search_stop_undelivered_0": "The stop-searching reminder was not delivered: {0}",
+  "log.claude_starting_0_1": "Starting Claude Code: {0} --print ({1})",
+  "log.claude_web_search_available": "web search available",
+  "log.claude_vam_context_only": "only VAM-provided content",
+  "log.operation_failed_0": "Operation failed: {0}",
+  "log.plugin_loaded_0": "Visual Agent Map {0} loaded",
+  "log.exchange_log_save_failed_0": "Saving the AI exchange log failed: {0}",
+  "log.pending_suggestions_save_failed_0": "Saving pending suggestions failed: {0}",
+  "log.initialization_incomplete_0": "Initialization incomplete: {0}",
+  "log.codex_recheck_failed": "Codex App Server recheck failed",
+  "log.codex_not_ready_0": "Codex App Server is not ready yet: {0}",
+  "note.mindsearch_answer_research_0": "{0} \xB7 Answer research",
+  "note.mindsearch_conclusion": "Research conclusion",
+  "note.mindsearch_needs_followup": "Research needs follow-up",
+  "note.mindsearch_synthesis": "Research synthesis",
+  "note.mindsearch_followup_draft": "Research follow-up draft",
+  "note.mindsearch_partial_summary_0": "Partial research, follow-up still needed: {0}",
+  "note.mindsearch_followup_summary_0_1": "Follow-up: {0}: {1}",
+  "note.mindsearch_followup_heading_0": "## Follow-up: {0}",
+  "note.mindsearch_round_limit_0": "The research round limit was reached and an important evidence gap remains: {0}",
+  "note.mindsearch_partial_heading": "## Research status: partial, can continue",
+  "note.mindsearch_pending_target_0": "Still to research: {0}",
+  "note.mindsearch_pending_task_0": "Follow-up task: {0}",
+  "note.mindsearch_pending_value_0": "Expected to clarify: {0}",
+  "note.mindsearch_unknown_option": "Unknown / no preference",
+  "note.mindsearch_question_title_0": "Question \xB7 {0}",
+  "note.mindsearch_answer_options_heading": "## Answer options",
+  "note.mindsearch_unpublished_diagnostic": "(unpublished diagnostic)",
+  "note.mindsearch_unpublished_diagnostic_summary_0": "Unpublished diagnostic: this content belongs to the superseded MindSearch attempt {0} and is not a valid research result.",
+  "note.mindsearch_initial_clarification": "Initial user clarification",
+  "note.no_conclusion_yet": "No conclusion yet",
+  "note.untitled_topic": "Untitled topic",
+  "note.source_unconfirmed_0": "Source to confirm: {0}",
+  "note.external_source_0": "External source: {0}",
+  "note.no_new_information": "No new information in this task.",
+  "note.visual_reference": "Visual reference",
+  "ui.mindsearch_preparing_clarification": "Preparing initial clarification\u2026",
+  "ui.mindsearch_answered_not_started": "Answered \xB7 research not started",
+  "log.preliminary_map_failed": "Building the preliminary map failed",
+  "log.ai_split_failed": "AI split failed",
+  "log.integration_directions_failed": "Integration direction suggestions failed",
+  "log.child_integration_failed": "Subtopic integration failed",
+  "log.expansion_suggestions_save_failed": "Saving expansion suggestions failed",
+  "log.ai_task_failed": "AI task failed",
+  "log.stale_result_not_written": "The topic changed; the stale AI result was not written.",
+  "log.stopped_result_not_written": "Research stopped; the result was not written.",
+  "log.topic_write_failed_0": "Writing the topic failed: {0}",
+  "error.topic_state_change_rollback_failed": "Changing the topic state failed and could not be fully undone",
+  "error.batch_remove_rollback_failed": "Batch removal failed and could not be fully undone",
+  "error.copy_rollback_restore_failed": "Undoing the copy failed and could not be fully restored",
+  "error.batch_copy_rollback_failed": "Batch copy failed and could not be fully undone",
+  "error.reframing_stopped": "Reframing stopped.",
+  "error.reframing_over_budget": "Source exceeds the reframing budget; choose one insight or create manually.",
+  "ui.mindsearch_clarify_title": "Before exploring",
+  "ui.mindsearch_clarify_intro": "Confirm the conditions that affect research. Leave answers blank if unsure. This intake does not count toward exploration questions.",
+  "ui.mindsearch_clarify_placeholder": "Unsure \u2014 explore first",
+  "ui.mindsearch_clarify_save": "Save and explore",
+  "note.mindsearch_clarify_blank_answer": "Unsure; research applicable alternatives without asking this again.",
+  "note.mindsearch_answer_hint": "Select any applicable choices, add free text, or choose Unknown / no preference.",
+  "note.copy_suffix": "copy",
+  "note.source_topic_label": "Source topic: "
 };
 var traditionalChinese = {
   "ui.output_language": "\u672C\u6B21\u56DE\u7B54\u8A9E\u8A00",
@@ -2184,7 +2270,93 @@ var traditionalChinese = {
   "coffee.preferences_must_be_text": "\u89C0\u5BDF\u8005\u8207\u6574\u4F75\u504F\u597D\u5FC5\u9808\u662F\u6587\u5B57\u3002",
   "coffee.today": "\u4ECA\u5929",
   "coffee.yesterday": "\u6628\u5929",
-  "ui.coffee_outline_segment": "\u7B2C {0} \u6BB5\u30FB{1}"
+  "ui.coffee_outline_segment": "\u7B2C {0} \u6BB5\u30FB{1}",
+  "log.exchange_full_prompt": "\u5B8C\u6574 Prompt\uFF1A",
+  "log.exchange_legacy_prompt_missing": "\uFF08\u820A\u7D00\u9304\u672A\u4FDD\u5B58\u5B8C\u6574 prompt\uFF09",
+  "log.exchange_request": "\u9001\u5F80 AI \u7684\u8ACB\u6C42\uFF1A",
+  "log.exchange_not_sent": "\uFF08\u5C1A\u672A\u9001\u51FA\uFF09",
+  "log.exchange_raw_reply": "AI \u539F\u59CB\u56DE\u8986\uFF1A",
+  "log.exchange_error": "\u932F\u8AA4\uFF1A",
+  "log.exchange_none": "\uFF08\u7121\uFF09",
+  "error.exchange_log_invalid": "AI \u5F80\u8FD4\u7D00\u9304\u683C\u5F0F\u932F\u8AA4",
+  "error.exchange_log_fields_invalid": "AI \u5F80\u8FD4\u7D00\u9304\u6B04\u4F4D\u683C\u5F0F\u932F\u8AA4\uFF1B\u4FDD\u7559\u539F\u6A94\u4E26\u505C\u6B62\u5BEB\u5165",
+  "error.pending_suggestions_invalid": "\u5F85\u78BA\u8A8D\u5EFA\u8B70\u683C\u5F0F\u932F\u8AA4",
+  "error.pending_suggestions_fields_invalid": "\u5F85\u78BA\u8A8D\u5EFA\u8B70\u6B04\u4F4D\u683C\u5F0F\u932F\u8AA4\uFF1B\u4FDD\u7559\u539F\u6A94\u4E26\u505C\u6B62\u5BEB\u5165",
+  "error.pending_suggestions_save_failed": "\u5F85\u78BA\u8A8D\u5EFA\u8B70\u5132\u5B58\u5931\u6557",
+  "log.stage_starting_ai": "\u555F\u52D5 AI",
+  "log.stage_waiting_reply": "\u7B49\u5F85 AI \u56DE\u8986",
+  "log.stage_parsing_reply": "\u89E3\u6790 AI \u56DE\u8986",
+  "log.stage_failure_0_1": "{0}\uFF1A{1}",
+  "error.ai_reply_missing_summary_0": "{0} \u6C92\u6709\u56DE\u50B3 summary \u8207 detail",
+  "error.codex_reply_no_json": "Codex \u56DE\u61C9\u4E2D\u627E\u4E0D\u5230\u5B8C\u6574 JSON object",
+  "error.ai_task_stop_after_timeout_failed": "\u903E\u6642\u5F8C\u7121\u6CD5\u505C\u6B62 AI \u4EFB\u52D9",
+  "error.ai_task_cancel_failed": "\u53D6\u6D88 AI \u4EFB\u52D9\u5931\u6557",
+  "log.codex_unsubscribe_failed_0": "Codex App Server \u7121\u6CD5\u53D6\u6D88 thread \u8A02\u95B1\uFF1A{0}",
+  "log.codex_starting_0": "\u555F\u52D5 Codex App Server\uFF1A{0} app-server",
+  "log.codex_ready": "Codex App Server \u5DF2\u5C31\u7DD2",
+  "log.codex_search_callback_failed_0": "\u539F\u751F\u641C\u5C0B\u4E8B\u4EF6\u56DE\u547C\u5931\u6557\uFF1A{0}",
+  "prompt.search_budget_exhausted": "\u7DB2\u8DEF\u641C\u5C0B\u9810\u7B97\u5DF2\u7528\u5B8C\u3002\u8ACB\u505C\u6B62\u641C\u5C0B\uFF0C\u6839\u64DA\u5DF2\u53D6\u5F97\u7684\u8CC7\u6599\u5B8C\u6210\u7B54\u6848\uFF1B\u4E0D\u8DB3\u4E4B\u8655\u660E\u78BA\u5217\u70BA\u5F85\u78BA\u8A8D\u3002",
+  "log.codex_search_stop_undelivered_0": "\u641C\u5C0B\u505C\u6B62\u63D0\u9192\u672A\u9001\u9054\uFF1A{0}",
+  "log.claude_starting_0_1": "\u555F\u52D5 Claude Code\uFF1A{0} --print ({1})",
+  "log.claude_web_search_available": "\u7DB2\u8DEF\u641C\u5C0B\u53EF\u7528",
+  "log.claude_vam_context_only": "\u50C5\u4F7F\u7528 VAM \u63D0\u4F9B\u7684\u5167\u5BB9",
+  "log.operation_failed_0": "\u64CD\u4F5C\u5931\u6557\uFF1A{0}",
+  "log.plugin_loaded_0": "Visual Agent Map {0} \u8F09\u5165",
+  "log.exchange_log_save_failed_0": "AI \u5F80\u8FD4\u7D00\u9304\u5132\u5B58\u5931\u6557\uFF1A{0}",
+  "log.pending_suggestions_save_failed_0": "\u5F85\u78BA\u8A8D\u5EFA\u8B70\u5132\u5B58\u5931\u6557\uFF1A{0}",
+  "log.initialization_incomplete_0": "\u521D\u59CB\u5316\u672A\u5B8C\u6210\uFF1A{0}",
+  "log.codex_recheck_failed": "Codex App Server \u91CD\u65B0\u6AA2\u67E5\u5931\u6557",
+  "log.codex_not_ready_0": "Codex App Server \u5C1A\u672A\u5C31\u7DD2\uFF1A{0}",
+  "note.mindsearch_answer_research_0": "{0}\u30FB\u56DE\u7B54\u7814\u7A76",
+  "note.mindsearch_conclusion": "\u7814\u7A76\u7D50\u8AD6",
+  "note.mindsearch_needs_followup": "\u7814\u7A76\u5F85\u88DC\u67E5",
+  "note.mindsearch_synthesis": "\u7814\u7A76\u6536\u6582",
+  "note.mindsearch_followup_draft": "\u7814\u7A76\u88DC\u67E5\u8349\u7A3F",
+  "note.mindsearch_partial_summary_0": "\u90E8\u5206\u7814\u7A76\uFF0C\u4ECD\u5F85\u88DC\u67E5\uFF1A{0}",
+  "note.mindsearch_followup_summary_0_1": "\u88DC\u67E5\uFF1A{0}: {1}",
+  "note.mindsearch_followup_heading_0": "## \u88DC\u67E5\uFF1A{0}",
+  "note.mindsearch_round_limit_0": "\u7814\u7A76\u8F2A\u6578\u5DF2\u9054\u4E0A\u9650\uFF0C\u4ECD\u6709\u91CD\u8981\u8B49\u64DA\u7F3A\u53E3\uFF1A{0}",
+  "note.mindsearch_partial_heading": "## \u7814\u7A76\u72C0\u614B\uFF1A\u90E8\u5206\u5B8C\u6210\uFF0C\u53EF\u7E7C\u7E8C\u7814\u7A76",
+  "note.mindsearch_pending_target_0": "\u5C1A\u5F85\u88DC\u67E5\uFF1A{0}",
+  "note.mindsearch_pending_task_0": "\u88DC\u67E5\u4EFB\u52D9\uFF1A{0}",
+  "note.mindsearch_pending_value_0": "\u9810\u671F\u91D0\u6E05\uFF1A{0}",
+  "note.mindsearch_unknown_option": "\u672A\u77E5\uFF0F\u7121\u504F\u597D",
+  "note.mindsearch_question_title_0": "\u554F\u984C \xB7 {0}",
+  "note.mindsearch_answer_options_heading": "## \u56DE\u7B54\u9078\u9805",
+  "note.mindsearch_unpublished_diagnostic": "\uFF08\u672A\u767C\u5E03\u8A3A\u65B7\uFF09",
+  "note.mindsearch_unpublished_diagnostic_summary_0": "\u672A\u767C\u5E03\u8A3A\u65B7\uFF1A\u6B64\u5167\u5BB9\u5C6C\u65BC\u5DF2\u5931\u6548\u7684 MindSearch attempt {0}\uFF0C\u4E0D\u662F\u6709\u6548\u7814\u7A76\u7D50\u679C\u3002",
+  "note.mindsearch_initial_clarification": "\u958B\u59CB\u524D\u689D\u4EF6\u91D0\u6E05",
+  "note.no_conclusion_yet": "\u5C1A\u672A\u5F62\u6210\u7D50\u8AD6",
+  "note.untitled_topic": "\u672A\u547D\u540D\u4E3B\u984C",
+  "note.source_unconfirmed_0": "\u4F86\u6E90\u5F85\u78BA\u8A8D\uFF1A{0}",
+  "note.external_source_0": "\u5916\u90E8\u4F86\u6E90\uFF1A{0}",
+  "note.no_new_information": "\u672C\u6B21\u7121\u65B0\u589E\u5167\u5BB9\u3002",
+  "note.visual_reference": "\u8996\u89BA\u53C3\u8003",
+  "ui.mindsearch_preparing_clarification": "\u6B63\u5728\u6E96\u5099\u958B\u59CB\u524D\u7684\u689D\u4EF6\u91D0\u6E05\u2026",
+  "ui.mindsearch_answered_not_started": "\u5DF2\u56DE\u7B54\u30FB\u7814\u7A76\u5C1A\u672A\u958B\u59CB",
+  "log.preliminary_map_failed": "\u5EFA\u7ACB\u521D\u6B65\u5730\u5716\u5931\u6557",
+  "log.ai_split_failed": "AI \u62C6\u89E3\u5931\u6557",
+  "log.integration_directions_failed": "\u6574\u5408\u65B9\u5411\u5EFA\u8B70\u5931\u6557",
+  "log.child_integration_failed": "\u5B50\u8B70\u984C\u6574\u5408\u5931\u6557",
+  "log.expansion_suggestions_save_failed": "\u5C55\u958B\u5EFA\u8B70\u5132\u5B58\u5931\u6557",
+  "log.ai_task_failed": "AI \u4EFB\u52D9\u5931\u6557",
+  "log.stale_result_not_written": "\u8B70\u984C\u5167\u5BB9\u5DF2\u8B8A\u66F4\uFF0C\u904E\u6642\u7684 AI \u7D50\u679C\u672A\u5BEB\u5165\u3002",
+  "log.stopped_result_not_written": "\u7814\u7A76\u5DF2\u505C\u6B62\uFF0C\u7D50\u679C\u672A\u5BEB\u5165\u3002",
+  "log.topic_write_failed_0": "\u5BEB\u5165\u8B70\u984C\u5931\u6557\uFF1A{0}",
+  "error.topic_state_change_rollback_failed": "\u8B70\u984C\u72C0\u614B\u8F49\u63DB\u5931\u6557\uFF0C\u4E14\u7121\u6CD5\u5B8C\u6574\u5FA9\u539F",
+  "error.batch_remove_rollback_failed": "\u6279\u6B21\u79FB\u9664\u5931\u6557\uFF0C\u4E14\u7121\u6CD5\u5B8C\u6574\u5FA9\u539F",
+  "error.copy_rollback_restore_failed": "\u5FA9\u539F\u8907\u88FD\u5931\u6557\uFF0C\u4E14\u7121\u6CD5\u5B8C\u6574\u56DE\u5FA9",
+  "error.batch_copy_rollback_failed": "\u6279\u6B21\u8907\u88FD\u5931\u6557\uFF0C\u4E14\u7121\u6CD5\u5B8C\u6574\u5FA9\u539F",
+  "error.reframing_stopped": "\u6574\u7406\u5DF2\u505C\u6B62\u3002",
+  "error.reframing_over_budget": "\u4F86\u6E90\u8D85\u904E\u6574\u7406\u9810\u7B97\uFF1B\u8ACB\u9078\u55AE\u689D\u6D1E\u898B\uFF0C\u6216\u624B\u52D5\u7DE8\u8F2F\u5EFA\u7ACB\u3002",
+  "ui.mindsearch_clarify_title": "\u958B\u59CB\u524D\u91D0\u6E05",
+  "ui.mindsearch_clarify_intro": "\u4E00\u8D77\u78BA\u8A8D\u6703\u5F71\u97FF\u7814\u7A76\u65B9\u5411\u7684\u689D\u4EF6\u3002\u7559\u767D\u8868\u793A\u4E0D\u78BA\u5B9A\uFF0C\u5148\u63A2\u7D22\u3002\u9019\u8F2A\u4E0D\u8A08\u5165\u63A2\u7D22\u984C\u6578\u3002",
+  "ui.mindsearch_clarify_placeholder": "\u4E0D\u78BA\u5B9A\uFF0C\u5148\u63A2\u7D22",
+  "ui.mindsearch_clarify_save": "\u4FDD\u5B58\u4E26\u958B\u59CB\u63A2\u7D22",
+  "note.mindsearch_clarify_blank_answer": "\u4E0D\u78BA\u5B9A\uFF0C\u5148\u63A2\u7D22\uFF1B\u8ACB\u7814\u7A76\u9069\u7528\u7684\u66FF\u4EE3\u60C5\u6CC1\uFF0C\u4E0D\u8981\u518D\u6B21\u8981\u6C42\u586B\u5BEB\u3002",
+  "note.mindsearch_answer_hint": "\u53EF\u8907\u9078\u3001\u88DC\u5145\u81EA\u7531\u6587\u5B57\uFF0C\u6216\u9078\u64C7\u300C\u672A\u77E5\uFF0F\u7121\u504F\u597D\u300D\u3002",
+  "note.copy_suffix": "\u526F\u672C",
+  "note.source_topic_label": "\u4F86\u6E90\u8B70\u984C\uFF1A"
 };
 var language = "en";
 function initialUiLanguage(saved) {
@@ -9244,30 +9416,27 @@ var MindSearchClarificationModal = class extends import_obsidian5.Modal {
   }
   onOpen() {
     var _a;
-    const text3 = (zh, en) => this.english ? en : zh;
-    this.titleEl.setText(text3("\u958B\u59CB\u524D\u91D0\u6E05", "Before exploring"));
+    const text3 = (key2) => translate(this.english ? "en" : "zh-TW", key2);
+    this.titleEl.setText(text3("ui.mindsearch_clarify_title"));
     this.contentEl.createEl("p", {
-      text: text3(
-        "\u4E00\u8D77\u78BA\u8A8D\u6703\u5F71\u97FF\u7814\u7A76\u65B9\u5411\u7684\u689D\u4EF6\u3002\u7559\u767D\u8868\u793A\u4E0D\u78BA\u5B9A\uFF0C\u5148\u63A2\u7D22\u3002\u9019\u8F2A\u4E0D\u8A08\u5165\u63A2\u7D22\u984C\u6578\u3002",
-        "Confirm the conditions that affect research. Leave answers blank if unsure. This intake does not count toward exploration questions."
-      )
+      text: text3("ui.mindsearch_clarify_intro")
     });
     const fields = this.questions.map((question) => {
       const label = this.contentEl.createEl("label", { cls: "vam-field" });
       label.createSpan({ text: question });
       const input = label.createEl("textarea", { attr: { rows: "2" } });
       input.setAttr("aria-label", question);
-      input.placeholder = text3("\u4E0D\u78BA\u5B9A\uFF0C\u5148\u63A2\u7D22", "Unsure \u2014 explore first");
+      input.placeholder = text3("ui.mindsearch_clarify_placeholder");
       return { question, input };
     });
     const status = this.contentEl.createEl("p", { cls: "vam-hint", attr: { "aria-live": "polite" } });
     let pending = false;
     new import_obsidian5.Setting(this.contentEl).addButton(
-      (button) => button.setButtonText(text3("\u53D6\u6D88", "Cancel")).onClick(() => {
+      (button) => button.setButtonText(text3("ui.cancel")).onClick(() => {
         if (!pending) this.close();
       })
     ).addButton(
-      (button) => button.setButtonText(text3("\u4FDD\u5B58\u4E26\u958B\u59CB\u63A2\u7D22", "Save and explore")).setCta().onClick(() => {
+      (button) => button.setButtonText(text3("ui.mindsearch_clarify_save")).setCta().onClick(() => {
         if (pending) return;
         pending = true;
         button.setDisabled(true);
@@ -9276,7 +9445,7 @@ var MindSearchClarificationModal = class extends import_obsidian5.Modal {
         });
         const answers = fields.map(
           ({ question, input }) => `- ${question}
-  ${input.value.trim() || text3("\u4E0D\u78BA\u5B9A\uFF0C\u5148\u63A2\u7D22\uFF1B\u8ACB\u7814\u7A76\u9069\u7528\u7684\u66FF\u4EE3\u60C5\u6CC1\uFF0C\u4E0D\u8981\u518D\u6B21\u8981\u6C42\u586B\u5BEB\u3002", "Unsure; research applicable alternatives without asking this again.")}`
+  ${input.value.trim() || text3("note.mindsearch_clarify_blank_answer")}`
         ).join("\n\n");
         void this.submit(answers).then(() => this.close()).catch((error) => {
           pending = false;
@@ -9370,8 +9539,8 @@ function resolveReferenceLinks(detail, groups) {
   const documents = dedupeReferenceGroups(groups).flatMap((group) => group.documents);
   const identified = detail.replace(/\[S(\d+)\]/g, (original, number) => {
     const document2 = documents[Number(number) - 1];
-    if (!document2) return `\u4F86\u6E90\u5F85\u78BA\u8A8D\uFF1A${original}`;
-    return document2.external ? `\u5916\u90E8\u4F86\u6E90\uFF1A${document2.path}` : `[[${document2.path}]]`;
+    if (!document2) return t("note.source_unconfirmed_0", original);
+    return document2.external ? t("note.external_source_0", document2.path) : `[[${document2.path}]]`;
   });
   return identified.replace(/\[\[([^\]]+)\]\]/g, (original, target) => {
     const name = target.split("|")[0].trim();
@@ -9381,9 +9550,9 @@ function resolveReferenceLinks(detail, groups) {
       const basename = (_a = document2.path.split("/").pop()) != null ? _a : document2.path;
       return basename === name || basename.replace(/\.md$/i, "") === name;
     });
-    if (matches.length > 1) return `\u4F86\u6E90\u5F85\u78BA\u8A8D\uFF1A${name}`;
+    if (matches.length > 1) return t("note.source_unconfirmed_0", name);
     if (matches.length !== 1 || !matches[0].external) return original;
-    return `\u5916\u90E8\u4F86\u6E90\uFF1A${matches[0].path}`;
+    return t("note.external_source_0", matches[0].path);
   });
 }
 
@@ -9961,7 +10130,7 @@ function ensureNoteCssClass(fm) {
   return true;
 }
 function safeName(title) {
-  return title.replace(/[\\/:*?"<>|#^[\]]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || "\u672A\u547D\u540D\u4E3B\u984C";
+  return title.replace(/[\\/:*?"<>|#^[\]]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || t("note.untitled_topic");
 }
 function frontmatter(content) {
   var _a, _b;
@@ -10171,7 +10340,7 @@ function localizeReference(value, language2) {
 function withReferenceLinks(body, fm, language2) {
   const sources2 = Array.isArray(fm["source-notes"]) ? fm["source-notes"].map(String).filter(Boolean) : [];
   const relationships = Array.isArray(fm["agent-map-references"]) ? fm["agent-map-references"].map(String).filter((text3) => text3.includes("[[")) : [];
-  const label = language2 === "en" ? "Source topic: " : "\u4F86\u6E90\u8B70\u984C\uFF1A";
+  const label = translate(language2, "note.source_topic_label");
   const links = [
     ...relationships.map((value) => localizeReference(value, language2)),
     ...sources2.map((path) => `${label}[[${noteLink(path)}]]`)
@@ -10450,7 +10619,7 @@ ${noteBody(title, metadata.summary, this.settings.language, (_c = initial.prompt
     await this.ensureTopicFolders(this.topicRoot(mapPath));
     const source = await this.app.vault.read(this.file(sourcePath));
     const metadata = frontmatter(source);
-    const title = `${text(metadata.title, this.file(sourcePath).basename)} ${this.settings.language === "en" ? "copy" : "\u526F\u672C"}`;
+    const title = `${text(metadata.title, this.file(sourcePath).basename)} ${translate(this.settings.language, "note.copy_suffix")}`;
     const id = crypto.randomUUID(), path = this.unique(folder, title);
     metadata["node-id"] = id;
     metadata["topic-id"] = map.id;
@@ -11042,7 +11211,7 @@ function canonicalDetail(value, language2 = "zh-TW") {
   }
   if (sections.size === 0) sections.set(0, [detail]);
   else if (leading.join("\n").trim()) sections.set(0, [leading.join("\n").trim(), ...(_a = sections.get(0)) != null ? _a : []]);
-  const empty = language2 === "en" ? "No new information in this task." : "\u672C\u6B21\u7121\u65B0\u589E\u5167\u5BB9\u3002";
+  const empty = translate(language2, "note.no_new_information");
   return headings.map((heading, index) => {
     var _a2;
     return `### ${heading}
@@ -11096,7 +11265,7 @@ function previewMetrics(scaleValue) {
 function markdownImages(markdown, limit = 4) {
   const images = [];
   for (const match of markdown.matchAll(/!\[([^\]]*)\]\((https?:\/\/[^)\s]+)\)/gi)) {
-    images.push({ alt: match[1] || "\u8996\u89BA\u53C3\u8003", url: match[2] });
+    images.push({ alt: match[1] || t("note.visual_reference"), url: match[2] });
     if (images.length >= limit) break;
   }
   return images;
@@ -11204,17 +11373,17 @@ var PendingSuggestions = class extends Map {
   async load() {
     try {
       const parsed = JSON.parse(await (0, import_promises.readFile)(this.path, "utf8"));
-      if (!Array.isArray(parsed)) throw new Error("\u5F85\u78BA\u8A8D\u5EFA\u8B70\u683C\u5F0F\u932F\u8AA4");
+      if (!Array.isArray(parsed)) throw new Error(t("error.pending_suggestions_invalid"));
       const entries = [];
       for (const item of parsed) {
         if (!Array.isArray(item) || item.length !== 2 || typeof item[0] !== "string" || !Array.isArray(item[1]))
-          throw new Error("\u5F85\u78BA\u8A8D\u5EFA\u8B70\u6B04\u4F4D\u683C\u5F0F\u932F\u8AA4\uFF1B\u4FDD\u7559\u539F\u6A94\u4E26\u505C\u6B62\u5BEB\u5165");
+          throw new Error(t("error.pending_suggestions_fields_invalid"));
         const suggestions = item[1].filter((value) => {
           if (!value || typeof value !== "object") return false;
           const suggestion = value;
           return typeof suggestion.title === "string" && typeof suggestion.task === "string" && typeof suggestion.contribution === "string" && (suggestion.parentTitle === void 0 || typeof suggestion.parentTitle === "string") && (suggestion.thinkingOriginBaseline === void 0 || typeof suggestion.thinkingOriginBaseline === "string");
         });
-        if (suggestions.length !== item[1].length) throw new Error("\u5F85\u78BA\u8A8D\u5EFA\u8B70\u6B04\u4F4D\u683C\u5F0F\u932F\u8AA4\uFF1B\u4FDD\u7559\u539F\u6A94\u4E26\u505C\u6B62\u5BEB\u5165");
+        if (suggestions.length !== item[1].length) throw new Error(t("error.pending_suggestions_fields_invalid"));
         entries.push([item[0], suggestions]);
       }
       for (const [key2, suggestions] of entries) if (suggestions.length) super.set(key2, suggestions);
@@ -11243,7 +11412,8 @@ var PendingSuggestions = class extends Map {
   }
   async flush() {
     await this.writes;
-    if (this.writeError) throw this.writeError instanceof Error ? this.writeError : new Error("\u5F85\u78BA\u8A8D\u5EFA\u8B70\u5132\u5B58\u5931\u6557");
+    if (this.writeError)
+      throw this.writeError instanceof Error ? this.writeError : new Error(t("error.pending_suggestions_save_failed"));
   }
   save() {
     if (this.loadError) {
@@ -13588,7 +13758,13 @@ ${delivery.evidence}` },
       await this.persist(() => this.runs.recordResearchTurn(mapPath, handle));
       let reports = savedReports;
       const draftResult = await this.persist(
-        () => this.runs.createResultDraft(mapPath, handle, `${parent.summary}\u30FB\u56DE\u7B54\u7814\u7A76`, model, reasoning)
+        () => this.runs.createResultDraft(
+          mapPath,
+          handle,
+          translate(this.repository.settings.language, "note.mindsearch_answer_research_0", parent.summary),
+          model,
+          reasoning
+        )
       );
       if (draftResult.status === "stale") return { status: "stale", branchId: branch.id };
       const draft = draftResult.draft;
@@ -13780,7 +13956,16 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
         "## Source boundary",
         "Agent-reported sources are not independently verified by VAM."
       ].join("\n\n");
-      const presentation = finalReview.decision === "conclude" ? { title: "\u7814\u7A76\u7D50\u8AD6", kind: "conclusion" } : { title: finalReview.decision === "research_more" ? "\u7814\u7A76\u5F85\u88DC\u67E5" : "\u7814\u7A76\u6536\u6582", kind: "synthesis" };
+      const presentation = finalReview.decision === "conclude" ? {
+        title: translate(this.repository.settings.language, "note.mindsearch_conclusion"),
+        kind: "conclusion"
+      } : {
+        title: translate(
+          this.repository.settings.language,
+          finalReview.decision === "research_more" ? "note.mindsearch_needs_followup" : "note.mindsearch_synthesis"
+        ),
+        kind: "synthesis"
+      };
       if (!await this.persist(
         () => this.runs.updateResultDraftPresentation(mapPath, handle, draft.id, presentation.title, presentation.kind)
       ))
@@ -14211,7 +14396,7 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
         "Agent-reported sources were not independently verified by VAM."
       ].join("\n\n");
       const finalKind = finalReview.decision === "conclude" ? "conclusion" : "synthesis";
-      const finalTitle = finalReview.decision === "conclude" ? "\u7814\u7A76\u7D50\u8AD6" : finalReview.decision === "research_more" ? "\u7814\u7A76\u5F85\u88DC\u67E5" : "\u7814\u7A76\u6536\u6582";
+      const finalTitle = finalReview.decision === "conclude" ? translate(this.repository.settings.language, "note.mindsearch_conclusion") : finalReview.decision === "research_more" ? translate(this.repository.settings.language, "note.mindsearch_needs_followup") : translate(this.repository.settings.language, "note.mindsearch_synthesis");
       if (!await this.persist(
         () => this.runs.updateResultDraftPresentation(mapPath, handle, finalDraft.id, finalTitle, finalKind)
       ))
@@ -14223,7 +14408,7 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
           handle,
           finalDraft.id,
           {
-            summary: finalReview.decision === "research_more" ? `\u90E8\u5206\u7814\u7A76\uFF0C\u4ECD\u5F85\u88DC\u67E5\uFF1A${finalReview.summary}` : finalReview.summary,
+            summary: finalReview.decision === "research_more" ? translate(this.repository.settings.language, "note.mindsearch_partial_summary_0", finalReview.summary) : finalReview.summary,
             detail
           },
           finalReview.decision === "research_more" ? "partial" : "completed"
@@ -14596,16 +14781,16 @@ ${lineage.context || "None yet."}`
     const options = labels.map((label) => ({ id: this.id(), label }));
     options.push({
       id: MINDSEARCH_UNKNOWN_OPTION_ID,
-      label: language2 === "en" ? "Unknown / no preference" : "\u672A\u77E5\uFF0F\u7121\u504F\u597D"
+      label: translate(language2, "note.mindsearch_unknown_option")
     });
-    const noteTitle2 = language2 === "en" ? `Question \xB7 ${questionText}` : `\u554F\u984C \xB7 ${questionText}`;
+    const noteTitle2 = translate(language2, "note.mindsearch_question_title_0", questionText);
     const notePath = this.repository.unique(this.repository.topicFolder(mapPath, "Notes"), noteTitle2);
     const questionNodeId = this.id();
     const detail = [
       plannerDetail.trim(),
-      language2 === "en" ? "## Answer options" : "## \u56DE\u7B54\u9078\u9805",
+      translate(language2, "note.mindsearch_answer_options_heading"),
       ...options.map((option) => `- ${option.label}`),
-      language2 === "en" ? "Select any applicable choices, add free text, or choose Unknown / no preference." : "\u53EF\u8907\u9078\u3001\u88DC\u5145\u81EA\u7531\u6587\u5B57\uFF0C\u6216\u9078\u64C7\u300C\u672A\u77E5\uFF0F\u7121\u504F\u597D\u300D\u3002"
+      translate(language2, "note.mindsearch_answer_hint")
     ].filter(Boolean).join("\n\n");
     const draft = {
       requestId,
@@ -14756,7 +14941,7 @@ ${input.requestId}`;
     const parentBranchId = (_b = contract.parentBranchId) != null ? _b : null;
     const lineage = await this.branchLineage(map, parentBranchId);
     const inheritedBranch = parentBranchId ? (_c = map.mindSearch) == null ? void 0 : _c.branches.find((branch2) => branch2.id === parentBranchId) : void 0;
-    const condition = [answerLabels.join("; "), freeText].filter(Boolean).join(" \u2014 ") || (this.repository.settings.language === "en" ? "Unknown / no preference" : "\u672A\u77E5\uFF0F\u7121\u504F\u597D");
+    const condition = [answerLabels.join("; "), freeText].filter(Boolean).join(" \u2014 ") || translate(this.repository.settings.language, "note.mindsearch_unknown_option");
     const branch = await this.persist(
       () => {
         var _a2, _b2;
@@ -15417,26 +15602,44 @@ ${item.detail}`
       const aggregateReports = () => resumeReports ? {
         summary: [
           resumeReports.summary,
-          ...supplementalReports.map((item) => `\u88DC\u67E5\uFF1A${item.target.title}: ${item.summary}`)
+          ...supplementalReports.map(
+            (item) => translate(
+              this.repository.settings.language,
+              "note.mindsearch_followup_summary_0_1",
+              item.target.title,
+              item.summary
+            )
+          )
         ].join("\n"),
         detail: [
           resumeReports.detail,
-          ...supplementalReports.map((item) => `## \u88DC\u67E5\uFF1A${item.target.title}
+          ...supplementalReports.map(
+            (item) => `${translate(this.repository.settings.language, "note.mindsearch_followup_heading_0", item.target.title)}
 
-${item.detail}`)
+${item.detail}`
+          )
         ].join("\n\n")
       } : {
         summary: [
           ...reports.map((item) => `${item.title}: ${item.summary}`),
-          ...supplementalReports.map((item) => `\u88DC\u67E5\uFF1A${item.target.title}: ${item.summary}`)
+          ...supplementalReports.map(
+            (item) => translate(
+              this.repository.settings.language,
+              "note.mindsearch_followup_summary_0_1",
+              item.target.title,
+              item.summary
+            )
+          )
         ].join("\n"),
         detail: [
           ...reports.map((item) => `## ${item.title}
 
 ${item.detail}`),
-          ...supplementalReports.map((item) => `## \u88DC\u67E5\uFF1A${item.target.title}
+          ...supplementalReports.map(
+            (item) => `${translate(this.repository.settings.language, "note.mindsearch_followup_heading_0", item.target.title)}
 
-${item.detail}`)
+${item.detail}`
+          )
         ].join("\n\n")
       };
       let synthesisDraftId;
@@ -15553,11 +15756,18 @@ ${currentReports.detail}`,
           if (!lastReport2)
             throw new Error("MindSearch cannot save a follow-up without persisted initial subtopic reports.");
           const draft = await this.persist(
-            () => this.runs.createResultDraft(mapPath, synthesisHandle, "\u7814\u7A76\u88DC\u67E5\u8349\u7A3F", model, void 0, {
-              kind: "synthesis",
-              parentNodeId: lastReport2.nodeId,
-              convergesFromNodeIds: reports.map((item) => item.nodeId)
-            })
+            () => this.runs.createResultDraft(
+              mapPath,
+              synthesisHandle,
+              translate(this.repository.settings.language, "note.mindsearch_followup_draft"),
+              model,
+              void 0,
+              {
+                kind: "synthesis",
+                parentNodeId: lastReport2.nodeId,
+                convergesFromNodeIds: reports.map((item) => item.nodeId)
+              }
+            )
           );
           if (draft.status === "stale") return { status: "stale", branchId };
           synthesisDraftId = draft.draft.id;
@@ -15643,7 +15853,10 @@ ${beforeSearch.detail}`,
           () => this.runs.createResultDraft(
             mapPath,
             synthesisHandle,
-            isPartial ? "\u7814\u7A76\u5F85\u88DC\u67E5" : isQuestion ? "\u7814\u7A76\u6536\u6582" : "\u7814\u7A76\u7D50\u8AD6",
+            translate(
+              this.repository.settings.language,
+              isPartial ? "note.mindsearch_needs_followup" : isQuestion ? "note.mindsearch_synthesis" : "note.mindsearch_conclusion"
+            ),
             model,
             void 0,
             {
@@ -15656,12 +15869,24 @@ ${beforeSearch.detail}`,
         if (draft.status === "stale") return { status: "stale", branchId };
         synthesisDraftId = draft.draft.id;
       }
-      const stopReason = isPartial ? `\u7814\u7A76\u8F2A\u6578\u5DF2\u9054\u4E0A\u9650\uFF0C\u4ECD\u6709\u91CD\u8981\u8B49\u64DA\u7F3A\u53E3\uFF1A${finalReview.rationale}` : isQuestion ? `Awaiting the user's answer to: ${finalReview.question}` : finalReview.stopReason;
+      const stopReason = isPartial ? translate(this.repository.settings.language, "note.mindsearch_round_limit_0", finalReview.rationale) : isQuestion ? `Awaiting the user's answer to: ${finalReview.question}` : finalReview.stopReason;
       const partialSection = isPartial && finalReview.researchTarget ? [
-        "## \u7814\u7A76\u72C0\u614B\uFF1A\u90E8\u5206\u5B8C\u6210\uFF0C\u53EF\u7E7C\u7E8C\u7814\u7A76",
-        `\u5C1A\u5F85\u88DC\u67E5\uFF1A${finalReview.researchTarget.title}`,
-        `\u88DC\u67E5\u4EFB\u52D9\uFF1A${finalReview.researchTarget.task}`,
-        `\u9810\u671F\u91D0\u6E05\uFF1A${finalReview.researchTarget.expectedValue}`
+        translate(this.repository.settings.language, "note.mindsearch_partial_heading"),
+        translate(
+          this.repository.settings.language,
+          "note.mindsearch_pending_target_0",
+          finalReview.researchTarget.title
+        ),
+        translate(
+          this.repository.settings.language,
+          "note.mindsearch_pending_task_0",
+          finalReview.researchTarget.task
+        ),
+        translate(
+          this.repository.settings.language,
+          "note.mindsearch_pending_value_0",
+          finalReview.researchTarget.expectedValue
+        )
       ].join("\n\n") : "";
       const detail = isPartial || isQuestion ? [
         partialSection || "## Interim result",
@@ -15673,7 +15898,16 @@ ${beforeSearch.detail}`,
         "## Source boundary",
         "Sources and claims are reported by the research agent and were not independently verified by VAM."
       ].join("\n\n") : finalReview.detail;
-      const presentation = isPartial ? { title: "\u7814\u7A76\u5F85\u88DC\u67E5", kind: "synthesis" } : isQuestion ? { title: "\u7814\u7A76\u6536\u6582", kind: "synthesis" } : { title: "\u7814\u7A76\u7D50\u8AD6", kind: "conclusion" };
+      const presentation = isPartial ? {
+        title: translate(this.repository.settings.language, "note.mindsearch_needs_followup"),
+        kind: "synthesis"
+      } : isQuestion ? {
+        title: translate(this.repository.settings.language, "note.mindsearch_synthesis"),
+        kind: "synthesis"
+      } : {
+        title: translate(this.repository.settings.language, "note.mindsearch_conclusion"),
+        kind: "conclusion"
+      };
       if (!await this.persist(
         () => this.runs.updateResultDraftPresentation(
           mapPath,
@@ -15690,7 +15924,10 @@ ${beforeSearch.detail}`,
           mapPath,
           synthesisHandle,
           synthesisDraftId,
-          { summary: isPartial ? `\u90E8\u5206\u7814\u7A76\uFF0C\u4ECD\u5F85\u88DC\u67E5\uFF1A${finalReview.summary}` : finalReview.summary, detail },
+          {
+            summary: isPartial ? translate(this.repository.settings.language, "note.mindsearch_partial_summary_0", finalReview.summary) : finalReview.summary,
+            detail
+          },
           isPartial ? "partial" : "completed"
         );
       });
@@ -16587,8 +16824,11 @@ var _MindSearchRunStore = class _MindSearchRunStore {
       note.detail
     ].filter(Boolean).join("\n\n");
     await this.repository.updateNote(draft.notePath, {
-      title: note.title.includes("\u672A\u767C\u5E03\u8A3A\u65B7") ? note.title : `${note.title}\uFF08\u672A\u767C\u5E03\u8A3A\u65B7\uFF09`,
-      summary: `\u672A\u767C\u5E03\u8A3A\u65B7\uFF1A\u6B64\u5167\u5BB9\u5C6C\u65BC\u5DF2\u5931\u6548\u7684 MindSearch attempt ${draft.attemptId}\uFF0C\u4E0D\u662F\u6709\u6548\u7814\u7A76\u7D50\u679C\u3002`,
+      title: [
+        translate("en", "note.mindsearch_unpublished_diagnostic"),
+        translate("zh-TW", "note.mindsearch_unpublished_diagnostic")
+      ].some((marker5) => note.title.includes(marker5)) ? note.title : `${note.title}${t("note.mindsearch_unpublished_diagnostic")}`,
+      summary: t("note.mindsearch_unpublished_diagnostic_summary_0", draft.attemptId),
       detail,
       status: "error"
     });
@@ -17050,14 +17290,22 @@ function formatAiExchange(entry) {
   return [
     `[${entry.startedAt}] ${entry.topic} \xB7 ${entry.mode} \xB7 ${entry.model}/${entry.effort} \xB7 ${entry.status}`,
     timing,
-    "\n\u5B8C\u6574 Prompt\uFF1A\n",
-    metrics.prompt || "\uFF08\u820A\u7D00\u9304\u672A\u4FDD\u5B58\u5B8C\u6574 prompt\uFF09",
-    "\n\u9001\u5F80 AI \u7684\u8ACB\u6C42\uFF1A\n",
-    entry.request || "\uFF08\u5C1A\u672A\u9001\u51FA\uFF09",
-    "\nAI \u539F\u59CB\u56DE\u8986\uFF1A\n",
-    entry.response || "\uFF08\u7121\uFF09",
-    "\n\u932F\u8AA4\uFF1A\n",
-    entry.error || "\uFF08\u7121\uFF09"
+    `
+${t("log.exchange_full_prompt")}
+`,
+    metrics.prompt || t("log.exchange_legacy_prompt_missing"),
+    `
+${t("log.exchange_request")}
+`,
+    entry.request || t("log.exchange_not_sent"),
+    `
+${t("log.exchange_raw_reply")}
+`,
+    entry.response || t("log.exchange_none"),
+    `
+${t("log.exchange_error")}
+`,
+    entry.error || t("log.exchange_none")
   ].join("\n");
 }
 var AiExchangeLog = class {
@@ -17073,7 +17321,7 @@ var AiExchangeLog = class {
   async load() {
     try {
       const parsed = JSON.parse(await (0, import_promises2.readFile)(this.path, "utf8"));
-      if (!Array.isArray(parsed)) throw new Error("AI \u5F80\u8FD4\u7D00\u9304\u683C\u5F0F\u932F\u8AA4");
+      if (!Array.isArray(parsed)) throw new Error(t("error.exchange_log_invalid"));
       const entries = parsed.filter((item) => {
         if (!item || typeof item !== "object") return false;
         const entry = item;
@@ -17081,7 +17329,7 @@ var AiExchangeLog = class {
           (key2) => typeof entry[key2] === "string"
         ) && (entry.prompt === void 0 || typeof entry.prompt === "string") && (entry.sentAt === void 0 || typeof entry.sentAt === "string") && (entry.completedAt === void 0 || typeof entry.completedAt === "string") && (entry.durationMs === void 0 || typeof entry.durationMs === "number" && Number.isFinite(entry.durationMs) && entry.durationMs >= 0) && typeof entry.status === "string" && ["preparing", "sent", "received", "parsed", "completed", "failed"].includes(entry.status);
       });
-      if (entries.length !== parsed.length) throw new Error("AI \u5F80\u8FD4\u7D00\u9304\u6B04\u4F4D\u683C\u5F0F\u932F\u8AA4\uFF1B\u4FDD\u7559\u539F\u6A94\u4E26\u505C\u6B62\u5BEB\u5165");
+      if (entries.length !== parsed.length) throw new Error(t("error.exchange_log_fields_invalid"));
       this.entries = entries.slice(-this.limit);
       this.loadError = null;
       this.emit();
@@ -19208,7 +19456,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
                 const latest = await this.plugin.repo.readNote(node.path);
                 if (!latest.detail.includes("<!-- mindsearch-intake-complete -->")) {
                   await this.plugin.repo.updateNote(node.path, {
-                    detail: latest.detail + "\n\n<!-- mindsearch-intake-complete -->\n## " + (this.plugin.settings.language === "en" ? "Initial user clarification" : "\u958B\u59CB\u524D\u689D\u4EF6\u91D0\u6E05") + "\n\n" + answers
+                    detail: latest.detail + "\n\n<!-- mindsearch-intake-complete -->\n## " + translate(this.plugin.settings.language, "note.mindsearch_initial_clarification") + "\n\n" + answers
                   });
                 }
               });
@@ -19605,7 +19853,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
         await this.hydrate();
         this.render();
       } catch (rollbackError) {
-        throw new AggregateError([error, rollbackError], "\u8B70\u984C\u72C0\u614B\u8F49\u63DB\u5931\u6557\uFF0C\u4E14\u7121\u6CD5\u5B8C\u6574\u5FA9\u539F");
+        throw new AggregateError([error, rollbackError], t("error.topic_state_change_rollback_failed"));
       }
       throw error;
     }
@@ -19732,7 +19980,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
         await this.hydrate();
         this.render();
       } catch (rollbackError) {
-        throw new AggregateError([error, rollbackError], "\u6279\u6B21\u79FB\u9664\u5931\u6557\uFF0C\u4E14\u7121\u6CD5\u5B8C\u6574\u5FA9\u539F");
+        throw new AggregateError([error, rollbackError], t("error.batch_remove_rollback_failed"));
       }
       throw error;
     }
@@ -19896,7 +20144,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
               await this.hydrate();
               this.render();
             } catch (rollbackError) {
-              throw new AggregateError([error, rollbackError], "\u5FA9\u539F\u8907\u88FD\u5931\u6557\uFF0C\u4E14\u7121\u6CD5\u5B8C\u6574\u56DE\u5FA9");
+              throw new AggregateError([error, rollbackError], t("error.copy_rollback_restore_failed"));
             }
             throw error;
           }
@@ -19921,7 +20169,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
         await this.hydrate();
         this.render();
       } catch (rollbackError) {
-        throw new AggregateError([error, rollbackError], "\u6279\u6B21\u8907\u88FD\u5931\u6557\uFF0C\u4E14\u7121\u6CD5\u5B8C\u6574\u5FA9\u539F");
+        throw new AggregateError([error, rollbackError], t("error.batch_copy_rollback_failed"));
       }
       throw error;
     }
@@ -20523,7 +20771,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       if (this.mindSearchBusy) {
         const activeTitle = (_h = (_g = this.notes.get((_f = this.mindSearchActiveQuestionNodeId) != null ? _f : "")) == null ? void 0 : _g.title) != null ? _h : this.map.title;
         const planning = this.mindSearchActivityKind === "planning";
-        stateText = this.mindSearchActivityKind === "clarifying" ? this.plugin.settings.language === "en" ? "Preparing initial clarification\u2026" : "\u6B63\u5728\u6E96\u5099\u958B\u59CB\u524D\u7684\u689D\u4EF6\u91D0\u6E05\u2026" : t(planning ? "ui.mindsearch_status_planning_0" : "ui.mindsearch_status_researching_0", activeTitle);
+        stateText = this.mindSearchActivityKind === "clarifying" ? t("ui.mindsearch_preparing_clarification") : t(planning ? "ui.mindsearch_status_planning_0" : "ui.mindsearch_status_researching_0", activeTitle);
         stateClass = "running";
       } else if (runningBranch) {
         const activeTitle = (_j = (_i = this.notes.get(runningBranch.questionNodeId)) == null ? void 0 : _i.title) != null ? _j : this.map.title;
@@ -20905,7 +21153,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       };
       header.createSpan({
         cls: `vam-status vam-mindsearch-question-status vam-status-${status === "running" ? "running" : status === "completed" ? "completed" : status === "not_started" ? "idea" : "error"}`,
-        text: status === "not_started" && this.map.mindSearch.branches.some((branch) => branch.questionNodeId === node.id) ? this.plugin.settings.language === "en" ? "Answered \xB7 research not started" : "\u5DF2\u56DE\u7B54\u30FB\u7814\u7A76\u5C1A\u672A\u958B\u59CB" : t(key2[status])
+        text: status === "not_started" && this.map.mindSearch.branches.some((branch) => branch.questionNodeId === node.id) ? t("ui.mindsearch_answered_not_started") : t(key2[status])
       });
     } else if (node.mindSearchKind === "topic" && ((_f = this.map) == null ? void 0 : _f.mindSearch) && this.map.mindSearch.branches.some((branch) => branch.questionNodeId === node.id && !branch.parentBranchId)) {
       const status = mindSearchQuestionStatus(this.map, node.id, this.mindSearchActiveQuestionNodeId);
@@ -20919,7 +21167,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       };
       header.createSpan({
         cls: `vam-status vam-mindsearch-question-status vam-status-${status === "running" ? "running" : status === "completed" ? "completed" : status === "not_started" ? "idea" : "error"}`,
-        text: status === "not_started" && this.map.mindSearch.branches.some((branch) => branch.questionNodeId === node.id) ? this.plugin.settings.language === "en" ? "Answered \xB7 research not started" : "\u5DF2\u56DE\u7B54\u30FB\u7814\u7A76\u5C1A\u672A\u958B\u59CB" : t(key2[status])
+        text: status === "not_started" && this.map.mindSearch.branches.some((branch) => branch.questionNodeId === node.id) ? t("ui.mindsearch_answered_not_started") : t(key2[status])
       });
     } else if (active || !note || note.status !== "completed")
       header.createSpan({
@@ -22000,7 +22248,10 @@ ${translate(outputLanguage, "prompt.avoid_duplicates")} ${direct ? directTask : 
       const cancelled = !partial && (controller.signal.aborted || stoppedBatch);
       if (!cancelled) {
         console.error("Visual Agent Map AI split", error);
-        const message = this.plugin.recordFailure(building ? "\u5EFA\u7ACB\u521D\u6B65\u5730\u5716\u5931\u6557" : "AI \u62C6\u89E3\u5931\u6557", error);
+        const message = this.plugin.recordFailure(
+          t(building ? "log.preliminary_map_failed" : "log.ai_split_failed"),
+          error
+        );
         if (direct) (_t = this.plugin.quickExpandFailures) == null ? void 0 : _t.set(parent.path, message);
         if (failed) failed(message, !partial);
         else new import_obsidian14.Notice(message);
@@ -22284,7 +22535,7 @@ ${translate(outputLanguage, "prompt.avoid_duplicates")} ${direct ? directTask : 
       );
     } catch (error) {
       console.error("Visual Agent Map integration directions", error);
-      failed(this.plugin.recordFailure("\u6574\u5408\u65B9\u5411\u5EFA\u8B70\u5931\u6557", error));
+      failed(this.plugin.recordFailure(t("log.integration_directions_failed"), error));
     } finally {
       this.plugin.running.delete(node.path);
       await this.hydrate();
@@ -22453,7 +22704,7 @@ ${translate(outputLanguage, "prompt.avoid_duplicates")} ${direct ? directTask : 
       } else {
         console.error("Visual Agent Map child integration", error);
         await this.plugin.repo.updateNote(node.path, { status: "error" });
-        const message = this.plugin.recordFailure("\u5B50\u8B70\u984C\u6574\u5408\u5931\u6557", error);
+        const message = this.plugin.recordFailure(t("log.child_integration_failed"), error);
         if (failed) failed(message);
         else new import_obsidian14.Notice(message);
       }
@@ -22563,7 +22814,7 @@ ${note.thinkingOrigin}` : ""
       const result = await this.plugin.askModel(
         {
           title,
-          summary: language2 === "en" ? "No conclusion yet" : "\u5C1A\u672A\u5F62\u6210\u7D50\u8AD6",
+          summary: translate(language2, "note.no_conclusion_yet"),
           rules: "",
           detail: "",
           task: [goal, options == null ? void 0 : options.requirements].filter(Boolean).join("\n\n"),
@@ -22997,7 +23248,7 @@ ${note.thinkingOrigin}` : ""
           if (exchangeId && this.plugin.settings.aiExchangeLoggingEnabled)
             (_a2 = this.plugin.exchanges) == null ? void 0 : _a2.failed(
               exchangeId,
-              stale ? "\u8B70\u984C\u5167\u5BB9\u5DF2\u8B8A\u66F4\uFF0C\u904E\u6642\u7684 AI \u7D50\u679C\u672A\u5BEB\u5165\u3002" : "\u7814\u7A76\u5DF2\u505C\u6B62\uFF0C\u7D50\u679C\u672A\u5BEB\u5165\u3002"
+              t(stale ? "log.stale_result_not_written" : "log.stopped_result_not_written")
             );
           if (stale) {
             if (failed) failed(t("ui.the_topic_changed_so_the_outdated_ai_result_was_not_saved"));
@@ -23030,7 +23281,7 @@ ${note.thinkingOrigin}` : ""
           try {
             await ((_e = (_d = this.plugin.pendingSuggestions).flush) == null ? void 0 : _e.call(_d));
           } catch (error) {
-            const message = this.plugin.recordFailure("\u5C55\u958B\u5EFA\u8B70\u5132\u5B58\u5931\u6557", error);
+            const message = this.plugin.recordFailure(t("log.expansion_suggestions_save_failed"), error);
             new import_obsidian14.Notice(message);
           }
         }
@@ -23049,10 +23300,10 @@ ${note.thinkingOrigin}` : ""
         if (exchangeId && this.plugin.settings.aiExchangeLoggingEnabled && ((_b2 = (_a2 = this.plugin.exchanges) == null ? void 0 : _a2.getEntries().find((item) => item.id === exchangeId)) == null ? void 0 : _b2.status) === "parsed")
           this.plugin.exchanges.failed(
             exchangeId,
-            `\u5BEB\u5165\u8B70\u984C\u5931\u6557\uFF1A${error instanceof Error ? error.message : String(error)}`
+            t("log.topic_write_failed_0", error instanceof Error ? error.message : String(error))
           );
         await this.plugin.repo.updateNote(node.path, { status: "error" });
-        const message = this.plugin.recordFailure("AI \u4EFB\u52D9\u5931\u6557", error);
+        const message = this.plugin.recordFailure(t("log.ai_task_failed"), error);
         if (failed) failed(message);
         else new import_obsidian14.Notice(message);
       })
@@ -23786,7 +24037,7 @@ var CodexAppServerRuntime = class {
         var _a3;
         this.turns.delete(threadId);
         timedOut = true;
-        interrupt(5e3, "\u903E\u6642\u5F8C\u7121\u6CD5\u505C\u6B62 AI \u4EFB\u52D9");
+        interrupt(5e3, t("error.ai_task_stop_after_timeout_failed"));
         reject(
           new Error(
             (_a3 = controls == null ? void 0 : controls.timeoutMessage) != null ? _a3 : (controls == null ? void 0 : controls.timeoutMs) ? t("ui.ai_task_exceeded_0_minutes", Math.ceil(controls.timeoutMs / 6e4)) : t("ui.the_ai_task_exceeded_3_minutes_vam_attempts_to_interrupt_it")
@@ -23813,7 +24064,7 @@ var CodexAppServerRuntime = class {
     });
     const state = this.turns.get(threadId);
     void completed.catch(() => void 0);
-    const interrupt = (timeoutMs = CONTROL_TIMEOUT_MS, failure = "\u53D6\u6D88 AI \u4EFB\u52D9\u5931\u6557") => {
+    const interrupt = (timeoutMs = CONTROL_TIMEOUT_MS, failure = t("error.ai_task_cancel_failed")) => {
       if (!state.turnId || interruptRequested) return;
       interruptRequested = true;
       void this.request("turn/interrupt", { threadId, turnId: state.turnId }, timeoutMs).catch(
@@ -23857,7 +24108,7 @@ var CodexAppServerRuntime = class {
         (_b2 = controls == null ? void 0 : controls.onRequest) == null ? void 0 : _b2.call(controls, steerRequest);
         await this.request("turn/steer", steerRequest);
       });
-      if (timedOut) interrupt(5e3, "\u903E\u6642\u5F8C\u7121\u6CD5\u505C\u6B62 AI \u4EFB\u52D9");
+      if (timedOut) interrupt(5e3, t("error.ai_task_stop_after_timeout_failed"));
       else if ((_l = controls == null ? void 0 : controls.signal) == null ? void 0 : _l.aborted) onAbort();
       this.steerIfNeeded(threadId, state);
       const answer = await completed;
@@ -23881,14 +24132,14 @@ var CodexAppServerRuntime = class {
         (_q = (_p = this.options).onLog) == null ? void 0 : _q.call(
           _p,
           "warn",
-          `Codex App Server \u7121\u6CD5\u53D6\u6D88 thread \u8A02\u95B1\uFF1A${error instanceof Error ? error.message : String(error)}`
+          t("log.codex_unsubscribe_failed_0", error instanceof Error ? error.message : String(error))
         );
       }
     }
   }
   async startProcess() {
     var _a, _b, _c, _d;
-    (_b = (_a = this.options).onLog) == null ? void 0 : _b.call(_a, "info", `\u555F\u52D5 Codex App Server\uFF1A${this.options.executable} app-server`);
+    (_b = (_a = this.options).onLog) == null ? void 0 : _b.call(_a, "info", t("log.codex_starting_0", this.options.executable));
     this.buffer = "";
     this.stderr = "";
     const child = spawnProcess(
@@ -23924,7 +24175,7 @@ var CodexAppServerRuntime = class {
       capabilities: { experimentalApi: false, requestAttestation: false }
     });
     this.send({ method: "initialized" });
-    (_d = (_c = this.options).onLog) == null ? void 0 : _d.call(_c, "info", "Codex App Server \u5DF2\u5C31\u7DD2");
+    (_d = (_c = this.options).onLog) == null ? void 0 : _d.call(_c, "info", t("log.codex_ready"));
   }
   consume(child, chunk) {
     if (this.child !== child) return;
@@ -24035,7 +24286,11 @@ var CodexAppServerRuntime = class {
       const snapshot = JSON.parse(JSON.stringify(params));
       state.onWebSearchEvent({ method, params: snapshot });
     } catch (error) {
-      (_b = (_a = this.options).onLog) == null ? void 0 : _b.call(_a, "warn", `\u539F\u751F\u641C\u5C0B\u4E8B\u4EF6\u56DE\u547C\u5931\u6557\uFF1A${error instanceof Error ? error.message : String(error)}`);
+      (_b = (_a = this.options).onLog) == null ? void 0 : _b.call(
+        _a,
+        "warn",
+        t("log.codex_search_callback_failed_0", error instanceof Error ? error.message : String(error))
+      );
     }
   }
   steerIfNeeded(threadId, state) {
@@ -24046,15 +24301,17 @@ var CodexAppServerRuntime = class {
     const steerRequest = {
       threadId,
       expectedTurnId: state.turnId,
-      input: [
-        { type: "text", text: "\u7DB2\u8DEF\u641C\u5C0B\u9810\u7B97\u5DF2\u7528\u5B8C\u3002\u8ACB\u505C\u6B62\u641C\u5C0B\uFF0C\u6839\u64DA\u5DF2\u53D6\u5F97\u7684\u8CC7\u6599\u5B8C\u6210\u7B54\u6848\uFF1B\u4E0D\u8DB3\u4E4B\u8655\u660E\u78BA\u5217\u70BA\u5F85\u78BA\u8A8D\u3002" }
-      ]
+      input: [{ type: "text", text: t("prompt.search_budget_exhausted") }]
     };
     (_a = state.onRequest) == null ? void 0 : _a.call(state, steerRequest);
     void this.request("turn/steer", steerRequest).catch(
       (error) => {
         var _a2, _b;
-        return (_b = (_a2 = this.options).onLog) == null ? void 0 : _b.call(_a2, "warn", `\u641C\u5C0B\u505C\u6B62\u63D0\u9192\u672A\u9001\u9054\uFF1A${error instanceof Error ? error.message : String(error)}`);
+        return (_b = (_a2 = this.options).onLog) == null ? void 0 : _b.call(
+          _a2,
+          "warn",
+          t("log.codex_search_stop_undelivered_0", error instanceof Error ? error.message : String(error))
+        );
       }
     );
   }
@@ -24238,7 +24495,11 @@ var ClaudeCodeCliRuntime = class {
     (_f = (_e = this.options).onLog) == null ? void 0 : _f.call(
       _e,
       "info",
-      `\u555F\u52D5 Claude Code\uFF1A${this.options.executable} --print (${webSearch ? "\u7DB2\u8DEF\u641C\u5C0B\u53EF\u7528" : "\u50C5\u4F7F\u7528 VAM \u63D0\u4F9B\u7684\u5167\u5BB9"})`
+      t(
+        "log.claude_starting_0_1",
+        this.options.executable,
+        t(webSearch ? "log.claude_web_search_available" : "log.claude_vam_context_only")
+      )
     );
     return new Promise((resolve, reject) => {
       var _a2, _b2, _c2, _d2, _e2;
@@ -24810,7 +25071,7 @@ function extractJsonObject(raw) {
     } catch (e) {
     }
   }
-  throw new SyntaxError("Codex \u56DE\u61C9\u4E2D\u627E\u4E0D\u5230\u5B8C\u6574 JSON object");
+  throw new SyntaxError(t("error.codex_reply_no_json"));
 }
 var AiTaskService = class {
   constructor(options) {
@@ -24909,7 +25170,7 @@ ${context.task}`
       });
       onExchange == null ? void 0 : onExchange(exchangeId);
     }
-    let stage = "\u555F\u52D5 AI";
+    let stage = t("log.stage_starting_ai");
     try {
       const controls = {
         signal,
@@ -24928,7 +25189,7 @@ ${context.task}`
         searchBudget: 0,
         webSearch: context.researchMode !== "local",
         onRequest: (request) => {
-          stage = "\u7B49\u5F85 AI \u56DE\u8986";
+          stage = t("log.stage_waiting_reply");
           if (this.options.exchangeLoggingEnabled())
             exchanges == null ? void 0 : exchanges.sent(exchangeId, JSON.stringify(request, null, 2), instructions);
         }
@@ -24970,7 +25231,7 @@ ${context.task}`
         context.mindSearchEvidenceLookup === true
       ) : isMindSearchGapAudit ? mindsearch_gap_audit_schema_default : isDeliveryAcceptance ? deliverySchema : isIsolatedWebResearch ? webResearchSchema : response_schema_default;
       const raw = provider === "claude" ? await this.options.claudeRuntime(pluginDirectory).runTask(instructions, providerModelId(model), effort, schema, { ...controls, onWebSearchEvent }) : await this.options.codexRuntime(pluginDirectory, context.researchMode === "local").runTask(instructions, model, effort, schema, { ...controls, onWebSearchEvent });
-      stage = "\u89E3\u6790 AI \u56DE\u8986";
+      stage = t("log.stage_parsing_reply");
       if (this.options.exchangeLoggingEnabled()) exchanges == null ? void 0 : exchanges.received(exchangeId, raw);
       const result = this.parseAiResult(
         raw,
@@ -24993,7 +25254,10 @@ ${context.task}`
       return result;
     } catch (error) {
       if (this.options.exchangeLoggingEnabled())
-        exchanges == null ? void 0 : exchanges.failed(exchangeId, `${stage}\uFF1A${error instanceof Error ? error.message : String(error)}`);
+        exchanges == null ? void 0 : exchanges.failed(
+          exchangeId,
+          t("log.stage_failure_0_1", stage, error instanceof Error ? error.message : String(error))
+        );
       throw error;
     }
   }
@@ -25045,7 +25309,7 @@ ${value}`).join("\n\n");
     const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
     const parsed = JSON.parse(extractJsonObject(cleaned));
     if (typeof parsed.summary !== "string" || typeof parsed.detail !== "string")
-      throw new Error(`${label} \u6C92\u6709\u56DE\u50B3 summary \u8207 detail`);
+      throw new Error(t("error.ai_reply_missing_summary_0", label));
     if (strictGapAudit && (!["user_condition", "external_evidence"].includes(parsed.summary) || !parsed.detail.trim() || !Array.isArray(parsed.suggestions) || parsed.suggestions.length !== 0 || !Array.isArray(parsed.visualReferences) || parsed.visualReferences.length !== 0)) {
       throw new Error("MindSearch research-gap audit returned an invalid structured classification.");
     }
@@ -25061,7 +25325,7 @@ ${value}`).join("\n\n");
     const visualReferences = Array.isArray(parsed.visualReferences) ? parsed.visualReferences.filter(
       (item) => isRecord2(item) && typeof item.imageUrl === "string" && typeof item.sourceUrl === "string"
     ).map((item) => ({
-      title: typeof item.title === "string" ? item.title.trim() : language2 === "en" ? "Visual reference" : "\u8996\u89BA\u53C3\u8003",
+      title: typeof item.title === "string" ? item.title.trim() : translate(language2, "note.visual_reference"),
       imageUrl: String(item.imageUrl).trim(),
       sourceUrl: String(item.sourceUrl).trim(),
       description: typeof item.description === "string" ? item.description.trim() : "",
@@ -25169,15 +25433,13 @@ var ReframingService = class {
   }
   async reframe(request, signal) {
     const checkCancelled = () => {
-      if (signal.aborted) throw new Error(request.language === "zh-TW" ? "\u6574\u7406\u5DF2\u505C\u6B62\u3002" : "Reframing stopped.");
+      if (signal.aborted) throw new Error(translate(uiLocale(request.language), "error.reframing_stopped"));
     };
     checkCancelled();
     if (request.targetCore !== "understand") throw new Error("Unsupported reframing target");
     const prompt = buildReframePrompt(request);
     if (estimateTokens(prompt + JSON.stringify(REFRAME_SCHEMA)) > REFRAME_TOKEN_BUDGET) {
-      throw new Error(
-        request.language === "zh-TW" ? "\u4F86\u6E90\u8D85\u904E\u6574\u7406\u9810\u7B97\uFF1B\u8ACB\u9078\u55AE\u689D\u6D1E\u898B\uFF0C\u6216\u624B\u52D5\u7DE8\u8F2F\u5EFA\u7ACB\u3002" : "Source exceeds the reframing budget; choose one insight or create manually."
-      );
+      throw new Error(translate(uiLocale(request.language), "error.reframing_over_budget"));
     }
     const raw = await this.run(request, prompt, REFRAME_SCHEMA, signal);
     checkCancelled();
@@ -26366,7 +26628,7 @@ var VisualAgentMapPlugin = class extends import_obsidian20.Plugin {
     });
     this.queue = result.catch((error) => {
       const message = error instanceof Error ? error.message : String(error);
-      this.logs.appendLog("error", `\u64CD\u4F5C\u5931\u6557\uFF1A${message}`);
+      this.logs.appendLog("error", t("log.operation_failed_0", message));
       console.error("Visual Agent Map", error);
       new import_obsidian20.Notice(message);
     });
@@ -26485,17 +26747,23 @@ var VisualAgentMapPlugin = class extends import_obsidian20.Plugin {
       name: t("ui.context_ai_open"),
       checkCallback: (checking) => markdownSelectionAi.openForSelection(checking)
     });
-    this.logs.appendLog("info", `Visual Agent Map ${this.manifest.version || "unknown"} \u8F09\u5165`);
+    this.logs.appendLog("info", t("log.plugin_loaded_0", this.manifest.version || "unknown"));
     if (this.app.vault.adapter instanceof import_obsidian20.FileSystemAdapter && this.manifest.dir) {
       const pluginDirectory = (0, import_node_path2.join)(this.app.vault.adapter.getBasePath(), this.manifest.dir);
       this.exchanges = new AiExchangeLog(
         (0, import_node_path2.join)(pluginDirectory, "ai-exchanges.json"),
-        (error) => this.logs.appendLog("error", `AI \u5F80\u8FD4\u7D00\u9304\u5132\u5B58\u5931\u6557\uFF1A${error instanceof Error ? error.message : String(error)}`)
+        (error) => this.logs.appendLog(
+          "error",
+          t("log.exchange_log_save_failed_0", error instanceof Error ? error.message : String(error))
+        )
       );
       await this.exchanges.load();
       this.pendingSuggestions = new PendingSuggestions(
         (0, import_node_path2.join)(pluginDirectory, "pending-suggestions.json"),
-        (error) => this.logs.appendLog("error", `\u5F85\u78BA\u8A8D\u5EFA\u8B70\u5132\u5B58\u5931\u6557\uFF1A${error instanceof Error ? error.message : String(error)}`)
+        (error) => this.logs.appendLog(
+          "error",
+          t("log.pending_suggestions_save_failed_0", error instanceof Error ? error.message : String(error))
+        )
       );
       await this.pendingSuggestions.load();
     }
@@ -26668,7 +26936,10 @@ var VisualAgentMapPlugin = class extends import_obsidian20.Plugin {
         else if (this.firstInstallSamplePending) await this.activateBuiltInSample();
         await this.activateOutline();
       }).catch((error) => {
-        this.logs.appendLog("warn", `\u521D\u59CB\u5316\u672A\u5B8C\u6210\uFF1A${error instanceof Error ? error.message : String(error)}`);
+        this.logs.appendLog(
+          "warn",
+          t("log.initialization_incomplete_0", error instanceof Error ? error.message : String(error))
+        );
         console.warn("Visual Agent Map initialization", error);
       });
     });
@@ -26844,7 +27115,7 @@ var VisualAgentMapPlugin = class extends import_obsidian20.Plugin {
       new import_obsidian20.Notice(
         t(
           "ui.codex_app_server_check_failed_0",
-          this.recordFailure("Codex App Server \u91CD\u65B0\u6AA2\u67E5\u5931\u6557", (_a = state.error) != null ? _a : "unknown error")
+          this.recordFailure(t("log.codex_recheck_failed"), (_a = state.error) != null ? _a : "unknown error")
         )
       );
     else new import_obsidian20.Notice(t("ui.codex_cli_was_not_found_0_set_the_codex_cli_path_in_vam_sett", diagnostic.executable));
@@ -27018,10 +27289,7 @@ var VisualAgentMapPlugin = class extends import_obsidian20.Plugin {
       }
       new import_obsidian20.Notice(t("ui.current_model_is_unavailable"));
     } catch (error) {
-      this.logs.appendLog(
-        "warn",
-        `Codex App Server \u5C1A\u672A\u5C31\u7DD2\uFF1A${error instanceof Error ? error.message : String(error)}`
-      );
+      this.logs.appendLog("warn", t("log.codex_not_ready_0", error instanceof Error ? error.message : String(error)));
     }
     return false;
   }

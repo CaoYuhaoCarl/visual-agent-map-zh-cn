@@ -202,7 +202,11 @@ export class ClaudeCodeCliRuntime {
     });
     this.options.onLog?.(
       "info",
-      `啟動 Claude Code：${this.options.executable} --print (${webSearch ? "網路搜尋可用" : "僅使用 VAM 提供的內容"})`
+      t(
+        "log.claude_starting_0_1",
+        this.options.executable,
+        t(webSearch ? "log.claude_web_search_available" : "log.claude_vam_context_only")
+      )
     );
 
     return new Promise<string>((resolve, reject) => {

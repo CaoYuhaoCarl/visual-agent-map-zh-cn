@@ -134,6 +134,12 @@ test('topic status labels follow the selected UI language after startup', () => 
   assert.equal(topicStatusLabel('idea', 'zh-TW'), '待研究');
   assert.equal(topicStatusLabel('error', 'en'), 'Task error');
 });
+// Files whose messages, logs and generated note text must come from i18n.ts, never inline Chinese.
+const runtimeMessageFiles = ['ai/runtime/codex-app-server.ts', 'ai/runtime/claude-code-cli.ts', 'core/ai-task-service.ts', 'core/reframing-service.ts', 'ai-exchange-log.ts', 'pending-suggestions.ts', 'main.ts', 'mindsearch-mve/research-run-store.ts', 'ai/reference-materials.ts', 'ui/modals/mind-search-clarification-modal.ts', 'ui/preview-utils.ts'];
+test('runtime, service and log messages carry no inline Chinese text', () => {
+  const offenders = runtimeMessageFiles.flatMap(file => fs.readFileSync(path.join(root, file), 'utf8').split('\n').map((line, index) => [file, index + 1, line]).filter(([, , line]) => /\p{Script=Han}/u.test(line)).map(([file, line]) => `${file}:${line}`));
+  assert.deepEqual(offenders, []);
+});
 test('all user-facing translations use stable semantic keys', () => {
   const dictionary = fs.readFileSync(path.join(root, 'i18n.ts'), 'utf8');
   const english = dictionary.slice(dictionary.indexOf('const english = {'), dictionary.indexOf('} as const;'));
@@ -144,7 +150,7 @@ test('all user-facing translations use stable semantic keys', () => {
   const tsFiles = dir => fs.readdirSync(path.join(root, dir), { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? tsFiles(`${dir}/${entry.name}`) : entry.name.endsWith('.ts') ? [`${dir}/${entry.name}`] : []);
   // Coffee Tables prompt, transcript and Markdown-format modules hold conversation content, not interface text.
   const coffeeContent = /^experiences\/coffee-tables\/(prompts|engine|convergence|storage|insights|types|topics|samples|outline|segments)\.ts$/;
-  const sourceFiles = ['main.ts', 'map-model.ts', 'ai/runtime/codex-app-server.ts', ...tsFiles('ui'), ...tsFiles('experiences').filter(file => !coffeeContent.test(file))];
+  const sourceFiles = ['main.ts', 'map-model.ts', ...runtimeMessageFiles.filter(file => !file.startsWith('ui/') && file !== 'main.ts'), ...tsFiles('ui'), ...tsFiles('experiences').filter(file => !coffeeContent.test(file))];
   const missing = [];
   let checked = 0;
   for (const file of sourceFiles) {
