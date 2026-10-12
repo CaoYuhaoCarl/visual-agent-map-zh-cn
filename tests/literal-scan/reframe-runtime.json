@@ -1,7 +1,15 @@
 {
   "dirs": [
     "core/steps/reframe",
-    "ai/runtime/messages"
+    "ai/runtime/messages",
+    "core/reframing-service.ts",
+    "main.ts"
   ],
-  "allow": []
+  "allow": [
+    {
+      "file": "main.ts",
+      "text": "Visual Agent Map external rename reconciliation",
+      "reason": "console.error context label for a background rename reconciliation failure; developer log text, never sent to a model"
+    }
+  ]
 }
