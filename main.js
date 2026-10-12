@@ -5870,7 +5870,7 @@ ${session.observerDraftMarkdown}`);
         return parseSession(raw);
       } catch (e) {
         throw new Error(
-          "This readable Markdown has no hidden session data. Keep it as a note; restore its .sessions file to continue the chat."
+          "This readable Markdown has no hidden session data. Keep it as a note; restore its .sessions file to continue the chat. Obsidian Sync does not sync the hidden Coffee Tables/.sessions folder, so a table started on another device can only be read here."
         );
       }
     }
@@ -5881,7 +5881,10 @@ ${session.observerDraftMarkdown}`);
       );
     const sessionLoaded = this.parseMarkdown(raw, side);
     const sidePath = this.sidecarPath(sessionLoaded.id);
-    if (!await this.vault.adapter.exists(sidePath)) throw new Error("Coffee Tables hidden session data is missing");
+    if (!await this.vault.adapter.exists(sidePath))
+      throw new Error(
+        "Coffee Tables hidden session data is missing. Obsidian Sync does not sync the hidden Coffee Tables/.sessions folder; continue this table on the device that started it."
+      );
     const sideRaw = await this.readHidden(sidePath), priorSidecar = this.sidecarOriginals.get(sessionLoaded.id);
     if (priorSidecar !== void 0 && priorSidecar !== sideRaw)
       throw new Error("Coffee Tables hidden data changed outside this room. Reload it before continuing.");

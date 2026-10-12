@@ -36,6 +36,8 @@ For detailed setup, manual installation, and troubleshooting, see [INSTALL.md](I
 
 Maps, research reports, Coffee Tables conversations, and observer notes are readable Markdown in your vault. You can edit and keep them outside VAM.
 
+Coffee Tables keeps the data needed to continue a conversation in the hidden `Coffee Tables/.sessions` folder. Obsidian Sync skips folders whose names start with a dot, so on other devices synced conversations can be read but not continued. Continue them on the device that started them, or use a sync tool that copies hidden folders.
+
 AI actions for selected Markdown text and clicked images produce editable drafts. You explicitly accept a draft before it changes a note. Image interpretation currently requires Codex and sends the selected image data when you run the action; original images remain unchanged.
 
 VAM has no telemetry and does not store API keys. AI tasks send relevant content, including research context, selected background files, or guest profiles, through your local CLI to OpenAI or Anthropic. Your provider allowance or charges may apply. AI request/reply logging is off by default; enabled logs may contain private note content.
@@ -100,6 +102,8 @@ Coffee Tables 來賓是模擬角色，不是真實專家；對談內容不會自
 ### 你的筆記與隱私
 
 地圖、研究報告、Coffee Tables 對談與觀察者筆記，都是 Vault 裡可閱讀的 Markdown。你可以編輯它們，也可以離開 VAM 繼續使用。
+
+Coffee Tables 把接續對談所需的資料放在隱藏資料夾 `Coffee Tables/.sessions`。Obsidian Sync 不同步以點開頭的資料夾，所以在其他裝置上只能閱讀同步過去的對談，無法接著聊。請在開始對談的裝置上繼續，或改用會複製隱藏資料夾的同步工具。
 
 選取 Markdown 文字與點選圖片的 AI 操作會產生可編輯草稿。你必須明確接受草稿，才會改動筆記。圖片辨識目前需要 Codex，執行時才傳送選取圖片的資料；原始圖片保持不變。
 
