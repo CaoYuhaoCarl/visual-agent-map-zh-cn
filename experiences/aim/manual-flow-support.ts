@@ -18,16 +18,15 @@ import {
 export const AIM_UNKNOWN_OPTION_ID = "__aim_unknown__";
 export { AIM_NO_QUESTION };
 export const MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION = 3;
-export const PLANNER_COVERAGE_RULE =
-  "Before deciding, compare the original topic and current question with the requested outcome and every persisted report. Name the central outcome(s) the user needs, then mark each answered or still open. A relevant side fact does not answer a missing core outcome. If a core outcome is open and one targeted search could plausibly help, choose research_more for that exact gap. Ask_user only for missing user conditions, not missing evidence. If a core outcome remains open at the research-turn limit, keep research_more so the result is saved as partial, not complete.";
-export const SEARCHER_TARGET_RULE =
-  "Answer the assigned research target first. Treat prior reports and side facts as context, not as a substitute for the target. Do not repeat resolved background facts in place of the requested outcome. If the search does not support the target, say explicitly that the target remains unresolved; do not imply it was answered.";
+export {
+  PLANNER_COVERAGE_RULE,
+  SEARCHER_TARGET_RULE,
+  USER_QUESTION_RULE,
+  FLOOR_ASK_RULE,
+  OUTCOME_EXPECTATION_RULE
+} from "./steps/_shared/rules";
 /** Below the floor more research never substitutes for the missing user input. */
 /** Every question goes to the user, so it must be about their goal, not about this workflow. */
-export const USER_QUESTION_RULE =
-  "A question to the user must be about the original goal, the user's preferences, constraints, resources or situation. Never ask about this tool's workflow, question counts, nodes, branches or research process, and never rephrase an earlier question as a new one.";
-export const FLOOR_ASK_RULE =
-  "Below the floor, choose research_more only for a material evidence gap in the original goal itself; if the reports already answer the goal, choose ask_user. Never pick research_more to satisfy the floor.";
 export const ALL_DECISIONS: readonly AimDecision[] = ["research_more", "ask_user", "conclude"];
 export const reviewContract = (decisions: readonly AimDecision[]): AimContract => ({
   kind: "review",
@@ -50,8 +49,6 @@ export function countAimAnsweredQuestions(map: MapDocument, branchId: string | n
   }
   return count;
 }
-export const OUTCOME_EXPECTATION_RULE =
-  "Use the original goal, known user conditions and outcome preferences. Resolve important contradictions before concluding. Preserve evidence attribution and uncertainty. Do only the current phase; a research report is not the final deliverable.";
 export function lineageWithoutRepeatedReports(lineage: string, reportDetail: string): string {
   return lineage
     .split(/\n\n(?=(?:User answer to |Saved research result v))/g)

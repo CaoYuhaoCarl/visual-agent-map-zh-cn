@@ -1,0 +1,1 @@
+A question to the user must be about the original goal, the user's preferences, constraints, resources or situation. Never ask about this tool's workflow, question counts, nodes, branches or research process, and never rephrase an earlier question as a new one.

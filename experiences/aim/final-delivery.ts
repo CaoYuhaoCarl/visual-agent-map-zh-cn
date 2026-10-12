@@ -1,6 +1,10 @@
 import { createHash } from "node:crypto";
 import type { AiResult, TaskContext } from "../../ai/types";
 import type { AimContract } from "../../ai/aim-contracts";
+import { renderOutlineTask } from "./steps/delivery-outline/step";
+import { renderResearchTask } from "./steps/delivery-research/step";
+import { renderWritingTask } from "./steps/delivery-writing/step";
+import { renderAcceptanceTask } from "./steps/delivery-acceptance/step";
 
 export interface DeliverySection {
   heading: string;
@@ -217,11 +221,7 @@ export async function buildFinalDelivery(
   const outlineResult = await stage(
     "outline",
     () =>
-      run(
-        "delivery-outline",
-        "You are the final-delivery Synthesizer. Design the actual document needed to answer the ORIGINAL user goal with all supplied conditions and outcome preferences. Previous research informs the outline; do not merely concatenate reports or reuse their headings. Return the outline in aim.sections: each section has heading, purpose (what the reader can do or understand after it), searchTask (specific web search needed, or empty if already supported), evidenceIds and dependencies (supplied source IDs). Choose a suitable structure, not a fixed template. Include concrete examples, resources, execution details or comparisons when required by this user. Map each section to the minimal supplied evidenceIds it needs. Dependencies also name supplied source IDs. Leave searchTask empty when mapped supplied reports already support the section; do not request a full search merely to repeat them. Identify exact source gaps for the deliverable. Do not ask the user or deliver the document yet." +
-          `\nSupplied evidence IDs and reports:\n${sourceCatalog}`
-      ),
+      run("delivery-outline", renderOutlineTask(sourceCatalog)),
     result => {
       parseDeliveryOutline(result.detail);
     }
@@ -258,7 +258,7 @@ export async function buildFinalDelivery(
       needsResearch
         ? await run(
             "delivery-research",
-            `You are the Researcher for the FINAL DOCUMENT. Search the web to fill and verify the sections of this agreed outline: ${outline}. Prioritize the explicit searchTasks and the concrete resources, examples, steps, or current facts required to deliver this user's requested result. Reuse supported prior findings; do not search irrelevant topics. Return a section-by-section evidence report. Use a Markdown H2 heading exactly matching each agreed section heading with a nonempty searchTask; place only that section's findings under it. Include explicit source IDs (delivery-research:<section-heading>:<number>) and direct source URLs, what each source supports, usable concrete details and unresolved gaps. Actually use available search tools; never claim a search occurred if it did not. Set aim.status to searched only when search actually ran. If tools fail or are unavailable, set aim.status to unavailable rather than replacing research with memory. Do not write the final document or ask questions.`,
+            renderResearchTask(outline),
             true
           )
         : {
@@ -365,7 +365,14 @@ export async function buildFinalDelivery(
       if (completed[plan.key]) continue;
       const written = await run(
         "delivery-writing",
-        `Write only the complete section "${plan.section.heading}" of the final document. Purpose: ${plan.section.purpose}. Full outline (structure only): ${outline}.\nKnown goal and user conditions:\n${options.knownConditions ?? base.detail}\nSection evidence (cite these explicit source IDs and URLs where used):\n${plan.scopedEvidence}\n${plan.section.searchTask.trim() ? `Additional final-document research:\n${plan.scopedResearch}` : ""}\nDevelop this section into useful specific content answering the original user goal. Include steps, examples and resources when required. Preserve all necessary detail; summary is only a canvas preview. Do not write other sections, an audit, or a synopsis. Do not fabricate or imply independent source verification. Output reader-facing Markdown in detail; cite sources where used and place limitations beside affected claims.`
+        renderWritingTask({
+          heading: plan.section.heading,
+          purpose: plan.section.purpose,
+          outline,
+          knownConditions: options.knownConditions ?? base.detail,
+          scopedEvidence: plan.scopedEvidence,
+          ...(plan.section.searchTask.trim() ? { scopedResearch: plan.scopedResearch } : {})
+        })
       );
       base.signal?.throwIfAborted();
       completed[plan.key] = {
@@ -409,7 +416,7 @@ export async function buildFinalDelivery(
     () =>
       run(
         "delivery-acceptance",
-        `Perform the final join review: check cross-section coherence, repeated advice or duplicate passages, source IDs or URLs attributed to the wrong claims, and missing sections. Do not rewrite sections. Review the full draft against the ORIGINAL goal, supplied conditions, requested format, and agreed outline. Outline: ${outline}\nFinal research:\n${research.detail}\nSupplied source reports:\n${sourceCatalog}\nDraft:\n${draft.detail}\nReturn the decision in the aim fields. Choose conclude ONLY if the document is usable and complete for this request: every required section is developed, necessary examples/resources/steps are concrete and supported, and sources are linked where used. Mere general direction is insufficient for a requested actionable plan. For conclude, put only a short acceptance note in detail; do not rewrite or repeat the draft. Explain readiness in aim.rationale and aim.stopReason. For shortcomings, list the specific missing outcomes and return research_more. If important delivery evidence remains missing, choose research_more with exactly one concrete aim.researchTarget (title, task, expectedValue) and explain the missing outcome. Do not ask the user and do not invent evidence.`
+        renderAcceptanceTask({ outline, research: research.detail, sourceCatalog, draft: draft.detail })
       ),
     result => {
       parseAcceptance(result);

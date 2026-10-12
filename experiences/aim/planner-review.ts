@@ -1,4 +1,10 @@
 import type { AiResult } from "../../ai/types";
+import {
+  renderGeneralRepair,
+  renderImposedOptionsRepair,
+  renderMissingChoicesRepair,
+  renderStateQuestionRepair
+} from "./steps/format-repair/step";
 
 export const AIM_MAX_RESEARCH_TURNS = 2;
 export type AimReviewDecision = "research_more" | "ask_user" | "conclude";
@@ -14,6 +20,10 @@ export interface AimPlannerReview {
   summary: string;
   detail: string;
 }
+
+/** Used when the workflow imposed ask_user without supplying its own rationale. */
+const CLARIFICATION_REQUIRED_RATIONALE = "The workflow requires a clarification question at this step.";
+const errorText = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
 const marker = /^\s*<!--\s*aim-review\s+(\{[^\n]*\})\s*-->\s*/;
 
@@ -213,17 +223,14 @@ export async function parseAimPlannerReviewWithRecovery(
       if (!question) {
         // The response chose to clarify but phrased it without a written question (for example as an
         // instruction). The model, not VAM, must author the question, so ask it once to state it.
-        const task = [
-          "Complete the format of this already-required ask_user Planner response. The workflow has imposed decision=ask_user; you have no authority to reconsider the decision or research evidence.",
-          "The response below asks for a clarification but never writes the question itself. State the one clarification question you intended, phrased as a direct question, in aim.question, and return 2–5 distinct answer choices in aim.answerOptions. Do not change the summary or answer body, add facts, search, or reinterpret evidence.",
-          `Required decision: ${context.requiredDecision}`,
-          `Required rationale: ${context.requiredDecisionRationale ?? "The workflow requires a clarification question at this step."}`,
-          `Original summary (preserve): ${originalSummary}`,
-          `Original response body (preserve; not research evidence):\n${preservedBody}`,
-          `Original suggestions: ${JSON.stringify(original.suggestions)}`,
-          `Format validation error: ${formatError instanceof Error ? formatError.message : String(formatError)}`,
-          "Return decision ask_user with the required rationale in aim.rationale and the clarification question you intended in aim.question."
-        ].join("\n\n");
+        const task = renderStateQuestionRepair({
+          requiredDecision: context.requiredDecision,
+          requiredRationale: context.requiredDecisionRationale ?? CLARIFICATION_REQUIRED_RATIONALE,
+          originalSummary,
+          preservedBody,
+          originalSuggestions: JSON.stringify(original.suggestions),
+          formatError: errorText(formatError)
+        });
         stated = await recover(task);
         const statedMarker = readMarker(stated.detail);
         question =
@@ -240,18 +247,15 @@ export async function parseAimPlannerReviewWithRecovery(
       let answerOptions =
         existingOptions.length >= 2 && existingOptions.length <= 5 ? existingOptions : explicitOptions;
       if (answerOptions.length < 2 || answerOptions.length > 5) {
-        const task = [
-          "Complete the format of this already-required ask_user Planner response. The workflow has imposed decision=ask_user; you have no authority to reconsider the decision or research evidence.",
-          "Preserve the exact original question below. Return 2–5 distinct answer choices in aim.answerOptions. Do not change the summary or answer body, infer a new question, add facts, search, or reinterpret evidence. Repeat the original question exactly in aim.question.",
-          `Required decision: ${context.requiredDecision}`,
-          `Required rationale: ${context.requiredDecisionRationale ?? "The workflow requires a clarification question at this step."}`,
-          `Exact original question to preserve: ${question}`,
-          `Original summary (preserve): ${originalSummary}`,
-          `Original response body (preserve; not research evidence):\n${preservedBody}`,
-          `Original suggestions: ${JSON.stringify(original.suggestions)}`,
-          `Format validation error: ${formatError instanceof Error ? formatError.message : String(formatError)}`,
-          "Return decision ask_user with the required rationale in aim.rationale and the exact original question in aim.question."
-        ].join("\n\n");
+        const task = renderImposedOptionsRepair({
+          requiredDecision: context.requiredDecision,
+          requiredRationale: context.requiredDecisionRationale ?? CLARIFICATION_REQUIRED_RATIONALE,
+          question,
+          originalSummary,
+          preservedBody,
+          originalSuggestions: JSON.stringify(original.suggestions),
+          formatError: errorText(formatError)
+        });
         const repaired = await recover(task);
         const repairedMarker = readMarker(repaired.detail);
         if (!repairedMarker || repairedMarker.raw.decision !== "ask_user") {
@@ -290,16 +294,14 @@ export async function parseAimPlannerReviewWithRecovery(
         return parseAimPlannerReview(recovered);
       }
 
-      const task = [
-        "Repair only the missing answer choices in this already valid ask_user Planner decision.",
-        "Keep decision=ask_user. Do not change the question, rationale, summary, answer body, or any evidence. Return decision ask_user with the original question in aim.question and 2–5 distinct choices in aim.answerOptions. Do not infer choices from prose or add facts.",
-        `Original question: ${originalQuestion}`,
-        `Original rationale: ${originalRationale}`,
-        `Original summary: ${originalSummary}`,
-        `Original answer body (preserve exactly):\n${originalBody}`,
-        `Format validation error: ${formatError instanceof Error ? formatError.message : String(formatError)}`,
-        `Original suggestions: ${JSON.stringify(original.suggestions)}`
-      ].join("\n\n");
+      const task = renderMissingChoicesRepair({
+        originalQuestion,
+        originalRationale,
+        originalSummary,
+        originalBody,
+        formatError: errorText(formatError),
+        originalSuggestions: JSON.stringify(original.suggestions)
+      });
       const repaired = await recover(task);
       const repairedMarker = readMarker(repaired.detail);
       if (!repairedMarker || repairedMarker.raw.decision !== "ask_user") {
@@ -323,27 +325,27 @@ export async function parseAimPlannerReviewWithRecovery(
       originalMarker?.raw.goalAnswered === true &&
       !original.suggestions.some(item => item.title.trim() && item.task.trim() && item.contribution.trim());
     const preserveDecision = !answeredWithoutTarget && isDecision(originalDecision) ? originalDecision : undefined;
-    const task = [
-      "The preceding Planner response did not satisfy the required machine-readable decision contract.",
-      answeredWithoutTarget
-        ? "The original response chose research_more but named no research target and marked the goal as already answered, so it identified no evidence gap to search. Make the decision again from the same saved report and answer snapshot below; research_more is not available. Do not search, repeat research, add evidence, or invent facts."
+    const task = renderGeneralRepair({
+      variant: answeredWithoutTarget
+        ? { kind: "answered-without-target" }
         : preserveDecision
-          ? `Repair only the malformed fields in the original ${preserveDecision} decision. Preserve that decision and every valid original field; do not switch to another decision.`
-          : "Make one local format-repair review using only the same saved report and answer snapshot below. Do not search, repeat research, add evidence, or invent facts. The original decision marker is unusable, so determine a decision from the supplied evidence; do not claim the original decision is known.",
-      "Do not search, repeat research, add evidence, or invent facts. Do not default to any decision merely to repair the format.",
-      "Return a useful conditional answer in summary/detail and the decision in the aim fields with an evidence-based aim.rationale.",
-      "For research_more, provide exactly one aim.researchTarget with title, search task, and expected uncertainty reduction. For ask_user, provide one direct aim.question and 2–5 distinct choices in aim.answerOptions. For conclude, include aim.stopReason. Preserve supplied values and provenance; never answer for the user or ask whether synthetic test data is real. Keep source claims, inference, uncertainty, and limits distinct.",
-      `Format validation error: ${formatError instanceof Error ? formatError.message : String(formatError)}`,
+          ? { kind: "preserve-decision", decision: preserveDecision }
+          : { kind: "no-decision" },
+      formatError: errorText(formatError),
       ...(preserveDecision
-        ? []
-        : [
-            `Original question: ${context.question}`,
-            `Answer snapshot (including provenance): ${context.answerSnapshot}`,
-            `Already completed report summary:\n${context.reportSummary}`,
-            `Already completed report detail:\n${context.reportDetail}`
-          ]),
-      `Original Planner response to review:\nSummary: ${original.summary}\n\nDetail:\n${original.detail}\n\nSuggestions: ${JSON.stringify(original.suggestions)}`
-    ].join("\n\n");
+        ? {}
+        : {
+            context: {
+              question: context.question,
+              answerSnapshot: context.answerSnapshot,
+              reportSummary: context.reportSummary,
+              reportDetail: context.reportDetail
+            }
+          }),
+      originalSummary: original.summary,
+      originalDetail: original.detail,
+      originalSuggestions: JSON.stringify(original.suggestions)
+    });
     const repaired = await recover(task, answeredWithoutTarget ? { excludeDecisions: ["research_more"] } : undefined);
     const parsed = parseAimPlannerReview(repaired);
     if (answeredWithoutTarget && parsed.decision === "research_more")
