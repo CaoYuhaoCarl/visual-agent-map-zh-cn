@@ -13,8 +13,7 @@ export function deduplicateAimRequest<T extends TaskContext>(context: T): T {
       .map(chunk => {
         if (chunk.length < 512) return chunk;
         const previous = passages.get(chunk);
-        if (previous !== undefined)
-          return PASSAGE_REFERENCE;
+        if (previous !== undefined) return PASSAGE_REFERENCE;
         passages.set(chunk, passages.size + 1);
         // Embedded lineage headers can differ while the report's long lines are identical.
         return chunk
@@ -22,8 +21,7 @@ export function deduplicateAimRequest<T extends TaskContext>(context: T): T {
           .map(line => {
             if (line.length < 512 || line === chunk) return line;
             const earlier = passages.get(line);
-            if (earlier !== undefined)
-              return PASSAGE_REFERENCE;
+            if (earlier !== undefined) return PASSAGE_REFERENCE;
             passages.set(line, passages.size + 1);
             return line;
           })

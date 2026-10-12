@@ -220,8 +220,7 @@ export async function buildFinalDelivery(
     .join("\n\n");
   const outlineResult = await stage(
     "outline",
-    () =>
-      run("delivery-outline", renderOutlineTask(sourceCatalog)),
+    () => run("delivery-outline", renderOutlineTask(sourceCatalog)),
     result => {
       parseDeliveryOutline(result.detail);
     }
@@ -256,11 +255,7 @@ export async function buildFinalDelivery(
     "research",
     async () =>
       needsResearch
-        ? await run(
-            "delivery-research",
-            renderResearchTask(outline),
-            true
-          )
+        ? await run("delivery-research", renderResearchTask(outline), true)
         : {
             summary: "Existing evidence",
             detail: REUSED_RESEARCH_DETAIL,

@@ -31,11 +31,7 @@ function structuredReports(attempt: AimAttemptRecord, notePath?: string): AiResu
  * Reports stored on the attempt are used when present; parsing the note's Markdown remains for maps
  * written before reports were stored as data.
  */
-export function extractAimFailedReport(
-  note: Note,
-  attempt: AimAttemptRecord,
-  notePath?: string
-): AiResult[] | null {
+export function extractAimFailedReport(note: Note, attempt: AimAttemptRecord, notePath?: string): AiResult[] | null {
   if (note.status !== "error" || !note.detail.trim()) return null;
   if (attempt.retainedReports) return structuredReports(attempt, notePath);
 
@@ -111,8 +107,7 @@ export function matchAimFailedReportTargets(
     const isWrapped = note.detail.includes("**Status:** Diagnostic only.");
     let selected: typeof failed = failed.filter(
       item =>
-        item.attempt.retainedReports?.notePath === path &&
-        extractAimFailedReport(note, item.attempt, path) !== null
+        item.attempt.retainedReports?.notePath === path && extractAimFailedReport(note, item.attempt, path) !== null
     );
     if (selected.length) {
       // Identified by the stored note path; no Markdown matching needed.
@@ -130,8 +125,7 @@ export function matchAimFailedReportTargets(
       const sameOrdinalFailures = currentFailed.filter(item => item.attempt.id === nativeAttemptId);
       if (nativeAttemptId && sameOrdinalFailures.length === 1) {
         selected = failed.filter(
-          item =>
-            item.runId === sameOrdinalFailures[0].runId && extractAimFailedReport(note, item.attempt) !== null
+          item => item.runId === sameOrdinalFailures[0].runId && extractAimFailedReport(note, item.attempt) !== null
         );
       }
     }

@@ -15,8 +15,7 @@ const formats: AimOutcomeFormat[] = ["steps", "table", "images", "longform"];
 /** Validate and trim the user-controlled expectation before it is persisted. */
 export function normalizeAimOutcomeExpectation(value: unknown): AimOutcomeExpectation | undefined {
   if (value === undefined) return undefined;
-  if (!value || typeof value !== "object" || Array.isArray(value))
-    throw new Error("Invalid AIM outcome expectation.");
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid AIM outcome expectation.");
   const input = value as Record<string, unknown>;
   if (typeof input.goal !== "string" || !goals.includes(input.goal as AimOutcomeGoal))
     throw new Error("Invalid AIM outcome goal.");

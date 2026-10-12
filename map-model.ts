@@ -71,9 +71,7 @@ export function repairAimResultConvergence(map: MapDocument): boolean {
                 source.subtopicId &&
                 map.nodes.some(
                   item =>
-                    item.id === source.nodeId &&
-                    item.aimKind === "research" &&
-                    item.parentId === branch.questionNodeId
+                    item.id === source.nodeId && item.aimKind === "research" && item.parentId === branch.questionNodeId
                 )
             )
             .map(source => source.nodeId)
@@ -431,8 +429,7 @@ export function parseMap(content: string): MapDocument {
         typeof question.allowFreeText !== "boolean"
       )
         throw new Error("Invalid AIM question controls.");
-      if (aimQuestionRequests.has(question.requestId))
-        throw new Error("Duplicate AIM question request identity.");
+      if (aimQuestionRequests.has(question.requestId)) throw new Error("Duplicate AIM question request identity.");
       aimQuestionRequests.add(question.requestId);
     }
   }
@@ -546,9 +543,7 @@ function validateAimMap(map: MapDocument): void {
         (typeof branch.answerNodeId !== "string" ||
           !map.nodes.some(
             node =>
-              node.id === branch.answerNodeId &&
-              node.aimKind === "answer" &&
-              node.parentId === branch.questionNodeId
+              node.id === branch.answerNodeId && node.aimKind === "answer" && node.parentId === branch.questionNodeId
           ))) ||
       !(branch.parentBranchId === null || typeof branch.parentBranchId === "string") ||
       !branch.answerSnapshot ||

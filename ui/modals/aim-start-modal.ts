@@ -126,9 +126,7 @@ export class AimStartModal extends Modal {
           const currentSelection = renderModels(previousSelection);
           if (currentSelection !== previousSelection) newRequest();
           modelRefreshStatus.setText(
-            Array.isArray(result)
-              ? t("ui.aim_models_refreshed")
-              : (result.message ?? t("ui.aim_models_refreshed"))
+            Array.isArray(result) ? t("ui.aim_models_refreshed") : (result.message ?? t("ui.aim_models_refreshed"))
           );
         } catch (error) {
           if (!this.contentEl.isConnected) return;

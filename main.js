@@ -10311,8 +10311,7 @@ function parseMap(content) {
         (option) => !option || typeof option.id !== "string" || !option.id.trim() || typeof option.label !== "string" || !option.label.trim()
       ) || new Set(question.options.map((option) => option.id)).size !== question.options.length || typeof question.allowMultiple !== "boolean" || typeof question.allowFreeText !== "boolean")
         throw new Error("Invalid AIM question controls.");
-      if (aimQuestionRequests.has(question.requestId))
-        throw new Error("Duplicate AIM question request identity.");
+      if (aimQuestionRequests.has(question.requestId)) throw new Error("Duplicate AIM question request identity.");
       aimQuestionRequests.add(question.requestId);
     }
   }
@@ -11963,8 +11962,7 @@ var goals = ["auto", "execute", "understand", "explore", "custom"];
 var formats = ["steps", "table", "images", "longform"];
 function normalizeAimOutcomeExpectation(value) {
   if (value === void 0) return void 0;
-  if (!value || typeof value !== "object" || Array.isArray(value))
-    throw new Error("Invalid AIM outcome expectation.");
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid AIM outcome expectation.");
   const input = value;
   if (typeof input.goal !== "string" || !goals.includes(input.goal))
     throw new Error("Invalid AIM outcome goal.");
@@ -12490,14 +12488,12 @@ function deduplicateAimRequest(context) {
     prepared[key2] = chunks.map((chunk) => {
       if (chunk.length < 512) return chunk;
       const previous = passages.get(chunk);
-      if (previous !== void 0)
-        return PASSAGE_REFERENCE;
+      if (previous !== void 0) return PASSAGE_REFERENCE;
       passages.set(chunk, passages.size + 1);
       return chunk.split("\n").map((line) => {
         if (line.length < 512 || line === chunk) return line;
         const earlier = passages.get(line);
-        if (earlier !== void 0)
-          return PASSAGE_REFERENCE;
+        if (earlier !== void 0) return PASSAGE_REFERENCE;
         passages.set(line, passages.size + 1);
         return line;
       }).join("\n");
@@ -12700,11 +12696,7 @@ ${source.detail}`).join("\n\n");
   checkpoint.researchFingerprint = researchFingerprint;
   const research = await stage(
     "research",
-    async () => needsResearch ? await run(
-      "delivery-research",
-      renderResearchTask(outline),
-      true
-    ) : {
+    async () => needsResearch ? await run("delivery-research", renderResearchTask(outline), true) : {
       summary: "Existing evidence",
       detail: REUSED_RESEARCH_DETAIL,
       suggestions: [],
@@ -13736,7 +13728,11 @@ var part_unresolved_gap_default = "Planner's unresolved gap: {{gap}}\n";
 
 // experiences/aim/steps/partial-continuation/step.ts
 function renderPartialContinuationSearchTask(vars) {
-  const gap = vars.gap.kind === "target" ? renderTemplate(part_target_default, { title: vars.gap.title, task: vars.gap.task, expectedValue: vars.gap.expectedValue }) : renderTemplate(part_unresolved_gap_default, { gap: vars.gap.text });
+  const gap = vars.gap.kind === "target" ? renderTemplate(part_target_default, {
+    title: vars.gap.title,
+    task: vars.gap.task,
+    expectedValue: vars.gap.expectedValue
+  }) : renderTemplate(part_unresolved_gap_default, { gap: vars.gap.text });
   return renderTemplate(search_default, {
     searcherTargetRule: vars.searcherTargetRule,
     gap,
@@ -14338,8 +14334,7 @@ ${note.detail}`;
     if (classification !== "user_condition" && classification !== "external_evidence")
       throw new Error("AIM returned an invalid research-gap classification; no follow-up search was started.");
     const rationale = result.detail.replace(/\s+/g, " ").trim().slice(0, 600);
-    if (!rationale)
-      throw new Error("AIM returned an empty research-gap rationale; no follow-up search was started.");
+    if (!rationale) throw new Error("AIM returned an empty research-gap rationale; no follow-up search was started.");
     return { classification, rationale };
   }
   async requireUserConditionQuestion(candidate, context, audit, model, reasoning, signal, allowReconciliation = true) {
@@ -15790,8 +15785,7 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
     if (latest.nodes.some((node2) => node2.id === questionNodeId) || latest.nodes.every((node2) => node2.id !== parentNodeId))
       throw new Error("The question parent changed while Planner was running; the generated question was not saved.");
     if (!latest.aim) throw new Error("AIM map data is missing.");
-    if (latest.aim.questionDraft)
-      throw new Error("Another Planner question was saved while this turn was running.");
+    if (latest.aim.questionDraft) throw new Error("Another Planner question was saved while this turn was running.");
     const committedQuestionId = await this.persist(async () => {
       var _a;
       throwIfAborted(signal);
@@ -15811,8 +15805,7 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
           throw new Error("This Planner question identity was concurrently used for another parent node or branch.");
         return concurrentlyCommitted.id;
       }
-      if (current.aim.questionDraft)
-        throw new Error("Another Planner question was saved while this turn was running.");
+      if (current.aim.questionDraft) throw new Error("Another Planner question was saved while this turn was running.");
       current.aim.questionDraft = draft;
       await this.repository.saveMap(mapPath, current);
       await this.commitQuestionDraft(mapPath, current, draft);
@@ -16392,7 +16385,12 @@ ${dependencyReports}` : "")
                 currentAnswer: answerDescription,
                 otherSubtopics: executionPlan.filter((item) => item.id !== target.id).map((item) => item.title),
                 dependencyReports,
-                source: source ? { identity: source.source, conditions: source.conditions, summary: source.summary, detail: source.detail } : void 0,
+                source: source ? {
+                  identity: source.source,
+                  conditions: source.conditions,
+                  summary: source.summary,
+                  detail: source.detail
+                } : void 0,
                 currentConditions: currentBranch.inputSnapshot.conditions,
                 rejectedReuse
               });
@@ -16470,8 +16468,7 @@ ${dependencyReports}` : "")
       throw error;
     }
     const reports = executionPlan.map((target) => scheduled.get(target.id));
-    if (!reports.length)
-      throw new Error("AIM requires at least one usable evidence report before terminal review.");
+    if (!reports.length) throw new Error("AIM requires at least one usable evidence report before terminal review.");
     throwIfAborted(signal);
     map = await this.repository.readMap(mapPath);
     branch = (_c = map.aim) == null ? void 0 : _c.branches.find((item) => item.id === branchId);
@@ -16706,8 +16703,7 @@ ${currentReports.detail}`,
         const target = finalReview.researchTarget;
         if (!synthesisDraftId) {
           const lastReport2 = reports.at(-1);
-          if (!lastReport2)
-            throw new Error("AIM cannot save a follow-up without persisted initial subtopic reports.");
+          if (!lastReport2) throw new Error("AIM cannot save a follow-up without persisted initial subtopic reports.");
           const draft = await this.persist(
             () => this.runs.createResultDraft(
               mapPath,
@@ -16825,11 +16821,7 @@ ${beforeSearch.detail}`,
           "note.aim_pending_target_0",
           finalReview.researchTarget.title
         ),
-        translate(
-          this.repository.settings.language,
-          "note.aim_pending_task_0",
-          finalReview.researchTarget.task
-        ),
+        translate(this.repository.settings.language, "note.aim_pending_task_0", finalReview.researchTarget.task),
         translate(
           this.repository.settings.language,
           "note.aim_pending_value_0",
@@ -17406,8 +17398,7 @@ var _AimRunStore = class _AimRunStore {
       if (!run || !attempt || !isRunningAttempt(run, attempt, handle))
         throw new Error("The AIM attempt is no longer current.");
       const next = ((_a = attempt.researchTurns) != null ? _a : 0) + 1;
-      if (next > ((_b = attempt.maxResearchTurns) != null ? _b : 1))
-        throw new Error("The bounded AIM research-turn budget is exhausted.");
+      if (next > ((_b = attempt.maxResearchTurns) != null ? _b : 1)) throw new Error("The bounded AIM research-turn budget is exhausted.");
       attempt.researchTurns = next;
       map.aim = state;
       await this.repository.saveMap(mapPath, map);
@@ -20251,10 +20242,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
     if ((attempt == null ? void 0 : attempt.status) !== "failed" && !branch.researchPlanError) return;
     const box = card.createDiv({ cls: "vam-aim-failure" });
     box.createEl("p", {
-      text: t(
-        "ui.aim_failure_reason",
-        (attempt == null ? void 0 : attempt.stopReason) || branch.researchPlanError || t("ui.expansion_failed")
-      )
+      text: t("ui.aim_failure_reason", (attempt == null ? void 0 : attempt.stopReason) || branch.researchPlanError || t("ui.expansion_failed"))
     });
     const phase = (_f = (_e = attempt == null ? void 0 : attempt.phase) != null ? _e : (_d = branch.deliveryRecovery) == null ? void 0 : _d.phase) != null ? _f : branch.researchPlanError ? "research-plan" : void 0;
     const labels = {
@@ -20302,21 +20290,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
     this.aimActivityKind = "research";
     this.render();
     try {
-      if (timeoutMs)
-        await this.plugin.mutate(() => this.aimRuns.configureRetryTimeout(mapPath, branch.id, timeoutMs));
-      const result = branch.researchPlan ? await this.aimManual.resumeAnswerResearch(
-        mapPath,
-        branch.id,
-        note.model,
-        note.reasoning,
-        controller.signal
-      ) : await this.aimManual.retryAnswerResearch(
-        mapPath,
-        branch.id,
-        note.model,
-        note.reasoning,
-        controller.signal
-      );
+      if (timeoutMs) await this.plugin.mutate(() => this.aimRuns.configureRetryTimeout(mapPath, branch.id, timeoutMs));
+      const result = branch.researchPlan ? await this.aimManual.resumeAnswerResearch(mapPath, branch.id, note.model, note.reasoning, controller.signal) : await this.aimManual.retryAnswerResearch(mapPath, branch.id, note.model, note.reasoning, controller.signal);
       if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
       const latest = await this.plugin.repo.readMap(mapPath);
       if (this.aimViewIsCurrent(epoch, mapPath)) {
@@ -20399,8 +20374,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
             this.app,
             questions,
             async (answers) => {
-              if (!this.aimViewIsCurrent(epoch, mapPath))
-                throw new Error("Reopen the original AIM map to continue.");
+              if (!this.aimViewIsCurrent(epoch, mapPath)) throw new Error("Reopen the original AIM map to continue.");
               await this.plugin.mutate(async () => {
                 const latest = await this.plugin.repo.readNote(node.path);
                 if (!latest.detail.includes("<!-- aim-intake-complete -->")) {
@@ -20481,11 +20455,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
     this.aimActivityKind = "research";
     this.render();
     try {
-      const result = await this.reviewAimFailedReport(
-        target.runId,
-        target.diagnosticNotePath,
-        controller.signal
-      );
+      const result = await this.reviewAimFailedReport(target.runId, target.diagnosticNotePath, controller.signal);
       if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
       if (result.status === "waiting-user") {
         const question = (_b = this.map) == null ? void 0 : _b.nodes.find((item) => item.id === result.questionNodeId);
@@ -20530,13 +20500,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
     try {
       if (timeoutMs && branch)
         await this.plugin.mutate(() => this.aimRuns.configureRetryTimeout(mapPath, branch.id, timeoutMs));
-      const result = await this.aimManual.continuePartial(
-        mapPath,
-        runId,
-        void 0,
-        void 0,
-        controller.signal
-      );
+      const result = await this.aimManual.continuePartial(mapPath, runId, void 0, void 0, controller.signal);
       if (!isCurrent()) return;
       if (result.status === "waiting-user") {
         this.selected = result.questionNodeId;
@@ -20593,8 +20557,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
         const current = (_a2 = this.map) == null ? void 0 : _a2.nodes.find((item) => item.id === node.id);
         if (current) this.openAimAnswer(current);
       }).catch((error) => {
-        if (this.aimViewIsCurrent(epoch, mapPath))
-          new import_obsidian14.Notice(error instanceof Error ? error.message : String(error));
+        if (this.aimViewIsCurrent(epoch, mapPath)) new import_obsidian14.Notice(error instanceof Error ? error.message : String(error));
       });
       return;
     }
@@ -21762,9 +21725,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
     if (!this.builtIn && ((_m = this.map) == null ? void 0 : _m.aim)) {
       const data = this.map.aim;
       const isAnswered = (node) => data.branches.some((branch) => branch.questionNodeId === node.id);
-      const pending = this.map.nodes.find(
-        (node) => node.aimKind === "question" && node.aimQuestion && !isAnswered(node)
-      );
+      const pending = this.map.nodes.find((node) => node.aimKind === "question" && node.aimQuestion && !isAnswered(node));
       const selectedQuestion = (selectedNode == null ? void 0 : selectedNode.aimKind) === "question" && selectedNode.aimQuestion ? selectedNode : void 0;
       if (selectedQuestion || pending) {
         const actions = toolbar.createDiv("vam-aim-actions");
@@ -21942,8 +21903,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
     const tools = this.contentEl.createDiv("vam-map-tools");
     if (!this.builtIn) {
       const aimMode = !!this.map.aim;
-      if (!aimMode)
-        this.button(tools, t("ui.topic"), () => this.enqueue(() => this.addNode(null))).addClass("mod-cta");
+      if (!aimMode) this.button(tools, t("ui.topic"), () => this.enqueue(() => this.addNode(null))).addClass("mod-cta");
       if (aimMode) this.button(tools, t("ui.create_a_new_mind_map"), () => this.openNewMindMapModal());
       this.button(tools, t("ui.aim_create_map"), () => this.openAimStart());
       if (!aimMode) this.button(tools, t("ui.organize"), () => this.enqueue(() => this.openOrganizer()));
@@ -22243,9 +22203,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       }
     }
     if (node.aimKind === "topic" && ((_v = this.map) == null ? void 0 : _v.aim) && !this.map.nodes.some((item) => item.aimKind === "question")) {
-      const initialBranch = this.map.aim.branches.find(
-        (item) => item.questionNodeId === node.id && !item.parentBranchId
-      );
+      const initialBranch = this.map.aim.branches.find((item) => item.questionNodeId === node.id && !item.parentBranchId);
       const initialRuns = initialBranch ? this.map.aim.runs.filter((item) => item.branchId === initialBranch.id) : [];
       const activeInitialRun = initialRuns.some((run) => {
         const attempt = run.attempts.find((item) => item.id === run.currentAttemptId);
@@ -22275,12 +22233,9 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       } else if (!activeInitialRun && !terminalResult) {
         this.renderAimFailure(card, initialBranch);
         const label = initialBranch.researchPlan || initialBranch.results.length ? t("ui.aim_continue_research") : t("ui.aim_retry_subtopics");
-        this.button(
-          card,
-          label,
-          () => void this.retryAimSubtopics(initialBranch.id),
-          this.aimBusy
-        ).addClass("vam-aim-retry");
+        this.button(card, label, () => void this.retryAimSubtopics(initialBranch.id), this.aimBusy).addClass(
+          "vam-aim-retry"
+        );
       }
     }
     if (node.aimKind === "question" && ((_w = this.map) == null ? void 0 : _w.aim)) {
@@ -22316,11 +22271,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
           });
           if (branch.researchPlanError) status.setAttr("title", branch.researchPlanError);
           if (!activeBranchRun && !terminalResult) {
-            const retry = this.button(
-              card,
-              t("ui.aim_retry_subtopics"),
-              () => void this.retryAimSubtopics(branch.id)
-            );
+            const retry = this.button(card, t("ui.aim_retry_subtopics"), () => void this.retryAimSubtopics(branch.id));
             retry.addClass("vam-aim-retry");
             retry.disabled = this.aimBusy;
           }
@@ -27446,8 +27397,18 @@ var translateImagePresetStep = presetStep(
   translate_image_en_default,
   true
 );
-var searchImagesPresetStep = presetStep("markdown.preset.search-images", search_images_zh_default, search_images_en_default, false);
-var explainImagePresetStep = presetStep("markdown.preset.explain-image", explain_image_zh_default, explain_image_en_default, false);
+var searchImagesPresetStep = presetStep(
+  "markdown.preset.search-images",
+  search_images_zh_default,
+  search_images_en_default,
+  false
+);
+var explainImagePresetStep = presetStep(
+  "markdown.preset.explain-image",
+  explain_image_zh_default,
+  explain_image_en_default,
+  false
+);
 
 // experiences/markdown-context/selection-ai.ts
 function findUnique(source, selected) {
@@ -27735,7 +27696,10 @@ var SelectionAiPanel = class extends import_obsidian19.Component {
         (this.snapshot.image ? explainImagePresetStep : condensePresetStep).render({ language: getUiLanguage() })
       )
     );
-    actions.createEl("button", { text: t("ui.context_ai_search_images") }).addEventListener("click", () => runWith(searchImagesPresetStep.render({ language: getUiLanguage() }), "image_search"));
+    actions.createEl("button", { text: t("ui.context_ai_search_images") }).addEventListener(
+      "click",
+      () => runWith(searchImagesPresetStep.render({ language: getUiLanguage() }), "image_search")
+    );
     instruction.addEventListener("keydown", (event) => {
       if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && !event.isComposing) {
         event.preventDefault();

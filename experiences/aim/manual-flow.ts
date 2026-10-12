@@ -11,11 +11,7 @@ import { AimRunStore, type CommitResult } from "./research-run-store";
 import type { CodexWebSearchEvent } from "../../ai/runtime/codex-app-server";
 import { effectiveReasoningLevel, normalizeReasoningLevel } from "../../ai/task-policy";
 import { estimateTokens } from "../../ai/context-builder";
-import {
-  AIM_NO_QUESTION,
-  type AimContract,
-  type AimDecision
-} from "../../ai/aim-contracts";
+import { AIM_NO_QUESTION, type AimContract, type AimDecision } from "../../ai/aim-contracts";
 import {
   extractPlannerQuestionCandidate,
   AIM_MAX_RESEARCH_TURNS,
@@ -360,8 +356,7 @@ export class AimManualFlow {
     if (classification !== "user_condition" && classification !== "external_evidence")
       throw new Error("AIM returned an invalid research-gap classification; no follow-up search was started.");
     const rationale = result.detail.replace(/\s+/g, " ").trim().slice(0, 600);
-    if (!rationale)
-      throw new Error("AIM returned an empty research-gap rationale; no follow-up search was started.");
+    if (!rationale) throw new Error("AIM returned an empty research-gap rationale; no follow-up search was started.");
     return { classification, rationale };
   }
 
@@ -1023,9 +1018,7 @@ export class AimManualFlow {
           : {
               title: translate(
                 this.repository.settings.language,
-                finalReview.decision === "research_more"
-                  ? "note.aim_needs_followup"
-                  : "note.aim_synthesis"
+                finalReview.decision === "research_more" ? "note.aim_needs_followup" : "note.aim_synthesis"
               ),
               kind: "synthesis" as const
             };
@@ -1170,9 +1163,7 @@ export class AimManualFlow {
               !!result.subtopicId &&
               map.nodes.some(
                 node =>
-                  node.id === result.nodeId &&
-                  node.aimKind === "research" &&
-                  node.parentId === branch.questionNodeId
+                  node.id === result.nodeId && node.aimKind === "research" && node.parentId === branch.questionNodeId
               )
           )
           .map(result => result.nodeId)
@@ -1730,10 +1721,7 @@ export class AimManualFlow {
       if (!parentBranch || !parentBranch.results.some(result => result.nodeId === parentNodeId))
         throw new Error("A follow-up Planner question must attach to a result in its parent answer branch.");
     }
-    if (
-      (parentNode.aimKind === "synthesis" || parentNode.aimKind === "conclusion") &&
-      !isSavedTerminalResult
-    )
+    if ((parentNode.aimKind === "synthesis" || parentNode.aimKind === "conclusion") && !isSavedTerminalResult)
       throw new Error("A new follow-up question must attach to a saved synthesis or conclusion in its answer branch.");
     const parent = await this.repository.readNote(parentNode.path);
     const motherNode = map.nodes.find(node => node.aimKind === "topic");
@@ -1782,7 +1770,8 @@ export class AimManualFlow {
       )
     ];
     const language = this.repository.settings.language;
-    const motherGoal = motherNode && motherNode.id !== parentNode.id ? { title: mother.title, detail: mother.detail } : undefined;
+    const motherGoal =
+      motherNode && motherNode.id !== parentNode.id ? { title: mother.title, detail: mother.detail } : undefined;
     const questionVars = {
       userQuestionRule: USER_QUESTION_RULE,
       minimumAnswers: MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION,
@@ -1991,8 +1980,7 @@ export class AimManualFlow {
     if (latest.nodes.some(node => node.id === questionNodeId) || latest.nodes.every(node => node.id !== parentNodeId))
       throw new Error("The question parent changed while Planner was running; the generated question was not saved.");
     if (!latest.aim) throw new Error("AIM map data is missing.");
-    if (latest.aim.questionDraft)
-      throw new Error("Another Planner question was saved while this turn was running.");
+    if (latest.aim.questionDraft) throw new Error("Another Planner question was saved while this turn was running.");
     const committedQuestionId = await this.persist(async () => {
       throwIfAborted(signal);
       const current = await this.repository.readMap(mapPath);
@@ -2011,8 +1999,7 @@ export class AimManualFlow {
           throw new Error("This Planner question identity was concurrently used for another parent node or branch.");
         return concurrentlyCommitted.id;
       }
-      if (current.aim.questionDraft)
-        throw new Error("Another Planner question was saved while this turn was running.");
+      if (current.aim.questionDraft) throw new Error("Another Planner question was saved while this turn was running.");
       current.aim.questionDraft = draft;
       await this.repository.saveMap(mapPath, current);
       await this.commitQuestionDraft(mapPath, current, draft);
@@ -2166,9 +2153,7 @@ export class AimManualFlow {
     const topicNote = topicNode ? await this.repository.readNote(topicNode.path) : parent;
     const parentBranchId = contract.parentBranchId ?? null;
     const lineage = await this.branchLineage(map, parentBranchId);
-    const inheritedBranch = parentBranchId
-      ? map.aim?.branches.find(branch => branch.id === parentBranchId)
-      : undefined;
+    const inheritedBranch = parentBranchId ? map.aim?.branches.find(branch => branch.id === parentBranchId) : undefined;
     const condition =
       [answerLabels.join("; "), freeText].filter(Boolean).join(" — ") ||
       translate(this.repository.settings.language, "note.aim_unknown_option");
@@ -2238,10 +2223,7 @@ export class AimManualFlow {
     );
   }
 
-  private async reusableResearchCandidates(
-    map: MapDocument,
-    branch: AimBranchRecord
-  ): Promise<ResearchCandidate[]> {
+  private async reusableResearchCandidates(map: MapDocument, branch: AimBranchRecord): Promise<ResearchCandidate[]> {
     const candidates: ResearchCandidate[] = [],
       visited = new Set<string>();
     let ancestor = map.aim?.branches.find(item => item.id === branch.parentBranchId);
@@ -2720,7 +2702,12 @@ export class AimManualFlow {
                 otherSubtopics: executionPlan.filter(item => item.id !== target.id).map(item => item.title),
                 dependencyReports,
                 source: source
-                  ? { identity: source.source, conditions: source.conditions, summary: source.summary, detail: source.detail }
+                  ? {
+                      identity: source.source,
+                      conditions: source.conditions,
+                      summary: source.summary,
+                      detail: source.detail
+                    }
                   : undefined,
                 currentConditions: currentBranch.inputSnapshot.conditions,
                 rejectedReuse
@@ -2806,8 +2793,7 @@ export class AimManualFlow {
       throw error;
     }
     const reports = executionPlan.map(target => scheduled.get(target.id)!);
-    if (!reports.length)
-      throw new Error("AIM requires at least one usable evidence report before terminal review.");
+    if (!reports.length) throw new Error("AIM requires at least one usable evidence report before terminal review.");
     throwIfAborted(signal);
     map = await this.repository.readMap(mapPath);
     branch = map.aim?.branches.find(item => item.id === branchId);
@@ -2963,8 +2949,7 @@ export class AimManualFlow {
         const fingerprint = sourceFingerprint;
         const savedRecovery = resumeDelivery;
         if (!savedRecovery) await this.persist(() => this.runs.recordPhase(mapPath, synthesisHandle, "report-review"));
-        const synthesis =
-          savedRecovery?.planner ?? (await this.askAimModel(plannerContext, model, reasoning, signal));
+        const synthesis = savedRecovery?.planner ?? (await this.askAimModel(plannerContext, model, reasoning, signal));
         finalReview = await this.parsePlannerReviewWithRecovery(
           synthesis,
           {
@@ -3049,8 +3034,7 @@ export class AimManualFlow {
         const target = finalReview.researchTarget!;
         if (!synthesisDraftId) {
           const lastReport = reports.at(-1);
-          if (!lastReport)
-            throw new Error("AIM cannot save a follow-up without persisted initial subtopic reports.");
+          if (!lastReport) throw new Error("AIM cannot save a follow-up without persisted initial subtopic reports.");
           const draft = await this.persist(() =>
             this.runs.createResultDraft(
               mapPath,
@@ -3147,11 +3131,7 @@ export class AimManualFlow {
             synthesisHandle,
             translate(
               this.repository.settings.language,
-              isPartial
-                ? "note.aim_needs_followup"
-                : isQuestion
-                  ? "note.aim_synthesis"
-                  : "note.aim_conclusion"
+              isPartial ? "note.aim_needs_followup" : isQuestion ? "note.aim_synthesis" : "note.aim_conclusion"
             ),
             model,
             undefined,
@@ -3179,11 +3159,7 @@ export class AimManualFlow {
                 "note.aim_pending_target_0",
                 finalReview.researchTarget.title
               ),
-              translate(
-                this.repository.settings.language,
-                "note.aim_pending_task_0",
-                finalReview.researchTarget.task
-              ),
+              translate(this.repository.settings.language, "note.aim_pending_task_0", finalReview.researchTarget.task),
               translate(
                 this.repository.settings.language,
                 "note.aim_pending_value_0",
@@ -3279,9 +3255,7 @@ export class AimManualFlow {
       try {
         if (signal?.aborted)
           await this.persist(() =>
-            this.runs
-              .cancelAttempt(mapPath, synthesisHandle, "User cancelled AIM synthesis.")
-              .then(() => undefined)
+            this.runs.cancelAttempt(mapPath, synthesisHandle, "User cancelled AIM synthesis.").then(() => undefined)
           );
         else
           await this.persist(() =>

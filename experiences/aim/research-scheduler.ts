@@ -1,8 +1,4 @@
-import {
-  validateAimResearchPlan,
-  type AimResearchPlan,
-  type AimResearchTarget
-} from "./research-plan";
+import { validateAimResearchPlan, type AimResearchPlan, type AimResearchTarget } from "./research-plan";
 
 function abortError(): Error {
   const error = new Error("The operation was aborted.");

@@ -488,8 +488,7 @@ export class AimRunStore {
       if (!run || !attempt || !isRunningAttempt(run, attempt, handle))
         throw new Error("The AIM attempt is no longer current.");
       const next = (attempt.researchTurns ?? 0) + 1;
-      if (next > (attempt.maxResearchTurns ?? 1))
-        throw new Error("The bounded AIM research-turn budget is exhausted.");
+      if (next > (attempt.maxResearchTurns ?? 1)) throw new Error("The bounded AIM research-turn budget is exhausted.");
       attempt.researchTurns = next;
       map.aim = state;
       await this.repository.saveMap(mapPath, map);
@@ -523,11 +522,7 @@ export class AimRunStore {
     });
   }
 
-  async recordSearchDiagnostic(
-    mapPath: string,
-    handle: AttemptHandle,
-    diagnostic: AimSearchDiagnostic
-  ): Promise<void> {
+  async recordSearchDiagnostic(mapPath: string, handle: AttemptHandle, diagnostic: AimSearchDiagnostic): Promise<void> {
     return this.locked(mapPath, async () => {
       const map = await this.repository.readMap(mapPath),
         state = this.state(map),
@@ -712,9 +707,7 @@ export class AimRunStore {
         y: parent.y + 180 + siblingCount * 220,
         collapsed: false,
         aimKind: kind,
-        ...(options.convergesFromNodeIds?.length
-          ? { aimConvergesFromNodeIds: [...options.convergesFromNodeIds] }
-          : {})
+        ...(options.convergesFromNodeIds?.length ? { aimConvergesFromNodeIds: [...options.convergesFromNodeIds] } : {})
       };
       const draft: AimResultDraftRecord = {
         id: this.id(),
@@ -727,9 +720,7 @@ export class AimRunStore {
         attemptId: attempt.id,
         inputSnapshotHash: attempt.inputSnapshotHash,
         kind,
-        ...(options.reuse
-          ? { reuse: JSON.parse(JSON.stringify(options.reuse)) as AimResultDraftRecord["reuse"] }
-          : {}),
+        ...(options.reuse ? { reuse: JSON.parse(JSON.stringify(options.reuse)) as AimResultDraftRecord["reuse"] } : {}),
         ...(options.subtopicId ? { subtopicId: options.subtopicId } : {}),
         ...(parentNodeId !== branch.questionNodeId ? { parentNodeId } : {}),
         ...(options.convergesFromNodeIds?.length ? { convergesFromNodeIds: [...options.convergesFromNodeIds] } : {}),
@@ -917,10 +908,7 @@ export class AimRunStore {
         interrupted: string[] = [];
       for (const run of state.runs) {
         const attempt = run.attempts.find(item => item.id === run.currentAttemptId);
-        if (
-          attempt?.status !== "running" ||
-          AimRunStore.liveAttempts.has(this.liveKey(mapPath, run.id, attempt.id))
-        )
+        if (attempt?.status !== "running" || AimRunStore.liveAttempts.has(this.liveKey(mapPath, run.id, attempt.id)))
           continue;
         const reason =
           "The app reopened after this research attempt stopped before saving a result. Retry is available; research was not resumed automatically.";
@@ -967,10 +955,7 @@ export class AimRunStore {
   ): Promise<void> {
     if (!this.repository.hasNote(draft.notePath)) return;
     const note = await this.repository.readNote(draft.notePath),
-      marker =
-        disposition === "stale"
-          ? "### AIM stale-attempt diagnostic"
-          : "### AIM incomplete-attempt diagnostic";
+      marker = disposition === "stale" ? "### AIM stale-attempt diagnostic" : "### AIM incomplete-attempt diagnostic";
     if (note.status === "error" && note.detail.includes(marker)) return;
     const dispositionReason = disposition === "stale" ? "is stale" : "did not complete successfully";
     const detail = [

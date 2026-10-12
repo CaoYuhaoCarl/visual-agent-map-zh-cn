@@ -21,17 +21,11 @@ export interface PresetInput {
  * A preset button's instruction. It is shown in the instruction box and then becomes the user request inside the
  * plan step, so it is a step of its own (rendered, never sent by itself) rather than a UI string.
  */
-function presetStep(
-  id: string,
-  zh: string,
-  en: string,
-  usesTarget: boolean
-): StepDefinition<PresetInput, string> {
+function presetStep(id: string, zh: string, en: string, usesTarget: boolean): StepDefinition<PresetInput, string> {
   return {
     id,
     version: 1,
-    render: ({ language, target = "" }) =>
-      renderTemplate(language === "zh-TW" ? zh : en, usesTarget ? { target } : {}),
+    render: ({ language, target = "" }) => renderTemplate(language === "zh-TW" ? zh : en, usesTarget ? { target } : {}),
     parse: raw => raw
   };
 }
@@ -44,5 +38,15 @@ export const translateImagePresetStep = presetStep(
   translateImageEn,
   true
 );
-export const searchImagesPresetStep = presetStep("markdown.preset.search-images", searchImagesZh, searchImagesEn, false);
-export const explainImagePresetStep = presetStep("markdown.preset.explain-image", explainImageZh, explainImageEn, false);
+export const searchImagesPresetStep = presetStep(
+  "markdown.preset.search-images",
+  searchImagesZh,
+  searchImagesEn,
+  false
+);
+export const explainImagePresetStep = presetStep(
+  "markdown.preset.explain-image",
+  explainImageZh,
+  explainImageEn,
+  false
+);

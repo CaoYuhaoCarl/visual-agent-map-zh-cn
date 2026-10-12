@@ -35,9 +35,7 @@ export const renderMissingChoicesRepair = (variables: {
 }): string => renderTemplate(missingChoicesTemplate, { ...variables });
 
 export type GeneralRepairVariant =
-  | { kind: "answered-without-target" }
-  | { kind: "preserve-decision"; decision: string }
-  | { kind: "no-decision" };
+  { kind: "answered-without-target" } | { kind: "preserve-decision"; decision: string } | { kind: "no-decision" };
 export interface GeneralRepair {
   variant: GeneralRepairVariant;
   formatError: string;

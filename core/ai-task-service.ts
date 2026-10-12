@@ -109,7 +109,8 @@ export class AiTaskService {
     const exchanges = this.options.exchangeLoggingEnabled() ? this.options.exchanges() : null;
     let exchangeId = "";
     // Turning exchange logging off while a task runs stops recording from then on, so every write re-checks the setting.
-    const recording = <Args extends unknown[]>(write: ((...args: Args) => void) | undefined) =>
+    const recording =
+      <Args extends unknown[]>(write: ((...args: Args) => void) | undefined) =>
       (...args: Args): void => {
         if (this.options.exchangeLoggingEnabled()) write?.(...args);
       };

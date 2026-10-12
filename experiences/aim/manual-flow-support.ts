@@ -3,17 +3,9 @@ import type { AiResult, TaskContext } from "../../ai/types";
 import type { MapDocument, MapNode, AimBranchRecord } from "../../map-model";
 import { type CommitResult } from "./research-run-store";
 import type { CodexWebSearchEvent } from "../../ai/runtime/codex-app-server";
-import {
-  AIM_NO_QUESTION,
-  type AimContract,
-  type AimDecision
-} from "../../ai/aim-contracts";
+import { AIM_NO_QUESTION, type AimContract, type AimDecision } from "../../ai/aim-contracts";
 import { parseAimPlannerReview } from "./planner-review";
-import {
-  validateAimResearchPlan,
-  type AimResearchPlan,
-  type AimResearchTarget
-} from "./research-plan";
+import { validateAimResearchPlan, type AimResearchPlan, type AimResearchTarget } from "./research-plan";
 
 export const AIM_UNKNOWN_OPTION_ID = "__aim_unknown__";
 export { AIM_NO_QUESTION };

@@ -32,7 +32,9 @@ export interface QuestionCorrectionVars extends QuestionCommon {
 }
 
 const motherBlock = (mother: QuestionCommon["mother"]): string =>
-  mother ? "\n\n" + renderTemplate(motherGoal, { goal: JSON.stringify({ title: mother.title, detail: mother.detail }) }) : "";
+  mother
+    ? "\n\n" + renderTemplate(motherGoal, { goal: JSON.stringify({ title: mother.title, detail: mother.detail }) })
+    : "";
 const topicJson = (topic: { title: string; summary: string; detail: string }): string =>
   JSON.stringify({ title: topic.title, summary: topic.summary, detail: topic.detail });
 const lineageText = (lineage: string): string => lineage || "None yet.";

@@ -347,7 +347,9 @@ class SelectionAiPanel extends Component {
       );
     actions
       .createEl("button", { text: t("ui.context_ai_search_images") })
-      .addEventListener("click", () => runWith(searchImagesPresetStep.render({ language: getUiLanguage() }), "image_search"));
+      .addEventListener("click", () =>
+        runWith(searchImagesPresetStep.render({ language: getUiLanguage() }), "image_search")
+      );
     instruction.addEventListener("keydown", event => {
       if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && !event.isComposing) {
         event.preventDefault();
@@ -355,16 +357,14 @@ class SelectionAiPanel extends Component {
         if (prompt && !this.controller) void this.generate(prompt, output, status, actions, footer);
       }
     });
-    actions
-      .createEl("button", { text: t("ui.context_ai_translate") })
-      .addEventListener("click", () =>
-        runWith(
-          (this.snapshot.image ? translateImagePresetStep : translatePresetStep).render({
-            language: getUiLanguage(),
-            target: this.language
-          })
-        )
-      );
+    actions.createEl("button", { text: t("ui.context_ai_translate") }).addEventListener("click", () =>
+      runWith(
+        (this.snapshot.image ? translateImagePresetStep : translatePresetStep).render({
+          language: getUiLanguage(),
+          target: this.language
+        })
+      )
+    );
 
     new Setting(footer)
       .addButton(button => button.setButtonText(t("ui.cancel")).onClick(() => this.close()))

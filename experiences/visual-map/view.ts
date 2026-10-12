@@ -639,10 +639,7 @@ export class VisualAgentMapView extends ItemView {
     if (attempt?.status !== "failed" && !branch.researchPlanError) return;
     const box = card.createDiv({ cls: "vam-aim-failure" });
     box.createEl("p", {
-      text: t(
-        "ui.aim_failure_reason",
-        attempt?.stopReason || branch.researchPlanError || t("ui.expansion_failed")
-      )
+      text: t("ui.aim_failure_reason", attempt?.stopReason || branch.researchPlanError || t("ui.expansion_failed"))
     });
     const phase =
       attempt?.phase ?? branch.deliveryRecovery?.phase ?? (branch.researchPlanError ? "research-plan" : undefined);
@@ -696,23 +693,10 @@ export class VisualAgentMapView extends ItemView {
     this.aimActivityKind = "research";
     this.render();
     try {
-      if (timeoutMs)
-        await this.plugin.mutate(() => this.aimRuns.configureRetryTimeout(mapPath, branch.id, timeoutMs));
+      if (timeoutMs) await this.plugin.mutate(() => this.aimRuns.configureRetryTimeout(mapPath, branch.id, timeoutMs));
       const result = branch.researchPlan
-        ? await this.aimManual.resumeAnswerResearch(
-            mapPath,
-            branch.id,
-            note.model,
-            note.reasoning,
-            controller.signal
-          )
-        : await this.aimManual.retryAnswerResearch(
-            mapPath,
-            branch.id,
-            note.model,
-            note.reasoning,
-            controller.signal
-          );
+        ? await this.aimManual.resumeAnswerResearch(mapPath, branch.id, note.model, note.reasoning, controller.signal)
+        : await this.aimManual.retryAnswerResearch(mapPath, branch.id, note.model, note.reasoning, controller.signal);
       if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
       const latest = await this.plugin.repo.readMap(mapPath);
       if (this.aimViewIsCurrent(epoch, mapPath)) {
@@ -792,11 +776,7 @@ export class VisualAgentMapView extends ItemView {
     this.render();
     try {
       const rootNote = this.notes.get(node.id);
-      if (
-        node.aimKind === "topic" &&
-        rootNote &&
-        !rootNote.detail.includes("<!-- aim-intake-complete -->")
-      ) {
+      if (node.aimKind === "topic" && rootNote && !rootNote.detail.includes("<!-- aim-intake-complete -->")) {
         this.aimActivityKind = "clarifying";
         this.render();
         const questions = await this.aimManual.prepareClarification(rootNote, controller.signal);
@@ -806,8 +786,7 @@ export class VisualAgentMapView extends ItemView {
             this.app,
             questions,
             async answers => {
-              if (!this.aimViewIsCurrent(epoch, mapPath))
-                throw new Error("Reopen the original AIM map to continue.");
+              if (!this.aimViewIsCurrent(epoch, mapPath)) throw new Error("Reopen the original AIM map to continue.");
               await this.plugin.mutate(async () => {
                 const latest = await this.plugin.repo.readNote(node.path);
                 if (!latest.detail.includes("<!-- aim-intake-complete -->")) {
@@ -894,11 +873,7 @@ export class VisualAgentMapView extends ItemView {
     this.aimActivityKind = "research";
     this.render();
     try {
-      const result = await this.reviewAimFailedReport(
-        target.runId,
-        target.diagnosticNotePath,
-        controller.signal
-      );
+      const result = await this.reviewAimFailedReport(target.runId, target.diagnosticNotePath, controller.signal);
       if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
       if (result.status === "waiting-user") {
         const question = this.map?.nodes.find(item => item.id === result.questionNodeId);
@@ -943,13 +918,7 @@ export class VisualAgentMapView extends ItemView {
     try {
       if (timeoutMs && branch)
         await this.plugin.mutate(() => this.aimRuns.configureRetryTimeout(mapPath, branch.id, timeoutMs));
-      const result = await this.aimManual.continuePartial(
-        mapPath,
-        runId,
-        undefined,
-        undefined,
-        controller.signal
-      );
+      const result = await this.aimManual.continuePartial(mapPath, runId, undefined, undefined, controller.signal);
       if (!isCurrent()) return;
       // Select the new question so the toolbar answers it, not the previously selected one; the finally block re-renders after reloading the map.
       if (result.status === "waiting-user") {
@@ -1001,10 +970,7 @@ export class VisualAgentMapView extends ItemView {
     const epoch = this.aimViewEpoch,
       mapPath = this.path,
       requestId = contract.requestId;
-    if (
-      mapPath &&
-      (this.map?.aim?.branches.filter(branch => branch.questionNodeId === node.id).length ?? 0) > 1
-    ) {
+    if (mapPath && (this.map?.aim?.branches.filter(branch => branch.questionNodeId === node.id).length ?? 0) > 1) {
       void this.plugin
         .mutate(async () => {
           const repaired = await this.aimRuns.recoverAnswerBranches(mapPath);
@@ -1017,8 +983,7 @@ export class VisualAgentMapView extends ItemView {
           if (current) this.openAimAnswer(current);
         })
         .catch(error => {
-          if (this.aimViewIsCurrent(epoch, mapPath))
-            new Notice(error instanceof Error ? error.message : String(error));
+          if (this.aimViewIsCurrent(epoch, mapPath)) new Notice(error instanceof Error ? error.message : String(error));
         });
       return;
     }
@@ -2235,9 +2200,7 @@ export class VisualAgentMapView extends ItemView {
     if (!this.builtIn && this.map?.aim) {
       const data = this.map.aim;
       const isAnswered = (node: MapNode) => data.branches.some(branch => branch.questionNodeId === node.id);
-      const pending = this.map.nodes.find(
-        node => node.aimKind === "question" && node.aimQuestion && !isAnswered(node)
-      );
+      const pending = this.map.nodes.find(node => node.aimKind === "question" && node.aimQuestion && !isAnswered(node));
       const selectedQuestion =
         selectedNode?.aimKind === "question" && selectedNode.aimQuestion ? selectedNode : undefined;
       if (selectedQuestion || pending) {
@@ -2416,8 +2379,7 @@ export class VisualAgentMapView extends ItemView {
     const tools = this.contentEl.createDiv("vam-map-tools");
     if (!this.builtIn) {
       const aimMode = !!this.map.aim;
-      if (!aimMode)
-        this.button(tools, t("ui.topic"), () => this.enqueue(() => this.addNode(null))).addClass("mod-cta");
+      if (!aimMode) this.button(tools, t("ui.topic"), () => this.enqueue(() => this.addNode(null))).addClass("mod-cta");
       if (aimMode) this.button(tools, t("ui.create_a_new_mind_map"), () => this.openNewMindMapModal());
       this.button(tools, t("ui.aim_create_map"), () => this.openAimStart());
       if (!aimMode) this.button(tools, t("ui.organize"), () => this.enqueue(() => this.openOrganizer()));
@@ -2508,9 +2470,7 @@ export class VisualAgentMapView extends ItemView {
       const emptyMap = this.viewportEl.createDiv("vam-empty");
       emptyMap.createSpan({
         text: t(
-          this.map.aim
-            ? "ui.aim_empty_map_hint"
-            : "ui.this_mind_map_has_no_topics_click_topic_to_create_the_first"
+          this.map.aim ? "ui.aim_empty_map_hint" : "ui.this_mind_map_has_no_topics_click_topic_to_create_the_first"
         )
       });
       if (!this.map.aim) this.button(emptyMap, t("ui.topic"), () => this.enqueue(() => this.addNode(null)));
@@ -2722,17 +2682,9 @@ export class VisualAgentMapView extends ItemView {
         ).addClass("mod-cta");
       }
     }
-    if (
-      node.aimKind === "topic" &&
-      this.map?.aim &&
-      !this.map.nodes.some(item => item.aimKind === "question")
-    ) {
-      const initialBranch = this.map.aim.branches.find(
-        item => item.questionNodeId === node.id && !item.parentBranchId
-      );
-      const initialRuns = initialBranch
-        ? this.map.aim.runs.filter(item => item.branchId === initialBranch.id)
-        : [];
+    if (node.aimKind === "topic" && this.map?.aim && !this.map.nodes.some(item => item.aimKind === "question")) {
+      const initialBranch = this.map.aim.branches.find(item => item.questionNodeId === node.id && !item.parentBranchId);
+      const initialRuns = initialBranch ? this.map.aim.runs.filter(item => item.branchId === initialBranch.id) : [];
       const activeInitialRun = initialRuns.some(run => {
         const attempt = run.attempts.find(item => item.id === run.currentAttemptId);
         return attempt?.status === "running" || attempt?.status === "saving";
@@ -2769,12 +2721,9 @@ export class VisualAgentMapView extends ItemView {
           initialBranch.researchPlan || initialBranch.results.length
             ? t("ui.aim_continue_research")
             : t("ui.aim_retry_subtopics");
-        this.button(
-          card,
-          label,
-          () => void this.retryAimSubtopics(initialBranch.id),
-          this.aimBusy
-        ).addClass("vam-aim-retry");
+        this.button(card, label, () => void this.retryAimSubtopics(initialBranch.id), this.aimBusy).addClass(
+          "vam-aim-retry"
+        );
       }
     }
     if (node.aimKind === "question" && this.map?.aim) {
@@ -2813,11 +2762,7 @@ export class VisualAgentMapView extends ItemView {
           });
           if (branch.researchPlanError) status.setAttr("title", branch.researchPlanError);
           if (!activeBranchRun && !terminalResult) {
-            const retry = this.button(
-              card,
-              t("ui.aim_retry_subtopics"),
-              () => void this.retryAimSubtopics(branch.id)
-            );
+            const retry = this.button(card, t("ui.aim_retry_subtopics"), () => void this.retryAimSubtopics(branch.id));
             retry.addClass("vam-aim-retry");
             retry.disabled = this.aimBusy;
           }
@@ -4323,9 +4268,7 @@ export class VisualAgentMapView extends ItemView {
       const content = [
         `${labelCurrentSummary(language)}: ${note.summary || translate(language, "detail.no_conclusion_yet")}`,
         visuals ? `${labelVisualReferences(language)}\n${visuals}` : "",
-        mode === "strong" && note.detail.trim()
-          ? `${labelFullKnowledge(language)}\n${note.detail.trim()}`
-          : "",
+        mode === "strong" && note.detail.trim() ? `${labelFullKnowledge(language)}\n${note.detail.trim()}` : "",
         finding ? `${labelOldFindings(language)} ${finding}` : "",
         note.thinkingOrigin ? thinkingOriginDocumentBlock(note.thinkingOrigin) : ""
       ]

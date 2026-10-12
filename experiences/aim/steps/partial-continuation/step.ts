@@ -20,7 +20,11 @@ export interface PartialContinuationSearchVars {
 export function renderPartialContinuationSearchTask(vars: PartialContinuationSearchVars): string {
   const gap =
     vars.gap.kind === "target"
-      ? renderTemplate(targetPart, { title: vars.gap.title, task: vars.gap.task, expectedValue: vars.gap.expectedValue })
+      ? renderTemplate(targetPart, {
+          title: vars.gap.title,
+          task: vars.gap.task,
+          expectedValue: vars.gap.expectedValue
+        })
       : renderTemplate(unresolvedGapPart, { gap: vars.gap.text });
   return renderTemplate(searchTemplate, {
     searcherTargetRule: vars.searcherTargetRule,

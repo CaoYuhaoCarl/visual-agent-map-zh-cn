@@ -95,7 +95,7 @@ const PHASE_RULES: Readonly<Record<string, FragmentPair>> = {
   "delivery-outline": pair(PhaseDeliveryOutlineZH, PhaseDeliveryOutlineEN),
   "delivery-research": pair(PhaseDeliveryResearchZH, PhaseDeliveryResearchEN),
   "delivery-writing": pair(PhaseDeliveryWritingZH, PhaseDeliveryWritingEN),
-  "delivery-acceptance": pair(PhaseDeliveryAcceptanceZH, PhaseDeliveryAcceptanceEN),
+  "delivery-acceptance": pair(PhaseDeliveryAcceptanceZH, PhaseDeliveryAcceptanceEN)
 };
 
 export function aimPhase(task: string): string | undefined {
@@ -110,7 +110,8 @@ function phaseGuidance(
 ): string {
   const gapAuditContract = phase === "research-gap-audit" && responseContract === "aim-gap-audit";
   const common = structured ? GUIDANCE_STRUCTURED : gapAuditContract ? GUIDANCE_GAP_AUDIT : GUIDANCE_PLAIN;
-  const rule = phase && Object.prototype.hasOwnProperty.call(PHASE_RULES, phase) ? inLanguage(PHASE_RULES[phase], language) : "";
+  const rule =
+    phase && Object.prototype.hasOwnProperty.call(PHASE_RULES, phase) ? inLanguage(PHASE_RULES[phase], language) : "";
   return [inLanguage(common, language), rule].filter(Boolean).join("\n\n");
 }
 

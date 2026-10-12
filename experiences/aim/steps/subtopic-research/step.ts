@@ -37,7 +37,9 @@ export function renderSubtopicResearchTask(vars: SubtopicResearchVars): string {
         detail: vars.source.detail
       })
     : "";
-  const rejectedBlock = vars.rejectedReuse ? "\n\n" + renderTemplate(rejectedReuse, { reason: vars.rejectedReuse }) : "";
+  const rejectedBlock = vars.rejectedReuse
+    ? "\n\n" + renderTemplate(rejectedReuse, { reason: vars.rejectedReuse })
+    : "";
   return phaseTask(
     "subtopic-research",
     renderTemplate(task, {

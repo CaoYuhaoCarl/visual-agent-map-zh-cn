@@ -21,7 +21,9 @@ export const renderWritingTask = (variables: WritingTaskVariables): string =>
     knownConditions: variables.knownConditions,
     scopedEvidence: variables.scopedEvidence,
     additionalResearch:
-      variables.scopedResearch === undefined ? "" : renderTemplate(additionalResearch, { research: variables.scopedResearch })
+      variables.scopedResearch === undefined
+        ? ""
+        : renderTemplate(additionalResearch, { research: variables.scopedResearch })
   });
 
 /** Evidence text of a section that no supplied source is mapped to, while other sources exist. */
