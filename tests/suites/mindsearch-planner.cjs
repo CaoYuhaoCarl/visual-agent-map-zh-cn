@@ -755,6 +755,22 @@ integrationTest('MindSearch turns below-floor research on an already answered go
   assert.equal(kept.decision, 'research_more', 'a genuine evidence gap is still researched below the floor');
   assert.deepEqual(phases, ['research-gap-audit']);
 });
+integrationTest('MindSearch re-decides a target-less research_more on an answered goal with research_more removed from the repair schema', async () => {
+  const { MindSearchManualFlow } = load('experiences/mind-search/manual-flow.ts', { obsidian });
+  const contracts = [];
+  const flow = new MindSearchManualFlow({ settings: { language: 'en' } }, {}, async context => {
+    if (!mindSearchPhase(context, 'format-repair')) throw new Error(`Unexpected phase: ${context.task.slice(0, 80)}`);
+    contracts.push(JSON.parse(JSON.stringify(context.mindSearchContract)));
+    return plannerReview('ask_user', { rationale: 'Usage context changes the commands.', question: 'Which shell will you use?' }, 'Interim answer.', 'Body.', ['bash', 'PowerShell']);
+  });
+  const original = plannerReview('research_more', { rationale: 'Every core outcome is answered; no evidence gap remains.' }, 'Interim answer.', 'Body.');
+  original.detail = original.detail.replace('"decision":"research_more"', '"decision":"research_more","goalAnswered":true');
+  const recoveryContext = { question: 'Create a venv', answerSnapshot: '{}', reportSummary: 'Official docs cover every step.', reportDetail: 'Saved reports.' };
+  const taskContext = { title: 'Create a venv', summary: '', detail: '', ancestors: '', mindSearchContract: { kind: 'review', decisions: ['research_more', 'ask_user'] } };
+  const review = await flow.parsePlannerReviewWithRecovery(original, recoveryContext, taskContext, 'gpt-6-luna', 'low');
+  assert.equal(review.decision, 'ask_user');
+  assert.deepEqual(contracts, [{ kind: 'review', decisions: ['ask_user'] }], 'one repair call whose schema cannot offer research_more');
+});
 integrationTest('MindSearch research-gap audit preserves classifications from four saved report summaries without reopening evidence', async () => {
   const { repo } = fixture();
   const { createMindSearchMap } = load('experiences/mind-search/create-map.ts');

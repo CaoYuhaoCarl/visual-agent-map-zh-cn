@@ -12675,10 +12675,11 @@ ${originalBody}`,
         suggestions: answerOptions.map((title) => ({ title, task: "", contribution: "" }))
       });
     }
-    const preserveDecision = isDecision(originalDecision) ? originalDecision : void 0;
+    const answeredWithoutTarget = originalDecision === "research_more" && (originalMarker == null ? void 0 : originalMarker.raw.goalAnswered) === true && !original.suggestions.some((item) => item.title.trim() && item.task.trim() && item.contribution.trim());
+    const preserveDecision = !answeredWithoutTarget && isDecision(originalDecision) ? originalDecision : void 0;
     const task = [
       "The preceding Planner response did not satisfy the required machine-readable decision contract.",
-      preserveDecision ? `Repair only the malformed fields in the original ${preserveDecision} decision. Preserve that decision and every valid original field; do not switch to another decision.` : "Make one local format-repair review using only the same saved report and answer snapshot below. Do not search, repeat research, add evidence, or invent facts. The original decision marker is unusable, so determine a decision from the supplied evidence; do not claim the original decision is known.",
+      answeredWithoutTarget ? "The original response chose research_more but named no research target and marked the goal as already answered, so it identified no evidence gap to search. Make the decision again from the same saved report and answer snapshot below; research_more is not available. Do not search, repeat research, add evidence, or invent facts." : preserveDecision ? `Repair only the malformed fields in the original ${preserveDecision} decision. Preserve that decision and every valid original field; do not switch to another decision.` : "Make one local format-repair review using only the same saved report and answer snapshot below. Do not search, repeat research, add evidence, or invent facts. The original decision marker is unusable, so determine a decision from the supplied evidence; do not claim the original decision is known.",
       "Do not search, repeat research, add evidence, or invent facts. Do not default to any decision merely to repair the format.",
       "Return a useful conditional answer in summary/detail and the decision in the aim fields with an evidence-based aim.rationale.",
       "For research_more, provide exactly one aim.researchTarget with title, search task, and expected uncertainty reduction. For ask_user, provide one direct aim.question and 2\u20135 distinct choices in aim.answerOptions. For conclude, include aim.stopReason. Preserve supplied values and provenance; never answer for the user or ask whether synthetic test data is real. Keep source claims, inference, uncertainty, and limits distinct.",
@@ -12699,8 +12700,10 @@ ${original.detail}
 
 Suggestions: ${JSON.stringify(original.suggestions)}`
     ].join("\n\n");
-    const repaired = await recover(task);
+    const repaired = await recover(task, answeredWithoutTarget ? { excludeDecisions: ["research_more"] } : void 0);
     const parsed = parseMindSearchPlannerReview(repaired);
+    if (answeredWithoutTarget && parsed.decision === "research_more")
+      throw new Error("Planner format repair cannot choose research_more for a goal its response marked as answered.");
     if (preserveDecision && parsed.decision !== preserveDecision) {
       throw new Error(`Planner format repair changed the original ${preserveDecision} decision to ${parsed.decision}.`);
     }
@@ -13105,11 +13108,16 @@ Use the loaded evidence for the current phase. This lookup is exhausted; return 
     return loaded;
   }
   parsePlannerReviewWithRecovery(original, recoveryContext, taskContext, model, reasoning, signal) {
-    return parseMindSearchPlannerReviewWithRecovery(original, recoveryContext, async (task) => {
+    return parseMindSearchPlannerReviewWithRecovery(original, recoveryContext, async (task, options) => {
       throwIfAborted(signal);
       const repairTask = phaseTask("format-repair", task);
       const step = taskContext.mindSearchContract;
-      const decisions = recoveryContext.requiredDecision ? [recoveryContext.requiredDecision] : (step == null ? void 0 : step.kind) === "review" ? step.decisions : ALL_DECISIONS;
+      const allowed = recoveryContext.requiredDecision ? [recoveryContext.requiredDecision] : (step == null ? void 0 : step.kind) === "review" ? step.decisions : ALL_DECISIONS;
+      const decisions = allowed.filter((decision) => {
+        var _a;
+        return !((_a = options == null ? void 0 : options.excludeDecisions) == null ? void 0 : _a.includes(decision));
+      });
+      if (!decisions.length) throw new Error("MindSearch format repair has no permitted decision left.");
       const repaired = await this.askMindSearchModel(
         {
           ...taskContext,

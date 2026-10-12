@@ -200,3 +200,56 @@ test('a bold-labelled question is extracted without its Markdown emphasis', () =
   }), '你目前使用的 Obsidian 安裝程式是否已更新到支援開啟 vault 外 Markdown 檔案的版本？');
   assert.equal(extractPlannerQuestionCandidate({ summary: '', detail: '**Question:** Which platform do you use?' }), 'Which platform do you use?');
 });
+
+// Live replies chose research_more with researchTarget null while stating the goal was already answered.
+const answeredWithoutTarget = {
+  summary: 'The reports already answer the goal.',
+  detail: '<!-- mindsearch-review {"decision":"research_more","rationale":"The reports answer every core outcome; no evidence gap remains.","goalAnswered":true} -->\nSupported conditional answer.',
+  suggestions: []
+};
+
+test('research_more without a target on an answered goal is re-decided without research_more instead of inventing a target', async () => {
+  const calls = [];
+  const parsed = await parseMindSearchPlannerReviewWithRecovery(answeredWithoutTarget, context, async (task, options) => {
+    calls.push({ task, options });
+    return {
+      summary: 'The reports already answer the goal.',
+      detail: '<!-- mindsearch-review {"decision":"ask_user","rationale":"Usage context changes which commands to list first.","question":"What will you use this environment for?"} -->\nSupported conditional answer.',
+      suggestions: ['Project work', 'Teaching'].map(title => ({ title, task: '', contribution: '' }))
+    };
+  });
+  assert.equal(calls.length, 1);
+  assert.deepEqual(Array.from(calls[0].options.excludeDecisions), ['research_more']);
+  assert.match(calls[0].task, /named no research target/);
+  assert.doesNotMatch(calls[0].task, /Preserve that decision/);
+  assert.match(calls[0].task, /Already completed report detail:\nPrivate full report detail/);
+  assert.equal(parsed.decision, 'ask_user');
+  assert.equal(parsed.question, 'What will you use this environment for?');
+  assert.deepEqual(Array.from(parsed.answerOptions), ['Project work', 'Teaching']);
+});
+
+test('a re-decided answered goal still rejects a repairer that returns research_more', async () => {
+  await assert.rejects(() => parseMindSearchPlannerReviewWithRecovery(answeredWithoutTarget, context, async () => ({
+    summary: 'More research.',
+    detail: '<!-- mindsearch-review {"decision":"research_more","rationale":"Padding."} -->\nBody.',
+    suggestions: [{ title: 'Invented target', task: 'Search anything', contribution: 'None' }]
+  })), /cannot choose research_more/);
+});
+
+test('research_more without a target on an unanswered goal keeps the decision and repairs only the target', async () => {
+  const original = { ...answeredWithoutTarget, detail: answeredWithoutTarget.detail.replace('"goalAnswered":true', '"goalAnswered":false') };
+  const calls = [];
+  const parsed = await parseMindSearchPlannerReviewWithRecovery(original, context, async (task, options) => {
+    calls.push({ task, options });
+    return {
+      summary: 'A gap remains.',
+      detail: '<!-- mindsearch-review {"decision":"research_more","rationale":"Repaired."} -->\nBody.',
+      suggestions: [{ title: 'Missing fact', task: 'Search the official source', contribution: 'Confirms the missing fact' }]
+    };
+  });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].options, undefined);
+  assert.match(calls[0].task, /Preserve that decision/);
+  assert.equal(parsed.decision, 'research_more');
+  assert.equal(parsed.researchTarget.title, 'Missing fact');
+});

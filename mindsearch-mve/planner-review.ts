@@ -171,11 +171,16 @@ export function extractPlannerQuestionCandidate(result: Pick<AiResult, "detail" 
   return undefined;
 }
 
+export interface PlannerRepairOptions {
+  /** Decisions the repair response schema must not offer. */
+  excludeDecisions?: readonly MindSearchReviewDecision[];
+}
+
 /** Parse a Planner decision and allow one local format-repair turn on the same evidence. */
 export async function parseMindSearchPlannerReviewWithRecovery(
   original: AiResult,
   context: PlannerReviewRecoveryContext,
-  recover: (task: string) => Promise<AiResult>
+  recover: (task: string, options?: PlannerRepairOptions) => Promise<AiResult>
 ): Promise<MindSearchPlannerReview> {
   try {
     const parsed = parseMindSearchPlannerReview(original);
@@ -311,12 +316,20 @@ export async function parseMindSearchPlannerReviewWithRecovery(
       });
     }
 
-    const preserveDecision = isDecision(originalDecision) ? originalDecision : undefined;
+    // research_more with no target on a goal the response itself calls answered names no gap to search.
+    // Repairing only the target would make the model invent one, so the decision is re-made without research.
+    const answeredWithoutTarget =
+      originalDecision === "research_more" &&
+      originalMarker?.raw.goalAnswered === true &&
+      !original.suggestions.some(item => item.title.trim() && item.task.trim() && item.contribution.trim());
+    const preserveDecision = !answeredWithoutTarget && isDecision(originalDecision) ? originalDecision : undefined;
     const task = [
       "The preceding Planner response did not satisfy the required machine-readable decision contract.",
-      preserveDecision
-        ? `Repair only the malformed fields in the original ${preserveDecision} decision. Preserve that decision and every valid original field; do not switch to another decision.`
-        : "Make one local format-repair review using only the same saved report and answer snapshot below. Do not search, repeat research, add evidence, or invent facts. The original decision marker is unusable, so determine a decision from the supplied evidence; do not claim the original decision is known.",
+      answeredWithoutTarget
+        ? "The original response chose research_more but named no research target and marked the goal as already answered, so it identified no evidence gap to search. Make the decision again from the same saved report and answer snapshot below; research_more is not available. Do not search, repeat research, add evidence, or invent facts."
+        : preserveDecision
+          ? `Repair only the malformed fields in the original ${preserveDecision} decision. Preserve that decision and every valid original field; do not switch to another decision.`
+          : "Make one local format-repair review using only the same saved report and answer snapshot below. Do not search, repeat research, add evidence, or invent facts. The original decision marker is unusable, so determine a decision from the supplied evidence; do not claim the original decision is known.",
       "Do not search, repeat research, add evidence, or invent facts. Do not default to any decision merely to repair the format.",
       "Return a useful conditional answer in summary/detail and the decision in the aim fields with an evidence-based aim.rationale.",
       "For research_more, provide exactly one aim.researchTarget with title, search task, and expected uncertainty reduction. For ask_user, provide one direct aim.question and 2–5 distinct choices in aim.answerOptions. For conclude, include aim.stopReason. Preserve supplied values and provenance; never answer for the user or ask whether synthetic test data is real. Keep source claims, inference, uncertainty, and limits distinct.",
@@ -331,8 +344,10 @@ export async function parseMindSearchPlannerReviewWithRecovery(
           ]),
       `Original Planner response to review:\nSummary: ${original.summary}\n\nDetail:\n${original.detail}\n\nSuggestions: ${JSON.stringify(original.suggestions)}`
     ].join("\n\n");
-    const repaired = await recover(task);
+    const repaired = await recover(task, answeredWithoutTarget ? { excludeDecisions: ["research_more"] } : undefined);
     const parsed = parseMindSearchPlannerReview(repaired);
+    if (answeredWithoutTarget && parsed.decision === "research_more")
+      throw new Error("Planner format repair cannot choose research_more for a goal its response marked as answered.");
     if (preserveDecision && parsed.decision !== preserveDecision) {
       throw new Error(`Planner format repair changed the original ${preserveDecision} decision to ${parsed.decision}.`);
     }

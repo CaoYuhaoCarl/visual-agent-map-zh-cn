@@ -249,16 +249,18 @@ export class MindSearchManualFlow {
     reasoning: unknown,
     signal?: AbortSignal
   ): Promise<ReturnType<typeof parseMindSearchPlannerReview>> {
-    return parseMindSearchPlannerReviewWithRecovery(original, recoveryContext, async task => {
+    return parseMindSearchPlannerReviewWithRecovery(original, recoveryContext, async (task, options) => {
       throwIfAborted(signal);
 
       const repairTask = phaseTask("format-repair", task);
       const step = taskContext.mindSearchContract;
-      const decisions: readonly MindSearchDecision[] = recoveryContext.requiredDecision
+      const allowed: readonly MindSearchDecision[] = recoveryContext.requiredDecision
         ? [recoveryContext.requiredDecision]
         : step?.kind === "review"
           ? step.decisions
           : ALL_DECISIONS;
+      const decisions = allowed.filter(decision => !options?.excludeDecisions?.includes(decision));
+      if (!decisions.length) throw new Error("MindSearch format repair has no permitted decision left.");
       const repaired = await this.askMindSearchModel(
         {
           ...taskContext,
