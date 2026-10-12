@@ -5,61 +5,21 @@ import {
   resolveReferenceLinks
 } from "../ai/reference-materials";
 import { buildPreparedTaskContext, estimateTokens } from "../ai/context-builder";
-import { effectiveReasoningLevel, normalizeReasoningLevel, researchGuidance } from "../ai/task-policy";
-import { SEARCH_STATUSES, type AiResult, type ReasoningLevel, type SearchStatus, type TaskContext } from "../ai/types";
-import { truncateSummary } from "../ai/result-utils";
-import { translate, t, type TranslationKey, type UiLanguage } from "../i18n";
-import responseSchema from "../response-schema.json";
-import { foldAimContract, aimContractSchema, type AimContract } from "../ai/aim-contracts";
-import aimGapAuditSchema from "../ai/aim-gap-audit-schema";
-import { CLAUDE_MODEL_CHOICES, providerForModel, providerModelId } from "../ai/providers/provider";
+import { effectiveReasoningLevel, normalizeReasoningLevel } from "../ai/task-policy";
+import type { AiResult, ReasoningLevel, TaskContext } from "../ai/types";
+import { translate, t, type UiLanguage } from "../i18n";
+import { CLAUDE_MODEL_CHOICES, providerForModel } from "../ai/providers/provider";
 import type { CodexAppServerRuntime, CodexWebSearchEvent } from "../ai/runtime/codex-app-server";
 import type { ClaudeCodeCliRuntime } from "../ai/runtime/claude-code-cli";
 import type { AiExchangeLog } from "../ai-exchange-log";
-import { visualGuidance } from "../ai/visual-guidance";
-import { randomUUID } from "node:crypto";
-import { buildAimPrompt } from "../ai/aim-prompt";
+import { runtimeStepProvider, type ExchangeSink } from "./runtime-step-provider";
+import { prepareStep, StepRunner } from "./step-runner";
+import { referenceTask } from "./steps/reference/step";
+import { taskResponseShape } from "./steps/task/schemas";
+import { sourceRegistry } from "./steps/task/fragments";
+import { createTaskStep, taskStepId, type TaskStepRole } from "./steps/task/step";
 
-export function extractJsonObject(raw: string): string {
-  const candidates: string[] = [];
-  let start = -1,
-    depth = 0,
-    quoted = false,
-    escaped = false;
-  for (let index = 0; index < raw.length; index++) {
-    const character = raw[index];
-    if (start < 0) {
-      if (character === "{") {
-        start = index;
-        depth = 1;
-        quoted = false;
-        escaped = false;
-      }
-      continue;
-    }
-    if (quoted) {
-      if (escaped) escaped = false;
-      else if (character === "\\") escaped = true;
-      else if (character === '"') quoted = false;
-      continue;
-    }
-    if (character === '"') quoted = true;
-    else if (character === "{") depth++;
-    else if (character === "}" && --depth === 0) {
-      candidates.push(raw.slice(start, index + 1));
-      start = -1;
-    }
-  }
-  for (const candidate of candidates.reverse()) {
-    try {
-      JSON.parse(candidate);
-      return candidate;
-    } catch {
-      /* Continue to an earlier balanced object. */
-    }
-  }
-  throw new SyntaxError(t("error.codex_reply_no_json"));
-}
+export { extractJsonObject } from "./steps/task/parse";
 
 export interface AiTaskServiceOptions {
   pluginDirectory: () => string;
@@ -84,6 +44,20 @@ export class AiTaskService {
     /** Receives provider web activity in the Codex webSearch event shape; results may contain snippets only, not page bodies. */
     onWebSearchEvent?: (event: CodexWebSearchEvent) => void
   ): Promise<AiResult> {
+    return this.execute(input, model, reasoning, signal, onExchange, onRequestAccepted, onWebSearchEvent);
+  }
+
+  /** `role` names the two reference rounds so they are logged as their own steps; every other request is a task or AIM step. */
+  private async execute(
+    input: TaskContext,
+    model: string,
+    reasoning: unknown,
+    signal: AbortSignal | undefined,
+    onExchange: ((id: string) => void) | undefined,
+    onRequestAccepted: (() => void) | undefined,
+    onWebSearchEvent: ((event: CodexWebSearchEvent) => void) | undefined,
+    role?: TaskStepRole
+  ): Promise<AiResult> {
     if (
       input.timeoutMs !== undefined &&
       (!Number.isInteger(input.timeoutMs) || input.timeoutMs < 180_000 || input.timeoutMs > 600_000)
@@ -101,11 +75,7 @@ export class AiTaskService {
       const findings = await this.extractReferenceFindings(context, model, reasoning, signal);
       context = {
         ...context,
-        sourceContext: [
-          context.sourceContext,
-          findings,
-          `Source registry (retain these identities in citations):\n${referenceCatalog(referenceGroups)}`
-        ]
+        sourceContext: [context.sourceContext, findings, sourceRegistry(referenceCatalog(referenceGroups))]
           .filter(Boolean)
           .join("\n\n"),
         referenceGroups: undefined
@@ -120,63 +90,15 @@ export class AiTaskService {
     context = prepared.context;
     const pluginDirectory = this.options.pluginDirectory();
     const outputLanguage = context.outputLanguage ?? this.options.language();
-    const instructions =
-      context.promptProfile === "aim"
-        ? buildAimPrompt(context, outputLanguage)
-        : [
-            translate(outputLanguage, "prompt.output_language"),
-            translate(outputLanguage, "prompt.role"),
-            translate(outputLanguage, "prompt.source_safety"),
-            context.sourceContext ? translate(outputLanguage, "prompt.reference_citations") : "",
-            context.sourceContext && context.researchMode !== "local"
-              ? translate(outputLanguage, "prompt.local_first")
-              : "",
-            translate(outputLanguage, "prompt.json"),
-            translate(
-              outputLanguage,
-              context.mode === "task"
-                ? "prompt.general_task"
-                : context.mode === "decompose"
-                  ? "prompt.decompose"
-                  : context.mode === "synthesize"
-                    ? "prompt.synthesize"
-                    : "prompt.default_task"
-            ),
-            context.mode !== "decompose"
-              ? context.detailFormat === "adaptive"
-                ? translate(outputLanguage, "prompt.adaptive_detail_structure")
-                : translate(
-                    outputLanguage,
-                    "prompt.detail_structure",
-                    [
-                      "detail.core_conclusions",
-                      "detail.key_knowledge",
-                      "detail.evidence_and_sources",
-                      "detail.tradeoffs_and_limitations",
-                      "detail.open_questions",
-                      "detail.update_log"
-                    ]
-                      .map(key => `### ${translate(outputLanguage, key as TranslationKey)}`)
-                      .join(", ")
-                  )
-              : "",
-            researchGuidance(context, outputLanguage),
-            ...visualGuidance(context, outputLanguage),
-            `${translate(outputLanguage, "prompt.label_topic")}:\n${context.title}`,
-            `${translate(outputLanguage, "prompt.label_summary")}:\n${context.summary}`,
-            context.mode !== "decompose"
-              ? `${translate(outputLanguage, "prompt.label_detail")}:\n${context.detail || translate(outputLanguage, "prompt.none")}`
-              : "",
-            `${translate(outputLanguage, "prompt.label_rules")}:\n${context.rules || translate(outputLanguage, "prompt.none")}`,
-            context.workingFindings
-              ? `${translate(outputLanguage, "prompt.label_findings")}:\n${context.workingFindings}`
-              : "",
-            context.sourceContext
-              ? `${translate(outputLanguage, "prompt.label_sources")}:\n${context.sourceContext}`
-              : "",
-            `${translate(outputLanguage, "prompt.label_ancestors")}:\n${context.ancestors || translate(outputLanguage, "prompt.none")}`,
-            `${translate(outputLanguage, "prompt.label_task")}:\n${context.task}`
-          ].join("\n\n");
+    const shape = taskResponseShape(context);
+    const step = prepareStep(createTaskStep(taskStepId(context, role), shape.schema), {
+      context,
+      language: outputLanguage,
+      providerLabel: provider === "claude" ? "Claude Code" : "Codex App Server",
+      strictGapAudit: shape.isAimGapAudit,
+      webResearch: shape.isIsolatedWebResearch,
+      contract: shape.contract
+    });
 
     console.debug("Visual Agent Map AI metrics", prepared.metrics);
     const providerStarted = Date.now();
@@ -185,18 +107,19 @@ export class AiTaskService {
       normalizeReasoningLevel(reasoning ?? this.options.defaultReasoning())
     );
     const exchanges = this.options.exchangeLoggingEnabled() ? this.options.exchanges() : null;
-    const exchangeId = exchanges ? randomUUID() : "";
-    if (exchanges) {
-      exchanges.begin({
-        id: exchangeId,
-        startedAt: new Date().toISOString(),
-        topic: context.title,
-        mode: context.mode ?? "task",
-        model,
-        effort
-      });
-      onExchange?.(exchangeId);
-    }
+    let exchangeId = "";
+    // Turning exchange logging off while a task runs stops recording from then on, so every write re-checks the setting.
+    const recording = <Args extends unknown[]>(write: ((...args: Args) => void) | undefined) =>
+      (...args: Args): void => {
+        if (this.options.exchangeLoggingEnabled()) write?.(...args);
+      };
+    const sink: ExchangeSink | null = exchanges && {
+      begin: entry => exchanges.begin(entry),
+      sent: recording((id: string, request: string, prompt?: string) => exchanges.sent(id, request, prompt)),
+      received: recording((id: string, response: string) => exchanges.received(id, response)),
+      completed: recording((id: string) => exchanges.completed(id)),
+      failed: recording((id: string, error: string) => exchanges.failed(id, error))
+    };
 
     let stage = t("log.stage_starting_ai");
     try {
@@ -220,83 +143,34 @@ export class AiTaskService {
         // Codex uses 0 as no steering budget; Claude receives webSearch separately.
         searchBudget: 0,
         webSearch: context.researchMode !== "local",
-        onRequest: (request: unknown): void => {
+        onRequest: (): void => {
           stage = t("log.stage_waiting_reply");
-          if (this.options.exchangeLoggingEnabled())
-            exchanges?.sent(exchangeId, JSON.stringify(request, null, 2), instructions);
         }
       };
-      const isAimGapAudit =
-        context.responseContract === "aim-gap-audit" &&
-        context.promptProfile === "aim" &&
-        context.researchMode === "local";
-      const isDeliveryAcceptance =
-        context.responseContract === "aim-delivery-acceptance" &&
-        context.promptProfile === "aim" &&
-        context.researchMode === "local";
-      const deliverySchema = {
-        ...responseSchema,
-        properties: {
-          ...responseSchema.properties,
-          summary: {
-            type: "string",
-            description: "A short plain-language preview. Never put machine-readable review markers here."
-          },
-          detail: {
-            type: "string",
-            pattern: "^\\s*<!--\\s*aim-review\\s+\\{[^\\r\\n]*\\}\\s*-->",
-            description:
-              "Begin with the COMPLETE first-line AIM review marker containing decision and rationale (and stopReason for conclude). Put the marker in detail only, followed by the acceptance explanation. Never split or truncate the marker."
-          }
-        }
-      };
-      const isIsolatedWebResearch = context.aimIsolatedResearch === true && context.researchMode !== "local";
-      const webResearchSchema = {
-        ...responseSchema,
-        properties: {
-          ...responseSchema.properties,
-          searchStatus: {
-            type: "string",
-            enum: [...SEARCH_STATUSES],
-            description:
-              "completed only when at least one web search or page fetch returned usable results for this task; failed when searching was attempted without usable results; not_attempted when no search ran."
-          }
-        },
-        required: [...responseSchema.required, "searchStatus"]
-      };
-      const contract =
-        context.promptProfile === "aim" && !isAimGapAudit ? context.aimContract : undefined;
-      const schema = contract
-        ? aimContractSchema(
-            contract,
-            isIsolatedWebResearch ? webResearchSchema : responseSchema,
-            context.aimEvidenceLookup === true
-          )
-        : isAimGapAudit
-          ? aimGapAuditSchema
-          : isDeliveryAcceptance
-            ? deliverySchema
-            : isIsolatedWebResearch
-              ? webResearchSchema
-              : responseSchema;
-      const raw =
-        provider === "claude"
-          ? await this.options
-              .claudeRuntime(pluginDirectory)
-              .runTask(instructions, providerModelId(model), effort, schema, { ...controls, onWebSearchEvent })
-          : await this.options
-              .codexRuntime(pluginDirectory, context.researchMode === "local")
-              .runTask(instructions, model, effort, schema, { ...controls, onWebSearchEvent });
-      stage = t("log.stage_parsing_reply");
-      if (this.options.exchangeLoggingEnabled()) exchanges?.received(exchangeId, raw);
-      const result = this.parseAiResult(
-        raw,
-        provider === "claude" ? "Claude Code" : "Codex App Server",
-        outputLanguage,
-        isAimGapAudit,
-        isIsolatedWebResearch,
-        contract
+      // The provider logs begin, sent and received; this method ends the entry with parsed or its own failed message.
+      const runner = new StepRunner(
+        runtimeStepProvider({
+          claude: () => this.options.claudeRuntime(pluginDirectory),
+          codex: local => this.options.codexRuntime(pluginDirectory, local),
+          exchanges: () => sink,
+          localCodex: context.researchMode === "local"
+        })
       );
+      const { raw } = await runner.send(step, {
+        model,
+        effort,
+        topic: context.title,
+        mode: context.mode ?? "task",
+        task: { ...controls, onWebSearchEvent },
+        finish: "caller",
+        requestLog: "request",
+        onExchange: id => {
+          exchangeId = id;
+          onExchange?.(id);
+        }
+      });
+      stage = t("log.stage_parsing_reply");
+      const result = step.parse(raw);
       if (referenceGroups.length) {
         result.summary = resolveReferenceLinks(result.summary, referenceGroups);
         result.detail = resolveReferenceLinks(result.detail, referenceGroups);
@@ -333,16 +207,13 @@ export class AiTaskService {
       for (let index = 0; index < batches.length; index++) {
         if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
         context.onProgress?.(t("ui.reference_processing_progress", index + 1, batches.length));
-        const result = await this.askModel(
+        const result = await this.execute(
           {
             title: context.title,
             summary: "",
             rules: "",
             detail: "",
-            task:
-              round === 1
-                ? translate(this.options.language(), "prompt.reference_extract")
-                : translate(this.options.language(), "prompt.reference_reduce"),
+            task: referenceTask(round === 1 ? "extract" : "reduce", this.options.language()),
             ancestors: "",
             sourceContext: batches[index],
             mode: "task",
@@ -352,7 +223,11 @@ export class AiTaskService {
           },
           model,
           reasoning,
-          signal
+          signal,
+          undefined,
+          undefined,
+          undefined,
+          round === 1 ? "reference-extract" : "reference-reduce"
         );
         if (!result.detail.trim()) throw new Error(t("ui.reference_processing_empty_result"));
         findings.push(result.detail.trim());
@@ -367,97 +242,5 @@ export class AiTaskService {
       }
       working = findings;
     }
-  }
-
-  private parseAiResult(
-    raw: string,
-    label: string,
-    language: UiLanguage,
-    strictGapAudit = false,
-    webResearch = false,
-    contract?: AimContract
-  ): AiResult {
-    const cleaned = raw
-      .replace(/^```(?:json)?\s*/i, "")
-      .replace(/\s*```$/, "")
-      .trim();
-    const parsed: {
-      summary?: unknown;
-      detail?: unknown;
-      suggestions?: unknown;
-      visualReferences?: unknown;
-      searchStatus?: unknown;
-      aim?: unknown;
-    } = JSON.parse(extractJsonObject(cleaned)) as {
-      summary?: unknown;
-      detail?: unknown;
-      suggestions?: unknown;
-      visualReferences?: unknown;
-      searchStatus?: unknown;
-      aim?: unknown;
-    };
-    if (typeof parsed.summary !== "string" || typeof parsed.detail !== "string")
-      throw new Error(t("error.ai_reply_missing_summary_0", label));
-    if (
-      strictGapAudit &&
-      (!(["user_condition", "external_evidence"] as string[]).includes(parsed.summary) ||
-        !parsed.detail.trim() ||
-        !Array.isArray(parsed.suggestions) ||
-        parsed.suggestions.length !== 0 ||
-        !Array.isArray(parsed.visualReferences) ||
-        parsed.visualReferences.length !== 0)
-    ) {
-      throw new Error("AIM research-gap audit returned an invalid structured classification.");
-    }
-    const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
-    const suggestions = Array.isArray(parsed.suggestions)
-      ? parsed.suggestions
-          .filter(
-            (item): item is Record<string, unknown> =>
-              isRecord(item) && typeof item.title === "string" && typeof item.task === "string"
-          )
-          .map(item => ({
-            title: String(item.title).trim(),
-            task: String(item.task).trim(),
-            contribution: typeof item.contribution === "string" ? item.contribution.trim() : "",
-            parentTitle: typeof item.parentTitle === "string" ? item.parentTitle.trim() : ""
-          }))
-          .filter(item => item.title)
-      : [];
-    const visualReferences = Array.isArray(parsed.visualReferences)
-      ? parsed.visualReferences
-          .filter(
-            (item): item is Record<string, unknown> =>
-              isRecord(item) && typeof item.imageUrl === "string" && typeof item.sourceUrl === "string"
-          )
-          .map(item => ({
-            title: typeof item.title === "string" ? item.title.trim() : translate(language, "note.visual_reference"),
-            imageUrl: String(item.imageUrl).trim(),
-            sourceUrl: String(item.sourceUrl).trim(),
-            description: typeof item.description === "string" ? item.description.trim() : "",
-            palette: Array.isArray(item.palette)
-              ? item.palette
-                  .map(String)
-                  .map(color => color.trim())
-                  .filter(Boolean)
-                  .slice(0, 8)
-              : [],
-            formula: typeof item.formula === "string" ? item.formula.trim() : ""
-          }))
-          .filter(item => /^https?:\/\//i.test(item.imageUrl) && /^https?:\/\//i.test(item.sourceUrl))
-          .slice(0, 6)
-      : [];
-    const searchStatus =
-      webResearch && (SEARCH_STATUSES as readonly unknown[]).includes(parsed.searchStatus)
-        ? (parsed.searchStatus as SearchStatus)
-        : undefined;
-    const result: AiResult = {
-      summary: truncateSummary(parsed.summary),
-      detail: parsed.detail.trim(),
-      suggestions,
-      visualReferences,
-      ...(searchStatus ? { searchStatus } : {})
-    };
-    return contract ? foldAimContract(contract, parsed.aim, result) : result;
   }
 }

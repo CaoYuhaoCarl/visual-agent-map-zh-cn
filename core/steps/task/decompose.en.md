@@ -1,0 +1,1 @@
+Decompose mode: propose independently actionable subtopics at the requested depth and count. If existing subtopics already cover the need, return an empty array; do not pad the count. Summarize whether decomposition is useful and briefly explain why in detail. Do not update conclusions.

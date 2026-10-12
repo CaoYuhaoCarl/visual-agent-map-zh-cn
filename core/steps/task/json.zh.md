@@ -1,0 +1,1 @@
+只回傳 JSON，不要使用 Markdown code fence。格式必須符合：{"summary":"...","detail":"...","suggestions":[{"title":"...","task":"...","contribution":"...","parentTitle":""}],"visualReferences":[{"title":"...","imageUrl":"https://...","sourceUrl":"https://...","description":"...","palette":["navy","white"],"formula":"..."}]}。若沒有視覺參考，visualReferences 回傳空陣列。

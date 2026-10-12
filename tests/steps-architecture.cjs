@@ -76,6 +76,10 @@ function insideErrorConstruction(node) {
   return false;
 }
 function typescriptFiles(directory, found = []) {
+  if (fs.statSync(directory).isFile()) {
+    if (directory.endsWith('.ts') && !directory.endsWith('.d.ts')) found.push(directory);
+    return found;
+  }
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
     const file = path.join(directory, entry.name);
     if (entry.isDirectory()) typescriptFiles(file, found);
@@ -111,6 +115,7 @@ function applyAllowlist(literals, allow) {
   return { unlisted, unused: allow.filter((_entry, index) => !used.has(index)) };
 }
 
+// An entry in `dirs` may also name a single .ts file, for areas whose neighbours belong to other work.
 const configurations = fs.readdirSync(path.join(__dirname, 'literal-scan')).filter(name => name.endsWith('.json')).sort()
   .map(name => ({ name, ...JSON.parse(fs.readFileSync(path.join(__dirname, 'literal-scan', name), 'utf8')) }));
 
@@ -143,7 +148,7 @@ test('scan configuration is well formed and the scanned directories are not empt
     for (const entry of configuration.allow) {
       assert.ok(typeof entry.file === 'string' && entry.file && typeof entry.reason === 'string' && entry.reason.trim().length >= 20, `${configuration.name}: every allowlist entry needs a file and a reason (${JSON.stringify(entry)})`);
       assert.ok(entry.text === undefined || (typeof entry.text === 'string' && entry.text), `${configuration.name}: text must be a non-empty prefix when present`);
-      assert.ok(configuration.dirs.some(directory => entry.file.startsWith(`${directory}/`)), `${configuration.name}: ${entry.file} is outside the scanned directories`);
+      assert.ok(configuration.dirs.some(directory => entry.file === directory || entry.file.startsWith(`${directory}/`)), `${configuration.name}: ${entry.file} is outside the scanned directories`);
     }
   }
 });

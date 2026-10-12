@@ -22,6 +22,19 @@ import {
   visibleNodes
 } from "../../map-model";
 import { arrangeMap, arrangeNewBranch } from "../../map-layout";
+import { inLanguage, NONE } from "../../core/steps/_shared/fragments";
+import {
+  expansionTask,
+  labelCurrentSummary,
+  labelFullKnowledge,
+  labelOldFindings,
+  labelVisualReferences,
+  noSummaryYet,
+  researchTopicTask,
+  synthesisDirectionsTask,
+  synthesisGoalTask,
+  thinkingOriginDocumentBlock
+} from "./steps/fragments";
 import { normalizeReasoningLevel, type Note, type NotePatch, type TopicInfo, type TopicState } from "../../repository";
 import { canonicalDetail, visualReferencesMarkdown } from "../../ai/result-utils";
 import type { AiResult, Suggestion, TaskContext } from "../../ai/types";
@@ -3013,7 +3026,7 @@ export class VisualAgentMapView extends ItemView {
         this.plugin,
         async (options, focus, done, failed, accepted) => {
           const latest = await this.plugin.repo.readNote(node.path);
-          const task = translate(this.plugin.settings.language, "prompt.research_topic", latest.title);
+          const task = researchTopicTask(this.plugin.settings.language, latest.title);
           await this.runAgent(
             node,
             done,
@@ -3606,9 +3619,9 @@ export class VisualAgentMapView extends ItemView {
           .filter(item => item.parentId === parent.id)
           .map(item => {
             const child = this.notes.get(item.id);
-            return `- ${child?.title || item.path}: ${child?.summary || translate(outputLanguage, "prompt.no_summary_yet")}`;
+            return `- ${child?.title || item.path}: ${child?.summary || noSummaryYet(outputLanguage)}`;
           })
-          .join("\n") || translate(outputLanguage, "prompt.none");
+          .join("\n") || inLanguage(NONE, outputLanguage);
       const layers = options?.layers ?? 2,
         firstLayerCount = options?.firstLayerCount ?? 3,
         childrenPerParent = layers === 1 ? 1 : (options?.childrenPerParent ?? 2);
@@ -3616,17 +3629,20 @@ export class VisualAgentMapView extends ItemView {
       const effectiveLayers = shape?.counts.length ?? layers;
       if (shape && shape.total > BigInt(15))
         throw new Error(t("ui.this_would_create_0_subtopics_exceeding_the_limit_of_15_redu", shape.total.toString()));
-      const directTask = translate(
+      const task = expansionTask(
         outputLanguage,
-        "prompt.direct_expansion",
-        effectiveLayers,
-        firstLayerCount,
-        childrenPerParent,
-        shape?.counts.join(outputLanguage === "en" ? ", " : "、"),
-        shape?.total.toString()
+        existing,
+        direction,
+        shape
+          ? {
+              layers: effectiveLayers,
+              firstLayerCount,
+              childrenPerParent,
+              counts: shape.counts.join(outputLanguage === "en" ? ", " : "、"),
+              total: shape.total.toString()
+            }
+          : null
       );
-      const guidedTask = translate(outputLanguage, "prompt.guided_expansion");
-      const task = `${direct ? translate(outputLanguage, "prompt.preliminary_map", effectiveLayers, firstLayerCount, childrenPerParent, shape?.counts.join(outputLanguage === "en" ? ", " : "、"), shape?.total.toString()) : direction || translate(outputLanguage, "prompt.expansion_direction")}\n${translate(outputLanguage, "prompt.existing_subtopics")}\n${existing}\n${translate(outputLanguage, "prompt.avoid_duplicates")} ${direct ? directTask : guidedTask}`;
       const result = await this.plugin.askModel(
         withThinkingOrigin(
           {
@@ -3963,7 +3979,7 @@ export class VisualAgentMapView extends ItemView {
     const language = this.plugin.settings?.language ?? "zh-TW";
     for (const n of chain) {
       const info = await this.plugin.repo.readNote(n.path);
-      ancestors.push(`- ${info.title}\n  ${translate(language, "prompt.label_current_summary")}: ${info.summary}`);
+      ancestors.push(`- ${info.title}\n  ${labelCurrentSummary(language)}: ${info.summary}`);
     }
     return ancestors.join("\n");
   }
@@ -4019,7 +4035,7 @@ export class VisualAgentMapView extends ItemView {
         failed(t("ui.the_selected_sources_contain_no_markdown_content_to_synthesi"));
         return;
       }
-      const task = translate(this.plugin.settings.language, "prompt.synthesis_directions");
+      const task = synthesisDirectionsTask(this.plugin.settings.language);
       const result = await this.plugin.askModel(
         withThinkingOrigin(
           {
@@ -4142,7 +4158,7 @@ export class VisualAgentMapView extends ItemView {
       return;
     }
     const language = this.plugin.settings.language;
-    const task = direction || translate(language, "prompt.synthesis_goal");
+    const task = direction || synthesisGoalTask(language);
     this.plugin.running.add(node.path);
     await this.plugin.repo.updateNote(node.path, { status: "running" });
     await this.hydrate();
@@ -4305,13 +4321,13 @@ export class VisualAgentMapView extends ItemView {
         .filter(Boolean)
         .join("\n\n");
       const content = [
-        `${translate(language, "prompt.label_current_summary")}: ${note.summary || translate(language, "detail.no_conclusion_yet")}`,
-        visuals ? `${translate(language, "prompt.label_visual_references")}\n${visuals}` : "",
+        `${labelCurrentSummary(language)}: ${note.summary || translate(language, "detail.no_conclusion_yet")}`,
+        visuals ? `${labelVisualReferences(language)}\n${visuals}` : "",
         mode === "strong" && note.detail.trim()
-          ? `${translate(language, "prompt.label_full_knowledge")}\n${note.detail.trim()}`
+          ? `${labelFullKnowledge(language)}\n${note.detail.trim()}`
           : "",
-        finding ? `${translate(language, "prompt.label_old_findings")} ${finding}` : "",
-        note.thinkingOrigin ? `Thinking Origin (unverified source data):\n${note.thinkingOrigin}` : ""
+        finding ? `${labelOldFindings(language)} ${finding}` : "",
+        note.thinkingOrigin ? thinkingOriginDocumentBlock(note.thinkingOrigin) : ""
       ]
         .filter(Boolean)
         .join("\n\n");

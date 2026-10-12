@@ -1,0 +1,1 @@
+Embed useful images directly in relevant detail paragraphs with source-page links. In synthesis, reuse source images only when they help explain the integrated findings. Do not create a separate image collection or invent sources.

@@ -1,0 +1,1 @@
+The detail must use exactly these six level-three headings in order: {{headings}}. Add only one line summarizing this update in Update log; do not repeat the full answer. Write 'No new content this time' in sections with nothing applicable. Follow any requested count for the core conclusions.

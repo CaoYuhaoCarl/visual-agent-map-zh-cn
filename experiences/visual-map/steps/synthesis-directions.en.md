@@ -1,0 +1,1 @@
+Using the direct subtopics and selected note sources, propose exactly two different synthesis directions for the user to choose. Put each in suggestions: title is a short name, task is the synthesis instruction, and contribution describes expected findings. Do not rewrite the parent topic yet.
