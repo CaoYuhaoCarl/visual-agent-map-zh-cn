@@ -2,7 +2,12 @@ import { App, FileSystemAdapter, Modal, parseYaml, setIcon } from "obsidian";
 import { t, type TranslationKey } from "../i18n";
 import { dedupeReferenceGroups, type ReferenceDocument, type ReferenceGroup } from "../ai/reference-materials";
 
-export interface ReferenceTopic { id: string; title: string; mapPath: string; nodePaths: string[] }
+export interface ReferenceTopic {
+  id: string;
+  title: string;
+  mapPath: string;
+  nodePaths: string[];
+}
 
 export class ReferencePicker {
   private groups: ReferenceGroup[] = [];
@@ -15,11 +20,29 @@ export class ReferencePicker {
   private refresh: () => void;
   private webSearch: boolean;
   private imageSearch: boolean;
-  describe(): string { return `${this.groups.flatMap(group => group.documents).length} ${t("ui.markdown_files")} · ${t("ui.allow_web_search")} ${t(this.webSearch ? "ui.on" : "ui.off")} · ${t("ui.search_for_image_references")} ${t(this.imageSearch && this.webSearch ? "ui.on" : "ui.off")}`; }
-  selection(): { webSearch: boolean; imageSearch: boolean } { return { webSearch: this.webSearch, imageSearch: this.imageSearch && this.webSearch }; }
+  describe(): string {
+    return `${this.groups.flatMap(group => group.documents).length} ${t("ui.markdown_files")} · ${t("ui.allow_web_search")} ${t(this.webSearch ? "ui.on" : "ui.off")} · ${t("ui.search_for_image_references")} ${t(this.imageSearch && this.webSearch ? "ui.on" : "ui.off")}`;
+  }
+  selection(): { webSearch: boolean; imageSearch: boolean } {
+    return { webSearch: this.webSearch, imageSearch: this.imageSearch && this.webSearch };
+  }
 
-  constructor(private app: App, parent: HTMLElement, private topics: () => Promise<ReferenceTopic[]>, private readTopic: (topic: ReferenceTopic, signal: AbortSignal, progress: (message: string) => void) => Promise<ReferenceDocument[]>, private currentTopicId: string, currentLabel: string, initialWeb = true, initialImages = true) {
-    this.webSearch = initialWeb; this.imageSearch = initialWeb && initialImages;
+  constructor(
+    private app: App,
+    parent: HTMLElement,
+    private topics: () => Promise<ReferenceTopic[]>,
+    private readTopic: (
+      topic: ReferenceTopic,
+      signal: AbortSignal,
+      progress: (message: string) => void
+    ) => Promise<ReferenceDocument[]>,
+    private currentTopicId: string,
+    currentLabel: string,
+    initialWeb = true,
+    initialImages = true
+  ) {
+    this.webSearch = initialWeb;
+    this.imageSearch = initialWeb && initialImages;
     const area = parent.createDiv("vam-reference-picker");
     const heading = area.createDiv("vam-reference-heading");
     heading.createEl("h3", { text: t("ui.data_sources") });
@@ -30,37 +53,80 @@ export class ReferencePicker {
     const networkSection = area.createDiv("vam-reference-section vam-reference-network-section");
     const network = networkSection.createDiv("vam-reference-network");
     const webLabel = network.createEl("label", { cls: "vam-field vam-next-toggle" });
-    const web = webLabel.createEl("input", { type: "checkbox" }); web.checked = initialWeb;
+    const web = webLabel.createEl("input", { type: "checkbox" });
+    web.checked = initialWeb;
     webLabel.createSpan({ text: t("ui.allow_web_search") });
     const imageLabel = network.createEl("label", { cls: "vam-field vam-next-toggle vam-reference-image-option" });
-    const images = imageLabel.createEl("input", { type: "checkbox" }); images.checked = initialWeb && initialImages;
+    const images = imageLabel.createEl("input", { type: "checkbox" });
+    images.checked = initialWeb && initialImages;
     images.disabled = !web.checked;
     imageLabel.createSpan({ text: t("ui.search_for_image_references") });
-    web.addEventListener("change", () => { this.webSearch = web.checked; images.disabled = !web.checked; if (!web.checked) { images.checked = false; this.imageSearch = false; } });
-    images.addEventListener("change", () => { this.imageSearch = images.checked; });
+    web.addEventListener("change", () => {
+      this.webSearch = web.checked;
+      images.disabled = !web.checked;
+      if (!web.checked) {
+        images.checked = false;
+        this.imageSearch = false;
+      }
+    });
+    images.addEventListener("change", () => {
+      this.imageSearch = images.checked;
+    });
 
     const local = area.createDiv("vam-reference-section vam-reference-local-section");
     local.createEl("strong", { text: t("ui.local_data") });
     const controls = local.createDiv("vam-reference-actions");
     const addMap = this.createSourceButton(controls, "brain-circuit", "ui.reference_select_mind_map");
-    addMap.addEventListener("click", () => { void this.selectTopic(); });
+    addMap.addEventListener("click", () => {
+      void this.selectTopic();
+    });
     const addFolder = this.createSourceButton(controls, "folder-open", "ui.reference_select_folder");
-    const folder = controls.createEl("input", { type: "file" }); folder.setAttr("webkitdirectory", ""); folder.multiple = true; folder.hidden = true;
+    const folder = controls.createEl("input", { type: "file" });
+    folder.setAttr("webkitdirectory", "");
+    folder.multiple = true;
+    folder.hidden = true;
     addFolder.addEventListener("click", () => folder.click());
-    folder.addEventListener("change", () => { const selected = Array.from(folder.files ?? []).filter(file => file.name.toLowerCase().endsWith(".md")); if (selected.length) this.addFolder(selected); else this.report(t("ui.reference_folder_no_markdown")); folder.value = ""; });
+    folder.addEventListener("change", () => {
+      const selected = Array.from(folder.files ?? []).filter(file => file.name.toLowerCase().endsWith(".md"));
+      if (selected.length) this.addFolder(selected);
+      else this.report(t("ui.reference_folder_no_markdown"));
+      folder.value = "";
+    });
     const addFiles = this.createSourceButton(controls, "file-text", "ui.reference_select_markdown");
-    const files = controls.createEl("input", { type: "file" }); files.accept = ".md,text/markdown"; files.multiple = true; files.hidden = true;
+    const files = controls.createEl("input", { type: "file" });
+    files.accept = ".md,text/markdown";
+    files.multiple = true;
+    files.hidden = true;
     addFiles.addEventListener("click", () => files.click());
-    files.addEventListener("change", () => { const selected = Array.from(files.files ?? []).filter(file => file.name.toLowerCase().endsWith(".md")); if (selected.length) this.addFiles(selected); else this.report(t("ui.reference_file_no_markdown")); files.value = ""; });
+    files.addEventListener("change", () => {
+      const selected = Array.from(files.files ?? []).filter(file => file.name.toLowerCase().endsWith(".md"));
+      if (selected.length) this.addFiles(selected);
+      else this.report(t("ui.reference_file_no_markdown"));
+      files.value = "";
+    });
     const selected = local.createDiv("vam-reference-selected");
     selected.createEl("strong", { text: t("ui.reference_selected_sources") });
     const list = selected.createDiv("vam-reference-groups");
     const feedback = area.createDiv("vam-reference-feedback");
-    const status = feedback.createEl("p", { cls: "vam-hint", attr: { "aria-live": "polite" } }); this.report = message => status.setText(message);
-    this.cancelReadButton = feedback.createEl("button", { text: t("ui.cancel"), cls: "vam-reference-cancel is-hidden" }); this.cancelReadButton.hidden = true;
+    const status = feedback.createEl("p", { cls: "vam-hint", attr: { "aria-live": "polite" } });
+    this.report = message => status.setText(message);
+    this.cancelReadButton = feedback.createEl("button", {
+      text: t("ui.cancel"),
+      cls: "vam-reference-cancel is-hidden"
+    });
+    this.cancelReadButton.hidden = true;
     this.cancelReadButton.addEventListener("click", () => this.activeRead?.abort());
-    this.acknowledgeErrorButton = feedback.createEl("button", { text: t("ui.reference_error_acknowledge"), cls: "vam-reference-error-acknowledge is-hidden" }); this.acknowledgeErrorButton.hidden = true;
-    this.acknowledgeErrorButton.addEventListener("click", () => { this.pendingError = undefined; this.acknowledgeErrorButton.hidden = true; this.acknowledgeErrorButton.addClass("is-hidden"); this.report(""); });
+    this.acknowledgeErrorButton = feedback.createEl("button", {
+      text: t("ui.reference_error_acknowledge"),
+      cls: "vam-reference-error-acknowledge is-hidden"
+    });
+    this.acknowledgeErrorButton.hidden = true;
+    this.acknowledgeErrorButton.addEventListener("click", () => {
+      this.pendingError = undefined;
+      this.acknowledgeErrorButton.hidden = true;
+      this.acknowledgeErrorButton.addClass("is-hidden");
+      this.report("");
+    });
     this.refresh = () => {
       list.empty();
       const groups = dedupeReferenceGroups(this.groups);
@@ -76,7 +142,13 @@ export class ReferencePicker {
         summaryText.createSpan({ text: group.location, cls: "vam-hint vam-reference-location" });
         summary.createSpan({ text: `${group.documents.length} ${t("ui.markdown_files")}`, cls: "vam-reference-count" });
         const remove = card.createEl("button", { text: t("ui.reference_remove"), cls: "vam-reference-remove" });
-        remove.addEventListener("click", event => { event.preventDefault(); this.enqueue(async () => { this.groups = this.groups.filter(item => item.id !== group.id); this.refresh(); }); });
+        remove.addEventListener("click", event => {
+          event.preventDefault();
+          this.enqueue(async () => {
+            this.groups = this.groups.filter(item => item.id !== group.id);
+            this.refresh();
+          });
+        });
         details.addEventListener("toggle", () => {
           if (!details.open || details.dataset.rendered) return;
           const entries = details.createEl("ul", { cls: "vam-reference-file-list" });
@@ -86,49 +158,74 @@ export class ReferencePicker {
       }
       if (typeof Event !== "undefined") area.dispatchEvent?.(new Event("change", { bubbles: true }));
     };
-    area.createEl("p", { cls: "vam-hint vam-reference-duration-hint", text: t("ui.reference_time_and_citations_hint") });
+    area.createEl("p", {
+      cls: "vam-hint vam-reference-duration-hint",
+      text: t("ui.reference_time_and_citations_hint")
+    });
     this.refresh();
   }
 
   private createSourceButton(parent: HTMLElement, icon: string, key: TranslationKey): HTMLButtonElement {
     const button = parent.createEl("button", { cls: "vam-reference-action" });
-    const image = button.createSpan({ cls: "vam-reference-action-icon" }); setIcon(image, icon);
+    const image = button.createSpan({ cls: "vam-reference-action-icon" });
+    setIcon(image, icon);
     button.createSpan({ text: t(key), cls: "vam-reference-action-label" });
     return button;
   }
 
   private enqueue(work: (signal: AbortSignal) => Promise<void | string>): void {
     this.pending = this.pending.then(async () => {
-      const controller = new AbortController(); this.activeRead = controller; this.cancelReadButton.hidden = false; this.cancelReadButton.removeClass("is-hidden");
+      const controller = new AbortController();
+      this.activeRead = controller;
+      this.cancelReadButton.hidden = false;
+      this.cancelReadButton.removeClass("is-hidden");
       this.report(t("ui.reference_reading"));
-      try { const message = await work(controller.signal); this.report(this.pendingError ? this.pendingError.message : message || ""); }
-      catch (error) {
+      try {
+        const message = await work(controller.signal);
+        this.report(this.pendingError ? this.pendingError.message : message || "");
+      } catch (error) {
         this.pendingError = error instanceof Error ? error : new Error(String(error));
-        this.report(controller.signal.aborted ? t("ui.reference_read_cancelled") : t("ui.reference_read_failed", this.pendingError.message));
-        this.acknowledgeErrorButton.hidden = false; this.acknowledgeErrorButton.removeClass("is-hidden");
+        this.report(
+          controller.signal.aborted
+            ? t("ui.reference_read_cancelled")
+            : t("ui.reference_read_failed", this.pendingError.message)
+        );
+        this.acknowledgeErrorButton.hidden = false;
+        this.acknowledgeErrorButton.removeClass("is-hidden");
+      } finally {
+        if (this.activeRead === controller) this.activeRead = undefined;
+        this.cancelReadButton.hidden = true;
+        this.cancelReadButton.addClass("is-hidden");
       }
-      finally { if (this.activeRead === controller) this.activeRead = undefined; this.cancelReadButton.hidden = true; this.cancelReadButton.addClass("is-hidden"); }
     });
   }
 
   private async selectTopic(): Promise<void> {
     try {
       const topics = (await this.topics()).filter(topic => topic.id !== this.currentTopicId);
-      const modal = new Modal(this.app); modal.titleEl.setText(t("ui.reference_select_mind_map"));
-      if (!topics.length) modal.contentEl.createEl("p", { text: t("ui.reference_no_other_mind_maps"), cls: "vam-hint" });
+      const modal = new Modal(this.app);
+      modal.titleEl.setText(t("ui.reference_select_mind_map"));
+      if (!topics.length)
+        modal.contentEl.createEl("p", { text: t("ui.reference_no_other_mind_maps"), cls: "vam-hint" });
       for (const topic of topics) {
         const button = modal.contentEl.createEl("button", { cls: "vam-reference-topic-choice" });
-        button.createEl("strong", { text: topic.title }); button.createSpan({ text: topic.mapPath, cls: "vam-hint" });
+        button.createEl("strong", { text: topic.title });
+        button.createSpan({ text: topic.mapPath, cls: "vam-hint" });
         button.addEventListener("click", () => {
-          modal.close(); this.enqueue(async signal => {
+          modal.close();
+          this.enqueue(async signal => {
             const documents = await this.readTopic(topic, signal, message => this.report(message));
             if (signal.aborted) throw new DOMException("Aborted", "AbortError");
-            this.groups.push({ id: `map:${topic.id}`, name: topic.title, location: topic.mapPath, documents }); this.groups = dedupeReferenceGroups(this.groups); this.refresh();
+            this.groups.push({ id: `map:${topic.id}`, name: topic.title, location: topic.mapPath, documents });
+            this.groups = dedupeReferenceGroups(this.groups);
+            this.refresh();
           });
         });
       }
       modal.open();
-    } catch (error) { this.report(error instanceof Error ? error.message : String(error)); }
+    } catch (error) {
+      this.report(error instanceof Error ? error.message : String(error));
+    }
   }
 
   private addFiles(files: File[]): void {
@@ -136,7 +233,14 @@ export class ReferencePicker {
     this.enqueue(async signal => {
       const documents = await this.readFiles(files, false, signal);
       if (signal.aborted) throw new DOMException("Aborted", "AbortError");
-      this.groups.push({ id: `files:${crypto.randomUUID()}`, name: t("ui.reference_selected_files"), location: t("ui.reference_external_files_location"), documents }); this.groups = dedupeReferenceGroups(this.groups); this.refresh();
+      this.groups.push({
+        id: `files:${crypto.randomUUID()}`,
+        name: t("ui.reference_selected_files"),
+        location: t("ui.reference_external_files_location"),
+        documents
+      });
+      this.groups = dedupeReferenceGroups(this.groups);
+      this.refresh();
     });
   }
 
@@ -145,7 +249,10 @@ export class ReferencePicker {
     const folderName = files[0].webkitRelativePath.split("/")[0] || t("ui.reference_selected_folder");
     const nativePath = (files[0] as File & { path?: string }).path?.replace(/\\/g, "/");
     const relative = files[0].webkitRelativePath.replace(/\\/g, "/");
-    const folderLocation = nativePath && relative && nativePath.endsWith(relative) ? nativePath.slice(0, -relative.length).replace(/\/$/, "") : folderName;
+    const folderLocation =
+      nativePath && relative && nativePath.endsWith(relative)
+        ? nativePath.slice(0, -relative.length).replace(/\/$/, "")
+        : folderName;
     this.enqueue(async signal => {
       const documents = await this.readFiles(files, true, signal);
       if (signal.aborted) throw new DOMException("Aborted", "AbortError");
@@ -153,15 +260,34 @@ export class ReferencePicker {
         const yaml = document.content.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)?.[1];
         if (!yaml) return true;
         let metadata: unknown;
-        try { metadata = parseYaml(yaml); }
-        catch (error) { if (yaml.includes("agent-map-node")) throw error; return true; }
+        try {
+          metadata = parseYaml(yaml);
+        } catch (error) {
+          if (yaml.includes("agent-map-node")) throw error;
+          return true;
+        }
         if (!metadata || typeof metadata !== "object") return true;
         const fields = metadata as Record<string, unknown>;
         const managed = fields["agent-map-node"] === true || fields["agent-map-node"] === "true";
-        return !managed || !(fields["topic-state"] === "archived" || (fields["topic-state"] === undefined && document.path.replace(/\\/g, "/").split("/").at(-2) === "Archive"));
+        return (
+          !managed ||
+          !(
+            fields["topic-state"] === "archived" ||
+            (fields["topic-state"] === undefined && document.path.replace(/\\/g, "/").split("/").at(-2) === "Archive")
+          )
+        );
       });
-      this.groups.push({ id: `folder:${crypto.randomUUID()}`, name: folderName, location: folderLocation, documents: included }); this.groups = dedupeReferenceGroups(this.groups); this.refresh();
-      return included.length !== documents.length ? t("ui.reference_archived_excluded", documents.length - included.length) : "";
+      this.groups.push({
+        id: `folder:${crypto.randomUUID()}`,
+        name: folderName,
+        location: folderLocation,
+        documents: included
+      });
+      this.groups = dedupeReferenceGroups(this.groups);
+      this.refresh();
+      return included.length !== documents.length
+        ? t("ui.reference_archived_excluded", documents.length - included.length)
+        : "";
     });
   }
 
@@ -170,7 +296,9 @@ export class ReferencePicker {
     for (let index = 0; index < files.length; index += 20) {
       if (signal.aborted) throw new DOMException("Aborted", "AbortError");
       this.report(t("ui.reference_read_progress", Math.min(index + 20, files.length), files.length));
-      documents.push(...await Promise.all(files.slice(index, index + 20).map(file => this.readSelectedFile(file, fromFolder))));
+      documents.push(
+        ...(await Promise.all(files.slice(index, index + 20).map(file => this.readSelectedFile(file, fromFolder))))
+      );
     }
     if (signal.aborted) throw new DOMException("Aborted", "AbortError");
     return documents;
@@ -179,15 +307,27 @@ export class ReferencePicker {
   private async readSelectedFile(file: File, fromFolder: boolean): Promise<ReferenceDocument> {
     const nativePath = (file as File & { path?: string }).path?.replace(/\\/g, "/");
     const adapter = this.app.vault.adapter;
-    const vaultRoot = adapter instanceof FileSystemAdapter ? adapter.getBasePath().replace(/\\/g, "/").replace(/\/$/, "") : "";
+    const vaultRoot =
+      adapter instanceof FileSystemAdapter ? adapter.getBasePath().replace(/\\/g, "/").replace(/\/$/, "") : "";
     const isInVault = !!nativePath && !!vaultRoot && nativePath.startsWith(`${vaultRoot}/`);
-    const path = isInVault ? nativePath.slice(vaultRoot.length + 1) : nativePath || (fromFolder ? file.webkitRelativePath : file.name) || file.name;
-    return { path, content: await file.text(), external: !isInVault, key: nativePath || (fromFolder ? file.webkitRelativePath : `${crypto.randomUUID()}/${file.name}`) };
+    const path = isInVault
+      ? nativePath.slice(vaultRoot.length + 1)
+      : nativePath || (fromFolder ? file.webkitRelativePath : file.name) || file.name;
+    return {
+      path,
+      content: await file.text(),
+      external: !isInVault,
+      key: nativePath || (fromFolder ? file.webkitRelativePath : `${crypto.randomUUID()}/${file.name}`)
+    };
   }
 
   async ready(): Promise<{ groups: ReferenceGroup[]; webSearch: boolean; imageSearch: boolean }> {
     await this.pending;
     if (this.pendingError) throw new Error(t("ui.reference_source_error_must_be_acknowledged"));
-    return { groups: dedupeReferenceGroups(this.groups), webSearch: this.webSearch, imageSearch: this.webSearch && this.imageSearch };
+    return {
+      groups: dedupeReferenceGroups(this.groups),
+      webSearch: this.webSearch,
+      imageSearch: this.webSearch && this.imageSearch
+    };
   }
 }

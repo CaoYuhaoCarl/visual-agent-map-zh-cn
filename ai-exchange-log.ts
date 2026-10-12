@@ -33,7 +33,13 @@ export interface AiExchange {
   error: string;
 }
 
-export function promptMetrics(entry: AiExchange): { prompt: string; phase: string; repairReason?: string; characters: number; estimatedTokens: number } {
+export function promptMetrics(entry: AiExchange): {
+  prompt: string;
+  phase: string;
+  repairReason?: string;
+  characters: number;
+  estimatedTokens: number;
+} {
   let prompt = typeof entry.prompt === "string" ? entry.prompt : "";
   if (!prompt && entry.request) {
     try {
@@ -44,11 +50,13 @@ export function promptMetrics(entry: AiExchange): { prompt: string; phase: strin
       if (typeof request?.prompt === "string") prompt = request.prompt;
       else if (request && isUnknownArray(request.input)) {
         prompt = request.input
-          .map(item => isRecord(item) && item.type === "text" && typeof item.text === "string" ? item.text : "")
+          .map(item => (isRecord(item) && item.type === "text" && typeof item.text === "string" ? item.text : ""))
           .filter(Boolean)
           .join("\n");
       }
-    } catch { /* Older requests may be plain text. */ }
+    } catch {
+      /* Older requests may be plain text. */
+    }
   }
   const characters = Array.from(prompt).length;
   const nonAscii = Array.from(prompt).filter(character => character.charCodeAt(0) > 127).length;
@@ -56,13 +64,30 @@ export function promptMetrics(entry: AiExchange): { prompt: string; phase: strin
   const repairReason = /repair/i.test(phase)
     ? prompt.match(/(?:Format validation error|Repair reason):\s*([^\r\n]+)/i)?.[1]?.trim()
     : undefined;
-  return { prompt, phase, ...(repairReason ? { repairReason } : {}), characters, estimatedTokens: Math.ceil((characters - nonAscii) / 4 + nonAscii) };
+  return {
+    prompt,
+    phase,
+    ...(repairReason ? { repairReason } : {}),
+    characters,
+    estimatedTokens: Math.ceil((characters - nonAscii) / 4 + nonAscii)
+  };
 }
 
 export function formatAiExchange(entry: AiExchange): string {
   const metrics = promptMetrics(entry);
   const timing = `Request ID: ${entry.id} · phase: ${metrics.phase} · prompt: ${metrics.characters} characters · approximately ${metrics.estimatedTokens} tokens (estimate, not billed usage) · sent: ${entry.sentAt ?? "unavailable"} · completed: ${entry.completedAt ?? "unavailable"} · elapsed: ${entry.durationMs === undefined ? "unavailable" : formatElapsed(entry.durationMs)}`;
-  return [`[${entry.startedAt}] ${entry.topic} · ${entry.mode} · ${entry.model}/${entry.effort} · ${entry.status}`, timing, "\n完整 Prompt：\n", metrics.prompt || "（舊紀錄未保存完整 prompt）", "\n送往 AI 的請求：\n", entry.request || "（尚未送出）", "\nAI 原始回覆：\n", entry.response || "（無）", "\n錯誤：\n", entry.error || "（無）"].join("\n");
+  return [
+    `[${entry.startedAt}] ${entry.topic} · ${entry.mode} · ${entry.model}/${entry.effort} · ${entry.status}`,
+    timing,
+    "\n完整 Prompt：\n",
+    metrics.prompt || "（舊紀錄未保存完整 prompt）",
+    "\n送往 AI 的請求：\n",
+    entry.request || "（尚未送出）",
+    "\nAI 原始回覆：\n",
+    entry.response || "（無）",
+    "\n錯誤：\n",
+    entry.error || "（無）"
+  ].join("\n");
 }
 
 export class AiExchangeLog {
@@ -70,7 +95,11 @@ export class AiExchangeLog {
   private loadError: unknown = null;
   private listeners = new Set<() => void>();
   private writes: Promise<void> = Promise.resolve();
-  constructor(private readonly path: string, private readonly onError: (error: unknown) => void, private readonly limit = 1000) {}
+  constructor(
+    private readonly path: string,
+    private readonly onError: (error: unknown) => void,
+    private readonly limit = 1000
+  ) {}
 
   async load(): Promise<void> {
     try {
@@ -79,24 +108,38 @@ export class AiExchangeLog {
       const entries = (parsed as unknown[]).filter((item): item is AiExchange => {
         if (!item || typeof item !== "object") return false;
         const entry = item as Record<string, unknown>;
-        return ["id", "startedAt", "topic", "mode", "model", "effort", "request", "response", "error"].every(key => typeof entry[key] === "string")
-          && (entry.prompt === undefined || typeof entry.prompt === "string")
-          && (entry.sentAt === undefined || typeof entry.sentAt === "string")
-          && (entry.completedAt === undefined || typeof entry.completedAt === "string")
-          && (entry.durationMs === undefined || typeof entry.durationMs === "number" && Number.isFinite(entry.durationMs) && entry.durationMs >= 0)
-          && typeof entry.status === "string" && ["preparing", "sent", "received", "parsed", "completed", "failed"].includes(entry.status);
+        return (
+          ["id", "startedAt", "topic", "mode", "model", "effort", "request", "response", "error"].every(
+            key => typeof entry[key] === "string"
+          ) &&
+          (entry.prompt === undefined || typeof entry.prompt === "string") &&
+          (entry.sentAt === undefined || typeof entry.sentAt === "string") &&
+          (entry.completedAt === undefined || typeof entry.completedAt === "string") &&
+          (entry.durationMs === undefined ||
+            (typeof entry.durationMs === "number" && Number.isFinite(entry.durationMs) && entry.durationMs >= 0)) &&
+          typeof entry.status === "string" &&
+          ["preparing", "sent", "received", "parsed", "completed", "failed"].includes(entry.status)
+        );
       });
       if (entries.length !== parsed.length) throw new Error("AI 往返紀錄欄位格式錯誤；保留原檔並停止寫入");
       this.entries = entries.slice(-this.limit);
       this.loadError = null;
       this.emit();
     } catch (error: unknown) {
-      if (!(error && typeof error === "object" && "code" in error && error.code === "ENOENT")) { this.loadError = error; this.onError(error); }
+      if (!(error && typeof error === "object" && "code" in error && error.code === "ENOENT")) {
+        this.loadError = error;
+        this.onError(error);
+      }
     }
   }
 
-  getEntries(): readonly AiExchange[] { return this.entries.map(entry => ({ ...entry })); }
-  subscribe(listener: () => void): () => void { this.listeners.add(listener); return () => this.listeners.delete(listener); }
+  getEntries(): readonly AiExchange[] {
+    return this.entries.map(entry => ({ ...entry }));
+  }
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
   begin(entry: Omit<AiExchange, "status" | "request" | "response" | "error" | "prompt">): void {
     this.entries.push({ ...entry, request: "", response: "", status: "preparing", error: "" });
     this.entries = this.entries.slice(-this.limit);
@@ -107,19 +150,49 @@ export class AiExchangeLog {
     if (entry?.request) {
       const sentAt = new Date().toISOString();
       const followupId = `${id}-${Date.now()}-${this.entries.length}`;
-      this.entries.push({ id: followupId, startedAt: sentAt, topic: entry.topic, mode: "steer", model: entry.model, effort: entry.effort, request, sentAt, response: "", status: "sent", error: "" });
+      this.entries.push({
+        id: followupId,
+        startedAt: sentAt,
+        topic: entry.topic,
+        mode: "steer",
+        model: entry.model,
+        effort: entry.effort,
+        request,
+        sentAt,
+        response: "",
+        status: "sent",
+        error: ""
+      });
       this.entries = this.entries.slice(-this.limit);
       this.changed();
       return;
     }
-    this.update(id, { request, ...(prompt !== undefined ? { prompt } : {}), sentAt: new Date().toISOString(), status: "sent" });
+    this.update(id, {
+      request,
+      ...(prompt !== undefined ? { prompt } : {}),
+      sentAt: new Date().toISOString(),
+      status: "sent"
+    });
   }
-  received(id: string, response: string): void { this.update(id, { response, status: "received" }); }
-  parsed(id: string): void { this.finish(id, { status: "parsed" }); }
-  completed(id: string): void { this.finish(id, { status: "completed" }); }
-  failed(id: string, error: string): void { this.finish(id, { error, status: "failed" }); }
-  clear(): void { this.entries = []; this.changed(); }
-  async flush(): Promise<void> { await this.writes; }
+  received(id: string, response: string): void {
+    this.update(id, { response, status: "received" });
+  }
+  parsed(id: string): void {
+    this.finish(id, { status: "parsed" });
+  }
+  completed(id: string): void {
+    this.finish(id, { status: "completed" });
+  }
+  failed(id: string, error: string): void {
+    this.finish(id, { error, status: "failed" });
+  }
+  clear(): void {
+    this.entries = [];
+    this.changed();
+  }
+  async flush(): Promise<void> {
+    await this.writes;
+  }
 
   private update(id: string, patch: Partial<AiExchange>): void {
     const entry = this.entries.find(item => item.id === id);
@@ -135,15 +208,22 @@ export class AiExchangeLog {
     const durationMs = Math.max(0, Date.parse(completedAt) - Date.parse(start));
     this.update(id, { ...patch, completedAt, durationMs });
   }
-  private emit(): void { for (const listener of this.listeners) listener(); }
+  private emit(): void {
+    for (const listener of this.listeners) listener();
+  }
   private changed(): void {
     this.emit();
-    if (this.loadError) { this.onError(this.loadError); return; }
+    if (this.loadError) {
+      this.onError(this.loadError);
+      return;
+    }
     const snapshot = JSON.stringify(this.entries);
-    this.writes = this.writes.then(async () => {
-      const temporary = `${this.path}.tmp`;
-      await writeFile(temporary, snapshot, { mode: 0o600 });
-      await rename(temporary, this.path);
-    }).catch(this.onError);
+    this.writes = this.writes
+      .then(async () => {
+        const temporary = `${this.path}.tmp`;
+        await writeFile(temporary, snapshot, { mode: 0o600 });
+        await rename(temporary, this.path);
+      })
+      .catch(this.onError);
   }
 }

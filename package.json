@@ -15,23 +15,26 @@
     "lint": "eslint . --max-warnings=0",
     "test": "node scripts/test-harness.mjs",
     "test:unit": "npm run compile:sample && node tests/run.cjs --layer=unit && node --test tests/compliance-gates.mjs",
-    "test:mindsearch": "node --test --test-name-pattern='MindSearch|Manual Planner|Planner reviews|saved-report Planner|captured malformed|coverage:|final delivery|missing or unavailable|invalid and duplicate|cancellation stops|acceptance can retain' tests/run.cjs tests/mindsearch-final-delivery.cjs && node --test tests/mindsearch-review-repair.cjs tests/mindsearch-prompt-contract.cjs tests/mindsearch-evidence-context.cjs tests/mindsearch-delivery-resume.cjs tests/mindsearch-section-delivery.cjs tests/mindsearch-parallel-store.cjs tests/codex-parallel-runtime.cjs tests/mindsearch-research-pipeline.cjs tests/prompt-monitor-timing.cjs",
+    "test:mindsearch": "node --test --test-name-pattern='MindSearch|Manual Planner|Planner reviews|saved-report Planner|captured malformed|coverage:|final delivery|missing or unavailable|invalid and duplicate|cancellation stops|acceptance can retain' tests/run.cjs tests/mindsearch-final-delivery.cjs && node --test tests/mindsearch-review-repair.cjs tests/mindsearch-prompt-contract.cjs tests/mindsearch-evidence-context.cjs tests/mindsearch-delivery-resume.cjs tests/mindsearch-section-delivery.cjs tests/mindsearch-parallel-store.cjs tests/codex-parallel-runtime.cjs tests/mindsearch-research-pipeline.cjs tests/mindsearch-contracts.cjs tests/prompt-monitor-timing.cjs",
     "test:integration": "node tests/run.cjs --layer=integration && node --test tests/test-vault.mjs",
     "test:runtime": "node scripts/test-runtime.mjs",
     "test:ui": "node scripts/test-harness.mjs --ui",
     "test:ui:prepare": "node scripts/test-harness.mjs --prepare",
-    "test:ui:update": "node scripts/test-harness.mjs --update-current"
+    "test:ui:update": "node scripts/test-harness.mjs --update-current",
+    "format": "prettier --write \"**/*.ts\"",
+    "format:check": "prettier --check \"**/*.ts\""
   },
   "devDependencies": {
+    "@codemirror/state": "6.5.0",
+    "@codemirror/view": "6.38.6",
     "@types/node": "22.20.2",
     "esbuild": "^0.24.2",
     "eslint": "9.39.5",
     "eslint-plugin-depend": "1.3.1",
     "eslint-plugin-obsidianmd": "0.4.2",
     "obsidian": "1.13.1",
+    "prettier": "3.9.9",
     "typescript": "5.9.3",
-    "typescript-eslint": "8.70.0",
-    "@codemirror/state": "6.5.0",
-    "@codemirror/view": "6.38.6"
+    "typescript-eslint": "8.70.0"
   }
 }

@@ -29,6 +29,35 @@ test('MindSearch planner accepts zero through five tasks and validates dependenc
   assert.throws(() => validateMindSearchResearchPlan([target('a', ['b']), target('b', ['a'])]), /cycle/);
 });
 
+// Captured Codex plan shape: validity nested inside the exact source instead of beside it.
+const nestedValiditySource = { branchId: 'branch-1', resultId: 'result-1', notePath: 'Notes/Release.md', version: 1, contentHash: 'a'.repeat(64) };
+const nestedValidityTarget = (validity) => ({ id: 'baseline', title: 'Release baseline', task: 'Confirm the release baseline', expectedValue: 'Baseline version', action: 'reuse', dependsOn: [], rationale: 'Ancestor report still applies', source: { ...nestedValiditySource, ...(validity ? { validity } : {}) } });
+
+test('MindSearch planner moves validity nested in source beside it and keeps the source exact', () => {
+  const validity = { conditionKeys: ['Scope'], reason: 'Same scope and date' };
+  const [item] = plain(validateMindSearchResearchPlan([nestedValidityTarget(validity)]));
+  assert.deepEqual(item.validity, validity);
+  assert.deepEqual(item.source, nestedValiditySource);
+});
+
+test('MindSearch plan parser reports the specific marker defect instead of the generic count error', () => {
+  const detail = `<!-- mindsearch-plan ${JSON.stringify({ subtopics: [nestedValidityTarget()] })} -->`;
+  assert.throws(() => parseMindSearchResearchPlan(answer('Plan', detail)), /Reuse and update targets need an exact source/);
+  assert.throws(() => parseMindSearchResearchPlan(answer('Plan', '<!-- mindsearch-plan {not json} -->')), /0–5 valid research subtopics/);
+});
+
+test('MindSearch search diagnostics count every provider web action and treat an opened page as recoverable evidence', () => {
+  const { createSearchDiagnostic, hasCompletedWebRetrieval } = load('experiences/mind-search/search-diagnostic.ts');
+  const { diagnostic, onEvent } = createSearchDiagnostic(2);
+  onEvent({ method: 'item/started', params: { item: { type: 'webSearch', action: null } } });
+  onEvent({ method: 'item/completed', params: { item: { type: 'webSearch', action: { type: 'search' } } } });
+  onEvent({ method: 'item/completed', params: { item: { type: 'webSearch', action: { type: 'openPage' } } } });
+  assert.deepEqual(plain(diagnostic), { researchTurn: 2, startedEvents: 1, completedEvents: 2, completedSearchActions: 1, otherCompletedActions: 1 });
+  assert.equal(hasCompletedWebRetrieval([{ researchTurn: 1, startedEvents: 1, completedEvents: 1, completedSearchActions: 0, otherCompletedActions: 1 }]), true);
+  assert.equal(hasCompletedWebRetrieval([{ researchTurn: 1, startedEvents: 0, completedEvents: 0, completedSearchActions: 0, otherCompletedActions: 0 }]), false);
+  assert.equal(hasCompletedWebRetrieval(undefined), false);
+});
+
 test('MindSearch scheduler caps independent work at two and passes actual completed dependency reports', async () => {
   const gates = Object.fromEntries(['a', 'b', 'c', 'd'].map(id => [id, deferred()]));
   const started = [], prerequisites = {}; let active = 0, max = 0;
@@ -123,6 +152,20 @@ test('MindSearch valid ancestor evidence is copied with provenance and no new we
   assert.equal(saved[0].reuse.sourceContentHash, subject.source.contentHash); assert.deepEqual(saved[0].reuse.applicableConditions, { weight: '1kg' }); assert.ok(Date.parse(saved[0].reuse.checkedAt));
   assert.notEqual(saved[0].notePath, 'source.md'); assert.equal(subject.notes.get(saved[0].notePath).detail, subject.notes.get('source.md').detail);
   assert.deepEqual(phases, ['evidence-reuse-audit', 'report-review']);
+});
+
+test('MindSearch sends control phases their provider-enforced contract and withholds conclude below the floor', async () => {
+  const subject = fixture(); await subject.setPlan([reuseTarget(subject.source)]); const contracts = {}, prompts = {};
+  const flow = new MindSearchManualFlow(subject.repository, subject.store, async context => {
+    contracts[phase(context)] = plain(context.mindSearchContract ?? null); prompts[phase(context)] = context.task;
+    if (phase(context) === 'evidence-reuse-audit') return usable;
+    return stopAtReview(context);
+  });
+  await assert.rejects(flow.resumeAnswerResearch('Map.md', 'current', 'test', 'low'), /STOP_AT_REVIEW/);
+  assert.deepEqual(contracts['evidence-reuse-audit'], { kind: 'reuse' });
+  assert.deepEqual(contracts['report-review'], { kind: 'review', decisions: ['research_more', 'ask_user'] });
+  assert.match(prompts['report-review'], /Never ask about this tool's workflow, question counts, nodes, branches/);
+  assert.match(prompts['report-review'], /Never pick research_more to satisfy the floor/);
 });
 
 test('MindSearch zero-task plan materializes audited reuse before persistence and can reopen its report', async () => {

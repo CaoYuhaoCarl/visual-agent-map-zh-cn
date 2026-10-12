@@ -13,6 +13,6 @@ export function providerModelId(model: string): string {
   return providerForModel(model) === "claude" ? model.slice("claude:".length) : model;
 }
 
-export function claudeModelChoice(model: string): typeof CLAUDE_MODEL_CHOICES[number] | undefined {
+export function claudeModelChoice(model: string): (typeof CLAUDE_MODEL_CHOICES)[number] | undefined {
   return CLAUDE_MODEL_CHOICES.find(choice => choice.id === model);
 }

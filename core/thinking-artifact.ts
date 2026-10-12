@@ -1,20 +1,7 @@
 export type ThinkingArtifactKind =
-  | "question"
-  | "insight"
-  | "argument"
-  | "evidence"
-  | "disagreement"
-  | "conclusion"
-  | "synthesis"
-  | "decision";
+  "question" | "insight" | "argument" | "evidence" | "disagreement" | "conclusion" | "synthesis" | "decision";
 
-export type ExperienceId =
-  | "visual-map"
-  | "coffee-tables"
-  | "challenge"
-  | "association"
-  | "synthesize"
-  | "decide";
+export type ExperienceId = "visual-map" | "coffee-tables" | "challenge" | "association" | "synthesize" | "decide";
 
 export interface ThinkingArtifactSource {
   label: string;
@@ -42,8 +29,6 @@ export interface ThinkingArtifact {
   metadata?: Record<string, string | number | boolean>;
 }
 
-export function createThinkingArtifact(
-  input: Omit<ThinkingArtifact, "version">
-): ThinkingArtifact {
+export function createThinkingArtifact(input: Omit<ThinkingArtifact, "version">): ThinkingArtifact {
   return { version: 1, ...input };
 }

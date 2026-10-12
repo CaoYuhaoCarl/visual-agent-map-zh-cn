@@ -151,3 +151,52 @@ test('explicit question metadata outranks rhetorical body and summary questions'
     detail: 'Could this be more ambitious?\n問題：每天可以投入多少時間？'
   }), '每天可以投入多少時間？');
 });
+
+// Captured from a live Codex correction turn below the answered-question floor: no decision marker,
+// the clarification phrased as a statement without a question mark, and valid answer choices.
+const codexFloorCorrection = {
+  summary: '需先釐清成功標準，再判斷版本摘要要多精簡或多詳細。',
+  detail: '依現有研究摘要，Obsidian Desktop 最新公開穩定版為 1.14，於 2026-10-05 發布。這些資訊回答了原始問題；但尚不清楚你希望「主要更新」摘要到什麼程度，因此暫不結案。',
+  suggestions: [{ title: '只要三項重點', task: '以每項一句話整理版本主要更新。', contribution: '提供精簡、易掃讀的回答。', parentTitle: '' }, { title: '附上功能細節', task: '補充各項更新的使用方式與限制。', contribution: '提供較完整的功能摘要。', parentTitle: '' }]
+};
+const floorContext = { ...context, requiredDecision: 'ask_user', requiredDecisionRationale: 'The branch has 1 answered question node(s); at least 3 are required before conclusion.' };
+
+test('an imposed ask_user without a written question asks the model once to state its own question', async () => {
+  assert.equal(extractPlannerQuestionCandidate(codexFloorCorrection), undefined);
+  const tasks = [];
+  const parsed = await parseMindSearchPlannerReviewWithRecovery(codexFloorCorrection, floorContext, async task => {
+    tasks.push(task);
+    assert.match(task, /state the one clarification question you intended/i);
+    assert.match(task, /需先釐清成功標準/);
+    assert.doesNotMatch(task, /Private full report|Already completed report/);
+    return {
+      summary: '替換後的摘要不可採用。',
+      detail: '<!-- mindsearch-review {"decision":"ask_user","rationale":"替換後的理由不可採用。","question":"你希望主要更新摘要到什麼程度？"} -->\n替換後的正文不可採用。',
+      suggestions: ['只要三項重點', '附上功能細節'].map(title => ({ title, task: '', contribution: '' }))
+    };
+  });
+  assert.equal(tasks.length, 1);
+  assert.equal(parsed.decision, 'ask_user');
+  assert.equal(parsed.question, '你希望主要更新摘要到什麼程度？');
+  assert.equal(parsed.rationale, floorContext.requiredDecisionRationale);
+  assert.equal(parsed.summary, codexFloorCorrection.summary);
+  assert.equal(parsed.detail, codexFloorCorrection.detail);
+  assert.deepEqual(Array.from(parsed.answerOptions), ['只要三項重點', '附上功能細節']);
+});
+
+test('an imposed ask_user still fails when the model never states a question', async () => {
+  let calls = 0;
+  await assert.rejects(() => parseMindSearchPlannerReviewWithRecovery(codexFloorCorrection, floorContext, async () => {
+    calls++;
+    return { summary: '仍未提出問題。', detail: '內容沒有決策標記。', suggestions: codexFloorCorrection.suggestions };
+  }), /cannot invent a question that was absent from the original response/);
+  assert.equal(calls, 1);
+});
+
+test('a bold-labelled question is extracted without its Markdown emphasis', () => {
+  assert.equal(extractPlannerQuestionCandidate({
+    summary: '版本資訊已整理；確認安裝需求是否影響你判斷「最新穩定版」的適用性。',
+    detail: '**問題：**你目前使用的 Obsidian 安裝程式是否已更新到支援開啟 vault 外 Markdown 檔案的版本？\n\n- 已更新安裝程式\n- 尚未更新安裝程式'
+  }), '你目前使用的 Obsidian 安裝程式是否已更新到支援開啟 vault 外 Markdown 檔案的版本？');
+  assert.equal(extractPlannerQuestionCandidate({ summary: '', detail: '**Question:** Which platform do you use?' }), 'Which platform do you use?');
+});

@@ -35,15 +35,35 @@ export function assembleCoffeeContext(session: CoffeeSession): string {
   if (rounds.length) {
     for (const round of rounds) {
       const source = round.markdown || round.draftMarkdown || "";
-      const attached = (session.interventions ?? []).filter(item => item.roundId === round.id).sort((a, b) => (a.afterTurn ?? 0) - (b.afterTurn ?? 0) || Date.parse(a.createdAt) - Date.parse(b.createdAt));
+      const attached = (session.interventions ?? [])
+        .filter(item => item.roundId === round.id)
+        .sort((a, b) => (a.afterTurn ?? 0) - (b.afterTurn ?? 0) || Date.parse(a.createdAt) - Date.parse(b.createdAt));
       for (const item of attached) attachedInterventions.add(item.id);
-      if (!attached.length || !/^###\s+/m.test(source)) { add(round.createdAt, [source, ...attached.map(item => `使用者介入：${item.text}`)].filter(Boolean).join("\n\n")); continue; }
-      const parts = source.split(/(?=^###\s+)/m), output: string[] = [];
-      let speakerTurns = 0, nextIntervention = 0;
-      const inject = (limit: number): void => { while (nextIntervention < attached.length && (attached[nextIntervention].afterTurn ?? 0) <= limit) output.push(`使用者介入：${attached[nextIntervention++].text}`); };
+      if (!attached.length || !/^###\s+/m.test(source)) {
+        add(
+          round.createdAt,
+          [source, ...attached.map(item => `使用者介入：${item.text}`)].filter(Boolean).join("\n\n")
+        );
+        continue;
+      }
+      const parts = source.split(/(?=^###\s+)/m),
+        output: string[] = [];
+      let speakerTurns = 0,
+        nextIntervention = 0;
+      const inject = (limit: number): void => {
+        while (nextIntervention < attached.length && (attached[nextIntervention].afterTurn ?? 0) <= limit)
+          output.push(`使用者介入：${attached[nextIntervention++].text}`);
+      };
       for (const part of parts) {
-        if (/^###\s+/.test(part)) { inject(speakerTurns); output.push(part); speakerTurns++; inject(speakerTurns); }
-        else { inject(0); if (part.trim()) output.push(part); }
+        if (/^###\s+/.test(part)) {
+          inject(speakerTurns);
+          output.push(part);
+          speakerTurns++;
+          inject(speakerTurns);
+        } else {
+          inject(0);
+          if (part.trim()) output.push(part);
+        }
       }
       inject(Number.MAX_SAFE_INTEGER);
       add(round.createdAt, output.join("\n\n"));
@@ -51,17 +71,40 @@ export function assembleCoffeeContext(session: CoffeeSession): string {
   } else add(session.createdAt, session.transcriptMarkdown);
   for (const question of session.questions) {
     if (question.status === "pending" && !question.answer && !question.draftAnswer) continue;
-    const guests = question.invitedGuests?.length ? `\n本題加入並留桌的來賓：\n${question.invitedGuests.map(guest => `- ${guest.name}｜${LABELS[guest.category]}：${guest.description}`).join("\n")}` : "";
-    add(question.createdAt, `使用者追問：${question.question}${guests}\n桌上回答：${question.answer || question.draftAnswer || "（回答尚未完成）"}`);
+    const guests = question.invitedGuests?.length
+      ? `\n本題加入並留桌的來賓：\n${question.invitedGuests.map(guest => `- ${guest.name}｜${LABELS[guest.category]}：${guest.description}`).join("\n")}`
+      : "";
+    add(
+      question.createdAt,
+      `使用者追問：${question.question}${guests}\n桌上回答：${question.answer || question.draftAnswer || "（回答尚未完成）"}`
+    );
   }
-  for (const intervention of session.interventions ?? []) if (!attachedInterventions.has(intervention.id)) add(intervention.createdAt, `使用者介入：${intervention.text}`);
+  for (const intervention of session.interventions ?? [])
+    if (!attachedInterventions.has(intervention.id)) add(intervention.createdAt, `使用者介入：${intervention.text}`);
   events.sort((a, b) => a.at - b.at || a.order - b.order);
   const existingInsights = baselineFromVersions(session.observerNotes ?? [], session.language);
-  const notes = existingInsights.length ? `目前整桌累積洞見（每個 coffee-insight:v1 識別碼必須原樣保留）：\n${serializeInsightNotes(existingInsights, session.language)}` : "";
+  const notes = existingInsights.length
+    ? `目前整桌累積洞見（每個 coffee-insight:v1 識別碼必須原樣保留）：\n${serializeInsightNotes(existingInsights, session.language)}`
+    : "";
   return [...events.map(item => item.text), notes].filter(Boolean).join("\n\n");
 }
-const LABELS = { experts: "主題專家", "cross-domain": "跨領域專家", generalist: "好奇的通才 generalist", affected: "受影響者" } as const;
-function names(guests: GuestSettings, invited: CoffeeGuestInvitation[] = []): string[] { return (["experts", "cross-domain", "generalist", "affected"] as const).flatMap(category => [...Array.from({ length: guests.counts[category] }, (_, index) => { const named = guests.guests.filter(item => item.category === category)[index]; return named ? `${LABELS[category]}：${named.description}` : LABELS[category]; }), ...invited.filter(item => item.category === category).map(item => `${LABELS[category]}：${item.name}（${item.description}）`)]); }
+const LABELS = {
+  experts: "主題專家",
+  "cross-domain": "跨領域專家",
+  generalist: "好奇的通才 generalist",
+  affected: "受影響者"
+} as const;
+function names(guests: GuestSettings, invited: CoffeeGuestInvitation[] = []): string[] {
+  return (["experts", "cross-domain", "generalist", "affected"] as const).flatMap(category => [
+    ...Array.from({ length: guests.counts[category] }, (_, index) => {
+      const named = guests.guests.filter(item => item.category === category)[index];
+      return named ? `${LABELS[category]}：${named.description}` : LABELS[category];
+    }),
+    ...invited
+      .filter(item => item.category === category)
+      .map(item => `${LABELS[category]}：${item.name}（${item.description}）`)
+  ]);
+}
 function conversationStyle(language: string, settings?: GuestSettings): string {
   if (typeof settings?.stylePrompt === "string") return settings.stylePrompt.trim();
   const builtin = language === "zh-TW" ? BUILTIN_COFFEE_STYLE_PROMPT : BUILTIN_COFFEE_STYLE_PROMPT_EN;
@@ -69,11 +112,11 @@ function conversationStyle(language: string, settings?: GuestSettings): string {
 }
 const INSIGHT_PROMPT_FOOTERS = {
   zh: "更新整桌洞見時，沿用提供的識別碼。輸出未變項目用 \x3c!-- coffee-insight:keep:ID -->；修正單項用 \x3c!-- coffee-insight:update:ID -->；合併重疊項目用 \x3c!-- coffee-insight:merge:ID1,ID2 -->；新項目用 \x3c!-- coffee-insight:new -->。每個 ID 僅用一次。沒有重新輸出的舊項目會由程式保留。",
-  en: "For cumulative updates, reuse each supplied insight ID exactly. Mark unchanged items \x3c!-- coffee-insight:keep:ID -->, revise one item with \x3c!-- coffee-insight:update:ID -->, combine overlapping items with \x3c!-- coffee-insight:merge:ID1,ID2 -->, and mark new items \x3c!-- coffee-insight:new -->. Use each ID at most once; the program retains old items you do not rewrite.",
+  en: "For cumulative updates, reuse each supplied insight ID exactly. Mark unchanged items \x3c!-- coffee-insight:keep:ID -->, revise one item with \x3c!-- coffee-insight:update:ID -->, combine overlapping items with \x3c!-- coffee-insight:merge:ID1,ID2 -->, and mark new items \x3c!-- coffee-insight:new -->. Use each ID at most once; the program retains old items you do not rewrite."
 };
 const OBSERVER_TITLES = {
   zh: "# 觀察者整理\n## 意外連結\n## 值得繼續想的問題\n## 核心分歧\n## 探索方向\n## 值得查證的假設\n## 疑問與可能解方",
-  en: "# Observer’s notes\n## Unexpected connections\n## Questions worth pursuing\n## Core disagreements\n## Directions to explore\n## Assumptions to verify\n## Questions and possible solutions",
+  en: "# Observer’s notes\n## Unexpected connections\n## Questions worth pursuing\n## Core disagreements\n## Directions to explore\n## Assumptions to verify\n## Questions and possible solutions"
 };
 function observerFormat(language: string, refreshOnly = false, customization?: GuestSettings["customization"]): string {
   const zh = language === "zh-TW";
@@ -81,15 +124,23 @@ function observerFormat(language: string, refreshOnly = false, customization?: G
     ? "每個可定位到具體發言的洞見，都要在完整寫出洞見與脈絡後附一個或多個 `<!-- source: 對談中的原句 -->` 隱藏來源，逐字照抄以支援跳轉。跨多段綜合可附多個來源；若沒有單一可定位的發言，仍保留洞見與完整脈絡，不可因此刪減，並在展開脈絡中明確說明這是跨段綜合、沒有單一來源。"
     : "For every insight that can be located in specific dialogue, append one or more hidden `<!-- source: exact dialogue excerpt -->` markers after the complete insight and context; copy each excerpt verbatim so it can link back to the conversation. A synthesis across turns may cite multiple excerpts. If no single utterance can be located, keep the full insight and context, and explicitly say in the expanded context that it is a cross-turn synthesis with no single source.";
   const update = zh ? INSIGHT_PROMPT_FOOTERS.zh : INSIGHT_PROMPT_FOOTERS.en;
-  const operation = zh ? "此操作只更新觀察者整理，不新增或改寫對談。" : "This operation refreshes notes only; it does not add or rewrite dialogue.";
+  const operation = zh
+    ? "此操作只更新觀察者整理，不新增或改寫對談。"
+    : "This operation refreshes notes only; it does not add or rewrite dialogue.";
   const preferences = customization ? `${observerGuidance(language, customization)}\n` : "";
   return `${refreshOnly ? `${operation}\n` : ""}${preferences}${source}\n${update}\n固定標題與完成標記如下；完成標記獨占最後一行：\n${OBSERVER_TITLES[zh ? "zh" : "en"]}\n<!-- coffee-tables-complete -->`;
 }
 function invitationContext(invitedGuests: CoffeeGuestInvitation[], language: string): string {
   if (!invitedGuests.length) return "";
-  const role: Record<CoffeeGuestInvitation["category"], string> = language === "zh-TW"
-    ? { experts: "主題專家", "cross-domain": "跨領域專家", generalist: "好奇的通才", affected: "受影響者" }
-    : { experts: "Topic expert", "cross-domain": "Cross-domain expert", generalist: "Curious generalist", affected: "Affected perspective" };
+  const role: Record<CoffeeGuestInvitation["category"], string> =
+    language === "zh-TW"
+      ? { experts: "主題專家", "cross-domain": "跨領域專家", generalist: "好奇的通才", affected: "受影響者" }
+      : {
+          experts: "Topic expert",
+          "cross-domain": "Cross-domain expert",
+          generalist: "Curious generalist",
+          affected: "Affected perspective"
+        };
   return `${language === "zh-TW" ? "使用者這次邀請的新來賓（回答成功後會留在此桌）：" : "New guests invited for this follow-up (they join this table after a successful answer):"}\n${invitedGuests.map(guest => `- ${guest.name}｜${role[guest.category]}：${guest.description}`).join("\n")}`;
 }
 /** Remove the legacy internal protocol passage from editable conversation styles. */
@@ -100,21 +151,45 @@ export function readableCoffeeStyle(style: string): string {
 }
 /** Strip only the observer-specific text shipped in the built-in styles. */
 export function cleanChatStyle(style: string): string {
-  const zhObserverIntro = "觀察者整理整桌不斷發展的洞見：意外連結、值得繼續想的問題、核心分歧、探索方向、待查證假設，以及來賓提出疑問時對談中出現的可能回應。不添加新事實，也不替使用者下結論。";
-  const enObserverIntro = "The observer records the table’s evolving insights: unexpected connections, questions worth pursuing, core disagreements, directions to explore, assumptions to verify, and guests’ questions with possible responses. Add no new facts and do not decide for the user.";
-  const paragraphs = style.split(/\n\s*\n/).map(value => value.trim()).filter(Boolean);
-  const knownObserverParagraphs = new Set([
-    BUILTIN_COFFEE_STYLE_PROMPT.split(/\n\s*\n/)[1]?.trim(),
-    BUILTIN_COFFEE_STYLE_PROMPT.split(/\n\s*\n/)[2]?.trim(),
-    BUILTIN_COFFEE_STYLE_PROMPT.split(/\n\s*\n/)[3]?.trim(),
-    BUILTIN_COFFEE_STYLE_PROMPT_EN.split(/\n\s*\n/)[1]?.trim(),
-    BUILTIN_COFFEE_STYLE_PROMPT_EN.split(/\n\s*\n/)[2]?.trim(),
-    BUILTIN_COFFEE_STYLE_PROMPT_EN.split(/\n\s*\n/)[3]?.trim(),
-  ].filter((value): value is string => !!value));
-  const chatText = readableCoffeeStyle(paragraphs.filter(paragraph => !knownObserverParagraphs.has(paragraph)).join("\n\n"));
-  return chatText.split(/\n\s*\n/).map(paragraph => paragraph.trim()).filter(Boolean)
-    .map(paragraph => paragraph.replace(zhObserverIntro, "").replace(enObserverIntro, "").replace("觀察者整理涵蓋整桌。", "").replace("Observer notes cover the whole table. ", "").replace(/既有洞見有程式維持的穩定識別碼：[\s\S]*?程式會保留未提及項目。/, "").replace(/Existing insights have stable program IDs:[\s\S]*?the program retains omitted items\./, "").replace(/對談中提出的解方只是可能回應，[\s\S]*$/, "").replace(/A possible response is a discussed answer,[\s\S]*$/, "").trim())
-    .filter(Boolean).join("\n\n");
+  const zhObserverIntro =
+    "觀察者整理整桌不斷發展的洞見：意外連結、值得繼續想的問題、核心分歧、探索方向、待查證假設，以及來賓提出疑問時對談中出現的可能回應。不添加新事實，也不替使用者下結論。";
+  const enObserverIntro =
+    "The observer records the table’s evolving insights: unexpected connections, questions worth pursuing, core disagreements, directions to explore, assumptions to verify, and guests’ questions with possible responses. Add no new facts and do not decide for the user.";
+  const paragraphs = style
+    .split(/\n\s*\n/)
+    .map(value => value.trim())
+    .filter(Boolean);
+  const knownObserverParagraphs = new Set(
+    [
+      BUILTIN_COFFEE_STYLE_PROMPT.split(/\n\s*\n/)[1]?.trim(),
+      BUILTIN_COFFEE_STYLE_PROMPT.split(/\n\s*\n/)[2]?.trim(),
+      BUILTIN_COFFEE_STYLE_PROMPT.split(/\n\s*\n/)[3]?.trim(),
+      BUILTIN_COFFEE_STYLE_PROMPT_EN.split(/\n\s*\n/)[1]?.trim(),
+      BUILTIN_COFFEE_STYLE_PROMPT_EN.split(/\n\s*\n/)[2]?.trim(),
+      BUILTIN_COFFEE_STYLE_PROMPT_EN.split(/\n\s*\n/)[3]?.trim()
+    ].filter((value): value is string => !!value)
+  );
+  const chatText = readableCoffeeStyle(
+    paragraphs.filter(paragraph => !knownObserverParagraphs.has(paragraph)).join("\n\n")
+  );
+  return chatText
+    .split(/\n\s*\n/)
+    .map(paragraph => paragraph.trim())
+    .filter(Boolean)
+    .map(paragraph =>
+      paragraph
+        .replace(zhObserverIntro, "")
+        .replace(enObserverIntro, "")
+        .replace("觀察者整理涵蓋整桌。", "")
+        .replace("Observer notes cover the whole table. ", "")
+        .replace(/既有洞見有程式維持的穩定識別碼：[\s\S]*?程式會保留未提及項目。/, "")
+        .replace(/Existing insights have stable program IDs:[\s\S]*?the program retains omitted items\./, "")
+        .replace(/對談中提出的解方只是可能回應，[\s\S]*$/, "")
+        .replace(/A possible response is a discussed answer,[\s\S]*$/, "")
+        .trim()
+    )
+    .filter(Boolean)
+    .join("\n\n");
 }
 /** Display-only opening preview; provider protocol remains in tablePrompt. */
 export function openingPromptPreview(topic: string, language: string, guests: GuestSettings): string {
@@ -128,12 +203,27 @@ export function openingPromptPreview(topic: string, language: string, guests: Gu
   const protocol = observerFormat(language, false, guests.customization) + segmentSummaryInstruction(language);
   return prompt.slice(0, -protocol.length) + readableNotes;
 }
-export function tablePrompt(topic: string, language: string, guests?: GuestSettings, draft = "", priorContext = "", invitedGuests: CoffeeGuestInvitation[] = []): string {
-  const zh = language === "zh-TW"; const languageLine = zh ? "請用自然、口語的繁體中文（台灣用法）寫作。" : "Write in natural, conversational English.";
-  const settings = guests ?? { counts: { experts: 4, "cross-domain": 1, generalist: 1, affected: 1 }, guests: [], background: "", customPrompt: "" };
+export function tablePrompt(
+  topic: string,
+  language: string,
+  guests?: GuestSettings,
+  draft = "",
+  priorContext = "",
+  invitedGuests: CoffeeGuestInvitation[] = []
+): string {
+  const zh = language === "zh-TW";
+  const languageLine = zh ? "請用自然、口語的繁體中文（台灣用法）寫作。" : "Write in natural, conversational English.";
+  const settings = guests ?? {
+    counts: { experts: 4, "cross-domain": 1, generalist: 1, affected: 1 },
+    guests: [],
+    background: "",
+    customPrompt: ""
+  };
   const attendeeRoles = names(settings, invitedGuests).map(role => `- ${role}`);
   const background = settings.background.trim() ? `\n補充背景：${settings.background.trim()}` : "";
-  const style = settings.customization ? cleanChatStyle(conversationStyle(language, settings)) : conversationStyle(language, settings);
+  const style = settings.customization
+    ? cleanChatStyle(conversationStyle(language, settings))
+    : conversationStyle(language, settings);
   const custom = style ? `\n\n聊天室風格：\n${style}` : "";
   const references = formatReferenceContext(settings.referenceFiles ?? []);
   const continuing = !!(draft || priorContext);
@@ -141,34 +231,80 @@ export function tablePrompt(topic: string, language: string, guests?: GuestSetti
   const prior = priorContext ? `\n\n先前對談與追問：\n${priorContext}` : "";
   const draftText = draft ? `\n\n上次未完成的對談草稿：\n${draft}` : "";
   const hostCount = settings.hostCount ?? 2;
-  const opening = continuing ? "這是同一桌的續聊，以下是已保存的對話脈絡。\n\n" : "開場依序列出參與者（每人一行「- **姓名｜角色**：簡短背景」）。";
+  const opening = continuing
+    ? "這是同一桌的續聊，以下是已保存的對話脈絡。\n\n"
+    : "開場依序列出參與者（每人一行「- **姓名｜角色**：簡短背景」）。";
   const prompt = `請模擬一場 Coffee Table 式多人對談。主持人 ${hostCount} 位、觀察者固定 1 位，其餘來賓依下列人數安排。${languageLine}\n\n使用者原始主題（完整保留，不另取聊天室標題）：\n${topic}\n\n固定人物：\n- ${hostCount} 位主持人\n- 1 位中立觀察者\n來賓名額：\n${attendeeRoles.join("\n")}\n${zh ? "每類來賓最多 8 位；包含後續邀請的來賓後，全桌來賓最多 12 位。" : "Each perspective has at most 8 guests; the full guest list, including invitees, has at most 12."} 人物與經驗均為 AI 虛構模擬，不代表真人證言或已查證事實。${background}${references}${custom}${prior}${draftText}\n\n用 Markdown 輸出且不要替桌聊另寫標題。${opening}每次發言使用「### 姓名｜角色」；最後使用固定的觀察者整理格式。${notes}`;
-  if (prompt.length > MAX_COFFEE_CONTEXT_CHARS) throw new Error(zh ? "這桌的內容太長，無法安全地全部交給模型。請先開新桌；舊內容已完整保留。" : "This table is too long to send safely in full. Start a new table; the existing conversation is preserved.");
+  if (prompt.length > MAX_COFFEE_CONTEXT_CHARS)
+    throw new Error(
+      zh
+        ? "這桌的內容太長，無法安全地全部交給模型。請先開新桌；舊內容已完整保留。"
+        : "This table is too long to send safely in full. Start a new table; the existing conversation is preserved."
+    );
   return prompt;
 }
-export function questionPrompt(session: CoffeeSession, question: string, draft = "", invitedGuests: CoffeeGuestInvitation[] = []): string {
-  const zh = session.language === "zh-TW", language = zh ? "請用自然、口語的繁體中文回答。" : "Answer in natural, conversational English.";
+export function questionPrompt(
+  session: CoffeeSession,
+  question: string,
+  draft = "",
+  invitedGuests: CoffeeGuestInvitation[] = []
+): string {
+  const zh = session.language === "zh-TW",
+    language = zh ? "請用自然、口語的繁體中文回答。" : "Answer in natural, conversational English.";
   const settings = session.guests;
-  const style = settings?.customization ? cleanChatStyle(conversationStyle(session.language, settings)) : conversationStyle(session.language, settings);
+  const style = settings?.customization
+    ? cleanChatStyle(conversationStyle(session.language, settings))
+    : conversationStyle(session.language, settings);
   const custom = style ? `\n聊天室風格：\n${style}` : "";
   const references = formatReferenceContext(settings?.referenceFiles ?? []);
   const context = assembleCoffeeContext(session);
-  if (context.length + question.length > MAX_COFFEE_CONTEXT_CHARS) throw new Error(zh ? "這桌的內容太長，無法安全地全部交給模型。請先開新桌；舊內容已完整保留。" : "This table is too long to send safely in full. Start a new table; the existing conversation is preserved.");
+  if (context.length + question.length > MAX_COFFEE_CONTEXT_CHARS)
+    throw new Error(
+      zh
+        ? "這桌的內容太長，無法安全地全部交給模型。請先開新桌；舊內容已完整保留。"
+        : "This table is too long to send safely in full. Start a new table; the existing conversation is preserved."
+    );
   const inviteContext = invitationContext(invitedGuests, session.language);
   const prompt = `延續 Coffee Tables 對談回答使用者追問。${language}${custom}${references}\n\n完整先前對談與追問脈絡：\n${context}${inviteContext ? `\n\n${inviteContext}` : ""}\n\n使用者的新問題：\n${question}${draft ? `\n\n上次已保存的回答草稿：\n${draft}` : ""}\n\n用 Markdown 輸出，每段標示發言者，之後附上固定的觀察者整理標題。${observerFormat(session.language, false, settings?.customization)}${segmentSummaryInstruction(session.language)}`;
-  if (prompt.length > MAX_COFFEE_CONTEXT_CHARS) throw new Error(zh ? "這桌的內容太長，無法安全地全部交給模型；桌聊已保留。" : "This table is too long to send safely in full; the existing conversation is preserved.");
+  if (prompt.length > MAX_COFFEE_CONTEXT_CHARS)
+    throw new Error(
+      zh
+        ? "這桌的內容太長，無法安全地全部交給模型；桌聊已保留。"
+        : "This table is too long to send safely in full; the existing conversation is preserved."
+    );
   return prompt;
 }
 
 export function observerOnlyPrompt(session: CoffeeSession): string {
   const zh = session.language === "zh-TW";
-  const history = [assembleCoffeeContext(session), session.draftMarkdown ? `未完成對談草稿：\n${session.draftMarkdown}` : "", session.observerDraftMarkdown ? `觀察者整理草稿：\n${session.observerDraftMarkdown}` : ""].filter(Boolean).join("\n\n");
-  if (history.length > MAX_COFFEE_CONTEXT_CHARS) throw new Error(zh ? "這桌的內容太長，無法安全地全部交給模型。舊內容已完整保留。" : "This table is too long to summarize safely in full. The existing conversation is preserved.");
-  const instructions = zh ? "此操作只更新觀察者整理，不新增或改寫對談。" : "This action refreshes observer notes only; it does not add or rewrite dialogue.";
-  const style = session.guests?.customization ? cleanChatStyle(conversationStyle(session.language, session.guests)) : conversationStyle(session.language, session.guests);
+  const history = [
+    assembleCoffeeContext(session),
+    session.draftMarkdown ? `未完成對談草稿：\n${session.draftMarkdown}` : "",
+    session.observerDraftMarkdown ? `觀察者整理草稿：\n${session.observerDraftMarkdown}` : ""
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+  if (history.length > MAX_COFFEE_CONTEXT_CHARS)
+    throw new Error(
+      zh
+        ? "這桌的內容太長，無法安全地全部交給模型。舊內容已完整保留。"
+        : "This table is too long to summarize safely in full. The existing conversation is preserved."
+    );
+  const instructions = zh
+    ? "此操作只更新觀察者整理，不新增或改寫對談。"
+    : "This action refreshes observer notes only; it does not add or rewrite dialogue.";
+  const style = session.guests?.customization
+    ? cleanChatStyle(conversationStyle(session.language, session.guests))
+    : conversationStyle(session.language, session.guests);
   const styleSection = style ? `${zh ? "聊天室風格" : "Conversation style"}:\n${style}\n` : "";
   const references = formatReferenceContext(session.guests?.referenceFiles ?? []);
-  const prompt = `${zh ? "請用繁體中文。" : "Write in English."}\n${instructions}\n${styleSection}${references}\n\n${zh ? "完整對談、追問、介入及草稿" : "Full conversation, follow-ups, interventions and drafts"}:\n${history}\n\n${observerFormat(session.language, true, session.guests?.customization)}`;  if (prompt.length > MAX_COFFEE_CONTEXT_CHARS) throw new Error(zh ? "這桌的內容太長，無法安全地全部交給模型；舊內容已完整保留。" : "This table is too long to summarize safely in full. The existing conversation is preserved.");
+  const prompt = `${zh ? "請用繁體中文。" : "Write in English."}\n${instructions}\n${styleSection}${references}\n\n${zh ? "完整對談、追問、介入及草稿" : "Full conversation, follow-ups, interventions and drafts"}:\n${history}\n\n${observerFormat(session.language, true, session.guests?.customization)}`;
+  if (prompt.length > MAX_COFFEE_CONTEXT_CHARS)
+    throw new Error(
+      zh
+        ? "這桌的內容太長，無法安全地全部交給模型；舊內容已完整保留。"
+        : "This table is too long to summarize safely in full. The existing conversation is preserved."
+    );
   return prompt;
 }
 
