@@ -1,18 +1,6 @@
 {
   "dirs": [
-    "experiences/aim/manual-flow.ts",
-    "experiences/aim/steps/initial-clarification",
-    "experiences/aim/steps/initial-question",
-    "experiences/aim/steps/evidence-reuse-audit",
-    "experiences/aim/steps/research-plan",
-    "experiences/aim/steps/research-plan-repair",
-    "experiences/aim/steps/subtopic-research",
-    "experiences/aim/steps/research-gap-audit",
-    "experiences/aim/steps/decision-quality-review",
-    "experiences/aim/steps/report-review",
-    "experiences/aim/steps/targeted-followup-research",
-    "experiences/aim/steps/saved-report-review",
-    "experiences/aim/steps/partial-continuation"
+    "experiences/aim"
   ],
   "allow": [
     {
@@ -87,16 +75,6 @@
     },
     {
       "file": "experiences/aim/manual-flow.ts",
-      "text": "Retain adequate existing evidence without repeating web sear",
-      "reason": "expectedValue of a synthesized reuse target stored in the plan and shown in the UI, not a template"
-    },
-    {
-      "file": "experiences/aim/manual-flow.ts",
-      "text": "Full report must pass the current-goal applicability",
-      "reason": "validity reason of a synthesized reuse target stored in the plan, not a template"
-    },
-    {
-      "file": "experiences/aim/manual-flow.ts",
       "text": "User cancelled a AIM subtopic research turn.",
       "reason": "cancellation reason persisted on the attempt record by cancelAttempt, not sent to a model"
     },
@@ -114,6 +92,36 @@
       "file": "experiences/aim/manual-flow.ts",
       "text": "Follow-up question after reviewing all saved research,",
       "reason": "rationale persisted on the created follow-up question node, not sent to a model"
+    },
+    {
+      "file": "experiences/aim/planner-review.ts",
+      "text": "A clarification is required",
+      "reason": "Dead-code fallback of a nullish chain whose previous operand is always a string (originalRationale is \"\" when absent), so it is never evaluated, stored or sent to a model; left in place rather than moved"
+    },
+    {
+      "file": "experiences/aim/research-run-store.ts",
+      "text": "Attempt became stale while creating its result draft.",
+      "reason": "fallback stop reason retiring a stale draft note; persisted on the draft note and shown in the UI, never sent to a model"
+    },
+    {
+      "file": "experiences/aim/research-run-store.ts",
+      "text": "The app reopened after this research attempt stopped before ",
+      "reason": "stop reason persisted on a failed attempt record after an app restart and shown in the UI, not a prompt"
+    },
+    {
+      "file": "experiences/aim/research-run-store.ts",
+      "text": "This draft was not published because attempt",
+      "reason": "diagnostic line written into the retired draft note body (persisted note text shown to the user), not a prompt"
+    },
+    {
+      "file": "experiences/aim/research-run-store.ts",
+      "text": "The original draft is retained below for diagnosis; it is no",
+      "reason": "diagnostic line written into the retired draft note body (persisted note text shown to the user), not a prompt"
+    },
+    {
+      "file": "experiences/aim/retry-targets.ts",
+      "text": "This draft was not published because attempt",
+      "reason": "exact-match string used to recognize the persisted retired-draft note written by research-run-store.ts; compared against saved text, not sent to a model"
     }
   ]
 }

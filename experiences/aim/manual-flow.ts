@@ -31,7 +31,12 @@ import {
   type AimResearchTarget
 } from "./research-plan";
 import { scheduleAimResearch } from "./research-scheduler";
-import { renderEvidenceLookupFollowup, TOPIC_ROOT_ANSWER } from "./steps/_shared/rules";
+import {
+  renderEvidenceLookupFollowup,
+  REUSE_TARGET_EXPECTED_VALUE,
+  REUSE_TARGET_VALIDITY_REASON,
+  TOPIC_ROOT_ANSWER
+} from "./steps/_shared/rules";
 import { renderSavedReportFollowupSearchTask, renderSavedReportReviewTask } from "./steps/saved-report-review/step";
 import {
   renderPartialContinuationReviewTask,
@@ -2496,14 +2501,14 @@ export class AimManualFlow {
           id: `reuse-${candidate.source.resultId}`,
           title: candidate.title,
           task: `Retain supported findings relevant to ${parent.summary || topicNote.title}`,
-          expectedValue: "Retain adequate existing evidence without repeating web searches",
+          expectedValue: REUSE_TARGET_EXPECTED_VALUE,
           action: "reuse",
           dependsOn: [],
           source: candidate.source,
           rationale: "Planner requested no new evidence tasks",
           validity: {
             conditionKeys: [],
-            reason: "Full report must pass the current-goal applicability and freshness audit"
+            reason: REUSE_TARGET_VALIDITY_REASON
           }
         };
         try {

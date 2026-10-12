@@ -9,6 +9,8 @@ import evidenceLookupFieldRule from "./evidence-lookup-field-rule.md";
 import evidenceLookupFollowup from "./evidence-lookup-followup.md";
 import topicRootAnswer from "./topic-root-answer.md";
 import passageReference from "./passage-reference.md";
+import reuseTargetExpectedValue from "./reuse-target-expected-value.md";
+import reuseTargetValidityReason from "./reuse-target-validity-reason.md";
 
 /** Rule text shared by several AIM phases. Each is a Markdown file whose own trailing newline is removed. */
 const text = (template: string): string => renderTemplate(template, {});
@@ -25,6 +27,9 @@ export const EVIDENCE_LOOKUP_FIELD_RULE = text(evidenceLookupFieldRule);
 
 /** Answer description of a branch whose question node is the topic root; it feeds the source fingerprint, so its bytes are fixed. */
 export const TOPIC_ROOT_ANSWER = text(topicRootAnswer);
+/** Stored on a synthesized reuse target in the plan (sent to the evidence-reuse audit and shown in the UI); persisted values must stay byte-identical. */
+export const REUSE_TARGET_EXPECTED_VALUE = text(reuseTargetExpectedValue);
+export const REUSE_TARGET_VALIDITY_REASON = text(reuseTargetValidityReason);
 /** Replaces a long passage that already appears elsewhere in the same request. */
 export const PASSAGE_REFERENCE = text(passageReference);
 /** Appends the full text of the evidence a phase asked to look up to that phase's own task. */

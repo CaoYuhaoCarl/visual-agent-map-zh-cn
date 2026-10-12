@@ -12439,6 +12439,12 @@ var topic_root_answer_default = "No user answer was requested; use the topic con
 // experiences/aim/steps/_shared/passage-reference.md
 var passage_reference_default = "[This exact passage already appears elsewhere in this request; reuse that complete copy here.]\n";
 
+// experiences/aim/steps/_shared/reuse-target-expected-value.md
+var reuse_target_expected_value_default = "Retain adequate existing evidence without repeating web searches\n";
+
+// experiences/aim/steps/_shared/reuse-target-validity-reason.md
+var reuse_target_validity_reason_default = "Full report must pass the current-goal applicability and freshness audit\n";
+
 // experiences/aim/steps/_shared/rules.ts
 var text5 = (template) => renderTemplate(template, {});
 var PLANNER_COVERAGE_RULE = text5(planner_coverage_rule_default);
@@ -12449,6 +12455,8 @@ var OUTCOME_EXPECTATION_RULE = text5(outcome_expectation_rule_default);
 var EVIDENCE_LOOKUP_RULE = text5(evidence_lookup_rule_default);
 var EVIDENCE_LOOKUP_FIELD_RULE = text5(evidence_lookup_field_rule_default);
 var TOPIC_ROOT_ANSWER = text5(topic_root_answer_default);
+var REUSE_TARGET_EXPECTED_VALUE = text5(reuse_target_expected_value_default);
+var REUSE_TARGET_VALIDITY_REASON = text5(reuse_target_validity_reason_default);
 var PASSAGE_REFERENCE = text5(passage_reference_default);
 var renderEvidenceLookupFollowup = (task, evidence) => renderTemplate(evidence_lookup_followup_default, { task, evidence });
 
@@ -16169,14 +16177,14 @@ ${lineageContext || "None."}`,
           id: `reuse-${candidate.source.resultId}`,
           title: candidate.title,
           task: `Retain supported findings relevant to ${parent.summary || topicNote.title}`,
-          expectedValue: "Retain adequate existing evidence without repeating web searches",
+          expectedValue: REUSE_TARGET_EXPECTED_VALUE,
           action: "reuse",
           dependsOn: [],
           source: candidate.source,
           rationale: "Planner requested no new evidence tasks",
           validity: {
             conditionKeys: [],
-            reason: "Full report must pass the current-goal applicability and freshness audit"
+            reason: REUSE_TARGET_VALIDITY_REASON
           }
         };
         try {

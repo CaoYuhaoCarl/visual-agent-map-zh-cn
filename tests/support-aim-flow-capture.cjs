@@ -21,7 +21,7 @@ const EXPECTED = [
   // Prompts of flows the first pass could not reach (W1): the evidence-lookup follow-up, the topic-root answer text,
   // the saved-report Planner review and its follow-up search, and the partial-continuation search and Planner review.
   'evidence-lookup-followup', 'topic-root-research-plan', 'topic-root-report-review',
-  'saved-report-review', 'saved-report-followup-search', 'continuation-search', 'continuation-review'
+  'saved-report-review', 'saved-report-followup-search', 'continuation-search', 'continuation-search-unresolved', 'continuation-review'
 ];
 
 function variantOf(context) {
@@ -31,7 +31,7 @@ function variantOf(context) {
   if (task.includes('No user answer was requested; use the topic context')) return `topic-root-${phase}`;
   if (task.includes('You are the Planner reviewing saved Searcher reports')) return 'saved-report-review';
   if (task.includes('This is one bounded Planner-directed follow-up search')) return 'saved-report-followup-search';
-  if (task.includes('Continue this saved partial Manual AIM branch.')) return 'continuation-search';
+  if (task.includes('Continue this saved partial Manual AIM branch.')) return task.includes('Continue the incomplete evidence check.') ? 'continuation-search-unresolved' : 'continuation-search';
   if (task.includes('Review all evidence for the original user goal and produce')) return 'continuation-review';
   switch (phase) {
     case 'research-gap-audit': return task.includes('TARGET-ONLY RECONCILIATION') ? 'research-gap-audit-target-only' : 'research-gap-audit';
@@ -285,8 +285,9 @@ async function captureAimPhaseVariants() {
     assert.equal(reviews, 2, 'the saved-report review ran two Planner turns around the follow-up search');
   }
 
-  // 13. Partial continuation: bounded search, then the Planner review of all evidence.
-  {
+  // 13. Partial continuation: bounded search, then the Planner review of all evidence. The second pass saves no Planner
+  // review and no stop reason, so the search is sent without a target (the Planner's unresolved-gap fallback text).
+  for (const withTarget of [true, false]) {
     const { repo } = support.fixture();
     const created = await createAimMap(repo, MODEL, { requestId: 'snapshot-continuation-map', topic: 'Synthetic roast chicken', context: 'Synthetic regression only.' });
     const store = new AimRunStore(repo);
@@ -298,7 +299,7 @@ async function captureAimPhaseVariants() {
     const seedSummary = 'The saved research covers seasoning but needs a cooking-time source.';
     const seedDetail = 'Persisted summary: research supports seasoning options; a published cooking-time source is still missing.';
     await store.updateResultDraftReport(created.mapPath, original, seedDraft.id, seedSummary, seedDetail);
-    await store.recordPlannerReview(created.mapPath, original, { decision: 'research_more', rationale: 'A published cooking-time source could materially improve the estimate.', researchTurn: 1, researchTarget: { title: 'Cooking time source', task: 'Find a published cooking time for this setup.', expectedValue: 'Could improve the estimate.' } }, 'The saved research lacks a cooking-time source.');
+    if (withTarget) await store.recordPlannerReview(created.mapPath, original, { decision: 'research_more', rationale: 'A published cooking-time source could materially improve the estimate.', researchTurn: 1, researchTarget: { title: 'Cooking time source', task: 'Find a published cooking time for this setup.', expectedValue: 'Could improve the estimate.' } }, 'The saved research lacks a cooking-time source.');
     await store.commitResult(created.mapPath, original, seedDraft.id, { summary: seedSummary, detail: seedDetail }, 'partial');
     const continuation = new AimManualFlow(repo, store, async context => {
       note(context);

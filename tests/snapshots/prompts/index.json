@@ -206,6 +206,16 @@
       "language": "zh-TW",
       "schema": true
     },
+    "aim-flow.continuation-search-unresolved.en": {
+      "builder": "AimManualFlow/planner-review phase task variant continuation-search-unresolved through AiTaskService",
+      "language": "en",
+      "schema": true
+    },
+    "aim-flow.continuation-search-unresolved.zh": {
+      "builder": "AimManualFlow/planner-review phase task variant continuation-search-unresolved through AiTaskService",
+      "language": "zh-TW",
+      "schema": true
+    },
     "aim-flow.continuation-search.en": {
       "builder": "AimManualFlow/planner-review phase task variant continuation-search through AiTaskService",
       "language": "en",

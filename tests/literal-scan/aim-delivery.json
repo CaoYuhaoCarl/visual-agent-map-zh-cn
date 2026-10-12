@@ -1,25 +1,9 @@
 {
   "dirs": [
-    "experiences/aim/planner-review.ts",
-    "experiences/aim/final-delivery.ts",
-    "experiences/aim/manual-flow-support.ts",
-    "experiences/aim/evidence-context.ts",
-    "experiences/aim/request-context.ts",
     "ai/aim-contracts.ts",
-    "ai/aim-gap-audit-schema.ts",
-    "experiences/aim/steps/format-repair",
-    "experiences/aim/steps/delivery-outline",
-    "experiences/aim/steps/delivery-research",
-    "experiences/aim/steps/delivery-writing",
-    "experiences/aim/steps/delivery-acceptance",
-    "experiences/aim/steps/_shared"
+    "ai/aim-gap-audit-schema.ts"
   ],
   "allow": [
-    {
-      "file": "experiences/aim/planner-review.ts",
-      "text": "A clarification is required",
-      "reason": "Dead-code fallback of a nullish chain whose previous operand is always a string (originalRationale is \"\" when absent), so it is never evaluated, stored or sent to a model; left in place rather than moved"
-    },
     {
       "file": "ai/aim-contracts.ts",
       "text": "Ask about the user's goal, preferences, ",
