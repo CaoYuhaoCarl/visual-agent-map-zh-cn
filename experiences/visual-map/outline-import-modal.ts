@@ -55,7 +55,8 @@ export class OutlineImportModal extends Modal {
     actions.createEl("button", { text: t("ui.outline_import_copy_format") }).addEventListener("click", () => {
       void navigator.clipboard
         .writeText(t("ui.outline_import_format"))
-        .then(() => new Notice(t("ui.outline_import_format_copied")));
+        .then(() => new Notice(t("ui.outline_import_format_copied")))
+        .catch(() => new Notice(t("ui.outline_import_copy_failed")));
     });
     this.textarea = this.contentEl.createEl("textarea", { cls: "vam-task-input vam-outline-text" });
     this.textarea.rows = 14;

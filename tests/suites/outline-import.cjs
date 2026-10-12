@@ -175,7 +175,7 @@ integrationTest('createOutlineMap: does not touch the source note or other maps'
   assert.deepEqual(plain((await repo.mapFiles()).map(file => file.path).sort()), plain([...mapsBefore, result.mapPath].sort()));
 });
 
-function modalHarness() {
+function modalHarness(clipboardFails = false) {
   const element = (tag, options = {}) => ({
     tag, text: options.text ?? '', cls: options.cls ?? '', type: options.type, value: options.value ?? '', checked: false, disabled: false, hidden: false, children: [], listeners: {},
     createDiv(value) { const child = element('div', { cls: typeof value === 'string' ? value : value?.cls }); this.children.push(child); return child; },
@@ -189,7 +189,7 @@ function modalHarness() {
   class Modal { constructor(app) { this.app = app; this.titleEl = element('title'); this.contentEl = element('content'); this.closed = false; } open() { this.onOpen(); } close() { this.closed = true; } }
   class FuzzySuggestModal { constructor(app) { this.app = app; } setPlaceholder(text) { this.placeholder = text; } open() { this.opened = true; } }
   const notices = []; const copied = [];
-  const mod = load('experiences/visual-map/outline-import-modal.ts', { obsidian: { ...obsidian, Modal, FuzzySuggestModal, Notice: class { constructor(m) { notices.push(m); } } } }, { navigator: { clipboard: { writeText: async text => copied.push(text) } } });
+  const mod = load('experiences/visual-map/outline-import-modal.ts', { obsidian: { ...obsidian, Modal, FuzzySuggestModal, Notice: class { constructor(m) { notices.push(m); } } } }, { navigator: { clipboard: { writeText: async text => { if (clipboardFails) throw new Error('denied'); copied.push(text); } } } });
   return { mod, find, all, notices, copied };
 }
 
@@ -271,4 +271,95 @@ integrationTest('importOutline still saves the map when the view switched away d
   let mapPath; view.openMapInMutation = async path => { mapPath = path; view.closed = true; };
   await view.importOutline({ nodes: api.parseOutline('# R\n## A').nodes, source: null, shallowResearch: false });
   assert.equal((await repo.readMap(mapPath)).nodes.length, 2);
+});
+
+test('outline: code spans keep their text; __x__ needs word boundaries; placeholders cannot collide', () => {
+  assert.equal(api.outlineTitle('`__init__` method'), '__init__ method');
+  assert.equal(api.outlineTitle('`a*b*c` usage'), 'a*b*c usage');
+  assert.equal(api.outlineTitle('Use `[x](y)` syntax'), 'Use [x](y) syntax');
+  assert.equal(api.outlineTitle('`[[Note|Alias]]` link'), '[[Note|Alias]] link');
+  assert.equal(api.outlineTitle('init__main__x'), 'init__main__x');
+  assert.equal(api.outlineTitle('__bold__ word'), 'bold word');
+  assert.equal(api.outlineTitle('\uE0000\uE000'), '\uE0000\uE000');
+  assert.equal(api.outlineTitle('\\* \uE0000\uE000 `x`'), '* \uE0000\uE000 x');
+  assert.equal(api.outlineTitle('\\`a` b'), '`a` b');
+});
+
+test('outline: a note with VAM front matter keys is refused', async () => {
+  const { core } = require('../support.cjs');
+  const mapText = core.serializeMap({ id: 'm1', title: 'Some map', nodes: [] }, 'en');
+  assert.deepEqual(keys(api.parseOutline(mapText).errors), ['ui.outline_error_vam_note:1']);
+  const note = '---\nagent-map-node: true\nnode-id: n1\n---\n# Heading\n## Child';
+  assert.deepEqual(keys(api.parseOutline(note).errors), ['ui.outline_error_vam_note:1']);
+  assert.deepEqual(keys(api.parseOutline('---\ntitle: x\n---\n# Heading').errors), []);
+});
+
+test('outline: an HTML comment opened mid-line hides the headings inside it', () => {
+  assert.deepEqual(titles(api.parseOutline('# R\ntext <!-- note\n## hidden\n-->\n## Shown')), ['>R@-', '>>Shown@0']);
+  assert.deepEqual(titles(api.parseOutline('# R\ntext <!-- one --> more\n## Shown')), ['>R@-', '>>Shown@0']);
+  const heading = api.parseOutline('# R <!-- note\n## hidden\n-->\n## Shown');
+  assert.deepEqual(titles(heading), ['>R@-', '>>Shown@0']);
+});
+
+integrationTest('createOutlineMap: a Map.md save failure throws with the note paths and marks the map as created', async () => {
+  const { repo } = fixture('en');
+  repo.saveMap = async () => { throw new Error('locked'); };
+  await assert.rejects(api.createOutlineMap(repo, 'gpt-6-luna', api.parseOutline('# R\n## A').nodes, null), error => {
+    assert.match(error.message, /could not be saved: locked \(.*R\.md, .*A\.md\)/);
+    assert.equal(error.mapCreated, true);
+    return true;
+  });
+});
+
+function importHarness(overrides = {}) {
+  const { repo, app } = fixture('en');
+  const notices = [], calls = { opened: 0, researched: 0 };
+  const NoticeClass = class { constructor(m) { notices.push(m); } };
+  const plugin = { repo, settings: { ...require('../support.cjs').DEFAULT_SETTINGS, language: 'en', cliModel: 'gpt-6-luna' }, running: new Set(), activeTasks: new Map(), mutate: async work => work(), confirmAiUsage: async (_m, run) => { await run(); return true; }, ...overrides };
+  const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Notice: NoticeClass } });
+  const view = new VisualAgentMapView({ app }, plugin); view.render = () => {}; view.fit = () => {}; view.enqueue = work => work();
+  view.openMapInMutation = async () => { calls.opened++; };
+  view.startShallowResearch = async () => { calls.researched++; };
+  return { repo, view, notices, calls, plugin };
+}
+
+integrationTest('importOutline: an open failure still completes (one Notice from mutate), creates once and skips research', async () => {
+  const notices = [];
+  const h = importHarness({ mutate: async () => { notices.push('mutate notice'); throw new Error('cannot open'); } });
+  const create = h.repo.createMap.bind(h.repo); let creates = 0; h.repo.createMap = async (...args) => { creates++; return create(...args); };
+  await h.view.importOutline({ nodes: api.parseOutline('# R\n## A').nodes, source: null, shallowResearch: true });
+  assert.equal(creates, 1); assert.deepEqual(notices, ['mutate notice']); assert.deepEqual(h.notices, []); assert.equal(h.calls.researched, 0);
+});
+
+integrationTest('importOutline: a shallow-research start failure only shows a Notice', async () => {
+  const h = importHarness();
+  h.view.startShallowResearch = async () => { throw new Error('no cli'); };
+  await h.view.importOutline({ nodes: api.parseOutline('# R\n## A').nodes, source: null, shallowResearch: true });
+  assert.deepEqual(h.notices, ['no cli']);
+  const g = importHarness({ confirmAiUsage: async () => { throw new Error('confirm broke'); } });
+  await g.view.importOutline({ nodes: api.parseOutline('# R\n## A').nodes, source: null, shallowResearch: true });
+  assert.deepEqual(g.notices, ['confirm broke']);
+});
+
+integrationTest('importOutline: a Map.md save failure becomes a Notice with the paths instead of a rejection', async () => {
+  const h = importHarness();
+  h.repo.saveMap = async () => { throw new Error('locked'); };
+  await h.view.importOutline({ nodes: api.parseOutline('# R\n## A').nodes, source: null, shallowResearch: false });
+  assert.equal(h.notices.length, 1); assert.match(h.notices[0], /could not be saved: locked/);
+  assert.equal(h.calls.opened, 0);
+});
+
+integrationTest('importOutline: a failure before anything is created still rejects so the window stays open', async () => {
+  const h = importHarness();
+  h.repo.createMap = async () => { throw new Error('no folder'); };
+  await assert.rejects(h.view.importOutline({ nodes: api.parseOutline('# R').nodes, source: null, shallowResearch: false }), /no folder/);
+});
+
+test('outline modal: a clipboard failure shows a Notice', async () => {
+  const h = modalHarness(true);
+  const modal = new h.mod.OutlineImportModal({ vault: { getMarkdownFiles: () => [] } }, async () => {});
+  modal.open();
+  h.find(modal.contentEl, item => item.tag === 'button' && item.text === 'Copy format instructions').listeners.click();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.deepEqual(h.notices, ['Could not copy the format instructions to the clipboard.']);
 });

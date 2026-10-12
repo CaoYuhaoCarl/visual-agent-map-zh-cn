@@ -48,20 +48,28 @@ const MARKDOWN_FENCE = /^ {0,3}(`{3,}|~{3,})[ \t]*(markdown|md)?[ \t]*$/i;
 
 /** Heading text as plain text: Markdown emphasis, code and link syntax removed, escapes resolved. */
 export function outlineTitle(raw: string): string {
-  const escaped: string[] = [];
-  const protectedText = raw.replace(/\\([!-/:-@[-`{-~])/g, (_match, character: string) => {
-    escaped.push(character);
-    return `\uE000${escaped.length - 1}\uE000`;
-  });
+  // The sentinel is a private-use character absent from the input, so restoring can only match our own markers.
+  let code = 0xe000;
+  while (raw.includes(String.fromCharCode(code))) code++;
+  const mark = String.fromCharCode(code);
+  const kept: string[] = [];
+  // One left-to-right pass: backslash escapes and code spans are literal text that no later rule may touch.
+  const protectedText = raw.replace(
+    /\\([!-/:-@[-`{-~])|(`+)([^`]*?)\2/g,
+    (_match, character: string | undefined, _ticks: string | undefined, content: string | undefined) => {
+      kept.push(character ?? content ?? "");
+      return `${mark}${kept.length - 1}${mark}`;
+    }
+  );
   const plain = protectedText
     .replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, "$2")
     .replace(/\[\[([^\]]+)\]\]/g, "$1")
     .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
-    .replace(/(`+)([^`]*?)\1/g, "$2")
-    .replace(/(\*\*|__)(?=\S)(.+?)(?<=\S)\1/g, "$2")
+    .replace(/\*\*(?=\S)(.+?)(?<=\S)\*\*/g, "$1")
+    .replace(/(^|[^\p{L}\p{N}_])__(?=\S)(.+?)(?<=\S)__(?![\p{L}\p{N}_])/gu, "$1$2")
     .replace(/\*(?=\S)(.+?)(?<=\S)\*/g, "$1")
     .replace(/(^|[^\p{L}\p{N}_])_(?=\S)(.+?)(?<=\S)_(?![\p{L}\p{N}_])/gu, "$1$2");
-  return plain.replace(/\uE000(\d+)\uE000/g, (_match, index: string) => escaped[Number(index)]).trim();
+  return plain.replace(new RegExp(`${mark}(\\d+)${mark}`, "g"), (_match, index: string) => kept[Number(index)]).trim();
 }
 
 /**
@@ -118,18 +126,19 @@ export function parseOutline(input: string): OutlineParse {
   let fence: string | null = null;
   let block: "html" | "obsidian" | "math" | null = null;
   let start = 0;
+  let vamNote = false;
   if (lines[0]?.trim() === "---") {
     const end = lines.findIndex((line, index) => index > 0 && line.trim() === "---");
     if (end > 0) {
       start = end + 1;
       skippedLines += start;
+      vamNote = lines.slice(1, end).some(line => /^(visual-agent-map|agent-map-node)[ \t]*:/.test(line));
     }
   }
   const stack: OutlineNode[] = [];
   const seenTitles = new Map<string, number>();
   const seenFiles = new Map<string, string>();
   let rootLevel = 0;
-  let vamNote = false;
   for (let index = start; index < lines.length; index++) {
     const line = lines[index];
     const lineNumber = index + 1;
@@ -153,6 +162,10 @@ export function parseOutline(input: string): OutlineParse {
       continue;
     }
     const trimmed = line.trim();
+    const lastOpen = line.lastIndexOf("<!--");
+    // A comment opened mid-line and left unclosed hides the following lines; this line itself is still read.
+    const midLineComment = !trimmed.startsWith("<!--") && lastOpen >= 0 && !line.includes("-->", lastOpen + 4);
+    if (midLineComment) block = "html";
     if (trimmed.startsWith("<!--")) {
       skippedLines++;
       if (!trimmed.includes("-->", 4)) block = "html";
@@ -179,7 +192,10 @@ export function parseOutline(input: string): OutlineParse {
     }
     headingLines++;
     const level = heading[1].length;
-    const raw = (heading[2] ?? "").replace(/(^|[ \t]+)#+[ \t]*$/, "");
+    const text = midLineComment
+      ? (heading[2] ?? "").slice(0, Math.max(0, (heading[2] ?? "").lastIndexOf("<!--")))
+      : (heading[2] ?? "");
+    const raw = text.replace(/(^|[ \t]+)#+[ \t]*$/, "");
     const title = outlineTitle(raw);
     if (!title) {
       errors.push({ line: lineNumber, key: "ui.outline_error_empty_title", values: [lineNumber] });
@@ -295,12 +311,16 @@ export async function createOutlineMap(
     await repository.saveMap(mapPath, map);
   } catch (error) {
     const message = errorText(error);
-    throw new Error(
-      translate(
-        language,
-        "ui.outline_import_map_save_failed",
-        `${message} (${created.map(node => node.path).join(", ")})`
-      )
+    // The map folder and notes exist now; callers must not offer a retry that would create a second map.
+    throw Object.assign(
+      new Error(
+        translate(
+          language,
+          "ui.outline_import_map_save_failed",
+          `${message} (${created.map(node => node.path).join(", ")})`
+        )
+      ),
+      { mapCreated: true }
     );
   }
   return { mapPath, nodes: map.nodes, created: created.length, total: nodes.length, ...(failure ? { failure } : {}) };

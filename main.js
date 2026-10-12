@@ -174,6 +174,7 @@ var english = {
   "ui.outline_import_choose_file_placeholder": "Type to find a Markdown note",
   "ui.outline_import_copy_format": "Copy format instructions",
   "ui.outline_import_format_copied": "Format instructions copied. Paste them to the AI that writes your outline.",
+  "ui.outline_import_copy_failed": "Could not copy the format instructions to the clipboard.",
   "ui.outline_import_format": "Write the outline as Markdown headings only, with no other text.\n- Use exactly one # heading for the main topic.\n- Use ## for first-level subtopics, ### for the next level, and so on.\n- Do not use bold text or bullet lists instead of headings.\n- Use at most 100 headings in total.\nOutput only the outline.",
   "ui.outline_import_preview_count": "{0} topics, {1} levels",
   "ui.outline_import_preview_empty": "Paste an outline or choose a note to see the preview.",
@@ -1323,6 +1324,7 @@ var traditionalChinese = {
   "ui.outline_import_choose_file_placeholder": "\u8F38\u5165\u6587\u5B57\u641C\u5C0B Markdown \u7B46\u8A18",
   "ui.outline_import_copy_format": "\u8907\u88FD\u683C\u5F0F\u8AAA\u660E",
   "ui.outline_import_format_copied": "\u5DF2\u8907\u88FD\u683C\u5F0F\u8AAA\u660E\uFF0C\u8CBC\u7D66\u7522\u751F\u5927\u7DB1\u7684 AI \u5373\u53EF\u3002",
+  "ui.outline_import_copy_failed": "\u7121\u6CD5\u8907\u88FD\u683C\u5F0F\u8AAA\u660E\u5230\u526A\u8CBC\u7C3F\u3002",
   "ui.outline_import_format": "\u8ACB\u53EA\u7528 Markdown \u6A19\u984C\u5BEB\u5927\u7DB1\uFF0C\u4E0D\u8981\u5BEB\u5176\u4ED6\u6587\u5B57\u3002\n- \u53EA\u7528\u4E00\u500B # \u6A19\u984C\u7576\u4E3B\u984C\u3002\n- \u7B2C\u4E00\u5C64\u5B50\u8B70\u984C\u7528 ##\uFF0C\u4E0B\u4E00\u5C64\u7528 ###\uFF0C\u4F9D\u6B64\u985E\u63A8\u3002\n- \u4E0D\u8981\u7528\u7C97\u9AD4\u6216\u6E05\u55AE\u4EE3\u66FF\u6A19\u984C\u3002\n- \u6A19\u984C\u7E3D\u6578\u4E0D\u8D85\u904E 100 \u500B\u3002\n\u53EA\u8F38\u51FA\u5927\u7DB1\u672C\u8EAB\u3002",
   "ui.outline_import_preview_count": "{0} \u500B\u8B70\u984C\uFF0C{1} \u5C64",
   "ui.outline_import_preview_empty": "\u8CBC\u4E0A\u5927\u7DB1\u6216\u9078\u4E00\u4EFD\u7B46\u8A18\uFF0C\u5C31\u6703\u986F\u793A\u9810\u89BD\u3002",
@@ -11321,8 +11323,16 @@ var Repository = class {
   unique(folder, name) {
     const base = (0, import_obsidian8.normalizePath)(`${folder}/${safeName(name)}`);
     let path = `${base}.md`, number = 2;
-    while (this.app.vault.getAbstractFileByPath(path)) path = `${base} ${number++}.md`;
+    while (this.pathTaken(path)) path = `${base} ${number++}.md`;
     return path;
+  }
+  /** Taken when the path exists, or when a sibling differs only in case (case-insensitive file systems). */
+  pathTaken(path) {
+    if (this.app.vault.getAbstractFileByPath(path)) return true;
+    const folder = this.app.vault.getAbstractFileByPath(parentPath(path));
+    if (!(folder instanceof import_obsidian8.TFolder)) return false;
+    const lower = path.toLowerCase();
+    return folder.children.some((child) => child.path.toLowerCase() === lower);
   }
   uniqueFolder(folder, name) {
     const base = (0, import_obsidian8.normalizePath)(`${folder}/${safeName(name)}`);
@@ -12458,13 +12468,20 @@ var FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})(.*)$/;
 var FENCE_CLOSE = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
 var MARKDOWN_FENCE = /^ {0,3}(`{3,}|~{3,})[ \t]*(markdown|md)?[ \t]*$/i;
 function outlineTitle(raw) {
-  const escaped = [];
-  const protectedText = raw.replace(/\\([!-/:-@[-`{-~])/g, (_match, character) => {
-    escaped.push(character);
-    return `\uE000${escaped.length - 1}\uE000`;
-  });
-  const plain = protectedText.replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, "$2").replace(/\[\[([^\]]+)\]\]/g, "$1").replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/(`+)([^`]*?)\1/g, "$2").replace(/(\*\*|__)(?=\S)(.+?)(?<=\S)\1/g, "$2").replace(/\*(?=\S)(.+?)(?<=\S)\*/g, "$1").replace(/(^|[^\p{L}\p{N}_])_(?=\S)(.+?)(?<=\S)_(?![\p{L}\p{N}_])/gu, "$1$2");
-  return plain.replace(/\uE000(\d+)\uE000/g, (_match, index) => escaped[Number(index)]).trim();
+  let code = 57344;
+  while (raw.includes(String.fromCharCode(code))) code++;
+  const mark = String.fromCharCode(code);
+  const kept = [];
+  const protectedText = raw.replace(
+    /\\([!-/:-@[-`{-~])|(`+)([^`]*?)\2/g,
+    (_match, character, _ticks, content) => {
+      var _a;
+      kept.push((_a = character != null ? character : content) != null ? _a : "");
+      return `${mark}${kept.length - 1}${mark}`;
+    }
+  );
+  const plain = protectedText.replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, "$2").replace(/\[\[([^\]]+)\]\]/g, "$1").replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/\*\*(?=\S)(.+?)(?<=\S)\*\*/g, "$1").replace(/(^|[^\p{L}\p{N}_])__(?=\S)(.+?)(?<=\S)__(?![\p{L}\p{N}_])/gu, "$1$2").replace(/\*(?=\S)(.+?)(?<=\S)\*/g, "$1").replace(/(^|[^\p{L}\p{N}_])_(?=\S)(.+?)(?<=\S)_(?![\p{L}\p{N}_])/gu, "$1$2");
+  return plain.replace(new RegExp(`${mark}(\\d+)${mark}`, "g"), (_match, index) => kept[Number(index)]).trim();
 }
 function unwrapFencedOutline(lines) {
   const firstContent = lines.findIndex((line) => line.trim() !== "");
@@ -12500,7 +12517,7 @@ function unwrapFencedOutline(lines) {
   return lines;
 }
 function parseOutline(input) {
-  var _a, _b, _c;
+  var _a, _b, _c, _d, _e;
   const lines = unwrapFencedOutline(
     (input.charCodeAt(0) === 65279 ? input.slice(1) : input).replace(/\r\n?/g, "\n").split("\n")
   );
@@ -12511,18 +12528,19 @@ function parseOutline(input) {
   let fence = null;
   let block = null;
   let start = 0;
+  let vamNote = false;
   if (((_a = lines[0]) == null ? void 0 : _a.trim()) === "---") {
     const end = lines.findIndex((line, index) => index > 0 && line.trim() === "---");
     if (end > 0) {
       start = end + 1;
       skippedLines += start;
+      vamNote = lines.slice(1, end).some((line) => /^(visual-agent-map|agent-map-node)[ \t]*:/.test(line));
     }
   }
   const stack = [];
   const seenTitles = /* @__PURE__ */ new Map();
   const seenFiles = /* @__PURE__ */ new Map();
   let rootLevel = 0;
-  let vamNote = false;
   for (let index = start; index < lines.length; index++) {
     const line = lines[index];
     const lineNumber = index + 1;
@@ -12546,6 +12564,9 @@ function parseOutline(input) {
       continue;
     }
     const trimmed = line.trim();
+    const lastOpen = line.lastIndexOf("<!--");
+    const midLineComment = !trimmed.startsWith("<!--") && lastOpen >= 0 && !line.includes("-->", lastOpen + 4);
+    if (midLineComment) block = "html";
     if (trimmed.startsWith("<!--")) {
       skippedLines++;
       if (!trimmed.includes("-->", 4)) block = "html";
@@ -12572,7 +12593,8 @@ function parseOutline(input) {
     }
     headingLines++;
     const level = heading[1].length;
-    const raw = ((_b = heading[2]) != null ? _b : "").replace(/(^|[ \t]+)#+[ \t]*$/, "");
+    const text11 = midLineComment ? ((_b = heading[2]) != null ? _b : "").slice(0, Math.max(0, ((_c = heading[2]) != null ? _c : "").lastIndexOf("<!--"))) : (_d = heading[2]) != null ? _d : "";
+    const raw = text11.replace(/(^|[ \t]+)#+[ \t]*$/, "");
     const title = outlineTitle(raw);
     if (!title) {
       errors.push({ line: lineNumber, key: "ui.outline_error_empty_title", values: [lineNumber] });
@@ -12590,7 +12612,7 @@ function parseOutline(input) {
       continue;
     }
     while (stack.length && stack[stack.length - 1].level >= level) stack.pop();
-    const parent = (_c = stack[stack.length - 1]) != null ? _c : null;
+    const parent = (_e = stack[stack.length - 1]) != null ? _e : null;
     if (parent && level > parent.level + 1)
       warnings.push({ line: lineNumber, key: "ui.outline_warning_skipped_level", values: [lineNumber] });
     const node = {
@@ -12670,12 +12692,15 @@ async function createOutlineMap(repository, model, nodes, source, now = /* @__PU
     await repository.saveMap(mapPath, map);
   } catch (error) {
     const message = errorText(error);
-    throw new Error(
-      translate(
-        language2,
-        "ui.outline_import_map_save_failed",
-        `${message} (${created.map((node) => node.path).join(", ")})`
-      )
+    throw Object.assign(
+      new Error(
+        translate(
+          language2,
+          "ui.outline_import_map_save_failed",
+          `${message} (${created.map((node) => node.path).join(", ")})`
+        )
+      ),
+      { mapCreated: true }
     );
   }
   return { mapPath, nodes: map.nodes, created: created.length, total: nodes.length, ...failure ? { failure } : {} };
@@ -12719,7 +12744,7 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
     const actions = this.contentEl.createDiv("vam-outline-actions");
     actions.createEl("button", { text: t("ui.outline_import_choose_file") }).addEventListener("click", () => new OutlineFileModal(this.app, (file) => void this.loadFile(file)).open());
     actions.createEl("button", { text: t("ui.outline_import_copy_format") }).addEventListener("click", () => {
-      void navigator.clipboard.writeText(t("ui.outline_import_format")).then(() => new import_obsidian9.Notice(t("ui.outline_import_format_copied")));
+      void navigator.clipboard.writeText(t("ui.outline_import_format")).then(() => new import_obsidian9.Notice(t("ui.outline_import_format_copied"))).catch(() => new import_obsidian9.Notice(t("ui.outline_import_copy_failed")));
     });
     this.textarea = this.contentEl.createEl("textarea", { cls: "vam-task-input vam-outline-text" });
     this.textarea.rows = 14;
@@ -20611,6 +20636,10 @@ var TopicPickerModal = class extends import_obsidian14.Modal {
 
 // experiences/visual-map/view.ts
 var VIEW_TYPE = "visual-agent-map-view";
+function errorMessage(error) {
+  const message = error == null ? void 0 : error.message;
+  return typeof message === "string" ? message : String(error);
+}
 var originBaseline = (origin) => (0, import_node_crypto9.createHash)("sha256").update(origin != null ? origin : "").digest("hex");
 function aimQuestionStatus(map, questionNodeId, activeQuestionNodeId) {
   var _a, _b;
@@ -21004,33 +21033,41 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
     new OutlineImportModal(this.app, (request) => this.importOutline(request)).open();
   }
   async importOutline(request) {
-    const result = await createOutlineMap(
-      this.plugin.repo,
-      this.plugin.settings.cliModel,
-      request.nodes,
-      request.source
-    );
-    await this.plugin.mutate(async () => {
-      await this.openMapInMutation(result.mapPath);
-      if (!this.closed && this.path === result.mapPath) this.fit();
-    });
-    if (result.failure) {
-      new import_obsidian15.Notice(t("ui.outline_import_partial", result.created, result.total, result.failure));
+    let result;
+    try {
+      result = await createOutlineMap(this.plugin.repo, this.plugin.settings.cliModel, request.nodes, request.source);
+    } catch (error) {
+      if (!(error == null ? void 0 : error.mapCreated)) throw error;
+      new import_obsidian15.Notice(errorMessage(error));
       return;
     }
-    if (!request.shallowResearch || result.nodes.length < 2) return;
+    let opened = true;
+    try {
+      await this.plugin.mutate(async () => {
+        await this.openMapInMutation(result.mapPath);
+        if (!this.closed && this.path === result.mapPath) this.fit();
+      });
+    } catch (e) {
+      opened = false;
+    }
+    if (result.failure) new import_obsidian15.Notice(t("ui.outline_import_partial", result.created, result.total, result.failure));
+    if (result.failure || !opened || !request.shallowResearch || result.nodes.length < 2) return;
     const root = result.nodes.find((node) => node.parentId === null);
     if (!root) return;
     const children = result.nodes.filter((node) => node.parentId !== null);
-    await this.plugin.confirmAiUsage(
-      this.plugin.settings.cliModel,
-      () => this.startShallowResearch(root, children, {
-        researchMode: "research",
-        researchDepth: "fast",
-        referenceGroups: [],
-        visualMode: "off"
-      })
-    );
+    try {
+      await this.plugin.confirmAiUsage(
+        this.plugin.settings.cliModel,
+        () => this.startShallowResearch(root, children, {
+          researchMode: "research",
+          researchDepth: "fast",
+          referenceGroups: [],
+          visualMode: "off"
+        })
+      );
+    } catch (error) {
+      new import_obsidian15.Notice(errorMessage(error));
+    }
   }
   openNewMindMapModal() {
     new NameModal(

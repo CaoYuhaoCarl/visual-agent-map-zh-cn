@@ -82,6 +82,11 @@ interface Action {
   redo: () => Promise<void>;
   label?: string;
 }
+/** Message of any thrown value, without relying on instanceof Error (errors may cross realms). */
+function errorMessage(error: unknown): string {
+  const message = (error as { message?: unknown } | null)?.message;
+  return typeof message === "string" ? message : String(error);
+}
 const originBaseline = (origin?: string): string =>
   createHash("sha256")
     .update(origin ?? "")
@@ -550,33 +555,42 @@ export class VisualAgentMapView extends ItemView {
     new OutlineImportModal(this.app, request => this.importOutline(request)).open();
   }
   async importOutline(request: OutlineImportRequest): Promise<void> {
-    const result = await createOutlineMap(
-      this.plugin.repo,
-      this.plugin.settings.cliModel,
-      request.nodes,
-      request.source
-    );
-    // Opening runs inside the mutation queue; a failure propagates to the modal, which shows a Notice.
-    await this.plugin.mutate(async () => {
-      await this.openMapInMutation(result.mapPath);
-      if (!this.closed && this.path === result.mapPath) this.fit();
-    });
-    if (result.failure) {
-      new Notice(t("ui.outline_import_partial", result.created, result.total, result.failure));
+    let result: Awaited<ReturnType<typeof createOutlineMap>>;
+    try {
+      result = await createOutlineMap(this.plugin.repo, this.plugin.settings.cliModel, request.nodes, request.source);
+    } catch (error) {
+      // Once the map folder exists the import window must close, so a retry cannot create a second map.
+      if (!(error as { mapCreated?: unknown } | null)?.mapCreated) throw error;
+      new Notice(errorMessage(error));
       return;
     }
-    if (!request.shallowResearch || result.nodes.length < 2) return;
+    // From here on the map exists: failures only notify and never reject, so the import window closes.
+    let opened = true;
+    try {
+      await this.plugin.mutate(async () => {
+        await this.openMapInMutation(result.mapPath);
+        if (!this.closed && this.path === result.mapPath) this.fit();
+      });
+    } catch {
+      opened = false; // mutate() has already shown the Notice.
+    }
+    if (result.failure) new Notice(t("ui.outline_import_partial", result.created, result.total, result.failure));
+    if (result.failure || !opened || !request.shallowResearch || result.nodes.length < 2) return;
     const root = result.nodes.find(node => node.parentId === null);
     if (!root) return;
     const children = result.nodes.filter(node => node.parentId !== null);
-    await this.plugin.confirmAiUsage(this.plugin.settings.cliModel, () =>
-      this.startShallowResearch(root, children, {
-        researchMode: "research",
-        researchDepth: "fast",
-        referenceGroups: [],
-        visualMode: "off"
-      })
-    );
+    try {
+      await this.plugin.confirmAiUsage(this.plugin.settings.cliModel, () =>
+        this.startShallowResearch(root, children, {
+          researchMode: "research",
+          researchDepth: "fast",
+          referenceGroups: [],
+          visualMode: "off"
+        })
+      );
+    } catch (error) {
+      new Notice(errorMessage(error));
+    }
   }
   private openNewMindMapModal(): void {
     new NameModal(this.app, t("ui.new_mind_map"), t("ui.new_mind_map_from_sample"), title =>
