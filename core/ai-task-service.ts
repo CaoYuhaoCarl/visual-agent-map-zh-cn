@@ -70,9 +70,20 @@ export class AiTaskService {
 
     if (estimateTokens(input.sourceContext) > 32_000) throw new Error(t("ui.source_context_exceeds_budget"));
     let context = input;
+    let accepted = onRequestAccepted;
     const referenceGroups = context.referenceGroups ?? [];
     if (referenceGroups.some(group => group.documents.length)) {
-      const findings = await this.extractReferenceFindings(context, model, reasoning, signal);
+      // Reference extraction sends model requests before the main one. The first accepted request
+      // counts as the task starting, so callers can move it to the background without waiting.
+      let acceptedOnce = false;
+      accepted = onRequestAccepted
+        ? (): void => {
+            if (acceptedOnce) return;
+            acceptedOnce = true;
+            onRequestAccepted();
+          }
+        : undefined;
+      const findings = await this.extractReferenceFindings(context, model, reasoning, signal, accepted);
       context = {
         ...context,
         sourceContext: [context.sourceContext, findings, sourceRegistry(referenceCatalog(referenceGroups))]
@@ -140,7 +151,7 @@ export class AiTaskService {
         ...(context.aimIsolatedResearch
           ? { webSearchOnly: context.researchMode !== "local", textOnly: context.researchMode === "local" }
           : {}),
-        onAccepted: onRequestAccepted,
+        onAccepted: accepted,
         // Search depth guides investigation; it does not impose a per-task query cap.
         // Codex uses 0 as no steering budget; Claude receives webSearch separately.
         searchBudget: 0,
@@ -198,7 +209,8 @@ export class AiTaskService {
     context: TaskContext,
     model: string,
     reasoning: unknown,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    onRequestAccepted?: () => void
   ): Promise<string> {
     let working = referenceBatches(context.referenceGroups ?? []);
     let round = 0;
@@ -227,7 +239,7 @@ export class AiTaskService {
           reasoning,
           signal,
           undefined,
-          undefined,
+          onRequestAccepted,
           undefined,
           round === 1 ? "reference-extract" : "reference-reduce"
         );

@@ -141,3 +141,25 @@ test('architecture: ai-task-service sends model calls only through the Step Runn
   for (const file of ['core/ai-task-service.ts', 'core/steps/task/render.ts', 'ai/aim-prompt.ts', 'ai/visual-guidance.ts', 'experiences/visual-map/view.ts', 'experiences/visual-map/thinking-origin.ts'])
     assert.doesNotMatch(fs.readFileSync(path.join(root, file), 'utf8'), /["`]prompt\.[a-z_]+["`]/, `${file} must not read a prompt.* i18n key`);
 });
+
+test('with note sources the task counts as accepted when the first extraction request is accepted, once', async () => {
+  const order = [];
+  let acceptedCount = 0;
+  const fake = {
+    calls: [],
+    runTask: async (prompt, _model, _effort, _schema, controls) => {
+      fake.calls.push(prompt);
+      order.push(prompt.includes('Extract relevant facts') ? 'extract' : 'main');
+      controls.onRequest?.({});
+      controls.onAccepted?.();
+      return GOOD;
+    }
+  };
+  const documents = [{ path: 'n1.md', content: 'x'.repeat(100) }];
+  await makeService(fake).askModel(context({ referenceGroups: [{ id: 'g', name: 'g', location: 'l', documents }] }), 'gpt-6-luna', 'low', undefined, undefined, () => {
+    acceptedCount++;
+    order.push('accepted');
+  });
+  assert.deepEqual(order, ['extract', 'accepted', 'main']);
+  assert.equal(acceptedCount, 1);
+});

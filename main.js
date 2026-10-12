@@ -26998,9 +26998,16 @@ var AiTaskService = class {
     }
     if (estimateTokens(input.sourceContext) > 32e3) throw new Error(t("ui.source_context_exceeds_budget"));
     let context = input;
+    let accepted = onRequestAccepted;
     const referenceGroups = (_a = context.referenceGroups) != null ? _a : [];
     if (referenceGroups.some((group) => group.documents.length)) {
-      const findings = await this.extractReferenceFindings(context, model, reasoning, signal);
+      let acceptedOnce = false;
+      accepted = onRequestAccepted ? () => {
+        if (acceptedOnce) return;
+        acceptedOnce = true;
+        onRequestAccepted();
+      } : void 0;
+      const findings = await this.extractReferenceFindings(context, model, reasoning, signal, accepted);
       context = {
         ...context,
         sourceContext: [context.sourceContext, findings, sourceRegistry(referenceCatalog(referenceGroups))].filter(Boolean).join("\n\n"),
@@ -27056,7 +27063,7 @@ var AiTaskService = class {
           )
         } : {},
         ...context.aimIsolatedResearch ? { webSearchOnly: context.researchMode !== "local", textOnly: context.researchMode === "local" } : {},
-        onAccepted: onRequestAccepted,
+        onAccepted: accepted,
         // Search depth guides investigation; it does not impose a per-task query cap.
         // Codex uses 0 as no steering budget; Claude receives webSearch separately.
         searchBudget: 0,
@@ -27108,7 +27115,7 @@ var AiTaskService = class {
       throw error;
     }
   }
-  async extractReferenceFindings(context, model, reasoning, signal) {
+  async extractReferenceFindings(context, model, reasoning, signal, onRequestAccepted) {
     var _a, _b, _c;
     let working = referenceBatches((_a = context.referenceGroups) != null ? _a : []);
     let round = 0;
@@ -27137,7 +27144,7 @@ var AiTaskService = class {
           reasoning,
           signal,
           void 0,
-          void 0,
+          onRequestAccepted,
           void 0,
           round === 1 ? "reference-extract" : "reference-reduce"
         );
