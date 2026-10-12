@@ -174,3 +174,60 @@ integrationTest('createOutlineMap: does not touch the source note or other maps'
   assert.equal(await app.vault.read(source), before);
   assert.deepEqual(plain((await repo.mapFiles()).map(file => file.path).sort()), plain([...mapsBefore, result.mapPath].sort()));
 });
+
+function modalHarness() {
+  const element = (tag, options = {}) => ({
+    tag, text: options.text ?? '', cls: options.cls ?? '', type: options.type, value: options.value ?? '', checked: false, disabled: false, hidden: false, children: [], listeners: {},
+    createDiv(value) { const child = element('div', { cls: typeof value === 'string' ? value : value?.cls }); this.children.push(child); return child; },
+    createEl(name, value = {}) { const child = element(name, value); this.children.push(child); return child; },
+    createSpan(value = {}) { const child = element('span', value); this.children.push(child); return child; },
+    setText(value) { this.text = value; }, empty() { this.children = []; }, setAttr(name, value) { this[name] = value; },
+    addEventListener(name, handler) { this.listeners[name] = handler; }, addClass(name) { this.cls = `${this.cls} ${name}`.trim(); }
+  });
+  const find = (root, predicate) => predicate(root) ? root : root.children.map(child => find(child, predicate)).find(Boolean);
+  const all = (root, predicate) => [...(predicate(root) ? [root] : []), ...root.children.flatMap(child => all(child, predicate))];
+  class Modal { constructor(app) { this.app = app; this.titleEl = element('title'); this.contentEl = element('content'); this.closed = false; } open() { this.onOpen(); } close() { this.closed = true; } }
+  class FuzzySuggestModal { constructor(app) { this.app = app; } setPlaceholder(text) { this.placeholder = text; } open() { this.opened = true; } }
+  const notices = []; const copied = [];
+  const mod = load('experiences/visual-map/outline-import-modal.ts', { obsidian: { ...obsidian, Modal, FuzzySuggestModal, Notice: class { constructor(m) { notices.push(m); } } } }, { navigator: { clipboard: { writeText: async text => copied.push(text) } } });
+  return { mod, find, all, notices, copied };
+}
+
+test('outline modal: preview, errors block creation, shallow option and single submit', async () => {
+  const h = modalHarness(); const requests = []; let release;
+  const modal = new h.mod.OutlineImportModal({ vault: { getMarkdownFiles: () => [] } }, request => { requests.push(request); return new Promise(resolve => { release = resolve; }); });
+  modal.open();
+  const textarea = h.find(modal.contentEl, item => item.tag === 'textarea');
+  const create = h.find(modal.contentEl, item => item.tag === 'button' && item.text === 'Create mind map');
+  assert.equal(create.disabled, true);
+  textarea.value = '# A\n# B'; textarea.listeners.input();
+  assert.equal(create.disabled, true);
+  assert.ok(h.find(modal.contentEl, item => /only one top-level heading/.test(item.text)));
+  textarea.value = '# Trip\n## Food\n### Breakfast'; textarea.listeners.input();
+  assert.equal(create.disabled, false);
+  assert.ok(h.find(modal.contentEl, item => item.text === '3 topics, 3 levels'));
+  h.find(modal.contentEl, item => item.tag === 'input' && item.type === 'checkbox').checked = true;
+  create.listeners.click(); create.listeners.click();
+  assert.equal(requests.length, 1); assert.equal(create.disabled, true);
+  assert.deepEqual(plain(requests[0].nodes.map(node => node.title)), ['Trip', 'Food', 'Breakfast']);
+  assert.equal(requests[0].source, null); assert.equal(requests[0].shallowResearch, true);
+  release(); await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(modal.closed, true);
+});
+
+test('outline modal: copy format instructions and choose a vault note', async () => {
+  const h = modalHarness(); const requests = [];
+  const file = { path: 'Inbox/outline.md', basename: 'outline', extension: 'md' };
+  const app = { vault: { getMarkdownFiles: () => [file], cachedRead: async () => '# From file\n## Child' } };
+  const modal = new h.mod.OutlineImportModal(app, async request => { requests.push(request); });
+  modal.open();
+  h.find(modal.contentEl, item => item.tag === 'button' && item.text === 'Copy format instructions').listeners.click();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.match(h.copied[0], /exactly one # heading/);
+  await modal.loadFile(file);
+  assert.equal(h.find(modal.contentEl, item => item.tag === 'textarea').value, '# From file\n## Child');
+  assert.ok(h.find(modal.contentEl, item => item.text === 'Source: Inbox/outline.md'));
+  h.find(modal.contentEl, item => item.tag === 'button' && item.text === 'Create mind map').listeners.click();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(requests[0].source, 'Inbox/outline.md');
+});
