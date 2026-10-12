@@ -43,6 +43,8 @@ import { clampPreviewScale, previewMetrics } from "../../ui/preview-utils";
 import { BUILTIN_SAMPLE_ID, builtInSample, SAMPLE_TOUR_VERSION } from "../../builtin-sample";
 import { PendingSuggestions } from "../../pending-suggestions";
 import { createAimMap } from "../aim/create-map";
+import { createOutlineMap } from "./outline-import";
+import { OutlineImportModal, type OutlineImportRequest } from "./outline-import-modal";
 import { AimStartModal } from "../../ui/modals/aim-start-modal";
 import { AimAnswerModal } from "../../ui/modals/aim-answer-modal";
 import {
@@ -543,6 +545,38 @@ export class VisualAgentMapView extends ItemView {
           : choices;
       }
     ).open();
+  }
+  openOutlineImport(): void {
+    new OutlineImportModal(this.app, request => this.importOutline(request)).open();
+  }
+  async importOutline(request: OutlineImportRequest): Promise<void> {
+    const result = await createOutlineMap(
+      this.plugin.repo,
+      this.plugin.settings.cliModel,
+      request.nodes,
+      request.source
+    );
+    // Opening runs inside the mutation queue; a failure propagates to the modal, which shows a Notice.
+    await this.plugin.mutate(async () => {
+      await this.openMapInMutation(result.mapPath);
+      if (!this.closed && this.path === result.mapPath) this.fit();
+    });
+    if (result.failure) {
+      new Notice(t("ui.outline_import_partial", result.created, result.total, result.failure));
+      return;
+    }
+    if (!request.shallowResearch || result.nodes.length < 2) return;
+    const root = result.nodes.find(node => node.parentId === null);
+    if (!root) return;
+    const children = result.nodes.filter(node => node.parentId !== null);
+    await this.plugin.confirmAiUsage(this.plugin.settings.cliModel, () =>
+      this.startShallowResearch(root, children, {
+        researchMode: "research",
+        researchDepth: "fast",
+        referenceGroups: [],
+        visualMode: "off"
+      })
+    );
   }
   private openNewMindMapModal(): void {
     new NameModal(this.app, t("ui.new_mind_map"), t("ui.new_mind_map_from_sample"), title =>
@@ -2148,6 +2182,7 @@ export class VisualAgentMapView extends ItemView {
           this.enqueue(async () => this.openMapInMutation(await this.plugin.repo.createMap(title)))
         ).open()
       );
+      this.button(toolbar, t("ui.outline_import"), () => this.openOutlineImport());
       this.button(toolbar, t("ui.aim_create_map"), () => this.openAimStart());
       const undo = this.button(
         toolbar,
