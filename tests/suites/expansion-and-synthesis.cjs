@@ -964,3 +964,70 @@ integrationTest('guided proposals support zero, one, two and seven, saving selec
     assert.equal(plugin.pendingSuggestions.size, 0); assert.equal(renderedPending, 0);
   }
 });
+async function backgroundSynthesisFixture(askModel) {
+  const { repo, app } = fixture(), parent = await topicNote(repo, 'Parent', 'model-a');
+  const mapPath = 'Agent Workspace/Topics/map-a/Map.md';
+  const mapDoc = { id: 'map-a', title: 'map-a', version: 1, nodes: [parent], viewport: { x: 0, y: 0, zoom: 1 } };
+  await app.vault.create(mapPath, core.serializeMap(mapDoc));
+  const child = await repo.createNote('Child', 'model-a', mapDoc, mapPath, 'workspace'); child.parentId = parent.id; mapDoc.nodes.push(child); await repo.saveMap(mapPath, mapDoc);
+  await repo.updateNote(parent.path, { status: 'completed', summary: 'Existing conclusion', detail: 'Existing knowledge' });
+  const contexts = [];
+  const plugin = { repo, settings: { ...DEFAULT_SETTINGS }, running: new Set(), activeTasks: new Map(), mutate: async work => work(), recordFailure: (_context, error) => error.message, askModel: (context, model, reasoning, signal, onExchange, onAccepted) => { contexts.push(context); return askModel(contexts.length, signal, onAccepted); } };
+  const { VisualAgentMapView } = load('main.ts', { obsidian });
+  const view = new VisualAgentMapView({ app }, plugin); view.path = mapPath; view.map = mapDoc; view.render = () => {}; view.hydrate = async () => {}; view.ancestorContext = async () => '';
+  const options = () => ({ researchMode: 'local', researchDepth: 'normal', visualMode: 'off', referenceGroups: [] });
+  const directionsResult = { summary: '', detail: '', visualReferences: [], suggestions: [{ title: 'Common ground', task: 'Find shared constraints', contribution: 'A shared view', parentTitle: '' }] };
+  const draftResult = { summary: 'Draft summary', detail: 'Draft detail', visualReferences: [], suggestions: [] };
+  return { repo, parent, plugin, view, contexts, options, directionsResult, draftResult };
+}
+integrationTest('closing the modal after dispatch does not abort background synthesis; directions then draft then save', async () => {
+  const gate = deferred(); let seenSignal;
+  const f = await backgroundSynthesisFixture(async (call, signal, onAccepted) => { seenSignal = signal; onAccepted(); await gate.promise; return call === 1 ? f.directionsResult : f.draftResult; });
+  const modalController = new AbortController(); let acceptedCalls = 0, failures = [];
+  const started = f.view.startSynthesis(f.parent, { ...f.options(), signal: modalController.signal }, null, message => failures.push(message), () => { acceptedCalls++; modalController.abort(); });
+  await until(() => acceptedCalls === 1);
+  assert.equal(f.view.synthesisTasks.get(f.parent.path).state, 'running'); assert.equal(f.plugin.activeTasks.has(f.parent.path), true);
+  assert.equal(seenSignal.aborted, false, 'closing the modal must not abort the background task');
+  gate.resolve(); await started;
+  const task = f.view.synthesisTasks.get(f.parent.path);
+  assert.equal(task.state, 'directions'); assert.equal(task.directions[0].title, 'Common ground'); assert.equal(f.plugin.activeTasks.size, 0); assert.equal(f.plugin.running.size, 0); assert.deepEqual(failures, []);
+  assert.equal((await f.repo.readNote(f.parent.path)).summary, 'Existing conclusion');
+  await f.view.startSynthesis(f.parent, f.options(), 'Find shared constraints', message => failures.push(message), () => {});
+  assert.equal(f.contexts[1].task, 'Find shared constraints'); assert.equal(task.state, 'draft'); assert.equal(task.draft.summary, 'Draft summary'); assert.equal((await f.repo.readNote(f.parent.path)).summary, 'Existing conclusion');
+  await task.save('Edited summary', 'Edited detail');
+  const saved = await f.repo.readNote(f.parent.path);
+  assert.equal(saved.summary, 'Edited summary'); assert.match(saved.detail, /Edited detail/); assert.equal(saved.status, 'completed'); assert.deepEqual(failures, []);
+});
+integrationTest('a synthesis draft is refused when the parent topic changed after the draft was made', async () => {
+  const f = await backgroundSynthesisFixture(async call => call === 1 ? f.directionsResult : f.draftResult);
+  await f.view.startSynthesis(f.parent, f.options(), null, message => assert.fail(message), () => {});
+  await f.view.startSynthesis(f.parent, f.options(), 'Find shared constraints', message => assert.fail(message), () => {});
+  const task = f.view.synthesisTasks.get(f.parent.path); assert.equal(task.state, 'draft');
+  await f.repo.updateNote(f.parent.path, { summary: 'Edited meanwhile' });
+  await assert.rejects(task.save('Edited summary', 'Edited detail'), /the synthesis draft was not saved/i);
+  assert.equal((await f.repo.readNote(f.parent.path)).summary, 'Edited meanwhile');
+});
+integrationTest('Stop on the node cancels background synthesis and preserves the topic', async () => {
+  const f = await backgroundSynthesisFixture((_call, signal, onAccepted) => new Promise((_resolve, reject) => { onAccepted(); signal.addEventListener('abort', () => { const error = new Error('cancelled'); error.name = 'AbortError'; reject(error); }, { once: true }); }));
+  let accepted = 0; const failures = [];
+  const started = f.view.startSynthesis(f.parent, f.options(), null, message => failures.push(message), () => accepted++);
+  await until(() => accepted === 1);
+  f.view.synthesisTasks.get(f.parent.path).controller.abort(); await started;
+  const task = f.view.synthesisTasks.get(f.parent.path);
+  assert.equal(task.state, 'cancelled'); assert.equal(f.plugin.activeTasks.size, 0); assert.equal(f.plugin.running.size, 0);
+  assert.match(failures[0], /stopped|preserved/i);
+  const after = await f.repo.readNote(f.parent.path); assert.equal(after.status, 'completed'); assert.equal(after.summary, 'Existing conclusion');
+});
+integrationTest('a second synthesis start on a busy topic is refused without a second AI call', async () => {
+  const gate = deferred();
+  const f = await backgroundSynthesisFixture(async (call, _signal, onAccepted) => { onAccepted(); await gate.promise; return call === 1 ? f.directionsResult : f.draftResult; });
+  let accepted = 0; const failures = [];
+  const first = f.view.startSynthesis(f.parent, f.options(), null, message => failures.push(message), () => accepted++);
+  await until(() => accepted === 1);
+  await f.view.startSynthesis(f.parent, f.options(), null, message => failures.push(message), () => assert.fail('second start must not be accepted'));
+  assert.equal(failures.length, 1); assert.equal(f.contexts.length, 1);
+  gate.resolve(); await first;
+  assert.equal(f.view.synthesisTasks.get(f.parent.path).state, 'directions');
+  await f.view.startSynthesis(f.parent, f.options(), null, message => failures.push(message), () => assert.fail('pending directions must be handled first'));
+  assert.equal(failures.length, 2); assert.equal(f.contexts.length, 1);
+});

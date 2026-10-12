@@ -318,9 +318,9 @@ export class NextStepModal extends Modal {
     ) => Promise<void>,
     private synthesize: (
       options: TaskOptions,
-      angles: (items: Suggestion[], draft: (direction: string) => Promise<void>) => void,
-      drafted: (result: AiResult, save: (summary: string, detail: string) => Promise<void>) => void,
-      failed: (message: string) => void
+      direction: string | null,
+      failed: (message: string) => void,
+      accepted: () => void
     ) => Promise<void>,
     private modelSettings?: {
       model: string;
@@ -333,6 +333,7 @@ export class NextStepModal extends Modal {
       stop?: () => void;
       quickError?: string;
       sources?: TaskSourceSettings;
+      synthesisPending?: { directions: Suggestion[]; discard: () => void };
     }
   ) {
     super(app);
@@ -559,6 +560,54 @@ export class NextStepModal extends Modal {
     } finally {
       this.runPending = false;
     }
+  }
+  private launchSynthesis(
+    panel: HTMLElement,
+    button: HTMLButtonElement,
+    direction: string | null,
+    buildOptions: (signal: AbortSignal) => TaskOptions | Promise<TaskOptions>
+  ): void {
+    void this.run(panel, button, async () => {
+      const controller = this.taskController;
+      if (!controller) return;
+      const options = await buildOptions(controller.signal);
+      if (this.closed || controller.signal.aborted) return;
+      let launchAccepted = false;
+      let launchFailed = false;
+      const release = (): void => {
+        if (this.taskController === controller) {
+          this.taskSignal = undefined;
+          this.taskController = undefined;
+        }
+        if (!this.closed) {
+          const cancel = panel.querySelector<HTMLButtonElement>(".vam-task-cancel");
+          if (cancel) cancel.hidden = true;
+        }
+      };
+      await this.synthesize(
+        options,
+        direction,
+        message => {
+          if (this.closed) {
+            new Notice(message);
+            return;
+          }
+          release();
+          launchFailed = true;
+          this.failedAi(panel, button, message);
+        },
+        () => {
+          if (this.closed || controller.signal.aborted || this.taskController !== controller) return;
+          launchAccepted = true;
+          release();
+          this.close();
+        }
+      );
+      if (!this.closed && !launchAccepted && !launchFailed) {
+        release();
+        this.failed(panel, button, t("ui.ai_task_cancelled"));
+      }
+    });
   }
   private failed(panel: HTMLElement, button: HTMLButtonElement, message: string): void {
     if (this.closed) return;
@@ -1047,101 +1096,78 @@ export class NextStepModal extends Modal {
         : t("ui.this_topic_has_no_direct_subtopics_you_can_choose_other_note")
     });
     {
-      const synthesisContent = renderSynthesisContent(
-        synthesizePanel,
-        this.modelSettings?.sources?.synthesisTopics ?? []
-      );
-      const synthesisPicker = this.addReferencePicker(synthesizePanel, "synthesize");
-      const synthFooter = synthesizePanel.createDiv("vam-next-footer");
-      const synthButton = synthFooter.createEl("button", {
-        text: t("ui.get_synthesis_suggestions_first"),
-        cls: "mod-cta"
-      });
-      synthButton.dataset.topicRun = t("ui.get_synthesis_suggestions_first");
-      synthButton.disabled = !!this.modelSettings?.running;
-      const synthStatus = synthesizePanel.createEl("p", { cls: "vam-next-status" });
-      const synthResult = synthesizePanel.createDiv("vam-next-result");
-      const showDraft = (draft: AiResult, save: (summary: string, detail: string) => Promise<void>): void => {
-        if (this.closed) return;
-        synthStatus.setText(t("ui.review_the_synthesis_draft"));
-        synthResult.empty();
-        const summary = synthResult.createEl("textarea", { cls: "vam-task-input", text: draft.summary });
-        summary.rows = 4;
-        summary.setAttr("aria-label", t("ui.current_understanding"));
-        const detail = synthResult.createEl("textarea", { cls: "vam-task-input", text: draft.detail });
-        detail.rows = 16;
-        detail.setAttr("aria-label", t("ui.markdown_detail_draft"));
-        const saveButton = synthResult.createEl("button", {
-          text: t("ui.confirm_update_to_parent_topic"),
-          cls: "mod-cta"
+      const pending = this.modelSettings?.synthesisPending;
+      if (pending) {
+        const synthStatus = synthesizePanel.createEl("p", { cls: "vam-next-status" });
+        const synthResult = synthesizePanel.createDiv("vam-next-result");
+        synthStatus.setText(t("ui.choose_or_edit_a_synthesis_direction_then_get_a_draft"));
+        for (const item of pending.directions) {
+          const choice = synthResult.createDiv("vam-next-angle");
+          choice.createEl("strong", { text: item.title });
+          choice.createEl("p", { text: item.contribution || item.task });
+          choice.createEl("button", { text: t("ui.choose_this_direction") }).addEventListener("click", () => {
+            direction.value = item.task || item.title;
+          });
+        }
+        const direction = synthResult.createEl("textarea", {
+          cls: "vam-next-focus",
+          text: pending.directions[0]?.task || pending.directions[0]?.title || ""
         });
-        saveButton.addEventListener("click", () => {
-          void (async () => {
-            saveButton.disabled = true;
-            try {
-              await save(summary.value, detail.value);
-              synthStatus.setText(t("ui.subtopic_synthesis_was_saved_to_current_understanding_and_ma"));
-              synthResult.empty();
-            } catch (error) {
-              saveButton.disabled = false;
-              this.failed(synthesizePanel, synthButton, error instanceof Error ? error.message : String(error));
-            }
-          })();
-        });
-        synthButton.disabled = false;
-      };
-      synthButton.addEventListener("click", () => {
-        void this.run(synthesizePanel, synthButton, async () => {
-          const content: SynthesisContent = synthesisContent.value === "summary" ? "summary" : "full";
-          synthesisContent.disabled = true;
-          const selected = await synthesisPicker?.ready();
-          const options: TaskOptions = {
-            synthesisContent: content,
-            referenceGroups: selected?.groups ?? [],
+        direction.setAttr("aria-label", t("ui.synthesis_direction"));
+        const draftButton = synthResult.createEl("button", { text: t("ui.get_synthesis_draft"), cls: "mod-cta" });
+        draftButton.disabled = !!this.modelSettings?.running;
+        draftButton.addEventListener("click", () =>
+          this.launchSynthesis(synthesizePanel, draftButton, direction.value.trim(), signal => ({
             outputLanguage: languageSelect.value as Settings["language"],
             requirements: this.requirements(),
-            researchMode: selected?.webSearch ? "research" : "local",
+            researchMode: "local",
             researchDepth: this.depth,
-            visualMode: selected?.imageSearch ? "auto" : "off",
-            signal: this.taskSignal,
+            visualMode: "off",
+            signal,
             onProgress: message => synthStatus.setText(message)
-          };
-          if (!this.childrenCount && !options.referenceGroups?.some(group => group.documents.length))
-            throw new Error(t("ui.choose_another_note_source_first"));
-          await this.synthesize(
-            options,
-            (items, draft) => {
-              if (this.closed) return;
-              synthStatus.setText(t("ui.choose_or_edit_a_synthesis_direction_then_get_a_draft"));
-              synthResult.empty();
-              for (const item of items) {
-                const choice = synthResult.createDiv("vam-next-angle");
-                choice.createEl("strong", { text: item.title });
-                choice.createEl("p", { text: item.contribution || item.task });
-                choice.createEl("button", { text: t("ui.choose_this_direction") }).addEventListener("click", () => {
-                  direction.value = item.task || item.title;
-                });
-              }
-              const direction = synthResult.createEl("textarea", {
-                cls: "vam-next-focus",
-                text: items[0]?.task || items[0]?.title || ""
-              });
-              direction.setAttr("aria-label", t("ui.synthesis_direction"));
-              const draftButton = synthResult.createEl("button", { text: t("ui.get_synthesis_draft"), cls: "mod-cta" });
-              draftButton.addEventListener("click", () => {
-                void this.run(synthesizePanel, draftButton, async () => {
-                  options.signal = this.taskSignal;
-                  await draft(direction.value.trim());
-                  draftButton.disabled = false;
-                });
-              });
-              synthButton.disabled = false;
-            },
-            showDraft,
-            message => this.failedAi(synthesizePanel, synthButton, message)
-          );
+          }))
+        );
+        synthResult.createEl("button", { text: t("ui.discard_synthesis") }).addEventListener("click", () => {
+          pending.discard();
+          this.close();
         });
-      });
+      } else {
+        const synthesisContent = renderSynthesisContent(
+          synthesizePanel,
+          this.modelSettings?.sources?.synthesisTopics ?? []
+        );
+        const synthesisPicker = this.addReferencePicker(synthesizePanel, "synthesize");
+        const synthFooter = synthesizePanel.createDiv("vam-next-footer");
+        const synthButton = synthFooter.createEl("button", {
+          text: t("ui.get_synthesis_suggestions_first"),
+          cls: "mod-cta"
+        });
+        synthButton.dataset.topicRun = t("ui.get_synthesis_suggestions_first");
+        synthButton.disabled = !!this.modelSettings?.running;
+        const synthStatus = synthesizePanel.createEl("p", { cls: "vam-next-status" });
+        synthesizePanel.createDiv("vam-next-result");
+        synthButton.addEventListener("click", () =>
+          this.launchSynthesis(synthesizePanel, synthButton, null, async signal => {
+            const content: SynthesisContent = synthesisContent.value === "summary" ? "summary" : "full";
+            synthesisContent.disabled = true;
+            const selected = await synthesisPicker?.ready();
+            const options: TaskOptions = {
+              synthesisContent: content,
+              referenceGroups: selected?.groups ?? [],
+              outputLanguage: languageSelect.value as Settings["language"],
+              requirements: this.requirements(),
+              researchMode: selected?.webSearch ? "research" : "local",
+              researchDepth: this.depth,
+              visualMode: selected?.imageSearch ? "auto" : "off",
+              signal,
+              onProgress: message => synthStatus.setText(message)
+            };
+            if (!this.childrenCount && !options.referenceGroups?.some(group => group.documents.length))
+              throw new Error(t("ui.choose_another_note_source_first"));
+            return options;
+          })
+        );
+      }
     }
     show = mode => {
       for (const [name, button, panel] of [
@@ -1164,7 +1190,7 @@ export class NextStepModal extends Modal {
       );
       confirm.hidden = mode !== "research";
     };
-    show("research");
+    show(this.modelSettings?.synthesisPending ? "synthesize" : "research");
     this.renderModelSettings();
     this.contentEl.createEl("p", {
       text: t("ui.if_an_ai_task_exceeds_3_minutes_vam_attempts_to_interrupt_it"),
@@ -1199,6 +1225,52 @@ export class AiDraftModal extends Modal {
           .onClick(() => {
             this.close();
             this.confirm();
+          })
+      );
+  }
+}
+export class SynthesisDraftModal extends Modal {
+  constructor(
+    app: App,
+    private summary: string,
+    private detail: string,
+    private confirm: (summary: string, detail: string) => Promise<void>,
+    private discard: () => void
+  ) {
+    super(app);
+  }
+  onOpen(): void {
+    this.titleEl.setText(t("ui.review_synthesis_draft"));
+    this.contentEl.createEl("strong", { text: t("ui.current_understanding") });
+    const summary = this.contentEl.createEl("textarea", { cls: "vam-task-input", text: this.summary });
+    summary.rows = 4;
+    summary.setAttr("aria-label", t("ui.current_understanding"));
+    this.contentEl.createEl("strong", { text: t("ui.markdown_detail_draft") });
+    const detail = this.contentEl.createEl("textarea", { cls: "vam-task-input", text: this.detail });
+    detail.rows = 16;
+    detail.setAttr("aria-label", t("ui.markdown_detail_draft"));
+    const status = this.contentEl.createEl("p", { cls: "vam-next-status" });
+    new Setting(this.contentEl)
+      .addButton(button => button.setButtonText(t("ui.cancel")).onClick(() => this.close()))
+      .addButton(button =>
+        button.setButtonText(t("ui.discard_synthesis")).onClick(() => {
+          this.discard();
+          this.close();
+        })
+      )
+      .addButton(button =>
+        button
+          .setButtonText(t("ui.confirm_update_to_parent_topic"))
+          .setCta()
+          .onClick(() => {
+            button.setDisabled(true);
+            void this.confirm(summary.value, detail.value).then(
+              () => this.close(),
+              error => {
+                status.setText(error instanceof Error ? error.message : String(error));
+                button.setDisabled(false);
+              }
+            );
           })
       );
   }

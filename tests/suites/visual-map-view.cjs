@@ -168,7 +168,7 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   const modal = new NextStepModal({}, 'Parent', 'normal', 1, 1, plugin,
     async (options, _focus, _done, _failed, accepted) => { researchOptions = options; accepted(); },
     async (options, _direction, found, _failed, _createdMap, accepted) => { expandOptions = options; expandCalls++; if (options.multiLayer) { quickOptions = options; accepted(); } else found([{ title: 'Transport', task: 'Compare', contribution: '', parentTitle: '' }], async items => { created = items; }); },
-    async (options, angles, drafted) => { synthCalls++; synthOptions = options; angles([{ title: 'Shared constraints', task: 'Find tradeoffs', contribution: 'Across children' }], async () => { drafted({ summary: 'Draft', detail: 'Detail' }, async (summary, detail) => { saved = [summary, detail]; }); }); }, modelSettings);
+    async (options, direction) => { synthCalls++; synthOptions = options; assert.equal(direction, null); }, modelSettings);
   modal.onOpen();
   assert.ok(find(modal.contentEl, item => /3 minutes.*avoid prolonged resource use/.test(item.text ?? '')));
   assert.ok(modal.modalEl.cls.includes('vam-next-modal'));
@@ -267,11 +267,7 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   assert.equal(synthCalls, 1); assert.equal(closed, 0);
   assert.equal(synthOptions.researchMode, 'local');
   assert.equal(synthOptions.outputLanguage, 'zh-TW');
-  assert.ok(button(synthesize, 'Choose this direction'));
-  button(synthesize, 'Get synthesis draft').click(); await tick();
-  assert.equal(synthOptions.synthesisContent, 'summary');
-  button(synthesize, 'Confirm update to parent topic').click(); await tick();
-  assert.deepEqual(saved, ['Draft', 'Detail']); assert.equal(closed, 0);
+  assert.equal(button(synthesize, 'Choose this direction'), undefined);
   cards.children[0].click(); assert.equal(panelTitle.text, 'Research this topic'); assert.equal(researchAction.hidden, false);
   button(modal.contentEl, 'Confirm research task').click(); await tick();
   assert.equal(researchOptions.requirements, 'Only this run'); assert.equal(researchOptions.researchMode, 'research'); assert.equal(researchOptions.referenceGroups.length, 0);
@@ -304,6 +300,35 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   await until(() => acceptedModal.closed);
   assert.equal(acceptedSignal.aborted, false); assert.equal(acceptedModal.taskSignal, undefined);
   continueBackground(); await tick();
+  // Synthesis runs in the background: accepting the dispatch closes the modal without aborting the AI.
+  let directionSignal, directionCalls = [];
+  const directionsModal = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => {}, async (options, direction, _failed, accepted) => { directionSignal = options.signal; directionCalls.push(direction); accepted(); await background2; }, modelSettings);
+  let continueBackground2; const background2 = new Promise(resolve => { continueBackground2 = resolve; });
+  const closedBeforeSynth = closed;
+  directionsModal.onOpen(); find(directionsModal.contentEl, item => item.cls === 'vam-next-cards').children[2].click();
+  button(directionsModal.contentEl, 'Get synthesis suggestions first').click();
+  await until(() => directionsModal.closed);
+  assert.equal(closed, closedBeforeSynth + 1); assert.deepEqual(directionCalls, [null]);
+  assert.equal(directionSignal.aborted, false); assert.equal(directionsModal.taskSignal, undefined);
+  continueBackground2(); await tick();
+  // Reopening from the node badge shows the pending directions; the draft step is also accepted and closes the modal.
+  let discarded = 0, draftSignal; const draftCalls = [];
+  const pendingModal2 = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => {}, async (options, direction, _failed, accepted) => { draftSignal = options.signal; draftCalls.push(direction); accepted(); },
+    { ...modelSettings, synthesisPending: { directions: [{ title: 'Shared constraints', task: 'Find tradeoffs', contribution: 'Across children' }, { title: 'Open questions', task: 'List gaps', contribution: '' }], discard: () => { discarded++; } } });
+  pendingModal2.onOpen();
+  const pendingPanel = all(pendingModal2.contentEl, item => item.cls.includes('vam-next-research'))[2];
+  assert.equal(button(pendingModal2.contentEl, 'Get synthesis suggestions first'), undefined);
+  assert.equal(pendingPanel.style.display, '');
+  const directionBox = find(pendingPanel, item => item.tag === 'textarea' && item['aria-label'] === 'Synthesis direction');
+  assert.equal(directionBox.value ?? directionBox.text, 'Find tradeoffs');
+  button(pendingPanel, 'Choose this direction').click();
+  directionBox.value = 'Edited direction';
+  button(pendingPanel, 'Get synthesis draft').click(); await until(() => pendingModal2.closed);
+  assert.deepEqual(draftCalls, ['Edited direction']); assert.equal(draftSignal.aborted, false); assert.equal(discarded, 0);
+  const discardModal = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => {}, async () => {}, { ...modelSettings, synthesisPending: { directions: [{ title: 'A', task: 'B', contribution: '' }], discard: () => { discarded++; } } });
+  discardModal.onOpen(); button(discardModal.contentEl, 'Discard').click();
+  assert.equal(discarded, 1); assert.equal(discardModal.closed, true);
+  closed = closedBeforeSynth; // keep later absolute close counts independent of the background-synthesis modals above
   let emptyOptions;
   const empty = new NextStepModal({}, 'No children', 'normal', 0, 0, plugin, async () => {}, async () => {}, async options => { synthCalls++; emptyOptions = options; });
   empty.onOpen(); find(empty.contentEl, item => item.cls === 'vam-next-cards').children[2].click();

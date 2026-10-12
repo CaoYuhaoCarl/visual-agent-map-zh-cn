@@ -745,6 +745,9 @@ var english = {
   "ui.specify_an_expansion_direction_or_ask_ai_to_suggest_one_prev": "Specify an expansion direction or ask AI to suggest one. Preview before creating nodes.",
   "ui.this_topic_has_no_direct_subtopics_you_can_choose_other_note": "This topic has no direct subtopics. You can choose other notes to synthesize.",
   "ui.review_synthesis_draft": "Review synthesis draft",
+  "ui.choose_synthesis_direction": "Choose synthesis direction",
+  "ui.discard_synthesis": "Discard",
+  "ui.synthesis_pending_review_first": "Choose or discard the pending synthesis on this topic first.",
   "ui.confirm_update_to_parent_topic": "Confirm update to parent topic",
   "ui.the_topic_changed_the_synthesis_draft_was_not_saved": "The topic changed; the synthesis draft was not saved.",
   "detail.core_conclusions": "Core conclusions",
@@ -1864,6 +1867,9 @@ var traditionalChinese = {
   "ui.specify_an_expansion_direction_or_ask_ai_to_suggest_one_prev": "\u53EF\u6307\u5B9A\u5C55\u958B\u65B9\u5411\uFF0C\u6216\u8B93 AI \u5EFA\u8B70\uFF1B\u7D50\u679C\u5148\u9810\u89BD\uFF0C\u78BA\u8A8D\u5F8C\u624D\u5EFA\u7ACB\u7BC0\u9EDE\u3002",
   "ui.this_topic_has_no_direct_subtopics_you_can_choose_other_note": "\u9019\u500B\u8B70\u984C\u76EE\u524D\u6C92\u6709\u76F4\u5C6C\u5B50\u8B70\u984C\uFF1B\u53EF\u4EE5\u9078\u64C7\u5176\u4ED6\u7B46\u8A18\u4F5C\u70BA\u6574\u5408\u4F86\u6E90\u3002",
   "ui.review_synthesis_draft": "\u6AA2\u67E5\u6574\u5408\u8349\u7A3F",
+  "ui.choose_synthesis_direction": "\u9078\u64C7\u6536\u6582\u65B9\u5411",
+  "ui.discard_synthesis": "\u6368\u68C4",
+  "ui.synthesis_pending_review_first": "\u8ACB\u5148\u8655\u7406\u6216\u6368\u68C4\u9019\u500B\u4E3B\u984C\u5F85\u8655\u7406\u7684\u6536\u6582\u7D50\u679C\u3002",
   "ui.confirm_update_to_parent_topic": "\u78BA\u8A8D\u5BEB\u5165\u6BCD\u8B70\u984C",
   "ui.the_topic_changed_the_synthesis_draft_was_not_saved": "\u8B70\u984C\u5DF2\u8B8A\u66F4\uFF0C\u6574\u5408\u8349\u7A3F\u672A\u5BEB\u5165\u3002",
   "detail.core_conclusions": "\u6838\u5FC3\u7D50\u8AD6",
@@ -19191,6 +19197,49 @@ var NextStepModal = class extends import_obsidian13.Modal {
       this.runPending = false;
     }
   }
+  launchSynthesis(panel, button, direction, buildOptions) {
+    void this.run(panel, button, async () => {
+      const controller = this.taskController;
+      if (!controller) return;
+      const options = await buildOptions(controller.signal);
+      if (this.closed || controller.signal.aborted) return;
+      let launchAccepted = false;
+      let launchFailed = false;
+      const release = () => {
+        if (this.taskController === controller) {
+          this.taskSignal = void 0;
+          this.taskController = void 0;
+        }
+        if (!this.closed) {
+          const cancel = panel.querySelector(".vam-task-cancel");
+          if (cancel) cancel.hidden = true;
+        }
+      };
+      await this.synthesize(
+        options,
+        direction,
+        (message) => {
+          if (this.closed) {
+            new import_obsidian13.Notice(message);
+            return;
+          }
+          release();
+          launchFailed = true;
+          this.failedAi(panel, button, message);
+        },
+        () => {
+          if (this.closed || controller.signal.aborted || this.taskController !== controller) return;
+          launchAccepted = true;
+          release();
+          this.close();
+        }
+      );
+      if (!this.closed && !launchAccepted && !launchFailed) {
+        release();
+        this.failed(panel, button, t("ui.ai_task_cancelled"));
+      }
+    });
+  }
   failed(panel, button, message) {
     var _a;
     if (this.closed) return;
@@ -19312,7 +19361,7 @@ var NextStepModal = class extends import_obsidian13.Modal {
     (_a = panel.querySelector(".vam-next-status")) == null ? void 0 : _a.setText(t("ui.review_ai_suggested_subtopics"));
   }
   onOpen() {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n;
     this.modalEl.addClass("vam-next-modal");
     this.titleEl.setText(t("ui.how_would_you_like_to_explore_next"));
     this.contentEl.createEl("p", { text: t("ui.current_topic_0", this.topic), cls: "vam-modal-intro" });
@@ -19656,103 +19705,81 @@ var NextStepModal = class extends import_obsidian13.Modal {
       text: this.childrenCount ? t("ui.ai_suggests_synthesis_angles_first_the_parent_topic_changes") : t("ui.this_topic_has_no_direct_subtopics_you_can_choose_other_note")
     });
     {
-      const synthesisContent = renderSynthesisContent(
-        synthesizePanel,
-        (_h = (_g = (_f = this.modelSettings) == null ? void 0 : _f.sources) == null ? void 0 : _g.synthesisTopics) != null ? _h : []
-      );
-      const synthesisPicker = this.addReferencePicker(synthesizePanel, "synthesize");
-      const synthFooter = synthesizePanel.createDiv("vam-next-footer");
-      const synthButton = synthFooter.createEl("button", {
-        text: t("ui.get_synthesis_suggestions_first"),
-        cls: "mod-cta"
-      });
-      synthButton.dataset.topicRun = t("ui.get_synthesis_suggestions_first");
-      synthButton.disabled = !!((_i = this.modelSettings) == null ? void 0 : _i.running);
-      const synthStatus = synthesizePanel.createEl("p", { cls: "vam-next-status" });
-      const synthResult = synthesizePanel.createDiv("vam-next-result");
-      const showDraft = (draft, save) => {
-        if (this.closed) return;
-        synthStatus.setText(t("ui.review_the_synthesis_draft"));
-        synthResult.empty();
-        const summary = synthResult.createEl("textarea", { cls: "vam-task-input", text: draft.summary });
-        summary.rows = 4;
-        summary.setAttr("aria-label", t("ui.current_understanding"));
-        const detail = synthResult.createEl("textarea", { cls: "vam-task-input", text: draft.detail });
-        detail.rows = 16;
-        detail.setAttr("aria-label", t("ui.markdown_detail_draft"));
-        const saveButton = synthResult.createEl("button", {
-          text: t("ui.confirm_update_to_parent_topic"),
-          cls: "mod-cta"
+      const pending = (_f = this.modelSettings) == null ? void 0 : _f.synthesisPending;
+      if (pending) {
+        const synthStatus = synthesizePanel.createEl("p", { cls: "vam-next-status" });
+        const synthResult = synthesizePanel.createDiv("vam-next-result");
+        synthStatus.setText(t("ui.choose_or_edit_a_synthesis_direction_then_get_a_draft"));
+        for (const item of pending.directions) {
+          const choice2 = synthResult.createDiv("vam-next-angle");
+          choice2.createEl("strong", { text: item.title });
+          choice2.createEl("p", { text: item.contribution || item.task });
+          choice2.createEl("button", { text: t("ui.choose_this_direction") }).addEventListener("click", () => {
+            direction.value = item.task || item.title;
+          });
+        }
+        const direction = synthResult.createEl("textarea", {
+          cls: "vam-next-focus",
+          text: ((_g = pending.directions[0]) == null ? void 0 : _g.task) || ((_h = pending.directions[0]) == null ? void 0 : _h.title) || ""
         });
-        saveButton.addEventListener("click", () => {
-          void (async () => {
-            saveButton.disabled = true;
-            try {
-              await save(summary.value, detail.value);
-              synthStatus.setText(t("ui.subtopic_synthesis_was_saved_to_current_understanding_and_ma"));
-              synthResult.empty();
-            } catch (error) {
-              saveButton.disabled = false;
-              this.failed(synthesizePanel, synthButton, error instanceof Error ? error.message : String(error));
-            }
-          })();
-        });
-        synthButton.disabled = false;
-      };
-      synthButton.addEventListener("click", () => {
-        void this.run(synthesizePanel, synthButton, async () => {
-          var _a2, _b2;
-          const content = synthesisContent.value === "summary" ? "summary" : "full";
-          synthesisContent.disabled = true;
-          const selected = await (synthesisPicker == null ? void 0 : synthesisPicker.ready());
-          const options = {
-            synthesisContent: content,
-            referenceGroups: (_a2 = selected == null ? void 0 : selected.groups) != null ? _a2 : [],
+        direction.setAttr("aria-label", t("ui.synthesis_direction"));
+        const draftButton = synthResult.createEl("button", { text: t("ui.get_synthesis_draft"), cls: "mod-cta" });
+        draftButton.disabled = !!((_i = this.modelSettings) == null ? void 0 : _i.running);
+        draftButton.addEventListener(
+          "click",
+          () => this.launchSynthesis(synthesizePanel, draftButton, direction.value.trim(), (signal) => ({
             outputLanguage: languageSelect.value,
             requirements: this.requirements(),
-            researchMode: (selected == null ? void 0 : selected.webSearch) ? "research" : "local",
+            researchMode: "local",
             researchDepth: this.depth,
-            visualMode: (selected == null ? void 0 : selected.imageSearch) ? "auto" : "off",
-            signal: this.taskSignal,
+            visualMode: "off",
+            signal,
             onProgress: (message) => synthStatus.setText(message)
-          };
-          if (!this.childrenCount && !((_b2 = options.referenceGroups) == null ? void 0 : _b2.some((group) => group.documents.length)))
-            throw new Error(t("ui.choose_another_note_source_first"));
-          await this.synthesize(
-            options,
-            (items, draft) => {
-              var _a3, _b3;
-              if (this.closed) return;
-              synthStatus.setText(t("ui.choose_or_edit_a_synthesis_direction_then_get_a_draft"));
-              synthResult.empty();
-              for (const item of items) {
-                const choice2 = synthResult.createDiv("vam-next-angle");
-                choice2.createEl("strong", { text: item.title });
-                choice2.createEl("p", { text: item.contribution || item.task });
-                choice2.createEl("button", { text: t("ui.choose_this_direction") }).addEventListener("click", () => {
-                  direction.value = item.task || item.title;
-                });
-              }
-              const direction = synthResult.createEl("textarea", {
-                cls: "vam-next-focus",
-                text: ((_a3 = items[0]) == null ? void 0 : _a3.task) || ((_b3 = items[0]) == null ? void 0 : _b3.title) || ""
-              });
-              direction.setAttr("aria-label", t("ui.synthesis_direction"));
-              const draftButton = synthResult.createEl("button", { text: t("ui.get_synthesis_draft"), cls: "mod-cta" });
-              draftButton.addEventListener("click", () => {
-                void this.run(synthesizePanel, draftButton, async () => {
-                  options.signal = this.taskSignal;
-                  await draft(direction.value.trim());
-                  draftButton.disabled = false;
-                });
-              });
-              synthButton.disabled = false;
-            },
-            showDraft,
-            (message) => this.failedAi(synthesizePanel, synthButton, message)
-          );
+          }))
+        );
+        synthResult.createEl("button", { text: t("ui.discard_synthesis") }).addEventListener("click", () => {
+          pending.discard();
+          this.close();
         });
-      });
+      } else {
+        const synthesisContent = renderSynthesisContent(
+          synthesizePanel,
+          (_l = (_k = (_j = this.modelSettings) == null ? void 0 : _j.sources) == null ? void 0 : _k.synthesisTopics) != null ? _l : []
+        );
+        const synthesisPicker = this.addReferencePicker(synthesizePanel, "synthesize");
+        const synthFooter = synthesizePanel.createDiv("vam-next-footer");
+        const synthButton = synthFooter.createEl("button", {
+          text: t("ui.get_synthesis_suggestions_first"),
+          cls: "mod-cta"
+        });
+        synthButton.dataset.topicRun = t("ui.get_synthesis_suggestions_first");
+        synthButton.disabled = !!((_m = this.modelSettings) == null ? void 0 : _m.running);
+        const synthStatus = synthesizePanel.createEl("p", { cls: "vam-next-status" });
+        synthesizePanel.createDiv("vam-next-result");
+        synthButton.addEventListener(
+          "click",
+          () => this.launchSynthesis(synthesizePanel, synthButton, null, async (signal) => {
+            var _a2, _b2;
+            const content = synthesisContent.value === "summary" ? "summary" : "full";
+            synthesisContent.disabled = true;
+            const selected = await (synthesisPicker == null ? void 0 : synthesisPicker.ready());
+            const options = {
+              synthesisContent: content,
+              referenceGroups: (_a2 = selected == null ? void 0 : selected.groups) != null ? _a2 : [],
+              outputLanguage: languageSelect.value,
+              requirements: this.requirements(),
+              researchMode: (selected == null ? void 0 : selected.webSearch) ? "research" : "local",
+              researchDepth: this.depth,
+              visualMode: (selected == null ? void 0 : selected.imageSearch) ? "auto" : "off",
+              signal,
+              onProgress: (message) => synthStatus.setText(message)
+            };
+            if (!this.childrenCount && !((_b2 = options.referenceGroups) == null ? void 0 : _b2.some((group) => group.documents.length)))
+              throw new Error(t("ui.choose_another_note_source_first"));
+            return options;
+          })
+        );
+      }
     }
     show = (mode) => {
       for (const [name, button, panel] of [
@@ -19771,7 +19798,7 @@ var NextStepModal = class extends import_obsidian13.Modal {
       );
       confirm.hidden = mode !== "research";
     };
-    show("research");
+    show(((_n = this.modelSettings) == null ? void 0 : _n.synthesisPending) ? "synthesize" : "research");
     this.renderModelSettings();
     this.contentEl.createEl("p", {
       text: t("ui.if_an_ai_task_exceeds_3_minutes_vam_attempts_to_interrupt_it"),
@@ -19799,6 +19826,44 @@ var AiDraftModal = class extends import_obsidian13.Modal {
       (button) => button.setButtonText(this.confirmLabel).setCta().onClick(() => {
         this.close();
         this.confirm();
+      })
+    );
+  }
+};
+var SynthesisDraftModal = class extends import_obsidian13.Modal {
+  constructor(app, summary, detail, confirm, discard) {
+    super(app);
+    this.summary = summary;
+    this.detail = detail;
+    this.confirm = confirm;
+    this.discard = discard;
+  }
+  onOpen() {
+    this.titleEl.setText(t("ui.review_synthesis_draft"));
+    this.contentEl.createEl("strong", { text: t("ui.current_understanding") });
+    const summary = this.contentEl.createEl("textarea", { cls: "vam-task-input", text: this.summary });
+    summary.rows = 4;
+    summary.setAttr("aria-label", t("ui.current_understanding"));
+    this.contentEl.createEl("strong", { text: t("ui.markdown_detail_draft") });
+    const detail = this.contentEl.createEl("textarea", { cls: "vam-task-input", text: this.detail });
+    detail.rows = 16;
+    detail.setAttr("aria-label", t("ui.markdown_detail_draft"));
+    const status = this.contentEl.createEl("p", { cls: "vam-next-status" });
+    new import_obsidian13.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => this.close())).addButton(
+      (button) => button.setButtonText(t("ui.discard_synthesis")).onClick(() => {
+        this.discard();
+        this.close();
+      })
+    ).addButton(
+      (button) => button.setButtonText(t("ui.confirm_update_to_parent_topic")).setCta().onClick(() => {
+        button.setDisabled(true);
+        void this.confirm(summary.value, detail.value).then(
+          () => this.close(),
+          (error) => {
+            status.setText(error instanceof Error ? error.message : String(error));
+            button.setDisabled(false);
+          }
+        );
       })
     );
   }
@@ -20030,6 +20095,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
     __publicField(this, "history", new History());
     __publicField(this, "deletedMap", null);
     __publicField(this, "integrationTask", null);
+    __publicField(this, "synthesisTasks", /* @__PURE__ */ new Map());
     __publicField(this, "viewportEl", null);
     __publicField(this, "stageEl", null);
     __publicField(this, "edgesEl", null);
@@ -20146,6 +20212,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
   async onClose() {
     var _a;
     this.closed = true;
+    for (const task of this.synthesisTasks.values()) if (task.state === "running") task.controller.abort();
+    this.synthesisTasks.clear();
     this.aimViewEpoch++;
     this.mapOpenEpoch++;
     const controller = this.aimController;
@@ -22254,7 +22322,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
     }
   }
   renderNode(node) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C;
     if (!this.stageEl) return;
     const note = this.notes.get(node.id), card = this.stageEl.createDiv({
       cls: `vam-node${node.id === this.selected || this.multiSelected.has(node.id) ? " is-selected" : ""}`
@@ -22361,8 +22429,31 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
         t("ui.view_0_expansion_suggestions", pendingCount),
         () => this.openNodePanel(node, "proposals")
       ).addClass("vam-badge-new");
+    const synthesis = this.synthesisTasks.get(node.path);
+    if (synthesis && synthesis.mapPath === this.path && !this.builtIn && !this.integrationMode && !((_o = this.map) == null ? void 0 : _o.aim)) {
+      if (synthesis.state === "running") {
+        if (synthesis.progress) header.createSpan({ cls: "vam-status vam-status-running", text: synthesis.progress });
+        this.button(header, t("ui.stop_research"), () => synthesis.controller.abort());
+      } else if (synthesis.state === "directions")
+        this.button(header, t("ui.choose_synthesis_direction"), () => this.openNextStep(node)).addClass(
+          "vam-badge-new"
+        );
+      else if (synthesis.state === "draft")
+        this.button(header, t("ui.review_synthesis_draft"), () => this.reviewSynthesisDraft(node)).addClass(
+          "vam-badge-new"
+        );
+      else {
+        header.createSpan({
+          cls: "vam-status vam-status-error",
+          text: synthesis.state === "cancelled" ? t("ui.ai_task_cancelled") : t("ui.failed"),
+          attr: { title: synthesis.progress }
+        });
+        this.button(header, t("ui.try_again"), () => this.retrySynthesis(node));
+        this.button(header, t("ui.discard_synthesis"), () => this.discardSynthesis(node));
+      }
+    }
     if (!this.builtIn && !this.integrationMode) {
-      if (!((_o = this.map) == null ? void 0 : _o.aim)) {
+      if (!((_p = this.map) == null ? void 0 : _p.aim)) {
         const ai = this.button(header, "\u2726", () => this.openNextStep(node));
         ai.addClass("vam-node-tool");
         ai.setAttr("aria-label", t("ui.how_would_you_like_to_explore_next"));
@@ -22389,7 +22480,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
         remove.addClass("vam-node-tool");
         remove.setAttr("aria-label", t("ui.remove_from_map"));
       }
-      if (((_p = this.map) == null ? void 0 : _p.aim) && node.aimKind === "synthesis" && this.map.aim.branches.some((branch) => branch.results.some((result) => result.nodeId === node.id))) {
+      if (((_q = this.map) == null ? void 0 : _q.aim) && node.aimKind === "synthesis" && this.map.aim.branches.some((branch) => branch.results.some((result) => result.nodeId === node.id))) {
         const next = this.button(
           header,
           t("ui.aim_new_question"),
@@ -22420,18 +22511,18 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
           })
         )
       );
-    if (!this.builtIn && !this.integrationMode && !((_q = this.map) == null ? void 0 : _q.aim)) {
+    if (!this.builtIn && !this.integrationMode && !((_r = this.map) == null ? void 0 : _r.aim)) {
       const add = this.button(card, "+", () => this.enqueue(() => this.addNode(node)));
       add.addClass("vam-add-child");
       add.setAttr("aria-label", t("ui.add_subtopic_manually"));
     }
-    const title = card.createEl("h3", { text: (_r = note == null ? void 0 : note.title) != null ? _r : node.path, cls: "vam-card-title" });
-    title.setAttr("title", (_s = note == null ? void 0 : note.title) != null ? _s : node.path);
+    const title = card.createEl("h3", { text: (_s = note == null ? void 0 : note.title) != null ? _s : node.path, cls: "vam-card-title" });
+    title.setAttr("title", (_t = note == null ? void 0 : note.title) != null ? _t : node.path);
     card.createEl("p", {
       cls: "vam-card-summary",
-      text: (_t = note == null ? void 0 : note.summary) != null ? _t : t("ui.the_file_was_moved_or_deleted_you_can_remove_this_node_from")
+      text: (_u = note == null ? void 0 : note.summary) != null ? _u : t("ui.the_file_was_moved_or_deleted_you_can_remove_this_node_from")
     });
-    if (node.aimKind === "conclusion" && ((_u = this.map) == null ? void 0 : _u.aim) && !this.builtIn) {
+    if (node.aimKind === "conclusion" && ((_v = this.map) == null ? void 0 : _v.aim) && !this.builtIn) {
       const branch = this.map.aim.branches.find((item) => item.results.some((result) => result.nodeId === node.id));
       const hasFollowup = this.map.nodes.some((item) => item.parentId === node.id && item.aimKind === "question");
       if (branch && !hasFollowup && countAimAnsweredQuestions(this.map, branch.id) < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION) {
@@ -22444,7 +22535,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
         ).addClass("mod-cta");
       }
     }
-    if (node.aimKind === "topic" && ((_v = this.map) == null ? void 0 : _v.aim) && !this.map.nodes.some((item) => item.aimKind === "question")) {
+    if (node.aimKind === "topic" && ((_w = this.map) == null ? void 0 : _w.aim) && !this.map.nodes.some((item) => item.aimKind === "question")) {
       const initialBranch = this.map.aim.branches.find((item) => item.questionNodeId === node.id && !item.parentBranchId);
       const initialRuns = initialBranch ? this.map.aim.runs.filter((item) => item.branchId === initialBranch.id) : [];
       const activeInitialRun = initialRuns.some((run) => {
@@ -22480,11 +22571,11 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
         );
       }
     }
-    if (node.aimKind === "question" && ((_w = this.map) == null ? void 0 : _w.aim)) {
+    if (node.aimKind === "question" && ((_x = this.map) == null ? void 0 : _x.aim)) {
       const branch = this.map.aim.branches.find((item) => item.questionNodeId === node.id);
       if (branch) {
         this.renderAimFailure(card, branch);
-        const labels = (_y = (_x = node.aimQuestion) == null ? void 0 : _x.options.filter((option) => branch.answerSnapshot.selections.includes(option.id)).map((option) => option.label)) != null ? _y : branch.answerSnapshot.selections;
+        const labels = (_z = (_y = node.aimQuestion) == null ? void 0 : _y.options.filter((option) => branch.answerSnapshot.selections.includes(option.id)).map((option) => option.label)) != null ? _z : branch.answerSnapshot.selections;
         const answer = [...labels, branch.answerSnapshot.freeText].filter(Boolean).join(" \u2014 ");
         card.createEl("p", {
           cls: "vam-aim-answer-snapshot",
@@ -22527,11 +22618,11 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
         }
       }
     }
-    if (node.aimKind === "answer" && ((_z = this.map) == null ? void 0 : _z.aim)) {
+    if (node.aimKind === "answer" && ((_A = this.map) == null ? void 0 : _A.aim)) {
       const branch = this.map.aim.branches.find((item) => item.answerNodeId === node.id);
       const question = branch && this.map.nodes.find((item) => item.id === branch.questionNodeId);
       if (branch) {
-        const labels = (_B = (_A = question == null ? void 0 : question.aimQuestion) == null ? void 0 : _A.options.filter((option) => branch.answerSnapshot.selections.includes(option.id)).map((option) => option.label)) != null ? _B : branch.answerSnapshot.selections;
+        const labels = (_C = (_B = question == null ? void 0 : question.aimQuestion) == null ? void 0 : _B.options.filter((option) => branch.answerSnapshot.selections.includes(option.id)).map((option) => option.label)) != null ? _C : branch.answerSnapshot.selections;
         const answer = [...labels, branch.answerSnapshot.freeText].filter(Boolean).join(" \u2014 ");
         card.createEl("p", {
           cls: "vam-aim-answer-snapshot",
@@ -22741,7 +22832,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
             return this.proposeChildren(node, true, options, direction, found, failed, false, created, accepted);
           return this.startQuickExpansion(node, options, direction, failed, created, accepted);
         },
-        (options, found, drafted, failed) => this.proposeIntegrationDirections(node, options, found, drafted, failed),
+        (options, direction, failed, accepted) => this.startSynthesis(node, options, direction, failed, accepted),
         {
           model: note.model,
           modelSource: note.modelSource,
@@ -22755,7 +22846,11 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
             return (_a2 = this.plugin.activeTasks.get(node.path)) == null ? void 0 : _a2.abort();
           } : void 0,
           quickError: this.plugin.quickExpandFailures.get(node.path),
-          sources: sources2
+          sources: sources2,
+          synthesisPending: (() => {
+            const pending = this.synthesisTasks.get(node.path);
+            return (pending == null ? void 0 : pending.state) === "directions" && pending.mapPath === this.path ? { directions: pending.directions, discard: () => this.discardSynthesis(node) } : void 0;
+          })()
         }
       ).open();
     });
@@ -23612,8 +23707,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
     });
     return [...new Set(paths)];
   }
-  async proposeIntegrationDirections(node, options, found, drafted, failed) {
-    var _a, _b;
+  async proposeIntegrationDirections(node, options, found, drafted, failed, accepted) {
+    var _a, _b, _c, _d;
     if (!this.map) {
       failed(t("ui.no_mind_map_is_available"));
       return;
@@ -23662,8 +23757,12 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
         ),
         note.model,
         note.reasoning,
-        options.signal
+        options.signal,
+        void 0,
+        accepted
       );
+      accepted == null ? void 0 : accepted();
+      if ((_c = options.signal) == null ? void 0 : _c.aborted) throw new DOMException("Aborted", "AbortError");
       const angles = result.suggestions.slice(0, 2);
       if (!angles.length) {
         failed(t("ui.ai_did_not_suggest_a_synthesis_direction_please_retry"));
@@ -23674,6 +23773,10 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
         (direction) => this.plugin.mutate(() => this.integrateChildren(node, true, options, direction, drafted, failed))
       );
     } catch (error) {
+      if (((_d = options.signal) == null ? void 0 : _d.aborted) || error instanceof Error && error.name === "AbortError") {
+        failed(t("ui.research_stopped_existing_content_was_preserved"));
+        return;
+      }
       console.error("Visual Agent Map integration directions", error);
       failed(this.plugin.recordFailure(t("log.integration_directions_failed"), error));
     } finally {
@@ -23682,7 +23785,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       this.render();
     }
   }
-  async integrateChildren(node, confirmed = false, options, direction = "", drafted, failed) {
+  async integrateChildren(node, confirmed = false, options, direction = "", drafted, failed, accepted) {
     var _a, _b, _c, _d, _e, _f, _g, _h, _i;
     if (!this.map || this.plugin.running.has(node.path)) {
       failed == null ? void 0 : failed(t("ui.ai_running_ai"));
@@ -23785,8 +23888,11 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
         ),
         note.model,
         note.reasoning,
-        options == null ? void 0 : options.signal
+        options == null ? void 0 : options.signal,
+        void 0,
+        accepted
       );
+      accepted == null ? void 0 : accepted();
       if ((_h = options == null ? void 0 : options.signal) == null ? void 0 : _h.aborted) throw new DOMException("Aborted", "AbortError");
       await this.plugin.repo.updateNote(node.path, { status: note.status });
       const save = async (summary, detail) => this.plugin.mutate(async () => {
@@ -23840,7 +23946,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
     } catch (error) {
       if (((_i = options == null ? void 0 : options.signal) == null ? void 0 : _i.aborted) || error instanceof Error && error.name === "AbortError") {
         await this.plugin.repo.updateNote(node.path, { status: note.status });
-        new import_obsidian14.Notice(t("ui.research_stopped_existing_content_was_preserved"));
+        if (failed) failed(t("ui.research_stopped_existing_content_was_preserved"));
+        else new import_obsidian14.Notice(t("ui.research_stopped_existing_content_was_preserved"));
       } else {
         console.error("Visual Agent Map child integration", error);
         await this.plugin.repo.updateNote(node.path, { status: "error" });
@@ -23853,6 +23960,162 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       await this.hydrate();
       this.render();
     }
+  }
+  async startSynthesis(node, options, direction, failed, accepted) {
+    const path = node.path;
+    const existing = this.synthesisTasks.get(path);
+    const step = direction === null ? "directions" : "draft";
+    if (!this.map) {
+      failed(t("ui.no_mind_map_is_available"));
+      return;
+    }
+    if (this.plugin.running.has(path) || this.plugin.activeTasks.has(path) || (existing == null ? void 0 : existing.state) === "running") {
+      failed(t("ui.ai_running_ai"));
+      return;
+    }
+    if (step === "directions" && ((existing == null ? void 0 : existing.state) === "directions" || (existing == null ? void 0 : existing.state) === "draft")) {
+      failed(t("ui.synthesis_pending_review_first"));
+      return;
+    }
+    if (step === "draft" && (!existing || existing.mapPath !== this.path || existing.mapId !== this.map.id || !existing.directions.length)) {
+      failed(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
+      return;
+    }
+    const controller = new AbortController();
+    const modalSignal = options.signal;
+    const abortBeforeAcceptance = () => controller.abort();
+    if (modalSignal == null ? void 0 : modalSignal.aborted) controller.abort();
+    else modalSignal == null ? void 0 : modalSignal.addEventListener("abort", abortBeforeAcceptance, { once: true });
+    const stored = { ...options, signal: void 0, onProgress: void 0 };
+    const task = step === "draft" && existing ? existing : {
+      mapPath: this.path,
+      mapId: this.map.id,
+      state: "running",
+      step,
+      controller,
+      progress: "",
+      options: stored,
+      directions: [],
+      direction: ""
+    };
+    task.state = "running";
+    task.step = step;
+    task.controller = controller;
+    task.progress = "";
+    task.direction = direction != null ? direction : "";
+    task.draft = void 0;
+    task.save = void 0;
+    this.synthesisTasks.set(path, task);
+    this.plugin.activeTasks.set(path, controller);
+    const runOptions = {
+      ...step === "draft" ? { ...task.options, requirements: options.requirements || task.options.requirements } : options,
+      signal: controller.signal,
+      onProgress: (message) => {
+        var _a;
+        task.progress = message;
+        (_a = options.onProgress) == null ? void 0 : _a.call(options, message);
+        if (this.synthesisTasks.get(path) === task) this.render();
+      }
+    };
+    let launched = false;
+    let outcome = null;
+    const markAccepted = () => {
+      if (launched || controller.signal.aborted) return;
+      launched = true;
+      modalSignal == null ? void 0 : modalSignal.removeEventListener("abort", abortBeforeAcceptance);
+      accepted();
+    };
+    const fail = (message) => {
+      if (outcome) return;
+      outcome = "failed";
+      if (this.synthesisTasks.get(path) === task) {
+        if (!launched) {
+          if (step === "directions") this.synthesisTasks.delete(path);
+          else task.state = "directions";
+        } else {
+          task.state = controller.signal.aborted ? "cancelled" : "failed";
+          task.progress = message;
+        }
+      }
+      failed(message);
+    };
+    try {
+      if (step === "directions")
+        await this.proposeIntegrationDirections(
+          node,
+          runOptions,
+          (items) => {
+            outcome = "found";
+            task.state = "directions";
+            task.directions = items;
+            new import_obsidian14.Notice(t("ui.choose_synthesis_direction"));
+          },
+          () => {
+          },
+          fail,
+          markAccepted
+        );
+      else
+        await this.integrateChildren(
+          node,
+          true,
+          runOptions,
+          direction != null ? direction : "",
+          (result, save) => {
+            outcome = "drafted";
+            task.state = "draft";
+            task.draft = result;
+            task.save = save;
+            new import_obsidian14.Notice(t("ui.review_synthesis_draft"));
+          },
+          fail,
+          markAccepted
+        );
+      if (!outcome) fail(t("ui.ai_task_cancelled"));
+    } catch (error) {
+      fail(error instanceof Error ? error.message : String(error));
+    } finally {
+      modalSignal == null ? void 0 : modalSignal.removeEventListener("abort", abortBeforeAcceptance);
+      if (this.plugin.activeTasks.get(path) === controller) this.plugin.activeTasks.delete(path);
+      this.render();
+    }
+  }
+  reviewSynthesisDraft(node) {
+    const task = this.synthesisTasks.get(node.path);
+    if (!task || task.state !== "draft" || !task.draft || !task.save) return;
+    new SynthesisDraftModal(
+      this.app,
+      task.draft.summary,
+      task.draft.detail,
+      async (summary, detail) => {
+        await task.save(summary, detail);
+        if (this.synthesisTasks.get(node.path) === task) this.synthesisTasks.delete(node.path);
+        this.render();
+      },
+      () => this.discardSynthesis(node)
+    ).open();
+  }
+  discardSynthesis(node) {
+    const task = this.synthesisTasks.get(node.path);
+    if (!task || task.state === "running") return;
+    this.synthesisTasks.delete(node.path);
+    this.render();
+  }
+  retrySynthesis(node) {
+    const task = this.synthesisTasks.get(node.path);
+    if (!task || task.state !== "failed" && task.state !== "cancelled") return;
+    void this.plugin.repo.readNote(node.path).then(
+      (note) => this.plugin.confirmAiUsage(note.model, async () => {
+        await this.startSynthesis(
+          node,
+          { ...task.options },
+          task.step === "directions" ? null : task.direction,
+          (message) => new import_obsidian14.Notice(message),
+          () => {
+          }
+        );
+      })
+    );
   }
   integrateSelected() {
     if (!this.map || this.multiSelected.size < 2) {

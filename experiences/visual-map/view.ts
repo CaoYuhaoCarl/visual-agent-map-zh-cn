@@ -67,6 +67,7 @@ import {
   TaskModal,
   NextStepModal,
   AiDraftModal,
+  SynthesisDraftModal,
   ChildProposalModal,
   IntegrationModal,
   MapConflictModal,
@@ -161,6 +162,22 @@ export class VisualAgentMapView extends ItemView {
     progress: string;
     draft?: AiResult;
   } | null = null;
+  private synthesisTasks = new Map<
+    string,
+    {
+      mapPath: string;
+      mapId: string;
+      state: "running" | "directions" | "draft" | "failed" | "cancelled";
+      step: "directions" | "draft";
+      controller: AbortController;
+      progress: string;
+      options: TaskOptions;
+      directions: Suggestion[];
+      direction: string;
+      draft?: AiResult;
+      save?: (summary: string, detail: string) => Promise<void>;
+    }
+  >();
   private viewportEl: HTMLElement | null = null;
   private stageEl: HTMLElement | null = null;
   private edgesEl: SVGSVGElement | null = null;
@@ -287,6 +304,8 @@ export class VisualAgentMapView extends ItemView {
   }
   async onClose(): Promise<void> {
     this.closed = true;
+    for (const task of this.synthesisTasks.values()) if (task.state === "running") task.controller.abort();
+    this.synthesisTasks.clear();
     this.aimViewEpoch++;
     this.mapOpenEpoch++;
     const controller = this.aimController;
@@ -2609,6 +2628,29 @@ export class VisualAgentMapView extends ItemView {
       this.button(header, t("ui.view_0_expansion_suggestions", pendingCount), () =>
         this.openNodePanel(node, "proposals")
       ).addClass("vam-badge-new");
+    const synthesis = this.synthesisTasks.get(node.path);
+    if (synthesis && synthesis.mapPath === this.path && !this.builtIn && !this.integrationMode && !this.map?.aim) {
+      if (synthesis.state === "running") {
+        if (synthesis.progress) header.createSpan({ cls: "vam-status vam-status-running", text: synthesis.progress });
+        this.button(header, t("ui.stop_research"), () => synthesis.controller.abort());
+      } else if (synthesis.state === "directions")
+        this.button(header, t("ui.choose_synthesis_direction"), () => this.openNextStep(node)).addClass(
+          "vam-badge-new"
+        );
+      else if (synthesis.state === "draft")
+        this.button(header, t("ui.review_synthesis_draft"), () => this.reviewSynthesisDraft(node)).addClass(
+          "vam-badge-new"
+        );
+      else {
+        header.createSpan({
+          cls: "vam-status vam-status-error",
+          text: synthesis.state === "cancelled" ? t("ui.ai_task_cancelled") : t("ui.failed"),
+          attr: { title: synthesis.progress }
+        });
+        this.button(header, t("ui.try_again"), () => this.retrySynthesis(node));
+        this.button(header, t("ui.discard_synthesis"), () => this.discardSynthesis(node));
+      }
+    }
     if (!this.builtIn && !this.integrationMode) {
       if (!this.map?.aim) {
         const ai = this.button(header, "✦", () => this.openNextStep(node));
@@ -3004,7 +3046,7 @@ export class VisualAgentMapView extends ItemView {
             return this.proposeChildren(node, true, options, direction, found, failed, false, created, accepted);
           return this.startQuickExpansion(node, options, direction, failed, created, accepted);
         },
-        (options, found, drafted, failed) => this.proposeIntegrationDirections(node, options, found, drafted, failed),
+        (options, direction, failed, accepted) => this.startSynthesis(node, options, direction, failed, accepted),
         {
           model: note.model,
           modelSource: note.modelSource,
@@ -3017,7 +3059,13 @@ export class VisualAgentMapView extends ItemView {
             ? () => this.plugin.activeTasks.get(node.path)?.abort()
             : undefined,
           quickError: this.plugin.quickExpandFailures.get(node.path),
-          sources
+          sources,
+          synthesisPending: (() => {
+            const pending = this.synthesisTasks.get(node.path);
+            return pending?.state === "directions" && pending.mapPath === this.path
+              ? { directions: pending.directions, discard: () => this.discardSynthesis(node) }
+              : undefined;
+          })()
         }
       ).open();
     });
@@ -3961,7 +4009,8 @@ export class VisualAgentMapView extends ItemView {
     options: TaskOptions,
     found: (items: Suggestion[], draft: (direction: string) => Promise<void>) => void,
     drafted: (result: AiResult, save: (summary: string, detail: string) => Promise<void>) => void,
-    failed: (message: string) => void
+    failed: (message: string) => void,
+    accepted?: () => void
   ): Promise<void> {
     if (!this.map) {
       failed(t("ui.no_mind_map_is_available"));
@@ -4011,8 +4060,12 @@ export class VisualAgentMapView extends ItemView {
         ),
         note.model,
         note.reasoning,
-        options.signal
+        options.signal,
+        undefined,
+        accepted
       );
+      accepted?.();
+      if (options.signal?.aborted) throw new DOMException("Aborted", "AbortError");
       const angles = result.suggestions.slice(0, 2);
       if (!angles.length) {
         failed(t("ui.ai_did_not_suggest_a_synthesis_direction_please_retry"));
@@ -4022,6 +4075,10 @@ export class VisualAgentMapView extends ItemView {
         this.plugin.mutate(() => this.integrateChildren(node, true, options, direction, drafted, failed))
       );
     } catch (error) {
+      if (options.signal?.aborted || (error instanceof Error && error.name === "AbortError")) {
+        failed(t("ui.research_stopped_existing_content_was_preserved"));
+        return;
+      }
       console.error("Visual Agent Map integration directions", error);
       failed(this.plugin.recordFailure(t("log.integration_directions_failed"), error));
     } finally {
@@ -4036,7 +4093,8 @@ export class VisualAgentMapView extends ItemView {
     options?: TaskOptions,
     direction = "",
     drafted?: (result: AiResult, save: (summary: string, detail: string) => Promise<void>) => void,
-    failed?: (message: string) => void
+    failed?: (message: string) => void,
+    accepted?: () => void
   ): Promise<void> {
     if (!this.map || this.plugin.running.has(node.path)) {
       failed?.(t("ui.ai_running_ai"));
@@ -4139,8 +4197,11 @@ export class VisualAgentMapView extends ItemView {
         ),
         note.model,
         note.reasoning,
-        options?.signal
+        options?.signal,
+        undefined,
+        accepted
       );
+      accepted?.();
       if (options?.signal?.aborted) throw new DOMException("Aborted", "AbortError");
       await this.plugin.repo.updateNote(node.path, { status: note.status });
       const save = async (summary: string, detail: string): Promise<void> =>
@@ -4205,7 +4266,8 @@ export class VisualAgentMapView extends ItemView {
     } catch (error) {
       if (options?.signal?.aborted || (error instanceof Error && error.name === "AbortError")) {
         await this.plugin.repo.updateNote(node.path, { status: note.status });
-        new Notice(t("ui.research_stopped_existing_content_was_preserved"));
+        if (failed) failed(t("ui.research_stopped_existing_content_was_preserved"));
+        else new Notice(t("ui.research_stopped_existing_content_was_preserved"));
       } else {
         console.error("Visual Agent Map child integration", error);
         await this.plugin.repo.updateNote(node.path, { status: "error" });
@@ -4218,6 +4280,173 @@ export class VisualAgentMapView extends ItemView {
       await this.hydrate();
       this.render();
     }
+  }
+  private async startSynthesis(
+    node: MapNode,
+    options: TaskOptions,
+    direction: string | null,
+    failed: (message: string) => void,
+    accepted: () => void
+  ): Promise<void> {
+    const path = node.path;
+    const existing = this.synthesisTasks.get(path);
+    const step = direction === null ? "directions" : "draft";
+    if (!this.map) {
+      failed(t("ui.no_mind_map_is_available"));
+      return;
+    }
+    if (this.plugin.running.has(path) || this.plugin.activeTasks.has(path) || existing?.state === "running") {
+      failed(t("ui.ai_running_ai"));
+      return;
+    }
+    if (step === "directions" && (existing?.state === "directions" || existing?.state === "draft")) {
+      failed(t("ui.synthesis_pending_review_first"));
+      return;
+    }
+    if (
+      step === "draft" &&
+      (!existing || existing.mapPath !== this.path || existing.mapId !== this.map.id || !existing.directions.length)
+    ) {
+      failed(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
+      return;
+    }
+    const controller = new AbortController();
+    const modalSignal = options.signal;
+    const abortBeforeAcceptance = (): void => controller.abort();
+    if (modalSignal?.aborted) controller.abort();
+    else modalSignal?.addEventListener("abort", abortBeforeAcceptance, { once: true });
+    const stored = { ...options, signal: undefined, onProgress: undefined };
+    const task: NonNullable<ReturnType<VisualAgentMapView["synthesisTasks"]["get"]>> =
+      step === "draft" && existing
+        ? existing
+        : {
+            mapPath: this.path,
+            mapId: this.map.id,
+            state: "running",
+            step,
+            controller,
+            progress: "",
+            options: stored,
+            directions: [],
+            direction: ""
+          };
+    task.state = "running";
+    task.step = step;
+    task.controller = controller;
+    task.progress = "";
+    task.direction = direction ?? "";
+    task.draft = undefined;
+    task.save = undefined;
+    this.synthesisTasks.set(path, task);
+    this.plugin.activeTasks.set(path, controller);
+    const runOptions: TaskOptions = {
+      ...(step === "draft"
+        ? { ...task.options, requirements: options.requirements || task.options.requirements }
+        : options),
+      signal: controller.signal,
+      onProgress: message => {
+        task.progress = message;
+        options.onProgress?.(message);
+        if (this.synthesisTasks.get(path) === task) this.render();
+      }
+    };
+    let launched = false;
+    let outcome: "found" | "drafted" | "failed" | null = null;
+    const markAccepted = (): void => {
+      if (launched || controller.signal.aborted) return;
+      launched = true;
+      modalSignal?.removeEventListener("abort", abortBeforeAcceptance);
+      accepted();
+    };
+    const fail = (message: string): void => {
+      if (outcome) return;
+      outcome = "failed";
+      if (this.synthesisTasks.get(path) === task) {
+        if (!launched) {
+          if (step === "directions") this.synthesisTasks.delete(path);
+          else task.state = "directions";
+        } else {
+          task.state = controller.signal.aborted ? "cancelled" : "failed";
+          task.progress = message;
+        }
+      }
+      failed(message);
+    };
+    try {
+      if (step === "directions")
+        await this.proposeIntegrationDirections(
+          node,
+          runOptions,
+          items => {
+            outcome = "found";
+            task.state = "directions";
+            task.directions = items;
+            new Notice(t("ui.choose_synthesis_direction"));
+          },
+          () => {},
+          fail,
+          markAccepted
+        );
+      else
+        await this.integrateChildren(
+          node,
+          true,
+          runOptions,
+          direction ?? "",
+          (result, save) => {
+            outcome = "drafted";
+            task.state = "draft";
+            task.draft = result;
+            task.save = save;
+            new Notice(t("ui.review_synthesis_draft"));
+          },
+          fail,
+          markAccepted
+        );
+      if (!outcome) fail(t("ui.ai_task_cancelled"));
+    } catch (error) {
+      fail(error instanceof Error ? error.message : String(error));
+    } finally {
+      modalSignal?.removeEventListener("abort", abortBeforeAcceptance);
+      if (this.plugin.activeTasks.get(path) === controller) this.plugin.activeTasks.delete(path);
+      this.render();
+    }
+  }
+  private reviewSynthesisDraft(node: MapNode): void {
+    const task = this.synthesisTasks.get(node.path);
+    if (!task || task.state !== "draft" || !task.draft || !task.save) return;
+    new SynthesisDraftModal(
+      this.app,
+      task.draft.summary,
+      task.draft.detail,
+      async (summary, detail) => {
+        await task.save!(summary, detail);
+        if (this.synthesisTasks.get(node.path) === task) this.synthesisTasks.delete(node.path);
+        this.render();
+      },
+      () => this.discardSynthesis(node)
+    ).open();
+  }
+  private discardSynthesis(node: MapNode): void {
+    const task = this.synthesisTasks.get(node.path);
+    if (!task || task.state === "running") return;
+    this.synthesisTasks.delete(node.path);
+    this.render();
+  }
+  private retrySynthesis(node: MapNode): void {
+    const task = this.synthesisTasks.get(node.path);
+    if (!task || (task.state !== "failed" && task.state !== "cancelled")) return;
+    void this.plugin.repo.readNote(node.path).then(note =>
+      this.plugin.confirmAiUsage(note.model, async () => {
+        await this.startSynthesis(
+          node,
+          { ...task.options },
+          task.step === "directions" ? null : task.direction,
+          message => new Notice(message),
+          () => {}
+        );
+      })
+    );
   }
   private integrateSelected(): void {
     if (!this.map || this.multiSelected.size < 2) {
