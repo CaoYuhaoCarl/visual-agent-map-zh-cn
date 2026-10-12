@@ -8,7 +8,7 @@
 
 **Start with a question. See the pieces. Follow the ideas worth exploring.** Build a visual research map, let AIM investigate a question, or talk through a new idea in Coffee Tables. Keep what you learn in editable Markdown notes.
 
-[**Get started**](#get-started) · [See the 0.15.0 release](https://github.com/kevcltsai/visual-agent-map/releases/tag/0.15.0) · [Installation guide](INSTALL.md)
+[**Get started**](#get-started) · [See the 0.15.1 release](https://github.com/kevcltsai/visual-agent-map/releases/tag/0.15.1) · [Installation guide](INSTALL.md)
 
 ### Take a look
 
@@ -75,7 +75,7 @@ Copyright © 2026 Kevin Tsai
 
 **從一個問題出發，看見各個部分，再追你想探索的線索。** 建立視覺化研究地圖、讓 AIM 深入查證問題，或到 Coffee Tables 聊出新角度；想留下的發現都能存成可編輯的 Markdown 筆記。
 
-[**開始使用**](#開始使用) · [查看 0.15.0 正式版](https://github.com/kevcltsai/visual-agent-map/releases/tag/0.15.0) · [安裝指南](INSTALL.md)
+[**開始使用**](#開始使用) · [查看 0.15.1 正式版](https://github.com/kevcltsai/visual-agent-map/releases/tag/0.15.1) · [安裝指南](INSTALL.md)
 
 ### 看看畫面
 
