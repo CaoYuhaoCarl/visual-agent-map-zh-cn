@@ -61,7 +61,13 @@ function variantOf(context) {
   }
 }
 
-async function captureAimPhaseVariants() {
+/**
+ * `options.topic` / `options.ui` re-run the same flows on a map with another topic (and so content language) and
+ * interface language; without options the capture is byte-for-byte what the prompt snapshots use.
+ */
+async function captureAimPhaseVariants(options = {}) {
+  const topic = options.topic ?? 'Snapshot goal', ui = options.ui;
+  const setup = () => support.coverageSetup(topic, ui ? { sharedRepo: support.fixture(ui).repo } : undefined);
   const found = new Map();
   const note = context => { const key = variantOf(context); if (!found.has(key)) found.set(key, { ...context, onProgress: undefined, signal: undefined }); };
   const { AimManualFlow } = support.load('experiences/aim/manual-flow.ts');
@@ -77,14 +83,14 @@ async function captureAimPhaseVariants() {
 
   // 1. initial-clarification (public entry; coverage fake answers it).
   {
-    const subject = withFlow(await support.coverageSetup('Snapshot goal'));
-    await subject.flow.prepareClarification(await subject.repo.readNote(subject.created.root.path));
+    const subject = withFlow(await setup());
+    await subject.flow.prepareClarification(await subject.repo.readNote(subject.created.root.path), (await subject.repo.readMap(subject.created.mapPath)).aim.contentLanguage);
   }
 
   // 2. initial-question correction: first Planner reply skips the question below the floor.
   {
     let skipped = false;
-    const subject = withFlow(await support.coverageSetup('Snapshot goal'), context => {
+    const subject = withFlow(await setup(), context => {
       if (aimPhase(context, 'initial-question') && !skipped) { skipped = true; return answer('__AIM_NO_QUESTION__', ''); }
     });
     await subject.flow.planNextQuestion(subject.created.mapPath, subject.created.root.id, MODEL, 'low', 'snapshot-question');
@@ -94,7 +100,7 @@ async function captureAimPhaseVariants() {
   // 3. decision-quality-review below the floor: a concluding review is corrected into one question.
   {
     let concluded = false;
-    const subject = withFlow(await support.coverageSetup('Snapshot goal'), context => {
+    const subject = withFlow(await setup(), context => {
       if (aimPhase(context, 'report-review') && !concluded) { concluded = true; return plannerReview('conclude', { rationale: 'Looks complete.', stopReason: 'Done.' }, 'Candidate', 'Candidate body'); }
       if (aimPhase(context, 'decision-quality-review')) return plannerReview('ask_user', { rationale: 'A new dimension matters.', question: 'Which budget range fits you?' }, 'Conditional answer', 'Existing reports remain valid.', ['Low budget', 'High budget']);
     });
@@ -107,7 +113,7 @@ async function captureAimPhaseVariants() {
   {
     let proposed = false;
     const target = { title: 'Extra example', task: 'Verify one more example.', contribution: 'Pad the result.' };
-    const subject = withFlow(await support.coverageSetup('Snapshot goal'), context => {
+    const subject = withFlow(await setup(), context => {
       if (aimPhase(context, 'report-review') && /Hard floor: 3 answered/.test(context.task) && !proposed) {
         proposed = true;
         return answer('The reports already answer the goal.', '<!-- aim-review {"decision":"research_more","rationale":"No gap remains.","goalAnswered":true} -->\nSupported conditional answer.', [target]);
@@ -120,8 +126,8 @@ async function captureAimPhaseVariants() {
 
   // 5. initial-question from a saved terminal result (the "new follow-up question" entry).
   {
-    const { repo } = support.fixture();
-    const created = await createAimMap(repo, MODEL, { requestId: 'snapshot-saved-result-map', topic: 'Synthetic cooking plan', context: 'Use a cast-iron pan; no oven.' });
+    const { repo } = support.fixture(ui);
+    const created = await createAimMap(repo, MODEL, { requestId: 'snapshot-saved-result-map', topic: options.topic ?? 'Synthetic cooking plan', context: 'Use a cast-iron pan; no oven.' });
     const store = new AimRunStore(repo);
     const first = new AimManualFlow(repo, store, async () => answer('Which doneness do you prefer?', 'Synthetic initial question.', [{ title: 'Pink' }, { title: 'Well done' }]));
     const originalQuestion = (await first.planNextQuestion(created.mapPath, created.root.id, MODEL, 'low', 'snapshot-source-initial')).node;
@@ -138,8 +144,8 @@ async function captureAimPhaseVariants() {
 
   // 6. gap audit (both forms), user-condition correction, targeted follow-up and the second report review.
   {
-    const { repo } = support.fixture();
-    const created = await createAimMap(repo, MODEL, { requestId: 'snapshot-range-map', topic: 'Prepare a herb roast chicken', context: 'Synthetic range-answer scenario.' });
+    const { repo } = support.fixture(ui);
+    const created = await createAimMap(repo, MODEL, { requestId: 'snapshot-range-map', topic: options.topic ?? 'Prepare a herb roast chicken', context: 'Synthetic range-answer scenario.' });
     let searches = 0, reviews = 0;
     const target = { title: 'Small-chicken herb butter recipe', task: 'Find a published recipe for a chicken below 1.5 kg with herb, garlic and butter quantities.', contribution: 'Verify published ingredient ratios for a small bird.' };
     const plan = ['recipe', 'method', 'doneness'].map(id => ({ id, title: id, task: `Find ${id} evidence.`, expectedValue: `Support ${id}.` }));
@@ -233,7 +239,7 @@ async function captureAimPhaseVariants() {
   // 10. Evidence lookup: a report-review asks for the full text of a lineage report; the flow appends it and asks again.
   {
     let requested = false;
-    const subject = withFlow(await support.coverageSetup('Snapshot goal'), context => {
+    const subject = withFlow(await setup(), context => {
       if (!aimPhase(context, 'report-review') || requested) return;
       const id = `${context.task}\n${context.detail}\n${context.ancestors}`.match(/Evidence ID: ([^\s]+)/)?.[1];
       if (!id) return;
@@ -288,11 +294,11 @@ async function captureAimPhaseVariants() {
   // 13. Partial continuation: bounded search, then the Planner review of all evidence. The second pass saves no Planner
   // review and no stop reason, so the search is sent without a target (the Planner's unresolved-gap fallback text).
   for (const withTarget of [true, false]) {
-    const { repo } = support.fixture();
-    const created = await createAimMap(repo, MODEL, { requestId: 'snapshot-continuation-map', topic: 'Synthetic roast chicken', context: 'Synthetic regression only.' });
+    const { repo } = support.fixture(ui);
+    const created = await createAimMap(repo, MODEL, { requestId: 'snapshot-continuation-map', topic: options.topic ?? 'Synthetic roast chicken', context: 'Synthetic regression only.' });
     const store = new AimRunStore(repo);
     const planned = await new AimManualFlow(repo, store, async () => answer('What serving time?', 'Synthetic question.', [{ title: 'Evening' }, { title: 'Lunch' }])).planNextQuestion(created.mapPath, created.root.id, MODEL, 'low', 'snapshot-continuation-question');
-    const branch = await store.createAnswerBranch(created.mapPath, { requestId: 'snapshot-continuation-answer', questionNodeId: planned.node.id, parentBranchId: null, answerSnapshot: { selections: [], freeText: 'Synthetic constraints only.' }, inputSnapshot: { topic: 'Synthetic roast chicken', conditions: { 'Serving time': 'evening; synthetic' }, upstreamResults: [] } });
+    const branch = await store.createAnswerBranch(created.mapPath, { requestId: 'snapshot-continuation-answer', questionNodeId: planned.node.id, parentBranchId: null, answerSnapshot: { selections: [], freeText: 'Synthetic constraints only.' }, inputSnapshot: { topic: options.topic ?? 'Synthetic roast chicken', conditions: { 'Serving time': 'evening; synthetic' }, upstreamResults: [] } });
     const original = await store.startAttempt(created.mapPath, branch.id, 'snapshot-continuation-run', { model: MODEL, reasoning: 'low', maxResearchTurns: 2 });
     await store.recordResearchTurn(created.mapPath, original);
     const seedDraft = (await store.createResultDraft(created.mapPath, original, 'Earlier partial report', MODEL, 'low', { kind: 'synthesis' })).draft;

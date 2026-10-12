@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { translate } from "../../i18n";
 import type { AiResult, TaskContext } from "../../ai/types";
 import type { AimContract } from "../../ai/aim-contracts";
 import { renderOutlineTask } from "./steps/delivery-outline/step";
@@ -421,7 +422,10 @@ export async function buildFinalDelivery(
     return { result: { ...draft, detail: `${acceptance.marker}\n\n${draft.detail}`, suggestions: [] }, evidence };
   }
   return {
-    result: { ...result, detail: `${result.detail}\n\n## Draft pending completion\n\n${draft.detail}` },
+    result: {
+      ...result,
+      detail: `${result.detail}\n\n${translate(base.outputLanguage ?? "en", "note.aim_draft_pending")}\n\n${draft.detail}`
+    },
     evidence
   };
 }

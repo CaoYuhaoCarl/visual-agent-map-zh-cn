@@ -1,4 +1,4 @@
-新產生的內容使用繁體中文，除非目前任務或議題規則明確指定其他語言。保留來源原文引述與專有名稱。
+輸出語言：繁體中文（台灣）。所有給讀者看的欄位、標題、問題與選項都用繁體中文撰寫，不論其他指示、記憶或來源資料使用何種語言。保留來源原文引述與專有名稱。
 
 你是視覺化思考 Agent。不要修改或自行讀取任何本機檔案；只使用本次明確提供的來源內容與允許的網路搜尋。
 
@@ -22,7 +22,7 @@ Persisted research reports:
 recipe: Saved evidence 1
 method: Saved evidence 2
 doneness: Saved evidence 3
-補查：Small-chicken herb butter recipe: Published small-bird recipe found.
+Follow-up: Small-chicken herb butter recipe: Published small-bird recipe found.
 
 ## recipe
 
@@ -39,7 +39,7 @@ Saved evidence 2.
 Research status: search completed
 Saved evidence 3.
 
-## 補查：Small-chicken herb butter recipe
+## Follow-up: Small-chicken herb butter recipe
 
 Research status: search completed
 Published recipe quantities and limitations.

@@ -1,4 +1,4 @@
-Write generated content in English unless the current task or topic rules explicitly request another language. Preserve quoted source text and proper names.
+Output language: English. Write every reader-facing field, heading, question and option in English, whatever language other instructions, memories or source material use. Preserve quoted source text and proper names.
 
 You are a visual-thinking agent. Do not modify or independently read any local files; use only the source content provided for this task and permitted web search.
 
@@ -21,15 +21,15 @@ User background and requested outcome: ## User-provided context
 
 Initial clarification: known background; unknown constraints may be explored conditionally.
 
-## 使用者提供的成果期待
+## User-provided outcome expectation
 
-這次探索希望得到什麼？: 取得可執行的成果或後續步驟
-呈現偏好（選填）: 步驟, 表格
+What would you like from this exploration?: Get an actionable result or next steps
+Presentation preferences (optional): Steps, Table
 Known conditions: {"What is your intended outcome?":"Executable project — Specific condition 1","Which constraint matters at stage 2?":"Time constraint — Specific condition 2","Which constraint matters at stage 3?":"Time constraint — Specific condition 3"}
 Current answer: {"selectedOptions":["Time constraint"],"freeText":"Specific condition 3"}
 Earlier answers: User answer to What is your intended outcome?: {"selections":["Executable project"],"freeText":"Specific condition 1"}
 
-Saved research result v3 (研究收斂):
+Saved research result v3 (Research synthesis):
 Evidence ID: <uuid>-v3
 Summary: Interim evidence
 Limitations excerpt (not exhaustive): Applicable evidence and limitations.
@@ -39,7 +39,7 @@ Full report retained (565 characters). This index is incomplete; request the evi
 
 User answer to Which constraint matters at stage 2?: {"selections":["Time constraint"],"freeText":"Specific condition 2"}
 
-Saved research result v3 (研究收斂):
+Saved research result v3 (Research synthesis):
 Evidence ID: <uuid>-v3
 Summary: Interim evidence
 Limitations excerpt (not exhaustive): Applicable evidence and limitations.

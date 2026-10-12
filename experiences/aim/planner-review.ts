@@ -1,6 +1,6 @@
 import type { AiResult } from "../../ai/types";
 import {
-  CLARIFICATION_REQUIRED_RATIONALE,
+  clarificationRequiredRationale,
   renderGeneralRepair,
   renderImposedOptionsRepair,
   renderMissingChoicesRepair,
@@ -152,6 +152,8 @@ export interface PlannerReviewRecoveryContext {
   preferredQuestion?: string;
   /** Fixed rationale supplied by the workflow when it imposes a decision. */
   requiredDecisionRationale?: string;
+  /** AIM content language, used only for fixed fallback wording. */
+  outputLanguage?: "en" | "zh-TW";
 }
 
 /** Return an explicitly written interrogative from the current response without deriving one from evidence. */
@@ -224,7 +226,8 @@ export async function parseAimPlannerReviewWithRecovery(
         // instruction). The model, not VAM, must author the question, so ask it once to state it.
         const task = renderStateQuestionRepair({
           requiredDecision: context.requiredDecision,
-          requiredRationale: context.requiredDecisionRationale ?? CLARIFICATION_REQUIRED_RATIONALE,
+          requiredRationale:
+            context.requiredDecisionRationale ?? clarificationRequiredRationale(context.outputLanguage),
           originalSummary,
           preservedBody,
           originalSuggestions: JSON.stringify(original.suggestions),
@@ -248,7 +251,8 @@ export async function parseAimPlannerReviewWithRecovery(
       if (answerOptions.length < 2 || answerOptions.length > 5) {
         const task = renderImposedOptionsRepair({
           requiredDecision: context.requiredDecision,
-          requiredRationale: context.requiredDecisionRationale ?? CLARIFICATION_REQUIRED_RATIONALE,
+          requiredRationale:
+            context.requiredDecisionRationale ?? clarificationRequiredRationale(context.outputLanguage),
           question,
           originalSummary,
           preservedBody,

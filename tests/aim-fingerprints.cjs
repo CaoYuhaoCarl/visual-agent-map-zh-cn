@@ -90,3 +90,56 @@ test('manual-flow sourceFingerprint and the delivery checkpoint digests it carri
   });
   for (const value of [recovery.fingerprint, checkpoint.baseFingerprint]) assert.match(value, digest);
 });
+
+test('AIM checkpoint fingerprints do not change when the interface language changes (content language is stored per map)', async () => {
+  const run = async uiLanguage => {
+    const subject = fixture({ depth: 1 });
+    subject.repository.settings.language = uiLanguage;
+    const ask = async context => {
+      const phase = phaseOf(context);
+      assert.equal(context.outputLanguage, 'en');
+      if (phase === 'subtopic-research') return answer('Method found', 'Research status: search completed\nEvidence https://example.org/a');
+      if (phase === 'report-review') return review('conclude', { rationale: 'Supported.', stopReason: 'Enough.' });
+      if (phase === 'delivery-outline') return answer('Outline', '<!-- aim-delivery-outline {"sections":[{"heading":"Plan","purpose":"Goal","searchTask":"Find examples"}]} -->');
+      if (phase === 'delivery-research') return answer('Evidence', '<!-- aim-delivery-research {"status":"searched"} -->\nhttps://example.org/r');
+      if (phase === 'delivery-writing') return answer('Draft', 'Full draft https://example.org/r');
+      if (phase === 'delivery-acceptance') throw new Error('STOP_AT_ACCEPTANCE');
+      throw new Error(`Unexpected phase ${phase}`);
+    };
+    let next = 0;
+    const flow = new AimManualFlow(subject.repository, subject.store, ask, () => `flow-${++next}`);
+    await assert.rejects(flow.resumeAnswerResearch('Map.md', 'current', 'test', 'low'), /STOP_AT_ACCEPTANCE/);
+    const recovery = subject.getMap().aim.branches.find(branch => branch.id === 'current').deliveryRecovery;
+    return { source: recovery.fingerprint, base: recovery.checkpoint.baseFingerprint, research: recovery.checkpoint.researchFingerprint, draft: recovery.checkpoint.draftFingerprint };
+  };
+  assert.deepEqual(await run('zh-TW'), await run('en'));
+});
+
+test('AIM stored content language keeps outputLanguage and delivery fingerprints stable across an interface switch for a signal-less title', async () => {
+  const run = async uiLanguage => {
+    const subject = fixture({ depth: 1 });
+    subject.repository.settings.language = uiLanguage;
+    const stored = subject.getMap(); stored.title = '🍜'; stored.aim.contentLanguage = 'zh-TW';
+    await subject.repository.saveMap('Map.md', stored);
+    const languages = new Set();
+    const ask = async context => {
+      languages.add(context.outputLanguage);
+      const phase = phaseOf(context);
+      if (phase === 'subtopic-research') return answer('Method found', 'Research status: search completed\nEvidence https://example.org/a');
+      if (phase === 'report-review') return review('conclude', { rationale: 'Supported.', stopReason: 'Enough.' });
+      if (phase === 'delivery-outline') return answer('Outline', '<!-- aim-delivery-outline {"sections":[{"heading":"Plan","purpose":"Goal","searchTask":"Find examples"}]} -->');
+      if (phase === 'delivery-research') return answer('Evidence', '<!-- aim-delivery-research {"status":"searched"} -->\nhttps://example.org/r');
+      if (phase === 'delivery-writing') return answer('Draft', 'Full draft https://example.org/r');
+      if (phase === 'delivery-acceptance') throw new Error('STOP_AT_ACCEPTANCE');
+      throw new Error(`Unexpected phase ${phase}`);
+    };
+    let next = 0;
+    const flow = new AimManualFlow(subject.repository, subject.store, ask, () => `flow-${++next}`);
+    await assert.rejects(flow.resumeAnswerResearch('Map.md', 'current', 'test', 'low'), /STOP_AT_ACCEPTANCE/);
+    const recovery = subject.getMap().aim.branches.find(branch => branch.id === 'current').deliveryRecovery;
+    return { languages: [...languages], source: recovery.fingerprint, base: recovery.checkpoint.baseFingerprint, research: recovery.checkpoint.researchFingerprint };
+  };
+  const zh = await run('zh-TW'), en = await run('en');
+  assert.deepEqual(zh.languages, ['zh-TW']);
+  assert.deepEqual(zh, en);
+});

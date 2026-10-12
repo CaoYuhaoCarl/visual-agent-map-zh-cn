@@ -1156,6 +1156,34 @@ var english = {
   "note.aim_unpublished_diagnostic": "(unpublished diagnostic)",
   "note.aim_unpublished_diagnostic_summary_0": "Unpublished diagnostic: this content belongs to the superseded AIM attempt {0} and is not a valid research result.",
   "note.aim_initial_clarification": "Initial user clarification",
+  "note.aim_user_context": "## User-provided context",
+  "note.aim_title_user_condition_0": "{0} \xB7 User condition",
+  "note.aim_title_continued_research_0": "{0} \xB7 Continued research",
+  "note.aim_followup_report_0": "Follow-up report: {0}",
+  "note.aim_continuation_report": "## Continuation Agent report",
+  "note.aim_prompt_recovered_post_report": "Recovered from a persisted post-report Planner decision; do not choose the user's answer.",
+  "note.aim_prompt_followup_selected": "Follow-up selected by the persisted Planner review; do not choose the user's answer.",
+  "note.aim_prompt_question_recovered": "Question recovered from a persisted Planner decision; do not answer for the user.",
+  "note.aim_below_floor_rationale_0_1": "The branch has {0} answered question node(s); at least {1} are required before conclusion.",
+  "note.aim_result_pending": "AIM result pending synthesis.",
+  "note.aim_draft_pending": "## Draft pending completion",
+  "note.aim_followup_question_prompt": "Follow-up question after reviewing all saved research, including any targeted evidence follow-up.",
+  "note.aim_stop_awaiting_0": "Awaiting the user's answer to: {0}",
+  "note.aim_stop_bounded_followup_0": "One bounded follow-up was used; a material gap remains: {0}",
+  "note.aim_stop_budget_gap_0": "Continuation attempt reached its prototype research-turn budget with a material gap remaining: {0}",
+  "note.aim_rationale_0": "Rationale: {0}",
+  "note.aim_stop_reason_0": "Stop reason: {0}",
+  "note.aim_supporting_research": "## Supporting research",
+  "note.aim_source_boundary": "## Source boundary",
+  "note.aim_source_boundary_not_verified": "Agent-reported sources are not independently verified by VAM.",
+  "note.aim_source_boundary_were_not_verified": "Agent-reported sources were not independently verified by VAM.",
+  "note.aim_source_boundary_claims": "Sources and claims are reported by the research agent and were not independently verified by VAM.",
+  "note.aim_research_status_partial": "## Research status: partial / continuable",
+  "note.aim_interim_result": "## Interim result",
+  "note.aim_saved_evidence": "## Saved evidence",
+  "note.aim_still_open_0": "Still open: {0}",
+  "note.aim_gap_fallback_task": "A material evidence gap remains; continue with a targeted search.",
+  "note.aim_attempt_budget_gap": "This continuation reached its attempt budget with a material gap still open; it is not complete.",
   "note.no_conclusion_yet": "No conclusion yet",
   "note.untitled_topic": "Untitled topic",
   "note.source_unconfirmed_0": "Source to confirm: {0}",
@@ -2246,6 +2274,34 @@ var traditionalChinese = {
   "note.aim_unpublished_diagnostic": "\uFF08\u672A\u767C\u5E03\u8A3A\u65B7\uFF09",
   "note.aim_unpublished_diagnostic_summary_0": "\u672A\u767C\u5E03\u8A3A\u65B7\uFF1A\u6B64\u5167\u5BB9\u5C6C\u65BC\u5DF2\u5931\u6548\u7684 AIM \u7814\u7A76\u5617\u8A66 {0}\uFF0C\u4E0D\u662F\u6709\u6548\u7814\u7A76\u7D50\u679C\u3002",
   "note.aim_initial_clarification": "\u958B\u59CB\u524D\u689D\u4EF6\u91D0\u6E05",
+  "note.aim_user_context": "## \u4F7F\u7528\u8005\u63D0\u4F9B\u7684\u80CC\u666F",
+  "note.aim_title_user_condition_0": "{0}\u30FB\u4F7F\u7528\u8005\u689D\u4EF6",
+  "note.aim_title_continued_research_0": "{0}\u30FB\u7E8C\u67E5\u7814\u7A76",
+  "note.aim_followup_report_0": "\u88DC\u67E5\u5831\u544A\uFF1A{0}",
+  "note.aim_continuation_report": "## \u7E8C\u67E5\u4EE3\u7406\u5831\u544A",
+  "note.aim_prompt_recovered_post_report": "\u7531\u5DF2\u4FDD\u5B58\u7684\u5831\u544A\u5F8C Planner \u6C7A\u5B9A\u5FA9\u539F\uFF1B\u8ACB\u52FF\u66FF\u4F7F\u7528\u8005\u9078\u64C7\u7B54\u6848\u3002",
+  "note.aim_prompt_followup_selected": "\u7531\u5DF2\u4FDD\u5B58\u7684 Planner \u5BE9\u95B1\u9078\u51FA\u7684\u5F8C\u7E8C\u554F\u984C\uFF1B\u8ACB\u52FF\u66FF\u4F7F\u7528\u8005\u9078\u64C7\u7B54\u6848\u3002",
+  "note.aim_prompt_question_recovered": "\u7531\u5DF2\u4FDD\u5B58\u7684 Planner \u6C7A\u5B9A\u5FA9\u539F\u7684\u554F\u984C\uFF1B\u8ACB\u52FF\u66FF\u4F7F\u7528\u8005\u4F5C\u7B54\u3002",
+  "note.aim_below_floor_rationale_0_1": "\u6B64\u5206\u652F\u76EE\u524D\u6709 {0} \u500B\u5DF2\u56DE\u7B54\u7684\u554F\u984C\u7BC0\u9EDE\uFF1B\u4E0B\u7D50\u8AD6\u524D\u81F3\u5C11\u9700\u8981 {1} \u500B\u3002",
+  "note.aim_result_pending": "AIM \u7814\u7A76\u7D50\u679C\u5F85\u5F59\u6574\u3002",
+  "note.aim_draft_pending": "## \u8349\u7A3F\u5F85\u88DC\u5B8C",
+  "note.aim_followup_question_prompt": "\u5BE9\u95B1\u6240\u6709\u5DF2\u5B58\u7814\u7A76\uFF08\u542B\u91DD\u5C0D\u6027\u88DC\u67E5\u8B49\u64DA\uFF09\u5F8C\u63D0\u51FA\u7684\u5F8C\u7E8C\u554F\u984C\u3002",
+  "note.aim_stop_awaiting_0": "\u7B49\u5F85\u4F7F\u7528\u8005\u56DE\u7B54\uFF1A{0}",
+  "note.aim_stop_bounded_followup_0": "\u5DF2\u9032\u884C\u4E00\u6B21\u6709\u9650\u88DC\u67E5\uFF0C\u4ECD\u6709\u91CD\u8981\u7F3A\u53E3\uFF1A{0}",
+  "note.aim_stop_budget_gap_0": "\u7E8C\u8DD1\u5DF2\u9054\u539F\u578B\u7814\u7A76\u8F2A\u6578\u4E0A\u9650\uFF0C\u4ECD\u6709\u91CD\u8981\u7F3A\u53E3\uFF1A{0}",
+  "note.aim_rationale_0": "\u7406\u7531\uFF1A{0}",
+  "note.aim_stop_reason_0": "\u505C\u6B62\u539F\u56E0\uFF1A{0}",
+  "note.aim_supporting_research": "## \u4F50\u8B49\u7814\u7A76",
+  "note.aim_source_boundary": "## \u4F86\u6E90\u754C\u7DDA",
+  "note.aim_source_boundary_not_verified": "\u4EE3\u7406\u56DE\u5831\u7684\u4F86\u6E90\u672A\u7D93 VAM \u7368\u7ACB\u9A57\u8B49\u3002",
+  "note.aim_source_boundary_were_not_verified": "\u4EE3\u7406\u56DE\u5831\u7684\u4F86\u6E90\u672A\u7D93 VAM \u7368\u7ACB\u9A57\u8B49\u3002",
+  "note.aim_source_boundary_claims": "\u4F86\u6E90\u8207\u4E3B\u5F35\u7531\u7814\u7A76\u4EE3\u7406\u56DE\u5831\uFF0C\u672A\u7D93 VAM \u7368\u7ACB\u9A57\u8B49\u3002",
+  "note.aim_research_status_partial": "## \u7814\u7A76\u72C0\u614B\uFF1A\u90E8\u5206\u5B8C\u6210\uFF0F\u53EF\u7E7C\u7E8C",
+  "note.aim_interim_result": "## \u66AB\u5B9A\u7D50\u679C",
+  "note.aim_saved_evidence": "## \u5DF2\u5132\u5B58\u8B49\u64DA",
+  "note.aim_still_open_0": "\u5C1A\u672A\u89E3\u6C7A\uFF1A{0}",
+  "note.aim_gap_fallback_task": "\u4ECD\u6709\u91CD\u8981\u8B49\u64DA\u7F3A\u53E3\uFF1B\u8ACB\u7E7C\u7E8C\u9032\u884C\u91DD\u5C0D\u6027\u641C\u5C0B\u3002",
+  "note.aim_attempt_budget_gap": "\u9019\u6B21\u7E8C\u8DD1\u5DF2\u7528\u5B8C\u5617\u8A66\u984D\u5EA6\uFF0C\u91CD\u8981\u7F3A\u53E3\u4ECD\u672A\u89E3\u6C7A\uFF0C\u5C1A\u672A\u5B8C\u6210\u3002",
   "note.no_conclusion_yet": "\u5C1A\u672A\u5F62\u6210\u7D50\u8AD6",
   "note.untitled_topic": "\u672A\u547D\u540D\u4E3B\u984C",
   "note.source_unconfirmed_0": "\u4F86\u6E90\u5F85\u78BA\u8A8D\uFF1A{0}",
@@ -9680,14 +9736,41 @@ function avatarColor(name) {
   return Math.abs(hash) % 8;
 }
 
+// experiences/aim/content-language.ts
+var KANA_OR_HANGUL = /[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
+function detectAimContentLanguage(text11) {
+  var _a, _b;
+  if (KANA_OR_HANGUL.test(text11)) return "unsupported";
+  const han = ((_a = text11.match(/\p{Script=Han}/gu)) != null ? _a : []).length;
+  const latin = ((_b = text11.match(/\p{Script=Latin}+/gu)) != null ? _b : []).length;
+  if (han > 0 && han >= latin) return "zh-TW";
+  if (latin > 0) return "en";
+  return void 0;
+}
+function chooseAimContentLanguage(uiLanguage, ...sources2) {
+  for (const source of sources2) {
+    const result = detectAimContentLanguage(source != null ? source : "");
+    if (result === "unsupported") return uiLanguage;
+    if (result) return result;
+  }
+  return uiLanguage;
+}
+function resolveAimContentLanguage(map, uiLanguage) {
+  var _a;
+  const stored = (_a = map == null ? void 0 : map.aim) == null ? void 0 : _a.contentLanguage;
+  if (stored === "en" || stored === "zh-TW") return stored;
+  return chooseAimContentLanguage(uiLanguage, map == null ? void 0 : map.title);
+}
+
 // ui/modals/aim-clarification-modal.ts
 var import_obsidian5 = require("obsidian");
 var AimClarificationModal = class extends import_obsidian5.Modal {
-  constructor(app, questions, submit, english2) {
+  constructor(app, questions, submit, english2, contentLanguage) {
     super(app);
     this.questions = questions;
     this.submit = submit;
     this.english = english2;
+    this.contentLanguage = contentLanguage;
   }
   onOpen() {
     var _a;
@@ -9720,7 +9803,7 @@ var AimClarificationModal = class extends import_obsidian5.Modal {
         });
         const answers = fields.map(
           ({ question, input }) => `- ${question}
-  ${input.value.trim() || text11("note.aim_clarify_blank_answer")}`
+  ${input.value.trim() || translate(this.contentLanguage, "note.aim_clarify_blank_answer")}`
         ).join("\n\n");
         void this.submit(answers).then(() => this.close()).catch((error) => {
           pending = false;
@@ -10331,6 +10414,8 @@ function validateAimMap(map) {
     throw new Error("Invalid AIM map extension.");
   if (data.creationId !== void 0 && (typeof data.creationId !== "string" || !data.creationId.trim()))
     throw new Error("Invalid AIM creation identity.");
+  if (data.contentLanguage !== void 0 && data.contentLanguage !== "en" && data.contentLanguage !== "zh-TW")
+    throw new Error("Invalid AIM content language.");
   if (data.minimumAnswersBeforeConclusion !== void 0 && (!Number.isInteger(data.minimumAnswersBeforeConclusion) || data.minimumAnswersBeforeConclusion < 1 || data.minimumAnswersBeforeConclusion > 10))
     throw new Error("Invalid AIM exploration question target.");
   if (data.rootDraft !== void 0 && (!data.rootDraft || typeof data.rootDraft.nodeId !== "string" || typeof data.rootDraft.notePath !== "string" || !data.rootDraft.notePath.endsWith(".md") || typeof data.rootDraft.title !== "string" || typeof data.rootDraft.context !== "string" || data.rootDraft.model !== void 0 && (typeof data.rootDraft.model !== "string" || !data.rootDraft.model.trim()) || data.rootDraft.reasoning !== void 0 && !["low", "medium", "high"].includes(data.rootDraft.reasoning) || map.nodes.some((node) => node.id === data.rootDraft.nodeId)))
@@ -10658,6 +10743,7 @@ function noteTitle(content, fm, fallback) {
   const body = content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "");
   return ((_b = (_a = /^# (.+)$/m.exec(body)) == null ? void 0 : _a[1]) == null ? void 0 : _b.trim()) || text4(fm.title, fallback);
 }
+var noteContentLanguage = (fm) => fm["content-language"] === "en" || fm["content-language"] === "zh-TW" ? fm["content-language"] : void 0;
 var placeholder = (language2) => translate(language2, "detail.no_conclusion_yet");
 var isPlaceholder = (value) => value === translate("zh-TW", "detail.no_conclusion_yet") || value === translate("en", "detail.no_conclusion_yet");
 var previewHeading = (language2) => translate(language2, "detail.preview");
@@ -10749,10 +10835,10 @@ ${content.slice(managedEnd + DETAIL_END.length).trimStart()}`;
 
 ${content.slice(bounds.end).trimStart()}`;
 }
-function ensurePreview(content, language2) {
+function ensurePreview(content, language2, textLanguage = language2) {
   const legacy = section(content, "User Notes");
   const preview = previewSection(content);
-  const merged = [isPlaceholder(preview) ? placeholder(language2) : preview, legacy].filter(Boolean).join("\n\n");
+  const merged = [isPlaceholder(preview) ? placeholder(textLanguage) : preview, legacy].filter(Boolean).join("\n\n");
   const clean3 = removeSection(removeSection(removeSection(content, "User Notes"), "\u9810\u89BD"), "Preview");
   return replaceSection(clean3, previewHeading(language2), merged);
 }
@@ -10817,10 +10903,10 @@ ${newFindings.trim()}` : "",
     leftover.trim()
   ].filter(Boolean).join("\n\n") + "\n";
 }
-function normalizeBodyOrder(content, title, summaryFallback, language2) {
-  const clean3 = ensurePreview(withoutReference(content), language2);
+function normalizeBodyOrder(content, title, summaryFallback, language2, textLanguage = language2) {
+  const clean3 = ensurePreview(withoutReference(content), language2, textLanguage);
   const currentSummary = section(clean3, "Current Summary") || summaryFallback;
-  const summary = isPlaceholder(currentSummary) ? placeholder(language2) : currentSummary;
+  const summary = isPlaceholder(currentSummary) ? placeholder(textLanguage) : currentSummary;
   const prompt = section(clean3, "Prompt");
   const rules = section(clean3, "Rules");
   const preview = previewSection(clean3);
@@ -10976,9 +11062,13 @@ var Repository = class {
       sourcePaths: Array.isArray(fm["source-notes"]) ? fm["source-notes"].filter((value) => typeof value === "string" && Boolean(value)) : []
     };
   }
-  async updateNote(path, patch) {
+  /**
+   * `options.contentLanguage` is the AIM content language: it only chooses the language of generated placeholder text;
+   * headings and the reference frame stay in the interface language. Notes created by AIM remember it in frontmatter.
+   */
+  async updateNote(path, patch, options = {}) {
     await this.app.vault.process(this.file(path), (content) => {
-      var _a;
+      var _a, _b, _c;
       const fm = frontmatter(content);
       ensureNoteCssClass(fm);
       if (Array.isArray(fm["agent-map-references"]))
@@ -11001,8 +11091,11 @@ var Repository = class {
         patch.sourcePaths.length ? fm["source-notes"] = patch.sourcePaths : delete fm["source-notes"];
       fm.updated = (/* @__PURE__ */ new Date()).toISOString();
       let body = content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "");
-      body = ensurePreview(body, this.settings.language);
-      if (isPlaceholder(text4(fm.summary))) fm.summary = placeholder(this.settings.language);
+      const textLanguage = (_c = (_b = options.contentLanguage) != null ? _b : noteContentLanguage(fm)) != null ? _c : this.settings.language;
+      if (options.contentLanguage !== void 0 && noteContentLanguage(fm) === void 0)
+        fm["content-language"] = options.contentLanguage;
+      body = ensurePreview(body, this.settings.language, textLanguage);
+      if (isPlaceholder(text4(fm.summary))) fm.summary = placeholder(textLanguage);
       if (patch.title !== void 0) {
         const heading = managedHeadingValue(patch.title);
         body = body.replace(/^# .*$/m, () => `# ${heading}`);
@@ -11048,8 +11141,9 @@ var Repository = class {
       body = normalizeBodyOrder(
         body,
         text4(fm.title, path.replace(/\.md$/, "")),
-        text4(fm.summary, placeholder(this.settings.language)),
-        this.settings.language
+        text4(fm.summary, placeholder(textLanguage)),
+        this.settings.language,
+        textLanguage
       );
       return `---
 ${(0, import_obsidian8.stringifyYaml)(fm)}---
@@ -11090,7 +11184,8 @@ ${noteBody(title, (_b = initial.summary) != null ? _b : placeholder(this.setting
   }
   /** Idempotently create a reserved note identity for a journaled AIM result draft. */
   async createNoteAt(title, model, map, mapPath, modelSource, path, id, initial = {}) {
-    var _a, _b, _c, _d;
+    var _a, _b, _c, _d, _e;
+    const textLanguage = (_a = initial.contentLanguage) != null ? _a : this.settings.language;
     const folder = this.topicFolder(mapPath, "Notes");
     await this.ensureTopicFolders(this.topicRoot(mapPath));
     if (parentPath(path) !== folder || !path.endsWith(".md") || !id.trim())
@@ -11111,13 +11206,14 @@ ${noteBody(title, (_b = initial.summary) != null ? _b : placeholder(this.setting
       "topic-state": "active",
       "agent-map-id": map.id,
       title,
-      summary: (_a = initial.summary) != null ? _a : placeholder(this.settings.language),
+      summary: (_b = initial.summary) != null ? _b : placeholder(textLanguage),
       "preview-initialized": false,
       model,
       "model-source": modelSource,
-      "reasoning-level": (_b = initial.reasoning) != null ? _b : this.settings.cliReasoning,
+      "reasoning-level": (_c = initial.reasoning) != null ? _c : this.settings.cliReasoning,
       status: "idea",
-      cssclasses: [NOTE_CSS_CLASS]
+      cssclasses: [NOTE_CSS_CLASS],
+      ...initial.contentLanguage ? { "content-language": initial.contentLanguage } : {}
     };
     const origin = initial.thinkingOrigin ? `## Thinking Origin
 
@@ -11126,7 +11222,7 @@ ${originMarkdown(initial.thinkingOrigin)}` : "";
       path,
       `---
 ${(0, import_obsidian8.stringifyYaml)(metadata)}---
-${noteBody(title, metadata.summary, this.settings.language, (_c = initial.prompt) != null ? _c : "", "", placeholder(this.settings.language), (_d = initial.detail) != null ? _d : "", "", "", origin)}`
+${noteBody(title, metadata.summary, this.settings.language, (_d = initial.prompt) != null ? _d : "", "", placeholder(textLanguage), (_e = initial.detail) != null ? _e : "", "", "", origin)}`
     );
     return { id, path, parentId: null, x: 80, y: 80, collapsed: false };
   }
@@ -11151,7 +11247,16 @@ ${body}`);
   async readMap(path) {
     return parseMap(await this.app.vault.read(this.file(path)));
   }
+  /**
+   * Legacy AIM maps have no stored content language. Persist the derived value the first time the map is written
+   * anyway (never on open), so later interface-language changes cannot change it.
+   */
+  stampAimContentLanguage(map) {
+    if (map.aim && map.aim.contentLanguage === void 0)
+      map.aim.contentLanguage = resolveAimContentLanguage(map, this.settings.language);
+  }
   async saveMap(path, map) {
+    this.stampAimContentLanguage(map);
     await this.app.vault.process(this.file(path), (content) => {
       parseMap(content);
       return writeMapContent(content, map);
@@ -11166,6 +11271,7 @@ ${body}`);
     await this.app.vault.process(this.file(path), (content) => {
       const map = parseMap(content);
       change(map);
+      this.stampAimContentLanguage(map);
       updated = map;
       return writeMapContent(content, map);
     });
@@ -11441,6 +11547,7 @@ ${body}`);
   }
   /** The node note with derived lifecycle fields and references applied, or null when it is not a VAM node note. */
   derivedNoteContent(file, content, ownership, topics) {
+    var _a;
     const fm = frontmatter(content);
     if (!marker(fm["agent-map-node"])) return null;
     ensureNoteCssClass(fm);
@@ -11460,8 +11567,13 @@ ${body}`);
         fm["topic-state"] = "inbox";
       } else fm["topic-state"] = state;
     }
-    let body = ensurePreview(content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, ""), this.settings.language);
-    if (isPlaceholder(text4(fm.summary))) fm.summary = placeholder(this.settings.language);
+    const textLanguage = (owner == null ? void 0 : owner.map.aim) ? resolveAimContentLanguage(owner.map, this.settings.language) : (_a = noteContentLanguage(fm)) != null ? _a : this.settings.language;
+    let body = ensurePreview(
+      content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, ""),
+      this.settings.language,
+      textLanguage
+    );
+    if (isPlaceholder(text4(fm.summary))) fm.summary = placeholder(textLanguage);
     const topicId = text4(fm["topic-id"]), topic = topics.get(topicId);
     if (owner) {
       if (!body.includes(DETAIL_START)) body = replaceSection(body, "Detail", section(body, "Detail"));
@@ -11495,8 +11607,9 @@ ${body}`);
     body = normalizeBodyOrder(
       body,
       text4(fm.title, file.basename),
-      text4(fm.summary, placeholder(this.settings.language)),
-      this.settings.language
+      text4(fm.summary, placeholder(textLanguage)),
+      this.settings.language,
+      textLanguage
     );
     return `---
 ${(0, import_obsidian8.stringifyYaml)(fm)}---
@@ -12020,12 +12133,12 @@ ${details.join("\n")}`);
 
 // experiences/aim/create-map.ts
 async function createAimMap(repository, model, input) {
-  var _a, _b, _c, _d, _e, _f, _g, _h;
+  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k;
   const topic = input.topic.trim();
   if (!topic) throw new Error("AIM topic is required.");
   const requestId = (_a = input.requestId) == null ? void 0 : _a.trim();
   if (!requestId) throw new Error("AIM creation request identity is required.");
-  const rootContext = buildAimRootContext(input.context, input.outcomeExpectation, repository.settings.language);
+  const detectedLanguage = chooseAimContentLanguage(repository.settings.language, topic, input.context);
   let mapPath = "";
   for (const file of await repository.mapFiles()) {
     if (((_b = (await repository.readMap(file.path)).aim) == null ? void 0 : _b.creationId) === requestId) {
@@ -12038,6 +12151,7 @@ async function createAimMap(repository, model, input) {
     mapPath = await repository.createMap(topic, [], void 0, {
       version: 1,
       creationId: requestId,
+      contentLanguage: detectedLanguage,
       minimumAnswersBeforeConclusion,
       branches: [],
       runs: [],
@@ -12048,26 +12162,29 @@ async function createAimMap(repository, model, input) {
   const map = await repository.readMap(mapPath);
   if (map.title !== topic) throw new Error("This AIM creation request was already used for another topic.");
   if (!map.aim) throw new Error("The existing map does not contain a AIM creation record.");
+  const contentLanguage = (_d = map.aim.contentLanguage) != null ? _d : detectedLanguage;
+  const rootContext = buildAimRootContext(input.context, input.outcomeExpectation, contentLanguage);
   let draft = map.aim.rootDraft;
   if (!draft && !map.nodes.some((node) => node.aimKind === "topic")) {
     const notePath = repository.unique(repository.topicFolder(mapPath, "Notes"), topic);
-    const configuredReasoning = (_d = input.reasoning) != null ? _d : repository.settings.cliReasoning;
+    const configuredReasoning = (_e = input.reasoning) != null ? _e : repository.settings.cliReasoning;
     const reasoning = configuredReasoning === "medium" || configuredReasoning === "high" ? configuredReasoning : "low";
     draft = {
       nodeId: (0, import_node_crypto3.randomUUID)(),
       notePath,
       title: topic,
       context: rootContext,
-      model: (_e = input.model) != null ? _e : model,
+      model: (_f = input.model) != null ? _f : model,
       reasoning
     };
     map.aim.rootDraft = draft;
+    (_h = (_g = map.aim).contentLanguage) != null ? _h : _g.contentLanguage = contentLanguage;
     await repository.saveMap(mapPath, map);
   }
   if (draft) {
     await repository.createNoteAt(
       draft.title,
-      (_f = draft.model) != null ? _f : model,
+      (_i = draft.model) != null ? _i : model,
       map,
       mapPath,
       "workspace",
@@ -12075,10 +12192,11 @@ async function createAimMap(repository, model, input) {
       draft.nodeId,
       {
         summary: draft.title,
-        detail: draft.context ? `## User-provided context
+        detail: draft.context ? `${translate(contentLanguage, "note.aim_user_context")}
 
 ${draft.context}` : "",
-        reasoning: (_h = (_g = draft.reasoning) != null ? _g : input.reasoning) != null ? _h : "low"
+        reasoning: (_k = (_j = draft.reasoning) != null ? _j : input.reasoning) != null ? _k : "low",
+        contentLanguage
       }
     );
     const root2 = {
@@ -12615,7 +12733,7 @@ function parseAcceptance(result) {
   return { marker: acceptance[0].trim(), decision: decision.decision };
 }
 async function buildFinalDelivery(base, ask, options = {}) {
-  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m;
+  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n;
   const baseFingerprint = fingerprint({
     title: base.title,
     rules: base.rules,
@@ -12869,11 +12987,14 @@ ${written.detail}`
 ${draft.detail}`, suggestions: [] }, evidence };
   }
   return {
-    result: { ...result, detail: `${result.detail}
+    result: {
+      ...result,
+      detail: `${result.detail}
 
-## Draft pending completion
+${translate((_n = base.outputLanguage) != null ? _n : "en", "note.aim_draft_pending")}
 
-${draft.detail}` },
+${draft.detail}`
+    },
     evidence
   };
 }
@@ -13260,6 +13381,9 @@ var context_default = "Original question: {{question}}\n\nAnswer snapshot (inclu
 // experiences/aim/steps/format-repair/default-rationale.md
 var default_rationale_default = "The workflow requires a clarification question at this step.\n";
 
+// experiences/aim/steps/format-repair/default-rationale.zh.md
+var default_rationale_zh_default = "\u6B64\u6D41\u7A0B\u5728\u9019\u4E00\u6B65\u9700\u8981\u4E00\u500B\u91D0\u6E05\u554F\u984C\u3002\n";
+
 // experiences/aim/steps/format-repair/step.ts
 var renderStateQuestionRepair = (variables4) => renderTemplate(task_state_question_default, { ...variables4 });
 var renderImposedOptionsRepair = (variables4) => renderTemplate(task_imposed_options_default, { ...variables4 });
@@ -13278,6 +13402,7 @@ function renderGeneralRepair(repair) {
   });
 }
 var CLARIFICATION_REQUIRED_RATIONALE = renderTemplate(default_rationale_default, {});
+var clarificationRequiredRationale = (language2) => language2 === "zh-TW" ? renderTemplate(default_rationale_zh_default, {}) : CLARIFICATION_REQUIRED_RATIONALE;
 
 // experiences/aim/planner-review.ts
 var AIM_MAX_RESEARCH_TURNS = 2;
@@ -13425,7 +13550,7 @@ async function parseAimPlannerReviewWithRecovery(original, context, recover) {
       if (!question) {
         const task2 = renderStateQuestionRepair({
           requiredDecision: context.requiredDecision,
-          requiredRationale: (_d = context.requiredDecisionRationale) != null ? _d : CLARIFICATION_REQUIRED_RATIONALE,
+          requiredRationale: (_d = context.requiredDecisionRationale) != null ? _d : clarificationRequiredRationale(context.outputLanguage),
           originalSummary,
           preservedBody,
           originalSuggestions: JSON.stringify(original.suggestions),
@@ -13445,7 +13570,7 @@ async function parseAimPlannerReviewWithRecovery(original, context, recover) {
       if (answerOptions.length < 2 || answerOptions.length > 5) {
         const task2 = renderImposedOptionsRepair({
           requiredDecision: context.requiredDecision,
-          requiredRationale: (_f = context.requiredDecisionRationale) != null ? _f : CLARIFICATION_REQUIRED_RATIONALE,
+          requiredRationale: (_f = context.requiredDecisionRationale) != null ? _f : clarificationRequiredRationale(context.outputLanguage),
           question,
           originalSummary,
           preservedBody,
@@ -14143,6 +14268,17 @@ function renderTargetedFollowupResearchTask(vars) {
 }
 
 // experiences/aim/manual-flow.ts
+function noteStopReason(language2, review, recorded, fallback) {
+  var _a;
+  if (review.decision === "ask_user") return translate(language2, "note.aim_stop_awaiting_0", (_a = review.question) != null ? _a : "");
+  if (review.decision === "research_more")
+    return translate(
+      language2,
+      fallback === "bounded" ? "note.aim_stop_bounded_followup_0" : "note.aim_stop_budget_gap_0",
+      review.rationale
+    );
+  return recorded;
+}
 var _AimManualFlow = class _AimManualFlow {
   constructor(repository, runs, askModel, id = import_node_crypto7.randomUUID, persist = (operation) => operation()) {
     this.repository = repository;
@@ -14153,7 +14289,11 @@ var _AimManualFlow = class _AimManualFlow {
     __publicField(this, "evidenceReports", /* @__PURE__ */ new Map());
     __publicField(this, "answerRuns", /* @__PURE__ */ new Map());
   }
-  async prepareClarification(topic, signal) {
+  /** Content language of the map as read now; never cached on the flow, so a UI language switch cannot change it. */
+  languageOf(map) {
+    return resolveAimContentLanguage(map, this.repository.settings.language);
+  }
+  async prepareClarification(topic, contentLanguage, signal) {
     const result = await this.askAimModel(
       {
         title: topic.title,
@@ -14162,7 +14302,7 @@ var _AimManualFlow = class _AimManualFlow {
         detail: topic.detail,
         task: renderInitialClarificationTask(),
         ancestors: "",
-        outputLanguage: this.repository.settings.language,
+        outputLanguage: contentLanguage,
         mode: "task",
         researchMode: "local",
         researchDepth: "fast",
@@ -14275,39 +14415,43 @@ ${note.detail}`;
     return loaded;
   }
   parsePlannerReviewWithRecovery(original, recoveryContext, taskContext, model, reasoning, signal) {
-    return parseAimPlannerReviewWithRecovery(original, recoveryContext, async (task, options) => {
-      throwIfAborted(signal);
-      const repairTask = phaseTask("format-repair", task);
-      const step = taskContext.aimContract;
-      const allowed = recoveryContext.requiredDecision ? [recoveryContext.requiredDecision] : (step == null ? void 0 : step.kind) === "review" ? step.decisions : ALL_DECISIONS;
-      const decisions = allowed.filter((decision) => {
-        var _a;
-        return !((_a = options == null ? void 0 : options.excludeDecisions) == null ? void 0 : _a.includes(decision));
-      });
-      if (!decisions.length) throw new Error("AIM format repair has no permitted decision left.");
-      const repaired = await this.askAimModel(
-        {
-          ...taskContext,
-          title: "AIM format repair",
-          summary: "",
-          detail: "",
-          ancestors: "",
-          rules: "",
-          task: repairTask,
-          mode: "task",
-          researchMode: "local",
-          researchDepth: "fast",
-          visualMode: "off",
-          aimContract: { kind: "review", decisions },
+    return parseAimPlannerReviewWithRecovery(
+      original,
+      { ...recoveryContext, outputLanguage: taskContext.outputLanguage },
+      async (task, options) => {
+        throwIfAborted(signal);
+        const repairTask = phaseTask("format-repair", task);
+        const step = taskContext.aimContract;
+        const allowed = recoveryContext.requiredDecision ? [recoveryContext.requiredDecision] : (step == null ? void 0 : step.kind) === "review" ? step.decisions : ALL_DECISIONS;
+        const decisions = allowed.filter((decision) => {
+          var _a;
+          return !((_a = options == null ? void 0 : options.excludeDecisions) == null ? void 0 : _a.includes(decision));
+        });
+        if (!decisions.length) throw new Error("AIM format repair has no permitted decision left.");
+        const repaired = await this.askAimModel(
+          {
+            ...taskContext,
+            title: "AIM format repair",
+            summary: "",
+            detail: "",
+            ancestors: "",
+            rules: "",
+            task: repairTask,
+            mode: "task",
+            researchMode: "local",
+            researchDepth: "fast",
+            visualMode: "off",
+            aimContract: { kind: "review", decisions },
+            signal
+          },
+          model,
+          reasoning,
           signal
-        },
-        model,
-        reasoning,
-        signal
-      );
-      throwIfAborted(signal);
-      return repaired;
-    });
+        );
+        throwIfAborted(signal);
+        return repaired;
+      }
+    );
   }
   /** Classifies a proposed search gap without exposing reports outside the current branch or invoking search. */
   async classifyResearchGap(candidate, context, model, reasoning, signal, targetOnly = false) {
@@ -14332,7 +14476,7 @@ ${note.detail}`;
         detail: "",
         task,
         ancestors: "",
-        outputLanguage: this.repository.settings.language,
+        outputLanguage: context.outputLanguage,
         mode: "task",
         researchMode: "local",
         researchDepth: "fast",
@@ -14373,7 +14517,7 @@ ${note.detail}`;
       detail: "",
       task,
       ancestors: "",
-      outputLanguage: this.repository.settings.language,
+      outputLanguage: context.outputLanguage,
       mode: "task",
       researchMode: "local",
       researchDepth: "fast",
@@ -14439,7 +14583,7 @@ ${note.detail}`;
       rules: "",
       task: "",
       ancestors: "",
-      outputLanguage: this.repository.settings.language,
+      outputLanguage: context.outputLanguage,
       mode: "task",
       researchMode: "local",
       researchDepth: "fast",
@@ -14492,7 +14636,12 @@ ${note.detail}`;
           reportDetail: context.reportDetail,
           requiredDecision: "ask_user",
           preferredQuestion: extractPlannerQuestionCandidate(correctedResult),
-          requiredDecisionRationale: `The branch has ${context.answeredQuestionCount} answered question node(s); at least ${MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION} are required before conclusion.`
+          requiredDecisionRationale: translate(
+            context.outputLanguage,
+            "note.aim_below_floor_rationale_0_1",
+            context.answeredQuestionCount,
+            MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION
+          )
         },
         correctionContext,
         model,
@@ -14579,7 +14728,7 @@ ${context.reportDetail}`
       let phase = (_c = context.deliveryRecovery) == null ? void 0 : _c.phase;
       const delivery = await buildFinalDelivery(
         deliveryContext,
-        (step) => this.askAimModel(step, model, reasoning, signal),
+        (step) => this.askAimModel({ ...step, outputLanguage: deliveryContext.outputLanguage }, model, reasoning, signal),
         {
           checkpoint,
           timeoutMs: context.timeoutMs,
@@ -14675,6 +14824,7 @@ ${delivery.evidence}` },
     var _a, _b, _c, _d, _e, _f, _g, _h, _i;
     let created = 0;
     const initial = await this.repository.readMap(mapPath);
+    const language2 = this.languageOf(initial);
     if ((_a = initial.aim) == null ? void 0 : _a.questionDraft) return 0;
     for (const run of (_c = (_b = initial.aim) == null ? void 0 : _b.runs) != null ? _c : []) {
       const attempt = run.attempts.find((item) => item.id === run.currentAttemptId);
@@ -14705,7 +14855,7 @@ ${delivery.evidence}` },
         review.question,
         review.rationale,
         answerOptions,
-        "Recovered from a persisted post-report Planner decision; do not choose the user's answer."
+        translate(language2, "note.aim_prompt_recovered_post_report")
       );
       if (saved.status === "question") created++;
     }
@@ -14716,6 +14866,7 @@ ${delivery.evidence}` },
     var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j;
     throwIfAborted(signal);
     const map = await this.repository.readMap(mapPath), run = (_a = map.aim) == null ? void 0 : _a.runs.find((item) => item.id === runId);
+    const language2 = this.languageOf(map);
     const priorAttempt = run == null ? void 0 : run.attempts.find((item) => item.id === run.currentAttemptId);
     if (!run || !priorAttempt || priorAttempt.status !== "failed")
       throw new Error("A saved failed AIM attempt is required to review a diagnostic report.");
@@ -14781,7 +14932,7 @@ ${delivery.evidence}` },
         () => this.runs.createResultDraft(
           mapPath,
           handle,
-          translate(this.repository.settings.language, "note.aim_answer_research_0", parent.summary),
+          translate(language2, "note.aim_answer_research_0", parent.summary),
           model,
           reasoning
         )
@@ -14838,7 +14989,7 @@ ${topic.detail}
 ${lineage.context}
 
 Branch conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
-          outputLanguage: this.repository.settings.language,
+          outputLanguage: language2,
           mode: "task",
           researchMode: "local",
           researchDepth: "fast",
@@ -14862,7 +15013,7 @@ Branch conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
             summary: aggregate.summary,
             detail: aggregate.detail,
             ancestors: plannerContext.ancestors,
-            outputLanguage: this.repository.settings.language,
+            outputLanguage: language2,
             detailFormat: "adaptive",
             aimContract: plannerContext.aimContract
           },
@@ -14875,6 +15026,7 @@ Branch conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
           {
             goal: topic.title,
             goalDetail: topic.detail,
+            outputLanguage: language2,
             conditions: branch.inputSnapshot.conditions,
             currentQuestion: parent.summary,
             currentAnswer: answerDescription,
@@ -14940,7 +15092,7 @@ Branch conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
 ${topic.detail}
 
 Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
-            outputLanguage: this.repository.settings.language,
+            outputLanguage: language2,
             mode: "task",
             researchMode: "research",
             researchDepth: "normal",
@@ -14965,19 +15117,23 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
       const stopReason = finalReview.decision === "conclude" ? finalReview.stopReason : finalReview.decision === "ask_user" ? `Awaiting the user's answer to: ${finalReview.question}` : `One bounded follow-up was used; a material gap remains: ${finalReview.rationale}`;
       const detail = finalReview.decision === "conclude" ? finalReview.detail : [
         finalReview.detail,
-        `Rationale: ${finalReview.rationale}`,
-        `Stop reason: ${stopReason}`,
-        "## Supporting research",
+        translate(language2, "note.aim_rationale_0", finalReview.rationale),
+        translate(
+          language2,
+          "note.aim_stop_reason_0",
+          noteStopReason(language2, finalReview, stopReason, "bounded")
+        ),
+        translate(language2, "note.aim_supporting_research"),
         ...reports.map((report) => report.detail),
-        "## Source boundary",
-        "Agent-reported sources are not independently verified by VAM."
+        translate(language2, "note.aim_source_boundary"),
+        translate(language2, "note.aim_source_boundary_not_verified")
       ].join("\n\n");
       const presentation = finalReview.decision === "conclude" ? {
-        title: translate(this.repository.settings.language, "note.aim_conclusion"),
+        title: translate(language2, "note.aim_conclusion"),
         kind: "conclusion"
       } : {
         title: translate(
-          this.repository.settings.language,
+          language2,
           finalReview.decision === "research_more" ? "note.aim_needs_followup" : "note.aim_synthesis"
         ),
         kind: "synthesis"
@@ -15011,7 +15167,7 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
           finalReview.question,
           finalReview.rationale,
           finalReview.answerOptions,
-          "Follow-up selected by the persisted Planner review; do not choose the user's answer.",
+          translate(language2, "note.aim_prompt_followup_selected"),
           signal
         );
         if (questionResult.status !== "question")
@@ -15066,6 +15222,7 @@ ${runId}`, fingerprint2 = JSON.stringify({ model, reasoning });
     var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p;
     throwIfAborted(signal);
     const map = await this.repository.readMap(mapPath), run = (_a = map.aim) == null ? void 0 : _a.runs.find((item) => item.id === runId);
+    const language2 = this.languageOf(map);
     const currentAttempt = run == null ? void 0 : run.attempts.find((item) => item.id === run.currentAttemptId);
     if (!run || !currentAttempt || ["running", "saving"].includes(currentAttempt.status) || !["partial", "failed", "cancelled"].includes(currentAttempt.status))
       throw new Error("Only a saved partial branch without active work can be continued.");
@@ -15143,6 +15300,7 @@ ${runId}`, fingerprint2 = JSON.stringify({ model, reasoning });
         const qualityContext = {
           goal: topicNote.title,
           goalDetail: topicNote.detail,
+          outputLanguage: language2,
           conditions: branch.inputSnapshot.conditions,
           currentQuestion: parent.summary,
           currentAnswer: JSON.stringify(branch.answerSnapshot),
@@ -15185,7 +15343,7 @@ ${runId}`, fingerprint2 = JSON.stringify({ model, reasoning });
             () => this.runs.createResultDraft(
               mapPath,
               handle,
-              `${parent.summary} \xB7 User condition`,
+              translate(language2, "note.aim_title_user_condition_0", parent.summary),
               modelToUse,
               reasoningToUse,
               earlyOptions
@@ -15235,7 +15393,7 @@ ${topicNote.detail}
 ${lineage.context}
 
 Persisted answer branch conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
-              outputLanguage: this.repository.settings.language,
+              outputLanguage: language2,
               mode: "task",
               researchMode: "research",
               researchDepth: "normal",
@@ -15260,10 +15418,10 @@ Persisted answer branch conditions: ${JSON.stringify(branch.inputSnapshot.condit
         report = {
           summary: `${report.summary}
 
-Follow-up report: ${searcher.summary}`,
+${translate(language2, "note.aim_followup_report_0", searcher.summary)}`,
           detail: `${report.detail}
 
-## Continuation Agent report
+${translate(language2, "note.aim_continuation_report")}
 
 ${searcher.detail}`
         };
@@ -15273,7 +15431,7 @@ ${searcher.detail}`
             const created = await this.runs.createResultDraft(
               mapPath,
               handle,
-              `${parent.summary} \xB7 Continued research`,
+              translate(language2, "note.aim_title_continued_research_0", parent.summary),
               modelToUse,
               reasoningToUse,
               continuationDraftOptions
@@ -15315,7 +15473,7 @@ ${topicNote.detail}
 ${lineage.context}
 
 Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
-          outputLanguage: this.repository.settings.language,
+          outputLanguage: language2,
           mode: "task",
           researchMode: "local",
           researchDepth: "fast",
@@ -15344,6 +15502,7 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
           {
             goal: topicNote.title,
             goalDetail: topicNote.detail,
+            outputLanguage: language2,
             conditions: branch.inputSnapshot.conditions,
             currentQuestion: parent.summary,
             currentAnswer: JSON.stringify(branch.answerSnapshot),
@@ -15393,22 +15552,30 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
       if (!draft || !review) throw new Error("Continuation ended without a persisted Planner decision.");
       const finalDraft = draft, finalReview = review;
       const detail = finalReview.decision === "conclude" ? finalReview.detail : [
-        finalReview.decision === "research_more" ? "## Research status: partial / continuable" : "## Interim result",
+        finalReview.decision === "research_more" ? translate(language2, "note.aim_research_status_partial") : translate(language2, "note.aim_interim_result"),
         finalReview.detail,
-        `Rationale: ${finalReview.rationale}`,
-        `Stop reason: ${stopReason}`,
-        "## Saved evidence",
+        translate(language2, "note.aim_rationale_0", finalReview.rationale),
+        translate(
+          language2,
+          "note.aim_stop_reason_0",
+          noteStopReason(language2, finalReview, stopReason, "budget")
+        ),
+        translate(language2, "note.aim_saved_evidence"),
         report.detail,
         ...finalReview.decision === "research_more" ? [
-          `Still open: ${(_l = (_k = finalReview.researchTarget) == null ? void 0 : _k.title) != null ? _l : finalReview.rationale}`,
-          (_n = (_m = finalReview.researchTarget) == null ? void 0 : _m.task) != null ? _n : "A material evidence gap remains; continue with a targeted search.",
-          "This continuation reached its attempt budget with a material gap still open; it is not complete."
+          translate(
+            language2,
+            "note.aim_still_open_0",
+            (_l = (_k = finalReview.researchTarget) == null ? void 0 : _k.title) != null ? _l : finalReview.rationale
+          ),
+          (_n = (_m = finalReview.researchTarget) == null ? void 0 : _m.task) != null ? _n : translate(language2, "note.aim_gap_fallback_task"),
+          translate(language2, "note.aim_attempt_budget_gap")
         ] : [],
-        "## Source boundary",
-        "Agent-reported sources were not independently verified by VAM."
+        translate(language2, "note.aim_source_boundary"),
+        translate(language2, "note.aim_source_boundary_were_not_verified")
       ].join("\n\n");
       const finalKind = finalReview.decision === "conclude" ? "conclusion" : "synthesis";
-      const finalTitle = finalReview.decision === "conclude" ? translate(this.repository.settings.language, "note.aim_conclusion") : finalReview.decision === "research_more" ? translate(this.repository.settings.language, "note.aim_needs_followup") : translate(this.repository.settings.language, "note.aim_synthesis");
+      const finalTitle = finalReview.decision === "conclude" ? translate(language2, "note.aim_conclusion") : finalReview.decision === "research_more" ? translate(language2, "note.aim_needs_followup") : translate(language2, "note.aim_synthesis");
       if (!await this.persist(
         () => this.runs.updateResultDraftPresentation(mapPath, handle, finalDraft.id, finalTitle, finalKind)
       ))
@@ -15420,7 +15587,7 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
           handle,
           finalDraft.id,
           {
-            summary: finalReview.decision === "research_more" ? translate(this.repository.settings.language, "note.aim_partial_summary_0", finalReview.summary) : finalReview.summary,
+            summary: finalReview.decision === "research_more" ? translate(language2, "note.aim_partial_summary_0", finalReview.summary) : finalReview.summary,
             detail
           },
           finalReview.decision === "research_more" ? "partial" : "completed"
@@ -15442,7 +15609,7 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
           review.question,
           review.rationale,
           answerOptions,
-          "Question recovered from a persisted Planner decision; do not answer for the user.",
+          translate(language2, "note.aim_prompt_question_recovered"),
           signal
         );
         if (question.status !== "question")
@@ -15623,7 +15790,7 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
         [...priorQuestions, ...siblingQuestions, ...dismissedQuestions].map((question) => question.trim()).filter(Boolean)
       )
     ];
-    const language2 = this.repository.settings.language;
+    const language2 = this.languageOf(map);
     const motherGoal = motherNode && motherNode.id !== parentNode.id ? { title: mother.title, detail: mother.detail } : void 0;
     const questionVars = {
       userQuestionRule: USER_QUESTION_RULE,
@@ -15745,7 +15912,7 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
   }
   async saveManualQuestion(mapPath, parentNodeId, parentBranchId, requestId, model, reasoning, questionText, plannerDetail, labels, prompt, signal, expectedResultBranchSnapshot) {
     throwIfAborted(signal);
-    const map = await this.repository.readMap(mapPath), language2 = this.repository.settings.language;
+    const map = await this.repository.readMap(mapPath), language2 = this.languageOf(map);
     if (!map.aim || !map.nodes.some((node2) => node2.id === parentNodeId))
       throw new Error("The Manual question parent is no longer available.");
     if (parentBranchId && !map.aim.branches.some(
@@ -15910,6 +16077,7 @@ ${input.requestId}`;
     var _a, _b, _c, _d, _e, _f, _g, _h, _i;
     throwIfAborted(signal);
     const map = await this.repository.readMap(mapPath), questionNode = map.nodes.find((node) => node.id === questionNodeId), contract = questionNode == null ? void 0 : questionNode.aimQuestion;
+    const language2 = this.languageOf(map);
     if (!questionNode || questionNode.aimKind !== "question" || !contract)
       throw new Error("A saved AIM Planner question is required before answering.");
     const freeText = input.freeText.trim(), selections = [...new Set(input.selections)].sort();
@@ -15928,7 +16096,7 @@ ${input.requestId}`;
     const parentBranchId = (_b = contract.parentBranchId) != null ? _b : null;
     const lineage = await this.branchLineage(map, parentBranchId);
     const inheritedBranch = parentBranchId ? (_c = map.aim) == null ? void 0 : _c.branches.find((branch2) => branch2.id === parentBranchId) : void 0;
-    const condition = [answerLabels.join("; "), freeText].filter(Boolean).join(" \u2014 ") || translate(this.repository.settings.language, "note.aim_unknown_option");
+    const condition = [answerLabels.join("; "), freeText].filter(Boolean).join(" \u2014 ") || translate(language2, "note.aim_unknown_option");
     const branch = await this.persist(
       () => {
         var _a2, _b2;
@@ -16151,6 +16319,7 @@ ${note.detail}`
   async executeSubtopicWorkflow(mapPath, branchId, parent, topicNote, answerLabels, freeText, lineageContext, model, reasoning, signal) {
     var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k;
     let map = await this.repository.readMap(mapPath);
+    const language2 = this.languageOf(map);
     let branch = (_a = map.aim) == null ? void 0 : _a.branches.find((item) => item.id === branchId);
     if (!branch) throw new Error("AIM answer branch disappeared before planning its research.");
     const questionNodeId = branch.questionNodeId;
@@ -16170,7 +16339,7 @@ ${topicNote.detail}
 
 Branch lineage:
 ${lineageContext || "None."}`,
-      outputLanguage: this.repository.settings.language,
+      outputLanguage: language2,
       mode: "task",
       researchMode: "local",
       researchDepth: "fast",
@@ -16569,18 +16738,13 @@ ${item.detail}`
         summary: [
           resumeReports.summary,
           ...supplementalReports.map(
-            (item) => translate(
-              this.repository.settings.language,
-              "note.aim_followup_summary_0_1",
-              item.target.title,
-              item.summary
-            )
+            (item) => translate(language2, "note.aim_followup_summary_0_1", item.target.title, item.summary)
           )
         ].join("\n"),
         detail: [
           resumeReports.detail,
           ...supplementalReports.map(
-            (item) => `${translate(this.repository.settings.language, "note.aim_followup_heading_0", item.target.title)}
+            (item) => `${translate(language2, "note.aim_followup_heading_0", item.target.title)}
 
 ${item.detail}`
           )
@@ -16589,12 +16753,7 @@ ${item.detail}`
         summary: [
           ...reports.map((item) => `${item.title}: ${item.summary}`),
           ...supplementalReports.map(
-            (item) => translate(
-              this.repository.settings.language,
-              "note.aim_followup_summary_0_1",
-              item.target.title,
-              item.summary
-            )
+            (item) => translate(language2, "note.aim_followup_summary_0_1", item.target.title, item.summary)
           )
         ].join("\n"),
         detail: [
@@ -16602,7 +16761,7 @@ ${item.detail}`
 
 ${item.detail}`),
           ...supplementalReports.map(
-            (item) => `${translate(this.repository.settings.language, "note.aim_followup_heading_0", item.target.title)}
+            (item) => `${translate(language2, "note.aim_followup_heading_0", item.target.title)}
 
 ${item.detail}`
           )
@@ -16663,6 +16822,7 @@ ${currentReports.detail}`,
           {
             goal: topicNote.title,
             goalDetail: topicNote.detail,
+            outputLanguage: language2,
             conditions: branch.inputSnapshot.conditions,
             currentQuestion: parent.summary,
             currentAnswer: answerDescription,
@@ -16723,7 +16883,7 @@ ${currentReports.detail}`,
             () => this.runs.createResultDraft(
               mapPath,
               synthesisHandle,
-              translate(this.repository.settings.language, "note.aim_followup_draft"),
+              translate(language2, "note.aim_followup_draft"),
               model,
               void 0,
               {
@@ -16813,7 +16973,7 @@ ${beforeSearch.detail}`,
             mapPath,
             synthesisHandle,
             translate(
-              this.repository.settings.language,
+              language2,
               isPartial ? "note.aim_needs_followup" : isQuestion ? "note.aim_synthesis" : "note.aim_conclusion"
             ),
             model,
@@ -16828,39 +16988,31 @@ ${beforeSearch.detail}`,
         if (draft.status === "stale") return { status: "stale", branchId };
         synthesisDraftId = draft.draft.id;
       }
-      const stopReason = isPartial ? translate(this.repository.settings.language, "note.aim_round_limit_0", finalReview.rationale) : isQuestion ? `Awaiting the user's answer to: ${finalReview.question}` : finalReview.stopReason;
+      const stopReason = isPartial ? translate(language2, "note.aim_round_limit_0", finalReview.rationale) : isQuestion ? translate(language2, "note.aim_stop_awaiting_0", finalReview.question) : finalReview.stopReason;
       const partialSection = isPartial && finalReview.researchTarget ? [
-        translate(this.repository.settings.language, "note.aim_partial_heading"),
-        translate(
-          this.repository.settings.language,
-          "note.aim_pending_target_0",
-          finalReview.researchTarget.title
-        ),
-        translate(this.repository.settings.language, "note.aim_pending_task_0", finalReview.researchTarget.task),
-        translate(
-          this.repository.settings.language,
-          "note.aim_pending_value_0",
-          finalReview.researchTarget.expectedValue
-        )
+        translate(language2, "note.aim_partial_heading"),
+        translate(language2, "note.aim_pending_target_0", finalReview.researchTarget.title),
+        translate(language2, "note.aim_pending_task_0", finalReview.researchTarget.task),
+        translate(language2, "note.aim_pending_value_0", finalReview.researchTarget.expectedValue)
       ].join("\n\n") : "";
       const detail = isPartial || isQuestion ? [
-        partialSection || "## Interim result",
+        partialSection || translate(language2, "note.aim_interim_result"),
         finalReview.detail,
-        `Rationale: ${finalReview.rationale}`,
-        `Stop reason: ${stopReason}`,
-        "## Supporting research",
+        translate(language2, "note.aim_rationale_0", finalReview.rationale),
+        translate(language2, "note.aim_stop_reason_0", stopReason),
+        translate(language2, "note.aim_supporting_research"),
         reportDetail,
-        "## Source boundary",
-        "Sources and claims are reported by the research agent and were not independently verified by VAM."
+        translate(language2, "note.aim_source_boundary"),
+        translate(language2, "note.aim_source_boundary_claims")
       ].join("\n\n") : finalReview.detail;
       const presentation = isPartial ? {
-        title: translate(this.repository.settings.language, "note.aim_needs_followup"),
+        title: translate(language2, "note.aim_needs_followup"),
         kind: "synthesis"
       } : isQuestion ? {
-        title: translate(this.repository.settings.language, "note.aim_synthesis"),
+        title: translate(language2, "note.aim_synthesis"),
         kind: "synthesis"
       } : {
-        title: translate(this.repository.settings.language, "note.aim_conclusion"),
+        title: translate(language2, "note.aim_conclusion"),
         kind: "conclusion"
       };
       if (!await this.persist(
@@ -16880,7 +17032,7 @@ ${beforeSearch.detail}`,
           synthesisHandle,
           synthesisDraftId,
           {
-            summary: isPartial ? translate(this.repository.settings.language, "note.aim_partial_summary_0", finalReview.summary) : finalReview.summary,
+            summary: isPartial ? translate(language2, "note.aim_partial_summary_0", finalReview.summary) : finalReview.summary,
             detail
           },
           isPartial ? "partial" : "completed"
@@ -16903,7 +17055,7 @@ ${beforeSearch.detail}`,
           finalReview.question,
           finalReview.rationale,
           finalReview.answerOptions,
-          "Follow-up question after reviewing all saved research, including any targeted evidence follow-up.",
+          translate(language2, "note.aim_followup_question_prompt"),
           signal
         );
         if (question.status !== "question")
@@ -16937,7 +17089,13 @@ ${beforeSearch.detail}`,
       "workspace",
       draft.notePath,
       draft.nodeId,
-      { summary: draft.summary, detail: draft.detail, prompt: draft.prompt, reasoning: draft.reasoning }
+      {
+        summary: draft.summary,
+        detail: draft.detail,
+        prompt: draft.prompt,
+        reasoning: draft.reasoning,
+        contentLanguage: this.languageOf(map)
+      }
     );
     const latest = await this.repository.readMap(mapPath), state = latest.aim;
     if (!(state == null ? void 0 : state.questionDraft) || state.questionDraft.requestId !== draft.requestId || state.questionDraft.nodeId !== draft.nodeId)
@@ -17223,7 +17381,11 @@ var _AimRunStore = class _AimRunStore {
       throw new Error("A saved AIM question is required to create an answer-specific pivot.");
     const note = await this.repository.readNote(source.path);
     const clone2 = await this.repository.duplicateNote(source.path, map, mapPath);
-    await this.repository.updateNote(clone2.path, { title: note.title });
+    await this.repository.updateNote(
+      clone2.path,
+      { title: note.title },
+      { contentLanguage: resolveAimContentLanguage(map, this.repository.settings.language) }
+    );
     const siblingCount = map.nodes.filter(
       (node) => node.parentId === source.parentId && node.aimKind === "question"
     ).length;
@@ -17334,7 +17496,7 @@ var _AimRunStore = class _AimRunStore {
           (item) => item.runId === id && item.attemptId === current.id
         );
         const staleNodes = new Set(staleDrafts.map((item) => item.nodeId));
-        for (const draft of staleDrafts) await this.retireDraftNote(draft, current.stopReason);
+        for (const draft of staleDrafts) await this.retireDraftNote(map, draft, current.stopReason);
         state.resultDrafts = ((_c = state.resultDrafts) != null ? _c : []).filter((item) => !staleNodes.has(item.nodeId));
         state.pendingCommits = state.pendingCommits.filter((item) => item.runId !== id || item.attemptId !== current.id);
         map.nodes = map.nodes.filter((node) => !staleNodes.has(node.id));
@@ -17459,7 +17621,11 @@ var _AimRunStore = class _AimRunStore {
       const map = await this.repository.readMap(mapPath), state = this.state(map), run = state.runs.find((item) => item.id === handle.runId), attempt = run == null ? void 0 : run.attempts.find((item) => item.id === handle.attemptId), draft = (_a = state.resultDrafts) == null ? void 0 : _a.find((item) => item.id === draftId);
       if (!run || !attempt || !isRunningAttempt(run, attempt, handle) || !draft || draft.runId !== run.id || draft.attemptId !== attempt.id || draft.status !== "ready")
         return false;
-      await this.repository.updateNote(draft.notePath, { summary, detail, status: "idea" });
+      await this.repository.updateNote(
+        draft.notePath,
+        { summary, detail, status: "idea" },
+        { contentLanguage: resolveAimContentLanguage(map, this.repository.settings.language) }
+      );
       const saved = await this.repository.readNote(draft.notePath);
       if (saved.summary !== managedSectionValue(summary) || saved.detail !== managedSectionValue(detail))
         throw new Error("The Searcher report did not match the Repository readback before Planner review.");
@@ -17480,7 +17646,11 @@ var _AimRunStore = class _AimRunStore {
         return false;
       const node = map.nodes.find((item) => item.id === draft.nodeId && item.path === draft.notePath);
       if (!node) throw new Error("AIM synthesis draft node is missing before finalization.");
-      await this.repository.updateNote(draft.notePath, { title });
+      await this.repository.updateNote(
+        draft.notePath,
+        { title },
+        { contentLanguage: resolveAimContentLanguage(map, this.repository.settings.language) }
+      );
       const note = await this.repository.readNote(draft.notePath);
       if (note.title !== managedHeadingValue(title))
         throw new Error("AIM synthesis draft title did not match its Repository readback.");
@@ -17506,7 +17676,7 @@ var _AimRunStore = class _AimRunStore {
       const drafts = ((_a = state.resultDrafts) != null ? _a : []).filter(
         (item) => item.runId === handle.runId && item.attemptId === handle.attemptId
       );
-      for (const draft of drafts) await this.retireDraftNote(draft, reason, "incomplete");
+      for (const draft of drafts) await this.retireDraftNote(map, draft, reason, "incomplete");
       const retained = drafts.find((item) => {
         var _a2;
         return (_a2 = item.retainedReports) == null ? void 0 : _a2.length;
@@ -17536,7 +17706,7 @@ var _AimRunStore = class _AimRunStore {
         (item) => item.runId === handle.runId && item.attemptId === handle.attemptId
       );
       const staleNodes = new Set(staleDrafts.map((item) => item.nodeId));
-      for (const draft of staleDrafts) await this.retireDraftNote(draft, reason, "incomplete");
+      for (const draft of staleDrafts) await this.retireDraftNote(map, draft, reason, "incomplete");
       state.resultDrafts = ((_b = state.resultDrafts) != null ? _b : []).filter((item) => !staleNodes.has(item.nodeId));
       state.pendingCommits = state.pendingCommits.filter(
         (item) => item.runId !== handle.runId || item.attemptId !== handle.attemptId
@@ -17595,14 +17765,17 @@ var _AimRunStore = class _AimRunStore {
       state.resultDrafts.push(draft);
       map.aim = state;
       await this.repository.saveMap(mapPath, map);
+      const contentLanguage = resolveAimContentLanguage(map, this.repository.settings.language);
       await this.repository.createNoteAt(title, model, map, mapPath, "workspace", notePath, nodeId, {
-        summary: "AIM result pending synthesis.",
-        reasoning: reasoning != null ? reasoning : draft.reasoning
+        summary: translate(contentLanguage, "note.aim_result_pending"),
+        reasoning: reasoning != null ? reasoning : draft.reasoning,
+        contentLanguage
       });
       const latestMap = await this.repository.readMap(mapPath), latestState = this.state(latestMap), latestRun = latestState.runs.find((item) => item.id === handle.runId), latestAttempt = latestRun == null ? void 0 : latestRun.attempts.find((item) => item.id === handle.attemptId);
       const latestDraft = (_f = latestState.resultDrafts) == null ? void 0 : _f.find((item) => item.id === draft.id);
       if (!latestRun || latestRun.currentAttemptId !== handle.attemptId || (latestAttempt == null ? void 0 : latestAttempt.status) !== "running" || !latestDraft) {
         await this.retireDraftNote(
+          latestMap,
           draft,
           (_g = latestAttempt == null ? void 0 : latestAttempt.stopReason) != null ? _g : "Attempt became stale while creating its result draft."
         );
@@ -17653,7 +17826,7 @@ var _AimRunStore = class _AimRunStore {
       map.aim = state;
       await this.repository.saveMap(mapPath, map);
       try {
-        await this.writePendingNote(pending);
+        await this.writePendingNote(pending, map);
         const currentMap = await this.repository.readMap(mapPath), currentState = this.state(currentMap), currentRun = currentState.runs.find((item) => item.id === handle.runId), currentAttempt = currentRun == null ? void 0 : currentRun.attempts.find((item) => item.id === handle.attemptId);
         if (!currentRun || currentRun.currentAttemptId !== handle.attemptId || (currentAttempt == null ? void 0 : currentAttempt.status) !== "saving")
           return { status: "stale", runId: handle.runId, attemptId: handle.attemptId };
@@ -17686,7 +17859,7 @@ var _AimRunStore = class _AimRunStore {
         const validRunningDraft = (attempt == null ? void 0 : attempt.status) === "running" && (draft.status === "creating" || draft.status === "ready");
         const validSavingDraft = (attempt == null ? void 0 : attempt.status) === "saving" && draft.status === "ready" && hasPendingCommit;
         if (!run || run.currentAttemptId !== draft.attemptId || !validRunningDraft && !validSavingDraft || attempt.inputSnapshotHash !== draft.inputSnapshotHash) {
-          await this.retireDraftNote(draft, (_b = attempt == null ? void 0 : attempt.stopReason) != null ? _b : "The attempt is no longer current.");
+          await this.retireDraftNote(map, draft, (_b = attempt == null ? void 0 : attempt.stopReason) != null ? _b : "The attempt is no longer current.");
           state.resultDrafts = ((_c = state.resultDrafts) != null ? _c : []).filter((item) => item.id !== draft.id);
           map.nodes = map.nodes.filter((node) => node.id !== draft.nodeId);
           stale.push(draft.id);
@@ -17701,7 +17874,14 @@ var _AimRunStore = class _AimRunStore {
             "workspace",
             draft.notePath,
             draft.nodeId,
-            { summary: "AIM result pending synthesis.", reasoning: draft.reasoning }
+            {
+              summary: translate(
+                resolveAimContentLanguage(map, this.repository.settings.language),
+                "note.aim_result_pending"
+              ),
+              reasoning: draft.reasoning,
+              contentLanguage: resolveAimContentLanguage(map, this.repository.settings.language)
+            }
           );
           draft.status = "ready";
           recovered.push(draft.id);
@@ -17715,7 +17895,7 @@ var _AimRunStore = class _AimRunStore {
           stale.push(pending.resultId);
           continue;
         }
-        await this.writePendingNote(pending);
+        await this.writePendingNote(pending, map);
         this.finishCommit(state, pending);
         recovered.push(pending.resultId);
       }
@@ -17739,7 +17919,7 @@ var _AimRunStore = class _AimRunStore {
         const drafts = ((_a = state.resultDrafts) != null ? _a : []).filter(
           (item) => item.runId === run.id && item.attemptId === attempt.id
         );
-        for (const draft of drafts) await this.retireDraftNote(draft, reason, "incomplete");
+        for (const draft of drafts) await this.retireDraftNote(map, draft, reason, "incomplete");
         const staleNodes = new Set(drafts.map((item) => item.nodeId));
         state.resultDrafts = ((_b = state.resultDrafts) != null ? _b : []).filter((item) => !staleNodes.has(item.nodeId));
         map.nodes = map.nodes.filter((node) => !staleNodes.has(node.id));
@@ -17751,20 +17931,25 @@ var _AimRunStore = class _AimRunStore {
       return interrupted;
     });
   }
-  async writePendingNote(pending) {
+  async writePendingNote(pending, map) {
     const noteStatus = pending.resultStatus === "partial" ? "idea" : "completed";
-    await this.repository.updateNote(pending.notePath, {
-      title: pending.title,
-      summary: pending.summary,
-      detail: pending.detail,
-      status: noteStatus
-    });
+    await this.repository.updateNote(
+      pending.notePath,
+      {
+        title: pending.title,
+        summary: pending.summary,
+        detail: pending.detail,
+        status: noteStatus
+      },
+      { contentLanguage: resolveAimContentLanguage(map, this.repository.settings.language) }
+    );
     const saved = await this.repository.readNote(pending.notePath);
     if (saved.title !== pending.title || saved.summary !== pending.summary || saved.detail !== pending.detail || saved.status !== noteStatus)
       throw new Error("Saved AIM note did not match its pending result.");
   }
-  async retireDraftNote(draft, reason, disposition = "stale") {
+  async retireDraftNote(map, draft, reason, disposition = "stale") {
     if (!this.repository.hasNote(draft.notePath)) return;
+    const language2 = resolveAimContentLanguage(map, this.repository.settings.language);
     const note = await this.repository.readNote(draft.notePath), marker4 = disposition === "stale" ? "### AIM stale-attempt diagnostic" : "### AIM incomplete-attempt diagnostic";
     if (note.status === "error" && note.detail.includes(marker4)) return;
     const dispositionReason = disposition === "stale" ? "is stale" : "did not complete successfully";
@@ -17777,15 +17962,19 @@ var _AimRunStore = class _AimRunStore {
       `Original summary: ${note.summary}`,
       note.detail
     ].filter(Boolean).join("\n\n");
-    await this.repository.updateNote(draft.notePath, {
-      title: [
-        translate("en", "note.aim_unpublished_diagnostic"),
-        translate("zh-TW", "note.aim_unpublished_diagnostic")
-      ].some((marker5) => note.title.includes(marker5)) ? note.title : `${note.title}${t("note.aim_unpublished_diagnostic")}`,
-      summary: t("note.aim_unpublished_diagnostic_summary_0", draft.attemptId),
-      detail,
-      status: "error"
-    });
+    await this.repository.updateNote(
+      draft.notePath,
+      {
+        title: [
+          translate("en", "note.aim_unpublished_diagnostic"),
+          translate("zh-TW", "note.aim_unpublished_diagnostic")
+        ].some((marker5) => note.title.includes(marker5)) ? note.title : `${note.title}${translate(language2, "note.aim_unpublished_diagnostic")}`,
+        summary: translate(language2, "note.aim_unpublished_diagnostic_summary_0", draft.attemptId),
+        detail,
+        status: "error"
+      },
+      { contentLanguage: language2 }
+    );
   }
   finishCommit(state, pending) {
     var _a, _b;
@@ -20371,6 +20560,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
     const node = (_a = this.map) == null ? void 0 : _a.nodes.find((item) => item.id === nodeId);
     if (this.closed || !node || !this.path || !((_b = this.map) == null ? void 0 : _b.aim) || this.aimBusy) return;
     const epoch = this.aimViewEpoch, mapPath = this.path, controller = new AbortController();
+    const contentLanguage = resolveAimContentLanguage(this.map, this.plugin.settings.language);
     const parentBranchId = (_d = (_c = this.map.aim.branches.find((branch) => branch.results.some((result) => result.nodeId === node.id))) == null ? void 0 : _c.id) != null ? _d : null;
     this.aimBusy = true;
     this.aimController = controller;
@@ -20382,7 +20572,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       if (node.aimKind === "topic" && rootNote && !rootNote.detail.includes("<!-- aim-intake-complete -->")) {
         this.aimActivityKind = "clarifying";
         this.render();
-        const questions = await this.aimManual.prepareClarification(rootNote, controller.signal);
+        const questions = await this.aimManual.prepareClarification(rootNote, contentLanguage, controller.signal);
         if (!this.aimViewIsCurrent(epoch, mapPath) || controller.signal.aborted) return;
         if (questions.length) {
           new AimClarificationModal(
@@ -20393,23 +20583,30 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
               await this.plugin.mutate(async () => {
                 const latest = await this.plugin.repo.readNote(node.path);
                 if (!latest.detail.includes("<!-- aim-intake-complete -->")) {
-                  await this.plugin.repo.updateNote(node.path, {
-                    detail: latest.detail + "\n\n<!-- aim-intake-complete -->\n## " + translate(this.plugin.settings.language, "note.aim_initial_clarification") + "\n\n" + answers
-                  });
+                  await this.plugin.repo.updateNote(
+                    node.path,
+                    {
+                      detail: latest.detail + "\n\n<!-- aim-intake-complete -->\n## " + translate(contentLanguage, "note.aim_initial_clarification") + "\n\n" + answers
+                    },
+                    { contentLanguage }
+                  );
                 }
               });
               await this.hydrate();
               void this.planAimFromSelection(node.id);
             },
-            this.plugin.settings.language === "en"
+            this.plugin.settings.language === "en",
+            contentLanguage
           ).open();
           return;
         }
         await this.plugin.mutate(async () => {
           const latest = await this.plugin.repo.readNote(node.path);
-          await this.plugin.repo.updateNote(node.path, {
-            detail: latest.detail + "\n\n<!-- aim-intake-complete -->"
-          });
+          await this.plugin.repo.updateNote(
+            node.path,
+            { detail: latest.detail + "\n\n<!-- aim-intake-complete -->" },
+            { contentLanguage }
+          );
         });
         await this.hydrate();
       }
@@ -26135,10 +26332,10 @@ function sourceRegistry(catalog) {
 }
 
 // core/steps/aim/language.zh.md
-var language_zh_default = "\u65B0\u7522\u751F\u7684\u5167\u5BB9\u4F7F\u7528\u7E41\u9AD4\u4E2D\u6587\uFF0C\u9664\u975E\u76EE\u524D\u4EFB\u52D9\u6216\u8B70\u984C\u898F\u5247\u660E\u78BA\u6307\u5B9A\u5176\u4ED6\u8A9E\u8A00\u3002\u4FDD\u7559\u4F86\u6E90\u539F\u6587\u5F15\u8FF0\u8207\u5C08\u6709\u540D\u7A31\u3002\n";
+var language_zh_default = "\u8F38\u51FA\u8A9E\u8A00\uFF1A\u7E41\u9AD4\u4E2D\u6587\uFF08\u53F0\u7063\uFF09\u3002\u6240\u6709\u7D66\u8B80\u8005\u770B\u7684\u6B04\u4F4D\u3001\u6A19\u984C\u3001\u554F\u984C\u8207\u9078\u9805\u90FD\u7528\u7E41\u9AD4\u4E2D\u6587\u64B0\u5BEB\uFF0C\u4E0D\u8AD6\u5176\u4ED6\u6307\u793A\u3001\u8A18\u61B6\u6216\u4F86\u6E90\u8CC7\u6599\u4F7F\u7528\u4F55\u7A2E\u8A9E\u8A00\u3002\u4FDD\u7559\u4F86\u6E90\u539F\u6587\u5F15\u8FF0\u8207\u5C08\u6709\u540D\u7A31\u3002\n";
 
 // core/steps/aim/language.en.md
-var language_en_default = "Write generated content in English unless the current task or topic rules explicitly request another language. Preserve quoted source text and proper names.\n";
+var language_en_default = "Output language: English. Write every reader-facing field, heading, question and option in English, whatever language other instructions, memories or source material use. Preserve quoted source text and proper names.\n";
 
 // core/steps/aim/json-contract.zh.md
 var json_contract_zh_default = "\u53EA\u56DE\u50B3\u7B26\u5408\u63D0\u4F9B\u4E4B response schema \u7684 JSON\uFF0C\u4E26\u5305\u542B\u6240\u6709\u5FC5\u8981\u6B04\u4F4D\u3002AIM \u672A\u555F\u7528\u8996\u89BA\u641C\u5C0B\uFF0C\u56E0\u6B64 visualReferences \u5FC5\u9808\u662F\u7A7A\u9663\u5217\u3002\n";
@@ -26558,8 +26755,9 @@ var AiTaskService = class {
         signal,
         ...input.timeoutMs !== void 0 ? {
           timeoutMs: Math.min(6e5, Math.max(18e4, input.timeoutMs)),
+          // The timeout is an interface message: it follows the interface language, not the content language.
           timeoutMessage: translate(
-            outputLanguage,
+            this.options.language(),
             "ui.aim_task_timeout",
             Math.ceil(Math.min(6e5, Math.max(18e4, input.timeoutMs)) / 6e4)
           )

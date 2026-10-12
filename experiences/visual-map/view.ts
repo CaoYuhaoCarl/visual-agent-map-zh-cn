@@ -1,3 +1,4 @@
+import { resolveAimContentLanguage } from "../aim/content-language";
 import { AimClarificationModal } from "../../ui/modals/aim-clarification-modal";
 import { withThinkingOrigin } from "./thinking-origin";
 import { createHash, randomUUID } from "node:crypto";
@@ -767,6 +768,7 @@ export class VisualAgentMapView extends ItemView {
     const epoch = this.aimViewEpoch,
       mapPath = this.path,
       controller = new AbortController();
+    const contentLanguage = resolveAimContentLanguage(this.map, this.plugin.settings.language);
     const parentBranchId =
       this.map.aim.branches.find(branch => branch.results.some(result => result.nodeId === node.id))?.id ?? null;
     this.aimBusy = true;
@@ -779,7 +781,7 @@ export class VisualAgentMapView extends ItemView {
       if (node.aimKind === "topic" && rootNote && !rootNote.detail.includes("<!-- aim-intake-complete -->")) {
         this.aimActivityKind = "clarifying";
         this.render();
-        const questions = await this.aimManual.prepareClarification(rootNote, controller.signal);
+        const questions = await this.aimManual.prepareClarification(rootNote, contentLanguage, controller.signal);
         if (!this.aimViewIsCurrent(epoch, mapPath) || controller.signal.aborted) return;
         if (questions.length) {
           new AimClarificationModal(
@@ -790,28 +792,35 @@ export class VisualAgentMapView extends ItemView {
               await this.plugin.mutate(async () => {
                 const latest = await this.plugin.repo.readNote(node.path);
                 if (!latest.detail.includes("<!-- aim-intake-complete -->")) {
-                  await this.plugin.repo.updateNote(node.path, {
-                    detail:
-                      latest.detail +
-                      "\n\n<!-- aim-intake-complete -->\n## " +
-                      translate(this.plugin.settings.language, "note.aim_initial_clarification") +
-                      "\n\n" +
-                      answers
-                  });
+                  await this.plugin.repo.updateNote(
+                    node.path,
+                    {
+                      detail:
+                        latest.detail +
+                        "\n\n<!-- aim-intake-complete -->\n## " +
+                        translate(contentLanguage, "note.aim_initial_clarification") +
+                        "\n\n" +
+                        answers
+                    },
+                    { contentLanguage }
+                  );
                 }
               });
               await this.hydrate();
               void this.planAimFromSelection(node.id);
             },
-            this.plugin.settings.language === "en"
+            this.plugin.settings.language === "en",
+            contentLanguage
           ).open();
           return;
         }
         await this.plugin.mutate(async () => {
           const latest = await this.plugin.repo.readNote(node.path);
-          await this.plugin.repo.updateNote(node.path, {
-            detail: latest.detail + "\n\n<!-- aim-intake-complete -->"
-          });
+          await this.plugin.repo.updateNote(
+            node.path,
+            { detail: latest.detail + "\n\n<!-- aim-intake-complete -->" },
+            { contentLanguage }
+          );
         });
         await this.hydrate();
       }

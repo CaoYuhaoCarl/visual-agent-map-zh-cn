@@ -14,6 +14,7 @@ function fixture() {
   let map = { id: 'map', title: 'Goal', nodes: [{ id: 'question', path: 'Question.md', x: 0, y: 0, parentId: null }], aim: { version: 1, branches: [{ id: 'branch', questionNodeId: 'question', parentBranchId: null, answerSnapshot: { selections: [], freeText: 'condition' }, inputSnapshot: { topic: 'Goal', conditions: {}, upstreamResults: [] }, createdAt: 'today', results: [] }], runs: [], pendingCommits: [] } };
   const notes = new Map();
   const repo = {
+    settings: { language: 'en' },
     readMap: async () => copy(map), saveMap: async (_path, value) => { map = copy(value); },
     topicFolder: () => 'Notes', topicRoot: () => 'Topic', ensureTopicFolders: async () => {},
     unique: (_folder, title) => `Notes/${title}-${++id}.md`,

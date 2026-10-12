@@ -1,1 +1,1 @@
-Write generated content in English unless the current task or topic rules explicitly request another language. Preserve quoted source text and proper names.
+Output language: English. Write every reader-facing field, heading, question and option in English, whatever language other instructions, memories or source material use. Preserve quoted source text and proper names.

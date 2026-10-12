@@ -49,6 +49,18 @@ test('acceptance can retain a research gap without converting it to completion',
   assert.ok(delivery.result.detail.includes('Draft pending completion\n\nDraft'));
   assert.ok(delivery.result.detail.includes('Missing concrete resources'));
 });
+test('AIM pending-draft heading follows the content language', async () => {
+  for (const [language, heading, other] of [['zh-TW', '## 草稿待補完\n\nDraft', 'Draft pending completion'], ['en', '## Draft pending completion\n\nDraft', '草稿待補完']]) {
+    const outputs = [outline, '<!-- aim-delivery-research {"status":"searched"} -->\nUnresolved resource', 'Draft', '<!-- aim-review {"decision":"research_more","rationale":"Missing concrete resources"} -->\nPartial'];
+    const delivery = await buildFinalDelivery({ ...base, outputLanguage: language }, async () => {
+      const response = result(outputs.shift());
+      if (response.detail.includes('"decision":"research_more"')) response.suggestions = [{ title: 'Concrete resource', task: 'Find a verified resource', contribution: 'Resolve the missing evidence' }];
+      return response;
+    });
+    assert.ok(delivery.result.detail.includes(heading), language);
+    assert.ok(!delivery.result.detail.includes(other), language);
+  }
+});
 test('final delivery acceptance cannot replace or shorten the writer draft', async () => {
   const draft = 'Original complete document\n\nUnique source-backed step https://example.org/proof';
   const outputs = [outline, '<!-- aim-delivery-research {"status":"searched"} -->\nSource https://example.org/proof', draft, '<!-- aim-review {"decision":"conclude","rationale":"Verified","stopReason":"Ready"} -->\nShort acceptance note'];

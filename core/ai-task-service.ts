@@ -129,8 +129,9 @@ export class AiTaskService {
         ...(input.timeoutMs !== undefined
           ? {
               timeoutMs: Math.min(600_000, Math.max(180_000, input.timeoutMs)),
+              // The timeout is an interface message: it follows the interface language, not the content language.
               timeoutMessage: translate(
-                outputLanguage,
+                this.options.language(),
                 "ui.aim_task_timeout",
                 Math.ceil(Math.min(600_000, Math.max(180_000, input.timeoutMs)) / 60_000)
               )

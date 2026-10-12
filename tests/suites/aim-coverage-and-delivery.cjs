@@ -49,7 +49,7 @@ integrationTest('coverage: two simultaneous AIM maps run without mixing branches
 });
 integrationTest('coverage: initial clarification is separate from answered exploration count', async () => {
   const subject = await coverageSetup('Intake scenario'); const topic = await subject.repo.readNote(subject.created.root.path);
-  const questions = await subject.flow.prepareClarification(topic); assert.equal(questions.length, 1);
+  const questions = await subject.flow.prepareClarification(topic, 'en'); assert.equal(questions.length, 1);
   const saved = await subject.repo.readMap(subject.created.mapPath); assert.equal(saved.aim.branches.length, 0);
   const { countAimAnsweredQuestions } = load('experiences/aim/manual-flow.ts'); assert.equal(countAimAnsweredQuestions(saved, null), 0);
 });
@@ -313,3 +313,148 @@ integrationTest('AIM final acceptance pins the complete review marker to detail 
     assert.equal(result.summary, 'Ready');
   }
 });
+
+// Content language scenarios: interface language and content language deliberately differ.
+async function languageSubject(ui, topic) {
+  const sharedRepo = fixture(ui).repo;
+  const subject = await coverageSetup(topic, { sharedRepo });
+  const { AimRunStore } = load('experiences/aim/research-run-store.ts');
+  const { AimManualFlow } = load('experiences/aim/manual-flow.ts');
+  const calls = [], base = subject.model.ask;
+  subject.flow = new AimManualFlow(sharedRepo, new AimRunStore(sharedRepo), async (context, ...rest) => {
+    calls.push({ phase: context.task.match(/aim-phase:\s*([a-z-]+)/)?.[1] ?? context.researchMode, language: context.outputLanguage });
+    return base(context, ...rest);
+  });
+  return { ...subject, calls };
+}
+async function allNoteText(subject) {
+  const saved = await subject.repo.readMap(subject.created.mapPath);
+  return (await Promise.all(saved.nodes.map(async node => { const note = await subject.repo.readNote(node.path); return `${note.title}\n${note.summary}\n${note.detail}`; }))).join('\n\n');
+}
+integrationTest('coverage: interface en with a Chinese question runs every AIM stage and writes every fixed note text in Traditional Chinese', async () => {
+  const subject = await languageSubject('en', '東京五天自由行怎麼排');
+  const topic = await subject.repo.readNote(subject.created.root.path);
+  await subject.flow.prepareClarification(topic, 'zh-TW');
+  const outcome = await coverageThreeAnswers(subject);
+  assert.equal(outcome.status, 'completed');
+  assert.ok(subject.calls.length > 10);
+  assert.deepEqual([...new Set(subject.calls.map(call => call.language))], ['zh-TW'], JSON.stringify(subject.calls.filter(call => call.language !== 'zh-TW')));
+  assert.ok(subject.calls.some(call => call.phase === 'delivery-writing') && subject.calls.some(call => call.phase === 'report-review'));
+  const text = await allNoteText(subject);
+  const saved = await subject.repo.readMap(subject.created.mapPath);
+  for (const node of saved.nodes) {
+    const raw = await subject.repo.app.vault.read(subject.repo.file(node.path));
+    for (const english of ['No conclusion yet', 'Draft pending completion', 'Follow-up question after reviewing all saved research']) assert.ok(!raw.includes(english), `${node.path}: ${english}`);
+  }
+  assert.ok((await subject.repo.app.vault.read(subject.repo.file(subject.created.root.path))).includes('尚未形成結論'));
+  const raws = await Promise.all(saved.nodes.map(node => subject.repo.app.vault.read(subject.repo.file(node.path))));
+  assert.ok(raws.some(raw => raw.includes('審閱所有已存研究')));
+  for (const english of ['## User-provided context', '## Interim result', '## Supporting research', '## Source boundary', '## Answer options', 'Rationale:', 'Stop reason:', 'Question · ', 'Research synthesis', 'Research conclusion', 'Unknown / no preference']) assert.ok(!text.includes(english), english);
+  for (const chinese of ['## 使用者提供的背景', '## 暫定結果', '## 佐證研究', '## 來源界線', '## 回答選項', '理由：', '停止原因：', '問題 · ']) assert.ok(text.includes(chinese), chinese);
+});
+integrationTest('coverage: interface zh with an English question keeps every stage and note in English with no Chinese characters', async () => {
+  const subject = await languageSubject('zh-TW', 'Plan a 5-day Taipei trip');
+  const topic = await subject.repo.readNote(subject.created.root.path);
+  await subject.flow.prepareClarification(topic, 'en');
+  const first = (await subject.flow.planNextQuestion(subject.created.mapPath, subject.created.root.id, 'gpt-6-luna', 'low', 'language-question')).node;
+  subject.repo.settings.language = 'en';
+  const outcome = await subject.flow.answerAndResearch(subject.created.mapPath, first.id, { requestId: 'language-answer-1', selections: [first.aimQuestion.options[0].id], freeText: 'Specific condition 1' }, 'gpt-6-luna', 'low');
+  assert.equal(outcome.status, 'waiting-user');
+  subject.repo.settings.language = 'zh-TW';
+  assert.deepEqual([...new Set(subject.calls.map(call => call.language))], ['en']);
+  const saved = await subject.repo.readMap(subject.created.mapPath);
+  assert.equal(saved.aim.contentLanguage, 'en');
+  const text = await allNoteText(subject);
+  assert.doesNotMatch(text, /\p{Script=Han}/u);
+  for (const english of ['## User-provided context', '## Interim result', '## Supporting research', '## Source boundary', '## Answer options']) assert.ok(text.includes(english), english);
+});
+integrationTest('coverage: a saved map without contentLanguage is untouched on open and stamped by the next AIM save', async () => {
+  const subject = await languageSubject('en', '東京五天自由行怎麼排');
+  const legacy = await subject.repo.readMap(subject.created.mapPath);
+  delete legacy.aim.contentLanguage;
+  const stamp = subject.repo.stampAimContentLanguage; subject.repo.stampAimContentLanguage = () => {};
+  await subject.repo.saveMap(subject.created.mapPath, legacy);
+  subject.repo.stampAimContentLanguage = stamp;
+  const read = () => subject.repo.app.vault.read(subject.repo.file(subject.created.mapPath));
+  const before = await read();
+  const opened = await subject.repo.readMap(subject.created.mapPath);
+  assert.equal(opened.aim.contentLanguage, undefined);
+  assert.equal(await read(), before, 'opening a legacy map writes nothing');
+  const first = (await subject.flow.planNextQuestion(subject.created.mapPath, subject.created.root.id, 'gpt-6-luna', 'low', 'legacy-question')).node;
+  assert.equal((await subject.repo.readMap(subject.created.mapPath)).aim.contentLanguage, 'zh-TW', 'derived from the title at the first AIM save');
+  subject.repo.settings.language = 'zh-TW';
+  await subject.flow.answerAndResearch(subject.created.mapPath, first.id, { requestId: 'legacy-answer-1', selections: [first.aimQuestion.options[0].id], freeText: 'Specific condition 1' }, 'gpt-6-luna', 'low');
+  assert.deepEqual([...new Set(subject.calls.map(call => call.language))], ['zh-TW']);
+});
+integrationTest('coverage: a legacy map whose title has no language signal persists the interface language at first save and keeps it after a switch', async () => {
+  for (const title of ['🍜', '2026']) {
+    const subject = await languageSubject('zh-TW', title);
+    const legacy = await subject.repo.readMap(subject.created.mapPath);
+    delete legacy.aim.contentLanguage;
+    const stamp = subject.repo.stampAimContentLanguage; subject.repo.stampAimContentLanguage = () => {};
+    await subject.repo.saveMap(subject.created.mapPath, legacy);
+    subject.repo.stampAimContentLanguage = stamp;
+    const first = (await subject.flow.planNextQuestion(subject.created.mapPath, subject.created.root.id, 'gpt-6-luna', 'low', `signal-${title}`)).node;
+    assert.equal((await subject.repo.readMap(subject.created.mapPath)).aim.contentLanguage, 'zh-TW', title);
+    subject.repo.settings.language = 'en';
+    await subject.flow.answerAndResearch(subject.created.mapPath, first.id, { requestId: `signal-answer-${title}`, selections: [first.aimQuestion.options[0].id], freeText: 'Specific condition 1' }, 'gpt-6-luna', 'low');
+    assert.equal((await subject.repo.readMap(subject.created.mapPath)).aim.contentLanguage, 'zh-TW', 'kept after the interface switch');
+    assert.deepEqual([...new Set(subject.calls.map(call => call.language))], ['zh-TW'], title);
+  }
+});
+integrationTest('coverage: a zh content map writes its pending result draft summary in Chinese', async () => {
+  const subject = await languageSubject('en', '東京五天自由行怎麼排');
+  const seen = [], record = subject.repo.createNoteAt.bind(subject.repo);
+  subject.repo.createNoteAt = (...args) => { seen.push(args.at(-1).summary); return record(...args); };
+  await coverageThreeAnswers(subject);
+  assert.ok(seen.includes('AIM 研究結果待彙整。'), JSON.stringify(seen));
+  assert.ok(!seen.includes('AIM result pending synthesis.'));
+});
+integrationTest('coverage: ask_user and research_more fallback notes write the stop reason in the content language while attempt records keep the stored value', async () => {
+  const subject = await languageSubject('en', '東京五天自由行怎麼排');
+  const reply = (summary, detail) => ({ summary, detail, suggestions: [], visualReferences: [] });
+  const target = { title: '補查目標', task: 'Search for the missing evidence.', contribution: 'Closes the gap.' };
+  const { AimRunStore } = load('experiences/aim/research-run-store.ts');
+  const { AimManualFlow } = load('experiences/aim/manual-flow.ts');
+  let mode = 'ask_user';
+  const base = subject.model.ask;
+  const store = new AimRunStore(subject.repo), recordedStops = [], record = store.recordPlannerReview.bind(store);
+  store.recordPlannerReview = (mapPath, handle, review, stop) => { recordedStops.push(stop); return record(mapPath, handle, review, stop); };
+  subject.flow = new AimManualFlow(subject.repo, store, async (context, ...rest) => {
+    if (mode === 'research_more') {
+      if (aimPhase(context, 'report-review')) return plannerReview('research_more', { rationale: 'Evidence is still missing.' }, 'Partial', 'Detail.', [target]);
+      if (aimPhase(context, 'research-gap-audit')) return reply('external_evidence', 'An external fact is missing.');
+      if (aimPhase(context, 'targeted-followup-research')) return reply('Follow-up', 'Research status: search completed\nMore evidence https://example.org/more');
+      if (context.aimContract?.kind === 'review' && !aimPhase(context, 'decision-quality-review') && !aimPhase(context, 'saved-evidence-review')) return plannerReview('research_more', { rationale: 'Evidence is still missing.' }, 'Partial', 'Detail.', [target]);
+    }
+    return base(context, ...rest);
+  });
+  const readAll = async () => {
+    const saved = await subject.repo.readMap(subject.created.mapPath);
+    const notes = await Promise.all(saved.nodes.map(node => subject.repo.readNote(node.path)));
+    return { saved, text: notes.map(note => note.detail).join('\n\n') };
+  };
+  const q1 = (await subject.flow.planNextQuestion(subject.created.mapPath, subject.created.root.id, 'gpt-6-luna', 'low', 'stop-q1')).node;
+  const asked = await subject.flow.answerAndResearch(subject.created.mapPath, q1.id, { requestId: 'stop-a1', selections: [q1.aimQuestion.options[0].id], freeText: '條件一' }, 'gpt-6-luna', 'low');
+  assert.equal(asked.status, 'waiting-user');
+  let { saved, text } = await readAll();
+  assert.match(text, /停止原因：等待使用者回答：/);
+  assert.doesNotMatch(text, /Awaiting the user's answer to/);
+  const askReason = saved.aim.runs.flatMap(run => run.attempts).find(attempt => attempt.stopReason?.startsWith('Awaiting'));
+  assert.ok(askReason, 'attempt record keeps the stored English value');
+  mode = 'research_more';
+  const q2 = saved.nodes.find(node => node.id === asked.questionNodeId);
+  const partial = await subject.flow.answerAndResearch(subject.created.mapPath, q2.id, { requestId: 'stop-a2', selections: [q2.aimQuestion.options[0].id], freeText: '條件二' }, 'gpt-6-luna', 'low');
+  assert.equal(partial.status, 'partial');
+  ({ saved } = await readAll());
+  const run = saved.aim.runs.find(item => item.attempts.some(attempt => attempt.status === 'partial'));
+  assert.ok(run, 'a partial run exists to continue');
+  const continued = await subject.flow.continuePartial(subject.created.mapPath, run.id, 'gpt-6-luna', 'low');
+  assert.equal(continued.status, 'partial');
+  ({ saved, text } = await readAll());
+  assert.match(text, /停止原因：續跑已達原型研究輪數上限，仍有重要缺口：/);
+  assert.doesNotMatch(text, /Continuation attempt reached its prototype/);
+  assert.ok(!recordedStops.some(stop => /[\u4e00-\u9fff]/.test(stop ?? '')), 'attempt records never receive the localized note text');
+  assert.ok(recordedStops.includes("Awaiting the user's answer to: Which constraint matters at stage 2?"));
+});
+

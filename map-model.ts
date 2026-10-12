@@ -300,6 +300,8 @@ export interface AimQuestionDraft {
 export interface AimMapData {
   version: 1;
   creationId?: string;
+  /** Language of AIM-generated content, decided once at creation; legacy maps derive it from the title. */
+  contentLanguage?: "en" | "zh-TW";
   /** Exploration target; legacy field name retained for saved maps. Never forces questions or completion. */
   minimumAnswersBeforeConclusion?: number;
   rootDraft?: {
@@ -460,6 +462,8 @@ function validateAimMap(map: MapDocument): void {
     throw new Error("Invalid AIM map extension.");
   if (data.creationId !== undefined && (typeof data.creationId !== "string" || !data.creationId.trim()))
     throw new Error("Invalid AIM creation identity.");
+  if (data.contentLanguage !== undefined && data.contentLanguage !== "en" && data.contentLanguage !== "zh-TW")
+    throw new Error("Invalid AIM content language.");
   if (
     data.minimumAnswersBeforeConclusion !== undefined &&
     (!Number.isInteger(data.minimumAnswersBeforeConclusion) ||

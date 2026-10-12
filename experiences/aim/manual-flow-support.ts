@@ -1,4 +1,5 @@
 // Prompt rules, constants and parsers for the Manual AIM flow; moved from manual-flow.ts unchanged.
+import type { UiLanguage } from "../../i18n";
 import type { AiResult, TaskContext } from "../../ai/types";
 import type { MapDocument, MapNode, AimBranchRecord } from "../../map-model";
 import { type CommitResult } from "./research-run-store";
@@ -130,6 +131,9 @@ export function parseAimResearchPlan(result: Pick<AiResult, "detail" | "suggesti
   throw new Error("Planner must return 0–5 valid research subtopics before the answer can proceed.");
 }
 
+/** Every AIM model call carries the map's content language explicitly; the service-level UI fallback must never apply. */
+export type AimTaskContext = TaskContext & { outputLanguage: UiLanguage };
+
 export type PlannerReview = ReturnType<typeof parseAimPlannerReview>;
 
 export type ResearchCandidate = {
@@ -150,6 +154,8 @@ export class ReuseEvidenceRejected extends Error {}
 export type PlannerQualityContext = {
   goal: string;
   goalDetail: string;
+  /** AIM content language of the map; every model call in the review pipeline uses it. */
+  outputLanguage: UiLanguage;
   conditions: Record<string, string>;
   currentQuestion: string;
   currentAnswer: string;

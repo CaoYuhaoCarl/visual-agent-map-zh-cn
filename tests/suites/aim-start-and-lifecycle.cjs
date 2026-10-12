@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict');
-const { integrationTest, load, plain, plannerReview, savedEvidenceNeedsSearch, aimPhase, auditEcho, obsidian, DEFAULT_SETTINGS, fixture, aimMapFixture } = require('../support.cjs');
+const { test, integrationTest, load, plain, plannerReview, savedEvidenceNeedsSearch, aimPhase, auditEcho, obsidian, DEFAULT_SETTINGS, fixture, aimMapFixture } = require('../support.cjs');
 integrationTest('topic rename restores the original folder and exact Map.md when derived-data rebuild fails', async () => {
   const { repo, app } = fixture();
   app.vault.modify = async (file, content) => app.vault.process(file, () => content);
@@ -46,7 +46,7 @@ integrationTest('AIM start creates a typed mother topic through the production M
   const created = await createAimMap(repo, 'gpt-6-luna', { requestId: 'aim-start-test-1', topic: '如何安排一週的居家運動？', context: '每次不超過 30 分鐘；家中沒有器材。', model: 'gpt-6-luna', reasoning: 'low' });
   const savedMap = await repo.readMap(created.mapPath), savedNote = await repo.readNote(created.root.path);
   assert.equal(savedMap.title, '如何安排一週的居家運動？');
-  assert.deepEqual(plain(savedMap.aim), { version: 1, creationId: 'aim-start-test-1', minimumAnswersBeforeConclusion: 3, branches: [], runs: [], resultDrafts: [], pendingCommits: [] });
+  assert.deepEqual(plain(savedMap.aim), { version: 1, creationId: 'aim-start-test-1', contentLanguage: 'zh-TW', minimumAnswersBeforeConclusion: 3, branches: [], runs: [], resultDrafts: [], pendingCommits: [] });
   assert.equal(savedMap.nodes.length, 1);
   assert.equal(savedMap.nodes[0].aimKind, 'topic');
   assert.equal(savedMap.nodes[0].id, created.root.id);
@@ -147,7 +147,7 @@ integrationTest('AIM start resumes the same Map and Note after a final Map write
   assert.equal(savedMap.aim.rootDraft, undefined);
   const rootNotes = Array.from(files.keys()).filter(path => path.startsWith(`${repo.topicRoot(resumed.mapPath)}/Notes/`));
   assert.equal(rootNotes.length, 1);
-  assert.equal((await repo.readNote(resumed.root.path)).detail, `## User-provided context\n\n${input.context}`);
+  assert.equal((await repo.readNote(resumed.root.path)).detail, `## 使用者提供的背景\n\n${input.context}`);
 });
 integrationTest('AIM start reuses only its empty topic folder after the first Map write fails', async () => {
   const { repo, app, files } = fixture();
@@ -164,7 +164,7 @@ integrationTest('AIM start reuses only its empty topic folder after the first Ma
   const resumed = await createAimMap(repo, 'gpt-6-luna', input);
   assert.equal(resumed.mapPath, 'Agent Workspace/Topics/牛排熟度決策/Map.md');
   assert.equal((await repo.mapFiles()).length, 1);
-  assert.equal((await repo.readNote(resumed.root.path)).detail, `## User-provided context\n\n${input.context}`);
+  assert.equal((await repo.readNote(resumed.root.path)).detail, `## 使用者提供的背景\n\n${input.context}`);
 });
 integrationTest('AIM recovers a question note written before its Map node commit without rerunning Planner', async () => {
   const { repo, files } = fixture();
@@ -721,4 +721,48 @@ integrationTest('AIM recovers a Map commit interrupted after its Note was writte
   assert.equal(savedMap.aim.branches[0].results.length, 1);
   assert.equal(savedNote.summary, 'stored result'); assert.equal(savedNote.detail, 'conditional report');
   assert.equal(Array.from(files.keys()).filter(path => path === result.notePath).length, 1);
+});
+
+test('AIM content language detector follows the character rules and falls back to the interface language', () => {
+  const { detectAimContentLanguage, chooseAimContentLanguage, resolveAimContentLanguage } = load('experiences/aim/content-language.ts');
+  const cases = [
+    ['東京五天自由行怎麼排', 'zh-TW'], ['Plan a 5-day Taipei trip', 'en'], ['Python 的 async 怎麼用', 'zh-TW'],
+    ['What does 侘寂 mean', 'en'], ['东京五天自由行怎么排', 'zh-TW'], ['東京の旅行', 'unsupported'], ['한국 여행', 'unsupported'], ['🍜', undefined], ['2026', undefined], ['', undefined]
+  ];
+  for (const [text, expected] of cases) assert.equal(detectAimContentLanguage(text), expected, text);
+  for (const ui of ['en', 'zh-TW']) {
+    assert.equal(chooseAimContentLanguage(ui, '東京の旅行'), ui);
+    assert.equal(chooseAimContentLanguage(ui, '東京の旅行', '中文內容'), ui, 'Japanese topic must not fall through to a later source');
+    assert.equal(chooseAimContentLanguage(ui, '🍜', ''), ui);
+    assert.equal(chooseAimContentLanguage(ui, '2026', '中文背景'), 'zh-TW');
+    assert.equal(chooseAimContentLanguage(ui, '2026', 'Some English context'), 'en');
+    assert.equal(chooseAimContentLanguage(ui, 'Plan a trip', '中文背景'), 'en', 'topic wins over context');
+  }
+  // Stored value wins; maps without one (legacy and upgraded mindSearch maps) derive from the title; no map falls back to the UI language.
+  assert.equal(resolveAimContentLanguage({ title: 'Plan a trip', aim: { contentLanguage: 'zh-TW' } }, 'en'), 'zh-TW');
+  assert.equal(resolveAimContentLanguage({ title: '東京五天自由行', aim: { version: 1 } }, 'en'), 'zh-TW');
+  assert.equal(resolveAimContentLanguage({ title: 'Plan a trip' }, 'zh-TW'), 'en');
+  assert.equal(resolveAimContentLanguage({ title: '🍜' }, 'zh-TW'), 'zh-TW');
+  assert.equal(resolveAimContentLanguage(undefined, 'en'), 'en');
+});
+integrationTest('AIM start stores the content language once and keeps it when the interface language changes', async () => {
+  const { createAimMap } = load('experiences/aim/create-map.ts');
+  const cases = [
+    { ui: 'en', topic: '東京五天自由行怎麼排', context: '', expected: 'zh-TW', heading: '## 使用者提供的背景' },
+    { ui: 'zh-TW', topic: 'Plan a 5-day Taipei trip', context: '', expected: 'en', heading: '## User-provided context' },
+    { ui: 'zh-TW', topic: '2026', context: 'Budget is limited', expected: 'en', heading: '## User-provided context' },
+    { ui: 'en', topic: '東京の旅行', context: '', expected: 'en', heading: '## User-provided context' }
+  ];
+  for (const [index, item] of cases.entries()) {
+    const { repo } = fixture(item.ui);
+    const input = { requestId: `content-language-${index}`, topic: item.topic, context: item.context || 'Some details', model: 'gpt-6-luna', reasoning: 'low', outcomeExpectation: { goal: 'execute', description: '', formats: ['steps'] } };
+    const created = await createAimMap(repo, 'gpt-6-luna', input);
+    assert.equal((await repo.readMap(created.mapPath)).aim.contentLanguage, item.expected, item.topic);
+    const note = await repo.readNote(created.root.path);
+    assert.ok(note.detail.startsWith(item.heading), note.detail);
+    assert.ok(note.detail.includes(item.expected === 'en' ? 'User-provided outcome expectation' : '使用者提供的成果期待'));
+    repo.settings.language = item.ui === 'en' ? 'zh-TW' : 'en';
+    const again = await createAimMap(repo, 'gpt-6-luna', input);
+    assert.equal((await repo.readMap(again.mapPath)).aim.contentLanguage, item.expected, 'resume keeps the stored value');
+  }
 });

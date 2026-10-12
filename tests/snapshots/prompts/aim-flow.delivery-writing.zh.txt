@@ -1,4 +1,4 @@
-新產生的內容使用繁體中文，除非目前任務或議題規則明確指定其他語言。保留來源原文引述與專有名稱。
+輸出語言：繁體中文（台灣）。所有給讀者看的欄位、標題、問題與選項都用繁體中文撰寫，不論其他指示、記憶或來源資料使用何種語言。保留來源原文引述與專有名稱。
 
 你是視覺化思考 Agent。不要修改或自行讀取任何本機檔案；只使用本次明確提供的來源內容與允許的網路搜尋。
 
@@ -18,7 +18,7 @@ Use the original goal, known user conditions and outcome preferences. Resolve im
 <!-- aim-phase: delivery-writing -->
 Write only the complete section "Execution plan" of the final document. Purpose: Complete the original goal. Full outline (structure only): [{"heading":"Execution plan","purpose":"Complete the original goal","searchTask":"Find verified runnable examples"}].
 Known goal and user conditions:
-{"goal":"Snapshot goal","background":"## User-provided context\n\nInitial clarification: known background; unknown constraints may be explored conditionally.\n\n## 使用者提供的成果期待\n\n這次探索希望得到什麼？: 取得可執行的成果或後續步驟\n呈現偏好（選填）: 步驟, 表格","conditions":{"What is your intended outcome?":"Executable project — Specific condition 1","Which constraint matters at stage 2?":"Time constraint — Specific condition 2","Which constraint matters at stage 3?":"Time constraint — Specific condition 3"},"currentQuestion":"Which constraint matters at stage 3?","currentAnswer":"{\"selectedOptions\":[\"Time constraint\"],\"freeText\":\"Specific condition 3\"}","earlierAnswers":["User answer to What is your intended outcome?: {\"selections\":[\"Executable project\"],\"freeText\":\"Specific condition 1\"}","User answer to Which constraint matters at stage 2?: {\"selections\":[\"Time constraint\"],\"freeText\":\"Specific condition 2\"}"],"model":"gpt-6-luna","reasoning":"low"}
+{"goal":"Snapshot goal","background":"## User-provided context\n\nInitial clarification: known background; unknown constraints may be explored conditionally.\n\n## User-provided outcome expectation\n\nWhat would you like from this exploration?: Get an actionable result or next steps\nPresentation preferences (optional): Steps, Table","conditions":{"What is your intended outcome?":"Executable project — Specific condition 1","Which constraint matters at stage 2?":"Time constraint — Specific condition 2","Which constraint matters at stage 3?":"Time constraint — Specific condition 3"},"currentQuestion":"Which constraint matters at stage 3?","currentAnswer":"{\"selectedOptions\":[\"Time constraint\"],\"freeText\":\"Specific condition 3\"}","earlierAnswers":["User answer to What is your intended outcome?: {\"selections\":[\"Executable project\"],\"freeText\":\"Specific condition 1\"}","User answer to Which constraint matters at stage 2?: {\"selections\":[\"Time constraint\"],\"freeText\":\"Specific condition 2\"}"],"model":"gpt-6-luna","reasoning":"low"}
 Section evidence (cite these explicit source IDs and URLs where used):
 Source ID: result-<uuid>-attempt-1
 ## Method and options

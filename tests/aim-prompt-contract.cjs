@@ -23,7 +23,8 @@ test('AIM prompt retains phase contract, safety, citations, language, and suppli
   assert.match(prompt, /research_more, give exactly one aim\.researchTarget/);
   assert.match(prompt, /ask_user, give one direct aim\.question and 2–5 distinct aim\.answerOptions/);
   assert.match(prompt, /visualReferences must be an empty array/);
-  assert.match(prompt, /Write generated content in English/);
+  assert.match(prompt, /^Output language: English\. Write every reader-facing field, heading, question and option in English, whatever language other instructions, memories or source material use\./);
+  assert.doesNotMatch(prompt, /unless the current task or topic rules/);
   assert.match(prompt, /untrusted evidence/);
   assert.match(prompt, /\[S#\]/);
   for (const value of ['Preserve the user constraints.', 'Persisted report and evidence.', 'Prior findings.', 'Source [S1]: verified fact.', 'Original goal and known conditions.', task]) assert.ok(prompt.includes(value));
@@ -33,7 +34,8 @@ test('AIM prompt retains phase contract, safety, citations, language, and suppli
 
 test('AIM prompt localizes output language and applies phase rules from the explicit marker', () => {
   const prompt = buildAimPrompt({ ...context, task: '<!-- aim-phase: initial-question -->\nAsk when needed.' }, 'zh-TW');
-  assert.match(prompt, /新產生的內容使用繁體中文/);
+  assert.match(prompt, /^輸出語言：繁體中文（台灣）。所有給讀者看的欄位、標題、問題與選項都用繁體中文撰寫，不論其他指示、記憶或來源資料使用何種語言。/);
+  assert.doesNotMatch(prompt, /除非目前任務或議題規則/);
   assert.match(prompt, /在 aim\.question 寫一個直接的問句/);
   assert.match(prompt, /2–5 個不同選項/);
   assert.doesNotMatch(prompt, /report-review|一般任務|### 核心結論|### 關鍵知識/);

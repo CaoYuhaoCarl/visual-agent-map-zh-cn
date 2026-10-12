@@ -13,7 +13,8 @@ import type {
 } from "../../map-model";
 import type { Repository } from "../../repository";
 import { managedHeadingValue, managedSectionValue } from "../../note-values";
-import { t, translate } from "../../i18n";
+import { translate } from "../../i18n";
+import { resolveAimContentLanguage } from "./content-language";
 
 export interface NewAnswerBranch {
   requestId?: string;
@@ -245,7 +246,11 @@ export class AimRunStore {
       throw new Error("A saved AIM question is required to create an answer-specific pivot.");
     const note = await this.repository.readNote(source.path);
     const clone = await this.repository.duplicateNote(source.path, map, mapPath);
-    await this.repository.updateNote(clone.path, { title: note.title });
+    await this.repository.updateNote(
+      clone.path,
+      { title: note.title },
+      { contentLanguage: resolveAimContentLanguage(map, this.repository.settings.language) }
+    );
     const siblingCount = map.nodes.filter(
       node => node.parentId === source.parentId && node.aimKind === "question"
     ).length;
@@ -381,7 +386,7 @@ export class AimRunStore {
           item => item.runId === id && item.attemptId === current.id
         );
         const staleNodes = new Set(staleDrafts.map(item => item.nodeId));
-        for (const draft of staleDrafts) await this.retireDraftNote(draft, current.stopReason);
+        for (const draft of staleDrafts) await this.retireDraftNote(map, draft, current.stopReason);
         state.resultDrafts = (state.resultDrafts ?? []).filter(item => !staleNodes.has(item.nodeId));
         state.pendingCommits = state.pendingCommits.filter(item => item.runId !== id || item.attemptId !== current.id);
         map.nodes = map.nodes.filter(node => !staleNodes.has(node.id));
@@ -564,7 +569,11 @@ export class AimRunStore {
         draft.status !== "ready"
       )
         return false;
-      await this.repository.updateNote(draft.notePath, { summary, detail, status: "idea" });
+      await this.repository.updateNote(
+        draft.notePath,
+        { summary, detail, status: "idea" },
+        { contentLanguage: resolveAimContentLanguage(map, this.repository.settings.language) }
+      );
       const saved = await this.repository.readNote(draft.notePath);
       if (saved.summary !== managedSectionValue(summary) || saved.detail !== managedSectionValue(detail))
         throw new Error("The Searcher report did not match the Repository readback before Planner review.");
@@ -603,7 +612,11 @@ export class AimRunStore {
         return false;
       const node = map.nodes.find(item => item.id === draft.nodeId && item.path === draft.notePath);
       if (!node) throw new Error("AIM synthesis draft node is missing before finalization.");
-      await this.repository.updateNote(draft.notePath, { title });
+      await this.repository.updateNote(
+        draft.notePath,
+        { title },
+        { contentLanguage: resolveAimContentLanguage(map, this.repository.settings.language) }
+      );
       const note = await this.repository.readNote(draft.notePath);
       if (note.title !== managedHeadingValue(title))
         throw new Error("AIM synthesis draft title did not match its Repository readback.");
@@ -631,7 +644,7 @@ export class AimRunStore {
       const drafts = (state.resultDrafts ?? []).filter(
         item => item.runId === handle.runId && item.attemptId === handle.attemptId
       );
-      for (const draft of drafts) await this.retireDraftNote(draft, reason, "incomplete");
+      for (const draft of drafts) await this.retireDraftNote(map, draft, reason, "incomplete");
       // Keep the reports as data only when they rest on completed web retrieval, as saved-report recovery requires.
       const retained = drafts.find(item => item.retainedReports?.length);
       if (retained?.retainedReports && hasCompletedWebRetrieval(attempt.searchDiagnostics))
@@ -661,7 +674,7 @@ export class AimRunStore {
         item => item.runId === handle.runId && item.attemptId === handle.attemptId
       );
       const staleNodes = new Set(staleDrafts.map(item => item.nodeId));
-      for (const draft of staleDrafts) await this.retireDraftNote(draft, reason, "incomplete");
+      for (const draft of staleDrafts) await this.retireDraftNote(map, draft, reason, "incomplete");
       state.resultDrafts = (state.resultDrafts ?? []).filter(item => !staleNodes.has(item.nodeId));
       state.pendingCommits = state.pendingCommits.filter(
         item => item.runId !== handle.runId || item.attemptId !== handle.attemptId
@@ -732,9 +745,11 @@ export class AimRunStore {
       state.resultDrafts.push(draft);
       map.aim = state;
       await this.repository.saveMap(mapPath, map);
+      const contentLanguage = resolveAimContentLanguage(map, this.repository.settings.language);
       await this.repository.createNoteAt(title, model, map, mapPath, "workspace", notePath, nodeId, {
-        summary: "AIM result pending synthesis.",
-        reasoning: reasoning ?? draft.reasoning
+        summary: translate(contentLanguage, "note.aim_result_pending"),
+        reasoning: reasoning ?? draft.reasoning,
+        contentLanguage
       });
       const latestMap = await this.repository.readMap(mapPath),
         latestState = this.state(latestMap),
@@ -748,6 +763,7 @@ export class AimRunStore {
         !latestDraft
       ) {
         await this.retireDraftNote(
+          latestMap,
           draft,
           latestAttempt?.stopReason ?? "Attempt became stale while creating its result draft."
         );
@@ -815,7 +831,7 @@ export class AimRunStore {
       map.aim = state;
       await this.repository.saveMap(mapPath, map);
       try {
-        await this.writePendingNote(pending);
+        await this.writePendingNote(pending, map);
         const currentMap = await this.repository.readMap(mapPath),
           currentState = this.state(currentMap),
           currentRun = currentState.runs.find(item => item.id === handle.runId),
@@ -861,7 +877,7 @@ export class AimRunStore {
           (!validRunningDraft && !validSavingDraft) ||
           attempt.inputSnapshotHash !== draft.inputSnapshotHash
         ) {
-          await this.retireDraftNote(draft, attempt?.stopReason ?? "The attempt is no longer current.");
+          await this.retireDraftNote(map, draft, attempt?.stopReason ?? "The attempt is no longer current.");
           state.resultDrafts = (state.resultDrafts ?? []).filter(item => item.id !== draft.id);
           map.nodes = map.nodes.filter(node => node.id !== draft.nodeId);
           stale.push(draft.id);
@@ -876,7 +892,14 @@ export class AimRunStore {
             "workspace",
             draft.notePath,
             draft.nodeId,
-            { summary: "AIM result pending synthesis.", reasoning: draft.reasoning }
+            {
+              summary: translate(
+                resolveAimContentLanguage(map, this.repository.settings.language),
+                "note.aim_result_pending"
+              ),
+              reasoning: draft.reasoning,
+              contentLanguage: resolveAimContentLanguage(map, this.repository.settings.language)
+            }
           );
           draft.status = "ready";
           recovered.push(draft.id);
@@ -891,7 +914,7 @@ export class AimRunStore {
           stale.push(pending.resultId);
           continue;
         }
-        await this.writePendingNote(pending);
+        await this.writePendingNote(pending, map);
         this.finishCommit(state, pending);
         recovered.push(pending.resultId);
       }
@@ -918,7 +941,7 @@ export class AimRunStore {
         const drafts = (state.resultDrafts ?? []).filter(
           item => item.runId === run.id && item.attemptId === attempt.id
         );
-        for (const draft of drafts) await this.retireDraftNote(draft, reason, "incomplete");
+        for (const draft of drafts) await this.retireDraftNote(map, draft, reason, "incomplete");
         const staleNodes = new Set(drafts.map(item => item.nodeId));
         state.resultDrafts = (state.resultDrafts ?? []).filter(item => !staleNodes.has(item.nodeId));
         map.nodes = map.nodes.filter(node => !staleNodes.has(node.id));
@@ -931,14 +954,18 @@ export class AimRunStore {
     });
   }
 
-  private async writePendingNote(pending: AimPendingCommit): Promise<void> {
+  private async writePendingNote(pending: AimPendingCommit, map: MapDocument): Promise<void> {
     const noteStatus = pending.resultStatus === "partial" ? "idea" : "completed";
-    await this.repository.updateNote(pending.notePath, {
-      title: pending.title,
-      summary: pending.summary,
-      detail: pending.detail,
-      status: noteStatus
-    });
+    await this.repository.updateNote(
+      pending.notePath,
+      {
+        title: pending.title,
+        summary: pending.summary,
+        detail: pending.detail,
+        status: noteStatus
+      },
+      { contentLanguage: resolveAimContentLanguage(map, this.repository.settings.language) }
+    );
     const saved = await this.repository.readNote(pending.notePath);
     if (
       saved.title !== pending.title ||
@@ -949,11 +976,13 @@ export class AimRunStore {
       throw new Error("Saved AIM note did not match its pending result.");
   }
   private async retireDraftNote(
+    map: MapDocument,
     draft: AimResultDraftRecord,
     reason: string,
     disposition: "stale" | "incomplete" = "stale"
   ): Promise<void> {
     if (!this.repository.hasNote(draft.notePath)) return;
+    const language = resolveAimContentLanguage(map, this.repository.settings.language);
     const note = await this.repository.readNote(draft.notePath),
       marker = disposition === "stale" ? "### AIM stale-attempt diagnostic" : "### AIM incomplete-attempt diagnostic";
     if (note.status === "error" && note.detail.includes(marker)) return;
@@ -969,17 +998,21 @@ export class AimRunStore {
     ]
       .filter(Boolean)
       .join("\n\n");
-    await this.repository.updateNote(draft.notePath, {
-      title: [
-        translate("en", "note.aim_unpublished_diagnostic"),
-        translate("zh-TW", "note.aim_unpublished_diagnostic")
-      ].some(marker => note.title.includes(marker))
-        ? note.title
-        : `${note.title}${t("note.aim_unpublished_diagnostic")}`,
-      summary: t("note.aim_unpublished_diagnostic_summary_0", draft.attemptId),
-      detail,
-      status: "error"
-    });
+    await this.repository.updateNote(
+      draft.notePath,
+      {
+        title: [
+          translate("en", "note.aim_unpublished_diagnostic"),
+          translate("zh-TW", "note.aim_unpublished_diagnostic")
+        ].some(marker => note.title.includes(marker))
+          ? note.title
+          : `${note.title}${translate(language, "note.aim_unpublished_diagnostic")}`,
+        summary: translate(language, "note.aim_unpublished_diagnostic_summary_0", draft.attemptId),
+        detail,
+        status: "error"
+      },
+      { contentLanguage: language }
+    );
   }
   private finishCommit(state: AimMapData, pending: AimPendingCommit): void {
     const branch = state.branches.find(item => item.id === pending.branchId)!;

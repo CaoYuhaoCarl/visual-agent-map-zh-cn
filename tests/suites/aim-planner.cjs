@@ -702,7 +702,7 @@ integrationTest('AIM forces ask_user below the answer floor and repairs only the
     throw new Error(`Unexpected research or Planner retry: ${context.task.slice(0, 120)}`);
   });
   const context = {
-    goal: 'Plan a realistic routine', goalDetail: '', conditions: {}, currentQuestion: 'Do you exercise?', currentAnswer: 'Sometimes',
+    goal: 'Plan a realistic routine', goalDetail: '', outputLanguage: 'en', conditions: {}, currentQuestion: 'Do you exercise?', currentAnswer: 'Sometimes',
     answeredQuestionCount: 2, questionHistory: ['Do you exercise?'], lineage: '',
     reportSummary: 'Four independent Searcher reports are already saved.',
     reportDetail: ['Saved report one', 'Saved report two', 'Saved report three', 'Saved report four'].map((name, index) => `### ${name}\nIndependent persisted finding ${index + 1}.`).join('\n\n')

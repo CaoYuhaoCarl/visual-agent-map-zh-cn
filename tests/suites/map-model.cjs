@@ -178,3 +178,10 @@ test('maps saved under the pre-AIM name are upgraded to AIM keys, markers and se
   assert.equal(parsed.aim.note, '<!-- aim-review {} --> __aim_unknown__');
   assert.ok(!JSON.stringify(parsed).includes(LEGACY_KEY_PREFIX) && !JSON.stringify(parsed).includes(LEGACY_MARKER_PREFIX));
 });
+
+test('AIM map validation accepts a missing or supported content language and rejects any other value', () => {
+  const base = { version: 1, id: 'content-language-map', title: 'Content language fixture', nodes: [], viewport: { x: 0, y: 0, zoom: 1 }, aim: { version: 1, branches: [], runs: [], pendingCommits: [] } };
+  assert.equal(core.parseMap(core.serializeMap(base)).aim.contentLanguage, undefined);
+  for (const value of ['en', 'zh-TW']) assert.equal(core.parseMap(core.serializeMap({ ...base, aim: { ...base.aim, contentLanguage: value } })).aim.contentLanguage, value);
+  for (const value of ['fr', '', 'zh', 5, null]) assert.throws(() => core.parseMap(core.serializeMap({ ...base, aim: { ...base.aim, contentLanguage: value } })), /Invalid AIM content language/);
+});

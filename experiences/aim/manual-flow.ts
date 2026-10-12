@@ -1,5 +1,6 @@
 import { evidenceCard, EVIDENCE_LOOKUP_FIELD_RULE, EVIDENCE_LOOKUP_RULE } from "./evidence-context";
 import { deduplicateAimRequest } from "./request-context";
+import { resolveAimContentLanguage } from "./content-language";
 import { buildFinalDelivery } from "./final-delivery";
 import { createHash, randomUUID } from "node:crypto";
 import type { AiResult, TaskContext } from "../../ai/types";
@@ -65,10 +66,11 @@ import {
   type QuestionPlanEntry,
   type PlannerReview,
   type ResearchCandidate,
+  type AimTaskContext,
   type PlannerQualityContext,
   type ResearchGapClassification
 } from "./manual-flow-support";
-import { translate } from "../../i18n";
+import { translate, type UiLanguage } from "../../i18n";
 import { renderInitialClarificationTask } from "./steps/initial-clarification/step";
 import {
   renderInitialQuestionTask,
@@ -100,6 +102,23 @@ export {
   type AimPersist
 } from "./manual-flow-support";
 
+/** Stop reason as written into a note: fixed fallback phrases follow the content language; the attempt record keeps its stored value. */
+function noteStopReason(
+  language: UiLanguage,
+  review: { decision: string; question?: string; rationale: string },
+  recorded: string,
+  fallback: "bounded" | "budget"
+): string {
+  if (review.decision === "ask_user") return translate(language, "note.aim_stop_awaiting_0", review.question ?? "");
+  if (review.decision === "research_more")
+    return translate(
+      language,
+      fallback === "bounded" ? "note.aim_stop_bounded_followup_0" : "note.aim_stop_budget_gap_0",
+      review.rationale
+    );
+  return recorded;
+}
+
 export class AimManualFlow {
   private readonly evidenceReports = new Map<string, { path: string; hash: string }>();
   private readonly answerRuns = new Map<string, { fingerprint: string; promise: Promise<ManualResearchResult> }>();
@@ -116,8 +135,14 @@ export class AimManualFlow {
     private readonly persist: AimPersist = operation => operation()
   ) {}
 
+  /** Content language of the map as read now; never cached on the flow, so a UI language switch cannot change it. */
+  private languageOf(map: MapDocument): UiLanguage {
+    return resolveAimContentLanguage(map, this.repository.settings.language);
+  }
+
   async prepareClarification(
     topic: { title: string; detail: string; model: string; reasoning?: unknown },
+    contentLanguage: UiLanguage,
     signal?: AbortSignal
   ): Promise<string[]> {
     const result = await this.askAimModel(
@@ -128,7 +153,7 @@ export class AimManualFlow {
         detail: topic.detail,
         task: renderInitialClarificationTask(),
         ancestors: "",
-        outputLanguage: this.repository.settings.language,
+        outputLanguage: contentLanguage,
         mode: "task",
         researchMode: "local",
         researchDepth: "fast",
@@ -156,7 +181,7 @@ export class AimManualFlow {
   }
 
   private async askAimModel(
-    context: TaskContext,
+    context: AimTaskContext,
     model: string,
     reasoning?: unknown,
     signal?: AbortSignal,
@@ -264,7 +289,7 @@ export class AimManualFlow {
       detail: string;
       ancestors: string;
       task?: string;
-      outputLanguage?: TaskContext["outputLanguage"];
+      outputLanguage: UiLanguage;
       detailFormat?: TaskContext["detailFormat"];
       aimContract?: AimContract;
     },
@@ -272,41 +297,45 @@ export class AimManualFlow {
     reasoning: unknown,
     signal?: AbortSignal
   ): Promise<ReturnType<typeof parseAimPlannerReview>> {
-    return parseAimPlannerReviewWithRecovery(original, recoveryContext, async (task, options) => {
-      throwIfAborted(signal);
+    return parseAimPlannerReviewWithRecovery(
+      original,
+      { ...recoveryContext, outputLanguage: taskContext.outputLanguage },
+      async (task, options) => {
+        throwIfAborted(signal);
 
-      const repairTask = phaseTask("format-repair", task);
-      const step = taskContext.aimContract;
-      const allowed: readonly AimDecision[] = recoveryContext.requiredDecision
-        ? [recoveryContext.requiredDecision]
-        : step?.kind === "review"
-          ? step.decisions
-          : ALL_DECISIONS;
-      const decisions = allowed.filter(decision => !options?.excludeDecisions?.includes(decision));
-      if (!decisions.length) throw new Error("AIM format repair has no permitted decision left.");
-      const repaired = await this.askAimModel(
-        {
-          ...taskContext,
-          title: "AIM format repair",
-          summary: "",
-          detail: "",
-          ancestors: "",
-          rules: "",
-          task: repairTask,
-          mode: "task",
-          researchMode: "local",
-          researchDepth: "fast",
-          visualMode: "off",
-          aimContract: { kind: "review", decisions },
+        const repairTask = phaseTask("format-repair", task);
+        const step = taskContext.aimContract;
+        const allowed: readonly AimDecision[] = recoveryContext.requiredDecision
+          ? [recoveryContext.requiredDecision]
+          : step?.kind === "review"
+            ? step.decisions
+            : ALL_DECISIONS;
+        const decisions = allowed.filter(decision => !options?.excludeDecisions?.includes(decision));
+        if (!decisions.length) throw new Error("AIM format repair has no permitted decision left.");
+        const repaired = await this.askAimModel(
+          {
+            ...taskContext,
+            title: "AIM format repair",
+            summary: "",
+            detail: "",
+            ancestors: "",
+            rules: "",
+            task: repairTask,
+            mode: "task",
+            researchMode: "local",
+            researchDepth: "fast",
+            visualMode: "off",
+            aimContract: { kind: "review", decisions },
+            signal
+          },
+          model,
+          reasoning,
           signal
-        },
-        model,
-        reasoning,
-        signal
-      );
-      throwIfAborted(signal);
-      return repaired;
-    });
+        );
+        throwIfAborted(signal);
+        return repaired;
+      }
+    );
   }
 
   /** Classifies a proposed search gap without exposing reports outside the current branch or invoking search. */
@@ -338,7 +367,7 @@ export class AimManualFlow {
         detail: "",
         task,
         ancestors: "",
-        outputLanguage: this.repository.settings.language,
+        outputLanguage: context.outputLanguage,
         mode: "task",
         researchMode: "local",
         researchDepth: "fast",
@@ -381,7 +410,7 @@ export class AimManualFlow {
       candidateBody: candidate.detail.replace(/^\s*<!--\s*aim-review\s+[^\n]*?-->\s*/, "").trim(),
       candidateGap: { rationale: candidate.rationale, target: candidate.researchTarget }
     });
-    const correctionContext: TaskContext = {
+    const correctionContext: AimTaskContext = {
       timeoutMs: context.timeoutMs,
       title: context.goal,
       summary: "",
@@ -389,7 +418,7 @@ export class AimManualFlow {
       detail: "",
       task,
       ancestors: "",
-      outputLanguage: this.repository.settings.language,
+      outputLanguage: context.outputLanguage,
       mode: "task",
       researchMode: "local",
       researchDepth: "fast",
@@ -454,7 +483,7 @@ export class AimManualFlow {
   ): Promise<PlannerReview> {
     throwIfAborted(signal);
     const uniqueLineage = lineageWithoutRepeatedReports(context.lineage, context.reportDetail);
-    const taskContext: TaskContext = {
+    const taskContext: AimTaskContext = {
       timeoutMs: context.timeoutMs,
       aimEvidenceIds: context.evidenceIds,
       title: context.goal,
@@ -463,7 +492,7 @@ export class AimManualFlow {
       rules: "",
       task: "",
       ancestors: "",
-      outputLanguage: this.repository.settings.language,
+      outputLanguage: context.outputLanguage,
       mode: "task",
       researchMode: "local",
       researchDepth: "fast",
@@ -499,7 +528,7 @@ export class AimManualFlow {
         reportDetail: context.reportDetail,
         candidate: reviewed
       });
-      const correctionContext: TaskContext = {
+      const correctionContext: AimTaskContext = {
         ...taskContext,
         task: correctionTask,
         aimContract: reviewContract(["ask_user"])
@@ -519,7 +548,12 @@ export class AimManualFlow {
           reportDetail: context.reportDetail,
           requiredDecision: "ask_user",
           preferredQuestion: extractPlannerQuestionCandidate(correctedResult),
-          requiredDecisionRationale: `The branch has ${context.answeredQuestionCount} answered question node(s); at least ${MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION} are required before conclusion.`
+          requiredDecisionRationale: translate(
+            context.outputLanguage,
+            "note.aim_below_floor_rationale_0_1",
+            context.answeredQuestionCount,
+            MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION
+          )
         },
         correctionContext,
         model,
@@ -551,7 +585,7 @@ export class AimManualFlow {
         reportDetail: context.reportDetail,
         candidate: reviewed
       });
-      const correctionContext: TaskContext = {
+      const correctionContext: AimTaskContext = {
         ...taskContext,
         task: correctionTask,
         aimContract: reviewContract(["conclude", "ask_user"])
@@ -584,7 +618,7 @@ export class AimManualFlow {
         );
     }
     if (reviewed.decision === "conclude") {
-      const deliveryContext: TaskContext = {
+      const deliveryContext: AimTaskContext = {
         ...taskContext,
         title: context.goal,
         summary: "",
@@ -596,7 +630,7 @@ export class AimManualFlow {
       let phase = context.deliveryRecovery?.phase;
       const delivery = await buildFinalDelivery(
         deliveryContext,
-        step => this.askAimModel(step, model, reasoning, signal),
+        step => this.askAimModel({ ...step, outputLanguage: deliveryContext.outputLanguage }, model, reasoning, signal),
         {
           checkpoint,
           timeoutMs: context.timeoutMs,
@@ -696,6 +730,7 @@ export class AimManualFlow {
   async recoverPostReportQuestions(mapPath: string): Promise<number> {
     let created = 0;
     const initial = await this.repository.readMap(mapPath);
+    const language = this.languageOf(initial);
     if (initial.aim?.questionDraft) return 0;
     for (const run of initial.aim?.runs ?? []) {
       const attempt = run.attempts.find(item => item.id === run.currentAttemptId);
@@ -732,7 +767,7 @@ export class AimManualFlow {
         review.question,
         review.rationale,
         answerOptions,
-        "Recovered from a persisted post-report Planner decision; do not choose the user's answer."
+        translate(language, "note.aim_prompt_recovered_post_report")
       );
       if (saved.status === "question") created++;
     }
@@ -749,6 +784,7 @@ export class AimManualFlow {
     throwIfAborted(signal);
     const map = await this.repository.readMap(mapPath),
       run = map.aim?.runs.find(item => item.id === runId);
+    const language = this.languageOf(map);
     const priorAttempt = run?.attempts.find(item => item.id === run.currentAttemptId);
     if (!run || !priorAttempt || priorAttempt.status !== "failed")
       throw new Error("A saved failed AIM attempt is required to review a diagnostic report.");
@@ -817,7 +853,7 @@ export class AimManualFlow {
         this.runs.createResultDraft(
           mapPath,
           handle,
-          translate(this.repository.settings.language, "note.aim_answer_research_0", parent.summary),
+          translate(language, "note.aim_answer_research_0", parent.summary),
           model,
           reasoning
         )
@@ -864,7 +900,7 @@ export class AimManualFlow {
           detail: aggregate.detail,
           task: plannerPrompt,
           ancestors: `Topic: ${topic.title}\n\n${topic.detail}\n\n${lineage.context}\n\nBranch conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
-          outputLanguage: this.repository.settings.language,
+          outputLanguage: language,
           mode: "task" as const,
           researchMode: "local" as const,
           researchDepth: "fast" as const,
@@ -888,7 +924,7 @@ export class AimManualFlow {
             summary: aggregate.summary,
             detail: aggregate.detail,
             ancestors: plannerContext.ancestors,
-            outputLanguage: this.repository.settings.language,
+            outputLanguage: language,
             detailFormat: "adaptive",
             aimContract: plannerContext.aimContract
           },
@@ -901,6 +937,7 @@ export class AimManualFlow {
           {
             goal: topic.title,
             goalDetail: topic.detail,
+            outputLanguage: language,
             conditions: branch.inputSnapshot.conditions,
             currentQuestion: parent.summary,
             currentAnswer: answerDescription,
@@ -969,7 +1006,7 @@ export class AimManualFlow {
             detail: parent.detail,
             task,
             ancestors: `Topic: ${topic.title}\n\n${topic.detail}\n\nConditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
-            outputLanguage: this.repository.settings.language,
+            outputLanguage: language,
             mode: "task",
             researchMode: "research",
             researchDepth: "normal",
@@ -1002,22 +1039,26 @@ export class AimManualFlow {
           ? finalReview.detail
           : [
               finalReview.detail,
-              `Rationale: ${finalReview.rationale}`,
-              `Stop reason: ${stopReason}`,
-              "## Supporting research",
+              translate(language, "note.aim_rationale_0", finalReview.rationale),
+              translate(
+                language,
+                "note.aim_stop_reason_0",
+                noteStopReason(language, finalReview, stopReason, "bounded")
+              ),
+              translate(language, "note.aim_supporting_research"),
               ...reports.map(report => report.detail),
-              "## Source boundary",
-              "Agent-reported sources are not independently verified by VAM."
+              translate(language, "note.aim_source_boundary"),
+              translate(language, "note.aim_source_boundary_not_verified")
             ].join("\n\n");
       const presentation =
         finalReview.decision === "conclude"
           ? {
-              title: translate(this.repository.settings.language, "note.aim_conclusion"),
+              title: translate(language, "note.aim_conclusion"),
               kind: "conclusion" as const
             }
           : {
               title: translate(
-                this.repository.settings.language,
+                language,
                 finalReview.decision === "research_more" ? "note.aim_needs_followup" : "note.aim_synthesis"
               ),
               kind: "synthesis" as const
@@ -1056,7 +1097,7 @@ export class AimManualFlow {
           finalReview.question!,
           finalReview.rationale,
           finalReview.answerOptions!,
-          "Follow-up selected by the persisted Planner review; do not choose the user's answer.",
+          translate(language, "note.aim_prompt_followup_selected"),
           signal
         );
         if (questionResult.status !== "question")
@@ -1133,6 +1174,7 @@ export class AimManualFlow {
     throwIfAborted(signal);
     const map = await this.repository.readMap(mapPath),
       run = map.aim?.runs.find(item => item.id === runId);
+    const language = this.languageOf(map);
     const currentAttempt = run?.attempts.find(item => item.id === run.currentAttemptId);
     if (
       !run ||
@@ -1229,6 +1271,7 @@ export class AimManualFlow {
         const qualityContext: PlannerQualityContext = {
           goal: topicNote.title,
           goalDetail: topicNote.detail,
+          outputLanguage: language,
           conditions: branch.inputSnapshot.conditions,
           currentQuestion: parent.summary,
           currentAnswer: JSON.stringify(branch.answerSnapshot),
@@ -1271,7 +1314,7 @@ export class AimManualFlow {
             this.runs.createResultDraft(
               mapPath,
               handle,
-              `${parent.summary} · User condition`,
+              translate(language, "note.aim_title_user_condition_0", parent.summary),
               modelToUse,
               reasoningToUse,
               earlyOptions
@@ -1319,7 +1362,7 @@ export class AimManualFlow {
               detail: report.detail,
               task,
               ancestors: `Original goal: ${topicNote.title}\n\n${topicNote.detail}\n\n${lineage.context}\n\nPersisted answer branch conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
-              outputLanguage: this.repository.settings.language,
+              outputLanguage: language,
               mode: "task",
               researchMode: "research",
               researchDepth: "normal",
@@ -1342,8 +1385,8 @@ export class AimManualFlow {
         if (!searcher.summary.trim() || !searcher.detail.trim() || reportedSearchFailure(searcher))
           throw new Error("Continuation research did not return a usable searched report.");
         report = {
-          summary: `${report.summary}\n\nFollow-up report: ${searcher.summary}`,
-          detail: `${report.detail}\n\n## Continuation Agent report\n\n${searcher.detail}`
+          summary: `${report.summary}\n\n${translate(language, "note.aim_followup_report_0", searcher.summary)}`,
+          detail: `${report.detail}\n\n${translate(language, "note.aim_continuation_report")}\n\n${searcher.detail}`
         };
         const savedReport = await this.persist(async () => {
           throwIfAborted(signal);
@@ -1351,7 +1394,7 @@ export class AimManualFlow {
             const created = await this.runs.createResultDraft(
               mapPath,
               handle,
-              `${parent.summary} · Continued research`,
+              translate(language, "note.aim_title_continued_research_0", parent.summary),
               modelToUse,
               reasoningToUse,
               continuationDraftOptions
@@ -1387,7 +1430,7 @@ export class AimManualFlow {
           detail: report.detail,
           task: plannerPrompt,
           ancestors: `Original goal: ${topicNote.title}\n\n${topicNote.detail}\n\n${lineage.context}\n\nConditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
-          outputLanguage: this.repository.settings.language,
+          outputLanguage: language,
           mode: "task" as const,
           researchMode: "local" as const,
           researchDepth: "fast" as const,
@@ -1416,6 +1459,7 @@ export class AimManualFlow {
           {
             goal: topicNote.title,
             goalDetail: topicNote.detail,
+            outputLanguage: language,
             conditions: branch.inputSnapshot.conditions,
             currentQuestion: parent.summary,
             currentAnswer: JSON.stringify(branch.answerSnapshot),
@@ -1477,31 +1521,38 @@ export class AimManualFlow {
           ? finalReview.detail
           : [
               finalReview.decision === "research_more"
-                ? "## Research status: partial / continuable"
-                : "## Interim result",
+                ? translate(language, "note.aim_research_status_partial")
+                : translate(language, "note.aim_interim_result"),
               finalReview.detail,
-              `Rationale: ${finalReview.rationale}`,
-              `Stop reason: ${stopReason}`,
-              "## Saved evidence",
+              translate(language, "note.aim_rationale_0", finalReview.rationale),
+              translate(
+                language,
+                "note.aim_stop_reason_0",
+                noteStopReason(language, finalReview, stopReason, "budget")
+              ),
+              translate(language, "note.aim_saved_evidence"),
               report.detail,
               ...(finalReview.decision === "research_more"
                 ? [
-                    `Still open: ${finalReview.researchTarget?.title ?? finalReview.rationale}`,
-                    finalReview.researchTarget?.task ??
-                      "A material evidence gap remains; continue with a targeted search.",
-                    "This continuation reached its attempt budget with a material gap still open; it is not complete."
+                    translate(
+                      language,
+                      "note.aim_still_open_0",
+                      finalReview.researchTarget?.title ?? finalReview.rationale
+                    ),
+                    finalReview.researchTarget?.task ?? translate(language, "note.aim_gap_fallback_task"),
+                    translate(language, "note.aim_attempt_budget_gap")
                   ]
                 : []),
-              "## Source boundary",
-              "Agent-reported sources were not independently verified by VAM."
+              translate(language, "note.aim_source_boundary"),
+              translate(language, "note.aim_source_boundary_were_not_verified")
             ].join("\n\n");
       const finalKind = finalReview.decision === "conclude" ? ("conclusion" as const) : ("synthesis" as const);
       const finalTitle =
         finalReview.decision === "conclude"
-          ? translate(this.repository.settings.language, "note.aim_conclusion")
+          ? translate(language, "note.aim_conclusion")
           : finalReview.decision === "research_more"
-            ? translate(this.repository.settings.language, "note.aim_needs_followup")
-            : translate(this.repository.settings.language, "note.aim_synthesis");
+            ? translate(language, "note.aim_needs_followup")
+            : translate(language, "note.aim_synthesis");
       if (
         !(await this.persist(() =>
           this.runs.updateResultDraftPresentation(mapPath, handle, finalDraft.id, finalTitle, finalKind)
@@ -1517,7 +1568,7 @@ export class AimManualFlow {
           {
             summary:
               finalReview.decision === "research_more"
-                ? translate(this.repository.settings.language, "note.aim_partial_summary_0", finalReview.summary)
+                ? translate(language, "note.aim_partial_summary_0", finalReview.summary)
                 : finalReview.summary,
             detail
           },
@@ -1541,7 +1592,7 @@ export class AimManualFlow {
           review.question!,
           review.rationale,
           answerOptions,
-          "Question recovered from a persisted Planner decision; do not answer for the user.",
+          translate(language, "note.aim_prompt_question_recovered"),
           signal
         );
         if (question.status !== "question")
@@ -1769,7 +1820,7 @@ export class AimManualFlow {
         [...priorQuestions, ...siblingQuestions, ...dismissedQuestions].map(question => question.trim()).filter(Boolean)
       )
     ];
-    const language = this.repository.settings.language;
+    const language = this.languageOf(map);
     const motherGoal =
       motherNode && motherNode.id !== parentNode.id ? { title: mother.title, detail: mother.detail } : undefined;
     const questionVars = {
@@ -1786,7 +1837,7 @@ export class AimManualFlow {
       : renderInitialQuestionTask(questionVars);
     // Below the floor, or when the user explicitly asked for a new question, the schema itself forbids skipping.
     const requireQuestion = isSavedTerminalResult || answeredQuestionCount < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION;
-    const context: TaskContext = {
+    const context: AimTaskContext = {
       aimEvidenceIds: this.lineageEvidenceIds(map, parentBranchId),
       title: parent.title,
       summary: parent.summary,
@@ -1921,7 +1972,7 @@ export class AimManualFlow {
   ): Promise<PlannerQuestionResult> {
     throwIfAborted(signal);
     const map = await this.repository.readMap(mapPath),
-      language = this.repository.settings.language;
+      language = this.languageOf(map);
     if (!map.aim || !map.nodes.some(node => node.id === parentNodeId))
       throw new Error("The Manual question parent is no longer available.");
     if (
@@ -2134,6 +2185,7 @@ export class AimManualFlow {
     const map = await this.repository.readMap(mapPath),
       questionNode = map.nodes.find(node => node.id === questionNodeId),
       contract = questionNode?.aimQuestion;
+    const language = this.languageOf(map);
     if (!questionNode || questionNode.aimKind !== "question" || !contract)
       throw new Error("A saved AIM Planner question is required before answering.");
     const freeText = input.freeText.trim(),
@@ -2155,8 +2207,7 @@ export class AimManualFlow {
     const lineage = await this.branchLineage(map, parentBranchId);
     const inheritedBranch = parentBranchId ? map.aim?.branches.find(branch => branch.id === parentBranchId) : undefined;
     const condition =
-      [answerLabels.join("; "), freeText].filter(Boolean).join(" — ") ||
-      translate(this.repository.settings.language, "note.aim_unknown_option");
+      [answerLabels.join("; "), freeText].filter(Boolean).join(" — ") || translate(language, "note.aim_unknown_option");
     const branch = await this.persist(() =>
       this.runs.createAnswerBranch(mapPath, {
         requestId: input.requestId,
@@ -2321,7 +2372,7 @@ export class AimManualFlow {
     target: AimResearchTarget,
     candidate: ResearchCandidate,
     conditions: Record<string, string>,
-    context: TaskContext,
+    context: AimTaskContext,
     model: string,
     reasoning: unknown,
     signal?: AbortSignal
@@ -2445,6 +2496,7 @@ export class AimManualFlow {
     signal?: AbortSignal
   ): Promise<ManualResearchResult> {
     let map = await this.repository.readMap(mapPath);
+    const language = this.languageOf(map);
     let branch = map.aim?.branches.find(item => item.id === branchId);
     if (!branch) throw new Error("AIM answer branch disappeared before planning its research.");
     const questionNodeId = branch.questionNodeId;
@@ -2461,7 +2513,7 @@ export class AimManualFlow {
       detail: `Known conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
       task: "",
       ancestors: `Original goal and background:\n${topicNote.title}\n\n${topicNote.detail}\n\nBranch lineage:\n${lineageContext || "None."}`,
-      outputLanguage: this.repository.settings.language,
+      outputLanguage: language,
       mode: "task" as const,
       researchMode: "local" as const,
       researchDepth: "fast" as const,
@@ -2882,19 +2934,13 @@ export class AimManualFlow {
               summary: [
                 resumeReports.summary,
                 ...supplementalReports.map(item =>
-                  translate(
-                    this.repository.settings.language,
-                    "note.aim_followup_summary_0_1",
-                    item.target.title,
-                    item.summary
-                  )
+                  translate(language, "note.aim_followup_summary_0_1", item.target.title, item.summary)
                 )
               ].join("\n"),
               detail: [
                 resumeReports.detail,
                 ...supplementalReports.map(
-                  item =>
-                    `${translate(this.repository.settings.language, "note.aim_followup_heading_0", item.target.title)}\n\n${item.detail}`
+                  item => `${translate(language, "note.aim_followup_heading_0", item.target.title)}\n\n${item.detail}`
                 )
               ].join("\n\n")
             }
@@ -2902,19 +2948,13 @@ export class AimManualFlow {
               summary: [
                 ...reports.map(item => `${item.title}: ${item.summary}`),
                 ...supplementalReports.map(item =>
-                  translate(
-                    this.repository.settings.language,
-                    "note.aim_followup_summary_0_1",
-                    item.target.title,
-                    item.summary
-                  )
+                  translate(language, "note.aim_followup_summary_0_1", item.target.title, item.summary)
                 )
               ].join("\n"),
               detail: [
                 ...reports.map(item => `## ${item.title}\n\n${item.detail}`),
                 ...supplementalReports.map(
-                  item =>
-                    `${translate(this.repository.settings.language, "note.aim_followup_heading_0", item.target.title)}\n\n${item.detail}`
+                  item => `${translate(language, "note.aim_followup_heading_0", item.target.title)}\n\n${item.detail}`
                 )
               ].join("\n\n")
             };
@@ -2968,6 +3008,7 @@ export class AimManualFlow {
           {
             goal: topicNote.title,
             goalDetail: topicNote.detail,
+            outputLanguage: language,
             conditions: branch.inputSnapshot.conditions,
             currentQuestion: parent.summary,
             currentAnswer: answerDescription,
@@ -3039,7 +3080,7 @@ export class AimManualFlow {
             this.runs.createResultDraft(
               mapPath,
               synthesisHandle,
-              translate(this.repository.settings.language, "note.aim_followup_draft"),
+              translate(language, "note.aim_followup_draft"),
               model,
               undefined,
               {
@@ -3130,7 +3171,7 @@ export class AimManualFlow {
             mapPath,
             synthesisHandle,
             translate(
-              this.repository.settings.language,
+              language,
               isPartial ? "note.aim_needs_followup" : isQuestion ? "note.aim_synthesis" : "note.aim_conclusion"
             ),
             model,
@@ -3146,52 +3187,44 @@ export class AimManualFlow {
         synthesisDraftId = draft.draft.id;
       }
       const stopReason = isPartial
-        ? translate(this.repository.settings.language, "note.aim_round_limit_0", finalReview.rationale)
+        ? translate(language, "note.aim_round_limit_0", finalReview.rationale)
         : isQuestion
-          ? `Awaiting the user's answer to: ${finalReview.question}`
+          ? translate(language, "note.aim_stop_awaiting_0", finalReview.question)
           : finalReview.stopReason!;
       const partialSection =
         isPartial && finalReview.researchTarget
           ? [
-              translate(this.repository.settings.language, "note.aim_partial_heading"),
-              translate(
-                this.repository.settings.language,
-                "note.aim_pending_target_0",
-                finalReview.researchTarget.title
-              ),
-              translate(this.repository.settings.language, "note.aim_pending_task_0", finalReview.researchTarget.task),
-              translate(
-                this.repository.settings.language,
-                "note.aim_pending_value_0",
-                finalReview.researchTarget.expectedValue
-              )
+              translate(language, "note.aim_partial_heading"),
+              translate(language, "note.aim_pending_target_0", finalReview.researchTarget.title),
+              translate(language, "note.aim_pending_task_0", finalReview.researchTarget.task),
+              translate(language, "note.aim_pending_value_0", finalReview.researchTarget.expectedValue)
             ].join("\n\n")
           : "";
       const detail =
         isPartial || isQuestion
           ? [
-              partialSection || "## Interim result",
+              partialSection || translate(language, "note.aim_interim_result"),
               finalReview.detail,
-              `Rationale: ${finalReview.rationale}`,
-              `Stop reason: ${stopReason}`,
-              "## Supporting research",
+              translate(language, "note.aim_rationale_0", finalReview.rationale),
+              translate(language, "note.aim_stop_reason_0", stopReason),
+              translate(language, "note.aim_supporting_research"),
               reportDetail,
-              "## Source boundary",
-              "Sources and claims are reported by the research agent and were not independently verified by VAM."
+              translate(language, "note.aim_source_boundary"),
+              translate(language, "note.aim_source_boundary_claims")
             ].join("\n\n")
           : finalReview.detail;
       const presentation = isPartial
         ? {
-            title: translate(this.repository.settings.language, "note.aim_needs_followup"),
+            title: translate(language, "note.aim_needs_followup"),
             kind: "synthesis" as const
           }
         : isQuestion
           ? {
-              title: translate(this.repository.settings.language, "note.aim_synthesis"),
+              title: translate(language, "note.aim_synthesis"),
               kind: "synthesis" as const
             }
           : {
-              title: translate(this.repository.settings.language, "note.aim_conclusion"),
+              title: translate(language, "note.aim_conclusion"),
               kind: "conclusion" as const
             };
       if (
@@ -3214,7 +3247,7 @@ export class AimManualFlow {
           synthesisDraftId,
           {
             summary: isPartial
-              ? translate(this.repository.settings.language, "note.aim_partial_summary_0", finalReview.summary)
+              ? translate(language, "note.aim_partial_summary_0", finalReview.summary)
               : finalReview.summary,
             detail
           },
@@ -3241,7 +3274,7 @@ export class AimManualFlow {
           finalReview.question!,
           finalReview.rationale,
           finalReview.answerOptions!,
-          "Follow-up question after reviewing all saved research, including any targeted evidence follow-up.",
+          translate(language, "note.aim_followup_question_prompt"),
           signal
         );
         if (question.status !== "question")
@@ -3281,7 +3314,13 @@ export class AimManualFlow {
       "workspace",
       draft.notePath,
       draft.nodeId,
-      { summary: draft.summary, detail: draft.detail, prompt: draft.prompt, reasoning: draft.reasoning }
+      {
+        summary: draft.summary,
+        detail: draft.detail,
+        prompt: draft.prompt,
+        reasoning: draft.reasoning,
+        contentLanguage: this.languageOf(map)
+      }
     );
     const latest = await this.repository.readMap(mapPath),
       state = latest.aim;

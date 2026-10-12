@@ -271,6 +271,16 @@ integrationTest('AI task timeout override reaches both providers with accurate n
     assert.equal(seen.timeoutMs, undefined);
   }
 });
+integrationTest('AIM task timeout text follows the interface language while the prompt follows the content language', async () => {
+  const { AiTaskService } = load('core/ai-task-service.ts');
+  for (const [ui, content, pattern] of [['en', 'zh-TW', /exceeded 10 minutes/], ['zh-TW', 'en', /超過 10 分鐘/]]) {
+    let seen;
+    const runtime = { runTask: async (_p, _m, _e, _s, controls) => { seen = controls; return JSON.stringify({summary:'S',detail:'D',suggestions:[],visualReferences:[]}); } };
+    const service = new AiTaskService({ pluginDirectory:()=>'/plugin', language:()=> ui, defaultReasoning:()=> 'low', exchangeLoggingEnabled:()=>false, exchanges:()=>null, codexRuntime:()=>runtime, claudeRuntime:()=>runtime });
+    await service.askModel({ title:'Goal', summary:'', rules:'', detail:'', task:'Write', ancestors:'', mode:'task', researchMode:'local', timeoutMs:600_000, outputLanguage: content, promptProfile: 'aim' }, 'gpt-6-luna', 'low');
+    assert.match(seen.timeoutMessage, pattern);
+  }
+});
 test('summary truncation never leaves trailing whitespace and prefers a sentence boundary', () => {
   const { truncateSummary } = load('ai/result-utils.ts');
   const spaced = truncateSummary(`${'a'.repeat(79)} tail that continues past the limit`);

@@ -1,4 +1,5 @@
 import { App, TFile, TFolder, normalizePath, parseYaml, stringifyYaml } from "obsidian";
+import { resolveAimContentLanguage } from "./experiences/aim/content-language";
 import { createHash } from "node:crypto";
 import { t, translate, type TranslationKey } from "./i18n";
 import { MapDocument, MapNode, serializeMap, parseMap } from "./map-model";
@@ -176,6 +177,8 @@ type NoteSection =
   | "Preview"
   | "User Notes";
 type NoteLanguage = Settings["language"];
+const noteContentLanguage = (fm: Record<string, unknown>): NoteLanguage | undefined =>
+  fm["content-language"] === "en" || fm["content-language"] === "zh-TW" ? fm["content-language"] : undefined;
 const placeholder = (language: NoteLanguage): string => translate(language, "detail.no_conclusion_yet");
 const isPlaceholder = (value: string): boolean =>
   value === translate("zh-TW", "detail.no_conclusion_yet") || value === translate("en", "detail.no_conclusion_yet");
@@ -260,10 +263,10 @@ function removeSection(content: string, heading: NoteSection): string {
   return `${content.slice(0, headingMatch.index).trimEnd()}\n\n${content.slice(bounds.end).trimStart()}`;
 }
 
-function ensurePreview(content: string, language: NoteLanguage): string {
+function ensurePreview(content: string, language: NoteLanguage, textLanguage: NoteLanguage = language): string {
   const legacy = section(content, "User Notes");
   const preview = previewSection(content);
-  const merged = [isPlaceholder(preview) ? placeholder(language) : preview, legacy].filter(Boolean).join("\n\n");
+  const merged = [isPlaceholder(preview) ? placeholder(textLanguage) : preview, legacy].filter(Boolean).join("\n\n");
   const clean = removeSection(removeSection(removeSection(content, "User Notes"), "預覽"), "Preview");
   return replaceSection(clean, previewHeading(language), merged);
 }
@@ -335,10 +338,16 @@ function noteBody(
   );
 }
 
-function normalizeBodyOrder(content: string, title: string, summaryFallback: string, language: NoteLanguage): string {
-  const clean = ensurePreview(withoutReference(content), language);
+function normalizeBodyOrder(
+  content: string,
+  title: string,
+  summaryFallback: string,
+  language: NoteLanguage,
+  textLanguage: NoteLanguage = language
+): string {
+  const clean = ensurePreview(withoutReference(content), language, textLanguage);
   const currentSummary = section(clean, "Current Summary") || summaryFallback;
-  const summary = isPlaceholder(currentSummary) ? placeholder(language) : currentSummary;
+  const summary = isPlaceholder(currentSummary) ? placeholder(textLanguage) : currentSummary;
   const prompt = section(clean, "Prompt");
   const rules = section(clean, "Rules");
   const preview = previewSection(clean);
@@ -536,7 +545,11 @@ export class Repository {
     };
   }
 
-  async updateNote(path: string, patch: NotePatch): Promise<void> {
+  /**
+   * `options.contentLanguage` is the AIM content language: it only chooses the language of generated placeholder text;
+   * headings and the reference frame stay in the interface language. Notes created by AIM remember it in frontmatter.
+   */
+  async updateNote(path: string, patch: NotePatch, options: { contentLanguage?: NoteLanguage } = {}): Promise<void> {
     await this.app.vault.process(this.file(path), content => {
       const fm = frontmatter(content);
       ensureNoteCssClass(fm);
@@ -562,8 +575,12 @@ export class Repository {
         patch.sourcePaths.length ? (fm["source-notes"] = patch.sourcePaths) : delete fm["source-notes"];
       fm.updated = new Date().toISOString();
       let body = content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "");
-      body = ensurePreview(body, this.settings.language);
-      if (isPlaceholder(text(fm.summary))) fm.summary = placeholder(this.settings.language);
+      // AIM notes carry their content language; every other note keeps following the interface language.
+      const textLanguage = options.contentLanguage ?? noteContentLanguage(fm) ?? this.settings.language;
+      if (options.contentLanguage !== undefined && noteContentLanguage(fm) === undefined)
+        fm["content-language"] = options.contentLanguage;
+      body = ensurePreview(body, this.settings.language, textLanguage);
+      if (isPlaceholder(text(fm.summary))) fm.summary = placeholder(textLanguage);
       if (patch.title !== undefined) {
         const heading = managedHeadingValue(patch.title);
         body = body.replace(/^# .*$/m, () => `# ${heading}`);
@@ -614,8 +631,9 @@ export class Repository {
       body = normalizeBodyOrder(
         body,
         text(fm.title, path.replace(/\.md$/, "")),
-        text(fm.summary, placeholder(this.settings.language)),
-        this.settings.language
+        text(fm.summary, placeholder(textLanguage)),
+        this.settings.language,
+        textLanguage
       );
       return `---\n${stringifyYaml(fm)}---\n${withReferenceLinks(body, fm, this.settings.language)}`;
     });
@@ -667,8 +685,12 @@ export class Repository {
     modelSource: ModelSource,
     path: string,
     id: string,
-    initial: Pick<NotePatch, "detail" | "thinkingOrigin" | "summary" | "reasoning" | "prompt"> = {}
+    initial: Pick<NotePatch, "detail" | "thinkingOrigin" | "summary" | "reasoning" | "prompt"> & {
+      /** Language of the placeholder text only (AIM content language); section headings stay in the interface language. */
+      contentLanguage?: NoteLanguage;
+    } = {}
   ): Promise<MapNode> {
+    const textLanguage = initial.contentLanguage ?? this.settings.language;
     const folder = this.topicFolder(mapPath, "Notes");
     await this.ensureTopicFolders(this.topicRoot(mapPath));
     if (parentPath(path) !== folder || !path.endsWith(".md") || !id.trim())
@@ -689,18 +711,19 @@ export class Repository {
       "topic-state": "active",
       "agent-map-id": map.id,
       title,
-      summary: initial.summary ?? placeholder(this.settings.language),
+      summary: initial.summary ?? placeholder(textLanguage),
       "preview-initialized": false,
       model,
       "model-source": modelSource,
       "reasoning-level": initial.reasoning ?? this.settings.cliReasoning,
       status: "idea",
-      cssclasses: [NOTE_CSS_CLASS]
+      cssclasses: [NOTE_CSS_CLASS],
+      ...(initial.contentLanguage ? { "content-language": initial.contentLanguage } : {})
     };
     const origin = initial.thinkingOrigin ? `## Thinking Origin\n\n${originMarkdown(initial.thinkingOrigin)}` : "";
     await this.app.vault.create(
       path,
-      `---\n${stringifyYaml(metadata)}---\n${noteBody(title, metadata.summary, this.settings.language, initial.prompt ?? "", "", placeholder(this.settings.language), initial.detail ?? "", "", "", origin)}`
+      `---\n${stringifyYaml(metadata)}---\n${noteBody(title, metadata.summary, this.settings.language, initial.prompt ?? "", "", placeholder(textLanguage), initial.detail ?? "", "", "", origin)}`
     );
     return { id, path, parentId: null, x: 80, y: 80, collapsed: false };
   }
@@ -727,7 +750,17 @@ export class Repository {
     return parseMap(await this.app.vault.read(this.file(path)));
   }
 
+  /**
+   * Legacy AIM maps have no stored content language. Persist the derived value the first time the map is written
+   * anyway (never on open), so later interface-language changes cannot change it.
+   */
+  private stampAimContentLanguage(map: MapDocument): void {
+    if (map.aim && map.aim.contentLanguage === undefined)
+      map.aim.contentLanguage = resolveAimContentLanguage(map, this.settings.language);
+  }
+
   async saveMap(path: string, map: MapDocument): Promise<void> {
+    this.stampAimContentLanguage(map);
     await this.app.vault.process(this.file(path), content => {
       parseMap(content);
       return writeMapContent(content, map);
@@ -743,6 +776,7 @@ export class Repository {
     await this.app.vault.process(this.file(path), content => {
       const map = parseMap(content);
       change(map);
+      this.stampAimContentLanguage(map);
       updated = map;
       return writeMapContent(content, map);
     });
@@ -1086,8 +1120,16 @@ export class Repository {
         fm["topic-state"] = "inbox";
       } else fm["topic-state"] = state;
     }
-    let body = ensurePreview(content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, ""), this.settings.language);
-    if (isPlaceholder(text(fm.summary))) fm.summary = placeholder(this.settings.language);
+    // Notes owned by an AIM map write their placeholder text in the map's content language.
+    const textLanguage = owner?.map.aim
+      ? resolveAimContentLanguage(owner.map, this.settings.language)
+      : (noteContentLanguage(fm) ?? this.settings.language);
+    let body = ensurePreview(
+      content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, ""),
+      this.settings.language,
+      textLanguage
+    );
+    if (isPlaceholder(text(fm.summary))) fm.summary = placeholder(textLanguage);
     const topicId = text(fm["topic-id"]),
       topic = topics.get(topicId);
     if (owner) {
@@ -1132,8 +1174,9 @@ export class Repository {
     body = normalizeBodyOrder(
       body,
       text(fm.title, file.basename),
-      text(fm.summary, placeholder(this.settings.language)),
-      this.settings.language
+      text(fm.summary, placeholder(textLanguage)),
+      this.settings.language,
+      textLanguage
     );
     return `---\n${stringifyYaml(fm)}---\n${withReferenceLinks(body, fm, this.settings.language)}`;
   }
