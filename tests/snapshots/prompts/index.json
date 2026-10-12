@@ -533,7 +533,7 @@
     }
   },
   "i18nPromptKeys": {
-    "total": 48,
+    "total": 47,
     "coveredBySnapshotCount": {
       "prompt.adaptive_detail_structure": {
         "en": 1,
@@ -685,10 +685,6 @@
       "prompt.role": {
         "en": 47,
         "zh": 38
-      },
-      "prompt.search_budget_exhausted": {
-        "en": 1,
-        "zh": 1
       },
       "prompt.source_safety": {
         "en": 47,

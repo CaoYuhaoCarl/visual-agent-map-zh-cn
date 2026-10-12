@@ -152,9 +152,12 @@ test('collect snapshots: Coffee Tables, Reframe, Markdown context', async () => 
 
 test('collect snapshots: preset instruction strings composed directly from i18n', () => {
   const { translate } = loadModule('i18n.ts');
+  const { searchBudgetExhaustedMessage } = loadModule('ai/runtime/messages/index.ts');
   for (const [language, tag] of LANGUAGES) {
     const keys = ['prompt.context_ai_condense', 'prompt.context_ai_translate', 'prompt.context_ai_translate_image', 'prompt.context_ai_search_images', 'prompt.context_ai_explain_image', 'prompt.research_topic', 'prompt.search_budget_exhausted', 'prompt.reference_reduce'];
-    record(`i18n-direct.preset-instructions.${tag}`, 'i18n translate() of strings assembled in UI/runtime classes (selection-ai presets, view research task, codex search-budget steer, reference reduce round which needs >18k chars of evidence to trigger); weaker than a builder snapshot', language, keys.map(key => `${key}: ${translate(language, key, 'Target language')}`).join('\n\n'));
+    // The search-budget steer is no longer an i18n key: its text is a runtime message file (ai/runtime/messages).
+    const runtimeMessages = { 'prompt.search_budget_exhausted': searchBudgetExhaustedMessage(language) };
+    record(`i18n-direct.preset-instructions.${tag}`, 'i18n translate() of strings assembled in UI/runtime classes (selection-ai presets, view research task, codex search-budget steer, reference reduce round which needs >18k chars of evidence to trigger); weaker than a builder snapshot', language, keys.map(key => `${key}: ${runtimeMessages[key] ?? translate(language, key, 'Target language')}`).join('\n\n'));
   }
 });
 

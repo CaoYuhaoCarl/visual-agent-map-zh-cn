@@ -1,0 +1,7 @@
+{
+  "dirs": [
+    "core/steps/reframe",
+    "ai/runtime/messages"
+  ],
+  "allow": []
+}
