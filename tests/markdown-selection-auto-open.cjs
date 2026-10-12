@@ -27,7 +27,8 @@ class FakeElement {
   remove() {}
 }
 
-function setup(autoOpen) {
+function setup(initial) {
+  let autoOpen = initial;
   const listeners = {};
   class Component {
     load() { this.onload?.(); }
@@ -36,7 +37,7 @@ function setup(autoOpen) {
     registerEvent() {}
   }
   class MarkdownView {}
-  class HTMLImageElement {}
+  class HTMLImageElement { constructor() { this.alt = 'image'; this.src = ''; this.currentSrc = ''; } closest() { return null; } getBoundingClientRect() { return { left: 0, right: 10, top: 0, bottom: 10, width: 10, height: 10 }; } }
   class Setting { addButton(build) { const button = { setButtonText() { return button; }, setCta() { return button; }, onClick() { return button; } }; build(button); return this; } }
   const obsidian = { Component, MarkdownView, MarkdownRenderer: { render: async () => {} }, Notice: class {}, Setting, requestUrl: async () => ({ json: {} }) };
   const globals = {
@@ -60,7 +61,7 @@ function setup(autoOpen) {
   const launcher = app.workspace.containerEl.children.find(item => item.cls === 'vam-context-ai-launcher');
   const panel = () => app.workspace.containerEl.children.find(item => item.cls === 'vam-context-ai-panel');
   const fire = (type, event = {}) => { for (const listener of listeners[type] ?? []) listener(event); };
-  return { ai, launcher, panel, fire, selected, image: new HTMLImageElement() };
+  return { ai, launcher, panel, fire, selected, image: new HTMLImageElement(), setAutoOpen: value => { autoOpen = value; } };
 }
 
 test('auto-open on: selecting text shows the launcher', () => {
@@ -85,6 +86,7 @@ test('auto-open off: the command still opens the panel for the current selection
   const { ai, launcher, panel, fire, selected } = setup(false);
   fire('selectionchange');
   assert.equal(ai.openForSelection(true), true);
+  assert.equal(launcher.hidden, true, 'checking the command must not show the launcher');
   assert.equal(ai.openForSelection(false), true);
   assert.ok(panel(), 'the panel opened');
   assert.equal(ai.panel.snapshot.text, selected);
@@ -99,4 +101,19 @@ test('the setting defaults to on, keeps older saved settings on, and is wired in
   assert.match(main, /autoOpen: \(\) => this\.settings\.markdownSelectionAiAutoOpen/);
   const tab = fs.readFileSync(path.join(root, 'ui/settings-tab.ts'), 'utf8');
   assert.match(tab, /this\.plugin\.settings\.markdownSelectionAiAutoOpen = value/);
+});
+
+test('turning auto-open off hides a launcher that is already showing on the next selection activity', () => {
+  const { launcher, fire, setAutoOpen } = setup(true);
+  fire('selectionchange');
+  assert.equal(launcher.hidden, false);
+  setAutoOpen(false);
+  fire('selectionchange');
+  assert.equal(launcher.hidden, true);
+});
+
+test('auto-open on: clicking an image opens the panel (the off-state test relies on this path being reachable)', () => {
+  const { panel, fire, image } = setup(true);
+  fire('click', { target: image });
+  assert.ok(panel(), 'the panel opened from the image click');
 });
