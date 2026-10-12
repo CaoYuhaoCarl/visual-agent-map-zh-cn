@@ -10142,69 +10142,80 @@ function resolveSummaryReferences(summary, groups) {
   const stripped = summary.replace(new RegExp(String.raw`[ \t]*[（(]\s*${run}\s*[）)]`, "g"), "").replace(new RegExp(String.raw`[ \t]*${run}`, "g"), "").trim();
   return resolveWikilinks(stripped, documents);
 }
-var FOOTNOTE_DEFINITION = /^\[\^(src-[0-9a-z]+)\]:/;
-var FOOTNOTE_REFERENCE = /\[\^(src-[0-9a-z]+)\](?!:)/g;
-function footnoteDefinition(document2) {
+var FOOTNOTE_DEFINITION = /^\[\^([^\]\s]+)\]:[ \t]*(.*)$/;
+var FOOTNOTE_REFERENCE = /\[\^([^\]\s]+)\]/g;
+function footnoteTarget(document2) {
   var _a;
-  const label = sourceFootnoteLabel(document2.path);
   const basename = ((_a = document2.path.split("/").pop()) != null ? _a : document2.path).replace(/\.md$/i, "");
-  return `[^${label}]: ${document2.external ? t("note.external_source_0", document2.path) : `[[${document2.path}|${basename}]]`}`;
+  return document2.external ? t("note.external_source_0", document2.path) : `[[${document2.path}|${basename}]]`;
 }
 function resolveDetailReferences(detail, groups, previousDetail = "") {
   const documents = dedupeReferenceGroups(groups).flatMap((group) => group.documents);
-  const used = /* @__PURE__ */ new Map();
+  const targets = /* @__PURE__ */ new Map();
   const identified = detail.replace(/\[S(\d+)\]/g, (original, number) => {
     const document2 = documents[Number(number) - 1];
     if (!document2) return t("note.source_unconfirmed_0", original);
     const label = sourceFootnoteLabel(document2.path);
-    if (!used.has(label)) used.set(label, footnoteDefinition(document2));
+    targets.set(label, footnoteTarget(document2));
     return `[^${label}]`;
   });
-  let resolved = documents.length ? resolveWikilinks(identified, documents) : identified;
-  const defined = new Set(
-    resolved.split("\n").flatMap((line) => {
-      const match = FOOTNOTE_DEFINITION.exec(line);
-      return match ? [match[1]] : [];
-    })
-  );
+  const resolved = documents.length ? resolveWikilinks(identified, documents) : identified;
+  const body = [];
+  const defined = /* @__PURE__ */ new Map();
+  for (const line of resolved.split("\n")) {
+    const match = FOOTNOTE_DEFINITION.exec(line);
+    if (match) defined.set(match[1], match[2].trim());
+    else body.push(line);
+  }
   const previous = new Map(
     previousDetail.split("\n").flatMap((line) => {
       const match = FOOTNOTE_DEFINITION.exec(line);
-      return match ? [[match[1], line]] : [];
+      return match ? [[match[1], match[2].trim()]] : [];
     })
   );
   const byLabel = new Map(documents.map((document2) => [sourceFootnoteLabel(document2.path), document2]));
-  const unresolved = /* @__PURE__ */ new Set();
-  for (const [, label] of resolved.matchAll(FOOTNOTE_REFERENCE)) {
-    if (defined.has(label) || used.has(label)) continue;
+  const targetOf = (label) => {
+    var _a, _b;
+    const target = (_b = (_a = targets.get(label)) != null ? _a : defined.get(label)) != null ? _b : previous.get(label);
+    if (target) return target;
     const document2 = byLabel.get(label);
-    const restored = document2 ? footnoteDefinition(document2) : previous.get(label);
-    if (restored) used.set(label, restored);
-    else unresolved.add(label);
-  }
-  if (unresolved.size)
-    resolved = resolved.replace(
-      FOOTNOTE_REFERENCE,
-      (original, label) => unresolved.has(label) ? ` ${t("note.source_unconfirmed_0", label)}` : original
-    );
-  const definitions = [...used].filter(([label]) => !defined.has(label)).map(([, line]) => line);
-  if (!definitions.length) return resolved;
+    return document2 ? footnoteTarget(document2) : void 0;
+  };
+  const numbers = /* @__PURE__ */ new Map();
+  const ordered = [];
+  const text11 = body.join("\n").replace(FOOTNOTE_REFERENCE, (_original, label) => {
+    const target = targetOf(label);
+    if (!target) return ` ${t("note.source_unconfirmed_0", label)}`;
+    if (!numbers.has(target)) {
+      ordered.push(target);
+      numbers.set(target, ordered.length);
+    }
+    return `[^${numbers.get(target)}]`;
+  }).replace(/\n{3,}/g, "\n\n").replace(/\s+$/, "");
+  if (!ordered.length) return text11;
+  const definitions = ordered.map((target, index) => `[^${index + 1}]: ${target}`);
   const headings = new Set(
     ["zh-TW", "en"].map((locale) => translate(locale, "detail.evidence_and_sources").toLocaleLowerCase())
   );
-  const lines = resolved.split("\n");
+  const lines = text11.split("\n");
   const start = lines.findIndex((line) => {
     const match = /^###\s+(.+?)\s*$/.exec(line);
     return !!match && headings.has(match[1].toLocaleLowerCase());
   });
-  if (start < 0) return `${resolved.replace(/\s+$/, "")}
+  if (start < 0) return `${text11}
 
 ${definitions.join("\n")}
 `;
   let end = lines.findIndex((line, index) => index > start && /^###\s+/.test(line));
   if (end < 0) end = lines.length;
   while (end > start + 1 && !lines[end - 1].trim()) end--;
-  return [...lines.slice(0, end), "", ...definitions, ...lines.slice(end)].join("\n");
+  return [
+    ...lines.slice(0, end),
+    "",
+    ...definitions,
+    ...end < lines.length && lines[end].trim() ? [""] : [],
+    ...lines.slice(end)
+  ].join("\n");
 }
 
 // ui/modals/name-modal.ts
@@ -11925,7 +11936,7 @@ function canonicalDetail(value, language2 = "zh-TW") {
   const footnotes = [];
   let current = null;
   for (const line of detail.split("\n")) {
-    if (/^\[\^src-[0-9a-z]+\]:/.test(line)) {
+    if (/^\[\^[^\]\s]+\]:/.test(line)) {
       footnotes.push(line);
       continue;
     }
@@ -27177,7 +27188,7 @@ var AiTaskService = class {
       stage = t("log.stage_parsing_reply");
       const result = step.parse(raw);
       if (referenceGroups.length) result.summary = resolveSummaryReferences(result.summary, referenceGroups);
-      if (referenceGroups.length || /\[\^src-/.test(result.detail))
+      if (referenceGroups.length || /\[\^/.test(result.detail))
         result.detail = resolveDetailReferences(result.detail, referenceGroups, input.detail);
       if (this.options.exchangeLoggingEnabled()) exchanges == null ? void 0 : exchanges.parsed(exchangeId);
       console.debug("Visual Agent Map AI metrics", {

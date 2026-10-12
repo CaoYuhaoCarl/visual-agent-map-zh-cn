@@ -50,11 +50,11 @@ export function canonicalDetail(value: string, language: UiLanguage = "zh-TW"): 
       aliases.set(translate(locale, keys[index]).toLocaleLowerCase(), index);
   const sections = new Map<number, string[]>();
   const leading: string[] = [];
-  // Source footnote definitions all belong to "Evidence and sources", wherever the reply put them.
+  // Footnote definitions (VAM writes them for sources) all belong to "Evidence and sources", wherever the reply put them.
   const footnotes: string[] = [];
   let current: number | null = null;
   for (const line of detail.split("\n")) {
-    if (/^\[\^src-[0-9a-z]+\]:/.test(line)) {
+    if (/^\[\^[^\]\s]+\]:/.test(line)) {
       footnotes.push(line);
       continue;
     }

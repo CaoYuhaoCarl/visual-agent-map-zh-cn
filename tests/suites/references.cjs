@@ -20,46 +20,38 @@ test('reference batches include every selected Markdown source, deduplicate over
   const one = label('Maps/A/one.md');
   assert.match(one, /^src-[0-9a-z]+$/);
   assert.equal(api.resolveDetailReferences('See [[source.md]]', groups), 'See External source: /Volumes/Refs/source.md');
-  // Intentional contract change: [S#] becomes a footnote reference plus one definition, not a long [[path]] link.
-  const ext = label('/Volumes/Refs/source.md');
-  assert.equal(api.resolveDetailReferences('Vault [S1], external [S2]', groups), `Vault [^${one}], external [^${ext}]\n\n[^${one}]: [[Maps/A/one.md|one]]\n[^${ext}]: External source: /Volumes/Refs/source.md\n`);
+  // Intentional contract change: [S#] becomes a numbered footnote plus one definition, not a long [[path]] link.
+  assert.equal(api.resolveDetailReferences('Vault [S1], external [S2]', groups), 'Vault [^1], external [^2]\n\n[^1]: [[Maps/A/one.md|one]]\n[^2]: External source: /Volumes/Refs/source.md\n');
   const namesake = [{ id: 'mixed', documents: [{ path: 'Vault/source.md', content: 'vault' }, { path: '/Volumes/Refs/source.md', external: true, content: 'external' }] }];
-  const vs = label('Vault/source.md');
-  assert.equal(api.resolveDetailReferences('Vault [S1], external [S2]', namesake), `Vault [^${vs}], external [^${ext}]\n\n[^${vs}]: [[Vault/source.md|source]]\n[^${ext}]: External source: /Volumes/Refs/source.md\n`);
+  assert.equal(api.resolveDetailReferences('Vault [S1], external [S2]', namesake), 'Vault [^1], external [^2]\n\n[^1]: [[Vault/source.md|source]]\n[^2]: External source: /Volumes/Refs/source.md\n');
   assert.equal(api.resolveDetailReferences('Ambiguous [[source.md]]', namesake), 'Ambiguous Source to confirm: source.md');
   assert.equal(api.resolveDetailReferences('Exact [[Vault/source.md]]', namesake), 'Exact [[Vault/source.md]]');
   assert.equal(api.resolveDetailReferences('Unknown [S3]', namesake), 'Unknown Source to confirm: [S3]');
   assert.equal(api.resolveDetailReferences('See [[same.md]]', [{ id: 'a', documents: [{ path: '/a/same.md', external: true, content: '' }, { path: '/b/same.md', external: true, content: '' }] }]), 'See Source to confirm: same.md');
 });
-test('source footnotes: repeated citations share one definition, placed in the evidence section, stable and de-duplicated', () => {
+test('source footnotes: numbered by first use, one definition per source, placed in the evidence section', () => {
   const api = load('ai/reference-materials.ts', { obsidian });
   const groups = [{ id: 'g', documents: [{ path: 'Maps/A/one.md', content: '' }, { path: 'Maps/B/two.md', content: '' }, { path: '/Volumes/Refs/x.md', external: true, content: '' }] }];
-  const l1 = api.sourceFootnoteLabel('Maps/A/one.md'); const l2 = api.sourceFootnoteLabel('Maps/B/two.md'); const l3 = api.sourceFootnoteLabel('/Volumes/Refs/x.md');
-  assert.notEqual(l1, l2);
-  const zh = '### 核心結論\n\n甲[S1]乙[S2]丙[S1]外部[S3]\n\n### 證據與來源\n\n- 文字證據\n\n### 取捨與限制\n\n限制';
+  const zh = '### 核心結論\n\n甲[S2]乙[S1]丙[S2]外部[S3]\n\n### 證據與來源\n\n- 文字證據\n\n### 取捨與限制\n\n限制';
   const out = api.resolveDetailReferences(zh, groups);
-  assert.match(out, new RegExp(`甲\\[\\^${l1}\\]乙\\[\\^${l2}\\]丙\\[\\^${l1}\\]外部\\[\\^${l3}\\]`));
-  assert.equal(out.split(`[^${l1}]:`).length, 2); assert.equal(out.split(`[^${l2}]:`).length, 2);
-  assert.ok(out.includes(`- 文字證據\n\n[^${l1}]: [[Maps/A/one.md|one]]\n[^${l2}]: [[Maps/B/two.md|two]]\n[^${l3}]: External source: /Volumes/Refs/x.md\n\n### 取捨與限制`));
+  assert.ok(out.includes('甲[^1]乙[^2]丙[^1]外部[^3]'));
+  assert.ok(out.includes('- 文字證據\n\n[^1]: [[Maps/B/two.md|two]]\n[^2]: [[Maps/A/one.md|one]]\n[^3]: External source: /Volumes/Refs/x.md\n\n### 取捨與限制'));
+  assert.equal(out.split('[^1]:').length, 2);
   const en = api.resolveDetailReferences('### Core conclusions\n\nA[S2]\n\n### Evidence and sources\n\nnotes\n\n### Open questions\n\nq', groups);
-  assert.ok(en.includes(`notes\n\n[^${l2}]: [[Maps/B/two.md|two]]\n\n### Open questions`));
+  assert.ok(en.includes('notes\n\n[^1]: [[Maps/B/two.md|two]]\n\n### Open questions'));
   // Absent evidence section: appended at the end.
-  assert.equal(api.resolveDetailReferences('Body[S1]', groups), `Body[^${l1}]\n\n[^${l1}]: [[Maps/A/one.md|one]]\n`);
-  // Existing definition is not duplicated.
-  const existing = `Body[S1]\n\n[^${l1}]: [[Maps/A/one.md|one]]`;
-  assert.equal(api.resolveDetailReferences(existing, groups), `Body[^${l1}]\n\n[^${l1}]: [[Maps/A/one.md|one]]`);
-  // Stable across calls.
-  assert.equal(api.resolveDetailReferences('X[S2]', groups), api.resolveDetailReferences('X[S2]', groups));
+  assert.equal(api.resolveDetailReferences('Body[S1]', groups), 'Body[^1]\n\n[^1]: [[Maps/A/one.md|one]]\n');
+  // A definition the reply already wrote is reused, not duplicated; unused definitions are dropped.
+  assert.equal(api.resolveDetailReferences('Body[S1]\n\n[^9]: [[Maps/Z/unused.md|unused]]', groups), 'Body[^1]\n\n[^1]: [[Maps/A/one.md|one]]\n');
+  assert.equal(api.resolveDetailReferences('Body[^7]\n\n[^7]: [[Maps/A/one.md|one]]', groups), 'Body[^1]\n\n[^1]: [[Maps/A/one.md|one]]\n');
   // Summary: markers removed, no footnotes.
   assert.equal(api.resolveSummaryReferences('結論 [S1]。重點[S2] [S9] end', groups), '結論。重點 end');
   assert.equal(api.resolveSummaryReferences('See [[x.md]] [S1]', groups), 'See External source: /Volumes/Refs/x.md');
   // canonicalDetail keeps definitions inside the evidence section.
   const { canonicalDetail } = load('main.ts', { obsidian });
-  const canon = canonicalDetail(out, 'zh-TW');
-  const evidence = canon.split('### 證據與來源')[1].split('### 取捨與限制')[0];
-  assert.ok(evidence.includes(`[^${l1}]:`) && evidence.includes(`[^${l2}]:`));
-  const canonAbsent = canonicalDetail(api.resolveDetailReferences('### Core conclusions\n\nA[S1]', groups), 'en');
-  assert.ok(canonAbsent.includes(`[^${l1}]: [[Maps/A/one.md|one]]`));
+  const evidence = canonicalDetail(out, 'zh-TW').split('### 證據與來源')[1].split('### 取捨與限制')[0];
+  assert.ok(evidence.includes('[^1]:') && evidence.includes('[^2]:') && evidence.includes('[^3]:'));
+  assert.ok(canonicalDetail(api.resolveDetailReferences('### Core conclusions\n\nA[S1]', groups), 'en').includes('### Evidence and sources\n\n[^1]: [[Maps/A/one.md|one]]'));
 });
 test('reference picker keeps source groups compact, collapsible and task-local', async () => {
   const css = fs.readFileSync(path.join(__dirname, '..', '..', 'styles.css'), 'utf8');
@@ -117,17 +109,17 @@ test('reference picker keeps source groups compact, collapsible and task-local',
   assert.equal(chosen.groups.flatMap(group => group.documents).length, 3);
   assert.ok(chosen.groups.flatMap(group => group.documents).some(doc => doc.content.endsWith('Old')));
 });
-test('source footnotes survive reruns: kept references get their definitions back, dead ones become a source to confirm', () => {
+test('source footnotes survive reruns: numbers stay consistent, kept references get their definitions back, dead ones become a source to confirm', () => {
   const api = load('ai/reference-materials.ts', { obsidian });
-  const groups = [{ id: 'g', documents: [{ path: 'Maps/A/one.md', content: '' }] }];
-  const l1 = api.sourceFootnoteLabel('Maps/A/one.md'); const old = api.sourceFootnoteLabel('Maps/Old/gone.md');
-  // Kept reference whose source is selected again: definition rebuilt from the sources.
-  assert.equal(api.resolveDetailReferences(`A[^${l1}]`, groups), `A[^${l1}]\n\n[^${l1}]: [[Maps/A/one.md|one]]\n`);
-  // Kept reference to a source not selected this time: definition restored from the previous detail.
-  const previous = `Old[^${old}]\n\n[^${old}]: [[Maps/Old/gone.md|gone]]`;
-  assert.equal(api.resolveDetailReferences(`B[^${old}]`, [], previous), `B[^${old}]\n\n[^${old}]: [[Maps/Old/gone.md|gone]]\n`);
+  const groups = [{ id: 'g', documents: [{ path: 'Maps/A/one.md', content: '' }, { path: 'Maps/B/two.md', content: '' }] }];
+  const previous = 'Old[^1] and[^2]\n\n[^1]: [[Maps/Old/gone.md|gone]]\n[^2]: [[Maps/A/one.md|one]]';
+  // The reply keeps [^1] and [^2] without definitions and cites one.md again as [S1] and two.md as [S2].
+  const rerun = api.resolveDetailReferences('New[S2] kept[^1] again[S1] same[^2]', groups, previous);
+  assert.equal(rerun, 'New[^1] kept[^2] again[^3] same[^3]\n\n[^1]: [[Maps/B/two.md|two]]\n[^2]: [[Maps/Old/gone.md|gone]]\n[^3]: [[Maps/A/one.md|one]]\n');
+  // A reference after which a colon follows mid-line is still a reference.
+  assert.equal(api.resolveDetailReferences('Fact[S1]: more', groups), 'Fact[^1]: more\n\n[^1]: [[Maps/A/one.md|one]]\n');
   // Nothing can restore it: no dead footnote marker is left behind.
-  assert.equal(api.resolveDetailReferences(`C[^${old}]`, []), `C Source to confirm: ${old}`);
+  assert.equal(api.resolveDetailReferences('C[^4]', []), 'C Source to confirm: 4');
   // Summary punctuation left by removed markers is tidied.
   assert.equal(api.resolveSummaryReferences('[S1] 開頭（[S2]）、see [S1], [S2].', groups), '開頭、see.');
   assert.equal(api.resolveSummaryReferences('結論（[S1]、[S2]）。', groups), '結論。');
@@ -138,11 +130,11 @@ test('source footnotes survive reruns: kept references get their definitions bac
 });
 test('canonicalDetail gathers source footnote definitions into the evidence section', () => {
   const { canonicalDetail } = load('main.ts', { obsidian });
-  const out = canonicalDetail('### Core conclusions\n\nA[^src-0000001]\n\n### Update log\n\n- today\n[^src-0000001]: [[a.md|a]]', 'en');
-  assert.ok(out.includes('### Evidence and sources\n\n[^src-0000001]: [[a.md|a]]\n\n### Tradeoffs and limitations'));
+  const out = canonicalDetail('### Core conclusions\n\nA[^1]\n\n### Update log\n\n- today\n[^1]: [[a.md|a]]', 'en');
+  assert.ok(out.includes('### Evidence and sources\n\n[^1]: [[a.md|a]]\n\n### Tradeoffs and limitations'));
   assert.ok(out.includes('### Update log\n\n- today'));
-  assert.equal(out.split('[^src-0000001]:').length, 2);
-  const flat = canonicalDetail('Body[^src-0000001]\n\n[^src-0000001]: [[a.md|a]]', 'en');
-  assert.ok(flat.startsWith('### Core conclusions\n\nBody[^src-0000001]\n\n### Key knowledge'));
-  assert.ok(flat.includes('### Evidence and sources\n\n[^src-0000001]: [[a.md|a]]'));
+  assert.equal(out.split('[^1]:').length, 2);
+  const flat = canonicalDetail('Body[^1]\n\n[^1]: [[a.md|a]]', 'en');
+  assert.ok(flat.startsWith('### Core conclusions\n\nBody[^1]\n\n### Key knowledge'));
+  assert.ok(flat.includes('### Evidence and sources\n\n[^1]: [[a.md|a]]'));
 });

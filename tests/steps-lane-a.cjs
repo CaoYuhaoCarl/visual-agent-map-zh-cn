@@ -165,8 +165,8 @@ test('with note sources the task counts as accepted when the first extraction re
 });
 
 test('a rerun without note sources keeps a source footnote linked by restoring its definition from the current detail', async () => {
-  const kept = JSON.stringify({ summary: 'S', detail: '### Core conclusions\n\nKept[^src-0000abc]', suggestions: [], visualReferences: [] });
-  const result = await makeService(runtime(kept)).askModel(context({ detail: 'Old[^src-0000abc]\n\n[^src-0000abc]: [[Maps/A/one.md|one]]' }), 'gpt-6-luna', 'low');
-  assert.ok(result.detail.includes('Kept[^src-0000abc]'));
-  assert.ok(result.detail.includes('[^src-0000abc]: [[Maps/A/one.md|one]]'));
+  const kept = JSON.stringify({ summary: 'S', detail: '### Core conclusions\n\nKept[^1]', suggestions: [], visualReferences: [] });
+  const result = await makeService(runtime(kept)).askModel(context({ detail: 'Old[^1]\n\n[^1]: [[Maps/A/one.md|one]]' }), 'gpt-6-luna', 'low');
+  assert.ok(result.detail.includes('Kept[^1]'));
+  assert.ok(result.detail.includes('[^1]: [[Maps/A/one.md|one]]'));
 });

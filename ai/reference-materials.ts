@@ -115,69 +115,86 @@ export function resolveSummaryReferences(summary: string, groups: ReferenceGroup
   return resolveWikilinks(stripped, documents);
 }
 
-const FOOTNOTE_DEFINITION = /^\[\^(src-[0-9a-z]+)\]:/;
-const FOOTNOTE_REFERENCE = /\[\^(src-[0-9a-z]+)\](?!:)/g;
+const FOOTNOTE_DEFINITION = /^\[\^([^\]\s]+)\]:[ \t]*(.*)$/;
+const FOOTNOTE_REFERENCE = /\[\^([^\]\s]+)\]/g;
 
-function footnoteDefinition(document: ReferenceDocument): string {
-  const label = sourceFootnoteLabel(document.path);
+function footnoteTarget(document: ReferenceDocument): string {
   const basename = (document.path.split("/").pop() ?? document.path).replace(/\.md$/i, "");
-  return `[^${label}]: ${document.external ? t("note.external_source_0", document.path) : `[[${document.path}|${basename}]]`}`;
+  return document.external ? t("note.external_source_0", document.path) : `[[${document.path}|${basename}]]`;
 }
 
 /**
- * Detail: `[S#]` becomes a footnote reference with one definition per source, placed at the end of the evidence
- * section (or the detail). A footnote the reply kept without its definition is restored from the selected sources or
- * the previous detail; one that cannot be restored becomes a "source to confirm" note instead of a dead marker.
+ * Detail: `[S#]` becomes a footnote. Footnotes are then numbered [^1], [^2]… by first appearance, one number per
+ * source, with every definition at the end of the evidence section (or the detail). A footnote the reply kept without
+ * its definition is restored from the selected sources or the previous detail; one nothing can restore becomes a
+ * "source to confirm" note instead of a dead marker. Definitions no reference uses are dropped.
  */
 export function resolveDetailReferences(detail: string, groups: ReferenceGroup[], previousDetail = ""): string {
   const documents = dedupeReferenceGroups(groups).flatMap(group => group.documents);
-  const used = new Map<string, string>();
+  const targets = new Map<string, string>();
   const identified = detail.replace(/\[S(\d+)\]/g, (original, number: string) => {
     const document = documents[Number(number) - 1];
     if (!document) return t("note.source_unconfirmed_0", original);
     const label = sourceFootnoteLabel(document.path);
-    if (!used.has(label)) used.set(label, footnoteDefinition(document));
+    targets.set(label, footnoteTarget(document));
     return `[^${label}]`;
   });
-  let resolved = documents.length ? resolveWikilinks(identified, documents) : identified;
-  const defined = new Set(
-    resolved.split("\n").flatMap(line => {
-      const match = FOOTNOTE_DEFINITION.exec(line);
-      return match ? [match[1]] : [];
-    })
-  );
+  const resolved = documents.length ? resolveWikilinks(identified, documents) : identified;
+  const body: string[] = [];
+  const defined = new Map<string, string>();
+  for (const line of resolved.split("\n")) {
+    const match = FOOTNOTE_DEFINITION.exec(line);
+    if (match) defined.set(match[1], match[2].trim());
+    else body.push(line);
+  }
   const previous = new Map(
     previousDetail.split("\n").flatMap(line => {
       const match = FOOTNOTE_DEFINITION.exec(line);
-      return match ? [[match[1], line] as const] : [];
+      return match ? [[match[1], match[2].trim()] as const] : [];
     })
   );
   const byLabel = new Map(documents.map(document => [sourceFootnoteLabel(document.path), document]));
-  const unresolved = new Set<string>();
-  for (const [, label] of resolved.matchAll(FOOTNOTE_REFERENCE)) {
-    if (defined.has(label) || used.has(label)) continue;
+  const targetOf = (label: string): string | undefined => {
+    const target = targets.get(label) ?? defined.get(label) ?? previous.get(label);
+    if (target) return target;
     const document = byLabel.get(label);
-    const restored = document ? footnoteDefinition(document) : previous.get(label);
-    if (restored) used.set(label, restored);
-    else unresolved.add(label);
-  }
-  if (unresolved.size)
-    resolved = resolved.replace(FOOTNOTE_REFERENCE, (original, label: string) =>
-      unresolved.has(label) ? ` ${t("note.source_unconfirmed_0", label)}` : original
-    );
-  const definitions = [...used].filter(([label]) => !defined.has(label)).map(([, line]) => line);
-  if (!definitions.length) return resolved;
+    return document ? footnoteTarget(document) : undefined;
+  };
+  // One number per distinct target, in order of first reference.
+  const numbers = new Map<string, number>();
+  const ordered: string[] = [];
+  const text = body
+    .join("\n")
+    .replace(FOOTNOTE_REFERENCE, (_original, label: string) => {
+      const target = targetOf(label);
+      if (!target) return ` ${t("note.source_unconfirmed_0", label)}`;
+      if (!numbers.has(target)) {
+        ordered.push(target);
+        numbers.set(target, ordered.length);
+      }
+      return `[^${numbers.get(target)}]`;
+    })
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/\s+$/, "");
+  if (!ordered.length) return text;
+  const definitions = ordered.map((target, index) => `[^${index + 1}]: ${target}`);
   const headings = new Set(
     (["zh-TW", "en"] as const).map(locale => translate(locale, "detail.evidence_and_sources").toLocaleLowerCase())
   );
-  const lines = resolved.split("\n");
+  const lines = text.split("\n");
   const start = lines.findIndex(line => {
     const match = /^###\s+(.+?)\s*$/.exec(line);
     return !!match && headings.has(match[1].toLocaleLowerCase());
   });
-  if (start < 0) return `${resolved.replace(/\s+$/, "")}\n\n${definitions.join("\n")}\n`;
+  if (start < 0) return `${text}\n\n${definitions.join("\n")}\n`;
   let end = lines.findIndex((line, index) => index > start && /^###\s+/.test(line));
   if (end < 0) end = lines.length;
   while (end > start + 1 && !lines[end - 1].trim()) end--;
-  return [...lines.slice(0, end), "", ...definitions, ...lines.slice(end)].join("\n");
+  return [
+    ...lines.slice(0, end),
+    "",
+    ...definitions,
+    ...(end < lines.length && lines[end].trim() ? [""] : []),
+    ...lines.slice(end)
+  ].join("\n");
 }
