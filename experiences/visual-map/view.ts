@@ -3990,7 +3990,8 @@ export class VisualAgentMapView extends ItemView {
   private openMultiResearch(): void {
     if (!this.map || this.map.aim || !this.multiSelected.size) return;
     const names = [...this.multiSelected].map(id => this.notes.get(id)?.title).filter((name): name is string => !!name);
-    new MultiResearchModal(this.app, names, request => void this.startMultiResearch(request)).open();
+    const models = this.plugin.availableModels().map(id => ({ id, label: this.plugin.modelLabel(id) }));
+    new MultiResearchModal(this.app, names, models, request => void this.startMultiResearch(request)).open();
   }
   stopMultiResearch(): void {
     this.plugin.expansionCoordinator.stop(this.multiResearchKey());
@@ -4006,7 +4007,7 @@ export class VisualAgentMapView extends ItemView {
       .map(id => this.map!.nodes.find(node => node.id === id))
       .filter((node): node is MapNode => !!node);
     try {
-      await this.plugin.confirmAiUsage(this.plugin.settings.cliModel, async () => {
+      await this.plugin.confirmAiUsage(request.model ?? this.plugin.settings.cliModel, async () => {
         if (this.plugin.expansionCoordinator.isRunning(key)) {
           new Notice(t("ui.multi_research_already_running"));
           return;
@@ -4021,6 +4022,9 @@ export class VisualAgentMapView extends ItemView {
           return;
         }
         if (nodes.length < selected.length) new Notice(t("ui.multi_research_skipped", selected.length - nodes.length));
+        if (request.model)
+          for (const node of nodes)
+            await this.plugin.repo.updateNote(node.path, { model: request.model, modelSource: "manual" });
         // The batch runs in the background: leave selection mode so the selection bar gets out of the way.
         this.integrationMode = false;
         this.multiSelected.clear();

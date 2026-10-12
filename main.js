@@ -653,6 +653,7 @@ var english = {
   "ui.archived_0": "Archived ({0})",
   "ui.inbox_0": "Inbox ({0})",
   "ui.selected_0_1_2": "Selected {0}: {1}{2}",
+  "ui.multi_research_keep_topic_models": "Each topic's current model",
   "ui.expand_0": "Expand {0}",
   "ui.0_moved": "{0} (moved)",
   "ui.0_1_reasoning_can_be_adjusted_per_topic": "{0} \xB7 {1}; reasoning can be adjusted per topic.",
@@ -1814,6 +1815,7 @@ var traditionalChinese = {
   "ui.archived_0": "\u5C01\u5B58\uFF08{0}\uFF09",
   "ui.inbox_0": "\u6536\u4EF6\u5323\uFF08{0}\uFF09",
   "ui.selected_0_1_2": "\u5DF2\u9078 {0} \u500B\uFF1A{1}{2}",
+  "ui.multi_research_keep_topic_models": "\u6CBF\u7528\u5404\u8B70\u984C\u76EE\u524D\u7684\u6A21\u578B",
   "ui.expand_0": "\u5C55\u958B {0}",
   "ui.0_moved": "{0}\uFF08\u5DF2\u79FB\u52D5\uFF09",
   "ui.0_1_reasoning_can_be_adjusted_per_topic": "{0} \xB7 {1}\uFF1B\u63A8\u7406\u7B49\u7D1A\u53EF\u4F9D\u8B70\u984C\u8ABF\u6574\u3002",
@@ -12839,9 +12841,10 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
 // experiences/visual-map/multi-research-modal.ts
 var import_obsidian10 = require("obsidian");
 var MultiResearchModal = class extends import_obsidian10.Modal {
-  constructor(app, names2, submit) {
+  constructor(app, names2, models, submit) {
     super(app);
     this.names = names2;
+    this.models = models;
     this.submit = submit;
     __publicField(this, "submitted", false);
   }
@@ -12859,6 +12862,13 @@ var MultiResearchModal = class extends import_obsidian10.Modal {
     depth.createEl("option", { value: "normal", text: t("ui.normal_standard_research") });
     depth.createEl("option", { value: "deep", text: t("ui.deep_in_depth_research") });
     depth.value = "fast";
+    const modelLabel = this.contentEl.createEl("label", { cls: "vam-field" });
+    modelLabel.createSpan({ text: t("ui.model") });
+    const model = modelLabel.createEl("select");
+    model.setAttr("aria-label", t("ui.model"));
+    model.createEl("option", { value: "", text: t("ui.multi_research_keep_topic_models") });
+    for (const option of this.models) model.createEl("option", { value: option.id, text: option.label });
+    model.value = "";
     const webLabel = this.contentEl.createEl("label", { cls: "vam-field vam-next-toggle" });
     const web = webLabel.createEl("input", { type: "checkbox" });
     web.checked = true;
@@ -12878,7 +12888,8 @@ var MultiResearchModal = class extends import_obsidian10.Modal {
       const request = {
         researchMode: web.checked ? "research" : "local",
         researchDepth: depth.value === "deep" ? "deep" : depth.value === "normal" ? "normal" : "fast",
-        requirements: requirements.value.trim()
+        requirements: requirements.value.trim(),
+        ...model.value ? { model: model.value } : {}
       };
       this.close();
       this.submit(request);
@@ -24344,12 +24355,14 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       var _a;
       return (_a = this.notes.get(id)) == null ? void 0 : _a.title;
     }).filter((name) => !!name);
-    new MultiResearchModal(this.app, names2, (request) => void this.startMultiResearch(request)).open();
+    const models = this.plugin.availableModels().map((id) => ({ id, label: this.plugin.modelLabel(id) }));
+    new MultiResearchModal(this.app, names2, models, (request) => void this.startMultiResearch(request)).open();
   }
   stopMultiResearch() {
     this.plugin.expansionCoordinator.stop(this.multiResearchKey());
   }
   async startMultiResearch(request) {
+    var _a;
     if (!this.map || this.map.aim || this.builtIn || !this.multiSelected.size) return;
     const key2 = this.multiResearchKey();
     if (this.plugin.expansionCoordinator.isRunning(key2)) {
@@ -24358,7 +24371,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     }
     const selected = [...this.multiSelected].map((id) => this.map.nodes.find((node) => node.id === id)).filter((node) => !!node);
     try {
-      await this.plugin.confirmAiUsage(this.plugin.settings.cliModel, async () => {
+      await this.plugin.confirmAiUsage((_a = request.model) != null ? _a : this.plugin.settings.cliModel, async () => {
         if (this.plugin.expansionCoordinator.isRunning(key2)) {
           new import_obsidian16.Notice(t("ui.multi_research_already_running"));
           return;
@@ -24370,6 +24383,9 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
           return;
         }
         if (nodes.length < selected.length) new import_obsidian16.Notice(t("ui.multi_research_skipped", selected.length - nodes.length));
+        if (request.model)
+          for (const node of nodes)
+            await this.plugin.repo.updateNote(node.path, { model: request.model, modelSource: "manual" });
         this.integrationMode = false;
         this.multiSelected.clear();
         if (!this.closed) this.render();

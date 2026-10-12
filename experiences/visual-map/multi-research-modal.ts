@@ -6,6 +6,8 @@ export interface MultiResearchRequest {
   researchMode: ResearchMode;
   researchDepth: ResearchDepth;
   requirements: string;
+  /** Model for every started topic (saved on the topic, as single-topic research does); undefined keeps each topic's model. */
+  model?: string;
 }
 
 export class MultiResearchModal extends Modal {
@@ -14,6 +16,7 @@ export class MultiResearchModal extends Modal {
   constructor(
     app: App,
     private names: string[],
+    private models: { id: string; label: string }[],
     private submit: (request: MultiResearchRequest) => void
   ) {
     super(app);
@@ -33,6 +36,13 @@ export class MultiResearchModal extends Modal {
     depth.createEl("option", { value: "normal", text: t("ui.normal_standard_research") });
     depth.createEl("option", { value: "deep", text: t("ui.deep_in_depth_research") });
     depth.value = "fast";
+    const modelLabel = this.contentEl.createEl("label", { cls: "vam-field" });
+    modelLabel.createSpan({ text: t("ui.model") });
+    const model = modelLabel.createEl("select");
+    model.setAttr("aria-label", t("ui.model"));
+    model.createEl("option", { value: "", text: t("ui.multi_research_keep_topic_models") });
+    for (const option of this.models) model.createEl("option", { value: option.id, text: option.label });
+    model.value = "";
     const webLabel = this.contentEl.createEl("label", { cls: "vam-field vam-next-toggle" });
     const web = webLabel.createEl("input", { type: "checkbox" });
     web.checked = true;
@@ -52,7 +62,8 @@ export class MultiResearchModal extends Modal {
       const request: MultiResearchRequest = {
         researchMode: web.checked ? "research" : "local",
         researchDepth: depth.value === "deep" ? "deep" : depth.value === "normal" ? "normal" : "fast",
-        requirements: requirements.value.trim()
+        requirements: requirements.value.trim(),
+        ...(model.value ? { model: model.value } : {})
       };
       this.close();
       this.submit(request);

@@ -1215,6 +1215,28 @@ integrationTest('selection bar shows Research; starting leaves selection mode an
   await until(() => h.plugin.expansionBatches.get(h.key).status === 'stopped');
   assert.equal(toolbar().length, 1);
 });
+integrationTest('multi research with a chosen model saves it on each started topic and confirms usage for it', async () => {
+  const h = await multiResearchHarness(['A', 'B', 'C']);
+  h.plugin.running.add(h.nodes[2].path);
+  h.view.multiSelected = new Set(h.nodes.map(n => n.id));
+  await h.view.startMultiResearch({ ...h.request, model: 'model-b' });
+  await until(() => h.runs.length === 2);
+  assert.deepEqual(plain(h.confirms), ['model-b']);
+  for (const node of h.nodes.slice(0, 2)) {
+    const note = await h.repo.readNote(node.path);
+    assert.equal(note.model, 'model-b'); assert.equal(note.modelSource, 'manual');
+  }
+  assert.equal((await h.repo.readNote(h.nodes[2].path)).model, 'model-a');
+  h.finish.get('A')(); h.finish.get('B')();
+});
+integrationTest('multi research without a chosen model keeps each topic model', async () => {
+  const h = await multiResearchHarness(['A']);
+  h.view.multiSelected = new Set([h.nodes[0].id]);
+  await h.view.startMultiResearch(h.request); await until(() => h.runs.length === 1);
+  const note = await h.repo.readNote(h.nodes[0].path);
+  assert.equal(note.model, 'model-a'); assert.equal(note.modelSource, 'workspace');
+  h.finish.get('A')();
+});
 integrationTest('multi research keeps selection mode when nothing starts', async () => {
   const h = await multiResearchHarness(['A']);
   h.plugin.running.add(h.nodes[0].path);
