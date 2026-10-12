@@ -10,6 +10,7 @@ import { tableStep } from "./steps/table/step";
 import { type CoffeeRound, type CoffeeRuntime, type CoffeeSession } from "./types";
 import { baselineFromVersions, mergeInsightUpdates, serializeInsightNotes } from "./insights";
 import { validateGuestInvitations } from "./guest-invitations";
+import { steerCommentMessage, steerGuestQuestionMessage, steerRedirectMessage } from "./messages";
 import {
   normalizeCustomization,
   validateConvergenceText,
@@ -935,10 +936,10 @@ export class CoffeeEngine {
       controller = this.controller!;
     const instruction =
       kind === "guest-question"
-        ? `The user asks ${target ? `${target} ` : "a guest "}to respond to this question: ${value}. Let that person answer naturally and keep the discussion moving.`
+        ? steerGuestQuestionMessage(value, target)
         : kind === "redirect"
-          ? `The user wants to redirect the discussion: ${value}. Acknowledge this briefly and continue in the new direction.`
-          : `The user adds this comment: ${value}. Respond naturally if relevant, then continue the discussion.`;
+          ? steerRedirectMessage(value)
+          : steerCommentMessage(value);
     const activeRound = [...(this.session.rounds ?? [])].reverse().find(item => item.status === "generating");
     const streamed = this.session.draftMarkdown ?? "",
       afterTurn = (streamed.match(/^### .+$/gm) ?? []).length;
