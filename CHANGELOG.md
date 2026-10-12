@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.14.1] - 2026-10-12
+
+### Changed
+
+- Visible research controls use the Adaptive Inquiry Map (AIM) name: the create button, start dialog, empty-map hint, progress text and status bar.
+- README and INSTALL no longer label Claude Code support as experimental.
+- Interface, log and error text, including the Coffee Tables view and new AIM note titles, comes from the shared English and Traditional Chinese dictionary.
+- Faster vault scans for VAM-marked notes; deleting a note reconciles maps only when a map node is affected.
+
+### Fixed
+
+- Claude Code can use web search during AIM research, and isolated research without real web evidence is reported as failed instead of accepted.
+- AIM planning steps use provider-enforced response formats, so fewer replies need format repair and an already answered goal no longer forces more research.
+- Saved AIM results no longer fail readback at random; search status is read from structured data instead of text matching.
+- Map saves change only what they own: viewport updates no longer rewrite the map, research runs share one lock per vault, and renames made while VAM is saving are kept.
+- Saved-report recovery reads the structured attempt record, with the old Markdown parsing kept only as a fallback.
+- Large Claude Code outputs, non-JSON stream lines and input errors no longer break a task; a failing Codex callback fails only its own turn.
+- Coffee Tables cleanup failures during delete, restore and organize are written to the debug log, and a restored table can no longer be restored a second time.
+
+### Validation and limitations
+
+- Automated unit, integration and AIM suites, lint, format check, build and artifact check pass.
+- During development in a macOS Obsidian test vault, Codex and Claude Code each completed an AIM run to a conclusion, and Claude Code completed live Coffee Tables and structured task requests. Windows and Linux remain unverified.
+- Coffee Tables keeps resumable conversation data in the hidden `Coffee Tables/.sessions` folder, which Obsidian Sync does not sync; synced conversations can be read but not continued on other devices.
+
 ## [0.14.0] - 2026-10-10
 
 ### Added
