@@ -10,6 +10,7 @@ import {
 } from "./types";
 import { splitObserverNotes } from "./engine";
 import { baselineFromVersions, serializeInsightNotes } from "./insights";
+import { t } from "../../i18n";
 
 export interface CoffeeHandoffSnapshot {
   session: CoffeeSession;
@@ -136,10 +137,16 @@ export class CoffeeStorage {
     private vault: Vault,
     workspace: string,
     private renameFile?: (file: TFile, path: string) => Promise<void>,
-    private trashFile?: (file: TAbstractFile) => Promise<void>
+    private trashFile?: (file: TAbstractFile) => Promise<void>,
+    private onWarning: (message: string) => void = () => undefined
   ) {
     this.folder = normalizePath(`${workspace}/Coffee Tables`);
     this.hidden = normalizePath(`${this.folder}/.sessions`);
+  }
+  private warn(message: string, error: unknown): void {
+    this.onWarning(
+      t("log.coffee_storage_cleanup_failed_0_1", message, error instanceof Error ? error.message : String(error))
+    );
   }
   path(id: string, topic?: string): string {
     if (!/^[a-zA-Z0-9-]+$/.test(id)) throw new Error("Invalid session ID");
@@ -1230,7 +1237,8 @@ export class CoffeeStorage {
         if (side) await this.moveManagedFile(file, side.id, target);
         else await this.renameFile(file, target);
         moved++;
-      } catch {
+      } catch (error) {
+        this.warn(t("log.coffee_organize_skipped_0", file.path), error);
         skipped++;
       }
     }
@@ -1326,14 +1334,18 @@ export class CoffeeStorage {
     }
     const staged = JSON.parse(await this.readHidden(bundlePath)) as Record<string, unknown>;
     staged.trashed = true;
-    await this.writeHidden(bundlePath, JSON.stringify(staged, null, 2), bundle).catch(() => undefined);
+    await this.writeHidden(bundlePath, JSON.stringify(staged, null, 2), bundle).catch((error: unknown) =>
+      this.warn(t("log.coffee_trash_record_stale_0", bundlePath), error)
+    );
     const latestSidecar = await this.vault.adapter.read(sidePath).catch(() => undefined);
     if (latestSidecar !== sideRaw) {
       const archived = JSON.parse(await this.readHidden(bundlePath)) as Record<string, unknown>;
       if (latestSidecar === undefined) delete archived.sidecar;
       else archived.sidecar = latestSidecar;
       const previousBundle = await this.readHidden(bundlePath);
-      await this.writeHidden(bundlePath, JSON.stringify(archived, null, 2), previousBundle).catch(() => undefined);
+      await this.writeHidden(bundlePath, JSON.stringify(archived, null, 2), previousBundle).catch((error: unknown) =>
+        this.warn(t("log.coffee_trash_record_stale_0", bundlePath), error)
+      );
     }
     if (sideRaw && latestSidecar === sideRaw)
       await this.vault.adapter
@@ -1342,13 +1354,15 @@ export class CoffeeStorage {
             throw new Error("Coffee Tables hidden data changed outside this room; deletion preserved it");
           return "";
         })
-        .catch(() => undefined);
+        .catch((error: unknown) => this.warn(t("log.coffee_sidecar_kept_0", sidePath), error));
     this.originals.delete(safeId);
     this.sidecarOriginals.delete(safeId);
     this.locations.delete(safeId);
     this.revisions.delete(safeId);
     this.deletedIds.add(id);
-    await this.cleanupEmptyTopicFolders().catch(() => undefined);
+    await this.cleanupEmptyTopicFolders().catch((error: unknown) =>
+      this.warn(t("log.coffee_folder_cleanup_failed_0", this.folder), error)
+    );
     return bundlePath;
   }
   async deletedTables(): Promise<Array<{ path: string; id: string; topic: string; deletedAt: string }>> {
@@ -1379,6 +1393,8 @@ export class CoffeeStorage {
   async restoreDeleted(bundlePath: string): Promise<string> {
     const bundleRaw = await this.readHidden(bundlePath),
       record = JSON.parse(bundleRaw) as Record<string, unknown>;
+    if (record.restoredPath !== undefined)
+      throw new Error("This deleted Coffee Tables record was already restored; no file was changed");
     const originalPath = typeof record.originalPath === "string" ? record.originalPath : "";
     if (
       record.version !== 1 ||
@@ -1447,7 +1463,9 @@ export class CoffeeStorage {
     const { restoreJournal: _journal, ...committed } = stagedRecord,
       completed = JSON.stringify({ ...committed, restoredPath: target }, null, 2);
     await this.writeHidden(bundlePath, completed, stagedRaw);
-    await this.vault.adapter.remove(bundlePath).catch(() => undefined);
+    await this.vault.adapter
+      .remove(bundlePath)
+      .catch((error: unknown) => this.warn(t("log.coffee_restored_record_kept_0", bundlePath), error));
     this.deletedIds.delete(record.id);
     this.locations.set(record.id, target);
     this.originals.set(record.id, record.markdown);
