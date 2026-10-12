@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict');
-const { test, load, plain, obsidian } = require('../support.cjs');
+const { test, integrationTest, fixture, load, plain, obsidian } = require('../support.cjs');
 const rawApi = load('experiences/visual-map/outline-import.ts', { obsidian });
 const api = { ...rawApi, parseOutline: input => plain(rawApi.parseOutline(input)) };
 const titles = parse => parse.nodes.map(node => `${'>'.repeat(node.level)}${node.title}@${node.parent ?? '-'}`);
@@ -122,4 +122,55 @@ test('outline: only a markdown/md fence or a leading bare fence is unwrapped; ot
   assert.deepEqual(titles(api.parseOutline('```js\ncode\n```\n```md\n# R\n## A\n```')), ['>R@-', '>>A@0']);
   assert.deepEqual(titles(api.parseOutline('\n```\n# R\n## A\n```')), ['>R@-', '>>A@0']);
   assert.deepEqual(api.parseOutline('Intro\n```md\n# R\n## A\n```').nodes.map(node => node.line), [3, 4]);
+});
+
+integrationTest('createOutlineMap: one map, notes in outline order, parents by index, Map.md saved once', async () => {
+  const { repo } = fixture('en');
+  const parse = api.parseOutline('# Trip\n## Food\n### A\n## Food\n### B');
+  let saves = 0; const save = repo.saveMap.bind(repo); repo.saveMap = async (...args) => { saves++; return save(...args); };
+  const result = await api.createOutlineMap(repo, 'gpt-6-luna', parse.nodes, 'Inbox/outline.md', new Date('2026-10-13T09:00:00+08:00'));
+  assert.equal(result.created, 5); assert.equal(result.total, 5); assert.equal(result.failure, undefined); assert.equal(saves, 1);
+  const map = await repo.readMap(result.mapPath);
+  assert.equal(map.title, 'Trip'); assert.equal(map.nodes.length, 5);
+  const notes = await Promise.all(map.nodes.map(node => repo.readNote(node.path)));
+  assert.deepEqual(notes.map(note => note.title), ['Trip', 'Food', 'A', 'Food', 'B']);
+  const byId = new Map(map.nodes.map((node, i) => [node.id, notes[i].title]));
+  assert.deepEqual(plain(map.nodes.map(node => byId.get(node.parentId) ?? null)), [null, 'Trip', 'Food', 'Trip', 'Food']);
+  assert.equal(map.nodes[2].parentId, map.nodes[1].id); assert.equal(map.nodes[4].parentId, map.nodes[3].id);
+  assert.notEqual(map.nodes[1].path, map.nodes[3].path);
+  assert.match(notes[0].detail, /Imported from an outline \(2026-10-13\): \[\[Inbox\/outline\.md\]\]/);
+  assert.equal(notes[1].detail.includes('Imported from an outline'), false);
+  assert.ok(notes.every(note => note.status === 'idea' && note.prompt === ''));
+  assert.ok(map.nodes.some(node => node.x !== 80 || node.y !== 80), 'arranged');
+});
+
+integrationTest('createOutlineMap: pasted text records the import without a source link', async () => {
+  const { repo } = fixture('zh-TW');
+  const result = await api.createOutlineMap(repo, 'gpt-6-luna', api.parseOutline('# 主題').nodes, null, new Date('2026-10-13T09:00:00+08:00'));
+  const note = await repo.readNote((await repo.readMap(result.mapPath)).nodes[0].path);
+  assert.match(note.detail, /從大綱匯入（2026-10-13）。/);
+});
+
+integrationTest('createOutlineMap: stops at the first failure and keeps every created note in the map', async () => {
+  const { repo, app } = fixture('en');
+  const create = repo.createNote.bind(repo); let calls = 0;
+  repo.createNote = async (...args) => { calls++; if (calls === 3) throw new Error('disk full'); return create(...args); };
+  const result = await api.createOutlineMap(repo, 'gpt-6-luna', api.parseOutline('# R\n## A\n## B\n## C').nodes, null);
+  assert.equal(result.created, 2); assert.equal(result.total, 4); assert.equal(result.failure, 'disk full');
+  const map = await repo.readMap(result.mapPath);
+  assert.equal(map.nodes.length, 2);
+  const notesFolder = result.mapPath.replace(/Map\.md$/, 'Notes/');
+  const files = app.vault.getMarkdownFiles().filter(file => file.path.startsWith(notesFolder));
+  assert.equal(files.length, 2, 'no orphan notes');
+  assert.deepEqual(plain(files.map(file => file.path).sort()), plain(map.nodes.map(node => node.path).sort()));
+});
+
+integrationTest('createOutlineMap: does not touch the source note or other maps', async () => {
+  const { repo, app } = fixture('en');
+  const source = await app.vault.create('Inbox/outline.md', '# R\n## A');
+  const before = await app.vault.read(source);
+  const mapsBefore = (await repo.mapFiles()).map(file => file.path);
+  const result = await api.createOutlineMap(repo, 'gpt-6-luna', api.parseOutline(before).nodes, 'Inbox/outline.md');
+  assert.equal(await app.vault.read(source), before);
+  assert.deepEqual(plain((await repo.mapFiles()).map(file => file.path).sort()), plain([...mapsBefore, result.mapPath].sort()));
 });

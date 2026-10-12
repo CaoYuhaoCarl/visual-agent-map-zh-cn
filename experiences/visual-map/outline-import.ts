@@ -1,4 +1,8 @@
-import { safeName } from "../../repository";
+import type { MapNode } from "../../map-model";
+import { safeName, type Repository } from "../../repository";
+import { arrangeMap } from "../../map-layout";
+import { canonicalDetail } from "../../ai/result-utils";
+import { translate } from "../../i18n";
 
 export const OUTLINE_NODE_LIMIT = 100;
 export const OUTLINE_TITLE_LIMIT = 200;
@@ -231,4 +235,73 @@ export function parseOutline(input: string): OutlineParse {
     blankLines,
     skippedLines
   };
+}
+
+export interface OutlineCreateResult {
+  mapPath: string;
+  nodes: MapNode[];
+  created: number;
+  total: number;
+  failure?: string;
+}
+
+function errorText(error: unknown): string {
+  const message = (error as { message?: unknown } | null)?.message;
+  return typeof message === "string" ? message : String(error);
+}
+
+function localDate(now: Date): string {
+  const pad = (value: number): string => String(value).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+/** Creates a new map from parsed outline nodes; never edits the source note or other maps. */
+export async function createOutlineMap(
+  repository: Repository,
+  model: string,
+  nodes: OutlineNode[],
+  source: string | null,
+  now = new Date()
+): Promise<OutlineCreateResult> {
+  const language = repository.settings.language;
+  if (!nodes.length) throw new Error(translate(language, "ui.outline_error_no_headings"));
+  const mapPath = await repository.createMap(nodes[0].title, []);
+  const map = await repository.readMap(mapPath);
+  const log = source
+    ? translate(language, "ui.outline_import_log_source", localDate(now), source)
+    : translate(language, "ui.outline_import_log", localDate(now));
+  const rootDetail = canonicalDetail(`### ${translate(language, "detail.update_log")}\n\n- ${log}`, language);
+  const created: MapNode[] = [];
+  let failure: string | undefined;
+  for (const node of nodes) {
+    try {
+      const note = await repository.createNote(
+        node.title,
+        model,
+        map,
+        mapPath,
+        node.parent === null ? "workspace" : "inherited",
+        node.parent === null ? { detail: rootDetail } : {}
+      );
+      note.parentId = node.parent === null ? null : created[node.parent].id;
+      created.push(note);
+    } catch (error) {
+      failure = errorText(error);
+      break;
+    }
+  }
+  map.nodes = arrangeMap(created);
+  try {
+    await repository.saveMap(mapPath, map);
+  } catch (error) {
+    const message = errorText(error);
+    throw new Error(
+      translate(
+        language,
+        "ui.outline_import_map_save_failed",
+        `${message} (${created.map(node => node.path).join(", ")})`
+      )
+    );
+  }
+  return { mapPath, nodes: map.nodes, created: created.length, total: nodes.length, ...(failure ? { failure } : {}) };
 }
