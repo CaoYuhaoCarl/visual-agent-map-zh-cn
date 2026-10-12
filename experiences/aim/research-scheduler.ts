@@ -1,3 +1,4 @@
+import { DEFAULT_AIM_FLOW_LIMITS } from "./flow-limits";
 import { validateAimResearchPlan, type AimResearchPlan, type AimResearchTarget } from "./research-plan";
 
 function abortError(): Error {
@@ -10,11 +11,13 @@ function abortError(): Error {
 export async function scheduleAimResearch<T>(
   plan: AimResearchPlan,
   execute: (target: AimResearchTarget, predecessors: ReadonlyMap<string, T>, signal: AbortSignal) => Promise<T>,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  /** Test-only: production passes nothing and keeps the default parallelism. */
+  options: { parallelism?: number } = {}
 ): Promise<Map<string, T>> {
   validateAimResearchPlan(plan);
   const parallel = plan.every(item => Array.isArray(item.dependsOn));
-  const limit = parallel ? 2 : 1;
+  const limit = parallel ? Math.max(1, options.parallelism ?? DEFAULT_AIM_FLOW_LIMITS.researchParallelism) : 1;
   const controller = new AbortController();
   const abort = () => controller.abort();
   signal?.addEventListener("abort", abort, { once: true });

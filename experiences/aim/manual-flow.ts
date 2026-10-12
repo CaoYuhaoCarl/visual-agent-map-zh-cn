@@ -12,10 +12,10 @@ import { AimRunStore, type CommitResult } from "./research-run-store";
 import type { CodexWebSearchEvent } from "../../ai/runtime/codex-app-server";
 import { effectiveReasoningLevel, normalizeReasoningLevel } from "../../ai/task-policy";
 import { estimateTokens } from "../../ai/context-builder";
+import { ACTIVE_AIM_FLOW_LIMITS, type AimFlowLimits } from "./flow-limits";
 import { AIM_NO_QUESTION, type AimContract, type AimDecision } from "../../ai/aim-contracts";
 import {
   extractPlannerQuestionCandidate,
-  AIM_MAX_RESEARCH_TURNS,
   parseAimPlannerReview,
   parseAimPlannerReviewWithRecovery,
   type PlannerReviewRecoveryContext
@@ -42,7 +42,6 @@ import {
 
 import {
   AIM_UNKNOWN_OPTION_ID,
-  MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION,
   PLANNER_COVERAGE_RULE,
   SEARCHER_TARGET_RULE,
   USER_QUESTION_RULE,
@@ -122,6 +121,8 @@ function noteStopReason(
 export class AimManualFlow {
   private readonly evidenceReports = new Map<string, { path: string; hash: string }>();
   private readonly answerRuns = new Map<string, { fingerprint: string; promise: Promise<ManualResearchResult> }>();
+  /** Reviews whose research_more came from final delivery acceptance rather than from the Planner's report review. */
+  private readonly deliveryRejections = new WeakSet<object>();
   private static readonly questionPlans = new Map<string, QuestionPlanEntry>();
   private static readonly continuationRuns = new Map<
     string,
@@ -132,8 +133,20 @@ export class AimManualFlow {
     private readonly runs: AimRunStore,
     private readonly askModel: AimAskModel,
     private readonly id: () => string = randomUUID,
-    private readonly persist: AimPersist = operation => operation()
+    private readonly persist: AimPersist = operation => operation(),
+    /** Test-only injection; production never passes it, so the defaults apply. */
+    private readonly limits: AimFlowLimits = ACTIVE_AIM_FLOW_LIMITS
   ) {}
+
+  /** Research phases use provider web search unless a test turned it off. */
+  private researchMode(): "research" | "local" {
+    return this.limits.webSearch ? "research" : "local";
+  }
+
+  /** The only exit acceptGapAtBudget changes: a research_more left at the last turn is saved partial unless accepted. */
+  private budgetExitStatus(decision: string): "partial" | "completed" {
+    return decision === "research_more" && !this.limits.acceptGapAtBudget ? "partial" : "completed";
+  }
 
   /** Content language of the map as read now; never cached on the flow, so a UI language switch cannot change it. */
   private languageOf(map: MapDocument): UiLanguage {
@@ -503,7 +516,7 @@ export class AimManualFlow {
     const repeatsKnownQuestion = context.questionHistory.some(
       question => question.trim().toLocaleLowerCase() === reviewed.question?.trim().toLocaleLowerCase()
     );
-    const belowFloor = context.answeredQuestionCount < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION;
+    const belowFloor = context.answeredQuestionCount < this.limits.minAnsweredBeforeConclusion;
     // Below the floor, research on an already answered goal cannot satisfy the floor; only a user question can.
     const researchesAnsweredGoal =
       belowFloor && reviewed.decision === "research_more" && reviewed.goalAnswered === true;
@@ -516,7 +529,7 @@ export class AimManualFlow {
       const correctionTask = renderBelowFloorReviewTask({
         userQuestionRule: USER_QUESTION_RULE,
         answeredQuestionCount: context.answeredQuestionCount,
-        minimumAnswers: MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION,
+        minimumAnswers: this.limits.minAnsweredBeforeConclusion,
         goal: context.goal,
         goalDetail: context.goalDetail,
         conditions: context.conditions,
@@ -552,7 +565,7 @@ export class AimManualFlow {
             context.outputLanguage,
             "note.aim_below_floor_rationale_0_1",
             context.answeredQuestionCount,
-            MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION
+            this.limits.minAnsweredBeforeConclusion
           )
         },
         correctionContext,
@@ -634,6 +647,7 @@ export class AimManualFlow {
         {
           checkpoint,
           timeoutMs: context.timeoutMs,
+          webSearch: this.limits.webSearch,
           evidence: context.deliveryEvidence,
           knownConditions: JSON.stringify({
             goal: context.goal,
@@ -672,6 +686,8 @@ export class AimManualFlow {
         throw new Error(
           "Final delivery review must complete the document or identify a research gap, not restart user clarification."
         );
+      // Remember that this research_more is the final delivery acceptance's own verdict (smoke publication needs it).
+      if (final.decision === "research_more") this.deliveryRejections.add(final);
       reviewed = final;
     }
     if (reviewed.decision === "research_more") {
@@ -828,7 +844,7 @@ export class AimManualFlow {
       task: "",
       ancestors: lineage.context,
       mode: "task",
-      researchMode: "research",
+      researchMode: this.researchMode(),
       researchDepth: "normal",
       visualMode: "off",
       detailFormat: "adaptive"
@@ -841,7 +857,7 @@ export class AimManualFlow {
       this.runs.startAttempt(mapPath, branch.id, run.id, {
         model,
         reasoning,
-        maxResearchTurns: AIM_MAX_RESEARCH_TURNS
+        maxResearchTurns: this.limits.maxResearchTurns
       })
     );
     if (!handle.dispatch) return { status: "in-progress", branchId: branch.id };
@@ -881,7 +897,7 @@ export class AimManualFlow {
           floorAskRule: FLOOR_ASK_RULE,
           userQuestionRule: USER_QUESTION_RULE,
           answeredQuestionCount,
-          minimumAnswers: MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION,
+          minimumAnswers: this.limits.minAnsweredBeforeConclusion,
           explorationTarget,
           goal: topic.title,
           question: parent.summary,
@@ -906,7 +922,7 @@ export class AimManualFlow {
           researchDepth: "fast" as const,
           visualMode: "off" as const,
           detailFormat: "adaptive" as const,
-          aimContract: reviewContract(floorDecisions(answeredQuestionCount)),
+          aimContract: reviewContract(floorDecisions(answeredQuestionCount, this.limits)),
           signal
         };
         const planner = await this.askAimModel(plannerContext, model, reasoning, signal);
@@ -953,7 +969,7 @@ export class AimManualFlow {
           signal
         );
         throwIfAborted(signal);
-        if (finalReview.decision !== "research_more" || reviewTurn === AIM_MAX_RESEARCH_TURNS) {
+        if (finalReview.decision !== "research_more" || reviewTurn === this.limits.maxResearchTurns) {
           const stopReason =
             finalReview.decision === "conclude"
               ? finalReview.stopReason!
@@ -1008,7 +1024,7 @@ export class AimManualFlow {
             ancestors: `Topic: ${topic.title}\n\n${topic.detail}\n\nConditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
             outputLanguage: language,
             mode: "task",
-            researchMode: "research",
+            researchMode: this.researchMode(),
             researchDepth: "normal",
             visualMode: "off",
             aimIsolatedResearch: true,
@@ -1076,7 +1092,7 @@ export class AimManualFlow {
           handle,
           draft.id,
           { summary: finalReview.summary, detail },
-          finalReview.decision === "research_more" ? "partial" : "completed"
+          this.budgetExitStatus(finalReview.decision)
         );
       });
       if (committed.status !== "committed") return { status: "stale", branchId: branch.id };
@@ -1109,7 +1125,7 @@ export class AimManualFlow {
           questionNodeId: questionResult.node.id
         };
       }
-      return finalReview.decision === "research_more"
+      return this.budgetExitStatus(finalReview.decision) === "partial"
         ? { status: "partial", branchId: branch.id, result: { ...committed, resultStatus: "partial" } }
         : { status: "completed", branchId: branch.id, result: committed };
     } catch (error) {
@@ -1231,7 +1247,7 @@ export class AimManualFlow {
       task: "",
       ancestors: lineage.context,
       mode: "task",
-      researchMode: "research",
+      researchMode: this.researchMode(),
       researchDepth: "normal",
       visualMode: "off",
       detailFormat: "adaptive"
@@ -1244,7 +1260,7 @@ export class AimManualFlow {
       this.runs.startAttempt(mapPath, branch.id, run.id, {
         model: modelToUse,
         reasoning: reasoningToUse,
-        maxResearchTurns: AIM_MAX_RESEARCH_TURNS
+        maxResearchTurns: this.limits.maxResearchTurns
       })
     );
     if (!handle.dispatch) return { status: "in-progress", branchId: branch.id };
@@ -1330,7 +1346,7 @@ export class AimManualFlow {
             return { status: "stale", branchId: branch.id };
         } else preclassifiedResearchTarget = priorDecision.researchTarget;
       }
-      for (let researchTurn = 1; !review && researchTurn <= AIM_MAX_RESEARCH_TURNS; researchTurn++) {
+      for (let researchTurn = 1; !review && researchTurn <= this.limits.maxResearchTurns; researchTurn++) {
         throwIfAborted(signal);
         await this.persist(() => this.runs.recordResearchTurn(mapPath, handle));
         const { diagnostic, onEvent } = createSearchDiagnostic(researchTurn);
@@ -1364,7 +1380,7 @@ export class AimManualFlow {
               ancestors: `Original goal: ${topicNote.title}\n\n${topicNote.detail}\n\n${lineage.context}\n\nPersisted answer branch conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
               outputLanguage: language,
               mode: "task",
-              researchMode: "research",
+              researchMode: this.researchMode(),
               researchDepth: "normal",
               visualMode: "off",
               detailFormat: "adaptive",
@@ -1410,7 +1426,7 @@ export class AimManualFlow {
           floorAskRule: FLOOR_ASK_RULE,
           userQuestionRule: USER_QUESTION_RULE,
           answeredQuestionCount,
-          minimumAnswers: MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION,
+          minimumAnswers: this.limits.minAnsweredBeforeConclusion,
           explorationTarget,
           questionsAlreadyAsked,
           goal: topicNote.title,
@@ -1436,7 +1452,7 @@ export class AimManualFlow {
           researchDepth: "fast" as const,
           visualMode: "off" as const,
           detailFormat: "adaptive" as const,
-          aimContract: reviewContract(floorDecisions(answeredQuestionCount)),
+          aimContract: reviewContract(floorDecisions(answeredQuestionCount, this.limits)),
           signal
         };
         const planner = await this.askAimModel(plannerContext, modelToUse, reasoningToUse, signal);
@@ -1478,7 +1494,7 @@ export class AimManualFlow {
         );
         throwIfAborted(signal);
         latestReview = { rationale: review.rationale, researchTarget: review.researchTarget };
-        if (review.decision === "research_more" && researchTurn < AIM_MAX_RESEARCH_TURNS) {
+        if (review.decision === "research_more" && researchTurn < this.limits.maxResearchTurns) {
           await this.persist(() =>
             this.runs.recordPlannerReview(mapPath, handle, {
               decision: review!.decision,
@@ -1572,7 +1588,7 @@ export class AimManualFlow {
                 : finalReview.summary,
             detail
           },
-          finalReview.decision === "research_more" ? "partial" : "completed"
+          this.budgetExitStatus(finalReview.decision)
         );
       });
       if (committed.status !== "committed") return { status: "stale", branchId: branch.id };
@@ -1599,7 +1615,7 @@ export class AimManualFlow {
           throw new Error("Continuation requested user input but no question was saved.");
         return { status: "waiting-user", branchId: branch.id, result: committed, questionNodeId: question.node.id };
       }
-      return review.decision === "research_more"
+      return this.budgetExitStatus(review.decision) === "partial"
         ? { status: "partial", branchId: branch.id, result: committed }
         : { status: "completed", branchId: branch.id, result: committed };
     } catch (error) {
@@ -1825,7 +1841,7 @@ export class AimManualFlow {
       motherNode && motherNode.id !== parentNode.id ? { title: mother.title, detail: mother.detail } : undefined;
     const questionVars = {
       userQuestionRule: USER_QUESTION_RULE,
-      minimumAnswers: MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION,
+      minimumAnswers: this.limits.minAnsweredBeforeConclusion,
       answeredQuestionCount,
       explorationTarget,
       currentTopic: { title: parent.title, summary: parent.summary, detail: parent.detail },
@@ -1836,7 +1852,7 @@ export class AimManualFlow {
       ? renderSavedTerminalQuestionTask({ ...questionVars, savedConditions, knownQuestions })
       : renderInitialQuestionTask(questionVars);
     // Below the floor, or when the user explicitly asked for a new question, the schema itself forbids skipping.
-    const requireQuestion = isSavedTerminalResult || answeredQuestionCount < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION;
+    const requireQuestion = isSavedTerminalResult || answeredQuestionCount < this.limits.minAnsweredBeforeConclusion;
     const context: AimTaskContext = {
       aimEvidenceIds: this.lineageEvidenceIds(map, parentBranchId),
       title: parent.title,
@@ -1863,12 +1879,12 @@ export class AimManualFlow {
     if (
       !isSavedTerminalResult &&
       result.summary.trim() === AIM_NO_QUESTION &&
-      answeredQuestionCount < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION
+      answeredQuestionCount < this.limits.minAnsweredBeforeConclusion
     ) {
       const previousQuestions = await this.questionHistory(map, parentBranchId);
       const correctionPrompt = renderQuestionCorrectionTask({
         answeredQuestionCount,
-        minimumAnswers: MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION,
+        minimumAnswers: this.limits.minAnsweredBeforeConclusion,
         originalTopic: { title: parent.title, summary: parent.summary, detail: parent.detail },
         mother: motherGoal,
         previousQuestions,
@@ -1901,7 +1917,7 @@ export class AimManualFlow {
       throw new Error(
         "Planner repeated an existing question instead of creating a new question from the saved result."
       );
-    if (!isSavedTerminalResult && answeredQuestionCount < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION) {
+    if (!isSavedTerminalResult && answeredQuestionCount < this.limits.minAnsweredBeforeConclusion) {
       if (
         priorQuestions.some(
           question => question.trim().toLocaleLowerCase() === result.summary.trim().toLocaleLowerCase()
@@ -2689,7 +2705,7 @@ export class AimManualFlow {
               subtopicId: target.id,
               model,
               reasoning: effectiveReasoningLevel(
-                { ...contextBase, researchMode: "research", researchDepth: "normal" },
+                { ...contextBase, researchMode: this.researchMode(), researchDepth: "normal" },
                 normalizeReasoningLevel(reasoning)
               ),
               maxResearchTurns: 1
@@ -2769,7 +2785,7 @@ export class AimManualFlow {
                 {
                   ...contextBase,
                   task,
-                  researchMode: "research",
+                  researchMode: this.researchMode(),
                   researchDepth: "normal",
                   aimIsolatedResearch: true,
                   signal: taskSignal
@@ -2838,7 +2854,8 @@ export class AimManualFlow {
             this.runs.releaseAttempt(mapPath, handle);
           }
         },
-        signal
+        signal,
+        { parallelism: this.limits.researchParallelism }
       );
     } catch (error) {
       if (error instanceof ResearchWorkflowInterrupted) return { status: error.status, branchId };
@@ -2877,7 +2894,7 @@ export class AimManualFlow {
         phase: "report-review",
         model,
         reasoning: synthesisReasoning,
-        maxResearchTurns: AIM_MAX_RESEARCH_TURNS
+        maxResearchTurns: this.limits.maxResearchTurns
       })
     );
     if (!synthesisHandle.dispatch) return { status: "in-progress", branchId };
@@ -2962,7 +2979,7 @@ export class AimManualFlow {
       let finalReview: ReturnType<typeof parseAimPlannerReview> | undefined;
       const resumeTurn = resumeDelivery?.researchTurn ?? 1;
       if (resumeTurn === 2) await this.persist(() => this.runs.recordResearchTurn(mapPath, synthesisHandle));
-      for (let researchTurn = resumeTurn; researchTurn <= AIM_MAX_RESEARCH_TURNS; researchTurn++) {
+      for (let researchTurn = resumeTurn; researchTurn <= this.limits.maxResearchTurns; researchTurn++) {
         throwIfAborted(signal);
         const currentReports = aggregateReports();
         const plannerPrompt = renderReportReviewTask({
@@ -2970,13 +2987,13 @@ export class AimManualFlow {
           userQuestionRule: USER_QUESTION_RULE,
           floorAskRule: FLOOR_ASK_RULE,
           answeredQuestionCount,
-          minimumAnswers: MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION,
+          minimumAnswers: this.limits.minAnsweredBeforeConclusion,
           explorationTarget,
           questionsAlreadyAsked,
           currentQuestion: parent.summary,
           currentAnswer: answerDescription,
           researchTurn,
-          maxResearchTurns: AIM_MAX_RESEARCH_TURNS
+          maxResearchTurns: this.limits.maxResearchTurns
         });
         const plannerContext = {
           ...contextBase,
@@ -2984,7 +3001,7 @@ export class AimManualFlow {
           detail: `${contextBase.detail}\n\nPersisted research reports:\n${currentReports.summary}\n\n${currentReports.detail}`,
           task: plannerPrompt,
           detailFormat: "adaptive" as const,
-          aimContract: reviewContract(floorDecisions(answeredQuestionCount))
+          aimContract: reviewContract(floorDecisions(answeredQuestionCount, this.limits))
         };
         const fingerprint = sourceFingerprint;
         const savedRecovery = resumeDelivery;
@@ -3048,7 +3065,7 @@ export class AimManualFlow {
             ? finalReview.stopReason
             : finalReview.decision === "ask_user"
               ? `Awaiting the user's answer to: ${finalReview.question}`
-              : researchTurn === AIM_MAX_RESEARCH_TURNS
+              : researchTurn === this.limits.maxResearchTurns
                 ? `Research-turn limit reached with an unresolved evidence gap: ${finalReview.rationale}`
                 : undefined;
         await this.persist(() =>
@@ -3069,7 +3086,7 @@ export class AimManualFlow {
         );
         if (finalReview.decision !== "research_more") break;
 
-        if (researchTurn === AIM_MAX_RESEARCH_TURNS) break;
+        if (researchTurn === this.limits.maxResearchTurns) break;
         resumeDelivery = undefined;
         sectionRecovery = undefined;
         const target = finalReview.researchTarget!;
@@ -3125,7 +3142,7 @@ export class AimManualFlow {
               summary: "",
               detail: `${contextBase.detail}\n\nExisting reports (context only):\n${beforeSearch.detail}`,
               task: followupTask,
-              researchMode: "research",
+              researchMode: this.researchMode(),
               researchDepth: "normal",
               aimIsolatedResearch: true
             },
@@ -3162,7 +3179,11 @@ export class AimManualFlow {
       if (!finalReview) throw new Error("AIM synthesis did not produce a validated Planner decision.");
       const reportDetail = aggregateReports().detail;
       const isQuestion = finalReview.decision === "ask_user";
-      const isPartial = finalReview.decision === "research_more";
+      const smokePublish =
+        finalReview.decision === "research_more" &&
+        this.limits.publishDeliveryAtBudget &&
+        this.deliveryRejections.has(finalReview);
+      const isPartial = finalReview.decision === "research_more" && !smokePublish;
       const lastReport = reports.at(-1);
       if (!lastReport) throw new Error("AIM cannot synthesize without persisted subtopic reports.");
       if (!synthesisDraftId) {
@@ -3200,8 +3221,9 @@ export class AimManualFlow {
               translate(language, "note.aim_pending_value_0", finalReview.researchTarget.expectedValue)
             ].join("\n\n")
           : "";
-      const detail =
-        isPartial || isQuestion
+      const detail = smokePublish
+        ? [translate(language, "note.aim_smoke_publication_0", finalReview.rationale), finalReview.detail].join("\n\n")
+        : isPartial || isQuestion
           ? [
               partialSection || translate(language, "note.aim_interim_result"),
               finalReview.detail,
@@ -3251,7 +3273,7 @@ export class AimManualFlow {
               : finalReview.summary,
             detail
           },
-          isPartial ? "partial" : "completed"
+          isPartial ? this.budgetExitStatus("research_more") : "completed"
         );
       });
       if (committed.status !== "committed") return { status: "stale", branchId };
@@ -3281,7 +3303,7 @@ export class AimManualFlow {
           throw new Error("Planner requested a user condition but no follow-up question was saved.");
         return { status: "waiting-user", branchId, result: committed, questionNodeId: question.node.id };
       }
-      return isPartial
+      return isPartial && this.budgetExitStatus("research_more") === "partial"
         ? { status: "partial", branchId, result: committed }
         : { status: "completed", branchId, result: committed };
     } catch (error) {

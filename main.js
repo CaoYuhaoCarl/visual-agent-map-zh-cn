@@ -1145,6 +1145,7 @@ var english = {
   "note.aim_partial_summary_0": "Partial research, follow-up still needed: {0}",
   "note.aim_followup_summary_0_1": "Follow-up: {0}: {1}",
   "note.aim_followup_heading_0": "## Follow-up: {0}",
+  "note.aim_smoke_publication_0": "> profile=smoke: published as the conclusion at the research budget although delivery acceptance asked for more research. This is smoke evidence, not a verified conclusion. Acceptance rejection reason: {0}",
   "note.aim_round_limit_0": "The research round limit was reached and an important evidence gap remains: {0}",
   "note.aim_partial_heading": "## Research status: partial, can continue",
   "note.aim_pending_target_0": "Still to research: {0}",
@@ -2263,6 +2264,7 @@ var traditionalChinese = {
   "note.aim_partial_summary_0": "\u90E8\u5206\u7814\u7A76\uFF0C\u4ECD\u5F85\u88DC\u67E5\uFF1A{0}",
   "note.aim_followup_summary_0_1": "\u88DC\u67E5\uFF1A{0}: {1}",
   "note.aim_followup_heading_0": "## \u88DC\u67E5\uFF1A{0}",
+  "note.aim_smoke_publication_0": "> profile=smoke\uFF1A\u7814\u7A76\u9810\u7B97\u7528\u76E1\uFF0C\u4EA4\u4ED8\u9A57\u6536\u4ECD\u8981\u6C42\u88DC\u67E5\uFF0C\u4F46\u4F9D smoke \u8A2D\u5B9A\u76F4\u63A5\u767C\u5E03\u70BA\u7D50\u8AD6\u3002\u9019\u662F smoke \u6E2C\u8A66\u8B49\u64DA\uFF0C\u4E0D\u662F\u5DF2\u9A57\u8B49\u7684\u7D50\u8AD6\u3002\u9A57\u6536\u9000\u56DE\u539F\u56E0\uFF1A{0}",
   "note.aim_round_limit_0": "\u7814\u7A76\u8F2A\u6578\u5DF2\u9054\u4E0A\u9650\uFF0C\u4ECD\u6709\u91CD\u8981\u8B49\u64DA\u7F3A\u53E3\uFF1A{0}",
   "note.aim_partial_heading": "## \u7814\u7A76\u72C0\u614B\uFF1A\u90E8\u5206\u5B8C\u6210\uFF0C\u53EF\u7E7C\u7E8C\u7814\u7A76",
   "note.aim_pending_target_0": "\u5C1A\u5F85\u88DC\u67E5\uFF1A{0}",
@@ -12792,7 +12794,7 @@ async function buildFinalDelivery(base, ask, options = {}) {
       task: `<!-- aim-phase: ${phase} -->
 ${task}`,
       ...research2 ? { aimIsolatedResearch: true } : {},
-      researchMode: research2 ? "research" : "local",
+      researchMode: research2 && options.webSearch !== false ? "research" : "local",
       researchDepth: research2 ? "normal" : "fast",
       detailFormat: "adaptive"
     });
@@ -13097,6 +13099,19 @@ function buildPreparedTaskContext(input, model, budget = 32e3, provider = "codex
     }
   };
 }
+
+// experiences/aim/flow-limits.ts
+var DEFAULT_AIM_FLOW_LIMITS = Object.freeze({
+  minAnsweredBeforeConclusion: 3,
+  maxResearchTurns: 2,
+  researchParallelism: 2,
+  webSearch: true,
+  acceptGapAtBudget: false,
+  publishDeliveryAtBudget: false
+});
+var ACTIVE_AIM_FLOW_LIMITS = DEFAULT_AIM_FLOW_LIMITS;
+var announceTestOverrides = (_notify) => {
+};
 
 // ai/aim-contracts.ts
 var AIM_NO_QUESTION = "__AIM_NO_QUESTION__";
@@ -13405,7 +13420,7 @@ var CLARIFICATION_REQUIRED_RATIONALE = renderTemplate(default_rationale_default,
 var clarificationRequiredRationale = (language2) => language2 === "zh-TW" ? renderTemplate(default_rationale_zh_default, {}) : CLARIFICATION_REQUIRED_RATIONALE;
 
 // experiences/aim/planner-review.ts
-var AIM_MAX_RESEARCH_TURNS = 2;
+var AIM_MAX_RESEARCH_TURNS = DEFAULT_AIM_FLOW_LIMITS.maxResearchTurns;
 var errorText = (error) => error instanceof Error ? error.message : String(error);
 var marker3 = /^\s*<!--\s*aim-review\s+(\{[^\n]*\})\s*-->\s*/;
 function readMarker(detail) {
@@ -13782,11 +13797,11 @@ function abortError() {
   error.name = "AbortError";
   return error;
 }
-async function scheduleAimResearch(plan, execute, signal) {
-  var _a;
+async function scheduleAimResearch(plan, execute, signal, options = {}) {
+  var _a, _b;
   validateAimResearchPlan(plan);
   const parallel = plan.every((item) => Array.isArray(item.dependsOn));
-  const limit = parallel ? 2 : 1;
+  const limit = parallel ? Math.max(1, (_a = options.parallelism) != null ? _a : DEFAULT_AIM_FLOW_LIMITS.researchParallelism) : 1;
   const controller = new AbortController();
   const abort = () => controller.abort();
   signal == null ? void 0 : signal.addEventListener("abort", abort, { once: true });
@@ -13803,7 +13818,7 @@ async function scheduleAimResearch(plan, execute, signal) {
         });
         if (index === -1) break;
         const target = pending.splice(index, 1)[0];
-        const predecessors = new Map(((_a = target.dependsOn) != null ? _a : []).map((id) => [id, completed.get(id)]));
+        const predecessors = new Map(((_b = target.dependsOn) != null ? _b : []).map((id) => [id, completed.get(id)]));
         const task = Promise.resolve().then(() => {
           if (controller.signal.aborted) throw abortError();
           return execute(target, predecessors, controller.signal);
@@ -13906,13 +13921,13 @@ function renderPartialContinuationReviewTask(vars) {
 
 // experiences/aim/manual-flow-support.ts
 var AIM_UNKNOWN_OPTION_ID = "__aim_unknown__";
-var MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION = 3;
+var MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION = DEFAULT_AIM_FLOW_LIMITS.minAnsweredBeforeConclusion;
 var ALL_DECISIONS = ["research_more", "ask_user", "conclude"];
 var reviewContract = (decisions) => ({
   kind: "review",
   decisions
 });
-var floorDecisions = (answeredQuestionCount) => answeredQuestionCount < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION ? ["research_more", "ask_user"] : ALL_DECISIONS;
+var floorDecisions = (answeredQuestionCount, limits = DEFAULT_AIM_FLOW_LIMITS) => answeredQuestionCount < limits.minAnsweredBeforeConclusion ? ["research_more", "ask_user"] : ALL_DECISIONS;
 function phaseTask(phase, task) {
   return `<!-- aim-phase: ${phase} -->
 ${task}`;
@@ -14280,14 +14295,25 @@ function noteStopReason(language2, review, recorded, fallback) {
   return recorded;
 }
 var _AimManualFlow = class _AimManualFlow {
-  constructor(repository, runs, askModel, id = import_node_crypto7.randomUUID, persist = (operation) => operation()) {
+  constructor(repository, runs, askModel, id = import_node_crypto7.randomUUID, persist = (operation) => operation(), limits = ACTIVE_AIM_FLOW_LIMITS) {
     this.repository = repository;
     this.runs = runs;
     this.askModel = askModel;
     this.id = id;
     this.persist = persist;
+    this.limits = limits;
     __publicField(this, "evidenceReports", /* @__PURE__ */ new Map());
     __publicField(this, "answerRuns", /* @__PURE__ */ new Map());
+    /** Reviews whose research_more came from final delivery acceptance rather than from the Planner's report review. */
+    __publicField(this, "deliveryRejections", /* @__PURE__ */ new WeakSet());
+  }
+  /** Research phases use provider web search unless a test turned it off. */
+  researchMode() {
+    return this.limits.webSearch ? "research" : "local";
+  }
+  /** The only exit acceptGapAtBudget changes: a research_more left at the last turn is saved partial unless accepted. */
+  budgetExitStatus(decision) {
+    return decision === "research_more" && !this.limits.acceptGapAtBudget ? "partial" : "completed";
   }
   /** Content language of the map as read now; never cached on the flow, so a UI language switch cannot change it. */
   languageOf(map) {
@@ -14597,14 +14623,14 @@ ${note.detail}`;
         return question.trim().toLocaleLowerCase() === ((_a2 = reviewed.question) == null ? void 0 : _a2.trim().toLocaleLowerCase());
       }
     );
-    const belowFloor = context.answeredQuestionCount < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION;
+    const belowFloor = context.answeredQuestionCount < this.limits.minAnsweredBeforeConclusion;
     const researchesAnsweredGoal = belowFloor && reviewed.decision === "research_more" && reviewed.goalAnswered === true;
     if (belowFloor && reviewed.decision === "conclude" || researchesAnsweredGoal || reviewed.decision === "ask_user" && repeatsKnownQuestion) {
       throwIfAborted(signal);
       const correctionTask = renderBelowFloorReviewTask({
         userQuestionRule: USER_QUESTION_RULE,
         answeredQuestionCount: context.answeredQuestionCount,
-        minimumAnswers: MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION,
+        minimumAnswers: this.limits.minAnsweredBeforeConclusion,
         goal: context.goal,
         goalDetail: context.goalDetail,
         conditions: context.conditions,
@@ -14640,7 +14666,7 @@ ${note.detail}`;
             context.outputLanguage,
             "note.aim_below_floor_rationale_0_1",
             context.answeredQuestionCount,
-            MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION
+            this.limits.minAnsweredBeforeConclusion
           )
         },
         correctionContext,
@@ -14732,6 +14758,7 @@ ${context.reportDetail}`
         {
           checkpoint,
           timeoutMs: context.timeoutMs,
+          webSearch: this.limits.webSearch,
           evidence: context.deliveryEvidence,
           knownConditions: JSON.stringify({
             goal: context.goal,
@@ -14776,6 +14803,7 @@ ${delivery.evidence}` },
         throw new Error(
           "Final delivery review must complete the document or identify a research gap, not restart user clarification."
         );
+      if (final.decision === "research_more") this.deliveryRejections.add(final);
       reviewed = final;
     }
     if (reviewed.decision === "research_more") {
@@ -14908,7 +14936,7 @@ ${delivery.evidence}` },
       task: "",
       ancestors: lineage.context,
       mode: "task",
-      researchMode: "research",
+      researchMode: this.researchMode(),
       researchDepth: "normal",
       visualMode: "off",
       detailFormat: "adaptive"
@@ -14921,7 +14949,7 @@ ${delivery.evidence}` },
       () => this.runs.startAttempt(mapPath, branch.id, run.id, {
         model,
         reasoning,
-        maxResearchTurns: AIM_MAX_RESEARCH_TURNS
+        maxResearchTurns: this.limits.maxResearchTurns
       })
     );
     if (!handle.dispatch) return { status: "in-progress", branchId: branch.id };
@@ -14964,7 +14992,7 @@ ${report.detail}`).join("\n\n")
           floorAskRule: FLOOR_ASK_RULE,
           userQuestionRule: USER_QUESTION_RULE,
           answeredQuestionCount,
-          minimumAnswers: MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION,
+          minimumAnswers: this.limits.minAnsweredBeforeConclusion,
           explorationTarget,
           goal: topic.title,
           question: parent.summary,
@@ -14995,7 +15023,7 @@ Branch conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
           researchDepth: "fast",
           visualMode: "off",
           detailFormat: "adaptive",
-          aimContract: reviewContract(floorDecisions(answeredQuestionCount)),
+          aimContract: reviewContract(floorDecisions(answeredQuestionCount, this.limits)),
           signal
         };
         const planner = await this.askAimModel(plannerContext, model, reasoning, signal);
@@ -15042,7 +15070,7 @@ Branch conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
           signal
         );
         throwIfAborted(signal);
-        if (finalReview.decision !== "research_more" || reviewTurn === AIM_MAX_RESEARCH_TURNS) {
+        if (finalReview.decision !== "research_more" || reviewTurn === this.limits.maxResearchTurns) {
           const stopReason2 = finalReview.decision === "conclude" ? finalReview.stopReason : finalReview.decision === "ask_user" ? `Awaiting the user's answer to: ${finalReview.question}` : `One bounded follow-up was used; a material gap remains: ${finalReview.rationale}`;
           await this.persist(
             () => this.runs.recordPlannerReview(
@@ -15094,7 +15122,7 @@ ${topic.detail}
 Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
             outputLanguage: language2,
             mode: "task",
-            researchMode: "research",
+            researchMode: this.researchMode(),
             researchDepth: "normal",
             visualMode: "off",
             aimIsolatedResearch: true,
@@ -15149,7 +15177,7 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
           handle,
           draft.id,
           { summary: finalReview.summary, detail },
-          finalReview.decision === "research_more" ? "partial" : "completed"
+          this.budgetExitStatus(finalReview.decision)
         );
       });
       if (committed.status !== "committed") return { status: "stale", branchId: branch.id };
@@ -15179,7 +15207,7 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
           questionNodeId: questionResult.node.id
         };
       }
-      return finalReview.decision === "research_more" ? { status: "partial", branchId: branch.id, result: { ...committed, resultStatus: "partial" } } : { status: "completed", branchId: branch.id, result: committed };
+      return this.budgetExitStatus(finalReview.decision) === "partial" ? { status: "partial", branchId: branch.id, result: { ...committed, resultStatus: "partial" } } : { status: "completed", branchId: branch.id, result: committed };
     } catch (error) {
       try {
         if (signal == null ? void 0 : signal.aborted)
@@ -15263,7 +15291,7 @@ ${runId}`, fingerprint2 = JSON.stringify({ model, reasoning });
       task: "",
       ancestors: lineage.context,
       mode: "task",
-      researchMode: "research",
+      researchMode: this.researchMode(),
       researchDepth: "normal",
       visualMode: "off",
       detailFormat: "adaptive"
@@ -15276,7 +15304,7 @@ ${runId}`, fingerprint2 = JSON.stringify({ model, reasoning });
       () => this.runs.startAttempt(mapPath, branch.id, run.id, {
         model: modelToUse,
         reasoning: reasoningToUse,
-        maxResearchTurns: AIM_MAX_RESEARCH_TURNS
+        maxResearchTurns: this.limits.maxResearchTurns
       })
     );
     if (!handle.dispatch) return { status: "in-progress", branchId: branch.id };
@@ -15357,7 +15385,7 @@ ${runId}`, fingerprint2 = JSON.stringify({ model, reasoning });
             return { status: "stale", branchId: branch.id };
         } else preclassifiedResearchTarget = priorDecision.researchTarget;
       }
-      for (let researchTurn = 1; !review && researchTurn <= AIM_MAX_RESEARCH_TURNS; researchTurn++) {
+      for (let researchTurn = 1; !review && researchTurn <= this.limits.maxResearchTurns; researchTurn++) {
         throwIfAborted(signal);
         await this.persist(() => this.runs.recordResearchTurn(mapPath, handle));
         const { diagnostic, onEvent } = createSearchDiagnostic(researchTurn);
@@ -15395,7 +15423,7 @@ ${lineage.context}
 Persisted answer branch conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
               outputLanguage: language2,
               mode: "task",
-              researchMode: "research",
+              researchMode: this.researchMode(),
               researchDepth: "normal",
               visualMode: "off",
               detailFormat: "adaptive",
@@ -15447,7 +15475,7 @@ ${searcher.detail}`
           floorAskRule: FLOOR_ASK_RULE,
           userQuestionRule: USER_QUESTION_RULE,
           answeredQuestionCount,
-          minimumAnswers: MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION,
+          minimumAnswers: this.limits.minAnsweredBeforeConclusion,
           explorationTarget,
           questionsAlreadyAsked,
           goal: topicNote.title,
@@ -15479,7 +15507,7 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
           researchDepth: "fast",
           visualMode: "off",
           detailFormat: "adaptive",
-          aimContract: reviewContract(floorDecisions(answeredQuestionCount)),
+          aimContract: reviewContract(floorDecisions(answeredQuestionCount, this.limits)),
           signal
         };
         const planner = await this.askAimModel(plannerContext, modelToUse, reasoningToUse, signal);
@@ -15521,7 +15549,7 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
         );
         throwIfAborted(signal);
         latestReview = { rationale: review.rationale, researchTarget: review.researchTarget };
-        if (review.decision === "research_more" && researchTurn < AIM_MAX_RESEARCH_TURNS) {
+        if (review.decision === "research_more" && researchTurn < this.limits.maxResearchTurns) {
           await this.persist(
             () => this.runs.recordPlannerReview(mapPath, handle, {
               decision: review.decision,
@@ -15590,7 +15618,7 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
             summary: finalReview.decision === "research_more" ? translate(language2, "note.aim_partial_summary_0", finalReview.summary) : finalReview.summary,
             detail
           },
-          finalReview.decision === "research_more" ? "partial" : "completed"
+          this.budgetExitStatus(finalReview.decision)
         );
       });
       if (committed.status !== "committed") return { status: "stale", branchId: branch.id };
@@ -15616,7 +15644,7 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
           throw new Error("Continuation requested user input but no question was saved.");
         return { status: "waiting-user", branchId: branch.id, result: committed, questionNodeId: question.node.id };
       }
-      return review.decision === "research_more" ? { status: "partial", branchId: branch.id, result: committed } : { status: "completed", branchId: branch.id, result: committed };
+      return this.budgetExitStatus(review.decision) === "partial" ? { status: "partial", branchId: branch.id, result: committed } : { status: "completed", branchId: branch.id, result: committed };
     } catch (error) {
       try {
         if (signal == null ? void 0 : signal.aborted)
@@ -15794,7 +15822,7 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
     const motherGoal = motherNode && motherNode.id !== parentNode.id ? { title: mother.title, detail: mother.detail } : void 0;
     const questionVars = {
       userQuestionRule: USER_QUESTION_RULE,
-      minimumAnswers: MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION,
+      minimumAnswers: this.limits.minAnsweredBeforeConclusion,
       answeredQuestionCount,
       explorationTarget,
       currentTopic: { title: parent.title, summary: parent.summary, detail: parent.detail },
@@ -15802,7 +15830,7 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
       lineage: lineage.context
     };
     const prompt = isSavedTerminalResult ? renderSavedTerminalQuestionTask({ ...questionVars, savedConditions, knownQuestions }) : renderInitialQuestionTask(questionVars);
-    const requireQuestion = isSavedTerminalResult || answeredQuestionCount < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION;
+    const requireQuestion = isSavedTerminalResult || answeredQuestionCount < this.limits.minAnsweredBeforeConclusion;
     const context = {
       aimEvidenceIds: this.lineageEvidenceIds(map, parentBranchId),
       title: parent.title,
@@ -15826,11 +15854,11 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
       throw new Error(
         "Planner must create a new question from this saved result; no conclusion or no-question response is allowed."
       );
-    if (!isSavedTerminalResult && result.summary.trim() === AIM_NO_QUESTION && answeredQuestionCount < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION) {
+    if (!isSavedTerminalResult && result.summary.trim() === AIM_NO_QUESTION && answeredQuestionCount < this.limits.minAnsweredBeforeConclusion) {
       const previousQuestions = await this.questionHistory(map, parentBranchId);
       const correctionPrompt = renderQuestionCorrectionTask({
         answeredQuestionCount,
-        minimumAnswers: MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION,
+        minimumAnswers: this.limits.minAnsweredBeforeConclusion,
         originalTopic: { title: parent.title, summary: parent.summary, detail: parent.detail },
         mother: motherGoal,
         previousQuestions,
@@ -15858,7 +15886,7 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
       throw new Error(
         "Planner repeated an existing question instead of creating a new question from the saved result."
       );
-    if (!isSavedTerminalResult && answeredQuestionCount < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION) {
+    if (!isSavedTerminalResult && answeredQuestionCount < this.limits.minAnsweredBeforeConclusion) {
       if (priorQuestions.some(
         (question) => question.trim().toLocaleLowerCase() === result.summary.trim().toLocaleLowerCase()
       ))
@@ -16506,7 +16534,7 @@ Planner format diagnostic: ${JSON.stringify({ initial: { detail: planned.detail.
               subtopicId: target.id,
               model,
               reasoning: effectiveReasoningLevel(
-                { ...contextBase, researchMode: "research", researchDepth: "normal" },
+                { ...contextBase, researchMode: this.researchMode(), researchDepth: "normal" },
                 normalizeReasoningLevel(reasoning)
               ),
               maxResearchTurns: 1
@@ -16583,7 +16611,7 @@ ${dependencyReports}` : "")
                 {
                   ...contextBase,
                   task,
-                  researchMode: "research",
+                  researchMode: this.researchMode(),
                   researchDepth: "normal",
                   aimIsolatedResearch: true,
                   signal: taskSignal
@@ -16645,7 +16673,8 @@ ${dependencyReports}` : "")
             this.runs.releaseAttempt(mapPath, handle);
           }
         },
-        signal
+        signal,
+        { parallelism: this.limits.researchParallelism }
       );
     } catch (error) {
       if (error instanceof ResearchWorkflowInterrupted) return { status: error.status, branchId };
@@ -16680,7 +16709,7 @@ ${dependencyReports}` : "")
         phase: "report-review",
         model,
         reasoning: synthesisReasoning,
-        maxResearchTurns: AIM_MAX_RESEARCH_TURNS
+        maxResearchTurns: this.limits.maxResearchTurns
       })
     );
     if (!synthesisHandle.dispatch) return { status: "in-progress", branchId };
@@ -16771,7 +16800,7 @@ ${item.detail}`
       let finalReview;
       const resumeTurn = (_h = resumeDelivery == null ? void 0 : resumeDelivery.researchTurn) != null ? _h : 1;
       if (resumeTurn === 2) await this.persist(() => this.runs.recordResearchTurn(mapPath, synthesisHandle));
-      for (let researchTurn = resumeTurn; researchTurn <= AIM_MAX_RESEARCH_TURNS; researchTurn++) {
+      for (let researchTurn = resumeTurn; researchTurn <= this.limits.maxResearchTurns; researchTurn++) {
         throwIfAborted(signal);
         const currentReports = aggregateReports();
         const plannerPrompt = renderReportReviewTask({
@@ -16779,13 +16808,13 @@ ${item.detail}`
           userQuestionRule: USER_QUESTION_RULE,
           floorAskRule: FLOOR_ASK_RULE,
           answeredQuestionCount,
-          minimumAnswers: MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION,
+          minimumAnswers: this.limits.minAnsweredBeforeConclusion,
           explorationTarget,
           questionsAlreadyAsked,
           currentQuestion: parent.summary,
           currentAnswer: answerDescription,
           researchTurn,
-          maxResearchTurns: AIM_MAX_RESEARCH_TURNS
+          maxResearchTurns: this.limits.maxResearchTurns
         });
         const plannerContext = {
           ...contextBase,
@@ -16798,7 +16827,7 @@ ${currentReports.summary}
 ${currentReports.detail}`,
           task: plannerPrompt,
           detailFormat: "adaptive",
-          aimContract: reviewContract(floorDecisions(answeredQuestionCount))
+          aimContract: reviewContract(floorDecisions(answeredQuestionCount, this.limits))
         };
         const fingerprint2 = sourceFingerprint;
         const savedRecovery = resumeDelivery;
@@ -16856,7 +16885,7 @@ ${currentReports.detail}`,
           signal
         );
         throwIfAborted(signal);
-        const reviewStopReason = finalReview.decision === "conclude" ? finalReview.stopReason : finalReview.decision === "ask_user" ? `Awaiting the user's answer to: ${finalReview.question}` : researchTurn === AIM_MAX_RESEARCH_TURNS ? `Research-turn limit reached with an unresolved evidence gap: ${finalReview.rationale}` : void 0;
+        const reviewStopReason = finalReview.decision === "conclude" ? finalReview.stopReason : finalReview.decision === "ask_user" ? `Awaiting the user's answer to: ${finalReview.question}` : researchTurn === this.limits.maxResearchTurns ? `Research-turn limit reached with an unresolved evidence gap: ${finalReview.rationale}` : void 0;
         await this.persist(
           () => this.runs.recordPlannerReview(
             mapPath,
@@ -16872,7 +16901,7 @@ ${currentReports.detail}`,
           )
         );
         if (finalReview.decision !== "research_more") break;
-        if (researchTurn === AIM_MAX_RESEARCH_TURNS) break;
+        if (researchTurn === this.limits.maxResearchTurns) break;
         resumeDelivery = void 0;
         sectionRecovery = void 0;
         const target = finalReview.researchTarget;
@@ -16929,7 +16958,7 @@ ${currentReports.detail}`,
 Existing reports (context only):
 ${beforeSearch.detail}`,
               task: followupTask,
-              researchMode: "research",
+              researchMode: this.researchMode(),
               researchDepth: "normal",
               aimIsolatedResearch: true
             },
@@ -16964,7 +16993,8 @@ ${beforeSearch.detail}`,
       if (!finalReview) throw new Error("AIM synthesis did not produce a validated Planner decision.");
       const reportDetail = aggregateReports().detail;
       const isQuestion = finalReview.decision === "ask_user";
-      const isPartial = finalReview.decision === "research_more";
+      const smokePublish = finalReview.decision === "research_more" && this.limits.publishDeliveryAtBudget && this.deliveryRejections.has(finalReview);
+      const isPartial = finalReview.decision === "research_more" && !smokePublish;
       const lastReport = reports.at(-1);
       if (!lastReport) throw new Error("AIM cannot synthesize without persisted subtopic reports.");
       if (!synthesisDraftId) {
@@ -16995,7 +17025,7 @@ ${beforeSearch.detail}`,
         translate(language2, "note.aim_pending_task_0", finalReview.researchTarget.task),
         translate(language2, "note.aim_pending_value_0", finalReview.researchTarget.expectedValue)
       ].join("\n\n") : "";
-      const detail = isPartial || isQuestion ? [
+      const detail = smokePublish ? [translate(language2, "note.aim_smoke_publication_0", finalReview.rationale), finalReview.detail].join("\n\n") : isPartial || isQuestion ? [
         partialSection || translate(language2, "note.aim_interim_result"),
         finalReview.detail,
         translate(language2, "note.aim_rationale_0", finalReview.rationale),
@@ -17035,7 +17065,7 @@ ${beforeSearch.detail}`,
             summary: isPartial ? translate(language2, "note.aim_partial_summary_0", finalReview.summary) : finalReview.summary,
             detail
           },
-          isPartial ? "partial" : "completed"
+          isPartial ? this.budgetExitStatus("research_more") : "completed"
         );
       });
       if (committed.status !== "committed") return { status: "stale", branchId };
@@ -17062,7 +17092,7 @@ ${beforeSearch.detail}`,
           throw new Error("Planner requested a user condition but no follow-up question was saved.");
         return { status: "waiting-user", branchId, result: committed, questionNodeId: question.node.id };
       }
-      return isPartial ? { status: "partial", branchId, result: committed } : { status: "completed", branchId, result: committed };
+      return isPartial && this.budgetExitStatus("research_more") === "partial" ? { status: "partial", branchId, result: committed } : { status: "completed", branchId, result: committed };
     } catch (error) {
       try {
         if (signal == null ? void 0 : signal.aborted)
@@ -28360,6 +28390,7 @@ var VisualAgentMapPlugin = class extends import_obsidian20.Plugin {
   }
   async onload() {
     var _a, _b;
+    announceTestOverrides((message) => new import_obsidian20.Notice(message, 0));
     const saved = await this.loadData();
     const legacy = saved;
     this.settings = {

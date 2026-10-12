@@ -4,6 +4,8 @@ const required = ["main.js", "manifest.json", "styles.css"];
 for (const path of ["README.md", "LICENSE"]) if (!existsSync(path)) throw new Error(`Missing distribution document: ${path}`);
 for (const path of required) if (!existsSync(path)) throw new Error(`Missing release artifact: ${path}`);
 if (!existsSync("response-schema.json")) throw new Error("Missing response-schema.json source.");
+const productionBundle = readFileSync("main.js", "utf8");
+for (const smokeMarker of ["VAM_SMOKE_PROFILE_ACTIVE", "Test overrides active", "flow-limits.smoke"]) if (productionBundle.includes(smokeMarker)) throw new Error(`Production main.js contains the smoke test marker "${smokeMarker}".`);
 if (!readFileSync("main.js", "utf8").includes("https://json-schema.org/draft/2020-12/schema")) throw new Error("main.js does not contain the embedded response schema.");
 
 const manifest = JSON.parse(readFileSync("manifest.json", "utf8"));

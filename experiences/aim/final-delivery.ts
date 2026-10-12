@@ -87,6 +87,8 @@ const deliveryContracts: Partial<Record<FinalDeliveryPhase, AimContract>> = {
 export interface FinalDeliveryOptions {
   onPhase?: (phase: FinalDeliveryPhase) => void | Promise<void>;
   timeoutMs?: number;
+  /** Test-only: false runs the research phase without provider web search. Production leaves it unset. */
+  webSearch?: boolean;
   checkpoint?: FinalDeliveryCheckpoint;
   /** Persisted source reports; hashes identify content changes, not verification. */
   evidence?: readonly DeliveryEvidence[];
@@ -208,7 +210,7 @@ export async function buildFinalDelivery(
       ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
       task: `<!-- aim-phase: ${phase} -->\n${task}`,
       ...(research ? { aimIsolatedResearch: true } : {}),
-      researchMode: research ? "research" : "local",
+      researchMode: research && options.webSearch !== false ? "research" : "local",
       researchDepth: research ? "normal" : "fast",
       detailFormat: "adaptive"
     });

@@ -1,4 +1,5 @@
 import type { AiResult } from "../../ai/types";
+import { DEFAULT_AIM_FLOW_LIMITS } from "./flow-limits";
 import {
   clarificationRequiredRationale,
   renderGeneralRepair,
@@ -7,7 +8,7 @@ import {
   renderStateQuestionRepair
 } from "./steps/format-repair/step";
 
-export const AIM_MAX_RESEARCH_TURNS = 2;
+export const AIM_MAX_RESEARCH_TURNS = DEFAULT_AIM_FLOW_LIMITS.maxResearchTurns;
 export type AimReviewDecision = "research_more" | "ask_user" | "conclude";
 export interface AimPlannerReview {
   decision: AimReviewDecision;

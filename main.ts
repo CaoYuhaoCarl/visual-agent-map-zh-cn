@@ -49,6 +49,7 @@ import { AiRuntimeService } from "./core/ai-runtime-service";
 import { ModelDiscovery, type ModelDiscoveryState } from "./core/model-discovery";
 import { ShallowExpansionCoordinator, type ExpansionBatchState } from "./experiences/visual-map/expansion-batch";
 import { AiTaskService } from "./core/ai-task-service";
+import { announceTestOverrides } from "./experiences/aim/flow-limits";
 import { ReframingService, providerReframeRunner } from "./core/reframing-service";
 import { receiveVisualMapHandoff } from "./experiences/visual-map/handoff";
 import { openCoffeeResearchHandoff } from "./experiences/coffee-tables/handoff-modal";
@@ -213,6 +214,7 @@ export default class VisualAgentMapPlugin extends Plugin {
     await this.app.workspace.revealLeaf(leaf);
   }
   async onload(): Promise<void> {
+    announceTestOverrides(message => new Notice(message, 0));
     const saved = (await this.loadData()) as Partial<Settings> | null;
     const legacy: (Partial<Settings> & { cliPath?: string }) | null = saved;
     this.settings = {

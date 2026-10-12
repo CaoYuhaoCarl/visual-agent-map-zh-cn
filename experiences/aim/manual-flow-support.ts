@@ -6,11 +6,12 @@ import { type CommitResult } from "./research-run-store";
 import type { CodexWebSearchEvent } from "../../ai/runtime/codex-app-server";
 import { AIM_NO_QUESTION, type AimContract, type AimDecision } from "../../ai/aim-contracts";
 import { parseAimPlannerReview } from "./planner-review";
+import { DEFAULT_AIM_FLOW_LIMITS, type AimFlowLimits } from "./flow-limits";
 import { validateAimResearchPlan, type AimResearchPlan, type AimResearchTarget } from "./research-plan";
 
 export const AIM_UNKNOWN_OPTION_ID = "__aim_unknown__";
 export { AIM_NO_QUESTION };
-export const MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION = 3;
+export const MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION = DEFAULT_AIM_FLOW_LIMITS.minAnsweredBeforeConclusion;
 export {
   PLANNER_COVERAGE_RULE,
   SEARCHER_TARGET_RULE,
@@ -26,8 +27,11 @@ export const reviewContract = (decisions: readonly AimDecision[]): AimContract =
   decisions
 });
 /** Below the answered-question floor the schema does not offer conclude, so the Planner cannot violate it. */
-export const floorDecisions = (answeredQuestionCount: number): readonly AimDecision[] =>
-  answeredQuestionCount < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION ? ["research_more", "ask_user"] : ALL_DECISIONS;
+export const floorDecisions = (
+  answeredQuestionCount: number,
+  limits: Pick<AimFlowLimits, "minAnsweredBeforeConclusion"> = DEFAULT_AIM_FLOW_LIMITS
+): readonly AimDecision[] =>
+  answeredQuestionCount < limits.minAnsweredBeforeConclusion ? ["research_more", "ask_user"] : ALL_DECISIONS;
 export function phaseTask(phase: string, task: string): string {
   return `<!-- aim-phase: ${phase} -->\n${task}`;
 }
