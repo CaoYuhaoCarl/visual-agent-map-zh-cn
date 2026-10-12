@@ -1172,6 +1172,12 @@ var english = {
   "log.claude_vam_context_only": "only VAM-provided content",
   "log.operation_failed_0": "Operation failed: {0}",
   "log.plugin_loaded_0": "Visual Agent Map {0} loaded",
+  "log.coffee_storage_cleanup_failed_0_1": "Coffee Tables storage: {0} ({1})",
+  "log.coffee_organize_skipped_0": "left {0} in place while organizing tables",
+  "log.coffee_trash_record_stale_0": "the deleted-table record {0} could not be updated and may not match the latest state",
+  "log.coffee_sidecar_kept_0": "the session data {0} was kept after deletion",
+  "log.coffee_folder_cleanup_failed_0": "empty topic folders under {0} were not cleaned up",
+  "log.coffee_restored_record_kept_0": "the restored table's record {0} could not be removed",
   "log.exchange_log_save_failed_0": "Saving the AI exchange log failed: {0}",
   "log.pending_suggestions_save_failed_0": "Saving pending suggestions failed: {0}",
   "log.initialization_incomplete_0": "Initialization incomplete: {0}",
@@ -2302,6 +2308,12 @@ var traditionalChinese = {
   "log.claude_vam_context_only": "\u50C5\u4F7F\u7528 VAM \u63D0\u4F9B\u7684\u5167\u5BB9",
   "log.operation_failed_0": "\u64CD\u4F5C\u5931\u6557\uFF1A{0}",
   "log.plugin_loaded_0": "Visual Agent Map {0} \u8F09\u5165",
+  "log.coffee_storage_cleanup_failed_0_1": "Coffee Tables \u5132\u5B58\uFF1A{0}\uFF08{1}\uFF09",
+  "log.coffee_organize_skipped_0": "\u6574\u7406\u5C0D\u8AC7\u6642\u4FDD\u7559 {0} \u539F\u4F4D",
+  "log.coffee_trash_record_stale_0": "\u5DF2\u522A\u9664\u5C0D\u8AC7\u7684\u7D00\u9304 {0} \u7121\u6CD5\u66F4\u65B0\uFF0C\u53EF\u80FD\u4E0D\u662F\u6700\u65B0\u72C0\u614B",
+  "log.coffee_sidecar_kept_0": "\u522A\u9664\u5F8C\u4FDD\u7559\u4E86\u5C0D\u8AC7\u8CC7\u6599 {0}",
+  "log.coffee_folder_cleanup_failed_0": "\u672A\u80FD\u6E05\u7406 {0} \u4E0B\u7684\u7A7A\u4E3B\u984C\u8CC7\u6599\u593E",
+  "log.coffee_restored_record_kept_0": "\u5DF2\u9084\u539F\u5C0D\u8AC7\u7684\u7D00\u9304 {0} \u7121\u6CD5\u79FB\u9664",
   "log.exchange_log_save_failed_0": "AI \u5F80\u8FD4\u7D00\u9304\u5132\u5B58\u5931\u6557\uFF1A{0}",
   "log.pending_suggestions_save_failed_0": "\u5F85\u78BA\u8A8D\u5EFA\u8B70\u5132\u5B58\u5931\u6557\uFF1A{0}",
   "log.initialization_incomplete_0": "\u521D\u59CB\u5316\u672A\u5B8C\u6210\uFF1A{0}",
@@ -5225,10 +5237,11 @@ function conversationBoundary(raw) {
   throw new Error("Coffee Tables Markdown is missing its conversation section");
 }
 var CoffeeStorage = class {
-  constructor(vault, workspace, renameFile, trashFile) {
+  constructor(vault, workspace, renameFile, trashFile, onWarning = () => void 0) {
     this.vault = vault;
     this.renameFile = renameFile;
     this.trashFile = trashFile;
+    this.onWarning = onWarning;
     __publicField(this, "originals", /* @__PURE__ */ new Map());
     __publicField(this, "sidecarOriginals", /* @__PURE__ */ new Map());
     __publicField(this, "locations", /* @__PURE__ */ new Map());
@@ -5240,6 +5253,11 @@ var CoffeeStorage = class {
     __publicField(this, "hidden");
     this.folder = (0, import_obsidian3.normalizePath)(`${workspace}/Coffee Tables`);
     this.hidden = (0, import_obsidian3.normalizePath)(`${this.folder}/.sessions`);
+  }
+  warn(message, error) {
+    this.onWarning(
+      t("log.coffee_storage_cleanup_failed_0_1", message, error instanceof Error ? error.message : String(error))
+    );
   }
   path(id, topic) {
     if (!/^[a-zA-Z0-9-]+$/.test(id)) throw new Error("Invalid session ID");
@@ -5852,7 +5870,7 @@ ${session.observerDraftMarkdown}`);
         return parseSession(raw);
       } catch (e) {
         throw new Error(
-          "This readable Markdown has no hidden session data. Keep it as a note; restore its .sessions file to continue the chat."
+          "This readable Markdown has no hidden session data. Keep it as a note; restore its .sessions file to continue the chat. Obsidian Sync does not sync the hidden Coffee Tables/.sessions folder, so a table started on another device can only be read here."
         );
       }
     }
@@ -5863,7 +5881,10 @@ ${session.observerDraftMarkdown}`);
       );
     const sessionLoaded = this.parseMarkdown(raw, side);
     const sidePath = this.sidecarPath(sessionLoaded.id);
-    if (!await this.vault.adapter.exists(sidePath)) throw new Error("Coffee Tables hidden session data is missing");
+    if (!await this.vault.adapter.exists(sidePath))
+      throw new Error(
+        "Coffee Tables hidden session data is missing. Obsidian Sync does not sync the hidden Coffee Tables/.sessions folder; continue this table on the device that started it."
+      );
     const sideRaw = await this.readHidden(sidePath), priorSidecar = this.sidecarOriginals.get(sessionLoaded.id);
     if (priorSidecar !== void 0 && priorSidecar !== sideRaw)
       throw new Error("Coffee Tables hidden data changed outside this room. Reload it before continuing.");
@@ -6185,7 +6206,8 @@ ${session.observerDraftMarkdown}`);
         if (side) await this.moveManagedFile(file, side.id, target);
         else await this.renameFile(file, target);
         moved++;
-      } catch (e) {
+      } catch (error) {
+        this.warn(t("log.coffee_organize_skipped_0", file.path), error);
         skipped++;
       }
     }
@@ -6268,27 +6290,33 @@ ${session.observerDraftMarkdown}`);
     }
     const staged = JSON.parse(await this.readHidden(bundlePath));
     staged.trashed = true;
-    await this.writeHidden(bundlePath, JSON.stringify(staged, null, 2), bundle).catch(() => void 0);
+    await this.writeHidden(bundlePath, JSON.stringify(staged, null, 2), bundle).catch(
+      (error) => this.warn(t("log.coffee_trash_record_stale_0", bundlePath), error)
+    );
     const latestSidecar = await this.vault.adapter.read(sidePath).catch(() => void 0);
     if (latestSidecar !== sideRaw) {
       const archived = JSON.parse(await this.readHidden(bundlePath));
       if (latestSidecar === void 0) delete archived.sidecar;
       else archived.sidecar = latestSidecar;
       const previousBundle = await this.readHidden(bundlePath);
-      await this.writeHidden(bundlePath, JSON.stringify(archived, null, 2), previousBundle).catch(() => void 0);
+      await this.writeHidden(bundlePath, JSON.stringify(archived, null, 2), previousBundle).catch(
+        (error) => this.warn(t("log.coffee_trash_record_stale_0", bundlePath), error)
+      );
     }
     if (sideRaw && latestSidecar === sideRaw)
       await this.vault.adapter.process(sidePath, (current) => {
         if (current !== sideRaw)
           throw new Error("Coffee Tables hidden data changed outside this room; deletion preserved it");
         return "";
-      }).catch(() => void 0);
+      }).catch((error) => this.warn(t("log.coffee_sidecar_kept_0", sidePath), error));
     this.originals.delete(safeId);
     this.sidecarOriginals.delete(safeId);
     this.locations.delete(safeId);
     this.revisions.delete(safeId);
     this.deletedIds.add(id);
-    await this.cleanupEmptyTopicFolders().catch(() => void 0);
+    await this.cleanupEmptyTopicFolders().catch(
+      (error) => this.warn(t("log.coffee_folder_cleanup_failed_0", this.folder), error)
+    );
     return bundlePath;
   }
   async deletedTables() {
@@ -6312,6 +6340,8 @@ ${session.observerDraftMarkdown}`);
   async restoreDeleted(bundlePath) {
     var _a;
     const bundleRaw = await this.readHidden(bundlePath), record = JSON.parse(bundleRaw);
+    if (record.restoredPath !== void 0)
+      throw new Error("This deleted Coffee Tables record was already restored; no file was changed");
     const originalPath = typeof record.originalPath === "string" ? record.originalPath : "";
     if (record.version !== 1 || record.trashed !== true && record.restoreJournal === void 0 && !!originalPath && !!this.vault.getAbstractFileByPath(originalPath) || typeof record.id !== "string" || typeof record.markdown !== "string")
       throw new Error("Deleted Coffee Tables record is incomplete; no file was changed");
@@ -6362,7 +6392,7 @@ ${session.observerDraftMarkdown}`);
     }
     const { restoreJournal: _journal, ...committed } = stagedRecord, completed = JSON.stringify({ ...committed, restoredPath: target }, null, 2);
     await this.writeHidden(bundlePath, completed, stagedRaw);
-    await this.vault.adapter.remove(bundlePath).catch(() => void 0);
+    await this.vault.adapter.remove(bundlePath).catch((error) => this.warn(t("log.coffee_restored_record_kept_0", bundlePath), error));
     this.deletedIds.delete(record.id);
     this.locations.set(record.id, target);
     this.originals.set(record.id, record.markdown);
@@ -26868,7 +26898,8 @@ var VisualAgentMapPlugin = class extends import_obsidian20.Plugin {
       this.app.vault,
       this.settings.workspaceFolder,
       (file, path) => this.app.fileManager.renameFile(file, path),
-      (file) => this.app.fileManager.trashFile(file)
+      (file) => this.app.fileManager.trashFile(file),
+      (message) => this.logs.appendLog("warn", message)
     );
     this.coffeeManager = new CoffeeManager(
       (request) => this.runCoffeeRequest(request),

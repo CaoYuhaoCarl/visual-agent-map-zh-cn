@@ -328,6 +328,31 @@ integrationTest('Coffee Tables deletion waits for a safe archive and restores Ma
   const interrupted = { ...coffeeSession(), id: 'coffee-delete-interrupted', topic: 'Interrupted trash metadata' }; await store.save(interrupted); const process = app.vault.adapter.process; let failedOnce = false; app.vault.adapter.process = async (path, fn) => { if (!failedOnce && path.includes('/.sessions/trash/')) { failedOnce = true; throw new Error('simulated archive status interruption'); } return process(path, fn); }; const interruptedRecord = await store.delete(interrupted.id); app.vault.adapter.process = process; assert.equal(JSON.parse(contents.get(interruptedRecord)).trashed, false); assert.equal((await store.deletedTables()).some(item => item.path === interruptedRecord), true); const interruptedPath = await store.restoreDeleted(interruptedRecord); assert.equal((await new CoffeeStorage(app.vault, 'Agent Workspace').load(interruptedPath)).id, interrupted.id);
   const partial = { ...coffeeSession(), id: 'coffee-restore-interrupted', topic: 'Interrupted restore' }; await store.save(partial); const partialRecord = await store.delete(partial.id); const processRestore = app.vault.adapter.process; let restoreFailed = false; app.vault.adapter.process = async (path, fn) => { if (!restoreFailed && path === store.sidecarPath(partial.id)) { restoreFailed = true; throw new Error('simulated sidecar restore interruption'); } return processRestore(path, fn); }; await assert.rejects(store.restoreDeleted(partialRecord), /simulated sidecar restore interruption/); app.vault.adapter.process = processRestore; const journal = JSON.parse(contents.get(partialRecord)).restoreJournal; assert.ok(journal.targetPath); const partialRestored = await store.restoreDeleted(partialRecord); assert.equal(partialRestored, journal.targetPath); assert.equal((await new CoffeeStorage(app.vault, 'Agent Workspace').load(partialRestored)).id, partial.id);
 });
+integrationTest('Coffee Tables reports swallowed storage cleanup failures to the debug log and never restores a completed record twice', async () => {
+  const { CoffeeStorage } = load('experiences/coffee-tables/storage.ts', { obsidian }); const { app, files, contents } = fixture(); app.vault.getFiles = () => [...files.values()].filter(file => file instanceof TFile);
+  app.vault.delete = async file => { files.delete(file.path); contents.delete(file.path); }; app.vault.adapter.remove = async path => { files.delete(path); contents.delete(path); };
+  const warnings = [], store = new CoffeeStorage(app.vault, 'Agent Workspace', (file, target) => app.fileManager.renameFile(file, target), async file => app.vault.delete(file), message => warnings.push(message));
+  const process = app.vault.adapter.process, remove = app.vault.adapter.remove;
+  const statusLost = { ...coffeeSession(), id: 'coffee-warn-status', topic: 'Lost trash status' }; await store.save(statusLost);
+  app.vault.adapter.process = async (path, fn) => { if (path.includes('/.sessions/trash/')) throw new Error('simulated trash status failure'); return process(path, fn); };
+  const statusRecord = await store.delete(statusLost.id); app.vault.adapter.process = process;
+  assert.ok(warnings.some(message => message.includes(statusRecord) && message.includes('simulated trash status failure')), warnings.join('\n'));
+  const sidecarKept = { ...coffeeSession(), id: 'coffee-warn-sidecar', topic: 'Kept sidecar' }; await store.save(sidecarKept); const keptSidePath = store.sidecarPath(sidecarKept.id);
+  app.vault.adapter.process = async (path, fn) => { if (path === keptSidePath) throw new Error('simulated sidecar removal failure'); return process(path, fn); };
+  await store.delete(sidecarKept.id); app.vault.adapter.process = process;
+  assert.ok(warnings.some(message => message.includes(keptSidePath) && message.includes('simulated sidecar removal failure')), warnings.join('\n'));
+  const restored = { ...coffeeSession(), id: 'coffee-warn-restore', topic: 'Restore cleanup' }; await store.save(restored); const restoreRecord = await store.delete(restored.id);
+  app.vault.adapter.remove = async path => { if (path === restoreRecord) throw new Error('simulated bundle removal failure'); return remove(path); };
+  await store.restoreDeleted(restoreRecord); app.vault.adapter.remove = remove;
+  assert.ok(warnings.some(message => message.includes(restoreRecord) && message.includes('simulated bundle removal failure')), warnings.join('\n'));
+  assert.equal((await store.deletedTables()).some(item => item.path === restoreRecord), false);
+  const markdownCount = [...files.keys()].filter(path => path.endsWith('.md')).length;
+  await assert.rejects(store.restoreDeleted(restoreRecord), /already restored/); assert.equal([...files.keys()].filter(path => path.endsWith('.md')).length, markdownCount);
+  const legacy = await app.vault.create(`${store.folder}/legacy-warn.md`, '# Legacy warning topic\n\nBody');
+  const organizer = new CoffeeStorage(app.vault, 'Agent Workspace', async () => { throw new Error('simulated rename failure'); }, undefined, message => warnings.push(message));
+  const organized = await organizer.organizeExisting(); assert.equal(organized.skipped, 1);
+  assert.ok(warnings.some(message => message.includes(legacy.path) && message.includes('simulated rename failure')), warnings.join('\n'));
+});
 integrationTest('Coffee Tables delete archives the latest hidden state if it changes during the trash callback', async () => {
   const { CoffeeStorage } = load('experiences/coffee-tables/storage.ts', { obsidian }); const { app, files, contents } = fixture(); app.vault.getFiles = () => [...files.values()].filter(file => file instanceof TFile); app.vault.adapter.remove = async path => { files.delete(path); contents.delete(path); };
   const session = coffeeSession(); session.status = 'completed'; const sidePath = `Agent Workspace/Coffee Tables/.sessions/${session.id}.json`; const store = new CoffeeStorage(app.vault, 'Agent Workspace', (file, target) => app.fileManager.renameFile(file, target), async file => { const side = JSON.parse(contents.get(sidePath)); side.updatedAt = '2026-09-30T12:00:00.000Z'; contents.set(sidePath, JSON.stringify(side, null, 2)); files.delete(file.path); contents.delete(file.path); }); await store.save(session);

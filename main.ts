@@ -330,7 +330,8 @@ export default class VisualAgentMapPlugin extends Plugin {
       this.app.vault,
       this.settings.workspaceFolder,
       (file, path) => this.app.fileManager.renameFile(file, path),
-      file => this.app.fileManager.trashFile(file)
+      file => this.app.fileManager.trashFile(file),
+      message => this.logs.appendLog("warn", message)
     );
     this.coffeeManager = new CoffeeManager(
       request => this.runCoffeeRequest(request),
