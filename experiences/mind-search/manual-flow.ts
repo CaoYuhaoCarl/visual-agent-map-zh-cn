@@ -526,6 +526,53 @@ export class MindSearchManualFlow {
           "MindSearch could not produce a compliant meaningful question below the conclusion floor; the result was not committed."
         );
     }
+    // At or above the floor, research on a goal the review itself marks answered only pads the run;
+    // one bounded no-search pass decides between concluding and asking the user instead.
+    if (!belowFloor && reviewed.decision === "research_more" && reviewed.goalAnswered === true) {
+      throwIfAborted(signal);
+      const correctionTask = [
+        "Correct the candidate decision before it can be saved. This is the single bounded corrective pass; do not search.",
+        "The candidate proposes more research but marks the goal as already answered by its own reports, so the research would not close a material evidence gap. Choose conclude when the reports support a complete answer under the known conditions, keeping remaining uncertainty explicit. Choose ask_user only when a genuinely unknown user condition would materially change the answer.",
+        USER_QUESTION_RULE,
+        "Include the useful conditional answer as the response body, and return the decision in the aim fields with an evidence-based aim.rationale. For conclude include aim.stopReason; for ask_user include one direct aim.question and 2–5 distinct choices in aim.answerOptions.",
+        `Original user goal: ${context.goal}\nGoal background: ${context.goalDetail}`,
+        `Known branch conditions (including free text): ${JSON.stringify(context.conditions)}\nCurrent question: ${context.currentQuestion}\nCurrent answer: ${context.currentAnswer}`,
+        `Earlier user questions in this path: ${JSON.stringify(context.questionHistory)}\nEarlier answers: ${uniqueLineage || "None."}`,
+        `Persisted research summary:\n${context.reportSummary}\n\nPersisted research reports:\n${context.reportDetail}`,
+        `Candidate to correct: ${JSON.stringify(reviewed)}`
+      ].join("\n\n");
+      const correctionContext: TaskContext = {
+        ...taskContext,
+        task: phaseTask("decision-quality-review", correctionTask),
+        mindSearchContract: reviewContract(["conclude", "ask_user"])
+      };
+      const correctedResult = await this.askMindSearchModel(correctionContext, model, reasoning, signal);
+      throwIfAborted(signal);
+      reviewed = await this.parsePlannerReviewWithRecovery(
+        correctedResult,
+        {
+          question: context.goal,
+          answerSnapshot: JSON.stringify({
+            conditions: context.conditions,
+            currentQuestion: context.currentQuestion,
+            currentAnswer: context.currentAnswer
+          }),
+          reportSummary: context.reportSummary,
+          reportDetail: context.reportDetail
+        },
+        correctionContext,
+        model,
+        reasoning,
+        signal
+      );
+      const repeatsQuestion = context.questionHistory.some(
+        question => question.trim().toLocaleLowerCase() === reviewed.question?.trim().toLocaleLowerCase()
+      );
+      if (reviewed.decision === "research_more" || repeatsQuestion)
+        throw new Error(
+          "MindSearch could not replace research on an already answered goal with a conclusion or a new question; the result was not committed."
+        );
+    }
     if (reviewed.decision === "conclude") {
       const deliveryContext: TaskContext = {
         ...taskContext,
