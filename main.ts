@@ -1112,6 +1112,10 @@ export default class VisualAgentMapPlugin extends Plugin {
         effort,
         topic: "Markdown selection",
         finish: "caller",
+        // A reply that arrives after the stop is refused before the provider logs it as received.
+        afterReply: () => {
+          if (controller.signal.aborted) throw new Error(t("ui.ai_task_cancelled"));
+        },
         onExchange: id => {
           exchangeId = id;
         },

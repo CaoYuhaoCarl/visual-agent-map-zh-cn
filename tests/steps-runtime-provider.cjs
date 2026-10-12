@@ -115,3 +115,10 @@ test('turning logging off during a call stops recording; logging off at the star
   assert.equal(await provider.complete(call({ onExchange: () => ids++ })), 'late reply');
   assert.equal(log.getEntries().length, 1); assert.equal(ids, 0);
 });
+
+test('afterReply can refuse a reply before it is logged as received', async () => {
+  const { log, provider } = fixture({ reply: 'late reply' });
+  await assert.rejects(provider.complete(call({ finish: 'caller', afterReply: () => { throw new Error('stopped'); } })), /stopped/);
+  const [entry] = log.getEntries();
+  assert.equal(entry.status, 'sent'); assert.equal(entry.response, '');
+});

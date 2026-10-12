@@ -101,6 +101,24 @@ integrationTest('turning exchange logging off during a task stops recording its 
     assert.equal(entry.status, 'sent');
   } finally { fs.rmSync(directory, { recursive: true, force: true }); }
 });
+integrationTest('a Markdown selection reply that arrives after Stop is logged as failed without being received', async () => {
+  const { Plugin, prepareStep, planStep } = load('tests/fixtures/entries/markdown-call.ts', { obsidian });
+  const { AiExchangeLog } = load('ai-exchange-log.ts');
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'vam-markdown-stop-'));
+  try {
+    const plugin = new Plugin(); plugin.app = { vault: { adapter: new obsidian.FileSystemAdapter() } }; plugin.manifest = { dir: '.obsidian/plugins/visual-agent-map' };
+    plugin.settings.aiExchangeLoggingEnabled = true;
+    plugin.exchanges = new AiExchangeLog(path.join(directory, 'exchanges.json'), error => assert.fail(String(error)));
+    const stop = new AbortController();
+    plugin.runtime = () => ({ runTask: async (_prompt, _model, _effort, _schema, controls) => { controls.onRequest({ input: 'sent prompt' }); stop.abort(); return 'late reply'; } });
+    const prepared = prepareStep(planStep, { instruction: 'Condense', selected: 'Selected text', context: '', hasImage: false });
+    await assert.rejects(plugin.runMarkdownContextAi(prepared, 'test-model', stop.signal));
+    await plugin.exchanges.flush();
+    const [entry] = plugin.exchanges.getEntries();
+    assert.equal(entry.step, 'markdown.plan@1'); assert.match(entry.request, /sent prompt/);
+    assert.equal(entry.response, ''); assert.equal(entry.status, 'failed');
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
 integrationTest('Prompt monitor preserves exact Claude prompts, phases and separate steering requests after reload', async () => {
   const { AiExchangeLog, promptMetrics } = load('ai-exchange-log.ts');
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'vam-prompt-monitor-'));

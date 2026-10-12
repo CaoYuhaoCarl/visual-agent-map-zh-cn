@@ -24380,7 +24380,8 @@ function runtimeStepProvider(options) {
         task = {},
         onExchange,
         finish = "completed",
-        requestLog = "request-and-prompt"
+        requestLog = "request-and-prompt",
+        afterReply
       } = call.controls;
       const started = options.exchanges();
       const exchanges = {
@@ -24426,6 +24427,7 @@ function runtimeStepProvider(options) {
           }
         };
         const raw = providerForModel(model) === "claude" ? await options.claude().runTask(call.prompt, providerModelId(model), effort, call.schema, controls) : await options.codex(options.localCodex === true).runTask(call.prompt, model, effort, call.schema, controls);
+        afterReply == null ? void 0 : afterReply();
         exchanges.received(id, raw);
         if (finish === "completed") exchanges.completed(id);
         return raw;
@@ -28382,6 +28384,10 @@ var VisualAgentMapPlugin = class extends import_obsidian20.Plugin {
         effort,
         topic: "Markdown selection",
         finish: "caller",
+        // A reply that arrives after the stop is refused before the provider logs it as received.
+        afterReply: () => {
+          if (controller.signal.aborted) throw new Error(t("ui.ai_task_cancelled"));
+        },
         onExchange: (id) => {
           exchangeId = id;
         },

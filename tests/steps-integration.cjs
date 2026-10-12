@@ -13,19 +13,43 @@ function sourceFiles(directory) {
   });
 }
 
-// Each listed file is a provider adapter or the runtime it wraps, not a prompt owner.
-const RUN_TASK_CALLERS = {
-  'core/runtime-step-provider.ts': 'shared StepProvider over the Claude and Codex runtimes',
-  'core/reframing-service.ts': 'runtime wrappers passed into runtimeStepProvider (stop check after the reply)',
-  'main.ts': 'runCoffeeRequest, the runtime behind experiences/coffee-tables/step-provider.ts'
-};
+// Every runtime.runTask call outside ai/runtime/ is a provider adapter (or the runtime behind one), pinned by
+// file, enclosing function and count so a new direct call anywhere fails this test.
+const RUN_TASK_CALLERS = [
+  { file: 'core/runtime-step-provider.ts', method: 'export function runtimeStepProvider(', count: 2, reason: 'shared StepProvider over the Claude and Codex runtimes' },
+  { file: 'core/reframing-service.ts', method: 'export function providerReframeRunner(', count: 2, reason: 'stop-checking runtime wrappers passed into runtimeStepProvider' },
+  { file: 'main.ts', method: 'async runCoffeeRequest(', count: 2, reason: 'the runtime behind experiences/coffee-tables/step-provider.ts' }
+];
+// The function containing `index`: the nearest preceding top-level function or two-space class member.
+function enclosingMethod(source, index) {
+  const before = source.slice(0, index).split('\n');
+  for (let line = before.length - 1; line >= 0; line--) if (/^(?:export )?(?:async )?function |^  (?:private |public |protected )?(?:async )?(?!(?:if|for|while|switch|return|catch|await|const|let)\b)[A-Za-z_$][\w$]*\s*[(<]/.test(before[line])) return before[line].trim();
+  return '';
+}
 
 test('only StepProvider adapters call runtime.runTask', () => {
-  const callers = sourceFiles(root)
-    .filter(file => /\.runTask\(/.test(fs.readFileSync(file, 'utf8')))
-    .map(file => path.relative(root, file).split(path.sep).join('/'))
-    .filter(file => !file.startsWith('ai/runtime/'));
-  assert.deepEqual(callers.sort(), Object.keys(RUN_TASK_CALLERS).sort());
+  const found = {};
+  for (const file of sourceFiles(root)) {
+    const relative = path.relative(root, file).split(path.sep).join('/');
+    if (relative.startsWith('ai/runtime/')) continue;
+    const source = fs.readFileSync(file, 'utf8');
+    for (const match of source.matchAll(/\.runTask\(/g)) {
+      const method = enclosingMethod(source, match.index);
+      const allowed = RUN_TASK_CALLERS.find(entry => entry.file === relative && method.startsWith(entry.method));
+      assert.ok(allowed, `${relative}: direct runTask call in "${method}" is not a listed StepProvider adapter`);
+      found[`${allowed.file} ${allowed.method}`] = (found[`${allowed.file} ${allowed.method}`] ?? 0) + 1;
+    }
+  }
+  assert.deepEqual(found, Object.fromEntries(RUN_TASK_CALLERS.map(entry => [`${entry.file} ${entry.method}`, entry.count])));
+});
+
+test('runCoffeeRequest, which takes a raw prompt, is only wired into the Coffee Tables step provider', () => {
+  const uses = sourceFiles(root).flatMap(file => {
+    const relative = path.relative(root, file).split(path.sep).join('/');
+    return [...fs.readFileSync(file, 'utf8').matchAll(/runCoffeeRequest\(/g)].map(() => relative);
+  });
+  // The definition, the plugin's own Coffee view factory and the view's engine wiring.
+  assert.deepEqual(uses.sort(), ['experiences/coffee-tables/view.ts', 'main.ts', 'main.ts']);
 });
 
 test('i18n.ts holds no prompt.* keys', () => {

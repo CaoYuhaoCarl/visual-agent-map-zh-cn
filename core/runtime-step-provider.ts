@@ -32,6 +32,8 @@ export interface RuntimeStepControls {
    * "request": only the runtime's request object, as callers that logged it before steps existed did.
    */
   requestLog?: "request-and-prompt" | "request";
+  /** Runs when the reply arrives, before it is logged as received; throw to refuse it (for example after a stop). */
+  afterReply?: () => void;
 }
 
 /** The part of the exchange log the provider writes; a caller can pass a guarded view of the real log. */
@@ -66,7 +68,8 @@ export function runtimeStepProvider(options: RuntimeStepProviderOptions): StepPr
         task = {},
         onExchange,
         finish = "completed",
-        requestLog = "request-and-prompt"
+        requestLog = "request-and-prompt",
+        afterReply
       } = call.controls;
       // Log only when logging was on at the start, and re-check before every later write so turning it off mid-call stops recording.
       const started = options.exchanges();
@@ -109,6 +112,7 @@ export function runtimeStepProvider(options: RuntimeStepProviderOptions): StepPr
             : await options
                 .codex(options.localCodex === true)
                 .runTask(call.prompt, model, effort, call.schema, controls);
+        afterReply?.();
         exchanges.received(id, raw);
         if (finish === "completed") exchanges.completed(id);
         return raw;
