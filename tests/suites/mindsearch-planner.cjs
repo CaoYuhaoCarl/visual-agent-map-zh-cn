@@ -755,6 +755,39 @@ integrationTest('MindSearch turns below-floor research on an already answered go
   assert.equal(kept.decision, 'research_more', 'a genuine evidence gap is still researched below the floor');
   assert.deepEqual(phases, ['research-gap-audit']);
 });
+integrationTest('MindSearch at the answer floor turns research on an already answered goal into a conclusion or question without searching', async () => {
+  const { MindSearchManualFlow, MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION } = load('experiences/mind-search/manual-flow.ts', { obsidian });
+  const { parseMindSearchPlannerReview } = load('mindsearch-mve/planner-review.ts');
+  const phases = []; let corrected = 'conclude';
+  const flow = new MindSearchManualFlow({ settings: { language: 'en' } }, {}, async context => {
+    phases.push(context.task.match(/mindsearch-phase: ([a-z-]+)/)?.[1]);
+    if (mindSearchPhase(context, 'decision-quality-review')) {
+      assert.deepEqual(JSON.parse(JSON.stringify(context.mindSearchContract)).decisions.slice().sort(), ['ask_user', 'conclude']);
+      assert.match(context.task, /marks the goal as already answered/);
+      assert.match(context.task, /Saved reports\./);
+      return corrected === 'conclude'
+        ? plannerReview('conclude', { rationale: 'Official docs answer every step.', stopReason: 'No evidence gap remains.' }, 'Answer.', 'Body.')
+        : plannerReview('ask_user', { rationale: 'Usage changes the recommendation.', question: 'Which project type is this for?' }, 'Answer.', 'Body.', ['Web app', 'Script']);
+    }
+    const delivered = deliveryFixture(context); if (delivered) return delivered;
+    throw new Error(`Unexpected phase: ${context.task.slice(0, 80)}`);
+  });
+  const context = { goal: 'Create a venv', goalDetail: '', conditions: {}, currentQuestion: 'Which shell?', currentAnswer: 'Unknown', answeredQuestionCount: MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION, questionHistory: ['Which OS?', 'Which shell?'], lineage: '', reportSummary: 'Official docs cover every step.', reportDetail: 'Saved reports.' };
+  const research = goalAnswered => {
+    const candidate = plannerReview('research_more', { rationale: 'Double-check version notes.' }, 'Interim answer.', 'Body.', [{ title: 'Version notes', task: 'Check docs', contribution: 'Precision' }]);
+    candidate.detail = candidate.detail.replace('"decision":"research_more"', `"decision":"research_more","goalAnswered":${goalAnswered}`);
+    return parseMindSearchPlannerReview(candidate);
+  };
+  const concluded = await flow.reviewPlannerDecisionQuality(research(true), context, 'gpt-6-luna', 'low');
+  assert.equal(concluded.decision, 'conclude');
+  assert.equal(phases[0], 'decision-quality-review');
+  assert.equal(phases.includes('research-gap-audit'), false, 'no gap audit or search for an answered goal');
+  phases.length = 0; corrected = 'ask_user';
+  const asked = await flow.reviewPlannerDecisionQuality(research(true), context, 'gpt-6-luna', 'low');
+  assert.equal(asked.decision, 'ask_user');
+  assert.equal(asked.question, 'Which project type is this for?');
+  assert.deepEqual(phases, ['decision-quality-review']);
+});
 integrationTest('MindSearch re-decides a target-less research_more on an answered goal with research_more removed from the repair schema', async () => {
   const { MindSearchManualFlow } = load('experiences/mind-search/manual-flow.ts', { obsidian });
   const contracts = [];
