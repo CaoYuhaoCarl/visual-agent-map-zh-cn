@@ -6887,9 +6887,9 @@ function findRelatedSpeech(text9, targets) {
       0,
       ...paragraphs.map((paragraph) => {
         const candidateTokens = tokens(paragraph);
-        const shared = [...queryTokens].filter((token) => candidateTokens.has(token));
-        if (shared.length < 3) return 0;
-        const sharedWeight = shared.reduce((total2, token) => total2 + weight(token), 0);
+        const shared2 = [...queryTokens].filter((token) => candidateTokens.has(token));
+        if (shared2.length < 3) return 0;
+        const sharedWeight = shared2.reduce((total2, token) => total2 + weight(token), 0);
         const candidateWeight = [...candidateTokens].reduce((total2, token) => total2 + weight(token), 0);
         return 2 * sharedWeight / (queryWeight + candidateWeight);
       })
@@ -6900,8 +6900,8 @@ function findRelatedSpeech(text9, targets) {
   const [best, second] = scored;
   if (second && best.target.normalized !== second.target.normalized && best.score >= STRONG_RELATED_SPEECH_SCORE && second.score >= STRONG_RELATED_SPEECH_SCORE && best.score - second.score < AMBIGUOUS_SCORE_GAP) {
     const bestTokens = tokens(best.target.text), secondTokens = tokens(second.target.text);
-    const shared = [...bestTokens].filter((token) => secondTokens.has(token)).length;
-    const similarity = shared / Math.max(1, (/* @__PURE__ */ new Set([...bestTokens, ...secondTokens])).size);
+    const shared2 = [...bestTokens].filter((token) => secondTokens.has(token)).length;
+    const similarity = shared2 / Math.max(1, (/* @__PURE__ */ new Set([...bestTokens, ...secondTokens])).size);
     if (similarity >= NEAR_DUPLICATE_SPEECH_SIMILARITY) return null;
   }
   return best.target.id;
@@ -13559,6 +13559,285 @@ var ResearchWorkflowInterrupted = class extends Error {
 var ReuseEvidenceRejected = class extends Error {
 };
 
+// experiences/aim/steps/initial-clarification/task.md
+var task_default = "Identify 2\u20135 short questions about unknown user conditions that materially affect the original goal. Ask all necessary conditions together, not research facts. Never ask anything already stated in the topic/background/outcome contract. Do not force a quota; return an empty list if nothing is needed. Return the questions in aim.questions. Use the output language. Do not research or answer the goal.\n";
+
+// experiences/aim/steps/initial-clarification/step.ts
+function renderInitialClarificationTask() {
+  return phaseTask("initial-clarification", renderTemplate(task_default, {}));
+}
+
+// experiences/aim/steps/initial-question/task.md
+var task_default2 = "Plan the next Manual AIM interaction for this user's research. Do not answer on the user's behalf and do not search the web in this Planner turn.\n\n{{userQuestionRule}}\n\nDecide whether one missing user condition could materially change the recommendation. Never re-ask a condition supplied in initial clarification. A question must ask for a NEW decision-relevant unknown, not restate the mother topic or known goals. If yes, return decision ask_user with exactly one concise question in aim.question, written as a direct question (not a background statement), and 2\u20135 distinct answer choices in aim.answerOptions. The application will add an explicit Unknown / no preference choice and free-text input.\n\nIf at least {{minimumAnswers}} questions on this answer path have already been answered and no user input could materially change the next useful result, return decision no_question and explain briefly in detail. Below that floor, ask the next meaningful new question.\n\nPreserve uncertainty. Never select an option or infer the user's preference.\n\nHard floor: this path has {{answeredQuestionCount}} answered question node(s); do not conclude before {{minimumAnswers}}. Below the floor, ask one meaningful new question about an unknown dimension such as constraints, goals, current skills, resources, or success criteria. At the floor, the configured exploration target ({{explorationTarget}}) remains a soft preference; do not require reaching 10 or add quota filler.\n\nCurrent topic: {{currentTopic}}{{motherGoal}}\n\nPrior user answers and saved research in this branch lineage (preserve all conditions; do not ask again unless a material contradiction requires clarification):\n{{lineage}}\n";
+
+// experiences/aim/steps/initial-question/task.saved-terminal.md
+var task_saved_terminal_default = "The user explicitly requested a new follow-up question from this saved research result. Always create exactly one NEW question, even if earlier questions were asked or the branch meets its exploration target. Never return a conclusion, no-question marker, or research plan.\n\nUse only the persisted branch conditions and saved reports below to identify a genuinely useful unresolved user choice. Do not repeat any prior or sibling question. Do not answer the question, choose an option, or start research. Return decision ask_user with the actual question in aim.question and 2\u20135 distinct choices in aim.answerOptions.\n\nPlan the next Manual AIM interaction for this user's research. Do not answer on the user's behalf and do not search the web in this Planner turn.\n\n{{userQuestionRule}}\n\nDecide whether one missing user condition could materially change the recommendation. Never re-ask a condition supplied in initial clarification. A question must ask for a NEW decision-relevant unknown, not restate the mother topic or known goals. If yes, return decision ask_user with exactly one concise question in aim.question, written as a direct question (not a background statement), and 2\u20135 distinct answer choices in aim.answerOptions. The application will add an explicit Unknown / no preference choice and free-text input.\n\nPreserve uncertainty. Never select an option or infer the user's preference.\n\nHard floor: this path has {{answeredQuestionCount}} answered question node(s); do not conclude before {{minimumAnswers}}. Below the floor, ask one meaningful new question about an unknown dimension such as constraints, goals, current skills, resources, or success criteria. At the floor, the configured exploration target ({{explorationTarget}}) remains a soft preference; do not require reaching 10 or add quota filler.\n\nCurrent topic: {{currentTopic}}{{motherGoal}}\n\nPrior user answers and saved research in this branch lineage (preserve all conditions; do not ask again unless a material contradiction requires clarification):\n{{lineage}}\n\nKnown conditions saved on this answer path: {{savedConditions}}\n\nQuestions already asked on this path or directly from this result (do not repeat): {{knownQuestions}}\n";
+
+// experiences/aim/steps/initial-question/task.correction.md
+var task_correction_default = "The candidate skipped user input, but this answer path has a hard minimum of three answered question nodes before conclusion. Create the next meaningful question now; do not answer the goal or search.\n\nThis path currently has {{answeredQuestionCount}} answered question node(s), so ask_user is mandatory until it reaches {{minimumAnswers}}. Ask about one genuinely unknown, decision-relevant dimension such as constraints, goals, current skills, resources, or success criteria. No quota filler and no repeated known condition.\n\nReturn decision ask_user with one concise question in aim.question and 2\u20135 distinct answer choices in aim.answerOptions.\n\nOriginal topic: {{originalTopic}}{{motherGoal}}\n\nKnown prior questions: {{previousQuestions}}\nPrior user answers and saved research in this branch lineage:\n{{lineage}}\n";
+
+// experiences/aim/steps/initial-question/part.mother-goal.md
+var part_mother_goal_default = "Original goal and user outcome expectations: {{goal}}\n";
+
+// experiences/aim/steps/initial-question/step.ts
+var motherBlock = (mother) => mother ? "\n\n" + renderTemplate(part_mother_goal_default, { goal: JSON.stringify({ title: mother.title, detail: mother.detail }) }) : "";
+var topicJson = (topic) => JSON.stringify({ title: topic.title, summary: topic.summary, detail: topic.detail });
+var lineageText = (lineage) => lineage || "None yet.";
+function shared(vars) {
+  return {
+    userQuestionRule: vars.userQuestionRule,
+    answeredQuestionCount: String(vars.answeredQuestionCount),
+    minimumAnswers: String(vars.minimumAnswers),
+    explorationTarget: String(vars.explorationTarget),
+    currentTopic: topicJson(vars.currentTopic),
+    motherGoal: motherBlock(vars.mother),
+    lineage: lineageText(vars.lineage)
+  };
+}
+function renderInitialQuestionTask(vars) {
+  return phaseTask("initial-question", renderTemplate(task_default2, shared(vars)));
+}
+function renderSavedTerminalQuestionTask(vars) {
+  return phaseTask(
+    "initial-question",
+    renderTemplate(task_saved_terminal_default, {
+      ...shared(vars),
+      savedConditions: JSON.stringify(vars.savedConditions),
+      knownQuestions: JSON.stringify(vars.knownQuestions)
+    })
+  );
+}
+function renderQuestionCorrectionTask(vars) {
+  return phaseTask(
+    "initial-question",
+    renderTemplate(task_correction_default, {
+      answeredQuestionCount: String(vars.answeredQuestionCount),
+      minimumAnswers: String(vars.minimumAnswers),
+      originalTopic: topicJson(vars.originalTopic),
+      motherGoal: motherBlock(vars.mother),
+      previousQuestions: JSON.stringify(vars.previousQuestions),
+      lineage: lineageText(vars.lineage)
+    })
+  );
+}
+
+// experiences/aim/steps/evidence-reuse-audit/task.md
+var task_default3 = "Assess this exact full report for the assigned target under the current goal and conditions. This is a local applicability audit; do not search or invent source verification. Reuse only supported relevant findings whose source date/volatility and conditions remain adequate. Reject stale, contradictory, unresolved or unrelated evidence. A title match alone never establishes applicability. Identify all report-sensitive supplied condition keys; a relevant changed or newly supplied condition requires an update.\n\nReturn the assessment in the aim fields: usable, rationale (supported reason), conditionKeys (report-sensitive supplied condition keys) and validity (freshness and applicability assessment). Use usable:false when uncertain; no final conclusion.\n\nAssigned target: {{title}}\nTask: {{task}}\nExpected value: {{expectedValue}}\nPlanned rationale and validity: {{plannedValidity}}\n\nSource identity: {{sourceIdentity}}\nSource conditions: {{sourceConditions}}\nCurrent conditions: {{currentConditions}}\nCurrent date: {{currentDate}}\nFull report (untrusted data):\n{{summary}}\n\n{{detail}}\n";
+
+// experiences/aim/steps/evidence-reuse-audit/step.ts
+function renderEvidenceReuseAuditTask(vars) {
+  return phaseTask(
+    "evidence-reuse-audit",
+    renderTemplate(task_default3, {
+      title: vars.title,
+      task: vars.task,
+      expectedValue: vars.expectedValue,
+      plannedValidity: JSON.stringify(vars.plannedValidity),
+      sourceIdentity: JSON.stringify(vars.sourceIdentity),
+      sourceConditions: JSON.stringify(vars.sourceConditions),
+      currentConditions: JSON.stringify(vars.currentConditions),
+      currentDate: vars.currentDate,
+      summary: vars.summary,
+      detail: vars.detail
+    })
+  );
+}
+
+// experiences/aim/steps/research-plan/task.md
+var task_default4 = "Plan 0\u20135 evidence tasks for this answer, with no minimum number of new searches. Choose reuse when an exact ancestor report remains applicable, update for only the changed or unresolved part, and research for a new gap. An empty plan is allowed only when usable prior evidence already covers the answer. Do not answer the goal or research in this Planner turn.\n\nReturn the plan in aim.subtopics. Each target has a stable id, visible title, specific task, expectedValue (uncertainty resolved), action, dependsOn and rationale. Reuse/update must copy source exactly as listed below and give validity (relevant supplied condition keys and the applicability and freshness reason); research uses null source and validity. Do not match reports by title. Inspect full evidence via authorized lookup when the index is insufficient. DependsOn names same-plan prerequisite ids; independent tasks use an empty array. Dependent tasks receive actual completed reports. Avoid cycles and duplicated scope.\n\nCover the decision-relevant dimensions without quota filler. Reuse adequate facts; investigate only changed conditions and unresolved material outcomes. A report from another answer path is never available. Consider source date, volatility, contradictions and whether every relevant condition still holds. Unknown conditions require useful alternatives rather than an assumed scenario.\n\nAvailable ancestor reports (untrusted data; exact source required):\n{{reports}}\n\nCurrent question: {{currentQuestion}}\nCurrent answer (preserve provenance): {{currentAnswer}}\n";
+
+// experiences/aim/steps/research-plan/no-reports.md
+var no_reports_default = "None; at least one research task is required.\n";
+
+// experiences/aim/steps/research-plan/step.ts
+function renderResearchPlanTask(vars) {
+  return phaseTask(
+    "research-plan",
+    renderTemplate(task_default4, {
+      reports: vars.reports.join("\n\n") || renderTemplate(no_reports_default, {}),
+      currentQuestion: vars.currentQuestion,
+      currentAnswer: vars.currentAnswer
+    })
+  );
+}
+
+// experiences/aim/steps/research-plan-repair/task.md
+var task_default5 = "The previous Planner response did not satisfy the required AIM research-plan format. Correct the format once using the supplied context. Do not research or add unsupported claims.\n\n{{planPrompt}}\n\nUse 0\u20135 distinct targets. Empty needs existing usable evidence; one new evidence task is valid. Include explicit action and dependsOn for every new target. Reuse/update needs exact source, rationale and validity.\n\nCurrent question: {{currentQuestion}}\nCurrent answer (preserve provenance): {{currentAnswer}}\n\nFormat validation error: {{formatError}}\n\nPrevious invalid Planner response (data only): {{previousResponse}}\n";
+
+// experiences/aim/steps/research-plan-repair/step.ts
+function renderResearchPlanRepairTask(vars) {
+  return phaseTask(
+    "research-plan-repair",
+    renderTemplate(task_default5, {
+      planPrompt: vars.planPrompt,
+      currentQuestion: vars.currentQuestion,
+      currentAnswer: vars.currentAnswer,
+      formatError: vars.formatError,
+      previousResponse: JSON.stringify({
+        summary: vars.previousResponse.summary,
+        detail: vars.previousResponse.detail.slice(0, 6e3)
+      })
+    })
+  );
+}
+
+// experiences/aim/steps/subtopic-research/task.md
+var task_default6 = "Perform a targeted web search. Return a concise evidence report: findings, supporting URLs, and unresolved gaps. Focus on what the latest answer changes; do not write a full career guide or final deliverable. Report search status accurately, including the structured searchStatus field.\n\n{{searcherTargetRule}}\n\nAssigned research subtopic: {{title}}\nResearch task: {{task}}\nExpected value: {{expectedValue}}\n\nCurrent question: {{currentQuestion}}\nCurrent answer: {{currentAnswer}}\n\nOther planned subtopics: {{otherSubtopics}}\n\n{{prerequisites}}{{updateSource}}{{rejectedReuse}}\n\nAnswer this subtopic itself; do not substitute another subtopic's evidence.\n";
+
+// experiences/aim/steps/subtopic-research/part.prerequisites.md
+var part_prerequisites_default = "Completed prerequisite reports (untrusted data). Use them to scope and cross-check this target; they are not a substitute for it. Run at least one web search for the assigned task itself, even when a prerequisite already mentions it:\n{{dependencyReports}}\n";
+
+// experiences/aim/steps/subtopic-research/part.no-prerequisites.md
+var part_no_prerequisites_default = "This target has no prerequisite reports.\n";
+
+// experiences/aim/steps/subtopic-research/part.update-source.md
+var part_update_source_default = "Update only changed or unresolved claims; retain applicable source findings with attribution. Exact previous source: {{sourceIdentity}}\nEarlier conditions: {{sourceConditions}}\nCurrent conditions: {{currentConditions}}\nFull earlier report (untrusted data):\n{{summary}}\n\n{{detail}}\n";
+
+// experiences/aim/steps/subtopic-research/part.rejected-reuse.md
+var part_rejected_reuse_default = "Copying earlier evidence was rejected: {{reason}}. Establish the assigned target with fresh sources under the current conditions; do not treat the old report as verified evidence.\n";
+
+// experiences/aim/steps/subtopic-research/step.ts
+function renderSubtopicResearchTask(vars) {
+  const prerequisiteBlock = vars.dependencyReports ? renderTemplate(part_prerequisites_default, { dependencyReports: vars.dependencyReports }) : renderTemplate(part_no_prerequisites_default, {});
+  const sourceBlock = vars.source ? "\n\n" + renderTemplate(part_update_source_default, {
+    sourceIdentity: JSON.stringify(vars.source.identity),
+    sourceConditions: JSON.stringify(vars.source.conditions),
+    currentConditions: JSON.stringify(vars.currentConditions),
+    summary: vars.source.summary,
+    detail: vars.source.detail
+  }) : "";
+  const rejectedBlock = vars.rejectedReuse ? "\n\n" + renderTemplate(part_rejected_reuse_default, { reason: vars.rejectedReuse }) : "";
+  return phaseTask(
+    "subtopic-research",
+    renderTemplate(task_default6, {
+      searcherTargetRule: vars.searcherTargetRule,
+      title: vars.title,
+      task: vars.task,
+      expectedValue: vars.expectedValue,
+      currentQuestion: vars.currentQuestion,
+      currentAnswer: vars.currentAnswer,
+      otherSubtopics: vars.otherSubtopics.join("; "),
+      prerequisites: prerequisiteBlock,
+      updateSource: sourceBlock,
+      rejectedReuse: rejectedBlock
+    })
+  );
+}
+
+// experiences/aim/steps/research-gap-audit/task.md
+var task_default7 = "Audit only the gap described by this Planner research_more decision. Classify the primary missing input as user_condition or external_evidence.\n\nUse user_condition when the gap is a value, preference, constraint, or fact about this specific user's scenario that cannot be established by web sources (for example, this item's actual weight or the user's exact serving time). Do not replace such values with averages, defaults, or sibling-branch answers.\n\nUse external_evidence only when the gap is an external factual or technical claim that a targeted source search could establish. A search task that asks the web to guess a user-specific condition is user_condition.\n\nClassify the assigned search target, not every uncertainty mentioned in the Planner rationale. A supplied range is a known condition. Finding published guidance for that range is external_evidence; obtaining this user's exact value is user_condition. Do not silently replace one task with the other.\n\nFirst write a concise rationale in detail, then set summary to exactly user_condition or external_evidence as the final decision. Return no suggestions or visual references. Do not use an HTML comment or replace the exact enum with prose.\n\nOriginal user goal: {{goal}}\nCurrent question: {{currentQuestion}}\nCurrent answer: {{currentAnswer}}\n\nKnown conditions on this branch only: {{conditions}}\n\n{{scope}}\n";
+
+// experiences/aim/steps/research-gap-audit/part.target-only.md
+var part_target_only_default = "TARGET-ONLY RECONCILIATION: the preceding audit led to a question already answered on this path. Reassess only the unchanged assigned search target below, independently of that audit and the broader Planner rationale. Do not invent a different missing input. If the target explicitly requires an unknown user-specific value, keep user_condition; otherwise classify the external claim the target actually asks to verify.\n\nAssigned search target (unchanged): {{target}}\n";
+
+// experiences/aim/steps/research-gap-audit/part.candidate.md
+var part_candidate_default = "Current branch report summaries only:\n{{reportSummary}}\n\nCandidate research gap:\n{{candidateGap}}\n";
+
+// experiences/aim/steps/research-gap-audit/step.ts
+function renderResearchGapAuditTask(vars) {
+  const scope = vars.targetOnly ? renderTemplate(part_target_only_default, { target: JSON.stringify(vars.researchTarget) }) : renderTemplate(part_candidate_default, {
+    reportSummary: vars.reportSummary,
+    candidateGap: JSON.stringify(vars.candidateGap)
+  });
+  return phaseTask(
+    "research-gap-audit",
+    renderTemplate(task_default7, {
+      goal: vars.goal,
+      currentQuestion: vars.currentQuestion,
+      currentAnswer: vars.currentAnswer,
+      conditions: JSON.stringify(vars.conditions),
+      scope
+    })
+  );
+}
+
+// experiences/aim/steps/decision-quality-review/task.user-condition.md
+var task_user_condition_default = "The local semantic audit classified the proposed search gap as a user-specific condition that web research cannot determine. Decision=ask_user is mandatory; do not search, conclude, substitute an average, or use another branch's answer.\n\n{{userQuestionRule}}\n\nAsk one concise question that obtains only the missing user-specific condition. Provide 2\u20135 distinct choices. Preserve the candidate's existing answer content and uncertainty; do not add facts or re-interpret research. The question and options must refer only to the current branch.\n\nMandatory decision: ask_user. Reason: {{rationale}}\n\nOriginal goal: {{goal}}\nCurrent question: {{currentQuestion}}\nCurrent answer: {{currentAnswer}}\n\nKnown conditions on this branch: {{conditions}}\n\nEarlier user questions in this path: {{questionHistory}}\n\nTreat supplied ranges and uncertainty as answers, not absent conditions. Do not repeat an answered question. If greater precision is genuinely needed, explicitly ask for that additional precision, explain why the supplied range is insufficient, and offer an unknown/not available choice. Do not merely relabel the same known condition or ask an unrelated question to evade this rule.\n\nCandidate answer summary to preserve: {{candidateSummary}}\n\nCandidate answer body to preserve (not new research context):\n{{candidateBody}}\n\nCandidate rationale and proposed search target: {{candidateGap}}\n\nReturn decision ask_user in the aim fields: why this user condition matters as aim.rationale, the one concise question as aim.question, and 2\u20135 choices in aim.answerOptions.\n";
+
+// experiences/aim/steps/decision-quality-review/task.below-floor.md
+var task_below_floor_default = "Correct the candidate decision before it can be saved. This is the single bounded corrective pass; do not search and do not conclude.\n\n{{userQuestionRule}}\n\nHARD RULE: the current answer path has {{answeredQuestionCount}} answered question node(s), minimum for conclusion is {{minimumAnswers}}. The candidate either violates that floor, proposes more research although its reports already answer the goal, or repeats a known question. Return ask_user with one meaningful, decision-relevant question on a genuinely unknown dimension (constraints, goals, current skills, resources, or success criteria). No repeated known condition, no quota filler, exactly one question and 2\u20135 distinct answer choices.\n\nInclude the useful conditional answer as the response body, and return the decision in the aim fields. If no meaningful new dimension can be asked, still do not conclude: this correction must be rejected by the caller.\n\nOriginal user goal: {{goal}}\nGoal background: {{goalDetail}}\n\nKnown branch conditions (including free text): {{conditions}}\nCurrent question: {{currentQuestion}}\nCurrent answer: {{currentAnswer}}\n\nEarlier user questions in this path: {{questionHistory}}\nEarlier answers: {{earlierAnswers}}\n\nPersisted research summary:\n{{reportSummary}}\n\nPersisted research reports:\n{{reportDetail}}\n\nCandidate to correct: {{candidate}}\n\nReturn decision ask_user: why this new dimension matters as aim.rationale, one meaningful new question as aim.question (written as a question), and 2\u20135 distinct choices in aim.answerOptions.\n";
+
+// experiences/aim/steps/decision-quality-review/task.answered-goal.md
+var task_answered_goal_default = "Correct the candidate decision before it can be saved. This is the single bounded corrective pass; do not search.\n\nThe candidate proposes more research but marks the goal as already answered by its own reports, so the research would not close a material evidence gap. Choose conclude when the reports support a complete answer under the known conditions, keeping remaining uncertainty explicit. Choose ask_user only when a genuinely unknown user condition would materially change the answer.\n\n{{userQuestionRule}}\n\nInclude the useful conditional answer as the response body, and return the decision in the aim fields with an evidence-based aim.rationale. For conclude include aim.stopReason; for ask_user include one direct aim.question and 2\u20135 distinct choices in aim.answerOptions.\n\nOriginal user goal: {{goal}}\nGoal background: {{goalDetail}}\n\nKnown branch conditions (including free text): {{conditions}}\nCurrent question: {{currentQuestion}}\nCurrent answer: {{currentAnswer}}\n\nEarlier user questions in this path: {{questionHistory}}\nEarlier answers: {{earlierAnswers}}\n\nPersisted research summary:\n{{reportSummary}}\n\nPersisted research reports:\n{{reportDetail}}\n\nCandidate to correct: {{candidate}}\n";
+
+// experiences/aim/steps/decision-quality-review/step.ts
+function renderUserConditionReviewTask(vars) {
+  return phaseTask(
+    "decision-quality-review",
+    renderTemplate(task_user_condition_default, {
+      userQuestionRule: vars.userQuestionRule,
+      rationale: vars.rationale,
+      goal: vars.goal,
+      currentQuestion: vars.currentQuestion,
+      currentAnswer: vars.currentAnswer,
+      conditions: JSON.stringify(vars.conditions),
+      questionHistory: JSON.stringify(vars.questionHistory),
+      candidateSummary: vars.candidateSummary,
+      candidateBody: vars.candidateBody,
+      candidateGap: JSON.stringify(vars.candidateGap)
+    })
+  );
+}
+function floorVariables(vars) {
+  return {
+    userQuestionRule: vars.userQuestionRule,
+    goal: vars.goal,
+    goalDetail: vars.goalDetail,
+    conditions: JSON.stringify(vars.conditions),
+    currentQuestion: vars.currentQuestion,
+    currentAnswer: vars.currentAnswer,
+    questionHistory: JSON.stringify(vars.questionHistory),
+    earlierAnswers: vars.lineage || "None.",
+    reportSummary: vars.reportSummary,
+    reportDetail: vars.reportDetail,
+    candidate: JSON.stringify(vars.candidate)
+  };
+}
+function renderBelowFloorReviewTask(vars) {
+  return phaseTask(
+    "decision-quality-review",
+    renderTemplate(task_below_floor_default, {
+      ...floorVariables(vars),
+      answeredQuestionCount: String(vars.answeredQuestionCount),
+      minimumAnswers: String(vars.minimumAnswers)
+    })
+  );
+}
+function renderAnsweredGoalReviewTask(vars) {
+  return phaseTask("decision-quality-review", renderTemplate(task_answered_goal_default, floorVariables(vars)));
+}
+
+// experiences/aim/steps/report-review/task.md
+var task_default8 = "Review the complete evidence for the original user goal. Return one decision with a brief evidence-based interim answer; do not write the final document yet. Use all known conditions and relevant evidence in this branch lineage. Keep the current question and answer as conditions that personalize the result; they are not the overall goal. Do not expose the internal research log as the answer. Return the decision in the aim fields.\n\n{{plannerCoverageRule}}\n\nHard floor: {{answeredQuestionCount}} answered question node(s) on this branch path; do not conclude before {{minimumAnswers}}. At the floor, the configured exploration target ({{explorationTarget}}) is a soft depth preference; do not require reaching 10 or add quota filler. Below the floor, ask one meaningful new question about an unknown decision-relevant dimension. {{floorAskRule}} {{userQuestionRule}}\n\nDo not repeat known conditions or prior questions. Ask only for a genuinely missing user condition, never to compensate for missing research. Use research_more for missing evidence. Prior questions: {{questionsAlreadyAsked}}.\n\nChoose research_more only for one specific material evidence gap that targeted web research can resolve; provide exactly one aim.researchTarget with title, search task, and expected uncertainty reduction. Choose ask_user for a missing decision-changing user condition or a genuinely conflicting pair of supplied values. Name the conflict and request one clarification as aim.question; never defer a material conflict into the final document. Include 2\u20135 choices in aim.answerOptions. Do not use ask_user to compensate for missing research. Choose conclude only when the original goal is adequately supported and the hard floor is met; cite source names or links from reports when available and state remaining uncertainty and limits. Do not search in this Planner turn.\n\nReturn the decision in the aim fields with an evidence-based aim.rationale; for conclude, aim.stopReason says why the evidence is sufficient.\n\nCurrent question: {{currentQuestion}}\nCurrent answer: {{currentAnswer}}\n\nResearch budget: review {{researchTurn}} of {{maxResearchTurns}}. One targeted follow-up search remains when this is review 1; if a material gap remains after review 2, return research_more so VAM saves a partial result.\n";
+
+// experiences/aim/steps/report-review/step.ts
+function renderReportReviewTask(vars) {
+  return phaseTask(
+    "report-review",
+    renderTemplate(task_default8, {
+      plannerCoverageRule: vars.plannerCoverageRule,
+      userQuestionRule: vars.userQuestionRule,
+      floorAskRule: vars.floorAskRule,
+      answeredQuestionCount: String(vars.answeredQuestionCount),
+      minimumAnswers: String(vars.minimumAnswers),
+      explorationTarget: String(vars.explorationTarget),
+      questionsAlreadyAsked: JSON.stringify(vars.questionsAlreadyAsked),
+      currentQuestion: vars.currentQuestion,
+      currentAnswer: vars.currentAnswer,
+      researchTurn: String(vars.researchTurn),
+      maxResearchTurns: String(vars.maxResearchTurns)
+    })
+  );
+}
+
+// experiences/aim/steps/targeted-followup-research/task.md
+var task_default9 = "Perform one targeted web search for the Planner's material evidence gap. Report search status accurately, including the structured searchStatus field, and include source attribution, uncertainty, and limitations.\n\n{{searcherTargetRule}}\n\nTarget: {{title}}\nSearch task: {{task}}\nExpected uncertainty reduction: {{expectedValue}}\n\nCurrent question: {{currentQuestion}}\nCurrent answer: {{currentAnswer}}\n\nDo not ask the user questions. This is an evidence-gathering step, not a Planner review.\n";
+
+// experiences/aim/steps/targeted-followup-research/step.ts
+function renderTargetedFollowupResearchTask(vars) {
+  return phaseTask("targeted-followup-research", renderTemplate(task_default9, { ...vars }));
+}
+
 // experiences/aim/manual-flow.ts
 var _AimManualFlow = class _AimManualFlow {
   constructor(repository, runs, askModel, id = import_node_crypto7.randomUUID, persist = (operation) => operation()) {
@@ -13577,10 +13856,7 @@ var _AimManualFlow = class _AimManualFlow {
         summary: "",
         rules: "",
         detail: topic.detail,
-        task: phaseTask(
-          "initial-clarification",
-          "Identify 2\u20135 short questions about unknown user conditions that materially affect the original goal. Ask all necessary conditions together, not research facts. Never ask anything already stated in the topic/background/outcome contract. Do not force a quota; return an empty list if nothing is needed. Return the questions in aim.questions. Use the output language. Do not research or answer the goal."
-        ),
+        task: renderInitialClarificationTask(),
         ancestors: "",
         outputLanguage: this.repository.settings.language,
         mode: "task",
@@ -13737,29 +14013,16 @@ Use the loaded evidence for the current phase. This lookup is exhausted; return 
   /** Classifies a proposed search gap without exposing reports outside the current branch or invoking search. */
   async classifyResearchGap(candidate, context, model, reasoning, signal, targetOnly = false) {
     var _a;
-    const task = phaseTask(
-      "research-gap-audit",
-      [
-        "Audit only the gap described by this Planner research_more decision. Classify the primary missing input as user_condition or external_evidence.",
-        "Use user_condition when the gap is a value, preference, constraint, or fact about this specific user's scenario that cannot be established by web sources (for example, this item's actual weight or the user's exact serving time). Do not replace such values with averages, defaults, or sibling-branch answers.",
-        "Use external_evidence only when the gap is an external factual or technical claim that a targeted source search could establish. A search task that asks the web to guess a user-specific condition is user_condition.",
-        "Classify the assigned search target, not every uncertainty mentioned in the Planner rationale. A supplied range is a known condition. Finding published guidance for that range is external_evidence; obtaining this user's exact value is user_condition. Do not silently replace one task with the other.",
-        "First write a concise rationale in detail, then set summary to exactly user_condition or external_evidence as the final decision. Return no suggestions or visual references. Do not use an HTML comment or replace the exact enum with prose.",
-        `Original user goal: ${context.goal}
-Current question: ${context.currentQuestion}
-Current answer: ${context.currentAnswer}`,
-        `Known conditions on this branch only: ${JSON.stringify(context.conditions)}`,
-        ...targetOnly ? [
-          "TARGET-ONLY RECONCILIATION: the preceding audit led to a question already answered on this path. Reassess only the unchanged assigned search target below, independently of that audit and the broader Planner rationale. Do not invent a different missing input. If the target explicitly requires an unknown user-specific value, keep user_condition; otherwise classify the external claim the target actually asks to verify.",
-          `Assigned search target (unchanged): ${JSON.stringify(candidate.researchTarget)}`
-        ] : [
-          `Current branch report summaries only:
-${context.reportSummary}`,
-          `Candidate research gap:
-${JSON.stringify({ rationale: candidate.rationale, target: candidate.researchTarget, summary: candidate.summary })}`
-        ]
-      ].join("\n\n")
-    );
+    const task = renderResearchGapAuditTask({
+      goal: context.goal,
+      currentQuestion: context.currentQuestion,
+      currentAnswer: context.currentAnswer,
+      conditions: context.conditions,
+      targetOnly,
+      reportSummary: context.reportSummary,
+      candidateGap: { rationale: candidate.rationale, target: candidate.researchTarget, summary: candidate.summary },
+      researchTarget: candidate.researchTarget
+    });
     await ((_a = context.setPhase) == null ? void 0 : _a.call(context, "research-gap-audit"));
     const result = await this.askAimModel(
       {
@@ -13792,26 +14055,18 @@ ${JSON.stringify({ rationale: candidate.rationale, target: candidate.researchTar
     return { classification, rationale };
   }
   async requireUserConditionQuestion(candidate, context, audit, model, reasoning, signal, allowReconciliation = true) {
-    const task = phaseTask(
-      "decision-quality-review",
-      [
-        "The local semantic audit classified the proposed search gap as a user-specific condition that web research cannot determine. Decision=ask_user is mandatory; do not search, conclude, substitute an average, or use another branch's answer.",
-        USER_QUESTION_RULE,
-        "Ask one concise question that obtains only the missing user-specific condition. Provide 2\u20135 distinct choices. Preserve the candidate's existing answer content and uncertainty; do not add facts or re-interpret research. The question and options must refer only to the current branch.",
-        `Mandatory decision: ask_user. Reason: ${audit.rationale}`,
-        `Original goal: ${context.goal}
-Current question: ${context.currentQuestion}
-Current answer: ${context.currentAnswer}`,
-        `Known conditions on this branch: ${JSON.stringify(context.conditions)}`,
-        `Earlier user questions in this path: ${JSON.stringify(context.questionHistory)}`,
-        "Treat supplied ranges and uncertainty as answers, not absent conditions. Do not repeat an answered question. If greater precision is genuinely needed, explicitly ask for that additional precision, explain why the supplied range is insufficient, and offer an unknown/not available choice. Do not merely relabel the same known condition or ask an unrelated question to evade this rule.",
-        `Candidate answer summary to preserve: ${candidate.summary}`,
-        `Candidate answer body to preserve (not new research context):
-${candidate.detail.replace(/^\s*<!--\s*aim-review\s+[^\n]*?-->\s*/, "").trim()}`,
-        `Candidate rationale and proposed search target: ${JSON.stringify({ rationale: candidate.rationale, target: candidate.researchTarget })}`,
-        "Return decision ask_user in the aim fields: why this user condition matters as aim.rationale, the one concise question as aim.question, and 2\u20135 choices in aim.answerOptions."
-      ].join("\n\n")
-    );
+    const task = renderUserConditionReviewTask({
+      userQuestionRule: USER_QUESTION_RULE,
+      rationale: audit.rationale,
+      goal: context.goal,
+      currentQuestion: context.currentQuestion,
+      currentAnswer: context.currentAnswer,
+      conditions: context.conditions,
+      questionHistory: context.questionHistory,
+      candidateSummary: candidate.summary,
+      candidateBody: candidate.detail.replace(/^\s*<!--\s*aim-review\s+[^\n]*?-->\s*/, "").trim(),
+      candidateGap: { rationale: candidate.rationale, target: candidate.researchTarget }
+    });
     const correctionContext = {
       timeoutMs: context.timeoutMs,
       title: context.goal,
@@ -13904,29 +14159,24 @@ ${candidate.detail.replace(/^\s*<!--\s*aim-review\s+[^\n]*?-->\s*/, "").trim()}`
     const researchesAnsweredGoal = belowFloor && reviewed.decision === "research_more" && reviewed.goalAnswered === true;
     if (belowFloor && reviewed.decision === "conclude" || researchesAnsweredGoal || reviewed.decision === "ask_user" && repeatsKnownQuestion) {
       throwIfAborted(signal);
-      const correctionTask = [
-        "Correct the candidate decision before it can be saved. This is the single bounded corrective pass; do not search and do not conclude.",
-        USER_QUESTION_RULE,
-        `HARD RULE: the current answer path has ${context.answeredQuestionCount} answered question node(s), minimum for conclusion is ${MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION}. The candidate either violates that floor, proposes more research although its reports already answer the goal, or repeats a known question. Return ask_user with one meaningful, decision-relevant question on a genuinely unknown dimension (constraints, goals, current skills, resources, or success criteria). No repeated known condition, no quota filler, exactly one question and 2\u20135 distinct answer choices.`,
-        "Include the useful conditional answer as the response body, and return the decision in the aim fields. If no meaningful new dimension can be asked, still do not conclude: this correction must be rejected by the caller.",
-        `Original user goal: ${context.goal}
-Goal background: ${context.goalDetail}`,
-        `Known branch conditions (including free text): ${JSON.stringify(context.conditions)}
-Current question: ${context.currentQuestion}
-Current answer: ${context.currentAnswer}`,
-        `Earlier user questions in this path: ${JSON.stringify(context.questionHistory)}
-Earlier answers: ${uniqueLineage || "None."}`,
-        `Persisted research summary:
-${context.reportSummary}
-
-Persisted research reports:
-${context.reportDetail}`,
-        `Candidate to correct: ${JSON.stringify(reviewed)}`,
-        "Return decision ask_user: why this new dimension matters as aim.rationale, one meaningful new question as aim.question (written as a question), and 2\u20135 distinct choices in aim.answerOptions."
-      ].join("\n\n");
+      const correctionTask = renderBelowFloorReviewTask({
+        userQuestionRule: USER_QUESTION_RULE,
+        answeredQuestionCount: context.answeredQuestionCount,
+        minimumAnswers: MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION,
+        goal: context.goal,
+        goalDetail: context.goalDetail,
+        conditions: context.conditions,
+        currentQuestion: context.currentQuestion,
+        currentAnswer: context.currentAnswer,
+        questionHistory: context.questionHistory,
+        lineage: uniqueLineage,
+        reportSummary: context.reportSummary,
+        reportDetail: context.reportDetail,
+        candidate: reviewed
+      });
       const correctionContext = {
         ...taskContext,
-        task: phaseTask("decision-quality-review", correctionTask),
+        task: correctionTask,
         aimContract: reviewContract(["ask_user"])
       };
       const correctedResult = await this.askAimModel(correctionContext, model, reasoning, signal);
@@ -13964,28 +14214,22 @@ ${context.reportDetail}`,
     }
     if (!belowFloor && reviewed.decision === "research_more" && reviewed.goalAnswered === true) {
       throwIfAborted(signal);
-      const correctionTask = [
-        "Correct the candidate decision before it can be saved. This is the single bounded corrective pass; do not search.",
-        "The candidate proposes more research but marks the goal as already answered by its own reports, so the research would not close a material evidence gap. Choose conclude when the reports support a complete answer under the known conditions, keeping remaining uncertainty explicit. Choose ask_user only when a genuinely unknown user condition would materially change the answer.",
-        USER_QUESTION_RULE,
-        "Include the useful conditional answer as the response body, and return the decision in the aim fields with an evidence-based aim.rationale. For conclude include aim.stopReason; for ask_user include one direct aim.question and 2\u20135 distinct choices in aim.answerOptions.",
-        `Original user goal: ${context.goal}
-Goal background: ${context.goalDetail}`,
-        `Known branch conditions (including free text): ${JSON.stringify(context.conditions)}
-Current question: ${context.currentQuestion}
-Current answer: ${context.currentAnswer}`,
-        `Earlier user questions in this path: ${JSON.stringify(context.questionHistory)}
-Earlier answers: ${uniqueLineage || "None."}`,
-        `Persisted research summary:
-${context.reportSummary}
-
-Persisted research reports:
-${context.reportDetail}`,
-        `Candidate to correct: ${JSON.stringify(reviewed)}`
-      ].join("\n\n");
+      const correctionTask = renderAnsweredGoalReviewTask({
+        userQuestionRule: USER_QUESTION_RULE,
+        goal: context.goal,
+        goalDetail: context.goalDetail,
+        conditions: context.conditions,
+        currentQuestion: context.currentQuestion,
+        currentAnswer: context.currentAnswer,
+        questionHistory: context.questionHistory,
+        lineage: uniqueLineage,
+        reportSummary: context.reportSummary,
+        reportDetail: context.reportDetail,
+        candidate: reviewed
+      });
       const correctionContext = {
         ...taskContext,
-        task: phaseTask("decision-quality-review", correctionTask),
+        task: correctionTask,
         aimContract: reviewContract(["conclude", "ask_user"])
       };
       const correctedResult = await this.askAimModel(correctionContext, model, reasoning, signal);
@@ -15090,33 +15334,17 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
       )
     ];
     const language2 = this.repository.settings.language;
-    const prompt = phaseTask(
-      "initial-question",
-      [
-        ...isSavedTerminalResult ? [
-          "The user explicitly requested a new follow-up question from this saved research result. Always create exactly one NEW question, even if earlier questions were asked or the branch meets its exploration target. Never return a conclusion, no-question marker, or research plan.",
-          "Use only the persisted branch conditions and saved reports below to identify a genuinely useful unresolved user choice. Do not repeat any prior or sibling question. Do not answer the question, choose an option, or start research. Return decision ask_user with the actual question in aim.question and 2\u20135 distinct choices in aim.answerOptions."
-        ] : [],
-        "Plan the next Manual AIM interaction for this user's research. Do not answer on the user's behalf and do not search the web in this Planner turn.",
-        USER_QUESTION_RULE,
-        "Decide whether one missing user condition could materially change the recommendation. Never re-ask a condition supplied in initial clarification. A question must ask for a NEW decision-relevant unknown, not restate the mother topic or known goals. If yes, return decision ask_user with exactly one concise question in aim.question, written as a direct question (not a background statement), and 2\u20135 distinct answer choices in aim.answerOptions. The application will add an explicit Unknown / no preference choice and free-text input.",
-        ...!isSavedTerminalResult ? [
-          `If at least ${MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION} questions on this answer path have already been answered and no user input could materially change the next useful result, return decision no_question and explain briefly in detail. Below that floor, ask the next meaningful new question.`
-        ] : [],
-        "Preserve uncertainty. Never select an option or infer the user's preference.",
-        `Hard floor: this path has ${answeredQuestionCount} answered question node(s); do not conclude before ${MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION}. Below the floor, ask one meaningful new question about an unknown dimension such as constraints, goals, current skills, resources, or success criteria. At the floor, the configured exploration target (${explorationTarget}) remains a soft preference; do not require reaching 10 or add quota filler.`,
-        `Current topic: ${JSON.stringify({ title: parent.title, summary: parent.summary, detail: parent.detail })}`,
-        ...motherNode && motherNode.id !== parentNode.id ? [
-          `Original goal and user outcome expectations: ${JSON.stringify({ title: mother.title, detail: mother.detail })}`
-        ] : [],
-        `Prior user answers and saved research in this branch lineage (preserve all conditions; do not ask again unless a material contradiction requires clarification):
-${lineage.context || "None yet."}`,
-        ...isSavedTerminalResult ? [`Known conditions saved on this answer path: ${JSON.stringify(savedConditions)}`] : [],
-        ...isSavedTerminalResult ? [
-          `Questions already asked on this path or directly from this result (do not repeat): ${JSON.stringify(knownQuestions)}`
-        ] : []
-      ].join("\n\n")
-    );
+    const motherGoal = motherNode && motherNode.id !== parentNode.id ? { title: mother.title, detail: mother.detail } : void 0;
+    const questionVars = {
+      userQuestionRule: USER_QUESTION_RULE,
+      minimumAnswers: MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION,
+      answeredQuestionCount,
+      explorationTarget,
+      currentTopic: { title: parent.title, summary: parent.summary, detail: parent.detail },
+      mother: motherGoal,
+      lineage: lineage.context
+    };
+    const prompt = isSavedTerminalResult ? renderSavedTerminalQuestionTask({ ...questionVars, savedConditions, knownQuestions }) : renderInitialQuestionTask(questionVars);
     const requireQuestion = isSavedTerminalResult || answeredQuestionCount < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION;
     const context = {
       aimEvidenceIds: this.lineageEvidenceIds(map, parentBranchId),
@@ -15143,21 +15371,14 @@ ${lineage.context || "None yet."}`,
       );
     if (!isSavedTerminalResult && result.summary.trim() === AIM_NO_QUESTION && answeredQuestionCount < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION) {
       const previousQuestions = await this.questionHistory(map, parentBranchId);
-      const correctionPrompt = phaseTask(
-        "initial-question",
-        [
-          "The candidate skipped user input, but this answer path has a hard minimum of three answered question nodes before conclusion. Create the next meaningful question now; do not answer the goal or search.",
-          `This path currently has ${answeredQuestionCount} answered question node(s), so ask_user is mandatory until it reaches ${MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION}. Ask about one genuinely unknown, decision-relevant dimension such as constraints, goals, current skills, resources, or success criteria. No quota filler and no repeated known condition.`,
-          "Return decision ask_user with one concise question in aim.question and 2\u20135 distinct answer choices in aim.answerOptions.",
-          `Original topic: ${JSON.stringify({ title: parent.title, summary: parent.summary, detail: parent.detail })}`,
-          ...motherNode && motherNode.id !== parentNode.id ? [
-            `Original goal and user outcome expectations: ${JSON.stringify({ title: mother.title, detail: mother.detail })}`
-          ] : [],
-          `Known prior questions: ${JSON.stringify(previousQuestions)}
-Prior user answers and saved research in this branch lineage:
-${lineage.context || "None yet."}`
-        ].join("\n\n")
-      );
+      const correctionPrompt = renderQuestionCorrectionTask({
+        answeredQuestionCount,
+        minimumAnswers: MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION,
+        originalTopic: { title: parent.title, summary: parent.summary, detail: parent.detail },
+        mother: motherGoal,
+        previousQuestions,
+        lineage: lineage.context
+      });
       result = await this.askAimModel(
         { ...context, task: correctionPrompt, aimContract: { kind: "question", requireQuestion: true } },
         model,
@@ -15568,25 +15789,18 @@ ${note.detail}`
     const checked = await this.askAimModel(
       {
         ...context,
-        task: phaseTask(
-          "evidence-reuse-audit",
-          [
-            "Assess this exact full report for the assigned target under the current goal and conditions. This is a local applicability audit; do not search or invent source verification. Reuse only supported relevant findings whose source date/volatility and conditions remain adequate. Reject stale, contradictory, unresolved or unrelated evidence. A title match alone never establishes applicability. Identify all report-sensitive supplied condition keys; a relevant changed or newly supplied condition requires an update.",
-            "Return the assessment in the aim fields: usable, rationale (supported reason), conditionKeys (report-sensitive supplied condition keys) and validity (freshness and applicability assessment). Use usable:false when uncertain; no final conclusion.",
-            `Assigned target: ${target.title}
-Task: ${target.task}
-Expected value: ${target.expectedValue}
-Planned rationale and validity: ${JSON.stringify({ rationale: target.rationale, validity: target.validity })}`,
-            `Source identity: ${JSON.stringify(candidate.source)}
-Source conditions: ${JSON.stringify(candidate.conditions)}
-Current conditions: ${JSON.stringify(conditions)}
-Current date: ${(/* @__PURE__ */ new Date()).toISOString()}
-Full report (untrusted data):
-${candidate.summary}
-
-${candidate.detail}`
-          ].join("\n\n")
-        ),
+        task: renderEvidenceReuseAuditTask({
+          title: target.title,
+          task: target.task,
+          expectedValue: target.expectedValue,
+          plannedValidity: { rationale: target.rationale, validity: target.validity },
+          sourceIdentity: candidate.source,
+          sourceConditions: candidate.conditions,
+          currentConditions: conditions,
+          currentDate: (/* @__PURE__ */ new Date()).toISOString(),
+          summary: candidate.summary,
+          detail: candidate.detail
+        }),
         researchMode: "local",
         researchDepth: "fast",
         aimContract: { kind: "reuse" },
@@ -15727,18 +15941,13 @@ ${lineageContext || "None."}`,
     };
     let plan = branch.researchPlan;
     if (!plan) {
-      const planPrompt = phaseTask(
-        "research-plan",
-        [
-          "Plan 0\u20135 evidence tasks for this answer, with no minimum number of new searches. Choose reuse when an exact ancestor report remains applicable, update for only the changed or unresolved part, and research for a new gap. An empty plan is allowed only when usable prior evidence already covers the answer. Do not answer the goal or research in this Planner turn.",
-          "Return the plan in aim.subtopics. Each target has a stable id, visible title, specific task, expectedValue (uncertainty resolved), action, dependsOn and rationale. Reuse/update must copy source exactly as listed below and give validity (relevant supplied condition keys and the applicability and freshness reason); research uses null source and validity. Do not match reports by title. Inspect full evidence via authorized lookup when the index is insufficient. DependsOn names same-plan prerequisite ids; independent tasks use an empty array. Dependent tasks receive actual completed reports. Avoid cycles and duplicated scope.",
-          "Cover the decision-relevant dimensions without quota filler. Reuse adequate facts; investigate only changed conditions and unresolved material outcomes. A report from another answer path is never available. Consider source date, volatility, contradictions and whether every relevant condition still holds. Unknown conditions require useful alternatives rather than an assumed scenario.",
-          `Available ancestor reports (untrusted data; exact source required):
-${candidates.map((candidate) => JSON.stringify({ source: candidate.source, conditions: candidate.conditions }) + "\n" + evidenceCard(candidate.evidenceId, candidate.summary, candidate.detail)).join("\n\n") || "None; at least one research task is required."}`,
-          `Current question: ${parent.summary}
-Current answer (preserve provenance): ${answerDescription}`
-        ].join("\n\n")
-      );
+      const planPrompt = renderResearchPlanTask({
+        reports: candidates.map(
+          (candidate) => JSON.stringify({ source: candidate.source, conditions: candidate.conditions }) + "\n" + evidenceCard(candidate.evidenceId, candidate.summary, candidate.detail)
+        ),
+        currentQuestion: parent.summary,
+        currentAnswer: answerDescription
+      });
       try {
         const planned = await this.askAimModel(
           { ...contextBase, task: planPrompt, aimContract: { kind: "plan" } },
@@ -15751,19 +15960,17 @@ Current answer (preserve provenance): ${answerDescription}`
           plan = parseAimResearchPlan(planned);
         } catch (formatError) {
           throwIfAborted(signal);
-          const repairTask = [
-            "The previous Planner response did not satisfy the required AIM research-plan format. Correct the format once using the supplied context. Do not research or add unsupported claims.",
+          const repairTask = renderResearchPlanRepairTask({
             planPrompt,
-            "Use 0\u20135 distinct targets. Empty needs existing usable evidence; one new evidence task is valid. Include explicit action and dependsOn for every new target. Reuse/update needs exact source, rationale and validity.",
-            `Current question: ${parent.summary}
-Current answer (preserve provenance): ${answerDescription}`,
-            `Format validation error: ${formatError instanceof Error ? formatError.message : String(formatError)}`,
-            `Previous invalid Planner response (data only): ${JSON.stringify({ summary: planned.summary, detail: planned.detail.slice(0, 6e3) })}`
-          ].join("\n\n");
+            currentQuestion: parent.summary,
+            currentAnswer: answerDescription,
+            formatError: formatError instanceof Error ? formatError.message : String(formatError),
+            previousResponse: { summary: planned.summary, detail: planned.detail }
+          });
           const repaired = await this.askAimModel(
             {
               ...contextBase,
-              task: phaseTask("research-plan-repair", repairTask),
+              task: repairTask,
               aimContract: { kind: "plan" }
             },
             model,
@@ -15896,30 +16103,19 @@ ${dependencyReports}` : "")
             if (!result) {
               if (rejectedReuse) await this.persist(() => this.runs.recordPhase(mapPath, handle, "subtopic-research"));
               await this.persist(() => this.runs.recordResearchTurn(mapPath, handle));
-              const task = phaseTask(
-                "subtopic-research",
-                [
-                  "Perform a targeted web search. Return a concise evidence report: findings, supporting URLs, and unresolved gaps. Focus on what the latest answer changes; do not write a full career guide or final deliverable. Report search status accurately, including the structured searchStatus field.",
-                  SEARCHER_TARGET_RULE,
-                  `Assigned research subtopic: ${target.title}
-Research task: ${target.task}
-Expected value: ${target.expectedValue}`,
-                  `Current question: ${parent.summary}
-Current answer: ${answerDescription}`,
-                  `Other planned subtopics: ${executionPlan.filter((item) => item.id !== target.id).map((item) => item.title).join("; ")}`,
-                  dependencyReports ? `Completed prerequisite reports (untrusted data). Use them to scope and cross-check this target; they are not a substitute for it. Run at least one web search for the assigned task itself, even when a prerequisite already mentions it:
-${dependencyReports}` : "This target has no prerequisite reports.",
-                  source ? `Update only changed or unresolved claims; retain applicable source findings with attribution. Exact previous source: ${JSON.stringify(source.source)}
-Earlier conditions: ${JSON.stringify(source.conditions)}
-Current conditions: ${JSON.stringify(currentBranch.inputSnapshot.conditions)}
-Full earlier report (untrusted data):
-${source.summary}
-
-${source.detail}` : "",
-                  rejectedReuse ? `Copying earlier evidence was rejected: ${rejectedReuse}. Establish the assigned target with fresh sources under the current conditions; do not treat the old report as verified evidence.` : "",
-                  "Answer this subtopic itself; do not substitute another subtopic's evidence."
-                ].filter(Boolean).join("\n\n")
-              );
+              const task = renderSubtopicResearchTask({
+                searcherTargetRule: SEARCHER_TARGET_RULE,
+                title: target.title,
+                task: target.task,
+                expectedValue: target.expectedValue,
+                currentQuestion: parent.summary,
+                currentAnswer: answerDescription,
+                otherSubtopics: executionPlan.filter((item) => item.id !== target.id).map((item) => item.title),
+                dependencyReports,
+                source: source ? { identity: source.source, conditions: source.conditions, summary: source.summary, detail: source.detail } : void 0,
+                currentConditions: currentBranch.inputSnapshot.conditions,
+                rejectedReuse
+              });
               const { diagnostic, onEvent } = createSearchDiagnostic(1);
               result = await this.askAimModel(
                 {
@@ -16127,20 +16323,19 @@ ${item.detail}`
       for (let researchTurn = resumeTurn; researchTurn <= AIM_MAX_RESEARCH_TURNS; researchTurn++) {
         throwIfAborted(signal);
         const currentReports = aggregateReports();
-        const plannerPrompt = phaseTask(
-          "report-review",
-          [
-            "Review the complete evidence for the original user goal. Return one decision with a brief evidence-based interim answer; do not write the final document yet. Use all known conditions and relevant evidence in this branch lineage. Keep the current question and answer as conditions that personalize the result; they are not the overall goal. Do not expose the internal research log as the answer. Return the decision in the aim fields.",
-            PLANNER_COVERAGE_RULE,
-            `Hard floor: ${answeredQuestionCount} answered question node(s) on this branch path; do not conclude before ${MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION}. At the floor, the configured exploration target (${explorationTarget}) is a soft depth preference; do not require reaching 10 or add quota filler. Below the floor, ask one meaningful new question about an unknown decision-relevant dimension. ${FLOOR_ASK_RULE} ${USER_QUESTION_RULE}`,
-            `Do not repeat known conditions or prior questions. Ask only for a genuinely missing user condition, never to compensate for missing research. Use research_more for missing evidence. Prior questions: ${JSON.stringify(questionsAlreadyAsked)}.`,
-            "Choose research_more only for one specific material evidence gap that targeted web research can resolve; provide exactly one aim.researchTarget with title, search task, and expected uncertainty reduction. Choose ask_user for a missing decision-changing user condition or a genuinely conflicting pair of supplied values. Name the conflict and request one clarification as aim.question; never defer a material conflict into the final document. Include 2\u20135 choices in aim.answerOptions. Do not use ask_user to compensate for missing research. Choose conclude only when the original goal is adequately supported and the hard floor is met; cite source names or links from reports when available and state remaining uncertainty and limits. Do not search in this Planner turn.",
-            "Return the decision in the aim fields with an evidence-based aim.rationale; for conclude, aim.stopReason says why the evidence is sufficient.",
-            `Current question: ${parent.summary}
-Current answer: ${answerDescription}`,
-            `Research budget: review ${researchTurn} of ${AIM_MAX_RESEARCH_TURNS}. One targeted follow-up search remains when this is review 1; if a material gap remains after review 2, return research_more so VAM saves a partial result.`
-          ].join("\n\n")
-        );
+        const plannerPrompt = renderReportReviewTask({
+          plannerCoverageRule: PLANNER_COVERAGE_RULE,
+          userQuestionRule: USER_QUESTION_RULE,
+          floorAskRule: FLOOR_ASK_RULE,
+          answeredQuestionCount,
+          minimumAnswers: MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION,
+          explorationTarget,
+          questionsAlreadyAsked,
+          currentQuestion: parent.summary,
+          currentAnswer: answerDescription,
+          researchTurn,
+          maxResearchTurns: AIM_MAX_RESEARCH_TURNS
+        });
         const plannerContext = {
           ...contextBase,
           summary: "",
@@ -16263,19 +16458,14 @@ ${currentReports.detail}`,
           return { status: "stale", branchId };
         await this.persist(() => this.runs.recordResearchTurn(mapPath, synthesisHandle));
         const { diagnostic, onEvent } = createSearchDiagnostic(researchTurn + 1);
-        const followupTask = phaseTask(
-          "targeted-followup-research",
-          [
-            "Perform one targeted web search for the Planner's material evidence gap. Report search status accurately, including the structured searchStatus field, and include source attribution, uncertainty, and limitations.",
-            SEARCHER_TARGET_RULE,
-            `Target: ${target.title}
-Search task: ${target.task}
-Expected uncertainty reduction: ${target.expectedValue}`,
-            `Current question: ${parent.summary}
-Current answer: ${answerDescription}`,
-            "Do not ask the user questions. This is an evidence-gathering step, not a Planner review."
-          ].join("\n\n")
-        );
+        const followupTask = renderTargetedFollowupResearchTask({
+          searcherTargetRule: SEARCHER_TARGET_RULE,
+          title: target.title,
+          task: target.task,
+          expectedValue: target.expectedValue,
+          currentQuestion: parent.summary,
+          currentAnswer: answerDescription
+        });
         let followup;
         await this.persist(() => this.runs.recordPhase(mapPath, synthesisHandle, "targeted-research"));
         try {
@@ -16593,12 +16783,12 @@ var _AimRunStore = class _AimRunStore {
       this.locks = /* @__PURE__ */ new Map();
       return;
     }
-    let shared = _AimRunStore.repositoryLocks.get(repository);
-    if (!shared) {
-      shared = /* @__PURE__ */ new Map();
-      _AimRunStore.repositoryLocks.set(repository, shared);
+    let shared2 = _AimRunStore.repositoryLocks.get(repository);
+    if (!shared2) {
+      shared2 = /* @__PURE__ */ new Map();
+      _AimRunStore.repositoryLocks.set(repository, shared2);
     }
-    this.locks = shared;
+    this.locks = shared2;
   }
   async createAnswerBranch(mapPath, input) {
     return this.locked(mapPath, async () => {
