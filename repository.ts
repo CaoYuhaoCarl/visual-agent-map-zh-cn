@@ -1265,7 +1265,7 @@ export class Repository {
       )
     ) {
       throw new Error(
-        "A MindSearch research attempt is still running or saving. Wait for it to finish before renaming this topic."
+        "An AIM research attempt is still running or saving. Wait for it to finish before renaming this topic."
       );
     }
     const next = `${desired}/Map.md`;

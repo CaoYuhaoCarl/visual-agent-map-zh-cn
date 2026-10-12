@@ -154,9 +154,9 @@ var english = {
   "ui.task_error": "Task error",
   "ui.cancel": "Cancel",
   "ui.create_an_empty_mind_map": "Create an empty mind map",
-  "ui.mindsearch_create_map": "Create MindSearch map",
-  "ui.mindsearch_start_title": "Create a MindSearch map",
-  "ui.mindsearch_empty_map_hint": "This MindSearch map has no topic yet. MindSearch maps start with a research topic.",
+  "ui.mindsearch_create_map": "Create Adaptive Inquiry Map (AIM)",
+  "ui.mindsearch_start_title": "Create an Adaptive Inquiry Map (AIM)",
+  "ui.mindsearch_empty_map_hint": "This Adaptive Inquiry Map has no topic yet. AIM starts with a research topic.",
   "ui.mindsearch_refresh_models": "Refresh model list",
   "ui.mindsearch_refreshing_models": "Refreshing model list\u2026",
   "ui.mindsearch_models_refreshed": "Model list refreshed.",
@@ -182,12 +182,12 @@ var english = {
   "ui.mindsearch_format_longform": "Detailed explanation",
   "ui.mindsearch_outcome_user_section": "User-provided outcome expectation",
   "ui.mindsearch_minimum_answers": "Exploration question target (3\u201310)",
-  "ui.mindsearch_answer_target_hint": "This is an exploration target, not a fixed question count. Each path requires at least 3 answered questions. If research provides enough information and important background and conflicting answers are clarified, MindSearch may conclude before reaching your target. Otherwise, it will continue asking questions or researching. Outcome preferences do not count as answers.",
+  "ui.mindsearch_answer_target_hint": "This is an exploration target, not a fixed question count. Each path requires at least 3 answered questions. If research provides enough information and important background and conflicting answers are clarified, AIM may conclude before reaching your target. Otherwise, it will continue asking questions or researching. Outcome preferences do not count as answers.",
   "ui.mindsearch_minimum_answers_invalid": "Enter a whole number from 3 to 10.",
   "ui.mindsearch_topic_label": "Main question or topic",
   "ui.mindsearch_context_label": "Known conditions or context (optional)",
   "ui.mindsearch_topic_required": "Enter a main question or topic to continue.",
-  "ui.mindsearch_creating": "Creating the MindSearch map\u2026",
+  "ui.mindsearch_creating": "Creating the Adaptive Inquiry Map\u2026",
   "ui.mindsearch_create": "Create map",
   "ui.mindsearch_new_question": "New question",
   "ui.mindsearch_new_question_hint": "Generate another question from this research, keeping existing branches",
@@ -1200,7 +1200,7 @@ var english = {
   "note.mindsearch_question_title_0": "Question \xB7 {0}",
   "note.mindsearch_answer_options_heading": "## Answer options",
   "note.mindsearch_unpublished_diagnostic": "(unpublished diagnostic)",
-  "note.mindsearch_unpublished_diagnostic_summary_0": "Unpublished diagnostic: this content belongs to the superseded MindSearch attempt {0} and is not a valid research result.",
+  "note.mindsearch_unpublished_diagnostic_summary_0": "Unpublished diagnostic: this content belongs to the superseded AIM attempt {0} and is not a valid research result.",
   "note.mindsearch_initial_clarification": "Initial user clarification",
   "note.no_conclusion_yet": "No conclusion yet",
   "note.untitled_topic": "Untitled topic",
@@ -1290,9 +1290,9 @@ var traditionalChinese = {
   "ui.task_error": "\u57F7\u884C\u932F\u8AA4",
   "ui.cancel": "\u53D6\u6D88",
   "ui.create_an_empty_mind_map": "\u5EFA\u7ACB\u7A7A\u767D\u5FC3\u667A\u5716",
-  "ui.mindsearch_create_map": "\u5EFA\u7ACB MindSearch \u5FC3\u667A\u5716",
-  "ui.mindsearch_start_title": "\u5EFA\u7ACB MindSearch \u5FC3\u667A\u5716",
-  "ui.mindsearch_empty_map_hint": "\u9019\u5F35 MindSearch \u5FC3\u667A\u5716\u76EE\u524D\u6C92\u6709\u8B70\u984C\u3002MindSearch \u6703\u5F9E\u7814\u7A76\u8B70\u984C\u958B\u59CB\u3002",
+  "ui.mindsearch_create_map": "\u5EFA\u7ACB Adaptive Inquiry Map\uFF08AIM\uFF09",
+  "ui.mindsearch_start_title": "\u5EFA\u7ACB Adaptive Inquiry Map\uFF08AIM\uFF09",
+  "ui.mindsearch_empty_map_hint": "\u9019\u5F35 Adaptive Inquiry Map \u76EE\u524D\u6C92\u6709\u8B70\u984C\u3002AIM \u6703\u5F9E\u7814\u7A76\u8B70\u984C\u958B\u59CB\u3002",
   "ui.mindsearch_refresh_models": "\u4FEE\u5FA9 Model \u6E05\u55AE",
   "ui.mindsearch_refreshing_models": "\u6B63\u5728\u66F4\u65B0 Model \u6E05\u55AE\u2026",
   "ui.mindsearch_models_refreshed": "Model \u6E05\u55AE\u5DF2\u66F4\u65B0\u3002",
@@ -1323,7 +1323,7 @@ var traditionalChinese = {
   "ui.mindsearch_topic_label": "\u6BCD\u984C\uFF0F\u4E3B\u8981\u554F\u984C",
   "ui.mindsearch_context_label": "\u5DF2\u6709\u689D\u4EF6\u6216\u80CC\u666F\uFF08\u9078\u586B\uFF09",
   "ui.mindsearch_topic_required": "\u8ACB\u8F38\u5165\u6BCD\u984C\u6216\u4E3B\u8981\u554F\u984C\u3002",
-  "ui.mindsearch_creating": "\u6B63\u5728\u5EFA\u7ACB MindSearch \u5FC3\u667A\u5716\u2026",
+  "ui.mindsearch_creating": "\u6B63\u5728\u5EFA\u7ACB Adaptive Inquiry Map\u2026",
   "ui.mindsearch_create": "\u5EFA\u7ACB\u5FC3\u667A\u5716",
   "ui.mindsearch_new_question": "\u65B0\u554F\u984C",
   "ui.mindsearch_new_question_hint": "\u6839\u64DA\u9019\u4EFD\u7814\u7A76\u7522\u751F\u53E6\u4E00\u500B\u554F\u984C\uFF0C\u4FDD\u7559\u73FE\u6709\u652F\u7DDA",
@@ -2336,7 +2336,7 @@ var traditionalChinese = {
   "note.mindsearch_question_title_0": "\u554F\u984C \xB7 {0}",
   "note.mindsearch_answer_options_heading": "## \u56DE\u7B54\u9078\u9805",
   "note.mindsearch_unpublished_diagnostic": "\uFF08\u672A\u767C\u5E03\u8A3A\u65B7\uFF09",
-  "note.mindsearch_unpublished_diagnostic_summary_0": "\u672A\u767C\u5E03\u8A3A\u65B7\uFF1A\u6B64\u5167\u5BB9\u5C6C\u65BC\u5DF2\u5931\u6548\u7684 MindSearch attempt {0}\uFF0C\u4E0D\u662F\u6709\u6548\u7814\u7A76\u7D50\u679C\u3002",
+  "note.mindsearch_unpublished_diagnostic_summary_0": "\u672A\u767C\u5E03\u8A3A\u65B7\uFF1A\u6B64\u5167\u5BB9\u5C6C\u65BC\u5DF2\u5931\u6548\u7684 AIM \u7814\u7A76\u5617\u8A66 {0}\uFF0C\u4E0D\u662F\u6709\u6548\u7814\u7A76\u7D50\u679C\u3002",
   "note.mindsearch_initial_clarification": "\u958B\u59CB\u524D\u689D\u4EF6\u91D0\u6E05",
   "note.no_conclusion_yet": "\u5C1A\u672A\u5F62\u6210\u7D50\u8AD6",
   "note.untitled_topic": "\u672A\u547D\u540D\u4E3B\u984C",
@@ -11119,7 +11119,7 @@ ${body}`);
       (run) => run.attempts.some((attempt) => attempt.status === "running" || attempt.status === "saving")
     )) {
       throw new Error(
-        "A MindSearch research attempt is still running or saving. Wait for it to finish before renaming this topic."
+        "An AIM research attempt is still running or saving. Wait for it to finish before renaming this topic."
       );
     }
     const next = `${desired}/Map.md`;
@@ -20876,7 +20876,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
         stateText = t("ui.mindsearch_status_exploring");
         stateClass = "idea";
       }
-      statusbar.createSpan({ cls: "vam-mindsearch-status-title", text: "MindSearch" });
+      statusbar.createSpan({ cls: "vam-mindsearch-status-title", text: "AIM" });
       statusbar.createSpan({ cls: `vam-mindsearch-status-value vam-status-${stateClass}`, text: stateText });
       if (this.mindSearchBusy)
         this.button(statusbar, t("ui.stop_research"), () => {

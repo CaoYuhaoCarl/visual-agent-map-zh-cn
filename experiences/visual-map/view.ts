@@ -2200,7 +2200,7 @@ export class VisualAgentMapView extends ItemView {
         stateText = t("ui.mindsearch_status_exploring");
         stateClass = "idea";
       }
-      statusbar.createSpan({ cls: "vam-mindsearch-status-title", text: "MindSearch" });
+      statusbar.createSpan({ cls: "vam-mindsearch-status-title", text: "AIM" });
       statusbar.createSpan({ cls: `vam-mindsearch-status-value vam-status-${stateClass}`, text: stateText });
       if (this.mindSearchBusy)
         this.button(statusbar, t("ui.stop_research"), () => {
