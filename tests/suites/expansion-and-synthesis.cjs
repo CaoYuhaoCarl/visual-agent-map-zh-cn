@@ -1031,3 +1031,25 @@ integrationTest('a second synthesis start on a busy topic is refused without a s
   await f.view.startSynthesis(f.parent, f.options(), null, message => failures.push(message), () => assert.fail('pending directions must be handled first'));
   assert.equal(failures.length, 2); assert.equal(f.contexts.length, 1);
 });
+integrationTest('a parent topic edited while the draft AI call is pending refuses the save and keeps the content', async () => {
+  const gate = deferred();
+  const f = await backgroundSynthesisFixture(async (call, _signal, onAccepted) => { onAccepted(); if (call === 2) await gate.promise; return call === 1 ? f.directionsResult : f.draftResult; });
+  await f.view.startSynthesis(f.parent, f.options(), null, message => assert.fail(message), () => {});
+  let accepted = 0;
+  const drafting = f.view.startSynthesis(f.parent, f.options(), 'Find shared constraints', message => assert.fail(message), () => accepted++);
+  await until(() => accepted === 1);
+  await f.repo.updateNote(f.parent.path, { summary: 'Edited while drafting' });
+  gate.resolve(); await drafting;
+  const task = f.view.synthesisTasks.get(f.parent.path); assert.equal(task.state, 'draft');
+  await assert.rejects(task.save('Edited summary', 'Edited detail'), /the synthesis draft was not saved/i);
+  const after = await f.repo.readNote(f.parent.path); assert.equal(after.summary, 'Edited while drafting'); assert.equal(after.detail, 'Existing knowledge');
+});
+integrationTest('aborting the modal before dispatch acceptance leaves no synthesis task or running state', async () => {
+  const f = await backgroundSynthesisFixture((_call, signal) => new Promise((_resolve, reject) => { signal.addEventListener('abort', () => { const error = new Error('cancelled'); error.name = 'AbortError'; reject(error); }, { once: true }); }));
+  const modalController = new AbortController(); const failures = [];
+  const started = f.view.startSynthesis(f.parent, { ...f.options(), signal: modalController.signal }, null, message => failures.push(message), () => assert.fail('must not be accepted'));
+  await until(() => f.contexts.length === 1);
+  modalController.abort(); await started;
+  assert.equal(f.view.synthesisTasks.has(f.parent.path), false); assert.equal(f.plugin.activeTasks.size, 0); assert.equal(f.plugin.running.size, 0); assert.equal(failures.length, 1);
+  assert.equal((await f.repo.readNote(f.parent.path)).status, 'completed');
+});
