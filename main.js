@@ -22129,6 +22129,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
           (title2) => this.enqueue(async () => this.openMapInMutation(await this.plugin.repo.createMap(title2)))
         ).open()
       );
+      this.button(toolbar, t("ui.aim_create_map"), () => this.openAimStart());
       const undo = this.button(
         toolbar,
         t("ui.undo"),
@@ -22387,7 +22388,6 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       const aimMode = !!this.map.aim;
       if (!aimMode) this.button(tools, t("ui.topic"), () => this.enqueue(() => this.addNode(null))).addClass("mod-cta");
       if (aimMode) this.button(tools, t("ui.create_a_new_mind_map"), () => this.openNewMindMapModal());
-      this.button(tools, t("ui.aim_create_map"), () => this.openAimStart());
       if (!aimMode) this.button(tools, t("ui.organize"), () => this.enqueue(() => this.openOrganizer()));
       this.button(
         tools,

@@ -2148,6 +2148,7 @@ export class VisualAgentMapView extends ItemView {
           this.enqueue(async () => this.openMapInMutation(await this.plugin.repo.createMap(title)))
         ).open()
       );
+      this.button(toolbar, t("ui.aim_create_map"), () => this.openAimStart());
       const undo = this.button(
         toolbar,
         t("ui.undo"),
@@ -2409,7 +2410,6 @@ export class VisualAgentMapView extends ItemView {
       const aimMode = !!this.map.aim;
       if (!aimMode) this.button(tools, t("ui.topic"), () => this.enqueue(() => this.addNode(null))).addClass("mod-cta");
       if (aimMode) this.button(tools, t("ui.create_a_new_mind_map"), () => this.openNewMindMapModal());
-      this.button(tools, t("ui.aim_create_map"), () => this.openAimStart());
       if (!aimMode) this.button(tools, t("ui.organize"), () => this.enqueue(() => this.openOrganizer()));
       this.button(tools, t("ui.auto_layout"), () =>
         this.enqueue(() =>
