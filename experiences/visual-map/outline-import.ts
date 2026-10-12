@@ -60,26 +60,44 @@ export function outlineTitle(raw: string): string {
   return plain.replace(/\uE000(\d+)\uE000/g, (_match, index: string) => escaped[Number(index)]).trim();
 }
 
-/** Unwraps an outline the AI returned inside a single ```markdown / ```md / ``` fence holding headings. */
+/**
+ * Unwraps an outline the AI returned inside a single fence holding headings. Only a fence labelled markdown / md,
+ * or a bare fence that is the first non-blank line, qualifies; any other fenced block stays code.
+ */
 function unwrapFencedOutline(lines: string[]): string[] {
-  const open = lines.findIndex(line => MARKDOWN_FENCE.test(line));
-  if (open < 0) return lines;
-  const marker = MARKDOWN_FENCE.exec(lines[open])![1];
-  const close = lines.findIndex(
-    (line, index) =>
-      index > open &&
-      FENCE_CLOSE.test(line) &&
-      FENCE_CLOSE.exec(line)![1][0] === marker[0] &&
-      FENCE_CLOSE.exec(line)![1].length >= marker.length
-  );
-  if (close < 0) return lines;
-  const inner = lines.slice(open + 1, close);
-  const outside = [...lines.slice(0, open), ...lines.slice(close + 1)];
-  const innerHasHeading = inner.some(line => HEADING.test(line));
-  const outsideHasHeading = outside.some(line => HEADING.test(line));
-  if (!innerHasHeading || outsideHasHeading) return lines;
-  // Keep line numbers stable: the fence lines become blank.
-  return lines.map((line, index) => (index === open || index === close ? "" : line));
+  const firstContent = lines.findIndex(line => line.trim() !== "");
+  let index = 0;
+  while (index < lines.length) {
+    const open = FENCE_OPEN.exec(lines[index]);
+    if (!open || (open[1][0] === "`" && open[2].includes("`"))) {
+      index++;
+      continue;
+    }
+    const marker = open[1];
+    const labelled = MARKDOWN_FENCE.exec(lines[index]);
+    const qualifies = !!labelled && (!!labelled[2] || index === firstContent);
+    let close = -1;
+    for (let next = index + 1; next < lines.length; next++) {
+      const candidate = FENCE_CLOSE.exec(lines[next]);
+      if (candidate && candidate[1][0] === marker[0] && candidate[1].length >= marker.length) {
+        close = next;
+        break;
+      }
+    }
+    if (close < 0) return lines;
+    if (!qualifies) {
+      index = close + 1;
+      continue;
+    }
+    const inner = lines.slice(index + 1, close);
+    // A bare fence has no label vouching for it, so it must hold nothing but headings (a bash block does not).
+    if (!labelled[2] && inner.some(line => line.trim() !== "" && !HEADING.test(line))) return lines;
+    const outside = [...lines.slice(0, index), ...lines.slice(close + 1)];
+    if (!inner.some(line => HEADING.test(line)) || outside.some(line => HEADING.test(line))) return lines;
+    // Keep line numbers stable: the fence lines become blank.
+    return lines.map((line, position) => (position === index || position === close ? "" : line));
+  }
+  return lines;
 }
 
 export function parseOutline(input: string): OutlineParse {

@@ -112,3 +112,14 @@ test('outline: every Markdown file in the repository parses without throwing and
     assert.equal(parse.headingLines + parse.ignoredLines + parse.blankLines + parse.skippedLines, parse.totalLines, file);
   }
 });
+
+test('outline: only a markdown/md fence or a leading bare fence is unwrapped; other fenced blocks stay code', () => {
+  const bash = api.parseOutline('```\n# just a bash comment\necho hi\n```');
+  assert.equal(bash.nodes.length, 0);
+  assert.deepEqual(keys(bash.errors), ['ui.outline_error_no_headings:0']);
+  assert.equal(api.parseOutline('Intro\n```bash\n# comment\n```').nodes.length, 0);
+  assert.equal(api.parseOutline('Intro\n```\n# comment\n```').nodes.length, 0);
+  assert.deepEqual(titles(api.parseOutline('```js\ncode\n```\n```md\n# R\n## A\n```')), ['>R@-', '>>A@0']);
+  assert.deepEqual(titles(api.parseOutline('\n```\n# R\n## A\n```')), ['>R@-', '>>A@0']);
+  assert.deepEqual(api.parseOutline('Intro\n```md\n# R\n## A\n```').nodes.map(node => node.line), [3, 4]);
+});
