@@ -2455,6 +2455,7 @@ export class VisualAgentMapView extends ItemView {
       if (!this.plugin.settings.models.trim())
         this.button(actions, t("ui.check_codex"), () => this.enqueue(() => this.plugin.recheckCodex()));
     }
+    if (!this.builtIn && !this.map.aim) this.renderMultiResearchStatus(this.contentEl);
     const tools = this.contentEl.createDiv("vam-map-tools");
     if (!this.builtIn) {
       const aimMode = !!this.map.aim;
@@ -2520,7 +2521,6 @@ export class VisualAgentMapView extends ItemView {
     if (this.selected && !shown.some(node => node.id === this.selected)) this.selected = null;
     this.multiSelected = new Set([...this.multiSelected].filter(id => shown.some(node => node.id === id)));
     if (this.integrationMode) this.renderSelectionBar(workspace);
-    else this.renderMultiResearchStatus(workspace);
     for (const node of shown) this.renderNode(node);
     if (!this.map.nodes.length) {
       const emptyMap = this.viewportEl.createDiv("vam-empty");
@@ -4021,6 +4021,10 @@ export class VisualAgentMapView extends ItemView {
           return;
         }
         if (nodes.length < selected.length) new Notice(t("ui.multi_research_skipped", selected.length - nodes.length));
+        // The batch runs in the background: leave selection mode so the selection bar gets out of the way.
+        this.integrationMode = false;
+        this.multiSelected.clear();
+        if (!this.closed) this.render();
         const choices: TaskOptions = {
           researchMode: request.researchMode,
           researchDepth: request.researchDepth,
@@ -4069,18 +4073,20 @@ export class VisualAgentMapView extends ItemView {
       new Notice(errorMessage(error));
     }
   }
-  private renderMultiResearchProgress(bar: HTMLElement): void {
+  /** Status bar under the toolbar (same place and look as the AIM status bar) with progress and Stop. */
+  private renderMultiResearchStatus(parent: HTMLElement): void {
     const state = this.plugin.expansionBatches.get(this.multiResearchKey());
     if (state?.status !== "running") return;
+    const bar = parent.createDiv("vam-aim-statusbar vam-multi-research-statusbar is-active");
+    bar.setAttr("aria-live", "polite");
+    const current = state.currentPath ? this.map?.nodes.find(node => node.path === state.currentPath) : undefined;
+    const title = current ? this.notes.get(current.id)?.title : undefined;
+    bar.createSpan({ cls: "vam-aim-status-title", text: t("ui.multi_research") });
     bar.createSpan({
-      cls: "vam-status vam-status-running",
-      text: t("ui.multi_research_progress", state.completed, state.total)
+      cls: "vam-aim-status-value vam-status-running",
+      text: `${t("ui.multi_research_progress", state.completed, state.total)}${title ? ` · ${title}` : ""}`
     });
     this.button(bar, t("ui.stop_research"), () => this.stopMultiResearch());
-  }
-  private renderMultiResearchStatus(parent: HTMLElement): void {
-    if (this.plugin.expansionBatches.get(this.multiResearchKey())?.status !== "running") return;
-    this.renderMultiResearchProgress(parent.createDiv("vam-selection-bar vam-multi-research-bar"));
   }
   private renderSelectionBar(workspace: HTMLElement): void {
     const selection = workspace.createDiv("vam-selection-bar");
@@ -4114,7 +4120,6 @@ export class VisualAgentMapView extends ItemView {
         !this.multiSelected.size || running
       );
     }
-    this.renderMultiResearchProgress(selection);
   }
   private researchChoices(options: TaskOptions): TaskOptions {
     const { signal: _signal, onProgress: _onProgress, ...choices } = options;

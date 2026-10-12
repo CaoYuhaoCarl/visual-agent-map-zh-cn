@@ -22918,6 +22918,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       if (!this.plugin.settings.models.trim())
         this.button(actions, t("ui.check_codex"), () => this.enqueue(() => this.plugin.recheckCodex()));
     }
+    if (!this.builtIn && !this.map.aim) this.renderMultiResearchStatus(this.contentEl);
     const tools = this.contentEl.createDiv("vam-map-tools");
     if (!this.builtIn) {
       const aimMode = !!this.map.aim;
@@ -22986,7 +22987,6 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     if (this.selected && !shown.some((node) => node.id === this.selected)) this.selected = null;
     this.multiSelected = new Set([...this.multiSelected].filter((id) => shown.some((node) => node.id === id)));
     if (this.integrationMode) this.renderSelectionBar(workspace);
-    else this.renderMultiResearchStatus(workspace);
     for (const node of shown) this.renderNode(node);
     if (!this.map.nodes.length) {
       const emptyMap = this.viewportEl.createDiv("vam-empty");
@@ -24370,6 +24370,9 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
           return;
         }
         if (nodes.length < selected.length) new import_obsidian16.Notice(t("ui.multi_research_skipped", selected.length - nodes.length));
+        this.integrationMode = false;
+        this.multiSelected.clear();
+        if (!this.closed) this.render();
         const choices = {
           researchMode: request.researchMode,
           researchDepth: request.researchDepth,
@@ -24417,19 +24420,21 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       new import_obsidian16.Notice(errorMessage(error));
     }
   }
-  renderMultiResearchProgress(bar) {
+  /** Status bar under the toolbar (same place and look as the AIM status bar) with progress and Stop. */
+  renderMultiResearchStatus(parent) {
+    var _a, _b;
     const state = this.plugin.expansionBatches.get(this.multiResearchKey());
     if ((state == null ? void 0 : state.status) !== "running") return;
+    const bar = parent.createDiv("vam-aim-statusbar vam-multi-research-statusbar is-active");
+    bar.setAttr("aria-live", "polite");
+    const current = state.currentPath ? (_a = this.map) == null ? void 0 : _a.nodes.find((node) => node.path === state.currentPath) : void 0;
+    const title = current ? (_b = this.notes.get(current.id)) == null ? void 0 : _b.title : void 0;
+    bar.createSpan({ cls: "vam-aim-status-title", text: t("ui.multi_research") });
     bar.createSpan({
-      cls: "vam-status vam-status-running",
-      text: t("ui.multi_research_progress", state.completed, state.total)
+      cls: "vam-aim-status-value vam-status-running",
+      text: `${t("ui.multi_research_progress", state.completed, state.total)}${title ? ` \xB7 ${title}` : ""}`
     });
     this.button(bar, t("ui.stop_research"), () => this.stopMultiResearch());
-  }
-  renderMultiResearchStatus(parent) {
-    var _a;
-    if (((_a = this.plugin.expansionBatches.get(this.multiResearchKey())) == null ? void 0 : _a.status) !== "running") return;
-    this.renderMultiResearchProgress(parent.createDiv("vam-selection-bar vam-multi-research-bar"));
   }
   renderSelectionBar(workspace) {
     var _a, _b;
@@ -24465,7 +24470,6 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         !this.multiSelected.size || running
       );
     }
-    this.renderMultiResearchProgress(selection);
   }
   researchChoices(options) {
     const { signal: _signal, onProgress: _onProgress, ...choices } = options;

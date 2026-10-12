@@ -1187,7 +1187,7 @@ integrationTest('multi research is not offered on AIM maps and needs at least on
   await h.view.startMultiResearch(h.request);
   assert.equal(h.plugin.expansionBatches.size, 0); assert.equal(h.runs.length, 0);
 });
-integrationTest('selection bar shows Research, progress and Stop; the progress bar also shows outside selection mode', async () => {
+integrationTest('selection bar shows Research; starting leaves selection mode and the top status bar shows progress and Stop', async () => {
   const h = await multiResearchHarness(['A', 'B']);
   const element = (tag, o = {}) => ({ tag, text: o.text ?? '', cls: o.cls ?? '', disabled: false, children: [], listeners: {},
     createDiv(v) { const c = element('div', { cls: typeof v === 'string' ? v : v?.cls }); this.children.push(c); return c; },
@@ -1195,19 +1195,32 @@ integrationTest('selection bar shows Research, progress and Stop; the progress b
     addEventListener(n, fn) { this.listeners[n] = fn; }, addClass(n) { this.cls = `${this.cls} ${n}`.trim(); }, setAttr() {} });
   const all = root => [root, ...root.children.flatMap(all)];
   const bar = (view = h.view) => { const root = element('workspace'); view.renderSelectionBar(root); return all(root); };
+  const toolbar = () => { const root = element('content'); h.view.renderMultiResearchStatus(root); return all(root); };
   h.view.notes = new Map(h.nodes.map(n => [n.id, { title: n.id }]));
   let items = bar(); const research = () => items.find(i => i.tag === 'button' && i.text === 'Research');
   items = bar(); assert.ok(research()); assert.equal(research().disabled, true);
   h.view.multiSelected = new Set([h.nodes[0].id]); items = bar(); assert.equal(research().disabled, false);
   h.view.map.aim = {}; items = bar(); assert.equal(research(), undefined); delete h.view.map.aim;
+  assert.equal(toolbar().length, 1);
+  h.view.integrationMode = true;
   await h.view.startMultiResearch(h.request); await until(() => h.runs.length === 1);
-  items = bar(); assert.equal(research().disabled, true);
-  assert.ok(items.find(i => i.tag === 'span' && i.text === 'Researching 0/1')); 
+  assert.equal(h.view.integrationMode, false); assert.equal(h.view.multiSelected.size, 0);
+  h.view.multiSelected = new Set([h.nodes[1].id]); items = bar(); assert.equal(research().disabled, true);
+  assert.equal(items.find(i => i.text === 'Researching 0/1'), undefined);
+  items = toolbar();
+  assert.ok(items.find(i => i.tag === 'span' && i.text === `Researching 0/1 · ${h.nodes[0].id}`), items.map(i => i.text).join('|'));
+  assert.ok(items.find(i => i.tag === 'div' && /vam-aim-statusbar/.test(i.cls)));
   const stop = items.find(i => i.tag === 'button' && i.text === 'Stop research'); assert.ok(stop);
-  const strip = element('workspace'); h.view.renderMultiResearchStatus(strip);
-  assert.ok(all(strip).find(i => i.text === 'Researching 0/1')); stop.listeners.click({ stopPropagation() {} });
+  stop.listeners.click({ stopPropagation() {} });
   await until(() => h.plugin.expansionBatches.get(h.key).status === 'stopped');
-  const idle = element('workspace'); h.view.renderMultiResearchStatus(idle); assert.equal(idle.children.length, 0);
+  assert.equal(toolbar().length, 1);
+});
+integrationTest('multi research keeps selection mode when nothing starts', async () => {
+  const h = await multiResearchHarness(['A']);
+  h.plugin.running.add(h.nodes[0].path);
+  h.view.integrationMode = true; h.view.multiSelected = new Set([h.nodes[0].id]);
+  await h.view.startMultiResearch(h.request);
+  assert.equal(h.view.integrationMode, true); assert.equal(h.view.multiSelected.size, 1);
 });
 integrationTest('multi research: stop before any topic is accepted gives exactly one summary Notice and no launch error', async () => {
   const h = await multiResearchHarness(['A']);
