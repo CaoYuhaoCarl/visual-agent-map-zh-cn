@@ -1,3 +1,4 @@
+import { translate } from "../../i18n";
 import type { CoffeeSession } from "./types";
 
 export interface TableListItem {
@@ -86,7 +87,7 @@ export function formatTableTime(timestamp: number, now = Date.now(), language = 
     date.getDate() === yesterday.getDate();
   const zh = language.toLowerCase().startsWith("zh");
   if (sameDay || isYesterday) {
-    const day = sameDay ? (zh ? "今天" : "Today") : zh ? "昨天" : "Yesterday";
+    const day = translate(zh ? "zh-TW" : "en", sameDay ? "coffee.today" : "coffee.yesterday");
     return `${day} ${new Intl.DateTimeFormat(zh ? "zh-TW" : "en", { hour: "2-digit", minute: "2-digit", hour12: !zh }).format(date)}`;
   }
   return new Intl.DateTimeFormat(zh ? "zh-TW" : "en", {

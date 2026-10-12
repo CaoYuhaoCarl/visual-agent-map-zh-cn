@@ -1,3 +1,4 @@
+import { translate } from "../../i18n";
 import type { CoffeeQuestion, GuestCounts, GuestCategory, CoffeeGuestInvitation } from "./types";
 
 const CATEGORIES: GuestCategory[] = ["experts", "cross-domain", "generalist", "affected"];
@@ -17,10 +18,8 @@ export function validateGuestInvitations(
   existingNames: string[] = [],
   language: "zh-TW" | "en" = "zh-TW"
 ): string | null {
-  const message = (zh: string, en: string): string => (language === "zh-TW" ? zh : en);
   const baseTotal = countGuests(baseCounts);
-  if (baseTotal < 1 || baseTotal > 12)
-    return message("這桌原有來賓人數設定無效。", "The existing guest count is invalid.");
+  if (baseTotal < 1 || baseTotal > 12) return translate(language, "coffee.the_existing_guest_count_is_invalid");
   const active = questions
     .filter(question => question.status === "complete" && question.id !== retryQuestionId)
     .flatMap(question => question.invitedGuests ?? []);
@@ -37,40 +36,22 @@ export function validateGuestInvitations(
   const candidateNames = new Set<string>();
   const candidateCounts: Record<GuestCategory, number> = { ...activeCounts };
   for (const guest of candidates) {
-    if (!CATEGORIES.includes(guest.category))
-      return message("請選擇有效的來賓類別。", "Choose a valid guest perspective.");
+    if (!CATEGORIES.includes(guest.category)) return translate(language, "coffee.choose_a_valid_guest_perspective");
     const name = clean(guest.name),
       description = clean(guest.description);
-    if (!name || !description)
-      return message(
-        "請填寫每位新來賓的姓名與背景／視角。",
-        "Enter a name and background or perspective for each guest."
-      );
+    if (!name || !description) return translate(language, "coffee.enter_a_name_and_background_or_perspective_for_each");
     if (name.length > 60 || description.length > 160)
-      return message(
-        "來賓姓名最多 60 字，背景／視角最多 160 字。",
-        "Names are limited to 60 characters and backgrounds to 160."
-      );
+      return translate(language, "coffee.names_are_limited_to_60_characters_and_backgrounds_to");
     const normalizedName = key(name);
     if (candidateIds.has(guest.id) || candidateNames.has(normalizedName) || activeNames.has(normalizedName))
-      return message(
-        `「${name}」已在這桌，請勿重複邀請。`,
-        `“${name}” is already at this table. Do not invite them again.`
-      );
+      return translate(language, "coffee.is_already_at_this_table_do_not_invite_them_again", name);
     candidateIds.add(guest.id);
     candidateNames.add(normalizedName);
     candidateCounts[guest.category]++;
   }
   if (baseTotal + activeIds.size + candidateIds.size > 12)
-    return message(
-      "這桌最多 12 位來賓；請減少邀請人數。",
-      "A table can have at most 12 guests. Remove some invitations."
-    );
+    return translate(language, "coffee.a_table_can_have_at_most_12_guests_remove_some");
   const overLimit = CATEGORIES.find(category => candidateCounts[category] > 8);
-  if (overLimit)
-    return message(
-      "每類最多 8 位來賓；請調整邀請類別。",
-      "Each guest perspective is limited to 8 people. Change the category."
-    );
+  if (overLimit) return translate(language, "coffee.each_guest_perspective_is_limited_to_8_people_change");
   return null;
 }

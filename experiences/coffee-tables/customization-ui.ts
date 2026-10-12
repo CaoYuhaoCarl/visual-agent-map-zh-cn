@@ -1,4 +1,5 @@
 import { Modal, Notice, type App } from "obsidian";
+import { translate, uiLocale, type TranslationKey } from "../../i18n";
 import type { CoffeeEngine } from "./engine";
 import { baselineFromVersions } from "./insights";
 import {
@@ -15,25 +16,21 @@ export function customizationFields(
   language: string,
   changed: () => void = () => undefined
 ): { read: () => CoffeeCustomization; set: (value: unknown) => void } {
-  const zh = language === "zh-TW",
-    tr = (en: string, tw: string): string => (zh ? tw : en);
+  const t = (key: TranslationKey, ...values: unknown[]): string => translate(uiLocale(language), key, ...values);
   const root = parent.createDiv("ct-customization-fields");
   const organize = root.createEl("section");
-  organize.createEl("h4", { text: tr("How to organize", "怎麼整理") });
+  organize.createEl("h4", { text: t("coffee.how_to_organize") });
   organize.createEl("p", {
     cls: "ct-muted",
-    text: tr("Choose the viewpoints, reasons and open questions to retain.", "指定你想留下的觀點、理由與未解問題。")
+    text: t("coffee.choose_the_viewpoints_reasons_and_open_questions_to")
   });
-  const observerLabel = organize.createEl("label", { text: tr("Observer instructions", "觀察者整理指令") });
+  const observerLabel = organize.createEl("label", { text: t("coffee.observer_instructions") });
   const observer = observerLabel.createEl("textarea", { attr: { rows: "5", maxlength: "12000" } });
   const converge = root.createEl("section");
-  converge.createEl("h4", { text: tr("How to converge", "怎麼收斂") });
+  converge.createEl("h4", { text: t("coffee.how_to_converge") });
   converge.createEl("p", {
     cls: "ct-muted",
-    text: tr(
-      "Combine similar ideas while retaining important differences and sources. Preview before applying.",
-      "合併相似觀點，同時保留重要差異與來源。先預覽，再套用。"
-    )
+    text: t("coffee.combine_similar_ideas_while_retaining_important")
   });
   const controls = converge.createDiv("ct-style-fields");
   const select = (label: string, options: Array<[string, string]>): HTMLSelectElement => {
@@ -42,54 +39,48 @@ export function customizationFields(
     for (const [value, text] of options) el.createEl("option", { value, text });
     return el;
   };
-  const merge = select(tr("Merge level", "合併程度"), [
-    ["detailed", tr("Keep detail", "保留細節")],
-    ["balanced", tr("Balanced", "適度合併")],
-    ["compact", tr("Compact", "高度精簡")]
+  const merge = select(t("coffee.merge_level"), [
+    ["detailed", t("coffee.keep_detail")],
+    ["balanced", t("coffee.balanced")],
+    ["compact", t("coffee.compact")]
   ]);
-  const detail = select(tr("Length target", "篇幅目標"), [
-    ["brief", tr("Brief", "精簡")],
-    ["standard", tr("Standard", "標準")],
-    ["detailed", tr("Detailed", "詳細")]
+  const detail = select(t("coffee.length_target"), [
+    ["brief", t("coffee.brief")],
+    ["standard", t("ui.standard")],
+    ["detailed", t("coffee.detailed")]
   ]);
   converge.createEl("small", {
     cls: "ct-muted",
-    text: tr("Length is a target. Important differences may need more space.", "篇幅是目標；重要差異可能需要較多文字。")
+    text: t("coffee.length_is_a_target_important_differences_may_need_more")
   });
   const preserve = new Map<string, HTMLInputElement>();
   const fieldset = converge.createEl("fieldset");
-  fieldset.createEl("legend", { text: tr("Keep these aspects", "保留重點") });
-  for (const [key, en, tw] of [
-    ["disagreements", "Different perspectives", "不同立場"],
-    ["conditions", "Conditions and limits", "條件限制"],
-    ["counterexamples", "Counterexamples", "反例"],
-    ["questions", "Open questions", "未解問題"],
-    ["sources", "Sources", "來源"]
-  ]) {
-    const label = fieldset.createEl("label");
-    const input = label.createEl("input", { attr: { type: "checkbox" } });
-    label.createSpan({ text: tr(en, tw) });
+  fieldset.createEl("legend", { text: t("coffee.keep_these_aspects") });
+  for (const [key, label] of [
+    ["disagreements", "coffee.preserve_disagreements"],
+    ["conditions", "coffee.preserve_conditions"],
+    ["counterexamples", "coffee.preserve_counterexamples"],
+    ["questions", "coffee.preserve_questions"],
+    ["sources", "coffee.preserve_sources"]
+  ] as const) {
+    const row = fieldset.createEl("label");
+    const input = row.createEl("input", { attr: { type: "checkbox" } });
+    row.createSpan({ text: t(label) });
     preserve.set(key, input);
   }
   const warning = converge.createEl("p", {
     cls: "ct-muted",
-    text: tr(
-      "Unchecked aspects are no longer emphasized; original notes remain available until you accept changes.",
-      "取消勾選後將不再強調該重點；接受變更前仍保留原有整理。"
-    )
+    text: t("coffee.unchecked_aspects_are_no_longer_emphasized_original")
   });
   void warning;
   const advanced = converge.createEl("details");
-  advanced.createEl("summary", { text: tr("Advanced: custom convergence instructions", "進階：自訂收斂指令") });
-  const convergenceLabel = advanced.createEl("label", { text: tr("Additional requirements", "補充要求") });
+  advanced.createEl("summary", { text: t("coffee.advanced_custom_convergence_instructions") });
+  const convergenceLabel = advanced.createEl("label", { text: t("coffee.additional_requirements") });
   const convergence = convergenceLabel.createEl("textarea", {
     attr: {
       rows: "4",
       maxlength: "12000",
-      placeholder: tr(
-        "For example: combine repetitions but retain minority views.",
-        "例如：合併重複敘述，但保留少數觀點。"
-      )
+      placeholder: t("coffee.for_example_combine_repetitions_but_retain_minority")
     }
   });
   const errors = root.createEl("p", { cls: "ct-error", attr: { "aria-live": "polite" } });
@@ -121,18 +112,15 @@ export function customizationFields(
     validate();
     changed();
   });
-  const reset = root.createEl("button", { text: tr("Restore organization defaults", "還原整理與收斂預設") });
+  const reset = root.createEl("button", { text: t("coffee.restore_organization_defaults") });
   reset.onclick = () => {
     set(defaultCustomization(language));
     changed();
   };
   const protectedRules = root.createEl("details", { cls: "ct-protected-rules" });
-  protectedRules.createEl("summary", { text: tr("System rules · read only", "系統規則 · 唯讀") });
+  protectedRules.createEl("summary", { text: t("coffee.system_rules_read_only") });
   protectedRules.createEl("p", {
-    text: tr(
-      "The app manages insight IDs, output structure, completion checks, source links and saving. Editing instructions cannot change tool permissions or remove pinned insights.",
-      "系統管理洞見識別碼、輸出結構、完成檢查、來源連結與保存。編輯指令不會改變工具權限，也不能刪除指定保留的洞見。"
-    )
+    text: t("coffee.the_app_manages_insight_ids_output_structure_completion")
   });
   set(initial);
   return { read, set };
@@ -152,30 +140,25 @@ export class CoffeeCustomizationModal extends Modal {
     this.modalEl.addClass("ct-customization-modal");
     const { contentEl: content, engine } = this,
       zh = engine.session.language === "zh-TW",
-      tr = (en: string, tw: string): string => (zh ? tw : en);
-    content.createEl("h2", { text: tr("Customize this table", "客製聊天室") });
+      t = (key: TranslationKey, ...values: unknown[]): string =>
+        translate(uiLocale(engine.session.language), key, ...values);
+    content.createEl("h2", { text: t("coffee.customize_this_table") });
     content.createEl("p", {
       cls: "ct-muted",
-      text: tr(
-        "New settings affect later actions. Existing conversation is not rewritten.",
-        "新設定會影響後續操作；已產生的內容不會自動重寫。"
-      )
+      text: t("coffee.new_settings_affect_later_actions_existing_conversation")
     });
-    content.createEl("h4", { text: tr("How to chat", "怎麼聊") });
+    content.createEl("h4", { text: t("coffee.how_to_chat") });
     content.createEl("p", {
       cls: "ct-muted",
-      text: tr(
-        "Choose how people speak and interact. You can restore the default at any time.",
-        "決定大家怎麼聊。可自由修改，隨時還原。"
-      )
+      text: t("coffee.choose_how_people_speak_and_interact_you_can_restore")
     });
-    const label = content.createEl("label", { text: tr("Conversation instructions", "聊天室指令") });
+    const label = content.createEl("label", { text: t("coffee.conversation_instructions") });
     const style = label.createEl("textarea", { attr: { rows: "6", maxlength: "30000" } });
     const builtin = cleanChatStyle(zh ? BUILTIN_COFFEE_STYLE_PROMPT : BUILTIN_COFFEE_STYLE_PROMPT_EN);
     style.value = cleanChatStyle(
       engine.session.guests?.stylePrompt ?? [builtin, engine.session.guests?.customPrompt].filter(Boolean).join("\n\n")
     );
-    const reset = content.createEl("button", { text: tr("Restore chat default", "還原聊天預設") });
+    const reset = content.createEl("button", { text: t("coffee.restore_chat_default") });
     reset.onclick = () => {
       style.value = builtin;
     };
@@ -197,16 +180,16 @@ export class CoffeeCustomizationModal extends Modal {
           });
       };
     };
-    run(tr("Apply to this table", "套用此聊天室"), async value => {
+    run(t("coffee.apply_to_this_table"), async value => {
       await engine.setCustomization(style.value, value);
-      new Notice(tr("Table settings saved.", "聊天室設定已保存。"));
+      new Notice(t("coffee.table_settings_saved"));
       this.close();
     });
-    run(tr("Default for new tables", "設為新聊天室預設"), async value => {
+    run(t("coffee.default_for_new_tables"), async value => {
       await this.saveDefault(style.value, value);
-      new Notice(tr("Saved for new tables.", "已設為新聊天室預設。"));
+      new Notice(t("coffee.saved_for_new_tables"));
     });
-    run(tr("Preview convergence once", "只用這次：預覽收斂"), async value => {
+    run(t("coffee.preview_convergence_once"), async value => {
       await this.confirmRun(() => engine.previewConvergence(value));
       if (engine.session.convergenceDraft || engine.session.convergenceRawDraft) {
         this.close();
@@ -215,10 +198,7 @@ export class CoffeeCustomizationModal extends Modal {
     });
     content.createEl("small", {
       cls: "ct-muted",
-      text: tr(
-        "A one-time preview uses the organization and convergence settings here. Chat changes require Apply or Default.",
-        "本次預覽只使用這裡的整理與收斂設定；聊天風格需按套用或設為預設才會保存。"
-      )
+      text: t("coffee.a_one_time_preview_uses_the_organization_and")
     });
   }
   onClose(): void {
@@ -237,23 +217,17 @@ export class CoffeeConvergenceModal extends Modal {
     this.modalEl.addClass("ct-customization-modal");
     const content = this.contentEl,
       engine = this.engine,
-      zh = engine.session.language === "zh-TW",
-      tr = (en: string, tw: string): string => (zh ? tw : en);
+      t = (key: TranslationKey, ...values: unknown[]): string =>
+        translate(uiLocale(engine.session.language), key, ...values);
     const draft = engine.session.convergenceDraft;
-    content.createEl("h2", { text: tr("Review convergence", "檢閱收斂草稿") });
+    content.createEl("h2", { text: t("coffee.review_convergence") });
     content.createEl("p", {
       cls: "ct-muted",
-      text: tr(
-        "Original notes are retained. Only checked changes are applied after confirmation.",
-        "原有觀點仍保留，確認後才會套用勾選的變更。"
-      )
+      text: t("coffee.original_notes_are_retained_only_checked_changes_are")
     });
     if (!draft) {
       content.createEl("p", {
-        text: tr(
-          "No valid preview is available. Copy the saved response or try again.",
-          "目前沒有可套用的草稿。可複製已保存回應或重新預覽。"
-        )
+        text: t("coffee.no_valid_preview_is_available_copy_the_saved_response")
       });
       const raw = content.createEl("textarea", { attr: { rows: "12", readonly: "true" } });
       raw.value = engine.session.convergenceRawDraft ?? "";
@@ -278,28 +252,28 @@ export class CoffeeConvergenceModal extends Modal {
       if (checkbox.checked) selected.add(index);
       label.createSpan({
         text: pinned
-          ? tr("Pinned · unchanged", "指定保留 · 不變")
+          ? t("coffee.pinned_unchanged")
           : unchanged
-            ? tr("Unchanged", "保留不變")
+            ? t("coffee.unchanged")
             : item.sourceIds.length > 1
-              ? tr(`Merge ${item.sourceIds.length} insights`, `合併 ${item.sourceIds.length} 項洞見`)
-              : tr("Revise insight", "修正洞見")
+              ? t("coffee.merge_insights", item.sourceIds.length)
+              : t("coffee.revise_insight")
       });
       checkbox.onchange = () => {
         if (checkbox.checked) selected.add(index);
         else selected.delete(index);
       };
       const before = block.createEl("details");
-      before.createEl("summary", { text: tr("Original viewpoints", "原有觀點") });
+      before.createEl("summary", { text: t("coffee.original_viewpoints") });
       for (const source of prior) {
         before.createEl("p", { text: source.summary });
         if (source.detail) before.createEl("p", { cls: "ct-muted", text: source.detail });
       }
-      const summaryLabel = block.createEl("label", { text: tr("Suggested viewpoint", "建議觀點") });
+      const summaryLabel = block.createEl("label", { text: t("coffee.suggested_viewpoint") });
       const summary = summaryLabel.createEl("textarea", { attr: { rows: "2", maxlength: "1000" } });
       summary.value = item.summary;
       summary.disabled = pinned || unchanged;
-      const detailLabel = block.createEl("label", { text: tr("Context and differences", "脈絡與差異") });
+      const detailLabel = block.createEl("label", { text: t("coffee.context_and_differences") });
       const detail = detailLabel.createEl("textarea", { attr: { rows: "4", maxlength: "12000" } });
       detail.value = item.detail;
       detail.disabled = pinned || unchanged;
@@ -311,14 +285,14 @@ export class CoffeeConvergenceModal extends Modal {
     }
     const errors = content.createEl("p", { cls: "ct-error", attr: { "aria-live": "polite" } }),
       actions = content.createDiv("ct-customization-actions");
-    const apply = actions.createEl("button", { text: tr("Accept selected changes", "接受勾選變更"), cls: "mod-cta" });
+    const apply = actions.createEl("button", { text: t("coffee.accept_selected_changes"), cls: "mod-cta" });
     apply.onclick = () => {
       if (engine.session.convergenceDraft !== draft) {
-        errors.setText(tr("The draft changed. Reopen the latest preview.", "草稿已更新，請重新開啟最新預覽。"));
+        errors.setText(t("coffee.the_draft_changed_reopen_the_latest_preview"));
         return;
       }
       if (!selected.size) {
-        errors.setText(tr("Select a change to apply.", "請先勾選要套用的變更。"));
+        errors.setText(t("coffee.select_a_change_to_apply"));
         return;
       }
       apply.disabled = true;
@@ -330,10 +304,10 @@ export class CoffeeConvergenceModal extends Modal {
           apply.disabled = false;
         });
     };
-    const discard = actions.createEl("button", { text: tr("Discard preview", "捨棄草稿") });
+    const discard = actions.createEl("button", { text: t("coffee.discard_preview") });
     discard.onclick = () => {
       if (engine.session.convergenceDraft !== draft) {
-        errors.setText(tr("The draft changed. Reopen the latest preview.", "草稿已更新，請重新開啟最新預覽。"));
+        errors.setText(t("coffee.the_draft_changed_reopen_the_latest_preview"));
         return;
       }
       discard.disabled = true;

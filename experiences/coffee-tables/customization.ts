@@ -1,3 +1,4 @@
+import { translate, uiLocale } from "../../i18n";
 import type { CoffeeInsightCategory } from "./insights";
 
 export type CoffeePreserveRule = "disagreements" | "conditions" | "counterexamples" | "questions" | "sources";
@@ -78,53 +79,49 @@ export function normalizeCustomization(value: unknown, language: string): Coffee
 }
 
 export function validateCustomization(value: CoffeeCustomization, language?: string): string[] {
-  const zh = language === "zh-TW";
+  const locale = uiLocale(language);
   const errors: string[] = [];
-  if (!value || typeof value !== "object") return [zh ? "自訂內容格式無效。" : "Customization must be an object."];
-  for (const [field, prompt] of [
+  if (!value || typeof value !== "object") return [translate(locale, "coffee.customization_must_be_an_object")];
+  for (const [, prompt] of [
     ["observerPrompt", value.observerPrompt],
     ["convergencePrompt", value.convergencePrompt]
   ] as const) {
     if (typeof prompt !== "string") {
-      errors.push(zh ? "觀察者與整併偏好必須是文字。" : `${field} must be text.`);
+      errors.push(translate(locale, "coffee.preferences_must_be_text"));
       continue;
     }
     if (prompt.length > 12_000)
-      errors.push(zh ? "每段偏好最多 12,000 個字元。" : "Each preference must be 12,000 characters or fewer.");
+      errors.push(translate(locale, "coffee.each_preference_must_be_12_000_characters_or_fewer"));
     if (PROTECTED_METADATA.test(prompt))
-      errors.push(
-        zh
-          ? "偏好不能包含 Coffee Tables 保留的內部標記。"
-          : "Preferences cannot contain reserved Coffee Tables metadata."
-      );
+      errors.push(translate(locale, "coffee.preferences_cannot_contain_reserved_coffee_tables"));
   }
   if (!["detailed", "balanced", "compact"].includes(value.mergeLevel))
-    errors.push(zh ? "整併程度選項無效。" : "The merge level is invalid.");
+    errors.push(translate(locale, "coffee.the_merge_level_is_invalid"));
   if (!["brief", "standard", "detailed"].includes(value.detailLevel))
-    errors.push(zh ? "脈絡詳略選項無效。" : "The detail level is invalid.");
+    errors.push(translate(locale, "coffee.the_detail_level_is_invalid"));
   if (!Array.isArray(value.preserve) || value.preserve.some(item => !PRESERVE_RULES.includes(item)))
-    errors.push(zh ? "保留項目含有不支援的選項。" : "The preserve list contains an unsupported value.");
+    errors.push(translate(locale, "coffee.the_preserve_list_contains_an_unsupported_value"));
   return errors;
 }
 
 export function validateConvergenceText(summary: string, detail: string, language?: string): string[] {
-  const zh = language === "zh-TW",
+  const locale = uiLocale(language),
     errors: string[] = [];
   if (typeof summary !== "string" || !summary.trim())
-    errors.push(zh ? "洞見摘要不可空白。" : "Insight summaries cannot be empty.");
+    errors.push(translate(locale, "coffee.insight_summaries_cannot_be_empty"));
   else if (summary.length > 1_000)
-    errors.push(zh ? "洞見摘要最多 1,000 個字元。" : "Insight summaries must be 1,000 characters or fewer.");
+    errors.push(translate(locale, "coffee.insight_summaries_must_be_1_000_characters_or_fewer"));
   if (typeof summary === "string" && /[\r\n]/.test(summary))
-    errors.push(zh ? "洞見摘要請使用單行文字。" : "Insight summaries must be a single line.");
+    errors.push(translate(locale, "coffee.insight_summaries_must_be_a_single_line"));
   if (typeof detail !== "string" || detail.length > 12_000)
-    errors.push(zh ? "洞見脈絡最多 12,000 個字元。" : "Insight context must be 12,000 characters or fewer.");
+    errors.push(translate(locale, "coffee.insight_context_must_be_12_000_characters_or_fewer"));
   if (
     (typeof summary === "string" && MARKDOWN_INJECTION.test(summary)) ||
     (typeof detail === "string" && MARKDOWN_INJECTION.test(detail)) ||
     (typeof summary === "string" && PROTECTED_METADATA.test(summary)) ||
     (typeof detail === "string" && PROTECTED_METADATA.test(detail))
   )
-    errors.push(zh ? "洞見不能包含標題或內部標記。" : "Insights cannot contain headings or internal metadata markers.");
+    errors.push(translate(locale, "coffee.insights_cannot_contain_headings_or_internal_metadata"));
   return errors;
 }
 

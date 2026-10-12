@@ -5570,13 +5570,26 @@ test('all user-facing translations use stable semantic keys', () => {
   const extract = value => new Set([...value.matchAll(/^  "((?:[^"\\]|\\.)+)":/gm)].map(match => match[1]));
   const keys = extract(english);
   assert.deepEqual([...extract(chinese)].sort(), [...keys].sort(), 'every locale must define exactly the same semantic keys');
-  const sourceFiles = ['main.ts', 'map-model.ts', 'ai/runtime/codex-app-server.ts', ...fs.readdirSync(path.join(root, 'ui')).filter(name => name.endsWith('.ts')).map(name => `ui/${name}`), ...fs.readdirSync(path.join(root, 'ui/modals')).filter(name => name.endsWith('.ts')).map(name => `ui/modals/${name}`)];
+  const tsFiles = dir => fs.readdirSync(path.join(root, dir), { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? tsFiles(`${dir}/${entry.name}`) : entry.name.endsWith('.ts') ? [`${dir}/${entry.name}`] : []);
+  // Coffee Tables prompt, transcript and Markdown-format modules hold conversation content, not interface text.
+  const coffeeContent = /^experiences\/coffee-tables\/(prompts|engine|convergence|storage|insights|types|topics|samples|outline|segments)\.ts$/;
+  const sourceFiles = ['main.ts', 'map-model.ts', 'ai/runtime/codex-app-server.ts', ...tsFiles('ui'), ...tsFiles('experiences').filter(file => !coffeeContent.test(file))];
   const missing = [];
+  let checked = 0;
   for (const file of sourceFiles) {
     const source = fs.readFileSync(path.join(root, file), 'utf8');
-    for (const match of source.matchAll(/\bt\("((?:[^"\\]|\\.)*)"/g)) if (!/^[a-z][a-z0-9_.]*$/.test(match[1]) || !keys.has(match[1])) missing.push(`${file}: ${match[1]}`);
+    for (const match of source.matchAll(/(?:\bt\(|\btranslate\([^,()]+(?:\([^()]*\))?,\s*)"((?:[^"\\]|\\.)*)"/g)) {
+      checked++;
+      if (!/^[a-z][a-z0-9_.]*$/.test(match[1]) || !keys.has(match[1])) missing.push(`${file}: ${match[1]}`);
+    }
   }
   assert.deepEqual(missing, []);
+  assert.ok(checked > 600, `expected the scan to reach Coffee Tables keys, saw ${checked}`);
+  const coffeeSources = tsFiles('experiences/coffee-tables').filter(file => !coffeeContent.test(file));
+  for (const file of coffeeSources) {
+    const source = fs.readFileSync(path.join(root, file), 'utf8');
+    assert.doesNotMatch(source, /\btr\(\s*["`]|this\.zh\b|\bmessage\(\s*["`]/, `${file} must use i18n keys instead of inline bilingual pairs`);
+  }
   const dictionaryValues = source => new Map([...source.matchAll(/^  "((?:[^"\\]|\\.)+)": "((?:[^"\\]|\\.)*)",?$/gm)].map(match => [match[1], match[2]]));
   const englishValues = dictionaryValues(english), chineseValues = dictionaryValues(chinese);
   const placeholders = value => [...value.matchAll(/\{\d+\}/g)].map(match => match[0]).sort();

@@ -637,10 +637,10 @@ export class VisualAgentMapView extends ItemView {
       "subtopic-research": t("ui.mindsearch_stage_subtopic"),
       "report-review": t("ui.mindsearch_stage_review"),
       "research-plan": t("ui.mindsearch_stage_plan"),
-      "delivery-outline": t("ui.mindsearch_stage_delivery-outline"),
-      "delivery-research": t("ui.mindsearch_stage_delivery-research"),
-      "delivery-writing": t("ui.mindsearch_stage_delivery-writing"),
-      "delivery-acceptance": t("ui.mindsearch_stage_delivery-acceptance")
+      "delivery-outline": t("ui.mindsearch_stage_delivery_outline"),
+      "delivery-research": t("ui.mindsearch_stage_delivery_research"),
+      "delivery-writing": t("ui.mindsearch_stage_delivery_writing"),
+      "delivery-acceptance": t("ui.mindsearch_stage_delivery_acceptance")
     };
     if (phase && labels[phase]) box.createEl("p", { text: t("ui.mindsearch_failure_stage", labels[phase]) });
     const reason = attempt?.stopReason ?? branch.researchPlanError ?? "";

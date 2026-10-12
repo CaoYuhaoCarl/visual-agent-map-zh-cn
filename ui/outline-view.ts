@@ -1,5 +1,5 @@
 import { ItemView, Notice, WorkspaceLeaf } from "obsidian";
-import { t, getUiLanguage } from "../i18n";
+import { t } from "../i18n";
 import type { MapDocument, MapNode } from "../map-model";
 import type { CoffeeNavigationSnapshot } from "../experiences/coffee-tables/segments";
 
@@ -131,7 +131,7 @@ export class OutlineView extends ItemView {
               : "ui.coffee_segment_initial"
       );
       button.createEl("strong", {
-        text: getUiLanguage() === "zh-TW" ? `第 ${index + 1} 段・${kind}` : `Segment ${index + 1} · ${kind}`
+        text: t("ui.coffee_outline_segment", index + 1, kind)
       });
       button.createSpan({
         text:

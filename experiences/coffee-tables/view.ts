@@ -12,6 +12,7 @@ import {
   type ViewStateResult
 } from "obsidian";
 import type VisualAgentMapPlugin from "../../main";
+import { translate, uiLocale, type TranslationKey, type UiLanguage } from "../../i18n";
 import { CoffeeEngine } from "./engine";
 import { CoffeeStorage } from "./storage";
 import {
@@ -67,9 +68,12 @@ class CoffeeDeleteModal extends Modal {
   constructor(
     app: App,
     private topic: string,
-    private zh: boolean
+    private locale: UiLanguage
   ) {
     super(app);
+  }
+  private t(key: TranslationKey, ...values: unknown[]): string {
+    return translate(this.locale, key, ...values);
   }
   confirm(): Promise<boolean> {
     return new Promise(resolve => {
@@ -80,16 +84,14 @@ class CoffeeDeleteModal extends Modal {
   onOpen(): void {
     const content = this.contentEl;
     content.empty();
-    content.createEl("h2", { text: this.zh ? "刪除這場桌聊？" : "Delete this table?" });
+    content.createEl("h2", { text: this.t("coffee.delete_this_table") });
     content.createEl("p", {
-      text: this.zh
-        ? `「${this.topic}」的 Markdown 與設定會先備份，再移入垃圾桶。`
-        : `“${this.topic}” will be backed up and moved to the vault trash.`
+      text: this.t("coffee.will_be_backed_up_and_moved_to_the_vault_trash", this.topic)
     });
     const buttons = content.createDiv({ cls: "modal-button-container" });
-    const cancel = buttons.createEl("button", { text: this.zh ? "取消" : "Cancel" });
+    const cancel = buttons.createEl("button", { text: this.t("ui.cancel") });
     cancel.onclick = () => this.close();
-    const remove = buttons.createEl("button", { text: this.zh ? "移到垃圾桶" : "Move to trash" });
+    const remove = buttons.createEl("button", { text: this.t("ui.move_to_trash") });
     remove.addClass("mod-warning");
     remove.onclick = () => {
       this.confirmed = true;
@@ -108,9 +110,12 @@ class CoffeeSummaryConfirmModal extends Modal {
   constructor(
     app: App,
     private model: string,
-    private zh: boolean
+    private locale: UiLanguage
   ) {
     super(app);
+  }
+  private t(key: TranslationKey, ...values: unknown[]): string {
+    return translate(this.locale, key, ...values);
   }
   confirm(): Promise<boolean> {
     return new Promise(resolve => {
@@ -119,15 +124,13 @@ class CoffeeSummaryConfirmModal extends Modal {
     });
   }
   onOpen(): void {
-    this.contentEl.createEl("h2", { text: this.zh ? "補齊段落摘要" : "Fill segment summaries" });
+    this.contentEl.createEl("h2", { text: this.t("coffee.fill_segment_summaries") });
     this.contentEl.createEl("p", {
-      text: this.zh
-        ? `將使用這桌的模型 ${this.model}，以一次 AI 呼叫摘要所有缺少摘要且有文字的段落。既有對談與洞見保持原樣。`
-        : `Use this table’s model ${this.model} in one AI request to summarize all text segments missing summaries. Existing dialogue and insights are preserved.`
+      text: this.t("coffee.use_this_tables_model_in_one_ai_request_to_summarize", this.model)
     });
     const actions = this.contentEl.createDiv("modal-button-container");
-    actions.createEl("button", { text: this.zh ? "取消" : "Cancel" }).onclick = () => this.close();
-    actions.createEl("button", { text: this.zh ? "補齊摘要" : "Generate summaries" }).onclick = () => {
+    actions.createEl("button", { text: this.t("ui.cancel") }).onclick = () => this.close();
+    actions.createEl("button", { text: this.t("coffee.generate_summaries") }).onclick = () => {
       this.confirmed = true;
       this.close();
     };
@@ -143,9 +146,12 @@ class CoffeeStyleNameModal extends Modal {
   constructor(
     app: App,
     private initial: string,
-    private zh: boolean
+    private locale: UiLanguage
   ) {
     super(app);
+  }
+  private t(key: TranslationKey, ...values: unknown[]): string {
+    return translate(this.locale, key, ...values);
   }
   ask(): Promise<string | null> {
     return new Promise(resolve => {
@@ -156,16 +162,16 @@ class CoffeeStyleNameModal extends Modal {
   onOpen(): void {
     const content = this.contentEl;
     content.empty();
-    content.createEl("h2", { text: this.zh ? "重新命名風格" : "Rename style" });
+    content.createEl("h2", { text: this.t("coffee.rename_style") });
     const input = content.createEl("input", {
-      attr: { type: "text", value: this.initial, maxlength: "80", "aria-label": this.zh ? "風格名稱" : "Style name" }
+      attr: { type: "text", value: this.initial, maxlength: "80", "aria-label": this.t("coffee.style_name") }
     });
     const buttons = content.createDiv({ cls: "modal-button-container" });
-    const cancel = buttons.createEl("button", { text: this.zh ? "取消" : "Cancel" });
+    const cancel = buttons.createEl("button", { text: this.t("ui.cancel") });
     cancel.onclick = () => {
       this.close();
     };
-    const save = buttons.createEl("button", { text: this.zh ? "保存" : "Save" });
+    const save = buttons.createEl("button", { text: this.t("coffee.save") });
     save.addClass("mod-cta");
     save.onclick = () => {
       this.resolveResult?.(input.value.trim() || null);
@@ -187,49 +193,48 @@ class CoffeePromptPreviewModal extends Modal {
   constructor(
     app: App,
     private prompt: string,
-    private zh: boolean,
+    private locale: UiLanguage,
     private fullPrompt?: string
   ) {
     super(app);
+  }
+  private t(key: TranslationKey, ...values: unknown[]): string {
+    return translate(this.locale, key, ...values);
   }
   onOpen(): void {
     const content = this.contentEl;
     content.empty();
     this.modalEl.addClass("ct-prompt-preview-modal");
     content.addClass("ct-prompt-preview-content");
-    content.createEl("h2", { text: this.zh ? "開桌 Prompt 預覽" : "Opening prompt preview" });
+    content.createEl("h2", { text: this.t("coffee.opening_prompt_preview") });
     content.createEl("p", {
       cls: "ct-muted",
-      text: this.zh
-        ? "此預覽呈現主題、人物、風格與背景要求，已隱藏供程式處理的內部標記。"
-        : "This preview shows the topic, participants, style and background requirements. Internal processing markers are hidden."
+      text: this.t("coffee.this_preview_shows_the_topic_participants_style_and")
     });
     const textarea = content.createEl("textarea", {
       attr: {
         rows: "24",
         readonly: "true",
         wrap: "soft",
-        "aria-label": this.zh ? "開桌 Prompt 預覽" : "Opening prompt preview"
+        "aria-label": this.t("coffee.opening_prompt_preview")
       }
     });
     textarea.value = this.prompt;
     content.createEl("small", {
       cls: "ct-muted",
-      text: `${this.prompt.length.toLocaleString()} ${this.zh ? "字元" : "characters"}`
+      text: `${this.prompt.length.toLocaleString()} ${this.t("coffee.characters")}`
     });
     if (this.fullPrompt) {
       const details = content.createEl("details");
       details.createEl("summary", {
-        text: this.zh ? "查看實際送出內容 · 唯讀" : "Actual submitted prompt · read only"
+        text: this.t("coffee.actual_submitted_prompt_read_only")
       });
       details.createEl("p", {
         cls: "ct-muted",
-        text: this.zh
-          ? "包含維持功能所需的系統格式；內容設定請在上方欄位修改。"
-          : "Includes the system format needed for processing. Edit content in the settings fields."
+        text: this.t("coffee.includes_the_system_format_needed_for_processing_edit")
       });
       const raw = details.createEl("textarea", {
-        attr: { rows: "16", readonly: "true", "aria-label": this.zh ? "實際送出內容" : "Actual submitted prompt" }
+        attr: { rows: "16", readonly: "true", "aria-label": this.t("coffee.actual_submitted_prompt") }
       });
       raw.value = this.fullPrompt;
     }
@@ -238,47 +243,48 @@ class CoffeePromptPreviewModal extends Modal {
     this.contentEl.empty();
   }
 }
-const CATEGORIES: Array<{ id: GuestCategory; en: string; zh: string; descEn: string; descZh: string }> = [
+const CATEGORIES: Array<{
+  id: GuestCategory;
+  label: TranslationKey;
+  description: TranslationKey;
+  role: TranslationKey;
+}> = [
   {
     id: "experts",
-    en: "Topic experts",
-    zh: "主題專家",
-    descEn: "Bring subject knowledge and challenge each other’s assumptions.",
-    descZh: "補充專業背景，挑戰彼此的判斷。"
+    label: "coffee.guest_category_experts",
+    description: "coffee.guest_category_experts_description",
+    role: "coffee.guest_role_experts"
   },
   {
     id: "cross-domain",
-    en: "Cross-domain experts",
-    zh: "跨領域專家",
-    descEn: "Offer useful ideas from another field and explain where the analogy breaks.",
-    descZh: "借用其他領域的經驗，也指出類比限制。"
+    label: "coffee.guest_category_cross_domain",
+    description: "coffee.guest_category_cross_domain_description",
+    role: "coffee.guest_role_cross_domain"
   },
   {
     id: "generalist",
-    en: "Curious generalists",
-    zh: "好奇的通才",
-    descEn: "Ask direct questions and connect the discussion to everyday life.",
-    descZh: "問出直白問題，把討論拉回日常。"
+    label: "coffee.guest_category_generalist",
+    description: "coffee.guest_category_generalist_description",
+    role: "coffee.guest_role_generalist"
   },
   {
     id: "affected",
-    en: "Affected perspectives",
-    zh: "受影響者",
-    descEn: "Challenge abstract assumptions from a lived situation.",
-    descZh: "從實際處境出發，挑戰抽象假設。"
+    label: "coffee.guest_category_affected",
+    description: "coffee.guest_category_affected_description",
+    role: "coffee.guest_role_affected"
   }
 ];
 function categoryLabel(category: string, language: string): string {
-  const names: Record<string, [string, string]> = {
-    connections: ["Unexpected connections", "意外連結"],
-    questions: ["Questions worth pursuing", "值得繼續想的問題"],
-    disagreements: ["Core disagreements", "核心分歧"],
-    directions: ["Directions to explore", "探索方向"],
-    assumptions: ["Assumptions to verify", "值得查證的假設"],
-    solutions: ["Questions and possible solutions", "疑問與可能解方"]
+  const names: Record<string, TranslationKey> = {
+    connections: "coffee.insight_category_connections",
+    questions: "coffee.insight_category_questions",
+    disagreements: "coffee.insight_category_disagreements",
+    directions: "coffee.insight_category_directions",
+    assumptions: "coffee.insight_category_assumptions",
+    solutions: "coffee.insight_category_solutions"
   };
-  const item = names[category];
-  return item ? (language === "zh-TW" ? item[1] : item[0]) : category;
+  const key = names[category];
+  return key ? translate(uiLocale(language), key) : category;
 }
 export function parseGuests(markdown: string): Array<{ name: string; role: string; bio: string }> {
   return [...markdown.matchAll(/^- \*\*(.+?)\s*[｜|]\s*(.+?)\*\*[：:]\s*(.+)$/gm)].map(match =>
@@ -291,14 +297,12 @@ export function rosterFor(
   session: CoffeeSession,
   markdown: string
 ): Array<{ name: string; role: string; bio: string }> {
-  const zh = session.language === "zh-TW",
+  const locale = uiLocale(session.language),
     settings = session.guests;
-  const inviteRoles: Record<GuestCategory, string> = {
-    experts: zh ? "主題專家" : "Topic expert",
-    "cross-domain": zh ? "跨領域專家" : "Cross-domain expert",
-    generalist: zh ? "好奇的通才" : "Curious generalist",
-    affected: zh ? "受影響者" : "Affected perspective"
-  };
+  const inviteRoles = Object.fromEntries(CATEGORIES.map(item => [item.id, translate(locale, item.role)])) as Record<
+    GuestCategory,
+    string
+  >;
   const invited = (session.questions ?? [])
     .filter(question => question.status === "complete")
     .flatMap(question => question.invitedGuests ?? [])
@@ -309,9 +313,9 @@ export function rosterFor(
     ).values()
   ];
   const roles = [
-    { category: "host", en: "Host", zh: "主持人", count: settings?.hostCount ?? 2 },
-    { category: "observer", en: "Observer", zh: "觀察者", count: 1 },
-    ...CATEGORIES.map(item => ({ category: item.id, en: item.en, zh: item.zh, count: settings?.counts[item.id] ?? 0 }))
+    { category: "host", label: "coffee.roster_host" as TranslationKey, count: settings?.hostCount ?? 2 },
+    { category: "observer", label: "coffee.roster_observer" as TranslationKey, count: 1 },
+    ...CATEGORIES.map(item => ({ category: item.id, label: item.label, count: settings?.counts[item.id] ?? 0 }))
   ];
   const roleKey = (role: string): string =>
     /主持|host/i.test(role)
@@ -334,9 +338,9 @@ export function rosterFor(
   }
   const placeholders = roles.flatMap(item =>
     Array.from({ length: Math.max(0, item.count - (used.get(item.category) ?? 0)) }, (_, index) => ({
-      name: `${zh ? item.zh : item.en} ${index + 1}`,
-      role: zh ? "即將登場" : "Joining",
-      bio: zh ? "等待人物介紹" : "Waiting for the introduction"
+      name: `${translate(locale, item.label)} ${index + 1}`,
+      role: translate(locale, "coffee.roster_joining"),
+      bio: translate(locale, "coffee.roster_waiting_for_introduction")
     }))
   );
   return [...people, ...placeholders];
@@ -462,7 +466,7 @@ export class CoffeeTablesView extends ItemView {
     const confirmed = await new CoffeeSummaryConfirmModal(
       this.app,
       engine.session.model,
-      this.plugin.settings.language === "zh-TW"
+      this.plugin.settings.language
     ).confirm();
     if (!confirmed || this.engine !== engine || engine.busy || this.closed) return;
     await this.plugin.confirmAiUsage(engine.session.model, () => engine.fillSegmentSummaries());
@@ -490,8 +494,8 @@ export class CoffeeTablesView extends ItemView {
     window.setTimeout(() => node.removeClass("ct-outline-highlight"), 1800);
     return true;
   }
-  private tr(en: string, zh: string): string {
-    return this.plugin.settings.language === "zh-TW" ? zh : en;
+  private t(key: TranslationKey, ...values: unknown[]): string {
+    return translate(uiLocale(this.plugin.settings.language), key, ...values);
   }
   async refreshForLanguageChange(): Promise<void> {
     if (this.closed) return;
@@ -639,11 +643,11 @@ export class CoffeeTablesView extends ItemView {
     home.scrollTop = this.homeMainScrollTop;
     home.addEventListener("scroll", () => (this.homeMainScrollTop = home.scrollTop));
     const tabs = shell.createDiv("ct-home-tabs");
-    this.button(tabs, this.tr("Setup and preview", "主區"), () => {
+    this.button(tabs, this.t("coffee.setup_and_preview"), () => {
       this.homePane = "main";
       shell.dataset.pane = "main";
     });
-    this.button(tabs, this.tr("Table list", "桌聊清單"), () => {
+    this.button(tabs, this.t("coffee.table_list"), () => {
       this.homePane = "list";
       shell.dataset.pane = "list";
     });
@@ -654,21 +658,18 @@ export class CoffeeTablesView extends ItemView {
     title.createEl("h2", { text: COFFEE_TABLES_NAME });
     home.createEl("p", {
       cls: "ct-intro",
-      text: this.tr(
-        "Bring different AI perspectives together to spot blind spots, unexpected connections and better questions.",
-        "讓不同背景的 AI 來賓一起聊，幫你發現盲點、意外連結，以及更值得問的問題。"
-      )
+      text: this.t("coffee.bring_different_ai_perspectives_together_to_spot_blind")
     });
     home.createEl("p", {
       cls: "ct-muted",
-      text: this.tr("Guests and experiences are AI simulations.", "來賓與經驗為 AI 模擬。")
+      text: this.t("coffee.guests_and_experiences_are_ai_simulations")
     });
     const setup = home.createDiv("ct-home-section");
-    setup.createEl("h3", { text: this.tr("Start a table", "開一桌") });
+    setup.createEl("h3", { text: this.t("coffee.start_a_table") });
     const topic = setup.createEl("textarea", {
       attr: {
-        "aria-label": this.tr("Topic", "主題"),
-        placeholder: this.tr("What would you like to explore?", "今天想探索什麼問題？"),
+        "aria-label": this.t("coffee.topic"),
+        placeholder: this.t("coffee.what_would_you_like_to_explore"),
         maxlength: "1200",
         rows: "3",
         "data-ct-home-field": "topic"
@@ -692,7 +693,7 @@ export class CoffeeTablesView extends ItemView {
     ideas.addEventListener("toggle", () => {
       this.homeForm.topicIdeasOpen = String(ideas.open);
     });
-    ideas.createEl("summary", { text: this.tr("Browse 20 topic ideas", "看看 20 個討論主題") });
+    ideas.createEl("summary", { text: this.t("coffee.browse_20_topic_ideas") });
     const ideaList = ideas.createDiv("ct-topic-list");
     for (const item of COFFEE_TOPICS) {
       const value = item[this.plugin.settings.language === "en" ? "en" : "zh"];
@@ -703,7 +704,7 @@ export class CoffeeTablesView extends ItemView {
         snapshotForm();
       });
     }
-    this.button(setup, this.tr("Surprise me with a topic", "換個題目"), () => {
+    this.button(setup, this.t("coffee.surprise_me_with_a_topic"), () => {
       const previous = topic.value;
       topic.value = pickCoffeeTopic(this.plugin.settings.language, previous);
       this.homeForm.topicIdeaId =
@@ -718,15 +719,15 @@ export class CoffeeTablesView extends ItemView {
     advanced.addEventListener("toggle", () => {
       this.homeForm.advancedOpen = String(advanced.open);
     });
-    const advancedSummary = advanced.createEl("summary", { text: this.tr("Adjust this table", "調整這桌") });
+    const advancedSummary = advanced.createEl("summary", { text: this.t("coffee.adjust_this_table") });
     const models = advanced.createDiv("ct-model-row");
-    const model = models.createEl("select", { attr: { "aria-label": this.tr("AI model", "AI 模型") } });
-    const reasoning = models.createEl("select", { attr: { "aria-label": this.tr("Reasoning effort", "推理強度") } });
-    const efforts: Record<string, [string, string]> = {
-      auto: ["Auto", "自動"],
-      low: ["Low", "低"],
-      medium: ["Medium", "中"],
-      high: ["High", "高"]
+    const model = models.createEl("select", { attr: { "aria-label": this.t("coffee.ai_model") } });
+    const reasoning = models.createEl("select", { attr: { "aria-label": this.t("coffee.reasoning_effort") } });
+    const efforts: Record<string, TranslationKey> = {
+      auto: "coffee.reasoning_auto",
+      low: "coffee.reasoning_low",
+      medium: "coffee.reasoning_medium",
+      high: "coffee.reasoning_high"
     };
     const setReasoning = (): void => {
       const selected =
@@ -734,7 +735,9 @@ export class CoffeeTablesView extends ItemView {
       const status = this.plugin.modelDiscoveryState?.(providerForModel(model.value)).status ?? "ready";
       const state = reasoningChoiceState(selected, this.plugin.coffeeReasoningEfforts(model.value), status);
       reasoning.empty();
-      state.values.forEach(value => reasoning.createEl("option", { value, text: this.tr(...efforts[value]) }));
+      state.values.forEach(value =>
+        reasoning.createEl("option", { value, text: efforts[value] ? this.t(efforts[value]) : value })
+      );
       reasoning.value = state.selected;
     };
     const setModels = (available: string[]): void => {
@@ -743,7 +746,7 @@ export class CoffeeTablesView extends ItemView {
         model.add(new Option(this.plugin.modelLabel(selected), selected));
         model.value = selected;
       }
-      syncModelSelect(model, available, id => this.plugin.modelLabel(id), this.tr("unavailable", "無法使用"));
+      syncModelSelect(model, available, id => this.plugin.modelLabel(id), this.t("coffee.unavailable"));
       model.value = selected;
       setReasoning();
     };
@@ -751,9 +754,9 @@ export class CoffeeTablesView extends ItemView {
     reasoning.dataset.ctHomeField = "reasoning";
     const modelStatus = advanced.createEl("p", {
       cls: "ct-muted",
-      text: this.tr("Loading available models…", "正在載入可用模型…")
+      text: this.t("coffee.loading_available_models")
     });
-    const retryModels = this.button(advanced, this.tr("Retry model discovery", "重新載入模型"), () => {
+    const retryModels = this.button(advanced, this.t("coffee.retry_model_discovery"), () => {
       void this.plugin.refreshCoffeeModels();
     });
     setModels(this.plugin.availableModels());
@@ -770,61 +773,55 @@ export class CoffeeTablesView extends ItemView {
     const old = edit?.guests,
       counts: GuestCounts = old?.counts ? { ...old.counts } : defaults();
     const hostRow = advanced.createDiv("ct-host-count");
-    hostRow.createEl("label", { text: this.tr("Hosts", "主持人") });
+    hostRow.createEl("label", { text: this.t("coffee.hosts") });
     const hostCount = hostRow.createEl("select", {
-      attr: { "aria-label": this.tr("Number of hosts", "主持人人數"), "data-ct-home-field": "hostCount" }
+      attr: { "aria-label": this.t("coffee.number_of_hosts"), "data-ct-home-field": "hostCount" }
     });
     for (let count = 1; count <= 4; count++)
       hostCount.createEl("option", { value: String(count), text: String(count) });
     hostCount.value = String(this.homeForm.hostCount ?? old?.hostCount ?? 2);
     hostRow.createEl("p", {
       cls: "ct-muted",
-      text: this.tr("One host can combine both facilitation styles.", "一位主持人可以同時負責抓矛盾與好奇追問。")
+      text: this.t("coffee.one_host_can_combine_both_facilitation_styles")
     });
     const hostRisk = hostRow.createEl("p", {
       cls: "ct-risk-warning is-hidden",
       attr: { role: "status" },
-      text: this.tr(
-        "More than two hosts may leave less room for guests to speak.",
-        "主持人超過兩位，可能會占用來賓接話的空間。"
-      )
+      text: this.t("coffee.more_than_two_hosts_may_leave_less_room_for_guests_to")
     });
     const guestSection = advanced.createDiv("ct-guests");
-    guestSection.createEl("h4", { text: this.tr("Choose your guests", "選擇來賓") });
-    const guestIntro = this.tr(
-      "Each perspective adds a different kind of question and challenge.",
-      "不同視角會帶來不同問題與挑戰。"
-    );
+    guestSection.createEl("h4", { text: this.t("coffee.choose_your_guests") });
+    const guestIntro = this.t("coffee.each_perspective_adds_a_different_kind_of_question_and");
     guestSection.createEl("p", { cls: "ct-muted", text: guestIntro });
     const countInputs = new Map<GuestCategory, HTMLInputElement>();
     const updateAdvancedSummary = (): void => {
-      const selectedModel = model.value ? this.plugin.modelLabel(model.value) : this.tr("Select a model", "選擇模型");
+      const selectedModel = model.value ? this.plugin.modelLabel(model.value) : this.t("coffee.select_a_model");
       const guests = [...countInputs.values()].reduce((sum, input) => sum + (Number(input.value) || 0), 0);
       advancedSummary.setText(
-        `${this.tr("Adjust this table", "調整這桌")} · ${selectedModel} · ${hostCount.value} ${this.tr("hosts", "位主持人")} + ${guests} ${this.tr("guests", "位來賓")}`
+        `${this.t("coffee.adjust_this_table")} · ${selectedModel} · ${hostCount.value} ${this.t("coffee.host_count_unit")} + ${guests} ${this.t("coffee.guest_count_unit")}`
       );
     };
     for (const category of CATEGORIES) {
       const row = guestSection.createDiv("ct-count-row");
       const label = row.createEl("label");
-      label.createSpan({ text: this.tr(category.en, category.zh) });
+      label.createSpan({ text: this.t(category.label) });
       const input = label.createEl("input", {
         attr: {
           type: "number",
           min: "0",
           max: "8",
           step: "1",
-          "aria-label": this.tr(category.en, category.zh),
+          "aria-label": this.t(category.label),
           "data-ct-home-field": `count-${category.id}`
         }
       });
       input.value = this.homeForm[`count-${category.id}`] ?? String(counts[category.id]);
       countInputs.set(category.id, input);
-      row.createEl("p", { cls: "ct-muted", text: this.tr(category.descEn, category.descZh) });
+      row.createEl("p", { cls: "ct-muted", text: this.t(category.description) });
     }
     const warning = guestSection.createEl("p", { cls: "ct-risk-warning is-hidden", attr: { role: "status" } });
     const invites = advanced.createDiv("ct-invites");
-    invites.createEl("h4", { text: this.tr("Guests you have in mind", "想邀請的來賓") });
+    invites.createEl("h4", { text: this.t("coffee.guests_you_have_in_mind") });
     const inviteRows: Array<{
       id: string;
       category: HTMLSelectElement;
@@ -842,18 +839,15 @@ export class CoffeeTablesView extends ItemView {
       const row = invites.createDiv("ct-invite-row"),
         id = guest?.id ?? crypto.randomUUID();
       const select = row.createEl("select", {
-        attr: { "aria-label": this.tr("Guest category", "來賓類別"), "data-ct-home-field": `invite-category-${id}` }
+        attr: { "aria-label": this.t("coffee.guest_category"), "data-ct-home-field": `invite-category-${id}` }
       });
-      CATEGORIES.forEach(item => select.createEl("option", { value: item.id, text: this.tr(item.en, item.zh) }));
+      CATEGORIES.forEach(item => select.createEl("option", { value: item.id, text: this.t(item.label) }));
       const description = row.createEl("input", {
         attr: {
           type: "text",
           maxlength: "160",
-          placeholder: this.tr(
-            "Name or background, e.g. a frontline support worker",
-            "姓名或背景，例如：第一線客服，輪班十年"
-          ),
-          "aria-label": this.tr("Guest name or background", "來賓姓名或背景"),
+          placeholder: this.t("coffee.name_or_background_e_g_a_frontline_support_worker"),
+          "aria-label": this.t("coffee.guest_name_or_background"),
           "data-ct-home-field": `invite-description-${id}`
         }
       });
@@ -861,7 +855,7 @@ export class CoffeeTablesView extends ItemView {
         select.value = guest.category;
         description.value = guest.description;
       }
-      const remove = this.button(row, this.tr("Remove", "移除"), () => {
+      const remove = this.button(row, this.t("ui.reference_remove"), () => {
         row.remove();
         const rowIndex = inviteRows.findIndex(item => item.row === row);
         if (rowIndex >= 0) inviteRows.splice(rowIndex, 1);
@@ -882,16 +876,16 @@ export class CoffeeTablesView extends ItemView {
     if (this.homeForm.invites !== undefined) savedInvites.forEach(guest => addInvite(guest));
     else if (old?.guests?.length) old.guests.forEach(guest => addInvite(guest));
     else savedInvites.forEach(guest => addInvite(guest));
-    this.button(invites, this.tr("Add a guest", "新增來賓"), () => {
+    this.button(invites, this.t("coffee.add_a_guest"), () => {
       addInvite();
       snapshotForm();
     });
     const styleSection = advanced.createDiv("ct-style-settings");
-    styleSection.createEl("h4", { text: this.tr("Customize the conversation", "客製聊天室") });
+    styleSection.createEl("h4", { text: this.t("coffee.customize_the_conversation") });
     const styleFields = styleSection.createDiv("ct-style-fields");
-    const styleChoiceLabel = styleFields.createEl("label", { text: this.tr("Conversation style", "聊天室風格") });
+    const styleChoiceLabel = styleFields.createEl("label", { text: this.t("coffee.conversation_style") });
     const styleSelect = styleChoiceLabel.createEl("select", {
-      attr: { "aria-label": this.tr("Choose a conversation style", "選擇聊天室風格"), "data-ct-home-field": "styleId" }
+      attr: { "aria-label": this.t("coffee.choose_a_conversation_style"), "data-ct-home-field": "styleId" }
     });
     const builtinId = "builtin";
     const styles = this.plugin.settings.coffeeStyles ?? [];
@@ -910,12 +904,12 @@ export class CoffeeTablesView extends ItemView {
         ? `${this.plugin.settings.language === "zh-TW" ? BUILTIN_COFFEE_STYLE_PROMPT : BUILTIN_COFFEE_STYLE_PROMPT_EN}\n\n${old.customPrompt}`
         : (selectedStyle?.prompt ??
           (this.plugin.settings.language === "zh-TW" ? BUILTIN_COFFEE_STYLE_PROMPT : BUILTIN_COFFEE_STYLE_PROMPT_EN)));
-    const styleNameLabel = styleFields.createEl("label", { text: this.tr("Style name", "風格名稱") });
+    const styleNameLabel = styleFields.createEl("label", { text: this.t("coffee.style_name") });
     const styleNameInput = styleNameLabel.createEl("input", {
       attr: {
         type: "text",
-        placeholder: this.tr("Style name", "風格名稱"),
-        "aria-label": this.tr("Style name", "風格名稱"),
+        placeholder: this.t("coffee.style_name"),
+        "aria-label": this.t("coffee.style_name"),
         "data-ct-home-field": "styleName"
       }
     });
@@ -923,23 +917,20 @@ export class CoffeeTablesView extends ItemView {
       this.homeForm.styleName ?? old?.styleName ?? selectedStyle?.name ?? BUILTIN_COFFEE_STYLE_NAME;
     const stylePromptLabel = styleSection.createEl("label", {
       cls: "ct-style-prompt-label",
-      text: this.tr("How to chat", "怎麼聊")
+      text: this.t("coffee.how_to_chat")
     });
     const stylePrompt = stylePromptLabel.createEl("textarea", {
       attr: {
         rows: "12",
         maxlength: "30000",
-        "aria-label": this.tr("Full conversation instructions", "完整聊天室指令"),
+        "aria-label": this.t("coffee.full_conversation_instructions"),
         "data-ct-home-field": "stylePrompt"
       }
     });
     stylePrompt.value = cleanChatStyle(initialStylePrompt);
     styleSection.createEl("p", {
       cls: "ct-muted",
-      text: this.tr(
-        "Choose how people speak and interact. You can freely edit this and restore the default.",
-        "決定大家怎麼聊。可自由修改，隨時還原。"
-      )
+      text: this.t("coffee.choose_how_people_speak_and_interact_you_can_freely")
     });
     const initialCustomization = (() => {
       try {
@@ -953,7 +944,7 @@ export class CoffeeTablesView extends ItemView {
       snapshotForm()
     );
     const styleActions = styleSection.createDiv("ct-style-actions");
-    this.button(styleActions, this.tr("Preview opening prompt", "查看開桌 Prompt"), () => {
+    this.button(styleActions, this.t("coffee.preview_opening_prompt"), () => {
       try {
         const previewSettings: GuestSettings = {
           counts: Object.fromEntries(
@@ -977,7 +968,7 @@ export class CoffeeTablesView extends ItemView {
         new CoffeePromptPreviewModal(
           this.app,
           prompt,
-          this.plugin.settings.language === "zh-TW",
+          this.plugin.settings.language,
           tablePrompt(topic.value, this.plugin.settings.language, previewSettings)
         ).open();
       } catch (error) {
@@ -988,7 +979,7 @@ export class CoffeeTablesView extends ItemView {
       styleSelect.empty();
       styleSelect.createEl("option", {
         value: builtinId,
-        text: `${BUILTIN_COFFEE_STYLE_NAME} · ${this.tr("Built-in", "內建")}`
+        text: `${BUILTIN_COFFEE_STYLE_NAME} · ${this.t("coffee.built_in")}`
       });
       for (const item of this.plugin.settings.coffeeStyles ?? [])
         styleSelect.createEl("option", { value: item.id, text: item.name });
@@ -1023,20 +1014,17 @@ export class CoffeeTablesView extends ItemView {
       return old?.referenceFiles?.map(item => ({ ...item })) ?? [];
     })();
     const refsSection = advanced.createDiv("ct-reference-files");
-    refsSection.createEl("h4", { text: this.tr("Background reference files", "背景參考檔") });
+    refsSection.createEl("h4", { text: this.t("coffee.background_reference_files") });
     refsSection.createEl("p", {
       cls: "ct-muted",
-      text: this.tr(
-        "Add plain-text .txt or .md files. Their contents are saved with this table as background, not instructions.",
-        "加入 .txt 或 .md 純文字檔。內容會快照保存為這桌的背景資料，不會視為指令。"
-      )
+      text: this.t("coffee.add_plain_text_txt_or_md_files_their_contents_are_saved")
     });
     const fileInput = refsSection.createEl("input", {
       attr: {
         type: "file",
         multiple: "true",
         accept: ".txt,.md,text/plain,text/markdown",
-        "aria-label": this.tr("Choose reference files", "選擇參考檔")
+        "aria-label": this.t("coffee.choose_reference_files")
       }
     });
     const referenceList = refsSection.createDiv("ct-reference-list");
@@ -1045,9 +1033,9 @@ export class CoffeeTablesView extends ItemView {
       for (const [index, file] of referenceFiles.entries()) {
         const row = referenceList.createDiv("ct-reference-row");
         row.createSpan({
-          text: `${file.name} · ${file.content.length.toLocaleString()} ${this.tr("characters", "字元")}`
+          text: `${file.name} · ${file.content.length.toLocaleString()} ${this.t("coffee.characters")}`
         });
-        this.button(row, this.tr("Remove", "移除"), () => {
+        this.button(row, this.t("ui.reference_remove"), () => {
           referenceFiles.splice(index, 1);
           renderReferences();
           snapshotForm();
@@ -1059,11 +1047,9 @@ export class CoffeeTablesView extends ItemView {
       void (async () => {
         const selected = Array.from(fileInput.files ?? []);
         for (const file of selected) {
-          if (!/\.(txt|md)$/i.test(file.name))
-            throw new Error(this.tr(`Unsupported reference file: ${file.name}`, `不支援的參考檔：${file.name}`));
+          if (!/\.(txt|md)$/i.test(file.name)) throw new Error(this.t("coffee.unsupported_reference_file", file.name));
           const content = await file.text();
-          if (!content.trim())
-            throw new Error(this.tr(`The reference file is empty: ${file.name}`, `參考檔沒有文字內容：${file.name}`));
+          if (!content.trim()) throw new Error(this.t("coffee.the_reference_file_is_empty", file.name));
           referenceFiles.push({ name: file.name, content });
         }
         renderReferences();
@@ -1086,31 +1072,24 @@ export class CoffeeTablesView extends ItemView {
     });
     stylePrompt.addEventListener("input", snapshotForm);
     styleNameInput.addEventListener("input", snapshotForm);
-    this.button(styleActions, this.tr("Save as new style", "另存新風格"), async () => {
+    this.button(styleActions, this.t("coffee.save_as_new_style"), async () => {
       const issues = validateCustomization(customization.read(), this.plugin.settings.language);
       if (issues.length) throw new Error(issues.join("\n"));
       const name = styleNameInput.value.trim();
-      if (!name || !stylePrompt.value.trim())
-        throw new Error(this.tr("Enter a style name and prompt first.", "請先填寫風格名稱與內容。"));
+      if (!name || !stylePrompt.value.trim()) throw new Error(this.t("coffee.enter_a_style_name_and_prompt_first"));
       const item = { id: crypto.randomUUID(), name, prompt: stylePrompt.value, customization: customization.read() };
       await this.changeCoffeeStyles(() => {
         this.plugin.settings.coffeeStyles = [...(this.plugin.settings.coffeeStyles ?? []), item];
       });
       refreshStyleChoices(item.id);
       snapshotForm();
-      new Notice(this.tr("Style saved.", "風格已保存。"));
+      new Notice(this.t("coffee.style_saved"));
     });
-    this.button(styleActions, this.tr("Update selected style", "更新所選風格"), async () => {
+    this.button(styleActions, this.t("coffee.update_selected_style"), async () => {
       const item = this.plugin.settings.coffeeStyles?.find(style => style.id === styleSelect.value);
-      if (!item)
-        throw new Error(
-          this.tr(
-            "The built-in style cannot be overwritten. Save it as a new style first.",
-            "內建風格不能直接覆寫，請另存為新風格。"
-          )
-        );
+      if (!item) throw new Error(this.t("coffee.the_built_in_style_cannot_be_overwritten_save_it_as_a"));
       if (!styleNameInput.value.trim() || !stylePrompt.value.trim())
-        throw new Error(this.tr("Enter a style name and prompt first.", "請先填寫風格名稱與內容。"));
+        throw new Error(this.t("coffee.enter_a_style_name_and_prompt_first"));
       const issues = validateCustomization(customization.read(), this.plugin.settings.language);
       if (issues.length) throw new Error(issues.join("\n"));
       await this.changeCoffeeStyles(() => {
@@ -1127,12 +1106,12 @@ export class CoffeeTablesView extends ItemView {
       });
       refreshStyleChoices(item.id);
       snapshotForm();
-      new Notice(this.tr("Style updated.", "風格已更新。"));
+      new Notice(this.t("coffee.style_updated"));
     });
-    this.button(styleActions, this.tr("Rename", "重新命名"), async () => {
+    this.button(styleActions, this.t("coffee.rename"), async () => {
       const item = this.plugin.settings.coffeeStyles?.find(style => style.id === styleSelect.value);
-      if (!item) throw new Error(this.tr("Choose a saved style first.", "請先選擇已保存的風格。"));
-      const name = await new CoffeeStyleNameModal(this.app, item.name, this.plugin.settings.language === "zh-TW").ask();
+      if (!item) throw new Error(this.t("coffee.choose_a_saved_style_first"));
+      const name = await new CoffeeStyleNameModal(this.app, item.name, this.plugin.settings.language).ask();
       if (!name) return;
       await this.changeCoffeeStyles(() => {
         this.plugin.settings.coffeeStyles = (this.plugin.settings.coffeeStyles ?? []).map(style =>
@@ -1143,10 +1122,10 @@ export class CoffeeTablesView extends ItemView {
       refreshStyleChoices(item.id);
       snapshotForm();
     });
-    this.button(styleActions, this.tr("Delete", "刪除風格"), async () => {
+    this.button(styleActions, this.t("coffee.delete_style"), async () => {
       const items = this.plugin.settings.coffeeStyles ?? [],
         index = items.findIndex(style => style.id === styleSelect.value);
-      if (index < 0) throw new Error(this.tr("Choose a saved style first.", "請先選擇已保存的風格。"));
+      if (index < 0) throw new Error(this.t("coffee.choose_a_saved_style_first"));
       await this.changeCoffeeStyles(() => {
         this.plugin.settings.coffeeStyles = items.filter((_, at) => at !== index);
         if (this.plugin.settings.defaultCoffeeStyleId === items[index].id)
@@ -1160,18 +1139,13 @@ export class CoffeeTablesView extends ItemView {
       customization.set(defaultCustomization(this.plugin.settings.language));
       snapshotForm();
     });
-    this.button(styleActions, this.tr("Default for new tables", "設為新聊天室預設"), async () => {
+    this.button(styleActions, this.t("coffee.default_for_new_tables"), async () => {
       await this.saveCoffeeDefault(stylePrompt.value, customization.read());
       refreshStyleChoices("customization-default");
       snapshotForm();
-      new Notice(
-        this.tr(
-          "Saved for new tables. Existing tables keep their settings.",
-          "已設為新聊天室預設；既有聊天室仍使用原設定。"
-        )
-      );
+      new Notice(this.t("coffee.saved_for_new_tables_existing_tables_keep_their_settings"));
     });
-    this.button(styleActions, this.tr("Restore built-in text", "還原內建文字"), () => {
+    this.button(styleActions, this.t("coffee.restore_built_in_text"), () => {
       styleSelect.value = builtinId;
       styleNameInput.value = BUILTIN_COFFEE_STYLE_NAME;
       stylePrompt.value = cleanChatStyle(
@@ -1195,17 +1169,14 @@ export class CoffeeTablesView extends ItemView {
       warning.toggleClass("is-hidden", !(n > 7 || n < 1 || n > 12 || overflow.length));
       warning.setText(
         overflow.length
-          ? this.tr(
-              `There are more named guests than ${overflow.map(item => item.en).join(", ")} places. Increase the count or remove a guest.`,
-              `${overflow.map(item => item.zh).join("、")}人數超過設定名額，請增加名額或移除來賓。`
+          ? this.t(
+              "coffee.more_named_guests_than_places",
+              overflow.map(item => this.t(item.label)).join(this.t("coffee.list_separator"))
             )
           : n < 1 || n > 12
-            ? this.tr("Choose 1–12 guests in total.", "來賓總數需介於 1–12 人。")
+            ? this.t("coffee.choose_1_12_guests_in_total")
             : n > 7
-              ? this.tr(
-                  "More guests can mean more waiting and less room for each person to go deeper.",
-                  "來賓越多，等待可能越久，每個人深入接話的空間也可能變少。"
-                )
+              ? this.t("coffee.more_guests_can_mean_more_waiting_and_less_room_for")
               : ""
       );
     };
@@ -1237,7 +1208,7 @@ export class CoffeeTablesView extends ItemView {
     snapshotForm();
     const start = this.button(
       setup,
-      this.tr(edit ? "Open a new table with these settings" : "Open table", edit ? "用這些設定開新桌" : "開一桌"),
+      edit ? this.t("coffee.open_a_new_table_with_these_settings") : this.t("coffee.open_table"),
       async () => {
         const issues = validateCustomization(customization.read(), this.plugin.settings.language);
         if (issues.length) throw new Error(issues.join("\n"));
@@ -1311,7 +1282,7 @@ export class CoffeeTablesView extends ItemView {
         setModels(available);
         updateAdvancedSummary();
         modelStatus.setText(
-          `${this.tr("Codex", "Codex")}: ${this.plugin.modelDiscoveryState("codex").status} · ${this.tr("Claude CLI candidates", "Claude CLI 候選模型")}: ${this.plugin.modelDiscoveryState("claude").status}`
+          `${this.t("ui.codex_provider_label")}: ${this.plugin.modelDiscoveryState("codex").status} · ${this.t("coffee.claude_cli_candidates")}: ${this.plugin.modelDiscoveryState("claude").status}`
         );
         model.disabled = false;
         reasoning.disabled = false;
@@ -1319,24 +1290,16 @@ export class CoffeeTablesView extends ItemView {
       })
       .catch(() => {
         if (!this.closed && generation === this.generation)
-          modelStatus.setText(
-            this.tr(
-              "Could not load models. Check provider setup and try again.",
-              "無法載入模型，請檢查 provider 設定後重試。"
-            )
-          );
+          modelStatus.setText(this.t("coffee.could_not_load_models_check_provider_setup_and_try_again"));
       });
     const samples = home.createDiv("ct-home-section");
-    samples.createEl("h3", { text: this.tr("See a sample conversation", "看看示範桌聊") });
+    samples.createEl("h3", { text: this.t("coffee.see_a_sample_conversation") });
     for (const sample of [COFFEE_SAMPLE_ZH, COFFEE_SAMPLE_EN])
       this.button(
         samples,
         sample.language === "en"
-          ? this.tr("English sample · Should Our Company Adopt AI?", "英文範例 · 公司應該導入 AI 嗎？")
-          : this.tr(
-              "Traditional Chinese sample · Should Our Company Adopt AI?",
-              "繁體中文範例 · 公司到底要不要推 AI？"
-            ),
+          ? this.t("coffee.english_sample_should_our_company_adopt_ai")
+          : this.t("coffee.traditional_chinese_sample_should_our_company_adopt_ai"),
         async () => this.openSample(sample.language)
       ).addClass("ct-session-link");
     const preview = home.createDiv("ct-preview is-hidden");
@@ -1347,13 +1310,13 @@ export class CoffeeTablesView extends ItemView {
     const search = searchRow.createEl("input", {
       attr: {
         type: "search",
-        placeholder: this.tr("Search topics", "搜尋主題"),
-        "aria-label": this.tr("Search topics", "搜尋主題"),
+        placeholder: this.t("coffee.search_topics"),
+        "aria-label": this.t("coffee.search_topics"),
         "data-ct-home-field": "search"
       }
     });
     search.value = this.homeQuery;
-    const clear = this.button(searchRow, this.tr("Clear", "清除"), () => {
+    const clear = this.button(searchRow, this.t("ui.clear"), () => {
       search.value = "";
       this.homeQuery = "";
       void renderList();
@@ -1365,14 +1328,14 @@ export class CoffeeTablesView extends ItemView {
     });
     const filterBar = aside.createDiv("ct-list-filters"),
       filterButtons = new Map<TableListFilter, HTMLButtonElement>();
-    const filterLabels: Record<TableListFilter, [string, string]> = {
-      all: ["All", "全部"],
-      generating: ["Generating", "生成中"],
-      unfinished: ["Unfinished", "未完成"],
-      completed: ["Completed", "已完成"]
+    const filterLabels: Record<TableListFilter, TranslationKey> = {
+      all: "coffee.filter_all",
+      generating: "coffee.filter_generating",
+      unfinished: "coffee.filter_unfinished",
+      completed: "coffee.filter_completed"
     };
     for (const filter of ["all", "generating", "unfinished", "completed"] as const) {
-      const button = this.button(filterBar, this.tr(...filterLabels[filter]), () => {
+      const button = this.button(filterBar, this.t(filterLabels[filter]), () => {
         this.tableFilter = filter;
         this.focusedTopic = null;
         updateFilters();
@@ -1383,7 +1346,7 @@ export class CoffeeTablesView extends ItemView {
     }
     const topicFocusRow = aside.createDiv("ct-topic-focus is-hidden");
     const topicFocusText = topicFocusRow.createSpan();
-    this.button(topicFocusRow, this.tr("Show all tables", "顯示全部桌聊"), () => {
+    this.button(topicFocusRow, this.t("coffee.show_all_tables"), () => {
       this.focusedTopic = null;
       updateFilters();
       void renderList();
@@ -1394,16 +1357,12 @@ export class CoffeeTablesView extends ItemView {
         button.setAttribute("aria-pressed", String(this.tableFilter === filter && !this.focusedTopic));
       }
       topicFocusRow.toggleClass("is-hidden", !this.focusedTopic);
-      if (this.focusedTopic)
-        topicFocusText.setText(this.tr(`Same topic: ${this.focusedTopic}`, `同一主題：${this.focusedTopic}`));
+      if (this.focusedTopic) topicFocusText.setText(this.t("coffee.same_topic", this.focusedTopic));
     };
 
     const archiveToggle = this.button(
       aside,
-      this.tr(
-        this.showArchivedTables ? "Show active tables" : "Show archived tables",
-        this.showArchivedTables ? "顯示一般聊天室" : "顯示已封存聊天室"
-      ),
+      this.showArchivedTables ? this.t("coffee.show_active_tables") : this.t("coffee.show_archived_tables"),
       () => {
         this.showArchivedTables = !this.showArchivedTables;
         this.selectedPath = "";
@@ -1417,23 +1376,22 @@ export class CoffeeTablesView extends ItemView {
       deletingTables = false;
     const selectionBar = aside.createDiv("ct-list-selection");
     const selectionCount = selectionBar.createSpan({ attr: { "aria-live": "polite" } });
-    const selectAll = this.button(selectionBar, this.tr("Select all shown", "全選目前清單"), () => {
+    const selectAll = this.button(selectionBar, this.t("coffee.select_all_shown"), () => {
       for (const item of visibleTables) if (!item.unreadable) selectedTables.set(item.path, item);
       void renderList();
     });
-    const clearSelection = this.button(selectionBar, this.tr("Clear selection", "取消選取"), () => {
+    const clearSelection = this.button(selectionBar, this.t("coffee.clear_selection"), () => {
       selectedTables.clear();
       void renderList();
     });
-    const deleteSelected = this.button(selectionBar, this.tr("Delete selected", "刪除所選聊天室"), async () => {
+    const deleteSelected = this.button(selectionBar, this.t("coffee.delete_selected"), async () => {
       if (deletingTables || !selectedTables.size) return;
       const targets = [...selectedTables.values()];
       deletingTables = true;
       updateSelection();
       try {
-        const topics = `${this.tr(`${targets.length} tables`, `${targets.length} 個聊天室`)}：\n${targets.map(item => item.topic).join("\n")}`;
-        if (!(await new CoffeeDeleteModal(this.app, topics, this.plugin.settings.language === "zh-TW").confirm()))
-          return;
+        const topics = this.t("coffee.tables_count_list", targets.length, targets.map(item => item.topic).join("\n"));
+        if (!(await new CoffeeDeleteModal(this.app, topics, this.plugin.settings.language).confirm())) return;
         let removed = 0;
         const failures: string[] = [];
         for (const item of targets) {
@@ -1441,8 +1399,7 @@ export class CoffeeTablesView extends ItemView {
           let engine: CoffeeEngine | undefined;
           try {
             const inspected = await this.store.inspectReadOnly(item.path);
-            if (inspected.id !== item.id)
-              throw new Error(this.tr("This table changed. Reload and try again.", "聊天室已變更，請重新載入後再試。"));
+            if (inspected.id !== item.id) throw new Error(this.t("coffee.this_table_changed_reload_and_try_again"));
             engine = await manager?.prepareDelete(item.id);
             await this.store.delete(item.id, item.path);
             manager?.completeDelete(item.id, engine);
@@ -1460,12 +1417,8 @@ export class CoffeeTablesView extends ItemView {
             failures.push(`${item.topic}: ${error instanceof Error ? error.message : String(error)}`);
           }
         }
-        new Notice(this.tr(`Deleted ${removed} tables.`, `已刪除 ${removed} 個聊天室。`));
-        if (failures.length)
-          new Notice(
-            this.tr(`Could not delete:\n${failures.join("\n")}`, `以下聊天室未能刪除：\n${failures.join("\n")}`),
-            10000
-          );
+        new Notice(this.t("coffee.deleted_tables", removed));
+        if (failures.length) new Notice(this.t("coffee.could_not_delete", failures.join("\n")), 10000);
         this.app.workspace.requestSaveLayout();
       } finally {
         deletingTables = false;
@@ -1474,10 +1427,7 @@ export class CoffeeTablesView extends ItemView {
     });
     const archiveSelected = this.button(
       selectionBar,
-      this.tr(
-        this.showArchivedTables ? "Unarchive selected" : "Archive selected",
-        this.showArchivedTables ? "取消封存所選聊天室" : "封存所選聊天室"
-      ),
+      this.showArchivedTables ? this.t("coffee.unarchive_selected") : this.t("coffee.archive_selected"),
       async () => {
         if (deletingTables || !selectedTables.size) return;
         deletingTables = true;
@@ -1489,10 +1439,9 @@ export class CoffeeTablesView extends ItemView {
           for (const item of targets) {
             try {
               const inspected = await this.store.inspectReadOnly(item.path);
-              if (inspected.id !== item.id)
-                throw new Error(this.tr("This table changed. Reload first.", "聊天室已變更，請先重新載入。"));
+              if (inspected.id !== item.id) throw new Error(this.t("coffee.this_table_changed_reload_first"));
               if (this.plugin.coffeeManager?.get(item.id)?.busy || inspected.status === "generating")
-                throw new Error(this.tr("Stop generation before archiving.", "請先停止生成，再封存聊天室。"));
+                throw new Error(this.t("coffee.stop_generation_before_archiving"));
               const manager = this.plugin.coffeeManager;
               const held = await manager?.prepareDelete(item.id);
               try {
@@ -1514,10 +1463,9 @@ export class CoffeeTablesView extends ItemView {
             }
           }
           new Notice(
-            this.tr(
-              `Updated ${moved} tables.`,
-              `已${this.showArchivedTables ? "取消封存" : "封存"} ${moved} 個聊天室。`
-            )
+            this.showArchivedTables
+              ? this.t("coffee.unarchived_tables_count", moved)
+              : this.t("coffee.archived_tables_count", moved)
           );
           if (failures.length) new Notice(failures.join("\n"), 10000);
           this.app.workspace.requestSaveLayout();
@@ -1529,7 +1477,7 @@ export class CoffeeTablesView extends ItemView {
     );
     deleteSelected.addClass("mod-warning");
     const updateSelection = (): void => {
-      selectionCount.setText(this.tr(`${selectedTables.size} selected`, `已選 ${selectedTables.size} 個`));
+      selectionCount.setText(this.t("coffee.selected_count", selectedTables.size));
       selectAll.disabled = deletingTables || !visibleTables.some(item => !item.unreadable);
       clearSelection.disabled = deletingTables || !selectedTables.size;
       deleteSelected.disabled = deletingTables || !selectedTables.size;
@@ -1543,8 +1491,7 @@ export class CoffeeTablesView extends ItemView {
     listScroller.scrollTop = this.homeListScrollTop;
     listScroller.addEventListener("scroll", () => (this.homeListScrollTop = listScroller.scrollTop));
     const deleteTable = async (session: CoffeeSession, path?: string): Promise<void> => {
-      if (!(await new CoffeeDeleteModal(this.app, session.topic, this.plugin.settings.language === "zh-TW").confirm()))
-        return;
+      if (!(await new CoffeeDeleteModal(this.app, session.topic, this.plugin.settings.language).confirm())) return;
       const manager = this.plugin.coffeeManager;
       let engine: CoffeeEngine | undefined;
       try {
@@ -1589,18 +1536,18 @@ export class CoffeeTablesView extends ItemView {
       samples.addClass("is-hidden");
       const toolbar = preview.createDiv("ct-preview-toolbar");
       const body = preview.createDiv("ct-preview-body");
-      this.button(toolbar, this.tr("Enter this table", "進入這個桌聊"), () => {
+      this.button(toolbar, this.t("coffee.enter_this_table"), () => {
         this.suppressStateRestore = true;
         void this.loadSession(path, true);
       }).addClass("mod-cta");
-      this.button(toolbar, this.tr("Open Markdown", "開啟 Markdown"), () => openMarkdown(path));
-      this.button(toolbar, this.tr("Delete table", "刪除桌聊"), async () => {
+      this.button(toolbar, this.t("coffee.open_markdown"), () => openMarkdown(path));
+      this.button(toolbar, this.t("coffee.delete_table"), async () => {
         const inspected = await this.store.inspectReadOnly(path),
           session = inspected.version === 3 ? inspected : copyLegacySession(inspected);
         await deleteTable(session, path);
       });
-      this.button(toolbar, this.tr("Open new table", "開新桌"), openNewTable);
-      body.createEl("p", { cls: "ct-muted", text: this.tr("Loading saved notes…", "正在讀取已保存的整理…") });
+      this.button(toolbar, this.t("coffee.open_new_table"), openNewTable);
+      body.createEl("p", { cls: "ct-muted", text: this.t("coffee.loading_saved_notes") });
       try {
         const inspected = await this.store.inspectReadOnly(path);
         let session: CoffeeSession =
@@ -1614,12 +1561,12 @@ export class CoffeeTablesView extends ItemView {
         body.createEl("h2", { text: session.topic });
         body.createEl("p", {
           cls: "ct-muted",
-          text: `${this.tr("Latest update", "最後更新")} · ${new Date(session.lastCompletedAt || session.updatedAt || session.createdAt).toLocaleString()}`
+          text: `${this.t("coffee.latest_update")} · ${new Date(session.lastCompletedAt || session.updatedAt || session.createdAt).toLocaleString()}`
         });
         if (session.dirtyNotes)
           body.createEl("p", {
             cls: "ct-warning",
-            text: this.tr("These notes predate later conversation changes.", "這份整理產生後，對談內容有過更新。")
+            text: this.t("coffee.these_notes_predate_later_conversation_changes")
           });
         const notes = session.observerNotes?.[0] ?? session.rounds?.find(round => round.notes)?.notes ?? "";
         if (notes)
@@ -1633,17 +1580,14 @@ export class CoffeeTablesView extends ItemView {
         else
           body.createEl("p", {
             cls: "ct-muted",
-            text: this.tr("No observer notes yet. You can still enter this table.", "尚無觀察者整理，仍可進入桌聊。")
+            text: this.t("coffee.no_observer_notes_yet_you_can_still_enter_this_table")
           });
       } catch (error) {
         if (this.closed || token !== this.navigationGeneration) return;
         body.empty();
         body.createEl("p", {
           cls: "ct-error",
-          text: this.tr(
-            `Preview unavailable: ${error instanceof Error ? error.message : String(error)}`,
-            `無法預覽：${error instanceof Error ? error.message : String(error)}`
-          )
+          text: this.t("coffee.preview_unavailable", error instanceof Error ? error.message : String(error))
         });
       }
     };
@@ -1690,7 +1634,7 @@ export class CoffeeTablesView extends ItemView {
       list.empty();
       updateFilters();
       const visible = selectTables(entries, this.homeQuery, this.tableFilter, this.focusedTopic);
-      list.createEl("h3", { cls: "ct-list-heading", text: `${this.tr("Tables", "桌聊")} (${visible.length})` });
+      list.createEl("h3", { cls: "ct-list-heading", text: `${this.t("coffee.tables_heading")} (${visible.length})` });
       visibleTables = visible;
       const visiblePaths = new Set(visible.filter(item => !item.unreadable).map(item => item.path));
       for (const path of selectedTables.keys()) if (!visiblePaths.has(path)) selectedTables.delete(path);
@@ -1700,12 +1644,12 @@ export class CoffeeTablesView extends ItemView {
           timestamp = new Date(time.value),
           status =
             item.status === "generating"
-              ? this.tr("Generating", "生成中")
+              ? this.t("coffee.generating")
               : item.status === "completed"
-                ? this.tr("Complete", "已完成")
+                ? this.t("coffee.complete")
                 : item.status === "error"
-                  ? this.tr("Interrupted", "中斷")
-                  : this.tr("Draft", "草稿");
+                  ? this.t("coffee.interrupted")
+                  : this.t("coffee.draft");
         const entry = list.createDiv("ct-list-entry"),
           button = this.button(entry, "", () => {
             if (item.status === "generating") void this.loadSession(item.path);
@@ -1713,7 +1657,7 @@ export class CoffeeTablesView extends ItemView {
           });
         const checkbox = entry.createEl("input", {
           cls: "ct-table-checkbox",
-          attr: { type: "checkbox", "aria-label": this.tr(`Select ${item.topic}`, `選取 ${item.topic}`) }
+          attr: { type: "checkbox", "aria-label": this.t("coffee.select_table", item.topic) }
         });
         checkbox.checked = selectedTables.has(item.path);
         checkbox.disabled = !!item.unreadable;
@@ -1730,7 +1674,7 @@ export class CoffeeTablesView extends ItemView {
         meta.createSpan({ text: formatTableTime(time.value, Date.now(), this.plugin.settings.language) });
         const badge = meta.createSpan({ cls: `ct-status-badge ct-status-${item.status}`, text: status });
         badge.setAttribute("aria-label", status);
-        if (time.isFallback) meta.createSpan({ cls: "ct-list-fallback", text: this.tr("Last updated", "最後更新") });
+        if (time.isFallback) meta.createSpan({ cls: "ct-list-fallback", text: this.t("coffee.last_updated") });
         if (item.unreadable) {
           button.addClass("ct-list-unreadable");
           button.disabled = true;
@@ -1746,7 +1690,7 @@ export class CoffeeTablesView extends ItemView {
         if (!item.unreadable && sameCount > 1) {
           const same = entry.createEl("button", {
             cls: "ct-same-topic-link",
-            text: this.tr(`Same topic · ${sameCount} tables`, `同題共 ${sameCount} 場`)
+            text: this.t("coffee.same_topic_tables", sameCount)
           });
           same.addEventListener("click", event => {
             event.preventDefault();
@@ -1765,8 +1709,8 @@ export class CoffeeTablesView extends ItemView {
           cls: "ct-muted",
           text:
             this.homeQuery || this.focusedTopic
-              ? this.tr("No matching tables.", "找不到符合的桌聊。")
-              : this.tr("Your tables will appear here.", "桌聊會顯示在這裡。")
+              ? this.t("coffee.no_matching_tables")
+              : this.t("coffee.your_tables_will_appear_here")
         });
       listScroller.scrollTop = oldTop;
     };
@@ -1790,8 +1734,7 @@ export class CoffeeTablesView extends ItemView {
     if (this.previewVisible && this.selectedPath) void showPreview(this.selectedPath);
   }
   private async changeCoffeeStyles(change: () => void): Promise<void> {
-    if (this.savingCoffeeStyles)
-      throw new Error(this.tr("Settings are being saved. Try again shortly.", "設定正在保存，請稍後再試。"));
+    if (this.savingCoffeeStyles) throw new Error(this.t("coffee.settings_are_being_saved_try_again_shortly"));
     const previousStyles = this.plugin.settings.coffeeStyles,
       previousId = this.plugin.settings.defaultCoffeeStyleId;
     this.savingCoffeeStyles = true;
@@ -1809,15 +1752,12 @@ export class CoffeeTablesView extends ItemView {
   private async saveCoffeeDefault(style: string, customization: CoffeeCustomization): Promise<void> {
     const issues = validateCustomization(customization, this.plugin.settings.language);
     if (issues.length) throw new Error(issues.join("\n"));
-    if (style.length > 30000)
-      throw new Error(
-        this.tr("Chat instructions must be 30,000 characters or fewer.", "聊天室指令請保持在 30,000 字元內。")
-      );
+    if (style.length > 30000) throw new Error(this.t("coffee.chat_instructions_must_be_30_000_characters_or_fewer"));
     const id = "customization-default";
     await this.changeCoffeeStyles(() => {
       this.plugin.settings.coffeeStyles = [
         ...(this.plugin.settings.coffeeStyles ?? []).filter(item => item.id !== id),
-        { id, name: this.tr("My conversation defaults", "我的聊天室預設"), prompt: style, customization }
+        { id, name: this.t("coffee.my_conversation_defaults"), prompt: style, customization }
       ];
       this.plugin.settings.defaultCoffeeStyleId = id;
     });
@@ -1901,13 +1841,13 @@ export class CoffeeTablesView extends ItemView {
       fixed = room.createDiv("ct-fixed"),
       header = fixed.createDiv("ct-header");
     header.createEl("h2", { text: legacy.topic });
-    this.button(header, this.tr("Home", "回主頁"), () => this.returnHome());
-    this.button(header, this.tr("Open Markdown", "開啟 Markdown"), async () => {
+    this.button(header, this.t("coffee.home"), () => this.returnHome());
+    this.button(header, this.t("coffee.open_markdown"), async () => {
       const file = await this.store.openMarkdown(legacy.id);
       await this.app.workspace.getLeaf(false).openFile(file);
     });
-    this.button(header, this.tr("Open new table", "開新桌"), () => this.returnHome());
-    header.createEl("p", { cls: "ct-muted", text: this.tr("Older saved table · read only", "舊版桌聊紀錄 · 唯讀") });
+    this.button(header, this.t("coffee.open_new_table"), () => this.returnHome());
+    header.createEl("p", { cls: "ct-muted", text: this.t("coffee.older_saved_table_read_only") });
     const scrolling = room.createDiv("ct-chat-scroll markdown-rendered");
     void MarkdownRenderer.render(
       this.app,
@@ -1972,20 +1912,14 @@ export class CoffeeTablesView extends ItemView {
       header = fixed.createDiv("ct-header");
     header.createEl("h2", { text: engine.session.topic });
     const actions = header.createDiv("ct-room-actions");
-    this.button(actions, this.tr("Home", "回主頁"), () => this.returnHome());
+    this.button(actions, this.t("coffee.home"), () => this.returnHome());
     if (!engine.session.id.startsWith("sample-")) {
-      this.button(actions, this.tr("Open Markdown", "開啟 Markdown"), async () => {
+      this.button(actions, this.t("coffee.open_markdown"), async () => {
         const file = await this.store.openMarkdown(engine.session.id);
         await this.app.workspace.getLeaf(false).openFile(file);
       });
-      this.button(actions, this.tr("Delete table", "刪除桌聊"), async () => {
-        if (
-          !(await new CoffeeDeleteModal(
-            this.app,
-            engine.session.topic,
-            this.plugin.settings.language === "zh-TW"
-          ).confirm())
-        )
+      this.button(actions, this.t("coffee.delete_table"), async () => {
+        if (!(await new CoffeeDeleteModal(this.app, engine.session.topic, this.plugin.settings.language).confirm()))
           return;
         const manager = this.plugin.coffeeManager;
         let deleting: CoffeeEngine | undefined;
@@ -2000,22 +1934,22 @@ export class CoffeeTablesView extends ItemView {
         }
       });
     }
-    this.button(actions, this.tr("Open new table", "開新桌"), () => this.returnHome());
+    this.button(actions, this.t("coffee.open_new_table"), () => this.returnHome());
     header.createEl("p", {
       cls: "ct-muted",
-      text: `${this.plugin.modelLabel(engine.session.model)} · ${this.tr("AI simulated perspectives", "AI 虛構模擬視角")} · ${engine.session.language === "en" ? this.tr("Conversation: English", "對談語言：英文") : this.tr("Conversation: Traditional Chinese", "對談語言：繁體中文")}`
+      text: `${this.plugin.modelLabel(engine.session.model)} · ${this.t("coffee.ai_simulated_perspectives")} · ${engine.session.language === "en" ? this.t("coffee.conversation_english") : this.t("coffee.conversation_traditional_chinese")}`
     });
     const roster = fixed.createDiv("ct-roster"),
       status = fixed.createDiv({ cls: "ct-status", attr: { role: "status", "aria-live": "polite" } });
-    if (engine.busy) this.button(fixed, this.tr("Stop", "停止生成"), () => engine.cancel());
+    if (engine.busy) this.button(fixed, this.t("coffee.stop_generation"), () => engine.cancel());
     else if (engine.session.status === "error") {
       const recover = this.button(
         fixed,
         engine.persistenceFailed
-          ? this.tr("Retry saving", "重試保存")
+          ? this.t("coffee.retry_saving")
           : engine.session.draftMarkdown
-            ? this.tr("Continue from saved draft", "從已保存草稿繼續")
-            : this.tr("Retry this segment", "重試這一段"),
+            ? this.t("coffee.continue_from_saved_draft")
+            : this.t("coffee.retry_this_segment"),
         async () => {
           if (engine.persistenceFailed) await engine.retrySave();
           else await this.plugin.confirmAiUsage(engine.session.model, () => engine.start());
@@ -2026,10 +1960,10 @@ export class CoffeeTablesView extends ItemView {
     const body = room.createDiv("ct-room-columns"),
       tabs = body.createDiv("ct-pane-tabs");
     body.dataset.pane = "chat";
-    const chatTab = this.button(tabs, this.tr("Conversation", "對談"), () => {
+    const chatTab = this.button(tabs, this.t("coffee.conversation"), () => {
       body.dataset.pane = "chat";
     });
-    const insightTab = this.button(tabs, this.tr("Insights", "洞見"), () => {
+    const insightTab = this.button(tabs, this.t("coffee.insights"), () => {
       body.dataset.pane = "insight";
     });
     chatTab.addClass("ct-pane-tab");
@@ -2056,7 +1990,7 @@ export class CoffeeTablesView extends ItemView {
       if (event.type === "round") {
         const round = (engine.session.rounds ?? [])[event.index];
         this.renderRound(
-          round.markdown || round.draftMarkdown || this.tr("This segment has no dialogue yet.", "這段尚無對談內容。"),
+          round.markdown || round.draftMarkdown || this.t("coffee.this_segment_has_no_dialogue_yet"),
           round.id,
           messages
         );
@@ -2074,29 +2008,29 @@ export class CoffeeTablesView extends ItemView {
         }
         if (question.status === "error") segment.createEl("p", { cls: "ct-error", text: question.error });
         if (question.status !== "complete")
-          this.button(segment, this.tr("Retry", "重試"), () => {
+          this.button(segment, this.t("coffee.retry"), () => {
             void engine.ask(question.question, question.id);
           });
       } else {
         const item = engine.session.interventions![event.index];
         this.renderUserBubble(item.text, messages);
         if (item.status === "failed")
-          messages.createEl("small", { cls: "ct-muted", text: this.tr("Not delivered", "尚未送達") });
+          messages.createEl("small", { cls: "ct-muted", text: this.t("coffee.not_delivered") });
       }
     }
     const draft = engine.session.status === "completed" ? "" : (engine.session.draftMarkdown ?? "");
     if (engine.busy && !draft)
       messages.createEl("p", {
         cls: "ct-waiting",
-        text: this.tr("Waiting for the first words…", "等待第一段對談內容…")
+        text: this.t("coffee.waiting_for_the_first_words")
       });
     const generatingRound = (engine.session.rounds ?? []).find(item => item.status === "generating");
     if (generatingRound) {
       const live = messages.createDiv("ct-live-draft");
-      this.renderRound(draft || this.tr("Waiting for dialogue…", "等待對談內容…"), generatingRound.id, live);
+      this.renderRound(draft || this.t("coffee.waiting_for_dialogue"), generatingRound.id, live);
     }
     const latest = chatPanel.createDiv("ct-latest is-hidden");
-    this.button(latest, this.tr("Go to bottom of chat", "到對話底部"), () => {
+    this.button(latest, this.t("coffee.go_to_bottom_of_chat"), () => {
       scrolling.scrollTop = scrolling.scrollHeight;
       latest.classList.add("is-hidden");
     });
@@ -2106,7 +2040,7 @@ export class CoffeeTablesView extends ItemView {
     });
     const composer = chatPanel.createDiv("ct-composer");
     if (engine.session.status === "completed") {
-      this.button(composer, this.tr("Continue chatting", "繼續聊"), async () => {
+      this.button(composer, this.t("coffee.continue_chatting"), async () => {
         if (engine.session.id.startsWith("sample-")) await this.copySample();
         const current = this.engine;
         if (current) await this.plugin.confirmAiUsage(current.session.model, () => current.continueTable());
@@ -2115,8 +2049,8 @@ export class CoffeeTablesView extends ItemView {
         attr: {
           rows: "2",
           maxlength: "1800",
-          placeholder: this.tr("Ask the table a follow-up…", "追問桌上的人…"),
-          "aria-label": this.tr("Follow-up question", "追問"),
+          placeholder: this.t("coffee.ask_the_table_a_follow_up"),
+          "aria-label": this.t("coffee.follow_up_question"),
           "data-ct-field": "follow-up"
         }
       });
@@ -2125,7 +2059,7 @@ export class CoffeeTablesView extends ItemView {
       this.renderFollowUpGuests(composer, engine);
       this.button(
         composer,
-        this.tr("Ask", "送出追問"),
+        this.t("coffee.ask"),
         async () => {
           const value = question.value.trim();
           if (!value) return;
@@ -2163,7 +2097,7 @@ export class CoffeeTablesView extends ItemView {
       if (engine.session.dirtyNotes) {
         this.button(
           composer,
-          this.tr("Refresh observer notes only", "只整理目前內容"),
+          this.t("coffee.refresh_observer_notes_only"),
           async () => {
             await this.plugin.confirmAiUsage(engine.session.model, () => engine.refreshObserverNotes());
           },
@@ -2171,14 +2105,11 @@ export class CoffeeTablesView extends ItemView {
         );
         composer.createEl("small", {
           cls: "ct-muted",
-          text: this.tr(
-            "Uses the whole table and saved drafts; it does not add dialogue.",
-            "依整桌對談與已保存草稿整理，不會新增發言。"
-          )
+          text: this.t("coffee.uses_the_whole_table_and_saved_drafts_it_does_not_add")
         });
       }
     } else if (engine.session.status === "ready")
-      this.button(composer, this.tr("Generate conversation", "開始生成對談"), async () => {
+      this.button(composer, this.t("coffee.generate_conversation"), async () => {
         await this.plugin.confirmAiUsage(engine.session.model, () => engine.start());
       }).addClass("mod-cta");
     else if (engine.session.status === "error") {
@@ -2188,7 +2119,7 @@ export class CoffeeTablesView extends ItemView {
       ) {
         this.button(
           composer,
-          this.tr("Refresh observer notes only", "只整理目前內容"),
+          this.t("coffee.refresh_observer_notes_only"),
           async () => {
             await this.plugin.confirmAiUsage(engine.session.model, () => engine.refreshObserverNotes());
           },
@@ -2196,47 +2127,39 @@ export class CoffeeTablesView extends ItemView {
         );
         composer.createEl("small", {
           cls: "ct-muted",
-          text: this.tr(
-            "Uses saved dialogue and drafts without adding new speaker turns.",
-            "根據已保存對談與草稿整理，不會新增來賓發言。"
-          )
+          text: this.t("coffee.uses_saved_dialogue_and_drafts_without_adding_new")
         });
       }
       if (!engine.persistenceFailed)
         composer.createEl("small", {
           cls: "ct-muted",
-          text: this.tr(
-            "Generation stopped. Resume from the top toolbar; you can join while it is running.",
-            "生成已停止。請用上方工具列繼續；生成期間即可加入對談。"
-          )
+          text: this.t("coffee.generation_stopped_resume_from_the_top_toolbar_you_can")
         });
-      this.button(composer, this.tr("Edit settings and start another", "調整設定，再開一桌"), () =>
-        this.home(engine.session)
-      );
-      this.button(composer, this.tr("Open Markdown", "開啟 Markdown"), async () => {
+      this.button(composer, this.t("coffee.edit_settings_and_start_another"), () => this.home(engine.session));
+      this.button(composer, this.t("coffee.open_markdown"), async () => {
         const file = await this.store.openMarkdown(engine.session.id);
         await this.app.workspace.getLeaf(false).openFile(file);
       });
       if (engine.session.draftMarkdown)
-        this.button(composer, this.tr("Copy draft", "複製草稿"), async () => {
+        this.button(composer, this.t("coffee.copy_draft"), async () => {
           await navigator.clipboard.writeText(engine.session.draftMarkdown ?? "");
-          new Notice(this.tr("Draft copied.", "草稿已複製。"));
+          new Notice(this.t("coffee.draft_copied"));
         });
       const savedDraft = !engine.persistenceFailed && !!engine.session.draftMarkdown;
       const message = composer.createEl("p", {
         cls: "ct-error",
-        text: `${engine.error || engine.session.error || this.tr("Generation stopped.", "生成已停止")} · ${engine.persistenceFailed ? this.tr("The latest text is only in this open view. Retry saving or copy the draft.", "最新內容尚未保存，只保留在目前畫面；請重試保存或複製草稿。") : savedDraft ? this.tr("Received text is saved as a draft.", "已收到的文字已保存為草稿。") : this.tr("The existing conversation is preserved.", "原有對談內容已保留。")}`
+        text: `${engine.error || engine.session.error || this.t("coffee.generation_stopped")} · ${engine.persistenceFailed ? this.t("coffee.the_latest_text_is_only_in_this_open_view_retry_saving") : savedDraft ? this.t("coffee.received_text_is_saved_as_a_draft") : this.t("coffee.the_existing_conversation_is_preserved")}`
       });
       void message;
       if (this.composerValues.get("intervention-text")) {
         composer.createEl("p", {
           cls: "ct-muted",
-          text: this.tr("Your unsent message is kept below.", "尚未送出的訊息保留在下方。")
+          text: this.t("coffee.your_unsent_message_is_kept_below")
         });
         const retained = composer.createEl("textarea", {
           attr: {
             rows: "2",
-            placeholder: this.tr("Unsent message", "尚未送出的訊息"),
+            placeholder: this.t("coffee.unsent_message"),
             "data-ct-field": "intervention-text"
           }
         });
@@ -2245,20 +2168,20 @@ export class CoffeeTablesView extends ItemView {
       }
     } else if (engine.busy) {
       const select = composer.createEl("select", {
-        attr: { "aria-label": this.tr("How to join", "介入方式"), "data-ct-field": "intervention-kind" }
+        attr: { "aria-label": this.t("coffee.how_to_join"), "data-ct-field": "intervention-kind" }
       });
-      for (const [value, en, zh] of [
-        ["comment", "Say something", "說點什麼"],
-        ["guest-question", "Ask a guest", "追問某人"],
-        ["redirect", "Change direction", "換個方向"]
-      ])
-        select.createEl("option", { value, text: this.tr(en, zh) });
+      for (const [value, key] of [
+        ["comment", "coffee.intervention_comment"],
+        ["guest-question", "coffee.intervention_guest_question"],
+        ["redirect", "coffee.intervention_redirect"]
+      ] as const)
+        select.createEl("option", { value, text: this.t(key) });
       select.value = this.composerValues.get("intervention-kind") ?? "comment";
       select.addEventListener("change", () => this.composerValues.set("intervention-kind", select.value));
       const target = composer.createEl("input", {
         attr: {
           type: "text",
-          placeholder: this.tr("Guest name (optional)", "來賓姓名（選填）"),
+          placeholder: this.t("coffee.guest_name_optional"),
           "data-ct-field": "intervention-target"
         }
       });
@@ -2267,13 +2190,13 @@ export class CoffeeTablesView extends ItemView {
       const input = composer.createEl("textarea", {
         attr: {
           rows: "2",
-          placeholder: this.tr("Join the conversation…", "加入對談…"),
+          placeholder: this.t("coffee.join_the_conversation"),
           "data-ct-field": "intervention-text"
         }
       });
       input.value = this.composerValues.get("intervention-text") ?? "";
       input.addEventListener("input", () => this.composerValues.set("intervention-text", input.value));
-      this.button(composer, this.tr("Send", "送出"), async () => {
+      this.button(composer, this.t("coffee.send"), async () => {
         if (!input.value.trim()) return;
         const text = input.value;
         input.value = "";
@@ -2288,39 +2211,36 @@ export class CoffeeTablesView extends ItemView {
       });
     }
     if (/changed outside|外部修改|outside this room/i.test(engine.error))
-      this.button(composer, this.tr("Reload edits", "重新載入修改"), async () => {
+      this.button(composer, this.t("coffee.reload_edits"), async () => {
         if (engine.busy) await engine.stop();
         const session = await this.store.reload(this.store.sessionPath(engine.session.id));
         this.plugin.coffeeManager?.forget(engine.session.id);
         this.attach(session);
       });
     const insight = body.createDiv("ct-insight-panel");
-    insight.createEl("h3", { text: this.tr("Observer’s notes", "觀察者整理") });
+    insight.createEl("h3", { text: this.t("coffee.observers_notes") });
     const notes = engine.session.observerNotes ?? [];
     if (engine.session.dirtyNotes)
       insight.createEl("p", {
         cls: "ct-muted",
-        text: this.tr(
-          "The conversation changed; these notes have not been refreshed yet.",
-          "對談內容已修改，這份整理尚未更新。"
-        )
+        text: this.t("coffee.the_conversation_changed_these_notes_have_not_been")
       });
     if (notes[0]) this.renderInsightNotes(notes[0], insight);
     else
       insight.createEl("p", {
         cls: "ct-muted",
-        text: this.tr("The observer’s notes will appear when this segment finishes.", "本段完成後會更新觀察者整理。")
+        text: this.t("coffee.the_observers_notes_will_appear_when_this_segment")
       });
     if (engine.session.observerDraftMarkdown || (engine.busy && engine.session.dirtyNotes)) {
       insight.createEl("p", {
         cls: "ct-muted",
-        text: this.tr("Updating notes from the saved conversation…", "正在根據已保存對談更新整理…")
+        text: this.t("coffee.updating_notes_from_the_saved_conversation")
       });
       const draft = insight.createDiv("ct-observer-draft");
       if (engine.session.observerDraftMarkdown) this.renderStreaming(engine.session.observerDraftMarkdown, draft);
     }
     if (engine.session.status === "completed" && !engine.busy && !engine.session.id.startsWith("sample-")) {
-      const handoff = this.button(insight, this.tr("Take to VAM for deeper research", "帶去 VAM 深入研究"), () =>
+      const handoff = this.button(insight, this.t("coffee.take_to_vam_for_deeper_research"), () =>
         this.plugin.openCoffeeHandoff(engine.session, this.store.sessionPath(engine.session.id))
       );
       handoff.addClass("mod-cta");
@@ -2330,7 +2250,7 @@ export class CoffeeTablesView extends ItemView {
       const review = (): void => new CoffeeConvergenceModal(this.app, engine).open();
       this.button(
         controls,
-        this.tr("Customize", "客製聊天室"),
+        this.t("coffee.customize"),
         () =>
           new CoffeeCustomizationModal(
             this.app,
@@ -2345,7 +2265,7 @@ export class CoffeeTablesView extends ItemView {
       );
       this.button(
         controls,
-        this.tr("Preview convergence", "預覽收斂"),
+        this.t("coffee.preview_convergence"),
         async () => {
           await this.plugin.confirmAiUsage(engine.session.model, () => engine.previewConvergence());
           if (engine.session.convergenceDraft || engine.session.convergenceRawDraft) review();
@@ -2353,24 +2273,21 @@ export class CoffeeTablesView extends ItemView {
         engine.busy || engine.deleted || !notes[0]
       );
       if (engine.session.convergenceDraft || engine.session.convergenceRawDraft)
-        this.button(controls, this.tr("Review saved preview", "檢閱已保存草稿"), review, engine.busy);
+        this.button(controls, this.t("coffee.review_saved_preview"), review, engine.busy);
       if (engine.session.convergenceUndo)
         this.button(
           controls,
-          this.tr("Undo last convergence", "還原上次收斂"),
+          this.t("coffee.undo_last_convergence"),
           () => engine.undoConvergence(),
           engine.busy || engine.deleted
         );
       insight.createEl("small", {
         cls: "ct-muted",
-        text: this.tr(
-          "Preview first. Accept selected changes or restore the previous notes.",
-          "先預覽，確認後套用；可接受個別變更或還原上一版。"
-        )
+        text: this.t("coffee.preview_first_accept_selected_changes_or_restore_the")
       });
     }
     if (engine.session.status === "completed")
-      this.button(insight, this.tr("Edit settings and start another table", "編輯設定，再開一桌"), () =>
+      this.button(insight, this.t("coffee.edit_settings_and_start_another_table"), () =>
         this.returnHome(engine.session)
       );
     this.renderRoster(roster, liveRosterFor(engine.session, draft));
@@ -2459,7 +2376,7 @@ export class CoffeeTablesView extends ItemView {
     const details = target.createEl("details", { cls: "ct-follow-up-guests" });
     details.open = this.composerValues.get("follow-up-guests-open") === "true";
     details.addEventListener("toggle", () => this.composerValues.set("follow-up-guests-open", String(details.open)));
-    details.createEl("summary", { text: this.tr("Invite temporary guests", "邀請新來賓") });
+    details.createEl("summary", { text: this.t("coffee.invite_temporary_guests") });
     const rows = details.createDiv("ct-follow-up-guest-list");
     this.followUpGuests.forEach((guest, index) => {
       const row = rows.createDiv("ct-follow-up-guest");
@@ -2467,8 +2384,8 @@ export class CoffeeTablesView extends ItemView {
         attr: {
           type: "text",
           maxlength: "60",
-          placeholder: this.tr("Name", "姓名"),
-          "aria-label": this.tr("Guest name", "來賓姓名")
+          placeholder: this.t("coffee.name"),
+          "aria-label": this.t("coffee.guest_name")
         }
       });
       name.disabled = engine.busy;
@@ -2476,9 +2393,9 @@ export class CoffeeTablesView extends ItemView {
       name.addEventListener("input", () => {
         guest.name = name.value;
       });
-      const category = row.createEl("select", { attr: { "aria-label": this.tr("Guest perspective", "來賓角色") } });
+      const category = row.createEl("select", { attr: { "aria-label": this.t("coffee.guest_perspective") } });
       category.disabled = engine.busy;
-      for (const item of CATEGORIES) category.createEl("option", { value: item.id, text: this.tr(item.en, item.zh) });
+      for (const item of CATEGORIES) category.createEl("option", { value: item.id, text: this.t(item.label) });
       category.value = guest.category;
       category.addEventListener("change", () => {
         guest.category = category.value as GuestCategory;
@@ -2487,8 +2404,8 @@ export class CoffeeTablesView extends ItemView {
         attr: {
           type: "text",
           maxlength: "160",
-          placeholder: this.tr("Background or perspective", "背景或希望帶來的視角"),
-          "aria-label": this.tr("Guest background", "來賓背景")
+          placeholder: this.t("coffee.background_or_perspective"),
+          "aria-label": this.t("coffee.guest_background")
         }
       });
       description.disabled = engine.busy;
@@ -2498,7 +2415,7 @@ export class CoffeeTablesView extends ItemView {
       });
       this.button(
         row,
-        this.tr("Remove", "移除"),
+        this.t("ui.reference_remove"),
         () => {
           this.followUpGuests.splice(index, 1);
           this.render();
@@ -2508,7 +2425,7 @@ export class CoffeeTablesView extends ItemView {
     });
     this.button(
       details,
-      this.tr("Add a guest", "新增一位來賓"),
+      this.t("coffee.add_one_guest"),
       () => {
         this.followUpGuests.push({ id: crypto.randomUUID(), name: "", category: "experts", description: "" });
         this.render();
@@ -2522,10 +2439,7 @@ export class CoffeeTablesView extends ItemView {
         .reduce((sum, question) => sum + (question.invitedGuests?.length ?? 0), 0);
     rows.createEl("small", {
       cls: "ct-muted",
-      text: this.tr(
-        `${totalGuests}/12 guests in this table; up to 8 per category.`,
-        `這桌目前 ${totalGuests}/12 位來賓；每類最多 8 位。`
-      )
+      text: this.t("coffee.guest_total_and_category_limits", totalGuests)
     });
   }
   private renderInsightNotes(markdown: string, target: HTMLElement): void {
@@ -2545,8 +2459,8 @@ export class CoffeeTablesView extends ItemView {
       cls: "ct-insight-search",
       attr: {
         type: "search",
-        placeholder: this.tr("Search insights and context", "搜尋洞見與脈絡"),
-        "aria-label": this.tr("Search insights", "搜尋洞見")
+        placeholder: this.t("coffee.search_insights_and_context"),
+        "aria-label": this.t("coffee.search_insights")
       }
     });
     search.value = state.query;
@@ -2574,8 +2488,7 @@ export class CoffeeTablesView extends ItemView {
         if (!query || text.includes(query))
           categories.set(item.category, [...(categories.get(item.category) ?? []), item]);
       }
-      if (!categories.size)
-        results.createEl("p", { cls: "ct-muted", text: this.tr("No matching insights.", "找不到符合的洞見。") });
+      if (!categories.size) results.createEl("p", { cls: "ct-muted", text: this.t("coffee.no_matching_insights") });
       for (const [category, items] of categories) {
         const group = results.createEl("details", { cls: "ct-insight-group" });
         group.open = !!query || !state.collapsed.has(category);
@@ -2607,51 +2520,46 @@ export class CoffeeTablesView extends ItemView {
             const pinned = session.pinnedInsightIds?.includes(item.id) ?? false;
             const pin = this.button(
               context,
-              this.tr(pinned ? "Unpin insight" : "Keep this insight", pinned ? "取消指定保留" : "保留這項"),
+              pinned ? this.t("coffee.unpin_insight") : this.t("coffee.keep_this_insight"),
               () => this.engine!.togglePinnedInsight(item.id),
               this.engine.busy || this.engine.deleted
             );
             pin.setAttribute("aria-pressed", String(pinned));
-            pin.title = this.tr(
-              "Convergence keeps this item unchanged, without merging or deleting it.",
-              "收斂時保留這項，不合併或刪除。"
-            );
+            pin.title = this.t("coffee.convergence_keeps_this_item_unchanged_without_merging");
           }
           if (session?.status === "completed" && !this.engine?.busy && !session.id.startsWith("sample-"))
-            this.button(context, this.tr("Research this insight", "深入研究這條洞見"), () =>
+            this.button(context, this.t("coffee.research_this_insight"), () =>
               this.plugin.openCoffeeHandoff(session, this.store.sessionPath(session.id), item.id)
             );
           if (item.detail) this.renderMarkdown(item.detail, context.createDiv("ct-insight-context"));
           if (item.question) {
-            context.createEl("strong", { text: this.tr("Original question", "原疑問") });
+            context.createEl("strong", { text: this.t("coffee.original_question") });
             this.renderMarkdown(item.question, context);
           }
           if (item.proposedSolution) {
-            context.createEl("strong", { text: this.tr("Possible response", "可能解方") });
+            context.createEl("strong", { text: this.t("coffee.possible_response") });
             this.renderMarkdown(item.proposedSolution, context);
           }
           if (item.limitations) {
-            context.createEl("strong", { text: this.tr("Conditions and limits", "條件與限制") });
+            context.createEl("strong", { text: this.t("coffee.conditions_and_limits") });
             this.renderMarkdown(item.limitations, context);
           }
           if (item.sources.length) {
             const sources = context.createDiv("ct-insight-sources");
             for (const source of item.sources)
-              this.button(sources, this.tr("Find in conversation", "跳到對談來源"), () => {
+              this.button(sources, this.t("coffee.find_in_conversation"), () => {
                 if (!this.locateOutlineItem(source))
-                  new Notice(
-                    this.tr("Could not find a close match in this conversation.", "在目前對談中找不到可信的對應發言。")
-                  );
+                  new Notice(this.t("coffee.could_not_find_a_close_match_in_this_conversation"));
               });
           } else
             context.createEl("p", {
               cls: "ct-muted ct-insight-no-source",
-              text: this.tr("No linkable dialogue source was provided.", "尚未提供可定位的對談來源。")
+              text: this.t("coffee.no_linkable_dialogue_source_was_provided")
             });
           if (!item.detail && !item.question && !item.proposedSolution && !item.limitations && !item.sources.length)
             context.createEl("p", {
               cls: "ct-muted",
-              text: this.tr("No additional context was provided.", "尚無展開脈絡。")
+              text: this.t("coffee.no_additional_context_was_provided")
             });
         }
       }
@@ -2709,9 +2617,9 @@ export class CoffeeTablesView extends ItemView {
   }
   private renderUserBubble(text: string, target: HTMLElement): void {
     const article = target.createDiv("ct-message ct-message-user");
-    article.createDiv({ cls: "ct-avatar ct-user-avatar", text: this.tr("You", "你") });
+    article.createDiv({ cls: "ct-avatar ct-user-avatar", text: this.t("coffee.you") });
     const content = article.createDiv("ct-message-content");
-    content.createEl("strong", { text: this.tr("You", "你") });
+    content.createEl("strong", { text: this.t("coffee.you") });
     this.renderMarkdown(text, content.createDiv("ct-bubble markdown-rendered"));
   }
   private renderMarkdown(markdown: string, target: HTMLElement): void {
@@ -2746,14 +2654,14 @@ export class CoffeeTablesView extends ItemView {
     status.setText(
       engine.error ||
         (engine.summarizing
-          ? this.tr("Generating segment summaries…", "正在補齊段落摘要…")
+          ? this.t("coffee.generating_segment_summaries")
           : engine.busy
-            ? `${last ? `${last.name} · ` : ""}${this.tr("is speaking", "正在發言")} · ${elapsed}`
+            ? `${last ? `${last.name} · ` : ""}${this.t("coffee.is_speaking")} · ${elapsed}`
             : engine.session.status === "completed"
-              ? this.tr("Table complete", "對談完成")
+              ? this.t("coffee.table_complete")
               : engine.session.status === "error"
-                ? this.tr("Stopped · draft saved", "已停止 · 草稿已保存")
-                : this.tr("Ready to generate", "準備生成"))
+                ? this.t("coffee.stopped_draft_saved")
+                : this.t("coffee.ready_to_generate"))
     );
   }
   private async copySample(): Promise<void> {
