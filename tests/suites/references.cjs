@@ -118,8 +118,11 @@ test('source footnotes survive reruns: numbers stay consistent, kept references 
   assert.equal(rerun, 'New[^1] kept[^2] again[^3] same[^3]\n\n[^1]: [[Maps/B/two.md|two]]\n[^2]: [[Maps/Old/gone.md|gone]]\n[^3]: [[Maps/A/one.md|one]]\n');
   // A reference after which a colon follows mid-line is still a reference.
   assert.equal(api.resolveDetailReferences('Fact[S1]: more', groups), 'Fact[^1]: more\n\n[^1]: [[Maps/A/one.md|one]]\n');
-  // Nothing can restore it: no dead footnote marker is left behind.
-  assert.equal(api.resolveDetailReferences('C[^4]', []), 'C Source to confirm: 4');
+  // A source footnote nothing can restore becomes a source to confirm; a footnote VAM does not own stays as written.
+  assert.equal(api.resolveDetailReferences('C[^src-dead000]', []), 'C Source to confirm: src-dead000');
+  assert.equal(api.resolveDetailReferences('C[^4]', []), 'C[^4]');
+  // The same note with and without a display name gets one number.
+  assert.equal(api.resolveDetailReferences('A[^7] B[S1]\n\n[^7]: [[Maps/A/one.md]]', groups), 'A[^1] B[^1]\n\n[^1]: [[Maps/A/one.md]]\n');
   // Summary punctuation left by removed markers is tidied.
   assert.equal(api.resolveSummaryReferences('[S1] 開頭（[S2]）、see [S1], [S2].', groups), '開頭、see.');
   assert.equal(api.resolveSummaryReferences('結論（[S1]、[S2]）。', groups), '結論。');
@@ -137,4 +140,23 @@ test('canonicalDetail gathers source footnote definitions into the evidence sect
   const flat = canonicalDetail('Body[^1]\n\n[^1]: [[a.md|a]]', 'en');
   assert.ok(flat.startsWith('### Core conclusions\n\nBody[^1]\n\n### Key knowledge'));
   assert.ok(flat.includes('### Evidence and sources\n\n[^1]: [[a.md|a]]'));
+});
+test('source footnotes leave code, links and the writer\'s own footnotes untouched', () => {
+  const api = load('ai/reference-materials.ts', { obsidian });
+  const { canonicalDetail } = load('main.ts', { obsidian });
+  const groups = [{ id: 'g', documents: [{ path: 'Maps/A/one.md', content: '' }] }];
+  const code = 'Match `/[^a-z]+/` here[S1].\n\n```js\nconst re = /[^0-9]/;\n[^x]: code line\n```\n\nSee [^foo](https://x.y) and ![^img](a.png).';
+  const out = api.resolveDetailReferences(code, groups);
+  assert.ok(out.startsWith('Match `/[^a-z]+/` here[^1].\n\n```js\nconst re = /[^0-9]/;\n[^x]: code line\n```\n\nSee [^foo](https://x.y) and ![^img](a.png).'));
+  assert.ok(out.endsWith('[^1]: [[Maps/A/one.md|one]]\n'));
+  // Without sources the resolver may still run (the detail contains "[^"); it must change nothing here.
+  const plain = 'Use `[^x]` and\n\n```\n[^1]: not a footnote\n```';
+  assert.equal(api.resolveDetailReferences(plain, []), plain);
+  // The writer's own footnote keeps its label, text and continuation line; source numbers skip its number.
+  const own = 'Claim[^1] and fact[S1].\n\n[^1]: My own note\n    continued here';
+  assert.equal(api.resolveDetailReferences(own, groups), 'Claim[^1] and fact[^2].\n\n[^1]: My own note\n    continued here\n\n[^2]: [[Maps/A/one.md|one]]\n');
+  // canonicalDetail never moves lines out of a code block.
+  const canon = canonicalDetail('### Core conclusions\n\n```\n[^x]: [[a.md|a]]\n```', 'en');
+  assert.ok(canon.includes('```\n[^x]: [[a.md|a]]\n```'));
+  assert.ok(!canon.split('### Evidence and sources')[1].split('### ')[0].includes('[^x]'));
 });

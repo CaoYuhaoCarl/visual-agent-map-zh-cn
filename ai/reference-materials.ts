@@ -1,5 +1,6 @@
 import { App, TFile } from "obsidian";
 import { t, translate } from "../i18n";
+import { fencedLines, sourceFootnoteDefinition } from "./result-utils";
 
 export interface ReferenceDocument {
   path: string;
@@ -115,86 +116,134 @@ export function resolveSummaryReferences(summary: string, groups: ReferenceGroup
   return resolveWikilinks(stripped, documents);
 }
 
-const FOOTNOTE_DEFINITION = /^\[\^([^\]\s]+)\]:[ \t]*(.*)$/;
-const FOOTNOTE_REFERENCE = /\[\^([^\]\s]+)\]/g;
+const FOOTNOTE_REFERENCE = /\[\^([^\]\s]+)\](?!\()/g;
 
 function footnoteTarget(document: ReferenceDocument): string {
   const basename = (document.path.split("/").pop() ?? document.path).replace(/\.md$/i, "");
   return document.external ? t("note.external_source_0", document.path) : `[[${document.path}|${basename}]]`;
 }
 
+/** Same note => same key, whether or not the wikilink carries a display name. */
+function targetKey(target: string): string {
+  const link = /^\[\[([^\]|]+)/.exec(target);
+  return link ? link[1].trim() : target;
+}
+
+/** Applies `edit` to the parts of a line outside inline code spans. */
+function outsideInlineCode(line: string, edit: (text: string) => string): string {
+  return line
+    .split(/(`+[^`]*`+)/)
+    .map((part, index) => (index % 2 ? part : edit(part)))
+    .join("");
+}
+
+function sourceDefinitions(detail: string): Map<string, string> {
+  const lines = detail.split("\n");
+  const code = fencedLines(lines);
+  const definitions = new Map<string, string>();
+  lines.forEach((line, index) => {
+    const definition = code[index] ? null : sourceFootnoteDefinition(line);
+    if (definition) definitions.set(definition.label, definition.target);
+  });
+  return definitions;
+}
+
 /**
- * Detail: `[S#]` becomes a footnote. Footnotes are then numbered [^1], [^2]… by first appearance, one number per
- * source, with every definition at the end of the evidence section (or the detail). A footnote the reply kept without
- * its definition is restored from the selected sources or the previous detail; one nothing can restore becomes a
- * "source to confirm" note instead of a dead marker. Definitions no reference uses are dropped.
+ * Detail: `[S#]` becomes a source footnote. Source footnotes are then numbered [^1], [^2]… by first appearance, one
+ * number per note, with their definitions at the end of the evidence section (or the detail). A source footnote the
+ * reply kept without its definition is restored from the selected sources or the previous detail. Only source
+ * footnotes are touched: code, other footnotes and footnote-like text stay as written.
  */
 export function resolveDetailReferences(detail: string, groups: ReferenceGroup[], previousDetail = ""): string {
   const documents = dedupeReferenceGroups(groups).flatMap(group => group.documents);
-  const targets = new Map<string, string>();
-  const identified = detail.replace(/\[S(\d+)\]/g, (original, number: string) => {
-    const document = documents[Number(number) - 1];
-    if (!document) return t("note.source_unconfirmed_0", original);
-    const label = sourceFootnoteLabel(document.path);
-    targets.set(label, footnoteTarget(document));
-    return `[^${label}]`;
-  });
-  const resolved = documents.length ? resolveWikilinks(identified, documents) : identified;
+  const cited = new Map<string, string>();
+  const source = (line: string): string => {
+    const identified = line.replace(/\[S(\d+)\]/g, (original, number: string) => {
+      const document = documents[Number(number) - 1];
+      if (!document) return t("note.source_unconfirmed_0", original);
+      const label = sourceFootnoteLabel(document.path);
+      cited.set(label, footnoteTarget(document));
+      return `[^${label}]`;
+    });
+    return documents.length ? resolveWikilinks(identified, documents) : identified;
+  };
+  const lines = detail.split("\n");
+  const code = fencedLines(lines);
   const body: string[] = [];
+  const bodyCode: boolean[] = [];
   const defined = new Map<string, string>();
-  for (const line of resolved.split("\n")) {
-    const match = FOOTNOTE_DEFINITION.exec(line);
-    if (match) defined.set(match[1], match[2].trim());
-    else body.push(line);
-  }
-  const previous = new Map(
-    previousDetail.split("\n").flatMap(line => {
-      const match = FOOTNOTE_DEFINITION.exec(line);
-      return match ? [[match[1], match[2].trim()] as const] : [];
-    })
-  );
+  const reserved = new Set<string>();
+  lines.forEach((line, index) => {
+    if (!code[index]) {
+      const definition = sourceFootnoteDefinition(line);
+      if (definition) {
+        defined.set(definition.label, definition.target);
+        return;
+      }
+      const other = /^\[\^([^\]\s]+)\]:/.exec(line);
+      if (other) reserved.add(other[1]);
+    }
+    body.push(code[index] ? line : outsideInlineCode(line, source));
+    bodyCode.push(code[index]);
+  });
+  const previous = sourceDefinitions(previousDetail);
   const byLabel = new Map(documents.map(document => [sourceFootnoteLabel(document.path), document]));
   const targetOf = (label: string): string | undefined => {
-    const target = targets.get(label) ?? defined.get(label) ?? previous.get(label);
+    const target = cited.get(label) ?? defined.get(label) ?? previous.get(label);
     if (target) return target;
     const document = byLabel.get(label);
     return document ? footnoteTarget(document) : undefined;
   };
-  // One number per distinct target, in order of first reference.
   const numbers = new Map<string, number>();
   const ordered: string[] = [];
-  const text = body
-    .join("\n")
-    .replace(FOOTNOTE_REFERENCE, (_original, label: string) => {
-      const target = targetOf(label);
-      if (!target) return ` ${t("note.source_unconfirmed_0", label)}`;
-      if (!numbers.has(target)) {
-        ordered.push(target);
-        numbers.set(target, ordered.length);
-      }
-      return `[^${numbers.get(target)}]`;
-    })
-    .replace(/\n{3,}/g, "\n\n")
-    .replace(/\s+$/, "");
+  let next = 0;
+  const number = (target: string): number => {
+    const key = targetKey(target);
+    if (!numbers.has(key)) {
+      do next++;
+      while (reserved.has(String(next)));
+      numbers.set(key, next);
+      ordered.push(`[^${next}]: ${target}`);
+    }
+    return numbers.get(key)!;
+  };
+  const renumbered = body.map((line, index) =>
+    bodyCode[index]
+      ? line
+      : outsideInlineCode(line, text =>
+          text.replace(FOOTNOTE_REFERENCE, (original, label: string) => {
+            if (reserved.has(label)) return original;
+            const target = targetOf(label);
+            if (target) return `[^${number(target)}]`;
+            return label.startsWith("src-") ? ` ${t("note.source_unconfirmed_0", label)}` : original;
+          })
+        )
+  );
+  // Removing definition lines can leave stacked blank lines outside code; keep one.
+  const compact = renumbered.filter(
+    (line, index) =>
+      bodyCode[index] || line.trim() || index === 0 || renumbered[index - 1].trim() || bodyCode[index - 1]
+  );
+  const text = compact.join("\n").replace(/\s+$/, "");
   if (!ordered.length) return text;
-  const definitions = ordered.map((target, index) => `[^${index + 1}]: ${target}`);
   const headings = new Set(
     (["zh-TW", "en"] as const).map(locale => translate(locale, "detail.evidence_and_sources").toLocaleLowerCase())
   );
-  const lines = text.split("\n");
-  const start = lines.findIndex(line => {
-    const match = /^###\s+(.+?)\s*$/.exec(line);
+  const textLines = text.split("\n");
+  const textCode = fencedLines(textLines);
+  const start = textLines.findIndex((line, index) => {
+    const match = textCode[index] ? null : /^###\s+(.+?)\s*$/.exec(line);
     return !!match && headings.has(match[1].toLocaleLowerCase());
   });
-  if (start < 0) return `${text}\n\n${definitions.join("\n")}\n`;
-  let end = lines.findIndex((line, index) => index > start && /^###\s+/.test(line));
-  if (end < 0) end = lines.length;
-  while (end > start + 1 && !lines[end - 1].trim()) end--;
+  if (start < 0) return `${text}\n\n${ordered.join("\n")}\n`;
+  let end = textLines.findIndex((line, index) => index > start && !textCode[index] && /^###\s+/.test(line));
+  if (end < 0) end = textLines.length;
+  while (end > start + 1 && !textLines[end - 1].trim()) end--;
   return [
-    ...lines.slice(0, end),
+    ...textLines.slice(0, end),
     "",
-    ...definitions,
-    ...(end < lines.length && lines[end].trim() ? [""] : []),
-    ...lines.slice(end)
+    ...ordered,
+    ...(end < textLines.length && textLines[end].trim() ? [""] : []),
+    ...textLines.slice(end)
   ].join("\n");
 }
