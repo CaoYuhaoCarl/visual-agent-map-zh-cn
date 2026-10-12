@@ -533,31 +533,178 @@
     }
   },
   "i18nPromptKeys": {
-    "total": 6,
+    "total": 43,
     "coveredBySnapshotCount": {
-      "prompt.context_ai_condense": {
+      "prompt.adaptive_detail_structure": {
         "en": 1,
         "zh": 1
       },
-      "prompt.context_ai_explain_image": {
+      "prompt.avoid_duplicates": {
+        "en": 3,
+        "zh": 3
+      },
+      "prompt.decompose": {
+        "en": 4,
+        "zh": 4
+      },
+      "prompt.default_task": {
         "en": 1,
         "zh": 1
       },
-      "prompt.context_ai_search_images": {
+      "prompt.detail_structure": {
+        "en": 10,
+        "zh": 10
+      },
+      "prompt.direct_expansion": {
         "en": 1,
         "zh": 1
       },
-      "prompt.context_ai_translate": {
+      "prompt.existing_subtopics": {
+        "en": 3,
+        "zh": 3
+      },
+      "prompt.expansion_direction": {
         "en": 1,
         "zh": 1
       },
-      "prompt.context_ai_translate_image": {
+      "prompt.general_task": {
+        "en": 7,
+        "zh": 7
+      },
+      "prompt.guided_expansion": {
+        "en": 2,
+        "zh": 2
+      },
+      "prompt.json": {
+        "en": 15,
+        "zh": 15
+      },
+      "prompt.label_ancestors": {
+        "en": 42,
+        "zh": 33
+      },
+      "prompt.label_current_summary": {
+        "en": 39,
+        "zh": 30
+      },
+      "prompt.label_detail": {
+        "en": 11,
+        "zh": 11
+      },
+      "prompt.label_findings": {
+        "en": 7,
+        "zh": 5
+      },
+      "prompt.label_full_knowledge": {
+        "en": 2,
+        "zh": 2
+      },
+      "prompt.label_old_findings": {
+        "en": 7,
+        "zh": 2
+      },
+      "prompt.label_rules": {
+        "en": 39,
+        "zh": 30
+      },
+      "prompt.label_sources": {
+        "en": 35,
+        "zh": 26
+      },
+      "prompt.label_summary": {
+        "en": 39,
+        "zh": 30
+      },
+      "prompt.label_task": {
+        "en": 47,
+        "zh": 38
+      },
+      "prompt.label_topic": {
+        "en": 46,
+        "zh": 36
+      },
+      "prompt.label_visual_references": {
+        "en": 2,
+        "zh": 2
+      },
+      "prompt.local_first": {
+        "en": 8,
+        "zh": 7
+      },
+      "prompt.no_summary_yet": {
+        "en": 3,
+        "zh": 3
+      },
+      "prompt.none": {
+        "en": 9
+      },
+      "prompt.output_language": {
+        "en": 15,
+        "zh": 15
+      },
+      "prompt.preliminary_map": {
         "en": 1,
         "zh": 1
+      },
+      "prompt.reference_citations": {
+        "en": 35,
+        "zh": 26
+      },
+      "prompt.reference_extract": {
+        "en": 3,
+        "zh": 3
+      },
+      "prompt.reference_reduce": {
+        "en": 1,
+        "zh": 1
+      },
+      "prompt.research_topic": {
+        "en": 1,
+        "zh": 1
+      },
+      "prompt.role": {
+        "en": 47,
+        "zh": 38
       },
       "prompt.search_budget_exhausted": {
         "en": 1,
         "zh": 1
+      },
+      "prompt.source_safety": {
+        "en": 47,
+        "zh": 38
+      },
+      "prompt.synthesis_directions": {
+        "en": 1,
+        "zh": 1
+      },
+      "prompt.synthesis_goal": {
+        "en": 1,
+        "zh": 1
+      },
+      "prompt.synthesize": {
+        "en": 3,
+        "zh": 3
+      },
+      "prompt.visual_auto": {
+        "en": 3,
+        "zh": 3
+      },
+      "prompt.visual_embed": {
+        "en": 7,
+        "zh": 7
+      },
+      "prompt.visual_none": {
+        "en": 11,
+        "zh": 11
+      },
+      "prompt.visual_on": {
+        "en": 1,
+        "zh": 1
+      },
+      "prompt.visual_preserve": {
+        "en": 3,
+        "zh": 3
       }
     },
     "uncovered": []

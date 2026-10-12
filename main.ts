@@ -43,6 +43,8 @@ import { CodexAppServerRuntime, type CodexWebSearchEvent } from "./ai/runtime/co
 import { ClaudeCodeCliRuntime } from "./ai/runtime/claude-code-cli";
 import { CLAUDE_MODEL_CHOICES, providerForModel, providerModelId } from "./ai/providers/provider";
 import { ThinkingCore } from "./core/thinking-core";
+import { StepRunner, type PreparedStep } from "./core/step-runner";
+import { runtimeStepProvider } from "./core/runtime-step-provider";
 import { AiRuntimeService } from "./core/ai-runtime-service";
 import { ModelDiscovery, type ModelDiscoveryState } from "./core/model-discovery";
 import { ShallowExpansionCoordinator, type ExpansionBatchState } from "./experiences/visual-map/expansion-batch";
@@ -256,8 +258,8 @@ export default class VisualAgentMapPlugin extends Plugin {
     const markdownSelectionAi = new MarkdownSelectionAi(this.app, {
       model: () => this.settings.cliModel,
       language: () => (this.settings.language === "zh-TW" ? "Traditional Chinese" : "English"),
-      run: (prompt, model, signal, image, webSearch) =>
-        this.runConfirmedMarkdownContextAi(prompt, model, signal, image, webSearch)
+      run: (prepared, model, signal, image, webSearch) =>
+        this.runConfirmedMarkdownContextAi(prepared, model, signal, image, webSearch)
     });
     this.addChild(markdownSelectionAi);
     this.addCommand({
@@ -1059,8 +1061,8 @@ export default class VisualAgentMapPlugin extends Plugin {
     return `data:${mime};base64,${buffer.toString("base64")}`;
   }
 
-  private async runConfirmedMarkdownContextAi(
-    prompt: string,
+  private async runConfirmedMarkdownContextAi<Input, Output>(
+    prepared: PreparedStep<Input, Output>,
     model: string,
     signal: AbortSignal,
     image?: HTMLImageElement,
@@ -1068,13 +1070,13 @@ export default class VisualAgentMapPlugin extends Plugin {
   ): Promise<string> {
     let result: string | undefined;
     const confirmed = await this.confirmAiUsage(model, async () => {
-      result = await this.runMarkdownContextAi(prompt, model, signal, image, webSearch);
+      result = await this.runMarkdownContextAi(prepared, model, signal, image, webSearch);
     });
     if (!confirmed || result === undefined) throw new Error(t("ui.ai_task_cancelled"));
     return result;
   }
-  private async runMarkdownContextAi(
-    prompt: string,
+  private async runMarkdownContextAi<Input, Output>(
+    prepared: PreparedStep<Input, Output>,
     model: string,
     signal: AbortSignal,
     image?: HTMLImageElement,
@@ -1086,50 +1088,47 @@ export default class VisualAgentMapPlugin extends Plugin {
     if (signal.aborted) throw new Error(t("ui.ai_task_cancelled"));
     const directory = this.pluginDirectory();
     const effort = effectiveReasoningLevel(
-      { title: "Selected Markdown text", summary: "", detail: "", rules: "", task: prompt, ancestors: "" },
+      { title: "Selected Markdown text", summary: "", detail: "", rules: "", task: prepared.prompt, ancestors: "" },
       normalizeReasoningLevel(this.settings.cliReasoning)
     );
     const exchanges = this.settings.aiExchangeLoggingEnabled ? this.exchanges : null;
-    const id = randomUUID();
-    const key = `markdown-context:${id}`;
+    const key = `markdown-context:${randomUUID()}`;
     const controller = new AbortController();
     const abort = (): void => controller.abort();
     signal.addEventListener("abort", abort, { once: true });
     if (signal.aborted) controller.abort();
     this.activeTasks.set(key, controller);
-    exchanges?.begin({
-      id,
-      startedAt: new Date().toISOString(),
-      topic: "Markdown selection",
-      mode: "task",
-      model,
-      effort
-    });
+    // "caller" keeps the exchange entry open after `received`, so the abort check below can still end it as failed.
+    let exchangeId: string | undefined;
     try {
-      const controls = {
-        textOnly: !webSearch,
-        webSearchOnly: webSearch,
-        imageDataUrl,
-        signal: controller.signal,
-        searchBudget: webSearch ? 4 : 0,
-        onRequest: (data: unknown): void => {
-          if (this.settings.aiExchangeLoggingEnabled)
-            exchanges?.sent(id, JSON.stringify({ request: data, prompt }, null, 2), prompt);
+      const provider = runtimeStepProvider({
+        claude: () => this.claudeCli(directory),
+        codex: local => this.runtime(directory, local),
+        exchanges: () => (this.settings.aiExchangeLoggingEnabled ? this.exchanges : null),
+        localCodex: !webSearch
+      });
+      const { raw } = await new StepRunner(provider).send(prepared, {
+        model,
+        effort,
+        topic: "Markdown selection",
+        finish: "caller",
+        onExchange: id => {
+          exchangeId = id;
+        },
+        task: {
+          textOnly: !webSearch,
+          webSearchOnly: webSearch,
+          imageDataUrl,
+          signal: controller.signal,
+          searchBudget: webSearch ? 4 : 0
         }
-      };
-      const raw =
-        providerForModel(model) === "claude"
-          ? await this.claudeCli(directory).runTask(prompt, providerModelId(model), effort, undefined, controls)
-          : await this.runtime(directory, !webSearch).runTask(prompt, model, effort, undefined, controls);
+      });
       if (controller.signal.aborted) throw new Error(t("ui.ai_task_cancelled"));
-      if (this.settings.aiExchangeLoggingEnabled) {
-        exchanges?.received(id, raw);
-        exchanges?.completed(id);
-      }
+      if (this.settings.aiExchangeLoggingEnabled && exchangeId) exchanges?.completed(exchangeId);
       return raw;
     } catch (error) {
-      if (this.settings.aiExchangeLoggingEnabled)
-        exchanges?.failed(id, error instanceof Error ? error.message : String(error));
+      if (this.settings.aiExchangeLoggingEnabled && exchangeId)
+        exchanges?.failed(exchangeId, error instanceof Error ? error.message : String(error));
       throw error;
     } finally {
       signal.removeEventListener("abort", abort);

@@ -140,7 +140,8 @@ test('collect snapshots: Coffee Tables, Reframe, Markdown context', async () => 
   }
   const { buildReframePrompt } = support.load('core/reframing-service.ts', { obsidian: support.obsidian });
   for (const [language, tag] of LANGUAGES) record(`reframe.${tag}`, 'core/reframing-service.ts buildReframePrompt', language, buildReframePrompt({ language, question: 'Direction question', context: 'Direction context', source: 'Source thinking text' }));
-  const { planPrompt } = support.load('experiences/markdown-context/action-plan.ts', { obsidian: support.obsidian });
+  const { planStep } = support.load('experiences/markdown-context/steps/plan/step.ts', { obsidian: support.obsidian });
+  const planPrompt = (instruction, selected, context, hasImage) => planStep.render({ instruction, selected, context, hasImage });
   record('markdown-context.plan-text', 'markdown-context/action-plan.ts planPrompt (not localized)', 'none', planPrompt('Rewrite this', 'Selected text', 'Nearby context', false));
   record('markdown-context.plan-image', 'markdown-context/action-plan.ts planPrompt with image (not localized)', 'none', planPrompt('Describe this', 'Selected text', 'Nearby context', true));
   // runPrompt is private to selection-ai.ts: drive the real panel and read what it sends through its `run` seam.
@@ -151,14 +152,17 @@ test('collect snapshots: Coffee Tables, Reframe, Markdown context', async () => 
 });
 
 test('collect snapshots: preset instruction strings composed directly from i18n', () => {
-  const { translate } = loadModule('i18n.ts');
-  // Two of these texts moved from i18n.ts into step templates; the snapshot text stays `key: text` for every key.
+  // None of these texts are i18n keys any more; the snapshot keeps the old key as its label so the text stays comparable.
   const { researchTopicTask } = loadModule('experiences/visual-map/steps/fragments.ts');
   const { referenceTask } = loadModule('core/steps/reference/step.ts');
-  const text = (language, key) => key === 'prompt.research_topic' ? researchTopicTask(language, 'Target language') : key === 'prompt.reference_reduce' ? referenceTask('reduce', language) : translate(language, key, 'Target language');
+  const { searchBudgetExhaustedMessage } = loadModule('ai/runtime/messages/index.ts');
+  const presetSteps = support.load('experiences/markdown-context/steps/presets/step.ts');
   for (const [language, tag] of LANGUAGES) {
-    const keys = ['prompt.context_ai_condense', 'prompt.context_ai_translate', 'prompt.context_ai_translate_image', 'prompt.context_ai_search_images', 'prompt.context_ai_explain_image', 'prompt.research_topic', 'prompt.search_budget_exhausted', 'prompt.reference_reduce'];
-    record(`i18n-direct.preset-instructions.${tag}`, 'i18n translate() of strings assembled in UI/runtime classes (selection-ai presets, view research task, codex search-budget steer, reference reduce round which needs >18k chars of evidence to trigger); weaker than a builder snapshot', language, keys.map(key => `${key}: ${text(language, key)}`).join('\n\n'));
+    const presets = { 'prompt.context_ai_condense': presetSteps.condensePresetStep, 'prompt.context_ai_translate': presetSteps.translatePresetStep, 'prompt.context_ai_translate_image': presetSteps.translateImagePresetStep, 'prompt.context_ai_search_images': presetSteps.searchImagesPresetStep, 'prompt.context_ai_explain_image': presetSteps.explainImagePresetStep };
+    const others = { 'prompt.research_topic': () => researchTopicTask(language, 'Target language'), 'prompt.search_budget_exhausted': () => searchBudgetExhaustedMessage(language), 'prompt.reference_reduce': () => referenceTask('reduce', language) };
+    const keys = [...Object.keys(presets), 'prompt.research_topic', 'prompt.search_budget_exhausted', 'prompt.reference_reduce'];
+    const text = key => (presets[key] ? presets[key].render({ language, target: 'Target language' }) : others[key]());
+    record(`i18n-direct.preset-instructions.${tag}`, 'i18n translate() of strings assembled in UI/runtime classes (selection-ai presets, view research task, codex search-budget steer, reference reduce round which needs >18k chars of evidence to trigger); weaker than a builder snapshot', language, keys.map(key => `${key}: ${text(key)}`).join('\n\n'));
   }
 });
 
