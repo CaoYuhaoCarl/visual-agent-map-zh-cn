@@ -1,5 +1,5 @@
 import { estimateTokens } from "../ai/context-builder";
-import type { UiLanguage } from "../i18n";
+import { translate, uiLocale, type UiLanguage } from "../i18n";
 import type { ReasoningLevel } from "../ai/types";
 import { randomUUID } from "node:crypto";
 import { CLAUDE_MODEL_CHOICES, providerForModel, providerModelId } from "../ai/providers/provider";
@@ -129,17 +129,13 @@ export class ReframingService {
   constructor(private readonly run: ReframeRunner) {}
   async reframe(request: ReframeRequest, signal: AbortSignal): Promise<ReframeDraft> {
     const checkCancelled = (): void => {
-      if (signal.aborted) throw new Error(request.language === "zh-TW" ? "整理已停止。" : "Reframing stopped.");
+      if (signal.aborted) throw new Error(translate(uiLocale(request.language), "error.reframing_stopped"));
     };
     checkCancelled();
     if (request.targetCore !== "understand") throw new Error("Unsupported reframing target");
     const prompt = buildReframePrompt(request);
     if (estimateTokens(prompt + JSON.stringify(REFRAME_SCHEMA)) > REFRAME_TOKEN_BUDGET) {
-      throw new Error(
-        request.language === "zh-TW"
-          ? "來源超過整理預算；請選單條洞見，或手動編輯建立。"
-          : "Source exceeds the reframing budget; choose one insight or create manually."
-      );
+      throw new Error(translate(uiLocale(request.language), "error.reframing_over_budget"));
     }
     const raw = await this.run(request, prompt, REFRAME_SCHEMA, signal);
     checkCancelled();

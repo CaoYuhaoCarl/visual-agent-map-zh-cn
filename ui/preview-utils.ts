@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 interface PreviewMetrics {
   min: number;
   max: number;
@@ -39,7 +40,7 @@ export function previewMetrics(scaleValue: number): PreviewMetrics {
 export function markdownImages(markdown: string, limit = 4): { alt: string; url: string }[] {
   const images: { alt: string; url: string }[] = [];
   for (const match of markdown.matchAll(/!\[([^\]]*)\]\((https?:\/\/[^)\s]+)\)/gi)) {
-    images.push({ alt: match[1] || "視覺參考", url: match[2] });
+    images.push({ alt: match[1] || t("note.visual_reference"), url: match[2] });
     if (images.length >= limit) break;
   }
   return images;

@@ -802,7 +802,7 @@ export class VisualAgentMapView extends ItemView {
                     detail:
                       latest.detail +
                       "\n\n<!-- mindsearch-intake-complete -->\n## " +
-                      (this.plugin.settings.language === "en" ? "Initial user clarification" : "開始前條件釐清") +
+                      translate(this.plugin.settings.language, "note.mindsearch_initial_clarification") +
                       "\n\n" +
                       answers
                   });
@@ -1221,7 +1221,7 @@ export class VisualAgentMapView extends ItemView {
         await this.hydrate();
         this.render();
       } catch (rollbackError) {
-        throw new AggregateError([error, rollbackError], "議題狀態轉換失敗，且無法完整復原");
+        throw new AggregateError([error, rollbackError], t("error.topic_state_change_rollback_failed"));
       }
       throw error;
     }
@@ -1363,7 +1363,7 @@ export class VisualAgentMapView extends ItemView {
         await this.hydrate();
         this.render();
       } catch (rollbackError) {
-        throw new AggregateError([error, rollbackError], "批次移除失敗，且無法完整復原");
+        throw new AggregateError([error, rollbackError], t("error.batch_remove_rollback_failed"));
       }
       throw error;
     }
@@ -1547,7 +1547,7 @@ export class VisualAgentMapView extends ItemView {
               await this.hydrate();
               this.render();
             } catch (rollbackError) {
-              throw new AggregateError([error, rollbackError], "復原複製失敗，且無法完整回復");
+              throw new AggregateError([error, rollbackError], t("error.copy_rollback_restore_failed"));
             }
             throw error;
           }
@@ -1572,7 +1572,7 @@ export class VisualAgentMapView extends ItemView {
         await this.hydrate();
         this.render();
       } catch (rollbackError) {
-        throw new AggregateError([error, rollbackError], "批次複製失敗，且無法完整復原");
+        throw new AggregateError([error, rollbackError], t("error.batch_copy_rollback_failed"));
       }
       throw error;
     }
@@ -2180,9 +2180,7 @@ export class VisualAgentMapView extends ItemView {
         const planning = this.mindSearchActivityKind === "planning";
         stateText =
           this.mindSearchActivityKind === "clarifying"
-            ? this.plugin.settings.language === "en"
-              ? "Preparing initial clarification…"
-              : "正在準備開始前的條件釐清…"
+            ? t("ui.mindsearch_preparing_clarification")
             : t(planning ? "ui.mindsearch_status_planning_0" : "ui.mindsearch_status_researching_0", activeTitle);
         stateClass = "running";
       } else if (runningBranch) {
@@ -2565,9 +2563,7 @@ export class VisualAgentMapView extends ItemView {
         cls: `vam-status vam-mindsearch-question-status vam-status-${status === "running" ? "running" : status === "completed" ? "completed" : status === "not_started" ? "idea" : "error"}`,
         text:
           status === "not_started" && this.map.mindSearch.branches.some(branch => branch.questionNodeId === node.id)
-            ? this.plugin.settings.language === "en"
-              ? "Answered · research not started"
-              : "已回答・研究尚未開始"
+            ? t("ui.mindsearch_answered_not_started")
             : t(key[status])
       });
     } else if (
@@ -2588,9 +2584,7 @@ export class VisualAgentMapView extends ItemView {
         cls: `vam-status vam-mindsearch-question-status vam-status-${status === "running" ? "running" : status === "completed" ? "completed" : status === "not_started" ? "idea" : "error"}`,
         text:
           status === "not_started" && this.map.mindSearch.branches.some(branch => branch.questionNodeId === node.id)
-            ? this.plugin.settings.language === "en"
-              ? "Answered · research not started"
-              : "已回答・研究尚未開始"
+            ? t("ui.mindsearch_answered_not_started")
             : t(key[status])
       });
     } else if (active || !note || note.status !== "completed")
@@ -3755,7 +3749,10 @@ export class VisualAgentMapView extends ItemView {
       const cancelled = !partial && (controller.signal.aborted || stoppedBatch);
       if (!cancelled) {
         console.error("Visual Agent Map AI split", error);
-        const message = this.plugin.recordFailure(building ? "建立初步地圖失敗" : "AI 拆解失敗", error);
+        const message = this.plugin.recordFailure(
+          t(building ? "log.preliminary_map_failed" : "log.ai_split_failed"),
+          error
+        );
         if (direct) this.plugin.quickExpandFailures?.set(parent.path, message);
         if (failed) failed(message, !partial);
         else new Notice(message);
@@ -4056,7 +4053,7 @@ export class VisualAgentMapView extends ItemView {
       );
     } catch (error) {
       console.error("Visual Agent Map integration directions", error);
-      failed(this.plugin.recordFailure("整合方向建議失敗", error));
+      failed(this.plugin.recordFailure(t("log.integration_directions_failed"), error));
     } finally {
       this.plugin.running.delete(node.path);
       await this.hydrate();
@@ -4242,7 +4239,7 @@ export class VisualAgentMapView extends ItemView {
       } else {
         console.error("Visual Agent Map child integration", error);
         await this.plugin.repo.updateNote(node.path, { status: "error" });
-        const message = this.plugin.recordFailure("子議題整合失敗", error);
+        const message = this.plugin.recordFailure(t("log.child_integration_failed"), error);
         if (failed) failed(message);
         else new Notice(message);
       }
@@ -4364,7 +4361,7 @@ export class VisualAgentMapView extends ItemView {
       const result = await this.plugin.askModel(
         {
           title,
-          summary: language === "en" ? "No conclusion yet" : "尚未形成結論",
+          summary: translate(language, "note.no_conclusion_yet"),
           rules: "",
           detail: "",
           task: [goal, options?.requirements].filter(Boolean).join("\n\n"),
@@ -4840,7 +4837,7 @@ export class VisualAgentMapView extends ItemView {
             if (exchangeId && this.plugin.settings.aiExchangeLoggingEnabled)
               this.plugin.exchanges?.failed(
                 exchangeId,
-                stale ? "議題內容已變更，過時的 AI 結果未寫入。" : "研究已停止，結果未寫入。"
+                t(stale ? "log.stale_result_not_written" : "log.stopped_result_not_written")
               );
             if (stale) {
               if (failed) failed(t("ui.the_topic_changed_so_the_outdated_ai_result_was_not_saved"));
@@ -4875,7 +4872,7 @@ export class VisualAgentMapView extends ItemView {
             try {
               await (this.plugin.pendingSuggestions as PendingSuggestions).flush?.();
             } catch (error) {
-              const message = this.plugin.recordFailure("展開建議儲存失敗", error);
+              const message = this.plugin.recordFailure(t("log.expansion_suggestions_save_failed"), error);
               new Notice(message);
             }
           }
@@ -4898,10 +4895,10 @@ export class VisualAgentMapView extends ItemView {
           )
             this.plugin.exchanges.failed(
               exchangeId,
-              `寫入議題失敗：${error instanceof Error ? error.message : String(error)}`
+              t("log.topic_write_failed_0", error instanceof Error ? error.message : String(error))
             );
           await this.plugin.repo.updateNote(node.path, { status: "error" });
-          const message = this.plugin.recordFailure("AI 任務失敗", error);
+          const message = this.plugin.recordFailure(t("log.ai_task_failed"), error);
           if (failed) failed(message);
           else new Notice(message);
         })

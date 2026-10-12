@@ -1,4 +1,5 @@
 import { App, TFile } from "obsidian";
+import { t } from "../i18n";
 
 export interface ReferenceDocument {
   path: string;
@@ -80,8 +81,8 @@ export function resolveReferenceLinks(detail: string, groups: ReferenceGroup[]):
   const documents = dedupeReferenceGroups(groups).flatMap(group => group.documents);
   const identified = detail.replace(/\[S(\d+)\]/g, (original, number: string) => {
     const document = documents[Number(number) - 1];
-    if (!document) return `來源待確認：${original}`;
-    return document.external ? `外部來源：${document.path}` : `[[${document.path}]]`;
+    if (!document) return t("note.source_unconfirmed_0", original);
+    return document.external ? t("note.external_source_0", document.path) : `[[${document.path}]]`;
   });
   return identified.replace(/\[\[([^\]]+)\]\]/g, (original, target: string) => {
     const name = target.split("|")[0].trim();
@@ -92,8 +93,8 @@ export function resolveReferenceLinks(detail: string, groups: ReferenceGroup[]):
           const basename = document.path.split("/").pop() ?? document.path;
           return basename === name || basename.replace(/\.md$/i, "") === name;
         });
-    if (matches.length > 1) return `來源待確認：${name}`;
+    if (matches.length > 1) return t("note.source_unconfirmed_0", name);
     if (matches.length !== 1 || !matches[0].external) return original;
-    return `外部來源：${matches[0].path}`;
+    return t("note.external_source_0", matches[0].path);
   });
 }

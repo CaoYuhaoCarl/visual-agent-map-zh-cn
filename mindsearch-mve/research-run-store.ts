@@ -13,6 +13,7 @@ import type {
 } from "../map-model";
 import type { Repository } from "../repository";
 import { managedHeadingValue, managedSectionValue } from "../note-values";
+import { t, translate } from "../i18n";
 
 export interface NewAnswerBranch {
   requestId?: string;
@@ -984,8 +985,13 @@ export class MindSearchRunStore {
       .filter(Boolean)
       .join("\n\n");
     await this.repository.updateNote(draft.notePath, {
-      title: note.title.includes("未發布診斷") ? note.title : `${note.title}（未發布診斷）`,
-      summary: `未發布診斷：此內容屬於已失效的 MindSearch attempt ${draft.attemptId}，不是有效研究結果。`,
+      title: [
+        translate("en", "note.mindsearch_unpublished_diagnostic"),
+        translate("zh-TW", "note.mindsearch_unpublished_diagnostic")
+      ].some(marker => note.title.includes(marker))
+        ? note.title
+        : `${note.title}${t("note.mindsearch_unpublished_diagnostic")}`,
+      summary: t("note.mindsearch_unpublished_diagnostic_summary_0", draft.attemptId),
       detail,
       status: "error"
     });

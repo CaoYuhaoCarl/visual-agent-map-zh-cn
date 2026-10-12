@@ -24,7 +24,7 @@ integrationTest('MindSearch freezes each answer/input branch snapshot and fences
   const retry = await store.startAttempt(mapPath, branch.id, 'run-1');
   assert.equal(first.inputSnapshotHash, retry.inputSnapshotHash);
   const retiredDraft = await repo.readNote(oldDraft.notePath);
-  assert.equal(retiredDraft.status, 'error'); assert.match(retiredDraft.summary, /不是有效研究結果/);
+  assert.equal(retiredDraft.status, 'error'); assert.match(retiredDraft.summary, /is not a valid research result/);
   assert.equal((await repo.readMap(mapPath)).nodes.some(node => node.id === oldDraft.nodeId), false);
   assert.deepEqual(plain(await store.createResultDraft(mapPath, first, '舊 attempt 不得產生結果', 'gpt-6-luna')), { status: 'stale', runId: 'run-1', attemptId: 'attempt-1' });
   const result = (await store.createResultDraft(mapPath, retry, '研究結果', 'gpt-6-luna')).draft;

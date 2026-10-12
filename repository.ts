@@ -1,6 +1,6 @@
 import { App, TFile, TFolder, normalizePath, parseYaml, stringifyYaml } from "obsidian";
 import { createHash } from "node:crypto";
-import { translate, type TranslationKey } from "./i18n";
+import { t, translate, type TranslationKey } from "./i18n";
 import { MapDocument, MapNode, serializeMap, parseMap } from "./map-model";
 import type { CoffeeStyle } from "./experiences/coffee-tables/types";
 import type { ReasoningLevel, ResearchDepth, ResearchMode, VisualMode } from "./ai/types";
@@ -146,7 +146,7 @@ export function safeName(title: string): string {
       .replace(/[\\/:*?"<>|#^[\]]/g, " ")
       .replace(/\s+/g, " ")
       .trim()
-      .slice(0, 80) || "未命名主題"
+      .slice(0, 80) || t("note.untitled_topic")
   );
 }
 
@@ -389,7 +389,7 @@ function withReferenceLinks(body: string, fm: Record<string, unknown>, language:
   const relationships = Array.isArray(fm["agent-map-references"])
     ? fm["agent-map-references"].map(String).filter(text => text.includes("[["))
     : [];
-  const label = language === "en" ? "Source topic: " : "來源議題：";
+  const label = translate(language, "note.source_topic_label");
   const links = [
     ...relationships.map(value => localizeReference(value, language)),
     ...sources.map(path => `${label}[[${noteLink(path)}]]`)
@@ -707,7 +707,7 @@ export class Repository {
     await this.ensureTopicFolders(this.topicRoot(mapPath));
     const source = await this.app.vault.read(this.file(sourcePath));
     const metadata = frontmatter(source);
-    const title = `${text(metadata.title, this.file(sourcePath).basename)} ${this.settings.language === "en" ? "copy" : "副本"}`;
+    const title = `${text(metadata.title, this.file(sourcePath).basename)} ${translate(this.settings.language, "note.copy_suffix")}`;
     const id = crypto.randomUUID(),
       path = this.unique(folder, title);
     metadata["node-id"] = id;

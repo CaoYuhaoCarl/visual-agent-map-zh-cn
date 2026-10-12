@@ -1,4 +1,5 @@
 import { App, Modal, Setting } from "obsidian";
+import { translate, type TranslationKey } from "../../i18n";
 
 /** One optional batch of user conditions, stored on the mother topic rather than as exploration answers. */
 export class MindSearchClarificationModal extends Modal {
@@ -11,33 +12,30 @@ export class MindSearchClarificationModal extends Modal {
     super(app);
   }
   onOpen(): void {
-    const text = (zh: string, en: string): string => (this.english ? en : zh);
-    this.titleEl.setText(text("開始前釐清", "Before exploring"));
+    const text = (key: TranslationKey): string => translate(this.english ? "en" : "zh-TW", key);
+    this.titleEl.setText(text("ui.mindsearch_clarify_title"));
     this.contentEl.createEl("p", {
-      text: text(
-        "一起確認會影響研究方向的條件。留白表示不確定，先探索。這輪不計入探索題數。",
-        "Confirm the conditions that affect research. Leave answers blank if unsure. This intake does not count toward exploration questions."
-      )
+      text: text("ui.mindsearch_clarify_intro")
     });
     const fields = this.questions.map(question => {
       const label = this.contentEl.createEl("label", { cls: "vam-field" });
       label.createSpan({ text: question });
       const input = label.createEl("textarea", { attr: { rows: "2" } });
       input.setAttr("aria-label", question);
-      input.placeholder = text("不確定，先探索", "Unsure — explore first");
+      input.placeholder = text("ui.mindsearch_clarify_placeholder");
       return { question, input };
     });
     const status = this.contentEl.createEl("p", { cls: "vam-hint", attr: { "aria-live": "polite" } });
     let pending = false;
     new Setting(this.contentEl)
       .addButton(button =>
-        button.setButtonText(text("取消", "Cancel")).onClick(() => {
+        button.setButtonText(text("ui.cancel")).onClick(() => {
           if (!pending) this.close();
         })
       )
       .addButton(button =>
         button
-          .setButtonText(text("保存並開始探索", "Save and explore"))
+          .setButtonText(text("ui.mindsearch_clarify_save"))
           .setCta()
           .onClick(() => {
             if (pending) return;
@@ -49,7 +47,7 @@ export class MindSearchClarificationModal extends Modal {
             const answers = fields
               .map(
                 ({ question, input }) =>
-                  `- ${question}\n  ${input.value.trim() || text("不確定，先探索；請研究適用的替代情況，不要再次要求填寫。", "Unsure; research applicable alternatives without asking this again.")}`
+                  `- ${question}\n  ${input.value.trim() || text("note.mindsearch_clarify_blank_answer")}`
               )
               .join("\n\n");
             void this.submit(answers)

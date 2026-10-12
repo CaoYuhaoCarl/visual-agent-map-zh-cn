@@ -137,7 +137,7 @@ export default class VisualAgentMapPlugin extends Plugin {
     });
     this.queue = result.catch(error => {
       const message = error instanceof Error ? error.message : String(error);
-      this.logs.appendLog("error", `操作失敗：${message}`);
+      this.logs.appendLog("error", t("log.operation_failed_0", message));
       console.error("Visual Agent Map", error);
       new Notice(message);
     });
@@ -264,15 +264,21 @@ export default class VisualAgentMapPlugin extends Plugin {
       name: t("ui.context_ai_open"),
       checkCallback: checking => markdownSelectionAi.openForSelection(checking)
     });
-    this.logs.appendLog("info", `Visual Agent Map ${this.manifest.version || "unknown"} 載入`);
+    this.logs.appendLog("info", t("log.plugin_loaded_0", this.manifest.version || "unknown"));
     if (this.app.vault.adapter instanceof FileSystemAdapter && this.manifest.dir) {
       const pluginDirectory = join(this.app.vault.adapter.getBasePath(), this.manifest.dir);
       this.exchanges = new AiExchangeLog(join(pluginDirectory, "ai-exchanges.json"), error =>
-        this.logs.appendLog("error", `AI 往返紀錄儲存失敗：${error instanceof Error ? error.message : String(error)}`)
+        this.logs.appendLog(
+          "error",
+          t("log.exchange_log_save_failed_0", error instanceof Error ? error.message : String(error))
+        )
       );
       await this.exchanges.load();
       this.pendingSuggestions = new PendingSuggestions(join(pluginDirectory, "pending-suggestions.json"), error =>
-        this.logs.appendLog("error", `待確認建議儲存失敗：${error instanceof Error ? error.message : String(error)}`)
+        this.logs.appendLog(
+          "error",
+          t("log.pending_suggestions_save_failed_0", error instanceof Error ? error.message : String(error))
+        )
       );
       await (this.pendingSuggestions as PendingSuggestions).load();
     }
@@ -450,7 +456,10 @@ export default class VisualAgentMapPlugin extends Plugin {
           await this.activateOutline();
         })
         .catch(error => {
-          this.logs.appendLog("warn", `初始化未完成：${error instanceof Error ? error.message : String(error)}`);
+          this.logs.appendLog(
+            "warn",
+            t("log.initialization_incomplete_0", error instanceof Error ? error.message : String(error))
+          );
           console.warn("Visual Agent Map initialization", error);
         });
     });
@@ -638,7 +647,7 @@ export default class VisualAgentMapPlugin extends Plugin {
       new Notice(
         t(
           "ui.codex_app_server_check_failed_0",
-          this.recordFailure("Codex App Server 重新檢查失敗", state.error ?? "unknown error")
+          this.recordFailure(t("log.codex_recheck_failed"), state.error ?? "unknown error")
         )
       );
     else new Notice(t("ui.codex_cli_was_not_found_0_set_the_codex_cli_path_in_vam_sett", diagnostic.executable));
@@ -826,10 +835,7 @@ export default class VisualAgentMapPlugin extends Plugin {
       }
       new Notice(t("ui.current_model_is_unavailable"));
     } catch (error) {
-      this.logs.appendLog(
-        "warn",
-        `Codex App Server 尚未就緒：${error instanceof Error ? error.message : String(error)}`
-      );
+      this.logs.appendLog("warn", t("log.codex_not_ready_0", error instanceof Error ? error.message : String(error)));
     }
     return false;
   }

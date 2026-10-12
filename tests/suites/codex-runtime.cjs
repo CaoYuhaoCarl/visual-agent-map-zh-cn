@@ -258,7 +258,7 @@ integrationTest('research budget sends one stop-search steer after three searche
     assert.equal(await runtime.runTask('research', 'model', 'low', {}, { searchBudget: 3 }), 'answer');
     assert.equal(sent.filter(message => message.method === 'turn/steer').length, 1);
     assert.equal(sent.filter(message => message.method === 'turn/interrupt').length, 0);
-    assert.match(sent.find(message => message.method === 'turn/steer').params.input[0].text, /停止搜尋/);
+    assert.match(sent.find(message => message.method === 'turn/steer').params.input[0].text, /Stop searching/);
   } finally { runtime.stop(); }
 });
 integrationTest('a failing caller callback fails only its own Codex turn and keeps the shared process', async () => {
@@ -387,7 +387,7 @@ for (const delayedStart of [false, true]) test(`timed-out Codex turn attempts on
     await assert.rejects(pending, /AI task exceeded 3 minutes.*interrupt it to avoid prolonged resource use.*Incomplete results are not applied/);
     assert.equal(sent.filter(message => message.method === 'turn/interrupt').length, 1);
     await new Promise(resolve => setImmediate(resolve));
-    assert.equal(logs.filter(([level, message]) => level === 'warn' && message.includes('逾時後無法停止 AI 任務')).length, 1);
+    assert.equal(logs.filter(([level, message]) => level === 'warn' && message.includes('Could not stop the AI task after it timed out')).length, 1);
   } finally { runtime.stop(); }
 });
 integrationTest('Codex App Server declines unsupported interaction requests instead of hanging', async () => {

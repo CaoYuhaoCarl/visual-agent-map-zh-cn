@@ -16,14 +16,14 @@ test('reference batches include every selected Markdown source, deduplicate over
   assert.equal(joined.match(/duplicate/g), null);
   assert.match(joined, /part 1\/4/); assert.match(joined, /part 4\/4/);
   assert.match(api.referenceCatalog(groups), /\[S2\] External file \(plain path\): \/Volumes\/Refs\/source\.md/);
-  assert.equal(api.resolveReferenceLinks('See [[source.md]]', groups), 'See 外部來源：/Volumes/Refs/source.md');
-  assert.equal(api.resolveReferenceLinks('Vault [S1], external [S2]', groups), 'Vault [[Maps/A/one.md]], external 外部來源：/Volumes/Refs/source.md');
+  assert.equal(api.resolveReferenceLinks('See [[source.md]]', groups), 'See External source: /Volumes/Refs/source.md');
+  assert.equal(api.resolveReferenceLinks('Vault [S1], external [S2]', groups), 'Vault [[Maps/A/one.md]], external External source: /Volumes/Refs/source.md');
   const namesake = [{ id: 'mixed', documents: [{ path: 'Vault/source.md', content: 'vault' }, { path: '/Volumes/Refs/source.md', external: true, content: 'external' }] }];
-  assert.equal(api.resolveReferenceLinks('Vault [S1], external [S2]', namesake), 'Vault [[Vault/source.md]], external 外部來源：/Volumes/Refs/source.md');
-  assert.equal(api.resolveReferenceLinks('Ambiguous [[source.md]]', namesake), 'Ambiguous 來源待確認：source.md');
+  assert.equal(api.resolveReferenceLinks('Vault [S1], external [S2]', namesake), 'Vault [[Vault/source.md]], external External source: /Volumes/Refs/source.md');
+  assert.equal(api.resolveReferenceLinks('Ambiguous [[source.md]]', namesake), 'Ambiguous Source to confirm: source.md');
   assert.equal(api.resolveReferenceLinks('Exact [[Vault/source.md]]', namesake), 'Exact [[Vault/source.md]]');
-  assert.equal(api.resolveReferenceLinks('Unknown [S3]', namesake), 'Unknown 來源待確認：[S3]');
-  assert.equal(api.resolveReferenceLinks('See [[same.md]]', [{ id: 'a', documents: [{ path: '/a/same.md', external: true, content: '' }, { path: '/b/same.md', external: true, content: '' }] }]), 'See 來源待確認：same.md');
+  assert.equal(api.resolveReferenceLinks('Unknown [S3]', namesake), 'Unknown Source to confirm: [S3]');
+  assert.equal(api.resolveReferenceLinks('See [[same.md]]', [{ id: 'a', documents: [{ path: '/a/same.md', external: true, content: '' }, { path: '/b/same.md', external: true, content: '' }] }]), 'See Source to confirm: same.md');
 });
 test('reference picker keeps source groups compact, collapsible and task-local', async () => {
   const css = fs.readFileSync(path.join(__dirname, '..', '..', 'styles.css'), 'utf8');

@@ -260,7 +260,7 @@ export class CodexAppServerRuntime {
       const timeout = window.setTimeout(() => {
         this.turns.delete(threadId);
         timedOut = true;
-        interrupt(5_000, "逾時後無法停止 AI 任務");
+        interrupt(5_000, t("error.ai_task_stop_after_timeout_failed"));
         reject(
           new Error(
             controls?.timeoutMessage ??
@@ -290,7 +290,7 @@ export class CodexAppServerRuntime {
     });
     const state = this.turns.get(threadId)!;
     void completed.catch(() => undefined);
-    const interrupt = (timeoutMs = CONTROL_TIMEOUT_MS, failure = "取消 AI 任務失敗"): void => {
+    const interrupt = (timeoutMs = CONTROL_TIMEOUT_MS, failure = t("error.ai_task_cancel_failed")): void => {
       if (!state.turnId || interruptRequested) return;
       interruptRequested = true;
       void this.request("turn/interrupt", { threadId, turnId: state.turnId }, timeoutMs).catch(error =>
@@ -330,7 +330,7 @@ export class CodexAppServerRuntime {
         controls?.onRequest?.(steerRequest);
         await this.request("turn/steer", steerRequest);
       });
-      if (timedOut) interrupt(5_000, "逾時後無法停止 AI 任務");
+      if (timedOut) interrupt(5_000, t("error.ai_task_stop_after_timeout_failed"));
       else if (controls?.signal?.aborted) onAbort();
       this.steerIfNeeded(threadId, state);
       const answer = await completed;
@@ -353,14 +353,14 @@ export class CodexAppServerRuntime {
       } catch (error) {
         this.options.onLog?.(
           "warn",
-          `Codex App Server 無法取消 thread 訂閱：${error instanceof Error ? error.message : String(error)}`
+          t("log.codex_unsubscribe_failed_0", error instanceof Error ? error.message : String(error))
         );
       }
     }
   }
 
   private async startProcess(): Promise<void> {
-    this.options.onLog?.("info", `啟動 Codex App Server：${this.options.executable} app-server`);
+    this.options.onLog?.("info", t("log.codex_starting_0", this.options.executable));
     this.buffer = "";
     this.stderr = "";
     const child = spawnProcess(
@@ -394,7 +394,7 @@ export class CodexAppServerRuntime {
       capabilities: { experimentalApi: false, requestAttestation: false }
     });
     this.send({ method: "initialized" });
-    this.options.onLog?.("info", "Codex App Server 已就緒");
+    this.options.onLog?.("info", t("log.codex_ready"));
   }
 
   private consume(child: ChildProcessHandle, chunk: string): void {
@@ -515,7 +515,10 @@ export class CodexAppServerRuntime {
       const snapshot = JSON.parse(JSON.stringify(params)) as unknown;
       state.onWebSearchEvent({ method, params: snapshot });
     } catch (error) {
-      this.options.onLog?.("warn", `原生搜尋事件回呼失敗：${error instanceof Error ? error.message : String(error)}`);
+      this.options.onLog?.(
+        "warn",
+        t("log.codex_search_callback_failed_0", error instanceof Error ? error.message : String(error))
+      );
     }
   }
 
@@ -532,13 +535,14 @@ export class CodexAppServerRuntime {
     const steerRequest = {
       threadId,
       expectedTurnId: state.turnId,
-      input: [
-        { type: "text", text: "網路搜尋預算已用完。請停止搜尋，根據已取得的資料完成答案；不足之處明確列為待確認。" }
-      ]
+      input: [{ type: "text", text: t("prompt.search_budget_exhausted") }]
     };
     state.onRequest?.(steerRequest);
     void this.request("turn/steer", steerRequest).catch(error =>
-      this.options.onLog?.("warn", `搜尋停止提醒未送達：${error instanceof Error ? error.message : String(error)}`)
+      this.options.onLog?.(
+        "warn",
+        t("log.codex_search_stop_undelivered_0", error instanceof Error ? error.message : String(error))
+      )
     );
   }
 

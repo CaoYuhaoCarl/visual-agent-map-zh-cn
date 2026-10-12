@@ -1,4 +1,5 @@
 import { readFile, rename, writeFile } from "node:fs/promises";
+import { t } from "./i18n";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -79,14 +80,14 @@ export function formatAiExchange(entry: AiExchange): string {
   return [
     `[${entry.startedAt}] ${entry.topic} · ${entry.mode} · ${entry.model}/${entry.effort} · ${entry.status}`,
     timing,
-    "\n完整 Prompt：\n",
-    metrics.prompt || "（舊紀錄未保存完整 prompt）",
-    "\n送往 AI 的請求：\n",
-    entry.request || "（尚未送出）",
-    "\nAI 原始回覆：\n",
-    entry.response || "（無）",
-    "\n錯誤：\n",
-    entry.error || "（無）"
+    `\n${t("log.exchange_full_prompt")}\n`,
+    metrics.prompt || t("log.exchange_legacy_prompt_missing"),
+    `\n${t("log.exchange_request")}\n`,
+    entry.request || t("log.exchange_not_sent"),
+    `\n${t("log.exchange_raw_reply")}\n`,
+    entry.response || t("log.exchange_none"),
+    `\n${t("log.exchange_error")}\n`,
+    entry.error || t("log.exchange_none")
   ].join("\n");
 }
 
@@ -104,7 +105,7 @@ export class AiExchangeLog {
   async load(): Promise<void> {
     try {
       const parsed: unknown = JSON.parse(await readFile(this.path, "utf8"));
-      if (!Array.isArray(parsed)) throw new Error("AI 往返紀錄格式錯誤");
+      if (!Array.isArray(parsed)) throw new Error(t("error.exchange_log_invalid"));
       const entries = (parsed as unknown[]).filter((item): item is AiExchange => {
         if (!item || typeof item !== "object") return false;
         const entry = item as Record<string, unknown>;
@@ -121,7 +122,7 @@ export class AiExchangeLog {
           ["preparing", "sent", "received", "parsed", "completed", "failed"].includes(entry.status)
         );
       });
-      if (entries.length !== parsed.length) throw new Error("AI 往返紀錄欄位格式錯誤；保留原檔並停止寫入");
+      if (entries.length !== parsed.length) throw new Error(t("error.exchange_log_fields_invalid"));
       this.entries = entries.slice(-this.limit);
       this.loadError = null;
       this.emit();
