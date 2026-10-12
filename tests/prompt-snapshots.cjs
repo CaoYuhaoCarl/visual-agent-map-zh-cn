@@ -8,6 +8,7 @@ const path = require('node:path');
 const { load: loadModule, normalizeText, promptsFor, root } = require('./support-replay.cjs');
 const support = require('./support.cjs');
 const { runPanel } = require('./support-selection-ai.cjs');
+const { captureAimPhaseVariants } = require('./support-aim-flow-capture.cjs');
 
 const directory = path.join(__dirname, 'snapshots', 'prompts');
 const update = process.env.UPDATE_PROMPT_SNAPSHOTS === '1';
@@ -73,6 +74,15 @@ test('collect snapshots: AIM flow phase tasks (manual-flow, final-delivery)', as
   for (const [phase, context] of [...first.entries()].sort(([a], [b]) => a.localeCompare(b)))
     for (const [language, tag] of LANGUAGES)
       await recordContext(`aim-flow.${phase}.${tag}`, `AimManualFlow/final-delivery phase ${phase} through AiTaskService`, language, { ...context, outputLanguage: language });
+});
+
+test('collect snapshots: AIM flow phase task variants (safety net before the templates move)', async () => {
+  // Phase-task text assembled in manual-flow.ts and planner-review.ts, captured at the flow's model-call seam for every variant
+  // the older test above does not reach. support-aim-flow-capture.cjs fails if any expected variant could not be driven.
+  const variants = await captureAimPhaseVariants();
+  for (const [variant, context] of [...variants.entries()].sort(([a], [b]) => a.localeCompare(b)))
+    for (const [language, tag] of LANGUAGES)
+      await recordContext(`aim-flow.${variant}.${tag}`, `AimManualFlow/planner-review phase task variant ${variant} through AiTaskService`, language, { ...context, outputLanguage: language });
 });
 
 test('collect snapshots: Visual Map expansion and synthesis tasks', async () => {

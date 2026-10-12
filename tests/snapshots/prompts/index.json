@@ -196,6 +196,36 @@
       "language": "en",
       "schema": true
     },
+    "aim-flow.decision-quality-review-answered-goal.en": {
+      "builder": "AimManualFlow/planner-review phase task variant decision-quality-review-answered-goal through AiTaskService",
+      "language": "en",
+      "schema": true
+    },
+    "aim-flow.decision-quality-review-answered-goal.zh": {
+      "builder": "AimManualFlow/planner-review phase task variant decision-quality-review-answered-goal through AiTaskService",
+      "language": "zh-TW",
+      "schema": true
+    },
+    "aim-flow.decision-quality-review-below-floor.en": {
+      "builder": "AimManualFlow/planner-review phase task variant decision-quality-review-below-floor through AiTaskService",
+      "language": "en",
+      "schema": true
+    },
+    "aim-flow.decision-quality-review-below-floor.zh": {
+      "builder": "AimManualFlow/planner-review phase task variant decision-quality-review-below-floor through AiTaskService",
+      "language": "zh-TW",
+      "schema": true
+    },
+    "aim-flow.decision-quality-review-user-condition.en": {
+      "builder": "AimManualFlow/planner-review phase task variant decision-quality-review-user-condition through AiTaskService",
+      "language": "en",
+      "schema": true
+    },
+    "aim-flow.decision-quality-review-user-condition.zh": {
+      "builder": "AimManualFlow/planner-review phase task variant decision-quality-review-user-condition through AiTaskService",
+      "language": "zh-TW",
+      "schema": true
+    },
     "aim-flow.delivery-acceptance.en": {
       "builder": "AimManualFlow/final-delivery phase delivery-acceptance through AiTaskService",
       "language": "en",
@@ -236,6 +266,106 @@
       "language": "zh-TW",
       "schema": true
     },
+    "aim-flow.evidence-reuse-audit.en": {
+      "builder": "AimManualFlow/planner-review phase task variant evidence-reuse-audit through AiTaskService",
+      "language": "en",
+      "schema": true
+    },
+    "aim-flow.evidence-reuse-audit.zh": {
+      "builder": "AimManualFlow/planner-review phase task variant evidence-reuse-audit through AiTaskService",
+      "language": "zh-TW",
+      "schema": true
+    },
+    "aim-flow.format-repair-answered-without-target.en": {
+      "builder": "AimManualFlow/planner-review phase task variant format-repair-answered-without-target through AiTaskService",
+      "language": "en",
+      "schema": true
+    },
+    "aim-flow.format-repair-answered-without-target.zh": {
+      "builder": "AimManualFlow/planner-review phase task variant format-repair-answered-without-target through AiTaskService",
+      "language": "zh-TW",
+      "schema": true
+    },
+    "aim-flow.format-repair-imposed-options.en": {
+      "builder": "AimManualFlow/planner-review phase task variant format-repair-imposed-options through AiTaskService",
+      "language": "en",
+      "schema": true
+    },
+    "aim-flow.format-repair-imposed-options.zh": {
+      "builder": "AimManualFlow/planner-review phase task variant format-repair-imposed-options through AiTaskService",
+      "language": "zh-TW",
+      "schema": true
+    },
+    "aim-flow.format-repair-missing-choices.en": {
+      "builder": "AimManualFlow/planner-review phase task variant format-repair-missing-choices through AiTaskService",
+      "language": "en",
+      "schema": true
+    },
+    "aim-flow.format-repair-missing-choices.zh": {
+      "builder": "AimManualFlow/planner-review phase task variant format-repair-missing-choices through AiTaskService",
+      "language": "zh-TW",
+      "schema": true
+    },
+    "aim-flow.format-repair-no-decision.en": {
+      "builder": "AimManualFlow/planner-review phase task variant format-repair-no-decision through AiTaskService",
+      "language": "en",
+      "schema": true
+    },
+    "aim-flow.format-repair-no-decision.zh": {
+      "builder": "AimManualFlow/planner-review phase task variant format-repair-no-decision through AiTaskService",
+      "language": "zh-TW",
+      "schema": true
+    },
+    "aim-flow.format-repair-preserve-decision.en": {
+      "builder": "AimManualFlow/planner-review phase task variant format-repair-preserve-decision through AiTaskService",
+      "language": "en",
+      "schema": true
+    },
+    "aim-flow.format-repair-preserve-decision.zh": {
+      "builder": "AimManualFlow/planner-review phase task variant format-repair-preserve-decision through AiTaskService",
+      "language": "zh-TW",
+      "schema": true
+    },
+    "aim-flow.format-repair-state-question.en": {
+      "builder": "AimManualFlow/planner-review phase task variant format-repair-state-question through AiTaskService",
+      "language": "en",
+      "schema": true
+    },
+    "aim-flow.format-repair-state-question.zh": {
+      "builder": "AimManualFlow/planner-review phase task variant format-repair-state-question through AiTaskService",
+      "language": "zh-TW",
+      "schema": true
+    },
+    "aim-flow.initial-clarification.en": {
+      "builder": "AimManualFlow/planner-review phase task variant initial-clarification through AiTaskService",
+      "language": "en",
+      "schema": true
+    },
+    "aim-flow.initial-clarification.zh": {
+      "builder": "AimManualFlow/planner-review phase task variant initial-clarification through AiTaskService",
+      "language": "zh-TW",
+      "schema": true
+    },
+    "aim-flow.initial-question-correction.en": {
+      "builder": "AimManualFlow/planner-review phase task variant initial-question-correction through AiTaskService",
+      "language": "en",
+      "schema": true
+    },
+    "aim-flow.initial-question-correction.zh": {
+      "builder": "AimManualFlow/planner-review phase task variant initial-question-correction through AiTaskService",
+      "language": "zh-TW",
+      "schema": true
+    },
+    "aim-flow.initial-question-saved-terminal.en": {
+      "builder": "AimManualFlow/planner-review phase task variant initial-question-saved-terminal through AiTaskService",
+      "language": "en",
+      "schema": true
+    },
+    "aim-flow.initial-question-saved-terminal.zh": {
+      "builder": "AimManualFlow/planner-review phase task variant initial-question-saved-terminal through AiTaskService",
+      "language": "zh-TW",
+      "schema": true
+    },
     "aim-flow.initial-question.en": {
       "builder": "AimManualFlow/final-delivery phase initial-question through AiTaskService",
       "language": "en",
@@ -256,6 +386,46 @@
       "language": "zh-TW",
       "schema": true
     },
+    "aim-flow.report-review-later.en": {
+      "builder": "AimManualFlow/planner-review phase task variant report-review-later through AiTaskService",
+      "language": "en",
+      "schema": true
+    },
+    "aim-flow.report-review-later.zh": {
+      "builder": "AimManualFlow/planner-review phase task variant report-review-later through AiTaskService",
+      "language": "zh-TW",
+      "schema": true
+    },
+    "aim-flow.research-gap-audit-target-only.en": {
+      "builder": "AimManualFlow/planner-review phase task variant research-gap-audit-target-only through AiTaskService",
+      "language": "en",
+      "schema": true
+    },
+    "aim-flow.research-gap-audit-target-only.zh": {
+      "builder": "AimManualFlow/planner-review phase task variant research-gap-audit-target-only through AiTaskService",
+      "language": "zh-TW",
+      "schema": true
+    },
+    "aim-flow.research-gap-audit.en": {
+      "builder": "AimManualFlow/planner-review phase task variant research-gap-audit through AiTaskService",
+      "language": "en",
+      "schema": true
+    },
+    "aim-flow.research-gap-audit.zh": {
+      "builder": "AimManualFlow/planner-review phase task variant research-gap-audit through AiTaskService",
+      "language": "zh-TW",
+      "schema": true
+    },
+    "aim-flow.research-plan-repair.en": {
+      "builder": "AimManualFlow/planner-review phase task variant research-plan-repair through AiTaskService",
+      "language": "en",
+      "schema": true
+    },
+    "aim-flow.research-plan-repair.zh": {
+      "builder": "AimManualFlow/planner-review phase task variant research-plan-repair through AiTaskService",
+      "language": "zh-TW",
+      "schema": true
+    },
     "aim-flow.research-plan.en": {
       "builder": "AimManualFlow/final-delivery phase research-plan through AiTaskService",
       "language": "en",
@@ -266,6 +436,26 @@
       "language": "zh-TW",
       "schema": true
     },
+    "aim-flow.subtopic-research-reuse-rejected.en": {
+      "builder": "AimManualFlow/planner-review phase task variant subtopic-research-reuse-rejected through AiTaskService",
+      "language": "en",
+      "schema": true
+    },
+    "aim-flow.subtopic-research-reuse-rejected.zh": {
+      "builder": "AimManualFlow/planner-review phase task variant subtopic-research-reuse-rejected through AiTaskService",
+      "language": "zh-TW",
+      "schema": true
+    },
+    "aim-flow.subtopic-research-update.en": {
+      "builder": "AimManualFlow/planner-review phase task variant subtopic-research-update through AiTaskService",
+      "language": "en",
+      "schema": true
+    },
+    "aim-flow.subtopic-research-update.zh": {
+      "builder": "AimManualFlow/planner-review phase task variant subtopic-research-update through AiTaskService",
+      "language": "zh-TW",
+      "schema": true
+    },
     "aim-flow.subtopic-research.en": {
       "builder": "AimManualFlow/final-delivery phase subtopic-research through AiTaskService",
       "language": "en",
@@ -273,6 +463,16 @@
     },
     "aim-flow.subtopic-research.zh": {
       "builder": "AimManualFlow/final-delivery phase subtopic-research through AiTaskService",
+      "language": "zh-TW",
+      "schema": true
+    },
+    "aim-flow.targeted-followup-research.en": {
+      "builder": "AimManualFlow/planner-review phase task variant targeted-followup-research through AiTaskService",
+      "language": "en",
+      "schema": true
+    },
+    "aim-flow.targeted-followup-research.zh": {
+      "builder": "AimManualFlow/planner-review phase task variant targeted-followup-research through AiTaskService",
       "language": "zh-TW",
       "schema": true
     },
