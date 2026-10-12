@@ -2,6 +2,7 @@
 // for tests/replay.cjs. One case file per exchange that carries a prompt.
 //
 //   node tests/tools/exchanges-to-replay.mjs <ai-exchanges.json> <out-dir> [--manifest manifest.json] [--sequential] [--flow <name>]
+//   node tests/tools/exchanges-to-replay.mjs <ai-exchanges.json> <out-dir> --parse-layer <name>
 //
 // manifest.json maps an exchange id (or its topic) to extra driver data the log does not contain:
 //   { "<id or topic>": { "name": "...", "language": "en", "context": { TaskContext }, "expect": { ... } } }
@@ -10,6 +11,12 @@
 // --flow <name> writes ONE case holding every exchange (log order) as an ordered flow: kind "flow", exchanges[] each with
 //   its AiExchange `step` (stepId@version) and `exchangeId`. The manifest may hold, per exchange id/topic, the same
 //   { context, expect } driver data, and under the key "@flow" case-level { language, expect: { stepOrder: [...] } }.
+//
+// --parse-layer <name> writes ONE case (kind "parse") with an entry per exchange that has a raw reply, and no manifest is needed.
+//   Live logs carry no TaskContext, so replay stops at the PARSE layer: each entry keeps { exchangeId, step, recordedStatus,
+//   recordedError, promptSha256, responseSchema, raw }. responseSchema is the output schema found in the logged request
+//   (Codex: request.outputSchema); the Claude request log replaces its schema with a placeholder, so it is null there.
+//   A failed exchange with no raw reply is kept as a provider-error entry (raw null) and gets no parse assertion.
 //
 // Exchange logs hold real prompts and replies. Review them before copying any output into a public repository.
 import { createHash } from "node:crypto";
@@ -36,6 +43,49 @@ const withPrompt = exchanges => {
   if (!Array.isArray(exchanges)) throw new Error("Exchange log must be a JSON array.");
   return exchanges.filter(entry => entry && typeof entry.prompt === "string" && entry.prompt);
 };
+
+/** The output schema a logged request carried, or null when the provider's request log does not include it. */
+export function schemaFromRequest(request) {
+  let parsed;
+  try { parsed = JSON.parse(request); } catch { return null; }
+  const body = parsed && typeof parsed === "object" && parsed.request && typeof parsed.request === "object" ? parsed.request : parsed;
+  return body && typeof body === "object" && body.outputSchema && typeof body.outputSchema === "object" ? body.outputSchema : null;
+}
+
+function providerOf(entry) {
+  try {
+    const parsed = JSON.parse(entry.request);
+    const body = parsed?.request && typeof parsed.request === "object" ? parsed.request : parsed;
+    if (body?.provider === "claude") return "claude";
+    if (body?.threadId !== undefined || body?.outputSchema !== undefined) return "codex";
+  } catch { /* fall through to the model id */ }
+  return String(entry.model).startsWith("claude") ? "claude" : "codex";
+}
+
+/** One "parse" case: every exchange with a raw reply (or a provider failure) as an entry, in log order. */
+export function convertParseLayer(exchanges, name) {
+  if (!Array.isArray(exchanges)) throw new Error("Exchange log must be a JSON array.");
+  const entries = exchanges.filter(entry => entry && (entry.response || entry.status === "failed"));
+  if (!entries.length) throw new Error("A parse-layer case needs at least one exchange with a raw reply or a failure.");
+  return {
+    version: 1,
+    kind: "parse",
+    name,
+    source: { kind: "ai-exchanges", exchangeIds: entries.map(entry => entry.id) },
+    language: "en",
+    entries: entries.map(entry => ({
+      exchangeId: entry.id,
+      step: entry.step ?? null,
+      model: entry.model,
+      provider: providerOf(entry),
+      recordedStatus: entry.status,
+      recordedError: entry.error || null,
+      promptSha256: entry.prompt ? promptHash(entry.prompt) : null,
+      responseSchema: schemaFromRequest(entry.request),
+      raw: entry.response ? entry.response : null
+    }))
+  };
+}
 
 export function convertExchanges(exchanges, { manifest = {}, sequential = false, flow } = {}) {
   const entries = withPrompt(exchanges);
@@ -89,7 +139,17 @@ function convertFlow(entries, { manifest, sequential, name }) {
 
 function main(args) {
   const [input, outDir, ...rest] = args;
-  if (!input || !outDir) throw new Error("Usage: exchanges-to-replay.mjs <ai-exchanges.json> <out-dir> [--manifest file] [--sequential] [--flow name]");
+  if (!input || !outDir) throw new Error("Usage: exchanges-to-replay.mjs <ai-exchanges.json> <out-dir> [--manifest file] [--sequential] [--flow name] | --parse-layer name");
+  const parseIndex = rest.indexOf("--parse-layer");
+  if (parseIndex >= 0) {
+    const name = rest[parseIndex + 1];
+    if (!name || name.startsWith("--")) throw new Error("--parse-layer needs a case name.");
+    const item = convertParseLayer(JSON.parse(readFileSync(input, "utf8")), name);
+    mkdirSync(outDir, { recursive: true });
+    writeFileSync(join(outDir, `${name.replace(/[^A-Za-z0-9._-]+/g, "-")}.replay.json`), `${JSON.stringify(item, null, 2)}\n`);
+    process.stdout.write(`1 replay case(s) written to ${outDir} (parse layer, ${item.entries.length} exchange(s))\n`);
+    return;
+  }
   const manifestIndex = rest.indexOf("--manifest");
   const manifest = manifestIndex >= 0 ? JSON.parse(readFileSync(rest[manifestIndex + 1], "utf8")) : {};
   const flowIndex = rest.indexOf("--flow");

@@ -2,6 +2,7 @@
 // review cases, the real Planner-review parser) at the single runtime.runTask seam. No live provider is involved.
 // Case kinds: (default) one raw reply through AiTaskService; "flow" an ordered list of raw replies (one AIM flow run, each exchange
 // keeps its step stepId@version); "aim-flow-result-layer" historical PARSED results fed through the AimManualFlow ask seam.
+// "parse" (exchanges-to-replay.mjs --parse-layer): raw replies from a live ai-exchanges.json replayed through the step's own parser only.
 // Set VAM_REPLAY_CORPUS=<dir> to also run every *.replay.json case in that directory (private corpus, optional layer).
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -16,6 +17,7 @@ const { fixture, AimManualFlow } = require('./support-aim-fixture.cjs');
 const fixtures = path.join(__dirname, 'fixtures', 'replay');
 const plain = value => JSON.parse(JSON.stringify(value));
 const { parseAimPlannerReview } = load('experiences/aim/planner-review.ts');
+const { parseAiResult, extractJsonObject } = load('core/steps/task/parse.ts');
 
 /** Neutral, NON-historical stand-ins that let the flow reach the phase under test. They are never presented as recorded output. */
 const aimReview = (decision, extra = {}) => ({ summary: 'Neutral review', detail: `<!-- aim-review ${JSON.stringify({ decision, ...extra })} -->\nNeutral review`, suggestions: [], visualReferences: [] });
@@ -81,8 +83,108 @@ async function runFlowCase(replayCase) {
   return { observed, runtime };
 }
 
+const KNOWN_TASK_STEP = /^(?:task\.(?:run|reference-extract|reference-reduce)|aim\.[a-z][a-z-]*)@1$/;
+const STAGE_PREFIX = /^(?:Starting AI|Waiting for the AI reply|Parsing the AI reply|啟動 AI|等待 AI 回覆|解析 AI 回覆)\s*[:：]\s*/;
+const PARSING_STAGE = /^(?:Parsing the AI reply|解析 AI 回覆)\s*[:：]/;
+const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+/** The contract a recorded `aim` payload schema was built from (see ai/aim-contracts.ts payloadSchema), or undefined. */
+function contractFromAimSchema(aim) {
+  const keys = Object.keys(aim?.properties ?? {});
+  const has = key => keys.includes(key);
+  if (has('subtopics')) return { kind: 'plan' };
+  if (has('sections')) return { kind: 'outline' };
+  if (has('usable')) return { kind: 'reuse' };
+  if (has('goalAnswered') && aim.properties.decision?.enum) return { kind: 'review', decisions: aim.properties.decision.enum };
+  if (has('questions')) return { kind: 'intake' };
+  if (has('status') && !has('decision')) return { kind: 'delivery-research' };
+  if (has('decision') && has('question') && has('answerOptions') && aim.properties.decision.enum) return { kind: 'question', requireQuestion: aim.properties.decision.enum.length === 1 };
+  return undefined;
+}
+
+/**
+ * Parse options for one recorded exchange, derived from its step id and the schema its request carried. This mirrors
+ * taskResponseShape: an `aim` property means an AIM contract; the gap-audit summary enum means strict gap audit; a required
+ * searchStatus means isolated web research. Anything it cannot derive is "schema-only", never a guess.
+ */
+function parseOptionsFor(entry) {
+  if (typeof entry.step !== 'string' || !KNOWN_TASK_STEP.test(entry.step)) throw new Error(`${entry.exchangeId}: unknown step id ${JSON.stringify(entry.step)}; replay knows task.run, task.reference-extract, task.reference-reduce and aim.<phase> at version 1`);
+  const schema = entry.responseSchema;
+  if (!schema || typeof schema !== 'object') return { schemaOnly: 'no response schema in the logged request' };
+  const required = Array.isArray(schema.required) ? schema.required : [];
+  const aim = schema.properties?.aim;
+  const base = { strictGapAudit: false, webResearch: required.includes('searchStatus') };
+  if (aim) {
+    const contract = contractFromAimSchema(aim);
+    return contract ? { ...base, contract } : { schemaOnly: 'aim payload schema matches no known contract', requiredKeys: required };
+  }
+  if (sameJson(schema.properties?.summary?.enum, ['user_condition', 'external_evidence'])) return { ...base, strictGapAudit: true };
+  for (const key of ['summary', 'detail', 'suggestions', 'visualReferences']) if (!required.includes(key)) return { schemaOnly: `schema does not require ${key}`, requiredKeys: required };
+  return base;
+}
+
+/** Run one parse-layer entry. Returns "parsed", "parse-failure", "schema-only", "provider-error" or "unfinished". */
+function checkParseEntry(entry, language) {
+  const label = `${entry.exchangeId} ${entry.step ?? 'no-step'}`;
+  const providerLabel = entry.provider === 'claude' ? 'Claude Code' : 'Codex App Server';
+  if (typeof entry.raw !== 'string' || !entry.raw) {
+    assert.equal(entry.recordedStatus, 'failed', `${label}: an entry without a raw reply must be a recorded provider failure`);
+    return 'provider-error';
+  }
+  const options = parseOptionsFor(entry);
+  const recordedError = String(entry.recordedError ?? '');
+  const parseFailure = entry.recordedStatus === 'failed' && PARSING_STAGE.test(recordedError);
+  if (entry.recordedStatus === 'failed' && !parseFailure) return 'provider-error';
+  if (options.schemaOnly) {
+    if (!parseFailure && ['parsed', 'completed'].includes(entry.recordedStatus)) {
+      const object = JSON.parse(extractJsonObject(entry.raw));
+      for (const key of options.requiredKeys ?? []) assert.ok(key in object, `${label}: raw reply lacks required key ${key}`);
+    }
+    return 'schema-only';
+  }
+  let result, failure;
+  try { result = parseAiResult(entry.raw, providerLabel, language, options.strictGapAudit, options.webResearch, options.contract); } catch (error) { failure = error; }
+  if (parseFailure) {
+    assert.ok(failure, `${label}: recorded as a parse failure but current code parsed it`);
+    const expected = recordedError.replace(STAGE_PREFIX, '');
+    assert.ok(failure.message.startsWith(expected.slice(0, 40)), `${label}: error "${failure.message}" does not start with recorded "${expected.slice(0, 40)}"`);
+    return 'parse-failure';
+  }
+  if (['parsed', 'completed'].includes(entry.recordedStatus)) {
+    assert.ifError(failure);
+    assert.equal(typeof result.summary, 'string', `${label}: parsed summary`);
+    assert.equal(typeof result.detail, 'string', `${label}: parsed detail`);
+    return 'parsed';
+  }
+  return 'unfinished';
+}
+
+/** Whether an entry is replayed as schema-only (for the test name). An unknown step is not schema-only: the check itself fails it. */
+function isSchemaOnly(entry) {
+  if (typeof entry.raw !== 'string' || !entry.raw) return false;
+  try { return Boolean(parseOptionsFor(entry).schemaOnly); } catch { return false; }
+}
+
+/**
+ * A "parse" case: raw replies from a live ai-exchanges.json, replayed through the SAME parse the product runs after the
+ * provider returns (parseAiResult with the options the step prepared). Live logs hold no TaskContext, so nothing earlier than
+ * the parse (prompt build, schema choice) is reproduced. With a node:test context each entry is its own subtest.
+ */
+async function runParseCase(replayCase, context) {
+  assert.ok(Array.isArray(replayCase.entries) && replayCase.entries.length, `${replayCase.name}: a parse case needs entries`);
+  const language = replayCase.language ?? 'en';
+  const modes = [];
+  for (const entry of replayCase.entries) {
+    const name = `${entry.exchangeId} ${entry.step ?? 'no-step'}${isSchemaOnly(entry) ? ' [schema-only]' : ''}`;
+    if (context) await context.test(name, () => { modes.push(checkParseEntry(entry, language)); });
+    else modes.push(checkParseEntry(entry, language));
+  }
+  return modes;
+}
+
 /** Run any case kind. */
-async function runAnyCase(replayCase) {
+async function runAnyCase(replayCase, context) {
+  if (replayCase.kind === 'parse') return runParseCase(replayCase, context);
   if (replayCase.kind === 'aim-flow-result-layer') return runResultLayerCase(replayCase);
   if (replayCase.kind === 'flow') return runFlowCase(replayCase);
   return runCase(replayCase);
@@ -259,9 +361,88 @@ test('flow case: converter keeps AiExchange step and order, and the ordered raw 
   } finally { fs.rmSync(directory, { recursive: true, force: true }); }
 });
 
+
+/** Build a synthetic live ai-exchanges.json through the real AiExchangeLog + runtimeStepProvider + AiTaskService, with a fake runtime that logs a Codex-shaped (or Claude-shaped) request. */
+async function recordSyntheticExchanges(directory) {
+  const { AiExchangeLog } = load('ai-exchange-log.ts');
+  const logFile = path.join(directory, 'ai-exchanges.json');
+  const log = new AiExchangeLog(logFile, error => { throw error; });
+  const base = { summary: '', rules: '', detail: '', ancestors: '', mode: 'task', researchMode: 'local', researchDepth: 'fast', visualMode: 'off' };
+  const reviewReply = JSON.stringify({ summary: 'Review', detail: 'Interim.', suggestions: [], visualReferences: [], aim: { goalAnswered: true, decision: 'conclude', rationale: 'Enough evidence.', stopReason: 'Goal answered.', question: '', answerOptions: [], researchTarget: null } });
+  const auditReply = JSON.stringify({ summary: 'external_evidence', detail: 'A web search can answer it.', suggestions: [], visualReferences: [] });
+  const replies = {
+    'Review topic': reviewReply,
+    'Audit topic': auditReply,
+    'Claude topic': JSON.stringify({ summary: 'Claude summary', detail: 'Claude detail', suggestions: [], visualReferences: [] }),
+    'Broken topic': 'this is not json at all'
+  };
+  const runtime = {
+    runTask: async (prompt, _model, _effort, schema, controls) => {
+      const topic = Object.keys(replies).concat('Provider topic').find(name => prompt.includes(name));
+      controls.onRequest(topic === 'Claude topic' ? { provider: 'claude', executable: 'claude', args: ['--print', '--json-schema', '<response-schema>'], input: '<VAM prompt via stdin>' } : { threadId: 't', input: [{ type: 'text', text: prompt }], model: 'gpt-6-luna', effort: 'low', ...(schema ? { outputSchema: schema } : {}) });
+      if (topic === 'Provider topic') throw new Error('provider boom');
+      return replies[topic];
+    }
+  };
+  const service = makeService(runtime, { logging: true, exchanges: log });
+  const aim = { ...base, promptProfile: 'aim', ancestors: '' };
+  const contexts = [
+    ['gpt-6-luna', { ...aim, title: 'Review topic', detail: 'Reports', task: '<!-- aim-phase: report-review -->\nReview', aimContract: { kind: 'review', decisions: ['research_more', 'ask_user', 'conclude'] } }],
+    ['gpt-6-luna', { ...aim, title: 'Audit topic', task: '<!-- aim-phase: research-gap-audit -->\nAudit', responseContract: 'aim-gap-audit' }],
+    ['claude:sonnet', { ...base, title: 'Claude topic', task: 'Plain task' }],
+    ['gpt-6-luna', { ...base, title: 'Broken topic', task: 'Plain task' }],
+    ['gpt-6-luna', { ...base, title: 'Provider topic', task: 'Plain task' }]
+  ];
+  for (const [model, context] of contexts) { try { await service.askModel(context, model, 'low'); } catch { /* the failures are what is recorded */ } }
+  await log.flush();
+  return { logFile, recorded: readJson(logFile) };
+}
+
+test('parse-layer replay: a recorded live log converts without a manifest and replays through the step parser; a mutated raw reply fails', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'vam-parse-layer-'));
+  try {
+    const { logFile, recorded } = await recordSyntheticExchanges(directory);
+    assert.deepEqual(recorded.map(item => item.status), ['parsed', 'parsed', 'parsed', 'failed', 'failed']);
+    assert.deepEqual(recorded.map(item => item.step), ['aim.report-review@1', 'aim.research-gap-audit@1', 'task.run@1', 'task.run@1', 'task.run@1']);
+    const corpus = path.join(directory, 'corpus');
+    const output = execFileSync(process.execPath, [path.join(__dirname, 'tools', 'exchanges-to-replay.mjs'), logFile, corpus, '--parse-layer', 'synthetic-live'], { encoding: 'utf8' });
+    assert.match(output, /1 replay case\(s\) written/);
+    assert.deepEqual(fs.readdirSync(corpus), ['synthetic-live.replay.json']);
+    const replayCase = readJson(path.join(corpus, 'synthetic-live.replay.json'));
+    assert.equal(replayCase.kind, 'parse');
+    assert.equal(replayCase.entries.length, 5);
+    assert.deepEqual(replayCase.entries.map(item => item.responseSchema !== null), [true, true, true, true, true].map((_value, index) => index !== 2), 'Codex requests carry the schema; the Claude request log does not');
+    assert.equal(replayCase.entries[0].responseSchema.properties.aim.properties.decision.enum.includes('conclude'), true);
+    assert.equal(replayCase.entries[4].raw, null, 'a provider failure keeps no raw reply');
+    assert.equal(replayCase.entries[0].promptSha256, sha256(recorded[0].prompt));
+    const modes = await runParseCase(replayCase);
+    assert.deepEqual(modes, ['parsed', 'parsed', 'schema-only', 'parse-failure', 'provider-error']);
+    // The AIM entry really goes through the contract fold (the aim payload becomes the review marker); the gap audit is checked strictly.
+    const mutatedAudit = JSON.parse(JSON.stringify(replayCase));
+    mutatedAudit.entries[1].raw = JSON.stringify({ summary: 'something_else', detail: 'x', suggestions: [], visualReferences: [] });
+    await assert.rejects(runParseCase(mutatedAudit), /invalid structured classification/);
+    const mutatedAim = JSON.parse(JSON.stringify(replayCase));
+    mutatedAim.entries[0].raw = 'not json at all';
+    await assert.rejects(runParseCase(mutatedAim), /No complete JSON object/);
+    const mutatedFailure = JSON.parse(JSON.stringify(replayCase));
+    mutatedFailure.entries[3].raw = JSON.stringify({ summary: 'S', detail: 'D', suggestions: [], visualReferences: [] });
+    await assert.rejects(runParseCase(mutatedFailure), /recorded as a parse failure but current code parsed it/);
+    const unknownStep = JSON.parse(JSON.stringify(replayCase));
+    unknownStep.entries[0].step = 'mystery.step@1';
+    await assert.rejects(runParseCase(unknownStep), /unknown step id/);
+    const noStep = JSON.parse(JSON.stringify(replayCase));
+    noStep.entries[0].step = null;
+    await assert.rejects(runParseCase(noStep), /unknown step id/);
+    // Through the corpus dispatcher with node:test subtests, schema-only entries are named as such.
+    await runAnyCase(replayCase);
+    assert.equal(isSchemaOnly(replayCase.entries[2]), true);
+    assert.equal(isSchemaOnly(replayCase.entries[0]), false);
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
 const corpusDirectory = process.env.VAM_REPLAY_CORPUS;
 if (corpusDirectory) {
   const files = fs.readdirSync(corpusDirectory).filter(file => file.endsWith('.replay.json')).sort();
   test(`private replay corpus ${corpusDirectory} contains cases`, () => assert.ok(files.length > 0, 'VAM_REPLAY_CORPUS is set but holds no *.replay.json'));
-  for (const file of files) test(`corpus case ${file}`, async () => { await runAnyCase(readJson(path.join(corpusDirectory, file))); });
+  for (const file of files) test(`corpus case ${file}`, async t => { await runAnyCase(readJson(path.join(corpusDirectory, file)), t); });
 }
