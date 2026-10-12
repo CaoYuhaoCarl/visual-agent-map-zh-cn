@@ -24031,10 +24031,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       if (outcome) return;
       outcome = "failed";
       if (this.synthesisTasks.get(path) === task) {
-        if (!launched) {
-          if (step === "directions") this.synthesisTasks.delete(path);
-          else task.state = "directions";
-        } else {
+        if (!launched && step === "draft") task.state = "directions";
+        else {
           task.state = controller.signal.aborted ? "cancelled" : "failed";
           task.progress = message;
         }

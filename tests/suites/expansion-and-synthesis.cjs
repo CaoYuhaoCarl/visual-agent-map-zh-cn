@@ -1044,12 +1044,22 @@ integrationTest('a parent topic edited while the draft AI call is pending refuse
   await assert.rejects(task.save('Edited summary', 'Edited detail'), /the synthesis draft was not saved/i);
   const after = await f.repo.readNote(f.parent.path); assert.equal(after.summary, 'Edited while drafting'); assert.equal(after.detail, 'Existing knowledge');
 });
-integrationTest('aborting the modal before dispatch acceptance leaves no synthesis task or running state', async () => {
+integrationTest('aborting before dispatch acceptance leaves a cancelled synthesis on the node and no running state', async () => {
   const f = await backgroundSynthesisFixture((_call, signal) => new Promise((_resolve, reject) => { signal.addEventListener('abort', () => { const error = new Error('cancelled'); error.name = 'AbortError'; reject(error); }, { once: true }); }));
   const modalController = new AbortController(); const failures = [];
   const started = f.view.startSynthesis(f.parent, { ...f.options(), signal: modalController.signal }, null, message => failures.push(message), () => assert.fail('must not be accepted'));
   await until(() => f.contexts.length === 1);
   modalController.abort(); await started;
-  assert.equal(f.view.synthesisTasks.has(f.parent.path), false); assert.equal(f.plugin.activeTasks.size, 0); assert.equal(f.plugin.running.size, 0); assert.equal(failures.length, 1);
+  assert.equal(f.view.synthesisTasks.get(f.parent.path).state, 'cancelled'); assert.equal(f.plugin.activeTasks.size, 0); assert.equal(f.plugin.running.size, 0); assert.equal(failures.length, 1);
+  assert.equal((await f.repo.readNote(f.parent.path)).status, 'completed');
+});
+
+integrationTest('a provider failure before acceptance keeps a failed synthesis with its message on the node', async () => {
+  const f = await backgroundSynthesisFixture(async () => { throw new Error('Codex is not signed in'); });
+  const failures = [];
+  await f.view.startSynthesis(f.parent, f.options(), null, message => failures.push(message), () => assert.fail('must not be accepted'));
+  const task = f.view.synthesisTasks.get(f.parent.path);
+  assert.equal(task.state, 'failed'); assert.match(task.progress, /Codex is not signed in/); assert.equal(failures.length, 1);
+  assert.equal(f.plugin.activeTasks.size, 0); assert.equal(f.plugin.running.size, 0);
   assert.equal((await f.repo.readNote(f.parent.path)).status, 'completed');
 });

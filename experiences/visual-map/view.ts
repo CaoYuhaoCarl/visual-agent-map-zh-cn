@@ -4362,10 +4362,10 @@ export class VisualAgentMapView extends ItemView {
       if (outcome) return;
       outcome = "failed";
       if (this.synthesisTasks.get(path) === task) {
-        if (!launched) {
-          if (step === "directions") this.synthesisTasks.delete(path);
-          else task.state = "directions";
-        } else {
+        // The window closes as soon as synthesis starts, so a directions failure stays on the node
+        // with Try again. A draft that never started returns to its directions badge.
+        if (!launched && step === "draft") task.state = "directions";
+        else {
           task.state = controller.signal.aborted ? "cancelled" : "failed";
           task.progress = message;
         }
