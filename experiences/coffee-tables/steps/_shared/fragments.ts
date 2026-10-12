@@ -22,6 +22,24 @@ import DetailLevelStandardZH from "./detail-level-standard.zh.md";
 import DetailLevelStandardEN from "./detail-level-standard.en.md";
 import DetailLevelDetailedZH from "./detail-level-detailed.zh.md";
 import DetailLevelDetailedEN from "./detail-level-detailed.en.md";
+import GuidanceMergeDetailedZH from "./guidance-merge-detailed.zh.md";
+import GuidanceMergeDetailedEN from "./guidance-merge-detailed.en.md";
+import GuidanceMergeBalancedZH from "./guidance-merge-balanced.zh.md";
+import GuidanceMergeBalancedEN from "./guidance-merge-balanced.en.md";
+import GuidanceMergeCompactZH from "./guidance-merge-compact.zh.md";
+import GuidanceMergeCompactEN from "./guidance-merge-compact.en.md";
+import GuidanceDetailBriefZH from "./guidance-detail-brief.zh.md";
+import GuidanceDetailBriefEN from "./guidance-detail-brief.en.md";
+import GuidanceDetailStandardZH from "./guidance-detail-standard.zh.md";
+import GuidanceDetailStandardEN from "./guidance-detail-standard.en.md";
+import GuidanceDetailDetailedZH from "./guidance-detail-detailed.zh.md";
+import GuidanceDetailDetailedEN from "./guidance-detail-detailed.en.md";
+import ContextExistingInsights from "./context-existing-insights.md";
+import ContextInvitedGuestsZH from "./context-invited-guests.zh.md";
+import ContextInvitedGuestsEN from "./context-invited-guests.en.md";
+import ContextReference from "./context-reference.md";
+import TableLeadInNew from "./table-lead-in-new.md";
+import TableLeadInContinue from "./table-lead-in-continue.md";
 
 /**
  * Prompt text shared by more than one Coffee Tables step. Each fragment is a Markdown file next to this module; a
@@ -64,3 +82,42 @@ export const DETAIL_LEVEL = {
     detailed: text(DetailLevelDetailedEN)
   }
 } as const;
+
+/** One-line merge and detail sentences of the observer preferences block (`observerGuidance`). */
+export const GUIDANCE_MERGE_LEVEL = {
+  zh: {
+    detailed: text(GuidanceMergeDetailedZH),
+    balanced: text(GuidanceMergeBalancedZH),
+    compact: text(GuidanceMergeCompactZH)
+  },
+  en: {
+    detailed: text(GuidanceMergeDetailedEN),
+    balanced: text(GuidanceMergeBalancedEN),
+    compact: text(GuidanceMergeCompactEN)
+  }
+} as const;
+
+export const GUIDANCE_DETAIL_LEVEL = {
+  zh: {
+    brief: text(GuidanceDetailBriefZH),
+    standard: text(GuidanceDetailStandardZH),
+    detailed: text(GuidanceDetailDetailedZH)
+  },
+  en: {
+    brief: text(GuidanceDetailBriefEN),
+    standard: text(GuidanceDetailStandardEN),
+    detailed: text(GuidanceDetailDetailedEN)
+  }
+} as const;
+
+/**
+ * Labels that introduce a block of saved context inside the prompt (`prompt-parts.ts`). The existing-insights and
+ * reference labels are Traditional Chinese in every language, as they were when inline.
+ */
+export const CONTEXT_EXISTING_INSIGHTS: string = text(ContextExistingInsights);
+export const CONTEXT_INVITED_GUESTS: Pair = pair(ContextInvitedGuestsZH, ContextInvitedGuestsEN);
+export const CONTEXT_REFERENCE: string = text(ContextReference);
+
+/** The table step's opening instruction and its continuation lead-in (Traditional Chinese in every language). */
+export const TABLE_LEAD_IN_NEW: string = text(TableLeadInNew);
+export const TABLE_LEAD_IN_CONTINUE: string = text(TableLeadInContinue);

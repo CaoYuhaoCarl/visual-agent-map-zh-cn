@@ -1,5 +1,6 @@
 import { translate, uiLocale } from "../../i18n";
 import type { CoffeeInsightCategory } from "./insights";
+import { GUIDANCE_DETAIL_LEVEL, GUIDANCE_MERGE_LEVEL } from "./steps/_shared/fragments";
 
 export type CoffeePreserveRule = "disagreements" | "conditions" | "counterexamples" | "questions" | "sources";
 export interface CoffeeCustomization {
@@ -142,28 +143,9 @@ export function observerGuidance(language: string, customization: CoffeeCustomiz
         questions: "open questions",
         sources: "source context"
       };
-  const merge = zh
-    ? {
-        detailed: "除明確重複外，分開保留洞見。",
-        balanced: "僅合併實質重疊的洞見。",
-        compact: "可合併密切相關的洞見，但保留各自理由。"
-      }[customization.mergeLevel]
-    : {
-        detailed: "Keep insights separate unless they clearly repeat one another.",
-        balanced: "Merge only insights with substantially overlapping meaning.",
-        compact: "Combine closely related insights while retaining each line of reasoning."
-      }[customization.mergeLevel];
-  const detail = zh
-    ? {
-        brief: "展開脈絡簡潔扼要。",
-        standard: "提供足以理解洞見的脈絡。",
-        detailed: "完整交代理由、例子、條件與限制。"
-      }[customization.detailLevel]
-    : {
-        brief: "Keep expanded context concise.",
-        standard: "Give enough context to understand each insight.",
-        detailed: "Fully explain reasoning, examples, conditions and limits."
-      }[customization.detailLevel];
+  const key = zh ? "zh" : "en";
+  const merge = GUIDANCE_MERGE_LEVEL[key][customization.mergeLevel];
+  const detail = GUIDANCE_DETAIL_LEVEL[key][customization.detailLevel];
   return `${zh ? "使用者觀察者偏好" : "User observer preferences"}:\n${customization.observerPrompt.trim()}\n${merge}\n${detail}\n${zh ? "明確保留" : "Explicitly preserve"}: ${customization.preserve.map(rule => preserveLabels[rule]).join("、") || (zh ? "依洞見脈絡判斷" : "as supported by the insight context")}.`;
 }
 

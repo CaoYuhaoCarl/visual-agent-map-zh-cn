@@ -7,6 +7,7 @@ import {
   names,
   observerFormat
 } from "../../prompt-parts";
+import { TABLE_LEAD_IN_CONTINUE, TABLE_LEAD_IN_NEW } from "../_shared/fragments";
 import { segmentSummaryInstruction } from "../../segments";
 import type { CoffeeGuestInvitation, GuestSettings } from "../../types";
 import en from "./prompt.en.md";
@@ -43,9 +44,7 @@ function variables(input: TableInput): Record<string, string> {
     custom: style ? `\n\n聊天室風格：\n${style}` : "",
     prior: priorContext ? `\n\n先前對談與追問：\n${priorContext}` : "",
     draftText: draft ? `\n\n上次未完成的對談草稿：\n${draft}` : "",
-    opening: continuing
-      ? "這是同一桌的續聊，以下是已保存的對話脈絡。\n\n"
-      : "開場依序列出參與者（每人一行「- **姓名｜角色**：簡短背景」）。",
+    opening: continuing ? `${TABLE_LEAD_IN_CONTINUE}\n\n` : TABLE_LEAD_IN_NEW,
     notes: observerFormat(language, false, settings.customization) + segmentSummaryInstruction(language)
   };
 }
