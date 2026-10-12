@@ -12847,6 +12847,7 @@ var MultiResearchModal = class extends import_obsidian10.Modal {
     this.models = models;
     this.submit = submit;
     __publicField(this, "submitted", false);
+    __publicField(this, "unwatch");
   }
   onOpen() {
     this.titleEl.setText(t("ui.multi_research_title"));
@@ -12866,9 +12867,16 @@ var MultiResearchModal = class extends import_obsidian10.Modal {
     modelLabel.createSpan({ text: t("ui.model") });
     const model = modelLabel.createEl("select");
     model.setAttr("aria-label", t("ui.model"));
-    model.createEl("option", { value: "", text: t("ui.multi_research_keep_topic_models") });
-    for (const option of this.models) model.createEl("option", { value: option.id, text: option.label });
-    model.value = "";
+    const fillModels = () => {
+      const selected = model.value;
+      model.replaceChildren();
+      model.createEl("option", { value: "", text: t("ui.multi_research_keep_topic_models") });
+      const choices = this.models.list();
+      for (const option of choices) model.createEl("option", { value: option.id, text: option.label });
+      model.value = choices.some((option) => option.id === selected) ? selected : "";
+    };
+    fillModels();
+    this.unwatch = this.models.watch(fillModels);
     const webLabel = this.contentEl.createEl("label", { cls: "vam-field vam-next-toggle" });
     const web = webLabel.createEl("input", { type: "checkbox" });
     web.checked = true;
@@ -12894,6 +12902,11 @@ var MultiResearchModal = class extends import_obsidian10.Modal {
       this.close();
       this.submit(request);
     });
+  }
+  onClose() {
+    var _a;
+    (_a = this.unwatch) == null ? void 0 : _a.call(this);
+    this.unwatch = void 0;
   }
 };
 
@@ -24355,7 +24368,15 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       var _a;
       return (_a = this.notes.get(id)) == null ? void 0 : _a.title;
     }).filter((name) => !!name);
-    const models = this.plugin.availableModels().map((id) => ({ id, label: this.plugin.modelLabel(id) }));
+    const models = {
+      list: () => this.plugin.availableModels().map((id) => ({ id, label: this.plugin.modelLabel(id) })),
+      watch: (changed) => {
+        const unsubscribe = this.plugin.subscribeModelDiscovery(changed);
+        void this.plugin.refreshModelDiscovery("codex");
+        void this.plugin.refreshModelDiscovery("claude");
+        return unsubscribe;
+      }
+    };
     new MultiResearchModal(this.app, names2, models, (request) => void this.startMultiResearch(request)).open();
   }
   stopMultiResearch() {

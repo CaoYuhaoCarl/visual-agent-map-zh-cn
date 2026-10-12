@@ -45,7 +45,7 @@ import { PendingSuggestions } from "../../pending-suggestions";
 import { createAimMap } from "../aim/create-map";
 import { createOutlineMap } from "./outline-import";
 import { OutlineImportModal, type OutlineImportRequest } from "./outline-import-modal";
-import { MultiResearchModal, type MultiResearchRequest } from "./multi-research-modal";
+import { MultiResearchModal, type MultiResearchModels, type MultiResearchRequest } from "./multi-research-modal";
 import { AimStartModal } from "../../ui/modals/aim-start-modal";
 import { AimAnswerModal } from "../../ui/modals/aim-answer-modal";
 import {
@@ -3990,7 +3990,15 @@ export class VisualAgentMapView extends ItemView {
   private openMultiResearch(): void {
     if (!this.map || this.map.aim || !this.multiSelected.size) return;
     const names = [...this.multiSelected].map(id => this.notes.get(id)?.title).filter((name): name is string => !!name);
-    const models = this.plugin.availableModels().map(id => ({ id, label: this.plugin.modelLabel(id) }));
+    const models: MultiResearchModels = {
+      list: () => this.plugin.availableModels().map(id => ({ id, label: this.plugin.modelLabel(id) })),
+      watch: changed => {
+        const unsubscribe = this.plugin.subscribeModelDiscovery(changed);
+        void this.plugin.refreshModelDiscovery("codex");
+        void this.plugin.refreshModelDiscovery("claude");
+        return unsubscribe;
+      }
+    };
     new MultiResearchModal(this.app, names, models, request => void this.startMultiResearch(request)).open();
   }
   stopMultiResearch(): void {

@@ -10,13 +10,21 @@ export interface MultiResearchRequest {
   model?: string;
 }
 
+/** Live model choices: the list fills in as model discovery finishes. */
+export interface MultiResearchModels {
+  list(): { id: string; label: string }[];
+  /** Starts discovery and calls `changed` whenever it updates; returns the unsubscribe function. */
+  watch(changed: () => void): () => void;
+}
+
 export class MultiResearchModal extends Modal {
   private submitted = false;
+  private unwatch?: () => void;
 
   constructor(
     app: App,
     private names: string[],
-    private models: { id: string; label: string }[],
+    private models: MultiResearchModels,
     private submit: (request: MultiResearchRequest) => void
   ) {
     super(app);
@@ -40,9 +48,16 @@ export class MultiResearchModal extends Modal {
     modelLabel.createSpan({ text: t("ui.model") });
     const model = modelLabel.createEl("select");
     model.setAttr("aria-label", t("ui.model"));
-    model.createEl("option", { value: "", text: t("ui.multi_research_keep_topic_models") });
-    for (const option of this.models) model.createEl("option", { value: option.id, text: option.label });
-    model.value = "";
+    const fillModels = (): void => {
+      const selected = model.value;
+      model.replaceChildren();
+      model.createEl("option", { value: "", text: t("ui.multi_research_keep_topic_models") });
+      const choices = this.models.list();
+      for (const option of choices) model.createEl("option", { value: option.id, text: option.label });
+      model.value = choices.some(option => option.id === selected) ? selected : "";
+    };
+    fillModels();
+    this.unwatch = this.models.watch(fillModels);
     const webLabel = this.contentEl.createEl("label", { cls: "vam-field vam-next-toggle" });
     const web = webLabel.createEl("input", { type: "checkbox" });
     web.checked = true;
@@ -68,5 +83,10 @@ export class MultiResearchModal extends Modal {
       this.close();
       this.submit(request);
     });
+  }
+
+  onClose(): void {
+    this.unwatch?.();
+    this.unwatch = undefined;
   }
 }

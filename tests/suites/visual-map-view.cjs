@@ -476,24 +476,28 @@ test('multi research modal: defaults, options and immediate close on start', () 
     createDiv(value) { const c = element('div', typeof value === 'string' ? { cls: value } : value); this.children.push(c); return c; },
     createEl(name, value = {}) { const c = element(name, value); this.children.push(c); return c; },
     createSpan(value = {}) { const c = element('span', value); this.children.push(c); return c; },
-    setText(value) { this.text = value; }, setAttr(name, value) { this[name] = value; }, addEventListener(name, fn) { this.listeners[name] = fn; }, addClass(n) { this.cls = `${this.cls} ${n}`.trim(); }, focus() {}
+    setText(value) { this.text = value; }, replaceChildren() { this.children = []; }, setAttr(name, value) { this[name] = value; }, addEventListener(name, fn) { this.listeners[name] = fn; }, addClass(n) { this.cls = `${this.cls} ${n}`.trim(); }, focus() {}
   });
   const find = (root, predicate) => predicate(root) ? root : root.children.map(c => find(c, predicate)).find(Boolean);
   class Modal { constructor(app) { this.app = app; this.titleEl = element('title'); this.contentEl = element('content'); this.closed = 0; } open() { this.onOpen(); } close() { this.closed++; } }
   const mod = load('experiences/visual-map/multi-research-modal.ts', { obsidian: { ...obsidian, Modal } });
   const requests = [];
-  const modal = new mod.MultiResearchModal({}, ['Alpha', 'Beta'], [{ id: 'm1', label: 'Model One' }, { id: 'm2', label: 'Model Two' }], request => requests.push(request)); modal.open();
+  let models = [], changed = null, unwatched = 0;
+  const live = { list: () => models, watch: fn => { changed = fn; return () => { unwatched++; }; } };
+  const modal = new mod.MultiResearchModal({}, ['Alpha', 'Beta'], live, request => requests.push(request)); modal.open();
   assert.ok(find(modal.contentEl, i => i.text === 'Alpha')); assert.ok(find(modal.contentEl, i => i.text === 'Beta'));
   const web = find(modal.contentEl, i => i.tag === 'input' && i.type === 'checkbox'); assert.equal(web.checked, true);
   const depth = find(modal.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Research depth'); assert.equal(depth.value, 'fast');
-  const model = find(modal.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Model'); assert.equal(model.value, '');
-  assert.deepEqual(plain(model.children.map(c => [c.value, c.text])), [['', "Each topic's current model"], ['m1', 'Model One'], ['m2', 'Model Two']]);
+  const model = () => find(modal.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Model'); assert.equal(model().value, '');
+  assert.deepEqual(plain(model().children.map(c => c.value)), ['']);
+  models = [{ id: 'm1', label: 'Model One' }, { id: 'm2', label: 'Model Two' }]; changed();
+  assert.deepEqual(plain(model().children.map(c => [c.value, c.text])), [['', "Each topic's current model"], ['m1', 'Model One'], ['m2', 'Model Two']]);
   assert.deepEqual(plain(depth.children.map(c => c.value)), ['fast', 'normal', 'deep']);
   const start = find(modal.contentEl, i => i.tag === 'button' && i.text === 'Start research');
   start.listeners.click(); start.listeners.click();
-  assert.equal(modal.closed, 1); assert.equal(requests.length, 1);
+  assert.equal(modal.closed, 1); assert.equal(requests.length, 1); modal.onClose(); assert.equal(unwatched, 1);
   assert.deepEqual(plain(requests[0]), { researchMode: 'research', researchDepth: 'fast', requirements: '' });
-  const second = []; const m2 = new mod.MultiResearchModal({}, ['A'], [{ id: 'm1', label: 'Model One' }], r => second.push(r)); m2.open();
+  const second = []; const m2 = new mod.MultiResearchModal({}, ['A'], { list: () => [{ id: 'm1', label: 'Model One' }], watch: () => () => {} }, r => second.push(r)); m2.open();
   find(m2.contentEl, i => i.tag === 'input' && i.type === 'checkbox').checked = false;
   const sel = find(m2.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Research depth'); sel.value = 'deep';
   find(m2.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Model').value = 'm1';
