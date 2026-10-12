@@ -294,11 +294,16 @@ test('outline: a note with VAM front matter keys is refused', async () => {
   assert.deepEqual(keys(api.parseOutline('---\ntitle: x\n---\n# Heading').errors), []);
 });
 
-test('outline: an HTML comment opened mid-line hides the headings inside it', () => {
-  assert.deepEqual(titles(api.parseOutline('# R\ntext <!-- note\n## hidden\n-->\n## Shown')), ['>R@-', '>>Shown@0']);
-  assert.deepEqual(titles(api.parseOutline('# R\ntext <!-- one --> more\n## Shown')), ['>R@-', '>>Shown@0']);
-  const heading = api.parseOutline('# R <!-- note\n## hidden\n-->\n## Shown');
-  assert.deepEqual(titles(heading), ['>R@-', '>>Shown@0']);
+test('outline: a <!-- inside a code span does not open a comment or drop later headings', () => {
+  const parse = api.parseOutline('# R\n## Escape `<!--` in HTML\n## Next\n## Last');
+  assert.deepEqual(titles(parse), ['>R@-', '>>Escape <!-- in HTML@0', '>>Next@0', '>>Last@0']);
+  assert.deepEqual(keys(parse.errors), []);
+});
+
+integrationTest('createOutlineMap: a readMap failure right after createMap marks the map as created', async () => {
+  const { repo } = fixture('en');
+  repo.readMap = async () => { throw new Error('unreadable'); };
+  await assert.rejects(api.createOutlineMap(repo, 'gpt-6-luna', api.parseOutline('# R').nodes, null), error => error.message === 'unreadable' && error.mapCreated === true);
 });
 
 integrationTest('createOutlineMap: a Map.md save failure throws with the note paths and marks the map as created', async () => {

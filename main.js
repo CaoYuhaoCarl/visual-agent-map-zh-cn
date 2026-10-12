@@ -12517,7 +12517,7 @@ function unwrapFencedOutline(lines) {
   return lines;
 }
 function parseOutline(input) {
-  var _a, _b, _c, _d, _e;
+  var _a, _b, _c;
   const lines = unwrapFencedOutline(
     (input.charCodeAt(0) === 65279 ? input.slice(1) : input).replace(/\r\n?/g, "\n").split("\n")
   );
@@ -12564,9 +12564,6 @@ function parseOutline(input) {
       continue;
     }
     const trimmed = line.trim();
-    const lastOpen = line.lastIndexOf("<!--");
-    const midLineComment = !trimmed.startsWith("<!--") && lastOpen >= 0 && !line.includes("-->", lastOpen + 4);
-    if (midLineComment) block = "html";
     if (trimmed.startsWith("<!--")) {
       skippedLines++;
       if (!trimmed.includes("-->", 4)) block = "html";
@@ -12593,7 +12590,7 @@ function parseOutline(input) {
     }
     headingLines++;
     const level = heading[1].length;
-    const text11 = midLineComment ? ((_b = heading[2]) != null ? _b : "").slice(0, Math.max(0, ((_c = heading[2]) != null ? _c : "").lastIndexOf("<!--"))) : (_d = heading[2]) != null ? _d : "";
+    const text11 = (_b = heading[2]) != null ? _b : "";
     const raw = text11.replace(/(^|[ \t]+)#+[ \t]*$/, "");
     const title = outlineTitle(raw);
     if (!title) {
@@ -12612,7 +12609,7 @@ function parseOutline(input) {
       continue;
     }
     while (stack.length && stack[stack.length - 1].level >= level) stack.pop();
-    const parent = (_e = stack[stack.length - 1]) != null ? _e : null;
+    const parent = (_c = stack[stack.length - 1]) != null ? _c : null;
     if (parent && level > parent.level + 1)
       warnings.push({ line: lineNumber, key: "ui.outline_warning_skipped_level", values: [lineNumber] });
     const node = {
@@ -12663,7 +12660,12 @@ async function createOutlineMap(repository, model, nodes, source, now = /* @__PU
   const language2 = repository.settings.language;
   if (!nodes.length) throw new Error(translate(language2, "ui.outline_error_no_headings"));
   const mapPath = await repository.createMap(nodes[0].title, []);
-  const map = await repository.readMap(mapPath);
+  let map;
+  try {
+    map = await repository.readMap(mapPath);
+  } catch (error) {
+    throw Object.assign(new Error(errorText(error)), { mapCreated: true });
+  }
   const log = source ? translate(language2, "ui.outline_import_log_source", localDate(now), source) : translate(language2, "ui.outline_import_log", localDate(now));
   const rootDetail = canonicalDetail(`### ${translate(language2, "detail.update_log")}
 

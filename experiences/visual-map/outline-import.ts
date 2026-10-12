@@ -162,10 +162,6 @@ export function parseOutline(input: string): OutlineParse {
       continue;
     }
     const trimmed = line.trim();
-    const lastOpen = line.lastIndexOf("<!--");
-    // A comment opened mid-line and left unclosed hides the following lines; this line itself is still read.
-    const midLineComment = !trimmed.startsWith("<!--") && lastOpen >= 0 && !line.includes("-->", lastOpen + 4);
-    if (midLineComment) block = "html";
     if (trimmed.startsWith("<!--")) {
       skippedLines++;
       if (!trimmed.includes("-->", 4)) block = "html";
@@ -192,9 +188,7 @@ export function parseOutline(input: string): OutlineParse {
     }
     headingLines++;
     const level = heading[1].length;
-    const text = midLineComment
-      ? (heading[2] ?? "").slice(0, Math.max(0, (heading[2] ?? "").lastIndexOf("<!--")))
-      : (heading[2] ?? "");
+    const text = heading[2] ?? "";
     const raw = text.replace(/(^|[ \t]+)#+[ \t]*$/, "");
     const title = outlineTitle(raw);
     if (!title) {
@@ -282,7 +276,13 @@ export async function createOutlineMap(
   const language = repository.settings.language;
   if (!nodes.length) throw new Error(translate(language, "ui.outline_error_no_headings"));
   const mapPath = await repository.createMap(nodes[0].title, []);
-  const map = await repository.readMap(mapPath);
+  let map;
+  try {
+    map = await repository.readMap(mapPath);
+  } catch (error) {
+    // The map folder exists already; callers must not offer a retry that would create a second map.
+    throw Object.assign(new Error(errorText(error)), { mapCreated: true });
+  }
   const log = source
     ? translate(language, "ui.outline_import_log_source", localDate(now), source)
     : translate(language, "ui.outline_import_log", localDate(now));
