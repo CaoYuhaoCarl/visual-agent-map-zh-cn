@@ -26,6 +26,8 @@ interface SelectionSnapshot {
 
 interface SelectionAiOptions {
   model: () => string;
+  /** Show the selection button and open the panel on image clicks; the command opens the panel either way. */
+  autoOpen: () => boolean;
   language: () => string;
   run: <Input, Output>(
     prepared: PreparedStep<Input, Output>,
@@ -69,15 +71,17 @@ export class MarkdownSelectionAi extends Component {
     this.launcher.hidden = true;
     this.registerDomEvent(this.launcher, "pointerdown", event => event.preventDefault());
     this.registerDomEvent(this.launcher, "click", () => this.openForCurrentSelection());
-    this.registerDomEvent(document, "selectionchange", () => window.requestAnimationFrame(() => this.updateLauncher()));
-    this.registerDomEvent(document, "pointerup", () => window.requestAnimationFrame(() => this.updateLauncher()));
-    this.registerDomEvent(document, "keyup", () => window.requestAnimationFrame(() => this.updateLauncher()));
+    this.registerDomEvent(document, "selectionchange", () =>
+      window.requestAnimationFrame(() => this.onSelectionActivity())
+    );
+    this.registerDomEvent(document, "pointerup", () => window.requestAnimationFrame(() => this.onSelectionActivity()));
+    this.registerDomEvent(document, "keyup", () => window.requestAnimationFrame(() => this.onSelectionActivity()));
     this.registerEvent(
-      this.app.workspace.on("editor-change", () => window.requestAnimationFrame(() => this.updateLauncher()))
+      this.app.workspace.on("editor-change", () => window.requestAnimationFrame(() => this.onSelectionActivity()))
     );
     this.registerDomEvent(document, "click", event => {
       const image = event.target;
-      if (!(image instanceof HTMLImageElement)) return;
+      if (!(image instanceof HTMLImageElement) || !this.options.autoOpen()) return;
       const view = this.app.workspace
         .getLeavesOfType("markdown")
         .map(leaf => leaf.view)
@@ -109,7 +113,7 @@ export class MarkdownSelectionAi extends Component {
     });
     this.registerDomEvent(window, "resize", () => {
       this.panel?.reposition();
-      this.updateLauncher();
+      this.onSelectionActivity();
     });
     this.registerDomEvent(
       document,
@@ -129,7 +133,13 @@ export class MarkdownSelectionAi extends Component {
     this.launcher = null;
   }
 
-  private updateLauncher(): void {
+  private onSelectionActivity(): void {
+    if (this.options.autoOpen()) this.updateLauncher();
+    else if (!this.panel?.isOpen) this.hideLauncher();
+  }
+
+  /** Captures the current selection; shows the launcher only when `showLauncher` is true. */
+  private updateLauncher(showLauncher = true): void {
     if (this.panel?.isOpen) return;
     if (this.launcher && !this.launcher.isConnected) {
       this.app.workspace.containerEl.appendChild(this.launcher);
@@ -171,7 +181,7 @@ export class MarkdownSelectionAi extends Component {
     }
     this.snapshot = { view, path: view.file.path, text, markdown, matchAt, rect };
     const launcher = this.launcher;
-    if (!launcher) return;
+    if (!launcher || !showLauncher) return;
     launcher.hidden = false;
     const left = Math.max(8, Math.min(rect.right, window.innerWidth - 120));
     const top = rect.bottom + 6 + 42 < window.innerHeight ? rect.bottom + 6 : Math.max(8, rect.top - 42);
@@ -189,7 +199,7 @@ export class MarkdownSelectionAi extends Component {
       if (!checking) this.panel.focus();
       return true;
     }
-    this.updateLauncher();
+    this.updateLauncher(this.options.autoOpen());
     if (!this.snapshot) {
       const view = this.app.workspace.getActiveViewOfType(MarkdownView);
       if (!view?.file || view.getMode() !== "source") return false;

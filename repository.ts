@@ -63,6 +63,7 @@ export interface Settings {
   codexUsageNoticeSeen: boolean;
   claudeUsageNoticeSeen: boolean;
   aiExchangeLoggingEnabled: boolean;
+  markdownSelectionAiAutoOpen: boolean;
   workspaceInitialized: boolean;
   sampleTourVersionSeen: number;
 }
@@ -103,6 +104,7 @@ export const DEFAULT_SETTINGS: Settings = {
   codexUsageNoticeSeen: false,
   claudeUsageNoticeSeen: false,
   aiExchangeLoggingEnabled: false,
+  markdownSelectionAiAutoOpen: true,
   workspaceInitialized: false,
   sampleTourVersionSeen: 0
 };

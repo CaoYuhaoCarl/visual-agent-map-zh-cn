@@ -250,6 +250,7 @@ export default class VisualAgentMapPlugin extends Plugin {
       codexUsageNoticeSeen: saved?.codexUsageNoticeSeen === true,
       claudeUsageNoticeSeen: saved?.claudeUsageNoticeSeen === true,
       aiExchangeLoggingEnabled: saved?.aiExchangeLoggingEnabled === true,
+      markdownSelectionAiAutoOpen: saved?.markdownSelectionAiAutoOpen !== false,
       workspaceInitialized: saved ? saved.workspaceInitialized !== false : false,
       sampleTourVersionSeen: saved?.sampleTourVersionSeen ?? 0
     };
@@ -257,6 +258,7 @@ export default class VisualAgentMapPlugin extends Plugin {
     registerInternalMarkerPresentation(this);
     const markdownSelectionAi = new MarkdownSelectionAi(this.app, {
       model: () => this.settings.cliModel,
+      autoOpen: () => this.settings.markdownSelectionAiAutoOpen,
       language: () => (this.settings.language === "zh-TW" ? "Traditional Chinese" : "English"),
       run: (prepared, model, signal, image, webSearch) =>
         this.runConfirmedMarkdownContextAi(prepared, model, signal, image, webSearch)

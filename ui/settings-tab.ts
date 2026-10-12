@@ -247,6 +247,20 @@ export class VisualAgentMapSettingTab extends PluginSettingTab {
         }
       },
       {
+        name: t("ui.markdown_selection_ai_auto_open"),
+        render: setting => {
+          setting
+            .setName(t("ui.markdown_selection_ai_auto_open"))
+            .setDesc(t("ui.markdown_selection_ai_auto_open_desc"))
+            .addToggle(toggle =>
+              toggle.setValue(this.plugin.settings.markdownSelectionAiAutoOpen).onChange(async value => {
+                this.plugin.settings.markdownSelectionAiAutoOpen = value;
+                await this.plugin.saveSettings();
+              })
+            );
+        }
+      },
+      {
         name: t("ui.record_ai_exchanges"),
         render: setting => {
           setting

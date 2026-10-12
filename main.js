@@ -675,6 +675,8 @@ var english = {
   "ui.debug_log_copied": "Debug log copied.",
   "ui.unable_to_copy_the_debug_log": "Unable to copy the debug log.",
   "ui.ai_exchanges": "AI exchanges",
+  "ui.markdown_selection_ai_auto_open": "Show \u201CUse AI on selection\u201D automatically",
+  "ui.markdown_selection_ai_auto_open_desc": "When on, selecting text in a Markdown note shows the \u201CUse AI on selection\u201D button, and clicking an image in a note opens the AI panel. When off, open it from the command palette or a hotkey.",
   "ui.record_ai_exchanges": "Record AI exchanges",
   "ui.when_enabled_the_20_most_recent_full_requests_and_raw_replie": "When enabled, the 1,000 most recent full requests and raw replies are saved in this Vault's plugin folder. They may contain private notes. View and clear them in the debug log.",
   "ui.up_to_20_exchanges_are_stored_in_this_vault_s_plugin_folder": "Up to 1,000 exchanges are stored in this Vault's plugin folder and may contain private notes.",
@@ -1763,6 +1765,8 @@ var traditionalChinese = {
   "ui.debug_log_copied": "\u5075\u932F\u65E5\u8A8C\u5DF2\u8907\u88FD\u3002",
   "ui.unable_to_copy_the_debug_log": "\u7121\u6CD5\u8907\u88FD\u5075\u932F\u65E5\u8A8C\u3002",
   "ui.ai_exchanges": "AI \u5F80\u8FD4\u7D00\u9304",
+  "ui.markdown_selection_ai_auto_open": "\u81EA\u52D5\u986F\u793A\u300C\u7528 AI \u8655\u7406\u9078\u53D6\u6587\u5B57\u300D",
+  "ui.markdown_selection_ai_auto_open_desc": "\u958B\u555F\u6642\uFF0C\u5728 Markdown \u7B46\u8A18\u9078\u53D6\u6587\u5B57\u6703\u51FA\u73FE\u300C\u7528 AI \u8655\u7406\u9078\u53D6\u6587\u5B57\u300D\u6309\u9215\uFF0C\u9EDE\u7B46\u8A18\u88E1\u7684\u5716\u7247\u6703\u76F4\u63A5\u958B\u555F AI \u9762\u677F\u3002\u95DC\u9589\u5F8C\uFF0C\u53EF\u5F9E\u547D\u4EE4\u9762\u677F\u6216\u5FEB\u6377\u9375\u958B\u555F\u3002",
   "ui.record_ai_exchanges": "\u8A18\u9304 AI \u5F80\u8FD4\u5167\u5BB9",
   "ui.when_enabled_the_20_most_recent_full_requests_and_raw_replie": "\u958B\u555F\u5F8C\uFF0C\u6700\u8FD1 1,000 \u6B21\u5B8C\u6574\u8ACB\u6C42\u8207\u539F\u59CB\u56DE\u8986\u6703\u4FDD\u5B58\u5728\u6B64 Vault \u7684\u5916\u639B\u8CC7\u6599\u593E\uFF0C\u53EF\u80FD\u5305\u542B\u79C1\u4EBA\u7B46\u8A18\u3002\u53EF\u5F9E\u5075\u932F\u65E5\u8A8C\u67E5\u770B\u4E26\u6E05\u9664\u3002",
   "ui.up_to_20_exchanges_are_stored_in_this_vault_s_plugin_folder": "\u7D00\u9304\u4FDD\u5B58\u5728\u6B64 Vault \u7684\u5916\u639B\u8CC7\u6599\u593E\uFF0C\u6700\u591A 1,000 \u6B21\uFF1B\u53EF\u80FD\u5305\u542B\u79C1\u4EBA\u7B46\u8A18\u5167\u5BB9\u3002",
@@ -10610,6 +10614,7 @@ var DEFAULT_SETTINGS = {
   codexUsageNoticeSeen: false,
   claudeUsageNoticeSeen: false,
   aiExchangeLoggingEnabled: false,
+  markdownSelectionAiAutoOpen: true,
   workspaceInitialized: false,
   sampleTourVersionSeen: 0
 };
@@ -24473,6 +24478,17 @@ var VisualAgentMapSettingTab = class extends import_obsidian15.PluginSettingTab 
         }
       },
       {
+        name: t("ui.markdown_selection_ai_auto_open"),
+        render: (setting) => {
+          setting.setName(t("ui.markdown_selection_ai_auto_open")).setDesc(t("ui.markdown_selection_ai_auto_open_desc")).addToggle(
+            (toggle) => toggle.setValue(this.plugin.settings.markdownSelectionAiAutoOpen).onChange(async (value) => {
+              this.plugin.settings.markdownSelectionAiAutoOpen = value;
+              await this.plugin.saveSettings();
+            })
+          );
+        }
+      },
+      {
         name: t("ui.record_ai_exchanges"),
         render: (setting) => {
           setting.setName(t("ui.record_ai_exchanges")).setDesc(t("ui.when_enabled_the_20_most_recent_full_requests_and_raw_replie")).addToggle(
@@ -27462,16 +27478,20 @@ var MarkdownSelectionAi = class extends import_obsidian19.Component {
     this.launcher.hidden = true;
     this.registerDomEvent(this.launcher, "pointerdown", (event) => event.preventDefault());
     this.registerDomEvent(this.launcher, "click", () => this.openForCurrentSelection());
-    this.registerDomEvent(document, "selectionchange", () => window.requestAnimationFrame(() => this.updateLauncher()));
-    this.registerDomEvent(document, "pointerup", () => window.requestAnimationFrame(() => this.updateLauncher()));
-    this.registerDomEvent(document, "keyup", () => window.requestAnimationFrame(() => this.updateLauncher()));
+    this.registerDomEvent(
+      document,
+      "selectionchange",
+      () => window.requestAnimationFrame(() => this.onSelectionActivity())
+    );
+    this.registerDomEvent(document, "pointerup", () => window.requestAnimationFrame(() => this.onSelectionActivity()));
+    this.registerDomEvent(document, "keyup", () => window.requestAnimationFrame(() => this.onSelectionActivity()));
     this.registerEvent(
-      this.app.workspace.on("editor-change", () => window.requestAnimationFrame(() => this.updateLauncher()))
+      this.app.workspace.on("editor-change", () => window.requestAnimationFrame(() => this.onSelectionActivity()))
     );
     this.registerDomEvent(document, "click", (event) => {
       var _a, _b, _c;
       const image = event.target;
-      if (!(image instanceof HTMLImageElement)) return;
+      if (!(image instanceof HTMLImageElement) || !this.options.autoOpen()) return;
       const view = this.app.workspace.getLeavesOfType("markdown").map((leaf) => leaf.view).find((candidate) => candidate instanceof import_obsidian19.MarkdownView && candidate.containerEl.contains(image));
       if (!(view instanceof import_obsidian19.MarkdownView) || !view.file) return;
       const markdown = view.editor.getValue();
@@ -27502,7 +27522,7 @@ var MarkdownSelectionAi = class extends import_obsidian19.Component {
     this.registerDomEvent(window, "resize", () => {
       var _a;
       (_a = this.panel) == null ? void 0 : _a.reposition();
-      this.updateLauncher();
+      this.onSelectionActivity();
     });
     this.registerDomEvent(
       document,
@@ -27522,7 +27542,13 @@ var MarkdownSelectionAi = class extends import_obsidian19.Component {
     (_b = this.launcher) == null ? void 0 : _b.remove();
     this.launcher = null;
   }
-  updateLauncher() {
+  onSelectionActivity() {
+    var _a;
+    if (this.options.autoOpen()) this.updateLauncher();
+    else if (!((_a = this.panel) == null ? void 0 : _a.isOpen)) this.hideLauncher();
+  }
+  /** Captures the current selection; shows the launcher only when `showLauncher` is true. */
+  updateLauncher(showLauncher = true) {
     var _a, _b;
     if ((_a = this.panel) == null ? void 0 : _a.isOpen) return;
     if (this.launcher && !this.launcher.isConnected) {
@@ -27556,7 +27582,7 @@ var MarkdownSelectionAi = class extends import_obsidian19.Component {
     }
     this.snapshot = { view, path: view.file.path, text: text11, markdown, matchAt, rect };
     const launcher = this.launcher;
-    if (!launcher) return;
+    if (!launcher || !showLauncher) return;
     launcher.hidden = false;
     const left = Math.max(8, Math.min(rect.right, window.innerWidth - 120));
     const top = rect.bottom + 6 + 42 < window.innerHeight ? rect.bottom + 6 : Math.max(8, rect.top - 42);
@@ -27573,7 +27599,7 @@ var MarkdownSelectionAi = class extends import_obsidian19.Component {
       if (!checking) this.panel.focus();
       return true;
     }
-    this.updateLauncher();
+    this.updateLauncher(this.options.autoOpen());
     if (!this.snapshot) {
       const view = this.app.workspace.getActiveViewOfType(import_obsidian19.MarkdownView);
       if (!(view == null ? void 0 : view.file) || view.getMode() !== "source") return false;
@@ -28184,6 +28210,7 @@ var VisualAgentMapPlugin = class extends import_obsidian20.Plugin {
       codexUsageNoticeSeen: (saved == null ? void 0 : saved.codexUsageNoticeSeen) === true,
       claudeUsageNoticeSeen: (saved == null ? void 0 : saved.claudeUsageNoticeSeen) === true,
       aiExchangeLoggingEnabled: (saved == null ? void 0 : saved.aiExchangeLoggingEnabled) === true,
+      markdownSelectionAiAutoOpen: (saved == null ? void 0 : saved.markdownSelectionAiAutoOpen) !== false,
       workspaceInitialized: saved ? saved.workspaceInitialized !== false : false,
       sampleTourVersionSeen: (_b = saved == null ? void 0 : saved.sampleTourVersionSeen) != null ? _b : 0
     };
@@ -28191,6 +28218,7 @@ var VisualAgentMapPlugin = class extends import_obsidian20.Plugin {
     registerInternalMarkerPresentation(this);
     const markdownSelectionAi = new MarkdownSelectionAi(this.app, {
       model: () => this.settings.cliModel,
+      autoOpen: () => this.settings.markdownSelectionAiAutoOpen,
       language: () => this.settings.language === "zh-TW" ? "Traditional Chinese" : "English",
       run: (prepared, model, signal, image, webSearch) => this.runConfirmedMarkdownContextAi(prepared, model, signal, image, webSearch)
     });
