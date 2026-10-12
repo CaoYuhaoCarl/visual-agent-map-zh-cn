@@ -10138,27 +10138,55 @@ function sourceFootnoteLabel(path) {
 }
 function resolveSummaryReferences(summary, groups) {
   const documents = dedupeReferenceGroups(groups).flatMap((group) => group.documents);
-  return resolveWikilinks(summary.replace(/[ \t]*\[S\d+\]/g, ""), documents);
+  const stripped = summary.replace(/[ \t]*\[S\d+\]/g, "").replace(/[（(]\s*[）)]/g, "").replace(/[ \t]+([,.;:!?，。；：！？、])/g, "$1").replace(/[,，、;；]+(?=[,.;:!?，。；：！？、])/g, "").replace(/[ \t]{2,}/g, " ").trim();
+  return resolveWikilinks(stripped, documents);
 }
-function resolveDetailReferences(detail, groups) {
+var FOOTNOTE_DEFINITION = /^\[\^(src-[0-9a-z]+)\]:/;
+var FOOTNOTE_REFERENCE = /\[\^(src-[0-9a-z]+)\](?!:)/g;
+function footnoteDefinition(document2) {
+  var _a;
+  const label = sourceFootnoteLabel(document2.path);
+  const basename = ((_a = document2.path.split("/").pop()) != null ? _a : document2.path).replace(/\.md$/i, "");
+  return `[^${label}]: ${document2.external ? t("note.external_source_0", document2.path) : `[[${document2.path}|${basename}]]`}`;
+}
+function resolveDetailReferences(detail, groups, previousDetail = "") {
   const documents = dedupeReferenceGroups(groups).flatMap((group) => group.documents);
   const used = /* @__PURE__ */ new Map();
   const identified = detail.replace(/\[S(\d+)\]/g, (original, number) => {
-    var _a;
     const document2 = documents[Number(number) - 1];
     if (!document2) return t("note.source_unconfirmed_0", original);
     const label = sourceFootnoteLabel(document2.path);
-    if (!used.has(label)) {
-      const basename = ((_a = document2.path.split("/").pop()) != null ? _a : document2.path).replace(/\.md$/i, "");
-      used.set(
-        label,
-        `[^${label}]: ${document2.external ? t("note.external_source_0", document2.path) : `[[${document2.path}|${basename}]]`}`
-      );
-    }
+    if (!used.has(label)) used.set(label, footnoteDefinition(document2));
     return `[^${label}]`;
   });
-  const resolved = resolveWikilinks(identified, documents);
-  const definitions = [...used].filter(([label]) => !resolved.split("\n").some((line) => line.startsWith(`[^${label}]:`))).map(([, line]) => line);
+  let resolved = documents.length ? resolveWikilinks(identified, documents) : identified;
+  const defined = new Set(
+    resolved.split("\n").flatMap((line) => {
+      const match = FOOTNOTE_DEFINITION.exec(line);
+      return match ? [match[1]] : [];
+    })
+  );
+  const previous = new Map(
+    previousDetail.split("\n").flatMap((line) => {
+      const match = FOOTNOTE_DEFINITION.exec(line);
+      return match ? [[match[1], line]] : [];
+    })
+  );
+  const byLabel = new Map(documents.map((document2) => [sourceFootnoteLabel(document2.path), document2]));
+  const unresolved = /* @__PURE__ */ new Set();
+  for (const [, label] of resolved.matchAll(FOOTNOTE_REFERENCE)) {
+    if (defined.has(label) || used.has(label)) continue;
+    const document2 = byLabel.get(label);
+    const restored = document2 ? footnoteDefinition(document2) : previous.get(label);
+    if (restored) used.set(label, restored);
+    else unresolved.add(label);
+  }
+  if (unresolved.size)
+    resolved = resolved.replace(
+      FOOTNOTE_REFERENCE,
+      (original, label) => unresolved.has(label) ? ` ${t("note.source_unconfirmed_0", label)}` : original
+    );
+  const definitions = [...used].filter(([label]) => !defined.has(label)).map(([, line]) => line);
   if (!definitions.length) return resolved;
   const headings = new Set(
     ["zh-TW", "en"].map((locale) => translate(locale, "detail.evidence_and_sources").toLocaleLowerCase())
@@ -11876,7 +11904,7 @@ function reportedSearchFailure(result) {
 ${result.detail}`);
 }
 function canonicalDetail(value, language2 = "zh-TW") {
-  var _a;
+  var _a, _b;
   const detail = value.trim();
   const keys = [
     "detail.core_conclusions",
@@ -11893,8 +11921,13 @@ function canonicalDetail(value, language2 = "zh-TW") {
       aliases.set(translate(locale, keys[index]).toLocaleLowerCase(), index);
   const sections = /* @__PURE__ */ new Map();
   const leading = [];
+  const footnotes = [];
   let current = null;
   for (const line of detail.split("\n")) {
+    if (/^\[\^src-[0-9a-z]+\]:/.test(line)) {
+      footnotes.push(line);
+      continue;
+    }
     const heading = /^###\s+(.+?)\s*$/.exec(line);
     const match = heading ? aliases.get(heading[1].toLocaleLowerCase()) : void 0;
     if (match !== void 0) {
@@ -11904,8 +11937,12 @@ function canonicalDetail(value, language2 = "zh-TW") {
     }
     (current === null ? leading : sections.get(current)).push(line);
   }
-  if (sections.size === 0) sections.set(0, [detail]);
+  if (sections.size === 0) sections.set(0, [leading.join("\n").trim()]);
   else if (leading.join("\n").trim()) sections.set(0, [leading.join("\n").trim(), ...(_a = sections.get(0)) != null ? _a : []]);
+  if (footnotes.length) {
+    const evidence = ((_b = sections.get(2)) != null ? _b : []).join("\n").trim();
+    sections.set(2, [[evidence, footnotes.join("\n")].filter(Boolean).join("\n\n")]);
+  }
   const empty = translate(language2, "note.no_new_information");
   return headings.map((heading, index) => {
     var _a2;
@@ -27138,10 +27175,9 @@ var AiTaskService = class {
       });
       stage = t("log.stage_parsing_reply");
       const result = step.parse(raw);
-      if (referenceGroups.length) {
-        result.summary = resolveSummaryReferences(result.summary, referenceGroups);
-        result.detail = resolveDetailReferences(result.detail, referenceGroups);
-      }
+      if (referenceGroups.length) result.summary = resolveSummaryReferences(result.summary, referenceGroups);
+      if (referenceGroups.length || /\[\^src-/.test(result.detail))
+        result.detail = resolveDetailReferences(result.detail, referenceGroups, input.detail);
       if (this.options.exchangeLoggingEnabled()) exchanges == null ? void 0 : exchanges.parsed(exchangeId);
       console.debug("Visual Agent Map AI metrics", {
         ...prepared.metrics,

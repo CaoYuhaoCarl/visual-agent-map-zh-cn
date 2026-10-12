@@ -50,8 +50,14 @@ export function canonicalDetail(value: string, language: UiLanguage = "zh-TW"): 
       aliases.set(translate(locale, keys[index]).toLocaleLowerCase(), index);
   const sections = new Map<number, string[]>();
   const leading: string[] = [];
+  // Source footnote definitions all belong to "Evidence and sources", wherever the reply put them.
+  const footnotes: string[] = [];
   let current: number | null = null;
   for (const line of detail.split("\n")) {
+    if (/^\[\^src-[0-9a-z]+\]:/.test(line)) {
+      footnotes.push(line);
+      continue;
+    }
     const heading = /^###\s+(.+?)\s*$/.exec(line);
     const match = heading ? aliases.get(heading[1].toLocaleLowerCase()) : undefined;
     if (match !== undefined) {
@@ -61,8 +67,12 @@ export function canonicalDetail(value: string, language: UiLanguage = "zh-TW"): 
     }
     (current === null ? leading : sections.get(current)!).push(line);
   }
-  if (sections.size === 0) sections.set(0, [detail]);
+  if (sections.size === 0) sections.set(0, [leading.join("\n").trim()]);
   else if (leading.join("\n").trim()) sections.set(0, [leading.join("\n").trim(), ...(sections.get(0) ?? [])]);
+  if (footnotes.length) {
+    const evidence = (sections.get(2) ?? []).join("\n").trim();
+    sections.set(2, [[evidence, footnotes.join("\n")].filter(Boolean).join("\n\n")]);
+  }
   const empty = translate(language, "note.no_new_information");
   return headings
     .map((heading, index) => `### ${heading}\n\n${sections.get(index)?.join("\n").trim() || empty}`)

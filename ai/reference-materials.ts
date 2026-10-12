@@ -103,33 +103,70 @@ export function sourceFootnoteLabel(path: string): string {
   return `src-${hash.toString(36).padStart(7, "0")}`;
 }
 
-/** Summary shows on map cards: drop `[S#]` markers (and the space before them), keep other link handling. */
+/** Summary shows on map cards: drop `[S#]` markers and the punctuation they leave behind, keep other link handling. */
 export function resolveSummaryReferences(summary: string, groups: ReferenceGroup[]): string {
   const documents = dedupeReferenceGroups(groups).flatMap(group => group.documents);
-  return resolveWikilinks(summary.replace(/[ \t]*\[S\d+\]/g, ""), documents);
+  const stripped = summary
+    .replace(/[ \t]*\[S\d+\]/g, "")
+    .replace(/[（(]\s*[）)]/g, "")
+    .replace(/[ \t]+([,.;:!?，。；：！？、])/g, "$1")
+    .replace(/[,，、;；]+(?=[,.;:!?，。；：！？、])/g, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+  return resolveWikilinks(stripped, documents);
 }
 
-/** Detail: `[S#]` becomes a footnote reference; definitions go at the end of the evidence section (or the detail). */
-export function resolveDetailReferences(detail: string, groups: ReferenceGroup[]): string {
+const FOOTNOTE_DEFINITION = /^\[\^(src-[0-9a-z]+)\]:/;
+const FOOTNOTE_REFERENCE = /\[\^(src-[0-9a-z]+)\](?!:)/g;
+
+function footnoteDefinition(document: ReferenceDocument): string {
+  const label = sourceFootnoteLabel(document.path);
+  const basename = (document.path.split("/").pop() ?? document.path).replace(/\.md$/i, "");
+  return `[^${label}]: ${document.external ? t("note.external_source_0", document.path) : `[[${document.path}|${basename}]]`}`;
+}
+
+/**
+ * Detail: `[S#]` becomes a footnote reference with one definition per source, placed at the end of the evidence
+ * section (or the detail). A footnote the reply kept without its definition is restored from the selected sources or
+ * the previous detail; one that cannot be restored becomes a "source to confirm" note instead of a dead marker.
+ */
+export function resolveDetailReferences(detail: string, groups: ReferenceGroup[], previousDetail = ""): string {
   const documents = dedupeReferenceGroups(groups).flatMap(group => group.documents);
   const used = new Map<string, string>();
   const identified = detail.replace(/\[S(\d+)\]/g, (original, number: string) => {
     const document = documents[Number(number) - 1];
     if (!document) return t("note.source_unconfirmed_0", original);
     const label = sourceFootnoteLabel(document.path);
-    if (!used.has(label)) {
-      const basename = (document.path.split("/").pop() ?? document.path).replace(/\.md$/i, "");
-      used.set(
-        label,
-        `[^${label}]: ${document.external ? t("note.external_source_0", document.path) : `[[${document.path}|${basename}]]`}`
-      );
-    }
+    if (!used.has(label)) used.set(label, footnoteDefinition(document));
     return `[^${label}]`;
   });
-  const resolved = resolveWikilinks(identified, documents);
-  const definitions = [...used]
-    .filter(([label]) => !resolved.split("\n").some(line => line.startsWith(`[^${label}]:`)))
-    .map(([, line]) => line);
+  let resolved = documents.length ? resolveWikilinks(identified, documents) : identified;
+  const defined = new Set(
+    resolved.split("\n").flatMap(line => {
+      const match = FOOTNOTE_DEFINITION.exec(line);
+      return match ? [match[1]] : [];
+    })
+  );
+  const previous = new Map(
+    previousDetail.split("\n").flatMap(line => {
+      const match = FOOTNOTE_DEFINITION.exec(line);
+      return match ? [[match[1], line] as const] : [];
+    })
+  );
+  const byLabel = new Map(documents.map(document => [sourceFootnoteLabel(document.path), document]));
+  const unresolved = new Set<string>();
+  for (const [, label] of resolved.matchAll(FOOTNOTE_REFERENCE)) {
+    if (defined.has(label) || used.has(label)) continue;
+    const document = byLabel.get(label);
+    const restored = document ? footnoteDefinition(document) : previous.get(label);
+    if (restored) used.set(label, restored);
+    else unresolved.add(label);
+  }
+  if (unresolved.size)
+    resolved = resolved.replace(FOOTNOTE_REFERENCE, (original, label: string) =>
+      unresolved.has(label) ? ` ${t("note.source_unconfirmed_0", label)}` : original
+    );
+  const definitions = [...used].filter(([label]) => !defined.has(label)).map(([, line]) => line);
   if (!definitions.length) return resolved;
   const headings = new Set(
     (["zh-TW", "en"] as const).map(locale => translate(locale, "detail.evidence_and_sources").toLocaleLowerCase())

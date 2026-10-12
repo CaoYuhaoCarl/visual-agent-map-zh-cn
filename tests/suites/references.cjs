@@ -117,3 +117,27 @@ test('reference picker keeps source groups compact, collapsible and task-local',
   assert.equal(chosen.groups.flatMap(group => group.documents).length, 3);
   assert.ok(chosen.groups.flatMap(group => group.documents).some(doc => doc.content.endsWith('Old')));
 });
+test('source footnotes survive reruns: kept references get their definitions back, dead ones become a source to confirm', () => {
+  const api = load('ai/reference-materials.ts', { obsidian });
+  const groups = [{ id: 'g', documents: [{ path: 'Maps/A/one.md', content: '' }] }];
+  const l1 = api.sourceFootnoteLabel('Maps/A/one.md'); const old = api.sourceFootnoteLabel('Maps/Old/gone.md');
+  // Kept reference whose source is selected again: definition rebuilt from the sources.
+  assert.equal(api.resolveDetailReferences(`A[^${l1}]`, groups), `A[^${l1}]\n\n[^${l1}]: [[Maps/A/one.md|one]]\n`);
+  // Kept reference to a source not selected this time: definition restored from the previous detail.
+  const previous = `Old[^${old}]\n\n[^${old}]: [[Maps/Old/gone.md|gone]]`;
+  assert.equal(api.resolveDetailReferences(`B[^${old}]`, [], previous), `B[^${old}]\n\n[^${old}]: [[Maps/Old/gone.md|gone]]\n`);
+  // Nothing can restore it: no dead footnote marker is left behind.
+  assert.equal(api.resolveDetailReferences(`C[^${old}]`, []), `C Source to confirm: ${old}`);
+  // Summary punctuation left by removed markers is tidied.
+  assert.equal(api.resolveSummaryReferences('[S1] 開頭（[S2]）、see [S1], [S2].', groups), '開頭、see.');
+});
+test('canonicalDetail gathers source footnote definitions into the evidence section', () => {
+  const { canonicalDetail } = load('main.ts', { obsidian });
+  const out = canonicalDetail('### Core conclusions\n\nA[^src-0000001]\n\n### Update log\n\n- today\n[^src-0000001]: [[a.md|a]]', 'en');
+  assert.ok(out.includes('### Evidence and sources\n\n[^src-0000001]: [[a.md|a]]\n\n### Tradeoffs and limitations'));
+  assert.ok(out.includes('### Update log\n\n- today'));
+  assert.equal(out.split('[^src-0000001]:').length, 2);
+  const flat = canonicalDetail('Body[^src-0000001]\n\n[^src-0000001]: [[a.md|a]]', 'en');
+  assert.ok(flat.startsWith('### Core conclusions\n\nBody[^src-0000001]\n\n### Key knowledge'));
+  assert.ok(flat.includes('### Evidence and sources\n\n[^src-0000001]: [[a.md|a]]'));
+});

@@ -185,10 +185,10 @@ export class AiTaskService {
       });
       stage = t("log.stage_parsing_reply");
       const result = step.parse(raw);
-      if (referenceGroups.length) {
-        result.summary = resolveSummaryReferences(result.summary, referenceGroups);
-        result.detail = resolveDetailReferences(result.detail, referenceGroups);
-      }
+      if (referenceGroups.length) result.summary = resolveSummaryReferences(result.summary, referenceGroups);
+      // Runs without sources too, so a source footnote kept from the previous detail keeps its definition.
+      if (referenceGroups.length || /\[\^src-/.test(result.detail))
+        result.detail = resolveDetailReferences(result.detail, referenceGroups, input.detail);
       if (this.options.exchangeLoggingEnabled()) exchanges?.parsed(exchangeId);
       console.debug("Visual Agent Map AI metrics", {
         ...prepared.metrics,
