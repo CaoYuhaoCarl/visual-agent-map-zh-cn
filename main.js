@@ -10114,14 +10114,8 @@ function referenceCatalog(groups) {
     (document2, index) => `[S${index + 1}] ${document2.external ? "External file (plain path)" : "Vault note (wikilink)"}: ${document2.path}`
   ).join("\n");
 }
-function resolveReferenceLinks(detail, groups) {
-  const documents = dedupeReferenceGroups(groups).flatMap((group) => group.documents);
-  const identified = detail.replace(/\[S(\d+)\]/g, (original, number) => {
-    const document2 = documents[Number(number) - 1];
-    if (!document2) return t("note.source_unconfirmed_0", original);
-    return document2.external ? t("note.external_source_0", document2.path) : `[[${document2.path}]]`;
-  });
-  return identified.replace(/\[\[([^\]]+)\]\]/g, (original, target) => {
+function resolveWikilinks(text11, documents) {
+  return text11.replace(/\[\[([^\]]+)\]\]/g, (original, target) => {
     const name = target.split("|")[0].trim();
     const exact = documents.filter((document2) => document2.path === name);
     const matches = exact.length ? exact : documents.filter((document2) => {
@@ -10133,6 +10127,53 @@ function resolveReferenceLinks(detail, groups) {
     if (matches.length !== 1 || !matches[0].external) return original;
     return t("note.external_source_0", matches[0].path);
   });
+}
+function sourceFootnoteLabel(path) {
+  let hash = 2166136261;
+  for (let index = 0; index < path.length; index++) {
+    hash ^= path.charCodeAt(index);
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  return `src-${hash.toString(36).padStart(7, "0")}`;
+}
+function resolveSummaryReferences(summary, groups) {
+  const documents = dedupeReferenceGroups(groups).flatMap((group) => group.documents);
+  return resolveWikilinks(summary.replace(/[ \t]*\[S\d+\]/g, ""), documents);
+}
+function resolveDetailReferences(detail, groups) {
+  const documents = dedupeReferenceGroups(groups).flatMap((group) => group.documents);
+  const used = /* @__PURE__ */ new Map();
+  const identified = detail.replace(/\[S(\d+)\]/g, (original, number) => {
+    var _a;
+    const document2 = documents[Number(number) - 1];
+    if (!document2) return t("note.source_unconfirmed_0", original);
+    if (document2.external) return t("note.external_source_0", document2.path);
+    const label = sourceFootnoteLabel(document2.path);
+    if (!used.has(label)) {
+      const basename = ((_a = document2.path.split("/").pop()) != null ? _a : document2.path).replace(/\.md$/i, "");
+      used.set(label, `[^${label}]: [[${document2.path}|${basename}]]`);
+    }
+    return `[^${label}]`;
+  });
+  const resolved = resolveWikilinks(identified, documents);
+  const definitions = [...used].filter(([label]) => !resolved.split("\n").some((line) => line.startsWith(`[^${label}]:`))).map(([, line]) => line);
+  if (!definitions.length) return resolved;
+  const headings = new Set(
+    ["zh-TW", "en"].map((locale) => translate(locale, "detail.evidence_and_sources").toLocaleLowerCase())
+  );
+  const lines = resolved.split("\n");
+  const start = lines.findIndex((line) => {
+    const match = /^###\s+(.+?)\s*$/.exec(line);
+    return !!match && headings.has(match[1].toLocaleLowerCase());
+  });
+  if (start < 0) return `${resolved.replace(/\s+$/, "")}
+
+${definitions.join("\n")}
+`;
+  let end = lines.findIndex((line, index) => index > start && /^###\s+/.test(line));
+  if (end < 0) end = lines.length;
+  while (end > start + 1 && !lines[end - 1].trim()) end--;
+  return [...lines.slice(0, end), "", ...definitions, ...lines.slice(end)].join("\n");
 }
 
 // ui/modals/name-modal.ts
@@ -27096,8 +27137,8 @@ var AiTaskService = class {
       stage = t("log.stage_parsing_reply");
       const result = step.parse(raw);
       if (referenceGroups.length) {
-        result.summary = resolveReferenceLinks(result.summary, referenceGroups);
-        result.detail = resolveReferenceLinks(result.detail, referenceGroups);
+        result.summary = resolveSummaryReferences(result.summary, referenceGroups);
+        result.detail = resolveDetailReferences(result.detail, referenceGroups);
       }
       if (this.options.exchangeLoggingEnabled()) exchanges == null ? void 0 : exchanges.parsed(exchangeId);
       console.debug("Visual Agent Map AI metrics", {

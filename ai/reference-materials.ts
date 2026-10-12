@@ -1,5 +1,5 @@
 import { App, TFile } from "obsidian";
-import { t } from "../i18n";
+import { t, translate } from "../i18n";
 
 export interface ReferenceDocument {
   path: string;
@@ -77,14 +77,8 @@ export function referenceCatalog(groups: ReferenceGroup[]): string {
     .join("\n");
 }
 
-export function resolveReferenceLinks(detail: string, groups: ReferenceGroup[]): string {
-  const documents = dedupeReferenceGroups(groups).flatMap(group => group.documents);
-  const identified = detail.replace(/\[S(\d+)\]/g, (original, number: string) => {
-    const document = documents[Number(number) - 1];
-    if (!document) return t("note.source_unconfirmed_0", original);
-    return document.external ? t("note.external_source_0", document.path) : `[[${document.path}]]`;
-  });
-  return identified.replace(/\[\[([^\]]+)\]\]/g, (original, target: string) => {
+function resolveWikilinks(text: string, documents: ReferenceDocument[]): string {
+  return text.replace(/\[\[([^\]]+)\]\]/g, (original, target: string) => {
     const name = target.split("|")[0].trim();
     const exact = documents.filter(document => document.path === name);
     const matches = exact.length
@@ -97,4 +91,55 @@ export function resolveReferenceLinks(detail: string, groups: ReferenceGroup[]):
     if (matches.length !== 1 || !matches[0].external) return original;
     return t("note.external_source_0", matches[0].path);
   });
+}
+
+/** Stable short footnote label for a source path (same path => same label across runs). */
+export function sourceFootnoteLabel(path: string): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < path.length; index++) {
+    hash ^= path.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return `src-${hash.toString(36).padStart(7, "0")}`;
+}
+
+/** Summary shows on map cards: drop `[S#]` markers (and the space before them), keep other link handling. */
+export function resolveSummaryReferences(summary: string, groups: ReferenceGroup[]): string {
+  const documents = dedupeReferenceGroups(groups).flatMap(group => group.documents);
+  return resolveWikilinks(summary.replace(/[ \t]*\[S\d+\]/g, ""), documents);
+}
+
+/** Detail: `[S#]` becomes a footnote reference; definitions go at the end of the evidence section (or the detail). */
+export function resolveDetailReferences(detail: string, groups: ReferenceGroup[]): string {
+  const documents = dedupeReferenceGroups(groups).flatMap(group => group.documents);
+  const used = new Map<string, string>();
+  const identified = detail.replace(/\[S(\d+)\]/g, (original, number: string) => {
+    const document = documents[Number(number) - 1];
+    if (!document) return t("note.source_unconfirmed_0", original);
+    if (document.external) return t("note.external_source_0", document.path);
+    const label = sourceFootnoteLabel(document.path);
+    if (!used.has(label)) {
+      const basename = (document.path.split("/").pop() ?? document.path).replace(/\.md$/i, "");
+      used.set(label, `[^${label}]: [[${document.path}|${basename}]]`);
+    }
+    return `[^${label}]`;
+  });
+  const resolved = resolveWikilinks(identified, documents);
+  const definitions = [...used]
+    .filter(([label]) => !resolved.split("\n").some(line => line.startsWith(`[^${label}]:`)))
+    .map(([, line]) => line);
+  if (!definitions.length) return resolved;
+  const headings = new Set(
+    (["zh-TW", "en"] as const).map(locale => translate(locale, "detail.evidence_and_sources").toLocaleLowerCase())
+  );
+  const lines = resolved.split("\n");
+  const start = lines.findIndex(line => {
+    const match = /^###\s+(.+?)\s*$/.exec(line);
+    return !!match && headings.has(match[1].toLocaleLowerCase());
+  });
+  if (start < 0) return `${resolved.replace(/\s+$/, "")}\n\n${definitions.join("\n")}\n`;
+  let end = lines.findIndex((line, index) => index > start && /^###\s+/.test(line));
+  if (end < 0) end = lines.length;
+  while (end > start + 1 && !lines[end - 1].trim()) end--;
+  return [...lines.slice(0, end), "", ...definitions, ...lines.slice(end)].join("\n");
 }

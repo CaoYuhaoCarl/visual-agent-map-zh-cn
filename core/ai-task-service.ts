@@ -2,7 +2,8 @@ import {
   packReferenceChunks,
   referenceBatches,
   referenceCatalog,
-  resolveReferenceLinks
+  resolveDetailReferences,
+  resolveSummaryReferences
 } from "../ai/reference-materials";
 import { buildPreparedTaskContext, estimateTokens } from "../ai/context-builder";
 import { effectiveReasoningLevel, normalizeReasoningLevel } from "../ai/task-policy";
@@ -185,8 +186,8 @@ export class AiTaskService {
       stage = t("log.stage_parsing_reply");
       const result = step.parse(raw);
       if (referenceGroups.length) {
-        result.summary = resolveReferenceLinks(result.summary, referenceGroups);
-        result.detail = resolveReferenceLinks(result.detail, referenceGroups);
+        result.summary = resolveSummaryReferences(result.summary, referenceGroups);
+        result.detail = resolveDetailReferences(result.detail, referenceGroups);
       }
       if (this.options.exchangeLoggingEnabled()) exchanges?.parsed(exchangeId);
       console.debug("Visual Agent Map AI metrics", {
