@@ -154,101 +154,101 @@ var english = {
   "ui.task_error": "Task error",
   "ui.cancel": "Cancel",
   "ui.create_an_empty_mind_map": "Create an empty mind map",
-  "ui.mindsearch_create_map": "Create Adaptive Inquiry Map (AIM)",
-  "ui.mindsearch_start_title": "Create an Adaptive Inquiry Map (AIM)",
-  "ui.mindsearch_empty_map_hint": "This Adaptive Inquiry Map has no topic yet. AIM starts with a research topic.",
-  "ui.mindsearch_refresh_models": "Refresh model list",
-  "ui.mindsearch_refreshing_models": "Refreshing model list\u2026",
-  "ui.mindsearch_models_refreshed": "Model list refreshed.",
-  "ui.mindsearch_models_refreshed_partial_0": "Model list refreshed with some provider errors: {0}",
-  "ui.mindsearch_no_models_found": "No models were found. Check the configured AI services and try again.",
-  "ui.mindsearch_model_refresh_failed_0": "Could not refresh models: {0}",
-  "ui.mindsearch_start_description": "Start with your main question and any conditions you already know. You will answer follow-up questions yourself.",
-  "ui.mindsearch_outcome_goal": "What would you like from this exploration?",
-  "ui.mindsearch_outcome_hint": "Choose a direction you want. If the topic already states it, you can leave this on automatic.",
-  "ui.mindsearch_outcome_auto": "Use the topic's explicit expectation; otherwise keep the format open",
-  "ui.mindsearch_outcome_execute": "Get an actionable result or next steps",
-  "ui.mindsearch_outcome_understand": "Understand the topic and make a decision",
-  "ui.mindsearch_outcome_explore": "Explore possibilities; I am not sure yet",
-  "ui.mindsearch_outcome_custom": "Describe a different result",
-  "ui.mindsearch_outcome_description": "Describe the result you want",
-  "ui.mindsearch_outcome_custom_required": "Describe the result you want to continue.",
-  "ui.mindsearch_outcome_formats": "Presentation preferences (optional)",
-  "ui.mindsearch_format_system_hint": "Leave these unchecked to let the system choose.",
-  "ui.mindsearch_format_system": "System decides",
-  "ui.mindsearch_format_steps": "Steps",
-  "ui.mindsearch_format_table": "Table",
-  "ui.mindsearch_format_images": "Images or visual references, if available",
-  "ui.mindsearch_format_longform": "Detailed explanation",
-  "ui.mindsearch_outcome_user_section": "User-provided outcome expectation",
-  "ui.mindsearch_minimum_answers": "Exploration question target (3\u201310)",
-  "ui.mindsearch_answer_target_hint": "This is an exploration target, not a fixed question count. Each path requires at least 3 answered questions. If research provides enough information and important background and conflicting answers are clarified, AIM may conclude before reaching your target. Otherwise, it will continue asking questions or researching. Outcome preferences do not count as answers.",
-  "ui.mindsearch_minimum_answers_invalid": "Enter a whole number from 3 to 10.",
-  "ui.mindsearch_topic_label": "Main question or topic",
-  "ui.mindsearch_context_label": "Known conditions or context (optional)",
-  "ui.mindsearch_topic_required": "Enter a main question or topic to continue.",
-  "ui.mindsearch_creating": "Creating the Adaptive Inquiry Map\u2026",
-  "ui.mindsearch_create": "Create map",
-  "ui.mindsearch_new_question": "New question",
-  "ui.mindsearch_new_question_hint": "Generate another question from this research, keeping existing branches",
-  "ui.mindsearch_start_exploration": "Start exploring",
-  "ui.mindsearch_resume_early_conclusion": "Continue exploring",
-  "ui.mindsearch_early_conclusion_hint": "This earlier result was created before 3 answers. Continue exploring to complete this path.",
-  "ui.mindsearch_status_ready": "Ready to explore",
-  "ui.mindsearch_status_waiting_answer_0": "Waiting for your answer: {0}",
-  "ui.mindsearch_status_planning_0": "Planning the next question from: {0}",
-  "ui.mindsearch_status_researching_0": "Researching this answer branch: {0}",
-  "ui.mindsearch_status_exploring": "Exploration in progress",
-  "ui.mindsearch_status_complete": "Conclusion ready",
-  "ui.mindsearch_answer_question": "Answer this question",
-  "ui.mindsearch_answer_pending_question": "Answer pending question",
-  "ui.mindsearch_answer_again_new_branch": "Answer again (new branch)",
-  "ui.mindsearch_retry_saved_report": "Retry from saved research report",
-  "ui.mindsearch_answer_title": "Answer the research question",
-  "ui.mindsearch_free_text": "Add details or another answer",
-  "ui.mindsearch_submit_answer": "Submit answer and research",
-  "ui.mindsearch_answer_required": "Choose an option or add a written answer.",
-  "ui.mindsearch_submitting_answer": "Saving your answer and researching this branch\u2026",
-  "ui.mindsearch_question_ready": "A follow-up question is ready. Your answer is still yours to choose.",
-  "ui.mindsearch_no_question_needed": "No additional user condition is needed before continuing.",
-  "ui.mindsearch_research_saved": "This answer branch and its research report were saved.",
-  "ui.mindsearch_waiting_user": "The Planner saved a follow-up question. Your answer is needed to continue.",
-  "ui.mindsearch_research_already_running": "Research for this answer branch is already running.",
-  "ui.mindsearch_research_partial": "Saved a partial result. The Planner still identified a follow-up; this branch is not complete.",
-  "ui.mindsearch_research_result_stale": "This result belongs to an older attempt and was not published.",
-  "ui.mindsearch_unknown_answer": "Unknown / no preference",
-  "ui.mindsearch_branch_running": "Researching",
-  "ui.mindsearch_branch_completed": "Research complete",
-  "ui.mindsearch_branch_partial": "More research needed",
-  "ui.mindsearch_attribution": "Research planning, search and synthesis are inspired by MindSearch (Chen et al., 2024), independently implemented and adapted by VAM.",
-  "ui.mindsearch_source_project": "Original project",
-  "ui.mindsearch_source_paper": "Paper",
-  "ui.mindsearch_continue_research": "Continue research",
-  "ui.mindsearch_stage_subtopic": "Subtopic research",
-  "ui.mindsearch_stage_review": "Research synthesis review",
-  "ui.mindsearch_stage_plan": "Research planning",
-  "ui.mindsearch_repair_auth_hint": "Check the selected model and provider sign-in, then resume. Completed results are retained.",
-  "ui.mindsearch_repair_format_hint": "The response did not match the required format. Retry this stage; completed results are retained.",
-  "ui.mindsearch_repair_search_hint": "Search did not produce usable evidence. Check connectivity and search availability, then resume.",
+  "ui.aim_create_map": "Create Adaptive Inquiry Map (AIM)",
+  "ui.aim_start_title": "Create an Adaptive Inquiry Map (AIM)",
+  "ui.aim_empty_map_hint": "This Adaptive Inquiry Map has no topic yet. AIM starts with a research topic.",
+  "ui.aim_refresh_models": "Refresh model list",
+  "ui.aim_refreshing_models": "Refreshing model list\u2026",
+  "ui.aim_models_refreshed": "Model list refreshed.",
+  "ui.aim_models_refreshed_partial_0": "Model list refreshed with some provider errors: {0}",
+  "ui.aim_no_models_found": "No models were found. Check the configured AI services and try again.",
+  "ui.aim_model_refresh_failed_0": "Could not refresh models: {0}",
+  "ui.aim_start_description": "Start with your main question and any conditions you already know. You will answer follow-up questions yourself.",
+  "ui.aim_outcome_goal": "What would you like from this exploration?",
+  "ui.aim_outcome_hint": "Choose a direction you want. If the topic already states it, you can leave this on automatic.",
+  "ui.aim_outcome_auto": "Use the topic's explicit expectation; otherwise keep the format open",
+  "ui.aim_outcome_execute": "Get an actionable result or next steps",
+  "ui.aim_outcome_understand": "Understand the topic and make a decision",
+  "ui.aim_outcome_explore": "Explore possibilities; I am not sure yet",
+  "ui.aim_outcome_custom": "Describe a different result",
+  "ui.aim_outcome_description": "Describe the result you want",
+  "ui.aim_outcome_custom_required": "Describe the result you want to continue.",
+  "ui.aim_outcome_formats": "Presentation preferences (optional)",
+  "ui.aim_format_system_hint": "Leave these unchecked to let the system choose.",
+  "ui.aim_format_system": "System decides",
+  "ui.aim_format_steps": "Steps",
+  "ui.aim_format_table": "Table",
+  "ui.aim_format_images": "Images or visual references, if available",
+  "ui.aim_format_longform": "Detailed explanation",
+  "ui.aim_outcome_user_section": "User-provided outcome expectation",
+  "ui.aim_minimum_answers": "Exploration question target (3\u201310)",
+  "ui.aim_answer_target_hint": "This is an exploration target, not a fixed question count. Each path requires at least 3 answered questions. If research provides enough information and important background and conflicting answers are clarified, AIM may conclude before reaching your target. Otherwise, it will continue asking questions or researching. Outcome preferences do not count as answers.",
+  "ui.aim_minimum_answers_invalid": "Enter a whole number from 3 to 10.",
+  "ui.aim_topic_label": "Main question or topic",
+  "ui.aim_context_label": "Known conditions or context (optional)",
+  "ui.aim_topic_required": "Enter a main question or topic to continue.",
+  "ui.aim_creating": "Creating the Adaptive Inquiry Map\u2026",
+  "ui.aim_create": "Create map",
+  "ui.aim_new_question": "New question",
+  "ui.aim_new_question_hint": "Generate another question from this research, keeping existing branches",
+  "ui.aim_start_exploration": "Start exploring",
+  "ui.aim_resume_early_conclusion": "Continue exploring",
+  "ui.aim_early_conclusion_hint": "This earlier result was created before 3 answers. Continue exploring to complete this path.",
+  "ui.aim_status_ready": "Ready to explore",
+  "ui.aim_status_waiting_answer_0": "Waiting for your answer: {0}",
+  "ui.aim_status_planning_0": "Planning the next question from: {0}",
+  "ui.aim_status_researching_0": "Researching this answer branch: {0}",
+  "ui.aim_status_exploring": "Exploration in progress",
+  "ui.aim_status_complete": "Conclusion ready",
+  "ui.aim_answer_question": "Answer this question",
+  "ui.aim_answer_pending_question": "Answer pending question",
+  "ui.aim_answer_again_new_branch": "Answer again (new branch)",
+  "ui.aim_retry_saved_report": "Retry from saved research report",
+  "ui.aim_answer_title": "Answer the research question",
+  "ui.aim_free_text": "Add details or another answer",
+  "ui.aim_submit_answer": "Submit answer and research",
+  "ui.aim_answer_required": "Choose an option or add a written answer.",
+  "ui.aim_submitting_answer": "Saving your answer and researching this branch\u2026",
+  "ui.aim_question_ready": "A follow-up question is ready. Your answer is still yours to choose.",
+  "ui.aim_no_question_needed": "No additional user condition is needed before continuing.",
+  "ui.aim_research_saved": "This answer branch and its research report were saved.",
+  "ui.aim_waiting_user": "The Planner saved a follow-up question. Your answer is needed to continue.",
+  "ui.aim_research_already_running": "Research for this answer branch is already running.",
+  "ui.aim_research_partial": "Saved a partial result. The Planner still identified a follow-up; this branch is not complete.",
+  "ui.aim_research_result_stale": "This result belongs to an older attempt and was not published.",
+  "ui.aim_unknown_answer": "Unknown / no preference",
+  "ui.aim_branch_running": "Researching",
+  "ui.aim_branch_completed": "Research complete",
+  "ui.aim_branch_partial": "More research needed",
+  "ui.aim_attribution": "Research planning, search and synthesis are inspired by MindSearch (Chen et al., 2024), independently implemented and adapted by VAM.",
+  "ui.aim_source_project": "Original project",
+  "ui.aim_source_paper": "Paper",
+  "ui.aim_continue_research": "Continue research",
+  "ui.aim_stage_subtopic": "Subtopic research",
+  "ui.aim_stage_review": "Research synthesis review",
+  "ui.aim_stage_plan": "Research planning",
+  "ui.aim_repair_auth_hint": "Check the selected model and provider sign-in, then resume. Completed results are retained.",
+  "ui.aim_repair_format_hint": "The response did not match the required format. Retry this stage; completed results are retained.",
+  "ui.aim_repair_search_hint": "Search did not produce usable evidence. Check connectivity and search availability, then resume.",
   "ui.ai_task_exceeded_0_minutes": "The AI task exceeded {0} minutes and was interrupted. Incomplete results are not applied.",
   "ui.coffee_generation_timed_out": "Coffee Tables: generation timed out; received text is saved as a draft.",
-  "ui.mindsearch_task_timeout": "This task exceeded {0} minutes. Completed stages are saved; you can resume from the interrupted stage.",
-  "ui.mindsearch_failure_reason": "Failure reason: {0}",
-  "ui.mindsearch_failure_stage": "Stopped at: {0}",
-  "ui.mindsearch_repair_timeout": "Extend waiting to 10 minutes and resume",
-  "ui.mindsearch_repair_timeout_hint": "The response exceeded the waiting limit. Extend this attempt to 10 minutes and reuse completed stages.",
-  "ui.mindsearch_repair_retry_hint": "Completed results are retained. Retry the interrupted stage; if it fails again, check the reason shown above.",
-  "ui.mindsearch_resume_stage": "Resume from interrupted stage",
-  "ui.mindsearch_stage_delivery_outline": "Document outline",
-  "ui.mindsearch_stage_delivery_research": "Document evidence check",
-  "ui.mindsearch_stage_delivery_writing": "Final document writing",
-  "ui.mindsearch_stage_delivery_acceptance": "Final document review",
-  "ui.mindsearch_branch_failed": "Failed",
-  "ui.mindsearch_branch_cancelled": "Cancelled",
-  "ui.mindsearch_branch_not_started": "Awaiting answer",
-  "ui.mindsearch_answer_snapshot": "Answer",
-  "ui.mindsearch_research_not_generated": "Research subtopics have not been generated for this answer.",
-  "ui.mindsearch_retry_subtopics": "Retry subtopic planning",
+  "ui.aim_task_timeout": "This task exceeded {0} minutes. Completed stages are saved; you can resume from the interrupted stage.",
+  "ui.aim_failure_reason": "Failure reason: {0}",
+  "ui.aim_failure_stage": "Stopped at: {0}",
+  "ui.aim_repair_timeout": "Extend waiting to 10 minutes and resume",
+  "ui.aim_repair_timeout_hint": "The response exceeded the waiting limit. Extend this attempt to 10 minutes and reuse completed stages.",
+  "ui.aim_repair_retry_hint": "Completed results are retained. Retry the interrupted stage; if it fails again, check the reason shown above.",
+  "ui.aim_resume_stage": "Resume from interrupted stage",
+  "ui.aim_stage_delivery_outline": "Document outline",
+  "ui.aim_stage_delivery_research": "Document evidence check",
+  "ui.aim_stage_delivery_writing": "Final document writing",
+  "ui.aim_stage_delivery_acceptance": "Final document review",
+  "ui.aim_branch_failed": "Failed",
+  "ui.aim_branch_cancelled": "Cancelled",
+  "ui.aim_branch_not_started": "Awaiting answer",
+  "ui.aim_answer_snapshot": "Answer",
+  "ui.aim_research_not_generated": "Research subtopics have not been generated for this answer.",
+  "ui.aim_retry_subtopics": "Retry subtopic planning",
   "ui.start_using_vam": "Start using VAM",
   "ui.check_codex": "Check Codex",
   "ui.codex_allowance_notice": "Codex allowance notice",
@@ -1183,33 +1183,33 @@ var english = {
   "log.initialization_incomplete_0": "Initialization incomplete: {0}",
   "log.codex_recheck_failed": "Codex App Server recheck failed",
   "log.codex_not_ready_0": "Codex App Server is not ready yet: {0}",
-  "note.mindsearch_answer_research_0": "{0} \xB7 Answer research",
-  "note.mindsearch_conclusion": "Research conclusion",
-  "note.mindsearch_needs_followup": "Research needs follow-up",
-  "note.mindsearch_synthesis": "Research synthesis",
-  "note.mindsearch_followup_draft": "Research follow-up draft",
-  "note.mindsearch_partial_summary_0": "Partial research, follow-up still needed: {0}",
-  "note.mindsearch_followup_summary_0_1": "Follow-up: {0}: {1}",
-  "note.mindsearch_followup_heading_0": "## Follow-up: {0}",
-  "note.mindsearch_round_limit_0": "The research round limit was reached and an important evidence gap remains: {0}",
-  "note.mindsearch_partial_heading": "## Research status: partial, can continue",
-  "note.mindsearch_pending_target_0": "Still to research: {0}",
-  "note.mindsearch_pending_task_0": "Follow-up task: {0}",
-  "note.mindsearch_pending_value_0": "Expected to clarify: {0}",
-  "note.mindsearch_unknown_option": "Unknown / no preference",
-  "note.mindsearch_question_title_0": "Question \xB7 {0}",
-  "note.mindsearch_answer_options_heading": "## Answer options",
-  "note.mindsearch_unpublished_diagnostic": "(unpublished diagnostic)",
-  "note.mindsearch_unpublished_diagnostic_summary_0": "Unpublished diagnostic: this content belongs to the superseded AIM attempt {0} and is not a valid research result.",
-  "note.mindsearch_initial_clarification": "Initial user clarification",
+  "note.aim_answer_research_0": "{0} \xB7 Answer research",
+  "note.aim_conclusion": "Research conclusion",
+  "note.aim_needs_followup": "Research needs follow-up",
+  "note.aim_synthesis": "Research synthesis",
+  "note.aim_followup_draft": "Research follow-up draft",
+  "note.aim_partial_summary_0": "Partial research, follow-up still needed: {0}",
+  "note.aim_followup_summary_0_1": "Follow-up: {0}: {1}",
+  "note.aim_followup_heading_0": "## Follow-up: {0}",
+  "note.aim_round_limit_0": "The research round limit was reached and an important evidence gap remains: {0}",
+  "note.aim_partial_heading": "## Research status: partial, can continue",
+  "note.aim_pending_target_0": "Still to research: {0}",
+  "note.aim_pending_task_0": "Follow-up task: {0}",
+  "note.aim_pending_value_0": "Expected to clarify: {0}",
+  "note.aim_unknown_option": "Unknown / no preference",
+  "note.aim_question_title_0": "Question \xB7 {0}",
+  "note.aim_answer_options_heading": "## Answer options",
+  "note.aim_unpublished_diagnostic": "(unpublished diagnostic)",
+  "note.aim_unpublished_diagnostic_summary_0": "Unpublished diagnostic: this content belongs to the superseded AIM attempt {0} and is not a valid research result.",
+  "note.aim_initial_clarification": "Initial user clarification",
   "note.no_conclusion_yet": "No conclusion yet",
   "note.untitled_topic": "Untitled topic",
   "note.source_unconfirmed_0": "Source to confirm: {0}",
   "note.external_source_0": "External source: {0}",
   "note.no_new_information": "No new information in this task.",
   "note.visual_reference": "Visual reference",
-  "ui.mindsearch_preparing_clarification": "Preparing initial clarification\u2026",
-  "ui.mindsearch_answered_not_started": "Answered \xB7 research not started",
+  "ui.aim_preparing_clarification": "Preparing initial clarification\u2026",
+  "ui.aim_answered_not_started": "Answered \xB7 research not started",
   "log.preliminary_map_failed": "Building the preliminary map failed",
   "log.ai_split_failed": "AI split failed",
   "log.integration_directions_failed": "Integration direction suggestions failed",
@@ -1225,12 +1225,12 @@ var english = {
   "error.batch_copy_rollback_failed": "Batch copy failed and could not be fully undone",
   "error.reframing_stopped": "Reframing stopped.",
   "error.reframing_over_budget": "Source exceeds the reframing budget; choose one insight or create manually.",
-  "ui.mindsearch_clarify_title": "Before exploring",
-  "ui.mindsearch_clarify_intro": "Confirm the conditions that affect research. Leave answers blank if unsure. This intake does not count toward exploration questions.",
-  "ui.mindsearch_clarify_placeholder": "Unsure \u2014 explore first",
-  "ui.mindsearch_clarify_save": "Save and explore",
-  "note.mindsearch_clarify_blank_answer": "Unsure; research applicable alternatives without asking this again.",
-  "note.mindsearch_answer_hint": "Select any applicable choices, add free text, or choose Unknown / no preference.",
+  "ui.aim_clarify_title": "Before exploring",
+  "ui.aim_clarify_intro": "Confirm the conditions that affect research. Leave answers blank if unsure. This intake does not count toward exploration questions.",
+  "ui.aim_clarify_placeholder": "Unsure \u2014 explore first",
+  "ui.aim_clarify_save": "Save and explore",
+  "note.aim_clarify_blank_answer": "Unsure; research applicable alternatives without asking this again.",
+  "note.aim_answer_hint": "Select any applicable choices, add free text, or choose Unknown / no preference.",
   "note.copy_suffix": "copy",
   "note.source_topic_label": "Source topic: "
 };
@@ -1290,101 +1290,101 @@ var traditionalChinese = {
   "ui.task_error": "\u57F7\u884C\u932F\u8AA4",
   "ui.cancel": "\u53D6\u6D88",
   "ui.create_an_empty_mind_map": "\u5EFA\u7ACB\u7A7A\u767D\u5FC3\u667A\u5716",
-  "ui.mindsearch_create_map": "\u5EFA\u7ACB Adaptive Inquiry Map\uFF08AIM\uFF09",
-  "ui.mindsearch_start_title": "\u5EFA\u7ACB Adaptive Inquiry Map\uFF08AIM\uFF09",
-  "ui.mindsearch_empty_map_hint": "\u9019\u5F35 Adaptive Inquiry Map \u76EE\u524D\u6C92\u6709\u8B70\u984C\u3002AIM \u6703\u5F9E\u7814\u7A76\u8B70\u984C\u958B\u59CB\u3002",
-  "ui.mindsearch_refresh_models": "\u4FEE\u5FA9 Model \u6E05\u55AE",
-  "ui.mindsearch_refreshing_models": "\u6B63\u5728\u66F4\u65B0 Model \u6E05\u55AE\u2026",
-  "ui.mindsearch_models_refreshed": "Model \u6E05\u55AE\u5DF2\u66F4\u65B0\u3002",
-  "ui.mindsearch_models_refreshed_partial_0": "Model \u6E05\u55AE\u5DF2\u66F4\u65B0\uFF0C\u4F46\u90E8\u5206\u670D\u52D9\u767C\u751F\u932F\u8AA4\uFF1A{0}",
-  "ui.mindsearch_no_models_found": "\u627E\u4E0D\u5230\u53EF\u7528 Model\u3002\u8ACB\u6AA2\u67E5\u5DF2\u8A2D\u5B9A\u7684 AI \u670D\u52D9\u5F8C\u518D\u8A66\u4E00\u6B21\u3002",
-  "ui.mindsearch_model_refresh_failed_0": "\u7121\u6CD5\u66F4\u65B0 Model \u6E05\u55AE\uFF1A{0}",
-  "ui.mindsearch_start_description": "\u5148\u8F38\u5165\u6BCD\u984C\u8207\u5DF2\u77E5\u689D\u4EF6\uFF1B\u5F8C\u7E8C\u554F\u984C\u7531\u4F60\u89AA\u81EA\u56DE\u7B54\u3002",
-  "ui.mindsearch_outcome_goal": "\u9019\u6B21\u63A2\u7D22\u5E0C\u671B\u5F97\u5230\u4EC0\u9EBC\uFF1F",
-  "ui.mindsearch_outcome_hint": "\u9078\u64C7\u671F\u5F85\u7684\u65B9\u5411\uFF1B\u82E5\u5DF2\u5728\u6BCD\u984C\u8AAA\u660E\uFF0C\u53EF\u4FDD\u7559\u81EA\u52D5\u3002",
-  "ui.mindsearch_outcome_auto": "\u4F9D\u6BCD\u984C\u4E2D\u660E\u78BA\u5BEB\u51FA\u7684\u671F\u5F85\uFF1B\u672A\u660E\u78BA\u6642\u4FDD\u7559\u683C\u5F0F\u5F48\u6027",
-  "ui.mindsearch_outcome_execute": "\u53D6\u5F97\u53EF\u57F7\u884C\u7684\u6210\u679C\u6216\u5F8C\u7E8C\u6B65\u9A5F",
-  "ui.mindsearch_outcome_understand": "\u7406\u89E3\u4E3B\u984C\u4E26\u5354\u52A9\u505A\u6C7A\u5B9A",
-  "ui.mindsearch_outcome_explore": "\u63A2\u7D22\u53EF\u80FD\u6027\uFF0C\u6211\u76EE\u524D\u9084\u4E0D\u78BA\u5B9A",
-  "ui.mindsearch_outcome_custom": "\u63CF\u8FF0\u5176\u4ED6\u671F\u5F85\u6210\u679C",
-  "ui.mindsearch_outcome_description": "\u63CF\u8FF0\u4F60\u671F\u5F85\u7684\u6210\u679C",
-  "ui.mindsearch_outcome_custom_required": "\u8ACB\u63CF\u8FF0\u4F60\u671F\u5F85\u7684\u6210\u679C\u3002",
-  "ui.mindsearch_outcome_formats": "\u5448\u73FE\u504F\u597D\uFF08\u9078\u586B\uFF09",
-  "ui.mindsearch_format_system_hint": "\u4E0D\u52FE\u9078\u6642\u7531\u7CFB\u7D71\u6C7A\u5B9A\u3002",
-  "ui.mindsearch_format_system": "\u7531\u7CFB\u7D71\u6C7A\u5B9A",
-  "ui.mindsearch_format_steps": "\u6B65\u9A5F",
-  "ui.mindsearch_format_table": "\u8868\u683C",
-  "ui.mindsearch_format_images": "\u5716\u7247\u6216\u8996\u89BA\u53C3\u8003\uFF08\u82E5\u53EF\u53D6\u5F97\uFF09",
-  "ui.mindsearch_format_longform": "\u8A73\u7D30\u8AAA\u660E",
-  "ui.mindsearch_outcome_user_section": "\u4F7F\u7528\u8005\u63D0\u4F9B\u7684\u6210\u679C\u671F\u5F85",
-  "ui.mindsearch_minimum_answers": "\u63A2\u7D22\u984C\u6578\u76EE\u6A19\uFF083\u201310\uFF09",
-  "ui.mindsearch_answer_target_hint": "\u9019\u662F\u63A2\u7D22\u76EE\u6A19\uFF0C\u4E26\u975E\u56FA\u5B9A\u554F\u6EFF\u7684\u984C\u6578\u3002\u6BCF\u689D\u8DEF\u5F91\u81F3\u5C11\u56DE\u7B54 3 \u984C\uFF1B\u7814\u7A76\u8CC7\u8A0A\u8DB3\u5920\uFF0C\u4E14\u91CD\u8981\u80CC\u666F\u8207\u7B54\u6848\u77DB\u76FE\u5DF2\u91D0\u6E05\u6642\uFF0C\u53EF\u80FD\u5728\u9054\u5230\u76EE\u6A19\u524D\u63D0\u65E9\u6536\u6582\u3002\u8CC7\u8A0A\u4E0D\u8DB3\u6642\u6703\u7E7C\u7E8C\u8FFD\u554F\u6216\u88DC\u67E5\u3002\u6210\u679C\u671F\u5F85\u8A2D\u5B9A\u4E0D\u8A08\u5165\u984C\u6578\u3002",
-  "ui.mindsearch_minimum_answers_invalid": "\u8ACB\u8F38\u5165 3 \u5230 10 \u7684\u6574\u6578\u3002",
-  "ui.mindsearch_topic_label": "\u6BCD\u984C\uFF0F\u4E3B\u8981\u554F\u984C",
-  "ui.mindsearch_context_label": "\u5DF2\u6709\u689D\u4EF6\u6216\u80CC\u666F\uFF08\u9078\u586B\uFF09",
-  "ui.mindsearch_topic_required": "\u8ACB\u8F38\u5165\u6BCD\u984C\u6216\u4E3B\u8981\u554F\u984C\u3002",
-  "ui.mindsearch_creating": "\u6B63\u5728\u5EFA\u7ACB Adaptive Inquiry Map\u2026",
-  "ui.mindsearch_create": "\u5EFA\u7ACB\u5FC3\u667A\u5716",
-  "ui.mindsearch_new_question": "\u65B0\u554F\u984C",
-  "ui.mindsearch_new_question_hint": "\u6839\u64DA\u9019\u4EFD\u7814\u7A76\u7522\u751F\u53E6\u4E00\u500B\u554F\u984C\uFF0C\u4FDD\u7559\u73FE\u6709\u652F\u7DDA",
-  "ui.mindsearch_start_exploration": "\u958B\u59CB\u63A2\u7D22",
-  "ui.mindsearch_resume_early_conclusion": "\u7E7C\u7E8C\u63A2\u7D22",
-  "ui.mindsearch_early_conclusion_hint": "\u9019\u4EFD\u820A\u7D50\u679C\u5728\u56DE\u7B54\u6EFF 3 \u984C\u524D\u7522\u751F\uFF0C\u53EF\u7E7C\u7E8C\u63A2\u7D22\u5B8C\u6210\u9019\u689D\u8DEF\u5F91\u3002",
-  "ui.mindsearch_status_ready": "\u6E96\u5099\u958B\u59CB\u63A2\u7D22",
-  "ui.mindsearch_status_waiting_answer_0": "\u7B49\u5F85\u56DE\u7B54\uFF1A{0}",
-  "ui.mindsearch_status_planning_0": "\u6B63\u5728\u5F9E\u300C{0}\u300D\u898F\u5283\u4E0B\u4E00\u984C",
-  "ui.mindsearch_status_researching_0": "\u6B63\u5728\u7814\u7A76\u7B54\u6848\u5206\u652F\uFF1A\u300C{0}\u300D",
-  "ui.mindsearch_status_exploring": "\u63A2\u7D22\u9032\u884C\u4E2D",
-  "ui.mindsearch_status_complete": "\u5DF2\u7522\u751F\u7D50\u8AD6",
-  "ui.mindsearch_answer_question": "\u56DE\u7B54\u9019\u500B\u554F\u984C",
-  "ui.mindsearch_answer_pending_question": "\u56DE\u7B54\u5F85\u56DE\u7B54\u7684\u554F\u984C",
-  "ui.mindsearch_answer_again_new_branch": "\u91CD\u65B0\u56DE\u7B54\uFF08\u53E6\u958B\u5206\u652F\uFF09",
-  "ui.mindsearch_retry_saved_report": "\u4F7F\u7528\u5DF2\u4FDD\u5B58\u7684\u7814\u7A76\u5831\u544A\u91CD\u8A66",
-  "ui.mindsearch_answer_title": "\u56DE\u7B54\u7814\u7A76\u554F\u984C",
-  "ui.mindsearch_free_text": "\u88DC\u5145\u7D30\u7BC0\u6216\u5176\u4ED6\u7B54\u6848",
-  "ui.mindsearch_submit_answer": "\u63D0\u4EA4\u7B54\u6848\u4E26\u7814\u7A76",
-  "ui.mindsearch_answer_required": "\u8ACB\u9078\u64C7\u9078\u9805\u6216\u8F38\u5165\u6587\u5B57\u7B54\u6848\u3002",
-  "ui.mindsearch_submitting_answer": "\u6B63\u5728\u4FDD\u5B58\u7B54\u6848\u4E26\u7814\u7A76\u9019\u689D\u5206\u652F\u2026",
-  "ui.mindsearch_question_ready": "\u4E0B\u4E00\u500B\u554F\u984C\u5DF2\u6E96\u5099\u597D\uFF0C\u7B54\u6848\u4ECD\u7531\u4F60\u6C7A\u5B9A\u3002",
-  "ui.mindsearch_no_question_needed": "\u76EE\u524D\u4E0D\u9700\u518D\u88DC\u5145\u4F7F\u7528\u8005\u689D\u4EF6\u5373\u53EF\u7E7C\u7E8C\u3002",
-  "ui.mindsearch_research_saved": "\u9019\u500B\u7B54\u6848\u5206\u652F\u53CA\u7814\u7A76\u5831\u544A\u5DF2\u4FDD\u5B58\u3002",
-  "ui.mindsearch_waiting_user": "Planner \u5DF2\u4FDD\u5B58\u5F8C\u7E8C\u554F\u984C\uFF1B\u9700\u8981\u4F60\u56DE\u7B54\u5F8C\u624D\u80FD\u7E7C\u7E8C\u3002",
-  "ui.mindsearch_research_already_running": "\u9019\u500B\u7B54\u6848\u5206\u652F\u7684\u7814\u7A76\u5DF2\u5728\u57F7\u884C\u3002",
-  "ui.mindsearch_research_result_stale": "\u6B64\u7D50\u679C\u5C6C\u65BC\u8F03\u820A\u7684\u57F7\u884C\uFF0C\u6C92\u6709\u767C\u5E03\u3002",
-  "ui.mindsearch_research_partial": "\u5DF2\u4FDD\u5B58\u90E8\u5206\u6210\u679C\u3002Planner \u4ECD\u6307\u51FA\u9700\u8981\u88DC\u67E5\uFF1B\u6B64\u5206\u652F\u5C1A\u672A\u5B8C\u6210\u3002",
-  "ui.mindsearch_unknown_answer": "\u672A\u77E5\uFF0F\u7121\u504F\u597D",
-  "ui.mindsearch_branch_running": "\u7814\u7A76\u4E2D",
-  "ui.mindsearch_branch_completed": "\u7814\u7A76\u5B8C\u6210",
-  "ui.mindsearch_branch_partial": "\u4ECD\u9700\u88DC\u67E5",
-  "ui.mindsearch_attribution": "\u7814\u7A76\u898F\u5283\u3001\u641C\u5C0B\u8207\u6574\u5408\u6D41\u7A0B\u53C3\u8003 MindSearch\uFF08Chen \u7B49\uFF0C2024\uFF09\uFF0C\u7531 VAM \u7368\u7ACB\u5BE6\u4F5C\u8207\u8ABF\u6574\u3002",
-  "ui.mindsearch_source_project": "\u539F\u5C08\u6848",
-  "ui.mindsearch_source_paper": "\u8AD6\u6587",
-  "ui.mindsearch_continue_research": "\u7E7C\u7E8C\u88DC\u67E5",
-  "ui.mindsearch_stage_subtopic": "\u5B50\u8B70\u984C\u7814\u7A76",
-  "ui.mindsearch_stage_review": "\u7814\u7A76\u6536\u6582\u5BE9\u67E5",
-  "ui.mindsearch_stage_plan": "\u7814\u7A76\u898F\u5283",
-  "ui.mindsearch_repair_auth_hint": "\u8ACB\u78BA\u8A8D\u6240\u9078\u6A21\u578B\u8207\u670D\u52D9\u767B\u5165\u72C0\u614B\uFF0C\u518D\u63A5\u7E8C\u57F7\u884C\uFF1B\u5DF2\u5B8C\u6210\u7D50\u679C\u6703\u4FDD\u7559\u3002",
-  "ui.mindsearch_repair_format_hint": "\u56DE\u8986\u672A\u7B26\u5408\u5FC5\u8981\u683C\u5F0F\u3002\u53EF\u91CD\u8A66\u6B64\u968E\u6BB5\uFF0C\u5DF2\u5B8C\u6210\u7D50\u679C\u6703\u4FDD\u7559\u3002",
-  "ui.mindsearch_repair_search_hint": "\u641C\u5C0B\u672A\u53D6\u5F97\u53EF\u7528\u8B49\u64DA\u3002\u8ACB\u78BA\u8A8D\u9023\u7DDA\u8207\u641C\u5C0B\u670D\u52D9\u53EF\u7528\uFF0C\u518D\u63A5\u7E8C\u57F7\u884C\u3002",
+  "ui.aim_create_map": "\u5EFA\u7ACB Adaptive Inquiry Map\uFF08AIM\uFF09",
+  "ui.aim_start_title": "\u5EFA\u7ACB Adaptive Inquiry Map\uFF08AIM\uFF09",
+  "ui.aim_empty_map_hint": "\u9019\u5F35 Adaptive Inquiry Map \u76EE\u524D\u6C92\u6709\u8B70\u984C\u3002AIM \u6703\u5F9E\u7814\u7A76\u8B70\u984C\u958B\u59CB\u3002",
+  "ui.aim_refresh_models": "\u4FEE\u5FA9 Model \u6E05\u55AE",
+  "ui.aim_refreshing_models": "\u6B63\u5728\u66F4\u65B0 Model \u6E05\u55AE\u2026",
+  "ui.aim_models_refreshed": "Model \u6E05\u55AE\u5DF2\u66F4\u65B0\u3002",
+  "ui.aim_models_refreshed_partial_0": "Model \u6E05\u55AE\u5DF2\u66F4\u65B0\uFF0C\u4F46\u90E8\u5206\u670D\u52D9\u767C\u751F\u932F\u8AA4\uFF1A{0}",
+  "ui.aim_no_models_found": "\u627E\u4E0D\u5230\u53EF\u7528 Model\u3002\u8ACB\u6AA2\u67E5\u5DF2\u8A2D\u5B9A\u7684 AI \u670D\u52D9\u5F8C\u518D\u8A66\u4E00\u6B21\u3002",
+  "ui.aim_model_refresh_failed_0": "\u7121\u6CD5\u66F4\u65B0 Model \u6E05\u55AE\uFF1A{0}",
+  "ui.aim_start_description": "\u5148\u8F38\u5165\u6BCD\u984C\u8207\u5DF2\u77E5\u689D\u4EF6\uFF1B\u5F8C\u7E8C\u554F\u984C\u7531\u4F60\u89AA\u81EA\u56DE\u7B54\u3002",
+  "ui.aim_outcome_goal": "\u9019\u6B21\u63A2\u7D22\u5E0C\u671B\u5F97\u5230\u4EC0\u9EBC\uFF1F",
+  "ui.aim_outcome_hint": "\u9078\u64C7\u671F\u5F85\u7684\u65B9\u5411\uFF1B\u82E5\u5DF2\u5728\u6BCD\u984C\u8AAA\u660E\uFF0C\u53EF\u4FDD\u7559\u81EA\u52D5\u3002",
+  "ui.aim_outcome_auto": "\u4F9D\u6BCD\u984C\u4E2D\u660E\u78BA\u5BEB\u51FA\u7684\u671F\u5F85\uFF1B\u672A\u660E\u78BA\u6642\u4FDD\u7559\u683C\u5F0F\u5F48\u6027",
+  "ui.aim_outcome_execute": "\u53D6\u5F97\u53EF\u57F7\u884C\u7684\u6210\u679C\u6216\u5F8C\u7E8C\u6B65\u9A5F",
+  "ui.aim_outcome_understand": "\u7406\u89E3\u4E3B\u984C\u4E26\u5354\u52A9\u505A\u6C7A\u5B9A",
+  "ui.aim_outcome_explore": "\u63A2\u7D22\u53EF\u80FD\u6027\uFF0C\u6211\u76EE\u524D\u9084\u4E0D\u78BA\u5B9A",
+  "ui.aim_outcome_custom": "\u63CF\u8FF0\u5176\u4ED6\u671F\u5F85\u6210\u679C",
+  "ui.aim_outcome_description": "\u63CF\u8FF0\u4F60\u671F\u5F85\u7684\u6210\u679C",
+  "ui.aim_outcome_custom_required": "\u8ACB\u63CF\u8FF0\u4F60\u671F\u5F85\u7684\u6210\u679C\u3002",
+  "ui.aim_outcome_formats": "\u5448\u73FE\u504F\u597D\uFF08\u9078\u586B\uFF09",
+  "ui.aim_format_system_hint": "\u4E0D\u52FE\u9078\u6642\u7531\u7CFB\u7D71\u6C7A\u5B9A\u3002",
+  "ui.aim_format_system": "\u7531\u7CFB\u7D71\u6C7A\u5B9A",
+  "ui.aim_format_steps": "\u6B65\u9A5F",
+  "ui.aim_format_table": "\u8868\u683C",
+  "ui.aim_format_images": "\u5716\u7247\u6216\u8996\u89BA\u53C3\u8003\uFF08\u82E5\u53EF\u53D6\u5F97\uFF09",
+  "ui.aim_format_longform": "\u8A73\u7D30\u8AAA\u660E",
+  "ui.aim_outcome_user_section": "\u4F7F\u7528\u8005\u63D0\u4F9B\u7684\u6210\u679C\u671F\u5F85",
+  "ui.aim_minimum_answers": "\u63A2\u7D22\u984C\u6578\u76EE\u6A19\uFF083\u201310\uFF09",
+  "ui.aim_answer_target_hint": "\u9019\u662F\u63A2\u7D22\u76EE\u6A19\uFF0C\u4E26\u975E\u56FA\u5B9A\u554F\u6EFF\u7684\u984C\u6578\u3002\u6BCF\u689D\u8DEF\u5F91\u81F3\u5C11\u56DE\u7B54 3 \u984C\uFF1B\u7814\u7A76\u8CC7\u8A0A\u8DB3\u5920\uFF0C\u4E14\u91CD\u8981\u80CC\u666F\u8207\u7B54\u6848\u77DB\u76FE\u5DF2\u91D0\u6E05\u6642\uFF0C\u53EF\u80FD\u5728\u9054\u5230\u76EE\u6A19\u524D\u63D0\u65E9\u6536\u6582\u3002\u8CC7\u8A0A\u4E0D\u8DB3\u6642\u6703\u7E7C\u7E8C\u8FFD\u554F\u6216\u88DC\u67E5\u3002\u6210\u679C\u671F\u5F85\u8A2D\u5B9A\u4E0D\u8A08\u5165\u984C\u6578\u3002",
+  "ui.aim_minimum_answers_invalid": "\u8ACB\u8F38\u5165 3 \u5230 10 \u7684\u6574\u6578\u3002",
+  "ui.aim_topic_label": "\u6BCD\u984C\uFF0F\u4E3B\u8981\u554F\u984C",
+  "ui.aim_context_label": "\u5DF2\u6709\u689D\u4EF6\u6216\u80CC\u666F\uFF08\u9078\u586B\uFF09",
+  "ui.aim_topic_required": "\u8ACB\u8F38\u5165\u6BCD\u984C\u6216\u4E3B\u8981\u554F\u984C\u3002",
+  "ui.aim_creating": "\u6B63\u5728\u5EFA\u7ACB Adaptive Inquiry Map\u2026",
+  "ui.aim_create": "\u5EFA\u7ACB\u5FC3\u667A\u5716",
+  "ui.aim_new_question": "\u65B0\u554F\u984C",
+  "ui.aim_new_question_hint": "\u6839\u64DA\u9019\u4EFD\u7814\u7A76\u7522\u751F\u53E6\u4E00\u500B\u554F\u984C\uFF0C\u4FDD\u7559\u73FE\u6709\u652F\u7DDA",
+  "ui.aim_start_exploration": "\u958B\u59CB\u63A2\u7D22",
+  "ui.aim_resume_early_conclusion": "\u7E7C\u7E8C\u63A2\u7D22",
+  "ui.aim_early_conclusion_hint": "\u9019\u4EFD\u820A\u7D50\u679C\u5728\u56DE\u7B54\u6EFF 3 \u984C\u524D\u7522\u751F\uFF0C\u53EF\u7E7C\u7E8C\u63A2\u7D22\u5B8C\u6210\u9019\u689D\u8DEF\u5F91\u3002",
+  "ui.aim_status_ready": "\u6E96\u5099\u958B\u59CB\u63A2\u7D22",
+  "ui.aim_status_waiting_answer_0": "\u7B49\u5F85\u56DE\u7B54\uFF1A{0}",
+  "ui.aim_status_planning_0": "\u6B63\u5728\u5F9E\u300C{0}\u300D\u898F\u5283\u4E0B\u4E00\u984C",
+  "ui.aim_status_researching_0": "\u6B63\u5728\u7814\u7A76\u7B54\u6848\u5206\u652F\uFF1A\u300C{0}\u300D",
+  "ui.aim_status_exploring": "\u63A2\u7D22\u9032\u884C\u4E2D",
+  "ui.aim_status_complete": "\u5DF2\u7522\u751F\u7D50\u8AD6",
+  "ui.aim_answer_question": "\u56DE\u7B54\u9019\u500B\u554F\u984C",
+  "ui.aim_answer_pending_question": "\u56DE\u7B54\u5F85\u56DE\u7B54\u7684\u554F\u984C",
+  "ui.aim_answer_again_new_branch": "\u91CD\u65B0\u56DE\u7B54\uFF08\u53E6\u958B\u5206\u652F\uFF09",
+  "ui.aim_retry_saved_report": "\u4F7F\u7528\u5DF2\u4FDD\u5B58\u7684\u7814\u7A76\u5831\u544A\u91CD\u8A66",
+  "ui.aim_answer_title": "\u56DE\u7B54\u7814\u7A76\u554F\u984C",
+  "ui.aim_free_text": "\u88DC\u5145\u7D30\u7BC0\u6216\u5176\u4ED6\u7B54\u6848",
+  "ui.aim_submit_answer": "\u63D0\u4EA4\u7B54\u6848\u4E26\u7814\u7A76",
+  "ui.aim_answer_required": "\u8ACB\u9078\u64C7\u9078\u9805\u6216\u8F38\u5165\u6587\u5B57\u7B54\u6848\u3002",
+  "ui.aim_submitting_answer": "\u6B63\u5728\u4FDD\u5B58\u7B54\u6848\u4E26\u7814\u7A76\u9019\u689D\u5206\u652F\u2026",
+  "ui.aim_question_ready": "\u4E0B\u4E00\u500B\u554F\u984C\u5DF2\u6E96\u5099\u597D\uFF0C\u7B54\u6848\u4ECD\u7531\u4F60\u6C7A\u5B9A\u3002",
+  "ui.aim_no_question_needed": "\u76EE\u524D\u4E0D\u9700\u518D\u88DC\u5145\u4F7F\u7528\u8005\u689D\u4EF6\u5373\u53EF\u7E7C\u7E8C\u3002",
+  "ui.aim_research_saved": "\u9019\u500B\u7B54\u6848\u5206\u652F\u53CA\u7814\u7A76\u5831\u544A\u5DF2\u4FDD\u5B58\u3002",
+  "ui.aim_waiting_user": "Planner \u5DF2\u4FDD\u5B58\u5F8C\u7E8C\u554F\u984C\uFF1B\u9700\u8981\u4F60\u56DE\u7B54\u5F8C\u624D\u80FD\u7E7C\u7E8C\u3002",
+  "ui.aim_research_already_running": "\u9019\u500B\u7B54\u6848\u5206\u652F\u7684\u7814\u7A76\u5DF2\u5728\u57F7\u884C\u3002",
+  "ui.aim_research_result_stale": "\u6B64\u7D50\u679C\u5C6C\u65BC\u8F03\u820A\u7684\u57F7\u884C\uFF0C\u6C92\u6709\u767C\u5E03\u3002",
+  "ui.aim_research_partial": "\u5DF2\u4FDD\u5B58\u90E8\u5206\u6210\u679C\u3002Planner \u4ECD\u6307\u51FA\u9700\u8981\u88DC\u67E5\uFF1B\u6B64\u5206\u652F\u5C1A\u672A\u5B8C\u6210\u3002",
+  "ui.aim_unknown_answer": "\u672A\u77E5\uFF0F\u7121\u504F\u597D",
+  "ui.aim_branch_running": "\u7814\u7A76\u4E2D",
+  "ui.aim_branch_completed": "\u7814\u7A76\u5B8C\u6210",
+  "ui.aim_branch_partial": "\u4ECD\u9700\u88DC\u67E5",
+  "ui.aim_attribution": "\u7814\u7A76\u898F\u5283\u3001\u641C\u5C0B\u8207\u6574\u5408\u6D41\u7A0B\u53C3\u8003 MindSearch\uFF08Chen \u7B49\uFF0C2024\uFF09\uFF0C\u7531 VAM \u7368\u7ACB\u5BE6\u4F5C\u8207\u8ABF\u6574\u3002",
+  "ui.aim_source_project": "\u539F\u5C08\u6848",
+  "ui.aim_source_paper": "\u8AD6\u6587",
+  "ui.aim_continue_research": "\u7E7C\u7E8C\u88DC\u67E5",
+  "ui.aim_stage_subtopic": "\u5B50\u8B70\u984C\u7814\u7A76",
+  "ui.aim_stage_review": "\u7814\u7A76\u6536\u6582\u5BE9\u67E5",
+  "ui.aim_stage_plan": "\u7814\u7A76\u898F\u5283",
+  "ui.aim_repair_auth_hint": "\u8ACB\u78BA\u8A8D\u6240\u9078\u6A21\u578B\u8207\u670D\u52D9\u767B\u5165\u72C0\u614B\uFF0C\u518D\u63A5\u7E8C\u57F7\u884C\uFF1B\u5DF2\u5B8C\u6210\u7D50\u679C\u6703\u4FDD\u7559\u3002",
+  "ui.aim_repair_format_hint": "\u56DE\u8986\u672A\u7B26\u5408\u5FC5\u8981\u683C\u5F0F\u3002\u53EF\u91CD\u8A66\u6B64\u968E\u6BB5\uFF0C\u5DF2\u5B8C\u6210\u7D50\u679C\u6703\u4FDD\u7559\u3002",
+  "ui.aim_repair_search_hint": "\u641C\u5C0B\u672A\u53D6\u5F97\u53EF\u7528\u8B49\u64DA\u3002\u8ACB\u78BA\u8A8D\u9023\u7DDA\u8207\u641C\u5C0B\u670D\u52D9\u53EF\u7528\uFF0C\u518D\u63A5\u7E8C\u57F7\u884C\u3002",
   "ui.ai_task_exceeded_0_minutes": "AI \u4EFB\u52D9\u8D85\u904E {0} \u5206\u9418\uFF0C\u5DF2\u4E2D\u65B7\u3002\u672A\u5B8C\u6210\u7684\u7D50\u679C\u4E0D\u6703\u5957\u7528\u3002",
   "ui.coffee_generation_timed_out": "Coffee Tables\uFF1A\u751F\u6210\u903E\u6642\uFF1B\u5DF2\u6536\u5230\u7684\u6587\u5B57\u5DF2\u5B58\u6210\u8349\u7A3F\u3002",
-  "ui.mindsearch_task_timeout": "AI \u4EFB\u52D9\u8D85\u904E {0} \u5206\u9418\u3002\u5DF2\u5B8C\u6210\u968E\u6BB5\u5DF2\u4FDD\u5B58\uFF0C\u53EF\u5F9E\u4E2D\u65B7\u8655\u63A5\u7E8C\u3002",
-  "ui.mindsearch_failure_reason": "\u5931\u6557\u539F\u56E0\uFF1A{0}",
-  "ui.mindsearch_failure_stage": "\u4E2D\u65B7\u968E\u6BB5\uFF1A{0}",
-  "ui.mindsearch_repair_timeout": "\u5EF6\u9577\u81F310\u5206\u9418\u4E26\u63A5\u7E8C",
-  "ui.mindsearch_repair_timeout_hint": "\u56DE\u8986\u8D85\u904E\u7B49\u5F85\u4E0A\u9650\u3002\u53EF\u5C07\u672C\u6B21\u7B49\u5F85\u5EF6\u9577\u81F310\u5206\u9418\uFF0C\u6CBF\u7528\u5DF2\u5B8C\u6210\u7684\u968E\u6BB5\u3002",
-  "ui.mindsearch_repair_retry_hint": "\u5DF2\u5B8C\u6210\u7684\u7D50\u679C\u6703\u4FDD\u7559\uFF0C\u53EF\u91CD\u8A66\u4E2D\u65B7\u7684\u968E\u6BB5\uFF1B\u82E5\u518D\u6B21\u5931\u6557\uFF0C\u8ACB\u4F9D\u4E0A\u65B9\u539F\u56E0\u6392\u67E5\u3002",
-  "ui.mindsearch_resume_stage": "\u5F9E\u4E2D\u65B7\u8655\u63A5\u7E8C",
-  "ui.mindsearch_stage_delivery_outline": "\u6587\u4EF6\u5927\u7DB1",
-  "ui.mindsearch_stage_delivery_research": "\u6587\u4EF6\u8B49\u64DA\u88DC\u67E5",
-  "ui.mindsearch_stage_delivery_writing": "\u6700\u7D42\u6587\u4EF6\u64B0\u5BEB",
-  "ui.mindsearch_stage_delivery_acceptance": "\u6700\u7D42\u6587\u4EF6\u9A57\u6536",
-  "ui.mindsearch_branch_failed": "\u5931\u6557",
-  "ui.mindsearch_branch_cancelled": "\u5DF2\u53D6\u6D88",
-  "ui.mindsearch_branch_not_started": "\u5F85\u56DE\u7B54",
-  "ui.mindsearch_answer_snapshot": "\u56DE\u7B54",
-  "ui.mindsearch_research_not_generated": "\u9019\u500B\u56DE\u7B54\u5C1A\u672A\u7522\u751F\u7814\u7A76\u5B50\u8B70\u984C\u3002",
-  "ui.mindsearch_retry_subtopics": "\u91CD\u65B0\u7522\u751F\u5B50\u8B70\u984C",
+  "ui.aim_task_timeout": "AI \u4EFB\u52D9\u8D85\u904E {0} \u5206\u9418\u3002\u5DF2\u5B8C\u6210\u968E\u6BB5\u5DF2\u4FDD\u5B58\uFF0C\u53EF\u5F9E\u4E2D\u65B7\u8655\u63A5\u7E8C\u3002",
+  "ui.aim_failure_reason": "\u5931\u6557\u539F\u56E0\uFF1A{0}",
+  "ui.aim_failure_stage": "\u4E2D\u65B7\u968E\u6BB5\uFF1A{0}",
+  "ui.aim_repair_timeout": "\u5EF6\u9577\u81F310\u5206\u9418\u4E26\u63A5\u7E8C",
+  "ui.aim_repair_timeout_hint": "\u56DE\u8986\u8D85\u904E\u7B49\u5F85\u4E0A\u9650\u3002\u53EF\u5C07\u672C\u6B21\u7B49\u5F85\u5EF6\u9577\u81F310\u5206\u9418\uFF0C\u6CBF\u7528\u5DF2\u5B8C\u6210\u7684\u968E\u6BB5\u3002",
+  "ui.aim_repair_retry_hint": "\u5DF2\u5B8C\u6210\u7684\u7D50\u679C\u6703\u4FDD\u7559\uFF0C\u53EF\u91CD\u8A66\u4E2D\u65B7\u7684\u968E\u6BB5\uFF1B\u82E5\u518D\u6B21\u5931\u6557\uFF0C\u8ACB\u4F9D\u4E0A\u65B9\u539F\u56E0\u6392\u67E5\u3002",
+  "ui.aim_resume_stage": "\u5F9E\u4E2D\u65B7\u8655\u63A5\u7E8C",
+  "ui.aim_stage_delivery_outline": "\u6587\u4EF6\u5927\u7DB1",
+  "ui.aim_stage_delivery_research": "\u6587\u4EF6\u8B49\u64DA\u88DC\u67E5",
+  "ui.aim_stage_delivery_writing": "\u6700\u7D42\u6587\u4EF6\u64B0\u5BEB",
+  "ui.aim_stage_delivery_acceptance": "\u6700\u7D42\u6587\u4EF6\u9A57\u6536",
+  "ui.aim_branch_failed": "\u5931\u6557",
+  "ui.aim_branch_cancelled": "\u5DF2\u53D6\u6D88",
+  "ui.aim_branch_not_started": "\u5F85\u56DE\u7B54",
+  "ui.aim_answer_snapshot": "\u56DE\u7B54",
+  "ui.aim_research_not_generated": "\u9019\u500B\u56DE\u7B54\u5C1A\u672A\u7522\u751F\u7814\u7A76\u5B50\u8B70\u984C\u3002",
+  "ui.aim_retry_subtopics": "\u91CD\u65B0\u7522\u751F\u5B50\u8B70\u984C",
   "ui.start_using_vam": "\u958B\u59CB\u4F7F\u7528 VAM",
   "ui.check_codex": "\u6AA2\u67E5 Codex",
   "ui.codex_allowance_notice": "Codex \u984D\u5EA6\u63D0\u9192",
@@ -2319,33 +2319,33 @@ var traditionalChinese = {
   "log.initialization_incomplete_0": "\u521D\u59CB\u5316\u672A\u5B8C\u6210\uFF1A{0}",
   "log.codex_recheck_failed": "Codex App Server \u91CD\u65B0\u6AA2\u67E5\u5931\u6557",
   "log.codex_not_ready_0": "Codex App Server \u5C1A\u672A\u5C31\u7DD2\uFF1A{0}",
-  "note.mindsearch_answer_research_0": "{0}\u30FB\u56DE\u7B54\u7814\u7A76",
-  "note.mindsearch_conclusion": "\u7814\u7A76\u7D50\u8AD6",
-  "note.mindsearch_needs_followup": "\u7814\u7A76\u5F85\u88DC\u67E5",
-  "note.mindsearch_synthesis": "\u7814\u7A76\u6536\u6582",
-  "note.mindsearch_followup_draft": "\u7814\u7A76\u88DC\u67E5\u8349\u7A3F",
-  "note.mindsearch_partial_summary_0": "\u90E8\u5206\u7814\u7A76\uFF0C\u4ECD\u5F85\u88DC\u67E5\uFF1A{0}",
-  "note.mindsearch_followup_summary_0_1": "\u88DC\u67E5\uFF1A{0}: {1}",
-  "note.mindsearch_followup_heading_0": "## \u88DC\u67E5\uFF1A{0}",
-  "note.mindsearch_round_limit_0": "\u7814\u7A76\u8F2A\u6578\u5DF2\u9054\u4E0A\u9650\uFF0C\u4ECD\u6709\u91CD\u8981\u8B49\u64DA\u7F3A\u53E3\uFF1A{0}",
-  "note.mindsearch_partial_heading": "## \u7814\u7A76\u72C0\u614B\uFF1A\u90E8\u5206\u5B8C\u6210\uFF0C\u53EF\u7E7C\u7E8C\u7814\u7A76",
-  "note.mindsearch_pending_target_0": "\u5C1A\u5F85\u88DC\u67E5\uFF1A{0}",
-  "note.mindsearch_pending_task_0": "\u88DC\u67E5\u4EFB\u52D9\uFF1A{0}",
-  "note.mindsearch_pending_value_0": "\u9810\u671F\u91D0\u6E05\uFF1A{0}",
-  "note.mindsearch_unknown_option": "\u672A\u77E5\uFF0F\u7121\u504F\u597D",
-  "note.mindsearch_question_title_0": "\u554F\u984C \xB7 {0}",
-  "note.mindsearch_answer_options_heading": "## \u56DE\u7B54\u9078\u9805",
-  "note.mindsearch_unpublished_diagnostic": "\uFF08\u672A\u767C\u5E03\u8A3A\u65B7\uFF09",
-  "note.mindsearch_unpublished_diagnostic_summary_0": "\u672A\u767C\u5E03\u8A3A\u65B7\uFF1A\u6B64\u5167\u5BB9\u5C6C\u65BC\u5DF2\u5931\u6548\u7684 AIM \u7814\u7A76\u5617\u8A66 {0}\uFF0C\u4E0D\u662F\u6709\u6548\u7814\u7A76\u7D50\u679C\u3002",
-  "note.mindsearch_initial_clarification": "\u958B\u59CB\u524D\u689D\u4EF6\u91D0\u6E05",
+  "note.aim_answer_research_0": "{0}\u30FB\u56DE\u7B54\u7814\u7A76",
+  "note.aim_conclusion": "\u7814\u7A76\u7D50\u8AD6",
+  "note.aim_needs_followup": "\u7814\u7A76\u5F85\u88DC\u67E5",
+  "note.aim_synthesis": "\u7814\u7A76\u6536\u6582",
+  "note.aim_followup_draft": "\u7814\u7A76\u88DC\u67E5\u8349\u7A3F",
+  "note.aim_partial_summary_0": "\u90E8\u5206\u7814\u7A76\uFF0C\u4ECD\u5F85\u88DC\u67E5\uFF1A{0}",
+  "note.aim_followup_summary_0_1": "\u88DC\u67E5\uFF1A{0}: {1}",
+  "note.aim_followup_heading_0": "## \u88DC\u67E5\uFF1A{0}",
+  "note.aim_round_limit_0": "\u7814\u7A76\u8F2A\u6578\u5DF2\u9054\u4E0A\u9650\uFF0C\u4ECD\u6709\u91CD\u8981\u8B49\u64DA\u7F3A\u53E3\uFF1A{0}",
+  "note.aim_partial_heading": "## \u7814\u7A76\u72C0\u614B\uFF1A\u90E8\u5206\u5B8C\u6210\uFF0C\u53EF\u7E7C\u7E8C\u7814\u7A76",
+  "note.aim_pending_target_0": "\u5C1A\u5F85\u88DC\u67E5\uFF1A{0}",
+  "note.aim_pending_task_0": "\u88DC\u67E5\u4EFB\u52D9\uFF1A{0}",
+  "note.aim_pending_value_0": "\u9810\u671F\u91D0\u6E05\uFF1A{0}",
+  "note.aim_unknown_option": "\u672A\u77E5\uFF0F\u7121\u504F\u597D",
+  "note.aim_question_title_0": "\u554F\u984C \xB7 {0}",
+  "note.aim_answer_options_heading": "## \u56DE\u7B54\u9078\u9805",
+  "note.aim_unpublished_diagnostic": "\uFF08\u672A\u767C\u5E03\u8A3A\u65B7\uFF09",
+  "note.aim_unpublished_diagnostic_summary_0": "\u672A\u767C\u5E03\u8A3A\u65B7\uFF1A\u6B64\u5167\u5BB9\u5C6C\u65BC\u5DF2\u5931\u6548\u7684 AIM \u7814\u7A76\u5617\u8A66 {0}\uFF0C\u4E0D\u662F\u6709\u6548\u7814\u7A76\u7D50\u679C\u3002",
+  "note.aim_initial_clarification": "\u958B\u59CB\u524D\u689D\u4EF6\u91D0\u6E05",
   "note.no_conclusion_yet": "\u5C1A\u672A\u5F62\u6210\u7D50\u8AD6",
   "note.untitled_topic": "\u672A\u547D\u540D\u4E3B\u984C",
   "note.source_unconfirmed_0": "\u4F86\u6E90\u5F85\u78BA\u8A8D\uFF1A{0}",
   "note.external_source_0": "\u5916\u90E8\u4F86\u6E90\uFF1A{0}",
   "note.no_new_information": "\u672C\u6B21\u7121\u65B0\u589E\u5167\u5BB9\u3002",
   "note.visual_reference": "\u8996\u89BA\u53C3\u8003",
-  "ui.mindsearch_preparing_clarification": "\u6B63\u5728\u6E96\u5099\u958B\u59CB\u524D\u7684\u689D\u4EF6\u91D0\u6E05\u2026",
-  "ui.mindsearch_answered_not_started": "\u5DF2\u56DE\u7B54\u30FB\u7814\u7A76\u5C1A\u672A\u958B\u59CB",
+  "ui.aim_preparing_clarification": "\u6B63\u5728\u6E96\u5099\u958B\u59CB\u524D\u7684\u689D\u4EF6\u91D0\u6E05\u2026",
+  "ui.aim_answered_not_started": "\u5DF2\u56DE\u7B54\u30FB\u7814\u7A76\u5C1A\u672A\u958B\u59CB",
   "log.preliminary_map_failed": "\u5EFA\u7ACB\u521D\u6B65\u5730\u5716\u5931\u6557",
   "log.ai_split_failed": "AI \u62C6\u89E3\u5931\u6557",
   "log.integration_directions_failed": "\u6574\u5408\u65B9\u5411\u5EFA\u8B70\u5931\u6557",
@@ -2361,12 +2361,12 @@ var traditionalChinese = {
   "error.batch_copy_rollback_failed": "\u6279\u6B21\u8907\u88FD\u5931\u6557\uFF0C\u4E14\u7121\u6CD5\u5B8C\u6574\u5FA9\u539F",
   "error.reframing_stopped": "\u6574\u7406\u5DF2\u505C\u6B62\u3002",
   "error.reframing_over_budget": "\u4F86\u6E90\u8D85\u904E\u6574\u7406\u9810\u7B97\uFF1B\u8ACB\u9078\u55AE\u689D\u6D1E\u898B\uFF0C\u6216\u624B\u52D5\u7DE8\u8F2F\u5EFA\u7ACB\u3002",
-  "ui.mindsearch_clarify_title": "\u958B\u59CB\u524D\u91D0\u6E05",
-  "ui.mindsearch_clarify_intro": "\u4E00\u8D77\u78BA\u8A8D\u6703\u5F71\u97FF\u7814\u7A76\u65B9\u5411\u7684\u689D\u4EF6\u3002\u7559\u767D\u8868\u793A\u4E0D\u78BA\u5B9A\uFF0C\u5148\u63A2\u7D22\u3002\u9019\u8F2A\u4E0D\u8A08\u5165\u63A2\u7D22\u984C\u6578\u3002",
-  "ui.mindsearch_clarify_placeholder": "\u4E0D\u78BA\u5B9A\uFF0C\u5148\u63A2\u7D22",
-  "ui.mindsearch_clarify_save": "\u4FDD\u5B58\u4E26\u958B\u59CB\u63A2\u7D22",
-  "note.mindsearch_clarify_blank_answer": "\u4E0D\u78BA\u5B9A\uFF0C\u5148\u63A2\u7D22\uFF1B\u8ACB\u7814\u7A76\u9069\u7528\u7684\u66FF\u4EE3\u60C5\u6CC1\uFF0C\u4E0D\u8981\u518D\u6B21\u8981\u6C42\u586B\u5BEB\u3002",
-  "note.mindsearch_answer_hint": "\u53EF\u8907\u9078\u3001\u88DC\u5145\u81EA\u7531\u6587\u5B57\uFF0C\u6216\u9078\u64C7\u300C\u672A\u77E5\uFF0F\u7121\u504F\u597D\u300D\u3002",
+  "ui.aim_clarify_title": "\u958B\u59CB\u524D\u91D0\u6E05",
+  "ui.aim_clarify_intro": "\u4E00\u8D77\u78BA\u8A8D\u6703\u5F71\u97FF\u7814\u7A76\u65B9\u5411\u7684\u689D\u4EF6\u3002\u7559\u767D\u8868\u793A\u4E0D\u78BA\u5B9A\uFF0C\u5148\u63A2\u7D22\u3002\u9019\u8F2A\u4E0D\u8A08\u5165\u63A2\u7D22\u984C\u6578\u3002",
+  "ui.aim_clarify_placeholder": "\u4E0D\u78BA\u5B9A\uFF0C\u5148\u63A2\u7D22",
+  "ui.aim_clarify_save": "\u4FDD\u5B58\u4E26\u958B\u59CB\u63A2\u7D22",
+  "note.aim_clarify_blank_answer": "\u4E0D\u78BA\u5B9A\uFF0C\u5148\u63A2\u7D22\uFF1B\u8ACB\u7814\u7A76\u9069\u7528\u7684\u66FF\u4EE3\u60C5\u6CC1\uFF0C\u4E0D\u8981\u518D\u6B21\u8981\u6C42\u586B\u5BEB\u3002",
+  "note.aim_answer_hint": "\u53EF\u8907\u9078\u3001\u88DC\u5145\u81EA\u7531\u6587\u5B57\uFF0C\u6216\u9078\u64C7\u300C\u672A\u77E5\uFF0F\u7121\u504F\u597D\u300D\u3002",
   "note.copy_suffix": "\u526F\u672C",
   "note.source_topic_label": "\u4F86\u6E90\u8B70\u984C\uFF1A"
 };
@@ -9435,9 +9435,9 @@ function avatarColor(name) {
   return Math.abs(hash) % 8;
 }
 
-// ui/modals/mind-search-clarification-modal.ts
+// ui/modals/aim-clarification-modal.ts
 var import_obsidian5 = require("obsidian");
-var MindSearchClarificationModal = class extends import_obsidian5.Modal {
+var AimClarificationModal = class extends import_obsidian5.Modal {
   constructor(app, questions, submit, english2) {
     super(app);
     this.questions = questions;
@@ -9447,16 +9447,16 @@ var MindSearchClarificationModal = class extends import_obsidian5.Modal {
   onOpen() {
     var _a;
     const text3 = (key2) => translate(this.english ? "en" : "zh-TW", key2);
-    this.titleEl.setText(text3("ui.mindsearch_clarify_title"));
+    this.titleEl.setText(text3("ui.aim_clarify_title"));
     this.contentEl.createEl("p", {
-      text: text3("ui.mindsearch_clarify_intro")
+      text: text3("ui.aim_clarify_intro")
     });
     const fields = this.questions.map((question) => {
       const label = this.contentEl.createEl("label", { cls: "vam-field" });
       label.createSpan({ text: question });
       const input = label.createEl("textarea", { attr: { rows: "2" } });
       input.setAttr("aria-label", question);
-      input.placeholder = text3("ui.mindsearch_clarify_placeholder");
+      input.placeholder = text3("ui.aim_clarify_placeholder");
       return { question, input };
     });
     const status = this.contentEl.createEl("p", { cls: "vam-hint", attr: { "aria-live": "polite" } });
@@ -9466,7 +9466,7 @@ var MindSearchClarificationModal = class extends import_obsidian5.Modal {
         if (!pending) this.close();
       })
     ).addButton(
-      (button) => button.setButtonText(text3("ui.mindsearch_clarify_save")).setCta().onClick(() => {
+      (button) => button.setButtonText(text3("ui.aim_clarify_save")).setCta().onClick(() => {
         if (pending) return;
         pending = true;
         button.setDisabled(true);
@@ -9475,7 +9475,7 @@ var MindSearchClarificationModal = class extends import_obsidian5.Modal {
         });
         const answers = fields.map(
           ({ question, input }) => `- ${question}
-  ${input.value.trim() || text3("note.mindsearch_clarify_blank_answer")}`
+  ${input.value.trim() || text3("note.aim_clarify_blank_answer")}`
         ).join("\n\n");
         void this.submit(answers).then(() => this.close()).catch((error) => {
           pending = false;
@@ -9651,7 +9651,7 @@ var ChoiceModal = class extends import_obsidian7.Modal {
   }
 };
 
-// experiences/mind-search/research-plan.ts
+// experiences/aim/research-plan.ts
 var import_node_crypto = require("node:crypto");
 function researchContentHash(report) {
   return (0, import_node_crypto.createHash)("sha256").update(JSON.stringify({ summary: report.summary, detail: report.detail })).digest("hex");
@@ -9663,7 +9663,7 @@ function hoistNestedValidity(item) {
   const { validity: _validity, ...source } = item.source;
   return { ...item, source, validity: nested };
 }
-function validateMindSearchResearchPlan(subtopics) {
+function validateAimResearchPlan(subtopics) {
   var _a, _b, _c;
   if (!Array.isArray(subtopics) || subtopics.length > 5 || subtopics.some((item) => {
     if (!item || typeof item !== "object") return true;
@@ -9679,7 +9679,7 @@ function validateMindSearchResearchPlan(subtopics) {
     throw new Error("Planner research subtopics must have unique ids and titles.");
   for (const item of plan) {
     if (item.action !== void 0 && !["reuse", "update", "research"].includes(item.action))
-      throw new Error("Invalid MindSearch research action.");
+      throw new Error("Invalid AIM research action.");
     if (item.dependsOn !== void 0 && (!Array.isArray(item.dependsOn) || new Set(item.dependsOn).size !== item.dependsOn.length || item.dependsOn.some((id) => typeof id !== "string" || !ids.has(id) || id === item.id)))
       throw new Error("Research dependencies must name distinct existing targets other than themselves.");
     if (item.action === "reuse" || item.action === "update") {
@@ -9704,41 +9704,68 @@ function validateMindSearchResearchPlan(subtopics) {
   return plan;
 }
 
+// experiences/aim/legacy-names.ts
+var LEGACY_KEY_PREFIX = "mindSearch";
+var LEGACY_MARKER_PREFIX = "mindsearch-";
+var LEGACY_VALUES = [
+  ["__MINDSEARCH_NO_QUESTION__", "__AIM_NO_QUESTION__"],
+  ["__mindsearch_unknown__", "__aim_unknown__"]
+];
+var LEGACY_MARKER = new RegExp(`<!--(\\s*)${LEGACY_MARKER_PREFIX}`, "g");
+var upgradeKey = (key2) => key2.startsWith(LEGACY_KEY_PREFIX) ? `aim${key2.slice(LEGACY_KEY_PREFIX.length)}` : key2;
+function upgradeLegacyAimText(text3) {
+  let upgraded = text3.replace(LEGACY_MARKER, "<!--$1aim-");
+  for (const [legacy, current] of LEGACY_VALUES) upgraded = upgraded.split(legacy).join(current);
+  return upgraded;
+}
+function upgradeLegacyAimData(value) {
+  if (typeof value === "string") return upgradeLegacyAimText(value);
+  if (Array.isArray(value)) return value.map((item) => upgradeLegacyAimData(item));
+  if (!value || typeof value !== "object") return value;
+  const upgraded = {};
+  for (const [key2, item] of Object.entries(value)) {
+    const target = upgradeKey(key2);
+    if (target !== key2 && Object.prototype.hasOwnProperty.call(value, target)) continue;
+    upgraded[target] = upgradeLegacyAimData(item);
+  }
+  return upgraded;
+}
+
 // map-model.ts
 function clearQuestionConvergenceEdges(map) {
   let changed = false;
   for (const node of map.nodes) {
-    if (node.mindSearchKind !== "question" || node.mindSearchConvergesFromNodeIds === void 0) continue;
-    delete node.mindSearchConvergesFromNodeIds;
+    if (node.aimKind !== "question" || node.aimConvergesFromNodeIds === void 0) continue;
+    delete node.aimConvergesFromNodeIds;
     changed = true;
   }
   return changed;
 }
 function parentIdsForNode(node) {
   var _a;
-  const convergenceParents = node.mindSearchKind === "question" ? [] : (_a = node.mindSearchConvergesFromNodeIds) != null ? _a : [];
+  const convergenceParents = node.aimKind === "question" ? [] : (_a = node.aimConvergesFromNodeIds) != null ? _a : [];
   return [...node.parentId ? [node.parentId] : [], ...convergenceParents.filter((id) => id !== node.parentId)];
 }
-function repairMindSearchResultConvergence(map) {
+function repairAimResultConvergence(map) {
   var _a, _b, _c;
   let changed = false;
-  for (const branch of (_b = (_a = map.mindSearch) == null ? void 0 : _a.branches) != null ? _b : []) {
+  for (const branch of (_b = (_a = map.aim) == null ? void 0 : _a.branches) != null ? _b : []) {
     for (const [index, result] of branch.results.entries()) {
       const node = map.nodes.find((item) => item.id === result.nodeId);
-      if (!node || node.mindSearchKind !== "synthesis" && node.mindSearchKind !== "conclusion" || node.parentId !== branch.questionNodeId || ((_c = node.mindSearchConvergesFromNodeIds) == null ? void 0 : _c.length))
+      if (!node || node.aimKind !== "synthesis" && node.aimKind !== "conclusion" || node.parentId !== branch.questionNodeId || ((_c = node.aimConvergesFromNodeIds) == null ? void 0 : _c.length))
         continue;
       const sources2 = [
         ...new Set(
           branch.results.slice(0, index).filter(
             (source) => source.kind === "research" && source.subtopicId && map.nodes.some(
-              (item) => item.id === source.nodeId && item.mindSearchKind === "research" && item.parentId === branch.questionNodeId
+              (item) => item.id === source.nodeId && item.aimKind === "research" && item.parentId === branch.questionNodeId
             )
           ).map((source) => source.nodeId)
         )
       ];
       if (!sources2.length) continue;
       node.parentId = sources2[sources2.length - 1];
-      node.mindSearchConvergesFromNodeIds = [...sources2];
+      node.aimConvergesFromNodeIds = [...sources2];
       changed = true;
     }
   }
@@ -9802,97 +9829,97 @@ function validRetainedReports(reports) {
 function parseMap(content) {
   const block = content.match(/```agent-map\s*\n([\s\S]*?)\n```/);
   if (!block) throw new Error(t("ui.mind_map_data_was_not_found_keep_the_agent_map_block"));
-  const map = JSON.parse(block[1]);
+  const map = upgradeLegacyAimData(JSON.parse(block[1]));
   if (map.version !== 1 || typeof map.id !== "string" || typeof map.title !== "string" || !Array.isArray(map.nodes))
     throw new Error(t("ui.invalid_mind_map_format"));
-  const ids = /* @__PURE__ */ new Set(), mindSearchQuestionRequests = /* @__PURE__ */ new Set();
+  const ids = /* @__PURE__ */ new Set(), aimQuestionRequests = /* @__PURE__ */ new Set();
   for (const n of map.nodes) {
     if (!n || typeof n.id !== "string" || typeof n.path !== "string" || !n.path.endsWith(".md") || !Number.isFinite(n.x) || !Number.isFinite(n.y) || n.parentId !== null && typeof n.parentId !== "string" || ids.has(n.id))
       throw new Error(t("ui.invalid_node_data_or_duplicate_id"));
-    if (n.mindSearchDismissedQuestionRequestIds !== void 0 && (!Array.isArray(n.mindSearchDismissedQuestionRequestIds) || new Set(n.mindSearchDismissedQuestionRequestIds).size !== n.mindSearchDismissedQuestionRequestIds.length || n.mindSearchDismissedQuestionRequestIds.some((id) => typeof id !== "string" || !id.trim())))
-      throw new Error("Invalid dismissed MindSearch question identities.");
+    if (n.aimDismissedQuestionRequestIds !== void 0 && (!Array.isArray(n.aimDismissedQuestionRequestIds) || new Set(n.aimDismissedQuestionRequestIds).size !== n.aimDismissedQuestionRequestIds.length || n.aimDismissedQuestionRequestIds.some((id) => typeof id !== "string" || !id.trim())))
+      throw new Error("Invalid dismissed AIM question identities.");
     ids.add(n.id);
     n.collapsed = n.collapsed === true;
-    if (n.mindSearchKind !== void 0 && !["topic", "question", "answer", "research", "synthesis", "conclusion"].includes(n.mindSearchKind))
-      throw new Error("Invalid MindSearch node kind.");
-    if (n.mindSearchConvergesFromNodeIds !== void 0 && (!Array.isArray(n.mindSearchConvergesFromNodeIds) || new Set(n.mindSearchConvergesFromNodeIds).size !== n.mindSearchConvergesFromNodeIds.length || n.mindSearchConvergesFromNodeIds.some(
+    if (n.aimKind !== void 0 && !["topic", "question", "answer", "research", "synthesis", "conclusion"].includes(n.aimKind))
+      throw new Error("Invalid AIM node kind.");
+    if (n.aimConvergesFromNodeIds !== void 0 && (!Array.isArray(n.aimConvergesFromNodeIds) || new Set(n.aimConvergesFromNodeIds).size !== n.aimConvergesFromNodeIds.length || n.aimConvergesFromNodeIds.some(
       (id) => typeof id !== "string" || id === n.id || !map.nodes.some((candidate) => candidate.id === id)
     )))
-      throw new Error("Invalid MindSearch convergence references.");
-    if (n.mindSearchQuestion !== void 0) {
-      const question = n.mindSearchQuestion;
-      if (n.mindSearchKind !== "question" || !question || typeof question.requestId !== "string" || !question.requestId.trim() || !(question.parentBranchId === void 0 || question.parentBranchId === null || typeof question.parentBranchId === "string") || !Array.isArray(question.options) || question.options.length < 2 || question.options.some(
+      throw new Error("Invalid AIM convergence references.");
+    if (n.aimQuestion !== void 0) {
+      const question = n.aimQuestion;
+      if (n.aimKind !== "question" || !question || typeof question.requestId !== "string" || !question.requestId.trim() || !(question.parentBranchId === void 0 || question.parentBranchId === null || typeof question.parentBranchId === "string") || !Array.isArray(question.options) || question.options.length < 2 || question.options.some(
         (option) => !option || typeof option.id !== "string" || !option.id.trim() || typeof option.label !== "string" || !option.label.trim()
       ) || new Set(question.options.map((option) => option.id)).size !== question.options.length || typeof question.allowMultiple !== "boolean" || typeof question.allowFreeText !== "boolean")
-        throw new Error("Invalid MindSearch question controls.");
-      if (mindSearchQuestionRequests.has(question.requestId))
-        throw new Error("Duplicate MindSearch question request identity.");
-      mindSearchQuestionRequests.add(question.requestId);
+        throw new Error("Invalid AIM question controls.");
+      if (aimQuestionRequests.has(question.requestId))
+        throw new Error("Duplicate AIM question request identity.");
+      aimQuestionRequests.add(question.requestId);
     }
   }
   for (const n of map.nodes)
     if (!canParent(map.nodes, n.id, n.parentId))
       throw new Error(t("ui.a_link_contains_a_cycle_or_points_to_a_missing_parent_topic"));
-  if (map.mindSearch !== void 0) validateMindSearchMap(map);
+  if (map.aim !== void 0) validateAimMap(map);
   if (!map.viewport || !Number.isFinite(map.viewport.x) || !Number.isFinite(map.viewport.y) || !Number.isFinite(map.viewport.zoom))
     map.viewport = { x: 40, y: 40, zoom: 1 };
   map.viewport.zoom = Math.min(2, Math.max(0.25, map.viewport.zoom));
   return map;
 }
-function validateMindSearchMap(map) {
+function validateAimMap(map) {
   var _a, _b, _c, _d, _e, _f, _g;
-  const data = map.mindSearch;
+  const data = map.aim;
   if (!data || data.version !== 1 || !Array.isArray(data.branches) || !Array.isArray(data.runs) || !Array.isArray(data.pendingCommits) || data.resultDrafts !== void 0 && !Array.isArray(data.resultDrafts))
-    throw new Error("Invalid MindSearch map extension.");
+    throw new Error("Invalid AIM map extension.");
   if (data.creationId !== void 0 && (typeof data.creationId !== "string" || !data.creationId.trim()))
-    throw new Error("Invalid MindSearch creation identity.");
+    throw new Error("Invalid AIM creation identity.");
   if (data.minimumAnswersBeforeConclusion !== void 0 && (!Number.isInteger(data.minimumAnswersBeforeConclusion) || data.minimumAnswersBeforeConclusion < 1 || data.minimumAnswersBeforeConclusion > 10))
-    throw new Error("Invalid MindSearch exploration question target.");
+    throw new Error("Invalid AIM exploration question target.");
   if (data.rootDraft !== void 0 && (!data.rootDraft || typeof data.rootDraft.nodeId !== "string" || typeof data.rootDraft.notePath !== "string" || !data.rootDraft.notePath.endsWith(".md") || typeof data.rootDraft.title !== "string" || typeof data.rootDraft.context !== "string" || data.rootDraft.model !== void 0 && (typeof data.rootDraft.model !== "string" || !data.rootDraft.model.trim()) || data.rootDraft.reasoning !== void 0 && !["low", "medium", "high"].includes(data.rootDraft.reasoning) || map.nodes.some((node) => node.id === data.rootDraft.nodeId)))
-    throw new Error("Invalid MindSearch root draft.");
+    throw new Error("Invalid AIM root draft.");
   if (data.questionDraft !== void 0) {
     const draft = data.questionDraft;
     if (!draft || typeof draft.requestId !== "string" || !draft.requestId.trim() || map.nodes.some((node) => {
       var _a2;
-      return ((_a2 = node.mindSearchQuestion) == null ? void 0 : _a2.requestId) === draft.requestId;
+      return ((_a2 = node.aimQuestion) == null ? void 0 : _a2.requestId) === draft.requestId;
     }) || typeof draft.nodeId !== "string" || map.nodes.some((node) => node.id === draft.nodeId) || typeof draft.parentId !== "string" || !map.nodes.some((node) => node.id === draft.parentId) || !(draft.parentBranchId === void 0 || draft.parentBranchId === null || typeof draft.parentBranchId === "string") || typeof draft.notePath !== "string" || !draft.notePath.endsWith(".md") || typeof draft.title !== "string" || typeof draft.summary !== "string" || !draft.summary.trim() || typeof draft.detail !== "string" || typeof draft.prompt !== "string" || typeof draft.model !== "string" || draft.reasoning !== void 0 && !["low", "medium", "high"].includes(draft.reasoning) || !Array.isArray(draft.options) || draft.options.length < 2 || draft.options.some(
       (option) => !option || typeof option.id !== "string" || !option.id.trim() || typeof option.label !== "string" || !option.label.trim()
     ) || new Set(draft.options.map((option) => option.id)).size !== draft.options.length || draft.convergesFromNodeIds !== void 0 && (!Array.isArray(draft.convergesFromNodeIds) || new Set(draft.convergesFromNodeIds).size !== draft.convergesFromNodeIds.length || draft.convergesFromNodeIds.some((id) => !map.nodes.some((node) => node.id === id))))
-      throw new Error("Invalid MindSearch question draft.");
+      throw new Error("Invalid AIM question draft.");
   }
   const branchIds = /* @__PURE__ */ new Set(), submissionIds = /* @__PURE__ */ new Set();
   for (const branch of data.branches) {
     if (!branch || typeof branch.id !== "string" || branchIds.has(branch.id) || branch.submissionId !== void 0 && (typeof branch.submissionId !== "string" || !branch.submissionId.trim() || submissionIds.has(branch.submissionId)) || branch.sourceQuestionNodeId !== void 0 && (typeof branch.sourceQuestionNodeId !== "string" || !branch.sourceQuestionNodeId.trim()) || typeof branch.questionNodeId !== "string" || !map.nodes.some((node) => node.id === branch.questionNodeId) || branch.answerNodeId !== void 0 && (typeof branch.answerNodeId !== "string" || !map.nodes.some(
-      (node) => node.id === branch.answerNodeId && node.mindSearchKind === "answer" && node.parentId === branch.questionNodeId
+      (node) => node.id === branch.answerNodeId && node.aimKind === "answer" && node.parentId === branch.questionNodeId
     )) || !(branch.parentBranchId === null || typeof branch.parentBranchId === "string") || !branch.answerSnapshot || !Array.isArray(branch.answerSnapshot.selections) || branch.answerSnapshot.selections.some((item) => typeof item !== "string") || typeof branch.answerSnapshot.freeText !== "string" || !branch.inputSnapshot || typeof branch.inputSnapshot.topic !== "string" || !branch.inputSnapshot.conditions || typeof branch.inputSnapshot.conditions !== "object" || Array.isArray(branch.inputSnapshot.conditions) || !Array.isArray(branch.inputSnapshot.upstreamResults) || !Array.isArray(branch.results) || branch.researchPlanError !== void 0 && (typeof branch.researchPlanError !== "string" || !branch.researchPlanError.trim() || branch.researchPlanError.length > 500) || branch.researchPlan !== void 0 && (!Array.isArray(branch.researchPlan) || branch.researchPlan.length > 5 || branch.researchPlan.some(
       (item) => !item || typeof item.id !== "string" || !item.id.trim() || typeof item.title !== "string" || !item.title.trim() || typeof item.task !== "string" || !item.task.trim() || typeof item.expectedValue !== "string" || !item.expectedValue.trim()
     ) || new Set(branch.researchPlan.map((item) => item.id)).size !== branch.researchPlan.length || new Set(branch.researchPlan.map((item) => item.title.trim().toLowerCase())).size !== branch.researchPlan.length))
-      throw new Error("Invalid MindSearch branch snapshot.");
-    if (branch.researchPlan !== void 0) validateMindSearchResearchPlan(branch.researchPlan);
+      throw new Error("Invalid AIM branch snapshot.");
+    if (branch.researchPlan !== void 0) validateAimResearchPlan(branch.researchPlan);
     if (branch.retryTimeoutMs !== void 0 && (!Number.isInteger(branch.retryTimeoutMs) || branch.retryTimeoutMs < 18e4 || branch.retryTimeoutMs > 6e5))
-      throw new Error("Invalid MindSearch retry timeout.");
+      throw new Error("Invalid AIM retry timeout.");
     if (branch.deliveryRecovery && (typeof branch.deliveryRecovery.fingerprint !== "string" || !branch.deliveryRecovery.planner || typeof branch.deliveryRecovery.planner.detail !== "string" || !validDeliveryCheckpoint(branch.deliveryRecovery.checkpoint)))
-      throw new Error("Invalid MindSearch delivery checkpoint.");
+      throw new Error("Invalid AIM delivery checkpoint.");
     if (((_a = branch.deliveryRecovery) == null ? void 0 : _a.evidence) !== void 0) {
       const evidence = branch.deliveryRecovery.evidence;
       if (!Array.isArray(evidence) || evidence.some(
         (source) => !source || typeof source.id !== "string" || !source.id.trim() || typeof source.hash !== "string" || !/^[a-f0-9]{64}$/i.test(source.hash) || typeof source.detail !== "string" || !source.detail.trim()
       ) || new Set(evidence.map((source) => source.id)).size !== evidence.length)
-        throw new Error("Invalid MindSearch delivery evidence.");
+        throw new Error("Invalid AIM delivery evidence.");
     }
     branchIds.add(branch.id);
     if (branch.submissionId) submissionIds.add(branch.submissionId);
     const questionNode = map.nodes.find((node) => node.id === branch.questionNodeId);
-    if (questionNode.mindSearchQuestion && questionNode.mindSearchQuestion.parentBranchId !== branch.parentBranchId)
-      throw new Error("MindSearch answer branch does not match its question's parent branch.");
+    if (questionNode.aimQuestion && questionNode.aimQuestion.parentBranchId !== branch.parentBranchId)
+      throw new Error("AIM answer branch does not match its question's parent branch.");
   }
   for (const branch of data.branches) {
     if (branch.parentBranchId && !branchIds.has(branch.parentBranchId))
-      throw new Error("MindSearch branch points to a missing parent.");
+      throw new Error("AIM branch points to a missing parent.");
     const seen = /* @__PURE__ */ new Set([branch.id]);
     let parent = branch.parentBranchId;
     while (parent) {
-      if (seen.has(parent)) throw new Error("MindSearch answer branches cannot contain cycles.");
+      if (seen.has(parent)) throw new Error("AIM answer branches cannot contain cycles.");
       seen.add(parent);
       parent = (_c = (_b = data.branches.find((item) => item.id === parent)) == null ? void 0 : _b.parentBranchId) != null ? _c : null;
     }
@@ -9929,7 +9956,7 @@ function validateMindSearchMap(map) {
   };
   for (const run of data.runs) {
     if (!run || typeof run.id !== "string" || runIds.has(run.id) || !branchIds.has(run.branchId) || typeof run.currentAttemptId !== "string" || !Array.isArray(run.attempts) || !run.attempts.some((attempt) => attempt.id === run.currentAttemptId) || run.attempts.some((attempt) => !validAttempt(attempt)))
-      throw new Error("Invalid MindSearch run record.");
+      throw new Error("Invalid AIM run record.");
     runIds.add(run.id);
   }
   const resultIds = /* @__PURE__ */ new Set();
@@ -9942,7 +9969,7 @@ function validateMindSearchMap(map) {
           return node.id === result.nodeId && node.path === result.notePath && (node.parentId === ((_a2 = branch.answerNodeId) != null ? _a2 : branch.questionNodeId) || branch.results.some((parent) => parent.nodeId === node.parentId));
         }
       ))
-        throw new Error("Invalid MindSearch branch result reference.");
+        throw new Error("Invalid AIM branch result reference.");
       resultIds.add(result.resultId);
     }
   const drafts = (_f = data.resultDrafts) != null ? _f : [];
@@ -9956,14 +9983,14 @@ function validateMindSearchMap(map) {
         return node.id === draft.nodeId && node.path === draft.notePath && node.parentId === ((_b2 = (_a2 = draft.parentNodeId) != null ? _a2 : branch.answerNodeId) != null ? _b2 : branch.questionNodeId);
       }
     ))
-      throw new Error("Invalid MindSearch result draft.");
+      throw new Error("Invalid AIM result draft.");
     draftIds.add(draft.id);
   }
   for (const pending of data.pendingCommits) {
     const run = data.runs.find((item) => item.id === (pending == null ? void 0 : pending.runId)), attempt = run == null ? void 0 : run.attempts.find((item) => item.id === (pending == null ? void 0 : pending.attemptId));
     const branch = data.branches.find((item) => item.id === (pending == null ? void 0 : pending.branchId)), draft = drafts.find((item) => item.id === (pending == null ? void 0 : pending.resultDraftId));
     if (!pending || pending.resultStatus !== void 0 && !["completed", "partial"].includes(pending.resultStatus) || !run || run.branchId !== pending.branchId || run.currentAttemptId !== pending.attemptId || (attempt == null ? void 0 : attempt.status) !== "saving" || !branch || !draft || draft.status !== "ready" || draft.branchId !== branch.id || draft.runId !== run.id || draft.attemptId !== attempt.id || draft.nodeId !== pending.nodeId || draft.notePath !== pending.notePath || typeof pending.notePath !== "string" || !pending.notePath.endsWith(".md"))
-      throw new Error("Invalid MindSearch pending commit.");
+      throw new Error("Invalid AIM pending commit.");
   }
 }
 function serializeMap(map, language2 = "zh-TW") {
@@ -10456,7 +10483,7 @@ var Repository = class {
   }
   async readNote(path) {
     var _a;
-    const file = this.file(path), content = await this.app.vault.read(file), fm = frontmatter(content);
+    const file = this.file(path), content = upgradeLegacyAimText(await this.app.vault.read(file)), fm = frontmatter(content);
     const status = text(fm.status, "idea");
     const normalized = status === "review" || status === "accepted" ? "completed" : status;
     const source = text(fm["model-source"], "workspace");
@@ -10602,7 +10629,7 @@ ${noteBody(title, (_b = initial.summary) != null ? _b : placeholder(this.setting
     );
     return { id, path, parentId: null, x: 80, y: 80, collapsed: false };
   }
-  /** Idempotently create a reserved note identity for a journaled MindSearch result draft. */
+  /** Idempotently create a reserved note identity for a journaled AIM result draft. */
   async createNoteAt(title, model, map, mapPath, modelSource, path, id, initial = {}) {
     var _a, _b, _c, _d;
     const folder = this.topicFolder(mapPath, "Notes");
@@ -11015,15 +11042,15 @@ ${(0, import_obsidian8.stringifyYaml)(fm)}---
 ${body}`);
     }
   }
-  async createMap(title, nodes = [], onRootCreated, mindSearch) {
+  async createMap(title, nodes = [], onRootCreated, aim) {
     await this.folder(this.settings.topicsFolder);
     const preferredRoot = (0, import_obsidian8.normalizePath)(`${this.settings.topicsFolder}/${safeName(title)}`);
     const preferredFolder = this.app.vault.getAbstractFileByPath(preferredRoot);
-    const recoverEmptyMindSearchFolder = !!(mindSearch == null ? void 0 : mindSearch.creationId) && preferredFolder instanceof import_obsidian8.TFolder && preferredFolder.children.length === 0;
-    const root = recoverEmptyMindSearchFolder ? preferredRoot : this.uniqueFolder(this.settings.topicsFolder, title);
-    const folder = recoverEmptyMindSearchFolder && preferredFolder instanceof import_obsidian8.TFolder ? preferredFolder : await this.app.vault.createFolder(root);
+    const recoverEmptyAimFolder = !!(aim == null ? void 0 : aim.creationId) && preferredFolder instanceof import_obsidian8.TFolder && preferredFolder.children.length === 0;
+    const root = recoverEmptyAimFolder ? preferredRoot : this.uniqueFolder(this.settings.topicsFolder, title);
+    const folder = recoverEmptyAimFolder && preferredFolder instanceof import_obsidian8.TFolder ? preferredFolder : await this.app.vault.createFolder(root);
     onRootCreated == null ? void 0 : onRootCreated(folder);
-    if (!(mindSearch == null ? void 0 : mindSearch.creationId)) await this.ensureTopicFolders(root);
+    if (!(aim == null ? void 0 : aim.creationId)) await this.ensureTopicFolders(root);
     const path = `${root}/Map.md`;
     const map = {
       version: 1,
@@ -11031,10 +11058,10 @@ ${body}`);
       title,
       nodes,
       viewport: { x: 40, y: 40, zoom: 1 },
-      ...mindSearch ? { mindSearch } : {}
+      ...aim ? { aim } : {}
     };
     await this.app.vault.create(path, serializeMap(map, this.settings.language));
-    if (mindSearch == null ? void 0 : mindSearch.creationId) await this.ensureTopicFolders(root);
+    if (aim == null ? void 0 : aim.creationId) await this.ensureTopicFolders(root);
     return path;
   }
   async legacyMigrationPlan() {
@@ -11115,7 +11142,7 @@ ${body}`);
     const originalRoot = root.path;
     const originalMapPath = `${originalRoot}/Map.md`, originalContent = await this.app.vault.read(this.file(originalMapPath));
     const originalMap = parseMap(originalContent);
-    if ((_a = originalMap.mindSearch) == null ? void 0 : _a.runs.some(
+    if ((_a = originalMap.aim) == null ? void 0 : _a.runs.some(
       (run) => run.attempts.some((attempt) => attempt.status === "running" || attempt.status === "saving")
     )) {
       throw new Error(
@@ -11133,23 +11160,23 @@ ${body}`);
       map.title = title;
       const rebasePath = (path) => path.startsWith(`${originalRoot}/`) ? `${desired}/${path.slice(originalRoot.length + 1)}` : path;
       for (const node of map.nodes) node.path = rebasePath(node.path);
-      const mindSearch = map.mindSearch;
-      if (mindSearch) {
-        for (const branch of mindSearch.branches) {
+      const aim = map.aim;
+      if (aim) {
+        for (const branch of aim.branches) {
           for (const result of branch.inputSnapshot.upstreamResults) result.notePath = rebasePath(result.notePath);
           for (const result of branch.results) result.notePath = rebasePath(result.notePath);
         }
-        for (const draft of (_b = mindSearch.resultDrafts) != null ? _b : []) draft.notePath = rebasePath(draft.notePath);
-        if (mindSearch.rootDraft) mindSearch.rootDraft.notePath = rebasePath(mindSearch.rootDraft.notePath);
-        if (mindSearch.questionDraft) mindSearch.questionDraft.notePath = rebasePath(mindSearch.questionDraft.notePath);
-        for (const pending of mindSearch.pendingCommits) pending.notePath = rebasePath(pending.notePath);
+        for (const draft of (_b = aim.resultDrafts) != null ? _b : []) draft.notePath = rebasePath(draft.notePath);
+        if (aim.rootDraft) aim.rootDraft.notePath = rebasePath(aim.rootDraft.notePath);
+        if (aim.questionDraft) aim.questionDraft.notePath = rebasePath(aim.questionDraft.notePath);
+        for (const pending of aim.pendingCommits) pending.notePath = rebasePath(pending.notePath);
         const hashSnapshot = (value) => (0, import_node_crypto2.createHash)("sha256").update(JSON.stringify(value)).digest("hex");
-        for (const run of mindSearch.runs) {
-          const branch = mindSearch.branches.find((item) => item.id === run.branchId);
+        for (const run of aim.runs) {
+          const branch = aim.branches.find((item) => item.id === run.branchId);
           if (!branch) continue;
           for (const attempt of run.attempts) {
             attempt.inputSnapshotHash = hashSnapshot({ branch: branch.inputSnapshot, answer: branch.answerSnapshot });
-            for (const draft of (_c = mindSearch.resultDrafts) != null ? _c : []) {
+            for (const draft of (_c = aim.resultDrafts) != null ? _c : []) {
               if (draft.runId === run.id && draft.attemptId === attempt.id)
                 draft.inputSnapshotHash = attempt.inputSnapshotHash;
             }
@@ -11468,67 +11495,67 @@ var PendingSuggestions = class extends Map {
   }
 };
 
-// experiences/mind-search/create-map.ts
+// experiences/aim/create-map.ts
 var import_node_crypto3 = require("node:crypto");
 
-// experiences/mind-search/outcome-expectations.ts
+// experiences/aim/outcome-expectations.ts
 var goals = ["auto", "execute", "understand", "explore", "custom"];
 var formats = ["steps", "table", "images", "longform"];
-function normalizeMindSearchOutcomeExpectation(value) {
+function normalizeAimOutcomeExpectation(value) {
   if (value === void 0) return void 0;
   if (!value || typeof value !== "object" || Array.isArray(value))
-    throw new Error("Invalid MindSearch outcome expectation.");
+    throw new Error("Invalid AIM outcome expectation.");
   const input = value;
   if (typeof input.goal !== "string" || !goals.includes(input.goal))
-    throw new Error("Invalid MindSearch outcome goal.");
-  if (typeof input.description !== "string") throw new Error("Invalid MindSearch outcome description.");
+    throw new Error("Invalid AIM outcome goal.");
+  if (typeof input.description !== "string") throw new Error("Invalid AIM outcome description.");
   if (!Array.isArray(input.formats) || input.formats.some((format) => typeof format !== "string" || !formats.includes(format)))
-    throw new Error("Invalid MindSearch presentation preference.");
+    throw new Error("Invalid AIM presentation preference.");
   const goal = input.goal;
   const description = input.description.trim();
-  if (goal === "custom" && !description) throw new Error("Describe the custom MindSearch outcome.");
+  if (goal === "custom" && !description) throw new Error("Describe the custom AIM outcome.");
   return { goal, description, formats: [...new Set(input.formats)] };
 }
-function buildMindSearchRootContext(context, value, language2) {
-  const expectation = normalizeMindSearchOutcomeExpectation(value);
+function buildAimRootContext(context, value, language2) {
+  const expectation = normalizeAimOutcomeExpectation(value);
   const sections = [context.trim()];
   if (!expectation) return sections[0];
   const tr = (key2) => translate(language2, key2);
   const goalLabels = {
-    auto: tr("ui.mindsearch_outcome_auto"),
-    execute: tr("ui.mindsearch_outcome_execute"),
-    understand: tr("ui.mindsearch_outcome_understand"),
-    explore: tr("ui.mindsearch_outcome_explore"),
-    custom: tr("ui.mindsearch_outcome_custom")
+    auto: tr("ui.aim_outcome_auto"),
+    execute: tr("ui.aim_outcome_execute"),
+    understand: tr("ui.aim_outcome_understand"),
+    explore: tr("ui.aim_outcome_explore"),
+    custom: tr("ui.aim_outcome_custom")
   };
   const formatLabels = {
-    steps: tr("ui.mindsearch_format_steps"),
-    table: tr("ui.mindsearch_format_table"),
-    images: tr("ui.mindsearch_format_images"),
-    longform: tr("ui.mindsearch_format_longform")
+    steps: tr("ui.aim_format_steps"),
+    table: tr("ui.aim_format_table"),
+    images: tr("ui.aim_format_images"),
+    longform: tr("ui.aim_format_longform")
   };
   const details = [
-    `${tr("ui.mindsearch_outcome_goal")}: ${goalLabels[expectation.goal]}`,
-    `${tr("ui.mindsearch_outcome_formats")}: ${expectation.formats.length ? expectation.formats.map((format) => formatLabels[format]).join(", ") : tr("ui.mindsearch_format_system")}`
+    `${tr("ui.aim_outcome_goal")}: ${goalLabels[expectation.goal]}`,
+    `${tr("ui.aim_outcome_formats")}: ${expectation.formats.length ? expectation.formats.map((format) => formatLabels[format]).join(", ") : tr("ui.aim_format_system")}`
   ];
-  if (expectation.description) details.push(`${tr("ui.mindsearch_outcome_description")}: ${expectation.description}`);
-  sections.push(`## ${tr("ui.mindsearch_outcome_user_section")}
+  if (expectation.description) details.push(`${tr("ui.aim_outcome_description")}: ${expectation.description}`);
+  sections.push(`## ${tr("ui.aim_outcome_user_section")}
 
 ${details.join("\n")}`);
   return sections.filter(Boolean).join("\n\n");
 }
 
-// experiences/mind-search/create-map.ts
-async function createMindSearchMap(repository, model, input) {
+// experiences/aim/create-map.ts
+async function createAimMap(repository, model, input) {
   var _a, _b, _c, _d, _e, _f, _g, _h;
   const topic = input.topic.trim();
-  if (!topic) throw new Error("MindSearch topic is required.");
+  if (!topic) throw new Error("AIM topic is required.");
   const requestId = (_a = input.requestId) == null ? void 0 : _a.trim();
-  if (!requestId) throw new Error("MindSearch creation request identity is required.");
-  const rootContext = buildMindSearchRootContext(input.context, input.outcomeExpectation, repository.settings.language);
+  if (!requestId) throw new Error("AIM creation request identity is required.");
+  const rootContext = buildAimRootContext(input.context, input.outcomeExpectation, repository.settings.language);
   let mapPath = "";
   for (const file of await repository.mapFiles()) {
-    if (((_b = (await repository.readMap(file.path)).mindSearch) == null ? void 0 : _b.creationId) === requestId) {
+    if (((_b = (await repository.readMap(file.path)).aim) == null ? void 0 : _b.creationId) === requestId) {
       mapPath = file.path;
       break;
     }
@@ -11546,10 +11573,10 @@ async function createMindSearchMap(repository, model, input) {
     });
   }
   const map = await repository.readMap(mapPath);
-  if (map.title !== topic) throw new Error("This MindSearch creation request was already used for another topic.");
-  if (!map.mindSearch) throw new Error("The existing map does not contain a MindSearch creation record.");
-  let draft = map.mindSearch.rootDraft;
-  if (!draft && !map.nodes.some((node) => node.mindSearchKind === "topic")) {
+  if (map.title !== topic) throw new Error("This AIM creation request was already used for another topic.");
+  if (!map.aim) throw new Error("The existing map does not contain a AIM creation record.");
+  let draft = map.aim.rootDraft;
+  if (!draft && !map.nodes.some((node) => node.aimKind === "topic")) {
     const notePath = repository.unique(repository.topicFolder(mapPath, "Notes"), topic);
     const configuredReasoning = (_d = input.reasoning) != null ? _d : repository.settings.cliReasoning;
     const reasoning = configuredReasoning === "medium" || configuredReasoning === "high" ? configuredReasoning : "low";
@@ -11561,7 +11588,7 @@ async function createMindSearchMap(repository, model, input) {
       model: (_e = input.model) != null ? _e : model,
       reasoning
     };
-    map.mindSearch.rootDraft = draft;
+    map.aim.rootDraft = draft;
     await repository.saveMap(mapPath, map);
   }
   if (draft) {
@@ -11588,22 +11615,22 @@ ${draft.context}` : "",
       x: 80,
       y: 80,
       collapsed: false,
-      mindSearchKind: "topic"
+      aimKind: "topic"
     };
     map.nodes.push(root2);
-    delete map.mindSearch.rootDraft;
+    delete map.aim.rootDraft;
     await repository.saveMap(mapPath, map);
   }
   const savedMap = await repository.readMap(mapPath);
-  const root = savedMap.nodes.find((node) => node.mindSearchKind === "topic");
-  if (!root) throw new Error("MindSearch mother topic was not saved; reopen this map to resume its creation.");
+  const root = savedMap.nodes.find((node) => node.aimKind === "topic");
+  if (!root) throw new Error("AIM mother topic was not saved; reopen this map to resume its creation.");
   return { mapPath, map: savedMap, root };
 }
 
-// ui/modals/mind-search-start-modal.ts
+// ui/modals/aim-start-modal.ts
 var import_obsidian9 = require("obsidian");
 var import_node_crypto4 = require("node:crypto");
-var MindSearchStartModal = class extends import_obsidian9.Modal {
+var AimStartModal = class extends import_obsidian9.Modal {
   constructor(app, submit, models = [], defaultModel = "gpt-6-luna", defaultReasoning = "low", refreshModels) {
     super(app);
     this.submit = submit;
@@ -11614,43 +11641,43 @@ var MindSearchStartModal = class extends import_obsidian9.Modal {
     __publicField(this, "requestId", (0, import_node_crypto4.randomUUID)());
   }
   onOpen() {
-    this.titleEl.setText(t("ui.mindsearch_start_title"));
-    const intro = this.contentEl.createEl("p", { text: t("ui.mindsearch_start_description"), cls: "vam-modal-intro" });
+    this.titleEl.setText(t("ui.aim_start_title"));
+    const intro = this.contentEl.createEl("p", { text: t("ui.aim_start_description"), cls: "vam-modal-intro" });
     intro.setAttr("aria-live", "polite");
     const topicLabel = this.contentEl.createEl("label", { cls: "vam-field" });
-    topicLabel.createSpan({ text: t("ui.mindsearch_topic_label") });
-    const topic = topicLabel.createEl("textarea", { cls: "vam-mindsearch-topic", attr: { rows: "2" } });
-    topic.setAttr("aria-label", t("ui.mindsearch_topic_label"));
+    topicLabel.createSpan({ text: t("ui.aim_topic_label") });
+    const topic = topicLabel.createEl("textarea", { cls: "vam-aim-topic", attr: { rows: "2" } });
+    topic.setAttr("aria-label", t("ui.aim_topic_label"));
     const contextLabel = this.contentEl.createEl("label", { cls: "vam-field" });
-    contextLabel.createSpan({ text: t("ui.mindsearch_context_label") });
-    const context = contextLabel.createEl("textarea", { cls: "vam-mindsearch-context", attr: { rows: "4" } });
-    context.setAttr("aria-label", t("ui.mindsearch_context_label"));
+    contextLabel.createSpan({ text: t("ui.aim_context_label") });
+    const context = contextLabel.createEl("textarea", { cls: "vam-aim-context", attr: { rows: "4" } });
+    context.setAttr("aria-label", t("ui.aim_context_label"));
     const outcomeLabel = this.contentEl.createEl("label", { cls: "vam-field" });
-    outcomeLabel.createSpan({ text: t("ui.mindsearch_outcome_goal") });
+    outcomeLabel.createSpan({ text: t("ui.aim_outcome_goal") });
     const outcome = outcomeLabel.createEl("select");
-    outcome.setAttr("aria-label", t("ui.mindsearch_outcome_goal"));
+    outcome.setAttr("aria-label", t("ui.aim_outcome_goal"));
     const goalChoices = [
-      ["auto", t("ui.mindsearch_outcome_auto")],
-      ["execute", t("ui.mindsearch_outcome_execute")],
-      ["understand", t("ui.mindsearch_outcome_understand")],
-      ["explore", t("ui.mindsearch_outcome_explore")],
-      ["custom", t("ui.mindsearch_outcome_custom")]
+      ["auto", t("ui.aim_outcome_auto")],
+      ["execute", t("ui.aim_outcome_execute")],
+      ["understand", t("ui.aim_outcome_understand")],
+      ["explore", t("ui.aim_outcome_explore")],
+      ["custom", t("ui.aim_outcome_custom")]
     ];
     for (const [value, label] of goalChoices) outcome.createEl("option", { value, text: label });
     outcome.value = "auto";
-    outcomeLabel.createEl("p", { cls: "vam-hint", text: t("ui.mindsearch_outcome_hint") });
+    outcomeLabel.createEl("p", { cls: "vam-hint", text: t("ui.aim_outcome_hint") });
     const customLabel = this.contentEl.createEl("label", { cls: "vam-field" });
-    customLabel.createSpan({ text: t("ui.mindsearch_outcome_description") });
+    customLabel.createSpan({ text: t("ui.aim_outcome_description") });
     const customDescription = customLabel.createEl("textarea", { attr: { rows: "2" } });
-    customDescription.setAttr("aria-label", t("ui.mindsearch_outcome_description"));
+    customDescription.setAttr("aria-label", t("ui.aim_outcome_description"));
     customLabel.hidden = true;
-    this.contentEl.createEl("p", { cls: "vam-field-label", text: t("ui.mindsearch_outcome_formats") });
-    this.contentEl.createEl("p", { cls: "vam-hint", text: t("ui.mindsearch_format_system_hint") });
+    this.contentEl.createEl("p", { cls: "vam-field-label", text: t("ui.aim_outcome_formats") });
+    this.contentEl.createEl("p", { cls: "vam-hint", text: t("ui.aim_format_system_hint") });
     const formatChoices = [
-      ["steps", t("ui.mindsearch_format_steps")],
-      ["table", t("ui.mindsearch_format_table")],
-      ["images", t("ui.mindsearch_format_images")],
-      ["longform", t("ui.mindsearch_format_longform")]
+      ["steps", t("ui.aim_format_steps")],
+      ["table", t("ui.aim_format_table")],
+      ["images", t("ui.aim_format_images")],
+      ["longform", t("ui.aim_format_longform")]
     ];
     const formatInputs = formatChoices.map(([value, label]) => {
       const row = this.contentEl.createEl("label", { cls: "vam-field vam-next-toggle" });
@@ -11675,7 +11702,7 @@ var MindSearchStartModal = class extends import_obsidian9.Modal {
     renderModels(this.defaultModel);
     let refreshingModels = false;
     const modelRefreshStatus = modelLabel.createEl("p", { cls: "vam-hint", attr: { "aria-live": "polite" } });
-    const refreshButton = modelLabel.createEl("button", { text: t("ui.mindsearch_refresh_models") });
+    const refreshButton = modelLabel.createEl("button", { text: t("ui.aim_refresh_models") });
     refreshButton.type = "button";
     refreshButton.disabled = !this.refreshModels;
     refreshButton.addEventListener("click", () => {
@@ -11687,13 +11714,13 @@ var MindSearchStartModal = class extends import_obsidian9.Modal {
         refreshButton.disabled = true;
         model.disabled = true;
         createButton.disabled = true;
-        modelRefreshStatus.setText(t("ui.mindsearch_refreshing_models"));
+        modelRefreshStatus.setText(t("ui.aim_refreshing_models"));
         try {
           const result = await this.refreshModels();
           if (!this.contentEl.isConnected) return;
           const refreshed = Array.isArray(result) ? result : [...result.models];
           if (!refreshed.length) {
-            modelRefreshStatus.setText(t("ui.mindsearch_no_models_found"));
+            modelRefreshStatus.setText(t("ui.aim_no_models_found"));
             return;
           }
           if (!Array.isArray(result) && result.preserveSelection && !refreshed.some((choice2) => choice2.id === previousSelection)) {
@@ -11704,12 +11731,12 @@ var MindSearchStartModal = class extends import_obsidian9.Modal {
           const currentSelection = renderModels(previousSelection);
           if (currentSelection !== previousSelection) newRequest();
           modelRefreshStatus.setText(
-            Array.isArray(result) ? t("ui.mindsearch_models_refreshed") : (_a = result.message) != null ? _a : t("ui.mindsearch_models_refreshed")
+            Array.isArray(result) ? t("ui.aim_models_refreshed") : (_a = result.message) != null ? _a : t("ui.aim_models_refreshed")
           );
         } catch (error) {
           if (!this.contentEl.isConnected) return;
           modelRefreshStatus.setText(
-            t("ui.mindsearch_model_refresh_failed_0", error instanceof Error ? error.message : String(error))
+            t("ui.aim_model_refresh_failed_0", error instanceof Error ? error.message : String(error))
           );
         } finally {
           refreshingModels = false;
@@ -11733,13 +11760,13 @@ var MindSearchStartModal = class extends import_obsidian9.Modal {
       reasoning.createEl("option", { value, text: label });
     reasoning.value = this.defaultReasoning;
     const answerCountLabel = this.contentEl.createEl("label", { cls: "vam-field" });
-    answerCountLabel.createSpan({ text: t("ui.mindsearch_minimum_answers") });
+    answerCountLabel.createSpan({ text: t("ui.aim_minimum_answers") });
     const answerCount = answerCountLabel.createEl("input", {
       attr: { type: "number", min: "3", max: "10", step: "1" }
     });
     answerCount.value = "3";
-    answerCount.setAttr("aria-label", t("ui.mindsearch_minimum_answers"));
-    answerCountLabel.createEl("p", { cls: "vam-hint", text: t("ui.mindsearch_answer_target_hint") });
+    answerCount.setAttr("aria-label", t("ui.aim_minimum_answers"));
+    answerCountLabel.createEl("p", { cls: "vam-hint", text: t("ui.aim_answer_target_hint") });
     const newRequest = () => {
       this.requestId = (0, import_node_crypto4.randomUUID)();
     };
@@ -11762,22 +11789,22 @@ var MindSearchStartModal = class extends import_obsidian9.Modal {
       cancelButton = button;
       button.setButtonText(t("ui.cancel")).onClick(() => this.close());
     }).addButton(
-      (button) => button.setButtonText(t("ui.mindsearch_create")).setCta().onClick(() => {
+      (button) => button.setButtonText(t("ui.aim_create")).setCta().onClick(() => {
         void (async () => {
           if (pending || refreshingModels) return;
           if (!topic.value.trim()) {
-            status.setText(t("ui.mindsearch_topic_required"));
+            status.setText(t("ui.aim_topic_required"));
             topic.focus();
             return;
           }
           if (outcome.value === "custom" && !customDescription.value.trim()) {
-            status.setText(t("ui.mindsearch_outcome_custom_required"));
+            status.setText(t("ui.aim_outcome_custom_required"));
             customDescription.focus();
             return;
           }
           const minimumAnswersBeforeConclusion = Number(answerCount.value);
           if (!Number.isInteger(minimumAnswersBeforeConclusion) || minimumAnswersBeforeConclusion < 3 || minimumAnswersBeforeConclusion > 10) {
-            status.setText(t("ui.mindsearch_minimum_answers_invalid"));
+            status.setText(t("ui.aim_minimum_answers_invalid"));
             answerCount.focus();
             return;
           }
@@ -11798,7 +11825,7 @@ var MindSearchStartModal = class extends import_obsidian9.Modal {
             control.disabled = true;
           });
           createButton.disabled = true;
-          status.setText(t("ui.mindsearch_creating"));
+          status.setText(t("ui.aim_creating"));
           const outcomeExpectation = {
             goal: outcome.value,
             description: outcome.value === "custom" ? customDescription.value.trim() : "",
@@ -11833,10 +11860,10 @@ var MindSearchStartModal = class extends import_obsidian9.Modal {
   }
 };
 
-// ui/modals/mind-search-answer-modal.ts
+// ui/modals/aim-answer-modal.ts
 var import_obsidian10 = require("obsidian");
 var import_node_crypto5 = require("node:crypto");
-var MindSearchAnswerModal = class extends import_obsidian10.Modal {
+var AimAnswerModal = class extends import_obsidian10.Modal {
   constructor(app, question, options, submit, requestId = (0, import_node_crypto5.randomUUID)()) {
     super(app);
     this.question = question;
@@ -11846,33 +11873,33 @@ var MindSearchAnswerModal = class extends import_obsidian10.Modal {
     this.requestId = requestId;
   }
   onOpen() {
-    this.titleEl.setText(t("ui.mindsearch_answer_title"));
+    this.titleEl.setText(t("ui.aim_answer_title"));
     this.contentEl.createEl("p", { text: this.question, cls: "vam-modal-intro" });
     const choices = this.contentEl.createDiv({
-      cls: "vam-mindsearch-answer-options",
+      cls: "vam-aim-answer-options",
       attr: { role: "group", "aria-label": this.question }
     });
     const boxes = /* @__PURE__ */ new Map();
     for (const option of this.options) {
-      const label = choices.createEl("label", { cls: "vam-mindsearch-answer-option" });
+      const label = choices.createEl("label", { cls: "vam-aim-answer-option" });
       const input = label.createEl("input", { type: "checkbox", value: option.id });
       input.setAttr("aria-label", option.label);
       label.createSpan({ text: option.label });
       boxes.set(option.id, input);
       input.addEventListener("change", () => {
         this.requestId = (0, import_node_crypto5.randomUUID)();
-        if (input.checked && option.id === "__mindsearch_unknown__") {
+        if (input.checked && option.id === "__aim_unknown__") {
           for (const [id, peer] of boxes) if (id !== option.id) peer.checked = false;
         } else if (input.checked) {
-          const unknown = boxes.get("__mindsearch_unknown__");
+          const unknown = boxes.get("__aim_unknown__");
           if (unknown) unknown.checked = false;
         }
       });
     }
     const freeTextLabel = this.contentEl.createEl("label", { cls: "vam-field" });
-    freeTextLabel.createSpan({ text: t("ui.mindsearch_free_text") });
+    freeTextLabel.createSpan({ text: t("ui.aim_free_text") });
     const freeText = freeTextLabel.createEl("textarea", { attr: { rows: "3" } });
-    freeText.setAttr("aria-label", t("ui.mindsearch_free_text"));
+    freeText.setAttr("aria-label", t("ui.aim_free_text"));
     freeText.addEventListener("input", () => {
       this.requestId = (0, import_node_crypto5.randomUUID)();
     });
@@ -11883,18 +11910,18 @@ var MindSearchAnswerModal = class extends import_obsidian10.Modal {
         if (!pending) this.close();
       })
     ).addButton((button) => {
-      button.setButtonText(t("ui.mindsearch_submit_answer")).setCta().onClick(() => {
+      button.setButtonText(t("ui.aim_submit_answer")).setCta().onClick(() => {
         void (async () => {
           if (pending) return;
           const selections = [...boxes].filter(([, checkbox]) => checkbox.checked).map(([id]) => id);
           if (!selections.length && !freeText.value.trim()) {
-            status.setText(t("ui.mindsearch_answer_required"));
+            status.setText(t("ui.aim_answer_required"));
             freeText.focus();
             return;
           }
           pending = true;
           submitButton.disabled = true;
-          status.setText(t("ui.mindsearch_submitting_answer"));
+          status.setText(t("ui.aim_submitting_answer"));
           this.close();
           void this.submit({ requestId: this.requestId, selections, freeText: freeText.value }).catch(() => {
           });
@@ -11906,7 +11933,7 @@ var MindSearchAnswerModal = class extends import_obsidian10.Modal {
   }
 };
 
-// experiences/mind-search/evidence-context.ts
+// experiences/aim/evidence-context.ts
 function evidenceCard(id, summary, detail) {
   var _a;
   const urls = [...new Set((_a = detail.match(/https?:\/\/[^\s)<>\]"']+/g)) != null ? _a : [])];
@@ -11919,11 +11946,11 @@ function evidenceCard(id, summary, detail) {
     `Full report retained (${detail.length} characters). This index is incomplete; request the evidence ID when detail is needed.`
   ].join("\n");
 }
-var EVIDENCE_LOOKUP_RULE = 'Evidence cards are incomplete indexes, not full verified reports. Do not infer a missing fact is absent from the report. If a decision or claim depends on omitted detail, return only <!-- mindsearch-evidence-request {"ids":["exact evidence ID"]} --> in detail, with a short summary and empty suggestions. Up to 3 indexed reports can be loaded in one bounded lookup; do not invent IDs. Do not conclude from a card when decisive evidence is missing.';
+var EVIDENCE_LOOKUP_RULE = 'Evidence cards are incomplete indexes, not full verified reports. Do not infer a missing fact is absent from the report. If a decision or claim depends on omitted detail, return only <!-- aim-evidence-request {"ids":["exact evidence ID"]} --> in detail, with a short summary and empty suggestions. Up to 3 indexed reports can be loaded in one bounded lookup; do not invent IDs. Do not conclude from a card when decisive evidence is missing.';
 var EVIDENCE_LOOKUP_FIELD_RULE = "Evidence cards are incomplete indexes, not full verified reports. Do not infer a missing fact is absent from the report. If a decision or claim depends on omitted detail, put the exact evidence IDs in aim.evidenceRequestIds (up to 3) with a short summary; the full reports are then loaded once and you answer again. Otherwise leave aim.evidenceRequestIds empty. Do not invent IDs. Do not conclude from a card when decisive evidence is missing.";
 
-// experiences/mind-search/request-context.ts
-function deduplicateMindSearchRequest(context) {
+// experiences/aim/request-context.ts
+function deduplicateAimRequest(context) {
   const prepared = { ...context };
   const passages = /* @__PURE__ */ new Map();
   for (const key2 of ["task", "detail", "ancestors", "workingFindings", "summary", "rules", "title"]) {
@@ -11949,11 +11976,11 @@ function deduplicateMindSearchRequest(context) {
   return prepared;
 }
 
-// experiences/mind-search/final-delivery.ts
+// experiences/aim/final-delivery.ts
 var import_node_crypto6 = require("node:crypto");
 var fingerprint = (value) => (0, import_node_crypto6.createHash)("sha256").update(JSON.stringify(value)).digest("hex");
 function parseDeliveryOutline(detail) {
-  const marker4 = detail.match(/<!--\s*mindsearch-delivery-outline\s+([\s\S]*?)\s*-->/);
+  const marker4 = detail.match(/<!--\s*aim-delivery-outline\s+([\s\S]*?)\s*-->/);
   if (!marker4) throw new Error("Final delivery outline is missing; no conclusion was saved.");
   const value = JSON.parse(marker4[1]);
   const sections = value && typeof value === "object" && "sections" in value ? value.sections : void 0;
@@ -11987,7 +12014,7 @@ function validateContent(result) {
     throw new Error("Final delivery stage returned empty content; no conclusion was saved.");
 }
 function parseAcceptance(result) {
-  const acceptance = result.detail.match(/^\s*<!--\s*mindsearch-review\s+(\{[^\n]*\})\s*-->/);
+  const acceptance = result.detail.match(/^\s*<!--\s*aim-review\s+(\{[^\n]*\})\s*-->/);
   if (!acceptance) throw new Error("Final delivery acceptance marker missing; no conclusion was saved.");
   const decision = JSON.parse(acceptance[1]);
   if (!decision || typeof decision !== "object" || !("decision" in decision))
@@ -12056,12 +12083,12 @@ async function buildFinalDelivery(base, ask, options = {}) {
     const result2 = await ask({
       ...base,
       ...writingScope,
-      ...phase === "delivery-acceptance" ? { responseContract: "mindsearch-delivery-acceptance" } : {},
-      ...contract ? { mindSearchContract: contract } : {},
+      ...phase === "delivery-acceptance" ? { responseContract: "aim-delivery-acceptance" } : {},
+      ...contract ? { aimContract: contract } : {},
       ...options.timeoutMs === void 0 ? {} : { timeoutMs: options.timeoutMs },
-      task: `<!-- mindsearch-phase: ${phase} -->
+      task: `<!-- aim-phase: ${phase} -->
 ${task}`,
-      ...research2 ? { mindSearchIsolatedResearch: true } : {},
+      ...research2 ? { aimIsolatedResearch: true } : {},
       researchMode: research2 ? "research" : "local",
       researchDepth: research2 ? "normal" : "fast",
       detailFormat: "adaptive"
@@ -12110,12 +12137,12 @@ ${sourceCatalog}`
       true
     ) : {
       summary: "Existing evidence",
-      detail: '<!-- mindsearch-delivery-research {"status":"reused"} -->\nNo new search requested by the outline; use the supplied prior evidence.',
+      detail: '<!-- aim-delivery-research {"status":"reused"} -->\nNo new search requested by the outline; use the supplied prior evidence.',
       suggestions: [],
       visualReferences: []
     },
     (research2) => {
-      const searchMarker = research2.detail.match(/<!--\s*mindsearch-delivery-research\s+([\s\S]*?)\s*-->/);
+      const searchMarker = research2.detail.match(/<!--\s*aim-delivery-research\s+([\s\S]*?)\s*-->/);
       const searchStatus = searchMarker ? JSON.parse(searchMarker[1]) : null;
       if (!searchStatus || typeof searchStatus !== "object" || !("status" in searchStatus) || searchStatus.status !== (needsResearch ? "searched" : "reused"))
         throw new Error("Final-document web research was unavailable or not completed; no conclusion was saved.");
@@ -12282,10 +12309,10 @@ ${draft.detail}` },
   };
 }
 
-// experiences/mind-search/manual-flow.ts
+// experiences/aim/manual-flow.ts
 var import_node_crypto7 = require("node:crypto");
 
-// experiences/mind-search/search-diagnostic.ts
+// experiences/aim/search-diagnostic.ts
 function createSearchDiagnostic(researchTurn) {
   const diagnostic = {
     researchTurn,
@@ -12381,8 +12408,8 @@ function buildPreparedTaskContext(input, model, budget = 32e3, provider = "codex
   };
 }
 
-// ai/mindsearch-contracts.ts
-var MINDSEARCH_NO_QUESTION = "__MINDSEARCH_NO_QUESTION__";
+// ai/aim-contracts.ts
+var AIM_NO_QUESTION = "__AIM_NO_QUESTION__";
 var QUESTION_SCOPE = "Ask about the user's goal, preferences, constraints or situation, never about this tool's workflow, counts, nodes or branches.";
 var text2 = { type: "string" };
 var texts = { type: "array", items: text2 };
@@ -12507,7 +12534,7 @@ function payloadSchema(contract) {
       });
   }
 }
-function mindSearchContractSchema(contract, base, evidenceLookup) {
+function aimContractSchema(contract, base, evidenceLookup) {
   const payload = payloadSchema(contract);
   const aim = evidenceLookup ? {
     ...payload,
@@ -12536,13 +12563,13 @@ function foldPayload(contract, aim, result) {
       return {
         ...result,
         detail: prepend(
-          marker2("mindsearch-intake", { questions: cleanList(aim.questions) }),
-          withoutMarker(result.detail, "mindsearch-intake")
+          marker2("aim-intake", { questions: cleanList(aim.questions) }),
+          withoutMarker(result.detail, "aim-intake")
         ),
         suggestions: []
       };
     case "question": {
-      if (aim.decision === "no_question") return { ...result, summary: MINDSEARCH_NO_QUESTION, suggestions: [] };
+      if (aim.decision === "no_question") return { ...result, summary: AIM_NO_QUESTION, suggestions: [] };
       return { ...result, summary: clean2(aim.question), suggestions: cleanList(aim.answerOptions).map(choice) };
     }
     case "plan": {
@@ -12552,7 +12579,7 @@ function foldPayload(contract, aim, result) {
       });
       return {
         ...result,
-        detail: prepend(marker2("mindsearch-plan", { subtopics }), withoutMarker(result.detail, "mindsearch-plan")),
+        detail: prepend(marker2("aim-plan", { subtopics }), withoutMarker(result.detail, "aim-plan")),
         suggestions: []
       };
     }
@@ -12560,13 +12587,13 @@ function foldPayload(contract, aim, result) {
       return {
         ...result,
         detail: prepend(
-          marker2("mindsearch-reuse", {
+          marker2("aim-reuse", {
             usable: aim.usable === true,
             rationale: clean2(aim.rationale),
             conditionKeys: cleanList(aim.conditionKeys),
             validity: clean2(aim.validity)
           }),
-          withoutMarker(result.detail, "mindsearch-reuse")
+          withoutMarker(result.detail, "aim-reuse")
         )
       };
     case "review": {
@@ -12589,7 +12616,7 @@ function foldPayload(contract, aim, result) {
       ] : [];
       return {
         ...result,
-        detail: prepend(marker2("mindsearch-review", fields), withoutMarker(result.detail, "mindsearch-review")),
+        detail: prepend(marker2("aim-review", fields), withoutMarker(result.detail, "aim-review")),
         suggestions
       };
     }
@@ -12605,8 +12632,8 @@ function foldPayload(contract, aim, result) {
       return {
         ...result,
         detail: prepend(
-          marker2("mindsearch-delivery-outline", { sections }),
-          withoutMarker(result.detail, "mindsearch-delivery-outline")
+          marker2("aim-delivery-outline", { sections }),
+          withoutMarker(result.detail, "aim-delivery-outline")
         ),
         suggestions: []
       };
@@ -12615,13 +12642,13 @@ function foldPayload(contract, aim, result) {
       return {
         ...result,
         detail: prepend(
-          marker2("mindsearch-delivery-research", { status: aim.status }),
-          withoutMarker(result.detail, "mindsearch-delivery-research")
+          marker2("aim-delivery-research", { status: aim.status }),
+          withoutMarker(result.detail, "aim-delivery-research")
         )
       };
   }
 }
-function foldMindSearchContract(contract, aim, result) {
+function foldAimContract(contract, aim, result) {
   if (!aim || typeof aim !== "object" || Array.isArray(aim)) return result;
   const payload = aim;
   const requestIds = cleanList(payload.evidenceRequestIds);
@@ -12629,17 +12656,17 @@ function foldMindSearchContract(contract, aim, result) {
     return {
       ...result,
       detail: prepend(
-        marker2("mindsearch-evidence-request", { ids: requestIds }),
-        withoutMarker(result.detail, "mindsearch-evidence-request")
+        marker2("aim-evidence-request", { ids: requestIds }),
+        withoutMarker(result.detail, "aim-evidence-request")
       ),
       suggestions: []
     };
   return foldPayload(contract, payload, result);
 }
 
-// mindsearch-mve/planner-review.ts
-var MINDSEARCH_MAX_RESEARCH_TURNS = 2;
-var marker3 = /^\s*<!--\s*mindsearch-review\s+(\{[^\n]*\})\s*-->\s*/;
+// experiences/aim/planner-review.ts
+var AIM_MAX_RESEARCH_TURNS = 2;
+var marker3 = /^\s*<!--\s*aim-review\s+(\{[^\n]*\})\s*-->\s*/;
 function readMarker(detail) {
   const match = detail.match(marker3);
   if (!match) return void 0;
@@ -12683,7 +12710,7 @@ function extractExplicitOptions(body, question) {
   const unique2 = [...new Set(options)];
   return unique2.length >= 2 && unique2.length <= 5 ? unique2 : [];
 }
-function parseMindSearchPlannerReview(result) {
+function parseAimPlannerReview(result) {
   const match = result.detail.match(marker3);
   if (!match) throw new Error("Planner review is missing its machine-readable decision block.");
   let value;
@@ -12754,10 +12781,10 @@ function extractPlannerQuestionCandidate(result) {
     }
   return void 0;
 }
-async function parseMindSearchPlannerReviewWithRecovery(original, context, recover) {
+async function parseAimPlannerReviewWithRecovery(original, context, recover) {
   var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n;
   try {
-    const parsed = parseMindSearchPlannerReview(original);
+    const parsed = parseAimPlannerReview(original);
     if (context.requiredDecision && parsed.decision !== context.requiredDecision) {
       throw new Error(`Planner response violated the required ${context.requiredDecision} decision.`);
     }
@@ -12777,7 +12804,7 @@ async function parseMindSearchPlannerReviewWithRecovery(original, context, recov
         throw new Error(`Format recovery does not support an imposed ${context.requiredDecision} decision.`);
       }
       let question = ((_b = context.preferredQuestion) == null ? void 0 : _b.trim()) || originalQuestion;
-      const preservedBody = (_c = originalMarker == null ? void 0 : originalMarker.body) != null ? _c : original.detail.replace(/^\s*<!--\s*mindsearch-review\s+[^\n]*?-->\s*/, "").trim();
+      const preservedBody = (_c = originalMarker == null ? void 0 : originalMarker.body) != null ? _c : original.detail.replace(/^\s*<!--\s*aim-review\s+[^\n]*?-->\s*/, "").trim();
       let stated;
       if (!question) {
         const task2 = [
@@ -12830,11 +12857,11 @@ ${preservedBody}`,
       const constrained = {
         ...original,
         summary: originalSummary || original.summary,
-        detail: `<!-- mindsearch-review ${JSON.stringify({ decision: "ask_user", rationale, question })} -->
+        detail: `<!-- aim-review ${JSON.stringify({ decision: "ask_user", rationale, question })} -->
 ${preservedBody}`,
         suggestions: answerOptions.map((title) => ({ title, task: "", contribution: "" }))
       };
-      const parsed2 = parseMindSearchPlannerReview(constrained);
+      const parsed2 = parseAimPlannerReview(constrained);
       if (parsed2.decision !== "ask_user" || parsed2.question !== question)
         throw new Error("Planner recovery did not preserve the required decision and question.");
       return parsed2;
@@ -12847,7 +12874,7 @@ ${preservedBody}`,
           detail: `${(_j = (_i = original.detail.match(marker3)) == null ? void 0 : _i[0]) != null ? _j : ""}${originalBody}`,
           suggestions: options.map((title) => ({ title, task: "", contribution: "" }))
         };
-        return parseMindSearchPlannerReview(recovered);
+        return parseAimPlannerReview(recovered);
       }
       const task2 = [
         "Repair only the missing answer choices in this already valid ask_user Planner decision.",
@@ -12869,7 +12896,7 @@ ${originalBody}`,
       if (answerOptions.length < 2 || answerOptions.length > 5) {
         throw new Error("Planner format repair did not provide 2\u20135 distinct answer choices.");
       }
-      return parseMindSearchPlannerReview({
+      return parseAimPlannerReview({
         ...original,
         detail: `${(_l = (_k = original.detail.match(marker3)) == null ? void 0 : _k[0]) != null ? _l : ""}${originalBody}`,
         suggestions: answerOptions.map((title) => ({ title, task: "", contribution: "" }))
@@ -12901,7 +12928,7 @@ ${original.detail}
 Suggestions: ${JSON.stringify(original.suggestions)}`
     ].join("\n\n");
     const repaired = await recover(task, answeredWithoutTarget ? { excludeDecisions: ["research_more"] } : void 0);
-    const parsed = parseMindSearchPlannerReview(repaired);
+    const parsed = parseAimPlannerReview(repaired);
     if (answeredWithoutTarget && parsed.decision === "research_more")
       throw new Error("Planner format repair cannot choose research_more for a goal its response marked as answered.");
     if (preserveDecision && parsed.decision !== preserveDecision) {
@@ -12914,17 +12941,17 @@ Suggestions: ${JSON.stringify(original.suggestions)}`
       if (typeof value === "string" && value.trim()) mergedMarker[key2] = value.trim();
     }
     const mergedBody = originalBody || ((_n = readMarker(repaired.detail)) == null ? void 0 : _n.body) || parsed.detail;
-    return parseMindSearchPlannerReview({
+    return parseAimPlannerReview({
       ...repaired,
       summary: originalSummary || repaired.summary,
-      detail: `<!-- mindsearch-review ${JSON.stringify(mergedMarker)} -->
+      detail: `<!-- aim-review ${JSON.stringify(mergedMarker)} -->
 ${mergedBody}`
     });
   }
 }
 
-// experiences/mind-search/retry-targets.ts
-var diagnosticHeading = "### MindSearch incomplete-attempt diagnostic";
+// experiences/aim/retry-targets.ts
+var diagnosticHeading = "### AIM incomplete-attempt diagnostic";
 var originalHeading = "### Original draft response";
 var detailEnd = "<!-- visual-agent-map:detail:end -->";
 function structuredReports(attempt, notePath) {
@@ -12938,7 +12965,7 @@ function structuredReports(attempt, notePath) {
     visualReferences: []
   }));
 }
-function extractMindSearchFailedReport(note, attempt, notePath) {
+function extractAimFailedReport(note, attempt, notePath) {
   var _a, _b, _c, _d;
   if (note.status !== "error" || !note.detail.trim()) return null;
   if (attempt.retainedReports) return structuredReports(attempt, notePath);
@@ -12975,18 +13002,18 @@ function extractMindSearchFailedReport(note, attempt, notePath) {
   }
   return reports;
 }
-function matchMindSearchFailedReportTargets(map, candidates) {
+function matchAimFailedReportTargets(map, candidates) {
   var _a, _b, _c, _d, _e, _f;
-  const currentFailed = (_b = (_a = map.mindSearch) == null ? void 0 : _a.runs.flatMap((run) => {
+  const currentFailed = (_b = (_a = map.aim) == null ? void 0 : _a.runs.flatMap((run) => {
     const attempt = run.attempts.find((item) => item.id === run.currentAttemptId);
     return (attempt == null ? void 0 : attempt.status) === "failed" ? [{ runId: run.id, attempt }] : [];
   })) != null ? _b : [];
-  const failed = (_d = (_c = map.mindSearch) == null ? void 0 : _c.runs.flatMap((run) => {
+  const failed = (_d = (_c = map.aim) == null ? void 0 : _c.runs.flatMap((run) => {
     var _a2;
     const attempt = run.attempts.find((item) => item.id === run.currentAttemptId);
-    const branch = (_a2 = map.mindSearch) == null ? void 0 : _a2.branches.find((item) => item.id === run.branchId);
+    const branch = (_a2 = map.aim) == null ? void 0 : _a2.branches.find((item) => item.id === run.branchId);
     const question = branch && map.nodes.find((item) => item.id === branch.questionNodeId);
-    return (attempt == null ? void 0 : attempt.status) === "failed" && branch && (question == null ? void 0 : question.mindSearchKind) === "question" ? [{ runId: run.id, attempt, branchId: branch.id, questionNodeId: question.id }] : [];
+    return (attempt == null ? void 0 : attempt.status) === "failed" && branch && (question == null ? void 0 : question.aimKind) === "question" ? [{ runId: run.id, attempt, branchId: branch.id, questionNodeId: question.id }] : [];
   })) != null ? _d : [];
   const matches = /* @__PURE__ */ new Map();
   for (const { path, note } of candidates) {
@@ -12994,7 +13021,7 @@ function matchMindSearchFailedReportTargets(map, candidates) {
     let selected = failed.filter(
       (item) => {
         var _a2;
-        return ((_a2 = item.attempt.retainedReports) == null ? void 0 : _a2.notePath) === path && extractMindSearchFailedReport(note, item.attempt, path) !== null;
+        return ((_a2 = item.attempt.retainedReports) == null ? void 0 : _a2.notePath) === path && extractAimFailedReport(note, item.attempt, path) !== null;
       }
     );
     if (selected.length) {
@@ -13002,7 +13029,7 @@ function matchMindSearchFailedReportTargets(map, candidates) {
       selected = failed.filter(
         (item) => note.detail.includes(
           `**Prior attempt:** ${item.branchId} / ${item.attempt.id}; the persisted attempt remains failed.`
-        ) && extractMindSearchFailedReport(note, item.attempt) !== null
+        ) && extractAimFailedReport(note, item.attempt) !== null
       );
     } else {
       const nativeAttemptId = (_e = note.detail.match(
@@ -13011,7 +13038,7 @@ function matchMindSearchFailedReportTargets(map, candidates) {
       const sameOrdinalFailures = currentFailed.filter((item) => item.attempt.id === nativeAttemptId);
       if (nativeAttemptId && sameOrdinalFailures.length === 1) {
         selected = failed.filter(
-          (item) => item.runId === sameOrdinalFailures[0].runId && extractMindSearchFailedReport(note, item.attempt) !== null
+          (item) => item.runId === sameOrdinalFailures[0].runId && extractAimFailedReport(note, item.attempt) !== null
         );
       }
     }
@@ -13027,15 +13054,15 @@ function matchMindSearchFailedReportTargets(map, candidates) {
   return targets;
 }
 
-// experiences/mind-search/research-scheduler.ts
+// experiences/aim/research-scheduler.ts
 function abortError() {
   const error = new Error("The operation was aborted.");
   error.name = "AbortError";
   return error;
 }
-async function scheduleMindSearchResearch(plan, execute, signal) {
+async function scheduleAimResearch(plan, execute, signal) {
   var _a;
-  validateMindSearchResearchPlan(plan);
+  validateAimResearchPlan(plan);
   const parallel = plan.every((item) => Array.isArray(item.dependsOn));
   const limit = parallel ? 2 : 1;
   const controller = new AbortController();
@@ -13078,8 +13105,8 @@ async function scheduleMindSearchResearch(plan, execute, signal) {
   }
 }
 
-// experiences/mind-search/manual-flow-support.ts
-var MINDSEARCH_UNKNOWN_OPTION_ID = "__mindsearch_unknown__";
+// experiences/aim/manual-flow-support.ts
+var AIM_UNKNOWN_OPTION_ID = "__aim_unknown__";
 var MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION = 3;
 var PLANNER_COVERAGE_RULE = "Before deciding, compare the original topic and current question with the requested outcome and every persisted report. Name the central outcome(s) the user needs, then mark each answered or still open. A relevant side fact does not answer a missing core outcome. If a core outcome is open and one targeted search could plausibly help, choose research_more for that exact gap. Ask_user only for missing user conditions, not missing evidence. If a core outcome remains open at the research-turn limit, keep research_more so the result is saved as partial, not complete.";
 var SEARCHER_TARGET_RULE = "Answer the assigned research target first. Treat prior reports and side facts as context, not as a substitute for the target. Do not repeat resolved background facts in place of the requested outcome. If the search does not support the target, say explicitly that the target remains unresolved; do not imply it was answered.";
@@ -13092,15 +13119,15 @@ var reviewContract = (decisions) => ({
 });
 var floorDecisions = (answeredQuestionCount) => answeredQuestionCount < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION ? ["research_more", "ask_user"] : ALL_DECISIONS;
 function phaseTask(phase, task) {
-  return `<!-- mindsearch-phase: ${phase} -->
+  return `<!-- aim-phase: ${phase} -->
 ${task}`;
 }
-function countMindSearchAnsweredQuestions(map, branchId) {
+function countAimAnsweredQuestions(map, branchId) {
   var _a, _b, _c;
-  let count = 0, current = branchId ? (_a = map.mindSearch) == null ? void 0 : _a.branches.find((branch) => branch.id === branchId) : void 0;
+  let count = 0, current = branchId ? (_a = map.aim) == null ? void 0 : _a.branches.find((branch) => branch.id === branchId) : void 0;
   while (current) {
-    if (((_b = map.nodes.find((node) => node.id === current.questionNodeId)) == null ? void 0 : _b.mindSearchKind) === "question") count++;
-    current = current.parentBranchId ? (_c = map.mindSearch) == null ? void 0 : _c.branches.find((branch) => branch.id === current.parentBranchId) : void 0;
+    if (((_b = map.nodes.find((node) => node.id === current.questionNodeId)) == null ? void 0 : _b.aimKind) === "question") count++;
+    current = current.parentBranchId ? (_c = map.aim) == null ? void 0 : _c.branches.find((branch) => branch.id === current.parentBranchId) : void 0;
   }
   return count;
 }
@@ -13131,9 +13158,9 @@ function normalizePersistedAnswerOptions(options) {
     return [];
   });
 }
-function parseMindSearchResearchPlan(result) {
+function parseAimResearchPlan(result) {
   var _a;
-  const marked = result.detail.match(/<!--\s*mindsearch-plan\s+([\s\S]*?)\s*-->/);
+  const marked = result.detail.match(/<!--\s*aim-plan\s+([\s\S]*?)\s*-->/);
   const unmarked = marked ? null : result.detail.match(/\{\s*"subtopics"\s*:\s*\[[\s\S]*?\]\s*\}/);
   const payload = (_a = marked == null ? void 0 : marked[1]) != null ? _a : unmarked == null ? void 0 : unmarked[0];
   let markerError;
@@ -13141,7 +13168,7 @@ function parseMindSearchResearchPlan(result) {
     try {
       const raw = JSON.parse(payload);
       const subtopics = raw && typeof raw === "object" ? raw.subtopics : void 0;
-      return validateMindSearchResearchPlan(subtopics);
+      return validateAimResearchPlan(subtopics);
     } catch (error) {
       markerError = error;
     }
@@ -13153,22 +13180,22 @@ function parseMindSearchResearchPlan(result) {
       const slug = title.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 32) || "subtopic";
       return { id: `suggestion-${index + 1}-${slug}`, title, task: item == null ? void 0 : item.task, expectedValue: item == null ? void 0 : item.contribution };
     });
-    return validateMindSearchResearchPlan(plan);
+    return validateAimResearchPlan(plan);
   }
   if (markerError instanceof Error && !(markerError instanceof SyntaxError)) throw markerError;
   throw new Error("Planner must return 0\u20135 valid research subtopics before the answer can proceed.");
 }
 var ResearchWorkflowInterrupted = class extends Error {
   constructor(status) {
-    super(`MindSearch research is ${status}.`);
+    super(`AIM research is ${status}.`);
     this.status = status;
   }
 };
 var ReuseEvidenceRejected = class extends Error {
 };
 
-// experiences/mind-search/manual-flow.ts
-var _MindSearchManualFlow = class _MindSearchManualFlow {
+// experiences/aim/manual-flow.ts
+var _AimManualFlow = class _AimManualFlow {
   constructor(repository, runs, askModel, id = import_node_crypto7.randomUUID, persist = (operation) => operation()) {
     this.repository = repository;
     this.runs = runs;
@@ -13179,7 +13206,7 @@ var _MindSearchManualFlow = class _MindSearchManualFlow {
     __publicField(this, "answerRuns", /* @__PURE__ */ new Map());
   }
   async prepareClarification(topic, signal) {
-    const result = await this.askMindSearchModel(
+    const result = await this.askAimModel(
       {
         title: topic.title,
         summary: "",
@@ -13195,7 +13222,7 @@ var _MindSearchManualFlow = class _MindSearchManualFlow {
         researchMode: "local",
         researchDepth: "fast",
         visualMode: "off",
-        mindSearchContract: { kind: "intake" },
+        aimContract: { kind: "intake" },
         signal
       },
       topic.model,
@@ -13203,7 +13230,7 @@ var _MindSearchManualFlow = class _MindSearchManualFlow {
       signal
     );
     throwIfAborted(signal);
-    const marker4 = result.detail.match(/<!--\s*mindsearch-intake\s+([\s\S]*?)\s*-->/);
+    const marker4 = result.detail.match(/<!--\s*aim-intake\s+([\s\S]*?)\s*-->/);
     if (!marker4) throw new Error("Could not prepare clarification questions; please try again.");
     let value;
     try {
@@ -13216,23 +13243,23 @@ var _MindSearchManualFlow = class _MindSearchManualFlow {
       throw new Error("Invalid clarification questions; please try again.");
     return [...new Set(questions.map((q) => q.trim()))];
   }
-  async askMindSearchModel(context, model, reasoning, signal, onWebSearchEvent) {
+  async askAimModel(context, model, reasoning, signal, onWebSearchEvent) {
     var _a, _b, _c, _d, _e, _f, _g;
     const visibleEvidence = [context.task, context.detail, context.ancestors].filter((value) => typeof value === "string").join("\n");
     const visibleEvidenceIds = new Set(
       (_b = (_a = visibleEvidence.match(/Evidence ID: ([^\s]+)/g)) == null ? void 0 : _a.map((line) => line.slice(13))) != null ? _b : []
     );
-    const canLookupEvidence = ((_c = context.mindSearchEvidenceIds) != null ? _c : []).some((id) => visibleEvidenceIds.has(id));
-    const structuredLookup = canLookupEvidence && !!context.mindSearchContract;
+    const canLookupEvidence = ((_c = context.aimEvidenceIds) != null ? _c : []).some((id) => visibleEvidenceIds.has(id));
+    const structuredLookup = canLookupEvidence && !!context.aimContract;
     const sharedInstructions = [
       OUTCOME_EXPECTATION_RULE,
       ...canLookupEvidence ? [structuredLookup ? EVIDENCE_LOOKUP_FIELD_RULE : EVIDENCE_LOOKUP_RULE] : []
     ].join("\n");
     const prepared = {
       ...context,
-      promptProfile: "mindsearch",
+      promptProfile: "aim",
       detailFormat: "adaptive",
-      mindSearchEvidenceLookup: structuredLookup,
+      aimEvidenceLookup: structuredLookup,
       task: `${sharedInstructions}
 
 ${(_d = context.task) != null ? _d : ""}`
@@ -13245,7 +13272,7 @@ ${(_d = context.task) != null ? _d : ""}`
         if (task.includes(value.trim()) || escaped && task.includes(escaped)) prepared[field] = "";
       }
     }
-    const deduplicated = deduplicateMindSearchRequest(prepared);
+    const deduplicated = deduplicateAimRequest(prepared);
     const requestTokens = [
       deduplicated.title,
       deduplicated.summary,
@@ -13258,26 +13285,26 @@ ${(_d = context.task) != null ? _d : ""}`
     ].reduce((sum, value) => sum + estimateTokens(value), 0);
     if (requestTokens > 28e3)
       throw new Error(
-        `MindSearch model request is too large (${requestTokens} estimated tokens); no goal, condition, or evidence was discarded.`
+        `AIM model request is too large (${requestTokens} estimated tokens); no goal, condition, or evidence was discarded.`
       );
     const result = await this.askModel(deduplicated, model, reasoning, signal, onWebSearchEvent);
     throwIfAborted(signal);
-    const lookup = result.detail.match(/^\s*<!--\s*mindsearch-evidence-request\s+(\{[^\n]*\})\s*-->/);
+    const lookup = result.detail.match(/^\s*<!--\s*aim-evidence-request\s+(\{[^\n]*\})\s*-->/);
     if (!lookup) return result;
     const payload = JSON.parse(lookup[1]);
     const ids = payload && typeof payload === "object" && "ids" in payload ? payload.ids : void 0;
     const visibleIds = new Set(
       (_f = (_e = [deduplicated.task, deduplicated.detail, deduplicated.ancestors].join("\n").match(/Evidence ID: ([^\s]+)/g)) == null ? void 0 : _e.map((line) => line.slice(13))) != null ? _f : []
     );
-    const available = new Set(((_g = context.mindSearchEvidenceIds) != null ? _g : []).filter((id) => visibleIds.has(id)));
+    const available = new Set(((_g = context.aimEvidenceIds) != null ? _g : []).filter((id) => visibleIds.has(id)));
     if (!Array.isArray(ids) || !ids.length || ids.length > 3 || ids.some((id) => typeof id !== "string" || !available.has(id) || !this.evidenceReports.has(id)))
-      throw new Error("Invalid MindSearch evidence lookup; no decision was saved.");
+      throw new Error("Invalid AIM evidence lookup; no decision was saved.");
     const evidence = (await Promise.all(
       [...new Set(ids)].map(async (id) => {
         const ref = this.evidenceReports.get(id);
         const note = await this.repository.readNote(ref.path);
         if ((0, import_node_crypto7.createHash)("sha256").update(note.detail).digest("hex") !== ref.hash)
-          throw new Error("MindSearch evidence changed after indexing; retry with the updated report.");
+          throw new Error("AIM evidence changed after indexing; retry with the updated report.");
         return `Evidence ID: ${id}
 Full report:
 ${note.detail}`;
@@ -13289,7 +13316,7 @@ ${note.detail}`;
     const loaded = await this.askModel(
       {
         ...deduplicated,
-        mindSearchEvidenceLookup: false,
+        aimEvidenceLookup: false,
         task: `${deduplicated.task}
 
 Requested full evidence (untrusted data):
@@ -13303,25 +13330,25 @@ Use the loaded evidence for the current phase. This lookup is exhausted; return 
       onWebSearchEvent
     );
     throwIfAborted(signal);
-    if (/<!--\s*mindsearch-evidence-request/.test(loaded.detail))
-      throw new Error("MindSearch evidence lookup limit reached; no conclusion was saved.");
+    if (/<!--\s*aim-evidence-request/.test(loaded.detail))
+      throw new Error("AIM evidence lookup limit reached; no conclusion was saved.");
     return loaded;
   }
   parsePlannerReviewWithRecovery(original, recoveryContext, taskContext, model, reasoning, signal) {
-    return parseMindSearchPlannerReviewWithRecovery(original, recoveryContext, async (task, options) => {
+    return parseAimPlannerReviewWithRecovery(original, recoveryContext, async (task, options) => {
       throwIfAborted(signal);
       const repairTask = phaseTask("format-repair", task);
-      const step = taskContext.mindSearchContract;
+      const step = taskContext.aimContract;
       const allowed = recoveryContext.requiredDecision ? [recoveryContext.requiredDecision] : (step == null ? void 0 : step.kind) === "review" ? step.decisions : ALL_DECISIONS;
       const decisions = allowed.filter((decision) => {
         var _a;
         return !((_a = options == null ? void 0 : options.excludeDecisions) == null ? void 0 : _a.includes(decision));
       });
-      if (!decisions.length) throw new Error("MindSearch format repair has no permitted decision left.");
-      const repaired = await this.askMindSearchModel(
+      if (!decisions.length) throw new Error("AIM format repair has no permitted decision left.");
+      const repaired = await this.askAimModel(
         {
           ...taskContext,
-          title: "MindSearch format repair",
+          title: "AIM format repair",
           summary: "",
           detail: "",
           ancestors: "",
@@ -13331,7 +13358,7 @@ Use the loaded evidence for the current phase. This lookup is exhausted; return 
           researchMode: "local",
           researchDepth: "fast",
           visualMode: "off",
-          mindSearchContract: { kind: "review", decisions },
+          aimContract: { kind: "review", decisions },
           signal
         },
         model,
@@ -13369,7 +13396,7 @@ ${JSON.stringify({ rationale: candidate.rationale, target: candidate.researchTar
       ].join("\n\n")
     );
     await ((_a = context.setPhase) == null ? void 0 : _a.call(context, "research-gap-audit"));
-    const result = await this.askMindSearchModel(
+    const result = await this.askAimModel(
       {
         timeoutMs: context.timeoutMs,
         title: context.goal,
@@ -13383,7 +13410,7 @@ ${JSON.stringify({ rationale: candidate.rationale, target: candidate.researchTar
         researchMode: "local",
         researchDepth: "fast",
         visualMode: "off",
-        responseContract: "mindsearch-gap-audit",
+        responseContract: "aim-gap-audit",
         signal
       },
       model,
@@ -13393,10 +13420,10 @@ ${JSON.stringify({ rationale: candidate.rationale, target: candidate.researchTar
     throwIfAborted(signal);
     const classification = result.summary.trim();
     if (classification !== "user_condition" && classification !== "external_evidence")
-      throw new Error("MindSearch returned an invalid research-gap classification; no follow-up search was started.");
+      throw new Error("AIM returned an invalid research-gap classification; no follow-up search was started.");
     const rationale = result.detail.replace(/\s+/g, " ").trim().slice(0, 600);
     if (!rationale)
-      throw new Error("MindSearch returned an empty research-gap rationale; no follow-up search was started.");
+      throw new Error("AIM returned an empty research-gap rationale; no follow-up search was started.");
     return { classification, rationale };
   }
   async requireUserConditionQuestion(candidate, context, audit, model, reasoning, signal, allowReconciliation = true) {
@@ -13415,7 +13442,7 @@ Current answer: ${context.currentAnswer}`,
         "Treat supplied ranges and uncertainty as answers, not absent conditions. Do not repeat an answered question. If greater precision is genuinely needed, explicitly ask for that additional precision, explain why the supplied range is insufficient, and offer an unknown/not available choice. Do not merely relabel the same known condition or ask an unrelated question to evade this rule.",
         `Candidate answer summary to preserve: ${candidate.summary}`,
         `Candidate answer body to preserve (not new research context):
-${candidate.detail.replace(/^\s*<!--\s*mindsearch-review\s+[^\n]*?-->\s*/, "").trim()}`,
+${candidate.detail.replace(/^\s*<!--\s*aim-review\s+[^\n]*?-->\s*/, "").trim()}`,
         `Candidate rationale and proposed search target: ${JSON.stringify({ rationale: candidate.rationale, target: candidate.researchTarget })}`,
         "Return decision ask_user in the aim fields: why this user condition matters as aim.rationale, the one concise question as aim.question, and 2\u20135 choices in aim.answerOptions."
       ].join("\n\n")
@@ -13433,10 +13460,10 @@ ${candidate.detail.replace(/^\s*<!--\s*mindsearch-review\s+[^\n]*?-->\s*/, "").t
       researchMode: "local",
       researchDepth: "fast",
       visualMode: "off",
-      mindSearchContract: reviewContract(["ask_user"]),
+      aimContract: reviewContract(["ask_user"]),
       signal
     };
-    const corrected = await this.askMindSearchModel(correctionContext, model, reasoning, signal);
+    const corrected = await this.askAimModel(correctionContext, model, reasoning, signal);
     throwIfAborted(signal);
     const requiredDecisionRationale = audit.rationale;
     const question = extractPlannerQuestionCandidate(corrected);
@@ -13461,7 +13488,7 @@ ${candidate.detail.replace(/^\s*<!--\s*mindsearch-review\s+[^\n]*?-->\s*/, "").t
       signal
     );
     if (repaired.decision !== "ask_user")
-      throw new Error("MindSearch could not preserve the required user-condition question; no search was started.");
+      throw new Error("AIM could not preserve the required user-condition question; no search was started.");
     if (context.questionHistory.some(
       (question2) => {
         var _a;
@@ -13474,10 +13501,10 @@ ${candidate.detail.replace(/^\s*<!--\s*mindsearch-review\s+[^\n]*?-->\s*/, "").t
         return this.requireUserConditionQuestion(candidate, context, reconciled, model, reasoning, signal, false);
       }
       throw new Error(
-        "MindSearch could not ask a new user-condition question without repeating a prior question; no search was started."
+        "AIM could not ask a new user-condition question without repeating a prior question; no search was started."
       );
     }
-    const body = candidate.detail.replace(/^\s*<!--\s*mindsearch-review\s+[^\n]*?-->\s*/, "").trim();
+    const body = candidate.detail.replace(/^\s*<!--\s*aim-review\s+[^\n]*?-->\s*/, "").trim();
     return { ...repaired, summary: candidate.summary, detail: body };
   }
   /** One bounded, no-search semantic check for every Planner decision. */
@@ -13487,7 +13514,7 @@ ${candidate.detail.replace(/^\s*<!--\s*mindsearch-review\s+[^\n]*?-->\s*/, "").t
     const uniqueLineage = lineageWithoutRepeatedReports(context.lineage, context.reportDetail);
     const taskContext = {
       timeoutMs: context.timeoutMs,
-      mindSearchEvidenceIds: context.evidenceIds,
+      aimEvidenceIds: context.evidenceIds,
       title: context.goal,
       summary: "",
       detail: "",
@@ -13535,9 +13562,9 @@ ${context.reportDetail}`,
       const correctionContext = {
         ...taskContext,
         task: phaseTask("decision-quality-review", correctionTask),
-        mindSearchContract: reviewContract(["ask_user"])
+        aimContract: reviewContract(["ask_user"])
       };
-      const correctedResult = await this.askMindSearchModel(correctionContext, model, reasoning, signal);
+      const correctedResult = await this.askAimModel(correctionContext, model, reasoning, signal);
       throwIfAborted(signal);
       reviewed = await this.parsePlannerReviewWithRecovery(
         correctedResult,
@@ -13567,7 +13594,7 @@ ${context.reportDetail}`,
       );
       if (reviewed.decision !== "ask_user" || repeatsQuestion)
         throw new Error(
-          "MindSearch could not produce a compliant meaningful question below the conclusion floor; the result was not committed."
+          "AIM could not produce a compliant meaningful question below the conclusion floor; the result was not committed."
         );
     }
     if (!belowFloor && reviewed.decision === "research_more" && reviewed.goalAnswered === true) {
@@ -13594,9 +13621,9 @@ ${context.reportDetail}`,
       const correctionContext = {
         ...taskContext,
         task: phaseTask("decision-quality-review", correctionTask),
-        mindSearchContract: reviewContract(["conclude", "ask_user"])
+        aimContract: reviewContract(["conclude", "ask_user"])
       };
-      const correctedResult = await this.askMindSearchModel(correctionContext, model, reasoning, signal);
+      const correctedResult = await this.askAimModel(correctionContext, model, reasoning, signal);
       throwIfAborted(signal);
       reviewed = await this.parsePlannerReviewWithRecovery(
         correctedResult,
@@ -13623,7 +13650,7 @@ ${context.reportDetail}`,
       );
       if (reviewed.decision === "research_more" || repeatsQuestion)
         throw new Error(
-          "MindSearch could not replace research on an already answered goal with a conclusion or a new question; the result was not committed."
+          "AIM could not replace research on an already answered goal with a conclusion or a new question; the result was not committed."
         );
     }
     if (reviewed.decision === "conclude") {
@@ -13645,7 +13672,7 @@ ${context.reportDetail}`
       let phase = (_c = context.deliveryRecovery) == null ? void 0 : _c.phase;
       const delivery = await buildFinalDelivery(
         deliveryContext,
-        (step) => this.askMindSearchModel(step, model, reasoning, signal),
+        (step) => this.askAimModel(step, model, reasoning, signal),
         {
           checkpoint,
           timeoutMs: context.timeoutMs,
@@ -13707,14 +13734,14 @@ ${delivery.evidence}` },
     return reviewed;
   }
   answerCountInLineage(map, branchId) {
-    return countMindSearchAnsweredQuestions(map, branchId);
+    return countAimAnsweredQuestions(map, branchId);
   }
   async savedTerminalResult(mapPath, branchId) {
     var _a, _b, _c;
-    const map = await this.repository.readMap(mapPath), branch = (_a = map.mindSearch) == null ? void 0 : _a.branches.find((item) => item.id === branchId);
+    const map = await this.repository.readMap(mapPath), branch = (_a = map.aim) == null ? void 0 : _a.branches.find((item) => item.id === branchId);
     const resultRef = branch && [...branch.results].reverse().find((item) => item.kind === "conclusion" || item.kind === "synthesis");
     if (!branch || !resultRef) return void 0;
-    const attempt = (_c = (_b = map.mindSearch) == null ? void 0 : _b.runs.find((item) => item.id === resultRef.runId)) == null ? void 0 : _c.attempts.find((item) => item.id === resultRef.attemptId);
+    const attempt = (_c = (_b = map.aim) == null ? void 0 : _b.runs.find((item) => item.id === resultRef.runId)) == null ? void 0 : _c.attempts.find((item) => item.id === resultRef.attemptId);
     const result = {
       status: "committed",
       resultId: resultRef.resultId,
@@ -13724,7 +13751,7 @@ ${delivery.evidence}` },
     const question = map.nodes.find(
       (node) => {
         var _a2;
-        return node.parentId === resultRef.nodeId && ((_a2 = node.mindSearchQuestion) == null ? void 0 : _a2.parentBranchId) === branchId;
+        return node.parentId === resultRef.nodeId && ((_a2 = node.aimQuestion) == null ? void 0 : _a2.parentBranchId) === branchId;
       }
     );
     if (question) return { status: "waiting-user", branchId, result, questionNodeId: question.id };
@@ -13732,7 +13759,7 @@ ${delivery.evidence}` },
   }
   async recoverQuestionDraft(mapPath) {
     var _a;
-    const map = await this.repository.readMap(mapPath), draft = (_a = map.mindSearch) == null ? void 0 : _a.questionDraft;
+    const map = await this.repository.readMap(mapPath), draft = (_a = map.aim) == null ? void 0 : _a.questionDraft;
     if (!draft) return false;
     await this.persist(() => this.commitQuestionDraft(mapPath, map, draft));
     return true;
@@ -13741,21 +13768,21 @@ ${delivery.evidence}` },
     var _a, _b, _c, _d, _e, _f, _g, _h, _i;
     let created = 0;
     const initial = await this.repository.readMap(mapPath);
-    if ((_a = initial.mindSearch) == null ? void 0 : _a.questionDraft) return 0;
-    for (const run of (_c = (_b = initial.mindSearch) == null ? void 0 : _b.runs) != null ? _c : []) {
+    if ((_a = initial.aim) == null ? void 0 : _a.questionDraft) return 0;
+    for (const run of (_c = (_b = initial.aim) == null ? void 0 : _b.runs) != null ? _c : []) {
       const attempt = run.attempts.find((item) => item.id === run.currentAttemptId);
       const review = (_d = attempt == null ? void 0 : attempt.plannerReviews) == null ? void 0 : _d.find((item) => item.decision === "ask_user");
       if (!attempt || attempt.status !== "completed" && attempt.status !== "partial" || !(review == null ? void 0 : review.question) || !((_e = review.answerOptions) == null ? void 0 : _e.length))
         continue;
-      const latest = await this.repository.readMap(mapPath), branch = (_f = latest.mindSearch) == null ? void 0 : _f.branches.find((item) => item.id === run.branchId);
+      const latest = await this.repository.readMap(mapPath), branch = (_f = latest.aim) == null ? void 0 : _f.branches.find((item) => item.id === run.branchId);
       const result = branch == null ? void 0 : branch.results.find((item) => item.runId === run.id && item.attemptId === attempt.id);
       if (!branch || !result) continue;
       const resultNode = latest.nodes.find((node) => node.id === result.nodeId);
-      if ((_g = resultNode == null ? void 0 : resultNode.mindSearchDismissedQuestionRequestIds) == null ? void 0 : _g.includes(`post-${run.id}-${attempt.id}`)) continue;
+      if ((_g = resultNode == null ? void 0 : resultNode.aimDismissedQuestionRequestIds) == null ? void 0 : _g.includes(`post-${run.id}-${attempt.id}`)) continue;
       const existing = latest.nodes.some(
         (node) => {
           var _a2, _b2;
-          return ((_a2 = node.mindSearchQuestion) == null ? void 0 : _a2.parentBranchId) === branch.id && (node.parentId === result.nodeId || ((_b2 = node.mindSearchConvergesFromNodeIds) == null ? void 0 : _b2.includes(result.nodeId)));
+          return ((_a2 = node.aimQuestion) == null ? void 0 : _a2.parentBranchId) === branch.id && (node.parentId === result.nodeId || ((_b2 = node.aimConvergesFromNodeIds) == null ? void 0 : _b2.includes(result.nodeId)));
         }
       );
       if (existing) continue;
@@ -13781,11 +13808,11 @@ ${delivery.evidence}` },
   async reviewFailedAttemptReport(mapPath, runId, diagnosticNotePath, signal) {
     var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j;
     throwIfAborted(signal);
-    const map = await this.repository.readMap(mapPath), run = (_a = map.mindSearch) == null ? void 0 : _a.runs.find((item) => item.id === runId);
+    const map = await this.repository.readMap(mapPath), run = (_a = map.aim) == null ? void 0 : _a.runs.find((item) => item.id === runId);
     const priorAttempt = run == null ? void 0 : run.attempts.find((item) => item.id === run.currentAttemptId);
     if (!run || !priorAttempt || priorAttempt.status !== "failed")
-      throw new Error("A saved failed MindSearch attempt is required to review a diagnostic report.");
-    const branch = (_b = map.mindSearch) == null ? void 0 : _b.branches.find((item) => item.id === run.branchId), questionNode = branch && map.nodes.find((item) => item.id === branch.questionNodeId);
+      throw new Error("A saved failed AIM attempt is required to review a diagnostic report.");
+    const branch = (_b = map.aim) == null ? void 0 : _b.branches.find((item) => item.id === run.branchId), questionNode = branch && map.nodes.find((item) => item.id === branch.questionNodeId);
     if (!branch || !questionNode) throw new Error("The failed run's answer branch or question is missing.");
     const expectedFolder = this.repository.topicFolder(mapPath, "Notes");
     if (!diagnosticNotePath.startsWith(`${expectedFolder}/`))
@@ -13794,13 +13821,13 @@ ${delivery.evidence}` },
     const isWrapped = diagnostic.detail.includes("**Status:** Diagnostic only.");
     const provenance = `**Prior attempt:** ${branch.id} / ${priorAttempt.id}; the persisted attempt remains failed.`;
     const structured = priorAttempt.retainedReports !== void 0;
-    const savedReports = extractMindSearchFailedReport(diagnostic, priorAttempt, diagnosticNotePath);
+    const savedReports = extractAimFailedReport(diagnostic, priorAttempt, diagnosticNotePath);
     if (!savedReports || !structured && isWrapped && !diagnostic.detail.includes(provenance))
       throw new Error(
         "The note is not a retained Searcher report for this failed attempt with completed-search evidence."
       );
     if (!structured && !isWrapped) {
-      const sameOrdinalFailures = ((_d = (_c = map.mindSearch) == null ? void 0 : _c.runs) != null ? _d : []).filter((candidate) => {
+      const sameOrdinalFailures = ((_d = (_c = map.aim) == null ? void 0 : _c.runs) != null ? _d : []).filter((candidate) => {
         const current = candidate.attempts.find((item) => item.id === candidate.currentAttemptId);
         return (current == null ? void 0 : current.id) === priorAttempt.id && current.status === "failed";
       });
@@ -13808,10 +13835,10 @@ ${delivery.evidence}` },
         throw new Error("The native diagnostic attempt number is ambiguous across failed runs in this map.");
     }
     const parent = await this.repository.readNote(questionNode.path);
-    const topicNode = map.nodes.find((node) => node.mindSearchKind === "topic"), topic = topicNode ? await this.repository.readNote(topicNode.path) : parent;
+    const topicNode = map.nodes.find((node) => node.aimKind === "topic"), topic = topicNode ? await this.repository.readNote(topicNode.path) : parent;
     const lineage = await this.branchLineage(map, branch.parentBranchId);
     const questionHistory = await this.questionHistory(map, branch.id);
-    const explorationTarget = (_f = (_e = map.mindSearch) == null ? void 0 : _e.minimumAnswersBeforeConclusion) != null ? _f : 2;
+    const explorationTarget = (_f = (_e = map.aim) == null ? void 0 : _e.minimumAnswersBeforeConclusion) != null ? _f : 2;
     const answeredQuestionCount = this.answerCountInLineage(map, branch.id);
     const model = diagnostic.model || priorAttempt.model || "gpt-6-luna";
     const taskDefaults = {
@@ -13836,7 +13863,7 @@ ${delivery.evidence}` },
       () => this.runs.startAttempt(mapPath, branch.id, run.id, {
         model,
         reasoning,
-        maxResearchTurns: MINDSEARCH_MAX_RESEARCH_TURNS
+        maxResearchTurns: AIM_MAX_RESEARCH_TURNS
       })
     );
     if (!handle.dispatch) return { status: "in-progress", branchId: branch.id };
@@ -13847,7 +13874,7 @@ ${delivery.evidence}` },
         () => this.runs.createResultDraft(
           mapPath,
           handle,
-          translate(this.repository.settings.language, "note.mindsearch_answer_research_0", parent.summary),
+          translate(this.repository.settings.language, "note.aim_answer_research_0", parent.summary),
           model,
           reasoning
         )
@@ -13875,7 +13902,7 @@ ${item.detail}`).join("\n\n");
 ${report.detail}`).join("\n\n")
         };
         const plannerPrompt = [
-          "You are the Planner reviewing saved Searcher reports in a Manual MindSearch branch. Return a useful conditional answer and exactly one decision in the aim fields with an evidence-based aim.rationale; for conclude, aim.stopReason says why the answer is complete.",
+          "You are the Planner reviewing saved Searcher reports in a Manual AIM branch. Return a useful conditional answer and exactly one decision in the aim fields with an evidence-based aim.rationale; for conclude, aim.stopReason says why the answer is complete.",
           "Choose research_more only when one specific evidence gap could materially change the answer; give exactly one aim.researchTarget with title, search task, and expected uncertainty reduction. Choose ask_user only when a material user condition is absent from all known context and cannot be handled with a conditional answer; give one direct aim.question and 2\u20135 aim.answerOptions. Treat supplied values as valid scenario conditions even when synthetic: preserve provenance, do not misattribute them as the real person's preferences, and do not ask the user to confirm test data. Otherwise conclude with the strongest honest conditional answer and its limits.",
           PLANNER_COVERAGE_RULE,
           `Hard floor: ${answeredQuestionCount} answered question node(s) on this branch path; do not conclude before ${MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION}. At the floor, the configured exploration target (${explorationTarget}) is a soft depth preference; do not require reaching 10 or add quota filler. Below the floor, ask one meaningful new question about an unknown decision-relevant dimension. ${FLOOR_ASK_RULE} ${USER_QUESTION_RULE}`,
@@ -13892,7 +13919,7 @@ ${aggregate.summary}
 ${aggregate.detail}`
         ].join("\n\n");
         const plannerContext = {
-          mindSearchEvidenceIds: this.lineageEvidenceIds(map, branch.parentBranchId),
+          aimEvidenceIds: this.lineageEvidenceIds(map, branch.parentBranchId),
           title: topic.title,
           summary: aggregate.summary,
           rules: "",
@@ -13911,10 +13938,10 @@ Branch conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
           researchDepth: "fast",
           visualMode: "off",
           detailFormat: "adaptive",
-          mindSearchContract: reviewContract(floorDecisions(answeredQuestionCount)),
+          aimContract: reviewContract(floorDecisions(answeredQuestionCount)),
           signal
         };
-        const planner = await this.askMindSearchModel(plannerContext, model, reasoning, signal);
+        const planner = await this.askAimModel(plannerContext, model, reasoning, signal);
         throwIfAborted(signal);
         finalReview = await this.parsePlannerReviewWithRecovery(
           planner,
@@ -13931,7 +13958,7 @@ Branch conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
             ancestors: plannerContext.ancestors,
             outputLanguage: this.repository.settings.language,
             detailFormat: "adaptive",
-            mindSearchContract: plannerContext.mindSearchContract
+            aimContract: plannerContext.aimContract
           },
           model,
           reasoning,
@@ -13957,7 +13984,7 @@ Branch conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
           signal
         );
         throwIfAborted(signal);
-        if (finalReview.decision !== "research_more" || reviewTurn === MINDSEARCH_MAX_RESEARCH_TURNS) {
+        if (finalReview.decision !== "research_more" || reviewTurn === AIM_MAX_RESEARCH_TURNS) {
           const stopReason2 = finalReview.decision === "conclude" ? finalReview.stopReason : finalReview.decision === "ask_user" ? `Awaiting the user's answer to: ${finalReview.question}` : `One bounded follow-up was used; a material gap remains: ${finalReview.rationale}`;
           await this.persist(
             () => this.runs.recordPlannerReview(
@@ -13998,7 +14025,7 @@ ${aggregate.detail}`,
           "Return a concise useful report with findings, reasoning, sources when available, and remaining limitations. Keep the answer's synthetic provenance explicit."
         ].join("\n\n");
         const { diagnostic: diagnosticEvents, onEvent } = createSearchDiagnostic(reviewTurn + 1);
-        const followup = await this.askMindSearchModel(
+        const followup = await this.askAimModel(
           {
             title: parent.summary,
             summary: parent.summary,
@@ -14015,7 +14042,7 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
             researchMode: "research",
             researchDepth: "normal",
             visualMode: "off",
-            mindSearchIsolatedResearch: true,
+            aimIsolatedResearch: true,
             signal
           },
           model,
@@ -14043,12 +14070,12 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
         "Agent-reported sources are not independently verified by VAM."
       ].join("\n\n");
       const presentation = finalReview.decision === "conclude" ? {
-        title: translate(this.repository.settings.language, "note.mindsearch_conclusion"),
+        title: translate(this.repository.settings.language, "note.aim_conclusion"),
         kind: "conclusion"
       } : {
         title: translate(
           this.repository.settings.language,
-          finalReview.decision === "research_more" ? "note.mindsearch_needs_followup" : "note.mindsearch_synthesis"
+          finalReview.decision === "research_more" ? "note.aim_needs_followup" : "note.aim_synthesis"
         ),
         kind: "synthesis"
       };
@@ -14068,7 +14095,7 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
       });
       if (committed.status !== "committed") return { status: "stale", branchId: branch.id };
       if (finalReview.decision === "ask_user") {
-        const latestMap = await this.repository.readMap(mapPath), resultRef = (_j = (_i = latestMap.mindSearch) == null ? void 0 : _i.branches.find((item) => item.id === branch.id)) == null ? void 0 : _j.results.find((item) => item.runId === handle.runId && item.attemptId === handle.attemptId);
+        const latestMap = await this.repository.readMap(mapPath), resultRef = (_j = (_i = latestMap.aim) == null ? void 0 : _i.branches.find((item) => item.id === branch.id)) == null ? void 0 : _j.results.find((item) => item.runId === handle.runId && item.attemptId === handle.attemptId);
         if (!resultRef)
           throw new Error("Planner conclusion was committed without a result reference for its follow-up question.");
         const questionResult = await this.saveManualQuestion(
@@ -14120,40 +14147,40 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
   async continuePartial(mapPath, runId, model, reasoning, signal) {
     const key2 = `${mapPath}
 ${runId}`, fingerprint2 = JSON.stringify({ model, reasoning });
-    const existing = _MindSearchManualFlow.continuationRuns.get(key2);
+    const existing = _AimManualFlow.continuationRuns.get(key2);
     if (existing) {
       if (existing.fingerprint !== fingerprint2)
         throw new Error("This partial continuation is already running with different model settings.");
       return existing.promise;
     }
     const promise = this.runPartialContinuation(mapPath, runId, model, reasoning, signal).finally(
-      () => _MindSearchManualFlow.continuationRuns.delete(key2)
+      () => _AimManualFlow.continuationRuns.delete(key2)
     );
-    _MindSearchManualFlow.continuationRuns.set(key2, { fingerprint: fingerprint2, promise });
+    _AimManualFlow.continuationRuns.set(key2, { fingerprint: fingerprint2, promise });
     return promise;
   }
   async runPartialContinuation(mapPath, runId, model, reasoning, signal) {
     var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p;
     throwIfAborted(signal);
-    const map = await this.repository.readMap(mapPath), run = (_a = map.mindSearch) == null ? void 0 : _a.runs.find((item) => item.id === runId);
+    const map = await this.repository.readMap(mapPath), run = (_a = map.aim) == null ? void 0 : _a.runs.find((item) => item.id === runId);
     const currentAttempt = run == null ? void 0 : run.attempts.find((item) => item.id === run.currentAttemptId);
     if (!run || !currentAttempt || ["running", "saving"].includes(currentAttempt.status) || !["partial", "failed", "cancelled"].includes(currentAttempt.status))
       throw new Error("Only a saved partial branch without active work can be continued.");
     const priorAttempt = [...run.attempts].reverse().find((item) => item.status === "partial");
     if (!priorAttempt) throw new Error("This run has no saved partial attempt to continue.");
-    const branch = map.mindSearch.branches.find((item) => item.id === run.branchId), questionNode = branch && map.nodes.find((item) => item.id === branch.questionNodeId);
+    const branch = map.aim.branches.find((item) => item.id === run.branchId), questionNode = branch && map.nodes.find((item) => item.id === branch.questionNodeId);
     const priorRef = branch == null ? void 0 : branch.results.find((item) => item.runId === run.id && item.attemptId === priorAttempt.id);
     if (!branch || !questionNode || !priorRef)
       throw new Error("The partial result or its answer branch is missing; it cannot be continued safely.");
     const priorNote = await this.repository.readNote(priorRef.notePath), parent = await this.repository.readNote(questionNode.path);
-    const topicNode = (_b = map.nodes.find((item) => item.mindSearchKind === "topic")) != null ? _b : map.nodes.find((item) => item.parentId === null);
+    const topicNode = (_b = map.nodes.find((item) => item.aimKind === "topic")) != null ? _b : map.nodes.find((item) => item.parentId === null);
     const topicNote = topicNode ? await this.repository.readNote(topicNode.path) : parent;
     const lineage = await this.branchLineage(map, branch.parentBranchId);
     const savedResearchNodeIds = [
       ...new Set(
         branch.results.filter(
           (result) => result.kind === "research" && !!result.subtopicId && map.nodes.some(
-            (node) => node.id === result.nodeId && node.mindSearchKind === "research" && node.parentId === branch.questionNodeId
+            (node) => node.id === result.nodeId && node.aimKind === "research" && node.parentId === branch.questionNodeId
           )
         ).map((result) => result.nodeId)
       )
@@ -14164,7 +14191,7 @@ ${runId}`, fingerprint2 = JSON.stringify({ model, reasoning });
       convergesFromNodeIds: savedResearchNodeIds
     } : void 0;
     const answeredQuestionCount = this.answerCountInLineage(map, branch.id);
-    const explorationTarget = (_d = (_c = map.mindSearch) == null ? void 0 : _c.minimumAnswersBeforeConclusion) != null ? _d : 2;
+    const explorationTarget = (_d = (_c = map.aim) == null ? void 0 : _c.minimumAnswersBeforeConclusion) != null ? _d : 2;
     const questionsAlreadyAsked = await this.questionHistory(map, branch.id);
     const modelToUse = (model == null ? void 0 : model.trim()) || priorAttempt.model || "gpt-6-luna";
     const taskDefaults = {
@@ -14189,7 +14216,7 @@ ${runId}`, fingerprint2 = JSON.stringify({ model, reasoning });
       () => this.runs.startAttempt(mapPath, branch.id, run.id, {
         model: modelToUse,
         reasoning: reasoningToUse,
-        maxResearchTurns: MINDSEARCH_MAX_RESEARCH_TURNS
+        maxResearchTurns: AIM_MAX_RESEARCH_TURNS
       })
     );
     if (!handle.dispatch) return { status: "in-progress", branchId: branch.id };
@@ -14269,12 +14296,12 @@ ${runId}`, fingerprint2 = JSON.stringify({ model, reasoning });
             return { status: "stale", branchId: branch.id };
         } else preclassifiedResearchTarget = priorDecision.researchTarget;
       }
-      for (let researchTurn = 1; !review && researchTurn <= MINDSEARCH_MAX_RESEARCH_TURNS; researchTurn++) {
+      for (let researchTurn = 1; !review && researchTurn <= AIM_MAX_RESEARCH_TURNS; researchTurn++) {
         throwIfAborted(signal);
         await this.persist(() => this.runs.recordResearchTurn(mapPath, handle));
         const { diagnostic, onEvent } = createSearchDiagnostic(researchTurn);
         const task = [
-          "Continue this saved partial Manual MindSearch branch. Preserve the original answer snapshot; do not change or infer the user's answer.",
+          "Continue this saved partial Manual AIM branch. Preserve the original answer snapshot; do not change or infer the user's answer.",
           SEARCHER_TARGET_RULE,
           (latestReview == null ? void 0 : latestReview.researchTarget) ? `Planner-directed continuation target: ${latestReview.researchTarget.title}
 Search instruction: ${latestReview.researchTarget.task}
@@ -14294,10 +14321,10 @@ ${report.detail}`,
         ].join("\n\n");
         let searcher;
         try {
-          searcher = await this.askMindSearchModel(
+          searcher = await this.askAimModel(
             {
               timeoutMs: branch.retryTimeoutMs,
-              mindSearchEvidenceIds: this.lineageEvidenceIds(map, branch.parentBranchId),
+              aimEvidenceIds: this.lineageEvidenceIds(map, branch.parentBranchId),
               title: topicNote.title,
               summary: report.summary,
               rules: "",
@@ -14316,7 +14343,7 @@ Persisted answer branch conditions: ${JSON.stringify(branch.inputSnapshot.condit
               researchDepth: "normal",
               visualMode: "off",
               detailFormat: "adaptive",
-              mindSearchIsolatedResearch: true,
+              aimIsolatedResearch: true,
               signal
             },
             modelToUse,
@@ -14376,7 +14403,7 @@ ${report.detail}`
         ].join("\n\n");
         const plannerContext = {
           timeoutMs: branch.retryTimeoutMs,
-          mindSearchEvidenceIds: this.lineageEvidenceIds(map, branch.parentBranchId),
+          aimEvidenceIds: this.lineageEvidenceIds(map, branch.parentBranchId),
           title: topicNote.title,
           summary: report.summary,
           rules: "",
@@ -14395,10 +14422,10 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
           researchDepth: "fast",
           visualMode: "off",
           detailFormat: "adaptive",
-          mindSearchContract: reviewContract(floorDecisions(answeredQuestionCount)),
+          aimContract: reviewContract(floorDecisions(answeredQuestionCount)),
           signal
         };
-        const planner = await this.askMindSearchModel(plannerContext, modelToUse, reasoningToUse, signal);
+        const planner = await this.askAimModel(plannerContext, modelToUse, reasoningToUse, signal);
         throwIfAborted(signal);
         review = await this.parsePlannerReviewWithRecovery(
           planner,
@@ -14436,7 +14463,7 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
         );
         throwIfAborted(signal);
         latestReview = { rationale: review.rationale, researchTarget: review.researchTarget };
-        if (review.decision === "research_more" && researchTurn < MINDSEARCH_MAX_RESEARCH_TURNS) {
+        if (review.decision === "research_more" && researchTurn < AIM_MAX_RESEARCH_TURNS) {
           await this.persist(
             () => this.runs.recordPlannerReview(mapPath, handle, {
               decision: review.decision,
@@ -14482,7 +14509,7 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
         "Agent-reported sources were not independently verified by VAM."
       ].join("\n\n");
       const finalKind = finalReview.decision === "conclude" ? "conclusion" : "synthesis";
-      const finalTitle = finalReview.decision === "conclude" ? translate(this.repository.settings.language, "note.mindsearch_conclusion") : finalReview.decision === "research_more" ? translate(this.repository.settings.language, "note.mindsearch_needs_followup") : translate(this.repository.settings.language, "note.mindsearch_synthesis");
+      const finalTitle = finalReview.decision === "conclude" ? translate(this.repository.settings.language, "note.aim_conclusion") : finalReview.decision === "research_more" ? translate(this.repository.settings.language, "note.aim_needs_followup") : translate(this.repository.settings.language, "note.aim_synthesis");
       if (!await this.persist(
         () => this.runs.updateResultDraftPresentation(mapPath, handle, finalDraft.id, finalTitle, finalKind)
       ))
@@ -14494,7 +14521,7 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
           handle,
           finalDraft.id,
           {
-            summary: finalReview.decision === "research_more" ? translate(this.repository.settings.language, "note.mindsearch_partial_summary_0", finalReview.summary) : finalReview.summary,
+            summary: finalReview.decision === "research_more" ? translate(this.repository.settings.language, "note.aim_partial_summary_0", finalReview.summary) : finalReview.summary,
             detail
           },
           finalReview.decision === "research_more" ? "partial" : "completed"
@@ -14502,7 +14529,7 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
       });
       if (committed.status !== "committed") return { status: "stale", branchId: branch.id };
       if (review.decision === "ask_user") {
-        const latest = await this.repository.readMap(mapPath), newResult = (_p = (_o = latest.mindSearch) == null ? void 0 : _o.branches.find((item) => item.id === branch.id)) == null ? void 0 : _p.results.at(-1);
+        const latest = await this.repository.readMap(mapPath), newResult = (_p = (_o = latest.aim) == null ? void 0 : _o.branches.find((item) => item.id === branch.id)) == null ? void 0 : _p.results.at(-1);
         if (!newResult)
           throw new Error("Continuation result was committed without a result parent for the pending question.");
         const answerOptions = normalizePersistedAnswerOptions(review.answerOptions);
@@ -14550,7 +14577,7 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
     throwIfAborted(signal);
     const key2 = `${mapPath}
 ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, model, reasoning });
-    const active = _MindSearchManualFlow.questionPlans.get(key2);
+    const active = _AimManualFlow.questionPlans.get(key2);
     if (active) {
       if (active.fingerprint !== fingerprint2)
         throw new Error("This Planner question identity is already running with different input.");
@@ -14574,9 +14601,9 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
       controller.signal
     ).finally(() => {
       entry.settled = true;
-      if (_MindSearchManualFlow.questionPlans.get(key2) === entry) _MindSearchManualFlow.questionPlans.delete(key2);
+      if (_AimManualFlow.questionPlans.get(key2) === entry) _AimManualFlow.questionPlans.delete(key2);
     });
-    _MindSearchManualFlow.questionPlans.set(key2, entry);
+    _AimManualFlow.questionPlans.set(key2, entry);
     return this.subscribeToQuestionPlan(key2, entry, signal);
   }
   subscribeToQuestionPlan(key2, entry, signal) {
@@ -14589,7 +14616,7 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
         signal == null ? void 0 : signal.removeEventListener("abort", onAbort);
         entry.subscribers.delete(subscriber);
         if (!entry.settled && entry.subscribers.size === 0) {
-          if (_MindSearchManualFlow.questionPlans.get(key2) === entry) _MindSearchManualFlow.questionPlans.delete(key2);
+          if (_AimManualFlow.questionPlans.get(key2) === entry) _AimManualFlow.questionPlans.delete(key2);
           entry.controller.abort();
         }
       };
@@ -14623,16 +14650,16 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
     var _a, _b, _c;
     throwIfAborted(signal);
     if (!requestId.trim()) throw new Error("Planner question request identity is required.");
-    const map = await this.repository.readMap(mapPath), state = map.mindSearch;
-    if (!state) throw new Error("MindSearch map data is missing.");
+    const map = await this.repository.readMap(mapPath), state = map.aim;
+    if (!state) throw new Error("AIM map data is missing.");
     const existingQuestion = map.nodes.find((node) => {
       var _a2;
-      return ((_a2 = node.mindSearchQuestion) == null ? void 0 : _a2.requestId) === requestId;
+      return ((_a2 = node.aimQuestion) == null ? void 0 : _a2.requestId) === requestId;
     });
-    if (existingQuestion == null ? void 0 : existingQuestion.mindSearchQuestion) {
-      if (existingQuestion.parentId !== parentNodeId || ((_a = existingQuestion.mindSearchQuestion.parentBranchId) != null ? _a : null) !== parentBranchId)
+    if (existingQuestion == null ? void 0 : existingQuestion.aimQuestion) {
+      if (existingQuestion.parentId !== parentNodeId || ((_a = existingQuestion.aimQuestion.parentBranchId) != null ? _a : null) !== parentBranchId)
         throw new Error("This Planner question identity was already used for another parent node or branch.");
-      return { status: "question", node: existingQuestion, options: existingQuestion.mindSearchQuestion.options };
+      return { status: "question", node: existingQuestion, options: existingQuestion.aimQuestion.options };
     }
     if (state.questionDraft) {
       if (state.questionDraft.requestId !== requestId)
@@ -14642,13 +14669,13 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
       throwIfAborted(signal);
       await this.persist(() => this.commitQuestionDraft(mapPath, map, state.questionDraft));
       const recovered = await this.repository.readMap(mapPath), node = recovered.nodes.find((item) => item.id === state.questionDraft.nodeId);
-      return { status: "question", node, options: node.mindSearchQuestion.options };
+      return { status: "question", node, options: node.aimQuestion.options };
     }
     const parentNode = map.nodes.find((item) => item.id === parentNodeId);
-    if (!parentNode) throw new Error("MindSearch question parent does not exist.");
+    if (!parentNode) throw new Error("AIM question parent does not exist.");
     const parentBranch = parentBranchId ? state.branches.find((branch) => branch.id === parentBranchId) : void 0;
     const branchResult = parentBranch == null ? void 0 : parentBranch.results.find((result2) => result2.nodeId === parentNodeId);
-    const isSavedTerminalResult = !!branchResult && (parentNode.mindSearchKind === "synthesis" || parentNode.mindSearchKind === "conclusion") && (!branchResult.kind || branchResult.kind === parentNode.mindSearchKind);
+    const isSavedTerminalResult = !!branchResult && (parentNode.aimKind === "synthesis" || parentNode.aimKind === "conclusion") && (!branchResult.kind || branchResult.kind === parentNode.aimKind);
     const expectedResultBranchSnapshot = isSavedTerminalResult && parentBranch ? JSON.stringify({
       inputSnapshot: parentBranch.inputSnapshot,
       results: parentBranch.results.map(({ nodeId, version }) => ({ nodeId, version }))
@@ -14657,10 +14684,10 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
       if (!parentBranch || !parentBranch.results.some((result2) => result2.nodeId === parentNodeId))
         throw new Error("A follow-up Planner question must attach to a result in its parent answer branch.");
     }
-    if ((parentNode.mindSearchKind === "synthesis" || parentNode.mindSearchKind === "conclusion") && !isSavedTerminalResult)
+    if ((parentNode.aimKind === "synthesis" || parentNode.aimKind === "conclusion") && !isSavedTerminalResult)
       throw new Error("A new follow-up question must attach to a saved synthesis or conclusion in its answer branch.");
     const parent = await this.repository.readNote(parentNode.path);
-    const motherNode = map.nodes.find((node) => node.mindSearchKind === "topic");
+    const motherNode = map.nodes.find((node) => node.aimKind === "topic");
     const mother = motherNode && motherNode.id !== parentNode.id ? await this.repository.readNote(motherNode.path) : parent;
     const lineage = await this.branchLineage(map, parentBranchId);
     const explorationTarget = (_c = state.minimumAnswersBeforeConclusion) != null ? _c : 2;
@@ -14676,7 +14703,7 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
       map.nodes.filter(
         (node) => {
           var _a2;
-          return node.parentId === parentNodeId && node.mindSearchKind === "question" && ((_a2 = node.mindSearchQuestion) == null ? void 0 : _a2.parentBranchId) === parentBranchId;
+          return node.parentId === parentNodeId && node.aimKind === "question" && ((_a2 = node.aimQuestion) == null ? void 0 : _a2.parentBranchId) === parentBranchId;
         }
       ).map(async (node) => (await this.repository.readNote(node.path)).summary)
     ) : [];
@@ -14684,7 +14711,7 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
       if (run.branchId !== parentBranchId) return [];
       return run.attempts.flatMap((attempt) => {
         var _a2, _b2;
-        if (!((_a2 = parentNode.mindSearchDismissedQuestionRequestIds) == null ? void 0 : _a2.includes(`post-${run.id}-${attempt.id}`))) return [];
+        if (!((_a2 = parentNode.aimDismissedQuestionRequestIds) == null ? void 0 : _a2.includes(`post-${run.id}-${attempt.id}`))) return [];
         const result2 = parentBranch == null ? void 0 : parentBranch.results.find(
           (item) => item.runId === run.id && item.attemptId === attempt.id && item.nodeId === parentNodeId
         );
@@ -14705,7 +14732,7 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
           "The user explicitly requested a new follow-up question from this saved research result. Always create exactly one NEW question, even if earlier questions were asked or the branch meets its exploration target. Never return a conclusion, no-question marker, or research plan.",
           "Use only the persisted branch conditions and saved reports below to identify a genuinely useful unresolved user choice. Do not repeat any prior or sibling question. Do not answer the question, choose an option, or start research. Return decision ask_user with the actual question in aim.question and 2\u20135 distinct choices in aim.answerOptions."
         ] : [],
-        "Plan the next Manual MindSearch interaction for this user's research. Do not answer on the user's behalf and do not search the web in this Planner turn.",
+        "Plan the next Manual AIM interaction for this user's research. Do not answer on the user's behalf and do not search the web in this Planner turn.",
         USER_QUESTION_RULE,
         "Decide whether one missing user condition could materially change the recommendation. Never re-ask a condition supplied in initial clarification. A question must ask for a NEW decision-relevant unknown, not restate the mother topic or known goals. If yes, return decision ask_user with exactly one concise question in aim.question, written as a direct question (not a background statement), and 2\u20135 distinct answer choices in aim.answerOptions. The application will add an explicit Unknown / no preference choice and free-text input.",
         ...!isSavedTerminalResult ? [
@@ -14727,11 +14754,11 @@ ${lineage.context || "None yet."}`,
     );
     const requireQuestion = isSavedTerminalResult || answeredQuestionCount < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION;
     const context = {
-      mindSearchEvidenceIds: this.lineageEvidenceIds(map, parentBranchId),
+      aimEvidenceIds: this.lineageEvidenceIds(map, parentBranchId),
       title: parent.title,
       summary: parent.summary,
       rules: "",
-      detail: parentNode.mindSearchKind === "topic" ? parent.detail : "",
+      detail: parentNode.aimKind === "topic" ? parent.detail : "",
       task: prompt,
       ancestors: lineage.context,
       outputLanguage: language2,
@@ -14739,17 +14766,17 @@ ${lineage.context || "None yet."}`,
       researchMode: "local",
       researchDepth: "fast",
       visualMode: "off",
-      mindSearchContract: { kind: "question", requireQuestion },
+      aimContract: { kind: "question", requireQuestion },
       signal
     };
     throwIfAborted(signal);
-    let result = await this.askMindSearchModel(context, model, reasoning, signal);
+    let result = await this.askAimModel(context, model, reasoning, signal);
     throwIfAborted(signal);
-    if (isSavedTerminalResult && result.summary.trim() === MINDSEARCH_NO_QUESTION)
+    if (isSavedTerminalResult && result.summary.trim() === AIM_NO_QUESTION)
       throw new Error(
         "Planner must create a new question from this saved result; no conclusion or no-question response is allowed."
       );
-    if (!isSavedTerminalResult && result.summary.trim() === MINDSEARCH_NO_QUESTION && answeredQuestionCount < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION) {
+    if (!isSavedTerminalResult && result.summary.trim() === AIM_NO_QUESTION && answeredQuestionCount < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION) {
       const previousQuestions = await this.questionHistory(map, parentBranchId);
       const correctionPrompt = phaseTask(
         "initial-question",
@@ -14766,22 +14793,22 @@ Prior user answers and saved research in this branch lineage:
 ${lineage.context || "None yet."}`
         ].join("\n\n")
       );
-      result = await this.askMindSearchModel(
-        { ...context, task: correctionPrompt, mindSearchContract: { kind: "question", requireQuestion: true } },
+      result = await this.askAimModel(
+        { ...context, task: correctionPrompt, aimContract: { kind: "question", requireQuestion: true } },
         model,
         reasoning,
         signal
       );
       throwIfAborted(signal);
-      if (result.summary.trim() === MINDSEARCH_NO_QUESTION)
+      if (result.summary.trim() === AIM_NO_QUESTION)
         throw new Error(
-          "MindSearch could not produce a meaningful question below the conclusion floor; no root conclusion was created."
+          "AIM could not produce a meaningful question below the conclusion floor; no root conclusion was created."
         );
       if (previousQuestions.some(
         (question) => question.trim().toLocaleLowerCase() === result.summary.trim().toLocaleLowerCase()
       ))
         throw new Error(
-          "MindSearch repeated a prior question instead of meeting the conclusion floor; no root conclusion was created."
+          "AIM repeated a prior question instead of meeting the conclusion floor; no root conclusion was created."
         );
     }
     if (isSavedTerminalResult && knownQuestions.some((question) => question.toLocaleLowerCase() === result.summary.trim().toLocaleLowerCase()))
@@ -14793,11 +14820,11 @@ ${lineage.context || "None yet."}`
         (question) => question.trim().toLocaleLowerCase() === result.summary.trim().toLocaleLowerCase()
       ))
         throw new Error(
-          "MindSearch repeated a prior question instead of meeting the conclusion floor; no root conclusion was created."
+          "AIM repeated a prior question instead of meeting the conclusion floor; no root conclusion was created."
         );
     }
-    if (result.summary.trim() === MINDSEARCH_NO_QUESTION) {
-      if (parentNode.mindSearchKind !== "topic" || parentBranchId) return { status: "no-question" };
+    if (result.summary.trim() === AIM_NO_QUESTION) {
+      if (parentNode.aimKind !== "topic" || parentBranchId) return { status: "no-question" };
       const topic = await this.repository.readNote(parentNode.path);
       const branch = await this.persist(
         () => this.runs.createAnswerBranch(mapPath, {
@@ -14843,16 +14870,16 @@ ${lineage.context || "None yet."}`
   async saveManualQuestion(mapPath, parentNodeId, parentBranchId, requestId, model, reasoning, questionText, plannerDetail, labels, prompt, signal, expectedResultBranchSnapshot) {
     throwIfAborted(signal);
     const map = await this.repository.readMap(mapPath), language2 = this.repository.settings.language;
-    if (!map.mindSearch || !map.nodes.some((node2) => node2.id === parentNodeId))
+    if (!map.aim || !map.nodes.some((node2) => node2.id === parentNodeId))
       throw new Error("The Manual question parent is no longer available.");
-    if (parentBranchId && !map.mindSearch.branches.some(
+    if (parentBranchId && !map.aim.branches.some(
       (branch) => branch.id === parentBranchId && branch.results.some((result) => result.nodeId === parentNodeId)
     ))
       throw new Error("A follow-up Manual question must attach to a saved result in its answer branch.");
     const matchesExpectedResultBranch = (document2) => {
       var _a;
       if (expectedResultBranchSnapshot === void 0 || !parentBranchId) return true;
-      const branch = (_a = document2.mindSearch) == null ? void 0 : _a.branches.find((item) => item.id === parentBranchId);
+      const branch = (_a = document2.aim) == null ? void 0 : _a.branches.find((item) => item.id === parentBranchId);
       if (!branch) return false;
       const current = JSON.stringify({
         inputSnapshot: branch.inputSnapshot,
@@ -14866,17 +14893,17 @@ ${lineage.context || "None yet."}`
       );
     const options = labels.map((label) => ({ id: this.id(), label }));
     options.push({
-      id: MINDSEARCH_UNKNOWN_OPTION_ID,
-      label: translate(language2, "note.mindsearch_unknown_option")
+      id: AIM_UNKNOWN_OPTION_ID,
+      label: translate(language2, "note.aim_unknown_option")
     });
-    const noteTitle2 = translate(language2, "note.mindsearch_question_title_0", questionText);
+    const noteTitle2 = translate(language2, "note.aim_question_title_0", questionText);
     const notePath = this.repository.unique(this.repository.topicFolder(mapPath, "Notes"), noteTitle2);
     const questionNodeId = this.id();
     const detail = [
       plannerDetail.trim(),
-      translate(language2, "note.mindsearch_answer_options_heading"),
+      translate(language2, "note.aim_answer_options_heading"),
       ...options.map((option) => `- ${option.label}`),
-      translate(language2, "note.mindsearch_answer_hint")
+      translate(language2, "note.aim_answer_hint")
     ].filter(Boolean).join("\n\n");
     const draft = {
       requestId,
@@ -14896,31 +14923,31 @@ ${lineage.context || "None yet."}`
     throwIfAborted(signal);
     if (latest.nodes.some((node2) => node2.id === questionNodeId) || latest.nodes.every((node2) => node2.id !== parentNodeId))
       throw new Error("The question parent changed while Planner was running; the generated question was not saved.");
-    if (!latest.mindSearch) throw new Error("MindSearch map data is missing.");
-    if (latest.mindSearch.questionDraft)
+    if (!latest.aim) throw new Error("AIM map data is missing.");
+    if (latest.aim.questionDraft)
       throw new Error("Another Planner question was saved while this turn was running.");
     const committedQuestionId = await this.persist(async () => {
       var _a;
       throwIfAborted(signal);
       const current = await this.repository.readMap(mapPath);
       throwIfAborted(signal);
-      if (!current.mindSearch) throw new Error("MindSearch map data is missing.");
+      if (!current.aim) throw new Error("AIM map data is missing.");
       if (!matchesExpectedResultBranch(current))
         throw new Error(
           "The saved answer or research changed while Planner was creating a new question; refresh the result and try again."
         );
       const concurrentlyCommitted = current.nodes.find((node2) => {
         var _a2;
-        return ((_a2 = node2.mindSearchQuestion) == null ? void 0 : _a2.requestId) === requestId;
+        return ((_a2 = node2.aimQuestion) == null ? void 0 : _a2.requestId) === requestId;
       });
-      if (concurrentlyCommitted == null ? void 0 : concurrentlyCommitted.mindSearchQuestion) {
-        if (concurrentlyCommitted.parentId !== parentNodeId || ((_a = concurrentlyCommitted.mindSearchQuestion.parentBranchId) != null ? _a : null) !== parentBranchId)
+      if (concurrentlyCommitted == null ? void 0 : concurrentlyCommitted.aimQuestion) {
+        if (concurrentlyCommitted.parentId !== parentNodeId || ((_a = concurrentlyCommitted.aimQuestion.parentBranchId) != null ? _a : null) !== parentBranchId)
           throw new Error("This Planner question identity was concurrently used for another parent node or branch.");
         return concurrentlyCommitted.id;
       }
-      if (current.mindSearch.questionDraft)
+      if (current.aim.questionDraft)
         throw new Error("Another Planner question was saved while this turn was running.");
-      current.mindSearch.questionDraft = draft;
+      current.aim.questionDraft = draft;
       await this.repository.saveMap(mapPath, current);
       await this.commitQuestionDraft(mapPath, current, draft);
       return questionNodeId;
@@ -14955,15 +14982,15 @@ ${input.requestId}`;
     var _a, _b, _c, _d;
     throwIfAborted(signal);
     await this.persist(() => this.runs.recoverAnswerBranches(mapPath));
-    const map = await this.repository.readMap(mapPath), branch = (_a = map.mindSearch) == null ? void 0 : _a.branches.find((item) => item.id === branchId);
+    const map = await this.repository.readMap(mapPath), branch = (_a = map.aim) == null ? void 0 : _a.branches.find((item) => item.id === branchId);
     if (!branch || branch.researchPlan || branch.results.length)
       throw new Error("Only an answered branch without a saved research plan can retry subtopic planning.");
     const question = map.nodes.find((node) => node.id === branch.questionNodeId);
     if (!question) throw new Error("The saved answer's question is missing.");
-    const topicNode = (_b = map.nodes.find((node) => node.mindSearchKind === "topic")) != null ? _b : map.nodes.find((node) => node.parentId === null);
+    const topicNode = (_b = map.nodes.find((node) => node.aimKind === "topic")) != null ? _b : map.nodes.find((node) => node.parentId === null);
     const topicNote = topicNode ? await this.repository.readNote(topicNode.path) : await this.repository.readNote(question.path);
     const lineage = await this.branchLineage(map, branch.parentBranchId);
-    const labels = (_d = (_c = question.mindSearchQuestion) == null ? void 0 : _c.options.filter((option) => branch.answerSnapshot.selections.includes(option.id)).map((option) => option.label)) != null ? _d : branch.answerSnapshot.selections;
+    const labels = (_d = (_c = question.aimQuestion) == null ? void 0 : _c.options.filter((option) => branch.answerSnapshot.selections.includes(option.id)).map((option) => option.label)) != null ? _d : branch.answerSnapshot.selections;
     return this.runSubtopicWorkflow(
       mapPath,
       branch.id,
@@ -14982,16 +15009,16 @@ ${input.requestId}`;
     var _a, _b, _c, _d;
     throwIfAborted(signal);
     await this.persist(() => this.runs.recoverAnswerBranches(mapPath));
-    const map = await this.repository.readMap(mapPath), branch = (_a = map.mindSearch) == null ? void 0 : _a.branches.find((item) => item.id === branchId);
+    const map = await this.repository.readMap(mapPath), branch = (_a = map.aim) == null ? void 0 : _a.branches.find((item) => item.id === branchId);
     if (!branch || !branch.researchPlan && branch.results.length === 0)
       throw new Error("Only an answer branch with a saved research plan or report can resume.");
     const parent = map.nodes.find((node) => node.id === branch.questionNodeId);
     if (!parent) throw new Error("The saved answer branch's topic or question is missing.");
-    const topicNode = (_b = map.nodes.find((node) => node.mindSearchKind === "topic")) != null ? _b : map.nodes.find((node) => node.parentId === null);
+    const topicNode = (_b = map.nodes.find((node) => node.aimKind === "topic")) != null ? _b : map.nodes.find((node) => node.parentId === null);
     const topicNote = topicNode ? await this.repository.readNote(topicNode.path) : await this.repository.readNote(parent.path);
     const parentNote = await this.repository.readNote(parent.path);
     const lineage = await this.branchLineage(map, branch.parentBranchId);
-    const labels = (_d = (_c = parent.mindSearchQuestion) == null ? void 0 : _c.options.filter((option) => branch.answerSnapshot.selections.includes(option.id)).map((option) => option.label)) != null ? _d : branch.answerSnapshot.selections;
+    const labels = (_d = (_c = parent.aimQuestion) == null ? void 0 : _c.options.filter((option) => branch.answerSnapshot.selections.includes(option.id)).map((option) => option.label)) != null ? _d : branch.answerSnapshot.selections;
     return this.runSubtopicWorkflow(
       mapPath,
       branch.id,
@@ -15008,9 +15035,9 @@ ${input.requestId}`;
   async runAnswer(mapPath, questionNodeId, input, model, reasoning, signal, onBranchStarted) {
     var _a, _b, _c, _d, _e, _f, _g, _h, _i;
     throwIfAborted(signal);
-    const map = await this.repository.readMap(mapPath), questionNode = map.nodes.find((node) => node.id === questionNodeId), contract = questionNode == null ? void 0 : questionNode.mindSearchQuestion;
-    if (!questionNode || questionNode.mindSearchKind !== "question" || !contract)
-      throw new Error("A saved MindSearch Planner question is required before answering.");
+    const map = await this.repository.readMap(mapPath), questionNode = map.nodes.find((node) => node.id === questionNodeId), contract = questionNode == null ? void 0 : questionNode.aimQuestion;
+    if (!questionNode || questionNode.aimKind !== "question" || !contract)
+      throw new Error("A saved AIM Planner question is required before answering.");
     const freeText = input.freeText.trim(), selections = [...new Set(input.selections)].sort();
     if (!selections.length && !freeText)
       throw new Error("Choose an answer, add free text, or select Unknown / no preference.");
@@ -15019,15 +15046,15 @@ ${input.requestId}`;
     if (selectedOptions.some((option) => !option))
       throw new Error("The submitted answer contains an option that was not offered by this question.");
     const answerLabels = selectedOptions.map((option) => option.label);
-    if (selections.includes(MINDSEARCH_UNKNOWN_OPTION_ID) && selections.length > 1)
+    if (selections.includes(AIM_UNKNOWN_OPTION_ID) && selections.length > 1)
       throw new Error("Unknown / no preference cannot be combined with another selected option.");
     const parent = await this.repository.readNote(questionNode.path);
-    const topicNode = (_a = map.nodes.find((node) => node.mindSearchKind === "topic")) != null ? _a : map.nodes.find((node) => node.parentId === null);
+    const topicNode = (_a = map.nodes.find((node) => node.aimKind === "topic")) != null ? _a : map.nodes.find((node) => node.parentId === null);
     const topicNote = topicNode ? await this.repository.readNote(topicNode.path) : parent;
     const parentBranchId = (_b = contract.parentBranchId) != null ? _b : null;
     const lineage = await this.branchLineage(map, parentBranchId);
-    const inheritedBranch = parentBranchId ? (_c = map.mindSearch) == null ? void 0 : _c.branches.find((branch2) => branch2.id === parentBranchId) : void 0;
-    const condition = [answerLabels.join("; "), freeText].filter(Boolean).join(" \u2014 ") || translate(this.repository.settings.language, "note.mindsearch_unknown_option");
+    const inheritedBranch = parentBranchId ? (_c = map.aim) == null ? void 0 : _c.branches.find((branch2) => branch2.id === parentBranchId) : void 0;
+    const condition = [answerLabels.join("; "), freeText].filter(Boolean).join(" \u2014 ") || translate(this.repository.settings.language, "note.aim_unknown_option");
     const branch = await this.persist(
       () => {
         var _a2, _b2;
@@ -15047,13 +15074,13 @@ ${input.requestId}`;
       }
     );
     await (onBranchStarted == null ? void 0 : onBranchStarted(branch.questionNodeId));
-    let refreshed = await this.repository.readMap(mapPath), savedBranch = (_d = refreshed.mindSearch) == null ? void 0 : _d.branches.find((item) => item.id === branch.id);
+    let refreshed = await this.repository.readMap(mapPath), savedBranch = (_d = refreshed.aim) == null ? void 0 : _d.branches.find((item) => item.id === branch.id);
     const completedResult = [...(_e = savedBranch == null ? void 0 : savedBranch.results) != null ? _e : []].reverse().find((item) => item.kind === "conclusion" || item.kind === "synthesis" || item.kind === void 0);
     if (completedResult) {
       let followup = refreshed.nodes.find(
         (node) => {
           var _a2;
-          return node.parentId === completedResult.nodeId && ((_a2 = node.mindSearchQuestion) == null ? void 0 : _a2.parentBranchId) === branch.id;
+          return node.parentId === completedResult.nodeId && ((_a2 = node.aimQuestion) == null ? void 0 : _a2.parentBranchId) === branch.id;
         }
       );
       const result = {
@@ -15061,20 +15088,20 @@ ${input.requestId}`;
         resultId: completedResult.resultId,
         notePath: completedResult.notePath
       };
-      const attempt = (_g = (_f = refreshed.mindSearch) == null ? void 0 : _f.runs.find((run) => run.id === completedResult.runId)) == null ? void 0 : _g.attempts.find((item) => item.id === completedResult.attemptId);
+      const attempt = (_g = (_f = refreshed.aim) == null ? void 0 : _f.runs.find((run) => run.id === completedResult.runId)) == null ? void 0 : _g.attempts.find((item) => item.id === completedResult.attemptId);
       if (!followup && ((_h = attempt == null ? void 0 : attempt.plannerReviews) == null ? void 0 : _h.some((item) => item.decision === "ask_user"))) {
         await this.recoverPostReportQuestions(mapPath);
         refreshed = await this.repository.readMap(mapPath);
         followup = refreshed.nodes.find(
           (node) => {
             var _a2;
-            return node.parentId === completedResult.nodeId && ((_a2 = node.mindSearchQuestion) == null ? void 0 : _a2.parentBranchId) === branch.id;
+            return node.parentId === completedResult.nodeId && ((_a2 = node.aimQuestion) == null ? void 0 : _a2.parentBranchId) === branch.id;
           }
         );
       }
       return followup ? { status: "waiting-user", branchId: branch.id, result, questionNodeId: followup.id } : (attempt == null ? void 0 : attempt.status) === "partial" ? { status: "partial", branchId: branch.id, result: { ...result, resultStatus: "partial" } } : { status: "completed", branchId: branch.id, result };
     }
-    const priorRun = (_i = refreshed.mindSearch) == null ? void 0 : _i.runs.find((run) => run.branchId === branch.id), priorAttempt = priorRun == null ? void 0 : priorRun.attempts.find((item) => item.id === priorRun.currentAttemptId);
+    const priorRun = (_i = refreshed.aim) == null ? void 0 : _i.runs.find((run) => run.branchId === branch.id), priorAttempt = priorRun == null ? void 0 : priorRun.attempts.find((item) => item.id === priorRun.currentAttemptId);
     if ((priorAttempt == null ? void 0 : priorAttempt.status) === "running" || (priorAttempt == null ? void 0 : priorAttempt.status) === "saving")
       return { status: "in-progress", branchId: branch.id };
     throwIfAborted(signal);
@@ -15094,16 +15121,16 @@ ${input.requestId}`;
   async reusableResearchCandidates(map, branch) {
     var _a, _b, _c, _d;
     const candidates = [], visited = /* @__PURE__ */ new Set();
-    let ancestor = (_a = map.mindSearch) == null ? void 0 : _a.branches.find((item) => item.id === branch.parentBranchId);
+    let ancestor = (_a = map.aim) == null ? void 0 : _a.branches.find((item) => item.id === branch.parentBranchId);
     while (ancestor && !visited.has(ancestor.id)) {
       visited.add(ancestor.id);
       for (const result of ancestor.results.filter((item) => item.kind === "research")) {
         if (!map.nodes.some(
-          (node) => node.id === result.nodeId && node.path === result.notePath && node.mindSearchKind === "research"
+          (node) => node.id === result.nodeId && node.path === result.notePath && node.aimKind === "research"
         ))
           continue;
         if (result.reuse) {
-          const origin = (_c = (_b = map.mindSearch) == null ? void 0 : _b.branches.find((item) => item.id === result.reuse.sourceBranchId)) == null ? void 0 : _c.results.find(
+          const origin = (_c = (_b = map.aim) == null ? void 0 : _b.branches.find((item) => item.id === result.reuse.sourceBranchId)) == null ? void 0 : _c.results.find(
             (item) => item.resultId === result.reuse.sourceResultId && item.notePath === result.reuse.sourceNotePath && item.version === result.reuse.sourceVersion
           );
           if (!origin) continue;
@@ -15148,20 +15175,20 @@ ${note.detail}`
           if (oldest) this.evidenceReports.delete(oldest);
         }
       }
-      ancestor = (_d = map.mindSearch) == null ? void 0 : _d.branches.find((item) => item.id === ancestor.parentBranchId);
+      ancestor = (_d = map.aim) == null ? void 0 : _d.branches.find((item) => item.id === ancestor.parentBranchId);
     }
     return candidates;
   }
   async verifyResearchSource(mapPath, branchId, target) {
     var _a;
-    const map = await this.repository.readMap(mapPath), branch = (_a = map.mindSearch) == null ? void 0 : _a.branches.find((item) => item.id === branchId);
+    const map = await this.repository.readMap(mapPath), branch = (_a = map.aim) == null ? void 0 : _a.branches.find((item) => item.id === branchId);
     if (!branch || !target.source) throw new ReuseEvidenceRejected("Research source is missing.");
     const candidate = (await this.reusableResearchCandidates(map, branch)).find(
       (item) => item.source.branchId === target.source.branchId && item.source.resultId === target.source.resultId && item.source.notePath === target.source.notePath && item.source.version === target.source.version
     );
     if (!candidate || candidate.source.contentHash !== target.source.contentHash)
       throw new ReuseEvidenceRejected(
-        "MindSearch source report is missing or changed; it cannot be reused or updated from this plan."
+        "AIM source report is missing or changed; it cannot be reused or updated from this plan."
       );
     return candidate;
   }
@@ -15173,7 +15200,7 @@ ${note.detail}`
       throw new ReuseEvidenceRejected(
         "Reusable evidence no longer matches a relevant supplied condition; plan an update instead."
       );
-    const checked = await this.askMindSearchModel(
+    const checked = await this.askAimModel(
       {
         ...context,
         task: phaseTask(
@@ -15197,14 +15224,14 @@ ${candidate.detail}`
         ),
         researchMode: "local",
         researchDepth: "fast",
-        mindSearchContract: { kind: "reuse" },
+        aimContract: { kind: "reuse" },
         signal
       },
       model,
       reasoning,
       signal
     );
-    const marker4 = checked.detail.match(/<!--\s*mindsearch-reuse\s+([\s\S]*?)\s*-->/);
+    const marker4 = checked.detail.match(/<!--\s*aim-reuse\s+([\s\S]*?)\s*-->/);
     let audit;
     try {
       audit = marker4 ? JSON.parse(marker4[1]) : void 0;
@@ -15257,14 +15284,14 @@ ${candidate.detail}`
   async executeSubtopicWorkflow(mapPath, branchId, parent, topicNote, answerLabels, freeText, lineageContext, model, reasoning, signal) {
     var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k;
     let map = await this.repository.readMap(mapPath);
-    let branch = (_a = map.mindSearch) == null ? void 0 : _a.branches.find((item) => item.id === branchId);
-    if (!branch) throw new Error("MindSearch answer branch disappeared before planning its research.");
+    let branch = (_a = map.aim) == null ? void 0 : _a.branches.find((item) => item.id === branchId);
+    if (!branch) throw new Error("AIM answer branch disappeared before planning its research.");
     const questionNodeId = branch.questionNodeId;
-    const answerDescription = ((_b = map.nodes.find((node) => node.id === questionNodeId)) == null ? void 0 : _b.mindSearchKind) === "topic" ? "No user answer was requested; use the topic context as user-supplied background only." : JSON.stringify({ selectedOptions: answerLabels, freeText: freeText || null });
+    const answerDescription = ((_b = map.nodes.find((node) => node.id === questionNodeId)) == null ? void 0 : _b.aimKind) === "topic" ? "No user answer was requested; use the topic context as user-supplied background only." : JSON.stringify({ selectedOptions: answerLabels, freeText: freeText || null });
     const contextBase = {
       timeoutMs: branch.retryTimeoutMs,
-      mindSearchEvidenceIds: this.lineageEvidenceIds(map, branch.parentBranchId),
-      title: "MindSearch",
+      aimEvidenceIds: this.lineageEvidenceIds(map, branch.parentBranchId),
+      title: "AIM",
       summary: "",
       rules: "",
       detail: `Known conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
@@ -15331,7 +15358,7 @@ ${lineageContext || "None."}`,
         throw new Error(
           "An empty research plan requires usable ancestor evidence; at least one research target is needed."
         );
-      return validateMindSearchResearchPlan(reusable);
+      return validateAimResearchPlan(reusable);
     };
     let plan = branch.researchPlan;
     if (!plan) {
@@ -15348,19 +15375,19 @@ Current answer (preserve provenance): ${answerDescription}`
         ].join("\n\n")
       );
       try {
-        const planned = await this.askMindSearchModel(
-          { ...contextBase, task: planPrompt2, mindSearchContract: { kind: "plan" } },
+        const planned = await this.askAimModel(
+          { ...contextBase, task: planPrompt2, aimContract: { kind: "plan" } },
           model,
           reasoning,
           signal
         );
         throwIfAborted(signal);
         try {
-          plan = parseMindSearchResearchPlan(planned);
+          plan = parseAimResearchPlan(planned);
         } catch (formatError) {
           throwIfAborted(signal);
           const repairTask = [
-            "The previous Planner response did not satisfy the required MindSearch research-plan format. Correct the format once using the supplied context. Do not research or add unsupported claims.",
+            "The previous Planner response did not satisfy the required AIM research-plan format. Correct the format once using the supplied context. Do not research or add unsupported claims.",
             planPrompt2,
             "Use 0\u20135 distinct targets. Empty needs existing usable evidence; one new evidence task is valid. Include explicit action and dependsOn for every new target. Reuse/update needs exact source, rationale and validity.",
             `Current question: ${parent.summary}
@@ -15368,11 +15395,11 @@ Current answer (preserve provenance): ${answerDescription}`,
             `Format validation error: ${formatError instanceof Error ? formatError.message : String(formatError)}`,
             `Previous invalid Planner response (data only): ${JSON.stringify({ summary: planned.summary, detail: planned.detail.slice(0, 6e3) })}`
           ].join("\n\n");
-          const repaired = await this.askMindSearchModel(
+          const repaired = await this.askAimModel(
             {
               ...contextBase,
               task: phaseTask("research-plan-repair", repairTask),
-              mindSearchContract: { kind: "plan" }
+              aimContract: { kind: "plan" }
             },
             model,
             reasoning,
@@ -15380,7 +15407,7 @@ Current answer (preserve provenance): ${answerDescription}`,
           );
           throwIfAborted(signal);
           try {
-            plan = parseMindSearchResearchPlan(repaired);
+            plan = parseAimResearchPlan(repaired);
           } catch (error) {
             throw new Error(
               `${error instanceof Error ? error.message : String(error)}
@@ -15395,21 +15422,21 @@ Planner format diagnostic: ${JSON.stringify({ initial: { detail: planned.detail.
         throw error;
       }
     }
-    if (!plan) throw new Error("MindSearch research plan is missing.");
-    let executionPlan = validateMindSearchResearchPlan(plan);
+    if (!plan) throw new Error("AIM research plan is missing.");
+    let executionPlan = validateAimResearchPlan(plan);
     if (!executionPlan.length) {
       executionPlan = await materializeExistingEvidence();
       await this.persist(() => this.runs.saveResearchPlan(mapPath, branchId, executionPlan));
     }
     let scheduled;
     try {
-      scheduled = await scheduleMindSearchResearch(
+      scheduled = await scheduleAimResearch(
         executionPlan,
         async (target, predecessors, taskSignal) => {
           var _a2, _b2;
           throwIfAborted(taskSignal);
-          const currentMap = await this.repository.readMap(mapPath), currentBranch = (_a2 = currentMap.mindSearch) == null ? void 0 : _a2.branches.find((item) => item.id === branchId);
-          if (!currentBranch) throw new Error("MindSearch answer branch disappeared during subtopic research.");
+          const currentMap = await this.repository.readMap(mapPath), currentBranch = (_a2 = currentMap.aim) == null ? void 0 : _a2.branches.find((item) => item.id === branchId);
+          if (!currentBranch) throw new Error("AIM answer branch disappeared during subtopic research.");
           const savedRef = currentBranch.results.find(
             (item) => item.subtopicId === target.id && item.kind === "research"
           );
@@ -15529,13 +15556,13 @@ ${source.detail}` : "",
                 ].filter(Boolean).join("\n\n")
               );
               const { diagnostic, onEvent } = createSearchDiagnostic(1);
-              result = await this.askMindSearchModel(
+              result = await this.askAimModel(
                 {
                   ...contextBase,
                   task,
                   researchMode: "research",
                   researchDepth: "normal",
-                  mindSearchIsolatedResearch: true,
+                  aimIsolatedResearch: true,
                   signal: taskSignal
                 },
                 model,
@@ -15582,7 +15609,7 @@ ${source.detail}` : "",
             try {
               if (taskSignal.aborted)
                 await this.persist(
-                  () => this.runs.cancelAttempt(mapPath, handle, "User cancelled a MindSearch subtopic research turn.").then(() => void 0)
+                  () => this.runs.cancelAttempt(mapPath, handle, "User cancelled a AIM subtopic research turn.").then(() => void 0)
                 );
               else
                 await this.persist(
@@ -15603,16 +15630,16 @@ ${source.detail}` : "",
     }
     const reports = executionPlan.map((target) => scheduled.get(target.id));
     if (!reports.length)
-      throw new Error("MindSearch requires at least one usable evidence report before terminal review.");
+      throw new Error("AIM requires at least one usable evidence report before terminal review.");
     throwIfAborted(signal);
     map = await this.repository.readMap(mapPath);
-    branch = (_c = map.mindSearch) == null ? void 0 : _c.branches.find((item) => item.id === branchId);
-    if (!branch) throw new Error("MindSearch answer branch disappeared before synthesis.");
+    branch = (_c = map.aim) == null ? void 0 : _c.branches.find((item) => item.id === branchId);
+    if (!branch) throw new Error("AIM answer branch disappeared before synthesis.");
     const answeredQuestionCount = this.answerCountInLineage(map, branch.id);
-    const explorationTarget = (_e = (_d = map.mindSearch) == null ? void 0 : _d.minimumAnswersBeforeConclusion) != null ? _e : 2;
+    const explorationTarget = (_e = (_d = map.aim) == null ? void 0 : _d.minimumAnswersBeforeConclusion) != null ? _e : 2;
     const existingConclusion = [...branch.results].reverse().find((item) => item.kind === "conclusion" || item.kind === "synthesis");
     if (existingConclusion) {
-      const savedRun = (_f = map.mindSearch) == null ? void 0 : _f.runs.find((item) => item.id === existingConclusion.runId);
+      const savedRun = (_f = map.aim) == null ? void 0 : _f.runs.find((item) => item.id === existingConclusion.runId);
       const savedAttempt = savedRun == null ? void 0 : savedRun.attempts.find((item) => item.id === existingConclusion.attemptId);
       const result = {
         status: "committed",
@@ -15631,7 +15658,7 @@ ${source.detail}` : "",
         phase: "report-review",
         model,
         reasoning: synthesisReasoning,
-        maxResearchTurns: MINDSEARCH_MAX_RESEARCH_TURNS
+        maxResearchTurns: AIM_MAX_RESEARCH_TURNS
       })
     );
     if (!synthesisHandle.dispatch) return { status: "in-progress", branchId };
@@ -15691,7 +15718,7 @@ ${item.detail}`
           ...supplementalReports.map(
             (item) => translate(
               this.repository.settings.language,
-              "note.mindsearch_followup_summary_0_1",
+              "note.aim_followup_summary_0_1",
               item.target.title,
               item.summary
             )
@@ -15700,7 +15727,7 @@ ${item.detail}`
         detail: [
           resumeReports.detail,
           ...supplementalReports.map(
-            (item) => `${translate(this.repository.settings.language, "note.mindsearch_followup_heading_0", item.target.title)}
+            (item) => `${translate(this.repository.settings.language, "note.aim_followup_heading_0", item.target.title)}
 
 ${item.detail}`
           )
@@ -15711,7 +15738,7 @@ ${item.detail}`
           ...supplementalReports.map(
             (item) => translate(
               this.repository.settings.language,
-              "note.mindsearch_followup_summary_0_1",
+              "note.aim_followup_summary_0_1",
               item.target.title,
               item.summary
             )
@@ -15722,7 +15749,7 @@ ${item.detail}`
 
 ${item.detail}`),
           ...supplementalReports.map(
-            (item) => `${translate(this.repository.settings.language, "note.mindsearch_followup_heading_0", item.target.title)}
+            (item) => `${translate(this.repository.settings.language, "note.aim_followup_heading_0", item.target.title)}
 
 ${item.detail}`
           )
@@ -15732,7 +15759,7 @@ ${item.detail}`
       let finalReview;
       const resumeTurn = (_h = resumeDelivery == null ? void 0 : resumeDelivery.researchTurn) != null ? _h : 1;
       if (resumeTurn === 2) await this.persist(() => this.runs.recordResearchTurn(mapPath, synthesisHandle));
-      for (let researchTurn = resumeTurn; researchTurn <= MINDSEARCH_MAX_RESEARCH_TURNS; researchTurn++) {
+      for (let researchTurn = resumeTurn; researchTurn <= AIM_MAX_RESEARCH_TURNS; researchTurn++) {
         throwIfAborted(signal);
         const currentReports = aggregateReports();
         const plannerPrompt = phaseTask(
@@ -15746,7 +15773,7 @@ ${item.detail}`
             "Return the decision in the aim fields with an evidence-based aim.rationale; for conclude, aim.stopReason says why the evidence is sufficient.",
             `Current question: ${parent.summary}
 Current answer: ${answerDescription}`,
-            `Research budget: review ${researchTurn} of ${MINDSEARCH_MAX_RESEARCH_TURNS}. One targeted follow-up search remains when this is review 1; if a material gap remains after review 2, return research_more so VAM saves a partial result.`
+            `Research budget: review ${researchTurn} of ${AIM_MAX_RESEARCH_TURNS}. One targeted follow-up search remains when this is review 1; if a material gap remains after review 2, return research_more so VAM saves a partial result.`
           ].join("\n\n")
         );
         const plannerContext = {
@@ -15760,12 +15787,12 @@ ${currentReports.summary}
 ${currentReports.detail}`,
           task: plannerPrompt,
           detailFormat: "adaptive",
-          mindSearchContract: reviewContract(floorDecisions(answeredQuestionCount))
+          aimContract: reviewContract(floorDecisions(answeredQuestionCount))
         };
         const fingerprint2 = sourceFingerprint;
         const savedRecovery = resumeDelivery;
         if (!savedRecovery) await this.persist(() => this.runs.recordPhase(mapPath, synthesisHandle, "report-review"));
-        const synthesis = (_i = savedRecovery == null ? void 0 : savedRecovery.planner) != null ? _i : await this.askMindSearchModel(plannerContext, model, reasoning, signal);
+        const synthesis = (_i = savedRecovery == null ? void 0 : savedRecovery.planner) != null ? _i : await this.askAimModel(plannerContext, model, reasoning, signal);
         finalReview = await this.parsePlannerReviewWithRecovery(
           synthesis,
           {
@@ -15790,7 +15817,7 @@ ${currentReports.detail}`,
             answeredQuestionCount,
             questionHistory: questionsAlreadyAsked,
             lineage: lineageContext,
-            evidenceIds: contextBase.mindSearchEvidenceIds,
+            evidenceIds: contextBase.aimEvidenceIds,
             reportSummary: currentReports.summary,
             reportDetail: currentReports.detail,
             timeoutMs: branch.retryTimeoutMs,
@@ -15817,7 +15844,7 @@ ${currentReports.detail}`,
           signal
         );
         throwIfAborted(signal);
-        const reviewStopReason = finalReview.decision === "conclude" ? finalReview.stopReason : finalReview.decision === "ask_user" ? `Awaiting the user's answer to: ${finalReview.question}` : researchTurn === MINDSEARCH_MAX_RESEARCH_TURNS ? `Research-turn limit reached with an unresolved evidence gap: ${finalReview.rationale}` : void 0;
+        const reviewStopReason = finalReview.decision === "conclude" ? finalReview.stopReason : finalReview.decision === "ask_user" ? `Awaiting the user's answer to: ${finalReview.question}` : researchTurn === AIM_MAX_RESEARCH_TURNS ? `Research-turn limit reached with an unresolved evidence gap: ${finalReview.rationale}` : void 0;
         await this.persist(
           () => this.runs.recordPlannerReview(
             mapPath,
@@ -15833,19 +15860,19 @@ ${currentReports.detail}`,
           )
         );
         if (finalReview.decision !== "research_more") break;
-        if (researchTurn === MINDSEARCH_MAX_RESEARCH_TURNS) break;
+        if (researchTurn === AIM_MAX_RESEARCH_TURNS) break;
         resumeDelivery = void 0;
         sectionRecovery = void 0;
         const target = finalReview.researchTarget;
         if (!synthesisDraftId) {
           const lastReport2 = reports.at(-1);
           if (!lastReport2)
-            throw new Error("MindSearch cannot save a follow-up without persisted initial subtopic reports.");
+            throw new Error("AIM cannot save a follow-up without persisted initial subtopic reports.");
           const draft = await this.persist(
             () => this.runs.createResultDraft(
               mapPath,
               synthesisHandle,
-              translate(this.repository.settings.language, "note.mindsearch_followup_draft"),
+              translate(this.repository.settings.language, "note.aim_followup_draft"),
               model,
               void 0,
               {
@@ -15887,7 +15914,7 @@ Current answer: ${answerDescription}`,
         let followup;
         await this.persist(() => this.runs.recordPhase(mapPath, synthesisHandle, "targeted-research"));
         try {
-          followup = await this.askMindSearchModel(
+          followup = await this.askAimModel(
             {
               ...contextBase,
               summary: "",
@@ -15898,7 +15925,7 @@ ${beforeSearch.detail}`,
               task: followupTask,
               researchMode: "research",
               researchDepth: "normal",
-              mindSearchIsolatedResearch: true
+              aimIsolatedResearch: true
             },
             model,
             reasoning,
@@ -15928,12 +15955,12 @@ ${beforeSearch.detail}`,
         ))
           return { status: "stale", branchId };
       }
-      if (!finalReview) throw new Error("MindSearch synthesis did not produce a validated Planner decision.");
+      if (!finalReview) throw new Error("AIM synthesis did not produce a validated Planner decision.");
       const reportDetail = aggregateReports().detail;
       const isQuestion = finalReview.decision === "ask_user";
       const isPartial = finalReview.decision === "research_more";
       const lastReport = reports.at(-1);
-      if (!lastReport) throw new Error("MindSearch cannot synthesize without persisted subtopic reports.");
+      if (!lastReport) throw new Error("AIM cannot synthesize without persisted subtopic reports.");
       if (!synthesisDraftId) {
         const draft = await this.persist(
           () => this.runs.createResultDraft(
@@ -15941,7 +15968,7 @@ ${beforeSearch.detail}`,
             synthesisHandle,
             translate(
               this.repository.settings.language,
-              isPartial ? "note.mindsearch_needs_followup" : isQuestion ? "note.mindsearch_synthesis" : "note.mindsearch_conclusion"
+              isPartial ? "note.aim_needs_followup" : isQuestion ? "note.aim_synthesis" : "note.aim_conclusion"
             ),
             model,
             void 0,
@@ -15955,22 +15982,22 @@ ${beforeSearch.detail}`,
         if (draft.status === "stale") return { status: "stale", branchId };
         synthesisDraftId = draft.draft.id;
       }
-      const stopReason = isPartial ? translate(this.repository.settings.language, "note.mindsearch_round_limit_0", finalReview.rationale) : isQuestion ? `Awaiting the user's answer to: ${finalReview.question}` : finalReview.stopReason;
+      const stopReason = isPartial ? translate(this.repository.settings.language, "note.aim_round_limit_0", finalReview.rationale) : isQuestion ? `Awaiting the user's answer to: ${finalReview.question}` : finalReview.stopReason;
       const partialSection = isPartial && finalReview.researchTarget ? [
-        translate(this.repository.settings.language, "note.mindsearch_partial_heading"),
+        translate(this.repository.settings.language, "note.aim_partial_heading"),
         translate(
           this.repository.settings.language,
-          "note.mindsearch_pending_target_0",
+          "note.aim_pending_target_0",
           finalReview.researchTarget.title
         ),
         translate(
           this.repository.settings.language,
-          "note.mindsearch_pending_task_0",
+          "note.aim_pending_task_0",
           finalReview.researchTarget.task
         ),
         translate(
           this.repository.settings.language,
-          "note.mindsearch_pending_value_0",
+          "note.aim_pending_value_0",
           finalReview.researchTarget.expectedValue
         )
       ].join("\n\n") : "";
@@ -15985,13 +16012,13 @@ ${beforeSearch.detail}`,
         "Sources and claims are reported by the research agent and were not independently verified by VAM."
       ].join("\n\n") : finalReview.detail;
       const presentation = isPartial ? {
-        title: translate(this.repository.settings.language, "note.mindsearch_needs_followup"),
+        title: translate(this.repository.settings.language, "note.aim_needs_followup"),
         kind: "synthesis"
       } : isQuestion ? {
-        title: translate(this.repository.settings.language, "note.mindsearch_synthesis"),
+        title: translate(this.repository.settings.language, "note.aim_synthesis"),
         kind: "synthesis"
       } : {
-        title: translate(this.repository.settings.language, "note.mindsearch_conclusion"),
+        title: translate(this.repository.settings.language, "note.aim_conclusion"),
         kind: "conclusion"
       };
       if (!await this.persist(
@@ -16011,7 +16038,7 @@ ${beforeSearch.detail}`,
           synthesisHandle,
           synthesisDraftId,
           {
-            summary: isPartial ? translate(this.repository.settings.language, "note.mindsearch_partial_summary_0", finalReview.summary) : finalReview.summary,
+            summary: isPartial ? translate(this.repository.settings.language, "note.aim_partial_summary_0", finalReview.summary) : finalReview.summary,
             detail
           },
           isPartial ? "partial" : "completed"
@@ -16019,7 +16046,7 @@ ${beforeSearch.detail}`,
       });
       if (committed.status !== "committed") return { status: "stale", branchId };
       if (isQuestion) {
-        const latestMap = await this.repository.readMap(mapPath), resultRef = (_k = (_j = latestMap.mindSearch) == null ? void 0 : _j.branches.find((item) => item.id === branchId)) == null ? void 0 : _k.results.find(
+        const latestMap = await this.repository.readMap(mapPath), resultRef = (_k = (_j = latestMap.aim) == null ? void 0 : _j.branches.find((item) => item.id === branchId)) == null ? void 0 : _k.results.find(
           (item) => item.runId === synthesisHandle.runId && item.attemptId === synthesisHandle.attemptId
         );
         if (!resultRef)
@@ -16046,7 +16073,7 @@ ${beforeSearch.detail}`,
       try {
         if (signal == null ? void 0 : signal.aborted)
           await this.persist(
-            () => this.runs.cancelAttempt(mapPath, synthesisHandle, "User cancelled MindSearch synthesis.").then(() => void 0)
+            () => this.runs.cancelAttempt(mapPath, synthesisHandle, "User cancelled AIM synthesis.").then(() => void 0)
           );
         else
           await this.persist(
@@ -16070,7 +16097,7 @@ ${beforeSearch.detail}`,
       draft.nodeId,
       { summary: draft.summary, detail: draft.detail, prompt: draft.prompt, reasoning: draft.reasoning }
     );
-    const latest = await this.repository.readMap(mapPath), state = latest.mindSearch;
+    const latest = await this.repository.readMap(mapPath), state = latest.aim;
     if (!(state == null ? void 0 : state.questionDraft) || state.questionDraft.requestId !== draft.requestId || state.questionDraft.nodeId !== draft.nodeId)
       throw new Error("The saved Planner question draft changed before commit.");
     if (!latest.nodes.some((node) => node.id === draft.nodeId)) {
@@ -16084,8 +16111,8 @@ ${beforeSearch.detail}`,
         x: parent.x + 360,
         y: parent.y + 240,
         collapsed: false,
-        mindSearchKind: "question",
-        mindSearchQuestion: {
+        aimKind: "question",
+        aimQuestion: {
           requestId: draft.requestId,
           parentBranchId: draft.parentBranchId,
           options: draft.options,
@@ -16095,24 +16122,24 @@ ${beforeSearch.detail}`,
       });
     }
     delete state.questionDraft;
-    latest.mindSearch = state;
+    latest.aim = state;
     await this.repository.saveMap(mapPath, latest);
   }
   lineageEvidenceIds(map, branchId) {
     var _a, _b;
     const ids = [];
     const visited = /* @__PURE__ */ new Set();
-    let current = (_a = map.mindSearch) == null ? void 0 : _a.branches.find((branch) => branch.id === branchId);
+    let current = (_a = map.aim) == null ? void 0 : _a.branches.find((branch) => branch.id === branchId);
     while (current && !visited.has(current.id)) {
       visited.add(current.id);
       ids.push(...current.results.map((result) => `${result.nodeId}-v${result.version}`));
-      current = (_b = map.mindSearch) == null ? void 0 : _b.branches.find((branch) => branch.id === current.parentBranchId);
+      current = (_b = map.aim) == null ? void 0 : _b.branches.find((branch) => branch.id === current.parentBranchId);
     }
     return ids;
   }
   async branchLineage(map, branchId) {
     var _a, _b, _c;
-    const data = map.mindSearch;
+    const data = map.aim;
     if (!branchId || !data) return { context: "", resultRefs: [], evidence: [] };
     const chain = [];
     let current = data.branches.find((branch) => branch.id === branchId);
@@ -16124,8 +16151,8 @@ ${beforeSearch.detail}`,
     for (const branch of chain) {
       const question = map.nodes.find((node) => node.id === branch.questionNodeId);
       const questionNote = question ? await this.repository.readNote(question.path) : void 0;
-      const choices = (_b = (_a = question == null ? void 0 : question.mindSearchQuestion) == null ? void 0 : _a.options.filter((option) => branch.answerSnapshot.selections.includes(option.id)).map((option) => option.label)) != null ? _b : branch.answerSnapshot.selections;
-      if ((question == null ? void 0 : question.mindSearchKind) === "question")
+      const choices = (_b = (_a = question == null ? void 0 : question.aimQuestion) == null ? void 0 : _a.options.filter((option) => branch.answerSnapshot.selections.includes(option.id)).map((option) => option.label)) != null ? _b : branch.answerSnapshot.selections;
+      if ((question == null ? void 0 : question.aimKind) === "question")
         sections.push(
           `User answer to ${(_c = questionNote == null ? void 0 : questionNote.summary) != null ? _c : "question"}: ${JSON.stringify({ selections: choices, freeText: branch.answerSnapshot.freeText || null })}`
         );
@@ -16166,7 +16193,7 @@ ${evidenceCard(evidenceId, note.summary, note.detail)}`
   }
   async questionHistory(map, branchId) {
     var _a;
-    const branches = (_a = map.mindSearch) == null ? void 0 : _a.branches;
+    const branches = (_a = map.aim) == null ? void 0 : _a.branches;
     if (!branches || !branchId) return [];
     const chain = [];
     let current = branches.find((branch) => branch.id === branchId);
@@ -16177,21 +16204,21 @@ ${evidenceCard(evidenceId, note.summary, note.detail)}`
     const questions = [];
     for (const branch of chain) {
       const node = map.nodes.find((item) => item.id === branch.questionNodeId);
-      if ((node == null ? void 0 : node.mindSearchKind) === "question") questions.push((await this.repository.readNote(node.path)).summary);
+      if ((node == null ? void 0 : node.aimKind) === "question") questions.push((await this.repository.readNote(node.path)).summary);
     }
     return questions;
   }
 };
-__publicField(_MindSearchManualFlow, "questionPlans", /* @__PURE__ */ new Map());
-__publicField(_MindSearchManualFlow, "continuationRuns", /* @__PURE__ */ new Map());
-var MindSearchManualFlow = _MindSearchManualFlow;
+__publicField(_AimManualFlow, "questionPlans", /* @__PURE__ */ new Map());
+__publicField(_AimManualFlow, "continuationRuns", /* @__PURE__ */ new Map());
+var AimManualFlow = _AimManualFlow;
 
-// mindsearch-mve/research-run-store.ts
+// experiences/aim/research-run-store.ts
 var import_node_crypto8 = require("node:crypto");
 function isRunningAttempt(run, attempt, handle) {
   return run.currentAttemptId === handle.attemptId && attempt.status === "running" && attempt.inputSnapshotHash === handle.inputSnapshotHash;
 }
-var _MindSearchRunStore = class _MindSearchRunStore {
+var _AimRunStore = class _AimRunStore {
   constructor(repository, id = import_node_crypto8.randomUUID, now = () => (/* @__PURE__ */ new Date()).toISOString()) {
     this.repository = repository;
     this.id = id;
@@ -16201,10 +16228,10 @@ var _MindSearchRunStore = class _MindSearchRunStore {
       this.locks = /* @__PURE__ */ new Map();
       return;
     }
-    let shared = _MindSearchRunStore.repositoryLocks.get(repository);
+    let shared = _AimRunStore.repositoryLocks.get(repository);
     if (!shared) {
       shared = /* @__PURE__ */ new Map();
-      _MindSearchRunStore.repositoryLocks.set(repository, shared);
+      _AimRunStore.repositoryLocks.set(repository, shared);
     }
     this.locks = shared;
   }
@@ -16223,15 +16250,15 @@ var _MindSearchRunStore = class _MindSearchRunStore {
       await this.recoverAnswerBranchesInMap(mapPath, map);
       const questionNode = map.nodes.find((node) => node.id === input.questionNodeId);
       if (!questionNode) throw new Error("Question node does not exist in this map.");
-      if (questionNode.mindSearchQuestion) {
-        const allowed = new Set(questionNode.mindSearchQuestion.options.map((option) => option.id));
+      if (questionNode.aimQuestion) {
+        const allowed = new Set(questionNode.aimQuestion.options.map((option) => option.id));
         if (input.answerSnapshot.selections.some((selection) => !allowed.has(selection)))
           throw new Error("The submitted answer contains an option that was not offered by this question.");
-        if (!questionNode.mindSearchQuestion.allowMultiple && input.answerSnapshot.selections.length > 1)
+        if (!questionNode.aimQuestion.allowMultiple && input.answerSnapshot.selections.length > 1)
           throw new Error("This question accepts only one selected option.");
-        if (!questionNode.mindSearchQuestion.allowFreeText && input.answerSnapshot.freeText.trim())
+        if (!questionNode.aimQuestion.allowFreeText && input.answerSnapshot.freeText.trim())
           throw new Error("This question does not accept free-text answers.");
-        if (((_c = questionNode.mindSearchQuestion.parentBranchId) != null ? _c : null) !== input.parentBranchId)
+        if (((_c = questionNode.aimQuestion.parentBranchId) != null ? _c : null) !== input.parentBranchId)
           throw new Error("Answer branch does not continue the branch that produced this question.");
       }
       if (input.parentBranchId && !state.branches.some((branch2) => branch2.id === input.parentBranchId))
@@ -16255,7 +16282,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
         results: []
       };
       state.branches.push(branch);
-      map.mindSearch = state;
+      map.aim = state;
       await this.repository.saveMap(mapPath, map);
       return JSON.parse(JSON.stringify(branch));
     });
@@ -16276,7 +16303,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
       const question = map.nodes.find((node) => node.id === branch.questionNodeId);
       if (!question) throw new Error("The answer's question node is missing.");
       if (branch.answerNodeId) {
-        const pivot = map.nodes.find((node) => node.id === branch.answerNodeId && node.mindSearchKind === "answer");
+        const pivot = map.nodes.find((node) => node.id === branch.answerNodeId && node.aimKind === "answer");
         if (pivot) {
           for (const node of map.nodes) if (node.parentId === pivot.id) node.parentId = question.id;
           for (const draft of (_a = state.resultDrafts) != null ? _a : []) {
@@ -16300,7 +16327,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
       changed += removedPivots.size;
     }
     if (changed) {
-      map.mindSearch = state;
+      map.aim = state;
       await this.repository.saveMap(mapPath, map);
     }
     return changed;
@@ -16344,19 +16371,19 @@ var _MindSearchRunStore = class _MindSearchRunStore {
       }
     }
     if (created) {
-      map.mindSearch = state;
+      map.aim = state;
       await this.repository.saveMap(mapPath, map);
     }
     return created;
   }
   async cloneQuestionForBranch(mapPath, map, source) {
-    if (source.mindSearchKind !== "question" || !source.mindSearchQuestion)
-      throw new Error("A saved MindSearch question is required to create an answer-specific pivot.");
+    if (source.aimKind !== "question" || !source.aimQuestion)
+      throw new Error("A saved AIM question is required to create an answer-specific pivot.");
     const note = await this.repository.readNote(source.path);
     const clone2 = await this.repository.duplicateNote(source.path, map, mapPath);
     await this.repository.updateNote(clone2.path, { title: note.title });
     const siblingCount = map.nodes.filter(
-      (node) => node.parentId === source.parentId && node.mindSearchKind === "question"
+      (node) => node.parentId === source.parentId && node.aimKind === "question"
     ).length;
     const pivot = {
       ...source,
@@ -16365,9 +16392,9 @@ var _MindSearchRunStore = class _MindSearchRunStore {
       x: source.x,
       y: source.y + (siblingCount + 1) * 600,
       collapsed: false,
-      mindSearchQuestion: { ...source.mindSearchQuestion, requestId: this.id() }
+      aimQuestion: { ...source.aimQuestion, requestId: this.id() }
     };
-    delete pivot.mindSearchConvergesFromNodeIds;
+    delete pivot.aimConvergesFromNodeIds;
     map.nodes.push(pivot);
     return pivot;
   }
@@ -16389,10 +16416,10 @@ var _MindSearchRunStore = class _MindSearchRunStore {
           throw new Error("The saved research plan for this answer branch cannot be replaced.");
         return;
       }
-      validateMindSearchResearchPlan(plan);
+      validateAimResearchPlan(plan);
       branch.researchPlan = JSON.parse(JSON.stringify(plan));
       delete branch.researchPlanError;
-      map.mindSearch = state;
+      map.aim = state;
       await this.repository.saveMap(mapPath, map);
     });
   }
@@ -16402,7 +16429,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
       if (!branch || branch.researchPlan) return;
       const message = error instanceof Error ? error.message : String(error);
       branch.researchPlanError = message.slice(0, 500) || "Research subtopics were not generated.";
-      map.mindSearch = state;
+      map.aim = state;
       await this.repository.saveMap(mapPath, map);
     });
   }
@@ -16411,7 +16438,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
       const map = await this.repository.readMap(mapPath), state = this.state(map), branch = state.branches.find((item) => item.id === branchId);
       if (!branch || !branch.researchPlanError) return;
       delete branch.researchPlanError;
-      map.mindSearch = state;
+      map.aim = state;
       await this.repository.saveMap(mapPath, map);
     });
   }
@@ -16488,14 +16515,14 @@ var _MindSearchRunStore = class _MindSearchRunStore {
       });
       for (const previous of run.attempts) if (previous.id !== attemptId) delete previous.retainedReports;
       run.currentAttemptId = attemptId;
-      map.mindSearch = state;
+      map.aim = state;
       await this.repository.saveMap(mapPath, map);
-      _MindSearchRunStore.liveAttempts.add(this.liveKey(mapPath, id, attemptId));
+      _AimRunStore.liveAttempts.add(this.liveKey(mapPath, id, attemptId));
       return { runId: id, attemptId, inputSnapshotHash, dispatch: true };
     });
   }
   releaseAttempt(mapPath, handle) {
-    _MindSearchRunStore.liveAttempts.delete(this.liveKey(mapPath, handle.runId, handle.attemptId));
+    _AimRunStore.liveAttempts.delete(this.liveKey(mapPath, handle.runId, handle.attemptId));
   }
   async configureRetryTimeout(mapPath, branchId, timeoutMs) {
     if (!Number.isInteger(timeoutMs) || timeoutMs < 18e4 || timeoutMs > 6e5)
@@ -16503,14 +16530,14 @@ var _MindSearchRunStore = class _MindSearchRunStore {
     await this.locked(mapPath, async () => {
       const map = await this.repository.readMap(mapPath), state = this.state(map);
       const branch = state.branches.find((item) => item.id === branchId);
-      if (!branch) throw new Error("MindSearch branch is missing.");
+      if (!branch) throw new Error("AIM branch is missing.");
       if (state.runs.some(
         (run) => {
           var _a, _b;
           return run.branchId === branchId && ["running", "saving"].includes((_b = (_a = run.attempts.find((item) => item.id === run.currentAttemptId)) == null ? void 0 : _a.status) != null ? _b : "");
         }
       ))
-        throw new Error("MindSearch branch is still running.");
+        throw new Error("AIM branch is still running.");
       branch.retryTimeoutMs = timeoutMs;
       await this.repository.saveMap(mapPath, map);
     });
@@ -16521,7 +16548,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
       const run = state.runs.find((item) => item.id === handle.runId), attempt = run == null ? void 0 : run.attempts.find((item) => item.id === handle.attemptId);
       const branch = state.branches.find((item) => item.id === (run == null ? void 0 : run.branchId));
       if (!branch || !run || !attempt || !isRunningAttempt(run, attempt, handle) || this.snapshotHash({ branch: branch.inputSnapshot, answer: branch.answerSnapshot }) !== handle.inputSnapshotHash)
-        throw new Error("The MindSearch attempt is no longer current.");
+        throw new Error("The AIM attempt is no longer current.");
       if (recovery == null ? void 0 : recovery.phase) attempt.phase = recovery.phase;
       branch.deliveryRecovery = recovery ? JSON.parse(JSON.stringify(recovery)) : void 0;
       await this.repository.saveMap(mapPath, map);
@@ -16532,7 +16559,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
       const map = await this.repository.readMap(mapPath), state = this.state(map);
       const run = state.runs.find((item) => item.id === handle.runId), attempt = run == null ? void 0 : run.attempts.find((item) => item.id === handle.attemptId);
       if (!run || !attempt || !isRunningAttempt(run, attempt, handle))
-        throw new Error("The MindSearch attempt is no longer current.");
+        throw new Error("The AIM attempt is no longer current.");
       attempt.phase = phase;
       await this.repository.saveMap(mapPath, map);
     });
@@ -16542,12 +16569,12 @@ var _MindSearchRunStore = class _MindSearchRunStore {
       var _a, _b;
       const map = await this.repository.readMap(mapPath), state = this.state(map), run = state.runs.find((item) => item.id === handle.runId), attempt = run == null ? void 0 : run.attempts.find((item) => item.id === handle.attemptId);
       if (!run || !attempt || !isRunningAttempt(run, attempt, handle))
-        throw new Error("The MindSearch attempt is no longer current.");
+        throw new Error("The AIM attempt is no longer current.");
       const next = ((_a = attempt.researchTurns) != null ? _a : 0) + 1;
       if (next > ((_b = attempt.maxResearchTurns) != null ? _b : 1))
-        throw new Error("The bounded MindSearch research-turn budget is exhausted.");
+        throw new Error("The bounded AIM research-turn budget is exhausted.");
       attempt.researchTurns = next;
-      map.mindSearch = state;
+      map.aim = state;
       await this.repository.saveMap(mapPath, map);
       return next;
     });
@@ -16557,7 +16584,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
       var _a, _b;
       const map = await this.repository.readMap(mapPath), state = this.state(map), run = state.runs.find((item) => item.id === handle.runId), attempt = run == null ? void 0 : run.attempts.find((item) => item.id === handle.attemptId);
       if (!run || !attempt || !isRunningAttempt(run, attempt, handle))
-        throw new Error("The MindSearch attempt is no longer current.");
+        throw new Error("The AIM attempt is no longer current.");
       const reviews = (_a = attempt.plannerReviews) != null ? _a : [];
       if (reviews.some((item) => item.researchTurn === review.researchTurn))
         throw new Error("A Planner review is already recorded for this research turn.");
@@ -16566,7 +16593,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
       reviews.push(JSON.parse(JSON.stringify(review)));
       attempt.plannerReviews = reviews;
       if (stopReason == null ? void 0 : stopReason.trim()) attempt.stopReason = stopReason.trim();
-      map.mindSearch = state;
+      map.aim = state;
       await this.repository.saveMap(mapPath, map);
     });
   }
@@ -16575,13 +16602,13 @@ var _MindSearchRunStore = class _MindSearchRunStore {
       var _a;
       const map = await this.repository.readMap(mapPath), state = this.state(map), run = state.runs.find((item) => item.id === handle.runId), attempt = run == null ? void 0 : run.attempts.find((item) => item.id === handle.attemptId);
       if (!run || !attempt || !isRunningAttempt(run, attempt, handle))
-        throw new Error("The MindSearch attempt is no longer current.");
+        throw new Error("The AIM attempt is no longer current.");
       const diagnostics = (_a = attempt.searchDiagnostics) != null ? _a : [];
       const existing = diagnostics.find((item) => item.researchTurn === diagnostic.researchTurn);
       if (existing) Object.assign(existing, JSON.parse(JSON.stringify(diagnostic)));
       else diagnostics.push(JSON.parse(JSON.stringify(diagnostic)));
       attempt.searchDiagnostics = diagnostics.slice(-8);
-      map.mindSearch = state;
+      map.aim = state;
       await this.repository.saveMap(mapPath, map);
     });
   }
@@ -16597,7 +16624,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
         throw new Error("The Searcher report did not match the Repository readback before Planner review.");
       if (reports) {
         draft.retainedReports = reports.map((report) => ({ summary: report.summary, detail: report.detail }));
-        map.mindSearch = state;
+        map.aim = state;
         await this.repository.saveMap(mapPath, map);
       }
       return true;
@@ -16611,15 +16638,15 @@ var _MindSearchRunStore = class _MindSearchRunStore {
       if (!run || !attempt || !isRunningAttempt(run, attempt, handle) || !draft || draft.runId !== run.id || draft.attemptId !== attempt.id || draft.status !== "ready")
         return false;
       const node = map.nodes.find((item) => item.id === draft.nodeId && item.path === draft.notePath);
-      if (!node) throw new Error("MindSearch synthesis draft node is missing before finalization.");
+      if (!node) throw new Error("AIM synthesis draft node is missing before finalization.");
       await this.repository.updateNote(draft.notePath, { title });
       const note = await this.repository.readNote(draft.notePath);
       if (note.title !== managedHeadingValue(title))
-        throw new Error("MindSearch synthesis draft title did not match its Repository readback.");
+        throw new Error("AIM synthesis draft title did not match its Repository readback.");
       draft.title = title;
       draft.kind = kind;
-      node.mindSearchKind = kind;
-      map.mindSearch = state;
+      node.aimKind = kind;
+      map.aim = state;
       await this.repository.saveMap(mapPath, map);
       return true;
     });
@@ -16648,7 +16675,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
       const staleNodes = new Set(drafts.map((item) => item.nodeId));
       state.resultDrafts = ((_b = state.resultDrafts) != null ? _b : []).filter((item) => !staleNodes.has(item.nodeId));
       map.nodes = map.nodes.filter((node) => !staleNodes.has(node.id));
-      map.mindSearch = state;
+      map.aim = state;
       await this.repository.saveMap(mapPath, map);
       return true;
     });
@@ -16674,7 +16701,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
         (item) => item.runId !== handle.runId || item.attemptId !== handle.attemptId
       );
       map.nodes = map.nodes.filter((node) => !staleNodes.has(node.id));
-      map.mindSearch = state;
+      map.aim = state;
       await this.repository.saveMap(mapPath, map);
       return true;
     });
@@ -16691,7 +16718,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
       await this.repository.ensureTopicFolders(this.repository.topicRoot(mapPath));
       const notePath = this.repository.unique(folder, title), nodeId = this.id();
       const parentNodeId = (_a = options.parentNodeId) != null ? _a : branch.questionNodeId, parent = map.nodes.find((item) => item.id === parentNodeId);
-      if (!parent) throw new Error("MindSearch result parent does not exist.");
+      if (!parent) throw new Error("AIM result parent does not exist.");
       const siblingCount = map.nodes.filter((item) => item.parentId === parentNodeId).length;
       const kind = (_b = options.kind) != null ? _b : "research";
       const node = {
@@ -16701,8 +16728,8 @@ var _MindSearchRunStore = class _MindSearchRunStore {
         x: parent.x + 360,
         y: parent.y + 180 + siblingCount * 220,
         collapsed: false,
-        mindSearchKind: kind,
-        ...((_c = options.convergesFromNodeIds) == null ? void 0 : _c.length) ? { mindSearchConvergesFromNodeIds: [...options.convergesFromNodeIds] } : {}
+        aimKind: kind,
+        ...((_c = options.convergesFromNodeIds) == null ? void 0 : _c.length) ? { aimConvergesFromNodeIds: [...options.convergesFromNodeIds] } : {}
       };
       const draft = {
         id: this.id(),
@@ -16725,10 +16752,10 @@ var _MindSearchRunStore = class _MindSearchRunStore {
       map.nodes.push(node);
       (_e = state.resultDrafts) != null ? _e : state.resultDrafts = [];
       state.resultDrafts.push(draft);
-      map.mindSearch = state;
+      map.aim = state;
       await this.repository.saveMap(mapPath, map);
       await this.repository.createNoteAt(title, model, map, mapPath, "workspace", notePath, nodeId, {
-        summary: "MindSearch result pending synthesis.",
+        summary: "AIM result pending synthesis.",
         reasoning: reasoning != null ? reasoning : draft.reasoning
       });
       const latestMap = await this.repository.readMap(mapPath), latestState = this.state(latestMap), latestRun = latestState.runs.find((item) => item.id === handle.runId), latestAttempt = latestRun == null ? void 0 : latestRun.attempts.find((item) => item.id === handle.attemptId);
@@ -16740,12 +16767,12 @@ var _MindSearchRunStore = class _MindSearchRunStore {
         );
         latestState.resultDrafts = ((_h = latestState.resultDrafts) != null ? _h : []).filter((item) => item.id !== draft.id);
         latestMap.nodes = latestMap.nodes.filter((item) => item.id !== nodeId);
-        latestMap.mindSearch = latestState;
+        latestMap.aim = latestState;
         await this.repository.saveMap(mapPath, latestMap);
         return { status: "stale", runId: handle.runId, attemptId: handle.attemptId };
       }
       latestDraft.status = "ready";
-      latestMap.mindSearch = latestState;
+      latestMap.aim = latestState;
       await this.repository.saveMap(mapPath, latestMap);
       return { status: "ready", draft: JSON.parse(JSON.stringify(latestDraft)) };
     });
@@ -16764,7 +16791,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
           return node.id === draft.nodeId && node.path === draft.notePath && node.parentId === ((_a2 = draft.parentNodeId) != null ? _a2 : branch.questionNodeId);
         }
       ) || branch.results.some((item) => item.notePath === draft.notePath) || state.pendingCommits.some((item) => item.notePath === draft.notePath))
-        throw new Error("MindSearch result must use a fresh, registered result draft owned by this answer attempt.");
+        throw new Error("AIM result must use a fresh, registered result draft owned by this answer attempt.");
       const pending = {
         resultId: `result-${run.id}-${attempt.id}`,
         branchId: branch.id,
@@ -16782,7 +16809,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
       attempt.status = "saving";
       state.pendingCommits = state.pendingCommits.filter((item) => item.resultId !== pending.resultId);
       state.pendingCommits.push(pending);
-      map.mindSearch = state;
+      map.aim = state;
       await this.repository.saveMap(mapPath, map);
       try {
         await this.writePendingNote(pending);
@@ -16790,7 +16817,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
         if (!currentRun || currentRun.currentAttemptId !== handle.attemptId || (currentAttempt == null ? void 0 : currentAttempt.status) !== "saving")
           return { status: "stale", runId: handle.runId, attemptId: handle.attemptId };
         this.finishCommit(currentState, pending);
-        currentMap.mindSearch = currentState;
+        currentMap.aim = currentState;
         await this.repository.saveMap(mapPath, currentMap);
         this.releaseAttempt(mapPath, handle);
         return {
@@ -16811,7 +16838,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
       const recovered = [], stale = [], map = await this.repository.readMap(mapPath), state = this.state(map);
       for (const draft of [...(_a = state.resultDrafts) != null ? _a : []]) {
         const run = state.runs.find((item) => item.id === draft.runId), attempt = run == null ? void 0 : run.attempts.find((item) => item.id === draft.attemptId);
-        if (run && attempt && _MindSearchRunStore.liveAttempts.has(this.liveKey(mapPath, run.id, attempt.id))) continue;
+        if (run && attempt && _AimRunStore.liveAttempts.has(this.liveKey(mapPath, run.id, attempt.id))) continue;
         const hasPendingCommit = state.pendingCommits.some(
           (item) => item.resultDraftId === draft.id && item.runId === draft.runId && item.attemptId === draft.attemptId
         );
@@ -16833,7 +16860,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
             "workspace",
             draft.notePath,
             draft.nodeId,
-            { summary: "MindSearch result pending synthesis.", reasoning: draft.reasoning }
+            { summary: "AIM result pending synthesis.", reasoning: draft.reasoning }
           );
           draft.status = "ready";
           recovered.push(draft.id);
@@ -16841,7 +16868,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
       }
       for (const pending of [...state.pendingCommits]) {
         const run = state.runs.find((item) => item.id === pending.runId), attempt = run == null ? void 0 : run.attempts.find((item) => item.id === pending.attemptId);
-        if (run && attempt && _MindSearchRunStore.liveAttempts.has(this.liveKey(mapPath, run.id, attempt.id))) continue;
+        if (run && attempt && _AimRunStore.liveAttempts.has(this.liveKey(mapPath, run.id, attempt.id))) continue;
         if (!run || run.currentAttemptId !== pending.attemptId || (attempt == null ? void 0 : attempt.status) !== "saving") {
           state.pendingCommits = state.pendingCommits.filter((item) => item.resultId !== pending.resultId);
           stale.push(pending.resultId);
@@ -16851,7 +16878,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
         this.finishCommit(state, pending);
         recovered.push(pending.resultId);
       }
-      map.mindSearch = state;
+      map.aim = state;
       await this.repository.saveMap(mapPath, map);
       return { recovered, stale };
     });
@@ -16862,7 +16889,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
       const map = await this.repository.readMap(mapPath), state = this.state(map), interrupted = [];
       for (const run of state.runs) {
         const attempt = run.attempts.find((item) => item.id === run.currentAttemptId);
-        if ((attempt == null ? void 0 : attempt.status) !== "running" || _MindSearchRunStore.liveAttempts.has(this.liveKey(mapPath, run.id, attempt.id)))
+        if ((attempt == null ? void 0 : attempt.status) !== "running" || _AimRunStore.liveAttempts.has(this.liveKey(mapPath, run.id, attempt.id)))
           continue;
         const reason = "The app reopened after this research attempt stopped before saving a result. Retry is available; research was not resumed automatically.";
         attempt.status = "failed";
@@ -16877,7 +16904,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
         map.nodes = map.nodes.filter((node) => !staleNodes.has(node.id));
       }
       if (interrupted.length) {
-        map.mindSearch = state;
+        map.aim = state;
         await this.repository.saveMap(mapPath, map);
       }
       return interrupted;
@@ -16893,11 +16920,11 @@ var _MindSearchRunStore = class _MindSearchRunStore {
     });
     const saved = await this.repository.readNote(pending.notePath);
     if (saved.title !== pending.title || saved.summary !== pending.summary || saved.detail !== pending.detail || saved.status !== noteStatus)
-      throw new Error("Saved MindSearch note did not match its pending result.");
+      throw new Error("Saved AIM note did not match its pending result.");
   }
   async retireDraftNote(draft, reason, disposition = "stale") {
     if (!this.repository.hasNote(draft.notePath)) return;
-    const note = await this.repository.readNote(draft.notePath), marker4 = disposition === "stale" ? "### MindSearch stale-attempt diagnostic" : "### MindSearch incomplete-attempt diagnostic";
+    const note = await this.repository.readNote(draft.notePath), marker4 = disposition === "stale" ? "### AIM stale-attempt diagnostic" : "### AIM incomplete-attempt diagnostic";
     if (note.status === "error" && note.detail.includes(marker4)) return;
     const dispositionReason = disposition === "stale" ? "is stale" : "did not complete successfully";
     const detail = [
@@ -16911,10 +16938,10 @@ var _MindSearchRunStore = class _MindSearchRunStore {
     ].filter(Boolean).join("\n\n");
     await this.repository.updateNote(draft.notePath, {
       title: [
-        translate("en", "note.mindsearch_unpublished_diagnostic"),
-        translate("zh-TW", "note.mindsearch_unpublished_diagnostic")
-      ].some((marker5) => note.title.includes(marker5)) ? note.title : `${note.title}${t("note.mindsearch_unpublished_diagnostic")}`,
-      summary: t("note.mindsearch_unpublished_diagnostic_summary_0", draft.attemptId),
+        translate("en", "note.aim_unpublished_diagnostic"),
+        translate("zh-TW", "note.aim_unpublished_diagnostic")
+      ].some((marker5) => note.title.includes(marker5)) ? note.title : `${note.title}${t("note.aim_unpublished_diagnostic")}`,
+      summary: t("note.aim_unpublished_diagnostic_summary_0", draft.attemptId),
       detail,
       status: "error"
     });
@@ -16943,7 +16970,7 @@ var _MindSearchRunStore = class _MindSearchRunStore {
   }
   state(map) {
     var _a, _b;
-    const state = (_a = map.mindSearch) != null ? _a : { version: 1, branches: [], runs: [], pendingCommits: [] };
+    const state = (_a = map.aim) != null ? _a : { version: 1, branches: [], runs: [], pendingCommits: [] };
     (_b = state.resultDrafts) != null ? _b : state.resultDrafts = [];
     return state;
   }
@@ -16973,22 +17000,22 @@ ${attemptId}`;
     }
   }
 };
-__publicField(_MindSearchRunStore, "liveAttempts", /* @__PURE__ */ new Set());
+__publicField(_AimRunStore, "liveAttempts", /* @__PURE__ */ new Set());
 /** Per-repository map locks, shared by every store instance so that separate views serialize their writes. */
-__publicField(_MindSearchRunStore, "repositoryLocks", /* @__PURE__ */ new WeakMap());
-var MindSearchRunStore = _MindSearchRunStore;
+__publicField(_AimRunStore, "repositoryLocks", /* @__PURE__ */ new WeakMap());
+var AimRunStore = _AimRunStore;
 
-// experiences/mind-search/failure-hint.ts
-function mindSearchTimedOut(reason) {
+// experiences/aim/failure-hint.ts
+function aimTimedOut(reason) {
   return /超過.*分鐘|timed?\s*out|timeout|exceeded.*minutes/i.test(reason);
 }
 var SEARCH_FAILURE = /no web search succeeded|usable searched report|did not perform web search|search (?:was )?not performed|web search (?:is )?unavailable|沒有實際執行網路搜尋|未執行(?:網路)?搜尋|\bENOTFOUND\b|\bECONN(?:REFUSED|RESET)\b|\bEAI_AGAIN\b|network (?:error|unavailable)|網路連線/i;
-function mindSearchRepairHint(reason) {
-  if (mindSearchTimedOut(reason)) return "ui.mindsearch_repair_timeout_hint";
-  if (/auth|login|sign.in|登入|unauthorized|quota|rate.limit/i.test(reason)) return "ui.mindsearch_repair_auth_hint";
-  if (/format|schema|JSON|marker|格式|分類/i.test(reason)) return "ui.mindsearch_repair_format_hint";
-  if (SEARCH_FAILURE.test(reason)) return "ui.mindsearch_repair_search_hint";
-  return "ui.mindsearch_repair_retry_hint";
+function aimRepairHint(reason) {
+  if (aimTimedOut(reason)) return "ui.aim_repair_timeout_hint";
+  if (/auth|login|sign.in|登入|unauthorized|quota|rate.limit/i.test(reason)) return "ui.aim_repair_auth_hint";
+  if (/format|schema|JSON|marker|格式|分類/i.test(reason)) return "ui.aim_repair_format_hint";
+  if (SEARCH_FAILURE.test(reason)) return "ui.aim_repair_search_hint";
+  return "ui.aim_repair_retry_hint";
 }
 
 // experiences/visual-map/modals.ts
@@ -17359,7 +17386,7 @@ function promptMetrics(entry) {
   }
   const characters = Array.from(prompt).length;
   const nonAscii = Array.from(prompt).filter((character) => character.charCodeAt(0) > 127).length;
-  const phase = (_c = (_b = prompt.match(/<!--\s*mindsearch-phase:\s*([a-z-]+)\s*-->/)) == null ? void 0 : _b[1]) != null ? _c : entry.mode;
+  const phase = (_c = (_b = prompt.match(/<!--\s*aim-phase:\s*([a-z-]+)\s*-->/)) == null ? void 0 : _b[1]) != null ? _c : entry.mode;
   const repairReason = /repair/i.test(phase) ? (_e = (_d = prompt.match(/(?:Format validation error|Repair reason):\s*([^\r\n]+)/i)) == null ? void 0 : _d[1]) == null ? void 0 : _e.trim() : void 0;
   return {
     prompt,
@@ -18896,14 +18923,14 @@ var TopicPickerModal = class extends import_obsidian13.Modal {
 // experiences/visual-map/view.ts
 var VIEW_TYPE = "visual-agent-map-view";
 var originBaseline = (origin) => (0, import_node_crypto9.createHash)("sha256").update(origin != null ? origin : "").digest("hex");
-function mindSearchQuestionStatus(map, questionNodeId, activeQuestionNodeId) {
+function aimQuestionStatus(map, questionNodeId, activeQuestionNodeId) {
   var _a, _b;
   if (activeQuestionNodeId === questionNodeId) return "running";
-  const branches = (_b = (_a = map.mindSearch) == null ? void 0 : _a.branches.filter((branch) => branch.questionNodeId === questionNodeId)) != null ? _b : [];
+  const branches = (_b = (_a = map.aim) == null ? void 0 : _a.branches.filter((branch) => branch.questionNodeId === questionNodeId)) != null ? _b : [];
   const statuses = branches.map((branch) => {
     var _a2, _b2, _c;
     if (branch.researchPlanError && !branch.researchPlan) return "failed";
-    const runs = ((_b2 = (_a2 = map.mindSearch) == null ? void 0 : _a2.runs) != null ? _b2 : []).filter((item) => item.branchId === branch.id);
+    const runs = ((_b2 = (_a2 = map.aim) == null ? void 0 : _a2.runs) != null ? _b2 : []).filter((item) => item.branchId === branch.id);
     if (runs.some((run) => {
       const attempt = run.attempts.find((item) => item.id === run.currentAttemptId);
       return (attempt == null ? void 0 : attempt.status) === "running" || (attempt == null ? void 0 : attempt.status) === "saving";
@@ -18954,25 +18981,25 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
     __publicField(this, "dragging", false);
     __publicField(this, "suppressClickUntil", 0);
     __publicField(this, "closed", false);
-    __publicField(this, "mindSearchViewEpoch", 0);
+    __publicField(this, "aimViewEpoch", 0);
     __publicField(this, "mapOpenEpoch", 0);
     __publicField(this, "headerTitle", "");
     __publicField(this, "builtIn", false);
     __publicField(this, "showSampleTour", false);
     __publicField(this, "sampleTourStep", 0);
-    __publicField(this, "mindSearchRuns");
-    __publicField(this, "mindSearchManual");
-    __publicField(this, "mindSearchRecovery");
-    __publicField(this, "mindSearchBusy", false);
-    __publicField(this, "mindSearchController", null);
-    __publicField(this, "mindSearchActiveQuestionNodeId", null);
-    __publicField(this, "mindSearchActivityKind", null);
-    __publicField(this, "mindSearchFailedReports", /* @__PURE__ */ new Map());
-    __publicField(this, "mindSearchAnswerRequestIds", /* @__PURE__ */ new Map());
-    this.mindSearchRuns = new MindSearchRunStore(plugin.repo);
-    this.mindSearchManual = new MindSearchManualFlow(
+    __publicField(this, "aimRuns");
+    __publicField(this, "aimManual");
+    __publicField(this, "aimRecovery");
+    __publicField(this, "aimBusy", false);
+    __publicField(this, "aimController", null);
+    __publicField(this, "aimActiveQuestionNodeId", null);
+    __publicField(this, "aimActivityKind", null);
+    __publicField(this, "aimFailedReports", /* @__PURE__ */ new Map());
+    __publicField(this, "aimAnswerRequestIds", /* @__PURE__ */ new Map());
+    this.aimRuns = new AimRunStore(plugin.repo);
+    this.aimManual = new AimManualFlow(
       plugin.repo,
-      this.mindSearchRuns,
+      this.aimRuns,
       (context, model, reasoning, signal, onWebSearchEvent) => plugin.askModel(context, model, reasoning, signal, void 0, void 0, onWebSearchEvent),
       void 0,
       async (operation) => {
@@ -18983,9 +19010,9 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
         return result;
       }
     );
-    this.mindSearchRecovery = new MindSearchManualFlow(
+    this.aimRecovery = new AimManualFlow(
       plugin.repo,
-      this.mindSearchRuns,
+      this.aimRuns,
       (context, model, reasoning, signal, onWebSearchEvent) => plugin.askModel(context, model, reasoning, signal, void 0, void 0, onWebSearchEvent)
     );
   }
@@ -19009,7 +19036,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
   }
   async onOpen() {
     this.closed = false;
-    const epoch = ++this.mindSearchViewEpoch;
+    const epoch = ++this.aimViewEpoch;
     this.mapOpenEpoch++;
     this.contentEl.addClass("vam-view");
     this.contentEl.tabIndex = 0;
@@ -19028,13 +19055,13 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       }
     });
     await this.plugin.ready;
-    if (this.closed || this.mindSearchViewEpoch !== epoch) return;
+    if (this.closed || this.aimViewEpoch !== epoch) return;
     if (!this.path && !this.builtIn) {
       if (this.plugin.consumeFirstInstallSample()) await this.openBuiltInSample();
       else if (!this.plugin.repo.workspaceExists()) this.render();
       else {
         const files = await this.plugin.repo.mapFiles();
-        if (this.closed || this.mindSearchViewEpoch !== epoch) return;
+        if (this.closed || this.aimViewEpoch !== epoch) return;
         if (files.length) {
           let defaultPath = files[0].path;
           for (const file of files) {
@@ -19044,8 +19071,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
             } catch (e) {
               continue;
             }
-            if (this.closed || this.mindSearchViewEpoch !== epoch) return;
-            if (!candidate.mindSearch) {
+            if (this.closed || this.aimViewEpoch !== epoch) return;
+            if (!candidate.aim) {
               defaultPath = file.path;
               break;
             }
@@ -19058,13 +19085,13 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
   async onClose() {
     var _a;
     this.closed = true;
-    this.mindSearchViewEpoch++;
+    this.aimViewEpoch++;
     this.mapOpenEpoch++;
-    const controller = this.mindSearchController;
-    this.mindSearchController = null;
-    this.mindSearchBusy = false;
-    this.mindSearchActiveQuestionNodeId = null;
-    this.mindSearchActivityKind = null;
+    const controller = this.aimController;
+    this.aimController = null;
+    this.aimBusy = false;
+    this.aimActiveQuestionNodeId = null;
+    this.aimActivityKind = null;
     controller == null ? void 0 : controller.abort();
     if (this.refreshTimer !== null) window.clearTimeout(this.refreshTimer);
     if (this.hoverTimer !== null) window.clearTimeout(this.hoverTimer);
@@ -19075,8 +19102,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       await this.persistViewport();
     }
   }
-  mindSearchViewIsCurrent(epoch, mapPath) {
-    return !this.closed && this.mindSearchViewEpoch === epoch && this.path === mapPath;
+  aimViewIsCurrent(epoch, mapPath) {
+    return !this.closed && this.aimViewEpoch === epoch && this.path === mapPath;
   }
   async refreshFromPlugin() {
     if (this.builtIn) {
@@ -19124,7 +19151,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
   }
   async hydrate(isCurrent = () => true) {
     var _a, _b;
-    this.mindSearchFailedReports.clear();
+    this.aimFailedReports.clear();
     if (this.builtIn) {
       if (isCurrent()) this.notes = builtInSample(this.plugin.settings.language).notes;
       return;
@@ -19143,8 +19170,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
   }
   async hydrateFailedReportTargets(isCurrent) {
     const map = this.map, mapPath = this.path;
-    if (!mapPath || !(map == null ? void 0 : map.mindSearch)) return;
-    const failed = map.mindSearch.runs.some(
+    if (!mapPath || !(map == null ? void 0 : map.aim)) return;
+    const failed = map.aim.runs.some(
       (run) => {
         var _a;
         return ((_a = run.attempts.find((item) => item.id === run.currentAttemptId)) == null ? void 0 : _a.status) === "failed";
@@ -19161,17 +19188,17 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       }
     }
     if (!isCurrent()) return;
-    this.mindSearchFailedReports.clear();
-    for (const [questionNodeId, target] of matchMindSearchFailedReportTargets(map, candidates))
-      this.mindSearchFailedReports.set(questionNodeId, target);
+    this.aimFailedReports.clear();
+    for (const [questionNodeId, target] of matchAimFailedReportTargets(map, candidates))
+      this.aimFailedReports.set(questionNodeId, target);
   }
   async openMap(path) {
     await this.plugin.mutate(() => this.openMapInMutation(path));
   }
   async openMapInMutation(path) {
     var _a, _b;
-    const viewEpoch = this.mindSearchViewEpoch, openEpoch = ++this.mapOpenEpoch;
-    const isCurrent = () => !this.closed && this.mindSearchViewEpoch === viewEpoch && this.mapOpenEpoch === openEpoch;
+    const viewEpoch = this.aimViewEpoch, openEpoch = ++this.mapOpenEpoch;
+    const isCurrent = () => !this.closed && this.aimViewEpoch === viewEpoch && this.mapOpenEpoch === openEpoch;
     if (!isCurrent()) return;
     if (this.viewportTimer !== null) {
       window.clearTimeout(this.viewportTimer);
@@ -19181,35 +19208,35 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
     }
     let map = await this.plugin.repo.readMap(path);
     if (!isCurrent()) return;
-    if (((_a = map.mindSearch) == null ? void 0 : _a.creationId) && map.mindSearch.rootDraft) {
-      const resumed = await createMindSearchMap(this.plugin.repo, this.plugin.settings.cliModel, {
-        requestId: map.mindSearch.creationId,
+    if (((_a = map.aim) == null ? void 0 : _a.creationId) && map.aim.rootDraft) {
+      const resumed = await createAimMap(this.plugin.repo, this.plugin.settings.cliModel, {
+        requestId: map.aim.creationId,
         topic: map.title,
-        context: map.mindSearch.rootDraft.context,
-        model: map.mindSearch.rootDraft.model,
-        reasoning: map.mindSearch.rootDraft.reasoning
+        context: map.aim.rootDraft.context,
+        model: map.aim.rootDraft.model,
+        reasoning: map.aim.rootDraft.reasoning
       });
       if (!isCurrent()) return;
       map = resumed.map;
     }
-    if ((_b = map.mindSearch) == null ? void 0 : _b.questionDraft) {
-      await this.mindSearchRecovery.recoverQuestionDraft(path);
+    if ((_b = map.aim) == null ? void 0 : _b.questionDraft) {
+      await this.aimRecovery.recoverQuestionDraft(path);
       if (!isCurrent()) return;
       map = await this.plugin.repo.readMap(path);
       if (!isCurrent()) return;
     }
-    if (map.mindSearch) {
-      await this.mindSearchRuns.recoverPending(path);
+    if (map.aim) {
+      await this.aimRuns.recoverPending(path);
       if (!isCurrent()) return;
-      await this.mindSearchRuns.failInterrupted(path);
+      await this.aimRuns.failInterrupted(path);
       if (!isCurrent()) return;
-      await this.mindSearchRecovery.recoverPostReportQuestions(path);
+      await this.aimRecovery.recoverPostReportQuestions(path);
       if (!isCurrent()) return;
       map = await this.plugin.repo.readMap(path);
       if (!isCurrent()) return;
     }
     const clearedQuestionEdges = clearQuestionConvergenceEdges(map);
-    const repairedResultEdges = repairMindSearchResultConvergence(map);
+    const repairedResultEdges = repairAimResultConvergence(map);
     if (clearedQuestionEdges || repairedResultEdges) {
       await this.plugin.repo.saveMap(path, map);
       if (!isCurrent()) return;
@@ -19227,11 +19254,11 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
     this.render();
     this.app.workspace.requestSaveLayout();
   }
-  openMindSearchStart() {
+  openAimStart() {
     var _a;
     if (this.closed) return;
-    const epoch = this.mindSearchViewEpoch;
-    const isCurrent = () => !this.closed && this.mindSearchViewEpoch === epoch;
+    const epoch = this.aimViewEpoch;
+    const isCurrent = () => !this.closed && this.aimViewEpoch === epoch;
     const availableModels = typeof this.plugin.availableModels === "function" ? this.plugin.availableModels() : [];
     const configuredModel = ((_a = this.plugin.settings.cliModel) == null ? void 0 : _a.trim()) || "gpt-5.6-luna";
     const configuredReasoning = normalizeReasoningLevel(this.plugin.settings.cliReasoning);
@@ -19241,14 +19268,14 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       id,
       label: typeof this.plugin.modelLabel === "function" ? this.plugin.modelLabel(id) : id
     }));
-    new MindSearchStartModal(
+    new AimStartModal(
       this.app,
       (input) => this.plugin.mutate(async () => {
         var _a2;
         if (!isCurrent()) return;
         await this.plugin.repo.ensureWorkspace();
         if (!isCurrent()) return;
-        const created = await createMindSearchMap(this.plugin.repo, input.model, input);
+        const created = await createAimMap(this.plugin.repo, input.model, input);
         await this.plugin.rebuildDerivedData();
         if (!isCurrent()) return;
         await this.openMapInMutation(created.mapPath);
@@ -19269,13 +19296,13 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
         const models = [...new Set(ready.flatMap((state) => state.models))];
         if (!ready.length || !models.length)
           throw new Error(
-            states.map((state) => state.error).filter(Boolean).join("; ") || t("ui.mindsearch_no_models_found")
+            states.map((state) => state.error).filter(Boolean).join("; ") || t("ui.aim_no_models_found")
           );
         const choices = models.map((id) => ({ id, label: this.plugin.modelLabel(id) }));
         const errors = states.filter((state) => state.status === "error").map((state) => state.error).filter(Boolean);
         return errors.length ? {
           models: choices,
-          message: t("ui.mindsearch_models_refreshed_partial_0", errors.join("; ")),
+          message: t("ui.aim_models_refreshed_partial_0", errors.join("; ")),
           preserveSelection: true
         } : choices;
       }
@@ -19289,13 +19316,13 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       (title) => this.enqueue(async () => this.openMapInMutation(await this.plugin.repo.createMap(title)))
     ).open();
   }
-  async planMindSearchQuestion(parentNodeId, requestId, parentBranchId = null, signal) {
+  async planAimQuestion(parentNodeId, requestId, parentBranchId = null, signal) {
     if (this.closed || !this.map || !this.path || this.builtIn)
-      throw new Error("Open a saved MindSearch map before planning its next question.");
-    const mapPath = this.path, epoch = this.mindSearchViewEpoch;
+      throw new Error("Open a saved AIM map before planning its next question.");
+    const mapPath = this.path, epoch = this.aimViewEpoch;
     const parent = this.notes.get(parentNodeId);
     if (!parent) throw new Error("The selected Planner question parent is unavailable.");
-    const planned = await this.mindSearchManual.planNextQuestion(
+    const planned = await this.aimManual.planNextQuestion(
       mapPath,
       parentNodeId,
       parent.model,
@@ -19304,7 +19331,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       parentBranchId,
       signal
     );
-    const isCurrent = () => this.mindSearchViewIsCurrent(epoch, mapPath) && !(signal == null ? void 0 : signal.aborted);
+    const isCurrent = () => this.aimViewIsCurrent(epoch, mapPath) && !(signal == null ? void 0 : signal.aborted);
     if (isCurrent()) {
       const latest = await this.plugin.repo.readMap(mapPath);
       if (isCurrent()) {
@@ -19318,17 +19345,17 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
     }
     return planned;
   }
-  async submitMindSearchAnswer(questionNodeId, input, signal) {
+  async submitAimAnswer(questionNodeId, input, signal) {
     if (this.closed || !this.map || !this.path || this.builtIn)
-      throw new Error("Open a saved MindSearch map before submitting an answer.");
-    const mapPath = this.path, epoch = this.mindSearchViewEpoch;
-    const isCurrent = () => this.mindSearchViewIsCurrent(epoch, mapPath) && !(signal == null ? void 0 : signal.aborted);
+      throw new Error("Open a saved AIM map before submitting an answer.");
+    const mapPath = this.path, epoch = this.aimViewEpoch;
+    const isCurrent = () => this.aimViewIsCurrent(epoch, mapPath) && !(signal == null ? void 0 : signal.aborted);
     const question = this.notes.get(questionNodeId);
     if (!question) throw new Error("The selected Planner question is unavailable.");
     signal == null ? void 0 : signal.throwIfAborted();
     let recoveredBranches = 0;
     await this.plugin.mutate(async () => {
-      recoveredBranches = await this.mindSearchRuns.recoverAnswerBranches(mapPath);
+      recoveredBranches = await this.aimRuns.recoverAnswerBranches(mapPath);
     });
     if (recoveredBranches) {
       if (!isCurrent()) return { status: "stale", branchId: "" };
@@ -19339,7 +19366,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       this.syncOutline();
     }
     try {
-      const outcome = await this.mindSearchManual.answerAndResearch(
+      const outcome = await this.aimManual.answerAndResearch(
         mapPath,
         questionNodeId,
         input,
@@ -19348,7 +19375,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
         signal,
         async (activeQuestionNodeId) => {
           if (!isCurrent()) return;
-          this.mindSearchActiveQuestionNodeId = activeQuestionNodeId;
+          this.aimActiveQuestionNodeId = activeQuestionNodeId;
           this.map = await this.plugin.repo.readMap(mapPath);
           await this.hydrate(isCurrent);
           if (isCurrent()) this.render();
@@ -19381,50 +19408,50 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       throw error;
     }
   }
-  renderMindSearchFailure(card, branch) {
+  renderAimFailure(card, branch) {
     var _a, _b, _c, _d, _e, _f, _g, _h;
-    const runs = (_c = (_b = (_a = this.map) == null ? void 0 : _a.mindSearch) == null ? void 0 : _b.runs.filter((run) => run.branchId === branch.id)) != null ? _c : [];
+    const runs = (_c = (_b = (_a = this.map) == null ? void 0 : _a.aim) == null ? void 0 : _b.runs.filter((run) => run.branchId === branch.id)) != null ? _c : [];
     const latest = runs.at(-1), attempt = latest == null ? void 0 : latest.attempts.find((item) => item.id === latest.currentAttemptId);
     if ((attempt == null ? void 0 : attempt.status) !== "failed" && !branch.researchPlanError) return;
-    const box = card.createDiv({ cls: "vam-mindsearch-failure" });
+    const box = card.createDiv({ cls: "vam-aim-failure" });
     box.createEl("p", {
       text: t(
-        "ui.mindsearch_failure_reason",
+        "ui.aim_failure_reason",
         (attempt == null ? void 0 : attempt.stopReason) || branch.researchPlanError || t("ui.expansion_failed")
       )
     });
     const phase = (_f = (_e = attempt == null ? void 0 : attempt.phase) != null ? _e : (_d = branch.deliveryRecovery) == null ? void 0 : _d.phase) != null ? _f : branch.researchPlanError ? "research-plan" : void 0;
     const labels = {
-      "subtopic-research": t("ui.mindsearch_stage_subtopic"),
-      "report-review": t("ui.mindsearch_stage_review"),
-      "research-plan": t("ui.mindsearch_stage_plan"),
-      "delivery-outline": t("ui.mindsearch_stage_delivery_outline"),
-      "delivery-research": t("ui.mindsearch_stage_delivery_research"),
-      "delivery-writing": t("ui.mindsearch_stage_delivery_writing"),
-      "delivery-acceptance": t("ui.mindsearch_stage_delivery_acceptance")
+      "subtopic-research": t("ui.aim_stage_subtopic"),
+      "report-review": t("ui.aim_stage_review"),
+      "research-plan": t("ui.aim_stage_plan"),
+      "delivery-outline": t("ui.aim_stage_delivery_outline"),
+      "delivery-research": t("ui.aim_stage_delivery_research"),
+      "delivery-writing": t("ui.aim_stage_delivery_writing"),
+      "delivery-acceptance": t("ui.aim_stage_delivery_acceptance")
     };
-    if (phase && labels[phase]) box.createEl("p", { text: t("ui.mindsearch_failure_stage", labels[phase]) });
+    if (phase && labels[phase]) box.createEl("p", { text: t("ui.aim_failure_stage", labels[phase]) });
     const reason = (_h = (_g = attempt == null ? void 0 : attempt.stopReason) != null ? _g : branch.researchPlanError) != null ? _h : "";
-    const timedOut = mindSearchTimedOut(reason);
-    box.createEl("p", { text: t(mindSearchRepairHint(reason)) });
+    const timedOut = aimTimedOut(reason);
+    box.createEl("p", { text: t(aimRepairHint(reason)) });
     if (timedOut)
       this.button(
         box,
-        t("ui.mindsearch_repair_timeout"),
+        t("ui.aim_repair_timeout"),
         () => {
           const terminal = [...branch.results].reverse().find((result) => result.kind !== "research");
-          if (terminal) void this.continueMindSearchResearch(branch.questionNodeId, terminal.runId, 6e5);
-          else void this.retryMindSearchSubtopics(branch.id, 6e5);
+          if (terminal) void this.continueAimResearch(branch.questionNodeId, terminal.runId, 6e5);
+          else void this.retryAimSubtopics(branch.id, 6e5);
         },
-        this.mindSearchBusy
+        this.aimBusy
       ).addClass("mod-cta");
   }
-  async retryMindSearchSubtopics(branchId, timeoutMs) {
+  async retryAimSubtopics(branchId, timeoutMs) {
     var _a, _b, _c, _d, _e, _f, _g;
-    const branch = (_b = (_a = this.map) == null ? void 0 : _a.mindSearch) == null ? void 0 : _b.branches.find((item) => item.id === branchId), question = branch && ((_c = this.map) == null ? void 0 : _c.nodes.find((item) => item.id === branch.questionNodeId));
+    const branch = (_b = (_a = this.map) == null ? void 0 : _a.aim) == null ? void 0 : _b.branches.find((item) => item.id === branchId), question = branch && ((_c = this.map) == null ? void 0 : _c.nodes.find((item) => item.id === branch.questionNodeId));
     const note = question && this.notes.get(question.id);
-    if (this.closed || !this.path || !branch || !question || !note || this.mindSearchBusy) return;
-    const branchRuns = ((_f = (_e = (_d = this.map) == null ? void 0 : _d.mindSearch) == null ? void 0 : _e.runs) != null ? _f : []).filter((item) => item.branchId === branch.id);
+    if (this.closed || !this.path || !branch || !question || !note || this.aimBusy) return;
+    const branchRuns = ((_f = (_e = (_d = this.map) == null ? void 0 : _d.aim) == null ? void 0 : _e.runs) != null ? _f : []).filter((item) => item.branchId === branch.id);
     if (branchRuns.some((run) => {
       const attempt = run.attempts.find((item) => item.id === run.currentAttemptId);
       return (attempt == null ? void 0 : attempt.status) === "running" || (attempt == null ? void 0 : attempt.status) === "saving";
@@ -19432,33 +19459,33 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       return;
     const terminal = branch.results.some((result) => result.kind !== "research");
     if (terminal) return;
-    const epoch = this.mindSearchViewEpoch, mapPath = this.path, controller = new AbortController();
-    this.mindSearchBusy = true;
-    this.mindSearchController = controller;
-    this.mindSearchActiveQuestionNodeId = question.id;
-    this.mindSearchActivityKind = "research";
+    const epoch = this.aimViewEpoch, mapPath = this.path, controller = new AbortController();
+    this.aimBusy = true;
+    this.aimController = controller;
+    this.aimActiveQuestionNodeId = question.id;
+    this.aimActivityKind = "research";
     this.render();
     try {
       if (timeoutMs)
-        await this.plugin.mutate(() => this.mindSearchRuns.configureRetryTimeout(mapPath, branch.id, timeoutMs));
-      const result = branch.researchPlan ? await this.mindSearchManual.resumeAnswerResearch(
+        await this.plugin.mutate(() => this.aimRuns.configureRetryTimeout(mapPath, branch.id, timeoutMs));
+      const result = branch.researchPlan ? await this.aimManual.resumeAnswerResearch(
         mapPath,
         branch.id,
         note.model,
         note.reasoning,
         controller.signal
-      ) : await this.mindSearchManual.retryAnswerResearch(
+      ) : await this.aimManual.retryAnswerResearch(
         mapPath,
         branch.id,
         note.model,
         note.reasoning,
         controller.signal
       );
-      if (!this.mindSearchViewIsCurrent(epoch, mapPath) || this.mindSearchController !== controller) return;
+      if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
       const latest = await this.plugin.repo.readMap(mapPath);
-      if (this.mindSearchViewIsCurrent(epoch, mapPath)) {
+      if (this.aimViewIsCurrent(epoch, mapPath)) {
         this.map = latest;
-        await this.hydrate(() => this.mindSearchViewIsCurrent(epoch, mapPath));
+        await this.hydrate(() => this.aimViewIsCurrent(epoch, mapPath));
         this.render();
         this.syncOutline();
       }
@@ -19469,37 +19496,37 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
           this.render();
           this.focusNode(question2);
         }
-        new import_obsidian14.Notice(t("ui.mindsearch_waiting_user"));
-      } else if (result.status === "partial") new import_obsidian14.Notice(t("ui.mindsearch_research_partial"));
-      else if (result.status === "completed") new import_obsidian14.Notice(t("ui.mindsearch_research_saved"));
-      else if (result.status === "in-progress") new import_obsidian14.Notice(t("ui.mindsearch_research_already_running"));
+        new import_obsidian14.Notice(t("ui.aim_waiting_user"));
+      } else if (result.status === "partial") new import_obsidian14.Notice(t("ui.aim_research_partial"));
+      else if (result.status === "completed") new import_obsidian14.Notice(t("ui.aim_research_saved"));
+      else if (result.status === "in-progress") new import_obsidian14.Notice(t("ui.aim_research_already_running"));
     } catch (error) {
-      if (!this.mindSearchViewIsCurrent(epoch, mapPath) || this.mindSearchController !== controller) return;
+      if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
       if (controller.signal.aborted) new import_obsidian14.Notice(t("ui.research_stopped_existing_content_was_preserved"));
       else new import_obsidian14.Notice(error instanceof Error ? error.message : String(error));
       const latest = await this.plugin.repo.readMap(mapPath);
-      if (this.mindSearchViewIsCurrent(epoch, mapPath)) {
+      if (this.aimViewIsCurrent(epoch, mapPath)) {
         this.map = latest;
-        await this.hydrate(() => this.mindSearchViewIsCurrent(epoch, mapPath));
+        await this.hydrate(() => this.aimViewIsCurrent(epoch, mapPath));
         this.render();
         this.syncOutline();
       }
     } finally {
-      if (this.mindSearchController === controller) {
-        this.mindSearchBusy = false;
-        this.mindSearchController = null;
-        this.mindSearchActiveQuestionNodeId = null;
-        this.mindSearchActivityKind = null;
-        if (this.mindSearchViewIsCurrent(epoch, mapPath)) this.render();
+      if (this.aimController === controller) {
+        this.aimBusy = false;
+        this.aimController = null;
+        this.aimActiveQuestionNodeId = null;
+        this.aimActivityKind = null;
+        if (this.aimViewIsCurrent(epoch, mapPath)) this.render();
       }
     }
   }
-  async reviewMindSearchFailedReport(runId, diagnosticNotePath, signal) {
+  async reviewAimFailedReport(runId, diagnosticNotePath, signal) {
     if (this.closed || !this.map || !this.path || this.builtIn)
-      throw new Error("Open the saved MindSearch map before reviewing a failed report.");
-    const mapPath = this.path, epoch = this.mindSearchViewEpoch;
-    const outcome = await this.mindSearchManual.reviewFailedAttemptReport(mapPath, runId, diagnosticNotePath, signal);
-    const isCurrent = () => this.mindSearchViewIsCurrent(epoch, mapPath) && !(signal == null ? void 0 : signal.aborted);
+      throw new Error("Open the saved AIM map before reviewing a failed report.");
+    const mapPath = this.path, epoch = this.aimViewEpoch;
+    const outcome = await this.aimManual.reviewFailedAttemptReport(mapPath, runId, diagnosticNotePath, signal);
+    const isCurrent = () => this.aimViewIsCurrent(epoch, mapPath) && !(signal == null ? void 0 : signal.aborted);
     if (isCurrent()) {
       const latest = await this.plugin.repo.readMap(mapPath);
       if (isCurrent()) {
@@ -19513,41 +19540,41 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
     }
     return outcome;
   }
-  async planMindSearchFromSelection(nodeId = this.selected) {
+  async planAimFromSelection(nodeId = this.selected) {
     var _a, _b, _c, _d, _e;
     const node = (_a = this.map) == null ? void 0 : _a.nodes.find((item) => item.id === nodeId);
-    if (this.closed || !node || !this.path || !((_b = this.map) == null ? void 0 : _b.mindSearch) || this.mindSearchBusy) return;
-    const epoch = this.mindSearchViewEpoch, mapPath = this.path, controller = new AbortController();
-    const parentBranchId = (_d = (_c = this.map.mindSearch.branches.find((branch) => branch.results.some((result) => result.nodeId === node.id))) == null ? void 0 : _c.id) != null ? _d : null;
-    this.mindSearchBusy = true;
-    this.mindSearchController = controller;
-    this.mindSearchActiveQuestionNodeId = node.id;
-    this.mindSearchActivityKind = "planning";
+    if (this.closed || !node || !this.path || !((_b = this.map) == null ? void 0 : _b.aim) || this.aimBusy) return;
+    const epoch = this.aimViewEpoch, mapPath = this.path, controller = new AbortController();
+    const parentBranchId = (_d = (_c = this.map.aim.branches.find((branch) => branch.results.some((result) => result.nodeId === node.id))) == null ? void 0 : _c.id) != null ? _d : null;
+    this.aimBusy = true;
+    this.aimController = controller;
+    this.aimActiveQuestionNodeId = node.id;
+    this.aimActivityKind = "planning";
     this.render();
     try {
       const rootNote = this.notes.get(node.id);
-      if (node.mindSearchKind === "topic" && rootNote && !rootNote.detail.includes("<!-- mindsearch-intake-complete -->")) {
-        this.mindSearchActivityKind = "clarifying";
+      if (node.aimKind === "topic" && rootNote && !rootNote.detail.includes("<!-- aim-intake-complete -->")) {
+        this.aimActivityKind = "clarifying";
         this.render();
-        const questions = await this.mindSearchManual.prepareClarification(rootNote, controller.signal);
-        if (!this.mindSearchViewIsCurrent(epoch, mapPath) || controller.signal.aborted) return;
+        const questions = await this.aimManual.prepareClarification(rootNote, controller.signal);
+        if (!this.aimViewIsCurrent(epoch, mapPath) || controller.signal.aborted) return;
         if (questions.length) {
-          new MindSearchClarificationModal(
+          new AimClarificationModal(
             this.app,
             questions,
             async (answers) => {
-              if (!this.mindSearchViewIsCurrent(epoch, mapPath))
-                throw new Error("Reopen the original MindSearch map to continue.");
+              if (!this.aimViewIsCurrent(epoch, mapPath))
+                throw new Error("Reopen the original AIM map to continue.");
               await this.plugin.mutate(async () => {
                 const latest = await this.plugin.repo.readNote(node.path);
-                if (!latest.detail.includes("<!-- mindsearch-intake-complete -->")) {
+                if (!latest.detail.includes("<!-- aim-intake-complete -->")) {
                   await this.plugin.repo.updateNote(node.path, {
-                    detail: latest.detail + "\n\n<!-- mindsearch-intake-complete -->\n## " + translate(this.plugin.settings.language, "note.mindsearch_initial_clarification") + "\n\n" + answers
+                    detail: latest.detail + "\n\n<!-- aim-intake-complete -->\n## " + translate(this.plugin.settings.language, "note.aim_initial_clarification") + "\n\n" + answers
                   });
                 }
               });
               await this.hydrate();
-              void this.planMindSearchFromSelection(node.id);
+              void this.planAimFromSelection(node.id);
             },
             this.plugin.settings.language === "en"
           ).open();
@@ -19556,23 +19583,23 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
         await this.plugin.mutate(async () => {
           const latest = await this.plugin.repo.readNote(node.path);
           await this.plugin.repo.updateNote(node.path, {
-            detail: latest.detail + "\n\n<!-- mindsearch-intake-complete -->"
+            detail: latest.detail + "\n\n<!-- aim-intake-complete -->"
           });
         });
         await this.hydrate();
       }
-      this.mindSearchActivityKind = "planning";
+      this.aimActivityKind = "planning";
       this.render();
-      const result = await this.planMindSearchQuestion(node.id, (0, import_node_crypto9.randomUUID)(), parentBranchId, controller.signal);
-      if (!this.mindSearchViewIsCurrent(epoch, mapPath) || this.mindSearchController !== controller) return;
+      const result = await this.planAimQuestion(node.id, (0, import_node_crypto9.randomUUID)(), parentBranchId, controller.signal);
+      if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
       if (result.status === "question") {
         this.selected = result.node.id;
         this.render();
         this.focusNode(result.node);
-        new import_obsidian14.Notice(t("ui.mindsearch_question_ready"));
+        new import_obsidian14.Notice(t("ui.aim_question_ready"));
       } else if (result.outcome) {
         const outcome = result.outcome;
-        if (outcome.status === "partial") new import_obsidian14.Notice(t("ui.mindsearch_research_partial"));
+        if (outcome.status === "partial") new import_obsidian14.Notice(t("ui.aim_research_partial"));
         else if (outcome.status === "waiting-user") {
           const question = (_e = this.map) == null ? void 0 : _e.nodes.find((item) => item.id === outcome.questionNodeId);
           if (question) {
@@ -19580,50 +19607,50 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
             this.render();
             this.focusNode(question);
           }
-          new import_obsidian14.Notice(t("ui.mindsearch_waiting_user"));
-        } else if (outcome.status === "completed") new import_obsidian14.Notice(t("ui.mindsearch_research_saved"));
-        else if (outcome.status === "in-progress") new import_obsidian14.Notice(t("ui.mindsearch_research_already_running"));
-        else new import_obsidian14.Notice(t("ui.mindsearch_research_result_stale"));
-      } else new import_obsidian14.Notice(t("ui.mindsearch_no_question_needed"));
+          new import_obsidian14.Notice(t("ui.aim_waiting_user"));
+        } else if (outcome.status === "completed") new import_obsidian14.Notice(t("ui.aim_research_saved"));
+        else if (outcome.status === "in-progress") new import_obsidian14.Notice(t("ui.aim_research_already_running"));
+        else new import_obsidian14.Notice(t("ui.aim_research_result_stale"));
+      } else new import_obsidian14.Notice(t("ui.aim_no_question_needed"));
     } catch (error) {
-      if (!this.mindSearchViewIsCurrent(epoch, mapPath) || this.mindSearchController !== controller) return;
+      if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
       if (controller.signal.aborted) new import_obsidian14.Notice(t("ui.research_stopped_existing_content_was_preserved"));
       else new import_obsidian14.Notice(error instanceof Error ? error.message : String(error));
     } finally {
-      if (this.mindSearchController === controller) {
-        this.mindSearchBusy = false;
-        this.mindSearchController = null;
-        this.mindSearchActiveQuestionNodeId = null;
-        this.mindSearchActivityKind = null;
-        if (this.mindSearchViewIsCurrent(epoch, mapPath)) this.render();
+      if (this.aimController === controller) {
+        this.aimBusy = false;
+        this.aimController = null;
+        this.aimActiveQuestionNodeId = null;
+        this.aimActivityKind = null;
+        if (this.aimViewIsCurrent(epoch, mapPath)) this.render();
       }
     }
   }
-  async retryMindSearchFromSavedReport(questionNodeId) {
+  async retryAimFromSavedReport(questionNodeId) {
     var _a, _b;
-    const target = this.mindSearchFailedReports.get(questionNodeId), mapPath = this.path, epoch = this.mindSearchViewEpoch;
-    if (this.closed || !target || !mapPath || !((_a = this.map) == null ? void 0 : _a.mindSearch) || this.mindSearchBusy || this.builtIn) return;
-    const run = this.map.mindSearch.runs.find((item) => item.id === target.runId);
+    const target = this.aimFailedReports.get(questionNodeId), mapPath = this.path, epoch = this.aimViewEpoch;
+    if (this.closed || !target || !mapPath || !((_a = this.map) == null ? void 0 : _a.aim) || this.aimBusy || this.builtIn) return;
+    const run = this.map.aim.runs.find((item) => item.id === target.runId);
     const currentAttempt = run == null ? void 0 : run.attempts.find((item) => item.id === run.currentAttemptId);
-    const branch = run && this.map.mindSearch.branches.find((item) => item.id === run.branchId);
+    const branch = run && this.map.aim.branches.find((item) => item.id === run.branchId);
     if (!run || (currentAttempt == null ? void 0 : currentAttempt.status) !== "failed" || (branch == null ? void 0 : branch.questionNodeId) !== questionNodeId) {
-      this.mindSearchFailedReports.delete(questionNodeId);
+      this.aimFailedReports.delete(questionNodeId);
       this.render();
       return;
     }
     const controller = new AbortController();
-    this.mindSearchBusy = true;
-    this.mindSearchController = controller;
-    this.mindSearchActiveQuestionNodeId = questionNodeId;
-    this.mindSearchActivityKind = "research";
+    this.aimBusy = true;
+    this.aimController = controller;
+    this.aimActiveQuestionNodeId = questionNodeId;
+    this.aimActivityKind = "research";
     this.render();
     try {
-      const result = await this.reviewMindSearchFailedReport(
+      const result = await this.reviewAimFailedReport(
         target.runId,
         target.diagnosticNotePath,
         controller.signal
       );
-      if (!this.mindSearchViewIsCurrent(epoch, mapPath) || this.mindSearchController !== controller) return;
+      if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
       if (result.status === "waiting-user") {
         const question = (_b = this.map) == null ? void 0 : _b.nodes.find((item) => item.id === result.questionNodeId);
         if (question) {
@@ -19631,43 +19658,43 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
           this.render();
           this.focusNode(question);
         }
-        new import_obsidian14.Notice(t("ui.mindsearch_waiting_user"));
-      } else if (result.status === "partial") new import_obsidian14.Notice(t("ui.mindsearch_research_partial"));
-      else if (result.status === "completed") new import_obsidian14.Notice(t("ui.mindsearch_research_saved"));
-      else if (result.status === "in-progress") new import_obsidian14.Notice(t("ui.mindsearch_research_already_running"));
-      else new import_obsidian14.Notice(t("ui.mindsearch_research_result_stale"));
+        new import_obsidian14.Notice(t("ui.aim_waiting_user"));
+      } else if (result.status === "partial") new import_obsidian14.Notice(t("ui.aim_research_partial"));
+      else if (result.status === "completed") new import_obsidian14.Notice(t("ui.aim_research_saved"));
+      else if (result.status === "in-progress") new import_obsidian14.Notice(t("ui.aim_research_already_running"));
+      else new import_obsidian14.Notice(t("ui.aim_research_result_stale"));
     } catch (error) {
-      if (!this.mindSearchViewIsCurrent(epoch, mapPath) || this.mindSearchController !== controller) return;
+      if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
       if (controller.signal.aborted) new import_obsidian14.Notice(t("ui.research_stopped_existing_content_was_preserved"));
       else new import_obsidian14.Notice(error instanceof Error ? error.message : String(error));
     } finally {
-      if (this.mindSearchController === controller) {
-        this.mindSearchBusy = false;
-        this.mindSearchController = null;
-        this.mindSearchActiveQuestionNodeId = null;
-        this.mindSearchActivityKind = null;
-        if (this.mindSearchViewIsCurrent(epoch, mapPath)) this.render();
+      if (this.aimController === controller) {
+        this.aimBusy = false;
+        this.aimController = null;
+        this.aimActiveQuestionNodeId = null;
+        this.aimActivityKind = null;
+        if (this.aimViewIsCurrent(epoch, mapPath)) this.render();
       }
     }
   }
-  async continueMindSearchResearch(questionNodeId, runId, timeoutMs) {
+  async continueAimResearch(questionNodeId, runId, timeoutMs) {
     var _a;
-    const mapPath = this.path, epoch = this.mindSearchViewEpoch;
-    if (this.closed || !mapPath || !((_a = this.map) == null ? void 0 : _a.mindSearch) || this.mindSearchBusy || this.builtIn) return;
-    const run = this.map.mindSearch.runs.find((item) => item.id === runId);
-    const branch = run && this.map.mindSearch.branches.find((item) => item.id === run.branchId);
+    const mapPath = this.path, epoch = this.aimViewEpoch;
+    if (this.closed || !mapPath || !((_a = this.map) == null ? void 0 : _a.aim) || this.aimBusy || this.builtIn) return;
+    const run = this.map.aim.runs.find((item) => item.id === runId);
+    const branch = run && this.map.aim.branches.find((item) => item.id === run.branchId);
     if (!run || (branch == null ? void 0 : branch.questionNodeId) !== questionNodeId) return;
     const controller = new AbortController();
-    this.mindSearchBusy = true;
-    this.mindSearchController = controller;
-    this.mindSearchActiveQuestionNodeId = questionNodeId;
-    this.mindSearchActivityKind = "research";
+    this.aimBusy = true;
+    this.aimController = controller;
+    this.aimActiveQuestionNodeId = questionNodeId;
+    this.aimActivityKind = "research";
     this.render();
-    const isCurrent = () => this.mindSearchViewIsCurrent(epoch, mapPath) && this.mindSearchController === controller;
+    const isCurrent = () => this.aimViewIsCurrent(epoch, mapPath) && this.aimController === controller;
     try {
       if (timeoutMs && branch)
-        await this.plugin.mutate(() => this.mindSearchRuns.configureRetryTimeout(mapPath, branch.id, timeoutMs));
-      const result = await this.mindSearchManual.continuePartial(
+        await this.plugin.mutate(() => this.aimRuns.configureRetryTimeout(mapPath, branch.id, timeoutMs));
+      const result = await this.aimManual.continuePartial(
         mapPath,
         runId,
         void 0,
@@ -19677,19 +19704,19 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       if (!isCurrent()) return;
       if (result.status === "waiting-user") {
         this.selected = result.questionNodeId;
-        new import_obsidian14.Notice(t("ui.mindsearch_waiting_user"));
-      } else if (result.status === "partial") new import_obsidian14.Notice(t("ui.mindsearch_research_partial"));
-      else if (result.status === "completed") new import_obsidian14.Notice(t("ui.mindsearch_research_saved"));
-      else if (result.status === "in-progress") new import_obsidian14.Notice(t("ui.mindsearch_research_already_running"));
+        new import_obsidian14.Notice(t("ui.aim_waiting_user"));
+      } else if (result.status === "partial") new import_obsidian14.Notice(t("ui.aim_research_partial"));
+      else if (result.status === "completed") new import_obsidian14.Notice(t("ui.aim_research_saved"));
+      else if (result.status === "in-progress") new import_obsidian14.Notice(t("ui.aim_research_already_running"));
     } catch (error) {
       if (!isCurrent()) return;
       new import_obsidian14.Notice(
         controller.signal.aborted ? t("ui.research_stopped_existing_content_was_preserved") : error instanceof Error ? error.message : String(error)
       );
     } finally {
-      if (this.mindSearchController === controller) {
+      if (this.aimController === controller) {
         try {
-          if (this.mindSearchViewIsCurrent(epoch, mapPath)) {
+          if (this.aimViewIsCurrent(epoch, mapPath)) {
             const latest = await this.plugin.repo.readMap(mapPath);
             if (isCurrent()) {
               this.map = latest;
@@ -19699,12 +19726,12 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
         } catch (error) {
           if (isCurrent()) new import_obsidian14.Notice(error instanceof Error ? error.message : String(error));
         } finally {
-          if (this.mindSearchController === controller) {
-            this.mindSearchBusy = false;
-            this.mindSearchController = null;
-            this.mindSearchActiveQuestionNodeId = null;
-            this.mindSearchActivityKind = null;
-            if (this.mindSearchViewIsCurrent(epoch, mapPath)) {
+          if (this.aimController === controller) {
+            this.aimBusy = false;
+            this.aimController = null;
+            this.aimActiveQuestionNodeId = null;
+            this.aimActivityKind = null;
+            if (this.aimViewIsCurrent(epoch, mapPath)) {
               this.render();
               this.syncOutline();
             }
@@ -19713,47 +19740,47 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       }
     }
   }
-  openMindSearchAnswer(node) {
+  openAimAnswer(node) {
     var _a, _b, _c, _d;
-    const contract = node.mindSearchQuestion, note = this.notes.get(node.id);
-    if (this.closed || !contract || !note || this.mindSearchBusy) return;
-    const epoch = this.mindSearchViewEpoch, mapPath = this.path, requestId = contract.requestId;
-    if (mapPath && ((_c = (_b = (_a = this.map) == null ? void 0 : _a.mindSearch) == null ? void 0 : _b.branches.filter((branch) => branch.questionNodeId === node.id).length) != null ? _c : 0) > 1) {
+    const contract = node.aimQuestion, note = this.notes.get(node.id);
+    if (this.closed || !contract || !note || this.aimBusy) return;
+    const epoch = this.aimViewEpoch, mapPath = this.path, requestId = contract.requestId;
+    if (mapPath && ((_c = (_b = (_a = this.map) == null ? void 0 : _a.aim) == null ? void 0 : _b.branches.filter((branch) => branch.questionNodeId === node.id).length) != null ? _c : 0) > 1) {
       void this.plugin.mutate(async () => {
         var _a2;
-        const repaired = await this.mindSearchRuns.recoverAnswerBranches(mapPath);
-        if (!repaired || !this.mindSearchViewIsCurrent(epoch, mapPath)) return;
+        const repaired = await this.aimRuns.recoverAnswerBranches(mapPath);
+        if (!repaired || !this.aimViewIsCurrent(epoch, mapPath)) return;
         this.map = await this.plugin.repo.readMap(mapPath);
-        await this.hydrate(() => this.mindSearchViewIsCurrent(epoch, mapPath));
-        if (!this.mindSearchViewIsCurrent(epoch, mapPath)) return;
+        await this.hydrate(() => this.aimViewIsCurrent(epoch, mapPath));
+        if (!this.aimViewIsCurrent(epoch, mapPath)) return;
         this.render();
         const current = (_a2 = this.map) == null ? void 0 : _a2.nodes.find((item) => item.id === node.id);
-        if (current) this.openMindSearchAnswer(current);
+        if (current) this.openAimAnswer(current);
       }).catch((error) => {
-        if (this.mindSearchViewIsCurrent(epoch, mapPath))
+        if (this.aimViewIsCurrent(epoch, mapPath))
           new import_obsidian14.Notice(error instanceof Error ? error.message : String(error));
       });
       return;
     }
-    new MindSearchAnswerModal(
+    new AimAnswerModal(
       this.app,
       note.summary,
       contract.options,
       async (input) => {
         var _a2, _b2, _c2;
         const currentQuestion = (_a2 = this.map) == null ? void 0 : _a2.nodes.find((item) => item.id === node.id);
-        if (!this.mindSearchViewIsCurrent(epoch, mapPath) || ((_b2 = currentQuestion == null ? void 0 : currentQuestion.mindSearchQuestion) == null ? void 0 : _b2.requestId) !== requestId || this.mindSearchBusy)
+        if (!this.aimViewIsCurrent(epoch, mapPath) || ((_b2 = currentQuestion == null ? void 0 : currentQuestion.aimQuestion) == null ? void 0 : _b2.requestId) !== requestId || this.aimBusy)
           return;
         const controller = new AbortController();
-        this.mindSearchBusy = true;
-        this.mindSearchController = controller;
-        this.mindSearchActiveQuestionNodeId = node.id;
-        this.mindSearchActivityKind = "research";
+        this.aimBusy = true;
+        this.aimController = controller;
+        this.aimActiveQuestionNodeId = node.id;
+        this.aimActivityKind = "research";
         this.render();
         try {
-          const result = await this.submitMindSearchAnswer(node.id, input, controller.signal);
-          if (!this.mindSearchViewIsCurrent(epoch, mapPath) || this.mindSearchController !== controller) return;
-          this.mindSearchAnswerRequestIds.delete(node.id);
+          const result = await this.submitAimAnswer(node.id, input, controller.signal);
+          if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
+          this.aimAnswerRequestIds.delete(node.id);
           if (result.status === "waiting-user") {
             const question = (_c2 = this.map) == null ? void 0 : _c2.nodes.find((item) => item.id === result.questionNodeId);
             if (question) {
@@ -19761,33 +19788,33 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
               this.render();
               this.focusNode(question);
             }
-            new import_obsidian14.Notice(t("ui.mindsearch_waiting_user"));
-          } else if (result.status === "partial") new import_obsidian14.Notice(t("ui.mindsearch_research_partial"));
-          else if (result.status === "completed") new import_obsidian14.Notice(t("ui.mindsearch_research_saved"));
-          else if (result.status === "in-progress") new import_obsidian14.Notice(t("ui.mindsearch_research_already_running"));
-          else new import_obsidian14.Notice(t("ui.mindsearch_research_result_stale"));
+            new import_obsidian14.Notice(t("ui.aim_waiting_user"));
+          } else if (result.status === "partial") new import_obsidian14.Notice(t("ui.aim_research_partial"));
+          else if (result.status === "completed") new import_obsidian14.Notice(t("ui.aim_research_saved"));
+          else if (result.status === "in-progress") new import_obsidian14.Notice(t("ui.aim_research_already_running"));
+          else new import_obsidian14.Notice(t("ui.aim_research_result_stale"));
         } catch (error) {
-          if (!this.mindSearchViewIsCurrent(epoch, mapPath) || this.mindSearchController !== controller) throw error;
-          this.mindSearchAnswerRequestIds.set(node.id, input.requestId);
+          if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) throw error;
+          this.aimAnswerRequestIds.set(node.id, input.requestId);
           if (controller.signal.aborted) new import_obsidian14.Notice(t("ui.research_stopped_existing_content_was_preserved"));
           else new import_obsidian14.Notice(error instanceof Error ? error.message : String(error));
           throw error;
         } finally {
-          if (this.mindSearchController === controller) {
-            this.mindSearchBusy = false;
-            this.mindSearchController = null;
-            this.mindSearchActiveQuestionNodeId = null;
-            this.mindSearchActivityKind = null;
-            if (this.mindSearchViewIsCurrent(epoch, mapPath)) this.render();
+          if (this.aimController === controller) {
+            this.aimBusy = false;
+            this.aimController = null;
+            this.aimActiveQuestionNodeId = null;
+            this.aimActivityKind = null;
+            if (this.aimViewIsCurrent(epoch, mapPath)) this.render();
           }
         }
       },
-      (_d = this.mindSearchAnswerRequestIds.get(node.id)) != null ? _d : (0, import_node_crypto9.randomUUID)()
+      (_d = this.aimAnswerRequestIds.get(node.id)) != null ? _d : (0, import_node_crypto9.randomUUID)()
     ).open();
   }
   async openBuiltInSample(forceTour = false) {
-    const viewEpoch = this.mindSearchViewEpoch, openEpoch = ++this.mapOpenEpoch;
-    const isCurrent = () => !this.closed && this.mindSearchViewEpoch === viewEpoch && this.mapOpenEpoch === openEpoch;
+    const viewEpoch = this.aimViewEpoch, openEpoch = ++this.mapOpenEpoch;
+    const isCurrent = () => !this.closed && this.aimViewEpoch === viewEpoch && this.mapOpenEpoch === openEpoch;
     if (this.viewportTimer !== null) {
       window.clearTimeout(this.viewportTimer);
       this.viewportTimer = null;
@@ -19948,9 +19975,9 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
     if (!this.map) return;
     const before = clone(this.map), ids = branch ? /* @__PURE__ */ new Set([node.id, ...descendants(before.nodes, node.id)]) : /* @__PURE__ */ new Set([node.id]);
     const removableQuestions = new Set(
-      node.mindSearchKind === "question" ? before.nodes.filter((item) => ids.has(item.id) && item.mindSearchKind === "question").map((item) => item.id) : []
+      node.aimKind === "question" ? before.nodes.filter((item) => ids.has(item.id) && item.aimKind === "question").map((item) => item.id) : []
     );
-    this.assertMindSearchReferencesRemain(before, ids, false, removableQuestions);
+    this.assertAimReferencesRemain(before, ids, false, removableQuestions);
     const removed = before.nodes.filter((item) => ids.has(item.id)), moves = [];
     try {
       for (const item of removed) {
@@ -19963,7 +19990,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       }
       const after = clone(before);
       after.nodes = removeNodes(after.nodes, node.id, branch);
-      this.removeMindSearchReferences(after, ids, before.nodes);
+      this.removeAimReferences(after, ids, before.nodes);
       await this.plugin.repo.saveMap(this.path, after);
       this.map = after;
       this.selected = null;
@@ -20005,7 +20032,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       t("ui.remove_from_map"),
       t("ui.the_note_will_move_to_this_topic_s_unassigned_folder_you_can"),
       [
-        ...!((_a = this.map) == null ? void 0 : _a.mindSearch) || node.mindSearchKind !== "question" ? [
+        ...!((_a = this.map) == null ? void 0 : _a.aim) || node.aimKind !== "question" ? [
           {
             label: t("ui.remove_only_this_node_children_become_roots"),
             action: () => this.enqueue(() => this.removeToUnassigned(node, false))
@@ -20022,12 +20049,12 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
     for (const root of roots) {
       const branchIds = /* @__PURE__ */ new Set([root.id, ...descendants(before.nodes, root.id)]);
       for (const id of branchIds) ids.add(id);
-      if (root.mindSearchKind === "question") {
+      if (root.aimKind === "question") {
         for (const item of before.nodes)
-          if (branchIds.has(item.id) && item.mindSearchKind === "question") removableQuestions.add(item.id);
+          if (branchIds.has(item.id) && item.aimKind === "question") removableQuestions.add(item.id);
       }
     }
-    this.assertMindSearchReferencesRemain(before, ids, false, removableQuestions);
+    this.assertAimReferencesRemain(before, ids, false, removableQuestions);
     const removed = before.nodes.filter((node) => ids.has(node.id)), moves = [];
     try {
       for (const node of removed) {
@@ -20040,7 +20067,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       }
       const after = clone(before);
       after.nodes = after.nodes.filter((node) => !ids.has(node.id));
-      this.removeMindSearchReferences(after, ids, before.nodes);
+      this.removeAimReferences(after, ids, before.nodes);
       await this.plugin.repo.saveMap(this.path, after);
       this.map = after;
       this.selected = null;
@@ -20092,7 +20119,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
   }
   async moveSelected(target) {
     const roots = this.selectedRoots();
-    this.assertMindSearchReferencesRemain(this.map, new Set(roots.map((root) => root.id)), true);
+    this.assertAimReferencesRemain(this.map, new Set(roots.map((root) => root.id)), true);
     await this.mapChange((map) => {
       let offset = 0;
       for (const root of roots) {
@@ -20107,9 +20134,9 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
     this.multiSelected.clear();
     this.render();
   }
-  assertMindSearchReferencesRemain(map, ids, moving = false, removableQuestionNodeIds = /* @__PURE__ */ new Set()) {
+  assertAimReferencesRemain(map, ids, moving = false, removableQuestionNodeIds = /* @__PURE__ */ new Set()) {
     var _a, _b, _c;
-    const data = map.mindSearch;
+    const data = map.aim;
     if (!data) return;
     const protectedIds = /* @__PURE__ */ new Set();
     const removableBranchIds = new Set(
@@ -20126,26 +20153,26 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
     for (const pending of data.pendingCommits)
       if (!removableBranchIds.has(pending.branchId)) protectedIds.add(pending.nodeId);
     if (data.questionDraft && (ids.has(data.questionDraft.parentId) || removableBranchIds.has((_b = data.questionDraft.parentBranchId) != null ? _b : "")))
-      throw new Error("A MindSearch question is still being saved and cannot be removed yet.");
+      throw new Error("A AIM question is still being saved and cannot be removed yet.");
     if (((_c = data.resultDrafts) != null ? _c : []).some((draft) => removableBranchIds.has(draft.branchId)) || data.pendingCommits.some((commit) => removableBranchIds.has(commit.branchId)))
-      throw new Error("A MindSearch result is still being saved and cannot be removed yet.");
+      throw new Error("A AIM result is still being saved and cannot be removed yet.");
     if ([...ids].some((id) => protectedIds.has(id)))
       throw new Error(
-        moving ? "MindSearch question and result nodes referenced by saved branches cannot be moved." : "MindSearch question and result nodes referenced by saved branches cannot be removed."
+        moving ? "AIM question and result nodes referenced by saved branches cannot be moved." : "AIM question and result nodes referenced by saved branches cannot be removed."
       );
     for (const run of data.runs)
       if (removableBranchIds.has(run.branchId) && run.attempts.some((attempt) => attempt.status === "running" || attempt.status === "saving"))
-        throw new Error("A MindSearch branch is still running and cannot be removed yet.");
+        throw new Error("A AIM branch is still running and cannot be removed yet.");
   }
-  removeMindSearchReferences(map, removedNodeIds, originalNodes = map.nodes) {
+  removeAimReferences(map, removedNodeIds, originalNodes = map.nodes) {
     var _a, _b, _c;
-    const data = map.mindSearch;
+    const data = map.aim;
     if (!data) return;
-    for (const question of originalNodes.filter((node) => removedNodeIds.has(node.id) && node.mindSearchQuestion)) {
+    for (const question of originalNodes.filter((node) => removedNodeIds.has(node.id) && node.aimQuestion)) {
       const parent = map.nodes.find((node) => node.id === question.parentId && !removedNodeIds.has(node.id));
       if (parent)
-        parent.mindSearchDismissedQuestionRequestIds = [
-          .../* @__PURE__ */ new Set([...(_a = parent.mindSearchDismissedQuestionRequestIds) != null ? _a : [], question.mindSearchQuestion.requestId])
+        parent.aimDismissedQuestionRequestIds = [
+          .../* @__PURE__ */ new Set([...(_a = parent.aimDismissedQuestionRequestIds) != null ? _a : [], question.aimQuestion.requestId])
         ];
     }
     const removedBranchIds = new Set(
@@ -20165,10 +20192,10 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
     if (data.questionDraft && (removedNodeIds.has(data.questionDraft.parentId) || removedBranchIds.has((_b = data.questionDraft.parentBranchId) != null ? _b : "")))
       delete data.questionDraft;
     for (const node of map.nodes) {
-      if (node.mindSearchConvergesFromNodeIds)
-        node.mindSearchConvergesFromNodeIds = node.mindSearchConvergesFromNodeIds.filter((id) => !removedNodeIds.has(id));
-      if (((_c = node.mindSearchQuestion) == null ? void 0 : _c.parentBranchId) && removedBranchIds.has(node.mindSearchQuestion.parentBranchId))
-        node.mindSearchQuestion.parentBranchId = null;
+      if (node.aimConvergesFromNodeIds)
+        node.aimConvergesFromNodeIds = node.aimConvergesFromNodeIds.filter((id) => !removedNodeIds.has(id));
+      if (((_c = node.aimQuestion) == null ? void 0 : _c.parentBranchId) && removedBranchIds.has(node.aimQuestion.parentBranchId))
+        node.aimQuestion.parentBranchId = null;
     }
   }
   async copySelected(target) {
@@ -20539,12 +20566,12 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       });
     new ChoiceModal(this.app, t("ui.more_mind_map_actions"), t("ui.additional_map_management_actions"), choices).open();
   }
-  mindSearchActiveForPath(path) {
+  aimActiveForPath(path) {
     return this.app.workspace.getLeavesOfType(VIEW_TYPE).some((leaf) => {
       var _a;
       const view = leaf.view;
-      if (!(view instanceof _VisualAgentMapView) || view.path !== path || !((_a = view.map) == null ? void 0 : _a.mindSearch)) return false;
-      return view.mindSearchBusy || view.map.mindSearch.runs.some((run) => {
+      if (!(view instanceof _VisualAgentMapView) || view.path !== path || !((_a = view.map) == null ? void 0 : _a.aim)) return false;
+      return view.aimBusy || view.map.aim.runs.some((run) => {
         const attempt = run.attempts.find((item) => item.id === run.currentAttemptId);
         return (attempt == null ? void 0 : attempt.status) === "running" || (attempt == null ? void 0 : attempt.status) === "saving";
       });
@@ -20552,8 +20579,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
   }
   renameCurrentMap() {
     if (!this.map) return;
-    if (this.mindSearchActiveForPath(this.path)) {
-      new import_obsidian14.Notice(t("ui.mindsearch_research_already_running"));
+    if (this.aimActiveForPath(this.path)) {
+      new import_obsidian14.Notice(t("ui.aim_research_already_running"));
       return;
     }
     new NameModal(
@@ -20562,8 +20589,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       this.map.title,
       (title) => this.enqueue(async () => {
         if (!this.map) return;
-        if (this.mindSearchActiveForPath(this.path)) {
-          new import_obsidian14.Notice(t("ui.mindsearch_research_already_running"));
+        if (this.aimActiveForPath(this.path)) {
+          new import_obsidian14.Notice(t("ui.aim_research_already_running"));
           return;
         }
         if (!this.path.startsWith(`${this.plugin.settings.topicsFolder}/`)) {
@@ -20839,11 +20866,11 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       this.button(toolbar, t("ui.more"), () => this.openMapActions());
     }
     const selectedNode = (_d = this.map) == null ? void 0 : _d.nodes.find((node) => node.id === this.selected);
-    if (!this.builtIn && ((_e = this.map) == null ? void 0 : _e.mindSearch)) {
-      const statusbar = this.contentEl.createDiv(`vam-mindsearch-statusbar${this.mindSearchBusy ? " is-active" : ""}`);
+    if (!this.builtIn && ((_e = this.map) == null ? void 0 : _e.aim)) {
+      const statusbar = this.contentEl.createDiv(`vam-aim-statusbar${this.aimBusy ? " is-active" : ""}`);
       statusbar.setAttr("aria-live", "polite");
-      const data = this.map.mindSearch;
-      const questions = this.map.nodes.filter((node) => node.mindSearchKind === "question");
+      const data = this.map.aim;
+      const questions = this.map.nodes.filter((node) => node.aimKind === "question");
       const pendingQuestion = questions.find(
         (question) => !data.branches.some((branch) => branch.questionNodeId === question.id)
       );
@@ -20854,84 +20881,84 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       });
       let stateText;
       let stateClass;
-      if (this.mindSearchBusy) {
-        const activeTitle = (_h = (_g = this.notes.get((_f = this.mindSearchActiveQuestionNodeId) != null ? _f : "")) == null ? void 0 : _g.title) != null ? _h : this.map.title;
-        const planning = this.mindSearchActivityKind === "planning";
-        stateText = this.mindSearchActivityKind === "clarifying" ? t("ui.mindsearch_preparing_clarification") : t(planning ? "ui.mindsearch_status_planning_0" : "ui.mindsearch_status_researching_0", activeTitle);
+      if (this.aimBusy) {
+        const activeTitle = (_h = (_g = this.notes.get((_f = this.aimActiveQuestionNodeId) != null ? _f : "")) == null ? void 0 : _g.title) != null ? _h : this.map.title;
+        const planning = this.aimActivityKind === "planning";
+        stateText = this.aimActivityKind === "clarifying" ? t("ui.aim_preparing_clarification") : t(planning ? "ui.aim_status_planning_0" : "ui.aim_status_researching_0", activeTitle);
         stateClass = "running";
       } else if (runningBranch) {
         const activeTitle = (_j = (_i = this.notes.get(runningBranch.questionNodeId)) == null ? void 0 : _i.title) != null ? _j : this.map.title;
-        stateText = t("ui.mindsearch_status_researching_0", activeTitle);
+        stateText = t("ui.aim_status_researching_0", activeTitle);
         stateClass = "running";
       } else if (!questions.length) {
-        stateText = t("ui.mindsearch_status_ready");
+        stateText = t("ui.aim_status_ready");
         stateClass = "idea";
       } else if (pendingQuestion) {
-        stateText = t("ui.mindsearch_status_waiting_answer_0", (_l = (_k = this.notes.get(pendingQuestion.id)) == null ? void 0 : _k.title) != null ? _l : "");
+        stateText = t("ui.aim_status_waiting_answer_0", (_l = (_k = this.notes.get(pendingQuestion.id)) == null ? void 0 : _k.title) != null ? _l : "");
         stateClass = "idea";
       } else if (data.branches.some((branch) => branch.results.some((result) => result.kind === "conclusion"))) {
-        stateText = t("ui.mindsearch_status_complete");
+        stateText = t("ui.aim_status_complete");
         stateClass = "completed";
       } else {
-        stateText = t("ui.mindsearch_status_exploring");
+        stateText = t("ui.aim_status_exploring");
         stateClass = "idea";
       }
-      statusbar.createSpan({ cls: "vam-mindsearch-status-title", text: "AIM" });
-      statusbar.createSpan({ cls: `vam-mindsearch-status-value vam-status-${stateClass}`, text: stateText });
-      if (this.mindSearchBusy)
+      statusbar.createSpan({ cls: "vam-aim-status-title", text: "AIM" });
+      statusbar.createSpan({ cls: `vam-aim-status-value vam-status-${stateClass}`, text: stateText });
+      if (this.aimBusy)
         this.button(statusbar, t("ui.stop_research"), () => {
           var _a2;
-          (_a2 = this.mindSearchController) == null ? void 0 : _a2.abort();
+          (_a2 = this.aimController) == null ? void 0 : _a2.abort();
         });
-      const attribution = this.contentEl.createDiv("vam-mindsearch-attribution");
-      attribution.createSpan({ text: t("ui.mindsearch_attribution") });
+      const attribution = this.contentEl.createDiv("vam-aim-attribution");
+      attribution.createSpan({ text: t("ui.aim_attribution") });
       attribution.createEl("a", {
-        text: t("ui.mindsearch_source_project"),
+        text: t("ui.aim_source_project"),
         href: "https://github.com/InternLM/MindSearch",
         attr: { target: "_blank", rel: "noopener noreferrer" }
       });
       attribution.createEl("a", {
-        text: t("ui.mindsearch_source_paper"),
+        text: t("ui.aim_source_paper"),
         href: "https://arxiv.org/abs/2407.20183",
         attr: { target: "_blank", rel: "noopener noreferrer" }
       });
     }
-    if (!this.builtIn && ((_m = this.map) == null ? void 0 : _m.mindSearch)) {
-      const data = this.map.mindSearch;
+    if (!this.builtIn && ((_m = this.map) == null ? void 0 : _m.aim)) {
+      const data = this.map.aim;
       const isAnswered = (node) => data.branches.some((branch) => branch.questionNodeId === node.id);
       const pending = this.map.nodes.find(
-        (node) => node.mindSearchKind === "question" && node.mindSearchQuestion && !isAnswered(node)
+        (node) => node.aimKind === "question" && node.aimQuestion && !isAnswered(node)
       );
-      const selectedQuestion = (selectedNode == null ? void 0 : selectedNode.mindSearchKind) === "question" && selectedNode.mindSearchQuestion ? selectedNode : void 0;
+      const selectedQuestion = (selectedNode == null ? void 0 : selectedNode.aimKind) === "question" && selectedNode.aimQuestion ? selectedNode : void 0;
       if (selectedQuestion || pending) {
-        const actions = toolbar.createDiv("vam-mindsearch-actions");
+        const actions = toolbar.createDiv("vam-aim-actions");
         if (pending && pending.id !== (selectedQuestion == null ? void 0 : selectedQuestion.id))
           this.button(
             actions,
-            t("ui.mindsearch_answer_pending_question"),
+            t("ui.aim_answer_pending_question"),
             () => {
               this.selected = pending.id;
               this.render();
               this.focusNode(pending);
-              this.openMindSearchAnswer(pending);
+              this.openAimAnswer(pending);
             },
-            this.mindSearchBusy
+            this.aimBusy
           );
         if (selectedQuestion)
           this.button(
             actions,
-            t(isAnswered(selectedQuestion) ? "ui.mindsearch_answer_again_new_branch" : "ui.mindsearch_answer_question"),
-            () => this.openMindSearchAnswer(selectedQuestion),
-            this.mindSearchBusy
+            t(isAnswered(selectedQuestion) ? "ui.aim_answer_again_new_branch" : "ui.aim_answer_question"),
+            () => this.openAimAnswer(selectedQuestion),
+            this.aimBusy
           );
-        if (selectedQuestion && this.mindSearchFailedReports.has(selectedQuestion.id))
+        if (selectedQuestion && this.aimFailedReports.has(selectedQuestion.id))
           this.button(
             actions,
-            t("ui.mindsearch_retry_saved_report"),
+            t("ui.aim_retry_saved_report"),
             () => {
-              void this.retryMindSearchFromSavedReport(selectedQuestion.id);
+              void this.retryAimFromSavedReport(selectedQuestion.id);
             },
-            this.mindSearchBusy
+            this.aimBusy
           );
       }
     }
@@ -20995,7 +21022,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
         this.button(actions, t("ui.repair_agent_workspace"), () => this.enqueue(() => this.plugin.repairWorkspace()));
       }
       this.button(actions, t("ui.create_a_new_mind_map"), () => this.openNewMindMapModal()).addClass("mod-cta");
-      this.button(actions, t("ui.mindsearch_create_map"), () => this.openMindSearchStart());
+      this.button(actions, t("ui.aim_create_map"), () => this.openAimStart());
       this.button(actions, t("ui.view_sample"), () => this.enqueue(() => this.openBuiltInSample(true)));
       if ((_o = this.deletedMap) == null ? void 0 : _o.deleted)
         this.button(actions, t("ui.restore_deleted_map"), () => this.enqueue(() => this.restoreDeletedMapFromUi()));
@@ -21078,12 +21105,12 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
     }
     const tools = this.contentEl.createDiv("vam-map-tools");
     if (!this.builtIn) {
-      const mindSearchMode = !!this.map.mindSearch;
-      if (!mindSearchMode)
+      const aimMode = !!this.map.aim;
+      if (!aimMode)
         this.button(tools, t("ui.topic"), () => this.enqueue(() => this.addNode(null))).addClass("mod-cta");
-      if (mindSearchMode) this.button(tools, t("ui.create_a_new_mind_map"), () => this.openNewMindMapModal());
-      this.button(tools, t("ui.mindsearch_create_map"), () => this.openMindSearchStart());
-      if (!mindSearchMode) this.button(tools, t("ui.organize"), () => this.enqueue(() => this.openOrganizer()));
+      if (aimMode) this.button(tools, t("ui.create_a_new_mind_map"), () => this.openNewMindMapModal());
+      this.button(tools, t("ui.aim_create_map"), () => this.openAimStart());
+      if (!aimMode) this.button(tools, t("ui.organize"), () => this.enqueue(() => this.openOrganizer()));
       this.button(
         tools,
         t("ui.auto_layout"),
@@ -21093,7 +21120,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
           }, false)
         )
       );
-      if (!mindSearchMode) {
+      if (!aimMode) {
         const integrate = this.button(
           tools,
           this.integrationMode ? t("ui.finish_topic_selection") : t("ui.select_topics"),
@@ -21175,10 +21202,10 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       const emptyMap = this.viewportEl.createDiv("vam-empty");
       emptyMap.createSpan({
         text: t(
-          this.map.mindSearch ? "ui.mindsearch_empty_map_hint" : "ui.this_mind_map_has_no_topics_click_topic_to_create_the_first"
+          this.map.aim ? "ui.aim_empty_map_hint" : "ui.this_mind_map_has_no_topics_click_topic_to_create_the_first"
         )
       });
-      if (!this.map.mindSearch) this.button(emptyMap, t("ui.topic"), () => this.enqueue(() => this.addNode(null)));
+      if (!this.map.aim) this.button(emptyMap, t("ui.topic"), () => this.enqueue(() => this.addNode(null)));
     }
     this.setupPan();
     this.transform();
@@ -21194,8 +21221,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
     const note = this.notes.get(node.id), card = this.stageEl.createDiv({
       cls: `vam-node${node.id === this.selected || this.multiSelected.has(node.id) ? " is-selected" : ""}`
     });
-    if (node.mindSearchKind) card.setAttr("data-mindsearch-kind", node.mindSearchKind);
-    if (node.mindSearchKind === "conclusion") {
+    if (node.aimKind) card.setAttr("data-aim-kind", node.aimKind);
+    if (node.aimKind === "conclusion") {
       const background = createSvg("svg");
       background.addClass("vam-conclusion-background");
       background.setAttribute("viewBox", "0 0 100 100");
@@ -21227,33 +21254,33 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
     }
     const batch = this.plugin.expansionBatches.get(node.path);
     const active = ((_c = this.plugin.running) == null ? void 0 : _c.has(node.path)) || ((_d = this.plugin.quickExpandPending) == null ? void 0 : _d.has(node.path));
-    if (node.mindSearchKind === "question" && ((_e = this.map) == null ? void 0 : _e.mindSearch)) {
-      const status = mindSearchQuestionStatus(this.map, node.id, this.mindSearchActiveQuestionNodeId);
+    if (node.aimKind === "question" && ((_e = this.map) == null ? void 0 : _e.aim)) {
+      const status = aimQuestionStatus(this.map, node.id, this.aimActiveQuestionNodeId);
       const key2 = {
-        running: "ui.mindsearch_branch_running",
-        completed: "ui.mindsearch_branch_completed",
-        partial: "ui.mindsearch_branch_partial",
-        failed: "ui.mindsearch_branch_failed",
-        cancelled: "ui.mindsearch_branch_cancelled",
-        not_started: "ui.mindsearch_branch_not_started"
+        running: "ui.aim_branch_running",
+        completed: "ui.aim_branch_completed",
+        partial: "ui.aim_branch_partial",
+        failed: "ui.aim_branch_failed",
+        cancelled: "ui.aim_branch_cancelled",
+        not_started: "ui.aim_branch_not_started"
       };
       header.createSpan({
-        cls: `vam-status vam-mindsearch-question-status vam-status-${status === "running" ? "running" : status === "completed" ? "completed" : status === "not_started" ? "idea" : "error"}`,
-        text: status === "not_started" && this.map.mindSearch.branches.some((branch) => branch.questionNodeId === node.id) ? t("ui.mindsearch_answered_not_started") : t(key2[status])
+        cls: `vam-status vam-aim-question-status vam-status-${status === "running" ? "running" : status === "completed" ? "completed" : status === "not_started" ? "idea" : "error"}`,
+        text: status === "not_started" && this.map.aim.branches.some((branch) => branch.questionNodeId === node.id) ? t("ui.aim_answered_not_started") : t(key2[status])
       });
-    } else if (node.mindSearchKind === "topic" && ((_f = this.map) == null ? void 0 : _f.mindSearch) && this.map.mindSearch.branches.some((branch) => branch.questionNodeId === node.id && !branch.parentBranchId)) {
-      const status = mindSearchQuestionStatus(this.map, node.id, this.mindSearchActiveQuestionNodeId);
+    } else if (node.aimKind === "topic" && ((_f = this.map) == null ? void 0 : _f.aim) && this.map.aim.branches.some((branch) => branch.questionNodeId === node.id && !branch.parentBranchId)) {
+      const status = aimQuestionStatus(this.map, node.id, this.aimActiveQuestionNodeId);
       const key2 = {
-        running: "ui.mindsearch_branch_running",
-        completed: "ui.mindsearch_branch_completed",
-        partial: "ui.mindsearch_branch_partial",
-        failed: "ui.mindsearch_branch_failed",
-        cancelled: "ui.mindsearch_branch_cancelled",
-        not_started: "ui.mindsearch_branch_not_started"
+        running: "ui.aim_branch_running",
+        completed: "ui.aim_branch_completed",
+        partial: "ui.aim_branch_partial",
+        failed: "ui.aim_branch_failed",
+        cancelled: "ui.aim_branch_cancelled",
+        not_started: "ui.aim_branch_not_started"
       };
       header.createSpan({
-        cls: `vam-status vam-mindsearch-question-status vam-status-${status === "running" ? "running" : status === "completed" ? "completed" : status === "not_started" ? "idea" : "error"}`,
-        text: status === "not_started" && this.map.mindSearch.branches.some((branch) => branch.questionNodeId === node.id) ? t("ui.mindsearch_answered_not_started") : t(key2[status])
+        cls: `vam-status vam-aim-question-status vam-status-${status === "running" ? "running" : status === "completed" ? "completed" : status === "not_started" ? "idea" : "error"}`,
+        text: status === "not_started" && this.map.aim.branches.some((branch) => branch.questionNodeId === node.id) ? t("ui.aim_answered_not_started") : t(key2[status])
       });
     } else if (active || !note || note.status !== "completed")
       header.createSpan({
@@ -21290,14 +21317,14 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       badge.setAttr("title", quickError);
     }
     const pendingCount = (_m = (_l = this.plugin.pendingSuggestions.get(node.path)) == null ? void 0 : _l.length) != null ? _m : 0;
-    if (pendingCount && !this.builtIn && !this.integrationMode && !((_n = this.map) == null ? void 0 : _n.mindSearch))
+    if (pendingCount && !this.builtIn && !this.integrationMode && !((_n = this.map) == null ? void 0 : _n.aim))
       this.button(
         header,
         t("ui.view_0_expansion_suggestions", pendingCount),
         () => this.openNodePanel(node, "proposals")
       ).addClass("vam-badge-new");
     if (!this.builtIn && !this.integrationMode) {
-      if (!((_o = this.map) == null ? void 0 : _o.mindSearch)) {
+      if (!((_o = this.map) == null ? void 0 : _o.aim)) {
         const ai = this.button(header, "\u2726", () => this.openNextStep(node));
         ai.addClass("vam-node-tool");
         ai.setAttr("aria-label", t("ui.how_would_you_like_to_explore_next"));
@@ -21319,21 +21346,21 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
           rename3.setAttr("aria-label", t("ui.new_topic_name"));
         }
       }
-      if (node.mindSearchKind === "question") {
+      if (node.aimKind === "question") {
         const remove = this.button(header, "\xD7", () => this.confirmRemoveNode(node));
         remove.addClass("vam-node-tool");
         remove.setAttr("aria-label", t("ui.remove_from_map"));
       }
-      if (((_p = this.map) == null ? void 0 : _p.mindSearch) && node.mindSearchKind === "synthesis" && this.map.mindSearch.branches.some((branch) => branch.results.some((result) => result.nodeId === node.id))) {
+      if (((_p = this.map) == null ? void 0 : _p.aim) && node.aimKind === "synthesis" && this.map.aim.branches.some((branch) => branch.results.some((result) => result.nodeId === node.id))) {
         const next = this.button(
           header,
-          t("ui.mindsearch_new_question"),
-          () => void this.planMindSearchFromSelection(node.id),
-          this.mindSearchBusy
+          t("ui.aim_new_question"),
+          () => void this.planAimFromSelection(node.id),
+          this.aimBusy
         );
         next.addClass("vam-node-tool");
-        next.setAttr("aria-label", t("ui.mindsearch_new_question_hint"));
-        next.setAttr("title", t("ui.mindsearch_new_question_hint"));
+        next.setAttr("aria-label", t("ui.aim_new_question_hint"));
+        next.setAttr("title", t("ui.aim_new_question_hint"));
       }
     }
     const details = this.button(
@@ -21355,7 +21382,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
           })
         )
       );
-    if (!this.builtIn && !this.integrationMode && !((_q = this.map) == null ? void 0 : _q.mindSearch)) {
+    if (!this.builtIn && !this.integrationMode && !((_q = this.map) == null ? void 0 : _q.aim)) {
       const add = this.button(card, "+", () => this.enqueue(() => this.addNode(node)));
       add.addClass("vam-add-child");
       add.setAttr("aria-label", t("ui.add_subtopic_manually"));
@@ -21366,24 +21393,24 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       cls: "vam-card-summary",
       text: (_t = note == null ? void 0 : note.summary) != null ? _t : t("ui.the_file_was_moved_or_deleted_you_can_remove_this_node_from")
     });
-    if (node.mindSearchKind === "conclusion" && ((_u = this.map) == null ? void 0 : _u.mindSearch) && !this.builtIn) {
-      const branch = this.map.mindSearch.branches.find((item) => item.results.some((result) => result.nodeId === node.id));
-      const hasFollowup = this.map.nodes.some((item) => item.parentId === node.id && item.mindSearchKind === "question");
-      if (branch && !hasFollowup && countMindSearchAnsweredQuestions(this.map, branch.id) < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION) {
-        card.createEl("p", { cls: "vam-hint", text: t("ui.mindsearch_early_conclusion_hint") });
+    if (node.aimKind === "conclusion" && ((_u = this.map) == null ? void 0 : _u.aim) && !this.builtIn) {
+      const branch = this.map.aim.branches.find((item) => item.results.some((result) => result.nodeId === node.id));
+      const hasFollowup = this.map.nodes.some((item) => item.parentId === node.id && item.aimKind === "question");
+      if (branch && !hasFollowup && countAimAnsweredQuestions(this.map, branch.id) < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION) {
+        card.createEl("p", { cls: "vam-hint", text: t("ui.aim_early_conclusion_hint") });
         this.button(
           card,
-          t("ui.mindsearch_resume_early_conclusion"),
-          () => void this.planMindSearchFromSelection(node.id),
-          this.mindSearchBusy
+          t("ui.aim_resume_early_conclusion"),
+          () => void this.planAimFromSelection(node.id),
+          this.aimBusy
         ).addClass("mod-cta");
       }
     }
-    if (node.mindSearchKind === "topic" && ((_v = this.map) == null ? void 0 : _v.mindSearch) && !this.map.nodes.some((item) => item.mindSearchKind === "question")) {
-      const initialBranch = this.map.mindSearch.branches.find(
+    if (node.aimKind === "topic" && ((_v = this.map) == null ? void 0 : _v.aim) && !this.map.nodes.some((item) => item.aimKind === "question")) {
+      const initialBranch = this.map.aim.branches.find(
         (item) => item.questionNodeId === node.id && !item.parentBranchId
       );
-      const initialRuns = initialBranch ? this.map.mindSearch.runs.filter((item) => item.branchId === initialBranch.id) : [];
+      const initialRuns = initialBranch ? this.map.aim.runs.filter((item) => item.branchId === initialBranch.id) : [];
       const activeInitialRun = initialRuns.some((run) => {
         const attempt = run.attempts.find((item) => item.id === run.currentAttemptId);
         return (attempt == null ? void 0 : attempt.status) === "running" || (attempt == null ? void 0 : attempt.status) === "saving";
@@ -21394,43 +21421,43 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       if (!initialBranch) {
         const start = this.button(
           card,
-          t("ui.mindsearch_start_exploration"),
+          t("ui.aim_start_exploration"),
           () => {
-            void this.planMindSearchFromSelection(node.id);
+            void this.planAimFromSelection(node.id);
           },
-          this.mindSearchBusy
+          this.aimBusy
         );
         start.addClass("mod-cta");
-        start.addClass("vam-mindsearch-start");
+        start.addClass("vam-aim-start");
       } else if (!activeInitialRun && (terminalAttempt == null ? void 0 : terminalAttempt.status) === "partial" && terminalRun) {
         this.button(
           card,
-          t("ui.mindsearch_continue_research"),
-          () => void this.continueMindSearchResearch(node.id, terminalRun.id),
-          this.mindSearchBusy
-        ).addClass("vam-mindsearch-retry");
+          t("ui.aim_continue_research"),
+          () => void this.continueAimResearch(node.id, terminalRun.id),
+          this.aimBusy
+        ).addClass("vam-aim-retry");
       } else if (!activeInitialRun && !terminalResult) {
-        this.renderMindSearchFailure(card, initialBranch);
-        const label = initialBranch.researchPlan || initialBranch.results.length ? t("ui.mindsearch_continue_research") : t("ui.mindsearch_retry_subtopics");
+        this.renderAimFailure(card, initialBranch);
+        const label = initialBranch.researchPlan || initialBranch.results.length ? t("ui.aim_continue_research") : t("ui.aim_retry_subtopics");
         this.button(
           card,
           label,
-          () => void this.retryMindSearchSubtopics(initialBranch.id),
-          this.mindSearchBusy
-        ).addClass("vam-mindsearch-retry");
+          () => void this.retryAimSubtopics(initialBranch.id),
+          this.aimBusy
+        ).addClass("vam-aim-retry");
       }
     }
-    if (node.mindSearchKind === "question" && ((_w = this.map) == null ? void 0 : _w.mindSearch)) {
-      const branch = this.map.mindSearch.branches.find((item) => item.questionNodeId === node.id);
+    if (node.aimKind === "question" && ((_w = this.map) == null ? void 0 : _w.aim)) {
+      const branch = this.map.aim.branches.find((item) => item.questionNodeId === node.id);
       if (branch) {
-        this.renderMindSearchFailure(card, branch);
-        const labels = (_y = (_x = node.mindSearchQuestion) == null ? void 0 : _x.options.filter((option) => branch.answerSnapshot.selections.includes(option.id)).map((option) => option.label)) != null ? _y : branch.answerSnapshot.selections;
+        this.renderAimFailure(card, branch);
+        const labels = (_y = (_x = node.aimQuestion) == null ? void 0 : _x.options.filter((option) => branch.answerSnapshot.selections.includes(option.id)).map((option) => option.label)) != null ? _y : branch.answerSnapshot.selections;
         const answer = [...labels, branch.answerSnapshot.freeText].filter(Boolean).join(" \u2014 ");
         card.createEl("p", {
-          cls: "vam-mindsearch-answer-snapshot",
-          text: `${t("ui.mindsearch_answer_snapshot")}: ${answer || t("ui.mindsearch_unknown_answer")}`
+          cls: "vam-aim-answer-snapshot",
+          text: `${t("ui.aim_answer_snapshot")}: ${answer || t("ui.aim_unknown_answer")}`
         });
-        const branchRuns = this.map.mindSearch.runs.filter((item) => item.branchId === branch.id);
+        const branchRuns = this.map.aim.runs.filter((item) => item.branchId === branch.id);
         const activeBranchRun = branchRuns.some((run) => {
           const current = run.attempts.find((item) => item.id === run.currentAttemptId);
           return (current == null ? void 0 : current.status) === "running" || (current == null ? void 0 : current.status) === "saving";
@@ -21441,45 +21468,45 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
         if (!activeBranchRun && (terminalAttempt == null ? void 0 : terminalAttempt.status) === "partial" && terminalRun) {
           this.button(
             card,
-            t("ui.mindsearch_continue_research"),
-            () => void this.continueMindSearchResearch(node.id, terminalRun.id),
-            this.mindSearchBusy
-          ).addClass("vam-mindsearch-retry");
+            t("ui.aim_continue_research"),
+            () => void this.continueAimResearch(node.id, terminalRun.id),
+            this.aimBusy
+          ).addClass("vam-aim-retry");
         }
         if (!branch.researchPlan && branch.results.length === 0) {
           const status = card.createEl("p", {
-            cls: "vam-mindsearch-plan-error",
-            text: t("ui.mindsearch_research_not_generated")
+            cls: "vam-aim-plan-error",
+            text: t("ui.aim_research_not_generated")
           });
           if (branch.researchPlanError) status.setAttr("title", branch.researchPlanError);
           if (!activeBranchRun && !terminalResult) {
             const retry = this.button(
               card,
-              t("ui.mindsearch_retry_subtopics"),
-              () => void this.retryMindSearchSubtopics(branch.id)
+              t("ui.aim_retry_subtopics"),
+              () => void this.retryAimSubtopics(branch.id)
             );
-            retry.addClass("vam-mindsearch-retry");
-            retry.disabled = this.mindSearchBusy;
+            retry.addClass("vam-aim-retry");
+            retry.disabled = this.aimBusy;
           }
         } else if (!activeBranchRun && !terminalResult) {
           this.button(
             card,
-            t(branch.deliveryRecovery ? "ui.mindsearch_resume_stage" : "ui.mindsearch_continue_research"),
-            () => void this.retryMindSearchSubtopics(branch.id),
-            this.mindSearchBusy
-          ).addClass("vam-mindsearch-retry");
+            t(branch.deliveryRecovery ? "ui.aim_resume_stage" : "ui.aim_continue_research"),
+            () => void this.retryAimSubtopics(branch.id),
+            this.aimBusy
+          ).addClass("vam-aim-retry");
         }
       }
     }
-    if (node.mindSearchKind === "answer" && ((_z = this.map) == null ? void 0 : _z.mindSearch)) {
-      const branch = this.map.mindSearch.branches.find((item) => item.answerNodeId === node.id);
+    if (node.aimKind === "answer" && ((_z = this.map) == null ? void 0 : _z.aim)) {
+      const branch = this.map.aim.branches.find((item) => item.answerNodeId === node.id);
       const question = branch && this.map.nodes.find((item) => item.id === branch.questionNodeId);
       if (branch) {
-        const labels = (_B = (_A = question == null ? void 0 : question.mindSearchQuestion) == null ? void 0 : _A.options.filter((option) => branch.answerSnapshot.selections.includes(option.id)).map((option) => option.label)) != null ? _B : branch.answerSnapshot.selections;
+        const labels = (_B = (_A = question == null ? void 0 : question.aimQuestion) == null ? void 0 : _A.options.filter((option) => branch.answerSnapshot.selections.includes(option.id)).map((option) => option.label)) != null ? _B : branch.answerSnapshot.selections;
         const answer = [...labels, branch.answerSnapshot.freeText].filter(Boolean).join(" \u2014 ");
         card.createEl("p", {
-          cls: "vam-mindsearch-answer-snapshot",
-          text: `${t("ui.mindsearch_answer_snapshot")}: ${answer || t("ui.mindsearch_unknown_answer")}`
+          cls: "vam-aim-answer-snapshot",
+          text: `${t("ui.aim_answer_snapshot")}: ${answer || t("ui.aim_unknown_answer")}`
         });
       }
     }
@@ -21509,7 +21536,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
         } else if (this.builtIn) this.selectSampleNode(node.id);
         else {
           this.selectMapNode(node);
-          if (node.mindSearchKind === "question") this.openMindSearchAnswer(node);
+          if (node.aimKind === "question") this.openAimAnswer(node);
           else this.openDetails(node);
         }
       }
@@ -23208,7 +23235,7 @@ ${note.thinkingOrigin}` : ""
           this.multiSelected.clear();
           this.selected = node.id;
           this.render();
-          if (node.mindSearchKind === "question") this.openMindSearchAnswer(node);
+          if (node.aimKind === "question") this.openAimAnswer(node);
           else this.openDetails(node);
         }
       };
@@ -25015,8 +25042,8 @@ var response_schema_default = {
   additionalProperties: false
 };
 
-// ai/mindsearch-gap-audit-schema.ts
-var mindSearchGapAuditSchema = {
+// ai/aim-gap-audit-schema.ts
+var aimGapAuditSchema = {
   type: "object",
   properties: {
     detail: { type: "string", minLength: 1, description: "A short rationale, written before the decision label." },
@@ -25031,7 +25058,7 @@ var mindSearchGapAuditSchema = {
   required: ["detail", "summary", "suggestions", "visualReferences"],
   additionalProperties: false
 };
-var mindsearch_gap_audit_schema_default = mindSearchGapAuditSchema;
+var aim_gap_audit_schema_default = aimGapAuditSchema;
 
 // ai/visual-guidance.ts
 function visualGuidance(context, language2) {
@@ -25051,14 +25078,14 @@ function visualGuidance(context, language2) {
 // core/ai-task-service.ts
 var import_node_crypto10 = require("node:crypto");
 
-// ai/mindsearch-prompt.ts
-function mindSearchPhase(task) {
+// ai/aim-prompt.ts
+function aimPhase(task) {
   var _a;
-  return (_a = task.match(/<!--\s*mindsearch-phase:\s*([a-z-]+)\s*-->/)) == null ? void 0 : _a[1];
+  return (_a = task.match(/<!--\s*aim-phase:\s*([a-z-]+)\s*-->/)) == null ? void 0 : _a[1];
 }
 function phaseGuidance(phase, language2, responseContract, structured = false) {
   const english2 = language2 === "en";
-  const gapAuditContract = phase === "research-gap-audit" && responseContract === "mindsearch-gap-audit";
+  const gapAuditContract = phase === "research-gap-audit" && responseContract === "aim-gap-audit";
   const common = structured ? english2 ? "Follow the phase task. Put machine-readable decisions, questions, choices and plans only in the aim field defined by the response schema; summary and detail are reader-facing text. Do not write HTML comment markers. Leave aim fields that do not apply to the chosen decision empty. Do not impose a fixed heading template or turn planning, review, repair, or research into a complete knowledge page." : "\u4F9D\u7167\u672C\u968E\u6BB5\u4EFB\u52D9\u8655\u7406\u3002\u6A5F\u5668\u53EF\u8B80\u7684\u6C7A\u7B56\u3001\u554F\u984C\u3001\u9078\u9805\u8207\u898F\u5283\u53EA\u653E\u5728 response schema \u5B9A\u7FA9\u7684 aim \u6B04\u4F4D\uFF1Bsummary \u8207 detail \u662F\u7D66\u8B80\u8005\u770B\u7684\u5167\u5BB9\uFF0C\u4E0D\u8981\u5BEB HTML \u8A3B\u89E3\u6A19\u8A18\u3002\u8207\u6240\u9078\u6C7A\u7B56\u7121\u95DC\u7684 aim \u6B04\u4F4D\u7559\u7A7A\u3002\u4E0D\u8981\u5957\u7528\u56FA\u5B9A\u6A19\u984C\u6A21\u677F\uFF0C\u4E5F\u4E0D\u8981\u628A\u898F\u5283\u3001\u5BE9\u67E5\u3001\u4FEE\u5FA9\u6216\u7814\u7A76\u968E\u6BB5\u6539\u5BEB\u6210\u5B8C\u6574\u77E5\u8B58\u9801\u3002" : gapAuditContract ? english2 ? "Follow the phase task and the dedicated response schema exactly. Do not add a marker, suggestions, or visual references. Do not impose a fixed heading template or turn this audit into a complete knowledge page." : "\u56B4\u683C\u9075\u5FAA\u672C\u968E\u6BB5\u4EFB\u52D9\u8207\u5C08\u7528\u56DE\u61C9 schema\u3002\u4E0D\u8981\u589E\u52A0\u6A19\u8A18\u3001\u5EFA\u8B70\u6216\u8996\u89BA\u53C3\u8003\uFF1B\u4E0D\u8981\u5957\u7528\u56FA\u5B9A\u6A19\u984C\u6A21\u677F\uFF0C\u4E5F\u4E0D\u8981\u628A\u7A3D\u6838\u6539\u5BEB\u6210\u5B8C\u6574\u77E5\u8B58\u9801\u3002" : english2 ? "Follow the phase task exactly. Do not impose a fixed heading template or turn planning, review, repair, or research into a complete knowledge page." : "\u4F9D\u7167\u672C\u968E\u6BB5\u4EFB\u52D9\u8655\u7406\u3002\u4E0D\u8981\u5957\u7528\u56FA\u5B9A\u6A19\u984C\u6A21\u677F\uFF0C\u4E5F\u4E0D\u8981\u628A\u898F\u5283\u3001\u5BE9\u67E5\u3001\u4FEE\u5FA9\u6216\u7814\u7A76\u968E\u6BB5\u6539\u5BEB\u6210\u5B8C\u6574\u77E5\u8B58\u9801\u3002";
   const phaseRules = english2 ? {
     "research-gap-audit": "Write the rationale first in detail, then set summary to exactly user_condition or external_evidence. Return empty suggestions and visualReferences arrays.",
@@ -25093,8 +25120,8 @@ function phaseGuidance(phase, language2, responseContract, structured = false) {
   };
   return [common, phase ? phaseRules[phase] : ""].filter(Boolean).join("\n\n");
 }
-function buildMindSearchPrompt(context, language2) {
-  const phase = mindSearchPhase(context.task);
+function buildAimPrompt(context, language2) {
+  const phase = aimPhase(context.task);
   const languageInstruction = language2 === "en" ? "Write generated content in English unless the current task or topic rules explicitly request another language. Preserve quoted source text and proper names." : "\u65B0\u7522\u751F\u7684\u5167\u5BB9\u4F7F\u7528\u7E41\u9AD4\u4E2D\u6587\uFF0C\u9664\u975E\u76EE\u524D\u4EFB\u52D9\u6216\u8B70\u984C\u898F\u5247\u660E\u78BA\u6307\u5B9A\u5176\u4ED6\u8A9E\u8A00\u3002\u4FDD\u7559\u4F86\u6E90\u539F\u6587\u5F15\u8FF0\u8207\u5C08\u6709\u540D\u7A31\u3002";
   const field = (label, value) => (value == null ? void 0 : value.trim()) ? `${label}:
 ${value}` : "";
@@ -25104,8 +25131,8 @@ ${value}` : "";
     translate(language2, "prompt.source_safety"),
     context.sourceContext ? translate(language2, "prompt.reference_citations") : "",
     context.sourceContext && context.researchMode !== "local" ? translate(language2, "prompt.local_first") : "",
-    language2 === "en" ? "Return JSON only, matching the supplied response schema and including every required field. MindSearch has visual search disabled, so visualReferences must be an empty array." : "\u53EA\u56DE\u50B3\u7B26\u5408\u63D0\u4F9B\u4E4B response schema \u7684 JSON\uFF0C\u4E26\u5305\u542B\u6240\u6709\u5FC5\u8981\u6B04\u4F4D\u3002MindSearch \u672A\u555F\u7528\u8996\u89BA\u641C\u5C0B\uFF0C\u56E0\u6B64 visualReferences \u5FC5\u9808\u662F\u7A7A\u9663\u5217\u3002",
-    phaseGuidance(phase, language2, context.responseContract, !!context.mindSearchContract),
+    language2 === "en" ? "Return JSON only, matching the supplied response schema and including every required field. AIM has visual search disabled, so visualReferences must be an empty array." : "\u53EA\u56DE\u50B3\u7B26\u5408\u63D0\u4F9B\u4E4B response schema \u7684 JSON\uFF0C\u4E26\u5305\u542B\u6240\u6709\u5FC5\u8981\u6B04\u4F4D\u3002AIM \u672A\u555F\u7528\u8996\u89BA\u641C\u5C0B\uFF0C\u56E0\u6B64 visualReferences \u5FC5\u9808\u662F\u7A7A\u9663\u5217\u3002",
+    phaseGuidance(phase, language2, context.responseContract, !!context.aimContract),
     context.researchMode === "local" ? language2 === "en" ? "Do not use web search in this local-only phase." : "\u6B64\u968E\u6BB5\u50C5\u4F7F\u7528\u672C\u6B21\u63D0\u4F9B\u7684\u5167\u5BB9\uFF0C\u4E0D\u8981\u9032\u884C\u7DB2\u8DEF\u641C\u5C0B\u3002" : context.researchMode === "research" ? language2 === "en" ? "Use available web search tools when the phase task requires external evidence. Report search status truthfully." : "\u968E\u6BB5\u4EFB\u52D9\u9700\u8981\u5916\u90E8\u8B49\u64DA\u6642\u4F7F\u7528\u53EF\u7528\u7684\u7DB2\u8DEF\u641C\u5C0B\u5DE5\u5177\uFF0C\u4E26\u5982\u5BE6\u56DE\u5831\u641C\u5C0B\u72C0\u614B\u3002" : "",
     field(translate(language2, "prompt.label_topic"), context.title),
     field(translate(language2, "prompt.label_summary"), context.summary),
@@ -25195,7 +25222,7 @@ ${referenceCatalog(referenceGroups)}`
     context = prepared.context;
     const pluginDirectory = this.options.pluginDirectory();
     const outputLanguage = (_b = context.outputLanguage) != null ? _b : this.options.language();
-    const instructions = context.promptProfile === "mindsearch" ? buildMindSearchPrompt(context, outputLanguage) : [
+    const instructions = context.promptProfile === "aim" ? buildAimPrompt(context, outputLanguage) : [
       translate(outputLanguage, "prompt.output_language"),
       translate(outputLanguage, "prompt.role"),
       translate(outputLanguage, "prompt.source_safety"),
@@ -25264,11 +25291,11 @@ ${context.task}`
           timeoutMs: Math.min(6e5, Math.max(18e4, input.timeoutMs)),
           timeoutMessage: translate(
             outputLanguage,
-            "ui.mindsearch_task_timeout",
+            "ui.aim_task_timeout",
             Math.ceil(Math.min(6e5, Math.max(18e4, input.timeoutMs)) / 6e4)
           )
         } : {},
-        ...context.mindSearchIsolatedResearch ? { webSearchOnly: context.researchMode !== "local", textOnly: context.researchMode === "local" } : {},
+        ...context.aimIsolatedResearch ? { webSearchOnly: context.researchMode !== "local", textOnly: context.researchMode === "local" } : {},
         onAccepted: onRequestAccepted,
         // Search depth guides investigation; it does not impose a per-task query cap.
         // Codex uses 0 as no steering budget; Claude receives webSearch separately.
@@ -25280,8 +25307,8 @@ ${context.task}`
             exchanges == null ? void 0 : exchanges.sent(exchangeId, JSON.stringify(request, null, 2), instructions);
         }
       };
-      const isMindSearchGapAudit = context.responseContract === "mindsearch-gap-audit" && context.promptProfile === "mindsearch" && context.researchMode === "local";
-      const isDeliveryAcceptance = context.responseContract === "mindsearch-delivery-acceptance" && context.promptProfile === "mindsearch" && context.researchMode === "local";
+      const isAimGapAudit = context.responseContract === "aim-gap-audit" && context.promptProfile === "aim" && context.researchMode === "local";
+      const isDeliveryAcceptance = context.responseContract === "aim-delivery-acceptance" && context.promptProfile === "aim" && context.researchMode === "local";
       const deliverySchema = {
         ...response_schema_default,
         properties: {
@@ -25292,12 +25319,12 @@ ${context.task}`
           },
           detail: {
             type: "string",
-            pattern: "^\\s*<!--\\s*mindsearch-review\\s+\\{[^\\r\\n]*\\}\\s*-->",
-            description: "Begin with the COMPLETE first-line MindSearch review marker containing decision and rationale (and stopReason for conclude). Put the marker in detail only, followed by the acceptance explanation. Never split or truncate the marker."
+            pattern: "^\\s*<!--\\s*aim-review\\s+\\{[^\\r\\n]*\\}\\s*-->",
+            description: "Begin with the COMPLETE first-line AIM review marker containing decision and rationale (and stopReason for conclude). Put the marker in detail only, followed by the acceptance explanation. Never split or truncate the marker."
           }
         }
       };
-      const isIsolatedWebResearch = context.mindSearchIsolatedResearch === true && context.researchMode !== "local";
+      const isIsolatedWebResearch = context.aimIsolatedResearch === true && context.researchMode !== "local";
       const webResearchSchema = {
         ...response_schema_default,
         properties: {
@@ -25310,12 +25337,12 @@ ${context.task}`
         },
         required: [...response_schema_default.required, "searchStatus"]
       };
-      const contract = context.promptProfile === "mindsearch" && !isMindSearchGapAudit ? context.mindSearchContract : void 0;
-      const schema = contract ? mindSearchContractSchema(
+      const contract = context.promptProfile === "aim" && !isAimGapAudit ? context.aimContract : void 0;
+      const schema = contract ? aimContractSchema(
         contract,
         isIsolatedWebResearch ? webResearchSchema : response_schema_default,
-        context.mindSearchEvidenceLookup === true
-      ) : isMindSearchGapAudit ? mindsearch_gap_audit_schema_default : isDeliveryAcceptance ? deliverySchema : isIsolatedWebResearch ? webResearchSchema : response_schema_default;
+        context.aimEvidenceLookup === true
+      ) : isAimGapAudit ? aim_gap_audit_schema_default : isDeliveryAcceptance ? deliverySchema : isIsolatedWebResearch ? webResearchSchema : response_schema_default;
       const raw = provider === "claude" ? await this.options.claudeRuntime(pluginDirectory).runTask(instructions, providerModelId(model), effort, schema, { ...controls, onWebSearchEvent }) : await this.options.codexRuntime(pluginDirectory, context.researchMode === "local").runTask(instructions, model, effort, schema, { ...controls, onWebSearchEvent });
       stage = t("log.stage_parsing_reply");
       if (this.options.exchangeLoggingEnabled()) exchanges == null ? void 0 : exchanges.received(exchangeId, raw);
@@ -25323,7 +25350,7 @@ ${context.task}`
         raw,
         provider === "claude" ? "Claude Code" : "Codex App Server",
         outputLanguage,
-        isMindSearchGapAudit,
+        isAimGapAudit,
         isIsolatedWebResearch,
         contract
       );
@@ -25397,7 +25424,7 @@ ${value}`).join("\n\n");
     if (typeof parsed.summary !== "string" || typeof parsed.detail !== "string")
       throw new Error(t("error.ai_reply_missing_summary_0", label));
     if (strictGapAudit && (!["user_condition", "external_evidence"].includes(parsed.summary) || !parsed.detail.trim() || !Array.isArray(parsed.suggestions) || parsed.suggestions.length !== 0 || !Array.isArray(parsed.visualReferences) || parsed.visualReferences.length !== 0)) {
-      throw new Error("MindSearch research-gap audit returned an invalid structured classification.");
+      throw new Error("AIM research-gap audit returned an invalid structured classification.");
     }
     const isRecord2 = (value) => typeof value === "object" && value !== null;
     const suggestions = Array.isArray(parsed.suggestions) ? parsed.suggestions.filter(
@@ -25426,7 +25453,7 @@ ${value}`).join("\n\n");
       visualReferences,
       ...searchStatus ? { searchStatus } : {}
     };
-    return contract ? foldMindSearchContract(contract, parsed.aim, result) : result;
+    return contract ? foldAimContract(contract, parsed.aim, result) : result;
   }
 };
 
@@ -26929,10 +26956,10 @@ var VisualAgentMapPlugin = class extends import_obsidian20.Plugin {
     this.addLocalizedCommand("open-map", "ui.open_map", () => {
       void this.activateView().catch((error) => new import_obsidian20.Notice(String(error)));
     });
-    this.addLocalizedCommand("create-mindsearch-map", "ui.mindsearch_create_map", () => {
+    this.addLocalizedCommand("create-aim-map", "ui.aim_create_map", () => {
       void this.activateView().then(() => {
         var _a2;
-        return (_a2 = this.views()[0]) == null ? void 0 : _a2.openMindSearchStart();
+        return (_a2 = this.views()[0]) == null ? void 0 : _a2.openAimStart();
       }).catch((error) => new import_obsidian20.Notice(String(error)));
     });
     this.addLocalizedCommand("open-topic-outline", "ui.open_topic_outline", () => {

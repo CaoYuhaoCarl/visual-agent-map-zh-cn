@@ -1,5 +1,5 @@
 // Entry point for the unit and integration suites. `--layer=unit|integration` (read in support.cjs)
-// selects which tests register; without it every suite test registers, which test:mindsearch relies on.
+// selects which tests register; without it every suite test registers, which test:aim relies on.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -21,10 +21,10 @@ const suites = [
   'coffee-tables-core.cjs',
   'coffee-tables-session.cjs',
   'reframing.cjs',
-  'mindsearch-planner.cjs',
-  'mindsearch-start-and-lifecycle.cjs',
-  'mindsearch-branches-and-recovery.cjs',
-  'mindsearch-coverage-and-delivery.cjs'
+  'aim-planner.cjs',
+  'aim-start-and-lifecycle.cjs',
+  'aim-branches-and-recovery.cjs',
+  'aim-coverage-and-delivery.cjs'
 ];
 const directory = path.join(__dirname, 'suites');
 assert.deepEqual(fs.readdirSync(directory).filter(file => file.endsWith('.cjs')).sort(), suites.slice().sort(), 'tests/run.cjs must list every file in tests/suites');

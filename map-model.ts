@@ -1,6 +1,7 @@
-import { validateMindSearchResearchPlan } from "./experiences/mind-search/research-plan";
+import { validateAimResearchPlan } from "./experiences/aim/research-plan";
+import { upgradeLegacyAimData } from "./experiences/aim/legacy-names";
 import type { AiResult } from "./ai/types";
-import type { FinalDeliveryCheckpoint } from "./experiences/mind-search/final-delivery";
+import type { FinalDeliveryCheckpoint } from "./experiences/aim/final-delivery";
 import { t, translate } from "./i18n";
 
 export interface MapNode {
@@ -10,54 +11,54 @@ export interface MapNode {
   x: number;
   y: number;
   collapsed: boolean;
-  mindSearchKind?: MindSearchNodeKind;
-  mindSearchQuestion?: {
+  aimKind?: AimNodeKind;
+  aimQuestion?: {
     requestId: string;
     parentBranchId?: string | null;
     options: { id: string; label: string }[];
     allowMultiple: boolean;
     allowFreeText: boolean;
   };
-  mindSearchConvergesFromNodeIds?: string[];
+  aimConvergesFromNodeIds?: string[];
   /** Explicitly removed follow-ups must not be recreated by crash recovery. */
-  mindSearchDismissedQuestionRequestIds?: string[];
+  aimDismissedQuestionRequestIds?: string[];
 }
-export type MindSearchNodeKind = "topic" | "question" | "answer" | "research" | "synthesis" | "conclusion";
+export type AimNodeKind = "topic" | "question" | "answer" | "research" | "synthesis" | "conclusion";
 export interface MapDocument {
   version: 1;
   id: string;
   title: string;
   nodes: MapNode[];
   viewport: { x: number; y: number; zoom: number };
-  mindSearch?: MindSearchMapData;
+  aim?: AimMapData;
 }
 
 export function clearQuestionConvergenceEdges(map: MapDocument): boolean {
   let changed = false;
   for (const node of map.nodes) {
-    if (node.mindSearchKind !== "question" || node.mindSearchConvergesFromNodeIds === undefined) continue;
-    delete node.mindSearchConvergesFromNodeIds;
+    if (node.aimKind !== "question" || node.aimConvergesFromNodeIds === undefined) continue;
+    delete node.aimConvergesFromNodeIds;
     changed = true;
   }
   return changed;
 }
 
 export function parentIdsForNode(node: MapNode): string[] {
-  const convergenceParents = node.mindSearchKind === "question" ? [] : (node.mindSearchConvergesFromNodeIds ?? []);
+  const convergenceParents = node.aimKind === "question" ? [] : (node.aimConvergesFromNodeIds ?? []);
   return [...(node.parentId ? [node.parentId] : []), ...convergenceParents.filter(id => id !== node.parentId)];
 }
 
 /** Repair continuation results saved before their research-source edges were recorded. */
-export function repairMindSearchResultConvergence(map: MapDocument): boolean {
+export function repairAimResultConvergence(map: MapDocument): boolean {
   let changed = false;
-  for (const branch of map.mindSearch?.branches ?? []) {
+  for (const branch of map.aim?.branches ?? []) {
     for (const [index, result] of branch.results.entries()) {
       const node = map.nodes.find(item => item.id === result.nodeId);
       if (
         !node ||
-        (node.mindSearchKind !== "synthesis" && node.mindSearchKind !== "conclusion") ||
+        (node.aimKind !== "synthesis" && node.aimKind !== "conclusion") ||
         node.parentId !== branch.questionNodeId ||
-        node.mindSearchConvergesFromNodeIds?.length
+        node.aimConvergesFromNodeIds?.length
       )
         continue;
       const sources = [
@@ -71,7 +72,7 @@ export function repairMindSearchResultConvergence(map: MapDocument): boolean {
                 map.nodes.some(
                   item =>
                     item.id === source.nodeId &&
-                    item.mindSearchKind === "research" &&
+                    item.aimKind === "research" &&
                     item.parentId === branch.questionNodeId
                 )
             )
@@ -80,14 +81,14 @@ export function repairMindSearchResultConvergence(map: MapDocument): boolean {
       ];
       if (!sources.length) continue;
       node.parentId = sources[sources.length - 1]!;
-      node.mindSearchConvergesFromNodeIds = [...sources];
+      node.aimConvergesFromNodeIds = [...sources];
       changed = true;
     }
   }
   return changed;
 }
 
-export interface MindSearchReuseRecord {
+export interface AimReuseRecord {
   sourceBranchId: string;
   sourceResultId: string;
   sourceNotePath: string;
@@ -99,7 +100,7 @@ export interface MindSearchReuseRecord {
   validityReason: string;
 }
 
-function validReuse(record: MindSearchReuseRecord | undefined): boolean {
+function validReuse(record: AimReuseRecord | undefined): boolean {
   return (
     record === undefined ||
     (!!record &&
@@ -157,7 +158,7 @@ function validDeliveryCheckpoint(checkpoint: FinalDeliveryCheckpoint): boolean {
   );
 }
 
-export interface MindSearchBranchRecord {
+export interface AimBranchRecord {
   id: string;
   submissionId?: string;
   /** Original question node from which an answer-specific question pivot was copied. */
@@ -203,15 +204,15 @@ export interface MindSearchBranchRecord {
     version: number;
     kind?: "research" | "synthesis" | "conclusion";
     subtopicId?: string;
-    reuse?: MindSearchReuseRecord;
+    reuse?: AimReuseRecord;
   }[];
 }
 /** A Searcher report kept as data so recovery never has to parse Markdown headings. */
-export interface MindSearchRetainedReport {
+export interface AimRetainedReport {
   summary: string;
   detail: string;
 }
-export interface MindSearchResultDraftRecord {
+export interface AimResultDraftRecord {
   id: string;
   branchId: string;
   nodeId: string;
@@ -225,13 +226,13 @@ export interface MindSearchResultDraftRecord {
   reasoning?: "low" | "medium" | "high";
   kind?: "research" | "synthesis" | "conclusion";
   subtopicId?: string;
-  reuse?: MindSearchReuseRecord;
+  reuse?: AimReuseRecord;
   parentNodeId?: string;
   convergesFromNodeIds?: string[];
   /** Individual reports behind an aggregated draft, kept for saved-report recovery. */
-  retainedReports?: MindSearchRetainedReport[];
+  retainedReports?: AimRetainedReport[];
 }
-export interface MindSearchPlannerReviewRecord {
+export interface AimPlannerReviewRecord {
   decision: "research_more" | "ask_user" | "conclude";
   rationale: string;
   researchTurn: number;
@@ -240,14 +241,14 @@ export interface MindSearchPlannerReviewRecord {
   answerAxis?: { id: string; label: string };
   researchTarget?: { title: string; task: string; expectedValue: string };
 }
-export interface MindSearchSearchDiagnostic {
+export interface AimSearchDiagnostic {
   researchTurn: number;
   startedEvents: number;
   completedEvents: number;
   completedSearchActions: number;
   otherCompletedActions: number;
 }
-export interface MindSearchAttemptRecord {
+export interface AimAttemptRecord {
   id: string;
   inputSnapshotHash: string;
   status: "running" | "saving" | "completed" | "partial" | "failed" | "cancelled" | "superseded";
@@ -258,18 +259,18 @@ export interface MindSearchAttemptRecord {
   reasoningLevel?: "low" | "medium" | "high";
   maxResearchTurns?: number;
   researchTurns?: number;
-  plannerReviews?: MindSearchPlannerReviewRecord[];
-  searchDiagnostics?: MindSearchSearchDiagnostic[];
+  plannerReviews?: AimPlannerReviewRecord[];
+  searchDiagnostics?: AimSearchDiagnostic[];
   /** Reports of a failed attempt with completed web retrieval, and the diagnostic note that shows them. */
-  retainedReports?: { notePath: string; reports: MindSearchRetainedReport[] };
+  retainedReports?: { notePath: string; reports: AimRetainedReport[] };
 }
-export interface MindSearchRunRecord {
+export interface AimRunRecord {
   id: string;
   branchId: string;
   currentAttemptId: string;
-  attempts: MindSearchAttemptRecord[];
+  attempts: AimAttemptRecord[];
 }
-export interface MindSearchPendingCommit {
+export interface AimPendingCommit {
   resultId: string;
   branchId: string;
   runId: string;
@@ -283,7 +284,7 @@ export interface MindSearchPendingCommit {
   version: number;
   resultStatus?: "completed" | "partial";
 }
-export interface MindSearchQuestionDraft {
+export interface AimQuestionDraft {
   requestId: string;
   nodeId: string;
   parentId: string;
@@ -298,7 +299,7 @@ export interface MindSearchQuestionDraft {
   options: { id: string; label: string }[];
   convergesFromNodeIds?: string[];
 }
-export interface MindSearchMapData {
+export interface AimMapData {
   version: 1;
   creationId?: string;
   /** Exploration target; legacy field name retained for saved maps. Never forces questions or completion. */
@@ -311,11 +312,11 @@ export interface MindSearchMapData {
     model?: string;
     reasoning?: "low" | "medium" | "high";
   };
-  branches: MindSearchBranchRecord[];
-  runs: MindSearchRunRecord[];
-  resultDrafts?: MindSearchResultDraftRecord[];
-  questionDraft?: MindSearchQuestionDraft;
-  pendingCommits: MindSearchPendingCommit[];
+  branches: AimBranchRecord[];
+  runs: AimRunRecord[];
+  resultDrafts?: AimResultDraftRecord[];
+  questionDraft?: AimQuestionDraft;
+  pendingCommits: AimPendingCommit[];
 }
 export const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
@@ -351,7 +352,7 @@ export function removeNodes(nodes: MapNode[], id: string, branch: boolean): MapN
     .filter(node => !removed.has(node.id))
     .map(node => ({ ...node, parentId: node.parentId && removed.has(node.parentId) ? null : node.parentId }));
 }
-function validRetainedReports(reports: unknown): reports is MindSearchRetainedReport[] {
+function validRetainedReports(reports: unknown): reports is AimRetainedReport[] {
   if (!Array.isArray(reports) || reports.length === 0) return false;
   return (reports as unknown[]).every(item => {
     if (!item || typeof item !== "object") return false;
@@ -363,11 +364,11 @@ function validRetainedReports(reports: unknown): reports is MindSearchRetainedRe
 export function parseMap(content: string): MapDocument {
   const block = content.match(/```agent-map\s*\n([\s\S]*?)\n```/);
   if (!block) throw new Error(t("ui.mind_map_data_was_not_found_keep_the_agent_map_block"));
-  const map = JSON.parse(block[1]) as MapDocument;
+  const map = upgradeLegacyAimData(JSON.parse(block[1]) as MapDocument);
   if (map.version !== 1 || typeof map.id !== "string" || typeof map.title !== "string" || !Array.isArray(map.nodes))
     throw new Error(t("ui.invalid_mind_map_format"));
   const ids = new Set<string>(),
-    mindSearchQuestionRequests = new Set<string>();
+    aimQuestionRequests = new Set<string>();
   for (const n of map.nodes) {
     if (
       !n ||
@@ -381,32 +382,32 @@ export function parseMap(content: string): MapDocument {
     )
       throw new Error(t("ui.invalid_node_data_or_duplicate_id"));
     if (
-      n.mindSearchDismissedQuestionRequestIds !== undefined &&
-      (!Array.isArray(n.mindSearchDismissedQuestionRequestIds) ||
-        new Set(n.mindSearchDismissedQuestionRequestIds).size !== n.mindSearchDismissedQuestionRequestIds.length ||
-        n.mindSearchDismissedQuestionRequestIds.some(id => typeof id !== "string" || !id.trim()))
+      n.aimDismissedQuestionRequestIds !== undefined &&
+      (!Array.isArray(n.aimDismissedQuestionRequestIds) ||
+        new Set(n.aimDismissedQuestionRequestIds).size !== n.aimDismissedQuestionRequestIds.length ||
+        n.aimDismissedQuestionRequestIds.some(id => typeof id !== "string" || !id.trim()))
     )
-      throw new Error("Invalid dismissed MindSearch question identities.");
+      throw new Error("Invalid dismissed AIM question identities.");
     ids.add(n.id);
     n.collapsed = n.collapsed === true;
     if (
-      n.mindSearchKind !== undefined &&
-      !["topic", "question", "answer", "research", "synthesis", "conclusion"].includes(n.mindSearchKind)
+      n.aimKind !== undefined &&
+      !["topic", "question", "answer", "research", "synthesis", "conclusion"].includes(n.aimKind)
     )
-      throw new Error("Invalid MindSearch node kind.");
+      throw new Error("Invalid AIM node kind.");
     if (
-      n.mindSearchConvergesFromNodeIds !== undefined &&
-      (!Array.isArray(n.mindSearchConvergesFromNodeIds) ||
-        new Set(n.mindSearchConvergesFromNodeIds).size !== n.mindSearchConvergesFromNodeIds.length ||
-        n.mindSearchConvergesFromNodeIds.some(
+      n.aimConvergesFromNodeIds !== undefined &&
+      (!Array.isArray(n.aimConvergesFromNodeIds) ||
+        new Set(n.aimConvergesFromNodeIds).size !== n.aimConvergesFromNodeIds.length ||
+        n.aimConvergesFromNodeIds.some(
           id => typeof id !== "string" || id === n.id || !map.nodes.some(candidate => candidate.id === id)
         ))
     )
-      throw new Error("Invalid MindSearch convergence references.");
-    if (n.mindSearchQuestion !== undefined) {
-      const question = n.mindSearchQuestion;
+      throw new Error("Invalid AIM convergence references.");
+    if (n.aimQuestion !== undefined) {
+      const question = n.aimQuestion;
       if (
-        n.mindSearchKind !== "question" ||
+        n.aimKind !== "question" ||
         !question ||
         typeof question.requestId !== "string" ||
         !question.requestId.trim() ||
@@ -429,16 +430,16 @@ export function parseMap(content: string): MapDocument {
         typeof question.allowMultiple !== "boolean" ||
         typeof question.allowFreeText !== "boolean"
       )
-        throw new Error("Invalid MindSearch question controls.");
-      if (mindSearchQuestionRequests.has(question.requestId))
-        throw new Error("Duplicate MindSearch question request identity.");
-      mindSearchQuestionRequests.add(question.requestId);
+        throw new Error("Invalid AIM question controls.");
+      if (aimQuestionRequests.has(question.requestId))
+        throw new Error("Duplicate AIM question request identity.");
+      aimQuestionRequests.add(question.requestId);
     }
   }
   for (const n of map.nodes)
     if (!canParent(map.nodes, n.id, n.parentId))
       throw new Error(t("ui.a_link_contains_a_cycle_or_points_to_a_missing_parent_topic"));
-  if (map.mindSearch !== undefined) validateMindSearchMap(map);
+  if (map.aim !== undefined) validateAimMap(map);
   if (
     !map.viewport ||
     !Number.isFinite(map.viewport.x) ||
@@ -449,8 +450,8 @@ export function parseMap(content: string): MapDocument {
   map.viewport.zoom = Math.min(2, Math.max(0.25, map.viewport.zoom));
   return map;
 }
-function validateMindSearchMap(map: MapDocument): void {
-  const data = map.mindSearch as MindSearchMapData;
+function validateAimMap(map: MapDocument): void {
+  const data = map.aim as AimMapData;
   if (
     !data ||
     data.version !== 1 ||
@@ -459,16 +460,16 @@ function validateMindSearchMap(map: MapDocument): void {
     !Array.isArray(data.pendingCommits) ||
     (data.resultDrafts !== undefined && !Array.isArray(data.resultDrafts))
   )
-    throw new Error("Invalid MindSearch map extension.");
+    throw new Error("Invalid AIM map extension.");
   if (data.creationId !== undefined && (typeof data.creationId !== "string" || !data.creationId.trim()))
-    throw new Error("Invalid MindSearch creation identity.");
+    throw new Error("Invalid AIM creation identity.");
   if (
     data.minimumAnswersBeforeConclusion !== undefined &&
     (!Number.isInteger(data.minimumAnswersBeforeConclusion) ||
       data.minimumAnswersBeforeConclusion < 1 ||
       data.minimumAnswersBeforeConclusion > 10)
   )
-    throw new Error("Invalid MindSearch exploration question target.");
+    throw new Error("Invalid AIM exploration question target.");
   if (
     data.rootDraft !== undefined &&
     (!data.rootDraft ||
@@ -482,14 +483,14 @@ function validateMindSearchMap(map: MapDocument): void {
       (data.rootDraft.reasoning !== undefined && !["low", "medium", "high"].includes(data.rootDraft.reasoning)) ||
       map.nodes.some(node => node.id === data.rootDraft!.nodeId))
   )
-    throw new Error("Invalid MindSearch root draft.");
+    throw new Error("Invalid AIM root draft.");
   if (data.questionDraft !== undefined) {
     const draft = data.questionDraft;
     if (
       !draft ||
       typeof draft.requestId !== "string" ||
       !draft.requestId.trim() ||
-      map.nodes.some(node => node.mindSearchQuestion?.requestId === draft.requestId) ||
+      map.nodes.some(node => node.aimQuestion?.requestId === draft.requestId) ||
       typeof draft.nodeId !== "string" ||
       map.nodes.some(node => node.id === draft.nodeId) ||
       typeof draft.parentId !== "string" ||
@@ -524,7 +525,7 @@ function validateMindSearchMap(map: MapDocument): void {
           new Set(draft.convergesFromNodeIds).size !== draft.convergesFromNodeIds.length ||
           draft.convergesFromNodeIds.some(id => !map.nodes.some(node => node.id === id))))
     )
-      throw new Error("Invalid MindSearch question draft.");
+      throw new Error("Invalid AIM question draft.");
   }
   const branchIds = new Set<string>(),
     submissionIds = new Set<string>();
@@ -546,7 +547,7 @@ function validateMindSearchMap(map: MapDocument): void {
           !map.nodes.some(
             node =>
               node.id === branch.answerNodeId &&
-              node.mindSearchKind === "answer" &&
+              node.aimKind === "answer" &&
               node.parentId === branch.questionNodeId
           ))) ||
       !(branch.parentBranchId === null || typeof branch.parentBranchId === "string") ||
@@ -584,13 +585,13 @@ function validateMindSearchMap(map: MapDocument): void {
           new Set(branch.researchPlan.map(item => item.title.trim().toLowerCase())).size !==
             branch.researchPlan.length))
     )
-      throw new Error("Invalid MindSearch branch snapshot.");
-    if (branch.researchPlan !== undefined) validateMindSearchResearchPlan(branch.researchPlan);
+      throw new Error("Invalid AIM branch snapshot.");
+    if (branch.researchPlan !== undefined) validateAimResearchPlan(branch.researchPlan);
     if (
       branch.retryTimeoutMs !== undefined &&
       (!Number.isInteger(branch.retryTimeoutMs) || branch.retryTimeoutMs < 180_000 || branch.retryTimeoutMs > 600_000)
     )
-      throw new Error("Invalid MindSearch retry timeout.");
+      throw new Error("Invalid AIM retry timeout.");
     if (
       branch.deliveryRecovery &&
       (typeof branch.deliveryRecovery.fingerprint !== "string" ||
@@ -598,7 +599,7 @@ function validateMindSearchMap(map: MapDocument): void {
         typeof branch.deliveryRecovery.planner.detail !== "string" ||
         !validDeliveryCheckpoint(branch.deliveryRecovery.checkpoint))
     )
-      throw new Error("Invalid MindSearch delivery checkpoint.");
+      throw new Error("Invalid AIM delivery checkpoint.");
     if (branch.deliveryRecovery?.evidence !== undefined) {
       const evidence = branch.deliveryRecovery.evidence;
       if (
@@ -615,27 +616,27 @@ function validateMindSearchMap(map: MapDocument): void {
         ) ||
         new Set(evidence.map(source => source.id)).size !== evidence.length
       )
-        throw new Error("Invalid MindSearch delivery evidence.");
+        throw new Error("Invalid AIM delivery evidence.");
     }
     branchIds.add(branch.id);
     if (branch.submissionId) submissionIds.add(branch.submissionId);
     const questionNode = map.nodes.find(node => node.id === branch.questionNodeId)!;
-    if (questionNode.mindSearchQuestion && questionNode.mindSearchQuestion.parentBranchId !== branch.parentBranchId)
-      throw new Error("MindSearch answer branch does not match its question's parent branch.");
+    if (questionNode.aimQuestion && questionNode.aimQuestion.parentBranchId !== branch.parentBranchId)
+      throw new Error("AIM answer branch does not match its question's parent branch.");
   }
   for (const branch of data.branches) {
     if (branch.parentBranchId && !branchIds.has(branch.parentBranchId))
-      throw new Error("MindSearch branch points to a missing parent.");
+      throw new Error("AIM branch points to a missing parent.");
     const seen = new Set([branch.id]);
     let parent = branch.parentBranchId;
     while (parent) {
-      if (seen.has(parent)) throw new Error("MindSearch answer branches cannot contain cycles.");
+      if (seen.has(parent)) throw new Error("AIM answer branches cannot contain cycles.");
       seen.add(parent);
       parent = data.branches.find(item => item.id === parent)?.parentBranchId ?? null;
     }
   }
   const runIds = new Set<string>();
-  const validAttempt = (attempt: MindSearchAttemptRecord): boolean => {
+  const validAttempt = (attempt: AimAttemptRecord): boolean => {
     if (!attempt || typeof attempt.id !== "string" || typeof attempt.inputSnapshotHash !== "string") return false;
     if (!["running", "saving", "completed", "partial", "failed", "cancelled", "superseded"].includes(attempt.status))
       return false;
@@ -738,7 +739,7 @@ function validateMindSearchMap(map: MapDocument): void {
       !run.attempts.some(attempt => attempt.id === run.currentAttemptId) ||
       run.attempts.some(attempt => !validAttempt(attempt))
     )
-      throw new Error("Invalid MindSearch run record.");
+      throw new Error("Invalid AIM run record.");
     runIds.add(run.id);
   }
   const resultIds = new Set<string>();
@@ -770,7 +771,7 @@ function validateMindSearchMap(map: MapDocument): void {
               branch.results.some(parent => parent.nodeId === node.parentId))
         )
       )
-        throw new Error("Invalid MindSearch branch result reference.");
+        throw new Error("Invalid AIM branch result reference.");
       resultIds.add(result.resultId);
     }
   const drafts = data.resultDrafts ?? [];
@@ -805,7 +806,7 @@ function validateMindSearchMap(map: MapDocument): void {
           node.parentId === (draft.parentNodeId ?? branch.answerNodeId ?? branch.questionNodeId)
       )
     )
-      throw new Error("Invalid MindSearch result draft.");
+      throw new Error("Invalid AIM result draft.");
     draftIds.add(draft.id);
   }
   for (const pending of data.pendingCommits) {
@@ -831,7 +832,7 @@ function validateMindSearchMap(map: MapDocument): void {
       typeof pending.notePath !== "string" ||
       !pending.notePath.endsWith(".md")
     )
-      throw new Error("Invalid MindSearch pending commit.");
+      throw new Error("Invalid AIM pending commit.");
   }
 }
 export function serializeMap(map: MapDocument, language: "zh-TW" | "en" = "zh-TW"): string {

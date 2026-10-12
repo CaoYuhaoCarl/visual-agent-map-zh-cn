@@ -108,7 +108,7 @@ integrationTest('Prompt monitor preserves exact Claude prompts, phases and separ
     const file = path.join(directory, 'log.json');
     const log = new AiExchangeLog(file, error => assert.fail(String(error)));
     log.begin({ id: 'one', startedAt: new Date().toISOString(), topic: 'Research', mode: 'task', model: 'claude', effort: 'high' });
-    const prompt = '<!-- mindsearch-phase: research-plan -->\n完整指令\nprivate context';
+    const prompt = '<!-- aim-phase: research-plan -->\n完整指令\nprivate context';
     log.sent('one', JSON.stringify({ input: '<VAM prompt via stdin>' }), prompt);
     log.sent('one', JSON.stringify({ input: [{ type: 'text', text: 'Stop and use existing evidence' }] }));
     log.completed('one'); await log.flush();

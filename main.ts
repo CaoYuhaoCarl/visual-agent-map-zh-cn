@@ -362,9 +362,9 @@ export default class VisualAgentMapPlugin extends Plugin {
     this.addLocalizedCommand("open-map", "ui.open_map", () => {
       void this.activateView().catch(error => new Notice(String(error)));
     });
-    this.addLocalizedCommand("create-mindsearch-map", "ui.mindsearch_create_map", () => {
+    this.addLocalizedCommand("create-aim-map", "ui.aim_create_map", () => {
       void this.activateView()
-        .then(() => this.views()[0]?.openMindSearchStart())
+        .then(() => this.views()[0]?.openAimStart())
         .catch(error => new Notice(String(error)));
     });
     this.addLocalizedCommand("open-topic-outline", "ui.open_topic_outline", () => {

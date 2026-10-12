@@ -26,31 +26,31 @@ test('map round trip retains structure, viewport and collapse', () => {
 });
 test('clears stale question convergence links while preserving synthesis convergence', () => {
   const fixture = map([
-    { ...node('question'), mindSearchKind: 'question', mindSearchConvergesFromNodeIds: ['research'] },
-    { ...node('research', 'question'), mindSearchKind: 'research' },
-    { ...node('synthesis', 'question'), mindSearchKind: 'synthesis', mindSearchConvergesFromNodeIds: ['research'] }
+    { ...node('question'), aimKind: 'question', aimConvergesFromNodeIds: ['research'] },
+    { ...node('research', 'question'), aimKind: 'research' },
+    { ...node('synthesis', 'question'), aimKind: 'synthesis', aimConvergesFromNodeIds: ['research'] }
   ]);
   assert.equal(core.clearQuestionConvergenceEdges(fixture), true);
-  assert.equal(fixture.nodes[0].mindSearchConvergesFromNodeIds, undefined, 'legacy question refs are removed');
-  assert.deepEqual(plain(fixture.nodes[2].mindSearchConvergesFromNodeIds), ['research'], 'the synthesis node keeps its dashed link to research');
+  assert.equal(fixture.nodes[0].aimConvergesFromNodeIds, undefined, 'legacy question refs are removed');
+  assert.deepEqual(plain(fixture.nodes[2].aimConvergesFromNodeIds), ['research'], 'the synthesis node keeps its dashed link to research');
   assert.equal(core.clearQuestionConvergenceEdges(fixture), false, 'cleanup is idempotent');
   assert.deepEqual(plain(core.parentIdsForNode(fixture.nodes[0])), [], 'renderer never draws a dashed convergence edge into a question');
   assert.deepEqual(plain(core.parentIdsForNode(fixture.nodes[2])), ['question', 'research'], 'synthesis keeps its direct and dashed source edges');
 });
-test('repairs legacy MindSearch continuation convergence from preceding saved research only', () => {
+test('repairs legacy AIM continuation convergence from preceding saved research only', () => {
   const fixture = map([
-    { ...node('q1'), mindSearchKind: 'question', mindSearchConvergesFromNodeIds: ['legacy-wrong-source'] },
-    { ...node('r1', 'q1'), mindSearchKind: 'research' },
-    { ...node('r2', 'q1'), mindSearchKind: 'research' },
-    { ...node('r-default-kind', 'q1'), mindSearchKind: 'research' },
-    { ...node('synthesis', 'q1'), mindSearchKind: 'synthesis' },
-    { ...node('r-future', 'q1'), mindSearchKind: 'research' },
-    { ...node('conclusion', 'q1'), mindSearchKind: 'conclusion', mindSearchConvergesFromNodeIds: ['existing-source'] },
-    { ...node('conclusion-missing', 'q1'), mindSearchKind: 'conclusion' },
-    { ...node('q-legacy'), mindSearchKind: 'question' },
-    { ...node('legacy-synthesis', 'q-legacy'), mindSearchKind: 'synthesis' }
+    { ...node('q1'), aimKind: 'question', aimConvergesFromNodeIds: ['legacy-wrong-source'] },
+    { ...node('r1', 'q1'), aimKind: 'research' },
+    { ...node('r2', 'q1'), aimKind: 'research' },
+    { ...node('r-default-kind', 'q1'), aimKind: 'research' },
+    { ...node('synthesis', 'q1'), aimKind: 'synthesis' },
+    { ...node('r-future', 'q1'), aimKind: 'research' },
+    { ...node('conclusion', 'q1'), aimKind: 'conclusion', aimConvergesFromNodeIds: ['existing-source'] },
+    { ...node('conclusion-missing', 'q1'), aimKind: 'conclusion' },
+    { ...node('q-legacy'), aimKind: 'question' },
+    { ...node('legacy-synthesis', 'q-legacy'), aimKind: 'synthesis' }
   ]);
-  fixture.mindSearch = { version: 1, branches: [
+  fixture.aim = { version: 1, branches: [
     { id: 'branch-with-reports', questionNodeId: 'q1', parentBranchId: null, answerSnapshot: { selections: [], freeText: 'synthetic' }, inputSnapshot: { topic: 'test', conditions: {}, upstreamResults: [] }, createdAt: '2026-10-09T00:00:00.000Z', results: [
       { resultId: 'r1', runId: 'run', attemptId: 'a1', nodeId: 'r1', notePath: 'r1.md', version: 1, kind: 'research', subtopicId: 'subtopic-1' },
       { resultId: 'r2', runId: 'run', attemptId: 'a1', nodeId: 'r2', notePath: 'r2.md', version: 2, kind: 'research', subtopicId: 'subtopic-2' },
@@ -64,53 +64,53 @@ test('repairs legacy MindSearch continuation convergence from preceding saved re
       { resultId: 'legacy-synthesis', runId: 'legacy-run', attemptId: 'a1', nodeId: 'legacy-synthesis', notePath: 'legacy.md', version: 1, kind: 'synthesis' }
     ] }
   ], runs: [], pendingCommits: [] };
-  assert.equal(core.repairMindSearchResultConvergence(fixture), true);
+  assert.equal(core.repairAimResultConvergence(fixture), true);
   assert.equal(fixture.nodes.find(item => item.id === 'synthesis').parentId, 'r2');
-  assert.deepEqual(plain(fixture.nodes.find(item => item.id === 'synthesis').mindSearchConvergesFromNodeIds), ['r1', 'r2'], 'later reports are excluded from this saved synthesis');
-  assert.deepEqual(plain(fixture.nodes.find(item => item.id === 'conclusion').mindSearchConvergesFromNodeIds), ['existing-source'], 'existing convergence edges are not rewritten');
+  assert.deepEqual(plain(fixture.nodes.find(item => item.id === 'synthesis').aimConvergesFromNodeIds), ['r1', 'r2'], 'later reports are excluded from this saved synthesis');
+  assert.deepEqual(plain(fixture.nodes.find(item => item.id === 'conclusion').aimConvergesFromNodeIds), ['existing-source'], 'existing convergence edges are not rewritten');
   assert.equal(fixture.nodes.find(item => item.id === 'conclusion').parentId, 'q1');
   assert.equal(fixture.nodes.find(item => item.id === 'conclusion-missing').parentId, 'r-future');
-  assert.deepEqual(plain(fixture.nodes.find(item => item.id === 'conclusion-missing').mindSearchConvergesFromNodeIds), ['r1', 'r2', 'r-future']);
-  assert.deepEqual(plain(fixture.nodes.find(item => item.id === 'q1').mindSearchConvergesFromNodeIds), ['legacy-wrong-source'], 'question nodes are not modified');
+  assert.deepEqual(plain(fixture.nodes.find(item => item.id === 'conclusion-missing').aimConvergesFromNodeIds), ['r1', 'r2', 'r-future']);
+  assert.deepEqual(plain(fixture.nodes.find(item => item.id === 'q1').aimConvergesFromNodeIds), ['legacy-wrong-source'], 'question nodes are not modified');
   assert.equal(fixture.nodes.find(item => item.id === 'legacy-synthesis').parentId, 'q-legacy', 'legacy branch without saved research remains unchanged');
-  assert.equal(core.repairMindSearchResultConvergence(fixture), false, 'repair is idempotent');
+  assert.equal(core.repairAimResultConvergence(fixture), false, 'repair is idempotent');
 });
-test('MindSearch rejects a relocated result node when its branch reference still points to the source Vault', () => {
+test('AIM rejects a relocated result node when its branch reference still points to the source Vault', () => {
   const malformed = {
-    version: 1, id: 'mindsearch-fixture-map', title: 'Planner ask-user follow-up UI fixture',
+    version: 1, id: 'aim-fixture-map', title: 'Planner ask-user follow-up UI fixture',
     nodes: [
-      { id: '8e541501-7636-41a3-8bd8-41650937236d', path: 'Agent Workspace/Topics/Planner ask-user follow-up UI fixture/Notes/如何用鑄鐵鍋在家煎出自己喜歡的牛排熟度？.md', parentId: null, x: 80, y: 80, collapsed: false, mindSearchKind: 'topic' },
-      { id: '5d756d6e-d119-43ac-b611-54353b574aa4', path: 'Agent Workspace/Topics/Planner ask-user follow-up UI fixture/Notes/問題 · 你希望牛排煎到哪種熟度？.md', parentId: '8e541501-7636-41a3-8bd8-41650937236d', x: 440, y: 80, collapsed: false, mindSearchKind: 'question', mindSearchQuestion: { requestId: '282bceaa-8fb9-47e3-abc7-dd2ce293e705', parentBranchId: null, options: [{ id: 'rare', label: '三分熟（中心偏紅）' }, { id: 'medium', label: '五分熟' }], allowMultiple: true, allowFreeText: true } },
-      { id: 'e0a25570-f0f1-47d2-a4e5-3c645cde6036', path: 'Agent Workspace/Topics/Planner ask-user follow-up UI fixture/Notes/你希望牛排煎到哪種熟度？・回答研究.md', parentId: '5d756d6e-d119-43ac-b611-54353b574aa4', x: 800, y: 80, collapsed: false, mindSearchKind: 'research' }
+      { id: '8e541501-7636-41a3-8bd8-41650937236d', path: 'Agent Workspace/Topics/Planner ask-user follow-up UI fixture/Notes/如何用鑄鐵鍋在家煎出自己喜歡的牛排熟度？.md', parentId: null, x: 80, y: 80, collapsed: false, aimKind: 'topic' },
+      { id: '5d756d6e-d119-43ac-b611-54353b574aa4', path: 'Agent Workspace/Topics/Planner ask-user follow-up UI fixture/Notes/問題 · 你希望牛排煎到哪種熟度？.md', parentId: '8e541501-7636-41a3-8bd8-41650937236d', x: 440, y: 80, collapsed: false, aimKind: 'question', aimQuestion: { requestId: '282bceaa-8fb9-47e3-abc7-dd2ce293e705', parentBranchId: null, options: [{ id: 'rare', label: '三分熟（中心偏紅）' }, { id: 'medium', label: '五分熟' }], allowMultiple: true, allowFreeText: true } },
+      { id: 'e0a25570-f0f1-47d2-a4e5-3c645cde6036', path: 'Agent Workspace/Topics/Planner ask-user follow-up UI fixture/Notes/你希望牛排煎到哪種熟度？・回答研究.md', parentId: '5d756d6e-d119-43ac-b611-54353b574aa4', x: 800, y: 80, collapsed: false, aimKind: 'research' }
     ],
     viewport: { x: 0, y: 0, zoom: 1 },
-    mindSearch: {
+    aim: {
       version: 1, branches: [{ id: '5719e17c-fced-46e5-947c-410dd73fbed9', submissionId: '7eb4a718-f3e7-462e-bda4-439daac43030', questionNodeId: '5d756d6e-d119-43ac-b611-54353b574aa4', parentBranchId: null, answerSnapshot: { selections: ['rare'], freeText: 'Synthetic UI fixture.' }, inputSnapshot: { topic: '如何用鑄鐵鍋在家煎出自己喜歡的牛排熟度？', conditions: { '你希望牛排煎到哪種熟度？': 'Synthetic answer.' }, upstreamResults: [] }, createdAt: '2026-10-05T05:37:21.519Z', results: [{ resultId: 'result-f042d30c-c76a-4bd1-8912-990a14ef1f2f-attempt-1', runId: 'f042d30c-c76a-4bd1-8912-990a14ef1f2f', attemptId: 'attempt-1', nodeId: 'e0a25570-f0f1-47d2-a4e5-3c645cde6036', notePath: 'Agent Workspace/Topics/如何用鑄鐵鍋在家煎出自己喜歡的牛排熟度？/Notes/你希望牛排煎到哪種熟度？・回答研究.md', version: 1 }] }],
       runs: [{ id: 'f042d30c-c76a-4bd1-8912-990a14ef1f2f', branchId: '5719e17c-fced-46e5-947c-410dd73fbed9', currentAttemptId: 'attempt-1', attempts: [{ id: 'attempt-1', inputSnapshotHash: 'e1d8c45129677f8003c8233e371fba8722032a0e367b8e02f9ab09423c57a44f', status: 'completed' }] }],
       pendingCommits: []
     }
   };
-  assert.throws(() => core.parseMap(core.serializeMap(malformed)), /Invalid MindSearch branch result reference/);
-  const repaired = plain(malformed); repaired.mindSearch.branches[0].results[0].notePath = repaired.nodes.find(item => item.id === 'e0a25570-f0f1-47d2-a4e5-3c645cde6036').path;
-  assert.equal(core.parseMap(core.serializeMap(repaired)).mindSearch.branches[0].results[0].notePath, repaired.nodes[2].path);
+  assert.throws(() => core.parseMap(core.serializeMap(malformed)), /Invalid AIM branch result reference/);
+  const repaired = plain(malformed); repaired.aim.branches[0].results[0].notePath = repaired.nodes.find(item => item.id === 'e0a25570-f0f1-47d2-a4e5-3c645cde6036').path;
+  assert.equal(core.parseMap(core.serializeMap(repaired)).aim.branches[0].results[0].notePath, repaired.nodes[2].path);
 });
-test('MindSearch accepts legacy persisted Planner answer option objects without rewriting them', () => {
+test('AIM accepts legacy persisted Planner answer option objects without rewriting them', () => {
   const legacy = {
-    version: 1, id: 'legacy-mindsearch-map', title: 'Legacy MindSearch fixture',
+    version: 1, id: 'legacy-aim-map', title: 'Legacy AIM fixture',
     nodes: [
-      { id: 'topic', path: 'topic.md', parentId: null, x: 0, y: 0, collapsed: false, mindSearchKind: 'topic' },
-      { id: 'question', path: 'question.md', parentId: 'topic', x: 360, y: 0, collapsed: false, mindSearchKind: 'question' },
-      { id: 'result', path: 'result.md', parentId: 'question', x: 720, y: 0, collapsed: false, mindSearchKind: 'research' }
+      { id: 'topic', path: 'topic.md', parentId: null, x: 0, y: 0, collapsed: false, aimKind: 'topic' },
+      { id: 'question', path: 'question.md', parentId: 'topic', x: 360, y: 0, collapsed: false, aimKind: 'question' },
+      { id: 'result', path: 'result.md', parentId: 'question', x: 720, y: 0, collapsed: false, aimKind: 'research' }
     ],
     viewport: { x: 0, y: 0, zoom: 1 },
-    mindSearch: {
+    aim: {
       version: 1,
       branches: [{ id: 'branch', questionNodeId: 'question', parentBranchId: null, answerSnapshot: { selections: ['x'], freeText: '' }, inputSnapshot: { topic: 'Legacy fixture', conditions: {}, upstreamResults: [] }, createdAt: 'now', results: [{ resultId: 'result-1', runId: 'run', attemptId: 'attempt-1', nodeId: 'result', notePath: 'result.md', version: 1 }] }],
       runs: [{ id: 'run', branchId: 'branch', currentAttemptId: 'attempt-1', attempts: [{ id: 'attempt-1', inputSnapshotHash: 'hash', status: 'completed', plannerReviews: [{ decision: 'ask_user', rationale: 'A user condition is missing.', researchTurn: 1, question: 'Which option?', answerAxis: { id: 'axis', label: 'Preference' }, answerOptions: [{ axisId: 'axis', value: 'Option A' }, { axisId: 'axis', value: 'Option B' }] }] }] }],
       pendingCommits: []
     }
   };
-  assert.deepEqual(plain(core.parseMap(core.serializeMap(legacy)).mindSearch), plain(legacy.mindSearch));
+  assert.deepEqual(plain(core.parseMap(core.serializeMap(legacy)).aim), plain(legacy.aim));
 });
 test('new branch layout keeps older coordinates while full layout arranges all levels', () => {
   const nodes = [
@@ -137,9 +137,9 @@ test('malformed maps fail before data can be overwritten', () => {
   }
   assert.throws(() => core.parseMap('No map data'));
 });
-test('MindSearch pending commits must match their run, current saving attempt, branch, and owned result node', () => {
+test('AIM pending commits must match their run, current saving attempt, branch, and owned result node', () => {
   const valid = map([node('question'), node('result', 'question')]);
-  valid.mindSearch = {
+  valid.aim = {
     version: 1,
     branches: [
       { id: 'branch-a', questionNodeId: 'question', parentBranchId: null, answerSnapshot: { selections: [], freeText: '' }, inputSnapshot: { topic: 'topic', conditions: {}, upstreamResults: [] }, createdAt: 'now', results: [] },
@@ -149,12 +149,32 @@ test('MindSearch pending commits must match their run, current saving attempt, b
     resultDrafts: [{ id: 'draft-a', branchId: 'branch-a', runId: 'run-a', attemptId: 'attempt-a', nodeId: 'result', notePath: 'result.md', title: 'result', status: 'ready', inputSnapshotHash: 'hash' }],
     pendingCommits: [{ resultId: 'result-a', branchId: 'branch-a', runId: 'run-a', attemptId: 'attempt-a', resultDraftId: 'draft-a', nodeId: 'result', notePath: 'result.md', title: 'result', summary: 'summary', detail: 'detail', version: 1 }]
   };
-  assert.deepEqual(plain(core.parseMap(core.serializeMap(valid)).mindSearch), plain(valid.mindSearch));
-  const crossBranch = structuredClone(valid); crossBranch.mindSearch.pendingCommits[0].branchId = 'branch-b';
-  assert.throws(() => core.parseMap(core.serializeMap(crossBranch)), /Invalid MindSearch pending commit/);
-  const staleAttempt = structuredClone(valid); staleAttempt.mindSearch.pendingCommits[0].attemptId = 'attempt-old';
-  assert.throws(() => core.parseMap(core.serializeMap(staleAttempt)), /Invalid MindSearch pending commit/);
+  assert.deepEqual(plain(core.parseMap(core.serializeMap(valid)).aim), plain(valid.aim));
+  const crossBranch = structuredClone(valid); crossBranch.aim.pendingCommits[0].branchId = 'branch-b';
+  assert.throws(() => core.parseMap(core.serializeMap(crossBranch)), /Invalid AIM pending commit/);
+  const staleAttempt = structuredClone(valid); staleAttempt.aim.pendingCommits[0].attemptId = 'attempt-old';
+  assert.throws(() => core.parseMap(core.serializeMap(staleAttempt)), /Invalid AIM pending commit/);
 });
 test('undo and redo preserve ordering; new edit invalidates redo', () => {
   const h = new core.History(); h.push('move'); h.push('delete'); assert.equal(h.undo(), 'delete'); assert.equal(h.undo(), 'move'); assert.equal(h.redo(), 'move'); h.push('edit'); assert.equal(h.canRedo, false); assert.equal(h.undo(), 'edit');
+});
+test('maps saved under the pre-AIM name are upgraded to AIM keys, markers and sentinels on read', () => {
+  const { LEGACY_KEY_PREFIX, LEGACY_MARKER_PREFIX, LEGACY_VALUES } = require('../support.cjs').load('experiences/aim/legacy-names.ts');
+  const legacyKey = key => key.startsWith('aim') ? LEGACY_KEY_PREFIX + key.slice(3) : key;
+  const toLegacy = value => Array.isArray(value) ? value.map(toLegacy)
+    : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).map(([key, item]) => [legacyKey(key), toLegacy(item)]))
+    : typeof value === 'string' ? LEGACY_VALUES.reduce((text, [legacy, current]) => text.split(current).join(legacy), value.replace('<!-- aim-', `<!-- ${LEGACY_MARKER_PREFIX}`))
+    : value;
+  const current = map([
+    { ...node('topic'), aimKind: 'topic' },
+    { ...node('question', 'topic'), aimKind: 'question', aimDismissedQuestionRequestIds: ['request'] }
+  ]);
+  current.aim = { version: 1, branches: [], runs: [], pendingCommits: [], note: '<!-- aim-review {} --> __aim_unknown__' };
+  const legacy = toLegacy(current);
+  assert.ok(!('aim' in legacy) && legacy.nodes[1][`${LEGACY_KEY_PREFIX}Kind`] === 'question');
+  const parsed = plain(core.parseMap(core.serializeMap(legacy)));
+  assert.deepEqual(parsed.nodes.map(item => item.aimKind), ['topic', 'question']);
+  assert.deepEqual(parsed.nodes[1].aimDismissedQuestionRequestIds, ['request']);
+  assert.equal(parsed.aim.note, '<!-- aim-review {} --> __aim_unknown__');
+  assert.ok(!JSON.stringify(parsed).includes(LEGACY_KEY_PREFIX) && !JSON.stringify(parsed).includes(LEGACY_MARKER_PREFIX));
 });
