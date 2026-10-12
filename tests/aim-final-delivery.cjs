@@ -1,8 +1,8 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
-const { buildSync } = require('esbuild');
-const code = buildSync({ entryPoints: ['experiences/aim/final-delivery.ts'], bundle: true, write: false, platform: 'node', format: 'cjs' }).outputFiles[0].text;
+const { buildSync } = require('./build.cjs');
+const code = buildSync({ entryPoints: ['experiences/aim/final-delivery.ts'] }).outputFiles[0].text;
 const moduleValue = { exports: {} };
 vm.runInNewContext(code, { module: moduleValue, exports: moduleValue.exports, require });
 const { parseDeliveryOutline, buildFinalDelivery } = moduleValue.exports;

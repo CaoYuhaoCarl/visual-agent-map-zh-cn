@@ -2,10 +2,10 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const { createHash } = require('node:crypto');
-const { buildSync } = require('esbuild');
+const { buildSync } = require('./build.cjs');
 function load(file) {
   const module = { exports: {} };
-  vm.runInNewContext(buildSync({ entryPoints: [file], bundle: true, write: false, platform: 'node', format: 'cjs', external: ['obsidian'] }).outputFiles[0].text, { module, exports: module.exports, require, console, AbortController });
+  vm.runInNewContext(buildSync({ entryPoints: [file], external: ['obsidian'] }).outputFiles[0].text, { module, exports: module.exports, require, console, AbortController });
   return module.exports;
 }
 const { evidenceCard } = load('experiences/aim/evidence-context.ts');

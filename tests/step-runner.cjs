@@ -72,9 +72,9 @@ test('parse errors propagate after the provider replied, and send() leaves parsi
   await assert.rejects(new StepRunner(provider).run(fakeStep(events), { name: 'n' }, {}), SyntaxError);
   assert.deepEqual(events, ['render', 'policy', 'provider', 'parse']);
   const sentEvents = [], sentProvider = fakeProvider(sentEvents, 'not json');
-  const sent = await new StepRunner(sentProvider).send(fakeStep(sentEvents), 'ready prompt', {});
-  assert.deepEqual(plain(sent), { prompt: 'ready prompt', raw: 'not json' });
-  assert.deepEqual(sentEvents, ['provider'], 'send() neither renders nor parses');
+  const sent = await new StepRunner(sentProvider).send(prepareStep(fakeStep(sentEvents), { name: 'n' }), {});
+  assert.deepEqual(plain(sent), { prompt: 'prompt:n', raw: 'not json' });
+  assert.deepEqual(sentEvents, ['render', 'policy', 'provider'], 'send() renders only through prepareStep and never parses');
 });
 
 // ---- Coffee Tables ----
@@ -168,8 +168,9 @@ test('Coffee Tables architecture: only the provider adapter calls the runtime, a
     for (const body of bodies) assert.ok(!source.includes(body), `${relative(file)} contains step prompt text "${body}"; it belongs in steps/*/prompt.*.md`);
   }
   const stepsDirectory = path.join(directory, 'steps');
-  const stepNames = fs.readdirSync(stepsDirectory);
+  const stepNames = fs.readdirSync(stepsDirectory).filter(name => name !== '_shared');
   assert.deepEqual(stepNames.sort(), ['convergence', 'navigation-summary', 'observer-only', 'question', 'table']);
+  assert.ok(fs.statSync(path.join(stepsDirectory, '_shared')).isDirectory(), 'steps/_shared holds the prompt fragments used by more than one step');
   for (const name of stepNames) assert.deepEqual(fs.readdirSync(path.join(stepsDirectory, name)).sort(), ['prompt.en.md', 'prompt.zh.md', 'step.ts'], `steps/${name} layout`);
 });
 

@@ -1,3 +1,4 @@
+import { SEGMENT_SUMMARY } from "./steps/_shared/fragments";
 import type { CoffeeSession } from "./types";
 export interface CoffeeSegment {
   id: string;
@@ -67,9 +68,7 @@ export function extractSegmentSummary(markdown: string): { markdown: string; sum
   return { markdown: clean.trim(), ...(summary ? { summary } : {}) };
 }
 export function segmentSummaryInstruction(language: string): string {
-  return language === "zh-TW"
-    ? '\n段落導覽摘要（與聊天室風格及洞見分開）：在完整對談與洞見之後、完成標記之前，輸出一行 <!-- coffee-segment-summary: {"summary":"一句話說明本次對談聊到什麼及出現的轉折"} -->。只概括本次新增對談，不以首句節錄代替，不刪減洞見；摘要使用聊天室語言。'
-    : '\nNavigation summary (separate from conversation style and insights): after the full dialogue and notes, before the completion marker, output one line <!-- coffee-segment-summary: {"summary":"One sentence describing what this segment explored and its turn in thinking."} -->. Summarize only this segment, not an excerpt of its first sentence; do not reduce the insights. Use the conversation language.';
+  return `\n${SEGMENT_SUMMARY[language === "zh-TW" ? "zh" : "en"]}`;
 }
 export function parseSummaryBatch(response: string, allowed: string[]): Array<{ id: string; summary: string }> {
   const raw = response

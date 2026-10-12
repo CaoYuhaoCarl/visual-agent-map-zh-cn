@@ -4,15 +4,11 @@ const os = require('node:os');
 const path = require('node:path');
 const vm = require('node:vm');
 const { test } = require('node:test');
-const { buildSync } = require('esbuild');
+const { buildSync } = require('./build.cjs');
 
 const root = path.resolve(__dirname, '..');
 const code = buildSync({
   entryPoints: [path.join(root, 'ai-exchange-log.ts')],
-  bundle: true,
-  write: false,
-  platform: 'node',
-  format: 'cjs',
   external: ['node:*']
 }).outputFiles[0].text;
 let now = 0;

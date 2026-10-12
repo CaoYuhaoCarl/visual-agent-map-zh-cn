@@ -3,9 +3,9 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { buildSync } = require('esbuild');
+const { buildSync } = require('./build.cjs');
 
-const code = buildSync({ entryPoints: ['experiences/aim/planner-review.ts'], bundle: true, write: false, platform: 'node', format: 'cjs' }).outputFiles[0].text;
+const code = buildSync({ entryPoints: ['experiences/aim/planner-review.ts'] }).outputFiles[0].text;
 const moduleValue = { exports: {} };
 vm.runInNewContext(code, { module: moduleValue, exports: moduleValue.exports });
 const { extractPlannerQuestionCandidate, parseAimPlannerReviewWithRecovery } = moduleValue.exports;

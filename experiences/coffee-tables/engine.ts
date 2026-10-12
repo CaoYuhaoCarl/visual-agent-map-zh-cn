@@ -1,9 +1,9 @@
 import { coffeeSegments, extractSegmentSummary } from "./segments";
 import { assembleCoffeeContext, MAX_COFFEE_CONTEXT_CHARS } from "./prompt-parts";
-import { prepareStep, StepRunner } from "../../core/step-runner";
+import { prepareStep, StepRunner, type PreparedStep } from "../../core/step-runner";
 import { coffeeStepProvider, type CoffeeStepControls } from "./step-provider";
 import { convergenceStep, parseConvergenceResponse } from "./steps/convergence/step";
-import { navigationSummaryStep } from "./steps/navigation-summary/step";
+import { navigationSummaryStep, type NavigationSummaryInput } from "./steps/navigation-summary/step";
 import { observerOnlyStep } from "./steps/observer-only/step";
 import { questionStep } from "./steps/question/step";
 import { tableStep } from "./steps/table/step";
@@ -332,7 +332,7 @@ export class CoffeeEngine {
       try {
         await this.flush();
         let streamed = "";
-        const { raw: response } = await this.steps.send(convergenceStep, source, {
+        const { raw: response } = await this.steps.send(source, {
           session: this.session,
           signal: controller.signal,
           onText: text => {
@@ -708,7 +708,7 @@ export class CoffeeEngine {
       try {
         await this.flush();
         let streamed = previousObserverDraft;
-        const { raw: response } = await this.steps.send(observerOnlyStep, source, {
+        const { raw: response } = await this.steps.send(source, {
           session: this.session,
           signal: controller.signal,
           onText: text => {
@@ -829,7 +829,7 @@ export class CoffeeEngine {
     const pending = (async () => {
       try {
         await this.flush();
-        const prompt = prepareStep(tableStep, {
+        const prepared = prepareStep(tableStep, {
           topic: this.session.topic,
           language: this.session.language,
           guests: this.session.guests,
@@ -837,7 +837,7 @@ export class CoffeeEngine {
           priorContext: context,
           invitedGuests: continuingGuests
         });
-        const { raw: response } = await this.steps.send(tableStep, prompt, {
+        const { raw: response } = await this.steps.send(prepared, {
           session: this.session,
           signal: controller.signal,
           onText: text => {
@@ -1099,13 +1099,13 @@ export class CoffeeEngine {
       try {
         await this.flush();
         let streamed = "";
-        const prompt = prepareStep(questionStep, {
+        const prepared = prepareStep(questionStep, {
           session: this.session,
           question: value,
           draft: previousDraft,
           invitedGuests: invitationSnapshot
         });
-        const { raw: response } = await this.steps.send(questionStep, prompt, {
+        const { raw: response } = await this.steps.send(prepared, {
           session: this.session,
           signal: controller.signal,
           onText: text => {
@@ -1189,13 +1189,13 @@ export class CoffeeEngine {
       item => !item.summary && item.text.trim() && item.status !== "generating"
     );
     if (!missing.length) return Promise.resolve();
-    let prompt: string;
+    let prepared: PreparedStep<NavigationSummaryInput, Array<{ id: string; summary: string }>>;
     const summaryInput = {
       language: this.session.language,
       segments: missing.map(({ id, text }) => ({ id, text }))
     };
     try {
-      prompt = prepareStep(navigationSummaryStep, summaryInput);
+      prepared = prepareStep(navigationSummaryStep, summaryInput);
     } catch (error) {
       return Promise.reject(error instanceof Error ? error : new Error(String(error)));
     }
@@ -1209,12 +1209,12 @@ export class CoffeeEngine {
     this.changed();
     const pending = (async () => {
       try {
-        const { raw: response } = await this.steps.send(navigationSummaryStep, prompt, {
+        const { raw: response } = await this.steps.send(prepared, {
           session: this.session,
           signal: controller.signal
         });
         if (generation !== this.generation || controller.signal.aborted) return;
-        const entries = navigationSummaryStep.parse(response, summaryInput);
+        const entries = prepared.parse(response);
         if (!entries.length)
           throw new Error(
             this.session.language === "zh-TW"

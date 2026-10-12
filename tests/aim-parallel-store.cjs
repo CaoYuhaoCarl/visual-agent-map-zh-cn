@@ -1,8 +1,8 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
-const { buildSync } = require('esbuild');
-const code = buildSync({ entryPoints: ['experiences/aim/research-run-store.ts'], bundle: true, write: false, platform: 'node', format: 'cjs' }).outputFiles[0].text;
+const { buildSync } = require('./build.cjs');
+const code = buildSync({ entryPoints: ['experiences/aim/research-run-store.ts'] }).outputFiles[0].text;
 const moduleValue = { exports: {} };
 vm.runInNewContext(code, { module: moduleValue, exports: moduleValue.exports, require });
 const { AimRunStore } = moduleValue.exports;
@@ -89,7 +89,7 @@ test('cancelling one attempt preserves its sibling and allows it to commit', asy
   assert.equal((await store.commitResult(mapPath, second, secondDraft.draft.id, { summary: 'Second', detail: 'Sibling intact' })).status, 'committed');
 });
 test('saved delivery evidence is validated on reopen while optional legacy evidence remains readable', async () => {
-  const modelCode = buildSync({ entryPoints: ['map-model.ts'], bundle: true, write: false, platform: 'node', format: 'cjs' }).outputFiles[0].text;
+  const modelCode = buildSync({ entryPoints: ['map-model.ts'] }).outputFiles[0].text;
   const modelModule = { exports: {} };
   vm.runInNewContext(modelCode, { module: modelModule, exports: modelModule.exports, require });
   const { parseMap, serializeMap } = modelModule.exports;

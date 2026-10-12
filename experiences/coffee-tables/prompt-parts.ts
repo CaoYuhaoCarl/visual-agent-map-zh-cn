@@ -1,7 +1,15 @@
 import type { CoffeeSession, GuestSettings } from "./types";
 import type { CoffeeGuestInvitation } from "./types";
 import { baselineFromVersions, serializeInsightNotes } from "./insights";
+import { renderTemplate } from "../../core/step-runner";
 import { observerGuidance } from "./customization";
+import {
+  INSIGHT_UPDATE_FOOTER,
+  OBSERVER_FORMAT_TEMPLATE,
+  OBSERVER_REFRESH_ONLY,
+  OBSERVER_SOURCE,
+  OBSERVER_TITLES
+} from "./steps/_shared/fragments";
 
 export const MAX_COFFEE_CONTEXT_CHARS = 180_000;
 export const BUILTIN_COFFEE_STYLE_NAME = "自然交流與跨域探索";
@@ -109,25 +117,17 @@ export function conversationStyle(language: string, settings?: GuestSettings): s
   const builtin = language === "zh-TW" ? BUILTIN_COFFEE_STYLE_PROMPT : BUILTIN_COFFEE_STYLE_PROMPT_EN;
   return settings?.customPrompt.trim() ? `${builtin}\n\n${settings.customPrompt.trim()}` : builtin;
 }
-const INSIGHT_PROMPT_FOOTERS = {
-  zh: "更新整桌洞見時，沿用提供的識別碼。輸出未變項目用 \x3c!-- coffee-insight:keep:ID -->；修正單項用 \x3c!-- coffee-insight:update:ID -->；合併重疊項目用 \x3c!-- coffee-insight:merge:ID1,ID2 -->；新項目用 \x3c!-- coffee-insight:new -->。每個 ID 僅用一次。沒有重新輸出的舊項目會由程式保留。",
-  en: "For cumulative updates, reuse each supplied insight ID exactly. Mark unchanged items \x3c!-- coffee-insight:keep:ID -->, revise one item with \x3c!-- coffee-insight:update:ID -->, combine overlapping items with \x3c!-- coffee-insight:merge:ID1,ID2 -->, and mark new items \x3c!-- coffee-insight:new -->. Use each ID at most once; the program retains old items you do not rewrite."
-};
-export const OBSERVER_TITLES = {
-  zh: "# 觀察者整理\n## 意外連結\n## 值得繼續想的問題\n## 核心分歧\n## 探索方向\n## 值得查證的假設\n## 疑問與可能解方",
-  en: "# Observer’s notes\n## Unexpected connections\n## Questions worth pursuing\n## Core disagreements\n## Directions to explore\n## Assumptions to verify\n## Questions and possible solutions"
-};
+export { OBSERVER_TITLES };
 export function observerFormat(language: string, refreshOnly = false, customization?: GuestSettings["customization"]): string {
-  const zh = language === "zh-TW";
-  const source = zh
-    ? "每個可定位到具體發言的洞見，都要在完整寫出洞見與脈絡後附一個或多個 `<!-- source: 對談中的原句 -->` 隱藏來源，逐字照抄以支援跳轉。跨多段綜合可附多個來源；若沒有單一可定位的發言，仍保留洞見與完整脈絡，不可因此刪減，並在展開脈絡中明確說明這是跨段綜合、沒有單一來源。"
-    : "For every insight that can be located in specific dialogue, append one or more hidden `<!-- source: exact dialogue excerpt -->` markers after the complete insight and context; copy each excerpt verbatim so it can link back to the conversation. A synthesis across turns may cite multiple excerpts. If no single utterance can be located, keep the full insight and context, and explicitly say in the expanded context that it is a cross-turn synthesis with no single source.";
-  const update = zh ? INSIGHT_PROMPT_FOOTERS.zh : INSIGHT_PROMPT_FOOTERS.en;
-  const operation = zh
-    ? "此操作只更新觀察者整理，不新增或改寫對談。"
-    : "This operation refreshes notes only; it does not add or rewrite dialogue.";
+  const key = language === "zh-TW" ? "zh" : "en";
   const preferences = customization ? `${observerGuidance(language, customization)}\n` : "";
-  return `${refreshOnly ? `${operation}\n` : ""}${preferences}${source}\n${update}\n固定標題與完成標記如下；完成標記獨占最後一行：\n${OBSERVER_TITLES[zh ? "zh" : "en"]}\n<!-- coffee-tables-complete -->`;
+  return renderTemplate(OBSERVER_FORMAT_TEMPLATE, {
+    operation: refreshOnly ? `${OBSERVER_REFRESH_ONLY[key]}\n` : "",
+    preferences,
+    source: OBSERVER_SOURCE[key],
+    update: INSIGHT_UPDATE_FOOTER[key],
+    titles: OBSERVER_TITLES[key]
+  });
 }
 export function invitationContext(invitedGuests: CoffeeGuestInvitation[], language: string): string {
   if (!invitedGuests.length) return "";

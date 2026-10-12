@@ -1,10 +1,10 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
-const { buildSync } = require('esbuild');
+const { buildSync } = require('./build.cjs');
 
 function load(entry) {
-  const code = buildSync({ entryPoints: [entry], bundle: true, write: false, platform: 'node', format: 'cjs', external: ['obsidian'] }).outputFiles[0].text;
+  const code = buildSync({ entryPoints: [entry], external: ['obsidian'] }).outputFiles[0].text;
   const moduleValue = { exports: {} };
   vm.runInNewContext(code, { module: moduleValue, exports: moduleValue.exports, require, process, console, setTimeout, clearTimeout, AbortController, DOMException });
   return moduleValue.exports;

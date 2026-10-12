@@ -18,7 +18,7 @@ export function tablePrompt(
   priorContext = "",
   invitedGuests: CoffeeGuestInvitation[] = []
 ): string {
-  return prepareStep(tableStep, { topic, language, guests, draft, priorContext, invitedGuests });
+  return prepareStep(tableStep, { topic, language, guests, draft, priorContext, invitedGuests }).prompt;
 }
 export function questionPrompt(
   session: CoffeeSession,
@@ -26,10 +26,10 @@ export function questionPrompt(
   draft = "",
   invitedGuests: CoffeeGuestInvitation[] = []
 ): string {
-  return prepareStep(questionStep, { session, question, draft, invitedGuests });
+  return prepareStep(questionStep, { session, question, draft, invitedGuests }).prompt;
 }
 export function observerOnlyPrompt(session: CoffeeSession): string {
-  return prepareStep(observerOnlyStep, { session });
+  return prepareStep(observerOnlyStep, { session }).prompt;
 }
 /** Display-only opening preview; provider protocol remains in the table step. */
 export function openingPromptPreview(topic: string, language: string, guests: GuestSettings): string {

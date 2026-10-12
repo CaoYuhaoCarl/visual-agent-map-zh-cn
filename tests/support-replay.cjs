@@ -5,13 +5,13 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { buildSync } = require('esbuild');
+const { buildSync } = require('./build.cjs');
 
 const root = path.resolve(__dirname, '..');
-function load(entry, overrides = {}) {
-  const code = buildSync({ entryPoints: [path.join(root, entry)], bundle: true, write: false, platform: 'node', format: 'cjs', loader: { '.md': 'text' }, external: ['obsidian', 'node:*'] }).outputFiles[0].text;
+function load(entry, overrides = {}, globals = {}) {
+  const code = buildSync({ entryPoints: [path.join(root, entry)], external: ['obsidian', 'node:*'] }).outputFiles[0].text;
   const module = { exports: {} };
-  vm.runInNewContext(code, { module, exports: module.exports, require: name => overrides[name] || require(name), console: Object.assign(Object.create(console), { debug() {} }), TextDecoder, crypto: crypto.webcrypto, process, AbortController, DOMException, setTimeout, clearTimeout });
+  vm.runInNewContext(code, { module, exports: module.exports, require: name => overrides[name] || require(name), console: Object.assign(Object.create(console), { debug() {} }), TextDecoder, crypto: crypto.webcrypto, process, AbortController, DOMException, setTimeout, clearTimeout, ...globals });
   return module.exports;
 }
 

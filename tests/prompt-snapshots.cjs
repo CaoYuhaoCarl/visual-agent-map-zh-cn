@@ -7,6 +7,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { load: loadModule, normalizeText, promptsFor, root } = require('./support-replay.cjs');
 const support = require('./support.cjs');
+const { runPanel } = require('./support-selection-ai.cjs');
 
 const directory = path.join(__dirname, 'snapshots', 'prompts');
 const update = process.env.UPDATE_PROMPT_SNAPSHOTS === '1';
@@ -142,6 +143,11 @@ test('collect snapshots: Coffee Tables, Reframe, Markdown context', async () => 
   const { planPrompt } = support.load('experiences/markdown-context/action-plan.ts', { obsidian: support.obsidian });
   record('markdown-context.plan-text', 'markdown-context/action-plan.ts planPrompt (not localized)', 'none', planPrompt('Rewrite this', 'Selected text', 'Nearby context', false));
   record('markdown-context.plan-image', 'markdown-context/action-plan.ts planPrompt with image (not localized)', 'none', planPrompt('Describe this', 'Selected text', 'Nearby context', true));
+  // runPrompt is private to selection-ai.ts: drive the real panel and read what it sends through its `run` seam.
+  const planReply = JSON.stringify({ action: 'transform', query: '', instruction: 'Make the selected text shorter', placement: 'after', captionInstruction: '' });
+  const sentByPanel = await runPanel({ markdown: 'Intro line.\nSelected sentence here.\nOutro line.', selected: 'Selected sentence here.', replies: [planReply, 'Shorter.'] });
+  assert.equal(sentByPanel.length, 2, 'the panel asked for a plan, then for the transformation');
+  record('markdown-context.run-prompt', 'markdown-context/selection-ai.ts runPrompt via the panel (transform action, not localized)', 'none', sentByPanel[1]);
 });
 
 test('collect snapshots: preset instruction strings composed directly from i18n', () => {

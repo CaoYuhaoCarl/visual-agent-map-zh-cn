@@ -9,6 +9,7 @@ import {
 import type { CoffeeInsight } from "../../insights";
 import { MAX_COFFEE_CONTEXT_CHARS } from "../../prompt-parts";
 import type { CoffeeSession } from "../../types";
+import { DETAIL_LEVEL, MERGE_LEVEL } from "../_shared/fragments";
 import en from "./prompt.en.md";
 import zh from "./prompt.zh.md";
 
@@ -32,26 +33,9 @@ function variables({ session, baseline, customization }: ConvergenceInput): Reco
     limitations: item.limitations,
     pinned: pinned.has(item.id)
   }));
-  const level = zhTw
-    ? {
-        detailed: "偏詳細：多數項目分開保留。",
-        balanced: "平衡整理：只合併實質重疊項目。",
-        compact: "偏精簡：可合併密切相關項目，仍保留各自脈絡。"
-      }[customization.mergeLevel]
-    : {
-        detailed: "Detailed: keep most items separate.",
-        balanced: "Balanced: merge only substantively overlapping items.",
-        compact: "Compact: combine closely related items while retaining their separate context."
-      }[customization.mergeLevel];
-  const detail = zhTw
-    ? { brief: "說明保持簡短。", standard: "提供理解所需的脈絡。", detailed: "完整保留理由、條件與限制。" }[
-        customization.detailLevel
-      ]
-    : {
-        brief: "Keep explanations brief.",
-        standard: "Include enough context to understand each item.",
-        detailed: "Retain full reasoning, conditions and limitations."
-      }[customization.detailLevel];
+  const key = zhTw ? "zh" : "en";
+  const level = MERGE_LEVEL[key][customization.mergeLevel];
+  const detail = DETAIL_LEVEL[key][customization.detailLevel];
   return {
     guidance: observerGuidance(session.language, customization),
     level,

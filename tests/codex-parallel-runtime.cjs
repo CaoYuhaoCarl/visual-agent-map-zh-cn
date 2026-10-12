@@ -2,8 +2,8 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const { EventEmitter } = require('node:events');
-const { buildSync } = require('esbuild');
-const code = buildSync({ entryPoints: ['ai/runtime/codex-app-server.ts'], bundle: true, write: false, platform: 'node', format: 'cjs' }).outputFiles[0].text;
+const { buildSync } = require('./build.cjs');
+const code = buildSync({ entryPoints: ['ai/runtime/codex-app-server.ts'] }).outputFiles[0].text;
 function fixture(autoInitialize = true) {
   const children = []; const requests = []; let threadCounter = 0;
   const spawn = () => {

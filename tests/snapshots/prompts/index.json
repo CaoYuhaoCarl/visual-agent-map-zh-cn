@@ -366,6 +366,11 @@
       "language": "none",
       "schema": false
     },
+    "markdown-context.run-prompt": {
+      "builder": "markdown-context/selection-ai.ts runPrompt via the panel (transform action, not localized)",
+      "language": "none",
+      "schema": false
+    },
     "reframe.en": {
       "builder": "core/reframing-service.ts buildReframePrompt",
       "language": "en",

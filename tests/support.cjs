@@ -9,11 +9,11 @@ const layer = process.argv.find(value => value.startsWith('--layer='))?.split('=
 if (layer && !['unit', 'integration'].includes(layer)) throw new Error('Unknown test layer');
 const test = (name, fn) => { if (!layer || layer === 'unit') nodeTest(name, fn); };
 const integrationTest = (name, fn) => { if (!layer || layer === 'integration') nodeTest(name, fn); };
-const { buildSync } = require('esbuild');
+const { buildSync } = require('./build.cjs');
 const root = path.resolve(__dirname, '..');
 function load(entry, overrides = {}, windowValues = {}) {
   if (overrides.obsidian && !overrides.obsidian.Component) overrides = { ...overrides, obsidian: { ...overrides.obsidian, Component: class {} } };
-  const code = buildSync({ entryPoints: [path.join(root, entry)], bundle: true, write: false, platform: 'node', format: 'cjs', loader: { '.md': 'text' }, external: ['obsidian', 'node:*'] }).outputFiles[0].text;
+  const code = buildSync({ entryPoints: [path.join(root, entry)], external: ['obsidian', 'node:*'] }).outputFiles[0].text;
   const module = { exports: {} };
   vm.runInNewContext(code, { module, exports: module.exports, require: name => overrides[name] || require(name), console, TextDecoder, crypto: require('node:crypto').webcrypto, process, AbortController, Option: class { constructor(text, value) { this.tag = 'option'; this.text = text; this.value = value; this.cls = ''; this.children = []; this.attrs = {}; } }, HTMLInputElement: class {}, HTMLTextAreaElement: class {}, HTMLSelectElement: class {}, window: { setTimeout, clearTimeout, ...windowValues } });
   return module.exports;

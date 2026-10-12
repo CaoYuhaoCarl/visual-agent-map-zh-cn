@@ -64,25 +64,56 @@ export function renderTemplate(template: string, variables: Readonly<Record<stri
   return text;
 }
 
+declare const preparedBrand: unique symbol;
+
+/**
+ * A step whose prompt has been rendered and has passed its policy, bound to the exact input it was rendered from.
+ * It can only be made by `prepareStep`, so `StepRunner.send` can never be handed an arbitrary prompt string, and
+ * `parse` always sees the same input as `render` did.
+ */
+export interface PreparedStep<Input, Output> {
+  readonly [preparedBrand]: true;
+  readonly step: StepDefinition<Input, Output>;
+  readonly input: Input;
+  readonly prompt: string;
+  /** Parse a provider reply with the input this step was prepared from. */
+  parse(raw: string): Output;
+}
+
+const preparedSteps = new WeakSet<object>();
+
 /** Render, then run the step's policy. Callers that must fail before starting any work use this directly. */
-export function prepareStep<Input, Output>(step: StepDefinition<Input, Output>, input: Input): string {
+export function prepareStep<Input, Output>(
+  step: StepDefinition<Input, Output>,
+  input: Input
+): PreparedStep<Input, Output> {
   const prompt = step.render(input);
   step.policy?.(prompt, input);
-  return prompt;
+  const prepared = Object.freeze({
+    step,
+    input,
+    prompt,
+    parse: (raw: string): Output => step.parse(raw, input)
+  }) as unknown as PreparedStep<Input, Output>;
+  preparedSteps.add(prepared);
+  return prepared;
 }
 
 export class StepRunner<Controls> {
   constructor(private readonly provider: StepProvider<Controls>) {}
 
   /**
-   * Provider half of a run, for callers that have already prepared the prompt and must interleave their own
-   * checks (stale generation, abort, streamed fallback) before parsing. The provider is invoked synchronously.
+   * Provider half of a run, for callers that have already prepared the step and must interleave their own
+   * checks (stale generation, abort, streamed fallback) before parsing with `prepared.parse`. The provider is
+   * invoked synchronously. Only a `PreparedStep` is accepted: the label sent to the provider and the prompt
+   * always come from the step that rendered it.
    */
   async send<Input, Output>(
-    step: StepDefinition<Input, Output>,
-    prompt: string,
+    prepared: PreparedStep<Input, Output>,
     controls: Controls
   ): Promise<{ prompt: string; raw: string }> {
+    if (!preparedSteps.has(prepared)) throw new Error("StepRunner.send requires a step made by prepareStep");
+    const { step, prompt } = prepared;
     const raw = await this.provider.complete({
       stepId: step.id,
       version: step.version,
@@ -99,7 +130,8 @@ export class StepRunner<Controls> {
     input: Input,
     controls: Controls
   ): Promise<StepResult<Output>> {
-    const { prompt, raw } = await this.send(step, prepareStep(step, input), controls);
-    return { output: step.parse(raw, input), prompt, raw };
+    const prepared = prepareStep(step, input);
+    const { prompt, raw } = await this.send(prepared, controls);
+    return { output: prepared.parse(raw), prompt, raw };
   }
 }

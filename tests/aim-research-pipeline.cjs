@@ -1,10 +1,10 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
-const { buildSync } = require('esbuild');
+const { buildSync } = require('./build.cjs');
 function load(file) {
   const module = { exports: {} };
-  vm.runInNewContext(buildSync({ entryPoints: [file], bundle: true, write: false, platform: 'node', format: 'cjs', external: ['obsidian'] }).outputFiles[0].text, { module, exports: module.exports, require, console, AbortController, setTimeout, clearTimeout });
+  vm.runInNewContext(buildSync({ entryPoints: [file], external: ['obsidian'] }).outputFiles[0].text, { module, exports: module.exports, require, console, AbortController, setTimeout, clearTimeout });
   return module.exports;
 }
 const { validateAimResearchPlan, researchContentHash } = load('experiences/aim/research-plan.ts');

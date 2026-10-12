@@ -1,0 +1,204 @@
+{
+  "dirs": [
+    "experiences/coffee-tables"
+  ],
+  "allow": [
+    {
+      "file": "experiences/coffee-tables/samples.ts",
+      "reason": "built-in sample conversations shown to the user"
+    },
+    {
+      "file": "experiences/coffee-tables/topics.ts",
+      "reason": "topic suggestions shown in the UI"
+    },
+    {
+      "file": "experiences/coffee-tables/handoff-source.ts",
+      "reason": "labels in the generated handoff source document that another experience receives as data"
+    },
+    {
+      "file": "experiences/coffee-tables/types.ts",
+      "text": "> 較早版本的模擬對談",
+      "reason": "banner written into a migrated legacy transcript, not a prompt"
+    },
+    {
+      "file": "experiences/coffee-tables/customization.ts",
+      "text": "整理具體洞見與脈絡",
+      "reason": "default observer preference shown and editable in the customization UI"
+    },
+    {
+      "file": "experiences/coffee-tables/customization.ts",
+      "text": "Capture concrete insights",
+      "reason": "default observer preference shown and editable in the customization UI"
+    },
+    {
+      "file": "experiences/coffee-tables/customization.ts",
+      "text": "讓每項整理仍能看出",
+      "reason": "default convergence preference shown and editable in the customization UI"
+    },
+    {
+      "file": "experiences/coffee-tables/customization.ts",
+      "text": "Keep each item recognizable",
+      "reason": "default convergence preference shown and editable in the customization UI"
+    },
+    {
+      "file": "experiences/coffee-tables/customization.ts",
+      "text": "Keep insights separate unless",
+      "reason": "observer guidance sentence appended to the observer format; still inline, to move into steps/_shared with the other observer text (stage S3)"
+    },
+    {
+      "file": "experiences/coffee-tables/customization.ts",
+      "text": "Merge only insights with",
+      "reason": "observer guidance sentence appended to the observer format; still inline, to move into steps/_shared with the other observer text (stage S3)"
+    },
+    {
+      "file": "experiences/coffee-tables/customization.ts",
+      "text": "Combine closely related insights",
+      "reason": "observer guidance sentence appended to the observer format; still inline, to move into steps/_shared with the other observer text (stage S3)"
+    },
+    {
+      "file": "experiences/coffee-tables/customization.ts",
+      "text": "Give enough context to understand each insight",
+      "reason": "observer guidance sentence appended to the observer format; still inline, to move into steps/_shared with the other observer text (stage S3)"
+    },
+    {
+      "file": "experiences/coffee-tables/customization.ts",
+      "text": "Fully explain reasoning, examples",
+      "reason": "observer guidance sentence appended to the observer format; still inline, to move into steps/_shared with the other observer text (stage S3)"
+    },
+    {
+      "file": "experiences/coffee-tables/engine.ts",
+      "text": "釘選洞見必須保持原樣",
+      "reason": "user-facing status or error message shown in the UI; never sent to a model"
+    },
+    {
+      "file": "experiences/coffee-tables/engine.ts",
+      "text": "產生預覽期間",
+      "reason": "user-facing status or error message shown in the UI; never sent to a model"
+    },
+    {
+      "file": "experiences/coffee-tables/engine.ts",
+      "text": "整併預覽格式無效",
+      "reason": "user-facing status or error message shown in the UI; never sent to a model"
+    },
+    {
+      "file": "experiences/coffee-tables/engine.ts",
+      "text": "Convergence was cancelled",
+      "reason": "user-facing status or error message shown in the UI; never sent to a model"
+    },
+    {
+      "file": "experiences/coffee-tables/engine.ts",
+      "text": "無法產生整併預覽",
+      "reason": "user-facing status or error message shown in the UI; never sent to a model"
+    },
+    {
+      "file": "experiences/coffee-tables/engine.ts",
+      "text": "已保存收到的摘要",
+      "reason": "user-facing status or error message shown in the UI; never sent to a model"
+    },
+    {
+      "file": "experiences/coffee-tables/engine.ts",
+      "text": "Received summaries were saved",
+      "reason": "user-facing status or error message shown in the UI; never sent to a model"
+    },
+    {
+      "file": "experiences/coffee-tables/engine.ts",
+      "text": "Summaries cancelled",
+      "reason": "user-facing status or error message shown in the UI; never sent to a model"
+    },
+    {
+      "file": "experiences/coffee-tables/engine.ts",
+      "text": "Generation stopped when Obsidian closed",
+      "reason": "user-facing status or error message shown in the UI; never sent to a model"
+    },
+    {
+      "file": "experiences/coffee-tables/engine.ts",
+      "text": ". Let that person answer",
+      "reason": "mid-run steering instruction sent to the running model; not part of a step template yet (to move when steering becomes a step, stage S3)"
+    },
+    {
+      "file": "experiences/coffee-tables/engine.ts",
+      "text": "The user wants to redirect",
+      "reason": "mid-run steering instruction sent to the running model; not part of a step template yet (to move when steering becomes a step, stage S3)"
+    },
+    {
+      "file": "experiences/coffee-tables/engine.ts",
+      "text": ". Acknowledge this briefly",
+      "reason": "mid-run steering instruction sent to the running model; not part of a step template yet (to move when steering becomes a step, stage S3)"
+    },
+    {
+      "file": "experiences/coffee-tables/engine.ts",
+      "text": ". Respond naturally if relevant",
+      "reason": "mid-run steering instruction sent to the running model; not part of a step template yet (to move when steering becomes a step, stage S3)"
+    },
+    {
+      "file": "experiences/coffee-tables/prompt-parts.ts",
+      "text": "Use natural, conversational English",
+      "reason": "built-in conversation style default shown and editable in the style UI"
+    },
+    {
+      "file": "experiences/coffee-tables/prompt-parts.ts",
+      "text": "請用自然、口語的繁體中文",
+      "reason": "built-in conversation style default shown and editable in the style UI"
+    },
+    {
+      "file": "experiences/coffee-tables/prompt-parts.ts",
+      "text": "目前整桌累積洞見",
+      "reason": "context label inside assembleCoffeeContext; still inline, to move into steps/_shared with the other context labels (stage S3)"
+    },
+    {
+      "file": "experiences/coffee-tables/prompt-parts.ts",
+      "text": "使用者這次邀請的新來賓",
+      "reason": "invitation context label; still inline, to move into steps/_shared (stage S3)"
+    },
+    {
+      "file": "experiences/coffee-tables/prompt-parts.ts",
+      "text": "New guests invited for this follow-up",
+      "reason": "invitation context label; still inline, to move into steps/_shared (stage S3)"
+    },
+    {
+      "file": "experiences/coffee-tables/prompt-parts.ts",
+      "text": "背景參考資料",
+      "reason": "reference context label; still inline, to move into steps/_shared (stage S3)"
+    },
+    {
+      "file": "experiences/coffee-tables/prompt-parts.ts",
+      "text": "觀察者整理整桌不斷發展的洞見",
+      "reason": "must equal the observer paragraph of the built-in style so cleanChatStyle can strip it; matching constant, not prompt text"
+    },
+    {
+      "file": "experiences/coffee-tables/prompt-parts.ts",
+      "text": "The observer records the table",
+      "reason": "must equal the observer paragraph of the built-in style so cleanChatStyle can strip it; matching constant, not prompt text"
+    },
+    {
+      "file": "experiences/coffee-tables/prompts.ts",
+      "text": "觀察者整理：保留完整洞見",
+      "reason": "display-only opening preview shown to the user; never sent to a model"
+    },
+    {
+      "file": "experiences/coffee-tables/prompts.ts",
+      "text": "最後以一句話概括",
+      "reason": "display-only opening preview shown to the user; never sent to a model"
+    },
+    {
+      "file": "experiences/coffee-tables/prompts.ts",
+      "text": "Observer notes: retain complete insights",
+      "reason": "display-only opening preview shown to the user; never sent to a model"
+    },
+    {
+      "file": "experiences/coffee-tables/prompts.ts",
+      "text": "End with a one-sentence summary",
+      "reason": "display-only opening preview shown to the user; never sent to a model"
+    },
+    {
+      "file": "experiences/coffee-tables/steps/table/step.ts",
+      "text": "這是同一桌的續聊",
+      "reason": "opening/continuation lead-in inside the table step; still inline, to move into the table template (stage S3)"
+    },
+    {
+      "file": "experiences/coffee-tables/steps/table/step.ts",
+      "text": "開場依序列出參與者",
+      "reason": "opening/continuation lead-in inside the table step; still inline, to move into the table template (stage S3)"
+    }
+  ]
+}

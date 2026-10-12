@@ -83,9 +83,9 @@ function registerInternalMarkerPresentation(plugin) {
     while (walker.nextNode()) nodes.push(walker.currentNode);
     for (const node of nodes) {
       if ((_a = node.parentElement) == null ? void 0 : _a.closest("pre, code")) continue;
-      const text3 = (_b = node.textContent) != null ? _b : "";
-      const filtered = text3.split("\n").filter((line) => !markerLine.test(line)).join("\n");
-      if (filtered === text3) continue;
+      const text4 = (_b = node.textContent) != null ? _b : "";
+      const filtered = text4.split("\n").filter((line) => !markerLine.test(line)).join("\n");
+      if (filtered === text4) continue;
       const parent = node.parentElement;
       node.textContent = filtered;
       if ((parent == null ? void 0 : parent.tagName) === "P" && !((_c = parent.textContent) == null ? void 0 : _c.trim()) && !parent.querySelector("img, video, audio, iframe"))
@@ -2595,10 +2595,10 @@ function parseOne(markdown) {
       if (sourceLine.length) current.sources = unique([...current.sources, ...sourceLine]);
       const detail = line.replace(MARKER, "").replace(SOURCE_MARKER, "").trim();
       if (detail && !detail.startsWith("<!--")) {
-        const text3 = detail.replace(/^>\s?/, ""), labeled = /^(脈絡|來賓的理由|脈絡與分歧|Context|Reasoning|原疑問|疑問|Question|可能解方|Possible solution|條件與限制|限制|Conditions and limits)[：:]\s*(.*)$/i.exec(
-          text3
+        const text4 = detail.replace(/^>\s?/, ""), labeled = /^(脈絡|來賓的理由|脈絡與分歧|Context|Reasoning|原疑問|疑問|Question|可能解方|Possible solution|條件與限制|限制|Conditions and limits)[：:]\s*(.*)$/i.exec(
+          text4
         );
-        if (!labeled) current.detail = [current.detail, text3].filter(Boolean).join("\n");
+        if (!labeled) current.detail = [current.detail, text4].filter(Boolean).join("\n");
         else {
           const label = labeled[1].toLocaleLowerCase(), value = labeled[2].trim();
           if (["\u539F\u7591\u554F", "\u7591\u554F", "question"].includes(label))
@@ -2941,7 +2941,7 @@ var PLACEHOLDER = /\{\{([^{}]*)\}\}/g;
 function renderTemplate(template, variables4) {
   const body = template.endsWith("\n") ? template.slice(0, -1) : template;
   const used = /* @__PURE__ */ new Set();
-  const text3 = body.replace(PLACEHOLDER, (_match, name) => {
+  const text4 = body.replace(PLACEHOLDER, (_match, name) => {
     if (!Object.prototype.hasOwnProperty.call(variables4, name))
       throw new Error(`Prompt template uses unknown placeholder {{${name}}}`);
     const value = variables4[name];
@@ -2951,23 +2951,35 @@ function renderTemplate(template, variables4) {
   });
   for (const name of Object.keys(variables4))
     if (!used.has(name)) throw new Error(`Prompt template variable "${name}" is not used by the template`);
-  return text3;
+  return text4;
 }
+var preparedSteps = /* @__PURE__ */ new WeakSet();
 function prepareStep(step, input) {
   var _a;
   const prompt = step.render(input);
   (_a = step.policy) == null ? void 0 : _a.call(step, prompt, input);
-  return prompt;
+  const prepared = Object.freeze({
+    step,
+    input,
+    prompt,
+    parse: (raw) => step.parse(raw, input)
+  });
+  preparedSteps.add(prepared);
+  return prepared;
 }
 var StepRunner = class {
   constructor(provider) {
     this.provider = provider;
   }
   /**
-   * Provider half of a run, for callers that have already prepared the prompt and must interleave their own
-   * checks (stale generation, abort, streamed fallback) before parsing. The provider is invoked synchronously.
+   * Provider half of a run, for callers that have already prepared the step and must interleave their own
+   * checks (stale generation, abort, streamed fallback) before parsing with `prepared.parse`. The provider is
+   * invoked synchronously. Only a `PreparedStep` is accepted: the label sent to the provider and the prompt
+   * always come from the step that rendered it.
    */
-  async send(step, prompt, controls) {
+  async send(prepared, controls) {
+    if (!preparedSteps.has(prepared)) throw new Error("StepRunner.send requires a step made by prepareStep");
+    const { step, prompt } = prepared;
     const raw = await this.provider.complete({
       stepId: step.id,
       version: step.version,
@@ -2979,8 +2991,112 @@ var StepRunner = class {
   }
   /** render -> policy -> provider -> parse. */
   async run(step, input, controls) {
-    const { prompt, raw } = await this.send(step, prepareStep(step, input), controls);
-    return { output: step.parse(raw, input), prompt, raw };
+    const prepared = prepareStep(step, input);
+    const { prompt, raw } = await this.send(prepared, controls);
+    return { output: prepared.parse(raw), prompt, raw };
+  }
+};
+
+// experiences/coffee-tables/steps/_shared/observer-format.md
+var observer_format_default = "{{operation}}{{preferences}}{{source}}\n{{update}}\n\u56FA\u5B9A\u6A19\u984C\u8207\u5B8C\u6210\u6A19\u8A18\u5982\u4E0B\uFF1B\u5B8C\u6210\u6A19\u8A18\u7368\u5360\u6700\u5F8C\u4E00\u884C\uFF1A\n{{titles}}\n<!-- coffee-tables-complete -->\n";
+
+// experiences/coffee-tables/steps/_shared/insight-update-footer.zh.md
+var insight_update_footer_zh_default = "\u66F4\u65B0\u6574\u684C\u6D1E\u898B\u6642\uFF0C\u6CBF\u7528\u63D0\u4F9B\u7684\u8B58\u5225\u78BC\u3002\u8F38\u51FA\u672A\u8B8A\u9805\u76EE\u7528 <!-- coffee-insight:keep:ID -->\uFF1B\u4FEE\u6B63\u55AE\u9805\u7528 <!-- coffee-insight:update:ID -->\uFF1B\u5408\u4F75\u91CD\u758A\u9805\u76EE\u7528 <!-- coffee-insight:merge:ID1,ID2 -->\uFF1B\u65B0\u9805\u76EE\u7528 <!-- coffee-insight:new -->\u3002\u6BCF\u500B ID \u50C5\u7528\u4E00\u6B21\u3002\u6C92\u6709\u91CD\u65B0\u8F38\u51FA\u7684\u820A\u9805\u76EE\u6703\u7531\u7A0B\u5F0F\u4FDD\u7559\u3002\n";
+
+// experiences/coffee-tables/steps/_shared/insight-update-footer.en.md
+var insight_update_footer_en_default = "For cumulative updates, reuse each supplied insight ID exactly. Mark unchanged items <!-- coffee-insight:keep:ID -->, revise one item with <!-- coffee-insight:update:ID -->, combine overlapping items with <!-- coffee-insight:merge:ID1,ID2 -->, and mark new items <!-- coffee-insight:new -->. Use each ID at most once; the program retains old items you do not rewrite.\n";
+
+// experiences/coffee-tables/steps/_shared/observer-titles.zh.md
+var observer_titles_zh_default = "# \u89C0\u5BDF\u8005\u6574\u7406\n## \u610F\u5916\u9023\u7D50\n## \u503C\u5F97\u7E7C\u7E8C\u60F3\u7684\u554F\u984C\n## \u6838\u5FC3\u5206\u6B67\n## \u63A2\u7D22\u65B9\u5411\n## \u503C\u5F97\u67E5\u8B49\u7684\u5047\u8A2D\n## \u7591\u554F\u8207\u53EF\u80FD\u89E3\u65B9\n";
+
+// experiences/coffee-tables/steps/_shared/observer-titles.en.md
+var observer_titles_en_default = "# Observer\u2019s notes\n## Unexpected connections\n## Questions worth pursuing\n## Core disagreements\n## Directions to explore\n## Assumptions to verify\n## Questions and possible solutions\n";
+
+// experiences/coffee-tables/steps/_shared/observer-source.zh.md
+var observer_source_zh_default = "\u6BCF\u500B\u53EF\u5B9A\u4F4D\u5230\u5177\u9AD4\u767C\u8A00\u7684\u6D1E\u898B\uFF0C\u90FD\u8981\u5728\u5B8C\u6574\u5BEB\u51FA\u6D1E\u898B\u8207\u8108\u7D61\u5F8C\u9644\u4E00\u500B\u6216\u591A\u500B `<!-- source: \u5C0D\u8AC7\u4E2D\u7684\u539F\u53E5 -->` \u96B1\u85CF\u4F86\u6E90\uFF0C\u9010\u5B57\u7167\u6284\u4EE5\u652F\u63F4\u8DF3\u8F49\u3002\u8DE8\u591A\u6BB5\u7D9C\u5408\u53EF\u9644\u591A\u500B\u4F86\u6E90\uFF1B\u82E5\u6C92\u6709\u55AE\u4E00\u53EF\u5B9A\u4F4D\u7684\u767C\u8A00\uFF0C\u4ECD\u4FDD\u7559\u6D1E\u898B\u8207\u5B8C\u6574\u8108\u7D61\uFF0C\u4E0D\u53EF\u56E0\u6B64\u522A\u6E1B\uFF0C\u4E26\u5728\u5C55\u958B\u8108\u7D61\u4E2D\u660E\u78BA\u8AAA\u660E\u9019\u662F\u8DE8\u6BB5\u7D9C\u5408\u3001\u6C92\u6709\u55AE\u4E00\u4F86\u6E90\u3002\n";
+
+// experiences/coffee-tables/steps/_shared/observer-source.en.md
+var observer_source_en_default = "For every insight that can be located in specific dialogue, append one or more hidden `<!-- source: exact dialogue excerpt -->` markers after the complete insight and context; copy each excerpt verbatim so it can link back to the conversation. A synthesis across turns may cite multiple excerpts. If no single utterance can be located, keep the full insight and context, and explicitly say in the expanded context that it is a cross-turn synthesis with no single source.\n";
+
+// experiences/coffee-tables/steps/_shared/observer-refresh-only.zh.md
+var observer_refresh_only_zh_default = "\u6B64\u64CD\u4F5C\u53EA\u66F4\u65B0\u89C0\u5BDF\u8005\u6574\u7406\uFF0C\u4E0D\u65B0\u589E\u6216\u6539\u5BEB\u5C0D\u8AC7\u3002\n";
+
+// experiences/coffee-tables/steps/_shared/observer-refresh-only.en.md
+var observer_refresh_only_en_default = "This operation refreshes notes only; it does not add or rewrite dialogue.\n";
+
+// experiences/coffee-tables/steps/_shared/segment-summary.zh.md
+var segment_summary_zh_default = '\u6BB5\u843D\u5C0E\u89BD\u6458\u8981\uFF08\u8207\u804A\u5929\u5BA4\u98A8\u683C\u53CA\u6D1E\u898B\u5206\u958B\uFF09\uFF1A\u5728\u5B8C\u6574\u5C0D\u8AC7\u8207\u6D1E\u898B\u4E4B\u5F8C\u3001\u5B8C\u6210\u6A19\u8A18\u4E4B\u524D\uFF0C\u8F38\u51FA\u4E00\u884C <!-- coffee-segment-summary: {"summary":"\u4E00\u53E5\u8A71\u8AAA\u660E\u672C\u6B21\u5C0D\u8AC7\u804A\u5230\u4EC0\u9EBC\u53CA\u51FA\u73FE\u7684\u8F49\u6298"} -->\u3002\u53EA\u6982\u62EC\u672C\u6B21\u65B0\u589E\u5C0D\u8AC7\uFF0C\u4E0D\u4EE5\u9996\u53E5\u7BC0\u9304\u4EE3\u66FF\uFF0C\u4E0D\u522A\u6E1B\u6D1E\u898B\uFF1B\u6458\u8981\u4F7F\u7528\u804A\u5929\u5BA4\u8A9E\u8A00\u3002\n';
+
+// experiences/coffee-tables/steps/_shared/segment-summary.en.md
+var segment_summary_en_default = 'Navigation summary (separate from conversation style and insights): after the full dialogue and notes, before the completion marker, output one line <!-- coffee-segment-summary: {"summary":"One sentence describing what this segment explored and its turn in thinking."} -->. Summarize only this segment, not an excerpt of its first sentence; do not reduce the insights. Use the conversation language.\n';
+
+// experiences/coffee-tables/steps/_shared/merge-level-detailed.zh.md
+var merge_level_detailed_zh_default = "\u504F\u8A73\u7D30\uFF1A\u591A\u6578\u9805\u76EE\u5206\u958B\u4FDD\u7559\u3002\n";
+
+// experiences/coffee-tables/steps/_shared/merge-level-detailed.en.md
+var merge_level_detailed_en_default = "Detailed: keep most items separate.\n";
+
+// experiences/coffee-tables/steps/_shared/merge-level-balanced.zh.md
+var merge_level_balanced_zh_default = "\u5E73\u8861\u6574\u7406\uFF1A\u53EA\u5408\u4F75\u5BE6\u8CEA\u91CD\u758A\u9805\u76EE\u3002\n";
+
+// experiences/coffee-tables/steps/_shared/merge-level-balanced.en.md
+var merge_level_balanced_en_default = "Balanced: merge only substantively overlapping items.\n";
+
+// experiences/coffee-tables/steps/_shared/merge-level-compact.zh.md
+var merge_level_compact_zh_default = "\u504F\u7CBE\u7C21\uFF1A\u53EF\u5408\u4F75\u5BC6\u5207\u76F8\u95DC\u9805\u76EE\uFF0C\u4ECD\u4FDD\u7559\u5404\u81EA\u8108\u7D61\u3002\n";
+
+// experiences/coffee-tables/steps/_shared/merge-level-compact.en.md
+var merge_level_compact_en_default = "Compact: combine closely related items while retaining their separate context.\n";
+
+// experiences/coffee-tables/steps/_shared/detail-level-brief.zh.md
+var detail_level_brief_zh_default = "\u8AAA\u660E\u4FDD\u6301\u7C21\u77ED\u3002\n";
+
+// experiences/coffee-tables/steps/_shared/detail-level-brief.en.md
+var detail_level_brief_en_default = "Keep explanations brief.\n";
+
+// experiences/coffee-tables/steps/_shared/detail-level-standard.zh.md
+var detail_level_standard_zh_default = "\u63D0\u4F9B\u7406\u89E3\u6240\u9700\u7684\u8108\u7D61\u3002\n";
+
+// experiences/coffee-tables/steps/_shared/detail-level-standard.en.md
+var detail_level_standard_en_default = "Include enough context to understand each item.\n";
+
+// experiences/coffee-tables/steps/_shared/detail-level-detailed.zh.md
+var detail_level_detailed_zh_default = "\u5B8C\u6574\u4FDD\u7559\u7406\u7531\u3001\u689D\u4EF6\u8207\u9650\u5236\u3002\n";
+
+// experiences/coffee-tables/steps/_shared/detail-level-detailed.en.md
+var detail_level_detailed_en_default = "Retain full reasoning, conditions and limitations.\n";
+
+// experiences/coffee-tables/steps/_shared/fragments.ts
+var text = (template) => renderTemplate(template, {});
+var pair = (zh, en) => ({ zh: text(zh), en: text(en) });
+var OBSERVER_FORMAT_TEMPLATE = observer_format_default;
+var INSIGHT_UPDATE_FOOTER = pair(insight_update_footer_zh_default, insight_update_footer_en_default);
+var OBSERVER_TITLES = pair(observer_titles_zh_default, observer_titles_en_default);
+var OBSERVER_SOURCE = pair(observer_source_zh_default, observer_source_en_default);
+var OBSERVER_REFRESH_ONLY = pair(observer_refresh_only_zh_default, observer_refresh_only_en_default);
+var SEGMENT_SUMMARY = pair(segment_summary_zh_default, segment_summary_en_default);
+var MERGE_LEVEL = {
+  zh: {
+    detailed: text(merge_level_detailed_zh_default),
+    balanced: text(merge_level_balanced_zh_default),
+    compact: text(merge_level_compact_zh_default)
+  },
+  en: {
+    detailed: text(merge_level_detailed_en_default),
+    balanced: text(merge_level_balanced_en_default),
+    compact: text(merge_level_compact_en_default)
+  }
+};
+var DETAIL_LEVEL = {
+  zh: {
+    brief: text(detail_level_brief_zh_default),
+    standard: text(detail_level_standard_zh_default),
+    detailed: text(detail_level_detailed_zh_default)
+  },
+  en: {
+    brief: text(detail_level_brief_en_default),
+    standard: text(detail_level_standard_en_default),
+    detailed: text(detail_level_detailed_en_default)
   }
 };
 
@@ -3005,10 +3121,10 @@ function assembleCoffeeContext(session) {
   var _a, _b, _c, _d, _e;
   const events = [];
   let order = 0;
-  const add = (at, text3) => {
-    if (!text3.trim()) return;
+  const add = (at, text4) => {
+    if (!text4.trim()) return;
     const parsed = at ? Date.parse(at) : Number.NaN;
-    events.push({ at: Number.isFinite(parsed) ? parsed : Number.MAX_SAFE_INTEGER, order: order++, text: text3.trim() });
+    events.push({ at: Number.isFinite(parsed) ? parsed : Number.MAX_SAFE_INTEGER, order: order++, text: text4.trim() });
   };
   const rounds = (_a = session.rounds) != null ? _a : [];
   const attachedInterventions = /* @__PURE__ */ new Set();
@@ -3090,27 +3206,18 @@ function conversationStyle(language2, settings) {
 
 ${settings.customPrompt.trim()}` : builtin;
 }
-var INSIGHT_PROMPT_FOOTERS = {
-  zh: "\u66F4\u65B0\u6574\u684C\u6D1E\u898B\u6642\uFF0C\u6CBF\u7528\u63D0\u4F9B\u7684\u8B58\u5225\u78BC\u3002\u8F38\u51FA\u672A\u8B8A\u9805\u76EE\u7528 <!-- coffee-insight:keep:ID -->\uFF1B\u4FEE\u6B63\u55AE\u9805\u7528 <!-- coffee-insight:update:ID -->\uFF1B\u5408\u4F75\u91CD\u758A\u9805\u76EE\u7528 <!-- coffee-insight:merge:ID1,ID2 -->\uFF1B\u65B0\u9805\u76EE\u7528 <!-- coffee-insight:new -->\u3002\u6BCF\u500B ID \u50C5\u7528\u4E00\u6B21\u3002\u6C92\u6709\u91CD\u65B0\u8F38\u51FA\u7684\u820A\u9805\u76EE\u6703\u7531\u7A0B\u5F0F\u4FDD\u7559\u3002",
-  en: "For cumulative updates, reuse each supplied insight ID exactly. Mark unchanged items <!-- coffee-insight:keep:ID -->, revise one item with <!-- coffee-insight:update:ID -->, combine overlapping items with <!-- coffee-insight:merge:ID1,ID2 -->, and mark new items <!-- coffee-insight:new -->. Use each ID at most once; the program retains old items you do not rewrite."
-};
-var OBSERVER_TITLES = {
-  zh: "# \u89C0\u5BDF\u8005\u6574\u7406\n## \u610F\u5916\u9023\u7D50\n## \u503C\u5F97\u7E7C\u7E8C\u60F3\u7684\u554F\u984C\n## \u6838\u5FC3\u5206\u6B67\n## \u63A2\u7D22\u65B9\u5411\n## \u503C\u5F97\u67E5\u8B49\u7684\u5047\u8A2D\n## \u7591\u554F\u8207\u53EF\u80FD\u89E3\u65B9",
-  en: "# Observer\u2019s notes\n## Unexpected connections\n## Questions worth pursuing\n## Core disagreements\n## Directions to explore\n## Assumptions to verify\n## Questions and possible solutions"
-};
 function observerFormat(language2, refreshOnly = false, customization) {
-  const zh = language2 === "zh-TW";
-  const source = zh ? "\u6BCF\u500B\u53EF\u5B9A\u4F4D\u5230\u5177\u9AD4\u767C\u8A00\u7684\u6D1E\u898B\uFF0C\u90FD\u8981\u5728\u5B8C\u6574\u5BEB\u51FA\u6D1E\u898B\u8207\u8108\u7D61\u5F8C\u9644\u4E00\u500B\u6216\u591A\u500B `<!-- source: \u5C0D\u8AC7\u4E2D\u7684\u539F\u53E5 -->` \u96B1\u85CF\u4F86\u6E90\uFF0C\u9010\u5B57\u7167\u6284\u4EE5\u652F\u63F4\u8DF3\u8F49\u3002\u8DE8\u591A\u6BB5\u7D9C\u5408\u53EF\u9644\u591A\u500B\u4F86\u6E90\uFF1B\u82E5\u6C92\u6709\u55AE\u4E00\u53EF\u5B9A\u4F4D\u7684\u767C\u8A00\uFF0C\u4ECD\u4FDD\u7559\u6D1E\u898B\u8207\u5B8C\u6574\u8108\u7D61\uFF0C\u4E0D\u53EF\u56E0\u6B64\u522A\u6E1B\uFF0C\u4E26\u5728\u5C55\u958B\u8108\u7D61\u4E2D\u660E\u78BA\u8AAA\u660E\u9019\u662F\u8DE8\u6BB5\u7D9C\u5408\u3001\u6C92\u6709\u55AE\u4E00\u4F86\u6E90\u3002" : "For every insight that can be located in specific dialogue, append one or more hidden `<!-- source: exact dialogue excerpt -->` markers after the complete insight and context; copy each excerpt verbatim so it can link back to the conversation. A synthesis across turns may cite multiple excerpts. If no single utterance can be located, keep the full insight and context, and explicitly say in the expanded context that it is a cross-turn synthesis with no single source.";
-  const update = zh ? INSIGHT_PROMPT_FOOTERS.zh : INSIGHT_PROMPT_FOOTERS.en;
-  const operation = zh ? "\u6B64\u64CD\u4F5C\u53EA\u66F4\u65B0\u89C0\u5BDF\u8005\u6574\u7406\uFF0C\u4E0D\u65B0\u589E\u6216\u6539\u5BEB\u5C0D\u8AC7\u3002" : "This operation refreshes notes only; it does not add or rewrite dialogue.";
+  const key2 = language2 === "zh-TW" ? "zh" : "en";
   const preferences = customization ? `${observerGuidance(language2, customization)}
 ` : "";
-  return `${refreshOnly ? `${operation}
-` : ""}${preferences}${source}
-${update}
-\u56FA\u5B9A\u6A19\u984C\u8207\u5B8C\u6210\u6A19\u8A18\u5982\u4E0B\uFF1B\u5B8C\u6210\u6A19\u8A18\u7368\u5360\u6700\u5F8C\u4E00\u884C\uFF1A
-${OBSERVER_TITLES[zh ? "zh" : "en"]}
-<!-- coffee-tables-complete -->`;
+  return renderTemplate(OBSERVER_FORMAT_TEMPLATE, {
+    operation: refreshOnly ? `${OBSERVER_REFRESH_ONLY[key2]}
+` : "",
+    preferences,
+    source: OBSERVER_SOURCE[key2],
+    update: INSIGHT_UPDATE_FOOTER[key2],
+    titles: OBSERVER_TITLES[key2]
+  });
 }
 function invitationContext(invitedGuests, language2) {
   if (!invitedGuests.length) return "";
@@ -3218,7 +3325,8 @@ function extractSegmentSummary(markdown) {
   return { markdown: clean3.trim(), ...summary ? { summary } : {} };
 }
 function segmentSummaryInstruction(language2) {
-  return language2 === "zh-TW" ? '\n\u6BB5\u843D\u5C0E\u89BD\u6458\u8981\uFF08\u8207\u804A\u5929\u5BA4\u98A8\u683C\u53CA\u6D1E\u898B\u5206\u958B\uFF09\uFF1A\u5728\u5B8C\u6574\u5C0D\u8AC7\u8207\u6D1E\u898B\u4E4B\u5F8C\u3001\u5B8C\u6210\u6A19\u8A18\u4E4B\u524D\uFF0C\u8F38\u51FA\u4E00\u884C <!-- coffee-segment-summary: {"summary":"\u4E00\u53E5\u8A71\u8AAA\u660E\u672C\u6B21\u5C0D\u8AC7\u804A\u5230\u4EC0\u9EBC\u53CA\u51FA\u73FE\u7684\u8F49\u6298"} -->\u3002\u53EA\u6982\u62EC\u672C\u6B21\u65B0\u589E\u5C0D\u8AC7\uFF0C\u4E0D\u4EE5\u9996\u53E5\u7BC0\u9304\u4EE3\u66FF\uFF0C\u4E0D\u522A\u6E1B\u6D1E\u898B\uFF1B\u6458\u8981\u4F7F\u7528\u804A\u5929\u5BA4\u8A9E\u8A00\u3002' : '\nNavigation summary (separate from conversation style and insights): after the full dialogue and notes, before the completion marker, output one line <!-- coffee-segment-summary: {"summary":"One sentence describing what this segment explored and its turn in thinking."} -->. Summarize only this segment, not an excerpt of its first sentence; do not reduce the insights. Use the conversation language.';
+  return `
+${SEGMENT_SUMMARY[language2 === "zh-TW" ? "zh" : "en"]}`;
 }
 function parseSummaryBatch(response, allowed) {
   const raw = response.trim().replace(/^```(?:json)?\s*\n/, "").replace(/\n```\s*$/, "");
@@ -3390,7 +3498,7 @@ var tableStep = {
 
 // experiences/coffee-tables/prompts.ts
 function tablePrompt(topic, language2, guests, draft = "", priorContext = "", invitedGuests = []) {
-  return prepareStep(tableStep, { topic, language: language2, guests, draft, priorContext, invitedGuests });
+  return prepareStep(tableStep, { topic, language: language2, guests, draft, priorContext, invitedGuests }).prompt;
 }
 function openingPromptPreview(topic, language2, guests) {
   const zh = language2 === "zh-TW";
@@ -3435,7 +3543,7 @@ function customizationFields(parent, initial, language2, changed = () => void 0)
   const select = (label, options) => {
     const field = controls.createEl("label", { text: label });
     const el = field.createEl("select");
-    for (const [value, text3] of options) el.createEl("option", { value, text: text3 });
+    for (const [value, text4] of options) el.createEl("option", { value, text: text4 });
     return el;
   };
   const merge = select(t2("coffee.merge_level"), [
@@ -3820,20 +3928,9 @@ function variables3({ session, baseline, customization }) {
     limitations: item.limitations,
     pinned: pinned.has(item.id)
   }));
-  const level = zhTw ? {
-    detailed: "\u504F\u8A73\u7D30\uFF1A\u591A\u6578\u9805\u76EE\u5206\u958B\u4FDD\u7559\u3002",
-    balanced: "\u5E73\u8861\u6574\u7406\uFF1A\u53EA\u5408\u4F75\u5BE6\u8CEA\u91CD\u758A\u9805\u76EE\u3002",
-    compact: "\u504F\u7CBE\u7C21\uFF1A\u53EF\u5408\u4F75\u5BC6\u5207\u76F8\u95DC\u9805\u76EE\uFF0C\u4ECD\u4FDD\u7559\u5404\u81EA\u8108\u7D61\u3002"
-  }[customization.mergeLevel] : {
-    detailed: "Detailed: keep most items separate.",
-    balanced: "Balanced: merge only substantively overlapping items.",
-    compact: "Compact: combine closely related items while retaining their separate context."
-  }[customization.mergeLevel];
-  const detail = zhTw ? { brief: "\u8AAA\u660E\u4FDD\u6301\u7C21\u77ED\u3002", standard: "\u63D0\u4F9B\u7406\u89E3\u6240\u9700\u7684\u8108\u7D61\u3002", detailed: "\u5B8C\u6574\u4FDD\u7559\u7406\u7531\u3001\u689D\u4EF6\u8207\u9650\u5236\u3002" }[customization.detailLevel] : {
-    brief: "Keep explanations brief.",
-    standard: "Include enough context to understand each item.",
-    detailed: "Retain full reasoning, conditions and limitations."
-  }[customization.detailLevel];
+  const key2 = zhTw ? "zh" : "en";
+  const level = MERGE_LEVEL[key2][customization.mergeLevel];
+  const detail = DETAIL_LEVEL[key2][customization.detailLevel];
   return {
     guidance: observerGuidance(session.language, customization),
     level,
@@ -3876,7 +3973,7 @@ var navigationSummaryStep = {
   id: "coffee.navigation-summary",
   version: 1,
   render: ({ language: language2, segments }) => renderTemplate(language2 === "zh-TW" ? prompt_zh_default5 : prompt_en_default5, {
-    segments: JSON.stringify(segments.map(({ id, text: text3 }) => ({ id, text: text3 })))
+    segments: JSON.stringify(segments.map(({ id, text: text4 }) => ({ id, text: text4 })))
   }),
   policy: (prompt, { language: language2 }) => {
     if (prompt.length > MAX_COFFEE_CONTEXT_CHARS)
@@ -4047,8 +4144,8 @@ function noteSections(notes) {
     const index = canonical.findIndex((section3) => section3[1].trim() === title);
     if (index < 0) return false;
     const section2 = canonical[index];
-    const text3 = notes.slice(((_a = section2.index) != null ? _a : 0) + section2[0].length, (_c = (_b = canonical[index + 1]) == null ? void 0 : _b.index) != null ? _c : notes.length).replace(/<!--[\s\S]*?-->/g, "").trim();
-    return text3.length >= 15 && /[。！？.!?…](?:[」』”’"\])）】}]*)$/u.test(text3);
+    const text4 = notes.slice(((_a = section2.index) != null ? _a : 0) + section2[0].length, (_c = (_b = canonical[index + 1]) == null ? void 0 : _b.index) != null ? _c : notes.length).replace(/<!--[\s\S]*?-->/g, "").trim();
+    return text4.length >= 15 && /[。！？.!?…](?:[」』”’"\])）】}]*)$/u.test(text4);
   });
   if (completeSections) return [notes];
   const body = notes.replace(/<!--[\s\S]*?-->/g, "").replace(/^# (?:觀察者整理|Observer(?:[’']s)? notes)\s*$/m, "").trim();
@@ -4225,12 +4322,12 @@ var CoffeeEngine = class {
       try {
         await this.flush();
         let streamed = "";
-        const { raw: response } = await this.steps.send(convergenceStep, source, {
+        const { raw: response } = await this.steps.send(source, {
           session: this.session,
           signal: controller.signal,
-          onText: (text3) => {
+          onText: (text4) => {
             if (this.generation !== generation || controller.signal.aborted) return;
-            streamed += text3;
+            streamed += text4;
             this.setSession({ ...this.session, convergenceRawDraft: streamed });
             this.scheduleCheckpoint();
           }
@@ -4438,22 +4535,22 @@ var CoffeeEngine = class {
     }
     await this.persist();
   }
-  updateDraft(text3, roundId, questionId) {
+  updateDraft(text4, roundId, questionId) {
     var _a;
     if (questionId)
       this.setSession({
         ...this.session,
-        questions: this.session.questions.map((item) => item.id === questionId ? { ...item, draftAnswer: text3 } : item)
+        questions: this.session.questions.map((item) => item.id === questionId ? { ...item, draftAnswer: text4 } : item)
       });
     else if (roundId)
       this.setSession({
         ...this.session,
-        draftMarkdown: text3,
+        draftMarkdown: text4,
         rounds: ((_a = this.session.rounds) != null ? _a : []).map(
-          (item) => item.id === roundId ? { ...item, draftMarkdown: text3, status: "generating" } : item
+          (item) => item.id === roundId ? { ...item, draftMarkdown: text4, status: "generating" } : item
         )
       });
-    else this.setSession({ ...this.session, draftMarkdown: text3 });
+    else this.setSession({ ...this.session, draftMarkdown: text4 });
     this.scheduleCheckpoint();
   }
   start() {
@@ -4568,12 +4665,12 @@ var CoffeeEngine = class {
       try {
         await this.flush();
         let streamed = previousObserverDraft;
-        const { raw: response } = await this.steps.send(observerOnlyStep, source, {
+        const { raw: response } = await this.steps.send(source, {
           session: this.session,
           signal: controller.signal,
-          onText: (text3) => {
+          onText: (text4) => {
             if (this.generation !== generation || controller.signal.aborted) return;
-            streamed = appendDraft(previousObserverDraft, text3);
+            streamed = appendDraft(previousObserverDraft, text4);
             this.setSession({ ...this.session, observerDraftMarkdown: streamed, dirtyNotes: true });
             this.scheduleCheckpoint();
           }
@@ -4670,7 +4767,7 @@ var CoffeeEngine = class {
       var _a2, _b2, _c2;
       try {
         await this.flush();
-        const prompt = prepareStep(tableStep, {
+        const prepared = prepareStep(tableStep, {
           topic: this.session.topic,
           language: this.session.language,
           guests: this.session.guests,
@@ -4678,14 +4775,14 @@ var CoffeeEngine = class {
           priorContext: context,
           invitedGuests: continuingGuests
         });
-        const { raw: response } = await this.steps.send(tableStep, prompt, {
+        const { raw: response } = await this.steps.send(prepared, {
           session: this.session,
           signal: controller.signal,
-          onText: (text3) => {
+          onText: (text4) => {
             if (this.generation === generation && !controller.signal.aborted)
               this.updateDraft(previousDraft ? `${previousDraft}
 
-${text3}` : text3, roundId);
+${text4}` : text4, roundId);
           },
           registerIntervention: (steer) => {
             if (this.generation !== generation || controller.signal.aborted) return;
@@ -4762,9 +4859,9 @@ ${text3}` : text3, roundId);
     this.changed();
     return pending;
   }
-  async intervene(kind, text3, target) {
+  async intervene(kind, text4, target) {
     var _a, _b, _c, _d, _e;
-    const value = text3.trim();
+    const value = text4.trim();
     if (this.deleting || this.retired || !this.busy || ((_a = this.controller) == null ? void 0 : _a.signal.aborted) || !value) return;
     const generation = this.generation, controller = this.controller;
     const instruction = kind === "guest-question" ? `The user asks ${target ? `${target} ` : "a guest "}to respond to this question: ${value}. Let that person answer naturally and keep the discussion moving.` : kind === "redirect" ? `The user wants to redirect the discussion: ${value}. Acknowledge this briefly and continue in the new direction.` : `The user adds this comment: ${value}. Respond naturally if relevant, then continue the discussion.`;
@@ -4897,18 +4994,18 @@ ${instruction}`);
       try {
         await this.flush();
         let streamed = "";
-        const prompt = prepareStep(questionStep, {
+        const prepared = prepareStep(questionStep, {
           session: this.session,
           question: value,
           draft: previousDraft,
           invitedGuests: invitationSnapshot
         });
-        const { raw: response } = await this.steps.send(questionStep, prompt, {
+        const { raw: response } = await this.steps.send(prepared, {
           session: this.session,
           signal: controller.signal,
-          onText: (text3) => {
+          onText: (text4) => {
             if (this.generation === generation && !controller.signal.aborted) {
-              streamed = appendDraft(previousDraft, text3);
+              streamed = appendDraft(previousDraft, text4);
               this.updateDraft(streamed, void 0, id);
             }
           }
@@ -4979,13 +5076,13 @@ ${instruction}`);
       (item) => !item.summary && item.text.trim() && item.status !== "generating"
     );
     if (!missing.length) return Promise.resolve();
-    let prompt;
+    let prepared;
     const summaryInput = {
       language: this.session.language,
-      segments: missing.map(({ id, text: text3 }) => ({ id, text: text3 }))
+      segments: missing.map(({ id, text: text4 }) => ({ id, text: text4 }))
     };
     try {
-      prompt = prepareStep(navigationSummaryStep, summaryInput);
+      prepared = prepareStep(navigationSummaryStep, summaryInput);
     } catch (error) {
       return Promise.reject(error instanceof Error ? error : new Error(String(error)));
     }
@@ -4999,12 +5096,12 @@ ${instruction}`);
     const pending = (async () => {
       var _a2;
       try {
-        const { raw: response } = await this.steps.send(navigationSummaryStep, prompt, {
+        const { raw: response } = await this.steps.send(prepared, {
           session: this.session,
           signal: controller.signal
         });
         if (generation !== this.generation || controller.signal.aborted) return;
-        const entries = navigationSummaryStep.parse(response, summaryInput);
+        const entries = prepared.parse(response);
         if (!entries.length)
           throw new Error(
             this.session.language === "zh-TW" ? "\u672A\u6536\u5230\u6709\u6548\u6BB5\u843D\u6458\u8981\uFF1B\u539F\u8CC7\u6599\u4FDD\u7559\u3002" : "No valid segment summaries were received; existing data is preserved."
@@ -6844,8 +6941,8 @@ function tokens(value) {
     const part = segment[0];
     if (/^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]+$/u.test(part)) {
       for (let index = 0; index < part.length - 1; index++) {
-        const pair = part.slice(index, index + 2);
-        if (!STOPWORDS.has(pair)) result.add(pair);
+        const pair2 = part.slice(index, index + 2);
+        if (!STOPWORDS.has(pair2)) result.add(pair2);
       }
     } else if (part.length > 1 && !STOPWORDS.has(part)) result.add(part);
   }
@@ -6854,9 +6951,9 @@ function tokens(value) {
 function paragraphTexts(value) {
   return value.split(/\n\s*\n/).flatMap((part) => part.split(/(?<=[。！？!?；;])\s*/u)).map((part) => part.trim()).filter(Boolean);
 }
-function findRelatedSpeech(text3, targets) {
+function findRelatedSpeech(text4, targets) {
   var _a;
-  const query = normalizeText(text3);
+  const query = normalizeText(text4);
   if ([...query].length < 8) return null;
   const usable = targets.map((target) => ({ ...target, normalized: normalizeText(target.text) })).filter((target) => target.id && [...target.normalized].length >= 8);
   const direct = usable.filter(
@@ -6866,7 +6963,7 @@ function findRelatedSpeech(text3, targets) {
     const distinct = new Set(direct.map((target) => target.normalized));
     if (distinct.size === 1) return direct.sort((a, b) => a.order - b.order)[0].id;
   }
-  const queryTokens = tokens(text3);
+  const queryTokens = tokens(text4);
   if (queryTokens.size < 3) return null;
   const documents = usable.map((target) => new Set(tokens(target.text)));
   const frequencies = /* @__PURE__ */ new Map();
@@ -7397,7 +7494,7 @@ var CoffeeTablesView = class extends import_obsidian4.ItemView {
     if (!confirmed || this.engine !== engine || engine.busy || this.closed) return;
     await this.plugin.confirmAiUsage(engine.session.model, () => engine.fillSegmentSummaries());
   }
-  locateOutlineItem(text3) {
+  locateOutlineItem(text4) {
     var _a;
     const session = (_a = this.engine) == null ? void 0 : _a.session;
     if (!session) return false;
@@ -7412,7 +7509,7 @@ var CoffeeTablesView = class extends import_obsidian4.ItemView {
         });
       }
     );
-    const match = findRelatedSpeech(text3, targetRows);
+    const match = findRelatedSpeech(text4, targetRows);
     if (!match) return false;
     const node = this.contentEl.querySelector(`[data-coffee-speech="${match}"]`);
     if (!node) return false;
@@ -9016,14 +9113,14 @@ ${timestamp.toLocaleString()}${item.model ? ` \xB7 ${item.model}` : ""}`
       input.addEventListener("input", () => this.composerValues.set("intervention-text", input.value));
       this.button(composer, this.t("coffee.send"), async () => {
         if (!input.value.trim()) return;
-        const text3 = input.value;
+        const text4 = input.value;
         input.value = "";
         this.composerValues.delete("intervention-text");
         try {
-          await engine.intervene(select.value, text3, target.value);
+          await engine.intervene(select.value, text4, target.value);
         } catch (error) {
-          input.value = text3;
-          this.composerValues.set("intervention-text", text3);
+          input.value = text4;
+          this.composerValues.set("intervention-text", text4);
           throw error;
         }
       });
@@ -9287,7 +9384,7 @@ ${timestamp.toLocaleString()}${item.model ? ` \xB7 ${item.model}` : ""}`
       const query = state.query.trim().toLocaleLowerCase();
       const categories = /* @__PURE__ */ new Map();
       for (const item of insights) {
-        const text3 = [
+        const text4 = [
           item.summary,
           item.detail,
           item.question,
@@ -9295,7 +9392,7 @@ ${timestamp.toLocaleString()}${item.model ? ` \xB7 ${item.model}` : ""}`
           item.limitations,
           categoryLabel(item.category, this.plugin.settings.language)
         ].filter(Boolean).join("\n").toLocaleLowerCase();
-        if (!query || text3.includes(query))
+        if (!query || text4.includes(query))
           categories.set(item.category, [...(_a2 = categories.get(item.category)) != null ? _a2 : [], item]);
       }
       if (!categories.size) results.createEl("p", { cls: "ct-muted", text: this.t("coffee.no_matching_insights") });
@@ -9398,14 +9495,14 @@ ${timestamp.toLocaleString()}${item.model ? ` \xB7 ${item.model}` : ""}`
       }
     }
   }
-  renderSpeech(name, role, text3, target, anchorKey) {
+  renderSpeech(name, role, text4, target, anchorKey) {
     if (name === "\u4F60" || name.toLowerCase() === "you") {
-      this.renderUserBubble(text3, target);
+      this.renderUserBubble(text4, target);
       return;
     }
     const index = this.speechAnchorIndex++, article = target.createDiv("ct-message");
     article.dataset.coffeeSpeech = `ct-speech-${anchorKey != null ? anchorKey : index}`;
-    article.dataset.coffeeSpeechText = text3;
+    article.dataset.coffeeSpeechText = text4;
     article.createDiv({
       cls: `ct-avatar ct-color-${avatarColor(name)}`,
       text: initials(name),
@@ -9414,7 +9511,7 @@ ${timestamp.toLocaleString()}${item.model ? ` \xB7 ${item.model}` : ""}`
     const content = article.createDiv("ct-message-content");
     content.createEl("strong", { text: name });
     content.createSpan({ cls: "ct-role", text: role });
-    this.renderMarkdown(text3, content.createDiv("ct-bubble markdown-rendered"));
+    this.renderMarkdown(text4, content.createDiv("ct-bubble markdown-rendered"));
   }
   renderStreaming(markdown, target, anchorPrefix) {
     const speeches = parseSpeeches(markdown);
@@ -9424,12 +9521,12 @@ ${timestamp.toLocaleString()}${item.model ? ` \xB7 ${item.model}` : ""}`
     }
     this.renderBubbles(markdown, target, anchorPrefix);
   }
-  renderUserBubble(text3, target) {
+  renderUserBubble(text4, target) {
     const article = target.createDiv("ct-message ct-message-user");
     article.createDiv({ cls: "ct-avatar ct-user-avatar", text: this.t("coffee.you") });
     const content = article.createDiv("ct-message-content");
     content.createEl("strong", { text: this.t("coffee.you") });
-    this.renderMarkdown(text3, content.createDiv("ct-bubble markdown-rendered"));
+    this.renderMarkdown(text4, content.createDiv("ct-bubble markdown-rendered"));
   }
   renderMarkdown(markdown, target) {
     var _a, _b, _c;
@@ -9593,27 +9690,27 @@ var AimClarificationModal = class extends import_obsidian5.Modal {
   }
   onOpen() {
     var _a;
-    const text3 = (key2) => translate(this.english ? "en" : "zh-TW", key2);
-    this.titleEl.setText(text3("ui.aim_clarify_title"));
+    const text4 = (key2) => translate(this.english ? "en" : "zh-TW", key2);
+    this.titleEl.setText(text4("ui.aim_clarify_title"));
     this.contentEl.createEl("p", {
-      text: text3("ui.aim_clarify_intro")
+      text: text4("ui.aim_clarify_intro")
     });
     const fields = this.questions.map((question) => {
       const label = this.contentEl.createEl("label", { cls: "vam-field" });
       label.createSpan({ text: question });
       const input = label.createEl("textarea", { attr: { rows: "2" } });
       input.setAttr("aria-label", question);
-      input.placeholder = text3("ui.aim_clarify_placeholder");
+      input.placeholder = text4("ui.aim_clarify_placeholder");
       return { question, input };
     });
     const status = this.contentEl.createEl("p", { cls: "vam-hint", attr: { "aria-live": "polite" } });
     let pending = false;
     new import_obsidian5.Setting(this.contentEl).addButton(
-      (button) => button.setButtonText(text3("ui.cancel")).onClick(() => {
+      (button) => button.setButtonText(text4("ui.cancel")).onClick(() => {
         if (!pending) this.close();
       })
     ).addButton(
-      (button) => button.setButtonText(text3("ui.aim_clarify_save")).setCta().onClick(() => {
+      (button) => button.setButtonText(text4("ui.aim_clarify_save")).setCta().onClick(() => {
         if (pending) return;
         pending = true;
         button.setDisabled(true);
@@ -9622,7 +9719,7 @@ var AimClarificationModal = class extends import_obsidian5.Modal {
         });
         const answers = fields.map(
           ({ question, input }) => `- ${question}
-  ${input.value.trim() || text3("note.aim_clarify_blank_answer")}`
+  ${input.value.trim() || text4("note.aim_clarify_blank_answer")}`
         ).join("\n\n");
         void this.submit(answers).then(() => this.close()).catch((error) => {
           pending = false;
@@ -9861,8 +9958,8 @@ var LEGACY_VALUES = [
 ];
 var LEGACY_MARKER = new RegExp(`<!--(\\s*)${LEGACY_MARKER_PREFIX}`, "g");
 var upgradeKey = (key2) => key2.startsWith(LEGACY_KEY_PREFIX) ? `aim${key2.slice(LEGACY_KEY_PREFIX.length)}` : key2;
-function upgradeLegacyAimText(text3) {
-  let upgraded = text3.replace(LEGACY_MARKER, "<!--$1aim-");
+function upgradeLegacyAimText(text4) {
+  let upgraded = text4.replace(LEGACY_MARKER, "<!--$1aim-");
   for (const [legacy, current] of LEGACY_VALUES) upgraded = upgraded.split(legacy).join(current);
   return upgraded;
 }
@@ -10319,7 +10416,7 @@ ${JSON.stringify(map, null, 2)}
 function marker(value) {
   return value === true || value === "true";
 }
-function text(value, fallback = "") {
+function text2(value, fallback = "") {
   return typeof value === "string" ? value : fallback;
 }
 function parentPath(path) {
@@ -10345,7 +10442,7 @@ function frontmatter(content) {
 function noteTitle(content, fm, fallback) {
   var _a, _b;
   const body = content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "");
-  return ((_b = (_a = /^# (.+)$/m.exec(body)) == null ? void 0 : _a[1]) == null ? void 0 : _b.trim()) || text(fm.title, fallback);
+  return ((_b = (_a = /^# (.+)$/m.exec(body)) == null ? void 0 : _a[1]) == null ? void 0 : _b.trim()) || text2(fm.title, fallback);
 }
 var placeholder = (language2) => translate(language2, "detail.no_conclusion_yet");
 var isPlaceholder = (value) => value === translate("zh-TW", "detail.no_conclusion_yet") || value === translate("en", "detail.no_conclusion_yet");
@@ -10461,7 +10558,7 @@ function detailWithVisualReferences(detail, visualReferences) {
     const block = reference.replace(/^### (.+)$/gm, "**$1**").trim();
     const title = (_a = block.match(/^\*\*(.+)\*\*/)) == null ? void 0 : _a[1];
     const paragraphs = current.split("\n\n");
-    const related = title ? paragraphs.findIndex((text3) => !/^#{1,6} /.test(text3) && text3.includes(title)) : -1;
+    const related = title ? paragraphs.findIndex((text4) => !/^#{1,6} /.test(text4) && text4.includes(title)) : -1;
     if (related >= 0) {
       paragraphs.splice(related + 1, 0, block);
       current = paragraphs.join("\n\n");
@@ -10544,7 +10641,7 @@ function localizeReference(value, language2) {
 }
 function withReferenceLinks(body, fm, language2) {
   const sources2 = Array.isArray(fm["source-notes"]) ? fm["source-notes"].map(String).filter(Boolean) : [];
-  const relationships = Array.isArray(fm["agent-map-references"]) ? fm["agent-map-references"].map(String).filter((text3) => text3.includes("[[")) : [];
+  const relationships = Array.isArray(fm["agent-map-references"]) ? fm["agent-map-references"].map(String).filter((text4) => text4.includes("[[")) : [];
   const label = translate(language2, "note.source_topic_label");
   const links = [
     ...relationships.map((value) => localizeReference(value, language2)),
@@ -10632,16 +10729,16 @@ var Repository = class {
   async readNote(path) {
     var _a;
     const file = this.file(path), content = upgradeLegacyAimText(await this.app.vault.read(file)), fm = frontmatter(content);
-    const status = text(fm.status, "idea");
+    const status = text2(fm.status, "idea");
     const normalized = status === "review" || status === "accepted" ? "completed" : status;
-    const source = text(fm["model-source"], "workspace");
-    const state = text(
+    const source = text2(fm["model-source"], "workspace");
+    const state = text2(
       fm["topic-state"],
       path.includes("/Archive/") ? "archived" : path.includes("/Unassigned/") ? "unassigned" : path.startsWith(`${this.settings.inboxFolder}/`) ? "inbox" : "active"
     );
     return {
       title: noteTitle(content, fm, file.basename),
-      summary: section(content, "Current Summary") || text(fm.summary, placeholder(this.settings.language)),
+      summary: section(content, "Current Summary") || text2(fm.summary, placeholder(this.settings.language)),
       prompt: section(content, "Prompt"),
       rules: section(content, "Rules"),
       detail: section(content, "Detail"),
@@ -10651,15 +10748,15 @@ var Repository = class {
       preview: [previewSection(content), section(content, "User Notes")].filter(Boolean).join("\n\n"),
       previewSection: previewSection(content),
       previewInitialized: fm["preview-initialized"] === true,
-      model: text(fm.model, this.settings.cliModel),
+      model: text2(fm.model, this.settings.cliModel),
       modelSource: ["workspace", "inherited", "manual"].includes(source) ? source : "workspace",
       reasoning: normalizeReasoningLevel((_a = fm["reasoning-level"]) != null ? _a : this.settings.cliReasoning),
       researchMode: fm["research-mode"] === "local" ? "local" : "research",
       researchDepth: fm["research-depth"] === "fast" || fm["research-depth"] === "deep" ? fm["research-depth"] : "normal",
       visualMode: fm["visual-mode"] === "on" || fm["visual-mode"] === "off" ? fm["visual-mode"] : "auto",
       status: ["idea", "running", "completed", "error"].includes(normalized) ? normalized : "idea",
-      mapId: text(fm["agent-map-id"]),
-      topicId: text(fm["topic-id"], text(fm["agent-map-id"])),
+      mapId: text2(fm["agent-map-id"]),
+      topicId: text2(fm["topic-id"], text2(fm["agent-map-id"])),
       topicState: ["active", "unassigned", "archived", "inbox"].includes(state) ? state : "active",
       referencePaths: Array.isArray(fm["reference-materials"]) ? fm["reference-materials"].filter((value) => typeof value === "string" && Boolean(value)) : [],
       sourcePaths: Array.isArray(fm["source-notes"]) ? fm["source-notes"].filter((value) => typeof value === "string" && Boolean(value)) : []
@@ -10691,7 +10788,7 @@ var Repository = class {
       fm.updated = (/* @__PURE__ */ new Date()).toISOString();
       let body = content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "");
       body = ensurePreview(body, this.settings.language);
-      if (isPlaceholder(text(fm.summary))) fm.summary = placeholder(this.settings.language);
+      if (isPlaceholder(text2(fm.summary))) fm.summary = placeholder(this.settings.language);
       if (patch.title !== void 0) {
         const heading = managedHeadingValue(patch.title);
         body = body.replace(/^# .*$/m, () => `# ${heading}`);
@@ -10736,8 +10833,8 @@ var Repository = class {
       if (patch.previewInitialized !== void 0) fm["preview-initialized"] = patch.previewInitialized;
       body = normalizeBodyOrder(
         body,
-        text(fm.title, path.replace(/\.md$/, "")),
-        text(fm.summary, placeholder(this.settings.language)),
+        text2(fm.title, path.replace(/\.md$/, "")),
+        text2(fm.summary, placeholder(this.settings.language)),
         this.settings.language
       );
       return `---
@@ -10788,7 +10885,7 @@ ${noteBody(title, (_b = initial.summary) != null ? _b : placeholder(this.setting
     if (existing) {
       if (existing instanceof import_obsidian8.TFile) {
         const fm = frontmatter(await this.app.vault.read(existing));
-        if (marker(fm["agent-map-node"]) && text(fm["node-id"]) === id)
+        if (marker(fm["agent-map-node"]) && text2(fm["node-id"]) === id)
           return { id, path, parentId: null, x: 80, y: 80, collapsed: false };
       }
       throw new Error(`Reserved result note path already belongs to another file: ${path}`);
@@ -10824,7 +10921,7 @@ ${noteBody(title, metadata.summary, this.settings.language, (_c = initial.prompt
     await this.ensureTopicFolders(this.topicRoot(mapPath));
     const source = await this.app.vault.read(this.file(sourcePath));
     const metadata = frontmatter(source);
-    const title = `${text(metadata.title, this.file(sourcePath).basename)} ${translate(this.settings.language, "note.copy_suffix")}`;
+    const title = `${text2(metadata.title, this.file(sourcePath).basename)} ${translate(this.settings.language, "note.copy_suffix")}`;
     const id = crypto.randomUUID(), path = this.unique(folder, title);
     metadata["node-id"] = id;
     metadata["topic-id"] = map.id;
@@ -10905,7 +11002,7 @@ ${body}`);
     const candidates = /* @__PURE__ */ new Map();
     for (const file of await this.markedFiles("agent-map-node")) {
       const fm = (_b = (_a = this.app.metadataCache.getFileCache(file)) == null ? void 0 : _a.frontmatter) != null ? _b : frontmatter(await this.app.vault.read(file));
-      const id = text(fm["node-id"]);
+      const id = text2(fm["node-id"]);
       if (id) candidates.set(id, [...(_c = candidates.get(id)) != null ? _c : [], file.path]);
     }
     let repaired = 0;
@@ -10977,7 +11074,7 @@ ${body}`);
     const byId = /* @__PURE__ */ new Map();
     for (const file of candidates) {
       const fm = frontmatter(await this.app.vault.read(file));
-      const id = text(fm["node-id"]);
+      const id = text2(fm["node-id"]);
       if (id) byId.set(id, file.path);
     }
     for (const node of map.nodes)
@@ -11122,7 +11219,7 @@ ${body}`);
       ensureNoteCssClass(fm);
       fm.title = noteTitle(content, fm, file.basename);
       const owner = ownership.get(file.path);
-      let state = file.path.startsWith(`${this.settings.inboxFolder}/`) ? "inbox" : file.path.includes("/Archive/") ? "archived" : file.path.includes("/Unassigned/") ? "unassigned" : owner ? "active" : text(fm["topic-state"], "unassigned");
+      let state = file.path.startsWith(`${this.settings.inboxFolder}/`) ? "inbox" : file.path.includes("/Archive/") ? "archived" : file.path.includes("/Unassigned/") ? "unassigned" : owner ? "active" : text2(fm["topic-state"], "unassigned");
       if (owner) {
         fm["agent-map-id"] = owner.map.id;
         fm["topic-id"] = owner.map.id;
@@ -11137,8 +11234,8 @@ ${body}`);
         } else fm["topic-state"] = state;
       }
       let body = ensurePreview(content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, ""), this.settings.language);
-      if (isPlaceholder(text(fm.summary))) fm.summary = placeholder(this.settings.language);
-      const topicId = text(fm["topic-id"]), topic = topics.get(topicId);
+      if (isPlaceholder(text2(fm.summary))) fm.summary = placeholder(this.settings.language);
+      const topicId = text2(fm["topic-id"]), topic = topics.get(topicId);
       if (owner) {
         if (!body.includes(DETAIL_START)) body = replaceSection(body, "Detail", section(body, "Detail"));
         const parent = owner.node.parentId ? owner.map.nodes.find((item) => item.id === owner.node.parentId) : void 0;
@@ -11170,8 +11267,8 @@ ${body}`);
       }
       body = normalizeBodyOrder(
         body,
-        text(fm.title, file.basename),
-        text(fm.summary, placeholder(this.settings.language)),
+        text2(fm.title, file.basename),
+        text2(fm.summary, placeholder(this.settings.language)),
         this.settings.language
       );
       const next = `---
@@ -12559,8 +12656,8 @@ function buildPreparedTaskContext(input, model, budget = 32e3, provider = "codex
 // ai/aim-contracts.ts
 var AIM_NO_QUESTION = "__AIM_NO_QUESTION__";
 var QUESTION_SCOPE = "Ask about the user's goal, preferences, constraints or situation, never about this tool's workflow, counts, nodes or branches.";
-var text2 = { type: "string" };
-var texts = { type: "array", items: text2 };
+var text3 = { type: "string" };
+var texts = { type: "array", items: text3 };
 var nullable = (schema) => ({ anyOf: [schema, { type: "null" }] });
 var object = (properties) => ({
   type: "object",
@@ -12581,7 +12678,7 @@ function payloadSchema(contract) {
       return object({
         decision: { type: "string", enum: contract.requireQuestion ? ["ask_user"] : ["ask_user", "no_question"] },
         question: {
-          ...text2,
+          ...text3,
           description: `The one direct question for the user, written as a question. ${QUESTION_SCOPE} Empty only for no_question.`
         },
         answerOptions: {
@@ -12595,27 +12692,27 @@ function payloadSchema(contract) {
           type: "array",
           description: "0\u20135 distinct evidence tasks.",
           items: object({
-            id: text2,
-            title: text2,
-            task: text2,
-            expectedValue: text2,
+            id: text3,
+            title: text3,
+            task: text3,
+            expectedValue: text3,
             action: { type: "string", enum: ["research", "update", "reuse"] },
             dependsOn: { ...texts, description: "Ids of prerequisite targets in this plan; empty when independent." },
-            rationale: text2,
+            rationale: text3,
             source: {
               ...nullable(
                 object({
-                  branchId: text2,
-                  resultId: text2,
-                  notePath: text2,
+                  branchId: text3,
+                  resultId: text3,
+                  notePath: text3,
                   version: { type: "integer" },
-                  contentHash: text2
+                  contentHash: text3
                 })
               ),
               description: "For reuse/update: the exact source copied from the supplied ancestor report. Null for research."
             },
             validity: {
-              ...nullable(object({ conditionKeys: texts, reason: text2 })),
+              ...nullable(object({ conditionKeys: texts, reason: text3 })),
               description: "For reuse/update: which supplied condition keys the source depends on and why it still applies. Null for research."
             }
           })
@@ -12624,9 +12721,9 @@ function payloadSchema(contract) {
     case "reuse":
       return object({
         usable: { type: "boolean" },
-        rationale: text2,
+        rationale: text3,
         conditionKeys: texts,
-        validity: { ...text2, description: "Freshness and applicability assessment." }
+        validity: { ...text3, description: "Freshness and applicability assessment." }
       });
     case "review":
       return object({
@@ -12635,19 +12732,19 @@ function payloadSchema(contract) {
           description: "true when the supplied reports already answer the original goal under the known conditions; false when a material evidence gap in the goal itself remains."
         },
         decision: { type: "string", enum: [...contract.decisions] },
-        rationale: { ...text2, description: "Evidence-based reason for the decision." },
-        stopReason: { ...text2, description: "For conclude: why research can stop. Otherwise empty." },
+        rationale: { ...text3, description: "Evidence-based reason for the decision." },
+        stopReason: { ...text3, description: "For conclude: why research can stop. Otherwise empty." },
         question: {
-          ...text2,
+          ...text3,
           description: `For ask_user: the one direct question for the user, written as a question. ${QUESTION_SCOPE} Otherwise empty.`
         },
         answerOptions: { ...texts, description: "For ask_user: 2\u20135 distinct answer choices. Otherwise empty." },
         researchTarget: {
           ...nullable(
             object({
-              title: text2,
-              task: { ...text2, description: "Search instruction." },
-              expectedValue: { ...text2, description: "Uncertainty the search should reduce." }
+              title: text3,
+              task: { ...text3, description: "Search instruction." },
+              expectedValue: { ...text3, description: "Uncertainty the search should reduce." }
             })
           ),
           description: "For research_more: the one targeted evidence gap. Otherwise null."
@@ -12658,10 +12755,10 @@ function payloadSchema(contract) {
         sections: {
           type: "array",
           items: object({
-            heading: text2,
-            purpose: text2,
+            heading: text3,
+            purpose: text3,
             searchTask: {
-              ...text2,
+              ...text3,
               description: "Specific web search needed for this section, or empty if already supported."
             },
             evidenceIds: {
@@ -12922,8 +13019,8 @@ function extractPlannerQuestionCandidate(result) {
   const bodyQuestion = lines.map((line) => line.replace(/^(?:[-*•]|\d+[.)、])\s+/, "")).find((candidate) => candidate && candidate.length <= 500 && /[?？]\s*$/.test(candidate));
   if (bodyQuestion) return bodyQuestion;
   const candidates = [result.summary];
-  for (const text3 of candidates)
-    for (const line of text3.split(/\r?\n/)) {
+  for (const text4 of candidates)
+    for (const line of text4.split(/\r?\n/)) {
       const candidate = line.trim().replace(/^(?:[-*•]|\d+[.)、])\s+/, "");
       if (candidate && candidate.length <= 500 && /[?？]\s*$/.test(candidate)) return candidate;
     }
@@ -17724,13 +17821,13 @@ var DebugLogModal = class extends import_obsidian12.Modal {
     actions.addButton((button) => button.setButtonText(t("ui.refresh_logs")).onClick(() => this.renderLogs()));
     actions.addButton(
       (button) => button.setButtonText(t("ui.copy_logs")).setCta().onClick(async () => {
-        const text3 = formatDebugLogs(this.logs.getLogs());
-        if (!text3) {
+        const text4 = formatDebugLogs(this.logs.getLogs());
+        if (!text4) {
           new import_obsidian12.Notice(t("ui.there_are_no_debug_logs_yet"));
           return;
         }
         try {
-          await navigator.clipboard.writeText(text3);
+          await navigator.clipboard.writeText(text4);
           new import_obsidian12.Notice(t("ui.debug_log_copied"));
         } catch (e) {
           new import_obsidian12.Notice(t("ui.unable_to_copy_the_debug_log"));
@@ -20030,8 +20127,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian14.Ite
       this.render();
     } else this.changed(file);
   }
-  button(parent, text3, action, disabled = false) {
-    const button = parent.createEl("button", { text: text3 });
+  button(parent, text4, action, disabled = false) {
+    const button = parent.createEl("button", { text: text4 });
     button.disabled = disabled;
     button.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -23724,7 +23821,7 @@ var VisualAgentMapSettingTab = class extends import_obsidian15.PluginSettingTab 
     selector == null ? void 0 : selector.focus();
   }
   getSettingDefinitions() {
-    const text3 = (name, key2, desc) => ({
+    const text4 = (name, key2, desc) => ({
       name,
       desc,
       control: { type: "text", key: key2 }
@@ -23743,8 +23840,8 @@ var VisualAgentMapSettingTab = class extends import_obsidian15.PluginSettingTab 
           });
         }
       },
-      text3(t("ui.codex_cli_path"), "codexPath", t("ui.vam_uses_this_executable_to_start_codex_app_server")),
-      text3(t("ui.claude_cli_path"), "claudePath", t("ui.vam_uses_the_claude_code_cli_installed_on_this_computer")),
+      text4(t("ui.codex_cli_path"), "codexPath", t("ui.vam_uses_this_executable_to_start_codex_app_server")),
+      text4(t("ui.claude_cli_path"), "claudePath", t("ui.vam_uses_the_claude_code_cli_installed_on_this_computer")),
       {
         name: t("ui.workspace_default_model"),
         desc: t("ui.models_are_loaded_from_each_installed_ai_service_changes_apply_only_to_new_root_topics"),
@@ -24363,10 +24460,10 @@ var CodexAppServerRuntime = class {
       state.turnId = typeof ((_h = startedTurn.turn) == null ? void 0 : _h.id) === "string" ? startedTurn.turn.id : "";
       if (!state.turnId) throw new Error("Codex App Server accepted no turn id.");
       if (!timedOut && !((_i = controls == null ? void 0 : controls.signal) == null ? void 0 : _i.aborted) && this.turns.get(threadId) === state) (_j = controls == null ? void 0 : controls.onAccepted) == null ? void 0 : _j.call(controls);
-      (_k = controls == null ? void 0 : controls.onSteer) == null ? void 0 : _k.call(controls, async (text3) => {
+      (_k = controls == null ? void 0 : controls.onSteer) == null ? void 0 : _k.call(controls, async (text4) => {
         var _a2, _b2;
         if (((_a2 = controls.signal) == null ? void 0 : _a2.aborted) || this.turns.get(threadId) !== state || !state.turnId) throw cancelledError();
-        const steerRequest = { threadId, expectedTurnId: state.turnId, input: [{ type: "text", text: text3 }] };
+        const steerRequest = { threadId, expectedTurnId: state.turnId, input: [{ type: "text", text: text4 }] };
         (_b2 = controls == null ? void 0 : controls.onRequest) == null ? void 0 : _b2.call(controls, steerRequest);
         await this.request("turn/steer", steerRequest);
       });
@@ -24929,10 +25026,10 @@ var ClaudeCodeCliRuntime = class {
       });
       try {
         if (controls.onSteer) {
-          const sendInput = (text3, accepted2) => {
+          const sendInput = (text4, accepted2) => {
             if (!inputOpen || settled) throw new Error("This Coffee Tables response has already ended.");
             child.stdin.write(
-              `${JSON.stringify({ type: "user", message: { role: "user", content: [{ type: "text", text: text3 }] } })}
+              `${JSON.stringify({ type: "user", message: { role: "user", content: [{ type: "text", text: text4 }] } })}
 `,
               (error) => {
                 var _a3;
@@ -24946,8 +25043,8 @@ var ClaudeCodeCliRuntime = class {
             );
           };
           sendInput(prompt, markAccepted);
-          controls.onSteer(async (text3) => {
-            sendInput(text3);
+          controls.onSteer(async (text4) => {
+            sendInput(text4);
           });
         } else if (controls.onAccepted) {
           child.stdin.end(prompt, (error) => {
@@ -25816,7 +25913,7 @@ function coffeeCommittedKey(session) {
 function insightText(item) {
   return [item.summary, item.detail, item.question, item.proposedSolution, item.limitations].filter(Boolean).join("\n\n");
 }
-var normalize2 = (text3) => text3.normalize("NFKC").replace(/[*_`]/g, "").replace(/\s+/g, " ").trim();
+var normalize2 = (text4) => text4.normalize("NFKC").replace(/[*_`]/g, "").replace(/\s+/g, " ").trim();
 function buildCoffeeSource(session, insightId) {
   var _a, _b, _c, _d, _e, _f;
   const insights = baselineFromVersions((_a = session.observerNotes) != null ? _a : [], session.language);
@@ -25833,8 +25930,8 @@ ${item.answer}`);
   for (const source of (_c = selected == null ? void 0 : selected.sources) != null ? _c : []) {
     const needle = normalize2(source);
     let count = 0;
-    for (const text3 of committed) {
-      const haystack = normalize2(text3);
+    for (const text4 of committed) {
+      const haystack = normalize2(text4);
       let at = 0;
       while (needle && (at = haystack.indexOf(needle, at)) >= 0) {
         count++;
@@ -26351,24 +26448,24 @@ var MarkdownSelectionAi = class extends import_obsidian19.Component {
       this.hideLauncher();
       return;
     }
-    const text3 = (view.getMode() === "source" ? view.editor.getSelection() : (_b = selection == null ? void 0 : selection.toString()) != null ? _b : "").trim();
+    const text4 = (view.getMode() === "source" ? view.editor.getSelection() : (_b = selection == null ? void 0 : selection.toString()) != null ? _b : "").trim();
     const rects = range == null ? void 0 : range.getClientRects();
     const editorSelection = view.containerEl.querySelector(".cm-selectionBackground");
     const rangeRect = (rects == null ? void 0 : rects.length) ? rects[rects.length - 1] : range == null ? void 0 : range.getBoundingClientRect();
     const rect = rangeRect && (rangeRect.width || rangeRect.height) ? rangeRect : editorSelection == null ? void 0 : editorSelection.getBoundingClientRect();
-    if (!text3 || !rect || !rect.width && !rect.height) {
+    if (!text4 || !rect || !rect.width && !rect.height) {
       this.hideLauncher();
       return;
     }
     const markdown = view.editor.getValue();
-    let matchAt = findUnique(markdown, text3);
+    let matchAt = findUnique(markdown, text4);
     if (view.getMode() === "source") {
       const from = view.editor.posToOffset(view.editor.getCursor("from"));
       const selected = view.editor.getSelection();
-      const start = from + selected.indexOf(text3);
-      if (markdown.slice(start, start + text3.length) === text3) matchAt = start;
+      const start = from + selected.indexOf(text4);
+      if (markdown.slice(start, start + text4.length) === text4) matchAt = start;
     }
-    this.snapshot = { view, path: view.file.path, text: text3, markdown, matchAt, rect };
+    this.snapshot = { view, path: view.file.path, text: text4, markdown, matchAt, rect };
     const launcher = this.launcher;
     if (!launcher) return;
     launcher.hidden = false;
@@ -26769,7 +26866,7 @@ ${caption.trim()}`;
   }
   applyResult(result, action, status) {
     var _a;
-    const { view, path, markdown, text: text3, matchAt } = this.snapshot;
+    const { view, path, markdown, text: text4, matchAt } = this.snapshot;
     const viewStillOpen = this.app.workspace.getLeavesOfType("markdown").some((leaf) => leaf.view === view);
     if (!viewStillOpen || ((_a = view.file) == null ? void 0 : _a.path) !== path || view.editor.getValue() !== markdown) {
       status.setText(t("ui.context_ai_note_changed"));
@@ -26782,17 +26879,17 @@ ${caption.trim()}`;
       return;
     }
     if (action === "replace") {
-      if (!text3 || matchAt < 0 || editor.getValue().slice(matchAt, matchAt + text3.length) !== text3) {
+      if (!text4 || matchAt < 0 || editor.getValue().slice(matchAt, matchAt + text4.length) !== text4) {
         status.setText(t("ui.context_ai_replace_unavailable"));
         return;
       }
-      editor.replaceRange(value, positionAt(markdown, matchAt), positionAt(markdown, matchAt + text3.length));
+      editor.replaceRange(value, positionAt(markdown, matchAt), positionAt(markdown, matchAt + text4.length));
     } else if (action === "after") {
       if (matchAt < 0) {
         status.setText(t("ui.context_ai_replace_unavailable"));
         return;
       }
-      const end = text3 ? markdown.indexOf("\n", matchAt + text3.length) : matchAt;
+      const end = text4 ? markdown.indexOf("\n", matchAt + text4.length) : matchAt;
       const offset = end < 0 ? markdown.length : end;
       editor.replaceRange(`
 
@@ -27693,9 +27790,9 @@ var VisualAgentMapPlugin = class extends import_obsidian20.Plugin {
         searchBudget: 0,
         timeoutMs: 15 * 60 * 1e3,
         timeoutMessage: t("ui.coffee_generation_timed_out"),
-        onText: (text3) => {
+        onText: (text4) => {
           var _a;
-          return (_a = request.onText) == null ? void 0 : _a.call(request, text3);
+          return (_a = request.onText) == null ? void 0 : _a.call(request, text4);
         },
         onSteer: (handler) => {
           var _a;
