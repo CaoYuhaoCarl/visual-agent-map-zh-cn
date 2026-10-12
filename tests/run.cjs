@@ -17,6 +17,7 @@ const suites = [
   'visual-map-view.cjs',
   'i18n.cjs',
   'references.cjs',
+  'outline-import.cjs',
   'shell-entrances.cjs',
   'coffee-tables-core.cjs',
   'coffee-tables-session.cjs',
