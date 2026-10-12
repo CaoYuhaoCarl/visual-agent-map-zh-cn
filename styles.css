@@ -29,24 +29,24 @@
 .vam-edges { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; pointer-events: none; }
 .vam-edge { fill: none; stroke: var(--interactive-accent); stroke-width: 2; opacity: 0.55; }
 .vam-node { position: absolute; box-sizing: border-box; width: 280px; padding: 14px; border: 1px solid var(--background-modifier-border); border-radius: 12px; background: var(--background-primary); box-shadow: 0 4px 14px rgba(0,0,0,0.08); cursor: grab; user-select: none; }
-.vam-node[data-mindsearch-kind="topic"] { border-radius: 48% / 28%; padding: 22px 24px; }
-.vam-node[data-mindsearch-kind="question"] { isolation: isolate; border-color: transparent; background: transparent; box-shadow: none; }
-.vam-node[data-mindsearch-kind="question"]::before { content: ""; position: absolute; z-index: -1; width: 174px; height: 174px; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(45deg); border: 1px solid var(--background-modifier-border); border-radius: 10px; background: var(--background-primary); box-shadow: 4px 4px 14px rgba(0,0,0,0.08); }
-.vam-node[data-mindsearch-kind="answer"] { border: 1px solid var(--interactive-accent); border-radius: 18px; }
-.vam-node[data-mindsearch-kind="research"] { border-radius: 4px; }
-.vam-node[data-mindsearch-kind="synthesis"] { border-style: dashed; border-color: var(--interactive-accent); }
+.vam-node[data-aim-kind="topic"] { border-radius: 48% / 28%; padding: 22px 24px; }
+.vam-node[data-aim-kind="question"] { isolation: isolate; border-color: transparent; background: transparent; box-shadow: none; }
+.vam-node[data-aim-kind="question"]::before { content: ""; position: absolute; z-index: -1; width: 174px; height: 174px; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(45deg); border: 1px solid var(--background-modifier-border); border-radius: 10px; background: var(--background-primary); box-shadow: 4px 4px 14px rgba(0,0,0,0.08); }
+.vam-node[data-aim-kind="answer"] { border: 1px solid var(--interactive-accent); border-radius: 18px; }
+.vam-node[data-aim-kind="research"] { border-radius: 4px; }
+.vam-node[data-aim-kind="synthesis"] { border-style: dashed; border-color: var(--interactive-accent); }
 .vam-edge-convergence { stroke: var(--interactive-accent); stroke-dasharray: 5 5; opacity: .8; }
-.vam-mindsearch-answer-snapshot { margin: 8px 0 0; padding: 6px 8px; border-left: 2px solid var(--interactive-accent); color: var(--text-muted); font-size: var(--font-ui-smaller); }
-.vam-mindsearch-statusbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; min-height: 42px; padding: 8px 14px; border-bottom: 1px solid var(--background-modifier-border); border-left: 4px solid var(--interactive-accent); background: var(--background-secondary); }
-.vam-mindsearch-status-title { font-size: var(--font-ui-small); font-weight: 800; letter-spacing: .02em; }
-.vam-mindsearch-status-value { font-size: var(--font-ui-small); font-weight: 650; }
-.vam-mindsearch-statusbar.is-active { background: var(--background-modifier-hover); }
-.vam-mindsearch-attribution { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 6px 14px; border-bottom: 1px solid var(--background-modifier-border); color: var(--text-muted); font-size: var(--font-ui-smaller); line-height: 1.5; }
-.vam-mindsearch-attribution a { white-space: nowrap; }
-.vam-mindsearch-attribution a:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
-.vam-node-header .vam-mindsearch-question-status { margin-right: auto; padding: 4px 10px; border: 1px solid var(--background-modifier-border); font-size: 12px; font-weight: 700; }
-.vam-mindsearch-start { display: flex; width: 100%; justify-content: center; margin-top: 12px; min-height: 36px; }
-.vam-node[data-mindsearch-kind="conclusion"] { isolation: isolate; border: 0; background: transparent; box-shadow: none; }
+.vam-aim-answer-snapshot { margin: 8px 0 0; padding: 6px 8px; border-left: 2px solid var(--interactive-accent); color: var(--text-muted); font-size: var(--font-ui-smaller); }
+.vam-aim-statusbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; min-height: 42px; padding: 8px 14px; border-bottom: 1px solid var(--background-modifier-border); border-left: 4px solid var(--interactive-accent); background: var(--background-secondary); }
+.vam-aim-status-title { font-size: var(--font-ui-small); font-weight: 800; letter-spacing: .02em; }
+.vam-aim-status-value { font-size: var(--font-ui-small); font-weight: 650; }
+.vam-aim-statusbar.is-active { background: var(--background-modifier-hover); }
+.vam-aim-attribution { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 6px 14px; border-bottom: 1px solid var(--background-modifier-border); color: var(--text-muted); font-size: var(--font-ui-smaller); line-height: 1.5; }
+.vam-aim-attribution a { white-space: nowrap; }
+.vam-aim-attribution a:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
+.vam-node-header .vam-aim-question-status { margin-right: auto; padding: 4px 10px; border: 1px solid var(--background-modifier-border); font-size: 12px; font-weight: 700; }
+.vam-aim-start { display: flex; width: 100%; justify-content: center; margin-top: 12px; min-height: 36px; }
+.vam-node[data-aim-kind="conclusion"] { isolation: isolate; border: 0; background: transparent; box-shadow: none; }
 .vam-conclusion-background { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; filter: drop-shadow(0 4px 7px rgba(0,0,0,0.08)); }
 .vam-conclusion-background polygon { fill: var(--background-primary); stroke: var(--background-modifier-border); stroke-width: 1; }
 .vam-node .vam-add-child { position: absolute; right: -17px; top: 50%; transform: translateY(-50%); width: 34px; height: 34px; padding: 0; border-radius: 50%; background: var(--background-primary); color: var(--text-normal); font-size: 20px; line-height: 1; }
@@ -192,13 +192,13 @@
 .vam-proposal textarea { resize: vertical; }
 .vam-task-input { width: 100%; box-sizing: border-box; resize: vertical; }
 .vam-name-input { width: 100%; }
-.vam-mindsearch-topic, .vam-mindsearch-context { width: 100%; resize: vertical; }
-.vam-mindsearch-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--background-modifier-border); }
-.vam-mindsearch-actions [aria-live] { color: var(--text-muted); }
-.vam-mindsearch-answer-options { display: grid; gap: 4px; margin: 12px 0; }
-.vam-mindsearch-answer-option { display: flex; align-items: flex-start; gap: 10px; min-height: 44px; padding: 10px; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-s); cursor: pointer; }
-.vam-mindsearch-answer-option input { width: 20px; height: 20px; flex: 0 0 20px; margin: 1px 0 0; }
-.vam-mindsearch-answer-option:focus-within { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
+.vam-aim-topic, .vam-aim-context { width: 100%; resize: vertical; }
+.vam-aim-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--background-modifier-border); }
+.vam-aim-actions [aria-live] { color: var(--text-muted); }
+.vam-aim-answer-options { display: grid; gap: 4px; margin: 12px 0; }
+.vam-aim-answer-option { display: flex; align-items: flex-start; gap: 10px; min-height: 44px; padding: 10px; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-s); cursor: pointer; }
+.vam-aim-answer-option input { width: 20px; height: 20px; flex: 0 0 20px; margin: 1px 0 0; }
+.vam-aim-answer-option:focus-within { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
 .vam-selection-bar { position: absolute; z-index: 6; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; flex-wrap: wrap; gap: 8px; max-width: calc(100% - 32px); padding: 8px 12px; border: 1px solid var(--interactive-accent); border-radius: 10px; background: var(--background-primary); box-shadow: 0 5px 20px rgba(0,0,0,0.16); }
 .vam-selection-bar > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vam-reference-sources { display: flex; flex-direction: column; gap: 7px; margin: 14px 0; padding: 12px; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-s); }
@@ -615,5 +615,5 @@ body .workspace-leaf-content.vam-topic-markdown .markdown-source-view.mod-cm6 .m
 .ct-convergence-proposal { padding:16px 0; border-bottom:1px solid var(--background-modifier-border); }
 .ct-convergence-proposal label { margin-top:10px; }
 
-.vam-mindsearch-failure { margin-top: 8px; padding: 8px; border-left: 3px solid var(--text-error); background: var(--background-secondary); font-size: var(--font-smallest); overflow-wrap: anywhere; }
-.vam-mindsearch-failure p { margin: 0 0 6px; }
+.vam-aim-failure { margin-top: 8px; padding: 8px; border-left: 3px solid var(--text-error); background: var(--background-secondary); font-size: var(--font-smallest); overflow-wrap: anywhere; }
+.vam-aim-failure p { margin: 0 0 6px; }

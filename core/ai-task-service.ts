@@ -10,15 +10,15 @@ import { SEARCH_STATUSES, type AiResult, type ReasoningLevel, type SearchStatus,
 import { truncateSummary } from "../ai/result-utils";
 import { translate, t, type TranslationKey, type UiLanguage } from "../i18n";
 import responseSchema from "../response-schema.json";
-import { foldMindSearchContract, mindSearchContractSchema, type MindSearchContract } from "../ai/mindsearch-contracts";
-import mindSearchGapAuditSchema from "../ai/mindsearch-gap-audit-schema";
+import { foldAimContract, aimContractSchema, type AimContract } from "../ai/aim-contracts";
+import aimGapAuditSchema from "../ai/aim-gap-audit-schema";
 import { CLAUDE_MODEL_CHOICES, providerForModel, providerModelId } from "../ai/providers/provider";
 import type { CodexAppServerRuntime, CodexWebSearchEvent } from "../ai/runtime/codex-app-server";
 import type { ClaudeCodeCliRuntime } from "../ai/runtime/claude-code-cli";
 import type { AiExchangeLog } from "../ai-exchange-log";
 import { visualGuidance } from "../ai/visual-guidance";
 import { randomUUID } from "node:crypto";
-import { buildMindSearchPrompt } from "../ai/mindsearch-prompt";
+import { buildAimPrompt } from "../ai/aim-prompt";
 
 export function extractJsonObject(raw: string): string {
   const candidates: string[] = [];
@@ -121,8 +121,8 @@ export class AiTaskService {
     const pluginDirectory = this.options.pluginDirectory();
     const outputLanguage = context.outputLanguage ?? this.options.language();
     const instructions =
-      context.promptProfile === "mindsearch"
-        ? buildMindSearchPrompt(context, outputLanguage)
+      context.promptProfile === "aim"
+        ? buildAimPrompt(context, outputLanguage)
         : [
             translate(outputLanguage, "prompt.output_language"),
             translate(outputLanguage, "prompt.role"),
@@ -207,12 +207,12 @@ export class AiTaskService {
               timeoutMs: Math.min(600_000, Math.max(180_000, input.timeoutMs)),
               timeoutMessage: translate(
                 outputLanguage,
-                "ui.mindsearch_task_timeout",
+                "ui.aim_task_timeout",
                 Math.ceil(Math.min(600_000, Math.max(180_000, input.timeoutMs)) / 60_000)
               )
             }
           : {}),
-        ...(context.mindSearchIsolatedResearch
+        ...(context.aimIsolatedResearch
           ? { webSearchOnly: context.researchMode !== "local", textOnly: context.researchMode === "local" }
           : {}),
         onAccepted: onRequestAccepted,
@@ -226,13 +226,13 @@ export class AiTaskService {
             exchanges?.sent(exchangeId, JSON.stringify(request, null, 2), instructions);
         }
       };
-      const isMindSearchGapAudit =
-        context.responseContract === "mindsearch-gap-audit" &&
-        context.promptProfile === "mindsearch" &&
+      const isAimGapAudit =
+        context.responseContract === "aim-gap-audit" &&
+        context.promptProfile === "aim" &&
         context.researchMode === "local";
       const isDeliveryAcceptance =
-        context.responseContract === "mindsearch-delivery-acceptance" &&
-        context.promptProfile === "mindsearch" &&
+        context.responseContract === "aim-delivery-acceptance" &&
+        context.promptProfile === "aim" &&
         context.researchMode === "local";
       const deliverySchema = {
         ...responseSchema,
@@ -244,13 +244,13 @@ export class AiTaskService {
           },
           detail: {
             type: "string",
-            pattern: "^\\s*<!--\\s*mindsearch-review\\s+\\{[^\\r\\n]*\\}\\s*-->",
+            pattern: "^\\s*<!--\\s*aim-review\\s+\\{[^\\r\\n]*\\}\\s*-->",
             description:
-              "Begin with the COMPLETE first-line MindSearch review marker containing decision and rationale (and stopReason for conclude). Put the marker in detail only, followed by the acceptance explanation. Never split or truncate the marker."
+              "Begin with the COMPLETE first-line AIM review marker containing decision and rationale (and stopReason for conclude). Put the marker in detail only, followed by the acceptance explanation. Never split or truncate the marker."
           }
         }
       };
-      const isIsolatedWebResearch = context.mindSearchIsolatedResearch === true && context.researchMode !== "local";
+      const isIsolatedWebResearch = context.aimIsolatedResearch === true && context.researchMode !== "local";
       const webResearchSchema = {
         ...responseSchema,
         properties: {
@@ -265,15 +265,15 @@ export class AiTaskService {
         required: [...responseSchema.required, "searchStatus"]
       };
       const contract =
-        context.promptProfile === "mindsearch" && !isMindSearchGapAudit ? context.mindSearchContract : undefined;
+        context.promptProfile === "aim" && !isAimGapAudit ? context.aimContract : undefined;
       const schema = contract
-        ? mindSearchContractSchema(
+        ? aimContractSchema(
             contract,
             isIsolatedWebResearch ? webResearchSchema : responseSchema,
-            context.mindSearchEvidenceLookup === true
+            context.aimEvidenceLookup === true
           )
-        : isMindSearchGapAudit
-          ? mindSearchGapAuditSchema
+        : isAimGapAudit
+          ? aimGapAuditSchema
           : isDeliveryAcceptance
             ? deliverySchema
             : isIsolatedWebResearch
@@ -293,7 +293,7 @@ export class AiTaskService {
         raw,
         provider === "claude" ? "Claude Code" : "Codex App Server",
         outputLanguage,
-        isMindSearchGapAudit,
+        isAimGapAudit,
         isIsolatedWebResearch,
         contract
       );
@@ -375,7 +375,7 @@ export class AiTaskService {
     language: UiLanguage,
     strictGapAudit = false,
     webResearch = false,
-    contract?: MindSearchContract
+    contract?: AimContract
   ): AiResult {
     const cleaned = raw
       .replace(/^```(?:json)?\s*/i, "")
@@ -407,7 +407,7 @@ export class AiTaskService {
         !Array.isArray(parsed.visualReferences) ||
         parsed.visualReferences.length !== 0)
     ) {
-      throw new Error("MindSearch research-gap audit returned an invalid structured classification.");
+      throw new Error("AIM research-gap audit returned an invalid structured classification.");
     }
     const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
     const suggestions = Array.isArray(parsed.suggestions)
@@ -458,6 +458,6 @@ export class AiTaskService {
       visualReferences,
       ...(searchStatus ? { searchStatus } : {})
     };
-    return contract ? foldMindSearchContract(contract, parsed.aim, result) : result;
+    return contract ? foldAimContract(contract, parsed.aim, result) : result;
   }
 }

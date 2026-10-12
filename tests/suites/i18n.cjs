@@ -135,7 +135,7 @@ test('topic status labels follow the selected UI language after startup', () => 
   assert.equal(topicStatusLabel('error', 'en'), 'Task error');
 });
 // Files whose messages, logs and generated note text must come from i18n.ts, never inline Chinese.
-const runtimeMessageFiles = ['ai/runtime/codex-app-server.ts', 'ai/runtime/claude-code-cli.ts', 'core/ai-task-service.ts', 'core/reframing-service.ts', 'ai-exchange-log.ts', 'pending-suggestions.ts', 'main.ts', 'mindsearch-mve/research-run-store.ts', 'ai/reference-materials.ts', 'ui/modals/mind-search-clarification-modal.ts', 'ui/preview-utils.ts'];
+const runtimeMessageFiles = ['ai/runtime/codex-app-server.ts', 'ai/runtime/claude-code-cli.ts', 'core/ai-task-service.ts', 'core/reframing-service.ts', 'ai-exchange-log.ts', 'pending-suggestions.ts', 'main.ts', 'experiences/aim/research-run-store.ts', 'ai/reference-materials.ts', 'ui/modals/aim-clarification-modal.ts', 'ui/preview-utils.ts'];
 test('runtime, service and log messages carry no inline Chinese text', () => {
   const offenders = runtimeMessageFiles.flatMap(file => fs.readFileSync(path.join(root, file), 'utf8').split('\n').map((line, index) => [file, index + 1, line]).filter(([, , line]) => /\p{Script=Han}/u.test(line)).map(([file, line]) => `${file}:${line}`));
   assert.deepEqual(offenders, []);

@@ -108,7 +108,7 @@ integrationTest('Prompt monitor preserves exact Claude prompts, phases and separ
     const file = path.join(directory, 'log.json');
     const log = new AiExchangeLog(file, error => assert.fail(String(error)));
     log.begin({ id: 'one', startedAt: new Date().toISOString(), topic: 'Research', mode: 'task', model: 'claude', effort: 'high' });
-    const prompt = '<!-- mindsearch-phase: research-plan -->\n完整指令\nprivate context';
+    const prompt = '<!-- aim-phase: research-plan -->\n完整指令\nprivate context';
     log.sent('one', JSON.stringify({ input: '<VAM prompt via stdin>' }), prompt);
     log.sent('one', JSON.stringify({ input: [{ type: 'text', text: 'Stop and use existing evidence' }] }));
     log.completed('one'); await log.flush();
@@ -121,4 +121,19 @@ integrationTest('Prompt monitor preserves exact Claude prompts, phases and separ
     assert.equal(entries[1].mode, 'steer');
     assert.ok(promptMetrics(entries[0]).estimatedTokens > 0);
   } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+test('Prompt monitor reads phases and repair reasons from prompts logged before the AIM rename', () => {
+  const { promptMetrics } = load('ai-exchange-log.ts');
+  const { LEGACY_MARKER_PREFIX } = load('experiences/aim/legacy-names.ts');
+  const prompt = `<!-- ${LEGACY_MARKER_PREFIX}phase: research-plan-repair -->\nRepair reason: missing plan marker\nRetry`;
+  const metrics = promptMetrics({ id: 'legacy', startedAt: 'now', topic: 'Research', mode: 'task', model: 'codex', effort: 'low', prompt });
+  assert.equal(metrics.phase, 'research-plan-repair');
+  assert.equal(metrics.repairReason, 'missing plan marker');
+  assert.equal(metrics.prompt, prompt);
+});
+test('AIM create command keeps its original command ID so existing hotkeys and URIs still work', () => {
+  const source = fs.readFileSync(path.join(root, 'main.ts'), 'utf8');
+  const { AIM_CREATE_MAP_COMMAND_ID, LEGACY_MARKER_PREFIX } = load('experiences/aim/legacy-names.ts');
+  assert.match(source, /addLocalizedCommand\(AIM_CREATE_MAP_COMMAND_ID, "ui\.aim_create_map"/);
+  assert.equal(AIM_CREATE_MAP_COMMAND_ID, `create-${LEGACY_MARKER_PREFIX}map`);
 });

@@ -1,4 +1,4 @@
-import { MindSearchClarificationModal } from "../../ui/modals/mind-search-clarification-modal";
+import { AimClarificationModal } from "../../ui/modals/aim-clarification-modal";
 import { withThinkingOrigin } from "./thinking-origin";
 import { createHash, randomUUID } from "node:crypto";
 import type VisualAgentMapPlugin from "../../main";
@@ -10,7 +10,7 @@ import { ChoiceModal } from "../../ui/modals/choice-modal";
 import {
   canParent,
   clearQuestionConvergenceEdges,
-  repairMindSearchResultConvergence,
+  repairAimResultConvergence,
   clone,
   descendants,
   History,
@@ -28,19 +28,19 @@ import type { AiResult, Suggestion, TaskContext } from "../../ai/types";
 import { clampPreviewScale, previewMetrics } from "../../ui/preview-utils";
 import { BUILTIN_SAMPLE_ID, builtInSample, SAMPLE_TOUR_VERSION } from "../../builtin-sample";
 import { PendingSuggestions } from "../../pending-suggestions";
-import { createMindSearchMap } from "../mind-search/create-map";
-import { MindSearchStartModal } from "../../ui/modals/mind-search-start-modal";
-import { MindSearchAnswerModal } from "../../ui/modals/mind-search-answer-modal";
+import { createAimMap } from "../aim/create-map";
+import { AimStartModal } from "../../ui/modals/aim-start-modal";
+import { AimAnswerModal } from "../../ui/modals/aim-answer-modal";
 import {
-  MindSearchManualFlow,
-  countMindSearchAnsweredQuestions,
+  AimManualFlow,
+  countAimAnsweredQuestions,
   MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION,
   type ManualResearchResult,
   type PlannerQuestionResult
-} from "../mind-search/manual-flow";
-import { MindSearchRunStore } from "../../mindsearch-mve/research-run-store";
-import { matchMindSearchFailedReportTargets } from "../mind-search/retry-targets";
-import { mindSearchRepairHint, mindSearchTimedOut } from "../mind-search/failure-hint";
+} from "../aim/manual-flow";
+import { AimRunStore } from "../aim/research-run-store";
+import { matchAimFailedReportTargets } from "../aim/retry-targets";
+import { aimRepairHint, aimTimedOut } from "../aim/failure-hint";
 
 import {
   TaskOptions,
@@ -70,17 +70,17 @@ const originBaseline = (origin?: string): string =>
     .update(origin ?? "")
     .digest("hex");
 
-type MindSearchQuestionStatus = "running" | "completed" | "partial" | "failed" | "cancelled" | "not_started";
-function mindSearchQuestionStatus(
+type AimQuestionStatus = "running" | "completed" | "partial" | "failed" | "cancelled" | "not_started";
+function aimQuestionStatus(
   map: MapDocument,
   questionNodeId: string,
   activeQuestionNodeId: string | null
-): MindSearchQuestionStatus {
+): AimQuestionStatus {
   if (activeQuestionNodeId === questionNodeId) return "running";
-  const branches = map.mindSearch?.branches.filter(branch => branch.questionNodeId === questionNodeId) ?? [];
+  const branches = map.aim?.branches.filter(branch => branch.questionNodeId === questionNodeId) ?? [];
   const statuses = branches.map(branch => {
     if (branch.researchPlanError && !branch.researchPlan) return "failed" as const;
-    const runs = (map.mindSearch?.runs ?? []).filter(item => item.branchId === branch.id);
+    const runs = (map.aim?.runs ?? []).filter(item => item.branchId === branch.id);
     if (
       runs.some(run => {
         const attempt = run.attempts.find(item => item.id === run.currentAttemptId);
@@ -159,30 +159,30 @@ export class VisualAgentMapView extends ItemView {
   private dragging = false;
   private suppressClickUntil = 0;
   private closed = false;
-  private mindSearchViewEpoch = 0;
+  private aimViewEpoch = 0;
   private mapOpenEpoch = 0;
   private headerTitle = "";
   private builtIn = false;
   private showSampleTour = false;
   private sampleTourStep = 0;
-  private readonly mindSearchRuns: MindSearchRunStore;
-  private readonly mindSearchManual: MindSearchManualFlow;
-  private readonly mindSearchRecovery: MindSearchManualFlow;
-  private mindSearchBusy = false;
-  private mindSearchController: AbortController | null = null;
-  private mindSearchActiveQuestionNodeId: string | null = null;
-  private mindSearchActivityKind: "planning" | "research" | "clarifying" | null = null;
-  private mindSearchFailedReports = new Map<string, { runId: string; diagnosticNotePath: string }>();
-  private mindSearchAnswerRequestIds = new Map<string, string>();
+  private readonly aimRuns: AimRunStore;
+  private readonly aimManual: AimManualFlow;
+  private readonly aimRecovery: AimManualFlow;
+  private aimBusy = false;
+  private aimController: AbortController | null = null;
+  private aimActiveQuestionNodeId: string | null = null;
+  private aimActivityKind: "planning" | "research" | "clarifying" | null = null;
+  private aimFailedReports = new Map<string, { runId: string; diagnosticNotePath: string }>();
+  private aimAnswerRequestIds = new Map<string, string>();
   constructor(
     leaf: WorkspaceLeaf,
     private plugin: VisualAgentMapPlugin
   ) {
     super(leaf);
-    this.mindSearchRuns = new MindSearchRunStore(plugin.repo);
-    this.mindSearchManual = new MindSearchManualFlow(
+    this.aimRuns = new AimRunStore(plugin.repo);
+    this.aimManual = new AimManualFlow(
       plugin.repo,
-      this.mindSearchRuns,
+      this.aimRuns,
       (context, model, reasoning, signal, onWebSearchEvent) =>
         plugin.askModel(context, model, reasoning, signal, undefined, undefined, onWebSearchEvent),
       undefined,
@@ -196,9 +196,9 @@ export class VisualAgentMapView extends ItemView {
     );
     // openMapInMutation already owns the repository queue. Startup recovery must persist
     // directly within that scope instead of attempting to enqueue the same operation again.
-    this.mindSearchRecovery = new MindSearchManualFlow(
+    this.aimRecovery = new AimManualFlow(
       plugin.repo,
-      this.mindSearchRuns,
+      this.aimRuns,
       (context, model, reasoning, signal, onWebSearchEvent) =>
         plugin.askModel(context, model, reasoning, signal, undefined, undefined, onWebSearchEvent)
     );
@@ -222,7 +222,7 @@ export class VisualAgentMapView extends ItemView {
   }
   async onOpen(): Promise<void> {
     this.closed = false;
-    const epoch = ++this.mindSearchViewEpoch;
+    const epoch = ++this.aimViewEpoch;
     this.mapOpenEpoch++;
     this.contentEl.addClass("vam-view");
     this.contentEl.tabIndex = 0;
@@ -244,13 +244,13 @@ export class VisualAgentMapView extends ItemView {
       }
     });
     await this.plugin.ready;
-    if (this.closed || this.mindSearchViewEpoch !== epoch) return;
+    if (this.closed || this.aimViewEpoch !== epoch) return;
     if (!this.path && !this.builtIn) {
       if (this.plugin.consumeFirstInstallSample()) await this.openBuiltInSample();
       else if (!this.plugin.repo.workspaceExists()) this.render();
       else {
         const files = await this.plugin.repo.mapFiles();
-        if (this.closed || this.mindSearchViewEpoch !== epoch) return;
+        if (this.closed || this.aimViewEpoch !== epoch) return;
         if (files.length) {
           let defaultPath = files[0].path;
           for (const file of files) {
@@ -260,8 +260,8 @@ export class VisualAgentMapView extends ItemView {
             } catch {
               continue;
             }
-            if (this.closed || this.mindSearchViewEpoch !== epoch) return;
-            if (!candidate.mindSearch) {
+            if (this.closed || this.aimViewEpoch !== epoch) return;
+            if (!candidate.aim) {
               defaultPath = file.path;
               break;
             }
@@ -273,13 +273,13 @@ export class VisualAgentMapView extends ItemView {
   }
   async onClose(): Promise<void> {
     this.closed = true;
-    this.mindSearchViewEpoch++;
+    this.aimViewEpoch++;
     this.mapOpenEpoch++;
-    const controller = this.mindSearchController;
-    this.mindSearchController = null;
-    this.mindSearchBusy = false;
-    this.mindSearchActiveQuestionNodeId = null;
-    this.mindSearchActivityKind = null;
+    const controller = this.aimController;
+    this.aimController = null;
+    this.aimBusy = false;
+    this.aimActiveQuestionNodeId = null;
+    this.aimActivityKind = null;
     controller?.abort();
     if (this.refreshTimer !== null) window.clearTimeout(this.refreshTimer);
     if (this.hoverTimer !== null) window.clearTimeout(this.hoverTimer);
@@ -290,8 +290,8 @@ export class VisualAgentMapView extends ItemView {
       await this.persistViewport();
     }
   }
-  private mindSearchViewIsCurrent(epoch: number, mapPath: string): boolean {
-    return !this.closed && this.mindSearchViewEpoch === epoch && this.path === mapPath;
+  private aimViewIsCurrent(epoch: number, mapPath: string): boolean {
+    return !this.closed && this.aimViewEpoch === epoch && this.path === mapPath;
   }
   async refreshFromPlugin(): Promise<void> {
     if (this.builtIn) {
@@ -345,7 +345,7 @@ export class VisualAgentMapView extends ItemView {
     if (!this.builtIn && this.map && this.path) await this.plugin.repo.saveMap(this.path, this.map);
   }
   private async hydrate(isCurrent: () => boolean = () => true): Promise<void> {
-    this.mindSearchFailedReports.clear();
+    this.aimFailedReports.clear();
     if (this.builtIn) {
       if (isCurrent()) this.notes = builtInSample(this.plugin.settings.language).notes;
       return;
@@ -366,8 +366,8 @@ export class VisualAgentMapView extends ItemView {
   private async hydrateFailedReportTargets(isCurrent: () => boolean): Promise<void> {
     const map = this.map,
       mapPath = this.path;
-    if (!mapPath || !map?.mindSearch) return;
-    const failed = map.mindSearch.runs.some(
+    if (!mapPath || !map?.aim) return;
+    const failed = map.aim.runs.some(
       run => run.attempts.find(item => item.id === run.currentAttemptId)?.status === "failed"
     );
     if (!failed) return;
@@ -383,17 +383,17 @@ export class VisualAgentMapView extends ItemView {
       }
     }
     if (!isCurrent()) return;
-    this.mindSearchFailedReports.clear();
-    for (const [questionNodeId, target] of matchMindSearchFailedReportTargets(map, candidates))
-      this.mindSearchFailedReports.set(questionNodeId, target);
+    this.aimFailedReports.clear();
+    for (const [questionNodeId, target] of matchAimFailedReportTargets(map, candidates))
+      this.aimFailedReports.set(questionNodeId, target);
   }
   async openMap(path: string): Promise<void> {
     await this.plugin.mutate(() => this.openMapInMutation(path));
   }
   private async openMapInMutation(path: string): Promise<void> {
-    const viewEpoch = this.mindSearchViewEpoch,
+    const viewEpoch = this.aimViewEpoch,
       openEpoch = ++this.mapOpenEpoch;
-    const isCurrent = () => !this.closed && this.mindSearchViewEpoch === viewEpoch && this.mapOpenEpoch === openEpoch;
+    const isCurrent = () => !this.closed && this.aimViewEpoch === viewEpoch && this.mapOpenEpoch === openEpoch;
     if (!isCurrent()) return;
     if (this.viewportTimer !== null) {
       window.clearTimeout(this.viewportTimer);
@@ -403,35 +403,35 @@ export class VisualAgentMapView extends ItemView {
     }
     let map = await this.plugin.repo.readMap(path);
     if (!isCurrent()) return;
-    if (map.mindSearch?.creationId && map.mindSearch.rootDraft) {
-      const resumed = await createMindSearchMap(this.plugin.repo, this.plugin.settings.cliModel, {
-        requestId: map.mindSearch.creationId,
+    if (map.aim?.creationId && map.aim.rootDraft) {
+      const resumed = await createAimMap(this.plugin.repo, this.plugin.settings.cliModel, {
+        requestId: map.aim.creationId,
         topic: map.title,
-        context: map.mindSearch.rootDraft.context,
-        model: map.mindSearch.rootDraft.model,
-        reasoning: map.mindSearch.rootDraft.reasoning
+        context: map.aim.rootDraft.context,
+        model: map.aim.rootDraft.model,
+        reasoning: map.aim.rootDraft.reasoning
       });
       if (!isCurrent()) return;
       map = resumed.map;
     }
-    if (map.mindSearch?.questionDraft) {
-      await this.mindSearchRecovery.recoverQuestionDraft(path);
+    if (map.aim?.questionDraft) {
+      await this.aimRecovery.recoverQuestionDraft(path);
       if (!isCurrent()) return;
       map = await this.plugin.repo.readMap(path);
       if (!isCurrent()) return;
     }
-    if (map.mindSearch) {
-      await this.mindSearchRuns.recoverPending(path);
+    if (map.aim) {
+      await this.aimRuns.recoverPending(path);
       if (!isCurrent()) return;
-      await this.mindSearchRuns.failInterrupted(path);
+      await this.aimRuns.failInterrupted(path);
       if (!isCurrent()) return;
-      await this.mindSearchRecovery.recoverPostReportQuestions(path);
+      await this.aimRecovery.recoverPostReportQuestions(path);
       if (!isCurrent()) return;
       map = await this.plugin.repo.readMap(path);
       if (!isCurrent()) return;
     }
     const clearedQuestionEdges = clearQuestionConvergenceEdges(map);
-    const repairedResultEdges = repairMindSearchResultConvergence(map);
+    const repairedResultEdges = repairAimResultConvergence(map);
     if (clearedQuestionEdges || repairedResultEdges) {
       await this.plugin.repo.saveMap(path, map);
       if (!isCurrent()) return;
@@ -449,10 +449,10 @@ export class VisualAgentMapView extends ItemView {
     this.render();
     this.app.workspace.requestSaveLayout();
   }
-  openMindSearchStart(): void {
+  openAimStart(): void {
     if (this.closed) return;
-    const epoch = this.mindSearchViewEpoch;
-    const isCurrent = () => !this.closed && this.mindSearchViewEpoch === epoch;
+    const epoch = this.aimViewEpoch;
+    const isCurrent = () => !this.closed && this.aimViewEpoch === epoch;
     const availableModels = typeof this.plugin.availableModels === "function" ? this.plugin.availableModels() : [];
     const configuredModel = this.plugin.settings.cliModel?.trim() || "gpt-5.6-luna";
     const configuredReasoning = normalizeReasoningLevel(this.plugin.settings.cliReasoning);
@@ -463,14 +463,14 @@ export class VisualAgentMapView extends ItemView {
       id,
       label: typeof this.plugin.modelLabel === "function" ? this.plugin.modelLabel(id) : id
     }));
-    new MindSearchStartModal(
+    new AimStartModal(
       this.app,
       input =>
         this.plugin.mutate(async () => {
           if (!isCurrent()) return;
           await this.plugin.repo.ensureWorkspace();
           if (!isCurrent()) return;
-          const created = await createMindSearchMap(this.plugin.repo, input.model, input);
+          const created = await createAimMap(this.plugin.repo, input.model, input);
           await this.plugin.rebuildDerivedData();
           if (!isCurrent()) return;
           await this.openMapInMutation(created.mapPath);
@@ -494,7 +494,7 @@ export class VisualAgentMapView extends ItemView {
             states
               .map(state => state.error)
               .filter(Boolean)
-              .join("; ") || t("ui.mindsearch_no_models_found")
+              .join("; ") || t("ui.aim_no_models_found")
           );
         const choices = models.map(id => ({ id, label: this.plugin.modelLabel(id) }));
         const errors = states
@@ -504,7 +504,7 @@ export class VisualAgentMapView extends ItemView {
         return errors.length
           ? {
               models: choices,
-              message: t("ui.mindsearch_models_refreshed_partial_0", errors.join("; ")),
+              message: t("ui.aim_models_refreshed_partial_0", errors.join("; ")),
               preserveSelection: true
             }
           : choices;
@@ -516,19 +516,19 @@ export class VisualAgentMapView extends ItemView {
       this.enqueue(async () => this.openMapInMutation(await this.plugin.repo.createMap(title)))
     ).open();
   }
-  async planMindSearchQuestion(
+  async planAimQuestion(
     parentNodeId: string,
     requestId: string,
     parentBranchId: string | null = null,
     signal?: AbortSignal
   ): Promise<PlannerQuestionResult> {
     if (this.closed || !this.map || !this.path || this.builtIn)
-      throw new Error("Open a saved MindSearch map before planning its next question.");
+      throw new Error("Open a saved AIM map before planning its next question.");
     const mapPath = this.path,
-      epoch = this.mindSearchViewEpoch;
+      epoch = this.aimViewEpoch;
     const parent = this.notes.get(parentNodeId);
     if (!parent) throw new Error("The selected Planner question parent is unavailable.");
-    const planned: PlannerQuestionResult = await this.mindSearchManual.planNextQuestion(
+    const planned: PlannerQuestionResult = await this.aimManual.planNextQuestion(
       mapPath,
       parentNodeId,
       parent.model,
@@ -537,7 +537,7 @@ export class VisualAgentMapView extends ItemView {
       parentBranchId,
       signal
     );
-    const isCurrent = () => this.mindSearchViewIsCurrent(epoch, mapPath) && !signal?.aborted;
+    const isCurrent = () => this.aimViewIsCurrent(epoch, mapPath) && !signal?.aborted;
     if (isCurrent()) {
       const latest = await this.plugin.repo.readMap(mapPath);
       if (isCurrent()) {
@@ -551,22 +551,22 @@ export class VisualAgentMapView extends ItemView {
     }
     return planned;
   }
-  async submitMindSearchAnswer(
+  async submitAimAnswer(
     questionNodeId: string,
     input: { requestId: string; selections: string[]; freeText: string },
     signal?: AbortSignal
   ): Promise<ManualResearchResult> {
     if (this.closed || !this.map || !this.path || this.builtIn)
-      throw new Error("Open a saved MindSearch map before submitting an answer.");
+      throw new Error("Open a saved AIM map before submitting an answer.");
     const mapPath = this.path,
-      epoch = this.mindSearchViewEpoch;
-    const isCurrent = () => this.mindSearchViewIsCurrent(epoch, mapPath) && !signal?.aborted;
+      epoch = this.aimViewEpoch;
+    const isCurrent = () => this.aimViewIsCurrent(epoch, mapPath) && !signal?.aborted;
     const question = this.notes.get(questionNodeId);
     if (!question) throw new Error("The selected Planner question is unavailable.");
     signal?.throwIfAborted();
     let recoveredBranches = 0;
     await this.plugin.mutate(async () => {
-      recoveredBranches = await this.mindSearchRuns.recoverAnswerBranches(mapPath);
+      recoveredBranches = await this.aimRuns.recoverAnswerBranches(mapPath);
     });
     if (recoveredBranches) {
       if (!isCurrent()) return { status: "stale", branchId: "" };
@@ -577,7 +577,7 @@ export class VisualAgentMapView extends ItemView {
       this.syncOutline();
     }
     try {
-      const outcome = await this.mindSearchManual.answerAndResearch(
+      const outcome = await this.aimManual.answerAndResearch(
         mapPath,
         questionNodeId,
         input,
@@ -586,7 +586,7 @@ export class VisualAgentMapView extends ItemView {
         signal,
         async activeQuestionNodeId => {
           if (!isCurrent()) return;
-          this.mindSearchActiveQuestionNodeId = activeQuestionNodeId;
+          this.aimActiveQuestionNodeId = activeQuestionNodeId;
           this.map = await this.plugin.repo.readMap(mapPath);
           await this.hydrate(isCurrent);
           if (isCurrent()) this.render();
@@ -619,52 +619,52 @@ export class VisualAgentMapView extends ItemView {
       throw error;
     }
   }
-  private renderMindSearchFailure(card: HTMLElement, branch: import("../../map-model").MindSearchBranchRecord): void {
-    const runs = this.map?.mindSearch?.runs.filter(run => run.branchId === branch.id) ?? [];
+  private renderAimFailure(card: HTMLElement, branch: import("../../map-model").AimBranchRecord): void {
+    const runs = this.map?.aim?.runs.filter(run => run.branchId === branch.id) ?? [];
     const latest = runs.at(-1),
       attempt = latest?.attempts.find(item => item.id === latest.currentAttemptId);
     if (attempt?.status !== "failed" && !branch.researchPlanError) return;
-    const box = card.createDiv({ cls: "vam-mindsearch-failure" });
+    const box = card.createDiv({ cls: "vam-aim-failure" });
     box.createEl("p", {
       text: t(
-        "ui.mindsearch_failure_reason",
+        "ui.aim_failure_reason",
         attempt?.stopReason || branch.researchPlanError || t("ui.expansion_failed")
       )
     });
     const phase =
       attempt?.phase ?? branch.deliveryRecovery?.phase ?? (branch.researchPlanError ? "research-plan" : undefined);
     const labels: Record<string, string> = {
-      "subtopic-research": t("ui.mindsearch_stage_subtopic"),
-      "report-review": t("ui.mindsearch_stage_review"),
-      "research-plan": t("ui.mindsearch_stage_plan"),
-      "delivery-outline": t("ui.mindsearch_stage_delivery_outline"),
-      "delivery-research": t("ui.mindsearch_stage_delivery_research"),
-      "delivery-writing": t("ui.mindsearch_stage_delivery_writing"),
-      "delivery-acceptance": t("ui.mindsearch_stage_delivery_acceptance")
+      "subtopic-research": t("ui.aim_stage_subtopic"),
+      "report-review": t("ui.aim_stage_review"),
+      "research-plan": t("ui.aim_stage_plan"),
+      "delivery-outline": t("ui.aim_stage_delivery_outline"),
+      "delivery-research": t("ui.aim_stage_delivery_research"),
+      "delivery-writing": t("ui.aim_stage_delivery_writing"),
+      "delivery-acceptance": t("ui.aim_stage_delivery_acceptance")
     };
-    if (phase && labels[phase]) box.createEl("p", { text: t("ui.mindsearch_failure_stage", labels[phase]) });
+    if (phase && labels[phase]) box.createEl("p", { text: t("ui.aim_failure_stage", labels[phase]) });
     const reason = attempt?.stopReason ?? branch.researchPlanError ?? "";
-    const timedOut = mindSearchTimedOut(reason);
-    box.createEl("p", { text: t(mindSearchRepairHint(reason)) });
+    const timedOut = aimTimedOut(reason);
+    box.createEl("p", { text: t(aimRepairHint(reason)) });
     if (timedOut)
       this.button(
         box,
-        t("ui.mindsearch_repair_timeout"),
+        t("ui.aim_repair_timeout"),
         () => {
           const terminal = [...branch.results].reverse().find(result => result.kind !== "research");
-          if (terminal) void this.continueMindSearchResearch(branch.questionNodeId, terminal.runId, 600_000);
-          else void this.retryMindSearchSubtopics(branch.id, 600_000);
+          if (terminal) void this.continueAimResearch(branch.questionNodeId, terminal.runId, 600_000);
+          else void this.retryAimSubtopics(branch.id, 600_000);
         },
-        this.mindSearchBusy
+        this.aimBusy
       ).addClass("mod-cta");
   }
 
-  private async retryMindSearchSubtopics(branchId: string, timeoutMs?: number): Promise<void> {
-    const branch = this.map?.mindSearch?.branches.find(item => item.id === branchId),
+  private async retryAimSubtopics(branchId: string, timeoutMs?: number): Promise<void> {
+    const branch = this.map?.aim?.branches.find(item => item.id === branchId),
       question = branch && this.map?.nodes.find(item => item.id === branch.questionNodeId);
     const note = question && this.notes.get(question.id);
-    if (this.closed || !this.path || !branch || !question || !note || this.mindSearchBusy) return;
-    const branchRuns = (this.map?.mindSearch?.runs ?? []).filter(item => item.branchId === branch.id);
+    if (this.closed || !this.path || !branch || !question || !note || this.aimBusy) return;
+    const branchRuns = (this.map?.aim?.runs ?? []).filter(item => item.branchId === branch.id);
     if (
       branchRuns.some(run => {
         const attempt = run.attempts.find(item => item.id === run.currentAttemptId);
@@ -674,37 +674,37 @@ export class VisualAgentMapView extends ItemView {
       return;
     const terminal = branch.results.some(result => result.kind !== "research");
     if (terminal) return;
-    const epoch = this.mindSearchViewEpoch,
+    const epoch = this.aimViewEpoch,
       mapPath = this.path,
       controller = new AbortController();
-    this.mindSearchBusy = true;
-    this.mindSearchController = controller;
-    this.mindSearchActiveQuestionNodeId = question.id;
-    this.mindSearchActivityKind = "research";
+    this.aimBusy = true;
+    this.aimController = controller;
+    this.aimActiveQuestionNodeId = question.id;
+    this.aimActivityKind = "research";
     this.render();
     try {
       if (timeoutMs)
-        await this.plugin.mutate(() => this.mindSearchRuns.configureRetryTimeout(mapPath, branch.id, timeoutMs));
+        await this.plugin.mutate(() => this.aimRuns.configureRetryTimeout(mapPath, branch.id, timeoutMs));
       const result = branch.researchPlan
-        ? await this.mindSearchManual.resumeAnswerResearch(
+        ? await this.aimManual.resumeAnswerResearch(
             mapPath,
             branch.id,
             note.model,
             note.reasoning,
             controller.signal
           )
-        : await this.mindSearchManual.retryAnswerResearch(
+        : await this.aimManual.retryAnswerResearch(
             mapPath,
             branch.id,
             note.model,
             note.reasoning,
             controller.signal
           );
-      if (!this.mindSearchViewIsCurrent(epoch, mapPath) || this.mindSearchController !== controller) return;
+      if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
       const latest = await this.plugin.repo.readMap(mapPath);
-      if (this.mindSearchViewIsCurrent(epoch, mapPath)) {
+      if (this.aimViewIsCurrent(epoch, mapPath)) {
         this.map = latest;
-        await this.hydrate(() => this.mindSearchViewIsCurrent(epoch, mapPath));
+        await this.hydrate(() => this.aimViewIsCurrent(epoch, mapPath));
         this.render();
         this.syncOutline();
       }
@@ -715,42 +715,42 @@ export class VisualAgentMapView extends ItemView {
           this.render();
           this.focusNode(question);
         }
-        new Notice(t("ui.mindsearch_waiting_user"));
-      } else if (result.status === "partial") new Notice(t("ui.mindsearch_research_partial"));
-      else if (result.status === "completed") new Notice(t("ui.mindsearch_research_saved"));
-      else if (result.status === "in-progress") new Notice(t("ui.mindsearch_research_already_running"));
+        new Notice(t("ui.aim_waiting_user"));
+      } else if (result.status === "partial") new Notice(t("ui.aim_research_partial"));
+      else if (result.status === "completed") new Notice(t("ui.aim_research_saved"));
+      else if (result.status === "in-progress") new Notice(t("ui.aim_research_already_running"));
     } catch (error) {
-      if (!this.mindSearchViewIsCurrent(epoch, mapPath) || this.mindSearchController !== controller) return;
+      if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
       if (controller.signal.aborted) new Notice(t("ui.research_stopped_existing_content_was_preserved"));
       else new Notice(error instanceof Error ? error.message : String(error));
       const latest = await this.plugin.repo.readMap(mapPath);
-      if (this.mindSearchViewIsCurrent(epoch, mapPath)) {
+      if (this.aimViewIsCurrent(epoch, mapPath)) {
         this.map = latest;
-        await this.hydrate(() => this.mindSearchViewIsCurrent(epoch, mapPath));
+        await this.hydrate(() => this.aimViewIsCurrent(epoch, mapPath));
         this.render();
         this.syncOutline();
       }
     } finally {
-      if (this.mindSearchController === controller) {
-        this.mindSearchBusy = false;
-        this.mindSearchController = null;
-        this.mindSearchActiveQuestionNodeId = null;
-        this.mindSearchActivityKind = null;
-        if (this.mindSearchViewIsCurrent(epoch, mapPath)) this.render();
+      if (this.aimController === controller) {
+        this.aimBusy = false;
+        this.aimController = null;
+        this.aimActiveQuestionNodeId = null;
+        this.aimActivityKind = null;
+        if (this.aimViewIsCurrent(epoch, mapPath)) this.render();
       }
     }
   }
-  async reviewMindSearchFailedReport(
+  async reviewAimFailedReport(
     runId: string,
     diagnosticNotePath: string,
     signal?: AbortSignal
   ): Promise<ManualResearchResult> {
     if (this.closed || !this.map || !this.path || this.builtIn)
-      throw new Error("Open the saved MindSearch map before reviewing a failed report.");
+      throw new Error("Open the saved AIM map before reviewing a failed report.");
     const mapPath = this.path,
-      epoch = this.mindSearchViewEpoch;
-    const outcome = await this.mindSearchManual.reviewFailedAttemptReport(mapPath, runId, diagnosticNotePath, signal);
-    const isCurrent = () => this.mindSearchViewIsCurrent(epoch, mapPath) && !signal?.aborted;
+      epoch = this.aimViewEpoch;
+    const outcome = await this.aimManual.reviewFailedAttemptReport(mapPath, runId, diagnosticNotePath, signal);
+    const isCurrent = () => this.aimViewIsCurrent(epoch, mapPath) && !signal?.aborted;
     if (isCurrent()) {
       const latest = await this.plugin.repo.readMap(mapPath);
       if (isCurrent()) {
@@ -764,52 +764,52 @@ export class VisualAgentMapView extends ItemView {
     }
     return outcome;
   }
-  private async planMindSearchFromSelection(nodeId = this.selected): Promise<void> {
+  private async planAimFromSelection(nodeId = this.selected): Promise<void> {
     const node = this.map?.nodes.find(item => item.id === nodeId);
-    if (this.closed || !node || !this.path || !this.map?.mindSearch || this.mindSearchBusy) return;
-    const epoch = this.mindSearchViewEpoch,
+    if (this.closed || !node || !this.path || !this.map?.aim || this.aimBusy) return;
+    const epoch = this.aimViewEpoch,
       mapPath = this.path,
       controller = new AbortController();
     const parentBranchId =
-      this.map.mindSearch.branches.find(branch => branch.results.some(result => result.nodeId === node.id))?.id ?? null;
-    this.mindSearchBusy = true;
-    this.mindSearchController = controller;
-    this.mindSearchActiveQuestionNodeId = node.id;
-    this.mindSearchActivityKind = "planning";
+      this.map.aim.branches.find(branch => branch.results.some(result => result.nodeId === node.id))?.id ?? null;
+    this.aimBusy = true;
+    this.aimController = controller;
+    this.aimActiveQuestionNodeId = node.id;
+    this.aimActivityKind = "planning";
     this.render();
     try {
       const rootNote = this.notes.get(node.id);
       if (
-        node.mindSearchKind === "topic" &&
+        node.aimKind === "topic" &&
         rootNote &&
-        !rootNote.detail.includes("<!-- mindsearch-intake-complete -->")
+        !rootNote.detail.includes("<!-- aim-intake-complete -->")
       ) {
-        this.mindSearchActivityKind = "clarifying";
+        this.aimActivityKind = "clarifying";
         this.render();
-        const questions = await this.mindSearchManual.prepareClarification(rootNote, controller.signal);
-        if (!this.mindSearchViewIsCurrent(epoch, mapPath) || controller.signal.aborted) return;
+        const questions = await this.aimManual.prepareClarification(rootNote, controller.signal);
+        if (!this.aimViewIsCurrent(epoch, mapPath) || controller.signal.aborted) return;
         if (questions.length) {
-          new MindSearchClarificationModal(
+          new AimClarificationModal(
             this.app,
             questions,
             async answers => {
-              if (!this.mindSearchViewIsCurrent(epoch, mapPath))
-                throw new Error("Reopen the original MindSearch map to continue.");
+              if (!this.aimViewIsCurrent(epoch, mapPath))
+                throw new Error("Reopen the original AIM map to continue.");
               await this.plugin.mutate(async () => {
                 const latest = await this.plugin.repo.readNote(node.path);
-                if (!latest.detail.includes("<!-- mindsearch-intake-complete -->")) {
+                if (!latest.detail.includes("<!-- aim-intake-complete -->")) {
                   await this.plugin.repo.updateNote(node.path, {
                     detail:
                       latest.detail +
-                      "\n\n<!-- mindsearch-intake-complete -->\n## " +
-                      translate(this.plugin.settings.language, "note.mindsearch_initial_clarification") +
+                      "\n\n<!-- aim-intake-complete -->\n## " +
+                      translate(this.plugin.settings.language, "note.aim_initial_clarification") +
                       "\n\n" +
                       answers
                   });
                 }
               });
               await this.hydrate();
-              void this.planMindSearchFromSelection(node.id);
+              void this.planAimFromSelection(node.id);
             },
             this.plugin.settings.language === "en"
           ).open();
@@ -818,23 +818,23 @@ export class VisualAgentMapView extends ItemView {
         await this.plugin.mutate(async () => {
           const latest = await this.plugin.repo.readNote(node.path);
           await this.plugin.repo.updateNote(node.path, {
-            detail: latest.detail + "\n\n<!-- mindsearch-intake-complete -->"
+            detail: latest.detail + "\n\n<!-- aim-intake-complete -->"
           });
         });
         await this.hydrate();
       }
-      this.mindSearchActivityKind = "planning";
+      this.aimActivityKind = "planning";
       this.render();
-      const result = await this.planMindSearchQuestion(node.id, randomUUID(), parentBranchId, controller.signal);
-      if (!this.mindSearchViewIsCurrent(epoch, mapPath) || this.mindSearchController !== controller) return;
+      const result = await this.planAimQuestion(node.id, randomUUID(), parentBranchId, controller.signal);
+      if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
       if (result.status === "question") {
         this.selected = result.node.id;
         this.render();
         this.focusNode(result.node);
-        new Notice(t("ui.mindsearch_question_ready"));
+        new Notice(t("ui.aim_question_ready"));
       } else if (result.outcome) {
         const outcome = result.outcome;
-        if (outcome.status === "partial") new Notice(t("ui.mindsearch_research_partial"));
+        if (outcome.status === "partial") new Notice(t("ui.aim_research_partial"));
         else if (outcome.status === "waiting-user") {
           const question = this.map?.nodes.find(item => item.id === outcome.questionNodeId);
           if (question) {
@@ -842,51 +842,51 @@ export class VisualAgentMapView extends ItemView {
             this.render();
             this.focusNode(question);
           }
-          new Notice(t("ui.mindsearch_waiting_user"));
-        } else if (outcome.status === "completed") new Notice(t("ui.mindsearch_research_saved"));
-        else if (outcome.status === "in-progress") new Notice(t("ui.mindsearch_research_already_running"));
-        else new Notice(t("ui.mindsearch_research_result_stale"));
-      } else new Notice(t("ui.mindsearch_no_question_needed"));
+          new Notice(t("ui.aim_waiting_user"));
+        } else if (outcome.status === "completed") new Notice(t("ui.aim_research_saved"));
+        else if (outcome.status === "in-progress") new Notice(t("ui.aim_research_already_running"));
+        else new Notice(t("ui.aim_research_result_stale"));
+      } else new Notice(t("ui.aim_no_question_needed"));
     } catch (error) {
-      if (!this.mindSearchViewIsCurrent(epoch, mapPath) || this.mindSearchController !== controller) return;
+      if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
       if (controller.signal.aborted) new Notice(t("ui.research_stopped_existing_content_was_preserved"));
       else new Notice(error instanceof Error ? error.message : String(error));
     } finally {
-      if (this.mindSearchController === controller) {
-        this.mindSearchBusy = false;
-        this.mindSearchController = null;
-        this.mindSearchActiveQuestionNodeId = null;
-        this.mindSearchActivityKind = null;
-        if (this.mindSearchViewIsCurrent(epoch, mapPath)) this.render();
+      if (this.aimController === controller) {
+        this.aimBusy = false;
+        this.aimController = null;
+        this.aimActiveQuestionNodeId = null;
+        this.aimActivityKind = null;
+        if (this.aimViewIsCurrent(epoch, mapPath)) this.render();
       }
     }
   }
-  private async retryMindSearchFromSavedReport(questionNodeId: string): Promise<void> {
-    const target = this.mindSearchFailedReports.get(questionNodeId),
+  private async retryAimFromSavedReport(questionNodeId: string): Promise<void> {
+    const target = this.aimFailedReports.get(questionNodeId),
       mapPath = this.path,
-      epoch = this.mindSearchViewEpoch;
-    if (this.closed || !target || !mapPath || !this.map?.mindSearch || this.mindSearchBusy || this.builtIn) return;
-    const run = this.map.mindSearch.runs.find(item => item.id === target.runId);
+      epoch = this.aimViewEpoch;
+    if (this.closed || !target || !mapPath || !this.map?.aim || this.aimBusy || this.builtIn) return;
+    const run = this.map.aim.runs.find(item => item.id === target.runId);
     const currentAttempt = run?.attempts.find(item => item.id === run.currentAttemptId);
-    const branch = run && this.map.mindSearch.branches.find(item => item.id === run.branchId);
+    const branch = run && this.map.aim.branches.find(item => item.id === run.branchId);
     if (!run || currentAttempt?.status !== "failed" || branch?.questionNodeId !== questionNodeId) {
-      this.mindSearchFailedReports.delete(questionNodeId);
+      this.aimFailedReports.delete(questionNodeId);
       this.render();
       return;
     }
     const controller = new AbortController();
-    this.mindSearchBusy = true;
-    this.mindSearchController = controller;
-    this.mindSearchActiveQuestionNodeId = questionNodeId;
-    this.mindSearchActivityKind = "research";
+    this.aimBusy = true;
+    this.aimController = controller;
+    this.aimActiveQuestionNodeId = questionNodeId;
+    this.aimActivityKind = "research";
     this.render();
     try {
-      const result = await this.reviewMindSearchFailedReport(
+      const result = await this.reviewAimFailedReport(
         target.runId,
         target.diagnosticNotePath,
         controller.signal
       );
-      if (!this.mindSearchViewIsCurrent(epoch, mapPath) || this.mindSearchController !== controller) return;
+      if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
       if (result.status === "waiting-user") {
         const question = this.map?.nodes.find(item => item.id === result.questionNodeId);
         if (question) {
@@ -894,43 +894,43 @@ export class VisualAgentMapView extends ItemView {
           this.render();
           this.focusNode(question);
         }
-        new Notice(t("ui.mindsearch_waiting_user"));
-      } else if (result.status === "partial") new Notice(t("ui.mindsearch_research_partial"));
-      else if (result.status === "completed") new Notice(t("ui.mindsearch_research_saved"));
-      else if (result.status === "in-progress") new Notice(t("ui.mindsearch_research_already_running"));
-      else new Notice(t("ui.mindsearch_research_result_stale"));
+        new Notice(t("ui.aim_waiting_user"));
+      } else if (result.status === "partial") new Notice(t("ui.aim_research_partial"));
+      else if (result.status === "completed") new Notice(t("ui.aim_research_saved"));
+      else if (result.status === "in-progress") new Notice(t("ui.aim_research_already_running"));
+      else new Notice(t("ui.aim_research_result_stale"));
     } catch (error) {
-      if (!this.mindSearchViewIsCurrent(epoch, mapPath) || this.mindSearchController !== controller) return;
+      if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
       if (controller.signal.aborted) new Notice(t("ui.research_stopped_existing_content_was_preserved"));
       else new Notice(error instanceof Error ? error.message : String(error));
     } finally {
-      if (this.mindSearchController === controller) {
-        this.mindSearchBusy = false;
-        this.mindSearchController = null;
-        this.mindSearchActiveQuestionNodeId = null;
-        this.mindSearchActivityKind = null;
-        if (this.mindSearchViewIsCurrent(epoch, mapPath)) this.render();
+      if (this.aimController === controller) {
+        this.aimBusy = false;
+        this.aimController = null;
+        this.aimActiveQuestionNodeId = null;
+        this.aimActivityKind = null;
+        if (this.aimViewIsCurrent(epoch, mapPath)) this.render();
       }
     }
   }
-  private async continueMindSearchResearch(questionNodeId: string, runId: string, timeoutMs?: number): Promise<void> {
+  private async continueAimResearch(questionNodeId: string, runId: string, timeoutMs?: number): Promise<void> {
     const mapPath = this.path,
-      epoch = this.mindSearchViewEpoch;
-    if (this.closed || !mapPath || !this.map?.mindSearch || this.mindSearchBusy || this.builtIn) return;
-    const run = this.map.mindSearch.runs.find(item => item.id === runId);
-    const branch = run && this.map.mindSearch.branches.find(item => item.id === run.branchId);
+      epoch = this.aimViewEpoch;
+    if (this.closed || !mapPath || !this.map?.aim || this.aimBusy || this.builtIn) return;
+    const run = this.map.aim.runs.find(item => item.id === runId);
+    const branch = run && this.map.aim.branches.find(item => item.id === run.branchId);
     if (!run || branch?.questionNodeId !== questionNodeId) return;
     const controller = new AbortController();
-    this.mindSearchBusy = true;
-    this.mindSearchController = controller;
-    this.mindSearchActiveQuestionNodeId = questionNodeId;
-    this.mindSearchActivityKind = "research";
+    this.aimBusy = true;
+    this.aimController = controller;
+    this.aimActiveQuestionNodeId = questionNodeId;
+    this.aimActivityKind = "research";
     this.render();
-    const isCurrent = () => this.mindSearchViewIsCurrent(epoch, mapPath) && this.mindSearchController === controller;
+    const isCurrent = () => this.aimViewIsCurrent(epoch, mapPath) && this.aimController === controller;
     try {
       if (timeoutMs && branch)
-        await this.plugin.mutate(() => this.mindSearchRuns.configureRetryTimeout(mapPath, branch.id, timeoutMs));
-      const result = await this.mindSearchManual.continuePartial(
+        await this.plugin.mutate(() => this.aimRuns.configureRetryTimeout(mapPath, branch.id, timeoutMs));
+      const result = await this.aimManual.continuePartial(
         mapPath,
         runId,
         undefined,
@@ -941,10 +941,10 @@ export class VisualAgentMapView extends ItemView {
       // Select the new question so the toolbar answers it, not the previously selected one; the finally block re-renders after reloading the map.
       if (result.status === "waiting-user") {
         this.selected = result.questionNodeId;
-        new Notice(t("ui.mindsearch_waiting_user"));
-      } else if (result.status === "partial") new Notice(t("ui.mindsearch_research_partial"));
-      else if (result.status === "completed") new Notice(t("ui.mindsearch_research_saved"));
-      else if (result.status === "in-progress") new Notice(t("ui.mindsearch_research_already_running"));
+        new Notice(t("ui.aim_waiting_user"));
+      } else if (result.status === "partial") new Notice(t("ui.aim_research_partial"));
+      else if (result.status === "completed") new Notice(t("ui.aim_research_saved"));
+      else if (result.status === "in-progress") new Notice(t("ui.aim_research_already_running"));
     } catch (error) {
       if (!isCurrent()) return;
       new Notice(
@@ -955,9 +955,9 @@ export class VisualAgentMapView extends ItemView {
             : String(error)
       );
     } finally {
-      if (this.mindSearchController === controller) {
+      if (this.aimController === controller) {
         try {
-          if (this.mindSearchViewIsCurrent(epoch, mapPath)) {
+          if (this.aimViewIsCurrent(epoch, mapPath)) {
             const latest = await this.plugin.repo.readMap(mapPath);
             if (isCurrent()) {
               this.map = latest;
@@ -967,12 +967,12 @@ export class VisualAgentMapView extends ItemView {
         } catch (error) {
           if (isCurrent()) new Notice(error instanceof Error ? error.message : String(error));
         } finally {
-          if (this.mindSearchController === controller) {
-            this.mindSearchBusy = false;
-            this.mindSearchController = null;
-            this.mindSearchActiveQuestionNodeId = null;
-            this.mindSearchActivityKind = null;
-            if (this.mindSearchViewIsCurrent(epoch, mapPath)) {
+          if (this.aimController === controller) {
+            this.aimBusy = false;
+            this.aimController = null;
+            this.aimActiveQuestionNodeId = null;
+            this.aimActivityKind = null;
+            if (this.aimViewIsCurrent(epoch, mapPath)) {
               this.render();
               this.syncOutline();
             }
@@ -981,56 +981,56 @@ export class VisualAgentMapView extends ItemView {
       }
     }
   }
-  private openMindSearchAnswer(node: MapNode): void {
-    const contract = node.mindSearchQuestion,
+  private openAimAnswer(node: MapNode): void {
+    const contract = node.aimQuestion,
       note = this.notes.get(node.id);
-    if (this.closed || !contract || !note || this.mindSearchBusy) return;
-    const epoch = this.mindSearchViewEpoch,
+    if (this.closed || !contract || !note || this.aimBusy) return;
+    const epoch = this.aimViewEpoch,
       mapPath = this.path,
       requestId = contract.requestId;
     if (
       mapPath &&
-      (this.map?.mindSearch?.branches.filter(branch => branch.questionNodeId === node.id).length ?? 0) > 1
+      (this.map?.aim?.branches.filter(branch => branch.questionNodeId === node.id).length ?? 0) > 1
     ) {
       void this.plugin
         .mutate(async () => {
-          const repaired = await this.mindSearchRuns.recoverAnswerBranches(mapPath);
-          if (!repaired || !this.mindSearchViewIsCurrent(epoch, mapPath)) return;
+          const repaired = await this.aimRuns.recoverAnswerBranches(mapPath);
+          if (!repaired || !this.aimViewIsCurrent(epoch, mapPath)) return;
           this.map = await this.plugin.repo.readMap(mapPath);
-          await this.hydrate(() => this.mindSearchViewIsCurrent(epoch, mapPath));
-          if (!this.mindSearchViewIsCurrent(epoch, mapPath)) return;
+          await this.hydrate(() => this.aimViewIsCurrent(epoch, mapPath));
+          if (!this.aimViewIsCurrent(epoch, mapPath)) return;
           this.render();
           const current = this.map?.nodes.find(item => item.id === node.id);
-          if (current) this.openMindSearchAnswer(current);
+          if (current) this.openAimAnswer(current);
         })
         .catch(error => {
-          if (this.mindSearchViewIsCurrent(epoch, mapPath))
+          if (this.aimViewIsCurrent(epoch, mapPath))
             new Notice(error instanceof Error ? error.message : String(error));
         });
       return;
     }
-    new MindSearchAnswerModal(
+    new AimAnswerModal(
       this.app,
       note.summary,
       contract.options,
       async input => {
         const currentQuestion = this.map?.nodes.find(item => item.id === node.id);
         if (
-          !this.mindSearchViewIsCurrent(epoch, mapPath) ||
-          currentQuestion?.mindSearchQuestion?.requestId !== requestId ||
-          this.mindSearchBusy
+          !this.aimViewIsCurrent(epoch, mapPath) ||
+          currentQuestion?.aimQuestion?.requestId !== requestId ||
+          this.aimBusy
         )
           return;
         const controller = new AbortController();
-        this.mindSearchBusy = true;
-        this.mindSearchController = controller;
-        this.mindSearchActiveQuestionNodeId = node.id;
-        this.mindSearchActivityKind = "research";
+        this.aimBusy = true;
+        this.aimController = controller;
+        this.aimActiveQuestionNodeId = node.id;
+        this.aimActivityKind = "research";
         this.render();
         try {
-          const result = await this.submitMindSearchAnswer(node.id, input, controller.signal);
-          if (!this.mindSearchViewIsCurrent(epoch, mapPath) || this.mindSearchController !== controller) return;
-          this.mindSearchAnswerRequestIds.delete(node.id);
+          const result = await this.submitAimAnswer(node.id, input, controller.signal);
+          if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
+          this.aimAnswerRequestIds.delete(node.id);
           if (result.status === "waiting-user") {
             const question = this.map?.nodes.find(item => item.id === result.questionNodeId);
             if (question) {
@@ -1038,34 +1038,34 @@ export class VisualAgentMapView extends ItemView {
               this.render();
               this.focusNode(question);
             }
-            new Notice(t("ui.mindsearch_waiting_user"));
-          } else if (result.status === "partial") new Notice(t("ui.mindsearch_research_partial"));
-          else if (result.status === "completed") new Notice(t("ui.mindsearch_research_saved"));
-          else if (result.status === "in-progress") new Notice(t("ui.mindsearch_research_already_running"));
-          else new Notice(t("ui.mindsearch_research_result_stale"));
+            new Notice(t("ui.aim_waiting_user"));
+          } else if (result.status === "partial") new Notice(t("ui.aim_research_partial"));
+          else if (result.status === "completed") new Notice(t("ui.aim_research_saved"));
+          else if (result.status === "in-progress") new Notice(t("ui.aim_research_already_running"));
+          else new Notice(t("ui.aim_research_result_stale"));
         } catch (error) {
-          if (!this.mindSearchViewIsCurrent(epoch, mapPath) || this.mindSearchController !== controller) throw error;
-          this.mindSearchAnswerRequestIds.set(node.id, input.requestId);
+          if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) throw error;
+          this.aimAnswerRequestIds.set(node.id, input.requestId);
           if (controller.signal.aborted) new Notice(t("ui.research_stopped_existing_content_was_preserved"));
           else new Notice(error instanceof Error ? error.message : String(error));
           throw error;
         } finally {
-          if (this.mindSearchController === controller) {
-            this.mindSearchBusy = false;
-            this.mindSearchController = null;
-            this.mindSearchActiveQuestionNodeId = null;
-            this.mindSearchActivityKind = null;
-            if (this.mindSearchViewIsCurrent(epoch, mapPath)) this.render();
+          if (this.aimController === controller) {
+            this.aimBusy = false;
+            this.aimController = null;
+            this.aimActiveQuestionNodeId = null;
+            this.aimActivityKind = null;
+            if (this.aimViewIsCurrent(epoch, mapPath)) this.render();
           }
         }
       },
-      this.mindSearchAnswerRequestIds.get(node.id) ?? randomUUID()
+      this.aimAnswerRequestIds.get(node.id) ?? randomUUID()
     ).open();
   }
   async openBuiltInSample(forceTour = false): Promise<void> {
-    const viewEpoch = this.mindSearchViewEpoch,
+    const viewEpoch = this.aimViewEpoch,
       openEpoch = ++this.mapOpenEpoch;
-    const isCurrent = () => !this.closed && this.mindSearchViewEpoch === viewEpoch && this.mapOpenEpoch === openEpoch;
+    const isCurrent = () => !this.closed && this.aimViewEpoch === viewEpoch && this.mapOpenEpoch === openEpoch;
     if (this.viewportTimer !== null) {
       window.clearTimeout(this.viewportTimer);
       this.viewportTimer = null;
@@ -1231,11 +1231,11 @@ export class VisualAgentMapView extends ItemView {
     const before = clone(this.map),
       ids = branch ? new Set([node.id, ...descendants(before.nodes, node.id)]) : new Set([node.id]);
     const removableQuestions = new Set(
-      node.mindSearchKind === "question"
-        ? before.nodes.filter(item => ids.has(item.id) && item.mindSearchKind === "question").map(item => item.id)
+      node.aimKind === "question"
+        ? before.nodes.filter(item => ids.has(item.id) && item.aimKind === "question").map(item => item.id)
         : []
     );
-    this.assertMindSearchReferencesRemain(before, ids, false, removableQuestions);
+    this.assertAimReferencesRemain(before, ids, false, removableQuestions);
     const removed = before.nodes.filter(item => ids.has(item.id)),
       moves: FileMove[] = [];
     try {
@@ -1249,7 +1249,7 @@ export class VisualAgentMapView extends ItemView {
       }
       const after = clone(before);
       after.nodes = removeNodes(after.nodes, node.id, branch);
-      this.removeMindSearchReferences(after, ids, before.nodes);
+      this.removeAimReferences(after, ids, before.nodes);
       await this.plugin.repo.saveMap(this.path, after);
       this.map = after;
       this.selected = null;
@@ -1295,7 +1295,7 @@ export class VisualAgentMapView extends ItemView {
       t("ui.remove_from_map"),
       t("ui.the_note_will_move_to_this_topic_s_unassigned_folder_you_can"),
       [
-        ...(!this.map?.mindSearch || node.mindSearchKind !== "question"
+        ...(!this.map?.aim || node.aimKind !== "question"
           ? [
               {
                 label: t("ui.remove_only_this_node_children_become_roots"),
@@ -1316,11 +1316,11 @@ export class VisualAgentMapView extends ItemView {
     for (const root of roots) {
       const branchIds = new Set([root.id, ...descendants(before.nodes, root.id)]);
       for (const id of branchIds) ids.add(id);
-      if (root.mindSearchKind === "question")
+      if (root.aimKind === "question")
         for (const item of before.nodes)
-          if (branchIds.has(item.id) && item.mindSearchKind === "question") removableQuestions.add(item.id);
+          if (branchIds.has(item.id) && item.aimKind === "question") removableQuestions.add(item.id);
     }
-    this.assertMindSearchReferencesRemain(before, ids, false, removableQuestions);
+    this.assertAimReferencesRemain(before, ids, false, removableQuestions);
     const removed = before.nodes.filter(node => ids.has(node.id)),
       moves: FileMove[] = [];
     try {
@@ -1334,7 +1334,7 @@ export class VisualAgentMapView extends ItemView {
       }
       const after = clone(before);
       after.nodes = after.nodes.filter(node => !ids.has(node.id));
-      this.removeMindSearchReferences(after, ids, before.nodes);
+      this.removeAimReferences(after, ids, before.nodes);
       await this.plugin.repo.saveMap(this.path, after);
       this.map = after;
       this.selected = null;
@@ -1386,7 +1386,7 @@ export class VisualAgentMapView extends ItemView {
   }
   private async moveSelected(target: MapNode): Promise<void> {
     const roots = this.selectedRoots();
-    this.assertMindSearchReferencesRemain(this.map!, new Set(roots.map(root => root.id)), true);
+    this.assertAimReferencesRemain(this.map!, new Set(roots.map(root => root.id)), true);
     await this.mapChange(map => {
       let offset = 0;
       for (const root of roots) {
@@ -1401,13 +1401,13 @@ export class VisualAgentMapView extends ItemView {
     this.multiSelected.clear();
     this.render();
   }
-  private assertMindSearchReferencesRemain(
+  private assertAimReferencesRemain(
     map: MapDocument,
     ids: Set<string>,
     moving = false,
     removableQuestionNodeIds = new Set<string>()
   ): void {
-    const data = map.mindSearch;
+    const data = map.aim;
     if (!data) return;
     const protectedIds = new Set<string>();
     const removableBranchIds = new Set(
@@ -1427,37 +1427,37 @@ export class VisualAgentMapView extends ItemView {
       data.questionDraft &&
       (ids.has(data.questionDraft.parentId) || removableBranchIds.has(data.questionDraft.parentBranchId ?? ""))
     )
-      throw new Error("A MindSearch question is still being saved and cannot be removed yet.");
+      throw new Error("A AIM question is still being saved and cannot be removed yet.");
     if (
       (data.resultDrafts ?? []).some(draft => removableBranchIds.has(draft.branchId)) ||
       data.pendingCommits.some(commit => removableBranchIds.has(commit.branchId))
     )
-      throw new Error("A MindSearch result is still being saved and cannot be removed yet.");
+      throw new Error("A AIM result is still being saved and cannot be removed yet.");
     if ([...ids].some(id => protectedIds.has(id)))
       throw new Error(
         moving
-          ? "MindSearch question and result nodes referenced by saved branches cannot be moved."
-          : "MindSearch question and result nodes referenced by saved branches cannot be removed."
+          ? "AIM question and result nodes referenced by saved branches cannot be moved."
+          : "AIM question and result nodes referenced by saved branches cannot be removed."
       );
     for (const run of data.runs)
       if (
         removableBranchIds.has(run.branchId) &&
         run.attempts.some(attempt => attempt.status === "running" || attempt.status === "saving")
       )
-        throw new Error("A MindSearch branch is still running and cannot be removed yet.");
+        throw new Error("A AIM branch is still running and cannot be removed yet.");
   }
-  private removeMindSearchReferences(
+  private removeAimReferences(
     map: MapDocument,
     removedNodeIds: Set<string>,
     originalNodes: MapNode[] = map.nodes
   ): void {
-    const data = map.mindSearch;
+    const data = map.aim;
     if (!data) return;
-    for (const question of originalNodes.filter(node => removedNodeIds.has(node.id) && node.mindSearchQuestion)) {
+    for (const question of originalNodes.filter(node => removedNodeIds.has(node.id) && node.aimQuestion)) {
       const parent = map.nodes.find(node => node.id === question.parentId && !removedNodeIds.has(node.id));
       if (parent)
-        parent.mindSearchDismissedQuestionRequestIds = [
-          ...new Set([...(parent.mindSearchDismissedQuestionRequestIds ?? []), question.mindSearchQuestion!.requestId])
+        parent.aimDismissedQuestionRequestIds = [
+          ...new Set([...(parent.aimDismissedQuestionRequestIds ?? []), question.aimQuestion!.requestId])
         ];
     }
     const removedBranchIds = new Set(
@@ -1480,10 +1480,10 @@ export class VisualAgentMapView extends ItemView {
     )
       delete data.questionDraft;
     for (const node of map.nodes) {
-      if (node.mindSearchConvergesFromNodeIds)
-        node.mindSearchConvergesFromNodeIds = node.mindSearchConvergesFromNodeIds.filter(id => !removedNodeIds.has(id));
-      if (node.mindSearchQuestion?.parentBranchId && removedBranchIds.has(node.mindSearchQuestion.parentBranchId))
-        node.mindSearchQuestion.parentBranchId = null;
+      if (node.aimConvergesFromNodeIds)
+        node.aimConvergesFromNodeIds = node.aimConvergesFromNodeIds.filter(id => !removedNodeIds.has(id));
+      if (node.aimQuestion?.parentBranchId && removedBranchIds.has(node.aimQuestion.parentBranchId))
+        node.aimQuestion.parentBranchId = null;
     }
   }
   private async copySelected(target: MapNode): Promise<void> {
@@ -1876,13 +1876,13 @@ export class VisualAgentMapView extends ItemView {
       });
     new ChoiceModal(this.app, t("ui.more_mind_map_actions"), t("ui.additional_map_management_actions"), choices).open();
   }
-  private mindSearchActiveForPath(path: string): boolean {
+  private aimActiveForPath(path: string): boolean {
     return this.app.workspace.getLeavesOfType(VIEW_TYPE).some(leaf => {
       const view = leaf.view;
-      if (!(view instanceof VisualAgentMapView) || view.path !== path || !view.map?.mindSearch) return false;
+      if (!(view instanceof VisualAgentMapView) || view.path !== path || !view.map?.aim) return false;
       return (
-        view.mindSearchBusy ||
-        view.map.mindSearch.runs.some(run => {
+        view.aimBusy ||
+        view.map.aim.runs.some(run => {
           const attempt = run.attempts.find(item => item.id === run.currentAttemptId);
           return attempt?.status === "running" || attempt?.status === "saving";
         })
@@ -1891,15 +1891,15 @@ export class VisualAgentMapView extends ItemView {
   }
   private renameCurrentMap(): void {
     if (!this.map) return;
-    if (this.mindSearchActiveForPath(this.path)) {
-      new Notice(t("ui.mindsearch_research_already_running"));
+    if (this.aimActiveForPath(this.path)) {
+      new Notice(t("ui.aim_research_already_running"));
       return;
     }
     new NameModal(this.app, t("ui.rename_mind_map"), this.map.title, title =>
       this.enqueue(async () => {
         if (!this.map) return;
-        if (this.mindSearchActiveForPath(this.path)) {
-          new Notice(t("ui.mindsearch_research_already_running"));
+        if (this.aimActiveForPath(this.path)) {
+          new Notice(t("ui.aim_research_already_running"));
           return;
         }
         if (!this.path.startsWith(`${this.plugin.settings.topicsFolder}/`)) {
@@ -2160,11 +2160,11 @@ export class VisualAgentMapView extends ItemView {
       this.button(toolbar, t("ui.more"), () => this.openMapActions());
     }
     const selectedNode = this.map?.nodes.find(node => node.id === this.selected);
-    if (!this.builtIn && this.map?.mindSearch) {
-      const statusbar = this.contentEl.createDiv(`vam-mindsearch-statusbar${this.mindSearchBusy ? " is-active" : ""}`);
+    if (!this.builtIn && this.map?.aim) {
+      const statusbar = this.contentEl.createDiv(`vam-aim-statusbar${this.aimBusy ? " is-active" : ""}`);
       statusbar.setAttr("aria-live", "polite");
-      const data = this.map.mindSearch;
-      const questions = this.map.nodes.filter(node => node.mindSearchKind === "question");
+      const data = this.map.aim;
+      const questions = this.map.nodes.filter(node => node.aimKind === "question");
       const pendingQuestion = questions.find(
         question => !data.branches.some(branch => branch.questionNodeId === question.id)
       );
@@ -2175,88 +2175,88 @@ export class VisualAgentMapView extends ItemView {
       });
       let stateText: string;
       let stateClass: string;
-      if (this.mindSearchBusy) {
-        const activeTitle = this.notes.get(this.mindSearchActiveQuestionNodeId ?? "")?.title ?? this.map.title;
-        const planning = this.mindSearchActivityKind === "planning";
+      if (this.aimBusy) {
+        const activeTitle = this.notes.get(this.aimActiveQuestionNodeId ?? "")?.title ?? this.map.title;
+        const planning = this.aimActivityKind === "planning";
         stateText =
-          this.mindSearchActivityKind === "clarifying"
-            ? t("ui.mindsearch_preparing_clarification")
-            : t(planning ? "ui.mindsearch_status_planning_0" : "ui.mindsearch_status_researching_0", activeTitle);
+          this.aimActivityKind === "clarifying"
+            ? t("ui.aim_preparing_clarification")
+            : t(planning ? "ui.aim_status_planning_0" : "ui.aim_status_researching_0", activeTitle);
         stateClass = "running";
       } else if (runningBranch) {
         const activeTitle = this.notes.get(runningBranch.questionNodeId)?.title ?? this.map.title;
-        stateText = t("ui.mindsearch_status_researching_0", activeTitle);
+        stateText = t("ui.aim_status_researching_0", activeTitle);
         stateClass = "running";
       } else if (!questions.length) {
-        stateText = t("ui.mindsearch_status_ready");
+        stateText = t("ui.aim_status_ready");
         stateClass = "idea";
       } else if (pendingQuestion) {
-        stateText = t("ui.mindsearch_status_waiting_answer_0", this.notes.get(pendingQuestion.id)?.title ?? "");
+        stateText = t("ui.aim_status_waiting_answer_0", this.notes.get(pendingQuestion.id)?.title ?? "");
         stateClass = "idea";
       } else if (data.branches.some(branch => branch.results.some(result => result.kind === "conclusion"))) {
-        stateText = t("ui.mindsearch_status_complete");
+        stateText = t("ui.aim_status_complete");
         stateClass = "completed";
       } else {
-        stateText = t("ui.mindsearch_status_exploring");
+        stateText = t("ui.aim_status_exploring");
         stateClass = "idea";
       }
-      statusbar.createSpan({ cls: "vam-mindsearch-status-title", text: "AIM" });
-      statusbar.createSpan({ cls: `vam-mindsearch-status-value vam-status-${stateClass}`, text: stateText });
-      if (this.mindSearchBusy)
+      statusbar.createSpan({ cls: "vam-aim-status-title", text: "AIM" });
+      statusbar.createSpan({ cls: `vam-aim-status-value vam-status-${stateClass}`, text: stateText });
+      if (this.aimBusy)
         this.button(statusbar, t("ui.stop_research"), () => {
-          this.mindSearchController?.abort();
+          this.aimController?.abort();
         });
-      const attribution = this.contentEl.createDiv("vam-mindsearch-attribution");
-      attribution.createSpan({ text: t("ui.mindsearch_attribution") });
+      const attribution = this.contentEl.createDiv("vam-aim-attribution");
+      attribution.createSpan({ text: t("ui.aim_attribution") });
       attribution.createEl("a", {
-        text: t("ui.mindsearch_source_project"),
+        text: t("ui.aim_source_project"),
         href: "https://github.com/InternLM/MindSearch",
         attr: { target: "_blank", rel: "noopener noreferrer" }
       });
       attribution.createEl("a", {
-        text: t("ui.mindsearch_source_paper"),
+        text: t("ui.aim_source_paper"),
         href: "https://arxiv.org/abs/2407.20183",
         attr: { target: "_blank", rel: "noopener noreferrer" }
       });
     }
-    if (!this.builtIn && this.map?.mindSearch) {
-      const data = this.map.mindSearch;
+    if (!this.builtIn && this.map?.aim) {
+      const data = this.map.aim;
       const isAnswered = (node: MapNode) => data.branches.some(branch => branch.questionNodeId === node.id);
       const pending = this.map.nodes.find(
-        node => node.mindSearchKind === "question" && node.mindSearchQuestion && !isAnswered(node)
+        node => node.aimKind === "question" && node.aimQuestion && !isAnswered(node)
       );
       const selectedQuestion =
-        selectedNode?.mindSearchKind === "question" && selectedNode.mindSearchQuestion ? selectedNode : undefined;
+        selectedNode?.aimKind === "question" && selectedNode.aimQuestion ? selectedNode : undefined;
       if (selectedQuestion || pending) {
-        const actions = toolbar.createDiv("vam-mindsearch-actions");
+        const actions = toolbar.createDiv("vam-aim-actions");
         // Answering an already answered question opens an alternative branch; label it so it is never mistaken for the pending question.
         if (pending && pending.id !== selectedQuestion?.id)
           this.button(
             actions,
-            t("ui.mindsearch_answer_pending_question"),
+            t("ui.aim_answer_pending_question"),
             () => {
               this.selected = pending.id;
               this.render();
               this.focusNode(pending);
-              this.openMindSearchAnswer(pending);
+              this.openAimAnswer(pending);
             },
-            this.mindSearchBusy
+            this.aimBusy
           );
         if (selectedQuestion)
           this.button(
             actions,
-            t(isAnswered(selectedQuestion) ? "ui.mindsearch_answer_again_new_branch" : "ui.mindsearch_answer_question"),
-            () => this.openMindSearchAnswer(selectedQuestion),
-            this.mindSearchBusy
+            t(isAnswered(selectedQuestion) ? "ui.aim_answer_again_new_branch" : "ui.aim_answer_question"),
+            () => this.openAimAnswer(selectedQuestion),
+            this.aimBusy
           );
-        if (selectedQuestion && this.mindSearchFailedReports.has(selectedQuestion.id))
+        if (selectedQuestion && this.aimFailedReports.has(selectedQuestion.id))
           this.button(
             actions,
-            t("ui.mindsearch_retry_saved_report"),
+            t("ui.aim_retry_saved_report"),
             () => {
-              void this.retryMindSearchFromSavedReport(selectedQuestion.id);
+              void this.retryAimFromSavedReport(selectedQuestion.id);
             },
-            this.mindSearchBusy
+            this.aimBusy
           );
       }
     }
@@ -2326,7 +2326,7 @@ export class VisualAgentMapView extends ItemView {
         this.button(actions, t("ui.repair_agent_workspace"), () => this.enqueue(() => this.plugin.repairWorkspace()));
       }
       this.button(actions, t("ui.create_a_new_mind_map"), () => this.openNewMindMapModal()).addClass("mod-cta");
-      this.button(actions, t("ui.mindsearch_create_map"), () => this.openMindSearchStart());
+      this.button(actions, t("ui.aim_create_map"), () => this.openAimStart());
       this.button(actions, t("ui.view_sample"), () => this.enqueue(() => this.openBuiltInSample(true)));
       if (this.deletedMap?.deleted)
         this.button(actions, t("ui.restore_deleted_map"), () => this.enqueue(() => this.restoreDeletedMapFromUi()));
@@ -2402,12 +2402,12 @@ export class VisualAgentMapView extends ItemView {
     }
     const tools = this.contentEl.createDiv("vam-map-tools");
     if (!this.builtIn) {
-      const mindSearchMode = !!this.map.mindSearch;
-      if (!mindSearchMode)
+      const aimMode = !!this.map.aim;
+      if (!aimMode)
         this.button(tools, t("ui.topic"), () => this.enqueue(() => this.addNode(null))).addClass("mod-cta");
-      if (mindSearchMode) this.button(tools, t("ui.create_a_new_mind_map"), () => this.openNewMindMapModal());
-      this.button(tools, t("ui.mindsearch_create_map"), () => this.openMindSearchStart());
-      if (!mindSearchMode) this.button(tools, t("ui.organize"), () => this.enqueue(() => this.openOrganizer()));
+      if (aimMode) this.button(tools, t("ui.create_a_new_mind_map"), () => this.openNewMindMapModal());
+      this.button(tools, t("ui.aim_create_map"), () => this.openAimStart());
+      if (!aimMode) this.button(tools, t("ui.organize"), () => this.enqueue(() => this.openOrganizer()));
       this.button(tools, t("ui.auto_layout"), () =>
         this.enqueue(() =>
           this.mapChange(map => {
@@ -2415,7 +2415,7 @@ export class VisualAgentMapView extends ItemView {
           }, false)
         )
       );
-      if (!mindSearchMode) {
+      if (!aimMode) {
         const integrate = this.button(
           tools,
           this.integrationMode ? t("ui.finish_topic_selection") : t("ui.select_topics"),
@@ -2495,12 +2495,12 @@ export class VisualAgentMapView extends ItemView {
       const emptyMap = this.viewportEl.createDiv("vam-empty");
       emptyMap.createSpan({
         text: t(
-          this.map.mindSearch
-            ? "ui.mindsearch_empty_map_hint"
+          this.map.aim
+            ? "ui.aim_empty_map_hint"
             : "ui.this_mind_map_has_no_topics_click_topic_to_create_the_first"
         )
       });
-      if (!this.map.mindSearch) this.button(emptyMap, t("ui.topic"), () => this.enqueue(() => this.addNode(null)));
+      if (!this.map.aim) this.button(emptyMap, t("ui.topic"), () => this.enqueue(() => this.addNode(null)));
     }
     this.setupPan();
     this.transform();
@@ -2516,8 +2516,8 @@ export class VisualAgentMapView extends ItemView {
       card = this.stageEl.createDiv({
         cls: `vam-node${node.id === this.selected || this.multiSelected.has(node.id) ? " is-selected" : ""}`
       });
-    if (node.mindSearchKind) card.setAttr("data-mindsearch-kind", node.mindSearchKind);
-    if (node.mindSearchKind === "conclusion") {
+    if (node.aimKind) card.setAttr("data-aim-kind", node.aimKind);
+    if (node.aimKind === "conclusion") {
       const background = createSvg("svg");
       background.addClass("vam-conclusion-background");
       background.setAttribute("viewBox", "0 0 100 100");
@@ -2549,42 +2549,42 @@ export class VisualAgentMapView extends ItemView {
     }
     const batch = this.plugin.expansionBatches.get(node.path);
     const active = this.plugin.running?.has(node.path) || this.plugin.quickExpandPending?.has(node.path);
-    if (node.mindSearchKind === "question" && this.map?.mindSearch) {
-      const status = mindSearchQuestionStatus(this.map, node.id, this.mindSearchActiveQuestionNodeId);
-      const key: Record<MindSearchQuestionStatus, TranslationKey> = {
-        running: "ui.mindsearch_branch_running",
-        completed: "ui.mindsearch_branch_completed",
-        partial: "ui.mindsearch_branch_partial",
-        failed: "ui.mindsearch_branch_failed",
-        cancelled: "ui.mindsearch_branch_cancelled",
-        not_started: "ui.mindsearch_branch_not_started"
+    if (node.aimKind === "question" && this.map?.aim) {
+      const status = aimQuestionStatus(this.map, node.id, this.aimActiveQuestionNodeId);
+      const key: Record<AimQuestionStatus, TranslationKey> = {
+        running: "ui.aim_branch_running",
+        completed: "ui.aim_branch_completed",
+        partial: "ui.aim_branch_partial",
+        failed: "ui.aim_branch_failed",
+        cancelled: "ui.aim_branch_cancelled",
+        not_started: "ui.aim_branch_not_started"
       };
       header.createSpan({
-        cls: `vam-status vam-mindsearch-question-status vam-status-${status === "running" ? "running" : status === "completed" ? "completed" : status === "not_started" ? "idea" : "error"}`,
+        cls: `vam-status vam-aim-question-status vam-status-${status === "running" ? "running" : status === "completed" ? "completed" : status === "not_started" ? "idea" : "error"}`,
         text:
-          status === "not_started" && this.map.mindSearch.branches.some(branch => branch.questionNodeId === node.id)
-            ? t("ui.mindsearch_answered_not_started")
+          status === "not_started" && this.map.aim.branches.some(branch => branch.questionNodeId === node.id)
+            ? t("ui.aim_answered_not_started")
             : t(key[status])
       });
     } else if (
-      node.mindSearchKind === "topic" &&
-      this.map?.mindSearch &&
-      this.map.mindSearch.branches.some(branch => branch.questionNodeId === node.id && !branch.parentBranchId)
+      node.aimKind === "topic" &&
+      this.map?.aim &&
+      this.map.aim.branches.some(branch => branch.questionNodeId === node.id && !branch.parentBranchId)
     ) {
-      const status = mindSearchQuestionStatus(this.map, node.id, this.mindSearchActiveQuestionNodeId);
-      const key: Record<MindSearchQuestionStatus, TranslationKey> = {
-        running: "ui.mindsearch_branch_running",
-        completed: "ui.mindsearch_branch_completed",
-        partial: "ui.mindsearch_branch_partial",
-        failed: "ui.mindsearch_branch_failed",
-        cancelled: "ui.mindsearch_branch_cancelled",
-        not_started: "ui.mindsearch_branch_not_started"
+      const status = aimQuestionStatus(this.map, node.id, this.aimActiveQuestionNodeId);
+      const key: Record<AimQuestionStatus, TranslationKey> = {
+        running: "ui.aim_branch_running",
+        completed: "ui.aim_branch_completed",
+        partial: "ui.aim_branch_partial",
+        failed: "ui.aim_branch_failed",
+        cancelled: "ui.aim_branch_cancelled",
+        not_started: "ui.aim_branch_not_started"
       };
       header.createSpan({
-        cls: `vam-status vam-mindsearch-question-status vam-status-${status === "running" ? "running" : status === "completed" ? "completed" : status === "not_started" ? "idea" : "error"}`,
+        cls: `vam-status vam-aim-question-status vam-status-${status === "running" ? "running" : status === "completed" ? "completed" : status === "not_started" ? "idea" : "error"}`,
         text:
-          status === "not_started" && this.map.mindSearch.branches.some(branch => branch.questionNodeId === node.id)
-            ? t("ui.mindsearch_answered_not_started")
+          status === "not_started" && this.map.aim.branches.some(branch => branch.questionNodeId === node.id)
+            ? t("ui.aim_answered_not_started")
             : t(key[status])
       });
     } else if (active || !note || note.status !== "completed")
@@ -2623,12 +2623,12 @@ export class VisualAgentMapView extends ItemView {
       badge.setAttr("title", quickError);
     }
     const pendingCount = this.plugin.pendingSuggestions.get(node.path)?.length ?? 0;
-    if (pendingCount && !this.builtIn && !this.integrationMode && !this.map?.mindSearch)
+    if (pendingCount && !this.builtIn && !this.integrationMode && !this.map?.aim)
       this.button(header, t("ui.view_0_expansion_suggestions", pendingCount), () =>
         this.openNodePanel(node, "proposals")
       ).addClass("vam-badge-new");
     if (!this.builtIn && !this.integrationMode) {
-      if (!this.map?.mindSearch) {
+      if (!this.map?.aim) {
         const ai = this.button(header, "✦", () => this.openNextStep(node));
         ai.addClass("vam-node-tool");
         ai.setAttr("aria-label", t("ui.how_would_you_like_to_explore_next"));
@@ -2645,25 +2645,25 @@ export class VisualAgentMapView extends ItemView {
           rename.setAttr("aria-label", t("ui.new_topic_name"));
         }
       }
-      if (node.mindSearchKind === "question") {
+      if (node.aimKind === "question") {
         const remove = this.button(header, "×", () => this.confirmRemoveNode(node));
         remove.addClass("vam-node-tool");
         remove.setAttr("aria-label", t("ui.remove_from_map"));
       }
       if (
-        this.map?.mindSearch &&
-        node.mindSearchKind === "synthesis" &&
-        this.map.mindSearch.branches.some(branch => branch.results.some(result => result.nodeId === node.id))
+        this.map?.aim &&
+        node.aimKind === "synthesis" &&
+        this.map.aim.branches.some(branch => branch.results.some(result => result.nodeId === node.id))
       ) {
         const next = this.button(
           header,
-          t("ui.mindsearch_new_question"),
-          () => void this.planMindSearchFromSelection(node.id),
-          this.mindSearchBusy
+          t("ui.aim_new_question"),
+          () => void this.planAimFromSelection(node.id),
+          this.aimBusy
         );
         next.addClass("vam-node-tool");
-        next.setAttr("aria-label", t("ui.mindsearch_new_question_hint"));
-        next.setAttr("title", t("ui.mindsearch_new_question_hint"));
+        next.setAttr("aria-label", t("ui.aim_new_question_hint"));
+        next.setAttr("title", t("ui.aim_new_question_hint"));
       }
     }
     const details = this.button(header, "↗", () =>
@@ -2681,7 +2681,7 @@ export class VisualAgentMapView extends ItemView {
           })
         )
       );
-    if (!this.builtIn && !this.integrationMode && !this.map?.mindSearch) {
+    if (!this.builtIn && !this.integrationMode && !this.map?.aim) {
       const add = this.button(card, "+", () => this.enqueue(() => this.addNode(node)));
       add.addClass("vam-add-child");
       add.setAttr("aria-label", t("ui.add_subtopic_manually"));
@@ -2692,33 +2692,33 @@ export class VisualAgentMapView extends ItemView {
       cls: "vam-card-summary",
       text: note?.summary ?? t("ui.the_file_was_moved_or_deleted_you_can_remove_this_node_from")
     });
-    if (node.mindSearchKind === "conclusion" && this.map?.mindSearch && !this.builtIn) {
-      const branch = this.map.mindSearch.branches.find(item => item.results.some(result => result.nodeId === node.id));
-      const hasFollowup = this.map.nodes.some(item => item.parentId === node.id && item.mindSearchKind === "question");
+    if (node.aimKind === "conclusion" && this.map?.aim && !this.builtIn) {
+      const branch = this.map.aim.branches.find(item => item.results.some(result => result.nodeId === node.id));
+      const hasFollowup = this.map.nodes.some(item => item.parentId === node.id && item.aimKind === "question");
       if (
         branch &&
         !hasFollowup &&
-        countMindSearchAnsweredQuestions(this.map, branch.id) < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION
+        countAimAnsweredQuestions(this.map, branch.id) < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION
       ) {
-        card.createEl("p", { cls: "vam-hint", text: t("ui.mindsearch_early_conclusion_hint") });
+        card.createEl("p", { cls: "vam-hint", text: t("ui.aim_early_conclusion_hint") });
         this.button(
           card,
-          t("ui.mindsearch_resume_early_conclusion"),
-          () => void this.planMindSearchFromSelection(node.id),
-          this.mindSearchBusy
+          t("ui.aim_resume_early_conclusion"),
+          () => void this.planAimFromSelection(node.id),
+          this.aimBusy
         ).addClass("mod-cta");
       }
     }
     if (
-      node.mindSearchKind === "topic" &&
-      this.map?.mindSearch &&
-      !this.map.nodes.some(item => item.mindSearchKind === "question")
+      node.aimKind === "topic" &&
+      this.map?.aim &&
+      !this.map.nodes.some(item => item.aimKind === "question")
     ) {
-      const initialBranch = this.map.mindSearch.branches.find(
+      const initialBranch = this.map.aim.branches.find(
         item => item.questionNodeId === node.id && !item.parentBranchId
       );
       const initialRuns = initialBranch
-        ? this.map.mindSearch.runs.filter(item => item.branchId === initialBranch.id)
+        ? this.map.aim.runs.filter(item => item.branchId === initialBranch.id)
         : [];
       const activeInitialRun = initialRuns.some(run => {
         const attempt = run.attempts.find(item => item.id === run.currentAttemptId);
@@ -2735,49 +2735,49 @@ export class VisualAgentMapView extends ItemView {
       if (!initialBranch) {
         const start = this.button(
           card,
-          t("ui.mindsearch_start_exploration"),
+          t("ui.aim_start_exploration"),
           () => {
-            void this.planMindSearchFromSelection(node.id);
+            void this.planAimFromSelection(node.id);
           },
-          this.mindSearchBusy
+          this.aimBusy
         );
         start.addClass("mod-cta");
-        start.addClass("vam-mindsearch-start");
+        start.addClass("vam-aim-start");
       } else if (!activeInitialRun && terminalAttempt?.status === "partial" && terminalRun) {
         this.button(
           card,
-          t("ui.mindsearch_continue_research"),
-          () => void this.continueMindSearchResearch(node.id, terminalRun.id),
-          this.mindSearchBusy
-        ).addClass("vam-mindsearch-retry");
+          t("ui.aim_continue_research"),
+          () => void this.continueAimResearch(node.id, terminalRun.id),
+          this.aimBusy
+        ).addClass("vam-aim-retry");
       } else if (!activeInitialRun && !terminalResult) {
-        this.renderMindSearchFailure(card, initialBranch);
+        this.renderAimFailure(card, initialBranch);
         const label =
           initialBranch.researchPlan || initialBranch.results.length
-            ? t("ui.mindsearch_continue_research")
-            : t("ui.mindsearch_retry_subtopics");
+            ? t("ui.aim_continue_research")
+            : t("ui.aim_retry_subtopics");
         this.button(
           card,
           label,
-          () => void this.retryMindSearchSubtopics(initialBranch.id),
-          this.mindSearchBusy
-        ).addClass("vam-mindsearch-retry");
+          () => void this.retryAimSubtopics(initialBranch.id),
+          this.aimBusy
+        ).addClass("vam-aim-retry");
       }
     }
-    if (node.mindSearchKind === "question" && this.map?.mindSearch) {
-      const branch = this.map.mindSearch.branches.find(item => item.questionNodeId === node.id);
+    if (node.aimKind === "question" && this.map?.aim) {
+      const branch = this.map.aim.branches.find(item => item.questionNodeId === node.id);
       if (branch) {
-        this.renderMindSearchFailure(card, branch);
+        this.renderAimFailure(card, branch);
         const labels =
-          node.mindSearchQuestion?.options
+          node.aimQuestion?.options
             .filter(option => branch.answerSnapshot.selections.includes(option.id))
             .map(option => option.label) ?? branch.answerSnapshot.selections;
         const answer = [...labels, branch.answerSnapshot.freeText].filter(Boolean).join(" — ");
         card.createEl("p", {
-          cls: "vam-mindsearch-answer-snapshot",
-          text: `${t("ui.mindsearch_answer_snapshot")}: ${answer || t("ui.mindsearch_unknown_answer")}`
+          cls: "vam-aim-answer-snapshot",
+          text: `${t("ui.aim_answer_snapshot")}: ${answer || t("ui.aim_unknown_answer")}`
         });
-        const branchRuns = this.map.mindSearch.runs.filter(item => item.branchId === branch.id);
+        const branchRuns = this.map.aim.runs.filter(item => item.branchId === branch.id);
         const activeBranchRun = branchRuns.some(run => {
           const current = run.attempts.find(item => item.id === run.currentAttemptId);
           return current?.status === "running" || current?.status === "saving";
@@ -2788,48 +2788,48 @@ export class VisualAgentMapView extends ItemView {
         if (!activeBranchRun && terminalAttempt?.status === "partial" && terminalRun) {
           this.button(
             card,
-            t("ui.mindsearch_continue_research"),
-            () => void this.continueMindSearchResearch(node.id, terminalRun.id),
-            this.mindSearchBusy
-          ).addClass("vam-mindsearch-retry");
+            t("ui.aim_continue_research"),
+            () => void this.continueAimResearch(node.id, terminalRun.id),
+            this.aimBusy
+          ).addClass("vam-aim-retry");
         }
         if (!branch.researchPlan && branch.results.length === 0) {
           const status = card.createEl("p", {
-            cls: "vam-mindsearch-plan-error",
-            text: t("ui.mindsearch_research_not_generated")
+            cls: "vam-aim-plan-error",
+            text: t("ui.aim_research_not_generated")
           });
           if (branch.researchPlanError) status.setAttr("title", branch.researchPlanError);
           if (!activeBranchRun && !terminalResult) {
             const retry = this.button(
               card,
-              t("ui.mindsearch_retry_subtopics"),
-              () => void this.retryMindSearchSubtopics(branch.id)
+              t("ui.aim_retry_subtopics"),
+              () => void this.retryAimSubtopics(branch.id)
             );
-            retry.addClass("vam-mindsearch-retry");
-            retry.disabled = this.mindSearchBusy;
+            retry.addClass("vam-aim-retry");
+            retry.disabled = this.aimBusy;
           }
         } else if (!activeBranchRun && !terminalResult) {
           this.button(
             card,
-            t(branch.deliveryRecovery ? "ui.mindsearch_resume_stage" : "ui.mindsearch_continue_research"),
-            () => void this.retryMindSearchSubtopics(branch.id),
-            this.mindSearchBusy
-          ).addClass("vam-mindsearch-retry");
+            t(branch.deliveryRecovery ? "ui.aim_resume_stage" : "ui.aim_continue_research"),
+            () => void this.retryAimSubtopics(branch.id),
+            this.aimBusy
+          ).addClass("vam-aim-retry");
         }
       }
     }
-    if (node.mindSearchKind === "answer" && this.map?.mindSearch) {
-      const branch = this.map.mindSearch.branches.find(item => item.answerNodeId === node.id);
+    if (node.aimKind === "answer" && this.map?.aim) {
+      const branch = this.map.aim.branches.find(item => item.answerNodeId === node.id);
       const question = branch && this.map.nodes.find(item => item.id === branch.questionNodeId);
       if (branch) {
         const labels =
-          question?.mindSearchQuestion?.options
+          question?.aimQuestion?.options
             .filter(option => branch.answerSnapshot.selections.includes(option.id))
             .map(option => option.label) ?? branch.answerSnapshot.selections;
         const answer = [...labels, branch.answerSnapshot.freeText].filter(Boolean).join(" — ");
         card.createEl("p", {
-          cls: "vam-mindsearch-answer-snapshot",
-          text: `${t("ui.mindsearch_answer_snapshot")}: ${answer || t("ui.mindsearch_unknown_answer")}`
+          cls: "vam-aim-answer-snapshot",
+          text: `${t("ui.aim_answer_snapshot")}: ${answer || t("ui.aim_unknown_answer")}`
         });
       }
     }
@@ -2859,7 +2859,7 @@ export class VisualAgentMapView extends ItemView {
         } else if (this.builtIn) this.selectSampleNode(node.id);
         else {
           this.selectMapNode(node);
-          if (node.mindSearchKind === "question") this.openMindSearchAnswer(node);
+          if (node.aimKind === "question") this.openAimAnswer(node);
           else this.openDetails(node);
         }
       }
@@ -4686,7 +4686,7 @@ export class VisualAgentMapView extends ItemView {
           this.multiSelected.clear();
           this.selected = node.id;
           this.render();
-          if (node.mindSearchKind === "question") this.openMindSearchAnswer(node);
+          if (node.aimKind === "question") this.openAimAnswer(node);
           else this.openDetails(node);
         }
       };

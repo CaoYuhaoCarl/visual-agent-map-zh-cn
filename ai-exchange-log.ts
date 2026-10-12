@@ -1,5 +1,6 @@
 import { readFile, rename, writeFile } from "node:fs/promises";
 import { t } from "./i18n";
+import { upgradeLegacyAimText } from "./experiences/aim/legacy-names";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -61,7 +62,7 @@ export function promptMetrics(entry: AiExchange): {
   }
   const characters = Array.from(prompt).length;
   const nonAscii = Array.from(prompt).filter(character => character.charCodeAt(0) > 127).length;
-  const phase = prompt.match(/<!--\s*mindsearch-phase:\s*([a-z-]+)\s*-->/)?.[1] ?? entry.mode;
+  const phase = upgradeLegacyAimText(prompt).match(/<!--\s*aim-phase:\s*([a-z-]+)\s*-->/)?.[1] ?? entry.mode;
   const repairReason = /repair/i.test(phase)
     ? prompt.match(/(?:Format validation error|Repair reason):\s*([^\r\n]+)/i)?.[1]?.trim()
     : undefined;

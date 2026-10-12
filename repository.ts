@@ -6,6 +6,7 @@ import type { CoffeeStyle } from "./experiences/coffee-tables/types";
 import type { ReasoningLevel, ResearchDepth, ResearchMode, VisualMode } from "./ai/types";
 import { normalizeReasoningLevel } from "./ai/task-policy";
 import { managedHeadingValue, managedSectionValue } from "./note-values";
+import { upgradeLegacyAimText } from "./experiences/aim/legacy-names";
 export type { ReasoningLevel, ResearchDepth, ResearchMode, VisualMode, VisualReference } from "./ai/types";
 export { normalizeReasoningLevel } from "./ai/task-policy";
 
@@ -486,7 +487,7 @@ export class Repository {
 
   async readNote(path: string): Promise<Note> {
     const file = this.file(path),
-      content = await this.app.vault.read(file),
+      content = upgradeLegacyAimText(await this.app.vault.read(file)),
       fm = frontmatter(content);
     const status = text(fm.status, "idea");
     const normalized = status === "review" || status === "accepted" ? "completed" : status;
@@ -655,7 +656,7 @@ export class Repository {
     return { id, path, parentId: null, x: 80, y: 80, collapsed: false };
   }
 
-  /** Idempotently create a reserved note identity for a journaled MindSearch result draft. */
+  /** Idempotently create a reserved note identity for a journaled AIM result draft. */
   async createNoteAt(
     title: string,
     model: string,
@@ -1133,23 +1134,23 @@ export class Repository {
     title: string,
     nodes: MapNode[] = [],
     onRootCreated?: (folder: TFolder) => void,
-    mindSearch?: MapDocument["mindSearch"]
+    aim?: MapDocument["aim"]
   ): Promise<string> {
     await this.folder(this.settings.topicsFolder);
     const preferredRoot = normalizePath(`${this.settings.topicsFolder}/${safeName(title)}`);
     const preferredFolder = this.app.vault.getAbstractFileByPath(preferredRoot);
     // A failed first Map.md write can leave only the just-created empty topic folder.
-    // For an identity-bearing MindSearch create, reuse that empty folder on retry;
+    // For an identity-bearing AIM create, reuse that empty folder on retry;
     // any non-empty existing folder remains untouched and receives the usual suffix.
-    const recoverEmptyMindSearchFolder =
-      !!mindSearch?.creationId && preferredFolder instanceof TFolder && preferredFolder.children.length === 0;
-    const root = recoverEmptyMindSearchFolder ? preferredRoot : this.uniqueFolder(this.settings.topicsFolder, title);
+    const recoverEmptyAimFolder =
+      !!aim?.creationId && preferredFolder instanceof TFolder && preferredFolder.children.length === 0;
+    const root = recoverEmptyAimFolder ? preferredRoot : this.uniqueFolder(this.settings.topicsFolder, title);
     const folder =
-      recoverEmptyMindSearchFolder && preferredFolder instanceof TFolder
+      recoverEmptyAimFolder && preferredFolder instanceof TFolder
         ? preferredFolder
         : await this.app.vault.createFolder(root);
     onRootCreated?.(folder);
-    if (!mindSearch?.creationId) await this.ensureTopicFolders(root);
+    if (!aim?.creationId) await this.ensureTopicFolders(root);
     const path = `${root}/Map.md`;
     const map: MapDocument = {
       version: 1,
@@ -1157,11 +1158,11 @@ export class Repository {
       title,
       nodes,
       viewport: { x: 40, y: 40, zoom: 1 },
-      ...(mindSearch ? { mindSearch } : {})
+      ...(aim ? { aim } : {})
     };
     await this.app.vault.create(path, serializeMap(map, this.settings.language));
     // Persist the request identity before adding subfolders so a partial setup can be found and resumed.
-    if (mindSearch?.creationId) await this.ensureTopicFolders(root);
+    if (aim?.creationId) await this.ensureTopicFolders(root);
     return path;
   }
 
@@ -1260,7 +1261,7 @@ export class Repository {
       originalContent = await this.app.vault.read(this.file(originalMapPath));
     const originalMap = parseMap(originalContent);
     if (
-      originalMap.mindSearch?.runs.some(run =>
+      originalMap.aim?.runs.some(run =>
         run.attempts.some(attempt => attempt.status === "running" || attempt.status === "saving")
       )
     ) {
@@ -1280,25 +1281,25 @@ export class Repository {
       const rebasePath = (path: string): string =>
         path.startsWith(`${originalRoot}/`) ? `${desired}/${path.slice(originalRoot.length + 1)}` : path;
       for (const node of map.nodes) node.path = rebasePath(node.path);
-      const mindSearch = map.mindSearch;
-      if (mindSearch) {
-        for (const branch of mindSearch.branches) {
+      const aim = map.aim;
+      if (aim) {
+        for (const branch of aim.branches) {
           for (const result of branch.inputSnapshot.upstreamResults) result.notePath = rebasePath(result.notePath);
           for (const result of branch.results) result.notePath = rebasePath(result.notePath);
         }
-        for (const draft of mindSearch.resultDrafts ?? []) draft.notePath = rebasePath(draft.notePath);
-        if (mindSearch.rootDraft) mindSearch.rootDraft.notePath = rebasePath(mindSearch.rootDraft.notePath);
-        if (mindSearch.questionDraft) mindSearch.questionDraft.notePath = rebasePath(mindSearch.questionDraft.notePath);
-        for (const pending of mindSearch.pendingCommits) pending.notePath = rebasePath(pending.notePath);
+        for (const draft of aim.resultDrafts ?? []) draft.notePath = rebasePath(draft.notePath);
+        if (aim.rootDraft) aim.rootDraft.notePath = rebasePath(aim.rootDraft.notePath);
+        if (aim.questionDraft) aim.questionDraft.notePath = rebasePath(aim.questionDraft.notePath);
+        for (const pending of aim.pendingCommits) pending.notePath = rebasePath(pending.notePath);
 
         const hashSnapshot = (value: unknown): string =>
           createHash("sha256").update(JSON.stringify(value)).digest("hex");
-        for (const run of mindSearch.runs) {
-          const branch = mindSearch.branches.find(item => item.id === run.branchId);
+        for (const run of aim.runs) {
+          const branch = aim.branches.find(item => item.id === run.branchId);
           if (!branch) continue;
           for (const attempt of run.attempts) {
             attempt.inputSnapshotHash = hashSnapshot({ branch: branch.inputSnapshot, answer: branch.answerSnapshot });
-            for (const draft of mindSearch.resultDrafts ?? []) {
+            for (const draft of aim.resultDrafts ?? []) {
               if (draft.runId === run.id && draft.attemptId === attempt.id)
                 draft.inputSnapshotHash = attempt.inputSnapshotHash;
             }

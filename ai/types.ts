@@ -1,4 +1,4 @@
-import type { MindSearchContract } from "./mindsearch-contracts";
+import type { AimContract } from "./aim-contracts";
 import type { UiLanguage } from "../i18n";
 import type { ReferenceGroup } from "./reference-materials";
 
@@ -23,8 +23,8 @@ export interface Suggestion {
   thinkingOriginBaseline?: string;
 }
 export type AiTaskKind = "task" | "decompose" | "synthesize";
-export type PromptProfile = "mindsearch";
-export type AiResponseContract = "mindsearch-gap-audit" | "mindsearch-delivery-acceptance";
+export type PromptProfile = "aim";
+export type AiResponseContract = "aim-gap-audit" | "aim-delivery-acceptance";
 export interface TaskContext {
   title: string;
   summary: string;
@@ -41,18 +41,18 @@ export interface TaskContext {
   mode?: AiTaskKind;
   /** Let a task choose its Markdown structure while retaining the structured result contract. */
   detailFormat?: "adaptive";
-  /** Select a phase-aware prompt builder for MindSearch requests. */
+  /** Select a phase-aware prompt builder for AIM requests. */
   promptProfile?: PromptProfile;
-  /** Selects a narrow trusted response schema for the MindSearch gap audit only. */
+  /** Selects a narrow trusted response schema for the AIM gap audit only. */
   responseContract?: AiResponseContract;
   /** Provider-enforced AIM control payload for this phase; folded back into the canonical marker form. */
-  mindSearchContract?: MindSearchContract;
+  aimContract?: AimContract;
   /** Lets the AIM payload request full evidence reports by ID (trusted workflow flag; never serialized). */
-  mindSearchEvidenceLookup?: boolean;
-  /** Trusted workflow lookup allowlist for MindSearch evidence retrieval; never serialize into prompts. */
-  mindSearchEvidenceIds?: readonly string[];
+  aimEvidenceLookup?: boolean;
+  /** Trusted workflow lookup allowlist for AIM evidence retrieval; never serialize into prompts. */
+  aimEvidenceIds?: readonly string[];
   /** Isolate independent research to supplied context and web tools. */
-  mindSearchIsolatedResearch?: boolean;
+  aimIsolatedResearch?: boolean;
   /** Bounded timeout override for this task only. */
   timeoutMs?: number;
   researchMode?: ResearchMode;

@@ -134,7 +134,7 @@ test('legacy records retain missing timing fields and steering does not duplicat
 test('repair phase and reason come from the recorded prompt', () => {
   const metrics = promptMetrics({
     id: 'repair', startedAt: '', topic: '', mode: 'task', model: '', effort: '', request: '', response: '', status: 'sent', error: '',
-    prompt: '<!-- mindsearch-phase: research-plan-repair -->\nFormat validation error: missing unique subtopic ids\nRest of prompt'
+    prompt: '<!-- aim-phase: research-plan-repair -->\nFormat validation error: missing unique subtopic ids\nRest of prompt'
   });
   assert.equal(metrics.phase, 'research-plan-repair');
   assert.equal(metrics.repairReason, 'missing unique subtopic ids');

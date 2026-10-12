@@ -54,7 +54,7 @@ integrationTest('node plus adds a child without opening a duplicate right-click 
   assert.deepEqual(details, [topic.id, topic.id, topic.id]);
   assert.equal(events.has('div:contextmenu'), false);
 });
-integrationTest('MindSearch cards hide generic map actions while ordinary map cards retain them', () => {
+integrationTest('AIM cards hide generic map actions while ordinary map cards retain them', () => {
   const { VisualAgentMapView } = load('main.ts', { obsidian });
   const makeElement = (tag, buttons) => ({ tag, children: [], dataset: {}, style: {},
     createDiv(options) { const child = makeElement('div', buttons); child.cls = options?.cls ?? options; this.children.push(child); return child; },
@@ -74,33 +74,33 @@ integrationTest('MindSearch cards hide generic map actions while ordinary map ca
   assert.ok(ordinaryButtons.some(button => button['aria-label'] === 'Structure and links'));
   assert.ok(ordinaryButtons.some(button => button['aria-label'] === 'New topic name'));
   assert.ok(ordinaryButtons.some(button => button['aria-label'] === 'Add subtopic manually'));
-  const mindSearch = map([topic]); mindSearch.mindSearch = { version: 1, branches: [], runs: [], pendingCommits: [] };
-  const mindSearchButtons = render(mindSearch);
+  const aim = map([topic]); aim.aim = { version: 1, branches: [], runs: [], pendingCommits: [] };
+  const aimButtons = render(aim);
   for (const label of ['How would you like to explore next?', 'Structure and links', 'New topic name', 'Add subtopic manually']) {
-    assert.equal(mindSearchButtons.some(button => button['aria-label'] === label), false, `${label} is hidden in MindSearch`);
+    assert.equal(aimButtons.some(button => button['aria-label'] === label), false, `${label} is hidden in AIM`);
   }
-  const resultNode = node('saved-synthesis', topic.id); resultNode.mindSearchKind = 'synthesis';
+  const resultNode = node('saved-synthesis', topic.id); resultNode.aimKind = 'synthesis';
   const resultMap = map([topic, resultNode]);
-  resultMap.mindSearch = { version: 1, branches: [{ id: 'saved-branch', questionNodeId: topic.id, parentBranchId: null, answerSnapshot: { selections: [], freeText: '' }, inputSnapshot: { topic: 'Fixture', conditions: {}, upstreamResults: [] }, createdAt: '2026-10-09T00:00:00.000Z', results: [{ nodeId: resultNode.id, notePath: resultNode.path, version: 1, kind: 'synthesis' }] }], runs: [], pendingCommits: [] };
+  resultMap.aim = { version: 1, branches: [{ id: 'saved-branch', questionNodeId: topic.id, parentBranchId: null, answerSnapshot: { selections: [], freeText: '' }, inputSnapshot: { topic: 'Fixture', conditions: {}, upstreamResults: [] }, createdAt: '2026-10-09T00:00:00.000Z', results: [{ nodeId: resultNode.id, notePath: resultNode.path, version: 1, kind: 'synthesis' }] }], runs: [], pendingCommits: [] };
   const resultButtons = [], resultView = new VisualAgentMapView({ app: {} }, { pendingSuggestions: new Map(), expansionBatches: new Map() });
   resultView.stageEl = makeElement('stage', resultButtons); resultView.map = resultMap; resultView.notes = new Map([[resultNode.id, { title: 'Saved synthesis', summary: 'A saved result.', status: 'completed' }]]);
   resultView.renderNode(resultNode);
   const newQuestion = resultButtons.find(button => button['aria-label'] === 'Generate another question from this research, keeping existing branches');
   assert.ok(newQuestion, 'a saved synthesis exposes the new-question action'); assert.equal(newQuestion.disabled, false);
-  resultView.mindSearchBusy = true;
+  resultView.aimBusy = true;
   const busyButtons = [], busyView = new VisualAgentMapView({ app: {} }, { pendingSuggestions: new Map(), expansionBatches: new Map() });
-  busyView.stageEl = makeElement('stage', busyButtons); busyView.map = resultMap; busyView.notes = resultView.notes; busyView.mindSearchBusy = true;
+  busyView.stageEl = makeElement('stage', busyButtons); busyView.map = resultMap; busyView.notes = resultView.notes; busyView.aimBusy = true;
   busyView.renderNode(resultNode);
-  assert.equal(busyButtons.find(button => button['aria-label'] === 'Generate another question from this research, keeping existing branches').disabled, true, 'the action is disabled while another MindSearch operation is active');
-  const ordinaryResult = node('ordinary-synthesis'); ordinaryResult.mindSearchKind = 'synthesis';
+  assert.equal(busyButtons.find(button => button['aria-label'] === 'Generate another question from this research, keeping existing branches').disabled, true, 'the action is disabled while another AIM operation is active');
+  const ordinaryResult = node('ordinary-synthesis'); ordinaryResult.aimKind = 'synthesis';
   const ordinaryButtonsForResult = [], ordinaryResultView = new VisualAgentMapView({ app: {} }, { pendingSuggestions: new Map(), expansionBatches: new Map() });
   ordinaryResultView.stageEl = makeElement('stage', ordinaryButtonsForResult); ordinaryResultView.map = map([ordinaryResult]); ordinaryResultView.notes = new Map([[ordinaryResult.id, { title: 'Ordinary note', summary: '', status: 'completed' }]]);
   ordinaryResultView.renderNode(ordinaryResult);
-  assert.equal(ordinaryButtonsForResult.some(button => button['aria-label'] === 'Generate another question from this research, keeping existing branches'), false, 'ordinary maps do not expose the MindSearch action');
-  assert.match(fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8'), /if \(!mindSearchMode\) this\.button\(tools, t\("ui\.organize"\)/);
-  assert.match(fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8'), /if \(!mindSearchMode\) \{\s*const integrate = this\.button\(\s*tools/);
+  assert.equal(ordinaryButtonsForResult.some(button => button['aria-label'] === 'Generate another question from this research, keeping existing branches'), false, 'ordinary maps do not expose the AIM action');
+  assert.match(fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8'), /if \(!aimMode\) this\.button\(tools, t\("ui\.organize"\)/);
+  assert.match(fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8'), /if \(!aimMode\) \{\s*const integrate = this\.button\(\s*tools/);
 });
-integrationTest('MindSearch question cards show branch progress instead of note lifecycle status', () => {
+integrationTest('AIM question cards show branch progress instead of note lifecycle status', () => {
   const { VisualAgentMapView } = load('main.ts', { obsidian });
   const element = tag => ({ tag, children: [], dataset: {}, style: {},
     createDiv(options) { const child = element('div'); child.cls = options?.cls ?? options; this.children.push(child); return child; },
@@ -109,17 +109,17 @@ integrationTest('MindSearch question cards show branch progress instead of note 
     setAttr(name, value) { this[name] = value; }, addClass(name) { this.cls = name; },
     addEventListener() {}, removeEventListener() {}, setPointerCapture() {}
   });
-  const question = node('question'); question.mindSearchKind = 'question';
+  const question = node('question'); question.aimKind = 'question';
   const branch = { id: 'branch', questionNodeId: question.id, parentBranchId: null, answerSnapshot: { selections: [], freeText: '已回答' }, inputSnapshot: { topic: '測試', conditions: {}, upstreamResults: [] }, createdAt: '2026-10-09T00:00:00.000Z', results: [{ kind: 'conclusion', runId: 'run', attemptId: 'attempt' }] };
-  const doc = map([question]); doc.mindSearch = { version: 1, branches: [branch], runs: [{ id: 'run', branchId: branch.id, currentAttemptId: 'attempt', attempts: [{ id: 'attempt', inputSnapshotHash: 'hash', status: 'completed' }] }], pendingCommits: [] };
+  const doc = map([question]); doc.aim = { version: 1, branches: [branch], runs: [{ id: 'run', branchId: branch.id, currentAttemptId: 'attempt', attempts: [{ id: 'attempt', inputSnapshotHash: 'hash', status: 'completed' }] }], pendingCommits: [] };
   const plugin = { repo: {}, settings: { ...DEFAULT_SETTINGS }, expansionBatches: new Map(), running: new Map(), quickExpandPending: new Set(), pendingSuggestions: new Map() };
   const view = new VisualAgentMapView({ app: {} }, plugin); view.stageEl = element('stage'); view.map = doc; view.notes = new Map([[question.id, { title: 'Question', summary: 'Question', status: 'idea' }]]);
   view.renderNode(question);
   assert.equal(view.stageEl.children[0].children[0].children[0].text, 'Research complete');
-  doc.mindSearch.runs[0].attempts[0].status = 'running'; view.stageEl = element('stage'); view.renderNode(question);
+  doc.aim.runs[0].attempts[0].status = 'running'; view.stageEl = element('stage'); view.renderNode(question);
   assert.equal(view.stageEl.children[0].children[0].children[0].text, 'Researching');
 });
-integrationTest('MindSearch outline keeps only note titles and hierarchy', () => {
+integrationTest('AIM outline keeps only note titles and hierarchy', () => {
   const { OutlineView } = load('ui/outline-view.ts', { obsidian });
   const element = (tag, options = {}) => ({ tag, text: options.text, cls: options.cls ?? '', children: [], style: {},
     get childElementCount() { return this.children.length; },
@@ -129,13 +129,13 @@ integrationTest('MindSearch outline keeps only note titles and hierarchy', () =>
     addClass(value) { this.cls = value; }, setAttr(name, value) { this[name] = value; }, addEventListener() {}, remove() { this.removed = true; },
     empty() { this.children = []; }, querySelector(selector) { const cls = selector.slice(1); const visit = item => item.cls.split(' ').includes(cls) ? item : item.children.map(visit).find(Boolean); return visit(this); }
   });
-  const root = node('root'), child = node('child', root.id); root.mindSearchKind = 'topic'; child.mindSearchKind = 'research';
-  const doc = map([root, child]); doc.mindSearch = { version: 1, branches: [{ id: 'branch', questionNodeId: root.id, parentBranchId: null, answerSnapshot: { selections: [], freeText: '私有答案資料' }, inputSnapshot: { topic: 'map', conditions: {}, upstreamResults: [] }, createdAt: '2026-10-09T00:00:00.000Z', results: [{ resultId: 'result', runId: 'run', attemptId: 'attempt', nodeId: child.id, notePath: child.path, version: 1 }] }], runs: [], pendingCommits: [] };
+  const root = node('root'), child = node('child', root.id); root.aimKind = 'topic'; child.aimKind = 'research';
+  const doc = map([root, child]); doc.aim = { version: 1, branches: [{ id: 'branch', questionNodeId: root.id, parentBranchId: null, answerSnapshot: { selections: [], freeText: '私有答案資料' }, inputSnapshot: { topic: 'map', conditions: {}, upstreamResults: [] }, createdAt: '2026-10-09T00:00:00.000Z', results: [{ resultId: 'result', runId: 'run', attemptId: 'attempt', nodeId: child.id, notePath: child.path, version: 1 }] }], runs: [], pendingCommits: [] };
   const view = new OutlineView({ app: {} }, async () => {}); view.contentEl = element('content');
-  view.setMap(doc, new Map([[root.id, 'MindSearch topic'], [child.id, 'Research subtopic']]));
+  view.setMap(doc, new Map([[root.id, 'AIM topic'], [child.id, 'Research subtopic']]));
   const tree = view.contentEl.querySelector('.vam-outline-tree');
   const flatten = item => [item, ...item.children.flatMap(flatten)]; const rendered = flatten(tree);
-  assert.ok(rendered.some(item => item.text === 'MindSearch topic'));
+  assert.ok(rendered.some(item => item.text === 'AIM topic'));
   assert.ok(rendered.some(item => item.text === 'Research subtopic'));
   assert.ok(!rendered.some(item => item.cls.includes('vam-outline-kind') || item.cls.includes('vam-outline-branch-meta')));
   assert.ok(!rendered.some(item => item.text === '私有答案資料'));

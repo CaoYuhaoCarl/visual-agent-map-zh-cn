@@ -98,7 +98,7 @@ test('general tasks retain existing Detail while decompose uses lightweight cont
   assert.deepEqual(JSON.parse(extractJsonObject('我會先查核。\n{"summary":"ok","detail":"brace } in string"}\n完成。')), { summary: 'ok', detail: 'brace } in string' });
   assert.throws(() => extractJsonObject('沒有結構化回應'), /JSON object/);
 });
-test('MindSearch model refresh updates choices, preserves selection, and reports failures', async () => {
+test('AIM model refresh updates choices, preserves selection, and reports failures', async () => {
   class Element {
     constructor(tag, options = {}) { this.tag = tag; this.children = []; this.attributes = {}; this.text = options.text ?? ''; this.value = options.value ?? ''; this.disabled = false; this.checked = false; this.isConnected = true; this.handlers = {}; }
     createDiv(options) { const child = new Element('div', options); this.children.push(child); return child; }
@@ -119,9 +119,9 @@ test('MindSearch model refresh updates choices, preserves selection, and reports
     constructor(parent) { this.controlEl = parent.createDiv(); }
     addButton(configure) { const button = this.controlEl.createEl('button'); configure({ setButtonText(text) { button.text = text; return this; }, setCta() { return this; }, onClick(handler) { button.handlers.click = handler; return this; } }); return this; }
   }
-  const { MindSearchStartModal } = load('ui/modals/mind-search-start-modal.ts', { obsidian: { ...obsidian, Modal, Setting } });
+  const { AimStartModal } = load('ui/modals/aim-start-modal.ts', { obsidian: { ...obsidian, Modal, Setting } });
   const open = refreshModels => {
-    const modal = new MindSearchStartModal({}, async () => {}, [{ id: 'old-model', label: 'Old model' }], 'old-model', 'low', refreshModels);
+    const modal = new AimStartModal({}, async () => {}, [{ id: 'old-model', label: 'Old model' }], 'old-model', 'low', refreshModels);
     modal.onOpen();
     const all = []; const visit = el => { all.push(el); for (const child of el.children) visit(child); }; visit(modal.contentEl);
     return { modal, all };
