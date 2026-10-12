@@ -21,10 +21,11 @@ test('reference batches include every selected Markdown source, deduplicate over
   assert.match(one, /^src-[0-9a-z]+$/);
   assert.equal(api.resolveDetailReferences('See [[source.md]]', groups), 'See External source: /Volumes/Refs/source.md');
   // Intentional contract change: [S#] becomes a footnote reference plus one definition, not a long [[path]] link.
-  assert.equal(api.resolveDetailReferences('Vault [S1], external [S2]', groups), `Vault [^${one}], external External source: /Volumes/Refs/source.md\n\n[^${one}]: [[Maps/A/one.md|one]]\n`);
+  const ext = label('/Volumes/Refs/source.md');
+  assert.equal(api.resolveDetailReferences('Vault [S1], external [S2]', groups), `Vault [^${one}], external [^${ext}]\n\n[^${one}]: [[Maps/A/one.md|one]]\n[^${ext}]: External source: /Volumes/Refs/source.md\n`);
   const namesake = [{ id: 'mixed', documents: [{ path: 'Vault/source.md', content: 'vault' }, { path: '/Volumes/Refs/source.md', external: true, content: 'external' }] }];
   const vs = label('Vault/source.md');
-  assert.equal(api.resolveDetailReferences('Vault [S1], external [S2]', namesake), `Vault [^${vs}], external External source: /Volumes/Refs/source.md\n\n[^${vs}]: [[Vault/source.md|source]]\n`);
+  assert.equal(api.resolveDetailReferences('Vault [S1], external [S2]', namesake), `Vault [^${vs}], external [^${ext}]\n\n[^${vs}]: [[Vault/source.md|source]]\n[^${ext}]: External source: /Volumes/Refs/source.md\n`);
   assert.equal(api.resolveDetailReferences('Ambiguous [[source.md]]', namesake), 'Ambiguous Source to confirm: source.md');
   assert.equal(api.resolveDetailReferences('Exact [[Vault/source.md]]', namesake), 'Exact [[Vault/source.md]]');
   assert.equal(api.resolveDetailReferences('Unknown [S3]', namesake), 'Unknown Source to confirm: [S3]');
@@ -33,13 +34,13 @@ test('reference batches include every selected Markdown source, deduplicate over
 test('source footnotes: repeated citations share one definition, placed in the evidence section, stable and de-duplicated', () => {
   const api = load('ai/reference-materials.ts', { obsidian });
   const groups = [{ id: 'g', documents: [{ path: 'Maps/A/one.md', content: '' }, { path: 'Maps/B/two.md', content: '' }, { path: '/Volumes/Refs/x.md', external: true, content: '' }] }];
-  const l1 = api.sourceFootnoteLabel('Maps/A/one.md'); const l2 = api.sourceFootnoteLabel('Maps/B/two.md');
+  const l1 = api.sourceFootnoteLabel('Maps/A/one.md'); const l2 = api.sourceFootnoteLabel('Maps/B/two.md'); const l3 = api.sourceFootnoteLabel('/Volumes/Refs/x.md');
   assert.notEqual(l1, l2);
   const zh = '### 核心結論\n\n甲[S1]乙[S2]丙[S1]外部[S3]\n\n### 證據與來源\n\n- 文字證據\n\n### 取捨與限制\n\n限制';
   const out = api.resolveDetailReferences(zh, groups);
-  assert.match(out, new RegExp(`甲\\[\\^${l1}\\]乙\\[\\^${l2}\\]丙\\[\\^${l1}\\]外部External source: /Volumes/Refs/x\\.md`));
+  assert.match(out, new RegExp(`甲\\[\\^${l1}\\]乙\\[\\^${l2}\\]丙\\[\\^${l1}\\]外部\\[\\^${l3}\\]`));
   assert.equal(out.split(`[^${l1}]:`).length, 2); assert.equal(out.split(`[^${l2}]:`).length, 2);
-  assert.ok(out.includes(`- 文字證據\n\n[^${l1}]: [[Maps/A/one.md|one]]\n[^${l2}]: [[Maps/B/two.md|two]]\n\n### 取捨與限制`));
+  assert.ok(out.includes(`- 文字證據\n\n[^${l1}]: [[Maps/A/one.md|one]]\n[^${l2}]: [[Maps/B/two.md|two]]\n[^${l3}]: External source: /Volumes/Refs/x.md\n\n### 取捨與限制`));
   const en = api.resolveDetailReferences('### Core conclusions\n\nA[S2]\n\n### Evidence and sources\n\nnotes\n\n### Open questions\n\nq', groups);
   assert.ok(en.includes(`notes\n\n[^${l2}]: [[Maps/B/two.md|two]]\n\n### Open questions`));
   // Absent evidence section: appended at the end.

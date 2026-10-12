@@ -116,11 +116,13 @@ export function resolveDetailReferences(detail: string, groups: ReferenceGroup[]
   const identified = detail.replace(/\[S(\d+)\]/g, (original, number: string) => {
     const document = documents[Number(number) - 1];
     if (!document) return t("note.source_unconfirmed_0", original);
-    if (document.external) return t("note.external_source_0", document.path);
     const label = sourceFootnoteLabel(document.path);
     if (!used.has(label)) {
       const basename = (document.path.split("/").pop() ?? document.path).replace(/\.md$/i, "");
-      used.set(label, `[^${label}]: [[${document.path}|${basename}]]`);
+      used.set(
+        label,
+        `[^${label}]: ${document.external ? t("note.external_source_0", document.path) : `[[${document.path}|${basename}]]`}`
+      );
     }
     return `[^${label}]`;
   });

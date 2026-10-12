@@ -10147,11 +10147,13 @@ function resolveDetailReferences(detail, groups) {
     var _a;
     const document2 = documents[Number(number) - 1];
     if (!document2) return t("note.source_unconfirmed_0", original);
-    if (document2.external) return t("note.external_source_0", document2.path);
     const label = sourceFootnoteLabel(document2.path);
     if (!used.has(label)) {
       const basename = ((_a = document2.path.split("/").pop()) != null ? _a : document2.path).replace(/\.md$/i, "");
-      used.set(label, `[^${label}]: [[${document2.path}|${basename}]]`);
+      used.set(
+        label,
+        `[^${label}]: ${document2.external ? t("note.external_source_0", document2.path) : `[[${document2.path}|${basename}]]`}`
+      );
     }
     return `[^${label}]`;
   });
