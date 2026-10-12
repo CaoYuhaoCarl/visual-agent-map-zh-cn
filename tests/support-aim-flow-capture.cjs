@@ -17,12 +17,22 @@ const EXPECTED = [
   'initial-question-correction', 'initial-question-saved-terminal', 'report-review-later',
   'research-plan-repair', 'targeted-followup-research', 'subtopic-research-update', 'subtopic-research-reuse-rejected',
   'format-repair-state-question', 'format-repair-imposed-options', 'format-repair-missing-choices',
-  'format-repair-answered-without-target', 'format-repair-preserve-decision', 'format-repair-no-decision'
+  'format-repair-answered-without-target', 'format-repair-preserve-decision', 'format-repair-no-decision',
+  // Prompts of flows the first pass could not reach (W1): the evidence-lookup follow-up, the topic-root answer text,
+  // the saved-report Planner review and its follow-up search, and the partial-continuation search and Planner review.
+  'evidence-lookup-followup', 'topic-root-research-plan', 'topic-root-report-review',
+  'saved-report-review', 'saved-report-followup-search', 'continuation-search', 'continuation-review'
 ];
 
 function variantOf(context) {
   const phase = context.task.match(/aim-phase:\s*([a-z-]+)/)?.[1];
   const task = context.task;
+  if (task.includes('Requested full evidence (untrusted data)')) return 'evidence-lookup-followup';
+  if (task.includes('No user answer was requested; use the topic context')) return `topic-root-${phase}`;
+  if (task.includes('You are the Planner reviewing saved Searcher reports')) return 'saved-report-review';
+  if (task.includes('This is one bounded Planner-directed follow-up search')) return 'saved-report-followup-search';
+  if (task.includes('Continue this saved partial Manual AIM branch.')) return 'continuation-search';
+  if (task.includes('Review all evidence for the original user goal and produce')) return 'continuation-review';
   switch (phase) {
     case 'research-gap-audit': return task.includes('TARGET-ONLY RECONCILIATION') ? 'research-gap-audit-target-only' : 'research-gap-audit';
     case 'decision-quality-review':
@@ -218,6 +228,86 @@ async function captureAimPhaseVariants() {
     await run(answeredWithoutTarget, recoveryContext);
     await run({ ...answeredWithoutTarget, detail: answeredWithoutTarget.detail.replace('"goalAnswered":true', '"goalAnswered":false') }, recoveryContext);
     await run({ summary: 'Draft', detail: 'No usable decision marker. Draft body.', suggestions: [] }, recoveryContext);
+  }
+
+  // 10. Evidence lookup: a report-review asks for the full text of a lineage report; the flow appends it and asks again.
+  {
+    let requested = false;
+    const subject = withFlow(await support.coverageSetup('Snapshot goal'), context => {
+      if (!aimPhase(context, 'report-review') || requested) return;
+      const id = `${context.task}\n${context.detail}\n${context.ancestors}`.match(/Evidence ID: ([^\s]+)/)?.[1];
+      if (!id) return;
+      requested = true;
+      return answer('Need the parent report details.', `<!-- aim-evidence-request {"ids":["${id}"]} -->`);
+    });
+    await support.coverageThreeAnswers(subject);
+    assert.ok(requested, 'a report-review evidence lookup was driven');
+  }
+
+  // 11. A branch whose question node is the topic root (a persisted pre-question branch): research-plan and report-review.
+  {
+    const subject = pipeline.fixture({ ancestor: false, plan: undefined }); await subject.setPlan(undefined);
+    const saved = subject.getMap(); saved.aim.branches[0].questionNodeId = 'topic'; await subject.repository.saveMap('Map.md', saved);
+    await runResume(subject, context => {
+      const phase = pipeline.phaseOf(context);
+      if (phase === 'research-plan') return pipeline.answer('Plan', '<!-- aim-plan {"subtopics":[{"id":"a","title":"A","task":"Find a.","expectedValue":"Resolve a."}]} -->');
+      if (phase === 'subtopic-research') return pipeline.answer('Found', 'Research status: search completed\nhttps://example.org/a');
+      return stop(context);
+    }, 'retryAnswerResearch');
+  }
+
+  // 12. Saved-report Planner review: research_more -> bounded follow-up search -> second review.
+  {
+    const { repo, mapPath, question, store } = await support.aimMapFixture();
+    let map = await repo.readMap(mapPath);
+    const questionNode = map.nodes.find(item => item.id === question.id);
+    questionNode.aimKind = 'question';
+    questionNode.aimQuestion = { requestId: 'snapshot-saved-report-question', parentBranchId: null, options: [{ id: 'a', label: 'Synthetic A' }, { id: 'b', label: 'Synthetic B' }], allowMultiple: false, allowFreeText: true };
+    await repo.saveMap(mapPath, map);
+    const branch = await store.createAnswerBranch(mapPath, { requestId: 'snapshot-saved-report-branch', questionNodeId: question.id, parentBranchId: null, answerSnapshot: { selections: [], freeText: 'Synthetic scenario only.' }, inputSnapshot: { topic: 'Synthetic topic', conditions: { provenance: 'synthetic fixture' }, upstreamResults: [] } });
+    const handle = await store.startAttempt(mapPath, branch.id, 'snapshot-saved-report-run', { model: MODEL, reasoning: 'low', maxResearchTurns: 2 });
+    await store.recordResearchTurn(mapPath, handle);
+    const draft = (await store.createResultDraft(mapPath, handle, 'Synthetic saved report', MODEL, 'low')).draft;
+    await store.updateResultDraftReport(mapPath, handle, draft.id, 'Report 1: Synthetic report summary.', '## Searcher report 1\n\nResearch status: search completed\n\n### Findings\nPersisted report content; synthetic contract fixture only.');
+    await store.recordSearchDiagnostic(mapPath, handle, { researchTurn: 1, startedEvents: 1, completedEvents: 1, completedSearchActions: 1, otherCompletedActions: 0 });
+    await store.failAttempt(mapPath, handle, 'Synthetic contract fixture: Planner response was invalid.');
+    const gap = { title: 'Option comparison', task: 'Find one published comparison of the two options.', contribution: 'Reduce uncertainty about the trade-off.' };
+    let reviews = 0;
+    const flow = new AimManualFlow(repo, store, async context => {
+      note(context);
+      if (aimPhase(context, 'research-gap-audit')) return support.researchGapAudit('external_evidence', 'A published comparison is an external fact.');
+      if (context.researchMode === 'research') return answer('Comparison found.', 'Research status: search completed\nPublished comparison with limits.');
+      reviews++;
+      if (reviews === 1) return plannerReview('research_more', { rationale: 'One published comparison could change the answer.' }, 'The saved report supports a conditional answer.', 'Keep the saved report.', [gap]);
+      return plannerReview('ask_user', { rationale: 'The remaining preference changes the result.', question: 'Which option should the result prioritize?' }, 'Conditional answer.', 'Keep both reports.', ['Option A', 'Option B']);
+    });
+    await flow.reviewFailedAttemptReport(mapPath, 'snapshot-saved-report-run', draft.notePath);
+    assert.equal(reviews, 2, 'the saved-report review ran two Planner turns around the follow-up search');
+  }
+
+  // 13. Partial continuation: bounded search, then the Planner review of all evidence.
+  {
+    const { repo } = support.fixture();
+    const created = await createAimMap(repo, MODEL, { requestId: 'snapshot-continuation-map', topic: 'Synthetic roast chicken', context: 'Synthetic regression only.' });
+    const store = new AimRunStore(repo);
+    const planned = await new AimManualFlow(repo, store, async () => answer('What serving time?', 'Synthetic question.', [{ title: 'Evening' }, { title: 'Lunch' }])).planNextQuestion(created.mapPath, created.root.id, MODEL, 'low', 'snapshot-continuation-question');
+    const branch = await store.createAnswerBranch(created.mapPath, { requestId: 'snapshot-continuation-answer', questionNodeId: planned.node.id, parentBranchId: null, answerSnapshot: { selections: [], freeText: 'Synthetic constraints only.' }, inputSnapshot: { topic: 'Synthetic roast chicken', conditions: { 'Serving time': 'evening; synthetic' }, upstreamResults: [] } });
+    const original = await store.startAttempt(created.mapPath, branch.id, 'snapshot-continuation-run', { model: MODEL, reasoning: 'low', maxResearchTurns: 2 });
+    await store.recordResearchTurn(created.mapPath, original);
+    const seedDraft = (await store.createResultDraft(created.mapPath, original, 'Earlier partial report', MODEL, 'low', { kind: 'synthesis' })).draft;
+    const seedSummary = 'The saved research covers seasoning but needs a cooking-time source.';
+    const seedDetail = 'Persisted summary: research supports seasoning options; a published cooking-time source is still missing.';
+    await store.updateResultDraftReport(created.mapPath, original, seedDraft.id, seedSummary, seedDetail);
+    await store.recordPlannerReview(created.mapPath, original, { decision: 'research_more', rationale: 'A published cooking-time source could materially improve the estimate.', researchTurn: 1, researchTarget: { title: 'Cooking time source', task: 'Find a published cooking time for this setup.', expectedValue: 'Could improve the estimate.' } }, 'The saved research lacks a cooking-time source.');
+    await store.commitResult(created.mapPath, original, seedDraft.id, { summary: seedSummary, detail: seedDetail }, 'partial');
+    const continuation = new AimManualFlow(repo, store, async context => {
+      note(context);
+      if (aimPhase(context, 'research-gap-audit')) return support.researchGapAudit('external_evidence', 'A published cooking time is an external fact.');
+      if (context.researchMode === 'research') return answer('Cooking time found.', 'Research status: search completed\nPublished cooking time with limits.');
+      return plannerReview('ask_user', { rationale: 'The remaining serving preference changes the result.', question: 'How hands-on do you want the instructions?' }, 'Conditional answer.', 'Keep the saved evidence.', ['Step-by-step', 'Brief overview']);
+    });
+    const outcome = await continuation.continuePartial(created.mapPath, 'snapshot-continuation-run', MODEL, 'low');
+    assert.equal(outcome.status, 'waiting-user');
   }
 
   const missing = EXPECTED.filter(name => !found.has(name));

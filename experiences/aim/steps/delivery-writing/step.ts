@@ -1,6 +1,7 @@
 import { renderTemplate } from "../../../../core/step-runner";
 import template from "./task.md";
 import additionalResearch from "./additional-research.md";
+import noMappedSource from "./no-mapped-source.md";
 
 export interface WritingTaskVariables {
   heading: string;
@@ -22,3 +23,6 @@ export const renderWritingTask = (variables: WritingTaskVariables): string =>
     additionalResearch:
       variables.scopedResearch === undefined ? "" : renderTemplate(additionalResearch, { research: variables.scopedResearch })
   });
+
+/** Evidence text of a section that no supplied source is mapped to, while other sources exist. */
+export const NO_MAPPED_SOURCE = renderTemplate(noMappedSource, {});

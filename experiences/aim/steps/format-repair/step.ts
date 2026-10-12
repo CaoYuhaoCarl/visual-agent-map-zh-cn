@@ -7,6 +7,7 @@ import answeredWithoutTargetVariant from "./variant.answered-without-target.md";
 import preserveDecisionVariant from "./variant.preserve-decision.md";
 import noDecisionVariant from "./variant.no-decision.md";
 import contextTemplate from "./context.md";
+import defaultRationale from "./default-rationale.md";
 
 /** Task texts of the `aim.format-repair` step. The repair count and rules stay in the Planner review flow. */
 export interface ImposedAskRepair {
@@ -63,3 +64,6 @@ export function renderGeneralRepair(repair: GeneralRepair): string {
     originalSuggestions: repair.originalSuggestions
   });
 }
+
+/** Used when the workflow imposed ask_user without supplying its own rationale. */
+export const CLARIFICATION_REQUIRED_RATIONALE = renderTemplate(defaultRationale, {});

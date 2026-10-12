@@ -2,8 +2,8 @@ import { createHash } from "node:crypto";
 import type { AiResult, TaskContext } from "../../ai/types";
 import type { AimContract } from "../../ai/aim-contracts";
 import { renderOutlineTask } from "./steps/delivery-outline/step";
-import { renderResearchTask } from "./steps/delivery-research/step";
-import { renderWritingTask } from "./steps/delivery-writing/step";
+import { renderResearchTask, REUSED_RESEARCH_DETAIL } from "./steps/delivery-research/step";
+import { renderWritingTask, NO_MAPPED_SOURCE } from "./steps/delivery-writing/step";
 import { renderAcceptanceTask } from "./steps/delivery-acceptance/step";
 
 export interface DeliverySection {
@@ -263,8 +263,7 @@ export async function buildFinalDelivery(
           )
         : {
             summary: "Existing evidence",
-            detail:
-              '<!-- aim-delivery-research {"status":"reused"} -->\nNo new search requested by the outline; use the supplied prior evidence.',
+            detail: REUSED_RESEARCH_DETAIL,
             suggestions: [],
             visualReferences: []
           },
@@ -307,7 +306,7 @@ export async function buildFinalDelivery(
     const scopedEvidence = sources.length
       ? sources.map(source => `Source ID: ${source.id}\n${source.detail}`).join("\n\n")
       : available.size
-        ? "No external source is mapped to this section. Do not make source-backed claims."
+        ? NO_MAPPED_SOURCE
         : `${base.detail}\n\n${research.detail}`;
     const scopedResearch = researchForSection(section);
     const sectionFingerprint = fingerprint({

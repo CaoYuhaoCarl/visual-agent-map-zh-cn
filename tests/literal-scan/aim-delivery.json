@@ -17,28 +17,8 @@
   "allow": [
     {
       "file": "experiences/aim/planner-review.ts",
-      "text": "The workflow requires",
-      "reason": "Default rationale value for an imposed ask_user repair, no prompt snapshot reaches it (every covered repair supplies its own rationale); pinned byte for byte in tests/steps-aim-delivery.cjs and left inline per the lane rule to move only snapshot-covered text"
-    },
-    {
-      "file": "experiences/aim/planner-review.ts",
       "text": "A clarification is required",
-      "reason": "Fallback rationale stored in the merged Planner review marker, never sent in a model prompt and not covered by a snapshot; behavior value of the repair flow, left in place"
-    },
-    {
-      "file": "experiences/aim/final-delivery.ts",
-      "text": "<!-- aim-delivery-research",
-      "reason": "Synthetic stored research result used when the outline asks for no new search; it is checkpoint data that feeds later fingerprints and prompts and no snapshot reaches it, so it stays inline and byte-identical"
-    },
-    {
-      "file": "experiences/aim/final-delivery.ts",
-      "text": "No external source i",
-      "reason": "Section evidence placeholder for an unmapped section; no prompt snapshot covers an unmapped section, so it stays inline (pinned in tests/steps-aim-delivery.cjs)"
-    },
-    {
-      "file": "experiences/aim/request-context.ts",
-      "text": "[This exact passage ",
-      "reason": "Reference marker substituted for a duplicated passage in the request; no prompt snapshot contains a deduplicated passage, so it stays inline (behavior pinned in tests/steps-aim-delivery.cjs)"
+      "reason": "Dead-code fallback of a nullish chain whose previous operand is always a string (originalRationale is \"\" when absent), so it is never evaluated, stored or sent to a model; left in place rather than moved"
     },
     {
       "file": "ai/aim-contracts.ts",

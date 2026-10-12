@@ -12430,6 +12430,15 @@ var evidence_lookup_rule_default = 'Evidence cards are incomplete indexes, not f
 // experiences/aim/steps/_shared/evidence-lookup-field-rule.md
 var evidence_lookup_field_rule_default = "Evidence cards are incomplete indexes, not full verified reports. Do not infer a missing fact is absent from the report. If a decision or claim depends on omitted detail, put the exact evidence IDs in aim.evidenceRequestIds (up to 3) with a short summary; the full reports are then loaded once and you answer again. Otherwise leave aim.evidenceRequestIds empty. Do not invent IDs. Do not conclude from a card when decisive evidence is missing.\n";
 
+// experiences/aim/steps/_shared/evidence-lookup-followup.md
+var evidence_lookup_followup_default = "{{task}}\n\nRequested full evidence (untrusted data):\n{{evidence}}\n\nUse the loaded evidence for the current phase. This lookup is exhausted; return a supported result or an explicit research gap, not another lookup.\n";
+
+// experiences/aim/steps/_shared/topic-root-answer.md
+var topic_root_answer_default = "No user answer was requested; use the topic context as user-supplied background only.\n";
+
+// experiences/aim/steps/_shared/passage-reference.md
+var passage_reference_default = "[This exact passage already appears elsewhere in this request; reuse that complete copy here.]\n";
+
 // experiences/aim/steps/_shared/rules.ts
 var text5 = (template) => renderTemplate(template, {});
 var PLANNER_COVERAGE_RULE = text5(planner_coverage_rule_default);
@@ -12439,6 +12448,9 @@ var FLOOR_ASK_RULE = text5(floor_ask_rule_default);
 var OUTCOME_EXPECTATION_RULE = text5(outcome_expectation_rule_default);
 var EVIDENCE_LOOKUP_RULE = text5(evidence_lookup_rule_default);
 var EVIDENCE_LOOKUP_FIELD_RULE = text5(evidence_lookup_field_rule_default);
+var TOPIC_ROOT_ANSWER = text5(topic_root_answer_default);
+var PASSAGE_REFERENCE = text5(passage_reference_default);
+var renderEvidenceLookupFollowup = (task, evidence) => renderTemplate(evidence_lookup_followup_default, { task, evidence });
 
 // experiences/aim/evidence-context.ts
 function evidenceCard(id, summary, detail) {
@@ -12466,13 +12478,13 @@ function deduplicateAimRequest(context) {
       if (chunk.length < 512) return chunk;
       const previous = passages.get(chunk);
       if (previous !== void 0)
-        return `[This exact passage already appears elsewhere in this request; reuse that complete copy here.]`;
+        return PASSAGE_REFERENCE;
       passages.set(chunk, passages.size + 1);
       return chunk.split("\n").map((line) => {
         if (line.length < 512 || line === chunk) return line;
         const earlier = passages.get(line);
         if (earlier !== void 0)
-          return `[This exact passage already appears elsewhere in this request; reuse that complete copy here.]`;
+          return PASSAGE_REFERENCE;
         passages.set(line, passages.size + 1);
         return line;
       }).join("\n");
@@ -12493,14 +12505,21 @@ var renderOutlineTask = (sourceCatalog) => renderTemplate(task_default, { source
 // experiences/aim/steps/delivery-research/task.md
 var task_default2 = "You are the Researcher for the FINAL DOCUMENT. Search the web to fill and verify the sections of this agreed outline: {{outline}}. Prioritize the explicit searchTasks and the concrete resources, examples, steps, or current facts required to deliver this user's requested result. Reuse supported prior findings; do not search irrelevant topics. Return a section-by-section evidence report. Use a Markdown H2 heading exactly matching each agreed section heading with a nonempty searchTask; place only that section's findings under it. Include explicit source IDs (delivery-research:<section-heading>:<number>) and direct source URLs, what each source supports, usable concrete details and unresolved gaps. Actually use available search tools; never claim a search occurred if it did not. Set aim.status to searched only when search actually ran. If tools fail or are unavailable, set aim.status to unavailable rather than replacing research with memory. Do not write the final document or ask questions.\n";
 
+// experiences/aim/steps/delivery-research/reused-evidence.md
+var reused_evidence_default = '<!-- aim-delivery-research {"status":"reused"} -->\nNo new search requested by the outline; use the supplied prior evidence.\n';
+
 // experiences/aim/steps/delivery-research/step.ts
 var renderResearchTask = (outline) => renderTemplate(task_default2, { outline });
+var REUSED_RESEARCH_DETAIL = renderTemplate(reused_evidence_default, {});
 
 // experiences/aim/steps/delivery-writing/task.md
 var task_default3 = 'Write only the complete section "{{heading}}" of the final document. Purpose: {{purpose}}. Full outline (structure only): {{outline}}.\nKnown goal and user conditions:\n{{knownConditions}}\nSection evidence (cite these explicit source IDs and URLs where used):\n{{scopedEvidence}}\n{{additionalResearch}}\nDevelop this section into useful specific content answering the original user goal. Include steps, examples and resources when required. Preserve all necessary detail; summary is only a canvas preview. Do not write other sections, an audit, or a synopsis. Do not fabricate or imply independent source verification. Output reader-facing Markdown in detail; cite sources where used and place limitations beside affected claims.\n';
 
 // experiences/aim/steps/delivery-writing/additional-research.md
 var additional_research_default = "Additional final-document research:\n{{research}}\n";
+
+// experiences/aim/steps/delivery-writing/no-mapped-source.md
+var no_mapped_source_default = "No external source is mapped to this section. Do not make source-backed claims.\n";
 
 // experiences/aim/steps/delivery-writing/step.ts
 var renderWritingTask = (variables4) => renderTemplate(task_default3, {
@@ -12511,6 +12530,7 @@ var renderWritingTask = (variables4) => renderTemplate(task_default3, {
   scopedEvidence: variables4.scopedEvidence,
   additionalResearch: variables4.scopedResearch === void 0 ? "" : renderTemplate(additional_research_default, { research: variables4.scopedResearch })
 });
+var NO_MAPPED_SOURCE = renderTemplate(no_mapped_source_default, {});
 
 // experiences/aim/steps/delivery-acceptance/task.md
 var task_default4 = "Perform the final join review: check cross-section coherence, repeated advice or duplicate passages, source IDs or URLs attributed to the wrong claims, and missing sections. Do not rewrite sections. Review the full draft against the ORIGINAL goal, supplied conditions, requested format, and agreed outline. Outline: {{outline}}\nFinal research:\n{{research}}\nSupplied source reports:\n{{sourceCatalog}}\nDraft:\n{{draft}}\nReturn the decision in the aim fields. Choose conclude ONLY if the document is usable and complete for this request: every required section is developed, necessary examples/resources/steps are concrete and supported, and sources are linked where used. Mere general direction is insufficient for a requested actionable plan. For conclude, put only a short acceptance note in detail; do not rewrite or repeat the draft. Explain readiness in aim.rationale and aim.stopReason. For shortcomings, list the specific missing outcomes and return research_more. If important delivery evidence remains missing, choose research_more with exactly one concrete aim.researchTarget (title, task, expectedValue) and explain the missing outcome. Do not ask the user and do not invent evidence.\n";
@@ -12673,7 +12693,7 @@ ${source.detail}`).join("\n\n");
       true
     ) : {
       summary: "Existing evidence",
-      detail: '<!-- aim-delivery-research {"status":"reused"} -->\nNo new search requested by the outline; use the supplied prior evidence.',
+      detail: REUSED_RESEARCH_DETAIL,
       suggestions: [],
       visualReferences: []
     },
@@ -12713,7 +12733,7 @@ ${sourceCatalog}`;
       throw new Error("Final delivery outline references an unavailable source ID.");
     const sources2 = section2.evidenceIds === void 0 && section2.dependencies === void 0 ? [...available.values()] : ids.map((id) => available.get(id));
     const scopedEvidence = sources2.length ? sources2.map((source) => `Source ID: ${source.id}
-${source.detail}`).join("\n\n") : available.size ? "No external source is mapped to this section. Do not make source-backed claims." : `${base.detail}
+${source.detail}`).join("\n\n") : available.size ? NO_MAPPED_SOURCE : `${base.detail}
 
 ${research.detail}`;
     const scopedResearch = researchForSection(section2);
@@ -13217,6 +13237,9 @@ var variant_no_decision_default = "Make one local format-repair review using onl
 // experiences/aim/steps/format-repair/context.md
 var context_default = "Original question: {{question}}\n\nAnswer snapshot (including provenance): {{answerSnapshot}}\n\nAlready completed report summary:\n{{reportSummary}}\n\nAlready completed report detail:\n{{reportDetail}}\n";
 
+// experiences/aim/steps/format-repair/default-rationale.md
+var default_rationale_default = "The workflow requires a clarification question at this step.\n";
+
 // experiences/aim/steps/format-repair/step.ts
 var renderStateQuestionRepair = (variables4) => renderTemplate(task_state_question_default, { ...variables4 });
 var renderImposedOptionsRepair = (variables4) => renderTemplate(task_imposed_options_default, { ...variables4 });
@@ -13234,10 +13257,10 @@ function renderGeneralRepair(repair) {
     originalSuggestions: repair.originalSuggestions
   });
 }
+var CLARIFICATION_REQUIRED_RATIONALE = renderTemplate(default_rationale_default, {});
 
 // experiences/aim/planner-review.ts
 var AIM_MAX_RESEARCH_TURNS = 2;
-var CLARIFICATION_REQUIRED_RATIONALE = "The workflow requires a clarification question at this step.";
 var errorText = (error) => error instanceof Error ? error.message : String(error);
 var marker3 = /^\s*<!--\s*aim-review\s+(\{[^\n]*\})\s*-->\s*/;
 function readMarker(detail) {
@@ -13657,6 +13680,79 @@ async function scheduleAimResearch(plan, execute, signal) {
     await Promise.all(active.values());
     signal == null ? void 0 : signal.removeEventListener("abort", abort);
   }
+}
+
+// experiences/aim/steps/saved-report-review/review.md
+var review_default = "You are the Planner reviewing saved Searcher reports in a Manual AIM branch. Return a useful conditional answer and exactly one decision in the aim fields with an evidence-based aim.rationale; for conclude, aim.stopReason says why the answer is complete.\n\nChoose research_more only when one specific evidence gap could materially change the answer; give exactly one aim.researchTarget with title, search task, and expected uncertainty reduction. Choose ask_user only when a material user condition is absent from all known context and cannot be handled with a conditional answer; give one direct aim.question and 2\u20135 aim.answerOptions. Treat supplied values as valid scenario conditions even when synthetic: preserve provenance, do not misattribute them as the real person's preferences, and do not ask the user to confirm test data. Otherwise conclude with the strongest honest conditional answer and its limits.\n\n{{plannerCoverageRule}}\n\nHard floor: {{answeredQuestionCount}} answered question node(s) on this branch path; do not conclude before {{minimumAnswers}}. At the floor, the configured exploration target ({{explorationTarget}}) is a soft depth preference; do not require reaching 10 or add quota filler. Below the floor, ask one meaningful new question about an unknown decision-relevant dimension. {{floorAskRule}} {{userQuestionRule}}\n\nDo not search in this Planner turn. Preserve source-reported claims, inference, conditions, contradictions, and uncertainty. VAM does not independently verify sources.\n\nOriginal user goal: {{goal}}\nOriginal question: {{question}}\nSynthetic/actual answer snapshot (preserve provenance): {{answerDescription}}\nSaved branch conditions: {{conditions}}\nPrior answers and results: {{lineage}}\nQuestions already asked: {{questionHistory}}\n\nPersisted Searcher report(s):\n{{reportSummary}}\n\n{{reportDetail}}\n";
+
+// experiences/aim/steps/saved-report-review/followup-search.md
+var followup_search_default = "Use the built-in web search tool available in this Codex turn directly. This is one bounded Planner-directed follow-up search; no VAM-specific research tool is required. Report search status accurately and preserve source attribution and uncertainty.\n\n{{searcherTargetRule}}\n\nPlanner follow-up target: {{title}}\nSearch task: {{task}}\nExpected uncertainty reduction: {{expectedValue}}\n\nQuestion: {{question}}\nAnswer conditions: {{answerDescription}}\n\nEarlier saved report (unverified Agent report; context only):\n{{reportDetail}}\n\nReturn a concise useful report with findings, reasoning, sources when available, and remaining limitations. Keep the answer's synthetic provenance explicit.\n";
+
+// experiences/aim/steps/saved-report-review/step.ts
+function renderSavedReportReviewTask(vars) {
+  return renderTemplate(review_default, {
+    plannerCoverageRule: vars.plannerCoverageRule,
+    floorAskRule: vars.floorAskRule,
+    userQuestionRule: vars.userQuestionRule,
+    answeredQuestionCount: String(vars.answeredQuestionCount),
+    minimumAnswers: String(vars.minimumAnswers),
+    explorationTarget: String(vars.explorationTarget),
+    goal: vars.goal,
+    question: vars.question,
+    answerDescription: vars.answerDescription,
+    conditions: vars.conditions,
+    lineage: vars.lineage,
+    questionHistory: JSON.stringify(vars.questionHistory),
+    reportSummary: vars.reportSummary,
+    reportDetail: vars.reportDetail
+  });
+}
+var renderSavedReportFollowupSearchTask = (vars) => renderTemplate(followup_search_default, { ...vars });
+
+// experiences/aim/steps/partial-continuation/search.md
+var search_default = "Continue this saved partial Manual AIM branch. Preserve the original answer snapshot; do not change or infer the user's answer.\n\n{{searcherTargetRule}}\n\n{{gap}}\n\nOriginal user goal: {{goal}}\nCurrent answered question: {{question}}\nCurrent answer: {{answer}}\nAll branch conditions: {{conditions}}\n\nEarlier answer path and saved research: {{lineage}}\n\nOriginal question: {{question}}\n\nOriginal user answer snapshot: {{answer}}\n\nPrior saved partial result (Agent report, Planner notes, conditions, and limits):\n{{reportSummary}}\n\n{{reportDetail}}\n\nReport findings, uncertainty, contradictions, and source information when available. Do not claim VAM independently verified sources.\n";
+
+// experiences/aim/steps/partial-continuation/review.md
+var review_default2 = "Review all evidence for the original user goal and produce a self-contained answer to that goal. Use saved user answers as conditions that personalize the result; the latest question is not the overall goal. Do not expose the internal research log as the answer. Return exactly one decision in the aim fields with aim.rationale; for conclude, aim.stopReason says why the answer is complete.\n\n{{plannerCoverageRule}}\n\nHard floor: {{answeredQuestionCount}} answered question node(s) on this branch path; do not conclude before {{minimumAnswers}}. At the floor, the configured exploration target ({{explorationTarget}}) is a soft depth preference; do not require reaching 10 or add quota filler. Below the floor, ask one meaningful new question about an unknown decision-relevant dimension. {{floorAskRule}} {{userQuestionRule}} Do not repeat known conditions or prior questions. Use research_more for missing evidence. Prior questions: {{questionsAlreadyAsked}}.\n\nUse research_more only for a specific material evidence gap, with one aim.researchTarget. Use ask_user only for a material user condition that is absent from all known context and cannot be handled with a useful conditional answer; give the exact question in aim.question and 2\u20135 distinct choices in aim.answerOptions. Treat every supplied answer as a valid condition for this branch even when its provenance is labeled synthetic or test data. Such provenance means it is not evidence of the real person's preference; it does not make the supplied scenario value unknown. Do not ask the user to confirm that a test value is real. Phrase the result conditionally and never misattribute synthetic values as the real user's preferences. Otherwise conclude with honest limitations. Do not search in this Planner turn.\n\nOriginal user goal: {{goal}}\nCurrent answered question: {{question}}\nCurrent answer: {{answer}}\nAll branch conditions: {{conditions}}\nEarlier answer path: {{lineage}}\nPersisted reports:\n{{reportSummary}}\n\n{{reportDetail}}\n";
+
+// experiences/aim/steps/partial-continuation/part.target.md
+var part_target_default = "Planner-directed continuation target: {{title}}\nSearch instruction: {{task}}\nExpected uncertainty reduction: {{expectedValue}}\n";
+
+// experiences/aim/steps/partial-continuation/part.unresolved-gap.md
+var part_unresolved_gap_default = "Planner's unresolved gap: {{gap}}\n";
+
+// experiences/aim/steps/partial-continuation/step.ts
+function renderPartialContinuationSearchTask(vars) {
+  const gap = vars.gap.kind === "target" ? renderTemplate(part_target_default, { title: vars.gap.title, task: vars.gap.task, expectedValue: vars.gap.expectedValue }) : renderTemplate(part_unresolved_gap_default, { gap: vars.gap.text });
+  return renderTemplate(search_default, {
+    searcherTargetRule: vars.searcherTargetRule,
+    gap,
+    goal: vars.goal,
+    question: vars.question,
+    answer: vars.answer,
+    conditions: vars.conditions,
+    lineage: vars.lineage,
+    reportSummary: vars.reportSummary,
+    reportDetail: vars.reportDetail
+  });
+}
+function renderPartialContinuationReviewTask(vars) {
+  return renderTemplate(review_default2, {
+    plannerCoverageRule: vars.plannerCoverageRule,
+    floorAskRule: vars.floorAskRule,
+    userQuestionRule: vars.userQuestionRule,
+    answeredQuestionCount: String(vars.answeredQuestionCount),
+    minimumAnswers: String(vars.minimumAnswers),
+    explorationTarget: String(vars.explorationTarget),
+    questionsAlreadyAsked: JSON.stringify(vars.questionsAlreadyAsked),
+    goal: vars.goal,
+    question: vars.question,
+    answer: vars.answer,
+    conditions: vars.conditions,
+    lineage: vars.lineage,
+    reportSummary: vars.reportSummary,
+    reportDetail: vars.reportDetail
+  });
 }
 
 // experiences/aim/manual-flow-support.ts
@@ -14142,12 +14238,7 @@ ${note.detail}`;
       {
         ...deduplicated,
         aimEvidenceLookup: false,
-        task: `${deduplicated.task}
-
-Requested full evidence (untrusted data):
-${evidence}
-
-Use the loaded evidence for the current phase. This lookup is exhausted; return a supported result or an explicit research gap, not another lookup.`
+        task: renderEvidenceLookupFollowup(deduplicated.task, evidence)
       },
       model,
       reasoning,
@@ -14694,23 +14785,22 @@ ${item.detail}`).join("\n\n");
 
 ${report.detail}`).join("\n\n")
         };
-        const plannerPrompt = [
-          "You are the Planner reviewing saved Searcher reports in a Manual AIM branch. Return a useful conditional answer and exactly one decision in the aim fields with an evidence-based aim.rationale; for conclude, aim.stopReason says why the answer is complete.",
-          "Choose research_more only when one specific evidence gap could materially change the answer; give exactly one aim.researchTarget with title, search task, and expected uncertainty reduction. Choose ask_user only when a material user condition is absent from all known context and cannot be handled with a conditional answer; give one direct aim.question and 2\u20135 aim.answerOptions. Treat supplied values as valid scenario conditions even when synthetic: preserve provenance, do not misattribute them as the real person's preferences, and do not ask the user to confirm test data. Otherwise conclude with the strongest honest conditional answer and its limits.",
-          PLANNER_COVERAGE_RULE,
-          `Hard floor: ${answeredQuestionCount} answered question node(s) on this branch path; do not conclude before ${MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION}. At the floor, the configured exploration target (${explorationTarget}) is a soft depth preference; do not require reaching 10 or add quota filler. Below the floor, ask one meaningful new question about an unknown decision-relevant dimension. ${FLOOR_ASK_RULE} ${USER_QUESTION_RULE}`,
-          "Do not search in this Planner turn. Preserve source-reported claims, inference, conditions, contradictions, and uncertainty. VAM does not independently verify sources.",
-          `Original user goal: ${topic.title}
-Original question: ${parent.summary}
-Synthetic/actual answer snapshot (preserve provenance): ${answerDescription}
-Saved branch conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}
-Prior answers and results: ${lineage.context || "none"}
-Questions already asked: ${JSON.stringify(questionHistory)}`,
-          `Persisted Searcher report(s):
-${aggregate.summary}
-
-${aggregate.detail}`
-        ].join("\n\n");
+        const plannerPrompt = renderSavedReportReviewTask({
+          plannerCoverageRule: PLANNER_COVERAGE_RULE,
+          floorAskRule: FLOOR_ASK_RULE,
+          userQuestionRule: USER_QUESTION_RULE,
+          answeredQuestionCount,
+          minimumAnswers: MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION,
+          explorationTarget,
+          goal: topic.title,
+          question: parent.summary,
+          answerDescription,
+          conditions: JSON.stringify(branch.inputSnapshot.conditions),
+          lineage: lineage.context || "none",
+          questionHistory,
+          reportSummary: aggregate.summary,
+          reportDetail: aggregate.detail
+        });
         const plannerContext = {
           aimEvidenceIds: this.lineageEvidenceIds(map, branch.parentBranchId),
           title: topic.title,
@@ -14805,18 +14895,15 @@ Branch conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
         );
         await this.persist(() => this.runs.recordResearchTurn(mapPath, handle));
         const target = finalReview.researchTarget;
-        const task = [
-          "Use the built-in web search tool available in this Codex turn directly. This is one bounded Planner-directed follow-up search; no VAM-specific research tool is required. Report search status accurately and preserve source attribution and uncertainty.",
-          SEARCHER_TARGET_RULE,
-          `Planner follow-up target: ${target.title}
-Search task: ${target.task}
-Expected uncertainty reduction: ${target.expectedValue}`,
-          `Question: ${parent.summary}
-Answer conditions: ${answerDescription}`,
-          `Earlier saved report (unverified Agent report; context only):
-${aggregate.detail}`,
-          "Return a concise useful report with findings, reasoning, sources when available, and remaining limitations. Keep the answer's synthetic provenance explicit."
-        ].join("\n\n");
+        const task = renderSavedReportFollowupSearchTask({
+          searcherTargetRule: SEARCHER_TARGET_RULE,
+          title: target.title,
+          task: target.task,
+          expectedValue: target.expectedValue,
+          question: parent.summary,
+          answerDescription,
+          reportDetail: aggregate.detail
+        });
         const { diagnostic: diagnosticEvents, onEvent } = createSearchDiagnostic(reviewTurn + 1);
         const followup = await this.askAimModel(
           {
@@ -15093,25 +15180,20 @@ ${runId}`, fingerprint2 = JSON.stringify({ model, reasoning });
         throwIfAborted(signal);
         await this.persist(() => this.runs.recordResearchTurn(mapPath, handle));
         const { diagnostic, onEvent } = createSearchDiagnostic(researchTurn);
-        const task = [
-          "Continue this saved partial Manual AIM branch. Preserve the original answer snapshot; do not change or infer the user's answer.",
-          SEARCHER_TARGET_RULE,
-          (latestReview == null ? void 0 : latestReview.researchTarget) ? `Planner-directed continuation target: ${latestReview.researchTarget.title}
-Search instruction: ${latestReview.researchTarget.task}
-Expected uncertainty reduction: ${latestReview.researchTarget.expectedValue}` : `Planner's unresolved gap: ${(_j = (_i = latestReview == null ? void 0 : latestReview.rationale) != null ? _i : priorAttempt.stopReason) != null ? _j : "Continue the incomplete evidence check."}`,
-          `Original user goal: ${topicNote.title}
-Current answered question: ${parent.summary}
-Current answer: ${JSON.stringify(branch.answerSnapshot)}
-All branch conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
-          `Earlier answer path and saved research: ${lineage.context || "None."}`,
-          `Original question: ${parent.summary}`,
-          `Original user answer snapshot: ${JSON.stringify(branch.answerSnapshot)}`,
-          `Prior saved partial result (Agent report, Planner notes, conditions, and limits):
-${report.summary}
-
-${report.detail}`,
-          "Report findings, uncertainty, contradictions, and source information when available. Do not claim VAM independently verified sources."
-        ].join("\n\n");
+        const task = renderPartialContinuationSearchTask({
+          searcherTargetRule: SEARCHER_TARGET_RULE,
+          gap: (latestReview == null ? void 0 : latestReview.researchTarget) ? { kind: "target", ...latestReview.researchTarget } : {
+            kind: "unresolved",
+            text: (_j = (_i = latestReview == null ? void 0 : latestReview.rationale) != null ? _i : priorAttempt.stopReason) != null ? _j : "Continue the incomplete evidence check."
+          },
+          goal: topicNote.title,
+          question: parent.summary,
+          answer: JSON.stringify(branch.answerSnapshot),
+          conditions: JSON.stringify(branch.inputSnapshot.conditions),
+          lineage: lineage.context || "None.",
+          reportSummary: report.summary,
+          reportDetail: report.detail
+        });
         let searcher;
         try {
           searcher = await this.askAimModel(
@@ -15179,21 +15261,22 @@ ${searcher.detail}`
           return this.runs.updateResultDraftReport(mapPath, handle, draft.id, report.summary, report.detail);
         });
         if (!savedReport) return { status: "stale", branchId: branch.id };
-        const plannerPrompt = [
-          "Review all evidence for the original user goal and produce a self-contained answer to that goal. Use saved user answers as conditions that personalize the result; the latest question is not the overall goal. Do not expose the internal research log as the answer. Return exactly one decision in the aim fields with aim.rationale; for conclude, aim.stopReason says why the answer is complete.",
-          PLANNER_COVERAGE_RULE,
-          `Hard floor: ${answeredQuestionCount} answered question node(s) on this branch path; do not conclude before ${MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION}. At the floor, the configured exploration target (${explorationTarget}) is a soft depth preference; do not require reaching 10 or add quota filler. Below the floor, ask one meaningful new question about an unknown decision-relevant dimension. ${FLOOR_ASK_RULE} ${USER_QUESTION_RULE} Do not repeat known conditions or prior questions. Use research_more for missing evidence. Prior questions: ${JSON.stringify(questionsAlreadyAsked)}.`,
-          "Use research_more only for a specific material evidence gap, with one aim.researchTarget. Use ask_user only for a material user condition that is absent from all known context and cannot be handled with a useful conditional answer; give the exact question in aim.question and 2\u20135 distinct choices in aim.answerOptions. Treat every supplied answer as a valid condition for this branch even when its provenance is labeled synthetic or test data. Such provenance means it is not evidence of the real person's preference; it does not make the supplied scenario value unknown. Do not ask the user to confirm that a test value is real. Phrase the result conditionally and never misattribute synthetic values as the real user's preferences. Otherwise conclude with honest limitations. Do not search in this Planner turn.",
-          `Original user goal: ${topicNote.title}
-Current answered question: ${parent.summary}
-Current answer: ${JSON.stringify(branch.answerSnapshot)}
-All branch conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}
-Earlier answer path: ${lineage.context || "None."}
-Persisted reports:
-${report.summary}
-
-${report.detail}`
-        ].join("\n\n");
+        const plannerPrompt = renderPartialContinuationReviewTask({
+          plannerCoverageRule: PLANNER_COVERAGE_RULE,
+          floorAskRule: FLOOR_ASK_RULE,
+          userQuestionRule: USER_QUESTION_RULE,
+          answeredQuestionCount,
+          minimumAnswers: MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION,
+          explorationTarget,
+          questionsAlreadyAsked,
+          goal: topicNote.title,
+          question: parent.summary,
+          answer: JSON.stringify(branch.answerSnapshot),
+          conditions: JSON.stringify(branch.inputSnapshot.conditions),
+          lineage: lineage.context || "None.",
+          reportSummary: report.summary,
+          reportDetail: report.detail
+        });
         const plannerContext = {
           timeoutMs: branch.retryTimeoutMs,
           aimEvidenceIds: this.lineageEvidenceIds(map, branch.parentBranchId),
@@ -16050,7 +16133,7 @@ ${note.detail}`
     let branch = (_a = map.aim) == null ? void 0 : _a.branches.find((item) => item.id === branchId);
     if (!branch) throw new Error("AIM answer branch disappeared before planning its research.");
     const questionNodeId = branch.questionNodeId;
-    const answerDescription = ((_b = map.nodes.find((node) => node.id === questionNodeId)) == null ? void 0 : _b.aimKind) === "topic" ? "No user answer was requested; use the topic context as user-supplied background only." : JSON.stringify({ selectedOptions: answerLabels, freeText: freeText || null });
+    const answerDescription = ((_b = map.nodes.find((node) => node.id === questionNodeId)) == null ? void 0 : _b.aimKind) === "topic" ? TOPIC_ROOT_ANSWER : JSON.stringify({ selectedOptions: answerLabels, freeText: freeText || null });
     const contextBase = {
       timeoutMs: branch.retryTimeoutMs,
       aimEvidenceIds: this.lineageEvidenceIds(map, branch.parentBranchId),

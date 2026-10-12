@@ -1,5 +1,6 @@
 import type { AiResult } from "../../ai/types";
 import {
+  CLARIFICATION_REQUIRED_RATIONALE,
   renderGeneralRepair,
   renderImposedOptionsRepair,
   renderMissingChoicesRepair,
@@ -21,8 +22,6 @@ export interface AimPlannerReview {
   detail: string;
 }
 
-/** Used when the workflow imposed ask_user without supplying its own rationale. */
-const CLARIFICATION_REQUIRED_RATIONALE = "The workflow requires a clarification question at this step.";
 const errorText = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
 const marker = /^\s*<!--\s*aim-review\s+(\{[^\n]*\})\s*-->\s*/;

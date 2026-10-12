@@ -1,4 +1,5 @@
 import type { TaskContext } from "../../ai/types";
+import { PASSAGE_REFERENCE } from "./steps/_shared/rules";
 
 /** Remove identical long passages across fields, keeping one complete copy and explicit references. */
 export function deduplicateAimRequest<T extends TaskContext>(context: T): T {
@@ -13,7 +14,7 @@ export function deduplicateAimRequest<T extends TaskContext>(context: T): T {
         if (chunk.length < 512) return chunk;
         const previous = passages.get(chunk);
         if (previous !== undefined)
-          return `[This exact passage already appears elsewhere in this request; reuse that complete copy here.]`;
+          return PASSAGE_REFERENCE;
         passages.set(chunk, passages.size + 1);
         // Embedded lineage headers can differ while the report's long lines are identical.
         return chunk
@@ -22,7 +23,7 @@ export function deduplicateAimRequest<T extends TaskContext>(context: T): T {
             if (line.length < 512 || line === chunk) return line;
             const earlier = passages.get(line);
             if (earlier !== undefined)
-              return `[This exact passage already appears elsewhere in this request; reuse that complete copy here.]`;
+              return PASSAGE_REFERENCE;
             passages.set(line, passages.size + 1);
             return line;
           })

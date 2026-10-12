@@ -196,6 +196,26 @@
       "language": "en",
       "schema": true
     },
+    "aim-flow.continuation-review.en": {
+      "builder": "AimManualFlow/planner-review phase task variant continuation-review through AiTaskService",
+      "language": "en",
+      "schema": true
+    },
+    "aim-flow.continuation-review.zh": {
+      "builder": "AimManualFlow/planner-review phase task variant continuation-review through AiTaskService",
+      "language": "zh-TW",
+      "schema": true
+    },
+    "aim-flow.continuation-search.en": {
+      "builder": "AimManualFlow/planner-review phase task variant continuation-search through AiTaskService",
+      "language": "en",
+      "schema": true
+    },
+    "aim-flow.continuation-search.zh": {
+      "builder": "AimManualFlow/planner-review phase task variant continuation-search through AiTaskService",
+      "language": "zh-TW",
+      "schema": true
+    },
     "aim-flow.decision-quality-review-answered-goal.en": {
       "builder": "AimManualFlow/planner-review phase task variant decision-quality-review-answered-goal through AiTaskService",
       "language": "en",
@@ -263,6 +283,16 @@
     },
     "aim-flow.delivery-writing.zh": {
       "builder": "AimManualFlow/final-delivery phase delivery-writing through AiTaskService",
+      "language": "zh-TW",
+      "schema": true
+    },
+    "aim-flow.evidence-lookup-followup.en": {
+      "builder": "AimManualFlow/planner-review phase task variant evidence-lookup-followup through AiTaskService",
+      "language": "en",
+      "schema": true
+    },
+    "aim-flow.evidence-lookup-followup.zh": {
+      "builder": "AimManualFlow/planner-review phase task variant evidence-lookup-followup through AiTaskService",
       "language": "zh-TW",
       "schema": true
     },
@@ -436,6 +466,26 @@
       "language": "zh-TW",
       "schema": true
     },
+    "aim-flow.saved-report-followup-search.en": {
+      "builder": "AimManualFlow/planner-review phase task variant saved-report-followup-search through AiTaskService",
+      "language": "en",
+      "schema": true
+    },
+    "aim-flow.saved-report-followup-search.zh": {
+      "builder": "AimManualFlow/planner-review phase task variant saved-report-followup-search through AiTaskService",
+      "language": "zh-TW",
+      "schema": true
+    },
+    "aim-flow.saved-report-review.en": {
+      "builder": "AimManualFlow/planner-review phase task variant saved-report-review through AiTaskService",
+      "language": "en",
+      "schema": true
+    },
+    "aim-flow.saved-report-review.zh": {
+      "builder": "AimManualFlow/planner-review phase task variant saved-report-review through AiTaskService",
+      "language": "zh-TW",
+      "schema": true
+    },
     "aim-flow.subtopic-research-reuse-rejected.en": {
       "builder": "AimManualFlow/planner-review phase task variant subtopic-research-reuse-rejected through AiTaskService",
       "language": "en",
@@ -473,6 +523,26 @@
     },
     "aim-flow.targeted-followup-research.zh": {
       "builder": "AimManualFlow/planner-review phase task variant targeted-followup-research through AiTaskService",
+      "language": "zh-TW",
+      "schema": true
+    },
+    "aim-flow.topic-root-report-review.en": {
+      "builder": "AimManualFlow/planner-review phase task variant topic-root-report-review through AiTaskService",
+      "language": "en",
+      "schema": true
+    },
+    "aim-flow.topic-root-report-review.zh": {
+      "builder": "AimManualFlow/planner-review phase task variant topic-root-report-review through AiTaskService",
+      "language": "zh-TW",
+      "schema": true
+    },
+    "aim-flow.topic-root-research-plan.en": {
+      "builder": "AimManualFlow/planner-review phase task variant topic-root-research-plan through AiTaskService",
+      "language": "en",
+      "schema": true
+    },
+    "aim-flow.topic-root-research-plan.zh": {
+      "builder": "AimManualFlow/planner-review phase task variant topic-root-research-plan through AiTaskService",
       "language": "zh-TW",
       "schema": true
     },
