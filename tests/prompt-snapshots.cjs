@@ -152,9 +152,13 @@ test('collect snapshots: Coffee Tables, Reframe, Markdown context', async () => 
 
 test('collect snapshots: preset instruction strings composed directly from i18n', () => {
   const { translate } = loadModule('i18n.ts');
+  // Two of these texts moved from i18n.ts into step templates; the snapshot text stays `key: text` for every key.
+  const { researchTopicTask } = loadModule('experiences/visual-map/steps/fragments.ts');
+  const { referenceTask } = loadModule('core/steps/reference/step.ts');
+  const text = (language, key) => key === 'prompt.research_topic' ? researchTopicTask(language, 'Target language') : key === 'prompt.reference_reduce' ? referenceTask('reduce', language) : translate(language, key, 'Target language');
   for (const [language, tag] of LANGUAGES) {
     const keys = ['prompt.context_ai_condense', 'prompt.context_ai_translate', 'prompt.context_ai_translate_image', 'prompt.context_ai_search_images', 'prompt.context_ai_explain_image', 'prompt.research_topic', 'prompt.search_budget_exhausted', 'prompt.reference_reduce'];
-    record(`i18n-direct.preset-instructions.${tag}`, 'i18n translate() of strings assembled in UI/runtime classes (selection-ai presets, view research task, codex search-budget steer, reference reduce round which needs >18k chars of evidence to trigger); weaker than a builder snapshot', language, keys.map(key => `${key}: ${translate(language, key, 'Target language')}`).join('\n\n'));
+    record(`i18n-direct.preset-instructions.${tag}`, 'i18n translate() of strings assembled in UI/runtime classes (selection-ai presets, view research task, codex search-budget steer, reference reduce round which needs >18k chars of evidence to trigger); weaker than a builder snapshot', language, keys.map(key => `${key}: ${text(language, key)}`).join('\n\n'));
   }
 });
 

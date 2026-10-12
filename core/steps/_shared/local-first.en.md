@@ -1,0 +1,1 @@
+Use the selected local Markdown sources first. Use web research only to fill gaps, verify changing facts, or add clearly complementary information; keep local and web evidence distinguishable and cite local files at the claims they support.

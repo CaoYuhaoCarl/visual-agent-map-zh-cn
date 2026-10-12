@@ -1,4 +1,17 @@
-import { translate, type UiLanguage } from "../i18n";
+import type { UiLanguage } from "../i18n";
+import {
+  inLanguage,
+  LABEL_ANCESTORS,
+  LABEL_RULES,
+  LABEL_SOURCES,
+  LABEL_SUMMARY,
+  LABEL_TASK,
+  LABEL_TOPIC,
+  LOCAL_FIRST,
+  REFERENCE_CITATIONS,
+  ROLE,
+  SOURCE_SAFETY
+} from "../core/steps/_shared/fragments";
 import type { TaskContext } from "./types";
 
 export function aimPhase(task: string): string | undefined {
@@ -92,10 +105,10 @@ export function buildAimPrompt(context: TaskContext, language: UiLanguage): stri
   const field = (label: string, value: string | undefined) => (value?.trim() ? `${label}:\n${value}` : "");
   const blocks = [
     languageInstruction,
-    translate(language, "prompt.role"),
-    translate(language, "prompt.source_safety"),
-    context.sourceContext ? translate(language, "prompt.reference_citations") : "",
-    context.sourceContext && context.researchMode !== "local" ? translate(language, "prompt.local_first") : "",
+    inLanguage(ROLE, language),
+    inLanguage(SOURCE_SAFETY, language),
+    context.sourceContext ? inLanguage(REFERENCE_CITATIONS, language) : "",
+    context.sourceContext && context.researchMode !== "local" ? inLanguage(LOCAL_FIRST, language) : "",
     language === "en"
       ? "Return JSON only, matching the supplied response schema and including every required field. AIM has visual search disabled, so visualReferences must be an empty array."
       : "只回傳符合提供之 response schema 的 JSON，並包含所有必要欄位。AIM 未啟用視覺搜尋，因此 visualReferences 必須是空陣列。",
@@ -109,18 +122,18 @@ export function buildAimPrompt(context: TaskContext, language: UiLanguage): stri
           ? "Use available web search tools when the phase task requires external evidence. Report search status truthfully."
           : "階段任務需要外部證據時使用可用的網路搜尋工具，並如實回報搜尋狀態。"
         : "",
-    field(translate(language, "prompt.label_topic"), context.title),
-    field(translate(language, "prompt.label_summary"), context.summary),
+    field(inLanguage(LABEL_TOPIC, language), context.title),
+    field(inLanguage(LABEL_SUMMARY, language), context.summary),
     context.detail
       ? `${language === "en" ? "Current detail and supplied reports" : "目前內容與提供的報告"}:\n${context.detail}`
       : "",
-    field(translate(language, "prompt.label_rules"), context.rules),
+    field(inLanguage(LABEL_RULES, language), context.rules),
     context.workingFindings
       ? `${language === "en" ? "Previous findings" : "先前發現"}:\n${context.workingFindings}`
       : "",
-    context.sourceContext ? `${translate(language, "prompt.label_sources")}:\n${context.sourceContext}` : "",
-    field(translate(language, "prompt.label_ancestors"), context.ancestors),
-    field(translate(language, "prompt.label_task"), context.task)
+    context.sourceContext ? `${inLanguage(LABEL_SOURCES, language)}:\n${context.sourceContext}` : "",
+    field(inLanguage(LABEL_ANCESTORS, language), context.ancestors),
+    field(inLanguage(LABEL_TASK, language), context.task)
   ];
   return blocks.filter(Boolean).join("\n\n");
 }

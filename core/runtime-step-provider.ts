@@ -27,14 +27,22 @@ export interface RuntimeStepControls {
   finish?: "completed" | "caller";
   /** Receives the exchange log id once the entry exists, so the caller can mark a later parse failure with `failed`. */
   onExchange?: (id: string) => void;
+  /**
+   * What the exchange log stores as the sent request. "request-and-prompt" (default): `{ request, prompt }`.
+   * "request": only the runtime's request object, as callers that logged it before steps existed did.
+   */
+  requestLog?: "request-and-prompt" | "request";
 }
+
+/** The part of the exchange log the provider writes; a caller can pass a guarded view of the real log. */
+export type ExchangeSink = Pick<AiExchangeLog, "begin" | "sent" | "received" | "completed" | "failed">;
 
 export interface RuntimeStepProviderOptions {
   claude: () => Pick<ClaudeCodeCliRuntime, "runTask">;
   /** `local` selects the runtime without web search, matching `AiTaskServiceOptions.codexRuntime`. */
   codex: (local: boolean) => Pick<CodexAppServerRuntime, "runTask">;
   /** The exchange log, or null when exchange logging is off. Read per call so a settings change applies at once. */
-  exchanges: () => AiExchangeLog | null;
+  exchanges: () => ExchangeSink | null;
   /** Use the Codex runtime without web search. Steps that only transform supplied text set this. */
   localCodex?: boolean;
 }
@@ -50,7 +58,16 @@ export interface RuntimeStepProviderOptions {
 export function runtimeStepProvider(options: RuntimeStepProviderOptions): StepProvider<RuntimeStepControls> {
   return {
     async complete(call) {
-      const { model, effort, topic, mode = "task", task = {}, onExchange, finish = "completed" } = call.controls;
+      const {
+        model,
+        effort,
+        topic,
+        mode = "task",
+        task = {},
+        onExchange,
+        finish = "completed",
+        requestLog = "request-and-prompt"
+      } = call.controls;
       const exchanges = options.exchanges();
       const id = randomUUID();
       exchanges?.begin({
@@ -68,7 +85,11 @@ export function runtimeStepProvider(options: RuntimeStepProviderOptions): StepPr
           ...task,
           onRequest: (data: unknown): void => {
             task.onRequest?.(data);
-            exchanges?.sent(id, JSON.stringify({ request: data, prompt: call.prompt }, null, 2), call.prompt);
+            exchanges?.sent(
+              id,
+              JSON.stringify(requestLog === "request" ? data : { request: data, prompt: call.prompt }, null, 2),
+              call.prompt
+            );
           }
         };
         const raw =

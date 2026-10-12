@@ -1,0 +1,1 @@
+For every important factual claim based on local material, keep its [S#] marker next to the claim. VAM resolves each marker to the selected Vault link or external path after your response. Never invent or alter source IDs, paths, or headings.

@@ -1,4 +1,6 @@
-import { translate, type UiLanguage } from "../i18n";
+import type { UiLanguage } from "../i18n";
+import { inLanguage } from "../core/steps/_shared/fragments";
+import { VISUAL_AUTO, VISUAL_EMBED, VISUAL_NONE, VISUAL_ON, VISUAL_PRESERVE } from "../core/steps/task/fragments";
 import type { TaskContext } from "./types";
 
 export function visualGuidance(context: TaskContext, language: UiLanguage): string[] {
@@ -7,10 +9,10 @@ export function visualGuidance(context: TaskContext, language: UiLanguage): stri
   const mayReuse = synthesis;
   const instructions: string[] = [];
   if (!maySearch) {
-    instructions.push(translate(language, "prompt.visual_none"));
-    if (mayReuse) instructions.push(translate(language, "prompt.visual_preserve"));
-  } else if (context.visualMode === "on") instructions.push(translate(language, "prompt.visual_on"));
-  else instructions.push(translate(language, "prompt.visual_auto"));
-  if (maySearch || mayReuse) instructions.push(translate(language, "prompt.visual_embed"));
+    instructions.push(inLanguage(VISUAL_NONE, language));
+    if (mayReuse) instructions.push(inLanguage(VISUAL_PRESERVE, language));
+  } else if (context.visualMode === "on") instructions.push(inLanguage(VISUAL_ON, language));
+  else instructions.push(inLanguage(VISUAL_AUTO, language));
+  if (maySearch || mayReuse) instructions.push(inLanguage(VISUAL_EMBED, language));
   return instructions;
 }

@@ -1,0 +1,18 @@
+{
+  "dirs": [
+    "core/steps",
+    "core/ai-task-service.ts",
+    "ai/aim-prompt.ts",
+    "ai/visual-guidance.ts"
+  ],
+  "allow": [
+    {
+      "file": "core/steps/task/schemas.ts",
+      "reason": "JSON response-schema field descriptions sent as part of the schema, not prompt templates; they move with the schema when AIM contracts become steps (stage S3)"
+    },
+    {
+      "file": "ai/aim-prompt.ts",
+      "reason": "AIM phase templates stay inline in buildAimPrompt until AIM is moved to steps (stage S3); the ten label and role fragments it shares already come from core/steps/_shared"
+    }
+  ]
+}
