@@ -1,0 +1,190 @@
+// Byte-exact prompt (and provider response schema) snapshots, English and Traditional Chinese.
+// Compare mode is the default: any difference fails. UPDATE_PROMPT_SNAPSHOTS=1 rewrites tests/snapshots/prompts.
+// tests/snapshots/prompts/index.json is the coverage table (snapshot -> builder/flow -> language -> i18n keys).
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const { load: loadModule, normalizeText, promptsFor, root } = require('./support-replay.cjs');
+const support = require('./support.cjs');
+
+const directory = path.join(__dirname, 'snapshots', 'prompts');
+const update = process.env.UPDATE_PROMPT_SNAPSHOTS === '1';
+const LANGUAGES = [['en', 'en'], ['zh-TW', 'zh']];
+const snapshots = new Map(); // name -> { prompt, schema, builder, language }
+
+function record(name, builder, language, prompt, schema) {
+  assert.ok(!snapshots.has(name), `duplicate snapshot ${name}`);
+  snapshots.set(name, { builder, language, prompt: normalizeText(prompt), schema });
+}
+async function recordContext(name, builder, language, context) {
+  const sent = await promptsFor(context, { language });
+  assert.ok(sent.length >= 1, `${name}: no prompt reached the provider`);
+  sent.forEach((call, index) => record(sent.length === 1 ? name : `${name}.${index + 1}`, builder, language, call.prompt, call.schema));
+}
+
+const base = { title: 'Topic T', summary: 'Current summary S', rules: 'Rule R', detail: 'Existing detail D', task: 'Do task X', ancestors: 'Ancestor A', workingFindings: 'Older finding F', sourceContext: 'Source [S1]: fact', mode: 'task', researchMode: 'research', researchDepth: 'normal', visualMode: 'auto' };
+
+test('collect snapshots: AiTaskService general task prompt', async () => {
+  for (const [language, tag] of LANGUAGES) {
+    const ctx = { ...base, outputLanguage: language };
+    await recordContext(`service.task-web.${tag}`, 'AiTaskService instructions: mode task, web research, visual auto', language, ctx);
+    await recordContext(`service.task-web-visual-on.${tag}`, 'AiTaskService instructions: mode task, visual on', language, { ...ctx, visualMode: 'on' });
+    await recordContext(`service.task-local-fast.${tag}`, 'AiTaskService instructions: mode task, local research, fast', language, { ...ctx, researchMode: 'local', researchDepth: 'fast' });
+    await recordContext(`service.decompose-deep.${tag}`, 'AiTaskService instructions: mode decompose, deep research', language, { ...ctx, mode: 'decompose', researchDepth: 'deep' });
+    await recordContext(`service.synthesize-local.${tag}`, 'AiTaskService instructions: mode synthesize, local, visual off', language, { ...ctx, mode: 'synthesize', researchMode: 'local', visualMode: 'off' });
+    await recordContext(`service.default-adaptive.${tag}`, 'AiTaskService instructions: no mode, adaptive detail, no sources', language, { ...ctx, mode: undefined, detailFormat: 'adaptive', sourceContext: undefined, workingFindings: undefined, detail: '', rules: '', ancestors: '' });
+    await recordContext(`service.reference-groups.${tag}`, 'AiTaskService reference extraction then task', language, { ...ctx, sourceContext: undefined, referenceGroups: [{ id: 'g1', name: 'Group', location: '/refs', documents: [{ path: '/refs/a.md', content: 'Reference body A' }] }] });
+  }
+});
+
+test('collect snapshots: AIM prompt builder per phase', async () => {
+  const phases = ['research-gap-audit', 'initial-clarification', 'initial-question', 'research-plan', 'research-plan-repair', 'subtopic-research', 'targeted-followup-research', 'report-review', 'decision-quality-review', 'format-repair', 'delivery-outline', 'delivery-research', 'delivery-writing', 'delivery-acceptance'];
+  const aimBase = { title: 'Goal G', summary: 'Summary S', rules: 'Rule R', detail: 'Reports D', ancestors: 'Known conditions C', workingFindings: 'Prior findings F', sourceContext: 'Source [S1]: fact', mode: 'task', promptProfile: 'aim', researchMode: 'local', researchDepth: 'normal', visualMode: 'off' };
+  for (const [language, tag] of LANGUAGES) for (const phase of [undefined, ...phases]) {
+    const task = phase ? `<!-- aim-phase: ${phase} -->\nPhase task text.` : 'Plain task text.';
+    const research = ['subtopic-research', 'targeted-followup-research', 'delivery-research'].includes(phase);
+    const context = { ...aimBase, task, outputLanguage: language, researchMode: research ? 'research' : 'local', ...(phase === 'research-gap-audit' ? { responseContract: 'aim-gap-audit' } : {}), ...(phase === 'delivery-acceptance' ? { responseContract: 'aim-delivery-acceptance' } : {}), ...(research ? { aimIsolatedResearch: true } : {}) };
+    await recordContext(`aim-builder.${phase ?? 'no-phase'}.${tag}`, `buildAimPrompt via AiTaskService (phase ${phase ?? 'none'}, legacy marker contract)`, language, context);
+  }
+  const contracts = { intake: { kind: 'intake' }, 'question-required': { kind: 'question', requireQuestion: true }, 'question-optional': { kind: 'question', requireQuestion: false }, plan: { kind: 'plan' }, reuse: { kind: 'reuse' }, 'review-all': { kind: 'review', decisions: ['research_more', 'ask_user', 'conclude'] }, 'review-floor': { kind: 'review', decisions: ['research_more', 'ask_user'] }, outline: { kind: 'outline' }, 'delivery-research': { kind: 'delivery-research' } };
+  for (const [name, contract] of Object.entries(contracts)) {
+    const context = { ...aimBase, task: '<!-- aim-phase: report-review -->\nStructured contract task.', outputLanguage: 'en', aimContract: contract, aimEvidenceLookup: name === 'review-all', ...(name === 'delivery-research' ? { researchMode: 'research', aimIsolatedResearch: true } : {}) };
+    await recordContext(`aim-contract.${name}.en`, `AiTaskService schema + structured-contract prompt (${contract.kind})`, 'en', context);
+  }
+});
+
+test('collect snapshots: AIM flow phase tasks (manual-flow, final-delivery)', async () => {
+  const subject = await support.coverageSetup('Snapshot goal');
+  const first = new Map();
+  const inner = subject.model.ask;
+  const { AimManualFlow } = loadModule('experiences/aim/manual-flow.ts');
+  const { AimRunStore } = loadModule('experiences/aim/research-run-store.ts');
+  const ask = async context => {
+    const phase = context.task.match(/aim-phase:\s*([a-z-]+)/)?.[1] ?? 'none';
+    const key = phase === 'report-review' && /Hard floor: \d+ answered/.test(context.task) ? `${phase}-${first.has(phase) ? 'later' : 'first'}` : phase;
+    if (!first.has(key)) first.set(key, { ...context, onProgress: undefined, signal: undefined });
+    return inner(context);
+  };
+  subject.flow = new AimManualFlow(subject.repo, new AimRunStore(subject.repo), ask);
+  await support.coverageThreeAnswers(subject);
+  assert.ok(first.size >= 6, `expected several AIM phases, saw ${[...first.keys()].join(',')}`);
+  for (const [phase, context] of [...first.entries()].sort(([a], [b]) => a.localeCompare(b)))
+    for (const [language, tag] of LANGUAGES)
+      await recordContext(`aim-flow.${phase}.${tag}`, `AimManualFlow/final-delivery phase ${phase} through AiTaskService`, language, { ...context, outputLanguage: language });
+});
+
+test('collect snapshots: Visual Map expansion and synthesis tasks', async () => {
+  const { VisualAgentMapView } = support.load('main.ts', { obsidian: support.obsidian });
+  for (const [language, tag] of LANGUAGES) {
+    const { repo, app } = support.fixture(language), parent = await support.topicNote(repo, 'Parent topic', 'model-a');
+    await repo.updateNote(parent.path, { summary: 'Parent summary', detail: 'Parent detail' });
+    const mapPath = 'Agent Workspace/Topics/map-a/Map.md', mapDoc = support.map([parent]); mapDoc.id = 'map-a';
+    await app.vault.create(mapPath, support.core.serializeMap(mapDoc));
+    const child = await repo.createNote('Child topic', 'model-a', mapDoc, mapPath, 'workspace'); child.parentId = parent.id; mapDoc.nodes.push(child);
+    await repo.updateNote(child.path, { summary: 'Child summary', detail: 'Child detail', newFindings: 'Child finding', visualReferences: '![diagram](https://example.org/diagram.png)' });
+    const contexts = [];
+    const plugin = support.withExpansionCoordinator({ repo, settings: { ...support.DEFAULT_SETTINGS, language }, running: new Set(), pendingSuggestions: new Map(), pendingResearchOptions: new Map(), quickExpandFailures: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), recordFailure: (_label, error) => error.message,
+      askModel: async context => { contexts.push({ kind: contexts.kind, context }); return { summary: 'S', detail: 'D', visualReferences: [], suggestions: contexts.suggestions ?? [] }; } });
+    const view = new VisualAgentMapView({ app }, plugin); view.path = mapPath; view.map = mapDoc; view.contentEl = { querySelector: () => null }; view.render = () => {}; view.hydrate = async () => {}; view.focusNode = () => {}; view.ancestorContext = async () => 'Ancestor chain A';
+    const options = { researchMode: 'research', researchDepth: 'fast', visualMode: 'off', referenceGroups: [], multiLayer: true, shallowResearch: false, layers: 2, firstLayerCount: 2, childrenPerParent: 1, outputLanguage: language };
+    contexts.kind = 'direct';
+    await view.proposeChildren(parent, true, options, '', () => {}, () => {}, true).catch(() => {});
+    contexts.kind = 'guided';
+    await view.proposeChildren(parent, true, { ...options, multiLayer: false }, 'Focus on risks', () => {}, () => {}, false).catch(() => {});
+    contexts.kind = 'guided-empty-direction';
+    await view.proposeChildren(parent, true, { ...options, multiLayer: false }, '', () => {}, () => {}, false).catch(() => {});
+    contexts.kind = 'synthesis-directions';
+    contexts.suggestions = [{ title: 'Direction one', task: 't', contribution: 'c' }];
+    let choose;
+    await view.proposeIntegrationDirections(parent, { researchMode: 'local', researchDepth: 'normal', visualMode: 'off', requirements: 'Only compare cost', referenceGroups: [], outputLanguage: language }, (_items, draft) => { choose = draft; }, () => {}, message => { throw new Error(message); });
+    contexts.kind = 'synthesis-draft-default-goal';
+    if (choose) await choose('').catch(() => {});
+    const seen = new Set();
+    for (const { kind, context } of contexts) {
+      if (seen.has(kind)) continue; seen.add(kind);
+      assert.ok(context.task.length > 0);
+      await recordContext(`view.${kind}.${tag}`, `VisualAgentMapView ${kind} TaskContext through AiTaskService`, language, { ...context, onProgress: undefined, signal: undefined });
+    }
+    assert.ok(seen.has('direct') && seen.has('guided') && seen.has('synthesis-directions'), `view cases captured: ${[...seen].join(',')}`);
+  }
+});
+
+test('collect snapshots: Coffee Tables, Reframe, Markdown context', () => {
+  const prompts = support.coffeePrompts, types = support.coffeeTypes;
+  const customization = support.coffeeCustomization;
+  for (const [language, tag] of LANGUAGES) {
+    const topic = language === 'en' ? 'Should lunches allow parent top-ups' : '營養午餐是否開放家長加價';
+    const session = types.createSession(topic, 'test-model', 'high', language);
+    session.id = 'session-fixed'; session.createdAt = '2026-01-01T00:00:00.000Z'; session.updatedAt = session.createdAt;
+    record(`coffee.table-opening.${tag}`, 'coffee-tables/prompts.ts tablePrompt (opening, default guests)', language, prompts.tablePrompt(topic, language));
+    record(`coffee.table-continue.${tag}`, 'coffee-tables/prompts.ts tablePrompt (draft + prior context + invited guest)', language, prompts.tablePrompt(topic, language, session.guests, 'Unfinished draft text', 'Prior discussion text', [{ id: 'g1', name: 'Guest Name', category: 'experts', description: 'Guest background' }]));
+    record(`coffee.opening-preview.${tag}`, 'coffee-tables/prompts.ts openingPromptPreview', language, prompts.openingPromptPreview(topic, language, session.guests));
+    session.status = 'completed';
+    session.rounds = [{ id: 'round-1', createdAt: session.createdAt, status: 'completed', markdown: '### Host|Host\nOpening line one.\n\n### Expert|Expert\nSecond speaker line.', notes: '' }];
+    session.interventions = [{ id: 'iv-1', roundId: 'round-1', afterTurn: 1, text: 'User intervention text', createdAt: session.createdAt }];
+    record(`coffee.question.${tag}`, 'coffee-tables/prompts.ts questionPrompt', language, prompts.questionPrompt(session, 'Follow-up question text', 'Earlier answer draft'));
+    record(`coffee.observer-only.${tag}`, 'coffee-tables/prompts.ts observerOnlyPrompt', language, prompts.observerOnlyPrompt(session));
+    const baseline = [{ id: 'insight-1', category: 'connections', summary: 'Insight summary one', detail: 'Insight detail one', sources: ['source quote'], question: '', proposedSolution: '', limitations: '' }, { id: 'insight-2', category: 'questions', summary: 'Insight summary two', detail: 'Insight detail two', sources: [], question: '', proposedSolution: '', limitations: '' }];
+    session.pinnedInsightIds = ['insight-2'];
+    record(`coffee.convergence.${tag}`, 'coffee-tables/convergence.ts convergencePrompt', language, support.coffeeConvergence.convergencePrompt(session, baseline, customization.defaultCustomization(language)));
+  }
+  const { buildReframePrompt } = support.load('core/reframing-service.ts', { obsidian: support.obsidian });
+  for (const [language, tag] of LANGUAGES) record(`reframe.${tag}`, 'core/reframing-service.ts buildReframePrompt', language, buildReframePrompt({ language, question: 'Direction question', context: 'Direction context', source: 'Source thinking text' }));
+  const { planPrompt } = support.load('experiences/markdown-context/action-plan.ts', { obsidian: support.obsidian });
+  record('markdown-context.plan-text', 'markdown-context/action-plan.ts planPrompt (not localized)', 'none', planPrompt('Rewrite this', 'Selected text', 'Nearby context', false));
+  record('markdown-context.plan-image', 'markdown-context/action-plan.ts planPrompt with image (not localized)', 'none', planPrompt('Describe this', 'Selected text', 'Nearby context', true));
+});
+
+test('collect snapshots: preset instruction strings composed directly from i18n', () => {
+  const { translate } = loadModule('i18n.ts');
+  for (const [language, tag] of LANGUAGES) {
+    const keys = ['prompt.context_ai_condense', 'prompt.context_ai_translate', 'prompt.context_ai_translate_image', 'prompt.context_ai_search_images', 'prompt.context_ai_explain_image', 'prompt.research_topic', 'prompt.search_budget_exhausted', 'prompt.reference_reduce'];
+    record(`i18n-direct.preset-instructions.${tag}`, 'i18n translate() of strings assembled in UI/runtime classes (selection-ai presets, view research task, codex search-budget steer, reference reduce round which needs >18k chars of evidence to trigger); weaker than a builder snapshot', language, keys.map(key => `${key}: ${translate(language, key, 'Target language')}`).join('\n\n'));
+  }
+});
+
+function promptKeyCoverage() {
+  const { translate, t } = loadModule('i18n.ts');
+  void t;
+  const source = fs.readFileSync(path.join(root, 'i18n.ts'), 'utf8');
+  const keys = [...new Set([...source.matchAll(/^\s*"(prompt\.[a-z_]+)":/gm)].map(match => match[1]))].sort();
+  const covered = {}, uncovered = [];
+  for (const key of keys) {
+    let any = false;
+    for (const [language, tag] of LANGUAGES) {
+      const template = translate(language, key, '\u0000a', '\u0000b', '\u0000c', '\u0000d', '\u0000e');
+      const parts = template.split(/\u0000[a-e]/).map(part => part.trim()).filter(part => part.length >= 4);
+      const hits = [...snapshots.entries()].filter(([, value]) => value.language === language && parts.length && parts.every(part => value.prompt.includes(normalizeText(part)))).map(([name]) => name);
+      if (hits.length) { any = true; (covered[key] ??= {})[tag] = hits.length; }
+    }
+    if (!any) uncovered.push(key);
+  }
+  return { keys, covered, uncovered };
+}
+
+test('prompt snapshots match the checked-in files byte for byte', () => {
+  assert.ok(snapshots.size > 100, `unexpectedly few snapshots: ${snapshots.size}`);
+  const coverage = promptKeyCoverage();
+  const index = {
+    note: 'Generated by tests/prompt-snapshots.cjs. Do not edit by hand; rerun with UPDATE_PROMPT_SNAPSHOTS=1.',
+    snapshots: Object.fromEntries([...snapshots.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([name, value]) => [name, { builder: value.builder, language: value.language, schema: value.schema !== undefined }])),
+    i18nPromptKeys: { total: coverage.keys.length, coveredBySnapshotCount: Object.fromEntries(Object.entries(coverage.covered).map(([key, value]) => [key, value])), uncovered: coverage.uncovered }
+  };
+  const expected = new Map();
+  for (const [name, value] of snapshots) {
+    expected.set(`${name}.txt`, value.prompt);
+    if (value.schema !== undefined) expected.set(`${name}.schema.json`, `${JSON.stringify(value.schema, null, 2)}\n`);
+  }
+  expected.set('index.json', `${JSON.stringify(index, null, 2)}\n`);
+  if (update) {
+    fs.rmSync(directory, { recursive: true, force: true });
+    fs.mkdirSync(directory, { recursive: true });
+    for (const [file, content] of expected) fs.writeFileSync(path.join(directory, file), content);
+    return;
+  }
+  assert.ok(fs.existsSync(directory), 'snapshots missing; run once with UPDATE_PROMPT_SNAPSHOTS=1');
+  const onDisk = new Set(fs.readdirSync(directory));
+  assert.deepEqual([...onDisk].sort(), [...expected.keys()].sort(), 'snapshot file set differs (stale or missing snapshots)');
+  for (const [file, content] of expected) assert.equal(fs.readFileSync(path.join(directory, file), 'utf8'), content, `snapshot ${file} changed`);
+});

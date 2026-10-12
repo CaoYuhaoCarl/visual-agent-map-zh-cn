@@ -1,0 +1,60 @@
+// Convert an ai-exchanges.json (written by AiExchangeLog when "AI exchange logging" is on) into replay case files
+// for tests/replay.cjs. One case file per exchange that carries a prompt.
+//
+//   node tests/tools/exchanges-to-replay.mjs <ai-exchanges.json> <out-dir> [--manifest manifest.json] [--sequential]
+//
+// manifest.json maps an exchange id (or its topic) to extra driver data the log does not contain:
+//   { "<id or topic>": { "name": "...", "language": "en", "context": { TaskContext }, "expect": { ... } } }
+// A case without "context" cannot be driven by the replay runner until one is added.
+// --sequential drops the prompt hash match, for exchanges whose prompt no longer equals what current code builds.
+//
+// Exchange logs hold real prompts and replies. Review them before copying any output into a public repository.
+import { createHash } from "node:crypto";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+const ISO_TIME = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z/g;
+// Keep in step with normalizeText/sha256 in tests/support-replay.cjs; the round-trip test fails if they drift.
+const ROOT = resolve(fileURLToPath(new URL("../..", import.meta.url)));
+const normalize = text =>
+  String(text).replace(/\r\n/g, "\n").replace(UUID, "<uuid>").replace(ISO_TIME, "<time>").split(ROOT).join("<root>");
+export const promptHash = text => createHash("sha256").update(normalize(text)).digest("hex");
+
+export function convertExchanges(exchanges, { manifest = {}, sequential = false } = {}) {
+  if (!Array.isArray(exchanges)) throw new Error("Exchange log must be a JSON array.");
+  return exchanges
+    .filter(entry => entry && typeof entry.prompt === "string" && entry.prompt)
+    .map(entry => {
+      const extra = manifest[entry.id] ?? manifest[entry.topic] ?? {};
+      // A failure with no raw reply is a provider/runtime failure and replays as a thrown error.
+      // A failure after a reply is a parse-stage failure; the raw reply itself is what gets replayed.
+      const providerFailure = entry.status === "failed" && !entry.response;
+      return {
+        version: 1,
+        name: extra.name ?? `exchange-${entry.id}`,
+        source: { kind: "ai-exchanges", exchangeId: entry.id, startedAt: entry.startedAt, mode: entry.mode, status: entry.status, recordedError: entry.error || undefined },
+        model: entry.model,
+        effort: entry.effort,
+        language: extra.language ?? "en",
+        ...(extra.context ? { context: extra.context } : {}),
+        ...(extra.expect ? { expect: extra.expect } : {}),
+        matchPrompt: !sequential,
+        exchanges: [{ promptSha256: promptHash(entry.prompt), prompt: entry.prompt, response: entry.response, ...(providerFailure ? { error: entry.error } : {}) }]
+      };
+    });
+}
+
+function main(args) {
+  const [input, outDir, ...rest] = args;
+  if (!input || !outDir) throw new Error("Usage: exchanges-to-replay.mjs <ai-exchanges.json> <out-dir> [--manifest file] [--sequential]");
+  const manifestIndex = rest.indexOf("--manifest");
+  const manifest = manifestIndex >= 0 ? JSON.parse(readFileSync(rest[manifestIndex + 1], "utf8")) : {};
+  const cases = convertExchanges(JSON.parse(readFileSync(input, "utf8")), { manifest, sequential: rest.includes("--sequential") });
+  mkdirSync(outDir, { recursive: true });
+  for (const item of cases) writeFileSync(join(outDir, `${item.name.replace(/[^A-Za-z0-9._-]+/g, "-")}.replay.json`), `${JSON.stringify(item, null, 2)}\n`);
+  process.stdout.write(`${cases.length} replay case(s) written to ${outDir}\n`);
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main(process.argv.slice(2));
