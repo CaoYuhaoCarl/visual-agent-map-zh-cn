@@ -1209,3 +1209,34 @@ integrationTest('selection bar shows Research, progress and Stop; the progress b
   await until(() => h.plugin.expansionBatches.get(h.key).status === 'stopped');
   const idle = element('workspace'); h.view.renderMultiResearchStatus(idle); assert.equal(idle.children.length, 0);
 });
+integrationTest('multi research: stop before any topic is accepted gives exactly one summary Notice and no launch error', async () => {
+  const h = await multiResearchHarness(['A']);
+  h.view.runAgent = async () => { h.view.stopMultiResearch(); return undefined; };
+  h.view.multiSelected = new Set([h.nodes[0].id]);
+  await h.view.startMultiResearch(h.request);
+  await until(() => h.plugin.expansionBatches.get(h.key).status !== 'running');
+  assert.equal(h.notices.length, 1, h.notices.join('|'));
+  assert.equal(h.notices[0], 'Research stopped: 0 of 1 succeeded, 0 failed, 0 skipped.');
+});
+integrationTest('multi research: a topic that became busy before dispatch is skipped, not failed', async () => {
+  const h = await multiResearchHarness(['A', 'B', 'C', 'D']);
+  h.view.multiSelected = new Set(h.nodes.map(n => n.id));
+  await h.view.startMultiResearch(h.request);
+  await until(() => h.runs.length === 3);
+  h.plugin.running.add(h.nodes[3].path);
+  h.finish.get('A')(); h.finish.get('B')(); h.finish.get('C')();
+  await until(() => h.plugin.expansionBatches.get(h.key).status === 'completed');
+  assert.equal(h.runs.length, 3);
+  const state = h.plugin.expansionBatches.get(h.key);
+  assert.equal(state.failures.length, 0);
+  assert.equal(h.notices.at(-1), 'Research finished: 3 of 4 succeeded, 0 failed, 1 skipped.');
+});
+integrationTest('multi research summary counts only successful topics as succeeded', async () => {
+  const h = await multiResearchHarness(['A', 'B']);
+  h.view.multiSelected = new Set(h.nodes.map(n => n.id));
+  await h.view.startMultiResearch(h.request);
+  await until(() => h.runs.length === 2);
+  h.finish.get('A')('boom'); h.finish.get('B')();
+  await until(() => h.plugin.expansionBatches.get(h.key).status === 'completed');
+  assert.equal(h.notices.at(-1), 'Research finished: 1 of 2 succeeded, 1 failed, 0 skipped.');
+});

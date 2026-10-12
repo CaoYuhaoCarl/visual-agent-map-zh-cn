@@ -190,8 +190,8 @@ var english = {
   "ui.multi_research_skipped": "Skipped {0} topics that are already running AI.",
   "ui.multi_research_all_skipped": "All selected topics are already running AI.",
   "ui.multi_research_already_running": "A multi-topic research is already running on this map.",
-  "ui.multi_research_finished": "Research finished: {0} of {1} topics, {2} failed.",
-  "ui.multi_research_stopped": "Research stopped: {0} of {1} topics finished, {2} failed.",
+  "ui.multi_research_finished": "Research finished: {0} of {1} succeeded, {2} failed, {3} skipped.",
+  "ui.multi_research_stopped": "Research stopped: {0} of {1} succeeded, {2} failed, {3} skipped.",
   "ui.outline_import_partial": "Created {0} of {1} topics: {2}",
   "ui.aim_create_map": "Create Adaptive Inquiry Map (AIM)",
   "ui.aim_start_title": "Create an Adaptive Inquiry Map (AIM)",
@@ -1351,8 +1351,8 @@ var traditionalChinese = {
   "ui.multi_research_skipped": "\u5DF2\u7565\u904E {0} \u500B\u6B63\u5728\u57F7\u884C AI \u7684\u8B70\u984C\u3002",
   "ui.multi_research_all_skipped": "\u5DF2\u9078\u8B70\u984C\u90FD\u6B63\u5728\u57F7\u884C AI\u3002",
   "ui.multi_research_already_running": "\u9019\u5F35\u5716\u5DF2\u6709\u591A\u8B70\u984C\u7814\u7A76\u5728\u57F7\u884C\u3002",
-  "ui.multi_research_finished": "\u7814\u7A76\u5B8C\u6210\uFF1A{0}\uFF0F{1} \u500B\u8B70\u984C\uFF0C{2} \u500B\u5931\u6557\u3002",
-  "ui.multi_research_stopped": "\u7814\u7A76\u5DF2\u505C\u6B62\uFF1A\u5B8C\u6210 {0}\uFF0F{1} \u500B\u8B70\u984C\uFF0C{2} \u500B\u5931\u6557\u3002",
+  "ui.multi_research_finished": "\u7814\u7A76\u5B8C\u6210\uFF1A\u6210\u529F {0}\uFF0F{1}\uFF0C{2} \u500B\u5931\u6557\uFF0C{3} \u500B\u8DF3\u904E\u3002",
+  "ui.multi_research_stopped": "\u7814\u7A76\u5DF2\u505C\u6B62\uFF1A\u6210\u529F {0}\uFF0F{1}\uFF0C{2} \u500B\u5931\u6557\uFF0C{3} \u500B\u8DF3\u904E\u3002",
   "ui.outline_import_partial": "\u5EFA\u7ACB\u4E86 {0}\uFF0F{1} \u500B\u8B70\u984C\uFF1A{2}",
   "ui.aim_create_map": "\u5EFA\u7ACB Adaptive Inquiry Map\uFF08AIM\uFF09",
   "ui.aim_start_title": "\u5EFA\u7ACB Adaptive Inquiry Map\uFF08AIM\uFF09",
@@ -24378,26 +24378,40 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
           requirements: request.requirements
         };
         let reported = false;
-        await this.plugin.expansionCoordinator.start(
-          key2,
-          nodes,
-          (child, batchSignal, accepted) => this.researchChild(child, batchSignal, accepted, choices),
-          () => {
-            const state = this.plugin.expansionBatches.get(key2);
-            if (state && state.status !== "running" && !reported) {
-              reported = true;
-              new import_obsidian16.Notice(
-                t(
-                  state.status === "stopped" ? "ui.multi_research_stopped" : "ui.multi_research_finished",
-                  state.completed,
-                  state.total,
-                  state.failures.length
-                )
-              );
+        let succeeded = 0;
+        let skipped = 0;
+        try {
+          await this.plugin.expansionCoordinator.start(
+            key2,
+            nodes,
+            async (child, batchSignal, accepted) => {
+              if (busy(child)) {
+                skipped++;
+                accepted();
+                return;
+              }
+              await this.researchChild(child, batchSignal, accepted, choices);
+              if (!batchSignal.aborted) succeeded++;
+            },
+            () => {
+              const state = this.plugin.expansionBatches.get(key2);
+              if (state && state.status !== "running" && !reported) {
+                reported = true;
+                new import_obsidian16.Notice(
+                  t(
+                    state.status === "stopped" ? "ui.multi_research_stopped" : "ui.multi_research_finished",
+                    succeeded,
+                    state.total,
+                    state.failures.length,
+                    skipped
+                  )
+                );
+              }
+              if (!this.closed) this.render();
             }
-            if (!this.closed) this.render();
-          }
-        );
+          );
+        } catch (e) {
+        }
       });
     } catch (error) {
       new import_obsidian16.Notice(errorMessage(error));

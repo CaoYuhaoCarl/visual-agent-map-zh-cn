@@ -4029,26 +4029,41 @@ export class VisualAgentMapView extends ItemView {
           requirements: request.requirements
         };
         let reported = false;
-        await this.plugin.expansionCoordinator.start(
-          key,
-          nodes,
-          (child, batchSignal, accepted) => this.researchChild(child, batchSignal, accepted, choices),
-          () => {
-            const state = this.plugin.expansionBatches.get(key);
-            if (state && state.status !== "running" && !reported) {
-              reported = true;
-              new Notice(
-                t(
-                  state.status === "stopped" ? "ui.multi_research_stopped" : "ui.multi_research_finished",
-                  state.completed,
-                  state.total,
-                  state.failures.length
-                )
-              );
+        let succeeded = 0;
+        let skipped = 0;
+        try {
+          await this.plugin.expansionCoordinator.start(
+            key,
+            nodes,
+            async (child, batchSignal, accepted) => {
+              if (busy(child)) {
+                skipped++;
+                accepted();
+                return;
+              }
+              await this.researchChild(child, batchSignal, accepted, choices);
+              if (!batchSignal.aborted) succeeded++;
+            },
+            () => {
+              const state = this.plugin.expansionBatches.get(key);
+              if (state && state.status !== "running" && !reported) {
+                reported = true;
+                new Notice(
+                  t(
+                    state.status === "stopped" ? "ui.multi_research_stopped" : "ui.multi_research_finished",
+                    succeeded,
+                    state.total,
+                    state.failures.length,
+                    skipped
+                  )
+                );
+              }
+              if (!this.closed) this.render();
             }
-            if (!this.closed) this.render();
-          }
-        );
+          );
+        } catch {
+          // Launch rejection from the coordinator (stopped or all failed) is reported by the summary Notice.
+        }
       });
     } catch (error) {
       new Notice(errorMessage(error));
