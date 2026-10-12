@@ -33,9 +33,9 @@ class Setting {
 
 /**
  * Select `selected` inside `markdown`, open the panel, press the first preset button and answer every model call
- * with the next entry of `replies`. Returns the prompts the panel passed to `run`, in order.
+ * with the next entry of `replies`. Returns the prompts of the prepared steps the panel passed to `run`, in order.
  */
-async function runPanel({ markdown, selected, replies }) {
+async function runPanel({ markdown, selected, replies, steps = false }) {
   const obsidian = { Component, MarkdownView, MarkdownRenderer: { render: async () => {} }, Notice: class {}, Setting, requestUrl: async () => ({ json: {} }) };
   const globals = {
     HTMLElement: FakeElement, HTMLImageElement: class {}, HTMLTextAreaElement: class {}, HTMLButtonElement: class {},
@@ -50,7 +50,7 @@ async function runPanel({ markdown, selected, replies }) {
   const app = { workspace: { containerEl: new FakeElement(), getLeavesOfType: () => [{ view }], getActiveViewOfType: () => view } };
   const sent = [];
   const queue = [...replies];
-  const ai = new MarkdownSelectionAi(app, { model: () => 'test-model', language: () => 'English', run: async prompt => { sent.push(prompt); return queue.shift(); } });
+  const ai = new MarkdownSelectionAi(app, { model: () => 'test-model', language: () => 'English', run: async prepared => { sent.push(steps ? { step: `${prepared.step.id}@${prepared.step.version}`, prompt: prepared.prompt } : prepared.prompt); return queue.shift(); } });
   assert(ai.openForSelection(false), 'the panel opened');
   const panel = app.workspace.containerEl.children.find(item => item.cls === 'vam-context-ai-panel');
   const presets = panel.descendants().find(item => item.cls === 'vam-context-ai-presets');

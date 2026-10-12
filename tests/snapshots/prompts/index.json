@@ -533,7 +533,7 @@
     }
   },
   "i18nPromptKeys": {
-    "total": 48,
+    "total": 43,
     "coveredBySnapshotCount": {
       "prompt.adaptive_detail_structure": {
         "en": 1,
@@ -542,26 +542,6 @@
       "prompt.avoid_duplicates": {
         "en": 3,
         "zh": 3
-      },
-      "prompt.context_ai_condense": {
-        "en": 1,
-        "zh": 1
-      },
-      "prompt.context_ai_explain_image": {
-        "en": 1,
-        "zh": 1
-      },
-      "prompt.context_ai_search_images": {
-        "en": 1,
-        "zh": 1
-      },
-      "prompt.context_ai_translate": {
-        "en": 1,
-        "zh": 1
-      },
-      "prompt.context_ai_translate_image": {
-        "en": 1,
-        "zh": 1
       },
       "prompt.decompose": {
         "en": 4,
