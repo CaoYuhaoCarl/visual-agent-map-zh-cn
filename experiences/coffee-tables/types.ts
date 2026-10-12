@@ -134,6 +134,8 @@ export interface CoffeeRequest {
   signal: AbortSignal;
   onText?: (text: string) => void;
   registerIntervention?: (handler: (text: string) => Promise<void>) => void;
+  /** `stepId@version` of the Step Runner step that produced this request, for the exchange log. */
+  step?: string;
 }
 export type CoffeeRuntime = (request: CoffeeRequest) => Promise<string>;
 

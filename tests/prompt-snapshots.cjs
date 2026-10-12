@@ -110,9 +110,10 @@ test('collect snapshots: Visual Map expansion and synthesis tasks', async () => 
   }
 });
 
-test('collect snapshots: Coffee Tables, Reframe, Markdown context', () => {
+test('collect snapshots: Coffee Tables, Reframe, Markdown context', async () => {
   const prompts = support.coffeePrompts, types = support.coffeeTypes;
   const customization = support.coffeeCustomization;
+  const { convergenceStep } = loadModule('experiences/coffee-tables/steps/convergence/step.ts');
   for (const [language, tag] of LANGUAGES) {
     const topic = language === 'en' ? 'Should lunches allow parent top-ups' : '營養午餐是否開放家長加價';
     const session = types.createSession(topic, 'test-model', 'high', language);
@@ -125,9 +126,16 @@ test('collect snapshots: Coffee Tables, Reframe, Markdown context', () => {
     session.interventions = [{ id: 'iv-1', roundId: 'round-1', afterTurn: 1, text: 'User intervention text', createdAt: session.createdAt }];
     record(`coffee.question.${tag}`, 'coffee-tables/prompts.ts questionPrompt', language, prompts.questionPrompt(session, 'Follow-up question text', 'Earlier answer draft'));
     record(`coffee.observer-only.${tag}`, 'coffee-tables/prompts.ts observerOnlyPrompt', language, prompts.observerOnlyPrompt(session));
+    session.questions = [{ id: 'question-1', question: 'Follow-up question text', answer: 'Answer text for the follow-up.', status: 'complete', createdAt: '2026-01-01T00:00:01.000Z' }];
+    const navigation = [];
+    const navigationEngine = new support.coffee.CoffeeEngine(JSON.parse(JSON.stringify(session)), async request => { navigation.push(request.prompt); return ''; }, async () => {});
+    await navigationEngine.fillSegmentSummaries();
+    assert.equal(navigation.length, 1, 'navigation summary prompt reached the provider once');
+    record(`coffee.navigation-summary.${tag}`, 'coffee-tables/engine.ts fillSegmentSummaries (navigation summary request)', language, navigation[0]);
+    session.questions = [];
     const baseline = [{ id: 'insight-1', category: 'connections', summary: 'Insight summary one', detail: 'Insight detail one', sources: ['source quote'], question: '', proposedSolution: '', limitations: '' }, { id: 'insight-2', category: 'questions', summary: 'Insight summary two', detail: 'Insight detail two', sources: [], question: '', proposedSolution: '', limitations: '' }];
     session.pinnedInsightIds = ['insight-2'];
-    record(`coffee.convergence.${tag}`, 'coffee-tables/convergence.ts convergencePrompt', language, support.coffeeConvergence.convergencePrompt(session, baseline, customization.defaultCustomization(language)));
+    record(`coffee.convergence.${tag}`, 'coffee-tables/convergence.ts convergencePrompt', language, convergenceStep.render({ session, baseline, customization: customization.defaultCustomization(language) }));
   }
   const { buildReframePrompt } = support.load('core/reframing-service.ts', { obsidian: support.obsidian });
   for (const [language, tag] of LANGUAGES) record(`reframe.${tag}`, 'core/reframing-service.ts buildReframePrompt', language, buildReframePrompt({ language, question: 'Direction question', context: 'Direction context', source: 'Source thinking text' }));

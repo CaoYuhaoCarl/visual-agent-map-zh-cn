@@ -977,7 +977,8 @@ export default class VisualAgentMapPlugin extends Plugin {
       topic: `Coffee Tables · ${session.topic}`,
       mode: "task",
       model: session.model,
-      effort
+      effort,
+      ...(request.step ? { step: request.step } : {})
     });
     try {
       const controls = {

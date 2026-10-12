@@ -17,7 +17,7 @@ const obsidian = {
   normalizePath: value => value.replace(/\\/g, '/').replace(/\/+/g, '/'),
 };
 function load(entry) {
-  const code = buildSync({ entryPoints: [path.join(root, entry)], bundle: true, write: false, platform: 'node', format: 'cjs', external: ['obsidian', 'node:*'] }).outputFiles[0].text;
+  const code = buildSync({ entryPoints: [path.join(root, entry)], bundle: true, write: false, platform: 'node', format: 'cjs', loader: { '.md': 'text' }, external: ['obsidian', 'node:*'] }).outputFiles[0].text;
   const module = { exports: {} };
   vm.runInNewContext(code, { module, exports: module.exports, require: name => name === 'obsidian' ? obsidian : require(name), console, crypto: require('node:crypto').webcrypto, AbortController, window: { setTimeout, clearTimeout } });
   return module.exports;

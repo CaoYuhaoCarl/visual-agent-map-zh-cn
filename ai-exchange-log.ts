@@ -27,6 +27,8 @@ export interface AiExchange {
   effort: string;
   request: string;
   prompt?: string;
+  /** Step Runner `stepId@version` that produced the prompt, when the call went through a step. */
+  step?: string;
   sentAt?: string;
   completedAt?: string;
   durationMs?: number;
@@ -77,7 +79,8 @@ export function promptMetrics(entry: AiExchange): {
 
 export function formatAiExchange(entry: AiExchange): string {
   const metrics = promptMetrics(entry);
-  const timing = `Request ID: ${entry.id} · phase: ${metrics.phase} · prompt: ${metrics.characters} characters · approximately ${metrics.estimatedTokens} tokens (estimate, not billed usage) · sent: ${entry.sentAt ?? "unavailable"} · completed: ${entry.completedAt ?? "unavailable"} · elapsed: ${entry.durationMs === undefined ? "unavailable" : formatElapsed(entry.durationMs)}`;
+  const step = entry.step ? ` · step: ${entry.step}` : "";
+  const timing = `Request ID: ${entry.id}${step} · phase: ${metrics.phase} · prompt: ${metrics.characters} characters · approximately ${metrics.estimatedTokens} tokens (estimate, not billed usage) · sent: ${entry.sentAt ?? "unavailable"} · completed: ${entry.completedAt ?? "unavailable"} · elapsed: ${entry.durationMs === undefined ? "unavailable" : formatElapsed(entry.durationMs)}`;
   return [
     `[${entry.startedAt}] ${entry.topic} · ${entry.mode} · ${entry.model}/${entry.effort} · ${entry.status}`,
     timing,
@@ -115,6 +118,7 @@ export class AiExchangeLog {
             key => typeof entry[key] === "string"
           ) &&
           (entry.prompt === undefined || typeof entry.prompt === "string") &&
+          (entry.step === undefined || typeof entry.step === "string") &&
           (entry.sentAt === undefined || typeof entry.sentAt === "string") &&
           (entry.completedAt === undefined || typeof entry.completedAt === "string") &&
           (entry.durationMs === undefined ||

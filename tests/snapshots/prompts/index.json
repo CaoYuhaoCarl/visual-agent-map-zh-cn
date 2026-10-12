@@ -286,6 +286,16 @@
       "language": "zh-TW",
       "schema": false
     },
+    "coffee.navigation-summary.en": {
+      "builder": "coffee-tables/engine.ts fillSegmentSummaries (navigation summary request)",
+      "language": "en",
+      "schema": false
+    },
+    "coffee.navigation-summary.zh": {
+      "builder": "coffee-tables/engine.ts fillSegmentSummaries (navigation summary request)",
+      "language": "zh-TW",
+      "schema": false
+    },
     "coffee.observer-only.en": {
       "builder": "coffee-tables/prompts.ts observerOnlyPrompt",
       "language": "en",

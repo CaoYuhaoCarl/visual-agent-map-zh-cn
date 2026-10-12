@@ -9,7 +9,7 @@ const { buildSync } = require('esbuild');
 
 const root = path.resolve(__dirname, '..');
 function load(entry, overrides = {}) {
-  const code = buildSync({ entryPoints: [path.join(root, entry)], bundle: true, write: false, platform: 'node', format: 'cjs', external: ['obsidian', 'node:*'] }).outputFiles[0].text;
+  const code = buildSync({ entryPoints: [path.join(root, entry)], bundle: true, write: false, platform: 'node', format: 'cjs', loader: { '.md': 'text' }, external: ['obsidian', 'node:*'] }).outputFiles[0].text;
   const module = { exports: {} };
   vm.runInNewContext(code, { module, exports: module.exports, require: name => overrides[name] || require(name), console: Object.assign(Object.create(console), { debug() {} }), TextDecoder, crypto: crypto.webcrypto, process, AbortController, DOMException, setTimeout, clearTimeout });
   return module.exports;
