@@ -10138,7 +10138,8 @@ function sourceFootnoteLabel(path) {
 }
 function resolveSummaryReferences(summary, groups) {
   const documents = dedupeReferenceGroups(groups).flatMap((group) => group.documents);
-  const stripped = summary.replace(/[ \t]*\[S\d+\]/g, "").replace(/[（(]\s*[）)]/g, "").replace(/[ \t]+([,.;:!?，。；：！？、])/g, "$1").replace(/[,，、;；]+(?=[,.;:!?，。；：！？、])/g, "").replace(/[ \t]{2,}/g, " ").trim();
+  const run = String.raw`\[S\d+\](?:\s*[,，、;；]?\s*\[S\d+\])*`;
+  const stripped = summary.replace(new RegExp(String.raw`[ \t]*[（(]\s*${run}\s*[）)]`, "g"), "").replace(new RegExp(String.raw`[ \t]*${run}`, "g"), "").trim();
   return resolveWikilinks(stripped, documents);
 }
 var FOOTNOTE_DEFINITION = /^\[\^(src-[0-9a-z]+)\]:/;

@@ -130,6 +130,11 @@ test('source footnotes survive reruns: kept references get their definitions bac
   assert.equal(api.resolveDetailReferences(`C[^${old}]`, []), `C Source to confirm: ${old}`);
   // Summary punctuation left by removed markers is tidied.
   assert.equal(api.resolveSummaryReferences('[S1] 開頭（[S2]）、see [S1], [S2].', groups), '開頭、see.');
+  assert.equal(api.resolveSummaryReferences('結論（[S1]、[S2]）。', groups), '結論。');
+  assert.equal(api.resolveSummaryReferences('依據 [S1]、[S2]。A [S1], B', groups), '依據。A, B');
+  // Only marker runs are removed; ordinary brackets and punctuation stay as written.
+  for (const text of ['Call foo() then bar()', 'Use .NET and a .gitignore file', 'smile :) ok', 'U.S. (e.g.) 3, 4.'])
+    assert.equal(api.resolveSummaryReferences(text, groups), text);
 });
 test('canonicalDetail gathers source footnote definitions into the evidence section', () => {
   const { canonicalDetail } = load('main.ts', { obsidian });

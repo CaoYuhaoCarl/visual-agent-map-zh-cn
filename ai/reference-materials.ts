@@ -103,15 +103,14 @@ export function sourceFootnoteLabel(path: string): string {
   return `src-${hash.toString(36).padStart(7, "0")}`;
 }
 
-/** Summary shows on map cards: drop `[S#]` markers and the punctuation they leave behind, keep other link handling. */
+/** Summary shows on map cards: drop `[S#]` marker runs (with their separators and brackets), keep other link handling. */
 export function resolveSummaryReferences(summary: string, groups: ReferenceGroup[]): string {
   const documents = dedupeReferenceGroups(groups).flatMap(group => group.documents);
+  // Remove whole runs of markers ("[S1]、[S2]", "（[S1], [S2]）") and nothing else, so ordinary text is untouched.
+  const run = String.raw`\[S\d+\](?:\s*[,，、;；]?\s*\[S\d+\])*`;
   const stripped = summary
-    .replace(/[ \t]*\[S\d+\]/g, "")
-    .replace(/[（(]\s*[）)]/g, "")
-    .replace(/[ \t]+([,.;:!?，。；：！？、])/g, "$1")
-    .replace(/[,，、;；]+(?=[,.;:!?，。；：！？、])/g, "")
-    .replace(/[ \t]{2,}/g, " ")
+    .replace(new RegExp(String.raw`[ \t]*[（(]\s*${run}\s*[）)]`, "g"), "")
+    .replace(new RegExp(String.raw`[ \t]*${run}`, "g"), "")
     .trim();
   return resolveWikilinks(stripped, documents);
 }
