@@ -1,0 +1,329 @@
+const assert = require('node:assert/strict');
+const { test, integrationTest, load, core, map, plain, obsidian, DEFAULT_SETTINGS, fixture, topicNote } = require('../support.cjs');
+test('AI result formatting always produces the canonical knowledge structure', async () => {
+  const { canonicalDetail } = load('main.ts', { obsidian });
+  const result = canonicalDetail('New analysis');
+  for (const heading of ['核心結論', '關鍵知識', '證據與來源', '取捨與限制', '待確認事項', '更新紀錄']) assert.match(result, new RegExp(`### ${heading}`));
+  assert.equal((result.match(/New analysis/g) || []).length, 1);
+  const english = canonicalDetail('New analysis', 'en');
+  for (const heading of ['Core conclusions', 'Key knowledge', 'Evidence and sources', 'Tradeoffs and limitations', 'Open questions', 'Update log']) assert.match(english, new RegExp(`### ${heading}`));
+  assert.doesNotMatch(english, /核心結論|尚待補充|整理為結構化知識/);
+  const bilingual = canonicalDetail('### 核心結論\n\n中文結論\n\n### 證據與來源\n\n[[來源.md]]', 'en');
+  assert.equal((bilingual.match(/中文結論/g) || []).length, 1);
+  assert.match(bilingual, /### Core conclusions\n\n中文結論/);
+  assert.doesNotMatch(bilingual, /### 核心結論/);
+  assert.doesNotMatch(bilingual, /To be added/);
+});
+test('AI visual references render as image cards', () => {
+  const { visualReferencesMarkdown } = load('main.ts', { obsidian });
+  const markdown = visualReferencesMarkdown([{ title: 'Navy + Beige', imageUrl: 'https://example.com/outfit.jpg', sourceUrl: 'https://example.com/page', description: '乾淨休閒穿搭', palette: ['navy', 'white', 'beige'], formula: '深色外套 + 白色內搭 + 淺色褲' }]);
+  assert.match(markdown, /!\[Navy \+ Beige\]\(https:\/\/example.com\/outfit.jpg\)/);
+  assert.match(markdown, /來源：https:\/\/example.com\/page/);
+  assert.match(markdown, /配色：navy \/ white \/ beige/);
+  const english = visualReferencesMarkdown([{ title: 'Map', imageUrl: 'https://example.com/map.jpg', sourceUrl: 'https://example.com/page', description: 'Route', palette: [], formula: '' }], 'en');
+  assert.match(english, /Source: https:\/\/example.com\/page/);
+  assert.doesNotMatch(english, /來源：|用途：/);
+});
+integrationTest('AI prompt defaults to the selected language across task modes', async () => {
+  const { default: Plugin } = load('main.ts', { obsidian });
+  const plugin = new Plugin(); plugin.app = { vault: { adapter: new obsidian.FileSystemAdapter() } }; plugin.manifest = { dir: '.obsidian/plugins/visual-agent-map' };
+  const prompts = [];
+  plugin.runtime = () => ({ runTask: async prompt => { prompts.push(prompt); return '{"summary":"done","detail":"details","suggestions":[],"visualReferences":[]}'; } });
+  const context = { title: 'English topic', summary: 'English summary', rules: '', detail: '', task: 'Expand the map', ancestors: '', researchMode: 'local', researchDepth: 'fast', visualMode: 'off' };
+  plugin.settings.language = 'en';
+  for (const mode of ['task', 'decompose', 'synthesize']) await plugin.askModel({ ...context, mode }, 'test-model', 'low');
+  for (const prompt of prompts) {
+    assert.match(prompt, /Write newly generated content in English by default/);
+    assert.doesNotMatch(prompt, /[一-龥]/);
+  }
+  assert.match(prompts[0], /### Core conclusions/);
+  assert.match(prompts[0], /Insufficient information/);
+  assert.doesNotMatch(prompts[0], /現有資料不足/);
+  assert.doesNotMatch(prompts[0], /detail 必須是完整繁體中文/);
+  plugin.settings.language = 'zh-TW';
+  await plugin.askModel({ ...context, mode: 'task' }, 'test-model', 'low');
+  assert.match(prompts[3], /新產生的內容預設使用繁體中文/);
+  assert.match(prompts[3], /### 核心結論/);
+});
+integrationTest('Claude Code uses the shared task prompt and structured result parser without provider fallback', async () => {
+  const { default: Plugin } = load('main.ts', { obsidian });
+  const plugin = new Plugin(); plugin.app = { vault: { adapter: new obsidian.FileSystemAdapter() } }; plugin.manifest = { dir: '.obsidian/plugins/visual-agent-map' };
+  let call;
+  plugin.claudeCli = () => ({ runTask: async (...args) => { call = args; return JSON.stringify({ summary: 'Claude result', detail: 'Claude detail', suggestions: [], visualReferences: [] }); } });
+  plugin.runtime = () => { assert.fail('Claude selection must not fall back to Codex'); };
+  const result = await plugin.askModel({ title: 'Topic', summary: 'Existing summary', rules: '', detail: 'Full detail', task: 'One-run requirement', ancestors: '', mode: 'synthesize', researchMode: 'research', researchDepth: 'fast', visualMode: 'off' }, 'claude:sonnet', 'high');
+  assert.equal(call[1], 'sonnet'); assert.equal(call[2], 'high');
+  assert.match(call[0], /One-run requirement/); assert.match(call[0], /Full detail/);
+  assert.ok(call[3] && typeof call[3] === 'object');
+  assert.equal(call[4].searchBudget, 0);
+  assert.equal(call[4].webSearch, true);
+  assert.deepEqual(plain(result), { summary: 'Claude result', detail: 'Claude detail', suggestions: [], visualReferences: [] });
+});
+integrationTest('AI response fallback keeps the language captured when the task started', async () => {
+  const { default: Plugin } = load('main.ts', { obsidian });
+  const plugin = new Plugin(); plugin.app = { vault: { adapter: new obsidian.FileSystemAdapter() } }; plugin.manifest = { dir: '.obsidian/plugins/visual-agent-map' };
+  plugin.settings.language = 'en';
+  plugin.runtime = () => ({ runTask: async () => {
+    plugin.settings.language = 'zh-TW';
+    return JSON.stringify({ summary: 'Done', detail: 'Details', suggestions: [], visualReferences: [{ imageUrl: 'https://example.com/image.jpg', sourceUrl: 'https://example.com' }] });
+  } });
+  const result = await plugin.askModel({ title: 'Topic', summary: '', rules: '', detail: '', task: 'Research', ancestors: '', mode: 'task', researchMode: 'local', visualMode: 'off' }, 'test-model', 'low');
+  assert.equal(result.visualReferences[0].title, 'Visual reference');
+});
+test('hover helpers extract image and table from user notes markdown', () => {
+  const { firstMarkdownImage, firstMarkdownTable, markdownImages } = load('main.ts', { obsidian });
+  const markdown = '我的筆記\n\n![配色](https://example.com/style.jpg)\n![髮型](https://example.com/hair.jpg)\n![鞋子](https://example.com/shoes.jpg)\n![外套](https://example.com/jacket.jpg)\n![忽略](https://example.com/ignored.jpg)\n\n| 面向 | 判斷 |\n| --- | --- |\n| 顏色 | navy / beige |\n| 鞋子 | white sneakers |';
+  const image = firstMarkdownImage(markdown);
+  assert.equal(image.alt, '配色');
+  assert.equal(image.url, 'https://example.com/style.jpg');
+  assert.equal(markdownImages(markdown, 4).length, 4);
+  assert.equal(markdownImages(markdown, 4)[3].alt, '外套');
+  assert.equal(JSON.stringify(firstMarkdownTable(markdown)), JSON.stringify([['面向', '判斷'], ['顏色', 'navy / beige'], ['鞋子', 'white sneakers']]));
+});
+integrationTest('new notes omit inactive rules and working findings; clearing legacy findings removes the section', async () => {
+  const { repo, contents } = fixture(), n = await topicNote(repo, 'Direct write', 'a');
+  assert.match(contents.get(n.path), /## Prompt[\s\S]*## 預覽[\s\S]*## Detail/);
+  assert.doesNotMatch(contents.get(n.path), /## Rules/);
+  assert.doesNotMatch(contents.get(n.path), /## Working Findings/);
+  await repo.updateNote(n.path, { newFindings: 'Legacy finding' });
+  assert.match(contents.get(n.path), /## Working Findings\n\nLegacy finding/);
+  await repo.updateNote(n.path, { newFindings: '' });
+  assert.doesNotMatch(contents.get(n.path), /## Working Findings/);
+  assert.equal((await repo.readNote(n.path)).newFindings, '');
+});
+integrationTest('a successful AI task immediately updates summary and MD detail', async () => {
+  const { repo, app, contents } = fixture(), n = await topicNote(repo, 'Direct write', 'a');
+  await repo.updateNote(n.path, { prompt: 'Research this', rules: 'Use a comparison table.', detail: 'Existing detail', newFindings: 'Legacy finding', sourcePaths: ['Other.md'] });
+  const mapPath = 'Agent Workspace/Topics/map-a/Map.md';
+  const mapDoc = { id: 'map-a', title: 'map-a', version: 1, nodes: [n], viewport: { x: 0, y: 0, zoom: 1 } };
+  await app.vault.create(mapPath, core.serializeMap(mapDoc));
+  const { VisualAgentMapView } = load('main.ts', { obsidian }); let view;
+  let acceptedLaunch = false, acceptedSignal;
+  let finishAi;
+  const plugin = {
+    repo, settings: { ...DEFAULT_SETTINGS }, running: new Set(), activeTasks: new Map(), pendingSuggestions: new Map(),
+    askModel: (context, _model, _reasoning, signal, _onExchange, onAccepted) => { acceptedSignal = signal; assert.equal(context.mode, 'task'); assert.equal(context.task, 'One-time request'); assert.equal(context.rules, ''); assert.equal(context.detail, 'Existing detail'); assert.equal(context.workingFindings, 'Legacy finding'); assert.equal(context.sourceContext, ''); onAccepted?.(); return new Promise(resolve => { finishAi = () => resolve({ summary: 'Direct summary', detail: '### 核心結論\n\nDirect detail\n\n### 關鍵知識\n\nExisting detail; Legacy finding\n\n### 證據與來源\n\nSource\n\n### 取捨與限制\n\nNone\n\n### 待確認事項\n\nNone\n\n### 更新紀錄\n\n- Updated', suggestions: [] }); }); },
+    rebuildDerivedData: async () => {}, mutate: async work => work(), views: () => [view]
+  };
+  view = new VisualAgentMapView({ app }, plugin); view.path = mapPath; view.map = mapDoc; view.render = () => {}; view.hydrate = async () => {};
+  const run = view.runAgent(n, undefined, undefined, { task: 'One-time request' }, () => {
+    acceptedLaunch = true;
+    assert.ok(plugin.activeTasks.has(n.path)); assert.ok(plugin.running.has(n.path));
+    assert.equal(acceptedSignal.aborted, false);
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(acceptedLaunch, true);
+  finishAi();
+  await run; await new Promise(resolve => setTimeout(resolve, 20));
+  assert.equal(acceptedLaunch, true); assert.equal(acceptedSignal.aborted, false);
+  const updated = await repo.readNote(n.path);
+  assert.equal(updated.prompt, 'Research this'); assert.equal(updated.summary, 'Direct summary'); assert.equal(updated.rules, 'Use a comparison table.');
+  assert.equal(updated.status, 'completed');
+  assert.equal(updated.newFindings, '');
+  assert.match(updated.detail, /Direct detail/);
+  assert.match(updated.detail, /Legacy finding/);
+  assert.match(updated.detail, /Existing detail/);
+  assert.doesNotMatch(contents.get(n.path), /## Working Findings/);
+  assert.equal(updated.previewInitialized, true);
+  await view.travel(false);
+  const restored = await repo.readNote(n.path);
+  assert.equal(restored.status, 'idea');
+  assert.equal(restored.previewInitialized, false);
+  assert.doesNotMatch(restored.previewSection, /Direct summary/);
+  await view.travel(true);
+  assert.equal((await repo.readNote(n.path)).previewInitialized, true);
+});
+integrationTest('cancelling a node task keeps its earlier Markdown and status', async () => {
+  const { repo, app } = fixture(), n = await topicNote(repo, 'Cancel');
+  await repo.updateNote(n.path, { prompt: 'Research', detail: 'Keep this' });
+  const { VisualAgentMapView } = load('main.ts', { obsidian }); let view;
+  const plugin = {
+    repo, settings: { ...DEFAULT_SETTINGS }, running: new Set(), activeTasks: new Map(), pendingSuggestions: new Map(),
+    askModel: (_context, _model, _reasoning, signal, _exchange, accepted) => { accepted?.(); return new Promise((_resolve, reject) => signal.addEventListener('abort', () => { const error = new Error('cancelled'); error.name = 'AbortError'; reject(error); }, { once: true })); },
+    mutate: async work => work(), views: () => [view]
+  };
+  view = new VisualAgentMapView({ app }, plugin); view.path = 'Map.md'; view.map = map([n]); view.render = () => {}; view.hydrate = async () => {};
+  await view.runAgent(n);
+  assert.equal((await repo.readNote(n.path)).status, 'running');
+  plugin.activeTasks.get(n.path).abort();
+  await new Promise(resolve => setTimeout(resolve, 20));
+  const after = await repo.readNote(n.path);
+  assert.equal(after.status, 'idea'); assert.equal(after.detail, 'Keep this'); assert.equal(plugin.activeTasks.size, 0);
+});
+integrationTest('prelaunch AI failures release task ownership and preserve startup errors', async () => {
+  const { repo, app } = fixture(), n = await topicNote(repo, 'Startup cleanup');
+  await repo.updateNote(n.path, { prompt: 'Research', detail: 'Keep this' });
+  const { VisualAgentMapView } = load('main.ts', { obsidian }); let view;
+  const plugin = { repo, settings: { ...DEFAULT_SETTINGS }, running: new Set(), activeTasks: new Map(), pendingSuggestions: new Map(), askModel: async () => { assert.fail('provider must not start'); }, mutate: async work => work(), views: () => [view] };
+  view = new VisualAgentMapView({ app }, plugin); view.path = 'Map.md'; view.map = map([n]); view.render = () => {}; view.hydrate = async () => { throw new Error('hydrate failed'); };
+  await assert.rejects(view.runAgent(n), /hydrate failed/);
+  assert.equal((await repo.readNote(n.path)).status, 'idea'); assert.equal(plugin.activeTasks.size, 0); assert.equal(plugin.running.size, 0);
+
+  const { repo: abortRepo, app: abortApp } = fixture(), abortNode = await topicNote(abortRepo, 'Abort startup cleanup');
+  await abortRepo.updateNote(abortNode.path, { prompt: 'Research' });
+  const originalUpdate = abortRepo.updateNote.bind(abortRepo); let enteredRunning = false;
+  abortRepo.updateNote = async (path, patch) => {
+    if (patch.status === 'running') enteredRunning = true;
+    if (enteredRunning && patch.status === 'idea') throw new Error('status restore failed');
+    return originalUpdate(path, patch);
+  };
+  const abortPlugin = { repo: abortRepo, settings: { ...DEFAULT_SETTINGS }, running: new Set(), activeTasks: new Map(), pendingSuggestions: new Map(), askModel: async () => { assert.fail('provider must not start'); }, mutate: async work => work(), views: () => [abortView] }; let abortView;
+  abortView = new VisualAgentMapView({ app: abortApp }, abortPlugin); abortView.path = 'Map.md'; abortView.map = map([abortNode]); abortView.render = () => {};
+  abortView.hydrate = async () => { abortPlugin.activeTasks.get(abortNode.path).abort(); };
+  await assert.rejects(abortView.runAgent(abortNode), /status restore failed/);
+  assert.equal(abortPlugin.activeTasks.size, 0); assert.equal(abortPlugin.running.size, 0);
+});
+integrationTest('cancelling child synthesis restores the topic status and does not report a failure', async () => {
+  const { repo, app } = fixture(), parent = await topicNote(repo, 'Synthesis parent');
+  await repo.updateNote(parent.path, { status: 'completed', summary: 'Existing conclusion', detail: 'Existing knowledge' });
+  const child = await topicNote(repo, 'Synthesis child');
+  const mapPath = 'Agent Workspace/Topics/map-a/Map.md';
+  const mapDoc = { id: 'map-a', title: 'map-a', version: 1, nodes: [{ ...parent, status: 'completed' }, { ...child, parentId: parent.id }], viewport: { x: 0, y: 0, zoom: 1 } };
+  await app.vault.create(mapPath, core.serializeMap(mapDoc));
+  const controller = new AbortController(); let view, reported = '';
+  const plugin = {
+    repo, settings: { ...DEFAULT_SETTINGS }, running: new Set(), activeTasks: new Map(),
+    askModel: (_context, _model, _reasoning, signal) => new Promise((_resolve, reject) => signal.addEventListener('abort', () => { const error = new Error('cancelled'); error.name = 'AbortError'; reject(error); }, { once: true })),
+    mutate: async work => work(), views: () => [view], recordFailure: (_context, error) => { reported = error.message; return error.message; }
+  };
+  const { VisualAgentMapView } = load('main.ts', { obsidian });
+  view = new VisualAgentMapView({ app }, plugin); view.path = mapPath; view.map = mapDoc; view.render = () => {}; view.hydrate = async () => {};
+  const pending = view.integrateChildren(parent, true, { researchMode: 'local', researchDepth: 'normal', visualMode: 'off', referenceGroups: [], signal: controller.signal });
+  await new Promise(resolve => setImmediate(resolve)); controller.abort(); await pending;
+  const after = await repo.readNote(parent.path);
+  assert.equal(after.status, 'completed'); assert.equal(after.summary, 'Existing conclusion'); assert.equal(after.detail, 'Existing knowledge');
+  assert.equal(reported, ''); assert.equal(plugin.running.has(parent.path), false);
+});
+integrationTest('provider failure keeps its original AI log stage during node error writeback', async () => {
+  const { repo, app } = fixture(), n = await topicNote(repo, 'Provider failure');
+  await repo.updateNote(n.path, { prompt: 'Research' });
+  const entry = { id: 'exchange-1', status: 'failed', error: '等待 AI 回覆：provider timeout' };
+  const exchanges = { getEntries: () => [entry], failed: (_id, error) => { entry.error = error; } };
+  let view;
+  const plugin = { repo, settings: { ...DEFAULT_SETTINGS, aiExchangeLoggingEnabled: true }, exchanges, running: new Set(), activeTasks: new Map(), pendingSuggestions: new Map(),
+    askModel: async (_context, _model, _reasoning, _signal, onExchange) => { onExchange(entry.id); throw new Error('provider timeout'); },
+    mutate: async work => work(), views: () => [view], recordFailure: (_context, error) => error.message };
+  const { VisualAgentMapView } = load('main.ts', { obsidian });
+  view = new VisualAgentMapView({ app }, plugin); view.path = 'Map.md'; view.map = map([n]); view.render = () => {}; view.hydrate = async () => {};
+  const originalError = console.error; console.error = () => {};
+  try { await view.runAgent(n); await new Promise(resolve => setTimeout(resolve, 20)); }
+  finally { console.error = originalError; }
+  assert.equal((await repo.readNote(n.path)).status, 'error');
+  assert.equal(entry.error, '等待 AI 回覆：provider timeout');
+});
+integrationTest('proposal persistence failure does not erase completed shallow research', async () => {
+  const { repo, app } = fixture(), n = await topicNote(repo, 'Research result');
+  await repo.updateNote(n.path, { prompt: 'Research' });
+  const pending = new Map(); pending.flush = async () => { throw new Error('disk unavailable'); };
+  let exchangeStatus = 'parsed', view, reported = '';
+  const plugin = { repo, settings: { ...DEFAULT_SETTINGS, aiExchangeLoggingEnabled: true }, exchanges: { completed: () => { exchangeStatus = 'completed'; }, getEntries: () => [{ id: 'exchange-1', status: exchangeStatus }], failed: () => { exchangeStatus = 'failed'; } }, running: new Set(), activeTasks: new Map(), pendingSuggestions: pending,
+    askModel: async (_context, _model, _reasoning, _signal, onExchange) => { onExchange('exchange-1'); return { summary: 'Researched', detail: 'Result body', suggestions: [{ title: 'Proposal', task: 'Investigate', contribution: '' }], visualReferences: [] }; },
+    mutate: async work => work(), views: () => [view], recordFailure: (_context, error) => { reported = error.message; return reported; } };
+  const { VisualAgentMapView } = load('main.ts', { obsidian });
+  view = new VisualAgentMapView({ app }, plugin); view.path = 'Map.md'; view.map = map([n]); view.render = () => {}; view.hydrate = async () => {};
+  await view.runAgent(n); await new Promise(resolve => setTimeout(resolve, 20));
+  assert.equal((await repo.readNote(n.path)).status, 'completed');
+  assert.equal((await repo.readNote(n.path)).summary, 'Researched');
+  assert.equal(exchangeStatus, 'completed'); assert.equal(reported, 'disk unavailable');
+});
+integrationTest('a completed but stale answer cannot overwrite an edited note', async () => {
+  const { repo, app } = fixture(), n = await topicNote(repo, 'Stale');
+  await repo.updateNote(n.path, { prompt: 'Research', detail: 'Original' });
+  let finish; const { VisualAgentMapView } = load('main.ts', { obsidian }); let view;
+  const plugin = {
+    repo, settings: { ...DEFAULT_SETTINGS }, running: new Set(), activeTasks: new Map(), pendingSuggestions: new Map(),
+    askModel: (_context, _model, _reasoning, _signal, _exchange, accepted) => { accepted?.(); return new Promise(resolve => { finish = resolve; }); }, mutate: async work => work(), views: () => [view]
+  };
+  view = new VisualAgentMapView({ app }, plugin); view.path = 'Map.md'; view.map = map([n]); view.render = () => {}; view.hydrate = async () => {};
+  await view.runAgent(n);
+  await repo.updateNote(n.path, { detail: 'User edit' });
+  finish({ summary: 'Stale summary', detail: 'Stale detail', suggestions: [], visualReferences: [] });
+  await new Promise(resolve => setTimeout(resolve, 20));
+  const after = await repo.readNote(n.path);
+  assert.equal(after.detail, 'User edit'); assert.equal(after.status, 'idea'); assert.notEqual(after.summary, 'Stale summary');
+});
+integrationTest('new child topics inherit reasoning without activating legacy rules', async () => {
+  const { repo, app } = fixture(), parent = await topicNote(repo, 'Parent', 'a');
+  await repo.updateNote(parent.path, { rules: 'Use official sources and tables.', reasoning: 'high' });
+  const mapPath = 'Agent Workspace/Topics/map-a/Map.md';
+  const mapDoc = { id: 'map-a', title: 'map-a', version: 1, nodes: [parent], viewport: { x: 0, y: 0, zoom: 1 } };
+  await app.vault.create(mapPath, core.serializeMap(mapDoc));
+  const { VisualAgentMapView } = load('main.ts', { obsidian });
+  const view = new VisualAgentMapView({ app }, { repo, settings: { ...DEFAULT_SETTINGS }, rebuildDerivedData: async () => {} });
+  view.path = mapPath; view.map = mapDoc; view.render = () => {};
+  await view.addNode(parent, 'Child');
+  const child = (await repo.readMap(mapPath)).nodes.at(-1);
+  assert.equal((await repo.readNote(child.path)).rules, '');
+  assert.equal((await repo.readNote(child.path)).reasoning, 'high');
+});
+integrationTest('AI task timeout override reaches both providers with accurate non-Coffee timeout text', async () => {
+  const { AiTaskService } = load('core/ai-task-service.ts');
+  for (const model of ['gpt-6-luna', 'claude:sonnet']) {
+    let seen;
+    const runtime = { runTask: async (_p, _m, _e, _s, controls) => { seen = controls; return JSON.stringify({summary:'S',detail:'D',suggestions:[],visualReferences:[]}); } };
+    const service = new AiTaskService({ pluginDirectory:()=>'/plugin', language:()=> 'en', defaultReasoning:()=> 'low', exchangeLoggingEnabled:()=>false, exchanges:()=>null, codexRuntime:()=>runtime, claudeRuntime:()=>runtime });
+    const context = { title:'Goal', summary:'', rules:'', detail:'', task:'Write', ancestors:'', mode:'task', researchMode:'local', timeoutMs:600_000 };
+    await service.askModel(context, model, 'low');
+    assert.equal(seen.timeoutMs, 600_000);
+    assert.match(seen.timeoutMessage, /10 minutes/);
+    assert.ok(!seen.timeoutMessage.includes('Coffee'));
+    await service.askModel({...context,timeoutMs:undefined}, model, 'low');
+    assert.equal(seen.timeoutMs, undefined);
+  }
+});
+test('summary truncation never leaves trailing whitespace and prefers a sentence boundary', () => {
+  const { truncateSummary } = load('ai/result-utils.ts');
+  const spaced = truncateSummary(`${'a'.repeat(79)} tail that continues past the limit`);
+  assert.equal(spaced, spaced.trimEnd()); assert.ok(Array.from(spaced).length <= 80);
+  const observed = truncateSummary('三個來源大致一致，公開版為 1.14.4（2026-10-05）；但 changelog 公開條目標為「1.14」，需注意 Catalyst 1.14.4 於 10/1 先行，且尚有標示差異。');
+  assert.equal(observed, observed.trimEnd()); assert.ok(Array.from(observed).length <= 80); assert.match(observed, /…$/);
+  assert.equal(truncateSummary(`${'第一句完整結論'.repeat(7)}。${'後續補充說明'.repeat(15)}`), `${'第一句完整結論'.repeat(7)}。`);
+  assert.equal(truncateSummary('  Short.  '), 'Short.');
+  assert.equal(Array.from(truncateSummary('字'.repeat(200))).length, 80);
+});
+test('search failure detection uses the structured status and still honours legacy wording', () => {
+  const { reportedSearchFailure } = load('ai/result-utils.ts');
+  assert.equal(reportedSearchFailure({ summary: '摘要', detail: '研究狀態：未搜尋', searchStatus: 'not_attempted' }), true);
+  assert.equal(reportedSearchFailure({ summary: 's', detail: 'Findings https://example.org', searchStatus: 'failed' }), true);
+  assert.equal(reportedSearchFailure({ summary: 's', detail: 'Findings https://example.org', searchStatus: 'completed' }), false);
+  assert.equal(reportedSearchFailure({ summary: 's', detail: 'Source B — Research status: unavailable; Source A answered it.', searchStatus: 'completed' }), false);
+  assert.equal(reportedSearchFailure({ summary: 's', detail: 'Research status: not searched' }), true);
+  assert.equal(reportedSearchFailure({ summary: 's', detail: 'Research status: search completed' }), false);
+});
+integrationTest('isolated web research requests a structured search status and returns a trimmed summary', async () => {
+  const { default: Plugin } = load('main.ts', { obsidian });
+  const plugin = new Plugin(); plugin.app = { vault: { adapter: new obsidian.FileSystemAdapter() } }; plugin.manifest = { dir: '.obsidian/plugins/visual-agent-map' };
+  let call;
+  plugin.claudeCli = () => ({ runTask: async (...args) => { call = args; return JSON.stringify({ summary: `${'a'.repeat(79)} trailing words beyond the limit`, detail: 'Detail', suggestions: [], visualReferences: [], searchStatus: 'not_attempted' }); } });
+  plugin.runtime = () => { assert.fail('Claude selection must not fall back to Codex'); };
+  const result = await plugin.askModel({ title: 'MindSearch', summary: '', rules: '', detail: '', task: 'Search', ancestors: '', mode: 'task', researchMode: 'research', researchDepth: 'normal', visualMode: 'off', mindSearchIsolatedResearch: true }, 'claude:sonnet', 'low');
+  assert.ok(call[3].required.includes('searchStatus'));
+  assert.deepEqual(plain(call[3].properties.searchStatus.enum), ['completed', 'failed', 'not_attempted']);
+  assert.equal(result.searchStatus, 'not_attempted');
+  assert.equal(result.summary, result.summary.trimEnd()); assert.ok(Array.from(result.summary).length <= 80);
+  let localCall;
+  plugin.claudeCli = () => ({ runTask: async (...args) => { localCall = args; return JSON.stringify({ summary: 'Local', detail: 'Local detail', suggestions: [], visualReferences: [] }); } });
+  const local = await plugin.askModel({ title: 'Topic', summary: '', rules: '', detail: '', task: 'Plan', ancestors: '', mode: 'task', researchMode: 'local', visualMode: 'off', mindSearchIsolatedResearch: true }, 'claude:sonnet', 'low');
+  assert.equal(localCall[3].required.includes('searchStatus'), false);
+  assert.equal('searchStatus' in local, false);
+});
+integrationTest('result draft readback accepts the Repository whitespace normalization', async () => {
+  const { repo } = fixture('en');
+  const { createMindSearchMap } = load('experiences/mind-search/create-map.ts');
+  const { MindSearchRunStore } = load('mindsearch-mve/research-run-store.ts');
+  const created = await createMindSearchMap(repo, 'gpt-6-luna', { requestId: 'readback-normalization-map', topic: 'Readback normalization', context: 'Synthetic.' });
+  const store = new MindSearchRunStore(repo);
+  const mapDoc = await repo.readMap(created.mapPath);
+  const question = await repo.createNote('Readback question', 'gpt-6-luna', mapDoc, created.mapPath, 'workspace');
+  question.mindSearchKind = 'question';
+  question.mindSearchQuestion = { requestId: 'readback-question', parentBranchId: null, options: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }], allowMultiple: false, allowFreeText: false };
+  mapDoc.nodes.push(question); await repo.saveMap(created.mapPath, mapDoc);
+  const branch = await store.createAnswerBranch(created.mapPath, { requestId: 'readback-answer', questionNodeId: question.id, parentBranchId: null, answerSnapshot: { selections: ['a'], freeText: '' }, inputSnapshot: { topic: mapDoc.title, conditions: {}, upstreamResults: [] } });
+  const attempt = await store.startAttempt(created.mapPath, branch.id, 'readback-run');
+  const draft = (await store.createResultDraft(created.mapPath, attempt, 'Readback draft', 'gpt-6-luna', undefined, { kind: 'research' })).draft;
+  assert.equal(await store.updateResultDraftReport(created.mapPath, attempt, draft.id, `${'a'.repeat(79)} `, '\nResearch status: search completed\nDetail with surrounding whitespace.\n\n'), true);
+  const saved = await repo.readNote(draft.notePath);
+  assert.equal(saved.summary, 'a'.repeat(79));
+  assert.equal(saved.detail, 'Research status: search completed\nDetail with surrounding whitespace.');
+  assert.equal(await store.updateResultDraftPresentation(created.mapPath, attempt, draft.id, ' Final synthesis title ', 'synthesis'), true);
+});

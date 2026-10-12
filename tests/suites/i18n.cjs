@@ -1,0 +1,168 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const { test, root, load, plain, obsidian, DEFAULT_SETTINGS } = require('../support.cjs');
+test('UI language switch translates stable semantic keys and placeholders', () => {
+  const {t,setUiLanguage,translate}=load('i18n.ts');setUiLanguage('en');assert.equal(t('ui.interface_language'),'Interface language');assert.equal(t('ui.expand_0',3),'Expand 3');assert.equal(translate('en','detail.core_conclusions'),'Core conclusions');assert.equal(translate('zh-TW','detail.core_conclusions'),'核心結論');assert.equal(translate('zh-TW','ui.expand_0'),'展開 {0}');assert.equal(translate('zh-TW','ui.interface_language'),'介面語言');
+  assert.equal(translate('zh-TW','missing.runtime.key'), 'missing.runtime.key');
+});
+test('first install defaults to English regardless of Obsidian language while saved VAM choice wins', () => {
+  const { initialUiLanguage } = load('i18n.ts');
+  assert.equal(DEFAULT_SETTINGS.language, 'en');
+  assert.equal(initialUiLanguage(undefined), 'en');
+  assert.equal(initialUiLanguage(null), 'en');
+  assert.equal(initialUiLanguage('invalid'), 'en');
+  assert.equal(initialUiLanguage('en'), 'en');
+  assert.equal(initialUiLanguage('zh-TW'), 'zh-TW');
+});
+test('language change saves before applying and refreshes all views without mutating notes', async () => {
+  const { default: Plugin, VisualAgentMapSettingTab } = load('main.ts', { obsidian });
+  const plugin = new Plugin();
+  const calls = [];
+  plugin.settings = { ...DEFAULT_SETTINGS, language: 'en' };
+  const sharedSettings = plugin.settings;
+  plugin.saveData = async settings => { calls.push(['save', settings.language, plugin.settings.language]); };
+  plugin.repo = { settings: sharedSettings, syncManagedDetailHeadings: async () => { throw new Error('language switch must not rewrite Markdown'); } };
+  plugin.views = () => [
+    { refreshFromPlugin: async () => { calls.push(['view-a', plugin.settings.language]); throw new Error('test view error'); } },
+    { refreshFromPlugin: async () => calls.push(['view-b', plugin.settings.language]) }
+  ];
+  plugin.coffeeViews = () => [{ refreshForLanguageChange: async () => calls.push(['coffee-a', plugin.settings.language]) }, { refreshForLanguageChange: async () => calls.push(['coffee-b', plugin.settings.language]) }];
+  plugin.refreshLocalizedEntrypoints = () => calls.push(['commands', plugin.settings.language]);
+  plugin.recordFailure = (...args) => calls.push(['diagnostic', ...args]);
+  plugin.settingTab = { update() {}, refreshAfterLanguageChange: () => calls.push(['settings', plugin.settings.language, plugin.languageSwitchPending]) };
+  const tab = new VisualAgentMapSettingTab({}, plugin);
+  await tab.setControlValue('language', 'zh-TW');
+  assert.equal(plugin.settings.language, 'zh-TW');
+  assert.deepEqual(calls.filter(([kind]) => ['save', 'commands', 'view-a', 'view-b', 'coffee-a', 'coffee-b'].includes(kind)), [['save', 'zh-TW', 'en'], ['commands', 'zh-TW'], ['view-a', 'zh-TW'], ['view-b', 'zh-TW'], ['coffee-a', 'zh-TW'], ['coffee-b', 'zh-TW']]);
+  assert.equal(plugin.settings, sharedSettings);
+  assert.equal(plugin.repo.settings.language, 'zh-TW', 'repository keeps the shared settings object updated');
+  assert.equal(calls.filter(([kind]) => kind === 'diagnostic').length, 1);
+  assert.equal(plugin.languageSwitchPending, false);
+  calls.length = 0;
+  await tab.setControlValue('language', 'en');
+  assert.equal(plugin.settings.language, 'en');
+  assert.equal(calls.filter(([kind]) => kind === 'save').length, 1);
+  assert.equal(calls.filter(([kind]) => kind === 'view-b').length, 1);
+});
+test('failed language save keeps the old selection and does not refresh views', async () => {
+  const { default: Plugin } = load('main.ts', { obsidian });
+  const plugin = new Plugin(), calls = [];
+  plugin.settings = { ...DEFAULT_SETTINGS, language: 'en' };
+  plugin.saveData = async () => { throw new Error('disk full'); };
+  plugin.views = () => [{ refreshFromPlugin: async () => calls.push('view') }];
+  plugin.refreshLocalizedEntrypoints = () => calls.push('commands');
+  plugin.recordFailure = () => calls.push('logged');
+  plugin.settingTab = { update() {}, refreshAfterLanguageChange: () => calls.push(['settings', plugin.languageSwitchPending]) };
+  assert.equal(await plugin.changeLanguage('zh-TW'), false);
+  assert.equal(plugin.settings.language, 'en');
+  assert.deepEqual(calls, [['settings', true], 'logged', ['settings', false]]);
+});
+test('concurrent language changes are ignored until the first save and refresh completes', async () => {
+  const { default: Plugin } = load('main.ts', { obsidian });
+  let finishSave, writes = 0;
+  const plugin = new Plugin(); plugin.settings = { ...DEFAULT_SETTINGS, language: 'en' };
+  plugin.saveData = async () => { writes++; await new Promise(resolve => { finishSave = resolve; }); };
+  plugin.views = () => [];
+  plugin.refreshLocalizedEntrypoints = () => {};
+  plugin.recordFailure = () => {};
+  plugin.settingTab = { update() {}, refreshAfterLanguageChange() {} };
+  const first = plugin.changeLanguage('zh-TW'); await Promise.resolve();
+  assert.equal(plugin.languageSwitchPending, true);
+  assert.equal(await plugin.changeLanguage('en'), false);
+  assert.equal(writes, 1);
+  finishSave();
+  assert.equal(await first, true);
+  assert.equal(plugin.settings.language, 'zh-TW');
+  assert.equal(plugin.languageSwitchPending, false);
+});
+test('built-in Sample language refresh preserves selected topic and view state', async () => {
+  const { VisualAgentMapView } = load('main.ts', { obsidian });
+  const { builtInSample } = load('builtin-sample.ts');
+  const plugin = { settings: { language: 'zh-TW' }, syncOutline() {} };
+  const view = new VisualAgentMapView({ app: {} }, plugin);
+  view.builtIn = true; view.map = builtInSample('en').map; view.notes = builtInSample('en').notes;
+  view.map.viewport = { x: -128, y: 74, zoom: 0.83 };
+  view.selected = view.map.nodes[0].id; view.render = () => {};
+  const selected = view.selected, viewport = plain(view.map.viewport);
+  await view.refreshFromPlugin();
+  assert.match(view.map.title, /範例/);
+  assert.equal(view.selected, selected);
+  assert.deepEqual(plain(view.map.viewport), viewport);
+});
+test('AI entry prompts for Codex only when unavailable and leaves manual work available', async () => {
+  const { default: Plugin } = load('main.ts', { obsidian });
+  const plugin = new Plugin(); let guides = 0;
+  plugin.settings = { ...DEFAULT_SETTINGS, models: '' };
+  plugin.openCodexSetupGuide = () => { guides++; };
+  plugin.codexDiagnostic = () => ({ installed: false });
+  assert.equal(await plugin.codexReadyForAi(), false);
+  assert.equal(guides, 1);
+  plugin.codexDiagnostic = () => ({ installed: true });
+  plugin.settings.cliModel = 'gpt-test';
+  plugin.refreshModelDiscovery = async () => ({ provider: 'codex', status: 'ready', models: ['gpt-test'] });
+  assert.equal(await plugin.codexReadyForAi(), true);
+  plugin.settings.models = 'gpt-test';
+  assert.equal(await plugin.codexReadyForAi(), true);
+  assert.equal(guides, 1);
+});
+test('localized command and ribbon labels follow the selected VAM language', () => {
+  const { default: Plugin } = load('main.ts', { obsidian });
+  const plugin = new Plugin(), attributes = {}, command = { name: '' };
+  plugin.ribbonIcon = { setAttribute: (key, value) => { attributes[key] = value; } };
+  plugin.localizedCommands = [{ command, key: 'ui.open_map' }];
+  plugin.settings = { ...DEFAULT_SETTINGS, language: 'en' }; plugin.refreshLocalizedEntrypoints();
+  assert.equal(command.name, 'Visual Agent Map (VAM): Open mind map');
+  assert.equal(attributes['aria-label'], 'Open mind map');
+  plugin.settings.language = 'zh-TW'; plugin.refreshLocalizedEntrypoints();
+  assert.equal(command.name, 'Visual Agent Map (VAM): 開啟心智圖');
+});
+test('map switch closes only the VAM note that remains in its right pane and clears Obsidian Outline', () => {
+  class MarkdownView { constructor(path) { this.file = { path }; } }
+  const { default: Plugin } = load('main.ts', { obsidian: { ...obsidian, MarkdownView } });
+  const plugin = new Plugin(); let closed = 0, fileCleared = 0, synchronized = 0; plugin.app = { workspace: { getActiveViewOfType: () => ({ leaf: { id: 'map-view' } }), trigger: (event, leaf) => { if (event === 'file-open') { assert.equal(leaf, null); fileCleared++; } else { assert.equal(event, 'active-leaf-change'); assert.equal(leaf.id, 'map-view'); synchronized++; } } } };
+  plugin.detailsPath = 'old-note.md';
+  plugin.detailsLeaf = { view: new MarkdownView('other-user-note.md'), detach: () => { closed++; } };
+  plugin.closeStaleDetails(); assert.equal(closed, 0); assert.equal(fileCleared, 0); assert.equal(synchronized, 0);
+  plugin.detailsPath = 'old-note.md';
+  plugin.detailsLeaf = { view: new MarkdownView('old-note.md'), detach: () => { closed++; } };
+  plugin.closeStaleDetails(); assert.equal(closed, 1); assert.equal(fileCleared, 1); assert.equal(synchronized, 1);
+});
+test('topic status labels follow the selected UI language after startup', () => {
+  const {topicStatusLabel}=load('i18n.ts');
+  assert.equal(topicStatusLabel('idea', 'en'), 'To research');
+  assert.equal(topicStatusLabel('idea', 'zh-TW'), '待研究');
+  assert.equal(topicStatusLabel('error', 'en'), 'Task error');
+});
+test('all user-facing translations use stable semantic keys', () => {
+  const dictionary = fs.readFileSync(path.join(root, 'i18n.ts'), 'utf8');
+  const english = dictionary.slice(dictionary.indexOf('const english = {'), dictionary.indexOf('} as const;'));
+  const chinese = dictionary.slice(dictionary.indexOf('const traditionalChinese:'), dictionary.lastIndexOf('};'));
+  const extract = value => new Set([...value.matchAll(/^  "((?:[^"\\]|\\.)+)":/gm)].map(match => match[1]));
+  const keys = extract(english);
+  assert.deepEqual([...extract(chinese)].sort(), [...keys].sort(), 'every locale must define exactly the same semantic keys');
+  const tsFiles = dir => fs.readdirSync(path.join(root, dir), { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? tsFiles(`${dir}/${entry.name}`) : entry.name.endsWith('.ts') ? [`${dir}/${entry.name}`] : []);
+  // Coffee Tables prompt, transcript and Markdown-format modules hold conversation content, not interface text.
+  const coffeeContent = /^experiences\/coffee-tables\/(prompts|engine|convergence|storage|insights|types|topics|samples|outline|segments)\.ts$/;
+  const sourceFiles = ['main.ts', 'map-model.ts', 'ai/runtime/codex-app-server.ts', ...tsFiles('ui'), ...tsFiles('experiences').filter(file => !coffeeContent.test(file))];
+  const missing = [];
+  let checked = 0;
+  for (const file of sourceFiles) {
+    const source = fs.readFileSync(path.join(root, file), 'utf8');
+    for (const match of source.matchAll(/(?:\bt\(|\btranslate\([^,()]+(?:\([^()]*\))?,\s*)"((?:[^"\\]|\\.)*)"/g)) {
+      checked++;
+      if (!/^[a-z][a-z0-9_.]*$/.test(match[1]) || !keys.has(match[1])) missing.push(`${file}: ${match[1]}`);
+    }
+  }
+  assert.deepEqual(missing, []);
+  assert.ok(checked > 600, `expected the scan to reach Coffee Tables keys, saw ${checked}`);
+  const coffeeSources = tsFiles('experiences/coffee-tables').filter(file => !coffeeContent.test(file));
+  for (const file of coffeeSources) {
+    const source = fs.readFileSync(path.join(root, file), 'utf8');
+    assert.doesNotMatch(source, /\btr\(\s*["`]|this\.zh\b|\bmessage\(\s*["`]/, `${file} must use i18n keys instead of inline bilingual pairs`);
+  }
+  const dictionaryValues = source => new Map([...source.matchAll(/^  "((?:[^"\\]|\\.)+)": "((?:[^"\\]|\\.)*)",?$/gm)].map(match => [match[1], match[2]]));
+  const englishValues = dictionaryValues(english), chineseValues = dictionaryValues(chinese);
+  const placeholders = value => [...value.matchAll(/\{\d+\}/g)].map(match => match[0]).sort();
+  for (const [key, value] of englishValues) assert.deepEqual(placeholders(chineseValues.get(key)), placeholders(value), `${key} placeholders must match between locales`);
+});
