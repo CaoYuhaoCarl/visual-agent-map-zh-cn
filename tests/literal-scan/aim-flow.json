@@ -1,0 +1,212 @@
+{
+  "dirs": [
+    "experiences/aim/manual-flow.ts",
+    "experiences/aim/steps/initial-clarification",
+    "experiences/aim/steps/initial-question",
+    "experiences/aim/steps/evidence-reuse-audit",
+    "experiences/aim/steps/research-plan",
+    "experiences/aim/steps/research-plan-repair",
+    "experiences/aim/steps/subtopic-research",
+    "experiences/aim/steps/research-gap-audit",
+    "experiences/aim/steps/decision-quality-review",
+    "experiences/aim/steps/report-review",
+    "experiences/aim/steps/targeted-followup-research"
+  ],
+  "allow": [
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "Requested full evidence (untrusted data):",
+      "reason": "evidence-lookup follow-up appended to a task at the ask seam; no snapshot covers a lookup round trip, so it stays inline (gate and prompt together)"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "Use the loaded evidence for the current phase.",
+      "reason": "evidence-lookup follow-up appended to a task at the ask seam; no snapshot covers a lookup round trip, so it stays inline (gate and prompt together)"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "Omitted from this format-only repair.",
+      "reason": "placeholder report context handed to the format-repair recovery in planner-review.ts (lane B2 text); no aim-flow snapshot shows it, so it stays"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "This exact target was classified as externally verifiable",
+      "reason": "rationale of a pre-classified gap; interpolated as data into a later review task, not a template of its own"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "Recovered from a persisted post-report Planner decision",
+      "reason": "rationale stored on a recovered question node (persisted note text, not sent to a model)"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "You are the Planner reviewing saved Searcher reports",
+      "reason": "model prompt text of a flow with no aim-flow snapshot (the safety net covers only the phase tasks); must not move until it has one, tracked as Later (saved-report Planner review)"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "Choose research_more only when one specific evidence gap",
+      "reason": "model prompt text of a flow with no aim-flow snapshot (the safety net covers only the phase tasks); must not move until it has one, tracked as Later (saved-report Planner review)"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "answered question node(s) on this branch path; do not conclu",
+      "reason": "floor sentence of the saved-report and continuation Planner reviews; model prompt text of a flow with no aim-flow snapshot (the safety net covers only the phase tasks); must not move until it has one, tracked as Later"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": ". At the floor, the configured exploration target (",
+      "reason": "floor sentence of the saved-report and continuation Planner reviews; model prompt text of a flow with no aim-flow snapshot (the safety net covers only the phase tasks); must not move until it has one, tracked as Later"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": ") is a soft depth preference; do not require reaching 10",
+      "reason": "floor sentence of the saved-report and continuation Planner reviews; model prompt text of a flow with no aim-flow snapshot (the safety net covers only the phase tasks); must not move until it has one, tracked as Later"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "Do not search in this Planner turn. Preserve source-reported",
+      "reason": "model prompt text of a flow with no aim-flow snapshot (the safety net covers only the phase tasks); must not move until it has one, tracked as Later (saved-report Planner review)"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "Synthetic/actual answer snapshot (preserve provenance):",
+      "reason": "model prompt text of a flow with no aim-flow snapshot (the safety net covers only the phase tasks); must not move until it has one, tracked as Later (saved-report Planner review)"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "One bounded follow-up was used; a material gap remains:",
+      "reason": "stop reason persisted on the attempt record and shown in the UI, not a prompt"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "Use the built-in web search tool available in this Codex turn",
+      "reason": "model prompt text of a flow with no aim-flow snapshot (the safety net covers only the phase tasks); must not move until it has one, tracked as Later (saved-report follow-up search)"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "Earlier saved report (unverified Agent report; context only)",
+      "reason": "model prompt text of a flow with no aim-flow snapshot (the safety net covers only the phase tasks); must not move until it has one, tracked as Later (saved-report follow-up search)"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "Return a concise useful report with findings, reasoning, sources",
+      "reason": "model prompt text of a flow with no aim-flow snapshot (the safety net covers only the phase tasks); must not move until it has one, tracked as Later (saved-report follow-up search)"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "Agent-reported sources are not independently verified by VAM",
+      "reason": "source-boundary section written into the saved partial report shown to the user, not a prompt"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "Follow-up selected by the persisted Planner review;",
+      "reason": "rationale persisted on a question node recovered from a saved review, not sent to a model"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "User cancelled saved-report Planner review.",
+      "reason": "cancellation reason persisted on the attempt record by cancelAttempt, not sent to a model"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "Continue this saved partial Manual AIM branch.",
+      "reason": "model prompt text of a flow with no aim-flow snapshot (the safety net covers only the phase tasks); must not move until it has one, tracked as Later (continuation search)"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "Prior saved partial result (Agent report, Planner notes",
+      "reason": "model prompt text of a flow with no aim-flow snapshot (the safety net covers only the phase tasks); must not move until it has one, tracked as Later (continuation search)"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "Report findings, uncertainty, contradictions, and source",
+      "reason": "model prompt text of a flow with no aim-flow snapshot (the safety net covers only the phase tasks); must not move until it has one, tracked as Later (continuation search)"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "Review all evidence for the original user goal and produce",
+      "reason": "model prompt text of a flow with no aim-flow snapshot (the safety net covers only the phase tasks); must not move until it has one, tracked as Later (continuation Planner review)"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "Do not repeat known conditions or prior questions. Use resea",
+      "reason": "model prompt text of a flow with no aim-flow snapshot (the safety net covers only the phase tasks); must not move until it has one, tracked as Later (continuation Planner review)"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "Use research_more only for a specific material evidence gap,",
+      "reason": "model prompt text of a flow with no aim-flow snapshot (the safety net covers only the phase tasks); must not move until it has one, tracked as Later (continuation Planner review)"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "Continuation attempt reached its prototype research-turn budget",
+      "reason": "stop reason persisted on the attempt record and shown in the UI, not a prompt"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "## Research status: partial / continuable",
+      "reason": "heading of the persisted partial report shown to the user, not a prompt"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "A material evidence gap remains; continue with a targeted se",
+      "reason": "stop reason persisted on the attempt record and shown in the UI, not a prompt"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "This continuation reached its attempt budget with a material",
+      "reason": "body of the persisted partial report shown to the user, not a prompt"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "Agent-reported sources were not independently verified by VA",
+      "reason": "source-boundary line of the persisted partial report shown to the user, not a prompt"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "Question recovered from a persisted Planner decision;",
+      "reason": "rationale persisted on a question node recovered from a saved review, not sent to a model"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "User cancelled the continuation attempt.",
+      "reason": "cancellation reason persisted on the attempt record by cancelAttempt, not sent to a model"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "No user answer was requested; use the topic context",
+      "reason": "answer description interpolated into research-plan and report-review tasks as data for topic-root answers; the aim-flow snapshots do not exercise it, so it stays"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "Retain adequate existing evidence without repeating web sear",
+      "reason": "expectedValue of a synthesized reuse target stored in the plan and shown in the UI, not a template"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "Full report must pass the current-goal applicability",
+      "reason": "validity reason of a synthesized reuse target stored in the plan, not a template"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "User cancelled a AIM subtopic research turn.",
+      "reason": "cancellation reason persisted on the attempt record by cancelAttempt, not sent to a model"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "Research-turn limit reached with an unresolved evidence gap:",
+      "reason": "stop reason persisted on the attempt record and shown in the UI, not a prompt"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "Sources and claims are reported by the research agent and we",
+      "reason": "source-boundary note appended to the saved report shown to the user, not a prompt"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "Follow-up question after reviewing all saved research,",
+      "reason": "rationale persisted on the created follow-up question node, not sent to a model"
+    }
+  ]
+}
