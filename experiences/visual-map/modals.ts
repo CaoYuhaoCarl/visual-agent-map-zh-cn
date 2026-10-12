@@ -584,7 +584,7 @@ export class NextStepModal extends Modal {
           if (cancel) cancel.hidden = true;
         }
       };
-      await this.synthesize(
+      const launch = this.synthesize(
         options,
         direction,
         message => {
@@ -596,13 +596,16 @@ export class NextStepModal extends Modal {
           launchFailed = true;
           this.failedAi(panel, button, message);
         },
-        () => {
-          if (this.closed || controller.signal.aborted || this.taskController !== controller) return;
-          launchAccepted = true;
-          release();
-          this.close();
-        }
+        () => {}
       );
+      // The view registers the task before its first await, so the node already shows it running.
+      // Close right away; a failure from here on arrives as a Notice and the node's state.
+      if (!launchFailed && !this.closed && !controller.signal.aborted && this.taskController === controller) {
+        launchAccepted = true;
+        release();
+        this.close();
+      }
+      await launch;
       if (!this.closed && !launchAccepted && !launchFailed) {
         release();
         this.failed(panel, button, t("ui.ai_task_cancelled"));

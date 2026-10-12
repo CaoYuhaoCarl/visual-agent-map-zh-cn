@@ -19215,7 +19215,7 @@ var NextStepModal = class extends import_obsidian13.Modal {
           if (cancel) cancel.hidden = true;
         }
       };
-      await this.synthesize(
+      const launch = this.synthesize(
         options,
         direction,
         (message) => {
@@ -19228,12 +19228,14 @@ var NextStepModal = class extends import_obsidian13.Modal {
           this.failedAi(panel, button, message);
         },
         () => {
-          if (this.closed || controller.signal.aborted || this.taskController !== controller) return;
-          launchAccepted = true;
-          release();
-          this.close();
         }
       );
+      if (!launchFailed && !this.closed && !controller.signal.aborted && this.taskController === controller) {
+        launchAccepted = true;
+        release();
+        this.close();
+      }
+      await launch;
       if (!this.closed && !launchAccepted && !launchFailed) {
         release();
         this.failed(panel, button, t("ui.ai_task_cancelled"));

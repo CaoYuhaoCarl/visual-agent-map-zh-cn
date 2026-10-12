@@ -261,13 +261,22 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   contentChoice.value = 'summary'; contentChoice.change();
   assert.ok(find(synthesize, item => /Important conditions in the body may be omitted/.test(item.text ?? '')));
   cards.children[2].click(); assert.equal(panelTitle.text, 'Synthesize subtopic findings'); assert.equal(researchAction.hidden, true);
-  button(synthesize, 'Get synthesis suggestions first').click(); await tick();
-  assert.equal(contentChoice.disabled, true);
+  // Starting synthesis closes its window at once, so it runs on its own modal and this one stays open for research.
+  const synthModal = new NextStepModal({}, 'Parent', 'normal', 1, 1, plugin, async () => {}, async () => {}, modal.synthesize, modelSettings);
+  synthModal.onOpen(); find(synthModal.contentEl, item => item.cls === 'vam-next-cards').children[2].click();
+  find(synthModal.contentEl, item => item['aria-label'] === 'Answer language for this task').value = 'zh-TW';
+  const synthPanel = all(synthModal.contentEl, item => item.cls.includes('vam-next-research'))[2];
+  const synthContentChoice = find(synthPanel, item => item.tag === 'select' && item['aria-label'] === 'Topic synthesis content');
+  synthContentChoice.value = 'summary'; synthContentChoice.change();
+  const closedBeforeSynthStart = closed;
+  button(synthPanel, 'Get synthesis suggestions first').click(); await tick();
+  assert.equal(synthContentChoice.disabled, true);
   assert.equal(synthOptions.synthesisContent, 'summary');
-  assert.equal(synthCalls, 1); assert.equal(closed, 0);
+  assert.equal(synthCalls, 1); assert.equal(closed, closedBeforeSynthStart + 1); assert.equal(synthModal.closed, true);
   assert.equal(synthOptions.researchMode, 'local');
   assert.equal(synthOptions.outputLanguage, 'zh-TW');
-  assert.equal(button(synthesize, 'Choose this direction'), undefined);
+  assert.equal(button(synthPanel, 'Choose this direction'), undefined);
+  closed = closedBeforeSynthStart;
   cards.children[0].click(); assert.equal(panelTitle.text, 'Research this topic'); assert.equal(researchAction.hidden, false);
   button(modal.contentEl, 'Confirm research task').click(); await tick();
   assert.equal(researchOptions.requirements, 'Only this run'); assert.equal(researchOptions.researchMode, 'research'); assert.equal(researchOptions.referenceGroups.length, 0);
