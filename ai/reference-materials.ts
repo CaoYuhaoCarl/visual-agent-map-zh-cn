@@ -126,7 +126,7 @@ function footnoteTarget(document: ReferenceDocument): string {
 /** Same note => same key, whether or not the wikilink carries a display name. */
 function targetKey(target: string): string {
   const link = /^\[\[([^\]|]+)/.exec(target);
-  return link ? link[1].trim() : target;
+  return link ? link[1].trim().replace(/\.md$/i, "") : target;
 }
 
 /** Applies `edit` to the parts of a line outside inline code spans. */
@@ -194,6 +194,15 @@ export function resolveDetailReferences(detail: string, groups: ReferenceGroup[]
     const document = byLabel.get(label);
     return document ? footnoteTarget(document) : undefined;
   };
+  // A footnote kept as written (not a source and not resolvable) keeps its number; sources never reuse it.
+  body.forEach((line, index) => {
+    if (bodyCode[index]) return;
+    outsideInlineCode(line, text => {
+      for (const [, label] of text.matchAll(FOOTNOTE_REFERENCE))
+        if (!label.startsWith("src-") && !targetOf(label)) reserved.add(label);
+      return text;
+    });
+  });
   const numbers = new Map<string, number>();
   const ordered: string[] = [];
   let next = 0;
@@ -224,7 +233,7 @@ export function resolveDetailReferences(detail: string, groups: ReferenceGroup[]
     (line, index) =>
       bodyCode[index] || line.trim() || index === 0 || renumbered[index - 1].trim() || bodyCode[index - 1]
   );
-  const text = compact.join("\n").replace(/\s+$/, "");
+  const text = compact.join("\n").trimEnd();
   if (!ordered.length) return text;
   const headings = new Set(
     (["zh-TW", "en"] as const).map(locale => translate(locale, "detail.evidence_and_sources").toLocaleLowerCase())

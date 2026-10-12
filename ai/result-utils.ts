@@ -39,7 +39,9 @@ export function fencedLines(lines: string[]): boolean[] {
   return lines.map(line => {
     const open = /^\s*(`{3,}|~{3,})/.exec(line);
     if (fence) {
-      if (open && open[1][0] === fence[0] && open[1].length >= fence.length) fence = null;
+      // A closing fence carries no info string.
+      const close = /^\s*(`{3,}|~{3,})\s*$/.exec(line);
+      if (close && close[1][0] === fence[0] && close[1].length >= fence.length) fence = null;
       return true;
     }
     if (open) {

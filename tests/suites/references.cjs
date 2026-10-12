@@ -160,3 +160,39 @@ test('source footnotes leave code, links and the writer\'s own footnotes untouch
   assert.ok(canon.includes('```\n[^x]: [[a.md|a]]\n```'));
   assert.ok(!canon.split('### Evidence and sources')[1].split('### ')[0].includes('[^x]'));
 });
+test('source footnotes never reuse the number of a footnote kept as written', () => {
+  const api = load('ai/reference-materials.ts', { obsidian });
+  const groups = [{ id: 'g', documents: [{ path: 'Maps/A/one.md', content: '' }, { path: 'Maps/B/two.md', content: '' }] }];
+  // The reply kept the writer's [^2] but dropped its definition, and cites two new sources.
+  const out = api.resolveDetailReferences('Claim[^2] fact[S1] other[S2]', groups, 'Claim[^2]\n\n[^2]: my own remark');
+  assert.equal(out, 'Claim[^2] fact[^1] other[^3]\n\n[^1]: [[Maps/A/one.md|one]]\n[^3]: [[Maps/B/two.md|two]]\n');
+  assert.equal(api.resolveDetailReferences('Claim[^1] fact[S1]', groups), 'Claim[^1] fact[^2]\n\n[^2]: [[Maps/A/one.md|one]]\n');
+  // A fence opened with an info string is not closed by another info-string line.
+  const fenced = '```js\nx\n```js\ny\n```\n\nAfter[S1]';
+  assert.equal(api.resolveDetailReferences(fenced, groups), '```js\nx\n```js\ny\n```\n\nAfter[^1]\n\n[^1]: [[Maps/A/one.md|one]]\n');
+  // The same note written with and without ".md" shares one number.
+  assert.equal(api.resolveDetailReferences('A[^7] B[S1]\n\n[^7]: [[Maps/A/one]]', groups), 'A[^1] B[^1]\n\n[^1]: [[Maps/A/one]]\n');
+});
+test('source footnotes change nothing they do not own: a corpus round-trips unchanged and processing is idempotent', () => {
+  const api = load('ai/reference-materials.ts', { obsidian });
+  const groups = [{ id: 'g', documents: [{ path: 'Maps/A/one.md', content: '' }, { path: '/Volumes/Refs/x.md', external: true, content: '' }] }];
+  const root = path.join(__dirname, '..', '..');
+  const files = [];
+  const walk = dir => { for (const entry of fs.readdirSync(dir, { withFileTypes: true })) { if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue; const full = path.join(dir, entry.name); if (entry.isDirectory()) walk(full); else if (entry.name.endsWith('.md')) files.push(full); } };
+  for (const dir of ['samples', 'tests', 'experiences', 'core', 'ai']) if (fs.existsSync(path.join(root, dir))) walk(path.join(root, dir));
+  const corpus = [
+    ...files.map(file => fs.readFileSync(file, 'utf8')),
+    'Regex `/[^a-z]+/` and ``a`b [^1]`` stay.\n\n```js\nconst re = /[^0-9]/;\n[^x]: code\n```',
+    'Mine[^1] and[^note]\n\n[^1]: My remark\n    more\n[^note]: Another\n\nLink [^foo](https://x.y) and ![^img](a.png)',
+    '~~~\n[^1]: [[a.md|a]]\n~~~\n\n|a|b|\n|-|-|\n|[^x]|y|'
+  ];
+  for (const text of corpus) {
+    if (/\[S\d+\]/.test(text)) continue;
+    const once = api.resolveDetailReferences(text, []);
+    const owned = text.split('\n').some(line => /^\[\^[^\]\s]+\]:\s*(\[\[[^\]]+\]\]\s*$|External source:|外部來源：)/.test(line) || /\[\^src-/.test(line));
+    if (!owned) assert.equal(once.replace(/\n{2,}/g, '\n\n'), text.trimEnd().replace(/\n{2,}/g, '\n\n'), text.slice(0, 80));
+    assert.equal(api.resolveDetailReferences(once, [], once), once, `idempotent: ${text.slice(0, 80)}`);
+  }
+  const cited = api.resolveDetailReferences('### Core conclusions\n\nA[S2] b[S1] c[S2]\n\n### Evidence and sources\n\nnotes', groups);
+  assert.equal(api.resolveDetailReferences(cited, groups, cited), cited);
+});

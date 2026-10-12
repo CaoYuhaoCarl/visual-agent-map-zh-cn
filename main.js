@@ -10086,7 +10086,8 @@ function fencedLines(lines) {
   return lines.map((line) => {
     const open = /^\s*(`{3,}|~{3,})/.exec(line);
     if (fence) {
-      if (open && open[1][0] === fence[0] && open[1].length >= fence.length) fence = null;
+      const close = /^\s*(`{3,}|~{3,})\s*$/.exec(line);
+      if (close && close[1][0] === fence[0] && close[1].length >= fence.length) fence = null;
       return true;
     }
     if (open) {
@@ -10267,7 +10268,7 @@ function footnoteTarget(document2) {
 }
 function targetKey(target) {
   const link = /^\[\[([^\]|]+)/.exec(target);
-  return link ? link[1].trim() : target;
+  return link ? link[1].trim().replace(/\.md$/i, "") : target;
 }
 function outsideInlineCode(line, edit) {
   return line.split(/(`+[^`]*`+)/).map((part, index) => index % 2 ? part : edit(part)).join("");
@@ -10323,6 +10324,14 @@ function resolveDetailReferences(detail, groups, previousDetail = "") {
     const document2 = byLabel.get(label);
     return document2 ? footnoteTarget(document2) : void 0;
   };
+  body.forEach((line, index) => {
+    if (bodyCode[index]) return;
+    outsideInlineCode(line, (text12) => {
+      for (const [, label] of text12.matchAll(FOOTNOTE_REFERENCE))
+        if (!label.startsWith("src-") && !targetOf(label)) reserved.add(label);
+      return text12;
+    });
+  });
   const numbers = /* @__PURE__ */ new Map();
   const ordered = [];
   let next = 0;
@@ -10351,7 +10360,7 @@ function resolveDetailReferences(detail, groups, previousDetail = "") {
   const compact = renumbered.filter(
     (line, index) => bodyCode[index] || line.trim() || index === 0 || renumbered[index - 1].trim() || bodyCode[index - 1]
   );
-  const text11 = compact.join("\n").replace(/\s+$/, "");
+  const text11 = compact.join("\n").trimEnd();
   if (!ordered.length) return text11;
   const headings = new Set(
     ["zh-TW", "en"].map((locale) => translate(locale, "detail.evidence_and_sources").toLocaleLowerCase())
