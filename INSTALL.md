@@ -44,7 +44,7 @@ Before a provider's first AI task, VAM shows a one-time notice that usage may co
 
 You are ready when an available model appears in the topic task dialog and can complete a task.
 
-Claude Code is experimental; successful live tasks remain unverified. CLI detection alone does not verify authentication, organization access or structured task completion. See the [current limitations](README.md#current-limitations).
+CLI detection alone does not verify authentication, organization access or structured task completion. See the [current limitations](README.md#current-limitations).
 
 ## If setup does not complete
 
@@ -101,7 +101,7 @@ VAM 不會自行安裝或更新任一 CLI；至少需要一個服務，另一個
 
 當議題任務視窗列出一個可用模型，且能完成任務，就代表設定完成。
 
-Claude Code 目前屬實驗性支援，成功真實任務仍待驗證。偵測到 CLI 不代表登入、組織權限或結構化任務已通過。請參閱 [目前限制](README.md#目前限制)。
+偵測到 CLI 不代表登入、組織權限或結構化任務已通過。請參閱 [目前限制](README.md#目前限制)。
 
 ## 設定沒有完成時
 

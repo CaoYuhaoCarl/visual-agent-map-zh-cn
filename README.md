@@ -36,8 +36,6 @@ For detailed setup, manual installation, and troubleshooting, see [INSTALL.md](I
 
 Maps, research reports, Coffee Tables conversations, and observer notes are readable Markdown in your vault. You can edit and keep them outside VAM.
 
-Coffee Tables keeps the data needed to continue a conversation in the hidden `Coffee Tables/.sessions` folder. Obsidian Sync skips folders whose names start with a dot, so on other devices synced conversations can be read but not continued. Continue them on the device that started them, or use a sync tool that copies hidden folders.
-
 AI actions for selected Markdown text and clicked images produce editable drafts. You explicitly accept a draft before it changes a note. Image interpretation currently requires Codex and sends the selected image data when you run the action; original images remain unchanged.
 
 VAM has no telemetry and does not store API keys. AI tasks send relevant content, including research context, selected background files, or guest profiles, through your local CLI to OpenAI or Anthropic. Your provider allowance or charges may apply. AI request/reply logging is off by default; enabled logs may contain private note content.
@@ -51,11 +49,13 @@ The CLI inherits Obsidian's OS permissions; read-only or tool restrictions are n
 
 ### Current limitations
 
-Desktop only; macOS with Obsidian 1.14.4 is the verified environment for AIM. Windows and Linux remain unverified. Claude Code support is experimental; successful live tasks remain unverified.
+Desktop only; macOS with Obsidian 1.14.4 is the verified environment for AIM. Windows and Linux remain unverified.
 
 AIM searches the web and provides source links, but finding a source does not prove its claims are true. AI judgments, unavailable sources, and account limits can leave research incomplete. Check important claims against the original sources.
 
 Outline search covers titles in the current map, not full text. Map undo/redo is temporary and clears when you switch maps or close the view.
+
+Coffee Tables stores what it needs to continue a conversation in the hidden `Coffee Tables/.sessions` folder. Obsidian Sync skips hidden folders, so on other devices you can read synced conversations but not continue them; continue them on the device where they started.
 
 ### Research inspiration
 
@@ -103,8 +103,6 @@ Coffee Tables 來賓是模擬角色，不是真實專家；對談內容不會自
 
 地圖、研究報告、Coffee Tables 對談與觀察者筆記，都是 Vault 裡可閱讀的 Markdown。你可以編輯它們，也可以離開 VAM 繼續使用。
 
-Coffee Tables 把接續對談所需的資料放在隱藏資料夾 `Coffee Tables/.sessions`。Obsidian Sync 不同步以點開頭的資料夾，所以在其他裝置上只能閱讀同步過去的對談，無法接著聊。請在開始對談的裝置上繼續，或改用會複製隱藏資料夾的同步工具。
-
 選取 Markdown 文字與點選圖片的 AI 操作會產生可編輯草稿。你必須明確接受草稿，才會改動筆記。圖片辨識目前需要 Codex，執行時才傳送選取圖片的資料；原始圖片保持不變。
 
 VAM 不含遙測，也不儲存 API key。AI 任務會透過本機 CLI 將相關內容，包括研究脈絡、選取的背景檔或來賓設定，傳送至 OpenAI 或 Anthropic，可能使用帳號額度或產生費用。AI 請求／回覆紀錄預設關閉；啟用後的紀錄可能包含私人筆記。
@@ -118,11 +116,13 @@ CLI 繼承 Obsidian 的作業系統權限；唯讀或工具限制不等於 OS sa
 
 ### 目前限制
 
-僅支援桌面版；AIM 已驗證環境為 macOS 與 Obsidian 1.14.4。Windows 與 Linux 尚未驗證。Claude Code 屬實驗性支援，真實任務成功完成仍待驗證。
+僅支援桌面版；AIM 已驗證環境為 macOS 與 Obsidian 1.14.4。Windows 與 Linux 尚未驗證。
 
 AIM 會搜尋網路並提供來源連結，但找到來源不代表內容已證實。AI 判斷、無法存取的來源與帳號額度，都可能讓研究未能完成。重要主張請回到原始來源核對。
 
 大綱只搜尋目前地圖的議題名稱，不搜尋全文。地圖的復原／重做是暫存紀錄，切換地圖或關閉視圖後會清除。
+
+Coffee Tables 把接續對談所需的資料存在隱藏資料夾 `Coffee Tables/.sessions`。Obsidian Sync 不同步隱藏資料夾，因此在其他裝置上可以閱讀同步過去的對談，但無法接著聊；請回到開始對談的裝置繼續。
 
 ### 研究流程參考
 
