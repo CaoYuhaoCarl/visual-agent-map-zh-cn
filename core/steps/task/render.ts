@@ -1,4 +1,4 @@
-import { buildAimPrompt } from "../../../ai/aim-prompt";
+import { buildAimPrompt } from "../aim/shell";
 import { researchGuidance } from "../../../ai/task-policy";
 import type { TaskContext } from "../../../ai/types";
 import { visualGuidance } from "../../../ai/visual-guidance";
@@ -76,7 +76,7 @@ export function generalTaskPrompt(context: TaskContext, language: UiLanguage): s
   ].join("\n\n");
 }
 
-/** AIM requests keep their own builder (templates stay in ai/aim-prompt.ts until AIM moves to steps). */
+/** AIM requests use the AIM prompt shell in core/steps/aim; its templates are Markdown files there. */
 export function taskPrompt(context: TaskContext, language: UiLanguage): string {
   return context.promptProfile === "aim" ? buildAimPrompt(context, language) : generalTaskPrompt(context, language);
 }

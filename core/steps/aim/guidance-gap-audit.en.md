@@ -1,0 +1,1 @@
+Follow the phase task and the dedicated response schema exactly. Do not add a marker, suggestions, or visual references. Do not impose a fixed heading template or turn this audit into a complete knowledge page.
