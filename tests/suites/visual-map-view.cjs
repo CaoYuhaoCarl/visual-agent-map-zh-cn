@@ -128,6 +128,51 @@ integrationTest('AIM question cards show branch progress instead of note lifecyc
   doc.aim.runs[0].attempts[0].status = 'running'; view.stageEl = element('stage'); view.renderNode(question);
   assert.equal(view.stageEl.children[0].children[0].children[0].text, 'Researching');
 });
+integrationTest('a topic waiting in a research batch shows a scheduled frame and status, and has no aria-label tooltip', () => {
+  const { VisualAgentMapView } = load('main.ts', { obsidian });
+  const element = tag => ({ tag, children: [], dataset: {}, style: {},
+    createDiv(options) { const child = element('div'); child.cls = options?.cls ?? options; this.children.push(child); return child; },
+    createEl(name, options) { const child = element(name); child.text = options?.text; child.cls = options?.cls; this.children.push(child); return child; },
+    createSpan(options) { const child = element('span'); child.text = options?.text; child.cls = options?.cls; this.children.push(child); return child; },
+    setAttr(name, value) { this[name] = value; }, addClass(name) { this.cls = name; },
+    addEventListener() {}, removeEventListener() {}, setPointerCapture() {}
+  });
+  const all = (root, predicate) => [...(predicate(root) ? [root] : []), ...root.children.flatMap(child => all(child, predicate))];
+  const topic = node('waiting');
+  const queued = new Set(['waiting.md']);
+  const plugin = { repo: {}, settings: { ...DEFAULT_SETTINGS }, expansionBatches: new Map(), running: new Set(), quickExpandPending: new Set(), pendingSuggestions: new Map(), expansionCoordinator: { isQueued: path => queued.has(path) } };
+  const view = new VisualAgentMapView({ app: {} }, plugin); view.stageEl = element('stage'); view.map = map([topic]);
+  view.notes = new Map([[topic.id, { title: 'Waiting topic', summary: '', status: 'idea' }]]);
+  view.renderNode(topic);
+  let card = view.stageEl.children[0];
+  assert.equal(card.dataset.status, 'queued');
+  assert.ok(all(card, item => item.cls === 'vam-status vam-status-queued' && item.text === 'Research scheduled').length === 1);
+  assert.equal(card['aria-label'], undefined, 'Obsidian would show aria-label as a hover tooltip');
+  const label = all(card, item => item.cls === 'vam-card-label')[0];
+  assert.equal(card['aria-labelledby'], label.id); assert.equal(label.textContent, 'Waiting topic, Research scheduled');
+  queued.clear(); view.stageEl = element('stage'); view.renderNode(topic);
+  card = view.stageEl.children[0];
+  assert.equal(card.dataset.status, 'idea'); assert.equal(all(card, item => item.cls === 'vam-status vam-status-queued').length, 0);
+});
+integrationTest('outline reveal expands collapsed ancestors, centers and selects the topic, and reports unknown paths', async () => {
+  const { VisualAgentMapView } = load('main.ts', { obsidian });
+  const root = node('root'), child = node('child'), leaf = node('leaf');
+  child.parentId = root.id; leaf.parentId = child.id; root.collapsed = true; child.collapsed = true;
+  const doc = map([root, child, leaf]); doc.viewport = { x: 0, y: 0, zoom: 1 }; leaf.x = 1000; leaf.y = 400;
+  const view = new VisualAgentMapView({ app: {} }, { mutate: work => work(), expansionBatches: new Map() });
+  view.map = doc; view.viewportEl = { clientWidth: 800, clientHeight: 600 };
+  let renders = 0; view.render = () => { renders++; }; view.transform = () => {}; view.saveViewport = () => {};
+  view.mapChange = async change => { change(view.map); };
+  view.multiSelected = new Set(['root']);
+  assert.equal(await view.revealPath('leaf.md'), true);
+  assert.equal(root.collapsed, false); assert.equal(child.collapsed, false);
+  assert.equal(view.selected, leaf.id); assert.equal(view.multiSelected.size, 0); assert.ok(renders > 0);
+  assert.deepEqual(plain(doc.viewport), { x: 400 - 1140, y: 300 - 480, zoom: 1 });
+  view.integrationMode = true; view.multiSelected = new Set(['root']); view.selected = null;
+  await view.revealPath('root.md');
+  assert.deepEqual([...view.multiSelected], ['root'], 'topic selection is kept'); assert.equal(view.selected, null);
+  assert.equal(await view.revealPath('missing.md'), false);
+});
 integrationTest('AIM outline keeps only note titles and hierarchy', () => {
   const { OutlineView } = load('ui/outline-view.ts', { obsidian });
   const element = (tag, options = {}) => ({ tag, text: options.text, cls: options.cls ?? '', children: [], style: {},
@@ -838,11 +883,12 @@ integrationTest('review dialogs: duplicate parents list each proposal once, disc
 });
 integrationTest('structure panel: a parent change waits for Apply, says what will change, and keeps Remove apart', () => {
   const element = (tag, options = {}) => ({
-    tag, text: options.text, value: options.value ?? '', cls: options.cls ?? '', attr: options.attr ?? {}, children: [], disabled: false,
+    tag, text: options.text, value: options.value ?? '', cls: options.cls ?? '', attr: options.attr ?? {}, children: [], disabled: false, style: {}, dataset: {},
     createDiv(value) { const child = element('div', typeof value === 'string' ? { cls: value } : value); this.children.push(child); return child; },
     createEl(name, value) { const child = element(name, value); this.children.push(child); return child; },
     createSpan(value) { const child = element('span', value); this.children.push(child); return child; },
-    addClass(name) { this.cls = `${this.cls} ${name}`.trim(); }, setText(value) { this.text = value; }, setAttr(name, value) { this.attr[name] = value; },
+    addClass(name) { this.cls = `${this.cls} ${name}`.trim(); }, toggleClass(name, on) { this.cls = on ? `${this.cls} ${name}`.trim() : this.cls.split(' ').filter(c => c !== name).join(' '); },
+    setText(value) { this.text = value; }, setAttr(name, value) { this.attr[name] = value; },
     addEventListener(name, handler) { this[name] = handler; }
   });
   const all = (root, predicate) => [...(predicate(root) ? [root] : []), ...root.children.flatMap(child => all(child, predicate))];
@@ -866,10 +912,16 @@ integrationTest('structure panel: a parent change waits for Apply, says what wil
   assert.ok(buttons[0].cls.includes('vam-discard'));
   const apply = buttons[2], status = find(actions, item => item.cls.includes('vam-next-status'));
   assert.equal(apply.disabled, true);
-  const select = find(content, item => item.tag === 'select');
-  select.value = 'b'; select.change();
+  // The parent picker is an indented tree like the outline; the topic itself cannot be its own parent.
+  const tree = find(content, item => item.cls === 'vam-topic-tree');
+  const rows = tree.children.map(row => [row.dataset.id, row.text, row.style.paddingLeft, row.disabled]);
+  assert.deepEqual(rows, [['', 'No parent (root topic)', '8px', false], ['a', 'Heat', '8px', false], ['c', 'Pan', '24px', true], ['b', 'Water', '8px', false]]);
+  const row = id => tree.children.find(item => item.dataset.id === id);
+  assert.ok(row('a').cls.includes('is-selected'), 'current parent starts selected');
+  row('b').click();
+  assert.ok(row('b').cls.includes('is-selected')); assert.ok(!row('a').cls.includes('is-selected'));
   assert.equal(apply.disabled, false); assert.equal(status.text, 'Will move under “Water”.'); assert.equal(changes.length, 0);
-  select.value = ''; select.change();
+  row('').click();
   assert.equal(status.text, 'Will become a root topic.');
   apply.click();
   assert.equal(closed, 1); assert.deepEqual(changes, [null]);
