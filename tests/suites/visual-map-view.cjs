@@ -643,3 +643,49 @@ test('templateField: keep option first, returns the chosen template id or undefi
   select.value = 'A'; assert.equal(read(), 'A');
   select.value = ''; assert.equal(read(), undefined);
 });
+integrationTest('draft review renders the draft, edits on demand and keeps the dialog open when saving fails', async () => {
+  const element = (tag, options = {}) => ({
+    tag, text: options.text, value: options.text ?? '', cls: options.cls ?? '', attr: options.attr ?? {}, children: [], hidden: false,
+    createDiv(value) { const child = element('div', typeof value === 'string' ? { cls: value } : value); this.children.push(child); return child; },
+    createEl(name, value) { const child = element(name, value); this.children.push(child); return child; },
+    createSpan(value) { const child = element('span', value); this.children.push(child); return child; },
+    addClass(name) { this.cls = `${this.cls} ${name}`.trim(); }, setText(value) { this.text = value; }, setAttr(name, value) { this.attr[name] = value; },
+    addEventListener(name, handler) { if (name === 'click') this.click = handler; }, empty() { this.children = []; this.rendered = undefined; }, focus() { this.focused = true; }
+  });
+  const find = (root, predicate) => predicate(root) ? root : root.children.map(child => find(child, predicate)).find(Boolean);
+  const buttons = [];
+  class Setting { constructor() {} addButton(fn) { const b = { text: '', cta: false, disabled: false, setButtonText(v) { this.text = v; return this; }, setCta() { this.cta = true; return this; }, setDisabled(v) { this.disabled = v; return this; }, onClick(h) { this.click = h; return this; } }; fn(b); buttons.push(b); return this; } }
+  class Modal { constructor() { this.modalEl = element('modal'); this.titleEl = element('title'); this.contentEl = element('content'); } close() { this.closed = true; this.onClose?.(); } }
+  class Component { load() { this.loaded = true; } unload() { this.loaded = false; } }
+  const MarkdownRenderer = { render: async (_app, markdown, el) => { el.rendered = markdown; } };
+  const { DraftReviewModal } = load('main.ts', { obsidian: { ...obsidian, Modal, Setting, Component, MarkdownRenderer, setIcon: () => {} } });
+  const saved = []; let failNext = true;
+  const modal = new DraftReviewModal({}, 'New summary', '## Result\n\n- **one**', { intro: 'Confirming replaces the summary and details of “Parent”.', currentSummary: 'Old summary', confirmLabel: 'Confirm update to parent topic' }, async (summary, detail) => {
+    if (failNext) { failNext = false; throw new Error('The topic changed'); }
+    saved.push([summary, detail]);
+  });
+  modal.onOpen();
+  assert.ok(find(modal.contentEl, item => item.text === 'Confirming replaces the summary and details of “Parent”.'));
+  assert.ok(find(modal.contentEl, item => item.text === 'Old summary'));
+  const previews = [];
+  (function collect(item) { if (item.cls.includes('vam-draft-preview')) previews.push(item); item.children.forEach(collect); })(modal.contentEl);
+  assert.deepEqual(previews.map(item => item.rendered), ['New summary', '## Result\n\n- **one**']);
+  const inputs = [];
+  (function collect(item) { if (item.tag === 'textarea') inputs.push(item); item.children.forEach(collect); })(modal.contentEl);
+  assert.deepEqual(inputs.map(item => item.hidden), [true, true]);
+  const toggle = find(modal.contentEl, item => item.cls.includes('vam-draft-toggle'));
+  assert.equal(toggle.text, 'Edit');
+  toggle.click();
+  assert.equal(toggle.text, 'Preview'); assert.equal(toggle.attr['aria-pressed'], 'true');
+  assert.deepEqual(inputs.map(item => item.hidden), [false, false]); assert.equal(inputs[0].focused, true);
+  inputs[1].value = '## Edited';
+  toggle.click();
+  assert.equal(previews[1].rendered, '## Edited');
+  const confirm = buttons.find(b => b.text === 'Confirm update to parent topic');
+  assert.equal(confirm.cta, true);
+  confirm.click(); await new Promise(resolve => setTimeout(resolve, 0));
+  assert.notEqual(modal.closed, true); assert.equal(confirm.disabled, false);
+  assert.ok(find(modal.contentEl, item => item.cls.includes('vam-next-status') && /The topic changed/.test(item.text ?? '')));
+  confirm.click(); await new Promise(resolve => setTimeout(resolve, 0));
+  assert.deepEqual(saved, [['New summary', '## Edited']]); assert.equal(modal.closed, true);
+});

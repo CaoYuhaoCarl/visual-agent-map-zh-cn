@@ -754,3 +754,19 @@ button.vam-template-section-header:hover { background: var(--background-modifier
 .vam-outline-research-options { padding-left: calc(var(--size-4-2) + 16px); }
 .vam-outline-research-options .vam-field { margin: var(--size-4-2) 0; }
 .vam-outline-footer { margin-top: 0; padding-top: var(--size-4-4); border-top: 1px solid var(--background-modifier-border); }
+/* Draft review: rendered by default, editable on demand. */
+.vam-draft-modal [hidden] { display: none; }
+.vam-draft-intro { margin: 0 0 12px; color: var(--text-muted); }
+.vam-draft-current { margin: 0 0 12px; padding: 8px 10px; border-radius: var(--radius-m); background: var(--background-secondary); }
+.vam-draft-current > summary { color: var(--text-muted); cursor: pointer; font-size: var(--font-ui-small); font-weight: 600; }
+.vam-draft-current > p { margin: 8px 0 0; }
+.vam-draft-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 8px; padding-bottom: 8px; border-bottom: 1px solid var(--background-modifier-border); }
+.vam-draft-section { margin: 0 0 16px; }
+.vam-draft-section > h4 { margin: 0 0 6px; color: var(--text-muted); font-size: var(--font-ui-small); font-weight: 600; }
+.vam-draft-preview { padding: 2px 0; user-select: text; }
+.vam-draft-preview > :first-child { margin-top: 0; }
+.vam-draft-preview > :last-child { margin-bottom: 0; }
+/* Keep draft headings below the dialog title in the hierarchy. */
+.vam-draft-preview :is(h1, h2) { font-size: var(--font-ui-large); }
+.vam-draft-preview :is(h3, h4, h5, h6) { font-size: var(--font-ui-medium); }
+.vam-draft-intro:focus { outline: none; }

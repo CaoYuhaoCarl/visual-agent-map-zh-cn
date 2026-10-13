@@ -94,8 +94,7 @@ import {
   quickSuggestions,
   TaskModal,
   NextStepModal,
-  AiDraftModal,
-  SynthesisDraftModal,
+  DraftReviewModal,
   ChildProposalModal,
   IntegrationModal,
   MapConflictModal,
@@ -4991,9 +4990,18 @@ export class VisualAgentMapView extends ItemView {
         });
       if (drafted) drafted(result, save);
       else
-        new AiDraftModal(this.app, result.summary, result.detail, t("ui.confirm_update_to_parent_topic"), () => {
-          void save(result.summary, result.detail);
-        }).open();
+        new DraftReviewModal(
+          this.app,
+          result.summary,
+          result.detail,
+          {
+            intro: t("ui.draft_replaces_0", note.title),
+            currentSummary: note.summary,
+            confirmLabel: t("ui.confirm_update_to_parent_topic"),
+            sourcePath: node.path
+          },
+          save
+        ).open();
     } catch (error) {
       if (options?.signal?.aborted || (error instanceof Error && error.name === "AbortError")) {
         await this.plugin.repo.updateNote(node.path, { status: note.status });
@@ -5146,10 +5154,17 @@ export class VisualAgentMapView extends ItemView {
   private reviewSynthesisDraft(node: MapNode): void {
     const task = this.synthesisTasks.get(node.path);
     if (!task || task.state !== "draft" || !task.draft || !task.save) return;
-    new SynthesisDraftModal(
+    const note = this.notes.get(node.id);
+    new DraftReviewModal(
       this.app,
       task.draft.summary,
       task.draft.detail,
+      {
+        intro: t("ui.draft_replaces_0", note?.title ?? ""),
+        currentSummary: note?.summary,
+        confirmLabel: t("ui.confirm_update_to_parent_topic"),
+        sourcePath: node.path
+      },
       async (summary, detail) => {
         await task.save!(summary, detail);
         if (this.synthesisTasks.get(node.path) === task) this.synthesisTasks.delete(node.path);
@@ -5351,19 +5366,24 @@ export class VisualAgentMapView extends ItemView {
   }
   private reviewIntegratedDraft(task: NonNullable<VisualAgentMapView["integrationTask"]>): void {
     if (!task.draft) return;
-    new AiDraftModal(this.app, task.draft.summary, task.draft.detail, t("ui.confirm_new_synthesis_topic"), () =>
-      this.enqueue(() =>
-        this.saveIntegratedNode(
-          task.title,
-          task.sources,
-          task.goal,
-          task.rules,
-          this.plugin.settings.cliModel,
-          task.draft!,
-          task.options.outputLanguage ?? this.plugin.settings.language,
-          task
+    new DraftReviewModal(
+      this.app,
+      task.draft.summary,
+      task.draft.detail,
+      { intro: t("ui.draft_creates_0", task.title), confirmLabel: t("ui.confirm_new_synthesis_topic") },
+      (summary, detail) =>
+        this.enqueue(() =>
+          this.saveIntegratedNode(
+            task.title,
+            task.sources,
+            task.goal,
+            task.rules,
+            this.plugin.settings.cliModel,
+            { ...task.draft!, summary, detail },
+            task.options.outputLanguage ?? this.plugin.settings.language,
+            task
+          )
         )
-      )
     ).open();
   }
   private async saveIntegratedNode(

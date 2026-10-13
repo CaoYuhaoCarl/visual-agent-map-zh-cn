@@ -1,7 +1,7 @@
 // Modals and task helpers used by the Visual Map view; moved from view.ts unchanged.
 import type VisualAgentMapPlugin from "../../main";
 import { t, type TranslationKey } from "../../i18n";
-import { App, Modal, Notice, Setting, TFile } from "obsidian";
+import { App, Component, MarkdownRenderer, Modal, Notice, Setting, TFile } from "obsidian";
 import { ReferencePicker, type ReferenceTopic } from "../../ui/reference-picker";
 import { type ReferenceGroup } from "../../ai/reference-materials";
 import { DebugLogModal } from "../../ui/modals/debug-log-modal";
@@ -1340,81 +1340,111 @@ export class NextStepModal extends Modal {
     });
   }
 }
-export class AiDraftModal extends Modal {
-  constructor(
-    app: App,
-    private summary: string,
-    private detail: string,
-    private confirmLabel: string,
-    private confirm: () => void
-  ) {
-    super(app);
-  }
-  onOpen(): void {
-    this.titleEl.setText(t("ui.review_synthesis_draft"));
-    this.contentEl.createEl("strong", { text: t("ui.current_understanding") });
-    this.contentEl.createEl("p", { text: this.summary });
-    this.contentEl.createEl("strong", { text: t("ui.markdown_detail_draft") });
-    const detail = this.contentEl.createEl("textarea", { cls: "vam-task-input", text: this.detail });
-    detail.rows = 18;
-    detail.readOnly = true;
-    new Setting(this.contentEl)
-      .addButton(button => button.setButtonText(t("ui.cancel")).onClick(() => this.close()))
-      .addButton(button =>
-        button
-          .setButtonText(this.confirmLabel)
-          .setCta()
-          .onClick(() => {
-            this.close();
-            this.confirm();
-          })
-      );
-  }
+export interface DraftReview {
+  /** What confirming does, e.g. which topic's summary and details it replaces. */
+  intro: string;
+  /** The topic's summary today, shown for comparison when the draft replaces it. */
+  currentSummary?: string;
+  confirmLabel: string;
+  sourcePath?: string;
 }
-export class SynthesisDraftModal extends Modal {
+/** Review an AI draft: rendered by default, editable on demand, and clear about what it changes. */
+export class DraftReviewModal extends Modal {
+  private renderer = new Component();
   constructor(
     app: App,
     private summary: string,
     private detail: string,
-    private confirm: (summary: string, detail: string) => Promise<void>,
-    private discard: () => void
+    private review: DraftReview,
+    private confirm: (summary: string, detail: string) => void | Promise<void>,
+    private discard?: () => void
   ) {
     super(app);
   }
   onOpen(): void {
+    this.modalEl.addClass("vam-draft-modal");
     this.titleEl.setText(t("ui.review_synthesis_draft"));
-    this.contentEl.createEl("strong", { text: t("ui.current_understanding") });
-    const summary = this.contentEl.createEl("textarea", { cls: "vam-task-input", text: this.summary });
-    summary.rows = 4;
-    summary.setAttr("aria-label", t("ui.current_understanding"));
-    this.contentEl.createEl("strong", { text: t("ui.markdown_detail_draft") });
-    const detail = this.contentEl.createEl("textarea", { cls: "vam-task-input", text: this.detail });
-    detail.rows = 16;
-    detail.setAttr("aria-label", t("ui.markdown_detail_draft"));
+    this.renderer.load();
+    const intro = this.contentEl.createEl("p", { cls: "vam-draft-intro", text: this.review.intro });
+    if (this.review.currentSummary?.trim()) {
+      const current = this.contentEl.createEl("details", { cls: "vam-draft-current" });
+      current.createEl("summary", { text: t("ui.current_summary") });
+      current.createEl("p", { text: this.review.currentSummary });
+    }
+    const toolbar = this.contentEl.createDiv("vam-draft-toolbar");
+    toolbar.createEl("strong", { text: t("ui.ai_draft") });
+    const toggle = toolbar.createEl("button", { text: t("ui.edit_draft"), cls: "vam-draft-toggle" });
+    toggle.setAttr("aria-pressed", "false");
+    const section = (label: string, value: string, rows: number) => {
+      const wrap = this.contentEl.createDiv("vam-draft-section");
+      wrap.createEl("h4", { text: label });
+      const preview = wrap.createDiv("vam-draft-preview markdown-rendered");
+      const input = wrap.createEl("textarea", { cls: "vam-task-input", text: value });
+      input.rows = rows;
+      input.hidden = true;
+      input.setAttr("aria-label", label);
+      return { preview, input };
+    };
+    const summary = section(t("ui.draft_summary"), this.summary, 4);
+    const detail = section(t("ui.draft_detail"), this.detail, 16);
+    const show = (target: HTMLElement, markdown: string): void => {
+      target.empty();
+      try {
+        void MarkdownRenderer.render(this.app, markdown, target, this.review.sourcePath ?? "", this.renderer);
+      } catch {
+        target.setText(markdown);
+      }
+    };
+    let editing = false;
+    const setEditing = (value: boolean): void => {
+      editing = value;
+      toggle.setText(t(value ? "ui.preview_draft" : "ui.edit_draft"));
+      toggle.setAttr("aria-pressed", String(value));
+      for (const part of [summary, detail]) {
+        part.preview.hidden = value;
+        part.input.hidden = !value;
+      }
+      if (value) summary.input.focus();
+      else {
+        show(summary.preview, summary.input.value);
+        show(detail.preview, detail.input.value);
+      }
+    };
+    toggle.addEventListener("click", () => setEditing(!editing));
+    setEditing(false);
+    // Start on the draft itself: a stray Enter from whatever opened the dialog must not switch to editing.
+    intro.tabIndex = -1;
+    intro.focus();
     const status = this.contentEl.createEl("p", { cls: "vam-next-status", attr: { "aria-live": "polite" } });
-    new Setting(this.contentEl)
-      .addButton(button => button.setButtonText(t("ui.cancel")).onClick(() => this.close()))
-      .addButton(button =>
+    const buttons = new Setting(this.contentEl).addButton(button =>
+      button.setButtonText(t("ui.cancel")).onClick(() => this.close())
+    );
+    if (this.discard)
+      buttons.addButton(button =>
         button.setButtonText(t("ui.discard_synthesis")).onClick(() => {
-          this.discard();
+          this.discard?.();
           this.close();
         })
-      )
-      .addButton(button =>
-        button
-          .setButtonText(t("ui.confirm_update_to_parent_topic"))
-          .setCta()
-          .onClick(() => {
-            button.setDisabled(true);
-            void this.confirm(summary.value, detail.value).then(
-              () => this.close(),
-              error => {
-                status.setText(error instanceof Error ? error.message : String(error));
-                button.setDisabled(false);
-              }
-            );
-          })
       );
+    buttons.addButton(button =>
+      button
+        .setButtonText(this.review.confirmLabel)
+        .setCta()
+        .onClick(() => {
+          button.setDisabled(true);
+          void Promise.resolve(this.confirm(summary.input.value, detail.input.value)).then(
+            () => this.close(),
+            error => {
+              status.setText(error instanceof Error ? error.message : String(error));
+              button.setDisabled(false);
+            }
+          );
+        })
+    );
+  }
+  onClose(): void {
+    this.renderer.unload();
+    this.contentEl.empty();
   }
 }
 export class ChildProposalModal extends Modal {

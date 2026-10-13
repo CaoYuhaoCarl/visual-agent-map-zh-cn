@@ -21,6 +21,7 @@ var __publicField = (obj, key2, value) => __defNormalProp(obj, typeof key2 !== "
 // main.ts
 var main_exports = {};
 __export(main_exports, {
+  DraftReviewModal: () => DraftReviewModal,
   NextStepModal: () => NextStepModal,
   VisualAgentMapSettingTab: () => VisualAgentMapSettingTab,
   VisualAgentMapView: () => VisualAgentMapView,
@@ -408,7 +409,6 @@ var english = {
   "ui.additional_requirements": "Additional requirements (optional)",
   "ui.confirm_and_run": "Confirm and run",
   "ui.next_set_ai_sources": "Next: set AI sources",
-  "ui.markdown_detail_draft": "Markdown detail draft",
   "ui.ai_subtopic_proposals": "AI subtopic proposals",
   "ui.select_subtopics_to_create_you_can_edit_their_names_and_task": "Select subtopics to create. You can edit their names and tasks first.",
   "ui.contribution_to_the_parent_topic": "Contribution to the parent topic",
@@ -712,6 +712,14 @@ var english = {
   "ui.scan_for_recognizable_vam_workspaces_and_reconnect_only_afte": "Scan for recognizable VAM workspaces and reconnect only after confirmation, without moving or overwriting data.",
   "ui.scan": "Scan",
   "ui.check_again": "Check again",
+  "ui.ai_draft": "AI draft",
+  "ui.edit_draft": "Edit",
+  "ui.preview_draft": "Preview",
+  "ui.draft_summary": "Summary",
+  "ui.draft_detail": "Details",
+  "ui.current_summary": "Current summary",
+  "ui.draft_replaces_0": "Confirming replaces the summary and details of \u201C{0}\u201D.",
+  "ui.draft_creates_0": "Confirming creates a new topic \u201C{0}\u201D.",
   "ui.not_set": "Not set",
   "ui.task_started_in_background_0": "Started \u201C{0}\u201D in the background; progress shows on its card.",
   "ui.model_status_idle": "not checked",
@@ -1670,7 +1678,6 @@ var traditionalChinese = {
   "ui.additional_requirements": "\u672C\u6B21\u9644\u52A0\u8981\u6C42\uFF08\u9078\u586B\uFF09",
   "ui.confirm_and_run": "\u78BA\u8A8D\u4E26\u57F7\u884C",
   "ui.next_set_ai_sources": "\u4E0B\u4E00\u6B65\uFF1A\u8A2D\u5B9A AI \u4F86\u6E90",
-  "ui.markdown_detail_draft": "MD \u8A73\u60C5\u8349\u7A3F",
   "ui.ai_subtopic_proposals": "AI \u5B50\u8B70\u984C\u63D0\u6848",
   "ui.select_subtopics_to_create_you_can_edit_their_names_and_task": "\u52FE\u9078\u8981\u5EFA\u7ACB\u7684\u5B50\u8B70\u984C\uFF1B\u5EFA\u7ACB\u524D\u53EF\u76F4\u63A5\u4FEE\u6539\u540D\u7A31\u8207\u4EFB\u52D9\u3002",
   "ui.contribution_to_the_parent_topic": "\u5C0D\u6BCD\u8B70\u984C\u7684\u8CA2\u737B",
@@ -1974,6 +1981,14 @@ var traditionalChinese = {
   "ui.scan_for_recognizable_vam_workspaces_and_reconnect_only_afte": "\u6383\u63CF\u53EF\u8FA8\u8B58\u7684 VAM Workspace\uFF0C\u78BA\u8A8D\u5F8C\u624D\u91CD\u65B0\u9023\u7D50\uFF0C\u4E0D\u6703\u642C\u79FB\u6216\u8986\u5BEB\u8CC7\u6599\u3002",
   "ui.scan": "\u6383\u63CF",
   "ui.check_again": "\u91CD\u65B0\u6AA2\u67E5",
+  "ui.ai_draft": "AI \u8349\u7A3F",
+  "ui.edit_draft": "\u7DE8\u8F2F",
+  "ui.preview_draft": "\u9810\u89BD",
+  "ui.draft_summary": "\u6458\u8981",
+  "ui.draft_detail": "\u8A73\u7D30\u5167\u5BB9",
+  "ui.current_summary": "\u76EE\u524D\u7684\u6458\u8981",
+  "ui.draft_replaces_0": "\u78BA\u8A8D\u5F8C\u6703\u53D6\u4EE3\u300C{0}\u300D\u7684\u6458\u8981\u8207\u8A73\u7D30\u5167\u5BB9\u3002",
+  "ui.draft_creates_0": "\u78BA\u8A8D\u5F8C\u6703\u5EFA\u7ACB\u65B0\u8B70\u984C\u300C{0}\u300D\u3002",
   "ui.not_set": "\u672A\u586B",
   "ui.task_started_in_background_0": "\u5DF2\u5728\u80CC\u666F\u958B\u59CB\u300C{0}\u300D\uFF0C\u9032\u5EA6\u6703\u986F\u793A\u5728\u5361\u7247\u4E0A\u3002",
   "ui.model_status_idle": "\u5C1A\u672A\u6AA2\u67E5",
@@ -21429,58 +21444,87 @@ var NextStepModal = class extends import_obsidian15.Modal {
     });
   }
 };
-var AiDraftModal = class extends import_obsidian15.Modal {
-  constructor(app, summary, detail, confirmLabel, confirm) {
+var DraftReviewModal = class extends import_obsidian15.Modal {
+  constructor(app, summary, detail, review, confirm, discard) {
     super(app);
     this.summary = summary;
     this.detail = detail;
-    this.confirmLabel = confirmLabel;
-    this.confirm = confirm;
-  }
-  onOpen() {
-    this.titleEl.setText(t("ui.review_synthesis_draft"));
-    this.contentEl.createEl("strong", { text: t("ui.current_understanding") });
-    this.contentEl.createEl("p", { text: this.summary });
-    this.contentEl.createEl("strong", { text: t("ui.markdown_detail_draft") });
-    const detail = this.contentEl.createEl("textarea", { cls: "vam-task-input", text: this.detail });
-    detail.rows = 18;
-    detail.readOnly = true;
-    new import_obsidian15.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => this.close())).addButton(
-      (button) => button.setButtonText(this.confirmLabel).setCta().onClick(() => {
-        this.close();
-        this.confirm();
-      })
-    );
-  }
-};
-var SynthesisDraftModal = class extends import_obsidian15.Modal {
-  constructor(app, summary, detail, confirm, discard) {
-    super(app);
-    this.summary = summary;
-    this.detail = detail;
+    this.review = review;
     this.confirm = confirm;
     this.discard = discard;
+    __publicField(this, "renderer", new import_obsidian15.Component());
   }
   onOpen() {
+    var _a;
+    this.modalEl.addClass("vam-draft-modal");
     this.titleEl.setText(t("ui.review_synthesis_draft"));
-    this.contentEl.createEl("strong", { text: t("ui.current_understanding") });
-    const summary = this.contentEl.createEl("textarea", { cls: "vam-task-input", text: this.summary });
-    summary.rows = 4;
-    summary.setAttr("aria-label", t("ui.current_understanding"));
-    this.contentEl.createEl("strong", { text: t("ui.markdown_detail_draft") });
-    const detail = this.contentEl.createEl("textarea", { cls: "vam-task-input", text: this.detail });
-    detail.rows = 16;
-    detail.setAttr("aria-label", t("ui.markdown_detail_draft"));
+    this.renderer.load();
+    const intro = this.contentEl.createEl("p", { cls: "vam-draft-intro", text: this.review.intro });
+    if ((_a = this.review.currentSummary) == null ? void 0 : _a.trim()) {
+      const current = this.contentEl.createEl("details", { cls: "vam-draft-current" });
+      current.createEl("summary", { text: t("ui.current_summary") });
+      current.createEl("p", { text: this.review.currentSummary });
+    }
+    const toolbar = this.contentEl.createDiv("vam-draft-toolbar");
+    toolbar.createEl("strong", { text: t("ui.ai_draft") });
+    const toggle = toolbar.createEl("button", { text: t("ui.edit_draft"), cls: "vam-draft-toggle" });
+    toggle.setAttr("aria-pressed", "false");
+    const section3 = (label, value, rows) => {
+      const wrap = this.contentEl.createDiv("vam-draft-section");
+      wrap.createEl("h4", { text: label });
+      const preview = wrap.createDiv("vam-draft-preview markdown-rendered");
+      const input = wrap.createEl("textarea", { cls: "vam-task-input", text: value });
+      input.rows = rows;
+      input.hidden = true;
+      input.setAttr("aria-label", label);
+      return { preview, input };
+    };
+    const summary = section3(t("ui.draft_summary"), this.summary, 4);
+    const detail = section3(t("ui.draft_detail"), this.detail, 16);
+    const show = (target, markdown) => {
+      var _a2;
+      target.empty();
+      try {
+        void import_obsidian15.MarkdownRenderer.render(this.app, markdown, target, (_a2 = this.review.sourcePath) != null ? _a2 : "", this.renderer);
+      } catch (e) {
+        target.setText(markdown);
+      }
+    };
+    let editing = false;
+    const setEditing = (value) => {
+      editing = value;
+      toggle.setText(t(value ? "ui.preview_draft" : "ui.edit_draft"));
+      toggle.setAttr("aria-pressed", String(value));
+      for (const part of [summary, detail]) {
+        part.preview.hidden = value;
+        part.input.hidden = !value;
+      }
+      if (value) summary.input.focus();
+      else {
+        show(summary.preview, summary.input.value);
+        show(detail.preview, detail.input.value);
+      }
+    };
+    toggle.addEventListener("click", () => setEditing(!editing));
+    setEditing(false);
+    intro.tabIndex = -1;
+    intro.focus();
     const status = this.contentEl.createEl("p", { cls: "vam-next-status", attr: { "aria-live": "polite" } });
-    new import_obsidian15.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => this.close())).addButton(
-      (button) => button.setButtonText(t("ui.discard_synthesis")).onClick(() => {
-        this.discard();
-        this.close();
-      })
-    ).addButton(
-      (button) => button.setButtonText(t("ui.confirm_update_to_parent_topic")).setCta().onClick(() => {
+    const buttons = new import_obsidian15.Setting(this.contentEl).addButton(
+      (button) => button.setButtonText(t("ui.cancel")).onClick(() => this.close())
+    );
+    if (this.discard)
+      buttons.addButton(
+        (button) => button.setButtonText(t("ui.discard_synthesis")).onClick(() => {
+          var _a2;
+          (_a2 = this.discard) == null ? void 0 : _a2.call(this);
+          this.close();
+        })
+      );
+    buttons.addButton(
+      (button) => button.setButtonText(this.review.confirmLabel).setCta().onClick(() => {
         button.setDisabled(true);
-        void this.confirm(summary.value, detail.value).then(
+        void Promise.resolve(this.confirm(summary.input.value, detail.input.value)).then(
           () => this.close(),
           (error) => {
             status.setText(error instanceof Error ? error.message : String(error));
@@ -21489,6 +21533,10 @@ var SynthesisDraftModal = class extends import_obsidian15.Modal {
         );
       })
     );
+  }
+  onClose() {
+    this.renderer.unload();
+    this.contentEl.empty();
   }
 };
 var ChildProposalModal = class extends import_obsidian15.Modal {
@@ -26200,9 +26248,18 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       });
       if (drafted) drafted(result, save);
       else
-        new AiDraftModal(this.app, result.summary, result.detail, t("ui.confirm_update_to_parent_topic"), () => {
-          void save(result.summary, result.detail);
-        }).open();
+        new DraftReviewModal(
+          this.app,
+          result.summary,
+          result.detail,
+          {
+            intro: t("ui.draft_replaces_0", note.title),
+            currentSummary: note.summary,
+            confirmLabel: t("ui.confirm_update_to_parent_topic"),
+            sourcePath: node.path
+          },
+          save
+        ).open();
     } catch (error) {
       if (((_j = options == null ? void 0 : options.signal) == null ? void 0 : _j.aborted) || error instanceof Error && error.name === "AbortError") {
         await this.plugin.repo.updateNote(node.path, { status: note.status });
@@ -26339,12 +26396,20 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     }
   }
   reviewSynthesisDraft(node) {
+    var _a;
     const task = this.synthesisTasks.get(node.path);
     if (!task || task.state !== "draft" || !task.draft || !task.save) return;
-    new SynthesisDraftModal(
+    const note = this.notes.get(node.id);
+    new DraftReviewModal(
       this.app,
       task.draft.summary,
       task.draft.detail,
+      {
+        intro: t("ui.draft_replaces_0", (_a = note == null ? void 0 : note.title) != null ? _a : ""),
+        currentSummary: note == null ? void 0 : note.summary,
+        confirmLabel: t("ui.confirm_update_to_parent_topic"),
+        sourcePath: node.path
+      },
       async (summary, detail) => {
         await task.save(summary, detail);
         if (this.synthesisTasks.get(node.path) === task) this.synthesisTasks.delete(node.path);
@@ -26533,12 +26598,12 @@ ${note.detail.trim()}` : "",
   }
   reviewIntegratedDraft(task) {
     if (!task.draft) return;
-    new AiDraftModal(
+    new DraftReviewModal(
       this.app,
       task.draft.summary,
       task.draft.detail,
-      t("ui.confirm_new_synthesis_topic"),
-      () => this.enqueue(
+      { intro: t("ui.draft_creates_0", task.title), confirmLabel: t("ui.confirm_new_synthesis_topic") },
+      (summary, detail) => this.enqueue(
         () => {
           var _a;
           return this.saveIntegratedNode(
@@ -26547,7 +26612,7 @@ ${note.detail.trim()}` : "",
             task.goal,
             task.rules,
             this.plugin.settings.cliModel,
-            task.draft,
+            { ...task.draft, summary, detail },
             (_a = task.options.outputLanguage) != null ? _a : this.plugin.settings.language,
             task
           );
