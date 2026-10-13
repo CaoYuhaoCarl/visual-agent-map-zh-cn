@@ -697,57 +697,22 @@ export class NextStepModal extends Modal {
     result.empty();
     result.createEl("h4", { text: t("ui.ai_subtopic_proposals") });
     result.createEl("p", { text: t("ui.select_subtopics_to_create_you_can_edit_their_names_and_task") });
-    const rows: {
-      item: Suggestion;
-      check: HTMLInputElement;
-      title: HTMLInputElement;
-      task: HTMLTextAreaElement;
-      contribution: HTMLTextAreaElement;
-    }[] = [];
-    const list = result.createDiv("vam-proposal-list");
-    for (const item of suggestions) {
-      const row = list.createDiv("vam-proposal");
-      if (item.parentTitle) row.createEl("p", { text: t("ui.child_of_0", item.parentTitle) });
-      const check = row.createEl("input", { type: "checkbox" });
-      check.checked = true;
-      check.setAttr("aria-label", t("ui.select_proposal_0", item.title));
-      const titleField = row.createEl("label", { cls: "vam-proposal-field" });
-      titleField.createSpan({ text: t("ui.subtopic_name") });
-      const title = titleField.createEl("input", { type: "text", value: item.title });
-      title.setAttr("aria-label", t("ui.proposal_name"));
-      const taskField = row.createEl("label", { cls: "vam-proposal-field" });
-      taskField.createSpan({ text: t("ui.research_task") });
-      const task = taskField.createEl("textarea", { text: item.task });
-      task.rows = 2;
-      task.setAttr("aria-label", t("ui.proposal_task"));
-      const contributionField = row.createEl("label", { cls: "vam-proposal-field" });
-      contributionField.createSpan({ text: t("ui.contribution_to_the_parent_topic") });
-      const contribution = contributionField.createEl("textarea", { text: item.contribution });
-      contribution.rows = 2;
-      contribution.placeholder = t("ui.contribution_to_the_parent_topic");
-      contribution.setAttr("aria-label", t("ui.contribution_to_the_parent_topic"));
-      rows.push({ item, check, title, task, contribution });
-    }
-    const confirm = result.createEl("button", { text: t("ui.create_subtopics"), cls: "mod-cta" });
+    let showCount = (_count: number): void => {};
+    const list = renderProposalList(result, suggestions, count => showCount(count));
+    const confirm = result.createEl("button", { text: t("ui.create_0_subtopics", list.count()), cls: "mod-cta" });
+    showCount = count => {
+      confirm.setText(t("ui.create_0_subtopics", count));
+      confirm.disabled = count === 0;
+    };
     // While proposals are open, "Create subtopics" is the one primary action.
     button.classList.toggle("mod-cta", false);
     confirm.addEventListener("click", () => {
       void (async () => {
-        const selected = rows.filter(row => row.check.checked && row.title.value.trim());
-        if (!selected.length) {
-          panel.querySelector<HTMLElement>(".vam-next-status")?.setText(t("ui.select_at_least_one_subtopic"));
-          return;
-        }
-        const renamed = new Map(
-          selected.filter(row => !row.item.parentTitle).map(row => [row.item.title, row.title.value.trim()])
-        );
-        const names = selected.filter(row => !row.item.parentTitle).map(row => row.title.value.trim());
-        if (new Set(names).size !== names.length) {
-          this.failed(panel, button, t("ui.first_level_topic_names_must_be_unique"));
-          return;
-        }
-        if (selected.some(row => row.item.parentTitle && !renamed.has(row.item.parentTitle))) {
-          this.failed(panel, button, t("ui.select_the_parent_topic_before_its_child"));
+        const picked = list.selected();
+        if (typeof picked === "string") {
+          if (picked === t("ui.select_at_least_one_subtopic"))
+            panel.querySelector<HTMLElement>(".vam-next-status")?.setText(picked);
+          else this.failed(panel, button, picked);
           return;
         }
         void this.run(
@@ -757,14 +722,7 @@ export class NextStepModal extends Modal {
             options.signal = this.taskSignal;
             panel.querySelector<HTMLElement>(".vam-next-status")?.setText(t("ui.creating_subtopics"));
             try {
-              await create(
-                selected.map(row => ({
-                  title: row.title.value.trim(),
-                  task: row.task.value.trim(),
-                  contribution: row.contribution.value.trim(),
-                  parentTitle: row.item.parentTitle ? renamed.get(row.item.parentTitle)! : ""
-                }))
-              );
+              await create(picked);
               if (options.shallowResearch) {
                 this.taskSignal = undefined;
                 this.taskController = undefined;
@@ -1340,6 +1298,105 @@ export class NextStepModal extends Modal {
     });
   }
 }
+/**
+ * The AI's subtopic proposals as one compact list: a checkbox and editable name per row, details on demand,
+ * children indented under their parent. Checking a child checks its parent; unchecking a parent unchecks its children.
+ */
+export function renderProposalList(
+  parent: HTMLElement,
+  suggestions: Suggestion[],
+  changed: (count: number) => void
+): { count: () => number; selected: () => Suggestion[] | string } {
+  const rows: {
+    item: Suggestion;
+    check: HTMLInputElement;
+    title: HTMLInputElement;
+    task: HTMLTextAreaElement;
+    contribution: HTMLTextAreaElement;
+  }[] = [];
+  const toolbar = parent.createDiv("vam-proposal-toolbar");
+  const counter = toolbar.createSpan({ cls: "vam-proposal-count", attr: { "aria-live": "polite" } });
+  const all = toolbar.createEl("button", { cls: "vam-proposal-all" });
+  const list = parent.createDiv("vam-proposal-list");
+  const roots = suggestions.filter(item => !item.parentTitle);
+  const ordered = [
+    ...roots.flatMap(root => [root, ...suggestions.filter(item => item.parentTitle === root.title)]),
+    ...suggestions.filter(item => item.parentTitle && !roots.some(root => root.title === item.parentTitle))
+  ];
+  const count = (): number => rows.filter(row => row.check.checked).length;
+  const update = (): void => {
+    const picked = count();
+    counter.setText(t("ui.selected_0_of_1", picked, rows.length));
+    all.setText(t(picked === rows.length ? "ui.select_none" : "ui.select_all"));
+    changed(picked);
+  };
+  for (const item of ordered) {
+    const row = list.createDiv(item.parentTitle ? "vam-proposal is-child" : "vam-proposal");
+    const head = row.createDiv("vam-proposal-head");
+    const check = head.createEl("input", { type: "checkbox" });
+    check.checked = true;
+    check.setAttr("aria-label", t("ui.select_proposal_0", item.title));
+    const title = head.createEl("input", { type: "text", value: item.title, cls: "vam-proposal-title" });
+    title.setAttr("aria-label", t("ui.proposal_name"));
+    const more = head.createEl("button", { text: t("ui.proposal_details"), cls: "vam-proposal-more" });
+    more.setAttr("aria-expanded", "false");
+    const body = row.createDiv("vam-proposal-body");
+    body.hidden = true;
+    more.addEventListener("click", () => {
+      body.hidden = !body.hidden;
+      more.setAttr("aria-expanded", String(!body.hidden));
+    });
+    const taskField = body.createEl("label", { cls: "vam-proposal-field" });
+    taskField.createSpan({ text: t("ui.research_task") });
+    const task = taskField.createEl("textarea", { text: item.task });
+    task.rows = 2;
+    task.setAttr("aria-label", t("ui.proposal_task"));
+    const contributionField = body.createEl("label", { cls: "vam-proposal-field" });
+    contributionField.createSpan({ text: t("ui.contribution_to_the_parent_topic") });
+    const contribution = contributionField.createEl("textarea", { text: item.contribution });
+    contribution.rows = 2;
+    contribution.placeholder = t("ui.contribution_to_the_parent_topic");
+    contribution.setAttr("aria-label", t("ui.contribution_to_the_parent_topic"));
+    rows.push({ item, check, title, task, contribution });
+    check.addEventListener("change", () => {
+      if (item.parentTitle && check.checked)
+        rows.forEach(other => {
+          if (!other.item.parentTitle && other.item.title === item.parentTitle) other.check.checked = true;
+        });
+      if (!item.parentTitle && !check.checked)
+        rows.forEach(other => {
+          if (other.item.parentTitle === item.title) other.check.checked = false;
+        });
+      update();
+    });
+  }
+  all.addEventListener("click", () => {
+    const value = count() !== rows.length;
+    rows.forEach(row => (row.check.checked = value));
+    update();
+  });
+  update();
+  return {
+    count,
+    selected: () => {
+      const selected = rows.filter(row => row.check.checked && row.title.value.trim());
+      if (!selected.length) return t("ui.select_at_least_one_subtopic");
+      const renamed = new Map(
+        selected.filter(row => !row.item.parentTitle).map(row => [row.item.title, row.title.value.trim()])
+      );
+      const names = selected.filter(row => !row.item.parentTitle).map(row => row.title.value.trim());
+      if (new Set(names).size !== names.length) return t("ui.first_level_topic_names_must_be_unique");
+      if (selected.some(row => row.item.parentTitle && !renamed.has(row.item.parentTitle)))
+        return t("ui.select_the_parent_topic_before_its_child");
+      return selected.map(row => ({
+        title: row.title.value.trim(),
+        task: row.task.value.trim(),
+        contribution: row.contribution.value.trim(),
+        parentTitle: row.item.parentTitle ? renamed.get(row.item.parentTitle)! : ""
+      }));
+    }
+  };
+}
 /** A fixed action bar below the scrolling content, shared by the review dialogs. */
 function reviewActions(modal: Modal): HTMLDivElement {
   modal.modalEl.addClass("vam-review-modal");
@@ -1482,61 +1539,28 @@ export class ChildProposalModal extends Modal {
   onOpen(): void {
     this.titleEl.setText(t("ui.ai_subtopic_proposals"));
     this.contentEl.createEl("p", { text: t("ui.select_subtopics_to_create_you_can_edit_their_names_and_task") });
-    const rows: {
-      item: Suggestion;
-      check: HTMLInputElement;
-      title: HTMLInputElement;
-      task: HTMLTextAreaElement;
-      contribution: HTMLTextAreaElement;
-    }[] = [];
-    for (const item of this.suggestions) {
-      const row = this.contentEl.createDiv("vam-proposal");
-      if (item.parentTitle) row.createEl("p", { text: t("ui.child_of_0", item.parentTitle) });
-      const check = row.createEl("input", { type: "checkbox" });
-      check.checked = true;
-      check.setAttr("aria-label", t("ui.select_proposal_0", item.title));
-      const titleField = row.createEl("label", { cls: "vam-proposal-field" });
-      titleField.createSpan({ text: t("ui.subtopic_name") });
-      const title = titleField.createEl("input", { type: "text", value: item.title });
-      title.setAttr("aria-label", t("ui.proposal_name"));
-      const taskField = row.createEl("label", { cls: "vam-proposal-field" });
-      taskField.createSpan({ text: t("ui.research_task") });
-      const task = taskField.createEl("textarea", { text: item.task });
-      task.rows = 2;
-      task.setAttr("aria-label", t("ui.proposal_task"));
-      const contributionField = row.createEl("label", { cls: "vam-proposal-field" });
-      contributionField.createSpan({ text: t("ui.contribution_to_the_parent_topic") });
-      const contribution = contributionField.createEl("textarea", { text: item.contribution });
-      contribution.rows = 2;
-      contribution.placeholder = t("ui.contribution_to_the_parent_topic");
-      contribution.setAttr("aria-label", t("ui.contribution_to_the_parent_topic"));
-      rows.push({ item, check, title, task, contribution });
-    }
     const actions = reviewActions(this);
+    const status = actions.createSpan({
+      cls: "vam-next-actions-note vam-next-status",
+      attr: { "aria-live": "polite" }
+    });
     actions.createEl("button", { text: t("ui.cancel") }).addEventListener("click", () => this.close());
-    actions.createEl("button", { text: t("ui.create_subtopics"), cls: "mod-cta" }).addEventListener("click", () => {
-      const selected = rows.filter(row => row.check.checked && row.title.value.trim());
-      const renamed = new Map(
-        selected.filter(row => !row.item.parentTitle).map(row => [row.item.title, row.title.value.trim()])
-      );
-      const rootNames = selected.filter(row => !row.item.parentTitle).map(row => row.title.value.trim());
-      if (new Set(rootNames).size !== rootNames.length) {
-        new Notice(t("ui.first_level_topic_names_must_be_unique"));
-        return;
-      }
-      if (selected.some(row => row.item.parentTitle && !renamed.has(row.item.parentTitle))) {
-        new Notice(t("ui.select_the_parent_topic_before_its_child"));
+    const create = actions.createEl("button", { cls: "mod-cta" });
+    const list = renderProposalList(this.contentEl, this.suggestions, count => {
+      create.setText(t("ui.create_0_subtopics", count));
+      create.disabled = count === 0;
+      status.setText("");
+    });
+    create.setText(t("ui.create_0_subtopics", list.count()));
+    create.addEventListener("click", () => {
+      const picked = list.selected();
+      // Problems stay in the dialog next to the button instead of a passing Notice.
+      if (typeof picked === "string") {
+        status.setText(picked);
         return;
       }
       this.close();
-      this.submit(
-        selected.map(row => ({
-          title: row.title.value.trim(),
-          task: row.task.value.trim(),
-          contribution: row.contribution.value.trim(),
-          parentTitle: row.item.parentTitle ? renamed.get(row.item.parentTitle)! : ""
-        }))
-      );
+      this.submit(picked);
     });
   }
 }
