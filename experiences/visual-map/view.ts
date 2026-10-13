@@ -56,6 +56,7 @@ import { createOutlineMap } from "./outline-import";
 import { OutlineImportModal, type OutlineImportRequest } from "./outline-import-modal";
 import { MultiResearchModal, type MultiResearchRequest } from "./multi-research-modal";
 import type { ModelChoices } from "./research-fields";
+import type { ExpansionBatchState } from "./expansion-batch";
 import { AimStartModal } from "../../ui/modals/aim-start-modal";
 import { AimAnswerModal } from "../../ui/modals/aim-answer-modal";
 import {
@@ -2712,7 +2713,11 @@ export class VisualAgentMapView extends ItemView {
     if (batch) {
       const currentNode = batch.currentPath ? this.map?.nodes.find(item => item.path === batch.currentPath) : undefined;
       const currentTitle = currentNode ? this.notes.get(currentNode.id)?.title : undefined;
-      const label = `${t("ui.shallow_research_progress")}: ${batch.completed}/${batch.total}${currentTitle ? ` · ${currentTitle}` : ""}${batch.status === "stopped" ? ` · ${t("ui.shallow_research_stopped")}` : ""}`;
+      const label = this.batchProgressLabel(
+        t("ui.shallow_research_counts", batch.succeeded, batch.total),
+        batch,
+        currentTitle ? t("ui.shallow_research_current", currentTitle) : undefined
+      );
       header.createSpan({
         cls: `vam-status vam-status-${batch.status === "running" ? "running" : batch.failures.length ? "error" : "completed"}`,
         text: label
@@ -2726,6 +2731,7 @@ export class VisualAgentMapView extends ItemView {
         });
         failure.setAttr("title", batch.failures.join("\n"));
       }
+      this.renderRetryFailedButton(header, node.path, batch);
     }
     if (this.plugin.quickExpandPending?.has(node.path) && batch?.status !== "running") {
       this.button(header, t("ui.stop_research"), () => this.plugin.activeTasks.get(node.path)?.abort());
@@ -4089,7 +4095,7 @@ export class VisualAgentMapView extends ItemView {
   private multiResearchKey(): string {
     return `multi-research:${this.path}`;
   }
-  private openMultiResearch(): void {
+  private openMultiResearch(retryBatchKey?: string): void {
     if (!this.map || this.map.aim || !this.multiSelected.size) return;
     const names = [...this.multiSelected].map(id => this.notes.get(id)?.title).filter((name): name is string => !!name);
     new MultiResearchModal(
@@ -4097,13 +4103,13 @@ export class VisualAgentMapView extends ItemView {
       names,
       this.modelChoices(),
       this.templateChoices(),
-      request => void this.startMultiResearch(request)
+      request => void this.startMultiResearch(request, retryBatchKey)
     ).open();
   }
   stopMultiResearch(): void {
     this.plugin.expansionCoordinator.stop(this.multiResearchKey());
   }
-  async startMultiResearch(request: MultiResearchRequest): Promise<void> {
+  async startMultiResearch(request: MultiResearchRequest, retryBatchKey?: string): Promise<void> {
     if (!this.map || this.map.aim || this.builtIn || !this.multiSelected.size) return;
     const key = this.multiResearchKey();
     if (this.plugin.expansionCoordinator.isRunning(key)) {
@@ -4144,8 +4150,10 @@ export class VisualAgentMapView extends ItemView {
           requirements: request.requirements,
           ...(request.detailTemplateId ? { detailTemplateId: request.detailTemplateId } : {})
         };
+        // A retry replaces the failure state of the batch it came from (a running batch is never touched).
+        if (retryBatchKey && this.plugin.expansionBatches.get(retryBatchKey)?.status !== "running")
+          this.plugin.expansionBatches.delete(retryBatchKey);
         let reported = false;
-        let succeeded = 0;
         let skipped = 0;
         try {
           await this.plugin.expansionCoordinator.start(
@@ -4155,10 +4163,10 @@ export class VisualAgentMapView extends ItemView {
               if (busy(child)) {
                 skipped++;
                 accepted();
-                return;
+                return "skipped";
               }
               await this.researchChild(child, batchSignal, accepted, choices);
-              if (!batchSignal.aborted) succeeded++;
+              return undefined;
             },
             () => {
               const state = this.plugin.expansionBatches.get(key);
@@ -4167,7 +4175,7 @@ export class VisualAgentMapView extends ItemView {
                 new Notice(
                   t(
                     state.status === "stopped" ? "ui.multi_research_stopped" : "ui.multi_research_finished",
-                    succeeded,
+                    state.succeeded,
                     state.total,
                     state.failures.length,
                     skipped
@@ -4185,20 +4193,69 @@ export class VisualAgentMapView extends ItemView {
       new Notice(errorMessage(error));
     }
   }
-  /** Status bar under the toolbar (same place and look as the AIM status bar) with progress and Stop. */
+  /** Counts that cannot be misread: succeeded of total, failures, optional current topic and stopped marker. */
+  private batchProgressLabel(counts: string, batch: ExpansionBatchState, current?: string): string {
+    return [
+      counts,
+      batch.failures.length ? t("ui.batch_failed_count", batch.failures.length) : "",
+      batch.status === "running" ? (current ?? "") : "",
+      batch.status === "stopped" ? t("ui.shallow_research_stopped") : ""
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  }
+  /** Failed topics of a finished batch that still exist on the current map. */
+  private retryableFailures(batch: ExpansionBatchState): MapNode[] {
+    if (batch.status === "running" || !this.map || this.map.aim || this.builtIn) return [];
+    return batch.failedPaths
+      .map(path => this.map!.nodes.find(node => node.path === path))
+      .filter((node): node is MapNode => !!node);
+  }
+  private renderRetryFailedButton(parent: HTMLElement, batchKey: string, batch: ExpansionBatchState): void {
+    const failed = this.retryableFailures(batch);
+    if (failed.length)
+      this.button(parent, t("ui.retry_failed_topics", failed.length), () => this.retryFailed(batchKey));
+  }
+  /** Selects the failed topics and opens the multi-research dialog so the owner can pick another model. */
+  private retryFailed(batchKey: string): void {
+    const batch = this.plugin.expansionBatches.get(batchKey);
+    if (!batch) return;
+    const failed = this.retryableFailures(batch);
+    if (!failed.length) return;
+    this.multiSelected = new Set(failed.map(node => node.id));
+    this.integrationMode = true;
+    if (!this.closed) this.render();
+    this.openMultiResearch(batchKey);
+  }
+  /** Status bar under the toolbar (same place and look as the AIM status bar) with progress, Stop, and Retry/Dismiss after failures. */
   private renderMultiResearchStatus(parent: HTMLElement): void {
-    const state = this.plugin.expansionBatches.get(this.multiResearchKey());
-    if (state?.status !== "running") return;
-    const bar = parent.createDiv("vam-aim-statusbar vam-multi-research-statusbar is-active");
+    const key = this.multiResearchKey();
+    const state = this.plugin.expansionBatches.get(key);
+    if (!state) return;
+    const running = state.status === "running";
+    if (!running && !state.failures.length) return;
+    const bar = parent.createDiv(`vam-aim-statusbar vam-multi-research-statusbar${running ? " is-active" : ""}`);
     bar.setAttr("aria-live", "polite");
     const current = state.currentPath ? this.map?.nodes.find(node => node.path === state.currentPath) : undefined;
     const title = current ? this.notes.get(current.id)?.title : undefined;
     bar.createSpan({ cls: "vam-aim-status-title", text: t("ui.multi_research") });
     bar.createSpan({
-      cls: "vam-aim-status-value vam-status-running",
-      text: `${t("ui.multi_research_progress", state.completed, state.total)}${title ? ` · ${title}` : ""}`
+      cls: `vam-aim-status-value ${running ? "vam-status-running" : "vam-status-error"}`,
+      text: this.batchProgressLabel(
+        t(running ? "ui.multi_research_progress" : "ui.multi_research_ended", state.succeeded, state.total),
+        state,
+        title
+      )
     });
-    this.button(bar, t("ui.stop_research"), () => this.stopMultiResearch());
+    if (running) this.button(bar, t("ui.stop_research"), () => this.stopMultiResearch());
+    else {
+      this.renderRetryFailedButton(bar, key, state);
+      const dismiss = this.button(bar, "×", () => {
+        this.plugin.expansionBatches.delete(key);
+        if (!this.closed) this.render();
+      });
+      dismiss.setAttr("aria-label", t("ui.dismiss"));
+    }
   }
   private renderSelectionBar(workspace: HTMLElement): void {
     const selection = workspace.createDiv("vam-selection-bar");

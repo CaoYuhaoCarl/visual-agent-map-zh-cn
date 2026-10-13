@@ -186,7 +186,13 @@ var english = {
   "ui.multi_research_intro": "Research {0} selected topics in the background, up to 3 at a time. This uses AI quota.",
   "ui.multi_research_topics": "Topics to research",
   "ui.multi_research_start": "Start research",
-  "ui.multi_research_progress": "Researching {0}/{1}",
+  "ui.multi_research_progress": "Researching: {0} of {1} done",
+  "ui.multi_research_ended": "Research finished: {0} of {1} done",
+  "ui.batch_failed_count": "{0} failed",
+  "ui.shallow_research_counts": "Shallow research: {0} of {1} done",
+  "ui.shallow_research_current": "researching: {0}",
+  "ui.retry_failed_topics": "Retry failed topics ({0})",
+  "ui.dismiss": "Dismiss",
   "ui.multi_research_skipped": "Skipped {0} topics that are already running AI.",
   "ui.multi_research_all_skipped": "All selected topics are already running AI.",
   "ui.multi_research_already_running": "A multi-topic research is already running on this map.",
@@ -1422,7 +1428,13 @@ var traditionalChinese = {
   "ui.multi_research_intro": "\u5728\u80CC\u666F\u7814\u7A76\u5DF2\u9078\u7684 {0} \u500B\u8B70\u984C\uFF0C\u6700\u591A\u540C\u6642 3 \u500B\u3002\u6703\u4F7F\u7528 AI \u984D\u5EA6\u3002",
   "ui.multi_research_topics": "\u8981\u7814\u7A76\u7684\u8B70\u984C",
   "ui.multi_research_start": "\u958B\u59CB\u7814\u7A76",
-  "ui.multi_research_progress": "\u7814\u7A76\u4E2D {0}/{1}",
+  "ui.multi_research_progress": "\u7814\u7A76\u4E2D\uFF1A\u5B8C\u6210 {0}\uFF0F{1}",
+  "ui.multi_research_ended": "\u7814\u7A76\u7D50\u675F\uFF1A\u5B8C\u6210 {0}\uFF0F{1}",
+  "ui.batch_failed_count": "\u5931\u6557 {0}",
+  "ui.shallow_research_counts": "\u6DFA\u7814\u7A76\uFF1A\u5B8C\u6210 {0}\uFF0F{1}",
+  "ui.shallow_research_current": "\u7814\u7A76\u4E2D\uFF1A{0}",
+  "ui.retry_failed_topics": "\u91CD\u8A66\u5931\u6557\u7684\u8B70\u984C\uFF08{0}\uFF09",
+  "ui.dismiss": "\u95DC\u9589",
   "ui.multi_research_skipped": "\u5DF2\u7565\u904E {0} \u500B\u6B63\u5728\u57F7\u884C AI \u7684\u8B70\u984C\u3002",
   "ui.multi_research_all_skipped": "\u5DF2\u9078\u8B70\u984C\u90FD\u6B63\u5728\u57F7\u884C AI\u3002",
   "ui.multi_research_already_running": "\u9019\u5F35\u5716\u5DF2\u6709\u591A\u8B70\u984C\u7814\u7A76\u5728\u57F7\u884C\u3002",
@@ -23784,7 +23796,11 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     if (batch) {
       const currentNode = batch.currentPath ? (_i = this.map) == null ? void 0 : _i.nodes.find((item) => item.path === batch.currentPath) : void 0;
       const currentTitle = currentNode ? (_j = this.notes.get(currentNode.id)) == null ? void 0 : _j.title : void 0;
-      const label = `${t("ui.shallow_research_progress")}: ${batch.completed}/${batch.total}${currentTitle ? ` \xB7 ${currentTitle}` : ""}${batch.status === "stopped" ? ` \xB7 ${t("ui.shallow_research_stopped")}` : ""}`;
+      const label = this.batchProgressLabel(
+        t("ui.shallow_research_counts", batch.succeeded, batch.total),
+        batch,
+        currentTitle ? t("ui.shallow_research_current", currentTitle) : void 0
+      );
       header.createSpan({
         cls: `vam-status vam-status-${batch.status === "running" ? "running" : batch.failures.length ? "error" : "completed"}`,
         text: label
@@ -23798,6 +23814,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         });
         failure.setAttr("title", batch.failures.join("\n"));
       }
+      this.renderRetryFailedButton(header, node.path, batch);
     }
     if (((_k = this.plugin.quickExpandPending) == null ? void 0 : _k.has(node.path)) && (batch == null ? void 0 : batch.status) !== "running") {
       this.button(header, t("ui.stop_research"), () => {
@@ -25059,7 +25076,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
   multiResearchKey() {
     return `multi-research:${this.path}`;
   }
-  openMultiResearch() {
+  openMultiResearch(retryBatchKey) {
     if (!this.map || this.map.aim || !this.multiSelected.size) return;
     const names2 = [...this.multiSelected].map((id) => {
       var _a;
@@ -25070,13 +25087,13 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       names2,
       this.modelChoices(),
       this.templateChoices(),
-      (request) => void this.startMultiResearch(request)
+      (request) => void this.startMultiResearch(request, retryBatchKey)
     ).open();
   }
   stopMultiResearch() {
     this.plugin.expansionCoordinator.stop(this.multiResearchKey());
   }
-  async startMultiResearch(request) {
+  async startMultiResearch(request, retryBatchKey) {
     var _a;
     if (!this.map || this.map.aim || this.builtIn || !this.multiSelected.size) return;
     const key2 = this.multiResearchKey();
@@ -25087,6 +25104,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     const selected = [...this.multiSelected].map((id) => this.map.nodes.find((node) => node.id === id)).filter((node) => !!node);
     try {
       await this.plugin.confirmAiUsage((_a = request.model) != null ? _a : this.plugin.settings.cliModel, async () => {
+        var _a2;
         if (this.plugin.expansionCoordinator.isRunning(key2)) {
           new import_obsidian16.Notice(t("ui.multi_research_already_running"));
           return;
@@ -25112,8 +25130,9 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
           requirements: request.requirements,
           ...request.detailTemplateId ? { detailTemplateId: request.detailTemplateId } : {}
         };
+        if (retryBatchKey && ((_a2 = this.plugin.expansionBatches.get(retryBatchKey)) == null ? void 0 : _a2.status) !== "running")
+          this.plugin.expansionBatches.delete(retryBatchKey);
         let reported = false;
-        let succeeded = 0;
         let skipped = 0;
         try {
           await this.plugin.expansionCoordinator.start(
@@ -25123,10 +25142,10 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
               if (busy(child)) {
                 skipped++;
                 accepted();
-                return;
+                return "skipped";
               }
               await this.researchChild(child, batchSignal, accepted, choices);
-              if (!batchSignal.aborted) succeeded++;
+              return void 0;
             },
             () => {
               const state = this.plugin.expansionBatches.get(key2);
@@ -25135,7 +25154,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
                 new import_obsidian16.Notice(
                   t(
                     state.status === "stopped" ? "ui.multi_research_stopped" : "ui.multi_research_finished",
-                    succeeded,
+                    state.succeeded,
                     state.total,
                     state.failures.length,
                     skipped
@@ -25152,21 +25171,66 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       new import_obsidian16.Notice(errorMessage(error));
     }
   }
-  /** Status bar under the toolbar (same place and look as the AIM status bar) with progress and Stop. */
+  /** Counts that cannot be misread: succeeded of total, failures, optional current topic and stopped marker. */
+  batchProgressLabel(counts, batch, current) {
+    return [
+      counts,
+      batch.failures.length ? t("ui.batch_failed_count", batch.failures.length) : "",
+      batch.status === "running" ? current != null ? current : "" : "",
+      batch.status === "stopped" ? t("ui.shallow_research_stopped") : ""
+    ].filter(Boolean).join(" \xB7 ");
+  }
+  /** Failed topics of a finished batch that still exist on the current map. */
+  retryableFailures(batch) {
+    if (batch.status === "running" || !this.map || this.map.aim || this.builtIn) return [];
+    return batch.failedPaths.map((path) => this.map.nodes.find((node) => node.path === path)).filter((node) => !!node);
+  }
+  renderRetryFailedButton(parent, batchKey, batch) {
+    const failed = this.retryableFailures(batch);
+    if (failed.length)
+      this.button(parent, t("ui.retry_failed_topics", failed.length), () => this.retryFailed(batchKey));
+  }
+  /** Selects the failed topics and opens the multi-research dialog so the owner can pick another model. */
+  retryFailed(batchKey) {
+    const batch = this.plugin.expansionBatches.get(batchKey);
+    if (!batch) return;
+    const failed = this.retryableFailures(batch);
+    if (!failed.length) return;
+    this.multiSelected = new Set(failed.map((node) => node.id));
+    this.integrationMode = true;
+    if (!this.closed) this.render();
+    this.openMultiResearch(batchKey);
+  }
+  /** Status bar under the toolbar (same place and look as the AIM status bar) with progress, Stop, and Retry/Dismiss after failures. */
   renderMultiResearchStatus(parent) {
     var _a, _b;
-    const state = this.plugin.expansionBatches.get(this.multiResearchKey());
-    if ((state == null ? void 0 : state.status) !== "running") return;
-    const bar = parent.createDiv("vam-aim-statusbar vam-multi-research-statusbar is-active");
+    const key2 = this.multiResearchKey();
+    const state = this.plugin.expansionBatches.get(key2);
+    if (!state) return;
+    const running = state.status === "running";
+    if (!running && !state.failures.length) return;
+    const bar = parent.createDiv(`vam-aim-statusbar vam-multi-research-statusbar${running ? " is-active" : ""}`);
     bar.setAttr("aria-live", "polite");
     const current = state.currentPath ? (_a = this.map) == null ? void 0 : _a.nodes.find((node) => node.path === state.currentPath) : void 0;
     const title = current ? (_b = this.notes.get(current.id)) == null ? void 0 : _b.title : void 0;
     bar.createSpan({ cls: "vam-aim-status-title", text: t("ui.multi_research") });
     bar.createSpan({
-      cls: "vam-aim-status-value vam-status-running",
-      text: `${t("ui.multi_research_progress", state.completed, state.total)}${title ? ` \xB7 ${title}` : ""}`
+      cls: `vam-aim-status-value ${running ? "vam-status-running" : "vam-status-error"}`,
+      text: this.batchProgressLabel(
+        t(running ? "ui.multi_research_progress" : "ui.multi_research_ended", state.succeeded, state.total),
+        state,
+        title
+      )
     });
-    this.button(bar, t("ui.stop_research"), () => this.stopMultiResearch());
+    if (running) this.button(bar, t("ui.stop_research"), () => this.stopMultiResearch());
+    else {
+      this.renderRetryFailedButton(bar, key2, state);
+      const dismiss = this.button(bar, "\xD7", () => {
+        this.plugin.expansionBatches.delete(key2);
+        if (!this.closed) this.render();
+      });
+      dismiss.setAttr("aria-label", t("ui.dismiss"));
+    }
   }
   renderSelectionBar(workspace) {
     var _a, _b;
@@ -28320,7 +28384,9 @@ var ShallowExpansionCoordinator = class {
       controller,
       total: children.length,
       completed: 0,
+      succeeded: 0,
       failures: [],
+      failedPaths: [],
       status: "running"
     };
     this.activeTasks.set(parentPath2, controller);
@@ -28353,7 +28419,7 @@ var ShallowExpansionCoordinator = class {
           updateCurrent();
           let acceptedChild = false;
           try {
-            await startChild(child, controller.signal, () => {
+            const outcome = await startChild(child, controller.signal, () => {
               acceptedChild = true;
               if (!dispatchAccepted) {
                 dispatchAccepted = true;
@@ -28362,10 +28428,12 @@ var ShallowExpansionCoordinator = class {
               }
             });
             if (!acceptedChild) throw new Error("Shallow research did not start.");
+            if (outcome !== "skipped" && !controller.signal.aborted) state.succeeded++;
           } catch (error) {
             if (!controller.signal.aborted) {
               const message = error instanceof Error ? error.message : String(error);
               state.failures.push(`${child.path}: ${message}`);
+              state.failedPaths.push(child.path);
             }
           } finally {
             state.completed++;

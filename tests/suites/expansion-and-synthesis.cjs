@@ -1080,15 +1080,15 @@ integrationTest('a provider failure before acceptance keeps a failed synthesis w
   assert.equal((await f.repo.readNote(f.parent.path)).status, 'completed');
 });
 async function multiResearchHarness(titles, overrides = {}) {
-  const { repo, app } = fixture('en'), notices = [], runs = [], finish = new Map();
+  const { repo, app } = fixture(overrides.language ?? 'en'), notices = [], runs = [], finish = new Map(), opened = [];
   const mapPath = 'Agent Workspace/Topics/map-a/Map.md', mapDoc = { id: 'map-a', title: 'map-a', version: 1, nodes: [], viewport: { x: 0, y: 0, zoom: 1 } };
   await repo.ensureTopicFolders('Agent Workspace/Topics/map-a'); await app.vault.create(mapPath, core.serializeMap(mapDoc));
   const nodes = [];
   for (const title of titles) { const created = await repo.createNote(title, 'model-a', mapDoc, mapPath, 'workspace'); mapDoc.nodes.push(created); nodes.push(created); }
   await repo.saveMap(mapPath, mapDoc);
   const confirms = [];
-  const plugin = withExpansionCoordinator({ repo, settings: { ...DEFAULT_SETTINGS, language: 'en', cliModel: 'gpt-6-luna' }, running: new Set(), pendingSuggestions: new Map(), pendingResearchOptions: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), confirmAiUsage: async (model, run) => { confirms.push(model); await run(); return true; }, ...overrides });
-  const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Notice: class { constructor(message) { notices.push(message); } } } });
+  const plugin = withExpansionCoordinator({ repo, settings: { ...DEFAULT_SETTINGS, language: overrides.language ?? 'en', cliModel: 'gpt-6-luna' }, running: new Set(), pendingSuggestions: new Map(), pendingResearchOptions: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), confirmAiUsage: async (model, run) => { confirms.push(model); await run(); return true; }, ...Object.fromEntries(Object.entries(overrides).filter(([key]) => key !== 'language')) });
+  const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Notice: class { constructor(message) { notices.push(message); } }, Modal: class { constructor(app) { this.app = app; } open() { opened.push(this); } } } });
   const view = new VisualAgentMapView({ app }, plugin); view.path = mapPath; view.map = mapDoc; view.contentEl = { querySelector: () => null }; view.render = () => {}; view.hydrate = async () => {};
   view.runAgent = async (child, _done, failed, options, accepted) => {
     const note = await repo.readNote(child.path);
@@ -1097,7 +1097,7 @@ async function multiResearchHarness(titles, overrides = {}) {
     return { finished };
   };
   const request = { researchMode: 'research', researchDepth: 'fast', requirements: '' };
-  return { repo, view, plugin, nodes, notices, runs, finish, confirms, request, key: `multi-research:${mapPath}` };
+  return { repo, view, plugin, nodes, notices, runs, finish, confirms, opened, request, key: `multi-research:${mapPath}` };
 }
 integrationTest('multi research runs selected topics in the background with the chosen options and a map-level key', async () => {
   const h = await multiResearchHarness(['A', 'B']);
@@ -1206,9 +1206,9 @@ integrationTest('selection bar shows Research; starting leaves selection mode an
   await h.view.startMultiResearch(h.request); await until(() => h.runs.length === 1);
   assert.equal(h.view.integrationMode, false); assert.equal(h.view.multiSelected.size, 0);
   h.view.multiSelected = new Set([h.nodes[1].id]); items = bar(); assert.equal(research().disabled, true);
-  assert.equal(items.find(i => i.text === 'Researching 0/1'), undefined);
+  assert.equal(items.find(i => i.text === 'Researching: 0 of 1 done'), undefined);
   items = toolbar();
-  assert.ok(items.find(i => i.tag === 'span' && i.text === `Researching 0/1 · ${h.nodes[0].id}`), items.map(i => i.text).join('|'));
+  assert.ok(items.find(i => i.tag === 'span' && i.text === `Researching: 0 of 1 done · ${h.nodes[0].id}`), items.map(i => i.text).join('|'));
   assert.ok(items.find(i => i.tag === 'div' && /vam-aim-statusbar/.test(i.cls)));
   const stop = items.find(i => i.tag === 'button' && i.text === 'Stop research'); assert.ok(stop);
   stop.listeners.click({ stopPropagation() {} });
@@ -1522,4 +1522,95 @@ integrationTest('map actions offer the default content template only on non-AIM 
   assert.ok(labels().includes('Default content template for this map'));
   view.map = { ...h.doc, aim: { runs: [] } };
   assert.ok(!labels().includes('Default content template for this map'), 'templates do not apply to AIM maps');
+});
+
+test('coordinator counts succeeded and failed children with failed paths; aborted children count as neither', async () => {
+  const { ShallowExpansionCoordinator } = load('experiences/visual-map/expansion-batch.ts');
+  const states = new Map(), coordinator = new ShallowExpansionCoordinator(new Map(), states);
+  await coordinator.start('parent.md', [node('a'), node('b'), node('c'), node('skip')], async (child, _signal, accepted) => {
+    accepted(); if (child.id === 'b') throw new Error('Selected model is at capacity'); if (child.id === 'skip') return 'skipped';
+  }, () => {});
+  await until(() => states.get('parent.md').status !== 'running');
+  const done = states.get('parent.md');
+  assert.equal(done.completed, 4); assert.equal(done.succeeded, 2);
+  assert.deepEqual(plain(done.failedPaths), ['b.md']); assert.equal(done.failures.length, 1); assert.match(done.failures[0], /at capacity/);
+  const aborting = new Map(), second = new ShallowExpansionCoordinator(new Map(), aborting);
+  const releases = []; await second.start('p.md', [node('x'), node('y')], async (child, signal, accepted) => {
+    accepted(); await new Promise(resolve => releases.push(resolve)); if (child.id === 'y') throw new Error('late'); if (signal.aborted) return;
+  }, () => {});
+  await until(() => releases.length === 2); second.stop('p.md'); releases.forEach(r => r());
+  await until(() => aborting.get('p.md').status !== 'running');
+  const stopped = aborting.get('p.md'); assert.equal(stopped.status, 'stopped'); assert.equal(stopped.succeeded, 0); assert.deepEqual(plain(stopped.failedPaths), []);
+});
+function badgeElement(spans = [], buttons = []) {
+  const make = (tag, options = {}) => { const el = { tag, text: options.text ?? '', cls: options.cls ?? '', attrs: {}, listeners: {}, children: [], style: {}, dataset: {},
+    createDiv(v) { const c = make('div', typeof v === 'string' ? { cls: v } : v); this.children.push(c); return c; }, createSpan(v = {}) { const c = make('span', v); this.children.push(c); spans.push(c); return c; },
+    createEl(name, v = {}) { const c = make(name, v); this.children.push(c); if (name === 'button') buttons.push(c); return c; }, appendChild(c) { this.children.push(c); return c; },
+    setAttr(name, value) { this.attrs[name] = value; }, setAttribute(name, value) { this.attrs[name] = value; }, addClass(n) { this.cls = `${this.cls} ${n}`.trim(); }, removeClass() {}, toggleClass() {}, addEventListener(n, fn) { this.listeners[n] = fn; }, removeEventListener() {}, setPointerCapture() {}, empty() {}, setText(v) { this.text = v; } }; return el; };
+  return make('stage');
+}
+async function nodeBadgeHarness(language, outcome) {
+  const h = await multiResearchHarness(['Parent', 'A', 'B', 'C'], { language });
+  const [parent, a, b, c] = h.nodes; const spans = [], buttons = [];
+  h.view.stageEl = badgeElement(spans, buttons); h.view.notes = new Map(h.nodes.map(n => [n.id, { title: n.id === parent.id ? 'Parent' : n.id === a.id ? 'A' : n.id === b.id ? 'B' : 'C', status: 'completed', summary: '' }]));
+  const release = new Map(); const children = [a, b, c];
+  await h.plugin.expansionCoordinator.start(parent.path, children, async (child, _signal, accepted) => { accepted(); await new Promise(resolve => release.set(child.id, resolve)); if (child.id === b.id && outcome !== 'ok') throw new Error('Selected model is at capacity'); }, () => {});
+  const paint = () => { spans.length = 0; buttons.length = 0; h.view.stageEl = badgeElement(spans, buttons); h.view.renderNode(parent); };
+  const text = () => spans.map(s => s.text).join(' | ');
+  return { h, parent, a, b, c, spans, buttons, release, paint, text };
+}
+integrationTest('shallow research badge: failure badge, stopped marker and retry after stop; zh-TW strings', async () => {
+  const { translate } = load('i18n.ts'); const z = (key, ...v) => translate('zh-TW', key, ...v);
+  assert.equal([z('ui.shallow_research_counts', 0, 3), z('ui.batch_failed_count', 1), z('ui.shallow_research_current', 'B')].join(' · '), '淺研究：完成 0／3 · 失敗 1 · 研究中：B');
+  assert.equal([z('ui.shallow_research_counts', 2, 3), z('ui.batch_failed_count', 1), z('ui.shallow_research_stopped')].join(' · '), '淺研究：完成 2／3 · 失敗 1 · 已停止');
+  assert.equal(z('ui.multi_research_progress', 1, 5), '研究中：完成 1／5'); assert.equal(z('ui.retry_failed_topics', 2), '重試失敗的議題（2）'); assert.equal(z('ui.dismiss'), '關閉');
+  const x = await nodeBadgeHarness('en', 'fail');
+  x.release.get(x.b.id)(); await until(() => x.h.plugin.expansionBatches.get(x.parent.path).failedPaths.length === 1);
+  x.paint(); assert.ok(x.spans.some(s => s.text === '1 failed'), x.text());
+  x.h.plugin.expansionCoordinator.stop(x.parent.path); x.release.get(x.a.id)(); x.release.get(x.c.id)();
+  await until(() => x.h.plugin.expansionBatches.get(x.parent.path).status === 'stopped');
+  x.paint(); assert.ok(x.spans.some(s => s.text === 'Shallow research: 0 of 3 done · 1 failed · stopped'), x.text());
+  assert.ok(x.buttons.some(b => b.text === 'Retry failed topics (1)'));
+});
+integrationTest('shallow research badge in English: running, finished with a failure, and retry only when not running', async () => {
+  const x = await nodeBadgeHarness('en', 'fail');
+  x.paint(); assert.ok(x.spans.some(s => s.text === 'Shallow research: 0 of 3 done · researching: A'), x.text());
+  assert.equal(x.buttons.some(b => /^Retry failed topics/.test(b.text)), false);
+  x.release.get(x.b.id)(); await until(() => x.h.plugin.expansionBatches.get(x.parent.path).failedPaths.length === 1);
+  x.paint(); assert.ok(x.spans.some(s => s.text === 'Shallow research: 0 of 3 done · 1 failed · researching: A'), x.text());
+  assert.equal(x.buttons.some(b => /^Retry failed topics/.test(b.text)), false, 'no retry while running');
+  x.release.get(x.a.id)(); x.release.get(x.c.id)(); await until(() => x.h.plugin.expansionBatches.get(x.parent.path).status === 'completed');
+  x.paint(); assert.ok(x.spans.some(s => s.text === 'Shallow research: 2 of 3 done · 1 failed'), x.text());
+  assert.ok(x.buttons.some(b => b.text === 'Retry failed topics (1)'));
+  x.h.view.map.nodes = x.h.view.map.nodes.filter(n => n.id !== x.b.id); x.paint();
+  assert.equal(x.buttons.some(b => /^Retry failed topics/.test(b.text)), false, 'failed topic removed from the map');
+});
+integrationTest('retry failed topics selects exactly them, opens the modal and starts only them with the chosen model', async () => {
+  const x = await nodeBadgeHarness('en', 'fail'); const h = x.h;
+  x.release.get(x.a.id)(); x.release.get(x.b.id)(); x.release.get(x.c.id)(); await until(() => h.plugin.expansionBatches.get(x.parent.path).status === 'completed');
+  h.view.notes.set(x.b.id, { title: 'B', status: 'error', summary: '' });
+  x.paint(); x.buttons.find(b => /^Retry failed topics/.test(b.text)).listeners.click({ stopPropagation() {} });
+  assert.deepEqual(plain([...h.view.multiSelected]), [x.b.id]); assert.equal(h.opened.length, 1); assert.deepEqual(plain(h.opened[0].names), ['B']);
+  assert.ok(h.plugin.expansionBatches.has(x.parent.path), 'old state kept until the retry starts');
+  h.opened[0].submit({ ...h.request, model: 'model-b' });
+  await until(() => h.runs.length === 1); assert.equal(h.runs[0].title, 'B'); assert.deepEqual(plain(h.confirms), ['model-b']);
+  assert.equal((await h.repo.readNote(x.b.path)).model, 'model-b');
+  assert.equal(h.plugin.expansionBatches.has(x.parent.path), false, 'old failure state cleared');
+  h.finish.get('B')(); await until(() => h.plugin.expansionBatches.get(h.key).status === 'completed');
+});
+integrationTest('multi research status bar stays after failures with retry and dismiss, and hides without failures', async () => {
+  const h = await multiResearchHarness(['A', 'B', 'C']);
+  h.view.notes = new Map(h.nodes.map((n, i) => [n.id, { title: 'ABC'[i], status: 'completed', summary: '' }]));
+  const spans = [], buttons = []; const bar = () => { spans.length = 0; buttons.length = 0; const root = badgeElement(spans, buttons); h.view.renderMultiResearchStatus(root); return root; };
+  h.view.multiSelected = new Set(h.nodes.map(n => n.id)); await h.view.startMultiResearch(h.request); await until(() => h.runs.length === 3);
+  h.finish.get('A')(); h.finish.get('B')('Selected model is at capacity'); h.finish.get('C')();
+  await until(() => h.plugin.expansionBatches.get(h.key).status === 'completed');
+  bar(); assert.ok(spans.some(s => /Research finished: 2 of 3 done · 1 failed/.test(s.text)), spans.map(s => s.text).join('|'));
+  const retry = buttons.find(b => b.text === 'Retry failed topics (1)'); assert.ok(retry); const dismiss = buttons.find(b => b.attrs['aria-label'] === 'Dismiss'); assert.ok(dismiss);
+  retry.listeners.click({ stopPropagation() {} }); assert.deepEqual(plain([...h.view.multiSelected]), [h.nodes[1].id]); assert.deepEqual(plain(h.opened[0].names), ['B']);
+  dismiss.listeners.click({ stopPropagation() {} }); assert.equal(h.plugin.expansionBatches.has(h.key), false);
+  const clean = await multiResearchHarness(['A']); clean.view.notes = new Map(clean.nodes.map(n => [n.id, { title: n.id, status: 'completed', summary: '' }]));
+  clean.view.multiSelected = new Set([clean.nodes[0].id]); await clean.view.startMultiResearch(clean.request); await until(() => clean.runs.length === 1);
+  clean.finish.get('A')(); await until(() => clean.plugin.expansionBatches.get(clean.key).status === 'completed');
+  const root = badgeElement(); clean.view.renderMultiResearchStatus(root); assert.equal(root.children.length, 0);
 });
