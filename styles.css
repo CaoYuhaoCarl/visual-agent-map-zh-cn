@@ -703,6 +703,9 @@ body .workspace-leaf-content.vam-topic-markdown .markdown-source-view.mod-cm6 .m
 .vam-context-ai-output { min-height: 7em; }
 .vam-context-ai-preview { overflow: auto; max-height: 320px; }
 .vam-context-ai-preview:empty { display: none; }
+.vam-context-ai-generated { margin: 12px 0 0; padding: 10px; border: 1px solid var(--interactive-accent); border-radius: var(--radius-m); background: var(--background-secondary); }
+.vam-context-ai-generated img { display: block; max-width: 100%; max-height: 320px; margin: 0 auto; border-radius: var(--radius-s); object-fit: contain; }
+.vam-context-ai-generated figcaption { margin-top: 6px; color: var(--text-muted); font-size: var(--font-ui-smaller); }
 .vam-context-ai-image-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 8px; margin-top: 12px; }
 .vam-context-ai-image-choice { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 4px; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); transition: border-color 120ms ease-out; }
 .vam-context-ai-image-choice.is-selected { border-color: var(--interactive-accent); box-shadow: 0 0 0 1px var(--interactive-accent); }

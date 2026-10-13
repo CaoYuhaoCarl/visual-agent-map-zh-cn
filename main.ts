@@ -307,8 +307,9 @@ export default class VisualAgentMapPlugin extends Plugin {
       model: () => this.settings.cliModel,
       autoOpen: () => this.settings.markdownSelectionAiAutoOpen,
       language: () => (this.settings.language === "zh-TW" ? "Traditional Chinese" : "English"),
-      run: (prepared, model, signal, image, webSearch) =>
-        this.runConfirmedMarkdownContextAi(prepared, model, signal, image, webSearch)
+      run: (prepared, model, signal, image, webSearch, generateImage) =>
+        this.runConfirmedMarkdownContextAi(prepared, model, signal, image, webSearch, generateImage),
+      saveImage: (dataUrl, notePath, name) => this.saveGeneratedImage(dataUrl, notePath, name)
     });
     this.addChild(markdownSelectionAi);
     this.addCommand({
@@ -1156,16 +1157,27 @@ export default class VisualAgentMapPlugin extends Plugin {
     return `data:${mime};base64,${buffer.toString("base64")}`;
   }
 
+  /** Writes a generated image where the vault keeps attachments for `notePath`; returns the new file's path. */
+  private async saveGeneratedImage(dataUrl: string, notePath: string, name: string): Promise<string> {
+    const match = /^data:image\/(png|jpeg|webp);base64,(.+)$/.exec(dataUrl);
+    if (!match) throw new Error(t("ui.context_ai_image_not_generated"));
+    const extension = match[1] === "jpeg" ? "jpg" : match[1];
+    const path = await this.app.fileManager.getAvailablePathForAttachment(`${name}.${extension}`, notePath);
+    const bytes = Buffer.from(match[2], "base64");
+    await this.app.vault.createBinary(path, bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+    return path;
+  }
   private async runConfirmedMarkdownContextAi<Input, Output>(
     prepared: PreparedStep<Input, Output>,
     model: string,
     signal: AbortSignal,
     image?: HTMLImageElement,
-    webSearch = false
+    webSearch = false,
+    generateImage = false
   ): Promise<string> {
     let result: string | undefined;
     const confirmed = await this.confirmAiUsage(model, async () => {
-      result = await this.runMarkdownContextAi(prepared, model, signal, image, webSearch);
+      result = await this.runMarkdownContextAi(prepared, model, signal, image, webSearch, generateImage);
     });
     if (!confirmed || result === undefined) throw new Error(t("ui.ai_task_cancelled"));
     return result;
@@ -1175,8 +1187,12 @@ export default class VisualAgentMapPlugin extends Plugin {
     model: string,
     signal: AbortSignal,
     image?: HTMLImageElement,
-    webSearch = false
+    webSearch = false,
+    generateImage = false
   ): Promise<string> {
+    // Only Codex can draw; Claude Code has no image generation tool.
+    if (generateImage && providerForModel(model) === "claude")
+      throw new Error(t("ui.context_ai_image_generation_codex"));
     const loaded = image ? await this.markdownContextImage(image, signal) : undefined;
     const imageDataUrl =
       loaded && providerForModel(model) === "claude" ? await fitImageForClaude(loaded, signal) : loaded;
@@ -1215,11 +1231,14 @@ export default class VisualAgentMapPlugin extends Plugin {
           exchangeId = id;
         },
         task: {
-          textOnly: !webSearch,
+          textOnly: !webSearch && !generateImage,
           webSearchOnly: webSearch,
+          generateImage,
           imageDataUrl,
           signal: controller.signal,
-          searchBudget: webSearch ? 4 : 0
+          searchBudget: webSearch ? 4 : 0,
+          // Drawing takes longer than a text reply.
+          ...(generateImage ? { timeoutMs: 6 * 60 * 1000 } : {})
         }
       });
       if (controller.signal.aborted) throw new Error(t("ui.ai_task_cancelled"));
