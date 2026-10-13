@@ -2,7 +2,7 @@ import { App, FuzzySuggestModal, Modal, Notice, TFile } from "obsidian";
 import { t } from "../../i18n";
 import { parseOutline, type OutlineIssue, type OutlineNode } from "./outline-import";
 import type { ResearchDepth } from "../../ai/types";
-import { modelField, researchDepthField, type ModelChoices } from "./research-fields";
+import { modelField, researchDepthField, templateField, type ModelChoices } from "./research-fields";
 
 export interface OutlineImportRequest {
   nodes: OutlineNode[];
@@ -12,6 +12,8 @@ export interface OutlineImportRequest {
   researchDepth?: ResearchDepth;
   /** Model for the new topics and their shallow research; undefined uses the workspace default. */
   model?: string;
+  /** Content template for the new map's default and its shallow research; undefined uses the workspace default. */
+  detailTemplateId?: string;
 }
 
 export class OutlineFileModal extends FuzzySuggestModal<TFile> {
@@ -45,12 +47,14 @@ export class OutlineImportModal extends Modal {
   private submitting = false;
   private depth: () => ResearchDepth = () => "fast";
   private model: () => string | undefined = () => undefined;
+  private template: () => string | undefined = () => undefined;
   private unwatch?: () => void;
 
   constructor(
     app: App,
     private create: (request: OutlineImportRequest) => Promise<void>,
-    private models: ModelChoices = { list: () => [], watch: () => () => {} }
+    private models: ModelChoices = { list: () => [], watch: () => () => {} },
+    private templates: { id: string; name: string }[] = []
   ) {
     super(app);
   }
@@ -82,6 +86,7 @@ export class OutlineImportModal extends Modal {
     const model = modelField(researchOptions, this.models, t("ui.workspace_default"));
     this.model = model.value;
     this.unwatch = model.dispose;
+    this.template = templateField(researchOptions, this.templates, t("ui.detail_template_use_workspace"));
     const showOptions = (): void => researchOptions.toggleClass("is-hidden", !this.shallow.checked);
     this.shallow.addEventListener("change", showOptions);
     showOptions();
@@ -146,12 +151,14 @@ export class OutlineImportModal extends Modal {
     try {
       const shallowResearch = this.shallow.checked;
       const model = shallowResearch ? this.model() : undefined;
+      const detailTemplateId = shallowResearch ? this.template() : undefined;
       await this.create({
         nodes: this.nodes,
         source: this.source,
         shallowResearch,
         ...(shallowResearch ? { researchDepth: this.depth() } : {}),
-        ...(model ? { model } : {})
+        ...(model ? { model } : {}),
+        ...(detailTemplateId ? { detailTemplateId } : {})
       });
       this.close();
     } catch (error) {

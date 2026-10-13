@@ -1387,3 +1387,33 @@ integrationTest('synthesis and integrated topics save with the template', async 
   const contributed = await h.repo.readNote(created[0].path);
   assert.ok(contributed.detail.indexOf('### First part') < contributed.detail.indexOf('### Second part'), contributed.detail);
 });
+integrationTest('multi research with a chosen template records it on each started topic and the AI request uses it (skipped topics untouched)', async () => {
+  const h = await templateHarness({ language: 'en', settings: { detailTemplates: sampleTemplates(), defaultDetailTemplateId: 'C' } });
+  const second = await h.repo.createNote('Second', 'model-a', h.doc, h.mapPath, 'workspace'); h.doc.nodes.push(second); await h.repo.saveMap(h.mapPath, h.doc);
+  const third = await h.repo.createNote('Third', 'model-a', h.doc, h.mapPath, 'workspace'); h.doc.nodes.push(third); await h.repo.saveMap(h.mapPath, h.doc);
+  await h.repo.updateNote(second.path, { prompt: 'Research second' }); await h.repo.updateNote(third.path, { prompt: 'Research third' });
+  h.plugin.confirmAiUsage = async (_model, run) => { await run(); return true; };
+  h.plugin.running.add(third.path); // busy: skipped before any write
+  h.view.multiSelected = new Set([h.topic.id, second.id, third.id]);
+  await h.view.startMultiResearch({ researchMode: 'local', researchDepth: 'fast', requirements: '', detailTemplateId: 'A' });
+  await until(() => h.contexts.length === 2 && !h.plugin.running.has(h.topic.path) && !h.plugin.running.has(second.path));
+  assert.deepEqual(h.contexts.map(context => context.detailTemplate.id), ['A', 'A']);
+  assert.equal((await h.repo.readNote(h.topic.path)).detailTemplateId, 'A');
+  assert.equal((await h.repo.readNote(second.path)).detailTemplateId, 'A');
+  assert.equal((await h.repo.readNote(third.path)).detailTemplateId, undefined);
+});
+integrationTest('map action: the default content template for this map is set and cleared through mapChange', async () => {
+  const opened = [];
+  const h = await templateHarness({ language: 'en', settings: { detailTemplates: sampleTemplates() } });
+  const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Modal: class { constructor() {} open() { opened.push(this); } close() {} }, Notice: class {} } });
+  const view = new VisualAgentMapView({ app: h.app }, h.plugin); view.path = h.mapPath; view.map = h.doc; view.render = () => {}; view.enqueue = work => work();
+  view.chooseMapTemplate();
+  const choices = opened.at(-1).choices;
+  assert.deepEqual(plain(choices.map(choice => choice.label)), ['Use the workspace default', 'Standard', 'Template A', 'Template B', 'Template C']);
+  await choices[3].action();
+  await until(async () => (await h.repo.readMap(h.mapPath)).detailTemplateId === 'B');
+  assert.equal(view.map.detailTemplateId, 'B');
+  await choices[0].action();
+  await until(async () => (await h.repo.readMap(h.mapPath)).detailTemplateId === undefined);
+  assert.equal(view.map.detailTemplateId, undefined);
+});

@@ -481,10 +481,10 @@ test('multi research modal: defaults, options and immediate close on start', () 
   const find = (root, predicate) => predicate(root) ? root : root.children.map(c => find(c, predicate)).find(Boolean);
   class Modal { constructor(app) { this.app = app; this.titleEl = element('title'); this.contentEl = element('content'); this.closed = 0; } open() { this.onOpen(); } close() { this.closed++; } }
   const mod = load('experiences/visual-map/multi-research-modal.ts', { obsidian: { ...obsidian, Modal } });
-  const requests = [];
+  const requests = []; const templates = [{ id: 'standard', name: 'Standard' }, { id: 'A', name: 'Alpha template' }];
   let models = [], changed = null, unwatched = 0;
   const live = { list: () => models, watch: fn => { changed = fn; return () => { unwatched++; }; } };
-  const modal = new mod.MultiResearchModal({}, ['Alpha', 'Beta'], live, request => requests.push(request)); modal.open();
+  const modal = new mod.MultiResearchModal({}, ['Alpha', 'Beta'], live, templates, request => requests.push(request)); modal.open();
   assert.ok(find(modal.contentEl, i => i.text === 'Alpha')); assert.ok(find(modal.contentEl, i => i.text === 'Beta'));
   const web = find(modal.contentEl, i => i.tag === 'input' && i.type === 'checkbox'); assert.equal(web.checked, true);
   const depth = find(modal.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Research depth'); assert.equal(depth.value, 'fast');
@@ -493,17 +493,20 @@ test('multi research modal: defaults, options and immediate close on start', () 
   models = [{ id: 'm1', label: 'Model One' }, { id: 'm2', label: 'Model Two' }]; changed();
   assert.deepEqual(plain(model().children.map(c => [c.value, c.text])), [['', "Each topic's current model"], ['m1', 'Model One'], ['m2', 'Model Two']]);
   assert.deepEqual(plain(depth.children.map(c => c.value)), ['fast', 'normal', 'deep']);
+  const templateSelect = find(modal.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Content template');
+  assert.deepEqual(plain(templateSelect.children.map(c => [c.value, c.text])), [['', "Each topic's current template"], ['standard', 'Standard'], ['A', 'Alpha template']]);
   const start = find(modal.contentEl, i => i.tag === 'button' && i.text === 'Start research');
   start.listeners.click(); start.listeners.click();
   assert.equal(modal.closed, 1); assert.equal(requests.length, 1); modal.onClose(); assert.equal(unwatched, 1);
   assert.deepEqual(plain(requests[0]), { researchMode: 'research', researchDepth: 'fast', requirements: '' });
-  const second = []; const m2 = new mod.MultiResearchModal({}, ['A'], { list: () => [{ id: 'm1', label: 'Model One' }], watch: () => () => {} }, r => second.push(r)); m2.open();
+  const second = []; const m2 = new mod.MultiResearchModal({}, ['A'], { list: () => [{ id: 'm1', label: 'Model One' }], watch: () => () => {} }, templates, r => second.push(r)); m2.open();
   find(m2.contentEl, i => i.tag === 'input' && i.type === 'checkbox').checked = false;
   const sel = find(m2.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Research depth'); sel.value = 'deep';
   find(m2.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Model').value = 'm1';
+  find(m2.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Content template').value = 'A';
   find(m2.contentEl, i => i.tag === 'textarea').value = '  only 2025  ';
   find(m2.contentEl, i => i.tag === 'button' && i.text === 'Start research').listeners.click();
-  assert.deepEqual(plain(second[0]), { researchMode: 'local', researchDepth: 'deep', requirements: 'only 2025', model: 'm1' });
+  assert.deepEqual(plain(second[0]), { researchMode: 'local', researchDepth: 'deep', requirements: 'only 2025', model: 'm1', detailTemplateId: 'A' });
 });
 test('card shows a Format not met badge with the issues as tooltip', () => {
   const { VisualAgentMapView } = load('main.ts', { obsidian });
@@ -528,4 +531,74 @@ test('card shows a Format not met badge with the issues as tooltip', () => {
   assert.equal(badge.cls, 'vam-status vam-status-error');
   assert.equal(badge.title, 'Examples: needs exactly 3, has 1');
   assert.equal(render([]), undefined);
+});
+
+integrationTest('Next Step modal: the content template choice goes into research, expansion and synthesis options only when picked', async () => {
+  const element = (tag, options = {}) => ({
+    tag, type: options.type, text: options.text, value: options.value ?? options.text ?? '', cls: options.cls ?? '', children: [], style: {}, dataset: {}, disabled: false,
+    classList: { toggle() {} },
+    createDiv(value) { const child = element('div', { cls: typeof value === 'string' ? value : value?.cls }); this.children.push(child); return child; },
+    createEl(name, value) { const child = element(name, value); this.children.push(child); return child; },
+    createSpan(value) { const child = element('span', value); this.children.push(child); return child; },
+    addClass(name) { this.cls = name; }, setText(value) { this.text = value; }, setAttr(name, value) { this[name] = value; }, add(option) { this.children.push(option); }, replaceChildren(...children) { this.children = children; },
+    addEventListener(name, handler) { if (name === 'click') this.click = handler; if (name === 'change') this.change = handler; if (name === 'input') this.input = handler; },
+    querySelector(selector) { const name = selector.slice(1); return find(this, item => item.cls.split(' ').includes(name)); },
+    querySelectorAll() { return []; }, empty() { this.children = []; }, remove() {}
+  });
+  const find = (root, predicate) => predicate(root) ? root : root.children.map(child => find(child, predicate)).find(Boolean);
+  const all = (root, predicate) => [...(predicate(root) ? [root] : []), ...root.children.flatMap(child => all(child, predicate))];
+  const button = (root, label) => find(root, item => item.tag === 'button' && item.text === label);
+  const tick = () => new Promise(resolve => setTimeout(resolve, 0));
+  class Modal { constructor() { this.modalEl = element('modal'); this.titleEl = element('title'); this.contentEl = element('content'); } close() { this.onClose?.(); } }
+  const { NextStepModal } = load('main.ts', { obsidian: { ...obsidian, Modal, setIcon: () => {}, Notice: class {} } });
+  const modelState = provider => ({ provider, status: 'ready', models: [] });
+  const plugin = { settings: { codexUsageNoticeSeen: true, claudeUsageNoticeSeen: true, models: 'gpt-test', cliReasoning: 'low', language: 'en' }, aiReadyForModel: async () => true, confirmAiUsage: async (_m, run) => { await run(); return true; }, saveSettings: async () => {}, activeTasks: new Map(), availableModels: () => ['gpt-test'], modelLabel: model => model, modelDiscoveryState: modelState, subscribeModelDiscovery: () => () => {}, refreshModelDiscovery: async provider => modelState(provider), sources: { currentTopicId: 'current', currentLabel: 'Current', synthesisLabel: 'Current and children', synthesisTopics: ['Child'], topics: async () => [], readTopic: async () => [] } };
+  const templates = [{ id: 'standard', name: 'Standard' }, { id: 'A', name: 'Alpha template' }];
+  const settings = { model: 'gpt-test', modelSource: 'workspace', reasoning: 'low', save: async () => {}, sources: plugin.sources, templates, currentTemplate: 'Standard' };
+  const seen = {};
+  const open = (name, withSettings) => {
+    const modal = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin,
+      async options => { seen.research = options; },
+      async options => { seen.expand = options; },
+      async options => { seen.synth = options; }, withSettings);
+    modal.onOpen();
+    return modal;
+  };
+  const templateSelect = modal => find(modal.contentEl, item => item.tag === 'select' && item['aria-label'] === 'Content template');
+  const cardsOf = modal => find(modal.contentEl, item => item.cls === 'vam-next-cards');
+  const modal = open('picked', settings);
+  const select = templateSelect(modal);
+  assert.deepEqual(plain(select.children.map(c => [c.value, c.text])), [['', 'Keep current (Standard)'], ['standard', 'Standard'], ['A', 'Alpha template']]);
+  button(modal.contentEl, 'Confirm research task').click(); await tick();
+  assert.equal('detailTemplateId' in seen.research, false, 'keep-current sends no choice');
+  select.value = 'A';
+  button(modal.contentEl, 'Confirm research task').click(); await tick();
+  assert.equal(seen.research.detailTemplateId, 'A');
+  cardsOf(modal).children[1].click();
+  button(modal.contentEl, 'Quickly explore a map').click();
+  button(modal.contentEl, 'Create starter map now').click(); await tick();
+  assert.equal(seen.expand.detailTemplateId, 'A');
+  const synthModal = open('synth', settings);
+  templateSelect(synthModal).value = 'A';
+  cardsOf(synthModal).children[2].click();
+  const synthPanel = all(synthModal.contentEl, item => item.cls.includes('vam-next-research'))[2];
+  button(synthPanel, 'Get synthesis suggestions first').click(); await tick();
+  assert.equal(seen.synth.detailTemplateId, 'A');
+  const bare = open('bare', undefined);
+  assert.deepEqual(plain(templateSelect(bare).children.map(c => c.value)), ['']);
+});
+test('templateField: keep option first, returns the chosen template id or undefined for keep', () => {
+  const element = (tag, options = {}) => ({ tag, text: options.text, value: options.value ?? '', children: [],
+    createEl(name, value = {}) { const child = element(name, value); this.children.push(child); return child; },
+    createSpan(value = {}) { const child = element('span', value); this.children.push(child); return child; },
+    setAttr(name, value) { this[name] = value; } });
+  const { templateField } = load('experiences/visual-map/research-fields.ts', { obsidian });
+  const parent = element('div');
+  const read = templateField(parent, [{ id: 'standard', name: 'Standard' }, { id: 'A', name: 'Alpha' }], 'Keep it');
+  const select = parent.children[0].children.find(child => child.tag === 'select');
+  assert.equal(select['aria-label'], 'Content template');
+  assert.deepEqual(plain(select.children.map(c => [c.value, c.text])), [['', 'Keep it'], ['standard', 'Standard'], ['A', 'Alpha']]);
+  assert.equal(read(), undefined);
+  select.value = 'A'; assert.equal(read(), 'A');
+  select.value = ''; assert.equal(read(), undefined);
 });

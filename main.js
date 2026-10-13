@@ -797,6 +797,12 @@ var english = {
   "detail.open_questions": "Open questions",
   "detail.update_log": "Update log",
   "ui.detail_template_standard": "Standard",
+  "ui.detail_template": "Content template",
+  "ui.detail_template_keep_0": "Keep current ({0})",
+  "ui.detail_template_keep_each": "Each topic's current template",
+  "ui.detail_template_map_default": "Default content template for this map",
+  "ui.detail_template_map_default_desc": "New and unassigned topics in this map use it.",
+  "ui.detail_template_use_workspace": "Use the workspace default",
   "ui.detail_count_issue_exact": "{0}: needs exactly {1}, has {2}",
   "ui.detail_count_issue_min": "{0}: needs at least {1}, has {2}",
   "ui.detail_template_missing_0": 'The content template "{0}" no longer exists; this topic now uses the next default.',
@@ -1977,6 +1983,12 @@ var traditionalChinese = {
   "detail.open_questions": "\u5F85\u78BA\u8A8D\u4E8B\u9805",
   "detail.update_log": "\u66F4\u65B0\u7D00\u9304",
   "ui.detail_template_standard": "\u6A19\u6E96",
+  "ui.detail_template": "\u5167\u5BB9\u6A21\u677F",
+  "ui.detail_template_keep_0": "\u6CBF\u7528\u76EE\u524D\uFF08{0}\uFF09",
+  "ui.detail_template_keep_each": "\u6CBF\u7528\u5404\u8B70\u984C\u76EE\u524D\u7684\u6A21\u677F",
+  "ui.detail_template_map_default": "\u9019\u5F35\u5716\u7684\u9810\u8A2D\u5167\u5BB9\u6A21\u677F",
+  "ui.detail_template_map_default_desc": "\u9019\u5F35\u5716\u4E2D\u6C92\u6709\u6307\u5B9A\u6A21\u677F\u7684\u8B70\u984C\u6703\u4F7F\u7528\u5B83\u3002",
+  "ui.detail_template_use_workspace": "\u4F7F\u7528\u5DE5\u4F5C\u5340\u9810\u8A2D",
   "ui.detail_count_issue_exact": "{0}\uFF1A\u8981\u6C42\u525B\u597D {1} \u500B\uFF0C\u5BE6\u969B {2} \u500B",
   "ui.detail_count_issue_min": "{0}\uFF1A\u8981\u6C42\u81F3\u5C11 {1} \u500B\uFF0C\u5BE6\u969B {2} \u500B",
   "ui.detail_template_missing_0": "\u5167\u5BB9\u6A21\u677F\u300C{0}\u300D\u5DF2\u4E0D\u5B58\u5728\uFF0C\u9019\u500B\u8B70\u984C\u6539\u7528\u4E0B\u4E00\u9806\u4F4D\u7684\u9810\u8A2D\u6A21\u677F\u3002",
@@ -13162,6 +13174,16 @@ function modelField(parent, models, defaultLabel) {
   const dispose = models.watch(fill);
   return { value: () => model.value || void 0, dispose };
 }
+function templateField(parent, templates, defaultLabel) {
+  const label = parent.createEl("label", { cls: "vam-field" });
+  label.createSpan({ text: t("ui.detail_template") });
+  const select = label.createEl("select");
+  select.setAttr("aria-label", t("ui.detail_template"));
+  select.createEl("option", { value: "", text: defaultLabel });
+  for (const template of templates) select.createEl("option", { value: template.id, text: template.name });
+  select.value = "";
+  return () => select.value || void 0;
+}
 
 // experiences/visual-map/outline-import-modal.ts
 var OutlineFileModal = class extends import_obsidian9.FuzzySuggestModal {
@@ -13182,10 +13204,11 @@ var OutlineFileModal = class extends import_obsidian9.FuzzySuggestModal {
 };
 var OutlineImportModal = class extends import_obsidian9.Modal {
   constructor(app, create, models = { list: () => [], watch: () => () => {
-  } }) {
+  } }, templates = []) {
     super(app);
     this.create = create;
     this.models = models;
+    this.templates = templates;
     __publicField(this, "textarea");
     __publicField(this, "preview");
     __publicField(this, "sourceLabel");
@@ -13197,6 +13220,7 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
     __publicField(this, "submitting", false);
     __publicField(this, "depth", () => "fast");
     __publicField(this, "model", () => void 0);
+    __publicField(this, "template", () => void 0);
     __publicField(this, "unwatch");
   }
   onOpen() {
@@ -13221,6 +13245,7 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
     const model = modelField(researchOptions, this.models, t("ui.workspace_default"));
     this.model = model.value;
     this.unwatch = model.dispose;
+    this.template = templateField(researchOptions, this.templates, t("ui.detail_template_use_workspace"));
     const showOptions = () => researchOptions.toggleClass("is-hidden", !this.shallow.checked);
     this.shallow.addEventListener("change", showOptions);
     showOptions();
@@ -13278,12 +13303,14 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
     try {
       const shallowResearch = this.shallow.checked;
       const model = shallowResearch ? this.model() : void 0;
+      const detailTemplateId = shallowResearch ? this.template() : void 0;
       await this.create({
         nodes: this.nodes,
         source: this.source,
         shallowResearch,
         ...shallowResearch ? { researchDepth: this.depth() } : {},
-        ...model ? { model } : {}
+        ...model ? { model } : {},
+        ...detailTemplateId ? { detailTemplateId } : {}
       });
       this.close();
     } catch (error) {
@@ -13297,10 +13324,11 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
 // experiences/visual-map/multi-research-modal.ts
 var import_obsidian10 = require("obsidian");
 var MultiResearchModal = class extends import_obsidian10.Modal {
-  constructor(app, names2, models, submit) {
+  constructor(app, names2, models, templates, submit) {
     super(app);
     this.names = names2;
     this.models = models;
+    this.templates = templates;
     this.submit = submit;
     __publicField(this, "submitted", false);
     __publicField(this, "unwatch");
@@ -13314,6 +13342,7 @@ var MultiResearchModal = class extends import_obsidian10.Modal {
     const depth = researchDepthField(this.contentEl);
     const model = modelField(this.contentEl, this.models, t("ui.multi_research_keep_topic_models"));
     this.unwatch = model.dispose;
+    const template = templateField(this.contentEl, this.templates, t("ui.detail_template_keep_each"));
     const webLabel = this.contentEl.createEl("label", { cls: "vam-field vam-next-toggle" });
     const web = webLabel.createEl("input", { type: "checkbox" });
     web.checked = true;
@@ -13334,7 +13363,8 @@ var MultiResearchModal = class extends import_obsidian10.Modal {
         researchMode: web.checked ? "research" : "local",
         researchDepth: depth(),
         requirements: requirements.value.trim(),
-        ...model.value() ? { model: model.value() } : {}
+        ...model.value() ? { model: model.value() } : {},
+        ...template() ? { detailTemplateId: template() } : {}
       };
       this.close();
       this.submit(request);
@@ -20484,7 +20514,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
     (_a = panel.querySelector(".vam-next-status")) == null ? void 0 : _a.setText(t("ui.review_ai_suggested_subtopics"));
   }
   onOpen() {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r;
     this.modalEl.addClass("vam-next-modal");
     this.titleEl.setText(t("ui.how_would_you_like_to_explore_next"));
     this.contentEl.createEl("p", { text: t("ui.current_topic_0", this.topic), cls: "vam-modal-intro" });
@@ -20497,11 +20527,16 @@ var NextStepModal = class extends import_obsidian15.Modal {
     languageSelect.createEl("option", { value: "en", text: "English" });
     languageSelect.value = this.plugin.settings.language;
     languageSelect.setAttr("aria-label", t("ui.output_language"));
+    const templateId = templateField(
+      compactSettings,
+      (_b = (_a = this.modelSettings) == null ? void 0 : _a.templates) != null ? _b : [],
+      t("ui.detail_template_keep_0", (_d = (_c = this.modelSettings) == null ? void 0 : _c.currentTemplate) != null ? _d : "")
+    );
     const panelHeader = this.contentEl.createDiv("vam-next-panel-header");
     const panelTitle = panelHeader.createEl("h3", { text: t("ui.research_this_topic") });
     const confirm = panelHeader.createEl("button", { text: t("ui.confirm_research_task"), cls: "mod-cta" });
     confirm.dataset.topicRun = t("ui.confirm_research_task");
-    confirm.disabled = !!((_a = this.modelSettings) == null ? void 0 : _a.running);
+    confirm.disabled = !!((_e = this.modelSettings) == null ? void 0 : _e.running);
     const cards = this.contentEl.createDiv("vam-next-cards");
     let show;
     const card = (title, description, mode) => {
@@ -20526,7 +20561,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
       "ui.find_shared_conclusions_differences_and_next_steps_across_su",
       "synthesize"
     );
-    if ((_b = this.modelSettings) == null ? void 0 : _b.running) {
+    if ((_f = this.modelSettings) == null ? void 0 : _f.running) {
       const running = this.contentEl.createDiv("vam-next-running");
       running.createSpan({ text: t("ui.ai_running_ai") });
       if (this.modelSettings.stop)
@@ -20534,7 +20569,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
           var _a2, _b2;
           return (_b2 = (_a2 = this.modelSettings) == null ? void 0 : _a2.stop) == null ? void 0 : _b2.call(_a2);
         });
-    } else if ((_c = this.modelSettings) == null ? void 0 : _c.quickError)
+    } else if ((_g = this.modelSettings) == null ? void 0 : _g.quickError)
       this.contentEl.createEl("p", { cls: "vam-hint", text: this.modelSettings.quickError });
     const research = this.contentEl.createDiv("vam-next-research");
     research.createEl("p", { text: t("ui.start_from_this_node_s_question_update_only_this_node") });
@@ -20577,6 +20612,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
           researchDepth: ((_b2 = radios.find((radio) => radio.checked)) == null ? void 0 : _b2.value) || "normal",
           visualMode: (selected == null ? void 0 : selected.imageSearch) ? "auto" : "off",
           requirements: this.requirements(),
+          ...templateId() ? { detailTemplateId: templateId() } : {},
           signal: controller.signal,
           onProgress: (message) => {
             var _a3;
@@ -20739,8 +20775,8 @@ var NextStepModal = class extends import_obsidian15.Modal {
       text: this.pendingCount ? t("ui.review_ai_subtopic_suggestions") : t("ui.get_expansion_directions"),
       cls: "mod-cta"
     });
-    expandButton.dataset.topicRun = (_d = expandButton.textContent) != null ? _d : "";
-    expandButton.disabled = !!((_e = this.modelSettings) == null ? void 0 : _e.running);
+    expandButton.dataset.topicRun = (_h = expandButton.textContent) != null ? _h : "";
+    expandButton.disabled = !!((_i = this.modelSettings) == null ? void 0 : _i.running);
     expandPanel.createEl("p", { cls: "vam-next-status" });
     expandPanel.createDiv("vam-next-result");
     const consumed = () => {
@@ -20766,6 +20802,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
             shallowResearch: shallow.checked,
             researchDepth: "fast",
             visualMode: shallow.checked && (selected == null ? void 0 : selected.imageSearch) ? "auto" : "off",
+            ...templateId() ? { detailTemplateId: templateId() } : {},
             signal: this.taskSignal,
             onProgress: (message) => {
               var _a3;
@@ -20828,7 +20865,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
       text: this.childrenCount ? t("ui.ai_suggests_synthesis_angles_first_the_parent_topic_changes") : t("ui.this_topic_has_no_direct_subtopics_you_can_choose_other_note")
     });
     {
-      const pending = (_f = this.modelSettings) == null ? void 0 : _f.synthesisPending;
+      const pending = (_j = this.modelSettings) == null ? void 0 : _j.synthesisPending;
       if (pending) {
         const synthStatus = synthesizePanel.createEl("p", { cls: "vam-next-status" });
         const synthResult = synthesizePanel.createDiv("vam-next-result");
@@ -20843,11 +20880,11 @@ var NextStepModal = class extends import_obsidian15.Modal {
         }
         const direction = synthResult.createEl("textarea", {
           cls: "vam-next-focus",
-          text: ((_g = pending.directions[0]) == null ? void 0 : _g.task) || ((_h = pending.directions[0]) == null ? void 0 : _h.title) || ""
+          text: ((_k = pending.directions[0]) == null ? void 0 : _k.task) || ((_l = pending.directions[0]) == null ? void 0 : _l.title) || ""
         });
         direction.setAttr("aria-label", t("ui.synthesis_direction"));
         const draftButton = synthResult.createEl("button", { text: t("ui.get_synthesis_draft"), cls: "mod-cta" });
-        draftButton.disabled = !!((_i = this.modelSettings) == null ? void 0 : _i.running);
+        draftButton.disabled = !!((_m = this.modelSettings) == null ? void 0 : _m.running);
         draftButton.addEventListener(
           "click",
           () => this.launchSynthesis(synthesizePanel, draftButton, direction.value.trim(), (signal) => ({
@@ -20867,7 +20904,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
       } else {
         const synthesisContent = renderSynthesisContent(
           synthesizePanel,
-          (_l = (_k = (_j = this.modelSettings) == null ? void 0 : _j.sources) == null ? void 0 : _k.synthesisTopics) != null ? _l : []
+          (_p = (_o = (_n = this.modelSettings) == null ? void 0 : _n.sources) == null ? void 0 : _o.synthesisTopics) != null ? _p : []
         );
         const synthesisPicker = this.addReferencePicker(synthesizePanel, "synthesize");
         const synthFooter = synthesizePanel.createDiv("vam-next-footer");
@@ -20876,7 +20913,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
           cls: "mod-cta"
         });
         synthButton.dataset.topicRun = t("ui.get_synthesis_suggestions_first");
-        synthButton.disabled = !!((_m = this.modelSettings) == null ? void 0 : _m.running);
+        synthButton.disabled = !!((_q = this.modelSettings) == null ? void 0 : _q.running);
         const synthStatus = synthesizePanel.createEl("p", { cls: "vam-next-status" });
         synthesizePanel.createDiv("vam-next-result");
         synthButton.addEventListener(
@@ -20894,6 +20931,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
               researchMode: (selected == null ? void 0 : selected.webSearch) ? "research" : "local",
               researchDepth: this.depth,
               visualMode: (selected == null ? void 0 : selected.imageSearch) ? "auto" : "off",
+              ...templateId() ? { detailTemplateId: templateId() } : {},
               signal,
               onProgress: (message) => synthStatus.setText(message)
             };
@@ -20921,7 +20959,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
       );
       confirm.hidden = mode !== "research";
     };
-    show(((_n = this.modelSettings) == null ? void 0 : _n.synthesisPending) ? "synthesize" : "research");
+    show(((_r = this.modelSettings) == null ? void 0 : _r.synthesisPending) ? "synthesize" : "research");
     this.renderModelSettings();
     this.contentEl.createEl("p", {
       text: t("ui.if_an_ai_task_exceeds_3_minutes_vam_attempts_to_interrupt_it"),
@@ -21581,14 +21619,30 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       }
     };
   }
+  /** Built-in Standard plus the workspace's custom templates, for the template selects. */
+  templateChoices() {
+    const settings = this.plugin.settings;
+    return [standardTemplate(settings.language), ...settings.detailTemplates].map(({ id, name }) => ({ id, name }));
+  }
   openOutlineImport() {
-    new OutlineImportModal(this.app, (request) => this.importOutline(request), this.modelChoices()).open();
+    new OutlineImportModal(
+      this.app,
+      (request) => this.importOutline(request),
+      this.modelChoices(),
+      this.templateChoices()
+    ).open();
   }
   async importOutline(request) {
     const model = request.shallowResearch && request.model || this.plugin.settings.cliModel;
+    const settings = this.plugin.settings;
+    const { template } = resolveTemplate(
+      settings.detailTemplates,
+      [request.detailTemplateId, settings.defaultDetailTemplateId],
+      settings.language
+    );
     let result;
     try {
-      result = await createOutlineMap(this.plugin.repo, model, request.nodes, request.source);
+      result = await createOutlineMap(this.plugin.repo, model, request.nodes, request.source, void 0, template);
     } catch (error) {
       if (!(error == null ? void 0 : error.mapCreated)) throw error;
       new import_obsidian16.Notice(errorMessage(error));
@@ -21597,6 +21651,11 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     let opened = true;
     try {
       await this.plugin.mutate(async () => {
+        const chosenTemplate = request.detailTemplateId;
+        if (chosenTemplate)
+          await this.plugin.repo.updateMap(result.mapPath, (map) => {
+            map.detailTemplateId = chosenTemplate;
+          });
         await this.plugin.rebuildDerivedData();
         await this.openMapInMutation(result.mapPath);
         if (!this.closed && this.path === result.mapPath) this.fit();
@@ -22850,6 +22909,12 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
           action: () => this.enqueue(() => this.previewMigration())
         });
     }
+    if (this.map && !this.builtIn)
+      choices.push({
+        label: t("ui.detail_template_map_default"),
+        description: t("ui.detail_template_map_default_desc"),
+        action: () => this.chooseMapTemplate()
+      });
     choices.push({
       label: t("ui.repair_missing_mind_map"),
       description: t("ui.rebuild_a_missing_map_from_existing_topic_notes"),
@@ -22863,6 +22928,18 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         action: () => this.deleteCurrentMap()
       });
     new ChoiceModal(this.app, t("ui.more_mind_map_actions"), t("ui.additional_map_management_actions"), choices).open();
+  }
+  chooseMapTemplate() {
+    const apply = (id) => this.enqueue(
+      () => this.mapChange((map) => {
+        if (id) map.detailTemplateId = id;
+        else delete map.detailTemplateId;
+      }, false)
+    );
+    new ChoiceModal(this.app, t("ui.detail_template_map_default"), t("ui.detail_template_map_default_desc"), [
+      { label: t("ui.detail_template_use_workspace"), action: () => apply(void 0) },
+      ...this.templateChoices().map(({ id, name }) => ({ label: name, action: () => apply(id) }))
+    ]).open();
   }
   aimActiveForPath(path) {
     return this.app.workspace.getLeavesOfType(VIEW_TYPE).some((leaf) => {
@@ -24020,6 +24097,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
           } : void 0,
           quickError: this.plugin.quickExpandFailures.get(node.path),
           sources: sources2,
+          templates: this.templateChoices(),
+          currentTemplate: (await this.detailTemplateFor(node)).name,
           synthesisPending: (() => {
             const pending = this.synthesisTasks.get(node.path);
             return (pending == null ? void 0 : pending.state) === "directions" && pending.mapPath === this.path ? { directions: pending.directions, discard: () => this.discardSynthesis(node) } : void 0;
@@ -24840,6 +24919,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       this.app,
       names2,
       this.modelChoices(),
+      this.templateChoices(),
       (request) => void this.startMultiResearch(request)
     ).open();
   }
@@ -24879,7 +24959,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
           researchDepth: request.researchDepth,
           visualMode: "off",
           referenceGroups: [],
-          requirements: request.requirements
+          requirements: request.requirements,
+          ...request.detailTemplateId ? { detailTemplateId: request.detailTemplateId } : {}
         };
         let reported = false;
         let succeeded = 0;

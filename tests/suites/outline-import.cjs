@@ -238,6 +238,28 @@ test('outline modal: research depth and model show only with shallow research an
   modal.onClose(); assert.equal(unwatched, 1);
 });
 
+test('outline modal: the content template select sits in the research options and is sent only with shallow research', async () => {
+  const h = modalHarness(); const requests = [];
+  const templates = [{ id: 'standard', name: 'Standard' }, { id: 't1', name: 'Template one' }];
+  const submit = async (shallowOn, picked) => {
+    const modal = new h.mod.OutlineImportModal({ vault: { getMarkdownFiles: () => [] } }, async request => { requests.push(request); }, undefined, templates);
+    modal.open();
+    const options = h.find(modal.contentEl, item => /vam-outline-research-options/.test(item.cls));
+    const select = h.find(options, item => item.tag === 'select' && item['aria-label'] === 'Content template');
+    assert.ok(select, 'inside the research options');
+    assert.deepEqual(plain(select.children.map(c => [c.value, c.text])), [['', 'Use the workspace default'], ['standard', 'Standard'], ['t1', 'Template one']]);
+    const textarea = h.find(modal.contentEl, item => item.tag === 'textarea'); textarea.value = '# R\n## A'; textarea.listeners.input();
+    select.value = picked;
+    const shallow = h.find(modal.contentEl, item => item.tag === 'input' && item.type === 'checkbox'); shallow.checked = shallowOn; shallow.listeners.change();
+    h.find(modal.contentEl, item => item.tag === 'button' && item.text === 'Create mind map').listeners.click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    return requests.at(-1);
+  };
+  assert.equal('detailTemplateId' in await submit(false, 't1'), false, 'ignored while shallow research is off');
+  assert.equal((await submit(true, 't1')).detailTemplateId, 't1');
+  assert.equal('detailTemplateId' in await submit(true, ''), false);
+});
+
 test('outline modal: copy format instructions and choose a vault note', async () => {
   const h = modalHarness(); const requests = [];
   const file = { path: 'Inbox/outline.md', basename: 'outline', extension: 'md' };
@@ -432,4 +454,26 @@ integrationTest('createOutlineMap writes the import line into the template log s
     assert.match(detail, /^### 重點\n\n- Imported from an outline \(2026-10-13\)/);
     assert.doesNotMatch(detail, /### Update log/);
   }
+});
+
+integrationTest('importOutline: the chosen template becomes the map default and holds the root log line', async () => {
+  const { repo, app } = fixture('en');
+  const template = { id: 't1', name: 'Template one', sections: [
+    { id: 's1', name: 'Findings', description: '', role: 'none', aliases: [] },
+    { id: 's2', name: 'History', description: '', role: 'log', aliases: [] }] };
+  const plugin = { repo, settings: { ...require('../support.cjs').DEFAULT_SETTINGS, language: 'en', cliModel: 'gpt-6-luna', detailTemplates: [template] }, running: new Set(), activeTasks: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), confirmAiUsage: async (_m, run) => { await run(); return true; } };
+  repo.settings = plugin.settings;
+  const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Notice: class {} } });
+  const view = new VisualAgentMapView({ app }, plugin); view.render = () => {}; view.fit = () => {}; view.enqueue = work => work();
+  const paths = []; view.openMapInMutation = async path => { paths.push(path); };
+  view.startShallowResearch = async () => {};
+  const nodes = api.parseOutline('# R\n## A').nodes;
+  await view.importOutline({ nodes, source: null, shallowResearch: true, detailTemplateId: 't1' });
+  const map = await repo.readMap(paths[0]);
+  assert.equal(map.detailTemplateId, 't1');
+  const root = map.nodes.find(node => node.parentId === null);
+  assert.match((await repo.readNote(root.path)).detail, /### History\n\n- /);
+  assert.equal((await repo.readNote(root.path)).detailTemplateId, undefined, 'a map default, not a per-topic field');
+  await view.importOutline({ nodes, source: null, shallowResearch: false });
+  assert.equal((await repo.readMap(paths[1])).detailTemplateId, undefined);
 });

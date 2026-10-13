@@ -584,15 +584,31 @@ export class VisualAgentMapView extends ItemView {
       }
     };
   }
+  /** Built-in Standard plus the workspace's custom templates, for the template selects. */
+  private templateChoices(): { id: string; name: string }[] {
+    const settings = this.plugin.settings;
+    return [standardTemplate(settings.language), ...settings.detailTemplates].map(({ id, name }) => ({ id, name }));
+  }
   openOutlineImport(): void {
-    new OutlineImportModal(this.app, request => this.importOutline(request), this.modelChoices()).open();
+    new OutlineImportModal(
+      this.app,
+      request => this.importOutline(request),
+      this.modelChoices(),
+      this.templateChoices()
+    ).open();
   }
   async importOutline(request: OutlineImportRequest): Promise<void> {
     // A model chosen for the shallow research becomes the new topics' model, so later work on them uses it too.
     const model = (request.shallowResearch && request.model) || this.plugin.settings.cliModel;
+    const settings = this.plugin.settings;
+    const { template } = resolveTemplate(
+      settings.detailTemplates,
+      [request.detailTemplateId, settings.defaultDetailTemplateId],
+      settings.language
+    );
     let result: Awaited<ReturnType<typeof createOutlineMap>>;
     try {
-      result = await createOutlineMap(this.plugin.repo, model, request.nodes, request.source);
+      result = await createOutlineMap(this.plugin.repo, model, request.nodes, request.source, undefined, template);
     } catch (error) {
       // Once the map folder exists the import window must close, so a retry cannot create a second map.
       if (!(error as { mapCreated?: unknown } | null)?.mapCreated) throw error;
@@ -603,6 +619,12 @@ export class VisualAgentMapView extends ItemView {
     let opened = true;
     try {
       await this.plugin.mutate(async () => {
+        // The template chosen for the import becomes the new map's default, not a per-topic field.
+        const chosenTemplate = request.detailTemplateId;
+        if (chosenTemplate)
+          await this.plugin.repo.updateMap(result.mapPath, map => {
+            map.detailTemplateId = chosenTemplate;
+          });
         // Notes and Map.md were written directly; derive their Reference Links (map, parent, children) like any map change.
         await this.plugin.rebuildDerivedData();
         await this.openMapInMutation(result.mapPath);
@@ -1953,6 +1975,12 @@ export class VisualAgentMapView extends ItemView {
           action: () => this.enqueue(() => this.previewMigration())
         });
     }
+    if (this.map && !this.builtIn)
+      choices.push({
+        label: t("ui.detail_template_map_default"),
+        description: t("ui.detail_template_map_default_desc"),
+        action: () => this.chooseMapTemplate()
+      });
     choices.push({
       label: t("ui.repair_missing_mind_map"),
       description: t("ui.rebuild_a_missing_map_from_existing_topic_notes"),
@@ -1966,6 +1994,19 @@ export class VisualAgentMapView extends ItemView {
         action: () => this.deleteCurrentMap()
       });
     new ChoiceModal(this.app, t("ui.more_mind_map_actions"), t("ui.additional_map_management_actions"), choices).open();
+  }
+  private chooseMapTemplate(): void {
+    const apply = (id: string | undefined): void =>
+      this.enqueue(() =>
+        this.mapChange(map => {
+          if (id) map.detailTemplateId = id;
+          else delete map.detailTemplateId;
+        }, false)
+      );
+    new ChoiceModal(this.app, t("ui.detail_template_map_default"), t("ui.detail_template_map_default_desc"), [
+      { label: t("ui.detail_template_use_workspace"), action: () => apply(undefined) },
+      ...this.templateChoices().map(({ id, name }) => ({ label: name, action: () => apply(id) }))
+    ]).open();
   }
   private aimActiveForPath(path: string): boolean {
     return this.app.workspace.getLeavesOfType(VIEW_TYPE).some(leaf => {
@@ -3130,6 +3171,8 @@ export class VisualAgentMapView extends ItemView {
             : undefined,
           quickError: this.plugin.quickExpandFailures.get(node.path),
           sources,
+          templates: this.templateChoices(),
+          currentTemplate: (await this.detailTemplateFor(node)).name,
           synthesisPending: (() => {
             const pending = this.synthesisTasks.get(node.path);
             return pending?.state === "directions" && pending.mapPath === this.path
@@ -4039,6 +4082,7 @@ export class VisualAgentMapView extends ItemView {
       this.app,
       names,
       this.modelChoices(),
+      this.templateChoices(),
       request => void this.startMultiResearch(request)
     ).open();
   }
@@ -4083,7 +4127,8 @@ export class VisualAgentMapView extends ItemView {
           researchDepth: request.researchDepth,
           visualMode: "off",
           referenceGroups: [],
-          requirements: request.requirements
+          requirements: request.requirements,
+          ...(request.detailTemplateId ? { detailTemplateId: request.detailTemplateId } : {})
         };
         let reported = false;
         let succeeded = 0;
