@@ -1326,13 +1326,13 @@ integrationTest('runAgent saves detail with the template order and stores format
   assert.deepEqual(plain(note.detailFormatIssues), []);
   assert.match(note.detail, /- c/);
 });
-integrationTest('runAgent leaves stored format issues untouched when the result has no count check', async () => {
+integrationTest('runAgent clears stored format issues when the result has no count check', async () => {
   const h = await templateHarness({ language: 'en' });
   await h.repo.updateNote(h.topic.path, { detailFormatIssues: ['Old: needs exactly 2, has 0'] });
   await h.run();
   const note = await h.repo.readNote(h.topic.path);
   assert.equal(note.summary, 'Saved summary');
-  assert.deepEqual(plain(note.detailFormatIssues), ['Old: needs exactly 2, has 0']);
+  assert.deepEqual(plain(note.detailFormatIssues), []);
 });
 integrationTest('a deleted topic template notifies once, clears the field and falls back', async () => {
   const h = await templateHarness({ language: 'en', settings: { detailTemplates: sampleTemplates() }, mapTemplate: 'B' });
@@ -1386,6 +1386,43 @@ integrationTest('synthesis and integrated topics save with the template', async 
   const created = await h.view.createChildBatch(h.topic, [{ title: 'Contributed', task: 'Look', contribution: '### Second part\n\nB\n\n### First part\n\nA' }]);
   const contributed = await h.repo.readNote(created[0].path);
   assert.ok(contributed.detail.indexOf('### First part') < contributed.detail.indexOf('### Second part'), contributed.detail);
+});
+const countedTemplate = () => ({ id: 'K', name: 'Counted', sections: [templateSection('k0', 'Main'), templateSection('k1', 'Examples', { count: { mode: 'exact', n: 3 } })] });
+// Synthesis: call 1 proposes an angle, call 2 drafts; the draft is then saved (optionally edited) through the real save path.
+async function synthesisWithIssues({ settings, mapTemplate, draft }) {
+  const reply = (_context, call) => call === 1
+    ? { summary: '', detail: '', visualReferences: [], suggestions: [{ title: 'Angle', task: 'Compare them', contribution: '', parentTitle: '' }] }
+    : draft;
+  const h = await templateHarness({ language: 'en', settings, mapTemplate, reply });
+  const child = await h.repo.createNote('Child', 'model-a', h.doc, h.mapPath, 'workspace'); child.parentId = h.topic.id; h.doc.nodes.push(child); await h.repo.saveMap(h.mapPath, h.doc);
+  await h.repo.updateNote(h.topic.path, { status: 'completed', detailFormatIssues: ['Old: needs exactly 2, has 0'] });
+  const options = () => ({ researchMode: 'local', researchDepth: 'normal', visualMode: 'off', referenceGroups: [] });
+  await h.view.startSynthesis(h.topic, options(), null, message => assert.fail(message), () => {});
+  await h.view.startSynthesis(h.topic, options(), 'Compare them', message => assert.fail(message), () => {});
+  return { ...h, task: h.view.synthesisTasks.get(h.topic.path) };
+}
+const unmetDraft = { summary: 'Synth', detail: '### Main\n\nM\n\n### Examples\n\n- one', visualReferences: [], suggestions: [], formatIssues: [{ section: 'Examples', mode: 'exact', n: 3, actual: 1 }] };
+integrationTest('synthesis stores the draft format issues, rechecks an edited draft, and clears them without a count check', async () => {
+  const unedited = await synthesisWithIssues({ settings: { detailTemplates: [countedTemplate()] }, mapTemplate: 'K', draft: unmetDraft });
+  await unedited.task.save(unedited.task.draft.summary, unedited.task.draft.detail);
+  assert.deepEqual(plain((await unedited.repo.readNote(unedited.topic.path)).detailFormatIssues), ['Examples: needs exactly 3, has 1']);
+  const edited = await synthesisWithIssues({ settings: { detailTemplates: [countedTemplate()] }, mapTemplate: 'K', draft: unmetDraft });
+  await edited.task.save(edited.task.draft.summary, '### Main\n\nM\n\n### Examples\n\n- one\n- two\n- three');
+  assert.deepEqual(plain((await edited.repo.readNote(edited.topic.path)).detailFormatIssues), [], 'edited draft meets the count');
+  const uncounted = await synthesisWithIssues({ settings: {}, draft: { summary: 'Synth', detail: '### Core conclusions\n\nC', visualReferences: [], suggestions: [] } });
+  await uncounted.task.save(uncounted.task.draft.summary, `${uncounted.task.draft.detail}\n\nEdited`);
+  const note = await uncounted.repo.readNote(uncounted.topic.path);
+  assert.equal(note.summary, 'Synth');
+  assert.deepEqual(plain(note.detailFormatIssues), [], 'no count check ran: the old mark is cleared');
+});
+integrationTest('integrated topic stores the result format issues', async () => {
+  const h = await templateHarness({ language: 'en', settings: { detailTemplates: [countedTemplate()] }, mapTemplate: 'K', reply: () => unmetDraft });
+  const other = await h.repo.createNote('Other', 'model-a', h.doc, h.mapPath, 'workspace'); h.doc.nodes.push(other); await h.repo.saveMap(h.mapPath, h.doc);
+  await h.view.createIntegratedNode('Combined', [h.topic, other], 'Compare', '');
+  const saved = await h.repo.readMap(h.mapPath);
+  const integrated = await h.repo.readNote(saved.nodes.at(-1).path);
+  assert.equal(integrated.title, 'Combined');
+  assert.deepEqual(plain(integrated.detailFormatIssues), ['Examples: needs exactly 3, has 1']);
 });
 integrationTest('multi research with a chosen template records it on each started topic and the AI request uses it (skipped topics untouched)', async () => {
   const h = await templateHarness({ language: 'en', settings: { detailTemplates: sampleTemplates(), defaultDetailTemplateId: 'C' } });

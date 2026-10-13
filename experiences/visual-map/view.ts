@@ -102,12 +102,12 @@ function errorMessage(error: unknown): string {
 function templateInLanguage(template: DetailTemplate, language: UiLanguage): DetailTemplate {
   return template.id === STANDARD_TEMPLATE_ID ? standardTemplate(language) : template;
 }
-/** Unmet section counts to store on the topic; undefined (no count check ran) leaves the stored marks alone. */
+/** Unmet section counts to store on the topic; undefined (no count check ran) clears an earlier mark. */
 function formatIssuesPatch(
   issues: CountIssue[] | undefined,
   language: UiLanguage
 ): Pick<NotePatch, "detailFormatIssues"> {
-  return issues ? { detailFormatIssues: issues.map(issue => countIssueText(issue, language)) } : {};
+  return { detailFormatIssues: (issues ?? []).map(issue => countIssueText(issue, language)) };
 }
 const originBaseline = (origin?: string): string =>
   createHash("sha256")

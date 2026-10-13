@@ -21301,7 +21301,7 @@ function templateInLanguage(template, language2) {
   return template.id === STANDARD_TEMPLATE_ID ? standardTemplate(language2) : template;
 }
 function formatIssuesPatch(issues, language2) {
-  return issues ? { detailFormatIssues: issues.map((issue) => countIssueText(issue, language2)) } : {};
+  return { detailFormatIssues: (issues != null ? issues : []).map((issue) => countIssueText(issue, language2)) };
 }
 var originBaseline = (origin) => (0, import_node_crypto9.createHash)("sha256").update(origin != null ? origin : "").digest("hex");
 function aimQuestionStatus(map, questionNodeId, activeQuestionNodeId) {
