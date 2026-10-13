@@ -137,12 +137,22 @@
 .vam-advanced > summary { color: var(--text-muted); cursor: pointer; font-size: var(--font-ui-small); font-weight: 600; }
 .vam-advanced[open] > summary { color: var(--text-normal); }
 .vam-modal-intro { margin-top: 0; color: var(--text-muted); line-height: 1.55; white-space: pre-wrap; }
-.vam-next-modal { width: min(720px, calc(100vw - 32px)); max-height: 85vh; }
-.vam-next-modal .modal-content { overflow-y: auto; overflow-x: hidden; }
+.vam-next-modal { display: flex; flex-direction: column; width: min(720px, calc(100vw - 32px)); max-height: 85vh; }
+.vam-next-modal .modal-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+/* The step's primary action always sits in the same place: a bar below the scrolling content. */
+.vam-next-actions { display: flex; flex-shrink: 0; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--background-modifier-border); }
+.vam-next-actions > [hidden] { display: none; }
+.vam-next-actions-note { order: -1; flex: 1 1 220px; min-width: 0; margin-right: auto; color: var(--text-muted); font-size: var(--font-ui-smaller); line-height: 1.45; }
+.vam-next-topic { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.vam-next-suggested { align-self: flex-start; order: -1; padding: 1px 7px; border-radius: 20px; background: var(--interactive-accent); color: var(--text-on-accent); font-size: var(--font-ui-smaller); font-weight: 600; }
 .vam-next-modal .vam-next-requirements, .vam-next-modal .vam-next-depth-help { margin: 8px 0; }
 .vam-next-modal .vam-next-requirements > summary, .vam-next-modal .vam-next-depth-help > summary { min-height: 32px; padding: 6px 0; color: var(--text-muted); cursor: pointer; font-size: var(--font-ui-small); font-weight: 600; }
 .vam-next-modal .vam-next-requirements[open] > summary, .vam-next-modal .vam-next-depth-help[open] > summary { color: var(--text-normal); }
-.vam-next-modal .vam-next-requirements:not([open]) > :not(summary), .vam-next-modal .vam-next-depth-help:not([open]) > :not(summary), .vam-next-modal .vam-next-source-details:not([open]) > :not(summary) { display: none; }
+.vam-next-modal .vam-next-requirements:not([open]) > :not(summary), .vam-next-modal .vam-next-depth-help:not([open]) > :not(summary), .vam-next-modal .vam-next-source-details:not([open]) > :not(summary), .vam-next-modal .vam-next-output:not([open]) > :not(summary) { display: none; }
+.vam-next-output { margin: 10px 0; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); }
+.vam-next-output > summary { min-height: 38px; padding: 7px 10px; cursor: pointer; }
+.vam-next-output[open] > summary { border-bottom: 1px solid var(--background-modifier-border); }
+.vam-next-output > .vam-next-compact-settings { margin: 0; padding: 10px; }
 .vam-next-modal .vam-next-requirements textarea { box-sizing: border-box; width: 100%; margin-top: 8px; }
 .vam-next-compact-settings { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin: 8px 0; }
 .vam-next-compact-settings > p { flex: 1 1 220px; min-width: 0; margin: 0; overflow-wrap: anywhere; }
@@ -162,10 +172,6 @@
 .vam-next-arrow { display: none; }
 .vam-next-research > p, .vam-next-footer > span { color: var(--text-muted); }
 .vam-next-research { border-top: 1px solid var(--background-modifier-border); padding-top: 16px; }
-.vam-next-panel-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-bottom: 6px; }
-.vam-next-panel-header h3 { margin: 0; }
-.vam-next-panel-header .mod-cta { margin-left: auto; white-space: normal; }
-.vam-next-panel-header > [hidden] { display: none; }
 .vam-next-depth-set { margin: 12px 0 0; padding: 0; border: 0; }
 .vam-next-depth-set legend { margin-bottom: 6px; padding: 0; color: var(--text-muted); font-size: var(--font-ui-small); }
 .vam-next-depths { display: flex; gap: 8px; }
@@ -191,6 +197,7 @@
 .vam-next-choice button { margin-top: 12px; }
 .vam-next-depths button.is-active { border-color: var(--interactive-accent); background: var(--background-modifier-hover); }
 .vam-next-status { min-height: 1.4em; color: var(--text-muted); }
+.vam-next-status:empty { min-height: 0; margin: 0; }
 .vam-next-result { margin-top: 12px; }
 .vam-next-result textarea { width: 100%; box-sizing: border-box; }
 .vam-proposal-list { max-height: min(46vh, 560px); overflow-y: auto; padding-right: 8px; }

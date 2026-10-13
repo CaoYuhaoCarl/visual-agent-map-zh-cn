@@ -339,9 +339,20 @@ export class NextStepModal extends Modal {
       synthesisPending?: { directions: Suggestion[]; discard: () => void };
       templates?: { id: string; name: string }[];
       currentTemplate?: string;
+      /** The topic's research state and how many of its direct children are researched, for the suggested mode. */
+      topicStatus?: "idea" | "running" | "completed" | "error";
+      childrenCompleted?: number;
     }
   ) {
     super(app);
+  }
+  /** Suggests the next step from where the topic stands: frontier → research, settled leaf → expand, settled branch → synthesize. */
+  private suggestedMode(): "research" | "expand" | "synthesize" {
+    const settings = this.modelSettings;
+    if (settings?.synthesisPending) return "synthesize";
+    if (settings?.topicStatus !== "completed") return "research";
+    if (!this.childrenCount) return "expand";
+    return settings.childrenCompleted === this.childrenCount ? "synthesize" : "research";
   }
   private taskSignal?: AbortSignal;
   private taskController?: AbortController;
@@ -750,26 +761,32 @@ export class NextStepModal extends Modal {
   onOpen(): void {
     this.modalEl.addClass("vam-next-modal");
     this.titleEl.setText(t("ui.how_would_you_like_to_explore_next"));
-    this.contentEl.createEl("p", { text: t("ui.current_topic_0", this.topic), cls: "vam-modal-intro" });
-    this.renderRequirements();
-    const compactSettings = this.contentEl.createDiv("vam-next-compact-settings");
-    const languageLabel = compactSettings.createEl("label", { cls: "vam-next-language" });
-    languageLabel.createSpan({ text: t("ui.output_language") });
-    const languageSelect = languageLabel.createEl("select");
-    languageSelect.createEl("option", { value: "zh-TW", text: "繁體中文" });
-    languageSelect.createEl("option", { value: "en", text: "English" });
-    languageSelect.value = this.plugin.settings.language;
-    languageSelect.setAttr("aria-label", t("ui.output_language"));
-    const templateId = templateField(
-      compactSettings,
-      this.modelSettings?.templates ?? [],
-      t("ui.detail_template_keep_0", this.modelSettings?.currentTemplate ?? "")
-    );
-    const panelHeader = this.contentEl.createDiv("vam-next-panel-header");
-    const panelTitle = panelHeader.createEl("h3", { text: t("ui.research_this_topic") });
-    const confirm = panelHeader.createEl("button", { text: t("ui.confirm_research_task"), cls: "mod-cta" });
+    // The decision comes first: where the topic stands, then the three next steps; output settings follow the panel.
+    const intro = this.contentEl.createEl("p", { cls: "vam-modal-intro vam-next-topic" });
+    intro.createSpan({ text: t("ui.current_topic_0", this.topic) });
+    const topicStatus = this.modelSettings?.topicStatus;
+    if (topicStatus)
+      intro.createSpan({
+        cls: `vam-status vam-status-${topicStatus}`,
+        text: t(
+          topicStatus === "completed"
+            ? "ui.researched"
+            : topicStatus === "running"
+              ? "ui.ai_running"
+              : topicStatus === "error"
+                ? "ui.task_error"
+                : "ui.to_research"
+        )
+      });
+    const initialMode = this.suggestedMode();
+    // One action bar below the scrolling content: Close plus the current step's primary action.
+    const actions = this.modalEl.createDiv("vam-next-actions");
+    const closeButton = actions.createEl("button", { text: t("ui.close"), cls: "vam-next-close" });
+    closeButton.addEventListener("click", () => this.close());
+    const confirm = actions.createEl("button", { text: t("ui.confirm_research_task"), cls: "mod-cta" });
     confirm.dataset.topicRun = t("ui.confirm_research_task");
     confirm.disabled = !!this.modelSettings?.running;
+    let synthAction: HTMLButtonElement | undefined;
     const cards = this.contentEl.createDiv("vam-next-cards");
     let show: (mode: "research" | "expand" | "synthesize") => void;
     const card = (
@@ -783,8 +800,11 @@ export class NextStepModal extends Modal {
       copy.createSpan({ text: t(description) });
       button.createSpan({ text: "›", cls: "vam-next-arrow" });
       button.addEventListener("click", () => show(mode));
-      button.setAttr("aria-pressed", mode === "research" ? "true" : "false");
-      if (mode === "research") button.addClass("is-active");
+      button.setAttr("aria-pressed", mode === initialMode ? "true" : "false");
+      if (mode === initialMode) {
+        button.addClass("is-active");
+        button.createSpan({ text: t("ui.suggested"), cls: "vam-next-suggested" });
+      }
       return button;
     };
     const researchCard = card("ui.research_deeper", "ui.find_answers_for_this_topic_at_your_chosen_depth", "research");
@@ -1014,11 +1034,11 @@ export class NextStepModal extends Modal {
       cls: "vam-hint",
       text: t("ui.shallow_research_for_expanded_subtopics_0", researchDepthDescription("fast"))
     });
-    const expandFooter = expandPanel.createDiv("vam-next-footer");
-    const expandFooterText = expandFooter.createSpan({
-      text: t("ui.create_subtopics_after_confirmation_without_running_research")
+    const expandFooterText = actions.createSpan({
+      text: t("ui.create_subtopics_after_confirmation_without_running_research"),
+      cls: "vam-next-actions-note"
     });
-    const expandButton = expandFooter.createEl("button", {
+    const expandButton = actions.createEl("button", {
       text: this.pendingCount ? t("ui.review_ai_subtopic_suggestions") : t("ui.get_expansion_directions"),
       cls: "mod-cta"
     });
@@ -1129,7 +1149,8 @@ export class NextStepModal extends Modal {
           text: pending.directions[0]?.task || pending.directions[0]?.title || ""
         });
         direction.setAttr("aria-label", t("ui.synthesis_direction"));
-        const draftButton = synthResult.createEl("button", { text: t("ui.get_synthesis_draft"), cls: "mod-cta" });
+        const draftButton = actions.createEl("button", { text: t("ui.get_synthesis_draft"), cls: "mod-cta" });
+        synthAction = draftButton;
         draftButton.disabled = !!this.modelSettings?.running;
         draftButton.addEventListener("click", () =>
           this.launchSynthesis(synthesizePanel, draftButton, direction.value.trim(), signal => ({
@@ -1152,11 +1173,11 @@ export class NextStepModal extends Modal {
           this.modelSettings?.sources?.synthesisTopics ?? []
         );
         const synthesisPicker = this.addReferencePicker(synthesizePanel, "synthesize");
-        const synthFooter = synthesizePanel.createDiv("vam-next-footer");
-        const synthButton = synthFooter.createEl("button", {
+        const synthButton = actions.createEl("button", {
           text: t("ui.get_synthesis_suggestions_first"),
           cls: "mod-cta"
         });
+        synthAction = synthButton;
         synthButton.dataset.topicRun = t("ui.get_synthesis_suggestions_first");
         synthButton.disabled = !!this.modelSettings?.running;
         const synthStatus = synthesizePanel.createEl("p", { cls: "vam-next-status" });
@@ -1195,18 +1216,39 @@ export class NextStepModal extends Modal {
         button.setAttr("aria-pressed", name === mode ? "true" : "false");
         panel.style.display = name === mode ? "" : "none";
       }
-      panelTitle.setText(
-        t(
-          mode === "expand"
-            ? "ui.expand_this_topic"
-            : mode === "synthesize"
-              ? "ui.synthesize_subtopic_findings"
-              : "ui.research_this_topic"
-        )
-      );
       confirm.hidden = mode !== "research";
+      expandButton.hidden = mode !== "expand";
+      expandFooterText.hidden = mode !== "expand";
+      if (synthAction) synthAction.hidden = mode !== "synthesize";
     };
-    show(this.modelSettings?.synthesisPending ? "synthesize" : "research");
+    this.renderRequirements();
+    const output = this.contentEl.createEl("details", { cls: "vam-next-output" });
+    output.open = false;
+    const outputSummary = output.createEl("summary").createSpan({ cls: "vam-next-source-summary-row" });
+    outputSummary.createEl("strong", { text: t("ui.output_settings") });
+    const outputValue = outputSummary.createSpan({ cls: "vam-next-source-summary" });
+    const compactSettings = output.createDiv("vam-next-compact-settings");
+    const languageLabel = compactSettings.createEl("label", { cls: "vam-next-language" });
+    languageLabel.createSpan({ text: t("ui.output_language") });
+    const languageSelect = languageLabel.createEl("select");
+    languageSelect.createEl("option", { value: "zh-TW", text: "繁體中文" });
+    languageSelect.createEl("option", { value: "en", text: "English" });
+    languageSelect.value = this.plugin.settings.language;
+    languageSelect.setAttr("aria-label", t("ui.output_language"));
+    const templateId = templateField(
+      compactSettings,
+      this.modelSettings?.templates ?? [],
+      t("ui.detail_template_keep_0", this.modelSettings?.currentTemplate ?? "")
+    );
+    const describeOutput = (): void =>
+      outputValue.setText(
+        [languageSelect.value === "en" ? "English" : "繁體中文", this.modelSettings?.currentTemplate]
+          .filter(Boolean)
+          .join(" · ")
+      );
+    languageSelect.addEventListener("change", describeOutput);
+    describeOutput();
+    show(initialMode);
     this.renderModelSettings();
     this.contentEl.createEl("p", {
       text: t("ui.if_an_ai_task_exceeds_3_minutes_vam_attempts_to_interrupt_it"),

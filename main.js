@@ -523,6 +523,8 @@ var english = {
   "ui.zoom_level_0_reset": "Zoom {0}, reset to 100%",
   "ui.new_map": "\uFF0B New map",
   "ui.researched": "Researched",
+  "ui.suggested": "Suggested",
+  "ui.output_settings": "Output",
   "ui.topic_card_label_0_1": "{0}, {1}",
   "ui.researching_0": "Researching {0}",
   "ui.research_progress_0_of_1": "Researched {0} / {1}",
@@ -1780,6 +1782,8 @@ var traditionalChinese = {
   "ui.zoom_level_0_reset": "\u76EE\u524D\u7E2E\u653E {0}\uFF0C\u6309\u4E00\u4E0B\u91CD\u8A2D\u70BA 100%",
   "ui.new_map": "\uFF0B \u65B0\u589E\u5730\u5716",
   "ui.researched": "\u5DF2\u7814\u7A76",
+  "ui.suggested": "\u5EFA\u8B70",
+  "ui.output_settings": "\u8F38\u51FA\u8A2D\u5B9A",
   "ui.topic_card_label_0_1": "{0}\uFF0C{1}",
   "ui.researching_0": "\u7814\u7A76\u4E2D {0}",
   "ui.research_progress_0_of_1": "\u5DF2\u7814\u7A76 {0} / {1}",
@@ -20463,6 +20467,14 @@ var NextStepModal = class extends import_obsidian15.Modal {
     __publicField(this, "unsubscribeModels");
     __publicField(this, "requirementsInput");
   }
+  /** Suggests the next step from where the topic stands: frontier → research, settled leaf → expand, settled branch → synthesize. */
+  suggestedMode() {
+    const settings = this.modelSettings;
+    if (settings == null ? void 0 : settings.synthesisPending) return "synthesize";
+    if ((settings == null ? void 0 : settings.topicStatus) !== "completed") return "research";
+    if (!this.childrenCount) return "expand";
+    return settings.childrenCompleted === this.childrenCount ? "synthesize" : "research";
+  }
   addReferencePicker(panel, mode) {
     var _a, _b;
     const sources2 = (_a = this.modelSettings) == null ? void 0 : _a.sources;
@@ -20840,26 +20852,24 @@ var NextStepModal = class extends import_obsidian15.Modal {
     var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r;
     this.modalEl.addClass("vam-next-modal");
     this.titleEl.setText(t("ui.how_would_you_like_to_explore_next"));
-    this.contentEl.createEl("p", { text: t("ui.current_topic_0", this.topic), cls: "vam-modal-intro" });
-    this.renderRequirements();
-    const compactSettings = this.contentEl.createDiv("vam-next-compact-settings");
-    const languageLabel = compactSettings.createEl("label", { cls: "vam-next-language" });
-    languageLabel.createSpan({ text: t("ui.output_language") });
-    const languageSelect = languageLabel.createEl("select");
-    languageSelect.createEl("option", { value: "zh-TW", text: "\u7E41\u9AD4\u4E2D\u6587" });
-    languageSelect.createEl("option", { value: "en", text: "English" });
-    languageSelect.value = this.plugin.settings.language;
-    languageSelect.setAttr("aria-label", t("ui.output_language"));
-    const templateId = templateField(
-      compactSettings,
-      (_b = (_a = this.modelSettings) == null ? void 0 : _a.templates) != null ? _b : [],
-      t("ui.detail_template_keep_0", (_d = (_c = this.modelSettings) == null ? void 0 : _c.currentTemplate) != null ? _d : "")
-    );
-    const panelHeader = this.contentEl.createDiv("vam-next-panel-header");
-    const panelTitle = panelHeader.createEl("h3", { text: t("ui.research_this_topic") });
-    const confirm = panelHeader.createEl("button", { text: t("ui.confirm_research_task"), cls: "mod-cta" });
+    const intro = this.contentEl.createEl("p", { cls: "vam-modal-intro vam-next-topic" });
+    intro.createSpan({ text: t("ui.current_topic_0", this.topic) });
+    const topicStatus = (_a = this.modelSettings) == null ? void 0 : _a.topicStatus;
+    if (topicStatus)
+      intro.createSpan({
+        cls: `vam-status vam-status-${topicStatus}`,
+        text: t(
+          topicStatus === "completed" ? "ui.researched" : topicStatus === "running" ? "ui.ai_running" : topicStatus === "error" ? "ui.task_error" : "ui.to_research"
+        )
+      });
+    const initialMode = this.suggestedMode();
+    const actions = this.modalEl.createDiv("vam-next-actions");
+    const closeButton = actions.createEl("button", { text: t("ui.close"), cls: "vam-next-close" });
+    closeButton.addEventListener("click", () => this.close());
+    const confirm = actions.createEl("button", { text: t("ui.confirm_research_task"), cls: "mod-cta" });
     confirm.dataset.topicRun = t("ui.confirm_research_task");
-    confirm.disabled = !!((_e = this.modelSettings) == null ? void 0 : _e.running);
+    confirm.disabled = !!((_b = this.modelSettings) == null ? void 0 : _b.running);
+    let synthAction;
     const cards = this.contentEl.createDiv("vam-next-cards");
     let show;
     const card = (title, description, mode) => {
@@ -20869,8 +20879,11 @@ var NextStepModal = class extends import_obsidian15.Modal {
       copy.createSpan({ text: t(description) });
       button.createSpan({ text: "\u203A", cls: "vam-next-arrow" });
       button.addEventListener("click", () => show(mode));
-      button.setAttr("aria-pressed", mode === "research" ? "true" : "false");
-      if (mode === "research") button.addClass("is-active");
+      button.setAttr("aria-pressed", mode === initialMode ? "true" : "false");
+      if (mode === initialMode) {
+        button.addClass("is-active");
+        button.createSpan({ text: t("ui.suggested"), cls: "vam-next-suggested" });
+      }
       return button;
     };
     const researchCard = card("ui.research_deeper", "ui.find_answers_for_this_topic_at_your_chosen_depth", "research");
@@ -20884,7 +20897,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
       "ui.find_shared_conclusions_differences_and_next_steps_across_su",
       "synthesize"
     );
-    if ((_f = this.modelSettings) == null ? void 0 : _f.running) {
+    if ((_c = this.modelSettings) == null ? void 0 : _c.running) {
       const running = this.contentEl.createDiv("vam-next-running");
       running.createSpan({ text: t("ui.ai_running_ai") });
       if (this.modelSettings.stop)
@@ -20892,7 +20905,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
           var _a2, _b2;
           return (_b2 = (_a2 = this.modelSettings) == null ? void 0 : _a2.stop) == null ? void 0 : _b2.call(_a2);
         });
-    } else if ((_g = this.modelSettings) == null ? void 0 : _g.quickError)
+    } else if ((_d = this.modelSettings) == null ? void 0 : _d.quickError)
       this.contentEl.createEl("p", { cls: "vam-hint", text: this.modelSettings.quickError });
     const research = this.contentEl.createDiv("vam-next-research");
     research.createEl("p", { text: t("ui.start_from_this_node_s_question_update_only_this_node") });
@@ -21090,16 +21103,16 @@ var NextStepModal = class extends import_obsidian15.Modal {
       cls: "vam-hint",
       text: t("ui.shallow_research_for_expanded_subtopics_0", researchDepthDescription("fast"))
     });
-    const expandFooter = expandPanel.createDiv("vam-next-footer");
-    const expandFooterText = expandFooter.createSpan({
-      text: t("ui.create_subtopics_after_confirmation_without_running_research")
+    const expandFooterText = actions.createSpan({
+      text: t("ui.create_subtopics_after_confirmation_without_running_research"),
+      cls: "vam-next-actions-note"
     });
-    const expandButton = expandFooter.createEl("button", {
+    const expandButton = actions.createEl("button", {
       text: this.pendingCount ? t("ui.review_ai_subtopic_suggestions") : t("ui.get_expansion_directions"),
       cls: "mod-cta"
     });
-    expandButton.dataset.topicRun = (_h = expandButton.textContent) != null ? _h : "";
-    expandButton.disabled = !!((_i = this.modelSettings) == null ? void 0 : _i.running);
+    expandButton.dataset.topicRun = (_e = expandButton.textContent) != null ? _e : "";
+    expandButton.disabled = !!((_f = this.modelSettings) == null ? void 0 : _f.running);
     expandPanel.createEl("p", { cls: "vam-next-status" });
     expandPanel.createDiv("vam-next-result");
     const consumed = () => {
@@ -21188,7 +21201,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
       text: this.childrenCount ? t("ui.ai_suggests_synthesis_angles_first_the_parent_topic_changes") : t("ui.this_topic_has_no_direct_subtopics_you_can_choose_other_note")
     });
     {
-      const pending = (_j = this.modelSettings) == null ? void 0 : _j.synthesisPending;
+      const pending = (_g = this.modelSettings) == null ? void 0 : _g.synthesisPending;
       if (pending) {
         const synthStatus = synthesizePanel.createEl("p", { cls: "vam-next-status" });
         const synthResult = synthesizePanel.createDiv("vam-next-result");
@@ -21203,11 +21216,12 @@ var NextStepModal = class extends import_obsidian15.Modal {
         }
         const direction = synthResult.createEl("textarea", {
           cls: "vam-next-focus",
-          text: ((_k = pending.directions[0]) == null ? void 0 : _k.task) || ((_l = pending.directions[0]) == null ? void 0 : _l.title) || ""
+          text: ((_h = pending.directions[0]) == null ? void 0 : _h.task) || ((_i = pending.directions[0]) == null ? void 0 : _i.title) || ""
         });
         direction.setAttr("aria-label", t("ui.synthesis_direction"));
-        const draftButton = synthResult.createEl("button", { text: t("ui.get_synthesis_draft"), cls: "mod-cta" });
-        draftButton.disabled = !!((_m = this.modelSettings) == null ? void 0 : _m.running);
+        const draftButton = actions.createEl("button", { text: t("ui.get_synthesis_draft"), cls: "mod-cta" });
+        synthAction = draftButton;
+        draftButton.disabled = !!((_j = this.modelSettings) == null ? void 0 : _j.running);
         draftButton.addEventListener(
           "click",
           () => this.launchSynthesis(synthesizePanel, draftButton, direction.value.trim(), (signal) => ({
@@ -21227,16 +21241,16 @@ var NextStepModal = class extends import_obsidian15.Modal {
       } else {
         const synthesisContent = renderSynthesisContent(
           synthesizePanel,
-          (_p = (_o = (_n = this.modelSettings) == null ? void 0 : _n.sources) == null ? void 0 : _o.synthesisTopics) != null ? _p : []
+          (_m = (_l = (_k = this.modelSettings) == null ? void 0 : _k.sources) == null ? void 0 : _l.synthesisTopics) != null ? _m : []
         );
         const synthesisPicker = this.addReferencePicker(synthesizePanel, "synthesize");
-        const synthFooter = synthesizePanel.createDiv("vam-next-footer");
-        const synthButton = synthFooter.createEl("button", {
+        const synthButton = actions.createEl("button", {
           text: t("ui.get_synthesis_suggestions_first"),
           cls: "mod-cta"
         });
+        synthAction = synthButton;
         synthButton.dataset.topicRun = t("ui.get_synthesis_suggestions_first");
-        synthButton.disabled = !!((_q = this.modelSettings) == null ? void 0 : _q.running);
+        synthButton.disabled = !!((_n = this.modelSettings) == null ? void 0 : _n.running);
         const synthStatus = synthesizePanel.createEl("p", { cls: "vam-next-status" });
         synthesizePanel.createDiv("vam-next-result");
         synthButton.addEventListener(
@@ -21275,14 +21289,39 @@ var NextStepModal = class extends import_obsidian15.Modal {
         button.setAttr("aria-pressed", name === mode ? "true" : "false");
         panel.style.display = name === mode ? "" : "none";
       }
-      panelTitle.setText(
-        t(
-          mode === "expand" ? "ui.expand_this_topic" : mode === "synthesize" ? "ui.synthesize_subtopic_findings" : "ui.research_this_topic"
-        )
-      );
       confirm.hidden = mode !== "research";
+      expandButton.hidden = mode !== "expand";
+      expandFooterText.hidden = mode !== "expand";
+      if (synthAction) synthAction.hidden = mode !== "synthesize";
     };
-    show(((_r = this.modelSettings) == null ? void 0 : _r.synthesisPending) ? "synthesize" : "research");
+    this.renderRequirements();
+    const output = this.contentEl.createEl("details", { cls: "vam-next-output" });
+    output.open = false;
+    const outputSummary = output.createEl("summary").createSpan({ cls: "vam-next-source-summary-row" });
+    outputSummary.createEl("strong", { text: t("ui.output_settings") });
+    const outputValue = outputSummary.createSpan({ cls: "vam-next-source-summary" });
+    const compactSettings = output.createDiv("vam-next-compact-settings");
+    const languageLabel = compactSettings.createEl("label", { cls: "vam-next-language" });
+    languageLabel.createSpan({ text: t("ui.output_language") });
+    const languageSelect = languageLabel.createEl("select");
+    languageSelect.createEl("option", { value: "zh-TW", text: "\u7E41\u9AD4\u4E2D\u6587" });
+    languageSelect.createEl("option", { value: "en", text: "English" });
+    languageSelect.value = this.plugin.settings.language;
+    languageSelect.setAttr("aria-label", t("ui.output_language"));
+    const templateId = templateField(
+      compactSettings,
+      (_p = (_o = this.modelSettings) == null ? void 0 : _o.templates) != null ? _p : [],
+      t("ui.detail_template_keep_0", (_r = (_q = this.modelSettings) == null ? void 0 : _q.currentTemplate) != null ? _r : "")
+    );
+    const describeOutput = () => {
+      var _a2;
+      return outputValue.setText(
+        [languageSelect.value === "en" ? "English" : "\u7E41\u9AD4\u4E2D\u6587", (_a2 = this.modelSettings) == null ? void 0 : _a2.currentTemplate].filter(Boolean).join(" \xB7 ")
+      );
+    };
+    languageSelect.addEventListener("change", describeOutput);
+    describeOutput();
+    show(initialMode);
     this.renderModelSettings();
     this.contentEl.createEl("p", {
       text: t("ui.if_an_ai_task_exceeds_3_minutes_vam_attempts_to_interrupt_it"),
@@ -24674,7 +24713,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
   }
   openNextStep(node) {
     this.enqueue(async () => {
-      var _a, _b, _c, _d, _e, _f, _g, _h;
+      var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j;
       const note = await this.plugin.repo.readNote(node.path);
       const currentLabel = t("ui.reference_current_topic_included", note.title);
       const synthesisLabel = t("ui.reference_synthesis_topics_included", note.title);
@@ -24736,6 +24775,11 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
           templates: this.templateChoices(),
           // Only a label: a missing topic template is reported at the next AI update, not when the dialog opens.
           currentTemplate: this.resolveTopicTemplate(note).template.name,
+          topicStatus: note.status,
+          childrenCompleted: (_j = (_i = this.map) == null ? void 0 : _i.nodes.filter((item) => {
+            var _a2;
+            return item.parentId === node.id && ((_a2 = this.notes.get(item.id)) == null ? void 0 : _a2.status) === "completed";
+          }).length) != null ? _j : 0,
           synthesisPending: (() => {
             const pending = this.synthesisTasks.get(node.path);
             return (pending == null ? void 0 : pending.state) === "directions" && pending.mapPath === this.path ? { directions: pending.directions, discard: () => this.discardSynthesis(node) } : void 0;

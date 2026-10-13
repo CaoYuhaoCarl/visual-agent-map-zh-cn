@@ -3545,6 +3545,10 @@ export class VisualAgentMapView extends ItemView {
           templates: this.templateChoices(),
           // Only a label: a missing topic template is reported at the next AI update, not when the dialog opens.
           currentTemplate: this.resolveTopicTemplate(note).template.name,
+          topicStatus: note.status,
+          childrenCompleted:
+            this.map?.nodes.filter(item => item.parentId === node.id && this.notes.get(item.id)?.status === "completed")
+              .length ?? 0,
           synthesisPending: (() => {
             const pending = this.synthesisTasks.get(node.path);
             return pending?.state === "directions" && pending.mapPath === this.path
