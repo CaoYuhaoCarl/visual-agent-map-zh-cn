@@ -128,10 +128,10 @@ test('template library: edit saves in place, duplicates get unique names, deleti
 });
 
 test('template library: Standard Duplicate and Set as default (undefined) work', async () => {
-  const h = harness({ language: 'zh-TW' });
+  const h = harness();
   const standard = h.rows()[0];
   h.all(standard, i => i.tag === 'button' && i.text === 'Duplicate')[0].listeners.click(); await new Promise(r => setImmediate(r));
-  assert.deepEqual(plain(h.plugin.settings.detailTemplates.map(t => [t.name, t.sections.length])), [['標準 copy', 6]]);
+  assert.deepEqual(plain(h.plugin.settings.detailTemplates.map(t => [t.name, t.sections.length])), [['Standard copy', 6]]);
 });
 
 test('settings row: dropdown lists Standard and templates; Standard stores undefined; button opens the library', () => {
@@ -146,4 +146,39 @@ test('settings row: dropdown lists Standard and templates; Standard stores undef
   dd.change('standard'); assert.equal(plugin.settings.defaultDetailTemplateId, undefined); assert.equal(plugin.saves, 1);
   dd.change('a'); assert.equal(plugin.settings.defaultDetailTemplateId, 'a');
   assert.doesNotThrow(() => btn.click());
+});
+
+test('template editor: double Save stores one template; built-in names are rejected in either language', async () => {
+  const h = harness();
+  await h.click('New template');
+  const name = h.find(h.modal.contentEl, i => i['aria-label'] === 'Template name');
+  for (const bad of ['standard', '標準']) {
+    name.value = bad; name.listeners.input();
+    assert.equal(h.button('Save').disabled, true, bad);
+    assert.deepEqual(h.issueTexts(h.modal.contentEl), [`A template named "${bad}" already exists.`]);
+  }
+  name.value = 'Teach'; name.listeners.input();
+  const save = h.button('Save'); save.listeners.click(); save.listeners.click();
+  await new Promise(r => setImmediate(r));
+  assert.equal(h.plugin.settings.detailTemplates.length, 1); assert.equal(h.plugin.saves, 1);
+});
+
+test('settings row refreshes when the library closes after create and delete', async () => {
+  const h = harness();
+  let refreshes = 0;
+  const modal = new h.mod.DetailTemplatesModal({}, h.plugin, () => { refreshes++; });
+  modal.open();
+  const click = async (text) => { const b = h.find(modal.contentEl, i => i.tag === 'button' && i.text === text); b.listeners.click(); await new Promise(r => setImmediate(r)); };
+  const options = () => { const o = []; const dd = { addOption: (v, t) => { o.push(t); return dd; }, setValue() { return dd; }, onChange() { return dd; } };
+    const setting = { setName() { return setting; }, setDesc() { return setting; }, addDropdown(fn) { fn(dd); return setting; }, addButton() { return setting; } };
+    h.mod.renderDetailTemplatesSetting(setting, {}, h.plugin); return o; };
+  assert.deepEqual(options(), ['Standard']);
+  await click('New template'); await click('Save');
+  modal.onClose(); assert.equal(refreshes, 1);
+  assert.deepEqual(options(), ['Standard', 'New template']);
+  const row = h.find(modal.contentEl, i => i.cls === 'vam-template-row' && h.find(i, c => c.text === 'New template'));
+  h.find(row, i => i.text === 'Delete').listeners.click();
+  const confirm = h.opened[h.opened.length - 1]; confirm.choices[0].action(); await new Promise(r => setImmediate(r));
+  modal.onClose(); assert.equal(refreshes, 2);
+  assert.deepEqual(options(), ['Standard']);
 });

@@ -249,7 +249,7 @@ export class VisualAgentMapSettingTab extends PluginSettingTab {
       },
       {
         name: t("ui.detail_templates"),
-        render: setting => renderDetailTemplatesSetting(setting, this.app, this.plugin)
+        render: setting => renderDetailTemplatesSetting(setting, this.app, this.plugin, () => this.update())
       },
       {
         name: t("ui.markdown_selection_ai_auto_open"),

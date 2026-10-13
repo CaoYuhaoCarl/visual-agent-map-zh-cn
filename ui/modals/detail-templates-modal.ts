@@ -8,7 +8,8 @@ import {
   validateTemplate,
   type DetailSection,
   type DetailSectionRole,
-  type DetailTemplate
+  type DetailTemplate,
+  type TemplateIssue
 } from "../../ai/detail-templates";
 import { ChoiceModal } from "./choice-modal";
 
@@ -35,7 +36,12 @@ function option(select: HTMLSelectElement, value: string, text: string): void {
 }
 
 /** Settings row: workspace-default dropdown plus the button that opens the library. */
-export function renderDetailTemplatesSetting(setting: Setting, app: App, plugin: DetailTemplatesHost): void {
+export function renderDetailTemplatesSetting(
+  setting: Setting,
+  app: App,
+  plugin: DetailTemplatesHost,
+  refresh: () => void = () => {}
+): void {
   const standard = standardTemplate(plugin.settings.language);
   setting
     .setName(t("ui.detail_templates"))
@@ -50,16 +56,23 @@ export function renderDetailTemplatesSetting(setting: Setting, app: App, plugin:
       });
     })
     .addButton(button =>
-      button.setButtonText(t("ui.manage_detail_templates")).onClick(() => new DetailTemplatesModal(app, plugin).open())
+      button
+        .setButtonText(t("ui.manage_detail_templates"))
+        .onClick(() => new DetailTemplatesModal(app, plugin, refresh).open())
     );
 }
 
 export class DetailTemplatesModal extends Modal {
   constructor(
     app: App,
-    private plugin: DetailTemplatesHost
+    private plugin: DetailTemplatesHost,
+    private onChanged: () => void = () => {}
   ) {
     super(app);
+  }
+
+  onClose(): void {
+    this.onChanged();
   }
 
   onOpen(): void {
@@ -171,8 +184,17 @@ export class DetailTemplatesModal extends Modal {
     footer.createEl("button", { text: t("ui.cancel") }).addEventListener("click", () => this.showList());
     const save = footer.createEl("button", { text: t("ui.save"), cls: "mod-cta" });
 
-    const refresh = () => {
+    const builtInNames = (["en", "zh-TW"] as const).map(language => standardTemplate(language).name);
+    const check = (): TemplateIssue[] => {
       const issues = validateTemplate(draft, others);
+      const trimmed = draft.name.trim();
+      if (trimmed && builtInNames.some(builtIn => same(builtIn, trimmed)))
+        issues.push({ key: "ui.detail_template_error_name_taken", values: [trimmed] });
+      return issues;
+    };
+    let saving = false;
+    const refresh = () => {
+      const issues = check();
       topIssues.empty();
       for (const el of sectionIssues) el.empty();
       for (const issue of issues) {
@@ -204,7 +226,9 @@ export class DetailTemplatesModal extends Modal {
       renderSections();
     });
     save.addEventListener("click", () => {
-      if (validateTemplate(draft, others).length) return;
+      if (saving || check().length) return;
+      saving = true;
+      save.disabled = true;
       const finished = this.finalize(draft, baseline);
       if (isNew) this.settings.detailTemplates.push(finished);
       else

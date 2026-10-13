@@ -26289,7 +26289,8 @@ function workspaceDefaultId(settings) {
 function option(select, value, text11) {
   select.createEl("option", { value, text: text11 });
 }
-function renderDetailTemplatesSetting(setting, app, plugin) {
+function renderDetailTemplatesSetting(setting, app, plugin, refresh = () => {
+}) {
   const standard = standardTemplate(plugin.settings.language);
   setting.setName(t("ui.detail_templates")).setDesc(t("ui.detail_templates_hint")).addDropdown((dropdown) => {
     dropdown.addOption(STANDARD_TEMPLATE_ID, standard.name);
@@ -26300,13 +26301,18 @@ function renderDetailTemplatesSetting(setting, app, plugin) {
       void plugin.saveSettings();
     });
   }).addButton(
-    (button) => button.setButtonText(t("ui.manage_detail_templates")).onClick(() => new DetailTemplatesModal(app, plugin).open())
+    (button) => button.setButtonText(t("ui.manage_detail_templates")).onClick(() => new DetailTemplatesModal(app, plugin, refresh).open())
   );
 }
 var DetailTemplatesModal = class extends import_obsidian17.Modal {
-  constructor(app, plugin) {
+  constructor(app, plugin, onChanged = () => {
+  }) {
     super(app);
     this.plugin = plugin;
+    this.onChanged = onChanged;
+  }
+  onClose() {
+    this.onChanged();
   }
   onOpen() {
     this.titleEl.setText(t("ui.detail_templates"));
@@ -26405,8 +26411,17 @@ var DetailTemplatesModal = class extends import_obsidian17.Modal {
     const footer = contentEl.createDiv("vam-modal-actions");
     footer.createEl("button", { text: t("ui.cancel") }).addEventListener("click", () => this.showList());
     const save = footer.createEl("button", { text: t("ui.save"), cls: "mod-cta" });
-    const refresh = () => {
+    const builtInNames = ["en", "zh-TW"].map((language2) => standardTemplate(language2).name);
+    const check = () => {
       const issues = validateTemplate(draft, others);
+      const trimmed = draft.name.trim();
+      if (trimmed && builtInNames.some((builtIn) => same(builtIn, trimmed)))
+        issues.push({ key: "ui.detail_template_error_name_taken", values: [trimmed] });
+      return issues;
+    };
+    let saving = false;
+    const refresh = () => {
+      const issues = check();
       topIssues.empty();
       for (const el of sectionIssues) el.empty();
       for (const issue of issues) {
@@ -26435,7 +26450,9 @@ var DetailTemplatesModal = class extends import_obsidian17.Modal {
       renderSections();
     });
     save.addEventListener("click", () => {
-      if (validateTemplate(draft, others).length) return;
+      if (saving || check().length) return;
+      saving = true;
+      save.disabled = true;
       const finished = this.finalize(draft, baseline);
       if (isNew) this.settings.detailTemplates.push(finished);
       else
@@ -26734,7 +26751,7 @@ var VisualAgentMapSettingTab = class extends import_obsidian18.PluginSettingTab 
       },
       {
         name: t("ui.detail_templates"),
-        render: (setting) => renderDetailTemplatesSetting(setting, this.app, this.plugin)
+        render: (setting) => renderDetailTemplatesSetting(setting, this.app, this.plugin, () => this.update())
       },
       {
         name: t("ui.markdown_selection_ai_auto_open"),
