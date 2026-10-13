@@ -1308,8 +1308,13 @@ export class NextStepModal extends Modal {
 export function renderProposalList(
   parent: HTMLElement,
   suggestions: Suggestion[],
-  changed: (count: number) => void
+  changed: (count: number) => void,
+  options: { rootTitle?: string } = {}
 ): { count: () => number; selected: () => Suggestion[] | string } {
+  // A suggestion whose parent is the topic being expanded is first-level.
+  suggestions = suggestions.map(item =>
+    options.rootTitle && item.parentTitle === options.rootTitle ? { ...item, parentTitle: "" } : item
+  );
   const rows: {
     item: Suggestion;
     check: HTMLInputElement;
@@ -1402,6 +1407,41 @@ export function renderProposalList(
       }));
     }
   };
+}
+/**
+ * A discard button that asks once more: the first press arms it for five seconds and explains that the
+ * work cannot be recovered; only a second press runs `discard`. Returns a function that cancels the timer.
+ */
+export function armDiscard(
+  button: HTMLButtonElement,
+  status: HTMLElement,
+  discard: () => void,
+  blocked: () => boolean = () => false
+): () => void {
+  const label = button.textContent ?? "";
+  let timer = 0;
+  const disarm = (): void => {
+    window.clearTimeout(timer);
+    timer = 0;
+    button.setText(label);
+    button.removeClass("mod-warning");
+  };
+  button.addEventListener("click", () => {
+    if (blocked()) return;
+    if (timer) {
+      disarm();
+      discard();
+      return;
+    }
+    timer = window.setTimeout(() => {
+      disarm();
+      status.setText("");
+    }, 5000);
+    button.setText(t("ui.discard_confirm"));
+    button.addClass("mod-warning");
+    status.setText(t("ui.discard_confirm_hint"));
+  });
+  return disarm;
 }
 /** A fixed action bar below the scrolling content, shared by the review dialogs. */
 function reviewActions(modal: Modal): HTMLDivElement {
@@ -1505,22 +1545,15 @@ export class DraftReviewModal extends Modal {
     if (this.discard) {
       // Discarding loses the AI's work, so it sits apart and asks once more before acting.
       const discard = actions.createEl("button", { text: t("ui.discard_synthesis"), cls: "vam-discard" });
-      discard.addEventListener("click", () => {
-        if (confirm.disabled) return;
-        if (this.discardArmed) {
-          this.disarmDiscard(discard);
+      this.disarm = armDiscard(
+        discard,
+        status,
+        () => {
           this.discard?.();
           this.close();
-          return;
-        }
-        this.discardArmed = window.setTimeout(() => {
-          this.disarmDiscard(discard);
-          status.setText("");
-        }, 5000);
-        discard.setText(t("ui.discard_confirm"));
-        discard.addClass("mod-warning");
-        status.setText(t("ui.discard_confirm_hint"));
-      });
+        },
+        () => confirm.disabled
+      );
     }
     const cancelButton = actions.createEl("button", { text: t("ui.cancel") });
     cancelButton.addEventListener("click", () => this.close());
@@ -1538,15 +1571,9 @@ export class DraftReviewModal extends Modal {
       );
     });
   }
-  private discardArmed = 0;
-  private disarmDiscard(button: HTMLButtonElement): void {
-    window.clearTimeout(this.discardArmed);
-    this.discardArmed = 0;
-    button.setText(t("ui.discard_synthesis"));
-    button.removeClass("mod-warning");
-  }
+  private disarm?: () => void;
   onClose(): void {
-    window.clearTimeout(this.discardArmed);
+    this.disarm?.();
     this.renderer.unload();
     this.contentEl.empty();
   }

@@ -874,3 +874,44 @@ integrationTest('structure panel: a parent change waits for Apply, says what wil
   buttons[0].click();
   assert.equal(removed, 1);
 });
+integrationTest('expansion suggestions panel uses the shared list, treats the topic as first-level parent and asks before discarding', async () => {
+  const element = (tag, options = {}) => ({
+    tag, type: options.type, text: options.text, value: options.value ?? options.text ?? '', cls: options.cls ?? '', attr: options.attr ?? {}, children: [], hidden: false, disabled: false, checked: false,
+    get textContent() { return this.text; },
+    createDiv(value) { const child = element('div', typeof value === 'string' ? { cls: value } : value); this.children.push(child); return child; },
+    createEl(name, value) { const child = element(name, value); this.children.push(child); return child; },
+    createSpan(value) { const child = element('span', value); this.children.push(child); return child; },
+    addClass(name) { this.cls = `${this.cls} ${name}`.trim(); }, removeClass(name) { this.cls = this.cls.split(' ').filter(item => item !== name).join(' '); }, setText(value) { this.text = value; }, setAttr(name, value) { this.attr[name] = value; },
+    addEventListener(name, handler) { this[name] = handler; }
+  });
+  const all = (root, predicate) => [...(predicate(root) ? [root] : []), ...root.children.flatMap(child => all(child, predicate))];
+  const find = (root, predicate) => all(root, predicate)[0];
+  const { VisualAgentMapView } = load('main.ts', { obsidian });
+  const node = { id: 'p', path: 'P.md', parentId: null };
+  const suggestions = [{ title: 'Heat', task: '', contribution: '', parentTitle: 'Parent' }, { title: 'Pan', task: '', contribution: '', parentTitle: 'Heat' }];
+  const pendingSuggestions = new Map([['P.md', suggestions]]);
+  let created, closed = 0, rendered = 0;
+  const view = {
+    map: { nodes: [node] }, render() { rendered++; },
+    plugin: { pendingSuggestions, pendingResearchOptions: new Map(), expansionCoordinator: { isRunning: () => false }, mutate: async work => work() },
+    assertSuggestionOrigin: async () => {}, createChildBatch: async (_parent, items) => { created = items; return []; }, startShallowResearch: async () => {}
+  };
+  const panel = element('panel'), host = element('modal');
+  VisualAgentMapView.prototype.renderPendingProposals.call(view, panel, node, { title: 'Parent' }, () => { closed++; }, host);
+  const rows = all(panel, item => item.cls.split(' ').includes('vam-proposal'));
+  assert.deepEqual(rows.map(row => row.cls.includes('is-child')), [false, true]);
+  const actions = find(host, item => item.cls === 'vam-next-actions');
+  const [discard, close, create] = actions.children.filter(item => item.tag === 'button');
+  assert.equal(create.text, 'Create subtopics (2)'); assert.ok(discard.cls.includes('vam-discard')); assert.equal(close.text, 'Close');
+  discard.click();
+  assert.equal(pendingSuggestions.has('P.md'), true); assert.equal(discard.text, 'Discard draft?');
+  create.click(); await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(JSON.stringify(created.map(item => [item.title, item.parentTitle])), JSON.stringify([['Heat', ''], ['Pan', 'Heat']]));
+  assert.equal(closed, 1);
+  pendingSuggestions.set('P.md', suggestions);
+  const again = element('panel'), host2 = element('modal');
+  VisualAgentMapView.prototype.renderPendingProposals.call(view, again, node, { title: 'Parent' }, () => { closed++; }, host2);
+  const discard2 = find(host2, item => item.tag === 'button' && item.cls.includes('vam-discard'));
+  discard2.click(); discard2.click(); await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(pendingSuggestions.has('P.md'), false); assert.equal(closed, 2);
+});
