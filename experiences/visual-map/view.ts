@@ -690,7 +690,11 @@ export class VisualAgentMapView extends ItemView {
     };
     target();
     // Filled inside the queued work (an object, so the compiler does not narrow it away).
-    const state: { rejection?: Error; result?: Awaited<ReturnType<typeof addOutlineToMap>> } = {};
+    const state: {
+      rejection?: Error;
+      result?: Awaited<ReturnType<typeof addOutlineToMap>>;
+      saveFailed?: boolean;
+    } = {};
     let model = settings.cliModel;
     let written = true;
     try {
@@ -732,18 +736,39 @@ export class VisualAgentMapView extends ItemView {
         }
         const top = created[0];
         const ids = new Set(created.map(node => node.id));
-        this.selected = top.id;
         // The view's normal mutation path: conflict check, Map.md save, undo history and Reference Links.
-        await this.mapChange(next => {
-          next.nodes.push(...created);
-          if (parent) {
-            const owner = next.nodes.find(node => node.id === parent.id);
-            if (owner) owner.collapsed = false;
-            next.nodes = arrangeNewBranch(next.nodes, parent.id, ids);
-          } else next.nodes = arrangeNewTree(next.nodes, top.id, ids);
-        });
+        try {
+          await this.mapChange(next => {
+            next.nodes.push(...created);
+            // The map may have been swapped for the file version by the conflict window: without the parent there,
+            // the outline becomes a new tree rather than a node pointing at a missing parent.
+            const owner = parent ? next.nodes.find(node => node.id === parent.id && !ids.has(node.id)) : undefined;
+            const outlineTop = next.nodes.find(node => node.id === top.id)!;
+            if (owner) {
+              owner.collapsed = false;
+              next.nodes = arrangeNewBranch(next.nodes, owner.id, ids);
+            } else {
+              outlineTop.parentId = null;
+              next.nodes = arrangeNewTree(next.nodes, top.id, ids);
+            }
+          });
+        } catch (error) {
+          // The notes exist but the map does not hold them: list them, like a new map whose Map.md cannot be saved.
+          state.saveFailed = true;
+          new Notice(
+            t(
+              "ui.outline_import_map_save_failed",
+              `${errorMessage(error)} (${created.map(node => node.path).join(", ")})`
+            )
+          );
+          return;
+        }
         const placed = this.map?.nodes.find(node => node.id === top.id);
-        if (placed) this.focusNode(placed);
+        if (placed) {
+          this.selected = placed.id;
+          this.render();
+          this.focusNode(placed);
+        }
       });
     } catch {
       written = false; // mutate() has already shown the Notice.
@@ -753,7 +778,7 @@ export class VisualAgentMapView extends ItemView {
     if (!outcome) return;
     if (outcome.failure)
       new Notice(t("ui.outline_import_partial", outcome.created.length, outcome.total, outcome.failure));
-    if (outcome.failure || !written || !request.shallowResearch || !outcome.created.length) return;
+    if (outcome.failure || state.saveFailed || !written || !request.shallowResearch || !outcome.created.length) return;
     const top = this.map?.nodes.find(node => node.id === outcome.created[0].id);
     if (!top) return;
     // Every other created topic descends from the outline's top topic; the top topic and an "under" parent are not researched.

@@ -22000,17 +22000,35 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         }
         const top2 = created[0];
         const ids2 = new Set(created.map((node) => node.id));
-        this.selected = top2.id;
-        await this.mapChange((next) => {
-          next.nodes.push(...created);
-          if (parent) {
-            const owner = next.nodes.find((node) => node.id === parent.id);
-            if (owner) owner.collapsed = false;
-            next.nodes = arrangeNewBranch(next.nodes, parent.id, ids2);
-          } else next.nodes = arrangeNewTree(next.nodes, top2.id, ids2);
-        });
+        try {
+          await this.mapChange((next) => {
+            next.nodes.push(...created);
+            const owner = parent ? next.nodes.find((node) => node.id === parent.id && !ids2.has(node.id)) : void 0;
+            const outlineTop = next.nodes.find((node) => node.id === top2.id);
+            if (owner) {
+              owner.collapsed = false;
+              next.nodes = arrangeNewBranch(next.nodes, owner.id, ids2);
+            } else {
+              outlineTop.parentId = null;
+              next.nodes = arrangeNewTree(next.nodes, top2.id, ids2);
+            }
+          });
+        } catch (error) {
+          state.saveFailed = true;
+          new import_obsidian16.Notice(
+            t(
+              "ui.outline_import_map_save_failed",
+              `${errorMessage(error)} (${created.map((node) => node.path).join(", ")})`
+            )
+          );
+          return;
+        }
         const placed = (_b2 = this.map) == null ? void 0 : _b2.nodes.find((node) => node.id === top2.id);
-        if (placed) this.focusNode(placed);
+        if (placed) {
+          this.selected = placed.id;
+          this.render();
+          this.focusNode(placed);
+        }
       });
     } catch (e) {
       written = false;
@@ -22020,7 +22038,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     if (!outcome) return;
     if (outcome.failure)
       new import_obsidian16.Notice(t("ui.outline_import_partial", outcome.created.length, outcome.total, outcome.failure));
-    if (outcome.failure || !written || !request.shallowResearch || !outcome.created.length) return;
+    if (outcome.failure || state.saveFailed || !written || !request.shallowResearch || !outcome.created.length) return;
     const top = (_a = this.map) == null ? void 0 : _a.nodes.find((node) => node.id === outcome.created[0].id);
     if (!top) return;
     const ids = new Set(outcome.created.slice(1).map((node) => node.id));

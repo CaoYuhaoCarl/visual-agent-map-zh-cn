@@ -545,7 +545,7 @@ test('outline modal: placement labels in Traditional Chinese', () => {
   assert.equal(translate('zh-TW', 'ui.outline_import_selected_missing'), '選取的議題已不在心智圖上。');
 });
 
-async function placementHarness(settingsOverrides = {}) {
+async function placementHarness(settingsOverrides = {}, obsidianOverrides = {}) {
   const { repo, app } = fixture('en');
   const { core, DEFAULT_SETTINGS, withExpansionCoordinator } = require('../support.cjs');
   const notices = [], researched = [], confirms = [];
@@ -561,7 +561,7 @@ async function placementHarness(settingsOverrides = {}) {
   await app.vault.create(mapPath, core.serializeMap(mapDoc));
   await repo.rebuildDerivedData();
   const plugin = withExpansionCoordinator({ repo, settings, running: new Set(), rebuildDerivedData: () => repo.rebuildDerivedData(), mutate: async work => work(), confirmAiUsage: async (model, run) => { confirms.push(model); await run(); return true; } });
-  const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Notice: class { constructor(m) { notices.push(m); } } } });
+  const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Notice: class { constructor(m) { notices.push(m); } }, ...obsidianOverrides } });
   const view = new VisualAgentMapView({ app }, plugin);
   view.path = mapPath; view.map = await repo.readMap(mapPath); view.contentEl = { querySelector: () => null }; view.render = () => {}; view.hydrate = async () => {};
   view.startShallowResearch = async (parent, children, options) => { researched.push({ parent: parent.id, children: children.map(child => child.id), options }); };
@@ -676,4 +676,36 @@ integrationTest('the import window gets its target from the open view: editable 
   assert.equal(h.view.outlineImportTarget().map, 'none');
   h.view.builtIn = false; h.view.map = null;
   assert.deepEqual(plain(h.view.outlineImportTarget()), { map: 'none' });
+});
+
+integrationTest('importOutline under a topic removed from Map.md meanwhile: choosing the file version makes the outline a new tree, never a dangling parent', async () => {
+  // The conflict window picks the file (disk) version.
+  class Modal { constructor(app) { this.app = app; } open() { if (this.disk && this.resolve) this.resolve(JSON.parse(JSON.stringify(this.disk))); } close() {} }
+  const h = await placementHarness({}, { Modal });
+  const disk = await h.repo.readMap(h.mapPath);
+  disk.nodes = disk.nodes.filter(item => item.id !== h.oldChild.id);
+  await h.repo.saveMap(h.mapPath, disk); // an external edit: the open view still shows the old map
+  await h.view.importOutline({ nodes: api.parseOutline('# Sub\n## S1\n## S2').nodes, source: null, shallowResearch: false, placement: { kind: 'under', parentId: h.oldChild.id } });
+  const saved = await h.repo.readMap(h.mapPath); // parses: no dangling parent
+  assert.equal(saved.nodes.some(item => item.id === h.oldChild.id), false);
+  const fresh = saved.nodes.filter(item => item.id !== h.oldRoot.id);
+  assert.equal(fresh.length, 3);
+  const sub = fresh.find(item => item.parentId === null);
+  assert.equal(await h.titleOf(sub.id), 'Sub', 'the outline became a new tree');
+  assert.equal(fresh.filter(item => item.parentId === sub.id).length, 2);
+  for (const item of fresh) assert.ok(!overlaps(item, saved.nodes.find(node => node.id === h.oldRoot.id)));
+  for (const item of fresh) assert.ok(h.app.vault.getAbstractFileByPath(item.path), 'note present');
+  assert.equal(h.view.selected, sub.id);
+});
+
+integrationTest('importOutline into the open map: a Map.md save failure lists the created notes, keeps the selection and skips research', async () => {
+  const h = await placementHarness();
+  h.view.selected = h.oldRoot.id;
+  h.repo.saveMap = async () => { throw new Error('locked'); };
+  await h.view.importOutline({ nodes: api.parseOutline('# Sub\n## S1').nodes, source: null, shallowResearch: true, placement: { kind: 'under', parentId: h.oldRoot.id } });
+  assert.equal(h.notices.length, 1, h.notices.join(' | '));
+  assert.match(h.notices[0], /could not be saved: locked \(.*Sub\.md, .*S1\.md\)/);
+  assert.equal(h.view.selected, h.oldRoot.id, 'selection unchanged');
+  assert.equal(h.researched.length, 0);
+  assert.deepEqual(plain(h.view.map.nodes.map(item => item.id)), plain([h.oldRoot.id, h.oldChild.id]));
 });
