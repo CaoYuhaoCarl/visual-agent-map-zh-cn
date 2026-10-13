@@ -357,10 +357,16 @@ export class NextStepModal extends Modal {
   private taskSignal?: AbortSignal;
   private taskController?: AbortController;
   private unsubscribeModels?: () => void;
+  /** One data-source picker shared by every step, so choices survive switching steps. */
   private addReferencePicker(
-    panel: HTMLElement,
-    mode: "research" | "expand" | "synthesize"
-  ): ReferencePicker | undefined {
+    panel: HTMLElement
+  ):
+    | {
+        picker: ReferencePicker;
+        disclosure: HTMLElement;
+        forMode: (mode: "research" | "expand" | "synthesize") => void;
+      }
+    | undefined {
     const sources = this.modelSettings?.sources;
     if (!sources) return undefined;
     const disclosure = panel.createEl("details", { cls: "vam-next-source-details" });
@@ -376,14 +382,19 @@ export class NextStepModal extends Modal {
       sources.topics,
       sources.readTopic,
       sources.currentTopicId,
-      mode === "synthesize" ? (sources.synthesisLabel ?? sources.currentLabel) : sources.currentLabel,
-      mode !== "synthesize",
-      mode !== "synthesize"
+      sources.currentLabel
     );
     const updateSelection = (): void => selection.setText(picker.describe());
     pickerContent.addEventListener("change", updateSelection);
     updateSelection();
-    return picker;
+    // Synthesis works from existing findings, so it defaults to no web search until the user chooses otherwise.
+    const forMode = (mode: "research" | "expand" | "synthesize"): void => {
+      const synthesize = mode === "synthesize";
+      picker.setCurrentLabel(synthesize ? (sources.synthesisLabel ?? sources.currentLabel) : sources.currentLabel);
+      picker.setNetworkDefault(!synthesize, !synthesize);
+      updateSelection();
+    };
+    return { picker, disclosure, forMode };
   }
   private requirementsInput?: HTMLTextAreaElement;
   private renderRequirements(): void {
@@ -871,12 +882,11 @@ export class NextStepModal extends Modal {
         if (radio.checked) depthHint.setText(researchDepthDescription(radio.value as ResearchDepth));
       })
     );
-    const researchPicker = this.addReferencePicker(research, "research");
     research.createEl("p", { cls: "vam-next-status" });
     confirm.addEventListener("click", () => {
       void this.run(research, confirm, async () => {
         const controller = this.taskController;
-        const selected = await researchPicker?.ready();
+        const selected = await sharedSources?.picker.ready();
         if (this.closed || !controller || controller.signal.aborted) return;
         const options: TaskOptions = {
           referenceGroups: selected?.groups ?? [],
@@ -1064,7 +1074,6 @@ export class NextStepModal extends Modal {
       expandButton.disabled = !!this.modelSettings?.running || (multiLayer && !!quickError);
     });
     updateTotal();
-    const expandPicker = this.addReferencePicker(expandPanel, "expand");
     const shallowLabel = expandPanel.createEl("label", { cls: "vam-field vam-next-toggle" });
     const shallow = shallowLabel.createEl("input", { type: "checkbox" });
     shallow.checked = false;
@@ -1097,7 +1106,7 @@ export class NextStepModal extends Modal {
         expandPanel,
         expandButton,
         async () => {
-          const selected = await expandPicker?.ready();
+          const selected = await sharedSources?.picker.ready();
           const options: TaskOptions = {
             referenceGroups: selected?.groups ?? [],
             outputLanguage: languageSelect.value as Settings["language"],
@@ -1211,7 +1220,7 @@ export class NextStepModal extends Modal {
           synthesizePanel,
           this.modelSettings?.sources?.synthesisTopics ?? []
         );
-        const synthesisPicker = this.addReferencePicker(synthesizePanel, "synthesize");
+        synthesizePanel.createEl("p", { cls: "vam-hint", text: t("ui.synthesis_web_default_hint") });
         const synthButton = actions.createEl("button", {
           text: t("ui.get_synthesis_suggestions_first"),
           cls: "mod-cta"
@@ -1225,7 +1234,7 @@ export class NextStepModal extends Modal {
           this.launchSynthesis(synthesizePanel, synthButton, null, async signal => {
             const content: SynthesisContent = synthesisContent.value === "summary" ? "summary" : "full";
             synthesisContent.disabled = true;
-            const selected = await synthesisPicker?.ready();
+            const selected = await sharedSources?.picker.ready();
             const options: TaskOptions = {
               synthesisContent: content,
               referenceGroups: selected?.groups ?? [],
@@ -1245,6 +1254,7 @@ export class NextStepModal extends Modal {
         );
       }
     }
+    const sharedSources = this.addReferencePicker(this.contentEl);
     show = mode => {
       for (const [name, button, panel] of [
         ["research", researchCard, research],
@@ -1256,6 +1266,10 @@ export class NextStepModal extends Modal {
         button.tabIndex = name === mode ? 0 : -1;
         panel.style.display = name === mode ? "" : "none";
       }
+      sharedSources?.forMode(mode);
+      // A pending synthesis draft uses only the chosen direction, so it has no sources to pick.
+      if (sharedSources)
+        sharedSources.disclosure.hidden = mode === "synthesize" && !!this.modelSettings?.synthesisPending;
       confirm.hidden = mode !== "research";
       expandButton.hidden = mode !== "expand";
       expandFooterText.hidden = mode !== "expand";

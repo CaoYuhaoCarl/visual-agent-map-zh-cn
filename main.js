@@ -524,6 +524,7 @@ var english = {
   "ui.new_map": "\uFF0B New map",
   "ui.researched": "Researched",
   "ui.suggested": "Suggested",
+  "ui.synthesis_web_default_hint": "Synthesis works from existing findings, so web search is off by default. You can turn it on under Data sources.",
   "ui.output_settings": "Output",
   "ui.topic_card_label_0_1": "{0}, {1}",
   "ui.researching_0": "Researching {0}",
@@ -1783,6 +1784,7 @@ var traditionalChinese = {
   "ui.new_map": "\uFF0B \u65B0\u589E\u5730\u5716",
   "ui.researched": "\u5DF2\u7814\u7A76",
   "ui.suggested": "\u5EFA\u8B70",
+  "ui.synthesis_web_default_hint": "\u6574\u5408\u6703\u6839\u64DA\u5DF2\u6709\u7684\u7814\u7A76\u7D50\u679C\uFF0C\u6240\u4EE5\u9810\u8A2D\u4E0D\u641C\u5C0B\u7DB2\u8DEF\uFF1B\u9700\u8981\u6642\u53EF\u5728\u300C\u8CC7\u6599\u4F86\u6E90\u300D\u958B\u555F\u3002",
   "ui.output_settings": "\u8F38\u51FA\u8A2D\u5B9A",
   "ui.topic_card_label_0_1": "{0}\uFF0C{1}",
   "ui.researching_0": "\u7814\u7A76\u4E2D {0}",
@@ -19583,13 +19585,18 @@ var ReferencePicker = class {
     __publicField(this, "refresh");
     __publicField(this, "webSearch");
     __publicField(this, "imageSearch");
+    __publicField(this, "webInput");
+    __publicField(this, "imageInput");
+    __publicField(this, "currentLabelEl");
+    /** Once the user sets the network options, a caller's per-task defaults no longer override them. */
+    __publicField(this, "networkTouched", false);
     this.webSearch = initialWeb;
     this.imageSearch = initialWeb && initialImages;
     const area = parent.createDiv("vam-reference-picker");
     const heading = area.createDiv("vam-reference-heading");
     heading.createEl("h3", { text: t("ui.data_sources") });
     const intro = heading.createDiv("vam-reference-intro");
-    intro.createEl("p", { text: currentLabel, cls: "vam-hint" });
+    this.currentLabelEl = intro.createEl("p", { text: currentLabel, cls: "vam-hint" });
     intro.createEl("p", { text: t("ui.reference_task_only_hint"), cls: "vam-hint" });
     const networkSection = area.createDiv("vam-reference-section vam-reference-network-section");
     const network = networkSection.createDiv("vam-reference-network");
@@ -19602,7 +19609,10 @@ var ReferencePicker = class {
     images.checked = initialWeb && initialImages;
     images.disabled = !web.checked;
     imageLabel.createSpan({ text: t("ui.search_for_image_references") });
+    this.webInput = web;
+    this.imageInput = images;
     web.addEventListener("change", () => {
+      this.networkTouched = true;
       this.webSearch = web.checked;
       images.disabled = !web.checked;
       if (!web.checked) {
@@ -19611,6 +19621,7 @@ var ReferencePicker = class {
       }
     });
     images.addEventListener("change", () => {
+      this.networkTouched = true;
       this.imageSearch = images.checked;
     });
     const local = area.createDiv("vam-reference-section vam-reference-local-section");
@@ -19709,6 +19720,19 @@ var ReferencePicker = class {
       text: t("ui.reference_time_and_citations_hint")
     });
     this.refresh();
+  }
+  /** Retitles the "current topic included" note when one picker serves several tasks. */
+  setCurrentLabel(label) {
+    this.currentLabelEl.setText(label);
+  }
+  /** Applies a task's default network options unless the user already chose them. */
+  setNetworkDefault(web, images) {
+    if (this.networkTouched) return;
+    this.webSearch = web;
+    this.imageSearch = web && images;
+    this.webInput.checked = web;
+    this.imageInput.checked = web && images;
+    this.imageInput.disabled = !web;
   }
   describe() {
     return `${this.groups.flatMap((group) => group.documents).length} ${t("ui.markdown_files")} \xB7 ${t("ui.allow_web_search")} ${t(this.webSearch ? "ui.on" : "ui.off")} \xB7 ${t("ui.search_for_image_references")} ${t(this.imageSearch && this.webSearch ? "ui.on" : "ui.off")}`;
@@ -20475,8 +20499,9 @@ var NextStepModal = class extends import_obsidian15.Modal {
     if (!this.childrenCount) return "expand";
     return settings.childrenCompleted === this.childrenCount ? "synthesize" : "research";
   }
-  addReferencePicker(panel, mode) {
-    var _a, _b;
+  /** One data-source picker shared by every step, so choices survive switching steps. */
+  addReferencePicker(panel) {
+    var _a;
     const sources2 = (_a = this.modelSettings) == null ? void 0 : _a.sources;
     if (!sources2) return void 0;
     const disclosure = panel.createEl("details", { cls: "vam-next-source-details" });
@@ -20492,14 +20517,19 @@ var NextStepModal = class extends import_obsidian15.Modal {
       sources2.topics,
       sources2.readTopic,
       sources2.currentTopicId,
-      mode === "synthesize" ? (_b = sources2.synthesisLabel) != null ? _b : sources2.currentLabel : sources2.currentLabel,
-      mode !== "synthesize",
-      mode !== "synthesize"
+      sources2.currentLabel
     );
     const updateSelection = () => selection.setText(picker.describe());
     pickerContent.addEventListener("change", updateSelection);
     updateSelection();
-    return picker;
+    const forMode = (mode) => {
+      var _a2;
+      const synthesize = mode === "synthesize";
+      picker.setCurrentLabel(synthesize ? (_a2 = sources2.synthesisLabel) != null ? _a2 : sources2.currentLabel : sources2.currentLabel);
+      picker.setNetworkDefault(!synthesize, !synthesize);
+      updateSelection();
+    };
+    return { picker, disclosure, forMode };
   }
   renderRequirements() {
     var _a, _b;
@@ -20946,13 +20976,12 @@ var NextStepModal = class extends import_obsidian15.Modal {
         if (radio.checked) depthHint.setText(researchDepthDescription(radio.value));
       })
     );
-    const researchPicker = this.addReferencePicker(research, "research");
     research.createEl("p", { cls: "vam-next-status" });
     confirm.addEventListener("click", () => {
       void this.run(research, confirm, async () => {
         var _a2, _b2;
         const controller = this.taskController;
-        const selected = await (researchPicker == null ? void 0 : researchPicker.ready());
+        const selected = await (sharedSources == null ? void 0 : sharedSources.picker.ready());
         if (this.closed || !controller || controller.signal.aborted) return;
         const options = {
           referenceGroups: (_a2 = selected == null ? void 0 : selected.groups) != null ? _a2 : [],
@@ -21128,7 +21157,6 @@ var NextStepModal = class extends import_obsidian15.Modal {
       expandButton.disabled = !!((_a2 = this.modelSettings) == null ? void 0 : _a2.running) || multiLayer && !!quickError;
     });
     updateTotal();
-    const expandPicker = this.addReferencePicker(expandPanel, "expand");
     const shallowLabel = expandPanel.createEl("label", { cls: "vam-field vam-next-toggle" });
     const shallow = shallowLabel.createEl("input", { type: "checkbox" });
     shallow.checked = false;
@@ -21162,7 +21190,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
         expandButton,
         async () => {
           var _a2;
-          const selected = await (expandPicker == null ? void 0 : expandPicker.ready());
+          const selected = await (sharedSources == null ? void 0 : sharedSources.picker.ready());
           const options = {
             referenceGroups: (_a2 = selected == null ? void 0 : selected.groups) != null ? _a2 : [],
             outputLanguage: languageSelect.value,
@@ -21277,7 +21305,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
           synthesizePanel,
           (_m = (_l = (_k = this.modelSettings) == null ? void 0 : _k.sources) == null ? void 0 : _l.synthesisTopics) != null ? _m : []
         );
-        const synthesisPicker = this.addReferencePicker(synthesizePanel, "synthesize");
+        synthesizePanel.createEl("p", { cls: "vam-hint", text: t("ui.synthesis_web_default_hint") });
         const synthButton = actions.createEl("button", {
           text: t("ui.get_synthesis_suggestions_first"),
           cls: "mod-cta"
@@ -21293,7 +21321,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
             var _a2, _b2;
             const content = synthesisContent.value === "summary" ? "summary" : "full";
             synthesisContent.disabled = true;
-            const selected = await (synthesisPicker == null ? void 0 : synthesisPicker.ready());
+            const selected = await (sharedSources == null ? void 0 : sharedSources.picker.ready());
             const options = {
               synthesisContent: content,
               referenceGroups: (_a2 = selected == null ? void 0 : selected.groups) != null ? _a2 : [],
@@ -21313,7 +21341,9 @@ var NextStepModal = class extends import_obsidian15.Modal {
         );
       }
     }
+    const sharedSources = this.addReferencePicker(this.contentEl);
     show = (mode) => {
+      var _a2;
       for (const [name, button, panel] of [
         ["research", researchCard, research],
         ["expand", expandCard, expandPanel],
@@ -21324,6 +21354,9 @@ var NextStepModal = class extends import_obsidian15.Modal {
         button.tabIndex = name === mode ? 0 : -1;
         panel.style.display = name === mode ? "" : "none";
       }
+      sharedSources == null ? void 0 : sharedSources.forMode(mode);
+      if (sharedSources)
+        sharedSources.disclosure.hidden = mode === "synthesize" && !!((_a2 = this.modelSettings) == null ? void 0 : _a2.synthesisPending);
       confirm.hidden = mode !== "research";
       expandButton.hidden = mode !== "expand";
       expandFooterText.hidden = mode !== "expand";

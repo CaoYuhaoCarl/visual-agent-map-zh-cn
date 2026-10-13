@@ -20,6 +20,24 @@ export class ReferencePicker {
   private refresh: () => void;
   private webSearch: boolean;
   private imageSearch: boolean;
+  private webInput!: HTMLInputElement;
+  private imageInput!: HTMLInputElement;
+  private currentLabelEl!: HTMLElement;
+  /** Once the user sets the network options, a caller's per-task defaults no longer override them. */
+  private networkTouched = false;
+  /** Retitles the "current topic included" note when one picker serves several tasks. */
+  setCurrentLabel(label: string): void {
+    this.currentLabelEl.setText(label);
+  }
+  /** Applies a task's default network options unless the user already chose them. */
+  setNetworkDefault(web: boolean, images: boolean): void {
+    if (this.networkTouched) return;
+    this.webSearch = web;
+    this.imageSearch = web && images;
+    this.webInput.checked = web;
+    this.imageInput.checked = web && images;
+    this.imageInput.disabled = !web;
+  }
   describe(): string {
     return `${this.groups.flatMap(group => group.documents).length} ${t("ui.markdown_files")} · ${t("ui.allow_web_search")} ${t(this.webSearch ? "ui.on" : "ui.off")} · ${t("ui.search_for_image_references")} ${t(this.imageSearch && this.webSearch ? "ui.on" : "ui.off")}`;
   }
@@ -47,7 +65,7 @@ export class ReferencePicker {
     const heading = area.createDiv("vam-reference-heading");
     heading.createEl("h3", { text: t("ui.data_sources") });
     const intro = heading.createDiv("vam-reference-intro");
-    intro.createEl("p", { text: currentLabel, cls: "vam-hint" });
+    this.currentLabelEl = intro.createEl("p", { text: currentLabel, cls: "vam-hint" });
     intro.createEl("p", { text: t("ui.reference_task_only_hint"), cls: "vam-hint" });
 
     const networkSection = area.createDiv("vam-reference-section vam-reference-network-section");
@@ -61,7 +79,10 @@ export class ReferencePicker {
     images.checked = initialWeb && initialImages;
     images.disabled = !web.checked;
     imageLabel.createSpan({ text: t("ui.search_for_image_references") });
+    this.webInput = web;
+    this.imageInput = images;
     web.addEventListener("change", () => {
+      this.networkTouched = true;
       this.webSearch = web.checked;
       images.disabled = !web.checked;
       if (!web.checked) {
@@ -70,6 +91,7 @@ export class ReferencePicker {
       }
     });
     images.addEventListener("change", () => {
+      this.networkTouched = true;
       this.imageSearch = images.checked;
     });
 
