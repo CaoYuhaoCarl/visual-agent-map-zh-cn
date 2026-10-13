@@ -9,6 +9,8 @@ export interface ExpansionBatchState {
   /** Children that finished successfully (accepted, not aborted, not skipped). */
   succeeded: number;
   currentPath?: string;
+  /** Children waiting for a free slot, in run order; emptied when the batch stops. */
+  queuedPaths: string[];
   failures: string[];
   /** Note paths of children that threw while the batch was not aborted, parallel to `failures`. */
   failedPaths: string[];
@@ -36,6 +38,7 @@ export class ShallowExpansionCoordinator {
       total: children.length,
       completed: 0,
       succeeded: 0,
+      queuedPaths: children.map(child => child.path),
       failures: [],
       failedPaths: [],
       status: "running"
@@ -64,6 +67,7 @@ export class ShallowExpansionCoordinator {
         while (nextChild < children.length) {
           const child = children[nextChild++];
           if (controller.signal.aborted) break;
+          state.queuedPaths = state.queuedPaths.filter(path => path !== child.path);
           runningPaths.add(child.path);
           updateCurrent();
           let acceptedChild = false;
@@ -96,6 +100,7 @@ export class ShallowExpansionCoordinator {
       } finally {
         state.status = controller.signal.aborted ? "stopped" : "completed";
         state.currentPath = undefined;
+        state.queuedPaths = [];
         if (!dispatchAccepted) rejectFirst(new Error("Shallow research stopped before launch."));
         if (this.activeTasks.get(parentPath) === controller) this.activeTasks.delete(parentPath);
         externalSignal?.removeEventListener("abort", abortFromOwner);
@@ -106,12 +111,25 @@ export class ShallowExpansionCoordinator {
   }
 
   stop(parentPath: string): void {
-    this.states.get(parentPath)?.controller.abort();
+    const state = this.states.get(parentPath);
+    if (!state) return;
+    state.queuedPaths = [];
+    state.controller.abort();
+  }
+  /** Whether a running batch is still waiting to start this note. */
+  isQueued(path: string): boolean {
+    for (const state of this.states.values())
+      if (state.status === "running" && state.queuedPaths.includes(path)) return true;
+    return false;
   }
   isRunning(parentPath: string): boolean {
     return this.states.get(parentPath)?.status === "running";
   }
   stopAll(): void {
-    for (const state of this.states.values()) if (state.status === "running") state.controller.abort();
+    for (const state of this.states.values())
+      if (state.status === "running") {
+        state.queuedPaths = [];
+        state.controller.abort();
+      }
   }
 }

@@ -20,6 +20,24 @@ test('a running expansion batch cannot be overwritten for the same parent', asyn
   assert.equal(states.get('parent.md').status, 'stopped');
   assert.equal(active.has('parent.md'), false);
 });
+test('a batch reports topics waiting for a slot as queued until they start, and none after stop', async () => {
+  const { ShallowExpansionCoordinator } = load('experiences/visual-map/expansion-batch.ts');
+  const active = new Map(), states = new Map(), coordinator = new ShallowExpansionCoordinator(active, states);
+  const release = new Map();
+  const children = ['a', 'b', 'c', 'd', 'e'].map(id => node(id));
+  await coordinator.start('batch', children, async (child, _signal, accepted) => {
+    accepted(); await new Promise(resolve => release.set(child.id, resolve));
+  }, () => {});
+  await until(() => release.size === 3);
+  assert.deepEqual(['a', 'b', 'c', 'd', 'e'].map(id => coordinator.isQueued(`${id}.md`)), [false, false, false, true, true]);
+  release.get('a')();
+  await until(() => release.has('d'));
+  assert.equal(coordinator.isQueued('d.md'), false); assert.equal(coordinator.isQueued('e.md'), true);
+  coordinator.stop('batch');
+  assert.equal(coordinator.isQueued('e.md'), false);
+  for (const resolve of release.values()) resolve();
+  await until(() => states.get('batch').status === 'stopped');
+});
 test('a shallow batch with no accepted child rejects after all failures and releases ownership', async () => {
   const { ShallowExpansionCoordinator } = load('experiences/visual-map/expansion-batch.ts');
   const active = new Map(), states = new Map(), coordinator = new ShallowExpansionCoordinator(active, states), calls = [];

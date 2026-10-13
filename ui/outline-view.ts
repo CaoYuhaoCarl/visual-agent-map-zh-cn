@@ -180,6 +180,11 @@ export class OutlineView extends ItemView {
       button.title = title;
       if (node.path === this.activePath) button.addClass("is-active");
       button.addEventListener("click", () => {
+        // Mark the row in place: a re-render would drop keyboard focus from the outline.
+        this.activePath = node.path;
+        for (const active of Array.from(tree.querySelectorAll(".vam-outline-note.is-active")))
+          active.removeClass("is-active");
+        button.addClass("is-active");
         void this.openNote(node.path);
       });
       if (query || !this.collapsed.has(node.id)) for (const child of descendants) append(child, depth + 1);

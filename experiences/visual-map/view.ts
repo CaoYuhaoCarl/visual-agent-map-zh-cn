@@ -69,6 +69,8 @@ import {
   type OutlinePlacement
 } from "./outline-import-modal";
 import { MultiResearchModal, type MultiResearchRequest } from "./multi-research-modal";
+import { renderTopicTree } from "../../ui/topic-tree";
+import { TopicTreeModal } from "../../ui/modals/topic-tree-modal";
 import type { ModelChoices } from "./research-fields";
 import type { ExpansionBatchState } from "./expansion-batch";
 import { AimStartModal } from "../../ui/modals/aim-start-modal";
@@ -179,6 +181,10 @@ interface FileMove {
   topicId: string;
   parkedState: TopicState;
 }
+/** Unique ids for the hidden card labels; any view may render a card. */
+let cardLabelSequence = 0;
+const cardLabels = new WeakMap<HTMLElement, HTMLElement>();
+
 export class VisualAgentMapView extends ItemView {
   private map: MapDocument | null = null;
   private path = "";
@@ -236,6 +242,8 @@ export class VisualAgentMapView extends ItemView {
   private suppressClickUntil = 0;
   /** Node whose card should hold keyboard focus once the next render finishes. */
   private focusNodeId: string | null = null;
+  /** Space held down: a drag pans the map even while selecting topics. */
+  private spaceHeld = false;
   /** The single card in the tab order (roving tabindex); arrows move between the rest. */
   private tabStopId: string | null = null;
   /** While a card renders, its buttons stay out of the tab order until that card is focused. */
@@ -310,6 +318,22 @@ export class VisualAgentMapView extends ItemView {
     this.mapOpenEpoch++;
     this.contentEl.addClass("vam-view");
     this.contentEl.tabIndex = 0;
+    // Space-drag pans while selecting topics; typing a space in a field never arms it.
+    this.registerDomEvent(window, "keydown", event => {
+      if (
+        event.code === "Space" &&
+        !(
+          event.target instanceof HTMLElement && event.target.closest("input, textarea, select, [contenteditable=true]")
+        )
+      )
+        this.spaceHeld = true;
+    });
+    this.registerDomEvent(window, "keyup", event => {
+      if (event.code === "Space") this.spaceHeld = false;
+    });
+    this.registerDomEvent(window, "blur", () => {
+      this.spaceHeld = false;
+    });
     this.registerDomEvent(this.contentEl, "keydown", event => {
       if (
         event.target instanceof HTMLElement &&
@@ -1738,17 +1762,14 @@ export class VisualAgentMapView extends ItemView {
   private chooseSelectedParent(copyNodes: boolean): void {
     if (!this.map) return;
     const roots = this.selectedRoots();
-    const targets = this.map.nodes.filter(
-      target => copyNodes || roots.every(root => canParent(this.map!.nodes, root.id, target.id))
-    );
-    new ChoiceModal(
+    new TopicTreeModal(
       this.app,
       copyNodes ? t("ui.copy_to") : t("ui.move_to"),
       t("ui.choose_a_new_parent_topic"),
-      targets.map(target => ({
-        label: this.notes.get(target.id)?.title ?? target.path,
-        action: () => this.enqueue(() => (copyNodes ? this.copySelected(target) : this.moveSelected(target)))
-      }))
+      this.map.nodes,
+      target => this.notes.get(target.id)?.title ?? target.path,
+      target => copyNodes || roots.every(root => canParent(this.map!.nodes, root.id, target.id)),
+      target => this.enqueue(() => (copyNodes ? this.copySelected(target) : this.moveSelected(target)))
     ).open();
   }
   private async moveSelected(target: MapNode): Promise<void> {
@@ -2807,11 +2828,19 @@ export class VisualAgentMapView extends ItemView {
     }
     const workspace = this.contentEl.createDiv("vam-workspace");
     this.viewportEl = workspace.createDiv("vam-viewport");
+    if (this.integrationMode) this.viewportEl.addClass("is-selecting");
     // Canvas controls float over the map instead of stacking a second toolbar above it.
     const overlay = workspace.createDiv("vam-canvas-overlay");
     if (tools.childElementCount) overlay.appendChild(tools);
     else tools.remove();
-    overlay.createSpan({ cls: "vam-hint", text: t("ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open") });
+    overlay.createSpan({
+      cls: "vam-hint",
+      text: t(
+        this.integrationMode
+          ? "ui.drag_to_select_topics_hint"
+          : "ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open"
+      )
+    });
     const zoom = overlay.createDiv("vam-zoom-controls");
     this.iconButton(zoom, "minus", t("ui.zoom_out"), () => this.zoomBy(1 / 1.2));
     const zoomReset = zoom.createEl("button", {
@@ -2895,15 +2924,18 @@ export class VisualAgentMapView extends ItemView {
     }
     card.dataset.nodeId = node.id;
     // Research state drives the card's frame: frontier (idea), running, concluded, or failed.
+    const queued = this.isResearchQueued(node);
     card.dataset.status =
       this.plugin.running?.has(node.path) || this.plugin.quickExpandPending?.has(node.path)
         ? "running"
-        : (note?.status ?? "error");
+        : queued
+          ? "queued"
+          : (note?.status ?? "error");
     card.style.left = `${node.x}px`;
     card.style.top = `${node.y}px`;
     card.tabIndex = node.id === this.tabStopId ? 0 : -1;
-    card.setAttr("aria-label", note?.title ?? t("ui.note_missing"));
     const header = card.createDiv("vam-node-header");
+    this.labelCard(card, note?.title ?? t("ui.note_missing"));
     if (this.integrationMode) {
       const select = header.createEl("input", { type: "checkbox" });
       select.checked = this.multiSelected.has(node.id);
@@ -2955,20 +2987,22 @@ export class VisualAgentMapView extends ItemView {
             ? t("ui.aim_answered_not_started")
             : t(key[status])
       });
-    } else if (!node.aimKind || active || !note || note.status !== "completed") {
+    } else if (!node.aimKind || active || queued || !note || note.status !== "completed") {
       const statusText = active
         ? t("ui.ai_running")
-        : note?.status === "completed"
-          ? t("ui.researched")
-          : note
-            ? topicStatusLabel(note.status, this.plugin.settings.language)
-            : t("ui.note_missing");
+        : queued
+          ? t("ui.research_queued")
+          : note?.status === "completed"
+            ? t("ui.researched")
+            : note
+              ? topicStatusLabel(note.status, this.plugin.settings.language)
+              : t("ui.note_missing");
       const chip = header.createSpan({
-        cls: `vam-status vam-status-${active ? "running" : (note?.status ?? "error")}`,
+        cls: `vam-status vam-status-${active ? "running" : queued ? "queued" : (note?.status ?? "error")}`,
         text: statusText
       });
-      if (active) chip.setAttr("role", "status");
-      if (note) card.setAttr("aria-label", t("ui.topic_card_label_0_1", note.title, statusText));
+      if (active || queued) chip.setAttr("role", "status");
+      if (note) this.labelCard(card, t("ui.topic_card_label_0_1", note.title, statusText));
     }
     // Failure reasons are shown on the card, not only in a hover tooltip.
     const errorDetails: string[] = [];
@@ -3351,6 +3385,51 @@ export class VisualAgentMapView extends ItemView {
     if (this.hoverTimer !== null) window.clearTimeout(this.hoverTimer);
     this.hoverTimer = null;
   }
+  /** A topic waiting in a batch (multi-topic or shallow research) for a free slot; it is not running yet. */
+  private isResearchQueued(node: MapNode): boolean {
+    return !this.plugin.running?.has(node.path) && !!this.plugin.expansionCoordinator?.isQueued(node.path);
+  }
+  /** Names a card for assistive tech without Obsidian showing `aria-label` as a hover tooltip beside the preview. */
+  private labelCard(card: HTMLElement, text: string): void {
+    let label = cardLabels.get(card);
+    if (!label) {
+      label = card.createSpan({ cls: "vam-card-label" });
+      label.id = `vam-card-label-${++cardLabelSequence}`;
+      cardLabels.set(card, label);
+    }
+    label.textContent = text;
+    card.setAttr("aria-labelledby", label.id);
+  }
+  /**
+   * Brings an outline topic into view: expands collapsed ancestors, centers the card and selects it.
+   * Multi-select keeps its selection; the outline only moves the camera there. False when the map lacks the topic.
+   */
+  async revealPath(path: string): Promise<boolean> {
+    const node = this.map?.nodes.find(item => item.path === path);
+    if (!this.map || !node) return false;
+    const collapsed: string[] = [];
+    for (let parent = node.parentId; parent;) {
+      const ancestor = this.map.nodes.find(item => item.id === parent);
+      if (!ancestor) break;
+      if (ancestor.collapsed) collapsed.push(ancestor.id);
+      parent = ancestor.parentId;
+    }
+    if (collapsed.length && !this.builtIn)
+      await this.plugin.mutate(() =>
+        this.mapChange(map => {
+          for (const item of map.nodes) if (collapsed.includes(item.id)) item.collapsed = false;
+        })
+      );
+    const current = this.map?.nodes.find(item => item.id === node.id);
+    if (!current) return false;
+    if (!this.integrationMode) {
+      this.selected = current.id;
+      this.multiSelected.clear();
+    }
+    this.render();
+    this.focusNode(current);
+    return true;
+  }
   private selectSampleNode(id: string): void {
     const node = this.map?.nodes.find(item => item.id === id);
     if (!node) return;
@@ -3425,7 +3504,7 @@ export class VisualAgentMapView extends ItemView {
     const header = card.querySelector<HTMLElement>(".vam-node-header");
     const status = card.querySelector<HTMLElement>(".vam-node-header > .vam-status:not(.vam-aim-question-status)");
     if (node.aimKind) {
-      card.setAttr("aria-label", note.title);
+      this.labelCard(card, note.title);
       if (note.status === "completed") status?.remove();
       else if (status) {
         status.className = `vam-status vam-status-${note.status}`;
@@ -3435,12 +3514,16 @@ export class VisualAgentMapView extends ItemView {
           cls: `vam-status vam-status-${note.status}`,
           text: topicStatusLabel(note.status, this.plugin.settings.language)
         });
-    } else if (!this.plugin.running?.has(node.path) && !this.plugin.quickExpandPending?.has(node.path)) {
+    } else if (
+      !this.plugin.running?.has(node.path) &&
+      !this.plugin.quickExpandPending?.has(node.path) &&
+      !this.isResearchQueued(node)
+    ) {
       // A running card keeps its running frame and chip until the next full render.
       const label =
         note.status === "completed" ? t("ui.researched") : topicStatusLabel(note.status, this.plugin.settings.language);
       card.dataset.status = note.status;
-      card.setAttr("aria-label", t("ui.topic_card_label_0_1", note.title, label));
+      this.labelCard(card, t("ui.topic_card_label_0_1", note.title, label));
       if (status) {
         status.className = `vam-status vam-status-${note.status}`;
         status.setText(label);
@@ -3659,18 +3742,22 @@ export class VisualAgentMapView extends ItemView {
     }
     if (mode !== "structure") return;
     const relationship = panel.createDiv("vam-inspector-section");
-    const parentLabel = relationship.createEl("label", { cls: "vam-field" });
-    parentLabel.createSpan({ text: t("ui.parent_topic") });
-    const parents = parentLabel.createEl("select");
-    parents.setAttr("aria-label", t("ui.parent_topic_link"));
-    parents.createEl("option", { value: "", text: t("ui.no_parent_root_topic") });
-    for (const candidate of this.map!.nodes)
-      if (canParent(this.map!.nodes, node.id, candidate.id))
-        parents.createEl("option", {
-          value: candidate.id,
-          text: this.notes.get(candidate.id)?.title ?? candidate.path
-        });
-    parents.value = node.parentId ?? "";
+    relationship.createEl("strong", { text: t("ui.parent_topic"), cls: "vam-topic-tree-heading" });
+    let chosenParent = node.parentId ?? "";
+    let describe = (): void => {};
+    const parentTree = renderTopicTree(relationship, {
+      nodes: this.map!.nodes,
+      title: candidate => this.notes.get(candidate.id)?.title ?? candidate.path,
+      label: t("ui.parent_topic_link"),
+      selectable: candidate => canParent(this.map!.nodes, node.id, candidate.id),
+      rootChoice: t("ui.no_parent_root_topic"),
+      value: chosenParent,
+      onChoose: id => {
+        chosenParent = id;
+        parentTree.select(id);
+        describe();
+      }
+    });
     relationship.createEl("p", {
       cls: "vam-hint",
       text: t("ui.changing_the_parent_affects_context_for_the_next_ai_task_the")
@@ -3688,8 +3775,8 @@ export class VisualAgentMapView extends ItemView {
     });
     actions.createEl("button", { text: t("ui.close") }).addEventListener("click", () => close?.());
     const apply = actions.createEl("button", { text: t("ui.apply_parent"), cls: "mod-cta" });
-    const describe = (): void => {
-      const parentId = parents.value || null;
+    describe = (): void => {
+      const parentId = chosenParent || null;
       const changed = parentId !== (node.parentId ?? null);
       apply.disabled = !changed;
       status.setText(
@@ -3700,10 +3787,9 @@ export class VisualAgentMapView extends ItemView {
             : t("ui.will_become_root_topic")
       );
     };
-    parents.addEventListener("change", describe);
     describe();
     apply.addEventListener("click", () => {
-      const parentId = parents.value || null;
+      const parentId = chosenParent || null;
       close?.();
       this.enqueue(() =>
         this.mapChange(map => {
@@ -5492,6 +5578,62 @@ export class VisualAgentMapView extends ItemView {
     this.transform();
     this.saveViewport();
   }
+  /** Drag-selects topics: every card the box touches joins the selection; existing picks stay. */
+  private startMarquee(viewport: HTMLElement, event: PointerEvent): void {
+    const host = viewport.getBoundingClientRect();
+    const startX = event.clientX,
+      startY = event.clientY;
+    const already = new Set(this.multiSelected);
+    const cards = Array.from(this.stageEl?.querySelectorAll<HTMLElement>(".vam-node[data-node-id]") ?? []).map(
+      card => ({
+        card,
+        id: card.dataset.nodeId ?? "",
+        rect: card.getBoundingClientRect()
+      })
+    );
+    const box = viewport.createDiv("vam-marquee");
+    box.setAttr("aria-hidden", "true");
+    viewport.setPointerCapture(event.pointerId);
+    viewport.addClass("is-marquee");
+    let hits = new Set<string>();
+    const move = (e: PointerEvent): void => {
+      const left = Math.min(startX, e.clientX),
+        right = Math.max(startX, e.clientX),
+        top = Math.min(startY, e.clientY),
+        bottom = Math.max(startY, e.clientY);
+      box.style.left = `${left - host.left}px`;
+      box.style.top = `${top - host.top}px`;
+      box.style.width = `${right - left}px`;
+      box.style.height = `${bottom - top}px`;
+      const dragged = right - left > 3 || bottom - top > 3;
+      hits = new Set();
+      for (const item of cards) {
+        const hit =
+          dragged &&
+          !!item.id &&
+          item.rect.left < right &&
+          item.rect.right > left &&
+          item.rect.top < bottom &&
+          item.rect.bottom > top;
+        if (hit) hits.add(item.id);
+        item.card.toggleClass("is-marquee-hit", hit && !already.has(item.id));
+      }
+    };
+    const up = (): void => {
+      viewport.removeEventListener("pointermove", move);
+      viewport.removeEventListener("pointerup", up);
+      viewport.removeEventListener("pointercancel", up);
+      viewport.removeClass("is-marquee");
+      box.remove();
+      for (const item of cards) item.card.removeClass("is-marquee-hit");
+      if (!hits.size) return;
+      for (const id of hits) this.multiSelected.add(id);
+      this.render();
+    };
+    viewport.addEventListener("pointermove", move);
+    viewport.addEventListener("pointerup", up);
+    viewport.addEventListener("pointercancel", up);
+  }
   private focusNode(node: MapNode): void {
     if (!this.map || !this.viewportEl) return;
     const v = this.map.viewport;
@@ -5540,7 +5682,15 @@ export class VisualAgentMapView extends ItemView {
       { passive: false }
     );
     viewport.addEventListener("pointerdown", event => {
-      if ((event.target as Element).closest(".vam-node") || event.button !== 0 || !this.map) return;
+      if ((event.target as Element).closest(".vam-node") || !this.map) return;
+      // Topic selection turns a plain drag into a selection box; Space or the middle button still pans.
+      const pan = event.button === 1 || (event.button === 0 && (!this.integrationMode || this.spaceHeld));
+      if (event.button === 0 && !pan) {
+        this.startMarquee(viewport, event);
+        return;
+      }
+      if (!pan) return;
+      if (event.button === 1) event.preventDefault();
       const x = event.clientX,
         y = event.clientY,
         origin = { ...this.map.viewport };
