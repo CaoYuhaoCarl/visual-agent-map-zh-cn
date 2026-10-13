@@ -520,7 +520,8 @@ test('multi research modal: defaults, options and immediate close on start', () 
     setText(value) { this.text = value; }, replaceChildren() { this.children = []; }, setAttr(name, value) { this[name] = value; }, addEventListener(name, fn) { this.listeners[name] = fn; }, addClass(n) { this.cls = `${this.cls} ${n}`.trim(); }, focus() {}
   });
   const find = (root, predicate) => predicate(root) ? root : root.children.map(c => find(c, predicate)).find(Boolean);
-  class Modal { constructor(app) { this.app = app; this.titleEl = element('title'); this.contentEl = element('content'); this.closed = 0; } open() { this.onOpen(); } close() { this.closed++; } }
+  // As in Obsidian, the content sits inside modalEl; the action bar is modalEl's last child.
+  class Modal { constructor(app) { this.app = app; this.titleEl = element('title'); this.contentEl = element('content'); this.modalEl = element('modal'); this.modalEl.children.push(this.contentEl); this.closed = 0; } open() { this.onOpen(); } close() { this.closed++; } }
   const mod = load('experiences/visual-map/multi-research-modal.ts', { obsidian: { ...obsidian, Modal } });
   const requests = []; const templates = [{ id: 'standard', name: 'Standard' }, { id: 'A', name: 'Alpha template' }];
   let models = [], changed = null, unwatched = 0;
@@ -536,7 +537,7 @@ test('multi research modal: defaults, options and immediate close on start', () 
   assert.deepEqual(plain(depth.children.map(c => c.value)), ['fast', 'normal', 'deep']);
   const templateSelect = find(modal.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Content template');
   assert.deepEqual(plain(templateSelect.children.map(c => [c.value, c.text])), [['', "Each topic's current template"], ['standard', 'Standard'], ['A', 'Alpha template']]);
-  const start = find(modal.contentEl, i => i.tag === 'button' && i.text === 'Start research');
+  const start = find(modal.modalEl, i => i.tag === 'button' && i.text === 'Start research (2)');
   start.listeners.click(); start.listeners.click();
   assert.equal(modal.closed, 1); assert.equal(requests.length, 1); modal.onClose(); assert.equal(unwatched, 1);
   assert.deepEqual(plain(requests[0]), { researchMode: 'research', researchDepth: 'fast', requirements: '' });
@@ -546,7 +547,7 @@ test('multi research modal: defaults, options and immediate close on start', () 
   find(m2.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Model').value = 'm1';
   find(m2.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Content template').value = 'A';
   find(m2.contentEl, i => i.tag === 'textarea').value = '  only 2025  ';
-  find(m2.contentEl, i => i.tag === 'button' && i.text === 'Start research').listeners.click();
+  find(m2.modalEl, i => i.tag === 'button' && i.text === 'Start research (1)').listeners.click();
   assert.deepEqual(plain(second[0]), { researchMode: 'local', researchDepth: 'deep', requirements: 'only 2025', model: 'm1', detailTemplateId: 'A' });
 });
 test('card shows a Format not met badge with the issues as tooltip', () => {
@@ -914,4 +915,32 @@ integrationTest('expansion suggestions panel uses the shared list, treats the to
   const discard2 = find(host2, item => item.tag === 'button' && item.cls.includes('vam-discard'));
   discard2.click(); discard2.click(); await new Promise(resolve => setTimeout(resolve, 0));
   assert.equal(pendingSuggestions.has('P.md'), false); assert.equal(closed, 2);
+});
+integrationTest('name dialog ignores Enter while composing, explains an empty name, and keeps buttons in the action bar', () => {
+  const element = (tag, options = {}) => ({
+    tag, type: options.type, text: options.text, value: options.value ?? '', cls: options.cls ?? '', attr: options.attr ?? {}, children: [], disabled: false,
+    createDiv(value) { const child = element('div', typeof value === 'string' ? { cls: value } : value); this.children.push(child); return child; },
+    createEl(name, value) { const child = element(name, value); this.children.push(child); return child; },
+    createSpan(value) { const child = element('span', value); this.children.push(child); return child; },
+    addClass(name) { this.cls = `${this.cls} ${name}`.trim(); }, setText(value) { this.text = value; }, setAttr(name, value) { this.attr[name] = value; },
+    addEventListener(name, handler) { this[name] = handler; }, focus() {}, select() {}
+  });
+  const all = (root, predicate) => [...(predicate(root) ? [root] : []), ...root.children.flatMap(child => all(child, predicate))];
+  const find = (root, predicate) => all(root, predicate)[0];
+  class Modal { constructor() { this.titleEl = element('title'); this.contentEl = element('content'); this.modalEl = element('modal'); this.modalEl.children.push(this.contentEl); } close() { this.closed = true; } }
+  const { NameModal } = load('ui/modals/name-modal.ts', { obsidian: { ...obsidian, Modal } });
+  const saved = [];
+  const modal = new NameModal({}, 'New topic name', 'Heat', value => saved.push(value));
+  modal.onOpen();
+  const input = find(modal.contentEl, item => item.tag === 'input');
+  const save = find(modal.modalEl, item => item.tag === 'button' && item.text === 'Save');
+  const status = find(modal.modalEl, item => item.cls.includes('vam-next-status'));
+  input.value = '溫度'; input.keydown({ key: 'Enter', isComposing: true });
+  assert.deepEqual(saved, []); assert.notEqual(modal.closed, true);
+  input.value = '   '; input.input();
+  assert.equal(save.disabled, true); assert.match(status.text, /Enter a name/);
+  input.value = '溫度'; input.input();
+  assert.equal(save.disabled, false); assert.equal(status.text, '');
+  input.keydown({ key: 'Enter', isComposing: false });
+  assert.deepEqual(saved, ['溫度']); assert.equal(modal.closed, true);
 });

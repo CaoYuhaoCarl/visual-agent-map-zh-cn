@@ -1,5 +1,6 @@
-import { App, Modal, Setting } from "obsidian";
+import { App, Modal } from "obsidian";
 import { t } from "../../i18n";
+import { actionStatus, modalActions } from "./action-bar";
 
 export class NameModal extends Modal {
   constructor(
@@ -14,19 +15,29 @@ export class NameModal extends Modal {
     this.titleEl.setText(this.titleText);
     const input = this.contentEl.createEl("input", { type: "text", value: this.value, cls: "vam-name-input" });
     input.setAttr("aria-label", this.titleText);
+    const actions = modalActions(this);
+    const status = actionStatus(actions);
+    actions.createEl("button", { text: t("ui.cancel") }).addEventListener("click", () => this.close());
+    const saveButton = actions.createEl("button", { text: t("ui.save"), cls: "mod-cta" });
     const save = (): void => {
       const value = input.value.trim();
-      if (value) {
-        this.close();
-        this.submit(value);
-      }
+      if (!value) return;
+      this.close();
+      this.submit(value);
     };
+    // An empty name cannot be saved; say so instead of ignoring the press.
+    const check = (): void => {
+      const empty = !input.value.trim();
+      saveButton.disabled = empty;
+      status.setText(empty ? t("ui.name_required") : "");
+    };
+    input.addEventListener("input", check);
     input.addEventListener("keydown", event => {
-      if (event.key === "Enter") save();
+      // Enter while an input method is composing (e.g. picking Chinese characters) only confirms the characters.
+      if (event.key === "Enter" && !event.isComposing) save();
     });
-    new Setting(this.contentEl)
-      .addButton(b => b.setButtonText(t("ui.cancel")).onClick(() => this.close()))
-      .addButton(b => b.setButtonText(t("ui.save")).setCta().onClick(save));
+    saveButton.addEventListener("click", save);
+    check();
     input.focus();
     input.select();
   }

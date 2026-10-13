@@ -186,7 +186,8 @@ function modalHarness(clipboardFails = false) {
   });
   const find = (root, predicate) => predicate(root) ? root : root.children.map(child => find(child, predicate)).find(Boolean);
   const all = (root, predicate) => [...(predicate(root) ? [root] : []), ...root.children.flatMap(child => all(child, predicate))];
-  class Modal { constructor(app) { this.app = app; this.titleEl = element('title'); this.contentEl = element('content'); this.closed = false; } open() { this.onOpen(); } close() { this.closed = true; } }
+  // As in Obsidian, the content sits inside modalEl; the action bar is modalEl's last child.
+  class Modal { constructor(app) { this.app = app; this.titleEl = element('title'); this.contentEl = element('content'); this.modalEl = element('modal'); this.modalEl.children.push(this.contentEl); this.closed = false; } open() { this.onOpen(); } close() { this.closed = true; } }
   class FuzzySuggestModal { constructor(app) { this.app = app; } setPlaceholder(text) { this.placeholder = text; } open() { this.opened = true; } }
   const notices = []; const copied = [];
   const mod = load('experiences/visual-map/outline-import-modal.ts', { obsidian: { ...obsidian, Modal, FuzzySuggestModal, Notice: class { constructor(m) { notices.push(m); } } } }, { navigator: { clipboard: { writeText: async text => { if (clipboardFails) throw new Error('denied'); copied.push(text); } } } });
@@ -198,7 +199,7 @@ test('outline modal: preview, errors block creation, shallow option and single s
   const modal = new h.mod.OutlineImportModal({ vault: { getMarkdownFiles: () => [] } }, request => { requests.push(request); return new Promise(resolve => { release = resolve; }); });
   modal.open();
   const textarea = h.find(modal.contentEl, item => item.tag === 'textarea');
-  const create = h.find(modal.contentEl, item => item.tag === 'button' && item.text === 'Create mind map');
+  const create = h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Create mind map');
   assert.equal(create.disabled, true);
   textarea.value = '# A\n# B'; textarea.listeners.input();
   assert.equal(create.disabled, true);
@@ -232,7 +233,7 @@ test('outline modal: research depth and model show only with shallow research an
   assert.deepEqual(plain(model().children.map(c => c.value)), ['', 'm1']);
   depth.value = 'deep'; model().value = 'm1';
   const textarea = h.find(modal.contentEl, item => item.tag === 'textarea'); textarea.value = '# R\n## A'; textarea.listeners.input();
-  h.find(modal.contentEl, item => item.tag === 'button' && item.text === 'Create mind map').listeners.click();
+  h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Create mind map').listeners.click();
   await new Promise(resolve => setTimeout(resolve, 0));
   assert.equal(requests[0].researchDepth, 'deep'); assert.equal(requests[0].model, 'm1');
   modal.onClose(); assert.equal(unwatched, 1);
@@ -251,7 +252,7 @@ test('outline modal: the content template select sits in the research options an
     const textarea = h.find(modal.contentEl, item => item.tag === 'textarea'); textarea.value = '# R\n## A'; textarea.listeners.input();
     select.value = picked;
     const shallow = h.find(modal.contentEl, item => item.tag === 'input' && item.type === 'checkbox'); shallow.checked = shallowOn; shallow.listeners.change();
-    h.find(modal.contentEl, item => item.tag === 'button' && item.text === 'Create mind map').listeners.click();
+    h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Create mind map').listeners.click();
     await new Promise(resolve => setTimeout(resolve, 0));
     return requests.at(-1);
   };
@@ -272,7 +273,7 @@ test('outline modal: copy format instructions and choose a vault note', async ()
   await modal.loadFile(file);
   assert.equal(h.find(modal.contentEl, item => item.tag === 'textarea').value, '# From file\n## Child');
   assert.ok(h.find(modal.contentEl, item => item.text === 'Source: Inbox/outline.md'));
-  h.find(modal.contentEl, item => item.tag === 'button' && item.text === 'Create mind map').listeners.click();
+  h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Create mind map').listeners.click();
   await new Promise(resolve => setTimeout(resolve, 0));
   assert.equal(requests[0].source, 'Inbox/outline.md');
 });
@@ -489,7 +490,7 @@ function placementModal(target) {
   const text = value => h.find(label(value), item => item.tag === 'span').text;
   const submit = async () => {
     const textarea = h.find(modal.contentEl, item => item.tag === 'textarea'); textarea.value = '# R\n## A'; textarea.listeners.input();
-    h.find(modal.contentEl, item => item.tag === 'button' && item.text === 'Create mind map').listeners.click();
+    h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Create mind map').listeners.click();
     await new Promise(resolve => setTimeout(resolve, 0));
     return requests.at(-1);
   };
@@ -709,3 +710,16 @@ integrationTest('importOutline into the open map: a Map.md save failure lists th
   assert.equal(h.researched.length, 0);
   assert.deepEqual(plain(h.view.map.nodes.map(item => item.id)), plain([h.oldRoot.id, h.oldChild.id]));
 });
+test('outline modal: a create failure keeps the dialog open with the reason beside the button', async () => {
+  const h = modalHarness();
+  const modal = new h.mod.OutlineImportModal({ vault: { getMarkdownFiles: () => [] } }, async () => { throw new Error('Map.md could not be saved'); });
+  modal.open();
+  const textarea = h.find(modal.contentEl, item => item.tag === 'textarea'); textarea.value = '# R\n## A'; textarea.listeners.input();
+  assert.ok(h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Cancel'));
+  await h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Create mind map').listeners.click();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(modal.closed, false);
+  assert.ok(h.find(modal.modalEl, item => /vam-next-status/.test(item.cls) && /Map.md could not be saved/.test(item.text)));
+  assert.equal(h.notices.length, 0);
+});
+

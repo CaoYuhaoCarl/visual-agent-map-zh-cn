@@ -2,6 +2,7 @@ import { App, Modal } from "obsidian";
 import { t } from "../../i18n";
 import type { ResearchDepth, ResearchMode } from "../../ai/types";
 import { modelField, researchDepthField, templateField, type ModelChoices } from "./research-fields";
+import { modalActions } from "../../ui/modals/action-bar";
 
 export interface MultiResearchRequest {
   researchMode: ResearchMode;
@@ -46,10 +47,13 @@ export class MultiResearchModal extends Modal {
     const requirements = requirementsLabel.createEl("textarea");
     requirements.rows = 3;
     requirements.setAttr("aria-label", t("ui.additional_requirements"));
-    const actions = this.contentEl.createDiv("vam-modal-actions");
+    const actions = modalActions(this);
     const cancel = actions.createEl("button", { text: t("ui.cancel") });
     cancel.addEventListener("click", () => this.close());
-    const start = actions.createEl("button", { text: t("ui.multi_research_start"), cls: "mod-cta" });
+    const start = actions.createEl("button", {
+      text: t("ui.multi_research_start_0", this.names.length),
+      cls: "mod-cta"
+    });
     start.addEventListener("click", () => {
       if (this.submitted) return;
       this.submitted = true;

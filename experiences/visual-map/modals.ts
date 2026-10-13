@@ -5,6 +5,7 @@ import { App, Component, MarkdownRenderer, Modal, Notice, Setting, TFile } from 
 import { ReferencePicker, type ReferenceTopic } from "../../ui/reference-picker";
 import { type ReferenceGroup } from "../../ai/reference-materials";
 import { DebugLogModal } from "../../ui/modals/debug-log-modal";
+import { modalActions } from "../../ui/modals/action-bar";
 import { clone, type MapDocument, parseMap, serializeMap } from "../../map-model";
 import {
   normalizeReasoningLevel,
@@ -1445,8 +1446,7 @@ export function armDiscard(
 }
 /** A fixed action bar below the scrolling content, shared by the review dialogs. */
 function reviewActions(modal: Modal): HTMLDivElement {
-  modal.modalEl.addClass("vam-review-modal");
-  return modal.modalEl.createDiv("vam-next-actions");
+  return modalActions(modal);
 }
 export interface DraftReview {
   /** What confirming does, e.g. which topic's summary and details it replaces. */

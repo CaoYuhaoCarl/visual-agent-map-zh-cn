@@ -197,7 +197,6 @@ var english = {
   "ui.multi_research_title": "Research selected topics",
   "ui.multi_research_intro": "Research {0} selected topics in the background, up to 3 at a time. This uses AI quota.",
   "ui.multi_research_topics": "Topics to research",
-  "ui.multi_research_start": "Start research",
   "ui.multi_research_progress": "Researching: {0} of {1} done",
   "ui.multi_research_ended": "Research finished: {0} of {1} done",
   "ui.batch_failed_count": "{0} failed",
@@ -711,6 +710,8 @@ var english = {
   "ui.scan_for_recognizable_vam_workspaces_and_reconnect_only_afte": "Scan for recognizable VAM workspaces and reconnect only after confirmation, without moving or overwriting data.",
   "ui.scan": "Scan",
   "ui.check_again": "Check again",
+  "ui.name_required": "Enter a name to save.",
+  "ui.multi_research_start_0": "Start research ({0})",
   "ui.topic_0": "Topic: {0}",
   "ui.apply_parent": "Apply",
   "ui.will_move_under_0": "Will move under \u201C{0}\u201D.",
@@ -1473,7 +1474,6 @@ var traditionalChinese = {
   "ui.multi_research_title": "\u7814\u7A76\u5DF2\u9078\u8B70\u984C",
   "ui.multi_research_intro": "\u5728\u80CC\u666F\u7814\u7A76\u5DF2\u9078\u7684 {0} \u500B\u8B70\u984C\uFF0C\u6700\u591A\u540C\u6642 3 \u500B\u3002\u6703\u4F7F\u7528 AI \u984D\u5EA6\u3002",
   "ui.multi_research_topics": "\u8981\u7814\u7A76\u7684\u8B70\u984C",
-  "ui.multi_research_start": "\u958B\u59CB\u7814\u7A76",
   "ui.multi_research_progress": "\u7814\u7A76\u4E2D\uFF1A\u5B8C\u6210 {0}\uFF0F{1}",
   "ui.multi_research_ended": "\u7814\u7A76\u7D50\u675F\uFF1A\u5B8C\u6210 {0}\uFF0F{1}",
   "ui.batch_failed_count": "\u5931\u6557 {0}",
@@ -1987,6 +1987,8 @@ var traditionalChinese = {
   "ui.scan_for_recognizable_vam_workspaces_and_reconnect_only_afte": "\u6383\u63CF\u53EF\u8FA8\u8B58\u7684 VAM Workspace\uFF0C\u78BA\u8A8D\u5F8C\u624D\u91CD\u65B0\u9023\u7D50\uFF0C\u4E0D\u6703\u642C\u79FB\u6216\u8986\u5BEB\u8CC7\u6599\u3002",
   "ui.scan": "\u6383\u63CF",
   "ui.check_again": "\u91CD\u65B0\u6AA2\u67E5",
+  "ui.name_required": "\u8ACB\u8F38\u5165\u540D\u7A31\u624D\u80FD\u5132\u5B58\u3002",
+  "ui.multi_research_start_0": "\u958B\u59CB\u7814\u7A76 {0} \u500B\u8B70\u984C",
   "ui.topic_0": "\u8B70\u984C\uFF1A{0}",
   "ui.apply_parent": "\u5957\u7528",
   "ui.will_move_under_0": "\u5C07\u79FB\u5230\u300C{0}\u300D\u5E95\u4E0B\u3002",
@@ -11075,6 +11077,17 @@ ${ordered.join("\n")}
 
 // ui/modals/name-modal.ts
 var import_obsidian6 = require("obsidian");
+
+// ui/modals/action-bar.ts
+function modalActions(modal) {
+  modal.modalEl.addClass("vam-review-modal");
+  return modal.modalEl.createDiv("vam-next-actions");
+}
+function actionStatus(actions) {
+  return actions.createSpan({ cls: "vam-next-actions-note vam-next-status", attr: { "aria-live": "polite" } });
+}
+
+// ui/modals/name-modal.ts
 var NameModal = class extends import_obsidian6.Modal {
   constructor(app, titleText, value, submit) {
     super(app);
@@ -11086,17 +11099,27 @@ var NameModal = class extends import_obsidian6.Modal {
     this.titleEl.setText(this.titleText);
     const input = this.contentEl.createEl("input", { type: "text", value: this.value, cls: "vam-name-input" });
     input.setAttr("aria-label", this.titleText);
+    const actions = modalActions(this);
+    const status = actionStatus(actions);
+    actions.createEl("button", { text: t("ui.cancel") }).addEventListener("click", () => this.close());
+    const saveButton = actions.createEl("button", { text: t("ui.save"), cls: "mod-cta" });
     const save = () => {
       const value = input.value.trim();
-      if (value) {
-        this.close();
-        this.submit(value);
-      }
+      if (!value) return;
+      this.close();
+      this.submit(value);
     };
+    const check = () => {
+      const empty = !input.value.trim();
+      saveButton.disabled = empty;
+      status.setText(empty ? t("ui.name_required") : "");
+    };
+    input.addEventListener("input", check);
     input.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") save();
+      if (event.key === "Enter" && !event.isComposing) save();
     });
-    new import_obsidian6.Setting(this.contentEl).addButton((b) => b.setButtonText(t("ui.cancel")).onClick(() => this.close())).addButton((b) => b.setButtonText(t("ui.save")).setCta().onClick(save));
+    saveButton.addEventListener("click", save);
+    check();
     input.focus();
     input.select();
   }
@@ -13531,6 +13554,7 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
     __publicField(this, "preview");
     __publicField(this, "sourceLabel");
     __publicField(this, "createButton");
+    __publicField(this, "status");
     __publicField(this, "shallow");
     __publicField(this, "source", null);
     __publicField(this, "sourceText", "");
@@ -13543,9 +13567,8 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
     __publicField(this, "placement", "new");
   }
   onOpen() {
-    var _a;
     this.titleEl.setText(t("ui.outline_import"));
-    (_a = this.modalEl) == null ? void 0 : _a.addClass("vam-outline-import-modal");
+    this.modalEl.addClass("vam-outline-import-modal");
     this.contentEl.createEl("p", { text: t("ui.outline_import_hint"), cls: "vam-hint vam-outline-intro" });
     const source = this.contentEl.createDiv("vam-outline-section");
     const sourceHeader = source.createDiv("vam-outline-section-header");
@@ -13575,7 +13598,9 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
     const showOptions = () => researchOptions.toggleClass("is-hidden", !this.shallow.checked);
     this.shallow.addEventListener("change", showOptions);
     showOptions();
-    const footer = this.contentEl.createDiv("vam-modal-actions vam-outline-footer");
+    const footer = modalActions(this);
+    this.status = actionStatus(footer);
+    footer.createEl("button", { text: t("ui.cancel") }).addEventListener("click", () => this.close());
     this.createButton = footer.createEl("button", { text: t("ui.outline_import_create"), cls: "mod-cta" });
     this.createButton.addEventListener("click", () => void this.submit());
     this.refresh();
@@ -13640,6 +13665,7 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
       this.nodes = [];
       this.preview.createEl("p", { text: t("ui.outline_import_preview_empty"), cls: "vam-hint" });
       this.createButton.disabled = true;
+      this.status.setText("");
       return;
     }
     const parse = parseOutline(text11);
@@ -13658,6 +13684,7 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
         list.createDiv({ cls: `vam-outline-row vam-outline-depth-${Math.min(depth.get(node.index), 6)}` }).setText(node.title);
     }
     this.createButton.disabled = this.submitting || !!parse.errors.length;
+    this.status.setText("");
   }
   async submit() {
     if (this.submitting || !this.nodes.length) return;
@@ -13678,9 +13705,9 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
       });
       this.close();
     } catch (error) {
-      new import_obsidian9.Notice(error instanceof Error ? error.message : String(error));
       this.submitting = false;
       this.refresh();
+      this.status.setText(error instanceof Error ? error.message : String(error));
     }
   }
 };
@@ -13716,10 +13743,13 @@ var MultiResearchModal = class extends import_obsidian10.Modal {
     const requirements = requirementsLabel.createEl("textarea");
     requirements.rows = 3;
     requirements.setAttr("aria-label", t("ui.additional_requirements"));
-    const actions = this.contentEl.createDiv("vam-modal-actions");
+    const actions = modalActions(this);
     const cancel = actions.createEl("button", { text: t("ui.cancel") });
     cancel.addEventListener("click", () => this.close());
-    const start = actions.createEl("button", { text: t("ui.multi_research_start"), cls: "mod-cta" });
+    const start = actions.createEl("button", {
+      text: t("ui.multi_research_start_0", this.names.length),
+      cls: "mod-cta"
+    });
     start.addEventListener("click", () => {
       if (this.submitted) return;
       this.submitted = true;
@@ -21545,8 +21575,7 @@ function armDiscard(button, status, discard, blocked = () => false) {
   return disarm;
 }
 function reviewActions(modal) {
-  modal.modalEl.addClass("vam-review-modal");
-  return modal.modalEl.createDiv("vam-next-actions");
+  return modalActions(modal);
 }
 var DraftReviewModal = class extends import_obsidian15.Modal {
   constructor(app, summary, detail, review, confirm, discard) {
