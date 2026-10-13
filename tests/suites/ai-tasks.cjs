@@ -359,3 +359,66 @@ integrationTest('task prompt uses the context template; no template keeps the St
   assert.match(prompts[1], /6 個三級標題/);
   assert.doesNotMatch(prompts[1], /### 取捨與限制/);
 });
+const countFixture = () => {
+  const { AiTaskService } = load('core/ai-task-service.ts');
+  const templates = load('ai/detail-templates.ts');
+  const template = templates.copyTemplate(templates.standardTemplate('zh-TW'), '教學', 't1');
+  template.sections.splice(2, 0, { id: 'ex', name: '範例', description: '', role: 'none', count: { mode: 'exact', n: 3 }, aliases: [] });
+  const detailWith = (items, extra = '') => `### 核心結論\n\n- a\n\n### 範例\n\n${Array.from({ length: items }, (_, i) => `- ${i + 1}`).join('\n')}${extra}`;
+  const reply = detail => JSON.stringify({ summary: 'S', detail, suggestions: [], visualReferences: [] });
+  const prompts = [];
+  const run = async (replies, { signal, input } = {}) => {
+    const queue = [...replies];
+    const runtime = { runTask: async prompt => { prompts.push(prompt); const next = queue.shift(); if (next instanceof Error) throw next; if (typeof next === 'function') return next(); return next; } };
+    const service = new AiTaskService({ pluginDirectory: () => '/plugin', language: () => 'zh-TW', defaultReasoning: () => 'low', exchangeLoggingEnabled: () => false, exchanges: () => null, codexRuntime: () => runtime, claudeRuntime: () => runtime });
+    const base = { title: 'Goal', summary: '', rules: '', detail: '', task: 'Write', ancestors: '', mode: 'task', researchMode: 'local', outputLanguage: 'zh-TW', detailTemplate: template, ...input };
+    return service.askModel(base, 'gpt-6-luna', 'low', signal);
+  };
+  return { prompts, run, reply, detailWith };
+};
+integrationTest('enforced count met on first reply: no repair request, no issues', async () => {
+  const { prompts, run, reply, detailWith } = countFixture();
+  const result = await run([reply(detailWith(3))]);
+  assert.equal(prompts.length, 1);
+  assert.deepEqual(plain(result.formatIssues), []);
+});
+integrationTest('enforced count unmet: one repair request with the issue, fixed reply wins', async () => {
+  const { prompts, run, reply, detailWith } = countFixture();
+  const first = detailWith(2);
+  const result = await run([reply(first), reply(detailWith(3))]);
+  assert.equal(prompts.length, 2);
+  assert.match(prompts[1], /### 範例/);
+  assert.match(prompts[1], /要求剛好 3 個，實際 2 個/);
+  assert.ok(prompts[1].includes('- 2'), 'repair prompt carries the first reply as the previous detail');
+  assert.equal((result.detail.match(/^- \d$/gm) || []).length, 3);
+  assert.match(result.detail, /- 3/);
+  assert.deepEqual(plain(result.formatIssues), []);
+});
+integrationTest('enforced count still unmet after repair: second result kept, issues reported, no third call', async () => {
+  const { prompts, run, reply, detailWith } = countFixture();
+  const result = await run([reply(detailWith(2)), reply(detailWith(1)), reply(detailWith(3))]);
+  assert.equal(prompts.length, 2);
+  assert.deepEqual(plain(result.formatIssues), [{ section: '範例', mode: 'exact', n: 3, actual: 1 }]);
+});
+integrationTest('repair request failure keeps the first result and reports its issues', async () => {
+  const { prompts, run, reply, detailWith } = countFixture();
+  const result = await run([reply(detailWith(2)), new Error('boom')]);
+  assert.equal(prompts.length, 2);
+  assert.match(result.detail, /- 2/);
+  assert.deepEqual(plain(result.formatIssues), [{ section: '範例', mode: 'exact', n: 3, actual: 2 }]);
+});
+integrationTest('abort during repair propagates as AbortError', async () => {
+  const { run, reply, detailWith } = countFixture();
+  const controller = new AbortController();
+  const abort = () => { controller.abort(); const error = new Error('Aborted'); error.name = 'AbortError'; throw error; };
+  await assert.rejects(run([reply(detailWith(2)), abort], { signal: controller.signal }), error => error.name === 'AbortError');
+});
+integrationTest('count repair keeps a source footnote whose definition the repair reply omitted', async () => {
+  const { prompts, run, reply, detailWith } = countFixture();
+  const first = `${detailWith(2).replace('- a', '- a[^1]')}\n\n### 證據與來源\n\n[^1]: [[來源.md]]`;
+  const second = detailWith(3).replace('- a', '- a[^1]');
+  const result = await run([reply(first), reply(second)]);
+  assert.equal(prompts.length, 2);
+  assert.match(result.detail, /\[\^1\]: \[\[來源\.md\]\]/);
+  assert.deepEqual(plain(result.formatIssues), []);
+});

@@ -14,6 +14,8 @@ import CustomRuleExactZH from "./custom-detail-rule-exact.zh.md";
 import CustomRuleExactEN from "./custom-detail-rule-exact.en.md";
 import CustomRuleMinZH from "./custom-detail-rule-min.zh.md";
 import CustomRuleMinEN from "./custom-detail-rule-min.en.md";
+import RepairCountsZH from "./repair-counts.zh.md";
+import RepairCountsEN from "./repair-counts.en.md";
 import DecomposeZH from "./decompose.zh.md";
 import DecomposeEN from "./decompose.en.md";
 import DefaultTaskZH from "./default-task.zh.md";
@@ -88,6 +90,11 @@ export function customDetailRule(
   values: Record<string, string>
 ): string {
   return renderTemplate(inLanguage(CUSTOM_DETAIL_RULES[kind], language), values);
+}
+const REPAIR_COUNTS_TEMPLATE: FragmentPair = { zh: RepairCountsZH, en: RepairCountsEN };
+/** The single follow-up request that asks the model to fix sections whose item counts missed the template. */
+export function repairCounts(language: UiLanguage, issues: string): string {
+  return renderTemplate(inLanguage(REPAIR_COUNTS_TEMPLATE, language), { issues });
 }
 export function sourceRegistry(catalog: string): string {
   return renderTemplate(SourceRegistryTemplate, { catalog });

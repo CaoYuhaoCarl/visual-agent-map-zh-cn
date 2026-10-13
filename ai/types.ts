@@ -1,4 +1,4 @@
-import type { DetailTemplate } from "./detail-templates";
+import type { CountIssue, DetailTemplate } from "./detail-templates";
 import type { AimContract } from "./aim-contracts";
 import type { UiLanguage } from "../i18n";
 import type { ReferenceGroup } from "./reference-materials";
@@ -44,6 +44,8 @@ export interface TaskContext {
   detailFormat?: "adaptive";
   /** Content template for fixed-section details (trusted; Standard when absent). */
   detailTemplate?: DetailTemplate;
+  /** internal: this request is the single count repair. */
+  countRepair?: boolean;
   /** Select a phase-aware prompt builder for AIM requests. */
   promptProfile?: PromptProfile;
   /** Selects a narrow trusted response schema for the AIM gap audit only. */
@@ -76,6 +78,8 @@ export interface AiResult {
   suggestions: Suggestion[];
   visualReferences: VisualReference[];
   searchStatus?: SearchStatus;
+  /** Sections still off their template count after the repair request; present only when the context had counts. */
+  formatIssues?: CountIssue[];
 }
 export interface AiRunMetrics {
   provider: string;

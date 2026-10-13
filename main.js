@@ -797,6 +797,8 @@ var english = {
   "detail.open_questions": "Open questions",
   "detail.update_log": "Update log",
   "ui.detail_template_standard": "Standard",
+  "ui.detail_count_issue_exact": "{0}: needs exactly {1}, has {2}",
+  "ui.detail_count_issue_min": "{0}: needs at least {1}, has {2}",
   "ui.detail_template_error_name_required": "Template name is required.",
   "ui.detail_template_error_name_taken": 'A template named "{0}" already exists.',
   "ui.detail_template_error_name_long": "Template name must be 40 characters or fewer.",
@@ -1973,6 +1975,8 @@ var traditionalChinese = {
   "detail.open_questions": "\u5F85\u78BA\u8A8D\u4E8B\u9805",
   "detail.update_log": "\u66F4\u65B0\u7D00\u9304",
   "ui.detail_template_standard": "\u6A19\u6E96",
+  "ui.detail_count_issue_exact": "{0}\uFF1A\u8981\u6C42\u525B\u597D {1} \u500B\uFF0C\u5BE6\u969B {2} \u500B",
+  "ui.detail_count_issue_min": "{0}\uFF1A\u8981\u6C42\u81F3\u5C11 {1} \u500B\uFF0C\u5BE6\u969B {2} \u500B",
   "ui.detail_template_error_name_required": "\u8ACB\u8F38\u5165\u6A21\u677F\u540D\u7A31\u3002",
   "ui.detail_template_error_name_taken": "\u5DF2\u6709\u540D\u70BA\u300C{0}\u300D\u7684\u6A21\u677F\u3002",
   "ui.detail_template_error_name_long": "\u6A21\u677F\u540D\u7A31\u6700\u591A 40 \u5B57\u3002",
@@ -10223,6 +10227,12 @@ var custom_detail_rule_min_zh_default = "{{heading}} \u5FC5\u9808\u81F3\u5C11\u6
 // core/steps/task/custom-detail-rule-min.en.md
 var custom_detail_rule_min_en_default = "{{heading}} must have at least {{n}} items (top-level list items, or #### sub-headings).\n";
 
+// core/steps/task/repair-counts.zh.md
+var repair_counts_zh_default = "\u4E0A\u4E00\u7248 detail \u6709\u6BB5\u843D\u7684\u9805\u76EE\u6578\u4E0D\u7B26\u5408\u8981\u6C42\uFF1A\n{{issues}}\n\u8ACB\u53EA\u8ABF\u6574\u9019\u4E9B\u6BB5\u843D\uFF0C\u8B93\u9805\u76EE\u6578\u7B26\u5408\u8981\u6C42\uFF08\u4EE5\u7B2C\u4E00\u5C64\u6E05\u55AE\u9805\u76EE\uFF0C\u6216 #### \u5C0F\u6A19\u984C\u8A08\u7B97\uFF09\u3002\u5176\u4ED6\u6BB5\u843D\u3001summary \u8207\u6240\u6709\u4F86\u6E90\u8A3B\u8173\u7DAD\u6301\u539F\u6A23\u3002\n";
+
+// core/steps/task/repair-counts.en.md
+var repair_counts_en_default = "Some sections of the previous detail do not have the required number of items:\n{{issues}}\nAdjust only those sections so the counts match (top-level list items, or #### sub-headings). Keep every other section, the summary and all source footnotes as they are.\n";
+
 // core/steps/task/decompose.zh.md
 var decompose_zh_default = "\u9019\u662F Decompose \u6A21\u5F0F\uFF1A\u4F9D\u672C\u6B21\u4EFB\u52D9\u6307\u5B9A\u7684\u5C64\u6578\u8207\u6578\u91CF\u63D0\u51FA\u53EF\u7368\u7ACB\u8655\u7406\u7684\u5B50\u8B70\u984C\uFF1B\u82E5\u73FE\u6709\u5B50\u8B70\u984C\u5DF2\u6DB5\u84CB\u9700\u6C42\uFF0C\u56DE\u50B3\u7A7A\u9663\u5217\uFF0C\u4E0D\u8981\u6E4A\u6578\u3002summary \u7C21\u8FF0\u662F\u5426\u5EFA\u8B70\u62C6\u89E3\uFF0Cdetail \u7C21\u8FF0\u62C6\u89E3\u7406\u7531\uFF1B\u4E0D\u8981\u66F4\u65B0\u7D50\u8AD6\u3002\n";
 
@@ -10341,6 +10351,10 @@ var CUSTOM_DETAIL_RULES = {
 function customDetailRule(kind, language2, values) {
   return renderTemplate(inLanguage(CUSTOM_DETAIL_RULES[kind], language2), values);
 }
+var REPAIR_COUNTS_TEMPLATE = { zh: repair_counts_zh_default, en: repair_counts_en_default };
+function repairCounts(language2, issues) {
+  return renderTemplate(inLanguage(REPAIR_COUNTS_TEMPLATE, language2), { issues });
+}
 function sourceRegistry(catalog) {
   return renderTemplate(source_registry_default, { catalog });
 }
@@ -10441,6 +10455,49 @@ function normalizeTemplates(value) {
     result.push(template);
   }
   return result;
+}
+function countItems(body) {
+  const lines = body.split("\n");
+  const code = fencedLines(lines);
+  const outside = lines.filter((_, index) => !code[index]);
+  const headings = outside.filter((line) => /^####\s+\S/.test(line)).length;
+  if (headings) return headings;
+  return outside.filter((line) => /^(?:[-*+]|\d+[.)])\s+\S/.test(line)).length;
+}
+function sectionBodies(detail, template) {
+  const lookup = /* @__PURE__ */ new Map();
+  template.sections.forEach((section3, index) => sectionKeys(section3).forEach((key2) => lookup.set(key2, index)));
+  const lines = detail.split("\n");
+  const code = fencedLines(lines);
+  const bodies = /* @__PURE__ */ new Map();
+  let current;
+  lines.forEach((line, index) => {
+    const heading = code[index] ? null : /^###\s+(.+?)\s*$/.exec(line);
+    const match = heading ? lookup.get(heading[1].toLocaleLowerCase()) : void 0;
+    if (match !== void 0) {
+      current = match;
+      if (!bodies.has(match)) bodies.set(match, []);
+      return;
+    }
+    if (current !== void 0) bodies.get(current).push(line);
+  });
+  return new Map([...bodies].map(([index, body]) => [index, body.join("\n")]));
+}
+function checkCounts(detail, template) {
+  const bodies = sectionBodies(detail, template);
+  const issues = [];
+  template.sections.forEach((section3, index) => {
+    var _a;
+    if (!section3.count) return;
+    const actual = countItems((_a = bodies.get(index)) != null ? _a : "");
+    const ok = section3.count.mode === "exact" ? actual === section3.count.n : actual >= section3.count.n;
+    if (!ok) issues.push({ section: section3.name, mode: section3.count.mode, n: section3.count.n, actual });
+  });
+  return issues;
+}
+function countIssueText(issue, language2) {
+  const key2 = issue.mode === "exact" ? "ui.detail_count_issue_exact" : "ui.detail_count_issue_min";
+  return translate(language2, key2, issue.section, issue.n, issue.actual);
 }
 function detailStructurePrompt(template, language2, standardText) {
   const headings = template.sections.map((section3) => `### ${section3.name}`).join(", ");
@@ -28210,11 +28267,47 @@ var AiTaskService = class {
         }
       });
       stage = t("log.stage_parsing_reply");
-      const result = step.parse(raw);
+      let result = step.parse(raw);
       if (referenceGroups.length) result.summary = resolveSummaryReferences(result.summary, referenceGroups);
       if (referenceGroups.length || /\[\^/.test(result.detail))
         result.detail = resolveDetailReferences(result.detail, referenceGroups, input.detail, input.detailTemplate);
       if (this.options.exchangeLoggingEnabled()) exchanges == null ? void 0 : exchanges.parsed(exchangeId);
+      const template = input.detailTemplate;
+      if (template && template.sections.some((section3) => section3.count) && input.mode !== "decompose" && input.detailFormat !== "adaptive") {
+        let issues = checkCounts(canonicalDetail(result.detail, outputLanguage, template), template);
+        if (issues.length && !input.countRepair) {
+          try {
+            const repaired = await this.execute(
+              {
+                ...input,
+                detail: result.detail,
+                summary: result.summary,
+                task: repairCounts(
+                  outputLanguage,
+                  issues.map((issue) => `- ### ${issue.section}: ${countIssueText(issue, outputLanguage)}`).join("\n")
+                ),
+                workingFindings: "",
+                sourceContext: "",
+                referenceGroups: [],
+                researchMode: "local",
+                countRepair: true
+              },
+              model,
+              reasoning,
+              signal,
+              onExchange,
+              void 0,
+              void 0,
+              role
+            );
+            result = repaired;
+            issues = checkCounts(canonicalDetail(result.detail, outputLanguage, template), template);
+          } catch (error) {
+            if ((signal == null ? void 0 : signal.aborted) || error instanceof Error && error.name === "AbortError") throw error;
+          }
+        }
+        result.formatIssues = issues;
+      }
       console.debug("Visual Agent Map AI metrics", {
         ...prepared.metrics,
         providerMs: Date.now() - providerStarted,

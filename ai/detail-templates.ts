@@ -213,6 +213,11 @@ export function checkCounts(detail: string, template: DetailTemplate): CountIssu
   return issues;
 }
 
+export function countIssueText(issue: CountIssue, language: UiLanguage): string {
+  const key = issue.mode === "exact" ? "ui.detail_count_issue_exact" : "ui.detail_count_issue_min";
+  return translate(language, key, issue.section, issue.n, issue.actual);
+}
+
 export function detailStructurePrompt(
   template: DetailTemplate,
   language: UiLanguage,

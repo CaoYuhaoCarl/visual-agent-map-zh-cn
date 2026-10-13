@@ -7,6 +7,8 @@ import {
 } from "../ai/reference-materials";
 import { buildPreparedTaskContext, estimateTokens } from "../ai/context-builder";
 import { effectiveReasoningLevel, normalizeReasoningLevel } from "../ai/task-policy";
+import { canonicalDetail } from "../ai/result-utils";
+import { checkCounts, countIssueText } from "../ai/detail-templates";
 import type { AiResult, ReasoningLevel, TaskContext } from "../ai/types";
 import { translate, t, type UiLanguage } from "../i18n";
 import { CLAUDE_MODEL_CHOICES, providerForModel } from "../ai/providers/provider";
@@ -17,7 +19,7 @@ import { runtimeStepProvider, type ExchangeSink } from "./runtime-step-provider"
 import { prepareStep, StepRunner } from "./step-runner";
 import { referenceTask } from "./steps/reference/step";
 import { taskResponseShape } from "./steps/task/schemas";
-import { sourceRegistry } from "./steps/task/fragments";
+import { repairCounts, sourceRegistry } from "./steps/task/fragments";
 import { createTaskStep, taskStepId, type TaskStepRole } from "./steps/task/step";
 
 export { extractJsonObject } from "./steps/task/parse";
@@ -184,12 +186,53 @@ export class AiTaskService {
         }
       });
       stage = t("log.stage_parsing_reply");
-      const result = step.parse(raw);
+      let result = step.parse(raw);
       if (referenceGroups.length) result.summary = resolveSummaryReferences(result.summary, referenceGroups);
       // Runs without sources too, so a source footnote kept from the previous detail keeps its definition.
       if (referenceGroups.length || /\[\^/.test(result.detail))
         result.detail = resolveDetailReferences(result.detail, referenceGroups, input.detail, input.detailTemplate);
       if (this.options.exchangeLoggingEnabled()) exchanges?.parsed(exchangeId);
+      const template = input.detailTemplate;
+      if (
+        template &&
+        template.sections.some(section => section.count) &&
+        input.mode !== "decompose" &&
+        input.detailFormat !== "adaptive"
+      ) {
+        let issues = checkCounts(canonicalDetail(result.detail, outputLanguage, template), template);
+        if (issues.length && !input.countRepair) {
+          try {
+            const repaired = await this.execute(
+              {
+                ...input,
+                detail: result.detail,
+                summary: result.summary,
+                task: repairCounts(
+                  outputLanguage,
+                  issues.map(issue => `- ### ${issue.section}: ${countIssueText(issue, outputLanguage)}`).join("\n")
+                ),
+                workingFindings: "",
+                sourceContext: "",
+                referenceGroups: [],
+                researchMode: "local",
+                countRepair: true
+              },
+              model,
+              reasoning,
+              signal,
+              onExchange,
+              undefined,
+              undefined,
+              role
+            );
+            result = repaired;
+            issues = checkCounts(canonicalDetail(result.detail, outputLanguage, template), template);
+          } catch (error) {
+            if (signal?.aborted || (error instanceof Error && error.name === "AbortError")) throw error;
+          }
+        }
+        result.formatIssues = issues;
+      }
       console.debug("Visual Agent Map AI metrics", {
         ...prepared.metrics,
         providerMs: Date.now() - providerStarted,
