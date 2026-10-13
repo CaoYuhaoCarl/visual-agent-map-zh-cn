@@ -36,25 +36,25 @@ export interface CountIssue {
 
 export const STANDARD_TEMPLATE_ID = "standard";
 const LANGUAGES: readonly UiLanguage[] = ["zh-TW", "en"];
-const STANDARD: readonly [string, TranslationKey, DetailSectionRole][] = [
-  ["core", "detail.core_conclusions", "none"],
-  ["knowledge", "detail.key_knowledge", "none"],
-  ["sources", "detail.evidence_and_sources", "sources"],
-  ["tradeoffs", "detail.tradeoffs_and_limitations", "none"],
-  ["questions", "detail.open_questions", "none"],
-  ["log", "detail.update_log", "log"]
+const STANDARD: readonly [string, TranslationKey, TranslationKey, DetailSectionRole][] = [
+  ["core", "detail.core_conclusions", "detail.description_core_conclusions", "none"],
+  ["knowledge", "detail.key_knowledge", "detail.description_key_knowledge", "none"],
+  ["sources", "detail.evidence_and_sources", "detail.description_evidence_and_sources", "sources"],
+  ["tradeoffs", "detail.tradeoffs_and_limitations", "detail.description_tradeoffs_and_limitations", "none"],
+  ["questions", "detail.open_questions", "detail.description_open_questions", "none"],
+  ["log", "detail.update_log", "detail.description_update_log", "log"]
 ];
 
 export function standardTemplate(language: UiLanguage): DetailTemplate {
   return {
     id: STANDARD_TEMPLATE_ID,
     name: translate(language, "ui.detail_template_standard"),
-    sections: STANDARD.map(([id, key, role]) => {
+    sections: STANDARD.map(([id, key, descriptionKey, role]) => {
       const name = translate(language, key);
       return {
         id,
         name,
-        description: "",
+        description: translate(language, descriptionKey),
         role,
         aliases: LANGUAGES.map(locale => translate(locale, key)).filter(alias => alias !== name)
       };
@@ -263,13 +263,21 @@ export function detailStructurePrompt(
   standardText: (headings: string) => string
 ): string {
   const headings = template.sections.map(section => `### ${section.name}`).join(", ");
-  if (template.id === STANDARD_TEMPLATE_ID) return standardText(headings);
+  const description = (section: DetailSection) =>
+    customDetailRule("description", language, {
+      heading: `### ${section.name}`,
+      description: section.description.trim()
+    });
+  if (template.id === STANDARD_TEMPLATE_ID)
+    return [
+      standardText(headings),
+      ...template.sections.filter(section => section.description.trim()).map(description)
+    ].join("\n");
   const rules: string[] = [];
   for (const section of template.sections) {
     const heading = `### ${section.name}`;
     if (section.role === "log") rules.push(customDetailRule("log", language, { heading }));
-    if (section.description.trim())
-      rules.push(customDetailRule("description", language, { heading, description: section.description.trim() }));
+    if (section.description.trim()) rules.push(description(section));
     if (section.count)
       rules.push(customDetailRule(section.count.mode, language, { heading, n: String(section.count.n) }));
   }

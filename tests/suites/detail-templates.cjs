@@ -68,9 +68,27 @@ test('checkCounts reads sections by template name or alias', () => {
   assert.deepEqual(plain(api.checkCounts(detail, t)), [{ section: 'Examples', mode: 'exact', n: 3, actual: 2 }]);
   assert.deepEqual(plain(api.checkCounts('### 核心結論\n\n- a\n\n### Examples\n\n- 1\n- 2\n- 3', t)), [{ section: 'Core conclusions', mode: 'min', n: 2, actual: 1 }]);
 });
-test('detailStructurePrompt: Standard uses the existing text verbatim; custom lists headings, log rule, descriptions and counts', () => {
+const STANDARD_DESCRIPTIONS = {
+  'zh-TW': ['直接回答研究問題，預設 3–5 點，先講結論再講理由。', '理解結論需要的概念、數據、機制與背景。', '支持結論的事實與數據，並標出處；來源清單會自動放在這段最後。', '各選項的優缺點、適用條件、風險，以及這次研究的限制。', '還沒查證或資料不足、值得下一步研究的問題。', '只新增一行，寫這次更新了什麼。'],
+  en: ['Answer the research question directly, 3–5 points by default; give the conclusion first, then the reason.', 'The concepts, data, mechanisms and background needed to understand the conclusions.', 'The facts and data that support the conclusions, with their sources; the source list is added to the end of this section automatically.', 'Pros and cons of the options, when each applies, the risks, and the limits of this research.', 'Questions not yet verified or lacking data that are worth researching next.', 'Add only one line saying what this update changed.']
+};
+test('standard template: each section carries its AI instruction; copies keep them', () => {
+  for (const language of ['zh-TW', 'en']) {
+    const standard = api.standardTemplate(language);
+    assert.deepEqual(plain(standard.sections.map(s => s.description)), STANDARD_DESCRIPTIONS[language], language);
+    const copy = api.copyTemplate(standard, 'Copy', 'c1');
+    assert.deepEqual(plain(copy.sections.map(s => s.description)), STANDARD_DESCRIPTIONS[language], `${language} copy`);
+    assert.deepEqual(plain(api.validateTemplate(copy, [])), [], `${language} copy is valid`);
+  }
+});
+test('detailStructurePrompt: Standard is the existing sentence plus six description lines; custom lists headings, log rule, descriptions and counts', () => {
   const standard = api.detailStructurePrompt(api.standardTemplate('zh-TW'), 'zh-TW', h => `STD(${h})`);
-  assert.equal(standard, 'STD(### 核心結論, ### 關鍵知識, ### 證據與來源, ### 取捨與限制, ### 待確認事項, ### 更新紀錄)');
+  const zhNames = ['核心結論', '關鍵知識', '證據與來源', '取捨與限制', '待確認事項', '更新紀錄'];
+  assert.equal(standard, ['STD(### 核心結論, ### 關鍵知識, ### 證據與來源, ### 取捨與限制, ### 待確認事項, ### 更新紀錄)',
+    ...zhNames.map((name, i) => `### ${name}：${STANDARD_DESCRIPTIONS['zh-TW'][i]}`)].join('\n'));
+  const enNames = ['Core conclusions', 'Key knowledge', 'Evidence and sources', 'Tradeoffs and limitations', 'Open questions', 'Update log'];
+  assert.equal(api.detailStructurePrompt(api.standardTemplate('en'), 'en', h => `STD(${h})`), [`STD(${enNames.map(n => `### ${n}`).join(', ')})`,
+    ...enNames.map((name, i) => `### ${name}: ${STANDARD_DESCRIPTIONS.en[i]}`)].join('\n'));
   const t = { id: 't', name: 'T', sections: [
     { id: 'a', name: '重點', description: '三句內', role: 'none', aliases: [] },
     { id: 'b', name: '範例', description: '', role: 'none', count: { mode: 'exact', n: 3 }, aliases: [] },

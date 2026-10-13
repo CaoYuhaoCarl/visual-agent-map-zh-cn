@@ -796,6 +796,12 @@ var english = {
   "detail.tradeoffs_and_limitations": "Tradeoffs and limitations",
   "detail.open_questions": "Open questions",
   "detail.update_log": "Update log",
+  "detail.description_core_conclusions": "Answer the research question directly, 3\u20135 points by default; give the conclusion first, then the reason.",
+  "detail.description_key_knowledge": "The concepts, data, mechanisms and background needed to understand the conclusions.",
+  "detail.description_evidence_and_sources": "The facts and data that support the conclusions, with their sources; the source list is added to the end of this section automatically.",
+  "detail.description_tradeoffs_and_limitations": "Pros and cons of the options, when each applies, the risks, and the limits of this research.",
+  "detail.description_open_questions": "Questions not yet verified or lacking data that are worth researching next.",
+  "detail.description_update_log": "Add only one line saying what this update changed.",
   "ui.detail_template_standard": "Standard",
   "ui.detail_template": "Content template",
   "ui.detail_template_keep_0": "Keep current ({0})",
@@ -2010,6 +2016,12 @@ var traditionalChinese = {
   "detail.tradeoffs_and_limitations": "\u53D6\u6368\u8207\u9650\u5236",
   "detail.open_questions": "\u5F85\u78BA\u8A8D\u4E8B\u9805",
   "detail.update_log": "\u66F4\u65B0\u7D00\u9304",
+  "detail.description_core_conclusions": "\u76F4\u63A5\u56DE\u7B54\u7814\u7A76\u554F\u984C\uFF0C\u9810\u8A2D 3\u20135 \u9EDE\uFF0C\u5148\u8B1B\u7D50\u8AD6\u518D\u8B1B\u7406\u7531\u3002",
+  "detail.description_key_knowledge": "\u7406\u89E3\u7D50\u8AD6\u9700\u8981\u7684\u6982\u5FF5\u3001\u6578\u64DA\u3001\u6A5F\u5236\u8207\u80CC\u666F\u3002",
+  "detail.description_evidence_and_sources": "\u652F\u6301\u7D50\u8AD6\u7684\u4E8B\u5BE6\u8207\u6578\u64DA\uFF0C\u4E26\u6A19\u51FA\u8655\uFF1B\u4F86\u6E90\u6E05\u55AE\u6703\u81EA\u52D5\u653E\u5728\u9019\u6BB5\u6700\u5F8C\u3002",
+  "detail.description_tradeoffs_and_limitations": "\u5404\u9078\u9805\u7684\u512A\u7F3A\u9EDE\u3001\u9069\u7528\u689D\u4EF6\u3001\u98A8\u96AA\uFF0C\u4EE5\u53CA\u9019\u6B21\u7814\u7A76\u7684\u9650\u5236\u3002",
+  "detail.description_open_questions": "\u9084\u6C92\u67E5\u8B49\u6216\u8CC7\u6599\u4E0D\u8DB3\u3001\u503C\u5F97\u4E0B\u4E00\u6B65\u7814\u7A76\u7684\u554F\u984C\u3002",
+  "detail.description_update_log": "\u53EA\u65B0\u589E\u4E00\u884C\uFF0C\u5BEB\u9019\u6B21\u66F4\u65B0\u4E86\u4EC0\u9EBC\u3002",
   "ui.detail_template_standard": "\u6A19\u6E96",
   "ui.detail_template": "\u5167\u5BB9\u6A21\u677F",
   "ui.detail_template_keep_0": "\u6CBF\u7528\u76EE\u524D\uFF08{0}\uFF09",
@@ -10435,23 +10447,23 @@ function sourceRegistry(catalog) {
 var STANDARD_TEMPLATE_ID = "standard";
 var LANGUAGES = ["zh-TW", "en"];
 var STANDARD = [
-  ["core", "detail.core_conclusions", "none"],
-  ["knowledge", "detail.key_knowledge", "none"],
-  ["sources", "detail.evidence_and_sources", "sources"],
-  ["tradeoffs", "detail.tradeoffs_and_limitations", "none"],
-  ["questions", "detail.open_questions", "none"],
-  ["log", "detail.update_log", "log"]
+  ["core", "detail.core_conclusions", "detail.description_core_conclusions", "none"],
+  ["knowledge", "detail.key_knowledge", "detail.description_key_knowledge", "none"],
+  ["sources", "detail.evidence_and_sources", "detail.description_evidence_and_sources", "sources"],
+  ["tradeoffs", "detail.tradeoffs_and_limitations", "detail.description_tradeoffs_and_limitations", "none"],
+  ["questions", "detail.open_questions", "detail.description_open_questions", "none"],
+  ["log", "detail.update_log", "detail.description_update_log", "log"]
 ];
 function standardTemplate(language2) {
   return {
     id: STANDARD_TEMPLATE_ID,
     name: translate(language2, "ui.detail_template_standard"),
-    sections: STANDARD.map(([id, key2, role]) => {
+    sections: STANDARD.map(([id, key2, descriptionKey, role]) => {
       const name = translate(language2, key2);
       return {
         id,
         name,
-        description: "",
+        description: translate(language2, descriptionKey),
         role,
         aliases: LANGUAGES.map((locale) => translate(locale, key2)).filter((alias) => alias !== name)
       };
@@ -10617,13 +10629,20 @@ function countIssueText(issue, language2) {
 }
 function detailStructurePrompt(template, language2, standardText) {
   const headings = template.sections.map((section3) => `### ${section3.name}`).join(", ");
-  if (template.id === STANDARD_TEMPLATE_ID) return standardText(headings);
+  const description = (section3) => customDetailRule("description", language2, {
+    heading: `### ${section3.name}`,
+    description: section3.description.trim()
+  });
+  if (template.id === STANDARD_TEMPLATE_ID)
+    return [
+      standardText(headings),
+      ...template.sections.filter((section3) => section3.description.trim()).map(description)
+    ].join("\n");
   const rules = [];
   for (const section3 of template.sections) {
     const heading = `### ${section3.name}`;
     if (section3.role === "log") rules.push(customDetailRule("log", language2, { heading }));
-    if (section3.description.trim())
-      rules.push(customDetailRule("description", language2, { heading, description: section3.description.trim() }));
+    if (section3.description.trim()) rules.push(description(section3));
     if (section3.count)
       rules.push(customDetailRule(section3.count.mode, language2, { heading, n: String(section3.count.n) }));
   }
