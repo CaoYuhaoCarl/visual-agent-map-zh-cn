@@ -12256,6 +12256,13 @@ ${body}`);
    * one specific map keeps using readMap and still surfaces its error.
    */
   async readableMaps() {
+    return (await this.scanMaps()).readable;
+  }
+  /**
+   * Only for scans that tolerate a missing map; destructive planners (migration) must use readMap so a broken map
+   * fails them loudly instead of being skipped.
+   */
+  async scanMaps() {
     var _a;
     const readable = [], failures = [];
     for (const file of await this.mapFiles()) {
@@ -12266,7 +12273,7 @@ ${body}`);
       }
     }
     if (failures.length) (_a = this.onUnreadableMaps) == null ? void 0 : _a.call(this, failures);
-    return readable;
+    return { readable, skippedRoots: failures.map((item) => this.topicRoot(item.path)) };
   }
   /**
    * Whether a rename of `file` (previously at `oldPath`) can affect VAM data, decided from the metadata cache without
@@ -12486,7 +12493,8 @@ ${body}`);
   async rebuildDerivedData(noteRoot) {
     const ownership = /* @__PURE__ */ new Map();
     const topics = /* @__PURE__ */ new Map();
-    for (const { file: mapFile, map } of await this.readableMaps()) {
+    const scan = await this.scanMaps();
+    for (const { file: mapFile, map } of scan.readable) {
       topics.set(map.id, { map, mapPath: mapFile.path });
       for (const node of map.nodes) {
         const existing = ownership.get(node.path);
@@ -12502,6 +12510,7 @@ ${body}`);
     }
     for (const file of nodeFiles.values()) {
       if (noteRoot && !file.path.startsWith(`${noteRoot}/`)) continue;
+      if (scan.skippedRoots.some((root) => file.path.startsWith(`${root}/`) && !ownership.has(file.path))) continue;
       const cached = await this.app.vault.cachedRead(file), derived = this.derivedNoteContent(file, cached, ownership, topics);
       if (derived === null || derived === cached) continue;
       await this.app.vault.process(
@@ -12620,9 +12629,16 @@ ${body}`;
     return path;
   }
   async legacyMigrationPlan() {
-    const legacyMaps = (await this.readableMaps()).filter(
-      ({ file }) => !file.path.startsWith(`${this.settings.topicsFolder}/`)
-    );
+    const legacyMaps = [];
+    for (const file of await this.mapFiles()) {
+      let map;
+      try {
+        map = await this.readMap(file.path);
+      } catch (error) {
+        throw new Error(`${file.path}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+      if (!file.path.startsWith(`${this.settings.topicsFolder}/`)) legacyMaps.push({ file, map });
+    }
     const assigned = /* @__PURE__ */ new Set(), maps = [];
     const reservedRoots = /* @__PURE__ */ new Set();
     for (const { file, map } of legacyMaps) {
