@@ -3559,11 +3559,12 @@ export class VisualAgentMapView extends ItemView {
     });
   }
   private openNodePanel(node: MapNode, mode: "structure" | "proposals"): void {
-    const render = (content: HTMLElement, close: () => void): void => this.renderInspector(content, node, mode, close);
+    const render = (content: HTMLElement, close: () => void, host: HTMLElement): void =>
+      this.renderInspector(content, node, mode, close, host);
     new (class extends Modal {
       onOpen(): void {
-        this.modalEl.addClass("vam-topic-modal");
-        render(this.contentEl, () => this.close());
+        this.modalEl.addClass("vam-topic-modal", "vam-review-modal");
+        render(this.contentEl, () => this.close(), this.modalEl);
       }
     })(this.app).open();
   }
@@ -3571,7 +3572,8 @@ export class VisualAgentMapView extends ItemView {
     parent: HTMLElement,
     node: MapNode,
     mode: "structure" | "proposals" = "structure",
-    close?: () => void
+    close?: () => void,
+    host?: HTMLElement
   ): void {
     const panel = parent.createDiv(this.builtIn ? "vam-inspector" : "vam-topic-panel"),
       note = this.notes.get(node.id);
@@ -3588,6 +3590,7 @@ export class VisualAgentMapView extends ItemView {
         this.selected = null;
         this.render();
       });
+    else if (note) panel.createEl("p", { cls: "vam-inspector-topic", text: t("ui.topic_0", note.title) });
     if (note) {
       if (this.builtIn) {
         panel.createEl("h3", { text: note.title });
@@ -3647,7 +3650,7 @@ export class VisualAgentMapView extends ItemView {
       );
     }
     if (mode !== "structure") return;
-    const relationship = panel.createDiv();
+    const relationship = panel.createDiv("vam-inspector-section");
     const parentLabel = relationship.createEl("label", { cls: "vam-field" });
     parentLabel.createSpan({ text: t("ui.parent_topic") });
     const parents = parentLabel.createEl("select");
@@ -3660,7 +3663,38 @@ export class VisualAgentMapView extends ItemView {
           text: this.notes.get(candidate.id)?.title ?? candidate.path
         });
     parents.value = node.parentId ?? "";
-    parents.addEventListener("change", () => {
+    relationship.createEl("p", {
+      cls: "vam-hint",
+      text: t("ui.changing_the_parent_affects_context_for_the_next_ai_task_the")
+    });
+    // Choosing a parent is a draft; nothing moves until Apply, and the dialog says what will change.
+    const actions = (host ?? panel).createDiv("vam-next-actions");
+    const remove = actions.createEl("button", { text: t("ui.remove_from_map"), cls: "vam-discard" });
+    remove.addEventListener("click", () => {
+      close?.();
+      this.confirmRemoveNode(node);
+    });
+    const status = actions.createSpan({
+      cls: "vam-next-actions-note vam-next-status",
+      attr: { "aria-live": "polite" }
+    });
+    actions.createEl("button", { text: t("ui.close") }).addEventListener("click", () => close?.());
+    const apply = actions.createEl("button", { text: t("ui.apply_parent"), cls: "mod-cta" });
+    const describe = (): void => {
+      const parentId = parents.value || null;
+      const changed = parentId !== (node.parentId ?? null);
+      apply.disabled = !changed;
+      status.setText(
+        !changed
+          ? ""
+          : parentId
+            ? t("ui.will_move_under_0", this.notes.get(parentId)?.title ?? "")
+            : t("ui.will_become_root_topic")
+      );
+    };
+    parents.addEventListener("change", describe);
+    describe();
+    apply.addEventListener("click", () => {
       const parentId = parents.value || null;
       close?.();
       this.enqueue(() =>
@@ -3669,27 +3703,6 @@ export class VisualAgentMapView extends ItemView {
           map.nodes.find(n => n.id === node.id)!.parentId = parentId;
         })
       );
-    });
-    this.button(
-      relationship,
-      t("ui.remove_parent_link"),
-      () => {
-        close?.();
-        this.enqueue(() =>
-          this.mapChange(map => {
-            map.nodes.find(n => n.id === node.id)!.parentId = null;
-          })
-        );
-      },
-      !node.parentId
-    );
-    relationship.createEl("p", {
-      cls: "vam-hint",
-      text: t("ui.changing_the_parent_affects_context_for_the_next_ai_task_the")
-    });
-    this.button(relationship, t("ui.remove_from_map"), () => {
-      close?.();
-      this.confirmRemoveNode(node);
     });
   }
   private renderPendingProposals(panel: HTMLElement, node: MapNode, note: Note, close?: () => void): void {

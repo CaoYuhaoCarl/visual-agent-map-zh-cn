@@ -834,3 +834,43 @@ integrationTest('review dialogs: duplicate parents list each proposal once, disc
   finishSave(); await new Promise(resolve => setTimeout(resolve, 0));
   assert.equal(draft.closed, true);
 });
+integrationTest('structure panel: a parent change waits for Apply, says what will change, and keeps Remove apart', () => {
+  const element = (tag, options = {}) => ({
+    tag, text: options.text, value: options.value ?? '', cls: options.cls ?? '', attr: options.attr ?? {}, children: [], disabled: false,
+    createDiv(value) { const child = element('div', typeof value === 'string' ? { cls: value } : value); this.children.push(child); return child; },
+    createEl(name, value) { const child = element(name, value); this.children.push(child); return child; },
+    createSpan(value) { const child = element('span', value); this.children.push(child); return child; },
+    addClass(name) { this.cls = `${this.cls} ${name}`.trim(); }, setText(value) { this.text = value; }, setAttr(name, value) { this.attr[name] = value; },
+    addEventListener(name, handler) { this[name] = handler; }
+  });
+  const all = (root, predicate) => [...(predicate(root) ? [root] : []), ...root.children.flatMap(child => all(child, predicate))];
+  const find = (root, predicate) => all(root, predicate)[0];
+  const { VisualAgentMapView } = load('main.ts', { obsidian });
+  const nodes = [{ id: 'a', path: 'A.md', parentId: null }, { id: 'b', path: 'B.md', parentId: null }, { id: 'c', path: 'C.md', parentId: 'a' }];
+  const changes = []; let closed = 0, removed = 0;
+  const view = {
+    builtIn: false, map: { nodes }, notes: new Map([['a', { title: 'Heat' }], ['b', { title: 'Water' }], ['c', { title: 'Pan', sourcePaths: [] }]]),
+    app: { vault: { getAbstractFileByPath: () => null } }, referenceSourcePaths: () => [],
+    button(parent, text, click) { const b = parent.createEl('button', { text }); b.click = click; return b; },
+    confirmRemoveNode() { removed++; }, enqueue(work) { work(); }, mapChange(change) { const copy = { nodes: nodes.map(n => ({ ...n })) }; change(copy); changes.push(copy.nodes.find(n => n.id === 'c').parentId); }
+  };
+  const content = element('content'), host = element('modal');
+  VisualAgentMapView.prototype.renderInspector.call(view, content, nodes[2], 'structure', () => { closed++; }, host);
+  assert.ok(find(content, item => item.text === 'Topic: Pan'));
+  assert.equal(find(content, item => item.tag === 'button' && item.text === 'Remove parent link'), undefined);
+  const actions = find(host, item => item.cls === 'vam-next-actions');
+  const buttons = actions.children.filter(item => item.tag === 'button');
+  assert.deepEqual(buttons.map(item => item.text), ['Remove from map', 'Close', 'Apply']);
+  assert.ok(buttons[0].cls.includes('vam-discard'));
+  const apply = buttons[2], status = find(actions, item => item.cls.includes('vam-next-status'));
+  assert.equal(apply.disabled, true);
+  const select = find(content, item => item.tag === 'select');
+  select.value = 'b'; select.change();
+  assert.equal(apply.disabled, false); assert.equal(status.text, 'Will move under “Water”.'); assert.equal(changes.length, 0);
+  select.value = ''; select.change();
+  assert.equal(status.text, 'Will become a root topic.');
+  apply.click();
+  assert.equal(closed, 1); assert.deepEqual(changes, [null]);
+  buttons[0].click();
+  assert.equal(removed, 1);
+});

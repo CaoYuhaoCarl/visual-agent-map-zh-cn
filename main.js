@@ -622,7 +622,6 @@ var english = {
   "ui.parent_topic_link": "Parent topic / link",
   "ui.no_parent_root_topic": "No parent (root topic)",
   "ui.circular_links_are_not_allowed": "Circular links are not allowed.",
-  "ui.remove_parent_link": "Remove parent link",
   "ui.changing_the_parent_affects_context_for_the_next_ai_task_the": "Changing the parent affects context for the next AI task. The model stays the same.",
   "ui.the_note_will_move_to_this_topic_s_unassigned_folder_you_can": "The note will move to this topic's Unassigned folder. You can add it back or undo.",
   "ui.remove_only_this_node_children_become_roots": "Remove only this node; children become roots",
@@ -712,6 +711,10 @@ var english = {
   "ui.scan_for_recognizable_vam_workspaces_and_reconnect_only_afte": "Scan for recognizable VAM workspaces and reconnect only after confirmation, without moving or overwriting data.",
   "ui.scan": "Scan",
   "ui.check_again": "Check again",
+  "ui.topic_0": "Topic: {0}",
+  "ui.apply_parent": "Apply",
+  "ui.will_move_under_0": "Will move under \u201C{0}\u201D.",
+  "ui.will_become_root_topic": "Will become a root topic.",
   "ui.list_separator": ", ",
   "ui.synthesis_of_0": "Synthesis: {0}",
   "ui.synthesis_of_0_and_1_more": "Synthesis: {0} and others ({1} topics)",
@@ -1900,7 +1903,6 @@ var traditionalChinese = {
   "ui.parent_topic_link": "\u6BCD\u8B70\u984C\uFF0F\u9023\u7D50",
   "ui.no_parent_root_topic": "\u7121\u6BCD\u8B70\u984C\uFF08\u6839\u8B70\u984C\uFF09",
   "ui.circular_links_are_not_allowed": "\u4E0D\u80FD\u5EFA\u7ACB\u5FAA\u74B0\u9023\u7D50\u3002",
-  "ui.remove_parent_link": "\u79FB\u9664\u6BCD\u8B70\u984C\u9023\u7D50",
   "ui.changing_the_parent_affects_context_for_the_next_ai_task_the": "\u66F4\u63DB\u6BCD\u8B70\u984C\u6703\u5F71\u97FF\u4E0B\u6B21 AI \u4EFB\u52D9\u53D6\u5F97\u7684\u80CC\u666F\uFF0C\u4E0D\u6703\u66F4\u52D5\u6A21\u578B\u3002",
   "ui.the_note_will_move_to_this_topic_s_unassigned_folder_you_can": "\u7B46\u8A18\u6703\u79FB\u81F3\u76EE\u524D\u4E3B\u984C\u7684 Unassigned\uFF0C\u53EF\u91CD\u65B0\u8A8D\u9818\u6216\u5FA9\u539F\u3002",
   "ui.remove_only_this_node_children_become_roots": "\u53EA\u79FB\u9664\u6B64\u7BC0\u9EDE\uFF0C\u5B50\u8B70\u984C\u8B8A\u6210\u6839\u8B70\u984C",
@@ -1990,6 +1992,10 @@ var traditionalChinese = {
   "ui.scan_for_recognizable_vam_workspaces_and_reconnect_only_afte": "\u6383\u63CF\u53EF\u8FA8\u8B58\u7684 VAM Workspace\uFF0C\u78BA\u8A8D\u5F8C\u624D\u91CD\u65B0\u9023\u7D50\uFF0C\u4E0D\u6703\u642C\u79FB\u6216\u8986\u5BEB\u8CC7\u6599\u3002",
   "ui.scan": "\u6383\u63CF",
   "ui.check_again": "\u91CD\u65B0\u6AA2\u67E5",
+  "ui.topic_0": "\u8B70\u984C\uFF1A{0}",
+  "ui.apply_parent": "\u5957\u7528",
+  "ui.will_move_under_0": "\u5C07\u79FB\u5230\u300C{0}\u300D\u5E95\u4E0B\u3002",
+  "ui.will_become_root_topic": "\u5C07\u6210\u70BA\u6839\u8B70\u984C\u3002",
   "ui.list_separator": "\u3001",
   "ui.synthesis_of_0": "\u6574\u5408\uFF1A{0}",
   "ui.synthesis_of_0_and_1_more": "\u6574\u5408\uFF1A{0} \u7B49 {1} \u500B\u8B70\u984C",
@@ -25041,15 +25047,15 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     });
   }
   openNodePanel(node, mode) {
-    const render = (content, close) => this.renderInspector(content, node, mode, close);
+    const render = (content, close, host) => this.renderInspector(content, node, mode, close, host);
     new class extends import_obsidian16.Modal {
       onOpen() {
-        this.modalEl.addClass("vam-topic-modal");
-        render(this.contentEl, () => this.close());
+        this.modalEl.addClass("vam-topic-modal", "vam-review-modal");
+        render(this.contentEl, () => this.close(), this.modalEl);
       }
     }(this.app).open();
   }
-  renderInspector(parent, node, mode = "structure", close) {
+  renderInspector(parent, node, mode = "structure", close, host) {
     var _a, _b, _c, _d, _e, _f, _g, _h, _i;
     const panel = parent.createDiv(this.builtIn ? "vam-inspector" : "vam-topic-panel"), note = this.notes.get(node.id);
     const heading = panel.createDiv("vam-inspector-heading");
@@ -25061,6 +25067,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         this.selected = null;
         this.render();
       });
+    else if (note) panel.createEl("p", { cls: "vam-inspector-topic", text: t("ui.topic_0", note.title) });
     if (note) {
       if (this.builtIn) {
         panel.createEl("h3", { text: note.title });
@@ -25120,7 +25127,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       );
     }
     if (mode !== "structure") return;
-    const relationship = panel.createDiv();
+    const relationship = panel.createDiv("vam-inspector-section");
     const parentLabel = relationship.createEl("label", { cls: "vam-field" });
     parentLabel.createSpan({ text: t("ui.parent_topic") });
     const parents = parentLabel.createEl("select");
@@ -25133,7 +25140,34 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
           text: (_h = (_g = this.notes.get(candidate.id)) == null ? void 0 : _g.title) != null ? _h : candidate.path
         });
     parents.value = (_i = node.parentId) != null ? _i : "";
-    parents.addEventListener("change", () => {
+    relationship.createEl("p", {
+      cls: "vam-hint",
+      text: t("ui.changing_the_parent_affects_context_for_the_next_ai_task_the")
+    });
+    const actions = (host != null ? host : panel).createDiv("vam-next-actions");
+    const remove = actions.createEl("button", { text: t("ui.remove_from_map"), cls: "vam-discard" });
+    remove.addEventListener("click", () => {
+      close == null ? void 0 : close();
+      this.confirmRemoveNode(node);
+    });
+    const status = actions.createSpan({
+      cls: "vam-next-actions-note vam-next-status",
+      attr: { "aria-live": "polite" }
+    });
+    actions.createEl("button", { text: t("ui.close") }).addEventListener("click", () => close == null ? void 0 : close());
+    const apply = actions.createEl("button", { text: t("ui.apply_parent"), cls: "mod-cta" });
+    const describe = () => {
+      var _a2, _b2, _c2;
+      const parentId = parents.value || null;
+      const changed = parentId !== ((_a2 = node.parentId) != null ? _a2 : null);
+      apply.disabled = !changed;
+      status.setText(
+        !changed ? "" : parentId ? t("ui.will_move_under_0", (_c2 = (_b2 = this.notes.get(parentId)) == null ? void 0 : _b2.title) != null ? _c2 : "") : t("ui.will_become_root_topic")
+      );
+    };
+    parents.addEventListener("change", describe);
+    describe();
+    apply.addEventListener("click", () => {
       const parentId = parents.value || null;
       close == null ? void 0 : close();
       this.enqueue(
@@ -25142,27 +25176,6 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
           map.nodes.find((n) => n.id === node.id).parentId = parentId;
         })
       );
-    });
-    this.button(
-      relationship,
-      t("ui.remove_parent_link"),
-      () => {
-        close == null ? void 0 : close();
-        this.enqueue(
-          () => this.mapChange((map) => {
-            map.nodes.find((n) => n.id === node.id).parentId = null;
-          })
-        );
-      },
-      !node.parentId
-    );
-    relationship.createEl("p", {
-      cls: "vam-hint",
-      text: t("ui.changing_the_parent_affects_context_for_the_next_ai_task_the")
-    });
-    this.button(relationship, t("ui.remove_from_map"), () => {
-      close == null ? void 0 : close();
-      this.confirmRemoveNode(node);
     });
   }
   renderPendingProposals(panel, node, note, close) {

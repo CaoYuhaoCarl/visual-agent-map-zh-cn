@@ -124,6 +124,8 @@
 .vam-topic-panel { padding: 4px 0 12px; }
 .vam-inspector-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
 .vam-inspector-heading strong { font-size: var(--font-ui-medium); }
+.vam-inspector-topic { margin: -8px 0 14px; color: var(--text-muted); }
+.vam-inspector-section { margin: 14px 0 0; }
 .vam-inspector-proposals { margin: 16px 0; padding: 12px; border: 1px solid var(--interactive-accent); border-radius: var(--radius-m); }
 .vam-inspector-proposals .vam-proposal { display: block; padding: 10px 0; border-bottom: 1px solid var(--background-modifier-border); }
 .vam-inspector-proposals .vam-proposal { margin: 10px 0; }
