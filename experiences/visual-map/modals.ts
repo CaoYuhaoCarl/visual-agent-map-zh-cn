@@ -702,7 +702,10 @@ export class NextStepModal extends Modal {
     const confirm = result.createEl("button", { text: t("ui.create_0_subtopics", list.count()), cls: "mod-cta" });
     showCount = count => {
       confirm.setText(t("ui.create_0_subtopics", count));
-      confirm.disabled = count === 0;
+      if (!this.runPending) confirm.disabled = count === 0;
+      // A changed selection clears an old error, but keeps the review hint.
+      const status = panel.querySelector<HTMLElement>(".vam-next-status");
+      if (status && status.textContent !== t("ui.review_ai_suggested_subtopics")) status.setText("");
     };
     // While proposals are open, "Create subtopics" is the one primary action.
     button.classList.toggle("mod-cta", false);
@@ -1319,9 +1322,12 @@ export function renderProposalList(
   const all = toolbar.createEl("button", { cls: "vam-proposal-all" });
   const list = parent.createDiv("vam-proposal-list");
   const roots = suggestions.filter(item => !item.parentTitle);
+  // Children follow the first parent with their title; each proposal appears exactly once.
   const ordered = [
-    ...roots.flatMap(root => [root, ...suggestions.filter(item => item.parentTitle === root.title)]),
-    ...suggestions.filter(item => item.parentTitle && !roots.some(root => root.title === item.parentTitle))
+    ...new Set([
+      ...roots.flatMap(root => [root, ...suggestions.filter(item => item.parentTitle === root.title)]),
+      ...suggestions.filter(item => item.parentTitle && !roots.some(root => root.title === item.parentTitle))
+    ])
   ];
   const count = (): number => rows.filter(row => row.check.checked).length;
   const update = (): void => {
@@ -1449,12 +1455,25 @@ export class DraftReviewModal extends Modal {
     };
     const summary = section(t("ui.draft_summary"), this.summary, 4);
     const detail = section(t("ui.draft_detail"), this.detail, 16);
+    // Each render gets its own child component and a generation, so a slow earlier render never lands twice.
+    const generations = new WeakMap<HTMLElement, { count: number; child?: Component }>();
     const show = (target: HTMLElement, markdown: string): void => {
+      const state = generations.get(target) ?? { count: 0 };
+      const generation = ++state.count;
+      if (state.child) this.renderer.removeChild(state.child);
+      const child = this.renderer.addChild(new Component());
+      state.child = child;
+      generations.set(target, state);
       target.empty();
-      try {
-        void MarkdownRenderer.render(this.app, markdown, target, this.review.sourcePath ?? "", this.renderer);
-      } catch {
+      const fallback = (): void => {
+        if (state.count !== generation) return;
+        target.empty();
         target.setText(markdown);
+      };
+      try {
+        void MarkdownRenderer.render(this.app, markdown, target, this.review.sourcePath ?? "", child).catch(fallback);
+      } catch {
+        fallback();
       }
     };
     let editing = false;
@@ -1487,6 +1506,7 @@ export class DraftReviewModal extends Modal {
       // Discarding loses the AI's work, so it sits apart and asks once more before acting.
       const discard = actions.createEl("button", { text: t("ui.discard_synthesis"), cls: "vam-discard" });
       discard.addEventListener("click", () => {
+        if (confirm.disabled) return;
         if (this.discardArmed) {
           this.disarmDiscard(discard);
           this.discard?.();
@@ -1502,15 +1522,18 @@ export class DraftReviewModal extends Modal {
         status.setText(t("ui.discard_confirm_hint"));
       });
     }
-    actions.createEl("button", { text: t("ui.cancel") }).addEventListener("click", () => this.close());
+    const cancelButton = actions.createEl("button", { text: t("ui.cancel") });
+    cancelButton.addEventListener("click", () => this.close());
     const confirm = actions.createEl("button", { text: this.review.confirmLabel, cls: "mod-cta" });
     confirm.addEventListener("click", () => {
       confirm.disabled = true;
+      cancelButton.disabled = true;
       void Promise.resolve(this.confirm(summary.input.value, detail.input.value)).then(
         () => this.close(),
         error => {
           status.setText(error instanceof Error ? error.message : String(error));
           confirm.disabled = false;
+          cancelButton.disabled = false;
         }
       );
     });
@@ -1568,7 +1591,6 @@ export class IntegrationModal extends Modal {
   constructor(
     app: App,
     private names: string[],
-    _defaultRules: string,
     private submit: (title: string, goal: string, rules: string) => void
   ) {
     super(app);
@@ -1584,7 +1606,14 @@ export class IntegrationModal extends Modal {
     for (const name of this.names) sources.createDiv({ text: name });
     const titleLabel = this.contentEl.createEl("label", { cls: "vam-field" });
     titleLabel.createSpan({ text: t("ui.new_topic_name") });
-    const title = titleLabel.createEl("input", { type: "text", value: t("ui.synthesize_topics") });
+    // Name the new topic after its sources, short enough to read on a map card.
+    const title = titleLabel.createEl("input", {
+      type: "text",
+      value:
+        this.names.length > 2
+          ? t("ui.synthesis_of_0_and_1_more", this.names[0], this.names.length)
+          : t("ui.synthesis_of_0", this.names.join(t("ui.list_separator")))
+    });
     title.setAttr("aria-label", t("ui.new_topic_name"));
     const goalLabel = this.contentEl.createEl("label", { cls: "vam-field" });
     goalLabel.createSpan({ text: t("ui.synthesis_goal") });
@@ -1599,8 +1628,22 @@ export class IntegrationModal extends Modal {
       this.submit(title.value.trim(), goal.value.trim(), "");
     };
     const actions = reviewActions(this);
+    const status = actions.createSpan({
+      cls: "vam-next-actions-note vam-next-status",
+      attr: { "aria-live": "polite" }
+    });
     actions.createEl("button", { text: t("ui.cancel") }).addEventListener("click", () => this.close());
-    actions.createEl("button", { text: t("ui.next_set_ai_sources"), cls: "mod-cta" }).addEventListener("click", save);
+    const next = actions.createEl("button", { text: t("ui.next_set_ai_sources"), cls: "mod-cta" });
+    next.addEventListener("click", save);
+    // Say why the next step is unavailable instead of ignoring the click.
+    const check = (): void => {
+      const missing = !title.value.trim() || !goal.value.trim();
+      next.disabled = missing;
+      status.setText(missing ? t("ui.synthesis_needs_name_and_goal") : "");
+    };
+    title.addEventListener("input", check);
+    goal.addEventListener("input", check);
+    check();
     title.focus();
     title.select();
   }

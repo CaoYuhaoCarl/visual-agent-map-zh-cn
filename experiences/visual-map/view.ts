@@ -5203,11 +5203,9 @@ export class VisualAgentMapView extends ItemView {
       .map(id => this.map!.nodes.find(node => node.id === id))
       .filter((node): node is MapNode => !!node);
     const notes = nodes.map(node => this.notes.get(node.id)).filter((note): note is Note => !!note);
-    const sharedRules = notes.length && notes.every(note => note.rules === notes[0].rules) ? notes[0].rules : "";
     new IntegrationModal(
       this.app,
       notes.map(note => note.title),
-      sharedRules,
       (title, goal, rules) => {
         const selectedLabel = t("ui.reference_selected_topics_included", notes.map(note => note.title).join(", "));
         new TaskModal(
@@ -5371,8 +5369,9 @@ export class VisualAgentMapView extends ItemView {
       task.draft.summary,
       task.draft.detail,
       { intro: t("ui.draft_creates_0", task.title), confirmLabel: t("ui.confirm_new_synthesis_topic") },
+      // Return the save so a failure keeps the dialog, and the user's edits, open with the error.
       (summary, detail) =>
-        this.enqueue(() =>
+        this.plugin.mutate(() =>
           this.saveIntegratedNode(
             task.title,
             task.sources,

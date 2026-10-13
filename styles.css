@@ -126,6 +126,8 @@
 .vam-inspector-heading strong { font-size: var(--font-ui-medium); }
 .vam-inspector-proposals { margin: 16px 0; padding: 12px; border: 1px solid var(--interactive-accent); border-radius: var(--radius-m); }
 .vam-inspector-proposals .vam-proposal { display: block; padding: 10px 0; border-bottom: 1px solid var(--background-modifier-border); }
+.vam-inspector-proposals .vam-proposal { margin: 10px 0; }
+.vam-inspector-proposals .vam-proposal > p { margin: 4px 0 0; color: var(--text-muted); }
 .vam-inspector-proposals .vam-proposal > input, .vam-inspector-proposals .vam-proposal > textarea { display: block; width: 100%; margin-top: 8px; box-sizing: border-box; }
 .vam-field { display: flex; flex-direction: column; gap: 6px; margin: 14px 0; }
 .vam-field[hidden] { display: none; }
