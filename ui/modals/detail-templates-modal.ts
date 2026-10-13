@@ -1,5 +1,6 @@
 import { App, Modal, setIcon, type Setting } from "obsidian";
 import { t, type TranslationKey } from "../../i18n";
+import { modalActions } from "./action-bar";
 import type { Settings } from "../../repository";
 import {
   STANDARD_TEMPLATE_ID,
@@ -92,6 +93,14 @@ export class DetailTemplatesModal extends Modal {
     super(app);
   }
 
+  /** The fixed action bar of the current view; replaced when the dialog switches between list and editor. */
+  private bar?: HTMLDivElement;
+  private actionBar(): HTMLDivElement {
+    this.bar?.remove();
+    this.bar = modalActions(this);
+    return this.bar;
+  }
+
   onClose(): void {
     this.onChanged();
   }
@@ -133,18 +142,21 @@ export class DetailTemplatesModal extends Modal {
       const isDefault = template.id === defaultId;
       if (isDefault) info.createSpan({ text: t("ui.detail_template_default_tag"), cls: "vam-template-tag" });
       const actions = row.createDiv("vam-template-actions");
-      const button = (label: string, run: () => void | Promise<void>, disabled = false) => {
+      const button = (label: string, run: () => void | Promise<void>, disabled = false): HTMLButtonElement => {
         const element = actions.createEl("button", { text: label });
         element.disabled = disabled;
         element.addEventListener("click", () => void run());
+        return element;
       };
       if (isStandard) button(t("ui.detail_template_view"), () => this.showEditor(template, false, true));
       else button(t("ui.detail_template_edit"), () => this.showEditor(template, false));
       button(t("ui.detail_template_copy"), () => this.duplicate(template));
-      if (!isStandard) button(t("ui.detail_template_delete"), () => this.confirmDelete(template));
+      if (!isStandard)
+        button(t("ui.detail_template_delete"), () => this.confirmDelete(template)).addClass("vam-danger-text");
       button(t("ui.detail_template_set_default"), () => this.setDefault(template.id), isDefault);
     }
-    const footer = contentEl.createDiv("vam-modal-actions");
+    const footer = this.actionBar();
+    footer.createEl("button", { text: t("ui.close") }).addEventListener("click", () => this.close());
     footer.createEl("button", { text: t("ui.detail_template_new"), cls: "mod-cta" }).addEventListener("click", () => {
       const fresh = copyTemplate(
         standardTemplate(this.settings.language),
@@ -172,6 +184,7 @@ export class DetailTemplatesModal extends Modal {
     new ChoiceModal(this.app, t("ui.detail_template_delete"), t("ui.detail_template_delete_confirm_0", template.name), [
       {
         label: t("ui.detail_template_delete"),
+        warning: true,
         action: () => {
           void this.remove(template.id);
         }
@@ -212,7 +225,7 @@ export class DetailTemplatesModal extends Modal {
     const preview = contentEl.createEl("details", { cls: "vam-template-preview" });
     preview.createEl("summary", { text: t("ui.detail_template_preview") });
     const previewText = preview.createEl("pre");
-    const footer = contentEl.createDiv("vam-modal-actions");
+    const footer = this.actionBar();
     footer
       .createEl("button", { text: t(readOnly ? "ui.close" : "ui.cancel") })
       .addEventListener("click", () => this.showList());

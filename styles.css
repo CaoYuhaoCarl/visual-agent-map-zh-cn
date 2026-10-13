@@ -124,11 +124,9 @@
 .vam-topic-panel { padding: 4px 0 12px; }
 .vam-inspector-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
 .vam-inspector-heading strong { font-size: var(--font-ui-medium); }
-.vam-inspector-proposals { margin: 16px 0; padding: 12px; border: 1px solid var(--interactive-accent); border-radius: var(--radius-m); }
-.vam-inspector-proposals .vam-proposal { display: block; padding: 10px 0; border-bottom: 1px solid var(--background-modifier-border); }
-.vam-inspector-proposals .vam-proposal { margin: 10px 0; }
-.vam-inspector-proposals .vam-proposal > p { margin: 4px 0 0; color: var(--text-muted); }
-.vam-inspector-proposals .vam-proposal > input, .vam-inspector-proposals .vam-proposal > textarea { display: block; width: 100%; margin-top: 8px; box-sizing: border-box; }
+.vam-inspector-topic { margin: -8px 0 14px; color: var(--text-muted); }
+.vam-inspector-section { margin: 14px 0 0; }
+.vam-inspector-proposals { margin: 0; }
 .vam-field { display: flex; flex-direction: column; gap: 6px; margin: 14px 0; }
 .vam-field[hidden] { display: none; }
 .vam-field > span { font-size: var(--font-ui-small); color: var(--text-muted); font-weight: 600; }
@@ -768,7 +766,6 @@ button.vam-template-section-header:hover { background: var(--background-modifier
 .vam-outline-check input[type="checkbox"] { margin: 0; }
 .vam-outline-research-options { padding-left: calc(var(--size-4-2) + 16px); }
 .vam-outline-research-options .vam-field { margin: var(--size-4-2) 0; }
-.vam-outline-footer { margin-top: 0; padding-top: var(--size-4-4); border-top: 1px solid var(--background-modifier-border); }
 /* Draft review: rendered by default, editable on demand. */
 .vam-draft-modal [hidden] { display: none; }
 .vam-draft-intro { margin: 0 0 12px; color: var(--text-muted); }
@@ -785,3 +782,11 @@ button.vam-template-section-header:hover { background: var(--background-modifier
 .vam-draft-preview :is(h1, h2) { font-size: var(--font-ui-large); }
 .vam-draft-preview :is(h3, h4, h5, h6) { font-size: var(--font-ui-medium); }
 .vam-draft-intro:focus { outline: none; }
+/* A destructive action inside a row of ordinary buttons. */
+.vam-danger-text { color: var(--text-error); }
+/* Map conflict: two plain choices, hand-merging folded away. */
+.vam-conflict-options { display: grid; gap: 8px; margin: 12px 0; }
+.vam-conflict-option { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); }
+.vam-conflict-option-text { display: grid; gap: 2px; min-width: 0; }
+.vam-conflict-merge > summary { color: var(--text-muted); cursor: pointer; font-size: var(--font-ui-small); font-weight: 600; }
+.vam-conflict-merge > textarea { margin-top: 8px; }

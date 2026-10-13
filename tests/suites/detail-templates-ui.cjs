@@ -4,19 +4,21 @@ const { test, load, plain, obsidian } = require('../support.cjs');
 function harness(settings = {}) {
   const element = (tag, options = {}) => ({
     tag, text: options.text ?? '', cls: options.cls ?? '', type: options.type, value: options.value ?? '', disabled: false, children: [], listeners: {},
-    createDiv(value) { const c = element('div', typeof value === 'string' ? { cls: value } : value); this.children.push(c); return c; },
-    createEl(name, value = {}) { const c = element(name, value); this.children.push(c); return c; },
-    createSpan(value = {}) { const c = element('span', value); this.children.push(c); return c; },
-    empty() { this.children = []; }, setText(value) { this.text = value; }, setAttr(name, value) { this[name] = value; }, addEventListener(name, fn) { this.listeners[name] = fn; }
+    createDiv(value) { const c = element('div', typeof value === 'string' ? { cls: value } : value); c.parent = this; this.children.push(c); return c; },
+    createEl(name, value = {}) { const c = element(name, value); c.parent = this; this.children.push(c); return c; },
+    createSpan(value = {}) { const c = element('span', value); c.parent = this; this.children.push(c); return c; },
+    empty() { this.children = []; }, setText(value) { this.text = value; }, setAttr(name, value) { this[name] = value; }, addEventListener(name, fn) { this.listeners[name] = fn; },
+    addClass(name) { this.cls = `${this.cls} ${name}`.trim(); }, remove() { if (this.parent) this.parent.children = this.parent.children.filter(c => c !== this); }
   });
   const find = (root, predicate) => predicate(root) ? root : root.children.map(c => find(c, predicate)).find(Boolean);
   const all = (root, predicate) => [...(predicate(root) ? [root] : []), ...root.children.flatMap(c => all(c, predicate))];
   const opened = [];
-  class Modal { constructor(app) { this.app = app; this.titleEl = element('title'); this.contentEl = element('content'); } open() { opened.push(this); if (this.constructor.name !== 'ChoiceModal') this.onOpen(); } close() {} }
+  // As in Obsidian, the content sits inside modalEl; the fixed action bar is modalEl's last child.
+  class Modal { constructor(app) { this.app = app; this.titleEl = element('title'); this.contentEl = element('content'); this.modalEl = element('modal'); this.modalEl.children.push(this.contentEl); } open() { opened.push(this); if (this.constructor.name !== 'ChoiceModal') this.onOpen(); } close() {} }
   const mod = load('ui/modals/detail-templates-modal.ts', { obsidian: { ...obsidian, Modal } });
   const plugin = { settings: { language: 'en', detailTemplates: [], defaultDetailTemplateId: undefined, ...settings }, saves: 0, async saveSettings() { this.saves++; } };
   const modal = new mod.DetailTemplatesModal({}, plugin); modal.open();
-  const button = text => find(modal.contentEl, i => i.tag === 'button' && i.text === text);
+  const button = text => find(modal.modalEl, i => i.tag === 'button' && i.text === text);
   const click = async text => { const b = button(text); assert.ok(b, `button ${text}`); b.listeners.click(); await new Promise(r => setImmediate(r)); };
   const rows = () => all(modal.contentEl, i => i.cls === 'vam-template-row');
   const rowButtons = row => all(row, i => i.tag === 'button').map(b => b.text);
@@ -176,7 +178,7 @@ test('settings row refreshes when the library closes after create and delete', a
   let refreshes = 0;
   const modal = new h.mod.DetailTemplatesModal({}, h.plugin, () => { refreshes++; });
   modal.open();
-  const click = async (text) => { const b = h.find(modal.contentEl, i => i.tag === 'button' && i.text === text); b.listeners.click(); await new Promise(r => setImmediate(r)); };
+  const click = async (text) => { const b = h.find(modal.modalEl, i => i.tag === 'button' && i.text === text); b.listeners.click(); await new Promise(r => setImmediate(r)); };
   const options = () => { const o = []; const dd = { addOption: (v, t) => { o.push(t); return dd; }, setValue() { return dd; }, onChange() { return dd; } };
     const setting = { setName() { return setting; }, setDesc() { return setting; }, addDropdown(fn) { fn(dd); return setting; }, addButton() { return setting; } };
     h.mod.renderDetailTemplatesSetting(setting, {}, h.plugin); return o; };
@@ -318,4 +320,18 @@ test('template editor: icon buttons have labels and disabled ends; collapsed inv
   assert.deepEqual(h.issueTexts(h.sections()[1]), [], 'issue text hidden while collapsed');
   assert.equal(h.badge(h.sections()[2]), undefined);
   assert.equal(h.find(h.modal.contentEl, i => i.cls === 'vam-modal-intro').text, "Each section becomes a ### heading in the note, filled in order by the AI. Changes apply to future research; existing notes change when they're next updated.");
+});
+
+test('template library: one fixed action bar per view and Delete marked as destructive', async () => {
+  const h = harness({ detailTemplates: [{ id: 'T', name: 'Teaching', sections: [{ id: 's', name: 'Main', description: '', role: 'core', count: { mode: 'auto' } }] }] });
+  const bars = () => h.modal.modalEl.children.filter(item => item.cls === 'vam-next-actions');
+  assert.equal(bars().length, 1);
+  assert.deepEqual(plain(bars()[0].children.map(item => item.text)), ['Close', 'New template']);
+  await h.click('New template');
+  assert.equal(bars().length, 1);
+  assert.deepEqual(plain(bars()[0].children.map(item => item.text)), ['Cancel', 'Save']);
+  await h.click('Cancel');
+  assert.equal(bars().length, 1);
+  const teaching = h.rows().find(row => h.find(row, i => i.tag === 'strong').text === 'Teaching');
+  assert.ok(h.find(teaching, i => i.tag === 'button' && i.text === 'Delete').cls.includes('vam-danger-text'));
 });

@@ -5,6 +5,7 @@ import { App, Component, MarkdownRenderer, Modal, Notice, Setting, TFile } from 
 import { ReferencePicker, type ReferenceTopic } from "../../ui/reference-picker";
 import { type ReferenceGroup } from "../../ai/reference-materials";
 import { DebugLogModal } from "../../ui/modals/debug-log-modal";
+import { modalActions } from "../../ui/modals/action-bar";
 import { clone, type MapDocument, parseMap, serializeMap } from "../../map-model";
 import {
   normalizeReasoningLevel,
@@ -1308,8 +1309,13 @@ export class NextStepModal extends Modal {
 export function renderProposalList(
   parent: HTMLElement,
   suggestions: Suggestion[],
-  changed: (count: number) => void
+  changed: (count: number) => void,
+  options: { rootTitle?: string } = {}
 ): { count: () => number; selected: () => Suggestion[] | string } {
+  // A suggestion whose parent is the topic being expanded is first-level.
+  suggestions = suggestions.map(item =>
+    options.rootTitle && item.parentTitle === options.rootTitle ? { ...item, parentTitle: "" } : item
+  );
   const rows: {
     item: Suggestion;
     check: HTMLInputElement;
@@ -1365,14 +1371,24 @@ export function renderProposalList(
     contribution.setAttr("aria-label", t("ui.contribution_to_the_parent_topic"));
     rows.push({ item, check, title, task, contribution });
     check.addEventListener("change", () => {
-      if (item.parentTitle && check.checked)
+      // Checking a row checks its ancestors; unchecking a row unchecks its descendants, at any depth.
+      const uncheckChildren = (title: string): void =>
         rows.forEach(other => {
-          if (!other.item.parentTitle && other.item.title === item.parentTitle) other.check.checked = true;
+          if (other.item.parentTitle === title && other.check.checked) {
+            other.check.checked = false;
+            uncheckChildren(other.item.title);
+          }
         });
-      if (!item.parentTitle && !check.checked)
-        rows.forEach(other => {
-          if (other.item.parentTitle === item.title) other.check.checked = false;
-        });
+      if (check.checked && item.parentTitle) {
+        let parentTitle: string | undefined = item.parentTitle;
+        while (parentTitle) {
+          const parent = rows.find(other => other.item.title === parentTitle);
+          if (!parent) break;
+          parent.check.checked = true;
+          parentTitle = parent.item.parentTitle;
+        }
+      }
+      if (!check.checked) uncheckChildren(item.title);
       update();
     });
   }
@@ -1387,9 +1403,8 @@ export function renderProposalList(
     selected: () => {
       const selected = rows.filter(row => row.check.checked && row.title.value.trim());
       if (!selected.length) return t("ui.select_at_least_one_subtopic");
-      const renamed = new Map(
-        selected.filter(row => !row.item.parentTitle).map(row => [row.item.title, row.title.value.trim()])
-      );
+      // Any selected row can be a parent, so deeper suggestions keep working.
+      const renamed = new Map(selected.map(row => [row.item.title, row.title.value.trim()]));
       const names = selected.filter(row => !row.item.parentTitle).map(row => row.title.value.trim());
       if (new Set(names).size !== names.length) return t("ui.first_level_topic_names_must_be_unique");
       if (selected.some(row => row.item.parentTitle && !renamed.has(row.item.parentTitle)))
@@ -1403,10 +1418,44 @@ export function renderProposalList(
     }
   };
 }
+/**
+ * A discard button that asks once more: the first press arms it for five seconds and explains that the
+ * work cannot be recovered; only a second press runs `discard`. Returns a function that cancels the timer.
+ */
+export function armDiscard(
+  button: HTMLButtonElement,
+  status: HTMLElement,
+  discard: () => void,
+  blocked: () => boolean = () => false
+): () => void {
+  const label = button.textContent ?? "";
+  let timer = 0;
+  const disarm = (): void => {
+    window.clearTimeout(timer);
+    timer = 0;
+    button.setText(label);
+    button.removeClass("mod-warning");
+  };
+  button.addEventListener("click", () => {
+    if (blocked()) return;
+    if (timer) {
+      disarm();
+      discard();
+      return;
+    }
+    timer = window.setTimeout(() => {
+      disarm();
+      status.setText("");
+    }, 5000);
+    button.setText(t("ui.discard_confirm"));
+    button.addClass("mod-warning");
+    status.setText(t("ui.discard_confirm_hint"));
+  });
+  return disarm;
+}
 /** A fixed action bar below the scrolling content, shared by the review dialogs. */
 function reviewActions(modal: Modal): HTMLDivElement {
-  modal.modalEl.addClass("vam-review-modal");
-  return modal.modalEl.createDiv("vam-next-actions");
+  return modalActions(modal);
 }
 export interface DraftReview {
   /** What confirming does, e.g. which topic's summary and details it replaces. */
@@ -1505,22 +1554,15 @@ export class DraftReviewModal extends Modal {
     if (this.discard) {
       // Discarding loses the AI's work, so it sits apart and asks once more before acting.
       const discard = actions.createEl("button", { text: t("ui.discard_synthesis"), cls: "vam-discard" });
-      discard.addEventListener("click", () => {
-        if (confirm.disabled) return;
-        if (this.discardArmed) {
-          this.disarmDiscard(discard);
+      this.disarm = armDiscard(
+        discard,
+        status,
+        () => {
           this.discard?.();
           this.close();
-          return;
-        }
-        this.discardArmed = window.setTimeout(() => {
-          this.disarmDiscard(discard);
-          status.setText("");
-        }, 5000);
-        discard.setText(t("ui.discard_confirm"));
-        discard.addClass("mod-warning");
-        status.setText(t("ui.discard_confirm_hint"));
-      });
+        },
+        () => confirm.disabled
+      );
     }
     const cancelButton = actions.createEl("button", { text: t("ui.cancel") });
     cancelButton.addEventListener("click", () => this.close());
@@ -1538,15 +1580,9 @@ export class DraftReviewModal extends Modal {
       );
     });
   }
-  private discardArmed = 0;
-  private disarmDiscard(button: HTMLButtonElement): void {
-    window.clearTimeout(this.discardArmed);
-    this.discardArmed = 0;
-    button.setText(t("ui.discard_synthesis"));
-    button.removeClass("mod-warning");
-  }
+  private disarm?: () => void;
   onClose(): void {
-    window.clearTimeout(this.discardArmed);
+    this.disarm?.();
     this.renderer.unload();
     this.contentEl.empty();
   }
@@ -1661,35 +1697,49 @@ export class MapConflictModal extends Modal {
   onOpen(): void {
     this.titleEl.setText(t("ui.mind_map_changed_externally"));
     this.contentEl.createEl("p", { text: t("ui.both_the_map_and_map_md_have_changed_choose_a_version_or_edi") });
-    const input = this.contentEl.createEl("textarea", {
-      cls: "vam-task-input",
-      text: JSON.stringify(this.disk, null, 2)
-    });
-    input.rows = 16;
     const finish = (map: MapDocument): void => {
       this.settled = true;
       this.close();
       this.resolve(map);
     };
-    new Setting(this.contentEl)
-      .addButton(button => button.setButtonText(t("ui.use_file_contents")).onClick(() => finish(clone(this.disk))))
-      .addButton(button => button.setButtonText(t("ui.keep_editor_contents")).onClick(() => finish(clone(this.local))))
-      .addButton(button =>
-        button
-          .setButtonText(t("ui.save_merged_contents"))
-          .setCta()
-          .onClick(() => {
-            try {
-              finish(parseMap(serializeMap(JSON.parse(input.value) as MapDocument)));
-            } catch (error) {
-              new Notice(
-                error instanceof Error
-                  ? t("ui.invalid_merged_contents_0", error.message)
-                  : t("ui.invalid_merged_contents")
-              );
-            }
-          })
-      );
+    // Two plain choices first, each saying what it keeps; hand-merging JSON is the expert path, folded away.
+    const options = this.contentEl.createDiv("vam-conflict-options");
+    const option = (label: string, description: string, map: () => MapDocument): void => {
+      const row = options.createDiv("vam-conflict-option");
+      const text = row.createDiv("vam-conflict-option-text");
+      text.createEl("strong", { text: label });
+      text.createSpan({ text: description, cls: "vam-hint" });
+      row.createEl("button", { text: label }).addEventListener("click", () => finish(map()));
+    };
+    option(t("ui.use_file_contents"), t("ui.conflict_use_file_desc"), () => clone(this.disk));
+    option(t("ui.keep_editor_contents"), t("ui.conflict_keep_editor_desc"), () => clone(this.local));
+    const advanced = this.contentEl.createEl("details", { cls: "vam-conflict-merge" });
+    advanced.createEl("summary", { text: t("ui.conflict_merge_by_hand") });
+    const input = advanced.createEl("textarea", {
+      cls: "vam-task-input",
+      text: JSON.stringify(this.disk, null, 2)
+    });
+    input.rows = 14;
+    input.setAttr("aria-label", t("ui.conflict_merge_by_hand"));
+    const actions = modalActions(this);
+    const status = actions.createSpan({
+      cls: "vam-next-actions-note vam-next-status",
+      attr: { "aria-live": "polite" }
+    });
+    status.setText(t("ui.conflict_close_uses_file"));
+    const merged = actions.createEl("button", { text: t("ui.save_merged_contents") });
+    merged.hidden = true;
+    advanced.addEventListener("toggle", () => (merged.hidden = !advanced.open));
+    merged.addEventListener("click", () => {
+      try {
+        finish(parseMap(serializeMap(JSON.parse(input.value) as MapDocument)));
+      } catch (error) {
+        // Keep the edited JSON and say what is wrong next to the button.
+        status.setText(
+          error instanceof Error ? t("ui.invalid_merged_contents_0", error.message) : t("ui.invalid_merged_contents")
+        );
+      }
+    });
   }
   onClose(): void {
     if (!this.settled) this.resolve(clone(this.disk));

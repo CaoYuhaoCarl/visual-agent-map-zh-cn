@@ -3,6 +3,7 @@ import { t } from "../../i18n";
 import { parseOutline, type OutlineIssue, type OutlineNode } from "./outline-import";
 import type { ResearchDepth } from "../../ai/types";
 import { modelField, researchDepthField, templateField, type ModelChoices } from "./research-fields";
+import { actionStatus, modalActions } from "../../ui/modals/action-bar";
 
 /** Where the imported outline goes; omitted means a new mind map. */
 export type OutlinePlacement = { kind: "new" } | { kind: "tree" } | { kind: "under"; parentId: string };
@@ -53,6 +54,7 @@ export class OutlineImportModal extends Modal {
   private preview!: HTMLElement;
   private sourceLabel!: HTMLElement;
   private createButton!: HTMLButtonElement;
+  private status!: HTMLElement;
   private shallow!: HTMLInputElement;
   private source: string | null = null;
   private sourceText = "";
@@ -76,7 +78,7 @@ export class OutlineImportModal extends Modal {
 
   onOpen(): void {
     this.titleEl.setText(t("ui.outline_import"));
-    this.modalEl?.addClass("vam-outline-import-modal");
+    this.modalEl.addClass("vam-outline-import-modal");
     this.contentEl.createEl("p", { text: t("ui.outline_import_hint"), cls: "vam-hint vam-outline-intro" });
     const source = this.contentEl.createDiv("vam-outline-section");
     const sourceHeader = source.createDiv("vam-outline-section-header");
@@ -113,7 +115,9 @@ export class OutlineImportModal extends Modal {
     const showOptions = (): void => researchOptions.toggleClass("is-hidden", !this.shallow.checked);
     this.shallow.addEventListener("change", showOptions);
     showOptions();
-    const footer = this.contentEl.createDiv("vam-modal-actions vam-outline-footer");
+    const footer = modalActions(this);
+    this.status = actionStatus(footer);
+    footer.createEl("button", { text: t("ui.cancel") }).addEventListener("click", () => this.close());
     this.createButton = footer.createEl("button", { text: t("ui.outline_import_create"), cls: "mod-cta" });
     this.createButton.addEventListener("click", () => void this.submit());
     this.refresh();
@@ -191,6 +195,7 @@ export class OutlineImportModal extends Modal {
       this.nodes = [];
       this.preview.createEl("p", { text: t("ui.outline_import_preview_empty"), cls: "vam-hint" });
       this.createButton.disabled = true;
+      this.status.setText("");
       return;
     }
     const parse = parseOutline(text);
@@ -211,6 +216,7 @@ export class OutlineImportModal extends Modal {
           .setText(node.title);
     }
     this.createButton.disabled = this.submitting || !!parse.errors.length;
+    this.status.setText("");
   }
 
   private async submit(): Promise<void> {
@@ -232,9 +238,10 @@ export class OutlineImportModal extends Modal {
       });
       this.close();
     } catch (error) {
-      new Notice(error instanceof Error ? error.message : String(error));
+      // The dialog stays open with the outline; the reason sits next to the button.
       this.submitting = false;
       this.refresh();
+      this.status.setText(error instanceof Error ? error.message : String(error));
     }
   }
 }

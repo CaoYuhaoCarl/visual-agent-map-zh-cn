@@ -95,6 +95,8 @@ import {
   TaskModal,
   NextStepModal,
   DraftReviewModal,
+  armDiscard,
+  renderProposalList,
   ChildProposalModal,
   IntegrationModal,
   MapConflictModal,
@@ -1646,7 +1648,7 @@ export class VisualAgentMapView extends ItemView {
       this.app,
       t("ui.remove_selected_topics"),
       t("ui.selected_branches_leave_the_map_their_notes_move_to_unassign"),
-      [{ label: t("ui.confirm_removal"), action: () => this.enqueue(() => this.removeSelected()) }]
+      [{ label: t("ui.confirm_removal"), warning: true, action: () => this.enqueue(() => this.removeSelected()) }]
     ).open();
   }
   private confirmRemoveNode(node: MapNode): void {
@@ -1659,11 +1661,16 @@ export class VisualAgentMapView extends ItemView {
           ? [
               {
                 label: t("ui.remove_only_this_node_children_become_roots"),
+                warning: true,
                 action: () => this.enqueue(() => this.removeToUnassigned(node, false))
               }
             ]
           : []),
-        { label: t("ui.remove_entire_branch"), action: () => this.enqueue(() => this.removeToUnassigned(node, true)) }
+        {
+          label: t("ui.remove_entire_branch"),
+          warning: true,
+          action: () => this.enqueue(() => this.removeToUnassigned(node, true))
+        }
       ]
     ).open();
   }
@@ -2322,6 +2329,7 @@ export class VisualAgentMapView extends ItemView {
           label: t("ui.delete_0", this.map.title),
           description: t("ui.topic_notes_will_be_kept"),
           buttonLabel: t("ui.move_to_trash"),
+          warning: true,
           action: () =>
             this.enqueue(async () => {
               if (!this.map) return;
@@ -3559,11 +3567,12 @@ export class VisualAgentMapView extends ItemView {
     });
   }
   private openNodePanel(node: MapNode, mode: "structure" | "proposals"): void {
-    const render = (content: HTMLElement, close: () => void): void => this.renderInspector(content, node, mode, close);
+    const render = (content: HTMLElement, close: () => void, host: HTMLElement): void =>
+      this.renderInspector(content, node, mode, close, host);
     new (class extends Modal {
       onOpen(): void {
-        this.modalEl.addClass("vam-topic-modal");
-        render(this.contentEl, () => this.close());
+        this.modalEl.addClass("vam-topic-modal", "vam-review-modal");
+        render(this.contentEl, () => this.close(), this.modalEl);
       }
     })(this.app).open();
   }
@@ -3571,7 +3580,8 @@ export class VisualAgentMapView extends ItemView {
     parent: HTMLElement,
     node: MapNode,
     mode: "structure" | "proposals" = "structure",
-    close?: () => void
+    close?: () => void,
+    host?: HTMLElement
   ): void {
     const panel = parent.createDiv(this.builtIn ? "vam-inspector" : "vam-topic-panel"),
       note = this.notes.get(node.id);
@@ -3588,6 +3598,7 @@ export class VisualAgentMapView extends ItemView {
         this.selected = null;
         this.render();
       });
+    else if (note) panel.createEl("p", { cls: "vam-inspector-topic", text: t("ui.topic_0", note.title) });
     if (note) {
       if (this.builtIn) {
         panel.createEl("h3", { text: note.title });
@@ -3605,7 +3616,7 @@ export class VisualAgentMapView extends ItemView {
         }
         return;
       }
-      if (mode === "proposals") this.renderPendingProposals(panel, node, note, close);
+      if (mode === "proposals") this.renderPendingProposals(panel, node, note, close, host);
       if (mode === "structure") {
         const sourcePaths = this.referenceSourcePaths(note, node.path);
         if (sourcePaths.length) {
@@ -3647,7 +3658,7 @@ export class VisualAgentMapView extends ItemView {
       );
     }
     if (mode !== "structure") return;
-    const relationship = panel.createDiv();
+    const relationship = panel.createDiv("vam-inspector-section");
     const parentLabel = relationship.createEl("label", { cls: "vam-field" });
     parentLabel.createSpan({ text: t("ui.parent_topic") });
     const parents = parentLabel.createEl("select");
@@ -3660,7 +3671,38 @@ export class VisualAgentMapView extends ItemView {
           text: this.notes.get(candidate.id)?.title ?? candidate.path
         });
     parents.value = node.parentId ?? "";
-    parents.addEventListener("change", () => {
+    relationship.createEl("p", {
+      cls: "vam-hint",
+      text: t("ui.changing_the_parent_affects_context_for_the_next_ai_task_the")
+    });
+    // Choosing a parent is a draft; nothing moves until Apply, and the dialog says what will change.
+    const actions = (host ?? panel).createDiv("vam-next-actions");
+    const remove = actions.createEl("button", { text: t("ui.remove_from_map"), cls: "vam-discard" });
+    remove.addEventListener("click", () => {
+      close?.();
+      this.confirmRemoveNode(node);
+    });
+    const status = actions.createSpan({
+      cls: "vam-next-actions-note vam-next-status",
+      attr: { "aria-live": "polite" }
+    });
+    actions.createEl("button", { text: t("ui.close") }).addEventListener("click", () => close?.());
+    const apply = actions.createEl("button", { text: t("ui.apply_parent"), cls: "mod-cta" });
+    const describe = (): void => {
+      const parentId = parents.value || null;
+      const changed = parentId !== (node.parentId ?? null);
+      apply.disabled = !changed;
+      status.setText(
+        !changed
+          ? ""
+          : parentId
+            ? t("ui.will_move_under_0", this.notes.get(parentId)?.title ?? "")
+            : t("ui.will_become_root_topic")
+      );
+    };
+    parents.addEventListener("change", describe);
+    describe();
+    apply.addEventListener("click", () => {
       const parentId = parents.value || null;
       close?.();
       this.enqueue(() =>
@@ -3670,106 +3712,49 @@ export class VisualAgentMapView extends ItemView {
         })
       );
     });
-    this.button(
-      relationship,
-      t("ui.remove_parent_link"),
-      () => {
-        close?.();
-        this.enqueue(() =>
-          this.mapChange(map => {
-            map.nodes.find(n => n.id === node.id)!.parentId = null;
-          })
-        );
-      },
-      !node.parentId
-    );
-    relationship.createEl("p", {
-      cls: "vam-hint",
-      text: t("ui.changing_the_parent_affects_context_for_the_next_ai_task_the")
-    });
-    this.button(relationship, t("ui.remove_from_map"), () => {
-      close?.();
-      this.confirmRemoveNode(node);
-    });
   }
-  private renderPendingProposals(panel: HTMLElement, node: MapNode, note: Note, close?: () => void): void {
+  private renderPendingProposals(
+    panel: HTMLElement,
+    node: MapNode,
+    note: Note,
+    close?: () => void,
+    host?: HTMLElement
+  ): void {
     const suggestions = this.plugin.pendingSuggestions.get(node.path);
     if (!suggestions?.length) return;
     const section = panel.createDiv("vam-inspector-proposals");
-    section.createEl("h3", { text: t("ui.0_expansion_suggestions", suggestions.length) });
     section.createEl("p", { text: t("ui.select_and_edit_suggestions_subtopics_are_created_only_after") });
-    const rows: {
-      original: Suggestion;
-      check: HTMLInputElement;
-      title: HTMLInputElement;
-      task: HTMLTextAreaElement;
-      contribution: HTMLTextAreaElement;
-    }[] = [];
-    for (const original of suggestions) {
-      const row = section.createDiv("vam-proposal");
-      if (original.parentTitle) row.createEl("p", { text: t("ui.child_of_0", original.parentTitle) });
-      const checkLabel = row.createEl("label", { cls: "vam-field vam-next-toggle" });
-      const check = checkLabel.createEl("input", { type: "checkbox" });
-      check.checked = true;
-      checkLabel.createSpan({ text: t("ui.create_this_subtopic") });
-      const titleField = row.createEl("label", { cls: "vam-proposal-field" });
-      titleField.createSpan({ text: t("ui.subtopic_name") });
-      const title = titleField.createEl("input", { type: "text", value: original.title });
-      title.setAttr("aria-label", t("ui.subtopic_name"));
-      const taskField = row.createEl("label", { cls: "vam-proposal-field" });
-      taskField.createSpan({ text: t("ui.research_task") });
-      const task = taskField.createEl("textarea", { text: original.task });
-      task.rows = 2;
-      task.setAttr("aria-label", t("ui.research_task"));
-      const contributionField = row.createEl("label", { cls: "vam-proposal-field" });
-      contributionField.createSpan({ text: t("ui.contribution_to_the_parent_topic") });
-      const contribution = contributionField.createEl("textarea", { text: original.contribution });
-      contribution.rows = 2;
-      contribution.setAttr("aria-label", t("ui.contribution_to_the_parent_topic"));
-      rows.push({ original, check, title, task, contribution });
-    }
+    let showCount = (_count: number): void => {};
+    // Same list as the explore dialog; suggestions that name this topic as parent are first-level.
+    const list = renderProposalList(section, suggestions, count => showCount(count), { rootTitle: note.title });
     const researchLabel = section.createEl("label", { cls: "vam-field vam-next-toggle" });
     const shallow = researchLabel.createEl("input", { type: "checkbox" });
     shallow.checked = !!this.plugin.pendingResearchOptions.get(node.path)?.shallowResearch;
     researchLabel.createSpan({ text: t("ui.run_shallow_research_on_each_created_subtopic") });
-    const status = section.createEl("p", { cls: "vam-hint" });
-    const actions = section.createDiv("vam-actions");
-    const create = this.button(actions, t("ui.create_selected_subtopics"), () => {
+    const actions = (host ?? section).createDiv("vam-next-actions");
+    const discard = actions.createEl("button", { text: t("ui.discard_these_suggestions"), cls: "vam-discard" });
+    const status = actions.createSpan({
+      cls: "vam-next-actions-note vam-next-status",
+      attr: { "aria-live": "polite" }
+    });
+    actions.createEl("button", { text: t("ui.close") }).addEventListener("click", () => close?.());
+    const create = actions.createEl("button", { text: t("ui.create_0_subtopics", list.count()), cls: "mod-cta" });
+    showCount = count => {
+      create.setText(t("ui.create_0_subtopics", count));
+      create.disabled = count === 0;
+      status.setText("");
+    };
+    create.addEventListener("click", () => {
       void (async () => {
         if (this.plugin.expansionCoordinator.isRunning(node.path)) {
           status.setText(t("ui.ai_running_ai"));
           return;
         }
-        const chosen = rows.filter(row => row.check.checked && row.title.value.trim());
-        if (!chosen.length) {
-          status.setText(t("ui.select_at_least_one_subtopic"));
+        const items = list.selected();
+        if (typeof items === "string") {
+          status.setText(items);
           return;
         }
-        const names = new Map(chosen.map(row => [row.original.title, row.title.value.trim()]));
-        if (new Set(names.values()).size !== names.size) {
-          status.setText(t("ui.subtopic_names_must_be_unique"));
-          return;
-        }
-        if (
-          chosen.some(
-            row =>
-              row.original.parentTitle &&
-              row.original.parentTitle !== note.title &&
-              !names.has(row.original.parentTitle)
-          )
-        ) {
-          status.setText(t("ui.select_the_parent_topic_before_its_child"));
-          return;
-        }
-        const items = chosen.map(row => ({
-          title: row.title.value.trim(),
-          task: row.task.value.trim(),
-          contribution: row.contribution.value.trim(),
-          parentTitle:
-            row.original.parentTitle && row.original.parentTitle !== note.title
-              ? names.get(row.original.parentTitle)!
-              : ""
-        }));
         create.disabled = true;
         status.setText(t("ui.creating_subtopics"));
         try {
@@ -3811,24 +3796,26 @@ export class VisualAgentMapView extends ItemView {
         }
       })();
     });
-    create.addClass("mod-cta");
-    this.button(actions, t("ui.discard_these_suggestions"), () => {
-      void (async () => {
-        try {
-          await this.plugin.mutate(async () => {
-            if (this.plugin.pendingSuggestions.get(node.path) !== suggestions)
-              throw new Error(t("ui.expansion_suggestions_changed_open_them_again"));
-            this.plugin.pendingSuggestions.delete(node.path);
-            this.plugin.pendingResearchOptions.delete(node.path);
-            await (this.plugin.pendingSuggestions as PendingSuggestions).flush?.();
-          });
-          close?.();
-          this.render();
-        } catch (error) {
-          status.setText(error instanceof Error ? error.message : String(error));
-        }
-      })();
-    });
+    armDiscard(
+      discard,
+      status,
+      () =>
+        void (async () => {
+          try {
+            await this.plugin.mutate(async () => {
+              if (this.plugin.pendingSuggestions.get(node.path) !== suggestions)
+                throw new Error(t("ui.expansion_suggestions_changed_open_them_again"));
+              this.plugin.pendingSuggestions.delete(node.path);
+              this.plugin.pendingResearchOptions.delete(node.path);
+              await (this.plugin.pendingSuggestions as PendingSuggestions).flush?.();
+            });
+            close?.();
+            this.render();
+          } catch (error) {
+            status.setText(error instanceof Error ? error.message : String(error));
+          }
+        })()
+    );
   }
   private async previewMigration(): Promise<void> {
     const plan = await this.plugin.repo.legacyMigrationPlan();

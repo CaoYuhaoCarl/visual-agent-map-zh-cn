@@ -520,7 +520,8 @@ test('multi research modal: defaults, options and immediate close on start', () 
     setText(value) { this.text = value; }, replaceChildren() { this.children = []; }, setAttr(name, value) { this[name] = value; }, addEventListener(name, fn) { this.listeners[name] = fn; }, addClass(n) { this.cls = `${this.cls} ${n}`.trim(); }, focus() {}
   });
   const find = (root, predicate) => predicate(root) ? root : root.children.map(c => find(c, predicate)).find(Boolean);
-  class Modal { constructor(app) { this.app = app; this.titleEl = element('title'); this.contentEl = element('content'); this.closed = 0; } open() { this.onOpen(); } close() { this.closed++; } }
+  // As in Obsidian, the content sits inside modalEl; the action bar is modalEl's last child.
+  class Modal { constructor(app) { this.app = app; this.titleEl = element('title'); this.contentEl = element('content'); this.modalEl = element('modal'); this.modalEl.children.push(this.contentEl); this.closed = 0; } open() { this.onOpen(); } close() { this.closed++; } }
   const mod = load('experiences/visual-map/multi-research-modal.ts', { obsidian: { ...obsidian, Modal } });
   const requests = []; const templates = [{ id: 'standard', name: 'Standard' }, { id: 'A', name: 'Alpha template' }];
   let models = [], changed = null, unwatched = 0;
@@ -536,7 +537,7 @@ test('multi research modal: defaults, options and immediate close on start', () 
   assert.deepEqual(plain(depth.children.map(c => c.value)), ['fast', 'normal', 'deep']);
   const templateSelect = find(modal.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Content template');
   assert.deepEqual(plain(templateSelect.children.map(c => [c.value, c.text])), [['', "Each topic's current template"], ['standard', 'Standard'], ['A', 'Alpha template']]);
-  const start = find(modal.contentEl, i => i.tag === 'button' && i.text === 'Start research');
+  const start = find(modal.modalEl, i => i.tag === 'button' && i.text === 'Start research (2)');
   start.listeners.click(); start.listeners.click();
   assert.equal(modal.closed, 1); assert.equal(requests.length, 1); modal.onClose(); assert.equal(unwatched, 1);
   assert.deepEqual(plain(requests[0]), { researchMode: 'research', researchDepth: 'fast', requirements: '' });
@@ -546,7 +547,7 @@ test('multi research modal: defaults, options and immediate close on start', () 
   find(m2.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Model').value = 'm1';
   find(m2.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Content template').value = 'A';
   find(m2.contentEl, i => i.tag === 'textarea').value = '  only 2025  ';
-  find(m2.contentEl, i => i.tag === 'button' && i.text === 'Start research').listeners.click();
+  find(m2.modalEl, i => i.tag === 'button' && i.text === 'Start research (1)').listeners.click();
   assert.deepEqual(plain(second[0]), { researchMode: 'local', researchDepth: 'deep', requirements: 'only 2025', model: 'm1', detailTemplateId: 'A' });
 });
 test('card shows a Format not met badge with the issues as tooltip', () => {
@@ -834,3 +835,184 @@ integrationTest('review dialogs: duplicate parents list each proposal once, disc
   finishSave(); await new Promise(resolve => setTimeout(resolve, 0));
   assert.equal(draft.closed, true);
 });
+integrationTest('structure panel: a parent change waits for Apply, says what will change, and keeps Remove apart', () => {
+  const element = (tag, options = {}) => ({
+    tag, text: options.text, value: options.value ?? '', cls: options.cls ?? '', attr: options.attr ?? {}, children: [], disabled: false,
+    createDiv(value) { const child = element('div', typeof value === 'string' ? { cls: value } : value); this.children.push(child); return child; },
+    createEl(name, value) { const child = element(name, value); this.children.push(child); return child; },
+    createSpan(value) { const child = element('span', value); this.children.push(child); return child; },
+    addClass(name) { this.cls = `${this.cls} ${name}`.trim(); }, setText(value) { this.text = value; }, setAttr(name, value) { this.attr[name] = value; },
+    addEventListener(name, handler) { this[name] = handler; }
+  });
+  const all = (root, predicate) => [...(predicate(root) ? [root] : []), ...root.children.flatMap(child => all(child, predicate))];
+  const find = (root, predicate) => all(root, predicate)[0];
+  const { VisualAgentMapView } = load('main.ts', { obsidian });
+  const nodes = [{ id: 'a', path: 'A.md', parentId: null }, { id: 'b', path: 'B.md', parentId: null }, { id: 'c', path: 'C.md', parentId: 'a' }];
+  const changes = []; let closed = 0, removed = 0;
+  const view = {
+    builtIn: false, map: { nodes }, notes: new Map([['a', { title: 'Heat' }], ['b', { title: 'Water' }], ['c', { title: 'Pan', sourcePaths: [] }]]),
+    app: { vault: { getAbstractFileByPath: () => null } }, referenceSourcePaths: () => [],
+    button(parent, text, click) { const b = parent.createEl('button', { text }); b.click = click; return b; },
+    confirmRemoveNode() { removed++; }, enqueue(work) { work(); }, mapChange(change) { const copy = { nodes: nodes.map(n => ({ ...n })) }; change(copy); changes.push(copy.nodes.find(n => n.id === 'c').parentId); }
+  };
+  const content = element('content'), host = element('modal');
+  VisualAgentMapView.prototype.renderInspector.call(view, content, nodes[2], 'structure', () => { closed++; }, host);
+  assert.ok(find(content, item => item.text === 'Topic: Pan'));
+  assert.equal(find(content, item => item.tag === 'button' && item.text === 'Remove parent link'), undefined);
+  const actions = find(host, item => item.cls === 'vam-next-actions');
+  const buttons = actions.children.filter(item => item.tag === 'button');
+  assert.deepEqual(buttons.map(item => item.text), ['Remove from map', 'Close', 'Apply']);
+  assert.ok(buttons[0].cls.includes('vam-discard'));
+  const apply = buttons[2], status = find(actions, item => item.cls.includes('vam-next-status'));
+  assert.equal(apply.disabled, true);
+  const select = find(content, item => item.tag === 'select');
+  select.value = 'b'; select.change();
+  assert.equal(apply.disabled, false); assert.equal(status.text, 'Will move under “Water”.'); assert.equal(changes.length, 0);
+  select.value = ''; select.change();
+  assert.equal(status.text, 'Will become a root topic.');
+  apply.click();
+  assert.equal(closed, 1); assert.deepEqual(changes, [null]);
+  buttons[0].click();
+  assert.equal(removed, 1);
+});
+integrationTest('expansion suggestions panel uses the shared list, treats the topic as first-level parent and asks before discarding', async () => {
+  const element = (tag, options = {}) => ({
+    tag, type: options.type, text: options.text, value: options.value ?? options.text ?? '', cls: options.cls ?? '', attr: options.attr ?? {}, children: [], hidden: false, disabled: false, checked: false,
+    get textContent() { return this.text; },
+    createDiv(value) { const child = element('div', typeof value === 'string' ? { cls: value } : value); this.children.push(child); return child; },
+    createEl(name, value) { const child = element(name, value); this.children.push(child); return child; },
+    createSpan(value) { const child = element('span', value); this.children.push(child); return child; },
+    addClass(name) { this.cls = `${this.cls} ${name}`.trim(); }, removeClass(name) { this.cls = this.cls.split(' ').filter(item => item !== name).join(' '); }, setText(value) { this.text = value; }, setAttr(name, value) { this.attr[name] = value; },
+    addEventListener(name, handler) { this[name] = handler; }
+  });
+  const all = (root, predicate) => [...(predicate(root) ? [root] : []), ...root.children.flatMap(child => all(child, predicate))];
+  const find = (root, predicate) => all(root, predicate)[0];
+  const { VisualAgentMapView } = load('main.ts', { obsidian });
+  const node = { id: 'p', path: 'P.md', parentId: null };
+  const suggestions = [{ title: 'Heat', task: '', contribution: '', parentTitle: 'Parent' }, { title: 'Pan', task: '', contribution: '', parentTitle: 'Heat' }];
+  const pendingSuggestions = new Map([['P.md', suggestions]]);
+  let created, closed = 0, rendered = 0;
+  const view = {
+    map: { nodes: [node] }, render() { rendered++; },
+    plugin: { pendingSuggestions, pendingResearchOptions: new Map(), expansionCoordinator: { isRunning: () => false }, mutate: async work => work() },
+    assertSuggestionOrigin: async () => {}, createChildBatch: async (_parent, items) => { created = items; return []; }, startShallowResearch: async () => {}
+  };
+  const panel = element('panel'), host = element('modal');
+  VisualAgentMapView.prototype.renderPendingProposals.call(view, panel, node, { title: 'Parent' }, () => { closed++; }, host);
+  const rows = all(panel, item => item.cls.split(' ').includes('vam-proposal'));
+  assert.deepEqual(rows.map(row => row.cls.includes('is-child')), [false, true]);
+  const actions = find(host, item => item.cls === 'vam-next-actions');
+  const [discard, close, create] = actions.children.filter(item => item.tag === 'button');
+  assert.equal(create.text, 'Create subtopics (2)'); assert.ok(discard.cls.includes('vam-discard')); assert.equal(close.text, 'Close');
+  discard.click();
+  assert.equal(pendingSuggestions.has('P.md'), true); assert.equal(discard.text, 'Discard draft?');
+  create.click(); await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(JSON.stringify(created.map(item => [item.title, item.parentTitle])), JSON.stringify([['Heat', ''], ['Pan', 'Heat']]));
+  assert.equal(closed, 1);
+  pendingSuggestions.set('P.md', suggestions);
+  const again = element('panel'), host2 = element('modal');
+  VisualAgentMapView.prototype.renderPendingProposals.call(view, again, node, { title: 'Parent' }, () => { closed++; }, host2);
+  const discard2 = find(host2, item => item.tag === 'button' && item.cls.includes('vam-discard'));
+  discard2.click(); discard2.click(); await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(pendingSuggestions.has('P.md'), false); assert.equal(closed, 2);
+});
+integrationTest('name dialog ignores Enter while composing, explains an empty name, and keeps buttons in the action bar', () => {
+  const element = (tag, options = {}) => ({
+    tag, type: options.type, text: options.text, value: options.value ?? '', cls: options.cls ?? '', attr: options.attr ?? {}, children: [], disabled: false,
+    createDiv(value) { const child = element('div', typeof value === 'string' ? { cls: value } : value); this.children.push(child); return child; },
+    createEl(name, value) { const child = element(name, value); this.children.push(child); return child; },
+    createSpan(value) { const child = element('span', value); this.children.push(child); return child; },
+    addClass(name) { this.cls = `${this.cls} ${name}`.trim(); }, setText(value) { this.text = value; }, setAttr(name, value) { this.attr[name] = value; },
+    addEventListener(name, handler) { this[name] = handler; }, focus() {}, select() {}
+  });
+  const all = (root, predicate) => [...(predicate(root) ? [root] : []), ...root.children.flatMap(child => all(child, predicate))];
+  const find = (root, predicate) => all(root, predicate)[0];
+  class Modal { constructor() { this.titleEl = element('title'); this.contentEl = element('content'); this.modalEl = element('modal'); this.modalEl.children.push(this.contentEl); } close() { this.closed = true; } }
+  const { NameModal } = load('ui/modals/name-modal.ts', { obsidian: { ...obsidian, Modal } });
+  const saved = [];
+  const modal = new NameModal({}, 'New topic name', 'Heat', value => saved.push(value));
+  modal.onOpen();
+  const input = find(modal.contentEl, item => item.tag === 'input');
+  const save = find(modal.modalEl, item => item.tag === 'button' && item.text === 'Save');
+  const status = find(modal.modalEl, item => item.cls.includes('vam-next-status'));
+  input.value = '溫度'; input.keydown({ key: 'Enter', isComposing: true });
+  assert.deepEqual(saved, []); assert.notEqual(modal.closed, true);
+  input.value = '   '; input.input();
+  assert.equal(save.disabled, true); assert.match(status.text, /Enter a name/);
+  input.value = '溫度'; input.input();
+  assert.equal(save.disabled, false); assert.equal(status.text, '');
+  input.keydown({ key: 'Enter', isComposing: false });
+  assert.deepEqual(saved, ['溫度']); assert.equal(modal.closed, true);
+});
+integrationTest('choice dialog marks destructive choices and starts on Cancel; map conflict explains each choice and keeps merge errors inline', () => {
+  const element = (tag, options = {}) => ({
+    tag, text: options.text, value: options.value ?? options.text ?? '', cls: options.cls ?? '', attr: options.attr ?? {}, children: [], hidden: false, open: false,
+    createDiv(value) { const child = element('div', typeof value === 'string' ? { cls: value } : value); this.children.push(child); return child; },
+    createEl(name, value) { const child = element(name, value); this.children.push(child); return child; },
+    createSpan(value) { const child = element('span', value); this.children.push(child); return child; },
+    addClass(name) { this.cls = `${this.cls} ${name}`.trim(); }, setText(value) { this.text = value; }, setAttr(name, value) { this.attr[name] = value; },
+    addEventListener(name, handler) { this[name] = handler; }, focus() { this.focused = true; }
+  });
+  const all = (root, predicate) => [...(predicate(root) ? [root] : []), ...root.children.flatMap(child => all(child, predicate))];
+  const find = (root, predicate) => all(root, predicate)[0];
+  class Modal { constructor() { this.titleEl = element('title'); this.contentEl = element('content'); this.modalEl = element('modal'); this.modalEl.children.push(this.contentEl); } close() { this.closed = true; this.onClose?.(); } }
+  const buttons = [];
+  class Setting { constructor() {} setName() { return this; } setDesc() { return this; } addButton(fn) { const b = { setButtonText(v) { this.text = v; return this; }, onClick(h) { this.click = h; return this; }, setDestructive() { this.destructive = true; return this; } }; fn(b); buttons.push(b); return this; } }
+  const { ChoiceModal } = load('ui/modals/choice-modal.ts', { obsidian: { ...obsidian, Modal, Setting } });
+  let ran = 0;
+  const choice = new ChoiceModal({}, 'Remove from map', 'Notes move to Unassigned.', [{ label: 'Remove entire branch', warning: true, action: () => { ran++; } }, { label: 'Keep', action: () => {} }]);
+  choice.onOpen();
+  assert.deepEqual(buttons.map(b => [b.text, !!b.destructive]), [['Remove entire branch', true], ['Keep', false]]);
+  // Every destructive caller in the map view passes warning: true, including deleting the map.
+  const viewSource = fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8');
+  assert.match(viewSource, /buttonLabel: t\("ui\.move_to_trash"\),\s*warning: true/);
+  const cancel = find(choice.modalEl, item => item.cls === 'vam-next-actions').children[0];
+  assert.equal(cancel.text, 'Cancel'); assert.equal(cancel.focused, true);
+  buttons[0].click(); assert.equal(ran, 1); assert.equal(choice.closed, true);
+  const { MapConflictModal } = load('experiences/visual-map/modals.ts', { obsidian: { ...obsidian, Modal, Setting } });
+  const disk = { version: 1, id: 'm', title: 'Disk', nodes: [] }, local = { version: 1, id: 'm', title: 'Local', nodes: [] };
+  const resolved = [];
+  const conflict = new MapConflictModal({}, local, disk, map => resolved.push(map.title));
+  conflict.onOpen();
+  const options = all(conflict.contentEl, item => item.cls === 'vam-conflict-option');
+  assert.equal(options.length, 2);
+  assert.ok(find(options[0], item => /on disk/.test(item.text ?? ''))); assert.ok(find(options[1], item => /overwrites/.test(item.text ?? '')));
+  const actions = find(conflict.modalEl, item => item.cls === 'vam-next-actions');
+  const status = find(actions, item => item.cls.includes('vam-next-status'));
+  assert.match(status.text, /Closing this window uses the file/);
+  const merged = find(actions, item => item.tag === 'button');
+  assert.equal(merged.hidden, true);
+  const details = find(conflict.contentEl, item => item.cls === 'vam-conflict-merge'); details.open = true; details.toggle();
+  assert.equal(merged.hidden, false);
+  find(details, item => item.tag === 'textarea').value = '{ not json';
+  merged.click();
+  assert.notEqual(conflict.closed, true); assert.match(status.text, /Invalid merged contents|merged/i);
+  find(options[1], item => item.tag === 'button').click();
+  assert.deepEqual(resolved, ['Local']);
+});
+integrationTest('proposal list links checks and parents at any depth', () => {
+  const element = (tag, options = {}) => ({
+    tag, type: options.type, text: options.text, value: options.value ?? options.text ?? '', cls: options.cls ?? '', attr: options.attr ?? {}, children: [], hidden: false, disabled: false, checked: false,
+    createDiv(value) { const child = element('div', typeof value === 'string' ? { cls: value } : value); this.children.push(child); return child; },
+    createEl(name, value) { const child = element(name, value); this.children.push(child); return child; },
+    createSpan(value) { const child = element('span', value); this.children.push(child); return child; },
+    addClass(name) { this.cls = `${this.cls} ${name}`.trim(); }, setText(value) { this.text = value; }, setAttr(name, value) { this.attr[name] = value; },
+    addEventListener(name, handler) { this[name] = handler; }
+  });
+  const all = (root, predicate) => [...(predicate(root) ? [root] : []), ...root.children.flatMap(child => all(child, predicate))];
+  const { renderProposalList } = load('experiences/visual-map/modals.ts', { obsidian });
+  const parent = element('panel');
+  const list = renderProposalList(parent, [
+    { title: 'Heat', task: '', contribution: '', parentTitle: '' },
+    { title: 'Pan', task: '', contribution: '', parentTitle: 'Heat' },
+    { title: 'Iron pan', task: '', contribution: '', parentTitle: 'Pan' }
+  ], () => {});
+  const checks = all(parent, item => item.type === 'checkbox');
+  checks[0].checked = false; checks[0].change();
+  assert.deepEqual(checks.map(c => c.checked), [false, false, false]);
+  checks[2].checked = true; checks[2].change();
+  assert.deepEqual(checks.map(c => c.checked), [true, true, true]);
+  const picked = list.selected();
+  assert.equal(JSON.stringify(picked.map(item => [item.title, item.parentTitle])), JSON.stringify([['Heat', ''], ['Pan', 'Heat'], ['Iron pan', 'Pan']]));
+});
+
