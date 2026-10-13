@@ -4,12 +4,8 @@ import condenseEn from "./condense.en.md";
 import condenseZh from "./condense.zh.md";
 import translateEn from "./translate.en.md";
 import translateZh from "./translate.zh.md";
-import translateImageEn from "./translate-image.en.md";
-import translateImageZh from "./translate-image.zh.md";
 import searchImagesEn from "./search-images.en.md";
 import searchImagesZh from "./search-images.zh.md";
-import explainImageEn from "./explain-image.en.md";
-import explainImageZh from "./explain-image.zh.md";
 
 export interface PresetInput {
   language: UiLanguage;
@@ -32,21 +28,9 @@ function presetStep(id: string, zh: string, en: string, usesTarget: boolean): St
 
 export const condensePresetStep = presetStep("markdown.preset.condense", condenseZh, condenseEn, false);
 export const translatePresetStep = presetStep("markdown.preset.translate", translateZh, translateEn, true);
-export const translateImagePresetStep = presetStep(
-  "markdown.preset.translate-image",
-  translateImageZh,
-  translateImageEn,
-  true
-);
 export const searchImagesPresetStep = presetStep(
   "markdown.preset.search-images",
   searchImagesZh,
   searchImagesEn,
-  false
-);
-export const explainImagePresetStep = presetStep(
-  "markdown.preset.explain-image",
-  explainImageZh,
-  explainImageEn,
   false
 );

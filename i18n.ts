@@ -237,27 +237,28 @@ const english = {
 
   "ui.context_ai_accept": "Accept change",
   "ui.context_ai_before": "Original",
+  "ui.image_translate_action": "Translate image",
+  "ui.image_translate_language": "Translate to",
+  "ui.image_translate_replace": "Replace image",
+  "ui.image_translate_new": "Add new image",
+  "ui.image_translate_replace_unavailable": "This image appears more than once or can't be located in the note, so it can only be added as a new image.",
+  "ui.image_translate_running": "Codex is drawing the translated image (about a minute). You can keep working; it is written to the note when ready.",
+  "ui.image_translate_replaced": "Replaced the image with its translated version ({0}).",
+  "ui.image_translate_added": "Added the translated image below the original ({0}).",
+  "ui.image_translate_appended": "The original image moved, so the translated image was added at the end of the note ({0}).",
   "ui.context_ai_image_generation_codex": "Making a translated image needs a Codex model; Claude cannot draw images. Choose a Codex model in settings, or use Translate text in image.",
   "ui.context_ai_image_not_generated": "Codex did not return an image. Try again, or use Translate text in image.",
-  "ui.context_ai_translate_image_redraw": "Make translated image",
-  "ui.context_ai_generating_image": "Codex is drawing the translated image… this can take a minute.",
-  "ui.context_ai_generated_image": "Translated image",
-  "ui.context_ai_image_saved": "Saved the image to {0} and inserted it.",
   "ui.context_ai_image_download_failed": "Could not download this web image for AI. Check the connection, or save the image into the vault and try again.",
   "ui.context_ai_choose_image": "Choose an image to insert",
   "ui.context_ai_running_0": "Running: {0}…",
   "ui.context_ai_stop": "Stop",
   "ui.context_ai_shortcut": "{0} Enter to run",
   "ui.context_ai_custom_instruction": "Custom instruction",
-  "ui.context_ai_instruction_placeholder_image": "Or describe what AI should do with this image…",
   "ui.context_ai_search_disclosure": "Image search lets AI search the web and loads previews. Web images may not be free to reuse; check the source page.",
-  "ui.context_ai_translate_image": "Translate text in image",
   "ui.context_ai_quick_actions": "Quick actions",
   "ui.context_ai_cursor_source": "No selection · the result goes at the cursor",
   "ui.context_ai_text_source": "Selected text",
   "ui.context_ai_after": "Suggested change",
-  "ui.context_ai_image_source": "Selected image · sent to AI only when you run an action",
-  "ui.context_ai_explain_image": "Explain image",
   "ui.context_ai_search_images": "Search images",
   "ui.context_ai_image_unavailable": "Cannot read this image. Use a loaded PNG, JPEG, WebP or GIF image.",
   "ui.context_ai_scope": "AI works on the selection with your instruction and the nearby paragraph. Nothing is written until you apply it.",
@@ -1300,6 +1301,17 @@ const english = {
 } as const;
 
 export type UiLanguage = "zh-TW" | "en";
+/**
+ * Every language VAM supports, in menu order. Language menus (settings, output language, image translation) read
+ * this list, so a newly supported language appears in all of them. `name` is the English name used in AI prompts.
+ */
+export const SUPPORTED_LANGUAGES: ReadonlyArray<{ id: UiLanguage; label: string; name: string }> = [
+  { id: "zh-TW", label: "繁體中文", name: "Traditional Chinese" },
+  { id: "en", label: "English", name: "English" }
+];
+export function supportedLanguageLabel(id: string): string {
+  return SUPPORTED_LANGUAGES.find(item => item.id === id)?.label ?? id;
+}
 export type TranslationKey = keyof typeof english;
 
 const traditionalChinese: Record<TranslationKey, string> = {
@@ -1541,27 +1553,28 @@ const traditionalChinese: Record<TranslationKey, string> = {
 
   "ui.context_ai_accept": "接受修改",
   "ui.context_ai_before": "原文",
+  "ui.image_translate_action": "生成翻譯圖片",
+  "ui.image_translate_language": "翻譯成",
+  "ui.image_translate_replace": "取代原圖",
+  "ui.image_translate_new": "新增一張",
+  "ui.image_translate_replace_unavailable": "這張圖在筆記裡出現多次或無法定位，只能新增一張。",
+  "ui.image_translate_running": "Codex 正在繪製翻譯圖片（約一分鐘）。可以繼續編輯，完成後會自動寫入筆記。",
+  "ui.image_translate_replaced": "已用翻譯版圖片取代原圖（{0}）。",
+  "ui.image_translate_added": "已在原圖下方新增翻譯圖片（{0}）。",
+  "ui.image_translate_appended": "原圖位置已變動，翻譯圖片已加到筆記結尾（{0}）。",
   "ui.context_ai_image_generation_codex": "產生翻譯版圖片需要 Codex 模型，Claude 無法畫圖。請在設定選擇 Codex 模型，或改用「翻譯圖中文字」。",
   "ui.context_ai_image_not_generated": "Codex 沒有回傳圖片。請再試一次，或改用「翻譯圖中文字」。",
-  "ui.context_ai_translate_image_redraw": "產生翻譯版圖片",
-  "ui.context_ai_generating_image": "Codex 正在繪製翻譯版圖片…可能需要一分鐘左右。",
-  "ui.context_ai_generated_image": "翻譯版圖片",
-  "ui.context_ai_image_saved": "已把圖片存到 {0} 並插入筆記。",
   "ui.context_ai_image_download_failed": "無法下載這張網路圖片給 AI。請確認網路連線，或把圖片存進 Vault 後再試一次。",
   "ui.context_ai_choose_image": "選擇要插入的圖片",
   "ui.context_ai_running_0": "正在{0}…",
   "ui.context_ai_stop": "停止",
   "ui.context_ai_shortcut": "{0} Enter 執行",
   "ui.context_ai_custom_instruction": "自訂指令",
-  "ui.context_ai_instruction_placeholder_image": "或描述想請 AI 怎麼處理這張圖…",
   "ui.context_ai_search_disclosure": "搜尋圖片會讓 AI 上網找圖並載入預覽；網路圖片不一定能自由使用，請查看來源頁的授權。",
-  "ui.context_ai_translate_image": "翻譯圖中文字",
   "ui.context_ai_quick_actions": "快速動作",
   "ui.context_ai_cursor_source": "沒有選取內容 · 結果會放在游標處",
   "ui.context_ai_text_source": "選取的文字",
   "ui.context_ai_after": "建議修改",
-  "ui.context_ai_image_source": "選取的圖片 · 執行動作時才會傳給 AI",
-  "ui.context_ai_explain_image": "解釋圖片",
   "ui.context_ai_search_images": "搜尋圖片",
   "ui.context_ai_image_unavailable": "無法讀取此圖片。請使用已載入的 PNG、JPEG、WebP 或 GIF 圖片。",
   "ui.context_ai_scope": "AI 依你的指令與附近段落處理選取內容；套用前不會寫入筆記。",

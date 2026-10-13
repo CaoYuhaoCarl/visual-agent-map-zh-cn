@@ -37,6 +37,7 @@ function setup(initial) {
     unload() { this.onunload?.(); }
     registerDomEvent(target, type, listener) { (listeners[type] ??= []).push(listener); }
     registerEvent() {}
+    addChild(child) { child.load(); return child; }
   }
   class MarkdownView {}
   class HTMLImageElement { constructor() { this.alt = 'image'; this.src = ''; this.currentSrc = ''; } closest() { return null; } getBoundingClientRect() { return { left: 0, right: 10, top: 0, bottom: 10, width: 10, height: 10 }; } }
@@ -62,8 +63,9 @@ function setup(initial) {
   ai.load();
   const launcher = app.workspace.containerEl.children.find(item => item.cls === 'vam-context-ai-launcher');
   const panel = () => app.workspace.containerEl.children.find(item => item.cls === 'vam-context-ai-panel');
+  const imageAction = () => app.workspace.containerEl.children.find(item => item.cls.includes('vam-image-action-pill'));
   const fire = (type, event = {}) => { for (const listener of listeners[type] ?? []) listener(event); };
-  return { ai, launcher, panel, fire, selected, image: new HTMLImageElement(), setAutoOpen: value => { autoOpen = value; } };
+  return { ai, launcher, panel, imageAction, fire, selected, image: new HTMLImageElement(), setAutoOpen: value => { autoOpen = value; } };
 }
 
 test('auto-open on: selecting text shows the launcher', () => {
@@ -74,7 +76,7 @@ test('auto-open on: selecting text shows the launcher', () => {
 });
 
 test('auto-open off: selecting text keeps the launcher hidden and clicking an image opens no panel', () => {
-  const { launcher, panel, fire, image } = setup(false);
+  const { launcher, panel, imageAction, fire, image } = setup(false);
   fire('selectionchange');
   fire('pointerup');
   fire('keyup');
@@ -82,6 +84,7 @@ test('auto-open off: selecting text keeps the launcher hidden and clicking an im
   assert.equal(launcher.hidden, true);
   fire('click', { target: image });
   assert.equal(panel(), undefined);
+  assert.equal(imageAction(), undefined);
 });
 
 test('auto-open off: the command still opens the panel for the current selection', () => {
@@ -114,8 +117,9 @@ test('turning auto-open off hides a launcher that is already showing on the next
   assert.equal(launcher.hidden, true);
 });
 
-test('auto-open on: clicking an image opens the panel (the off-state test relies on this path being reachable)', () => {
-  const { panel, fire, image } = setup(true);
+test('auto-open on: clicking an image shows only the translate-image action, not the text panel (the off-state test relies on this path being reachable)', () => {
+  const { panel, imageAction, fire, image } = setup(true);
   fire('click', { target: image });
-  assert.ok(panel(), 'the panel opened from the image click');
+  assert.ok(imageAction(), 'the translate-image action appeared beside the image');
+  assert.equal(panel(), undefined, 'the text panel is not opened for images');
 });

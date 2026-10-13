@@ -15,7 +15,7 @@ const { StepRunner, prepareStep } = load('core/step-runner.ts');
 
 test('step ids and versions', () => {
   const ids = [planStep, transformStep, captionStep, ...Object.values(presets)].map(step => `${step.id}@${step.version}`);
-  assert.deepEqual(ids.sort(), ['markdown.caption@1', 'markdown.plan@1', 'markdown.preset.condense@1', 'markdown.preset.explain-image@1', 'markdown.preset.search-images@1', 'markdown.preset.translate-image@1', 'markdown.preset.translate@1', 'markdown.transform@1']);
+  assert.deepEqual(ids.sort(), ['markdown.caption@1', 'markdown.plan@1', 'markdown.preset.condense@1', 'markdown.preset.search-images@1', 'markdown.preset.translate@1', 'markdown.transform@1']);
 });
 
 test('the plan step parses a valid plan and refuses an invalid one with the original error', () => {
@@ -94,4 +94,23 @@ test('web image search keeps https image and source links, drops invented or uns
   assert.equal(parseImageCandidates('not json').length, 0);
   assert.equal(parseImageCandidates('{"images":"none"}').length, 0);
   assert.match(imageSearchStep.render({ query: 'fried egg' }), /"fried egg"/);
+});
+
+test('translated image is written in place of the embed, below it, or at the end when the embed moved', async () => {
+  class Component { load() {} unload() {} registerDomEvent() {} }
+  class MarkdownView {}
+  const { ImageTranslateAction } = load('experiences/markdown-context/image-translate-action.ts', { obsidian: { Component, MarkdownView, Notice: class {}, setIcon() {} } });
+  const write = async (text, token, placement) => {
+    let content = text;
+    const app = { workspace: { getLeavesOfType: () => [] }, vault: { process: async (_file, edit) => { content = edit(content); } } };
+    const action = new ImageTranslateAction(app, {});
+    const outcome = await action.write({ token }, { path: 'Note.md' }, '![[egg-zh-TW.png]]', placement);
+    return { outcome, content };
+  };
+  const note = 'Intro\n\n![egg](https://x/egg.png)\n\nOutro\n';
+  assert.deepEqual(await write(note, '![egg](https://x/egg.png)', 'replace'), { outcome: 'ui.image_translate_replaced', content: 'Intro\n\n![[egg-zh-TW.png]]\n\nOutro\n' });
+  assert.deepEqual(await write(note, '![egg](https://x/egg.png)', 'new'), { outcome: 'ui.image_translate_added', content: 'Intro\n\n![egg](https://x/egg.png)\n\n![[egg-zh-TW.png]]\n\nOutro\n' });
+  const twice = `${note}![egg](https://x/egg.png)\n`;
+  assert.equal((await write(twice, '![egg](https://x/egg.png)', 'replace')).outcome, 'ui.image_translate_appended');
+  assert.deepEqual(await write(note, null, 'new'), { outcome: 'ui.image_translate_appended', content: `${note.trimEnd()}\n\n![[egg-zh-TW.png]]\n` });
 });
