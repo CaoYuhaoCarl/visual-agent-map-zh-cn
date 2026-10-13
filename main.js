@@ -799,6 +799,8 @@ var english = {
   "ui.detail_template_standard": "Standard",
   "ui.detail_count_issue_exact": "{0}: needs exactly {1}, has {2}",
   "ui.detail_count_issue_min": "{0}: needs at least {1}, has {2}",
+  "ui.detail_template_missing_0": 'The content template "{0}" no longer exists; this topic now uses the next default.',
+  "ui.detail_format_unmet": "Format not met",
   "ui.detail_template_error_name_required": "Template name is required.",
   "ui.detail_template_error_name_taken": 'A template named "{0}" already exists.',
   "ui.detail_template_error_name_long": "Template name must be 40 characters or fewer.",
@@ -1977,6 +1979,8 @@ var traditionalChinese = {
   "ui.detail_template_standard": "\u6A19\u6E96",
   "ui.detail_count_issue_exact": "{0}\uFF1A\u8981\u6C42\u525B\u597D {1} \u500B\uFF0C\u5BE6\u969B {2} \u500B",
   "ui.detail_count_issue_min": "{0}\uFF1A\u8981\u6C42\u81F3\u5C11 {1} \u500B\uFF0C\u5BE6\u969B {2} \u500B",
+  "ui.detail_template_missing_0": "\u5167\u5BB9\u6A21\u677F\u300C{0}\u300D\u5DF2\u4E0D\u5B58\u5728\uFF0C\u9019\u500B\u8B70\u984C\u6539\u7528\u4E0B\u4E00\u9806\u4F4D\u7684\u9810\u8A2D\u6A21\u677F\u3002",
+  "ui.detail_format_unmet": "\u683C\u5F0F\u672A\u9054\u8981\u6C42",
   "ui.detail_template_error_name_required": "\u8ACB\u8F38\u5165\u6A21\u677F\u540D\u7A31\u3002",
   "ui.detail_template_error_name_taken": "\u5DF2\u6709\u540D\u70BA\u300C{0}\u300D\u7684\u6A21\u677F\u3002",
   "ui.detail_template_error_name_long": "\u6A21\u677F\u540D\u7A31\u6700\u591A 40 \u5B57\u3002",
@@ -10455,6 +10459,17 @@ function normalizeTemplates(value) {
     result.push(template);
   }
   return result;
+}
+function resolveTemplate(templates, ids, language2) {
+  const missing = [];
+  for (const id of ids) {
+    if (!id) continue;
+    if (id === STANDARD_TEMPLATE_ID) return { template: standardTemplate(language2), missing };
+    const found = templates.find((template) => template.id === id);
+    if (found) return { template: found, missing };
+    missing.push(id);
+  }
+  return { template: standardTemplate(language2), missing };
 }
 function countItems(body) {
   const lines = body.split("\n");
@@ -21160,6 +21175,12 @@ function errorMessage(error) {
   const message = error == null ? void 0 : error.message;
   return typeof message === "string" ? message : String(error);
 }
+function templateInLanguage(template, language2) {
+  return template.id === STANDARD_TEMPLATE_ID ? standardTemplate(language2) : template;
+}
+function formatIssuesPatch(issues, language2) {
+  return issues ? { detailFormatIssues: issues.map((issue) => countIssueText(issue, language2)) } : {};
+}
 var originBaseline = (origin) => (0, import_node_crypto9.createHash)("sha256").update(origin != null ? origin : "").digest("hex");
 function aimQuestionStatus(map, questionNodeId, activeQuestionNodeId) {
   var _a, _b;
@@ -23468,7 +23489,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     }
   }
   renderNode(node) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C, _D;
     if (!this.stageEl) return;
     const note = this.notes.get(node.id), card = this.stageEl.createDiv({
       cls: `vam-node${node.id === this.selected || this.multiSelected.has(node.id) ? " is-selected" : ""}`
@@ -23539,9 +23560,13 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         cls: `vam-status vam-status-${active ? "running" : (_g = note == null ? void 0 : note.status) != null ? _g : "error"}`,
         text: active ? t("ui.ai_running") : note ? topicStatusLabel(note.status, this.plugin.settings.language) : t("ui.note_missing")
       });
+    if ((_h = note == null ? void 0 : note.detailFormatIssues) == null ? void 0 : _h.length) {
+      const issue = header.createSpan({ cls: "vam-status vam-status-error", text: t("ui.detail_format_unmet") });
+      issue.setAttr("title", note.detailFormatIssues.join("\n"));
+    }
     if (batch) {
-      const currentNode = batch.currentPath ? (_h = this.map) == null ? void 0 : _h.nodes.find((item) => item.path === batch.currentPath) : void 0;
-      const currentTitle = currentNode ? (_i = this.notes.get(currentNode.id)) == null ? void 0 : _i.title : void 0;
+      const currentNode = batch.currentPath ? (_i = this.map) == null ? void 0 : _i.nodes.find((item) => item.path === batch.currentPath) : void 0;
+      const currentTitle = currentNode ? (_j = this.notes.get(currentNode.id)) == null ? void 0 : _j.title : void 0;
       const label = `${t("ui.shallow_research_progress")}: ${batch.completed}/${batch.total}${currentTitle ? ` \xB7 ${currentTitle}` : ""}${batch.status === "stopped" ? ` \xB7 ${t("ui.shallow_research_stopped")}` : ""}`;
       header.createSpan({
         cls: `vam-status vam-status-${batch.status === "running" ? "running" : batch.failures.length ? "error" : "completed"}`,
@@ -23557,26 +23582,26 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         failure.setAttr("title", batch.failures.join("\n"));
       }
     }
-    if (((_j = this.plugin.quickExpandPending) == null ? void 0 : _j.has(node.path)) && (batch == null ? void 0 : batch.status) !== "running") {
+    if (((_k = this.plugin.quickExpandPending) == null ? void 0 : _k.has(node.path)) && (batch == null ? void 0 : batch.status) !== "running") {
       this.button(header, t("ui.stop_research"), () => {
         var _a2;
         return (_a2 = this.plugin.activeTasks.get(node.path)) == null ? void 0 : _a2.abort();
       });
     }
-    const quickError = (_k = this.plugin.quickExpandFailures) == null ? void 0 : _k.get(node.path);
+    const quickError = (_l = this.plugin.quickExpandFailures) == null ? void 0 : _l.get(node.path);
     if (quickError && !active) {
       const badge = header.createSpan({ cls: "vam-status vam-status-error", text: t("ui.expansion_failed") });
       badge.setAttr("title", quickError);
     }
-    const pendingCount = (_m = (_l = this.plugin.pendingSuggestions.get(node.path)) == null ? void 0 : _l.length) != null ? _m : 0;
-    if (pendingCount && !this.builtIn && !this.integrationMode && !((_n = this.map) == null ? void 0 : _n.aim))
+    const pendingCount = (_n = (_m = this.plugin.pendingSuggestions.get(node.path)) == null ? void 0 : _m.length) != null ? _n : 0;
+    if (pendingCount && !this.builtIn && !this.integrationMode && !((_o = this.map) == null ? void 0 : _o.aim))
       this.button(
         header,
         t("ui.view_0_expansion_suggestions", pendingCount),
         () => this.openNodePanel(node, "proposals")
       ).addClass("vam-badge-new");
     const synthesis = this.synthesisTasks.get(node.path);
-    if (synthesis && synthesis.mapPath === this.path && !this.builtIn && !this.integrationMode && !((_o = this.map) == null ? void 0 : _o.aim)) {
+    if (synthesis && synthesis.mapPath === this.path && !this.builtIn && !this.integrationMode && !((_p = this.map) == null ? void 0 : _p.aim)) {
       if (synthesis.state === "running") {
         if (synthesis.progress) header.createSpan({ cls: "vam-status vam-status-running", text: synthesis.progress });
         this.button(header, t("ui.stop_research"), () => synthesis.controller.abort());
@@ -23599,7 +23624,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       }
     }
     if (!this.builtIn && !this.integrationMode) {
-      if (!((_p = this.map) == null ? void 0 : _p.aim)) {
+      if (!((_q = this.map) == null ? void 0 : _q.aim)) {
         const ai = this.button(header, "\u2726", () => this.openNextStep(node));
         ai.addClass("vam-node-tool");
         ai.setAttr("aria-label", t("ui.how_would_you_like_to_explore_next"));
@@ -23626,7 +23651,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         remove.addClass("vam-node-tool");
         remove.setAttr("aria-label", t("ui.remove_from_map"));
       }
-      if (((_q = this.map) == null ? void 0 : _q.aim) && node.aimKind === "synthesis" && this.map.aim.branches.some((branch) => branch.results.some((result) => result.nodeId === node.id))) {
+      if (((_r = this.map) == null ? void 0 : _r.aim) && node.aimKind === "synthesis" && this.map.aim.branches.some((branch) => branch.results.some((result) => result.nodeId === node.id))) {
         const next = this.button(
           header,
           t("ui.aim_new_question"),
@@ -23657,18 +23682,18 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
           })
         )
       );
-    if (!this.builtIn && !this.integrationMode && !((_r = this.map) == null ? void 0 : _r.aim)) {
+    if (!this.builtIn && !this.integrationMode && !((_s = this.map) == null ? void 0 : _s.aim)) {
       const add = this.button(card, "+", () => this.enqueue(() => this.addNode(node)));
       add.addClass("vam-add-child");
       add.setAttr("aria-label", t("ui.add_subtopic_manually"));
     }
-    const title = card.createEl("h3", { text: (_s = note == null ? void 0 : note.title) != null ? _s : node.path, cls: "vam-card-title" });
-    title.setAttr("title", (_t = note == null ? void 0 : note.title) != null ? _t : node.path);
+    const title = card.createEl("h3", { text: (_t = note == null ? void 0 : note.title) != null ? _t : node.path, cls: "vam-card-title" });
+    title.setAttr("title", (_u = note == null ? void 0 : note.title) != null ? _u : node.path);
     card.createEl("p", {
       cls: "vam-card-summary",
-      text: (_u = note == null ? void 0 : note.summary) != null ? _u : t("ui.the_file_was_moved_or_deleted_you_can_remove_this_node_from")
+      text: (_v = note == null ? void 0 : note.summary) != null ? _v : t("ui.the_file_was_moved_or_deleted_you_can_remove_this_node_from")
     });
-    if (node.aimKind === "conclusion" && ((_v = this.map) == null ? void 0 : _v.aim) && !this.builtIn) {
+    if (node.aimKind === "conclusion" && ((_w = this.map) == null ? void 0 : _w.aim) && !this.builtIn) {
       const branch = this.map.aim.branches.find((item) => item.results.some((result) => result.nodeId === node.id));
       const hasFollowup = this.map.nodes.some((item) => item.parentId === node.id && item.aimKind === "question");
       if (branch && !hasFollowup && countAimAnsweredQuestions(this.map, branch.id) < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION) {
@@ -23681,7 +23706,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         ).addClass("mod-cta");
       }
     }
-    if (node.aimKind === "topic" && ((_w = this.map) == null ? void 0 : _w.aim) && !this.map.nodes.some((item) => item.aimKind === "question")) {
+    if (node.aimKind === "topic" && ((_x = this.map) == null ? void 0 : _x.aim) && !this.map.nodes.some((item) => item.aimKind === "question")) {
       const initialBranch = this.map.aim.branches.find((item) => item.questionNodeId === node.id && !item.parentBranchId);
       const initialRuns = initialBranch ? this.map.aim.runs.filter((item) => item.branchId === initialBranch.id) : [];
       const activeInitialRun = initialRuns.some((run) => {
@@ -23717,11 +23742,11 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         );
       }
     }
-    if (node.aimKind === "question" && ((_x = this.map) == null ? void 0 : _x.aim)) {
+    if (node.aimKind === "question" && ((_y = this.map) == null ? void 0 : _y.aim)) {
       const branch = this.map.aim.branches.find((item) => item.questionNodeId === node.id);
       if (branch) {
         this.renderAimFailure(card, branch);
-        const labels = (_z = (_y = node.aimQuestion) == null ? void 0 : _y.options.filter((option) => branch.answerSnapshot.selections.includes(option.id)).map((option) => option.label)) != null ? _z : branch.answerSnapshot.selections;
+        const labels = (_A = (_z = node.aimQuestion) == null ? void 0 : _z.options.filter((option) => branch.answerSnapshot.selections.includes(option.id)).map((option) => option.label)) != null ? _A : branch.answerSnapshot.selections;
         const answer = [...labels, branch.answerSnapshot.freeText].filter(Boolean).join(" \u2014 ");
         card.createEl("p", {
           cls: "vam-aim-answer-snapshot",
@@ -23764,11 +23789,11 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         }
       }
     }
-    if (node.aimKind === "answer" && ((_A = this.map) == null ? void 0 : _A.aim)) {
+    if (node.aimKind === "answer" && ((_B = this.map) == null ? void 0 : _B.aim)) {
       const branch = this.map.aim.branches.find((item) => item.answerNodeId === node.id);
       const question = branch && this.map.nodes.find((item) => item.id === branch.questionNodeId);
       if (branch) {
-        const labels = (_C = (_B = question == null ? void 0 : question.aimQuestion) == null ? void 0 : _B.options.filter((option) => branch.answerSnapshot.selections.includes(option.id)).map((option) => option.label)) != null ? _C : branch.answerSnapshot.selections;
+        const labels = (_D = (_C = question == null ? void 0 : question.aimQuestion) == null ? void 0 : _C.options.filter((option) => branch.answerSnapshot.selections.includes(option.id)).map((option) => option.label)) != null ? _D : branch.answerSnapshot.selections;
         const answer = [...labels, branch.answerSnapshot.freeText].filter(Boolean).join(" \u2014 ");
         card.createEl("p", {
           cls: "vam-aim-answer-snapshot",
@@ -23955,11 +23980,13 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         async (options, focus, done, failed, accepted) => {
           const latest = await this.plugin.repo.readNote(node.path);
           const task = researchTopicTask(this.plugin.settings.language, latest.title);
+          const detailTemplate = await this.detailTemplateFor(node, options.detailTemplateId);
           await this.runAgent(
             node,
             done,
             failed,
             {
+              detailTemplate,
               task: [task, options.requirements].filter(Boolean).join("\n\n"),
               referenceGroups: options.referenceGroups,
               onProgress: options.onProgress,
@@ -24710,6 +24737,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     }
     let created = 0;
     const createdByTitle = /* @__PURE__ */ new Map(), newNodes = [];
+    const contributionTemplate = this.mapDetailTemplate(this.plugin.settings.language);
     try {
       for (const item of items) {
         if (signal == null ? void 0 : signal.aborted) throw new DOMException("Aborted", "AbortError");
@@ -24722,7 +24750,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         createdByTitle.set(item.title, child);
         await this.noteChange(child, {
           prompt: item.task,
-          detail: researchOptions ? "" : item.contribution ? canonicalDetail(item.contribution, this.plugin.settings.language) : "",
+          detail: researchOptions ? "" : item.contribution ? canonicalDetail(item.contribution, this.plugin.settings.language, contributionTemplate) : "",
           ...researchOptions ? {
             researchMode: "research",
             researchDepth: "fast",
@@ -24766,6 +24794,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
   }
   async researchChild(child, batchSignal, accepted, choices) {
     var _a;
+    const detailTemplate = await this.detailTemplateFor(child, choices.detailTemplateId);
     const note = await this.plugin.repo.readNote(child.path);
     let started = false;
     let failure;
@@ -24776,6 +24805,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         failure = message;
       },
       {
+        detailTemplate,
         rules: "",
         referenceGroups: [],
         signal: batchSignal,
@@ -25082,7 +25112,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     }
   }
   async integrateChildren(node, confirmed = false, options, direction = "", drafted, failed, accepted) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j;
     if (!this.map || this.plugin.running.has(node.path)) {
       failed == null ? void 0 : failed(t("ui.ai_running_ai"));
       return;
@@ -25158,6 +25188,10 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     }
     const language2 = this.plugin.settings.language;
     const task = direction || synthesisGoalTask(language2);
+    const detailTemplate = templateInLanguage(
+      await this.detailTemplateFor(node, options == null ? void 0 : options.detailTemplateId),
+      (_e = options == null ? void 0 : options.outputLanguage) != null ? _e : language2
+    );
     this.plugin.running.add(node.path);
     await this.plugin.repo.updateNote(node.path, { status: "running" });
     await this.hydrate();
@@ -25176,9 +25210,10 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
             onProgress: options == null ? void 0 : options.onProgress,
             outputLanguage: options == null ? void 0 : options.outputLanguage,
             mode: "synthesize",
-            researchMode: (_e = options == null ? void 0 : options.researchMode) != null ? _e : "local",
-            researchDepth: (_f = options == null ? void 0 : options.researchDepth) != null ? _f : note.researchDepth,
-            visualMode: (_g = options == null ? void 0 : options.visualMode) != null ? _g : note.visualMode
+            researchMode: (_f = options == null ? void 0 : options.researchMode) != null ? _f : "local",
+            researchDepth: (_g = options == null ? void 0 : options.researchDepth) != null ? _g : note.researchDepth,
+            visualMode: (_h = options == null ? void 0 : options.visualMode) != null ? _h : note.visualMode,
+            detailTemplate
           },
           note
         ),
@@ -25189,7 +25224,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         accepted
       );
       accepted == null ? void 0 : accepted();
-      if ((_h = options == null ? void 0 : options.signal) == null ? void 0 : _h.aborted) throw new DOMException("Aborted", "AbortError");
+      if ((_i = options == null ? void 0 : options.signal) == null ? void 0 : _i.aborted) throw new DOMException("Aborted", "AbortError");
       await this.plugin.repo.updateNote(node.path, { status: note.status });
       const save = async (summary, detail) => this.plugin.mutate(async () => {
         var _a2, _b2, _c2;
@@ -25215,13 +25250,24 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
           latest.thinkingOrigin
         ]) !== noteSnapshot)
           throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
-        await this.plugin.repo.updateNote(node.path, {
-          summary,
-          detail: canonicalDetail(detail, (_c2 = options == null ? void 0 : options.outputLanguage) != null ? _c2 : this.plugin.settings.language),
-          visualReferences: visualReferencesMarkdown(result.visualReferences, language2),
-          newFindings: "",
-          status: "completed"
-        });
+        const canonical = canonicalDetail(
+          detail,
+          (_c2 = options == null ? void 0 : options.outputLanguage) != null ? _c2 : this.plugin.settings.language,
+          detailTemplate
+        );
+        const issues = result.formatIssues && detail !== result.detail ? checkCounts(canonical, detailTemplate) : result.formatIssues;
+        await this.plugin.repo.updateNote(
+          node.path,
+          {
+            summary,
+            detail: canonical,
+            visualReferences: visualReferencesMarkdown(result.visualReferences, language2),
+            newFindings: "",
+            status: "completed",
+            ...formatIssuesPatch(issues, language2)
+          },
+          { detailTemplate }
+        );
         const saved = await this.plugin.repo.readNote(node.path);
         this.recordNoteWrite(
           node.path,
@@ -25240,7 +25286,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
           void save(result.summary, result.detail);
         }).open();
     } catch (error) {
-      if (((_i = options == null ? void 0 : options.signal) == null ? void 0 : _i.aborted) || error instanceof Error && error.name === "AbortError") {
+      if (((_j = options == null ? void 0 : options.signal) == null ? void 0 : _j.aborted) || error instanceof Error && error.name === "AbortError") {
         await this.plugin.repo.updateNote(node.path, { status: note.status });
         if (failed) failed(t("ui.research_stopped_existing_content_was_preserved"));
         else new import_obsidian16.Notice(t("ui.research_stopped_existing_content_was_preserved"));
@@ -25481,7 +25527,7 @@ ${note.detail.trim()}` : "",
     };
   }
   async createIntegratedNode(title, sources2, goal, rules, options, review = false) {
-    var _a, _b, _c, _d, _e, _f;
+    var _a, _b, _c, _d, _e, _f, _g;
     if (!this.map || sources2.length < 2) return;
     const controller = new AbortController();
     const mapPath = this.path, mapId = this.map.id;
@@ -25506,6 +25552,7 @@ ${note.detail.trim()}` : "",
     this.render();
     const model = this.plugin.settings.cliModel;
     const language2 = this.plugin.settings.language;
+    const detailTemplate = this.mapDetailTemplate((_a = options == null ? void 0 : options.outputLanguage) != null ? _a : language2);
     try {
       const result = await this.plugin.askModel(
         {
@@ -25515,7 +25562,7 @@ ${note.detail.trim()}` : "",
           detail: "",
           task: [goal, options == null ? void 0 : options.requirements].filter(Boolean).join("\n\n"),
           ancestors: "",
-          referenceGroups: [...(_a = options == null ? void 0 : options.referenceGroups) != null ? _a : [], sourceGroup],
+          referenceGroups: [...(_b = options == null ? void 0 : options.referenceGroups) != null ? _b : [], sourceGroup],
           onProgress: (message) => {
             var _a2;
             if (this.integrationTask !== task) return;
@@ -25525,16 +25572,17 @@ ${note.detail.trim()}` : "",
           },
           outputLanguage: options == null ? void 0 : options.outputLanguage,
           mode: "synthesize",
-          researchMode: (_b = options == null ? void 0 : options.researchMode) != null ? _b : "local",
-          researchDepth: (_c = options == null ? void 0 : options.researchDepth) != null ? _c : "normal",
-          visualMode: (_d = options == null ? void 0 : options.visualMode) != null ? _d : "auto"
+          researchMode: (_c = options == null ? void 0 : options.researchMode) != null ? _c : "local",
+          researchDepth: (_d = options == null ? void 0 : options.researchDepth) != null ? _d : "normal",
+          visualMode: (_e = options == null ? void 0 : options.visualMode) != null ? _e : "auto",
+          detailTemplate
         },
         model,
         this.plugin.settings.cliReasoning,
         controller.signal
       );
       if (this.integrationTask !== task) return;
-      if (controller.signal.aborted || this.path !== mapPath || ((_e = this.map) == null ? void 0 : _e.id) !== mapId)
+      if (controller.signal.aborted || this.path !== mapPath || ((_f = this.map) == null ? void 0 : _f.id) !== mapId)
         throw new Error(t("ui.the_map_or_parent_topic_changed_while_ai_was_running_no_subt"));
       const latest = await this.topicReferenceGroup(
         sources2,
@@ -25554,7 +25602,7 @@ ${note.detail.trim()}` : "",
           rules,
           model,
           result,
-          (_f = options == null ? void 0 : options.outputLanguage) != null ? _f : language2,
+          (_g = options == null ? void 0 : options.outputLanguage) != null ? _g : language2,
           task
         );
     } catch (error) {
@@ -25602,15 +25650,21 @@ ${note.detail.trim()}` : "",
     }))
       throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
     const integrated = await this.plugin.repo.createNote(title, model, this.map, this.path, "workspace");
+    const detailTemplate = this.mapDetailTemplate(language2);
     try {
-      await this.plugin.repo.updateNote(integrated.path, {
-        summary: result.summary,
-        detail: canonicalDetail(result.detail, language2),
-        visualReferences: visualReferencesMarkdown(result.visualReferences, language2),
-        prompt: goal,
-        sourcePaths: sources2.map((source) => source.path),
-        status: "completed"
-      });
+      await this.plugin.repo.updateNote(
+        integrated.path,
+        {
+          summary: result.summary,
+          detail: canonicalDetail(result.detail, language2, detailTemplate),
+          visualReferences: visualReferencesMarkdown(result.visualReferences, language2),
+          prompt: goal,
+          sourcePaths: sources2.map((source) => source.path),
+          status: "completed",
+          ...formatIssuesPatch(result.formatIssues, this.plugin.settings.language)
+        },
+        { detailTemplate }
+      );
       integrated.parentId = null;
       integrated.x = Math.max(...sources2.map((node) => node.x)) + 340;
       integrated.y = sources2.reduce((sum, node) => sum + node.y, 0) / sources2.length;
@@ -25844,8 +25898,41 @@ ${note.detail.trim()}` : "",
       }
     }
   }
+  /**
+   * Content template for an AI update of this topic: this run's choice, then the topic, map and workspace defaults.
+   * Only an explicit choice is written to the topic; a topic template that no longer exists is reported once and cleared.
+   */
+  async detailTemplateFor(node, chosenId) {
+    var _a;
+    if (chosenId) await this.plugin.repo.updateNote(node.path, { detailTemplateId: chosenId });
+    const note = await this.plugin.repo.readNote(node.path);
+    const settings = this.plugin.settings;
+    const { template, missing } = resolveTemplate(
+      settings.detailTemplates,
+      [chosenId, note.detailTemplateId, (_a = this.map) == null ? void 0 : _a.detailTemplateId, settings.defaultDetailTemplateId],
+      settings.language
+    );
+    if (note.detailTemplateId && missing.includes(note.detailTemplateId)) {
+      new import_obsidian16.Notice(t("ui.detail_template_missing_0", note.detailTemplateId));
+      await this.plugin.repo.updateNote(node.path, { detailTemplateId: "" });
+    }
+    return template;
+  }
+  /** Template for content that has no topic choice of its own (new integrated topics, child contributions). */
+  mapDetailTemplate(language2) {
+    var _a;
+    const settings = this.plugin.settings;
+    return templateInLanguage(
+      resolveTemplate(
+        settings.detailTemplates,
+        [(_a = this.map) == null ? void 0 : _a.detailTemplateId, settings.defaultDetailTemplateId],
+        settings.language
+      ).template,
+      language2
+    );
+  }
   async runAgent(node, done, failed, overrides, onLaunchAccepted) {
-    var _a, _b, _c;
+    var _a, _b, _c, _d, _e;
     const taskPath = node.path;
     const note = await this.plugin.repo.readNote(node.path);
     if (!((_a = overrides == null ? void 0 : overrides.task) != null ? _a : note.prompt)) {
@@ -25858,6 +25945,10 @@ ${note.detail.trim()}` : "",
       failed == null ? void 0 : failed(t("ui.ai_running_ai"));
       return null;
     }
+    const detailTemplate = templateInLanguage(
+      (_b = overrides == null ? void 0 : overrides.detailTemplate) != null ? _b : await this.detailTemplateFor(node),
+      (_c = overrides == null ? void 0 : overrides.outputLanguage) != null ? _c : this.plugin.settings.language
+    );
     const context = withThinkingOrigin(
       {
         title: note.title,
@@ -25872,7 +25963,8 @@ ${note.detail.trim()}` : "",
         researchMode: note.researchMode,
         researchDepth: note.researchDepth,
         visualMode: note.visualMode,
-        ...overrides
+        ...overrides,
+        detailTemplate
       },
       note
     );
@@ -25881,8 +25973,8 @@ ${note.detail.trim()}` : "",
     this.plugin.running.add(node.path);
     const controller = new AbortController();
     const abortFromTaskModal = () => controller.abort();
-    if ((_b = overrides == null ? void 0 : overrides.signal) == null ? void 0 : _b.aborted) controller.abort();
-    else (_c = overrides == null ? void 0 : overrides.signal) == null ? void 0 : _c.addEventListener("abort", abortFromTaskModal, { once: true });
+    if ((_d = overrides == null ? void 0 : overrides.signal) == null ? void 0 : _d.aborted) controller.abort();
+    else (_e = overrides == null ? void 0 : overrides.signal) == null ? void 0 : _e.addEventListener("abort", abortFromTaskModal, { once: true });
     this.plugin.activeTasks.set(taskPath, controller);
     const releaseStartup = () => {
       var _a2;
@@ -25936,7 +26028,7 @@ ${note.detail.trim()}` : "",
       markAccepted
     ).then(
       (result) => this.plugin.mutate(async () => {
-        var _a2, _b2, _c2, _d, _e;
+        var _a2, _b2, _c2, _d2, _e2;
         const latest = await this.plugin.repo.readNote(node.path);
         const stale = latest.thinkingOrigin !== note.thinkingOrigin || latest.title !== note.title || latest.prompt !== note.prompt || latest.rules !== note.rules || latest.detail !== note.detail || latest.summary !== note.summary || latest.model !== note.model || latest.reasoning !== note.reasoning || latest.researchMode !== note.researchMode || latest.researchDepth !== note.researchDepth || latest.visualMode !== note.visualMode || latest.sourcePaths.join("\n") !== note.sourcePaths.join("\n") || JSON.stringify(latest.referencePaths) !== JSON.stringify(note.referencePaths);
         if (controller.signal.aborted || stale) {
@@ -25952,13 +26044,22 @@ ${note.detail.trim()}` : "",
           }
           return;
         }
-        await this.plugin.repo.updateNote(node.path, {
-          summary: result.summary,
-          detail: canonicalDetail(result.detail, (_b2 = context.outputLanguage) != null ? _b2 : this.plugin.settings.language),
-          visualReferences: visualReferencesMarkdown(result.visualReferences, language2),
-          newFindings: "",
-          status: "completed"
-        });
+        await this.plugin.repo.updateNote(
+          node.path,
+          {
+            summary: result.summary,
+            detail: canonicalDetail(
+              result.detail,
+              (_b2 = context.outputLanguage) != null ? _b2 : this.plugin.settings.language,
+              context.detailTemplate
+            ),
+            visualReferences: visualReferencesMarkdown(result.visualReferences, language2),
+            newFindings: "",
+            status: "completed",
+            ...formatIssuesPatch(result.formatIssues, language2)
+          },
+          { detailTemplate: context.detailTemplate }
+        );
         const saved = await this.plugin.repo.readNote(node.path);
         this.recordNoteWrite(
           node.path,
@@ -25975,7 +26076,7 @@ ${note.detail.trim()}` : "",
             result.suggestions.slice(0, 7).map((item) => ({ ...item, thinkingOriginBaseline: originBaseline(note.thinkingOrigin) }))
           );
           try {
-            await ((_e = (_d = this.plugin.pendingSuggestions).flush) == null ? void 0 : _e.call(_d));
+            await ((_e2 = (_d2 = this.plugin.pendingSuggestions).flush) == null ? void 0 : _e2.call(_d2));
           } catch (error) {
             const message = this.plugin.recordFailure(t("log.expansion_suggestions_save_failed"), error);
             new import_obsidian16.Notice(message);

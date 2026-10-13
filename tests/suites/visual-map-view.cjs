@@ -505,3 +505,27 @@ test('multi research modal: defaults, options and immediate close on start', () 
   find(m2.contentEl, i => i.tag === 'button' && i.text === 'Start research').listeners.click();
   assert.deepEqual(plain(second[0]), { researchMode: 'local', researchDepth: 'deep', requirements: 'only 2025', model: 'm1' });
 });
+test('card shows a Format not met badge with the issues as tooltip', () => {
+  const { VisualAgentMapView } = load('main.ts', { obsidian });
+  const element = tag => ({ tag, children: [], dataset: {}, style: {},
+    createDiv(options) { const child = element('div'); child.cls = options?.cls ?? options; this.children.push(child); return child; },
+    createEl(name, options) { const child = element(name); child.text = options?.text; this.children.push(child); return child; },
+    createSpan(options) { const child = element('span'); child.text = options?.text; child.cls = options?.cls; this.children.push(child); return child; },
+    setAttr(name, value) { this[name] = value; }, addClass(name) { this.cls = name; },
+    addEventListener() {}, removeEventListener() {}, setPointerCapture() {}
+  });
+  const find = (item, predicate) => predicate(item) ? item : item.children.map(child => find(child, predicate)).find(Boolean);
+  const topic = node('topic');
+  const plugin = { repo: {}, settings: { ...DEFAULT_SETTINGS }, expansionBatches: new Map(), running: new Set(), quickExpandPending: new Set(), pendingSuggestions: new Map() };
+  const render = issues => {
+    const view = new VisualAgentMapView({ app: {} }, plugin); view.stageEl = element('stage'); view.map = map([topic]);
+    view.notes = new Map([[topic.id, { title: 'Topic', summary: '', status: 'completed', detailFormatIssues: issues }]]);
+    view.renderNode(topic);
+    return find(view.stageEl, item => item.tag === 'span' && item.text === 'Format not met');
+  };
+  const badge = render(['Examples: needs exactly 3, has 1']);
+  assert.ok(badge, 'badge shown');
+  assert.equal(badge.cls, 'vam-status vam-status-error');
+  assert.equal(badge.title, 'Examples: needs exactly 3, has 1');
+  assert.equal(render([]), undefined);
+});

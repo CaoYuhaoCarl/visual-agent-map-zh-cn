@@ -1275,3 +1275,115 @@ integrationTest('multi research summary counts only successful topics as succeed
   await until(() => h.plugin.expansionBatches.get(h.key).status === 'completed');
   assert.equal(h.notices.at(-1), 'Research finished: 1 of 2 succeeded, 1 failed, 0 skipped.');
 });
+const templateSection = (id, name, extra = {}) => ({ id, name, description: '', role: 'none', aliases: [], ...extra });
+const testTemplate = (id, names) => ({ id, name: `Template ${id}`, sections: names.map((name, index) => templateSection(`${id}-${index}`, name)) });
+const sampleTemplates = () => [testTemplate('A', ['Alpha']), testTemplate('B', ['Beta']), testTemplate('C', ['Gamma'])];
+// Runs the real runAgent / synthesis save paths; only plugin.askModel is a double (L-001).
+async function templateHarness({ language = 'zh-TW', settings = {}, mapTemplate, reply } = {}) {
+  const { repo, app } = fixture(language), notices = [], contexts = [];
+  const mapPath = 'Agent Workspace/Topics/map-a/Map.md', doc = { id: 'map-a', title: 'map-a', version: 1, nodes: [], viewport: { x: 0, y: 0, zoom: 1 } };
+  if (mapTemplate) doc.detailTemplateId = mapTemplate;
+  await repo.ensureTopicFolders('Agent Workspace/Topics/map-a'); await app.vault.create(mapPath, core.serializeMap(doc));
+  const topic = await repo.createNote('Topic', 'model-a', doc, mapPath, 'workspace'); doc.nodes.push(topic); await repo.saveMap(mapPath, doc);
+  await repo.updateNote(topic.path, { prompt: 'Research the topic' });
+  let view;
+  const plugin = withExpansionCoordinator({ repo, settings: { ...DEFAULT_SETTINGS, language, ...settings }, running: new Set(), activeTasks: new Map(), pendingSuggestions: new Map(), pendingResearchOptions: new Map(), quickExpandFailures: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), views: () => [view], recordFailure: (_label, error) => error.message,
+    askModel: async (context, _model, _reasoning, _signal, _exchange, onAccepted) => { contexts.push(context); onAccepted?.(); return (reply ?? (() => ({ summary: 'Saved summary', detail: 'Saved detail', visualReferences: [], suggestions: [] })))(context, contexts.length); } });
+  const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Notice: class { constructor(message) { notices.push(message); } } } });
+  view = new VisualAgentMapView({ app }, plugin); view.path = mapPath; view.map = doc; view.contentEl = { querySelector: () => null }; view.render = () => {}; view.hydrate = async () => {}; view.ancestorContext = async () => '';
+  const run = async (target = topic) => { const handle = await view.runAgent(target); await handle?.finished; await until(() => !plugin.running.size); };
+  return { repo, app, view, plugin, doc, mapPath, topic, notices, contexts, run };
+}
+integrationTest('runAgent: context carries the resolved template (topic > map > workspace > Standard)', async () => {
+  const h = await templateHarness({ settings: { detailTemplates: sampleTemplates(), defaultDetailTemplateId: 'C' } });
+  await h.run(); assert.equal(h.contexts.at(-1).detailTemplate.id, 'C');
+  h.doc.detailTemplateId = 'B'; await h.run(); assert.equal(h.contexts.at(-1).detailTemplate.id, 'B');
+  await h.repo.updateNote(h.topic.path, { detailTemplateId: 'A' }); await h.run(); assert.equal(h.contexts.at(-1).detailTemplate.id, 'A');
+  assert.deepEqual(h.notices, []);
+  assert.equal((await h.repo.readNote(h.topic.path)).detailTemplateId, 'A');
+  const bare = await templateHarness({ language: 'en' });
+  await bare.run();
+  assert.equal(bare.contexts[0].detailTemplate.id, 'standard');
+  assert.equal(bare.contexts[0].detailTemplate.sections[0].name, 'Core conclusions');
+  assert.equal((await bare.repo.readNote(bare.topic.path)).detailTemplateId, undefined, 'resolution never writes the topic');
+});
+integrationTest('runAgent saves detail with the template order and stores formatIssues text; clears it when met', async () => {
+  const template = { id: 'T', name: 'Counted', sections: [templateSection('t0', '結論'), templateSection('t1', '範例', { count: { mode: 'exact', n: 3 } }), templateSection('t2', '來源', { role: 'sources' })] };
+  const picture = { title: 'Pic', imageUrl: 'https://example.com/a.png', sourceUrl: 'https://example.com/page', description: '', palette: [], formula: '' };
+  const h = await templateHarness({ settings: { detailTemplates: [template], defaultDetailTemplateId: 'T' }, reply: (_context, call) => call === 1
+    ? { summary: 'S1', detail: '### 範例\n\n- one\n\n### 結論\n\nConclusion text', suggestions: [], visualReferences: [picture], formatIssues: [{ section: '範例', mode: 'exact', n: 3, actual: 1 }] }
+    : { summary: 'S2', detail: '### 結論\n\nDone\n\n### 範例\n\n- a\n- b\n- c', suggestions: [], visualReferences: [], formatIssues: [] } });
+  await h.run();
+  let note = await h.repo.readNote(h.topic.path);
+  assert.equal(note.status, 'completed');
+  const order = ['### 結論', '### 範例', '### 來源'].map(heading => note.detail.indexOf(heading));
+  assert.ok(order.every(index => index >= 0) && order[0] < order[1] && order[1] < order[2], note.detail);
+  const image = note.detail.indexOf('![Pic](https://example.com/a.png)');
+  assert.ok(image > order[1] && image < order[2], `image is placed at the template's sources heading, not appended: ${note.detail}`);
+  assert.deepEqual(plain(note.detailFormatIssues), ['範例：要求剛好 3 個，實際 1 個']);
+  await h.run();
+  note = await h.repo.readNote(h.topic.path);
+  assert.deepEqual(plain(note.detailFormatIssues), []);
+  assert.match(note.detail, /- c/);
+});
+integrationTest('runAgent leaves stored format issues untouched when the result has no count check', async () => {
+  const h = await templateHarness({ language: 'en' });
+  await h.repo.updateNote(h.topic.path, { detailFormatIssues: ['Old: needs exactly 2, has 0'] });
+  await h.run();
+  const note = await h.repo.readNote(h.topic.path);
+  assert.equal(note.summary, 'Saved summary');
+  assert.deepEqual(plain(note.detailFormatIssues), ['Old: needs exactly 2, has 0']);
+});
+integrationTest('a deleted topic template notifies once, clears the field and falls back', async () => {
+  const h = await templateHarness({ language: 'en', settings: { detailTemplates: sampleTemplates() }, mapTemplate: 'B' });
+  await h.repo.updateNote(h.topic.path, { detailTemplateId: 'gone' });
+  await h.run();
+  assert.equal(h.contexts[0].detailTemplate.id, 'B');
+  assert.equal(h.notices.length, 1, h.notices.join('|'));
+  assert.match(h.notices[0], /"gone" no longer exists/);
+  let note = await h.repo.readNote(h.topic.path);
+  assert.equal(note.detailTemplateId, undefined);
+  assert.equal(note.summary, 'Saved summary', 'clearing the field does not make the result stale');
+  await h.run();
+  assert.equal(h.contexts[1].detailTemplate.id, 'B');
+  assert.equal(h.notices.length, 1, h.notices.join('|'));
+});
+integrationTest('an explicit choice is recorded on the topic and its reply still saves', async () => {
+  const h = await templateHarness({ language: 'en', settings: { detailTemplates: sampleTemplates(), defaultDetailTemplateId: 'C' }, reply: () => ({ summary: 'Chosen summary', detail: '### Alpha\n\nBody', visualReferences: [], suggestions: [] }) });
+  await h.view.researchChild(h.topic, new AbortController().signal, () => {}, { researchMode: 'local', researchDepth: 'fast', visualMode: 'off', referenceGroups: [], detailTemplateId: 'A' });
+  await until(() => !h.plugin.running.size);
+  assert.equal(h.contexts[0].detailTemplate.id, 'A');
+  const note = await h.repo.readNote(h.topic.path);
+  assert.equal(note.detailTemplateId, 'A');
+  assert.equal(note.summary, 'Chosen summary');
+  assert.ok(!h.notices.some(message => /outdated/.test(message)), h.notices.join('|'));
+  assert.match(note.detail, /^### Alpha/);
+});
+integrationTest('synthesis and integrated topics save with the template', async () => {
+  const custom = { id: 'X', name: 'Custom', sections: [templateSection('x0', 'First part'), templateSection('x1', 'Second part'), templateSection('x2', 'Refs', { role: 'sources' })] };
+  const reply = (_context, call) => call === 1
+    ? { summary: '', detail: '', visualReferences: [], suggestions: [{ title: 'Angle', task: 'Compare them', contribution: '', parentTitle: '' }] }
+    : { summary: 'Synth', detail: '### Second part\n\nTwo\n\n### First part\n\nOne', visualReferences: [], suggestions: [] };
+  const h = await templateHarness({ language: 'en', settings: { detailTemplates: [custom] }, mapTemplate: 'X', reply });
+  const child = await h.repo.createNote('Child', 'model-a', h.doc, h.mapPath, 'workspace'); child.parentId = h.topic.id; h.doc.nodes.push(child); await h.repo.saveMap(h.mapPath, h.doc);
+  await h.repo.updateNote(h.topic.path, { status: 'completed' });
+  const options = () => ({ researchMode: 'local', researchDepth: 'normal', visualMode: 'off', referenceGroups: [] });
+  await h.view.startSynthesis(h.topic, options(), null, message => assert.fail(message), () => {});
+  await h.view.startSynthesis(h.topic, options(), 'Compare them', message => assert.fail(message), () => {});
+  assert.equal(h.contexts.at(-1).detailTemplate.id, 'X');
+  const task = h.view.synthesisTasks.get(h.topic.path);
+  await task.save(task.draft.summary, task.draft.detail);
+  const parent = await h.repo.readNote(h.topic.path);
+  assert.ok(parent.detail.indexOf('### First part') < parent.detail.indexOf('### Second part'), parent.detail);
+  assert.ok(!/### Core conclusions/.test(parent.detail), parent.detail);
+  const other = await h.repo.createNote('Other', 'model-a', h.doc, h.mapPath, 'workspace'); h.doc.nodes.push(other); await h.repo.saveMap(h.mapPath, h.doc);
+  await h.view.createIntegratedNode('Combined', [h.topic, other], 'Compare', '');
+  assert.equal(h.contexts.at(-1).detailTemplate.id, 'X');
+  const saved = await h.repo.readMap(h.mapPath);
+  const integrated = await h.repo.readNote(saved.nodes.at(-1).path);
+  assert.equal(integrated.title, 'Combined');
+  assert.ok(integrated.detail.indexOf('### First part') < integrated.detail.indexOf('### Second part'), integrated.detail);
+  const created = await h.view.createChildBatch(h.topic, [{ title: 'Contributed', task: 'Look', contribution: '### Second part\n\nB\n\n### First part\n\nA' }]);
+  const contributed = await h.repo.readNote(created[0].path);
+  assert.ok(contributed.detail.indexOf('### First part') < contributed.detail.indexOf('### Second part'), contributed.detail);
+});

@@ -35,6 +35,8 @@ export interface TaskOptions {
   layers?: number;
   firstLayerCount?: number;
   childrenPerParent?: number;
+  /** This run's explicit content template choice; recorded on the topic when given. */
+  detailTemplateId?: string;
 }
 export function renderSynthesisContent(parent: HTMLElement, topics: string[]): HTMLSelectElement {
   const label = parent.createEl("label", { cls: "vam-field" });
