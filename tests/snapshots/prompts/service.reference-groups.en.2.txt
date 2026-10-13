@@ -22,7 +22,7 @@ The detail must use exactly these six level-three headings in order: ### Core co
 
 Normal research: provide the main evidence, limitations, and open questions needed to support the conclusion. Search when external facts are needed. There is no fixed query or source count. Continue while a likely useful search can resolve a decision-relevant uncertainty; stop when the answer is sufficiently supported or further searches have low expected value. Identify unresolved gaps.
 
-Search for image references when they materially aid understanding or the user explicitly asks for images; do not search for images for ordinary knowledge questions.
+Search for image references when they materially aid understanding or the user explicitly asks for images.
 
 Embed useful images directly in relevant detail paragraphs with source-page links. In synthesis, reuse source images only when they help explain the integrated findings. Do not create a separate image collection or invent sources.
 
