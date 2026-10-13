@@ -159,10 +159,10 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
     createEl(name, value) { const child = element(name, value); this.children.push(child); return child; },
     createSpan(value) { const child = element('span', value); this.children.push(child); return child; },
     addClass(name) { this.cls = name; }, setText(value) { this.text = value; }, setAttr(name, value) { this[name] = value; }, add(option) { this.children.push(option); }, replaceChildren(...children) { this.children = children; },
-    addEventListener(name, handler) { if (name === 'click') this.click = handler; if (name === 'change') this.change = handler; if (name === 'input') this.input = handler; },
+    addEventListener(name, handler) { if (name === 'click') this.click = handler; if (name === 'change') this.change = handler; if (name === 'input') this.input = handler; if (name === 'keydown') this.keydown = handler; },
     querySelector(selector) { const name = selector.slice(1); return find(this, item => item.cls.split(' ').includes(name)); },
     querySelectorAll(selector) { return all(this, item => selector === 'button[data-topic-run]' && item.tag === 'button' && item.dataset.topicRun !== undefined); },
-    empty() { this.children = []; }, remove() { this.removed = true; }
+    empty() { this.children = []; }, remove() { this.removed = true; }, focus() { this.focused = true; }
   });
   const find = (root, predicate) => predicate(root) ? root : root.children.map(child => find(child, predicate)).find(Boolean);
   const all = (root, predicate) => [...(predicate(root) ? [root] : []), ...root.children.flatMap(child => all(child, predicate))];
@@ -184,13 +184,22 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   const requirementsDisclosure = find(modal.contentEl, item => item.cls.includes('vam-next-requirements'));
   assert.equal(requirementsDisclosure.open, false);
   const cards = find(modal.contentEl, item => item.cls === 'vam-next-cards');
-  assert.deepEqual(cards.children.map(item => item['aria-pressed']), ['true', 'false', 'false']);
+  assert.deepEqual(cards.children.map(item => item['aria-checked']), ['true', 'false', 'false']);
   const [research, expand, synthesize] = all(modal.contentEl, item => item.cls.includes('vam-next-research'));
-  const panelHeader = find(modal.contentEl, item => item.cls.includes('vam-next-panel-header'));
-  const panelTitle = find(panelHeader, item => item.tag === 'h3');
-  const researchAction = button(panelHeader, 'Confirm research task');
-  assert.equal(modal.contentEl.children.indexOf(cards), modal.contentEl.children.indexOf(panelHeader) + 1);
-  assert.equal(panelTitle.text, 'Research this topic');
+  // The step's primary action lives in the action bar below the content; the cards follow the topic line.
+  const actions = find(modal.modalEl, item => item.cls.includes('vam-next-actions'));
+  const researchAction = button(actions, 'Confirm research task');
+  assert.equal(modal.contentEl.children.indexOf(cards), 1);
+  const activeCard = () => cards.children.findIndex(item => item['aria-checked'] === 'true');
+  assert.equal(activeCard(), 0);
+  // The steps form one radio group: the chosen step holds focus and the only tab stop; arrows move the choice.
+  assert.equal(cards.role, 'radiogroup');
+  assert.deepEqual(cards.children.map(item => [item.role, item.tabIndex]), [['radio', 0], ['radio', -1], ['radio', -1]]);
+  assert.equal(cards.children[0].focused, true);
+  cards.children[0].keydown({ key: 'ArrowRight', preventDefault() {} });
+  assert.equal(activeCard(), 1); assert.equal(cards.children[1].focused, true);
+  cards.children[1].keydown({ key: 'ArrowLeft', preventDefault() {} });
+  assert.equal(activeCard(), 0);
   assert.equal(researchAction.dataset.topicRun, 'Confirm research task');
   assert.equal(researchAction.disabled, false);
   assert.equal(button(research, 'Confirm research task'), undefined);
@@ -202,38 +211,35 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   assert.equal(depthSet.children[0].tag, 'legend');
   assert.equal(find(research, item => item.cls.includes('vam-next-depth-help')).open, false);
   const sourceDisclosures = all(modal.contentEl, item => item.cls.includes('vam-next-source-details'));
-  assert.equal(sourceDisclosures.length, 3);
-  assert.ok(sourceDisclosures.every(item => item.open === false));
-  assert.ok(sourceDisclosures.every(item => item.children[0].children[0].children[1].text.includes('0 Markdown files')));
+  assert.equal(sourceDisclosures.length, 1, 'one data-source picker serves every step');
+  const [sources] = sourceDisclosures;
+  assert.equal(sources.open, false);
+  assert.ok(sources.children[0].children[0].children[1].text.includes('0 Markdown files'));
   const outputLanguage = find(modal.contentEl, item => item['aria-label'] === 'Answer language for this task');
   assert.equal(outputLanguage.value, 'en');
   outputLanguage.value = 'zh-TW';
-  assert.equal(plugin.settings.language, 'en'); assert.equal(panelTitle.text, 'Research this topic');
+  assert.equal(plugin.settings.language, 'en'); assert.equal(activeCard(), 0);
   const requirements = find(modal.contentEl, item => item.tag === 'textarea');
   assert.equal(requirements.value, '');
   assert.equal(all(modal.contentEl, item => item.tag === 'textarea').length, 1);
   assert.equal(button(modal.contentEl, 'Save instructions'), undefined);
   requirements.value = 'Only this run';
-  const researchChecks = all(research, item => item.tag === 'input' && item.type === 'checkbox');
-  assert.equal(researchChecks.length, 2); assert.ok(researchChecks[0].checked); assert.ok(researchChecks[1].checked);
-  assert.ok(find(research, item => item.text === 'Search for image references'));
+  const sourceChecks = all(sources, item => item.tag === 'input' && item.type === 'checkbox');
+  assert.equal(sourceChecks.length, 2); assert.ok(sourceChecks[0].checked); assert.ok(sourceChecks[1].checked);
+  assert.ok(find(sources, item => item.text === 'Search for image references'));
   assert.ok(find(research, item => /Standard: provide the main evidence, limits, and open questions/.test(item.text ?? '')), JSON.stringify(all(research, item => item.text).map(item => item.text)));
-  const expandChecks = all(expand, item => item.tag === 'input' && item.type === 'checkbox');
-  assert.equal(expandChecks.length, 3); assert.ok(expandChecks[0].checked); assert.ok(expandChecks[1].checked);
-  assert.ok(find(expand, item => item.text === 'Search for image references'));
-  assert.equal(all(research, item => item.tag === 'input' && item.type === 'file').length, 2);
-  assert.equal(all(expand, item => item.tag === 'input' && item.type === 'file').length, 2);
-  assert.equal(all(synthesize, item => item.tag === 'input' && item.type === 'file').length, 2);
-  assert.ok(find(research, item => item.text === 'Allow web search'));
-  assert.ok(find(expand, item => item.text === 'Allow web search'));
-  assert.ok(find(synthesize, item => item.text === 'Allow web search'));
+  assert.equal(all(expand, item => item.tag === 'input' && item.type === 'checkbox').length, 1, 'expand keeps only its shallow-research option');
+  assert.equal(all(sources, item => item.tag === 'input' && item.type === 'file').length, 2);
+  assert.ok(find(sources, item => item.text === 'Allow web search'));
+  assert.ok(find(synthesize, item => /web search is off by default/.test(item.text ?? '')));
   assert.equal(find(synthesize, item => item.text === 'Does not copy full subtopic notes'), undefined);
   cards.children[1].click();
-  assert.equal(panelTitle.text, 'Expand this topic'); assert.equal(researchAction.hidden, true);
+  assert.equal(activeCard(), 1); assert.equal(researchAction.hidden, true);
   assert.equal(research.style.display, 'none'); assert.equal(expand.style.display, '');
-  expandChecks[0].checked = false; expandChecks[0].change();
-  assert.equal(expandChecks[1].disabled, true); assert.equal(expandChecks[1].checked, false);
-  button(expand, 'Review AI subtopic suggestions').click(); await tick();
+  sourceChecks[0].checked = false; sourceChecks[0].change();
+  assert.equal(sourceChecks[1].disabled, true); assert.equal(sourceChecks[1].checked, false);
+  sourceChecks[0].checked = true; sourceChecks[0].change();
+  button(modal.modalEl, 'Review AI subtopic suggestions').click(); await tick();
   assert.equal(expandCalls, 1); assert.equal(closed, 0);
   const proposalCheck = find(expand.querySelector('.vam-next-result'), item => item.tag === 'input' && item.type === 'checkbox');
   proposalCheck.checked = false; button(expand, 'Create subtopics').click(); await tick();
@@ -250,10 +256,10 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   firstFlow.onOpen(); find(firstFlow.contentEl, item => item.cls === 'vam-next-cards').children[1].click();
   const firstPanel = all(firstFlow.contentEl, item => item.cls.includes('vam-next-research'))[1];
   const firstRequirements = find(firstFlow.contentEl, item => item.tag === 'textarea'); firstRequirements.value = 'Keep this while retrying';
-  button(firstPanel, 'Get expansion directions').click(); await tick();
+  button(firstFlow.modalEl, 'Get expansion directions').click(); await tick();
   assert.equal(firstPanel.querySelector('.vam-next-status').text, 'No useful proposals');
   assert.equal(firstRequirements.value, 'Keep this while retrying'); assert.equal(closed, 0);
-  button(firstPanel, 'Get expansion directions').click(); await tick();
+  button(firstFlow.modalEl, 'Get expansion directions').click(); await tick();
   assert.ok(find(firstPanel.querySelector('.vam-next-result'), item => item.text === 'AI subtopic proposals'));
   const firstCheckbox = find(firstPanel.querySelector('.vam-next-result'), item => item.tag === 'input' && item.type === 'checkbox');
   firstCheckbox.checked = false;
@@ -269,7 +275,7 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   assert.ok(find(synthesize, item => item.tag === 'li' && item.text === 'Child B'));
   contentChoice.value = 'summary'; contentChoice.change();
   assert.ok(find(synthesize, item => /Important conditions in the body may be omitted/.test(item.text ?? '')));
-  cards.children[2].click(); assert.equal(panelTitle.text, 'Synthesize subtopic findings'); assert.equal(researchAction.hidden, true);
+  cards.children[2].click(); assert.equal(activeCard(), 2); assert.equal(researchAction.hidden, true);
   // Starting synthesis closes its window at once, so it runs on its own modal and this one stays open for research.
   const synthModal = new NextStepModal({}, 'Parent', 'normal', 1, 1, plugin, async () => {}, async () => {}, modal.synthesize, modelSettings);
   synthModal.onOpen(); find(synthModal.contentEl, item => item.cls === 'vam-next-cards').children[2].click();
@@ -278,23 +284,42 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   const synthContentChoice = find(synthPanel, item => item.tag === 'select' && item['aria-label'] === 'Topic synthesis content');
   synthContentChoice.value = 'summary'; synthContentChoice.change();
   const closedBeforeSynthStart = closed;
-  button(synthPanel, 'Get synthesis suggestions first').click(); await tick();
+  button(synthModal.modalEl, 'Get synthesis suggestions first').click(); await tick();
   assert.equal(synthContentChoice.disabled, true);
   assert.equal(synthOptions.synthesisContent, 'summary');
   assert.equal(synthCalls, 1); assert.equal(closed, closedBeforeSynthStart + 1); assert.equal(synthModal.closed, true);
   assert.equal(synthOptions.researchMode, 'local');
+  // Untouched network options follow each step's default; a choice the user makes is kept across steps.
+  const defaultsModal = new NextStepModal({}, 'Parent', 'normal', 1, 1, plugin, async () => {}, async () => {}, async () => {}, modelSettings);
+  defaultsModal.onOpen();
+  const defaultCards = find(defaultsModal.contentEl, item => item.cls === 'vam-next-cards');
+  const webOf = () => all(find(defaultsModal.contentEl, item => item.cls.includes('vam-next-source-details')), item => item.tag === 'input' && item.type === 'checkbox')[0];
+  defaultCards.children[2].click(); assert.equal(webOf().checked, false);
+  defaultCards.children[0].click(); assert.equal(webOf().checked, true);
+  webOf().checked = false; webOf().change();
+  defaultCards.children[1].click(); assert.equal(webOf().checked, false);
   assert.equal(synthOptions.outputLanguage, 'zh-TW');
   assert.equal(button(synthPanel, 'Choose this direction'), undefined);
   closed = closedBeforeSynthStart;
-  cards.children[0].click(); assert.equal(panelTitle.text, 'Research this topic'); assert.equal(researchAction.hidden, false);
-  button(modal.contentEl, 'Confirm research task').click(); await tick();
+  cards.children[0].click(); assert.equal(activeCard(), 0); assert.equal(researchAction.hidden, false);
+  button(modal.modalEl, 'Confirm research task').click(); await tick();
   assert.equal(researchOptions.requirements, 'Only this run'); assert.equal(researchOptions.researchMode, 'research'); assert.equal(researchOptions.referenceGroups.length, 0);
   assert.equal(researchOptions.outputLanguage, 'zh-TW');
   assert.equal(closed, 1); assert.equal(research.querySelector('.vam-next-result'), undefined);
+  // The suggested step follows the topic's research state.
+  const suggested = (childrenCount, topicStatus, childrenCompleted) => {
+    const suggestModal = new NextStepModal({}, 'Parent', 'normal', childrenCount, 0, plugin, async () => {}, async () => {}, async () => {}, { ...modelSettings, topicStatus, childrenCompleted });
+    suggestModal.onOpen();
+    return find(suggestModal.contentEl, item => item.cls === 'vam-next-cards').children.findIndex(item => item['aria-checked'] === 'true');
+  };
+  assert.equal(suggested(0, 'idea', 0), 0, 'a topic to research suggests researching it');
+  assert.equal(suggested(0, 'completed', 0), 1, 'a researched topic without subtopics suggests expanding');
+  assert.equal(suggested(2, 'completed', 2), 2, 'a researched topic whose subtopics are all researched suggests synthesis');
+  assert.equal(suggested(2, 'completed', 1), 0, 'unfinished subtopics keep research as the suggestion');
   const quickModal = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, modal.expand, async () => {});
   quickModal.onOpen(); find(quickModal.contentEl, item => item.cls === 'vam-next-cards').children[1].click(); button(quickModal.contentEl, 'Quickly explore a map').click();
   find(quickModal.contentEl, item => item['aria-label'] === 'Answer language for this task').value = 'zh-TW';
-  assert.equal(button(quickModal.contentEl, 'Review AI subtopic suggestions'), undefined);
+  assert.equal(button(quickModal.modalEl, 'Review AI subtopic suggestions'), undefined);
   const quickNumbers = all(quickModal.contentEl, item => item.tag === 'input' && item.type === 'number');
   const [levelInput, , childrenInput] = quickNumbers;
   assert.equal(childrenInput.disabled, false);
@@ -303,20 +328,23 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   assert.equal(find(quickModal.contentEl, item => item.text === 'Not used when expanding only one level.').hidden, false);
   levelInput.value = '2'; levelInput.input();
   assert.equal(childrenInput.disabled, false);
-  button(quickModal.contentEl, 'Create starter map now').click(); await tick();
+  button(quickModal.modalEl, 'Create starter map now').click(); await tick();
   assert.equal(quickOptions.multiLayer, true); assert.equal(quickOptions.shallowResearch, false); assert.equal(quickOptions.layers, 2); assert.equal(quickOptions.firstLayerCount, 3); assert.equal(quickOptions.childrenPerParent, 2); assert.equal(closed, 2);
   assert.equal(quickOptions.researchMode, 'local'); assert.equal(quickOptions.referenceGroups.length, 0); assert.equal(quickOptions.outputLanguage, 'zh-TW');
   const partial = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async (_options, _direction, _found, failed) => failed('部分子議題已建立，請重新開啟視窗。', false), async () => {});
   partial.onOpen(); find(partial.contentEl, item => item.cls === 'vam-next-cards').children[1].click(); button(partial.contentEl, 'Quickly explore a map').click();
   const closedBeforePartial = closed;
-  button(partial.contentEl, 'Create starter map now').click(); await tick();
-  assert.equal(closed, closedBeforePartial); assert.equal(button(partial.contentEl, 'Create starter map now').disabled, true); assert.match(all(partial.contentEl, item => item.cls.includes('vam-next-research'))[1].querySelector('.vam-next-status').text, /部分子議題已建立/);
+  button(partial.modalEl, 'Create starter map now').click(); await tick();
+  assert.equal(closed, closedBeforePartial); assert.equal(button(partial.modalEl, 'Create starter map now').disabled, true); assert.match(all(partial.contentEl, item => item.cls.includes('vam-next-research'))[1].querySelector('.vam-next-status').text, /部分子議題已建立/);
+  const startedNotices = () => notices.filter(message => message === 'Started “Parent” in the background; progress shows on its card.').length;
+  const startedBefore = startedNotices();
   let continueBackground; let acceptedSignal;
   const background = new Promise(resolve => { continueBackground = resolve; });
   const acceptedModal = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async (options, _direction, _found, _failed, _created, accepted) => { acceptedSignal = options.signal; accepted(); await background; }, async () => {});
-  acceptedModal.onOpen(); find(acceptedModal.contentEl, item => item.cls === 'vam-next-cards').children[1].click(); button(acceptedModal.contentEl, 'Quickly explore a map').click(); button(acceptedModal.contentEl, 'Create starter map now').click();
+  acceptedModal.onOpen(); find(acceptedModal.contentEl, item => item.cls === 'vam-next-cards').children[1].click(); button(acceptedModal.contentEl, 'Quickly explore a map').click(); button(acceptedModal.modalEl, 'Create starter map now').click();
   await until(() => acceptedModal.closed);
   assert.equal(acceptedSignal.aborted, false); assert.equal(acceptedModal.taskSignal, undefined);
+  assert.equal(startedNotices(), startedBefore + 1);
   continueBackground(); await tick();
   // Synthesis runs in the background: accepting the dispatch closes the modal without aborting the AI.
   let directionSignal, directionCalls = [];
@@ -324,10 +352,11 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   let continueBackground2; const background2 = new Promise(resolve => { continueBackground2 = resolve; });
   const closedBeforeSynth = closed;
   directionsModal.onOpen(); find(directionsModal.contentEl, item => item.cls === 'vam-next-cards').children[2].click();
-  button(directionsModal.contentEl, 'Get synthesis suggestions first').click();
+  button(directionsModal.modalEl, 'Get synthesis suggestions first').click();
   await until(() => directionsModal.closed);
   assert.equal(closed, closedBeforeSynth + 1); assert.deepEqual(directionCalls, [null]);
   assert.equal(directionSignal.aborted, false); assert.equal(directionsModal.taskSignal, undefined);
+  assert.equal(startedNotices(), startedBefore + 2);
   continueBackground2(); await tick();
   // Reopening from the node badge shows the pending directions; the draft step is also accepted and closes the modal.
   let discarded = 0, draftSignal; const draftCalls = [];
@@ -335,13 +364,13 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
     { ...modelSettings, synthesisPending: { directions: [{ title: 'Shared constraints', task: 'Find tradeoffs', contribution: 'Across children' }, { title: 'Open questions', task: 'List gaps', contribution: '' }], discard: () => { discarded++; } } });
   pendingModal2.onOpen();
   const pendingPanel = all(pendingModal2.contentEl, item => item.cls.includes('vam-next-research'))[2];
-  assert.equal(button(pendingModal2.contentEl, 'Get synthesis suggestions first'), undefined);
+  assert.equal(button(pendingModal2.modalEl, 'Get synthesis suggestions first'), undefined);
   assert.equal(pendingPanel.style.display, '');
   const directionBox = find(pendingPanel, item => item.tag === 'textarea' && item['aria-label'] === 'Synthesis direction');
   assert.equal(directionBox.value ?? directionBox.text, 'Find tradeoffs');
   button(pendingPanel, 'Choose this direction').click();
   directionBox.value = 'Edited direction';
-  button(pendingPanel, 'Get synthesis draft').click(); await until(() => pendingModal2.closed);
+  button(pendingModal2.modalEl, 'Get synthesis draft').click(); await until(() => pendingModal2.closed);
   assert.deepEqual(draftCalls, ['Edited direction']); assert.equal(draftSignal.aborted, false); assert.equal(discarded, 0);
   const discardModal = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => {}, async () => {}, { ...modelSettings, synthesisPending: { directions: [{ title: 'A', task: 'B', contribution: '' }], discard: () => { discarded++; } } });
   discardModal.onOpen(); button(discardModal.contentEl, 'Discard').click();
@@ -352,38 +381,41 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   empty.onOpen(); find(empty.contentEl, item => item.cls === 'vam-next-cards').children[2].click();
   const emptyPanel = all(empty.contentEl, item => item.cls.includes('vam-next-research'))[2];
   assert.match(emptyPanel.children[0].text, /no direct subtopics/i);
-  button(emptyPanel, 'Get synthesis suggestions first').click(); await tick();
+  button(empty.modalEl, 'Get synthesis suggestions first').click(); await tick();
   assert.equal(synthCalls, 1); assert.equal(emptyOptions, undefined);
   const failing = new NextStepModal({}, 'Parent', 'normal', 1, 1, plugin, async () => {}, async (_options, _direction, _found, failed) => failed('Provider failed'), async () => {});
   failing.onOpen(); find(failing.contentEl, item => item.cls === 'vam-next-cards').children[1].click();
-  button(failing.contentEl, 'Review AI subtopic suggestions').click(); await tick();
+  button(failing.modalEl, 'Review AI subtopic suggestions').click(); await tick();
   assert.equal(all(failing.contentEl, item => item.cls.includes('vam-next-research'))[1].querySelector('.vam-next-status').text, 'Provider failed'); assert.equal(closed, 3);
+  const startedBeforeFailures = startedNotices();
   const failedResearch = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async (_options, _focus, _done, failed) => failed('Cannot start'), async () => {}, async () => {});
-  failedResearch.onOpen(); button(failedResearch.contentEl, 'Confirm research task').click(); await tick();
+  failedResearch.onOpen(); button(failedResearch.modalEl, 'Confirm research task').click(); await tick();
   assert.equal(closed, 3); assert.equal(all(failedResearch.contentEl, item => item.cls.includes('vam-next-research'))[0].querySelector('.vam-next-status').text, 'Cannot start');
   const unacceptedResearch = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => {}, async () => {});
-  unacceptedResearch.onOpen(); button(unacceptedResearch.contentEl, 'Confirm research task').click(); await tick();
+  unacceptedResearch.onOpen(); button(unacceptedResearch.modalEl, 'Confirm research task').click(); await tick();
   const unacceptedPanel = all(unacceptedResearch.contentEl, item => item.cls.includes('vam-next-research'))[0];
-  assert.equal(closed, 3); assert.equal(button(unacceptedResearch.contentEl, 'Confirm research task').disabled, false);
+  assert.equal(closed, 3); assert.equal(button(unacceptedResearch.modalEl, 'Confirm research task').disabled, false);
   assert.match(unacceptedPanel.querySelector('.vam-next-status').text, /cancelled/i);
+  // Launch failures and unaccepted launches never claim the task started.
+  assert.equal(startedNotices(), startedBeforeFailures);
   let acknowledged = 0, began = 0;
   let firstUseConfirmed = false;
   const firstUsePlugin = { settings: { codexUsageNoticeSeen: false }, aiReadyForModel: async () => true, confirmAiUsage: async (_model, run) => { if (!firstUseConfirmed) { firstUseConfirmed = true; return false; } acknowledged++; await run(); return true; }, saveSettings: async () => { acknowledged++; } };
   const firstUse = new NextStepModal({}, 'Parent', 'normal', 1, 0, firstUsePlugin, async (_options, _focus, _done, _failed, accepted) => { began++; accepted(); }, async () => {}, async () => {});
-  firstUse.onOpen(); button(firstUse.contentEl, 'Confirm research task').click(); await tick();
+  firstUse.onOpen(); button(firstUse.modalEl, 'Confirm research task').click(); await tick();
   assert.equal(began, 0); assert.equal(button(firstUse.contentEl, 'Understand and run'), undefined); assert.equal(closed, 3);
-  button(firstUse.contentEl, 'Confirm research task').click(); await tick();
+  button(firstUse.modalEl, 'Confirm research task').click(); await tick();
   assert.equal(began, 1); assert.equal(acknowledged, 1); assert.equal(closed, 4);
   let pendingCalls = 0;
   let pendingConfirmed = false;
   const pendingPlugin = { settings: { codexUsageNoticeSeen: false }, aiReadyForModel: async () => true, confirmAiUsage: async (_model, run) => { if (!pendingConfirmed) { pendingConfirmed = true; return false; } await run(); return true; }, saveSettings: async () => {} };
   const pendingModal = new NextStepModal({}, 'Parent', 'normal', 1, 1, pendingPlugin, async () => {}, async (_options, _direction, found) => { pendingCalls++; found([{ title: 'Existing', task: 'Research', contribution: '', parentTitle: '' }], async () => {}); }, async () => {});
   pendingModal.onOpen(); find(pendingModal.contentEl, item => item.cls === 'vam-next-cards').children[1].click();
-  button(pendingModal.contentEl, 'Review AI subtopic suggestions').click(); await tick();
+  button(pendingModal.modalEl, 'Review AI subtopic suggestions').click(); await tick();
   assert.equal(pendingCalls, 1); assert.equal(button(pendingModal.contentEl, 'Understand and run'), undefined);
   button(pendingModal.contentEl, 'Create subtopics').click(); await tick();
-  assert.ok(button(pendingModal.contentEl, 'Get expansion directions'));
-  button(pendingModal.contentEl, 'Get expansion directions').click(); await tick();
+  assert.ok(button(pendingModal.modalEl, 'Get expansion directions'));
+  button(pendingModal.modalEl, 'Get expansion directions').click(); await tick();
   assert.equal(pendingCalls, 1); assert.equal(button(pendingModal.contentEl, 'Understand and run'), undefined);
   let finishQuick, completedQuick = false, delayedOptions;
   const delayed = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async (options, _direction, _failed, _failure, accepted) => {
@@ -397,7 +429,7 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   numbers[0].value = '3'; numbers[1].value = '2'; numbers[2].value = '2'; numbers[0].input();
   const shallow = find(all(delayed.contentEl, item => item.cls.includes('vam-next-research'))[1], item => item.tag === 'input' && item.type === 'checkbox' && item.checked === false);
   shallow.checked = true;
-  button(delayed.contentEl, 'Create starter map now').click(); await tick();
+  button(delayed.modalEl, 'Create starter map now').click(); await tick();
   assert.equal(closed, 5); assert.equal(completedQuick, false);
   assert.equal(delayedOptions.layers, 3); assert.equal(delayedOptions.firstLayerCount, 2); assert.equal(delayedOptions.childrenPerParent, 2); assert.equal(delayedOptions.shallowResearch, true);
   finishQuick(); await tick(); assert.equal(completedQuick, true); assert.equal(closed, 5);
@@ -405,9 +437,9 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   invalid.onOpen(); find(invalid.contentEl, item => item.cls === 'vam-next-cards').children[1].click(); button(invalid.contentEl, 'Quickly explore a map').click();
   const invalidNumbers = all(invalid.contentEl, item => item.tag === 'input' && item.type === 'number'); invalidNumbers[0].value = '3'; invalidNumbers[1].value = '3'; invalidNumbers[2].value = '2'; invalidNumbers[0].input();
   assert.match(find(invalid.contentEl, item => item.tag === 'p' && item.text?.includes('exceeding the limit of 15')).text, /21 subtopics/);
-  assert.equal(button(invalid.contentEl, 'Create starter map now').disabled, true);
+  assert.equal(button(invalid.modalEl, 'Create starter map now').disabled, true);
   invalidNumbers[0].value = '2'; invalidNumbers[0].input();
-  assert.equal(button(invalid.contentEl, 'Create starter map now').disabled, false);
+  assert.equal(button(invalid.modalEl, 'Create starter map now').disabled, false);
   assert.ok(all(invalid.contentEl, item => item.tag === 'p').some(item => /3/.test(item.text ?? '') && /6/.test(item.text ?? '') && /9/.test(item.text ?? '')));
   assert.equal(closed, 5);
   let finishGuided, guidedFinished = false;
@@ -417,7 +449,7 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
     guidedFinished = true;
   }, async () => {});
   guidedModal.onOpen(); find(guidedModal.contentEl, item => item.cls === 'vam-next-cards').children[1].click();
-  button(guidedModal.contentEl, 'Get expansion directions').click(); await tick();
+  button(guidedModal.modalEl, 'Get expansion directions').click(); await tick();
   assert.equal(closed, 5); assert.equal(guidedFinished, false);
   finishGuided(); await tick();
   assert.equal(guidedFinished, true); assert.ok(button(guidedModal.contentEl, 'Create subtopics'));
@@ -434,14 +466,14 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   const reasoningSelect = find(settingsModal.contentEl, item => item['aria-label'] === 'Reasoning level');
   modelSelect.value = 'model-b'; modelSelect.change(); reasoningSelect.value = 'high'; reasoningSelect.change();
   assert.equal(researchAfterSave, false);
-  button(settingsModal.contentEl, 'Confirm research task').click(); await tick();
+  button(settingsModal.modalEl, 'Confirm research task').click(); await tick();
   assert.deepEqual(plain(settingsWrites), [{ model: 'model-b', modelSource: 'manual' }, { reasoning: 'high' }]);
   assert.equal(checkedModels.at(-1), 'model-b');
   assert.equal(researchAfterSave, true);
   const closedBeforeCancel = closed;
   const cancelModal = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async options => new Promise((_resolve, reject) => options.signal.addEventListener('abort', () => { const error = new Error('aborted'); error.name = 'AbortError'; reject(error); }, { once: true })), async () => {});
   cancelModal.onOpen(); find(cancelModal.contentEl, item => item.cls === 'vam-next-cards').children[1].click();
-  button(cancelModal.contentEl, 'Quickly explore a map').click(); button(cancelModal.contentEl, 'Create starter map now').click(); await tick();
+  button(cancelModal.contentEl, 'Quickly explore a map').click(); button(cancelModal.modalEl, 'Create starter map now').click(); await tick();
   const taskCancel = find(cancelModal.contentEl, item => item.cls === 'vam-task-cancel');
   assert.equal(taskCancel.hidden, false); taskCancel.onclick(); await tick();
   assert.match(find(all(cancelModal.contentEl, item => item.cls.includes('vam-next-research'))[1], item => item.cls.includes('vam-next-status')).text, /cancelled/i);
@@ -552,7 +584,7 @@ integrationTest('Next Step modal: the content template choice goes into research
     addClass(name) { this.cls = name; }, setText(value) { this.text = value; }, setAttr(name, value) { this[name] = value; }, add(option) { this.children.push(option); }, replaceChildren(...children) { this.children = children; },
     addEventListener(name, handler) { if (name === 'click') this.click = handler; if (name === 'change') this.change = handler; if (name === 'input') this.input = handler; },
     querySelector(selector) { const name = selector.slice(1); return find(this, item => item.cls.split(' ').includes(name)); },
-    querySelectorAll() { return []; }, empty() { this.children = []; }, remove() {}
+    querySelectorAll() { return []; }, empty() { this.children = []; }, remove() {}, focus() {}
   });
   const find = (root, predicate) => predicate(root) ? root : root.children.map(child => find(child, predicate)).find(Boolean);
   const all = (root, predicate) => [...(predicate(root) ? [root] : []), ...root.children.flatMap(child => all(child, predicate))];
@@ -578,20 +610,20 @@ integrationTest('Next Step modal: the content template choice goes into research
   const modal = open('picked', settings);
   const select = templateSelect(modal);
   assert.deepEqual(plain(select.children.map(c => [c.value, c.text])), [['', 'Keep current (Standard)'], ['standard', 'Standard'], ['A', 'Alpha template']]);
-  button(modal.contentEl, 'Confirm research task').click(); await tick();
+  button(modal.modalEl, 'Confirm research task').click(); await tick();
   assert.equal('detailTemplateId' in seen.research, false, 'keep-current sends no choice');
   select.value = 'A';
-  button(modal.contentEl, 'Confirm research task').click(); await tick();
+  button(modal.modalEl, 'Confirm research task').click(); await tick();
   assert.equal(seen.research.detailTemplateId, 'A');
   cardsOf(modal).children[1].click();
   button(modal.contentEl, 'Quickly explore a map').click();
-  button(modal.contentEl, 'Create starter map now').click(); await tick();
+  button(modal.modalEl, 'Create starter map now').click(); await tick();
   assert.equal(seen.expand.detailTemplateId, 'A');
   const synthModal = open('synth', settings);
   templateSelect(synthModal).value = 'A';
   cardsOf(synthModal).children[2].click();
   const synthPanel = all(synthModal.contentEl, item => item.cls.includes('vam-next-research'))[2];
-  button(synthPanel, 'Get synthesis suggestions first').click(); await tick();
+  button(synthModal.modalEl, 'Get synthesis suggestions first').click(); await tick();
   assert.equal(seen.synth.detailTemplateId, 'A');
   const bare = open('bare', undefined);
   assert.deepEqual(plain(templateSelect(bare).children.map(c => c.value)), ['']);
