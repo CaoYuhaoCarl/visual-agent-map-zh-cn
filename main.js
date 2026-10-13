@@ -31167,6 +31167,7 @@ async function loadableImages(candidates, signal) {
   );
   return candidates.filter((_, index) => loads[index]);
 }
+var panelSequence = 0;
 var MarkdownSelectionAi = class extends import_obsidian22.Component {
   constructor(app, options) {
     super();
@@ -31196,13 +31197,18 @@ var MarkdownSelectionAi = class extends import_obsidian22.Component {
       this.app.workspace.on("editor-change", () => window.requestAnimationFrame(() => this.onSelectionActivity()))
     );
     this.registerDomEvent(document, "click", (event) => {
-      var _a, _b, _c;
+      var _a, _b, _c, _d;
       const image = event.target;
       if (!(image instanceof HTMLImageElement) || !this.options.autoOpen()) return;
+      if (image.closest(".vam-context-ai-panel")) return;
+      if (((_a = this.panel) == null ? void 0 : _a.isOpen) && this.panel.hasWork) {
+        this.panel.focus();
+        return;
+      }
       const view = this.app.workspace.getLeavesOfType("markdown").map((leaf) => leaf.view).find((candidate) => candidate instanceof import_obsidian22.MarkdownView && candidate.containerEl.contains(image));
       if (!(view instanceof import_obsidian22.MarkdownView) || !view.file) return;
       const markdown = view.editor.getValue();
-      const embeddedPath = (_a = image.closest(".internal-embed")) == null ? void 0 : _a.getAttribute("src");
+      const embeddedPath = (_b = image.closest(".internal-embed")) == null ? void 0 : _b.getAttribute("src");
       const tokens2 = [...markdown.matchAll(/!\[\[[^\]\n]+\]\]|!\[[^\]\n]*\]\([^\n]+?\)/g)].filter((match) => {
         var _a2, _b2;
         if (embeddedPath) {
@@ -31218,9 +31224,9 @@ var MarkdownSelectionAi = class extends import_obsidian22.Component {
       this.snapshot = {
         view,
         path: view.file.path,
-        text: (_b = token == null ? void 0 : token[0]) != null ? _b : image.alt,
+        text: (_c = token == null ? void 0 : token[0]) != null ? _c : image.alt,
         markdown,
-        matchAt: (_c = token == null ? void 0 : token.index) != null ? _c : -1,
+        matchAt: (_d = token == null ? void 0 : token.index) != null ? _d : -1,
         rect: image.getBoundingClientRect(),
         image
       };
@@ -31235,10 +31241,10 @@ var MarkdownSelectionAi = class extends import_obsidian22.Component {
       document,
       "scroll",
       (event) => {
-        var _a;
+        var _a, _b;
         if (event.target instanceof Element && event.target.closest(".vam-context-ai-panel")) return;
         this.hideLauncher();
-        (_a = this.panel) == null ? void 0 : _a.close();
+        if (!((_a = this.panel) == null ? void 0 : _a.hasWork)) (_b = this.panel) == null ? void 0 : _b.close();
       },
       true
     );
@@ -31381,9 +31387,11 @@ var SelectionAiPanel = class extends import_obsidian22.Component {
     this.previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     this.modalEl = this.app.workspace.containerEl.createDiv({ cls: "vam-context-ai-panel" });
     this.modalEl.setAttribute("role", "dialog");
-    this.modalEl.setAttribute("aria-label", t("ui.context_ai_title"));
+    const titleId = `vam-context-ai-title-${++panelSequence}`;
+    this.modalEl.setAttribute("aria-labelledby", titleId);
     const header = this.modalEl.createDiv({ cls: "vam-context-ai-header" });
     this.titleEl = header.createEl("h3");
+    this.titleEl.id = titleId;
     const close = header.createEl("button", { cls: "clickable-icon vam-context-ai-close" });
     close.setAttribute("aria-label", t("ui.close"));
     (0, import_obsidian22.setIcon)(close, "x");
@@ -31405,8 +31413,13 @@ var SelectionAiPanel = class extends import_obsidian22.Component {
     );
     this.registerDomEvent(document, "pointerdown", (event) => {
       if (event.target instanceof Element && event.target.closest(".modal-container")) return;
-      if (event.target instanceof Node && !this.modalEl.contains(event.target)) this.close(false);
+      if (event.target instanceof Node && !this.modalEl.contains(event.target) && !this.hasWork) this.close(false);
     });
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(() => this.reposition());
+      for (const part of Array.from(this.contentEl.children)) observer.observe(part);
+      this.register(() => observer.disconnect());
+    }
     this.reposition();
     this.focus();
   }
@@ -31414,13 +31427,23 @@ var SelectionAiPanel = class extends import_obsidian22.Component {
     var _a;
     (_a = this.instruction) == null ? void 0 : _a.focus();
   }
+  /** Whether closing would lose something: a request in flight or a draft or image not yet inserted. */
+  get hasWork() {
+    return !!this.controller || !!this.resultActions && !this.resultActions.hidden;
+  }
   reposition() {
+    var _a, _b, _c, _d, _e;
+    if (!this.isOpen) return;
     const rect = this.snapshot.rect;
     const width = Math.min(480, window.innerWidth - 24);
     this.modalEl.style.width = `${width}px`;
     this.modalEl.style.left = `${Math.max(12, Math.min(rect.left, window.innerWidth - width - 12))}px`;
-    const height = Math.min(this.modalEl.scrollHeight, window.innerHeight - 24);
-    this.modalEl.style.top = `${Math.max(12, Math.min(rect.bottom + 8, window.innerHeight - height - 12))}px`;
+    const header = (_c = (_b = (_a = this.titleEl) == null ? void 0 : _a.parentElement) == null ? void 0 : _b.offsetHeight) != null ? _c : 0;
+    const natural = header + ((_e = (_d = this.contentEl) == null ? void 0 : _d.scrollHeight) != null ? _e : this.modalEl.scrollHeight);
+    const height = Math.min(natural, window.innerHeight - 24);
+    const top = Math.max(12, Math.min(rect.bottom + 8, window.innerHeight - height - 12));
+    this.modalEl.style.top = `${top}px`;
+    this.modalEl.style.maxHeight = `${window.innerHeight - top - 12}px`;
   }
   close(restoreFocus = true) {
     var _a;
