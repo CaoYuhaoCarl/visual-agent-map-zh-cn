@@ -8,6 +8,8 @@ export interface MultiResearchRequest {
   researchMode: ResearchMode;
   researchDepth: ResearchDepth;
   requirements: string;
+  /** Search for image references; only meaningful with web search. */
+  imageSearch: boolean;
   /** Model for every started topic (saved on the topic, as single-topic research does); undefined keeps each topic's model. */
   model?: string;
   /** Content template for every started topic (saved on the topic); undefined keeps each topic's template. */
@@ -42,6 +44,14 @@ export class MultiResearchModal extends Modal {
     const web = webLabel.createEl("input", { type: "checkbox" });
     web.checked = true;
     webLabel.createSpan({ text: t("ui.allow_web_search") });
+    const imageLabel = this.contentEl.createEl("label", { cls: "vam-field vam-next-toggle" });
+    const images = imageLabel.createEl("input", { type: "checkbox" });
+    images.checked = true;
+    imageLabel.createSpan({ text: t("ui.search_for_image_references") });
+    web.addEventListener("change", () => {
+      images.disabled = !web.checked;
+      if (!web.checked) images.checked = false;
+    });
     const requirementsLabel = this.contentEl.createEl("label", { cls: "vam-field" });
     requirementsLabel.createSpan({ text: t("ui.additional_requirements") });
     const requirements = requirementsLabel.createEl("textarea");
@@ -61,6 +71,7 @@ export class MultiResearchModal extends Modal {
         researchMode: web.checked ? "research" : "local",
         researchDepth: depth(),
         requirements: requirements.value.trim(),
+        imageSearch: web.checked && images.checked,
         ...(model.value() ? { model: model.value() } : {}),
         ...(template() ? { detailTemplateId: template() } : {})
       };
