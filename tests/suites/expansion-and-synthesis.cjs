@@ -1424,6 +1424,36 @@ integrationTest('integrated topic stores the result format issues', async () => 
   assert.equal(integrated.title, 'Combined');
   assert.deepEqual(plain(integrated.detailFormatIssues), ['Examples: needs exactly 3, has 1']);
 });
+const partsTemplate = () => ({ id: 'X', name: 'Parts', sections: [templateSection('x0', 'First part'), templateSection('x1', 'Second part')] });
+const contributedSuggestion = title => ({ title, task: `Look at ${title}`, contribution: '### Second part\n\nB\n\n### First part\n\nA', parentTitle: '' });
+integrationTest('expand without shallow research: the chosen template shapes contributions and is recorded on the new children', async () => {
+  const reply = () => ({ summary: '', detail: '', visualReferences: [], suggestions: [contributedSuggestion('One'), contributedSuggestion('Two'), contributedSuggestion('Three')] });
+  const h = await templateHarness({ language: 'en', settings: { detailTemplates: [partsTemplate()] }, reply });
+  const options = { researchMode: 'local', researchDepth: 'fast', visualMode: 'off', referenceGroups: [], shallowResearch: false, multiLayer: false, detailTemplateId: 'X' };
+  let create;
+  await h.view.proposeChildren(h.topic, true, options, '', (items, run) => { create = () => run(items.slice(0, 1)); }, message => assert.fail(message));
+  assert.ok(create, 'suggestions were presented');
+  await create();
+  const saved = await h.repo.readMap(h.mapPath);
+  const child = await h.repo.readNote(saved.nodes.find(node => node.parentId === h.topic.id).path);
+  assert.equal(child.detailTemplateId, 'X');
+  assert.match(child.detail, /^### First part\n\nA\n\n### Second part\n\nB$/);
+  assert.equal(h.contexts.length, 1, 'no research ran');
+});
+integrationTest('multi-layer expand without shallow research: the chosen template shapes contributions and is recorded', async () => {
+  const reply = () => ({ summary: '', detail: '', visualReferences: [], suggestions: [contributedSuggestion('One'), contributedSuggestion('Two')] });
+  const h = await templateHarness({ language: 'en', settings: { detailTemplates: [partsTemplate()] }, reply });
+  const options = { researchMode: 'local', researchDepth: 'fast', visualMode: 'off', referenceGroups: [], shallowResearch: false, multiLayer: true, layers: 1, firstLayerCount: 2, childrenPerParent: 1, detailTemplateId: 'X' };
+  await h.view.startQuickExpansion(h.topic, options, '', message => assert.fail(message), () => {});
+  const saved = await h.repo.readMap(h.mapPath);
+  const children = saved.nodes.filter(node => node.parentId === h.topic.id);
+  assert.equal(children.length, 2);
+  for (const node of children) {
+    const child = await h.repo.readNote(node.path);
+    assert.equal(child.detailTemplateId, 'X');
+    assert.match(child.detail, /^### First part\n\nA\n\n### Second part\n\nB$/);
+  }
+});
 integrationTest('multi research with a chosen template records it on each started topic and the AI request uses it (skipped topics untouched)', async () => {
   const h = await templateHarness({ language: 'en', settings: { detailTemplates: sampleTemplates(), defaultDetailTemplateId: 'C' } });
   const second = await h.repo.createNote('Second', 'model-a', h.doc, h.mapPath, 'workspace'); h.doc.nodes.push(second); await h.repo.saveMap(h.mapPath, h.doc);

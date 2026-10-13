@@ -24601,19 +24601,25 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         const savedOptions = this.plugin.pendingResearchOptions.get(parent.path);
         const researchOptions = savedOptions ? { ...savedOptions, signal: options == null ? void 0 : options.signal, onProgress: options == null ? void 0 : options.onProgress } : void 0;
         await this.plugin.mutate(async () => {
-          var _a2, _b2;
+          var _a2, _b2, _c2;
           if (!version || this.plugin.pendingSuggestions.get(parent.path) !== version)
             throw new Error(t("ui.expansion_suggestions_changed_open_them_again"));
           await this.assertSuggestionOrigin(parent, version);
           try {
-            createdNodes = await this.createChildBatch(parent, selected, researchOptions);
+            createdNodes = await this.createChildBatch(
+              parent,
+              selected,
+              researchOptions,
+              void 0,
+              (_a2 = options == null ? void 0 : options.detailTemplateId) != null ? _a2 : researchOptions == null ? void 0 : researchOptions.detailTemplateId
+            );
           } catch (error) {
             if (error instanceof PartialChildBatchError) await this.clearPartialSuggestions(parent.path, error);
             throw error;
           }
           this.plugin.pendingSuggestions.delete(parent.path);
           this.plugin.pendingResearchOptions.delete(parent.path);
-          await ((_b2 = (_a2 = this.plugin.pendingSuggestions).flush) == null ? void 0 : _b2.call(_a2));
+          await ((_c2 = (_b2 = this.plugin.pendingSuggestions).flush) == null ? void 0 : _c2.call(_b2));
           this.render();
         });
         if ((researchOptions == null ? void 0 : researchOptions.shallowResearch) && createdNodes.length)
@@ -24776,7 +24782,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
               currentParent,
               suggestions,
               (options == null ? void 0 : options.shallowResearch) ? { ...options, signal: controller.signal } : void 0,
-              controller.signal
+              controller.signal,
+              options == null ? void 0 : options.detailTemplateId
             );
           } catch (error) {
             batchFailure = error instanceof Error ? error : new Error(typeof error === "string" ? error : t("ui.failed_to_create_starter_map"));
@@ -24882,7 +24889,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       });
     }).open();
   }
-  async createChildBatch(parent, items, researchOptions, signal) {
+  /** `detailTemplateId` is the dialog's template choice: it shapes contributions and is recorded on each new child. */
+  async createChildBatch(parent, items, researchOptions, signal, detailTemplateId = researchOptions == null ? void 0 : researchOptions.detailTemplateId) {
     var _a;
     if (this.plugin.expansionCoordinator.isRunning(parent.path)) throw new Error(t("ui.ai_running_ai"));
     if (!((_a = this.map) == null ? void 0 : _a.nodes.some((node) => node.id === parent.id && node.path === parent.path)))
@@ -24900,7 +24908,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     }
     let created = 0;
     const createdByTitle = /* @__PURE__ */ new Map(), newNodes = [];
-    const contributionTemplate = this.mapDetailTemplate(this.plugin.settings.language);
+    const contributionTemplate = this.mapDetailTemplate(this.plugin.settings.language, detailTemplateId);
     try {
       for (const item of items) {
         if (signal == null ? void 0 : signal.aborted) throw new DOMException("Aborted", "AbortError");
@@ -24918,7 +24926,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
             researchMode: "research",
             researchDepth: "fast",
             visualMode: researchOptions.visualMode
-          } : {}
+          } : {},
+          ...detailTemplateId ? { detailTemplateId } : {}
         });
       }
       if (signal == null ? void 0 : signal.aborted) throw new DOMException("Aborted", "AbortError");
@@ -26083,14 +26092,17 @@ ${note.detail.trim()}` : "",
     }
     return template;
   }
-  /** Template for content that has no topic choice of its own (new integrated topics, child contributions). */
-  mapDetailTemplate(language2) {
+  /**
+   * Template for content that has no topic choice of its own (new integrated topics, child contributions); a dialog
+   * choice comes first.
+   */
+  mapDetailTemplate(language2, chosenId) {
     var _a;
     const settings = this.plugin.settings;
     return templateInLanguage(
       resolveTemplate(
         settings.detailTemplates,
-        [(_a = this.map) == null ? void 0 : _a.detailTemplateId, settings.defaultDetailTemplateId],
+        [chosenId, (_a = this.map) == null ? void 0 : _a.detailTemplateId, settings.defaultDetailTemplateId],
         settings.language
       ).template,
       language2

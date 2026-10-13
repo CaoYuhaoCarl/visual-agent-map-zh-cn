@@ -3639,7 +3639,13 @@ export class VisualAgentMapView extends ItemView {
             throw new Error(t("ui.expansion_suggestions_changed_open_them_again"));
           await this.assertSuggestionOrigin(parent, version);
           try {
-            createdNodes = await this.createChildBatch(parent, selected, researchOptions);
+            createdNodes = await this.createChildBatch(
+              parent,
+              selected,
+              researchOptions,
+              undefined,
+              options?.detailTemplateId ?? researchOptions?.detailTemplateId
+            );
           } catch (error) {
             if (error instanceof PartialChildBatchError) await this.clearPartialSuggestions(parent.path, error);
             throw error;
@@ -3834,7 +3840,8 @@ export class VisualAgentMapView extends ItemView {
               currentParent,
               suggestions,
               options?.shallowResearch ? { ...options, signal: controller.signal } : undefined,
-              controller.signal
+              controller.signal,
+              options?.detailTemplateId
             );
           } catch (error) {
             batchFailure =
@@ -3946,11 +3953,13 @@ export class VisualAgentMapView extends ItemView {
       });
     }).open();
   }
+  /** `detailTemplateId` is the dialog's template choice: it shapes contributions and is recorded on each new child. */
   private async createChildBatch(
     parent: MapNode,
     items: Suggestion[],
     researchOptions?: TaskOptions,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    detailTemplateId = researchOptions?.detailTemplateId
   ): Promise<MapNode[]> {
     if (this.plugin.expansionCoordinator.isRunning(parent.path)) throw new Error(t("ui.ai_running_ai"));
     if (!this.map?.nodes.some(node => node.id === parent.id && node.path === parent.path))
@@ -3969,7 +3978,7 @@ export class VisualAgentMapView extends ItemView {
     let created = 0;
     const createdByTitle = new Map<string, MapNode>(),
       newNodes: MapNode[] = [];
-    const contributionTemplate = this.mapDetailTemplate(this.plugin.settings.language);
+    const contributionTemplate = this.mapDetailTemplate(this.plugin.settings.language, detailTemplateId);
     try {
       for (const item of items) {
         if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
@@ -3993,7 +4002,8 @@ export class VisualAgentMapView extends ItemView {
                 researchDepth: "fast" as const,
                 visualMode: researchOptions.visualMode
               }
-            : {})
+            : {}),
+          ...(detailTemplateId ? { detailTemplateId } : {})
         });
       }
       if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
@@ -5235,13 +5245,16 @@ export class VisualAgentMapView extends ItemView {
     }
     return template;
   }
-  /** Template for content that has no topic choice of its own (new integrated topics, child contributions). */
-  private mapDetailTemplate(language: UiLanguage): DetailTemplate {
+  /**
+   * Template for content that has no topic choice of its own (new integrated topics, child contributions); a dialog
+   * choice comes first.
+   */
+  private mapDetailTemplate(language: UiLanguage, chosenId?: string): DetailTemplate {
     const settings = this.plugin.settings;
     return templateInLanguage(
       resolveTemplate(
         settings.detailTemplates,
-        [this.map?.detailTemplateId, settings.defaultDetailTemplateId],
+        [chosenId, this.map?.detailTemplateId, settings.defaultDetailTemplateId],
         settings.language
       ).template,
       language
