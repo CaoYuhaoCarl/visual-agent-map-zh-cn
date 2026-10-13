@@ -96,6 +96,7 @@
 .vam-node-header button.vam-badge-new { border: 0; cursor: pointer; }
 .vam-card-title { color: var(--text-normal); font-size: var(--font-ui-medium); font-weight: 650; line-height: 1.4; margin: 8px 0 4px; overflow-wrap: anywhere; }
 .vam-card-summary { margin: 0; color: var(--text-muted); font-size: var(--font-ui-small); line-height: 1.55; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.vam-card-error { margin: 6px 0 0; color: var(--color-red); font-size: var(--font-ui-smaller); line-height: 1.45; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 /* Research frame: open questions read as an unfinished frontier, concluded topics as settled ground. */
 .vam-node:not([data-aim-kind])[data-status="idea"] { border-style: dashed; border-color: var(--background-modifier-border-hover); box-shadow: none; }
 .vam-node:not([data-aim-kind])[data-status="idea"] .vam-card-summary { color: var(--text-faint); }

@@ -524,6 +524,8 @@ var english = {
   "ui.show_all": "Show all",
   "ui.zoom_reset": "Reset zoom to 100%",
   "ui.new_map": "\uFF0B New map",
+  "ui.researched": "Researched",
+  "ui.researching_0": "Researching {0}",
   "ui.research_progress_0_of_1": "Researched {0} / {1}",
   "ui.preview_card_size": "Hover preview size",
   "ui.preview_card_size_desc": "Scale of the note preview shown when you hover a topic on the map.",
@@ -1781,6 +1783,8 @@ var traditionalChinese = {
   "ui.show_all": "\u986F\u793A\u5168\u90E8",
   "ui.zoom_reset": "\u7E2E\u653E\u91CD\u8A2D\u70BA 100%",
   "ui.new_map": "\uFF0B \u65B0\u589E\u5730\u5716",
+  "ui.researched": "\u5DF2\u7814\u7A76",
+  "ui.researching_0": "\u7814\u7A76\u4E2D {0}",
   "ui.research_progress_0_of_1": "\u5DF2\u7814\u7A76 {0} / {1}",
   "ui.preview_card_size": "\u61F8\u505C\u9810\u89BD\u5927\u5C0F",
   "ui.preview_card_size_desc": "\u5728\u5730\u5716\u4E0A\u628A\u6ED1\u9F20\u79FB\u5230\u8B70\u984C\u6642\uFF0C\u7B46\u8A18\u9810\u89BD\u5361\u7684\u7E2E\u653E\u6BD4\u4F8B\u3002",
@@ -22761,6 +22765,13 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     });
     const fill = progress.createDiv("vam-research-progress-track").createDiv("vam-research-progress-fill");
     fill.style.width = `${nodes.length ? done / nodes.length * 100 : 0}%`;
+    const running = nodes.filter(
+      (node) => {
+        var _a2, _b2;
+        return ((_a2 = this.plugin.running) == null ? void 0 : _a2.has(node.path)) || ((_b2 = this.plugin.quickExpandPending) == null ? void 0 : _b2.has(node.path));
+      }
+    ).length;
+    if (running) progress.createSpan({ cls: "vam-status vam-status-running", text: t("ui.researching_0", running) });
   }
   button(parent, text11, action, disabled = false) {
     const button = parent.createEl("button", { text: text11 });
@@ -24127,14 +24138,18 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         cls: `vam-status vam-aim-question-status vam-status-${status === "running" ? "running" : status === "completed" ? "completed" : status === "not_started" ? "idea" : "error"}`,
         text: status === "not_started" && this.map.aim.branches.some((branch) => branch.questionNodeId === node.id) ? t("ui.aim_answered_not_started") : t(key2[status])
       });
-    } else
-      header.createSpan({
+    } else {
+      const chip = header.createSpan({
         cls: `vam-status vam-status-${active ? "running" : (_j = note == null ? void 0 : note.status) != null ? _j : "error"}`,
-        text: active ? t("ui.ai_running") : (note == null ? void 0 : note.status) === "completed" ? t("ui.ai_complete") : note ? topicStatusLabel(note.status, this.plugin.settings.language) : t("ui.note_missing")
+        text: active ? t("ui.ai_running") : (note == null ? void 0 : note.status) === "completed" ? t("ui.researched") : note ? topicStatusLabel(note.status, this.plugin.settings.language) : t("ui.note_missing")
       });
+      if (active) chip.setAttr("role", "status");
+    }
+    const errorDetails = [];
     if ((_k = note == null ? void 0 : note.detailFormatIssues) == null ? void 0 : _k.length) {
       const issue = header.createSpan({ cls: "vam-status vam-status-error", text: t("ui.detail_format_unmet") });
       issue.setAttr("title", note.detailFormatIssues.join("\n"));
+      errorDetails.push(...note.detailFormatIssues);
     }
     if (batch) {
       const currentNode = batch.currentPath ? (_l = this.map) == null ? void 0 : _l.nodes.find((item) => item.path === batch.currentPath) : void 0;
@@ -24156,6 +24171,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
           text: `${batch.failures.length} ${t("ui.failed")}`
         });
         failure.setAttr("title", batch.failures.join("\n"));
+        errorDetails.push(...batch.failures);
       }
       this.renderRetryFailedButton(header, node.path, batch);
     }
@@ -24169,6 +24185,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     if (quickError && !active) {
       const badge = header.createSpan({ cls: "vam-status vam-status-error", text: t("ui.expansion_failed") });
       badge.setAttr("title", quickError);
+      errorDetails.push(quickError);
     }
     const pendingCount = (_q = (_p = this.plugin.pendingSuggestions.get(node.path)) == null ? void 0 : _p.length) != null ? _q : 0;
     if (pendingCount && !this.builtIn && !this.integrationMode && !((_r = this.map) == null ? void 0 : _r.aim))
@@ -24270,10 +24287,15 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     }
     const title = card.createEl("h3", { text: (_w = note == null ? void 0 : note.title) != null ? _w : node.path, cls: "vam-card-title" });
     title.setAttr("title", (_x = note == null ? void 0 : note.title) != null ? _x : node.path);
-    card.createEl("p", {
-      cls: "vam-card-summary",
-      text: (_y = note == null ? void 0 : note.summary) != null ? _y : t("ui.the_file_was_moved_or_deleted_you_can_remove_this_node_from")
-    });
+    if (!note || !isPlaceholder(note.summary))
+      card.createEl("p", {
+        cls: "vam-card-summary",
+        text: (_y = note == null ? void 0 : note.summary) != null ? _y : t("ui.the_file_was_moved_or_deleted_you_can_remove_this_node_from")
+      });
+    if (errorDetails.length) {
+      const error = card.createEl("p", { cls: "vam-card-error", text: errorDetails[0] });
+      error.setAttr("title", errorDetails.join("\n"));
+    }
     if (node.aimKind === "conclusion" && ((_z = this.map) == null ? void 0 : _z.aim) && !this.builtIn) {
       const branch = this.map.aim.branches.find((item) => item.results.some((result) => result.nodeId === node.id));
       const hasFollowup = this.map.nodes.some((item) => item.parentId === node.id && item.aimKind === "question");
@@ -24394,7 +24416,10 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         return;
       }
       if (this.builtIn) this.selectSampleNode(node.id);
-      else this.selectMapNode(node);
+      else {
+        this.selectMapNode(node);
+        if (this.plugin.detailsShown()) this.openDetails(node);
+      }
     });
     card.addEventListener("keydown", (event) => {
       if (event.key === "Enter" && event.target === card) {
@@ -26512,6 +26537,7 @@ ${note.detail.trim()}` : "",
           this.selected = node.id;
           this.render();
           if (node.aimKind === "question") this.openAimAnswer(node);
+          else if (this.plugin.detailsShown()) this.openDetails(node);
         }
       };
       card.addEventListener("pointermove", move);
@@ -31690,6 +31716,17 @@ ${error}`;
         if (repaired) await this.rebuildDerivedData();
       }).catch((error) => console.error("Visual Agent Map external rename reconciliation", error));
     }, 500);
+  }
+  /** The node-details sidebar counts as open only while its pane is actually visible. */
+  detailsShown() {
+    const split = this.app.workspace.rightSplit;
+    if (split.collapsed) return false;
+    return this.app.workspace.getLeavesOfType("markdown").some(
+      (leaf) => {
+        var _a, _b;
+        return leaf.getRoot() === split && leaf.view instanceof import_obsidian23.MarkdownView && !!leaf.view.file && ((_b = (_a = this.app.metadataCache.getFileCache(leaf.view.file)) == null ? void 0 : _a.frontmatter) == null ? void 0 : _b["agent-map-node"]) === true && leaf.view.containerEl.isShown();
+      }
+    );
   }
   async openDetails(file) {
     var _a, _b;

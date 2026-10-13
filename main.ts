@@ -938,6 +938,21 @@ export default class VisualAgentMapPlugin extends Plugin {
       }).catch(error => console.error("Visual Agent Map external rename reconciliation", error));
     }, 500);
   }
+  /** The node-details sidebar counts as open only while its pane is actually visible. */
+  detailsShown(): boolean {
+    const split = this.app.workspace.rightSplit;
+    if (split.collapsed) return false;
+    return this.app.workspace
+      .getLeavesOfType("markdown")
+      .some(
+        leaf =>
+          leaf.getRoot() === split &&
+          leaf.view instanceof MarkdownView &&
+          !!leaf.view.file &&
+          this.app.metadataCache.getFileCache(leaf.view.file)?.frontmatter?.["agent-map-node"] === true &&
+          leaf.view.containerEl.isShown()
+      );
+  }
   async openDetails(file: TFile): Promise<void> {
     const markdownLeaves = this.app.workspace.getLeavesOfType("markdown");
     if (

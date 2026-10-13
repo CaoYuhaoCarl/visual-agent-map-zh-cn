@@ -43,7 +43,8 @@ import {
   type Note,
   type NotePatch,
   type TopicInfo,
-  type TopicState
+  type TopicState,
+  isPlaceholder
 } from "../../repository";
 import { canonicalDetail, visualReferencesMarkdown } from "../../ai/result-utils";
 import {
@@ -1477,6 +1478,10 @@ export class VisualAgentMapView extends ItemView {
     });
     const fill = progress.createDiv("vam-research-progress-track").createDiv("vam-research-progress-fill");
     fill.style.width = `${nodes.length ? (done / nodes.length) * 100 : 0}%`;
+    const running = nodes.filter(
+      node => this.plugin.running?.has(node.path) || this.plugin.quickExpandPending?.has(node.path)
+    ).length;
+    if (running) progress.createSpan({ cls: "vam-status vam-status-running", text: t("ui.researching_0", running) });
   }
   private button(parent: HTMLElement, text: string, action: () => void, disabled = false): HTMLButtonElement {
     const button = parent.createEl("button", { text });
@@ -2910,20 +2915,25 @@ export class VisualAgentMapView extends ItemView {
             ? t("ui.aim_answered_not_started")
             : t(key[status])
       });
-    } else
-      header.createSpan({
+    } else {
+      const chip = header.createSpan({
         cls: `vam-status vam-status-${active ? "running" : (note?.status ?? "error")}`,
         text: active
           ? t("ui.ai_running")
           : note?.status === "completed"
-            ? t("ui.ai_complete")
+            ? t("ui.researched")
             : note
               ? topicStatusLabel(note.status, this.plugin.settings.language)
               : t("ui.note_missing")
       });
+      if (active) chip.setAttr("role", "status");
+    }
+    // Failure reasons are shown on the card, not only in a hover tooltip.
+    const errorDetails: string[] = [];
     if (note?.detailFormatIssues?.length) {
       const issue = header.createSpan({ cls: "vam-status vam-status-error", text: t("ui.detail_format_unmet") });
       issue.setAttr("title", note.detailFormatIssues.join("\n"));
+      errorDetails.push(...note.detailFormatIssues);
     }
     if (batch) {
       const currentNode = batch.currentPath ? this.map?.nodes.find(item => item.path === batch.currentPath) : undefined;
@@ -2945,6 +2955,7 @@ export class VisualAgentMapView extends ItemView {
           text: `${batch.failures.length} ${t("ui.failed")}`
         });
         failure.setAttr("title", batch.failures.join("\n"));
+        errorDetails.push(...batch.failures);
       }
       this.renderRetryFailedButton(header, node.path, batch);
     }
@@ -2955,6 +2966,7 @@ export class VisualAgentMapView extends ItemView {
     if (quickError && !active) {
       const badge = header.createSpan({ cls: "vam-status vam-status-error", text: t("ui.expansion_failed") });
       badge.setAttr("title", quickError);
+      errorDetails.push(quickError);
     }
     const pendingCount = this.plugin.pendingSuggestions.get(node.path)?.length ?? 0;
     if (pendingCount && !this.builtIn && !this.integrationMode && !this.map?.aim)
@@ -3045,10 +3057,16 @@ export class VisualAgentMapView extends ItemView {
     }
     const title = card.createEl("h3", { text: note?.title ?? node.path, cls: "vam-card-title" });
     title.setAttr("title", note?.title ?? node.path);
-    card.createEl("p", {
-      cls: "vam-card-summary",
-      text: note?.summary ?? t("ui.the_file_was_moved_or_deleted_you_can_remove_this_node_from")
-    });
+    // An unresearched topic's placeholder summary repeats its status, so the frontier card stays quiet.
+    if (!note || !isPlaceholder(note.summary))
+      card.createEl("p", {
+        cls: "vam-card-summary",
+        text: note?.summary ?? t("ui.the_file_was_moved_or_deleted_you_can_remove_this_node_from")
+      });
+    if (errorDetails.length) {
+      const error = card.createEl("p", { cls: "vam-card-error", text: errorDetails[0] });
+      error.setAttr("title", errorDetails.join("\n"));
+    }
     if (node.aimKind === "conclusion" && this.map?.aim && !this.builtIn) {
       const branch = this.map.aim.branches.find(item => item.results.some(result => result.nodeId === node.id));
       const hasFollowup = this.map.nodes.some(item => item.parentId === node.id && item.aimKind === "question");
@@ -3186,9 +3204,12 @@ export class VisualAgentMapView extends ItemView {
         this.render();
         return;
       }
-      // A click selects; the card's details button opens the note in the sidebar.
+      // A click selects; an already open details sidebar follows the selection, a closed one stays closed.
       if (this.builtIn) this.selectSampleNode(node.id);
-      else this.selectMapNode(node);
+      else {
+        this.selectMapNode(node);
+        if (this.plugin.detailsShown()) this.openDetails(node);
+      }
     });
     card.addEventListener("keydown", event => {
       if (event.key === "Enter" && event.target === card) {
@@ -5470,6 +5491,7 @@ export class VisualAgentMapView extends ItemView {
           this.selected = node.id;
           this.render();
           if (node.aimKind === "question") this.openAimAnswer(node);
+          else if (this.plugin.detailsShown()) this.openDetails(node);
         }
       };
       card.addEventListener("pointermove", move);

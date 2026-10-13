@@ -242,7 +242,7 @@ type NoteLanguage = Settings["language"];
 const noteContentLanguage = (fm: Record<string, unknown>): NoteLanguage | undefined =>
   fm["content-language"] === "en" || fm["content-language"] === "zh-TW" ? fm["content-language"] : undefined;
 const placeholder = (language: NoteLanguage): string => translate(language, "detail.no_conclusion_yet");
-const isPlaceholder = (value: string): boolean =>
+export const isPlaceholder = (value: string): boolean =>
   value === translate("zh-TW", "detail.no_conclusion_yet") || value === translate("en", "detail.no_conclusion_yet");
 const previewHeading = (language: NoteLanguage): NoteSection => translate(language, "detail.preview") as NoteSection;
 const previewSection = (content: string): string =>

@@ -13,7 +13,8 @@ integrationTest('node plus adds a child without opening a duplicate right-click 
     addEventListener(name, handler) { events.set(`${tag}:${name}`, handler); if (tag === 'button') this.click = handler; }, removeEventListener() {}
   });
   const topic = node('parent');
-  const view = new VisualAgentMapView({ app: {} }, { pendingSuggestions: new Map([['parent.md', [{ title: 'Idea', task: 'Investigate', contribution: '' }]]]), expansionBatches: new Map() });
+  let detailsShown = false;
+  const view = new VisualAgentMapView({ app: {} }, { pendingSuggestions: new Map([['parent.md', [{ title: 'Idea', task: 'Investigate', contribution: '' }]]]), expansionBatches: new Map(), detailsShown: () => detailsShown });
   view.stageEl = element('stage'); view.map = map([topic]);
   view.notes = new Map([[topic.id, { title: 'Parent', summary: '', status: 'completed' }]]);
   view.render = () => {};
@@ -50,6 +51,14 @@ integrationTest('node plus adds a child without opening a duplicate right-click 
   assert.equal(opened.filter(([, mode]) => mode === 'edit').length, 0);
   view.suppressClickUntil = 0; events.get('div:click')({ target: { closest: () => null }, metaKey: false, ctrlKey: false });
   assert.deepEqual(details, []);
+  detailsShown = true;
+  events.get('div:click')({ target: { closest: () => null }, metaKey: false, ctrlKey: false });
+  assert.deepEqual(details, [topic.id], 'an open details sidebar follows the clicked node');
+  details.length = 0;
+  events.get('div:pointerdown')({ target: { closest: () => null }, button: 0, pointerId: 3, clientX: 0, clientY: 0 });
+  events.get('div:pointerup')({ type: 'pointerup', clientX: 0, clientY: 0 });
+  assert.deepEqual(details, [topic.id], 'a tap also updates an open details sidebar');
+  details.length = 0; detailsShown = false;
   events.get('div:keydown')({ key: 'Enter', target: view.stageEl.children[0] });
   assert.deepEqual(details, [topic.id], 'Enter remains the keyboard path to the sidebar note');
   assert.equal(events.has('div:contextmenu'), false);
