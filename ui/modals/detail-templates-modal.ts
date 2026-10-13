@@ -184,6 +184,7 @@ export class DetailTemplatesModal extends Modal {
     new ChoiceModal(this.app, t("ui.detail_template_delete"), t("ui.detail_template_delete_confirm_0", template.name), [
       {
         label: t("ui.detail_template_delete"),
+        warning: true,
         action: () => {
           void this.remove(template.id);
         }

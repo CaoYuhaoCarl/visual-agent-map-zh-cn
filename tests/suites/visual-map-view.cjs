@@ -944,3 +944,46 @@ integrationTest('name dialog ignores Enter while composing, explains an empty na
   input.keydown({ key: 'Enter', isComposing: false });
   assert.deepEqual(saved, ['溫度']); assert.equal(modal.closed, true);
 });
+integrationTest('choice dialog marks destructive choices and starts on Cancel; map conflict explains each choice and keeps merge errors inline', () => {
+  const element = (tag, options = {}) => ({
+    tag, text: options.text, value: options.value ?? options.text ?? '', cls: options.cls ?? '', attr: options.attr ?? {}, children: [], hidden: false, open: false,
+    createDiv(value) { const child = element('div', typeof value === 'string' ? { cls: value } : value); this.children.push(child); return child; },
+    createEl(name, value) { const child = element(name, value); this.children.push(child); return child; },
+    createSpan(value) { const child = element('span', value); this.children.push(child); return child; },
+    addClass(name) { this.cls = `${this.cls} ${name}`.trim(); }, setText(value) { this.text = value; }, setAttr(name, value) { this.attr[name] = value; },
+    addEventListener(name, handler) { this[name] = handler; }, focus() { this.focused = true; }
+  });
+  const all = (root, predicate) => [...(predicate(root) ? [root] : []), ...root.children.flatMap(child => all(child, predicate))];
+  const find = (root, predicate) => all(root, predicate)[0];
+  class Modal { constructor() { this.titleEl = element('title'); this.contentEl = element('content'); this.modalEl = element('modal'); this.modalEl.children.push(this.contentEl); } close() { this.closed = true; this.onClose?.(); } }
+  const buttons = [];
+  class Setting { constructor() {} setName() { return this; } setDesc() { return this; } addButton(fn) { const b = { setButtonText(v) { this.text = v; return this; }, onClick(h) { this.click = h; return this; }, setDestructive() { this.destructive = true; return this; } }; fn(b); buttons.push(b); return this; } }
+  const { ChoiceModal } = load('ui/modals/choice-modal.ts', { obsidian: { ...obsidian, Modal, Setting } });
+  let ran = 0;
+  const choice = new ChoiceModal({}, 'Remove from map', 'Notes move to Unassigned.', [{ label: 'Remove entire branch', warning: true, action: () => { ran++; } }, { label: 'Keep', action: () => {} }]);
+  choice.onOpen();
+  assert.deepEqual(buttons.map(b => [b.text, !!b.destructive]), [['Remove entire branch', true], ['Keep', false]]);
+  const cancel = find(choice.modalEl, item => item.cls === 'vam-next-actions').children[0];
+  assert.equal(cancel.text, 'Cancel'); assert.equal(cancel.focused, true);
+  buttons[0].click(); assert.equal(ran, 1); assert.equal(choice.closed, true);
+  const { MapConflictModal } = load('experiences/visual-map/modals.ts', { obsidian: { ...obsidian, Modal, Setting } });
+  const disk = { version: 1, id: 'm', title: 'Disk', nodes: [] }, local = { version: 1, id: 'm', title: 'Local', nodes: [] };
+  const resolved = [];
+  const conflict = new MapConflictModal({}, local, disk, map => resolved.push(map.title));
+  conflict.onOpen();
+  const options = all(conflict.contentEl, item => item.cls === 'vam-conflict-option');
+  assert.equal(options.length, 2);
+  assert.ok(find(options[0], item => /on disk/.test(item.text ?? ''))); assert.ok(find(options[1], item => /overwrites/.test(item.text ?? '')));
+  const actions = find(conflict.modalEl, item => item.cls === 'vam-next-actions');
+  const status = find(actions, item => item.cls.includes('vam-next-status'));
+  assert.match(status.text, /Closing this window uses the file/);
+  const merged = find(actions, item => item.tag === 'button');
+  assert.equal(merged.hidden, true);
+  const details = find(conflict.contentEl, item => item.cls === 'vam-conflict-merge'); details.open = true; details.toggle();
+  assert.equal(merged.hidden, false);
+  find(details, item => item.tag === 'textarea').value = '{ not json';
+  merged.click();
+  assert.notEqual(conflict.closed, true); assert.match(status.text, /Invalid merged contents|merged/i);
+  find(options[1], item => item.tag === 'button').click();
+  assert.deepEqual(resolved, ['Local']);
+});

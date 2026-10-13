@@ -449,7 +449,7 @@ var english = {
   "ui.keep_editor_contents": "Keep editor contents",
   "ui.save_merged_contents": "Save merged contents",
   "ui.mind_map_changed_externally": "Mind map changed externally",
-  "ui.both_the_map_and_map_md_have_changed_choose_a_version_or_edi": "Both the map and Map.md have changed. Choose a version or edit the JSON below to merge.",
+  "ui.both_the_map_and_map_md_have_changed_choose_a_version_or_edi": "Both the map and Map.md have changed. Choose which version to keep.",
   "ui.invalid_merged_contents": "Invalid merged contents.",
   "ui.no_notes_yet": "No notes yet.",
   "ui.topic_outline": "Topic outline",
@@ -710,6 +710,10 @@ var english = {
   "ui.scan_for_recognizable_vam_workspaces_and_reconnect_only_afte": "Scan for recognizable VAM workspaces and reconnect only after confirmation, without moving or overwriting data.",
   "ui.scan": "Scan",
   "ui.check_again": "Check again",
+  "ui.conflict_use_file_desc": "Keeps Map.md as it is now on disk; changes made on the map since then are dropped.",
+  "ui.conflict_keep_editor_desc": "Keeps what the map shows now and overwrites the external changes in Map.md.",
+  "ui.conflict_merge_by_hand": "Advanced: merge the JSON by hand",
+  "ui.conflict_close_uses_file": "Closing this window uses the file contents.",
   "ui.name_required": "Enter a name to save.",
   "ui.multi_research_start_0": "Start research ({0})",
   "ui.topic_0": "Topic: {0}",
@@ -1726,7 +1730,7 @@ var traditionalChinese = {
   "ui.keep_editor_contents": "\u4FDD\u7559\u756B\u9762\u5167\u5BB9",
   "ui.save_merged_contents": "\u5132\u5B58\u5408\u4F75\u5167\u5BB9",
   "ui.mind_map_changed_externally": "\u5FC3\u667A\u5716\u6709\u5916\u90E8\u4FEE\u6539",
-  "ui.both_the_map_and_map_md_have_changed_choose_a_version_or_edi": "\u756B\u9762\u8207 Map.md \u7684\u7D50\u69CB\u90FD\u5DF2\u6539\u8B8A\u3002\u53EF\u9078\u64C7\u5176\u4E2D\u4E00\u7248\uFF0C\u6216\u7DE8\u8F2F\u4E0B\u65B9 JSON \u5F8C\u624B\u52D5\u5408\u4F75\u3002",
+  "ui.both_the_map_and_map_md_have_changed_choose_a_version_or_edi": "\u756B\u9762\u8207 Map.md \u7684\u7D50\u69CB\u90FD\u5DF2\u6539\u8B8A\u3002\u8ACB\u9078\u64C7\u8981\u4FDD\u7559\u54EA\u4E00\u7248\u3002",
   "ui.invalid_merged_contents": "\u5408\u4F75\u5167\u5BB9\u7121\u6548\u3002",
   "ui.no_notes_yet": "\u76EE\u524D\u6C92\u6709\u7B46\u8A18\u3002",
   "ui.topic_outline": "\u8B70\u984C\u5927\u7DB1",
@@ -1987,6 +1991,10 @@ var traditionalChinese = {
   "ui.scan_for_recognizable_vam_workspaces_and_reconnect_only_afte": "\u6383\u63CF\u53EF\u8FA8\u8B58\u7684 VAM Workspace\uFF0C\u78BA\u8A8D\u5F8C\u624D\u91CD\u65B0\u9023\u7D50\uFF0C\u4E0D\u6703\u642C\u79FB\u6216\u8986\u5BEB\u8CC7\u6599\u3002",
   "ui.scan": "\u6383\u63CF",
   "ui.check_again": "\u91CD\u65B0\u6AA2\u67E5",
+  "ui.conflict_use_file_desc": "\u4FDD\u7559\u78C1\u789F\u4E0A\u76EE\u524D\u7684 Map.md\uFF1B\u4E4B\u5F8C\u5728\u756B\u9762\u4E0A\u505A\u7684\u8B8A\u66F4\u6703\u88AB\u6368\u68C4\u3002",
+  "ui.conflict_keep_editor_desc": "\u4FDD\u7559\u756B\u9762\u4E0A\u7684\u5730\u5716\uFF0C\u8986\u5BEB Map.md \u5728\u5916\u90E8\u7684\u8B8A\u66F4\u3002",
+  "ui.conflict_merge_by_hand": "\u9032\u968E\uFF1A\u624B\u52D5\u5408\u4F75 JSON",
+  "ui.conflict_close_uses_file": "\u76F4\u63A5\u95DC\u9589\u8996\u7A97\u7B49\u540C\u4F7F\u7528\u6A94\u6848\u5167\u5BB9\u3002",
   "ui.name_required": "\u8ACB\u8F38\u5165\u540D\u7A31\u624D\u80FD\u5132\u5B58\u3002",
   "ui.multi_research_start_0": "\u958B\u59CB\u7814\u7A76 {0} \u500B\u8B70\u984C",
   "ui.topic_0": "\u8B70\u984C\uFF1A{0}",
@@ -11139,25 +11147,25 @@ var ChoiceModal = class extends import_obsidian7.Modal {
     this.contentEl.createEl("p", { text: this.description, cls: "vam-modal-intro" });
     for (const choice2 of this.choices) {
       const setting = new import_obsidian7.Setting(this.contentEl);
+      const run = () => {
+        this.close();
+        choice2.action();
+      };
       if (choice2.description)
-        setting.setName(choice2.label).setDesc(choice2.description).addButton(
-          (b) => {
-            var _a;
-            return b.setButtonText((_a = choice2.buttonLabel) != null ? _a : t("ui.select")).onClick(() => {
-              this.close();
-              choice2.action();
-            });
-          }
-        );
+        setting.setName(choice2.label).setDesc(choice2.description).addButton((b) => {
+          var _a;
+          b.setButtonText((_a = choice2.buttonLabel) != null ? _a : t("ui.select")).onClick(run);
+          if (choice2.warning) b.setDestructive();
+        });
       else
-        setting.addButton(
-          (b) => b.setButtonText(choice2.label).onClick(() => {
-            this.close();
-            choice2.action();
-          })
-        );
+        setting.addButton((b) => {
+          b.setButtonText(choice2.label).onClick(run);
+          if (choice2.warning) b.setDestructive();
+        });
     }
-    new import_obsidian7.Setting(this.contentEl).addButton((b) => b.setButtonText(t("ui.cancel")).onClick(() => this.close()));
+    const cancel = modalActions(this).createEl("button", { text: t("ui.cancel") });
+    cancel.addEventListener("click", () => this.close());
+    cancel.focus();
   }
 };
 
@@ -21794,27 +21802,47 @@ var MapConflictModal = class extends import_obsidian15.Modal {
   onOpen() {
     this.titleEl.setText(t("ui.mind_map_changed_externally"));
     this.contentEl.createEl("p", { text: t("ui.both_the_map_and_map_md_have_changed_choose_a_version_or_edi") });
-    const input = this.contentEl.createEl("textarea", {
-      cls: "vam-task-input",
-      text: JSON.stringify(this.disk, null, 2)
-    });
-    input.rows = 16;
     const finish = (map) => {
       this.settled = true;
       this.close();
       this.resolve(map);
     };
-    new import_obsidian15.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.use_file_contents")).onClick(() => finish(clone(this.disk)))).addButton((button) => button.setButtonText(t("ui.keep_editor_contents")).onClick(() => finish(clone(this.local)))).addButton(
-      (button) => button.setButtonText(t("ui.save_merged_contents")).setCta().onClick(() => {
-        try {
-          finish(parseMap(serializeMap(JSON.parse(input.value))));
-        } catch (error) {
-          new import_obsidian15.Notice(
-            error instanceof Error ? t("ui.invalid_merged_contents_0", error.message) : t("ui.invalid_merged_contents")
-          );
-        }
-      })
-    );
+    const options = this.contentEl.createDiv("vam-conflict-options");
+    const option2 = (label, description, map) => {
+      const row = options.createDiv("vam-conflict-option");
+      const text11 = row.createDiv("vam-conflict-option-text");
+      text11.createEl("strong", { text: label });
+      text11.createSpan({ text: description, cls: "vam-hint" });
+      row.createEl("button", { text: label }).addEventListener("click", () => finish(map()));
+    };
+    option2(t("ui.use_file_contents"), t("ui.conflict_use_file_desc"), () => clone(this.disk));
+    option2(t("ui.keep_editor_contents"), t("ui.conflict_keep_editor_desc"), () => clone(this.local));
+    const advanced = this.contentEl.createEl("details", { cls: "vam-conflict-merge" });
+    advanced.createEl("summary", { text: t("ui.conflict_merge_by_hand") });
+    const input = advanced.createEl("textarea", {
+      cls: "vam-task-input",
+      text: JSON.stringify(this.disk, null, 2)
+    });
+    input.rows = 14;
+    input.setAttr("aria-label", t("ui.conflict_merge_by_hand"));
+    const actions = modalActions(this);
+    const status = actions.createSpan({
+      cls: "vam-next-actions-note vam-next-status",
+      attr: { "aria-live": "polite" }
+    });
+    status.setText(t("ui.conflict_close_uses_file"));
+    const merged = actions.createEl("button", { text: t("ui.save_merged_contents") });
+    merged.hidden = true;
+    advanced.addEventListener("toggle", () => merged.hidden = !advanced.open);
+    merged.addEventListener("click", () => {
+      try {
+        finish(parseMap(serializeMap(JSON.parse(input.value))));
+      } catch (error) {
+        status.setText(
+          error instanceof Error ? t("ui.invalid_merged_contents_0", error.message) : t("ui.invalid_merged_contents")
+        );
+      }
+    });
   }
   onClose() {
     if (!this.settled) this.resolve(clone(this.disk));
@@ -23254,7 +23282,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       this.app,
       t("ui.remove_selected_topics"),
       t("ui.selected_branches_leave_the_map_their_notes_move_to_unassign"),
-      [{ label: t("ui.confirm_removal"), action: () => this.enqueue(() => this.removeSelected()) }]
+      [{ label: t("ui.confirm_removal"), warning: true, action: () => this.enqueue(() => this.removeSelected()) }]
     ).open();
   }
   confirmRemoveNode(node) {
@@ -23267,10 +23295,15 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         ...!((_a = this.map) == null ? void 0 : _a.aim) || node.aimKind !== "question" ? [
           {
             label: t("ui.remove_only_this_node_children_become_roots"),
+            warning: true,
             action: () => this.enqueue(() => this.removeToUnassigned(node, false))
           }
         ] : [],
-        { label: t("ui.remove_entire_branch"), action: () => this.enqueue(() => this.removeToUnassigned(node, true)) }
+        {
+          label: t("ui.remove_entire_branch"),
+          warning: true,
+          action: () => this.enqueue(() => this.removeToUnassigned(node, true))
+        }
       ]
     ).open();
   }
@@ -27380,6 +27413,7 @@ var DetailTemplatesModal = class extends import_obsidian17.Modal {
     new ChoiceModal(this.app, t("ui.detail_template_delete"), t("ui.detail_template_delete_confirm_0", template.name), [
       {
         label: t("ui.detail_template_delete"),
+        warning: true,
         action: () => {
           void this.remove(template.id);
         }

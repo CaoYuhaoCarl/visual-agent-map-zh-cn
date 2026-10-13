@@ -1688,35 +1688,49 @@ export class MapConflictModal extends Modal {
   onOpen(): void {
     this.titleEl.setText(t("ui.mind_map_changed_externally"));
     this.contentEl.createEl("p", { text: t("ui.both_the_map_and_map_md_have_changed_choose_a_version_or_edi") });
-    const input = this.contentEl.createEl("textarea", {
-      cls: "vam-task-input",
-      text: JSON.stringify(this.disk, null, 2)
-    });
-    input.rows = 16;
     const finish = (map: MapDocument): void => {
       this.settled = true;
       this.close();
       this.resolve(map);
     };
-    new Setting(this.contentEl)
-      .addButton(button => button.setButtonText(t("ui.use_file_contents")).onClick(() => finish(clone(this.disk))))
-      .addButton(button => button.setButtonText(t("ui.keep_editor_contents")).onClick(() => finish(clone(this.local))))
-      .addButton(button =>
-        button
-          .setButtonText(t("ui.save_merged_contents"))
-          .setCta()
-          .onClick(() => {
-            try {
-              finish(parseMap(serializeMap(JSON.parse(input.value) as MapDocument)));
-            } catch (error) {
-              new Notice(
-                error instanceof Error
-                  ? t("ui.invalid_merged_contents_0", error.message)
-                  : t("ui.invalid_merged_contents")
-              );
-            }
-          })
-      );
+    // Two plain choices first, each saying what it keeps; hand-merging JSON is the expert path, folded away.
+    const options = this.contentEl.createDiv("vam-conflict-options");
+    const option = (label: string, description: string, map: () => MapDocument): void => {
+      const row = options.createDiv("vam-conflict-option");
+      const text = row.createDiv("vam-conflict-option-text");
+      text.createEl("strong", { text: label });
+      text.createSpan({ text: description, cls: "vam-hint" });
+      row.createEl("button", { text: label }).addEventListener("click", () => finish(map()));
+    };
+    option(t("ui.use_file_contents"), t("ui.conflict_use_file_desc"), () => clone(this.disk));
+    option(t("ui.keep_editor_contents"), t("ui.conflict_keep_editor_desc"), () => clone(this.local));
+    const advanced = this.contentEl.createEl("details", { cls: "vam-conflict-merge" });
+    advanced.createEl("summary", { text: t("ui.conflict_merge_by_hand") });
+    const input = advanced.createEl("textarea", {
+      cls: "vam-task-input",
+      text: JSON.stringify(this.disk, null, 2)
+    });
+    input.rows = 14;
+    input.setAttr("aria-label", t("ui.conflict_merge_by_hand"));
+    const actions = modalActions(this);
+    const status = actions.createSpan({
+      cls: "vam-next-actions-note vam-next-status",
+      attr: { "aria-live": "polite" }
+    });
+    status.setText(t("ui.conflict_close_uses_file"));
+    const merged = actions.createEl("button", { text: t("ui.save_merged_contents") });
+    merged.hidden = true;
+    advanced.addEventListener("toggle", () => (merged.hidden = !advanced.open));
+    merged.addEventListener("click", () => {
+      try {
+        finish(parseMap(serializeMap(JSON.parse(input.value) as MapDocument)));
+      } catch (error) {
+        // Keep the edited JSON and say what is wrong next to the button.
+        status.setText(
+          error instanceof Error ? t("ui.invalid_merged_contents_0", error.message) : t("ui.invalid_merged_contents")
+        );
+      }
+    });
   }
   onClose(): void {
     if (!this.settled) this.resolve(clone(this.disk));

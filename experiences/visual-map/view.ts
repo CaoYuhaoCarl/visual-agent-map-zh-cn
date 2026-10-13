@@ -1648,7 +1648,7 @@ export class VisualAgentMapView extends ItemView {
       this.app,
       t("ui.remove_selected_topics"),
       t("ui.selected_branches_leave_the_map_their_notes_move_to_unassign"),
-      [{ label: t("ui.confirm_removal"), action: () => this.enqueue(() => this.removeSelected()) }]
+      [{ label: t("ui.confirm_removal"), warning: true, action: () => this.enqueue(() => this.removeSelected()) }]
     ).open();
   }
   private confirmRemoveNode(node: MapNode): void {
@@ -1661,11 +1661,16 @@ export class VisualAgentMapView extends ItemView {
           ? [
               {
                 label: t("ui.remove_only_this_node_children_become_roots"),
+                warning: true,
                 action: () => this.enqueue(() => this.removeToUnassigned(node, false))
               }
             ]
           : []),
-        { label: t("ui.remove_entire_branch"), action: () => this.enqueue(() => this.removeToUnassigned(node, true)) }
+        {
+          label: t("ui.remove_entire_branch"),
+          warning: true,
+          action: () => this.enqueue(() => this.removeToUnassigned(node, true))
+        }
       ]
     ).open();
   }
