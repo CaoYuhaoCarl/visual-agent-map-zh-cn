@@ -233,6 +233,12 @@ export class VisualAgentMapView extends ItemView {
   private integrationMode = false;
   private dragging = false;
   private suppressClickUntil = 0;
+  /** Node whose card should hold keyboard focus once the next render finishes. */
+  private focusNodeId: string | null = null;
+  /** The single card in the tab order (roving tabindex); arrows move between the rest. */
+  private tabStopId: string | null = null;
+  /** While a card renders, its buttons stay out of the tab order until that card is focused. */
+  private renderingCard = false;
   private closed = false;
   private aimViewEpoch = 0;
   private mapOpenEpoch = 0;
@@ -1409,6 +1415,7 @@ export class VisualAgentMapView extends ItemView {
     action: (event: MouseEvent) => void
   ): HTMLButtonElement {
     const button = parent.createEl("button", { cls: "clickable-icon vam-icon-button" });
+    if (this.renderingCard) button.tabIndex = -1;
     button.setAttr("aria-label", label);
     button.dataset.icon = icon;
     setIcon(button, icon);
@@ -1485,6 +1492,7 @@ export class VisualAgentMapView extends ItemView {
   }
   private button(parent: HTMLElement, text: string, action: () => void, disabled = false): HTMLButtonElement {
     const button = parent.createEl("button", { text });
+    if (this.renderingCard) button.tabIndex = -1;
     button.disabled = disabled;
     button.addEventListener("click", event => {
       event.stopPropagation();
@@ -2487,6 +2495,8 @@ export class VisualAgentMapView extends ItemView {
         if (!this.closed) void this.leaf.setViewState({ type: VIEW_TYPE, state: this.getState() });
       }, 0);
     }
+    const focusedCard = activeDocument.activeElement?.closest<HTMLElement>(".vam-node");
+    if (focusedCard && this.contentEl.contains(focusedCard)) this.focusNodeId ??= focusedCard.dataset.nodeId ?? null;
     this.contentEl.empty();
     const toolbar = this.contentEl.createDiv("vam-toolbar");
     const switcher = toolbar.createEl("button", { cls: "vam-map-switcher" });
@@ -2815,7 +2825,23 @@ export class VisualAgentMapView extends ItemView {
     if (this.selected && !shown.some(node => node.id === this.selected)) this.selected = null;
     this.multiSelected = new Set([...this.multiSelected].filter(id => shown.some(node => node.id === id)));
     if (this.integrationMode) this.renderSelectionBar(workspace);
-    for (const node of shown) this.renderNode(node);
+    this.tabStopId =
+      (this.selected && shown.some(node => node.id === this.selected) ? this.selected : null) ??
+      shown.find(node => !node.parentId)?.id ??
+      shown[0]?.id ??
+      null;
+    this.renderingCard = true;
+    try {
+      for (const node of shown) this.renderNode(node);
+    } finally {
+      this.renderingCard = false;
+    }
+    if (this.focusNodeId) {
+      this.stageEl
+        .querySelector<HTMLElement>(`[data-node-id="${CSS.escape(this.focusNodeId)}"]`)
+        ?.focus({ preventScroll: true });
+      this.focusNodeId = null;
+    }
     if (!this.map.nodes.length) {
       const emptyMap = this.viewportEl.createDiv("vam-empty");
       emptyMap.createSpan({
@@ -2861,7 +2887,7 @@ export class VisualAgentMapView extends ItemView {
         : (note?.status ?? "error");
     card.style.left = `${node.x}px`;
     card.style.top = `${node.y}px`;
-    card.tabIndex = 0;
+    card.tabIndex = node.id === this.tabStopId ? 0 : -1;
     card.setAttr("aria-label", note?.title ?? t("ui.note_missing"));
     const header = card.createDiv("vam-node-header");
     if (this.integrationMode) {
@@ -2916,17 +2942,19 @@ export class VisualAgentMapView extends ItemView {
             : t(key[status])
       });
     } else {
+      const statusText = active
+        ? t("ui.ai_running")
+        : note?.status === "completed"
+          ? t("ui.researched")
+          : note
+            ? topicStatusLabel(note.status, this.plugin.settings.language)
+            : t("ui.note_missing");
       const chip = header.createSpan({
         cls: `vam-status vam-status-${active ? "running" : (note?.status ?? "error")}`,
-        text: active
-          ? t("ui.ai_running")
-          : note?.status === "completed"
-            ? t("ui.researched")
-            : note
-              ? topicStatusLabel(note.status, this.plugin.settings.language)
-              : t("ui.note_missing")
+        text: statusText
       });
       if (active) chip.setAttr("role", "status");
+      if (note) card.setAttr("aria-label", t("ui.topic_card_label_0_1", note.title, statusText));
     }
     // Failure reasons are shown on the card, not only in a hover tooltip.
     const errorDetails: string[] = [];
@@ -3212,7 +3240,21 @@ export class VisualAgentMapView extends ItemView {
       }
     });
     card.addEventListener("keydown", event => {
-      if (event.key === "Enter" && event.target === card) {
+      if (event.target !== card) return;
+      const target = this.keyboardNeighbor(node, event.key);
+      if (target) {
+        event.preventDefault();
+        this.moveKeyboardFocus(target);
+        return;
+      }
+      if (event.key === "F2" && note && !this.builtIn && !this.integrationMode && !this.map?.aim) {
+        event.preventDefault();
+        new NameModal(this.app, t("ui.new_topic_name"), note.title, title =>
+          this.enqueue(() => this.noteChange(node, { title }))
+        ).open();
+        return;
+      }
+      if (event.key === "Enter") {
         if (this.integrationMode) {
           if (this.multiSelected.has(node.id)) this.multiSelected.delete(node.id);
           else this.multiSelected.add(node.id);
@@ -3233,6 +3275,50 @@ export class VisualAgentMapView extends ItemView {
       }, 700);
     });
     card.addEventListener("mouseleave", () => this.hideHoverCardSoon());
+    // Keyboard users reach the hover preview by focusing a card; its tools join the tab order only while it is focused.
+    const toolButtons = (): HTMLButtonElement[] => Array.from(card.querySelectorAll<HTMLButtonElement>("button"));
+    card.addEventListener("focusin", event => {
+      for (const button of toolButtons()) button.tabIndex = 0;
+      if (event.target !== card || !note || this.integrationMode || !card.matches(":focus-visible")) return;
+      this.clearHoverTimer();
+      this.hoverTimer = window.setTimeout(() => {
+        if (card.isConnected && card.matches(":focus")) this.showHoverCard(card, note);
+      }, 700);
+    });
+    card.addEventListener("focusout", event => {
+      if (event.relatedTarget instanceof Node && card.contains(event.relatedTarget)) return;
+      for (const button of toolButtons()) button.tabIndex = -1;
+      this.hideHoverCardSoon();
+    });
+  }
+  /** Arrow keys walk the tree: left to the parent, right to the first child, up/down among siblings. */
+  private keyboardNeighbor(node: MapNode, key: string): MapNode | undefined {
+    if (!this.map || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(key)) return undefined;
+    const shown = visibleNodes(this.map.nodes);
+    const byY = (a: MapNode, b: MapNode): number => a.y - b.y || a.x - b.x;
+    if (key === "ArrowLeft") return shown.find(item => item.id === node.parentId);
+    if (key === "ArrowRight") return shown.filter(item => item.parentId === node.id).sort(byY)[0];
+    const siblings = shown.filter(item => (item.parentId ?? null) === (node.parentId ?? null)).sort(byY);
+    const index = siblings.findIndex(item => item.id === node.id);
+    return siblings[index + (key === "ArrowUp" ? -1 : 1)];
+  }
+  private moveKeyboardFocus(target: MapNode): void {
+    const card = this.stageEl?.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(target.id)}"]`);
+    const view = this.viewportEl?.getBoundingClientRect(),
+      rect = card?.getBoundingClientRect();
+    if (
+      view &&
+      rect &&
+      (rect.left < view.left || rect.right > view.right || rect.top < view.top || rect.bottom > view.bottom)
+    )
+      this.focusNode(target);
+    this.focusNodeId = target.id;
+    if (this.builtIn) this.selectSampleNode(target.id);
+    else this.selectMapNode(target);
+    if (this.focusNodeId) {
+      card?.focus({ preventScroll: true });
+      this.focusNodeId = null;
+    }
   }
   private clearHoverTimer(): void {
     if (this.hoverTimer !== null) window.clearTimeout(this.hoverTimer);

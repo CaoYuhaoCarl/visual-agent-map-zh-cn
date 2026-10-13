@@ -525,12 +525,13 @@ var english = {
   "ui.zoom_reset": "Reset zoom to 100%",
   "ui.new_map": "\uFF0B New map",
   "ui.researched": "Researched",
+  "ui.topic_card_label_0_1": "{0}, {1}",
   "ui.researching_0": "Researching {0}",
   "ui.research_progress_0_of_1": "Researched {0} / {1}",
   "ui.preview_card_size": "Hover preview size",
   "ui.preview_card_size_desc": "Scale of the note preview shown when you hover a topic on the map.",
   "ui.preview": "Preview",
-  "ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open": "Drag empty space to pan \xB7 Scroll to zoom \xB7 Click a node to select it",
+  "ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open": "Drag empty space to pan \xB7 Scroll to zoom \xB7 Click a node to select it \xB7 Arrow keys move between topics",
   "ui.clear": "Clear",
   "ui.next": "Next",
   "ui.select_topics": "Select topics",
@@ -1784,12 +1785,13 @@ var traditionalChinese = {
   "ui.zoom_reset": "\u7E2E\u653E\u91CD\u8A2D\u70BA 100%",
   "ui.new_map": "\uFF0B \u65B0\u589E\u5730\u5716",
   "ui.researched": "\u5DF2\u7814\u7A76",
+  "ui.topic_card_label_0_1": "{0}\uFF0C{1}",
   "ui.researching_0": "\u7814\u7A76\u4E2D {0}",
   "ui.research_progress_0_of_1": "\u5DF2\u7814\u7A76 {0} / {1}",
   "ui.preview_card_size": "\u61F8\u505C\u9810\u89BD\u5927\u5C0F",
   "ui.preview_card_size_desc": "\u5728\u5730\u5716\u4E0A\u628A\u6ED1\u9F20\u79FB\u5230\u8B70\u984C\u6642\uFF0C\u7B46\u8A18\u9810\u89BD\u5361\u7684\u7E2E\u653E\u6BD4\u4F8B\u3002",
   "ui.preview": "\u9810\u89BD",
-  "ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open": "\u62D6\u66F3\u7A7A\u767D\u8655\u5E73\u79FB \xB7 \u6EFE\u8F2A\u7E2E\u653E \xB7 \u9EDE\u9078\u7BC0\u9EDE\u5373\u53EF\u9078\u53D6",
+  "ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open": "\u62D6\u66F3\u7A7A\u767D\u8655\u5E73\u79FB \xB7 \u6EFE\u8F2A\u7E2E\u653E \xB7 \u9EDE\u9078\u7BC0\u9EDE\u5373\u53EF\u9078\u53D6 \xB7 \u65B9\u5411\u9375\u5207\u63DB\u8B70\u984C",
   "ui.clear": "\u6E05\u9664",
   "ui.next": "\u4E0B\u4E00\u6B65",
   "ui.select_topics": "\u9078\u53D6\u8B70\u984C",
@@ -21605,6 +21607,12 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     __publicField(this, "integrationMode", false);
     __publicField(this, "dragging", false);
     __publicField(this, "suppressClickUntil", 0);
+    /** Node whose card should hold keyboard focus once the next render finishes. */
+    __publicField(this, "focusNodeId", null);
+    /** The single card in the tab order (roving tabindex); arrows move between the rest. */
+    __publicField(this, "tabStopId", null);
+    /** While a card renders, its buttons stay out of the tab order until that card is focused. */
+    __publicField(this, "renderingCard", false);
     __publicField(this, "closed", false);
     __publicField(this, "aimViewEpoch", 0);
     __publicField(this, "mapOpenEpoch", 0);
@@ -22698,6 +22706,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
   }
   iconButton(parent, icon, label, action) {
     const button = parent.createEl("button", { cls: "clickable-icon vam-icon-button" });
+    if (this.renderingCard) button.tabIndex = -1;
     button.setAttr("aria-label", label);
     button.dataset.icon = icon;
     (0, import_obsidian16.setIcon)(button, icon);
@@ -22775,6 +22784,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
   }
   button(parent, text11, action, disabled = false) {
     const button = parent.createEl("button", { text: text11 });
+    if (this.renderingCard) button.tabIndex = -1;
     button.disabled = disabled;
     button.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -23710,7 +23720,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     ]).open();
   }
   render() {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x;
     if (this.closed) return;
     this.plugin.syncOutline(this.builtIn ? null : this.map, this.notes, this.builtIn);
     if (this.hoverTimer !== null) {
@@ -23726,11 +23736,13 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         if (!this.closed) void this.leaf.setViewState({ type: VIEW_TYPE, state: this.getState() });
       }, 0);
     }
+    const focusedCard = (_b = activeDocument.activeElement) == null ? void 0 : _b.closest(".vam-node");
+    if (focusedCard && this.contentEl.contains(focusedCard)) (_d = this.focusNodeId) != null ? _d : this.focusNodeId = (_c = focusedCard.dataset.nodeId) != null ? _c : null;
     this.contentEl.empty();
     const toolbar = this.contentEl.createDiv("vam-toolbar");
     const switcher = toolbar.createEl("button", { cls: "vam-map-switcher" });
     switcher.setAttr("aria-label", t("ui.switch_mind_map"));
-    switcher.createSpan({ text: (_c = (_b = this.map) == null ? void 0 : _b.title) != null ? _c : "Visual Agent Map", cls: "vam-map-title" });
+    switcher.createSpan({ text: (_f = (_e = this.map) == null ? void 0 : _e.title) != null ? _f : "Visual Agent Map", cls: "vam-map-title" });
     (0, import_obsidian16.setIcon)(switcher.createSpan("vam-map-switcher-icon"), "chevrons-up-down");
     switcher.addEventListener("click", () => this.openMapSwitcher());
     if (this.builtIn) toolbar.createSpan({ cls: "vam-readonly-badge", text: t("ui.official_sample_read_only") });
@@ -23758,8 +23770,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       this.updateHistoryButtons();
       this.iconButton(headerActions, "more-vertical", t("ui.more_mind_map_actions"), () => this.openMapActions());
     }
-    const selectedNode = (_d = this.map) == null ? void 0 : _d.nodes.find((node) => node.id === this.selected);
-    if (!this.builtIn && ((_e = this.map) == null ? void 0 : _e.aim)) {
+    const selectedNode = (_g = this.map) == null ? void 0 : _g.nodes.find((node) => node.id === this.selected);
+    if (!this.builtIn && ((_h = this.map) == null ? void 0 : _h.aim)) {
       const statusbar = this.contentEl.createDiv(`vam-aim-statusbar${this.aimBusy ? " is-active" : ""}`);
       statusbar.setAttr("aria-live", "polite");
       const data = this.map.aim;
@@ -23775,19 +23787,19 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       let stateText;
       let stateClass;
       if (this.aimBusy) {
-        const activeTitle = (_h = (_g = this.notes.get((_f = this.aimActiveQuestionNodeId) != null ? _f : "")) == null ? void 0 : _g.title) != null ? _h : this.map.title;
+        const activeTitle = (_k = (_j = this.notes.get((_i = this.aimActiveQuestionNodeId) != null ? _i : "")) == null ? void 0 : _j.title) != null ? _k : this.map.title;
         const planning = this.aimActivityKind === "planning";
         stateText = this.aimActivityKind === "clarifying" ? t("ui.aim_preparing_clarification") : t(planning ? "ui.aim_status_planning_0" : "ui.aim_status_researching_0", activeTitle);
         stateClass = "running";
       } else if (runningBranch) {
-        const activeTitle = (_j = (_i = this.notes.get(runningBranch.questionNodeId)) == null ? void 0 : _i.title) != null ? _j : this.map.title;
+        const activeTitle = (_m = (_l = this.notes.get(runningBranch.questionNodeId)) == null ? void 0 : _l.title) != null ? _m : this.map.title;
         stateText = t("ui.aim_status_researching_0", activeTitle);
         stateClass = "running";
       } else if (!questions.length) {
         stateText = t("ui.aim_status_ready");
         stateClass = "idea";
       } else if (pendingQuestion) {
-        stateText = t("ui.aim_status_waiting_answer_0", (_l = (_k = this.notes.get(pendingQuestion.id)) == null ? void 0 : _k.title) != null ? _l : "");
+        stateText = t("ui.aim_status_waiting_answer_0", (_o = (_n = this.notes.get(pendingQuestion.id)) == null ? void 0 : _n.title) != null ? _o : "");
         stateClass = "idea";
       } else if (data.branches.some((branch) => branch.results.some((result) => result.kind === "conclusion"))) {
         stateText = t("ui.aim_status_complete");
@@ -23816,7 +23828,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         attr: { target: "_blank", rel: "noopener noreferrer" }
       });
     }
-    if (!this.builtIn && ((_m = this.map) == null ? void 0 : _m.aim)) {
+    if (!this.builtIn && ((_p = this.map) == null ? void 0 : _p.aim)) {
       const data = this.map.aim;
       const isAnswered = (node) => data.branches.some((branch) => branch.questionNodeId === node.id);
       const pending = this.map.nodes.find((node) => node.aimKind === "question" && node.aimQuestion && !isAnswered(node));
@@ -23870,7 +23882,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       redo.dataset.history = "redo";
       this.updateHistoryButtons();
     }
-    if ((_n = this.deletedMap) == null ? void 0 : _n.deleted)
+    if ((_q = this.deletedMap) == null ? void 0 : _q.deleted)
       this.button(toolbar, t("ui.restore_deleted_map"), () => this.enqueue(() => this.restoreDeletedMapFromUi()));
     if (this.integrationTask && this.integrationTask.mapPath === this.path) {
       const task = this.integrationTask, state = this.contentEl.createDiv("vam-integration-progress");
@@ -23915,7 +23927,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       this.button(actions, t("ui.create_a_new_mind_map"), () => this.openNewMindMapModal()).addClass("mod-cta");
       this.button(actions, t("ui.aim_create_map"), () => this.openAimStart());
       this.button(actions, t("ui.view_sample"), () => this.enqueue(() => this.openBuiltInSample(true)));
-      if ((_o = this.deletedMap) == null ? void 0 : _o.deleted)
+      if ((_r = this.deletedMap) == null ? void 0 : _r.deleted)
         this.button(actions, t("ui.restore_deleted_map"), () => this.enqueue(() => this.restoreDeletedMapFromUi()));
       return;
     }
@@ -24052,7 +24064,17 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     if (this.selected && !shown.some((node) => node.id === this.selected)) this.selected = null;
     this.multiSelected = new Set([...this.multiSelected].filter((id) => shown.some((node) => node.id === id)));
     if (this.integrationMode) this.renderSelectionBar(workspace);
-    for (const node of shown) this.renderNode(node);
+    this.tabStopId = (_w = (_v = (_t = this.selected && shown.some((node) => node.id === this.selected) ? this.selected : null) != null ? _t : (_s = shown.find((node) => !node.parentId)) == null ? void 0 : _s.id) != null ? _v : (_u = shown[0]) == null ? void 0 : _u.id) != null ? _w : null;
+    this.renderingCard = true;
+    try {
+      for (const node of shown) this.renderNode(node);
+    } finally {
+      this.renderingCard = false;
+    }
+    if (this.focusNodeId) {
+      (_x = this.stageEl.querySelector(`[data-node-id="${CSS.escape(this.focusNodeId)}"]`)) == null ? void 0 : _x.focus({ preventScroll: true });
+      this.focusNodeId = null;
+    }
     if (!this.map.nodes.length) {
       const emptyMap = this.viewportEl.createDiv("vam-empty");
       emptyMap.createSpan({
@@ -24094,7 +24116,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     card.dataset.status = ((_a = this.plugin.running) == null ? void 0 : _a.has(node.path)) || ((_b = this.plugin.quickExpandPending) == null ? void 0 : _b.has(node.path)) ? "running" : (_c = note == null ? void 0 : note.status) != null ? _c : "error";
     card.style.left = `${node.x}px`;
     card.style.top = `${node.y}px`;
-    card.tabIndex = 0;
+    card.tabIndex = node.id === this.tabStopId ? 0 : -1;
     card.setAttr("aria-label", (_d = note == null ? void 0 : note.title) != null ? _d : t("ui.note_missing"));
     const header = card.createDiv("vam-node-header");
     if (this.integrationMode) {
@@ -24139,11 +24161,13 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         text: status === "not_started" && this.map.aim.branches.some((branch) => branch.questionNodeId === node.id) ? t("ui.aim_answered_not_started") : t(key2[status])
       });
     } else {
+      const statusText = active ? t("ui.ai_running") : (note == null ? void 0 : note.status) === "completed" ? t("ui.researched") : note ? topicStatusLabel(note.status, this.plugin.settings.language) : t("ui.note_missing");
       const chip = header.createSpan({
         cls: `vam-status vam-status-${active ? "running" : (_j = note == null ? void 0 : note.status) != null ? _j : "error"}`,
-        text: active ? t("ui.ai_running") : (note == null ? void 0 : note.status) === "completed" ? t("ui.researched") : note ? topicStatusLabel(note.status, this.plugin.settings.language) : t("ui.note_missing")
+        text: statusText
       });
       if (active) chip.setAttr("role", "status");
+      if (note) card.setAttr("aria-label", t("ui.topic_card_label_0_1", note.title, statusText));
     }
     const errorDetails = [];
     if ((_k = note == null ? void 0 : note.detailFormatIssues) == null ? void 0 : _k.length) {
@@ -24422,7 +24446,25 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       }
     });
     card.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" && event.target === card) {
+      var _a2;
+      if (event.target !== card) return;
+      const target = this.keyboardNeighbor(node, event.key);
+      if (target) {
+        event.preventDefault();
+        this.moveKeyboardFocus(target);
+        return;
+      }
+      if (event.key === "F2" && note && !this.builtIn && !this.integrationMode && !((_a2 = this.map) == null ? void 0 : _a2.aim)) {
+        event.preventDefault();
+        new NameModal(
+          this.app,
+          t("ui.new_topic_name"),
+          note.title,
+          (title2) => this.enqueue(() => this.noteChange(node, { title: title2 }))
+        ).open();
+        return;
+      }
+      if (event.key === "Enter") {
         if (this.integrationMode) {
           if (this.multiSelected.has(node.id)) this.multiSelected.delete(node.id);
           else this.multiSelected.add(node.id);
@@ -24443,6 +24485,48 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       }, 700);
     });
     card.addEventListener("mouseleave", () => this.hideHoverCardSoon());
+    const toolButtons = () => Array.from(card.querySelectorAll("button"));
+    card.addEventListener("focusin", (event) => {
+      for (const button of toolButtons()) button.tabIndex = 0;
+      if (event.target !== card || !note || this.integrationMode || !card.matches(":focus-visible")) return;
+      this.clearHoverTimer();
+      this.hoverTimer = window.setTimeout(() => {
+        if (card.isConnected && card.matches(":focus")) this.showHoverCard(card, note);
+      }, 700);
+    });
+    card.addEventListener("focusout", (event) => {
+      if (event.relatedTarget instanceof Node && card.contains(event.relatedTarget)) return;
+      for (const button of toolButtons()) button.tabIndex = -1;
+      this.hideHoverCardSoon();
+    });
+  }
+  /** Arrow keys walk the tree: left to the parent, right to the first child, up/down among siblings. */
+  keyboardNeighbor(node, key2) {
+    if (!this.map || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(key2)) return void 0;
+    const shown = visibleNodes(this.map.nodes);
+    const byY = (a, b) => a.y - b.y || a.x - b.x;
+    if (key2 === "ArrowLeft") return shown.find((item) => item.id === node.parentId);
+    if (key2 === "ArrowRight") return shown.filter((item) => item.parentId === node.id).sort(byY)[0];
+    const siblings = shown.filter((item) => {
+      var _a, _b;
+      return ((_a = item.parentId) != null ? _a : null) === ((_b = node.parentId) != null ? _b : null);
+    }).sort(byY);
+    const index = siblings.findIndex((item) => item.id === node.id);
+    return siblings[index + (key2 === "ArrowUp" ? -1 : 1)];
+  }
+  moveKeyboardFocus(target) {
+    var _a, _b;
+    const card = (_a = this.stageEl) == null ? void 0 : _a.querySelector(`[data-node-id="${CSS.escape(target.id)}"]`);
+    const view = (_b = this.viewportEl) == null ? void 0 : _b.getBoundingClientRect(), rect = card == null ? void 0 : card.getBoundingClientRect();
+    if (view && rect && (rect.left < view.left || rect.right > view.right || rect.top < view.top || rect.bottom > view.bottom))
+      this.focusNode(target);
+    this.focusNodeId = target.id;
+    if (this.builtIn) this.selectSampleNode(target.id);
+    else this.selectMapNode(target);
+    if (this.focusNodeId) {
+      card == null ? void 0 : card.focus({ preventScroll: true });
+      this.focusNodeId = null;
+    }
   }
   clearHoverTimer() {
     if (this.hoverTimer !== null) window.clearTimeout(this.hoverTimer);
