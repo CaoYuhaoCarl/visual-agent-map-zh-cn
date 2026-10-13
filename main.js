@@ -31071,17 +31071,24 @@ var ImageTranslateAction = class extends import_obsidian22.Component {
    * While AI works, a ring circles the image (like a running topic on the map). It follows the image through
    * scrolling and is clipped to the note pane, so it never draws over other parts of the window.
    */
-  startHalo(image) {
+  startHalo(image, container) {
     this.stopHalo();
     const halo = this.app.workspace.containerEl.createDiv({ cls: "vam-image-working" });
     halo.setAttribute("aria-hidden", "true");
     halo.createDiv({ cls: "vam-image-working-chip", text: t("ui.image_translate_working") });
     this.halo = halo;
+    const source = image.getAttribute("src");
+    let current = image;
     const follow = () => {
       var _a;
-      const rect = image.getBoundingClientRect();
-      const pane = (_a = image.closest(".view-content")) == null ? void 0 : _a.getBoundingClientRect();
-      const visible = image.isConnected && rect.width > 0 && rect.height > 0;
+      if (!current.isConnected) {
+        const again = Array.from(container.querySelectorAll("img")).find((item) => item.getAttribute("src") === source);
+        if (again) current = again;
+      }
+      const image2 = current;
+      const rect = image2.getBoundingClientRect();
+      const pane = (_a = image2.closest(".view-content")) == null ? void 0 : _a.getBoundingClientRect();
+      const visible = image2.isConnected && rect.width > 0 && rect.height > 0;
       halo.toggleClass("is-hidden", !visible);
       if (visible) {
         halo.style.left = `${rect.left}px`;
@@ -31194,7 +31201,7 @@ var ImageTranslateAction = class extends import_obsidian22.Component {
     const controller = new AbortController();
     this.running = controller;
     this.showRunning(status, actions);
-    this.startHalo(target.image);
+    this.startHalo(target.image, target.view.containerEl);
     const name = (_b = (_a = SUPPORTED_LANGUAGES.find((item) => item.id === language2)) == null ? void 0 : _a.name) != null ? _b : language2;
     let saved = null;
     try {

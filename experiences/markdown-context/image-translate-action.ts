@@ -82,13 +82,21 @@ export class ImageTranslateAction extends Component {
    * While AI works, a ring circles the image (like a running topic on the map). It follows the image through
    * scrolling and is clipped to the note pane, so it never draws over other parts of the window.
    */
-  private startHalo(image: HTMLImageElement): void {
+  private startHalo(image: HTMLImageElement, container: HTMLElement): void {
     this.stopHalo();
     const halo = this.app.workspace.containerEl.createDiv({ cls: "vam-image-working" });
     halo.setAttribute("aria-hidden", "true");
     halo.createDiv({ cls: "vam-image-working-chip", text: t("ui.image_translate_working") });
     this.halo = halo;
+    const source = image.getAttribute("src");
+    let current = image;
     const follow = (): void => {
+      // The editor rebuilds image embeds when they scroll out and back; pick up the new element for the same image.
+      if (!current.isConnected) {
+        const again = Array.from(container.querySelectorAll("img")).find(item => item.getAttribute("src") === source);
+        if (again) current = again;
+      }
+      const image = current;
       const rect = image.getBoundingClientRect();
       const pane = image.closest(".view-content")?.getBoundingClientRect();
       const visible = image.isConnected && rect.width > 0 && rect.height > 0;
@@ -218,7 +226,7 @@ export class ImageTranslateAction extends Component {
     const controller = new AbortController();
     this.running = controller;
     this.showRunning(status, actions);
-    this.startHalo(target.image);
+    this.startHalo(target.image, target.view.containerEl);
     const name = SUPPORTED_LANGUAGES.find(item => item.id === language)?.name ?? language;
     let saved: TFile | null = null;
     try {
