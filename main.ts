@@ -1177,7 +1177,6 @@ export default class VisualAgentMapPlugin extends Plugin {
     image?: HTMLImageElement,
     webSearch = false
   ): Promise<string> {
-    if (webSearch && providerForModel(model) === "claude") throw new Error(t("ui.context_ai_search_codex"));
     const loaded = image ? await this.markdownContextImage(image, signal) : undefined;
     const imageDataUrl =
       loaded && providerForModel(model) === "claude" ? await fitImageForClaude(loaded, signal) : loaded;

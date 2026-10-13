@@ -2,7 +2,8 @@ import { Component, MarkdownRenderer, MarkdownView, Notice, Platform, setIcon, t
 import { getUiLanguage, t } from "../../i18n";
 import type { PreparedStep } from "../../core/step-runner";
 import { prepareStep } from "../../core/step-runner";
-import { searchImages, imageMarkdown, type ImageCandidate } from "./action-plan";
+import { imageMarkdown, type ImageCandidate } from "./action-plan";
+import { imageSearchStep } from "./steps/image-search/step";
 import { planStep } from "./steps/plan/step";
 import { transformStep } from "./steps/transform/step";
 import { captionStep } from "./steps/caption/step";
@@ -48,6 +49,29 @@ function positionAt(source: string, offset: number): { line: number; ch: number 
   const before = source.slice(0, offset);
   const line = before.split("\n").length - 1;
   return { line, ch: before.length - (before.lastIndexOf("\n") + 1) };
+}
+
+/** Keeps the candidates whose image loads within a few seconds, in order; the rest are dead or blocked links. */
+async function loadableImages(candidates: ImageCandidate[], signal: AbortSignal): Promise<ImageCandidate[]> {
+  const loads = await Promise.all(
+    candidates.map(
+      candidate =>
+        new Promise<boolean>(resolve => {
+          const probe = createEl("img");
+          probe.referrerPolicy = "no-referrer";
+          const timer = window.setTimeout(() => resolve(false), 8_000);
+          const done = (ok: boolean): void => {
+            window.clearTimeout(timer);
+            resolve(ok && probe.naturalWidth > 0);
+          };
+          probe.onload = () => done(true);
+          probe.onerror = () => done(false);
+          signal.addEventListener("abort", () => done(false), { once: true });
+          probe.src = candidate.url;
+        })
+    )
+  );
+  return candidates.filter((_, index) => loads[index]);
 }
 
 export class MarkdownSelectionAi extends Component {
@@ -395,6 +419,8 @@ class SelectionAiPanel extends Component {
     this.status.setAttribute("role", "status");
     this.status.setAttribute("aria-live", "polite");
 
+    // Found images or a diagram come before the draft: pick first, then review what will be written.
+    this.preview = this.contentEl.createDiv({ cls: "vam-context-ai-preview" });
     // The draft: a before/after pair for a replaceable selection, otherwise just the editable draft.
     this.result = this.contentEl.createDiv({ cls: "vam-context-ai-result" });
     this.result.hidden = true;
@@ -405,7 +431,6 @@ class SelectionAiPanel extends Component {
     draftLabel.createSpan({ cls: "vam-context-ai-label", text: t("ui.context_ai_result") });
     this.output = draftLabel.createEl("textarea", { cls: "vam-context-ai-output" });
     this.output.rows = 5;
-    this.preview = this.contentEl.createDiv({ cls: "vam-context-ai-preview" });
 
     const footer = this.contentEl.createDiv({ cls: "vam-context-ai-footer" });
     this.resultActions = footer.createDiv({ cls: "vam-context-ai-result-actions" });
@@ -542,7 +567,11 @@ class SelectionAiPanel extends Component {
       let insertAfter = false;
       if (plan.action === "image_search") {
         status.setText(t("ui.context_ai_searching_images"));
-        const candidates = await searchImages(plan.query, controller.signal);
+        const search = prepareStep(imageSearchStep, { query: plan.query || prompt });
+        const found = search.parse(await this.run(search, this.model, controller.signal, undefined, true));
+        if (controller.signal.aborted || !this.isOpen) return;
+        // Web results can be stale or block hotlinking: offer only images that actually load.
+        const candidates = await loadableImages(found, controller.signal);
         if (controller.signal.aborted || !this.isOpen) return;
         if (!candidates.length) throw new Error(t("ui.context_ai_no_images"));
         insertAfter = true;
@@ -661,7 +690,6 @@ class SelectionAiPanel extends Component {
     if (!captionInstruction.trim()) return markdown;
     const image = createEl("img");
     image.referrerPolicy = "no-referrer";
-    image.crossOrigin = "anonymous";
     await new Promise<void>((resolve, reject) => {
       const finish = (error?: Error): void => {
         window.clearTimeout(timeout);

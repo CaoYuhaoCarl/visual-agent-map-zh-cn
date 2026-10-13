@@ -78,15 +78,20 @@ test('the markdown call site in main.ts uses the Step Runner and the shared runt
   assert.ok(!/\.runTask\(/.test(body), 'the call site does not call runTask itself');
 });
 
-test('image search keeps Commons thumbnails from thumb and upload hosts and drops other hosts and types', async () => {
-  const page = (id, thumburl, mime = 'image/jpeg') => [id, { title: `File:${id}.jpg`, imageinfo: [{ thumburl, mime, descriptionurl: `https://commons.wikimedia.org/wiki/File:${id}.jpg` }] }];
-  const pages = Object.fromEntries([
-    page('thumb', 'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/x.jpg/640px-x.jpg'),
-    page('upload', 'https://upload.wikimedia.org/wikipedia/commons/a/ab/y.jpg'),
-    page('other', 'https://example.org/z.jpg'),
-    page('svg', 'https://upload.wikimedia.org/wikipedia/commons/a/ab/z.svg', 'image/svg+xml')
-  ]);
-  const { searchImages } = load('experiences/markdown-context/action-plan.ts', { obsidian: { requestUrl: async () => ({ text: JSON.stringify({ query: { pages } }) }) } }, { URL, URLSearchParams });
-  const found = await searchImages('fried egg', new AbortController().signal);
-  assert.deepEqual([...found.map(item => item.title)], ['thumb.jpg', 'upload.jpg']);
+test('web image search keeps https image and source links, drops invented or unsafe ones, dedupes and caps at six', () => {
+  const { parseImageCandidates, imageSearchStep } = load('experiences/markdown-context/steps/image-search/step.ts', {}, { URL });
+  const images = [
+    { title: 'Fried egg', imageUrl: 'https://example.org/egg.jpg', sourceUrl: 'https://example.org/eggs' },
+    { title: 'Dup', imageUrl: 'https://example.org/egg.jpg', sourceUrl: 'https://example.org/other' },
+    { title: 'Plain http', imageUrl: 'http://example.org/a.png', sourceUrl: 'https://example.org/a' },
+    { title: 'No source', imageUrl: 'https://example.org/b.png' },
+    { title: 'Script', imageUrl: 'javascript:alert(1)', sourceUrl: 'https://example.org/c' },
+    ...Array.from({ length: 8 }, (_, n) => ({ title: `n${n}`, imageUrl: `https://img.example/${n}.webp`, sourceUrl: `https://page.example/${n}` }))
+  ];
+  const found = parseImageCandidates(`Here you go: ${JSON.stringify({ images })}`);
+  assert.deepEqual([...found.map(item => item.title)], ['Fried egg', 'n0', 'n1', 'n2', 'n3', 'n4']);
+  assert.deepEqual({ ...found[0] }, { title: 'Fried egg', url: 'https://example.org/egg.jpg', source: 'https://example.org/eggs' });
+  assert.equal(parseImageCandidates('not json').length, 0);
+  assert.equal(parseImageCandidates('{"images":"none"}').length, 0);
+  assert.match(imageSearchStep.render({ query: 'fried egg' }), /"fried egg"/);
 });
