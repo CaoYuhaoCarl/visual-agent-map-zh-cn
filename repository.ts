@@ -914,6 +914,17 @@ export class Repository {
    * one specific map keeps using readMap and still surfaces its error.
    */
   async readableMaps(): Promise<{ file: TFile; map: MapDocument }[]> {
+    return (await this.scanMaps()).readable;
+  }
+
+  /**
+   * Only for scans that tolerate a missing map; destructive planners (migration) must use readMap so a broken map
+   * fails them loudly instead of being skipped.
+   */
+  private async scanMaps(): Promise<{
+    readable: { file: TFile; map: MapDocument }[];
+    skippedRoots: string[];
+  }> {
     const readable: { file: TFile; map: MapDocument }[] = [],
       failures: { path: string; error: string }[] = [];
     for (const file of await this.mapFiles()) {
@@ -924,7 +935,7 @@ export class Repository {
       }
     }
     if (failures.length) this.onUnreadableMaps?.(failures);
-    return readable;
+    return { readable, skippedRoots: failures.map(item => this.topicRoot(item.path)) };
   }
 
   /**
@@ -1176,7 +1187,8 @@ export class Repository {
   async rebuildDerivedData(noteRoot?: string): Promise<void> {
     const ownership = new Map<string, { map: MapDocument; mapPath: string; node: MapNode }>();
     const topics = new Map<string, { map: MapDocument; mapPath: string }>();
-    for (const { file: mapFile, map } of await this.readableMaps()) {
+    const scan = await this.scanMaps();
+    for (const { file: mapFile, map } of scan.readable) {
       topics.set(map.id, { map, mapPath: mapFile.path });
       for (const node of map.nodes) {
         const existing = ownership.get(node.path);
@@ -1194,6 +1206,8 @@ export class Repository {
     }
     for (const file of nodeFiles.values()) {
       if (noteRoot && !file.path.startsWith(`${noteRoot}/`)) continue;
+      // Notes inside an unreadable map's folder are not judged without that map: leave them exactly as they are.
+      if (scan.skippedRoots.some(root => file.path.startsWith(`${root}/`) && !ownership.has(file.path))) continue;
       // Compare against the in-memory copy, then derive again from the file's current content inside the write,
       // so an edit made after this read is not replaced by stale text.
       const cached = await this.app.vault.cachedRead(file),
@@ -1352,9 +1366,17 @@ export class Repository {
   }
 
   async legacyMigrationPlan(): Promise<LegacyMigrationPlan> {
-    const legacyMaps = (await this.readableMaps()).filter(
-      ({ file }) => !file.path.startsWith(`${this.settings.topicsFolder}/`)
-    );
+    // Every map must parse: a skipped map's notes would look orphaned and be moved to the Inbox with ids cleared.
+    const legacyMaps: { file: TFile; map: MapDocument }[] = [];
+    for (const file of await this.mapFiles()) {
+      let map: MapDocument;
+      try {
+        map = await this.readMap(file.path);
+      } catch (error) {
+        throw new Error(`${file.path}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+      if (!file.path.startsWith(`${this.settings.topicsFolder}/`)) legacyMaps.push({ file, map });
+    }
     const assigned = new Set<string>(),
       maps: LegacyMigrationPlan["maps"] = [];
     const reservedRoots = new Set<string>();

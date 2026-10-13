@@ -129,3 +129,35 @@ integrationTest('one unreadable Map.md is skipped by vault-wide scans, left unto
   assert.equal(vault.contents.get(brokenPath), before, 'the unreadable map is never written');
   await assert.rejects(() => vault.repo.readMap(brokenPath), /Invalid AIM/);
 });
+
+integrationTest('rebuildDerivedData leaves notes in an unreadable map folder byte-identical and still updates readable maps', async () => {
+  const vault = await aimVault([]);
+  const brokenPath = 'Agent Workspace/Topics/broken/Map.md';
+  const corrupted = vault.contents.get(vault.mapPath).replace(/"nodeId":\s*"[^"]+"/, '"nodeId": "missing-node"');
+  await vault.app.vault.create(brokenPath, corrupted);
+  const stray = 'Agent Workspace/Topics/broken/Notes/Stray.md';
+  const strayContent = '---\nagent-map-node: true\nnode-id: "stray"\nagent-map-id: "broken-map"\ntopic-id: "broken-map"\ntopic-state: active\ntitle: "Stray"\n---\n\n# Stray\n\n## Detail\n\nOld detail\n';
+  await vault.app.vault.create(stray, strayContent);
+  const valid = (await vault.repo.readMap(vault.mapPath)).nodes[0].path;
+  const validBefore = vault.contents.get(valid);
+  vault.contents.set(valid, validBefore.replace(/^agent-map-id:.*\n/m, ''));
+  assert.notEqual(vault.contents.get(valid), validBefore, 'precondition: the valid note lost its map id');
+  await vault.repo.rebuildDerivedData();
+  assert.equal(vault.contents.get(stray), strayContent, 'unreadable map note untouched');
+  assert.equal(vault.contents.get(brokenPath), corrupted);
+  assert.match(vault.contents.get(valid), /^agent-map-id:/m, 'the readable map note was updated');
+});
+
+integrationTest('legacy migration plan refuses when any map is unreadable and nothing moves', async () => {
+  const vault = await aimVault([]);
+  const note = 'Agent Workspace/Nodes/a.md', mapPath = 'Agent Workspace/Maps/Legacy.md';
+  const noteContent = '---\nagent-map-node: true\nnode-id: "a"\ntitle: "a"\n---\n\n# a\n';
+  await vault.app.vault.create(note, noteContent);
+  const corrupted = vault.contents.get(vault.mapPath).replace(/"nodeId":\s*"[^"]+"/, '"nodeId": "missing-node"');
+  await vault.app.vault.create(mapPath, corrupted);
+  const paths = [...vault.files.keys()].sort();
+  await assert.rejects(() => vault.repo.legacyMigrationPlan(), /Agent Workspace\/Maps\/Legacy\.md/);
+  assert.equal(vault.contents.get(note), noteContent);
+  assert.equal(vault.contents.get(mapPath), corrupted);
+  assert.deepEqual([...vault.files.keys()].sort(), paths);
+});
