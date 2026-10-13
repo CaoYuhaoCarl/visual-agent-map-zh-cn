@@ -397,10 +397,16 @@ export class NextStepModal extends Modal {
   private renderRequirements(): void {
     const disclosure = this.contentEl.createEl("details", { cls: "vam-next-requirements" });
     disclosure.open = false;
-    disclosure.createEl("summary", { text: t("ui.additional_requirements") });
-    this.requirementsInput = disclosure.createEl("textarea", { cls: "vam-next-focus" });
-    this.requirementsInput.rows = 3;
-    this.requirementsInput.setAttr("aria-label", t("ui.additional_requirements"));
+    const summary = disclosure.createEl("summary", { text: t("ui.additional_requirements") });
+    const value = summary.createSpan({ cls: "vam-next-disclosure-value", text: t("ui.not_set") });
+    const input = disclosure.createEl("textarea", { cls: "vam-next-focus" });
+    this.requirementsInput = input;
+    input.rows = 3;
+    input.setAttr("aria-label", t("ui.additional_requirements"));
+    input.addEventListener("input", () => {
+      const text = input.value.trim().replace(/\s+/g, " ");
+      value.setText(text ? (text.length > 24 ? `${text.slice(0, 24)}…` : text) : t("ui.not_set"));
+    });
     disclosure.createEl("p", { text: t("ui.requirements_this_task_only"), cls: "vam-hint" });
     if (this.modelSettings?.rules?.trim())
       this.contentEl.createEl("p", { text: t("ui.legacy_rules_not_applied"), cls: "vam-hint" });
@@ -421,7 +427,9 @@ export class NextStepModal extends Modal {
     if (!this.modelSettings) return;
     const settings = this.modelSettings;
     const advanced = this.contentEl.createEl("details", { cls: "vam-advanced vam-next-model" });
-    advanced.createEl("summary", { text: t("ui.model_and_advanced_settings") });
+    const advancedValue = advanced
+      .createEl("summary", { text: t("ui.model_and_advanced_settings") })
+      .createSpan({ cls: "vam-next-disclosure-value" });
     const error = advanced.createEl("p", { cls: "vam-hint" });
     const save = (patch: NotePatch): void => {
       this.settingsError = null;
@@ -499,22 +507,29 @@ export class NextStepModal extends Modal {
         t("ui.0_1_reasoning_can_be_adjusted_per_topic", settings.model, sourceLabels[settings.modelSource])
       );
       save({ model: settings.model, modelSource: settings.modelSource });
+      describeModel();
     });
     const reasoningLabel = advanced.createEl("label", { cls: "vam-field" });
     reasoningLabel.createSpan({ text: t("ui.reasoning_level") });
     const reasoning = reasoningLabel.createEl("select");
     reasoning.setAttr("aria-label", t("ui.reasoning_level"));
-    for (const [value, label] of [
-      ["auto", t("ui.auto")],
-      ["low", t("ui.low")],
-      ["medium", t("ui.medium")],
-      ["high", t("ui.high")]
-    ])
-      reasoning.createEl("option", { value, text: label });
+    const reasoningLabels: Record<string, string> = {
+      auto: t("ui.auto"),
+      low: t("ui.low"),
+      medium: t("ui.medium"),
+      high: t("ui.high")
+    };
+    for (const [value, label] of Object.entries(reasoningLabels)) reasoning.createEl("option", { value, text: label });
     reasoning.value = normalizeReasoningLevel(settings.reasoning);
+    const describeModel = (): void =>
+      advancedValue.setText(
+        `${this.plugin.modelLabel(settings.model)} · ${reasoningLabels[normalizeReasoningLevel(settings.reasoning)] ?? ""}`
+      );
+    describeModel();
     reasoning.addEventListener("change", () => {
       settings.reasoning = normalizeReasoningLevel(reasoning.value);
       save({ reasoning: normalizeReasoningLevel(reasoning.value) });
+      describeModel();
     });
     return advanced;
   }
@@ -547,6 +562,9 @@ export class NextStepModal extends Modal {
         if (this.closed || controller.signal.aborted) return;
         await work();
       } catch (error) {
+        // A task already handed to the background can still fail after the dialog closed; say so.
+        if (this.closed && !controller.signal.aborted)
+          new Notice(error instanceof Error ? error.message : String(error));
         this.failed(
           panel,
           button,
@@ -711,6 +729,8 @@ export class NextStepModal extends Modal {
       rows.push({ item, check, title, task, contribution });
     }
     const confirm = result.createEl("button", { text: t("ui.create_subtopics"), cls: "mod-cta" });
+    // While proposals are open, "Create subtopics" is the one primary action.
+    button.classList.toggle("mod-cta", false);
     confirm.addEventListener("click", () => {
       void (async () => {
         const selected = rows.filter(row => row.check.checked && row.title.value.trim());
@@ -748,10 +768,11 @@ export class NextStepModal extends Modal {
               if (options.shallowResearch) {
                 this.taskSignal = undefined;
                 this.taskController = undefined;
-                this.close();
+                this.startedInBackground();
                 return;
               }
               result.empty();
+              button.classList.toggle("mod-cta", true);
               consumed();
               panel.querySelector<HTMLElement>(".vam-next-status")?.setText(t("ui.subtopics_created"));
               confirm.disabled = false;
@@ -759,6 +780,7 @@ export class NextStepModal extends Modal {
             } catch (error) {
               if (error instanceof PartialChildBatchError) {
                 result.empty();
+                button.classList.toggle("mod-cta", true);
                 consumed();
                 button.disabled = true;
               }
@@ -951,7 +973,6 @@ export class NextStepModal extends Modal {
       });
     });
     const expandPanel = this.contentEl.createDiv("vam-next-research vam-next-choice");
-    expandPanel.createEl("p", { text: t("ui.review_one_level_or_set_the_first_level_count_and_the_number") });
     const modes = expandPanel.createDiv("vam-next-depths vam-next-segmented");
     modes.setAttr("role", "radiogroup");
     modes.setAttr("aria-label", t("ui.expand_the_map"));
@@ -1298,13 +1319,18 @@ export class NextStepModal extends Modal {
       this.modelSettings?.templates ?? [],
       t("ui.detail_template_keep_0", this.modelSettings?.currentTemplate ?? "")
     );
-    const describeOutput = (): void =>
+    const describeOutput = (): void => {
+      const picked = templateId();
+      const template = picked
+        ? this.modelSettings?.templates?.find(item => item.id === picked)?.name
+        : this.modelSettings?.currentTemplate;
       outputValue.setText(
-        [languageSelect.value === "en" ? "English" : "繁體中文", this.modelSettings?.currentTemplate]
-          .filter(Boolean)
-          .join(" · ")
+        [languageSelect.value === "en" ? "English" : "繁體中文", template].filter(Boolean).join(" · ")
       );
+    };
     languageSelect.addEventListener("change", describeOutput);
+    // The template select is built by a shared helper; its change bubbles up here.
+    compactSettings.addEventListener("change", describeOutput);
     describeOutput();
     show(initialMode);
     cardFor[initialMode].focus();

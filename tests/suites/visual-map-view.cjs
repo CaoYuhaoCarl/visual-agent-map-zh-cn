@@ -336,12 +336,15 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   const closedBeforePartial = closed;
   button(partial.modalEl, 'Create starter map now').click(); await tick();
   assert.equal(closed, closedBeforePartial); assert.equal(button(partial.modalEl, 'Create starter map now').disabled, true); assert.match(all(partial.contentEl, item => item.cls.includes('vam-next-research'))[1].querySelector('.vam-next-status').text, /部分子議題已建立/);
+  const startedNotices = () => notices.filter(message => message === 'Started “Parent” in the background; progress shows on its card.').length;
+  const startedBefore = startedNotices();
   let continueBackground; let acceptedSignal;
   const background = new Promise(resolve => { continueBackground = resolve; });
   const acceptedModal = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async (options, _direction, _found, _failed, _created, accepted) => { acceptedSignal = options.signal; accepted(); await background; }, async () => {});
   acceptedModal.onOpen(); find(acceptedModal.contentEl, item => item.cls === 'vam-next-cards').children[1].click(); button(acceptedModal.contentEl, 'Quickly explore a map').click(); button(acceptedModal.modalEl, 'Create starter map now').click();
   await until(() => acceptedModal.closed);
   assert.equal(acceptedSignal.aborted, false); assert.equal(acceptedModal.taskSignal, undefined);
+  assert.equal(startedNotices(), startedBefore + 1);
   continueBackground(); await tick();
   // Synthesis runs in the background: accepting the dispatch closes the modal without aborting the AI.
   let directionSignal, directionCalls = [];
@@ -353,6 +356,7 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   await until(() => directionsModal.closed);
   assert.equal(closed, closedBeforeSynth + 1); assert.deepEqual(directionCalls, [null]);
   assert.equal(directionSignal.aborted, false); assert.equal(directionsModal.taskSignal, undefined);
+  assert.equal(startedNotices(), startedBefore + 2);
   continueBackground2(); await tick();
   // Reopening from the node badge shows the pending directions; the draft step is also accepted and closes the modal.
   let discarded = 0, draftSignal; const draftCalls = [];
@@ -383,6 +387,7 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   failing.onOpen(); find(failing.contentEl, item => item.cls === 'vam-next-cards').children[1].click();
   button(failing.modalEl, 'Review AI subtopic suggestions').click(); await tick();
   assert.equal(all(failing.contentEl, item => item.cls.includes('vam-next-research'))[1].querySelector('.vam-next-status').text, 'Provider failed'); assert.equal(closed, 3);
+  const startedBeforeFailures = startedNotices();
   const failedResearch = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async (_options, _focus, _done, failed) => failed('Cannot start'), async () => {}, async () => {});
   failedResearch.onOpen(); button(failedResearch.modalEl, 'Confirm research task').click(); await tick();
   assert.equal(closed, 3); assert.equal(all(failedResearch.contentEl, item => item.cls.includes('vam-next-research'))[0].querySelector('.vam-next-status').text, 'Cannot start');
@@ -391,6 +396,8 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   const unacceptedPanel = all(unacceptedResearch.contentEl, item => item.cls.includes('vam-next-research'))[0];
   assert.equal(closed, 3); assert.equal(button(unacceptedResearch.modalEl, 'Confirm research task').disabled, false);
   assert.match(unacceptedPanel.querySelector('.vam-next-status').text, /cancelled/i);
+  // Launch failures and unaccepted launches never claim the task started.
+  assert.equal(startedNotices(), startedBeforeFailures);
   let acknowledged = 0, began = 0;
   let firstUseConfirmed = false;
   const firstUsePlugin = { settings: { codexUsageNoticeSeen: false }, aiReadyForModel: async () => true, confirmAiUsage: async (_model, run) => { if (!firstUseConfirmed) { firstUseConfirmed = true; return false; } acknowledged++; await run(); return true; }, saveSettings: async () => { acknowledged++; } };

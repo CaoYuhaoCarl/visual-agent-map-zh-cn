@@ -146,15 +146,22 @@
 .vam-next-actions-note { order: -1; flex: 1 1 220px; min-width: 0; margin-right: auto; color: var(--text-muted); font-size: var(--font-ui-smaller); line-height: 1.45; }
 .vam-next-topic { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
 .vam-next-suggested { align-self: flex-start; order: -1; padding: 1px 7px; border-radius: 20px; background: var(--interactive-accent); color: var(--text-on-accent); font-size: var(--font-ui-smaller); font-weight: 600; }
-.vam-next-modal .vam-next-requirements, .vam-next-modal .vam-next-depth-help { margin: 8px 0; }
-.vam-next-modal .vam-next-requirements > summary, .vam-next-modal .vam-next-depth-help > summary { min-height: 32px; padding: 6px 0; color: var(--text-muted); cursor: pointer; font-size: var(--font-ui-small); font-weight: 600; }
-.vam-next-modal .vam-next-requirements[open] > summary, .vam-next-modal .vam-next-depth-help[open] > summary { color: var(--text-normal); }
+.vam-next-modal .vam-next-depth-help { margin: 8px 0; }
+/* Requirements and model settings share the boxed setting-row look of sources and output. */
+.vam-next-modal .vam-next-requirements, .vam-next-modal .vam-next-model { margin: 10px 0; padding: 0; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); }
+.vam-next-modal .vam-next-requirements > summary, .vam-next-modal .vam-next-model > summary { min-height: 38px; padding: 7px 10px; color: var(--text-normal); cursor: pointer; font-size: inherit; font-weight: 600; }
+.vam-next-modal .vam-next-requirements[open] > summary, .vam-next-modal .vam-next-model[open] > summary { border-bottom: 1px solid var(--background-modifier-border); }
+.vam-next-modal .vam-next-requirements > :not(summary), .vam-next-modal .vam-next-model > :not(summary) { margin-inline: 10px; }
+.vam-next-modal .vam-next-requirements > :last-child, .vam-next-modal .vam-next-model > :last-child { margin-bottom: 10px; }
+.vam-next-disclosure-value { margin-left: 12px; color: var(--text-muted); font-size: var(--font-ui-smaller); font-weight: 400; overflow-wrap: anywhere; }
+.vam-next-modal .vam-next-depth-help > summary { min-height: 32px; padding: 6px 0; color: var(--text-muted); cursor: pointer; font-size: var(--font-ui-small); font-weight: 600; }
+.vam-next-modal .vam-next-depth-help[open] > summary { color: var(--text-normal); }
 .vam-next-modal .vam-next-requirements:not([open]) > :not(summary), .vam-next-modal .vam-next-depth-help:not([open]) > :not(summary), .vam-next-modal .vam-next-source-details:not([open]) > :not(summary), .vam-next-modal .vam-next-output:not([open]) > :not(summary) { display: none; }
 .vam-next-output { margin: 10px 0; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); }
 .vam-next-output > summary { min-height: 38px; padding: 7px 10px; cursor: pointer; }
 .vam-next-output[open] > summary { border-bottom: 1px solid var(--background-modifier-border); }
 .vam-next-output > .vam-next-compact-settings { margin: 0; padding: 10px; }
-.vam-next-modal .vam-next-requirements textarea { box-sizing: border-box; width: 100%; margin-top: 8px; }
+.vam-next-modal .vam-next-requirements textarea { box-sizing: border-box; width: calc(100% - 20px); margin-top: 10px; }
 .vam-next-compact-settings { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin: 8px 0; }
 .vam-next-compact-settings > p { flex: 1 1 220px; min-width: 0; margin: 0; overflow-wrap: anywhere; }
 .vam-next-language { display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto; font-size: var(--font-ui-small); color: var(--text-muted); }
@@ -176,7 +183,7 @@
 .vam-next-segmented { display: inline-flex; gap: 0; padding: 2px; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); background: var(--background-secondary); }
 .vam-next-modal .vam-next-choice .vam-next-segmented > button { margin: 0; border: 0; background: transparent; box-shadow: none; color: var(--text-muted); }
 .vam-next-modal .vam-next-choice .vam-next-segmented > button.is-active { background: var(--background-primary); box-shadow: var(--shadow-s); color: var(--text-normal); }
-.vam-next-research > p, .vam-next-footer > span { color: var(--text-muted); }
+.vam-next-research > p { color: var(--text-muted); }
 .vam-next-research { border-top: 1px solid var(--background-modifier-border); padding-top: 16px; }
 .vam-next-depth-set { margin: 12px 0 0; padding: 0; border: 0; }
 .vam-next-depth-set legend { margin-bottom: 6px; padding: 0; color: var(--text-muted); font-size: var(--font-ui-small); }
@@ -199,7 +206,6 @@
 .vam-quick-limits > .vam-hint { grid-column: 1 / -1; margin: 0; }
 .vam-quick-limits > .vam-hint.is-error { color: var(--color-red); }
 .vam-next-web { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
-.vam-next-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 20px; }
 .vam-next-choice button { margin-top: 12px; }
 .vam-next-depths button.is-active { border-color: var(--interactive-accent); background: var(--background-modifier-hover); }
 .vam-next-status { min-height: 1.4em; color: var(--text-muted); }

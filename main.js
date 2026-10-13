@@ -560,13 +560,11 @@ var english = {
   "ui.get_synthesis_suggestions_first": "Get synthesis suggestions first",
   "ui.ai_suggests_synthesis_angles_first_the_parent_topic_changes": "AI suggests synthesis angles first. The parent topic changes only after you confirm a draft.",
   "ui.ai_did_not_suggest_a_synthesis_direction_please_retry": "AI did not suggest a synthesis direction. Please retry.",
-  "ui.expand_this_topic": "Expand this topic",
   "ui.choose_directions_together": "Choose directions together",
   "ui.quickly_explore_a_map": "Quickly explore a map",
   "ui.run_shallow_research_on_each_created_subtopic": "Run shallow research on each created subtopic",
   "ui.get_expansion_directions": "Get expansion directions",
   "ui.create_starter_map_now": "Create starter map now",
-  "ui.review_one_level_or_set_the_first_level_count_and_the_number": "Review one level, or set the first-level count and the number of children per topic for a starter map.",
   "ui.ai_creates_a_starter_map_at_the_chosen_size_shallow_research": "AI creates a starter map at the chosen size; shallow research is optional.",
   "ui.number_of_levels": "Number of levels",
   "ui.expansion_levels_exclude_current_topic": "Counts new subtopic levels only; the current topic is not included.",
@@ -607,9 +605,7 @@ var english = {
   "ui.remove_from_map": "Remove from map",
   "ui.no_preview_content_yet": "No preview content yet",
   "ui.current_understanding": "Current understanding",
-  "ui.research_this_topic": "Research this topic",
   "ui.confirm_research_task": "Confirm research task",
-  "ui.synthesize_subtopic_findings": "Synthesize subtopic findings",
   "ui.add_subtopic_manually": "Add subtopic manually",
   "ui.ai_running_ai": "AI running\u2026",
   "ui.model_and_advanced_settings": "Model and advanced settings",
@@ -716,6 +712,7 @@ var english = {
   "ui.scan_for_recognizable_vam_workspaces_and_reconnect_only_afte": "Scan for recognizable VAM workspaces and reconnect only after confirmation, without moving or overwriting data.",
   "ui.scan": "Scan",
   "ui.check_again": "Check again",
+  "ui.not_set": "Not set",
   "ui.task_started_in_background_0": "Started \u201C{0}\u201D in the background; progress shows on its card.",
   "ui.model_status_idle": "not checked",
   "ui.model_status_loading": "checking\u2026",
@@ -1825,13 +1822,11 @@ var traditionalChinese = {
   "ui.get_synthesis_suggestions_first": "\u5148\u53D6\u5F97\u6574\u5408\u5EFA\u8B70",
   "ui.ai_suggests_synthesis_angles_first_the_parent_topic_changes": "AI \u5148\u63D0\u51FA\u6574\u5408\u89D2\u5EA6\uFF1B\u9078\u5B9A\u65B9\u5411\u5F8C\uFF0C\u624D\u66F4\u65B0\u6BCD\u8B70\u984C\u3002",
   "ui.ai_did_not_suggest_a_synthesis_direction_please_retry": "AI \u672A\u63D0\u51FA\u6574\u5408\u65B9\u5411\uFF0C\u8ACB\u91CD\u8A66\u3002",
-  "ui.expand_this_topic": "\u5C55\u958B\u9019\u500B\u8B70\u984C",
   "ui.choose_directions_together": "\u4E00\u8D77\u9078\u65B9\u5411",
   "ui.quickly_explore_a_map": "\u5FEB\u901F\u63A2\u7D22\u5730\u5716",
   "ui.run_shallow_research_on_each_created_subtopic": "\u5EFA\u7ACB\u5F8C\u9010\u4E00\u6DFA\u7814\u7A76\u5B50\u8B70\u984C",
   "ui.get_expansion_directions": "\u53D6\u5F97\u5C55\u958B\u65B9\u5411",
   "ui.create_starter_map_now": "\u76F4\u63A5\u5EFA\u7ACB\u521D\u6B65\u5730\u5716",
-  "ui.review_one_level_or_set_the_first_level_count_and_the_number": "\u53EF\u4EE5\u5148\u78BA\u8A8D\u4E00\u5C64\u65B9\u5411\uFF0C\u6216\u8A2D\u5B9A\u7B2C\u4E00\u5C64\u6578\u91CF\u8207\u6BCF\u500B\u8B70\u984C\u7684\u5EF6\u4F38\u6578\u91CF\uFF0C\u76F4\u63A5\u5EFA\u7ACB\u521D\u6B65\u5730\u5716\u3002",
   "ui.ai_creates_a_starter_map_at_the_chosen_size_shallow_research": "AI \u4F9D\u8A2D\u5B9A\u5EFA\u7ACB\u521D\u6B65\u5730\u5716\uFF1B\u53EF\u9078\u64C7\u5EFA\u7ACB\u5F8C\u6DFA\u7814\u7A76\u3002",
   "ui.number_of_levels": "\u5C55\u958B\u5E7E\u5C64",
   "ui.expansion_levels_exclude_current_topic": "\u53EA\u8A08\u7B97\u65B0\u5EFA\u7ACB\u7684\u5B50\u8B70\u984C\u5C64\u6578\uFF0C\u4E0D\u5305\u542B\u76EE\u524D\u8B70\u984C\u3002",
@@ -1872,9 +1867,7 @@ var traditionalChinese = {
   "ui.remove_from_map": "\u5F9E\u5716\u4E2D\u79FB\u9664",
   "ui.no_preview_content_yet": "\u5C1A\u672A\u52A0\u5165\u9810\u89BD\u5167\u5BB9",
   "ui.current_understanding": "\u76EE\u524D\u7406\u89E3",
-  "ui.research_this_topic": "\u7814\u7A76\u9019\u500B\u8B70\u984C",
   "ui.confirm_research_task": "\u78BA\u8A8D\u7814\u7A76\u4EFB\u52D9",
-  "ui.synthesize_subtopic_findings": "\u6574\u5408\u5B50\u8B70\u984C\u767C\u73FE",
   "ui.add_subtopic_manually": "\u624B\u52D5\u65B0\u589E\u5B50\u8B70\u984C",
   "ui.ai_running_ai": "AI \u57F7\u884C\u4E2D\u2026",
   "ui.model_and_advanced_settings": "\u6A21\u578B\u8207\u9032\u968E\u8A2D\u5B9A",
@@ -1981,6 +1974,7 @@ var traditionalChinese = {
   "ui.scan_for_recognizable_vam_workspaces_and_reconnect_only_afte": "\u6383\u63CF\u53EF\u8FA8\u8B58\u7684 VAM Workspace\uFF0C\u78BA\u8A8D\u5F8C\u624D\u91CD\u65B0\u9023\u7D50\uFF0C\u4E0D\u6703\u642C\u79FB\u6216\u8986\u5BEB\u8CC7\u6599\u3002",
   "ui.scan": "\u6383\u63CF",
   "ui.check_again": "\u91CD\u65B0\u6AA2\u67E5",
+  "ui.not_set": "\u672A\u586B",
   "ui.task_started_in_background_0": "\u5DF2\u5728\u80CC\u666F\u958B\u59CB\u300C{0}\u300D\uFF0C\u9032\u5EA6\u6703\u986F\u793A\u5728\u5361\u7247\u4E0A\u3002",
   "ui.model_status_idle": "\u5C1A\u672A\u6AA2\u67E5",
   "ui.model_status_loading": "\u6AA2\u67E5\u4E2D\u2026",
@@ -20544,10 +20538,16 @@ var NextStepModal = class extends import_obsidian15.Modal {
     var _a, _b;
     const disclosure = this.contentEl.createEl("details", { cls: "vam-next-requirements" });
     disclosure.open = false;
-    disclosure.createEl("summary", { text: t("ui.additional_requirements") });
-    this.requirementsInput = disclosure.createEl("textarea", { cls: "vam-next-focus" });
-    this.requirementsInput.rows = 3;
-    this.requirementsInput.setAttr("aria-label", t("ui.additional_requirements"));
+    const summary = disclosure.createEl("summary", { text: t("ui.additional_requirements") });
+    const value = summary.createSpan({ cls: "vam-next-disclosure-value", text: t("ui.not_set") });
+    const input = disclosure.createEl("textarea", { cls: "vam-next-focus" });
+    this.requirementsInput = input;
+    input.rows = 3;
+    input.setAttr("aria-label", t("ui.additional_requirements"));
+    input.addEventListener("input", () => {
+      const text11 = input.value.trim().replace(/\s+/g, " ");
+      value.setText(text11 ? text11.length > 24 ? `${text11.slice(0, 24)}\u2026` : text11 : t("ui.not_set"));
+    });
     disclosure.createEl("p", { text: t("ui.requirements_this_task_only"), cls: "vam-hint" });
     if ((_b = (_a = this.modelSettings) == null ? void 0 : _a.rules) == null ? void 0 : _b.trim())
       this.contentEl.createEl("p", { text: t("ui.legacy_rules_not_applied"), cls: "vam-hint" });
@@ -20571,7 +20571,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
     if (!this.modelSettings) return;
     const settings = this.modelSettings;
     const advanced = this.contentEl.createEl("details", { cls: "vam-advanced vam-next-model" });
-    advanced.createEl("summary", { text: t("ui.model_and_advanced_settings") });
+    const advancedValue = advanced.createEl("summary", { text: t("ui.model_and_advanced_settings") }).createSpan({ cls: "vam-next-disclosure-value" });
     const error = advanced.createEl("p", { cls: "vam-hint" });
     const save = (patch) => {
       this.settingsError = null;
@@ -20640,22 +20640,31 @@ var NextStepModal = class extends import_obsidian15.Modal {
         t("ui.0_1_reasoning_can_be_adjusted_per_topic", settings.model, sourceLabels[settings.modelSource])
       );
       save({ model: settings.model, modelSource: settings.modelSource });
+      describeModel();
     });
     const reasoningLabel = advanced.createEl("label", { cls: "vam-field" });
     reasoningLabel.createSpan({ text: t("ui.reasoning_level") });
     const reasoning = reasoningLabel.createEl("select");
     reasoning.setAttr("aria-label", t("ui.reasoning_level"));
-    for (const [value, label] of [
-      ["auto", t("ui.auto")],
-      ["low", t("ui.low")],
-      ["medium", t("ui.medium")],
-      ["high", t("ui.high")]
-    ])
-      reasoning.createEl("option", { value, text: label });
+    const reasoningLabels = {
+      auto: t("ui.auto"),
+      low: t("ui.low"),
+      medium: t("ui.medium"),
+      high: t("ui.high")
+    };
+    for (const [value, label] of Object.entries(reasoningLabels)) reasoning.createEl("option", { value, text: label });
     reasoning.value = normalizeReasoningLevel(settings.reasoning);
+    const describeModel = () => {
+      var _a2;
+      return advancedValue.setText(
+        `${this.plugin.modelLabel(settings.model)} \xB7 ${(_a2 = reasoningLabels[normalizeReasoningLevel(settings.reasoning)]) != null ? _a2 : ""}`
+      );
+    };
+    describeModel();
     reasoning.addEventListener("change", () => {
       settings.reasoning = normalizeReasoningLevel(reasoning.value);
       save({ reasoning: normalizeReasoningLevel(reasoning.value) });
+      describeModel();
     });
     return advanced;
   }
@@ -20685,6 +20694,8 @@ var NextStepModal = class extends import_obsidian15.Modal {
         if (this.closed || controller.signal.aborted) return;
         await work();
       } catch (error) {
+        if (this.closed && !controller.signal.aborted)
+          new import_obsidian15.Notice(error instanceof Error ? error.message : String(error));
         this.failed(
           panel,
           button,
@@ -20830,6 +20841,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
       rows.push({ item, check, title, task, contribution });
     }
     const confirm = result.createEl("button", { text: t("ui.create_subtopics"), cls: "mod-cta" });
+    button.classList.toggle("mod-cta", false);
     confirm.addEventListener("click", () => {
       void (async () => {
         var _a2;
@@ -20869,10 +20881,11 @@ var NextStepModal = class extends import_obsidian15.Modal {
               if (options.shallowResearch) {
                 this.taskSignal = void 0;
                 this.taskController = void 0;
-                this.close();
+                this.startedInBackground();
                 return;
               }
               result.empty();
+              button.classList.toggle("mod-cta", true);
               consumed();
               (_b = panel.querySelector(".vam-next-status")) == null ? void 0 : _b.setText(t("ui.subtopics_created"));
               confirm.disabled = false;
@@ -20880,6 +20893,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
             } catch (error) {
               if (error instanceof PartialChildBatchError) {
                 result.empty();
+                button.classList.toggle("mod-cta", true);
                 consumed();
                 button.disabled = true;
               }
@@ -21059,7 +21073,6 @@ var NextStepModal = class extends import_obsidian15.Modal {
       });
     });
     const expandPanel = this.contentEl.createDiv("vam-next-research vam-next-choice");
-    expandPanel.createEl("p", { text: t("ui.review_one_level_or_set_the_first_level_count_and_the_number") });
     const modes = expandPanel.createDiv("vam-next-depths vam-next-segmented");
     modes.setAttr("role", "radiogroup");
     modes.setAttr("aria-label", t("ui.expand_the_map"));
@@ -21398,12 +21411,15 @@ var NextStepModal = class extends import_obsidian15.Modal {
       t("ui.detail_template_keep_0", (_r = (_q = this.modelSettings) == null ? void 0 : _q.currentTemplate) != null ? _r : "")
     );
     const describeOutput = () => {
-      var _a2;
-      return outputValue.setText(
-        [languageSelect.value === "en" ? "English" : "\u7E41\u9AD4\u4E2D\u6587", (_a2 = this.modelSettings) == null ? void 0 : _a2.currentTemplate].filter(Boolean).join(" \xB7 ")
+      var _a2, _b2, _c2, _d2;
+      const picked = templateId();
+      const template = picked ? (_c2 = (_b2 = (_a2 = this.modelSettings) == null ? void 0 : _a2.templates) == null ? void 0 : _b2.find((item) => item.id === picked)) == null ? void 0 : _c2.name : (_d2 = this.modelSettings) == null ? void 0 : _d2.currentTemplate;
+      outputValue.setText(
+        [languageSelect.value === "en" ? "English" : "\u7E41\u9AD4\u4E2D\u6587", template].filter(Boolean).join(" \xB7 ")
       );
     };
     languageSelect.addEventListener("change", describeOutput);
+    compactSettings.addEventListener("change", describeOutput);
     describeOutput();
     show(initialMode);
     cardFor[initialMode].focus();
