@@ -522,6 +522,11 @@ var english = {
   "ui.zoom_out": "Zoom out",
   "ui.zoom_in": "Zoom in",
   "ui.show_all": "Show all",
+  "ui.zoom_reset": "Reset zoom to 100%",
+  "ui.new_map": "\uFF0B New map",
+  "ui.research_progress_0_of_1": "Researched {0} / {1}",
+  "ui.preview_card_size": "Hover preview size",
+  "ui.preview_card_size_desc": "Scale of the note preview shown when you hover a topic on the map.",
   "ui.preview": "Preview",
   "ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open": "Drag empty space to pan \xB7 Scroll to zoom \xB7 Click a node to open its note",
   "ui.clear": "Clear",
@@ -1774,6 +1779,11 @@ var traditionalChinese = {
   "ui.zoom_out": "\u7E2E\u5C0F",
   "ui.zoom_in": "\u653E\u5927",
   "ui.show_all": "\u986F\u793A\u5168\u90E8",
+  "ui.zoom_reset": "\u7E2E\u653E\u91CD\u8A2D\u70BA 100%",
+  "ui.new_map": "\uFF0B \u65B0\u589E\u5730\u5716",
+  "ui.research_progress_0_of_1": "\u5DF2\u7814\u7A76 {0} / {1}",
+  "ui.preview_card_size": "\u61F8\u505C\u9810\u89BD\u5927\u5C0F",
+  "ui.preview_card_size_desc": "\u5728\u5730\u5716\u4E0A\u628A\u6ED1\u9F20\u79FB\u5230\u8B70\u984C\u6642\uFF0C\u7B46\u8A18\u9810\u89BD\u5361\u7684\u7E2E\u653E\u6BD4\u4F8B\u3002",
   "ui.preview": "\u9810\u89BD",
   "ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open": "\u62D6\u66F3\u7A7A\u767D\u8655\u5E73\u79FB \xB7 \u6EFE\u8F2A\u7E2E\u653E \xB7 \u9EDE\u9078\u7BC0\u9EDE\u958B\u555F\u7B46\u8A18",
   "ui.clear": "\u6E05\u9664",
@@ -22682,6 +22692,75 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       this.render();
     } else this.changed(file);
   }
+  iconButton(parent, icon, label, action) {
+    const button = parent.createEl("button", { cls: "clickable-icon vam-icon-button", attr: { "aria-label": label } });
+    button.dataset.icon = icon;
+    (0, import_obsidian16.setIcon)(button, icon);
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      action(event);
+    });
+    return button;
+  }
+  openMapSwitcher() {
+    this.enqueue(async () => {
+      const topics = await this.plugin.repo.topics();
+      new ChoiceModal(this.app, t("ui.switch_mind_map"), t("ui.choose_a_research_topic_to_open"), [
+        {
+          label: t("ui.sample_taiwan_travel_plan"),
+          description: t("ui.official_read_only_sample"),
+          action: () => this.enqueue(() => this.openBuiltInSample())
+        },
+        ...topics.map((topic) => ({
+          label: topic.title,
+          description: t("ui.my_editable_mind_map"),
+          action: () => this.enqueue(() => this.openMapInMutation(topic.mapPath))
+        }))
+      ]).open();
+    });
+  }
+  /** The three ways to start a map sit together, so none reads as the only or the hidden option. */
+  openNewMapMenu(event) {
+    const menu = new import_obsidian16.Menu();
+    menu.addItem(
+      (item) => item.setTitle(t("ui.new_mind_map")).setIcon("file-plus").onClick(
+        () => new NameModal(
+          this.app,
+          t("ui.new_mind_map"),
+          t("ui.new_mind_map_from_sample"),
+          (title) => this.enqueue(async () => this.openMapInMutation(await this.plugin.repo.createMap(title)))
+        ).open()
+      )
+    );
+    menu.addItem(
+      (item) => item.setTitle(t("ui.outline_import")).setIcon("list-tree").onClick(() => this.openOutlineImport())
+    );
+    menu.addItem(
+      (item) => item.setTitle(t("ui.aim_create_map")).setIcon("route").onClick(() => this.openAimStart())
+    );
+    menu.showAtMouseEvent(event);
+  }
+  /** Research coverage is the map's headline fact: how much of the frontier already has a conclusion. */
+  renderResearchProgress(parent) {
+    var _a, _b;
+    const nodes = (_b = (_a = this.map) == null ? void 0 : _a.nodes) != null ? _b : [];
+    const done = nodes.filter((node) => {
+      var _a2;
+      return ((_a2 = this.notes.get(node.id)) == null ? void 0 : _a2.status) === "completed";
+    }).length;
+    const progress = parent.createDiv("vam-research-progress");
+    progress.setAttr("role", "progressbar");
+    progress.setAttr("aria-valuemin", "0");
+    progress.setAttr("aria-valuemax", String(nodes.length));
+    progress.setAttr("aria-valuenow", String(done));
+    progress.setAttr("aria-label", t("ui.research_progress_0_of_1", done, nodes.length));
+    progress.createSpan({
+      cls: "vam-research-progress-label",
+      text: t("ui.research_progress_0_of_1", done, nodes.length)
+    });
+    const fill = progress.createDiv("vam-research-progress-track").createDiv("vam-research-progress-fill");
+    fill.style.width = `${nodes.length ? done / nodes.length * 100 : 0}%`;
+  }
   button(parent, text11, action, disabled = false) {
     const button = parent.createEl("button", { text: text11 });
     button.disabled = disabled;
@@ -23303,13 +23382,17 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
   updateHistoryButtons() {
     var _a, _b, _c, _d;
     const undo = (_a = this.contentEl) == null ? void 0 : _a.querySelector("[data-history=undo]"), redo = (_b = this.contentEl) == null ? void 0 : _b.querySelector("[data-history=redo]");
+    const label = (button, text11) => {
+      if (button.dataset.icon) button.setAttr("aria-label", text11);
+      else button.setText(text11);
+    };
     if (undo) {
       undo.disabled = !this.history.canUndo;
-      undo.setText(((_c = this.history.undoEntry) == null ? void 0 : _c.label) ? `${t("ui.undo")}: ${this.history.undoEntry.label}` : t("ui.undo"));
+      label(undo, ((_c = this.history.undoEntry) == null ? void 0 : _c.label) ? `${t("ui.undo")}: ${this.history.undoEntry.label}` : t("ui.undo"));
     }
     if (redo) {
       redo.disabled = !this.history.canRedo;
-      redo.setText(((_d = this.history.redoEntry) == null ? void 0 : _d.label) ? `${t("ui.redo")}: ${this.history.redoEntry.label}` : t("ui.redo"));
+      label(redo, ((_d = this.history.redoEntry) == null ? void 0 : _d.label) ? `${t("ui.redo")}: ${this.history.redoEntry.label}` : t("ui.redo"));
     }
   }
   async synchronize() {
@@ -23633,61 +23716,35 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     }
     this.contentEl.empty();
     const toolbar = this.contentEl.createDiv("vam-toolbar");
-    toolbar.createEl("strong", { text: (_c = (_b = this.map) == null ? void 0 : _b.title) != null ? _c : "Visual Agent Map", cls: "vam-map-title" });
+    const switcher = toolbar.createEl("button", { cls: "vam-map-switcher" });
+    switcher.setAttr("aria-label", t("ui.switch_mind_map"));
+    switcher.createSpan({ text: (_c = (_b = this.map) == null ? void 0 : _b.title) != null ? _c : "Visual Agent Map", cls: "vam-map-title" });
+    (0, import_obsidian16.setIcon)(switcher.createSpan("vam-map-switcher-icon"), "chevrons-up-down");
+    switcher.addEventListener("click", () => this.openMapSwitcher());
     if (this.builtIn) toolbar.createSpan({ cls: "vam-readonly-badge", text: t("ui.official_sample_read_only") });
-    this.button(
-      toolbar,
-      t("ui.switch_mind_map"),
-      () => this.enqueue(async () => {
-        const topics = await this.plugin.repo.topics();
-        new ChoiceModal(this.app, t("ui.switch_mind_map"), t("ui.choose_a_research_topic_to_open"), [
-          {
-            label: t("ui.sample_taiwan_travel_plan"),
-            description: t("ui.official_read_only_sample"),
-            action: () => this.enqueue(() => this.openBuiltInSample())
-          },
-          ...topics.map((topic) => ({
-            label: topic.title,
-            description: t("ui.my_editable_mind_map"),
-            action: () => this.enqueue(() => this.openMapInMutation(topic.mapPath))
-          }))
-        ]).open();
-      })
-    );
+    if (this.map && !this.builtIn && !this.map.aim && this.map.nodes.length) this.renderResearchProgress(toolbar);
+    const headerActions = toolbar.createDiv("vam-toolbar-actions");
     if (this.builtIn) {
-      this.button(toolbar, t("ui.show_tour_again"), () => {
+      this.button(headerActions, t("ui.show_tour_again"), () => {
         this.showSampleTour = true;
         this.render();
       });
     } else if (this.map) {
-      this.button(
-        toolbar,
-        t("ui.mind_map"),
-        () => new NameModal(
-          this.app,
-          t("ui.new_mind_map"),
-          t("ui.new_mind_map_from_sample"),
-          (title2) => this.enqueue(async () => this.openMapInMutation(await this.plugin.repo.createMap(title2)))
-        ).open()
-      );
-      this.button(toolbar, t("ui.outline_import"), () => this.openOutlineImport());
-      this.button(toolbar, t("ui.aim_create_map"), () => this.openAimStart());
-      const undo = this.button(
-        toolbar,
-        t("ui.undo"),
-        () => this.enqueue(() => this.travel(false)),
-        !this.history.canUndo
-      );
+      const newMap = headerActions.createEl("button", { cls: "vam-new-map" });
+      newMap.createSpan({ text: t("ui.new_map") });
+      (0, import_obsidian16.setIcon)(newMap.createSpan("vam-new-map-icon"), "chevron-down");
+      newMap.addEventListener("click", (event) => {
+        event.stopPropagation();
+        this.openNewMapMenu(event);
+      });
+      const undo = this.iconButton(headerActions, "undo-2", t("ui.undo"), () => this.enqueue(() => this.travel(false)));
+      undo.disabled = !this.history.canUndo;
       undo.dataset.history = "undo";
-      const redo = this.button(
-        toolbar,
-        t("ui.redo"),
-        () => this.enqueue(() => this.travel(true)),
-        !this.history.canRedo
-      );
+      const redo = this.iconButton(headerActions, "redo-2", t("ui.redo"), () => this.enqueue(() => this.travel(true)));
+      redo.disabled = !this.history.canRedo;
       redo.dataset.history = "redo";
       this.updateHistoryButtons();
-      this.button(toolbar, t("ui.more"), () => this.openMapActions());
+      this.iconButton(headerActions, "more-vertical", t("ui.more_mind_map_actions"), () => this.openMapActions());
     }
     const selectedNode = (_d = this.map) == null ? void 0 : _d.nodes.find((node) => node.id === this.selected);
     if (!this.builtIn && ((_e = this.map) == null ? void 0 : _e.aim)) {
@@ -23926,7 +23983,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         this.button(actions, t("ui.check_codex"), () => this.enqueue(() => this.plugin.recheckCodex()));
     }
     if (!this.builtIn && !this.map.aim) this.renderMultiResearchStatus(this.contentEl);
-    const tools = this.contentEl.createDiv("vam-map-tools");
+    const tools = createDiv("vam-map-tools");
     if (!this.builtIn) {
       const aimMode = !!this.map.aim;
       if (!aimMode) this.button(tools, t("ui.topic"), () => this.enqueue(() => this.addNode(null))).addClass("mod-cta");
@@ -23955,37 +24012,26 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         if (this.integrationMode) integrate.addClass("is-active");
       }
     }
-    this.button(tools, "\u2212", () => this.zoomBy(1 / 1.2)).setAttr("aria-label", t("ui.zoom_out"));
-    this.zoomLabel = tools.createSpan({ text: `${Math.round(this.map.viewport.zoom * 100)}%`, cls: "vam-zoom" });
-    this.button(tools, "\uFF0B", () => this.zoomBy(1.2)).setAttr("aria-label", t("ui.zoom_in"));
-    this.button(tools, t("ui.show_all"), () => this.fit());
-    const previewControl = tools.createEl("label", { cls: "vam-preview-size" });
-    previewControl.createSpan({ text: t("ui.preview") });
-    const previewRange = previewControl.createEl("input", {
-      type: "range",
-      attr: { min: "80", max: "240", step: "5", value: String(clampPreviewScale(this.plugin.settings.previewScale)) }
-    });
-    const previewValue = previewControl.createSpan({
-      cls: "vam-preview-value",
-      text: `${clampPreviewScale(this.plugin.settings.previewScale)}%`
-    });
-    let previewSaveTimer = null;
-    previewRange.addEventListener("input", () => {
-      var _a2;
-      const value = clampPreviewScale(previewRange.value);
-      this.plugin.settings.previewScale = value;
-      previewValue.setText(`${value}%`);
-      (_a2 = this.hoverCard) == null ? void 0 : _a2.remove();
-      this.hoverCard = null;
-      if (previewSaveTimer !== null) window.clearTimeout(previewSaveTimer);
-      previewSaveTimer = window.setTimeout(() => {
-        void this.plugin.saveSettings();
-        previewSaveTimer = null;
-      }, 250);
-    });
-    tools.createSpan({ cls: "vam-hint", text: t("ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open") });
     const workspace = this.contentEl.createDiv("vam-workspace");
     this.viewportEl = workspace.createDiv("vam-viewport");
+    const overlay = workspace.createDiv("vam-canvas-overlay");
+    if (tools.childElementCount) overlay.appendChild(tools);
+    else tools.remove();
+    overlay.createSpan({ cls: "vam-hint", text: t("ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open") });
+    const zoom = overlay.createDiv("vam-zoom-controls");
+    this.iconButton(zoom, "minus", t("ui.zoom_out"), () => this.zoomBy(1 / 1.2));
+    const zoomReset = zoom.createEl("button", {
+      text: `${Math.round(this.map.viewport.zoom * 100)}%`,
+      cls: "vam-zoom",
+      attr: { "aria-label": t("ui.zoom_reset") }
+    });
+    zoomReset.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (this.map) this.zoomBy(1 / this.map.viewport.zoom);
+    });
+    this.zoomLabel = zoomReset;
+    this.iconButton(zoom, "plus", t("ui.zoom_in"), () => this.zoomBy(1.2));
+    this.iconButton(zoom, "maximize", t("ui.show_all"), () => this.fit());
     this.stageEl = this.viewportEl.createDiv("vam-stage");
     this.edgesEl = createSvg("svg");
     this.edgesEl.addClass("vam-edges");
@@ -27312,6 +27358,17 @@ var VisualAgentMapSettingTab = class extends import_obsidian18.PluginSettingTab 
           setting.setName(t("ui.markdown_selection_ai_auto_open")).setDesc(t("ui.markdown_selection_ai_auto_open_desc")).addToggle(
             (toggle) => toggle.setValue(this.plugin.settings.markdownSelectionAiAutoOpen).onChange(async (value) => {
               this.plugin.settings.markdownSelectionAiAutoOpen = value;
+              await this.plugin.saveSettings();
+            })
+          );
+        }
+      },
+      {
+        name: t("ui.preview_card_size"),
+        render: (setting) => {
+          setting.setName(t("ui.preview_card_size")).setDesc(t("ui.preview_card_size_desc")).addSlider(
+            (slider) => slider.setLimits(80, 240, 5).setValue(clampPreviewScale(this.plugin.settings.previewScale)).onChange(async (value) => {
+              this.plugin.settings.previewScale = clampPreviewScale(value);
               await this.plugin.saveSettings();
             })
           );

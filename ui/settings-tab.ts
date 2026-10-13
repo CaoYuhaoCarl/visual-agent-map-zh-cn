@@ -3,6 +3,7 @@ import { t } from "../i18n";
 import { normalizeReasoningLevel } from "../repository";
 import { syncModelSelect } from "../core/model-discovery";
 import { renderDetailTemplatesSetting } from "./modals/detail-templates-modal";
+import { clampPreviewScale } from "./preview-utils";
 import { App, Modal, PluginSettingTab, Setting, type SettingDefinitionItem } from "obsidian";
 
 export const CODEX_INSTALL_URL = "https://developers.openai.com/codex/cli/";
@@ -262,6 +263,23 @@ export class VisualAgentMapSettingTab extends PluginSettingTab {
                 this.plugin.settings.markdownSelectionAiAutoOpen = value;
                 await this.plugin.saveSettings();
               })
+            );
+        }
+      },
+      {
+        name: t("ui.preview_card_size"),
+        render: setting => {
+          setting
+            .setName(t("ui.preview_card_size"))
+            .setDesc(t("ui.preview_card_size_desc"))
+            .addSlider(slider =>
+              slider
+                .setLimits(80, 240, 5)
+                .setValue(clampPreviewScale(this.plugin.settings.previewScale))
+                .onChange(async value => {
+                  this.plugin.settings.previewScale = clampPreviewScale(value);
+                  await this.plugin.saveSettings();
+                })
             );
         }
       },

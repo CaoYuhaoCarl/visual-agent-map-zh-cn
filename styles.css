@@ -13,15 +13,35 @@
 
 .vam-outline-empty.is-stale { color: var(--text-warning); }
 .ct-outline-highlight .ct-bubble { outline: 2px solid var(--interactive-accent); outline-offset: 3px; transition: outline-color 1s ease; }
-.vam-toolbar, .vam-map-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--background-modifier-border); background: var(--background-primary); flex-shrink: 0; }
-.vam-map-title { margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280px; }
+.vam-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; min-height: 48px; padding: 6px 10px 6px 6px; border-bottom: 1px solid var(--background-modifier-border); background: var(--background-primary); flex-shrink: 0; }
 .vam-toolbar button, .vam-map-tools button, .vam-actions button { font-size: var(--font-ui-small); }
+.vam-toolbar .vam-map-switcher { display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: min(460px, 45%); height: auto; padding: 6px 8px; border: 0; border-radius: var(--radius-m); background: transparent; box-shadow: none; color: var(--text-normal); cursor: pointer; }
+.vam-toolbar .vam-map-switcher { font-size: var(--font-ui-medium); }
+.vam-toolbar .vam-map-switcher:hover { background: var(--background-modifier-hover); }
+.vam-map-switcher:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
+.vam-map-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; }
+.vam-map-switcher-icon { display: inline-flex; flex-shrink: 0; color: var(--text-faint); }
+.vam-map-switcher-icon svg { width: 14px; height: 14px; }
+.vam-research-progress { display: inline-flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: var(--font-ui-smaller); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vam-research-progress-track { width: 88px; height: 4px; overflow: hidden; border-radius: 2px; background: var(--background-modifier-border); }
+.vam-research-progress-fill { height: 100%; border-radius: inherit; background: var(--interactive-accent); }
+.vam-toolbar-actions { display: flex; align-items: center; gap: 2px; margin-left: auto; }
+.vam-toolbar-actions .vam-new-map { display: inline-flex; align-items: center; gap: 4px; margin-right: 6px; }
+.vam-new-map-icon { display: inline-flex; color: var(--text-muted); }
+.vam-new-map-icon svg { width: 14px; height: 14px; }
+.vam-icon-button:disabled { opacity: 0.4; cursor: default; }
+.vam-canvas-overlay { position: absolute; z-index: 4; inset: 0; pointer-events: none; }
+.vam-workspace:has(> .vam-inspector) > .vam-canvas-overlay { right: 300px; }
+.vam-canvas-overlay > * { pointer-events: auto; }
+.vam-map-tools, .vam-zoom-controls { position: absolute; display: flex; align-items: center; gap: 2px; padding: 4px; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); background: var(--background-primary); box-shadow: var(--shadow-s); }
+.vam-map-tools { top: 12px; left: 12px; flex-wrap: wrap; max-width: calc(100% - 24px); }
+.vam-map-tools button:not(.mod-cta), .vam-zoom-controls button { background: transparent; box-shadow: none; }
+.vam-map-tools button:not(.mod-cta):hover, .vam-zoom-controls button:hover { background: var(--background-modifier-hover); }
+.vam-map-tools button.is-active { background: var(--background-modifier-active-hover); color: var(--text-accent); }
+.vam-zoom-controls { right: 12px; bottom: 12px; }
+.vam-zoom { min-width: 52px; padding: 0 6px; text-align: center; font-variant-numeric: tabular-nums; color: var(--text-muted); }
 .vam-hint { color: var(--text-muted); font-size: var(--font-ui-smaller); line-height: 1.5; }
-.vam-map-tools > .vam-hint { margin-left: auto; }
-.vam-zoom { min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; color: var(--text-muted); }
-.vam-preview-size { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: var(--font-ui-smaller); }
-.vam-preview-size input[type="range"] { width: 118px; }
-.vam-preview-value { min-width: 42px; font-variant-numeric: tabular-nums; color: var(--text-muted); }
+.vam-canvas-overlay > .vam-hint { position: absolute; left: 14px; bottom: 16px; max-width: 50%; color: var(--text-faint); pointer-events: none; }
 .vam-workspace { display: flex; flex: 1; min-height: 0; min-width: 0; position: relative; }
 .vam-viewport { position: relative; flex: 1; min-width: 0; overflow: hidden; cursor: grab; touch-action: none; background-color: var(--background-secondary); background-image: radial-gradient(var(--background-modifier-border) 1px, transparent 1px); background-size: 24px 24px; }
 .vam-viewport.is-panning { cursor: grabbing; }
@@ -221,7 +241,7 @@
 .markdown-preview-view.visual-agent-map-node .metadata-container,
 body .workspace-leaf-content.vam-topic-markdown .markdown-source-view.mod-cm6 .metadata-container { display: none; }
 .workspace-leaf-content.vam-topic-markdown .inline-title { display: none; }
-@media (max-width: 900px) { .vam-map-tools > .vam-hint { display: none; } .vam-inspector { width: 260px; } }
+@media (max-width: 900px) { .vam-canvas-overlay > .vam-hint { display: none; } .vam-inspector { width: 260px; } .vam-workspace:has(> .vam-inspector) > .vam-canvas-overlay { right: 260px; } }
 @media (max-width: 600px) { .vam-inspector { position: absolute; right: 0; top: 0; bottom: 0; width: min(300px, 85%); z-index: 5; box-shadow: -5px 0 20px rgba(0,0,0,0.1); } }
 
 .vam-hover-markdown { font-size: var(--vam-hover-body-size, 13px); line-height: var(--vam-hover-line-height, 1.45); }

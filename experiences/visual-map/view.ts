@@ -4,7 +4,7 @@ import { withThinkingOrigin } from "./thinking-origin";
 import { createHash, randomUUID } from "node:crypto";
 import type VisualAgentMapPlugin from "../../main";
 import { t, topicStatusLabel, translate, type TranslationKey, type UiLanguage } from "../../i18n";
-import { MarkdownRenderer, ItemView, Modal, Notice, TFile, WorkspaceLeaf } from "obsidian";
+import { MarkdownRenderer, ItemView, Menu, Modal, Notice, TFile, WorkspaceLeaf, setIcon } from "obsidian";
 import { readMarkdownFile, type ReferenceGroup } from "../../ai/reference-materials";
 import { NameModal } from "../../ui/modals/name-modal";
 import { ChoiceModal } from "../../ui/modals/choice-modal";
@@ -56,7 +56,7 @@ import {
   type DetailTemplate
 } from "../../ai/detail-templates";
 import type { AiResult, Suggestion, TaskContext } from "../../ai/types";
-import { clampPreviewScale, previewMetrics } from "../../ui/preview-utils";
+import { previewMetrics } from "../../ui/preview-utils";
 import { BUILTIN_SAMPLE_ID, builtInSample, SAMPLE_TOUR_VERSION } from "../../builtin-sample";
 import { PendingSuggestions } from "../../pending-suggestions";
 import { createAimMap } from "../aim/create-map";
@@ -1401,6 +1401,82 @@ export class VisualAgentMapView extends ItemView {
       this.render();
     } else this.changed(file);
   }
+  private iconButton(
+    parent: HTMLElement,
+    icon: string,
+    label: string,
+    action: (event: MouseEvent) => void
+  ): HTMLButtonElement {
+    const button = parent.createEl("button", { cls: "clickable-icon vam-icon-button", attr: { "aria-label": label } });
+    button.dataset.icon = icon;
+    setIcon(button, icon);
+    button.addEventListener("click", event => {
+      event.stopPropagation();
+      action(event);
+    });
+    return button;
+  }
+  private openMapSwitcher(): void {
+    this.enqueue(async () => {
+      const topics = await this.plugin.repo.topics();
+      new ChoiceModal(this.app, t("ui.switch_mind_map"), t("ui.choose_a_research_topic_to_open"), [
+        {
+          label: t("ui.sample_taiwan_travel_plan"),
+          description: t("ui.official_read_only_sample"),
+          action: () => this.enqueue(() => this.openBuiltInSample())
+        },
+        ...topics.map(topic => ({
+          label: topic.title,
+          description: t("ui.my_editable_mind_map"),
+          action: () => this.enqueue(() => this.openMapInMutation(topic.mapPath))
+        }))
+      ]).open();
+    });
+  }
+  /** The three ways to start a map sit together, so none reads as the only or the hidden option. */
+  private openNewMapMenu(event: MouseEvent): void {
+    const menu = new Menu();
+    menu.addItem(item =>
+      item
+        .setTitle(t("ui.new_mind_map"))
+        .setIcon("file-plus")
+        .onClick(() =>
+          new NameModal(this.app, t("ui.new_mind_map"), t("ui.new_mind_map_from_sample"), title =>
+            this.enqueue(async () => this.openMapInMutation(await this.plugin.repo.createMap(title)))
+          ).open()
+        )
+    );
+    menu.addItem(item =>
+      item
+        .setTitle(t("ui.outline_import"))
+        .setIcon("list-tree")
+        .onClick(() => this.openOutlineImport())
+    );
+    menu.addItem(item =>
+      item
+        .setTitle(t("ui.aim_create_map"))
+        .setIcon("route")
+        .onClick(() => this.openAimStart())
+    );
+    menu.showAtMouseEvent(event);
+  }
+  /** Research coverage is the map's headline fact: how much of the frontier already has a conclusion. */
+  private renderResearchProgress(parent: HTMLElement): void {
+    const nodes = this.map?.nodes ?? [];
+    const done = nodes.filter(node => this.notes.get(node.id)?.status === "completed").length;
+    const progress = parent.createDiv("vam-research-progress");
+    progress.setAttr("role", "progressbar");
+    progress.setAttr("aria-valuemin", "0");
+    progress.setAttr("aria-valuemax", String(nodes.length));
+    progress.setAttr("aria-valuenow", String(done));
+    progress.setAttr("aria-label", t("ui.research_progress_0_of_1", done, nodes.length));
+    progress.createSpan({
+      cls: "vam-research-progress-label",
+      text: t("ui.research_progress_0_of_1", done, nodes.length)
+    });
+    const fill = progress.createDiv("vam-research-progress-track").createDiv("vam-research-progress-fill");
+    fill.style.width = `${nodes.length ? (done / nodes.length) * 100 : 0}%`;
+  }
   private button(parent: HTMLElement, text: string, action: () => void, disabled = false): HTMLButtonElement {
     const button = parent.createEl("button", { text });
     button.disabled = disabled;
@@ -2080,13 +2156,17 @@ export class VisualAgentMapView extends ItemView {
   private updateHistoryButtons(): void {
     const undo = this.contentEl?.querySelector<HTMLButtonElement>("[data-history=undo]"),
       redo = this.contentEl?.querySelector<HTMLButtonElement>("[data-history=redo]");
+    const label = (button: HTMLButtonElement, text: string): void => {
+      if (button.dataset.icon) button.setAttr("aria-label", text);
+      else button.setText(text);
+    };
     if (undo) {
       undo.disabled = !this.history.canUndo;
-      undo.setText(this.history.undoEntry?.label ? `${t("ui.undo")}: ${this.history.undoEntry.label}` : t("ui.undo"));
+      label(undo, this.history.undoEntry?.label ? `${t("ui.undo")}: ${this.history.undoEntry.label}` : t("ui.undo"));
     }
     if (redo) {
       redo.disabled = !this.history.canRedo;
-      redo.setText(this.history.redoEntry?.label ? `${t("ui.redo")}: ${this.history.redoEntry.label}` : t("ui.redo"));
+      label(redo, this.history.redoEntry?.label ? `${t("ui.redo")}: ${this.history.redoEntry.label}` : t("ui.redo"));
     }
   }
   async synchronize(): Promise<void> {
@@ -2403,54 +2483,35 @@ export class VisualAgentMapView extends ItemView {
     }
     this.contentEl.empty();
     const toolbar = this.contentEl.createDiv("vam-toolbar");
-    toolbar.createEl("strong", { text: this.map?.title ?? "Visual Agent Map", cls: "vam-map-title" });
+    const switcher = toolbar.createEl("button", { cls: "vam-map-switcher" });
+    switcher.setAttr("aria-label", t("ui.switch_mind_map"));
+    switcher.createSpan({ text: this.map?.title ?? "Visual Agent Map", cls: "vam-map-title" });
+    setIcon(switcher.createSpan("vam-map-switcher-icon"), "chevrons-up-down");
+    switcher.addEventListener("click", () => this.openMapSwitcher());
     if (this.builtIn) toolbar.createSpan({ cls: "vam-readonly-badge", text: t("ui.official_sample_read_only") });
-    this.button(toolbar, t("ui.switch_mind_map"), () =>
-      this.enqueue(async () => {
-        const topics = await this.plugin.repo.topics();
-        new ChoiceModal(this.app, t("ui.switch_mind_map"), t("ui.choose_a_research_topic_to_open"), [
-          {
-            label: t("ui.sample_taiwan_travel_plan"),
-            description: t("ui.official_read_only_sample"),
-            action: () => this.enqueue(() => this.openBuiltInSample())
-          },
-          ...topics.map(topic => ({
-            label: topic.title,
-            description: t("ui.my_editable_mind_map"),
-            action: () => this.enqueue(() => this.openMapInMutation(topic.mapPath))
-          }))
-        ]).open();
-      })
-    );
+    if (this.map && !this.builtIn && !this.map.aim && this.map.nodes.length) this.renderResearchProgress(toolbar);
+    const headerActions = toolbar.createDiv("vam-toolbar-actions");
     if (this.builtIn) {
-      this.button(toolbar, t("ui.show_tour_again"), () => {
+      this.button(headerActions, t("ui.show_tour_again"), () => {
         this.showSampleTour = true;
         this.render();
       });
     } else if (this.map) {
-      this.button(toolbar, t("ui.mind_map"), () =>
-        new NameModal(this.app, t("ui.new_mind_map"), t("ui.new_mind_map_from_sample"), title =>
-          this.enqueue(async () => this.openMapInMutation(await this.plugin.repo.createMap(title)))
-        ).open()
-      );
-      this.button(toolbar, t("ui.outline_import"), () => this.openOutlineImport());
-      this.button(toolbar, t("ui.aim_create_map"), () => this.openAimStart());
-      const undo = this.button(
-        toolbar,
-        t("ui.undo"),
-        () => this.enqueue(() => this.travel(false)),
-        !this.history.canUndo
-      );
+      const newMap = headerActions.createEl("button", { cls: "vam-new-map" });
+      newMap.createSpan({ text: t("ui.new_map") });
+      setIcon(newMap.createSpan("vam-new-map-icon"), "chevron-down");
+      newMap.addEventListener("click", event => {
+        event.stopPropagation();
+        this.openNewMapMenu(event);
+      });
+      const undo = this.iconButton(headerActions, "undo-2", t("ui.undo"), () => this.enqueue(() => this.travel(false)));
+      undo.disabled = !this.history.canUndo;
       undo.dataset.history = "undo";
-      const redo = this.button(
-        toolbar,
-        t("ui.redo"),
-        () => this.enqueue(() => this.travel(true)),
-        !this.history.canRedo
-      );
+      const redo = this.iconButton(headerActions, "redo-2", t("ui.redo"), () => this.enqueue(() => this.travel(true)));
+      redo.disabled = !this.history.canRedo;
       redo.dataset.history = "redo";
       this.updateHistoryButtons();
-      this.button(toolbar, t("ui.more"), () => this.openMapActions());
+      this.iconButton(headerActions, "more-vertical", t("ui.more_mind_map_actions"), () => this.openMapActions());
     }
     const selectedNode = this.map?.nodes.find(node => node.id === this.selected);
     if (!this.builtIn && this.map?.aim) {
@@ -2692,7 +2753,7 @@ export class VisualAgentMapView extends ItemView {
         this.button(actions, t("ui.check_codex"), () => this.enqueue(() => this.plugin.recheckCodex()));
     }
     if (!this.builtIn && !this.map.aim) this.renderMultiResearchStatus(this.contentEl);
-    const tools = this.contentEl.createDiv("vam-map-tools");
+    const tools = createDiv("vam-map-tools");
     if (!this.builtIn) {
       const aimMode = !!this.map.aim;
       if (!aimMode) this.button(tools, t("ui.topic"), () => this.enqueue(() => this.addNode(null))).addClass("mod-cta");
@@ -2719,36 +2780,27 @@ export class VisualAgentMapView extends ItemView {
         if (this.integrationMode) integrate.addClass("is-active");
       }
     }
-    this.button(tools, "−", () => this.zoomBy(1 / 1.2)).setAttr("aria-label", t("ui.zoom_out"));
-    this.zoomLabel = tools.createSpan({ text: `${Math.round(this.map.viewport.zoom * 100)}%`, cls: "vam-zoom" });
-    this.button(tools, "＋", () => this.zoomBy(1.2)).setAttr("aria-label", t("ui.zoom_in"));
-    this.button(tools, t("ui.show_all"), () => this.fit());
-    const previewControl = tools.createEl("label", { cls: "vam-preview-size" });
-    previewControl.createSpan({ text: t("ui.preview") });
-    const previewRange = previewControl.createEl("input", {
-      type: "range",
-      attr: { min: "80", max: "240", step: "5", value: String(clampPreviewScale(this.plugin.settings.previewScale)) }
-    });
-    const previewValue = previewControl.createSpan({
-      cls: "vam-preview-value",
-      text: `${clampPreviewScale(this.plugin.settings.previewScale)}%`
-    });
-    let previewSaveTimer: number | null = null;
-    previewRange.addEventListener("input", () => {
-      const value = clampPreviewScale(previewRange.value);
-      this.plugin.settings.previewScale = value;
-      previewValue.setText(`${value}%`);
-      this.hoverCard?.remove();
-      this.hoverCard = null;
-      if (previewSaveTimer !== null) window.clearTimeout(previewSaveTimer);
-      previewSaveTimer = window.setTimeout(() => {
-        void this.plugin.saveSettings();
-        previewSaveTimer = null;
-      }, 250);
-    });
-    tools.createSpan({ cls: "vam-hint", text: t("ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open") });
     const workspace = this.contentEl.createDiv("vam-workspace");
     this.viewportEl = workspace.createDiv("vam-viewport");
+    // Canvas controls float over the map instead of stacking a second toolbar above it.
+    const overlay = workspace.createDiv("vam-canvas-overlay");
+    if (tools.childElementCount) overlay.appendChild(tools);
+    else tools.remove();
+    overlay.createSpan({ cls: "vam-hint", text: t("ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open") });
+    const zoom = overlay.createDiv("vam-zoom-controls");
+    this.iconButton(zoom, "minus", t("ui.zoom_out"), () => this.zoomBy(1 / 1.2));
+    const zoomReset = zoom.createEl("button", {
+      text: `${Math.round(this.map.viewport.zoom * 100)}%`,
+      cls: "vam-zoom",
+      attr: { "aria-label": t("ui.zoom_reset") }
+    });
+    zoomReset.addEventListener("click", event => {
+      event.stopPropagation();
+      if (this.map) this.zoomBy(1 / this.map.viewport.zoom);
+    });
+    this.zoomLabel = zoomReset;
+    this.iconButton(zoom, "plus", t("ui.zoom_in"), () => this.zoomBy(1.2));
+    this.iconButton(zoom, "maximize", t("ui.show_all"), () => this.fit());
     this.stageEl = this.viewportEl.createDiv("vam-stage");
     this.edgesEl = createSvg("svg");
     this.edgesEl.addClass("vam-edges");
