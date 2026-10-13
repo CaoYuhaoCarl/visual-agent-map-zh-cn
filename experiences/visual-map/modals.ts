@@ -787,7 +787,10 @@ export class NextStepModal extends Modal {
     confirm.dataset.topicRun = t("ui.confirm_research_task");
     confirm.disabled = !!this.modelSettings?.running;
     let synthAction: HTMLButtonElement | undefined;
+    // The three steps are one choice: a radio group with arrow-key movement, not three toggles.
     const cards = this.contentEl.createDiv("vam-next-cards");
+    cards.setAttr("role", "radiogroup");
+    cards.setAttr("aria-label", t("ui.how_would_you_like_to_explore_next"));
     let show: (mode: "research" | "expand" | "synthesize") => void;
     const card = (
       title: TranslationKey,
@@ -798,9 +801,23 @@ export class NextStepModal extends Modal {
       const copy = button.createSpan();
       copy.createEl("strong", { text: t(title) });
       copy.createSpan({ text: t(description) });
-      button.createSpan({ text: "›", cls: "vam-next-arrow" });
+      button.setAttr("role", "radio");
+      button.setAttr("aria-checked", mode === initialMode ? "true" : "false");
+      button.tabIndex = mode === initialMode ? 0 : -1;
       button.addEventListener("click", () => show(mode));
-      button.setAttr("aria-pressed", mode === initialMode ? "true" : "false");
+      button.addEventListener("keydown", event => {
+        const order = ["research", "expand", "synthesize"] as const;
+        const step = ["ArrowRight", "ArrowDown"].includes(event.key)
+          ? 1
+          : ["ArrowLeft", "ArrowUp"].includes(event.key)
+            ? -1
+            : 0;
+        if (!step) return;
+        event.preventDefault();
+        const next = order[(order.indexOf(mode) + step + order.length) % order.length];
+        show(next);
+        cardFor[next].focus();
+      });
       if (mode === initialMode) {
         button.addClass("is-active");
         button.createSpan({ text: t("ui.suggested"), cls: "vam-next-suggested" });
@@ -818,6 +835,7 @@ export class NextStepModal extends Modal {
       "ui.find_shared_conclusions_differences_and_next_steps_across_su",
       "synthesize"
     );
+    const cardFor = { research: researchCard, expand: expandCard, synthesize: synthesizeCard };
     if (this.modelSettings?.running) {
       const running = this.contentEl.createDiv("vam-next-running");
       running.createSpan({ text: t("ui.ai_running_ai") });
@@ -922,14 +940,35 @@ export class NextStepModal extends Modal {
     });
     const expandPanel = this.contentEl.createDiv("vam-next-research vam-next-choice");
     expandPanel.createEl("p", { text: t("ui.review_one_level_or_set_the_first_level_count_and_the_number") });
-    const modes = expandPanel.createDiv("vam-next-depths");
+    const modes = expandPanel.createDiv("vam-next-depths vam-next-segmented");
+    modes.setAttr("role", "radiogroup");
+    modes.setAttr("aria-label", t("ui.expand_the_map"));
     const guided = modes.createEl("button", { text: t("ui.choose_directions_together"), cls: "is-active" });
     const quick = modes.createEl("button", { text: t("ui.quickly_explore_a_map") });
+    for (const [option, checked] of [
+      [guided, true],
+      [quick, false]
+    ] as const) {
+      option.setAttr("role", "radio");
+      option.setAttr("aria-checked", String(checked));
+      option.tabIndex = checked ? 0 : -1;
+      option.addEventListener("keydown", event => {
+        if (!["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp"].includes(event.key)) return;
+        event.preventDefault();
+        const other = option === guided ? quick : guided;
+        setExpandMode(other === quick);
+        other.focus();
+      });
+    }
     let multiLayer = false;
     const setExpandMode = (value: boolean): void => {
       multiLayer = value;
       guided.classList.toggle("is-active", !value);
       quick.classList.toggle("is-active", value);
+      guided.setAttr("aria-checked", String(!value));
+      quick.setAttr("aria-checked", String(value));
+      guided.tabIndex = value ? -1 : 0;
+      quick.tabIndex = value ? 0 : -1;
       modeHint.setText(
         value
           ? t("ui.ai_creates_a_starter_map_at_the_chosen_size_shallow_research")
@@ -1213,7 +1252,8 @@ export class NextStepModal extends Modal {
         ["synthesize", synthesizeCard, synthesizePanel]
       ] as const) {
         button.classList.toggle("is-active", name === mode);
-        button.setAttr("aria-pressed", name === mode ? "true" : "false");
+        button.setAttr("aria-checked", name === mode ? "true" : "false");
+        button.tabIndex = name === mode ? 0 : -1;
         panel.style.display = name === mode ? "" : "none";
       }
       confirm.hidden = mode !== "research";
@@ -1249,6 +1289,7 @@ export class NextStepModal extends Modal {
     languageSelect.addEventListener("change", describeOutput);
     describeOutput();
     show(initialMode);
+    cardFor[initialMode].focus();
     this.renderModelSettings();
     this.contentEl.createEl("p", {
       text: t("ui.if_an_ai_task_exceeds_3_minutes_vam_attempts_to_interrupt_it"),

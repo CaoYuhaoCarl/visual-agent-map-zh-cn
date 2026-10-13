@@ -159,10 +159,10 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
     createEl(name, value) { const child = element(name, value); this.children.push(child); return child; },
     createSpan(value) { const child = element('span', value); this.children.push(child); return child; },
     addClass(name) { this.cls = name; }, setText(value) { this.text = value; }, setAttr(name, value) { this[name] = value; }, add(option) { this.children.push(option); }, replaceChildren(...children) { this.children = children; },
-    addEventListener(name, handler) { if (name === 'click') this.click = handler; if (name === 'change') this.change = handler; if (name === 'input') this.input = handler; },
+    addEventListener(name, handler) { if (name === 'click') this.click = handler; if (name === 'change') this.change = handler; if (name === 'input') this.input = handler; if (name === 'keydown') this.keydown = handler; },
     querySelector(selector) { const name = selector.slice(1); return find(this, item => item.cls.split(' ').includes(name)); },
     querySelectorAll(selector) { return all(this, item => selector === 'button[data-topic-run]' && item.tag === 'button' && item.dataset.topicRun !== undefined); },
-    empty() { this.children = []; }, remove() { this.removed = true; }
+    empty() { this.children = []; }, remove() { this.removed = true; }, focus() { this.focused = true; }
   });
   const find = (root, predicate) => predicate(root) ? root : root.children.map(child => find(child, predicate)).find(Boolean);
   const all = (root, predicate) => [...(predicate(root) ? [root] : []), ...root.children.flatMap(child => all(child, predicate))];
@@ -184,13 +184,21 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   const requirementsDisclosure = find(modal.contentEl, item => item.cls.includes('vam-next-requirements'));
   assert.equal(requirementsDisclosure.open, false);
   const cards = find(modal.contentEl, item => item.cls === 'vam-next-cards');
-  assert.deepEqual(cards.children.map(item => item['aria-pressed']), ['true', 'false', 'false']);
+  assert.deepEqual(cards.children.map(item => item['aria-checked']), ['true', 'false', 'false']);
   const [research, expand, synthesize] = all(modal.contentEl, item => item.cls.includes('vam-next-research'));
   // The step's primary action lives in the action bar below the content; the cards follow the topic line.
   const actions = find(modal.modalEl, item => item.cls.includes('vam-next-actions'));
   const researchAction = button(actions, 'Confirm research task');
   assert.equal(modal.contentEl.children.indexOf(cards), 1);
-  const activeCard = () => cards.children.findIndex(item => item['aria-pressed'] === 'true');
+  const activeCard = () => cards.children.findIndex(item => item['aria-checked'] === 'true');
+  assert.equal(activeCard(), 0);
+  // The steps form one radio group: the chosen step holds focus and the only tab stop; arrows move the choice.
+  assert.equal(cards.role, 'radiogroup');
+  assert.deepEqual(cards.children.map(item => [item.role, item.tabIndex]), [['radio', 0], ['radio', -1], ['radio', -1]]);
+  assert.equal(cards.children[0].focused, true);
+  cards.children[0].keydown({ key: 'ArrowRight', preventDefault() {} });
+  assert.equal(activeCard(), 1); assert.equal(cards.children[1].focused, true);
+  cards.children[1].keydown({ key: 'ArrowLeft', preventDefault() {} });
   assert.equal(activeCard(), 0);
   assert.equal(researchAction.dataset.topicRun, 'Confirm research task');
   assert.equal(researchAction.disabled, false);
@@ -296,7 +304,7 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   const suggested = (childrenCount, topicStatus, childrenCompleted) => {
     const suggestModal = new NextStepModal({}, 'Parent', 'normal', childrenCount, 0, plugin, async () => {}, async () => {}, async () => {}, { ...modelSettings, topicStatus, childrenCompleted });
     suggestModal.onOpen();
-    return find(suggestModal.contentEl, item => item.cls === 'vam-next-cards').children.findIndex(item => item['aria-pressed'] === 'true');
+    return find(suggestModal.contentEl, item => item.cls === 'vam-next-cards').children.findIndex(item => item['aria-checked'] === 'true');
   };
   assert.equal(suggested(0, 'idea', 0), 0, 'a topic to research suggests researching it');
   assert.equal(suggested(0, 'completed', 0), 1, 'a researched topic without subtopics suggests expanding');
@@ -563,7 +571,7 @@ integrationTest('Next Step modal: the content template choice goes into research
     addClass(name) { this.cls = name; }, setText(value) { this.text = value; }, setAttr(name, value) { this[name] = value; }, add(option) { this.children.push(option); }, replaceChildren(...children) { this.children = children; },
     addEventListener(name, handler) { if (name === 'click') this.click = handler; if (name === 'change') this.change = handler; if (name === 'input') this.input = handler; },
     querySelector(selector) { const name = selector.slice(1); return find(this, item => item.cls.split(' ').includes(name)); },
-    querySelectorAll() { return []; }, empty() { this.children = []; }, remove() {}
+    querySelectorAll() { return []; }, empty() { this.children = []; }, remove() {}, focus() {}
   });
   const find = (root, predicate) => predicate(root) ? root : root.children.map(child => find(child, predicate)).find(Boolean);
   const all = (root, predicate) => [...(predicate(root) ? [root] : []), ...root.children.flatMap(child => all(child, predicate))];

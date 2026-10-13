@@ -20871,15 +20871,27 @@ var NextStepModal = class extends import_obsidian15.Modal {
     confirm.disabled = !!((_b = this.modelSettings) == null ? void 0 : _b.running);
     let synthAction;
     const cards = this.contentEl.createDiv("vam-next-cards");
+    cards.setAttr("role", "radiogroup");
+    cards.setAttr("aria-label", t("ui.how_would_you_like_to_explore_next"));
     let show;
     const card = (title, description, mode) => {
       const button = cards.createEl("button", { cls: "vam-next-card" });
       const copy = button.createSpan();
       copy.createEl("strong", { text: t(title) });
       copy.createSpan({ text: t(description) });
-      button.createSpan({ text: "\u203A", cls: "vam-next-arrow" });
+      button.setAttr("role", "radio");
+      button.setAttr("aria-checked", mode === initialMode ? "true" : "false");
+      button.tabIndex = mode === initialMode ? 0 : -1;
       button.addEventListener("click", () => show(mode));
-      button.setAttr("aria-pressed", mode === initialMode ? "true" : "false");
+      button.addEventListener("keydown", (event) => {
+        const order = ["research", "expand", "synthesize"];
+        const step = ["ArrowRight", "ArrowDown"].includes(event.key) ? 1 : ["ArrowLeft", "ArrowUp"].includes(event.key) ? -1 : 0;
+        if (!step) return;
+        event.preventDefault();
+        const next = order[(order.indexOf(mode) + step + order.length) % order.length];
+        show(next);
+        cardFor[next].focus();
+      });
       if (mode === initialMode) {
         button.addClass("is-active");
         button.createSpan({ text: t("ui.suggested"), cls: "vam-next-suggested" });
@@ -20897,6 +20909,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
       "ui.find_shared_conclusions_differences_and_next_steps_across_su",
       "synthesize"
     );
+    const cardFor = { research: researchCard, expand: expandCard, synthesize: synthesizeCard };
     if ((_c = this.modelSettings) == null ? void 0 : _c.running) {
       const running = this.contentEl.createDiv("vam-next-running");
       running.createSpan({ text: t("ui.ai_running_ai") });
@@ -21004,15 +21017,36 @@ var NextStepModal = class extends import_obsidian15.Modal {
     });
     const expandPanel = this.contentEl.createDiv("vam-next-research vam-next-choice");
     expandPanel.createEl("p", { text: t("ui.review_one_level_or_set_the_first_level_count_and_the_number") });
-    const modes = expandPanel.createDiv("vam-next-depths");
+    const modes = expandPanel.createDiv("vam-next-depths vam-next-segmented");
+    modes.setAttr("role", "radiogroup");
+    modes.setAttr("aria-label", t("ui.expand_the_map"));
     const guided = modes.createEl("button", { text: t("ui.choose_directions_together"), cls: "is-active" });
     const quick = modes.createEl("button", { text: t("ui.quickly_explore_a_map") });
+    for (const [option2, checked] of [
+      [guided, true],
+      [quick, false]
+    ]) {
+      option2.setAttr("role", "radio");
+      option2.setAttr("aria-checked", String(checked));
+      option2.tabIndex = checked ? 0 : -1;
+      option2.addEventListener("keydown", (event) => {
+        if (!["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp"].includes(event.key)) return;
+        event.preventDefault();
+        const other = option2 === guided ? quick : guided;
+        setExpandMode(other === quick);
+        other.focus();
+      });
+    }
     let multiLayer = false;
     const setExpandMode = (value) => {
       var _a2, _b2;
       multiLayer = value;
       guided.classList.toggle("is-active", !value);
       quick.classList.toggle("is-active", value);
+      guided.setAttr("aria-checked", String(!value));
+      quick.setAttr("aria-checked", String(value));
+      guided.tabIndex = value ? -1 : 0;
+      quick.tabIndex = value ? 0 : -1;
       modeHint.setText(
         value ? t("ui.ai_creates_a_starter_map_at_the_chosen_size_shallow_research") : this.pendingCount ? t("ui.you_have_pending_proposals_review_them_here") : t("ui.ai_suggests_one_level_of_subtopics_review_or_edit_them_befor")
       );
@@ -21286,7 +21320,8 @@ var NextStepModal = class extends import_obsidian15.Modal {
         ["synthesize", synthesizeCard, synthesizePanel]
       ]) {
         button.classList.toggle("is-active", name === mode);
-        button.setAttr("aria-pressed", name === mode ? "true" : "false");
+        button.setAttr("aria-checked", name === mode ? "true" : "false");
+        button.tabIndex = name === mode ? 0 : -1;
         panel.style.display = name === mode ? "" : "none";
       }
       confirm.hidden = mode !== "research";
@@ -21322,6 +21357,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
     languageSelect.addEventListener("change", describeOutput);
     describeOutput();
     show(initialMode);
+    cardFor[initialMode].focus();
     this.renderModelSettings();
     this.contentEl.createEl("p", {
       text: t("ui.if_an_ai_task_exceeds_3_minutes_vam_attempts_to_interrupt_it"),
