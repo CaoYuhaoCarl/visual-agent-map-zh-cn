@@ -347,9 +347,9 @@ var english = {
   "ui.image_translate_running": "Codex is drawing the translated image (about a minute). You can keep working; it is written to the note when ready.",
   "ui.image_translate_replaced": "Replaced the image with its translated version ({0}).",
   "ui.image_translate_added": "Added the translated image below the original ({0}).",
-  "ui.image_translate_appended": "The original image moved, so the translated image was added at the end of the note ({0}).",
-  "ui.context_ai_image_generation_codex": "Making a translated image needs a Codex model; Claude cannot draw images. Choose a Codex model in settings, or use Translate text in image.",
-  "ui.context_ai_image_not_generated": "Codex did not return an image. Try again, or use Translate text in image.",
+  "ui.image_translate_appended": "Could not find the original image in the note, so the translated image was added at the end ({0}).",
+  "ui.context_ai_image_generation_codex": "Translating an image needs a Codex model; Claude cannot draw images. Choose a Codex model in settings.",
+  "ui.context_ai_image_not_generated": "Codex did not return an image. Try again.",
   "ui.context_ai_image_download_failed": "Could not download this web image for AI. Check the connection, or save the image into the vault and try again.",
   "ui.context_ai_choose_image": "Choose an image to insert",
   "ui.context_ai_running_0": "Running: {0}\u2026",
@@ -1655,9 +1655,9 @@ var traditionalChinese = {
   "ui.image_translate_running": "Codex \u6B63\u5728\u7E6A\u88FD\u7FFB\u8B6F\u5716\u7247\uFF08\u7D04\u4E00\u5206\u9418\uFF09\u3002\u53EF\u4EE5\u7E7C\u7E8C\u7DE8\u8F2F\uFF0C\u5B8C\u6210\u5F8C\u6703\u81EA\u52D5\u5BEB\u5165\u7B46\u8A18\u3002",
   "ui.image_translate_replaced": "\u5DF2\u7528\u7FFB\u8B6F\u7248\u5716\u7247\u53D6\u4EE3\u539F\u5716\uFF08{0}\uFF09\u3002",
   "ui.image_translate_added": "\u5DF2\u5728\u539F\u5716\u4E0B\u65B9\u65B0\u589E\u7FFB\u8B6F\u5716\u7247\uFF08{0}\uFF09\u3002",
-  "ui.image_translate_appended": "\u539F\u5716\u4F4D\u7F6E\u5DF2\u8B8A\u52D5\uFF0C\u7FFB\u8B6F\u5716\u7247\u5DF2\u52A0\u5230\u7B46\u8A18\u7D50\u5C3E\uFF08{0}\uFF09\u3002",
-  "ui.context_ai_image_generation_codex": "\u7522\u751F\u7FFB\u8B6F\u7248\u5716\u7247\u9700\u8981 Codex \u6A21\u578B\uFF0CClaude \u7121\u6CD5\u756B\u5716\u3002\u8ACB\u5728\u8A2D\u5B9A\u9078\u64C7 Codex \u6A21\u578B\uFF0C\u6216\u6539\u7528\u300C\u7FFB\u8B6F\u5716\u4E2D\u6587\u5B57\u300D\u3002",
-  "ui.context_ai_image_not_generated": "Codex \u6C92\u6709\u56DE\u50B3\u5716\u7247\u3002\u8ACB\u518D\u8A66\u4E00\u6B21\uFF0C\u6216\u6539\u7528\u300C\u7FFB\u8B6F\u5716\u4E2D\u6587\u5B57\u300D\u3002",
+  "ui.image_translate_appended": "\u5728\u7B46\u8A18\u4E2D\u627E\u4E0D\u5230\u539F\u5716\u7684\u4F4D\u7F6E\uFF0C\u7FFB\u8B6F\u5716\u7247\u5DF2\u52A0\u5230\u7B46\u8A18\u7D50\u5C3E\uFF08{0}\uFF09\u3002",
+  "ui.context_ai_image_generation_codex": "\u751F\u6210\u7FFB\u8B6F\u5716\u7247\u9700\u8981 Codex \u6A21\u578B\uFF0CClaude \u7121\u6CD5\u756B\u5716\u3002\u8ACB\u5728\u8A2D\u5B9A\u9078\u64C7 Codex \u6A21\u578B\u3002",
+  "ui.context_ai_image_not_generated": "Codex \u6C92\u6709\u56DE\u50B3\u5716\u7247\uFF0C\u8ACB\u518D\u8A66\u4E00\u6B21\u3002",
   "ui.context_ai_image_download_failed": "\u7121\u6CD5\u4E0B\u8F09\u9019\u5F35\u7DB2\u8DEF\u5716\u7247\u7D66 AI\u3002\u8ACB\u78BA\u8A8D\u7DB2\u8DEF\u9023\u7DDA\uFF0C\u6216\u628A\u5716\u7247\u5B58\u9032 Vault \u5F8C\u518D\u8A66\u4E00\u6B21\u3002",
   "ui.context_ai_choose_image": "\u9078\u64C7\u8981\u63D2\u5165\u7684\u5716\u7247",
   "ui.context_ai_running_0": "\u6B63\u5728{0}\u2026",
@@ -31032,6 +31032,11 @@ var imageTranslateStep = {
 };
 
 // experiences/markdown-context/image-translate-action.ts
+function occurrences(source, text11) {
+  const found = [];
+  for (let at = source.indexOf(text11); at >= 0; at = source.indexOf(text11, at + text11.length)) found.push(at);
+  return found;
+}
 var ImageTranslateAction = class extends import_obsidian22.Component {
   constructor(app, options) {
     super();
@@ -31140,7 +31145,7 @@ var ImageTranslateAction = class extends import_obsidian22.Component {
     });
   }
   async translate(target, language2, placement, status, actions) {
-    var _a, _b;
+    var _a, _b, _c;
     if (this.running) return;
     const controller = new AbortController();
     this.running = controller;
@@ -31163,6 +31168,7 @@ var ImageTranslateAction = class extends import_obsidian22.Component {
       const base = (target.image.alt || "image").replace(/\.(?:png|jpe?g|gif|webp)$/i, "").replace(new RegExp(`-(?:${languages})(?:[ -]\\d+)?$`), "").replace(/[^\p{L}\p{N}_-]+/gu, "-").replace(/^-+|-+$/g, "").slice(0, 40);
       const path = await this.options.saveImage(dataUrl, target.path, `${base || "image"}-${language2}`);
       saved = this.app.vault.getFileByPath(path);
+      if (controller.signal.aborted) throw new Error(t("ui.ai_task_cancelled"));
       const note = this.app.vault.getFileByPath(target.path);
       if (!saved || !note) throw new Error(t("ui.context_ai_note_changed"));
       const link = this.app.fileManager.generateMarkdownLink(saved, target.path);
@@ -31175,7 +31181,7 @@ var ImageTranslateAction = class extends import_obsidian22.Component {
       if (saved) await this.app.fileManager.trashFile(saved);
     } finally {
       if (this.running === controller) this.running = null;
-      if (status.isConnected) this.hide();
+      if (status.isConnected || ((_c = this.popover) == null ? void 0 : _c.querySelector(".vam-image-action-status.is-running"))) this.hide();
     }
   }
   /**
@@ -31185,20 +31191,31 @@ var ImageTranslateAction = class extends import_obsidian22.Component {
   async write(target, note, embed, placement) {
     let outcome = "ui.image_translate_appended";
     const edit = (text11) => {
-      const token = target.token;
-      const at = token ? text11.indexOf(token) : -1;
-      const unique2 = !!token && at >= 0 && text11.indexOf(token, at + token.length) < 0;
+      var _a, _b, _c, _d;
+      const copies = target.token ? occurrences(text11, target.token.text) : [];
+      const at = target.token && copies.length === target.token.count ? copies[target.token.occurrence] : copies.length === 1 ? copies[0] : -1;
+      const token = (_b = (_a = target.token) == null ? void 0 : _a.text) != null ? _b : "";
+      const unique2 = at >= 0;
       if (unique2 && placement === "replace") {
         outcome = "ui.image_translate_replaced";
         return `${text11.slice(0, at)}${embed}${text11.slice(at + token.length)}`;
       }
       if (unique2) {
         outcome = "ui.image_translate_added";
-        const lineEnd = text11.indexOf("\n", at + token.length);
-        const end = lineEnd < 0 ? text11.length : lineEnd;
-        return `${text11.slice(0, end)}
-
-${embed}${text11.slice(end)}`;
+        const lineStart = text11.lastIndexOf("\n", at) + 1;
+        const line = text11.slice(lineStart, text11.indexOf("\n", at) < 0 ? text11.length : text11.indexOf("\n", at));
+        const quote = (_d = (_c = /^\s*(?:>\s*)+/.exec(line)) == null ? void 0 : _c[0]) != null ? _d : "";
+        let end = text11.indexOf("\n", at + token.length);
+        if (/^\s*\|/.test(line))
+          while (end >= 0 && /^\s*\|/.test(
+            text11.slice(end + 1, text11.indexOf("\n", end + 1) < 0 ? void 0 : text11.indexOf("\n", end + 1))
+          ))
+            end = text11.indexOf("\n", end + 1);
+        if (end < 0) end = text11.length;
+        const gap = quote ? `
+${quote.trimEnd()}
+${quote}` : "\n\n";
+        return `${text11.slice(0, end)}${gap}${embed}${text11.slice(end)}`;
       }
       outcome = "ui.image_translate_appended";
       return `${text11.replace(/\s*$/, "")}
@@ -31351,6 +31368,45 @@ async function loadableImages(candidates, signal) {
   );
   return candidates.filter((_, index) => loads[index]);
 }
+function locateImageToken(view, image, markdown, matches) {
+  if (!matches.length) return null;
+  const toToken = (match) => {
+    const same2 = matches.filter((item) => item[0] === match[0]);
+    return { text: match[0], occurrence: same2.indexOf(match), count: same2.length };
+  };
+  if (matches.length === 1) return toToken(matches[0]);
+  const block = image.closest("[data-vam-line-start]");
+  if (block) {
+    const lineOffset = (line) => {
+      let offset = 0;
+      for (let index = 0; index < line && offset >= 0; index++) offset = markdown.indexOf("\n", offset) + 1 || -1;
+      return offset < 0 ? markdown.length : offset;
+    };
+    const from = lineOffset(Number(block.dataset.vamLineStart));
+    const to = lineOffset(Number(block.dataset.vamLineEnd) + 1);
+    const inside = matches.filter((match) => {
+      var _a, _b;
+      return ((_a = match.index) != null ? _a : -1) >= from && ((_b = match.index) != null ? _b : -1) < to;
+    });
+    if (inside.length === 1) return toToken(inside[0]);
+  }
+  const cm = view.editor.cm;
+  try {
+    const pos = cm == null ? void 0 : cm.posAtDOM(image);
+    if (typeof pos === "number" && pos >= 0) {
+      const nearest = [...matches].sort((a, b) => {
+        var _a, _b;
+        return Math.abs(((_a = a.index) != null ? _a : 0) - pos) - Math.abs(((_b = b.index) != null ? _b : 0) - pos);
+      })[0];
+      if (nearest) return toToken(nearest);
+    }
+  } catch (e) {
+  }
+  const rendered = Array.from(view.containerEl.querySelectorAll("img")).filter(
+    (item) => item.getAttribute("src") === image.getAttribute("src")
+  );
+  return rendered.length === matches.length ? toToken(matches[rendered.indexOf(image)]) : null;
+}
 var panelSequence = 0;
 var MarkdownSelectionAi = class extends import_obsidian23.Component {
   constructor(app, options) {
@@ -31402,8 +31458,7 @@ var MarkdownSelectionAi = class extends import_obsidian23.Component {
         const target = (_b = (_a2 = match[0].match(/\]\(([^)]+)\)$/)) == null ? void 0 : _a2[1]) == null ? void 0 : _b.replace(/^<|>$/g, "");
         return target === image.currentSrc || target === image.src;
       });
-      const token = tokens2.length === 1 ? tokens2[0][0] : null;
-      this.imageAction.show(view, image, token);
+      this.imageAction.show(view, image, locateImageToken(view, image, markdown, tokens2));
     });
     this.registerDomEvent(window, "resize", () => {
       var _a;
@@ -32215,6 +32270,12 @@ var VisualAgentMapPlugin = class extends import_obsidian24.Plugin {
       saveImage: (dataUrl, notePath, name) => this.saveGeneratedImage(dataUrl, notePath, name)
     });
     this.addChild(markdownSelectionAi);
+    this.registerMarkdownPostProcessor((element, context) => {
+      const section3 = context.getSectionInfo(element);
+      if (!section3 || !element.querySelector("img, .internal-embed")) return;
+      element.dataset.vamLineStart = String(section3.lineStart);
+      element.dataset.vamLineEnd = String(section3.lineEnd);
+    });
     this.addCommand({
       id: "markdown-selection-ai",
       name: t("ui.context_ai_open"),

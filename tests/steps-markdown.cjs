@@ -96,21 +96,31 @@ test('web image search keeps https image and source links, drops invented or uns
   assert.match(imageSearchStep.render({ query: 'fried egg' }), /"fried egg"/);
 });
 
-test('translated image is written in place of the embed, below it, or at the end when the embed moved', async () => {
+test('translated image is written in place of the clicked copy, below it, or at the end when it cannot be found', async () => {
   class Component { load() {} unload() {} registerDomEvent() {} }
   class MarkdownView {}
   const { ImageTranslateAction } = load('experiences/markdown-context/image-translate-action.ts', { obsidian: { Component, MarkdownView, Notice: class {}, setIcon() {} } });
+  const embed = '![egg](https://x/egg.png)';
   const write = async (text, token, placement) => {
     let content = text;
     const app = { workspace: { getLeavesOfType: () => [] }, vault: { process: async (_file, edit) => { content = edit(content); } } };
-    const action = new ImageTranslateAction(app, {});
-    const outcome = await action.write({ token }, { path: 'Note.md' }, '![[egg-zh-TW.png]]', placement);
+    const outcome = await new ImageTranslateAction(app, {}).write({ token }, { path: 'Note.md' }, '![[egg-zh-TW.png]]', placement);
     return { outcome, content };
   };
-  const note = 'Intro\n\n![egg](https://x/egg.png)\n\nOutro\n';
-  assert.deepEqual(await write(note, '![egg](https://x/egg.png)', 'replace'), { outcome: 'ui.image_translate_replaced', content: 'Intro\n\n![[egg-zh-TW.png]]\n\nOutro\n' });
-  assert.deepEqual(await write(note, '![egg](https://x/egg.png)', 'new'), { outcome: 'ui.image_translate_added', content: 'Intro\n\n![egg](https://x/egg.png)\n\n![[egg-zh-TW.png]]\n\nOutro\n' });
-  const twice = `${note}![egg](https://x/egg.png)\n`;
-  assert.equal((await write(twice, '![egg](https://x/egg.png)', 'replace')).outcome, 'ui.image_translate_appended');
+  const one = { text: embed, occurrence: 0, count: 1 };
+  const note = `Intro\n\n${embed}\n\nOutro\n`;
+  assert.deepEqual(await write(note, one, 'replace'), { outcome: 'ui.image_translate_replaced', content: 'Intro\n\n![[egg-zh-TW.png]]\n\nOutro\n' });
+  assert.deepEqual(await write(note, one, 'new'), { outcome: 'ui.image_translate_added', content: `Intro\n\n${embed}\n\n![[egg-zh-TW.png]]\n\nOutro\n` });
+  // A VAM note shows the image in its preview and its detail: the clicked copy is the one replaced.
+  const twice = `Preview\n\n${embed}\n\nDetail\n\n${embed}\n`;
+  assert.deepEqual(await write(twice, { text: embed, occurrence: 1, count: 2 }, 'replace'), { outcome: 'ui.image_translate_replaced', content: `Preview\n\n${embed}\n\nDetail\n\n![[egg-zh-TW.png]]\n` });
+  assert.deepEqual(await write(twice, { text: embed, occurrence: 0, count: 2 }, 'replace'), { outcome: 'ui.image_translate_replaced', content: `Preview\n\n![[egg-zh-TW.png]]\n\nDetail\n\n${embed}\n` });
+  // The number of copies changed meanwhile: the clicked copy is unknown, so the image goes to the end.
+  assert.equal((await write(`${twice}${embed}\n`, { text: embed, occurrence: 1, count: 2 }, 'replace')).outcome, 'ui.image_translate_appended');
   assert.deepEqual(await write(note, null, 'new'), { outcome: 'ui.image_translate_appended', content: `${note.trimEnd()}\n\n![[egg-zh-TW.png]]\n` });
+  // In a callout the new image stays inside it; after a table row it goes below the table.
+  const callout = `> [!note]\n> ${embed}\n\nAfter\n`;
+  assert.equal((await write(callout, one, 'new')).content, `> [!note]\n> ${embed}\n>\n> ![[egg-zh-TW.png]]\n\nAfter\n`);
+  const table = `| a | b |\n| - | - |\n| ${embed} | x |\n| c | d |\n\nAfter\n`;
+  assert.equal((await write(table, one, 'new')).content, `| a | b |\n| - | - |\n| ${embed} | x |\n| c | d |\n\n![[egg-zh-TW.png]]\n\nAfter\n`);
 });

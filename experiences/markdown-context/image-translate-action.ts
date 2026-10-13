@@ -21,8 +21,22 @@ interface ImageTarget {
   view: MarkdownView;
   path: string;
   image: HTMLImageElement;
-  /** The image's Markdown embed when it appears exactly once in the note; replacing needs it. */
-  token: string | null;
+  /** Where the clicked image is in the note; null when it cannot be told apart from other copies. */
+  token: ImageToken | null;
+}
+
+/** The clicked image's embed text, which copy of it (0-based) was clicked, and how many copies the note has. */
+export interface ImageToken {
+  text: string;
+  occurrence: number;
+  count: number;
+}
+
+/** Start offsets of every copy of `text` in `source`. */
+function occurrences(source: string, text: string): number[] {
+  const found: number[] = [];
+  for (let at = source.indexOf(text); at >= 0; at = source.indexOf(text, at + text.length)) found.push(at);
+  return found;
 }
 
 type Placement = "replace" | "new";
@@ -62,7 +76,7 @@ export class ImageTranslateAction extends Component {
   }
 
   /** Shows the action beside `image`; a translation already in progress keeps running in the background. */
-  show(view: MarkdownView, image: HTMLImageElement, token: string | null): void {
+  show(view: MarkdownView, image: HTMLImageElement, token: ImageToken | null): void {
     if (!view.file) return;
     this.hide();
     this.target = { view, path: view.file.path, image, token };
@@ -183,6 +197,8 @@ export class ImageTranslateAction extends Component {
         .slice(0, 40);
       const path = await this.options.saveImage(dataUrl, target.path, `${base || "image"}-${language}`);
       saved = this.app.vault.getFileByPath(path);
+      // Stopped while the file was written: keep the note as it was.
+      if (controller.signal.aborted) throw new Error(t("ui.ai_task_cancelled"));
       const note = this.app.vault.getFileByPath(target.path);
       if (!saved || !note) throw new Error(t("ui.context_ai_note_changed"));
       const link = this.app.fileManager.generateMarkdownLink(saved, target.path);
@@ -196,7 +212,8 @@ export class ImageTranslateAction extends Component {
       if (saved) await this.app.fileManager.trashFile(saved);
     } finally {
       if (this.running === controller) this.running = null;
-      if (status.isConnected) this.hide();
+      // Close whichever popover is showing this run's progress (it may have been reopened on another image).
+      if (status.isConnected || this.popover?.querySelector(".vam-image-action-status.is-running")) this.hide();
     }
   }
 
@@ -213,18 +230,38 @@ export class ImageTranslateAction extends Component {
     let outcome: "ui.image_translate_replaced" | "ui.image_translate_added" | "ui.image_translate_appended" =
       "ui.image_translate_appended";
     const edit = (text: string): string => {
-      const token = target.token;
-      const at = token ? text.indexOf(token) : -1;
-      const unique = !!token && at >= 0 && text.indexOf(token, at + token.length) < 0;
+      // Find the clicked copy again: same copy number while the note has the same number of copies.
+      const copies = target.token ? occurrences(text, target.token.text) : [];
+      const at =
+        target.token && copies.length === target.token.count
+          ? copies[target.token.occurrence]
+          : copies.length === 1
+            ? copies[0]
+            : -1;
+      const token = target.token?.text ?? "";
+      const unique = at >= 0;
       if (unique && placement === "replace") {
         outcome = "ui.image_translate_replaced";
         return `${text.slice(0, at)}${embed}${text.slice(at + token.length)}`;
       }
       if (unique) {
         outcome = "ui.image_translate_added";
-        const lineEnd = text.indexOf("\n", at + token.length);
-        const end = lineEnd < 0 ? text.length : lineEnd;
-        return `${text.slice(0, end)}\n\n${embed}${text.slice(end)}`;
+        const lineStart = text.lastIndexOf("\n", at) + 1;
+        const line = text.slice(lineStart, text.indexOf("\n", at) < 0 ? text.length : text.indexOf("\n", at));
+        // Inside a callout or quote the new image stays in it; after a table row it goes below the whole table.
+        const quote = /^\s*(?:>\s*)+/.exec(line)?.[0] ?? "";
+        let end = text.indexOf("\n", at + token.length);
+        if (/^\s*\|/.test(line))
+          while (
+            end >= 0 &&
+            /^\s*\|/.test(
+              text.slice(end + 1, text.indexOf("\n", end + 1) < 0 ? undefined : text.indexOf("\n", end + 1))
+            )
+          )
+            end = text.indexOf("\n", end + 1);
+        if (end < 0) end = text.length;
+        const gap = quote ? `\n${quote.trimEnd()}\n${quote}` : "\n\n";
+        return `${text.slice(0, end)}${gap}${embed}${text.slice(end)}`;
       }
       outcome = "ui.image_translate_appended";
       return `${text.replace(/\s*$/, "")}\n\n${embed}\n`;

@@ -4,7 +4,7 @@ import type { PreparedStep } from "../../core/step-runner";
 import { prepareStep } from "../../core/step-runner";
 import { imageMarkdown, type ImageCandidate } from "./action-plan";
 import { imageSearchStep } from "./steps/image-search/step";
-import { ImageTranslateAction } from "./image-translate-action";
+import { ImageTranslateAction, type ImageToken } from "./image-translate-action";
 import { planStep } from "./steps/plan/step";
 import { transformStep } from "./steps/transform/step";
 import { captionStep } from "./steps/caption/step";
@@ -76,6 +76,54 @@ async function loadableImages(candidates: ImageCandidate[], signal: AbortSignal)
   return candidates.filter((_, index) => loads[index]);
 }
 
+/**
+ * Which embed in `markdown` the clicked image came from. VAM notes often show the same image twice (preview and
+ * detail), so a single match is not enough: the reading view's line range, the editor position, or the order of
+ * the rendered copies picks the one that was clicked. Null when none of these can tell.
+ */
+function locateImageToken(
+  view: MarkdownView,
+  image: HTMLImageElement,
+  markdown: string,
+  matches: RegExpMatchArray[]
+): ImageToken | null {
+  if (!matches.length) return null;
+  const toToken = (match: RegExpMatchArray): ImageToken => {
+    const same = matches.filter(item => item[0] === match[0]);
+    return { text: match[0], occurrence: same.indexOf(match), count: same.length };
+  };
+  if (matches.length === 1) return toToken(matches[0]);
+  // Reading view: the plugin tags each rendered block with its source lines.
+  const block = image.closest<HTMLElement>("[data-vam-line-start]");
+  if (block) {
+    const lineOffset = (line: number): number => {
+      let offset = 0;
+      for (let index = 0; index < line && offset >= 0; index++) offset = markdown.indexOf("\n", offset) + 1 || -1;
+      return offset < 0 ? markdown.length : offset;
+    };
+    const from = lineOffset(Number(block.dataset.vamLineStart));
+    const to = lineOffset(Number(block.dataset.vamLineEnd) + 1);
+    const inside = matches.filter(match => (match.index ?? -1) >= from && (match.index ?? -1) < to);
+    if (inside.length === 1) return toToken(inside[0]);
+  }
+  // Live preview: the editor knows the document position of the rendered image.
+  const cm = (view.editor as unknown as { cm?: { posAtDOM(node: Node): number } }).cm;
+  try {
+    const pos = cm?.posAtDOM(image);
+    if (typeof pos === "number" && pos >= 0) {
+      const nearest = [...matches].sort((a, b) => Math.abs((a.index ?? 0) - pos) - Math.abs((b.index ?? 0) - pos))[0];
+      if (nearest) return toToken(nearest);
+    }
+  } catch {
+    /* Not rendered by the editor. */
+  }
+  // Last resort: the rendered copies, in page order, match the embeds one to one.
+  const rendered = Array.from(view.containerEl.querySelectorAll("img")).filter(
+    item => item.getAttribute("src") === image.getAttribute("src")
+  );
+  return rendered.length === matches.length ? toToken(matches[rendered.indexOf(image)]) : null;
+}
+
 /** Unique heading ids for open panels. */
 let panelSequence = 0;
 
@@ -131,9 +179,8 @@ export class MarkdownSelectionAi extends Component {
         const target = match[0].match(/\]\(([^)]+)\)$/)?.[1]?.replace(/^<|>$/g, "");
         return target === image.currentSrc || target === image.src;
       });
-      const token = tokens.length === 1 ? tokens[0][0] : null;
       // An image offers one action, a translated version of itself; the text panel is for selected text.
-      this.imageAction.show(view, image, token);
+      this.imageAction.show(view, image, locateImageToken(view, image, markdown, tokens));
     });
     this.registerDomEvent(window, "resize", () => {
       this.panel?.reposition();
