@@ -1096,14 +1096,14 @@ async function multiResearchHarness(titles, overrides = {}) {
     const finished = new Promise(resolve => { finish.set(note.title, (message) => { plugin.running.delete(child.path); if (message) failed(message); resolve(); }); options.signal.addEventListener('abort', () => { plugin.running.delete(child.path); resolve(); }, { once: true }); });
     return { finished };
   };
-  const request = { researchMode: 'research', researchDepth: 'fast', requirements: '' };
+  const request = { researchMode: 'research', researchDepth: 'fast', requirements: '', imageSearch: false };
   return { repo, view, plugin, nodes, notices, runs, finish, confirms, opened, request, key: `multi-research:${mapPath}` };
 }
 integrationTest('multi research runs selected topics in the background with the chosen options and a map-level key', async () => {
   const h = await multiResearchHarness(['A', 'B']);
   await h.repo.updateNote(h.nodes[1].path, { prompt: 'Custom prompt for B' });
   h.view.multiSelected = new Set(h.nodes.map(n => n.id));
-  await h.view.startMultiResearch({ researchMode: 'local', researchDepth: 'deep', requirements: 'Focus on 2025' });
+  await h.view.startMultiResearch({ researchMode: 'local', researchDepth: 'deep', requirements: 'Focus on 2025', imageSearch: false });
   await until(() => h.runs.length === 2);
   assert.deepEqual(plain(h.confirms), ['gpt-6-luna']);
   const [a, b] = h.runs;
@@ -1115,6 +1115,14 @@ integrationTest('multi research runs selected topics in the background with the 
   h.finish.get('A')(); h.finish.get('B')();
   await until(() => h.plugin.expansionBatches.get(h.key).status === 'completed');
   assert.equal(h.plugin.activeTasks.has(h.key), false);
+});
+integrationTest('multi research with image search runs each topic with auto visual mode', async () => {
+  const h = await multiResearchHarness(['Img']);
+  h.view.multiSelected = new Set([h.nodes[0].id]);
+  await h.view.startMultiResearch({ ...h.request, imageSearch: true });
+  await until(() => h.runs.length === 1);
+  assert.equal(h.runs[0].options.visualMode, 'auto');
+  h.finish.get('Img')(); await until(() => h.plugin.expansionBatches.get(h.key).status === 'completed');
 });
 integrationTest('multi research without requirements uses the topic prompt alone and web search maps to research', async () => {
   const h = await multiResearchHarness(['Solo']);

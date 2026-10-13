@@ -529,6 +529,7 @@ test('multi research modal: defaults, options and immediate close on start', () 
   const modal = new mod.MultiResearchModal({}, ['Alpha', 'Beta'], live, templates, request => requests.push(request)); modal.open();
   assert.ok(find(modal.contentEl, i => i.text === 'Alpha')); assert.ok(find(modal.contentEl, i => i.text === 'Beta'));
   const web = find(modal.contentEl, i => i.tag === 'input' && i.type === 'checkbox'); assert.equal(web.checked, true);
+  assert.ok(find(modal.contentEl, i => i.text === 'Search for image references'));
   const depth = find(modal.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Research depth'); assert.equal(depth.value, 'fast');
   const model = () => find(modal.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Model'); assert.equal(model().value, '');
   assert.deepEqual(plain(model().children.map(c => c.value)), ['']);
@@ -540,7 +541,7 @@ test('multi research modal: defaults, options and immediate close on start', () 
   const start = find(modal.modalEl, i => i.tag === 'button' && i.text === 'Start research (2)');
   start.listeners.click(); start.listeners.click();
   assert.equal(modal.closed, 1); assert.equal(requests.length, 1); modal.onClose(); assert.equal(unwatched, 1);
-  assert.deepEqual(plain(requests[0]), { researchMode: 'research', researchDepth: 'fast', requirements: '' });
+  assert.deepEqual(plain(requests[0]), { researchMode: 'research', researchDepth: 'fast', requirements: '', imageSearch: true });
   const second = []; const m2 = new mod.MultiResearchModal({}, ['A'], { list: () => [{ id: 'm1', label: 'Model One' }], watch: () => () => {} }, templates, r => second.push(r)); m2.open();
   find(m2.contentEl, i => i.tag === 'input' && i.type === 'checkbox').checked = false;
   const sel = find(m2.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Research depth'); sel.value = 'deep';
@@ -548,7 +549,7 @@ test('multi research modal: defaults, options and immediate close on start', () 
   find(m2.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Content template').value = 'A';
   find(m2.contentEl, i => i.tag === 'textarea').value = '  only 2025  ';
   find(m2.modalEl, i => i.tag === 'button' && i.text === 'Start research (1)').listeners.click();
-  assert.deepEqual(plain(second[0]), { researchMode: 'local', researchDepth: 'deep', requirements: 'only 2025', model: 'm1', detailTemplateId: 'A' });
+  assert.deepEqual(plain(second[0]), { researchMode: 'local', researchDepth: 'deep', requirements: 'only 2025', imageSearch: false, model: 'm1', detailTemplateId: 'A' });
 });
 test('card shows a Format not met badge with the issues as tooltip', () => {
   const { VisualAgentMapView } = load('main.ts', { obsidian });

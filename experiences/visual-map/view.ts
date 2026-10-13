@@ -4497,7 +4497,7 @@ export class VisualAgentMapView extends ItemView {
         const choices: TaskOptions = {
           researchMode: request.researchMode,
           researchDepth: request.researchDepth,
-          visualMode: "off",
+          visualMode: request.imageSearch ? "auto" : "off",
           referenceGroups: [],
           requirements: request.requirements,
           ...(request.detailTemplateId ? { detailTemplateId: request.detailTemplateId } : {})
