@@ -520,7 +520,7 @@ var english = {
   "ui.zoom_out": "Zoom out",
   "ui.zoom_in": "Zoom in",
   "ui.show_all": "Show all",
-  "ui.zoom_reset": "Reset zoom to 100%",
+  "ui.zoom_level_0_reset": "Zoom {0}, reset to 100%",
   "ui.new_map": "\uFF0B New map",
   "ui.researched": "Researched",
   "ui.topic_card_label_0_1": "{0}, {1}",
@@ -1777,7 +1777,7 @@ var traditionalChinese = {
   "ui.zoom_out": "\u7E2E\u5C0F",
   "ui.zoom_in": "\u653E\u5927",
   "ui.show_all": "\u986F\u793A\u5168\u90E8",
-  "ui.zoom_reset": "\u7E2E\u653E\u91CD\u8A2D\u70BA 100%",
+  "ui.zoom_level_0_reset": "\u76EE\u524D\u7E2E\u653E {0}\uFF0C\u6309\u4E00\u4E0B\u91CD\u8A2D\u70BA 100%",
   "ui.new_map": "\uFF0B \u65B0\u589E\u5730\u5716",
   "ui.researched": "\u5DF2\u7814\u7A76",
   "ui.topic_card_label_0_1": "{0}\uFF0C{1}",
@@ -21607,6 +21607,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     __publicField(this, "tabStopId", null);
     /** While a card renders, its buttons stay out of the tab order until that card is focused. */
     __publicField(this, "renderingCard", false);
+    /** Set while render hands focus back to a card, so that refocus does not restart its preview. */
+    __publicField(this, "restoringFocus", false);
     __publicField(this, "closed", false);
     __publicField(this, "aimViewEpoch", 0);
     __publicField(this, "mapOpenEpoch", 0);
@@ -24041,7 +24043,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     const zoomReset = zoom.createEl("button", {
       text: `${Math.round(this.map.viewport.zoom * 100)}%`,
       cls: "vam-zoom",
-      attr: { "aria-label": t("ui.zoom_reset") }
+      attr: { "aria-label": t("ui.zoom_level_0_reset", `${Math.round(this.map.viewport.zoom * 100)}%`) }
     });
     zoomReset.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -24066,7 +24068,12 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       this.renderingCard = false;
     }
     if (this.focusNodeId) {
-      (_x = this.stageEl.querySelector(`[data-node-id="${CSS.escape(this.focusNodeId)}"]`)) == null ? void 0 : _x.focus({ preventScroll: true });
+      this.restoringFocus = true;
+      try {
+        (_x = this.stageEl.querySelector(`[data-node-id="${CSS.escape(this.focusNodeId)}"]`)) == null ? void 0 : _x.focus({ preventScroll: true });
+      } finally {
+        this.restoringFocus = false;
+      }
       this.focusNodeId = null;
     }
     if (!this.map.nodes.length) {
@@ -24154,7 +24161,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         cls: `vam-status vam-aim-question-status vam-status-${status === "running" ? "running" : status === "completed" ? "completed" : status === "not_started" ? "idea" : "error"}`,
         text: status === "not_started" && this.map.aim.branches.some((branch) => branch.questionNodeId === node.id) ? t("ui.aim_answered_not_started") : t(key2[status])
       });
-    } else {
+    } else if (!node.aimKind || active || !note || note.status !== "completed") {
       const statusText = active ? t("ui.ai_running") : (note == null ? void 0 : note.status) === "completed" ? t("ui.researched") : note ? topicStatusLabel(note.status, this.plugin.settings.language) : t("ui.note_missing");
       const chip = header.createSpan({
         cls: `vam-status vam-status-${active ? "running" : (_j = note == null ? void 0 : note.status) != null ? _j : "error"}`,
@@ -24275,7 +24282,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
           () => void this.planAimFromSelection(node.id),
           this.aimBusy
         );
-        next.addClass("vam-node-tool");
+        next.addClass("vam-node-tool", "vam-pinned-tool");
         next.setAttr("aria-label", t("ui.aim_new_question_hint"));
         next.setAttr("title", t("ui.aim_new_question_hint"));
       }
@@ -24482,7 +24489,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     const toolButtons = () => Array.from(card.querySelectorAll("button"));
     card.addEventListener("focusin", (event) => {
       for (const button of toolButtons()) button.tabIndex = 0;
-      if (event.target !== card || !note || this.integrationMode || !card.matches(":focus-visible")) return;
+      if (this.restoringFocus || event.target !== card || !note || this.integrationMode || !card.matches(":focus-visible"))
+        return;
       this.clearHoverTimer();
       this.hoverTimer = window.setTimeout(() => {
         if (card.isConnected && card.matches(":focus")) this.showHoverCard(card, note);
@@ -24509,13 +24517,18 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     return siblings[index + (key2 === "ArrowUp" ? -1 : 1)];
   }
   moveKeyboardFocus(target) {
-    var _a, _b;
+    var _a, _b, _c;
     const card = (_a = this.stageEl) == null ? void 0 : _a.querySelector(`[data-node-id="${CSS.escape(target.id)}"]`);
     const view = (_b = this.viewportEl) == null ? void 0 : _b.getBoundingClientRect(), rect = card == null ? void 0 : card.getBoundingClientRect();
     if (view && rect && (rect.left < view.left || rect.right > view.right || rect.top < view.top || rect.bottom > view.bottom))
       this.focusNode(target);
     this.focusNodeId = target.id;
-    if (this.builtIn) this.selectSampleNode(target.id);
+    if (this.integrationMode) {
+      (_c = this.stageEl) == null ? void 0 : _c.querySelectorAll(".vam-node").forEach((item) => {
+        item.tabIndex = item === card ? 0 : -1;
+      });
+      this.tabStopId = target.id;
+    } else if (this.builtIn) this.selectSampleNode(target.id);
     else this.selectMapNode(target);
     if (this.focusNodeId) {
       card == null ? void 0 : card.focus({ preventScroll: true });
@@ -24583,24 +24596,43 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     preview.style.top = `${Math.max(12, Math.min(rect.top - host.top, maxTop))}px`;
   }
   refreshCard(node) {
-    var _a, _b, _c, _d;
+    var _a;
     const card = (_a = this.stageEl) == null ? void 0 : _a.querySelector(`[data-node-id="${CSS.escape(node.id)}"]`), note = this.notes.get(node.id);
     if (!card || !note) return;
-    card.setAttr("aria-label", note.title);
-    (_b = card.querySelector(".vam-card-title")) == null ? void 0 : _b.setAttr("title", note.title);
-    (_c = card.querySelector(".vam-card-title")) == null ? void 0 : _c.setText(note.title);
-    (_d = card.querySelector(".vam-card-summary")) == null ? void 0 : _d.setText(note.summary);
+    const title = card.querySelector(".vam-card-title");
+    title == null ? void 0 : title.setAttr("title", note.title);
+    title == null ? void 0 : title.setText(note.title);
+    let summary = card.querySelector(".vam-card-summary");
+    if (isPlaceholder(note.summary)) summary == null ? void 0 : summary.remove();
+    else {
+      if (!summary && title) {
+        summary = createEl("p", { cls: "vam-card-summary" });
+        title.after(summary);
+      }
+      summary == null ? void 0 : summary.setText(note.summary);
+    }
     const header = card.querySelector(".vam-node-header");
-    const status = card.querySelector(".vam-status");
-    if (note.status === "completed") status == null ? void 0 : status.remove();
-    else if (status) {
-      status.className = `vam-status vam-status-${note.status}`;
-      status.setText(topicStatusLabel(note.status, this.plugin.settings.language));
-    } else
-      header == null ? void 0 : header.createSpan({
-        cls: `vam-status vam-status-${note.status}`,
-        text: topicStatusLabel(note.status, this.plugin.settings.language)
-      });
+    const status = card.querySelector(".vam-node-header > .vam-status:not(.vam-aim-question-status)");
+    if (node.aimKind) {
+      card.setAttr("aria-label", note.title);
+      if (note.status === "completed") status == null ? void 0 : status.remove();
+      else if (status) {
+        status.className = `vam-status vam-status-${note.status}`;
+        status.setText(topicStatusLabel(note.status, this.plugin.settings.language));
+      } else
+        header == null ? void 0 : header.createSpan({
+          cls: `vam-status vam-status-${note.status}`,
+          text: topicStatusLabel(note.status, this.plugin.settings.language)
+        });
+    } else {
+      const label = note.status === "completed" ? t("ui.researched") : topicStatusLabel(note.status, this.plugin.settings.language);
+      card.dataset.status = note.status;
+      card.setAttr("aria-label", t("ui.topic_card_label_0_1", note.title, label));
+      if (status) {
+        status.className = `vam-status vam-status-${note.status}`;
+        status.setText(label);
+      } else header == null ? void 0 : header.prepend(createSpan({ cls: `vam-status vam-status-${note.status}`, text: label }));
+    }
     this.drawEdges();
   }
   taskSourceSettings(currentLabel, currentTopicId = ((_b) => (_b = ((_a) => (_a = this.map) == null ? void 0 : _a.id)()) != null ? _b : "")(), synthesisLabel) {
@@ -26451,11 +26483,12 @@ ${note.detail.trim()}` : "",
     }
   }
   transform() {
-    var _a;
+    var _a, _b;
     if (!this.map || !this.stageEl) return;
     const { x, y, zoom } = this.map.viewport;
     this.stageEl.style.transform = `translate(${x}px, ${y}px) scale(${zoom})`;
     (_a = this.zoomLabel) == null ? void 0 : _a.setText(`${Math.round(zoom * 100)}%`);
+    (_b = this.zoomLabel) == null ? void 0 : _b.setAttr("aria-label", t("ui.zoom_level_0_reset", `${Math.round(zoom * 100)}%`));
   }
   saveViewport() {
     if (this.viewportTimer !== null) window.clearTimeout(this.viewportTimer);

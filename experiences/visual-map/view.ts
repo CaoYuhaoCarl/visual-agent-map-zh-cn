@@ -239,6 +239,8 @@ export class VisualAgentMapView extends ItemView {
   private tabStopId: string | null = null;
   /** While a card renders, its buttons stay out of the tab order until that card is focused. */
   private renderingCard = false;
+  /** Set while render hands focus back to a card, so that refocus does not restart its preview. */
+  private restoringFocus = false;
   private closed = false;
   private aimViewEpoch = 0;
   private mapOpenEpoch = 0;
@@ -2808,7 +2810,7 @@ export class VisualAgentMapView extends ItemView {
     const zoomReset = zoom.createEl("button", {
       text: `${Math.round(this.map.viewport.zoom * 100)}%`,
       cls: "vam-zoom",
-      attr: { "aria-label": t("ui.zoom_reset") }
+      attr: { "aria-label": t("ui.zoom_level_0_reset", `${Math.round(this.map.viewport.zoom * 100)}%`) }
     });
     zoomReset.addEventListener("click", event => {
       event.stopPropagation();
@@ -2837,9 +2839,14 @@ export class VisualAgentMapView extends ItemView {
       this.renderingCard = false;
     }
     if (this.focusNodeId) {
-      this.stageEl
-        .querySelector<HTMLElement>(`[data-node-id="${CSS.escape(this.focusNodeId)}"]`)
-        ?.focus({ preventScroll: true });
+      this.restoringFocus = true;
+      try {
+        this.stageEl
+          .querySelector<HTMLElement>(`[data-node-id="${CSS.escape(this.focusNodeId)}"]`)
+          ?.focus({ preventScroll: true });
+      } finally {
+        this.restoringFocus = false;
+      }
       this.focusNodeId = null;
     }
     if (!this.map.nodes.length) {
@@ -2941,7 +2948,7 @@ export class VisualAgentMapView extends ItemView {
             ? t("ui.aim_answered_not_started")
             : t(key[status])
       });
-    } else {
+    } else if (!node.aimKind || active || !note || note.status !== "completed") {
       const statusText = active
         ? t("ui.ai_running")
         : note?.status === "completed"
@@ -3057,7 +3064,7 @@ export class VisualAgentMapView extends ItemView {
           () => void this.planAimFromSelection(node.id),
           this.aimBusy
         );
-        next.addClass("vam-node-tool");
+        next.addClass("vam-node-tool", "vam-pinned-tool");
         next.setAttr("aria-label", t("ui.aim_new_question_hint"));
         next.setAttr("title", t("ui.aim_new_question_hint"));
       }
@@ -3279,7 +3286,14 @@ export class VisualAgentMapView extends ItemView {
     const toolButtons = (): HTMLButtonElement[] => Array.from(card.querySelectorAll<HTMLButtonElement>("button"));
     card.addEventListener("focusin", event => {
       for (const button of toolButtons()) button.tabIndex = 0;
-      if (event.target !== card || !note || this.integrationMode || !card.matches(":focus-visible")) return;
+      if (
+        this.restoringFocus ||
+        event.target !== card ||
+        !note ||
+        this.integrationMode ||
+        !card.matches(":focus-visible")
+      )
+        return;
       this.clearHoverTimer();
       this.hoverTimer = window.setTimeout(() => {
         if (card.isConnected && card.matches(":focus")) this.showHoverCard(card, note);
@@ -3313,7 +3327,13 @@ export class VisualAgentMapView extends ItemView {
     )
       this.focusNode(target);
     this.focusNodeId = target.id;
-    if (this.builtIn) this.selectSampleNode(target.id);
+    if (this.integrationMode) {
+      // Topic selection mode: moving focus must not clear the topics already ticked.
+      this.stageEl?.querySelectorAll<HTMLElement>(".vam-node").forEach(item => {
+        item.tabIndex = item === card ? 0 : -1;
+      });
+      this.tabStopId = target.id;
+    } else if (this.builtIn) this.selectSampleNode(target.id);
     else this.selectMapNode(target);
     if (this.focusNodeId) {
       card?.focus({ preventScroll: true });
@@ -3382,21 +3402,42 @@ export class VisualAgentMapView extends ItemView {
     const card = this.stageEl?.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(node.id)}"]`),
       note = this.notes.get(node.id);
     if (!card || !note) return;
-    card.setAttr("aria-label", note.title);
-    card.querySelector(".vam-card-title")?.setAttr("title", note.title);
-    card.querySelector(".vam-card-title")?.setText(note.title);
-    card.querySelector(".vam-card-summary")?.setText(note.summary);
+    const title = card.querySelector<HTMLElement>(".vam-card-title");
+    title?.setAttr("title", note.title);
+    title?.setText(note.title);
+    // Same summary rule as renderNode: a placeholder summary is not shown.
+    let summary = card.querySelector<HTMLElement>(".vam-card-summary");
+    if (isPlaceholder(note.summary)) summary?.remove();
+    else {
+      if (!summary && title) {
+        summary = createEl("p", { cls: "vam-card-summary" });
+        title.after(summary);
+      }
+      summary?.setText(note.summary);
+    }
     const header = card.querySelector<HTMLElement>(".vam-node-header");
-    const status = card.querySelector<HTMLElement>(".vam-status");
-    if (note.status === "completed") status?.remove();
-    else if (status) {
-      status.className = `vam-status vam-status-${note.status}`;
-      status.setText(topicStatusLabel(note.status, this.plugin.settings.language));
-    } else
-      header?.createSpan({
-        cls: `vam-status vam-status-${note.status}`,
-        text: topicStatusLabel(note.status, this.plugin.settings.language)
-      });
+    const status = card.querySelector<HTMLElement>(".vam-node-header > .vam-status:not(.vam-aim-question-status)");
+    if (node.aimKind) {
+      card.setAttr("aria-label", note.title);
+      if (note.status === "completed") status?.remove();
+      else if (status) {
+        status.className = `vam-status vam-status-${note.status}`;
+        status.setText(topicStatusLabel(note.status, this.plugin.settings.language));
+      } else
+        header?.createSpan({
+          cls: `vam-status vam-status-${note.status}`,
+          text: topicStatusLabel(note.status, this.plugin.settings.language)
+        });
+    } else {
+      const label =
+        note.status === "completed" ? t("ui.researched") : topicStatusLabel(note.status, this.plugin.settings.language);
+      card.dataset.status = note.status;
+      card.setAttr("aria-label", t("ui.topic_card_label_0_1", note.title, label));
+      if (status) {
+        status.className = `vam-status vam-status-${note.status}`;
+        status.setText(label);
+      } else header?.prepend(createSpan({ cls: `vam-status vam-status-${note.status}`, text: label }));
+    }
     this.drawEdges();
   }
   private taskSourceSettings(
@@ -5411,6 +5452,7 @@ export class VisualAgentMapView extends ItemView {
     const { x, y, zoom } = this.map.viewport;
     this.stageEl.style.transform = `translate(${x}px, ${y}px) scale(${zoom})`;
     this.zoomLabel?.setText(`${Math.round(zoom * 100)}%`);
+    this.zoomLabel?.setAttr("aria-label", t("ui.zoom_level_0_reset", `${Math.round(zoom * 100)}%`));
   }
   private saveViewport(): void {
     if (this.viewportTimer !== null) window.clearTimeout(this.viewportTimer);

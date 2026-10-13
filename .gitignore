@@ -3,3 +3,4 @@ node_modules/
 PRODUCT-CONCEPT*.md
 RELEASE-CHECKLIST*.md
 /spec/
+.impeccable/
