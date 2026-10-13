@@ -29,7 +29,8 @@ const suites = [
   'aim-branches-and-recovery.cjs',
   'aim-coverage-and-delivery.cjs',
   'aim-language-audit.cjs',
-  'aim-flow-limits.cjs'
+  'aim-flow-limits.cjs',
+  'aim-note-paths.cjs'
 ];
 const directory = path.join(__dirname, 'suites');
 assert.deepEqual(fs.readdirSync(directory).filter(file => file.endsWith('.cjs')).sort(), suites.slice().sort(), 'tests/run.cjs must list every file in tests/suites');

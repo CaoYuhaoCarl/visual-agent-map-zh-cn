@@ -2,7 +2,7 @@ import { App, TFile, TFolder, normalizePath, parseYaml, stringifyYaml } from "ob
 import { resolveAimContentLanguage } from "./experiences/aim/content-language";
 import { createHash } from "node:crypto";
 import { t, translate, type TranslationKey } from "./i18n";
-import { MapDocument, MapNode, serializeMap, parseMap } from "./map-model";
+import { MapDocument, MapNode, serializeMap, parseMap, type AimReuseRecord } from "./map-model";
 import type { CoffeeStyle } from "./experiences/coffee-tables/types";
 import type { ReasoningLevel, ResearchDepth, ResearchMode, VisualMode } from "./ai/types";
 import { normalizeReasoningLevel } from "./ai/task-policy";
@@ -122,6 +122,61 @@ const REFERENCE_END = "<!-- visual-agent-map:references:end -->";
 const DETAIL_START = "<!-- visual-agent-map:detail:start -->";
 const DETAIL_END = "<!-- visual-agent-map:detail:end -->";
 const NOTE_CSS_CLASS = "visual-agent-map-node";
+/**
+ * Point every reference to a moved note at its new path: node paths and the AIM records that must name the same note
+ * (results, drafts, pending commits, input snapshots, reuse sources). An attempt whose input snapshot changed gets
+ * the matching snapshot hash, and so do its drafts. Changing only node paths leaves an AIM map unreadable.
+ * Returns whether anything changed.
+ */
+export function rebaseMapNotePaths(map: MapDocument, rebase: (path: string) => string): boolean {
+  let changed = false;
+  const move = (path: string): string => {
+    const next = rebase(path);
+    if (next !== path) changed = true;
+    return next;
+  };
+  const moveReuse = (record: AimReuseRecord | undefined): void => {
+    if (record) record.sourceNotePath = move(record.sourceNotePath);
+  };
+  for (const node of map.nodes) node.path = move(node.path);
+  const aim = map.aim;
+  if (!aim) return changed;
+  const hashSnapshot = (value: unknown): string => createHash("sha256").update(JSON.stringify(value)).digest("hex");
+  for (const branch of aim.branches) {
+    const snapshotBefore = JSON.stringify(branch.inputSnapshot);
+    for (const result of branch.inputSnapshot.upstreamResults) result.notePath = move(result.notePath);
+    for (const item of branch.researchPlan ?? []) if (item.source) item.source.notePath = move(item.source.notePath);
+    for (const result of branch.results) {
+      result.notePath = move(result.notePath);
+      moveReuse(result.reuse);
+    }
+    if (JSON.stringify(branch.inputSnapshot) === snapshotBefore) continue;
+    const hash = hashSnapshot({ branch: branch.inputSnapshot, answer: branch.answerSnapshot });
+    for (const run of aim.runs) {
+      if (run.branchId !== branch.id) continue;
+      for (const attempt of run.attempts) {
+        attempt.inputSnapshotHash = hash;
+        for (const draft of aim.resultDrafts ?? [])
+          if (draft.runId === run.id && draft.attemptId === attempt.id) draft.inputSnapshotHash = hash;
+      }
+    }
+  }
+  for (const run of aim.runs)
+    for (const attempt of run.attempts)
+      if (attempt.retainedReports) attempt.retainedReports.notePath = move(attempt.retainedReports.notePath);
+  for (const draft of aim.resultDrafts ?? []) {
+    draft.notePath = move(draft.notePath);
+    moveReuse(draft.reuse);
+  }
+  if (aim.rootDraft) aim.rootDraft.notePath = move(aim.rootDraft.notePath);
+  if (aim.questionDraft) aim.questionDraft.notePath = move(aim.questionDraft.notePath);
+  for (const pending of aim.pendingCommits) pending.notePath = move(pending.notePath);
+  return changed;
+}
+/** A rebase function that moves exactly one note path. */
+export function moveNotePath(oldPath: string, newPath: string): (path: string) => string {
+  return path => (path === oldPath ? newPath : path);
+}
 function writeMapContent(content: string, map: MapDocument): string {
   return content
     .replace(/^# .*$/m, () => `# ${map.title.replace(/\n/g, " ")}`)
@@ -441,6 +496,9 @@ export class Repository {
     readonly app: App,
     readonly settings: Settings
   ) {}
+
+  /** Called once per vault-wide scan that skipped unreadable maps. */
+  onUnreadableMaps?: (failures: { path: string; error: string }[]) => void;
 
   private message(key: TranslationKey): string {
     return translate(this.settings.language, key);
@@ -851,6 +909,25 @@ export class Repository {
   }
 
   /**
+   * Vault-wide scans read every map through here: a map that cannot be parsed is skipped (never written) and
+   * reported once per scan, so one broken Map.md does not stop the scan or leave later maps stale. Opening or editing
+   * one specific map keeps using readMap and still surfaces its error.
+   */
+  async readableMaps(): Promise<{ file: TFile; map: MapDocument }[]> {
+    const readable: { file: TFile; map: MapDocument }[] = [],
+      failures: { path: string; error: string }[] = [];
+    for (const file of await this.mapFiles()) {
+      try {
+        readable.push({ file, map: await this.readMap(file.path) });
+      } catch (error) {
+        failures.push({ path: file.path, error: error instanceof Error ? error.message : String(error) });
+      }
+    }
+    if (failures.length) this.onUnreadableMaps?.(failures);
+    return readable;
+  }
+
+  /**
    * Whether a rename of `file` (previously at `oldPath`) can affect VAM data, decided from the metadata cache without
    * reading notes: the file is a VAM note or map, or a VAM note cites the old path. Uncached files count as relevant.
    */
@@ -869,8 +946,7 @@ export class Repository {
 
   /** Whether any map lists `path` as a node; only map files are read. */
   async isMapNodePath(path: string): Promise<boolean> {
-    for (const file of await this.mapFiles())
-      if ((await this.readMap(file.path)).nodes.some(node => node.path === path)) return true;
+    for (const { map } of await this.readableMaps()) if (map.nodes.some(node => node.path === path)) return true;
     return false;
   }
 
@@ -882,18 +958,17 @@ export class Repository {
       if (id) candidates.set(id, [...(candidates.get(id) ?? []), file.path]);
     }
     let repaired = 0;
-    for (const file of await this.mapFiles()) {
-      const map = await this.readMap(file.path);
+    for (const { file, map } of await this.readableMaps()) {
       let changed = false;
-      for (const node of map.nodes) {
+      for (const node of [...map.nodes]) {
         if (this.app.vault.getAbstractFileByPath(node.path) instanceof TFile) continue;
         const matches = candidates.get(node.id) ?? [];
         if (matches.length !== 1) continue;
         const oldPath = node.path;
-        node.path = matches[0];
+        rebaseMapNotePaths(map, moveNotePath(oldPath, matches[0]));
         changed = true;
         repaired++;
-        await this.replaceSourcePath(oldPath, node.path);
+        await this.replaceSourcePath(oldPath, matches[0]);
       }
       if (changed) await this.saveMap(file.path, map);
     }
@@ -902,8 +977,7 @@ export class Repository {
 
   async topics(): Promise<TopicInfo[]> {
     const topics: TopicInfo[] = [];
-    for (const file of await this.mapFiles()) {
-      const map = await this.readMap(file.path);
+    for (const { file, map } of await this.readableMaps()) {
       topics.push({ id: map.id, title: map.title, mapPath: file.path, root: this.topicRoot(file.path) });
     }
     return topics;
@@ -960,9 +1034,9 @@ export class Repository {
       const id = text(fm["node-id"]);
       if (id) byId.set(id, file.path);
     }
-    for (const node of map.nodes)
+    for (const node of [...map.nodes])
       if (!(this.app.vault.getAbstractFileByPath(node.path) instanceof TFile) && byId.has(node.id))
-        node.path = byId.get(node.id)!;
+        rebaseMapNotePaths(map, moveNotePath(node.path, byId.get(node.id)!));
     await this.moveExact(sourcePath, target);
     await this.saveMap(target, map);
     for (const node of map.nodes)
@@ -974,8 +1048,7 @@ export class Repository {
 
   async assignedNotePaths(exceptMapId?: string): Promise<Set<string>> {
     const assigned = new Set<string>();
-    for (const file of await this.mapFiles()) {
-      const map = await this.readMap(file.path);
+    for (const { map } of await this.readableMaps()) {
       if (map.id === exceptMapId) continue;
       for (const node of map.nodes) assigned.add(node.path);
     }
@@ -1067,8 +1140,7 @@ export class Repository {
 
   async normalizeGeneratedNoteFilenames(): Promise<number> {
     let renamed = 0;
-    for (const mapFile of await this.mapFiles()) {
-      const map = await this.readMap(mapFile.path);
+    for (const { file: mapFile, map } of await this.readableMaps()) {
       let changed = false;
       for (const node of map.nodes) {
         const file = this.app.vault.getAbstractFileByPath(node.path);
@@ -1077,7 +1149,7 @@ export class Repository {
         if (!note.title.trim() || safeName(note.title) === file.basename) continue;
         const oldPath = node.path,
           newPath = await this.renameNote(oldPath, note.title);
-        node.path = newPath;
+        rebaseMapNotePaths(map, moveNotePath(oldPath, newPath));
         changed = true;
         renamed++;
         await this.replaceSourcePath(oldPath, newPath);
@@ -1104,8 +1176,7 @@ export class Repository {
   async rebuildDerivedData(noteRoot?: string): Promise<void> {
     const ownership = new Map<string, { map: MapDocument; mapPath: string; node: MapNode }>();
     const topics = new Map<string, { map: MapDocument; mapPath: string }>();
-    for (const mapFile of await this.mapFiles()) {
-      const map = await this.readMap(mapFile.path);
+    for (const { file: mapFile, map } of await this.readableMaps()) {
       topics.set(map.id, { map, mapPath: mapFile.path });
       for (const node of map.nodes) {
         const existing = ownership.get(node.path);
@@ -1281,13 +1352,13 @@ export class Repository {
   }
 
   async legacyMigrationPlan(): Promise<LegacyMigrationPlan> {
-    const allMaps = await this.mapFiles();
-    const legacyMaps = allMaps.filter(file => !file.path.startsWith(`${this.settings.topicsFolder}/`));
+    const legacyMaps = (await this.readableMaps()).filter(
+      ({ file }) => !file.path.startsWith(`${this.settings.topicsFolder}/`)
+    );
     const assigned = new Set<string>(),
       maps: LegacyMigrationPlan["maps"] = [];
     const reservedRoots = new Set<string>();
-    for (const file of legacyMaps) {
-      const map = await this.readMap(file.path);
+    for (const { file, map } of legacyMaps) {
       for (const node of map.nodes) assigned.add(node.path);
       let targetRoot = normalizePath(`${this.settings.topicsFolder}/${safeName(map.title)}`),
         number = 2;
@@ -1333,7 +1404,7 @@ export class Repository {
           const old = node.path,
             next = await this.moveUnique(old, `${item.targetRoot}/Notes`);
           moves.push({ from: old, to: next });
-          node.path = next;
+          rebaseMapNotePaths(map, moveNotePath(old, next));
           await this.setLifecycle(next, map.id, map.id, "active");
         }
         await this.saveMap(mapTarget, map);
@@ -1394,32 +1465,7 @@ export class Repository {
       map.title = title;
       const rebasePath = (path: string): string =>
         path.startsWith(`${originalRoot}/`) ? `${desired}/${path.slice(originalRoot.length + 1)}` : path;
-      for (const node of map.nodes) node.path = rebasePath(node.path);
-      const aim = map.aim;
-      if (aim) {
-        for (const branch of aim.branches) {
-          for (const result of branch.inputSnapshot.upstreamResults) result.notePath = rebasePath(result.notePath);
-          for (const result of branch.results) result.notePath = rebasePath(result.notePath);
-        }
-        for (const draft of aim.resultDrafts ?? []) draft.notePath = rebasePath(draft.notePath);
-        if (aim.rootDraft) aim.rootDraft.notePath = rebasePath(aim.rootDraft.notePath);
-        if (aim.questionDraft) aim.questionDraft.notePath = rebasePath(aim.questionDraft.notePath);
-        for (const pending of aim.pendingCommits) pending.notePath = rebasePath(pending.notePath);
-
-        const hashSnapshot = (value: unknown): string =>
-          createHash("sha256").update(JSON.stringify(value)).digest("hex");
-        for (const run of aim.runs) {
-          const branch = aim.branches.find(item => item.id === run.branchId);
-          if (!branch) continue;
-          for (const attempt of run.attempts) {
-            attempt.inputSnapshotHash = hashSnapshot({ branch: branch.inputSnapshot, answer: branch.answerSnapshot });
-            for (const draft of aim.resultDrafts ?? []) {
-              if (draft.runId === run.id && draft.attemptId === attempt.id)
-                draft.inputSnapshotHash = attempt.inputSnapshotHash;
-            }
-          }
-        }
-      }
+      rebaseMapNotePaths(map, rebasePath);
       await this.saveMap(next, map);
       await this.rebuildDerivedData();
       return next;
