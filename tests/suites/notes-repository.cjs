@@ -593,3 +593,16 @@ integrationTest('visual reference without a related paragraph goes before the so
     assert.match(detail, /Source: https:\/\/x$/);
   }
 });
+integrationTest('visual reference placement: a sources alias equal to another section name is not the sources heading', async () => {
+  const { canonicalDetail } = load('ai/result-utils.ts');
+  const reference = '**Pic**\n\n![Pic](https://x/y.png)\n\nSource: https://x';
+  const { repo } = fixture('en'); const n = await topicNote(repo, 'Alias picture');
+  const template = { id: 't1', name: 'T', sections: [
+    { id: 'a', name: 'A', description: '', role: 'none', aliases: [] },
+    { id: 'n', name: 'Notes', description: '', role: 'none', aliases: [] },
+    { id: 'r', name: 'Refs', description: '', role: 'sources', aliases: ['Notes'] }] };
+  await repo.updateNote(n.path, { detail: canonicalDetail('### A\n\nK\n\n### Notes\n\nN\n\n### Refs\n\nE', 'en', template), visualReferences: reference }, { detailTemplate: template });
+  const detail = (await repo.readNote(n.path)).detail;
+  assert.ok(detail.indexOf('**Pic**') > detail.indexOf('\nN\n'), 'after the Notes section text');
+  assert.ok(detail.indexOf('**Pic**') < detail.indexOf('### Refs'), 'before the sources section');
+});

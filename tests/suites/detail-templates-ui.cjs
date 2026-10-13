@@ -182,3 +182,30 @@ test('settings row refreshes when the library closes after create and delete', a
   modal.onClose(); assert.equal(refreshes, 2);
   assert.deepEqual(options(), ['Standard']);
 });
+
+test('template editor: an alias equal to any section current name is dropped (rename into a freed name)', async () => {
+  const h = harness();
+  await h.click('New template');
+  const name = h.find(h.modal.contentEl, i => i['aria-label'] === 'Template name'); name.value = 'Shift'; name.listeners.input();
+  const second = h.field(h.sections()[1], 'Section name'); second.value = 'Concepts'; second.listeners.input();
+  const first = h.field(h.sections()[0], 'Section name'); first.value = 'Key knowledge'; first.listeners.input();
+  await h.click('Save');
+  const [saved] = plain(h.plugin.settings.detailTemplates);
+  const names = saved.sections.map(s => s.name.toLowerCase());
+  for (const section of saved.sections)
+    for (const alias of section.aliases) assert.ok(!names.includes(alias.toLowerCase()), `alias ${alias} of ${section.name}`);
+  assert.ok(saved.sections[0].aliases.includes('Core conclusions'));
+  assert.equal(saved.sections[1].name, 'Concepts');
+});
+test('template editor: renaming A to B and back to A leaves only B as an alias', async () => {
+  const h = harness({ detailTemplates: [{ id: 't', name: 'T', sections: [{ id: 's', name: 'A', description: '', role: 'none', aliases: [] }] }] });
+  const rename = async value => {
+    await h.click('Edit');
+    const input = h.field(h.sections()[0], 'Section name'); input.value = value; input.listeners.input();
+    await h.click('Save');
+  };
+  await rename('B');
+  assert.deepEqual(plain(h.plugin.settings.detailTemplates[0].sections[0].aliases), ['A']);
+  await rename('A');
+  assert.deepEqual(plain(h.plugin.settings.detailTemplates[0].sections[0]), { id: 's', name: 'A', description: '', role: 'none', aliases: ['B'] });
+});

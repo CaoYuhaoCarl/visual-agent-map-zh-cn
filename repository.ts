@@ -6,7 +6,7 @@ import { MapDocument, MapNode, serializeMap, parseMap } from "./map-model";
 import type { CoffeeStyle } from "./experiences/coffee-tables/types";
 import type { ReasoningLevel, ResearchDepth, ResearchMode, VisualMode } from "./ai/types";
 import { normalizeReasoningLevel } from "./ai/task-policy";
-import { sectionKeys, standardTemplate, type DetailTemplate } from "./ai/detail-templates";
+import { sourcesHeadingKeys, standardTemplate, type DetailTemplate } from "./ai/detail-templates";
 import { fencedLines } from "./ai/markdown-blocks";
 import { managedHeadingValue, managedSectionValue } from "./note-values";
 import { upgradeLegacyAimText } from "./experiences/aim/legacy-names";
@@ -302,8 +302,7 @@ function detailWithVisualReferences(detail: string, visualReferences: string, te
       paragraphs.splice(related + 1, 0, block);
       current = paragraphs.join("\n\n");
     } else {
-      const sources = template.sections.find(item => item.role === "sources");
-      const keys = new Set(sources ? sectionKeys(sources) : []);
+      const keys = sourcesHeadingKeys(template);
       const lines = current.split("\n");
       const code = fencedLines(lines);
       const at = lines.findIndex((line, index) => {

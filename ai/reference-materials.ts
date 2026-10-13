@@ -1,7 +1,7 @@
 import { App, TFile } from "obsidian";
 import { t } from "../i18n";
 import { fencedLines, sourceFootnoteDefinition } from "./result-utils";
-import { sectionKeys, standardTemplate, type DetailTemplate } from "./detail-templates";
+import { sourcesHeadingKeys, standardTemplate, type DetailTemplate } from "./detail-templates";
 
 export interface ReferenceDocument {
   path: string;
@@ -241,8 +241,7 @@ export function resolveDetailReferences(
   );
   const text = compact.join("\n").trimEnd();
   if (!ordered.length) return text;
-  const sourcesSection = (template ?? standardTemplate("en")).sections.find(section => section.role === "sources");
-  const headings = new Set(sourcesSection ? sectionKeys(sourcesSection) : []);
+  const headings = sourcesHeadingKeys(template ?? standardTemplate("en"));
   const textLines = text.split("\n");
   const textCode = fencedLines(textLines);
   const start = textLines.findIndex((line, index) => {

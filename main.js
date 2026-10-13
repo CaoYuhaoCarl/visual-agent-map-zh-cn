@@ -10467,8 +10467,31 @@ function copyTemplate(source, name, id) {
     }))
   };
 }
-function sectionKeys(section3) {
-  return [section3.name, ...section3.aliases].map((value) => value.trim().toLocaleLowerCase()).filter(Boolean);
+var headingKey = (value) => value.trim().toLocaleLowerCase();
+function sectionLookup(template) {
+  const lookup = /* @__PURE__ */ new Map();
+  template.sections.forEach(
+    (section3, index) => section3.aliases.map(headingKey).forEach((key2) => key2 && lookup.set(key2, index))
+  );
+  template.sections.forEach((section3, index) => {
+    const key2 = headingKey(section3.name);
+    if (key2) lookup.set(key2, index);
+  });
+  return lookup;
+}
+function sourcesHeadingKeys(template) {
+  const index = template.sections.findIndex((section3) => section3.role === "sources");
+  return new Set([...sectionLookup(template)].filter(([, target]) => target === index).map(([key2]) => key2));
+}
+function withoutConflictingAliases(sections) {
+  const names2 = new Set(sections.map((section3) => headingKey(section3.name)));
+  return sections.map((section3) => {
+    const aliases = [];
+    for (const alias of section3.aliases)
+      if (alias.trim() && !names2.has(headingKey(alias)) && !aliases.some((existing) => headingKey(existing) === headingKey(alias)))
+        aliases.push(alias);
+    return { ...section3, aliases };
+  });
 }
 function validateTemplate(template, others) {
   const issues = [];
@@ -10531,7 +10554,7 @@ function normalizeTemplates(value) {
     if (!Array.isArray(item.sections)) continue;
     const sections = item.sections.map(section);
     if (sections.some((entry2) => !entry2)) continue;
-    const template = { id: item.id, name: item.name, sections };
+    const template = { id: item.id, name: item.name, sections: withoutConflictingAliases(sections) };
     if (validateTemplate(template, result).length) continue;
     result.push(template);
   }
@@ -10557,8 +10580,7 @@ function countItems(body) {
   return outside.filter((line) => /^(?:[-*+]|\d+[.)])\s+\S/.test(line)).length;
 }
 function sectionBodies(detail, template) {
-  const lookup = /* @__PURE__ */ new Map();
-  template.sections.forEach((section3, index) => sectionKeys(section3).forEach((key2) => lookup.set(key2, index)));
+  const lookup = sectionLookup(template);
   const lines = detail.split("\n");
   const code = fencedLines(lines);
   const bodies = /* @__PURE__ */ new Map();
@@ -10647,8 +10669,7 @@ function canonicalDetail(value, language2 = "zh-TW", template = standardTemplate
   var _a, _b;
   const detail = value.trim();
   const headings = template.sections.map((section3) => section3.name);
-  const aliases = /* @__PURE__ */ new Map();
-  template.sections.forEach((section3, index) => sectionKeys(section3).forEach((key2) => aliases.set(key2, index)));
+  const aliases = sectionLookup(template);
   const sourcesIndex = template.sections.findIndex((section3) => section3.role === "sources");
   const sections = /* @__PURE__ */ new Map();
   const leading = [];
@@ -10893,8 +10914,7 @@ function resolveDetailReferences(detail, groups, previousDetail = "", template) 
   );
   const text11 = compact.join("\n").trimEnd();
   if (!ordered.length) return text11;
-  const sourcesSection = (template != null ? template : standardTemplate("en")).sections.find((section3) => section3.role === "sources");
-  const headings = new Set(sourcesSection ? sectionKeys(sourcesSection) : []);
+  const headings = sourcesHeadingKeys(template != null ? template : standardTemplate("en"));
   const textLines = text11.split("\n");
   const textCode = fencedLines(textLines);
   const start = textLines.findIndex((line, index) => {
@@ -11655,8 +11675,7 @@ function detailWithVisualReferences(detail, visualReferences, template) {
       paragraphs.splice(related + 1, 0, block);
       current = paragraphs.join("\n\n");
     } else {
-      const sources2 = template.sections.find((item) => item.role === "sources");
-      const keys = new Set(sources2 ? sectionKeys(sources2) : []);
+      const keys = sourcesHeadingKeys(template);
       const lines = current.split("\n");
       const code = fencedLines(lines);
       const at = lines.findIndex((line, index) => {
@@ -26531,20 +26550,20 @@ var DetailTemplatesModal = class extends import_obsidian17.Modal {
     });
     sectionIssues[index] = row.createDiv("vam-template-issues");
   }
-  /** Trims names and remembers earlier section names as aliases so old notes still map to the renamed section. */
+  /**
+   * Trims names and remembers earlier section names as aliases so old notes still map to the renamed section; an alias
+   * equal to any section's current name is dropped so the name always wins.
+   */
   finalize(draft, baseline) {
     return {
       id: draft.id,
       name: draft.name.trim(),
-      sections: draft.sections.map((section3) => {
-        const current = section3.name.trim();
-        const aliases = [];
-        const before = baseline.get(section3.id);
-        for (const alias of [...section3.aliases, ...before !== void 0 && !same(before, current) ? [before] : []])
-          if (alias.trim() && !same(alias, current) && !aliases.some((existing) => same(existing, alias)))
-            aliases.push(alias);
-        return { ...section3, name: current, aliases };
-      })
+      sections: withoutConflictingAliases(
+        draft.sections.map((section3) => {
+          const before = baseline.get(section3.id);
+          return { ...section3, name: section3.name.trim(), aliases: [...section3.aliases, ...before ? [before] : []] };
+        })
+      )
     };
   }
 };

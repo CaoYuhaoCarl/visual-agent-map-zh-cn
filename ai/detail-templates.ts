@@ -78,6 +78,46 @@ export function sectionKeys(section: DetailSection): string[] {
   return [section.name, ...section.aliases].map(value => value.trim().toLocaleLowerCase()).filter(Boolean);
 }
 
+const headingKey = (value: string) => value.trim().toLocaleLowerCase();
+
+/**
+ * Maps a lower-cased `###` heading to its template section index. A section's current name always wins over another
+ * section's alias, so aliases are registered first and names last.
+ */
+export function sectionLookup(template: DetailTemplate): Map<string, number> {
+  const lookup = new Map<string, number>();
+  template.sections.forEach((section, index) =>
+    section.aliases.map(headingKey).forEach(key => key && lookup.set(key, index))
+  );
+  template.sections.forEach((section, index) => {
+    const key = headingKey(section.name);
+    if (key) lookup.set(key, index);
+  });
+  return lookup;
+}
+
+/** The lower-cased headings that resolve to the template's sources section (see sectionLookup). */
+export function sourcesHeadingKeys(template: DetailTemplate): Set<string> {
+  const index = template.sections.findIndex(section => section.role === "sources");
+  return new Set([...sectionLookup(template)].filter(([, target]) => target === index).map(([key]) => key));
+}
+
+/** Drops aliases that equal any section's current name (case-insensitive); keeps the first of duplicate aliases. */
+export function withoutConflictingAliases(sections: DetailSection[]): DetailSection[] {
+  const names = new Set(sections.map(section => headingKey(section.name)));
+  return sections.map(section => {
+    const aliases: string[] = [];
+    for (const alias of section.aliases)
+      if (
+        alias.trim() &&
+        !names.has(headingKey(alias)) &&
+        !aliases.some(existing => headingKey(existing) === headingKey(alias))
+      )
+        aliases.push(alias);
+    return { ...section, aliases };
+  });
+}
+
 export function validateTemplate(template: DetailTemplate, others: DetailTemplate[]): TemplateIssue[] {
   const issues: TemplateIssue[] = [];
   const name = template.name.trim();
@@ -148,7 +188,7 @@ export function normalizeTemplates(value: unknown): DetailTemplate[] {
     if (!Array.isArray(item.sections)) continue;
     const sections = item.sections.map(section);
     if (sections.some(entry => !entry)) continue;
-    const template = { id: item.id, name: item.name, sections: sections as DetailSection[] };
+    const template = { id: item.id, name: item.name, sections: withoutConflictingAliases(sections as DetailSection[]) };
     if (validateTemplate(template, result).length) continue;
     result.push(template);
   }
@@ -182,8 +222,7 @@ export function countItems(body: string): number {
 
 /** Splits a detail into section bodies keyed by template section index (by name or alias); other text is ignored. */
 function sectionBodies(detail: string, template: DetailTemplate): Map<number, string> {
-  const lookup = new Map<string, number>();
-  template.sections.forEach((section, index) => sectionKeys(section).forEach(key => lookup.set(key, index)));
+  const lookup = sectionLookup(template);
   const lines = detail.split("\n");
   const code = fencedLines(lines);
   const bodies = new Map<number, string[]>();

@@ -137,3 +137,36 @@ test('Standard canonicalDetail is idempotent and unchanged on repo Markdown corp
     }
   }
 });
+
+// A section's current name always wins over another section's alias.
+const renamedExamples = () => ({ id: 't', name: 'T', sections: [
+  { id: 'core', name: 'Core', description: '', role: 'none', aliases: [] },
+  { id: 'new', name: 'Examples', description: '', role: 'none', count: { mode: 'exact', n: 2 }, aliases: [] },
+  { id: 'old', name: 'Samples', description: '', role: 'none', count: { mode: 'exact', n: 3 }, aliases: ['Examples'] }] });
+test('a section name beats another section alias: canonicalDetail and checkCounts', () => {
+  const detail = '### Core\n\nC\n\n### Examples\n\n- a\n- b\n\n### Samples\n\n- 1\n- 2\n- 3';
+  const out = utils.canonicalDetail(detail, 'en', renamedExamples());
+  assert.match(out, /### Examples\n\n- a\n- b\n\n### Samples\n\n- 1\n- 2\n- 3$/);
+  assert.deepEqual(plain(api.checkCounts(detail, renamedExamples())), []);
+});
+test('swapping two section names keeps each heading in its own section', () => {
+  const swapped = { id: 't', name: 'T', sections: [
+    { id: 'x', name: 'B', description: '', role: 'none', aliases: ['A'] },
+    { id: 'y', name: 'A', description: '', role: 'none', aliases: ['B'] }] };
+  const out = utils.canonicalDetail('### A\n\nfor A\n\n### B\n\nfor B', 'en', swapped);
+  assert.equal(out, '### B\n\nfor B\n\n### A\n\nfor A');
+});
+test('normalizeTemplates drops aliases equal to any section current name', () => {
+  const [result] = api.normalizeTemplates([{ id: 't', name: 'T', sections: [
+    { id: 'x', name: 'B', description: '', role: 'none', aliases: ['A', 'Old'] },
+    { id: 'y', name: 'A', description: '', role: 'none', aliases: ['b', 'Older'] }] }]);
+  assert.deepEqual(plain(result.sections.map(s => s.aliases)), [['Old'], ['Older']]);
+});
+test('resolveDetailReferences: sources alias equal to another section name does not move footnotes there', () => {
+  const t = { id: 't', name: 'T', sections: [
+    { id: 'a', name: 'A', description: '', role: 'none', aliases: [] },
+    { id: 'n', name: 'Notes', description: '', role: 'none', aliases: [] },
+    { id: 'r', name: 'Refs', description: '', role: 'sources', aliases: ['Notes'] }] };
+  const placed = refs.resolveDetailReferences('### A\n\nfact [S1]\n\n### Notes\n\nN\n\n### Refs\n\nE', [{ id: 'g', name: 'g', location: '', documents: [{ path: 'Notes/X.md', content: 'x' }] }], '', t);
+  assert.match(placed, /### Notes\n\nN\n\n### Refs\n\nE\n\n\[\^1\]: \[\[Notes\/X\.md\|X\]\]/);
+});

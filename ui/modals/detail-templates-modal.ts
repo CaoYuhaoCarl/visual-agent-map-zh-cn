@@ -6,6 +6,7 @@ import {
   copyTemplate,
   standardTemplate,
   validateTemplate,
+  withoutConflictingAliases,
   type DetailSection,
   type DetailSectionRole,
   type DetailTemplate,
@@ -315,20 +316,20 @@ export class DetailTemplatesModal extends Modal {
     sectionIssues[index] = row.createDiv("vam-template-issues");
   }
 
-  /** Trims names and remembers earlier section names as aliases so old notes still map to the renamed section. */
+  /**
+   * Trims names and remembers earlier section names as aliases so old notes still map to the renamed section; an alias
+   * equal to any section's current name is dropped so the name always wins.
+   */
   private finalize(draft: DetailTemplate, baseline: Map<string, string>): DetailTemplate {
     return {
       id: draft.id,
       name: draft.name.trim(),
-      sections: draft.sections.map(section => {
-        const current = section.name.trim();
-        const aliases: string[] = [];
-        const before = baseline.get(section.id);
-        for (const alias of [...section.aliases, ...(before !== undefined && !same(before, current) ? [before] : [])])
-          if (alias.trim() && !same(alias, current) && !aliases.some(existing => same(existing, alias)))
-            aliases.push(alias);
-        return { ...section, name: current, aliases };
-      })
+      sections: withoutConflictingAliases(
+        draft.sections.map(section => {
+          const before = baseline.get(section.id);
+          return { ...section, name: section.name.trim(), aliases: [...section.aliases, ...(before ? [before] : [])] };
+        })
+      )
     };
   }
 }

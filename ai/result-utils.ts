@@ -2,7 +2,7 @@ import type { VisualReference } from "../repository";
 import { translate, type UiLanguage } from "../i18n";
 import type { AiResult } from "./types";
 import { fencedLines } from "./markdown-blocks";
-import { sectionKeys, standardTemplate, type DetailTemplate } from "./detail-templates";
+import { sectionLookup, standardTemplate, type DetailTemplate } from "./detail-templates";
 
 export { fencedLines } from "./markdown-blocks";
 
@@ -60,8 +60,7 @@ export function canonicalDetail(
 ): string {
   const detail = value.trim();
   const headings = template.sections.map(section => section.name);
-  const aliases = new Map<string, number>();
-  template.sections.forEach((section, index) => sectionKeys(section).forEach(key => aliases.set(key, index)));
+  const aliases = sectionLookup(template);
   const sourcesIndex = template.sections.findIndex(section => section.role === "sources");
   const sections = new Map<number, string[]>();
   const leading: string[] = [];
