@@ -131,6 +131,23 @@ test('new branch layout keeps older coordinates while full layout arranges all l
   const clear = layout.arrangeNewBranch(crowded, 'root', new Set(['fresh']));
   for (const old of clear.slice(1, 6)) assert.ok(Math.abs(clear[6].x - old.x) >= 300 || Math.abs(clear[6].y - old.y) >= 190);
 });
+test('new tree layout keeps every existing node and places the new tree below them without overlap', () => {
+  const existing = [
+    { ...node('root'), x: 200, y: 80 },
+    { ...node('child-a', 'root'), x: 560, y: -100 },
+    { ...node('child-b', 'root'), x: 560, y: 520 },
+    { ...node('other-root'), x: 120, y: 900 }
+  ];
+  const fresh = [{ ...node('new-root'), x: 80, y: 80 }, { ...node('new-a', 'new-root'), x: 80, y: 80 }, { ...node('new-b', 'new-root'), x: 80, y: 80 }, { ...node('new-a1', 'new-a'), x: 80, y: 80 }];
+  const result = layout.arrangeNewTree([...existing, ...fresh], 'new-root', new Set(fresh.map(item => item.id)));
+  assert.deepEqual(plain(result.slice(0, 4)), plain(existing), 'existing nodes never move');
+  const placed = result.slice(4);
+  for (const item of placed) for (const fixed of existing) assert.ok(Math.abs(item.x - fixed.x) >= 300 || Math.abs(item.y - fixed.y) >= 190, `${item.id} overlaps ${fixed.id}`);
+  for (const item of placed) assert.ok(item.y >= 900 + 220, `${item.id} below the lowest node`);
+  assert.equal(placed[0].x, 120, 'leftmost root column');
+  assert.equal(placed[1].x, 120 + 360); assert.equal(placed[3].x, 120 + 720);
+  assert.deepEqual(plain(layout.arrangeNewTree(existing, 'missing', new Set())), plain(existing));
+});
 test('malformed maps fail before data can be overwritten', () => {
   for (const nodes of [[node('a'), node('a')], [node('a', 'b'), node('b', 'a')], [node('a', 'missing')]]) {
     assert.throws(() => core.parseMap(core.serializeMap(map(nodes))));

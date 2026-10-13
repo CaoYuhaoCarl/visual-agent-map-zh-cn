@@ -62,3 +62,23 @@ export function arrangeNewBranch(nodes: MapNode[], parentId: string, newIds: Set
     return point ? { ...node, x: point.x, y: Math.round(point.y + offset) } : node;
   });
 }
+
+/** Lays out a new top-level tree below every existing node, in the leftmost root column; existing nodes never move. */
+export function arrangeNewTree(nodes: MapNode[], rootId: string, newIds: Set<string>): MapNode[] {
+  const root = nodes.find(node => node.id === rootId);
+  if (!root || !newIds.has(rootId)) return nodes;
+  const fixed = nodes.filter(node => !newIds.has(node.id));
+  const fixedRoots = fixed.filter(node => !node.parentId);
+  const left = Math.min(...(fixedRoots.length ? fixedRoots : fixed).map(node => node.x), fixed.length ? Infinity : 80);
+  const top = fixed.length ? Math.max(...fixed.map(node => node.y)) + ROW : 80;
+  const placed = positions(
+    nodes.filter(node => newIds.has(node.id)),
+    [root],
+    left,
+    top
+  );
+  return nodes.map(node => {
+    const point = placed.get(node.id);
+    return point ? { ...node, x: point.x, y: Math.round(point.y) } : node;
+  });
+}

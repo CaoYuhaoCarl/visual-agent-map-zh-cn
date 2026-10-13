@@ -181,6 +181,15 @@ var english = {
   "ui.outline_import_source": "Source: {0}",
   "ui.outline_import_shallow": "Run shallow research on each topic after creation (uses AI quota)",
   "ui.outline_import_create": "Create mind map",
+  "ui.outline_import_placement": "Put it in",
+  "ui.outline_import_placement_new": "A new mind map",
+  "ui.outline_import_placement_tree": "This mind map, as a new tree",
+  "ui.outline_import_placement_under": "Under the selected topic",
+  "ui.outline_import_placement_under_named": "Under the selected topic ({0})",
+  "ui.outline_import_placement_no_map": "No editable mind map is open.",
+  "ui.outline_import_placement_aim": "AIM maps don't support imports.",
+  "ui.outline_import_placement_no_selection": "Select a topic on the map first.",
+  "ui.outline_import_selected_missing": "The selected topic is no longer on the map.",
   "ui.multi_research": "Research",
   "ui.multi_research_title": "Research selected topics",
   "ui.multi_research_intro": "Research {0} selected topics in the background, up to 3 at a time. This uses AI quota.",
@@ -1424,6 +1433,15 @@ var traditionalChinese = {
   "ui.outline_import_source": "\u4F86\u6E90\uFF1A{0}",
   "ui.outline_import_shallow": "\u5EFA\u7ACB\u5F8C\u9010\u4E00\u6DFA\u7814\u7A76\u6BCF\u500B\u8B70\u984C\uFF08\u6703\u4F7F\u7528 AI \u984D\u5EA6\uFF09",
   "ui.outline_import_create": "\u5EFA\u7ACB\u5FC3\u667A\u5716",
+  "ui.outline_import_placement": "\u653E\u5230\u54EA\u88E1",
+  "ui.outline_import_placement_new": "\u5EFA\u7ACB\u65B0\u5FC3\u667A\u5716",
+  "ui.outline_import_placement_tree": "\u76EE\u524D\u5FC3\u667A\u5716\uFF08\u65B0\u589E\u4E00\u68F5\u6A39\uFF09",
+  "ui.outline_import_placement_under": "\u9078\u53D6\u7684\u8B70\u984C\u5E95\u4E0B",
+  "ui.outline_import_placement_under_named": "\u9078\u53D6\u7684\u8B70\u984C\u5E95\u4E0B\uFF08{0}\uFF09",
+  "ui.outline_import_placement_no_map": "\u76EE\u524D\u6C92\u6709\u958B\u555F\u53EF\u52A0\u5165\u7684\u5FC3\u667A\u5716\u3002",
+  "ui.outline_import_placement_aim": "AIM \u5FC3\u667A\u5716\u4E0D\u652F\u63F4\u532F\u5165\u3002",
+  "ui.outline_import_placement_no_selection": "\u5148\u5728\u5FC3\u667A\u5716\u4E0A\u9078\u4E00\u500B\u8B70\u984C\u3002",
+  "ui.outline_import_selected_missing": "\u9078\u53D6\u7684\u8B70\u984C\u5DF2\u4E0D\u5728\u5FC3\u667A\u5716\u4E0A\u3002",
   "ui.multi_research": "\u7814\u7A76",
   "ui.multi_research_title": "\u7814\u7A76\u5DF2\u9078\u8B70\u984C",
   "ui.multi_research_intro": "\u5728\u80CC\u666F\u7814\u7A76\u5DF2\u9078\u7684 {0} \u500B\u8B70\u984C\uFF0C\u6700\u591A\u540C\u6642 3 \u500B\u3002\u6703\u4F7F\u7528 AI \u984D\u5EA6\u3002",
@@ -11527,6 +11545,24 @@ function arrangeNewBranch(nodes, parentId, newIds) {
     return point ? { ...node, x: point.x, y: Math.round(point.y + offset) } : node;
   });
 }
+function arrangeNewTree(nodes, rootId, newIds) {
+  const root = nodes.find((node) => node.id === rootId);
+  if (!root || !newIds.has(rootId)) return nodes;
+  const fixed = nodes.filter((node) => !newIds.has(node.id));
+  const fixedRoots = fixed.filter((node) => !node.parentId);
+  const left = Math.min(...(fixedRoots.length ? fixedRoots : fixed).map((node) => node.x), fixed.length ? Infinity : 80);
+  const top = fixed.length ? Math.max(...fixed.map((node) => node.y)) + ROW : 80;
+  const placed = positions(
+    nodes.filter((node) => newIds.has(node.id)),
+    [root],
+    left,
+    top
+  );
+  return nodes.map((node) => {
+    const point = placed.get(node.id);
+    return point ? { ...node, x: point.x, y: Math.round(point.y) } : node;
+  });
+}
 
 // repository.ts
 var import_obsidian8 = require("obsidian");
@@ -13294,8 +13330,37 @@ function localDate(now) {
   const pad = (value) => String(value).padStart(2, "0");
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
-async function createOutlineMap(repository, model, nodes, source, now = /* @__PURE__ */ new Date(), template) {
+function outlineRootDetail(language2, template, source, now) {
   var _a;
+  const log = source ? translate(language2, "ui.outline_import_log_source", localDate(now), source) : translate(language2, "ui.outline_import_log", localDate(now));
+  const heading = ((_a = template.sections.find((section3) => section3.role === "log")) != null ? _a : template.sections[0]).name;
+  return canonicalDetail(`### ${heading}
+
+- ${log}`, language2, template);
+}
+async function createOutlineNotes(repository, map, mapPath, model, nodes, rootDetail, parentId, detailTemplateId) {
+  const created = [];
+  for (const node of nodes) {
+    try {
+      const top = node.parent === null;
+      const note = await repository.createNote(
+        node.title,
+        model,
+        map,
+        mapPath,
+        top && parentId === null ? "workspace" : "inherited",
+        top ? { detail: rootDetail } : {}
+      );
+      note.parentId = top ? parentId : created[node.parent].id;
+      created.push(note);
+      if (detailTemplateId) await repository.updateNote(note.path, { detailTemplateId });
+    } catch (error) {
+      return { created, failure: errorText(error) };
+    }
+  }
+  return { created };
+}
+async function createOutlineMap(repository, model, nodes, source, now = /* @__PURE__ */ new Date(), template) {
   const language2 = repository.settings.language;
   const detailTemplate = template != null ? template : standardTemplate(language2);
   if (!nodes.length) throw new Error(translate(language2, "ui.outline_error_no_headings"));
@@ -13306,30 +13371,8 @@ async function createOutlineMap(repository, model, nodes, source, now = /* @__PU
   } catch (error) {
     throw Object.assign(new Error(errorText(error)), { mapCreated: true });
   }
-  const log = source ? translate(language2, "ui.outline_import_log_source", localDate(now), source) : translate(language2, "ui.outline_import_log", localDate(now));
-  const heading = ((_a = detailTemplate.sections.find((section3) => section3.role === "log")) != null ? _a : detailTemplate.sections[0]).name;
-  const rootDetail = canonicalDetail(`### ${heading}
-
-- ${log}`, language2, detailTemplate);
-  const created = [];
-  let failure;
-  for (const node of nodes) {
-    try {
-      const note = await repository.createNote(
-        node.title,
-        model,
-        map,
-        mapPath,
-        node.parent === null ? "workspace" : "inherited",
-        node.parent === null ? { detail: rootDetail } : {}
-      );
-      note.parentId = node.parent === null ? null : created[node.parent].id;
-      created.push(note);
-    } catch (error) {
-      failure = errorText(error);
-      break;
-    }
-  }
+  const rootDetail = outlineRootDetail(language2, detailTemplate, source, now);
+  const { created, failure } = await createOutlineNotes(repository, map, mapPath, model, nodes, rootDetail, null);
   map.nodes = arrangeMap(created);
   try {
     await repository.saveMap(mapPath, map);
@@ -13347,6 +13390,22 @@ async function createOutlineMap(repository, model, nodes, source, now = /* @__PU
     );
   }
   return { mapPath, nodes: map.nodes, created: created.length, total: nodes.length, ...failure ? { failure } : {} };
+}
+async function addOutlineToMap(repository, map, mapPath, model, nodes, source, parentId, template, detailTemplateId, now = /* @__PURE__ */ new Date()) {
+  const language2 = repository.settings.language;
+  if (!nodes.length) throw new Error(translate(language2, "ui.outline_error_no_headings"));
+  const rootDetail = outlineRootDetail(language2, template, source, now);
+  const { created, failure } = await createOutlineNotes(
+    repository,
+    map,
+    mapPath,
+    model,
+    nodes,
+    rootDetail,
+    parentId,
+    detailTemplateId
+  );
+  return { created, total: nodes.length, ...failure ? { failure } : {} };
 }
 
 // experiences/visual-map/outline-import-modal.ts
@@ -13411,11 +13470,12 @@ var OutlineFileModal = class extends import_obsidian9.FuzzySuggestModal {
 };
 var OutlineImportModal = class extends import_obsidian9.Modal {
   constructor(app, create, models = { list: () => [], watch: () => () => {
-  } }, templates = []) {
+  } }, templates = [], target = { map: "none" }) {
     super(app);
     this.create = create;
     this.models = models;
     this.templates = templates;
+    this.target = target;
     __publicField(this, "textarea");
     __publicField(this, "preview");
     __publicField(this, "sourceLabel");
@@ -13429,25 +13489,33 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
     __publicField(this, "model", () => void 0);
     __publicField(this, "template", () => void 0);
     __publicField(this, "unwatch");
+    __publicField(this, "placement", "new");
   }
   onOpen() {
+    var _a;
     this.titleEl.setText(t("ui.outline_import"));
-    this.contentEl.createEl("p", { text: t("ui.outline_import_hint"), cls: "vam-hint" });
-    const actions = this.contentEl.createDiv("vam-outline-actions");
-    actions.createEl("button", { text: t("ui.outline_import_choose_file") }).addEventListener("click", () => new OutlineFileModal(this.app, (file) => void this.loadFile(file)).open());
-    actions.createEl("button", { text: t("ui.outline_import_copy_format") }).addEventListener("click", () => {
+    (_a = this.modalEl) == null ? void 0 : _a.addClass("vam-outline-import-modal");
+    this.contentEl.createEl("p", { text: t("ui.outline_import_hint"), cls: "vam-hint vam-outline-intro" });
+    const source = this.contentEl.createDiv("vam-outline-section");
+    const sourceHeader = source.createDiv("vam-outline-section-header");
+    sourceHeader.createSpan({ text: t("ui.outline_import_text_label"), cls: "vam-outline-label" });
+    const actions = sourceHeader.createDiv("vam-outline-actions");
+    actions.createEl("button", { text: t("ui.outline_import_choose_file"), cls: "vam-outline-link" }).addEventListener("click", () => new OutlineFileModal(this.app, (file) => void this.loadFile(file)).open());
+    actions.createEl("button", { text: t("ui.outline_import_copy_format"), cls: "vam-outline-link" }).addEventListener("click", () => {
       void navigator.clipboard.writeText(t("ui.outline_import_format")).then(() => new import_obsidian9.Notice(t("ui.outline_import_format_copied"))).catch(() => new import_obsidian9.Notice(t("ui.outline_import_copy_failed")));
     });
-    this.textarea = this.contentEl.createEl("textarea", { cls: "vam-task-input vam-outline-text" });
-    this.textarea.rows = 14;
+    this.textarea = source.createEl("textarea", { cls: "vam-task-input vam-outline-text" });
+    this.textarea.rows = 8;
     this.textarea.setAttr("aria-label", t("ui.outline_import_text_label"));
     this.textarea.addEventListener("input", () => this.refresh());
-    this.sourceLabel = this.contentEl.createEl("p", { cls: "vam-hint" });
-    this.preview = this.contentEl.createDiv("vam-outline-preview");
-    const shallowLabel = this.contentEl.createEl("label", { cls: "vam-field vam-next-toggle" });
+    this.sourceLabel = source.createEl("p", { cls: "vam-hint vam-outline-source" });
+    this.preview = source.createDiv("vam-outline-preview");
+    this.placementField();
+    const research = this.contentEl.createDiv("vam-outline-section");
+    const shallowLabel = research.createEl("label", { cls: "vam-outline-check" });
     this.shallow = shallowLabel.createEl("input", { type: "checkbox" });
     shallowLabel.createSpan({ text: t("ui.outline_import_shallow") });
-    const researchOptions = this.contentEl.createDiv("vam-outline-research-options");
+    const researchOptions = research.createDiv("vam-outline-research-options");
     this.depth = researchDepthField(researchOptions);
     const model = modelField(researchOptions, this.models, t("ui.workspace_default"));
     this.model = model.value;
@@ -13456,9 +13524,46 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
     const showOptions = () => researchOptions.toggleClass("is-hidden", !this.shallow.checked);
     this.shallow.addEventListener("change", showOptions);
     showOptions();
-    this.createButton = this.contentEl.createEl("button", { text: t("ui.outline_import_create"), cls: "mod-cta" });
+    const footer = this.contentEl.createDiv("vam-modal-actions vam-outline-footer");
+    this.createButton = footer.createEl("button", { text: t("ui.outline_import_create"), cls: "mod-cta" });
     this.createButton.addEventListener("click", () => void this.submit());
     this.refresh();
+  }
+  /** "Put it in": a new map (default), this map as a new tree, or under the selected topic. */
+  placementField() {
+    const section3 = this.contentEl.createDiv("vam-outline-section");
+    section3.createSpan({ text: t("ui.outline_import_placement"), cls: "vam-outline-label" });
+    const group = section3.createDiv("vam-outline-placement");
+    group.setAttr("role", "radiogroup");
+    group.setAttr("aria-label", t("ui.outline_import_placement"));
+    const mapReason = this.target.map === "aim" ? t("ui.outline_import_placement_aim") : this.target.map === "none" ? t("ui.outline_import_placement_no_map") : null;
+    const selected = this.target.selected;
+    const options = [
+      { kind: "new", text: t("ui.outline_import_placement_new"), reason: null },
+      { kind: "tree", text: t("ui.outline_import_placement_tree"), reason: mapReason },
+      {
+        kind: "under",
+        text: selected ? t("ui.outline_import_placement_under_named", selected.title) : t("ui.outline_import_placement_under"),
+        reason: mapReason != null ? mapReason : selected ? null : t("ui.outline_import_placement_no_selection")
+      }
+    ];
+    for (const option2 of options) {
+      const label = group.createEl("label", { cls: `vam-outline-option${option2.reason ? " is-disabled" : ""}` });
+      const input = label.createEl("input", { type: "radio", value: option2.kind });
+      input.name = "vam-outline-placement";
+      input.checked = option2.kind === this.placement;
+      input.disabled = option2.reason !== null;
+      input.addEventListener("change", () => {
+        if (input.checked) this.placement = option2.kind;
+      });
+      const text11 = label.createDiv("vam-outline-option-text");
+      text11.createSpan({ text: option2.text });
+      if (option2.reason) text11.createSpan({ text: option2.reason, cls: "vam-outline-placement-reason" });
+    }
+  }
+  placementRequest() {
+    if (this.placement === "under" && this.target.selected) return { kind: "under", parentId: this.target.selected.id };
+    return this.placement === "tree" ? { kind: "tree" } : { kind: "new" };
   }
   onClose() {
     var _a;
@@ -13513,6 +13618,7 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
       const detailTemplateId = shallowResearch ? this.template() : void 0;
       await this.create({
         nodes: this.nodes,
+        placement: this.placementRequest(),
         source: this.source,
         shallowResearch,
         ...shallowResearch ? { researchDepth: this.depth() } : {},
@@ -21836,10 +21942,24 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       this.app,
       (request) => this.importOutline(request),
       this.modelChoices(),
-      this.templateChoices()
+      this.templateChoices(),
+      this.outlineImportTarget()
     ).open();
   }
+  /** Whether the open map can take an imported outline, and the selected topic for "under the selected topic". */
+  outlineImportTarget() {
+    var _a, _b;
+    if (!this.map || this.builtIn || !this.path.startsWith(`${this.plugin.settings.topicsFolder}/`))
+      return { map: "none" };
+    if (this.map.aim) return { map: "aim" };
+    const node = this.map.nodes.find((item) => item.id === this.selected);
+    if (!node) return { map: "editable" };
+    return { map: "editable", selected: { id: node.id, title: (_b = (_a = this.notes.get(node.id)) == null ? void 0 : _a.title) != null ? _b : node.path } };
+  }
   async importOutline(request) {
+    var _a;
+    const placement = (_a = request.placement) != null ? _a : { kind: "new" };
+    if (placement.kind !== "new") return this.importOutlineIntoMap(request, placement);
     const model = request.shallowResearch && request.model || this.plugin.settings.cliModel;
     const settings = this.plugin.settings;
     const { template } = resolveTemplate(
@@ -21879,12 +21999,129 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       await this.plugin.confirmAiUsage(
         model,
         () => {
-          var _a;
+          var _a2;
           return this.startShallowResearch(root, children, {
             researchMode: "research",
-            researchDepth: (_a = request.researchDepth) != null ? _a : "fast",
+            researchDepth: (_a2 = request.researchDepth) != null ? _a2 : "fast",
             referenceGroups: [],
             visualMode: "off"
+          });
+        }
+      );
+    } catch (error) {
+      new import_obsidian16.Notice(errorMessage(error));
+    }
+  }
+  /** Adds the outline to the open map, as a new top-level tree or under the selected topic; existing nodes stay put. */
+  async importOutlineIntoMap(request, placement) {
+    var _a, _b, _c;
+    const settings = this.plugin.settings;
+    const repo = this.plugin.repo;
+    const target = () => {
+      const where = this.outlineImportTarget();
+      if (!this.map || where.map !== "editable")
+        throw new Error(
+          where.map === "aim" ? t("ui.outline_import_placement_aim") : t("ui.outline_import_placement_no_map")
+        );
+      if (placement.kind === "tree") return { map: this.map, path: this.path, parent: null };
+      const parent = this.map.nodes.find((node) => node.id === placement.parentId);
+      if (!parent) throw new Error(t("ui.outline_import_selected_missing"));
+      return { map: this.map, path: this.path, parent };
+    };
+    target();
+    const state = {};
+    let model = settings.cliModel;
+    let written = true;
+    try {
+      await this.plugin.mutate(async () => {
+        var _a2, _b2;
+        let current;
+        try {
+          current = target();
+        } catch (error) {
+          state.rejection = error instanceof Error ? error : new Error(String(error));
+          return;
+        }
+        const { map, path, parent } = current;
+        model = request.shallowResearch && request.model || (parent ? inheritModel((await repo.readNote(parent.path)).model, settings.cliModel) : settings.cliModel);
+        const template = this.mapDetailTemplate(settings.language, request.detailTemplateId);
+        const result = await addOutlineToMap(
+          repo,
+          map,
+          path,
+          model,
+          request.nodes,
+          request.source,
+          (_a2 = parent == null ? void 0 : parent.id) != null ? _a2 : null,
+          template,
+          request.detailTemplateId
+        );
+        state.result = result;
+        const created = result.created;
+        if (!created.length) return;
+        for (const node of created) {
+          try {
+            this.notes.set(node.id, await repo.readNote(node.path));
+          } catch (e) {
+          }
+        }
+        const top2 = created[0];
+        const ids2 = new Set(created.map((node) => node.id));
+        try {
+          await this.mapChange((next) => {
+            next.nodes.push(...created);
+            const owner = parent ? next.nodes.find((node) => node.id === parent.id && !ids2.has(node.id)) : void 0;
+            const outlineTop = next.nodes.find((node) => node.id === top2.id);
+            if (owner) {
+              owner.collapsed = false;
+              next.nodes = arrangeNewBranch(next.nodes, owner.id, ids2);
+            } else {
+              outlineTop.parentId = null;
+              next.nodes = arrangeNewTree(next.nodes, top2.id, ids2);
+            }
+          });
+        } catch (error) {
+          state.saveFailed = true;
+          new import_obsidian16.Notice(
+            t(
+              "ui.outline_import_map_save_failed",
+              `${errorMessage(error)} (${created.map((node) => node.path).join(", ")})`
+            )
+          );
+          return;
+        }
+        const placed = (_b2 = this.map) == null ? void 0 : _b2.nodes.find((node) => node.id === top2.id);
+        if (placed) {
+          this.selected = placed.id;
+          this.render();
+          this.focusNode(placed);
+        }
+      });
+    } catch (e) {
+      written = false;
+    }
+    if (state.rejection) throw state.rejection;
+    const outcome = state.result;
+    if (!outcome) return;
+    if (outcome.failure)
+      new import_obsidian16.Notice(t("ui.outline_import_partial", outcome.created.length, outcome.total, outcome.failure));
+    if (outcome.failure || state.saveFailed || !written || !request.shallowResearch || !outcome.created.length) return;
+    const top = (_a = this.map) == null ? void 0 : _a.nodes.find((node) => node.id === outcome.created[0].id);
+    if (!top) return;
+    const ids = new Set(outcome.created.slice(1).map((node) => node.id));
+    const children = ((_c = (_b = this.map) == null ? void 0 : _b.nodes) != null ? _c : []).filter((node) => ids.has(node.id));
+    if (!children.length) return;
+    try {
+      await this.plugin.confirmAiUsage(
+        model,
+        () => {
+          var _a2;
+          return this.startShallowResearch(top, children, {
+            researchMode: "research",
+            researchDepth: (_a2 = request.researchDepth) != null ? _a2 : "fast",
+            referenceGroups: [],
+            visualMode: "off",
+            ...request.detailTemplateId ? { detailTemplateId: request.detailTemplateId } : {}
           });
         }
       );

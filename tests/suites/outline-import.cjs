@@ -477,3 +477,235 @@ integrationTest('importOutline: the chosen template becomes the map default and 
   await view.importOutline({ nodes, source: null, shallowResearch: false });
   assert.equal((await repo.readMap(paths[1])).detailTemplateId, undefined);
 });
+
+// ---- Placement: a new map, this map as a new tree, or under the selected topic ----
+
+function placementModal(target) {
+  const h = modalHarness(); const requests = [];
+  const modal = new h.mod.OutlineImportModal({ vault: { getMarkdownFiles: () => [] } }, async request => { requests.push(request); }, undefined, [], target);
+  modal.open();
+  const radios = h.all(modal.contentEl, item => item.tag === 'input' && item.type === 'radio');
+  const label = value => h.find(modal.contentEl, item => item.tag === 'label' && item.children.some(child => child === radios.find(radio => radio.value === value)));
+  const text = value => h.find(label(value), item => item.tag === 'span').text;
+  const submit = async () => {
+    const textarea = h.find(modal.contentEl, item => item.tag === 'textarea'); textarea.value = '# R\n## A'; textarea.listeners.input();
+    h.find(modal.contentEl, item => item.tag === 'button' && item.text === 'Create mind map').listeners.click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    return requests.at(-1);
+  };
+  const choose = value => { const radio = radios.find(item => item.value === value); radio.checked = true; radio.listeners.change(); };
+  const hints = () => h.all(modal.contentEl, item => /vam-outline-placement-reason/.test(item.cls)).map(item => item.text);
+  return { h, modal, radios, text, submit, choose, hints };
+}
+
+test('outline modal: "Put it in" offers three places, a new map by default, before the shallow option', async () => {
+  const m = placementModal();
+  assert.ok(m.h.find(m.modal.contentEl, item => item.text === 'Put it in'));
+  assert.deepEqual(plain(m.radios.map(radio => [radio.value, radio.checked, radio.disabled])), [['new', true, false], ['tree', false, true], ['under', false, true]]);
+  assert.equal(m.text('new'), 'A new mind map'); assert.equal(m.text('tree'), 'This mind map, as a new tree'); assert.equal(m.text('under'), 'Under the selected topic');
+  assert.deepEqual(m.hints(), ['No editable mind map is open.', 'No editable mind map is open.']);
+  const order = []; const walk = item => { order.push(item); item.children.forEach(walk); }; walk(m.modal.contentEl);
+  assert.ok(order.indexOf(m.radios[0]) < order.findIndex(item => item.tag === 'input' && item.type === 'checkbox'), 'before the shallow-research checkbox');
+  assert.deepEqual(plain((await m.submit()).placement), { kind: 'new' });
+});
+
+test('outline modal: an AIM map disables both in-map places with its own reason', () => {
+  const m = placementModal({ map: 'aim', selected: { id: 'n1', title: 'Q' } });
+  assert.deepEqual(plain(m.radios.map(radio => radio.disabled)), [false, true, true]);
+  assert.deepEqual(m.hints(), ["AIM maps don't support imports.", "AIM maps don't support imports."]);
+});
+
+test('outline modal: an editable map allows a new tree; under needs a selected topic', async () => {
+  const m = placementModal({ map: 'editable' });
+  assert.deepEqual(plain(m.radios.map(radio => radio.disabled)), [false, false, true]);
+  assert.deepEqual(m.hints(), ['Select a topic on the map first.']);
+  m.choose('tree');
+  assert.deepEqual(plain((await m.submit()).placement), { kind: 'tree' });
+});
+
+test('outline modal: under the selected topic shows its title and sends its id', async () => {
+  const m = placementModal({ map: 'editable', selected: { id: 'n1', title: 'Food' } });
+  assert.deepEqual(plain(m.radios.map(radio => radio.disabled)), [false, false, false]);
+  assert.equal(m.text('under'), 'Under the selected topic (Food)');
+  assert.deepEqual(m.hints(), []);
+  m.choose('under');
+  assert.deepEqual(plain((await m.submit()).placement), { kind: 'under', parentId: 'n1' });
+});
+
+test('outline modal: placement labels in Traditional Chinese', () => {
+  const { translate } = load('i18n.ts');
+  assert.equal(translate('zh-TW', 'ui.outline_import_placement'), '放到哪裡');
+  assert.equal(translate('zh-TW', 'ui.outline_import_placement_new'), '建立新心智圖');
+  assert.equal(translate('zh-TW', 'ui.outline_import_placement_tree'), '目前心智圖（新增一棵樹）');
+  assert.equal(translate('zh-TW', 'ui.outline_import_placement_under'), '選取的議題底下');
+  assert.equal(translate('zh-TW', 'ui.outline_import_placement_under_named', 'X'), '選取的議題底下（X）');
+  assert.equal(translate('zh-TW', 'ui.outline_import_placement_no_map'), '目前沒有開啟可加入的心智圖。');
+  assert.equal(translate('zh-TW', 'ui.outline_import_placement_aim'), 'AIM 心智圖不支援匯入。');
+  assert.equal(translate('zh-TW', 'ui.outline_import_placement_no_selection'), '先在心智圖上選一個議題。');
+  assert.equal(translate('zh-TW', 'ui.outline_import_selected_missing'), '選取的議題已不在心智圖上。');
+});
+
+async function placementHarness(settingsOverrides = {}, obsidianOverrides = {}) {
+  const { repo, app } = fixture('en');
+  const { core, DEFAULT_SETTINGS, withExpansionCoordinator } = require('../support.cjs');
+  const notices = [], researched = [], confirms = [];
+  const settings = { ...DEFAULT_SETTINGS, language: 'en', cliModel: 'gpt-6-luna', ...settingsOverrides };
+  repo.settings = settings;
+  const mapPath = 'Agent Workspace/Topics/map-a/Map.md';
+  const mapDoc = { id: 'map-a', title: 'Existing', version: 1, nodes: [], viewport: { x: 0, y: 0, zoom: 1 } };
+  await repo.ensureTopicFolders('Agent Workspace/Topics/map-a');
+  const oldRoot = await repo.createNote('Old root', 'parent-model', mapDoc, mapPath, 'workspace');
+  const oldChild = await repo.createNote('Old child', 'parent-model', mapDoc, mapPath, 'inherited');
+  Object.assign(oldRoot, { x: 80, y: 80 }); Object.assign(oldChild, { parentId: oldRoot.id, x: 440, y: 80 });
+  mapDoc.nodes.push(oldRoot, oldChild);
+  await app.vault.create(mapPath, core.serializeMap(mapDoc));
+  await repo.rebuildDerivedData();
+  const plugin = withExpansionCoordinator({ repo, settings, running: new Set(), rebuildDerivedData: () => repo.rebuildDerivedData(), mutate: async work => work(), confirmAiUsage: async (model, run) => { confirms.push(model); await run(); return true; } });
+  const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Notice: class { constructor(m) { notices.push(m); } }, ...obsidianOverrides } });
+  const view = new VisualAgentMapView({ app }, plugin);
+  view.path = mapPath; view.map = await repo.readMap(mapPath); view.contentEl = { querySelector: () => null }; view.render = () => {}; view.hydrate = async () => {};
+  view.startShallowResearch = async (parent, children, options) => { researched.push({ parent: parent.id, children: children.map(child => child.id), options }); };
+  const titleOf = async id => (await repo.readNote((await repo.readMap(mapPath)).nodes.find(item => item.id === id).path)).title;
+  const notesInFolder = () => app.vault.getMarkdownFiles().filter(file => file.path.startsWith('Agent Workspace/Topics/map-a/Notes/')).map(file => file.path).sort();
+  return { repo, app, view, plugin, notices, researched, confirms, mapPath, oldRoot, oldChild, titleOf, notesInFolder };
+}
+
+const overlaps = (a, b) => Math.abs(a.x - b.x) < 300 && Math.abs(a.y - b.y) < 190;
+
+integrationTest('importOutline as a new tree: a new top-level topic in the open map, existing nodes stay put, undo restores', async () => {
+  const h = await placementHarness();
+  const before = plain((await h.repo.readMap(h.mapPath)).nodes);
+  await h.view.importOutline({ nodes: api.parseOutline('# New\n## A\n### A1\n## B').nodes, source: 'Inbox/o.md', shallowResearch: false, placement: { kind: 'tree' } });
+  const saved = await h.repo.readMap(h.mapPath);
+  assert.equal(saved.nodes.length, 6);
+  for (const old of before) assert.deepEqual(plain(saved.nodes.find(item => item.id === old.id)), old, 'existing node unchanged');
+  const fresh = saved.nodes.filter(item => !before.some(old => old.id === item.id));
+  const top = fresh.find(item => item.parentId === null);
+  assert.ok(top); assert.equal(await h.titleOf(top.id), 'New');
+  const byTitle = new Map(); for (const item of fresh) byTitle.set(await h.titleOf(item.id), item);
+  assert.equal(byTitle.get('A').parentId, top.id); assert.equal(byTitle.get('A1').parentId, byTitle.get('A').id); assert.equal(byTitle.get('B').parentId, top.id);
+  for (const item of fresh) for (const old of before) assert.ok(!overlaps(item, old), 'no overlap');
+  assert.deepEqual(plain(h.view.map.nodes.map(item => item.id)), plain(saved.nodes.map(item => item.id)), 'the open view holds the written map');
+  assert.equal(h.view.selected, top.id);
+  const topNote = await h.repo.readNote(top.path);
+  assert.match(topNote.detail, /Imported from an outline \(\d{4}-\d\d-\d\d\): \[\[Inbox\/o\.md\]\]/);
+  for (const item of fresh) assert.equal((await h.repo.readNote(item.path)).model, 'gpt-6-luna', 'tree uses the workspace model');
+  const a = await h.app.vault.read(h.app.vault.getAbstractFileByPath(byTitle.get('A').path));
+  assert.ok(a.includes(`Parent topic: [[${top.path.replace(/\.md$/, '')}]]`), a);
+  assert.ok(a.includes(`Child topics: [[${byTitle.get('A1').path.replace(/\.md$/, '')}]]`), a);
+  assert.equal(saved.title, 'Existing'); assert.equal(saved.detailTemplateId, undefined);
+  assert.equal(h.researched.length, 0); assert.deepEqual(h.notices, []);
+  assert.equal(h.view.history.canUndo, true);
+  await h.view.history.undo().undo();
+  assert.deepEqual(plain((await h.repo.readMap(h.mapPath)).nodes.map(item => item.id)), plain(before.map(item => item.id)));
+});
+
+integrationTest('importOutline under the selected topic: the outline root becomes its child with the parent model and the chosen template per topic', async () => {
+  const template = { id: 't1', name: 'Template one', sections: [
+    { id: 's1', name: 'Findings', description: '', role: 'none', aliases: [] },
+    { id: 's2', name: 'History', description: '', role: 'log', aliases: [] }] };
+  const h = await placementHarness({ detailTemplates: [template] });
+  const before = plain((await h.repo.readMap(h.mapPath)).nodes);
+  await h.view.importOutline({ nodes: api.parseOutline('# Sub\n## S1\n### S1a').nodes, source: null, shallowResearch: false, placement: { kind: 'under', parentId: h.oldChild.id }, detailTemplateId: 't1' });
+  const saved = await h.repo.readMap(h.mapPath);
+  for (const old of before) assert.deepEqual(plain(saved.nodes.find(item => item.id === old.id)), { ...old, collapsed: false });
+  const fresh = saved.nodes.filter(item => !before.some(old => old.id === item.id));
+  assert.equal(fresh.length, 3);
+  const sub = fresh.find(item => item.parentId === h.oldChild.id);
+  assert.equal(await h.titleOf(sub.id), 'Sub');
+  const s1 = fresh.find(item => item.parentId === sub.id); assert.equal(await h.titleOf(s1.id), 'S1');
+  const s1a = fresh.find(item => item.parentId === s1.id); assert.equal(await h.titleOf(s1a.id), 'S1a');
+  for (const item of fresh) {
+    const note = await h.repo.readNote(item.path);
+    assert.equal(note.model, 'parent-model', 'inherits the parent topic model');
+    assert.equal(note.detailTemplateId, 't1', 'template recorded on each created topic');
+  }
+  assert.match((await h.repo.readNote(sub.path)).detail, /### History\n\n- Imported from an outline/);
+  assert.equal(saved.detailTemplateId, undefined, 'the map default is untouched');
+  for (const item of fresh) for (const old of before) assert.ok(!overlaps(item, old));
+  assert.equal(h.view.selected, sub.id);
+});
+
+integrationTest('importOutline under the selected topic with shallow research: researches only the outline root descendants with the chosen model', async () => {
+  const h = await placementHarness();
+  await h.view.importOutline({ nodes: api.parseOutline('# Sub\n## S1\n## S2').nodes, source: null, shallowResearch: true, researchDepth: 'normal', model: 'model-x', placement: { kind: 'under', parentId: h.oldRoot.id } });
+  const saved = await h.repo.readMap(h.mapPath);
+  const sub = saved.nodes.find(item => item.parentId === h.oldRoot.id && item.id !== h.oldChild.id);
+  assert.equal(h.researched.length, 1);
+  assert.equal(h.researched[0].parent, sub.id);
+  const expected = saved.nodes.filter(item => item.parentId === sub.id).map(item => item.id);
+  assert.deepEqual(plain(h.researched[0].children), plain(expected));
+  assert.equal(h.researched[0].options.researchDepth, 'normal'); assert.equal(h.researched[0].options.researchMode, 'research');
+  assert.deepEqual(h.confirms, ['model-x']);
+  for (const item of [sub, ...saved.nodes.filter(node => node.parentId === sub.id)]) assert.equal((await h.repo.readNote(item.path)).model, 'model-x');
+});
+
+integrationTest('importOutline into the open map: a partial failure keeps every created note in the map and skips research', async () => {
+  for (const kind of ['tree', 'under']) {
+    const h = await placementHarness();
+    const create = h.repo.createNote.bind(h.repo); let calls = 0;
+    h.repo.createNote = async (...args) => { calls++; if (calls === 3) throw new Error('disk full'); return create(...args); };
+    const placement = kind === 'tree' ? { kind } : { kind, parentId: h.oldRoot.id };
+    await h.view.importOutline({ nodes: api.parseOutline('# R\n## A\n## B\n## C').nodes, source: null, shallowResearch: true, placement });
+    assert.deepEqual(h.notices, ['Created 2 of 4 topics: disk full'], kind);
+    const saved = await h.repo.readMap(h.mapPath);
+    assert.equal(saved.nodes.length, 4, kind);
+    assert.deepEqual(h.notesInFolder(), plain(saved.nodes.map(item => item.path).sort()), `${kind}: no orphan notes`);
+    assert.equal(h.researched.length, 0, kind);
+  }
+});
+
+integrationTest('importOutline under a topic that is no longer on the map rejects and creates nothing', async () => {
+  const h = await placementHarness();
+  const files = h.notesInFolder();
+  await assert.rejects(h.view.importOutline({ nodes: api.parseOutline('# R\n## A').nodes, source: null, shallowResearch: false, placement: { kind: 'under', parentId: 'gone' } }), /The selected topic is no longer on the map\./);
+  assert.deepEqual(h.notesInFolder(), files); assert.equal((await h.repo.readMap(h.mapPath)).nodes.length, 2);
+  h.view.map = null;
+  await assert.rejects(h.view.importOutline({ nodes: api.parseOutline('# R').nodes, source: null, shallowResearch: false, placement: { kind: 'tree' } }), /No editable mind map is open\./);
+  assert.deepEqual(h.notesInFolder(), files);
+});
+
+integrationTest('the import window gets its target from the open view: editable map, selection title, AIM, built-in sample', async () => {
+  const h = await placementHarness();
+  assert.deepEqual(plain(h.view.outlineImportTarget()), { map: 'editable' });
+  h.view.selected = h.oldChild.id; h.view.notes.set(h.oldChild.id, await h.repo.readNote(h.oldChild.path));
+  assert.deepEqual(plain(h.view.outlineImportTarget()), { map: 'editable', selected: { id: h.oldChild.id, title: 'Old child' } });
+  h.view.map = { ...h.view.map, aim: { version: 1 } };
+  assert.equal(h.view.outlineImportTarget().map, 'aim');
+  h.view.builtIn = true;
+  assert.equal(h.view.outlineImportTarget().map, 'none');
+  h.view.builtIn = false; h.view.map = null;
+  assert.deepEqual(plain(h.view.outlineImportTarget()), { map: 'none' });
+});
+
+integrationTest('importOutline under a topic removed from Map.md meanwhile: choosing the file version makes the outline a new tree, never a dangling parent', async () => {
+  // The conflict window picks the file (disk) version.
+  class Modal { constructor(app) { this.app = app; } open() { if (this.disk && this.resolve) this.resolve(JSON.parse(JSON.stringify(this.disk))); } close() {} }
+  const h = await placementHarness({}, { Modal });
+  const disk = await h.repo.readMap(h.mapPath);
+  disk.nodes = disk.nodes.filter(item => item.id !== h.oldChild.id);
+  await h.repo.saveMap(h.mapPath, disk); // an external edit: the open view still shows the old map
+  await h.view.importOutline({ nodes: api.parseOutline('# Sub\n## S1\n## S2').nodes, source: null, shallowResearch: false, placement: { kind: 'under', parentId: h.oldChild.id } });
+  const saved = await h.repo.readMap(h.mapPath); // parses: no dangling parent
+  assert.equal(saved.nodes.some(item => item.id === h.oldChild.id), false);
+  const fresh = saved.nodes.filter(item => item.id !== h.oldRoot.id);
+  assert.equal(fresh.length, 3);
+  const sub = fresh.find(item => item.parentId === null);
+  assert.equal(await h.titleOf(sub.id), 'Sub', 'the outline became a new tree');
+  assert.equal(fresh.filter(item => item.parentId === sub.id).length, 2);
+  for (const item of fresh) assert.ok(!overlaps(item, saved.nodes.find(node => node.id === h.oldRoot.id)));
+  for (const item of fresh) assert.ok(h.app.vault.getAbstractFileByPath(item.path), 'note present');
+  assert.equal(h.view.selected, sub.id);
+});
+
+integrationTest('importOutline into the open map: a Map.md save failure lists the created notes, keeps the selection and skips research', async () => {
+  const h = await placementHarness();
+  h.view.selected = h.oldRoot.id;
+  h.repo.saveMap = async () => { throw new Error('locked'); };
+  await h.view.importOutline({ nodes: api.parseOutline('# Sub\n## S1').nodes, source: null, shallowResearch: true, placement: { kind: 'under', parentId: h.oldRoot.id } });
+  assert.equal(h.notices.length, 1, h.notices.join(' | '));
+  assert.match(h.notices[0], /could not be saved: locked \(.*Sub\.md, .*S1\.md\)/);
+  assert.equal(h.view.selected, h.oldRoot.id, 'selection unchanged');
+  assert.equal(h.researched.length, 0);
+  assert.deepEqual(plain(h.view.map.nodes.map(item => item.id)), plain([h.oldRoot.id, h.oldChild.id]));
+});
