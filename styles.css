@@ -128,9 +128,7 @@
 .vam-quick-limits { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
 .vam-quick-limits.is-hidden { display: none; }
 .vam-outline-research-options.is-hidden { display: none; }
-.vam-outline-placement .vam-next-toggle { min-height: 36px; }
 .vam-field.vam-next-toggle input[type="radio"] { width: 18px; min-width: 18px; height: 18px; flex: 0 0 18px; margin: 0; }
-.vam-outline-placement-reason { margin: -6px 0 4px 28px; }
 .vam-quick-limits input { width: 100%; max-width: 160px; }
 .vam-quick-limits > .vam-hint { grid-column: 1 / -1; margin: 0; }
 .vam-quick-limits > .vam-hint.is-error { color: var(--color-red); }
@@ -622,9 +620,6 @@ body .workspace-leaf-content.vam-topic-markdown .markdown-source-view.mod-cm6 .m
 .vam-aim-failure { margin-top: 8px; padding: 8px; border-left: 3px solid var(--text-error); background: var(--background-secondary); font-size: var(--font-smallest); overflow-wrap: anywhere; }
 .vam-aim-failure p { margin: 0 0 6px; }
 
-.vam-outline-actions { display: flex; gap: var(--size-4-2); margin-bottom: var(--size-4-2); }
-.vam-outline-text { width: 100%; font-family: var(--font-monospace); }
-.vam-outline-preview { max-height: 16rem; overflow: auto; margin: var(--size-4-2) 0; }
 .vam-outline-error { color: var(--text-error); }
 .vam-outline-depth-2 { padding-left: 1.25em; } .vam-outline-depth-3 { padding-left: 2.5em; }
 .vam-outline-depth-4 { padding-left: 3.75em; } .vam-outline-depth-5 { padding-left: 5em; } .vam-outline-depth-6 { padding-left: 6.25em; }
@@ -660,3 +655,30 @@ button.vam-template-section-header:hover { background: var(--background-modifier
 .vam-template-issues { flex: 1 1 100%; }
 .vam-modal-actions { display: flex; justify-content: flex-end; gap: var(--size-4-2); margin-top: var(--size-4-4); }
 .vam-template-issue { color: var(--text-error); font-size: var(--font-ui-small); }
+.vam-outline-import-modal { width: min(560px, 92vw); }
+.vam-outline-intro { margin: 0 0 var(--size-4-4); }
+.vam-outline-section { display: flex; flex-direction: column; gap: var(--size-4-2); padding: var(--size-4-4) 0; border-top: 1px solid var(--background-modifier-border); }
+.vam-outline-section-header { display: flex; align-items: center; justify-content: space-between; gap: var(--size-4-2); }
+.vam-outline-label { font-size: var(--font-ui-small); font-weight: var(--font-semibold); color: var(--text-normal); }
+.vam-outline-actions { display: flex; gap: var(--size-4-1); }
+.vam-outline-link { height: auto; padding: 2px var(--size-4-2); background: transparent; box-shadow: none; border: 0; color: var(--text-accent); font-size: var(--font-ui-small); cursor: pointer; }
+.vam-outline-link:hover { background: var(--background-modifier-hover); color: var(--text-accent-hover); }
+.vam-outline-text { width: 100%; min-height: 8.5rem; font-family: var(--font-monospace); font-size: var(--font-ui-small); line-height: 1.6; }
+.vam-outline-source:empty { display: none; }
+.vam-outline-source { margin: 0; }
+.vam-outline-preview { max-height: 12rem; overflow: auto; padding: var(--size-4-2) var(--size-4-3); border-radius: var(--radius-m); background: var(--background-secondary); font-size: var(--font-ui-small); }
+.vam-outline-preview > p { margin: 0 0 var(--size-4-1); }
+.vam-outline-placement { display: flex; flex-direction: column; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); overflow: hidden; }
+.vam-outline-option { display: flex; align-items: flex-start; gap: var(--size-4-3); padding: var(--size-4-2) var(--size-4-3); cursor: pointer; }
+.vam-outline-option + .vam-outline-option { border-top: 1px solid var(--background-modifier-border); }
+.vam-outline-option:hover:not(.is-disabled) { background: var(--background-modifier-hover); }
+.vam-outline-option:has(input:checked) { background: var(--background-modifier-active-hover); }
+.vam-outline-option.is-disabled { cursor: default; color: var(--text-faint); }
+.vam-outline-option input[type="radio"] { margin: 3px 0 0; flex: 0 0 auto; }
+.vam-outline-option-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.vam-outline-placement-reason { font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.vam-outline-check { display: flex; align-items: center; gap: var(--size-4-2); cursor: pointer; }
+.vam-outline-check input[type="checkbox"] { margin: 0; }
+.vam-outline-research-options { padding-left: calc(var(--size-4-2) + 16px); }
+.vam-outline-research-options .vam-field { margin: var(--size-4-2) 0; }
+.vam-outline-footer { margin-top: 0; padding-top: var(--size-4-4); border-top: 1px solid var(--background-modifier-border); }

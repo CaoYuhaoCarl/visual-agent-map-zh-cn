@@ -486,7 +486,7 @@ function placementModal(target) {
   modal.open();
   const radios = h.all(modal.contentEl, item => item.tag === 'input' && item.type === 'radio');
   const label = value => h.find(modal.contentEl, item => item.tag === 'label' && item.children.some(child => child === radios.find(radio => radio.value === value)));
-  const text = value => label(value).children.find(child => child.tag === 'span').text;
+  const text = value => h.find(label(value), item => item.tag === 'span').text;
   const submit = async () => {
     const textarea = h.find(modal.contentEl, item => item.tag === 'textarea'); textarea.value = '# R\n## A'; textarea.listeners.input();
     h.find(modal.contentEl, item => item.tag === 'button' && item.text === 'Create mind map').listeners.click();

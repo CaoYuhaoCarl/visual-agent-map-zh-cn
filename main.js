@@ -13476,24 +13476,30 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
     __publicField(this, "placement", "new");
   }
   onOpen() {
+    var _a;
     this.titleEl.setText(t("ui.outline_import"));
-    this.contentEl.createEl("p", { text: t("ui.outline_import_hint"), cls: "vam-hint" });
-    const actions = this.contentEl.createDiv("vam-outline-actions");
-    actions.createEl("button", { text: t("ui.outline_import_choose_file") }).addEventListener("click", () => new OutlineFileModal(this.app, (file) => void this.loadFile(file)).open());
-    actions.createEl("button", { text: t("ui.outline_import_copy_format") }).addEventListener("click", () => {
+    (_a = this.modalEl) == null ? void 0 : _a.addClass("vam-outline-import-modal");
+    this.contentEl.createEl("p", { text: t("ui.outline_import_hint"), cls: "vam-hint vam-outline-intro" });
+    const source = this.contentEl.createDiv("vam-outline-section");
+    const sourceHeader = source.createDiv("vam-outline-section-header");
+    sourceHeader.createSpan({ text: t("ui.outline_import_text_label"), cls: "vam-outline-label" });
+    const actions = sourceHeader.createDiv("vam-outline-actions");
+    actions.createEl("button", { text: t("ui.outline_import_choose_file"), cls: "vam-outline-link" }).addEventListener("click", () => new OutlineFileModal(this.app, (file) => void this.loadFile(file)).open());
+    actions.createEl("button", { text: t("ui.outline_import_copy_format"), cls: "vam-outline-link" }).addEventListener("click", () => {
       void navigator.clipboard.writeText(t("ui.outline_import_format")).then(() => new import_obsidian9.Notice(t("ui.outline_import_format_copied"))).catch(() => new import_obsidian9.Notice(t("ui.outline_import_copy_failed")));
     });
-    this.textarea = this.contentEl.createEl("textarea", { cls: "vam-task-input vam-outline-text" });
-    this.textarea.rows = 14;
+    this.textarea = source.createEl("textarea", { cls: "vam-task-input vam-outline-text" });
+    this.textarea.rows = 8;
     this.textarea.setAttr("aria-label", t("ui.outline_import_text_label"));
     this.textarea.addEventListener("input", () => this.refresh());
-    this.sourceLabel = this.contentEl.createEl("p", { cls: "vam-hint" });
-    this.preview = this.contentEl.createDiv("vam-outline-preview");
+    this.sourceLabel = source.createEl("p", { cls: "vam-hint vam-outline-source" });
+    this.preview = source.createDiv("vam-outline-preview");
     this.placementField();
-    const shallowLabel = this.contentEl.createEl("label", { cls: "vam-field vam-next-toggle" });
+    const research = this.contentEl.createDiv("vam-outline-section");
+    const shallowLabel = research.createEl("label", { cls: "vam-outline-check" });
     this.shallow = shallowLabel.createEl("input", { type: "checkbox" });
     shallowLabel.createSpan({ text: t("ui.outline_import_shallow") });
-    const researchOptions = this.contentEl.createDiv("vam-outline-research-options");
+    const researchOptions = research.createDiv("vam-outline-research-options");
     this.depth = researchDepthField(researchOptions);
     const model = modelField(researchOptions, this.models, t("ui.workspace_default"));
     this.model = model.value;
@@ -13502,16 +13508,18 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
     const showOptions = () => researchOptions.toggleClass("is-hidden", !this.shallow.checked);
     this.shallow.addEventListener("change", showOptions);
     showOptions();
-    this.createButton = this.contentEl.createEl("button", { text: t("ui.outline_import_create"), cls: "mod-cta" });
+    const footer = this.contentEl.createDiv("vam-modal-actions vam-outline-footer");
+    this.createButton = footer.createEl("button", { text: t("ui.outline_import_create"), cls: "mod-cta" });
     this.createButton.addEventListener("click", () => void this.submit());
     this.refresh();
   }
   /** "Put it in": a new map (default), this map as a new tree, or under the selected topic. */
   placementField() {
-    const group = this.contentEl.createDiv("vam-field vam-outline-placement");
+    const section3 = this.contentEl.createDiv("vam-outline-section");
+    section3.createSpan({ text: t("ui.outline_import_placement"), cls: "vam-outline-label" });
+    const group = section3.createDiv("vam-outline-placement");
     group.setAttr("role", "radiogroup");
     group.setAttr("aria-label", t("ui.outline_import_placement"));
-    group.createSpan({ text: t("ui.outline_import_placement") });
     const mapReason = this.target.map === "aim" ? t("ui.outline_import_placement_aim") : this.target.map === "none" ? t("ui.outline_import_placement_no_map") : null;
     const selected = this.target.selected;
     const options = [
@@ -13524,7 +13532,7 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
       }
     ];
     for (const option2 of options) {
-      const label = group.createEl("label", { cls: "vam-field vam-next-toggle" });
+      const label = group.createEl("label", { cls: `vam-outline-option${option2.reason ? " is-disabled" : ""}` });
       const input = label.createEl("input", { type: "radio", value: option2.kind });
       input.name = "vam-outline-placement";
       input.checked = option2.kind === this.placement;
@@ -13532,8 +13540,9 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
       input.addEventListener("change", () => {
         if (input.checked) this.placement = option2.kind;
       });
-      label.createSpan({ text: option2.text });
-      if (option2.reason) group.createEl("p", { text: option2.reason, cls: "vam-hint vam-outline-placement-reason" });
+      const text11 = label.createDiv("vam-outline-option-text");
+      text11.createSpan({ text: option2.text });
+      if (option2.reason) text11.createSpan({ text: option2.reason, cls: "vam-outline-placement-reason" });
     }
   }
   placementRequest() {
