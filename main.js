@@ -22124,19 +22124,20 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     await super.setState(state, result);
   }
   async onOpen() {
+    var _a, _b, _c;
     this.closed = false;
     const epoch = ++this.aimViewEpoch;
     this.mapOpenEpoch++;
     this.contentEl.addClass("vam-view");
     this.contentEl.tabIndex = 0;
-    this.registerDomEvent(window, "keydown", (event) => {
+    this.registerDomEvent((_a = this.contentEl.win) != null ? _a : window, "keydown", (event) => {
       if (event.code === "Space" && !(event.target instanceof HTMLElement && event.target.closest("input, textarea, select, [contenteditable=true]")))
         this.spaceHeld = true;
     });
-    this.registerDomEvent(window, "keyup", (event) => {
+    this.registerDomEvent((_b = this.contentEl.win) != null ? _b : window, "keyup", (event) => {
       if (event.code === "Space") this.spaceHeld = false;
     });
-    this.registerDomEvent(window, "blur", () => {
+    this.registerDomEvent((_c = this.contentEl.win) != null ? _c : window, "blur", () => {
       this.spaceHeld = false;
     });
     this.registerDomEvent(this.contentEl, "keydown", (event) => {
@@ -24647,7 +24648,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
         cls: `vam-status vam-status-${active ? "running" : queued ? "queued" : (_j = note == null ? void 0 : note.status) != null ? _j : "error"}`,
         text: statusText
       });
-      if (active || queued) chip.setAttr("role", "status");
+      if (active) chip.setAttr("role", "status");
       if (note) this.labelCard(card, t("ui.topic_card_label_0_1", note.title, statusText));
     }
     const errorDetails = [];
@@ -25039,6 +25040,10 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
    * Brings an outline topic into view: expands collapsed ancestors, centers the card and selects it.
    * Multi-select keeps its selection; the outline only moves the camera there. False when the map lacks the topic.
    */
+  hasPath(path) {
+    var _a;
+    return !!((_a = this.map) == null ? void 0 : _a.nodes.some((item) => item.path === path));
+  }
   async revealPath(path) {
     var _a, _b;
     const node = (_a = this.map) == null ? void 0 : _a.nodes.find((item) => item.path === path);
@@ -25050,12 +25055,15 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
       if (ancestor.collapsed) collapsed.push(ancestor.id);
       parent = ancestor.parentId;
     }
-    if (collapsed.length && !this.builtIn)
+    if (collapsed.length && this.builtIn) {
+      for (const item of this.map.nodes) if (collapsed.includes(item.id)) item.collapsed = false;
+    } else if (collapsed.length) {
       await this.plugin.mutate(
         () => this.mapChange((map) => {
           for (const item of map.nodes) if (collapsed.includes(item.id)) item.collapsed = false;
         })
       );
+    }
     const current = (_b = this.map) == null ? void 0 : _b.nodes.find((item) => item.id === node.id);
     if (!current) return false;
     if (!this.integrationMode) {
@@ -27170,7 +27178,7 @@ ${note.detail.trim()}` : "",
         viewport.removeEventListener("pointercancel", up);
         viewport.removeClass("is-panning");
         this.saveViewport();
-        if (!moved && !this.integrationMode) {
+        if (!moved && !this.integrationMode && event.button === 0) {
           this.selected = null;
           this.multiSelected.clear();
           this.render();
@@ -31907,11 +31915,12 @@ var VisualAgentMapPlugin = class extends import_obsidian24.Plugin {
       OUTLINE_VIEW_TYPE,
       (leaf) => new OutlineView(leaf, async (path) => {
         try {
-          for (const view of this.views())
-            if (await view.revealPath(path)) {
-              await this.app.workspace.revealLeaf(view.leaf);
-              return;
-            }
+          const view = this.views().find((item) => item.hasPath(path));
+          if (view) {
+            await this.app.workspace.revealLeaf(view.leaf);
+            await view.revealPath(path);
+            return;
+          }
           await this.openDetails(this.repo.file(path));
         } catch (error) {
           new import_obsidian24.Notice(error instanceof Error ? error.message : String(error));

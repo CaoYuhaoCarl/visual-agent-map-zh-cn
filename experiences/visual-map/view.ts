@@ -319,7 +319,7 @@ export class VisualAgentMapView extends ItemView {
     this.contentEl.addClass("vam-view");
     this.contentEl.tabIndex = 0;
     // Space-drag pans while selecting topics; typing a space in a field never arms it.
-    this.registerDomEvent(window, "keydown", event => {
+    this.registerDomEvent(this.contentEl.win ?? window, "keydown", event => {
       if (
         event.code === "Space" &&
         !(
@@ -328,10 +328,10 @@ export class VisualAgentMapView extends ItemView {
       )
         this.spaceHeld = true;
     });
-    this.registerDomEvent(window, "keyup", event => {
+    this.registerDomEvent(this.contentEl.win ?? window, "keyup", event => {
       if (event.code === "Space") this.spaceHeld = false;
     });
-    this.registerDomEvent(window, "blur", () => {
+    this.registerDomEvent(this.contentEl.win ?? window, "blur", () => {
       this.spaceHeld = false;
     });
     this.registerDomEvent(this.contentEl, "keydown", event => {
@@ -3001,7 +3001,7 @@ export class VisualAgentMapView extends ItemView {
         cls: `vam-status vam-status-${active ? "running" : queued ? "queued" : (note?.status ?? "error")}`,
         text: statusText
       });
-      if (active || queued) chip.setAttr("role", "status");
+      if (active) chip.setAttr("role", "status");
       if (note) this.labelCard(card, t("ui.topic_card_label_0_1", note.title, statusText));
     }
     // Failure reasons are shown on the card, not only in a hover tooltip.
@@ -3404,6 +3404,9 @@ export class VisualAgentMapView extends ItemView {
    * Brings an outline topic into view: expands collapsed ancestors, centers the card and selects it.
    * Multi-select keeps its selection; the outline only moves the camera there. False when the map lacks the topic.
    */
+  hasPath(path: string): boolean {
+    return !!this.map?.nodes.some(item => item.path === path);
+  }
   async revealPath(path: string): Promise<boolean> {
     const node = this.map?.nodes.find(item => item.path === path);
     if (!this.map || !node) return false;
@@ -3414,12 +3417,16 @@ export class VisualAgentMapView extends ItemView {
       if (ancestor.collapsed) collapsed.push(ancestor.id);
       parent = ancestor.parentId;
     }
-    if (collapsed.length && !this.builtIn)
+    // The sample map is never saved, so its ancestors open in memory; a real map records the change.
+    if (collapsed.length && this.builtIn) {
+      for (const item of this.map.nodes) if (collapsed.includes(item.id)) item.collapsed = false;
+    } else if (collapsed.length) {
       await this.plugin.mutate(() =>
         this.mapChange(map => {
           for (const item of map.nodes) if (collapsed.includes(item.id)) item.collapsed = false;
         })
       );
+    }
     const current = this.map?.nodes.find(item => item.id === node.id);
     if (!current) return false;
     if (!this.integrationMode) {
@@ -5709,7 +5716,7 @@ export class VisualAgentMapView extends ItemView {
         viewport.removeEventListener("pointercancel", up);
         viewport.removeClass("is-panning");
         this.saveViewport();
-        if (!moved && !this.integrationMode) {
+        if (!moved && !this.integrationMode && event.button === 0) {
           this.selected = null;
           this.multiSelected.clear();
           this.render();
