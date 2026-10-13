@@ -59,14 +59,19 @@ async function loadableImages(candidates: ImageCandidate[], signal: AbortSignal)
         new Promise<boolean>(resolve => {
           const probe = createEl("img");
           probe.referrerPolicy = "no-referrer";
-          const timer = window.setTimeout(() => resolve(false), 8_000);
+          const abort = (): void => done(false);
+          const timer = window.setTimeout(abort, 8_000);
           const done = (ok: boolean): void => {
             window.clearTimeout(timer);
-            resolve(ok && probe.naturalWidth > 0);
+            signal.removeEventListener("abort", abort);
+            const loaded = ok && probe.naturalWidth > 0;
+            probe.onload = probe.onerror = null;
+            if (!loaded) probe.src = "";
+            resolve(loaded);
           };
           probe.onload = () => done(true);
           probe.onerror = () => done(false);
-          signal.addEventListener("abort", () => done(false), { once: true });
+          signal.addEventListener("abort", abort, { once: true });
           probe.src = candidate.url;
         })
     )

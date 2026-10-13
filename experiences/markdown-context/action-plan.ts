@@ -32,7 +32,7 @@ export function parsePlan(raw: string): ContextPlan {
   return plan as ContextPlan;
 }
 
-// Search an explicit public media API; image URLs come from the service, never from model guesses.
+/** Markdown for a chosen image and a link to the page it came from. */
 export function imageMarkdown(candidate: ImageCandidate): string {
   const title = candidate.title.replace(/[\]\\\r\n[]/g, " ");
   return `![${title}](<${candidate.url}>)\n\n[${title}](<${candidate.source}>)`;
