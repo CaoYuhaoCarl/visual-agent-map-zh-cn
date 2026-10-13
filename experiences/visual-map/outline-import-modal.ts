@@ -4,15 +4,28 @@ import { parseOutline, type OutlineIssue, type OutlineNode } from "./outline-imp
 import type { ResearchDepth } from "../../ai/types";
 import { modelField, researchDepthField, templateField, type ModelChoices } from "./research-fields";
 
+/** Where the imported outline goes; omitted means a new mind map. */
+export type OutlinePlacement = { kind: "new" } | { kind: "tree" } | { kind: "under"; parentId: string };
+
+/** What the open view offers as an import target, read when the window opens. */
+export interface OutlineImportTarget {
+  map: "none" | "aim" | "editable";
+  selected?: { id: string; title: string };
+}
+
 export interface OutlineImportRequest {
   nodes: OutlineNode[];
+  placement?: OutlinePlacement;
   source: string | null;
   shallowResearch: boolean;
   /** Shallow research depth (fast when omitted). */
   researchDepth?: ResearchDepth;
   /** Model for the new topics and their shallow research; undefined uses the workspace default. */
   model?: string;
-  /** Content template for the new map's default and its shallow research; undefined uses the workspace default. */
+  /**
+   * Content template: a new map's default, or recorded on each created topic when importing into an open map; also
+   * used by the shallow research. Undefined uses the map/workspace default.
+   */
   detailTemplateId?: string;
 }
 
@@ -49,12 +62,14 @@ export class OutlineImportModal extends Modal {
   private model: () => string | undefined = () => undefined;
   private template: () => string | undefined = () => undefined;
   private unwatch?: () => void;
+  private placement: OutlinePlacement["kind"] = "new";
 
   constructor(
     app: App,
     private create: (request: OutlineImportRequest) => Promise<void>,
     private models: ModelChoices = { list: () => [], watch: () => () => {} },
-    private templates: { id: string; name: string }[] = []
+    private templates: { id: string; name: string }[] = [],
+    private target: OutlineImportTarget = { map: "none" }
   ) {
     super(app);
   }
@@ -78,6 +93,7 @@ export class OutlineImportModal extends Modal {
     this.textarea.addEventListener("input", () => this.refresh());
     this.sourceLabel = this.contentEl.createEl("p", { cls: "vam-hint" });
     this.preview = this.contentEl.createDiv("vam-outline-preview");
+    this.placementField();
     const shallowLabel = this.contentEl.createEl("label", { cls: "vam-field vam-next-toggle" });
     this.shallow = shallowLabel.createEl("input", { type: "checkbox" });
     shallowLabel.createSpan({ text: t("ui.outline_import_shallow") });
@@ -93,6 +109,49 @@ export class OutlineImportModal extends Modal {
     this.createButton = this.contentEl.createEl("button", { text: t("ui.outline_import_create"), cls: "mod-cta" });
     this.createButton.addEventListener("click", () => void this.submit());
     this.refresh();
+  }
+
+  /** "Put it in": a new map (default), this map as a new tree, or under the selected topic. */
+  private placementField(): void {
+    const group = this.contentEl.createDiv("vam-field vam-outline-placement");
+    group.setAttr("role", "radiogroup");
+    group.setAttr("aria-label", t("ui.outline_import_placement"));
+    group.createSpan({ text: t("ui.outline_import_placement") });
+    const mapReason =
+      this.target.map === "aim"
+        ? t("ui.outline_import_placement_aim")
+        : this.target.map === "none"
+          ? t("ui.outline_import_placement_no_map")
+          : null;
+    const selected = this.target.selected;
+    const options: { kind: OutlinePlacement["kind"]; text: string; reason: string | null }[] = [
+      { kind: "new", text: t("ui.outline_import_placement_new"), reason: null },
+      { kind: "tree", text: t("ui.outline_import_placement_tree"), reason: mapReason },
+      {
+        kind: "under",
+        text: selected
+          ? t("ui.outline_import_placement_under_named", selected.title)
+          : t("ui.outline_import_placement_under"),
+        reason: mapReason ?? (selected ? null : t("ui.outline_import_placement_no_selection"))
+      }
+    ];
+    for (const option of options) {
+      const label = group.createEl("label", { cls: "vam-field vam-next-toggle" });
+      const input = label.createEl("input", { type: "radio", value: option.kind });
+      input.name = "vam-outline-placement";
+      input.checked = option.kind === this.placement;
+      input.disabled = option.reason !== null;
+      input.addEventListener("change", () => {
+        if (input.checked) this.placement = option.kind;
+      });
+      label.createSpan({ text: option.text });
+      if (option.reason) group.createEl("p", { text: option.reason, cls: "vam-hint vam-outline-placement-reason" });
+    }
+  }
+
+  private placementRequest(): OutlinePlacement {
+    if (this.placement === "under" && this.target.selected) return { kind: "under", parentId: this.target.selected.id };
+    return this.placement === "tree" ? { kind: "tree" } : { kind: "new" };
   }
 
   onClose(): void {
@@ -154,6 +213,7 @@ export class OutlineImportModal extends Modal {
       const detailTemplateId = shallowResearch ? this.template() : undefined;
       await this.create({
         nodes: this.nodes,
+        placement: this.placementRequest(),
         source: this.source,
         shallowResearch,
         ...(shallowResearch ? { researchDepth: this.depth() } : {}),

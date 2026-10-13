@@ -1,9 +1,9 @@
-import type { MapNode } from "../../map-model";
+import type { MapDocument, MapNode } from "../../map-model";
 import { safeName, type Repository } from "../../repository";
 import { arrangeMap } from "../../map-layout";
 import { canonicalDetail } from "../../ai/result-utils";
 import { standardTemplate, type DetailTemplate } from "../../ai/detail-templates";
-import { translate } from "../../i18n";
+import { translate, type UiLanguage } from "../../i18n";
 
 export const OUTLINE_NODE_LIMIT = 100;
 export const OUTLINE_TITLE_LIMIT = 200;
@@ -266,6 +266,52 @@ function localDate(now: Date): string {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
+/** The outline root's import line, in the template's log section (or its first section when it has none). */
+function outlineRootDetail(language: UiLanguage, template: DetailTemplate, source: string | null, now: Date): string {
+  const log = source
+    ? translate(language, "ui.outline_import_log_source", localDate(now), source)
+    : translate(language, "ui.outline_import_log", localDate(now));
+  const heading = (template.sections.find(section => section.role === "log") ?? template.sections[0]).name;
+  return canonicalDetail(`### ${heading}\n\n- ${log}`, language, template);
+}
+
+/**
+ * Creates one note per outline heading in `mapPath`'s topic folder, in outline order with parents by index; the
+ * outline root hangs under `parentId` (null for a top-level topic). The first failure stops creation; every note
+ * created so far is returned so the caller can write it into the map (no orphans). Does not save the map.
+ */
+async function createOutlineNotes(
+  repository: Repository,
+  map: MapDocument,
+  mapPath: string,
+  model: string,
+  nodes: OutlineNode[],
+  rootDetail: string,
+  parentId: string | null,
+  detailTemplateId?: string
+): Promise<{ created: MapNode[]; failure?: string }> {
+  const created: MapNode[] = [];
+  for (const node of nodes) {
+    try {
+      const top = node.parent === null;
+      const note = await repository.createNote(
+        node.title,
+        model,
+        map,
+        mapPath,
+        top && parentId === null ? "workspace" : "inherited",
+        top ? { detail: rootDetail } : {}
+      );
+      note.parentId = top ? parentId : created[node.parent!].id;
+      created.push(note);
+      if (detailTemplateId) await repository.updateNote(note.path, { detailTemplateId });
+    } catch (error) {
+      return { created, failure: errorText(error) };
+    }
+  }
+  return { created };
+}
+
 /** Creates a new map from parsed outline nodes; never edits the source note or other maps. */
 export async function createOutlineMap(
   repository: Repository,
@@ -286,31 +332,8 @@ export async function createOutlineMap(
     // The map folder exists already; callers must not offer a retry that would create a second map.
     throw Object.assign(new Error(errorText(error)), { mapCreated: true });
   }
-  const log = source
-    ? translate(language, "ui.outline_import_log_source", localDate(now), source)
-    : translate(language, "ui.outline_import_log", localDate(now));
-  // The import line goes to the template's log section, or its first section when it has none.
-  const heading = (detailTemplate.sections.find(section => section.role === "log") ?? detailTemplate.sections[0]).name;
-  const rootDetail = canonicalDetail(`### ${heading}\n\n- ${log}`, language, detailTemplate);
-  const created: MapNode[] = [];
-  let failure: string | undefined;
-  for (const node of nodes) {
-    try {
-      const note = await repository.createNote(
-        node.title,
-        model,
-        map,
-        mapPath,
-        node.parent === null ? "workspace" : "inherited",
-        node.parent === null ? { detail: rootDetail } : {}
-      );
-      note.parentId = node.parent === null ? null : created[node.parent].id;
-      created.push(note);
-    } catch (error) {
-      failure = errorText(error);
-      break;
-    }
-  }
+  const rootDetail = outlineRootDetail(language, detailTemplate, source, now);
+  const { created, failure } = await createOutlineNotes(repository, map, mapPath, model, nodes, rootDetail, null);
   map.nodes = arrangeMap(created);
   try {
     await repository.saveMap(mapPath, map);
@@ -329,4 +352,44 @@ export async function createOutlineMap(
     );
   }
   return { mapPath, nodes: map.nodes, created: created.length, total: nodes.length, ...(failure ? { failure } : {}) };
+}
+
+export interface OutlineAddResult {
+  /** The created notes as map nodes (not yet in the map), outline root first. */
+  created: MapNode[];
+  total: number;
+  failure?: string;
+}
+
+/**
+ * Creates the outline's notes in an existing map's topic folder, its root under `parentId` (null for a new
+ * top-level tree). The caller writes the returned nodes into the map. A chosen template is recorded on each
+ * created topic; the map's own default is never changed.
+ */
+export async function addOutlineToMap(
+  repository: Repository,
+  map: MapDocument,
+  mapPath: string,
+  model: string,
+  nodes: OutlineNode[],
+  source: string | null,
+  parentId: string | null,
+  template: DetailTemplate,
+  detailTemplateId?: string,
+  now = new Date()
+): Promise<OutlineAddResult> {
+  const language = repository.settings.language;
+  if (!nodes.length) throw new Error(translate(language, "ui.outline_error_no_headings"));
+  const rootDetail = outlineRootDetail(language, template, source, now);
+  const { created, failure } = await createOutlineNotes(
+    repository,
+    map,
+    mapPath,
+    model,
+    nodes,
+    rootDetail,
+    parentId,
+    detailTemplateId
+  );
+  return { created, total: nodes.length, ...(failure ? { failure } : {}) };
 }

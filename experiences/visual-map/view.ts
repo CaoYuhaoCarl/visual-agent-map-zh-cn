@@ -22,7 +22,7 @@ import {
   removeNodes,
   visibleNodes
 } from "../../map-model";
-import { arrangeMap, arrangeNewBranch } from "../../map-layout";
+import { arrangeMap, arrangeNewBranch, arrangeNewTree } from "../../map-layout";
 import { inLanguage, NONE } from "../../core/steps/_shared/fragments";
 import {
   expansionTask,
@@ -52,8 +52,13 @@ import { clampPreviewScale, previewMetrics } from "../../ui/preview-utils";
 import { BUILTIN_SAMPLE_ID, builtInSample, SAMPLE_TOUR_VERSION } from "../../builtin-sample";
 import { PendingSuggestions } from "../../pending-suggestions";
 import { createAimMap } from "../aim/create-map";
-import { createOutlineMap } from "./outline-import";
-import { OutlineImportModal, type OutlineImportRequest } from "./outline-import-modal";
+import { addOutlineToMap, createOutlineMap } from "./outline-import";
+import {
+  OutlineImportModal,
+  type OutlineImportRequest,
+  type OutlineImportTarget,
+  type OutlinePlacement
+} from "./outline-import-modal";
 import { MultiResearchModal, type MultiResearchRequest } from "./multi-research-modal";
 import type { ModelChoices } from "./research-fields";
 import type { ExpansionBatchState } from "./expansion-batch";
@@ -595,10 +600,22 @@ export class VisualAgentMapView extends ItemView {
       this.app,
       request => this.importOutline(request),
       this.modelChoices(),
-      this.templateChoices()
+      this.templateChoices(),
+      this.outlineImportTarget()
     ).open();
   }
+  /** Whether the open map can take an imported outline, and the selected topic for "under the selected topic". */
+  private outlineImportTarget(): OutlineImportTarget {
+    if (!this.map || this.builtIn || !this.path.startsWith(`${this.plugin.settings.topicsFolder}/`))
+      return { map: "none" };
+    if (this.map.aim) return { map: "aim" };
+    const node = this.map.nodes.find(item => item.id === this.selected);
+    if (!node) return { map: "editable" };
+    return { map: "editable", selected: { id: node.id, title: this.notes.get(node.id)?.title ?? node.path } };
+  }
   async importOutline(request: OutlineImportRequest): Promise<void> {
+    const placement = request.placement ?? { kind: "new" };
+    if (placement.kind !== "new") return this.importOutlineIntoMap(request, placement);
     // A model chosen for the shallow research becomes the new topics' model, so later work on them uses it too.
     const model = (request.shallowResearch && request.model) || this.plugin.settings.cliModel;
     const settings = this.plugin.settings;
@@ -646,6 +663,111 @@ export class VisualAgentMapView extends ItemView {
           researchDepth: request.researchDepth ?? "fast",
           referenceGroups: [],
           visualMode: "off"
+        })
+      );
+    } catch (error) {
+      new Notice(errorMessage(error));
+    }
+  }
+  /** Adds the outline to the open map, as a new top-level tree or under the selected topic; existing nodes stay put. */
+  private async importOutlineIntoMap(
+    request: OutlineImportRequest,
+    placement: Exclude<OutlinePlacement, { kind: "new" }>
+  ): Promise<void> {
+    const settings = this.plugin.settings;
+    const repo = this.plugin.repo;
+    // Checked against the map as it is when the work runs; a rejection keeps the import window open.
+    const target = (): { map: MapDocument; path: string; parent: MapNode | null } => {
+      const where = this.outlineImportTarget();
+      if (!this.map || where.map !== "editable")
+        throw new Error(
+          where.map === "aim" ? t("ui.outline_import_placement_aim") : t("ui.outline_import_placement_no_map")
+        );
+      if (placement.kind === "tree") return { map: this.map, path: this.path, parent: null };
+      const parent = this.map.nodes.find(node => node.id === placement.parentId);
+      if (!parent) throw new Error(t("ui.outline_import_selected_missing"));
+      return { map: this.map, path: this.path, parent };
+    };
+    target();
+    // Filled inside the queued work (an object, so the compiler does not narrow it away).
+    const state: { rejection?: Error; result?: Awaited<ReturnType<typeof addOutlineToMap>> } = {};
+    let model = settings.cliModel;
+    let written = true;
+    try {
+      await this.plugin.mutate(async () => {
+        let current;
+        try {
+          current = target();
+        } catch (error) {
+          state.rejection = error instanceof Error ? error : new Error(String(error));
+          return;
+        }
+        const { map, path, parent } = current;
+        // A model chosen for the shallow research becomes the new topics' model; otherwise they inherit like new children.
+        model =
+          (request.shallowResearch && request.model) ||
+          (parent ? inheritModel((await repo.readNote(parent.path)).model, settings.cliModel) : settings.cliModel);
+        // A template chosen here is recorded on each new topic: an import never changes this map's default.
+        const template = this.mapDetailTemplate(settings.language, request.detailTemplateId);
+        const result = await addOutlineToMap(
+          repo,
+          map,
+          path,
+          model,
+          request.nodes,
+          request.source,
+          parent?.id ?? null,
+          template,
+          request.detailTemplateId
+        );
+        state.result = result;
+        const created = result.created;
+        if (!created.length) return;
+        for (const node of created) {
+          try {
+            this.notes.set(node.id, await repo.readNote(node.path));
+          } catch {
+            // The note exists; the view reloads it on the next hydrate.
+          }
+        }
+        const top = created[0];
+        const ids = new Set(created.map(node => node.id));
+        this.selected = top.id;
+        // The view's normal mutation path: conflict check, Map.md save, undo history and Reference Links.
+        await this.mapChange(next => {
+          next.nodes.push(...created);
+          if (parent) {
+            const owner = next.nodes.find(node => node.id === parent.id);
+            if (owner) owner.collapsed = false;
+            next.nodes = arrangeNewBranch(next.nodes, parent.id, ids);
+          } else next.nodes = arrangeNewTree(next.nodes, top.id, ids);
+        });
+        const placed = this.map?.nodes.find(node => node.id === top.id);
+        if (placed) this.focusNode(placed);
+      });
+    } catch {
+      written = false; // mutate() has already shown the Notice.
+    }
+    if (state.rejection) throw state.rejection;
+    const outcome = state.result;
+    if (!outcome) return;
+    if (outcome.failure)
+      new Notice(t("ui.outline_import_partial", outcome.created.length, outcome.total, outcome.failure));
+    if (outcome.failure || !written || !request.shallowResearch || !outcome.created.length) return;
+    const top = this.map?.nodes.find(node => node.id === outcome.created[0].id);
+    if (!top) return;
+    // Every other created topic descends from the outline's top topic; the top topic and an "under" parent are not researched.
+    const ids = new Set(outcome.created.slice(1).map(node => node.id));
+    const children = (this.map?.nodes ?? []).filter(node => ids.has(node.id));
+    if (!children.length) return;
+    try {
+      await this.plugin.confirmAiUsage(model, () =>
+        this.startShallowResearch(top, children, {
+          researchMode: "research",
+          researchDepth: request.researchDepth ?? "fast",
+          referenceGroups: [],
+          visualMode: "off",
+          ...(request.detailTemplateId ? { detailTemplateId: request.detailTemplateId } : {})
         })
       );
     } catch (error) {
