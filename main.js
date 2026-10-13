@@ -24182,7 +24182,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
           quickError: this.plugin.quickExpandFailures.get(node.path),
           sources: sources2,
           templates: this.templateChoices(),
-          currentTemplate: (await this.detailTemplateFor(node)).name,
+          // Only a label: a missing topic template is reported at the next AI update, not when the dialog opens.
+          currentTemplate: this.resolveTopicTemplate(note).template.name,
           synthesisPending: (() => {
             const pending = this.synthesisTasks.get(node.path);
             return (pending == null ? void 0 : pending.state) === "directions" && pending.mapPath === this.path ? { directions: pending.directions, discard: () => this.discardSynthesis(node) } : void 0;
@@ -26077,20 +26078,24 @@ ${note.detail.trim()}` : "",
    * Only an explicit choice is written to the topic; a topic template that no longer exists is reported once and cleared.
    */
   async detailTemplateFor(node, chosenId) {
-    var _a;
     if (chosenId) await this.plugin.repo.updateNote(node.path, { detailTemplateId: chosenId });
     const note = await this.plugin.repo.readNote(node.path);
-    const settings = this.plugin.settings;
-    const { template, missing } = resolveTemplate(
-      settings.detailTemplates,
-      [chosenId, note.detailTemplateId, (_a = this.map) == null ? void 0 : _a.detailTemplateId, settings.defaultDetailTemplateId],
-      settings.language
-    );
+    const { template, missing } = this.resolveTopicTemplate(note, chosenId);
     if (note.detailTemplateId && missing.includes(note.detailTemplateId)) {
       new import_obsidian16.Notice(t("ui.detail_template_missing_0", note.detailTemplateId));
       await this.plugin.repo.updateNote(node.path, { detailTemplateId: "" });
     }
     return template;
+  }
+  /** Resolves the topic's content template without notifying or writing anything (see detailTemplateFor). */
+  resolveTopicTemplate(note, chosenId) {
+    var _a;
+    const settings = this.plugin.settings;
+    return resolveTemplate(
+      settings.detailTemplates,
+      [chosenId, note.detailTemplateId, (_a = this.map) == null ? void 0 : _a.detailTemplateId, settings.defaultDetailTemplateId],
+      settings.language
+    );
   }
   /**
    * Template for content that has no topic choice of its own (new integrated topics, child contributions); a dialog

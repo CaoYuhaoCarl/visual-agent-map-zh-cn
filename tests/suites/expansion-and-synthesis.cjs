@@ -1454,6 +1454,21 @@ integrationTest('multi-layer expand without shallow research: the chosen templat
     assert.match(child.detail, /^### First part\n\nA\n\n### Second part\n\nB$/);
   }
 });
+integrationTest('opening the AI dialog for a topic with a deleted template neither notifies nor rewrites the note', async () => {
+  const opened = [], notices = [];
+  const h = await templateHarness({ language: 'en', settings: { detailTemplates: sampleTemplates() }, mapTemplate: 'B' });
+  await h.repo.updateNote(h.topic.path, { detailTemplateId: 'gone' });
+  const before = await h.app.vault.read(h.app.vault.getAbstractFileByPath(h.topic.path));
+  const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Modal: class { constructor() {} open() { opened.push(this); } close() {} }, Notice: class { constructor(message) { notices.push(message); } } } });
+  const view = new VisualAgentMapView({ app: h.app }, h.plugin); view.path = h.mapPath; view.map = h.doc; view.render = () => {};
+  view.openNextStep(h.topic);
+  await until(() => opened.length === 1);
+  assert.equal(opened[0].modelSettings.currentTemplate, 'Template B', 'label shows the fallback template');
+  opened[0].close();
+  assert.deepEqual(notices, []);
+  assert.equal(await h.app.vault.read(h.app.vault.getAbstractFileByPath(h.topic.path)), before, 'note file unchanged');
+  assert.equal((await h.repo.readNote(h.topic.path)).detailTemplateId, 'gone');
+});
 integrationTest('multi research with a chosen template records it on each started topic and the AI request uses it (skipped topics untouched)', async () => {
   const h = await templateHarness({ language: 'en', settings: { detailTemplates: sampleTemplates(), defaultDetailTemplateId: 'C' } });
   const second = await h.repo.createNote('Second', 'model-a', h.doc, h.mapPath, 'workspace'); h.doc.nodes.push(second); await h.repo.saveMap(h.mapPath, h.doc);

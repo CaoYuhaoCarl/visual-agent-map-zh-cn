@@ -3172,7 +3172,8 @@ export class VisualAgentMapView extends ItemView {
           quickError: this.plugin.quickExpandFailures.get(node.path),
           sources,
           templates: this.templateChoices(),
-          currentTemplate: (await this.detailTemplateFor(node)).name,
+          // Only a label: a missing topic template is reported at the next AI update, not when the dialog opens.
+          currentTemplate: this.resolveTopicTemplate(note).template.name,
           synthesisPending: (() => {
             const pending = this.synthesisTasks.get(node.path);
             return pending?.state === "directions" && pending.mapPath === this.path
@@ -5233,17 +5234,21 @@ export class VisualAgentMapView extends ItemView {
   private async detailTemplateFor(node: MapNode, chosenId?: string): Promise<DetailTemplate> {
     if (chosenId) await this.plugin.repo.updateNote(node.path, { detailTemplateId: chosenId });
     const note = await this.plugin.repo.readNote(node.path);
-    const settings = this.plugin.settings;
-    const { template, missing } = resolveTemplate(
-      settings.detailTemplates,
-      [chosenId, note.detailTemplateId, this.map?.detailTemplateId, settings.defaultDetailTemplateId],
-      settings.language
-    );
+    const { template, missing } = this.resolveTopicTemplate(note, chosenId);
     if (note.detailTemplateId && missing.includes(note.detailTemplateId)) {
       new Notice(t("ui.detail_template_missing_0", note.detailTemplateId));
       await this.plugin.repo.updateNote(node.path, { detailTemplateId: "" });
     }
     return template;
+  }
+  /** Resolves the topic's content template without notifying or writing anything (see detailTemplateFor). */
+  private resolveTopicTemplate(note: Note, chosenId?: string): { template: DetailTemplate; missing: string[] } {
+    const settings = this.plugin.settings;
+    return resolveTemplate(
+      settings.detailTemplates,
+      [chosenId, note.detailTemplateId, this.map?.detailTemplateId, settings.defaultDetailTemplateId],
+      settings.language
+    );
   }
   /**
    * Template for content that has no topic choice of its own (new integrated topics, child contributions); a dialog
