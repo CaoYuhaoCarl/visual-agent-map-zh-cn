@@ -53,7 +53,6 @@ export function renderSynthesisContent(parent: HTMLElement, topics: string[]): H
     hint.setText(t(select.value === "summary" ? "ui.synthesis_content_summary_hint" : "ui.synthesis_content_full_hint"))
   );
   parent.createEl("p", { cls: "vam-hint", text: t("ui.synthesis_content_scope") });
-  parent.createEl("p", { cls: "vam-hint", text: t("ui.synthesis_content_locked_hint") });
   parent.createEl("strong", { text: t("ui.synthesis_source_topics") });
   if (topics.length) {
     const list = parent.createEl("ul");
@@ -358,9 +357,7 @@ export class NextStepModal extends Modal {
   private taskController?: AbortController;
   private unsubscribeModels?: () => void;
   /** One data-source picker shared by every step, so choices survive switching steps. */
-  private addReferencePicker(
-    panel: HTMLElement
-  ):
+  private addReferencePicker(panel: HTMLElement):
     | {
         picker: ReferencePicker;
         disclosure: HTMLElement;
@@ -420,7 +417,7 @@ export class NextStepModal extends Modal {
     await this.settingsPending;
     if (this.settingsError) throw new Error(this.settingsError);
   }
-  private renderModelSettings(): void {
+  private renderModelSettings(): HTMLElement | undefined {
     if (!this.modelSettings) return;
     const settings = this.modelSettings;
     const advanced = this.contentEl.createEl("details", { cls: "vam-advanced vam-next-model" });
@@ -468,7 +465,7 @@ export class NextStepModal extends Modal {
       const codex = this.plugin.modelDiscoveryState("codex"),
         claude = this.plugin.modelDiscoveryState("claude");
       discoveryText.setText(
-        `Codex: ${codex.status}${codex.error ? ` · ${codex.error}` : ""} | Claude CLI candidates: ${claude.status}`
+        `Codex: ${t(`ui.model_status_${codex.status}`)}${codex.error ? ` · ${codex.error}` : ""} | Claude: ${t(`ui.model_status_${claude.status}`)}`
       );
       retry.disabled = codex.status === "loading";
       syncModels();
@@ -519,6 +516,7 @@ export class NextStepModal extends Modal {
       settings.reasoning = normalizeReasoningLevel(reasoning.value);
       save({ reasoning: normalizeReasoningLevel(reasoning.value) });
     });
+    return advanced;
   }
   private async run(
     panel: HTMLElement,
@@ -630,7 +628,7 @@ export class NextStepModal extends Modal {
       if (!launchFailed && !this.closed && !controller.signal.aborted && this.taskController === controller) {
         launchAccepted = true;
         release();
-        this.close();
+        this.startedInBackground();
       }
       await launch;
       if (!this.closed && !launchAccepted && !launchFailed) {
@@ -644,12 +642,16 @@ export class NextStepModal extends Modal {
     panel.querySelector<HTMLElement>(".vam-next-status")?.setText(message);
     button.disabled = false;
   }
+  private startedInBackground(): void {
+    new Notice(t("ui.task_started_in_background_0", this.topic));
+    this.close();
+  }
   private failedAi(panel: HTMLElement, button: HTMLButtonElement, message: string): void {
     this.failed(panel, button, message);
     if (this.closed) return;
     let help = panel.querySelector<HTMLElement>(".vam-ai-failure-help");
     if (!help) {
-      help = panel.createDiv("vam-ai-failure-help");
+      help = panel.createDiv({ cls: "vam-ai-failure-help", attr: { role: "alert" } });
       help.createEl("p", { text: t("ui.ai_failure_next_steps"), cls: "vam-hint" });
       help
         .createEl("button", { text: t("ui.open_debug_log") })
@@ -882,7 +884,7 @@ export class NextStepModal extends Modal {
         if (radio.checked) depthHint.setText(researchDepthDescription(radio.value as ResearchDepth));
       })
     );
-    research.createEl("p", { cls: "vam-next-status" });
+    research.createEl("p", { cls: "vam-next-status", attr: { "aria-live": "polite" } });
     confirm.addEventListener("click", () => {
       void this.run(research, confirm, async () => {
         const controller = this.taskController;
@@ -921,7 +923,7 @@ export class NextStepModal extends Modal {
           const cancel = research.querySelector<HTMLButtonElement>(".vam-task-cancel");
           if (cancel) cancel.hidden = true;
           launchAccepted = true;
-          this.close();
+          this.startedInBackground();
         };
         await this.research(
           options,
@@ -1078,10 +1080,11 @@ export class NextStepModal extends Modal {
     const shallow = shallowLabel.createEl("input", { type: "checkbox" });
     shallow.checked = false;
     shallowLabel.createSpan({ text: t("ui.run_shallow_research_on_each_created_subtopic") });
-    expandPanel.createEl("p", {
+    const shallowHint = expandPanel.createEl("p", {
       cls: "vam-hint",
       text: t("ui.shallow_research_for_expanded_subtopics_0", researchDepthDescription("fast"))
     });
+    shallowHint.hidden = true;
     const expandFooterText = actions.createSpan({
       text: t("ui.create_subtopics_after_confirmation_without_running_research"),
       cls: "vam-next-actions-note"
@@ -1092,13 +1095,14 @@ export class NextStepModal extends Modal {
     });
     expandButton.dataset.topicRun = expandButton.textContent ?? "";
     expandButton.disabled = !!this.modelSettings?.running;
-    expandPanel.createEl("p", { cls: "vam-next-status" });
+    expandPanel.createEl("p", { cls: "vam-next-status", attr: { "aria-live": "polite" } });
     expandPanel.createDiv("vam-next-result");
     const consumed = (): void => {
       this.pendingCount = 0;
       setExpandMode(multiLayer);
     };
     shallow.addEventListener("change", () => {
+      shallowHint.hidden = !shallow.checked;
       setExpandMode(multiLayer);
     });
     expandButton.addEventListener("click", () => {
@@ -1146,7 +1150,7 @@ export class NextStepModal extends Modal {
               () => {
                 this.taskSignal = undefined;
                 this.taskController = undefined;
-                this.close();
+                this.startedInBackground();
               }
             );
             return;
@@ -1165,7 +1169,7 @@ export class NextStepModal extends Modal {
             () => {
               this.taskSignal = undefined;
               this.taskController = undefined;
-              this.close();
+              this.startedInBackground();
             }
           );
         },
@@ -1181,7 +1185,7 @@ export class NextStepModal extends Modal {
     {
       const pending = this.modelSettings?.synthesisPending;
       if (pending) {
-        const synthStatus = synthesizePanel.createEl("p", { cls: "vam-next-status" });
+        const synthStatus = synthesizePanel.createEl("p", { cls: "vam-next-status", attr: { "aria-live": "polite" } });
         const synthResult = synthesizePanel.createDiv("vam-next-result");
         synthStatus.setText(t("ui.choose_or_edit_a_synthesis_direction_then_get_a_draft"));
         for (const item of pending.directions) {
@@ -1228,7 +1232,7 @@ export class NextStepModal extends Modal {
         synthAction = synthButton;
         synthButton.dataset.topicRun = t("ui.get_synthesis_suggestions_first");
         synthButton.disabled = !!this.modelSettings?.running;
-        const synthStatus = synthesizePanel.createEl("p", { cls: "vam-next-status" });
+        const synthStatus = synthesizePanel.createEl("p", { cls: "vam-next-status", attr: { "aria-live": "polite" } });
         synthesizePanel.createDiv("vam-next-result");
         synthButton.addEventListener("click", () =>
           this.launchSynthesis(synthesizePanel, synthButton, null, async signal => {
@@ -1304,8 +1308,7 @@ export class NextStepModal extends Modal {
     describeOutput();
     show(initialMode);
     cardFor[initialMode].focus();
-    this.renderModelSettings();
-    this.contentEl.createEl("p", {
+    (this.renderModelSettings() ?? this.contentEl).createEl("p", {
       text: t("ui.if_an_ai_task_exceeds_3_minutes_vam_attempts_to_interrupt_it"),
       cls: "vam-hint"
     });
@@ -1362,7 +1365,7 @@ export class SynthesisDraftModal extends Modal {
     const detail = this.contentEl.createEl("textarea", { cls: "vam-task-input", text: this.detail });
     detail.rows = 16;
     detail.setAttr("aria-label", t("ui.markdown_detail_draft"));
-    const status = this.contentEl.createEl("p", { cls: "vam-next-status" });
+    const status = this.contentEl.createEl("p", { cls: "vam-next-status", attr: { "aria-live": "polite" } });
     new Setting(this.contentEl)
       .addButton(button => button.setButtonText(t("ui.cancel")).onClick(() => this.close()))
       .addButton(button =>

@@ -368,8 +368,7 @@ var english = {
   "ui.synthesis_content_summary": "Quick summary synthesis",
   "ui.synthesis_content_full_hint": "Includes full Details, summaries and related findings from the topics below. Larger sources may take longer and are processed in batches.",
   "ui.synthesis_content_summary_hint": "Uses summaries and related findings from the topics below, without full Details. Important conditions in the body may be omitted.",
-  "ui.synthesis_content_scope": "This choice applies only to the source topics below. Extra Markdown sources are still read in full.",
-  "ui.synthesis_content_locked_hint": "This run uses the same choice for directions and the draft. Reopen synthesis to change it after starting.",
+  "ui.synthesis_content_scope": "Applies only to the topics below; extra Markdown sources are read in full. Fixed once started.",
   "ui.synthesis_source_topics": "Source topics included",
   "ui.synthesis_no_source_topics": "No source topics. Select extra Markdown sources below.",
   "ui.legacy_rules_not_applied": "The note\u2019s old Rules are not applied automatically. Enter any conditions AI must follow for this run in Additional requirements above.",
@@ -580,7 +579,7 @@ var english = {
   "ui.ai_did_not_follow_the_requested_level_counts_and_parent_chil": "AI did not follow the requested level counts and parent-child structure. No nodes were created; please try again.",
   "ui.subtopic_names_must_be_unique": "Subtopic names must be unique.",
   "ui.create_subtopics_without_research": "Create subtopics without research",
-  "ui.research_each_subtopic_after_creation_and_use_codex_quota": "Research each subtopic after creation and use Codex quota",
+  "ui.research_each_subtopic_after_creation_and_use_codex_quota": "Each new subtopic gets a shallow research pass, using AI quota",
   "ui.auto_layout": "Auto layout",
   "ui.expansion_failed": "Expansion failed",
   "ui.the_map_or_parent_topic_changed_while_ai_was_running_no_subt": "The map or parent topic changed while AI was running. No subtopics were created.",
@@ -591,12 +590,12 @@ var english = {
   "ui.failed_to_create_starter_map": "Failed to create starter map",
   "ui.current_topic_0": "Current topic: {0}",
   "ui.research_deeper": "Research deeper",
-  "ui.find_answers_for_this_topic_at_your_chosen_depth": "Find answers for this topic at your chosen depth",
+  "ui.find_answers_for_this_topic_at_your_chosen_depth": "Dig into this topic",
   "ui.expand_the_map": "Expand the map",
-  "ui.discuss_directions_or_explore_multiple_levels_with_shallow_r": "Discuss directions or explore multiple levels with shallow research",
+  "ui.discuss_directions_or_explore_multiple_levels_with_shallow_r": "Break it into subtopics",
   "ui.synthesize_findings": "Synthesize findings",
-  "ui.find_shared_conclusions_differences_and_next_steps_across_su": "Find shared conclusions, differences and next steps across subtopics",
-  "ui.start_from_this_node_s_question_update_only_this_node": "Start from this node's question; update only this node.",
+  "ui.find_shared_conclusions_differences_and_next_steps_across_su": "Combine what the subtopics found",
+  "ui.start_from_this_node_s_question_update_only_this_node": "Results update only this topic.",
   "ui.quick": "Quick",
   "ui.standard": "Standard",
   "ui.deep": "Deep",
@@ -717,6 +716,12 @@ var english = {
   "ui.scan_for_recognizable_vam_workspaces_and_reconnect_only_afte": "Scan for recognizable VAM workspaces and reconnect only after confirmation, without moving or overwriting data.",
   "ui.scan": "Scan",
   "ui.check_again": "Check again",
+  "ui.task_started_in_background_0": "Started \u201C{0}\u201D in the background; progress shows on its card.",
+  "ui.model_status_idle": "not checked",
+  "ui.model_status_loading": "checking\u2026",
+  "ui.model_status_ready": "ready",
+  "ui.model_status_missing": "not found",
+  "ui.model_status_error": "error",
   "ui.no_recognizable_existing_vam_workspace_was_found": "No recognizable existing VAM Workspace was found.",
   "ui.choosing_a_workspace_only_reconnects_the_setting_it_does_not": "Choosing a Workspace only reconnects the setting; it does not move or rewrite content.",
   "ui.reconnected_workspace_0": "Reconnected Workspace: {0}",
@@ -796,7 +801,7 @@ var english = {
   "ui.deep_aim_for_up_to_6_web_searches_and_10_main_sources_compar": "Deep: compare evidence for agreement and disagreement, and explain important support, limits, and unresolved questions.",
   "ui.web_and_image_searches_share_the_search_limit_search_counts": "There is no fixed query or source count. Continue while a useful search could resolve a decision-relevant uncertainty; stop when evidence is sufficient or further searches have low expected value.",
   "ui.search_for_image_references": "Search for image references",
-  "ui.shallow_research_for_expanded_subtopics_0": "Shallow research for expanded subtopics: {0}",
+  "ui.shallow_research_for_expanded_subtopics_0": "Shallow research: {0}",
   "ui.fast_quick_overview": "Fast \xB7 quick overview",
   "ui.normal_standard_research": "Normal \xB7 standard research",
   "ui.deep_in_depth_research": "Deep \xB7 in-depth research",
@@ -1628,8 +1633,7 @@ var traditionalChinese = {
   "ui.synthesis_content_summary": "\u6458\u8981\u5FEB\u901F\u6574\u5408",
   "ui.synthesis_content_full_hint": "\u7D0D\u5165\u4E0B\u5217\u8B70\u984C\u7684\u5B8C\u6574 Detail\u3001\u6458\u8981\u8207\u76F8\u95DC\u767C\u73FE\u3002\u8CC7\u6599\u8F03\u591A\u6642\u6703\u5206\u6279\u8655\u7406\uFF0C\u53EF\u80FD\u9700\u8981\u8F03\u4E45\u3002",
   "ui.synthesis_content_summary_hint": "\u4F7F\u7528\u4E0B\u5217\u8B70\u984C\u7684\u6458\u8981\u8207\u76F8\u95DC\u767C\u73FE\uFF0C\u4E0D\u7D0D\u5165\u5B8C\u6574 Detail\uFF0C\u53EF\u80FD\u7701\u7565\u6B63\u6587\u4E2D\u7684\u91CD\u8981\u689D\u4EF6\u3002",
-  "ui.synthesis_content_scope": "\u6B64\u9078\u9805\u53EA\u63A7\u5236\u4E0B\u5217\u4F86\u6E90\u8B70\u984C\uFF1B\u984D\u5916\u9078\u5165\u7684 Markdown \u4ECD\u6703\u5B8C\u6574\u8B80\u53D6\u3002",
-  "ui.synthesis_content_locked_hint": "\u672C\u6B21\u65B9\u5411\u5EFA\u8B70\u8207\u8349\u7A3F\u4F7F\u7528\u76F8\u540C\u9078\u64C7\u3002\u958B\u59CB\u5F8C\u82E5\u8981\u66F4\u63DB\uFF0C\u8ACB\u91CD\u65B0\u958B\u555F\u6574\u5408\u3002",
+  "ui.synthesis_content_scope": "\u53EA\u5F71\u97FF\u4E0B\u5217\u8B70\u984C\uFF0C\u984D\u5916 Markdown \u4E00\u5F8B\u5B8C\u6574\u8B80\u53D6\uFF1B\u958B\u59CB\u5F8C\u4E0D\u80FD\u66F4\u63DB\u3002",
   "ui.synthesis_source_topics": "\u672C\u6B21\u5305\u542B\u7684\u4F86\u6E90\u8B70\u984C",
   "ui.synthesis_no_source_topics": "\u6C92\u6709\u4F86\u6E90\u8B70\u984C\uFF0C\u8ACB\u5728\u4E0B\u65B9\u9078\u53D6\u5176\u4ED6 Markdown \u4F86\u6E90\u3002",
   "ui.legacy_rules_not_applied": "\u7B46\u8A18\u4E2D\u7684\u820A Rules \u4E0D\u6703\u81EA\u52D5\u5957\u7528\u3002\u9019\u6B21\u9700\u8981\u9075\u5B88\u7684\u689D\u4EF6\uFF0C\u8ACB\u586B\u5165\u4E0A\u65B9\u9644\u52A0\u8981\u6C42\u3002",
@@ -1840,7 +1844,7 @@ var traditionalChinese = {
   "ui.ai_did_not_follow_the_requested_level_counts_and_parent_chil": "AI \u672A\u4F9D\u8A2D\u5B9A\u7522\u751F\u6BCF\u5C64\u6578\u91CF\u8207\u6BCD\u5B50\u95DC\u4FC2\uFF0C\u5C1A\u672A\u5EFA\u7ACB\u7BC0\u9EDE\uFF1B\u8ACB\u518D\u8A66\u4E00\u6B21\u3002",
   "ui.subtopic_names_must_be_unique": "\u5B50\u8B70\u984C\u540D\u7A31\u4E0D\u80FD\u91CD\u8907\u3002",
   "ui.create_subtopics_without_research": "\u53EA\u5EFA\u7ACB\u5B50\u8B70\u984C\uFF0C\u4E0D\u57F7\u884C\u7814\u7A76",
-  "ui.research_each_subtopic_after_creation_and_use_codex_quota": "\u5EFA\u7ACB\u5F8C\u6703\u9010\u4E00\u6DFA\u7814\u7A76\uFF0C\u4E26\u4F7F\u7528 Codex \u984D\u5EA6",
+  "ui.research_each_subtopic_after_creation_and_use_codex_quota": "\u5EFA\u7ACB\u5F8C\u6703\u9010\u4E00\u6DFA\u7814\u7A76\uFF0C\u6703\u4F7F\u7528 AI \u984D\u5EA6",
   "ui.auto_layout": "\u81EA\u52D5\u6392\u7248",
   "ui.expansion_failed": "\u5C55\u958B\u5931\u6557",
   "ui.the_map_or_parent_topic_changed_while_ai_was_running_no_subt": "\u5730\u5716\u6216\u6BCD\u8B70\u984C\u5728 AI \u57F7\u884C\u671F\u9593\u5DF2\u8B8A\u66F4\uFF0C\u672A\u5EFA\u7ACB\u5B50\u8B70\u984C\u3002",
@@ -1851,12 +1855,12 @@ var traditionalChinese = {
   "ui.failed_to_create_starter_map": "\u5EFA\u7ACB\u521D\u6B65\u5730\u5716\u5931\u6557",
   "ui.current_topic_0": "\u76EE\u524D\u8B70\u984C\uFF1A{0}",
   "ui.research_deeper": "\u7814\u7A76\u66F4\u6DF1",
-  "ui.find_answers_for_this_topic_at_your_chosen_depth": "\u91DD\u5C0D\u76EE\u524D\u8B70\u984C\u627E\u7B54\u6848\uFF0C\u81EA\u5DF1\u6C7A\u5B9A\u7814\u7A76\u6DF1\u5EA6",
+  "ui.find_answers_for_this_topic_at_your_chosen_depth": "\u6DF1\u5165\u7814\u7A76\u9019\u500B\u8B70\u984C",
   "ui.expand_the_map": "\u5C55\u958B\u5730\u5716",
-  "ui.discuss_directions_or_explore_multiple_levels_with_shallow_r": "\u5148\u8A0E\u8AD6\u65B9\u5411\uFF0C\u6216\u7528\u6DFA\u7814\u7A76\u5FEB\u901F\u63A2\u7D22\u591A\u5C64\u8B70\u984C",
+  "ui.discuss_directions_or_explore_multiple_levels_with_shallow_r": "\u62C6\u51FA\u5B50\u8B70\u984C\uFF0C\u5F80\u4E0B\u63A2\u7D22",
   "ui.synthesize_findings": "\u6574\u5408\u767C\u73FE",
-  "ui.find_shared_conclusions_differences_and_next_steps_across_su": "\u5F9E\u5B50\u8B70\u984C\u627E\u51FA\u5171\u540C\u7D50\u8AD6\u3001\u5206\u6B67\u8207\u4E0B\u4E00\u6B65",
-  "ui.start_from_this_node_s_question_update_only_this_node": "\u4EE5\u7BC0\u9EDE\u554F\u984C\u70BA\u8D77\u9EDE\uFF1B\u7D50\u679C\u53EA\u66F4\u65B0\u9019\u500B\u7BC0\u9EDE\u3002",
+  "ui.find_shared_conclusions_differences_and_next_steps_across_su": "\u6574\u5408\u5B50\u8B70\u984C\u7684\u7D50\u8AD6\u8207\u5206\u6B67",
+  "ui.start_from_this_node_s_question_update_only_this_node": "\u7D50\u679C\u53EA\u66F4\u65B0\u9019\u500B\u8B70\u984C\u3002",
   "ui.quick": "\u5FEB\u901F",
   "ui.standard": "\u6A19\u6E96",
   "ui.deep": "\u6DF1\u5165",
@@ -1977,6 +1981,12 @@ var traditionalChinese = {
   "ui.scan_for_recognizable_vam_workspaces_and_reconnect_only_afte": "\u6383\u63CF\u53EF\u8FA8\u8B58\u7684 VAM Workspace\uFF0C\u78BA\u8A8D\u5F8C\u624D\u91CD\u65B0\u9023\u7D50\uFF0C\u4E0D\u6703\u642C\u79FB\u6216\u8986\u5BEB\u8CC7\u6599\u3002",
   "ui.scan": "\u6383\u63CF",
   "ui.check_again": "\u91CD\u65B0\u6AA2\u67E5",
+  "ui.task_started_in_background_0": "\u5DF2\u5728\u80CC\u666F\u958B\u59CB\u300C{0}\u300D\uFF0C\u9032\u5EA6\u6703\u986F\u793A\u5728\u5361\u7247\u4E0A\u3002",
+  "ui.model_status_idle": "\u5C1A\u672A\u6AA2\u67E5",
+  "ui.model_status_loading": "\u6AA2\u67E5\u4E2D\u2026",
+  "ui.model_status_ready": "\u53EF\u7528",
+  "ui.model_status_missing": "\u627E\u4E0D\u5230",
+  "ui.model_status_error": "\u932F\u8AA4",
   "ui.no_recognizable_existing_vam_workspace_was_found": "\u627E\u4E0D\u5230\u53EF\u8FA8\u8B58\u7684\u65E2\u6709 VAM Workspace\u3002",
   "ui.choosing_a_workspace_only_reconnects_the_setting_it_does_not": "\u9078\u64C7\u5F8C\u53EA\u6703\u91CD\u65B0\u9023\u7D50\u8A2D\u5B9A\uFF0C\u4E0D\u6703\u642C\u79FB\u6216\u6539\u5BEB\u5167\u5BB9\u3002",
   "ui.reconnected_workspace_0": "\u5DF2\u91CD\u65B0\u9023\u7D50 Workspace\uFF1A{0}",
@@ -2056,7 +2066,7 @@ var traditionalChinese = {
   "ui.deep_aim_for_up_to_6_web_searches_and_10_main_sources_compar": "\u6DF1\u5165\uFF1A\u6BD4\u8F03\u8B49\u64DA\u7684\u4E00\u81F4\u8207\u5206\u6B67\uFF0C\u8AAA\u660E\u91CD\u8981\u4F9D\u64DA\u3001\u9650\u5236\u53CA\u672A\u89E3\u554F\u984C\u3002",
   "ui.web_and_image_searches_share_the_search_limit_search_counts": "\u641C\u5C0B\u6B21\u6578\u8207\u4F86\u6E90\u6578\u6C92\u6709\u56FA\u5B9A\u4E0A\u9650\u3002\u53EA\u8981\u5408\u7406\u7684\u65B0\u641C\u5C0B\u4ECD\u53EF\u80FD\u89E3\u6C7A\u6703\u5F71\u97FF\u5224\u65B7\u7684\u4E0D\u78BA\u5B9A\u6027\uFF0C\u5C31\u7E7C\u7E8C\u67E5\u8B49\uFF1B\u8B49\u64DA\u8DB3\u5920\u6216\u5F8C\u7E8C\u641C\u5C0B\u9810\u671F\u50F9\u503C\u504F\u4F4E\u6642\u505C\u6B62\u3002",
   "ui.search_for_image_references": "\u641C\u5C0B\u5716\u7247\u53C3\u8003",
-  "ui.shallow_research_for_expanded_subtopics_0": "\u5C55\u958B\u5B50\u8B70\u984C\u6DFA\u7814\u7A76\u6A19\u6E96\uFF1A{0}",
+  "ui.shallow_research_for_expanded_subtopics_0": "\u6DFA\u7814\u7A76\uFF1A{0}",
   "ui.fast_quick_overview": "Fast \xB7 \u5FEB\u901F\u6982\u89BD",
   "ui.normal_standard_research": "Normal \xB7 \u4E00\u822C\u7814\u7A76",
   "ui.deep_in_depth_research": "Deep \xB7 \u6DF1\u5165\u7814\u7A76",
@@ -20280,7 +20290,6 @@ function renderSynthesisContent(parent, topics) {
     () => hint.setText(t(select.value === "summary" ? "ui.synthesis_content_summary_hint" : "ui.synthesis_content_full_hint"))
   );
   parent.createEl("p", { cls: "vam-hint", text: t("ui.synthesis_content_scope") });
-  parent.createEl("p", { cls: "vam-hint", text: t("ui.synthesis_content_locked_hint") });
   parent.createEl("strong", { text: t("ui.synthesis_source_topics") });
   if (topics.length) {
     const list = parent.createEl("ul");
@@ -20597,7 +20606,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
     const updateDiscovery = () => {
       const codex = this.plugin.modelDiscoveryState("codex"), claude = this.plugin.modelDiscoveryState("claude");
       discoveryText.setText(
-        `Codex: ${codex.status}${codex.error ? ` \xB7 ${codex.error}` : ""} | Claude CLI candidates: ${claude.status}`
+        `Codex: ${t(`ui.model_status_${codex.status}`)}${codex.error ? ` \xB7 ${codex.error}` : ""} | Claude: ${t(`ui.model_status_${claude.status}`)}`
       );
       retry.disabled = codex.status === "loading";
       syncModels();
@@ -20648,6 +20657,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
       settings.reasoning = normalizeReasoningLevel(reasoning.value);
       save({ reasoning: normalizeReasoningLevel(reasoning.value) });
     });
+    return advanced;
   }
   async run(panel, button, work, needsUsage = true) {
     var _a, _b;
@@ -20749,7 +20759,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
       if (!launchFailed && !this.closed && !controller.signal.aborted && this.taskController === controller) {
         launchAccepted = true;
         release();
-        this.close();
+        this.startedInBackground();
       }
       await launch;
       if (!this.closed && !launchAccepted && !launchFailed) {
@@ -20764,12 +20774,16 @@ var NextStepModal = class extends import_obsidian15.Modal {
     (_a = panel.querySelector(".vam-next-status")) == null ? void 0 : _a.setText(message);
     button.disabled = false;
   }
+  startedInBackground() {
+    new import_obsidian15.Notice(t("ui.task_started_in_background_0", this.topic));
+    this.close();
+  }
   failedAi(panel, button, message) {
     this.failed(panel, button, message);
     if (this.closed) return;
     let help = panel.querySelector(".vam-ai-failure-help");
     if (!help) {
-      help = panel.createDiv("vam-ai-failure-help");
+      help = panel.createDiv({ cls: "vam-ai-failure-help", attr: { role: "alert" } });
       help.createEl("p", { text: t("ui.ai_failure_next_steps"), cls: "vam-hint" });
       help.createEl("button", { text: t("ui.open_debug_log") }).addEventListener(
         "click",
@@ -20879,7 +20893,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
     (_a = panel.querySelector(".vam-next-status")) == null ? void 0 : _a.setText(t("ui.review_ai_suggested_subtopics"));
   }
   onOpen() {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s;
     this.modalEl.addClass("vam-next-modal");
     this.titleEl.setText(t("ui.how_would_you_like_to_explore_next"));
     const intro = this.contentEl.createEl("p", { cls: "vam-modal-intro vam-next-topic" });
@@ -20976,7 +20990,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
         if (radio.checked) depthHint.setText(researchDepthDescription(radio.value));
       })
     );
-    research.createEl("p", { cls: "vam-next-status" });
+    research.createEl("p", { cls: "vam-next-status", attr: { "aria-live": "polite" } });
     confirm.addEventListener("click", () => {
       void this.run(research, confirm, async () => {
         var _a2, _b2;
@@ -21017,7 +21031,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
           const cancel = research.querySelector(".vam-task-cancel");
           if (cancel) cancel.hidden = true;
           launchAccepted = true;
-          this.close();
+          this.startedInBackground();
         };
         await this.research(
           options,
@@ -21161,10 +21175,11 @@ var NextStepModal = class extends import_obsidian15.Modal {
     const shallow = shallowLabel.createEl("input", { type: "checkbox" });
     shallow.checked = false;
     shallowLabel.createSpan({ text: t("ui.run_shallow_research_on_each_created_subtopic") });
-    expandPanel.createEl("p", {
+    const shallowHint = expandPanel.createEl("p", {
       cls: "vam-hint",
       text: t("ui.shallow_research_for_expanded_subtopics_0", researchDepthDescription("fast"))
     });
+    shallowHint.hidden = true;
     const expandFooterText = actions.createSpan({
       text: t("ui.create_subtopics_after_confirmation_without_running_research"),
       cls: "vam-next-actions-note"
@@ -21175,13 +21190,14 @@ var NextStepModal = class extends import_obsidian15.Modal {
     });
     expandButton.dataset.topicRun = (_e = expandButton.textContent) != null ? _e : "";
     expandButton.disabled = !!((_f = this.modelSettings) == null ? void 0 : _f.running);
-    expandPanel.createEl("p", { cls: "vam-next-status" });
+    expandPanel.createEl("p", { cls: "vam-next-status", attr: { "aria-live": "polite" } });
     expandPanel.createDiv("vam-next-result");
     const consumed = () => {
       this.pendingCount = 0;
       setExpandMode(multiLayer);
     };
     shallow.addEventListener("change", () => {
+      shallowHint.hidden = !shallow.checked;
       setExpandMode(multiLayer);
     });
     expandButton.addEventListener("click", () => {
@@ -21232,7 +21248,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
               () => {
                 this.taskSignal = void 0;
                 this.taskController = void 0;
-                this.close();
+                this.startedInBackground();
               }
             );
             return;
@@ -21251,7 +21267,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
             () => {
               this.taskSignal = void 0;
               this.taskController = void 0;
-              this.close();
+              this.startedInBackground();
             }
           );
         },
@@ -21265,7 +21281,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
     {
       const pending = (_g = this.modelSettings) == null ? void 0 : _g.synthesisPending;
       if (pending) {
-        const synthStatus = synthesizePanel.createEl("p", { cls: "vam-next-status" });
+        const synthStatus = synthesizePanel.createEl("p", { cls: "vam-next-status", attr: { "aria-live": "polite" } });
         const synthResult = synthesizePanel.createDiv("vam-next-result");
         synthStatus.setText(t("ui.choose_or_edit_a_synthesis_direction_then_get_a_draft"));
         for (const item of pending.directions) {
@@ -21313,7 +21329,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
         synthAction = synthButton;
         synthButton.dataset.topicRun = t("ui.get_synthesis_suggestions_first");
         synthButton.disabled = !!((_n = this.modelSettings) == null ? void 0 : _n.running);
-        const synthStatus = synthesizePanel.createEl("p", { cls: "vam-next-status" });
+        const synthStatus = synthesizePanel.createEl("p", { cls: "vam-next-status", attr: { "aria-live": "polite" } });
         synthesizePanel.createDiv("vam-next-result");
         synthButton.addEventListener(
           "click",
@@ -21391,8 +21407,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
     describeOutput();
     show(initialMode);
     cardFor[initialMode].focus();
-    this.renderModelSettings();
-    this.contentEl.createEl("p", {
+    ((_s = this.renderModelSettings()) != null ? _s : this.contentEl).createEl("p", {
       text: t("ui.if_an_ai_task_exceeds_3_minutes_vam_attempts_to_interrupt_it"),
       cls: "vam-hint"
     });
@@ -21440,7 +21455,7 @@ var SynthesisDraftModal = class extends import_obsidian15.Modal {
     const detail = this.contentEl.createEl("textarea", { cls: "vam-task-input", text: this.detail });
     detail.rows = 16;
     detail.setAttr("aria-label", t("ui.markdown_detail_draft"));
-    const status = this.contentEl.createEl("p", { cls: "vam-next-status" });
+    const status = this.contentEl.createEl("p", { cls: "vam-next-status", attr: { "aria-live": "polite" } });
     new import_obsidian15.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => this.close())).addButton(
       (button) => button.setButtonText(t("ui.discard_synthesis")).onClick(() => {
         this.discard();
