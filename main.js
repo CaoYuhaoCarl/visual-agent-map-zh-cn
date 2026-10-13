@@ -820,6 +820,33 @@ var english = {
   "ui.detail_template_error_count_range": "Section {0}: the required count must be 1 to 20.",
   "ui.detail_template_role_sources": "Sources",
   "ui.detail_template_role_log": "Update log",
+  "ui.detail_templates": "Content templates",
+  "ui.manage_detail_templates": "Manage templates",
+  "ui.detail_template_workspace_default": "Workspace default",
+  "ui.detail_template_new": "New template",
+  "ui.detail_template_new_name": "New template",
+  "ui.detail_template_copy": "Duplicate",
+  "ui.detail_template_copy_name_0": "{0} copy",
+  "ui.detail_template_edit": "Edit",
+  "ui.detail_template_delete": "Delete",
+  "ui.detail_template_delete_confirm_0": 'Delete the template "{0}"? Topics using it will fall back to the next default.',
+  "ui.detail_template_set_default": "Set as default",
+  "ui.detail_template_default_tag": "Default",
+  "ui.detail_template_sections_0": "{0} sections",
+  "ui.detail_template_name": "Template name",
+  "ui.detail_section_name": "Section name",
+  "ui.detail_section_description": "Instructions for AI (optional)",
+  "ui.detail_section_role": "Function",
+  "ui.detail_template_role_none": "None",
+  "ui.detail_section_count": "Required count",
+  "ui.detail_section_count_none": "No requirement",
+  "ui.detail_section_count_exact": "Exactly",
+  "ui.detail_section_count_min": "At least",
+  "ui.detail_section_add": "Add section",
+  "ui.detail_section_up": "Move up",
+  "ui.detail_section_down": "Move down",
+  "ui.detail_section_remove": "Remove",
+  "ui.detail_templates_hint": "Changes apply to future AI updates; existing notes change only when a topic is updated again.",
   "detail.visual_reference": "Visual reference",
   "detail.source": "Source: {0}",
   "detail.purpose": "Purpose: {0}",
@@ -2006,6 +2033,33 @@ var traditionalChinese = {
   "ui.detail_template_error_count_range": "\u7B2C {0} \u6BB5\uFF1A\u6578\u91CF\u8981\u6C42\u9808\u70BA 1 \u5230 20\u3002",
   "ui.detail_template_role_sources": "\u4F86\u6E90",
   "ui.detail_template_role_log": "\u66F4\u65B0\u7D00\u9304",
+  "ui.detail_templates": "\u5167\u5BB9\u6A21\u677F",
+  "ui.manage_detail_templates": "\u7BA1\u7406\u6A21\u677F",
+  "ui.detail_template_workspace_default": "\u5DE5\u4F5C\u5340\u9810\u8A2D",
+  "ui.detail_template_new": "\u65B0\u589E\u6A21\u677F",
+  "ui.detail_template_new_name": "\u65B0\u6A21\u677F",
+  "ui.detail_template_copy": "\u8907\u88FD",
+  "ui.detail_template_copy_name_0": "{0} \u526F\u672C",
+  "ui.detail_template_edit": "\u7DE8\u8F2F",
+  "ui.detail_template_delete": "\u522A\u9664",
+  "ui.detail_template_delete_confirm_0": "\u522A\u9664\u6A21\u677F\u300C{0}\u300D\uFF1F\u4F7F\u7528\u5B83\u7684\u8B70\u984C\u6703\u6539\u7528\u4E0B\u4E00\u9806\u4F4D\u7684\u9810\u8A2D\u3002",
+  "ui.detail_template_set_default": "\u8A2D\u70BA\u9810\u8A2D",
+  "ui.detail_template_default_tag": "\u9810\u8A2D",
+  "ui.detail_template_sections_0": "{0} \u6BB5",
+  "ui.detail_template_name": "\u6A21\u677F\u540D\u7A31",
+  "ui.detail_section_name": "\u6BB5\u843D\u540D\u7A31",
+  "ui.detail_section_description": "\u7D66 AI \u7684\u8AAA\u660E\uFF08\u9078\u586B\uFF09",
+  "ui.detail_section_role": "\u529F\u80FD",
+  "ui.detail_template_role_none": "\u7121",
+  "ui.detail_section_count": "\u6578\u91CF\u8981\u6C42",
+  "ui.detail_section_count_none": "\u4E0D\u9650",
+  "ui.detail_section_count_exact": "\u525B\u597D",
+  "ui.detail_section_count_min": "\u81F3\u5C11",
+  "ui.detail_section_add": "\u65B0\u589E\u6BB5\u843D",
+  "ui.detail_section_up": "\u4E0A\u79FB",
+  "ui.detail_section_down": "\u4E0B\u79FB",
+  "ui.detail_section_remove": "\u522A\u9664",
+  "ui.detail_templates_hint": "\u4FEE\u6539\u53EA\u5F71\u97FF\u4E4B\u5F8C\u7684 AI \u66F4\u65B0\uFF1B\u65E2\u6709\u7B46\u8A18\u8981\u7B49\u8B70\u984C\u4E0B\u6B21\u66F4\u65B0\u624D\u6703\u5957\u7528\u3002",
   "detail.visual_reference": "\u5716\u7247\u53C3\u8003",
   "detail.source": "\u4F86\u6E90\uFF1A{0}",
   "detail.purpose": "\u7528\u9014\uFF1A{0}",
@@ -8832,11 +8886,11 @@ ${timestamp.toLocaleString()}${item.model ? ` \xB7 ${item.model}` : ""}`
           );
         const sameCount = topicTableCount(item.topic, entries);
         if (!item.unreadable && sameCount > 1) {
-          const same = entry.createEl("button", {
+          const same2 = entry.createEl("button", {
             cls: "ct-same-topic-link",
             text: this.t("coffee.same_topic_tables", sameCount)
           });
-          same.addEventListener("click", (event) => {
+          same2.addEventListener("click", (event) => {
             event.preventDefault();
             event.stopPropagation();
             this.focusedTopic = item.topic.trim();
@@ -10402,6 +10456,17 @@ function standardTemplate(language2) {
     })
   };
 }
+function copyTemplate(source, name, id) {
+  return {
+    id,
+    name,
+    sections: source.sections.map((section3) => ({
+      ...section3,
+      ...section3.count ? { count: { ...section3.count } } : {},
+      aliases: [...section3.aliases]
+    }))
+  };
+}
 function sectionKeys(section3) {
   return [section3.name, ...section3.aliases].map((value) => value.trim().toLocaleLowerCase()).filter(Boolean);
 }
@@ -11117,8 +11182,8 @@ function parseMap(content) {
     if (n.aimQuestion !== void 0) {
       const question = n.aimQuestion;
       if (n.aimKind !== "question" || !question || typeof question.requestId !== "string" || !question.requestId.trim() || !(question.parentBranchId === void 0 || question.parentBranchId === null || typeof question.parentBranchId === "string") || !Array.isArray(question.options) || question.options.length < 2 || question.options.some(
-        (option) => !option || typeof option.id !== "string" || !option.id.trim() || typeof option.label !== "string" || !option.label.trim()
-      ) || new Set(question.options.map((option) => option.id)).size !== question.options.length || typeof question.allowMultiple !== "boolean" || typeof question.allowFreeText !== "boolean")
+        (option2) => !option2 || typeof option2.id !== "string" || !option2.id.trim() || typeof option2.label !== "string" || !option2.label.trim()
+      ) || new Set(question.options.map((option2) => option2.id)).size !== question.options.length || typeof question.allowMultiple !== "boolean" || typeof question.allowFreeText !== "boolean")
         throw new Error("Invalid AIM question controls.");
       if (aimQuestionRequests.has(question.requestId)) throw new Error("Duplicate AIM question request identity.");
       aimQuestionRequests.add(question.requestId);
@@ -11152,8 +11217,8 @@ function validateAimMap(map) {
       var _a2;
       return ((_a2 = node.aimQuestion) == null ? void 0 : _a2.requestId) === draft.requestId;
     }) || typeof draft.nodeId !== "string" || map.nodes.some((node) => node.id === draft.nodeId) || typeof draft.parentId !== "string" || !map.nodes.some((node) => node.id === draft.parentId) || !(draft.parentBranchId === void 0 || draft.parentBranchId === null || typeof draft.parentBranchId === "string") || typeof draft.notePath !== "string" || !draft.notePath.endsWith(".md") || typeof draft.title !== "string" || typeof draft.summary !== "string" || !draft.summary.trim() || typeof draft.detail !== "string" || typeof draft.prompt !== "string" || typeof draft.model !== "string" || draft.reasoning !== void 0 && !["low", "medium", "high"].includes(draft.reasoning) || !Array.isArray(draft.options) || draft.options.length < 2 || draft.options.some(
-      (option) => !option || typeof option.id !== "string" || !option.id.trim() || typeof option.label !== "string" || !option.label.trim()
-    ) || new Set(draft.options.map((option) => option.id)).size !== draft.options.length || draft.convergesFromNodeIds !== void 0 && (!Array.isArray(draft.convergesFromNodeIds) || new Set(draft.convergesFromNodeIds).size !== draft.convergesFromNodeIds.length || draft.convergesFromNodeIds.some((id) => !map.nodes.some((node) => node.id === id))))
+      (option2) => !option2 || typeof option2.id !== "string" || !option2.id.trim() || typeof option2.label !== "string" || !option2.label.trim()
+    ) || new Set(draft.options.map((option2) => option2.id)).size !== draft.options.length || draft.convergesFromNodeIds !== void 0 && (!Array.isArray(draft.convergesFromNodeIds) || new Set(draft.convergesFromNodeIds).size !== draft.convergesFromNodeIds.length || draft.convergesFromNodeIds.some((id) => !map.nodes.some((node) => node.id === id))))
       throw new Error("Invalid AIM question draft.");
   }
   const branchIds = /* @__PURE__ */ new Set(), submissionIds = /* @__PURE__ */ new Set();
@@ -11211,7 +11276,7 @@ function validateAimMap(map) {
       return false;
     if (attempt.plannerReviews !== void 0 && (!Array.isArray(attempt.plannerReviews) || attempt.plannerReviews.some(
       (review) => !review || !["research_more", "ask_user", "conclude"].includes(review.decision) || typeof review.rationale !== "string" || !review.rationale.trim() || !Number.isInteger(review.researchTurn) || review.researchTurn < 1 || review.researchTurn > 3 || review.question !== void 0 && (typeof review.question !== "string" || !review.question.trim()) || review.answerOptions !== void 0 && (!Array.isArray(review.answerOptions) || review.answerOptions.some(
-        (option) => typeof option === "string" ? !option.trim() : !option || typeof option.axisId !== "string" || !option.axisId.trim() || typeof option.value !== "string" || !option.value.trim()
+        (option2) => typeof option2 === "string" ? !option2.trim() : !option2 || typeof option2.axisId !== "string" || !option2.axisId.trim() || typeof option2.value !== "string" || !option2.value.trim()
       )) || review.answerAxis !== void 0 && (!review.answerAxis || typeof review.answerAxis.id !== "string" || !review.answerAxis.id.trim() || typeof review.answerAxis.label !== "string" || !review.answerAxis.label.trim()) || review.researchTarget !== void 0 && (!review.researchTarget || typeof review.researchTarget.title !== "string" || !review.researchTarget.title.trim() || typeof review.researchTarget.task !== "string" || !review.researchTarget.task.trim() || typeof review.researchTarget.expectedValue !== "string" || !review.researchTarget.expectedValue.trim())
     )))
       return false;
@@ -13167,8 +13232,8 @@ function modelField(parent, models, defaultLabel) {
     model.replaceChildren();
     model.createEl("option", { value: "", text: defaultLabel });
     const choices = models.list();
-    for (const option of choices) model.createEl("option", { value: option.id, text: option.label });
-    model.value = choices.some((option) => option.id === selected) ? selected : "";
+    for (const option2 of choices) model.createEl("option", { value: option2.id, text: option2.label });
+    model.value = choices.some((option2) => option2.id === selected) ? selected : "";
   };
   fill();
   const dispose = models.watch(fill);
@@ -13630,16 +13695,16 @@ var AimAnswerModal = class extends import_obsidian12.Modal {
       attr: { role: "group", "aria-label": this.question }
     });
     const boxes = /* @__PURE__ */ new Map();
-    for (const option of this.options) {
+    for (const option2 of this.options) {
       const label = choices.createEl("label", { cls: "vam-aim-answer-option" });
-      const input = label.createEl("input", { type: "checkbox", value: option.id });
-      input.setAttr("aria-label", option.label);
-      label.createSpan({ text: option.label });
-      boxes.set(option.id, input);
+      const input = label.createEl("input", { type: "checkbox", value: option2.id });
+      input.setAttr("aria-label", option2.label);
+      label.createSpan({ text: option2.label });
+      boxes.set(option2.id, input);
       input.addEventListener("change", () => {
         this.requestId = (0, import_node_crypto5.randomUUID)();
-        if (input.checked && option.id === "__aim_unknown__") {
-          for (const [id, peer] of boxes) if (id !== option.id) peer.checked = false;
+        if (input.checked && option2.id === "__aim_unknown__") {
+          for (const [id, peer] of boxes) if (id !== option2.id) peer.checked = false;
         } else if (input.checked) {
           const unknown = boxes.get("__aim_unknown__");
           if (unknown) unknown.checked = false;
@@ -14615,9 +14680,9 @@ function extractExplicitOptions(body, question) {
       continue;
     }
     if (!inOptions) continue;
-    const option = (_b = (_a = trimmed.match(/^(?:[-*•]|\d+[.)、])\s+(.+?)\s*$/)) == null ? void 0 : _a[1]) == null ? void 0 : _b.trim();
-    if (!option) break;
-    options.push(option);
+    const option2 = (_b = (_a = trimmed.match(/^(?:[-*•]|\d+[.)、])\s+(.+?)\s*$/)) == null ? void 0 : _a[1]) == null ? void 0 : _b.trim();
+    if (!option2) break;
+    options.push(option2);
     if (options.length > 5) return [];
   }
   const unique2 = [...new Set(options)];
@@ -15115,10 +15180,10 @@ function throwIfAborted(signal) {
 }
 function normalizePersistedAnswerOptions(options) {
   if (!Array.isArray(options)) return [];
-  return options.flatMap((option) => {
-    if (typeof option === "string" && option.trim()) return [option];
-    if (option && typeof option === "object" && "value" in option) {
-      const value = option.value;
+  return options.flatMap((option2) => {
+    if (typeof option2 === "string" && option2.trim()) return [option2];
+    if (option2 && typeof option2 === "object" && "value" in option2) {
+      const value = option2.value;
       if (typeof value === "string" && value.trim()) return [value];
     }
     return [];
@@ -17130,7 +17195,7 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
     const detail = [
       plannerDetail.trim(),
       translate(language2, "note.aim_answer_options_heading"),
-      ...options.map((option) => `- ${option.label}`),
+      ...options.map((option2) => `- ${option2.label}`),
       translate(language2, "note.aim_answer_hint")
     ].filter(Boolean).join("\n\n");
     const draft = {
@@ -17216,7 +17281,7 @@ ${input.requestId}`;
     const topicNode = (_b = map.nodes.find((node) => node.aimKind === "topic")) != null ? _b : map.nodes.find((node) => node.parentId === null);
     const topicNote = topicNode ? await this.repository.readNote(topicNode.path) : await this.repository.readNote(question.path);
     const lineage = await this.branchLineage(map, branch.parentBranchId);
-    const labels = (_d = (_c = question.aimQuestion) == null ? void 0 : _c.options.filter((option) => branch.answerSnapshot.selections.includes(option.id)).map((option) => option.label)) != null ? _d : branch.answerSnapshot.selections;
+    const labels = (_d = (_c = question.aimQuestion) == null ? void 0 : _c.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _d : branch.answerSnapshot.selections;
     return this.runSubtopicWorkflow(
       mapPath,
       branch.id,
@@ -17244,7 +17309,7 @@ ${input.requestId}`;
     const topicNote = topicNode ? await this.repository.readNote(topicNode.path) : await this.repository.readNote(parent.path);
     const parentNote = await this.repository.readNote(parent.path);
     const lineage = await this.branchLineage(map, branch.parentBranchId);
-    const labels = (_d = (_c = parent.aimQuestion) == null ? void 0 : _c.options.filter((option) => branch.answerSnapshot.selections.includes(option.id)).map((option) => option.label)) != null ? _d : branch.answerSnapshot.selections;
+    const labels = (_d = (_c = parent.aimQuestion) == null ? void 0 : _c.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _d : branch.answerSnapshot.selections;
     return this.runSubtopicWorkflow(
       mapPath,
       branch.id,
@@ -17268,11 +17333,11 @@ ${input.requestId}`;
     const freeText = input.freeText.trim(), selections = [...new Set(input.selections)].sort();
     if (!selections.length && !freeText)
       throw new Error("Choose an answer, add free text, or select Unknown / no preference.");
-    const optionById = new Map(contract.options.map((option) => [option.id, option]));
+    const optionById = new Map(contract.options.map((option2) => [option2.id, option2]));
     const selectedOptions = selections.map((id) => optionById.get(id));
-    if (selectedOptions.some((option) => !option))
+    if (selectedOptions.some((option2) => !option2))
       throw new Error("The submitted answer contains an option that was not offered by this question.");
-    const answerLabels = selectedOptions.map((option) => option.label);
+    const answerLabels = selectedOptions.map((option2) => option2.label);
     if (selections.includes(AIM_UNKNOWN_OPTION_ID) && selections.length > 1)
       throw new Error("Unknown / no preference cannot be combined with another selected option.");
     const parent = await this.repository.readNote(questionNode.path);
@@ -18338,7 +18403,7 @@ ${beforeSearch.detail}`,
     for (const branch of chain) {
       const question = map.nodes.find((node) => node.id === branch.questionNodeId);
       const questionNote = question ? await this.repository.readNote(question.path) : void 0;
-      const choices = (_b = (_a = question == null ? void 0 : question.aimQuestion) == null ? void 0 : _a.options.filter((option) => branch.answerSnapshot.selections.includes(option.id)).map((option) => option.label)) != null ? _b : branch.answerSnapshot.selections;
+      const choices = (_b = (_a = question == null ? void 0 : question.aimQuestion) == null ? void 0 : _a.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _b : branch.answerSnapshot.selections;
       if ((question == null ? void 0 : question.aimKind) === "question")
         sections.push(
           `User answer to ${(_c = questionNote == null ? void 0 : questionNote.summary) != null ? _c : "question"}: ${JSON.stringify({ selections: choices, freeText: branch.answerSnapshot.freeText || null })}`
@@ -18438,7 +18503,7 @@ var _AimRunStore = class _AimRunStore {
       const questionNode = map.nodes.find((node) => node.id === input.questionNodeId);
       if (!questionNode) throw new Error("Question node does not exist in this map.");
       if (questionNode.aimQuestion) {
-        const allowed = new Set(questionNode.aimQuestion.options.map((option) => option.id));
+        const allowed = new Set(questionNode.aimQuestion.options.map((option2) => option2.id));
         if (input.answerSnapshot.selections.some((selection) => !allowed.has(selection)))
           throw new Error("The submitted answer contains an option that was not offered by this question.");
         if (!questionNode.aimQuestion.allowMultiple && input.answerSnapshot.selections.length > 1)
@@ -20582,11 +20647,11 @@ var NextStepModal = class extends import_obsidian15.Modal {
       ["normal", "ui.standard"],
       ["deep", "ui.deep"]
     ]) {
-      const option = depths.createEl("label");
-      const radio = option.createEl("input", { type: "radio", attr: { name: "vam-next-depth", value } });
+      const option2 = depths.createEl("label");
+      const radio = option2.createEl("input", { type: "radio", attr: { name: "vam-next-depth", value } });
       radio.checked = this.depth === value;
       radios.push(radio);
-      option.createSpan({ text: t(key2) });
+      option2.createSpan({ text: t(key2) });
     }
     const depthDisclosure = research.createEl("details", { cls: "vam-next-depth-help" });
     depthDisclosure.open = false;
@@ -23823,7 +23888,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       const branch = this.map.aim.branches.find((item) => item.questionNodeId === node.id);
       if (branch) {
         this.renderAimFailure(card, branch);
-        const labels = (_A = (_z = node.aimQuestion) == null ? void 0 : _z.options.filter((option) => branch.answerSnapshot.selections.includes(option.id)).map((option) => option.label)) != null ? _A : branch.answerSnapshot.selections;
+        const labels = (_A = (_z = node.aimQuestion) == null ? void 0 : _z.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _A : branch.answerSnapshot.selections;
         const answer = [...labels, branch.answerSnapshot.freeText].filter(Boolean).join(" \u2014 ");
         card.createEl("p", {
           cls: "vam-aim-answer-snapshot",
@@ -23870,7 +23935,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       const branch = this.map.aim.branches.find((item) => item.answerNodeId === node.id);
       const question = branch && this.map.nodes.find((item) => item.id === branch.questionNodeId);
       if (branch) {
-        const labels = (_D = (_C = question == null ? void 0 : question.aimQuestion) == null ? void 0 : _C.options.filter((option) => branch.answerSnapshot.selections.includes(option.id)).map((option) => option.label)) != null ? _D : branch.answerSnapshot.selections;
+        const labels = (_D = (_C = question == null ? void 0 : question.aimQuestion) == null ? void 0 : _C.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _D : branch.answerSnapshot.selections;
         const answer = [...labels, branch.answerSnapshot.freeText].filter(Boolean).join(" \u2014 ");
         card.createEl("p", {
           cls: "vam-aim-answer-snapshot",
@@ -26207,13 +26272,271 @@ ${note.detail.trim()}` : "",
 };
 
 // main.ts
-var import_obsidian22 = require("obsidian");
+var import_obsidian23 = require("obsidian");
+
+// ui/modals/detail-templates-modal.ts
+var import_obsidian17 = require("obsidian");
+var same = (a, b) => a.trim().toLocaleLowerCase() === b.trim().toLocaleLowerCase();
+var ROLES = [
+  ["none", "ui.detail_template_role_none"],
+  ["sources", "ui.detail_template_role_sources"],
+  ["log", "ui.detail_template_role_log"]
+];
+function workspaceDefaultId(settings) {
+  const id = settings.defaultDetailTemplateId;
+  return id && settings.detailTemplates.some((template) => template.id === id) ? id : STANDARD_TEMPLATE_ID;
+}
+function option(select, value, text11) {
+  select.createEl("option", { value, text: text11 });
+}
+function renderDetailTemplatesSetting(setting, app, plugin) {
+  const standard = standardTemplate(plugin.settings.language);
+  setting.setName(t("ui.detail_templates")).setDesc(t("ui.detail_templates_hint")).addDropdown((dropdown) => {
+    dropdown.addOption(STANDARD_TEMPLATE_ID, standard.name);
+    for (const template of plugin.settings.detailTemplates) dropdown.addOption(template.id, template.name);
+    dropdown.setValue(workspaceDefaultId(plugin.settings));
+    dropdown.onChange((value) => {
+      plugin.settings.defaultDetailTemplateId = value === STANDARD_TEMPLATE_ID ? void 0 : value;
+      void plugin.saveSettings();
+    });
+  }).addButton(
+    (button) => button.setButtonText(t("ui.manage_detail_templates")).onClick(() => new DetailTemplatesModal(app, plugin).open())
+  );
+}
+var DetailTemplatesModal = class extends import_obsidian17.Modal {
+  constructor(app, plugin) {
+    super(app);
+    this.plugin = plugin;
+  }
+  onOpen() {
+    this.titleEl.setText(t("ui.detail_templates"));
+    this.showList();
+  }
+  get settings() {
+    return this.plugin.settings;
+  }
+  async persist() {
+    await this.plugin.saveSettings();
+  }
+  uniqueName(base) {
+    const taken = (name2) => same(name2, standardTemplate(this.settings.language).name) || this.settings.detailTemplates.some((template) => same(template.name, name2));
+    let name = base;
+    for (let n = 2; taken(name); n++) name = `${base} ${n}`;
+    return name;
+  }
+  showList() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.createEl("p", { text: t("ui.detail_templates_hint"), cls: "vam-modal-intro" });
+    const defaultId = workspaceDefaultId(this.settings);
+    const standard = standardTemplate(this.settings.language);
+    for (const template of [standard, ...this.settings.detailTemplates]) {
+      const isStandard = template.id === STANDARD_TEMPLATE_ID;
+      const row = contentEl.createDiv("vam-template-row");
+      const info = row.createDiv("vam-template-info");
+      info.createEl("strong", { text: template.name });
+      info.createSpan({ text: t("ui.detail_template_sections_0", template.sections.length), cls: "vam-template-meta" });
+      const isDefault = template.id === defaultId;
+      if (isDefault) info.createSpan({ text: t("ui.detail_template_default_tag"), cls: "vam-template-tag" });
+      const actions = row.createDiv("vam-template-actions");
+      const button = (label, run, disabled = false) => {
+        const element = actions.createEl("button", { text: label });
+        element.disabled = disabled;
+        element.addEventListener("click", () => void run());
+      };
+      if (!isStandard) button(t("ui.detail_template_edit"), () => this.showEditor(template, false));
+      button(t("ui.detail_template_copy"), () => this.duplicate(template));
+      if (!isStandard) button(t("ui.detail_template_delete"), () => this.confirmDelete(template));
+      button(t("ui.detail_template_set_default"), () => this.setDefault(template.id), isDefault);
+    }
+    const footer = contentEl.createDiv("vam-modal-actions");
+    footer.createEl("button", { text: t("ui.detail_template_new"), cls: "mod-cta" }).addEventListener("click", () => {
+      const fresh = copyTemplate(
+        standardTemplate(this.settings.language),
+        this.uniqueName(t("ui.detail_template_new_name")),
+        crypto.randomUUID()
+      );
+      this.showEditor(fresh, true);
+    });
+  }
+  async duplicate(source) {
+    const name = this.uniqueName(t("ui.detail_template_copy_name_0", source.name));
+    this.settings.detailTemplates.push(copyTemplate(source, name, crypto.randomUUID()));
+    await this.persist();
+    this.showList();
+  }
+  async setDefault(id) {
+    this.settings.defaultDetailTemplateId = id === STANDARD_TEMPLATE_ID ? void 0 : id;
+    await this.persist();
+    this.showList();
+  }
+  confirmDelete(template) {
+    new ChoiceModal(this.app, t("ui.detail_template_delete"), t("ui.detail_template_delete_confirm_0", template.name), [
+      {
+        label: t("ui.detail_template_delete"),
+        action: () => {
+          void this.remove(template.id);
+        }
+      }
+    ]).open();
+  }
+  async remove(id) {
+    this.settings.detailTemplates = this.settings.detailTemplates.filter((template) => template.id !== id);
+    if (this.settings.defaultDetailTemplateId === id) this.settings.defaultDetailTemplateId = void 0;
+    await this.persist();
+    this.showList();
+  }
+  /** Edits a deep copy; nothing reaches settings until Save, so Cancel discards everything. */
+  showEditor(original, isNew) {
+    const { contentEl } = this;
+    const draft = copyTemplate(original, original.name, original.id);
+    const baseline = new Map(draft.sections.map((section3) => [section3.id, section3.name]));
+    const others = this.settings.detailTemplates;
+    contentEl.empty();
+    const topIssues = contentEl.createDiv("vam-template-issues");
+    const nameLabel = contentEl.createEl("label", { cls: "vam-field" });
+    nameLabel.createSpan({ text: t("ui.detail_template_name") });
+    const name = nameLabel.createEl("input", { type: "text" });
+    name.value = draft.name;
+    name.setAttr("aria-label", t("ui.detail_template_name"));
+    const sectionIssues = [];
+    const list = contentEl.createDiv("vam-template-sections");
+    const addButton = contentEl.createEl("button", { text: t("ui.detail_section_add") });
+    const footer = contentEl.createDiv("vam-modal-actions");
+    footer.createEl("button", { text: t("ui.cancel") }).addEventListener("click", () => this.showList());
+    const save = footer.createEl("button", { text: t("ui.save"), cls: "mod-cta" });
+    const refresh = () => {
+      const issues = validateTemplate(draft, others);
+      topIssues.empty();
+      for (const el of sectionIssues) el.empty();
+      for (const issue of issues) {
+        const values = issue.values.map(
+          (value) => issue.key === "ui.detail_template_error_role_taken" && typeof value === "string" ? t(value) : value
+        );
+        const target = issue.section ? sectionIssues[issue.section - 1] : topIssues;
+        (target != null ? target : topIssues).createDiv({ text: t(issue.key, ...values), cls: "vam-template-issue" });
+      }
+      save.disabled = issues.length > 0;
+    };
+    name.addEventListener("input", () => {
+      draft.name = name.value;
+      refresh();
+    });
+    const renderSections = () => {
+      list.empty();
+      sectionIssues.length = 0;
+      draft.sections.forEach(
+        (section3, index) => this.sectionRow(list, draft, section3, index, sectionIssues, refresh, renderSections)
+      );
+      refresh();
+    };
+    addButton.addEventListener("click", () => {
+      draft.sections.push({ id: crypto.randomUUID(), name: "", description: "", role: "none", aliases: [] });
+      renderSections();
+    });
+    save.addEventListener("click", () => {
+      if (validateTemplate(draft, others).length) return;
+      const finished = this.finalize(draft, baseline);
+      if (isNew) this.settings.detailTemplates.push(finished);
+      else
+        this.settings.detailTemplates = this.settings.detailTemplates.map(
+          (item) => item.id === finished.id ? finished : item
+        );
+      void this.persist().then(() => this.showList());
+    });
+    renderSections();
+  }
+  sectionRow(parent, draft, section3, index, sectionIssues, refresh, rerender) {
+    var _a, _b;
+    const row = parent.createDiv("vam-template-section");
+    const name = row.createEl("input", { type: "text" });
+    name.value = section3.name;
+    name.setAttr("aria-label", t("ui.detail_section_name"));
+    name.addEventListener("input", () => {
+      section3.name = name.value;
+      refresh();
+    });
+    const description = row.createEl("textarea");
+    description.rows = 2;
+    description.value = section3.description;
+    description.setAttr("aria-label", t("ui.detail_section_description"));
+    description.setAttr("placeholder", t("ui.detail_section_description"));
+    description.addEventListener("input", () => {
+      section3.description = description.value;
+      refresh();
+    });
+    const role = row.createEl("select");
+    role.setAttr("aria-label", t("ui.detail_section_role"));
+    for (const [value, key2] of ROLES) option(role, value, t(key2));
+    role.value = section3.role;
+    role.addEventListener("change", () => {
+      section3.role = role.value;
+      refresh();
+    });
+    const mode = row.createEl("select");
+    mode.setAttr("aria-label", t("ui.detail_section_count"));
+    option(mode, "none", t("ui.detail_section_count_none"));
+    option(mode, "exact", t("ui.detail_section_count_exact"));
+    option(mode, "min", t("ui.detail_section_count_min"));
+    mode.value = (_b = (_a = section3.count) == null ? void 0 : _a.mode) != null ? _b : "none";
+    mode.addEventListener("change", () => {
+      var _a2, _b2;
+      if (mode.value === "none") delete section3.count;
+      else section3.count = { mode: mode.value, n: (_b2 = (_a2 = section3.count) == null ? void 0 : _a2.n) != null ? _b2 : 1 };
+      rerender();
+    });
+    if (section3.count) {
+      const count = row.createEl("input", { type: "number" });
+      count.value = String(section3.count.n);
+      count.setAttr("min", "1");
+      count.setAttr("max", "20");
+      count.setAttr("aria-label", t("ui.detail_section_count"));
+      count.addEventListener("input", () => {
+        if (section3.count) section3.count.n = Number(count.value);
+        refresh();
+      });
+    }
+    const move = (by) => {
+      const target = index + by;
+      [draft.sections[index], draft.sections[target]] = [draft.sections[target], draft.sections[index]];
+      rerender();
+    };
+    const control = (label, run, disabled = false) => {
+      const button = row.createEl("button", { text: label });
+      button.disabled = disabled;
+      button.addEventListener("click", run);
+    };
+    control(t("ui.detail_section_up"), () => move(-1), index === 0);
+    control(t("ui.detail_section_down"), () => move(1), index === draft.sections.length - 1);
+    control(t("ui.detail_section_remove"), () => {
+      draft.sections.splice(index, 1);
+      rerender();
+    });
+    sectionIssues[index] = row.createDiv("vam-template-issues");
+  }
+  /** Trims names and remembers earlier section names as aliases so old notes still map to the renamed section. */
+  finalize(draft, baseline) {
+    return {
+      id: draft.id,
+      name: draft.name.trim(),
+      sections: draft.sections.map((section3) => {
+        const current = section3.name.trim();
+        const aliases = [];
+        const before = baseline.get(section3.id);
+        for (const alias of [...section3.aliases, ...before !== void 0 && !same(before, current) ? [before] : []])
+          if (alias.trim() && !same(alias, current) && !aliases.some((existing) => same(existing, alias)))
+            aliases.push(alias);
+        return { ...section3, name: current, aliases };
+      })
+    };
+  }
+};
 
 // ui/settings-tab.ts
-var import_obsidian17 = require("obsidian");
+var import_obsidian18 = require("obsidian");
 var CODEX_INSTALL_URL = "https://developers.openai.com/codex/cli/";
 var CLAUDE_INSTALL_URL = "https://code.claude.com/docs/en/setup";
-var CodexSetupModal = class extends import_obsidian17.Modal {
+var CodexSetupModal = class extends import_obsidian18.Modal {
   constructor(app, executable, recheck) {
     super(app);
     this.executable = executable;
@@ -26237,7 +26560,7 @@ var CodexSetupModal = class extends import_obsidian17.Modal {
       cls: "vam-setup-note"
     });
     this.contentEl.createEl("p", { text: t("ui.path_currently_checked_0", this.executable), cls: "vam-setup-path" });
-    new import_obsidian17.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.do_this_later")).onClick(() => this.close())).addButton(
+    new import_obsidian18.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.do_this_later")).onClick(() => this.close())).addButton(
       (button) => button.setButtonText(t("ui.i_ve_finished_check_again")).setCta().onClick(() => {
         this.close();
         this.recheck();
@@ -26245,7 +26568,7 @@ var CodexSetupModal = class extends import_obsidian17.Modal {
     );
   }
 };
-var AiUsageModal = class extends import_obsidian17.Modal {
+var AiUsageModal = class extends import_obsidian18.Modal {
   constructor(app, provider, resolve) {
     super(app);
     this.provider = provider;
@@ -26266,7 +26589,7 @@ var AiUsageModal = class extends import_obsidian17.Modal {
       this.close();
       this.resolve(confirmed);
     };
-    new import_obsidian17.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => finish(false))).addButton(
+    new import_obsidian18.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => finish(false))).addButton(
       (button) => button.setButtonText(t("ui.understand_and_run")).setCta().onClick(() => finish(true))
     );
   }
@@ -26274,7 +26597,7 @@ var AiUsageModal = class extends import_obsidian17.Modal {
     if (!this.settled) this.resolve(false);
   }
 };
-var ClaudeSetupModal = class extends import_obsidian17.Modal {
+var ClaudeSetupModal = class extends import_obsidian18.Modal {
   constructor(app, executable, url, recheck) {
     super(app);
     this.executable = executable;
@@ -26294,7 +26617,7 @@ var ClaudeSetupModal = class extends import_obsidian17.Modal {
     });
     steps.createEl("li", { text: t("ui.return_to_vam_and_check_the_cli_path_again") });
     this.contentEl.createEl("p", { text: t("ui.path_currently_checked_0", this.executable), cls: "vam-setup-path" });
-    new import_obsidian17.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.do_this_later")).onClick(() => this.close())).addButton(
+    new import_obsidian18.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.do_this_later")).onClick(() => this.close())).addButton(
       (button) => button.setButtonText(t("ui.check_again")).setCta().onClick(() => {
         this.close();
         this.recheck();
@@ -26302,7 +26625,7 @@ var ClaudeSetupModal = class extends import_obsidian17.Modal {
     );
   }
 };
-var VisualAgentMapSettingTab = class extends import_obsidian17.PluginSettingTab {
+var VisualAgentMapSettingTab = class extends import_obsidian18.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
@@ -26330,11 +26653,11 @@ var VisualAgentMapSettingTab = class extends import_obsidian17.PluginSettingTab 
     });
   }
   refreshAfterLanguageChange() {
-    const focused = typeof document !== "undefined" && document.activeElement && this.containerEl.contains(document.activeElement) && document.activeElement.instanceOf(HTMLSelectElement) && Array.from(document.activeElement.options).some((option) => option.value === "zh-TW") && Array.from(document.activeElement.options).some((option) => option.value === "en");
+    const focused = typeof document !== "undefined" && document.activeElement && this.containerEl.contains(document.activeElement) && document.activeElement.instanceOf(HTMLSelectElement) && Array.from(document.activeElement.options).some((option2) => option2.value === "zh-TW") && Array.from(document.activeElement.options).some((option2) => option2.value === "en");
     this.update();
     if (!focused) return;
     const selector = Array.from(this.containerEl.querySelectorAll("select")).find((select) => {
-      const values = Array.from(select.options).map((option) => option.value);
+      const values = Array.from(select.options).map((option2) => option2.value);
       return values.includes("en") && values.includes("zh-TW");
     });
     selector == null ? void 0 : selector.focus();
@@ -26375,7 +26698,7 @@ var VisualAgentMapSettingTab = class extends import_obsidian17.PluginSettingTab 
               (id) => this.plugin.modelLabel(id),
               t("ui.current_model_is_unavailable")
             );
-            if (!Array.from(select.options).some((option) => option.value === selected)) {
+            if (!Array.from(select.options).some((option2) => option2.value === selected)) {
               const unavailable = new Option(`${selected} (${t("ui.current_model_is_unavailable")})`, selected);
               unavailable.disabled = true;
               select.add(unavailable);
@@ -26408,6 +26731,10 @@ var VisualAgentMapSettingTab = class extends import_obsidian17.PluginSettingTab 
           key: "cliReasoning",
           options: { auto: t("ui.auto"), low: t("ui.low"), medium: t("ui.medium"), high: t("ui.high") }
         }
+      },
+      {
+        name: t("ui.detail_templates"),
+        render: (setting) => renderDetailTemplatesSetting(setting, this.app, this.plugin)
       },
       {
         name: t("ui.markdown_selection_ai_auto_open"),
@@ -26521,9 +26848,9 @@ var VisualAgentMapSettingTab = class extends import_obsidian17.PluginSettingTab 
 var import_node_path2 = require("node:path");
 
 // ui/outline-view.ts
-var import_obsidian18 = require("obsidian");
+var import_obsidian19 = require("obsidian");
 var OUTLINE_VIEW_TYPE = "visual-agent-map-outline";
-var OutlineView = class extends import_obsidian18.ItemView {
+var OutlineView = class extends import_obsidian19.ItemView {
   constructor(leaf, openNote) {
     super(leaf);
     this.openNote = openNote;
@@ -26646,7 +26973,7 @@ var OutlineView = class extends import_obsidian18.ItemView {
       if (item.status === "error") button.createEl("small", { text: t("ui.coffee_segment_incomplete") });
       button.addEventListener("click", () => {
         var _a2;
-        if (!((_a2 = this.locateCoffee) == null ? void 0 : _a2.call(this, item.id))) new import_obsidian18.Notice(t("ui.coffee_segment_no_content"));
+        if (!((_a2 = this.locateCoffee) == null ? void 0 : _a2.call(this, item.id))) new import_obsidian19.Notice(t("ui.coffee_segment_no_content"));
       });
     });
   }
@@ -28751,7 +29078,7 @@ ${artifact.sourceSnapshot || "No insight snapshot was supplied."}`
 }
 
 // experiences/coffee-tables/handoff-modal.ts
-var import_obsidian19 = require("obsidian");
+var import_obsidian20 = require("obsidian");
 var import_node_crypto13 = require("node:crypto");
 
 // core/thinking-artifact.ts
@@ -28879,7 +29206,7 @@ async function openCoffeeResearchHandoff(plugin, store, displayed, path, insight
   modal.open();
   return modal;
 }
-var CoffeeHandoffModal = class extends import_obsidian19.Modal {
+var CoffeeHandoffModal = class extends import_obsidian20.Modal {
   constructor(app, plugin, store, snapshot, source) {
     super(app);
     this.plugin = plugin;
@@ -28937,7 +29264,7 @@ var CoffeeHandoffModal = class extends import_obsidian19.Modal {
         (id) => this.plugin.modelLabel(id),
         this.t("coffee.unavailable")
       );
-      if (selected && !Array.from(this.model.options).some((option) => option.value === selected))
+      if (selected && !Array.from(this.model.options).some((option2) => option2.value === selected))
         this.model.add(new Option(`${this.plugin.modelLabel(selected)} (${this.t("coffee.unavailable")})`, selected));
       this.model.value = selected;
       const codex = this.plugin.modelDiscoveryState("codex"), claude = this.plugin.modelDiscoveryState("claude");
@@ -29147,10 +29474,10 @@ ${error.message}`
 };
 
 // experiences/markdown-context/selection-ai.ts
-var import_obsidian21 = require("obsidian");
+var import_obsidian22 = require("obsidian");
 
 // experiences/markdown-context/action-plan.ts
-var import_obsidian20 = require("obsidian");
+var import_obsidian21 = require("obsidian");
 function parsePlan(raw) {
   var _a, _b;
   const value = JSON.parse(
@@ -29176,7 +29503,7 @@ async function searchImages(query, signal) {
     iiprop: "url|mime",
     iiurlwidth: "640"
   });
-  const response = await (0, import_obsidian20.requestUrl)({
+  const response = await (0, import_obsidian21.requestUrl)({
     url: `https://commons.wikimedia.org/w/api.php?${params}`,
     headers: { Accept: "application/json" }
   });
@@ -29329,7 +29656,7 @@ function positionAt(source, offset) {
   const line = before.split("\n").length - 1;
   return { line, ch: before.length - (before.lastIndexOf("\n") + 1) };
 }
-var MarkdownSelectionAi = class extends import_obsidian21.Component {
+var MarkdownSelectionAi = class extends import_obsidian22.Component {
   constructor(app, options) {
     super();
     this.app = app;
@@ -29361,8 +29688,8 @@ var MarkdownSelectionAi = class extends import_obsidian21.Component {
       var _a, _b, _c;
       const image = event.target;
       if (!(image instanceof HTMLImageElement) || !this.options.autoOpen()) return;
-      const view = this.app.workspace.getLeavesOfType("markdown").map((leaf) => leaf.view).find((candidate) => candidate instanceof import_obsidian21.MarkdownView && candidate.containerEl.contains(image));
-      if (!(view instanceof import_obsidian21.MarkdownView) || !view.file) return;
+      const view = this.app.workspace.getLeavesOfType("markdown").map((leaf) => leaf.view).find((candidate) => candidate instanceof import_obsidian22.MarkdownView && candidate.containerEl.contains(image));
+      if (!(view instanceof import_obsidian22.MarkdownView) || !view.file) return;
       const markdown = view.editor.getValue();
       const embeddedPath = (_a = image.closest(".internal-embed")) == null ? void 0 : _a.getAttribute("src");
       const tokens2 = [...markdown.matchAll(/!\[\[[^\]\n]+\]\]|!\[[^\]\n]*\]\([^\n]+?\)/g)].filter((match) => {
@@ -29426,9 +29753,9 @@ var MarkdownSelectionAi = class extends import_obsidian21.Component {
     const selection = window.getSelection();
     const range = selection && !selection.isCollapsed && selection.rangeCount ? selection.getRangeAt(0) : null;
     const view = this.app.workspace.getLeavesOfType("markdown").map((leaf) => leaf.view).find(
-      (candidate) => candidate instanceof import_obsidian21.MarkdownView && candidate.file && (range ? candidate.containerEl.contains(range.commonAncestorContainer) : candidate.getMode() === "source" && candidate.containerEl.contains(document.activeElement))
+      (candidate) => candidate instanceof import_obsidian22.MarkdownView && candidate.file && (range ? candidate.containerEl.contains(range.commonAncestorContainer) : candidate.getMode() === "source" && candidate.containerEl.contains(document.activeElement))
     );
-    if (!(view instanceof import_obsidian21.MarkdownView) || !view.file) {
+    if (!(view instanceof import_obsidian22.MarkdownView) || !view.file) {
       this.hideLauncher();
       return;
     }
@@ -29470,7 +29797,7 @@ var MarkdownSelectionAi = class extends import_obsidian21.Component {
     }
     this.updateLauncher(this.options.autoOpen());
     if (!this.snapshot) {
-      const view = this.app.workspace.getActiveViewOfType(import_obsidian21.MarkdownView);
+      const view = this.app.workspace.getActiveViewOfType(import_obsidian22.MarkdownView);
       if (!(view == null ? void 0 : view.file) || view.getMode() !== "source") return false;
       const markdown = view.editor.getValue();
       const matchAt = view.editor.posToOffset(view.editor.getCursor());
@@ -29497,7 +29824,7 @@ var MarkdownSelectionAi = class extends import_obsidian21.Component {
     this.panel.open();
   }
 };
-var SelectionAiPanel = class extends import_obsidian21.Component {
+var SelectionAiPanel = class extends import_obsidian22.Component {
   constructor(app, snapshot, model, language2, run) {
     super();
     this.app = app;
@@ -29624,7 +29951,7 @@ var SelectionAiPanel = class extends import_obsidian21.Component {
         })
       )
     );
-    new import_obsidian21.Setting(footer).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => this.close())).addButton(
+    new import_obsidian22.Setting(footer).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => this.close())).addButton(
       (button) => button.setButtonText(t("ui.context_ai_run_custom")).setCta().onClick(() => {
         const prompt = instruction.value.trim();
         if (!prompt) {
@@ -29781,9 +30108,9 @@ var SelectionAiPanel = class extends import_obsidian21.Component {
             result
           ))
             throw new Error(t("ui.context_ai_invalid_diagram"));
-          this.previewChild = new import_obsidian21.Component();
+          this.previewChild = new import_obsidian22.Component();
           this.previewChild.load();
-          await import_obsidian21.MarkdownRenderer.render(this.app, result, this.preview, this.snapshot.path, this.previewChild);
+          await import_obsidian22.MarkdownRenderer.render(this.app, result, this.preview, this.snapshot.path, this.previewChild);
         }
       }
       if (controller.signal.aborted || !this.modalEl.isConnected) return;
@@ -29895,12 +30222,12 @@ ${value}
       editor.replaceRange(addition, end, end);
     }
     this.close();
-    new import_obsidian21.Notice(action === "replace" ? t("ui.context_ai_replaced") : t("ui.context_ai_appended"));
+    new import_obsidian22.Notice(action === "replace" ? t("ui.context_ai_replaced") : t("ui.context_ai_appended"));
   }
 };
 
 // main.ts
-var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
+var VisualAgentMapPlugin = class extends import_obsidian23.Plugin {
   constructor() {
     super(...arguments);
     __publicField(this, "settings", { ...DEFAULT_SETTINGS });
@@ -29981,7 +30308,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
       const message = error instanceof Error ? error.message : String(error);
       this.logs.appendLog("error", t("log.operation_failed_0", message));
       console.error("Visual Agent Map", error);
-      new import_obsidian22.Notice(message);
+      new import_obsidian23.Notice(message);
     });
     return result;
   }
@@ -30055,7 +30382,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
   }
   async onload() {
     var _a, _b;
-    announceTestOverrides((message) => new import_obsidian22.Notice(message, 0));
+    announceTestOverrides((message) => new import_obsidian23.Notice(message, 0));
     const saved = await this.loadData();
     const legacy = saved;
     this.settings = {
@@ -30104,7 +30431,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
       checkCallback: (checking) => markdownSelectionAi.openForSelection(checking)
     });
     this.logs.appendLog("info", t("log.plugin_loaded_0", this.manifest.version || "unknown"));
-    if (this.app.vault.adapter instanceof import_obsidian22.FileSystemAdapter && this.manifest.dir) {
+    if (this.app.vault.adapter instanceof import_obsidian23.FileSystemAdapter && this.manifest.dir) {
       const pluginDirectory = (0, import_node_path2.join)(this.app.vault.adapter.getBasePath(), this.manifest.dir);
       this.exchanges = new AiExchangeLog(
         (0, import_node_path2.join)(pluginDirectory, "ai-exchanges.json"),
@@ -30146,7 +30473,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
         const count = await this.repo.normalizeGeneratedNoteFilenames();
         this.settings.structureVersion = 2;
         await this.saveSettings();
-        if (count) new import_obsidian22.Notice(t("ui.synced_0_subtopic_filenames_with_their_names", count));
+        if (count) new import_obsidian23.Notice(t("ui.synced_0_subtopic_filenames_with_their_names", count));
       }
     });
     this.ready = initialize;
@@ -30176,7 +30503,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
       (session, summariesOnly) => this.coffeeStorage.save(session, summariesOnly)
     );
     const openCoffee = () => {
-      void this.activateCoffeeTables().catch((error) => new import_obsidian22.Notice(String(error)));
+      void this.activateCoffeeTables().catch((error) => new import_obsidian23.Notice(String(error)));
     };
     const coffeeRibbonIcon = this.addRibbonIcon("coffee", `Open ${COFFEE_TABLES_NAME}`, openCoffee);
     this.addCommand({ id: "open-coffee-tables", name: `Open ${COFFEE_TABLES_NAME}`, callback: openCoffee });
@@ -30187,32 +30514,32 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
         try {
           await this.openDetails(this.repo.file(path));
         } catch (error) {
-          new import_obsidian22.Notice(error instanceof Error ? error.message : String(error));
+          new import_obsidian23.Notice(error instanceof Error ? error.message : String(error));
         }
       })
     );
     this.ribbonIcon = this.addRibbonIcon("brain-circuit", t("ui.open_map"), () => {
-      void this.activateView().catch((error) => new import_obsidian22.Notice(String(error)));
+      void this.activateView().catch((error) => new import_obsidian23.Notice(String(error)));
     });
     const mapRibbonIcon = this.ribbonIcon;
     this.app.workspace.onLayoutReady(() => this.register(groupRibbonIcons(mapRibbonIcon, coffeeRibbonIcon)));
     this.addLocalizedCommand("open-map", "ui.open_map", () => {
-      void this.activateView().catch((error) => new import_obsidian22.Notice(String(error)));
+      void this.activateView().catch((error) => new import_obsidian23.Notice(String(error)));
     });
     this.addLocalizedCommand(AIM_CREATE_MAP_COMMAND_ID, "ui.aim_create_map", () => {
       void this.activateView().then(() => {
         var _a2;
         return (_a2 = this.views()[0]) == null ? void 0 : _a2.openAimStart();
-      }).catch((error) => new import_obsidian22.Notice(String(error)));
+      }).catch((error) => new import_obsidian23.Notice(String(error)));
     });
     this.addLocalizedCommand("import-outline", "ui.outline_import", () => {
       void this.activateView().then(() => {
         var _a2;
         return (_a2 = this.views()[0]) == null ? void 0 : _a2.openOutlineImport();
-      }).catch((error) => new import_obsidian22.Notice(String(error)));
+      }).catch((error) => new import_obsidian23.Notice(String(error)));
     });
     this.addLocalizedCommand("open-topic-outline", "ui.open_topic_outline", () => {
-      void this.activateOutline().catch((error) => new import_obsidian22.Notice(String(error)));
+      void this.activateOutline().catch((error) => new import_obsidian23.Notice(String(error)));
     });
     this.addLocalizedCommand("rebuild-references", "ui.refresh_vam_data", () => {
       this.runMutation(() => this.fullRebuild());
@@ -30220,13 +30547,13 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
     this.addLocalizedCommand("normalize-note-filenames", "ui.sync_topic_names_and_filenames", () => {
       this.runMutation(async () => {
         const count = await this.repo.normalizeGeneratedNoteFilenames();
-        new import_obsidian22.Notice(count ? t("ui.synced_0_topic_filenames", count) : t("ui.topic_filenames_are_up_to_date"));
+        new import_obsidian23.Notice(count ? t("ui.synced_0_topic_filenames", count) : t("ui.topic_filenames_are_up_to_date"));
       });
     });
     this.addLocalizedCommand("repair-note-presentation", "ui.repair_topic_note_display", () => {
       this.runMutation(async () => {
         await this.repo.ensureNodePresentation();
-        new import_obsidian22.Notice(t("ui.topic_note_display_repaired"));
+        new import_obsidian23.Notice(t("ui.topic_note_display_repaired"));
       });
     });
     this.addLocalizedCommand("open-built-in-sample", "ui.open_the_taiwan_travel_sample", () => {
@@ -30261,7 +30588,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
     this.addSettingTab(this.settingTab);
     this.registerEvent(
       this.app.workspace.on("file-menu", (menu, file) => {
-        if (file instanceof import_obsidian22.TFile && this.isMap(file))
+        if (file instanceof import_obsidian23.TFile && this.isMap(file))
           menu.addItem(
             (item) => item.setTitle(t("ui.open_as_mind_map")).setIcon("brain-circuit").onClick(() => {
               void this.activateView(file.path);
@@ -30278,9 +30605,9 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
           return;
         }
         this.syncCoffeeOutline();
-        if (!((leaf == null ? void 0 : leaf.view) instanceof import_obsidian22.MarkdownView) || !leaf.view.file || !this.isMap(leaf.view.file)) return;
+        if (!((leaf == null ? void 0 : leaf.view) instanceof import_obsidian23.MarkdownView) || !leaf.view.file || !this.isMap(leaf.view.file)) return;
         const path = leaf.view.file.path;
-        void leaf.setViewState({ type: VIEW_TYPE, state: { file: path }, active: true }).catch((error) => new import_obsidian22.Notice(error instanceof Error ? error.message : String(error)));
+        void leaf.setViewState({ type: VIEW_TYPE, state: { file: path }, active: true }).catch((error) => new import_obsidian23.Notice(error instanceof Error ? error.message : String(error)));
       })
     );
     this.registerEvent(
@@ -30308,13 +30635,13 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
     });
     this.registerEvent(
       this.app.vault.on("modify", (file) => {
-        if (!this.writing && file instanceof import_obsidian22.TFile) for (const view of this.views()) view.changed(file);
+        if (!this.writing && file instanceof import_obsidian23.TFile) for (const view of this.views()) view.changed(file);
       })
     );
     this.registerEvent(
       this.app.vault.on("delete", (file) => {
-        if (file instanceof import_obsidian22.TFile) this.scheduleExternalReconciliation(file.path);
-        if (!this.writing && file instanceof import_obsidian22.TFile) {
+        if (file instanceof import_obsidian23.TFile) this.scheduleExternalReconciliation(file.path);
+        if (!this.writing && file instanceof import_obsidian23.TFile) {
           for (const view of this.views()) view.deleted(file);
           if (file.path.startsWith(`${this.settings.mapsFolder}/`) || file.path.startsWith(`${this.settings.topicsFolder}/`) && file.name === "Map.md")
             this.runMutation(() => this.repo.rebuildDerivedData());
@@ -30323,7 +30650,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
     );
     this.registerEvent(
       this.app.vault.on("rename", (file, oldPath) => {
-        if (!(file instanceof import_obsidian22.TFile) || !this.repo.renameAffectsVam(file, oldPath)) return;
+        if (!(file instanceof import_obsidian23.TFile) || !this.repo.renameAffectsVam(file, oldPath)) return;
         const external = !this.writing;
         this.runMutation(async () => {
           var _a2;
@@ -30362,12 +30689,12 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
     this.settings.workspaceInitialized = true;
     await this.saveSettings();
     for (const view of this.views()) await view.refreshFromPlugin();
-    new import_obsidian22.Notice(t("ui.agent_workspace_is_ready"));
+    new import_obsidian23.Notice(t("ui.agent_workspace_is_ready"));
   }
   async fullRebuild() {
     await this.repo.rebuildDerivedData();
     for (const view of this.views()) await view.refreshFromPlugin();
-    new import_obsidian22.Notice(t("ui.vam_data_has_been_refreshed"));
+    new import_obsidian23.Notice(t("ui.vam_data_has_been_refreshed"));
   }
   connectWorkspace(root) {
     this.settings.workspaceFolder = root;
@@ -30381,7 +30708,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
     const candidates = known != null ? known : await this.repo.workspaceCandidates();
     this.workspaceRecoveryCandidates = [];
     if (!candidates.length) {
-      new import_obsidian22.Notice(t("ui.no_recognizable_existing_vam_workspace_was_found"));
+      new import_obsidian23.Notice(t("ui.no_recognizable_existing_vam_workspace_was_found"));
       return;
     }
     new ChoiceModal(
@@ -30395,7 +30722,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
           await this.saveSettings();
           await this.repo.rebuildDerivedData();
           for (const view of this.views()) await view.refreshFromPlugin();
-          new import_obsidian22.Notice(t("ui.reconnected_workspace_0", root));
+          new import_obsidian23.Notice(t("ui.reconnected_workspace_0", root));
         })
       }))
     ).open();
@@ -30469,19 +30796,19 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
     const diagnostic = this.codexDiagnostic();
     if (!diagnostic.installed) {
       if (showGuide) this.openCodexSetupGuide();
-      else new import_obsidian22.Notice(t("ui.codex_cli_was_not_found_0_set_the_codex_cli_path_in_vam_sett", diagnostic.executable));
+      else new import_obsidian23.Notice(t("ui.codex_cli_was_not_found_0_set_the_codex_cli_path_in_vam_sett", diagnostic.executable));
       return;
     }
     const state = await this.refreshModelDiscovery("codex");
-    if (state.status === "ready") new import_obsidian22.Notice(t("ui.codex_app_server_is_ready_0", diagnostic.executable));
+    if (state.status === "ready") new import_obsidian23.Notice(t("ui.codex_app_server_is_ready_0", diagnostic.executable));
     else if (state.status === "error")
-      new import_obsidian22.Notice(
+      new import_obsidian23.Notice(
         t(
           "ui.codex_app_server_check_failed_0",
           this.recordFailure(t("log.codex_recheck_failed"), (_a = state.error) != null ? _a : "unknown error")
         )
       );
-    else new import_obsidian22.Notice(t("ui.codex_cli_was_not_found_0_set_the_codex_cli_path_in_vam_sett", diagnostic.executable));
+    else new import_obsidian23.Notice(t("ui.codex_cli_was_not_found_0_set_the_codex_cli_path_in_vam_sett", diagnostic.executable));
   }
   async duplicateBuiltInSample() {
     await this.repo.ensureWorkspace();
@@ -30529,7 +30856,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
       await this.repo.saveMap(path, map);
       await this.repo.rebuildDerivedData(root);
       await this.saveSettings();
-      new import_obsidian22.Notice(t("ui.created_an_editable_copy_of_the_sample"));
+      new import_obsidian23.Notice(t("ui.created_an_editable_copy_of_the_sample"));
       return path;
     } catch (error) {
       if (createdRoot) {
@@ -30557,7 +30884,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
     return marker4 === true || marker4 === "true" || file.extension === "md" && (file.path.startsWith(`${this.settings.notesFolder}/`) || file.path.startsWith(`${this.settings.topicsFolder}/`) || file.path.startsWith(`${this.settings.inboxFolder}/`));
   }
   styleNodeLeaf(leaf) {
-    if (!((leaf == null ? void 0 : leaf.view) instanceof import_obsidian22.MarkdownView)) return;
+    if (!((leaf == null ? void 0 : leaf.view) instanceof import_obsidian23.MarkdownView)) return;
     leaf.view.containerEl.toggleClass("vam-topic-markdown", !!leaf.view.file && this.isNode(leaf.view.file));
   }
   onunload() {
@@ -30582,7 +30909,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
         await this.saveData(nextSettings);
       } catch (error) {
         this.recordFailure(translate(previous, "ui.language_change_save_failed"), error);
-        new import_obsidian22.Notice(translate(previous, "ui.language_change_save_failed"));
+        new import_obsidian23.Notice(translate(previous, "ui.language_change_save_failed"));
         return false;
       }
       Object.assign(this.settings, nextSettings);
@@ -30609,7 +30936,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
         failures.push(error);
       }
       for (const error of failures) this.recordFailure(t("ui.language_view_refresh_failed"), error);
-      new import_obsidian22.Notice(
+      new import_obsidian23.Notice(
         failures.length ? t("ui.language_change_partial_failure") : t("ui.language_changed_content_preserved")
       );
       return true;
@@ -30650,7 +30977,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
         this.openCodexSetupGuide();
         return false;
       }
-      new import_obsidian22.Notice(t("ui.current_model_is_unavailable"));
+      new import_obsidian23.Notice(t("ui.current_model_is_unavailable"));
     } catch (error) {
       this.logs.appendLog("warn", t("log.codex_not_ready_0", error instanceof Error ? error.message : String(error)));
     }
@@ -30668,10 +30995,10 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
     const diagnostic = this.claudeDiagnostic();
     const state = await this.refreshModelDiscovery("claude");
     if (!diagnostic.installed) {
-      new import_obsidian22.Notice(t("ui.claude_cli_was_not_found_follow_the_installation_guide_to_install_it"));
+      new import_obsidian23.Notice(t("ui.claude_cli_was_not_found_follow_the_installation_guide_to_install_it"));
       return;
     }
-    new import_obsidian22.Notice(t("ui.claude_cli_found_0", diagnostic.executable));
+    new import_obsidian23.Notice(t("ui.claude_cli_found_0", diagnostic.executable));
     if (state.status !== "ready") this.logs.appendLog("warn", `Claude model discovery status: ${state.status}`);
   }
   async confirmAiUsage(model, run) {
@@ -30693,7 +31020,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
       await this.repo.rebuildDerivedData();
     } catch (error) {
       console.error("Visual Agent Map reference rebuild", error);
-      new import_obsidian22.Notice(
+      new import_obsidian23.Notice(
         t("ui.map_saved_but_reference_update_failed_0", error instanceof Error ? error.message : String(error))
       );
     }
@@ -30727,7 +31054,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
       this.detailsLeaf = (_b = (_a = markdownLeaves.filter(
         (leaf) => {
           var _a2, _b2;
-          return leaf.getRoot() === this.app.workspace.rightSplit && leaf.view instanceof import_obsidian22.MarkdownView && !!leaf.view.file && ((_b2 = (_a2 = this.app.metadataCache.getFileCache(leaf.view.file)) == null ? void 0 : _a2.frontmatter) == null ? void 0 : _b2["agent-map-node"]) === true;
+          return leaf.getRoot() === this.app.workspace.rightSplit && leaf.view instanceof import_obsidian23.MarkdownView && !!leaf.view.file && ((_b2 = (_a2 = this.app.metadataCache.getFileCache(leaf.view.file)) == null ? void 0 : _a2.frontmatter) == null ? void 0 : _b2["agent-map-node"]) === true;
         }
       ).sort(
         (a, b) => a.view.containerEl.getBoundingClientRect().top - b.view.containerEl.getBoundingClientRect().top
@@ -30741,11 +31068,11 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
   }
   closeStaleDetails() {
     var _a, _b, _c, _d;
-    const closed = ((_a = this.detailsLeaf) == null ? void 0 : _a.view) instanceof import_obsidian22.MarkdownView && ((_b = this.detailsLeaf.view.file) == null ? void 0 : _b.path) === this.detailsPath;
+    const closed = ((_a = this.detailsLeaf) == null ? void 0 : _a.view) instanceof import_obsidian23.MarkdownView && ((_b = this.detailsLeaf.view.file) == null ? void 0 : _b.path) === this.detailsPath;
     if (closed) {
       this.detailsLeaf.detach();
       this.app.workspace.trigger("file-open", null);
-      this.app.workspace.trigger("active-leaf-change", (_d = (_c = this.app.workspace.getActiveViewOfType(import_obsidian22.View)) == null ? void 0 : _c.leaf) != null ? _d : null);
+      this.app.workspace.trigger("active-leaf-change", (_d = (_c = this.app.workspace.getActiveViewOfType(import_obsidian23.View)) == null ? void 0 : _c.leaf) != null ? _d : null);
     }
     this.detailsLeaf = null;
     this.detailsPath = null;
@@ -30761,7 +31088,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
     if (leaf.view instanceof CoffeeTablesView) this.syncCoffeeOutline(leaf.view);
   }
   async runCoffeeRequest(request) {
-    if (!(this.app.vault.adapter instanceof import_obsidian22.FileSystemAdapter) || !this.manifest.dir)
+    if (!(this.app.vault.adapter instanceof import_obsidian23.FileSystemAdapter) || !this.manifest.dir)
       throw new Error("Coffee Tables requires the desktop runtime");
     const { session, signal, prompt } = request;
     const directory = (0, import_node_path2.join)(this.app.vault.adapter.getBasePath(), this.manifest.dir);
@@ -30839,12 +31166,12 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
     }
     let bytes;
     const embeddedPath = (_b = (_a = image.closest(".internal-embed")) == null ? void 0 : _a.getAttribute("src")) == null ? void 0 : _b.split("#")[0];
-    const view = this.app.workspace.getLeavesOfType("markdown").map((leaf) => leaf.view).find((view2) => view2 instanceof import_obsidian22.MarkdownView && view2.containerEl.contains(image));
+    const view = this.app.workspace.getLeavesOfType("markdown").map((leaf) => leaf.view).find((view2) => view2 instanceof import_obsidian23.MarkdownView && view2.containerEl.contains(image));
     const file = embeddedPath ? this.app.metadataCache.getFirstLinkpathDest(
       embeddedPath,
-      view instanceof import_obsidian22.MarkdownView ? (_d = (_c = view.file) == null ? void 0 : _c.path) != null ? _d : "" : ""
+      view instanceof import_obsidian23.MarkdownView ? (_d = (_c = view.file) == null ? void 0 : _c.path) != null ? _d : "" : ""
     ) : null;
-    if (file instanceof import_obsidian22.TFile) bytes = await this.app.vault.readBinary(file);
+    if (file instanceof import_obsidian23.TFile) bytes = await this.app.vault.readBinary(file);
     else throw new Error(t("ui.context_ai_image_unavailable"));
     if (signal.aborted) throw new Error(t("ui.ai_task_cancelled"));
     if (bytes.byteLength > 10 * 1024 * 1024) throw new Error(t("ui.context_ai_image_unavailable"));
@@ -30923,7 +31250,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
       if (!this.coffeeStorage) throw new Error("Coffee storage is not ready");
       await openCoffeeResearchHandoff(this, this.coffeeStorage, session, sourcePath, insightId);
     } catch (error) {
-      new import_obsidian22.Notice(error instanceof Error ? error.message : String(error));
+      new import_obsidian23.Notice(error instanceof Error ? error.message : String(error));
     }
   }
   async openResearchMap(path) {
@@ -30951,7 +31278,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
   }
   async loadCodexModels() {
     const adapter = this.app.vault.adapter;
-    if (!(adapter instanceof import_obsidian22.FileSystemAdapter) || !this.manifest.dir)
+    if (!(adapter instanceof import_obsidian23.FileSystemAdapter) || !this.manifest.dir)
       throw new Error("Codex model discovery requires desktop Obsidian");
     const pluginDirectory = (0, import_node_path2.join)(adapter.getBasePath(), this.manifest.dir);
     const models = await this.runtime(pluginDirectory).listModels();
@@ -30970,7 +31297,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
   }
   pluginDirectory() {
     const adapter = this.app.vault.adapter;
-    if (!(adapter instanceof import_obsidian22.FileSystemAdapter)) throw new Error(t("ui.cli_mode_requires_desktop_obsidian"));
+    if (!(adapter instanceof import_obsidian23.FileSystemAdapter)) throw new Error(t("ui.cli_mode_requires_desktop_obsidian"));
     if (!this.manifest.dir) throw new Error(t("ui.plugin_folder_not_found"));
     return (0, import_node_path2.join)(adapter.getBasePath(), this.manifest.dir);
   }

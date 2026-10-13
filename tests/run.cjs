@@ -19,6 +19,7 @@ const suites = [
   'references.cjs',
   'outline-import.cjs',
   'detail-templates.cjs',
+  'detail-templates-ui.cjs',
   'shell-entrances.cjs',
   'coffee-tables-core.cjs',
   'coffee-tables-session.cjs',

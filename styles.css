@@ -625,3 +625,14 @@ body .workspace-leaf-content.vam-topic-markdown .markdown-source-view.mod-cm6 .m
 .vam-outline-error { color: var(--text-error); }
 .vam-outline-depth-2 { padding-left: 1.25em; } .vam-outline-depth-3 { padding-left: 2.5em; }
 .vam-outline-depth-4 { padding-left: 3.75em; } .vam-outline-depth-5 { padding-left: 5em; } .vam-outline-depth-6 { padding-left: 6.25em; }
+.vam-template-row { display: flex; justify-content: space-between; align-items: center; gap: var(--size-4-2); padding: var(--size-4-2) 0; border-bottom: 1px solid var(--background-modifier-border); }
+.vam-template-info { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--size-4-2); min-width: 0; }
+.vam-template-meta { color: var(--text-muted); font-size: var(--font-ui-small); }
+.vam-template-tag { padding: 0 var(--size-4-2); border-radius: var(--radius-s); background: var(--background-modifier-hover); font-size: var(--font-ui-smaller); }
+.vam-template-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--size-2-2); }
+.vam-template-sections { display: flex; flex-direction: column; gap: var(--size-4-2); margin: var(--size-4-2) 0; }
+.vam-template-section { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--size-2-2); padding: var(--size-4-2); border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); }
+.vam-template-section input[type="text"], .vam-template-section textarea { flex: 1 1 100%; }
+.vam-template-section input[type="number"] { width: 5em; }
+.vam-template-issues { flex: 1 1 100%; }
+.vam-template-issue { color: var(--text-error); font-size: var(--font-ui-small); }
