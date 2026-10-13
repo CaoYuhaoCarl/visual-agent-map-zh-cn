@@ -228,7 +228,9 @@ export class AiTaskService {
               undefined,
               role
             );
-            result = repaired;
+            // Only the detail comes from the repair; it runs local, so its summary, suggestions and visual
+            // references would replace the first reply's with less.
+            result = { ...result, detail: repaired.detail };
             issues = checkCounts(canonicalDetail(result.detail, outputLanguage, template), template);
           } catch (error) {
             if (signal?.aborted || (error instanceof Error && error.name === "AbortError")) throw error;

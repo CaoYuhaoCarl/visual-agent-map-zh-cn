@@ -463,3 +463,16 @@ integrationTest('abort during count repair does not turn the first exchange into
   assert.equal(status[seen[0]], 'completed');
   assert.equal(status[seen[1]], 'failed');
 });
+integrationTest('count repair takes only the detail: first summary, suggestions and visual references survive', async () => {
+  const { prompts, run, detailWith } = countFixture();
+  const visual = { title: 'Pic', imageUrl: 'https://example.com/pic.jpg', sourceUrl: 'https://example.com/page', description: 'd', palette: [], formula: '' };
+  const first = JSON.stringify({ summary: 'First summary', detail: detailWith(2), suggestions: [{ title: 'Keep me', task: 'Do it', contribution: '' }], visualReferences: [visual] });
+  const repair = JSON.stringify({ summary: 'Repair summary', detail: detailWith(3), suggestions: [], visualReferences: [] });
+  const result = await run([first, repair]);
+  assert.equal(prompts.length, 2);
+  assert.match(result.detail, /- 3/);
+  assert.equal(result.summary, 'First summary');
+  assert.deepEqual(plain(result.suggestions.map(s => s.title)), ['Keep me']);
+  assert.deepEqual(plain(result.visualReferences.map(v => v.imageUrl)), ['https://example.com/pic.jpg']);
+  assert.deepEqual(plain(result.formatIssues), []);
+});

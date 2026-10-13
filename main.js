@@ -28847,7 +28847,7 @@ var AiTaskService = class {
               void 0,
               role
             );
-            result = repaired;
+            result = { ...result, detail: repaired.detail };
             issues = checkCounts(canonicalDetail(result.detail, outputLanguage, template), template);
           } catch (error) {
             if ((signal == null ? void 0 : signal.aborted) || error instanceof Error && error.name === "AbortError") throw error;
