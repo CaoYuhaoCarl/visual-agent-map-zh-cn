@@ -796,6 +796,20 @@ var english = {
   "detail.tradeoffs_and_limitations": "Tradeoffs and limitations",
   "detail.open_questions": "Open questions",
   "detail.update_log": "Update log",
+  "ui.detail_template_standard": "Standard",
+  "ui.detail_template_error_name_required": "Template name is required.",
+  "ui.detail_template_error_name_taken": 'A template named "{0}" already exists.',
+  "ui.detail_template_error_name_long": "Template name must be 40 characters or fewer.",
+  "ui.detail_template_error_section_count": "A template needs 1 to 12 sections.",
+  "ui.detail_template_error_section_name_required": "Section {0}: name is required.",
+  "ui.detail_template_error_section_name_invalid": "Section {0}: the name cannot contain # or line breaks.",
+  "ui.detail_template_error_section_name_long": "Section {0}: name must be 40 characters or fewer.",
+  "ui.detail_template_error_section_name_taken": "Section {0}: another section already uses this name.",
+  "ui.detail_template_error_description_long": "Section {0}: description must be 300 characters or fewer.",
+  "ui.detail_template_error_role_taken": "Only one section can be the {0} section.",
+  "ui.detail_template_error_count_range": "Section {0}: the required count must be 1 to 20.",
+  "ui.detail_template_role_sources": "Sources",
+  "ui.detail_template_role_log": "Update log",
   "detail.visual_reference": "Visual reference",
   "detail.source": "Source: {0}",
   "detail.purpose": "Purpose: {0}",
@@ -1958,6 +1972,20 @@ var traditionalChinese = {
   "detail.tradeoffs_and_limitations": "\u53D6\u6368\u8207\u9650\u5236",
   "detail.open_questions": "\u5F85\u78BA\u8A8D\u4E8B\u9805",
   "detail.update_log": "\u66F4\u65B0\u7D00\u9304",
+  "ui.detail_template_standard": "\u6A19\u6E96",
+  "ui.detail_template_error_name_required": "\u8ACB\u8F38\u5165\u6A21\u677F\u540D\u7A31\u3002",
+  "ui.detail_template_error_name_taken": "\u5DF2\u6709\u540D\u70BA\u300C{0}\u300D\u7684\u6A21\u677F\u3002",
+  "ui.detail_template_error_name_long": "\u6A21\u677F\u540D\u7A31\u6700\u591A 40 \u5B57\u3002",
+  "ui.detail_template_error_section_count": "\u6A21\u677F\u9700\u8981 1 \u5230 12 \u500B\u6BB5\u843D\u3002",
+  "ui.detail_template_error_section_name_required": "\u7B2C {0} \u6BB5\uFF1A\u8ACB\u8F38\u5165\u540D\u7A31\u3002",
+  "ui.detail_template_error_section_name_invalid": "\u7B2C {0} \u6BB5\uFF1A\u540D\u7A31\u4E0D\u80FD\u6709 # \u6216\u63DB\u884C\u3002",
+  "ui.detail_template_error_section_name_long": "\u7B2C {0} \u6BB5\uFF1A\u540D\u7A31\u6700\u591A 40 \u5B57\u3002",
+  "ui.detail_template_error_section_name_taken": "\u7B2C {0} \u6BB5\uFF1A\u540D\u7A31\u548C\u5176\u4ED6\u6BB5\u843D\u91CD\u8907\u3002",
+  "ui.detail_template_error_description_long": "\u7B2C {0} \u6BB5\uFF1A\u8AAA\u660E\u6700\u591A 300 \u5B57\u3002",
+  "ui.detail_template_error_role_taken": "\u53EA\u80FD\u6709\u4E00\u6BB5\u8A2D\u70BA\u300C{0}\u300D\u3002",
+  "ui.detail_template_error_count_range": "\u7B2C {0} \u6BB5\uFF1A\u6578\u91CF\u8981\u6C42\u9808\u70BA 1 \u5230 20\u3002",
+  "ui.detail_template_role_sources": "\u4F86\u6E90",
+  "ui.detail_template_role_log": "\u66F4\u65B0\u7D00\u9304",
   "detail.visual_reference": "\u5716\u7247\u53C3\u8003",
   "detail.source": "\u4F86\u6E90\uFF1A{0}",
   "detail.purpose": "\u7528\u9014\uFF1A{0}",
@@ -10138,6 +10166,24 @@ function withThinkingOrigin(context, note) {
 var import_node_crypto9 = require("node:crypto");
 var import_obsidian16 = require("obsidian");
 
+// ai/markdown-blocks.ts
+function fencedLines(lines) {
+  let fence = null;
+  return lines.map((line) => {
+    const open = /^\s*(`{3,}|~{3,})/.exec(line);
+    if (fence) {
+      const close = /^\s*(`{3,}|~{3,})\s*$/.exec(line);
+      if (close && close[1][0] === fence[0] && close[1].length >= fence.length) fence = null;
+      return true;
+    }
+    if (open) {
+      fence = open[1];
+      return true;
+    }
+    return false;
+  });
+}
+
 // ai/result-utils.ts
 var SENTENCE_END = /[。！？；!?;]/;
 function truncateSummary(value, limit = 80) {
@@ -10160,22 +10206,6 @@ function reportedSearchFailure(result) {
   if (result.searchStatus !== void 0) return result.searchStatus !== "completed";
   return LEGACY_SEARCH_FAILURE.test(`${result.summary}
 ${result.detail}`);
-}
-function fencedLines(lines) {
-  let fence = null;
-  return lines.map((line) => {
-    const open = /^\s*(`{3,}|~{3,})/.exec(line);
-    if (fence) {
-      const close = /^\s*(`{3,}|~{3,})\s*$/.exec(line);
-      if (close && close[1][0] === fence[0] && close[1].length >= fence.length) fence = null;
-      return true;
-    }
-    if (open) {
-      fence = open[1];
-      return true;
-    }
-    return false;
-  });
 }
 function sourceFootnoteDefinition(line) {
   const match = /^\[\^([^\]\s]+)\]:[ \t]*(.*)$/.exec(line);

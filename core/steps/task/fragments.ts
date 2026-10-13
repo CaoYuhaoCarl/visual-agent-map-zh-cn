@@ -4,6 +4,16 @@ import { inLanguage, type FragmentPair } from "../_shared/fragments";
 import SourceRegistryTemplate from "./source-registry.md";
 import AdaptiveDetailStructureZH from "./adaptive-detail-structure.zh.md";
 import AdaptiveDetailStructureEN from "./adaptive-detail-structure.en.md";
+import CustomDetailStructureZH from "./custom-detail-structure.zh.md";
+import CustomDetailStructureEN from "./custom-detail-structure.en.md";
+import CustomRuleLogZH from "./custom-detail-rule-log.zh.md";
+import CustomRuleLogEN from "./custom-detail-rule-log.en.md";
+import CustomRuleDescriptionZH from "./custom-detail-rule-description.zh.md";
+import CustomRuleDescriptionEN from "./custom-detail-rule-description.en.md";
+import CustomRuleExactZH from "./custom-detail-rule-exact.zh.md";
+import CustomRuleExactEN from "./custom-detail-rule-exact.en.md";
+import CustomRuleMinZH from "./custom-detail-rule-min.zh.md";
+import CustomRuleMinEN from "./custom-detail-rule-min.en.md";
 import DecomposeZH from "./decompose.zh.md";
 import DecomposeEN from "./decompose.en.md";
 import DefaultTaskZH from "./default-task.zh.md";
@@ -57,6 +67,27 @@ export const VISUAL_PRESERVE: FragmentPair = pair(VisualPreserveZH, VisualPreser
 /** The six standard Detail headings are interface text, so the caller builds them; this fills the structure sentence. */
 export function detailStructure(language: UiLanguage, headings: string): string {
   return renderTemplate(inLanguage(DETAIL_STRUCTURE_TEMPLATE, language), { headings });
+}
+const CUSTOM_DETAIL_STRUCTURE_TEMPLATE: FragmentPair = { zh: CustomDetailStructureZH, en: CustomDetailStructureEN };
+/** A custom template's structure sentence: `{{count}}` headings, the heading list, then any per-section rules. */
+export function customDetailStructure(
+  language: UiLanguage,
+  values: { count: string; headings: string; rules: string }
+): string {
+  return renderTemplate(inLanguage(CUSTOM_DETAIL_STRUCTURE_TEMPLATE, language), values);
+}
+const CUSTOM_DETAIL_RULES: Record<"log" | "description" | "exact" | "min", FragmentPair> = {
+  log: { zh: CustomRuleLogZH, en: CustomRuleLogEN },
+  description: { zh: CustomRuleDescriptionZH, en: CustomRuleDescriptionEN },
+  exact: { zh: CustomRuleExactZH, en: CustomRuleExactEN },
+  min: { zh: CustomRuleMinZH, en: CustomRuleMinEN }
+};
+export function customDetailRule(
+  kind: "log" | "description" | "exact" | "min",
+  language: UiLanguage,
+  values: Record<string, string>
+): string {
+  return renderTemplate(inLanguage(CUSTOM_DETAIL_RULES[kind], language), values);
 }
 export function sourceRegistry(catalog: string): string {
   return renderTemplate(SourceRegistryTemplate, { catalog });

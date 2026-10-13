@@ -1,6 +1,9 @@
 import type { VisualReference } from "../repository";
 import { translate, type UiLanguage } from "../i18n";
 import type { AiResult } from "./types";
+import { fencedLines } from "./markdown-blocks";
+
+export { fencedLines } from "./markdown-blocks";
 
 const SENTENCE_END = /[。！？；!?;]/;
 
@@ -31,25 +34,6 @@ export function reportedSearchFailure(result: Pick<AiResult, "summary" | "detail
   // A completed report may still mention one unavailable source or subtask in its narrative.
   if (result.searchStatus !== undefined) return result.searchStatus !== "completed";
   return LEGACY_SEARCH_FAILURE.test(`${result.summary}\n${result.detail}`);
-}
-
-/** Marks each line that belongs to a fenced code block (fence lines included). */
-export function fencedLines(lines: string[]): boolean[] {
-  let fence: string | null = null;
-  return lines.map(line => {
-    const open = /^\s*(`{3,}|~{3,})/.exec(line);
-    if (fence) {
-      // A closing fence carries no info string.
-      const close = /^\s*(`{3,}|~{3,})\s*$/.exec(line);
-      if (close && close[1][0] === fence[0] && close[1].length >= fence.length) fence = null;
-      return true;
-    }
-    if (open) {
-      fence = open[1];
-      return true;
-    }
-    return false;
-  });
 }
 
 /**

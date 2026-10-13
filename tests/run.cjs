@@ -18,6 +18,7 @@ const suites = [
   'i18n.cjs',
   'references.cjs',
   'outline-import.cjs',
+  'detail-templates.cjs',
   'shell-entrances.cjs',
   'coffee-tables-core.cjs',
   'coffee-tables-session.cjs',
