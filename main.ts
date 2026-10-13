@@ -28,7 +28,15 @@ import {
 } from "./ui/settings-tab";
 import { join } from "node:path";
 import { type MapDocument, type MapNode } from "./map-model";
-import { DEFAULT_SETTINGS, normalizeReasoningLevel, type Note, Repository, type Settings } from "./repository";
+import {
+  DEFAULT_SETTINGS,
+  moveNotePath,
+  normalizeReasoningLevel,
+  rebaseMapNotePaths,
+  type Note,
+  Repository,
+  type Settings
+} from "./repository";
 import { normalizeTemplates } from "./ai/detail-templates";
 import { effectiveReasoningLevel } from "./ai/task-policy";
 import type { AiResult, Suggestion, TaskContext } from "./ai/types";
@@ -480,6 +488,10 @@ export default class VisualAgentMapPlugin extends Plugin {
           console.warn("Visual Agent Map initialization", error);
         });
     });
+    this.registerVaultEvents();
+  }
+  /** Vault modify/delete/rename handlers; kept separate so tests can drive the real handlers on a fake vault. */
+  registerVaultEvents(): void {
     this.registerEvent(
       this.app.vault.on("modify", file => {
         if (!this.writing && file instanceof TFile) for (const view of this.views()) view.changed(file);
@@ -508,13 +520,7 @@ export default class VisualAgentMapPlugin extends Plugin {
           let mapChanged = false;
           for (const mapFile of await this.repo.mapFiles()) {
             const map = await this.repo.readMap(mapFile.path);
-            let changed = false;
-            for (const node of map.nodes)
-              if (node.path === oldPath) {
-                node.path = file.path;
-                changed = true;
-              }
-            if (changed) {
+            if (rebaseMapNotePaths(map, moveNotePath(oldPath, file.path))) {
               await this.repo.saveMap(mapFile.path, map);
               mapChanged = true;
             }

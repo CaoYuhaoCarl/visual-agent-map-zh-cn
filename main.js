@@ -11584,6 +11584,55 @@ var REFERENCE_END = "<!-- visual-agent-map:references:end -->";
 var DETAIL_START = "<!-- visual-agent-map:detail:start -->";
 var DETAIL_END = "<!-- visual-agent-map:detail:end -->";
 var NOTE_CSS_CLASS = "visual-agent-map-node";
+function rebaseMapNotePaths(map, rebase) {
+  var _a, _b, _c;
+  let changed = false;
+  const move = (path) => {
+    const next = rebase(path);
+    if (next !== path) changed = true;
+    return next;
+  };
+  const moveReuse = (record) => {
+    if (record) record.sourceNotePath = move(record.sourceNotePath);
+  };
+  for (const node of map.nodes) node.path = move(node.path);
+  const aim = map.aim;
+  if (!aim) return changed;
+  const hashSnapshot = (value) => (0, import_node_crypto2.createHash)("sha256").update(JSON.stringify(value)).digest("hex");
+  for (const branch of aim.branches) {
+    const snapshotBefore = JSON.stringify(branch.inputSnapshot);
+    for (const result of branch.inputSnapshot.upstreamResults) result.notePath = move(result.notePath);
+    for (const item of (_a = branch.researchPlan) != null ? _a : []) if (item.source) item.source.notePath = move(item.source.notePath);
+    for (const result of branch.results) {
+      result.notePath = move(result.notePath);
+      moveReuse(result.reuse);
+    }
+    if (JSON.stringify(branch.inputSnapshot) === snapshotBefore) continue;
+    const hash = hashSnapshot({ branch: branch.inputSnapshot, answer: branch.answerSnapshot });
+    for (const run of aim.runs) {
+      if (run.branchId !== branch.id) continue;
+      for (const attempt of run.attempts) {
+        attempt.inputSnapshotHash = hash;
+        for (const draft of (_b = aim.resultDrafts) != null ? _b : [])
+          if (draft.runId === run.id && draft.attemptId === attempt.id) draft.inputSnapshotHash = hash;
+      }
+    }
+  }
+  for (const run of aim.runs)
+    for (const attempt of run.attempts)
+      if (attempt.retainedReports) attempt.retainedReports.notePath = move(attempt.retainedReports.notePath);
+  for (const draft of (_c = aim.resultDrafts) != null ? _c : []) {
+    draft.notePath = move(draft.notePath);
+    moveReuse(draft.reuse);
+  }
+  if (aim.rootDraft) aim.rootDraft.notePath = move(aim.rootDraft.notePath);
+  if (aim.questionDraft) aim.questionDraft.notePath = move(aim.questionDraft.notePath);
+  for (const pending of aim.pendingCommits) pending.notePath = move(pending.notePath);
+  return changed;
+}
+function moveNotePath(oldPath, newPath) {
+  return (path) => path === oldPath ? newPath : path;
+}
 function writeMapContent(content, map) {
   return content.replace(/^# .*$/m, () => `# ${map.title.replace(/\n/g, " ")}`).replace(/```agent-map\s*\n[\s\S]*?\n```/, () => `\`\`\`agent-map
 ${JSON.stringify(map, null, 2)}
@@ -12232,15 +12281,15 @@ ${body}`);
     for (const file of await this.mapFiles()) {
       const map = await this.readMap(file.path);
       let changed = false;
-      for (const node of map.nodes) {
+      for (const node of [...map.nodes]) {
         if (this.app.vault.getAbstractFileByPath(node.path) instanceof import_obsidian8.TFile) continue;
         const matches = (_d = candidates.get(node.id)) != null ? _d : [];
         if (matches.length !== 1) continue;
         const oldPath = node.path;
-        node.path = matches[0];
+        rebaseMapNotePaths(map, moveNotePath(oldPath, matches[0]));
         changed = true;
         repaired++;
-        await this.replaceSourcePath(oldPath, node.path);
+        await this.replaceSourcePath(oldPath, matches[0]);
       }
       if (changed) await this.saveMap(file.path, map);
     }
@@ -12300,9 +12349,9 @@ ${body}`);
       const id = text5(fm["node-id"]);
       if (id) byId.set(id, file.path);
     }
-    for (const node of map.nodes)
+    for (const node of [...map.nodes])
       if (!(this.app.vault.getAbstractFileByPath(node.path) instanceof import_obsidian8.TFile) && byId.has(node.id))
-        node.path = byId.get(node.id);
+        rebaseMapNotePaths(map, moveNotePath(node.path, byId.get(node.id)));
     await this.moveExact(sourcePath, target);
     await this.saveMap(target, map);
     for (const node of map.nodes)
@@ -12396,7 +12445,7 @@ ${body}`);
         const note = await this.readNote(node.path);
         if (!note.title.trim() || safeName(note.title) === file.basename) continue;
         const oldPath = node.path, newPath = await this.renameNote(oldPath, note.title);
-        node.path = newPath;
+        rebaseMapNotePaths(map, moveNotePath(oldPath, newPath));
         changed = true;
         renamed++;
         await this.replaceSourcePath(oldPath, newPath);
@@ -12595,7 +12644,7 @@ ${body}`;
           await remember(node.path);
           const old = node.path, next = await this.moveUnique(old, `${item.targetRoot}/Notes`);
           moves.push({ from: old, to: next });
-          node.path = next;
+          rebaseMapNotePaths(map, moveNotePath(old, next));
           await this.setLifecycle(next, map.id, map.id, "active");
         }
         await this.saveMap(mapTarget, map);
@@ -12622,7 +12671,7 @@ ${body}`;
     }
   }
   async renameTopic(mapPath, title, targetRoot) {
-    var _a, _b, _c;
+    var _a;
     const file = this.file(mapPath), root = file.parent;
     if (!(root instanceof import_obsidian8.TFolder) || !mapPath.startsWith(`${this.settings.topicsFolder}/`))
       throw new Error(this.message("error.migrate_legacy_map"));
@@ -12649,30 +12698,7 @@ ${body}`;
       const map = await this.readMap(next);
       map.title = title;
       const rebasePath = (path) => path.startsWith(`${originalRoot}/`) ? `${desired}/${path.slice(originalRoot.length + 1)}` : path;
-      for (const node of map.nodes) node.path = rebasePath(node.path);
-      const aim = map.aim;
-      if (aim) {
-        for (const branch of aim.branches) {
-          for (const result of branch.inputSnapshot.upstreamResults) result.notePath = rebasePath(result.notePath);
-          for (const result of branch.results) result.notePath = rebasePath(result.notePath);
-        }
-        for (const draft of (_b = aim.resultDrafts) != null ? _b : []) draft.notePath = rebasePath(draft.notePath);
-        if (aim.rootDraft) aim.rootDraft.notePath = rebasePath(aim.rootDraft.notePath);
-        if (aim.questionDraft) aim.questionDraft.notePath = rebasePath(aim.questionDraft.notePath);
-        for (const pending of aim.pendingCommits) pending.notePath = rebasePath(pending.notePath);
-        const hashSnapshot = (value) => (0, import_node_crypto2.createHash)("sha256").update(JSON.stringify(value)).digest("hex");
-        for (const run of aim.runs) {
-          const branch = aim.branches.find((item) => item.id === run.branchId);
-          if (!branch) continue;
-          for (const attempt of run.attempts) {
-            attempt.inputSnapshotHash = hashSnapshot({ branch: branch.inputSnapshot, answer: branch.answerSnapshot });
-            for (const draft of (_c = aim.resultDrafts) != null ? _c : []) {
-              if (draft.runId === run.id && draft.attemptId === attempt.id)
-                draft.inputSnapshotHash = attempt.inputSnapshotHash;
-            }
-          }
-        }
-      }
+      rebaseMapNotePaths(map, rebasePath);
       await this.saveMap(next, map);
       await this.rebuildDerivedData();
       return next;
@@ -22372,7 +22398,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
   async renamed(file, oldPath) {
     if (this.path === oldPath) this.path = file.path;
     if (this.map) {
-      for (const node of this.map.nodes) if (node.path === oldPath) node.path = file.path;
+      rebaseMapNotePaths(this.map, moveNotePath(oldPath, file.path));
       this.history.clear();
       await this.hydrate();
       this.render();
@@ -22842,7 +22868,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     await this.plugin.repo.setLifecycle(target, this.map.id, this.map.id, "active");
     const after = clone(before), replacement = after.nodes.find((item) => item.id === node.id);
     if (!replacement) throw new Error(t("ui.the_node_to_relink_was_not_found"));
-    replacement.path = target;
+    rebaseMapNotePaths(after, moveNotePath(replacement.path, target));
     await this.plugin.repo.saveMap(this.path, after);
     this.map = after;
     await this.plugin.rebuildDerivedData();
@@ -30912,6 +30938,10 @@ var VisualAgentMapPlugin = class extends import_obsidian23.Plugin {
         console.warn("Visual Agent Map initialization", error);
       });
     });
+    this.registerVaultEvents();
+  }
+  /** Vault modify/delete/rename handlers; kept separate so tests can drive the real handlers on a fake vault. */
+  registerVaultEvents() {
     this.registerEvent(
       this.app.vault.on("modify", (file) => {
         if (!this.writing && file instanceof import_obsidian23.TFile) for (const view of this.views()) view.changed(file);
@@ -30932,23 +30962,17 @@ var VisualAgentMapPlugin = class extends import_obsidian23.Plugin {
         if (!(file instanceof import_obsidian23.TFile) || !this.repo.renameAffectsVam(file, oldPath)) return;
         const external = !this.writing;
         this.runMutation(async () => {
-          var _a2;
+          var _a;
           await this.repo.replaceSourcePath(oldPath, file.path);
           let mapChanged = false;
           for (const mapFile of await this.repo.mapFiles()) {
             const map = await this.repo.readMap(mapFile.path);
-            let changed = false;
-            for (const node of map.nodes)
-              if (node.path === oldPath) {
-                node.path = file.path;
-                changed = true;
-              }
-            if (changed) {
+            if (rebaseMapNotePaths(map, moveNotePath(oldPath, file.path))) {
               await this.repo.saveMap(mapFile.path, map);
               mapChanged = true;
             }
           }
-          const frontmatter2 = (_a2 = this.app.metadataCache.getFileCache(file)) == null ? void 0 : _a2.frontmatter;
+          const frontmatter2 = (_a = this.app.metadataCache.getFileCache(file)) == null ? void 0 : _a.frontmatter;
           const vamFile = [frontmatter2 == null ? void 0 : frontmatter2["agent-map-node"], frontmatter2 == null ? void 0 : frontmatter2["visual-agent-map"]].some(
             (value) => value === true || value === "true"
           );

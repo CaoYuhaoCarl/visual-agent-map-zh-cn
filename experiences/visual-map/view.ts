@@ -36,7 +36,15 @@ import {
   synthesisGoalTask,
   thinkingOriginDocumentBlock
 } from "./steps/fragments";
-import { normalizeReasoningLevel, type Note, type NotePatch, type TopicInfo, type TopicState } from "../../repository";
+import {
+  moveNotePath,
+  normalizeReasoningLevel,
+  rebaseMapNotePaths,
+  type Note,
+  type NotePatch,
+  type TopicInfo,
+  type TopicState
+} from "../../repository";
 import { canonicalDetail, visualReferencesMarkdown } from "../../ai/result-utils";
 import {
   checkCounts,
@@ -1232,7 +1240,7 @@ export class VisualAgentMapView extends ItemView {
   async renamed(file: TFile, oldPath: string): Promise<void> {
     if (this.path === oldPath) this.path = file.path;
     if (this.map) {
-      for (const node of this.map.nodes) if (node.path === oldPath) node.path = file.path;
+      rebaseMapNotePaths(this.map, moveNotePath(oldPath, file.path));
       this.history.clear();
       await this.hydrate();
       this.render();
@@ -1745,7 +1753,7 @@ export class VisualAgentMapView extends ItemView {
     const after = clone(before),
       replacement = after.nodes.find(item => item.id === node.id);
     if (!replacement) throw new Error(t("ui.the_node_to_relink_was_not_found"));
-    replacement.path = target;
+    rebaseMapNotePaths(after, moveNotePath(replacement.path, target));
     await this.plugin.repo.saveMap(this.path, after);
     this.map = after;
     await this.plugin.rebuildDerivedData();
