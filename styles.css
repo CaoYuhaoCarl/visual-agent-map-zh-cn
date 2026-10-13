@@ -48,10 +48,11 @@
 .vam-stage { position: absolute; left: 0; top: 0; width: 1px; height: 1px; transform-origin: 0 0; }
 .vam-edges { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; pointer-events: none; }
 .vam-edge { fill: none; stroke: var(--interactive-accent); stroke-width: 2; opacity: 0.55; }
-.vam-node { position: absolute; box-sizing: border-box; width: 280px; padding: 14px; border: 1px solid var(--background-modifier-border); border-radius: 12px; background: var(--background-primary); box-shadow: 0 4px 14px rgba(0,0,0,0.08); cursor: grab; user-select: none; }
+.vam-node { --vam-card-bg: var(--background-primary); position: absolute; box-sizing: border-box; width: 280px; padding: 12px 14px 14px; border: 1px solid var(--background-modifier-border); border-radius: 12px; background: var(--vam-card-bg); box-shadow: var(--shadow-s); cursor: grab; user-select: none; transition: border-color 160ms ease-out, box-shadow 160ms ease-out; }
+.vam-node:hover { border-color: var(--background-modifier-border-hover); }
 .vam-node[data-aim-kind="topic"] { border-radius: 48% / 28%; padding: 22px 24px; }
 .vam-node[data-aim-kind="question"] { isolation: isolate; border-color: transparent; background: transparent; box-shadow: none; }
-.vam-node[data-aim-kind="question"]::before { content: ""; position: absolute; z-index: -1; width: 174px; height: 174px; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(45deg); border: 1px solid var(--background-modifier-border); border-radius: 10px; background: var(--background-primary); box-shadow: 4px 4px 14px rgba(0,0,0,0.08); }
+.vam-node[data-aim-kind="question"]::before { content: ""; position: absolute; z-index: -1; width: 174px; height: 174px; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(45deg); border: 1px solid var(--background-modifier-border); border-radius: 10px; background: var(--vam-card-bg); box-shadow: var(--shadow-s); }
 .vam-node[data-aim-kind="answer"] { border: 1px solid var(--interactive-accent); border-radius: 18px; }
 .vam-node[data-aim-kind="research"] { border-radius: 4px; }
 .vam-node[data-aim-kind="synthesis"] { border-style: dashed; border-color: var(--interactive-accent); }
@@ -67,22 +68,49 @@
 .vam-node-header .vam-aim-question-status { margin-right: auto; padding: 4px 10px; border: 1px solid var(--background-modifier-border); font-size: 12px; font-weight: 700; }
 .vam-aim-start { display: flex; width: 100%; justify-content: center; margin-top: 12px; min-height: 36px; }
 .vam-node[data-aim-kind="conclusion"] { isolation: isolate; border: 0; background: transparent; box-shadow: none; }
-.vam-conclusion-background { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; filter: drop-shadow(0 4px 7px rgba(0,0,0,0.08)); }
-.vam-conclusion-background polygon { fill: var(--background-primary); stroke: var(--background-modifier-border); stroke-width: 1; }
-.vam-node .vam-add-child { position: absolute; right: -17px; top: 50%; transform: translateY(-50%); width: 34px; height: 34px; padding: 0; border-radius: 50%; background: var(--background-primary); color: var(--text-normal); font-size: 20px; line-height: 1; }
+.vam-conclusion-background { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.08)); }
+.vam-conclusion-background polygon { fill: var(--vam-card-bg); stroke: var(--background-modifier-border); stroke-width: 1; }
+.vam-node .vam-add-child { position: absolute; right: -14px; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; padding: 0; border: 1px solid var(--background-modifier-border); border-radius: 50%; background: var(--vam-card-bg); box-shadow: var(--shadow-s); color: var(--text-muted); font-size: var(--font-ui-medium); line-height: 1; opacity: 0; transition: opacity 120ms ease-out; }
+.vam-node .vam-add-child:hover { color: var(--text-accent); border-color: var(--interactive-accent); }
 .vam-node:active { cursor: grabbing; }
 .vam-node.is-selected, .vam-node:focus-visible { border-color: var(--interactive-accent); outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
-.vam-node-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; min-height: 24px; gap: 4px; }
-.vam-node-header .vam-status { margin-right: auto; }
-.vam-node-header button { font-size: 11px; height: 24px; padding: 2px 7px; }
-.vam-node-header button.vam-node-tool { min-width: 26px; font-size: 17px; line-height: 1; }
-.vam-status { padding: 2px 7px; border-radius: 20px; font-size: 11px; background: var(--background-modifier-hover); color: var(--text-muted); }
+.vam-node-header { display: flex; flex-wrap: wrap; align-items: center; min-height: 26px; gap: 4px 6px; }
+.vam-node-header button { font-size: var(--font-ui-smaller); height: 24px; padding: 2px 8px; }
+.vam-node-tools { display: flex; align-items: center; gap: 0; margin-left: auto; }
+.vam-node-tools .vam-icon-button { --icon-size: 15px; width: 26px; height: 26px; padding: 0; justify-content: center; }
+.vam-node-tools .vam-ai-tool { order: 99; color: var(--text-accent); }
+/* Secondary tools wait for intent: hover, keyboard focus, or selection. */
+.vam-node-tools > :not(.vam-ai-tool):not(.is-collapsed) { opacity: 0; transition: opacity 120ms ease-out; }
+.vam-node:hover .vam-node-tools > *, .vam-node:focus-within .vam-node-tools > *, .vam-node.is-selected .vam-node-tools > *,
+.vam-node:hover > .vam-add-child, .vam-node:focus-within > .vam-add-child, .vam-node.is-selected > .vam-add-child { opacity: 1; }
+.vam-status { display: inline-flex; align-items: center; gap: 6px; padding: 0; font-size: var(--font-ui-smaller); color: var(--text-muted); white-space: nowrap; }
+.vam-status::before { content: ""; flex: 0 0 auto; width: 7px; height: 7px; box-sizing: border-box; border-radius: 50%; background: var(--text-faint); }
+.vam-status-idea::before { border: 1.5px solid var(--text-faint); background: transparent; }
 .vam-status-running { color: var(--text-accent); }
+.vam-status-running::before { background: var(--interactive-accent); animation: vam-pulse 1.4s ease-in-out infinite; }
+.vam-status-completed::before { background: var(--interactive-accent); }
 .vam-status-error { color: var(--color-red); }
-.vam-badge-new { padding: 2px 7px; border-radius: 20px; font-size: 11px; background: var(--interactive-accent); color: var(--text-on-accent); }
+.vam-status-error::before { background: var(--color-red); }
+.vam-node-header .vam-aim-question-status { padding: 3px 9px; border: 1px solid var(--background-modifier-border); border-radius: 20px; font-weight: 650; }
+.vam-badge-new { padding: 2px 8px; border-radius: 20px; font-size: var(--font-ui-smaller); background: var(--interactive-accent); color: var(--text-on-accent); }
 .vam-node-header button.vam-badge-new { border: 0; cursor: pointer; }
-.vam-card-title { color: var(--text-normal); font-size: 16px; line-height: 1.4; margin: 10px 0 6px; overflow-wrap: anywhere; }
-.vam-card-summary { margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.vam-card-title { color: var(--text-normal); font-size: var(--font-ui-medium); font-weight: 650; line-height: 1.4; margin: 8px 0 4px; overflow-wrap: anywhere; }
+.vam-card-summary { margin: 0; color: var(--text-muted); font-size: var(--font-ui-small); line-height: 1.55; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+/* Research frame: open questions read as an unfinished frontier, concluded topics as settled ground. */
+.vam-node:not([data-aim-kind])[data-status="idea"] { border-style: dashed; border-color: var(--background-modifier-border-hover); box-shadow: none; }
+.vam-node:not([data-aim-kind])[data-status="idea"] .vam-card-summary { color: var(--text-faint); }
+.vam-node:not([data-aim-kind])[data-status="running"] { border-color: var(--interactive-accent); }
+.vam-node:not([data-aim-kind])[data-status="running"]::after { content: ""; position: absolute; left: 14px; right: 14px; top: -1px; height: 2px; border-radius: 2px; background: linear-gradient(90deg, transparent, var(--interactive-accent), transparent); background-size: 50% 100%; background-repeat: no-repeat; animation: vam-scan 1.6s ease-in-out infinite; }
+.vam-node:not([data-aim-kind])[data-status="error"] { border-color: rgba(var(--color-red-rgb), 0.55); }
+@keyframes vam-pulse { 50% { opacity: 0.35; } }
+@keyframes vam-scan { from { background-position: -100% 0; } to { background-position: 200% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .vam-status-running::before, .vam-node[data-status="running"]::after { animation: none; }
+  .vam-node[data-status="running"]::after { background: var(--interactive-accent); }
+  .vam-node, .vam-node .vam-add-child, .vam-node-tools > * { transition: none; }
+}
+.theme-dark .vam-viewport { background-color: var(--background-primary); }
+.theme-dark .vam-node { --vam-card-bg: var(--background-secondary); }
 .vam-inspector { width: 300px; flex-shrink: 0; padding: 16px; overflow-y: auto; border-left: 1px solid var(--background-modifier-border); background: var(--background-primary); }
 .vam-topic-modal { width: min(640px, 90vw); max-height: 90vh; }
 .vam-topic-modal .modal-content { overflow-y: auto; }

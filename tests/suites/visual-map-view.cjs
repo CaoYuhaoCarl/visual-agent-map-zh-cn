@@ -32,7 +32,7 @@ integrationTest('node plus adds a child without opening a duplicate right-click 
   assert.deepEqual(opened, [[topic.id, 'proposals'], [topic.id, 'structure']]); assert.deepEqual(next, [topic.id]);
   assert.equal(view.selected, null);
   events.get('div:click')({ target: { closest: () => null }, metaKey: false, ctrlKey: false });
-  assert.equal(view.selected, topic.id); assert.equal(renders, 1); assert.deepEqual(details, [topic.id]);
+  assert.equal(view.selected, topic.id); assert.equal(renders, 1); assert.deepEqual(details, [], 'a click selects without opening the sidebar note');
   view.selected = null; renders = 0; details.length = 0;
   events.get('div:keydown')({ key: 'Enter', target: view.stageEl.children[0] });
   assert.equal(view.selected, topic.id); assert.equal(renders, 1); assert.deepEqual(details, [topic.id]);
@@ -46,12 +46,12 @@ integrationTest('node plus adds a child without opening a duplicate right-click 
   assert.equal(renders, 0);
   events.get('div:pointerdown')({ target: { closest: () => null }, button: 0, pointerId: 1, clientX: 0, clientY: 0 });
   events.get('div:pointerup')({ type: 'pointerup', clientX: 0, clientY: 0 });
-  assert.deepEqual(details, [topic.id]);
+  assert.deepEqual(details, [], 'a pointer tap selects without opening the sidebar note');
   assert.equal(opened.filter(([, mode]) => mode === 'edit').length, 0);
   view.suppressClickUntil = 0; events.get('div:click')({ target: { closest: () => null }, metaKey: false, ctrlKey: false });
-  assert.deepEqual(details, [topic.id, topic.id]);
+  assert.deepEqual(details, []);
   events.get('div:keydown')({ key: 'Enter', target: view.stageEl.children[0] });
-  assert.deepEqual(details, [topic.id, topic.id, topic.id]);
+  assert.deepEqual(details, [topic.id], 'Enter remains the keyboard path to the sidebar note');
   assert.equal(events.has('div:contextmenu'), false);
 });
 integrationTest('AIM cards hide generic map actions while ordinary map cards retain them', () => {

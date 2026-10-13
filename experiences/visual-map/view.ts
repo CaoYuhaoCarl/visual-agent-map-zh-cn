@@ -1407,7 +1407,8 @@ export class VisualAgentMapView extends ItemView {
     label: string,
     action: (event: MouseEvent) => void
   ): HTMLButtonElement {
-    const button = parent.createEl("button", { cls: "clickable-icon vam-icon-button", attr: { "aria-label": label } });
+    const button = parent.createEl("button", { cls: "clickable-icon vam-icon-button" });
+    button.setAttr("aria-label", label);
     button.dataset.icon = icon;
     setIcon(button, icon);
     button.addEventListener("click", event => {
@@ -2848,6 +2849,11 @@ export class VisualAgentMapView extends ItemView {
       card.appendChild(background);
     }
     card.dataset.nodeId = node.id;
+    // Research state drives the card's frame: frontier (idea), running, concluded, or failed.
+    card.dataset.status =
+      this.plugin.running?.has(node.path) || this.plugin.quickExpandPending?.has(node.path)
+        ? "running"
+        : (note?.status ?? "error");
     card.style.left = `${node.x}px`;
     card.style.top = `${node.y}px`;
     card.tabIndex = 0;
@@ -2904,14 +2910,16 @@ export class VisualAgentMapView extends ItemView {
             ? t("ui.aim_answered_not_started")
             : t(key[status])
       });
-    } else if (active || !note || note.status !== "completed")
+    } else
       header.createSpan({
         cls: `vam-status vam-status-${active ? "running" : (note?.status ?? "error")}`,
         text: active
           ? t("ui.ai_running")
-          : note
-            ? topicStatusLabel(note.status, this.plugin.settings.language)
-            : t("ui.note_missing")
+          : note?.status === "completed"
+            ? t("ui.ai_complete")
+            : note
+              ? topicStatusLabel(note.status, this.plugin.settings.language)
+              : t("ui.note_missing")
       });
     if (note?.detailFormatIssues?.length) {
       const issue = header.createSpan({ cls: "vam-status vam-status-error", text: t("ui.detail_format_unmet") });
@@ -2976,36 +2984,35 @@ export class VisualAgentMapView extends ItemView {
         this.button(header, t("ui.discard_synthesis"), () => this.discardSynthesis(node));
       }
     }
+    // Tools sit after the status badges; only the AI action stays visible until the card is hovered or focused.
+    const tools = header.createDiv("vam-node-tools");
     if (!this.builtIn && !this.integrationMode) {
       if (!this.map?.aim) {
-        const ai = this.button(header, "✦", () => this.openNextStep(node));
-        ai.addClass("vam-node-tool");
-        ai.setAttr("aria-label", t("ui.how_would_you_like_to_explore_next"));
-        const structure = this.button(header, "⚙", () => this.openNodePanel(node, "structure"));
-        structure.addClass("vam-node-tool");
-        structure.setAttr("aria-label", t("ui.structure_and_links"));
-        if (note) {
-          const rename = this.button(header, "✎", () =>
+        const ai = this.iconButton(tools, "sparkles", t("ui.how_would_you_like_to_explore_next"), () =>
+          this.openNextStep(node)
+        );
+        ai.addClass("vam-node-tool", "vam-ai-tool");
+        this.iconButton(tools, "network", t("ui.structure_and_links"), () =>
+          this.openNodePanel(node, "structure")
+        ).addClass("vam-node-tool");
+        if (note)
+          this.iconButton(tools, "pencil", t("ui.new_topic_name"), () =>
             new NameModal(this.app, t("ui.new_topic_name"), note.title, title =>
               this.enqueue(() => this.noteChange(node, { title }))
             ).open()
-          );
-          rename.addClass("vam-node-tool");
-          rename.setAttr("aria-label", t("ui.new_topic_name"));
-        }
+          ).addClass("vam-node-tool");
       }
-      if (node.aimKind === "question") {
-        const remove = this.button(header, "×", () => this.confirmRemoveNode(node));
-        remove.addClass("vam-node-tool");
-        remove.setAttr("aria-label", t("ui.remove_from_map"));
-      }
+      if (node.aimKind === "question")
+        this.iconButton(tools, "x", t("ui.remove_from_map"), () => this.confirmRemoveNode(node)).addClass(
+          "vam-node-tool"
+        );
       if (
         this.map?.aim &&
         node.aimKind === "synthesis" &&
         this.map.aim.branches.some(branch => branch.results.some(result => result.nodeId === node.id))
       ) {
         const next = this.button(
-          header,
+          tools,
           t("ui.aim_new_question"),
           () => void this.planAimFromSelection(node.id),
           this.aimBusy
@@ -3015,21 +3022,22 @@ export class VisualAgentMapView extends ItemView {
         next.setAttr("title", t("ui.aim_new_question_hint"));
       }
     }
-    const details = this.button(header, "↗", () =>
-      this.builtIn ? this.selectSampleNode(node.id) : this.openDetails(node)
-    );
-    details.addClass("vam-detail-button");
-    details.setAttr("aria-label", this.builtIn ? t("ui.view_sample_content") : t("ui.open_details_in_right_sidebar"));
+    this.iconButton(
+      tools,
+      "panel-right-open",
+      this.builtIn ? t("ui.view_sample_content") : t("ui.open_details_in_right_sidebar"),
+      () => (this.builtIn ? this.selectSampleNode(node.id) : this.openDetails(node))
+    ).addClass("vam-detail-button");
     const count = descendants(this.map!.nodes, node.id).size;
     if (count && !this.builtIn)
-      this.button(header, node.collapsed ? t("ui.expand_0", count) : t("ui.collapse"), () =>
+      this.button(tools, node.collapsed ? t("ui.expand_0", count) : t("ui.collapse"), () =>
         this.enqueue(() =>
           this.mapChange(map => {
             const n = map.nodes.find(n => n.id === node.id)!;
             n.collapsed = !n.collapsed;
           })
         )
-      );
+      ).addClass("vam-collapse-button", ...(node.collapsed ? ["is-collapsed"] : []));
     if (!this.builtIn && !this.integrationMode && !this.map?.aim) {
       const add = this.button(card, "+", () => this.enqueue(() => this.addNode(node)));
       add.addClass("vam-add-child");
@@ -3178,11 +3186,9 @@ export class VisualAgentMapView extends ItemView {
         this.render();
         return;
       }
+      // A click selects; the card's details button opens the note in the sidebar.
       if (this.builtIn) this.selectSampleNode(node.id);
-      else {
-        this.selectMapNode(node);
-        this.openDetails(node);
-      }
+      else this.selectMapNode(node);
     });
     card.addEventListener("keydown", event => {
       if (event.key === "Enter" && event.target === card) {
@@ -5464,7 +5470,6 @@ export class VisualAgentMapView extends ItemView {
           this.selected = node.id;
           this.render();
           if (node.aimKind === "question") this.openAimAnswer(node);
-          else this.openDetails(node);
         }
       };
       card.addEventListener("pointermove", move);
