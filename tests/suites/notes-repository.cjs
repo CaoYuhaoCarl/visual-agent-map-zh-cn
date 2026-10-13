@@ -536,3 +536,15 @@ integrationTest('persisted JSON validates all exchange fields and optional sugge
     }
   } finally { fs.rmSync(directory, { recursive: true, force: true }); }
 });
+
+integrationTest('repository: titles differing only in case get distinct file names, existing files are untouched', async () => {
+  const { repo, app } = fixture('en');
+  const mapPath = await repo.createMap('Case map', []);
+  const map = await repo.readMap(mapPath);
+  const first = await repo.createNote('Apple', 'gpt-6-luna', map, mapPath, 'workspace');
+  const second = await repo.createNote('apple', 'gpt-6-luna', map, mapPath, 'workspace');
+  assert.notEqual(first.path.toLowerCase(), second.path.toLowerCase());
+  assert.match(second.path, / 2\.md$/);
+  assert.ok(app.vault.getAbstractFileByPath(first.path));
+  assert.equal(first.path.endsWith('/Apple.md'), true);
+});

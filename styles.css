@@ -617,3 +617,10 @@ body .workspace-leaf-content.vam-topic-markdown .markdown-source-view.mod-cm6 .m
 
 .vam-aim-failure { margin-top: 8px; padding: 8px; border-left: 3px solid var(--text-error); background: var(--background-secondary); font-size: var(--font-smallest); overflow-wrap: anywhere; }
 .vam-aim-failure p { margin: 0 0 6px; }
+
+.vam-outline-actions { display: flex; gap: var(--size-4-2); margin-bottom: var(--size-4-2); }
+.vam-outline-text { width: 100%; font-family: var(--font-monospace); }
+.vam-outline-preview { max-height: 16rem; overflow: auto; margin: var(--size-4-2) 0; }
+.vam-outline-error { color: var(--text-error); }
+.vam-outline-depth-2 { padding-left: 1.25em; } .vam-outline-depth-3 { padding-left: 2.5em; }
+.vam-outline-depth-4 { padding-left: 3.75em; } .vam-outline-depth-5 { padding-left: 5em; } .vam-outline-depth-6 { padding-left: 6.25em; }

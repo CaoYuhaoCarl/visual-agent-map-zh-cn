@@ -43,6 +43,8 @@ import { clampPreviewScale, previewMetrics } from "../../ui/preview-utils";
 import { BUILTIN_SAMPLE_ID, builtInSample, SAMPLE_TOUR_VERSION } from "../../builtin-sample";
 import { PendingSuggestions } from "../../pending-suggestions";
 import { createAimMap } from "../aim/create-map";
+import { createOutlineMap } from "./outline-import";
+import { OutlineImportModal, type OutlineImportRequest } from "./outline-import-modal";
 import { AimStartModal } from "../../ui/modals/aim-start-modal";
 import { AimAnswerModal } from "../../ui/modals/aim-answer-modal";
 import {
@@ -79,6 +81,11 @@ interface Action {
   undo: () => Promise<void>;
   redo: () => Promise<void>;
   label?: string;
+}
+/** Message of any thrown value, without relying on instanceof Error (errors may cross realms). */
+function errorMessage(error: unknown): string {
+  const message = (error as { message?: unknown } | null)?.message;
+  return typeof message === "string" ? message : String(error);
 }
 const originBaseline = (origin?: string): string =>
   createHash("sha256")
@@ -543,6 +550,47 @@ export class VisualAgentMapView extends ItemView {
           : choices;
       }
     ).open();
+  }
+  openOutlineImport(): void {
+    new OutlineImportModal(this.app, request => this.importOutline(request)).open();
+  }
+  async importOutline(request: OutlineImportRequest): Promise<void> {
+    let result: Awaited<ReturnType<typeof createOutlineMap>>;
+    try {
+      result = await createOutlineMap(this.plugin.repo, this.plugin.settings.cliModel, request.nodes, request.source);
+    } catch (error) {
+      // Once the map folder exists the import window must close, so a retry cannot create a second map.
+      if (!(error as { mapCreated?: unknown } | null)?.mapCreated) throw error;
+      new Notice(errorMessage(error));
+      return;
+    }
+    // From here on the map exists: failures only notify and never reject, so the import window closes.
+    let opened = true;
+    try {
+      await this.plugin.mutate(async () => {
+        await this.openMapInMutation(result.mapPath);
+        if (!this.closed && this.path === result.mapPath) this.fit();
+      });
+    } catch {
+      opened = false; // mutate() has already shown the Notice.
+    }
+    if (result.failure) new Notice(t("ui.outline_import_partial", result.created, result.total, result.failure));
+    if (result.failure || !opened || !request.shallowResearch || result.nodes.length < 2) return;
+    const root = result.nodes.find(node => node.parentId === null);
+    if (!root) return;
+    const children = result.nodes.filter(node => node.parentId !== null);
+    try {
+      await this.plugin.confirmAiUsage(this.plugin.settings.cliModel, () =>
+        this.startShallowResearch(root, children, {
+          researchMode: "research",
+          researchDepth: "fast",
+          referenceGroups: [],
+          visualMode: "off"
+        })
+      );
+    } catch (error) {
+      new Notice(errorMessage(error));
+    }
   }
   private openNewMindMapModal(): void {
     new NameModal(this.app, t("ui.new_mind_map"), t("ui.new_mind_map_from_sample"), title =>
@@ -2148,6 +2196,7 @@ export class VisualAgentMapView extends ItemView {
           this.enqueue(async () => this.openMapInMutation(await this.plugin.repo.createMap(title)))
         ).open()
       );
+      this.button(toolbar, t("ui.outline_import"), () => this.openOutlineImport());
       this.button(toolbar, t("ui.aim_create_map"), () => this.openAimStart());
       const undo = this.button(
         toolbar,
@@ -3925,7 +3974,13 @@ export class VisualAgentMapView extends ItemView {
             researchMode: pendingOptions.researchMode,
             researchDepth: pendingOptions.researchDepth,
             visualMode: pendingOptions.visualMode,
-            task: [note.prompt, pendingOptions.requirements].filter(Boolean).join("\n\n")
+            task: [
+              note.prompt ||
+                researchTopicTask(pendingOptions.outputLanguage ?? this.plugin.settings.language, note.title),
+              pendingOptions.requirements
+            ]
+              .filter(Boolean)
+              .join("\n\n")
           },
           () => {
             started = true;

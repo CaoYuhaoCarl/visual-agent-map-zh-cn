@@ -472,8 +472,17 @@ export class Repository {
     const base = normalizePath(`${folder}/${safeName(name)}`);
     let path = `${base}.md`,
       number = 2;
-    while (this.app.vault.getAbstractFileByPath(path)) path = `${base} ${number++}.md`;
+    while (this.pathTaken(path)) path = `${base} ${number++}.md`;
     return path;
+  }
+
+  /** Taken when the path exists, or when a sibling differs only in case (case-insensitive file systems). */
+  private pathTaken(path: string): boolean {
+    if (this.app.vault.getAbstractFileByPath(path)) return true;
+    const folder = this.app.vault.getAbstractFileByPath(parentPath(path));
+    if (!(folder instanceof TFolder)) return false;
+    const lower = path.toLowerCase();
+    return folder.children.some(child => child.path.toLowerCase() === lower);
   }
 
   uniqueFolder(folder: string, name: string): string {

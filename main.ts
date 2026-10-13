@@ -374,6 +374,11 @@ export default class VisualAgentMapPlugin extends Plugin {
         .then(() => this.views()[0]?.openAimStart())
         .catch(error => new Notice(String(error)));
     });
+    this.addLocalizedCommand("import-outline", "ui.outline_import", () => {
+      void this.activateView()
+        .then(() => this.views()[0]?.openOutlineImport())
+        .catch(error => new Notice(String(error)));
+    });
     this.addLocalizedCommand("open-topic-outline", "ui.open_topic_outline", () => {
       void this.activateOutline().catch(error => new Notice(String(error)));
     });
