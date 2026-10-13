@@ -31644,9 +31644,7 @@ var SelectionAiPanel = class extends import_obsidian22.Component {
         this.generatedImage = dataUrl;
         this.insertAfter = true;
         output.value = "";
-        const figure = this.preview.createEl("figure", { cls: "vam-context-ai-generated" });
-        figure.createEl("img", { attr: { src: dataUrl, alt: t("ui.context_ai_generated_image") } });
-        figure.createEl("figcaption", { text: t("ui.context_ai_generated_image") });
+        this.showGeneratedImage(dataUrl);
         this.resultActions.hidden = false;
         status.setText(t("ui.context_ai_review_result"));
         return;
@@ -31768,6 +31766,7 @@ var SelectionAiPanel = class extends import_obsidian22.Component {
         output.value = previousDraft;
         this.insertAfter = previousInsertAfter;
         this.generatedImage = previousImage;
+        if (previousImage) this.showGeneratedImage(previousImage);
         this.result.hidden = !previousDraft;
         this.resultActions.hidden = !previousDraft && !previousImage;
         status.setText(error instanceof Error ? error.message : String(error));
@@ -31832,15 +31831,30 @@ ${caption.trim()}`;
     this.resultActions.querySelectorAll("button").forEach((button) => {
       button.disabled = true;
     });
-    void this.saveImage(image, this.snapshot.path, name).then((path) => {
-      this.applyResult(`![[${path}]]`, action, this.status);
+    const enable = () => this.resultActions.querySelectorAll("button").forEach((button) => {
+      button.disabled = false;
+    });
+    void this.saveImage(image, this.snapshot.path, name).then(async (path) => {
+      const file = this.app.vault.getFileByPath(path);
+      if (!file || !this.noteUnchanged()) {
+        if (file) await this.app.fileManager.trashFile(file);
+        enable();
+        this.status.setText(t("ui.context_ai_note_changed"));
+        return;
+      }
+      const link = this.app.fileManager.generateMarkdownLink(file, this.snapshot.path);
+      this.applyResult(link.startsWith("!") ? link : `!${link}`, action, this.status);
       new import_obsidian22.Notice(t("ui.context_ai_image_saved", path));
     }).catch((error) => {
-      this.resultActions.querySelectorAll("button").forEach((button) => {
-        button.disabled = false;
-      });
+      enable();
       this.status.setText(error instanceof Error ? error.message : String(error));
     });
+  }
+  showGeneratedImage(dataUrl) {
+    this.preview.empty();
+    const figure = this.preview.createEl("figure", { cls: "vam-context-ai-generated" });
+    figure.createEl("img", { attr: { src: dataUrl, alt: t("ui.context_ai_generated_image") } });
+    figure.createEl("figcaption", { text: t("ui.context_ai_generated_image") });
   }
   noteUnchanged() {
     var _a;

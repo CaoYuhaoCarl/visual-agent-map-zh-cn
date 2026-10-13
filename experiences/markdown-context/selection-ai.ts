@@ -601,9 +601,7 @@ class SelectionAiPanel extends Component {
         this.generatedImage = dataUrl;
         this.insertAfter = true;
         output.value = "";
-        const figure = this.preview.createEl("figure", { cls: "vam-context-ai-generated" });
-        figure.createEl("img", { attr: { src: dataUrl, alt: t("ui.context_ai_generated_image") } });
-        figure.createEl("figcaption", { text: t("ui.context_ai_generated_image") });
+        this.showGeneratedImage(dataUrl);
         this.resultActions.hidden = false;
         status.setText(t("ui.context_ai_review_result"));
         return;
@@ -732,6 +730,8 @@ class SelectionAiPanel extends Component {
         output.value = previousDraft;
         this.insertAfter = previousInsertAfter;
         this.generatedImage = previousImage;
+        // The preview was cleared for this run; an image that can still be inserted must stay visible.
+        if (previousImage) this.showGeneratedImage(previousImage);
         this.result.hidden = !previousDraft;
         this.resultActions.hidden = !previousDraft && !previousImage;
         status.setText(error instanceof Error ? error.message : String(error));
@@ -802,17 +802,36 @@ class SelectionAiPanel extends Component {
     this.resultActions.querySelectorAll("button").forEach(button => {
       button.disabled = true;
     });
+    const enable = (): void =>
+      this.resultActions.querySelectorAll("button").forEach(button => {
+        button.disabled = false;
+      });
     void this.saveImage(image, this.snapshot.path, name)
-      .then(path => {
-        this.applyResult(`![[${path}]]`, action, this.status);
+      .then(async path => {
+        const file = this.app.vault.getFileByPath(path);
+        // The note changed while the image was written: nothing is inserted, so the new file goes too.
+        if (!file || !this.noteUnchanged()) {
+          if (file) await this.app.fileManager.trashFile(file);
+          enable();
+          this.status.setText(t("ui.context_ai_note_changed"));
+          return;
+        }
+        // Follow the vault's link settings (wikilink or Markdown, shortest path) for the embed.
+        const link = this.app.fileManager.generateMarkdownLink(file, this.snapshot.path);
+        this.applyResult(link.startsWith("!") ? link : `!${link}`, action, this.status);
         new Notice(t("ui.context_ai_image_saved", path));
       })
       .catch((error: unknown) => {
-        this.resultActions.querySelectorAll("button").forEach(button => {
-          button.disabled = false;
-        });
+        enable();
         this.status.setText(error instanceof Error ? error.message : String(error));
       });
+  }
+
+  private showGeneratedImage(dataUrl: string): void {
+    this.preview.empty();
+    const figure = this.preview.createEl("figure", { cls: "vam-context-ai-generated" });
+    figure.createEl("img", { attr: { src: dataUrl, alt: t("ui.context_ai_generated_image") } });
+    figure.createEl("figcaption", { text: t("ui.context_ai_generated_image") });
   }
 
   private noteUnchanged(): boolean {
