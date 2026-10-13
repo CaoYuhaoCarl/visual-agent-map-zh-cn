@@ -1,9 +1,10 @@
-import { App, Modal, type Setting } from "obsidian";
-import { t } from "../../i18n";
+import { App, Modal, setIcon, type Setting } from "obsidian";
+import { t, type TranslationKey } from "../../i18n";
 import type { Settings } from "../../repository";
 import {
   STANDARD_TEMPLATE_ID,
   copyTemplate,
+  detailStructurePrompt,
   standardTemplate,
   validateTemplate,
   withoutConflictingAliases,
@@ -12,6 +13,7 @@ import {
   type DetailTemplate,
   type TemplateIssue
 } from "../../ai/detail-templates";
+import { detailStructure } from "../../core/steps/task/fragments";
 import { ChoiceModal } from "./choice-modal";
 
 export interface DetailTemplatesHost {
@@ -20,11 +22,29 @@ export interface DetailTemplatesHost {
 }
 
 const same = (a: string, b: string): boolean => a.trim().toLocaleLowerCase() === b.trim().toLocaleLowerCase();
-const ROLES: [DetailSectionRole, string][] = [
-  ["none", "ui.detail_template_role_none"],
-  ["sources", "ui.detail_template_role_sources"],
-  ["log", "ui.detail_template_role_log"]
+const PURPOSES: [DetailSectionRole, TranslationKey][] = [
+  ["none", "ui.detail_section_kind_none"],
+  ["sources", "ui.detail_section_purpose_sources"],
+  ["log", "ui.detail_section_purpose_log"]
 ];
+const PURPOSE_HELP: Record<DetailSectionRole, TranslationKey> = {
+  none: "ui.detail_section_purpose_help_none",
+  sources: "ui.detail_section_purpose_help_sources",
+  log: "ui.detail_section_purpose_help_log"
+};
+const KINDS: Record<DetailSectionRole, TranslationKey> = {
+  none: "ui.detail_section_kind_none",
+  sources: "ui.detail_section_kind_sources",
+  log: "ui.detail_section_kind_log"
+};
+
+function countSummary(section: DetailSection): string {
+  if (!section.count) return t("ui.detail_section_count_none");
+  return t(
+    section.count.mode === "exact" ? "ui.detail_section_count_exact_0" : "ui.detail_section_count_min_0",
+    section.count.n
+  );
+}
 
 /** The default the workspace really resolves to: a missing or stale id means Standard. */
 function workspaceDefaultId(settings: Settings): string {
@@ -118,7 +138,8 @@ export class DetailTemplatesModal extends Modal {
         element.disabled = disabled;
         element.addEventListener("click", () => void run());
       };
-      if (!isStandard) button(t("ui.detail_template_edit"), () => this.showEditor(template, false));
+      if (isStandard) button(t("ui.detail_template_view"), () => this.showEditor(template, false, true));
+      else button(t("ui.detail_template_edit"), () => this.showEditor(template, false));
       button(t("ui.detail_template_copy"), () => this.duplicate(template));
       if (!isStandard) button(t("ui.detail_template_delete"), () => this.confirmDelete(template));
       button(t("ui.detail_template_set_default"), () => this.setDefault(template.id), isDefault);
@@ -165,49 +186,68 @@ export class DetailTemplatesModal extends Modal {
     this.showList();
   }
 
-  /** Edits a deep copy; nothing reaches settings until Save, so Cancel discards everything. */
-  private showEditor(original: DetailTemplate, isNew: boolean): void {
+  /**
+   * Edits a deep copy; nothing reaches settings until Save, so Cancel discards everything. Read-only shows the same
+   * editor with every field disabled and only Close (used to look at Standard).
+   */
+  private showEditor(original: DetailTemplate, isNew: boolean, readOnly = false): void {
     const { contentEl } = this;
+    const language = this.settings.language;
     const draft = copyTemplate(original, original.name, original.id);
     const baseline = new Map(draft.sections.map(section => [section.id, section.name]));
     const others = this.settings.detailTemplates;
     contentEl.empty();
+    contentEl.createEl("p", { text: t("ui.detail_template_editor_intro"), cls: "vam-modal-intro" });
     const topIssues = contentEl.createDiv("vam-template-issues");
     const nameLabel = contentEl.createEl("label", { cls: "vam-field" });
     nameLabel.createSpan({ text: t("ui.detail_template_name") });
     const name = nameLabel.createEl("input", { type: "text" });
     name.value = draft.name;
+    name.disabled = readOnly;
     name.setAttr("aria-label", t("ui.detail_template_name"));
-    const sectionIssues: HTMLElement[] = [];
     const list = contentEl.createDiv("vam-template-sections");
-    const addButton = contentEl.createEl("button", { text: t("ui.detail_section_add") });
+    const addButton = readOnly
+      ? null
+      : contentEl.createEl("button", { text: t("ui.detail_section_add"), cls: "vam-template-add" });
+    const preview = contentEl.createEl("details", { cls: "vam-template-preview" });
+    preview.createEl("summary", { text: t("ui.detail_template_preview") });
+    const previewText = preview.createEl("pre");
     const footer = contentEl.createDiv("vam-modal-actions");
-    footer.createEl("button", { text: t("ui.cancel") }).addEventListener("click", () => this.showList());
-    const save = footer.createEl("button", { text: t("ui.save"), cls: "mod-cta" });
+    footer
+      .createEl("button", { text: t(readOnly ? "ui.close" : "ui.cancel") })
+      .addEventListener("click", () => this.showList());
+    const save = readOnly ? null : footer.createEl("button", { text: t("ui.save"), cls: "mod-cta" });
 
     const builtInNames = (["en", "zh-TW"] as const).map(language => standardTemplate(language).name);
     const check = (): TemplateIssue[] => {
+      if (readOnly) return [];
       const issues = validateTemplate(draft, others);
       const trimmed = draft.name.trim();
       if (trimmed && builtInNames.some(builtIn => same(builtIn, trimmed)))
         issues.push({ key: "ui.detail_template_error_name_taken", values: [trimmed] });
       return issues;
     };
+    const rows: ((issues: string[]) => void)[] = [];
+    let openId: string | undefined = draft.sections[0]?.id;
     let saving = false;
     const refresh = () => {
       const issues = check();
       topIssues.empty();
-      for (const el of sectionIssues) el.empty();
+      const bySection: string[][] = draft.sections.map(() => []);
       for (const issue of issues) {
         const values = issue.values.map(value =>
           issue.key === "ui.detail_template_error_role_taken" && typeof value === "string"
             ? t(value as Parameters<typeof t>[0])
             : value
         );
-        const target = issue.section ? sectionIssues[issue.section - 1] : topIssues;
-        (target ?? topIssues).createDiv({ text: t(issue.key, ...values), cls: "vam-template-issue" });
+        const text = t(issue.key, ...values);
+        const target = issue.section ? bySection[issue.section - 1] : undefined;
+        if (target) target.push(text);
+        else topIssues.createDiv({ text, cls: "vam-template-issue" });
       }
-      save.disabled = issues.length > 0;
+      rows.forEach((update, index) => update(bySection[index] ?? []));
+      previewText.setText(detailStructurePrompt(draft, language, headings => detailStructure(language, headings)));
+      if (save) save.disabled = issues.length > 0;
     };
     name.addEventListener("input", () => {
       draft.name = name.value;
@@ -216,17 +256,27 @@ export class DetailTemplatesModal extends Modal {
 
     const renderSections = () => {
       list.empty();
-      sectionIssues.length = 0;
-      draft.sections.forEach((section, index) =>
-        this.sectionRow(list, draft, section, index, sectionIssues, refresh, renderSections)
-      );
+      rows.length = 0;
+      draft.sections.forEach((section, index) => {
+        const open = (id: string | undefined) => {
+          openId = id;
+          renderSections();
+        };
+        rows.push(
+          section.id === openId
+            ? this.openSection(list, draft, section, index, readOnly, open, refresh)
+            : this.closedSection(list, section, index, () => open(section.id))
+        );
+      });
       refresh();
     };
-    addButton.addEventListener("click", () => {
-      draft.sections.push({ id: crypto.randomUUID(), name: "", description: "", role: "none", aliases: [] });
+    addButton?.addEventListener("click", () => {
+      const fresh: DetailSection = { id: crypto.randomUUID(), name: "", description: "", role: "none", aliases: [] };
+      draft.sections.push(fresh);
+      openId = fresh.id;
       renderSections();
     });
-    save.addEventListener("click", () => {
+    save?.addEventListener("click", () => {
       if (saving || check().length) return;
       saving = true;
       save.disabled = true;
@@ -241,41 +291,116 @@ export class DetailTemplatesModal extends Modal {
     renderSections();
   }
 
-  private sectionRow(
+  /** A collapsed accordion row: number, name, purpose · count summary and, when invalid, the issue count. */
+  private closedSection(
+    parent: HTMLElement,
+    section: DetailSection,
+    index: number,
+    expand: () => void
+  ): (issues: string[]) => void {
+    const row = parent.createDiv("vam-template-section");
+    const header = row.createEl("button", { cls: "vam-template-section-header" });
+    header.setAttr("aria-expanded", "false");
+    header.addEventListener("click", expand);
+    return issues => {
+      header.empty();
+      header.createSpan({ text: String(index + 1), cls: "vam-template-section-number" });
+      const named = section.name.trim();
+      header.createSpan({
+        text: named || t("ui.detail_section_unnamed"),
+        cls: named ? "vam-template-section-title" : "vam-template-section-title is-untitled"
+      });
+      if (issues.length) header.createSpan({ text: String(issues.length), cls: "vam-template-section-badge" });
+      const summary = header.createSpan({ cls: "vam-template-section-summary" });
+      summary.createSpan({
+        text: t(KINDS[section.role]),
+        cls: section.role === "none" ? "vam-template-section-purpose" : "vam-template-section-purpose is-accent"
+      });
+      summary.createSpan({ text: "·", cls: "vam-template-section-separator" });
+      summary.createSpan({ text: countSummary(section) });
+    };
+  }
+
+  /** The expanded accordion row with every field of one section. */
+  private openSection(
     parent: HTMLElement,
     draft: DetailTemplate,
     section: DetailSection,
     index: number,
-    sectionIssues: HTMLElement[],
-    refresh: () => void,
-    rerender: () => void
-  ): void {
+    readOnly: boolean,
+    open: (id: string | undefined) => void,
+    refresh: () => void
+  ): (issues: string[]) => void {
     const row = parent.createDiv("vam-template-section");
-    const name = row.createEl("input", { type: "text" });
+    const header = row.createDiv("vam-template-section-header is-open");
+    header.createSpan({ text: String(index + 1), cls: "vam-template-section-number" });
+    const name = header.createEl("input", { type: "text" });
     name.value = section.name;
+    name.disabled = readOnly;
     name.setAttr("aria-label", t("ui.detail_section_name"));
+    name.setAttr("placeholder", t("ui.detail_section_unnamed"));
     name.addEventListener("input", () => {
       section.name = name.value;
       refresh();
     });
-    const description = row.createEl("textarea");
-    description.rows = 2;
+    const icon = (glyph: string, label: string, run: () => void, disabled: boolean) => {
+      const button = header.createEl("button", { cls: "clickable-icon" });
+      setIcon(button, glyph);
+      button.setAttr("aria-label", label);
+      button.setAttr("title", label);
+      button.disabled = readOnly || disabled;
+      button.addEventListener("click", run);
+    };
+    const move = (by: number) => {
+      const target = index + by;
+      [draft.sections[index], draft.sections[target]] = [draft.sections[target], draft.sections[index]];
+      open(section.id);
+    };
+    icon("arrow-up", t("ui.detail_section_up"), () => move(-1), index === 0);
+    icon("arrow-down", t("ui.detail_section_down"), () => move(1), index === draft.sections.length - 1);
+    icon(
+      "trash-2",
+      t("ui.detail_section_remove"),
+      () => {
+        draft.sections.splice(index, 1);
+        open(draft.sections[Math.min(index, draft.sections.length - 1)]?.id);
+      },
+      false
+    );
+
+    const descriptionField = row.createEl("label", { cls: "vam-field" });
+    descriptionField.createSpan({ text: t("ui.detail_section_description") });
+    const description = descriptionField.createEl("textarea");
+    description.rows = 3;
     description.value = section.description;
+    description.disabled = readOnly;
     description.setAttr("aria-label", t("ui.detail_section_description"));
-    description.setAttr("placeholder", t("ui.detail_section_description"));
+    description.setAttr("placeholder", t("ui.detail_section_description_placeholder"));
     description.addEventListener("input", () => {
       section.description = description.value;
       refresh();
     });
-    const role = row.createEl("select");
+
+    const columns = row.createDiv("vam-template-section-columns");
+    const purposeField = columns.createDiv("vam-field");
+    purposeField.createSpan({ text: t("ui.detail_section_role") });
+    const role = purposeField.createEl("select");
+    role.disabled = readOnly;
     role.setAttr("aria-label", t("ui.detail_section_role"));
-    for (const [value, key] of ROLES) option(role, value, t(key as Parameters<typeof t>[0]));
+    for (const [value, key] of PURPOSES) option(role, value, t(key));
     role.value = section.role;
+    const purposeHelp = purposeField.createDiv({ text: t(PURPOSE_HELP[section.role]), cls: "vam-template-help" });
     role.addEventListener("change", () => {
       section.role = role.value as DetailSectionRole;
+      purposeHelp.setText(t(PURPOSE_HELP[section.role]));
       refresh();
     });
-    const mode = row.createEl("select");
+
+    const countField = columns.createDiv("vam-field");
+    countField.createSpan({ text: t("ui.detail_section_count") });
+    const countRow = countField.createDiv("vam-template-count");
+    const mode = countRow.createEl("select");
+    mode.disabled = readOnly;
     mode.setAttr("aria-label", t("ui.detail_section_count"));
     option(mode, "none", t("ui.detail_section_count_none"));
     option(mode, "exact", t("ui.detail_section_count_exact"));
@@ -284,36 +409,26 @@ export class DetailTemplatesModal extends Modal {
     mode.addEventListener("change", () => {
       if (mode.value === "none") delete section.count;
       else section.count = { mode: mode.value as "exact" | "min", n: section.count?.n ?? 1 };
-      rerender();
+      open(section.id);
     });
     if (section.count) {
-      const count = row.createEl("input", { type: "number" });
+      const count = countRow.createEl("input", { type: "number" });
       count.value = String(section.count.n);
+      count.disabled = readOnly;
       count.setAttr("min", "1");
       count.setAttr("max", "20");
-      count.setAttr("aria-label", t("ui.detail_section_count"));
+      count.setAttr("aria-label", t("ui.detail_section_count_n"));
       count.addEventListener("input", () => {
         if (section.count) section.count.n = Number(count.value);
         refresh();
       });
     }
-    const move = (by: number) => {
-      const target = index + by;
-      [draft.sections[index], draft.sections[target]] = [draft.sections[target], draft.sections[index]];
-      rerender();
+    countField.createDiv({ text: t("ui.detail_section_count_help"), cls: "vam-template-help" });
+    const issuesEl = row.createDiv("vam-template-issues");
+    return issues => {
+      issuesEl.empty();
+      for (const text of issues) issuesEl.createDiv({ text, cls: "vam-template-issue" });
     };
-    const control = (label: string, run: () => void, disabled = false) => {
-      const button = row.createEl("button", { text: label });
-      button.disabled = disabled;
-      button.addEventListener("click", run);
-    };
-    control(t("ui.detail_section_up"), () => move(-1), index === 0);
-    control(t("ui.detail_section_down"), () => move(1), index === draft.sections.length - 1);
-    control(t("ui.detail_section_remove"), () => {
-      draft.sections.splice(index, 1);
-      rerender();
-    });
-    sectionIssues[index] = row.createDiv("vam-template-issues");
   }
 
   /**

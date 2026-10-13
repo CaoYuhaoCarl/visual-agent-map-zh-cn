@@ -841,19 +841,35 @@ var english = {
   "ui.detail_template_default_tag": "Default",
   "ui.detail_template_sections_0": "{0} sections",
   "ui.detail_template_name": "Template name",
-  "ui.detail_section_name": "Section name",
-  "ui.detail_section_description": "Instructions for AI (optional)",
-  "ui.detail_section_role": "Function",
-  "ui.detail_template_role_none": "None",
-  "ui.detail_section_count": "Required count",
-  "ui.detail_section_count_none": "No requirement",
+  "ui.detail_section_name": "Section heading",
+  "ui.detail_section_description": "What goes in this section (instructions for the AI)",
+  "ui.detail_section_role": "Purpose",
+  "ui.detail_section_count": "Item count",
+  "ui.detail_section_count_none": "Any",
   "ui.detail_section_count_exact": "Exactly",
   "ui.detail_section_count_min": "At least",
-  "ui.detail_section_add": "Add section",
+  "ui.detail_section_add": "+ Add section",
   "ui.detail_section_up": "Move up",
   "ui.detail_section_down": "Move down",
   "ui.detail_section_remove": "Remove",
   "ui.detail_templates_hint": "Changes apply to future AI updates; existing notes change only when a topic is updated again.",
+  "ui.detail_template_editor_intro": "Each section becomes a ### heading in the note, filled in order by the AI. Changes apply to future research; existing notes change when they're next updated.",
+  "ui.detail_template_view": "View",
+  "ui.detail_template_preview": "Preview the instructions sent to the AI",
+  "ui.detail_section_unnamed": "Untitled section",
+  "ui.detail_section_description_placeholder": "Example: give each example a #### sub-heading and one sentence on why.",
+  "ui.detail_section_kind_none": "Regular section",
+  "ui.detail_section_kind_sources": "Sources",
+  "ui.detail_section_kind_log": "Update log",
+  "ui.detail_section_purpose_sources": "Sources: footnote list goes here",
+  "ui.detail_section_purpose_log": "Update log: one new line per update",
+  "ui.detail_section_purpose_help_none": "Use this for normal content.",
+  "ui.detail_section_purpose_help_sources": "The list of cited sources is added to the end of this section. One per template.",
+  "ui.detail_section_purpose_help_log": "Each update adds one line instead of rewriting. One per template.",
+  "ui.detail_section_count_exact_0": "Exactly {0}",
+  "ui.detail_section_count_min_0": "At least {0}",
+  "ui.detail_section_count_n": "Number of items",
+  "ui.detail_section_count_help": "Counts top-level list items (- \u2026) or #### sub-headings; if it doesn't match, the AI fixes it once.",
   "detail.visual_reference": "Visual reference",
   "detail.source": "Source: {0}",
   "detail.purpose": "Purpose: {0}",
@@ -2061,19 +2077,35 @@ var traditionalChinese = {
   "ui.detail_template_default_tag": "\u9810\u8A2D",
   "ui.detail_template_sections_0": "{0} \u6BB5",
   "ui.detail_template_name": "\u6A21\u677F\u540D\u7A31",
-  "ui.detail_section_name": "\u6BB5\u843D\u540D\u7A31",
-  "ui.detail_section_description": "\u7D66 AI \u7684\u8AAA\u660E\uFF08\u9078\u586B\uFF09",
-  "ui.detail_section_role": "\u529F\u80FD",
-  "ui.detail_template_role_none": "\u7121",
-  "ui.detail_section_count": "\u6578\u91CF\u8981\u6C42",
+  "ui.detail_section_name": "\u6BB5\u843D\u6A19\u984C",
+  "ui.detail_section_description": "\u9019\u6BB5\u8981\u5BEB\u4EC0\u9EBC\uFF08\u7D66 AI \u7684\u8AAA\u660E\uFF09",
+  "ui.detail_section_role": "\u7528\u9014",
+  "ui.detail_section_count": "\u9805\u76EE\u6578",
   "ui.detail_section_count_none": "\u4E0D\u9650",
   "ui.detail_section_count_exact": "\u525B\u597D",
   "ui.detail_section_count_min": "\u81F3\u5C11",
-  "ui.detail_section_add": "\u65B0\u589E\u6BB5\u843D",
+  "ui.detail_section_add": "+ \u65B0\u589E\u6BB5\u843D",
   "ui.detail_section_up": "\u4E0A\u79FB",
   "ui.detail_section_down": "\u4E0B\u79FB",
   "ui.detail_section_remove": "\u522A\u9664",
   "ui.detail_templates_hint": "\u4FEE\u6539\u53EA\u5F71\u97FF\u4E4B\u5F8C\u7684 AI \u66F4\u65B0\uFF1B\u65E2\u6709\u7B46\u8A18\u8981\u7B49\u8B70\u984C\u4E0B\u6B21\u66F4\u65B0\u624D\u6703\u5957\u7528\u3002",
+  "ui.detail_template_editor_intro": "\u6BCF\u500B\u6BB5\u843D\u6703\u8B8A\u6210\u7B46\u8A18\u88E1\u7684\u4E00\u500B ### \u6A19\u984C\uFF0CAI \u4F9D\u5E8F\u586B\u5BEB\u3002\u4FEE\u6539\u53EA\u5F71\u97FF\u4E4B\u5F8C\u7684\u7814\u7A76\uFF0C\u65E2\u6709\u7B46\u8A18\u7B49\u4E0B\u6B21\u66F4\u65B0\u624D\u5957\u7528\u3002",
+  "ui.detail_template_view": "\u6AA2\u8996",
+  "ui.detail_template_preview": "\u9810\u89BD AI \u6703\u6536\u5230\u7684\u6307\u793A",
+  "ui.detail_section_unnamed": "\u672A\u547D\u540D\u6BB5\u843D",
+  "ui.detail_section_description_placeholder": "\u4F8B\u5982\uFF1A\u6BCF\u500B\u7BC4\u4F8B\u7528 #### \u5C0F\u6A19\u984C\uFF0C\u9644\u4E00\u53E5\u89E3\u91CB\u70BA\u4EC0\u9EBC\u3002",
+  "ui.detail_section_kind_none": "\u4E00\u822C\u6BB5\u843D",
+  "ui.detail_section_kind_sources": "\u4F86\u6E90\u6E05\u55AE",
+  "ui.detail_section_kind_log": "\u66F4\u65B0\u7D00\u9304",
+  "ui.detail_section_purpose_sources": "\u4F86\u6E90\u6E05\u55AE\uFF1A\u8A3B\u8173\u96C6\u4E2D\u653E\u9019\u6BB5",
+  "ui.detail_section_purpose_log": "\u66F4\u65B0\u7D00\u9304\uFF1A\u6BCF\u6B21\u53EA\u52A0\u4E00\u884C",
+  "ui.detail_section_purpose_help_none": "\u4E00\u822C\u5167\u5BB9\u9078\u9019\u500B\u3002",
+  "ui.detail_section_purpose_help_sources": "\u7814\u7A76\u5F15\u7528\u7684\u4F86\u6E90\u6E05\u55AE\u6703\u81EA\u52D5\u653E\u5728\u9019\u6BB5\u6700\u5F8C\u3002\u4E00\u500B\u6A21\u677F\u53EA\u80FD\u6709\u4E00\u6BB5\u3002",
+  "ui.detail_section_purpose_help_log": "\u6BCF\u6B21\u66F4\u65B0\u53EA\u65B0\u589E\u4E00\u884C\uFF0C\u4E0D\u91CD\u8CBC\u6574\u4EFD\u5167\u5BB9\u3002\u4E00\u500B\u6A21\u677F\u53EA\u80FD\u6709\u4E00\u6BB5\u3002",
+  "ui.detail_section_count_exact_0": "\u525B\u597D {0} \u500B",
+  "ui.detail_section_count_min_0": "\u81F3\u5C11 {0} \u500B",
+  "ui.detail_section_count_n": "\u9805\u76EE\u6578\u91CF",
+  "ui.detail_section_count_help": "\u7B97\u7B2C\u4E00\u5C64\u6E05\u55AE\uFF08- \u2026\uFF09\u6216 #### \u5C0F\u6A19\u984C\uFF1B\u6578\u91CF\u4E0D\u7B26\u6642 AI \u6703\u81EA\u52D5\u4FEE\u6B63\u4E00\u6B21\u3002",
   "detail.visual_reference": "\u5716\u7247\u53C3\u8003",
   "detail.source": "\u4F86\u6E90\uFF1A{0}",
   "detail.purpose": "\u7528\u9014\uFF1A{0}",
@@ -26337,11 +26369,28 @@ var import_obsidian23 = require("obsidian");
 // ui/modals/detail-templates-modal.ts
 var import_obsidian17 = require("obsidian");
 var same = (a, b) => a.trim().toLocaleLowerCase() === b.trim().toLocaleLowerCase();
-var ROLES = [
-  ["none", "ui.detail_template_role_none"],
-  ["sources", "ui.detail_template_role_sources"],
-  ["log", "ui.detail_template_role_log"]
+var PURPOSES = [
+  ["none", "ui.detail_section_kind_none"],
+  ["sources", "ui.detail_section_purpose_sources"],
+  ["log", "ui.detail_section_purpose_log"]
 ];
+var PURPOSE_HELP = {
+  none: "ui.detail_section_purpose_help_none",
+  sources: "ui.detail_section_purpose_help_sources",
+  log: "ui.detail_section_purpose_help_log"
+};
+var KINDS = {
+  none: "ui.detail_section_kind_none",
+  sources: "ui.detail_section_kind_sources",
+  log: "ui.detail_section_kind_log"
+};
+function countSummary(section3) {
+  if (!section3.count) return t("ui.detail_section_count_none");
+  return t(
+    section3.count.mode === "exact" ? "ui.detail_section_count_exact_0" : "ui.detail_section_count_min_0",
+    section3.count.n
+  );
+}
 function workspaceDefaultId(settings) {
   const id = settings.defaultDetailTemplateId;
   return id && settings.detailTemplates.some((template) => template.id === id) ? id : STANDARD_TEMPLATE_ID;
@@ -26410,7 +26459,8 @@ var DetailTemplatesModal = class extends import_obsidian17.Modal {
         element.disabled = disabled;
         element.addEventListener("click", () => void run());
       };
-      if (!isStandard) button(t("ui.detail_template_edit"), () => this.showEditor(template, false));
+      if (isStandard) button(t("ui.detail_template_view"), () => this.showEditor(template, false, true));
+      else button(t("ui.detail_template_edit"), () => this.showEditor(template, false));
       button(t("ui.detail_template_copy"), () => this.duplicate(template));
       if (!isStandard) button(t("ui.detail_template_delete"), () => this.confirmDelete(template));
       button(t("ui.detail_template_set_default"), () => this.setDefault(template.id), isDefault);
@@ -26452,46 +26502,65 @@ var DetailTemplatesModal = class extends import_obsidian17.Modal {
     await this.persist();
     this.showList();
   }
-  /** Edits a deep copy; nothing reaches settings until Save, so Cancel discards everything. */
-  showEditor(original, isNew) {
+  /**
+   * Edits a deep copy; nothing reaches settings until Save, so Cancel discards everything. Read-only shows the same
+   * editor with every field disabled and only Close (used to look at Standard).
+   */
+  showEditor(original, isNew, readOnly = false) {
+    var _a;
     const { contentEl } = this;
+    const language2 = this.settings.language;
     const draft = copyTemplate(original, original.name, original.id);
     const baseline = new Map(draft.sections.map((section3) => [section3.id, section3.name]));
     const others = this.settings.detailTemplates;
     contentEl.empty();
+    contentEl.createEl("p", { text: t("ui.detail_template_editor_intro"), cls: "vam-modal-intro" });
     const topIssues = contentEl.createDiv("vam-template-issues");
     const nameLabel = contentEl.createEl("label", { cls: "vam-field" });
     nameLabel.createSpan({ text: t("ui.detail_template_name") });
     const name = nameLabel.createEl("input", { type: "text" });
     name.value = draft.name;
+    name.disabled = readOnly;
     name.setAttr("aria-label", t("ui.detail_template_name"));
-    const sectionIssues = [];
     const list = contentEl.createDiv("vam-template-sections");
-    const addButton = contentEl.createEl("button", { text: t("ui.detail_section_add") });
+    const addButton = readOnly ? null : contentEl.createEl("button", { text: t("ui.detail_section_add"), cls: "vam-template-add" });
+    const preview = contentEl.createEl("details", { cls: "vam-template-preview" });
+    preview.createEl("summary", { text: t("ui.detail_template_preview") });
+    const previewText = preview.createEl("pre");
     const footer = contentEl.createDiv("vam-modal-actions");
-    footer.createEl("button", { text: t("ui.cancel") }).addEventListener("click", () => this.showList());
-    const save = footer.createEl("button", { text: t("ui.save"), cls: "mod-cta" });
-    const builtInNames = ["en", "zh-TW"].map((language2) => standardTemplate(language2).name);
+    footer.createEl("button", { text: t(readOnly ? "ui.close" : "ui.cancel") }).addEventListener("click", () => this.showList());
+    const save = readOnly ? null : footer.createEl("button", { text: t("ui.save"), cls: "mod-cta" });
+    const builtInNames = ["en", "zh-TW"].map((language3) => standardTemplate(language3).name);
     const check = () => {
+      if (readOnly) return [];
       const issues = validateTemplate(draft, others);
       const trimmed = draft.name.trim();
       if (trimmed && builtInNames.some((builtIn) => same(builtIn, trimmed)))
         issues.push({ key: "ui.detail_template_error_name_taken", values: [trimmed] });
       return issues;
     };
+    const rows = [];
+    let openId = (_a = draft.sections[0]) == null ? void 0 : _a.id;
     let saving = false;
     const refresh = () => {
       const issues = check();
       topIssues.empty();
-      for (const el of sectionIssues) el.empty();
+      const bySection = draft.sections.map(() => []);
       for (const issue of issues) {
         const values = issue.values.map(
           (value) => issue.key === "ui.detail_template_error_role_taken" && typeof value === "string" ? t(value) : value
         );
-        const target = issue.section ? sectionIssues[issue.section - 1] : topIssues;
-        (target != null ? target : topIssues).createDiv({ text: t(issue.key, ...values), cls: "vam-template-issue" });
+        const text11 = t(issue.key, ...values);
+        const target = issue.section ? bySection[issue.section - 1] : void 0;
+        if (target) target.push(text11);
+        else topIssues.createDiv({ text: text11, cls: "vam-template-issue" });
       }
-      save.disabled = issues.length > 0;
+      rows.forEach((update, index) => {
+        var _a2;
+        return update((_a2 = bySection[index]) != null ? _a2 : []);
+      });
+      previewText.setText(detailStructurePrompt(draft, language2, (headings) => detailStructure(language2, headings)));
+      if (save) save.disabled = issues.length > 0;
     };
     name.addEventListener("input", () => {
       draft.name = name.value;
@@ -26499,17 +26568,25 @@ var DetailTemplatesModal = class extends import_obsidian17.Modal {
     });
     const renderSections = () => {
       list.empty();
-      sectionIssues.length = 0;
-      draft.sections.forEach(
-        (section3, index) => this.sectionRow(list, draft, section3, index, sectionIssues, refresh, renderSections)
-      );
+      rows.length = 0;
+      draft.sections.forEach((section3, index) => {
+        const open = (id) => {
+          openId = id;
+          renderSections();
+        };
+        rows.push(
+          section3.id === openId ? this.openSection(list, draft, section3, index, readOnly, open, refresh) : this.closedSection(list, section3, index, () => open(section3.id))
+        );
+      });
       refresh();
     };
-    addButton.addEventListener("click", () => {
-      draft.sections.push({ id: crypto.randomUUID(), name: "", description: "", role: "none", aliases: [] });
+    addButton == null ? void 0 : addButton.addEventListener("click", () => {
+      const fresh = { id: crypto.randomUUID(), name: "", description: "", role: "none", aliases: [] };
+      draft.sections.push(fresh);
+      openId = fresh.id;
       renderSections();
     });
-    save.addEventListener("click", () => {
+    save == null ? void 0 : save.addEventListener("click", () => {
       if (saving || check().length) return;
       saving = true;
       save.disabled = true;
@@ -26523,34 +26600,101 @@ var DetailTemplatesModal = class extends import_obsidian17.Modal {
     });
     renderSections();
   }
-  sectionRow(parent, draft, section3, index, sectionIssues, refresh, rerender) {
+  /** A collapsed accordion row: number, name, purpose · count summary and, when invalid, the issue count. */
+  closedSection(parent, section3, index, expand) {
+    const row = parent.createDiv("vam-template-section");
+    const header = row.createEl("button", { cls: "vam-template-section-header" });
+    header.setAttr("aria-expanded", "false");
+    header.addEventListener("click", expand);
+    return (issues) => {
+      header.empty();
+      header.createSpan({ text: String(index + 1), cls: "vam-template-section-number" });
+      const named = section3.name.trim();
+      header.createSpan({
+        text: named || t("ui.detail_section_unnamed"),
+        cls: named ? "vam-template-section-title" : "vam-template-section-title is-untitled"
+      });
+      if (issues.length) header.createSpan({ text: String(issues.length), cls: "vam-template-section-badge" });
+      const summary = header.createSpan({ cls: "vam-template-section-summary" });
+      summary.createSpan({
+        text: t(KINDS[section3.role]),
+        cls: section3.role === "none" ? "vam-template-section-purpose" : "vam-template-section-purpose is-accent"
+      });
+      summary.createSpan({ text: "\xB7", cls: "vam-template-section-separator" });
+      summary.createSpan({ text: countSummary(section3) });
+    };
+  }
+  /** The expanded accordion row with every field of one section. */
+  openSection(parent, draft, section3, index, readOnly, open, refresh) {
     var _a, _b;
     const row = parent.createDiv("vam-template-section");
-    const name = row.createEl("input", { type: "text" });
+    const header = row.createDiv("vam-template-section-header is-open");
+    header.createSpan({ text: String(index + 1), cls: "vam-template-section-number" });
+    const name = header.createEl("input", { type: "text" });
     name.value = section3.name;
+    name.disabled = readOnly;
     name.setAttr("aria-label", t("ui.detail_section_name"));
+    name.setAttr("placeholder", t("ui.detail_section_unnamed"));
     name.addEventListener("input", () => {
       section3.name = name.value;
       refresh();
     });
-    const description = row.createEl("textarea");
-    description.rows = 2;
+    const icon = (glyph, label, run, disabled) => {
+      const button = header.createEl("button", { cls: "clickable-icon" });
+      (0, import_obsidian17.setIcon)(button, glyph);
+      button.setAttr("aria-label", label);
+      button.setAttr("title", label);
+      button.disabled = readOnly || disabled;
+      button.addEventListener("click", run);
+    };
+    const move = (by) => {
+      const target = index + by;
+      [draft.sections[index], draft.sections[target]] = [draft.sections[target], draft.sections[index]];
+      open(section3.id);
+    };
+    icon("arrow-up", t("ui.detail_section_up"), () => move(-1), index === 0);
+    icon("arrow-down", t("ui.detail_section_down"), () => move(1), index === draft.sections.length - 1);
+    icon(
+      "trash-2",
+      t("ui.detail_section_remove"),
+      () => {
+        var _a2;
+        draft.sections.splice(index, 1);
+        open((_a2 = draft.sections[Math.min(index, draft.sections.length - 1)]) == null ? void 0 : _a2.id);
+      },
+      false
+    );
+    const descriptionField = row.createEl("label", { cls: "vam-field" });
+    descriptionField.createSpan({ text: t("ui.detail_section_description") });
+    const description = descriptionField.createEl("textarea");
+    description.rows = 3;
     description.value = section3.description;
+    description.disabled = readOnly;
     description.setAttr("aria-label", t("ui.detail_section_description"));
-    description.setAttr("placeholder", t("ui.detail_section_description"));
+    description.setAttr("placeholder", t("ui.detail_section_description_placeholder"));
     description.addEventListener("input", () => {
       section3.description = description.value;
       refresh();
     });
-    const role = row.createEl("select");
+    const columns = row.createDiv("vam-template-section-columns");
+    const purposeField = columns.createDiv("vam-field");
+    purposeField.createSpan({ text: t("ui.detail_section_role") });
+    const role = purposeField.createEl("select");
+    role.disabled = readOnly;
     role.setAttr("aria-label", t("ui.detail_section_role"));
-    for (const [value, key2] of ROLES) option(role, value, t(key2));
+    for (const [value, key2] of PURPOSES) option(role, value, t(key2));
     role.value = section3.role;
+    const purposeHelp = purposeField.createDiv({ text: t(PURPOSE_HELP[section3.role]), cls: "vam-template-help" });
     role.addEventListener("change", () => {
       section3.role = role.value;
+      purposeHelp.setText(t(PURPOSE_HELP[section3.role]));
       refresh();
     });
-    const mode = row.createEl("select");
+    const countField = columns.createDiv("vam-field");
+    countField.createSpan({ text: t("ui.detail_section_count") });
+    const countRow = countField.createDiv("vam-template-count");
+    const mode = countRow.createEl("select");
+    mode.disabled = readOnly;
     mode.setAttr("aria-label", t("ui.detail_section_count"));
     option(mode, "none", t("ui.detail_section_count_none"));
     option(mode, "exact", t("ui.detail_section_count_exact"));
@@ -26560,36 +26704,26 @@ var DetailTemplatesModal = class extends import_obsidian17.Modal {
       var _a2, _b2;
       if (mode.value === "none") delete section3.count;
       else section3.count = { mode: mode.value, n: (_b2 = (_a2 = section3.count) == null ? void 0 : _a2.n) != null ? _b2 : 1 };
-      rerender();
+      open(section3.id);
     });
     if (section3.count) {
-      const count = row.createEl("input", { type: "number" });
+      const count = countRow.createEl("input", { type: "number" });
       count.value = String(section3.count.n);
+      count.disabled = readOnly;
       count.setAttr("min", "1");
       count.setAttr("max", "20");
-      count.setAttr("aria-label", t("ui.detail_section_count"));
+      count.setAttr("aria-label", t("ui.detail_section_count_n"));
       count.addEventListener("input", () => {
         if (section3.count) section3.count.n = Number(count.value);
         refresh();
       });
     }
-    const move = (by) => {
-      const target = index + by;
-      [draft.sections[index], draft.sections[target]] = [draft.sections[target], draft.sections[index]];
-      rerender();
+    countField.createDiv({ text: t("ui.detail_section_count_help"), cls: "vam-template-help" });
+    const issuesEl = row.createDiv("vam-template-issues");
+    return (issues) => {
+      issuesEl.empty();
+      for (const text11 of issues) issuesEl.createDiv({ text: text11, cls: "vam-template-issue" });
     };
-    const control = (label, run, disabled = false) => {
-      const button = row.createEl("button", { text: label });
-      button.disabled = disabled;
-      button.addEventListener("click", run);
-    };
-    control(t("ui.detail_section_up"), () => move(-1), index === 0);
-    control(t("ui.detail_section_down"), () => move(1), index === draft.sections.length - 1);
-    control(t("ui.detail_section_remove"), () => {
-      draft.sections.splice(index, 1);
-      rerender();
-    });
-    sectionIssues[index] = row.createDiv("vam-template-issues");
   }
   /**
    * Trims names and remembers earlier section names as aliases so old notes still map to the renamed section; an alias
