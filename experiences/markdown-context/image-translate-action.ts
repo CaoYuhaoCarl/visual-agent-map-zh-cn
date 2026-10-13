@@ -51,6 +51,8 @@ export class ImageTranslateAction extends Component {
   private target: ImageTarget | null = null;
   private running: AbortController | null = null;
   private language: UiLanguage | null = null;
+  private halo: HTMLElement | null = null;
+  private haloFrame = 0;
 
   constructor(
     private readonly app: App,
@@ -73,6 +75,49 @@ export class ImageTranslateAction extends Component {
 
   onunload(): void {
     this.hide();
+    this.stopHalo();
+  }
+
+  /**
+   * While AI works, a ring circles the image (like a running topic on the map). It follows the image through
+   * scrolling and is clipped to the note pane, so it never draws over other parts of the window.
+   */
+  private startHalo(image: HTMLImageElement): void {
+    this.stopHalo();
+    const halo = this.app.workspace.containerEl.createDiv({ cls: "vam-image-working" });
+    halo.setAttribute("aria-hidden", "true");
+    halo.createDiv({ cls: "vam-image-working-chip", text: t("ui.image_translate_working") });
+    this.halo = halo;
+    const follow = (): void => {
+      const rect = image.getBoundingClientRect();
+      const pane = image.closest(".view-content")?.getBoundingClientRect();
+      const visible = image.isConnected && rect.width > 0 && rect.height > 0;
+      halo.toggleClass("is-hidden", !visible);
+      if (visible) {
+        halo.style.left = `${rect.left}px`;
+        halo.style.top = `${rect.top}px`;
+        halo.style.width = `${rect.width}px`;
+        halo.style.height = `${rect.height}px`;
+        // Clip to the pane, with room for the ring that sits just outside the image.
+        const clip = pane
+          ? [
+              Math.max(-6, pane.top - rect.top),
+              Math.max(-6, rect.right - pane.right),
+              Math.max(-6, rect.bottom - pane.bottom),
+              Math.max(-6, pane.left - rect.left)
+            ]
+          : [-6, -6, -6, -6];
+        halo.style.clipPath = `inset(${clip.map(value => `${value}px`).join(" ")})`;
+      }
+      this.haloFrame = window.requestAnimationFrame(follow);
+    };
+    follow();
+  }
+
+  private stopHalo(): void {
+    window.cancelAnimationFrame(this.haloFrame);
+    this.halo?.remove();
+    this.halo = null;
   }
 
   /** Shows the action beside `image`; a translation already in progress keeps running in the background. */
@@ -173,6 +218,7 @@ export class ImageTranslateAction extends Component {
     const controller = new AbortController();
     this.running = controller;
     this.showRunning(status, actions);
+    this.startHalo(target.image);
     const name = SUPPORTED_LANGUAGES.find(item => item.id === language)?.name ?? language;
     let saved: TFile | null = null;
     try {
@@ -211,7 +257,10 @@ export class ImageTranslateAction extends Component {
       // The image was saved but could not be placed: do not leave an unused file behind.
       if (saved) await this.app.fileManager.trashFile(saved);
     } finally {
-      if (this.running === controller) this.running = null;
+      if (this.running === controller) {
+        this.running = null;
+        this.stopHalo();
+      }
       // Close whichever popover is showing this run's progress (it may have been reopened on another image).
       if (status.isConnected || this.popover?.querySelector(".vam-image-action-status.is-running")) this.hide();
     }
