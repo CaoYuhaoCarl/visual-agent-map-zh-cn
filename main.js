@@ -181,6 +181,17 @@ var english = {
   "ui.outline_import_source": "Source: {0}",
   "ui.outline_import_shallow": "Run shallow research on each topic after creation (uses AI quota)",
   "ui.outline_import_create": "Create mind map",
+  "ui.multi_research": "Research",
+  "ui.multi_research_title": "Research selected topics",
+  "ui.multi_research_intro": "Research {0} selected topics in the background, up to 3 at a time. This uses AI quota.",
+  "ui.multi_research_topics": "Topics to research",
+  "ui.multi_research_start": "Start research",
+  "ui.multi_research_progress": "Researching {0}/{1}",
+  "ui.multi_research_skipped": "Skipped {0} topics that are already running AI.",
+  "ui.multi_research_all_skipped": "All selected topics are already running AI.",
+  "ui.multi_research_already_running": "A multi-topic research is already running on this map.",
+  "ui.multi_research_finished": "Research finished: {0} of {1} succeeded, {2} failed, {3} skipped.",
+  "ui.multi_research_stopped": "Research stopped: {0} of {1} succeeded, {2} failed, {3} skipped.",
   "ui.outline_import_partial": "Created {0} of {1} topics: {2}",
   "ui.aim_create_map": "Create Adaptive Inquiry Map (AIM)",
   "ui.aim_start_title": "Create an Adaptive Inquiry Map (AIM)",
@@ -642,6 +653,7 @@ var english = {
   "ui.archived_0": "Archived ({0})",
   "ui.inbox_0": "Inbox ({0})",
   "ui.selected_0_1_2": "Selected {0}: {1}{2}",
+  "ui.multi_research_keep_topic_models": "Each topic's current model",
   "ui.expand_0": "Expand {0}",
   "ui.0_moved": "{0} (moved)",
   "ui.0_1_reasoning_can_be_adjusted_per_topic": "{0} \xB7 {1}; reasoning can be adjusted per topic.",
@@ -1331,6 +1343,17 @@ var traditionalChinese = {
   "ui.outline_import_source": "\u4F86\u6E90\uFF1A{0}",
   "ui.outline_import_shallow": "\u5EFA\u7ACB\u5F8C\u9010\u4E00\u6DFA\u7814\u7A76\u6BCF\u500B\u8B70\u984C\uFF08\u6703\u4F7F\u7528 AI \u984D\u5EA6\uFF09",
   "ui.outline_import_create": "\u5EFA\u7ACB\u5FC3\u667A\u5716",
+  "ui.multi_research": "\u7814\u7A76",
+  "ui.multi_research_title": "\u7814\u7A76\u5DF2\u9078\u8B70\u984C",
+  "ui.multi_research_intro": "\u5728\u80CC\u666F\u7814\u7A76\u5DF2\u9078\u7684 {0} \u500B\u8B70\u984C\uFF0C\u6700\u591A\u540C\u6642 3 \u500B\u3002\u6703\u4F7F\u7528 AI \u984D\u5EA6\u3002",
+  "ui.multi_research_topics": "\u8981\u7814\u7A76\u7684\u8B70\u984C",
+  "ui.multi_research_start": "\u958B\u59CB\u7814\u7A76",
+  "ui.multi_research_progress": "\u7814\u7A76\u4E2D {0}/{1}",
+  "ui.multi_research_skipped": "\u5DF2\u7565\u904E {0} \u500B\u6B63\u5728\u57F7\u884C AI \u7684\u8B70\u984C\u3002",
+  "ui.multi_research_all_skipped": "\u5DF2\u9078\u8B70\u984C\u90FD\u6B63\u5728\u57F7\u884C AI\u3002",
+  "ui.multi_research_already_running": "\u9019\u5F35\u5716\u5DF2\u6709\u591A\u8B70\u984C\u7814\u7A76\u5728\u57F7\u884C\u3002",
+  "ui.multi_research_finished": "\u7814\u7A76\u5B8C\u6210\uFF1A\u6210\u529F {0}\uFF0F{1}\uFF0C{2} \u500B\u5931\u6557\uFF0C{3} \u500B\u8DF3\u904E\u3002",
+  "ui.multi_research_stopped": "\u7814\u7A76\u5DF2\u505C\u6B62\uFF1A\u6210\u529F {0}\uFF0F{1}\uFF0C{2} \u500B\u5931\u6557\uFF0C{3} \u500B\u8DF3\u904E\u3002",
   "ui.outline_import_partial": "\u5EFA\u7ACB\u4E86 {0}\uFF0F{1} \u500B\u8B70\u984C\uFF1A{2}",
   "ui.aim_create_map": "\u5EFA\u7ACB Adaptive Inquiry Map\uFF08AIM\uFF09",
   "ui.aim_start_title": "\u5EFA\u7ACB Adaptive Inquiry Map\uFF08AIM\uFF09",
@@ -1792,6 +1815,7 @@ var traditionalChinese = {
   "ui.archived_0": "\u5C01\u5B58\uFF08{0}\uFF09",
   "ui.inbox_0": "\u6536\u4EF6\u5323\uFF08{0}\uFF09",
   "ui.selected_0_1_2": "\u5DF2\u9078 {0} \u500B\uFF1A{1}{2}",
+  "ui.multi_research_keep_topic_models": "\u6CBF\u7528\u5404\u8B70\u984C\u76EE\u524D\u7684\u6A21\u578B",
   "ui.expand_0": "\u5C55\u958B {0}",
   "ui.0_moved": "{0}\uFF08\u5DF2\u79FB\u52D5\uFF09",
   "ui.0_1_reasoning_can_be_adjusted_per_topic": "{0} \xB7 {1}\uFF1B\u63A8\u7406\u7B49\u7D1A\u53EF\u4F9D\u8B70\u984C\u8ABF\u6574\u3002",
@@ -10112,7 +10136,7 @@ function withThinkingOrigin(context, note) {
 
 // experiences/visual-map/view.ts
 var import_node_crypto9 = require("node:crypto");
-var import_obsidian15 = require("obsidian");
+var import_obsidian16 = require("obsidian");
 
 // ai/result-utils.ts
 var SENTENCE_END = /[。！？；!?;]/;
@@ -12710,6 +12734,38 @@ async function createOutlineMap(repository, model, nodes, source, now = /* @__PU
 
 // experiences/visual-map/outline-import-modal.ts
 var import_obsidian9 = require("obsidian");
+
+// experiences/visual-map/research-fields.ts
+function researchDepthField(parent) {
+  const label = parent.createEl("label", { cls: "vam-field" });
+  label.createSpan({ text: t("ui.research_depth") });
+  const depth = label.createEl("select");
+  depth.setAttr("aria-label", t("ui.research_depth"));
+  depth.createEl("option", { value: "fast", text: t("ui.fast_quick_overview") });
+  depth.createEl("option", { value: "normal", text: t("ui.normal_standard_research") });
+  depth.createEl("option", { value: "deep", text: t("ui.deep_in_depth_research") });
+  depth.value = "fast";
+  return () => depth.value === "deep" ? "deep" : depth.value === "normal" ? "normal" : "fast";
+}
+function modelField(parent, models, defaultLabel) {
+  const label = parent.createEl("label", { cls: "vam-field" });
+  label.createSpan({ text: t("ui.model") });
+  const model = label.createEl("select");
+  model.setAttr("aria-label", t("ui.model"));
+  const fill = () => {
+    const selected = model.value;
+    model.replaceChildren();
+    model.createEl("option", { value: "", text: defaultLabel });
+    const choices = models.list();
+    for (const option of choices) model.createEl("option", { value: option.id, text: option.label });
+    model.value = choices.some((option) => option.id === selected) ? selected : "";
+  };
+  fill();
+  const dispose = models.watch(fill);
+  return { value: () => model.value || void 0, dispose };
+}
+
+// experiences/visual-map/outline-import-modal.ts
 var OutlineFileModal = class extends import_obsidian9.FuzzySuggestModal {
   constructor(app, choose) {
     super(app);
@@ -12727,9 +12783,11 @@ var OutlineFileModal = class extends import_obsidian9.FuzzySuggestModal {
   }
 };
 var OutlineImportModal = class extends import_obsidian9.Modal {
-  constructor(app, create) {
+  constructor(app, create, models = { list: () => [], watch: () => () => {
+  } }) {
     super(app);
     this.create = create;
+    this.models = models;
     __publicField(this, "textarea");
     __publicField(this, "preview");
     __publicField(this, "sourceLabel");
@@ -12739,6 +12797,9 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
     __publicField(this, "sourceText", "");
     __publicField(this, "nodes", []);
     __publicField(this, "submitting", false);
+    __publicField(this, "depth", () => "fast");
+    __publicField(this, "model", () => void 0);
+    __publicField(this, "unwatch");
   }
   onOpen() {
     this.titleEl.setText(t("ui.outline_import"));
@@ -12757,9 +12818,22 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
     const shallowLabel = this.contentEl.createEl("label", { cls: "vam-field vam-next-toggle" });
     this.shallow = shallowLabel.createEl("input", { type: "checkbox" });
     shallowLabel.createSpan({ text: t("ui.outline_import_shallow") });
+    const researchOptions = this.contentEl.createDiv("vam-outline-research-options");
+    this.depth = researchDepthField(researchOptions);
+    const model = modelField(researchOptions, this.models, t("ui.workspace_default"));
+    this.model = model.value;
+    this.unwatch = model.dispose;
+    const showOptions = () => researchOptions.toggleClass("is-hidden", !this.shallow.checked);
+    this.shallow.addEventListener("change", showOptions);
+    showOptions();
     this.createButton = this.contentEl.createEl("button", { text: t("ui.outline_import_create"), cls: "mod-cta" });
     this.createButton.addEventListener("click", () => void this.submit());
     this.refresh();
+  }
+  onClose() {
+    var _a;
+    (_a = this.unwatch) == null ? void 0 : _a.call(this);
+    this.unwatch = void 0;
   }
   async loadFile(file) {
     const text11 = await this.app.vault.cachedRead(file);
@@ -12804,7 +12878,15 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
     this.submitting = true;
     this.createButton.disabled = true;
     try {
-      await this.create({ nodes: this.nodes, source: this.source, shallowResearch: this.shallow.checked });
+      const shallowResearch = this.shallow.checked;
+      const model = shallowResearch ? this.model() : void 0;
+      await this.create({
+        nodes: this.nodes,
+        source: this.source,
+        shallowResearch,
+        ...shallowResearch ? { researchDepth: this.depth() } : {},
+        ...model ? { model } : {}
+      });
       this.close();
     } catch (error) {
       new import_obsidian9.Notice(error instanceof Error ? error.message : String(error));
@@ -12814,10 +12896,63 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
   }
 };
 
-// ui/modals/aim-start-modal.ts
+// experiences/visual-map/multi-research-modal.ts
 var import_obsidian10 = require("obsidian");
+var MultiResearchModal = class extends import_obsidian10.Modal {
+  constructor(app, names2, models, submit) {
+    super(app);
+    this.names = names2;
+    this.models = models;
+    this.submit = submit;
+    __publicField(this, "submitted", false);
+    __publicField(this, "unwatch");
+  }
+  onOpen() {
+    this.titleEl.setText(t("ui.multi_research_title"));
+    this.contentEl.createEl("p", { text: t("ui.multi_research_intro", this.names.length), cls: "vam-modal-intro" });
+    const topics = this.contentEl.createDiv("vam-integration-sources");
+    topics.createEl("strong", { text: t("ui.multi_research_topics") });
+    for (const name of this.names) topics.createDiv({ text: name });
+    const depth = researchDepthField(this.contentEl);
+    const model = modelField(this.contentEl, this.models, t("ui.multi_research_keep_topic_models"));
+    this.unwatch = model.dispose;
+    const webLabel = this.contentEl.createEl("label", { cls: "vam-field vam-next-toggle" });
+    const web = webLabel.createEl("input", { type: "checkbox" });
+    web.checked = true;
+    webLabel.createSpan({ text: t("ui.allow_web_search") });
+    const requirementsLabel = this.contentEl.createEl("label", { cls: "vam-field" });
+    requirementsLabel.createSpan({ text: t("ui.additional_requirements") });
+    const requirements = requirementsLabel.createEl("textarea");
+    requirements.rows = 3;
+    requirements.setAttr("aria-label", t("ui.additional_requirements"));
+    const actions = this.contentEl.createDiv("vam-modal-actions");
+    const cancel = actions.createEl("button", { text: t("ui.cancel") });
+    cancel.addEventListener("click", () => this.close());
+    const start = actions.createEl("button", { text: t("ui.multi_research_start"), cls: "mod-cta" });
+    start.addEventListener("click", () => {
+      if (this.submitted) return;
+      this.submitted = true;
+      const request = {
+        researchMode: web.checked ? "research" : "local",
+        researchDepth: depth(),
+        requirements: requirements.value.trim(),
+        ...model.value() ? { model: model.value() } : {}
+      };
+      this.close();
+      this.submit(request);
+    });
+  }
+  onClose() {
+    var _a;
+    (_a = this.unwatch) == null ? void 0 : _a.call(this);
+    this.unwatch = void 0;
+  }
+};
+
+// ui/modals/aim-start-modal.ts
+var import_obsidian11 = require("obsidian");
 var import_node_crypto4 = require("node:crypto");
-var AimStartModal = class extends import_obsidian10.Modal {
+var AimStartModal = class extends import_obsidian11.Modal {
   constructor(app, submit, models = [], defaultModel = "gpt-6-luna", defaultReasoning = "low", refreshModels) {
     super(app);
     this.submit = submit;
@@ -12972,7 +13107,7 @@ var AimStartModal = class extends import_obsidian10.Modal {
     const status = this.contentEl.createEl("p", { cls: "vam-hint", attr: { "aria-live": "polite" } });
     let pending = false;
     let cancelButton;
-    const create = new import_obsidian10.Setting(this.contentEl).addButton((button) => {
+    const create = new import_obsidian11.Setting(this.contentEl).addButton((button) => {
       cancelButton = button;
       button.setButtonText(t("ui.cancel")).onClick(() => this.close());
     }).addButton(
@@ -13048,9 +13183,9 @@ var AimStartModal = class extends import_obsidian10.Modal {
 };
 
 // ui/modals/aim-answer-modal.ts
-var import_obsidian11 = require("obsidian");
+var import_obsidian12 = require("obsidian");
 var import_node_crypto5 = require("node:crypto");
-var AimAnswerModal = class extends import_obsidian11.Modal {
+var AimAnswerModal = class extends import_obsidian12.Modal {
   constructor(app, question, options, submit, requestId = (0, import_node_crypto5.randomUUID)()) {
     super(app);
     this.question = question;
@@ -13092,7 +13227,7 @@ var AimAnswerModal = class extends import_obsidian11.Modal {
     });
     const status = this.contentEl.createEl("p", { cls: "vam-hint", attr: { "aria-live": "polite" } });
     let pending = false, submitButton;
-    const setting = new import_obsidian11.Setting(this.contentEl).addButton(
+    const setting = new import_obsidian12.Setting(this.contentEl).addButton(
       (button) => button.setButtonText(t("ui.cancel")).onClick(() => {
         if (!pending) this.close();
       })
@@ -18673,10 +18808,10 @@ function aimRepairHint(reason) {
 }
 
 // experiences/visual-map/modals.ts
-var import_obsidian14 = require("obsidian");
+var import_obsidian15 = require("obsidian");
 
 // ui/reference-picker.ts
-var import_obsidian12 = require("obsidian");
+var import_obsidian13 = require("obsidian");
 var ReferencePicker = class {
   constructor(app, parent, topics, readTopic, currentTopicId, currentLabel, initialWeb = true, initialImages = true) {
     this.app = app;
@@ -18792,7 +18927,7 @@ var ReferencePicker = class {
         const details = card.createEl("details");
         const summary = details.createEl("summary");
         const disclosure = summary.createSpan({ cls: "vam-reference-disclosure" });
-        (0, import_obsidian12.setIcon)(disclosure, "file-text");
+        (0, import_obsidian13.setIcon)(disclosure, "file-text");
         const summaryText2 = summary.createSpan({ cls: "vam-reference-summary-text" });
         summaryText2.createEl("strong", { text: group.name });
         summaryText2.createSpan({ text: group.location, cls: "vam-hint vam-reference-location" });
@@ -18829,7 +18964,7 @@ var ReferencePicker = class {
   createSourceButton(parent, icon, key2) {
     const button = parent.createEl("button", { cls: "vam-reference-action" });
     const image = button.createSpan({ cls: "vam-reference-action-icon" });
-    (0, import_obsidian12.setIcon)(image, icon);
+    (0, import_obsidian13.setIcon)(image, icon);
     button.createSpan({ text: t(key2), cls: "vam-reference-action-label" });
     return button;
   }
@@ -18860,7 +18995,7 @@ var ReferencePicker = class {
   async selectTopic() {
     try {
       const topics = (await this.topics()).filter((topic) => topic.id !== this.currentTopicId);
-      const modal = new import_obsidian12.Modal(this.app);
+      const modal = new import_obsidian13.Modal(this.app);
       modal.titleEl.setText(t("ui.reference_select_mind_map"));
       if (!topics.length)
         modal.contentEl.createEl("p", { text: t("ui.reference_no_other_mind_maps"), cls: "vam-hint" });
@@ -18915,7 +19050,7 @@ var ReferencePicker = class {
         if (!yaml) return true;
         let metadata;
         try {
-          metadata = (0, import_obsidian12.parseYaml)(yaml);
+          metadata = (0, import_obsidian13.parseYaml)(yaml);
         } catch (error) {
           if (yaml.includes("agent-map-node")) throw error;
           return true;
@@ -18952,7 +19087,7 @@ var ReferencePicker = class {
     var _a;
     const nativePath = (_a = file.path) == null ? void 0 : _a.replace(/\\/g, "/");
     const adapter = this.app.vault.adapter;
-    const vaultRoot = adapter instanceof import_obsidian12.FileSystemAdapter ? adapter.getBasePath().replace(/\\/g, "/").replace(/\/$/, "") : "";
+    const vaultRoot = adapter instanceof import_obsidian13.FileSystemAdapter ? adapter.getBasePath().replace(/\\/g, "/").replace(/\/$/, "") : "";
     const isInVault = !!nativePath && !!vaultRoot && nativePath.startsWith(`${vaultRoot}/`);
     const path = isInVault ? nativePath.slice(vaultRoot.length + 1) : nativePath || (fromFolder ? file.webkitRelativePath : file.name) || file.name;
     return {
@@ -18974,7 +19109,7 @@ var ReferencePicker = class {
 };
 
 // ui/modals/debug-log-modal.ts
-var import_obsidian13 = require("obsidian");
+var import_obsidian14 = require("obsidian");
 
 // log-manager.ts
 var LogManager = class {
@@ -19202,7 +19337,7 @@ var AiExchangeLog = class {
 };
 
 // ui/modals/debug-log-modal.ts
-var DebugLogModal = class extends import_obsidian13.Modal {
+var DebugLogModal = class extends import_obsidian14.Modal {
   constructor(app, logs, exchanges, exchangeEnabled, setExchangeEnabled) {
     super(app);
     this.logs = logs;
@@ -19226,20 +19361,20 @@ var DebugLogModal = class extends import_obsidian13.Modal {
       cls: "vam-modal-intro",
       text: t("ui.logs_are_kept_in_memory_only_and_disappear_when_the_plugin_r")
     });
-    const actions = new import_obsidian13.Setting(this.contentEl);
+    const actions = new import_obsidian14.Setting(this.contentEl);
     actions.addButton((button) => button.setButtonText(t("ui.refresh_logs")).onClick(() => this.renderLogs()));
     actions.addButton(
       (button) => button.setButtonText(t("ui.copy_logs")).setCta().onClick(async () => {
         const text11 = formatDebugLogs(this.logs.getLogs());
         if (!text11) {
-          new import_obsidian13.Notice(t("ui.there_are_no_debug_logs_yet"));
+          new import_obsidian14.Notice(t("ui.there_are_no_debug_logs_yet"));
           return;
         }
         try {
           await navigator.clipboard.writeText(text11);
-          new import_obsidian13.Notice(t("ui.debug_log_copied"));
+          new import_obsidian14.Notice(t("ui.debug_log_copied"));
         } catch (e) {
-          new import_obsidian13.Notice(t("ui.unable_to_copy_the_debug_log"));
+          new import_obsidian14.Notice(t("ui.unable_to_copy_the_debug_log"));
         }
       })
     );
@@ -19264,7 +19399,7 @@ var DebugLogModal = class extends import_obsidian13.Modal {
       cls: "vam-modal-intro",
       text: this.exchangeEnabled() ? t("ui.up_to_20_exchanges_are_stored_in_this_vault_s_plugin_folder") : t("ui.ai_exchange_recording_is_off_enable_it_in_vam_settings")
     });
-    const exchangeActions = new import_obsidian13.Setting(this.contentEl);
+    const exchangeActions = new import_obsidian14.Setting(this.contentEl);
     if (this.setExchangeEnabled)
       exchangeActions.setName(t("ui.record_ai_exchanges")).addToggle(
         (toggle) => toggle.setValue(this.exchangeEnabled()).onChange(async (value) => {
@@ -19280,9 +19415,9 @@ var DebugLogModal = class extends import_obsidian13.Modal {
           await navigator.clipboard.writeText(
             ((_b2 = (_a2 = this.exchanges) == null ? void 0 : _a2.getEntries()) != null ? _b2 : []).map(formatAiExchange).join("\n\n---\n\n")
           );
-          new import_obsidian13.Notice(t("ui.ai_exchange_copied"));
+          new import_obsidian14.Notice(t("ui.ai_exchange_copied"));
         } catch (e) {
-          new import_obsidian13.Notice(t("ui.unable_to_copy_the_ai_exchange"));
+          new import_obsidian14.Notice(t("ui.unable_to_copy_the_ai_exchange"));
         }
       })
     );
@@ -19329,7 +19464,7 @@ var DebugLogModal = class extends import_obsidian13.Modal {
       if (exchange.error) item.createEl("pre", { text: `${t("ui.error")}: ${exchange.error}` });
       const copy = item.createEl("button", { text: t("ui.copy_this_exchange") });
       copy.addEventListener("click", () => {
-        void navigator.clipboard.writeText(formatAiExchange(exchange)).then(() => new import_obsidian13.Notice(t("ui.ai_exchange_copied"))).catch(() => new import_obsidian13.Notice(t("ui.unable_to_copy_the_ai_exchange")));
+        void navigator.clipboard.writeText(formatAiExchange(exchange)).then(() => new import_obsidian14.Notice(t("ui.ai_exchange_copied"))).catch(() => new import_obsidian14.Notice(t("ui.unable_to_copy_the_ai_exchange")));
       });
     }
   }
@@ -19438,7 +19573,7 @@ function quickSuggestions(items, layers, firstLayerCount, childrenPerParent) {
   if (selected.length !== items.length) invalid();
   return selected;
 }
-var TaskModal = class extends import_obsidian14.Modal {
+var TaskModal = class extends import_obsidian15.Modal {
   constructor(app, value, submit, titleText = t("ui.custom_ai_task"), description = t("ui.describe_what_you_want_ai_to_do_next"), rules = "", mode = "research", depth = "normal", visual = "auto", _allowSave = true, expand = false, referenceSettings, synthesisTopics, currentLanguage = "zh-TW", modelId = "", reasoningId = "auto", targetLabel = "") {
     super(app);
     this.value = value;
@@ -19547,16 +19682,16 @@ var TaskModal = class extends import_obsidian14.Modal {
         ""
       );
     };
-    new import_obsidian14.Setting(this.contentEl).addButton((b) => b.setButtonText(t("ui.cancel")).onClick(() => this.close())).addButton(
+    new import_obsidian15.Setting(this.contentEl).addButton((b) => b.setButtonText(t("ui.cancel")).onClick(() => this.close())).addButton(
       (b) => b.setButtonText(t("ui.confirm_and_run")).setCta().onClick(() => {
-        void save(true).catch((error) => new import_obsidian14.Notice(String(error)));
+        void save(true).catch((error) => new import_obsidian15.Notice(String(error)));
       })
     );
     input.focus();
     input.setSelectionRange(input.value.length, input.value.length);
   }
 };
-var NextStepModal = class extends import_obsidian14.Modal {
+var NextStepModal = class extends import_obsidian15.Modal {
   constructor(app, topic, depth, childrenCount, pendingCount, plugin, research, expand, synthesize, modelSettings) {
     super(app);
     this.topic = topic;
@@ -19808,7 +19943,7 @@ var NextStepModal = class extends import_obsidian14.Modal {
         direction,
         (message) => {
           if (this.closed) {
-            new import_obsidian14.Notice(message);
+            new import_obsidian15.Notice(message);
             return;
           }
           release();
@@ -20082,7 +20217,7 @@ var NextStepModal = class extends import_obsidian14.Modal {
           },
           (message) => {
             if (this.closed) {
-              new import_obsidian14.Notice(message);
+              new import_obsidian15.Notice(message);
               return;
             }
             release();
@@ -20396,7 +20531,7 @@ var NextStepModal = class extends import_obsidian14.Modal {
     });
   }
 };
-var AiDraftModal = class extends import_obsidian14.Modal {
+var AiDraftModal = class extends import_obsidian15.Modal {
   constructor(app, summary, detail, confirmLabel, confirm) {
     super(app);
     this.summary = summary;
@@ -20412,7 +20547,7 @@ var AiDraftModal = class extends import_obsidian14.Modal {
     const detail = this.contentEl.createEl("textarea", { cls: "vam-task-input", text: this.detail });
     detail.rows = 18;
     detail.readOnly = true;
-    new import_obsidian14.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => this.close())).addButton(
+    new import_obsidian15.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => this.close())).addButton(
       (button) => button.setButtonText(this.confirmLabel).setCta().onClick(() => {
         this.close();
         this.confirm();
@@ -20420,7 +20555,7 @@ var AiDraftModal = class extends import_obsidian14.Modal {
     );
   }
 };
-var SynthesisDraftModal = class extends import_obsidian14.Modal {
+var SynthesisDraftModal = class extends import_obsidian15.Modal {
   constructor(app, summary, detail, confirm, discard) {
     super(app);
     this.summary = summary;
@@ -20439,7 +20574,7 @@ var SynthesisDraftModal = class extends import_obsidian14.Modal {
     detail.rows = 16;
     detail.setAttr("aria-label", t("ui.markdown_detail_draft"));
     const status = this.contentEl.createEl("p", { cls: "vam-next-status" });
-    new import_obsidian14.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => this.close())).addButton(
+    new import_obsidian15.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => this.close())).addButton(
       (button) => button.setButtonText(t("ui.discard_synthesis")).onClick(() => {
         this.discard();
         this.close();
@@ -20458,7 +20593,7 @@ var SynthesisDraftModal = class extends import_obsidian14.Modal {
     );
   }
 };
-var ChildProposalModal = class extends import_obsidian14.Modal {
+var ChildProposalModal = class extends import_obsidian15.Modal {
   constructor(app, suggestions, submit) {
     super(app);
     this.suggestions = suggestions;
@@ -20491,7 +20626,7 @@ var ChildProposalModal = class extends import_obsidian14.Modal {
       contribution.setAttr("aria-label", t("ui.contribution_to_the_parent_topic"));
       rows.push({ item, check, title, task, contribution });
     }
-    new import_obsidian14.Setting(this.contentEl).addButton((b) => b.setButtonText(t("ui.cancel")).onClick(() => this.close())).addButton(
+    new import_obsidian15.Setting(this.contentEl).addButton((b) => b.setButtonText(t("ui.cancel")).onClick(() => this.close())).addButton(
       (b) => b.setButtonText(t("ui.create_subtopics")).setCta().onClick(() => {
         const selected = rows.filter((row) => row.check.checked && row.title.value.trim());
         const renamed = new Map(
@@ -20499,11 +20634,11 @@ var ChildProposalModal = class extends import_obsidian14.Modal {
         );
         const rootNames = selected.filter((row) => !row.item.parentTitle).map((row) => row.title.value.trim());
         if (new Set(rootNames).size !== rootNames.length) {
-          new import_obsidian14.Notice(t("ui.first_level_topic_names_must_be_unique"));
+          new import_obsidian15.Notice(t("ui.first_level_topic_names_must_be_unique"));
           return;
         }
         if (selected.some((row) => row.item.parentTitle && !renamed.has(row.item.parentTitle))) {
-          new import_obsidian14.Notice(t("ui.select_the_parent_topic_before_its_child"));
+          new import_obsidian15.Notice(t("ui.select_the_parent_topic_before_its_child"));
           return;
         }
         this.close();
@@ -20519,7 +20654,7 @@ var ChildProposalModal = class extends import_obsidian14.Modal {
     );
   }
 };
-var IntegrationModal = class extends import_obsidian14.Modal {
+var IntegrationModal = class extends import_obsidian15.Modal {
   constructor(app, names2, _defaultRules, submit) {
     super(app);
     this.names = names2;
@@ -20550,12 +20685,12 @@ var IntegrationModal = class extends import_obsidian14.Modal {
       this.close();
       this.submit(title.value.trim(), goal.value.trim(), "");
     };
-    new import_obsidian14.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => this.close())).addButton((button) => button.setButtonText(t("ui.next_set_ai_sources")).setCta().onClick(save));
+    new import_obsidian15.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => this.close())).addButton((button) => button.setButtonText(t("ui.next_set_ai_sources")).setCta().onClick(save));
     title.focus();
     title.select();
   }
 };
-var MapConflictModal = class extends import_obsidian14.Modal {
+var MapConflictModal = class extends import_obsidian15.Modal {
   constructor(app, local, disk, resolve) {
     super(app);
     this.local = local;
@@ -20576,12 +20711,12 @@ var MapConflictModal = class extends import_obsidian14.Modal {
       this.close();
       this.resolve(map);
     };
-    new import_obsidian14.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.use_file_contents")).onClick(() => finish(clone(this.disk)))).addButton((button) => button.setButtonText(t("ui.keep_editor_contents")).onClick(() => finish(clone(this.local)))).addButton(
+    new import_obsidian15.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.use_file_contents")).onClick(() => finish(clone(this.disk)))).addButton((button) => button.setButtonText(t("ui.keep_editor_contents")).onClick(() => finish(clone(this.local)))).addButton(
       (button) => button.setButtonText(t("ui.save_merged_contents")).setCta().onClick(() => {
         try {
           finish(parseMap(serializeMap(JSON.parse(input.value))));
         } catch (error) {
-          new import_obsidian14.Notice(
+          new import_obsidian15.Notice(
             error instanceof Error ? t("ui.invalid_merged_contents_0", error.message) : t("ui.invalid_merged_contents")
           );
         }
@@ -20592,7 +20727,7 @@ var MapConflictModal = class extends import_obsidian14.Modal {
     if (!this.settled) this.resolve(clone(this.disk));
   }
 };
-var NoteCollectionModal = class extends import_obsidian14.Modal {
+var NoteCollectionModal = class extends import_obsidian15.Modal {
   constructor(app, titleText, files, actions) {
     super(app);
     this.titleText = titleText;
@@ -20612,10 +20747,10 @@ var NoteCollectionModal = class extends import_obsidian14.Modal {
           action.run(file);
         });
     }
-    new import_obsidian14.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.close")).onClick(() => this.close()));
+    new import_obsidian15.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.close")).onClick(() => this.close()));
   }
 };
-var TopicPickerModal = class extends import_obsidian14.Modal {
+var TopicPickerModal = class extends import_obsidian15.Modal {
   constructor(app, titleText, topics, choose) {
     super(app);
     this.titleText = titleText;
@@ -20625,14 +20760,14 @@ var TopicPickerModal = class extends import_obsidian14.Modal {
   onOpen() {
     this.titleEl.setText(this.titleText);
     for (const topic of this.topics)
-      new import_obsidian14.Setting(this.contentEl).setName(topic.title).setDesc(topic.root).addButton(
+      new import_obsidian15.Setting(this.contentEl).setName(topic.title).setDesc(topic.root).addButton(
         (button) => button.setButtonText(t("ui.select")).onClick(() => {
           this.close();
           this.choose(topic);
         })
       );
     if (!this.topics.length) this.contentEl.createEl("p", { text: t("ui.no_other_topics") });
-    new import_obsidian14.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => this.close()));
+    new import_obsidian15.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => this.close()));
   }
 };
 
@@ -20677,7 +20812,7 @@ function aimQuestionStatus(map, questionNodeId, activeQuestionNodeId) {
   if (statuses.includes("cancelled")) return "cancelled";
   return "not_started";
 }
-var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.ItemView {
+var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.plugin = plugin;
@@ -21031,44 +21166,60 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
       }
     ).open();
   }
+  modelChoices() {
+    return {
+      list: () => this.plugin.availableModels().map((id) => ({ id, label: this.plugin.modelLabel(id) })),
+      watch: (changed) => {
+        const unsubscribe = this.plugin.subscribeModelDiscovery(changed);
+        void this.plugin.refreshModelDiscovery("codex");
+        void this.plugin.refreshModelDiscovery("claude");
+        return unsubscribe;
+      }
+    };
+  }
   openOutlineImport() {
-    new OutlineImportModal(this.app, (request) => this.importOutline(request)).open();
+    new OutlineImportModal(this.app, (request) => this.importOutline(request), this.modelChoices()).open();
   }
   async importOutline(request) {
+    const model = request.shallowResearch && request.model || this.plugin.settings.cliModel;
     let result;
     try {
-      result = await createOutlineMap(this.plugin.repo, this.plugin.settings.cliModel, request.nodes, request.source);
+      result = await createOutlineMap(this.plugin.repo, model, request.nodes, request.source);
     } catch (error) {
       if (!(error == null ? void 0 : error.mapCreated)) throw error;
-      new import_obsidian15.Notice(errorMessage(error));
+      new import_obsidian16.Notice(errorMessage(error));
       return;
     }
     let opened = true;
     try {
       await this.plugin.mutate(async () => {
+        await this.plugin.rebuildDerivedData();
         await this.openMapInMutation(result.mapPath);
         if (!this.closed && this.path === result.mapPath) this.fit();
       });
     } catch (e) {
       opened = false;
     }
-    if (result.failure) new import_obsidian15.Notice(t("ui.outline_import_partial", result.created, result.total, result.failure));
+    if (result.failure) new import_obsidian16.Notice(t("ui.outline_import_partial", result.created, result.total, result.failure));
     if (result.failure || !opened || !request.shallowResearch || result.nodes.length < 2) return;
     const root = result.nodes.find((node) => node.parentId === null);
     if (!root) return;
     const children = result.nodes.filter((node) => node.parentId !== null);
     try {
       await this.plugin.confirmAiUsage(
-        this.plugin.settings.cliModel,
-        () => this.startShallowResearch(root, children, {
-          researchMode: "research",
-          researchDepth: "fast",
-          referenceGroups: [],
-          visualMode: "off"
-        })
+        model,
+        () => {
+          var _a;
+          return this.startShallowResearch(root, children, {
+            researchMode: "research",
+            researchDepth: (_a = request.researchDepth) != null ? _a : "fast",
+            referenceGroups: [],
+            visualMode: "off"
+          });
+        }
       );
     } catch (error) {
-      new import_obsidian15.Notice(errorMessage(error));
+      new import_obsidian16.Notice(errorMessage(error));
     }
   }
   openNewMindMapModal() {
@@ -21243,14 +21394,14 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
           this.render();
           this.focusNode(question2);
         }
-        new import_obsidian15.Notice(t("ui.aim_waiting_user"));
-      } else if (result.status === "partial") new import_obsidian15.Notice(t("ui.aim_research_partial"));
-      else if (result.status === "completed") new import_obsidian15.Notice(t("ui.aim_research_saved"));
-      else if (result.status === "in-progress") new import_obsidian15.Notice(t("ui.aim_research_already_running"));
+        new import_obsidian16.Notice(t("ui.aim_waiting_user"));
+      } else if (result.status === "partial") new import_obsidian16.Notice(t("ui.aim_research_partial"));
+      else if (result.status === "completed") new import_obsidian16.Notice(t("ui.aim_research_saved"));
+      else if (result.status === "in-progress") new import_obsidian16.Notice(t("ui.aim_research_already_running"));
     } catch (error) {
       if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
-      if (controller.signal.aborted) new import_obsidian15.Notice(t("ui.research_stopped_existing_content_was_preserved"));
-      else new import_obsidian15.Notice(error instanceof Error ? error.message : String(error));
+      if (controller.signal.aborted) new import_obsidian16.Notice(t("ui.research_stopped_existing_content_was_preserved"));
+      else new import_obsidian16.Notice(error instanceof Error ? error.message : String(error));
       const latest = await this.plugin.repo.readMap(mapPath);
       if (this.aimViewIsCurrent(epoch, mapPath)) {
         this.map = latest;
@@ -21350,10 +21501,10 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
         this.selected = result.node.id;
         this.render();
         this.focusNode(result.node);
-        new import_obsidian15.Notice(t("ui.aim_question_ready"));
+        new import_obsidian16.Notice(t("ui.aim_question_ready"));
       } else if (result.outcome) {
         const outcome = result.outcome;
-        if (outcome.status === "partial") new import_obsidian15.Notice(t("ui.aim_research_partial"));
+        if (outcome.status === "partial") new import_obsidian16.Notice(t("ui.aim_research_partial"));
         else if (outcome.status === "waiting-user") {
           const question = (_e = this.map) == null ? void 0 : _e.nodes.find((item) => item.id === outcome.questionNodeId);
           if (question) {
@@ -21361,15 +21512,15 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
             this.render();
             this.focusNode(question);
           }
-          new import_obsidian15.Notice(t("ui.aim_waiting_user"));
-        } else if (outcome.status === "completed") new import_obsidian15.Notice(t("ui.aim_research_saved"));
-        else if (outcome.status === "in-progress") new import_obsidian15.Notice(t("ui.aim_research_already_running"));
-        else new import_obsidian15.Notice(t("ui.aim_research_result_stale"));
-      } else new import_obsidian15.Notice(t("ui.aim_no_question_needed"));
+          new import_obsidian16.Notice(t("ui.aim_waiting_user"));
+        } else if (outcome.status === "completed") new import_obsidian16.Notice(t("ui.aim_research_saved"));
+        else if (outcome.status === "in-progress") new import_obsidian16.Notice(t("ui.aim_research_already_running"));
+        else new import_obsidian16.Notice(t("ui.aim_research_result_stale"));
+      } else new import_obsidian16.Notice(t("ui.aim_no_question_needed"));
     } catch (error) {
       if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
-      if (controller.signal.aborted) new import_obsidian15.Notice(t("ui.research_stopped_existing_content_was_preserved"));
-      else new import_obsidian15.Notice(error instanceof Error ? error.message : String(error));
+      if (controller.signal.aborted) new import_obsidian16.Notice(t("ui.research_stopped_existing_content_was_preserved"));
+      else new import_obsidian16.Notice(error instanceof Error ? error.message : String(error));
     } finally {
       if (this.aimController === controller) {
         this.aimBusy = false;
@@ -21408,15 +21559,15 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
           this.render();
           this.focusNode(question);
         }
-        new import_obsidian15.Notice(t("ui.aim_waiting_user"));
-      } else if (result.status === "partial") new import_obsidian15.Notice(t("ui.aim_research_partial"));
-      else if (result.status === "completed") new import_obsidian15.Notice(t("ui.aim_research_saved"));
-      else if (result.status === "in-progress") new import_obsidian15.Notice(t("ui.aim_research_already_running"));
-      else new import_obsidian15.Notice(t("ui.aim_research_result_stale"));
+        new import_obsidian16.Notice(t("ui.aim_waiting_user"));
+      } else if (result.status === "partial") new import_obsidian16.Notice(t("ui.aim_research_partial"));
+      else if (result.status === "completed") new import_obsidian16.Notice(t("ui.aim_research_saved"));
+      else if (result.status === "in-progress") new import_obsidian16.Notice(t("ui.aim_research_already_running"));
+      else new import_obsidian16.Notice(t("ui.aim_research_result_stale"));
     } catch (error) {
       if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
-      if (controller.signal.aborted) new import_obsidian15.Notice(t("ui.research_stopped_existing_content_was_preserved"));
-      else new import_obsidian15.Notice(error instanceof Error ? error.message : String(error));
+      if (controller.signal.aborted) new import_obsidian16.Notice(t("ui.research_stopped_existing_content_was_preserved"));
+      else new import_obsidian16.Notice(error instanceof Error ? error.message : String(error));
     } finally {
       if (this.aimController === controller) {
         this.aimBusy = false;
@@ -21448,13 +21599,13 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
       if (!isCurrent()) return;
       if (result.status === "waiting-user") {
         this.selected = result.questionNodeId;
-        new import_obsidian15.Notice(t("ui.aim_waiting_user"));
-      } else if (result.status === "partial") new import_obsidian15.Notice(t("ui.aim_research_partial"));
-      else if (result.status === "completed") new import_obsidian15.Notice(t("ui.aim_research_saved"));
-      else if (result.status === "in-progress") new import_obsidian15.Notice(t("ui.aim_research_already_running"));
+        new import_obsidian16.Notice(t("ui.aim_waiting_user"));
+      } else if (result.status === "partial") new import_obsidian16.Notice(t("ui.aim_research_partial"));
+      else if (result.status === "completed") new import_obsidian16.Notice(t("ui.aim_research_saved"));
+      else if (result.status === "in-progress") new import_obsidian16.Notice(t("ui.aim_research_already_running"));
     } catch (error) {
       if (!isCurrent()) return;
-      new import_obsidian15.Notice(
+      new import_obsidian16.Notice(
         controller.signal.aborted ? t("ui.research_stopped_existing_content_was_preserved") : error instanceof Error ? error.message : String(error)
       );
     } finally {
@@ -21468,7 +21619,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
             }
           }
         } catch (error) {
-          if (isCurrent()) new import_obsidian15.Notice(error instanceof Error ? error.message : String(error));
+          if (isCurrent()) new import_obsidian16.Notice(error instanceof Error ? error.message : String(error));
         } finally {
           if (this.aimController === controller) {
             this.aimBusy = false;
@@ -21501,7 +21652,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
         const current = (_a2 = this.map) == null ? void 0 : _a2.nodes.find((item) => item.id === node.id);
         if (current) this.openAimAnswer(current);
       }).catch((error) => {
-        if (this.aimViewIsCurrent(epoch, mapPath)) new import_obsidian15.Notice(error instanceof Error ? error.message : String(error));
+        if (this.aimViewIsCurrent(epoch, mapPath)) new import_obsidian16.Notice(error instanceof Error ? error.message : String(error));
       });
       return;
     }
@@ -21531,16 +21682,16 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
               this.render();
               this.focusNode(question);
             }
-            new import_obsidian15.Notice(t("ui.aim_waiting_user"));
-          } else if (result.status === "partial") new import_obsidian15.Notice(t("ui.aim_research_partial"));
-          else if (result.status === "completed") new import_obsidian15.Notice(t("ui.aim_research_saved"));
-          else if (result.status === "in-progress") new import_obsidian15.Notice(t("ui.aim_research_already_running"));
-          else new import_obsidian15.Notice(t("ui.aim_research_result_stale"));
+            new import_obsidian16.Notice(t("ui.aim_waiting_user"));
+          } else if (result.status === "partial") new import_obsidian16.Notice(t("ui.aim_research_partial"));
+          else if (result.status === "completed") new import_obsidian16.Notice(t("ui.aim_research_saved"));
+          else if (result.status === "in-progress") new import_obsidian16.Notice(t("ui.aim_research_already_running"));
+          else new import_obsidian16.Notice(t("ui.aim_research_result_stale"));
         } catch (error) {
           if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) throw error;
           this.aimAnswerRequestIds.set(node.id, input.requestId);
-          if (controller.signal.aborted) new import_obsidian15.Notice(t("ui.research_stopped_existing_content_was_preserved"));
-          else new import_obsidian15.Notice(error instanceof Error ? error.message : String(error));
+          if (controller.signal.aborted) new import_obsidian16.Notice(t("ui.research_stopped_existing_content_was_preserved"));
+          else new import_obsidian16.Notice(error instanceof Error ? error.message : String(error));
           throw error;
         } finally {
           if (this.aimController === controller) {
@@ -22227,7 +22378,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
     this.updateHistoryButtons();
   }
   openDetails(node) {
-    void this.plugin.openDetails(this.plugin.repo.file(node.path)).catch((error) => new import_obsidian15.Notice(error instanceof Error ? error.message : String(error)));
+    void this.plugin.openDetails(this.plugin.repo.file(node.path)).catch((error) => new import_obsidian16.Notice(error instanceof Error ? error.message : String(error)));
   }
   async travel(redo) {
     const action = redo ? this.history.redo() : this.history.undo();
@@ -22258,7 +22409,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
     var _a;
     if (this.builtIn) return;
     if (!this.path || !this.map || this.closed) return;
-    if (!(this.app.vault.getAbstractFileByPath(this.path) instanceof import_obsidian15.TFile)) {
+    if (!(this.app.vault.getAbstractFileByPath(this.path) instanceof import_obsidian16.TFile)) {
       this.map = null;
       this.path = "";
       this.history.clear();
@@ -22323,7 +22474,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
   renameCurrentMap() {
     if (!this.map) return;
     if (this.aimActiveForPath(this.path)) {
-      new import_obsidian15.Notice(t("ui.aim_research_already_running"));
+      new import_obsidian16.Notice(t("ui.aim_research_already_running"));
       return;
     }
     new NameModal(
@@ -22333,11 +22484,11 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
       (title) => this.enqueue(async () => {
         if (!this.map) return;
         if (this.aimActiveForPath(this.path)) {
-          new import_obsidian15.Notice(t("ui.aim_research_already_running"));
+          new import_obsidian16.Notice(t("ui.aim_research_already_running"));
           return;
         }
         if (!this.path.startsWith(`${this.plugin.settings.topicsFolder}/`)) {
-          new import_obsidian15.Notice(t("ui.migrate_old_data_before_renaming_this_topic"));
+          new import_obsidian16.Notice(t("ui.migrate_old_data_before_renaming_this_topic"));
           return;
         }
         const before = clone(this.map), beforeRoot = this.plugin.repo.topicRoot(this.path);
@@ -22420,7 +22571,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
     const deleted = this.deletedMap;
     if (!deleted || deleted.deleted) return;
     const file = this.app.vault.getAbstractFileByPath(deleted.path);
-    if (!(file instanceof import_obsidian15.TFile) || await this.app.vault.read(file) !== deleted.content)
+    if (!(file instanceof import_obsidian16.TFile) || await this.app.vault.read(file) !== deleted.content)
       throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
     await this.app.fileManager.trashFile(file);
     deleted.deleted = true;
@@ -22846,6 +22997,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
       if (!this.plugin.settings.models.trim())
         this.button(actions, t("ui.check_codex"), () => this.enqueue(() => this.plugin.recheckCodex()));
     }
+    if (!this.builtIn && !this.map.aim) this.renderMultiResearchStatus(this.contentEl);
     const tools = this.contentEl.createDiv("vam-map-tools");
     if (!this.builtIn) {
       const aimMode = !!this.map.aim;
@@ -22913,31 +23065,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
     const shown = visibleNodes(this.map.nodes);
     if (this.selected && !shown.some((node) => node.id === this.selected)) this.selected = null;
     this.multiSelected = new Set([...this.multiSelected].filter((id) => shown.some((node) => node.id === id)));
-    if (this.integrationMode) {
-      const selection = workspace.createDiv("vam-selection-bar");
-      const names2 = [...this.multiSelected].map((id) => {
-        var _a2;
-        return (_a2 = this.notes.get(id)) == null ? void 0 : _a2.title;
-      }).filter(Boolean);
-      selection.createSpan({
-        text: this.multiSelected.size ? t("ui.selected_0_1_2", this.multiSelected.size, names2.slice(0, 2).join("\u3001"), names2.length > 2 ? "\u2026" : "") : t("ui.prompt_select_topics")
-      });
-      this.button(
-        selection,
-        t("ui.clear"),
-        () => {
-          this.multiSelected.clear();
-          this.render();
-        },
-        !this.multiSelected.size
-      );
-      this.button(selection, t("ui.remove"), () => this.confirmRemoveSelected(), !this.multiSelected.size);
-      this.button(selection, t("ui.move_to"), () => this.chooseSelectedParent(false), !this.multiSelected.size);
-      this.button(selection, t("ui.copy_to"), () => this.chooseSelectedParent(true), !this.multiSelected.size);
-      this.button(selection, t("ui.synthesize"), () => this.integrateSelected(), this.multiSelected.size < 2).addClass(
-        "mod-cta"
-      );
-    }
+    if (this.integrationMode) this.renderSelectionBar(workspace);
     for (const node of shown) this.renderNode(node);
     if (!this.map.nodes.length) {
       const emptyMap = this.viewportEl.createDiv("vam-empty");
@@ -23353,7 +23481,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
     preview.createEl("strong", { text: note.title });
     const content = preview.createDiv("vam-hover-markdown");
     const path = (_d = (_c = (_b = this.map) == null ? void 0 : _b.nodes.find((node) => node.id === card.dataset.nodeId)) == null ? void 0 : _c.path) != null ? _d : "";
-    void import_obsidian15.MarkdownRenderer.render(this.app, note.preview || t("ui.no_preview_content_yet"), content, path, this);
+    void import_obsidian16.MarkdownRenderer.render(this.app, note.preview || t("ui.no_preview_content_yet"), content, path, this);
     const host = workspace.getBoundingClientRect(), rect = card.getBoundingClientRect();
     const availableWidth = Math.max(180, host.width - 24);
     const width = Math.min(size.max, Math.max(Math.min(size.min, availableWidth), availableWidth));
@@ -23405,7 +23533,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
         const map = await this.plugin.repo.readMap(topic.mapPath);
         const files = map.nodes.map((node) => {
           const file = this.app.vault.getAbstractFileByPath(node.path);
-          if (!(file instanceof import_obsidian15.TFile) || file.extension.toLowerCase() !== "md")
+          if (!(file instanceof import_obsidian16.TFile) || file.extension.toLowerCase() !== "md")
             throw new Error(t("ui.reference_map_note_unavailable", node.path));
           return file;
         });
@@ -23492,7 +23620,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
   }
   openNodePanel(node, mode) {
     const render = (content, close) => this.renderInspector(content, node, mode, close);
-    new class extends import_obsidian15.Modal {
+    new class extends import_obsidian16.Modal {
       onOpen() {
         this.modalEl.addClass("vam-topic-modal");
         render(this.contentEl, () => this.close());
@@ -23516,7 +23644,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
         panel.createEl("h3", { text: note.title });
         panel.createEl("p", { text: note.summary, cls: "vam-sample-summary" });
         const detail = panel.createDiv("vam-sample-detail");
-        void import_obsidian15.MarkdownRenderer.render(this.app, note.detail, detail, "", this);
+        void import_obsidian16.MarkdownRenderer.render(this.app, note.detail, detail, "", this);
         if (note.sourcePaths.length) {
           const sources2 = panel.createDiv("vam-reference-sources");
           sources2.createEl("strong", { text: t("ui.source_topics") });
@@ -23539,16 +23667,16 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
             const file = this.app.vault.getAbstractFileByPath(path);
             this.button(
               sources2,
-              (_f = sourceNote == null ? void 0 : sourceNote.title) != null ? _f : file instanceof import_obsidian15.TFile ? file.basename : t("ui.0_moved", (_e = path.split("/").at(-1)) == null ? void 0 : _e.replace(/\.md$/, "")),
+              (_f = sourceNote == null ? void 0 : sourceNote.title) != null ? _f : file instanceof import_obsidian16.TFile ? file.basename : t("ui.0_moved", (_e = path.split("/").at(-1)) == null ? void 0 : _e.replace(/\.md$/, "")),
               () => {
                 close == null ? void 0 : close();
                 if (sourceNode) {
                   this.selected = sourceNode.id;
                   this.render();
                   this.focusNode(sourceNode);
-                } else if (file instanceof import_obsidian15.TFile) void this.plugin.openDetails(file);
+                } else if (file instanceof import_obsidian16.TFile) void this.plugin.openDetails(file);
               },
-              !(sourceNode || file instanceof import_obsidian15.TFile)
+              !(sourceNode || file instanceof import_obsidian16.TFile)
             );
           }
         }
@@ -23744,7 +23872,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
   async previewMigration() {
     const plan = await this.plugin.repo.legacyMigrationPlan();
     if (!plan.maps.length && !plan.orphanPaths.length) {
-      new import_obsidian15.Notice(t("ui.no_old_data_to_migrate"));
+      new import_obsidian16.Notice(t("ui.no_old_data_to_migrate"));
       return;
     }
     const noteCount = plan.maps.reduce((sum, item) => sum + item.notePaths.length, 0);
@@ -23762,7 +23890,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
           this.history.clear();
           if (next) await this.openMapInMutation(next);
           else this.render();
-          new import_obsidian15.Notice(t("ui.old_data_was_migrated_into_topic_folders"));
+          new import_obsidian16.Notice(t("ui.old_data_was_migrated_into_topic_folders"));
         })
       }
     ]).open();
@@ -23770,7 +23898,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
   async repairMissingTopic() {
     const broken = await this.plugin.repo.brokenTopics();
     if (!broken.length) {
-      new import_obsidian15.Notice(t("ui.no_topics_with_a_missing_map_md"));
+      new import_obsidian16.Notice(t("ui.no_topics_with_a_missing_map_md"));
       return;
     }
     new ChoiceModal(
@@ -23826,7 +23954,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
       this.plugin.settings.cliModel
     );
     if (!this.path.startsWith(`${this.plugin.settings.topicsFolder}/`)) {
-      new import_obsidian15.Notice(t("ui.use_migrate_old_data_to_convert_this_map_first"));
+      new import_obsidian16.Notice(t("ui.use_migrate_old_data_to_convert_this_map_first"));
       return;
     }
     const node = await this.plugin.repo.createNote(
@@ -23887,7 +24015,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
         this.plugin.pendingResearchOptions.delete(parent.path);
         const message = t("ui.ai_proposed_duplicate_first_level_names_generate_the_proposa");
         if (failed) failed(message);
-        else new import_obsidian15.Notice(message);
+        else new import_obsidian16.Notice(message);
         return;
       }
       if (!found) {
@@ -24041,7 +24169,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
       if (!direct && suggestions.length === 0) {
         const message = result.detail.trim() || t("ui.ai_does_not_recommend_decomposition_or_did_not_propose_3_to");
         if (failed) failed(message);
-        else new import_obsidian15.Notice(message);
+        else new import_obsidian16.Notice(message);
         return;
       }
       if (direct) {
@@ -24124,7 +24252,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
         );
         if (direct) (_t = this.plugin.quickExpandFailures) == null ? void 0 : _t.set(parent.path, message);
         if (failed) failed(message, !partial);
-        else new import_obsidian15.Notice(message);
+        else new import_obsidian16.Notice(message);
       }
     } finally {
       releaseTask();
@@ -24150,7 +24278,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
     if (new Set(roots).size !== roots.length) {
       this.plugin.pendingSuggestions.delete(parent.path);
       this.plugin.pendingResearchOptions.delete(parent.path);
-      new import_obsidian15.Notice(t("ui.ai_proposed_duplicate_first_level_names_generate_the_proposa"));
+      new import_obsidian16.Notice(t("ui.ai_proposed_duplicate_first_level_names_generate_the_proposa"));
       return;
     }
     new ChildProposalModal(this.app, suggestions.slice(0, 15), (items) => {
@@ -24177,7 +24305,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
         if ((researchOptions == null ? void 0 : researchOptions.shallowResearch) && createdNodes.length)
           await this.startShallowResearch(parent, createdNodes, researchOptions);
       })().catch((error) => {
-        new import_obsidian15.Notice(error instanceof Error ? error.message : String(error));
+        new import_obsidian16.Notice(error instanceof Error ? error.message : String(error));
       });
     }).open();
   }
@@ -24243,39 +24371,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
     return this.plugin.expansionCoordinator.start(
       parent.path,
       children,
-      async (child, batchSignal, accepted) => {
-        var _a;
-        const note = await this.plugin.repo.readNote(child.path);
-        let started = false;
-        let failure;
-        const handle = await this.runAgent(
-          child,
-          void 0,
-          (message) => {
-            failure = message;
-          },
-          {
-            rules: "",
-            referenceGroups: [],
-            signal: batchSignal,
-            outputLanguage: pendingOptions.outputLanguage,
-            researchMode: pendingOptions.researchMode,
-            researchDepth: pendingOptions.researchDepth,
-            visualMode: pendingOptions.visualMode,
-            task: [
-              note.prompt || researchTopicTask((_a = pendingOptions.outputLanguage) != null ? _a : this.plugin.settings.language, note.title),
-              pendingOptions.requirements
-            ].filter(Boolean).join("\n\n")
-          },
-          () => {
-            started = true;
-            accepted();
-          }
-        );
-        if (!started || !handle) throw new Error(failure != null ? failure : t("ui.shallow_research_did_not_start"));
-        await handle.finished;
-        if (failure && !batchSignal.aborted) throw new Error(failure);
-      },
+      (child, batchSignal, accepted) => this.researchChild(child, batchSignal, accepted, pendingOptions),
       () => {
         const state = this.plugin.expansionBatches.get(parent.path);
         if ((state == null ? void 0 : state.status) === "running") this.plugin.quickExpandPending.add(parent.path);
@@ -24284,6 +24380,184 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
       },
       signal
     );
+  }
+  async researchChild(child, batchSignal, accepted, choices) {
+    var _a;
+    const note = await this.plugin.repo.readNote(child.path);
+    let started = false;
+    let failure;
+    const handle = await this.runAgent(
+      child,
+      void 0,
+      (message) => {
+        failure = message;
+      },
+      {
+        rules: "",
+        referenceGroups: [],
+        signal: batchSignal,
+        outputLanguage: choices.outputLanguage,
+        researchMode: choices.researchMode,
+        researchDepth: choices.researchDepth,
+        visualMode: choices.visualMode,
+        task: [
+          note.prompt || researchTopicTask((_a = choices.outputLanguage) != null ? _a : this.plugin.settings.language, note.title),
+          choices.requirements
+        ].filter(Boolean).join("\n\n")
+      },
+      () => {
+        started = true;
+        accepted();
+      }
+    );
+    if (!started || !handle) throw new Error(failure != null ? failure : t("ui.shallow_research_did_not_start"));
+    await handle.finished;
+    if (failure && !batchSignal.aborted) throw new Error(failure);
+  }
+  multiResearchKey() {
+    return `multi-research:${this.path}`;
+  }
+  openMultiResearch() {
+    if (!this.map || this.map.aim || !this.multiSelected.size) return;
+    const names2 = [...this.multiSelected].map((id) => {
+      var _a;
+      return (_a = this.notes.get(id)) == null ? void 0 : _a.title;
+    }).filter((name) => !!name);
+    new MultiResearchModal(
+      this.app,
+      names2,
+      this.modelChoices(),
+      (request) => void this.startMultiResearch(request)
+    ).open();
+  }
+  stopMultiResearch() {
+    this.plugin.expansionCoordinator.stop(this.multiResearchKey());
+  }
+  async startMultiResearch(request) {
+    var _a;
+    if (!this.map || this.map.aim || this.builtIn || !this.multiSelected.size) return;
+    const key2 = this.multiResearchKey();
+    if (this.plugin.expansionCoordinator.isRunning(key2)) {
+      new import_obsidian16.Notice(t("ui.multi_research_already_running"));
+      return;
+    }
+    const selected = [...this.multiSelected].map((id) => this.map.nodes.find((node) => node.id === id)).filter((node) => !!node);
+    try {
+      await this.plugin.confirmAiUsage((_a = request.model) != null ? _a : this.plugin.settings.cliModel, async () => {
+        if (this.plugin.expansionCoordinator.isRunning(key2)) {
+          new import_obsidian16.Notice(t("ui.multi_research_already_running"));
+          return;
+        }
+        const busy = (node) => this.plugin.running.has(node.path) || this.plugin.quickExpandPending.has(node.path) || this.plugin.activeTasks.has(node.path);
+        const nodes = selected.filter((node) => !busy(node));
+        if (!nodes.length) {
+          new import_obsidian16.Notice(t("ui.multi_research_all_skipped"));
+          return;
+        }
+        if (nodes.length < selected.length) new import_obsidian16.Notice(t("ui.multi_research_skipped", selected.length - nodes.length));
+        if (request.model)
+          for (const node of nodes)
+            await this.plugin.repo.updateNote(node.path, { model: request.model, modelSource: "manual" });
+        this.integrationMode = false;
+        this.multiSelected.clear();
+        if (!this.closed) this.render();
+        const choices = {
+          researchMode: request.researchMode,
+          researchDepth: request.researchDepth,
+          visualMode: "off",
+          referenceGroups: [],
+          requirements: request.requirements
+        };
+        let reported = false;
+        let succeeded = 0;
+        let skipped = 0;
+        try {
+          await this.plugin.expansionCoordinator.start(
+            key2,
+            nodes,
+            async (child, batchSignal, accepted) => {
+              if (busy(child)) {
+                skipped++;
+                accepted();
+                return;
+              }
+              await this.researchChild(child, batchSignal, accepted, choices);
+              if (!batchSignal.aborted) succeeded++;
+            },
+            () => {
+              const state = this.plugin.expansionBatches.get(key2);
+              if (state && state.status !== "running" && !reported) {
+                reported = true;
+                new import_obsidian16.Notice(
+                  t(
+                    state.status === "stopped" ? "ui.multi_research_stopped" : "ui.multi_research_finished",
+                    succeeded,
+                    state.total,
+                    state.failures.length,
+                    skipped
+                  )
+                );
+              }
+              if (!this.closed) this.render();
+            }
+          );
+        } catch (e) {
+        }
+      });
+    } catch (error) {
+      new import_obsidian16.Notice(errorMessage(error));
+    }
+  }
+  /** Status bar under the toolbar (same place and look as the AIM status bar) with progress and Stop. */
+  renderMultiResearchStatus(parent) {
+    var _a, _b;
+    const state = this.plugin.expansionBatches.get(this.multiResearchKey());
+    if ((state == null ? void 0 : state.status) !== "running") return;
+    const bar = parent.createDiv("vam-aim-statusbar vam-multi-research-statusbar is-active");
+    bar.setAttr("aria-live", "polite");
+    const current = state.currentPath ? (_a = this.map) == null ? void 0 : _a.nodes.find((node) => node.path === state.currentPath) : void 0;
+    const title = current ? (_b = this.notes.get(current.id)) == null ? void 0 : _b.title : void 0;
+    bar.createSpan({ cls: "vam-aim-status-title", text: t("ui.multi_research") });
+    bar.createSpan({
+      cls: "vam-aim-status-value vam-status-running",
+      text: `${t("ui.multi_research_progress", state.completed, state.total)}${title ? ` \xB7 ${title}` : ""}`
+    });
+    this.button(bar, t("ui.stop_research"), () => this.stopMultiResearch());
+  }
+  renderSelectionBar(workspace) {
+    var _a, _b;
+    const selection = workspace.createDiv("vam-selection-bar");
+    const names2 = [...this.multiSelected].map((id) => {
+      var _a2;
+      return (_a2 = this.notes.get(id)) == null ? void 0 : _a2.title;
+    }).filter(Boolean);
+    selection.createSpan({
+      text: this.multiSelected.size ? t("ui.selected_0_1_2", this.multiSelected.size, names2.slice(0, 2).join("\u3001"), names2.length > 2 ? "\u2026" : "") : t("ui.prompt_select_topics")
+    });
+    this.button(
+      selection,
+      t("ui.clear"),
+      () => {
+        this.multiSelected.clear();
+        this.render();
+      },
+      !this.multiSelected.size
+    );
+    this.button(selection, t("ui.remove"), () => this.confirmRemoveSelected(), !this.multiSelected.size);
+    this.button(selection, t("ui.move_to"), () => this.chooseSelectedParent(false), !this.multiSelected.size);
+    this.button(selection, t("ui.copy_to"), () => this.chooseSelectedParent(true), !this.multiSelected.size);
+    this.button(selection, t("ui.synthesize"), () => this.integrateSelected(), this.multiSelected.size < 2).addClass(
+      "mod-cta"
+    );
+    if (!((_a = this.map) == null ? void 0 : _a.aim)) {
+      const running = ((_b = this.plugin.expansionBatches.get(this.multiResearchKey())) == null ? void 0 : _b.status) === "running";
+      this.button(
+        selection,
+        t("ui.multi_research"),
+        () => this.openMultiResearch(),
+        !this.multiSelected.size || running
+      );
+    }
   }
   researchChoices(options) {
     const { signal: _signal, onProgress: _onProgress, ...choices } = options;
@@ -24341,7 +24615,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
     const paths = [...section2.matchAll(/\[\[([^\]|#]+)(?:[|#][^\]]*)?\]\]/g)].map((match) => {
       var _a, _b;
       const link = match[1], direct = link.endsWith(".md") ? link : `${link}.md`;
-      if (this.app.vault.getAbstractFileByPath(direct) instanceof import_obsidian15.TFile) return direct;
+      if (this.app.vault.getAbstractFileByPath(direct) instanceof import_obsidian16.TFile) return direct;
       return (_b = (_a = this.app.metadataCache.getFirstLinkpathDest(link, ownerPath)) == null ? void 0 : _a.path) != null ? _b : direct;
     });
     return [...new Set(paths)];
@@ -24435,7 +24709,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
     if (!children.length && !((_a = options == null ? void 0 : options.referenceGroups) == null ? void 0 : _a.some((group) => group.documents.length))) {
       const message = t("ui.choose_another_note_source_first");
       if (failed) failed(message);
-      else new import_obsidian15.Notice(message);
+      else new import_obsidian16.Notice(message);
       return;
     }
     if (!confirmed) {
@@ -24496,7 +24770,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
     if (!children.length && !selectedSources.some((group) => group.documents.length)) {
       const message = t("ui.the_selected_sources_contain_no_markdown_content_to_synthesi");
       if (failed) failed(message);
-      else new import_obsidian15.Notice(message);
+      else new import_obsidian16.Notice(message);
       return;
     }
     const language2 = this.plugin.settings.language;
@@ -24575,7 +24849,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
         );
         await this.hydrate();
         this.render();
-        new import_obsidian15.Notice(t("ui.subtopic_synthesis_was_saved_to_current_understanding_and_ma"));
+        new import_obsidian16.Notice(t("ui.subtopic_synthesis_was_saved_to_current_understanding_and_ma"));
       });
       if (drafted) drafted(result, save);
       else
@@ -24586,13 +24860,13 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
       if (((_i = options == null ? void 0 : options.signal) == null ? void 0 : _i.aborted) || error instanceof Error && error.name === "AbortError") {
         await this.plugin.repo.updateNote(node.path, { status: note.status });
         if (failed) failed(t("ui.research_stopped_existing_content_was_preserved"));
-        else new import_obsidian15.Notice(t("ui.research_stopped_existing_content_was_preserved"));
+        else new import_obsidian16.Notice(t("ui.research_stopped_existing_content_was_preserved"));
       } else {
         console.error("Visual Agent Map child integration", error);
         await this.plugin.repo.updateNote(node.path, { status: "error" });
         const message = this.plugin.recordFailure(t("log.child_integration_failed"), error);
         if (failed) failed(message);
-        else new import_obsidian15.Notice(message);
+        else new import_obsidian16.Notice(message);
       }
     } finally {
       this.plugin.running.delete(node.path);
@@ -24685,7 +24959,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
             outcome = "found";
             task.state = "directions";
             task.directions = items;
-            new import_obsidian15.Notice(t("ui.choose_synthesis_direction"));
+            new import_obsidian16.Notice(t("ui.choose_synthesis_direction"));
           },
           () => {
           },
@@ -24703,7 +24977,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
             task.state = "draft";
             task.draft = result;
             task.save = save;
-            new import_obsidian15.Notice(t("ui.review_synthesis_draft"));
+            new import_obsidian16.Notice(t("ui.review_synthesis_draft"));
           },
           fail,
           markAccepted
@@ -24747,7 +25021,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
           node,
           { ...task.options },
           task.step === "directions" ? null : task.direction,
-          (message) => new import_obsidian15.Notice(message),
+          (message) => new import_obsidian16.Notice(message),
           () => {
           }
         );
@@ -24756,7 +25030,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian15.Ite
   }
   integrateSelected() {
     if (!this.map || this.multiSelected.size < 2) {
-      new import_obsidian15.Notice(t("ui.select_at_least_two_topics"));
+      new import_obsidian16.Notice(t("ui.select_at_least_two_topics"));
       return;
     }
     const nodes = [...this.multiSelected].map((id) => this.map.nodes.find((node) => node.id === id)).filter((node) => !!node);
@@ -24990,7 +25264,7 @@ ${note.detail.trim()}` : "",
           this.focusNode(integrated);
         } catch (e) {
           this.render();
-          new import_obsidian15.Notice(t("ui.synthesis_saved_refresh_failed"));
+          new import_obsidian16.Notice(t("ui.synthesis_saved_refresh_failed"));
         }
         return;
       }
@@ -25194,7 +25468,7 @@ ${note.detail.trim()}` : "",
     if (!((_a = overrides == null ? void 0 : overrides.task) != null ? _a : note.prompt)) {
       const message = t("ui.enter_a_question_or_task_for_ai_first");
       if (failed) failed(message);
-      else new import_obsidian15.Notice(message);
+      else new import_obsidian16.Notice(message);
       return null;
     }
     if (this.plugin.running.has(node.path)) {
@@ -25291,7 +25565,7 @@ ${note.detail.trim()}` : "",
             );
           if (stale) {
             if (failed) failed(t("ui.the_topic_changed_so_the_outdated_ai_result_was_not_saved"));
-            else new import_obsidian15.Notice(t("ui.the_topic_changed_so_the_outdated_ai_result_was_not_saved"));
+            else new import_obsidian16.Notice(t("ui.the_topic_changed_so_the_outdated_ai_result_was_not_saved"));
           }
           return;
         }
@@ -25321,7 +25595,7 @@ ${note.detail.trim()}` : "",
             await ((_e = (_d = this.plugin.pendingSuggestions).flush) == null ? void 0 : _e.call(_d));
           } catch (error) {
             const message = this.plugin.recordFailure(t("log.expansion_suggestions_save_failed"), error);
-            new import_obsidian15.Notice(message);
+            new import_obsidian16.Notice(message);
           }
         }
         done == null ? void 0 : done(result);
@@ -25332,7 +25606,7 @@ ${note.detail.trim()}` : "",
         if (controller.signal.aborted || error instanceof Error && error.name === "AbortError") {
           await this.plugin.repo.updateNote(node.path, { status: note.status });
           if (failed) failed(t("ui.research_stopped_existing_content_was_preserved"));
-          else new import_obsidian15.Notice(t("ui.research_stopped_existing_content_was_preserved"));
+          else new import_obsidian16.Notice(t("ui.research_stopped_existing_content_was_preserved"));
           return;
         }
         console.error("Visual Agent Map AI task", error);
@@ -25344,7 +25618,7 @@ ${note.detail.trim()}` : "",
         await this.plugin.repo.updateNote(node.path, { status: "error" });
         const message = this.plugin.recordFailure(t("log.ai_task_failed"), error);
         if (failed) failed(message);
-        else new import_obsidian15.Notice(message);
+        else new import_obsidian16.Notice(message);
       })
     ).finally(() => {
       var _a2;
@@ -25368,13 +25642,13 @@ ${note.detail.trim()}` : "",
 };
 
 // main.ts
-var import_obsidian21 = require("obsidian");
+var import_obsidian22 = require("obsidian");
 
 // ui/settings-tab.ts
-var import_obsidian16 = require("obsidian");
+var import_obsidian17 = require("obsidian");
 var CODEX_INSTALL_URL = "https://developers.openai.com/codex/cli/";
 var CLAUDE_INSTALL_URL = "https://code.claude.com/docs/en/setup";
-var CodexSetupModal = class extends import_obsidian16.Modal {
+var CodexSetupModal = class extends import_obsidian17.Modal {
   constructor(app, executable, recheck) {
     super(app);
     this.executable = executable;
@@ -25398,7 +25672,7 @@ var CodexSetupModal = class extends import_obsidian16.Modal {
       cls: "vam-setup-note"
     });
     this.contentEl.createEl("p", { text: t("ui.path_currently_checked_0", this.executable), cls: "vam-setup-path" });
-    new import_obsidian16.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.do_this_later")).onClick(() => this.close())).addButton(
+    new import_obsidian17.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.do_this_later")).onClick(() => this.close())).addButton(
       (button) => button.setButtonText(t("ui.i_ve_finished_check_again")).setCta().onClick(() => {
         this.close();
         this.recheck();
@@ -25406,7 +25680,7 @@ var CodexSetupModal = class extends import_obsidian16.Modal {
     );
   }
 };
-var AiUsageModal = class extends import_obsidian16.Modal {
+var AiUsageModal = class extends import_obsidian17.Modal {
   constructor(app, provider, resolve) {
     super(app);
     this.provider = provider;
@@ -25427,7 +25701,7 @@ var AiUsageModal = class extends import_obsidian16.Modal {
       this.close();
       this.resolve(confirmed);
     };
-    new import_obsidian16.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => finish(false))).addButton(
+    new import_obsidian17.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => finish(false))).addButton(
       (button) => button.setButtonText(t("ui.understand_and_run")).setCta().onClick(() => finish(true))
     );
   }
@@ -25435,7 +25709,7 @@ var AiUsageModal = class extends import_obsidian16.Modal {
     if (!this.settled) this.resolve(false);
   }
 };
-var ClaudeSetupModal = class extends import_obsidian16.Modal {
+var ClaudeSetupModal = class extends import_obsidian17.Modal {
   constructor(app, executable, url, recheck) {
     super(app);
     this.executable = executable;
@@ -25455,7 +25729,7 @@ var ClaudeSetupModal = class extends import_obsidian16.Modal {
     });
     steps.createEl("li", { text: t("ui.return_to_vam_and_check_the_cli_path_again") });
     this.contentEl.createEl("p", { text: t("ui.path_currently_checked_0", this.executable), cls: "vam-setup-path" });
-    new import_obsidian16.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.do_this_later")).onClick(() => this.close())).addButton(
+    new import_obsidian17.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.do_this_later")).onClick(() => this.close())).addButton(
       (button) => button.setButtonText(t("ui.check_again")).setCta().onClick(() => {
         this.close();
         this.recheck();
@@ -25463,7 +25737,7 @@ var ClaudeSetupModal = class extends import_obsidian16.Modal {
     );
   }
 };
-var VisualAgentMapSettingTab = class extends import_obsidian16.PluginSettingTab {
+var VisualAgentMapSettingTab = class extends import_obsidian17.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
@@ -25682,9 +25956,9 @@ var VisualAgentMapSettingTab = class extends import_obsidian16.PluginSettingTab 
 var import_node_path2 = require("node:path");
 
 // ui/outline-view.ts
-var import_obsidian17 = require("obsidian");
+var import_obsidian18 = require("obsidian");
 var OUTLINE_VIEW_TYPE = "visual-agent-map-outline";
-var OutlineView = class extends import_obsidian17.ItemView {
+var OutlineView = class extends import_obsidian18.ItemView {
   constructor(leaf, openNote) {
     super(leaf);
     this.openNote = openNote;
@@ -25807,7 +26081,7 @@ var OutlineView = class extends import_obsidian17.ItemView {
       if (item.status === "error") button.createEl("small", { text: t("ui.coffee_segment_incomplete") });
       button.addEventListener("click", () => {
         var _a2;
-        if (!((_a2 = this.locateCoffee) == null ? void 0 : _a2.call(this, item.id))) new import_obsidian17.Notice(t("ui.coffee_segment_no_content"));
+        if (!((_a2 = this.locateCoffee) == null ? void 0 : _a2.call(this, item.id))) new import_obsidian18.Notice(t("ui.coffee_segment_no_content"));
       });
     });
   }
@@ -27992,7 +28266,7 @@ ${artifact.sourceSnapshot || "No insight snapshot was supplied."}`
 }
 
 // experiences/coffee-tables/handoff-modal.ts
-var import_obsidian18 = require("obsidian");
+var import_obsidian19 = require("obsidian");
 var import_node_crypto13 = require("node:crypto");
 
 // core/thinking-artifact.ts
@@ -28120,7 +28394,7 @@ async function openCoffeeResearchHandoff(plugin, store, displayed, path, insight
   modal.open();
   return modal;
 }
-var CoffeeHandoffModal = class extends import_obsidian18.Modal {
+var CoffeeHandoffModal = class extends import_obsidian19.Modal {
   constructor(app, plugin, store, snapshot, source) {
     super(app);
     this.plugin = plugin;
@@ -28388,10 +28662,10 @@ ${error.message}`
 };
 
 // experiences/markdown-context/selection-ai.ts
-var import_obsidian20 = require("obsidian");
+var import_obsidian21 = require("obsidian");
 
 // experiences/markdown-context/action-plan.ts
-var import_obsidian19 = require("obsidian");
+var import_obsidian20 = require("obsidian");
 function parsePlan(raw) {
   var _a, _b;
   const value = JSON.parse(
@@ -28417,7 +28691,7 @@ async function searchImages(query, signal) {
     iiprop: "url|mime",
     iiurlwidth: "640"
   });
-  const response = await (0, import_obsidian19.requestUrl)({
+  const response = await (0, import_obsidian20.requestUrl)({
     url: `https://commons.wikimedia.org/w/api.php?${params}`,
     headers: { Accept: "application/json" }
   });
@@ -28570,7 +28844,7 @@ function positionAt(source, offset) {
   const line = before.split("\n").length - 1;
   return { line, ch: before.length - (before.lastIndexOf("\n") + 1) };
 }
-var MarkdownSelectionAi = class extends import_obsidian20.Component {
+var MarkdownSelectionAi = class extends import_obsidian21.Component {
   constructor(app, options) {
     super();
     this.app = app;
@@ -28602,8 +28876,8 @@ var MarkdownSelectionAi = class extends import_obsidian20.Component {
       var _a, _b, _c;
       const image = event.target;
       if (!(image instanceof HTMLImageElement) || !this.options.autoOpen()) return;
-      const view = this.app.workspace.getLeavesOfType("markdown").map((leaf) => leaf.view).find((candidate) => candidate instanceof import_obsidian20.MarkdownView && candidate.containerEl.contains(image));
-      if (!(view instanceof import_obsidian20.MarkdownView) || !view.file) return;
+      const view = this.app.workspace.getLeavesOfType("markdown").map((leaf) => leaf.view).find((candidate) => candidate instanceof import_obsidian21.MarkdownView && candidate.containerEl.contains(image));
+      if (!(view instanceof import_obsidian21.MarkdownView) || !view.file) return;
       const markdown = view.editor.getValue();
       const embeddedPath = (_a = image.closest(".internal-embed")) == null ? void 0 : _a.getAttribute("src");
       const tokens2 = [...markdown.matchAll(/!\[\[[^\]\n]+\]\]|!\[[^\]\n]*\]\([^\n]+?\)/g)].filter((match) => {
@@ -28667,9 +28941,9 @@ var MarkdownSelectionAi = class extends import_obsidian20.Component {
     const selection = window.getSelection();
     const range = selection && !selection.isCollapsed && selection.rangeCount ? selection.getRangeAt(0) : null;
     const view = this.app.workspace.getLeavesOfType("markdown").map((leaf) => leaf.view).find(
-      (candidate) => candidate instanceof import_obsidian20.MarkdownView && candidate.file && (range ? candidate.containerEl.contains(range.commonAncestorContainer) : candidate.getMode() === "source" && candidate.containerEl.contains(document.activeElement))
+      (candidate) => candidate instanceof import_obsidian21.MarkdownView && candidate.file && (range ? candidate.containerEl.contains(range.commonAncestorContainer) : candidate.getMode() === "source" && candidate.containerEl.contains(document.activeElement))
     );
-    if (!(view instanceof import_obsidian20.MarkdownView) || !view.file) {
+    if (!(view instanceof import_obsidian21.MarkdownView) || !view.file) {
       this.hideLauncher();
       return;
     }
@@ -28711,7 +28985,7 @@ var MarkdownSelectionAi = class extends import_obsidian20.Component {
     }
     this.updateLauncher(this.options.autoOpen());
     if (!this.snapshot) {
-      const view = this.app.workspace.getActiveViewOfType(import_obsidian20.MarkdownView);
+      const view = this.app.workspace.getActiveViewOfType(import_obsidian21.MarkdownView);
       if (!(view == null ? void 0 : view.file) || view.getMode() !== "source") return false;
       const markdown = view.editor.getValue();
       const matchAt = view.editor.posToOffset(view.editor.getCursor());
@@ -28738,7 +29012,7 @@ var MarkdownSelectionAi = class extends import_obsidian20.Component {
     this.panel.open();
   }
 };
-var SelectionAiPanel = class extends import_obsidian20.Component {
+var SelectionAiPanel = class extends import_obsidian21.Component {
   constructor(app, snapshot, model, language2, run) {
     super();
     this.app = app;
@@ -28865,7 +29139,7 @@ var SelectionAiPanel = class extends import_obsidian20.Component {
         })
       )
     );
-    new import_obsidian20.Setting(footer).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => this.close())).addButton(
+    new import_obsidian21.Setting(footer).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => this.close())).addButton(
       (button) => button.setButtonText(t("ui.context_ai_run_custom")).setCta().onClick(() => {
         const prompt = instruction.value.trim();
         if (!prompt) {
@@ -29022,9 +29296,9 @@ var SelectionAiPanel = class extends import_obsidian20.Component {
             result
           ))
             throw new Error(t("ui.context_ai_invalid_diagram"));
-          this.previewChild = new import_obsidian20.Component();
+          this.previewChild = new import_obsidian21.Component();
           this.previewChild.load();
-          await import_obsidian20.MarkdownRenderer.render(this.app, result, this.preview, this.snapshot.path, this.previewChild);
+          await import_obsidian21.MarkdownRenderer.render(this.app, result, this.preview, this.snapshot.path, this.previewChild);
         }
       }
       if (controller.signal.aborted || !this.modalEl.isConnected) return;
@@ -29136,12 +29410,12 @@ ${value}
       editor.replaceRange(addition, end, end);
     }
     this.close();
-    new import_obsidian20.Notice(action === "replace" ? t("ui.context_ai_replaced") : t("ui.context_ai_appended"));
+    new import_obsidian21.Notice(action === "replace" ? t("ui.context_ai_replaced") : t("ui.context_ai_appended"));
   }
 };
 
 // main.ts
-var VisualAgentMapPlugin = class extends import_obsidian21.Plugin {
+var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
   constructor() {
     super(...arguments);
     __publicField(this, "settings", { ...DEFAULT_SETTINGS });
@@ -29222,7 +29496,7 @@ var VisualAgentMapPlugin = class extends import_obsidian21.Plugin {
       const message = error instanceof Error ? error.message : String(error);
       this.logs.appendLog("error", t("log.operation_failed_0", message));
       console.error("Visual Agent Map", error);
-      new import_obsidian21.Notice(message);
+      new import_obsidian22.Notice(message);
     });
     return result;
   }
@@ -29296,7 +29570,7 @@ var VisualAgentMapPlugin = class extends import_obsidian21.Plugin {
   }
   async onload() {
     var _a, _b;
-    announceTestOverrides((message) => new import_obsidian21.Notice(message, 0));
+    announceTestOverrides((message) => new import_obsidian22.Notice(message, 0));
     const saved = await this.loadData();
     const legacy = saved;
     this.settings = {
@@ -29343,7 +29617,7 @@ var VisualAgentMapPlugin = class extends import_obsidian21.Plugin {
       checkCallback: (checking) => markdownSelectionAi.openForSelection(checking)
     });
     this.logs.appendLog("info", t("log.plugin_loaded_0", this.manifest.version || "unknown"));
-    if (this.app.vault.adapter instanceof import_obsidian21.FileSystemAdapter && this.manifest.dir) {
+    if (this.app.vault.adapter instanceof import_obsidian22.FileSystemAdapter && this.manifest.dir) {
       const pluginDirectory = (0, import_node_path2.join)(this.app.vault.adapter.getBasePath(), this.manifest.dir);
       this.exchanges = new AiExchangeLog(
         (0, import_node_path2.join)(pluginDirectory, "ai-exchanges.json"),
@@ -29385,7 +29659,7 @@ var VisualAgentMapPlugin = class extends import_obsidian21.Plugin {
         const count = await this.repo.normalizeGeneratedNoteFilenames();
         this.settings.structureVersion = 2;
         await this.saveSettings();
-        if (count) new import_obsidian21.Notice(t("ui.synced_0_subtopic_filenames_with_their_names", count));
+        if (count) new import_obsidian22.Notice(t("ui.synced_0_subtopic_filenames_with_their_names", count));
       }
     });
     this.ready = initialize;
@@ -29415,7 +29689,7 @@ var VisualAgentMapPlugin = class extends import_obsidian21.Plugin {
       (session, summariesOnly) => this.coffeeStorage.save(session, summariesOnly)
     );
     const openCoffee = () => {
-      void this.activateCoffeeTables().catch((error) => new import_obsidian21.Notice(String(error)));
+      void this.activateCoffeeTables().catch((error) => new import_obsidian22.Notice(String(error)));
     };
     const coffeeRibbonIcon = this.addRibbonIcon("coffee", `Open ${COFFEE_TABLES_NAME}`, openCoffee);
     this.addCommand({ id: "open-coffee-tables", name: `Open ${COFFEE_TABLES_NAME}`, callback: openCoffee });
@@ -29426,32 +29700,32 @@ var VisualAgentMapPlugin = class extends import_obsidian21.Plugin {
         try {
           await this.openDetails(this.repo.file(path));
         } catch (error) {
-          new import_obsidian21.Notice(error instanceof Error ? error.message : String(error));
+          new import_obsidian22.Notice(error instanceof Error ? error.message : String(error));
         }
       })
     );
     this.ribbonIcon = this.addRibbonIcon("brain-circuit", t("ui.open_map"), () => {
-      void this.activateView().catch((error) => new import_obsidian21.Notice(String(error)));
+      void this.activateView().catch((error) => new import_obsidian22.Notice(String(error)));
     });
     const mapRibbonIcon = this.ribbonIcon;
     this.app.workspace.onLayoutReady(() => this.register(groupRibbonIcons(mapRibbonIcon, coffeeRibbonIcon)));
     this.addLocalizedCommand("open-map", "ui.open_map", () => {
-      void this.activateView().catch((error) => new import_obsidian21.Notice(String(error)));
+      void this.activateView().catch((error) => new import_obsidian22.Notice(String(error)));
     });
     this.addLocalizedCommand(AIM_CREATE_MAP_COMMAND_ID, "ui.aim_create_map", () => {
       void this.activateView().then(() => {
         var _a2;
         return (_a2 = this.views()[0]) == null ? void 0 : _a2.openAimStart();
-      }).catch((error) => new import_obsidian21.Notice(String(error)));
+      }).catch((error) => new import_obsidian22.Notice(String(error)));
     });
     this.addLocalizedCommand("import-outline", "ui.outline_import", () => {
       void this.activateView().then(() => {
         var _a2;
         return (_a2 = this.views()[0]) == null ? void 0 : _a2.openOutlineImport();
-      }).catch((error) => new import_obsidian21.Notice(String(error)));
+      }).catch((error) => new import_obsidian22.Notice(String(error)));
     });
     this.addLocalizedCommand("open-topic-outline", "ui.open_topic_outline", () => {
-      void this.activateOutline().catch((error) => new import_obsidian21.Notice(String(error)));
+      void this.activateOutline().catch((error) => new import_obsidian22.Notice(String(error)));
     });
     this.addLocalizedCommand("rebuild-references", "ui.refresh_vam_data", () => {
       this.runMutation(() => this.fullRebuild());
@@ -29459,13 +29733,13 @@ var VisualAgentMapPlugin = class extends import_obsidian21.Plugin {
     this.addLocalizedCommand("normalize-note-filenames", "ui.sync_topic_names_and_filenames", () => {
       this.runMutation(async () => {
         const count = await this.repo.normalizeGeneratedNoteFilenames();
-        new import_obsidian21.Notice(count ? t("ui.synced_0_topic_filenames", count) : t("ui.topic_filenames_are_up_to_date"));
+        new import_obsidian22.Notice(count ? t("ui.synced_0_topic_filenames", count) : t("ui.topic_filenames_are_up_to_date"));
       });
     });
     this.addLocalizedCommand("repair-note-presentation", "ui.repair_topic_note_display", () => {
       this.runMutation(async () => {
         await this.repo.ensureNodePresentation();
-        new import_obsidian21.Notice(t("ui.topic_note_display_repaired"));
+        new import_obsidian22.Notice(t("ui.topic_note_display_repaired"));
       });
     });
     this.addLocalizedCommand("open-built-in-sample", "ui.open_the_taiwan_travel_sample", () => {
@@ -29500,7 +29774,7 @@ var VisualAgentMapPlugin = class extends import_obsidian21.Plugin {
     this.addSettingTab(this.settingTab);
     this.registerEvent(
       this.app.workspace.on("file-menu", (menu, file) => {
-        if (file instanceof import_obsidian21.TFile && this.isMap(file))
+        if (file instanceof import_obsidian22.TFile && this.isMap(file))
           menu.addItem(
             (item) => item.setTitle(t("ui.open_as_mind_map")).setIcon("brain-circuit").onClick(() => {
               void this.activateView(file.path);
@@ -29517,9 +29791,9 @@ var VisualAgentMapPlugin = class extends import_obsidian21.Plugin {
           return;
         }
         this.syncCoffeeOutline();
-        if (!((leaf == null ? void 0 : leaf.view) instanceof import_obsidian21.MarkdownView) || !leaf.view.file || !this.isMap(leaf.view.file)) return;
+        if (!((leaf == null ? void 0 : leaf.view) instanceof import_obsidian22.MarkdownView) || !leaf.view.file || !this.isMap(leaf.view.file)) return;
         const path = leaf.view.file.path;
-        void leaf.setViewState({ type: VIEW_TYPE, state: { file: path }, active: true }).catch((error) => new import_obsidian21.Notice(error instanceof Error ? error.message : String(error)));
+        void leaf.setViewState({ type: VIEW_TYPE, state: { file: path }, active: true }).catch((error) => new import_obsidian22.Notice(error instanceof Error ? error.message : String(error)));
       })
     );
     this.registerEvent(
@@ -29547,13 +29821,13 @@ var VisualAgentMapPlugin = class extends import_obsidian21.Plugin {
     });
     this.registerEvent(
       this.app.vault.on("modify", (file) => {
-        if (!this.writing && file instanceof import_obsidian21.TFile) for (const view of this.views()) view.changed(file);
+        if (!this.writing && file instanceof import_obsidian22.TFile) for (const view of this.views()) view.changed(file);
       })
     );
     this.registerEvent(
       this.app.vault.on("delete", (file) => {
-        if (file instanceof import_obsidian21.TFile) this.scheduleExternalReconciliation(file.path);
-        if (!this.writing && file instanceof import_obsidian21.TFile) {
+        if (file instanceof import_obsidian22.TFile) this.scheduleExternalReconciliation(file.path);
+        if (!this.writing && file instanceof import_obsidian22.TFile) {
           for (const view of this.views()) view.deleted(file);
           if (file.path.startsWith(`${this.settings.mapsFolder}/`) || file.path.startsWith(`${this.settings.topicsFolder}/`) && file.name === "Map.md")
             this.runMutation(() => this.repo.rebuildDerivedData());
@@ -29562,7 +29836,7 @@ var VisualAgentMapPlugin = class extends import_obsidian21.Plugin {
     );
     this.registerEvent(
       this.app.vault.on("rename", (file, oldPath) => {
-        if (!(file instanceof import_obsidian21.TFile) || !this.repo.renameAffectsVam(file, oldPath)) return;
+        if (!(file instanceof import_obsidian22.TFile) || !this.repo.renameAffectsVam(file, oldPath)) return;
         const external = !this.writing;
         this.runMutation(async () => {
           var _a2;
@@ -29601,12 +29875,12 @@ var VisualAgentMapPlugin = class extends import_obsidian21.Plugin {
     this.settings.workspaceInitialized = true;
     await this.saveSettings();
     for (const view of this.views()) await view.refreshFromPlugin();
-    new import_obsidian21.Notice(t("ui.agent_workspace_is_ready"));
+    new import_obsidian22.Notice(t("ui.agent_workspace_is_ready"));
   }
   async fullRebuild() {
     await this.repo.rebuildDerivedData();
     for (const view of this.views()) await view.refreshFromPlugin();
-    new import_obsidian21.Notice(t("ui.vam_data_has_been_refreshed"));
+    new import_obsidian22.Notice(t("ui.vam_data_has_been_refreshed"));
   }
   connectWorkspace(root) {
     this.settings.workspaceFolder = root;
@@ -29620,7 +29894,7 @@ var VisualAgentMapPlugin = class extends import_obsidian21.Plugin {
     const candidates = known != null ? known : await this.repo.workspaceCandidates();
     this.workspaceRecoveryCandidates = [];
     if (!candidates.length) {
-      new import_obsidian21.Notice(t("ui.no_recognizable_existing_vam_workspace_was_found"));
+      new import_obsidian22.Notice(t("ui.no_recognizable_existing_vam_workspace_was_found"));
       return;
     }
     new ChoiceModal(
@@ -29634,7 +29908,7 @@ var VisualAgentMapPlugin = class extends import_obsidian21.Plugin {
           await this.saveSettings();
           await this.repo.rebuildDerivedData();
           for (const view of this.views()) await view.refreshFromPlugin();
-          new import_obsidian21.Notice(t("ui.reconnected_workspace_0", root));
+          new import_obsidian22.Notice(t("ui.reconnected_workspace_0", root));
         })
       }))
     ).open();
@@ -29708,19 +29982,19 @@ var VisualAgentMapPlugin = class extends import_obsidian21.Plugin {
     const diagnostic = this.codexDiagnostic();
     if (!diagnostic.installed) {
       if (showGuide) this.openCodexSetupGuide();
-      else new import_obsidian21.Notice(t("ui.codex_cli_was_not_found_0_set_the_codex_cli_path_in_vam_sett", diagnostic.executable));
+      else new import_obsidian22.Notice(t("ui.codex_cli_was_not_found_0_set_the_codex_cli_path_in_vam_sett", diagnostic.executable));
       return;
     }
     const state = await this.refreshModelDiscovery("codex");
-    if (state.status === "ready") new import_obsidian21.Notice(t("ui.codex_app_server_is_ready_0", diagnostic.executable));
+    if (state.status === "ready") new import_obsidian22.Notice(t("ui.codex_app_server_is_ready_0", diagnostic.executable));
     else if (state.status === "error")
-      new import_obsidian21.Notice(
+      new import_obsidian22.Notice(
         t(
           "ui.codex_app_server_check_failed_0",
           this.recordFailure(t("log.codex_recheck_failed"), (_a = state.error) != null ? _a : "unknown error")
         )
       );
-    else new import_obsidian21.Notice(t("ui.codex_cli_was_not_found_0_set_the_codex_cli_path_in_vam_sett", diagnostic.executable));
+    else new import_obsidian22.Notice(t("ui.codex_cli_was_not_found_0_set_the_codex_cli_path_in_vam_sett", diagnostic.executable));
   }
   async duplicateBuiltInSample() {
     await this.repo.ensureWorkspace();
@@ -29768,7 +30042,7 @@ var VisualAgentMapPlugin = class extends import_obsidian21.Plugin {
       await this.repo.saveMap(path, map);
       await this.repo.rebuildDerivedData(root);
       await this.saveSettings();
-      new import_obsidian21.Notice(t("ui.created_an_editable_copy_of_the_sample"));
+      new import_obsidian22.Notice(t("ui.created_an_editable_copy_of_the_sample"));
       return path;
     } catch (error) {
       if (createdRoot) {
@@ -29796,7 +30070,7 @@ var VisualAgentMapPlugin = class extends import_obsidian21.Plugin {
     return marker4 === true || marker4 === "true" || file.extension === "md" && (file.path.startsWith(`${this.settings.notesFolder}/`) || file.path.startsWith(`${this.settings.topicsFolder}/`) || file.path.startsWith(`${this.settings.inboxFolder}/`));
   }
   styleNodeLeaf(leaf) {
-    if (!((leaf == null ? void 0 : leaf.view) instanceof import_obsidian21.MarkdownView)) return;
+    if (!((leaf == null ? void 0 : leaf.view) instanceof import_obsidian22.MarkdownView)) return;
     leaf.view.containerEl.toggleClass("vam-topic-markdown", !!leaf.view.file && this.isNode(leaf.view.file));
   }
   onunload() {
@@ -29821,7 +30095,7 @@ var VisualAgentMapPlugin = class extends import_obsidian21.Plugin {
         await this.saveData(nextSettings);
       } catch (error) {
         this.recordFailure(translate(previous, "ui.language_change_save_failed"), error);
-        new import_obsidian21.Notice(translate(previous, "ui.language_change_save_failed"));
+        new import_obsidian22.Notice(translate(previous, "ui.language_change_save_failed"));
         return false;
       }
       Object.assign(this.settings, nextSettings);
@@ -29848,7 +30122,7 @@ var VisualAgentMapPlugin = class extends import_obsidian21.Plugin {
         failures.push(error);
       }
       for (const error of failures) this.recordFailure(t("ui.language_view_refresh_failed"), error);
-      new import_obsidian21.Notice(
+      new import_obsidian22.Notice(
         failures.length ? t("ui.language_change_partial_failure") : t("ui.language_changed_content_preserved")
       );
       return true;
@@ -29889,7 +30163,7 @@ var VisualAgentMapPlugin = class extends import_obsidian21.Plugin {
         this.openCodexSetupGuide();
         return false;
       }
-      new import_obsidian21.Notice(t("ui.current_model_is_unavailable"));
+      new import_obsidian22.Notice(t("ui.current_model_is_unavailable"));
     } catch (error) {
       this.logs.appendLog("warn", t("log.codex_not_ready_0", error instanceof Error ? error.message : String(error)));
     }
@@ -29907,10 +30181,10 @@ var VisualAgentMapPlugin = class extends import_obsidian21.Plugin {
     const diagnostic = this.claudeDiagnostic();
     const state = await this.refreshModelDiscovery("claude");
     if (!diagnostic.installed) {
-      new import_obsidian21.Notice(t("ui.claude_cli_was_not_found_follow_the_installation_guide_to_install_it"));
+      new import_obsidian22.Notice(t("ui.claude_cli_was_not_found_follow_the_installation_guide_to_install_it"));
       return;
     }
-    new import_obsidian21.Notice(t("ui.claude_cli_found_0", diagnostic.executable));
+    new import_obsidian22.Notice(t("ui.claude_cli_found_0", diagnostic.executable));
     if (state.status !== "ready") this.logs.appendLog("warn", `Claude model discovery status: ${state.status}`);
   }
   async confirmAiUsage(model, run) {
@@ -29932,7 +30206,7 @@ var VisualAgentMapPlugin = class extends import_obsidian21.Plugin {
       await this.repo.rebuildDerivedData();
     } catch (error) {
       console.error("Visual Agent Map reference rebuild", error);
-      new import_obsidian21.Notice(
+      new import_obsidian22.Notice(
         t("ui.map_saved_but_reference_update_failed_0", error instanceof Error ? error.message : String(error))
       );
     }
@@ -29966,7 +30240,7 @@ var VisualAgentMapPlugin = class extends import_obsidian21.Plugin {
       this.detailsLeaf = (_b = (_a = markdownLeaves.filter(
         (leaf) => {
           var _a2, _b2;
-          return leaf.getRoot() === this.app.workspace.rightSplit && leaf.view instanceof import_obsidian21.MarkdownView && !!leaf.view.file && ((_b2 = (_a2 = this.app.metadataCache.getFileCache(leaf.view.file)) == null ? void 0 : _a2.frontmatter) == null ? void 0 : _b2["agent-map-node"]) === true;
+          return leaf.getRoot() === this.app.workspace.rightSplit && leaf.view instanceof import_obsidian22.MarkdownView && !!leaf.view.file && ((_b2 = (_a2 = this.app.metadataCache.getFileCache(leaf.view.file)) == null ? void 0 : _a2.frontmatter) == null ? void 0 : _b2["agent-map-node"]) === true;
         }
       ).sort(
         (a, b) => a.view.containerEl.getBoundingClientRect().top - b.view.containerEl.getBoundingClientRect().top
@@ -29980,11 +30254,11 @@ var VisualAgentMapPlugin = class extends import_obsidian21.Plugin {
   }
   closeStaleDetails() {
     var _a, _b, _c, _d;
-    const closed = ((_a = this.detailsLeaf) == null ? void 0 : _a.view) instanceof import_obsidian21.MarkdownView && ((_b = this.detailsLeaf.view.file) == null ? void 0 : _b.path) === this.detailsPath;
+    const closed = ((_a = this.detailsLeaf) == null ? void 0 : _a.view) instanceof import_obsidian22.MarkdownView && ((_b = this.detailsLeaf.view.file) == null ? void 0 : _b.path) === this.detailsPath;
     if (closed) {
       this.detailsLeaf.detach();
       this.app.workspace.trigger("file-open", null);
-      this.app.workspace.trigger("active-leaf-change", (_d = (_c = this.app.workspace.getActiveViewOfType(import_obsidian21.View)) == null ? void 0 : _c.leaf) != null ? _d : null);
+      this.app.workspace.trigger("active-leaf-change", (_d = (_c = this.app.workspace.getActiveViewOfType(import_obsidian22.View)) == null ? void 0 : _c.leaf) != null ? _d : null);
     }
     this.detailsLeaf = null;
     this.detailsPath = null;
@@ -30000,7 +30274,7 @@ var VisualAgentMapPlugin = class extends import_obsidian21.Plugin {
     if (leaf.view instanceof CoffeeTablesView) this.syncCoffeeOutline(leaf.view);
   }
   async runCoffeeRequest(request) {
-    if (!(this.app.vault.adapter instanceof import_obsidian21.FileSystemAdapter) || !this.manifest.dir)
+    if (!(this.app.vault.adapter instanceof import_obsidian22.FileSystemAdapter) || !this.manifest.dir)
       throw new Error("Coffee Tables requires the desktop runtime");
     const { session, signal, prompt } = request;
     const directory = (0, import_node_path2.join)(this.app.vault.adapter.getBasePath(), this.manifest.dir);
@@ -30078,12 +30352,12 @@ var VisualAgentMapPlugin = class extends import_obsidian21.Plugin {
     }
     let bytes;
     const embeddedPath = (_b = (_a = image.closest(".internal-embed")) == null ? void 0 : _a.getAttribute("src")) == null ? void 0 : _b.split("#")[0];
-    const view = this.app.workspace.getLeavesOfType("markdown").map((leaf) => leaf.view).find((view2) => view2 instanceof import_obsidian21.MarkdownView && view2.containerEl.contains(image));
+    const view = this.app.workspace.getLeavesOfType("markdown").map((leaf) => leaf.view).find((view2) => view2 instanceof import_obsidian22.MarkdownView && view2.containerEl.contains(image));
     const file = embeddedPath ? this.app.metadataCache.getFirstLinkpathDest(
       embeddedPath,
-      view instanceof import_obsidian21.MarkdownView ? (_d = (_c = view.file) == null ? void 0 : _c.path) != null ? _d : "" : ""
+      view instanceof import_obsidian22.MarkdownView ? (_d = (_c = view.file) == null ? void 0 : _c.path) != null ? _d : "" : ""
     ) : null;
-    if (file instanceof import_obsidian21.TFile) bytes = await this.app.vault.readBinary(file);
+    if (file instanceof import_obsidian22.TFile) bytes = await this.app.vault.readBinary(file);
     else throw new Error(t("ui.context_ai_image_unavailable"));
     if (signal.aborted) throw new Error(t("ui.ai_task_cancelled"));
     if (bytes.byteLength > 10 * 1024 * 1024) throw new Error(t("ui.context_ai_image_unavailable"));
@@ -30162,7 +30436,7 @@ var VisualAgentMapPlugin = class extends import_obsidian21.Plugin {
       if (!this.coffeeStorage) throw new Error("Coffee storage is not ready");
       await openCoffeeResearchHandoff(this, this.coffeeStorage, session, sourcePath, insightId);
     } catch (error) {
-      new import_obsidian21.Notice(error instanceof Error ? error.message : String(error));
+      new import_obsidian22.Notice(error instanceof Error ? error.message : String(error));
     }
   }
   async openResearchMap(path) {
@@ -30190,7 +30464,7 @@ var VisualAgentMapPlugin = class extends import_obsidian21.Plugin {
   }
   async loadCodexModels() {
     const adapter = this.app.vault.adapter;
-    if (!(adapter instanceof import_obsidian21.FileSystemAdapter) || !this.manifest.dir)
+    if (!(adapter instanceof import_obsidian22.FileSystemAdapter) || !this.manifest.dir)
       throw new Error("Codex model discovery requires desktop Obsidian");
     const pluginDirectory = (0, import_node_path2.join)(adapter.getBasePath(), this.manifest.dir);
     const models = await this.runtime(pluginDirectory).listModels();
@@ -30209,7 +30483,7 @@ var VisualAgentMapPlugin = class extends import_obsidian21.Plugin {
   }
   pluginDirectory() {
     const adapter = this.app.vault.adapter;
-    if (!(adapter instanceof import_obsidian21.FileSystemAdapter)) throw new Error(t("ui.cli_mode_requires_desktop_obsidian"));
+    if (!(adapter instanceof import_obsidian22.FileSystemAdapter)) throw new Error(t("ui.cli_mode_requires_desktop_obsidian"));
     if (!this.manifest.dir) throw new Error(t("ui.plugin_folder_not_found"));
     return (0, import_node_path2.join)(adapter.getBasePath(), this.manifest.dir);
   }

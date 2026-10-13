@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { test, integrationTest, load, core, node, map, withExpansionCoordinator, obsidian, DEFAULT_SETTINGS, fixture, topicNote, deferred, until } = require('../support.cjs');
+const { test, integrationTest, load, core, node, map, plain, withExpansionCoordinator, obsidian, DEFAULT_SETTINGS, fixture, topicNote, deferred, until } = require('../support.cjs');
 test('a running expansion batch cannot be overwritten for the same parent', async () => {
   const { ShallowExpansionCoordinator } = load('experiences/visual-map/expansion-batch.ts');
   const active = new Map(), states = new Map(), coordinator = new ShallowExpansionCoordinator(active, states);
@@ -1078,4 +1078,200 @@ integrationTest('a provider failure before acceptance keeps a failed synthesis w
   assert.equal(task.state, 'failed'); assert.match(task.progress, /Codex is not signed in/); assert.equal(failures.length, 1);
   assert.equal(f.plugin.activeTasks.size, 0); assert.equal(f.plugin.running.size, 0);
   assert.equal((await f.repo.readNote(f.parent.path)).status, 'completed');
+});
+async function multiResearchHarness(titles, overrides = {}) {
+  const { repo, app } = fixture('en'), notices = [], runs = [], finish = new Map();
+  const mapPath = 'Agent Workspace/Topics/map-a/Map.md', mapDoc = { id: 'map-a', title: 'map-a', version: 1, nodes: [], viewport: { x: 0, y: 0, zoom: 1 } };
+  await repo.ensureTopicFolders('Agent Workspace/Topics/map-a'); await app.vault.create(mapPath, core.serializeMap(mapDoc));
+  const nodes = [];
+  for (const title of titles) { const created = await repo.createNote(title, 'model-a', mapDoc, mapPath, 'workspace'); mapDoc.nodes.push(created); nodes.push(created); }
+  await repo.saveMap(mapPath, mapDoc);
+  const confirms = [];
+  const plugin = withExpansionCoordinator({ repo, settings: { ...DEFAULT_SETTINGS, language: 'en', cliModel: 'gpt-6-luna' }, running: new Set(), pendingSuggestions: new Map(), pendingResearchOptions: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), confirmAiUsage: async (model, run) => { confirms.push(model); await run(); return true; }, ...overrides });
+  const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Notice: class { constructor(message) { notices.push(message); } } } });
+  const view = new VisualAgentMapView({ app }, plugin); view.path = mapPath; view.map = mapDoc; view.contentEl = { querySelector: () => null }; view.render = () => {}; view.hydrate = async () => {};
+  view.runAgent = async (child, _done, failed, options, accepted) => {
+    const note = await repo.readNote(child.path);
+    runs.push({ title: note.title, options }); plugin.running.add(child.path); accepted();
+    const finished = new Promise(resolve => { finish.set(note.title, (message) => { plugin.running.delete(child.path); if (message) failed(message); resolve(); }); options.signal.addEventListener('abort', () => { plugin.running.delete(child.path); resolve(); }, { once: true }); });
+    return { finished };
+  };
+  const request = { researchMode: 'research', researchDepth: 'fast', requirements: '' };
+  return { repo, view, plugin, nodes, notices, runs, finish, confirms, request, key: `multi-research:${mapPath}` };
+}
+integrationTest('multi research runs selected topics in the background with the chosen options and a map-level key', async () => {
+  const h = await multiResearchHarness(['A', 'B']);
+  await h.repo.updateNote(h.nodes[1].path, { prompt: 'Custom prompt for B' });
+  h.view.multiSelected = new Set(h.nodes.map(n => n.id));
+  await h.view.startMultiResearch({ researchMode: 'local', researchDepth: 'deep', requirements: 'Focus on 2025' });
+  await until(() => h.runs.length === 2);
+  assert.deepEqual(plain(h.confirms), ['gpt-6-luna']);
+  const [a, b] = h.runs;
+  assert.match(a.options.task, /A/); assert.match(a.options.task, /Focus on 2025$/);
+  assert.match(b.options.task, /^Custom prompt for B\n\nFocus on 2025$/);
+  for (const run of h.runs) { assert.equal(run.options.researchMode, 'local'); assert.equal(run.options.researchDepth, 'deep'); assert.equal(run.options.visualMode, 'off'); assert.deepEqual(plain(run.options.referenceGroups), []); }
+  assert.equal(h.plugin.expansionBatches.get(h.key).total, 2);
+  assert.ok(!h.nodes.some(n => h.plugin.expansionBatches.has(n.path)), 'no per-node batch badge');
+  h.finish.get('A')(); h.finish.get('B')();
+  await until(() => h.plugin.expansionBatches.get(h.key).status === 'completed');
+  assert.equal(h.plugin.activeTasks.has(h.key), false);
+});
+integrationTest('multi research without requirements uses the topic prompt alone and web search maps to research', async () => {
+  const h = await multiResearchHarness(['Solo']);
+  h.view.multiSelected = new Set([h.nodes[0].id]);
+  await h.view.startMultiResearch(h.request);
+  await until(() => h.runs.length === 1);
+  assert.doesNotMatch(h.runs[0].options.task, /\n\n$/); assert.equal(h.runs[0].options.researchMode, 'research');
+  h.finish.get('Solo')(); await until(() => h.plugin.expansionBatches.get(h.key).status === 'completed');
+});
+integrationTest('multi research runs at most three topics at once and stop aborts every running one', async () => {
+  const h = await multiResearchHarness(['A', 'B', 'C', 'D', 'E']);
+  h.view.multiSelected = new Set(h.nodes.map(n => n.id));
+  await h.view.startMultiResearch(h.request);
+  await until(() => h.runs.length === 3); await new Promise(r => setTimeout(r, 20));
+  assert.equal(h.runs.length, 3);
+  h.finish.get('A')(); await until(() => h.runs.length === 4);
+  assert.equal(h.plugin.expansionBatches.get(h.key).completed, 1);
+  h.view.stopMultiResearch();
+  await until(() => h.plugin.expansionBatches.get(h.key).status === 'stopped');
+  assert.equal(h.runs.length, 4); assert.equal(h.plugin.running.size, 0);
+  assert.ok(h.runs.every(run => run.options.signal.aborted));
+});
+integrationTest('multi research skips topics already running AI and tells the owner how many', async () => {
+  const h = await multiResearchHarness(['A', 'B', 'C', 'D']);
+  h.plugin.running.add(h.nodes[0].path); h.plugin.quickExpandPending.add(h.nodes[1].path); h.plugin.activeTasks.set(h.nodes[2].path, new AbortController());
+  h.view.multiSelected = new Set(h.nodes.map(n => n.id));
+  await h.view.startMultiResearch(h.request);
+  await until(() => h.runs.length === 1);
+  assert.deepEqual(plain(h.runs.map(r => r.title)), ['D']);
+  assert.equal(h.plugin.expansionBatches.get(h.key).total, 1);
+  assert.ok(h.notices.some(m => /Skipped 3 /.test(m)), h.notices.join('|'));
+  h.finish.get('D')(); await until(() => h.plugin.expansionBatches.get(h.key).status === 'completed');
+});
+integrationTest('multi research starts no batch when every selected topic is already running', async () => {
+  const h = await multiResearchHarness(['A', 'B']);
+  for (const n of h.nodes) h.plugin.running.add(n.path);
+  h.view.multiSelected = new Set(h.nodes.map(n => n.id));
+  await h.view.startMultiResearch(h.request);
+  assert.equal(h.plugin.expansionBatches.has(h.key), false); assert.equal(h.runs.length, 0);
+  assert.equal(h.notices.length, 1); assert.match(h.notices[0], /already running/);
+});
+integrationTest('a second multi research batch on the same map is refused while one is running', async () => {
+  const h = await multiResearchHarness(['A', 'B', 'C']);
+  h.view.multiSelected = new Set([h.nodes[0].id]);
+  await h.view.startMultiResearch(h.request); await until(() => h.runs.length === 1);
+  h.view.multiSelected = new Set([h.nodes[1].id, h.nodes[2].id]);
+  h.confirms.length = 0;
+  await h.view.startMultiResearch(h.request);
+  assert.equal(h.runs.length, 1); assert.equal(h.confirms.length, 0);
+  assert.ok(h.notices.some(m => /already running on this map/.test(m)));
+  assert.equal(h.plugin.expansionBatches.get(h.key).total, 1);
+  h.finish.get('A')(); await until(() => h.plugin.expansionBatches.get(h.key).status === 'completed');
+});
+integrationTest('a failing topic is recorded and does not stop the others', async () => {
+  const h = await multiResearchHarness(['A', 'B', 'C']);
+  h.view.multiSelected = new Set(h.nodes.map(n => n.id));
+  await h.view.startMultiResearch(h.request);
+  await until(() => h.runs.length === 3);
+  h.finish.get('B')('model exploded'); h.finish.get('A')(); h.finish.get('C')();
+  await until(() => h.plugin.expansionBatches.get(h.key).status === 'completed');
+  const state = h.plugin.expansionBatches.get(h.key);
+  assert.equal(state.completed, 3); assert.equal(state.failures.length, 1); assert.match(state.failures[0], /model exploded/);
+  assert.ok(h.notices.some(m => /1 failed/.test(m)), h.notices.join('|'));
+});
+integrationTest('multi research is not offered on AIM maps and needs at least one topic', async () => {
+  const h = await multiResearchHarness(['A']);
+  h.view.multiSelected = new Set(); await h.view.startMultiResearch(h.request);
+  assert.equal(h.plugin.expansionBatches.size, 0);
+  h.view.map.aim = { version: 1, branches: [], runs: [], pendingCommits: [] }; h.view.multiSelected = new Set([h.nodes[0].id]);
+  await h.view.startMultiResearch(h.request);
+  assert.equal(h.plugin.expansionBatches.size, 0); assert.equal(h.runs.length, 0);
+});
+integrationTest('selection bar shows Research; starting leaves selection mode and the top status bar shows progress and Stop', async () => {
+  const h = await multiResearchHarness(['A', 'B']);
+  const element = (tag, o = {}) => ({ tag, text: o.text ?? '', cls: o.cls ?? '', disabled: false, children: [], listeners: {},
+    createDiv(v) { const c = element('div', { cls: typeof v === 'string' ? v : v?.cls }); this.children.push(c); return c; },
+    createEl(n, v = {}) { const c = element(n, v); this.children.push(c); return c; }, createSpan(v = {}) { const c = element('span', v); this.children.push(c); return c; },
+    addEventListener(n, fn) { this.listeners[n] = fn; }, addClass(n) { this.cls = `${this.cls} ${n}`.trim(); }, setAttr() {} });
+  const all = root => [root, ...root.children.flatMap(all)];
+  const bar = (view = h.view) => { const root = element('workspace'); view.renderSelectionBar(root); return all(root); };
+  const toolbar = () => { const root = element('content'); h.view.renderMultiResearchStatus(root); return all(root); };
+  h.view.notes = new Map(h.nodes.map(n => [n.id, { title: n.id }]));
+  let items = bar(); const research = () => items.find(i => i.tag === 'button' && i.text === 'Research');
+  items = bar(); assert.ok(research()); assert.equal(research().disabled, true);
+  h.view.multiSelected = new Set([h.nodes[0].id]); items = bar(); assert.equal(research().disabled, false);
+  h.view.map.aim = {}; items = bar(); assert.equal(research(), undefined); delete h.view.map.aim;
+  assert.equal(toolbar().length, 1);
+  h.view.integrationMode = true;
+  await h.view.startMultiResearch(h.request); await until(() => h.runs.length === 1);
+  assert.equal(h.view.integrationMode, false); assert.equal(h.view.multiSelected.size, 0);
+  h.view.multiSelected = new Set([h.nodes[1].id]); items = bar(); assert.equal(research().disabled, true);
+  assert.equal(items.find(i => i.text === 'Researching 0/1'), undefined);
+  items = toolbar();
+  assert.ok(items.find(i => i.tag === 'span' && i.text === `Researching 0/1 · ${h.nodes[0].id}`), items.map(i => i.text).join('|'));
+  assert.ok(items.find(i => i.tag === 'div' && /vam-aim-statusbar/.test(i.cls)));
+  const stop = items.find(i => i.tag === 'button' && i.text === 'Stop research'); assert.ok(stop);
+  stop.listeners.click({ stopPropagation() {} });
+  await until(() => h.plugin.expansionBatches.get(h.key).status === 'stopped');
+  assert.equal(toolbar().length, 1);
+});
+integrationTest('multi research with a chosen model saves it on each started topic and confirms usage for it', async () => {
+  const h = await multiResearchHarness(['A', 'B', 'C']);
+  h.plugin.running.add(h.nodes[2].path);
+  h.view.multiSelected = new Set(h.nodes.map(n => n.id));
+  await h.view.startMultiResearch({ ...h.request, model: 'model-b' });
+  await until(() => h.runs.length === 2);
+  assert.deepEqual(plain(h.confirms), ['model-b']);
+  for (const node of h.nodes.slice(0, 2)) {
+    const note = await h.repo.readNote(node.path);
+    assert.equal(note.model, 'model-b'); assert.equal(note.modelSource, 'manual');
+  }
+  assert.equal((await h.repo.readNote(h.nodes[2].path)).model, 'model-a');
+  h.finish.get('A')(); h.finish.get('B')();
+});
+integrationTest('multi research without a chosen model keeps each topic model', async () => {
+  const h = await multiResearchHarness(['A']);
+  h.view.multiSelected = new Set([h.nodes[0].id]);
+  await h.view.startMultiResearch(h.request); await until(() => h.runs.length === 1);
+  const note = await h.repo.readNote(h.nodes[0].path);
+  assert.equal(note.model, 'model-a'); assert.equal(note.modelSource, 'workspace');
+  h.finish.get('A')();
+});
+integrationTest('multi research keeps selection mode when nothing starts', async () => {
+  const h = await multiResearchHarness(['A']);
+  h.plugin.running.add(h.nodes[0].path);
+  h.view.integrationMode = true; h.view.multiSelected = new Set([h.nodes[0].id]);
+  await h.view.startMultiResearch(h.request);
+  assert.equal(h.view.integrationMode, true); assert.equal(h.view.multiSelected.size, 1);
+});
+integrationTest('multi research: stop before any topic is accepted gives exactly one summary Notice and no launch error', async () => {
+  const h = await multiResearchHarness(['A']);
+  h.view.runAgent = async () => { h.view.stopMultiResearch(); return undefined; };
+  h.view.multiSelected = new Set([h.nodes[0].id]);
+  await h.view.startMultiResearch(h.request);
+  await until(() => h.plugin.expansionBatches.get(h.key).status !== 'running');
+  assert.equal(h.notices.length, 1, h.notices.join('|'));
+  assert.equal(h.notices[0], 'Research stopped: 0 of 1 succeeded, 0 failed, 0 skipped.');
+});
+integrationTest('multi research: a topic that became busy before dispatch is skipped, not failed', async () => {
+  const h = await multiResearchHarness(['A', 'B', 'C', 'D']);
+  h.view.multiSelected = new Set(h.nodes.map(n => n.id));
+  await h.view.startMultiResearch(h.request);
+  await until(() => h.runs.length === 3);
+  h.plugin.running.add(h.nodes[3].path);
+  h.finish.get('A')(); h.finish.get('B')(); h.finish.get('C')();
+  await until(() => h.plugin.expansionBatches.get(h.key).status === 'completed');
+  assert.equal(h.runs.length, 3);
+  const state = h.plugin.expansionBatches.get(h.key);
+  assert.equal(state.failures.length, 0);
+  assert.equal(h.notices.at(-1), 'Research finished: 3 of 4 succeeded, 0 failed, 1 skipped.');
+});
+integrationTest('multi research summary counts only successful topics as succeeded', async () => {
+  const h = await multiResearchHarness(['A', 'B']);
+  h.view.multiSelected = new Set(h.nodes.map(n => n.id));
+  await h.view.startMultiResearch(h.request);
+  await until(() => h.runs.length === 2);
+  h.finish.get('A')('boom'); h.finish.get('B')();
+  await until(() => h.plugin.expansionBatches.get(h.key).status === 'completed');
+  assert.equal(h.notices.at(-1), 'Research finished: 1 of 2 succeeded, 1 failed, 0 skipped.');
 });

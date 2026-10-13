@@ -1,11 +1,17 @@
 import { App, FuzzySuggestModal, Modal, Notice, TFile } from "obsidian";
 import { t } from "../../i18n";
 import { parseOutline, type OutlineIssue, type OutlineNode } from "./outline-import";
+import type { ResearchDepth } from "../../ai/types";
+import { modelField, researchDepthField, type ModelChoices } from "./research-fields";
 
 export interface OutlineImportRequest {
   nodes: OutlineNode[];
   source: string | null;
   shallowResearch: boolean;
+  /** Shallow research depth (fast when omitted). */
+  researchDepth?: ResearchDepth;
+  /** Model for the new topics and their shallow research; undefined uses the workspace default. */
+  model?: string;
 }
 
 export class OutlineFileModal extends FuzzySuggestModal<TFile> {
@@ -37,10 +43,14 @@ export class OutlineImportModal extends Modal {
   private sourceText = "";
   private nodes: OutlineNode[] = [];
   private submitting = false;
+  private depth: () => ResearchDepth = () => "fast";
+  private model: () => string | undefined = () => undefined;
+  private unwatch?: () => void;
 
   constructor(
     app: App,
-    private create: (request: OutlineImportRequest) => Promise<void>
+    private create: (request: OutlineImportRequest) => Promise<void>,
+    private models: ModelChoices = { list: () => [], watch: () => () => {} }
   ) {
     super(app);
   }
@@ -67,9 +77,22 @@ export class OutlineImportModal extends Modal {
     const shallowLabel = this.contentEl.createEl("label", { cls: "vam-field vam-next-toggle" });
     this.shallow = shallowLabel.createEl("input", { type: "checkbox" });
     shallowLabel.createSpan({ text: t("ui.outline_import_shallow") });
+    const researchOptions = this.contentEl.createDiv("vam-outline-research-options");
+    this.depth = researchDepthField(researchOptions);
+    const model = modelField(researchOptions, this.models, t("ui.workspace_default"));
+    this.model = model.value;
+    this.unwatch = model.dispose;
+    const showOptions = (): void => researchOptions.toggleClass("is-hidden", !this.shallow.checked);
+    this.shallow.addEventListener("change", showOptions);
+    showOptions();
     this.createButton = this.contentEl.createEl("button", { text: t("ui.outline_import_create"), cls: "mod-cta" });
     this.createButton.addEventListener("click", () => void this.submit());
     this.refresh();
+  }
+
+  onClose(): void {
+    this.unwatch?.();
+    this.unwatch = undefined;
   }
 
   async loadFile(file: TFile): Promise<void> {
@@ -121,7 +144,15 @@ export class OutlineImportModal extends Modal {
     this.submitting = true;
     this.createButton.disabled = true;
     try {
-      await this.create({ nodes: this.nodes, source: this.source, shallowResearch: this.shallow.checked });
+      const shallowResearch = this.shallow.checked;
+      const model = shallowResearch ? this.model() : undefined;
+      await this.create({
+        nodes: this.nodes,
+        source: this.source,
+        shallowResearch,
+        ...(shallowResearch ? { researchDepth: this.depth() } : {}),
+        ...(model ? { model } : {})
+      });
       this.close();
     } catch (error) {
       new Notice(error instanceof Error ? error.message : String(error));

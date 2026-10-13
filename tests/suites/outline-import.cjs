@@ -181,7 +181,7 @@ function modalHarness(clipboardFails = false) {
     createDiv(value) { const child = element('div', { cls: typeof value === 'string' ? value : value?.cls }); this.children.push(child); return child; },
     createEl(name, value = {}) { const child = element(name, value); this.children.push(child); return child; },
     createSpan(value = {}) { const child = element('span', value); this.children.push(child); return child; },
-    setText(value) { this.text = value; }, empty() { this.children = []; }, setAttr(name, value) { this[name] = value; },
+    setText(value) { this.text = value; }, empty() { this.children = []; }, replaceChildren() { this.children = []; }, toggleClass(name, on) { this.toggled = { ...(this.toggled ?? {}), [name]: on }; }, setAttr(name, value) { this[name] = value; },
     addEventListener(name, handler) { this.listeners[name] = handler; }, addClass(name) { this.cls = `${this.cls} ${name}`.trim(); }
   });
   const find = (root, predicate) => predicate(root) ? root : root.children.map(child => find(child, predicate)).find(Boolean);
@@ -211,8 +211,31 @@ test('outline modal: preview, errors block creation, shallow option and single s
   assert.equal(requests.length, 1); assert.equal(create.disabled, true);
   assert.deepEqual(plain(requests[0].nodes.map(node => node.title)), ['Trip', 'Food', 'Breakfast']);
   assert.equal(requests[0].source, null); assert.equal(requests[0].shallowResearch, true);
+  assert.equal(requests[0].researchDepth, 'fast'); assert.equal(requests[0].model, undefined);
   release(); await new Promise(resolve => setTimeout(resolve, 0));
   assert.equal(modal.closed, true);
+});
+
+test('outline modal: research depth and model show only with shallow research and are sent with the request', async () => {
+  const h = modalHarness(); const requests = []; let changed = null, unwatched = 0; let models = [];
+  const choices = { list: () => models, watch: fn => { changed = fn; return () => { unwatched++; }; } };
+  const modal = new h.mod.OutlineImportModal({ vault: { getMarkdownFiles: () => [] } }, async request => { requests.push(request); }, choices);
+  modal.open();
+  const options = h.find(modal.contentEl, item => /vam-outline-research-options/.test(item.cls));
+  const shallow = h.find(modal.contentEl, item => item.tag === 'input' && item.type === 'checkbox');
+  assert.equal(options.toggled['is-hidden'], true);
+  shallow.checked = true; shallow.listeners.change(); assert.equal(options.toggled['is-hidden'], false);
+  const depth = h.find(modal.contentEl, item => item.tag === 'select' && item['aria-label'] === 'Research depth');
+  const model = () => h.find(modal.contentEl, item => item.tag === 'select' && item['aria-label'] === 'Model');
+  assert.equal(depth.value, 'fast'); assert.deepEqual(plain(model().children.map(c => c.value)), ['']);
+  models = [{ id: 'm1', label: 'Model One' }]; changed();
+  assert.deepEqual(plain(model().children.map(c => c.value)), ['', 'm1']);
+  depth.value = 'deep'; model().value = 'm1';
+  const textarea = h.find(modal.contentEl, item => item.tag === 'textarea'); textarea.value = '# R\n## A'; textarea.listeners.input();
+  h.find(modal.contentEl, item => item.tag === 'button' && item.text === 'Create mind map').listeners.click();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(requests[0].researchDepth, 'deep'); assert.equal(requests[0].model, 'm1');
+  modal.onClose(); assert.equal(unwatched, 1);
 });
 
 test('outline modal: copy format instructions and choose a vault note', async () => {
@@ -235,7 +258,7 @@ test('outline modal: copy format instructions and choose a vault note', async ()
 integrationTest('importOutline creates the map, opens it, and starts shallow research only when asked', async () => {
   const { repo, app } = fixture('en');
   const opened = [], researched = [], notices = [];
-  const plugin = { repo, settings: { ...require('../support.cjs').DEFAULT_SETTINGS, language: 'en', cliModel: 'gpt-6-luna' }, running: new Set(), activeTasks: new Map(), mutate: async work => work(), confirmAiUsage: async (_model, run) => { await run(); return true; } };
+  const plugin = { repo, settings: { ...require('../support.cjs').DEFAULT_SETTINGS, language: 'en', cliModel: 'gpt-6-luna' }, running: new Set(), activeTasks: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), confirmAiUsage: async (_model, run) => { await run(); return true; } };
   const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Notice: class { constructor(m) { notices.push(m); } } } });
   const view = new VisualAgentMapView({ app }, plugin); view.render = () => {}; view.fit = () => {};
   view.enqueue = work => work();
@@ -248,6 +271,27 @@ integrationTest('importOutline creates the map, opens it, and starts shallow res
   assert.equal(opened.length, 2); assert.equal(researched.length, 1);
   assert.equal(researched[0].children, 2);
   assert.equal(researched[0].options.researchMode, 'research'); assert.equal(researched[0].options.researchDepth, 'fast');
+  const confirms = []; plugin.confirmAiUsage = async (model, run) => { confirms.push(model); await run(); return true; };
+  await view.importOutline({ nodes, source: null, shallowResearch: true, researchDepth: 'normal', model: 'model-x' });
+  assert.deepEqual(confirms, ['model-x']); assert.equal(researched[1].options.researchDepth, 'normal');
+  const map = await repo.readMap(opened[2]);
+  for (const node of map.nodes) assert.equal((await repo.readNote(node.path)).model, 'model-x');
+});
+
+integrationTest('importOutline writes Reference Links (parent, children, map) into every new note', async () => {
+  const { repo, app } = fixture('en');
+  const plugin = { repo, settings: { ...require('../support.cjs').DEFAULT_SETTINGS, language: 'en', cliModel: 'gpt-6-luna' }, running: new Set(), activeTasks: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), confirmAiUsage: async (_m, run) => { await run(); return true; } };
+  plugin.rebuildDerivedData = () => repo.rebuildDerivedData();
+  const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Notice: class {} } });
+  const view = new VisualAgentMapView({ app }, plugin); view.render = () => {}; view.fit = () => {}; view.enqueue = work => work();
+  let mapPath; view.openMapInMutation = async path => { mapPath = path; };
+  await view.importOutline({ nodes: api.parseOutline('# R\n## A\n### B').nodes, source: null, shallowResearch: false });
+  const map = await repo.readMap(mapPath);
+  const byTitle = new Map(); for (const node of map.nodes) byTitle.set((await repo.readNote(node.path)).title, node);
+  const a = await app.vault.read(app.vault.getAbstractFileByPath(byTitle.get('A').path));
+  assert.match(a, /## Reference Links/);
+  assert.ok(a.includes(`Parent topic: [[${byTitle.get('R').path.replace(/\.md$/, '')}]]`), a);
+  assert.ok(a.includes(`Child topics: [[${byTitle.get('B').path.replace(/\.md$/, '')}]]`), a);
 });
 
 integrationTest('importOutline reports a partial creation and does not start research', async () => {
@@ -255,7 +299,7 @@ integrationTest('importOutline reports a partial creation and does not start res
   const notices = [], researched = [];
   const create = repo.createNote.bind(repo); let calls = 0;
   repo.createNote = async (...args) => { calls++; if (calls === 2) throw new Error('disk full'); return create(...args); };
-  const plugin = { repo, settings: { ...require('../support.cjs').DEFAULT_SETTINGS, language: 'en', cliModel: 'gpt-6-luna' }, running: new Set(), activeTasks: new Map(), mutate: async work => work(), confirmAiUsage: async (_m, run) => { await run(); return true; } };
+  const plugin = { repo, settings: { ...require('../support.cjs').DEFAULT_SETTINGS, language: 'en', cliModel: 'gpt-6-luna' }, running: new Set(), activeTasks: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), confirmAiUsage: async (_m, run) => { await run(); return true; } };
   const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Notice: class { constructor(m) { notices.push(m); } } } });
   const view = new VisualAgentMapView({ app }, plugin); view.render = () => {}; view.fit = () => {}; view.enqueue = work => work();
   view.openMapInMutation = async () => {}; view.startShallowResearch = async () => { researched.push(1); };
@@ -265,7 +309,7 @@ integrationTest('importOutline reports a partial creation and does not start res
 
 integrationTest('importOutline still saves the map when the view switched away during creation', async () => {
   const { repo, app } = fixture('en');
-  const plugin = { repo, settings: { ...require('../support.cjs').DEFAULT_SETTINGS, language: 'en', cliModel: 'gpt-6-luna' }, running: new Set(), activeTasks: new Map(), mutate: async work => work(), confirmAiUsage: async () => true };
+  const plugin = { repo, settings: { ...require('../support.cjs').DEFAULT_SETTINGS, language: 'en', cliModel: 'gpt-6-luna' }, running: new Set(), activeTasks: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), confirmAiUsage: async () => true };
   const { VisualAgentMapView } = load('main.ts', { obsidian });
   const view = new VisualAgentMapView({ app }, plugin); view.render = () => {}; view.fit = () => {}; view.enqueue = work => work();
   let mapPath; view.openMapInMutation = async path => { mapPath = path; view.closed = true; };
@@ -320,7 +364,7 @@ function importHarness(overrides = {}) {
   const { repo, app } = fixture('en');
   const notices = [], calls = { opened: 0, researched: 0 };
   const NoticeClass = class { constructor(m) { notices.push(m); } };
-  const plugin = { repo, settings: { ...require('../support.cjs').DEFAULT_SETTINGS, language: 'en', cliModel: 'gpt-6-luna' }, running: new Set(), activeTasks: new Map(), mutate: async work => work(), confirmAiUsage: async (_m, run) => { await run(); return true; }, ...overrides };
+  const plugin = { repo, settings: { ...require('../support.cjs').DEFAULT_SETTINGS, language: 'en', cliModel: 'gpt-6-luna' }, running: new Set(), activeTasks: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), confirmAiUsage: async (_m, run) => { await run(); return true; }, ...overrides };
   const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Notice: NoticeClass } });
   const view = new VisualAgentMapView({ app }, plugin); view.render = () => {}; view.fit = () => {}; view.enqueue = work => work();
   view.openMapInMutation = async () => { calls.opened++; };

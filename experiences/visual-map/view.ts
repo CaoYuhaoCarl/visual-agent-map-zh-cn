@@ -45,6 +45,8 @@ import { PendingSuggestions } from "../../pending-suggestions";
 import { createAimMap } from "../aim/create-map";
 import { createOutlineMap } from "./outline-import";
 import { OutlineImportModal, type OutlineImportRequest } from "./outline-import-modal";
+import { MultiResearchModal, type MultiResearchRequest } from "./multi-research-modal";
+import type { ModelChoices } from "./research-fields";
 import { AimStartModal } from "../../ui/modals/aim-start-modal";
 import { AimAnswerModal } from "../../ui/modals/aim-answer-modal";
 import {
@@ -551,13 +553,26 @@ export class VisualAgentMapView extends ItemView {
       }
     ).open();
   }
+  private modelChoices(): ModelChoices {
+    return {
+      list: () => this.plugin.availableModels().map(id => ({ id, label: this.plugin.modelLabel(id) })),
+      watch: changed => {
+        const unsubscribe = this.plugin.subscribeModelDiscovery(changed);
+        void this.plugin.refreshModelDiscovery("codex");
+        void this.plugin.refreshModelDiscovery("claude");
+        return unsubscribe;
+      }
+    };
+  }
   openOutlineImport(): void {
-    new OutlineImportModal(this.app, request => this.importOutline(request)).open();
+    new OutlineImportModal(this.app, request => this.importOutline(request), this.modelChoices()).open();
   }
   async importOutline(request: OutlineImportRequest): Promise<void> {
+    // A model chosen for the shallow research becomes the new topics' model, so later work on them uses it too.
+    const model = (request.shallowResearch && request.model) || this.plugin.settings.cliModel;
     let result: Awaited<ReturnType<typeof createOutlineMap>>;
     try {
-      result = await createOutlineMap(this.plugin.repo, this.plugin.settings.cliModel, request.nodes, request.source);
+      result = await createOutlineMap(this.plugin.repo, model, request.nodes, request.source);
     } catch (error) {
       // Once the map folder exists the import window must close, so a retry cannot create a second map.
       if (!(error as { mapCreated?: unknown } | null)?.mapCreated) throw error;
@@ -568,6 +583,8 @@ export class VisualAgentMapView extends ItemView {
     let opened = true;
     try {
       await this.plugin.mutate(async () => {
+        // Notes and Map.md were written directly; derive their Reference Links (map, parent, children) like any map change.
+        await this.plugin.rebuildDerivedData();
         await this.openMapInMutation(result.mapPath);
         if (!this.closed && this.path === result.mapPath) this.fit();
       });
@@ -580,10 +597,10 @@ export class VisualAgentMapView extends ItemView {
     if (!root) return;
     const children = result.nodes.filter(node => node.parentId !== null);
     try {
-      await this.plugin.confirmAiUsage(this.plugin.settings.cliModel, () =>
+      await this.plugin.confirmAiUsage(model, () =>
         this.startShallowResearch(root, children, {
           researchMode: "research",
-          researchDepth: "fast",
+          researchDepth: request.researchDepth ?? "fast",
           referenceGroups: [],
           visualMode: "off"
         })
@@ -2454,6 +2471,7 @@ export class VisualAgentMapView extends ItemView {
       if (!this.plugin.settings.models.trim())
         this.button(actions, t("ui.check_codex"), () => this.enqueue(() => this.plugin.recheckCodex()));
     }
+    if (!this.builtIn && !this.map.aim) this.renderMultiResearchStatus(this.contentEl);
     const tools = this.contentEl.createDiv("vam-map-tools");
     if (!this.builtIn) {
       const aimMode = !!this.map.aim;
@@ -2518,30 +2536,7 @@ export class VisualAgentMapView extends ItemView {
     const shown = visibleNodes(this.map.nodes);
     if (this.selected && !shown.some(node => node.id === this.selected)) this.selected = null;
     this.multiSelected = new Set([...this.multiSelected].filter(id => shown.some(node => node.id === id)));
-    if (this.integrationMode) {
-      const selection = workspace.createDiv("vam-selection-bar");
-      const names = [...this.multiSelected].map(id => this.notes.get(id)?.title).filter(Boolean);
-      selection.createSpan({
-        text: this.multiSelected.size
-          ? t("ui.selected_0_1_2", this.multiSelected.size, names.slice(0, 2).join("、"), names.length > 2 ? "…" : "")
-          : t("ui.prompt_select_topics")
-      });
-      this.button(
-        selection,
-        t("ui.clear"),
-        () => {
-          this.multiSelected.clear();
-          this.render();
-        },
-        !this.multiSelected.size
-      );
-      this.button(selection, t("ui.remove"), () => this.confirmRemoveSelected(), !this.multiSelected.size);
-      this.button(selection, t("ui.move_to"), () => this.chooseSelectedParent(false), !this.multiSelected.size);
-      this.button(selection, t("ui.copy_to"), () => this.chooseSelectedParent(true), !this.multiSelected.size);
-      this.button(selection, t("ui.synthesize"), () => this.integrateSelected(), this.multiSelected.size < 2).addClass(
-        "mod-cta"
-      );
-    }
+    if (this.integrationMode) this.renderSelectionBar(workspace);
     for (const node of shown) this.renderNode(node);
     if (!this.map.nodes.length) {
       const emptyMap = this.viewportEl.createDiv("vam-empty");
@@ -3956,41 +3951,7 @@ export class VisualAgentMapView extends ItemView {
     return this.plugin.expansionCoordinator.start(
       parent.path,
       children,
-      async (child, batchSignal, accepted) => {
-        const note = await this.plugin.repo.readNote(child.path);
-        let started = false;
-        let failure: string | undefined;
-        const handle = await this.runAgent(
-          child,
-          undefined,
-          message => {
-            failure = message;
-          },
-          {
-            rules: "",
-            referenceGroups: [],
-            signal: batchSignal,
-            outputLanguage: pendingOptions.outputLanguage,
-            researchMode: pendingOptions.researchMode,
-            researchDepth: pendingOptions.researchDepth,
-            visualMode: pendingOptions.visualMode,
-            task: [
-              note.prompt ||
-                researchTopicTask(pendingOptions.outputLanguage ?? this.plugin.settings.language, note.title),
-              pendingOptions.requirements
-            ]
-              .filter(Boolean)
-              .join("\n\n")
-          },
-          () => {
-            started = true;
-            accepted();
-          }
-        );
-        if (!started || !handle) throw new Error(failure ?? t("ui.shallow_research_did_not_start"));
-        await handle.finished;
-        if (failure && !batchSignal.aborted) throw new Error(failure);
-      },
+      (child, batchSignal, accepted) => this.researchChild(child, batchSignal, accepted, pendingOptions),
       () => {
         const state = this.plugin.expansionBatches.get(parent.path);
         if (state?.status === "running") this.plugin.quickExpandPending.add(parent.path);
@@ -3999,6 +3960,190 @@ export class VisualAgentMapView extends ItemView {
       },
       signal
     );
+  }
+  private async researchChild(
+    child: MapNode,
+    batchSignal: AbortSignal,
+    accepted: () => void,
+    choices: TaskOptions
+  ): Promise<void> {
+    const note = await this.plugin.repo.readNote(child.path);
+    let started = false;
+    let failure: string | undefined;
+    const handle = await this.runAgent(
+      child,
+      undefined,
+      message => {
+        failure = message;
+      },
+      {
+        rules: "",
+        referenceGroups: [],
+        signal: batchSignal,
+        outputLanguage: choices.outputLanguage,
+        researchMode: choices.researchMode,
+        researchDepth: choices.researchDepth,
+        visualMode: choices.visualMode,
+        task: [
+          note.prompt || researchTopicTask(choices.outputLanguage ?? this.plugin.settings.language, note.title),
+          choices.requirements
+        ]
+          .filter(Boolean)
+          .join("\n\n")
+      },
+      () => {
+        started = true;
+        accepted();
+      }
+    );
+    if (!started || !handle) throw new Error(failure ?? t("ui.shallow_research_did_not_start"));
+    await handle.finished;
+    if (failure && !batchSignal.aborted) throw new Error(failure);
+  }
+  private multiResearchKey(): string {
+    return `multi-research:${this.path}`;
+  }
+  private openMultiResearch(): void {
+    if (!this.map || this.map.aim || !this.multiSelected.size) return;
+    const names = [...this.multiSelected].map(id => this.notes.get(id)?.title).filter((name): name is string => !!name);
+    new MultiResearchModal(
+      this.app,
+      names,
+      this.modelChoices(),
+      request => void this.startMultiResearch(request)
+    ).open();
+  }
+  stopMultiResearch(): void {
+    this.plugin.expansionCoordinator.stop(this.multiResearchKey());
+  }
+  async startMultiResearch(request: MultiResearchRequest): Promise<void> {
+    if (!this.map || this.map.aim || this.builtIn || !this.multiSelected.size) return;
+    const key = this.multiResearchKey();
+    if (this.plugin.expansionCoordinator.isRunning(key)) {
+      new Notice(t("ui.multi_research_already_running"));
+      return;
+    }
+    const selected = [...this.multiSelected]
+      .map(id => this.map!.nodes.find(node => node.id === id))
+      .filter((node): node is MapNode => !!node);
+    try {
+      await this.plugin.confirmAiUsage(request.model ?? this.plugin.settings.cliModel, async () => {
+        if (this.plugin.expansionCoordinator.isRunning(key)) {
+          new Notice(t("ui.multi_research_already_running"));
+          return;
+        }
+        const busy = (node: MapNode): boolean =>
+          this.plugin.running.has(node.path) ||
+          this.plugin.quickExpandPending.has(node.path) ||
+          this.plugin.activeTasks.has(node.path);
+        const nodes = selected.filter(node => !busy(node));
+        if (!nodes.length) {
+          new Notice(t("ui.multi_research_all_skipped"));
+          return;
+        }
+        if (nodes.length < selected.length) new Notice(t("ui.multi_research_skipped", selected.length - nodes.length));
+        if (request.model)
+          for (const node of nodes)
+            await this.plugin.repo.updateNote(node.path, { model: request.model, modelSource: "manual" });
+        // The batch runs in the background: leave selection mode so the selection bar gets out of the way.
+        this.integrationMode = false;
+        this.multiSelected.clear();
+        if (!this.closed) this.render();
+        const choices: TaskOptions = {
+          researchMode: request.researchMode,
+          researchDepth: request.researchDepth,
+          visualMode: "off",
+          referenceGroups: [],
+          requirements: request.requirements
+        };
+        let reported = false;
+        let succeeded = 0;
+        let skipped = 0;
+        try {
+          await this.plugin.expansionCoordinator.start(
+            key,
+            nodes,
+            async (child, batchSignal, accepted) => {
+              if (busy(child)) {
+                skipped++;
+                accepted();
+                return;
+              }
+              await this.researchChild(child, batchSignal, accepted, choices);
+              if (!batchSignal.aborted) succeeded++;
+            },
+            () => {
+              const state = this.plugin.expansionBatches.get(key);
+              if (state && state.status !== "running" && !reported) {
+                reported = true;
+                new Notice(
+                  t(
+                    state.status === "stopped" ? "ui.multi_research_stopped" : "ui.multi_research_finished",
+                    succeeded,
+                    state.total,
+                    state.failures.length,
+                    skipped
+                  )
+                );
+              }
+              if (!this.closed) this.render();
+            }
+          );
+        } catch {
+          // Launch rejection from the coordinator (stopped or all failed) is reported by the summary Notice.
+        }
+      });
+    } catch (error) {
+      new Notice(errorMessage(error));
+    }
+  }
+  /** Status bar under the toolbar (same place and look as the AIM status bar) with progress and Stop. */
+  private renderMultiResearchStatus(parent: HTMLElement): void {
+    const state = this.plugin.expansionBatches.get(this.multiResearchKey());
+    if (state?.status !== "running") return;
+    const bar = parent.createDiv("vam-aim-statusbar vam-multi-research-statusbar is-active");
+    bar.setAttr("aria-live", "polite");
+    const current = state.currentPath ? this.map?.nodes.find(node => node.path === state.currentPath) : undefined;
+    const title = current ? this.notes.get(current.id)?.title : undefined;
+    bar.createSpan({ cls: "vam-aim-status-title", text: t("ui.multi_research") });
+    bar.createSpan({
+      cls: "vam-aim-status-value vam-status-running",
+      text: `${t("ui.multi_research_progress", state.completed, state.total)}${title ? ` · ${title}` : ""}`
+    });
+    this.button(bar, t("ui.stop_research"), () => this.stopMultiResearch());
+  }
+  private renderSelectionBar(workspace: HTMLElement): void {
+    const selection = workspace.createDiv("vam-selection-bar");
+    const names = [...this.multiSelected].map(id => this.notes.get(id)?.title).filter(Boolean);
+    selection.createSpan({
+      text: this.multiSelected.size
+        ? t("ui.selected_0_1_2", this.multiSelected.size, names.slice(0, 2).join("、"), names.length > 2 ? "…" : "")
+        : t("ui.prompt_select_topics")
+    });
+    this.button(
+      selection,
+      t("ui.clear"),
+      () => {
+        this.multiSelected.clear();
+        this.render();
+      },
+      !this.multiSelected.size
+    );
+    this.button(selection, t("ui.remove"), () => this.confirmRemoveSelected(), !this.multiSelected.size);
+    this.button(selection, t("ui.move_to"), () => this.chooseSelectedParent(false), !this.multiSelected.size);
+    this.button(selection, t("ui.copy_to"), () => this.chooseSelectedParent(true), !this.multiSelected.size);
+    this.button(selection, t("ui.synthesize"), () => this.integrateSelected(), this.multiSelected.size < 2).addClass(
+      "mod-cta"
+    );
+    if (!this.map?.aim) {
+      const running = this.plugin.expansionBatches.get(this.multiResearchKey())?.status === "running";
+      this.button(
+        selection,
+        t("ui.multi_research"),
+        () => this.openMultiResearch(),
+        !this.multiSelected.size || running
+      );
+    }
   }
   private researchChoices(options: TaskOptions): TaskOptions {
     const { signal: _signal, onProgress: _onProgress, ...choices } = options;
