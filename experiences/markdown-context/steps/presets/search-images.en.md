@@ -1,1 +1,1 @@
-Find existing images related to the selected text and nearby context. Return a concise Wikimedia Commons search query. Do not add a caption unless requested.
+Find existing images on the web related to the selected text and nearby context. Return a concise image search query. Do not add a caption unless requested.

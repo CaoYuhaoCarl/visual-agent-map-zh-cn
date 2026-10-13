@@ -1,5 +1,5 @@
 import type VisualAgentMapPlugin from "../main";
-import { t } from "../i18n";
+import { SUPPORTED_LANGUAGES, t } from "../i18n";
 import { normalizeReasoningLevel } from "../repository";
 import { syncModelSelect } from "../core/model-discovery";
 import { renderDetailTemplatesSetting } from "./modals/detail-templates-modal";
@@ -183,11 +183,8 @@ export class VisualAgentMapSettingTab extends PluginSettingTab {
             .setName(t("ui.interface_language"))
             .setDesc(t("ui.interface_language_description"))
             .addDropdown(dropdown => {
-              dropdown
-                .addOption("en", "English")
-                .addOption("zh-TW", "繁體中文")
-                .setValue(this.plugin.settings.language)
-                .setDisabled(this.plugin.languageSwitchPending);
+              for (const option of SUPPORTED_LANGUAGES) dropdown.addOption(option.id, option.label);
+              dropdown.setValue(this.plugin.settings.language).setDisabled(this.plugin.languageSwitchPending);
               dropdown.onChange(value => {
                 void this.plugin.changeLanguage(value);
               });

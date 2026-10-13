@@ -168,7 +168,7 @@ test('collect snapshots: preset instruction strings composed directly from i18n'
   const { searchBudgetExhaustedMessage } = loadModule('ai/runtime/messages/index.ts');
   const presetSteps = support.load('experiences/markdown-context/steps/presets/step.ts');
   for (const [language, tag] of LANGUAGES) {
-    const presets = { 'prompt.context_ai_condense': presetSteps.condensePresetStep, 'prompt.context_ai_translate': presetSteps.translatePresetStep, 'prompt.context_ai_translate_image': presetSteps.translateImagePresetStep, 'prompt.context_ai_search_images': presetSteps.searchImagesPresetStep, 'prompt.context_ai_explain_image': presetSteps.explainImagePresetStep };
+    const presets = { 'prompt.context_ai_condense': presetSteps.condensePresetStep, 'prompt.context_ai_translate': presetSteps.translatePresetStep, 'prompt.context_ai_search_images': presetSteps.searchImagesPresetStep };
     const others = { 'prompt.research_topic': () => researchTopicTask(language, 'Target language'), 'prompt.search_budget_exhausted': () => searchBudgetExhaustedMessage(language), 'prompt.reference_reduce': () => referenceTask('reduce', language) };
     const keys = [...Object.keys(presets), 'prompt.research_topic', 'prompt.search_budget_exhausted', 'prompt.reference_reduce'];
     const text = key => (presets[key] ? presets[key].render({ language, target: 'Target language' }) : others[key]());

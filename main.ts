@@ -312,6 +312,13 @@ export default class VisualAgentMapPlugin extends Plugin {
       saveImage: (dataUrl, notePath, name) => this.saveGeneratedImage(dataUrl, notePath, name)
     });
     this.addChild(markdownSelectionAi);
+    // Tag reading-view blocks with their source lines so an action on a rendered image finds its embed.
+    this.registerMarkdownPostProcessor((element, context) => {
+      const section = context.getSectionInfo(element);
+      if (!section || !element.querySelector("img, .internal-embed")) return;
+      element.dataset.vamLineStart = String(section.lineStart);
+      element.dataset.vamLineEnd = String(section.lineEnd);
+    });
     this.addCommand({
       id: "markdown-selection-ai",
       name: t("ui.context_ai_open"),

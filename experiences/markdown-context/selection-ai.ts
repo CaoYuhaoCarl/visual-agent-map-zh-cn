@@ -4,17 +4,11 @@ import type { PreparedStep } from "../../core/step-runner";
 import { prepareStep } from "../../core/step-runner";
 import { imageMarkdown, type ImageCandidate } from "./action-plan";
 import { imageSearchStep } from "./steps/image-search/step";
-import { imageTranslateStep } from "./steps/image-translate/step";
+import { ImageTranslateAction, type ImageToken } from "./image-translate-action";
 import { planStep } from "./steps/plan/step";
 import { transformStep } from "./steps/transform/step";
 import { captionStep } from "./steps/caption/step";
-import {
-  condensePresetStep,
-  explainImagePresetStep,
-  searchImagesPresetStep,
-  translateImagePresetStep,
-  translatePresetStep
-} from "./steps/presets/step";
+import { condensePresetStep, searchImagesPresetStep, translatePresetStep } from "./steps/presets/step";
 
 interface SelectionSnapshot {
   view: MarkdownView;
@@ -23,7 +17,6 @@ interface SelectionSnapshot {
   markdown: string;
   matchAt: number;
   rect: DOMRect;
-  image?: HTMLImageElement;
 }
 
 interface SelectionAiOptions {
@@ -83,6 +76,54 @@ async function loadableImages(candidates: ImageCandidate[], signal: AbortSignal)
   return candidates.filter((_, index) => loads[index]);
 }
 
+/**
+ * Which embed in `markdown` the clicked image came from. VAM notes often show the same image twice (preview and
+ * detail), so a single match is not enough: the reading view's line range, the editor position, or the order of
+ * the rendered copies picks the one that was clicked. Null when none of these can tell.
+ */
+function locateImageToken(
+  view: MarkdownView,
+  image: HTMLImageElement,
+  markdown: string,
+  matches: RegExpMatchArray[]
+): ImageToken | null {
+  if (!matches.length) return null;
+  const toToken = (match: RegExpMatchArray): ImageToken => {
+    const same = matches.filter(item => item[0] === match[0]);
+    return { text: match[0], occurrence: same.indexOf(match), count: same.length };
+  };
+  if (matches.length === 1) return toToken(matches[0]);
+  // Reading view: the plugin tags each rendered block with its source lines.
+  const block = image.closest<HTMLElement>("[data-vam-line-start]");
+  if (block) {
+    const lineOffset = (line: number): number => {
+      let offset = 0;
+      for (let index = 0; index < line && offset >= 0; index++) offset = markdown.indexOf("\n", offset) + 1 || -1;
+      return offset < 0 ? markdown.length : offset;
+    };
+    const from = lineOffset(Number(block.dataset.vamLineStart));
+    const to = lineOffset(Number(block.dataset.vamLineEnd) + 1);
+    const inside = matches.filter(match => (match.index ?? -1) >= from && (match.index ?? -1) < to);
+    if (inside.length === 1) return toToken(inside[0]);
+  }
+  // Live preview: the editor knows the document position of the rendered image.
+  const cm = (view.editor as unknown as { cm?: { posAtDOM(node: Node): number } }).cm;
+  try {
+    const pos = cm?.posAtDOM(image);
+    if (typeof pos === "number" && pos >= 0) {
+      const nearest = [...matches].sort((a, b) => Math.abs((a.index ?? 0) - pos) - Math.abs((b.index ?? 0) - pos))[0];
+      if (nearest) return toToken(nearest);
+    }
+  } catch {
+    /* Not rendered by the editor. */
+  }
+  // Last resort: the rendered copies, in page order, match the embeds one to one.
+  const rendered = Array.from(view.containerEl.querySelectorAll("img")).filter(
+    item => item.getAttribute("src") === image.getAttribute("src")
+  );
+  return rendered.length === matches.length ? toToken(matches[rendered.indexOf(image)]) : null;
+}
+
 /** Unique heading ids for open panels. */
 let panelSequence = 0;
 
@@ -90,6 +131,7 @@ export class MarkdownSelectionAi extends Component {
   private launcher: HTMLButtonElement | null = null;
   private snapshot: SelectionSnapshot | null = null;
   private panel: SelectionAiPanel | null = null;
+  private imageAction!: ImageTranslateAction;
 
   constructor(
     private readonly app: App,
@@ -99,6 +141,7 @@ export class MarkdownSelectionAi extends Component {
   }
 
   onload(): void {
+    this.imageAction = this.addChild(new ImageTranslateAction(this.app, this.options));
     this.launcher = this.app.workspace.containerEl.createEl("button", {
       cls: "vam-context-ai-launcher",
       text: t("ui.context_ai_open")
@@ -118,12 +161,7 @@ export class MarkdownSelectionAi extends Component {
     this.registerDomEvent(document, "click", event => {
       const image = event.target;
       if (!(image instanceof HTMLImageElement) || !this.options.autoOpen()) return;
-      if (image.closest(".vam-context-ai-panel")) return;
-      // A panel with a request in flight or an unsaved result is kept; clicking another image does not replace it.
-      if (this.panel?.isOpen && this.panel.hasWork) {
-        this.panel.focus();
-        return;
-      }
+      if (image.closest(".vam-context-ai-panel, .vam-image-action")) return;
       const view = this.app.workspace
         .getLeavesOfType("markdown")
         .map(leaf => leaf.view)
@@ -141,17 +179,8 @@ export class MarkdownSelectionAi extends Component {
         const target = match[0].match(/\]\(([^)]+)\)$/)?.[1]?.replace(/^<|>$/g, "");
         return target === image.currentSrc || target === image.src;
       });
-      const token = tokens.length === 1 ? tokens[0] : null;
-      this.snapshot = {
-        view,
-        path: view.file.path,
-        text: token?.[0] ?? image.alt,
-        markdown,
-        matchAt: token?.index ?? -1,
-        rect: image.getBoundingClientRect(),
-        image
-      };
-      this.openForCurrentSelection();
+      // An image offers one action, a translated version of itself; the text panel is for selected text.
+      this.imageAction.show(view, image, locateImageToken(view, image, markdown, tokens));
     });
     this.registerDomEvent(window, "resize", () => {
       this.panel?.reposition();
@@ -267,19 +296,12 @@ export class MarkdownSelectionAi extends Component {
     this.hideLauncher();
     const model = this.options.model();
     this.panel?.close();
-    this.panel = new SelectionAiPanel(
-      this.app,
-      snapshot,
-      model,
-      this.options.language(),
-      this.options.run,
-      this.options.saveImage
-    );
+    this.panel = new SelectionAiPanel(this.app, snapshot, model, this.options.language(), this.options.run);
     this.panel.open();
   }
 }
 
-type PresetId = "condense" | "explain_image" | "translate" | "redraw_image" | "search_images";
+type PresetId = "condense" | "translate" | "search_images";
 
 class SelectionAiPanel extends Component {
   private modalEl!: HTMLDivElement;
@@ -304,16 +326,13 @@ class SelectionAiPanel extends Component {
   private copy!: HTMLButtonElement;
   private stopButton!: HTMLButtonElement;
   private runButton!: HTMLButtonElement;
-  /** A translated image Codex drew; it is saved into the vault only when the person inserts it. */
-  private generatedImage: string | null = null;
 
   constructor(
     private readonly app: App,
     private readonly snapshot: SelectionSnapshot,
     private readonly model: string,
     private readonly language: string,
-    private readonly run: SelectionAiOptions["run"],
-    private readonly saveImage: SelectionAiOptions["saveImage"]
+    private readonly run: SelectionAiOptions["run"]
   ) {
     super();
   }
@@ -397,19 +416,13 @@ class SelectionAiPanel extends Component {
   }
 
   onload(): void {
-    const image = this.snapshot.image;
     this.titleEl.setText(t("ui.context_ai_title"));
     this.contentEl.empty();
     this.contentEl.createEl("p", { cls: "vam-hint vam-context-ai-intro", text: t("ui.context_ai_scope") });
 
-    // What AI will work on: the image, the selected text, or the cursor position.
+    // What AI will work on: the selected text, or the cursor position.
     const source = this.contentEl.createEl("figure", { cls: "vam-context-ai-source" });
-    if (image) {
-      const preview = source.createEl("img", { cls: "vam-context-ai-image" });
-      preview.src = image.currentSrc || image.src;
-      preview.alt = image.alt;
-      source.createEl("figcaption", { text: t("ui.context_ai_image_source") });
-    } else if (this.snapshot.text) {
+    if (this.snapshot.text) {
       source.createEl("blockquote", { cls: "vam-context-ai-quote", text: this.snapshot.text });
       source.createEl("figcaption", { text: t("ui.context_ai_text_source") });
     } else source.createEl("figcaption", { text: t("ui.context_ai_cursor_source") });
@@ -425,30 +438,14 @@ class SelectionAiPanel extends Component {
       // A quick action never overwrites what the person typed; it only says what is running.
       button.addEventListener(
         "click",
-        () =>
-          void this.generate(
-            prompt(),
-            label,
-            id === "search_images" ? "image_search" : id === "redraw_image" ? "image_translate" : undefined,
-            button
-          )
+        () => void this.generate(prompt(), label, id === "search_images" ? "image_search" : undefined, button)
       );
     };
     const language = getUiLanguage();
-    if (image) {
-      preset("explain_image", "scan-eye", t("ui.context_ai_explain_image"), () =>
-        explainImagePresetStep.render({ language })
-      );
-      preset("redraw_image", "wand-sparkles", t("ui.context_ai_translate_image_redraw"), () => "");
-      preset("translate", "languages", t("ui.context_ai_translate_image"), () =>
-        translateImagePresetStep.render({ language, target: this.language })
-      );
-    } else {
-      preset("condense", "minimize-2", t("ui.context_ai_condense"), () => condensePresetStep.render({ language }));
-      preset("translate", "languages", t("ui.context_ai_translate"), () =>
-        translatePresetStep.render({ language, target: this.language })
-      );
-    }
+    preset("condense", "minimize-2", t("ui.context_ai_condense"), () => condensePresetStep.render({ language }));
+    preset("translate", "languages", t("ui.context_ai_translate"), () =>
+      translatePresetStep.render({ language, target: this.language })
+    );
     preset("search_images", "image", t("ui.context_ai_search_images"), () =>
       searchImagesPresetStep.render({ language })
     );
@@ -463,9 +460,7 @@ class SelectionAiPanel extends Component {
     instructionLabel.createSpan({ cls: "vam-context-ai-sr", text: t("ui.context_ai_custom_instruction") });
     this.instruction = instructionLabel.createEl("textarea", { cls: "vam-context-ai-instruction" });
     this.instruction.rows = 2;
-    this.instruction.placeholder = t(
-      image ? "ui.context_ai_instruction_placeholder_image" : "ui.context_ai_instruction_placeholder"
-    );
+    this.instruction.placeholder = t("ui.context_ai_instruction_placeholder");
     this.instruction.addEventListener("keydown", event => {
       if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && !event.isComposing) {
         event.preventDefault();
@@ -550,7 +545,7 @@ class SelectionAiPanel extends Component {
     this.controller = null;
     this.setBusy(null);
     this.status.setText(t("ui.ai_task_cancelled"));
-    this.showResult(!!this.output.value || !!this.generatedImage);
+    this.showResult(!!this.output.value);
   }
 
   /** Locks the inputs while AI runs; the pressed action is marked so the person sees what is running. */
@@ -572,16 +567,9 @@ class SelectionAiPanel extends Component {
 
   /** Shows or hides the draft and picks the primary result action: accept a replacement, else insert here. */
   private showResult(visible: boolean): void {
-    // A generated image is the result itself; there is no text draft to edit.
-    this.result.hidden = !visible || !!this.generatedImage;
+    this.result.hidden = !visible;
     this.resultActions.hidden = !visible;
-    this.copy.hidden = !!this.generatedImage;
-    const replaceable =
-      this.snapshot.matchAt >= 0 &&
-      !!this.snapshot.text &&
-      !this.snapshot.image &&
-      !this.insertAfter &&
-      !this.generatedImage;
+    const replaceable = this.snapshot.matchAt >= 0 && !!this.snapshot.text && !this.insertAfter;
     this.before.hidden = !replaceable;
     this.accept.hidden = !replaceable;
     this.insertHere.hidden = this.snapshot.matchAt < 0;
@@ -599,7 +587,7 @@ class SelectionAiPanel extends Component {
   private async generate(
     prompt: string,
     label: string,
-    requestedAction?: "image_search" | "image_translate",
+    requestedAction?: "image_search",
     trigger?: HTMLElement
   ): Promise<void> {
     if (this.controller) return;
@@ -609,35 +597,12 @@ class SelectionAiPanel extends Component {
       status = this.status;
     const previousDraft = output.value;
     const previousInsertAfter = this.insertAfter;
-    const previousImage = this.generatedImage;
     this.previewChild?.unload();
     this.previewChild = null;
     this.preview.empty();
     this.setBusy(trigger);
     status.setText(t("ui.context_ai_running_0", label));
     try {
-      if (requestedAction === "image_translate") {
-        status.setText(t("ui.context_ai_generating_image"));
-        const dataUrl = await this.run(
-          prepareStep(imageTranslateStep, { target: this.language }),
-          this.model,
-          controller.signal,
-          this.snapshot.image,
-          false,
-          true
-        );
-        if (controller.signal.aborted || !this.isOpen) return;
-        if (!/^data:image\/(?:png|jpeg|webp);base64,/.test(dataUrl))
-          throw new Error(t("ui.context_ai_image_not_generated"));
-        this.generatedImage = dataUrl;
-        this.insertAfter = true;
-        output.value = "";
-        this.showGeneratedImage(dataUrl);
-        this.resultActions.hidden = false;
-        status.setText(t("ui.context_ai_review_result"));
-        return;
-      }
-      this.generatedImage = null;
       const at = this.snapshot.matchAt;
       const context =
         at >= 0 ? this.snapshot.markdown.slice(Math.max(0, at - 600), at + this.snapshot.text.length + 600) : "";
@@ -645,7 +610,7 @@ class SelectionAiPanel extends Component {
         instruction: prompt,
         selected: this.snapshot.text,
         context,
-        hasImage: !!this.snapshot.image
+        hasImage: false
       });
       const parsedPlan = planned.parse(await this.run(planned, this.model, controller.signal));
       const plan = requestedAction ? { ...parsedPlan, action: requestedAction } : parsedPlan;
@@ -727,15 +692,9 @@ class SelectionAiPanel extends Component {
           selected: this.snapshot.text,
           context,
           action: plan.action,
-          hasImage: !!this.snapshot.image
+          hasImage: false
         });
-        result = await this.run(
-          request,
-          this.model,
-          controller.signal,
-          this.snapshot.image,
-          plan.action === "research"
-        );
+        result = await this.run(request, this.model, controller.signal, undefined, plan.action === "research");
         insertAfter = plan.action === "research" || plan.action === "diagram";
         if (plan.action === "diagram") {
           if (
@@ -760,11 +719,8 @@ class SelectionAiPanel extends Component {
       if (!controller.signal.aborted && this.isOpen) {
         output.value = previousDraft;
         this.insertAfter = previousInsertAfter;
-        this.generatedImage = previousImage;
-        // The preview was cleared for this run; an image that can still be inserted must stay visible.
-        if (previousImage) this.showGeneratedImage(previousImage);
         this.result.hidden = !previousDraft;
-        this.resultActions.hidden = !previousDraft && !previousImage;
+        this.resultActions.hidden = !previousDraft;
         status.setText(error instanceof Error ? error.message : String(error));
       }
     } finally {
@@ -813,62 +769,8 @@ class SelectionAiPanel extends Component {
     return `${markdown}\n\n${caption.trim()}`;
   }
 
-  /** Inserts the draft; a generated image is first saved as an attachment, and only while the note is unchanged. */
   private applyDraft(action: "append" | "after"): void {
-    const image = this.generatedImage;
-    if (!image) {
-      this.applyResult(this.output.value, action, this.status);
-      return;
-    }
-    if (this.controller) return;
-    if (!this.noteUnchanged()) {
-      this.status.setText(t("ui.context_ai_note_changed"));
-      return;
-    }
-    const base = (this.snapshot.image?.alt || "image")
-      .replace(/[^\p{L}\p{N}_-]+/gu, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 40);
-    const name = `${base || "image"}-${this.language === "English" ? "en" : "zh-TW"}`;
-    this.resultActions.querySelectorAll("button").forEach(button => {
-      button.disabled = true;
-    });
-    const enable = (): void =>
-      this.resultActions.querySelectorAll("button").forEach(button => {
-        button.disabled = false;
-      });
-    void this.saveImage(image, this.snapshot.path, name)
-      .then(async path => {
-        const file = this.app.vault.getFileByPath(path);
-        // The note changed while the image was written: nothing is inserted, so the new file goes too.
-        if (!file || !this.noteUnchanged()) {
-          if (file) await this.app.fileManager.trashFile(file);
-          enable();
-          this.status.setText(t("ui.context_ai_note_changed"));
-          return;
-        }
-        // Follow the vault's link settings (wikilink or Markdown, shortest path) for the embed.
-        const link = this.app.fileManager.generateMarkdownLink(file, this.snapshot.path);
-        this.applyResult(link.startsWith("!") ? link : `!${link}`, action, this.status);
-        new Notice(t("ui.context_ai_image_saved", path));
-      })
-      .catch((error: unknown) => {
-        enable();
-        this.status.setText(error instanceof Error ? error.message : String(error));
-      });
-  }
-
-  private showGeneratedImage(dataUrl: string): void {
-    this.preview.empty();
-    const figure = this.preview.createEl("figure", { cls: "vam-context-ai-generated" });
-    figure.createEl("img", { attr: { src: dataUrl, alt: t("ui.context_ai_generated_image") } });
-    figure.createEl("figcaption", { text: t("ui.context_ai_generated_image") });
-  }
-
-  private noteUnchanged(): boolean {
-    const { view, path, markdown } = this.snapshot;
-    const viewStillOpen = this.app.workspace.getLeavesOfType("markdown").some(leaf => leaf.view === view);
-    return viewStillOpen && view.file?.path === path && view.editor.getValue() === markdown;
+    this.applyResult(this.output.value, action, this.status);
   }
 
   private applyResult(result: string, action: "append" | "replace" | "after", status: HTMLElement): void {

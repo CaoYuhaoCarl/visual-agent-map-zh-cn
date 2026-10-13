@@ -1,6 +1,6 @@
 // Modals and task helpers used by the Visual Map view; moved from view.ts unchanged.
 import type VisualAgentMapPlugin from "../../main";
-import { t, type TranslationKey } from "../../i18n";
+import { supportedLanguageLabel, SUPPORTED_LANGUAGES, t, type TranslationKey } from "../../i18n";
 import { App, Component, MarkdownRenderer, Modal, Notice, Setting, TFile } from "obsidian";
 import { ReferencePicker, type ReferenceTopic } from "../../ui/reference-picker";
 import { type ReferenceGroup } from "../../ai/reference-materials";
@@ -197,8 +197,8 @@ export class TaskModal extends Modal {
     languageLabel.createSpan({ text: t("ui.output_language") });
     const languageSelect = languageLabel.createEl("select");
     languageSelect.setAttr("aria-label", t("ui.output_language"));
-    languageSelect.createEl("option", { value: "zh-TW", text: "繁體中文" });
-    languageSelect.createEl("option", { value: "en", text: "English" });
+    for (const option of SUPPORTED_LANGUAGES)
+      languageSelect.createEl("option", { value: option.id, text: option.label });
     languageSelect.value = this.currentLanguage;
     if (this.rules.trim()) this.contentEl.createEl("p", { text: t("ui.legacy_rules_not_applied"), cls: "vam-hint" });
     const synthesis = this.synthesisTopics ? renderSynthesisContent(this.contentEl, this.synthesisTopics) : undefined;
@@ -1272,8 +1272,8 @@ export class NextStepModal extends Modal {
     const languageLabel = compactSettings.createEl("label", { cls: "vam-next-language" });
     languageLabel.createSpan({ text: t("ui.output_language") });
     const languageSelect = languageLabel.createEl("select");
-    languageSelect.createEl("option", { value: "zh-TW", text: "繁體中文" });
-    languageSelect.createEl("option", { value: "en", text: "English" });
+    for (const option of SUPPORTED_LANGUAGES)
+      languageSelect.createEl("option", { value: option.id, text: option.label });
     languageSelect.value = this.plugin.settings.language;
     languageSelect.setAttr("aria-label", t("ui.output_language"));
     const templateId = templateField(
@@ -1286,9 +1286,7 @@ export class NextStepModal extends Modal {
       const template = picked
         ? this.modelSettings?.templates?.find(item => item.id === picked)?.name
         : this.modelSettings?.currentTemplate;
-      outputValue.setText(
-        [languageSelect.value === "en" ? "English" : "繁體中文", template].filter(Boolean).join(" · ")
-      );
+      outputValue.setText([supportedLanguageLabel(languageSelect.value), template].filter(Boolean).join(" · "));
     };
     languageSelect.addEventListener("change", describeOutput);
     // The template select is built by a shared helper; its change bubbles up here.

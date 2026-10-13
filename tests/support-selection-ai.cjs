@@ -27,6 +27,7 @@ class Component {
   unload() { this.onunload?.(); }
   registerDomEvent() {}
   registerEvent() {}
+  addChild(child) { child.load(); return child; }
 }
 class MarkdownView {}
 class Setting {
