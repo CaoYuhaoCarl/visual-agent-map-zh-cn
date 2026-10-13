@@ -548,3 +548,22 @@ integrationTest('repository: titles differing only in case get distinct file nam
   assert.ok(app.vault.getAbstractFileByPath(first.path));
   assert.equal(first.path.endsWith('/Apple.md'), true);
 });
+
+integrationTest('topic remembers its content template and format issues in frontmatter', async () => {
+  const { repo, app } = fixture('en');
+  const map = { id: 'm', title: 'M', version: 1, nodes: [], viewport: { x: 0, y: 0, zoom: 1 } };
+  const mapPath = 'Agent Workspace/Topics/M/Map.md';
+  await repo.ensureTopicFolders('Agent Workspace/Topics/M'); await app.vault.create(mapPath, core.serializeMap(map));
+  const node = await repo.createNote('T', 'model-a', map, mapPath, 'workspace');
+  assert.equal((await repo.readNote(node.path)).detailTemplateId, undefined);
+  assert.deepEqual(plain((await repo.readNote(node.path)).detailFormatIssues), []);
+  await repo.updateNote(node.path, { detailTemplateId: 't1', detailFormatIssues: ['Examples: need 3, got 2'] });
+  let note = await repo.readNote(node.path);
+  assert.equal(note.detailTemplateId, 't1'); assert.deepEqual(plain(note.detailFormatIssues), ['Examples: need 3, got 2']);
+  const raw = await app.vault.read(app.vault.getAbstractFileByPath(node.path));
+  assert.match(raw, /detail-template: "?t1"?/);
+  await repo.updateNote(node.path, { detailTemplateId: '', detailFormatIssues: [] });
+  note = await repo.readNote(node.path);
+  assert.equal(note.detailTemplateId, undefined); assert.deepEqual(plain(note.detailFormatIssues), []);
+  assert.doesNotMatch(await app.vault.read(app.vault.getAbstractFileByPath(node.path)), /detail-format-issues|detail-template/);
+});

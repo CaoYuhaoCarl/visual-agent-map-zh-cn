@@ -29,6 +29,7 @@ import {
 import { join } from "node:path";
 import { type MapDocument, type MapNode } from "./map-model";
 import { DEFAULT_SETTINGS, normalizeReasoningLevel, type Note, Repository, type Settings } from "./repository";
+import { normalizeTemplates } from "./ai/detail-templates";
 import { effectiveReasoningLevel } from "./ai/task-policy";
 import type { AiResult, Suggestion, TaskContext } from "./ai/types";
 import { clampPreviewScale, legacyPreviewScale } from "./ui/preview-utils";
@@ -219,6 +220,9 @@ export default class VisualAgentMapPlugin extends Plugin {
     const legacy: (Partial<Settings> & { cliPath?: string }) | null = saved;
     this.settings = {
       ...DEFAULT_SETTINGS,
+      detailTemplates: normalizeTemplates(saved?.detailTemplates),
+      defaultDetailTemplateId:
+        typeof saved?.defaultDetailTemplateId === "string" ? saved.defaultDetailTemplateId : undefined,
       coffeeStyles: Array.isArray(saved?.coffeeStyles)
         ? saved.coffeeStyles.filter(
             (item: unknown): item is { id: string; name: string; prompt: string } =>

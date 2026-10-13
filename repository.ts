@@ -6,6 +6,7 @@ import { MapDocument, MapNode, serializeMap, parseMap } from "./map-model";
 import type { CoffeeStyle } from "./experiences/coffee-tables/types";
 import type { ReasoningLevel, ResearchDepth, ResearchMode, VisualMode } from "./ai/types";
 import { normalizeReasoningLevel } from "./ai/task-policy";
+import type { DetailTemplate } from "./ai/detail-templates";
 import { managedHeadingValue, managedSectionValue } from "./note-values";
 import { upgradeLegacyAimText } from "./experiences/aim/legacy-names";
 export type { ReasoningLevel, ResearchDepth, ResearchMode, VisualMode, VisualReference } from "./ai/types";
@@ -33,6 +34,8 @@ export interface Note {
   researchMode: ResearchMode;
   researchDepth: ResearchDepth;
   visualMode: VisualMode;
+  detailTemplateId?: string;
+  detailFormatIssues: string[];
   status: Status;
   mapId: string;
   topicId: string;
@@ -42,6 +45,8 @@ export interface Note {
 }
 export type NotePatch = Partial<Note>;
 export interface Settings {
+  detailTemplates: DetailTemplate[];
+  defaultDetailTemplateId?: string;
   coffeeStyles?: CoffeeStyle[];
   defaultCoffeeStyleId?: string;
   language: "zh-TW" | "en";
@@ -85,6 +90,7 @@ export interface LegacyMigrationPlan {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
+  detailTemplates: [],
   coffeeStyles: [],
   language: "en",
   workspaceFolder: "Agent Workspace",
@@ -541,6 +547,12 @@ export class Repository {
       researchDepth:
         fm["research-depth"] === "fast" || fm["research-depth"] === "deep" ? fm["research-depth"] : "normal",
       visualMode: fm["visual-mode"] === "on" || fm["visual-mode"] === "off" ? fm["visual-mode"] : "auto",
+      ...(typeof fm["detail-template"] === "string" && fm["detail-template"]
+        ? { detailTemplateId: fm["detail-template"] }
+        : {}),
+      detailFormatIssues: Array.isArray(fm["detail-format-issues"])
+        ? fm["detail-format-issues"].filter((v): v is string => typeof v === "string")
+        : [],
       status: ["idea", "running", "completed", "error"].includes(normalized) ? (normalized as Status) : "idea",
       mapId: text(fm["agent-map-id"]),
       topicId: text(fm["topic-id"], text(fm["agent-map-id"])),
@@ -573,6 +585,12 @@ export class Repository {
       if (patch.researchMode !== undefined) fm["research-mode"] = patch.researchMode;
       if (patch.researchDepth !== undefined) fm["research-depth"] = patch.researchDepth;
       if (patch.visualMode !== undefined) fm["visual-mode"] = patch.visualMode;
+      if (patch.detailTemplateId !== undefined)
+        patch.detailTemplateId ? (fm["detail-template"] = patch.detailTemplateId) : delete fm["detail-template"];
+      if (patch.detailFormatIssues !== undefined)
+        patch.detailFormatIssues.length
+          ? (fm["detail-format-issues"] = patch.detailFormatIssues)
+          : delete fm["detail-format-issues"];
       if (patch.mapId !== undefined) patch.mapId ? (fm["agent-map-id"] = patch.mapId) : delete fm["agent-map-id"];
       if (patch.topicId !== undefined) patch.topicId ? (fm["topic-id"] = patch.topicId) : delete fm["topic-id"];
       if (patch.topicState !== undefined) fm["topic-state"] = patch.topicState;

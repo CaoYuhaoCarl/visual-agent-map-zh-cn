@@ -144,6 +144,7 @@ export function normalizeTemplates(value: unknown): DetailTemplate[] {
     if (!entry || typeof entry !== "object") continue;
     const item = entry as Partial<DetailTemplate>;
     if (typeof item.id !== "string" || item.id === STANDARD_TEMPLATE_ID || typeof item.name !== "string") continue;
+    if (result.some(existing => existing.id === item.id)) continue;
     if (!Array.isArray(item.sections)) continue;
     const sections = item.sections.map(section);
     if (sections.some(entry => !entry)) continue;

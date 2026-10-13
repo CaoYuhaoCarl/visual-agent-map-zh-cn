@@ -149,3 +149,14 @@ test('AIM model refresh updates choices, preserves selection, and reports failur
   failed.all.find(el => el.tag === 'button' && el.text === 'Refresh model list').click(); await new Promise(resolve => setTimeout(resolve, 0));
   assert.ok(failed.all.some(el => el.text.includes('provider unavailable')));
 });
+
+test('saved content templates are normalized with the same call onload uses', () => {
+  // Plugin.onload needs a full Obsidian workspace (editor extensions, views), so this exercises the exact
+  // normalizeTemplates call that main.ts makes on `saved?.detailTemplates`, plus the DEFAULT_SETTINGS default.
+  const templates = load('ai/detail-templates.ts');
+  const valid = (id, name) => templates.copyTemplate(templates.standardTemplate('en'), name, id);
+  const saved = { detailTemplates: [valid('t1', 'Teach'), { id: 'x', name: 'X', sections: [] }, valid('t1', 'Other')], defaultDetailTemplateId: 't1' };
+  assert.deepEqual(plain(templates.normalizeTemplates(saved.detailTemplates).map(item => item.id)), ['t1']);
+  assert.deepEqual(plain(templates.normalizeTemplates(undefined)), []);
+  assert.deepEqual(plain(DEFAULT_SETTINGS.detailTemplates), []);
+});

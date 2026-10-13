@@ -31,6 +31,7 @@ export interface MapDocument {
   nodes: MapNode[];
   viewport: { x: number; y: number; zoom: number };
   aim?: AimMapData;
+  detailTemplateId?: string;
 }
 
 export function clearQuestionConvergenceEdges(map: MapDocument): boolean {
@@ -367,6 +368,7 @@ export function parseMap(content: string): MapDocument {
   const map = upgradeLegacyAimData(JSON.parse(block[1]) as MapDocument);
   if (map.version !== 1 || typeof map.id !== "string" || typeof map.title !== "string" || !Array.isArray(map.nodes))
     throw new Error(t("ui.invalid_mind_map_format"));
+  if (map.detailTemplateId !== undefined && typeof map.detailTemplateId !== "string") delete map.detailTemplateId;
   const ids = new Set<string>(),
     aimQuestionRequests = new Set<string>();
   for (const n of map.nodes) {

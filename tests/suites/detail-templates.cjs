@@ -84,3 +84,9 @@ test('detailStructurePrompt: Standard uses the existing text verbatim; custom li
   assert.match(en, /### 範例 must have at least 2 items/);
   assert.doesNotMatch(en, /only one line/);
 });
+
+test('normalizeTemplates keeps the first of duplicate ids', () => {
+  const first = api.copyTemplate(api.standardTemplate('en'), 'First', 't1'), second = api.copyTemplate(api.standardTemplate('en'), 'Second', 't1');
+  const result = api.normalizeTemplates([first, second]);
+  assert.deepEqual(plain(result.map(item => item.name)), ['First']);
+});

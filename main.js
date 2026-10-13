@@ -4246,9 +4246,9 @@ function rootlessObserverNotes(markdown) {
     const nextSpeaker = /^### .+$/gm.exec(markdown.slice(afterTurn));
     const nextTurn = (nextSpeaker == null ? void 0 : nextSpeaker.index) === void 0 ? markdown.length : afterTurn + nextSpeaker.index;
     const span = markdown.slice(afterTurn, nextTurn);
-    const section2 = [...span.matchAll(OBSERVER_SECTION)][0];
-    if (!section2 || section2.index === void 0) continue;
-    const start = afterTurn + section2.index;
+    const section3 = [...span.matchAll(OBSERVER_SECTION)][0];
+    if (!section3 || section3.index === void 0) continue;
+    const start = afterTurn + section3.index;
     const body = markdown.slice(start, nextTurn).trim();
     const isZh = STANDARD_OBSERVER_HEADINGS.zh.some((heading) => new RegExp(`^## ${heading}\\s*$`, "m").test(body));
     const required = isZh ? STANDARD_OBSERVER_HEADINGS.zh : STANDARD_OBSERVER_HEADINGS.en;
@@ -4257,8 +4257,8 @@ function rootlessObserverNotes(markdown) {
       var _a2, _b, _c;
       const sectionIndex = sections.findIndex((item) => item[1].trim() === heading);
       if (sectionIndex < 0) return false;
-      const section3 = sections[sectionIndex];
-      const contentStart = ((_a2 = section3.index) != null ? _a2 : 0) + section3[0].length;
+      const section4 = sections[sectionIndex];
+      const contentStart = ((_a2 = section4.index) != null ? _a2 : 0) + section4[0].length;
       const contentEnd = (_c = (_b = sections[sectionIndex + 1]) == null ? void 0 : _b.index) != null ? _c : body.length;
       return /\S/.test(body.slice(contentStart, contentEnd));
     });
@@ -4311,13 +4311,13 @@ function noteSections(notes) {
     if (populated.length >= 4) return [notes];
   }
   const canonical = [...notes.matchAll(/^## (.+?)\s*$/gm)];
-  const expected = STANDARD_OBSERVER_HEADINGS.zh.some((title) => canonical.some((section2) => section2[1].trim() === title)) ? STANDARD_OBSERVER_HEADINGS.zh : STANDARD_OBSERVER_HEADINGS.en;
+  const expected = STANDARD_OBSERVER_HEADINGS.zh.some((title) => canonical.some((section3) => section3[1].trim() === title)) ? STANDARD_OBSERVER_HEADINGS.zh : STANDARD_OBSERVER_HEADINGS.en;
   const completeSections = expected.every((title) => {
     var _a, _b, _c;
-    const index = canonical.findIndex((section3) => section3[1].trim() === title);
+    const index = canonical.findIndex((section4) => section4[1].trim() === title);
     if (index < 0) return false;
-    const section2 = canonical[index];
-    const text11 = notes.slice(((_a = section2.index) != null ? _a : 0) + section2[0].length, (_c = (_b = canonical[index + 1]) == null ? void 0 : _b.index) != null ? _c : notes.length).replace(/<!--[\s\S]*?-->/g, "").trim();
+    const section3 = canonical[index];
+    const text11 = notes.slice(((_a = section3.index) != null ? _a : 0) + section3[0].length, (_c = (_b = canonical[index + 1]) == null ? void 0 : _b.index) != null ? _c : notes.length).replace(/<!--[\s\S]*?-->/g, "").trim();
     return text11.length >= 15 && /[。！？.!?…](?:[」』”’"\])）】}]*)$/u.test(text11);
   });
   if (completeSections) return [notes];
@@ -10699,7 +10699,7 @@ function validDeliveryCheckpoint(checkpoint) {
   return !!checkpoint && typeof checkpoint === "object" && !Array.isArray(checkpoint) && [checkpoint.outline, checkpoint.research, checkpoint.draft, checkpoint.acceptance].every(
     (result) => result === void 0 || resultValid(result)
   ) && hashValid(checkpoint.baseFingerprint) && hashValid(checkpoint.researchFingerprint) && hashValid(checkpoint.draftFingerprint) && (checkpoint.sections === void 0 || !!checkpoint.sections && typeof checkpoint.sections === "object" && !Array.isArray(checkpoint.sections) && Object.entries(checkpoint.sections).every(
-    ([key2, section2]) => !!key2.trim() && !!section2 && hashValid(section2.fingerprint) && typeof section2.fingerprint === "string" && Array.isArray(section2.evidenceIds) && section2.evidenceIds.every((id) => typeof id === "string" && !!id.trim()) && resultValid(section2.result)
+    ([key2, section3]) => !!key2.trim() && !!section3 && hashValid(section3.fingerprint) && typeof section3.fingerprint === "string" && Array.isArray(section3.evidenceIds) && section3.evidenceIds.every((id) => typeof id === "string" && !!id.trim()) && resultValid(section3.result)
   ));
 }
 var clone = (value) => JSON.parse(JSON.stringify(value));
@@ -10744,6 +10744,7 @@ function parseMap(content) {
   const map = upgradeLegacyAimData(JSON.parse(block[1]));
   if (map.version !== 1 || typeof map.id !== "string" || typeof map.title !== "string" || !Array.isArray(map.nodes))
     throw new Error(t("ui.invalid_mind_map_format"));
+  if (map.detailTemplateId !== void 0 && typeof map.detailTemplateId !== "string") delete map.detailTemplateId;
   const ids = /* @__PURE__ */ new Set(), aimQuestionRequests = /* @__PURE__ */ new Set();
   for (const n of map.nodes) {
     if (!n || typeof n.id !== "string" || typeof n.path !== "string" || !n.path.endsWith(".md") || !Number.isFinite(n.x) || !Number.isFinite(n.y) || n.parentId !== null && typeof n.parentId !== "string" || ids.has(n.id))
@@ -11048,6 +11049,7 @@ var managedHeadingValue = (value) => value.replace(/\n/g, " ").trim();
 
 // repository.ts
 var DEFAULT_SETTINGS = {
+  detailTemplates: [],
   coffeeStyles: [],
   language: "en",
   workspaceFolder: "Agent Workspace",
@@ -11432,6 +11434,8 @@ var Repository = class {
       researchMode: fm["research-mode"] === "local" ? "local" : "research",
       researchDepth: fm["research-depth"] === "fast" || fm["research-depth"] === "deep" ? fm["research-depth"] : "normal",
       visualMode: fm["visual-mode"] === "on" || fm["visual-mode"] === "off" ? fm["visual-mode"] : "auto",
+      ...typeof fm["detail-template"] === "string" && fm["detail-template"] ? { detailTemplateId: fm["detail-template"] } : {},
+      detailFormatIssues: Array.isArray(fm["detail-format-issues"]) ? fm["detail-format-issues"].filter((v) => typeof v === "string") : [],
       status: ["idea", "running", "completed", "error"].includes(normalized) ? normalized : "idea",
       mapId: text4(fm["agent-map-id"]),
       topicId: text4(fm["topic-id"], text4(fm["agent-map-id"])),
@@ -11460,6 +11464,10 @@ var Repository = class {
       if (patch.researchMode !== void 0) fm["research-mode"] = patch.researchMode;
       if (patch.researchDepth !== void 0) fm["research-depth"] = patch.researchDepth;
       if (patch.visualMode !== void 0) fm["visual-mode"] = patch.visualMode;
+      if (patch.detailTemplateId !== void 0)
+        patch.detailTemplateId ? fm["detail-template"] = patch.detailTemplateId : delete fm["detail-template"];
+      if (patch.detailFormatIssues !== void 0)
+        patch.detailFormatIssues.length ? fm["detail-format-issues"] = patch.detailFormatIssues : delete fm["detail-format-issues"];
       if (patch.mapId !== void 0) patch.mapId ? fm["agent-map-id"] = patch.mapId : delete fm["agent-map-id"];
       if (patch.topicId !== void 0) patch.topicId ? fm["topic-id"] = patch.topicId : delete fm["topic-id"];
       if (patch.topicState !== void 0) fm["topic-state"] = patch.topicState;
@@ -12290,6 +12298,7 @@ function builtInSample(language2, useEmbeddedAssets = true) {
       researchMode: "research",
       researchDepth: "normal",
       visualMode: "auto",
+      detailFormatIssues: [],
       mapId: map.id,
       topicId: map.id,
       topicState: "active",
@@ -13450,21 +13459,21 @@ function parseDeliveryOutline(detail) {
   const sections = value && typeof value === "object" && "sections" in value ? value.sections : void 0;
   if (!Array.isArray(sections) || !sections.length || sections.length > 12)
     throw new Error("Final delivery outline is invalid; no conclusion was saved.");
-  const validated = sections.map((section2) => {
-    if (!section2 || typeof section2 !== "object" || !("heading" in section2) || !("purpose" in section2) || !("searchTask" in section2) || typeof section2.heading !== "string" || !section2.heading.trim() || typeof section2.purpose !== "string" || !section2.purpose.trim() || typeof section2.searchTask !== "string")
+  const validated = sections.map((section3) => {
+    if (!section3 || typeof section3 !== "object" || !("heading" in section3) || !("purpose" in section3) || !("searchTask" in section3) || typeof section3.heading !== "string" || !section3.heading.trim() || typeof section3.purpose !== "string" || !section3.purpose.trim() || typeof section3.searchTask !== "string")
       throw new Error("Final delivery outline is invalid; no conclusion was saved.");
     const mapping = {};
     for (const key2 of ["evidenceIds", "dependencies"]) {
-      if (key2 in section2) {
-        const ids = section2[key2];
+      if (key2 in section3) {
+        const ids = section3[key2];
         if (!Array.isArray(ids) || ids.some((id) => typeof id !== "string" || !id.trim()) || new Set(ids).size !== ids.length)
           throw new Error("Invalid final delivery source mapping.");
         mapping[key2] = ids;
       }
     }
-    return { heading: section2.heading, purpose: section2.purpose, searchTask: section2.searchTask, ...mapping };
+    return { heading: section3.heading, purpose: section3.purpose, searchTask: section3.searchTask, ...mapping };
   });
-  if (new Set(validated.map((section2) => section2.heading.trim().toLowerCase())).size !== validated.length)
+  if (new Set(validated.map((section3) => section3.heading.trim().toLowerCase())).size !== validated.length)
     throw new Error("Final delivery outline contains duplicate sections.");
   return validated;
 }
@@ -13572,15 +13581,15 @@ ${source.detail}`).join("\n\n");
   );
   const sections = parseDeliveryOutline(outlineResult.detail);
   const outline = JSON.stringify(sections);
-  const needsResearch = sections.some((section2) => section2.searchTask.trim());
+  const needsResearch = sections.some((section3) => section3.searchTask.trim());
   const researchFingerprint = fingerprint(
-    sections.filter((section2) => section2.searchTask.trim()).map((section2) => {
+    sections.filter((section3) => section3.searchTask.trim()).map((section3) => {
       var _a2, _b2, _c2, _d2;
-      const ids = [.../* @__PURE__ */ new Set([...(_a2 = section2.evidenceIds) != null ? _a2 : [], ...(_b2 = section2.dependencies) != null ? _b2 : []])];
-      const scoped = section2.evidenceIds === void 0 && section2.dependencies === void 0 ? (_c2 = options.evidence) != null ? _c2 : [] : ((_d2 = options.evidence) != null ? _d2 : []).filter((source) => ids.includes(source.id));
+      const ids = [.../* @__PURE__ */ new Set([...(_a2 = section3.evidenceIds) != null ? _a2 : [], ...(_b2 = section3.dependencies) != null ? _b2 : []])];
+      const scoped = section3.evidenceIds === void 0 && section3.dependencies === void 0 ? (_c2 = options.evidence) != null ? _c2 : [] : ((_d2 = options.evidence) != null ? _d2 : []).filter((source) => ids.includes(source.id));
       return {
-        heading: section2.heading,
-        searchTask: section2.searchTask,
+        heading: section3.heading,
+        searchTask: section3.searchTask,
         sources: scoped.map((source) => [source.id, source.hash])
       };
     })
@@ -13613,10 +13622,10 @@ Supplied source reports:
 ${sourceCatalog}`;
   const available = new Map(((_e = options.evidence) != null ? _e : []).map((source) => [source.id, source]));
   if (available.size !== ((_f = options.evidence) != null ? _f : []).length) throw new Error("Duplicate final delivery evidence IDs.");
-  const researchForSection = (section2) => {
-    if (!section2.searchTask.trim()) return "";
+  const researchForSection = (section3) => {
+    if (!section3.searchTask.trim()) return "";
     const lines = research.detail.split("\n");
-    const start = lines.findIndex((line) => line.trim() === `## ${section2.heading}`);
+    const start = lines.findIndex((line) => line.trim() === `## ${section3.heading}`);
     if (start >= 0) {
       const end = lines.findIndex((line, index) => index > start && /^##\s+/.test(line));
       return lines.slice(start, end < 0 ? void 0 : end).join("\n");
@@ -13625,32 +13634,32 @@ ${sourceCatalog}`;
       throw new Error("Final research is missing section-scoped evidence; no conclusion was saved.");
     return research.detail;
   };
-  const sectionPlans = sections.map((section2) => {
+  const sectionPlans = sections.map((section3) => {
     var _a2, _b2;
-    const ids = [.../* @__PURE__ */ new Set([...(_a2 = section2.evidenceIds) != null ? _a2 : [], ...(_b2 = section2.dependencies) != null ? _b2 : []])];
+    const ids = [.../* @__PURE__ */ new Set([...(_a2 = section3.evidenceIds) != null ? _a2 : [], ...(_b2 = section3.dependencies) != null ? _b2 : []])];
     if (ids.some((id) => !available.has(id)))
       throw new Error("Final delivery outline references an unavailable source ID.");
-    const sources2 = section2.evidenceIds === void 0 && section2.dependencies === void 0 ? [...available.values()] : ids.map((id) => available.get(id));
+    const sources2 = section3.evidenceIds === void 0 && section3.dependencies === void 0 ? [...available.values()] : ids.map((id) => available.get(id));
     const scopedEvidence = sources2.length ? sources2.map((source) => `Source ID: ${source.id}
 ${source.detail}`).join("\n\n") : available.size ? NO_MAPPED_SOURCE : `${base.detail}
 
 ${research.detail}`;
-    const scopedResearch = researchForSection(section2);
+    const scopedResearch = researchForSection(section3);
     const sectionFingerprint = fingerprint({
       baseFingerprint,
-      heading: section2.heading,
-      purpose: section2.purpose,
-      searchTask: section2.searchTask,
+      heading: section3.heading,
+      purpose: section3.purpose,
+      searchTask: section3.searchTask,
       sources: sources2.map((source) => [source.id, source.hash]),
       research: scopedResearch || (!available.size ? research.detail : void 0)
     });
     return {
-      section: section2,
+      section: section3,
       sources: sources2,
       scopedEvidence,
       scopedResearch,
       sectionFingerprint,
-      key: section2.heading.trim().toLowerCase()
+      key: section3.heading.trim().toLowerCase()
     };
   });
   const draftFingerprint = fingerprint(sectionPlans.map((plan) => plan.sectionFingerprint));
@@ -14086,9 +14095,9 @@ function foldPayload(contract, aim, result) {
     }
     case "outline": {
       const sections = (Array.isArray(aim.sections) ? aim.sections : []).map((item) => {
-        const { evidenceIds, dependencies, ...section2 } = item && typeof item === "object" ? item : {};
+        const { evidenceIds, dependencies, ...section3 } = item && typeof item === "object" ? item : {};
         return {
-          ...section2,
+          ...section3,
           ...Array.isArray(evidenceIds) ? { evidenceIds } : {},
           ...Array.isArray(dependencies) ? { dependencies } : {}
         };
@@ -14491,10 +14500,10 @@ function extractAimFailedReport(note, attempt, notePath) {
   if (!headings.length || headings.length !== summaries.length) return null;
   for (let index = 0; index < headings.length; index++) {
     const number = Number(headings[index][1]), next = (_b = (_a = headings[index + 1]) == null ? void 0 : _a.index) != null ? _b : body.length;
-    const section2 = body.slice(headings[index].index + headings[index][0].length, next).trim();
-    if (number !== index + 1 || ((_c = summaries[index]) == null ? void 0 : _c.index) !== number || !((_d = summaries[index]) == null ? void 0 : _d.summary) || !section2)
+    const section3 = body.slice(headings[index].index + headings[index][0].length, next).trim();
+    if (number !== index + 1 || ((_c = summaries[index]) == null ? void 0 : _c.index) !== number || !((_d = summaries[index]) == null ? void 0 : _d.summary) || !section3)
       return null;
-    reports.push({ summary: summaries[index].summary, detail: section2, suggestions: [], visualReferences: [] });
+    reports.push({ summary: summaries[index].summary, detail: section3, suggestions: [], visualReferences: [] });
   }
   return reports;
 }
@@ -14701,10 +14710,10 @@ function countAimAnsweredQuestions(map, branchId) {
   return count;
 }
 function lineageWithoutRepeatedReports(lineage, reportDetail) {
-  return lineage.split(/\n\n(?=(?:User answer to |Saved research result v))/g).filter((section2) => {
+  return lineage.split(/\n\n(?=(?:User answer to |Saved research result v))/g).filter((section3) => {
     var _a, _b;
-    if (!section2.startsWith("Saved research result ")) return true;
-    const report = (_b = (_a = section2.match(/\nReport:\n([\s\S]*)$/)) == null ? void 0 : _a[1]) == null ? void 0 : _b.trim();
+    if (!section3.startsWith("Saved research result ")) return true;
+    const report = (_b = (_a = section3.match(/\nReport:\n([\s\S]*)$/)) == null ? void 0 : _a[1]) == null ? void 0 : _b.trim();
     return !report || !reportDetail.includes(report);
   }).join("\n\n");
 }
@@ -23777,12 +23786,12 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     var _a;
     const suggestions = this.plugin.pendingSuggestions.get(node.path);
     if (!(suggestions == null ? void 0 : suggestions.length)) return;
-    const section2 = panel.createDiv("vam-inspector-proposals");
-    section2.createEl("h3", { text: t("ui.0_expansion_suggestions", suggestions.length) });
-    section2.createEl("p", { text: t("ui.select_and_edit_suggestions_subtopics_are_created_only_after") });
+    const section3 = panel.createDiv("vam-inspector-proposals");
+    section3.createEl("h3", { text: t("ui.0_expansion_suggestions", suggestions.length) });
+    section3.createEl("p", { text: t("ui.select_and_edit_suggestions_subtopics_are_created_only_after") });
     const rows = [];
     for (const original of suggestions) {
-      const row = section2.createDiv("vam-proposal");
+      const row = section3.createDiv("vam-proposal");
       if (original.parentTitle) row.createEl("p", { text: t("ui.child_of_0", original.parentTitle) });
       const checkLabel = row.createEl("label", { cls: "vam-field vam-next-toggle" });
       const check = checkLabel.createEl("input", { type: "checkbox" });
@@ -23804,12 +23813,12 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       contribution.setAttr("aria-label", t("ui.contribution_to_the_parent_topic"));
       rows.push({ original, check, title, task, contribution });
     }
-    const researchLabel = section2.createEl("label", { cls: "vam-field vam-next-toggle" });
+    const researchLabel = section3.createEl("label", { cls: "vam-field vam-next-toggle" });
     const shallow = researchLabel.createEl("input", { type: "checkbox" });
     shallow.checked = !!((_a = this.plugin.pendingResearchOptions.get(node.path)) == null ? void 0 : _a.shallowResearch);
     researchLabel.createSpan({ text: t("ui.run_shallow_research_on_each_created_subtopic") });
-    const status = section2.createEl("p", { cls: "vam-hint" });
-    const actions = section2.createDiv("vam-actions");
+    const status = section3.createEl("p", { cls: "vam-hint" });
+    const actions = section3.createDiv("vam-actions");
     const create = this.button(actions, t("ui.create_selected_subtopics"), () => {
       void (async () => {
         var _a2;
@@ -24641,8 +24650,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     ];
     const marker4 = markers.find((value) => note.detail.includes(value));
     if (!marker4) return [];
-    const section2 = note.detail.slice(note.detail.indexOf(marker4) + marker4.length);
-    const paths = [...section2.matchAll(/\[\[([^\]|#]+)(?:[|#][^\]]*)?\]\]/g)].map((match) => {
+    const section3 = note.detail.slice(note.detail.indexOf(marker4) + marker4.length);
+    const paths = [...section3.matchAll(/\[\[([^\]|#]+)(?:[|#][^\]]*)?\]\]/g)].map((match) => {
       var _a, _b;
       const link = match[1], direct = link.endsWith(".md") ? link : `${link}.md`;
       if (this.app.vault.getAbstractFileByPath(direct) instanceof import_obsidian16.TFile) return direct;
@@ -25984,6 +25993,194 @@ var VisualAgentMapSettingTab = class extends import_obsidian17.PluginSettingTab 
 
 // main.ts
 var import_node_path2 = require("node:path");
+
+// core/steps/task/source-registry.md
+var source_registry_default = "Source registry (retain these identities in citations):\n{{catalog}}\n";
+
+// core/steps/task/adaptive-detail-structure.zh.md
+var adaptive_detail_structure_zh_default = "detail \u4F7F\u7528 Markdown\uFF0C\u4F9D\u4F7F\u7528\u8005\u6700\u521D\u554F\u984C\u8207\u671F\u671B\u6210\u679C\u6C7A\u5B9A\u5167\u5BB9\u7D50\u69CB\u3002\u6309\u9700\u8981\u9078\u64C7\u6A19\u984C\u3001\u6BB5\u843D\u3001\u6B65\u9A5F\u3001\u8868\u683C\u6216\u5176\u4ED6\u5408\u9069\u5F62\u5F0F\uFF0C\u4E0D\u5957\u56FA\u5B9A\u6BB5\u843D\u6A21\u677F\u3002\u6574\u5408\u5DF2\u77E5\u4F7F\u7528\u8005\u689D\u4EF6\u8207\u76F8\u95DC\u8B49\u64DA\uFF0C\u5BEB\u6210\u9023\u8CAB\u3001\u53EF\u7368\u7ACB\u95B1\u8B80\u7684\u5B8C\u6574\u56DE\u7B54\uFF1B\u5728\u76F8\u95DC\u5167\u5BB9\u4EA4\u4EE3\u4F86\u6E90\u53CA\u91CD\u8981\u4E0D\u78BA\u5B9A\u6027\u3002\u4E0D\u8981\u8CBC\u4E0A\u4E2D\u9593\u7814\u7A76\u5831\u544A\uFF0C\u4E0D\u52A0\u7A7A\u6BB5\u843D\u6216\u66F4\u65B0\u7D00\u9304\u3002\u4FDD\u7559\u4EFB\u52D9\u8981\u6C42\u7684\u6A5F\u5668\u53EF\u8B80\u6C7A\u7B56\u6A19\u8A18\u8207\u5916\u5C64 JSON \u56DE\u61C9\u683C\u5F0F\u3002\n";
+
+// core/steps/task/adaptive-detail-structure.en.md
+var adaptive_detail_structure_en_default = "Write detail in Markdown with a structure suited to the user's original question and requested outcome. Choose headings, prose, steps, tables, or other appropriate formats as needed; there is no fixed section template. Produce a coherent, self-contained answer that incorporates the user's known conditions and relevant evidence. Integrate source attribution and material uncertainties where they matter. Do not paste the intermediate research reports or add empty sections and update logs. Preserve any machine-readable decision marker required by the task and the outer JSON response contract.\n";
+
+// core/steps/task/decompose.zh.md
+var decompose_zh_default = "\u9019\u662F Decompose \u6A21\u5F0F\uFF1A\u4F9D\u672C\u6B21\u4EFB\u52D9\u6307\u5B9A\u7684\u5C64\u6578\u8207\u6578\u91CF\u63D0\u51FA\u53EF\u7368\u7ACB\u8655\u7406\u7684\u5B50\u8B70\u984C\uFF1B\u82E5\u73FE\u6709\u5B50\u8B70\u984C\u5DF2\u6DB5\u84CB\u9700\u6C42\uFF0C\u56DE\u50B3\u7A7A\u9663\u5217\uFF0C\u4E0D\u8981\u6E4A\u6578\u3002summary \u7C21\u8FF0\u662F\u5426\u5EFA\u8B70\u62C6\u89E3\uFF0Cdetail \u7C21\u8FF0\u62C6\u89E3\u7406\u7531\uFF1B\u4E0D\u8981\u66F4\u65B0\u7D50\u8AD6\u3002\n";
+
+// core/steps/task/decompose.en.md
+var decompose_en_default = "Decompose mode: propose independently actionable subtopics at the requested depth and count. If existing subtopics already cover the need, return an empty array; do not pad the count. Summarize whether decomposition is useful and briefly explain why in detail. Do not update conclusions.\n";
+
+// core/steps/task/default-task.zh.md
+var default_task_zh_default = "summary \u5FC5\u9808\u662F\u4E00\u53E5\u9069\u5408\u5FC3\u667A\u5716\u986F\u793A\u7684\u65B0\u76EE\u524D\u7406\u89E3\uFF0Cdetail \u5FC5\u9808\u662F\u5B8C\u6574 Markdown \u5206\u6790\u3002\n";
+
+// core/steps/task/default-task.en.md
+var default_task_en_default = "Summary must be one new insight suitable for the mind map; detail must be a complete Markdown analysis.\n";
+
+// core/steps/task/detail-structure.zh.md
+var detail_structure_zh_default = "detail \u5FC5\u9808\u4E14\u53EA\u80FD\u4F9D\u5E8F\u4F7F\u7528\u4EE5\u4E0B\u516D\u500B\u4E09\u7D1A\u6A19\u984C\uFF1A{{headings}}\u3002\u66F4\u65B0\u7D00\u9304\u53EA\u65B0\u589E\u4E00\u884C\u672C\u6B21\u8B8A\u66F4\u6458\u8981\uFF0C\u4E0D\u53EF\u91CD\u8CBC\u5B8C\u6574\u7B54\u6848\uFF1B\u6C92\u6709\u9069\u7528\u5167\u5BB9\u7684\u6BB5\u843D\u5BEB\u300C\u672C\u6B21\u7121\u65B0\u589E\u5167\u5BB9\u300D\u3002\u6838\u5FC3\u7D50\u8AD6\u82E5\u6709\u6307\u5B9A\u6578\u91CF\uFF0C\u9808\u9075\u5B88\u8A72\u6578\u91CF\u3002\n";
+
+// core/steps/task/detail-structure.en.md
+var detail_structure_en_default = "The detail must use exactly these six level-three headings in order: {{headings}}. Add only one line summarizing this update in Update log; do not repeat the full answer. Write 'No new content this time' in sections with nothing applicable. Follow any requested count for the core conclusions.\n";
+
+// core/steps/task/general-task.zh.md
+var general_task_zh_default = "\u9019\u662F\u4E00\u822C\u4EFB\u52D9\uFF1Asummary \u5FC5\u9808\u662F\u4E00\u53E5\u9069\u5408\u5FC3\u667A\u5716\u986F\u793A\u7684\u65B0\u76EE\u524D\u7406\u89E3\uFF0C80 \u5B57\u5167\uFF1Bdetail \u662F\u6703\u76F4\u63A5\u53D6\u4EE3\u820A Detail \u7684\u5B8C\u6574\u77E5\u8B58\u9801\uFF0C\u5FC5\u9808\u5438\u6536\u820A\u5167\u5BB9\u8207\u672C\u6B21\u767C\u73FE\u3001\u53BB\u9664\u91CD\u8907\u3001\u4FDD\u7559\u4ECD\u6709\u6548\u7684\u4F86\u6E90\u3002\u82E5\u8B70\u984C\u904E\u65BC\u8907\u96DC\u624D\u63D0\u4F9B suggestions\uFF0C\u5426\u5247\u56DE\u50B3\u7A7A\u9663\u5217\u3002\n";
+
+// core/steps/task/general-task.en.md
+var general_task_en_default = "General task: summary is one new insight for the mind map, within 80 characters. Detail replaces the old Detail with a complete knowledge page that incorporates valid existing content and new findings, removes duplication, and retains valid sources. Provide suggestions only if the topic is too complex; otherwise return an empty array.\n";
+
+// core/steps/task/json.zh.md
+var json_zh_default = '\u53EA\u56DE\u50B3 JSON\uFF0C\u4E0D\u8981\u4F7F\u7528 Markdown code fence\u3002\u683C\u5F0F\u5FC5\u9808\u7B26\u5408\uFF1A{"summary":"...","detail":"...","suggestions":[{"title":"...","task":"...","contribution":"...","parentTitle":""}],"visualReferences":[{"title":"...","imageUrl":"https://...","sourceUrl":"https://...","description":"...","palette":["navy","white"],"formula":"..."}]}\u3002\u82E5\u6C92\u6709\u8996\u89BA\u53C3\u8003\uFF0CvisualReferences \u56DE\u50B3\u7A7A\u9663\u5217\u3002\n';
+
+// core/steps/task/json.en.md
+var json_en_default = 'Return JSON only, without a Markdown code fence. Use this exact shape: {"summary":"...","detail":"...","suggestions":[{"title":"...","task":"...","contribution":"...","parentTitle":""}],"visualReferences":[{"title":"...","imageUrl":"https://...","sourceUrl":"https://...","description":"...","palette":["navy","white"],"formula":"..."}]}. Return an empty visualReferences array when there are no visual references.\n';
+
+// core/steps/task/label-detail.zh.md
+var label_detail_zh_default = "\u73FE\u6709 Detail\uFF08\u9808\u6574\u5408\u5F8C\u5B8C\u6574\u53D6\u4EE3\uFF0C\u4E0D\u80FD\u539F\u6A23\u91CD\u8907\u8FFD\u52A0\uFF09\n";
+
+// core/steps/task/label-detail.en.md
+var label_detail_en_default = "Existing Detail (integrate and replace fully, do not append unchanged)\n";
+
+// core/steps/task/label-findings.zh.md
+var label_findings_zh_default = "\u820A\u7248\u5F85\u6574\u7406\u767C\u73FE\uFF08\u672C\u6B21\u5FC5\u9808\u4E00\u4F75\u6536\u6582\uFF09\n";
+
+// core/steps/task/label-findings.en.md
+var label_findings_en_default = "Older findings to consolidate\n";
+
+// core/steps/task/output-language.zh.md
+var output_language_zh_default = "\u65B0\u7522\u751F\u7684\u5167\u5BB9\u9810\u8A2D\u4F7F\u7528\u7E41\u9AD4\u4E2D\u6587\uFF0C\u5305\u62EC\u6458\u8981\u3001Detail \u6B63\u6587\u3001\u5EFA\u8B70\u6A19\u984C\u8207\u8AAA\u660E\u3001\u5716\u7247\u63CF\u8FF0\u3002\u516D\u500B\u6A19\u6E96 Detail \u6A19\u984C\u56FA\u5B9A\u8DDF\u96A8\u4ECB\u9762\u8A9E\u8A00\u3002\u4FDD\u7559\u4F86\u6E90\u539F\u6587\u5F15\u8FF0\u8207\u5C08\u6709\u540D\u7A31\uFF1B\u53EA\u6709\u76EE\u524D\u4EFB\u52D9\u6216\u8B70\u984C AI \u898F\u5247\u660E\u78BA\u6307\u5B9A\u5176\u4ED6\u8F38\u51FA\u8A9E\u8A00\u6642\u624D\u6539\u7528\u8A72\u8A9E\u8A00\u3002\n";
+
+// core/steps/task/output-language.en.md
+var output_language_en_default = "Write newly generated content in English by default, including summaries, detail text, suggestion titles, tasks, contributions, and image descriptions. The six standard Detail headings must follow the interface language. Preserve quoted source text and proper names. Follow a different output language only when the current task or topic AI rules explicitly request it.\n";
+
+// core/steps/task/synthesize.zh.md
+var synthesize_zh_default = "\u9019\u662F Synthesize \u6A21\u5F0F\uFF1Asummary \u5FC5\u9808\u662F\u9AD8\u54C1\u8CEA\u6574\u5408\u7D50\u8AD6\uFF0C80 \u5B57\u5167\uFF1Bdetail \u5FC5\u9808\u6574\u5408\u4F86\u6E90\u5B8C\u6574\u77E5\u8B58\u3001\u6536\u6582\u91CD\u8907\u5167\u5BB9\u3001\u6E05\u695A\u5448\u73FE\u5171\u8B58\u3001\u5206\u6B67\u3001\u53D6\u6368\u8207\u672A\u89E3\u554F\u984C\uFF1B\u82E5\u4ECB\u9762\u63D0\u4F9B\u78BA\u8A8D\u8349\u7A3F\uFF0C\u78BA\u8A8D\u5F8C\u624D\u6703\u5BEB\u56DE\u3002\n";
+
+// core/steps/task/synthesize.en.md
+var synthesize_en_default = "Synthesize mode: summary is a high-quality integrated conclusion within 80 characters. Detail integrates complete source knowledge, removes duplication, and clearly presents agreements, disagreements, tradeoffs, and unresolved questions. If the UI offers draft review, write only after confirmation.\n";
+
+// core/steps/task/visual-auto.zh.md
+var visual_auto_zh_default = "\u5716\u7247\u80FD\u660E\u986F\u5E6B\u52A9\u7406\u89E3\u6216\u4F7F\u7528\u8005\u660E\u78BA\u8981\u6C42\u5716\u7247\u6642\uFF0C\u624D\u641C\u5C0B\u5716\u7247\u53C3\u8003\uFF1B\u4E00\u822C\u77E5\u8B58\u578B\u554F\u984C\u4E0D\u8981\u641C\u5C0B\u5716\u7247\u3002\n";
+
+// core/steps/task/visual-auto.en.md
+var visual_auto_en_default = "Search for image references when they materially aid understanding or the user explicitly asks for images; do not search for images for ordinary knowledge questions.\n";
+
+// core/steps/task/visual-embed.zh.md
+var visual_embed_zh_default = "\u6709\u52A9\u7406\u89E3\u7684\u5716\u7247\u76F4\u63A5\u5D4C\u5165 detail \u76F8\u95DC\u6BB5\u843D\u4E26\u9644\u4F86\u6E90\u9801\u9023\u7D50\u3002\u6574\u5408\u6642\u53EA\u6CBF\u7528\u6709\u52A9\u8AAA\u660E\u6574\u5408\u767C\u73FE\u7684\u4F86\u6E90\u5716\u7247\uFF1B\u4E0D\u8981\u5EFA\u7ACB\u7368\u7ACB\u5716\u7247\u96C6\u5408\uFF0C\u4E5F\u4E0D\u8981\u7DE8\u9020\u4F86\u6E90\u3002\n";
+
+// core/steps/task/visual-embed.en.md
+var visual_embed_en_default = "Embed useful images directly in relevant detail paragraphs with source-page links. In synthesis, reuse source images only when they help explain the integrated findings. Do not create a separate image collection or invent sources.\n";
+
+// core/steps/task/visual-none.zh.md
+var visual_none_zh_default = "\u4E0D\u8981\u641C\u5C0B\u65B0\u5716\u7247\uFF1BvisualReferences \u56DE\u50B3\u7A7A\u9663\u5217\u3002\n";
+
+// core/steps/task/visual-none.en.md
+var visual_none_en_default = "Do not search for new images; return an empty visualReferences array unless synthesis can reuse a relevant image already included in the provided source context.\n";
+
+// core/steps/task/visual-on.zh.md
+var visual_on_zh_default = "\u8ACB\u5C0B\u627E 1\u20136 \u500B\u80FD\u5E6B\u52A9\u7406\u89E3\u8B70\u984C\u7684\u5716\u7247\u53C3\u8003\uFF1B\u5FC5\u9808\u63D0\u4F9B\u771F\u5BE6\u5716\u7247 URL \u8207\u4F86\u6E90\u9801 URL\uFF0C\u627E\u4E0D\u5230\u53EF\u9760\u5716\u7247\u6642\u56DE\u50B3\u7A7A\u9663\u5217\u3002\n";
+
+// core/steps/task/visual-on.en.md
+var visual_on_en_default = "Find 1\u20136 image references that help explain the topic. Provide real image and source-page URLs; return an empty array if reliable images are unavailable.\n";
+
+// core/steps/task/visual-preserve.zh.md
+var visual_preserve_zh_default = "\u6574\u5408\u6642\u82E5\u63D0\u4F9B\u7684\u4F86\u6E90\u5167\u5BB9\u5DF2\u6709\u76F8\u95DC\u5716\u7247\uFF0C\u8ACB\u4FDD\u7559\u539F\u5716\u7247\u8207\u4F86\u6E90 URL\uFF0C\u4E26\u56DE\u50B3\u8A72\u53C3\u8003\u3002\n";
+
+// core/steps/task/visual-preserve.en.md
+var visual_preserve_en_default = "When reusing one, preserve its original image and source URLs.\n";
+
+// core/steps/task/fragments.ts
+var text7 = (template) => renderTemplate(template, {});
+var pair4 = (zh, en) => ({ zh: text7(zh), en: text7(en) });
+var ADAPTIVE_DETAIL_STRUCTURE = pair4(adaptive_detail_structure_zh_default, adaptive_detail_structure_en_default);
+var DECOMPOSE = pair4(decompose_zh_default, decompose_en_default);
+var DEFAULT_TASK = pair4(default_task_zh_default, default_task_en_default);
+var DETAIL_STRUCTURE_TEMPLATE = { zh: detail_structure_zh_default, en: detail_structure_en_default };
+var GENERAL_TASK = pair4(general_task_zh_default, general_task_en_default);
+var JSON_CONTRACT = pair4(json_zh_default, json_en_default);
+var LABEL_DETAIL = pair4(label_detail_zh_default, label_detail_en_default);
+var LABEL_FINDINGS = pair4(label_findings_zh_default, label_findings_en_default);
+var OUTPUT_LANGUAGE = pair4(output_language_zh_default, output_language_en_default);
+var SYNTHESIZE = pair4(synthesize_zh_default, synthesize_en_default);
+var VISUAL_AUTO = pair4(visual_auto_zh_default, visual_auto_en_default);
+var VISUAL_EMBED = pair4(visual_embed_zh_default, visual_embed_en_default);
+var VISUAL_NONE = pair4(visual_none_zh_default, visual_none_en_default);
+var VISUAL_ON = pair4(visual_on_zh_default, visual_on_en_default);
+var VISUAL_PRESERVE = pair4(visual_preserve_zh_default, visual_preserve_en_default);
+function detailStructure(language2, headings) {
+  return renderTemplate(inLanguage(DETAIL_STRUCTURE_TEMPLATE, language2), { headings });
+}
+function sourceRegistry(catalog) {
+  return renderTemplate(source_registry_default, { catalog });
+}
+
+// ai/detail-templates.ts
+var STANDARD_TEMPLATE_ID = "standard";
+function validateTemplate(template, others) {
+  const issues = [];
+  const name = template.name.trim();
+  if (!name) issues.push({ key: "ui.detail_template_error_name_required", values: [] });
+  else if (name.length > 40) issues.push({ key: "ui.detail_template_error_name_long", values: [] });
+  else if (others.some((other) => other.id !== template.id && other.name.trim().toLocaleLowerCase() === name.toLocaleLowerCase()))
+    issues.push({ key: "ui.detail_template_error_name_taken", values: [name] });
+  if (template.sections.length < 1 || template.sections.length > 12)
+    issues.push({ key: "ui.detail_template_error_section_count", values: [] });
+  const seen = /* @__PURE__ */ new Set();
+  template.sections.forEach((section3, index) => {
+    const number = index + 1;
+    const sectionName = section3.name.trim();
+    if (!sectionName)
+      issues.push({ key: "ui.detail_template_error_section_name_required", values: [number], section: number });
+    else if (/[#\r\n]/.test(section3.name))
+      issues.push({ key: "ui.detail_template_error_section_name_invalid", values: [number], section: number });
+    else if (sectionName.length > 40)
+      issues.push({ key: "ui.detail_template_error_section_name_long", values: [number], section: number });
+    else if (seen.has(sectionName.toLocaleLowerCase()))
+      issues.push({ key: "ui.detail_template_error_section_name_taken", values: [number], section: number });
+    seen.add(sectionName.toLocaleLowerCase());
+    if (section3.description.length > 300)
+      issues.push({ key: "ui.detail_template_error_description_long", values: [number], section: number });
+    if (section3.count && (!Number.isInteger(section3.count.n) || section3.count.n < 1 || section3.count.n > 20))
+      issues.push({ key: "ui.detail_template_error_count_range", values: [number], section: number });
+  });
+  for (const role of ["sources", "log"])
+    if (template.sections.filter((section3) => section3.role === role).length > 1)
+      issues.push({
+        key: "ui.detail_template_error_role_taken",
+        values: [role === "sources" ? "ui.detail_template_role_sources" : "ui.detail_template_role_log"]
+      });
+  return issues;
+}
+function section2(value) {
+  if (!value || typeof value !== "object") return null;
+  const item = value;
+  if (typeof item.id !== "string" || typeof item.name !== "string") return null;
+  const role = item.role === "sources" || item.role === "log" ? item.role : "none";
+  const count = item.count && (item.count.mode === "exact" || item.count.mode === "min") && typeof item.count.n === "number" ? { mode: item.count.mode, n: item.count.n } : void 0;
+  return {
+    id: item.id,
+    name: item.name,
+    description: typeof item.description === "string" ? item.description : "",
+    role,
+    ...count ? { count } : {},
+    aliases: Array.isArray(item.aliases) ? item.aliases.filter((alias) => typeof alias === "string") : []
+  };
+}
+function normalizeTemplates(value) {
+  if (!Array.isArray(value)) return [];
+  const result = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object") continue;
+    const item = entry;
+    if (typeof item.id !== "string" || item.id === STANDARD_TEMPLATE_ID || typeof item.name !== "string") continue;
+    if (result.some((existing) => existing.id === item.id)) continue;
+    if (!Array.isArray(item.sections)) continue;
+    const sections = item.sections.map(section2);
+    if (sections.some((entry2) => !entry2)) continue;
+    const template = { id: item.id, name: item.name, sections };
+    if (validateTemplate(template, result).length) continue;
+    result.push(template);
+  }
+  return result;
+}
 
 // ui/outline-view.ts
 var import_obsidian18 = require("obsidian");
@@ -27340,9 +27537,9 @@ var reduce_zh_default = "\u6574\u5408\u6240\u63D0\u4F9B\u7684\u8B49\u64DA\u6458\
 var reduce_en_default = "Combine the supplied extracted evidence without dropping materially different facts, disagreements, caveats, source identifiers, or source mappings. Keep every original [S#] citation attached to its supported claims and preserve every exact [S#]-to-path mapping; never replace an identifier or alter a path.\n";
 
 // core/steps/reference/step.ts
-var text7 = (template) => renderTemplate(template, {});
-var EXTRACT = { zh: text7(extract_zh_default), en: text7(extract_en_default) };
-var REDUCE = { zh: text7(reduce_zh_default), en: text7(reduce_en_default) };
+var text8 = (template) => renderTemplate(template, {});
+var EXTRACT = { zh: text8(extract_zh_default), en: text8(extract_en_default) };
+var REDUCE = { zh: text8(reduce_zh_default), en: text8(reduce_en_default) };
 function referenceTask(round, language2) {
   return inLanguage(round === "extract" ? EXTRACT : REDUCE, language2);
 }
@@ -27445,124 +27642,6 @@ function taskResponseShape(context) {
     context.aimEvidenceLookup === true
   ) : isAimGapAudit ? aim_gap_audit_schema_default : isDeliveryAcceptance ? deliverySchema : isIsolatedWebResearch ? webResearchSchema : response_schema_default;
   return { schema, isAimGapAudit, isIsolatedWebResearch, ...contract ? { contract } : {} };
-}
-
-// core/steps/task/source-registry.md
-var source_registry_default = "Source registry (retain these identities in citations):\n{{catalog}}\n";
-
-// core/steps/task/adaptive-detail-structure.zh.md
-var adaptive_detail_structure_zh_default = "detail \u4F7F\u7528 Markdown\uFF0C\u4F9D\u4F7F\u7528\u8005\u6700\u521D\u554F\u984C\u8207\u671F\u671B\u6210\u679C\u6C7A\u5B9A\u5167\u5BB9\u7D50\u69CB\u3002\u6309\u9700\u8981\u9078\u64C7\u6A19\u984C\u3001\u6BB5\u843D\u3001\u6B65\u9A5F\u3001\u8868\u683C\u6216\u5176\u4ED6\u5408\u9069\u5F62\u5F0F\uFF0C\u4E0D\u5957\u56FA\u5B9A\u6BB5\u843D\u6A21\u677F\u3002\u6574\u5408\u5DF2\u77E5\u4F7F\u7528\u8005\u689D\u4EF6\u8207\u76F8\u95DC\u8B49\u64DA\uFF0C\u5BEB\u6210\u9023\u8CAB\u3001\u53EF\u7368\u7ACB\u95B1\u8B80\u7684\u5B8C\u6574\u56DE\u7B54\uFF1B\u5728\u76F8\u95DC\u5167\u5BB9\u4EA4\u4EE3\u4F86\u6E90\u53CA\u91CD\u8981\u4E0D\u78BA\u5B9A\u6027\u3002\u4E0D\u8981\u8CBC\u4E0A\u4E2D\u9593\u7814\u7A76\u5831\u544A\uFF0C\u4E0D\u52A0\u7A7A\u6BB5\u843D\u6216\u66F4\u65B0\u7D00\u9304\u3002\u4FDD\u7559\u4EFB\u52D9\u8981\u6C42\u7684\u6A5F\u5668\u53EF\u8B80\u6C7A\u7B56\u6A19\u8A18\u8207\u5916\u5C64 JSON \u56DE\u61C9\u683C\u5F0F\u3002\n";
-
-// core/steps/task/adaptive-detail-structure.en.md
-var adaptive_detail_structure_en_default = "Write detail in Markdown with a structure suited to the user's original question and requested outcome. Choose headings, prose, steps, tables, or other appropriate formats as needed; there is no fixed section template. Produce a coherent, self-contained answer that incorporates the user's known conditions and relevant evidence. Integrate source attribution and material uncertainties where they matter. Do not paste the intermediate research reports or add empty sections and update logs. Preserve any machine-readable decision marker required by the task and the outer JSON response contract.\n";
-
-// core/steps/task/decompose.zh.md
-var decompose_zh_default = "\u9019\u662F Decompose \u6A21\u5F0F\uFF1A\u4F9D\u672C\u6B21\u4EFB\u52D9\u6307\u5B9A\u7684\u5C64\u6578\u8207\u6578\u91CF\u63D0\u51FA\u53EF\u7368\u7ACB\u8655\u7406\u7684\u5B50\u8B70\u984C\uFF1B\u82E5\u73FE\u6709\u5B50\u8B70\u984C\u5DF2\u6DB5\u84CB\u9700\u6C42\uFF0C\u56DE\u50B3\u7A7A\u9663\u5217\uFF0C\u4E0D\u8981\u6E4A\u6578\u3002summary \u7C21\u8FF0\u662F\u5426\u5EFA\u8B70\u62C6\u89E3\uFF0Cdetail \u7C21\u8FF0\u62C6\u89E3\u7406\u7531\uFF1B\u4E0D\u8981\u66F4\u65B0\u7D50\u8AD6\u3002\n";
-
-// core/steps/task/decompose.en.md
-var decompose_en_default = "Decompose mode: propose independently actionable subtopics at the requested depth and count. If existing subtopics already cover the need, return an empty array; do not pad the count. Summarize whether decomposition is useful and briefly explain why in detail. Do not update conclusions.\n";
-
-// core/steps/task/default-task.zh.md
-var default_task_zh_default = "summary \u5FC5\u9808\u662F\u4E00\u53E5\u9069\u5408\u5FC3\u667A\u5716\u986F\u793A\u7684\u65B0\u76EE\u524D\u7406\u89E3\uFF0Cdetail \u5FC5\u9808\u662F\u5B8C\u6574 Markdown \u5206\u6790\u3002\n";
-
-// core/steps/task/default-task.en.md
-var default_task_en_default = "Summary must be one new insight suitable for the mind map; detail must be a complete Markdown analysis.\n";
-
-// core/steps/task/detail-structure.zh.md
-var detail_structure_zh_default = "detail \u5FC5\u9808\u4E14\u53EA\u80FD\u4F9D\u5E8F\u4F7F\u7528\u4EE5\u4E0B\u516D\u500B\u4E09\u7D1A\u6A19\u984C\uFF1A{{headings}}\u3002\u66F4\u65B0\u7D00\u9304\u53EA\u65B0\u589E\u4E00\u884C\u672C\u6B21\u8B8A\u66F4\u6458\u8981\uFF0C\u4E0D\u53EF\u91CD\u8CBC\u5B8C\u6574\u7B54\u6848\uFF1B\u6C92\u6709\u9069\u7528\u5167\u5BB9\u7684\u6BB5\u843D\u5BEB\u300C\u672C\u6B21\u7121\u65B0\u589E\u5167\u5BB9\u300D\u3002\u6838\u5FC3\u7D50\u8AD6\u82E5\u6709\u6307\u5B9A\u6578\u91CF\uFF0C\u9808\u9075\u5B88\u8A72\u6578\u91CF\u3002\n";
-
-// core/steps/task/detail-structure.en.md
-var detail_structure_en_default = "The detail must use exactly these six level-three headings in order: {{headings}}. Add only one line summarizing this update in Update log; do not repeat the full answer. Write 'No new content this time' in sections with nothing applicable. Follow any requested count for the core conclusions.\n";
-
-// core/steps/task/general-task.zh.md
-var general_task_zh_default = "\u9019\u662F\u4E00\u822C\u4EFB\u52D9\uFF1Asummary \u5FC5\u9808\u662F\u4E00\u53E5\u9069\u5408\u5FC3\u667A\u5716\u986F\u793A\u7684\u65B0\u76EE\u524D\u7406\u89E3\uFF0C80 \u5B57\u5167\uFF1Bdetail \u662F\u6703\u76F4\u63A5\u53D6\u4EE3\u820A Detail \u7684\u5B8C\u6574\u77E5\u8B58\u9801\uFF0C\u5FC5\u9808\u5438\u6536\u820A\u5167\u5BB9\u8207\u672C\u6B21\u767C\u73FE\u3001\u53BB\u9664\u91CD\u8907\u3001\u4FDD\u7559\u4ECD\u6709\u6548\u7684\u4F86\u6E90\u3002\u82E5\u8B70\u984C\u904E\u65BC\u8907\u96DC\u624D\u63D0\u4F9B suggestions\uFF0C\u5426\u5247\u56DE\u50B3\u7A7A\u9663\u5217\u3002\n";
-
-// core/steps/task/general-task.en.md
-var general_task_en_default = "General task: summary is one new insight for the mind map, within 80 characters. Detail replaces the old Detail with a complete knowledge page that incorporates valid existing content and new findings, removes duplication, and retains valid sources. Provide suggestions only if the topic is too complex; otherwise return an empty array.\n";
-
-// core/steps/task/json.zh.md
-var json_zh_default = '\u53EA\u56DE\u50B3 JSON\uFF0C\u4E0D\u8981\u4F7F\u7528 Markdown code fence\u3002\u683C\u5F0F\u5FC5\u9808\u7B26\u5408\uFF1A{"summary":"...","detail":"...","suggestions":[{"title":"...","task":"...","contribution":"...","parentTitle":""}],"visualReferences":[{"title":"...","imageUrl":"https://...","sourceUrl":"https://...","description":"...","palette":["navy","white"],"formula":"..."}]}\u3002\u82E5\u6C92\u6709\u8996\u89BA\u53C3\u8003\uFF0CvisualReferences \u56DE\u50B3\u7A7A\u9663\u5217\u3002\n';
-
-// core/steps/task/json.en.md
-var json_en_default = 'Return JSON only, without a Markdown code fence. Use this exact shape: {"summary":"...","detail":"...","suggestions":[{"title":"...","task":"...","contribution":"...","parentTitle":""}],"visualReferences":[{"title":"...","imageUrl":"https://...","sourceUrl":"https://...","description":"...","palette":["navy","white"],"formula":"..."}]}. Return an empty visualReferences array when there are no visual references.\n';
-
-// core/steps/task/label-detail.zh.md
-var label_detail_zh_default = "\u73FE\u6709 Detail\uFF08\u9808\u6574\u5408\u5F8C\u5B8C\u6574\u53D6\u4EE3\uFF0C\u4E0D\u80FD\u539F\u6A23\u91CD\u8907\u8FFD\u52A0\uFF09\n";
-
-// core/steps/task/label-detail.en.md
-var label_detail_en_default = "Existing Detail (integrate and replace fully, do not append unchanged)\n";
-
-// core/steps/task/label-findings.zh.md
-var label_findings_zh_default = "\u820A\u7248\u5F85\u6574\u7406\u767C\u73FE\uFF08\u672C\u6B21\u5FC5\u9808\u4E00\u4F75\u6536\u6582\uFF09\n";
-
-// core/steps/task/label-findings.en.md
-var label_findings_en_default = "Older findings to consolidate\n";
-
-// core/steps/task/output-language.zh.md
-var output_language_zh_default = "\u65B0\u7522\u751F\u7684\u5167\u5BB9\u9810\u8A2D\u4F7F\u7528\u7E41\u9AD4\u4E2D\u6587\uFF0C\u5305\u62EC\u6458\u8981\u3001Detail \u6B63\u6587\u3001\u5EFA\u8B70\u6A19\u984C\u8207\u8AAA\u660E\u3001\u5716\u7247\u63CF\u8FF0\u3002\u516D\u500B\u6A19\u6E96 Detail \u6A19\u984C\u56FA\u5B9A\u8DDF\u96A8\u4ECB\u9762\u8A9E\u8A00\u3002\u4FDD\u7559\u4F86\u6E90\u539F\u6587\u5F15\u8FF0\u8207\u5C08\u6709\u540D\u7A31\uFF1B\u53EA\u6709\u76EE\u524D\u4EFB\u52D9\u6216\u8B70\u984C AI \u898F\u5247\u660E\u78BA\u6307\u5B9A\u5176\u4ED6\u8F38\u51FA\u8A9E\u8A00\u6642\u624D\u6539\u7528\u8A72\u8A9E\u8A00\u3002\n";
-
-// core/steps/task/output-language.en.md
-var output_language_en_default = "Write newly generated content in English by default, including summaries, detail text, suggestion titles, tasks, contributions, and image descriptions. The six standard Detail headings must follow the interface language. Preserve quoted source text and proper names. Follow a different output language only when the current task or topic AI rules explicitly request it.\n";
-
-// core/steps/task/synthesize.zh.md
-var synthesize_zh_default = "\u9019\u662F Synthesize \u6A21\u5F0F\uFF1Asummary \u5FC5\u9808\u662F\u9AD8\u54C1\u8CEA\u6574\u5408\u7D50\u8AD6\uFF0C80 \u5B57\u5167\uFF1Bdetail \u5FC5\u9808\u6574\u5408\u4F86\u6E90\u5B8C\u6574\u77E5\u8B58\u3001\u6536\u6582\u91CD\u8907\u5167\u5BB9\u3001\u6E05\u695A\u5448\u73FE\u5171\u8B58\u3001\u5206\u6B67\u3001\u53D6\u6368\u8207\u672A\u89E3\u554F\u984C\uFF1B\u82E5\u4ECB\u9762\u63D0\u4F9B\u78BA\u8A8D\u8349\u7A3F\uFF0C\u78BA\u8A8D\u5F8C\u624D\u6703\u5BEB\u56DE\u3002\n";
-
-// core/steps/task/synthesize.en.md
-var synthesize_en_default = "Synthesize mode: summary is a high-quality integrated conclusion within 80 characters. Detail integrates complete source knowledge, removes duplication, and clearly presents agreements, disagreements, tradeoffs, and unresolved questions. If the UI offers draft review, write only after confirmation.\n";
-
-// core/steps/task/visual-auto.zh.md
-var visual_auto_zh_default = "\u5716\u7247\u80FD\u660E\u986F\u5E6B\u52A9\u7406\u89E3\u6216\u4F7F\u7528\u8005\u660E\u78BA\u8981\u6C42\u5716\u7247\u6642\uFF0C\u624D\u641C\u5C0B\u5716\u7247\u53C3\u8003\uFF1B\u4E00\u822C\u77E5\u8B58\u578B\u554F\u984C\u4E0D\u8981\u641C\u5C0B\u5716\u7247\u3002\n";
-
-// core/steps/task/visual-auto.en.md
-var visual_auto_en_default = "Search for image references when they materially aid understanding or the user explicitly asks for images; do not search for images for ordinary knowledge questions.\n";
-
-// core/steps/task/visual-embed.zh.md
-var visual_embed_zh_default = "\u6709\u52A9\u7406\u89E3\u7684\u5716\u7247\u76F4\u63A5\u5D4C\u5165 detail \u76F8\u95DC\u6BB5\u843D\u4E26\u9644\u4F86\u6E90\u9801\u9023\u7D50\u3002\u6574\u5408\u6642\u53EA\u6CBF\u7528\u6709\u52A9\u8AAA\u660E\u6574\u5408\u767C\u73FE\u7684\u4F86\u6E90\u5716\u7247\uFF1B\u4E0D\u8981\u5EFA\u7ACB\u7368\u7ACB\u5716\u7247\u96C6\u5408\uFF0C\u4E5F\u4E0D\u8981\u7DE8\u9020\u4F86\u6E90\u3002\n";
-
-// core/steps/task/visual-embed.en.md
-var visual_embed_en_default = "Embed useful images directly in relevant detail paragraphs with source-page links. In synthesis, reuse source images only when they help explain the integrated findings. Do not create a separate image collection or invent sources.\n";
-
-// core/steps/task/visual-none.zh.md
-var visual_none_zh_default = "\u4E0D\u8981\u641C\u5C0B\u65B0\u5716\u7247\uFF1BvisualReferences \u56DE\u50B3\u7A7A\u9663\u5217\u3002\n";
-
-// core/steps/task/visual-none.en.md
-var visual_none_en_default = "Do not search for new images; return an empty visualReferences array unless synthesis can reuse a relevant image already included in the provided source context.\n";
-
-// core/steps/task/visual-on.zh.md
-var visual_on_zh_default = "\u8ACB\u5C0B\u627E 1\u20136 \u500B\u80FD\u5E6B\u52A9\u7406\u89E3\u8B70\u984C\u7684\u5716\u7247\u53C3\u8003\uFF1B\u5FC5\u9808\u63D0\u4F9B\u771F\u5BE6\u5716\u7247 URL \u8207\u4F86\u6E90\u9801 URL\uFF0C\u627E\u4E0D\u5230\u53EF\u9760\u5716\u7247\u6642\u56DE\u50B3\u7A7A\u9663\u5217\u3002\n";
-
-// core/steps/task/visual-on.en.md
-var visual_on_en_default = "Find 1\u20136 image references that help explain the topic. Provide real image and source-page URLs; return an empty array if reliable images are unavailable.\n";
-
-// core/steps/task/visual-preserve.zh.md
-var visual_preserve_zh_default = "\u6574\u5408\u6642\u82E5\u63D0\u4F9B\u7684\u4F86\u6E90\u5167\u5BB9\u5DF2\u6709\u76F8\u95DC\u5716\u7247\uFF0C\u8ACB\u4FDD\u7559\u539F\u5716\u7247\u8207\u4F86\u6E90 URL\uFF0C\u4E26\u56DE\u50B3\u8A72\u53C3\u8003\u3002\n";
-
-// core/steps/task/visual-preserve.en.md
-var visual_preserve_en_default = "When reusing one, preserve its original image and source URLs.\n";
-
-// core/steps/task/fragments.ts
-var text8 = (template) => renderTemplate(template, {});
-var pair4 = (zh, en) => ({ zh: text8(zh), en: text8(en) });
-var ADAPTIVE_DETAIL_STRUCTURE = pair4(adaptive_detail_structure_zh_default, adaptive_detail_structure_en_default);
-var DECOMPOSE = pair4(decompose_zh_default, decompose_en_default);
-var DEFAULT_TASK = pair4(default_task_zh_default, default_task_en_default);
-var DETAIL_STRUCTURE_TEMPLATE = { zh: detail_structure_zh_default, en: detail_structure_en_default };
-var GENERAL_TASK = pair4(general_task_zh_default, general_task_en_default);
-var JSON_CONTRACT = pair4(json_zh_default, json_en_default);
-var LABEL_DETAIL = pair4(label_detail_zh_default, label_detail_en_default);
-var LABEL_FINDINGS = pair4(label_findings_zh_default, label_findings_en_default);
-var OUTPUT_LANGUAGE = pair4(output_language_zh_default, output_language_en_default);
-var SYNTHESIZE = pair4(synthesize_zh_default, synthesize_en_default);
-var VISUAL_AUTO = pair4(visual_auto_zh_default, visual_auto_en_default);
-var VISUAL_EMBED = pair4(visual_embed_zh_default, visual_embed_en_default);
-var VISUAL_NONE = pair4(visual_none_zh_default, visual_none_en_default);
-var VISUAL_ON = pair4(visual_on_zh_default, visual_on_en_default);
-var VISUAL_PRESERVE = pair4(visual_preserve_zh_default, visual_preserve_en_default);
-function detailStructure(language2, headings) {
-  return renderTemplate(inLanguage(DETAIL_STRUCTURE_TEMPLATE, language2), { headings });
-}
-function sourceRegistry(catalog) {
-  return renderTemplate(source_registry_default, { catalog });
 }
 
 // core/steps/aim/language.zh.md
@@ -29605,6 +29684,8 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
     const legacy = saved;
     this.settings = {
       ...DEFAULT_SETTINGS,
+      detailTemplates: normalizeTemplates(saved == null ? void 0 : saved.detailTemplates),
+      defaultDetailTemplateId: typeof (saved == null ? void 0 : saved.defaultDetailTemplateId) === "string" ? saved.defaultDetailTemplateId : void 0,
       coffeeStyles: Array.isArray(saved == null ? void 0 : saved.coffeeStyles) ? saved.coffeeStyles.filter(
         (item) => !!item && typeof item === "object" && typeof item.id === "string" && typeof item.name === "string" && typeof item.prompt === "string"
       ) : [],
