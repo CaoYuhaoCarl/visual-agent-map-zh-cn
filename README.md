@@ -8,7 +8,7 @@
 
 **Start with a question. See the pieces. Follow the ideas worth exploring.** Build a visual research map, let AIM investigate a question, or talk through a new idea in Coffee Tables. Keep what you learn in editable Markdown notes.
 
-[**Get started**](#get-started) · [See the 0.15.0 release](https://github.com/kevcltsai/visual-agent-map/releases/tag/0.15.0) · [Installation guide](INSTALL.md)
+[**Get started**](#get-started) · [See the 0.16.0 release](https://github.com/kevcltsai/visual-agent-map/releases/tag/0.16.0) · [Installation guide](INSTALL.md)
 
 ### Take a look
 
@@ -18,7 +18,7 @@
 
 ### Three ways to explore
 
-- **Visual maps.** Break a question into topics, research a branch with AI, and review suggestions before adding them. Manual mapping needs no AI.
+- **Visual maps.** Break a question into topics, research a branch with AI, and review suggestions before adding them. Turn a heading outline into a map, research several topics in the background, and choose which sections each research note has with reusable content templates. Manual mapping needs no AI.
 - **AIM — Adaptive Inquiry Map.** Work from your question and background toward a document with supporting sources. Follow the research in the map, build on useful earlier findings, and resume unfinished work when a step fails.
 - **Coffee Tables.** Bring an unfinished idea to simulated AI guests. Add `.txt` / `.md` background, choose a conversation style, invite guests with a question, and revisit observer insights and conversation segments.
 
@@ -53,6 +53,8 @@ Desktop only; macOS with Obsidian 1.14.4 is the verified environment for AIM. Wi
 
 AIM searches the web and provides source links, but finding a source does not prove its claims are true. AI judgments, unavailable sources, and account limits can leave research incomplete. Check important claims against the original sources.
 
+Researching several topics at once uses more of your provider allowance, and a busy model can make some topics fail; retry them, for example with another model. A content template that requires an item count can send one extra AI request to fix the count.
+
 Outline search covers titles in the current map, not full text. Map undo/redo is temporary and clears when you switch maps or close the view.
 
 Coffee Tables stores what it needs to continue a conversation in the hidden `Coffee Tables/.sessions` folder. Obsidian Sync skips hidden folders, so on other devices you can read synced conversations but not continue them; continue them on the device where they started.
@@ -75,7 +77,7 @@ Copyright © 2026 Kevin Tsai
 
 **從一個問題出發，看見各個部分，再追你想探索的線索。** 建立視覺化研究地圖、讓 AIM 深入查證問題，或到 Coffee Tables 聊出新角度；想留下的發現都能存成可編輯的 Markdown 筆記。
 
-[**開始使用**](#開始使用) · [查看 0.15.0 正式版](https://github.com/kevcltsai/visual-agent-map/releases/tag/0.15.0) · [安裝指南](INSTALL.md)
+[**開始使用**](#開始使用) · [查看 0.16.0 正式版](https://github.com/kevcltsai/visual-agent-map/releases/tag/0.16.0) · [安裝指南](INSTALL.md)
 
 ### 看看畫面
 
@@ -85,7 +87,7 @@ Copyright © 2026 Kevin Tsai
 
 ### 三種探索方式
 
-- **視覺化地圖。** 把問題拆成議題，用 AI 深入一個分支；先查看建議，再決定是否加入。手動繪圖不需要 AI。
+- **視覺化地圖。** 把問題拆成議題，用 AI 深入一個分支；先查看建議，再決定是否加入。也能把標題大綱轉成地圖、在背景同時研究多個議題，並用可重複使用的內容模板決定研究筆記有哪些段落。手動繪圖不需要 AI。
 - **AIM — Adaptive Inquiry Map。** 從你的問題與背景出發，逐步形成附有來源的文件。在地圖中追蹤研究、沿用有用的既有發現，遇到失敗時接續未完成的工作。
 - **Coffee Tables。** 把未成形的想法帶來，與模擬 AI 來賓對談。加入 `.txt`／`.md` 背景、選擇對談風格、透過追問邀請來賓，並回看觀察者洞見與對話段落。
 
@@ -119,6 +121,8 @@ CLI 繼承 Obsidian 的作業系統權限；唯讀或工具限制不等於 OS sa
 僅支援桌面版；AIM 已驗證環境為 macOS 與 Obsidian 1.14.4。Windows 與 Linux 尚未驗證。
 
 AIM 會搜尋網路並提供來源連結，但找到來源不代表內容已證實。AI 判斷、無法存取的來源與帳號額度，都可能讓研究未能完成。重要主張請回到原始來源核對。
+
+同時研究多個議題會用掉較多額度，模型忙碌時部分議題可能失敗，可以重試，例如換一個模型。內容模板設定了項目數時，可能多送一次 AI 請求來修正數量。
 
 大綱只搜尋目前地圖的議題名稱，不搜尋全文。地圖的復原／重做是暫存紀錄，切換地圖或關閉視圖後會清除。
 

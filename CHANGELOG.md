@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.16.0] - 2026-10-13
+
+### Added
+
+- **Import outline** turns a heading-only Markdown outline, pasted or picked from your vault, into topics: as a new map, as a new tree in the current map, or under the selected topic. **Copy format instructions** gives you a prompt to ask another AI for an outline. You can research every new topic right away and choose the depth, model and content template.
+- **Research** in topic selection researches several selected topics in the background, up to three at a time, with your choice of depth, model, web search and content template. A status bar at the top shows progress and **Stop research**.
+- **Content templates** (Settings → Content templates) set which sections a research note has. Rename, add, remove and reorder sections, tell the AI what each one should contain, and require an exact or minimum number of items. Choose a template when you research, expand, synthesize, research several topics or import an outline; a topic remembers your choice, and a map can have its own default. When a reply misses a required count, VAM asks the AI to fix it once and marks the topic if it still doesn't match.
+- When some topics in a batch fail, **Retry failed topics** selects them so you can run them again, for example with another model.
+
+### Changed
+
+- The six standard note sections now tell the AI what each section should contain, so research notes are more consistent.
+- Source citations in notes are numbered footnotes ([^1], [^2]) listed at the end of Evidence and sources, instead of long note paths in the text.
+- Synthesis runs in the background: the window closes when it starts, and the topic shows its progress.
+- **Create Adaptive Inquiry Map (AIM)** sits next to **+ Mind map** in the top toolbar.
+- Batch progress counts only finished topics as done and shows failures separately.
+
+### Fixed
+
+- Renaming or moving a note or topic folder that belongs to an AIM map keeps the map readable.
+- One unreadable map no longer stops VAM from updating your other maps; VAM skips it and tells you which one.
+- New notes created from an outline get their parent and child links right away.
+- AIM writes its content in the language of your question.
+- Note edits made while VAM rebuilds note links are kept.
+
 ## [0.15.0] - 2026-10-12
 
 ### Added
