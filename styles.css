@@ -783,3 +783,5 @@ button.vam-template-section-header:hover { background: var(--background-modifier
 .vam-draft-preview :is(h1, h2) { font-size: var(--font-ui-large); }
 .vam-draft-preview :is(h3, h4, h5, h6) { font-size: var(--font-ui-medium); }
 .vam-draft-intro:focus { outline: none; }
+/* A destructive action inside a row of ordinary buttons. */
+.vam-danger-text { color: var(--text-error); }
