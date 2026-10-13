@@ -340,6 +340,7 @@ var english = {
   "ui.context_ai_accept": "Accept change",
   "ui.context_ai_before": "Original",
   "ui.image_translate_action": "Translate image",
+  "ui.image_translate_working": "AI is translating\u2026",
   "ui.image_translate_language": "Translate to",
   "ui.image_translate_replace": "Replace image",
   "ui.image_translate_new": "Add new image",
@@ -1648,6 +1649,7 @@ var traditionalChinese = {
   "ui.context_ai_accept": "\u63A5\u53D7\u4FEE\u6539",
   "ui.context_ai_before": "\u539F\u6587",
   "ui.image_translate_action": "\u751F\u6210\u7FFB\u8B6F\u5716\u7247",
+  "ui.image_translate_working": "AI \u7FFB\u8B6F\u4E2D\u2026",
   "ui.image_translate_language": "\u7FFB\u8B6F\u6210",
   "ui.image_translate_replace": "\u53D6\u4EE3\u539F\u5716",
   "ui.image_translate_new": "\u65B0\u589E\u4E00\u5F35",
@@ -31047,6 +31049,8 @@ var ImageTranslateAction = class extends import_obsidian22.Component {
     __publicField(this, "target", null);
     __publicField(this, "running", null);
     __publicField(this, "language", null);
+    __publicField(this, "halo", null);
+    __publicField(this, "haloFrame", 0);
   }
   onload() {
     this.registerDomEvent(document, "pointerdown", (event) => {
@@ -31061,6 +31065,53 @@ var ImageTranslateAction = class extends import_obsidian22.Component {
   }
   onunload() {
     this.hide();
+    this.stopHalo();
+  }
+  /**
+   * While AI works, a ring circles the image (like a running topic on the map). It follows the image through
+   * scrolling and is clipped to the note pane, so it never draws over other parts of the window.
+   */
+  startHalo(image, container) {
+    this.stopHalo();
+    const halo = this.app.workspace.containerEl.createDiv({ cls: "vam-image-working" });
+    halo.setAttribute("aria-hidden", "true");
+    halo.createDiv({ cls: "vam-image-working-chip", text: t("ui.image_translate_working") });
+    this.halo = halo;
+    const source = image.getAttribute("src");
+    let current = image;
+    const follow = () => {
+      var _a;
+      if (!current.isConnected) {
+        const again = Array.from(container.querySelectorAll("img")).find((item) => item.getAttribute("src") === source);
+        if (again) current = again;
+      }
+      const image2 = current;
+      const rect = image2.getBoundingClientRect();
+      const pane = (_a = image2.closest(".view-content")) == null ? void 0 : _a.getBoundingClientRect();
+      const visible = image2.isConnected && rect.width > 0 && rect.height > 0;
+      halo.toggleClass("is-hidden", !visible);
+      if (visible) {
+        halo.style.left = `${rect.left}px`;
+        halo.style.top = `${rect.top}px`;
+        halo.style.width = `${rect.width}px`;
+        halo.style.height = `${rect.height}px`;
+        const clip = pane ? [
+          Math.max(-6, pane.top - rect.top),
+          Math.max(-6, rect.right - pane.right),
+          Math.max(-6, rect.bottom - pane.bottom),
+          Math.max(-6, pane.left - rect.left)
+        ] : [-6, -6, -6, -6];
+        halo.style.clipPath = `inset(${clip.map((value) => `${value}px`).join(" ")})`;
+      }
+      this.haloFrame = window.requestAnimationFrame(follow);
+    };
+    follow();
+  }
+  stopHalo() {
+    var _a;
+    window.cancelAnimationFrame(this.haloFrame);
+    (_a = this.halo) == null ? void 0 : _a.remove();
+    this.halo = null;
   }
   /** Shows the action beside `image`; a translation already in progress keeps running in the background. */
   show(view, image, token) {
@@ -31150,6 +31201,7 @@ var ImageTranslateAction = class extends import_obsidian22.Component {
     const controller = new AbortController();
     this.running = controller;
     this.showRunning(status, actions);
+    this.startHalo(target.image, target.view.containerEl);
     const name = (_b = (_a = SUPPORTED_LANGUAGES.find((item) => item.id === language2)) == null ? void 0 : _a.name) != null ? _b : language2;
     let saved = null;
     try {
@@ -31180,7 +31232,10 @@ var ImageTranslateAction = class extends import_obsidian22.Component {
       if (!controller.signal.aborted) new import_obsidian22.Notice(error instanceof Error ? error.message : String(error));
       if (saved) await this.app.fileManager.trashFile(saved);
     } finally {
-      if (this.running === controller) this.running = null;
+      if (this.running === controller) {
+        this.running = null;
+        this.stopHalo();
+      }
       if (status.isConnected || ((_c = this.popover) == null ? void 0 : _c.querySelector(".vam-image-action-status.is-running"))) this.hide();
     }
   }

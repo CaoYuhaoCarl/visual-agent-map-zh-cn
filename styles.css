@@ -125,6 +125,8 @@
 .vam-node:not([data-aim-kind])[data-status="running"]::after { content: ""; position: absolute; left: 14px; right: 14px; top: -1px; height: 2px; border-radius: 2px; background: linear-gradient(90deg, transparent, var(--interactive-accent), transparent); background-size: 50% 100%; background-repeat: no-repeat; animation: vam-scan 1.6s ease-in-out infinite; }
 .vam-node:not([data-aim-kind])[data-status="error"] { border-color: rgba(var(--color-red-rgb), 0.55); }
 @keyframes vam-pulse { 50% { opacity: 0.35; } }
+@property --vam-orbit { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+@keyframes vam-orbit { to { --vam-orbit: 360deg; } }
 @keyframes vam-scan { from { background-position: -100% 0; } to { background-position: 200% 0; } }
 @media (prefers-reduced-motion: reduce) {
   .vam-status-running::before, .vam-node[data-status="running"]::after { animation: none; }
@@ -730,7 +732,14 @@ body .workspace-leaf-content.vam-topic-markdown .markdown-source-view.mod-cm6 .m
 .vam-image-action-status:empty { display: none; }
 .vam-image-action-status.is-running::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: var(--interactive-accent); vertical-align: 0.1em; animation: vam-pulse 1.4s ease-in-out infinite; }
 .vam-image-action-buttons { display: flex; justify-content: flex-end; gap: 6px; }
-@media (prefers-reduced-motion: reduce) { .vam-image-action-status.is-running::before { animation: none; } }
+/* AI at work on an image: an accent arc orbits a faint ring, a soft light sweeps the picture, a chip says so. */
+.vam-image-working { position: fixed; z-index: var(--layer-popover); border-radius: 6px; pointer-events: none; box-shadow: 0 0 0 1px color-mix(in srgb, var(--interactive-accent) 35%, transparent); }
+.vam-image-working.is-hidden { display: none; }
+.vam-image-working::before { content: ""; position: absolute; inset: -4px; padding: 3px; border-radius: 9px; background: conic-gradient(from var(--vam-orbit), transparent 0deg, transparent 200deg, var(--interactive-accent) 300deg, transparent 360deg); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; animation: vam-orbit 1.6s linear infinite; }
+.vam-image-working::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.16) 50%, transparent 70%); background-size: 50% 100%; background-repeat: no-repeat; animation: vam-scan 2.2s ease-in-out infinite; }
+.vam-image-working-chip { position: absolute; left: 10px; bottom: 10px; display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 8px; border-radius: 999px; background: var(--background-primary); box-shadow: var(--shadow-s); color: var(--text-accent); font-size: var(--font-ui-smaller); font-weight: 600; }
+.vam-image-working-chip::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--interactive-accent); animation: vam-pulse 1.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .vam-image-action-status.is-running::before, .vam-image-working::before, .vam-image-working::after, .vam-image-working-chip::before { animation: none; } .vam-image-working::before { background: var(--interactive-accent); } }
 
 /* Hide only VAM section boundaries; source mode retains their original text. */
 .cm-line.vam-internal-marker-line, .vam-internal-marker-only { display: none; }
