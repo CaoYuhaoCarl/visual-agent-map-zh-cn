@@ -18,6 +18,7 @@ import {
 } from "../../repository";
 import type { AiResult, Suggestion } from "../../ai/types";
 import { syncModelSelect } from "../../core/model-discovery";
+import { templateField } from "./research-fields";
 
 export type SynthesisContent = "full" | "summary";
 export interface TaskOptions {
@@ -35,6 +36,8 @@ export interface TaskOptions {
   layers?: number;
   firstLayerCount?: number;
   childrenPerParent?: number;
+  /** This run's explicit content template choice; recorded on the topic when given. */
+  detailTemplateId?: string;
 }
 export function renderSynthesisContent(parent: HTMLElement, topics: string[]): HTMLSelectElement {
   const label = parent.createEl("label", { cls: "vam-field" });
@@ -334,6 +337,8 @@ export class NextStepModal extends Modal {
       quickError?: string;
       sources?: TaskSourceSettings;
       synthesisPending?: { directions: Suggestion[]; discard: () => void };
+      templates?: { id: string; name: string }[];
+      currentTemplate?: string;
     }
   ) {
     super(app);
@@ -755,6 +760,11 @@ export class NextStepModal extends Modal {
     languageSelect.createEl("option", { value: "en", text: "English" });
     languageSelect.value = this.plugin.settings.language;
     languageSelect.setAttr("aria-label", t("ui.output_language"));
+    const templateId = templateField(
+      compactSettings,
+      this.modelSettings?.templates ?? [],
+      t("ui.detail_template_keep_0", this.modelSettings?.currentTemplate ?? "")
+    );
     const panelHeader = this.contentEl.createDiv("vam-next-panel-header");
     const panelTitle = panelHeader.createEl("h3", { text: t("ui.research_this_topic") });
     const confirm = panelHeader.createEl("button", { text: t("ui.confirm_research_task"), cls: "mod-cta" });
@@ -837,6 +847,7 @@ export class NextStepModal extends Modal {
           researchDepth: (radios.find(radio => radio.checked)?.value || "normal") as ResearchDepth,
           visualMode: selected?.imageSearch ? "auto" : "off",
           requirements: this.requirements(),
+          ...(templateId() ? { detailTemplateId: templateId() } : {}),
           signal: controller.signal,
           onProgress: message => {
             if (!this.closed && !controller.signal.aborted)
@@ -1037,6 +1048,7 @@ export class NextStepModal extends Modal {
             shallowResearch: shallow.checked,
             researchDepth: "fast",
             visualMode: shallow.checked && selected?.imageSearch ? "auto" : "off",
+            ...(templateId() ? { detailTemplateId: templateId() } : {}),
             signal: this.taskSignal,
             onProgress: message => expandPanel.querySelector<HTMLElement>(".vam-next-status")?.setText(message)
           };
@@ -1162,6 +1174,7 @@ export class NextStepModal extends Modal {
               researchMode: selected?.webSearch ? "research" : "local",
               researchDepth: this.depth,
               visualMode: selected?.imageSearch ? "auto" : "off",
+              ...(templateId() ? { detailTemplateId: templateId() } : {}),
               signal,
               onProgress: message => synthStatus.setText(message)
             };

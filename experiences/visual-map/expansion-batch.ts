@@ -4,9 +4,14 @@ export interface ExpansionBatchState {
   parentPath: string;
   controller: AbortController;
   total: number;
+  /** Children processed (succeeded, failed, skipped or aborted). */
   completed: number;
+  /** Children that finished successfully (accepted, not aborted, not skipped). */
+  succeeded: number;
   currentPath?: string;
   failures: string[];
+  /** Note paths of children that threw while the batch was not aborted, parallel to `failures`. */
+  failedPaths: string[];
   status: "running" | "stopped" | "completed";
 }
 
@@ -19,7 +24,7 @@ export class ShallowExpansionCoordinator {
   async start(
     parentPath: string,
     children: MapNode[],
-    startChild: (child: MapNode, signal: AbortSignal, accepted: () => void) => Promise<void>,
+    startChild: (child: MapNode, signal: AbortSignal, accepted: () => void) => Promise<void | "skipped">,
     changed: () => void,
     externalSignal?: AbortSignal
   ): Promise<void> {
@@ -30,7 +35,9 @@ export class ShallowExpansionCoordinator {
       controller,
       total: children.length,
       completed: 0,
+      succeeded: 0,
       failures: [],
+      failedPaths: [],
       status: "running"
     };
     this.activeTasks.set(parentPath, controller);
@@ -61,7 +68,7 @@ export class ShallowExpansionCoordinator {
           updateCurrent();
           let acceptedChild = false;
           try {
-            await startChild(child, controller.signal, () => {
+            const outcome = await startChild(child, controller.signal, () => {
               acceptedChild = true;
               if (!dispatchAccepted) {
                 dispatchAccepted = true;
@@ -70,10 +77,12 @@ export class ShallowExpansionCoordinator {
               }
             });
             if (!acceptedChild) throw new Error("Shallow research did not start.");
+            if (outcome !== "skipped" && !controller.signal.aborted) state.succeeded++;
           } catch (error) {
             if (!controller.signal.aborted) {
               const message = error instanceof Error ? error.message : String(error);
               state.failures.push(`${child.path}: ${message}`);
+              state.failedPaths.push(child.path);
             }
           } finally {
             state.completed++;

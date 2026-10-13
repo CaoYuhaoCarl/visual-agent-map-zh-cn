@@ -1,0 +1,1 @@
+The detail must use exactly these {{count}} level-three headings in order: {{headings}}. Write 'No new content this time' in sections with nothing applicable. Follow any count the user requests for a section.{{rules}}

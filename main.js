@@ -186,7 +186,13 @@ var english = {
   "ui.multi_research_intro": "Research {0} selected topics in the background, up to 3 at a time. This uses AI quota.",
   "ui.multi_research_topics": "Topics to research",
   "ui.multi_research_start": "Start research",
-  "ui.multi_research_progress": "Researching {0}/{1}",
+  "ui.multi_research_progress": "Researching: {0} of {1} done",
+  "ui.multi_research_ended": "Research finished: {0} of {1} done",
+  "ui.batch_failed_count": "{0} failed",
+  "ui.shallow_research_counts": "Shallow research: {0} of {1} done",
+  "ui.shallow_research_current": "researching: {0}",
+  "ui.retry_failed_topics": "Retry failed topics ({0})",
+  "ui.dismiss": "Dismiss",
   "ui.multi_research_skipped": "Skipped {0} topics that are already running AI.",
   "ui.multi_research_all_skipped": "All selected topics are already running AI.",
   "ui.multi_research_already_running": "A multi-topic research is already running on this map.",
@@ -704,6 +710,7 @@ var english = {
   "ui.creates_only_missing_base_folders_it_never_restores_moves_or": "Creates only missing base folders. It never restores, moves, or overwrites notes or mind maps.",
   "ui.repair": "Repair",
   "ui.agent_workspace_is_ready": "Agent Workspace is ready.",
+  "ui.map_unreadable_skipped_0_1": "Skipped an unreadable mind map: {0} ({1}). Other maps were updated.",
   "ui.open_the_taiwan_travel_sample": "Open the Taiwan travel sample",
   "ui.open_debug_log": "Open Debug Log",
   "ui.debug_log": "Debug log",
@@ -796,6 +803,80 @@ var english = {
   "detail.tradeoffs_and_limitations": "Tradeoffs and limitations",
   "detail.open_questions": "Open questions",
   "detail.update_log": "Update log",
+  "detail.description_core_conclusions": "Answer the research question directly, 3\u20135 points by default; give the conclusion first, then the reason.",
+  "detail.description_key_knowledge": "The concepts, data, mechanisms and background needed to understand the conclusions.",
+  "detail.description_evidence_and_sources": "The facts and data that support the conclusions, with their sources; the source list is added to the end of this section automatically.",
+  "detail.description_tradeoffs_and_limitations": "Pros and cons of the options, when each applies, the risks, and the limits of this research.",
+  "detail.description_open_questions": "Questions not yet verified or lacking data that are worth researching next.",
+  "detail.description_update_log": "Add only one line saying what this update changed.",
+  "ui.detail_template_standard": "Standard",
+  "ui.detail_template": "Content template",
+  "ui.detail_template_keep_0": "Keep current ({0})",
+  "ui.detail_template_keep_each": "Each topic's current template",
+  "ui.detail_template_map_default": "Default content template for this map",
+  "ui.detail_template_map_default_desc": "New and unassigned topics in this map use it.",
+  "ui.detail_template_use_workspace": "Use the workspace default",
+  "ui.detail_template_current": "Current setting",
+  "ui.detail_count_issue_exact": "{0}: needs exactly {1}, has {2}",
+  "ui.detail_count_issue_min": "{0}: needs at least {1}, has {2}",
+  "ui.detail_template_missing_0": 'The content template "{0}" no longer exists; this topic now uses the next default.',
+  "ui.detail_format_unmet": "Format not met",
+  "ui.detail_template_error_name_required": "Template name is required.",
+  "ui.detail_template_error_name_taken": 'A template named "{0}" already exists.',
+  "ui.detail_template_error_name_long": "Template name must be 40 characters or fewer.",
+  "ui.detail_template_error_section_count": "A template needs 1 to 12 sections.",
+  "ui.detail_template_error_section_name_required": "Section {0}: name is required.",
+  "ui.detail_template_error_section_name_invalid": "Section {0}: the name cannot contain # or line breaks.",
+  "ui.detail_template_error_section_name_long": "Section {0}: name must be 40 characters or fewer.",
+  "ui.detail_template_error_section_name_taken": "Section {0}: another section already uses this name.",
+  "ui.detail_template_error_description_long": "Section {0}: description must be 300 characters or fewer.",
+  "ui.detail_template_error_role_taken": "Only one section can be the {0} section.",
+  "ui.detail_template_error_count_range": "Section {0}: the required count must be 1 to 20.",
+  "ui.detail_template_role_sources": "Sources",
+  "ui.detail_template_role_log": "Update log",
+  "ui.detail_templates": "Content templates",
+  "ui.manage_detail_templates": "Manage templates",
+  "ui.detail_template_workspace_default": "Workspace default",
+  "ui.detail_template_new": "New template",
+  "ui.detail_template_new_name": "New template",
+  "ui.detail_template_copy": "Duplicate",
+  "ui.detail_template_copy_name_0": "{0} copy",
+  "ui.detail_template_edit": "Edit",
+  "ui.detail_template_delete": "Delete",
+  "ui.detail_template_delete_confirm_0": 'Delete the template "{0}"? Topics using it will fall back to the next default.',
+  "ui.detail_template_set_default": "Set as default",
+  "ui.detail_template_default_tag": "Default",
+  "ui.detail_template_sections_0": "{0} sections",
+  "ui.detail_template_name": "Template name",
+  "ui.detail_section_name": "Section heading",
+  "ui.detail_section_description": "What goes in this section (instructions for the AI)",
+  "ui.detail_section_role": "Purpose",
+  "ui.detail_section_count": "Item count",
+  "ui.detail_section_count_none": "Any",
+  "ui.detail_section_count_exact": "Exactly",
+  "ui.detail_section_count_min": "At least",
+  "ui.detail_section_add": "+ Add section",
+  "ui.detail_section_up": "Move up",
+  "ui.detail_section_down": "Move down",
+  "ui.detail_section_remove": "Remove",
+  "ui.detail_templates_hint": "Changes apply to future AI updates; existing notes change only when a topic is updated again.",
+  "ui.detail_template_editor_intro": "Each section becomes a ### heading in the note, filled in order by the AI. Changes apply to future research; existing notes change when they're next updated.",
+  "ui.detail_template_view": "View",
+  "ui.detail_template_preview": "Preview the instructions sent to the AI",
+  "ui.detail_section_unnamed": "Untitled section",
+  "ui.detail_section_description_placeholder": "Example: give each example a #### sub-heading and one sentence on why.",
+  "ui.detail_section_kind_none": "Regular section",
+  "ui.detail_section_kind_sources": "Sources",
+  "ui.detail_section_kind_log": "Update log",
+  "ui.detail_section_purpose_sources": "Sources: footnote list goes here",
+  "ui.detail_section_purpose_log": "Update log: one new line per update",
+  "ui.detail_section_purpose_help_none": "Use this for normal content.",
+  "ui.detail_section_purpose_help_sources": "The list of cited sources is added to the end of this section. One per template.",
+  "ui.detail_section_purpose_help_log": "Each update adds one line instead of rewriting. One per template.",
+  "ui.detail_section_count_exact_0": "Exactly {0}",
+  "ui.detail_section_count_min_0": "At least {0}",
+  "ui.detail_section_count_n": "Number of items",
+  "ui.detail_section_count_help": "Counts top-level list items (- \u2026) or #### sub-headings; if it doesn't match, the AI fixes it once.",
   "detail.visual_reference": "Visual reference",
   "detail.source": "Source: {0}",
   "detail.purpose": "Purpose: {0}",
@@ -1348,7 +1429,13 @@ var traditionalChinese = {
   "ui.multi_research_intro": "\u5728\u80CC\u666F\u7814\u7A76\u5DF2\u9078\u7684 {0} \u500B\u8B70\u984C\uFF0C\u6700\u591A\u540C\u6642 3 \u500B\u3002\u6703\u4F7F\u7528 AI \u984D\u5EA6\u3002",
   "ui.multi_research_topics": "\u8981\u7814\u7A76\u7684\u8B70\u984C",
   "ui.multi_research_start": "\u958B\u59CB\u7814\u7A76",
-  "ui.multi_research_progress": "\u7814\u7A76\u4E2D {0}/{1}",
+  "ui.multi_research_progress": "\u7814\u7A76\u4E2D\uFF1A\u5B8C\u6210 {0}\uFF0F{1}",
+  "ui.multi_research_ended": "\u7814\u7A76\u7D50\u675F\uFF1A\u5B8C\u6210 {0}\uFF0F{1}",
+  "ui.batch_failed_count": "\u5931\u6557 {0}",
+  "ui.shallow_research_counts": "\u6DFA\u7814\u7A76\uFF1A\u5B8C\u6210 {0}\uFF0F{1}",
+  "ui.shallow_research_current": "\u7814\u7A76\u4E2D\uFF1A{0}",
+  "ui.retry_failed_topics": "\u91CD\u8A66\u5931\u6557\u7684\u8B70\u984C\uFF08{0}\uFF09",
+  "ui.dismiss": "\u95DC\u9589",
   "ui.multi_research_skipped": "\u5DF2\u7565\u904E {0} \u500B\u6B63\u5728\u57F7\u884C AI \u7684\u8B70\u984C\u3002",
   "ui.multi_research_all_skipped": "\u5DF2\u9078\u8B70\u984C\u90FD\u6B63\u5728\u57F7\u884C AI\u3002",
   "ui.multi_research_already_running": "\u9019\u5F35\u5716\u5DF2\u6709\u591A\u8B70\u984C\u7814\u7A76\u5728\u57F7\u884C\u3002",
@@ -1866,6 +1953,7 @@ var traditionalChinese = {
   "ui.creates_only_missing_base_folders_it_never_restores_moves_or": "\u53EA\u5EFA\u7ACB\u7F3A\u5C11\u7684\u57FA\u672C\u8CC7\u6599\u593E\uFF0C\u4E0D\u6703\u5FA9\u539F\u3001\u642C\u79FB\u6216\u8986\u5BEB\u7B46\u8A18\u8207\u5FC3\u667A\u5716\u3002",
   "ui.repair": "\u4FEE\u5FA9",
   "ui.agent_workspace_is_ready": "Agent Workspace \u5DF2\u53EF\u4F7F\u7528\u3002",
+  "ui.map_unreadable_skipped_0_1": "\u5DF2\u7565\u904E\u7121\u6CD5\u8B80\u53D6\u7684\u5FC3\u667A\u5716\uFF1A{0}\uFF08{1}\uFF09\u3002\u5176\u4ED6\u5FC3\u667A\u5716\u5DF2\u66F4\u65B0\u3002",
   "ui.open_the_taiwan_travel_sample": "\u958B\u555F\u53F0\u7063\u65C5\u884C\u7BC4\u4F8B",
   "ui.open_debug_log": "\u958B\u555F\u5075\u932F\u65E5\u8A8C (Open Debug Log)",
   "ui.debug_log": "\u5075\u932F\u65E5\u8A8C",
@@ -1958,6 +2046,80 @@ var traditionalChinese = {
   "detail.tradeoffs_and_limitations": "\u53D6\u6368\u8207\u9650\u5236",
   "detail.open_questions": "\u5F85\u78BA\u8A8D\u4E8B\u9805",
   "detail.update_log": "\u66F4\u65B0\u7D00\u9304",
+  "detail.description_core_conclusions": "\u76F4\u63A5\u56DE\u7B54\u7814\u7A76\u554F\u984C\uFF0C\u9810\u8A2D 3\u20135 \u9EDE\uFF0C\u5148\u8B1B\u7D50\u8AD6\u518D\u8B1B\u7406\u7531\u3002",
+  "detail.description_key_knowledge": "\u7406\u89E3\u7D50\u8AD6\u9700\u8981\u7684\u6982\u5FF5\u3001\u6578\u64DA\u3001\u6A5F\u5236\u8207\u80CC\u666F\u3002",
+  "detail.description_evidence_and_sources": "\u652F\u6301\u7D50\u8AD6\u7684\u4E8B\u5BE6\u8207\u6578\u64DA\uFF0C\u4E26\u6A19\u51FA\u8655\uFF1B\u4F86\u6E90\u6E05\u55AE\u6703\u81EA\u52D5\u653E\u5728\u9019\u6BB5\u6700\u5F8C\u3002",
+  "detail.description_tradeoffs_and_limitations": "\u5404\u9078\u9805\u7684\u512A\u7F3A\u9EDE\u3001\u9069\u7528\u689D\u4EF6\u3001\u98A8\u96AA\uFF0C\u4EE5\u53CA\u9019\u6B21\u7814\u7A76\u7684\u9650\u5236\u3002",
+  "detail.description_open_questions": "\u9084\u6C92\u67E5\u8B49\u6216\u8CC7\u6599\u4E0D\u8DB3\u3001\u503C\u5F97\u4E0B\u4E00\u6B65\u7814\u7A76\u7684\u554F\u984C\u3002",
+  "detail.description_update_log": "\u53EA\u65B0\u589E\u4E00\u884C\uFF0C\u5BEB\u9019\u6B21\u66F4\u65B0\u4E86\u4EC0\u9EBC\u3002",
+  "ui.detail_template_standard": "\u6A19\u6E96",
+  "ui.detail_template": "\u5167\u5BB9\u6A21\u677F",
+  "ui.detail_template_keep_0": "\u6CBF\u7528\u76EE\u524D\uFF08{0}\uFF09",
+  "ui.detail_template_keep_each": "\u6CBF\u7528\u5404\u8B70\u984C\u76EE\u524D\u7684\u6A21\u677F",
+  "ui.detail_template_map_default": "\u9019\u5F35\u5716\u7684\u9810\u8A2D\u5167\u5BB9\u6A21\u677F",
+  "ui.detail_template_map_default_desc": "\u9019\u5F35\u5716\u4E2D\u6C92\u6709\u6307\u5B9A\u6A21\u677F\u7684\u8B70\u984C\u6703\u4F7F\u7528\u5B83\u3002",
+  "ui.detail_template_use_workspace": "\u4F7F\u7528\u5DE5\u4F5C\u5340\u9810\u8A2D",
+  "ui.detail_template_current": "\u76EE\u524D\u8A2D\u5B9A",
+  "ui.detail_count_issue_exact": "{0}\uFF1A\u8981\u6C42\u525B\u597D {1} \u500B\uFF0C\u5BE6\u969B {2} \u500B",
+  "ui.detail_count_issue_min": "{0}\uFF1A\u8981\u6C42\u81F3\u5C11 {1} \u500B\uFF0C\u5BE6\u969B {2} \u500B",
+  "ui.detail_template_missing_0": "\u5167\u5BB9\u6A21\u677F\u300C{0}\u300D\u5DF2\u4E0D\u5B58\u5728\uFF0C\u9019\u500B\u8B70\u984C\u6539\u7528\u4E0B\u4E00\u9806\u4F4D\u7684\u9810\u8A2D\u6A21\u677F\u3002",
+  "ui.detail_format_unmet": "\u683C\u5F0F\u672A\u9054\u8981\u6C42",
+  "ui.detail_template_error_name_required": "\u8ACB\u8F38\u5165\u6A21\u677F\u540D\u7A31\u3002",
+  "ui.detail_template_error_name_taken": "\u5DF2\u6709\u540D\u70BA\u300C{0}\u300D\u7684\u6A21\u677F\u3002",
+  "ui.detail_template_error_name_long": "\u6A21\u677F\u540D\u7A31\u6700\u591A 40 \u5B57\u3002",
+  "ui.detail_template_error_section_count": "\u6A21\u677F\u9700\u8981 1 \u5230 12 \u500B\u6BB5\u843D\u3002",
+  "ui.detail_template_error_section_name_required": "\u7B2C {0} \u6BB5\uFF1A\u8ACB\u8F38\u5165\u540D\u7A31\u3002",
+  "ui.detail_template_error_section_name_invalid": "\u7B2C {0} \u6BB5\uFF1A\u540D\u7A31\u4E0D\u80FD\u6709 # \u6216\u63DB\u884C\u3002",
+  "ui.detail_template_error_section_name_long": "\u7B2C {0} \u6BB5\uFF1A\u540D\u7A31\u6700\u591A 40 \u5B57\u3002",
+  "ui.detail_template_error_section_name_taken": "\u7B2C {0} \u6BB5\uFF1A\u540D\u7A31\u548C\u5176\u4ED6\u6BB5\u843D\u91CD\u8907\u3002",
+  "ui.detail_template_error_description_long": "\u7B2C {0} \u6BB5\uFF1A\u8AAA\u660E\u6700\u591A 300 \u5B57\u3002",
+  "ui.detail_template_error_role_taken": "\u53EA\u80FD\u6709\u4E00\u6BB5\u8A2D\u70BA\u300C{0}\u300D\u3002",
+  "ui.detail_template_error_count_range": "\u7B2C {0} \u6BB5\uFF1A\u6578\u91CF\u8981\u6C42\u9808\u70BA 1 \u5230 20\u3002",
+  "ui.detail_template_role_sources": "\u4F86\u6E90",
+  "ui.detail_template_role_log": "\u66F4\u65B0\u7D00\u9304",
+  "ui.detail_templates": "\u5167\u5BB9\u6A21\u677F",
+  "ui.manage_detail_templates": "\u7BA1\u7406\u6A21\u677F",
+  "ui.detail_template_workspace_default": "\u5DE5\u4F5C\u5340\u9810\u8A2D",
+  "ui.detail_template_new": "\u65B0\u589E\u6A21\u677F",
+  "ui.detail_template_new_name": "\u65B0\u6A21\u677F",
+  "ui.detail_template_copy": "\u8907\u88FD",
+  "ui.detail_template_copy_name_0": "{0} \u526F\u672C",
+  "ui.detail_template_edit": "\u7DE8\u8F2F",
+  "ui.detail_template_delete": "\u522A\u9664",
+  "ui.detail_template_delete_confirm_0": "\u522A\u9664\u6A21\u677F\u300C{0}\u300D\uFF1F\u4F7F\u7528\u5B83\u7684\u8B70\u984C\u6703\u6539\u7528\u4E0B\u4E00\u9806\u4F4D\u7684\u9810\u8A2D\u3002",
+  "ui.detail_template_set_default": "\u8A2D\u70BA\u9810\u8A2D",
+  "ui.detail_template_default_tag": "\u9810\u8A2D",
+  "ui.detail_template_sections_0": "{0} \u6BB5",
+  "ui.detail_template_name": "\u6A21\u677F\u540D\u7A31",
+  "ui.detail_section_name": "\u6BB5\u843D\u6A19\u984C",
+  "ui.detail_section_description": "\u9019\u6BB5\u8981\u5BEB\u4EC0\u9EBC\uFF08\u7D66 AI \u7684\u8AAA\u660E\uFF09",
+  "ui.detail_section_role": "\u7528\u9014",
+  "ui.detail_section_count": "\u9805\u76EE\u6578",
+  "ui.detail_section_count_none": "\u4E0D\u9650",
+  "ui.detail_section_count_exact": "\u525B\u597D",
+  "ui.detail_section_count_min": "\u81F3\u5C11",
+  "ui.detail_section_add": "+ \u65B0\u589E\u6BB5\u843D",
+  "ui.detail_section_up": "\u4E0A\u79FB",
+  "ui.detail_section_down": "\u4E0B\u79FB",
+  "ui.detail_section_remove": "\u522A\u9664",
+  "ui.detail_templates_hint": "\u4FEE\u6539\u53EA\u5F71\u97FF\u4E4B\u5F8C\u7684 AI \u66F4\u65B0\uFF1B\u65E2\u6709\u7B46\u8A18\u8981\u7B49\u8B70\u984C\u4E0B\u6B21\u66F4\u65B0\u624D\u6703\u5957\u7528\u3002",
+  "ui.detail_template_editor_intro": "\u6BCF\u500B\u6BB5\u843D\u6703\u8B8A\u6210\u7B46\u8A18\u88E1\u7684\u4E00\u500B ### \u6A19\u984C\uFF0CAI \u4F9D\u5E8F\u586B\u5BEB\u3002\u4FEE\u6539\u53EA\u5F71\u97FF\u4E4B\u5F8C\u7684\u7814\u7A76\uFF0C\u65E2\u6709\u7B46\u8A18\u7B49\u4E0B\u6B21\u66F4\u65B0\u624D\u5957\u7528\u3002",
+  "ui.detail_template_view": "\u6AA2\u8996",
+  "ui.detail_template_preview": "\u9810\u89BD AI \u6703\u6536\u5230\u7684\u6307\u793A",
+  "ui.detail_section_unnamed": "\u672A\u547D\u540D\u6BB5\u843D",
+  "ui.detail_section_description_placeholder": "\u4F8B\u5982\uFF1A\u6BCF\u500B\u7BC4\u4F8B\u7528 #### \u5C0F\u6A19\u984C\uFF0C\u9644\u4E00\u53E5\u89E3\u91CB\u70BA\u4EC0\u9EBC\u3002",
+  "ui.detail_section_kind_none": "\u4E00\u822C\u6BB5\u843D",
+  "ui.detail_section_kind_sources": "\u4F86\u6E90\u6E05\u55AE",
+  "ui.detail_section_kind_log": "\u66F4\u65B0\u7D00\u9304",
+  "ui.detail_section_purpose_sources": "\u4F86\u6E90\u6E05\u55AE\uFF1A\u8A3B\u8173\u96C6\u4E2D\u653E\u9019\u6BB5",
+  "ui.detail_section_purpose_log": "\u66F4\u65B0\u7D00\u9304\uFF1A\u6BCF\u6B21\u53EA\u52A0\u4E00\u884C",
+  "ui.detail_section_purpose_help_none": "\u4E00\u822C\u5167\u5BB9\u9078\u9019\u500B\u3002",
+  "ui.detail_section_purpose_help_sources": "\u7814\u7A76\u5F15\u7528\u7684\u4F86\u6E90\u6E05\u55AE\u6703\u81EA\u52D5\u653E\u5728\u9019\u6BB5\u6700\u5F8C\u3002\u4E00\u500B\u6A21\u677F\u53EA\u80FD\u6709\u4E00\u6BB5\u3002",
+  "ui.detail_section_purpose_help_log": "\u6BCF\u6B21\u66F4\u65B0\u53EA\u65B0\u589E\u4E00\u884C\uFF0C\u4E0D\u91CD\u8CBC\u6574\u4EFD\u5167\u5BB9\u3002\u4E00\u500B\u6A21\u677F\u53EA\u80FD\u6709\u4E00\u6BB5\u3002",
+  "ui.detail_section_count_exact_0": "\u525B\u597D {0} \u500B",
+  "ui.detail_section_count_min_0": "\u81F3\u5C11 {0} \u500B",
+  "ui.detail_section_count_n": "\u9805\u76EE\u6578\u91CF",
+  "ui.detail_section_count_help": "\u7B97\u7B2C\u4E00\u5C64\u6E05\u55AE\uFF08- \u2026\uFF09\u6216 #### \u5C0F\u6A19\u984C\uFF1B\u6578\u91CF\u4E0D\u7B26\u6642 AI \u6703\u81EA\u52D5\u4FEE\u6B63\u4E00\u6B21\u3002",
   "detail.visual_reference": "\u5716\u7247\u53C3\u8003",
   "detail.source": "\u4F86\u6E90\uFF1A{0}",
   "detail.purpose": "\u7528\u9014\uFF1A{0}",
@@ -4218,9 +4380,9 @@ function rootlessObserverNotes(markdown) {
     const nextSpeaker = /^### .+$/gm.exec(markdown.slice(afterTurn));
     const nextTurn = (nextSpeaker == null ? void 0 : nextSpeaker.index) === void 0 ? markdown.length : afterTurn + nextSpeaker.index;
     const span = markdown.slice(afterTurn, nextTurn);
-    const section2 = [...span.matchAll(OBSERVER_SECTION)][0];
-    if (!section2 || section2.index === void 0) continue;
-    const start = afterTurn + section2.index;
+    const section3 = [...span.matchAll(OBSERVER_SECTION)][0];
+    if (!section3 || section3.index === void 0) continue;
+    const start = afterTurn + section3.index;
     const body = markdown.slice(start, nextTurn).trim();
     const isZh = STANDARD_OBSERVER_HEADINGS.zh.some((heading) => new RegExp(`^## ${heading}\\s*$`, "m").test(body));
     const required = isZh ? STANDARD_OBSERVER_HEADINGS.zh : STANDARD_OBSERVER_HEADINGS.en;
@@ -4229,8 +4391,8 @@ function rootlessObserverNotes(markdown) {
       var _a2, _b, _c;
       const sectionIndex = sections.findIndex((item) => item[1].trim() === heading);
       if (sectionIndex < 0) return false;
-      const section3 = sections[sectionIndex];
-      const contentStart = ((_a2 = section3.index) != null ? _a2 : 0) + section3[0].length;
+      const section4 = sections[sectionIndex];
+      const contentStart = ((_a2 = section4.index) != null ? _a2 : 0) + section4[0].length;
       const contentEnd = (_c = (_b = sections[sectionIndex + 1]) == null ? void 0 : _b.index) != null ? _c : body.length;
       return /\S/.test(body.slice(contentStart, contentEnd));
     });
@@ -4283,13 +4445,13 @@ function noteSections(notes) {
     if (populated.length >= 4) return [notes];
   }
   const canonical = [...notes.matchAll(/^## (.+?)\s*$/gm)];
-  const expected = STANDARD_OBSERVER_HEADINGS.zh.some((title) => canonical.some((section2) => section2[1].trim() === title)) ? STANDARD_OBSERVER_HEADINGS.zh : STANDARD_OBSERVER_HEADINGS.en;
+  const expected = STANDARD_OBSERVER_HEADINGS.zh.some((title) => canonical.some((section3) => section3[1].trim() === title)) ? STANDARD_OBSERVER_HEADINGS.zh : STANDARD_OBSERVER_HEADINGS.en;
   const completeSections = expected.every((title) => {
     var _a, _b, _c;
-    const index = canonical.findIndex((section3) => section3[1].trim() === title);
+    const index = canonical.findIndex((section4) => section4[1].trim() === title);
     if (index < 0) return false;
-    const section2 = canonical[index];
-    const text11 = notes.slice(((_a = section2.index) != null ? _a : 0) + section2[0].length, (_c = (_b = canonical[index + 1]) == null ? void 0 : _b.index) != null ? _c : notes.length).replace(/<!--[\s\S]*?-->/g, "").trim();
+    const section3 = canonical[index];
+    const text11 = notes.slice(((_a = section3.index) != null ? _a : 0) + section3[0].length, (_c = (_b = canonical[index + 1]) == null ? void 0 : _b.index) != null ? _c : notes.length).replace(/<!--[\s\S]*?-->/g, "").trim();
     return text11.length >= 15 && /[。！？.!?…](?:[」』”’"\])）】}]*)$/u.test(text11);
   });
   if (completeSections) return [notes];
@@ -8784,11 +8946,11 @@ ${timestamp.toLocaleString()}${item.model ? ` \xB7 ${item.model}` : ""}`
           );
         const sameCount = topicTableCount(item.topic, entries);
         if (!item.unreadable && sameCount > 1) {
-          const same = entry.createEl("button", {
+          const same2 = entry.createEl("button", {
             cls: "ct-same-topic-link",
             text: this.t("coffee.same_topic_tables", sameCount)
           });
-          same.addEventListener("click", (event) => {
+          same2.addEventListener("click", (event) => {
             event.preventDefault();
             event.stopPropagation();
             this.focusedTopic = item.topic.trim();
@@ -10138,6 +10300,406 @@ function withThinkingOrigin(context, note) {
 var import_node_crypto9 = require("node:crypto");
 var import_obsidian16 = require("obsidian");
 
+// ai/markdown-blocks.ts
+function fencedLines(lines) {
+  let fence = null;
+  return lines.map((line) => {
+    const open = /^\s*(`{3,}|~{3,})/.exec(line);
+    if (fence) {
+      const close = /^\s*(`{3,}|~{3,})\s*$/.exec(line);
+      if (close && close[1][0] === fence[0] && close[1].length >= fence.length) fence = null;
+      return true;
+    }
+    if (open) {
+      fence = open[1];
+      return true;
+    }
+    return false;
+  });
+}
+
+// core/steps/task/source-registry.md
+var source_registry_default = "Source registry (retain these identities in citations):\n{{catalog}}\n";
+
+// core/steps/task/adaptive-detail-structure.zh.md
+var adaptive_detail_structure_zh_default = "detail \u4F7F\u7528 Markdown\uFF0C\u4F9D\u4F7F\u7528\u8005\u6700\u521D\u554F\u984C\u8207\u671F\u671B\u6210\u679C\u6C7A\u5B9A\u5167\u5BB9\u7D50\u69CB\u3002\u6309\u9700\u8981\u9078\u64C7\u6A19\u984C\u3001\u6BB5\u843D\u3001\u6B65\u9A5F\u3001\u8868\u683C\u6216\u5176\u4ED6\u5408\u9069\u5F62\u5F0F\uFF0C\u4E0D\u5957\u56FA\u5B9A\u6BB5\u843D\u6A21\u677F\u3002\u6574\u5408\u5DF2\u77E5\u4F7F\u7528\u8005\u689D\u4EF6\u8207\u76F8\u95DC\u8B49\u64DA\uFF0C\u5BEB\u6210\u9023\u8CAB\u3001\u53EF\u7368\u7ACB\u95B1\u8B80\u7684\u5B8C\u6574\u56DE\u7B54\uFF1B\u5728\u76F8\u95DC\u5167\u5BB9\u4EA4\u4EE3\u4F86\u6E90\u53CA\u91CD\u8981\u4E0D\u78BA\u5B9A\u6027\u3002\u4E0D\u8981\u8CBC\u4E0A\u4E2D\u9593\u7814\u7A76\u5831\u544A\uFF0C\u4E0D\u52A0\u7A7A\u6BB5\u843D\u6216\u66F4\u65B0\u7D00\u9304\u3002\u4FDD\u7559\u4EFB\u52D9\u8981\u6C42\u7684\u6A5F\u5668\u53EF\u8B80\u6C7A\u7B56\u6A19\u8A18\u8207\u5916\u5C64 JSON \u56DE\u61C9\u683C\u5F0F\u3002\n";
+
+// core/steps/task/adaptive-detail-structure.en.md
+var adaptive_detail_structure_en_default = "Write detail in Markdown with a structure suited to the user's original question and requested outcome. Choose headings, prose, steps, tables, or other appropriate formats as needed; there is no fixed section template. Produce a coherent, self-contained answer that incorporates the user's known conditions and relevant evidence. Integrate source attribution and material uncertainties where they matter. Do not paste the intermediate research reports or add empty sections and update logs. Preserve any machine-readable decision marker required by the task and the outer JSON response contract.\n";
+
+// core/steps/task/custom-detail-structure.zh.md
+var custom_detail_structure_zh_default = "detail \u5FC5\u9808\u4E14\u53EA\u80FD\u4F9D\u5E8F\u4F7F\u7528\u4EE5\u4E0B {{count}} \u500B\u4E09\u7D1A\u6A19\u984C\uFF1A{{headings}}\u3002\u6C92\u6709\u9069\u7528\u5167\u5BB9\u7684\u6BB5\u843D\u5BEB\u300C\u672C\u6B21\u7121\u65B0\u589E\u5167\u5BB9\u300D\u3002\u4F7F\u7528\u8005\u8981\u6C42\u67D0\u6BB5\u7684\u6578\u91CF\u6642\uFF0C\u9808\u9075\u5B88\u8A72\u6578\u91CF\u3002{{rules}}\n";
+
+// core/steps/task/custom-detail-structure.en.md
+var custom_detail_structure_en_default = "The detail must use exactly these {{count}} level-three headings in order: {{headings}}. Write 'No new content this time' in sections with nothing applicable. Follow any count the user requests for a section.{{rules}}\n";
+
+// core/steps/task/custom-detail-rule-log.zh.md
+var custom_detail_rule_log_zh_default = "{{heading}} \u53EA\u65B0\u589E\u4E00\u884C\u672C\u6B21\u8B8A\u66F4\u6458\u8981\uFF0C\u4E0D\u53EF\u91CD\u8CBC\u5B8C\u6574\u7B54\u6848\u3002\n";
+
+// core/steps/task/custom-detail-rule-log.en.md
+var custom_detail_rule_log_en_default = "{{heading}} gets only one new line summarizing this update; do not repeat the full answer.\n";
+
+// core/steps/task/custom-detail-rule-description.zh.md
+var custom_detail_rule_description_zh_default = "{{heading}}\uFF1A{{description}}\n";
+
+// core/steps/task/custom-detail-rule-description.en.md
+var custom_detail_rule_description_en_default = "{{heading}}: {{description}}\n";
+
+// core/steps/task/custom-detail-rule-exact.zh.md
+var custom_detail_rule_exact_zh_default = "{{heading}} \u5FC5\u9808\u525B\u597D\u6709 {{n}} \u500B\u9805\u76EE\uFF08\u7B2C\u4E00\u5C64\u6E05\u55AE\u9805\u76EE\uFF0C\u6216\u6539\u7528 #### \u5C0F\u6A19\u984C\u5206\u9805\uFF09\u3002\n";
+
+// core/steps/task/custom-detail-rule-exact.en.md
+var custom_detail_rule_exact_en_default = "{{heading}} must have exactly {{n}} items (top-level list items, or #### sub-headings).\n";
+
+// core/steps/task/custom-detail-rule-min.zh.md
+var custom_detail_rule_min_zh_default = "{{heading}} \u5FC5\u9808\u81F3\u5C11\u6709 {{n}} \u500B\u9805\u76EE\uFF08\u7B2C\u4E00\u5C64\u6E05\u55AE\u9805\u76EE\uFF0C\u6216\u6539\u7528 #### \u5C0F\u6A19\u984C\u5206\u9805\uFF09\u3002\n";
+
+// core/steps/task/custom-detail-rule-min.en.md
+var custom_detail_rule_min_en_default = "{{heading}} must have at least {{n}} items (top-level list items, or #### sub-headings).\n";
+
+// core/steps/task/repair-counts.zh.md
+var repair_counts_zh_default = "\u4E0A\u4E00\u7248 detail \u6709\u6BB5\u843D\u7684\u9805\u76EE\u6578\u4E0D\u7B26\u5408\u8981\u6C42\uFF1A\n{{issues}}\n\u8ACB\u53EA\u8ABF\u6574\u9019\u4E9B\u6BB5\u843D\uFF0C\u8B93\u9805\u76EE\u6578\u7B26\u5408\u8981\u6C42\uFF08\u4EE5\u7B2C\u4E00\u5C64\u6E05\u55AE\u9805\u76EE\uFF0C\u6216 #### \u5C0F\u6A19\u984C\u8A08\u7B97\uFF09\u3002\u5176\u4ED6\u6BB5\u843D\u3001summary \u8207\u6240\u6709\u4F86\u6E90\u8A3B\u8173\u7DAD\u6301\u539F\u6A23\u3002\n";
+
+// core/steps/task/repair-counts.en.md
+var repair_counts_en_default = "Some sections of the previous detail do not have the required number of items:\n{{issues}}\nAdjust only those sections so the counts match (top-level list items, or #### sub-headings). Keep every other section, the summary and all source footnotes as they are.\n";
+
+// core/steps/task/decompose.zh.md
+var decompose_zh_default = "\u9019\u662F Decompose \u6A21\u5F0F\uFF1A\u4F9D\u672C\u6B21\u4EFB\u52D9\u6307\u5B9A\u7684\u5C64\u6578\u8207\u6578\u91CF\u63D0\u51FA\u53EF\u7368\u7ACB\u8655\u7406\u7684\u5B50\u8B70\u984C\uFF1B\u82E5\u73FE\u6709\u5B50\u8B70\u984C\u5DF2\u6DB5\u84CB\u9700\u6C42\uFF0C\u56DE\u50B3\u7A7A\u9663\u5217\uFF0C\u4E0D\u8981\u6E4A\u6578\u3002summary \u7C21\u8FF0\u662F\u5426\u5EFA\u8B70\u62C6\u89E3\uFF0Cdetail \u7C21\u8FF0\u62C6\u89E3\u7406\u7531\uFF1B\u4E0D\u8981\u66F4\u65B0\u7D50\u8AD6\u3002\n";
+
+// core/steps/task/decompose.en.md
+var decompose_en_default = "Decompose mode: propose independently actionable subtopics at the requested depth and count. If existing subtopics already cover the need, return an empty array; do not pad the count. Summarize whether decomposition is useful and briefly explain why in detail. Do not update conclusions.\n";
+
+// core/steps/task/default-task.zh.md
+var default_task_zh_default = "summary \u5FC5\u9808\u662F\u4E00\u53E5\u9069\u5408\u5FC3\u667A\u5716\u986F\u793A\u7684\u65B0\u76EE\u524D\u7406\u89E3\uFF0Cdetail \u5FC5\u9808\u662F\u5B8C\u6574 Markdown \u5206\u6790\u3002\n";
+
+// core/steps/task/default-task.en.md
+var default_task_en_default = "Summary must be one new insight suitable for the mind map; detail must be a complete Markdown analysis.\n";
+
+// core/steps/task/detail-structure.zh.md
+var detail_structure_zh_default = "detail \u5FC5\u9808\u4E14\u53EA\u80FD\u4F9D\u5E8F\u4F7F\u7528\u4EE5\u4E0B\u516D\u500B\u4E09\u7D1A\u6A19\u984C\uFF1A{{headings}}\u3002\u66F4\u65B0\u7D00\u9304\u53EA\u65B0\u589E\u4E00\u884C\u672C\u6B21\u8B8A\u66F4\u6458\u8981\uFF0C\u4E0D\u53EF\u91CD\u8CBC\u5B8C\u6574\u7B54\u6848\uFF1B\u6C92\u6709\u9069\u7528\u5167\u5BB9\u7684\u6BB5\u843D\u5BEB\u300C\u672C\u6B21\u7121\u65B0\u589E\u5167\u5BB9\u300D\u3002\u6838\u5FC3\u7D50\u8AD6\u82E5\u6709\u6307\u5B9A\u6578\u91CF\uFF0C\u9808\u9075\u5B88\u8A72\u6578\u91CF\u3002\n";
+
+// core/steps/task/detail-structure.en.md
+var detail_structure_en_default = "The detail must use exactly these six level-three headings in order: {{headings}}. Add only one line summarizing this update in Update log; do not repeat the full answer. Write 'No new content this time' in sections with nothing applicable. Follow any requested count for the core conclusions.\n";
+
+// core/steps/task/general-task.zh.md
+var general_task_zh_default = "\u9019\u662F\u4E00\u822C\u4EFB\u52D9\uFF1Asummary \u5FC5\u9808\u662F\u4E00\u53E5\u9069\u5408\u5FC3\u667A\u5716\u986F\u793A\u7684\u65B0\u76EE\u524D\u7406\u89E3\uFF0C80 \u5B57\u5167\uFF1Bdetail \u662F\u6703\u76F4\u63A5\u53D6\u4EE3\u820A Detail \u7684\u5B8C\u6574\u77E5\u8B58\u9801\uFF0C\u5FC5\u9808\u5438\u6536\u820A\u5167\u5BB9\u8207\u672C\u6B21\u767C\u73FE\u3001\u53BB\u9664\u91CD\u8907\u3001\u4FDD\u7559\u4ECD\u6709\u6548\u7684\u4F86\u6E90\u3002\u82E5\u8B70\u984C\u904E\u65BC\u8907\u96DC\u624D\u63D0\u4F9B suggestions\uFF0C\u5426\u5247\u56DE\u50B3\u7A7A\u9663\u5217\u3002\n";
+
+// core/steps/task/general-task.en.md
+var general_task_en_default = "General task: summary is one new insight for the mind map, within 80 characters. Detail replaces the old Detail with a complete knowledge page that incorporates valid existing content and new findings, removes duplication, and retains valid sources. Provide suggestions only if the topic is too complex; otherwise return an empty array.\n";
+
+// core/steps/task/json.zh.md
+var json_zh_default = '\u53EA\u56DE\u50B3 JSON\uFF0C\u4E0D\u8981\u4F7F\u7528 Markdown code fence\u3002\u683C\u5F0F\u5FC5\u9808\u7B26\u5408\uFF1A{"summary":"...","detail":"...","suggestions":[{"title":"...","task":"...","contribution":"...","parentTitle":""}],"visualReferences":[{"title":"...","imageUrl":"https://...","sourceUrl":"https://...","description":"...","palette":["navy","white"],"formula":"..."}]}\u3002\u82E5\u6C92\u6709\u8996\u89BA\u53C3\u8003\uFF0CvisualReferences \u56DE\u50B3\u7A7A\u9663\u5217\u3002\n';
+
+// core/steps/task/json.en.md
+var json_en_default = 'Return JSON only, without a Markdown code fence. Use this exact shape: {"summary":"...","detail":"...","suggestions":[{"title":"...","task":"...","contribution":"...","parentTitle":""}],"visualReferences":[{"title":"...","imageUrl":"https://...","sourceUrl":"https://...","description":"...","palette":["navy","white"],"formula":"..."}]}. Return an empty visualReferences array when there are no visual references.\n';
+
+// core/steps/task/label-detail.zh.md
+var label_detail_zh_default = "\u73FE\u6709 Detail\uFF08\u9808\u6574\u5408\u5F8C\u5B8C\u6574\u53D6\u4EE3\uFF0C\u4E0D\u80FD\u539F\u6A23\u91CD\u8907\u8FFD\u52A0\uFF09\n";
+
+// core/steps/task/label-detail.en.md
+var label_detail_en_default = "Existing Detail (integrate and replace fully, do not append unchanged)\n";
+
+// core/steps/task/label-findings.zh.md
+var label_findings_zh_default = "\u820A\u7248\u5F85\u6574\u7406\u767C\u73FE\uFF08\u672C\u6B21\u5FC5\u9808\u4E00\u4F75\u6536\u6582\uFF09\n";
+
+// core/steps/task/label-findings.en.md
+var label_findings_en_default = "Older findings to consolidate\n";
+
+// core/steps/task/output-language.zh.md
+var output_language_zh_default = "\u65B0\u7522\u751F\u7684\u5167\u5BB9\u9810\u8A2D\u4F7F\u7528\u7E41\u9AD4\u4E2D\u6587\uFF0C\u5305\u62EC\u6458\u8981\u3001Detail \u6B63\u6587\u3001\u5EFA\u8B70\u6A19\u984C\u8207\u8AAA\u660E\u3001\u5716\u7247\u63CF\u8FF0\u3002\u516D\u500B\u6A19\u6E96 Detail \u6A19\u984C\u56FA\u5B9A\u8DDF\u96A8\u4ECB\u9762\u8A9E\u8A00\u3002\u4FDD\u7559\u4F86\u6E90\u539F\u6587\u5F15\u8FF0\u8207\u5C08\u6709\u540D\u7A31\uFF1B\u53EA\u6709\u76EE\u524D\u4EFB\u52D9\u6216\u8B70\u984C AI \u898F\u5247\u660E\u78BA\u6307\u5B9A\u5176\u4ED6\u8F38\u51FA\u8A9E\u8A00\u6642\u624D\u6539\u7528\u8A72\u8A9E\u8A00\u3002\n";
+
+// core/steps/task/output-language.en.md
+var output_language_en_default = "Write newly generated content in English by default, including summaries, detail text, suggestion titles, tasks, contributions, and image descriptions. The six standard Detail headings must follow the interface language. Preserve quoted source text and proper names. Follow a different output language only when the current task or topic AI rules explicitly request it.\n";
+
+// core/steps/task/synthesize.zh.md
+var synthesize_zh_default = "\u9019\u662F Synthesize \u6A21\u5F0F\uFF1Asummary \u5FC5\u9808\u662F\u9AD8\u54C1\u8CEA\u6574\u5408\u7D50\u8AD6\uFF0C80 \u5B57\u5167\uFF1Bdetail \u5FC5\u9808\u6574\u5408\u4F86\u6E90\u5B8C\u6574\u77E5\u8B58\u3001\u6536\u6582\u91CD\u8907\u5167\u5BB9\u3001\u6E05\u695A\u5448\u73FE\u5171\u8B58\u3001\u5206\u6B67\u3001\u53D6\u6368\u8207\u672A\u89E3\u554F\u984C\uFF1B\u82E5\u4ECB\u9762\u63D0\u4F9B\u78BA\u8A8D\u8349\u7A3F\uFF0C\u78BA\u8A8D\u5F8C\u624D\u6703\u5BEB\u56DE\u3002\n";
+
+// core/steps/task/synthesize.en.md
+var synthesize_en_default = "Synthesize mode: summary is a high-quality integrated conclusion within 80 characters. Detail integrates complete source knowledge, removes duplication, and clearly presents agreements, disagreements, tradeoffs, and unresolved questions. If the UI offers draft review, write only after confirmation.\n";
+
+// core/steps/task/visual-auto.zh.md
+var visual_auto_zh_default = "\u5716\u7247\u80FD\u660E\u986F\u5E6B\u52A9\u7406\u89E3\u6216\u4F7F\u7528\u8005\u660E\u78BA\u8981\u6C42\u5716\u7247\u6642\uFF0C\u624D\u641C\u5C0B\u5716\u7247\u53C3\u8003\uFF1B\u4E00\u822C\u77E5\u8B58\u578B\u554F\u984C\u4E0D\u8981\u641C\u5C0B\u5716\u7247\u3002\n";
+
+// core/steps/task/visual-auto.en.md
+var visual_auto_en_default = "Search for image references when they materially aid understanding or the user explicitly asks for images; do not search for images for ordinary knowledge questions.\n";
+
+// core/steps/task/visual-embed.zh.md
+var visual_embed_zh_default = "\u6709\u52A9\u7406\u89E3\u7684\u5716\u7247\u76F4\u63A5\u5D4C\u5165 detail \u76F8\u95DC\u6BB5\u843D\u4E26\u9644\u4F86\u6E90\u9801\u9023\u7D50\u3002\u6574\u5408\u6642\u53EA\u6CBF\u7528\u6709\u52A9\u8AAA\u660E\u6574\u5408\u767C\u73FE\u7684\u4F86\u6E90\u5716\u7247\uFF1B\u4E0D\u8981\u5EFA\u7ACB\u7368\u7ACB\u5716\u7247\u96C6\u5408\uFF0C\u4E5F\u4E0D\u8981\u7DE8\u9020\u4F86\u6E90\u3002\n";
+
+// core/steps/task/visual-embed.en.md
+var visual_embed_en_default = "Embed useful images directly in relevant detail paragraphs with source-page links. In synthesis, reuse source images only when they help explain the integrated findings. Do not create a separate image collection or invent sources.\n";
+
+// core/steps/task/visual-none.zh.md
+var visual_none_zh_default = "\u4E0D\u8981\u641C\u5C0B\u65B0\u5716\u7247\uFF1BvisualReferences \u56DE\u50B3\u7A7A\u9663\u5217\u3002\n";
+
+// core/steps/task/visual-none.en.md
+var visual_none_en_default = "Do not search for new images; return an empty visualReferences array unless synthesis can reuse a relevant image already included in the provided source context.\n";
+
+// core/steps/task/visual-on.zh.md
+var visual_on_zh_default = "\u8ACB\u5C0B\u627E 1\u20136 \u500B\u80FD\u5E6B\u52A9\u7406\u89E3\u8B70\u984C\u7684\u5716\u7247\u53C3\u8003\uFF1B\u5FC5\u9808\u63D0\u4F9B\u771F\u5BE6\u5716\u7247 URL \u8207\u4F86\u6E90\u9801 URL\uFF0C\u627E\u4E0D\u5230\u53EF\u9760\u5716\u7247\u6642\u56DE\u50B3\u7A7A\u9663\u5217\u3002\n";
+
+// core/steps/task/visual-on.en.md
+var visual_on_en_default = "Find 1\u20136 image references that help explain the topic. Provide real image and source-page URLs; return an empty array if reliable images are unavailable.\n";
+
+// core/steps/task/visual-preserve.zh.md
+var visual_preserve_zh_default = "\u6574\u5408\u6642\u82E5\u63D0\u4F9B\u7684\u4F86\u6E90\u5167\u5BB9\u5DF2\u6709\u76F8\u95DC\u5716\u7247\uFF0C\u8ACB\u4FDD\u7559\u539F\u5716\u7247\u8207\u4F86\u6E90 URL\uFF0C\u4E26\u56DE\u50B3\u8A72\u53C3\u8003\u3002\n";
+
+// core/steps/task/visual-preserve.en.md
+var visual_preserve_en_default = "When reusing one, preserve its original image and source URLs.\n";
+
+// core/steps/task/fragments.ts
+var text4 = (template) => renderTemplate(template, {});
+var pair4 = (zh, en) => ({ zh: text4(zh), en: text4(en) });
+var ADAPTIVE_DETAIL_STRUCTURE = pair4(adaptive_detail_structure_zh_default, adaptive_detail_structure_en_default);
+var DECOMPOSE = pair4(decompose_zh_default, decompose_en_default);
+var DEFAULT_TASK = pair4(default_task_zh_default, default_task_en_default);
+var DETAIL_STRUCTURE_TEMPLATE = { zh: detail_structure_zh_default, en: detail_structure_en_default };
+var GENERAL_TASK = pair4(general_task_zh_default, general_task_en_default);
+var JSON_CONTRACT = pair4(json_zh_default, json_en_default);
+var LABEL_DETAIL = pair4(label_detail_zh_default, label_detail_en_default);
+var LABEL_FINDINGS = pair4(label_findings_zh_default, label_findings_en_default);
+var OUTPUT_LANGUAGE = pair4(output_language_zh_default, output_language_en_default);
+var SYNTHESIZE = pair4(synthesize_zh_default, synthesize_en_default);
+var VISUAL_AUTO = pair4(visual_auto_zh_default, visual_auto_en_default);
+var VISUAL_EMBED = pair4(visual_embed_zh_default, visual_embed_en_default);
+var VISUAL_NONE = pair4(visual_none_zh_default, visual_none_en_default);
+var VISUAL_ON = pair4(visual_on_zh_default, visual_on_en_default);
+var VISUAL_PRESERVE = pair4(visual_preserve_zh_default, visual_preserve_en_default);
+function detailStructure(language2, headings) {
+  return renderTemplate(inLanguage(DETAIL_STRUCTURE_TEMPLATE, language2), { headings });
+}
+var CUSTOM_DETAIL_STRUCTURE_TEMPLATE = { zh: custom_detail_structure_zh_default, en: custom_detail_structure_en_default };
+function customDetailStructure(language2, values) {
+  return renderTemplate(inLanguage(CUSTOM_DETAIL_STRUCTURE_TEMPLATE, language2), values);
+}
+var CUSTOM_DETAIL_RULES = {
+  log: { zh: custom_detail_rule_log_zh_default, en: custom_detail_rule_log_en_default },
+  description: { zh: custom_detail_rule_description_zh_default, en: custom_detail_rule_description_en_default },
+  exact: { zh: custom_detail_rule_exact_zh_default, en: custom_detail_rule_exact_en_default },
+  min: { zh: custom_detail_rule_min_zh_default, en: custom_detail_rule_min_en_default }
+};
+function customDetailRule(kind, language2, values) {
+  return renderTemplate(inLanguage(CUSTOM_DETAIL_RULES[kind], language2), values);
+}
+var REPAIR_COUNTS_TEMPLATE = { zh: repair_counts_zh_default, en: repair_counts_en_default };
+function repairCounts(language2, issues) {
+  return renderTemplate(inLanguage(REPAIR_COUNTS_TEMPLATE, language2), { issues });
+}
+function sourceRegistry(catalog) {
+  return renderTemplate(source_registry_default, { catalog });
+}
+
+// ai/detail-templates.ts
+var STANDARD_TEMPLATE_ID = "standard";
+var LANGUAGES = ["zh-TW", "en"];
+var STANDARD = [
+  ["core", "detail.core_conclusions", "detail.description_core_conclusions", "none"],
+  ["knowledge", "detail.key_knowledge", "detail.description_key_knowledge", "none"],
+  ["sources", "detail.evidence_and_sources", "detail.description_evidence_and_sources", "sources"],
+  ["tradeoffs", "detail.tradeoffs_and_limitations", "detail.description_tradeoffs_and_limitations", "none"],
+  ["questions", "detail.open_questions", "detail.description_open_questions", "none"],
+  ["log", "detail.update_log", "detail.description_update_log", "log"]
+];
+function standardTemplate(language2) {
+  return {
+    id: STANDARD_TEMPLATE_ID,
+    name: translate(language2, "ui.detail_template_standard"),
+    sections: STANDARD.map(([id, key2, descriptionKey, role]) => {
+      const name = translate(language2, key2);
+      return {
+        id,
+        name,
+        description: translate(language2, descriptionKey),
+        role,
+        aliases: LANGUAGES.map((locale) => translate(locale, key2)).filter((alias) => alias !== name)
+      };
+    })
+  };
+}
+function copyTemplate(source, name, id) {
+  return {
+    id,
+    name,
+    sections: source.sections.map((section3) => ({
+      ...section3,
+      ...section3.count ? { count: { ...section3.count } } : {},
+      aliases: [...section3.aliases]
+    }))
+  };
+}
+var headingKey = (value) => value.trim().toLocaleLowerCase();
+function sectionLookup(template) {
+  const lookup = /* @__PURE__ */ new Map();
+  template.sections.forEach(
+    (section3, index) => section3.aliases.map(headingKey).forEach((key2) => key2 && lookup.set(key2, index))
+  );
+  template.sections.forEach((section3, index) => {
+    const key2 = headingKey(section3.name);
+    if (key2) lookup.set(key2, index);
+  });
+  return lookup;
+}
+function sourcesHeadingKeys(template) {
+  const index = template.sections.findIndex((section3) => section3.role === "sources");
+  return new Set([...sectionLookup(template)].filter(([, target]) => target === index).map(([key2]) => key2));
+}
+function withoutConflictingAliases(sections) {
+  const names2 = new Set(sections.map((section3) => headingKey(section3.name)));
+  return sections.map((section3) => {
+    const aliases = [];
+    for (const alias of section3.aliases)
+      if (alias.trim() && !names2.has(headingKey(alias)) && !aliases.some((existing) => headingKey(existing) === headingKey(alias)))
+        aliases.push(alias);
+    return { ...section3, aliases };
+  });
+}
+function validateTemplate(template, others) {
+  const issues = [];
+  const name = template.name.trim();
+  if (!name) issues.push({ key: "ui.detail_template_error_name_required", values: [] });
+  else if (name.length > 40) issues.push({ key: "ui.detail_template_error_name_long", values: [] });
+  else if (others.some((other) => other.id !== template.id && other.name.trim().toLocaleLowerCase() === name.toLocaleLowerCase()))
+    issues.push({ key: "ui.detail_template_error_name_taken", values: [name] });
+  if (template.sections.length < 1 || template.sections.length > 12)
+    issues.push({ key: "ui.detail_template_error_section_count", values: [] });
+  const seen = /* @__PURE__ */ new Set();
+  template.sections.forEach((section3, index) => {
+    const number = index + 1;
+    const sectionName = section3.name.trim();
+    if (!sectionName)
+      issues.push({ key: "ui.detail_template_error_section_name_required", values: [number], section: number });
+    else if (/[#\r\n]/.test(section3.name))
+      issues.push({ key: "ui.detail_template_error_section_name_invalid", values: [number], section: number });
+    else if (sectionName.length > 40)
+      issues.push({ key: "ui.detail_template_error_section_name_long", values: [number], section: number });
+    else if (seen.has(sectionName.toLocaleLowerCase()))
+      issues.push({ key: "ui.detail_template_error_section_name_taken", values: [number], section: number });
+    seen.add(sectionName.toLocaleLowerCase());
+    if (section3.description.length > 300)
+      issues.push({ key: "ui.detail_template_error_description_long", values: [number], section: number });
+    if (section3.count && (!Number.isInteger(section3.count.n) || section3.count.n < 1 || section3.count.n > 20))
+      issues.push({ key: "ui.detail_template_error_count_range", values: [number], section: number });
+  });
+  for (const role of ["sources", "log"])
+    if (template.sections.filter((section3) => section3.role === role).length > 1)
+      issues.push({
+        key: "ui.detail_template_error_role_taken",
+        values: [role === "sources" ? "ui.detail_template_role_sources" : "ui.detail_template_role_log"]
+      });
+  return issues;
+}
+function section(value) {
+  if (!value || typeof value !== "object") return null;
+  const item = value;
+  if (typeof item.id !== "string" || typeof item.name !== "string") return null;
+  const role = item.role === "sources" || item.role === "log" ? item.role : "none";
+  const count = item.count && (item.count.mode === "exact" || item.count.mode === "min") && typeof item.count.n === "number" ? { mode: item.count.mode, n: item.count.n } : void 0;
+  return {
+    id: item.id,
+    name: item.name,
+    description: typeof item.description === "string" ? item.description : "",
+    role,
+    ...count ? { count } : {},
+    aliases: Array.isArray(item.aliases) ? item.aliases.filter((alias) => typeof alias === "string") : []
+  };
+}
+function normalizeTemplates(value) {
+  if (!Array.isArray(value)) return [];
+  const result = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object") continue;
+    const item = entry;
+    if (typeof item.id !== "string" || item.id === STANDARD_TEMPLATE_ID || typeof item.name !== "string") continue;
+    if (result.some((existing) => existing.id === item.id)) continue;
+    if (!Array.isArray(item.sections)) continue;
+    const sections = item.sections.map(section);
+    if (sections.some((entry2) => !entry2)) continue;
+    const template = { id: item.id, name: item.name, sections: withoutConflictingAliases(sections) };
+    if (validateTemplate(template, result).length) continue;
+    result.push(template);
+  }
+  return result;
+}
+function resolveTemplate(templates, ids, language2) {
+  const missing = [];
+  for (const id of ids) {
+    if (!id) continue;
+    if (id === STANDARD_TEMPLATE_ID) return { template: standardTemplate(language2), missing };
+    const found = templates.find((template) => template.id === id);
+    if (found) return { template: found, missing };
+    missing.push(id);
+  }
+  return { template: standardTemplate(language2), missing };
+}
+function countItems(body) {
+  const lines = body.split("\n");
+  const code = fencedLines(lines);
+  const outside = lines.filter((_, index) => !code[index]);
+  const headings = outside.filter((line) => /^####\s+\S/.test(line)).length;
+  if (headings) return headings;
+  return outside.filter((line) => /^(?:[-*+]|\d+[.)])\s+\S/.test(line)).length;
+}
+function sectionBodies(detail, template) {
+  const lookup = sectionLookup(template);
+  const lines = detail.split("\n");
+  const code = fencedLines(lines);
+  const bodies = /* @__PURE__ */ new Map();
+  let current;
+  lines.forEach((line, index) => {
+    const heading = code[index] ? null : /^###\s+(.+?)\s*$/.exec(line);
+    const match = heading ? lookup.get(heading[1].toLocaleLowerCase()) : void 0;
+    if (match !== void 0) {
+      current = match;
+      if (!bodies.has(match)) bodies.set(match, []);
+      return;
+    }
+    if (current !== void 0) bodies.get(current).push(line);
+  });
+  return new Map([...bodies].map(([index, body]) => [index, body.join("\n")]));
+}
+function checkCounts(detail, template) {
+  const bodies = sectionBodies(detail, template);
+  const issues = [];
+  template.sections.forEach((section3, index) => {
+    var _a;
+    if (!section3.count) return;
+    const actual = countItems((_a = bodies.get(index)) != null ? _a : "");
+    const ok = section3.count.mode === "exact" ? actual === section3.count.n : actual >= section3.count.n;
+    if (!ok) issues.push({ section: section3.name, mode: section3.count.mode, n: section3.count.n, actual });
+  });
+  return issues;
+}
+function countIssueText(issue, language2) {
+  const key2 = issue.mode === "exact" ? "ui.detail_count_issue_exact" : "ui.detail_count_issue_min";
+  return translate(language2, key2, issue.section, issue.n, issue.actual);
+}
+function detailStructurePrompt(template, language2, standardText) {
+  const headings = template.sections.map((section3) => `### ${section3.name}`).join(", ");
+  const description = (section3) => customDetailRule("description", language2, {
+    heading: `### ${section3.name}`,
+    description: section3.description.trim()
+  });
+  if (template.id === STANDARD_TEMPLATE_ID)
+    return [
+      standardText(headings),
+      ...template.sections.filter((section3) => section3.description.trim()).map(description)
+    ].join("\n");
+  const rules = [];
+  for (const section3 of template.sections) {
+    const heading = `### ${section3.name}`;
+    if (section3.role === "log") rules.push(customDetailRule("log", language2, { heading }));
+    if (section3.description.trim()) rules.push(description(section3));
+    if (section3.count)
+      rules.push(customDetailRule(section3.count.mode, language2, { heading, n: String(section3.count.n) }));
+  }
+  return customDetailStructure(language2, {
+    count: String(template.sections.length),
+    headings,
+    rules: rules.length ? `
+${rules.join("\n")}` : ""
+  });
+}
+
 // ai/result-utils.ts
 var SENTENCE_END = /[。！？；!?;]/;
 function truncateSummary(value, limit = 80) {
@@ -10161,22 +10723,6 @@ function reportedSearchFailure(result) {
   return LEGACY_SEARCH_FAILURE.test(`${result.summary}
 ${result.detail}`);
 }
-function fencedLines(lines) {
-  let fence = null;
-  return lines.map((line) => {
-    const open = /^\s*(`{3,}|~{3,})/.exec(line);
-    if (fence) {
-      const close = /^\s*(`{3,}|~{3,})\s*$/.exec(line);
-      if (close && close[1][0] === fence[0] && close[1].length >= fence.length) fence = null;
-      return true;
-    }
-    if (open) {
-      fence = open[1];
-      return true;
-    }
-    return false;
-  });
-}
 function sourceFootnoteDefinition(line) {
   const match = /^\[\^([^\]\s]+)\]:[ \t]*(.*)$/.exec(line);
   if (!match) return null;
@@ -10186,22 +10732,12 @@ function sourceFootnoteDefinition(line) {
   );
   return match[1].startsWith("src-") || /^\[\[[^\]]+\]\]$/.test(target) || external ? { label: match[1], target } : null;
 }
-function canonicalDetail(value, language2 = "zh-TW") {
+function canonicalDetail(value, language2 = "zh-TW", template = standardTemplate(language2)) {
   var _a, _b;
   const detail = value.trim();
-  const keys = [
-    "detail.core_conclusions",
-    "detail.key_knowledge",
-    "detail.evidence_and_sources",
-    "detail.tradeoffs_and_limitations",
-    "detail.open_questions",
-    "detail.update_log"
-  ];
-  const headings = keys.map((key2) => translate(language2, key2));
-  const aliases = /* @__PURE__ */ new Map();
-  for (let index = 0; index < keys.length; index++)
-    for (const locale of ["zh-TW", "en"])
-      aliases.set(translate(locale, keys[index]).toLocaleLowerCase(), index);
+  const headings = template.sections.map((section3) => section3.name);
+  const aliases = sectionLookup(template);
+  const sourcesIndex = template.sections.findIndex((section3) => section3.role === "sources");
   const sections = /* @__PURE__ */ new Map();
   const leading = [];
   const footnotes = [];
@@ -10224,17 +10760,20 @@ function canonicalDetail(value, language2 = "zh-TW") {
   }
   if (sections.size === 0) sections.set(0, [leading.join("\n").trim()]);
   else if (leading.join("\n").trim()) sections.set(0, [leading.join("\n").trim(), ...(_a = sections.get(0)) != null ? _a : []]);
-  if (footnotes.length) {
-    const evidence = ((_b = sections.get(2)) != null ? _b : []).join("\n").trim();
-    sections.set(2, [[evidence, footnotes.join("\n")].filter(Boolean).join("\n\n")]);
+  if (footnotes.length && sourcesIndex >= 0) {
+    const evidence = ((_b = sections.get(sourcesIndex)) != null ? _b : []).join("\n").trim();
+    sections.set(sourcesIndex, [[evidence, footnotes.join("\n")].filter(Boolean).join("\n\n")]);
   }
   const empty = translate(language2, "note.no_new_information");
-  return headings.map((heading, index) => {
+  const body = headings.map((heading, index) => {
     var _a2;
     return `### ${heading}
 
 ${((_a2 = sections.get(index)) == null ? void 0 : _a2.join("\n").trim()) || empty}`;
   }).join("\n\n");
+  return footnotes.length && sourcesIndex < 0 ? `${body}
+
+${footnotes.join("\n")}` : body;
 }
 function visualReferencesMarkdown(references2 = [], language2 = "zh-TW") {
   return references2.map((item) => {
@@ -10363,7 +10902,7 @@ function sourceDefinitions(detail) {
   });
   return definitions;
 }
-function resolveDetailReferences(detail, groups, previousDetail = "") {
+function resolveDetailReferences(detail, groups, previousDetail = "", template) {
   const documents = dedupeReferenceGroups(groups).flatMap((group) => group.documents);
   const cited = /* @__PURE__ */ new Map();
   const source = (line) => {
@@ -10442,9 +10981,7 @@ function resolveDetailReferences(detail, groups, previousDetail = "") {
   );
   const text11 = compact.join("\n").trimEnd();
   if (!ordered.length) return text11;
-  const headings = new Set(
-    ["zh-TW", "en"].map((locale) => translate(locale, "detail.evidence_and_sources").toLocaleLowerCase())
-  );
+  const headings = sourcesHeadingKeys(template != null ? template : standardTemplate("en"));
   const textLines = text11.split("\n");
   const textCode = fencedLines(textLines);
   const start = textLines.findIndex((line, index) => {
@@ -10669,7 +11206,7 @@ function validDeliveryCheckpoint(checkpoint) {
   return !!checkpoint && typeof checkpoint === "object" && !Array.isArray(checkpoint) && [checkpoint.outline, checkpoint.research, checkpoint.draft, checkpoint.acceptance].every(
     (result) => result === void 0 || resultValid(result)
   ) && hashValid(checkpoint.baseFingerprint) && hashValid(checkpoint.researchFingerprint) && hashValid(checkpoint.draftFingerprint) && (checkpoint.sections === void 0 || !!checkpoint.sections && typeof checkpoint.sections === "object" && !Array.isArray(checkpoint.sections) && Object.entries(checkpoint.sections).every(
-    ([key2, section2]) => !!key2.trim() && !!section2 && hashValid(section2.fingerprint) && typeof section2.fingerprint === "string" && Array.isArray(section2.evidenceIds) && section2.evidenceIds.every((id) => typeof id === "string" && !!id.trim()) && resultValid(section2.result)
+    ([key2, section3]) => !!key2.trim() && !!section3 && hashValid(section3.fingerprint) && typeof section3.fingerprint === "string" && Array.isArray(section3.evidenceIds) && section3.evidenceIds.every((id) => typeof id === "string" && !!id.trim()) && resultValid(section3.result)
   ));
 }
 var clone = (value) => JSON.parse(JSON.stringify(value));
@@ -10714,6 +11251,7 @@ function parseMap(content) {
   const map = upgradeLegacyAimData(JSON.parse(block[1]));
   if (map.version !== 1 || typeof map.id !== "string" || typeof map.title !== "string" || !Array.isArray(map.nodes))
     throw new Error(t("ui.invalid_mind_map_format"));
+  if (map.detailTemplateId !== void 0 && typeof map.detailTemplateId !== "string") delete map.detailTemplateId;
   const ids = /* @__PURE__ */ new Set(), aimQuestionRequests = /* @__PURE__ */ new Set();
   for (const n of map.nodes) {
     if (!n || typeof n.id !== "string" || typeof n.path !== "string" || !n.path.endsWith(".md") || !Number.isFinite(n.x) || !Number.isFinite(n.y) || n.parentId !== null && typeof n.parentId !== "string" || ids.has(n.id))
@@ -10731,8 +11269,8 @@ function parseMap(content) {
     if (n.aimQuestion !== void 0) {
       const question = n.aimQuestion;
       if (n.aimKind !== "question" || !question || typeof question.requestId !== "string" || !question.requestId.trim() || !(question.parentBranchId === void 0 || question.parentBranchId === null || typeof question.parentBranchId === "string") || !Array.isArray(question.options) || question.options.length < 2 || question.options.some(
-        (option) => !option || typeof option.id !== "string" || !option.id.trim() || typeof option.label !== "string" || !option.label.trim()
-      ) || new Set(question.options.map((option) => option.id)).size !== question.options.length || typeof question.allowMultiple !== "boolean" || typeof question.allowFreeText !== "boolean")
+        (option2) => !option2 || typeof option2.id !== "string" || !option2.id.trim() || typeof option2.label !== "string" || !option2.label.trim()
+      ) || new Set(question.options.map((option2) => option2.id)).size !== question.options.length || typeof question.allowMultiple !== "boolean" || typeof question.allowFreeText !== "boolean")
         throw new Error("Invalid AIM question controls.");
       if (aimQuestionRequests.has(question.requestId)) throw new Error("Duplicate AIM question request identity.");
       aimQuestionRequests.add(question.requestId);
@@ -10766,8 +11304,8 @@ function validateAimMap(map) {
       var _a2;
       return ((_a2 = node.aimQuestion) == null ? void 0 : _a2.requestId) === draft.requestId;
     }) || typeof draft.nodeId !== "string" || map.nodes.some((node) => node.id === draft.nodeId) || typeof draft.parentId !== "string" || !map.nodes.some((node) => node.id === draft.parentId) || !(draft.parentBranchId === void 0 || draft.parentBranchId === null || typeof draft.parentBranchId === "string") || typeof draft.notePath !== "string" || !draft.notePath.endsWith(".md") || typeof draft.title !== "string" || typeof draft.summary !== "string" || !draft.summary.trim() || typeof draft.detail !== "string" || typeof draft.prompt !== "string" || typeof draft.model !== "string" || draft.reasoning !== void 0 && !["low", "medium", "high"].includes(draft.reasoning) || !Array.isArray(draft.options) || draft.options.length < 2 || draft.options.some(
-      (option) => !option || typeof option.id !== "string" || !option.id.trim() || typeof option.label !== "string" || !option.label.trim()
-    ) || new Set(draft.options.map((option) => option.id)).size !== draft.options.length || draft.convergesFromNodeIds !== void 0 && (!Array.isArray(draft.convergesFromNodeIds) || new Set(draft.convergesFromNodeIds).size !== draft.convergesFromNodeIds.length || draft.convergesFromNodeIds.some((id) => !map.nodes.some((node) => node.id === id))))
+      (option2) => !option2 || typeof option2.id !== "string" || !option2.id.trim() || typeof option2.label !== "string" || !option2.label.trim()
+    ) || new Set(draft.options.map((option2) => option2.id)).size !== draft.options.length || draft.convergesFromNodeIds !== void 0 && (!Array.isArray(draft.convergesFromNodeIds) || new Set(draft.convergesFromNodeIds).size !== draft.convergesFromNodeIds.length || draft.convergesFromNodeIds.some((id) => !map.nodes.some((node) => node.id === id))))
       throw new Error("Invalid AIM question draft.");
   }
   const branchIds = /* @__PURE__ */ new Set(), submissionIds = /* @__PURE__ */ new Set();
@@ -10825,7 +11363,7 @@ function validateAimMap(map) {
       return false;
     if (attempt.plannerReviews !== void 0 && (!Array.isArray(attempt.plannerReviews) || attempt.plannerReviews.some(
       (review) => !review || !["research_more", "ask_user", "conclude"].includes(review.decision) || typeof review.rationale !== "string" || !review.rationale.trim() || !Number.isInteger(review.researchTurn) || review.researchTurn < 1 || review.researchTurn > 3 || review.question !== void 0 && (typeof review.question !== "string" || !review.question.trim()) || review.answerOptions !== void 0 && (!Array.isArray(review.answerOptions) || review.answerOptions.some(
-        (option) => typeof option === "string" ? !option.trim() : !option || typeof option.axisId !== "string" || !option.axisId.trim() || typeof option.value !== "string" || !option.value.trim()
+        (option2) => typeof option2 === "string" ? !option2.trim() : !option2 || typeof option2.axisId !== "string" || !option2.axisId.trim() || typeof option2.value !== "string" || !option2.value.trim()
       )) || review.answerAxis !== void 0 && (!review.answerAxis || typeof review.answerAxis.id !== "string" || !review.answerAxis.id.trim() || typeof review.answerAxis.label !== "string" || !review.answerAxis.label.trim()) || review.researchTarget !== void 0 && (!review.researchTarget || typeof review.researchTarget.title !== "string" || !review.researchTarget.title.trim() || typeof review.researchTarget.task !== "string" || !review.researchTarget.task.trim() || typeof review.researchTarget.expectedValue !== "string" || !review.researchTarget.expectedValue.trim())
     )))
       return false;
@@ -11018,6 +11556,7 @@ var managedHeadingValue = (value) => value.replace(/\n/g, " ").trim();
 
 // repository.ts
 var DEFAULT_SETTINGS = {
+  detailTemplates: [],
   coffeeStyles: [],
   language: "en",
   workspaceFolder: "Agent Workspace",
@@ -11047,6 +11586,55 @@ var REFERENCE_END = "<!-- visual-agent-map:references:end -->";
 var DETAIL_START = "<!-- visual-agent-map:detail:start -->";
 var DETAIL_END = "<!-- visual-agent-map:detail:end -->";
 var NOTE_CSS_CLASS = "visual-agent-map-node";
+function rebaseMapNotePaths(map, rebase) {
+  var _a, _b, _c;
+  let changed = false;
+  const move = (path) => {
+    const next = rebase(path);
+    if (next !== path) changed = true;
+    return next;
+  };
+  const moveReuse = (record) => {
+    if (record) record.sourceNotePath = move(record.sourceNotePath);
+  };
+  for (const node of map.nodes) node.path = move(node.path);
+  const aim = map.aim;
+  if (!aim) return changed;
+  const hashSnapshot = (value) => (0, import_node_crypto2.createHash)("sha256").update(JSON.stringify(value)).digest("hex");
+  for (const branch of aim.branches) {
+    const snapshotBefore = JSON.stringify(branch.inputSnapshot);
+    for (const result of branch.inputSnapshot.upstreamResults) result.notePath = move(result.notePath);
+    for (const item of (_a = branch.researchPlan) != null ? _a : []) if (item.source) item.source.notePath = move(item.source.notePath);
+    for (const result of branch.results) {
+      result.notePath = move(result.notePath);
+      moveReuse(result.reuse);
+    }
+    if (JSON.stringify(branch.inputSnapshot) === snapshotBefore) continue;
+    const hash = hashSnapshot({ branch: branch.inputSnapshot, answer: branch.answerSnapshot });
+    for (const run of aim.runs) {
+      if (run.branchId !== branch.id) continue;
+      for (const attempt of run.attempts) {
+        attempt.inputSnapshotHash = hash;
+        for (const draft of (_b = aim.resultDrafts) != null ? _b : [])
+          if (draft.runId === run.id && draft.attemptId === attempt.id) draft.inputSnapshotHash = hash;
+      }
+    }
+  }
+  for (const run of aim.runs)
+    for (const attempt of run.attempts)
+      if (attempt.retainedReports) attempt.retainedReports.notePath = move(attempt.retainedReports.notePath);
+  for (const draft of (_c = aim.resultDrafts) != null ? _c : []) {
+    draft.notePath = move(draft.notePath);
+    moveReuse(draft.reuse);
+  }
+  if (aim.rootDraft) aim.rootDraft.notePath = move(aim.rootDraft.notePath);
+  if (aim.questionDraft) aim.questionDraft.notePath = move(aim.questionDraft.notePath);
+  for (const pending of aim.pendingCommits) pending.notePath = move(pending.notePath);
+  return changed;
+}
+function moveNotePath(oldPath, newPath) {
+  return (path) => path === oldPath ? newPath : path;
+}
 function writeMapContent(content, map) {
   return content.replace(/^# .*$/m, () => `# ${map.title.replace(/\n/g, " ")}`).replace(/```agent-map\s*\n[\s\S]*?\n```/, () => `\`\`\`agent-map
 ${JSON.stringify(map, null, 2)}
@@ -11055,7 +11643,7 @@ ${JSON.stringify(map, null, 2)}
 function marker(value) {
   return value === true || value === "true";
 }
-function text4(value, fallback = "") {
+function text5(value, fallback = "") {
   return typeof value === "string" ? value : fallback;
 }
 function parentPath(path) {
@@ -11081,13 +11669,13 @@ function frontmatter(content) {
 function noteTitle(content, fm, fallback) {
   var _a, _b;
   const body = content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "");
-  return ((_b = (_a = /^# (.+)$/m.exec(body)) == null ? void 0 : _a[1]) == null ? void 0 : _b.trim()) || text4(fm.title, fallback);
+  return ((_b = (_a = /^# (.+)$/m.exec(body)) == null ? void 0 : _a[1]) == null ? void 0 : _b.trim()) || text5(fm.title, fallback);
 }
 var noteContentLanguage = (fm) => fm["content-language"] === "en" || fm["content-language"] === "zh-TW" ? fm["content-language"] : void 0;
 var placeholder = (language2) => translate(language2, "detail.no_conclusion_yet");
 var isPlaceholder = (value) => value === translate("zh-TW", "detail.no_conclusion_yet") || value === translate("en", "detail.no_conclusion_yet");
 var previewHeading = (language2) => translate(language2, "detail.preview");
-var previewSection = (content) => [...new Set([section(content, "Preview"), section(content, "\u9810\u89BD")].filter(Boolean))].join("\n\n");
+var previewSection = (content) => [...new Set([section2(content, "Preview"), section2(content, "\u9810\u89BD")].filter(Boolean))].join("\n\n");
 function sectionBounds(content, heading) {
   if (heading === "Detail") {
     const managedStart = content.indexOf(DETAIL_START), managedEnd = content.indexOf(DETAIL_END);
@@ -11102,7 +11690,7 @@ function sectionBounds(content, heading) {
   const candidates = [next ? start + next.index : content.length, reference >= 0 ? reference : content.length];
   return { start, end: Math.min(...candidates) };
 }
-function section(content, heading) {
+function section2(content, heading) {
   const bounds = sectionBounds(content, heading);
   return bounds ? content.slice(bounds.start, bounds.end).trim() : "";
 }
@@ -11139,7 +11727,7 @@ function originMarkdown(value) {
   return value.split(/\r?\n/).map((line) => `> ${line.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}`).join("\n");
 }
 function readThinkingOrigin(content) {
-  const value = section(content, "Thinking Origin");
+  const value = section2(content, "Thinking Origin");
   if (!value) return void 0;
   return value.split("\n").map((line) => line.replace(/^> ?/, "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&")).join("\n");
 }
@@ -11176,7 +11764,7 @@ ${content.slice(managedEnd + DETAIL_END.length).trimStart()}`;
 ${content.slice(bounds.end).trimStart()}`;
 }
 function ensurePreview(content, language2, textLanguage = language2) {
-  const legacy = section(content, "User Notes");
+  const legacy = section2(content, "User Notes");
   const preview = previewSection(content);
   const merged = [isPlaceholder(preview) ? placeholder(textLanguage) : preview, legacy].filter(Boolean).join("\n\n");
   const clean3 = removeSection(removeSection(removeSection(content, "User Notes"), "\u9810\u89BD"), "Preview");
@@ -11188,7 +11776,7 @@ function withoutReference(content) {
   const legacy = /\n?^## 關聯議題\s*\n+(?:母議題：[^\n]*\n+)?(?:子議題：[^\n]*\n*)?$/m;
   return legacy.test(content) ? content.replace(legacy, "\n") : content;
 }
-function detailWithVisualReferences(detail, visualReferences) {
+function detailWithVisualReferences(detail, visualReferences, template) {
   var _a;
   let current = detail.trim();
   const references2 = visualReferences.trim().split(/\n(?=\*\*[^\n]+\*\*\n|### )/).filter(Boolean);
@@ -11203,10 +11791,14 @@ function detailWithVisualReferences(detail, visualReferences) {
       paragraphs.splice(related + 1, 0, block);
       current = paragraphs.join("\n\n");
     } else {
-      const knowledge = /^### 關鍵知識\s*$/m.exec(current);
-      const next = knowledge ? /^### .+$/m.exec(current.slice(knowledge.index + knowledge[0].length)) : null;
-      const at = knowledge && next ? knowledge.index + knowledge[0].length + next.index : current.length;
-      current = [current.slice(0, at).trimEnd(), block, current.slice(at).trimStart()].filter(Boolean).join("\n\n");
+      const keys = sourcesHeadingKeys(template);
+      const lines = current.split("\n");
+      const code = fencedLines(lines);
+      const at = lines.findIndex((line, index) => {
+        const heading = code[index] ? null : /^###\s+(.+?)\s*$/.exec(line);
+        return !!heading && keys.has(heading[1].toLocaleLowerCase());
+      });
+      current = at < 0 ? [current.trimEnd(), block].filter(Boolean).join("\n\n") : [lines.slice(0, at).join("\n").trimEnd(), block, lines.slice(at).join("\n").trimStart()].filter(Boolean).join("\n\n");
     }
   }
   return current;
@@ -11218,7 +11810,7 @@ function initialPreview(summary, detail) {
 }
 function noteBody(title, summary, language2, prompt = "", rules = "", preview = "", detail = "", visualReferences = "", newFindings = "", leftover = "") {
   const detailBlock = `${DETAIL_START}
-${detailWithVisualReferences(detail, visualReferences)}
+${detailWithVisualReferences(detail, visualReferences, standardTemplate(language2))}
 ${DETAIL_END}`;
   return [
     `# ${title}`,
@@ -11245,13 +11837,17 @@ ${newFindings.trim()}` : "",
 }
 function normalizeBodyOrder(content, title, summaryFallback, language2, textLanguage = language2) {
   const clean3 = ensurePreview(withoutReference(content), language2, textLanguage);
-  const currentSummary = section(clean3, "Current Summary") || summaryFallback;
+  const currentSummary = section2(clean3, "Current Summary") || summaryFallback;
   const summary = isPlaceholder(currentSummary) ? placeholder(textLanguage) : currentSummary;
-  const prompt = section(clean3, "Prompt");
-  const rules = section(clean3, "Rules");
+  const prompt = section2(clean3, "Prompt");
+  const rules = section2(clean3, "Rules");
   const preview = previewSection(clean3);
-  const detail = detailWithVisualReferences(section(clean3, "Detail"), section(clean3, "Visual References"));
-  const newFindings = section(clean3, "Working Findings") || section(clean3, "New Findings");
+  const detail = detailWithVisualReferences(
+    section2(clean3, "Detail"),
+    section2(clean3, "Visual References"),
+    standardTemplate(language2)
+  );
+  const newFindings = section2(clean3, "Working Findings") || section2(clean3, "New Findings");
   let leftover = clean3.replace(/^# .*$(?:\r?\n)*/m, "");
   for (const heading of [
     "Current Summary",
@@ -11305,6 +11901,8 @@ var Repository = class {
   constructor(app, settings) {
     this.app = app;
     this.settings = settings;
+    /** Called once per vault-wide scan that skipped unreadable maps. */
+    __publicField(this, "onUnreadableMaps");
   }
   message(key2) {
     return translate(this.settings.language, key2);
@@ -11377,34 +11975,36 @@ var Repository = class {
   async readNote(path) {
     var _a;
     const file = this.file(path), content = upgradeLegacyAimText(await this.app.vault.read(file)), fm = frontmatter(content);
-    const status = text4(fm.status, "idea");
+    const status = text5(fm.status, "idea");
     const normalized = status === "review" || status === "accepted" ? "completed" : status;
-    const source = text4(fm["model-source"], "workspace");
-    const state = text4(
+    const source = text5(fm["model-source"], "workspace");
+    const state = text5(
       fm["topic-state"],
       path.includes("/Archive/") ? "archived" : path.includes("/Unassigned/") ? "unassigned" : path.startsWith(`${this.settings.inboxFolder}/`) ? "inbox" : "active"
     );
     return {
       title: noteTitle(content, fm, file.basename),
-      summary: section(content, "Current Summary") || text4(fm.summary, placeholder(this.settings.language)),
-      prompt: section(content, "Prompt"),
-      rules: section(content, "Rules"),
-      detail: section(content, "Detail"),
+      summary: section2(content, "Current Summary") || text5(fm.summary, placeholder(this.settings.language)),
+      prompt: section2(content, "Prompt"),
+      rules: section2(content, "Rules"),
+      detail: section2(content, "Detail"),
       thinkingOrigin: readThinkingOrigin(content),
-      visualReferences: section(content, "Visual References"),
-      newFindings: section(content, "Working Findings") || section(content, "New Findings"),
-      preview: [previewSection(content), section(content, "User Notes")].filter(Boolean).join("\n\n"),
+      visualReferences: section2(content, "Visual References"),
+      newFindings: section2(content, "Working Findings") || section2(content, "New Findings"),
+      preview: [previewSection(content), section2(content, "User Notes")].filter(Boolean).join("\n\n"),
       previewSection: previewSection(content),
       previewInitialized: fm["preview-initialized"] === true,
-      model: text4(fm.model, this.settings.cliModel),
+      model: text5(fm.model, this.settings.cliModel),
       modelSource: ["workspace", "inherited", "manual"].includes(source) ? source : "workspace",
       reasoning: normalizeReasoningLevel((_a = fm["reasoning-level"]) != null ? _a : this.settings.cliReasoning),
       researchMode: fm["research-mode"] === "local" ? "local" : "research",
       researchDepth: fm["research-depth"] === "fast" || fm["research-depth"] === "deep" ? fm["research-depth"] : "normal",
       visualMode: fm["visual-mode"] === "on" || fm["visual-mode"] === "off" ? fm["visual-mode"] : "auto",
+      ...typeof fm["detail-template"] === "string" && fm["detail-template"] ? { detailTemplateId: fm["detail-template"] } : {},
+      detailFormatIssues: Array.isArray(fm["detail-format-issues"]) ? fm["detail-format-issues"].filter((v) => typeof v === "string") : [],
       status: ["idea", "running", "completed", "error"].includes(normalized) ? normalized : "idea",
-      mapId: text4(fm["agent-map-id"]),
-      topicId: text4(fm["topic-id"], text4(fm["agent-map-id"])),
+      mapId: text5(fm["agent-map-id"]),
+      topicId: text5(fm["topic-id"], text5(fm["agent-map-id"])),
       topicState: ["active", "unassigned", "archived", "inbox"].includes(state) ? state : "active",
       referencePaths: Array.isArray(fm["reference-materials"]) ? fm["reference-materials"].filter((value) => typeof value === "string" && Boolean(value)) : [],
       sourcePaths: Array.isArray(fm["source-notes"]) ? fm["source-notes"].filter((value) => typeof value === "string" && Boolean(value)) : []
@@ -11416,7 +12016,7 @@ var Repository = class {
    */
   async updateNote(path, patch, options = {}) {
     await this.app.vault.process(this.file(path), (content) => {
-      var _a, _b, _c;
+      var _a, _b, _c, _d;
       const fm = frontmatter(content);
       ensureNoteCssClass(fm);
       if (Array.isArray(fm["agent-map-references"]))
@@ -11430,6 +12030,10 @@ var Repository = class {
       if (patch.researchMode !== void 0) fm["research-mode"] = patch.researchMode;
       if (patch.researchDepth !== void 0) fm["research-depth"] = patch.researchDepth;
       if (patch.visualMode !== void 0) fm["visual-mode"] = patch.visualMode;
+      if (patch.detailTemplateId !== void 0)
+        patch.detailTemplateId ? fm["detail-template"] = patch.detailTemplateId : delete fm["detail-template"];
+      if (patch.detailFormatIssues !== void 0)
+        patch.detailFormatIssues.length ? fm["detail-format-issues"] = patch.detailFormatIssues : delete fm["detail-format-issues"];
       if (patch.mapId !== void 0) patch.mapId ? fm["agent-map-id"] = patch.mapId : delete fm["agent-map-id"];
       if (patch.topicId !== void 0) patch.topicId ? fm["topic-id"] = patch.topicId : delete fm["topic-id"];
       if (patch.topicState !== void 0) fm["topic-state"] = patch.topicState;
@@ -11443,7 +12047,7 @@ var Repository = class {
       if (options.contentLanguage !== void 0 && noteContentLanguage(fm) === void 0)
         fm["content-language"] = options.contentLanguage;
       body = ensurePreview(body, this.settings.language, textLanguage);
-      if (isPlaceholder(text4(fm.summary))) fm.summary = placeholder(textLanguage);
+      if (isPlaceholder(text5(fm.summary))) fm.summary = placeholder(textLanguage);
       if (patch.title !== void 0) {
         const heading = managedHeadingValue(patch.title);
         body = body.replace(/^# .*$/m, () => `# ${heading}`);
@@ -11460,7 +12064,11 @@ var Repository = class {
           body = replaceSection(
             body,
             "Detail",
-            detailWithVisualReferences(section(body, "Detail"), patch.visualReferences)
+            detailWithVisualReferences(
+              section2(body, "Detail"),
+              patch.visualReferences,
+              (_d = options.detailTemplate) != null ? _d : standardTemplate(this.settings.language)
+            )
           );
       }
       if (patch.newFindings !== void 0) {
@@ -11481,15 +12089,15 @@ var Repository = class {
           body = replaceSection(
             body,
             previewHeading(this.settings.language),
-            initialPreview(patch.summary, section(body, "Detail"))
+            initialPreview(patch.summary, section2(body, "Detail"))
           );
         fm["preview-initialized"] = true;
       }
       if (patch.previewInitialized !== void 0) fm["preview-initialized"] = patch.previewInitialized;
       body = normalizeBodyOrder(
         body,
-        text4(fm.title, path.replace(/\.md$/, "")),
-        text4(fm.summary, placeholder(textLanguage)),
+        text5(fm.title, path.replace(/\.md$/, "")),
+        text5(fm.summary, placeholder(textLanguage)),
         this.settings.language,
         textLanguage
       );
@@ -11542,7 +12150,7 @@ ${noteBody(title, (_b = initial.summary) != null ? _b : placeholder(this.setting
     if (existing) {
       if (existing instanceof import_obsidian8.TFile) {
         const fm = frontmatter(await this.app.vault.read(existing));
-        if (marker(fm["agent-map-node"]) && text4(fm["node-id"]) === id)
+        if (marker(fm["agent-map-node"]) && text5(fm["node-id"]) === id)
           return { id, path, parentId: null, x: 80, y: 80, collapsed: false };
       }
       throw new Error(`Reserved result note path already belongs to another file: ${path}`);
@@ -11579,7 +12187,7 @@ ${noteBody(title, metadata.summary, this.settings.language, (_d = initial.prompt
     await this.ensureTopicFolders(this.topicRoot(mapPath));
     const source = await this.app.vault.read(this.file(sourcePath));
     const metadata = frontmatter(source);
-    const title = `${text4(metadata.title, this.file(sourcePath).basename)} ${translate(this.settings.language, "note.copy_suffix")}`;
+    const title = `${text5(metadata.title, this.file(sourcePath).basename)} ${translate(this.settings.language, "note.copy_suffix")}`;
     const id = crypto.randomUUID(), path = this.unique(folder, title);
     metadata["node-id"] = id;
     metadata["topic-id"] = map.id;
@@ -11643,6 +12251,31 @@ ${body}`);
     return (await this.markedFiles("visual-agent-map")).sort((a, b) => a.path.localeCompare(b.path));
   }
   /**
+   * Vault-wide scans read every map through here: a map that cannot be parsed is skipped (never written) and
+   * reported once per scan, so one broken Map.md does not stop the scan or leave later maps stale. Opening or editing
+   * one specific map keeps using readMap and still surfaces its error.
+   */
+  async readableMaps() {
+    return (await this.scanMaps()).readable;
+  }
+  /**
+   * Only for scans that tolerate a missing map; destructive planners (migration) must use readMap so a broken map
+   * fails them loudly instead of being skipped.
+   */
+  async scanMaps() {
+    var _a;
+    const readable = [], failures = [];
+    for (const file of await this.mapFiles()) {
+      try {
+        readable.push({ file, map: await this.readMap(file.path) });
+      } catch (error) {
+        failures.push({ path: file.path, error: error instanceof Error ? error.message : String(error) });
+      }
+    }
+    if (failures.length) (_a = this.onUnreadableMaps) == null ? void 0 : _a.call(this, failures);
+    return { readable, skippedRoots: failures.map((item) => this.topicRoot(item.path)) };
+  }
+  /**
    * Whether a rename of `file` (previously at `oldPath`) can affect VAM data, decided from the metadata cache without
    * reading notes: the file is a VAM note or map, or a VAM note cites the old path. Uncached files count as relevant.
    */
@@ -11661,8 +12294,7 @@ ${body}`);
   }
   /** Whether any map lists `path` as a node; only map files are read. */
   async isMapNodePath(path) {
-    for (const file of await this.mapFiles())
-      if ((await this.readMap(file.path)).nodes.some((node) => node.path === path)) return true;
+    for (const { map } of await this.readableMaps()) if (map.nodes.some((node) => node.path === path)) return true;
     return false;
   }
   async reconcileMissingNodePaths() {
@@ -11670,22 +12302,21 @@ ${body}`);
     const candidates = /* @__PURE__ */ new Map();
     for (const file of await this.markedFiles("agent-map-node")) {
       const fm = (_b = (_a = this.app.metadataCache.getFileCache(file)) == null ? void 0 : _a.frontmatter) != null ? _b : frontmatter(await this.app.vault.read(file));
-      const id = text4(fm["node-id"]);
+      const id = text5(fm["node-id"]);
       if (id) candidates.set(id, [...(_c = candidates.get(id)) != null ? _c : [], file.path]);
     }
     let repaired = 0;
-    for (const file of await this.mapFiles()) {
-      const map = await this.readMap(file.path);
+    for (const { file, map } of await this.readableMaps()) {
       let changed = false;
-      for (const node of map.nodes) {
+      for (const node of [...map.nodes]) {
         if (this.app.vault.getAbstractFileByPath(node.path) instanceof import_obsidian8.TFile) continue;
         const matches = (_d = candidates.get(node.id)) != null ? _d : [];
         if (matches.length !== 1) continue;
         const oldPath = node.path;
-        node.path = matches[0];
+        rebaseMapNotePaths(map, moveNotePath(oldPath, matches[0]));
         changed = true;
         repaired++;
-        await this.replaceSourcePath(oldPath, node.path);
+        await this.replaceSourcePath(oldPath, matches[0]);
       }
       if (changed) await this.saveMap(file.path, map);
     }
@@ -11693,8 +12324,7 @@ ${body}`);
   }
   async topics() {
     const topics = [];
-    for (const file of await this.mapFiles()) {
-      const map = await this.readMap(file.path);
+    for (const { file, map } of await this.readableMaps()) {
       topics.push({ id: map.id, title: map.title, mapPath: file.path, root: this.topicRoot(file.path) });
     }
     return topics;
@@ -11742,12 +12372,12 @@ ${body}`);
     const byId = /* @__PURE__ */ new Map();
     for (const file of candidates) {
       const fm = frontmatter(await this.app.vault.read(file));
-      const id = text4(fm["node-id"]);
+      const id = text5(fm["node-id"]);
       if (id) byId.set(id, file.path);
     }
-    for (const node of map.nodes)
+    for (const node of [...map.nodes])
       if (!(this.app.vault.getAbstractFileByPath(node.path) instanceof import_obsidian8.TFile) && byId.has(node.id))
-        node.path = byId.get(node.id);
+        rebaseMapNotePaths(map, moveNotePath(node.path, byId.get(node.id)));
     await this.moveExact(sourcePath, target);
     await this.saveMap(target, map);
     for (const node of map.nodes)
@@ -11758,8 +12388,7 @@ ${body}`);
   }
   async assignedNotePaths(exceptMapId) {
     const assigned = /* @__PURE__ */ new Set();
-    for (const file of await this.mapFiles()) {
-      const map = await this.readMap(file.path);
+    for (const { map } of await this.readableMaps()) {
       if (map.id === exceptMapId) continue;
       for (const node of map.nodes) assigned.add(node.path);
     }
@@ -11832,8 +12461,7 @@ ${body}`);
   }
   async normalizeGeneratedNoteFilenames() {
     let renamed = 0;
-    for (const mapFile of await this.mapFiles()) {
-      const map = await this.readMap(mapFile.path);
+    for (const { file: mapFile, map } of await this.readableMaps()) {
       let changed = false;
       for (const node of map.nodes) {
         const file = this.app.vault.getAbstractFileByPath(node.path);
@@ -11841,7 +12469,7 @@ ${body}`);
         const note = await this.readNote(node.path);
         if (!note.title.trim() || safeName(note.title) === file.basename) continue;
         const oldPath = node.path, newPath = await this.renameNote(oldPath, note.title);
-        node.path = newPath;
+        rebaseMapNotePaths(map, moveNotePath(oldPath, newPath));
         changed = true;
         renamed++;
         await this.replaceSourcePath(oldPath, newPath);
@@ -11865,8 +12493,8 @@ ${body}`);
   async rebuildDerivedData(noteRoot) {
     const ownership = /* @__PURE__ */ new Map();
     const topics = /* @__PURE__ */ new Map();
-    for (const mapFile of await this.mapFiles()) {
-      const map = await this.readMap(mapFile.path);
+    const scan = await this.scanMaps();
+    for (const { file: mapFile, map } of scan.readable) {
       topics.set(map.id, { map, mapPath: mapFile.path });
       for (const node of map.nodes) {
         const existing = ownership.get(node.path);
@@ -11882,6 +12510,7 @@ ${body}`);
     }
     for (const file of nodeFiles.values()) {
       if (noteRoot && !file.path.startsWith(`${noteRoot}/`)) continue;
+      if (scan.skippedRoots.some((root) => file.path.startsWith(`${root}/`) && !ownership.has(file.path))) continue;
       const cached = await this.app.vault.cachedRead(file), derived = this.derivedNoteContent(file, cached, ownership, topics);
       if (derived === null || derived === cached) continue;
       await this.app.vault.process(
@@ -11901,7 +12530,7 @@ ${body}`);
     ensureNoteCssClass(fm);
     fm.title = noteTitle(content, fm, file.basename);
     const owner = ownership.get(file.path);
-    let state = file.path.startsWith(`${this.settings.inboxFolder}/`) ? "inbox" : file.path.includes("/Archive/") ? "archived" : file.path.includes("/Unassigned/") ? "unassigned" : owner ? "active" : text4(fm["topic-state"], "unassigned");
+    let state = file.path.startsWith(`${this.settings.inboxFolder}/`) ? "inbox" : file.path.includes("/Archive/") ? "archived" : file.path.includes("/Unassigned/") ? "unassigned" : owner ? "active" : text5(fm["topic-state"], "unassigned");
     if (owner) {
       fm["agent-map-id"] = owner.map.id;
       fm["topic-id"] = owner.map.id;
@@ -11921,10 +12550,10 @@ ${body}`);
       this.settings.language,
       textLanguage
     );
-    if (isPlaceholder(text4(fm.summary))) fm.summary = placeholder(textLanguage);
-    const topicId = text4(fm["topic-id"]), topic = topics.get(topicId);
+    if (isPlaceholder(text5(fm.summary))) fm.summary = placeholder(textLanguage);
+    const topicId = text5(fm["topic-id"]), topic = topics.get(topicId);
     if (owner) {
-      if (!body.includes(DETAIL_START)) body = replaceSection(body, "Detail", section(body, "Detail"));
+      if (!body.includes(DETAIL_START)) body = replaceSection(body, "Detail", section2(body, "Detail"));
       const parent = owner.node.parentId ? owner.map.nodes.find((item) => item.id === owner.node.parentId) : void 0;
       const children = owner.map.nodes.filter((item) => item.parentId === owner.node.id);
       fm["agent-map-references"] = this.settings.language === "en" ? [
@@ -11954,8 +12583,8 @@ ${body}`);
     }
     body = normalizeBodyOrder(
       body,
-      text4(fm.title, file.basename),
-      text4(fm.summary, placeholder(textLanguage)),
+      text5(fm.title, file.basename),
+      text5(fm.summary, placeholder(textLanguage)),
       this.settings.language,
       textLanguage
     );
@@ -12000,12 +12629,19 @@ ${body}`;
     return path;
   }
   async legacyMigrationPlan() {
-    const allMaps = await this.mapFiles();
-    const legacyMaps = allMaps.filter((file) => !file.path.startsWith(`${this.settings.topicsFolder}/`));
+    const legacyMaps = [];
+    for (const file of await this.mapFiles()) {
+      let map;
+      try {
+        map = await this.readMap(file.path);
+      } catch (error) {
+        throw new Error(`${file.path}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+      if (!file.path.startsWith(`${this.settings.topicsFolder}/`)) legacyMaps.push({ file, map });
+    }
     const assigned = /* @__PURE__ */ new Set(), maps = [];
     const reservedRoots = /* @__PURE__ */ new Set();
-    for (const file of legacyMaps) {
-      const map = await this.readMap(file.path);
+    for (const { file, map } of legacyMaps) {
       for (const node of map.nodes) assigned.add(node.path);
       let targetRoot = (0, import_obsidian8.normalizePath)(`${this.settings.topicsFolder}/${safeName(map.title)}`), number = 2;
       const base = targetRoot;
@@ -12040,7 +12676,7 @@ ${body}`;
           await remember(node.path);
           const old = node.path, next = await this.moveUnique(old, `${item.targetRoot}/Notes`);
           moves.push({ from: old, to: next });
-          node.path = next;
+          rebaseMapNotePaths(map, moveNotePath(old, next));
           await this.setLifecycle(next, map.id, map.id, "active");
         }
         await this.saveMap(mapTarget, map);
@@ -12067,7 +12703,7 @@ ${body}`;
     }
   }
   async renameTopic(mapPath, title, targetRoot) {
-    var _a, _b, _c;
+    var _a;
     const file = this.file(mapPath), root = file.parent;
     if (!(root instanceof import_obsidian8.TFolder) || !mapPath.startsWith(`${this.settings.topicsFolder}/`))
       throw new Error(this.message("error.migrate_legacy_map"));
@@ -12094,30 +12730,7 @@ ${body}`;
       const map = await this.readMap(next);
       map.title = title;
       const rebasePath = (path) => path.startsWith(`${originalRoot}/`) ? `${desired}/${path.slice(originalRoot.length + 1)}` : path;
-      for (const node of map.nodes) node.path = rebasePath(node.path);
-      const aim = map.aim;
-      if (aim) {
-        for (const branch of aim.branches) {
-          for (const result of branch.inputSnapshot.upstreamResults) result.notePath = rebasePath(result.notePath);
-          for (const result of branch.results) result.notePath = rebasePath(result.notePath);
-        }
-        for (const draft of (_b = aim.resultDrafts) != null ? _b : []) draft.notePath = rebasePath(draft.notePath);
-        if (aim.rootDraft) aim.rootDraft.notePath = rebasePath(aim.rootDraft.notePath);
-        if (aim.questionDraft) aim.questionDraft.notePath = rebasePath(aim.questionDraft.notePath);
-        for (const pending of aim.pendingCommits) pending.notePath = rebasePath(pending.notePath);
-        const hashSnapshot = (value) => (0, import_node_crypto2.createHash)("sha256").update(JSON.stringify(value)).digest("hex");
-        for (const run of aim.runs) {
-          const branch = aim.branches.find((item) => item.id === run.branchId);
-          if (!branch) continue;
-          for (const attempt of run.attempts) {
-            attempt.inputSnapshotHash = hashSnapshot({ branch: branch.inputSnapshot, answer: branch.answerSnapshot });
-            for (const draft of (_c = aim.resultDrafts) != null ? _c : []) {
-              if (draft.runId === run.id && draft.attemptId === attempt.id)
-                draft.inputSnapshotHash = attempt.inputSnapshotHash;
-            }
-          }
-        }
-      }
+      rebaseMapNotePaths(map, rebasePath);
       await this.saveMap(next, map);
       await this.rebuildDerivedData();
       return next;
@@ -12260,6 +12873,7 @@ function builtInSample(language2, useEmbeddedAssets = true) {
       researchMode: "research",
       researchDepth: "normal",
       visualMode: "auto",
+      detailFormatIssues: [],
       mapId: map.id,
       topicId: map.id,
       topicState: "active",
@@ -12680,8 +13294,10 @@ function localDate(now) {
   const pad = (value) => String(value).padStart(2, "0");
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
-async function createOutlineMap(repository, model, nodes, source, now = /* @__PURE__ */ new Date()) {
+async function createOutlineMap(repository, model, nodes, source, now = /* @__PURE__ */ new Date(), template) {
+  var _a;
   const language2 = repository.settings.language;
+  const detailTemplate = template != null ? template : standardTemplate(language2);
   if (!nodes.length) throw new Error(translate(language2, "ui.outline_error_no_headings"));
   const mapPath = await repository.createMap(nodes[0].title, []);
   let map;
@@ -12691,9 +13307,10 @@ async function createOutlineMap(repository, model, nodes, source, now = /* @__PU
     throw Object.assign(new Error(errorText(error)), { mapCreated: true });
   }
   const log = source ? translate(language2, "ui.outline_import_log_source", localDate(now), source) : translate(language2, "ui.outline_import_log", localDate(now));
-  const rootDetail = canonicalDetail(`### ${translate(language2, "detail.update_log")}
+  const heading = ((_a = detailTemplate.sections.find((section3) => section3.role === "log")) != null ? _a : detailTemplate.sections[0]).name;
+  const rootDetail = canonicalDetail(`### ${heading}
 
-- ${log}`, language2);
+- ${log}`, language2, detailTemplate);
   const created = [];
   let failure;
   for (const node of nodes) {
@@ -12757,12 +13374,22 @@ function modelField(parent, models, defaultLabel) {
     model.replaceChildren();
     model.createEl("option", { value: "", text: defaultLabel });
     const choices = models.list();
-    for (const option of choices) model.createEl("option", { value: option.id, text: option.label });
-    model.value = choices.some((option) => option.id === selected) ? selected : "";
+    for (const option2 of choices) model.createEl("option", { value: option2.id, text: option2.label });
+    model.value = choices.some((option2) => option2.id === selected) ? selected : "";
   };
   fill();
   const dispose = models.watch(fill);
   return { value: () => model.value || void 0, dispose };
+}
+function templateField(parent, templates, defaultLabel) {
+  const label = parent.createEl("label", { cls: "vam-field" });
+  label.createSpan({ text: t("ui.detail_template") });
+  const select = label.createEl("select");
+  select.setAttr("aria-label", t("ui.detail_template"));
+  select.createEl("option", { value: "", text: defaultLabel });
+  for (const template of templates) select.createEl("option", { value: template.id, text: template.name });
+  select.value = "";
+  return () => select.value || void 0;
 }
 
 // experiences/visual-map/outline-import-modal.ts
@@ -12784,10 +13411,11 @@ var OutlineFileModal = class extends import_obsidian9.FuzzySuggestModal {
 };
 var OutlineImportModal = class extends import_obsidian9.Modal {
   constructor(app, create, models = { list: () => [], watch: () => () => {
-  } }) {
+  } }, templates = []) {
     super(app);
     this.create = create;
     this.models = models;
+    this.templates = templates;
     __publicField(this, "textarea");
     __publicField(this, "preview");
     __publicField(this, "sourceLabel");
@@ -12799,6 +13427,7 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
     __publicField(this, "submitting", false);
     __publicField(this, "depth", () => "fast");
     __publicField(this, "model", () => void 0);
+    __publicField(this, "template", () => void 0);
     __publicField(this, "unwatch");
   }
   onOpen() {
@@ -12823,6 +13452,7 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
     const model = modelField(researchOptions, this.models, t("ui.workspace_default"));
     this.model = model.value;
     this.unwatch = model.dispose;
+    this.template = templateField(researchOptions, this.templates, t("ui.detail_template_use_workspace"));
     const showOptions = () => researchOptions.toggleClass("is-hidden", !this.shallow.checked);
     this.shallow.addEventListener("change", showOptions);
     showOptions();
@@ -12880,12 +13510,14 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
     try {
       const shallowResearch = this.shallow.checked;
       const model = shallowResearch ? this.model() : void 0;
+      const detailTemplateId = shallowResearch ? this.template() : void 0;
       await this.create({
         nodes: this.nodes,
         source: this.source,
         shallowResearch,
         ...shallowResearch ? { researchDepth: this.depth() } : {},
-        ...model ? { model } : {}
+        ...model ? { model } : {},
+        ...detailTemplateId ? { detailTemplateId } : {}
       });
       this.close();
     } catch (error) {
@@ -12899,10 +13531,11 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
 // experiences/visual-map/multi-research-modal.ts
 var import_obsidian10 = require("obsidian");
 var MultiResearchModal = class extends import_obsidian10.Modal {
-  constructor(app, names2, models, submit) {
+  constructor(app, names2, models, templates, submit) {
     super(app);
     this.names = names2;
     this.models = models;
+    this.templates = templates;
     this.submit = submit;
     __publicField(this, "submitted", false);
     __publicField(this, "unwatch");
@@ -12916,6 +13549,7 @@ var MultiResearchModal = class extends import_obsidian10.Modal {
     const depth = researchDepthField(this.contentEl);
     const model = modelField(this.contentEl, this.models, t("ui.multi_research_keep_topic_models"));
     this.unwatch = model.dispose;
+    const template = templateField(this.contentEl, this.templates, t("ui.detail_template_keep_each"));
     const webLabel = this.contentEl.createEl("label", { cls: "vam-field vam-next-toggle" });
     const web = webLabel.createEl("input", { type: "checkbox" });
     web.checked = true;
@@ -12936,7 +13570,8 @@ var MultiResearchModal = class extends import_obsidian10.Modal {
         researchMode: web.checked ? "research" : "local",
         researchDepth: depth(),
         requirements: requirements.value.trim(),
-        ...model.value() ? { model: model.value() } : {}
+        ...model.value() ? { model: model.value() } : {},
+        ...template() ? { detailTemplateId: template() } : {}
       };
       this.close();
       this.submit(request);
@@ -13202,16 +13837,16 @@ var AimAnswerModal = class extends import_obsidian12.Modal {
       attr: { role: "group", "aria-label": this.question }
     });
     const boxes = /* @__PURE__ */ new Map();
-    for (const option of this.options) {
+    for (const option2 of this.options) {
       const label = choices.createEl("label", { cls: "vam-aim-answer-option" });
-      const input = label.createEl("input", { type: "checkbox", value: option.id });
-      input.setAttr("aria-label", option.label);
-      label.createSpan({ text: option.label });
-      boxes.set(option.id, input);
+      const input = label.createEl("input", { type: "checkbox", value: option2.id });
+      input.setAttr("aria-label", option2.label);
+      label.createSpan({ text: option2.label });
+      boxes.set(option2.id, input);
       input.addEventListener("change", () => {
         this.requestId = (0, import_node_crypto5.randomUUID)();
-        if (input.checked && option.id === "__aim_unknown__") {
-          for (const [id, peer] of boxes) if (id !== option.id) peer.checked = false;
+        if (input.checked && option2.id === "__aim_unknown__") {
+          for (const [id, peer] of boxes) if (id !== option2.id) peer.checked = false;
         } else if (input.checked) {
           const unknown = boxes.get("__aim_unknown__");
           if (unknown) unknown.checked = false;
@@ -13313,18 +13948,18 @@ var reuse_target_expected_value_default = "Retain adequate existing evidence wit
 var reuse_target_validity_reason_default = "Full report must pass the current-goal applicability and freshness audit\n";
 
 // experiences/aim/steps/_shared/rules.ts
-var text5 = (template) => renderTemplate(template, {});
-var PLANNER_COVERAGE_RULE = text5(planner_coverage_rule_default);
-var SEARCHER_TARGET_RULE = text5(searcher_target_rule_default);
-var USER_QUESTION_RULE = text5(user_question_rule_default);
-var FLOOR_ASK_RULE = text5(floor_ask_rule_default);
-var OUTCOME_EXPECTATION_RULE = text5(outcome_expectation_rule_default);
-var EVIDENCE_LOOKUP_RULE = text5(evidence_lookup_rule_default);
-var EVIDENCE_LOOKUP_FIELD_RULE = text5(evidence_lookup_field_rule_default);
-var TOPIC_ROOT_ANSWER = text5(topic_root_answer_default);
-var REUSE_TARGET_EXPECTED_VALUE = text5(reuse_target_expected_value_default);
-var REUSE_TARGET_VALIDITY_REASON = text5(reuse_target_validity_reason_default);
-var PASSAGE_REFERENCE = text5(passage_reference_default);
+var text6 = (template) => renderTemplate(template, {});
+var PLANNER_COVERAGE_RULE = text6(planner_coverage_rule_default);
+var SEARCHER_TARGET_RULE = text6(searcher_target_rule_default);
+var USER_QUESTION_RULE = text6(user_question_rule_default);
+var FLOOR_ASK_RULE = text6(floor_ask_rule_default);
+var OUTCOME_EXPECTATION_RULE = text6(outcome_expectation_rule_default);
+var EVIDENCE_LOOKUP_RULE = text6(evidence_lookup_rule_default);
+var EVIDENCE_LOOKUP_FIELD_RULE = text6(evidence_lookup_field_rule_default);
+var TOPIC_ROOT_ANSWER = text6(topic_root_answer_default);
+var REUSE_TARGET_EXPECTED_VALUE = text6(reuse_target_expected_value_default);
+var REUSE_TARGET_VALIDITY_REASON = text6(reuse_target_validity_reason_default);
+var PASSAGE_REFERENCE = text6(passage_reference_default);
 var renderEvidenceLookupFollowup = (task, evidence) => renderTemplate(evidence_lookup_followup_default, { task, evidence });
 
 // experiences/aim/evidence-context.ts
@@ -13420,21 +14055,21 @@ function parseDeliveryOutline(detail) {
   const sections = value && typeof value === "object" && "sections" in value ? value.sections : void 0;
   if (!Array.isArray(sections) || !sections.length || sections.length > 12)
     throw new Error("Final delivery outline is invalid; no conclusion was saved.");
-  const validated = sections.map((section2) => {
-    if (!section2 || typeof section2 !== "object" || !("heading" in section2) || !("purpose" in section2) || !("searchTask" in section2) || typeof section2.heading !== "string" || !section2.heading.trim() || typeof section2.purpose !== "string" || !section2.purpose.trim() || typeof section2.searchTask !== "string")
+  const validated = sections.map((section3) => {
+    if (!section3 || typeof section3 !== "object" || !("heading" in section3) || !("purpose" in section3) || !("searchTask" in section3) || typeof section3.heading !== "string" || !section3.heading.trim() || typeof section3.purpose !== "string" || !section3.purpose.trim() || typeof section3.searchTask !== "string")
       throw new Error("Final delivery outline is invalid; no conclusion was saved.");
     const mapping = {};
     for (const key2 of ["evidenceIds", "dependencies"]) {
-      if (key2 in section2) {
-        const ids = section2[key2];
+      if (key2 in section3) {
+        const ids = section3[key2];
         if (!Array.isArray(ids) || ids.some((id) => typeof id !== "string" || !id.trim()) || new Set(ids).size !== ids.length)
           throw new Error("Invalid final delivery source mapping.");
         mapping[key2] = ids;
       }
     }
-    return { heading: section2.heading, purpose: section2.purpose, searchTask: section2.searchTask, ...mapping };
+    return { heading: section3.heading, purpose: section3.purpose, searchTask: section3.searchTask, ...mapping };
   });
-  if (new Set(validated.map((section2) => section2.heading.trim().toLowerCase())).size !== validated.length)
+  if (new Set(validated.map((section3) => section3.heading.trim().toLowerCase())).size !== validated.length)
     throw new Error("Final delivery outline contains duplicate sections.");
   return validated;
 }
@@ -13542,15 +14177,15 @@ ${source.detail}`).join("\n\n");
   );
   const sections = parseDeliveryOutline(outlineResult.detail);
   const outline = JSON.stringify(sections);
-  const needsResearch = sections.some((section2) => section2.searchTask.trim());
+  const needsResearch = sections.some((section3) => section3.searchTask.trim());
   const researchFingerprint = fingerprint(
-    sections.filter((section2) => section2.searchTask.trim()).map((section2) => {
+    sections.filter((section3) => section3.searchTask.trim()).map((section3) => {
       var _a2, _b2, _c2, _d2;
-      const ids = [.../* @__PURE__ */ new Set([...(_a2 = section2.evidenceIds) != null ? _a2 : [], ...(_b2 = section2.dependencies) != null ? _b2 : []])];
-      const scoped = section2.evidenceIds === void 0 && section2.dependencies === void 0 ? (_c2 = options.evidence) != null ? _c2 : [] : ((_d2 = options.evidence) != null ? _d2 : []).filter((source) => ids.includes(source.id));
+      const ids = [.../* @__PURE__ */ new Set([...(_a2 = section3.evidenceIds) != null ? _a2 : [], ...(_b2 = section3.dependencies) != null ? _b2 : []])];
+      const scoped = section3.evidenceIds === void 0 && section3.dependencies === void 0 ? (_c2 = options.evidence) != null ? _c2 : [] : ((_d2 = options.evidence) != null ? _d2 : []).filter((source) => ids.includes(source.id));
       return {
-        heading: section2.heading,
-        searchTask: section2.searchTask,
+        heading: section3.heading,
+        searchTask: section3.searchTask,
         sources: scoped.map((source) => [source.id, source.hash])
       };
     })
@@ -13583,10 +14218,10 @@ Supplied source reports:
 ${sourceCatalog}`;
   const available = new Map(((_e = options.evidence) != null ? _e : []).map((source) => [source.id, source]));
   if (available.size !== ((_f = options.evidence) != null ? _f : []).length) throw new Error("Duplicate final delivery evidence IDs.");
-  const researchForSection = (section2) => {
-    if (!section2.searchTask.trim()) return "";
+  const researchForSection = (section3) => {
+    if (!section3.searchTask.trim()) return "";
     const lines = research.detail.split("\n");
-    const start = lines.findIndex((line) => line.trim() === `## ${section2.heading}`);
+    const start = lines.findIndex((line) => line.trim() === `## ${section3.heading}`);
     if (start >= 0) {
       const end = lines.findIndex((line, index) => index > start && /^##\s+/.test(line));
       return lines.slice(start, end < 0 ? void 0 : end).join("\n");
@@ -13595,32 +14230,32 @@ ${sourceCatalog}`;
       throw new Error("Final research is missing section-scoped evidence; no conclusion was saved.");
     return research.detail;
   };
-  const sectionPlans = sections.map((section2) => {
+  const sectionPlans = sections.map((section3) => {
     var _a2, _b2;
-    const ids = [.../* @__PURE__ */ new Set([...(_a2 = section2.evidenceIds) != null ? _a2 : [], ...(_b2 = section2.dependencies) != null ? _b2 : []])];
+    const ids = [.../* @__PURE__ */ new Set([...(_a2 = section3.evidenceIds) != null ? _a2 : [], ...(_b2 = section3.dependencies) != null ? _b2 : []])];
     if (ids.some((id) => !available.has(id)))
       throw new Error("Final delivery outline references an unavailable source ID.");
-    const sources2 = section2.evidenceIds === void 0 && section2.dependencies === void 0 ? [...available.values()] : ids.map((id) => available.get(id));
+    const sources2 = section3.evidenceIds === void 0 && section3.dependencies === void 0 ? [...available.values()] : ids.map((id) => available.get(id));
     const scopedEvidence = sources2.length ? sources2.map((source) => `Source ID: ${source.id}
 ${source.detail}`).join("\n\n") : available.size ? NO_MAPPED_SOURCE : `${base.detail}
 
 ${research.detail}`;
-    const scopedResearch = researchForSection(section2);
+    const scopedResearch = researchForSection(section3);
     const sectionFingerprint = fingerprint({
       baseFingerprint,
-      heading: section2.heading,
-      purpose: section2.purpose,
-      searchTask: section2.searchTask,
+      heading: section3.heading,
+      purpose: section3.purpose,
+      searchTask: section3.searchTask,
       sources: sources2.map((source) => [source.id, source.hash]),
       research: scopedResearch || (!available.size ? research.detail : void 0)
     });
     return {
-      section: section2,
+      section: section3,
       sources: sources2,
       scopedEvidence,
       scopedResearch,
       sectionFingerprint,
-      key: section2.heading.trim().toLowerCase()
+      key: section3.heading.trim().toLowerCase()
     };
   });
   const draftFingerprint = fingerprint(sectionPlans.map((plan) => plan.sectionFingerprint));
@@ -13845,8 +14480,8 @@ var announceTestOverrides = (_notify) => {
 // ai/aim-contracts.ts
 var AIM_NO_QUESTION = "__AIM_NO_QUESTION__";
 var QUESTION_SCOPE = "Ask about the user's goal, preferences, constraints or situation, never about this tool's workflow, counts, nodes or branches.";
-var text6 = { type: "string" };
-var texts = { type: "array", items: text6 };
+var text7 = { type: "string" };
+var texts = { type: "array", items: text7 };
 var nullable = (schema) => ({ anyOf: [schema, { type: "null" }] });
 var object = (properties) => ({
   type: "object",
@@ -13867,7 +14502,7 @@ function payloadSchema(contract) {
       return object({
         decision: { type: "string", enum: contract.requireQuestion ? ["ask_user"] : ["ask_user", "no_question"] },
         question: {
-          ...text6,
+          ...text7,
           description: `The one direct question for the user, written as a question. ${QUESTION_SCOPE} Empty only for no_question.`
         },
         answerOptions: {
@@ -13881,27 +14516,27 @@ function payloadSchema(contract) {
           type: "array",
           description: "0\u20135 distinct evidence tasks.",
           items: object({
-            id: text6,
-            title: text6,
-            task: text6,
-            expectedValue: text6,
+            id: text7,
+            title: text7,
+            task: text7,
+            expectedValue: text7,
             action: { type: "string", enum: ["research", "update", "reuse"] },
             dependsOn: { ...texts, description: "Ids of prerequisite targets in this plan; empty when independent." },
-            rationale: text6,
+            rationale: text7,
             source: {
               ...nullable(
                 object({
-                  branchId: text6,
-                  resultId: text6,
-                  notePath: text6,
+                  branchId: text7,
+                  resultId: text7,
+                  notePath: text7,
                   version: { type: "integer" },
-                  contentHash: text6
+                  contentHash: text7
                 })
               ),
               description: "For reuse/update: the exact source copied from the supplied ancestor report. Null for research."
             },
             validity: {
-              ...nullable(object({ conditionKeys: texts, reason: text6 })),
+              ...nullable(object({ conditionKeys: texts, reason: text7 })),
               description: "For reuse/update: which supplied condition keys the source depends on and why it still applies. Null for research."
             }
           })
@@ -13910,9 +14545,9 @@ function payloadSchema(contract) {
     case "reuse":
       return object({
         usable: { type: "boolean" },
-        rationale: text6,
+        rationale: text7,
         conditionKeys: texts,
-        validity: { ...text6, description: "Freshness and applicability assessment." }
+        validity: { ...text7, description: "Freshness and applicability assessment." }
       });
     case "review":
       return object({
@@ -13921,19 +14556,19 @@ function payloadSchema(contract) {
           description: "true when the supplied reports already answer the original goal under the known conditions; false when a material evidence gap in the goal itself remains."
         },
         decision: { type: "string", enum: [...contract.decisions] },
-        rationale: { ...text6, description: "Evidence-based reason for the decision." },
-        stopReason: { ...text6, description: "For conclude: why research can stop. Otherwise empty." },
+        rationale: { ...text7, description: "Evidence-based reason for the decision." },
+        stopReason: { ...text7, description: "For conclude: why research can stop. Otherwise empty." },
         question: {
-          ...text6,
+          ...text7,
           description: `For ask_user: the one direct question for the user, written as a question. ${QUESTION_SCOPE} Otherwise empty.`
         },
         answerOptions: { ...texts, description: "For ask_user: 2\u20135 distinct answer choices. Otherwise empty." },
         researchTarget: {
           ...nullable(
             object({
-              title: text6,
-              task: { ...text6, description: "Search instruction." },
-              expectedValue: { ...text6, description: "Uncertainty the search should reduce." }
+              title: text7,
+              task: { ...text7, description: "Search instruction." },
+              expectedValue: { ...text7, description: "Uncertainty the search should reduce." }
             })
           ),
           description: "For research_more: the one targeted evidence gap. Otherwise null."
@@ -13944,10 +14579,10 @@ function payloadSchema(contract) {
         sections: {
           type: "array",
           items: object({
-            heading: text6,
-            purpose: text6,
+            heading: text7,
+            purpose: text7,
             searchTask: {
-              ...text6,
+              ...text7,
               description: "Specific web search needed for this section, or empty if already supported."
             },
             evidenceIds: {
@@ -14056,9 +14691,9 @@ function foldPayload(contract, aim, result) {
     }
     case "outline": {
       const sections = (Array.isArray(aim.sections) ? aim.sections : []).map((item) => {
-        const { evidenceIds, dependencies, ...section2 } = item && typeof item === "object" ? item : {};
+        const { evidenceIds, dependencies, ...section3 } = item && typeof item === "object" ? item : {};
         return {
-          ...section2,
+          ...section3,
           ...Array.isArray(evidenceIds) ? { evidenceIds } : {},
           ...Array.isArray(dependencies) ? { dependencies } : {}
         };
@@ -14187,9 +14822,9 @@ function extractExplicitOptions(body, question) {
       continue;
     }
     if (!inOptions) continue;
-    const option = (_b = (_a = trimmed.match(/^(?:[-*•]|\d+[.)、])\s+(.+?)\s*$/)) == null ? void 0 : _a[1]) == null ? void 0 : _b.trim();
-    if (!option) break;
-    options.push(option);
+    const option2 = (_b = (_a = trimmed.match(/^(?:[-*•]|\d+[.)、])\s+(.+?)\s*$/)) == null ? void 0 : _a[1]) == null ? void 0 : _b.trim();
+    if (!option2) break;
+    options.push(option2);
     if (options.length > 5) return [];
   }
   const unique2 = [...new Set(options)];
@@ -14461,10 +15096,10 @@ function extractAimFailedReport(note, attempt, notePath) {
   if (!headings.length || headings.length !== summaries.length) return null;
   for (let index = 0; index < headings.length; index++) {
     const number = Number(headings[index][1]), next = (_b = (_a = headings[index + 1]) == null ? void 0 : _a.index) != null ? _b : body.length;
-    const section2 = body.slice(headings[index].index + headings[index][0].length, next).trim();
-    if (number !== index + 1 || ((_c = summaries[index]) == null ? void 0 : _c.index) !== number || !((_d = summaries[index]) == null ? void 0 : _d.summary) || !section2)
+    const section3 = body.slice(headings[index].index + headings[index][0].length, next).trim();
+    if (number !== index + 1 || ((_c = summaries[index]) == null ? void 0 : _c.index) !== number || !((_d = summaries[index]) == null ? void 0 : _d.summary) || !section3)
       return null;
-    reports.push({ summary: summaries[index].summary, detail: section2, suggestions: [], visualReferences: [] });
+    reports.push({ summary: summaries[index].summary, detail: section3, suggestions: [], visualReferences: [] });
   }
   return reports;
 }
@@ -14671,10 +15306,10 @@ function countAimAnsweredQuestions(map, branchId) {
   return count;
 }
 function lineageWithoutRepeatedReports(lineage, reportDetail) {
-  return lineage.split(/\n\n(?=(?:User answer to |Saved research result v))/g).filter((section2) => {
+  return lineage.split(/\n\n(?=(?:User answer to |Saved research result v))/g).filter((section3) => {
     var _a, _b;
-    if (!section2.startsWith("Saved research result ")) return true;
-    const report = (_b = (_a = section2.match(/\nReport:\n([\s\S]*)$/)) == null ? void 0 : _a[1]) == null ? void 0 : _b.trim();
+    if (!section3.startsWith("Saved research result ")) return true;
+    const report = (_b = (_a = section3.match(/\nReport:\n([\s\S]*)$/)) == null ? void 0 : _a[1]) == null ? void 0 : _b.trim();
     return !report || !reportDetail.includes(report);
   }).join("\n\n");
 }
@@ -14687,10 +15322,10 @@ function throwIfAborted(signal) {
 }
 function normalizePersistedAnswerOptions(options) {
   if (!Array.isArray(options)) return [];
-  return options.flatMap((option) => {
-    if (typeof option === "string" && option.trim()) return [option];
-    if (option && typeof option === "object" && "value" in option) {
-      const value = option.value;
+  return options.flatMap((option2) => {
+    if (typeof option2 === "string" && option2.trim()) return [option2];
+    if (option2 && typeof option2 === "object" && "value" in option2) {
+      const value = option2.value;
       if (typeof value === "string" && value.trim()) return [value];
     }
     return [];
@@ -16702,7 +17337,7 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
     const detail = [
       plannerDetail.trim(),
       translate(language2, "note.aim_answer_options_heading"),
-      ...options.map((option) => `- ${option.label}`),
+      ...options.map((option2) => `- ${option2.label}`),
       translate(language2, "note.aim_answer_hint")
     ].filter(Boolean).join("\n\n");
     const draft = {
@@ -16788,7 +17423,7 @@ ${input.requestId}`;
     const topicNode = (_b = map.nodes.find((node) => node.aimKind === "topic")) != null ? _b : map.nodes.find((node) => node.parentId === null);
     const topicNote = topicNode ? await this.repository.readNote(topicNode.path) : await this.repository.readNote(question.path);
     const lineage = await this.branchLineage(map, branch.parentBranchId);
-    const labels = (_d = (_c = question.aimQuestion) == null ? void 0 : _c.options.filter((option) => branch.answerSnapshot.selections.includes(option.id)).map((option) => option.label)) != null ? _d : branch.answerSnapshot.selections;
+    const labels = (_d = (_c = question.aimQuestion) == null ? void 0 : _c.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _d : branch.answerSnapshot.selections;
     return this.runSubtopicWorkflow(
       mapPath,
       branch.id,
@@ -16816,7 +17451,7 @@ ${input.requestId}`;
     const topicNote = topicNode ? await this.repository.readNote(topicNode.path) : await this.repository.readNote(parent.path);
     const parentNote = await this.repository.readNote(parent.path);
     const lineage = await this.branchLineage(map, branch.parentBranchId);
-    const labels = (_d = (_c = parent.aimQuestion) == null ? void 0 : _c.options.filter((option) => branch.answerSnapshot.selections.includes(option.id)).map((option) => option.label)) != null ? _d : branch.answerSnapshot.selections;
+    const labels = (_d = (_c = parent.aimQuestion) == null ? void 0 : _c.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _d : branch.answerSnapshot.selections;
     return this.runSubtopicWorkflow(
       mapPath,
       branch.id,
@@ -16840,11 +17475,11 @@ ${input.requestId}`;
     const freeText = input.freeText.trim(), selections = [...new Set(input.selections)].sort();
     if (!selections.length && !freeText)
       throw new Error("Choose an answer, add free text, or select Unknown / no preference.");
-    const optionById = new Map(contract.options.map((option) => [option.id, option]));
+    const optionById = new Map(contract.options.map((option2) => [option2.id, option2]));
     const selectedOptions = selections.map((id) => optionById.get(id));
-    if (selectedOptions.some((option) => !option))
+    if (selectedOptions.some((option2) => !option2))
       throw new Error("The submitted answer contains an option that was not offered by this question.");
-    const answerLabels = selectedOptions.map((option) => option.label);
+    const answerLabels = selectedOptions.map((option2) => option2.label);
     if (selections.includes(AIM_UNKNOWN_OPTION_ID) && selections.length > 1)
       throw new Error("Unknown / no preference cannot be combined with another selected option.");
     const parent = await this.repository.readNote(questionNode.path);
@@ -17910,7 +18545,7 @@ ${beforeSearch.detail}`,
     for (const branch of chain) {
       const question = map.nodes.find((node) => node.id === branch.questionNodeId);
       const questionNote = question ? await this.repository.readNote(question.path) : void 0;
-      const choices = (_b = (_a = question == null ? void 0 : question.aimQuestion) == null ? void 0 : _a.options.filter((option) => branch.answerSnapshot.selections.includes(option.id)).map((option) => option.label)) != null ? _b : branch.answerSnapshot.selections;
+      const choices = (_b = (_a = question == null ? void 0 : question.aimQuestion) == null ? void 0 : _a.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _b : branch.answerSnapshot.selections;
       if ((question == null ? void 0 : question.aimKind) === "question")
         sections.push(
           `User answer to ${(_c = questionNote == null ? void 0 : questionNote.summary) != null ? _c : "question"}: ${JSON.stringify({ selections: choices, freeText: branch.answerSnapshot.freeText || null })}`
@@ -18010,7 +18645,7 @@ var _AimRunStore = class _AimRunStore {
       const questionNode = map.nodes.find((node) => node.id === input.questionNodeId);
       if (!questionNode) throw new Error("Question node does not exist in this map.");
       if (questionNode.aimQuestion) {
-        const allowed = new Set(questionNode.aimQuestion.options.map((option) => option.id));
+        const allowed = new Set(questionNode.aimQuestion.options.map((option2) => option2.id));
         if (input.answerSnapshot.selections.some((selection) => !allowed.has(selection)))
           throw new Error("The submitted answer contains an option that was not offered by this question.");
         if (!questionNode.aimQuestion.allowMultiple && input.answerSnapshot.selections.length > 1)
@@ -20086,7 +20721,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
     (_a = panel.querySelector(".vam-next-status")) == null ? void 0 : _a.setText(t("ui.review_ai_suggested_subtopics"));
   }
   onOpen() {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r;
     this.modalEl.addClass("vam-next-modal");
     this.titleEl.setText(t("ui.how_would_you_like_to_explore_next"));
     this.contentEl.createEl("p", { text: t("ui.current_topic_0", this.topic), cls: "vam-modal-intro" });
@@ -20099,11 +20734,16 @@ var NextStepModal = class extends import_obsidian15.Modal {
     languageSelect.createEl("option", { value: "en", text: "English" });
     languageSelect.value = this.plugin.settings.language;
     languageSelect.setAttr("aria-label", t("ui.output_language"));
+    const templateId = templateField(
+      compactSettings,
+      (_b = (_a = this.modelSettings) == null ? void 0 : _a.templates) != null ? _b : [],
+      t("ui.detail_template_keep_0", (_d = (_c = this.modelSettings) == null ? void 0 : _c.currentTemplate) != null ? _d : "")
+    );
     const panelHeader = this.contentEl.createDiv("vam-next-panel-header");
     const panelTitle = panelHeader.createEl("h3", { text: t("ui.research_this_topic") });
     const confirm = panelHeader.createEl("button", { text: t("ui.confirm_research_task"), cls: "mod-cta" });
     confirm.dataset.topicRun = t("ui.confirm_research_task");
-    confirm.disabled = !!((_a = this.modelSettings) == null ? void 0 : _a.running);
+    confirm.disabled = !!((_e = this.modelSettings) == null ? void 0 : _e.running);
     const cards = this.contentEl.createDiv("vam-next-cards");
     let show;
     const card = (title, description, mode) => {
@@ -20128,7 +20768,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
       "ui.find_shared_conclusions_differences_and_next_steps_across_su",
       "synthesize"
     );
-    if ((_b = this.modelSettings) == null ? void 0 : _b.running) {
+    if ((_f = this.modelSettings) == null ? void 0 : _f.running) {
       const running = this.contentEl.createDiv("vam-next-running");
       running.createSpan({ text: t("ui.ai_running_ai") });
       if (this.modelSettings.stop)
@@ -20136,7 +20776,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
           var _a2, _b2;
           return (_b2 = (_a2 = this.modelSettings) == null ? void 0 : _a2.stop) == null ? void 0 : _b2.call(_a2);
         });
-    } else if ((_c = this.modelSettings) == null ? void 0 : _c.quickError)
+    } else if ((_g = this.modelSettings) == null ? void 0 : _g.quickError)
       this.contentEl.createEl("p", { cls: "vam-hint", text: this.modelSettings.quickError });
     const research = this.contentEl.createDiv("vam-next-research");
     research.createEl("p", { text: t("ui.start_from_this_node_s_question_update_only_this_node") });
@@ -20149,11 +20789,11 @@ var NextStepModal = class extends import_obsidian15.Modal {
       ["normal", "ui.standard"],
       ["deep", "ui.deep"]
     ]) {
-      const option = depths.createEl("label");
-      const radio = option.createEl("input", { type: "radio", attr: { name: "vam-next-depth", value } });
+      const option2 = depths.createEl("label");
+      const radio = option2.createEl("input", { type: "radio", attr: { name: "vam-next-depth", value } });
       radio.checked = this.depth === value;
       radios.push(radio);
-      option.createSpan({ text: t(key2) });
+      option2.createSpan({ text: t(key2) });
     }
     const depthDisclosure = research.createEl("details", { cls: "vam-next-depth-help" });
     depthDisclosure.open = false;
@@ -20179,6 +20819,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
           researchDepth: ((_b2 = radios.find((radio) => radio.checked)) == null ? void 0 : _b2.value) || "normal",
           visualMode: (selected == null ? void 0 : selected.imageSearch) ? "auto" : "off",
           requirements: this.requirements(),
+          ...templateId() ? { detailTemplateId: templateId() } : {},
           signal: controller.signal,
           onProgress: (message) => {
             var _a3;
@@ -20341,8 +20982,8 @@ var NextStepModal = class extends import_obsidian15.Modal {
       text: this.pendingCount ? t("ui.review_ai_subtopic_suggestions") : t("ui.get_expansion_directions"),
       cls: "mod-cta"
     });
-    expandButton.dataset.topicRun = (_d = expandButton.textContent) != null ? _d : "";
-    expandButton.disabled = !!((_e = this.modelSettings) == null ? void 0 : _e.running);
+    expandButton.dataset.topicRun = (_h = expandButton.textContent) != null ? _h : "";
+    expandButton.disabled = !!((_i = this.modelSettings) == null ? void 0 : _i.running);
     expandPanel.createEl("p", { cls: "vam-next-status" });
     expandPanel.createDiv("vam-next-result");
     const consumed = () => {
@@ -20368,6 +21009,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
             shallowResearch: shallow.checked,
             researchDepth: "fast",
             visualMode: shallow.checked && (selected == null ? void 0 : selected.imageSearch) ? "auto" : "off",
+            ...templateId() ? { detailTemplateId: templateId() } : {},
             signal: this.taskSignal,
             onProgress: (message) => {
               var _a3;
@@ -20430,7 +21072,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
       text: this.childrenCount ? t("ui.ai_suggests_synthesis_angles_first_the_parent_topic_changes") : t("ui.this_topic_has_no_direct_subtopics_you_can_choose_other_note")
     });
     {
-      const pending = (_f = this.modelSettings) == null ? void 0 : _f.synthesisPending;
+      const pending = (_j = this.modelSettings) == null ? void 0 : _j.synthesisPending;
       if (pending) {
         const synthStatus = synthesizePanel.createEl("p", { cls: "vam-next-status" });
         const synthResult = synthesizePanel.createDiv("vam-next-result");
@@ -20445,11 +21087,11 @@ var NextStepModal = class extends import_obsidian15.Modal {
         }
         const direction = synthResult.createEl("textarea", {
           cls: "vam-next-focus",
-          text: ((_g = pending.directions[0]) == null ? void 0 : _g.task) || ((_h = pending.directions[0]) == null ? void 0 : _h.title) || ""
+          text: ((_k = pending.directions[0]) == null ? void 0 : _k.task) || ((_l = pending.directions[0]) == null ? void 0 : _l.title) || ""
         });
         direction.setAttr("aria-label", t("ui.synthesis_direction"));
         const draftButton = synthResult.createEl("button", { text: t("ui.get_synthesis_draft"), cls: "mod-cta" });
-        draftButton.disabled = !!((_i = this.modelSettings) == null ? void 0 : _i.running);
+        draftButton.disabled = !!((_m = this.modelSettings) == null ? void 0 : _m.running);
         draftButton.addEventListener(
           "click",
           () => this.launchSynthesis(synthesizePanel, draftButton, direction.value.trim(), (signal) => ({
@@ -20469,7 +21111,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
       } else {
         const synthesisContent = renderSynthesisContent(
           synthesizePanel,
-          (_l = (_k = (_j = this.modelSettings) == null ? void 0 : _j.sources) == null ? void 0 : _k.synthesisTopics) != null ? _l : []
+          (_p = (_o = (_n = this.modelSettings) == null ? void 0 : _n.sources) == null ? void 0 : _o.synthesisTopics) != null ? _p : []
         );
         const synthesisPicker = this.addReferencePicker(synthesizePanel, "synthesize");
         const synthFooter = synthesizePanel.createDiv("vam-next-footer");
@@ -20478,7 +21120,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
           cls: "mod-cta"
         });
         synthButton.dataset.topicRun = t("ui.get_synthesis_suggestions_first");
-        synthButton.disabled = !!((_m = this.modelSettings) == null ? void 0 : _m.running);
+        synthButton.disabled = !!((_q = this.modelSettings) == null ? void 0 : _q.running);
         const synthStatus = synthesizePanel.createEl("p", { cls: "vam-next-status" });
         synthesizePanel.createDiv("vam-next-result");
         synthButton.addEventListener(
@@ -20496,6 +21138,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
               researchMode: (selected == null ? void 0 : selected.webSearch) ? "research" : "local",
               researchDepth: this.depth,
               visualMode: (selected == null ? void 0 : selected.imageSearch) ? "auto" : "off",
+              ...templateId() ? { detailTemplateId: templateId() } : {},
               signal,
               onProgress: (message) => synthStatus.setText(message)
             };
@@ -20523,7 +21166,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
       );
       confirm.hidden = mode !== "research";
     };
-    show(((_n = this.modelSettings) == null ? void 0 : _n.synthesisPending) ? "synthesize" : "research");
+    show(((_r = this.modelSettings) == null ? void 0 : _r.synthesisPending) ? "synthesize" : "research");
     this.renderModelSettings();
     this.contentEl.createEl("p", {
       text: t("ui.if_an_ai_task_exceeds_3_minutes_vam_attempts_to_interrupt_it"),
@@ -20776,6 +21419,12 @@ var VIEW_TYPE = "visual-agent-map-view";
 function errorMessage(error) {
   const message = error == null ? void 0 : error.message;
   return typeof message === "string" ? message : String(error);
+}
+function templateInLanguage(template, language2) {
+  return template.id === STANDARD_TEMPLATE_ID ? standardTemplate(language2) : template;
+}
+function formatIssuesPatch(issues, language2) {
+  return { detailFormatIssues: (issues != null ? issues : []).map((issue) => countIssueText(issue, language2)) };
 }
 var originBaseline = (origin) => (0, import_node_crypto9.createHash)("sha256").update(origin != null ? origin : "").digest("hex");
 function aimQuestionStatus(map, questionNodeId, activeQuestionNodeId) {
@@ -21177,14 +21826,30 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       }
     };
   }
+  /** Built-in Standard plus the workspace's custom templates, for the template selects. */
+  templateChoices() {
+    const settings = this.plugin.settings;
+    return [standardTemplate(settings.language), ...settings.detailTemplates].map(({ id, name }) => ({ id, name }));
+  }
   openOutlineImport() {
-    new OutlineImportModal(this.app, (request) => this.importOutline(request), this.modelChoices()).open();
+    new OutlineImportModal(
+      this.app,
+      (request) => this.importOutline(request),
+      this.modelChoices(),
+      this.templateChoices()
+    ).open();
   }
   async importOutline(request) {
     const model = request.shallowResearch && request.model || this.plugin.settings.cliModel;
+    const settings = this.plugin.settings;
+    const { template } = resolveTemplate(
+      settings.detailTemplates,
+      [request.detailTemplateId, settings.defaultDetailTemplateId],
+      settings.language
+    );
     let result;
     try {
-      result = await createOutlineMap(this.plugin.repo, model, request.nodes, request.source);
+      result = await createOutlineMap(this.plugin.repo, model, request.nodes, request.source, void 0, template);
     } catch (error) {
       if (!(error == null ? void 0 : error.mapCreated)) throw error;
       new import_obsidian16.Notice(errorMessage(error));
@@ -21193,6 +21858,11 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     let opened = true;
     try {
       await this.plugin.mutate(async () => {
+        const chosenTemplate = request.detailTemplateId;
+        if (chosenTemplate)
+          await this.plugin.repo.updateMap(result.mapPath, (map) => {
+            map.detailTemplateId = chosenTemplate;
+          });
         await this.plugin.rebuildDerivedData();
         await this.openMapInMutation(result.mapPath);
         if (!this.closed && this.path === result.mapPath) this.fit();
@@ -21760,7 +22430,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
   async renamed(file, oldPath) {
     if (this.path === oldPath) this.path = file.path;
     if (this.map) {
-      for (const node of this.map.nodes) if (node.path === oldPath) node.path = file.path;
+      rebaseMapNotePaths(this.map, moveNotePath(oldPath, file.path));
       this.history.clear();
       await this.hydrate();
       this.render();
@@ -22230,7 +22900,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     await this.plugin.repo.setLifecycle(target, this.map.id, this.map.id, "active");
     const after = clone(before), replacement = after.nodes.find((item) => item.id === node.id);
     if (!replacement) throw new Error(t("ui.the_node_to_relink_was_not_found"));
-    replacement.path = target;
+    rebaseMapNotePaths(after, moveNotePath(replacement.path, target));
     await this.plugin.repo.saveMap(this.path, after);
     this.map = after;
     await this.plugin.rebuildDerivedData();
@@ -22446,6 +23116,12 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
           action: () => this.enqueue(() => this.previewMigration())
         });
     }
+    if (this.map && !this.builtIn && !this.map.aim)
+      choices.push({
+        label: t("ui.detail_template_map_default"),
+        description: t("ui.detail_template_map_default_desc"),
+        action: () => this.chooseMapTemplate()
+      });
     choices.push({
       label: t("ui.repair_missing_mind_map"),
       description: t("ui.rebuild_a_missing_map_from_existing_topic_notes"),
@@ -22459,6 +23135,21 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         action: () => this.deleteCurrentMap()
       });
     new ChoiceModal(this.app, t("ui.more_mind_map_actions"), t("ui.additional_map_management_actions"), choices).open();
+  }
+  chooseMapTemplate() {
+    var _a;
+    const apply = (id) => this.enqueue(
+      () => this.mapChange((map) => {
+        if (id) map.detailTemplateId = id;
+        else delete map.detailTemplateId;
+      }, false)
+    );
+    const current = (_a = this.map) == null ? void 0 : _a.detailTemplateId;
+    const mark = (id) => id === current ? { description: t("ui.detail_template_current") } : {};
+    new ChoiceModal(this.app, t("ui.detail_template_map_default"), t("ui.detail_template_map_default_desc"), [
+      { label: t("ui.detail_template_use_workspace"), ...mark(void 0), action: () => apply(void 0) },
+      ...this.templateChoices().map(({ id, name }) => ({ label: name, ...mark(id), action: () => apply(id) }))
+    ]).open();
   }
   aimActiveForPath(path) {
     return this.app.workspace.getLeavesOfType(VIEW_TYPE).some((leaf) => {
@@ -23085,7 +23776,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     }
   }
   renderNode(node) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C, _D;
     if (!this.stageEl) return;
     const note = this.notes.get(node.id), card = this.stageEl.createDiv({
       cls: `vam-node${node.id === this.selected || this.multiSelected.has(node.id) ? " is-selected" : ""}`
@@ -23156,10 +23847,18 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         cls: `vam-status vam-status-${active ? "running" : (_g = note == null ? void 0 : note.status) != null ? _g : "error"}`,
         text: active ? t("ui.ai_running") : note ? topicStatusLabel(note.status, this.plugin.settings.language) : t("ui.note_missing")
       });
+    if ((_h = note == null ? void 0 : note.detailFormatIssues) == null ? void 0 : _h.length) {
+      const issue = header.createSpan({ cls: "vam-status vam-status-error", text: t("ui.detail_format_unmet") });
+      issue.setAttr("title", note.detailFormatIssues.join("\n"));
+    }
     if (batch) {
-      const currentNode = batch.currentPath ? (_h = this.map) == null ? void 0 : _h.nodes.find((item) => item.path === batch.currentPath) : void 0;
-      const currentTitle = currentNode ? (_i = this.notes.get(currentNode.id)) == null ? void 0 : _i.title : void 0;
-      const label = `${t("ui.shallow_research_progress")}: ${batch.completed}/${batch.total}${currentTitle ? ` \xB7 ${currentTitle}` : ""}${batch.status === "stopped" ? ` \xB7 ${t("ui.shallow_research_stopped")}` : ""}`;
+      const currentNode = batch.currentPath ? (_i = this.map) == null ? void 0 : _i.nodes.find((item) => item.path === batch.currentPath) : void 0;
+      const currentTitle = currentNode ? (_j = this.notes.get(currentNode.id)) == null ? void 0 : _j.title : void 0;
+      const label = this.batchProgressLabel(
+        t("ui.shallow_research_counts", batch.succeeded, batch.total),
+        batch,
+        currentTitle ? t("ui.shallow_research_current", currentTitle) : void 0
+      );
       header.createSpan({
         cls: `vam-status vam-status-${batch.status === "running" ? "running" : batch.failures.length ? "error" : "completed"}`,
         text: label
@@ -23173,27 +23872,28 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         });
         failure.setAttr("title", batch.failures.join("\n"));
       }
+      this.renderRetryFailedButton(header, node.path, batch);
     }
-    if (((_j = this.plugin.quickExpandPending) == null ? void 0 : _j.has(node.path)) && (batch == null ? void 0 : batch.status) !== "running") {
+    if (((_k = this.plugin.quickExpandPending) == null ? void 0 : _k.has(node.path)) && (batch == null ? void 0 : batch.status) !== "running") {
       this.button(header, t("ui.stop_research"), () => {
         var _a2;
         return (_a2 = this.plugin.activeTasks.get(node.path)) == null ? void 0 : _a2.abort();
       });
     }
-    const quickError = (_k = this.plugin.quickExpandFailures) == null ? void 0 : _k.get(node.path);
+    const quickError = (_l = this.plugin.quickExpandFailures) == null ? void 0 : _l.get(node.path);
     if (quickError && !active) {
       const badge = header.createSpan({ cls: "vam-status vam-status-error", text: t("ui.expansion_failed") });
       badge.setAttr("title", quickError);
     }
-    const pendingCount = (_m = (_l = this.plugin.pendingSuggestions.get(node.path)) == null ? void 0 : _l.length) != null ? _m : 0;
-    if (pendingCount && !this.builtIn && !this.integrationMode && !((_n = this.map) == null ? void 0 : _n.aim))
+    const pendingCount = (_n = (_m = this.plugin.pendingSuggestions.get(node.path)) == null ? void 0 : _m.length) != null ? _n : 0;
+    if (pendingCount && !this.builtIn && !this.integrationMode && !((_o = this.map) == null ? void 0 : _o.aim))
       this.button(
         header,
         t("ui.view_0_expansion_suggestions", pendingCount),
         () => this.openNodePanel(node, "proposals")
       ).addClass("vam-badge-new");
     const synthesis = this.synthesisTasks.get(node.path);
-    if (synthesis && synthesis.mapPath === this.path && !this.builtIn && !this.integrationMode && !((_o = this.map) == null ? void 0 : _o.aim)) {
+    if (synthesis && synthesis.mapPath === this.path && !this.builtIn && !this.integrationMode && !((_p = this.map) == null ? void 0 : _p.aim)) {
       if (synthesis.state === "running") {
         if (synthesis.progress) header.createSpan({ cls: "vam-status vam-status-running", text: synthesis.progress });
         this.button(header, t("ui.stop_research"), () => synthesis.controller.abort());
@@ -23216,7 +23916,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       }
     }
     if (!this.builtIn && !this.integrationMode) {
-      if (!((_p = this.map) == null ? void 0 : _p.aim)) {
+      if (!((_q = this.map) == null ? void 0 : _q.aim)) {
         const ai = this.button(header, "\u2726", () => this.openNextStep(node));
         ai.addClass("vam-node-tool");
         ai.setAttr("aria-label", t("ui.how_would_you_like_to_explore_next"));
@@ -23243,7 +23943,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         remove.addClass("vam-node-tool");
         remove.setAttr("aria-label", t("ui.remove_from_map"));
       }
-      if (((_q = this.map) == null ? void 0 : _q.aim) && node.aimKind === "synthesis" && this.map.aim.branches.some((branch) => branch.results.some((result) => result.nodeId === node.id))) {
+      if (((_r = this.map) == null ? void 0 : _r.aim) && node.aimKind === "synthesis" && this.map.aim.branches.some((branch) => branch.results.some((result) => result.nodeId === node.id))) {
         const next = this.button(
           header,
           t("ui.aim_new_question"),
@@ -23274,18 +23974,18 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
           })
         )
       );
-    if (!this.builtIn && !this.integrationMode && !((_r = this.map) == null ? void 0 : _r.aim)) {
+    if (!this.builtIn && !this.integrationMode && !((_s = this.map) == null ? void 0 : _s.aim)) {
       const add = this.button(card, "+", () => this.enqueue(() => this.addNode(node)));
       add.addClass("vam-add-child");
       add.setAttr("aria-label", t("ui.add_subtopic_manually"));
     }
-    const title = card.createEl("h3", { text: (_s = note == null ? void 0 : note.title) != null ? _s : node.path, cls: "vam-card-title" });
-    title.setAttr("title", (_t = note == null ? void 0 : note.title) != null ? _t : node.path);
+    const title = card.createEl("h3", { text: (_t = note == null ? void 0 : note.title) != null ? _t : node.path, cls: "vam-card-title" });
+    title.setAttr("title", (_u = note == null ? void 0 : note.title) != null ? _u : node.path);
     card.createEl("p", {
       cls: "vam-card-summary",
-      text: (_u = note == null ? void 0 : note.summary) != null ? _u : t("ui.the_file_was_moved_or_deleted_you_can_remove_this_node_from")
+      text: (_v = note == null ? void 0 : note.summary) != null ? _v : t("ui.the_file_was_moved_or_deleted_you_can_remove_this_node_from")
     });
-    if (node.aimKind === "conclusion" && ((_v = this.map) == null ? void 0 : _v.aim) && !this.builtIn) {
+    if (node.aimKind === "conclusion" && ((_w = this.map) == null ? void 0 : _w.aim) && !this.builtIn) {
       const branch = this.map.aim.branches.find((item) => item.results.some((result) => result.nodeId === node.id));
       const hasFollowup = this.map.nodes.some((item) => item.parentId === node.id && item.aimKind === "question");
       if (branch && !hasFollowup && countAimAnsweredQuestions(this.map, branch.id) < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION) {
@@ -23298,7 +23998,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         ).addClass("mod-cta");
       }
     }
-    if (node.aimKind === "topic" && ((_w = this.map) == null ? void 0 : _w.aim) && !this.map.nodes.some((item) => item.aimKind === "question")) {
+    if (node.aimKind === "topic" && ((_x = this.map) == null ? void 0 : _x.aim) && !this.map.nodes.some((item) => item.aimKind === "question")) {
       const initialBranch = this.map.aim.branches.find((item) => item.questionNodeId === node.id && !item.parentBranchId);
       const initialRuns = initialBranch ? this.map.aim.runs.filter((item) => item.branchId === initialBranch.id) : [];
       const activeInitialRun = initialRuns.some((run) => {
@@ -23334,11 +24034,11 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         );
       }
     }
-    if (node.aimKind === "question" && ((_x = this.map) == null ? void 0 : _x.aim)) {
+    if (node.aimKind === "question" && ((_y = this.map) == null ? void 0 : _y.aim)) {
       const branch = this.map.aim.branches.find((item) => item.questionNodeId === node.id);
       if (branch) {
         this.renderAimFailure(card, branch);
-        const labels = (_z = (_y = node.aimQuestion) == null ? void 0 : _y.options.filter((option) => branch.answerSnapshot.selections.includes(option.id)).map((option) => option.label)) != null ? _z : branch.answerSnapshot.selections;
+        const labels = (_A = (_z = node.aimQuestion) == null ? void 0 : _z.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _A : branch.answerSnapshot.selections;
         const answer = [...labels, branch.answerSnapshot.freeText].filter(Boolean).join(" \u2014 ");
         card.createEl("p", {
           cls: "vam-aim-answer-snapshot",
@@ -23381,11 +24081,11 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         }
       }
     }
-    if (node.aimKind === "answer" && ((_A = this.map) == null ? void 0 : _A.aim)) {
+    if (node.aimKind === "answer" && ((_B = this.map) == null ? void 0 : _B.aim)) {
       const branch = this.map.aim.branches.find((item) => item.answerNodeId === node.id);
       const question = branch && this.map.nodes.find((item) => item.id === branch.questionNodeId);
       if (branch) {
-        const labels = (_C = (_B = question == null ? void 0 : question.aimQuestion) == null ? void 0 : _B.options.filter((option) => branch.answerSnapshot.selections.includes(option.id)).map((option) => option.label)) != null ? _C : branch.answerSnapshot.selections;
+        const labels = (_D = (_C = question == null ? void 0 : question.aimQuestion) == null ? void 0 : _C.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _D : branch.answerSnapshot.selections;
         const answer = [...labels, branch.answerSnapshot.freeText].filter(Boolean).join(" \u2014 ");
         card.createEl("p", {
           cls: "vam-aim-answer-snapshot",
@@ -23572,11 +24272,13 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         async (options, focus, done, failed, accepted) => {
           const latest = await this.plugin.repo.readNote(node.path);
           const task = researchTopicTask(this.plugin.settings.language, latest.title);
+          const detailTemplate = await this.detailTemplateFor(node, options.detailTemplateId);
           await this.runAgent(
             node,
             done,
             failed,
             {
+              detailTemplate,
               task: [task, options.requirements].filter(Boolean).join("\n\n"),
               referenceGroups: options.referenceGroups,
               onProgress: options.onProgress,
@@ -23610,6 +24312,9 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
           } : void 0,
           quickError: this.plugin.quickExpandFailures.get(node.path),
           sources: sources2,
+          templates: this.templateChoices(),
+          // Only a label: a missing topic template is reported at the next AI update, not when the dialog opens.
+          currentTemplate: this.resolveTopicTemplate(note).template.name,
           synthesisPending: (() => {
             const pending = this.synthesisTasks.get(node.path);
             return (pending == null ? void 0 : pending.state) === "directions" && pending.mapPath === this.path ? { directions: pending.directions, discard: () => this.discardSynthesis(node) } : void 0;
@@ -23747,12 +24452,12 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     var _a;
     const suggestions = this.plugin.pendingSuggestions.get(node.path);
     if (!(suggestions == null ? void 0 : suggestions.length)) return;
-    const section2 = panel.createDiv("vam-inspector-proposals");
-    section2.createEl("h3", { text: t("ui.0_expansion_suggestions", suggestions.length) });
-    section2.createEl("p", { text: t("ui.select_and_edit_suggestions_subtopics_are_created_only_after") });
+    const section3 = panel.createDiv("vam-inspector-proposals");
+    section3.createEl("h3", { text: t("ui.0_expansion_suggestions", suggestions.length) });
+    section3.createEl("p", { text: t("ui.select_and_edit_suggestions_subtopics_are_created_only_after") });
     const rows = [];
     for (const original of suggestions) {
-      const row = section2.createDiv("vam-proposal");
+      const row = section3.createDiv("vam-proposal");
       if (original.parentTitle) row.createEl("p", { text: t("ui.child_of_0", original.parentTitle) });
       const checkLabel = row.createEl("label", { cls: "vam-field vam-next-toggle" });
       const check = checkLabel.createEl("input", { type: "checkbox" });
@@ -23774,12 +24479,12 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       contribution.setAttr("aria-label", t("ui.contribution_to_the_parent_topic"));
       rows.push({ original, check, title, task, contribution });
     }
-    const researchLabel = section2.createEl("label", { cls: "vam-field vam-next-toggle" });
+    const researchLabel = section3.createEl("label", { cls: "vam-field vam-next-toggle" });
     const shallow = researchLabel.createEl("input", { type: "checkbox" });
     shallow.checked = !!((_a = this.plugin.pendingResearchOptions.get(node.path)) == null ? void 0 : _a.shallowResearch);
     researchLabel.createSpan({ text: t("ui.run_shallow_research_on_each_created_subtopic") });
-    const status = section2.createEl("p", { cls: "vam-hint" });
-    const actions = section2.createDiv("vam-actions");
+    const status = section3.createEl("p", { cls: "vam-hint" });
+    const actions = section3.createDiv("vam-actions");
     const create = this.button(actions, t("ui.create_selected_subtopics"), () => {
       void (async () => {
         var _a2;
@@ -24028,19 +24733,25 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         const savedOptions = this.plugin.pendingResearchOptions.get(parent.path);
         const researchOptions = savedOptions ? { ...savedOptions, signal: options == null ? void 0 : options.signal, onProgress: options == null ? void 0 : options.onProgress } : void 0;
         await this.plugin.mutate(async () => {
-          var _a2, _b2;
+          var _a2, _b2, _c2;
           if (!version || this.plugin.pendingSuggestions.get(parent.path) !== version)
             throw new Error(t("ui.expansion_suggestions_changed_open_them_again"));
           await this.assertSuggestionOrigin(parent, version);
           try {
-            createdNodes = await this.createChildBatch(parent, selected, researchOptions);
+            createdNodes = await this.createChildBatch(
+              parent,
+              selected,
+              researchOptions,
+              void 0,
+              (_a2 = options == null ? void 0 : options.detailTemplateId) != null ? _a2 : researchOptions == null ? void 0 : researchOptions.detailTemplateId
+            );
           } catch (error) {
             if (error instanceof PartialChildBatchError) await this.clearPartialSuggestions(parent.path, error);
             throw error;
           }
           this.plugin.pendingSuggestions.delete(parent.path);
           this.plugin.pendingResearchOptions.delete(parent.path);
-          await ((_b2 = (_a2 = this.plugin.pendingSuggestions).flush) == null ? void 0 : _b2.call(_a2));
+          await ((_c2 = (_b2 = this.plugin.pendingSuggestions).flush) == null ? void 0 : _c2.call(_b2));
           this.render();
         });
         if ((researchOptions == null ? void 0 : researchOptions.shallowResearch) && createdNodes.length)
@@ -24203,7 +24914,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
               currentParent,
               suggestions,
               (options == null ? void 0 : options.shallowResearch) ? { ...options, signal: controller.signal } : void 0,
-              controller.signal
+              controller.signal,
+              options == null ? void 0 : options.detailTemplateId
             );
           } catch (error) {
             batchFailure = error instanceof Error ? error : new Error(typeof error === "string" ? error : t("ui.failed_to_create_starter_map"));
@@ -24309,7 +25021,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       });
     }).open();
   }
-  async createChildBatch(parent, items, researchOptions, signal) {
+  /** `detailTemplateId` is the dialog's template choice: it shapes contributions and is recorded on each new child. */
+  async createChildBatch(parent, items, researchOptions, signal, detailTemplateId = researchOptions == null ? void 0 : researchOptions.detailTemplateId) {
     var _a;
     if (this.plugin.expansionCoordinator.isRunning(parent.path)) throw new Error(t("ui.ai_running_ai"));
     if (!((_a = this.map) == null ? void 0 : _a.nodes.some((node) => node.id === parent.id && node.path === parent.path)))
@@ -24327,6 +25040,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     }
     let created = 0;
     const createdByTitle = /* @__PURE__ */ new Map(), newNodes = [];
+    const contributionTemplate = this.mapDetailTemplate(this.plugin.settings.language, detailTemplateId);
     try {
       for (const item of items) {
         if (signal == null ? void 0 : signal.aborted) throw new DOMException("Aborted", "AbortError");
@@ -24339,12 +25053,13 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         createdByTitle.set(item.title, child);
         await this.noteChange(child, {
           prompt: item.task,
-          detail: researchOptions ? "" : item.contribution ? canonicalDetail(item.contribution, this.plugin.settings.language) : "",
+          detail: researchOptions ? "" : item.contribution ? canonicalDetail(item.contribution, this.plugin.settings.language, contributionTemplate) : "",
           ...researchOptions ? {
             researchMode: "research",
             researchDepth: "fast",
             visualMode: researchOptions.visualMode
-          } : {}
+          } : {},
+          ...detailTemplateId ? { detailTemplateId } : {}
         });
       }
       if (signal == null ? void 0 : signal.aborted) throw new DOMException("Aborted", "AbortError");
@@ -24383,6 +25098,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
   }
   async researchChild(child, batchSignal, accepted, choices) {
     var _a;
+    const detailTemplate = await this.detailTemplateFor(child, choices.detailTemplateId);
     const note = await this.plugin.repo.readNote(child.path);
     let started = false;
     let failure;
@@ -24393,6 +25109,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         failure = message;
       },
       {
+        detailTemplate,
         rules: "",
         referenceGroups: [],
         signal: batchSignal,
@@ -24417,7 +25134,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
   multiResearchKey() {
     return `multi-research:${this.path}`;
   }
-  openMultiResearch() {
+  openMultiResearch(retryBatchKey) {
     if (!this.map || this.map.aim || !this.multiSelected.size) return;
     const names2 = [...this.multiSelected].map((id) => {
       var _a;
@@ -24427,13 +25144,14 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       this.app,
       names2,
       this.modelChoices(),
-      (request) => void this.startMultiResearch(request)
+      this.templateChoices(),
+      (request) => void this.startMultiResearch(request, retryBatchKey)
     ).open();
   }
   stopMultiResearch() {
     this.plugin.expansionCoordinator.stop(this.multiResearchKey());
   }
-  async startMultiResearch(request) {
+  async startMultiResearch(request, retryBatchKey) {
     var _a;
     if (!this.map || this.map.aim || this.builtIn || !this.multiSelected.size) return;
     const key2 = this.multiResearchKey();
@@ -24444,6 +25162,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     const selected = [...this.multiSelected].map((id) => this.map.nodes.find((node) => node.id === id)).filter((node) => !!node);
     try {
       await this.plugin.confirmAiUsage((_a = request.model) != null ? _a : this.plugin.settings.cliModel, async () => {
+        var _a2;
         if (this.plugin.expansionCoordinator.isRunning(key2)) {
           new import_obsidian16.Notice(t("ui.multi_research_already_running"));
           return;
@@ -24466,10 +25185,12 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
           researchDepth: request.researchDepth,
           visualMode: "off",
           referenceGroups: [],
-          requirements: request.requirements
+          requirements: request.requirements,
+          ...request.detailTemplateId ? { detailTemplateId: request.detailTemplateId } : {}
         };
+        if (retryBatchKey && ((_a2 = this.plugin.expansionBatches.get(retryBatchKey)) == null ? void 0 : _a2.status) !== "running")
+          this.plugin.expansionBatches.delete(retryBatchKey);
         let reported = false;
-        let succeeded = 0;
         let skipped = 0;
         try {
           await this.plugin.expansionCoordinator.start(
@@ -24479,10 +25200,10 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
               if (busy(child)) {
                 skipped++;
                 accepted();
-                return;
+                return "skipped";
               }
               await this.researchChild(child, batchSignal, accepted, choices);
-              if (!batchSignal.aborted) succeeded++;
+              return void 0;
             },
             () => {
               const state = this.plugin.expansionBatches.get(key2);
@@ -24491,7 +25212,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
                 new import_obsidian16.Notice(
                   t(
                     state.status === "stopped" ? "ui.multi_research_stopped" : "ui.multi_research_finished",
-                    succeeded,
+                    state.succeeded,
                     state.total,
                     state.failures.length,
                     skipped
@@ -24508,21 +25229,66 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       new import_obsidian16.Notice(errorMessage(error));
     }
   }
-  /** Status bar under the toolbar (same place and look as the AIM status bar) with progress and Stop. */
+  /** Counts that cannot be misread: succeeded of total, failures, optional current topic and stopped marker. */
+  batchProgressLabel(counts, batch, current) {
+    return [
+      counts,
+      batch.failures.length ? t("ui.batch_failed_count", batch.failures.length) : "",
+      batch.status === "running" ? current != null ? current : "" : "",
+      batch.status === "stopped" ? t("ui.shallow_research_stopped") : ""
+    ].filter(Boolean).join(" \xB7 ");
+  }
+  /** Failed topics of a finished batch that still exist on the current map. */
+  retryableFailures(batch) {
+    if (batch.status === "running" || !this.map || this.map.aim || this.builtIn) return [];
+    return batch.failedPaths.map((path) => this.map.nodes.find((node) => node.path === path)).filter((node) => !!node);
+  }
+  renderRetryFailedButton(parent, batchKey, batch) {
+    const failed = this.retryableFailures(batch);
+    if (failed.length)
+      this.button(parent, t("ui.retry_failed_topics", failed.length), () => this.retryFailed(batchKey));
+  }
+  /** Selects the failed topics and opens the multi-research dialog so the owner can pick another model. */
+  retryFailed(batchKey) {
+    const batch = this.plugin.expansionBatches.get(batchKey);
+    if (!batch) return;
+    const failed = this.retryableFailures(batch);
+    if (!failed.length) return;
+    this.multiSelected = new Set(failed.map((node) => node.id));
+    this.integrationMode = true;
+    if (!this.closed) this.render();
+    this.openMultiResearch(batchKey);
+  }
+  /** Status bar under the toolbar (same place and look as the AIM status bar) with progress, Stop, and Retry/Dismiss after failures. */
   renderMultiResearchStatus(parent) {
     var _a, _b;
-    const state = this.plugin.expansionBatches.get(this.multiResearchKey());
-    if ((state == null ? void 0 : state.status) !== "running") return;
-    const bar = parent.createDiv("vam-aim-statusbar vam-multi-research-statusbar is-active");
+    const key2 = this.multiResearchKey();
+    const state = this.plugin.expansionBatches.get(key2);
+    if (!state) return;
+    const running = state.status === "running";
+    if (!running && !state.failures.length) return;
+    const bar = parent.createDiv(`vam-aim-statusbar vam-multi-research-statusbar${running ? " is-active" : ""}`);
     bar.setAttr("aria-live", "polite");
     const current = state.currentPath ? (_a = this.map) == null ? void 0 : _a.nodes.find((node) => node.path === state.currentPath) : void 0;
     const title = current ? (_b = this.notes.get(current.id)) == null ? void 0 : _b.title : void 0;
     bar.createSpan({ cls: "vam-aim-status-title", text: t("ui.multi_research") });
     bar.createSpan({
-      cls: "vam-aim-status-value vam-status-running",
-      text: `${t("ui.multi_research_progress", state.completed, state.total)}${title ? ` \xB7 ${title}` : ""}`
+      cls: `vam-aim-status-value ${running ? "vam-status-running" : "vam-status-error"}`,
+      text: this.batchProgressLabel(
+        t(running ? "ui.multi_research_progress" : "ui.multi_research_ended", state.succeeded, state.total),
+        state,
+        title
+      )
     });
-    this.button(bar, t("ui.stop_research"), () => this.stopMultiResearch());
+    if (running) this.button(bar, t("ui.stop_research"), () => this.stopMultiResearch());
+    else {
+      this.renderRetryFailedButton(bar, key2, state);
+      const dismiss = this.button(bar, "\xD7", () => {
+        this.plugin.expansionBatches.delete(key2);
+        if (!this.closed) this.render();
+      });
+      dismiss.setAttr("aria-label", t("ui.dismiss"));
+    }
   }
   renderSelectionBar(workspace) {
     var _a, _b;
@@ -24611,8 +25377,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     ];
     const marker4 = markers.find((value) => note.detail.includes(value));
     if (!marker4) return [];
-    const section2 = note.detail.slice(note.detail.indexOf(marker4) + marker4.length);
-    const paths = [...section2.matchAll(/\[\[([^\]|#]+)(?:[|#][^\]]*)?\]\]/g)].map((match) => {
+    const section3 = note.detail.slice(note.detail.indexOf(marker4) + marker4.length);
+    const paths = [...section3.matchAll(/\[\[([^\]|#]+)(?:[|#][^\]]*)?\]\]/g)].map((match) => {
       var _a, _b;
       const link = match[1], direct = link.endsWith(".md") ? link : `${link}.md`;
       if (this.app.vault.getAbstractFileByPath(direct) instanceof import_obsidian16.TFile) return direct;
@@ -24699,7 +25465,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     }
   }
   async integrateChildren(node, confirmed = false, options, direction = "", drafted, failed, accepted) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j;
     if (!this.map || this.plugin.running.has(node.path)) {
       failed == null ? void 0 : failed(t("ui.ai_running_ai"));
       return;
@@ -24775,6 +25541,10 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     }
     const language2 = this.plugin.settings.language;
     const task = direction || synthesisGoalTask(language2);
+    const detailTemplate = templateInLanguage(
+      await this.detailTemplateFor(node, options == null ? void 0 : options.detailTemplateId),
+      (_e = options == null ? void 0 : options.outputLanguage) != null ? _e : language2
+    );
     this.plugin.running.add(node.path);
     await this.plugin.repo.updateNote(node.path, { status: "running" });
     await this.hydrate();
@@ -24793,9 +25563,10 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
             onProgress: options == null ? void 0 : options.onProgress,
             outputLanguage: options == null ? void 0 : options.outputLanguage,
             mode: "synthesize",
-            researchMode: (_e = options == null ? void 0 : options.researchMode) != null ? _e : "local",
-            researchDepth: (_f = options == null ? void 0 : options.researchDepth) != null ? _f : note.researchDepth,
-            visualMode: (_g = options == null ? void 0 : options.visualMode) != null ? _g : note.visualMode
+            researchMode: (_f = options == null ? void 0 : options.researchMode) != null ? _f : "local",
+            researchDepth: (_g = options == null ? void 0 : options.researchDepth) != null ? _g : note.researchDepth,
+            visualMode: (_h = options == null ? void 0 : options.visualMode) != null ? _h : note.visualMode,
+            detailTemplate
           },
           note
         ),
@@ -24806,7 +25577,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
         accepted
       );
       accepted == null ? void 0 : accepted();
-      if ((_h = options == null ? void 0 : options.signal) == null ? void 0 : _h.aborted) throw new DOMException("Aborted", "AbortError");
+      if ((_i = options == null ? void 0 : options.signal) == null ? void 0 : _i.aborted) throw new DOMException("Aborted", "AbortError");
       await this.plugin.repo.updateNote(node.path, { status: note.status });
       const save = async (summary, detail) => this.plugin.mutate(async () => {
         var _a2, _b2, _c2;
@@ -24832,13 +25603,24 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
           latest.thinkingOrigin
         ]) !== noteSnapshot)
           throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
-        await this.plugin.repo.updateNote(node.path, {
-          summary,
-          detail: canonicalDetail(detail, (_c2 = options == null ? void 0 : options.outputLanguage) != null ? _c2 : this.plugin.settings.language),
-          visualReferences: visualReferencesMarkdown(result.visualReferences, language2),
-          newFindings: "",
-          status: "completed"
-        });
+        const canonical = canonicalDetail(
+          detail,
+          (_c2 = options == null ? void 0 : options.outputLanguage) != null ? _c2 : this.plugin.settings.language,
+          detailTemplate
+        );
+        const issues = result.formatIssues && detail !== result.detail ? checkCounts(canonical, detailTemplate) : result.formatIssues;
+        await this.plugin.repo.updateNote(
+          node.path,
+          {
+            summary,
+            detail: canonical,
+            visualReferences: visualReferencesMarkdown(result.visualReferences, language2),
+            newFindings: "",
+            status: "completed",
+            ...formatIssuesPatch(issues, language2)
+          },
+          { detailTemplate }
+        );
         const saved = await this.plugin.repo.readNote(node.path);
         this.recordNoteWrite(
           node.path,
@@ -24857,7 +25639,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
           void save(result.summary, result.detail);
         }).open();
     } catch (error) {
-      if (((_i = options == null ? void 0 : options.signal) == null ? void 0 : _i.aborted) || error instanceof Error && error.name === "AbortError") {
+      if (((_j = options == null ? void 0 : options.signal) == null ? void 0 : _j.aborted) || error instanceof Error && error.name === "AbortError") {
         await this.plugin.repo.updateNote(node.path, { status: note.status });
         if (failed) failed(t("ui.research_stopped_existing_content_was_preserved"));
         else new import_obsidian16.Notice(t("ui.research_stopped_existing_content_was_preserved"));
@@ -25098,7 +25880,7 @@ ${note.detail.trim()}` : "",
     };
   }
   async createIntegratedNode(title, sources2, goal, rules, options, review = false) {
-    var _a, _b, _c, _d, _e, _f;
+    var _a, _b, _c, _d, _e, _f, _g;
     if (!this.map || sources2.length < 2) return;
     const controller = new AbortController();
     const mapPath = this.path, mapId = this.map.id;
@@ -25123,6 +25905,7 @@ ${note.detail.trim()}` : "",
     this.render();
     const model = this.plugin.settings.cliModel;
     const language2 = this.plugin.settings.language;
+    const detailTemplate = this.mapDetailTemplate((_a = options == null ? void 0 : options.outputLanguage) != null ? _a : language2);
     try {
       const result = await this.plugin.askModel(
         {
@@ -25132,7 +25915,7 @@ ${note.detail.trim()}` : "",
           detail: "",
           task: [goal, options == null ? void 0 : options.requirements].filter(Boolean).join("\n\n"),
           ancestors: "",
-          referenceGroups: [...(_a = options == null ? void 0 : options.referenceGroups) != null ? _a : [], sourceGroup],
+          referenceGroups: [...(_b = options == null ? void 0 : options.referenceGroups) != null ? _b : [], sourceGroup],
           onProgress: (message) => {
             var _a2;
             if (this.integrationTask !== task) return;
@@ -25142,16 +25925,17 @@ ${note.detail.trim()}` : "",
           },
           outputLanguage: options == null ? void 0 : options.outputLanguage,
           mode: "synthesize",
-          researchMode: (_b = options == null ? void 0 : options.researchMode) != null ? _b : "local",
-          researchDepth: (_c = options == null ? void 0 : options.researchDepth) != null ? _c : "normal",
-          visualMode: (_d = options == null ? void 0 : options.visualMode) != null ? _d : "auto"
+          researchMode: (_c = options == null ? void 0 : options.researchMode) != null ? _c : "local",
+          researchDepth: (_d = options == null ? void 0 : options.researchDepth) != null ? _d : "normal",
+          visualMode: (_e = options == null ? void 0 : options.visualMode) != null ? _e : "auto",
+          detailTemplate
         },
         model,
         this.plugin.settings.cliReasoning,
         controller.signal
       );
       if (this.integrationTask !== task) return;
-      if (controller.signal.aborted || this.path !== mapPath || ((_e = this.map) == null ? void 0 : _e.id) !== mapId)
+      if (controller.signal.aborted || this.path !== mapPath || ((_f = this.map) == null ? void 0 : _f.id) !== mapId)
         throw new Error(t("ui.the_map_or_parent_topic_changed_while_ai_was_running_no_subt"));
       const latest = await this.topicReferenceGroup(
         sources2,
@@ -25171,7 +25955,7 @@ ${note.detail.trim()}` : "",
           rules,
           model,
           result,
-          (_f = options == null ? void 0 : options.outputLanguage) != null ? _f : language2,
+          (_g = options == null ? void 0 : options.outputLanguage) != null ? _g : language2,
           task
         );
     } catch (error) {
@@ -25219,15 +26003,21 @@ ${note.detail.trim()}` : "",
     }))
       throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
     const integrated = await this.plugin.repo.createNote(title, model, this.map, this.path, "workspace");
+    const detailTemplate = this.mapDetailTemplate(language2);
     try {
-      await this.plugin.repo.updateNote(integrated.path, {
-        summary: result.summary,
-        detail: canonicalDetail(result.detail, language2),
-        visualReferences: visualReferencesMarkdown(result.visualReferences, language2),
-        prompt: goal,
-        sourcePaths: sources2.map((source) => source.path),
-        status: "completed"
-      });
+      await this.plugin.repo.updateNote(
+        integrated.path,
+        {
+          summary: result.summary,
+          detail: canonicalDetail(result.detail, language2, detailTemplate),
+          visualReferences: visualReferencesMarkdown(result.visualReferences, language2),
+          prompt: goal,
+          sourcePaths: sources2.map((source) => source.path),
+          status: "completed",
+          ...formatIssuesPatch(result.formatIssues, this.plugin.settings.language)
+        },
+        { detailTemplate }
+      );
       integrated.parentId = null;
       integrated.x = Math.max(...sources2.map((node) => node.x)) + 340;
       integrated.y = sources2.reduce((sum, node) => sum + node.y, 0) / sources2.length;
@@ -25461,8 +26251,48 @@ ${note.detail.trim()}` : "",
       }
     }
   }
+  /**
+   * Content template for an AI update of this topic: this run's choice, then the topic, map and workspace defaults.
+   * Only an explicit choice is written to the topic; a topic template that no longer exists is reported once and cleared.
+   */
+  async detailTemplateFor(node, chosenId) {
+    if (chosenId) await this.plugin.repo.updateNote(node.path, { detailTemplateId: chosenId });
+    const note = await this.plugin.repo.readNote(node.path);
+    const { template, missing } = this.resolveTopicTemplate(note, chosenId);
+    if (note.detailTemplateId && missing.includes(note.detailTemplateId)) {
+      new import_obsidian16.Notice(t("ui.detail_template_missing_0", note.detailTemplateId));
+      await this.plugin.repo.updateNote(node.path, { detailTemplateId: "" });
+    }
+    return template;
+  }
+  /** Resolves the topic's content template without notifying or writing anything (see detailTemplateFor). */
+  resolveTopicTemplate(note, chosenId) {
+    var _a;
+    const settings = this.plugin.settings;
+    return resolveTemplate(
+      settings.detailTemplates,
+      [chosenId, note.detailTemplateId, (_a = this.map) == null ? void 0 : _a.detailTemplateId, settings.defaultDetailTemplateId],
+      settings.language
+    );
+  }
+  /**
+   * Template for content that has no topic choice of its own (new integrated topics, child contributions); a dialog
+   * choice comes first.
+   */
+  mapDetailTemplate(language2, chosenId) {
+    var _a;
+    const settings = this.plugin.settings;
+    return templateInLanguage(
+      resolveTemplate(
+        settings.detailTemplates,
+        [chosenId, (_a = this.map) == null ? void 0 : _a.detailTemplateId, settings.defaultDetailTemplateId],
+        settings.language
+      ).template,
+      language2
+    );
+  }
   async runAgent(node, done, failed, overrides, onLaunchAccepted) {
-    var _a, _b, _c;
+    var _a, _b, _c, _d, _e;
     const taskPath = node.path;
     const note = await this.plugin.repo.readNote(node.path);
     if (!((_a = overrides == null ? void 0 : overrides.task) != null ? _a : note.prompt)) {
@@ -25475,6 +26305,10 @@ ${note.detail.trim()}` : "",
       failed == null ? void 0 : failed(t("ui.ai_running_ai"));
       return null;
     }
+    const detailTemplate = templateInLanguage(
+      (_b = overrides == null ? void 0 : overrides.detailTemplate) != null ? _b : await this.detailTemplateFor(node),
+      (_c = overrides == null ? void 0 : overrides.outputLanguage) != null ? _c : this.plugin.settings.language
+    );
     const context = withThinkingOrigin(
       {
         title: note.title,
@@ -25489,7 +26323,8 @@ ${note.detail.trim()}` : "",
         researchMode: note.researchMode,
         researchDepth: note.researchDepth,
         visualMode: note.visualMode,
-        ...overrides
+        ...overrides,
+        detailTemplate
       },
       note
     );
@@ -25498,8 +26333,8 @@ ${note.detail.trim()}` : "",
     this.plugin.running.add(node.path);
     const controller = new AbortController();
     const abortFromTaskModal = () => controller.abort();
-    if ((_b = overrides == null ? void 0 : overrides.signal) == null ? void 0 : _b.aborted) controller.abort();
-    else (_c = overrides == null ? void 0 : overrides.signal) == null ? void 0 : _c.addEventListener("abort", abortFromTaskModal, { once: true });
+    if ((_d = overrides == null ? void 0 : overrides.signal) == null ? void 0 : _d.aborted) controller.abort();
+    else (_e = overrides == null ? void 0 : overrides.signal) == null ? void 0 : _e.addEventListener("abort", abortFromTaskModal, { once: true });
     this.plugin.activeTasks.set(taskPath, controller);
     const releaseStartup = () => {
       var _a2;
@@ -25553,7 +26388,7 @@ ${note.detail.trim()}` : "",
       markAccepted
     ).then(
       (result) => this.plugin.mutate(async () => {
-        var _a2, _b2, _c2, _d, _e;
+        var _a2, _b2, _c2, _d2, _e2;
         const latest = await this.plugin.repo.readNote(node.path);
         const stale = latest.thinkingOrigin !== note.thinkingOrigin || latest.title !== note.title || latest.prompt !== note.prompt || latest.rules !== note.rules || latest.detail !== note.detail || latest.summary !== note.summary || latest.model !== note.model || latest.reasoning !== note.reasoning || latest.researchMode !== note.researchMode || latest.researchDepth !== note.researchDepth || latest.visualMode !== note.visualMode || latest.sourcePaths.join("\n") !== note.sourcePaths.join("\n") || JSON.stringify(latest.referencePaths) !== JSON.stringify(note.referencePaths);
         if (controller.signal.aborted || stale) {
@@ -25569,13 +26404,22 @@ ${note.detail.trim()}` : "",
           }
           return;
         }
-        await this.plugin.repo.updateNote(node.path, {
-          summary: result.summary,
-          detail: canonicalDetail(result.detail, (_b2 = context.outputLanguage) != null ? _b2 : this.plugin.settings.language),
-          visualReferences: visualReferencesMarkdown(result.visualReferences, language2),
-          newFindings: "",
-          status: "completed"
-        });
+        await this.plugin.repo.updateNote(
+          node.path,
+          {
+            summary: result.summary,
+            detail: canonicalDetail(
+              result.detail,
+              (_b2 = context.outputLanguage) != null ? _b2 : this.plugin.settings.language,
+              context.detailTemplate
+            ),
+            visualReferences: visualReferencesMarkdown(result.visualReferences, language2),
+            newFindings: "",
+            status: "completed",
+            ...formatIssuesPatch(result.formatIssues, language2)
+          },
+          { detailTemplate: context.detailTemplate }
+        );
         const saved = await this.plugin.repo.readNote(node.path);
         this.recordNoteWrite(
           node.path,
@@ -25592,7 +26436,7 @@ ${note.detail.trim()}` : "",
             result.suggestions.slice(0, 7).map((item) => ({ ...item, thinkingOriginBaseline: originBaseline(note.thinkingOrigin) }))
           );
           try {
-            await ((_e = (_d = this.plugin.pendingSuggestions).flush) == null ? void 0 : _e.call(_d));
+            await ((_e2 = (_d2 = this.plugin.pendingSuggestions).flush) == null ? void 0 : _e2.call(_d2));
           } catch (error) {
             const message = this.plugin.recordFailure(t("log.expansion_suggestions_save_failed"), error);
             new import_obsidian16.Notice(message);
@@ -25642,13 +26486,390 @@ ${note.detail.trim()}` : "",
 };
 
 // main.ts
-var import_obsidian22 = require("obsidian");
+var import_obsidian23 = require("obsidian");
+
+// ui/modals/detail-templates-modal.ts
+var import_obsidian17 = require("obsidian");
+var same = (a, b) => a.trim().toLocaleLowerCase() === b.trim().toLocaleLowerCase();
+var PURPOSES = [
+  ["none", "ui.detail_section_kind_none"],
+  ["sources", "ui.detail_section_purpose_sources"],
+  ["log", "ui.detail_section_purpose_log"]
+];
+var PURPOSE_HELP = {
+  none: "ui.detail_section_purpose_help_none",
+  sources: "ui.detail_section_purpose_help_sources",
+  log: "ui.detail_section_purpose_help_log"
+};
+var KINDS = {
+  none: "ui.detail_section_kind_none",
+  sources: "ui.detail_section_kind_sources",
+  log: "ui.detail_section_kind_log"
+};
+function countSummary(section3) {
+  if (!section3.count) return t("ui.detail_section_count_none");
+  return t(
+    section3.count.mode === "exact" ? "ui.detail_section_count_exact_0" : "ui.detail_section_count_min_0",
+    section3.count.n
+  );
+}
+function workspaceDefaultId(settings) {
+  const id = settings.defaultDetailTemplateId;
+  return id && settings.detailTemplates.some((template) => template.id === id) ? id : STANDARD_TEMPLATE_ID;
+}
+function option(select, value, text11) {
+  select.createEl("option", { value, text: text11 });
+}
+function renderDetailTemplatesSetting(setting, app, plugin, refresh = () => {
+}) {
+  const standard = standardTemplate(plugin.settings.language);
+  setting.setName(t("ui.detail_templates")).setDesc(t("ui.detail_templates_hint")).addDropdown((dropdown) => {
+    dropdown.addOption(STANDARD_TEMPLATE_ID, standard.name);
+    for (const template of plugin.settings.detailTemplates) dropdown.addOption(template.id, template.name);
+    dropdown.setValue(workspaceDefaultId(plugin.settings));
+    dropdown.onChange((value) => {
+      plugin.settings.defaultDetailTemplateId = value === STANDARD_TEMPLATE_ID ? void 0 : value;
+      void plugin.saveSettings();
+    });
+  }).addButton(
+    (button) => button.setButtonText(t("ui.manage_detail_templates")).onClick(() => new DetailTemplatesModal(app, plugin, refresh).open())
+  );
+}
+var DetailTemplatesModal = class extends import_obsidian17.Modal {
+  constructor(app, plugin, onChanged = () => {
+  }) {
+    super(app);
+    this.plugin = plugin;
+    this.onChanged = onChanged;
+  }
+  onClose() {
+    this.onChanged();
+  }
+  onOpen() {
+    this.titleEl.setText(t("ui.detail_templates"));
+    this.showList();
+  }
+  get settings() {
+    return this.plugin.settings;
+  }
+  async persist() {
+    await this.plugin.saveSettings();
+  }
+  uniqueName(base) {
+    const taken = (name2) => same(name2, standardTemplate(this.settings.language).name) || this.settings.detailTemplates.some((template) => same(template.name, name2));
+    let name = base;
+    for (let n = 2; taken(name); n++) name = `${base} ${n}`;
+    return name;
+  }
+  showList() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.createEl("p", { text: t("ui.detail_templates_hint"), cls: "vam-modal-intro" });
+    const defaultId = workspaceDefaultId(this.settings);
+    const standard = standardTemplate(this.settings.language);
+    for (const template of [standard, ...this.settings.detailTemplates]) {
+      const isStandard = template.id === STANDARD_TEMPLATE_ID;
+      const row = contentEl.createDiv("vam-template-row");
+      const info = row.createDiv("vam-template-info");
+      info.createEl("strong", { text: template.name });
+      info.createSpan({ text: t("ui.detail_template_sections_0", template.sections.length), cls: "vam-template-meta" });
+      const isDefault = template.id === defaultId;
+      if (isDefault) info.createSpan({ text: t("ui.detail_template_default_tag"), cls: "vam-template-tag" });
+      const actions = row.createDiv("vam-template-actions");
+      const button = (label, run, disabled = false) => {
+        const element = actions.createEl("button", { text: label });
+        element.disabled = disabled;
+        element.addEventListener("click", () => void run());
+      };
+      if (isStandard) button(t("ui.detail_template_view"), () => this.showEditor(template, false, true));
+      else button(t("ui.detail_template_edit"), () => this.showEditor(template, false));
+      button(t("ui.detail_template_copy"), () => this.duplicate(template));
+      if (!isStandard) button(t("ui.detail_template_delete"), () => this.confirmDelete(template));
+      button(t("ui.detail_template_set_default"), () => this.setDefault(template.id), isDefault);
+    }
+    const footer = contentEl.createDiv("vam-modal-actions");
+    footer.createEl("button", { text: t("ui.detail_template_new"), cls: "mod-cta" }).addEventListener("click", () => {
+      const fresh = copyTemplate(
+        standardTemplate(this.settings.language),
+        this.uniqueName(t("ui.detail_template_new_name")),
+        crypto.randomUUID()
+      );
+      this.showEditor(fresh, true);
+    });
+  }
+  async duplicate(source) {
+    const name = this.uniqueName(t("ui.detail_template_copy_name_0", source.name));
+    this.settings.detailTemplates.push(copyTemplate(source, name, crypto.randomUUID()));
+    await this.persist();
+    this.showList();
+  }
+  async setDefault(id) {
+    this.settings.defaultDetailTemplateId = id === STANDARD_TEMPLATE_ID ? void 0 : id;
+    await this.persist();
+    this.showList();
+  }
+  confirmDelete(template) {
+    new ChoiceModal(this.app, t("ui.detail_template_delete"), t("ui.detail_template_delete_confirm_0", template.name), [
+      {
+        label: t("ui.detail_template_delete"),
+        action: () => {
+          void this.remove(template.id);
+        }
+      }
+    ]).open();
+  }
+  async remove(id) {
+    this.settings.detailTemplates = this.settings.detailTemplates.filter((template) => template.id !== id);
+    if (this.settings.defaultDetailTemplateId === id) this.settings.defaultDetailTemplateId = void 0;
+    await this.persist();
+    this.showList();
+  }
+  /**
+   * Edits a deep copy; nothing reaches settings until Save, so Cancel discards everything. Read-only shows the same
+   * editor with every field disabled and only Close (used to look at Standard).
+   */
+  showEditor(original, isNew, readOnly = false) {
+    var _a;
+    const { contentEl } = this;
+    const language2 = this.settings.language;
+    const draft = copyTemplate(original, original.name, original.id);
+    const baseline = new Map(draft.sections.map((section3) => [section3.id, section3.name]));
+    const others = this.settings.detailTemplates;
+    contentEl.empty();
+    contentEl.createEl("p", { text: t("ui.detail_template_editor_intro"), cls: "vam-modal-intro" });
+    const topIssues = contentEl.createDiv("vam-template-issues");
+    const nameLabel = contentEl.createEl("label", { cls: "vam-field" });
+    nameLabel.createSpan({ text: t("ui.detail_template_name") });
+    const name = nameLabel.createEl("input", { type: "text" });
+    name.value = draft.name;
+    name.disabled = readOnly;
+    name.setAttr("aria-label", t("ui.detail_template_name"));
+    const list = contentEl.createDiv("vam-template-sections");
+    const addButton = readOnly ? null : contentEl.createEl("button", { text: t("ui.detail_section_add"), cls: "vam-template-add" });
+    const preview = contentEl.createEl("details", { cls: "vam-template-preview" });
+    preview.createEl("summary", { text: t("ui.detail_template_preview") });
+    const previewText = preview.createEl("pre");
+    const footer = contentEl.createDiv("vam-modal-actions");
+    footer.createEl("button", { text: t(readOnly ? "ui.close" : "ui.cancel") }).addEventListener("click", () => this.showList());
+    const save = readOnly ? null : footer.createEl("button", { text: t("ui.save"), cls: "mod-cta" });
+    const builtInNames = ["en", "zh-TW"].map((language3) => standardTemplate(language3).name);
+    const check = () => {
+      if (readOnly) return [];
+      const issues = validateTemplate(draft, others);
+      const trimmed = draft.name.trim();
+      if (trimmed && builtInNames.some((builtIn) => same(builtIn, trimmed)))
+        issues.push({ key: "ui.detail_template_error_name_taken", values: [trimmed] });
+      return issues;
+    };
+    const rows = [];
+    let openId = (_a = draft.sections[0]) == null ? void 0 : _a.id;
+    let saving = false;
+    const refresh = () => {
+      const issues = check();
+      topIssues.empty();
+      const bySection = draft.sections.map(() => []);
+      for (const issue of issues) {
+        const values = issue.values.map(
+          (value) => issue.key === "ui.detail_template_error_role_taken" && typeof value === "string" ? t(value) : value
+        );
+        const text11 = t(issue.key, ...values);
+        const target = issue.section ? bySection[issue.section - 1] : void 0;
+        if (target) target.push(text11);
+        else topIssues.createDiv({ text: text11, cls: "vam-template-issue" });
+      }
+      rows.forEach((update, index) => {
+        var _a2;
+        return update((_a2 = bySection[index]) != null ? _a2 : []);
+      });
+      previewText.setText(detailStructurePrompt(draft, language2, (headings) => detailStructure(language2, headings)));
+      if (save) save.disabled = issues.length > 0;
+    };
+    name.addEventListener("input", () => {
+      draft.name = name.value;
+      refresh();
+    });
+    const renderSections = () => {
+      list.empty();
+      rows.length = 0;
+      draft.sections.forEach((section3, index) => {
+        const open = (id) => {
+          openId = id;
+          renderSections();
+        };
+        rows.push(
+          section3.id === openId ? this.openSection(list, draft, section3, index, readOnly, open, refresh) : this.closedSection(list, section3, index, () => open(section3.id))
+        );
+      });
+      refresh();
+    };
+    addButton == null ? void 0 : addButton.addEventListener("click", () => {
+      const fresh = { id: crypto.randomUUID(), name: "", description: "", role: "none", aliases: [] };
+      draft.sections.push(fresh);
+      openId = fresh.id;
+      renderSections();
+    });
+    save == null ? void 0 : save.addEventListener("click", () => {
+      if (saving || check().length) return;
+      saving = true;
+      save.disabled = true;
+      const finished = this.finalize(draft, baseline);
+      if (isNew) this.settings.detailTemplates.push(finished);
+      else
+        this.settings.detailTemplates = this.settings.detailTemplates.map(
+          (item) => item.id === finished.id ? finished : item
+        );
+      void this.persist().then(() => this.showList());
+    });
+    renderSections();
+  }
+  /** A collapsed accordion row: number, name, purpose · count summary and, when invalid, the issue count. */
+  closedSection(parent, section3, index, expand) {
+    const row = parent.createDiv("vam-template-section");
+    const header = row.createEl("button", { cls: "vam-template-section-header" });
+    header.setAttr("aria-expanded", "false");
+    header.addEventListener("click", expand);
+    return (issues) => {
+      header.empty();
+      header.createSpan({ text: String(index + 1), cls: "vam-template-section-number" });
+      const named = section3.name.trim();
+      header.createSpan({
+        text: named || t("ui.detail_section_unnamed"),
+        cls: named ? "vam-template-section-title" : "vam-template-section-title is-untitled"
+      });
+      if (issues.length) header.createSpan({ text: String(issues.length), cls: "vam-template-section-badge" });
+      const summary = header.createSpan({ cls: "vam-template-section-summary" });
+      summary.createSpan({
+        text: t(KINDS[section3.role]),
+        cls: section3.role === "none" ? "vam-template-section-purpose" : "vam-template-section-purpose is-accent"
+      });
+      summary.createSpan({ text: "\xB7", cls: "vam-template-section-separator" });
+      summary.createSpan({ text: countSummary(section3) });
+    };
+  }
+  /** The expanded accordion row with every field of one section. */
+  openSection(parent, draft, section3, index, readOnly, open, refresh) {
+    var _a, _b;
+    const row = parent.createDiv("vam-template-section");
+    const header = row.createDiv("vam-template-section-header is-open");
+    header.createSpan({ text: String(index + 1), cls: "vam-template-section-number" });
+    const name = header.createEl("input", { type: "text" });
+    name.value = section3.name;
+    name.disabled = readOnly;
+    name.setAttr("aria-label", t("ui.detail_section_name"));
+    name.setAttr("placeholder", t("ui.detail_section_unnamed"));
+    name.addEventListener("input", () => {
+      section3.name = name.value;
+      refresh();
+    });
+    const icon = (glyph, label, run, disabled) => {
+      const button = header.createEl("button", { cls: "clickable-icon" });
+      (0, import_obsidian17.setIcon)(button, glyph);
+      button.setAttr("aria-label", label);
+      button.setAttr("title", label);
+      button.disabled = readOnly || disabled;
+      button.addEventListener("click", run);
+    };
+    const move = (by) => {
+      const target = index + by;
+      [draft.sections[index], draft.sections[target]] = [draft.sections[target], draft.sections[index]];
+      open(section3.id);
+    };
+    icon("arrow-up", t("ui.detail_section_up"), () => move(-1), index === 0);
+    icon("arrow-down", t("ui.detail_section_down"), () => move(1), index === draft.sections.length - 1);
+    icon(
+      "trash-2",
+      t("ui.detail_section_remove"),
+      () => {
+        var _a2;
+        draft.sections.splice(index, 1);
+        open((_a2 = draft.sections[Math.min(index, draft.sections.length - 1)]) == null ? void 0 : _a2.id);
+      },
+      false
+    );
+    const descriptionField = row.createEl("label", { cls: "vam-field" });
+    descriptionField.createSpan({ text: t("ui.detail_section_description") });
+    const description = descriptionField.createEl("textarea");
+    description.rows = 3;
+    description.value = section3.description;
+    description.disabled = readOnly;
+    description.setAttr("aria-label", t("ui.detail_section_description"));
+    description.setAttr("placeholder", t("ui.detail_section_description_placeholder"));
+    description.addEventListener("input", () => {
+      section3.description = description.value;
+      refresh();
+    });
+    const columns = row.createDiv("vam-template-section-columns");
+    const purposeField = columns.createDiv("vam-field");
+    purposeField.createSpan({ text: t("ui.detail_section_role") });
+    const role = purposeField.createEl("select");
+    role.disabled = readOnly;
+    role.setAttr("aria-label", t("ui.detail_section_role"));
+    for (const [value, key2] of PURPOSES) option(role, value, t(key2));
+    role.value = section3.role;
+    const purposeHelp = purposeField.createDiv({ text: t(PURPOSE_HELP[section3.role]), cls: "vam-template-help" });
+    role.addEventListener("change", () => {
+      section3.role = role.value;
+      purposeHelp.setText(t(PURPOSE_HELP[section3.role]));
+      refresh();
+    });
+    const countField = columns.createDiv("vam-field");
+    countField.createSpan({ text: t("ui.detail_section_count") });
+    const countRow = countField.createDiv("vam-template-count");
+    const mode = countRow.createEl("select");
+    mode.disabled = readOnly;
+    mode.setAttr("aria-label", t("ui.detail_section_count"));
+    option(mode, "none", t("ui.detail_section_count_none"));
+    option(mode, "exact", t("ui.detail_section_count_exact"));
+    option(mode, "min", t("ui.detail_section_count_min"));
+    mode.value = (_b = (_a = section3.count) == null ? void 0 : _a.mode) != null ? _b : "none";
+    mode.addEventListener("change", () => {
+      var _a2, _b2;
+      if (mode.value === "none") delete section3.count;
+      else section3.count = { mode: mode.value, n: (_b2 = (_a2 = section3.count) == null ? void 0 : _a2.n) != null ? _b2 : 1 };
+      open(section3.id);
+    });
+    if (section3.count) {
+      const count = countRow.createEl("input", { type: "number" });
+      count.value = String(section3.count.n);
+      count.disabled = readOnly;
+      count.setAttr("min", "1");
+      count.setAttr("max", "20");
+      count.setAttr("aria-label", t("ui.detail_section_count_n"));
+      count.addEventListener("input", () => {
+        if (section3.count) section3.count.n = Number(count.value);
+        refresh();
+      });
+    }
+    countField.createDiv({ text: t("ui.detail_section_count_help"), cls: "vam-template-help" });
+    const issuesEl = row.createDiv("vam-template-issues");
+    return (issues) => {
+      issuesEl.empty();
+      for (const text11 of issues) issuesEl.createDiv({ text: text11, cls: "vam-template-issue" });
+    };
+  }
+  /**
+   * Trims names and remembers earlier section names as aliases so old notes still map to the renamed section; an alias
+   * equal to any section's current name is dropped so the name always wins.
+   */
+  finalize(draft, baseline) {
+    return {
+      id: draft.id,
+      name: draft.name.trim(),
+      sections: withoutConflictingAliases(
+        draft.sections.map((section3) => {
+          const before = baseline.get(section3.id);
+          return { ...section3, name: section3.name.trim(), aliases: [...section3.aliases, ...before ? [before] : []] };
+        })
+      )
+    };
+  }
+};
 
 // ui/settings-tab.ts
-var import_obsidian17 = require("obsidian");
+var import_obsidian18 = require("obsidian");
 var CODEX_INSTALL_URL = "https://developers.openai.com/codex/cli/";
 var CLAUDE_INSTALL_URL = "https://code.claude.com/docs/en/setup";
-var CodexSetupModal = class extends import_obsidian17.Modal {
+var CodexSetupModal = class extends import_obsidian18.Modal {
   constructor(app, executable, recheck) {
     super(app);
     this.executable = executable;
@@ -25672,7 +26893,7 @@ var CodexSetupModal = class extends import_obsidian17.Modal {
       cls: "vam-setup-note"
     });
     this.contentEl.createEl("p", { text: t("ui.path_currently_checked_0", this.executable), cls: "vam-setup-path" });
-    new import_obsidian17.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.do_this_later")).onClick(() => this.close())).addButton(
+    new import_obsidian18.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.do_this_later")).onClick(() => this.close())).addButton(
       (button) => button.setButtonText(t("ui.i_ve_finished_check_again")).setCta().onClick(() => {
         this.close();
         this.recheck();
@@ -25680,7 +26901,7 @@ var CodexSetupModal = class extends import_obsidian17.Modal {
     );
   }
 };
-var AiUsageModal = class extends import_obsidian17.Modal {
+var AiUsageModal = class extends import_obsidian18.Modal {
   constructor(app, provider, resolve) {
     super(app);
     this.provider = provider;
@@ -25701,7 +26922,7 @@ var AiUsageModal = class extends import_obsidian17.Modal {
       this.close();
       this.resolve(confirmed);
     };
-    new import_obsidian17.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => finish(false))).addButton(
+    new import_obsidian18.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => finish(false))).addButton(
       (button) => button.setButtonText(t("ui.understand_and_run")).setCta().onClick(() => finish(true))
     );
   }
@@ -25709,7 +26930,7 @@ var AiUsageModal = class extends import_obsidian17.Modal {
     if (!this.settled) this.resolve(false);
   }
 };
-var ClaudeSetupModal = class extends import_obsidian17.Modal {
+var ClaudeSetupModal = class extends import_obsidian18.Modal {
   constructor(app, executable, url, recheck) {
     super(app);
     this.executable = executable;
@@ -25729,7 +26950,7 @@ var ClaudeSetupModal = class extends import_obsidian17.Modal {
     });
     steps.createEl("li", { text: t("ui.return_to_vam_and_check_the_cli_path_again") });
     this.contentEl.createEl("p", { text: t("ui.path_currently_checked_0", this.executable), cls: "vam-setup-path" });
-    new import_obsidian17.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.do_this_later")).onClick(() => this.close())).addButton(
+    new import_obsidian18.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.do_this_later")).onClick(() => this.close())).addButton(
       (button) => button.setButtonText(t("ui.check_again")).setCta().onClick(() => {
         this.close();
         this.recheck();
@@ -25737,7 +26958,7 @@ var ClaudeSetupModal = class extends import_obsidian17.Modal {
     );
   }
 };
-var VisualAgentMapSettingTab = class extends import_obsidian17.PluginSettingTab {
+var VisualAgentMapSettingTab = class extends import_obsidian18.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
@@ -25765,11 +26986,11 @@ var VisualAgentMapSettingTab = class extends import_obsidian17.PluginSettingTab 
     });
   }
   refreshAfterLanguageChange() {
-    const focused = typeof document !== "undefined" && document.activeElement && this.containerEl.contains(document.activeElement) && document.activeElement.instanceOf(HTMLSelectElement) && Array.from(document.activeElement.options).some((option) => option.value === "zh-TW") && Array.from(document.activeElement.options).some((option) => option.value === "en");
+    const focused = typeof document !== "undefined" && document.activeElement && this.containerEl.contains(document.activeElement) && document.activeElement.instanceOf(HTMLSelectElement) && Array.from(document.activeElement.options).some((option2) => option2.value === "zh-TW") && Array.from(document.activeElement.options).some((option2) => option2.value === "en");
     this.update();
     if (!focused) return;
     const selector = Array.from(this.containerEl.querySelectorAll("select")).find((select) => {
-      const values = Array.from(select.options).map((option) => option.value);
+      const values = Array.from(select.options).map((option2) => option2.value);
       return values.includes("en") && values.includes("zh-TW");
     });
     selector == null ? void 0 : selector.focus();
@@ -25810,7 +27031,7 @@ var VisualAgentMapSettingTab = class extends import_obsidian17.PluginSettingTab 
               (id) => this.plugin.modelLabel(id),
               t("ui.current_model_is_unavailable")
             );
-            if (!Array.from(select.options).some((option) => option.value === selected)) {
+            if (!Array.from(select.options).some((option2) => option2.value === selected)) {
               const unavailable = new Option(`${selected} (${t("ui.current_model_is_unavailable")})`, selected);
               unavailable.disabled = true;
               select.add(unavailable);
@@ -25843,6 +27064,10 @@ var VisualAgentMapSettingTab = class extends import_obsidian17.PluginSettingTab 
           key: "cliReasoning",
           options: { auto: t("ui.auto"), low: t("ui.low"), medium: t("ui.medium"), high: t("ui.high") }
         }
+      },
+      {
+        name: t("ui.detail_templates"),
+        render: (setting) => renderDetailTemplatesSetting(setting, this.app, this.plugin, () => this.update())
       },
       {
         name: t("ui.markdown_selection_ai_auto_open"),
@@ -25956,9 +27181,9 @@ var VisualAgentMapSettingTab = class extends import_obsidian17.PluginSettingTab 
 var import_node_path2 = require("node:path");
 
 // ui/outline-view.ts
-var import_obsidian18 = require("obsidian");
+var import_obsidian19 = require("obsidian");
 var OUTLINE_VIEW_TYPE = "visual-agent-map-outline";
-var OutlineView = class extends import_obsidian18.ItemView {
+var OutlineView = class extends import_obsidian19.ItemView {
   constructor(leaf, openNote) {
     super(leaf);
     this.openNote = openNote;
@@ -26081,7 +27306,7 @@ var OutlineView = class extends import_obsidian18.ItemView {
       if (item.status === "error") button.createEl("small", { text: t("ui.coffee_segment_incomplete") });
       button.addEventListener("click", () => {
         var _a2;
-        if (!((_a2 = this.locateCoffee) == null ? void 0 : _a2.call(this, item.id))) new import_obsidian18.Notice(t("ui.coffee_segment_no_content"));
+        if (!((_a2 = this.locateCoffee) == null ? void 0 : _a2.call(this, item.id))) new import_obsidian19.Notice(t("ui.coffee_segment_no_content"));
       });
     });
   }
@@ -27217,7 +28442,9 @@ var ShallowExpansionCoordinator = class {
       controller,
       total: children.length,
       completed: 0,
+      succeeded: 0,
       failures: [],
+      failedPaths: [],
       status: "running"
     };
     this.activeTasks.set(parentPath2, controller);
@@ -27250,7 +28477,7 @@ var ShallowExpansionCoordinator = class {
           updateCurrent();
           let acceptedChild = false;
           try {
-            await startChild(child, controller.signal, () => {
+            const outcome = await startChild(child, controller.signal, () => {
               acceptedChild = true;
               if (!dispatchAccepted) {
                 dispatchAccepted = true;
@@ -27259,10 +28486,12 @@ var ShallowExpansionCoordinator = class {
               }
             });
             if (!acceptedChild) throw new Error("Shallow research did not start.");
+            if (outcome !== "skipped" && !controller.signal.aborted) state.succeeded++;
           } catch (error) {
             if (!controller.signal.aborted) {
               const message = error instanceof Error ? error.message : String(error);
               state.failures.push(`${child.path}: ${message}`);
+              state.failedPaths.push(child.path);
             }
           } finally {
             state.completed++;
@@ -27310,9 +28539,9 @@ var reduce_zh_default = "\u6574\u5408\u6240\u63D0\u4F9B\u7684\u8B49\u64DA\u6458\
 var reduce_en_default = "Combine the supplied extracted evidence without dropping materially different facts, disagreements, caveats, source identifiers, or source mappings. Keep every original [S#] citation attached to its supported claims and preserve every exact [S#]-to-path mapping; never replace an identifier or alter a path.\n";
 
 // core/steps/reference/step.ts
-var text7 = (template) => renderTemplate(template, {});
-var EXTRACT = { zh: text7(extract_zh_default), en: text7(extract_en_default) };
-var REDUCE = { zh: text7(reduce_zh_default), en: text7(reduce_en_default) };
+var text8 = (template) => renderTemplate(template, {});
+var EXTRACT = { zh: text8(extract_zh_default), en: text8(extract_en_default) };
+var REDUCE = { zh: text8(reduce_zh_default), en: text8(reduce_en_default) };
 function referenceTask(round, language2) {
   return inLanguage(round === "extract" ? EXTRACT : REDUCE, language2);
 }
@@ -27415,124 +28644,6 @@ function taskResponseShape(context) {
     context.aimEvidenceLookup === true
   ) : isAimGapAudit ? aim_gap_audit_schema_default : isDeliveryAcceptance ? deliverySchema : isIsolatedWebResearch ? webResearchSchema : response_schema_default;
   return { schema, isAimGapAudit, isIsolatedWebResearch, ...contract ? { contract } : {} };
-}
-
-// core/steps/task/source-registry.md
-var source_registry_default = "Source registry (retain these identities in citations):\n{{catalog}}\n";
-
-// core/steps/task/adaptive-detail-structure.zh.md
-var adaptive_detail_structure_zh_default = "detail \u4F7F\u7528 Markdown\uFF0C\u4F9D\u4F7F\u7528\u8005\u6700\u521D\u554F\u984C\u8207\u671F\u671B\u6210\u679C\u6C7A\u5B9A\u5167\u5BB9\u7D50\u69CB\u3002\u6309\u9700\u8981\u9078\u64C7\u6A19\u984C\u3001\u6BB5\u843D\u3001\u6B65\u9A5F\u3001\u8868\u683C\u6216\u5176\u4ED6\u5408\u9069\u5F62\u5F0F\uFF0C\u4E0D\u5957\u56FA\u5B9A\u6BB5\u843D\u6A21\u677F\u3002\u6574\u5408\u5DF2\u77E5\u4F7F\u7528\u8005\u689D\u4EF6\u8207\u76F8\u95DC\u8B49\u64DA\uFF0C\u5BEB\u6210\u9023\u8CAB\u3001\u53EF\u7368\u7ACB\u95B1\u8B80\u7684\u5B8C\u6574\u56DE\u7B54\uFF1B\u5728\u76F8\u95DC\u5167\u5BB9\u4EA4\u4EE3\u4F86\u6E90\u53CA\u91CD\u8981\u4E0D\u78BA\u5B9A\u6027\u3002\u4E0D\u8981\u8CBC\u4E0A\u4E2D\u9593\u7814\u7A76\u5831\u544A\uFF0C\u4E0D\u52A0\u7A7A\u6BB5\u843D\u6216\u66F4\u65B0\u7D00\u9304\u3002\u4FDD\u7559\u4EFB\u52D9\u8981\u6C42\u7684\u6A5F\u5668\u53EF\u8B80\u6C7A\u7B56\u6A19\u8A18\u8207\u5916\u5C64 JSON \u56DE\u61C9\u683C\u5F0F\u3002\n";
-
-// core/steps/task/adaptive-detail-structure.en.md
-var adaptive_detail_structure_en_default = "Write detail in Markdown with a structure suited to the user's original question and requested outcome. Choose headings, prose, steps, tables, or other appropriate formats as needed; there is no fixed section template. Produce a coherent, self-contained answer that incorporates the user's known conditions and relevant evidence. Integrate source attribution and material uncertainties where they matter. Do not paste the intermediate research reports or add empty sections and update logs. Preserve any machine-readable decision marker required by the task and the outer JSON response contract.\n";
-
-// core/steps/task/decompose.zh.md
-var decompose_zh_default = "\u9019\u662F Decompose \u6A21\u5F0F\uFF1A\u4F9D\u672C\u6B21\u4EFB\u52D9\u6307\u5B9A\u7684\u5C64\u6578\u8207\u6578\u91CF\u63D0\u51FA\u53EF\u7368\u7ACB\u8655\u7406\u7684\u5B50\u8B70\u984C\uFF1B\u82E5\u73FE\u6709\u5B50\u8B70\u984C\u5DF2\u6DB5\u84CB\u9700\u6C42\uFF0C\u56DE\u50B3\u7A7A\u9663\u5217\uFF0C\u4E0D\u8981\u6E4A\u6578\u3002summary \u7C21\u8FF0\u662F\u5426\u5EFA\u8B70\u62C6\u89E3\uFF0Cdetail \u7C21\u8FF0\u62C6\u89E3\u7406\u7531\uFF1B\u4E0D\u8981\u66F4\u65B0\u7D50\u8AD6\u3002\n";
-
-// core/steps/task/decompose.en.md
-var decompose_en_default = "Decompose mode: propose independently actionable subtopics at the requested depth and count. If existing subtopics already cover the need, return an empty array; do not pad the count. Summarize whether decomposition is useful and briefly explain why in detail. Do not update conclusions.\n";
-
-// core/steps/task/default-task.zh.md
-var default_task_zh_default = "summary \u5FC5\u9808\u662F\u4E00\u53E5\u9069\u5408\u5FC3\u667A\u5716\u986F\u793A\u7684\u65B0\u76EE\u524D\u7406\u89E3\uFF0Cdetail \u5FC5\u9808\u662F\u5B8C\u6574 Markdown \u5206\u6790\u3002\n";
-
-// core/steps/task/default-task.en.md
-var default_task_en_default = "Summary must be one new insight suitable for the mind map; detail must be a complete Markdown analysis.\n";
-
-// core/steps/task/detail-structure.zh.md
-var detail_structure_zh_default = "detail \u5FC5\u9808\u4E14\u53EA\u80FD\u4F9D\u5E8F\u4F7F\u7528\u4EE5\u4E0B\u516D\u500B\u4E09\u7D1A\u6A19\u984C\uFF1A{{headings}}\u3002\u66F4\u65B0\u7D00\u9304\u53EA\u65B0\u589E\u4E00\u884C\u672C\u6B21\u8B8A\u66F4\u6458\u8981\uFF0C\u4E0D\u53EF\u91CD\u8CBC\u5B8C\u6574\u7B54\u6848\uFF1B\u6C92\u6709\u9069\u7528\u5167\u5BB9\u7684\u6BB5\u843D\u5BEB\u300C\u672C\u6B21\u7121\u65B0\u589E\u5167\u5BB9\u300D\u3002\u6838\u5FC3\u7D50\u8AD6\u82E5\u6709\u6307\u5B9A\u6578\u91CF\uFF0C\u9808\u9075\u5B88\u8A72\u6578\u91CF\u3002\n";
-
-// core/steps/task/detail-structure.en.md
-var detail_structure_en_default = "The detail must use exactly these six level-three headings in order: {{headings}}. Add only one line summarizing this update in Update log; do not repeat the full answer. Write 'No new content this time' in sections with nothing applicable. Follow any requested count for the core conclusions.\n";
-
-// core/steps/task/general-task.zh.md
-var general_task_zh_default = "\u9019\u662F\u4E00\u822C\u4EFB\u52D9\uFF1Asummary \u5FC5\u9808\u662F\u4E00\u53E5\u9069\u5408\u5FC3\u667A\u5716\u986F\u793A\u7684\u65B0\u76EE\u524D\u7406\u89E3\uFF0C80 \u5B57\u5167\uFF1Bdetail \u662F\u6703\u76F4\u63A5\u53D6\u4EE3\u820A Detail \u7684\u5B8C\u6574\u77E5\u8B58\u9801\uFF0C\u5FC5\u9808\u5438\u6536\u820A\u5167\u5BB9\u8207\u672C\u6B21\u767C\u73FE\u3001\u53BB\u9664\u91CD\u8907\u3001\u4FDD\u7559\u4ECD\u6709\u6548\u7684\u4F86\u6E90\u3002\u82E5\u8B70\u984C\u904E\u65BC\u8907\u96DC\u624D\u63D0\u4F9B suggestions\uFF0C\u5426\u5247\u56DE\u50B3\u7A7A\u9663\u5217\u3002\n";
-
-// core/steps/task/general-task.en.md
-var general_task_en_default = "General task: summary is one new insight for the mind map, within 80 characters. Detail replaces the old Detail with a complete knowledge page that incorporates valid existing content and new findings, removes duplication, and retains valid sources. Provide suggestions only if the topic is too complex; otherwise return an empty array.\n";
-
-// core/steps/task/json.zh.md
-var json_zh_default = '\u53EA\u56DE\u50B3 JSON\uFF0C\u4E0D\u8981\u4F7F\u7528 Markdown code fence\u3002\u683C\u5F0F\u5FC5\u9808\u7B26\u5408\uFF1A{"summary":"...","detail":"...","suggestions":[{"title":"...","task":"...","contribution":"...","parentTitle":""}],"visualReferences":[{"title":"...","imageUrl":"https://...","sourceUrl":"https://...","description":"...","palette":["navy","white"],"formula":"..."}]}\u3002\u82E5\u6C92\u6709\u8996\u89BA\u53C3\u8003\uFF0CvisualReferences \u56DE\u50B3\u7A7A\u9663\u5217\u3002\n';
-
-// core/steps/task/json.en.md
-var json_en_default = 'Return JSON only, without a Markdown code fence. Use this exact shape: {"summary":"...","detail":"...","suggestions":[{"title":"...","task":"...","contribution":"...","parentTitle":""}],"visualReferences":[{"title":"...","imageUrl":"https://...","sourceUrl":"https://...","description":"...","palette":["navy","white"],"formula":"..."}]}. Return an empty visualReferences array when there are no visual references.\n';
-
-// core/steps/task/label-detail.zh.md
-var label_detail_zh_default = "\u73FE\u6709 Detail\uFF08\u9808\u6574\u5408\u5F8C\u5B8C\u6574\u53D6\u4EE3\uFF0C\u4E0D\u80FD\u539F\u6A23\u91CD\u8907\u8FFD\u52A0\uFF09\n";
-
-// core/steps/task/label-detail.en.md
-var label_detail_en_default = "Existing Detail (integrate and replace fully, do not append unchanged)\n";
-
-// core/steps/task/label-findings.zh.md
-var label_findings_zh_default = "\u820A\u7248\u5F85\u6574\u7406\u767C\u73FE\uFF08\u672C\u6B21\u5FC5\u9808\u4E00\u4F75\u6536\u6582\uFF09\n";
-
-// core/steps/task/label-findings.en.md
-var label_findings_en_default = "Older findings to consolidate\n";
-
-// core/steps/task/output-language.zh.md
-var output_language_zh_default = "\u65B0\u7522\u751F\u7684\u5167\u5BB9\u9810\u8A2D\u4F7F\u7528\u7E41\u9AD4\u4E2D\u6587\uFF0C\u5305\u62EC\u6458\u8981\u3001Detail \u6B63\u6587\u3001\u5EFA\u8B70\u6A19\u984C\u8207\u8AAA\u660E\u3001\u5716\u7247\u63CF\u8FF0\u3002\u516D\u500B\u6A19\u6E96 Detail \u6A19\u984C\u56FA\u5B9A\u8DDF\u96A8\u4ECB\u9762\u8A9E\u8A00\u3002\u4FDD\u7559\u4F86\u6E90\u539F\u6587\u5F15\u8FF0\u8207\u5C08\u6709\u540D\u7A31\uFF1B\u53EA\u6709\u76EE\u524D\u4EFB\u52D9\u6216\u8B70\u984C AI \u898F\u5247\u660E\u78BA\u6307\u5B9A\u5176\u4ED6\u8F38\u51FA\u8A9E\u8A00\u6642\u624D\u6539\u7528\u8A72\u8A9E\u8A00\u3002\n";
-
-// core/steps/task/output-language.en.md
-var output_language_en_default = "Write newly generated content in English by default, including summaries, detail text, suggestion titles, tasks, contributions, and image descriptions. The six standard Detail headings must follow the interface language. Preserve quoted source text and proper names. Follow a different output language only when the current task or topic AI rules explicitly request it.\n";
-
-// core/steps/task/synthesize.zh.md
-var synthesize_zh_default = "\u9019\u662F Synthesize \u6A21\u5F0F\uFF1Asummary \u5FC5\u9808\u662F\u9AD8\u54C1\u8CEA\u6574\u5408\u7D50\u8AD6\uFF0C80 \u5B57\u5167\uFF1Bdetail \u5FC5\u9808\u6574\u5408\u4F86\u6E90\u5B8C\u6574\u77E5\u8B58\u3001\u6536\u6582\u91CD\u8907\u5167\u5BB9\u3001\u6E05\u695A\u5448\u73FE\u5171\u8B58\u3001\u5206\u6B67\u3001\u53D6\u6368\u8207\u672A\u89E3\u554F\u984C\uFF1B\u82E5\u4ECB\u9762\u63D0\u4F9B\u78BA\u8A8D\u8349\u7A3F\uFF0C\u78BA\u8A8D\u5F8C\u624D\u6703\u5BEB\u56DE\u3002\n";
-
-// core/steps/task/synthesize.en.md
-var synthesize_en_default = "Synthesize mode: summary is a high-quality integrated conclusion within 80 characters. Detail integrates complete source knowledge, removes duplication, and clearly presents agreements, disagreements, tradeoffs, and unresolved questions. If the UI offers draft review, write only after confirmation.\n";
-
-// core/steps/task/visual-auto.zh.md
-var visual_auto_zh_default = "\u5716\u7247\u80FD\u660E\u986F\u5E6B\u52A9\u7406\u89E3\u6216\u4F7F\u7528\u8005\u660E\u78BA\u8981\u6C42\u5716\u7247\u6642\uFF0C\u624D\u641C\u5C0B\u5716\u7247\u53C3\u8003\uFF1B\u4E00\u822C\u77E5\u8B58\u578B\u554F\u984C\u4E0D\u8981\u641C\u5C0B\u5716\u7247\u3002\n";
-
-// core/steps/task/visual-auto.en.md
-var visual_auto_en_default = "Search for image references when they materially aid understanding or the user explicitly asks for images; do not search for images for ordinary knowledge questions.\n";
-
-// core/steps/task/visual-embed.zh.md
-var visual_embed_zh_default = "\u6709\u52A9\u7406\u89E3\u7684\u5716\u7247\u76F4\u63A5\u5D4C\u5165 detail \u76F8\u95DC\u6BB5\u843D\u4E26\u9644\u4F86\u6E90\u9801\u9023\u7D50\u3002\u6574\u5408\u6642\u53EA\u6CBF\u7528\u6709\u52A9\u8AAA\u660E\u6574\u5408\u767C\u73FE\u7684\u4F86\u6E90\u5716\u7247\uFF1B\u4E0D\u8981\u5EFA\u7ACB\u7368\u7ACB\u5716\u7247\u96C6\u5408\uFF0C\u4E5F\u4E0D\u8981\u7DE8\u9020\u4F86\u6E90\u3002\n";
-
-// core/steps/task/visual-embed.en.md
-var visual_embed_en_default = "Embed useful images directly in relevant detail paragraphs with source-page links. In synthesis, reuse source images only when they help explain the integrated findings. Do not create a separate image collection or invent sources.\n";
-
-// core/steps/task/visual-none.zh.md
-var visual_none_zh_default = "\u4E0D\u8981\u641C\u5C0B\u65B0\u5716\u7247\uFF1BvisualReferences \u56DE\u50B3\u7A7A\u9663\u5217\u3002\n";
-
-// core/steps/task/visual-none.en.md
-var visual_none_en_default = "Do not search for new images; return an empty visualReferences array unless synthesis can reuse a relevant image already included in the provided source context.\n";
-
-// core/steps/task/visual-on.zh.md
-var visual_on_zh_default = "\u8ACB\u5C0B\u627E 1\u20136 \u500B\u80FD\u5E6B\u52A9\u7406\u89E3\u8B70\u984C\u7684\u5716\u7247\u53C3\u8003\uFF1B\u5FC5\u9808\u63D0\u4F9B\u771F\u5BE6\u5716\u7247 URL \u8207\u4F86\u6E90\u9801 URL\uFF0C\u627E\u4E0D\u5230\u53EF\u9760\u5716\u7247\u6642\u56DE\u50B3\u7A7A\u9663\u5217\u3002\n";
-
-// core/steps/task/visual-on.en.md
-var visual_on_en_default = "Find 1\u20136 image references that help explain the topic. Provide real image and source-page URLs; return an empty array if reliable images are unavailable.\n";
-
-// core/steps/task/visual-preserve.zh.md
-var visual_preserve_zh_default = "\u6574\u5408\u6642\u82E5\u63D0\u4F9B\u7684\u4F86\u6E90\u5167\u5BB9\u5DF2\u6709\u76F8\u95DC\u5716\u7247\uFF0C\u8ACB\u4FDD\u7559\u539F\u5716\u7247\u8207\u4F86\u6E90 URL\uFF0C\u4E26\u56DE\u50B3\u8A72\u53C3\u8003\u3002\n";
-
-// core/steps/task/visual-preserve.en.md
-var visual_preserve_en_default = "When reusing one, preserve its original image and source URLs.\n";
-
-// core/steps/task/fragments.ts
-var text8 = (template) => renderTemplate(template, {});
-var pair4 = (zh, en) => ({ zh: text8(zh), en: text8(en) });
-var ADAPTIVE_DETAIL_STRUCTURE = pair4(adaptive_detail_structure_zh_default, adaptive_detail_structure_en_default);
-var DECOMPOSE = pair4(decompose_zh_default, decompose_en_default);
-var DEFAULT_TASK = pair4(default_task_zh_default, default_task_en_default);
-var DETAIL_STRUCTURE_TEMPLATE = { zh: detail_structure_zh_default, en: detail_structure_en_default };
-var GENERAL_TASK = pair4(general_task_zh_default, general_task_en_default);
-var JSON_CONTRACT = pair4(json_zh_default, json_en_default);
-var LABEL_DETAIL = pair4(label_detail_zh_default, label_detail_en_default);
-var LABEL_FINDINGS = pair4(label_findings_zh_default, label_findings_en_default);
-var OUTPUT_LANGUAGE = pair4(output_language_zh_default, output_language_en_default);
-var SYNTHESIZE = pair4(synthesize_zh_default, synthesize_en_default);
-var VISUAL_AUTO = pair4(visual_auto_zh_default, visual_auto_en_default);
-var VISUAL_EMBED = pair4(visual_embed_zh_default, visual_embed_en_default);
-var VISUAL_NONE = pair4(visual_none_zh_default, visual_none_en_default);
-var VISUAL_ON = pair4(visual_on_zh_default, visual_on_en_default);
-var VISUAL_PRESERVE = pair4(visual_preserve_zh_default, visual_preserve_en_default);
-function detailStructure(language2, headings) {
-  return renderTemplate(inLanguage(DETAIL_STRUCTURE_TEMPLATE, language2), { headings });
-}
-function sourceRegistry(catalog) {
-  return renderTemplate(source_registry_default, { catalog });
 }
 
 // core/steps/aim/language.zh.md
@@ -27830,15 +28941,8 @@ function visualGuidance(context, language2) {
 }
 
 // core/steps/task/render.ts
-var DETAIL_HEADINGS = [
-  "detail.core_conclusions",
-  "detail.key_knowledge",
-  "detail.evidence_and_sources",
-  "detail.tradeoffs_and_limitations",
-  "detail.open_questions",
-  "detail.update_log"
-];
 function generalTaskPrompt(context, language2) {
+  var _a;
   const modeFragment = context.mode === "task" ? GENERAL_TASK : context.mode === "decompose" ? DECOMPOSE : context.mode === "synthesize" ? SYNTHESIZE : DEFAULT_TASK;
   const none = inLanguage(NONE, language2);
   return [
@@ -27849,7 +28953,11 @@ function generalTaskPrompt(context, language2) {
     context.sourceContext && context.researchMode !== "local" ? inLanguage(LOCAL_FIRST, language2) : "",
     inLanguage(JSON_CONTRACT, language2),
     inLanguage(modeFragment, language2),
-    context.mode !== "decompose" ? context.detailFormat === "adaptive" ? inLanguage(ADAPTIVE_DETAIL_STRUCTURE, language2) : detailStructure(language2, DETAIL_HEADINGS.map((key2) => `### ${translate(language2, key2)}`).join(", ")) : "",
+    context.mode !== "decompose" ? context.detailFormat === "adaptive" ? inLanguage(ADAPTIVE_DETAIL_STRUCTURE, language2) : detailStructurePrompt(
+      (_a = context.detailTemplate) != null ? _a : standardTemplate(language2),
+      language2,
+      (headings) => detailStructure(language2, headings)
+    ) : "",
     researchGuidance(context, language2),
     ...visualGuidance(context, language2),
     `${inLanguage(LABEL_TOPIC, language2)}:
@@ -27960,6 +29068,7 @@ var AiTaskService = class {
       completed: recording((id) => exchanges.completed(id)),
       failed: recording((id, error) => exchanges.failed(id, error))
     };
+    let supersededClosed = false;
     let stage = t("log.stage_starting_ai");
     try {
       const controls = {
@@ -28005,11 +29114,51 @@ var AiTaskService = class {
         }
       });
       stage = t("log.stage_parsing_reply");
-      const result = step.parse(raw);
+      let result = step.parse(raw);
       if (referenceGroups.length) result.summary = resolveSummaryReferences(result.summary, referenceGroups);
       if (referenceGroups.length || /\[\^/.test(result.detail))
-        result.detail = resolveDetailReferences(result.detail, referenceGroups, input.detail);
+        result.detail = resolveDetailReferences(result.detail, referenceGroups, input.detail, input.detailTemplate);
       if (this.options.exchangeLoggingEnabled()) exchanges == null ? void 0 : exchanges.parsed(exchangeId);
+      const template = input.detailTemplate;
+      if (template && template.sections.some((section3) => section3.count) && input.mode !== "decompose" && input.detailFormat !== "adaptive") {
+        let issues = checkCounts(canonicalDetail(result.detail, outputLanguage, template), template);
+        if (issues.length && !input.countRepair) {
+          const firstExchangeId = exchangeId;
+          try {
+            const repaired = await this.execute(
+              {
+                ...input,
+                detail: result.detail,
+                summary: result.summary,
+                task: repairCounts(
+                  outputLanguage,
+                  issues.map((issue) => `- ### ${issue.section}: ${countIssueText(issue, outputLanguage)}`).join("\n")
+                ),
+                workingFindings: "",
+                sourceContext: "",
+                referenceGroups: [],
+                researchMode: "local",
+                countRepair: true
+              },
+              model,
+              reasoning,
+              signal,
+              onExchange,
+              void 0,
+              void 0,
+              role
+            );
+            result = { ...result, detail: repaired.detail };
+            issues = checkCounts(canonicalDetail(result.detail, outputLanguage, template), template);
+          } catch (error) {
+            if ((signal == null ? void 0 : signal.aborted) || error instanceof Error && error.name === "AbortError") throw error;
+          } finally {
+            if (this.options.exchangeLoggingEnabled()) exchanges == null ? void 0 : exchanges.completed(firstExchangeId);
+            supersededClosed = true;
+          }
+        }
+        result.formatIssues = issues;
+      }
       console.debug("Visual Agent Map AI metrics", {
         ...prepared.metrics,
         providerMs: Date.now() - providerStarted,
@@ -28017,7 +29166,7 @@ var AiTaskService = class {
       });
       return result;
     } catch (error) {
-      if (this.options.exchangeLoggingEnabled())
+      if (this.options.exchangeLoggingEnabled() && !supersededClosed)
         exchanges == null ? void 0 : exchanges.failed(
           exchangeId,
           t("log.stage_failure_0_1", stage, error instanceof Error ? error.message : String(error))
@@ -28266,7 +29415,7 @@ ${artifact.sourceSnapshot || "No insight snapshot was supplied."}`
 }
 
 // experiences/coffee-tables/handoff-modal.ts
-var import_obsidian19 = require("obsidian");
+var import_obsidian20 = require("obsidian");
 var import_node_crypto13 = require("node:crypto");
 
 // core/thinking-artifact.ts
@@ -28394,7 +29543,7 @@ async function openCoffeeResearchHandoff(plugin, store, displayed, path, insight
   modal.open();
   return modal;
 }
-var CoffeeHandoffModal = class extends import_obsidian19.Modal {
+var CoffeeHandoffModal = class extends import_obsidian20.Modal {
   constructor(app, plugin, store, snapshot, source) {
     super(app);
     this.plugin = plugin;
@@ -28452,7 +29601,7 @@ var CoffeeHandoffModal = class extends import_obsidian19.Modal {
         (id) => this.plugin.modelLabel(id),
         this.t("coffee.unavailable")
       );
-      if (selected && !Array.from(this.model.options).some((option) => option.value === selected))
+      if (selected && !Array.from(this.model.options).some((option2) => option2.value === selected))
         this.model.add(new Option(`${this.plugin.modelLabel(selected)} (${this.t("coffee.unavailable")})`, selected));
       this.model.value = selected;
       const codex = this.plugin.modelDiscoveryState("codex"), claude = this.plugin.modelDiscoveryState("claude");
@@ -28662,10 +29811,10 @@ ${error.message}`
 };
 
 // experiences/markdown-context/selection-ai.ts
-var import_obsidian21 = require("obsidian");
+var import_obsidian22 = require("obsidian");
 
 // experiences/markdown-context/action-plan.ts
-var import_obsidian20 = require("obsidian");
+var import_obsidian21 = require("obsidian");
 function parsePlan(raw) {
   var _a, _b;
   const value = JSON.parse(
@@ -28691,7 +29840,7 @@ async function searchImages(query, signal) {
     iiprop: "url|mime",
     iiurlwidth: "640"
   });
-  const response = await (0, import_obsidian20.requestUrl)({
+  const response = await (0, import_obsidian21.requestUrl)({
     url: `https://commons.wikimedia.org/w/api.php?${params}`,
     headers: { Accept: "application/json" }
   });
@@ -28844,7 +29993,7 @@ function positionAt(source, offset) {
   const line = before.split("\n").length - 1;
   return { line, ch: before.length - (before.lastIndexOf("\n") + 1) };
 }
-var MarkdownSelectionAi = class extends import_obsidian21.Component {
+var MarkdownSelectionAi = class extends import_obsidian22.Component {
   constructor(app, options) {
     super();
     this.app = app;
@@ -28876,8 +30025,8 @@ var MarkdownSelectionAi = class extends import_obsidian21.Component {
       var _a, _b, _c;
       const image = event.target;
       if (!(image instanceof HTMLImageElement) || !this.options.autoOpen()) return;
-      const view = this.app.workspace.getLeavesOfType("markdown").map((leaf) => leaf.view).find((candidate) => candidate instanceof import_obsidian21.MarkdownView && candidate.containerEl.contains(image));
-      if (!(view instanceof import_obsidian21.MarkdownView) || !view.file) return;
+      const view = this.app.workspace.getLeavesOfType("markdown").map((leaf) => leaf.view).find((candidate) => candidate instanceof import_obsidian22.MarkdownView && candidate.containerEl.contains(image));
+      if (!(view instanceof import_obsidian22.MarkdownView) || !view.file) return;
       const markdown = view.editor.getValue();
       const embeddedPath = (_a = image.closest(".internal-embed")) == null ? void 0 : _a.getAttribute("src");
       const tokens2 = [...markdown.matchAll(/!\[\[[^\]\n]+\]\]|!\[[^\]\n]*\]\([^\n]+?\)/g)].filter((match) => {
@@ -28941,9 +30090,9 @@ var MarkdownSelectionAi = class extends import_obsidian21.Component {
     const selection = window.getSelection();
     const range = selection && !selection.isCollapsed && selection.rangeCount ? selection.getRangeAt(0) : null;
     const view = this.app.workspace.getLeavesOfType("markdown").map((leaf) => leaf.view).find(
-      (candidate) => candidate instanceof import_obsidian21.MarkdownView && candidate.file && (range ? candidate.containerEl.contains(range.commonAncestorContainer) : candidate.getMode() === "source" && candidate.containerEl.contains(document.activeElement))
+      (candidate) => candidate instanceof import_obsidian22.MarkdownView && candidate.file && (range ? candidate.containerEl.contains(range.commonAncestorContainer) : candidate.getMode() === "source" && candidate.containerEl.contains(document.activeElement))
     );
-    if (!(view instanceof import_obsidian21.MarkdownView) || !view.file) {
+    if (!(view instanceof import_obsidian22.MarkdownView) || !view.file) {
       this.hideLauncher();
       return;
     }
@@ -28985,7 +30134,7 @@ var MarkdownSelectionAi = class extends import_obsidian21.Component {
     }
     this.updateLauncher(this.options.autoOpen());
     if (!this.snapshot) {
-      const view = this.app.workspace.getActiveViewOfType(import_obsidian21.MarkdownView);
+      const view = this.app.workspace.getActiveViewOfType(import_obsidian22.MarkdownView);
       if (!(view == null ? void 0 : view.file) || view.getMode() !== "source") return false;
       const markdown = view.editor.getValue();
       const matchAt = view.editor.posToOffset(view.editor.getCursor());
@@ -29012,7 +30161,7 @@ var MarkdownSelectionAi = class extends import_obsidian21.Component {
     this.panel.open();
   }
 };
-var SelectionAiPanel = class extends import_obsidian21.Component {
+var SelectionAiPanel = class extends import_obsidian22.Component {
   constructor(app, snapshot, model, language2, run) {
     super();
     this.app = app;
@@ -29139,7 +30288,7 @@ var SelectionAiPanel = class extends import_obsidian21.Component {
         })
       )
     );
-    new import_obsidian21.Setting(footer).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => this.close())).addButton(
+    new import_obsidian22.Setting(footer).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => this.close())).addButton(
       (button) => button.setButtonText(t("ui.context_ai_run_custom")).setCta().onClick(() => {
         const prompt = instruction.value.trim();
         if (!prompt) {
@@ -29296,9 +30445,9 @@ var SelectionAiPanel = class extends import_obsidian21.Component {
             result
           ))
             throw new Error(t("ui.context_ai_invalid_diagram"));
-          this.previewChild = new import_obsidian21.Component();
+          this.previewChild = new import_obsidian22.Component();
           this.previewChild.load();
-          await import_obsidian21.MarkdownRenderer.render(this.app, result, this.preview, this.snapshot.path, this.previewChild);
+          await import_obsidian22.MarkdownRenderer.render(this.app, result, this.preview, this.snapshot.path, this.previewChild);
         }
       }
       if (controller.signal.aborted || !this.modalEl.isConnected) return;
@@ -29410,12 +30559,12 @@ ${value}
       editor.replaceRange(addition, end, end);
     }
     this.close();
-    new import_obsidian21.Notice(action === "replace" ? t("ui.context_ai_replaced") : t("ui.context_ai_appended"));
+    new import_obsidian22.Notice(action === "replace" ? t("ui.context_ai_replaced") : t("ui.context_ai_appended"));
   }
 };
 
 // main.ts
-var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
+var VisualAgentMapPlugin = class extends import_obsidian23.Plugin {
   constructor() {
     super(...arguments);
     __publicField(this, "settings", { ...DEFAULT_SETTINGS });
@@ -29476,6 +30625,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
     __publicField(this, "firstInstallSamplePending", false);
     __publicField(this, "workspaceRecoveryCandidates", []);
     __publicField(this, "languageSwitchPending", false);
+    __publicField(this, "unreadableReported", /* @__PURE__ */ new Map());
   }
   recordFailure(context, error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -29496,7 +30646,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
       const message = error instanceof Error ? error.message : String(error);
       this.logs.appendLog("error", t("log.operation_failed_0", message));
       console.error("Visual Agent Map", error);
-      new import_obsidian22.Notice(message);
+      new import_obsidian23.Notice(message);
     });
     return result;
   }
@@ -29570,11 +30720,13 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
   }
   async onload() {
     var _a, _b;
-    announceTestOverrides((message) => new import_obsidian22.Notice(message, 0));
+    announceTestOverrides((message) => new import_obsidian23.Notice(message, 0));
     const saved = await this.loadData();
     const legacy = saved;
     this.settings = {
       ...DEFAULT_SETTINGS,
+      detailTemplates: normalizeTemplates(saved == null ? void 0 : saved.detailTemplates),
+      defaultDetailTemplateId: typeof (saved == null ? void 0 : saved.defaultDetailTemplateId) === "string" ? saved.defaultDetailTemplateId : void 0,
       coffeeStyles: Array.isArray(saved == null ? void 0 : saved.coffeeStyles) ? saved.coffeeStyles.filter(
         (item) => !!item && typeof item === "object" && typeof item.id === "string" && typeof item.name === "string" && typeof item.prompt === "string"
       ) : [],
@@ -29617,7 +30769,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
       checkCallback: (checking) => markdownSelectionAi.openForSelection(checking)
     });
     this.logs.appendLog("info", t("log.plugin_loaded_0", this.manifest.version || "unknown"));
-    if (this.app.vault.adapter instanceof import_obsidian22.FileSystemAdapter && this.manifest.dir) {
+    if (this.app.vault.adapter instanceof import_obsidian23.FileSystemAdapter && this.manifest.dir) {
       const pluginDirectory = (0, import_node_path2.join)(this.app.vault.adapter.getBasePath(), this.manifest.dir);
       this.exchanges = new AiExchangeLog(
         (0, import_node_path2.join)(pluginDirectory, "ai-exchanges.json"),
@@ -29637,6 +30789,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
       await this.pendingSuggestions.load();
     }
     this.repo = new Repository(this.app, this.settings);
+    this.repo.onUnreadableMaps = (failures) => this.reportUnreadableMaps(failures);
     const initialize = (this.settings.migrated ? Promise.resolve() : this.repo.migrate().then(async () => {
       await this.repo.rebuildDerivedData();
       this.settings.migrated = true;
@@ -29659,7 +30812,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
         const count = await this.repo.normalizeGeneratedNoteFilenames();
         this.settings.structureVersion = 2;
         await this.saveSettings();
-        if (count) new import_obsidian22.Notice(t("ui.synced_0_subtopic_filenames_with_their_names", count));
+        if (count) new import_obsidian23.Notice(t("ui.synced_0_subtopic_filenames_with_their_names", count));
       }
     });
     this.ready = initialize;
@@ -29689,7 +30842,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
       (session, summariesOnly) => this.coffeeStorage.save(session, summariesOnly)
     );
     const openCoffee = () => {
-      void this.activateCoffeeTables().catch((error) => new import_obsidian22.Notice(String(error)));
+      void this.activateCoffeeTables().catch((error) => new import_obsidian23.Notice(String(error)));
     };
     const coffeeRibbonIcon = this.addRibbonIcon("coffee", `Open ${COFFEE_TABLES_NAME}`, openCoffee);
     this.addCommand({ id: "open-coffee-tables", name: `Open ${COFFEE_TABLES_NAME}`, callback: openCoffee });
@@ -29700,32 +30853,32 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
         try {
           await this.openDetails(this.repo.file(path));
         } catch (error) {
-          new import_obsidian22.Notice(error instanceof Error ? error.message : String(error));
+          new import_obsidian23.Notice(error instanceof Error ? error.message : String(error));
         }
       })
     );
     this.ribbonIcon = this.addRibbonIcon("brain-circuit", t("ui.open_map"), () => {
-      void this.activateView().catch((error) => new import_obsidian22.Notice(String(error)));
+      void this.activateView().catch((error) => new import_obsidian23.Notice(String(error)));
     });
     const mapRibbonIcon = this.ribbonIcon;
     this.app.workspace.onLayoutReady(() => this.register(groupRibbonIcons(mapRibbonIcon, coffeeRibbonIcon)));
     this.addLocalizedCommand("open-map", "ui.open_map", () => {
-      void this.activateView().catch((error) => new import_obsidian22.Notice(String(error)));
+      void this.activateView().catch((error) => new import_obsidian23.Notice(String(error)));
     });
     this.addLocalizedCommand(AIM_CREATE_MAP_COMMAND_ID, "ui.aim_create_map", () => {
       void this.activateView().then(() => {
         var _a2;
         return (_a2 = this.views()[0]) == null ? void 0 : _a2.openAimStart();
-      }).catch((error) => new import_obsidian22.Notice(String(error)));
+      }).catch((error) => new import_obsidian23.Notice(String(error)));
     });
     this.addLocalizedCommand("import-outline", "ui.outline_import", () => {
       void this.activateView().then(() => {
         var _a2;
         return (_a2 = this.views()[0]) == null ? void 0 : _a2.openOutlineImport();
-      }).catch((error) => new import_obsidian22.Notice(String(error)));
+      }).catch((error) => new import_obsidian23.Notice(String(error)));
     });
     this.addLocalizedCommand("open-topic-outline", "ui.open_topic_outline", () => {
-      void this.activateOutline().catch((error) => new import_obsidian22.Notice(String(error)));
+      void this.activateOutline().catch((error) => new import_obsidian23.Notice(String(error)));
     });
     this.addLocalizedCommand("rebuild-references", "ui.refresh_vam_data", () => {
       this.runMutation(() => this.fullRebuild());
@@ -29733,13 +30886,13 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
     this.addLocalizedCommand("normalize-note-filenames", "ui.sync_topic_names_and_filenames", () => {
       this.runMutation(async () => {
         const count = await this.repo.normalizeGeneratedNoteFilenames();
-        new import_obsidian22.Notice(count ? t("ui.synced_0_topic_filenames", count) : t("ui.topic_filenames_are_up_to_date"));
+        new import_obsidian23.Notice(count ? t("ui.synced_0_topic_filenames", count) : t("ui.topic_filenames_are_up_to_date"));
       });
     });
     this.addLocalizedCommand("repair-note-presentation", "ui.repair_topic_note_display", () => {
       this.runMutation(async () => {
         await this.repo.ensureNodePresentation();
-        new import_obsidian22.Notice(t("ui.topic_note_display_repaired"));
+        new import_obsidian23.Notice(t("ui.topic_note_display_repaired"));
       });
     });
     this.addLocalizedCommand("open-built-in-sample", "ui.open_the_taiwan_travel_sample", () => {
@@ -29774,7 +30927,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
     this.addSettingTab(this.settingTab);
     this.registerEvent(
       this.app.workspace.on("file-menu", (menu, file) => {
-        if (file instanceof import_obsidian22.TFile && this.isMap(file))
+        if (file instanceof import_obsidian23.TFile && this.isMap(file))
           menu.addItem(
             (item) => item.setTitle(t("ui.open_as_mind_map")).setIcon("brain-circuit").onClick(() => {
               void this.activateView(file.path);
@@ -29791,9 +30944,9 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
           return;
         }
         this.syncCoffeeOutline();
-        if (!((leaf == null ? void 0 : leaf.view) instanceof import_obsidian22.MarkdownView) || !leaf.view.file || !this.isMap(leaf.view.file)) return;
+        if (!((leaf == null ? void 0 : leaf.view) instanceof import_obsidian23.MarkdownView) || !leaf.view.file || !this.isMap(leaf.view.file)) return;
         const path = leaf.view.file.path;
-        void leaf.setViewState({ type: VIEW_TYPE, state: { file: path }, active: true }).catch((error) => new import_obsidian22.Notice(error instanceof Error ? error.message : String(error)));
+        void leaf.setViewState({ type: VIEW_TYPE, state: { file: path }, active: true }).catch((error) => new import_obsidian23.Notice(error instanceof Error ? error.message : String(error)));
       })
     );
     this.registerEvent(
@@ -29819,15 +30972,19 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
         console.warn("Visual Agent Map initialization", error);
       });
     });
+    this.registerVaultEvents();
+  }
+  /** Vault modify/delete/rename handlers; kept separate so tests can drive the real handlers on a fake vault. */
+  registerVaultEvents() {
     this.registerEvent(
       this.app.vault.on("modify", (file) => {
-        if (!this.writing && file instanceof import_obsidian22.TFile) for (const view of this.views()) view.changed(file);
+        if (!this.writing && file instanceof import_obsidian23.TFile) for (const view of this.views()) view.changed(file);
       })
     );
     this.registerEvent(
       this.app.vault.on("delete", (file) => {
-        if (file instanceof import_obsidian22.TFile) this.scheduleExternalReconciliation(file.path);
-        if (!this.writing && file instanceof import_obsidian22.TFile) {
+        if (file instanceof import_obsidian23.TFile) this.scheduleExternalReconciliation(file.path);
+        if (!this.writing && file instanceof import_obsidian23.TFile) {
           for (const view of this.views()) view.deleted(file);
           if (file.path.startsWith(`${this.settings.mapsFolder}/`) || file.path.startsWith(`${this.settings.topicsFolder}/`) && file.name === "Map.md")
             this.runMutation(() => this.repo.rebuildDerivedData());
@@ -29836,26 +30993,19 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
     );
     this.registerEvent(
       this.app.vault.on("rename", (file, oldPath) => {
-        if (!(file instanceof import_obsidian22.TFile) || !this.repo.renameAffectsVam(file, oldPath)) return;
+        if (!(file instanceof import_obsidian23.TFile) || !this.repo.renameAffectsVam(file, oldPath)) return;
         const external = !this.writing;
         this.runMutation(async () => {
-          var _a2;
+          var _a;
           await this.repo.replaceSourcePath(oldPath, file.path);
           let mapChanged = false;
-          for (const mapFile of await this.repo.mapFiles()) {
-            const map = await this.repo.readMap(mapFile.path);
-            let changed = false;
-            for (const node of map.nodes)
-              if (node.path === oldPath) {
-                node.path = file.path;
-                changed = true;
-              }
-            if (changed) {
+          for (const { file: mapFile, map } of await this.repo.readableMaps()) {
+            if (rebaseMapNotePaths(map, moveNotePath(oldPath, file.path))) {
               await this.repo.saveMap(mapFile.path, map);
               mapChanged = true;
             }
           }
-          const frontmatter2 = (_a2 = this.app.metadataCache.getFileCache(file)) == null ? void 0 : _a2.frontmatter;
+          const frontmatter2 = (_a = this.app.metadataCache.getFileCache(file)) == null ? void 0 : _a.frontmatter;
           const vamFile = [frontmatter2 == null ? void 0 : frontmatter2["agent-map-node"], frontmatter2 == null ? void 0 : frontmatter2["visual-agent-map"]].some(
             (value) => value === true || value === "true"
           );
@@ -29864,6 +31014,20 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
         });
       })
     );
+  }
+  /** One Notice and log line per scan; the same map and error is not repeated within a few seconds (one rename = two scans). */
+  reportUnreadableMaps(failures) {
+    var _a;
+    const now = Date.now();
+    for (const { path, error } of failures) {
+      const key2 = `${path}
+${error}`;
+      if (now - ((_a = this.unreadableReported.get(key2)) != null ? _a : 0) < 5e3) continue;
+      this.unreadableReported.set(key2, now);
+      const message = t("ui.map_unreadable_skipped_0_1", path, error);
+      this.logs.appendLog("warn", message);
+      new import_obsidian23.Notice(message);
+    }
   }
   consumeFirstInstallSample() {
     const pending = this.firstInstallSamplePending;
@@ -29875,12 +31039,12 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
     this.settings.workspaceInitialized = true;
     await this.saveSettings();
     for (const view of this.views()) await view.refreshFromPlugin();
-    new import_obsidian22.Notice(t("ui.agent_workspace_is_ready"));
+    new import_obsidian23.Notice(t("ui.agent_workspace_is_ready"));
   }
   async fullRebuild() {
     await this.repo.rebuildDerivedData();
     for (const view of this.views()) await view.refreshFromPlugin();
-    new import_obsidian22.Notice(t("ui.vam_data_has_been_refreshed"));
+    new import_obsidian23.Notice(t("ui.vam_data_has_been_refreshed"));
   }
   connectWorkspace(root) {
     this.settings.workspaceFolder = root;
@@ -29894,7 +31058,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
     const candidates = known != null ? known : await this.repo.workspaceCandidates();
     this.workspaceRecoveryCandidates = [];
     if (!candidates.length) {
-      new import_obsidian22.Notice(t("ui.no_recognizable_existing_vam_workspace_was_found"));
+      new import_obsidian23.Notice(t("ui.no_recognizable_existing_vam_workspace_was_found"));
       return;
     }
     new ChoiceModal(
@@ -29908,7 +31072,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
           await this.saveSettings();
           await this.repo.rebuildDerivedData();
           for (const view of this.views()) await view.refreshFromPlugin();
-          new import_obsidian22.Notice(t("ui.reconnected_workspace_0", root));
+          new import_obsidian23.Notice(t("ui.reconnected_workspace_0", root));
         })
       }))
     ).open();
@@ -29982,19 +31146,19 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
     const diagnostic = this.codexDiagnostic();
     if (!diagnostic.installed) {
       if (showGuide) this.openCodexSetupGuide();
-      else new import_obsidian22.Notice(t("ui.codex_cli_was_not_found_0_set_the_codex_cli_path_in_vam_sett", diagnostic.executable));
+      else new import_obsidian23.Notice(t("ui.codex_cli_was_not_found_0_set_the_codex_cli_path_in_vam_sett", diagnostic.executable));
       return;
     }
     const state = await this.refreshModelDiscovery("codex");
-    if (state.status === "ready") new import_obsidian22.Notice(t("ui.codex_app_server_is_ready_0", diagnostic.executable));
+    if (state.status === "ready") new import_obsidian23.Notice(t("ui.codex_app_server_is_ready_0", diagnostic.executable));
     else if (state.status === "error")
-      new import_obsidian22.Notice(
+      new import_obsidian23.Notice(
         t(
           "ui.codex_app_server_check_failed_0",
           this.recordFailure(t("log.codex_recheck_failed"), (_a = state.error) != null ? _a : "unknown error")
         )
       );
-    else new import_obsidian22.Notice(t("ui.codex_cli_was_not_found_0_set_the_codex_cli_path_in_vam_sett", diagnostic.executable));
+    else new import_obsidian23.Notice(t("ui.codex_cli_was_not_found_0_set_the_codex_cli_path_in_vam_sett", diagnostic.executable));
   }
   async duplicateBuiltInSample() {
     await this.repo.ensureWorkspace();
@@ -30042,7 +31206,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
       await this.repo.saveMap(path, map);
       await this.repo.rebuildDerivedData(root);
       await this.saveSettings();
-      new import_obsidian22.Notice(t("ui.created_an_editable_copy_of_the_sample"));
+      new import_obsidian23.Notice(t("ui.created_an_editable_copy_of_the_sample"));
       return path;
     } catch (error) {
       if (createdRoot) {
@@ -30070,7 +31234,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
     return marker4 === true || marker4 === "true" || file.extension === "md" && (file.path.startsWith(`${this.settings.notesFolder}/`) || file.path.startsWith(`${this.settings.topicsFolder}/`) || file.path.startsWith(`${this.settings.inboxFolder}/`));
   }
   styleNodeLeaf(leaf) {
-    if (!((leaf == null ? void 0 : leaf.view) instanceof import_obsidian22.MarkdownView)) return;
+    if (!((leaf == null ? void 0 : leaf.view) instanceof import_obsidian23.MarkdownView)) return;
     leaf.view.containerEl.toggleClass("vam-topic-markdown", !!leaf.view.file && this.isNode(leaf.view.file));
   }
   onunload() {
@@ -30095,7 +31259,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
         await this.saveData(nextSettings);
       } catch (error) {
         this.recordFailure(translate(previous, "ui.language_change_save_failed"), error);
-        new import_obsidian22.Notice(translate(previous, "ui.language_change_save_failed"));
+        new import_obsidian23.Notice(translate(previous, "ui.language_change_save_failed"));
         return false;
       }
       Object.assign(this.settings, nextSettings);
@@ -30122,7 +31286,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
         failures.push(error);
       }
       for (const error of failures) this.recordFailure(t("ui.language_view_refresh_failed"), error);
-      new import_obsidian22.Notice(
+      new import_obsidian23.Notice(
         failures.length ? t("ui.language_change_partial_failure") : t("ui.language_changed_content_preserved")
       );
       return true;
@@ -30163,7 +31327,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
         this.openCodexSetupGuide();
         return false;
       }
-      new import_obsidian22.Notice(t("ui.current_model_is_unavailable"));
+      new import_obsidian23.Notice(t("ui.current_model_is_unavailable"));
     } catch (error) {
       this.logs.appendLog("warn", t("log.codex_not_ready_0", error instanceof Error ? error.message : String(error)));
     }
@@ -30181,10 +31345,10 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
     const diagnostic = this.claudeDiagnostic();
     const state = await this.refreshModelDiscovery("claude");
     if (!diagnostic.installed) {
-      new import_obsidian22.Notice(t("ui.claude_cli_was_not_found_follow_the_installation_guide_to_install_it"));
+      new import_obsidian23.Notice(t("ui.claude_cli_was_not_found_follow_the_installation_guide_to_install_it"));
       return;
     }
-    new import_obsidian22.Notice(t("ui.claude_cli_found_0", diagnostic.executable));
+    new import_obsidian23.Notice(t("ui.claude_cli_found_0", diagnostic.executable));
     if (state.status !== "ready") this.logs.appendLog("warn", `Claude model discovery status: ${state.status}`);
   }
   async confirmAiUsage(model, run) {
@@ -30206,7 +31370,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
       await this.repo.rebuildDerivedData();
     } catch (error) {
       console.error("Visual Agent Map reference rebuild", error);
-      new import_obsidian22.Notice(
+      new import_obsidian23.Notice(
         t("ui.map_saved_but_reference_update_failed_0", error instanceof Error ? error.message : String(error))
       );
     }
@@ -30240,7 +31404,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
       this.detailsLeaf = (_b = (_a = markdownLeaves.filter(
         (leaf) => {
           var _a2, _b2;
-          return leaf.getRoot() === this.app.workspace.rightSplit && leaf.view instanceof import_obsidian22.MarkdownView && !!leaf.view.file && ((_b2 = (_a2 = this.app.metadataCache.getFileCache(leaf.view.file)) == null ? void 0 : _a2.frontmatter) == null ? void 0 : _b2["agent-map-node"]) === true;
+          return leaf.getRoot() === this.app.workspace.rightSplit && leaf.view instanceof import_obsidian23.MarkdownView && !!leaf.view.file && ((_b2 = (_a2 = this.app.metadataCache.getFileCache(leaf.view.file)) == null ? void 0 : _a2.frontmatter) == null ? void 0 : _b2["agent-map-node"]) === true;
         }
       ).sort(
         (a, b) => a.view.containerEl.getBoundingClientRect().top - b.view.containerEl.getBoundingClientRect().top
@@ -30254,11 +31418,11 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
   }
   closeStaleDetails() {
     var _a, _b, _c, _d;
-    const closed = ((_a = this.detailsLeaf) == null ? void 0 : _a.view) instanceof import_obsidian22.MarkdownView && ((_b = this.detailsLeaf.view.file) == null ? void 0 : _b.path) === this.detailsPath;
+    const closed = ((_a = this.detailsLeaf) == null ? void 0 : _a.view) instanceof import_obsidian23.MarkdownView && ((_b = this.detailsLeaf.view.file) == null ? void 0 : _b.path) === this.detailsPath;
     if (closed) {
       this.detailsLeaf.detach();
       this.app.workspace.trigger("file-open", null);
-      this.app.workspace.trigger("active-leaf-change", (_d = (_c = this.app.workspace.getActiveViewOfType(import_obsidian22.View)) == null ? void 0 : _c.leaf) != null ? _d : null);
+      this.app.workspace.trigger("active-leaf-change", (_d = (_c = this.app.workspace.getActiveViewOfType(import_obsidian23.View)) == null ? void 0 : _c.leaf) != null ? _d : null);
     }
     this.detailsLeaf = null;
     this.detailsPath = null;
@@ -30274,7 +31438,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
     if (leaf.view instanceof CoffeeTablesView) this.syncCoffeeOutline(leaf.view);
   }
   async runCoffeeRequest(request) {
-    if (!(this.app.vault.adapter instanceof import_obsidian22.FileSystemAdapter) || !this.manifest.dir)
+    if (!(this.app.vault.adapter instanceof import_obsidian23.FileSystemAdapter) || !this.manifest.dir)
       throw new Error("Coffee Tables requires the desktop runtime");
     const { session, signal, prompt } = request;
     const directory = (0, import_node_path2.join)(this.app.vault.adapter.getBasePath(), this.manifest.dir);
@@ -30352,12 +31516,12 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
     }
     let bytes;
     const embeddedPath = (_b = (_a = image.closest(".internal-embed")) == null ? void 0 : _a.getAttribute("src")) == null ? void 0 : _b.split("#")[0];
-    const view = this.app.workspace.getLeavesOfType("markdown").map((leaf) => leaf.view).find((view2) => view2 instanceof import_obsidian22.MarkdownView && view2.containerEl.contains(image));
+    const view = this.app.workspace.getLeavesOfType("markdown").map((leaf) => leaf.view).find((view2) => view2 instanceof import_obsidian23.MarkdownView && view2.containerEl.contains(image));
     const file = embeddedPath ? this.app.metadataCache.getFirstLinkpathDest(
       embeddedPath,
-      view instanceof import_obsidian22.MarkdownView ? (_d = (_c = view.file) == null ? void 0 : _c.path) != null ? _d : "" : ""
+      view instanceof import_obsidian23.MarkdownView ? (_d = (_c = view.file) == null ? void 0 : _c.path) != null ? _d : "" : ""
     ) : null;
-    if (file instanceof import_obsidian22.TFile) bytes = await this.app.vault.readBinary(file);
+    if (file instanceof import_obsidian23.TFile) bytes = await this.app.vault.readBinary(file);
     else throw new Error(t("ui.context_ai_image_unavailable"));
     if (signal.aborted) throw new Error(t("ui.ai_task_cancelled"));
     if (bytes.byteLength > 10 * 1024 * 1024) throw new Error(t("ui.context_ai_image_unavailable"));
@@ -30436,7 +31600,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
       if (!this.coffeeStorage) throw new Error("Coffee storage is not ready");
       await openCoffeeResearchHandoff(this, this.coffeeStorage, session, sourcePath, insightId);
     } catch (error) {
-      new import_obsidian22.Notice(error instanceof Error ? error.message : String(error));
+      new import_obsidian23.Notice(error instanceof Error ? error.message : String(error));
     }
   }
   async openResearchMap(path) {
@@ -30464,7 +31628,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
   }
   async loadCodexModels() {
     const adapter = this.app.vault.adapter;
-    if (!(adapter instanceof import_obsidian22.FileSystemAdapter) || !this.manifest.dir)
+    if (!(adapter instanceof import_obsidian23.FileSystemAdapter) || !this.manifest.dir)
       throw new Error("Codex model discovery requires desktop Obsidian");
     const pluginDirectory = (0, import_node_path2.join)(adapter.getBasePath(), this.manifest.dir);
     const models = await this.runtime(pluginDirectory).listModels();
@@ -30483,7 +31647,7 @@ var VisualAgentMapPlugin = class extends import_obsidian22.Plugin {
   }
   pluginDirectory() {
     const adapter = this.app.vault.adapter;
-    if (!(adapter instanceof import_obsidian22.FileSystemAdapter)) throw new Error(t("ui.cli_mode_requires_desktop_obsidian"));
+    if (!(adapter instanceof import_obsidian23.FileSystemAdapter)) throw new Error(t("ui.cli_mode_requires_desktop_obsidian"));
     if (!this.manifest.dir) throw new Error(t("ui.plugin_folder_not_found"));
     return (0, import_node_path2.join)(adapter.getBasePath(), this.manifest.dir);
   }

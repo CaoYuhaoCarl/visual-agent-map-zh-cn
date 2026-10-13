@@ -548,3 +548,78 @@ integrationTest('repository: titles differing only in case get distinct file nam
   assert.ok(app.vault.getAbstractFileByPath(first.path));
   assert.equal(first.path.endsWith('/Apple.md'), true);
 });
+
+integrationTest('topic remembers its content template and format issues in frontmatter', async () => {
+  const { repo, app } = fixture('en');
+  const map = { id: 'm', title: 'M', version: 1, nodes: [], viewport: { x: 0, y: 0, zoom: 1 } };
+  const mapPath = 'Agent Workspace/Topics/M/Map.md';
+  await repo.ensureTopicFolders('Agent Workspace/Topics/M'); await app.vault.create(mapPath, core.serializeMap(map));
+  const node = await repo.createNote('T', 'model-a', map, mapPath, 'workspace');
+  assert.equal((await repo.readNote(node.path)).detailTemplateId, undefined);
+  assert.deepEqual(plain((await repo.readNote(node.path)).detailFormatIssues), []);
+  await repo.updateNote(node.path, { detailTemplateId: 't1', detailFormatIssues: ['Examples: need 3, got 2'] });
+  let note = await repo.readNote(node.path);
+  assert.equal(note.detailTemplateId, 't1'); assert.deepEqual(plain(note.detailFormatIssues), ['Examples: need 3, got 2']);
+  const raw = await app.vault.read(app.vault.getAbstractFileByPath(node.path));
+  assert.match(raw, /detail-template: "?t1"?/);
+  await repo.updateNote(node.path, { detailTemplateId: '', detailFormatIssues: [] });
+  note = await repo.readNote(node.path);
+  assert.equal(note.detailTemplateId, undefined); assert.deepEqual(plain(note.detailFormatIssues), []);
+  assert.doesNotMatch(await app.vault.read(app.vault.getAbstractFileByPath(node.path)), /detail-format-issues|detail-template/);
+});
+integrationTest('visual reference without a related paragraph goes before the sources section (zh and en)', async () => {
+  const { canonicalDetail } = load('ai/result-utils.ts');
+  const reference = '**Pic**\n\n![Pic](https://x/y.png)\n\nSource: https://x';
+  {
+    const { repo } = fixture('en'); const n = await topicNote(repo, 'English picture');
+    await repo.updateNote(n.path, { detail: canonicalDetail('### Key knowledge\n\nK', 'en'), visualReferences: reference });
+    const detail = (await repo.readNote(n.path)).detail;
+    assert.ok(detail.indexOf('**Pic**') > detail.indexOf('\nK\n'), 'after the knowledge text');
+    assert.ok(detail.indexOf('**Pic**') < detail.indexOf('### Evidence and sources'), 'before the sources section');
+  }
+  {
+    const { repo } = fixture(); const n = await topicNote(repo, '中文圖片');
+    await repo.updateNote(n.path, { detail: canonicalDetail('### 關鍵知識\n\nK', 'zh-TW'), visualReferences: reference });
+    const detail = (await repo.readNote(n.path)).detail;
+    assert.ok(detail.indexOf('**Pic**') > detail.indexOf('\nK\n'));
+    assert.ok(detail.indexOf('**Pic**') < detail.indexOf('### 證據與來源'));
+  }
+  {
+    const { repo } = fixture('en'); const n = await topicNote(repo, 'No sources picture');
+    const template = { id: 't1', name: 'T', sections: [{ id: 'a', name: 'A', description: '', role: 'none', aliases: [] }, { id: 'b', name: 'B', description: '', role: 'log', aliases: [] }] };
+    await repo.updateNote(n.path, { detail: canonicalDetail('### A\n\nK', 'en', template), visualReferences: reference }, { detailTemplate: template });
+    const detail = (await repo.readNote(n.path)).detail;
+    assert.ok(detail.indexOf('**Pic**') > detail.indexOf('### B'), 'at the end');
+    assert.match(detail, /Source: https:\/\/x$/);
+  }
+});
+integrationTest('visual reference placement: a sources alias equal to another section name is not the sources heading', async () => {
+  const { canonicalDetail } = load('ai/result-utils.ts');
+  const reference = '**Pic**\n\n![Pic](https://x/y.png)\n\nSource: https://x';
+  const { repo } = fixture('en'); const n = await topicNote(repo, 'Alias picture');
+  const template = { id: 't1', name: 'T', sections: [
+    { id: 'a', name: 'A', description: '', role: 'none', aliases: [] },
+    { id: 'n', name: 'Notes', description: '', role: 'none', aliases: [] },
+    { id: 'r', name: 'Refs', description: '', role: 'sources', aliases: ['Notes'] }] };
+  await repo.updateNote(n.path, { detail: canonicalDetail('### A\n\nK\n\n### Notes\n\nN\n\n### Refs\n\nE', 'en', template), visualReferences: reference }, { detailTemplate: template });
+  const detail = (await repo.readNote(n.path)).detail;
+  assert.ok(detail.indexOf('**Pic**') > detail.indexOf('\nN\n'), 'after the Notes section text');
+  assert.ok(detail.indexOf('**Pic**') < detail.indexOf('### Refs'), 'before the sources section');
+});
+integrationTest('legacy Visual References section moves into Detail before the Standard sources heading on rebuild (zh and en)', async () => {
+  const { canonicalDetail } = load('ai/result-utils.ts');
+  const legacy = '\n\n## Visual References\n\n**Pic**\n\n![Pic](https://x/y.png)\n\nSource: https://x\n';
+  for (const [language, knowledge, sources] of [['zh-TW', '關鍵知識', '證據與來源'], ['en', 'Key knowledge', 'Evidence and sources']]) {
+    const { repo, contents } = fixture(language); const n = await topicNote(repo, `Legacy ${language}`);
+    await repo.updateNote(n.path, { detail: canonicalDetail(`### ${knowledge}\n\nK`, language) });
+    contents.set(n.path, `${contents.get(n.path).trimEnd()}${legacy}`);
+    await repo.rebuildDerivedData();
+    const raw = contents.get(n.path);
+    assert.doesNotMatch(raw, /## Visual References/, language);
+    const detail = (await repo.readNote(n.path)).detail;
+    const image = detail.indexOf('![Pic](https://x/y.png)');
+    assert.ok(image > detail.indexOf(`### ${knowledge}\n\nK`), `${language}: after the key knowledge text\n${detail}`);
+    assert.ok(image < detail.indexOf(`### ${sources}`), `${language}: before the sources heading\n${detail}`);
+    assert.match(detail, new RegExp(`### ${knowledge}\\n\\nK\\n\\n\\*\\*Pic\\*\\*\\n\\n!\\[Pic\\]\\(https://x/y\\.png\\)\\n\\nSource: https://x\\n\\n### ${sources}`), language);
+  }
+});

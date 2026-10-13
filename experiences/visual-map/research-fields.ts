@@ -43,3 +43,19 @@ export function modelField(
   const dispose = models.watch(fill);
   return { value: () => model.value || undefined, dispose };
 }
+
+/** Content template select whose first option (empty value) is `defaultLabel`; returns the chosen template id, or undefined when that first option is selected. */
+export function templateField(
+  parent: HTMLElement,
+  templates: { id: string; name: string }[],
+  defaultLabel: string
+): () => string | undefined {
+  const label = parent.createEl("label", { cls: "vam-field" });
+  label.createSpan({ text: t("ui.detail_template") });
+  const select = label.createEl("select");
+  select.setAttr("aria-label", t("ui.detail_template"));
+  select.createEl("option", { value: "", text: defaultLabel });
+  for (const template of templates) select.createEl("option", { value: template.id, text: template.name });
+  select.value = "";
+  return () => select.value || undefined;
+}

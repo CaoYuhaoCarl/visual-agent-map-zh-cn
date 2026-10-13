@@ -3,7 +3,7 @@ import { AimClarificationModal } from "../../ui/modals/aim-clarification-modal";
 import { withThinkingOrigin } from "./thinking-origin";
 import { createHash, randomUUID } from "node:crypto";
 import type VisualAgentMapPlugin from "../../main";
-import { t, topicStatusLabel, translate, type TranslationKey } from "../../i18n";
+import { t, topicStatusLabel, translate, type TranslationKey, type UiLanguage } from "../../i18n";
 import { MarkdownRenderer, ItemView, Modal, Notice, TFile, WorkspaceLeaf } from "obsidian";
 import { readMarkdownFile, type ReferenceGroup } from "../../ai/reference-materials";
 import { NameModal } from "../../ui/modals/name-modal";
@@ -36,8 +36,25 @@ import {
   synthesisGoalTask,
   thinkingOriginDocumentBlock
 } from "./steps/fragments";
-import { normalizeReasoningLevel, type Note, type NotePatch, type TopicInfo, type TopicState } from "../../repository";
+import {
+  moveNotePath,
+  normalizeReasoningLevel,
+  rebaseMapNotePaths,
+  type Note,
+  type NotePatch,
+  type TopicInfo,
+  type TopicState
+} from "../../repository";
 import { canonicalDetail, visualReferencesMarkdown } from "../../ai/result-utils";
+import {
+  checkCounts,
+  countIssueText,
+  resolveTemplate,
+  standardTemplate,
+  STANDARD_TEMPLATE_ID,
+  type CountIssue,
+  type DetailTemplate
+} from "../../ai/detail-templates";
 import type { AiResult, Suggestion, TaskContext } from "../../ai/types";
 import { clampPreviewScale, previewMetrics } from "../../ui/preview-utils";
 import { BUILTIN_SAMPLE_ID, builtInSample, SAMPLE_TOUR_VERSION } from "../../builtin-sample";
@@ -47,6 +64,7 @@ import { createOutlineMap } from "./outline-import";
 import { OutlineImportModal, type OutlineImportRequest } from "./outline-import-modal";
 import { MultiResearchModal, type MultiResearchRequest } from "./multi-research-modal";
 import type { ModelChoices } from "./research-fields";
+import type { ExpansionBatchState } from "./expansion-batch";
 import { AimStartModal } from "../../ui/modals/aim-start-modal";
 import { AimAnswerModal } from "../../ui/modals/aim-answer-modal";
 import {
@@ -88,6 +106,17 @@ interface Action {
 function errorMessage(error: unknown): string {
   const message = (error as { message?: unknown } | null)?.message;
   return typeof message === "string" ? message : String(error);
+}
+/** The built-in Standard template follows the output language, as the fixed Detail headings always did. */
+function templateInLanguage(template: DetailTemplate, language: UiLanguage): DetailTemplate {
+  return template.id === STANDARD_TEMPLATE_ID ? standardTemplate(language) : template;
+}
+/** Unmet section counts to store on the topic; undefined (no count check ran) clears an earlier mark. */
+function formatIssuesPatch(
+  issues: CountIssue[] | undefined,
+  language: UiLanguage
+): Pick<NotePatch, "detailFormatIssues"> {
+  return { detailFormatIssues: (issues ?? []).map(issue => countIssueText(issue, language)) };
 }
 const originBaseline = (origin?: string): string =>
   createHash("sha256")
@@ -564,15 +593,31 @@ export class VisualAgentMapView extends ItemView {
       }
     };
   }
+  /** Built-in Standard plus the workspace's custom templates, for the template selects. */
+  private templateChoices(): { id: string; name: string }[] {
+    const settings = this.plugin.settings;
+    return [standardTemplate(settings.language), ...settings.detailTemplates].map(({ id, name }) => ({ id, name }));
+  }
   openOutlineImport(): void {
-    new OutlineImportModal(this.app, request => this.importOutline(request), this.modelChoices()).open();
+    new OutlineImportModal(
+      this.app,
+      request => this.importOutline(request),
+      this.modelChoices(),
+      this.templateChoices()
+    ).open();
   }
   async importOutline(request: OutlineImportRequest): Promise<void> {
     // A model chosen for the shallow research becomes the new topics' model, so later work on them uses it too.
     const model = (request.shallowResearch && request.model) || this.plugin.settings.cliModel;
+    const settings = this.plugin.settings;
+    const { template } = resolveTemplate(
+      settings.detailTemplates,
+      [request.detailTemplateId, settings.defaultDetailTemplateId],
+      settings.language
+    );
     let result: Awaited<ReturnType<typeof createOutlineMap>>;
     try {
-      result = await createOutlineMap(this.plugin.repo, model, request.nodes, request.source);
+      result = await createOutlineMap(this.plugin.repo, model, request.nodes, request.source, undefined, template);
     } catch (error) {
       // Once the map folder exists the import window must close, so a retry cannot create a second map.
       if (!(error as { mapCreated?: unknown } | null)?.mapCreated) throw error;
@@ -583,6 +628,12 @@ export class VisualAgentMapView extends ItemView {
     let opened = true;
     try {
       await this.plugin.mutate(async () => {
+        // The template chosen for the import becomes the new map's default, not a per-topic field.
+        const chosenTemplate = request.detailTemplateId;
+        if (chosenTemplate)
+          await this.plugin.repo.updateMap(result.mapPath, map => {
+            map.detailTemplateId = chosenTemplate;
+          });
         // Notes and Map.md were written directly; derive their Reference Links (map, parent, children) like any map change.
         await this.plugin.rebuildDerivedData();
         await this.openMapInMutation(result.mapPath);
@@ -1189,7 +1240,7 @@ export class VisualAgentMapView extends ItemView {
   async renamed(file: TFile, oldPath: string): Promise<void> {
     if (this.path === oldPath) this.path = file.path;
     if (this.map) {
-      for (const node of this.map.nodes) if (node.path === oldPath) node.path = file.path;
+      rebaseMapNotePaths(this.map, moveNotePath(oldPath, file.path));
       this.history.clear();
       await this.hydrate();
       this.render();
@@ -1702,7 +1753,7 @@ export class VisualAgentMapView extends ItemView {
     const after = clone(before),
       replacement = after.nodes.find(item => item.id === node.id);
     if (!replacement) throw new Error(t("ui.the_node_to_relink_was_not_found"));
-    replacement.path = target;
+    rebaseMapNotePaths(after, moveNotePath(replacement.path, target));
     await this.plugin.repo.saveMap(this.path, after);
     this.map = after;
     await this.plugin.rebuildDerivedData();
@@ -1933,6 +1984,13 @@ export class VisualAgentMapView extends ItemView {
           action: () => this.enqueue(() => this.previewMigration())
         });
     }
+    // Content templates do not apply to AIM maps.
+    if (this.map && !this.builtIn && !this.map.aim)
+      choices.push({
+        label: t("ui.detail_template_map_default"),
+        description: t("ui.detail_template_map_default_desc"),
+        action: () => this.chooseMapTemplate()
+      });
     choices.push({
       label: t("ui.repair_missing_mind_map"),
       description: t("ui.rebuild_a_missing_map_from_existing_topic_notes"),
@@ -1946,6 +2004,21 @@ export class VisualAgentMapView extends ItemView {
         action: () => this.deleteCurrentMap()
       });
     new ChoiceModal(this.app, t("ui.more_mind_map_actions"), t("ui.additional_map_management_actions"), choices).open();
+  }
+  private chooseMapTemplate(): void {
+    const apply = (id: string | undefined): void =>
+      this.enqueue(() =>
+        this.mapChange(map => {
+          if (id) map.detailTemplateId = id;
+          else delete map.detailTemplateId;
+        }, false)
+      );
+    const current = this.map?.detailTemplateId;
+    const mark = (id: string | undefined) => (id === current ? { description: t("ui.detail_template_current") } : {});
+    new ChoiceModal(this.app, t("ui.detail_template_map_default"), t("ui.detail_template_map_default_desc"), [
+      { label: t("ui.detail_template_use_workspace"), ...mark(undefined), action: () => apply(undefined) },
+      ...this.templateChoices().map(({ id, name }) => ({ label: name, ...mark(id), action: () => apply(id) }))
+    ]).open();
   }
   private aimActiveForPath(path: string): boolean {
     return this.app.workspace.getLeavesOfType(VIEW_TYPE).some(leaf => {
@@ -2641,10 +2714,18 @@ export class VisualAgentMapView extends ItemView {
             ? topicStatusLabel(note.status, this.plugin.settings.language)
             : t("ui.note_missing")
       });
+    if (note?.detailFormatIssues?.length) {
+      const issue = header.createSpan({ cls: "vam-status vam-status-error", text: t("ui.detail_format_unmet") });
+      issue.setAttr("title", note.detailFormatIssues.join("\n"));
+    }
     if (batch) {
       const currentNode = batch.currentPath ? this.map?.nodes.find(item => item.path === batch.currentPath) : undefined;
       const currentTitle = currentNode ? this.notes.get(currentNode.id)?.title : undefined;
-      const label = `${t("ui.shallow_research_progress")}: ${batch.completed}/${batch.total}${currentTitle ? ` · ${currentTitle}` : ""}${batch.status === "stopped" ? ` · ${t("ui.shallow_research_stopped")}` : ""}`;
+      const label = this.batchProgressLabel(
+        t("ui.shallow_research_counts", batch.succeeded, batch.total),
+        batch,
+        currentTitle ? t("ui.shallow_research_current", currentTitle) : undefined
+      );
       header.createSpan({
         cls: `vam-status vam-status-${batch.status === "running" ? "running" : batch.failures.length ? "error" : "completed"}`,
         text: label
@@ -2658,6 +2739,7 @@ export class VisualAgentMapView extends ItemView {
         });
         failure.setAttr("title", batch.failures.join("\n"));
       }
+      this.renderRetryFailedButton(header, node.path, batch);
     }
     if (this.plugin.quickExpandPending?.has(node.path) && batch?.status !== "running") {
       this.button(header, t("ui.stop_research"), () => this.plugin.activeTasks.get(node.path)?.abort());
@@ -3067,11 +3149,13 @@ export class VisualAgentMapView extends ItemView {
         async (options, focus, done, failed, accepted) => {
           const latest = await this.plugin.repo.readNote(node.path);
           const task = researchTopicTask(this.plugin.settings.language, latest.title);
+          const detailTemplate = await this.detailTemplateFor(node, options.detailTemplateId);
           await this.runAgent(
             node,
             done,
             failed,
             {
+              detailTemplate,
               task: [task, options.requirements].filter(Boolean).join("\n\n"),
               referenceGroups: options.referenceGroups,
               onProgress: options.onProgress,
@@ -3104,6 +3188,9 @@ export class VisualAgentMapView extends ItemView {
             : undefined,
           quickError: this.plugin.quickExpandFailures.get(node.path),
           sources,
+          templates: this.templateChoices(),
+          // Only a label: a missing topic template is reported at the next AI update, not when the dialog opens.
+          currentTemplate: this.resolveTopicTemplate(note).template.name,
           synthesisPending: (() => {
             const pending = this.synthesisTasks.get(node.path);
             return pending?.state === "directions" && pending.mapPath === this.path
@@ -3570,7 +3657,13 @@ export class VisualAgentMapView extends ItemView {
             throw new Error(t("ui.expansion_suggestions_changed_open_them_again"));
           await this.assertSuggestionOrigin(parent, version);
           try {
-            createdNodes = await this.createChildBatch(parent, selected, researchOptions);
+            createdNodes = await this.createChildBatch(
+              parent,
+              selected,
+              researchOptions,
+              undefined,
+              options?.detailTemplateId ?? researchOptions?.detailTemplateId
+            );
           } catch (error) {
             if (error instanceof PartialChildBatchError) await this.clearPartialSuggestions(parent.path, error);
             throw error;
@@ -3765,7 +3858,8 @@ export class VisualAgentMapView extends ItemView {
               currentParent,
               suggestions,
               options?.shallowResearch ? { ...options, signal: controller.signal } : undefined,
-              controller.signal
+              controller.signal,
+              options?.detailTemplateId
             );
           } catch (error) {
             batchFailure =
@@ -3877,11 +3971,13 @@ export class VisualAgentMapView extends ItemView {
       });
     }).open();
   }
+  /** `detailTemplateId` is the dialog's template choice: it shapes contributions and is recorded on each new child. */
   private async createChildBatch(
     parent: MapNode,
     items: Suggestion[],
     researchOptions?: TaskOptions,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    detailTemplateId = researchOptions?.detailTemplateId
   ): Promise<MapNode[]> {
     if (this.plugin.expansionCoordinator.isRunning(parent.path)) throw new Error(t("ui.ai_running_ai"));
     if (!this.map?.nodes.some(node => node.id === parent.id && node.path === parent.path))
@@ -3900,6 +3996,7 @@ export class VisualAgentMapView extends ItemView {
     let created = 0;
     const createdByTitle = new Map<string, MapNode>(),
       newNodes: MapNode[] = [];
+    const contributionTemplate = this.mapDetailTemplate(this.plugin.settings.language, detailTemplateId);
     try {
       for (const item of items) {
         if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
@@ -3915,7 +4012,7 @@ export class VisualAgentMapView extends ItemView {
           detail: researchOptions
             ? ""
             : item.contribution
-              ? canonicalDetail(item.contribution, this.plugin.settings.language)
+              ? canonicalDetail(item.contribution, this.plugin.settings.language, contributionTemplate)
               : "",
           ...(researchOptions
             ? {
@@ -3923,7 +4020,8 @@ export class VisualAgentMapView extends ItemView {
                 researchDepth: "fast" as const,
                 visualMode: researchOptions.visualMode
               }
-            : {})
+            : {}),
+          ...(detailTemplateId ? { detailTemplateId } : {})
         });
       }
       if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
@@ -3967,6 +4065,7 @@ export class VisualAgentMapView extends ItemView {
     accepted: () => void,
     choices: TaskOptions
   ): Promise<void> {
+    const detailTemplate = await this.detailTemplateFor(child, choices.detailTemplateId);
     const note = await this.plugin.repo.readNote(child.path);
     let started = false;
     let failure: string | undefined;
@@ -3977,6 +4076,7 @@ export class VisualAgentMapView extends ItemView {
         failure = message;
       },
       {
+        detailTemplate,
         rules: "",
         referenceGroups: [],
         signal: batchSignal,
@@ -4003,20 +4103,21 @@ export class VisualAgentMapView extends ItemView {
   private multiResearchKey(): string {
     return `multi-research:${this.path}`;
   }
-  private openMultiResearch(): void {
+  private openMultiResearch(retryBatchKey?: string): void {
     if (!this.map || this.map.aim || !this.multiSelected.size) return;
     const names = [...this.multiSelected].map(id => this.notes.get(id)?.title).filter((name): name is string => !!name);
     new MultiResearchModal(
       this.app,
       names,
       this.modelChoices(),
-      request => void this.startMultiResearch(request)
+      this.templateChoices(),
+      request => void this.startMultiResearch(request, retryBatchKey)
     ).open();
   }
   stopMultiResearch(): void {
     this.plugin.expansionCoordinator.stop(this.multiResearchKey());
   }
-  async startMultiResearch(request: MultiResearchRequest): Promise<void> {
+  async startMultiResearch(request: MultiResearchRequest, retryBatchKey?: string): Promise<void> {
     if (!this.map || this.map.aim || this.builtIn || !this.multiSelected.size) return;
     const key = this.multiResearchKey();
     if (this.plugin.expansionCoordinator.isRunning(key)) {
@@ -4054,10 +4155,13 @@ export class VisualAgentMapView extends ItemView {
           researchDepth: request.researchDepth,
           visualMode: "off",
           referenceGroups: [],
-          requirements: request.requirements
+          requirements: request.requirements,
+          ...(request.detailTemplateId ? { detailTemplateId: request.detailTemplateId } : {})
         };
+        // A retry replaces the failure state of the batch it came from (a running batch is never touched).
+        if (retryBatchKey && this.plugin.expansionBatches.get(retryBatchKey)?.status !== "running")
+          this.plugin.expansionBatches.delete(retryBatchKey);
         let reported = false;
-        let succeeded = 0;
         let skipped = 0;
         try {
           await this.plugin.expansionCoordinator.start(
@@ -4067,10 +4171,10 @@ export class VisualAgentMapView extends ItemView {
               if (busy(child)) {
                 skipped++;
                 accepted();
-                return;
+                return "skipped";
               }
               await this.researchChild(child, batchSignal, accepted, choices);
-              if (!batchSignal.aborted) succeeded++;
+              return undefined;
             },
             () => {
               const state = this.plugin.expansionBatches.get(key);
@@ -4079,7 +4183,7 @@ export class VisualAgentMapView extends ItemView {
                 new Notice(
                   t(
                     state.status === "stopped" ? "ui.multi_research_stopped" : "ui.multi_research_finished",
-                    succeeded,
+                    state.succeeded,
                     state.total,
                     state.failures.length,
                     skipped
@@ -4097,20 +4201,69 @@ export class VisualAgentMapView extends ItemView {
       new Notice(errorMessage(error));
     }
   }
-  /** Status bar under the toolbar (same place and look as the AIM status bar) with progress and Stop. */
+  /** Counts that cannot be misread: succeeded of total, failures, optional current topic and stopped marker. */
+  private batchProgressLabel(counts: string, batch: ExpansionBatchState, current?: string): string {
+    return [
+      counts,
+      batch.failures.length ? t("ui.batch_failed_count", batch.failures.length) : "",
+      batch.status === "running" ? (current ?? "") : "",
+      batch.status === "stopped" ? t("ui.shallow_research_stopped") : ""
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  }
+  /** Failed topics of a finished batch that still exist on the current map. */
+  private retryableFailures(batch: ExpansionBatchState): MapNode[] {
+    if (batch.status === "running" || !this.map || this.map.aim || this.builtIn) return [];
+    return batch.failedPaths
+      .map(path => this.map!.nodes.find(node => node.path === path))
+      .filter((node): node is MapNode => !!node);
+  }
+  private renderRetryFailedButton(parent: HTMLElement, batchKey: string, batch: ExpansionBatchState): void {
+    const failed = this.retryableFailures(batch);
+    if (failed.length)
+      this.button(parent, t("ui.retry_failed_topics", failed.length), () => this.retryFailed(batchKey));
+  }
+  /** Selects the failed topics and opens the multi-research dialog so the owner can pick another model. */
+  private retryFailed(batchKey: string): void {
+    const batch = this.plugin.expansionBatches.get(batchKey);
+    if (!batch) return;
+    const failed = this.retryableFailures(batch);
+    if (!failed.length) return;
+    this.multiSelected = new Set(failed.map(node => node.id));
+    this.integrationMode = true;
+    if (!this.closed) this.render();
+    this.openMultiResearch(batchKey);
+  }
+  /** Status bar under the toolbar (same place and look as the AIM status bar) with progress, Stop, and Retry/Dismiss after failures. */
   private renderMultiResearchStatus(parent: HTMLElement): void {
-    const state = this.plugin.expansionBatches.get(this.multiResearchKey());
-    if (state?.status !== "running") return;
-    const bar = parent.createDiv("vam-aim-statusbar vam-multi-research-statusbar is-active");
+    const key = this.multiResearchKey();
+    const state = this.plugin.expansionBatches.get(key);
+    if (!state) return;
+    const running = state.status === "running";
+    if (!running && !state.failures.length) return;
+    const bar = parent.createDiv(`vam-aim-statusbar vam-multi-research-statusbar${running ? " is-active" : ""}`);
     bar.setAttr("aria-live", "polite");
     const current = state.currentPath ? this.map?.nodes.find(node => node.path === state.currentPath) : undefined;
     const title = current ? this.notes.get(current.id)?.title : undefined;
     bar.createSpan({ cls: "vam-aim-status-title", text: t("ui.multi_research") });
     bar.createSpan({
-      cls: "vam-aim-status-value vam-status-running",
-      text: `${t("ui.multi_research_progress", state.completed, state.total)}${title ? ` · ${title}` : ""}`
+      cls: `vam-aim-status-value ${running ? "vam-status-running" : "vam-status-error"}`,
+      text: this.batchProgressLabel(
+        t(running ? "ui.multi_research_progress" : "ui.multi_research_ended", state.succeeded, state.total),
+        state,
+        title
+      )
     });
-    this.button(bar, t("ui.stop_research"), () => this.stopMultiResearch());
+    if (running) this.button(bar, t("ui.stop_research"), () => this.stopMultiResearch());
+    else {
+      this.renderRetryFailedButton(bar, key, state);
+      const dismiss = this.button(bar, "×", () => {
+        this.plugin.expansionBatches.delete(key);
+        if (!this.closed) this.render();
+      });
+      dismiss.setAttr("aria-label", t("ui.dismiss"));
+    }
   }
   private renderSelectionBar(workspace: HTMLElement): void {
     const selection = workspace.createDiv("vam-selection-bar");
@@ -4371,6 +4524,10 @@ export class VisualAgentMapView extends ItemView {
     }
     const language = this.plugin.settings.language;
     const task = direction || synthesisGoalTask(language);
+    const detailTemplate = templateInLanguage(
+      await this.detailTemplateFor(node, options?.detailTemplateId),
+      options?.outputLanguage ?? language
+    );
     this.plugin.running.add(node.path);
     await this.plugin.repo.updateNote(node.path, { status: "running" });
     await this.hydrate();
@@ -4391,7 +4548,8 @@ export class VisualAgentMapView extends ItemView {
             mode: "synthesize",
             researchMode: options?.researchMode ?? "local",
             researchDepth: options?.researchDepth ?? note.researchDepth,
-            visualMode: options?.visualMode ?? note.visualMode
+            visualMode: options?.visualMode ?? note.visualMode,
+            detailTemplate
           },
           note
         ),
@@ -4439,13 +4597,28 @@ export class VisualAgentMapView extends ItemView {
             ]) !== noteSnapshot
           )
             throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
-          await this.plugin.repo.updateNote(node.path, {
-            summary,
-            detail: canonicalDetail(detail, options?.outputLanguage ?? this.plugin.settings.language),
-            visualReferences: visualReferencesMarkdown(result.visualReferences, language),
-            newFindings: "",
-            status: "completed"
-          });
+          const canonical = canonicalDetail(
+            detail,
+            options?.outputLanguage ?? this.plugin.settings.language,
+            detailTemplate
+          );
+          // An edited draft is checked again so the topic's format mark matches what is saved.
+          const issues =
+            result.formatIssues && detail !== result.detail
+              ? checkCounts(canonical, detailTemplate)
+              : result.formatIssues;
+          await this.plugin.repo.updateNote(
+            node.path,
+            {
+              summary,
+              detail: canonical,
+              visualReferences: visualReferencesMarkdown(result.visualReferences, language),
+              newFindings: "",
+              status: "completed",
+              ...formatIssuesPatch(issues, language)
+            },
+            { detailTemplate }
+          );
           const saved = await this.plugin.repo.readNote(node.path);
           this.recordNoteWrite(
             node.path,
@@ -4754,6 +4927,7 @@ export class VisualAgentMapView extends ItemView {
     this.render();
     const model = this.plugin.settings.cliModel;
     const language = this.plugin.settings.language;
+    const detailTemplate = this.mapDetailTemplate(options?.outputLanguage ?? language);
     try {
       const result = await this.plugin.askModel(
         {
@@ -4774,7 +4948,8 @@ export class VisualAgentMapView extends ItemView {
           mode: "synthesize",
           researchMode: options?.researchMode ?? "local",
           researchDepth: options?.researchDepth ?? "normal",
-          visualMode: options?.visualMode ?? "auto"
+          visualMode: options?.visualMode ?? "auto",
+          detailTemplate
         },
         model,
         this.plugin.settings.cliReasoning,
@@ -4861,15 +5036,21 @@ export class VisualAgentMapView extends ItemView {
     )
       throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
     const integrated = await this.plugin.repo.createNote(title, model, this.map, this.path, "workspace");
+    const detailTemplate = this.mapDetailTemplate(language);
     try {
-      await this.plugin.repo.updateNote(integrated.path, {
-        summary: result.summary,
-        detail: canonicalDetail(result.detail, language),
-        visualReferences: visualReferencesMarkdown(result.visualReferences, language),
-        prompt: goal,
-        sourcePaths: sources.map(source => source.path),
-        status: "completed"
-      });
+      await this.plugin.repo.updateNote(
+        integrated.path,
+        {
+          summary: result.summary,
+          detail: canonicalDetail(result.detail, language, detailTemplate),
+          visualReferences: visualReferencesMarkdown(result.visualReferences, language),
+          prompt: goal,
+          sourcePaths: sources.map(source => source.path),
+          status: "completed",
+          ...formatIssuesPatch(result.formatIssues, this.plugin.settings.language)
+        },
+        { detailTemplate }
+      );
       integrated.parentId = null;
       integrated.x = Math.max(...sources.map(node => node.x)) + 340;
       integrated.y = sources.reduce((sum, node) => sum + node.y, 0) / sources.length;
@@ -5114,6 +5295,44 @@ export class VisualAgentMapView extends ItemView {
       }
     }
   }
+  /**
+   * Content template for an AI update of this topic: this run's choice, then the topic, map and workspace defaults.
+   * Only an explicit choice is written to the topic; a topic template that no longer exists is reported once and cleared.
+   */
+  private async detailTemplateFor(node: MapNode, chosenId?: string): Promise<DetailTemplate> {
+    if (chosenId) await this.plugin.repo.updateNote(node.path, { detailTemplateId: chosenId });
+    const note = await this.plugin.repo.readNote(node.path);
+    const { template, missing } = this.resolveTopicTemplate(note, chosenId);
+    if (note.detailTemplateId && missing.includes(note.detailTemplateId)) {
+      new Notice(t("ui.detail_template_missing_0", note.detailTemplateId));
+      await this.plugin.repo.updateNote(node.path, { detailTemplateId: "" });
+    }
+    return template;
+  }
+  /** Resolves the topic's content template without notifying or writing anything (see detailTemplateFor). */
+  private resolveTopicTemplate(note: Note, chosenId?: string): { template: DetailTemplate; missing: string[] } {
+    const settings = this.plugin.settings;
+    return resolveTemplate(
+      settings.detailTemplates,
+      [chosenId, note.detailTemplateId, this.map?.detailTemplateId, settings.defaultDetailTemplateId],
+      settings.language
+    );
+  }
+  /**
+   * Template for content that has no topic choice of its own (new integrated topics, child contributions); a dialog
+   * choice comes first.
+   */
+  private mapDetailTemplate(language: UiLanguage, chosenId?: string): DetailTemplate {
+    const settings = this.plugin.settings;
+    return templateInLanguage(
+      resolveTemplate(
+        settings.detailTemplates,
+        [chosenId, this.map?.detailTemplateId, settings.defaultDetailTemplateId],
+        settings.language
+      ).template,
+      language
+    );
+  }
   private async runAgent(
     node: MapNode,
     done?: (result: AiResult) => void,
@@ -5133,6 +5352,10 @@ export class VisualAgentMapView extends ItemView {
       failed?.(t("ui.ai_running_ai"));
       return null;
     }
+    const detailTemplate = templateInLanguage(
+      overrides?.detailTemplate ?? (await this.detailTemplateFor(node)),
+      overrides?.outputLanguage ?? this.plugin.settings.language
+    );
     const context: TaskContext = withThinkingOrigin(
       {
         title: note.title,
@@ -5147,7 +5370,8 @@ export class VisualAgentMapView extends ItemView {
         researchMode: note.researchMode,
         researchDepth: note.researchDepth,
         visualMode: note.visualMode,
-        ...overrides
+        ...overrides,
+        detailTemplate
       },
       note
     );
@@ -5242,13 +5466,22 @@ export class VisualAgentMapView extends ItemView {
             }
             return;
           }
-          await this.plugin.repo.updateNote(node.path, {
-            summary: result.summary,
-            detail: canonicalDetail(result.detail, context.outputLanguage ?? this.plugin.settings.language),
-            visualReferences: visualReferencesMarkdown(result.visualReferences, language),
-            newFindings: "",
-            status: "completed"
-          });
+          await this.plugin.repo.updateNote(
+            node.path,
+            {
+              summary: result.summary,
+              detail: canonicalDetail(
+                result.detail,
+                context.outputLanguage ?? this.plugin.settings.language,
+                context.detailTemplate
+              ),
+              visualReferences: visualReferencesMarkdown(result.visualReferences, language),
+              newFindings: "",
+              status: "completed",
+              ...formatIssuesPatch(result.formatIssues, language)
+            },
+            { detailTemplate: context.detailTemplate }
+          );
           const saved = await this.plugin.repo.readNote(node.path);
           this.recordNoteWrite(
             node.path,

@@ -2,10 +2,12 @@ import { App, TFile, TFolder, normalizePath, parseYaml, stringifyYaml } from "ob
 import { resolveAimContentLanguage } from "./experiences/aim/content-language";
 import { createHash } from "node:crypto";
 import { t, translate, type TranslationKey } from "./i18n";
-import { MapDocument, MapNode, serializeMap, parseMap } from "./map-model";
+import { MapDocument, MapNode, serializeMap, parseMap, type AimReuseRecord } from "./map-model";
 import type { CoffeeStyle } from "./experiences/coffee-tables/types";
 import type { ReasoningLevel, ResearchDepth, ResearchMode, VisualMode } from "./ai/types";
 import { normalizeReasoningLevel } from "./ai/task-policy";
+import { sourcesHeadingKeys, standardTemplate, type DetailTemplate } from "./ai/detail-templates";
+import { fencedLines } from "./ai/markdown-blocks";
 import { managedHeadingValue, managedSectionValue } from "./note-values";
 import { upgradeLegacyAimText } from "./experiences/aim/legacy-names";
 export type { ReasoningLevel, ResearchDepth, ResearchMode, VisualMode, VisualReference } from "./ai/types";
@@ -33,6 +35,8 @@ export interface Note {
   researchMode: ResearchMode;
   researchDepth: ResearchDepth;
   visualMode: VisualMode;
+  detailTemplateId?: string;
+  detailFormatIssues: string[];
   status: Status;
   mapId: string;
   topicId: string;
@@ -42,6 +46,8 @@ export interface Note {
 }
 export type NotePatch = Partial<Note>;
 export interface Settings {
+  detailTemplates: DetailTemplate[];
+  defaultDetailTemplateId?: string;
   coffeeStyles?: CoffeeStyle[];
   defaultCoffeeStyleId?: string;
   language: "zh-TW" | "en";
@@ -85,6 +91,7 @@ export interface LegacyMigrationPlan {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
+  detailTemplates: [],
   coffeeStyles: [],
   language: "en",
   workspaceFolder: "Agent Workspace",
@@ -115,6 +122,61 @@ const REFERENCE_END = "<!-- visual-agent-map:references:end -->";
 const DETAIL_START = "<!-- visual-agent-map:detail:start -->";
 const DETAIL_END = "<!-- visual-agent-map:detail:end -->";
 const NOTE_CSS_CLASS = "visual-agent-map-node";
+/**
+ * Point every reference to a moved note at its new path: node paths and the AIM records that must name the same note
+ * (results, drafts, pending commits, input snapshots, reuse sources). An attempt whose input snapshot changed gets
+ * the matching snapshot hash, and so do its drafts. Changing only node paths leaves an AIM map unreadable.
+ * Returns whether anything changed.
+ */
+export function rebaseMapNotePaths(map: MapDocument, rebase: (path: string) => string): boolean {
+  let changed = false;
+  const move = (path: string): string => {
+    const next = rebase(path);
+    if (next !== path) changed = true;
+    return next;
+  };
+  const moveReuse = (record: AimReuseRecord | undefined): void => {
+    if (record) record.sourceNotePath = move(record.sourceNotePath);
+  };
+  for (const node of map.nodes) node.path = move(node.path);
+  const aim = map.aim;
+  if (!aim) return changed;
+  const hashSnapshot = (value: unknown): string => createHash("sha256").update(JSON.stringify(value)).digest("hex");
+  for (const branch of aim.branches) {
+    const snapshotBefore = JSON.stringify(branch.inputSnapshot);
+    for (const result of branch.inputSnapshot.upstreamResults) result.notePath = move(result.notePath);
+    for (const item of branch.researchPlan ?? []) if (item.source) item.source.notePath = move(item.source.notePath);
+    for (const result of branch.results) {
+      result.notePath = move(result.notePath);
+      moveReuse(result.reuse);
+    }
+    if (JSON.stringify(branch.inputSnapshot) === snapshotBefore) continue;
+    const hash = hashSnapshot({ branch: branch.inputSnapshot, answer: branch.answerSnapshot });
+    for (const run of aim.runs) {
+      if (run.branchId !== branch.id) continue;
+      for (const attempt of run.attempts) {
+        attempt.inputSnapshotHash = hash;
+        for (const draft of aim.resultDrafts ?? [])
+          if (draft.runId === run.id && draft.attemptId === attempt.id) draft.inputSnapshotHash = hash;
+      }
+    }
+  }
+  for (const run of aim.runs)
+    for (const attempt of run.attempts)
+      if (attempt.retainedReports) attempt.retainedReports.notePath = move(attempt.retainedReports.notePath);
+  for (const draft of aim.resultDrafts ?? []) {
+    draft.notePath = move(draft.notePath);
+    moveReuse(draft.reuse);
+  }
+  if (aim.rootDraft) aim.rootDraft.notePath = move(aim.rootDraft.notePath);
+  if (aim.questionDraft) aim.questionDraft.notePath = move(aim.questionDraft.notePath);
+  for (const pending of aim.pendingCommits) pending.notePath = move(pending.notePath);
+  return changed;
+}
+/** A rebase function that moves exactly one note path. */
+export function moveNotePath(oldPath: string, newPath: string): (path: string) => string {
+  return path => (path === oldPath ? newPath : path);
+}
 function writeMapContent(content: string, map: MapDocument): string {
   return content
     .replace(/^# .*$/m, () => `# ${map.title.replace(/\n/g, " ")}`)
@@ -278,7 +340,7 @@ function withoutReference(content: string): string {
   return legacy.test(content) ? content.replace(legacy, "\n") : content;
 }
 
-function detailWithVisualReferences(detail: string, visualReferences: string): string {
+function detailWithVisualReferences(detail: string, visualReferences: string, template: DetailTemplate): string {
   let current = detail.trim();
   const references = visualReferences
     .trim()
@@ -295,10 +357,19 @@ function detailWithVisualReferences(detail: string, visualReferences: string): s
       paragraphs.splice(related + 1, 0, block);
       current = paragraphs.join("\n\n");
     } else {
-      const knowledge = /^### 關鍵知識\s*$/m.exec(current);
-      const next = knowledge ? /^### .+$/m.exec(current.slice(knowledge.index + knowledge[0].length)) : null;
-      const at = knowledge && next ? knowledge.index + knowledge[0].length + next.index : current.length;
-      current = [current.slice(0, at).trimEnd(), block, current.slice(at).trimStart()].filter(Boolean).join("\n\n");
+      const keys = sourcesHeadingKeys(template);
+      const lines = current.split("\n");
+      const code = fencedLines(lines);
+      const at = lines.findIndex((line, index) => {
+        const heading = code[index] ? null : /^###\s+(.+?)\s*$/.exec(line);
+        return !!heading && keys.has(heading[1].toLocaleLowerCase());
+      });
+      current =
+        at < 0
+          ? [current.trimEnd(), block].filter(Boolean).join("\n\n")
+          : [lines.slice(0, at).join("\n").trimEnd(), block, lines.slice(at).join("\n").trimStart()]
+              .filter(Boolean)
+              .join("\n\n");
     }
   }
   return current;
@@ -321,7 +392,7 @@ function noteBody(
   newFindings = "",
   leftover = ""
 ): string {
-  const detailBlock = `${DETAIL_START}\n${detailWithVisualReferences(detail, visualReferences)}\n${DETAIL_END}`;
+  const detailBlock = `${DETAIL_START}\n${detailWithVisualReferences(detail, visualReferences, standardTemplate(language))}\n${DETAIL_END}`;
   return (
     [
       `# ${title}`,
@@ -351,7 +422,11 @@ function normalizeBodyOrder(
   const prompt = section(clean, "Prompt");
   const rules = section(clean, "Rules");
   const preview = previewSection(clean);
-  const detail = detailWithVisualReferences(section(clean, "Detail"), section(clean, "Visual References"));
+  const detail = detailWithVisualReferences(
+    section(clean, "Detail"),
+    section(clean, "Visual References"),
+    standardTemplate(language)
+  );
   const newFindings = section(clean, "Working Findings") || section(clean, "New Findings");
   let leftover = clean.replace(/^# .*$(?:\r?\n)*/m, "");
   for (const heading of [
@@ -421,6 +496,9 @@ export class Repository {
     readonly app: App,
     readonly settings: Settings
   ) {}
+
+  /** Called once per vault-wide scan that skipped unreadable maps. */
+  onUnreadableMaps?: (failures: { path: string; error: string }[]) => void;
 
   private message(key: TranslationKey): string {
     return translate(this.settings.language, key);
@@ -541,6 +619,12 @@ export class Repository {
       researchDepth:
         fm["research-depth"] === "fast" || fm["research-depth"] === "deep" ? fm["research-depth"] : "normal",
       visualMode: fm["visual-mode"] === "on" || fm["visual-mode"] === "off" ? fm["visual-mode"] : "auto",
+      ...(typeof fm["detail-template"] === "string" && fm["detail-template"]
+        ? { detailTemplateId: fm["detail-template"] }
+        : {}),
+      detailFormatIssues: Array.isArray(fm["detail-format-issues"])
+        ? fm["detail-format-issues"].filter((v): v is string => typeof v === "string")
+        : [],
       status: ["idea", "running", "completed", "error"].includes(normalized) ? (normalized as Status) : "idea",
       mapId: text(fm["agent-map-id"]),
       topicId: text(fm["topic-id"], text(fm["agent-map-id"])),
@@ -558,7 +642,11 @@ export class Repository {
    * `options.contentLanguage` is the AIM content language: it only chooses the language of generated placeholder text;
    * headings and the reference frame stay in the interface language. Notes created by AIM remember it in frontmatter.
    */
-  async updateNote(path: string, patch: NotePatch, options: { contentLanguage?: NoteLanguage } = {}): Promise<void> {
+  async updateNote(
+    path: string,
+    patch: NotePatch,
+    options: { contentLanguage?: NoteLanguage; detailTemplate?: DetailTemplate } = {}
+  ): Promise<void> {
     await this.app.vault.process(this.file(path), content => {
       const fm = frontmatter(content);
       ensureNoteCssClass(fm);
@@ -573,6 +661,12 @@ export class Repository {
       if (patch.researchMode !== undefined) fm["research-mode"] = patch.researchMode;
       if (patch.researchDepth !== undefined) fm["research-depth"] = patch.researchDepth;
       if (patch.visualMode !== undefined) fm["visual-mode"] = patch.visualMode;
+      if (patch.detailTemplateId !== undefined)
+        patch.detailTemplateId ? (fm["detail-template"] = patch.detailTemplateId) : delete fm["detail-template"];
+      if (patch.detailFormatIssues !== undefined)
+        patch.detailFormatIssues.length
+          ? (fm["detail-format-issues"] = patch.detailFormatIssues)
+          : delete fm["detail-format-issues"];
       if (patch.mapId !== undefined) patch.mapId ? (fm["agent-map-id"] = patch.mapId) : delete fm["agent-map-id"];
       if (patch.topicId !== undefined) patch.topicId ? (fm["topic-id"] = patch.topicId) : delete fm["topic-id"];
       if (patch.topicState !== undefined) fm["topic-state"] = patch.topicState;
@@ -606,7 +700,11 @@ export class Repository {
           body = replaceSection(
             body,
             "Detail",
-            detailWithVisualReferences(section(body, "Detail"), patch.visualReferences)
+            detailWithVisualReferences(
+              section(body, "Detail"),
+              patch.visualReferences,
+              options.detailTemplate ?? standardTemplate(this.settings.language)
+            )
           );
       }
       if (patch.newFindings !== undefined) {
@@ -811,6 +909,36 @@ export class Repository {
   }
 
   /**
+   * Vault-wide scans read every map through here: a map that cannot be parsed is skipped (never written) and
+   * reported once per scan, so one broken Map.md does not stop the scan or leave later maps stale. Opening or editing
+   * one specific map keeps using readMap and still surfaces its error.
+   */
+  async readableMaps(): Promise<{ file: TFile; map: MapDocument }[]> {
+    return (await this.scanMaps()).readable;
+  }
+
+  /**
+   * Only for scans that tolerate a missing map; destructive planners (migration) must use readMap so a broken map
+   * fails them loudly instead of being skipped.
+   */
+  private async scanMaps(): Promise<{
+    readable: { file: TFile; map: MapDocument }[];
+    skippedRoots: string[];
+  }> {
+    const readable: { file: TFile; map: MapDocument }[] = [],
+      failures: { path: string; error: string }[] = [];
+    for (const file of await this.mapFiles()) {
+      try {
+        readable.push({ file, map: await this.readMap(file.path) });
+      } catch (error) {
+        failures.push({ path: file.path, error: error instanceof Error ? error.message : String(error) });
+      }
+    }
+    if (failures.length) this.onUnreadableMaps?.(failures);
+    return { readable, skippedRoots: failures.map(item => this.topicRoot(item.path)) };
+  }
+
+  /**
    * Whether a rename of `file` (previously at `oldPath`) can affect VAM data, decided from the metadata cache without
    * reading notes: the file is a VAM note or map, or a VAM note cites the old path. Uncached files count as relevant.
    */
@@ -829,8 +957,7 @@ export class Repository {
 
   /** Whether any map lists `path` as a node; only map files are read. */
   async isMapNodePath(path: string): Promise<boolean> {
-    for (const file of await this.mapFiles())
-      if ((await this.readMap(file.path)).nodes.some(node => node.path === path)) return true;
+    for (const { map } of await this.readableMaps()) if (map.nodes.some(node => node.path === path)) return true;
     return false;
   }
 
@@ -842,18 +969,17 @@ export class Repository {
       if (id) candidates.set(id, [...(candidates.get(id) ?? []), file.path]);
     }
     let repaired = 0;
-    for (const file of await this.mapFiles()) {
-      const map = await this.readMap(file.path);
+    for (const { file, map } of await this.readableMaps()) {
       let changed = false;
-      for (const node of map.nodes) {
+      for (const node of [...map.nodes]) {
         if (this.app.vault.getAbstractFileByPath(node.path) instanceof TFile) continue;
         const matches = candidates.get(node.id) ?? [];
         if (matches.length !== 1) continue;
         const oldPath = node.path;
-        node.path = matches[0];
+        rebaseMapNotePaths(map, moveNotePath(oldPath, matches[0]));
         changed = true;
         repaired++;
-        await this.replaceSourcePath(oldPath, node.path);
+        await this.replaceSourcePath(oldPath, matches[0]);
       }
       if (changed) await this.saveMap(file.path, map);
     }
@@ -862,8 +988,7 @@ export class Repository {
 
   async topics(): Promise<TopicInfo[]> {
     const topics: TopicInfo[] = [];
-    for (const file of await this.mapFiles()) {
-      const map = await this.readMap(file.path);
+    for (const { file, map } of await this.readableMaps()) {
       topics.push({ id: map.id, title: map.title, mapPath: file.path, root: this.topicRoot(file.path) });
     }
     return topics;
@@ -920,9 +1045,9 @@ export class Repository {
       const id = text(fm["node-id"]);
       if (id) byId.set(id, file.path);
     }
-    for (const node of map.nodes)
+    for (const node of [...map.nodes])
       if (!(this.app.vault.getAbstractFileByPath(node.path) instanceof TFile) && byId.has(node.id))
-        node.path = byId.get(node.id)!;
+        rebaseMapNotePaths(map, moveNotePath(node.path, byId.get(node.id)!));
     await this.moveExact(sourcePath, target);
     await this.saveMap(target, map);
     for (const node of map.nodes)
@@ -934,8 +1059,7 @@ export class Repository {
 
   async assignedNotePaths(exceptMapId?: string): Promise<Set<string>> {
     const assigned = new Set<string>();
-    for (const file of await this.mapFiles()) {
-      const map = await this.readMap(file.path);
+    for (const { map } of await this.readableMaps()) {
       if (map.id === exceptMapId) continue;
       for (const node of map.nodes) assigned.add(node.path);
     }
@@ -1027,8 +1151,7 @@ export class Repository {
 
   async normalizeGeneratedNoteFilenames(): Promise<number> {
     let renamed = 0;
-    for (const mapFile of await this.mapFiles()) {
-      const map = await this.readMap(mapFile.path);
+    for (const { file: mapFile, map } of await this.readableMaps()) {
       let changed = false;
       for (const node of map.nodes) {
         const file = this.app.vault.getAbstractFileByPath(node.path);
@@ -1037,7 +1160,7 @@ export class Repository {
         if (!note.title.trim() || safeName(note.title) === file.basename) continue;
         const oldPath = node.path,
           newPath = await this.renameNote(oldPath, note.title);
-        node.path = newPath;
+        rebaseMapNotePaths(map, moveNotePath(oldPath, newPath));
         changed = true;
         renamed++;
         await this.replaceSourcePath(oldPath, newPath);
@@ -1064,8 +1187,8 @@ export class Repository {
   async rebuildDerivedData(noteRoot?: string): Promise<void> {
     const ownership = new Map<string, { map: MapDocument; mapPath: string; node: MapNode }>();
     const topics = new Map<string, { map: MapDocument; mapPath: string }>();
-    for (const mapFile of await this.mapFiles()) {
-      const map = await this.readMap(mapFile.path);
+    const scan = await this.scanMaps();
+    for (const { file: mapFile, map } of scan.readable) {
       topics.set(map.id, { map, mapPath: mapFile.path });
       for (const node of map.nodes) {
         const existing = ownership.get(node.path);
@@ -1083,6 +1206,8 @@ export class Repository {
     }
     for (const file of nodeFiles.values()) {
       if (noteRoot && !file.path.startsWith(`${noteRoot}/`)) continue;
+      // Notes inside an unreadable map's folder are not judged without that map: leave them exactly as they are.
+      if (scan.skippedRoots.some(root => file.path.startsWith(`${root}/`) && !ownership.has(file.path))) continue;
       // Compare against the in-memory copy, then derive again from the file's current content inside the write,
       // so an edit made after this read is not replaced by stale text.
       const cached = await this.app.vault.cachedRead(file),
@@ -1241,13 +1366,21 @@ export class Repository {
   }
 
   async legacyMigrationPlan(): Promise<LegacyMigrationPlan> {
-    const allMaps = await this.mapFiles();
-    const legacyMaps = allMaps.filter(file => !file.path.startsWith(`${this.settings.topicsFolder}/`));
+    // Every map must parse: a skipped map's notes would look orphaned and be moved to the Inbox with ids cleared.
+    const legacyMaps: { file: TFile; map: MapDocument }[] = [];
+    for (const file of await this.mapFiles()) {
+      let map: MapDocument;
+      try {
+        map = await this.readMap(file.path);
+      } catch (error) {
+        throw new Error(`${file.path}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+      if (!file.path.startsWith(`${this.settings.topicsFolder}/`)) legacyMaps.push({ file, map });
+    }
     const assigned = new Set<string>(),
       maps: LegacyMigrationPlan["maps"] = [];
     const reservedRoots = new Set<string>();
-    for (const file of legacyMaps) {
-      const map = await this.readMap(file.path);
+    for (const { file, map } of legacyMaps) {
       for (const node of map.nodes) assigned.add(node.path);
       let targetRoot = normalizePath(`${this.settings.topicsFolder}/${safeName(map.title)}`),
         number = 2;
@@ -1293,7 +1426,7 @@ export class Repository {
           const old = node.path,
             next = await this.moveUnique(old, `${item.targetRoot}/Notes`);
           moves.push({ from: old, to: next });
-          node.path = next;
+          rebaseMapNotePaths(map, moveNotePath(old, next));
           await this.setLifecycle(next, map.id, map.id, "active");
         }
         await this.saveMap(mapTarget, map);
@@ -1354,32 +1487,7 @@ export class Repository {
       map.title = title;
       const rebasePath = (path: string): string =>
         path.startsWith(`${originalRoot}/`) ? `${desired}/${path.slice(originalRoot.length + 1)}` : path;
-      for (const node of map.nodes) node.path = rebasePath(node.path);
-      const aim = map.aim;
-      if (aim) {
-        for (const branch of aim.branches) {
-          for (const result of branch.inputSnapshot.upstreamResults) result.notePath = rebasePath(result.notePath);
-          for (const result of branch.results) result.notePath = rebasePath(result.notePath);
-        }
-        for (const draft of aim.resultDrafts ?? []) draft.notePath = rebasePath(draft.notePath);
-        if (aim.rootDraft) aim.rootDraft.notePath = rebasePath(aim.rootDraft.notePath);
-        if (aim.questionDraft) aim.questionDraft.notePath = rebasePath(aim.questionDraft.notePath);
-        for (const pending of aim.pendingCommits) pending.notePath = rebasePath(pending.notePath);
-
-        const hashSnapshot = (value: unknown): string =>
-          createHash("sha256").update(JSON.stringify(value)).digest("hex");
-        for (const run of aim.runs) {
-          const branch = aim.branches.find(item => item.id === run.branchId);
-          if (!branch) continue;
-          for (const attempt of run.attempts) {
-            attempt.inputSnapshotHash = hashSnapshot({ branch: branch.inputSnapshot, answer: branch.answerSnapshot });
-            for (const draft of aim.resultDrafts ?? []) {
-              if (draft.runId === run.id && draft.attemptId === attempt.id)
-                draft.inputSnapshotHash = attempt.inputSnapshotHash;
-            }
-          }
-        }
-      }
+      rebaseMapNotePaths(map, rebasePath);
       await this.saveMap(next, map);
       await this.rebuildDerivedData();
       return next;

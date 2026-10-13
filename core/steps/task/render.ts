@@ -2,7 +2,8 @@ import { buildAimPrompt } from "../aim/shell";
 import { researchGuidance } from "../../../ai/task-policy";
 import type { TaskContext } from "../../../ai/types";
 import { visualGuidance } from "../../../ai/visual-guidance";
-import { translate, type TranslationKey, type UiLanguage } from "../../../i18n";
+import type { UiLanguage } from "../../../i18n";
+import { detailStructurePrompt, standardTemplate } from "../../../ai/detail-templates";
 import {
   inLanguage,
   LABEL_ANCESTORS,
@@ -30,15 +31,6 @@ import {
   SYNTHESIZE
 } from "./fragments";
 
-const DETAIL_HEADINGS: readonly TranslationKey[] = [
-  "detail.core_conclusions",
-  "detail.key_knowledge",
-  "detail.evidence_and_sources",
-  "detail.tradeoffs_and_limitations",
-  "detail.open_questions",
-  "detail.update_log"
-];
-
 /** The regular (non-AIM) task prompt. Empty blocks are kept, so the blank-line layout matches the original builder. */
 export function generalTaskPrompt(context: TaskContext, language: UiLanguage): string {
   const modeFragment =
@@ -61,7 +53,9 @@ export function generalTaskPrompt(context: TaskContext, language: UiLanguage): s
     context.mode !== "decompose"
       ? context.detailFormat === "adaptive"
         ? inLanguage(ADAPTIVE_DETAIL_STRUCTURE, language)
-        : detailStructure(language, DETAIL_HEADINGS.map(key => `### ${translate(language, key)}`).join(", "))
+        : detailStructurePrompt(context.detailTemplate ?? standardTemplate(language), language, headings =>
+            detailStructure(language, headings)
+          )
       : "",
     researchGuidance(context, language),
     ...visualGuidance(context, language),

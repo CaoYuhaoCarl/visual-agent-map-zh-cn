@@ -2,6 +2,7 @@ import type VisualAgentMapPlugin from "../main";
 import { t } from "../i18n";
 import { normalizeReasoningLevel } from "../repository";
 import { syncModelSelect } from "../core/model-discovery";
+import { renderDetailTemplatesSetting } from "./modals/detail-templates-modal";
 import { App, Modal, PluginSettingTab, Setting, type SettingDefinitionItem } from "obsidian";
 
 export const CODEX_INSTALL_URL = "https://developers.openai.com/codex/cli/";
@@ -245,6 +246,10 @@ export class VisualAgentMapSettingTab extends PluginSettingTab {
           key: "cliReasoning",
           options: { auto: t("ui.auto"), low: t("ui.low"), medium: t("ui.medium"), high: t("ui.high") }
         }
+      },
+      {
+        name: t("ui.detail_templates"),
+        render: setting => renderDetailTemplatesSetting(setting, this.app, this.plugin, () => this.update())
       },
       {
         name: t("ui.markdown_selection_ai_auto_open"),

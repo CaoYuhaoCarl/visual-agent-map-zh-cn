@@ -625,3 +625,35 @@ body .workspace-leaf-content.vam-topic-markdown .markdown-source-view.mod-cm6 .m
 .vam-outline-error { color: var(--text-error); }
 .vam-outline-depth-2 { padding-left: 1.25em; } .vam-outline-depth-3 { padding-left: 2.5em; }
 .vam-outline-depth-4 { padding-left: 3.75em; } .vam-outline-depth-5 { padding-left: 5em; } .vam-outline-depth-6 { padding-left: 6.25em; }
+.vam-template-row { display: flex; justify-content: space-between; align-items: center; gap: var(--size-4-2); padding: var(--size-4-2) 0; border-bottom: 1px solid var(--background-modifier-border); }
+.vam-template-info { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--size-4-2); min-width: 0; }
+.vam-template-meta { color: var(--text-muted); font-size: var(--font-ui-small); }
+.vam-template-tag { padding: 0 var(--size-4-2); border-radius: var(--radius-s); background: var(--background-modifier-hover); font-size: var(--font-ui-smaller); }
+.vam-template-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--size-2-2); }
+.vam-template-sections { display: flex; flex-direction: column; gap: var(--size-4-2); margin: var(--size-4-3) 0 var(--size-4-2); }
+.vam-template-section { border: 1px solid var(--background-modifier-border); border-radius: 8px; background: var(--background-primary); }
+.vam-template-section:has(.vam-template-section-header.is-open) { padding: 0 var(--size-4-3) var(--size-4-3); }
+.vam-template-section-header { display: flex; align-items: center; gap: var(--size-4-2); width: 100%; min-height: 44px; padding: var(--size-4-2) var(--size-4-3); background: transparent; box-shadow: none; border: 0; border-radius: 8px; text-align: start; font-weight: 400; cursor: pointer; }
+button.vam-template-section-header:hover { background: var(--background-modifier-hover); }
+.vam-template-section-header.is-open { padding: var(--size-4-3) 0 var(--size-4-2); cursor: default; }
+.vam-template-section-header.is-open input[type="text"] { flex: 1 1 auto; min-width: 0; }
+.vam-template-section-number { flex: 0 0 auto; min-width: 1.5em; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.vam-template-section-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-normal); }
+.vam-template-section-title.is-untitled { color: var(--text-faint); font-style: italic; }
+.vam-template-section-badge { flex: 0 0 auto; min-width: 1.4em; padding: 0 var(--size-2-2); border-radius: 999px; background: var(--background-modifier-error); color: var(--text-on-accent); font-size: var(--font-ui-smaller); text-align: center; }
+.vam-template-section-summary { display: flex; align-items: center; gap: var(--size-2-2); flex: 0 0 auto; margin-inline-start: auto; color: var(--text-muted); font-size: var(--font-ui-small); }
+.vam-template-section-purpose.is-accent { padding: 0 var(--size-2-3); border-radius: var(--radius-s); background: var(--background-modifier-hover); color: var(--text-accent); }
+.vam-template-section-separator { color: var(--text-faint); }
+.vam-template-section .vam-field { margin: var(--size-4-2) 0; }
+.vam-template-section-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--size-4-4); }
+.vam-template-count { display: flex; gap: var(--size-2-3); }
+.vam-template-count select { flex: 1 1 auto; }
+.vam-field .vam-template-count input[type="number"] { flex: 0 0 5em; width: 5em; }
+.vam-template-help { color: var(--text-muted); font-size: var(--font-ui-smaller); line-height: 1.45; }
+.vam-template-add { display: block; width: 100%; margin: var(--size-4-2) 0; }
+.vam-template-preview { margin: var(--size-4-3) 0; border: 0.5px solid var(--background-modifier-border); border-radius: 8px; padding: var(--size-4-2) var(--size-4-3); }
+.vam-template-preview > summary { cursor: pointer; color: var(--text-muted); font-size: var(--font-ui-small); }
+.vam-template-preview pre { margin: var(--size-4-2) 0 0; white-space: pre-wrap; word-break: break-word; font-size: var(--font-ui-smaller); color: var(--text-normal); }
+.vam-template-issues { flex: 1 1 100%; }
+.vam-modal-actions { display: flex; justify-content: flex-end; gap: var(--size-4-2); margin-top: var(--size-4-4); }
+.vam-template-issue { color: var(--text-error); font-size: var(--font-ui-small); }

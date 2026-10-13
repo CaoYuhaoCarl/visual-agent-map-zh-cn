@@ -185,3 +185,9 @@ test('AIM map validation accepts a missing or supported content language and rej
   for (const value of ['en', 'zh-TW']) assert.equal(core.parseMap(core.serializeMap({ ...base, aim: { ...base.aim, contentLanguage: value } })).aim.contentLanguage, value);
   for (const value of ['fr', '', 'zh', 5, null]) assert.throws(() => core.parseMap(core.serializeMap({ ...base, aim: { ...base.aim, contentLanguage: value } })), /Invalid AIM content language/);
 });
+
+test('map default content template survives parse and serialize; non-strings are dropped', () => {
+  const map = { version: 1, id: 'm', title: 'M', nodes: [], viewport: { x: 0, y: 0, zoom: 1 }, detailTemplateId: 't1' };
+  assert.equal(core.parseMap(core.serializeMap(map)).detailTemplateId, 't1');
+  assert.equal(core.parseMap(core.serializeMap({ ...map, detailTemplateId: 5 })).detailTemplateId, undefined);
+});

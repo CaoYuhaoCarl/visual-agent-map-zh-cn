@@ -72,6 +72,7 @@ export function builtInSample(language: "zh-TW" | "en", useEmbeddedAssets = true
       researchMode: "research",
       researchDepth: "normal",
       visualMode: "auto",
+      detailFormatIssues: [],
       mapId: map.id,
       topicId: map.id,
       topicState: "active",

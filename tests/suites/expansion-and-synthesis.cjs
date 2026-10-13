@@ -1080,15 +1080,15 @@ integrationTest('a provider failure before acceptance keeps a failed synthesis w
   assert.equal((await f.repo.readNote(f.parent.path)).status, 'completed');
 });
 async function multiResearchHarness(titles, overrides = {}) {
-  const { repo, app } = fixture('en'), notices = [], runs = [], finish = new Map();
+  const { repo, app } = fixture(overrides.language ?? 'en'), notices = [], runs = [], finish = new Map(), opened = [];
   const mapPath = 'Agent Workspace/Topics/map-a/Map.md', mapDoc = { id: 'map-a', title: 'map-a', version: 1, nodes: [], viewport: { x: 0, y: 0, zoom: 1 } };
   await repo.ensureTopicFolders('Agent Workspace/Topics/map-a'); await app.vault.create(mapPath, core.serializeMap(mapDoc));
   const nodes = [];
   for (const title of titles) { const created = await repo.createNote(title, 'model-a', mapDoc, mapPath, 'workspace'); mapDoc.nodes.push(created); nodes.push(created); }
   await repo.saveMap(mapPath, mapDoc);
   const confirms = [];
-  const plugin = withExpansionCoordinator({ repo, settings: { ...DEFAULT_SETTINGS, language: 'en', cliModel: 'gpt-6-luna' }, running: new Set(), pendingSuggestions: new Map(), pendingResearchOptions: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), confirmAiUsage: async (model, run) => { confirms.push(model); await run(); return true; }, ...overrides });
-  const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Notice: class { constructor(message) { notices.push(message); } } } });
+  const plugin = withExpansionCoordinator({ repo, settings: { ...DEFAULT_SETTINGS, language: overrides.language ?? 'en', cliModel: 'gpt-6-luna' }, running: new Set(), pendingSuggestions: new Map(), pendingResearchOptions: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), confirmAiUsage: async (model, run) => { confirms.push(model); await run(); return true; }, ...Object.fromEntries(Object.entries(overrides).filter(([key]) => key !== 'language')) });
+  const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Notice: class { constructor(message) { notices.push(message); } }, Modal: class { constructor(app) { this.app = app; } open() { opened.push(this); } } } });
   const view = new VisualAgentMapView({ app }, plugin); view.path = mapPath; view.map = mapDoc; view.contentEl = { querySelector: () => null }; view.render = () => {}; view.hydrate = async () => {};
   view.runAgent = async (child, _done, failed, options, accepted) => {
     const note = await repo.readNote(child.path);
@@ -1097,7 +1097,7 @@ async function multiResearchHarness(titles, overrides = {}) {
     return { finished };
   };
   const request = { researchMode: 'research', researchDepth: 'fast', requirements: '' };
-  return { repo, view, plugin, nodes, notices, runs, finish, confirms, request, key: `multi-research:${mapPath}` };
+  return { repo, view, plugin, nodes, notices, runs, finish, confirms, opened, request, key: `multi-research:${mapPath}` };
 }
 integrationTest('multi research runs selected topics in the background with the chosen options and a map-level key', async () => {
   const h = await multiResearchHarness(['A', 'B']);
@@ -1206,9 +1206,9 @@ integrationTest('selection bar shows Research; starting leaves selection mode an
   await h.view.startMultiResearch(h.request); await until(() => h.runs.length === 1);
   assert.equal(h.view.integrationMode, false); assert.equal(h.view.multiSelected.size, 0);
   h.view.multiSelected = new Set([h.nodes[1].id]); items = bar(); assert.equal(research().disabled, true);
-  assert.equal(items.find(i => i.text === 'Researching 0/1'), undefined);
+  assert.equal(items.find(i => i.text === 'Researching: 0 of 1 done'), undefined);
   items = toolbar();
-  assert.ok(items.find(i => i.tag === 'span' && i.text === `Researching 0/1 · ${h.nodes[0].id}`), items.map(i => i.text).join('|'));
+  assert.ok(items.find(i => i.tag === 'span' && i.text === `Researching: 0 of 1 done · ${h.nodes[0].id}`), items.map(i => i.text).join('|'));
   assert.ok(items.find(i => i.tag === 'div' && /vam-aim-statusbar/.test(i.cls)));
   const stop = items.find(i => i.tag === 'button' && i.text === 'Stop research'); assert.ok(stop);
   stop.listeners.click({ stopPropagation() {} });
@@ -1274,4 +1274,343 @@ integrationTest('multi research summary counts only successful topics as succeed
   h.finish.get('A')('boom'); h.finish.get('B')();
   await until(() => h.plugin.expansionBatches.get(h.key).status === 'completed');
   assert.equal(h.notices.at(-1), 'Research finished: 1 of 2 succeeded, 1 failed, 0 skipped.');
+});
+const templateSection = (id, name, extra = {}) => ({ id, name, description: '', role: 'none', aliases: [], ...extra });
+const testTemplate = (id, names) => ({ id, name: `Template ${id}`, sections: names.map((name, index) => templateSection(`${id}-${index}`, name)) });
+const sampleTemplates = () => [testTemplate('A', ['Alpha']), testTemplate('B', ['Beta']), testTemplate('C', ['Gamma'])];
+// Runs the real runAgent / synthesis save paths; only plugin.askModel is a double (L-001).
+async function templateHarness({ language = 'zh-TW', settings = {}, mapTemplate, reply } = {}) {
+  const { repo, app } = fixture(language), notices = [], contexts = [];
+  const mapPath = 'Agent Workspace/Topics/map-a/Map.md', doc = { id: 'map-a', title: 'map-a', version: 1, nodes: [], viewport: { x: 0, y: 0, zoom: 1 } };
+  if (mapTemplate) doc.detailTemplateId = mapTemplate;
+  await repo.ensureTopicFolders('Agent Workspace/Topics/map-a'); await app.vault.create(mapPath, core.serializeMap(doc));
+  const topic = await repo.createNote('Topic', 'model-a', doc, mapPath, 'workspace'); doc.nodes.push(topic); await repo.saveMap(mapPath, doc);
+  await repo.updateNote(topic.path, { prompt: 'Research the topic' });
+  let view;
+  const plugin = withExpansionCoordinator({ repo, settings: { ...DEFAULT_SETTINGS, language, ...settings }, running: new Set(), activeTasks: new Map(), pendingSuggestions: new Map(), pendingResearchOptions: new Map(), quickExpandFailures: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), views: () => [view], recordFailure: (_label, error) => error.message,
+    askModel: async (context, _model, _reasoning, _signal, _exchange, onAccepted) => { contexts.push(context); onAccepted?.(); return (reply ?? (() => ({ summary: 'Saved summary', detail: 'Saved detail', visualReferences: [], suggestions: [] })))(context, contexts.length); } });
+  const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Notice: class { constructor(message) { notices.push(message); } } } });
+  view = new VisualAgentMapView({ app }, plugin); view.path = mapPath; view.map = doc; view.contentEl = { querySelector: () => null }; view.render = () => {}; view.hydrate = async () => {}; view.ancestorContext = async () => '';
+  const run = async (target = topic) => { const handle = await view.runAgent(target); await handle?.finished; await until(() => !plugin.running.size); };
+  return { repo, app, view, plugin, doc, mapPath, topic, notices, contexts, run };
+}
+integrationTest('runAgent: context carries the resolved template (topic > map > workspace > Standard)', async () => {
+  const h = await templateHarness({ settings: { detailTemplates: sampleTemplates(), defaultDetailTemplateId: 'C' } });
+  await h.run(); assert.equal(h.contexts.at(-1).detailTemplate.id, 'C');
+  h.doc.detailTemplateId = 'B'; await h.run(); assert.equal(h.contexts.at(-1).detailTemplate.id, 'B');
+  await h.repo.updateNote(h.topic.path, { detailTemplateId: 'A' }); await h.run(); assert.equal(h.contexts.at(-1).detailTemplate.id, 'A');
+  assert.deepEqual(h.notices, []);
+  assert.equal((await h.repo.readNote(h.topic.path)).detailTemplateId, 'A');
+  const bare = await templateHarness({ language: 'en' });
+  await bare.run();
+  assert.equal(bare.contexts[0].detailTemplate.id, 'standard');
+  assert.equal(bare.contexts[0].detailTemplate.sections[0].name, 'Core conclusions');
+  assert.equal((await bare.repo.readNote(bare.topic.path)).detailTemplateId, undefined, 'resolution never writes the topic');
+});
+integrationTest('runAgent saves detail with the template order and stores formatIssues text; clears it when met', async () => {
+  const template = { id: 'T', name: 'Counted', sections: [templateSection('t0', '結論'), templateSection('t1', '範例', { count: { mode: 'exact', n: 3 } }), templateSection('t2', '來源', { role: 'sources' })] };
+  const picture = { title: 'Pic', imageUrl: 'https://example.com/a.png', sourceUrl: 'https://example.com/page', description: '', palette: [], formula: '' };
+  const h = await templateHarness({ settings: { detailTemplates: [template], defaultDetailTemplateId: 'T' }, reply: (_context, call) => call === 1
+    ? { summary: 'S1', detail: '### 範例\n\n- one\n\n### 結論\n\nConclusion text', suggestions: [], visualReferences: [picture], formatIssues: [{ section: '範例', mode: 'exact', n: 3, actual: 1 }] }
+    : { summary: 'S2', detail: '### 結論\n\nDone\n\n### 範例\n\n- a\n- b\n- c', suggestions: [], visualReferences: [], formatIssues: [] } });
+  await h.run();
+  let note = await h.repo.readNote(h.topic.path);
+  assert.equal(note.status, 'completed');
+  const order = ['### 結論', '### 範例', '### 來源'].map(heading => note.detail.indexOf(heading));
+  assert.ok(order.every(index => index >= 0) && order[0] < order[1] && order[1] < order[2], note.detail);
+  const image = note.detail.indexOf('![Pic](https://example.com/a.png)');
+  assert.ok(image > order[1] && image < order[2], `image is placed at the template's sources heading, not appended: ${note.detail}`);
+  assert.deepEqual(plain(note.detailFormatIssues), ['範例：要求剛好 3 個，實際 1 個']);
+  await h.run();
+  note = await h.repo.readNote(h.topic.path);
+  assert.deepEqual(plain(note.detailFormatIssues), []);
+  assert.match(note.detail, /- c/);
+});
+integrationTest('runAgent clears stored format issues when the result has no count check', async () => {
+  const h = await templateHarness({ language: 'en' });
+  await h.repo.updateNote(h.topic.path, { detailFormatIssues: ['Old: needs exactly 2, has 0'] });
+  await h.run();
+  const note = await h.repo.readNote(h.topic.path);
+  assert.equal(note.summary, 'Saved summary');
+  assert.deepEqual(plain(note.detailFormatIssues), []);
+});
+integrationTest('a deleted topic template notifies once, clears the field and falls back', async () => {
+  const h = await templateHarness({ language: 'en', settings: { detailTemplates: sampleTemplates() }, mapTemplate: 'B' });
+  await h.repo.updateNote(h.topic.path, { detailTemplateId: 'gone' });
+  await h.run();
+  assert.equal(h.contexts[0].detailTemplate.id, 'B');
+  assert.equal(h.notices.length, 1, h.notices.join('|'));
+  assert.match(h.notices[0], /"gone" no longer exists/);
+  let note = await h.repo.readNote(h.topic.path);
+  assert.equal(note.detailTemplateId, undefined);
+  assert.equal(note.summary, 'Saved summary', 'clearing the field does not make the result stale');
+  await h.run();
+  assert.equal(h.contexts[1].detailTemplate.id, 'B');
+  assert.equal(h.notices.length, 1, h.notices.join('|'));
+});
+integrationTest('an explicit choice is recorded on the topic and its reply still saves', async () => {
+  const h = await templateHarness({ language: 'en', settings: { detailTemplates: sampleTemplates(), defaultDetailTemplateId: 'C' }, reply: () => ({ summary: 'Chosen summary', detail: '### Alpha\n\nBody', visualReferences: [], suggestions: [] }) });
+  await h.view.researchChild(h.topic, new AbortController().signal, () => {}, { researchMode: 'local', researchDepth: 'fast', visualMode: 'off', referenceGroups: [], detailTemplateId: 'A' });
+  await until(() => !h.plugin.running.size);
+  assert.equal(h.contexts[0].detailTemplate.id, 'A');
+  const note = await h.repo.readNote(h.topic.path);
+  assert.equal(note.detailTemplateId, 'A');
+  assert.equal(note.summary, 'Chosen summary');
+  assert.ok(!h.notices.some(message => /outdated/.test(message)), h.notices.join('|'));
+  assert.match(note.detail, /^### Alpha/);
+});
+integrationTest('synthesis and integrated topics save with the template', async () => {
+  const custom = { id: 'X', name: 'Custom', sections: [templateSection('x0', 'First part'), templateSection('x1', 'Second part'), templateSection('x2', 'Refs', { role: 'sources' })] };
+  const reply = (_context, call) => call === 1
+    ? { summary: '', detail: '', visualReferences: [], suggestions: [{ title: 'Angle', task: 'Compare them', contribution: '', parentTitle: '' }] }
+    : { summary: 'Synth', detail: '### Second part\n\nTwo\n\n### First part\n\nOne', visualReferences: [], suggestions: [] };
+  const h = await templateHarness({ language: 'en', settings: { detailTemplates: [custom] }, mapTemplate: 'X', reply });
+  const child = await h.repo.createNote('Child', 'model-a', h.doc, h.mapPath, 'workspace'); child.parentId = h.topic.id; h.doc.nodes.push(child); await h.repo.saveMap(h.mapPath, h.doc);
+  await h.repo.updateNote(h.topic.path, { status: 'completed' });
+  const options = () => ({ researchMode: 'local', researchDepth: 'normal', visualMode: 'off', referenceGroups: [] });
+  await h.view.startSynthesis(h.topic, options(), null, message => assert.fail(message), () => {});
+  await h.view.startSynthesis(h.topic, options(), 'Compare them', message => assert.fail(message), () => {});
+  assert.equal(h.contexts.at(-1).detailTemplate.id, 'X');
+  const task = h.view.synthesisTasks.get(h.topic.path);
+  await task.save(task.draft.summary, task.draft.detail);
+  const parent = await h.repo.readNote(h.topic.path);
+  assert.ok(parent.detail.indexOf('### First part') < parent.detail.indexOf('### Second part'), parent.detail);
+  assert.ok(!/### Core conclusions/.test(parent.detail), parent.detail);
+  const other = await h.repo.createNote('Other', 'model-a', h.doc, h.mapPath, 'workspace'); h.doc.nodes.push(other); await h.repo.saveMap(h.mapPath, h.doc);
+  await h.view.createIntegratedNode('Combined', [h.topic, other], 'Compare', '');
+  assert.equal(h.contexts.at(-1).detailTemplate.id, 'X');
+  const saved = await h.repo.readMap(h.mapPath);
+  const integrated = await h.repo.readNote(saved.nodes.at(-1).path);
+  assert.equal(integrated.title, 'Combined');
+  assert.ok(integrated.detail.indexOf('### First part') < integrated.detail.indexOf('### Second part'), integrated.detail);
+  const created = await h.view.createChildBatch(h.topic, [{ title: 'Contributed', task: 'Look', contribution: '### Second part\n\nB\n\n### First part\n\nA' }]);
+  const contributed = await h.repo.readNote(created[0].path);
+  assert.ok(contributed.detail.indexOf('### First part') < contributed.detail.indexOf('### Second part'), contributed.detail);
+});
+const countedTemplate = () => ({ id: 'K', name: 'Counted', sections: [templateSection('k0', 'Main'), templateSection('k1', 'Examples', { count: { mode: 'exact', n: 3 } })] });
+// Synthesis: call 1 proposes an angle, call 2 drafts; the draft is then saved (optionally edited) through the real save path.
+async function synthesisWithIssues({ settings, mapTemplate, draft }) {
+  const reply = (_context, call) => call === 1
+    ? { summary: '', detail: '', visualReferences: [], suggestions: [{ title: 'Angle', task: 'Compare them', contribution: '', parentTitle: '' }] }
+    : draft;
+  const h = await templateHarness({ language: 'en', settings, mapTemplate, reply });
+  const child = await h.repo.createNote('Child', 'model-a', h.doc, h.mapPath, 'workspace'); child.parentId = h.topic.id; h.doc.nodes.push(child); await h.repo.saveMap(h.mapPath, h.doc);
+  await h.repo.updateNote(h.topic.path, { status: 'completed', detailFormatIssues: ['Old: needs exactly 2, has 0'] });
+  const options = () => ({ researchMode: 'local', researchDepth: 'normal', visualMode: 'off', referenceGroups: [] });
+  await h.view.startSynthesis(h.topic, options(), null, message => assert.fail(message), () => {});
+  await h.view.startSynthesis(h.topic, options(), 'Compare them', message => assert.fail(message), () => {});
+  return { ...h, task: h.view.synthesisTasks.get(h.topic.path) };
+}
+const unmetDraft = { summary: 'Synth', detail: '### Main\n\nM\n\n### Examples\n\n- one', visualReferences: [], suggestions: [], formatIssues: [{ section: 'Examples', mode: 'exact', n: 3, actual: 1 }] };
+integrationTest('synthesis stores the draft format issues, rechecks an edited draft, and clears them without a count check', async () => {
+  const unedited = await synthesisWithIssues({ settings: { detailTemplates: [countedTemplate()] }, mapTemplate: 'K', draft: unmetDraft });
+  await unedited.task.save(unedited.task.draft.summary, unedited.task.draft.detail);
+  assert.deepEqual(plain((await unedited.repo.readNote(unedited.topic.path)).detailFormatIssues), ['Examples: needs exactly 3, has 1']);
+  const edited = await synthesisWithIssues({ settings: { detailTemplates: [countedTemplate()] }, mapTemplate: 'K', draft: unmetDraft });
+  await edited.task.save(edited.task.draft.summary, '### Main\n\nM\n\n### Examples\n\n- one\n- two\n- three');
+  assert.deepEqual(plain((await edited.repo.readNote(edited.topic.path)).detailFormatIssues), [], 'edited draft meets the count');
+  const uncounted = await synthesisWithIssues({ settings: {}, draft: { summary: 'Synth', detail: '### Core conclusions\n\nC', visualReferences: [], suggestions: [] } });
+  await uncounted.task.save(uncounted.task.draft.summary, `${uncounted.task.draft.detail}\n\nEdited`);
+  const note = await uncounted.repo.readNote(uncounted.topic.path);
+  assert.equal(note.summary, 'Synth');
+  assert.deepEqual(plain(note.detailFormatIssues), [], 'no count check ran: the old mark is cleared');
+});
+integrationTest('integrated topic stores the result format issues', async () => {
+  const h = await templateHarness({ language: 'en', settings: { detailTemplates: [countedTemplate()] }, mapTemplate: 'K', reply: () => unmetDraft });
+  const other = await h.repo.createNote('Other', 'model-a', h.doc, h.mapPath, 'workspace'); h.doc.nodes.push(other); await h.repo.saveMap(h.mapPath, h.doc);
+  await h.view.createIntegratedNode('Combined', [h.topic, other], 'Compare', '');
+  const saved = await h.repo.readMap(h.mapPath);
+  const integrated = await h.repo.readNote(saved.nodes.at(-1).path);
+  assert.equal(integrated.title, 'Combined');
+  assert.deepEqual(plain(integrated.detailFormatIssues), ['Examples: needs exactly 3, has 1']);
+});
+const partsTemplate = () => ({ id: 'X', name: 'Parts', sections: [templateSection('x0', 'First part'), templateSection('x1', 'Second part')] });
+const contributedSuggestion = title => ({ title, task: `Look at ${title}`, contribution: '### Second part\n\nB\n\n### First part\n\nA', parentTitle: '' });
+integrationTest('expand without shallow research: the chosen template shapes contributions and is recorded on the new children', async () => {
+  const reply = () => ({ summary: '', detail: '', visualReferences: [], suggestions: [contributedSuggestion('One'), contributedSuggestion('Two'), contributedSuggestion('Three')] });
+  const h = await templateHarness({ language: 'en', settings: { detailTemplates: [partsTemplate()] }, reply });
+  const options = { researchMode: 'local', researchDepth: 'fast', visualMode: 'off', referenceGroups: [], shallowResearch: false, multiLayer: false, detailTemplateId: 'X' };
+  let create;
+  await h.view.proposeChildren(h.topic, true, options, '', (items, run) => { create = () => run(items.slice(0, 1)); }, message => assert.fail(message));
+  assert.ok(create, 'suggestions were presented');
+  await create();
+  const saved = await h.repo.readMap(h.mapPath);
+  const child = await h.repo.readNote(saved.nodes.find(node => node.parentId === h.topic.id).path);
+  assert.equal(child.detailTemplateId, 'X');
+  assert.match(child.detail, /^### First part\n\nA\n\n### Second part\n\nB$/);
+  assert.equal(h.contexts.length, 1, 'no research ran');
+});
+integrationTest('multi-layer expand without shallow research: the chosen template shapes contributions and is recorded', async () => {
+  const reply = () => ({ summary: '', detail: '', visualReferences: [], suggestions: [contributedSuggestion('One'), contributedSuggestion('Two')] });
+  const h = await templateHarness({ language: 'en', settings: { detailTemplates: [partsTemplate()] }, reply });
+  const options = { researchMode: 'local', researchDepth: 'fast', visualMode: 'off', referenceGroups: [], shallowResearch: false, multiLayer: true, layers: 1, firstLayerCount: 2, childrenPerParent: 1, detailTemplateId: 'X' };
+  await h.view.startQuickExpansion(h.topic, options, '', message => assert.fail(message), () => {});
+  const saved = await h.repo.readMap(h.mapPath);
+  const children = saved.nodes.filter(node => node.parentId === h.topic.id);
+  assert.equal(children.length, 2);
+  for (const node of children) {
+    const child = await h.repo.readNote(node.path);
+    assert.equal(child.detailTemplateId, 'X');
+    assert.match(child.detail, /^### First part\n\nA\n\n### Second part\n\nB$/);
+  }
+});
+integrationTest('opening the AI dialog for a topic with a deleted template neither notifies nor rewrites the note', async () => {
+  const opened = [], notices = [];
+  const h = await templateHarness({ language: 'en', settings: { detailTemplates: sampleTemplates() }, mapTemplate: 'B' });
+  await h.repo.updateNote(h.topic.path, { detailTemplateId: 'gone' });
+  const before = await h.app.vault.read(h.app.vault.getAbstractFileByPath(h.topic.path));
+  const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Modal: class { constructor() {} open() { opened.push(this); } close() {} }, Notice: class { constructor(message) { notices.push(message); } } } });
+  const view = new VisualAgentMapView({ app: h.app }, h.plugin); view.path = h.mapPath; view.map = h.doc; view.render = () => {};
+  view.openNextStep(h.topic);
+  await until(() => opened.length === 1);
+  assert.equal(opened[0].modelSettings.currentTemplate, 'Template B', 'label shows the fallback template');
+  opened[0].close();
+  assert.deepEqual(notices, []);
+  assert.equal(await h.app.vault.read(h.app.vault.getAbstractFileByPath(h.topic.path)), before, 'note file unchanged');
+  assert.equal((await h.repo.readNote(h.topic.path)).detailTemplateId, 'gone');
+});
+integrationTest('no templates, zh-TW interface, English output: Standard follows the output language in the request and the saved note', async () => {
+  const h = await templateHarness({ language: 'zh-TW', reply: () => ({ summary: 'English summary', detail: '### Core conclusions\n\nC\n\n### Key knowledge\n\nK', visualReferences: [], suggestions: [] }) });
+  const handle = await h.view.runAgent(h.topic, undefined, message => assert.fail(message), { outputLanguage: 'en' });
+  await handle?.finished; await until(() => !h.plugin.running.size);
+  assert.equal(h.contexts[0].detailTemplate.id, 'standard');
+  assert.equal(h.contexts[0].detailTemplate.sections[0].name, 'Core conclusions');
+  const note = await h.repo.readNote(h.topic.path);
+  assert.equal(note.summary, 'English summary');
+  assert.deepEqual(note.detail.split('\n').filter(line => line.startsWith('### ')), ['### Core conclusions', '### Key knowledge', '### Evidence and sources', '### Tradeoffs and limitations', '### Open questions', '### Update log']);
+  assert.match(note.detail, /### Core conclusions\n\nC\n\n### Key knowledge\n\nK/);
+});
+integrationTest('multi research with a chosen template records it on each started topic and the AI request uses it (skipped topics untouched)', async () => {
+  const h = await templateHarness({ language: 'en', settings: { detailTemplates: sampleTemplates(), defaultDetailTemplateId: 'C' } });
+  const second = await h.repo.createNote('Second', 'model-a', h.doc, h.mapPath, 'workspace'); h.doc.nodes.push(second); await h.repo.saveMap(h.mapPath, h.doc);
+  const third = await h.repo.createNote('Third', 'model-a', h.doc, h.mapPath, 'workspace'); h.doc.nodes.push(third); await h.repo.saveMap(h.mapPath, h.doc);
+  await h.repo.updateNote(second.path, { prompt: 'Research second' }); await h.repo.updateNote(third.path, { prompt: 'Research third' });
+  h.plugin.confirmAiUsage = async (_model, run) => { await run(); return true; };
+  h.plugin.running.add(third.path); // busy: skipped before any write
+  h.view.multiSelected = new Set([h.topic.id, second.id, third.id]);
+  await h.view.startMultiResearch({ researchMode: 'local', researchDepth: 'fast', requirements: '', detailTemplateId: 'A' });
+  await until(() => h.contexts.length === 2 && !h.plugin.running.has(h.topic.path) && !h.plugin.running.has(second.path));
+  assert.deepEqual(h.contexts.map(context => context.detailTemplate.id), ['A', 'A']);
+  assert.equal((await h.repo.readNote(h.topic.path)).detailTemplateId, 'A');
+  assert.equal((await h.repo.readNote(second.path)).detailTemplateId, 'A');
+  assert.equal((await h.repo.readNote(third.path)).detailTemplateId, undefined);
+});
+integrationTest('map action: the default content template for this map is set and cleared through mapChange', async () => {
+  const opened = [];
+  const h = await templateHarness({ language: 'en', settings: { detailTemplates: sampleTemplates() } });
+  const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Modal: class { constructor() {} open() { opened.push(this); } close() {} }, Notice: class {} } });
+  const view = new VisualAgentMapView({ app: h.app }, h.plugin); view.path = h.mapPath; view.map = h.doc; view.render = () => {}; view.enqueue = work => work();
+  view.chooseMapTemplate();
+  const choices = opened.at(-1).choices;
+  assert.deepEqual(plain(choices.map(choice => choice.label)), ['Use the workspace default', 'Standard', 'Template A', 'Template B', 'Template C']);
+  assert.deepEqual(plain(choices.map(choice => choice.description ?? '')), ['Current setting', '', '', '', '']);
+  await choices[3].action();
+  await until(async () => (await h.repo.readMap(h.mapPath)).detailTemplateId === 'B');
+  assert.equal(view.map.detailTemplateId, 'B');
+  view.chooseMapTemplate();
+  assert.deepEqual(plain(opened.at(-1).choices.map(choice => choice.description ?? '')), ['', '', '', 'Current setting', ''], 'the current map value is marked');
+  await choices[0].action();
+  await until(async () => (await h.repo.readMap(h.mapPath)).detailTemplateId === undefined);
+  assert.equal(view.map.detailTemplateId, undefined);
+});
+integrationTest('map actions offer the default content template only on non-AIM maps', async () => {
+  const opened = [];
+  const h = await templateHarness({ language: 'en', settings: { detailTemplates: sampleTemplates() } });
+  const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Modal: class { constructor() {} open() { opened.push(this); } close() {} }, Notice: class {} } });
+  const view = new VisualAgentMapView({ app: h.app }, h.plugin); view.path = h.mapPath; view.map = h.doc; view.render = () => {};
+  const labels = () => { view.openMapActions(); return opened.at(-1).choices.map(choice => choice.label); };
+  assert.ok(labels().includes('Default content template for this map'));
+  view.map = { ...h.doc, aim: { runs: [] } };
+  assert.ok(!labels().includes('Default content template for this map'), 'templates do not apply to AIM maps');
+});
+
+test('coordinator counts succeeded and failed children with failed paths; aborted children count as neither', async () => {
+  const { ShallowExpansionCoordinator } = load('experiences/visual-map/expansion-batch.ts');
+  const states = new Map(), coordinator = new ShallowExpansionCoordinator(new Map(), states);
+  await coordinator.start('parent.md', [node('a'), node('b'), node('c'), node('skip')], async (child, _signal, accepted) => {
+    accepted(); if (child.id === 'b') throw new Error('Selected model is at capacity'); if (child.id === 'skip') return 'skipped';
+  }, () => {});
+  await until(() => states.get('parent.md').status !== 'running');
+  const done = states.get('parent.md');
+  assert.equal(done.completed, 4); assert.equal(done.succeeded, 2);
+  assert.deepEqual(plain(done.failedPaths), ['b.md']); assert.equal(done.failures.length, 1); assert.match(done.failures[0], /at capacity/);
+  const aborting = new Map(), second = new ShallowExpansionCoordinator(new Map(), aborting);
+  const releases = []; await second.start('p.md', [node('x'), node('y')], async (child, signal, accepted) => {
+    accepted(); await new Promise(resolve => releases.push(resolve)); if (child.id === 'y') throw new Error('late'); if (signal.aborted) return;
+  }, () => {});
+  await until(() => releases.length === 2); second.stop('p.md'); releases.forEach(r => r());
+  await until(() => aborting.get('p.md').status !== 'running');
+  const stopped = aborting.get('p.md'); assert.equal(stopped.status, 'stopped'); assert.equal(stopped.succeeded, 0); assert.deepEqual(plain(stopped.failedPaths), []);
+});
+function badgeElement(spans = [], buttons = []) {
+  const make = (tag, options = {}) => { const el = { tag, text: options.text ?? '', cls: options.cls ?? '', attrs: {}, listeners: {}, children: [], style: {}, dataset: {},
+    createDiv(v) { const c = make('div', typeof v === 'string' ? { cls: v } : v); this.children.push(c); return c; }, createSpan(v = {}) { const c = make('span', v); this.children.push(c); spans.push(c); return c; },
+    createEl(name, v = {}) { const c = make(name, v); this.children.push(c); if (name === 'button') buttons.push(c); return c; }, appendChild(c) { this.children.push(c); return c; },
+    setAttr(name, value) { this.attrs[name] = value; }, setAttribute(name, value) { this.attrs[name] = value; }, addClass(n) { this.cls = `${this.cls} ${n}`.trim(); }, removeClass() {}, toggleClass() {}, addEventListener(n, fn) { this.listeners[n] = fn; }, removeEventListener() {}, setPointerCapture() {}, empty() {}, setText(v) { this.text = v; } }; return el; };
+  return make('stage');
+}
+async function nodeBadgeHarness(language, outcome) {
+  const h = await multiResearchHarness(['Parent', 'A', 'B', 'C'], { language });
+  const [parent, a, b, c] = h.nodes; const spans = [], buttons = [];
+  h.view.stageEl = badgeElement(spans, buttons); h.view.notes = new Map(h.nodes.map(n => [n.id, { title: n.id === parent.id ? 'Parent' : n.id === a.id ? 'A' : n.id === b.id ? 'B' : 'C', status: 'completed', summary: '' }]));
+  const release = new Map(); const children = [a, b, c];
+  await h.plugin.expansionCoordinator.start(parent.path, children, async (child, _signal, accepted) => { accepted(); await new Promise(resolve => release.set(child.id, resolve)); if (child.id === b.id && outcome !== 'ok') throw new Error('Selected model is at capacity'); }, () => {});
+  const paint = () => { spans.length = 0; buttons.length = 0; h.view.stageEl = badgeElement(spans, buttons); h.view.renderNode(parent); };
+  const text = () => spans.map(s => s.text).join(' | ');
+  return { h, parent, a, b, c, spans, buttons, release, paint, text };
+}
+integrationTest('shallow research badge: failure badge, stopped marker and retry after stop; zh-TW strings', async () => {
+  const { translate } = load('i18n.ts'); const z = (key, ...v) => translate('zh-TW', key, ...v);
+  assert.equal([z('ui.shallow_research_counts', 0, 3), z('ui.batch_failed_count', 1), z('ui.shallow_research_current', 'B')].join(' · '), '淺研究：完成 0／3 · 失敗 1 · 研究中：B');
+  assert.equal([z('ui.shallow_research_counts', 2, 3), z('ui.batch_failed_count', 1), z('ui.shallow_research_stopped')].join(' · '), '淺研究：完成 2／3 · 失敗 1 · 已停止');
+  assert.equal(z('ui.multi_research_progress', 1, 5), '研究中：完成 1／5'); assert.equal(z('ui.retry_failed_topics', 2), '重試失敗的議題（2）'); assert.equal(z('ui.dismiss'), '關閉');
+  const x = await nodeBadgeHarness('en', 'fail');
+  x.release.get(x.b.id)(); await until(() => x.h.plugin.expansionBatches.get(x.parent.path).failedPaths.length === 1);
+  x.paint(); assert.ok(x.spans.some(s => s.text === '1 failed'), x.text());
+  x.h.plugin.expansionCoordinator.stop(x.parent.path); x.release.get(x.a.id)(); x.release.get(x.c.id)();
+  await until(() => x.h.plugin.expansionBatches.get(x.parent.path).status === 'stopped');
+  x.paint(); assert.ok(x.spans.some(s => s.text === 'Shallow research: 0 of 3 done · 1 failed · stopped'), x.text());
+  assert.ok(x.buttons.some(b => b.text === 'Retry failed topics (1)'));
+});
+integrationTest('shallow research badge in English: running, finished with a failure, and retry only when not running', async () => {
+  const x = await nodeBadgeHarness('en', 'fail');
+  x.paint(); assert.ok(x.spans.some(s => s.text === 'Shallow research: 0 of 3 done · researching: A'), x.text());
+  assert.equal(x.buttons.some(b => /^Retry failed topics/.test(b.text)), false);
+  x.release.get(x.b.id)(); await until(() => x.h.plugin.expansionBatches.get(x.parent.path).failedPaths.length === 1);
+  x.paint(); assert.ok(x.spans.some(s => s.text === 'Shallow research: 0 of 3 done · 1 failed · researching: A'), x.text());
+  assert.equal(x.buttons.some(b => /^Retry failed topics/.test(b.text)), false, 'no retry while running');
+  x.release.get(x.a.id)(); x.release.get(x.c.id)(); await until(() => x.h.plugin.expansionBatches.get(x.parent.path).status === 'completed');
+  x.paint(); assert.ok(x.spans.some(s => s.text === 'Shallow research: 2 of 3 done · 1 failed'), x.text());
+  assert.ok(x.buttons.some(b => b.text === 'Retry failed topics (1)'));
+  x.h.view.map.nodes = x.h.view.map.nodes.filter(n => n.id !== x.b.id); x.paint();
+  assert.equal(x.buttons.some(b => /^Retry failed topics/.test(b.text)), false, 'failed topic removed from the map');
+});
+integrationTest('retry failed topics selects exactly them, opens the modal and starts only them with the chosen model', async () => {
+  const x = await nodeBadgeHarness('en', 'fail'); const h = x.h;
+  x.release.get(x.a.id)(); x.release.get(x.b.id)(); x.release.get(x.c.id)(); await until(() => h.plugin.expansionBatches.get(x.parent.path).status === 'completed');
+  h.view.notes.set(x.b.id, { title: 'B', status: 'error', summary: '' });
+  x.paint(); x.buttons.find(b => /^Retry failed topics/.test(b.text)).listeners.click({ stopPropagation() {} });
+  assert.deepEqual(plain([...h.view.multiSelected]), [x.b.id]); assert.equal(h.opened.length, 1); assert.deepEqual(plain(h.opened[0].names), ['B']);
+  assert.ok(h.plugin.expansionBatches.has(x.parent.path), 'old state kept until the retry starts');
+  h.opened[0].submit({ ...h.request, model: 'model-b' });
+  await until(() => h.runs.length === 1); assert.equal(h.runs[0].title, 'B'); assert.deepEqual(plain(h.confirms), ['model-b']);
+  assert.equal((await h.repo.readNote(x.b.path)).model, 'model-b');
+  assert.equal(h.plugin.expansionBatches.has(x.parent.path), false, 'old failure state cleared');
+  h.finish.get('B')(); await until(() => h.plugin.expansionBatches.get(h.key).status === 'completed');
+});
+integrationTest('multi research status bar stays after failures with retry and dismiss, and hides without failures', async () => {
+  const h = await multiResearchHarness(['A', 'B', 'C']);
+  h.view.notes = new Map(h.nodes.map((n, i) => [n.id, { title: 'ABC'[i], status: 'completed', summary: '' }]));
+  const spans = [], buttons = []; const bar = () => { spans.length = 0; buttons.length = 0; const root = badgeElement(spans, buttons); h.view.renderMultiResearchStatus(root); return root; };
+  h.view.multiSelected = new Set(h.nodes.map(n => n.id)); await h.view.startMultiResearch(h.request); await until(() => h.runs.length === 3);
+  h.finish.get('A')(); h.finish.get('B')('Selected model is at capacity'); h.finish.get('C')();
+  await until(() => h.plugin.expansionBatches.get(h.key).status === 'completed');
+  bar(); assert.ok(spans.some(s => /Research finished: 2 of 3 done · 1 failed/.test(s.text)), spans.map(s => s.text).join('|'));
+  const retry = buttons.find(b => b.text === 'Retry failed topics (1)'); assert.ok(retry); const dismiss = buttons.find(b => b.attrs['aria-label'] === 'Dismiss'); assert.ok(dismiss);
+  retry.listeners.click({ stopPropagation() {} }); assert.deepEqual(plain([...h.view.multiSelected]), [h.nodes[1].id]); assert.deepEqual(plain(h.opened[0].names), ['B']);
+  dismiss.listeners.click({ stopPropagation() {} }); assert.equal(h.plugin.expansionBatches.has(h.key), false);
+  const clean = await multiResearchHarness(['A']); clean.view.notes = new Map(clean.nodes.map(n => [n.id, { title: n.id, status: 'completed', summary: '' }]));
+  clean.view.multiSelected = new Set([clean.nodes[0].id]); await clean.view.startMultiResearch(clean.request); await until(() => clean.runs.length === 1);
+  clean.finish.get('A')(); await until(() => clean.plugin.expansionBatches.get(clean.key).status === 'completed');
+  const root = badgeElement(); clean.view.renderMultiResearchStatus(root); assert.equal(root.children.length, 0);
 });

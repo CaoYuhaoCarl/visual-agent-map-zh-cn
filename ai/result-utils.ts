@@ -1,6 +1,10 @@
 import type { VisualReference } from "../repository";
 import { translate, type UiLanguage } from "../i18n";
 import type { AiResult } from "./types";
+import { fencedLines } from "./markdown-blocks";
+import { sectionLookup, standardTemplate, type DetailTemplate } from "./detail-templates";
+
+export { fencedLines } from "./markdown-blocks";
 
 const SENTENCE_END = /[。！？；!?;]/;
 
@@ -33,25 +37,6 @@ export function reportedSearchFailure(result: Pick<AiResult, "summary" | "detail
   return LEGACY_SEARCH_FAILURE.test(`${result.summary}\n${result.detail}`);
 }
 
-/** Marks each line that belongs to a fenced code block (fence lines included). */
-export function fencedLines(lines: string[]): boolean[] {
-  let fence: string | null = null;
-  return lines.map(line => {
-    const open = /^\s*(`{3,}|~{3,})/.exec(line);
-    if (fence) {
-      // A closing fence carries no info string.
-      const close = /^\s*(`{3,}|~{3,})\s*$/.exec(line);
-      if (close && close[1][0] === fence[0] && close[1].length >= fence.length) fence = null;
-      return true;
-    }
-    if (open) {
-      fence = open[1];
-      return true;
-    }
-    return false;
-  });
-}
-
 /**
  * A footnote definition VAM writes for a note source: an old `src-` label, a single wikilink, or an external-source
  * note. Other footnotes belong to the writer and are left alone.
@@ -68,24 +53,18 @@ export function sourceFootnoteDefinition(line: string): { label: string; target:
     : null;
 }
 
-export function canonicalDetail(value: string, language: UiLanguage = "zh-TW"): string {
+export function canonicalDetail(
+  value: string,
+  language: UiLanguage = "zh-TW",
+  template: DetailTemplate = standardTemplate(language)
+): string {
   const detail = value.trim();
-  const keys = [
-    "detail.core_conclusions",
-    "detail.key_knowledge",
-    "detail.evidence_and_sources",
-    "detail.tradeoffs_and_limitations",
-    "detail.open_questions",
-    "detail.update_log"
-  ] as const;
-  const headings = keys.map(key => translate(language, key));
-  const aliases = new Map<string, number>();
-  for (let index = 0; index < keys.length; index++)
-    for (const locale of ["zh-TW", "en"] as const)
-      aliases.set(translate(locale, keys[index]).toLocaleLowerCase(), index);
+  const headings = template.sections.map(section => section.name);
+  const aliases = sectionLookup(template);
+  const sourcesIndex = template.sections.findIndex(section => section.role === "sources");
   const sections = new Map<number, string[]>();
   const leading: string[] = [];
-  // Source footnote definitions all belong to "Evidence and sources", wherever the reply put them.
+  // Source footnote definitions all belong to the sources section (or the end), wherever the reply put them.
   const footnotes: string[] = [];
   let current: number | null = null;
   const detailLines = detail.split("\n");
@@ -106,14 +85,15 @@ export function canonicalDetail(value: string, language: UiLanguage = "zh-TW"): 
   }
   if (sections.size === 0) sections.set(0, [leading.join("\n").trim()]);
   else if (leading.join("\n").trim()) sections.set(0, [leading.join("\n").trim(), ...(sections.get(0) ?? [])]);
-  if (footnotes.length) {
-    const evidence = (sections.get(2) ?? []).join("\n").trim();
-    sections.set(2, [[evidence, footnotes.join("\n")].filter(Boolean).join("\n\n")]);
+  if (footnotes.length && sourcesIndex >= 0) {
+    const evidence = (sections.get(sourcesIndex) ?? []).join("\n").trim();
+    sections.set(sourcesIndex, [[evidence, footnotes.join("\n")].filter(Boolean).join("\n\n")]);
   }
   const empty = translate(language, "note.no_new_information");
-  return headings
+  const body = headings
     .map((heading, index) => `### ${heading}\n\n${sections.get(index)?.join("\n").trim() || empty}`)
     .join("\n\n");
+  return footnotes.length && sourcesIndex < 0 ? `${body}\n\n${footnotes.join("\n")}` : body;
 }
 
 export function visualReferencesMarkdown(references: VisualReference[] = [], language: UiLanguage = "zh-TW"): string {

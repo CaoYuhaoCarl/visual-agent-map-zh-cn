@@ -28,7 +28,16 @@ import {
 } from "./ui/settings-tab";
 import { join } from "node:path";
 import { type MapDocument, type MapNode } from "./map-model";
-import { DEFAULT_SETTINGS, normalizeReasoningLevel, type Note, Repository, type Settings } from "./repository";
+import {
+  DEFAULT_SETTINGS,
+  moveNotePath,
+  normalizeReasoningLevel,
+  rebaseMapNotePaths,
+  type Note,
+  Repository,
+  type Settings
+} from "./repository";
+import { normalizeTemplates } from "./ai/detail-templates";
 import { effectiveReasoningLevel } from "./ai/task-policy";
 import type { AiResult, Suggestion, TaskContext } from "./ai/types";
 import { clampPreviewScale, legacyPreviewScale } from "./ui/preview-utils";
@@ -219,6 +228,9 @@ export default class VisualAgentMapPlugin extends Plugin {
     const legacy: (Partial<Settings> & { cliPath?: string }) | null = saved;
     this.settings = {
       ...DEFAULT_SETTINGS,
+      detailTemplates: normalizeTemplates(saved?.detailTemplates),
+      defaultDetailTemplateId:
+        typeof saved?.defaultDetailTemplateId === "string" ? saved.defaultDetailTemplateId : undefined,
       coffeeStyles: Array.isArray(saved?.coffeeStyles)
         ? saved.coffeeStyles.filter(
             (item: unknown): item is { id: string; name: string; prompt: string } =>
@@ -290,6 +302,7 @@ export default class VisualAgentMapPlugin extends Plugin {
       await (this.pendingSuggestions as PendingSuggestions).load();
     }
     this.repo = new Repository(this.app, this.settings);
+    this.repo.onUnreadableMaps = failures => this.reportUnreadableMaps(failures);
     const initialize = (
       this.settings.migrated
         ? Promise.resolve()
@@ -476,6 +489,10 @@ export default class VisualAgentMapPlugin extends Plugin {
           console.warn("Visual Agent Map initialization", error);
         });
     });
+    this.registerVaultEvents();
+  }
+  /** Vault modify/delete/rename handlers; kept separate so tests can drive the real handlers on a fake vault. */
+  registerVaultEvents(): void {
     this.registerEvent(
       this.app.vault.on("modify", file => {
         if (!this.writing && file instanceof TFile) for (const view of this.views()) view.changed(file);
@@ -502,15 +519,8 @@ export default class VisualAgentMapPlugin extends Plugin {
         this.runMutation(async () => {
           await this.repo.replaceSourcePath(oldPath, file.path);
           let mapChanged = false;
-          for (const mapFile of await this.repo.mapFiles()) {
-            const map = await this.repo.readMap(mapFile.path);
-            let changed = false;
-            for (const node of map.nodes)
-              if (node.path === oldPath) {
-                node.path = file.path;
-                changed = true;
-              }
-            if (changed) {
+          for (const { file: mapFile, map } of await this.repo.readableMaps()) {
+            if (rebaseMapNotePaths(map, moveNotePath(oldPath, file.path))) {
               await this.repo.saveMap(mapFile.path, map);
               mapChanged = true;
             }
@@ -526,6 +536,19 @@ export default class VisualAgentMapPlugin extends Plugin {
         });
       })
     );
+  }
+  private readonly unreadableReported = new Map<string, number>();
+  /** One Notice and log line per scan; the same map and error is not repeated within a few seconds (one rename = two scans). */
+  private reportUnreadableMaps(failures: { path: string; error: string }[]): void {
+    const now = Date.now();
+    for (const { path, error } of failures) {
+      const key = `${path}\n${error}`;
+      if (now - (this.unreadableReported.get(key) ?? 0) < 5000) continue;
+      this.unreadableReported.set(key, now);
+      const message = t("ui.map_unreadable_skipped_0_1", path, error);
+      this.logs.appendLog("warn", message);
+      new Notice(message);
+    }
   }
   consumeFirstInstallSample(): boolean {
     const pending = this.firstInstallSamplePending;

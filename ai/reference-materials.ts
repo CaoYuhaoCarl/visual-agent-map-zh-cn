@@ -1,6 +1,7 @@
 import { App, TFile } from "obsidian";
-import { t, translate } from "../i18n";
+import { t } from "../i18n";
 import { fencedLines, sourceFootnoteDefinition } from "./result-utils";
+import { sourcesHeadingKeys, standardTemplate, type DetailTemplate } from "./detail-templates";
 
 export interface ReferenceDocument {
   path: string;
@@ -154,7 +155,12 @@ function sourceDefinitions(detail: string): Map<string, string> {
  * reply kept without its definition is restored from the selected sources or the previous detail. Only source
  * footnotes are touched: code, other footnotes and footnote-like text stay as written.
  */
-export function resolveDetailReferences(detail: string, groups: ReferenceGroup[], previousDetail = ""): string {
+export function resolveDetailReferences(
+  detail: string,
+  groups: ReferenceGroup[],
+  previousDetail = "",
+  template?: DetailTemplate
+): string {
   const documents = dedupeReferenceGroups(groups).flatMap(group => group.documents);
   const cited = new Map<string, string>();
   const source = (line: string): string => {
@@ -235,9 +241,7 @@ export function resolveDetailReferences(detail: string, groups: ReferenceGroup[]
   );
   const text = compact.join("\n").trimEnd();
   if (!ordered.length) return text;
-  const headings = new Set(
-    (["zh-TW", "en"] as const).map(locale => translate(locale, "detail.evidence_and_sources").toLocaleLowerCase())
-  );
+  const headings = sourcesHeadingKeys(template ?? standardTemplate("en"));
   const textLines = text.split("\n");
   const textCode = fencedLines(textLines);
   const start = textLines.findIndex((line, index) => {

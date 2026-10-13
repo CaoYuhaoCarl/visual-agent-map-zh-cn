@@ -2,6 +2,7 @@ import type { MapNode } from "../../map-model";
 import { safeName, type Repository } from "../../repository";
 import { arrangeMap } from "../../map-layout";
 import { canonicalDetail } from "../../ai/result-utils";
+import { standardTemplate, type DetailTemplate } from "../../ai/detail-templates";
 import { translate } from "../../i18n";
 
 export const OUTLINE_NODE_LIMIT = 100;
@@ -271,9 +272,11 @@ export async function createOutlineMap(
   model: string,
   nodes: OutlineNode[],
   source: string | null,
-  now = new Date()
+  now = new Date(),
+  template?: DetailTemplate
 ): Promise<OutlineCreateResult> {
   const language = repository.settings.language;
+  const detailTemplate = template ?? standardTemplate(language);
   if (!nodes.length) throw new Error(translate(language, "ui.outline_error_no_headings"));
   const mapPath = await repository.createMap(nodes[0].title, []);
   let map;
@@ -286,7 +289,9 @@ export async function createOutlineMap(
   const log = source
     ? translate(language, "ui.outline_import_log_source", localDate(now), source)
     : translate(language, "ui.outline_import_log", localDate(now));
-  const rootDetail = canonicalDetail(`### ${translate(language, "detail.update_log")}\n\n- ${log}`, language);
+  // The import line goes to the template's log section, or its first section when it has none.
+  const heading = (detailTemplate.sections.find(section => section.role === "log") ?? detailTemplate.sections[0]).name;
+  const rootDetail = canonicalDetail(`### ${heading}\n\n- ${log}`, language, detailTemplate);
   const created: MapNode[] = [];
   let failure: string | undefined;
   for (const node of nodes) {
