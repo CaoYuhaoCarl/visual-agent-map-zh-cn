@@ -344,7 +344,7 @@ var english = {
   "ui.context_ai_choose_image": "Choose an image to insert",
   "ui.context_ai_running_0": "Running: {0}\u2026",
   "ui.context_ai_stop": "Stop",
-  "ui.context_ai_shortcut": "\u2318 Enter to run",
+  "ui.context_ai_shortcut": "{0} Enter to run",
   "ui.context_ai_custom_instruction": "Custom instruction",
   "ui.context_ai_instruction_placeholder_image": "Or describe what AI should do with this image\u2026",
   "ui.context_ai_search_disclosure": "Sends a search query to Wikimedia Commons and loads public image previews.",
@@ -1638,7 +1638,7 @@ var traditionalChinese = {
   "ui.context_ai_choose_image": "\u9078\u64C7\u8981\u63D2\u5165\u7684\u5716\u7247",
   "ui.context_ai_running_0": "\u6B63\u5728{0}\u2026",
   "ui.context_ai_stop": "\u505C\u6B62",
-  "ui.context_ai_shortcut": "\u2318 Enter \u57F7\u884C",
+  "ui.context_ai_shortcut": "{0} Enter \u57F7\u884C",
   "ui.context_ai_custom_instruction": "\u81EA\u8A02\u6307\u4EE4",
   "ui.context_ai_instruction_placeholder_image": "\u6216\u63CF\u8FF0\u60F3\u8ACB AI \u600E\u9EBC\u8655\u7406\u9019\u5F35\u5716\u2026",
   "ui.context_ai_search_disclosure": "\u6703\u628A\u641C\u5C0B\u95DC\u9375\u5B57\u9001\u5F80 Wikimedia Commons\uFF0C\u4E26\u8F09\u5165\u516C\u958B\u5716\u7247\u9810\u89BD\u3002",
@@ -29372,7 +29372,7 @@ var ClaudeCodeCliRuntime = class {
           const result = claudeStructuredOutput(streaming ? finalResult : stdout, !outputSchema);
           if (controls.webSearchOnly && !activity.retrievals) throw new Error(t("ui.context_ai_search_not_performed"));
           const streamed = [streamText, currentText].filter(Boolean).join("\n\n");
-          finish(void 0, streaming && result.length < streamed.length ? streamed : result);
+          finish(void 0, !outputSchema && streaming && result.length < streamed.length ? streamed : result);
         } catch (error) {
           finish(error instanceof Error ? error : new Error(String(error)));
         }
@@ -30948,7 +30948,8 @@ async function searchImages(query, signal) {
     try {
       const url = new URL(info.thumburl || info.url || "");
       const source = new URL(info.descriptionurl || "");
-      if (url.protocol !== "https:" || url.hostname !== "upload.wikimedia.org" || source.protocol !== "https:" || source.hostname !== "commons.wikimedia.org")
+      if (url.protocol !== "https:" || // Commons serves thumbnails from thumb.wikimedia.org and originals from upload.wikimedia.org.
+      !["upload.wikimedia.org", "thumb.wikimedia.org"].includes(url.hostname) || source.protocol !== "https:" || source.hostname !== "commons.wikimedia.org")
         return [];
       return [{ title: (page.title || "Image").replace(/^File:/, ""), url: url.href, source: source.href }];
     } catch (e) {
@@ -31442,7 +31443,10 @@ var SelectionAiPanel = class extends import_obsidian23.Component {
     this.accept = this.resultActions.createEl("button", { text: t("ui.context_ai_accept") });
     this.accept.addEventListener("click", () => this.applyResult(this.output.value, "replace", this.status));
     const bar = footer.createDiv({ cls: "vam-context-ai-bar" });
-    bar.createSpan({ cls: "vam-context-ai-shortcut", text: t("ui.context_ai_shortcut") });
+    bar.createSpan({
+      cls: "vam-context-ai-shortcut",
+      text: t("ui.context_ai_shortcut", import_obsidian23.Platform.isMacOS ? "\u2318" : "Ctrl")
+    });
     this.stopButton = bar.createEl("button", { text: t("ui.cancel") });
     this.stopButton.addEventListener("click", () => {
       if (this.controller) this.stop();

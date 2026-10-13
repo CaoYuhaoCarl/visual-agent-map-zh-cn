@@ -77,3 +77,16 @@ test('the markdown call site in main.ts uses the Step Runner and the shared runt
   assert.ok(start >= 0 && body.includes('runtimeStepProvider(') && body.includes('.send(prepared'));
   assert.ok(!/\.runTask\(/.test(body), 'the call site does not call runTask itself');
 });
+
+test('image search keeps Commons thumbnails from thumb and upload hosts and drops other hosts and types', async () => {
+  const page = (id, thumburl, mime = 'image/jpeg') => [id, { title: `File:${id}.jpg`, imageinfo: [{ thumburl, mime, descriptionurl: `https://commons.wikimedia.org/wiki/File:${id}.jpg` }] }];
+  const pages = Object.fromEntries([
+    page('thumb', 'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/x.jpg/640px-x.jpg'),
+    page('upload', 'https://upload.wikimedia.org/wikipedia/commons/a/ab/y.jpg'),
+    page('other', 'https://example.org/z.jpg'),
+    page('svg', 'https://upload.wikimedia.org/wikipedia/commons/a/ab/z.svg', 'image/svg+xml')
+  ]);
+  const { searchImages } = load('experiences/markdown-context/action-plan.ts', { obsidian: { requestUrl: async () => ({ text: JSON.stringify({ query: { pages } }) }) } }, { URL, URLSearchParams });
+  const found = await searchImages('fried egg', new AbortController().signal);
+  assert.deepEqual([...found.map(item => item.title)], ['thumb.jpg', 'upload.jpg']);
+});

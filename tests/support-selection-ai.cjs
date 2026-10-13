@@ -38,7 +38,7 @@ class Setting {
  * with the next entry of `replies`. Returns the prompts of the prepared steps the panel passed to `run`, in order.
  */
 async function runPanel({ markdown, selected, replies, steps = false }) {
-  const obsidian = { Component, MarkdownView, MarkdownRenderer: { render: async () => {} }, Notice: class {}, Setting, setIcon() {}, requestUrl: async () => ({ json: {} }) };
+  const obsidian = { Component, MarkdownView, MarkdownRenderer: { render: async () => {} }, Notice: class {}, Setting, setIcon() {}, Platform: { isMacOS: true }, requestUrl: async () => ({ json: {} }) };
   const globals = {
     HTMLElement: FakeElement, HTMLImageElement: class {}, HTMLTextAreaElement: class {}, HTMLButtonElement: class {},
     document: { activeElement: null },

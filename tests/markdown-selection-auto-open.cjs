@@ -41,7 +41,7 @@ function setup(initial) {
   class MarkdownView {}
   class HTMLImageElement { constructor() { this.alt = 'image'; this.src = ''; this.currentSrc = ''; } closest() { return null; } getBoundingClientRect() { return { left: 0, right: 10, top: 0, bottom: 10, width: 10, height: 10 }; } }
   class Setting { addButton(build) { const button = { setButtonText() { return button; }, setCta() { return button; }, onClick() { return button; } }; build(button); return this; } }
-  const obsidian = { Component, MarkdownView, MarkdownRenderer: { render: async () => {} }, Notice: class {}, Setting, setIcon() {}, requestUrl: async () => ({ json: {} }) };
+  const obsidian = { Component, MarkdownView, MarkdownRenderer: { render: async () => {} }, Notice: class {}, Setting, setIcon() {}, Platform: { isMacOS: true }, requestUrl: async () => ({ json: {} }) };
   const globals = {
     HTMLElement: FakeElement, HTMLImageElement, HTMLTextAreaElement: class {}, HTMLButtonElement: class {},
     document: { activeElement: null },

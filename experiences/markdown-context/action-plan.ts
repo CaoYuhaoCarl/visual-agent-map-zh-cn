@@ -77,7 +77,8 @@ export async function searchImages(query: string, signal: AbortSignal): Promise<
       const source = new URL(info.descriptionurl || "");
       if (
         url.protocol !== "https:" ||
-        url.hostname !== "upload.wikimedia.org" ||
+        // Commons serves thumbnails from thumb.wikimedia.org and originals from upload.wikimedia.org.
+        !["upload.wikimedia.org", "thumb.wikimedia.org"].includes(url.hostname) ||
         source.protocol !== "https:" ||
         source.hostname !== "commons.wikimedia.org"
       )

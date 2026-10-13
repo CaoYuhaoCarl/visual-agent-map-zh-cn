@@ -1,4 +1,4 @@
-import { Component, MarkdownRenderer, MarkdownView, Notice, setIcon, type App, type Editor } from "obsidian";
+import { Component, MarkdownRenderer, MarkdownView, Notice, Platform, setIcon, type App, type Editor } from "obsidian";
 import { getUiLanguage, t } from "../../i18n";
 import type { PreparedStep } from "../../core/step-runner";
 import { prepareStep } from "../../core/step-runner";
@@ -428,7 +428,10 @@ class SelectionAiPanel extends Component {
     this.accept.addEventListener("click", () => this.applyResult(this.output.value, "replace", this.status));
 
     const bar = footer.createDiv({ cls: "vam-context-ai-bar" });
-    bar.createSpan({ cls: "vam-context-ai-shortcut", text: t("ui.context_ai_shortcut") });
+    bar.createSpan({
+      cls: "vam-context-ai-shortcut",
+      text: t("ui.context_ai_shortcut", Platform.isMacOS ? "⌘" : "Ctrl")
+    });
     this.stopButton = bar.createEl("button", { text: t("ui.cancel") });
     this.stopButton.addEventListener("click", () => {
       if (this.controller) this.stop();

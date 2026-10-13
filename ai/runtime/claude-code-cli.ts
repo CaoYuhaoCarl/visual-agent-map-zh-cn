@@ -398,7 +398,7 @@ export class ClaudeCodeCliRuntime {
           const result = claudeStructuredOutput(streaming ? finalResult : stdout, !outputSchema);
           if (controls.webSearchOnly && !activity.retrievals) throw new Error(t("ui.context_ai_search_not_performed"));
           const streamed = [streamText, currentText].filter(Boolean).join("\n\n");
-          finish(undefined, streaming && result.length < streamed.length ? streamed : result);
+          finish(undefined, !outputSchema && streaming && result.length < streamed.length ? streamed : result);
         } catch (error) {
           finish(error instanceof Error ? error : new Error(String(error)));
         }
