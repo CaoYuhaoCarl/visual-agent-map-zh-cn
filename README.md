@@ -8,7 +8,7 @@
 
 **Start with a question. See the pieces. Follow the ideas worth exploring.** Build a visual research map, let AIM investigate a question, or talk through a new idea in Coffee Tables. Keep what you learn in editable Markdown notes.
 
-[**Get started**](#get-started) · [See the 0.16.0 release](https://github.com/kevcltsai/visual-agent-map/releases/tag/0.16.0) · [Installation guide](INSTALL.md)
+[**Get started**](#get-started) · [See the 0.17.0 release](https://github.com/kevcltsai/visual-agent-map/releases/tag/0.17.0) · [Installation guide](INSTALL.md)
 
 ### Take a look
 
@@ -28,7 +28,7 @@ Coffee Tables guests are simulated, not real experts; their conversations are no
 
 1. In **Obsidian Desktop → Settings → Community plugins → Browse**, find **Visual Agent Map**, then install and enable it. Requires Obsidian **1.13.7+**.
 2. Try the built-in sample or create a visual map. For AI features, install and sign in to [Codex CLI](https://developers.openai.com/codex/cli/) or [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview), then check the CLI in VAM settings.
-3. Choose **Create Adaptive Inquiry Map (AIM)** to try AIM. Enter your question and background, answer the questions that matter, and open the connected notes to inspect research and the final document.
+3. Choose **＋ New map → Create Adaptive Inquiry Map (AIM)** to try AIM. Enter your question and background, answer the questions that matter, and open the connected notes to inspect research and the final document.
 
 For detailed setup, manual installation, and troubleshooting, see [INSTALL.md](INSTALL.md).
 
@@ -77,7 +77,7 @@ Copyright © 2026 Kevin Tsai
 
 **從一個問題出發，看見各個部分，再追你想探索的線索。** 建立視覺化研究地圖、讓 AIM 深入查證問題，或到 Coffee Tables 聊出新角度；想留下的發現都能存成可編輯的 Markdown 筆記。
 
-[**開始使用**](#開始使用) · [查看 0.16.0 正式版](https://github.com/kevcltsai/visual-agent-map/releases/tag/0.16.0) · [安裝指南](INSTALL.md)
+[**開始使用**](#開始使用) · [查看 0.17.0 正式版](https://github.com/kevcltsai/visual-agent-map/releases/tag/0.17.0) · [安裝指南](INSTALL.md)
 
 ### 看看畫面
 
@@ -97,7 +97,7 @@ Coffee Tables 來賓是模擬角色，不是真實專家；對談內容不會自
 
 1. 到 **Obsidian 桌面版 → 設定 → 第三方外掛 → 瀏覽** 搜尋 **Visual Agent Map**，安裝並啟用。需要 Obsidian **1.13.7+**。
 2. 先試內建範例，或建立自己的視覺化地圖。使用 AI 功能前，安裝並登入 [Codex CLI](https://developers.openai.com/codex/cli/) 或 [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview)，再到 VAM 設定檢查 CLI。
-3. 選擇「**建立 Adaptive Inquiry Map（AIM）**」體驗 AIM。輸入問題與背景，回答重要的條件問題，再開啟相連的筆記查看研究與最終文件。
+3. 選擇「**＋ 新增地圖 → 建立 Adaptive Inquiry Map（AIM）**」體驗 AIM。輸入問題與背景，回答重要的條件問題，再開啟相連的筆記查看研究與最終文件。
 
 詳細設定、手動安裝與問題排除，請見 [INSTALL.md](INSTALL.md)。
 

@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.17.0] - 2026-10-13
+
+### Changed
+
+- The visual map toolbar is one row: switch map, research progress, **＋ New map** (new mind map, import outline or AIM), undo, redo and more actions. Topic tools and zoom float on the canvas, and hover preview size moved to Settings.
+- Topic cards show their research state, including the reason a topic failed. Card tools appear on hover, focus or selection. Clicking a card selects it; the details sidebar follows the selection only when it is already open.
+- Arrow keys move between topics and F2 renames the selected topic; keyboard focus stays in place when the map redraws.
+- **How would you like to explore next?** puts the step choice first and suggests a step from the topic's state. One action bar stays at the bottom, all steps share one set of sources, and a notice confirms when a task continues in the background.
+- AI drafts open rendered, with **Edit** to change them before saving. The window says what the draft replaces or creates, keeps save errors visible, and asks once more before **Discard**.
+- Subtopic proposals show one row per topic with details folded, children indented under their parent, linked checkboxes, **Select all** and the number of topics on the create button.
+- In **Structure and links**, a new parent applies only after **Apply**. Removing topics, deleting a map or a template and other destructive choices are marked, and confirmation windows start on **Cancel**.
+- Create, import, research, content template and map conflict windows keep their buttons in view and show problems inside the window. The map conflict window explains what each version keeps.
+
+### Fixed
+
+- Pressing Enter while an input method is still composing characters no longer saves a topic name early.
+
 ## [0.16.0] - 2026-10-13
 
 ### Added
