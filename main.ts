@@ -368,13 +368,12 @@ export default class VisualAgentMapPlugin extends Plugin {
       leaf =>
         new OutlineView(leaf, async path => {
           try {
-            // The outline is a map navigator: it moves the map to the topic. Only without a map showing it, open the note.
+            // The outline moves the map to the topic and opens its note beside it.
             const view = this.views().find(item => item.hasPath(path));
             if (view) {
               // Bring the map tab forward first: a background tab has no size to center in.
               await this.app.workspace.revealLeaf(view.leaf);
               await view.revealPath(path);
-              return;
             }
             await this.openDetails(this.repo.file(path));
           } catch (error) {

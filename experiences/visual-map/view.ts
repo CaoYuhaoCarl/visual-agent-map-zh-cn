@@ -5690,8 +5690,9 @@ export class VisualAgentMapView extends ItemView {
     );
     viewport.addEventListener("pointerdown", event => {
       if ((event.target as Element).closest(".vam-node") || !this.map) return;
-      // Topic selection turns a plain drag into a selection box; Space or the middle button still pans.
-      const pan = event.button === 1 || (event.button === 0 && (!this.integrationMode || this.spaceHeld));
+      // Topic selection turns a plain drag into a selection box; Option (Alt), Space or the middle button still pans.
+      const pan =
+        event.button === 1 || (event.button === 0 && (!this.integrationMode || this.spaceHeld || event.altKey));
       if (event.button === 0 && !pan) {
         this.startMarquee(viewport, event);
         return;
