@@ -2329,6 +2329,7 @@ export class VisualAgentMapView extends ItemView {
           label: t("ui.delete_0", this.map.title),
           description: t("ui.topic_notes_will_be_kept"),
           buttonLabel: t("ui.move_to_trash"),
+          warning: true,
           action: () =>
             this.enqueue(async () => {
               if (!this.map) return;

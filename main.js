@@ -21517,14 +21517,22 @@ function renderProposalList(parent, suggestions, changed, options = {}) {
     contribution.setAttr("aria-label", t("ui.contribution_to_the_parent_topic"));
     rows.push({ item, check, title, task, contribution });
     check.addEventListener("change", () => {
-      if (item.parentTitle && check.checked)
-        rows.forEach((other) => {
-          if (!other.item.parentTitle && other.item.title === item.parentTitle) other.check.checked = true;
-        });
-      if (!item.parentTitle && !check.checked)
-        rows.forEach((other) => {
-          if (other.item.parentTitle === item.title) other.check.checked = false;
-        });
+      const uncheckChildren = (title2) => rows.forEach((other) => {
+        if (other.item.parentTitle === title2 && other.check.checked) {
+          other.check.checked = false;
+          uncheckChildren(other.item.title);
+        }
+      });
+      if (check.checked && item.parentTitle) {
+        let parentTitle = item.parentTitle;
+        while (parentTitle) {
+          const parent2 = rows.find((other) => other.item.title === parentTitle);
+          if (!parent2) break;
+          parent2.check.checked = true;
+          parentTitle = parent2.item.parentTitle;
+        }
+      }
+      if (!check.checked) uncheckChildren(item.title);
       update();
     });
   }
@@ -21539,9 +21547,7 @@ function renderProposalList(parent, suggestions, changed, options = {}) {
     selected: () => {
       const selected = rows.filter((row) => row.check.checked && row.title.value.trim());
       if (!selected.length) return t("ui.select_at_least_one_subtopic");
-      const renamed = new Map(
-        selected.filter((row) => !row.item.parentTitle).map((row) => [row.item.title, row.title.value.trim()])
-      );
+      const renamed = new Map(selected.map((row) => [row.item.title, row.title.value.trim()]));
       const names2 = selected.filter((row) => !row.item.parentTitle).map((row) => row.title.value.trim());
       if (new Set(names2).size !== names2.length) return t("ui.first_level_topic_names_must_be_unique");
       if (selected.some((row) => row.item.parentTitle && !renamed.has(row.item.parentTitle)))
@@ -23915,6 +23921,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
           label: t("ui.delete_0", this.map.title),
           description: t("ui.topic_notes_will_be_kept"),
           buttonLabel: t("ui.move_to_trash"),
+          warning: true,
           action: () => this.enqueue(async () => {
             if (!this.map) return;
             if (this.viewportTimer !== null) {

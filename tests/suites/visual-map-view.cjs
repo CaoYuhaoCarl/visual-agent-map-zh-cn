@@ -963,6 +963,9 @@ integrationTest('choice dialog marks destructive choices and starts on Cancel; m
   const choice = new ChoiceModal({}, 'Remove from map', 'Notes move to Unassigned.', [{ label: 'Remove entire branch', warning: true, action: () => { ran++; } }, { label: 'Keep', action: () => {} }]);
   choice.onOpen();
   assert.deepEqual(buttons.map(b => [b.text, !!b.destructive]), [['Remove entire branch', true], ['Keep', false]]);
+  // Every destructive caller in the map view passes warning: true, including deleting the map.
+  const viewSource = fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8');
+  assert.match(viewSource, /buttonLabel: t\("ui\.move_to_trash"\),\s*warning: true/);
   const cancel = find(choice.modalEl, item => item.cls === 'vam-next-actions').children[0];
   assert.equal(cancel.text, 'Cancel'); assert.equal(cancel.focused, true);
   buttons[0].click(); assert.equal(ran, 1); assert.equal(choice.closed, true);
@@ -987,3 +990,29 @@ integrationTest('choice dialog marks destructive choices and starts on Cancel; m
   find(options[1], item => item.tag === 'button').click();
   assert.deepEqual(resolved, ['Local']);
 });
+integrationTest('proposal list links checks and parents at any depth', () => {
+  const element = (tag, options = {}) => ({
+    tag, type: options.type, text: options.text, value: options.value ?? options.text ?? '', cls: options.cls ?? '', attr: options.attr ?? {}, children: [], hidden: false, disabled: false, checked: false,
+    createDiv(value) { const child = element('div', typeof value === 'string' ? { cls: value } : value); this.children.push(child); return child; },
+    createEl(name, value) { const child = element(name, value); this.children.push(child); return child; },
+    createSpan(value) { const child = element('span', value); this.children.push(child); return child; },
+    addClass(name) { this.cls = `${this.cls} ${name}`.trim(); }, setText(value) { this.text = value; }, setAttr(name, value) { this.attr[name] = value; },
+    addEventListener(name, handler) { this[name] = handler; }
+  });
+  const all = (root, predicate) => [...(predicate(root) ? [root] : []), ...root.children.flatMap(child => all(child, predicate))];
+  const { renderProposalList } = load('experiences/visual-map/modals.ts', { obsidian });
+  const parent = element('panel');
+  const list = renderProposalList(parent, [
+    { title: 'Heat', task: '', contribution: '', parentTitle: '' },
+    { title: 'Pan', task: '', contribution: '', parentTitle: 'Heat' },
+    { title: 'Iron pan', task: '', contribution: '', parentTitle: 'Pan' }
+  ], () => {});
+  const checks = all(parent, item => item.type === 'checkbox');
+  checks[0].checked = false; checks[0].change();
+  assert.deepEqual(checks.map(c => c.checked), [false, false, false]);
+  checks[2].checked = true; checks[2].change();
+  assert.deepEqual(checks.map(c => c.checked), [true, true, true]);
+  const picked = list.selected();
+  assert.equal(JSON.stringify(picked.map(item => [item.title, item.parentTitle])), JSON.stringify([['Heat', ''], ['Pan', 'Heat'], ['Iron pan', 'Pan']]));
+});
+

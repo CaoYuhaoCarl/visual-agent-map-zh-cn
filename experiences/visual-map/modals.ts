@@ -1371,14 +1371,24 @@ export function renderProposalList(
     contribution.setAttr("aria-label", t("ui.contribution_to_the_parent_topic"));
     rows.push({ item, check, title, task, contribution });
     check.addEventListener("change", () => {
-      if (item.parentTitle && check.checked)
+      // Checking a row checks its ancestors; unchecking a row unchecks its descendants, at any depth.
+      const uncheckChildren = (title: string): void =>
         rows.forEach(other => {
-          if (!other.item.parentTitle && other.item.title === item.parentTitle) other.check.checked = true;
+          if (other.item.parentTitle === title && other.check.checked) {
+            other.check.checked = false;
+            uncheckChildren(other.item.title);
+          }
         });
-      if (!item.parentTitle && !check.checked)
-        rows.forEach(other => {
-          if (other.item.parentTitle === item.title) other.check.checked = false;
-        });
+      if (check.checked && item.parentTitle) {
+        let parentTitle: string | undefined = item.parentTitle;
+        while (parentTitle) {
+          const parent = rows.find(other => other.item.title === parentTitle);
+          if (!parent) break;
+          parent.check.checked = true;
+          parentTitle = parent.item.parentTitle;
+        }
+      }
+      if (!check.checked) uncheckChildren(item.title);
       update();
     });
   }
@@ -1393,9 +1403,8 @@ export function renderProposalList(
     selected: () => {
       const selected = rows.filter(row => row.check.checked && row.title.value.trim());
       if (!selected.length) return t("ui.select_at_least_one_subtopic");
-      const renamed = new Map(
-        selected.filter(row => !row.item.parentTitle).map(row => [row.item.title, row.title.value.trim()])
-      );
+      // Any selected row can be a parent, so deeper suggestions keep working.
+      const renamed = new Map(selected.map(row => [row.item.title, row.title.value.trim()]));
       const names = selected.filter(row => !row.item.parentTitle).map(row => row.title.value.trim());
       if (new Set(names).size !== names.length) return t("ui.first_level_topic_names_must_be_unique");
       if (selected.some(row => row.item.parentTitle && !renamed.has(row.item.parentTitle)))
