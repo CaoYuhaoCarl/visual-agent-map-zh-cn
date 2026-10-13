@@ -83,6 +83,9 @@ async function loadableImages(candidates: ImageCandidate[], signal: AbortSignal)
   return candidates.filter((_, index) => loads[index]);
 }
 
+/** Unique heading ids for open panels. */
+let panelSequence = 0;
+
 export class MarkdownSelectionAi extends Component {
   private launcher: HTMLButtonElement | null = null;
   private snapshot: SelectionSnapshot | null = null;
@@ -115,6 +118,12 @@ export class MarkdownSelectionAi extends Component {
     this.registerDomEvent(document, "click", event => {
       const image = event.target;
       if (!(image instanceof HTMLImageElement) || !this.options.autoOpen()) return;
+      if (image.closest(".vam-context-ai-panel")) return;
+      // A panel with a request in flight or an unsaved result is kept; clicking another image does not replace it.
+      if (this.panel?.isOpen && this.panel.hasWork) {
+        this.panel.focus();
+        return;
+      }
       const view = this.app.workspace
         .getLeavesOfType("markdown")
         .map(leaf => leaf.view)
@@ -154,7 +163,8 @@ export class MarkdownSelectionAi extends Component {
       event => {
         if (event.target instanceof Element && event.target.closest(".vam-context-ai-panel")) return;
         this.hideLauncher();
-        this.panel?.close();
+        // Scrolling the note never throws away a running request or a draft; only an idle panel closes.
+        if (!this.panel?.hasWork) this.panel?.close();
       },
       true
     );
@@ -313,9 +323,12 @@ class SelectionAiPanel extends Component {
     this.previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     this.modalEl = this.app.workspace.containerEl.createDiv({ cls: "vam-context-ai-panel" });
     this.modalEl.setAttribute("role", "dialog");
-    this.modalEl.setAttribute("aria-label", t("ui.context_ai_title"));
+    // Named by its heading: an aria-label would also show as an Obsidian tooltip.
+    const titleId = `vam-context-ai-title-${++panelSequence}`;
+    this.modalEl.setAttribute("aria-labelledby", titleId);
     const header = this.modalEl.createDiv({ cls: "vam-context-ai-header" });
     this.titleEl = header.createEl("h3");
+    this.titleEl.id = titleId;
     const close = header.createEl("button", { cls: "clickable-icon vam-context-ai-close" });
     close.setAttribute("aria-label", t("ui.close"));
     setIcon(close, "x");
@@ -338,8 +351,15 @@ class SelectionAiPanel extends Component {
     );
     this.registerDomEvent(document, "pointerdown", event => {
       if (event.target instanceof Element && event.target.closest(".modal-container")) return;
-      if (event.target instanceof Node && !this.modalEl.contains(event.target)) this.close(false);
+      // A click outside closes only an idle panel; a running request or a draft survives a stray click.
+      if (event.target instanceof Node && !this.modalEl.contains(event.target) && !this.hasWork) this.close(false);
     });
+    // Images in the panel load after it opens: keep the whole panel, footer included, inside the window.
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(() => this.reposition());
+      for (const part of Array.from(this.contentEl.children)) observer.observe(part);
+      this.register(() => observer.disconnect());
+    }
     this.reposition();
     this.focus();
   }
@@ -348,13 +368,24 @@ class SelectionAiPanel extends Component {
     this.instruction?.focus();
   }
 
+  /** Whether closing would lose something: a request in flight or a draft or image not yet inserted. */
+  get hasWork(): boolean {
+    return !!this.controller || (!!this.resultActions && !this.resultActions.hidden);
+  }
+
   reposition(): void {
+    if (!this.isOpen) return;
     const rect = this.snapshot.rect;
     const width = Math.min(480, window.innerWidth - 24);
     this.modalEl.style.width = `${width}px`;
     this.modalEl.style.left = `${Math.max(12, Math.min(rect.left, window.innerWidth - width - 12))}px`;
-    const height = Math.min(this.modalEl.scrollHeight, window.innerHeight - 24);
-    this.modalEl.style.top = `${Math.max(12, Math.min(rect.bottom + 8, window.innerHeight - height - 12))}px`;
+    // Natural height is the header plus the full body; the body scrolls when the window is shorter.
+    const header = this.titleEl?.parentElement?.offsetHeight ?? 0;
+    const natural = header + (this.contentEl?.scrollHeight ?? this.modalEl.scrollHeight);
+    const height = Math.min(natural, window.innerHeight - 24);
+    const top = Math.max(12, Math.min(rect.bottom + 8, window.innerHeight - height - 12));
+    this.modalEl.style.top = `${top}px`;
+    this.modalEl.style.maxHeight = `${window.innerHeight - top - 12}px`;
   }
 
   close(restoreFocus = true): void {
