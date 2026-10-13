@@ -1,8 +1,9 @@
-import { Component, MarkdownRenderer, MarkdownView, Notice, Setting, type App, type Editor } from "obsidian";
+import { Component, MarkdownRenderer, MarkdownView, Notice, Platform, setIcon, type App, type Editor } from "obsidian";
 import { getUiLanguage, t } from "../../i18n";
 import type { PreparedStep } from "../../core/step-runner";
 import { prepareStep } from "../../core/step-runner";
-import { searchImages, imageMarkdown, type ImageCandidate } from "./action-plan";
+import { imageMarkdown, type ImageCandidate } from "./action-plan";
+import { imageSearchStep } from "./steps/image-search/step";
 import { planStep } from "./steps/plan/step";
 import { transformStep } from "./steps/transform/step";
 import { captionStep } from "./steps/caption/step";
@@ -48,6 +49,34 @@ function positionAt(source: string, offset: number): { line: number; ch: number 
   const before = source.slice(0, offset);
   const line = before.split("\n").length - 1;
   return { line, ch: before.length - (before.lastIndexOf("\n") + 1) };
+}
+
+/** Keeps the candidates whose image loads within a few seconds, in order; the rest are dead or blocked links. */
+async function loadableImages(candidates: ImageCandidate[], signal: AbortSignal): Promise<ImageCandidate[]> {
+  const loads = await Promise.all(
+    candidates.map(
+      candidate =>
+        new Promise<boolean>(resolve => {
+          const probe = createEl("img");
+          probe.referrerPolicy = "no-referrer";
+          const abort = (): void => done(false);
+          const timer = window.setTimeout(abort, 8_000);
+          const done = (ok: boolean): void => {
+            window.clearTimeout(timer);
+            signal.removeEventListener("abort", abort);
+            const loaded = ok && probe.naturalWidth > 0;
+            probe.onload = probe.onerror = null;
+            if (!loaded) probe.src = "";
+            resolve(loaded);
+          };
+          probe.onload = () => done(true);
+          probe.onerror = () => done(false);
+          signal.addEventListener("abort", abort, { once: true });
+          probe.src = candidate.url;
+        })
+    )
+  );
+  return candidates.filter((_, index) => loads[index]);
 }
 
 export class MarkdownSelectionAi extends Component {
@@ -229,6 +258,8 @@ export class MarkdownSelectionAi extends Component {
   }
 }
 
+type PresetId = "condense" | "explain_image" | "translate" | "search_images";
+
 class SelectionAiPanel extends Component {
   private modalEl!: HTMLDivElement;
   private contentEl!: HTMLDivElement;
@@ -239,6 +270,18 @@ class SelectionAiPanel extends Component {
   private insertAfter = false;
   private preview!: HTMLElement;
   private previewChild: Component | null = null;
+  private instruction!: HTMLTextAreaElement;
+  private status!: HTMLElement;
+  private output!: HTMLTextAreaElement;
+  private result!: HTMLElement;
+  private before!: HTMLElement;
+  private presets!: HTMLElement;
+  private resultActions!: HTMLElement;
+  private accept!: HTMLButtonElement;
+  private insertHere!: HTMLButtonElement;
+  private append!: HTMLButtonElement;
+  private stopButton!: HTMLButtonElement;
+  private runButton!: HTMLButtonElement;
 
   constructor(
     private readonly app: App,
@@ -256,8 +299,13 @@ class SelectionAiPanel extends Component {
     this.modalEl = this.app.workspace.containerEl.createDiv({ cls: "vam-context-ai-panel" });
     this.modalEl.setAttribute("role", "dialog");
     this.modalEl.setAttribute("aria-label", t("ui.context_ai_title"));
-    this.titleEl = this.modalEl.createEl("h3");
-    this.contentEl = this.modalEl.createDiv();
+    const header = this.modalEl.createDiv({ cls: "vam-context-ai-header" });
+    this.titleEl = header.createEl("h3");
+    const close = header.createEl("button", { cls: "clickable-icon vam-context-ai-close" });
+    close.setAttribute("aria-label", t("ui.close"));
+    setIcon(close, "x");
+    close.addEventListener("click", () => this.close());
+    this.contentEl = this.modalEl.createDiv({ cls: "vam-context-ai-body" });
     this.load();
     this.registerDomEvent(
       document,
@@ -266,7 +314,9 @@ class SelectionAiPanel extends Component {
         if (event.key === "Escape") {
           event.preventDefault();
           event.stopPropagation();
-          this.close();
+          // Escape first stops a running request; a second Escape closes.
+          if (this.controller) this.stop();
+          else this.close();
         }
       },
       true
@@ -280,12 +330,12 @@ class SelectionAiPanel extends Component {
   }
 
   focus(): void {
-    this.contentEl.querySelector<HTMLTextAreaElement>(".vam-context-ai-instruction")?.focus();
+    this.instruction?.focus();
   }
 
   reposition(): void {
     const rect = this.snapshot.rect;
-    const width = Math.min(460, window.innerWidth - 24);
+    const width = Math.min(480, window.innerWidth - 24);
     this.modalEl.style.width = `${width}px`;
     this.modalEl.style.left = `${Math.max(12, Math.min(rect.left, window.innerWidth - width - 12))}px`;
     const height = Math.min(this.modalEl.scrollHeight, window.innerHeight - 24);
@@ -301,89 +351,125 @@ class SelectionAiPanel extends Component {
   }
 
   onload(): void {
+    const image = this.snapshot.image;
     this.titleEl.setText(t("ui.context_ai_title"));
     this.contentEl.empty();
-    this.contentEl.createEl("p", { cls: "vam-hint", text: t("ui.context_ai_scope") });
-    const quote = this.contentEl.createEl("blockquote", { cls: "vam-context-ai-source" });
-    quote.setText(this.snapshot.image ? t("ui.context_ai_image_source") : this.snapshot.text);
-    if (this.snapshot.image) {
-      const image = this.contentEl.createEl("img", { cls: "vam-context-ai-image" });
-      image.src = this.snapshot.image.currentSrc || this.snapshot.image.src;
-      image.alt = this.snapshot.image.alt;
-    }
-    const beforeLabel = this.contentEl.createEl("strong", { text: t("ui.context_ai_before") });
-    beforeLabel.hidden = true;
-    const before = this.contentEl.createEl("del", { cls: "vam-context-ai-before" });
-    before.setText(this.snapshot.text);
-    before.hidden = true;
-    const afterLabel = this.contentEl.createEl("strong", { text: t("ui.context_ai_after") });
-    afterLabel.hidden = true;
+    this.contentEl.createEl("p", { cls: "vam-hint vam-context-ai-intro", text: t("ui.context_ai_scope") });
 
-    const instruction = this.contentEl.createEl("textarea", { cls: "vam-context-ai-instruction" });
-    instruction.rows = 2;
-    instruction.placeholder = t("ui.context_ai_instruction_placeholder");
-    instruction.setAttribute("aria-label", t("ui.context_ai_instruction_placeholder"));
+    // What AI will work on: the image, the selected text, or the cursor position.
+    const source = this.contentEl.createEl("figure", { cls: "vam-context-ai-source" });
+    if (image) {
+      const preview = source.createEl("img", { cls: "vam-context-ai-image" });
+      preview.src = image.currentSrc || image.src;
+      preview.alt = image.alt;
+      source.createEl("figcaption", { text: t("ui.context_ai_image_source") });
+    } else if (this.snapshot.text) {
+      source.createEl("blockquote", { cls: "vam-context-ai-quote", text: this.snapshot.text });
+      source.createEl("figcaption", { text: t("ui.context_ai_text_source") });
+    } else source.createEl("figcaption", { text: t("ui.context_ai_cursor_source") });
 
-    const status = this.contentEl.createDiv({ cls: "vam-hint vam-context-ai-status" });
-    status.setAttribute("role", "status");
-    status.setAttribute("aria-live", "polite");
-    const output = this.contentEl.createEl("textarea", { cls: "vam-context-ai-output" });
-    output.rows = 5;
-    output.setAttribute("aria-label", t("ui.context_ai_result"));
-    output.hidden = true;
-
-    const actions = this.contentEl.createDiv({ cls: "vam-context-ai-presets" });
-    const footer = this.contentEl.createDiv({ cls: "vam-context-ai-footer" });
-    const runWith = (prompt: string, action?: "image_search"): void => {
-      instruction.value = prompt;
-      void this.generate(prompt, output, status, actions, footer, action);
+    this.presets = this.contentEl.createDiv({ cls: "vam-context-ai-presets" });
+    this.presets.setAttribute("role", "group");
+    this.presets.setAttribute("aria-label", t("ui.context_ai_quick_actions"));
+    const preset = (id: PresetId, icon: string, label: string, prompt: () => string): void => {
+      const button = this.presets.createEl("button", { cls: "vam-context-ai-preset" });
+      button.dataset.preset = id;
+      setIcon(button.createSpan({ cls: "vam-context-ai-preset-icon" }), icon);
+      button.createSpan({ text: label });
+      // A quick action never overwrites what the person typed; it only says what is running.
+      button.addEventListener(
+        "click",
+        () => void this.generate(prompt(), label, id === "search_images" ? "image_search" : undefined, button)
+      );
     };
-    actions
-      .createEl("button", { text: t(this.snapshot.image ? "ui.context_ai_explain_image" : "ui.context_ai_condense") })
-      .addEventListener("click", () =>
-        runWith(
-          (this.snapshot.image ? explainImagePresetStep : condensePresetStep).render({ language: getUiLanguage() })
-        )
+    const language = getUiLanguage();
+    if (image) {
+      preset("explain_image", "scan-eye", t("ui.context_ai_explain_image"), () =>
+        explainImagePresetStep.render({ language })
       );
-    actions
-      .createEl("button", { text: t("ui.context_ai_search_images") })
-      .addEventListener("click", () =>
-        runWith(searchImagesPresetStep.render({ language: getUiLanguage() }), "image_search")
+      preset("translate", "languages", t("ui.context_ai_translate_image"), () =>
+        translateImagePresetStep.render({ language, target: this.language })
       );
-    instruction.addEventListener("keydown", event => {
-      if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && !event.isComposing) {
-        event.preventDefault();
-        const prompt = instruction.value.trim();
-        if (prompt && !this.controller) void this.generate(prompt, output, status, actions, footer);
-      }
-    });
-    actions.createEl("button", { text: t("ui.context_ai_translate") }).addEventListener("click", () =>
-      runWith(
-        (this.snapshot.image ? translateImagePresetStep : translatePresetStep).render({
-          language: getUiLanguage(),
-          target: this.language
-        })
-      )
+    } else {
+      preset("condense", "minimize-2", t("ui.context_ai_condense"), () => condensePresetStep.render({ language }));
+      preset("translate", "languages", t("ui.context_ai_translate"), () =>
+        translatePresetStep.render({ language, target: this.language })
+      );
+    }
+    preset("search_images", "image", t("ui.context_ai_search_images"), () =>
+      searchImagesPresetStep.render({ language })
     );
 
-    new Setting(footer)
-      .addButton(button => button.setButtonText(t("ui.cancel")).onClick(() => this.close()))
-      .addButton(button =>
-        button
-          .setButtonText(t("ui.context_ai_run_custom"))
-          .setCta()
-          .onClick(() => {
-            const prompt = instruction.value.trim();
-            if (!prompt) {
-              status.setText(t("ui.context_ai_enter_instruction"));
-              instruction.focus();
-              return;
-            }
-            void this.generate(prompt, output, status, actions, footer);
-          })
-      );
+    // Searching sends a query off the device, so say so before anyone presses it.
+    this.contentEl.createEl("p", {
+      cls: "vam-hint vam-context-ai-disclosure",
+      text: t("ui.context_ai_search_disclosure")
+    });
+    // A visually hidden label names the field; an aria-label would show as an Obsidian tooltip over it.
+    const instructionLabel = this.contentEl.createEl("label", { cls: "vam-context-ai-field" });
+    instructionLabel.createSpan({ cls: "vam-context-ai-sr", text: t("ui.context_ai_custom_instruction") });
+    this.instruction = instructionLabel.createEl("textarea", { cls: "vam-context-ai-instruction" });
+    this.instruction.rows = 2;
+    this.instruction.placeholder = t(
+      image ? "ui.context_ai_instruction_placeholder_image" : "ui.context_ai_instruction_placeholder"
+    );
+    this.instruction.addEventListener("keydown", event => {
+      if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && !event.isComposing) {
+        event.preventDefault();
+        this.runCustom();
+      }
+    });
+
+    this.status = this.contentEl.createDiv({ cls: "vam-context-ai-status" });
+    this.status.setAttribute("role", "status");
+    this.status.setAttribute("aria-live", "polite");
+
+    // Found images or a diagram come before the draft: pick first, then review what will be written.
     this.preview = this.contentEl.createDiv({ cls: "vam-context-ai-preview" });
-    this.addResultActions(footer, output, status);
+    // The draft: a before/after pair for a replaceable selection, otherwise just the editable draft.
+    this.result = this.contentEl.createDiv({ cls: "vam-context-ai-result" });
+    this.result.hidden = true;
+    this.before = this.result.createDiv({ cls: "vam-context-ai-diff" });
+    this.before.createSpan({ cls: "vam-context-ai-label", text: t("ui.context_ai_before") });
+    this.before.createEl("del", { cls: "vam-context-ai-before", text: this.snapshot.text });
+    const draftLabel = this.result.createEl("label", { cls: "vam-context-ai-diff" });
+    draftLabel.createSpan({ cls: "vam-context-ai-label", text: t("ui.context_ai_result") });
+    this.output = draftLabel.createEl("textarea", { cls: "vam-context-ai-output" });
+    this.output.rows = 5;
+
+    const footer = this.contentEl.createDiv({ cls: "vam-context-ai-footer" });
+    this.resultActions = footer.createDiv({ cls: "vam-context-ai-result-actions" });
+    this.resultActions.hidden = true;
+    this.resultActions.createEl("button", { text: t("ui.context_ai_copy") }).addEventListener("click", () => {
+      if (!navigator.clipboard) {
+        this.status.setText(t("ui.context_ai_copy_failed"));
+        return;
+      }
+      void navigator.clipboard
+        .writeText(this.output.value)
+        .then(() => this.status.setText(t("ui.context_ai_copied")))
+        .catch(() => this.status.setText(t("ui.context_ai_copy_failed")));
+    });
+    this.append = this.resultActions.createEl("button", { text: t("ui.context_ai_append") });
+    this.append.addEventListener("click", () => this.applyResult(this.output.value, "append", this.status));
+    this.insertHere = this.resultActions.createEl("button", { text: t("ui.context_ai_insert_here") });
+    this.insertHere.addEventListener("click", () => this.applyResult(this.output.value, "after", this.status));
+    this.accept = this.resultActions.createEl("button", { text: t("ui.context_ai_accept") });
+    this.accept.addEventListener("click", () => this.applyResult(this.output.value, "replace", this.status));
+
+    const bar = footer.createDiv({ cls: "vam-context-ai-bar" });
+    bar.createSpan({
+      cls: "vam-context-ai-shortcut",
+      text: t("ui.context_ai_shortcut", Platform.isMacOS ? "⌘" : "Ctrl")
+    });
+    this.stopButton = bar.createEl("button", { text: t("ui.cancel") });
+    this.stopButton.addEventListener("click", () => {
+      if (this.controller) this.stop();
+      else this.close();
+    });
+    this.runButton = bar.createEl("button", { text: t("ui.context_ai_run_custom"), cls: "mod-cta" });
+    this.runButton.addEventListener("click", () => this.runCustom());
+    this.showResult(false);
   }
 
   onunload(): void {
@@ -393,66 +479,81 @@ class SelectionAiPanel extends Component {
     this.contentEl.empty();
   }
 
-  private addResultActions(footer: HTMLElement, output: HTMLTextAreaElement, status: HTMLElement): void {
-    const actions = footer.createDiv({ cls: "vam-context-ai-result-actions" });
-    actions.hidden = true;
-    actions.createEl("button", { text: t("ui.context_ai_copy") }).addEventListener("click", () => {
-      if (!navigator.clipboard) {
-        status.setText(t("ui.context_ai_copy_failed"));
-        return;
-      }
-      void navigator.clipboard
-        .writeText(output.value)
-        .then(() => status.setText(t("ui.context_ai_copied")))
-        .catch(() => status.setText(t("ui.context_ai_copy_failed")));
+  private runCustom(): void {
+    if (this.controller) return;
+    const prompt = this.instruction.value.trim();
+    if (!prompt) {
+      this.status.setText(t("ui.context_ai_enter_instruction"));
+      this.instruction.focus();
+      return;
+    }
+    void this.generate(prompt, t("ui.context_ai_run_custom"));
+  }
+
+  /** Stops the running request and keeps the panel, the typed instruction and any earlier draft. */
+  private stop(): void {
+    this.controller?.abort();
+    this.controller = null;
+    this.setBusy(null);
+    this.status.setText(t("ui.ai_task_cancelled"));
+    this.showResult(!!this.output.value);
+  }
+
+  /** Locks the inputs while AI runs; the pressed action is marked so the person sees what is running. */
+  private setBusy(active: HTMLElement | null | undefined): void {
+    const busy = active !== null;
+    this.modalEl.toggleClass("is-running", busy);
+    this.status.toggleClass("is-running", busy);
+    for (const button of Array.from(this.presets.querySelectorAll("button"))) {
+      button.disabled = busy;
+      button.toggleClass("is-active", busy && button === active);
+    }
+    this.runButton.disabled = busy;
+    this.resultActions.querySelectorAll("button").forEach(button => {
+      button.disabled = busy;
     });
-    actions
-      .createEl("button", { text: t("ui.context_ai_append") })
-      .addEventListener("click", () => this.applyResult(output.value, "append", status));
-    actions
-      .createEl("button", { text: t("ui.context_ai_insert_here") })
-      .addEventListener("click", () => this.applyResult(output.value, "after", status));
-    const replace = actions.createEl("button", { text: t("ui.context_ai_accept"), cls: "vam-context-ai-replace" });
-    replace.disabled = this.snapshot.matchAt < 0 || !this.snapshot.text || !!this.snapshot.image || this.insertAfter;
-    replace.setAttribute(
-      "aria-label",
-      replace.disabled ? t("ui.context_ai_replace_unavailable") : t("ui.context_ai_replace")
-    );
-    replace.addEventListener("click", () => this.applyResult(output.value, "replace", status));
-    if (this.snapshot.matchAt < 0)
-      actions.createSpan({ cls: "vam-hint", text: t("ui.context_ai_replace_unavailable") });
+    this.stopButton.setText(busy ? t("ui.context_ai_stop") : t("ui.cancel"));
+    if (!busy) this.showResult(!this.result.hidden);
+  }
+
+  /** Shows or hides the draft and picks the primary result action: accept a replacement, else insert here. */
+  private showResult(visible: boolean): void {
+    this.result.hidden = !visible;
+    this.resultActions.hidden = !visible;
+    const replaceable = this.snapshot.matchAt >= 0 && !!this.snapshot.text && !this.snapshot.image && !this.insertAfter;
+    this.before.hidden = !replaceable;
+    this.accept.hidden = !replaceable;
+    this.insertHere.hidden = this.snapshot.matchAt < 0;
+    const insertable = this.snapshot.matchAt >= 0;
+    this.accept.toggleClass("mod-cta", replaceable);
+    this.insertHere.toggleClass("mod-cta", !replaceable && insertable);
+    this.append.toggleClass("mod-cta", !replaceable && !insertable);
+    // With a draft to review, the source shrinks so the draft and its actions stay in view.
+    this.modalEl.toggleClass("has-result", visible);
+    // Once there is a draft, applying it is the main action; running another instruction steps back.
+    this.runButton.toggleClass("mod-cta", !visible);
+    if (visible) this.reposition();
   }
 
   private async generate(
     prompt: string,
-    output: HTMLTextAreaElement,
-    status: HTMLElement,
-    presets: HTMLElement,
-    footer: HTMLElement,
-    requestedAction?: "image_search"
+    label: string,
+    requestedAction?: "image_search",
+    trigger?: HTMLElement
   ): Promise<void> {
-    this.controller?.abort();
+    if (this.controller) return;
     const controller = new AbortController();
     this.controller = controller;
+    const output = this.output,
+      status = this.status;
     const previousDraft = output.value;
     const previousInsertAfter = this.insertAfter;
-    output.value = "";
-    output.hidden = true;
     this.previewChild?.unload();
     this.previewChild = null;
     this.preview.empty();
-    this.insertAfter = false;
-    const resultActions = footer.querySelector<HTMLElement>(".vam-context-ai-result-actions");
-    if (resultActions) resultActions.hidden = true;
-    status.setText(t("ui.context_ai_generating"));
-    presets.querySelectorAll("button").forEach(button => {
-      button.disabled = true;
-    });
-    footer.querySelectorAll("button").forEach(button => {
-      button.disabled = button.textContent !== t("ui.cancel");
-    });
+    this.setBusy(trigger);
+    status.setText(t("ui.context_ai_running_0", label));
     try {
-      status.setText(t("ui.context_ai_planning"));
       const at = this.snapshot.matchAt;
       const context =
         at >= 0 ? this.snapshot.markdown.slice(Math.max(0, at - 600), at + this.snapshot.text.length + 600) : "";
@@ -468,37 +569,49 @@ class SelectionAiPanel extends Component {
       if (plan.action === "clarify") throw new Error(plan.instruction || t("ui.context_ai_clarify"));
       if (plan.action === "image_generate") throw new Error(t("ui.context_ai_generation_unavailable"));
       let result: string;
+      let insertAfter = false;
       if (plan.action === "image_search") {
         status.setText(t("ui.context_ai_searching_images"));
-        const candidates = await searchImages(plan.query, controller.signal);
+        const search = prepareStep(imageSearchStep, { query: plan.query || prompt });
+        const found = search.parse(await this.run(search, this.model, controller.signal, undefined, true));
+        if (controller.signal.aborted || !this.isOpen) return;
+        // Web results can be stale or block hotlinking: offer only images that actually load.
+        const candidates = await loadableImages(found, controller.signal);
         if (controller.signal.aborted || !this.isOpen) return;
         if (!candidates.length) throw new Error(t("ui.context_ai_no_images"));
-        this.insertAfter = true;
-        result = "";
-        for (const candidate of candidates) {
-          const card = this.preview.createDiv({ cls: "vam-context-ai-image-choice" });
-          const image = card.createEl("img", {
-            attr: { src: candidate.url, alt: candidate.title, loading: "lazy", referrerpolicy: "no-referrer" }
+        insertAfter = true;
+        const grid = this.preview.createDiv({ cls: "vam-context-ai-image-grid" });
+        grid.setAttribute("role", "radiogroup");
+        grid.setAttribute("aria-label", t("ui.context_ai_choose_image"));
+        candidates.forEach((candidate, index) => {
+          const card = grid.createDiv({ cls: "vam-context-ai-image-choice" });
+          const choose = card.createEl("button", { cls: "vam-context-ai-image-pick" });
+          choose.setAttribute("role", "radio");
+          choose.setAttribute("aria-checked", String(index === 0));
+          choose.setAttribute("aria-label", candidate.title);
+          card.toggleClass("is-selected", index === 0);
+          const thumb = choose.createEl("img", {
+            attr: { src: candidate.url, alt: "", loading: "lazy", referrerpolicy: "no-referrer" }
           });
-          const choose = card.createEl("button", { text: candidate.title });
-          image.addEventListener("error", () => {
+          choose.createSpan({ cls: "vam-context-ai-image-title", text: candidate.title });
+          thumb.addEventListener("error", () => {
             choose.disabled = true;
-            image.remove();
+            card.addClass("is-broken");
           });
           choose.addEventListener("click", () => {
             if (this.controller) return;
+            grid.querySelectorAll(".vam-context-ai-image-choice").forEach(item => {
+              item.toggleClass("is-selected", item === card);
+              item.querySelector("button")?.setAttribute("aria-checked", String(item === card));
+            });
             const choice = new AbortController();
             this.controller = choice;
+            this.setBusy(choose);
             status.setText(t("ui.context_ai_generating"));
-            footer.querySelectorAll("button").forEach(button => {
-              button.disabled = button.textContent !== t("ui.cancel");
-            });
             void this.imageDraft(candidate, plan.captionInstruction, choice.signal)
               .then(draft => {
                 if (this.controller === choice && !choice.signal.aborted && this.isOpen) {
                   output.value = draft;
-                  output.hidden = false;
-                  if (resultActions) resultActions.hidden = false;
                   status.setText(t("ui.context_ai_review_result"));
                 }
               })
@@ -509,12 +622,10 @@ class SelectionAiPanel extends Component {
               .finally(() => {
                 if (this.controller !== choice) return;
                 this.controller = null;
-                if (!this.isOpen) return;
-                footer.querySelectorAll("button").forEach(button => {
-                  button.disabled = false;
-                });
-                const replace = footer.querySelector<HTMLButtonElement>(".vam-context-ai-replace");
-                if (replace) replace.disabled = true;
+                if (this.isOpen) {
+                  this.result.hidden = false;
+                  this.setBusy(null);
+                }
               });
           });
           card.createEl("a", {
@@ -522,11 +633,11 @@ class SelectionAiPanel extends Component {
             href: candidate.source,
             attr: { target: "_blank", rel: "noopener noreferrer" }
           });
-        }
+        });
         result = await this.imageDraft(candidates[0], plan.captionInstruction, controller.signal);
         if (controller.signal.aborted || !this.isOpen) return;
       } else {
-        status.setText(t("ui.context_ai_generating"));
+        status.setText(t("ui.context_ai_running_0", label));
         const request = prepareStep(transformStep, {
           instruction: plan.instruction || prompt,
           selected: this.snapshot.text,
@@ -541,7 +652,7 @@ class SelectionAiPanel extends Component {
           this.snapshot.image,
           plan.action === "research"
         );
-        this.insertAfter = plan.action === "research" || plan.action === "diagram";
+        insertAfter = plan.action === "research" || plan.action === "diagram";
         if (plan.action === "diagram") {
           if (
             !/^```mermaid[ \t]*\n(?:(?!```)[\s\S])+\n```$/.test(result.trim()) ||
@@ -556,37 +667,21 @@ class SelectionAiPanel extends Component {
         }
       }
       if (controller.signal.aborted || !this.modalEl.isConnected) return;
+      this.insertAfter = insertAfter;
       output.value = result.trim();
-      output.hidden = false;
-      this.contentEl.querySelector<HTMLElement>(".vam-context-ai-before")!.hidden = !!this.snapshot.image;
-      this.contentEl.querySelectorAll("strong").forEach(label => {
-        label.hidden = false;
-      });
-      this.reposition();
-      const resultActions = footer.querySelector<HTMLElement>(".vam-context-ai-result-actions");
-      if (resultActions) resultActions.hidden = !output.value;
+      this.result.hidden = !output.value;
       status.setText(t("ui.context_ai_review_result"));
     } catch (error) {
       if (!controller.signal.aborted && this.isOpen) {
         output.value = previousDraft;
-        output.hidden = !previousDraft;
         this.insertAfter = previousInsertAfter;
-        if (resultActions) resultActions.hidden = !previousDraft;
+        this.result.hidden = !previousDraft;
         status.setText(error instanceof Error ? error.message : String(error));
       }
     } finally {
-      if (this.controller === controller) this.controller = null;
-      if (!controller.signal.aborted && this.modalEl.isConnected) {
-        presets.querySelectorAll("button").forEach(button => {
-          button.disabled = false;
-        });
-        footer.querySelectorAll("button").forEach(button => {
-          button.disabled = false;
-        });
-        const replace = footer.querySelector<HTMLButtonElement>(".vam-context-ai-replace");
-        if (replace)
-          replace.disabled =
-            this.snapshot.matchAt < 0 || !this.snapshot.text || !!this.snapshot.image || this.insertAfter;
+      if (this.controller === controller) {
+        this.controller = null;
+        if (this.modalEl.isConnected) this.setBusy(null);
       }
     }
   }
@@ -600,7 +695,6 @@ class SelectionAiPanel extends Component {
     if (!captionInstruction.trim()) return markdown;
     const image = createEl("img");
     image.referrerPolicy = "no-referrer";
-    image.crossOrigin = "anonymous";
     await new Promise<void>((resolve, reject) => {
       const finish = (error?: Error): void => {
         window.clearTimeout(timeout);

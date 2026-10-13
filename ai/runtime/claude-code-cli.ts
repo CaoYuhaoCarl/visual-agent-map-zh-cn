@@ -43,6 +43,15 @@ export interface ClaudeTaskControls {
   webSearchOnly?: boolean;
   /** Receives WebSearch/WebFetch activity in the same shape as Codex App Server web-search items. */
   onWebSearchEvent?: (event: WebSearchEvent) => void;
+  /** A base64 PNG, JPEG, GIF or WebP data URL sent with the prompt as an image block. */
+  imageDataUrl?: string;
+}
+
+/** Splits an image data URL into the Messages API image source; anything else is rejected. */
+export function claudeImageSource(dataUrl: string): { type: "base64"; media_type: string; data: string } {
+  const match = /^data:(image\/(?:png|jpeg|gif|webp));base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
+  if (!match) throw new Error(t("ui.context_ai_image_unavailable"));
+  return { type: "base64", media_type: match[1], data: match[2] };
 }
 export const CLAUDE_TASK_TIMEOUT_MS = 3 * 60 * 1000;
 
@@ -187,10 +196,15 @@ export class ClaudeCodeCliRuntime {
     if (controls.signal?.aborted) throw abortError();
     const webSearch = controls.webSearch ?? (controls.searchBudget ?? 0) > 0;
     const args = claudeTaskArgs(model, effort, outputSchema, webSearch);
+    // An image travels as a content block, which only the stream-json input format can carry.
+    const image = controls.imageDataUrl ? claudeImageSource(controls.imageDataUrl) : null;
     if (controls.onText && !outputSchema) {
       args[args.indexOf("json")] = "stream-json";
       args.push("--include-partial-messages");
-      if (controls.onSteer) args.push("--input-format", "stream-json");
+      if (controls.onSteer || image) args.push("--input-format", "stream-json");
+    } else if (image) {
+      args[args.indexOf("json")] = "stream-json";
+      args.push("--input-format", "stream-json");
     }
     controls.onRequest?.({
       provider: "claude",
@@ -198,7 +212,7 @@ export class ClaudeCodeCliRuntime {
       args: args.map((arg, index) =>
         index === args.indexOf(JSON.stringify(claudeOutputSchema(outputSchema))) ? "<response-schema>" : arg
       ),
-      input: "<VAM prompt via stdin>"
+      input: image ? `<VAM prompt and ${image.media_type} image via stdin>` : "<VAM prompt via stdin>"
     });
     this.options.onLog?.(
       "info",
@@ -226,12 +240,13 @@ export class ClaudeCodeCliRuntime {
         stderr = "",
         settled = false,
         accepted = false,
-        inputOpen = Boolean(controls.onSteer);
+        inputOpen = Boolean(controls.onSteer || image);
       let streamBuffer = "",
         streamText = "",
         currentText = "",
         finalResult = "";
-      const streaming = !!controls.onText && !outputSchema;
+      // Image input forces stream-json output, read line by line like a streamed reply.
+      const streaming = (!!controls.onText && !outputSchema) || !!image;
       const activity = new ClaudeWebActivity(controls.onWebSearchEvent);
       const readStreamLine = (line: string): void => {
         // The CLI can print plain-text warnings between JSON records; only records carry task state.
@@ -383,7 +398,7 @@ export class ClaudeCodeCliRuntime {
           const result = claudeStructuredOutput(streaming ? finalResult : stdout, !outputSchema);
           if (controls.webSearchOnly && !activity.retrievals) throw new Error(t("ui.context_ai_search_not_performed"));
           const streamed = [streamText, currentText].filter(Boolean).join("\n\n");
-          finish(undefined, streaming && result.length < streamed.length ? streamed : result);
+          finish(undefined, !outputSchema && streaming && result.length < streamed.length ? streamed : result);
         } catch (error) {
           finish(error instanceof Error ? error : new Error(String(error)));
         }
@@ -393,23 +408,21 @@ export class ClaudeCodeCliRuntime {
         /* Surfaced through the process events. */
       });
       try {
-        if (controls.onSteer) {
-          const sendInput = (text: string, accepted?: () => void): void => {
+        if (controls.onSteer || image) {
+          const sendInput = (text: string, accepted?: () => void, withImage = false): void => {
             if (!inputOpen || settled) throw new Error("This Coffee Tables response has already ended.");
-            child.stdin.write(
-              `${JSON.stringify({ type: "user", message: { role: "user", content: [{ type: "text", text }] } })}\n`,
-              error => {
-                if (error) {
-                  stop();
-                  finish(error);
-                  return;
-                }
-                if (!settled && !controls.signal?.aborted) accepted?.();
+            const content = [...(withImage && image ? [{ type: "image", source: image }] : []), { type: "text", text }];
+            child.stdin.write(`${JSON.stringify({ type: "user", message: { role: "user", content } })}\n`, error => {
+              if (error) {
+                stop();
+                finish(error);
+                return;
               }
-            );
+              if (!settled && !controls.signal?.aborted) accepted?.();
+            });
           };
-          sendInput(prompt, markAccepted);
-          controls.onSteer(async text => {
+          sendInput(prompt, markAccepted, true);
+          controls.onSteer?.(async text => {
             sendInput(text);
           });
         } else if (controls.onAccepted) {
