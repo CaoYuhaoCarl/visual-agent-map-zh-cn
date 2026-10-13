@@ -10497,10 +10497,10 @@ var synthesize_zh_default = "\u9019\u662F Synthesize \u6A21\u5F0F\uFF1Asummary \
 var synthesize_en_default = "Synthesize mode: summary is a high-quality integrated conclusion within 80 characters. Detail integrates complete source knowledge, removes duplication, and clearly presents agreements, disagreements, tradeoffs, and unresolved questions. If the UI offers draft review, write only after confirmation.\n";
 
 // core/steps/task/visual-auto.zh.md
-var visual_auto_zh_default = "\u5716\u7247\u80FD\u660E\u986F\u5E6B\u52A9\u7406\u89E3\u6216\u4F7F\u7528\u8005\u660E\u78BA\u8981\u6C42\u5716\u7247\u6642\uFF0C\u624D\u641C\u5C0B\u5716\u7247\u53C3\u8003\uFF1B\u4E00\u822C\u77E5\u8B58\u578B\u554F\u984C\u4E0D\u8981\u641C\u5C0B\u5716\u7247\u3002\n";
+var visual_auto_zh_default = "\u5716\u7247\u80FD\u660E\u986F\u5E6B\u52A9\u7406\u89E3\u6216\u4F7F\u7528\u8005\u660E\u78BA\u8981\u6C42\u5716\u7247\u6642\uFF0C\u624D\u641C\u5C0B\u5716\u7247\u53C3\u8003\u3002\n";
 
 // core/steps/task/visual-auto.en.md
-var visual_auto_en_default = "Search for image references when they materially aid understanding or the user explicitly asks for images; do not search for images for ordinary knowledge questions.\n";
+var visual_auto_en_default = "Search for image references when they materially aid understanding or the user explicitly asks for images.\n";
 
 // core/steps/task/visual-embed.zh.md
 var visual_embed_zh_default = "\u6709\u52A9\u7406\u89E3\u7684\u5716\u7247\u76F4\u63A5\u5D4C\u5165 detail \u76F8\u95DC\u6BB5\u843D\u4E26\u9644\u4F86\u6E90\u9801\u9023\u7D50\u3002\u6574\u5408\u6642\u53EA\u6CBF\u7528\u6709\u52A9\u8AAA\u660E\u6574\u5408\u767C\u73FE\u7684\u4F86\u6E90\u5716\u7247\uFF1B\u4E0D\u8981\u5EFA\u7ACB\u7368\u7ACB\u5716\u7247\u96C6\u5408\uFF0C\u4E5F\u4E0D\u8981\u7DE8\u9020\u4F86\u6E90\u3002\n";
