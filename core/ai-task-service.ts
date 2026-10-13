@@ -136,6 +136,8 @@ export class AiTaskService {
       failed: recording((id: string, error: string) => exchanges.failed(id, error))
     };
 
+    // Set once the first request's entry is closed because the repair request replaced it; the catch must not reopen it.
+    let supersededClosed = false;
     let stage = t("log.stage_starting_ai");
     try {
       const controls = {
@@ -201,6 +203,7 @@ export class AiTaskService {
       ) {
         let issues = checkCounts(canonicalDetail(result.detail, outputLanguage, template), template);
         if (issues.length && !input.countRepair) {
+          const firstExchangeId = exchangeId;
           try {
             const repaired = await this.execute(
               {
@@ -229,6 +232,10 @@ export class AiTaskService {
             issues = checkCounts(canonicalDetail(result.detail, outputLanguage, template), template);
           } catch (error) {
             if (signal?.aborted || (error instanceof Error && error.name === "AbortError")) throw error;
+          } finally {
+            // The repair has its own entry, which the caller finishes; close the first one that it supersedes.
+            if (this.options.exchangeLoggingEnabled()) exchanges?.completed(firstExchangeId);
+            supersededClosed = true;
           }
         }
         result.formatIssues = issues;
@@ -240,7 +247,7 @@ export class AiTaskService {
       });
       return result;
     } catch (error) {
-      if (this.options.exchangeLoggingEnabled())
+      if (this.options.exchangeLoggingEnabled() && !supersededClosed)
         exchanges?.failed(
           exchangeId,
           t("log.stage_failure_0_1", stage, error instanceof Error ? error.message : String(error))

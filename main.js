@@ -28222,6 +28222,7 @@ var AiTaskService = class {
       completed: recording((id) => exchanges.completed(id)),
       failed: recording((id, error) => exchanges.failed(id, error))
     };
+    let supersededClosed = false;
     let stage = t("log.stage_starting_ai");
     try {
       const controls = {
@@ -28276,6 +28277,7 @@ var AiTaskService = class {
       if (template && template.sections.some((section3) => section3.count) && input.mode !== "decompose" && input.detailFormat !== "adaptive") {
         let issues = checkCounts(canonicalDetail(result.detail, outputLanguage, template), template);
         if (issues.length && !input.countRepair) {
+          const firstExchangeId = exchangeId;
           try {
             const repaired = await this.execute(
               {
@@ -28304,6 +28306,9 @@ var AiTaskService = class {
             issues = checkCounts(canonicalDetail(result.detail, outputLanguage, template), template);
           } catch (error) {
             if ((signal == null ? void 0 : signal.aborted) || error instanceof Error && error.name === "AbortError") throw error;
+          } finally {
+            if (this.options.exchangeLoggingEnabled()) exchanges == null ? void 0 : exchanges.completed(firstExchangeId);
+            supersededClosed = true;
           }
         }
         result.formatIssues = issues;
@@ -28315,7 +28320,7 @@ var AiTaskService = class {
       });
       return result;
     } catch (error) {
-      if (this.options.exchangeLoggingEnabled())
+      if (this.options.exchangeLoggingEnabled() && !supersededClosed)
         exchanges == null ? void 0 : exchanges.failed(
           exchangeId,
           t("log.stage_failure_0_1", stage, error instanceof Error ? error.message : String(error))

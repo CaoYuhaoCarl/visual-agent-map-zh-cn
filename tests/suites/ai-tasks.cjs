@@ -422,3 +422,44 @@ integrationTest('count repair keeps a source footnote whose definition the repai
   assert.match(result.detail, /\[\^1\]: \[\[來源\.md\]\]/);
   assert.deepEqual(plain(result.formatIssues), []);
 });
+const exchangeFixture = () => {
+  const { AiTaskService } = load('core/ai-task-service.ts');
+  const templates = load('ai/detail-templates.ts');
+  const template = templates.copyTemplate(templates.standardTemplate('zh-TW'), '教學', 't1');
+  template.sections.splice(2, 0, { id: 'ex', name: '範例', description: '', role: 'none', count: { mode: 'exact', n: 3 }, aliases: [] });
+  const detail = n => `### 核心結論\n\n- a\n\n### 範例\n\n${Array.from({ length: n }, (_, i) => `- ${i + 1}`).join('\n')}`;
+  const reply = n => JSON.stringify({ summary: 'S', detail: detail(n), suggestions: [], visualReferences: [] });
+  const status = {}; const seen = [];
+  const exchanges = {
+    begin: e => { status[e.id] = 'begun'; seen.push(e.id); }, sent: id => { status[id] = 'sent'; }, received: id => { status[id] = 'received'; },
+    parsed: id => { status[id] = 'parsed'; }, completed: id => { status[id] = 'completed'; }, failed: id => { status[id] = 'failed'; }
+  };
+  const run = async (replies, signal) => {
+    const queue = [...replies];
+    const runtime = { runTask: async () => { const next = queue.shift(); return typeof next === 'function' ? next() : next; } };
+    const service = new AiTaskService({ pluginDirectory: () => '/plugin', language: () => 'zh-TW', defaultReasoning: () => 'low', exchangeLoggingEnabled: () => true, exchanges: () => exchanges, codexRuntime: () => runtime, claudeRuntime: () => runtime });
+    let last = '';
+    const base = { title: 'Goal', summary: '', rules: '', detail: '', task: 'Write', ancestors: '', mode: 'task', researchMode: 'local', outputLanguage: 'zh-TW', detailTemplate: template };
+    const promise = service.askModel(base, 'gpt-6-luna', 'low', signal, id => { last = id; });
+    return { promise, last: () => last };
+  };
+  return { run, reply, status, seen };
+};
+integrationTest('count repair leaves no exchange in the parsed state when the repair succeeds', async () => {
+  const { run, reply, status, seen } = exchangeFixture();
+  const { promise, last } = await run([reply(2), reply(3)]);
+  await promise;
+  assert.equal(seen.length, 2);
+  assert.equal(status[seen[0]], 'completed');
+  assert.equal(status[seen[1]], 'parsed');
+  assert.equal(last(), seen[1]);
+});
+integrationTest('abort during count repair does not turn the first exchange into a failure', async () => {
+  const { run, reply, status, seen } = exchangeFixture();
+  const controller = new AbortController();
+  const abort = () => { controller.abort(); const error = new Error('Aborted'); error.name = 'AbortError'; throw error; };
+  const { promise } = await run([reply(2), abort], controller.signal);
+  await assert.rejects(promise, error => error.name === 'AbortError');
+  assert.equal(status[seen[0]], 'completed');
+  assert.equal(status[seen[1]], 'failed');
+});
