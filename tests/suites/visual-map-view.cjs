@@ -649,16 +649,14 @@ integrationTest('draft review renders the draft, edits on demand and keeps the d
     createDiv(value) { const child = element('div', typeof value === 'string' ? { cls: value } : value); this.children.push(child); return child; },
     createEl(name, value) { const child = element(name, value); this.children.push(child); return child; },
     createSpan(value) { const child = element('span', value); this.children.push(child); return child; },
-    addClass(name) { this.cls = `${this.cls} ${name}`.trim(); }, setText(value) { this.text = value; }, setAttr(name, value) { this.attr[name] = value; },
+    addClass(name) { this.cls = `${this.cls} ${name}`.trim(); }, removeClass(name) { this.cls = this.cls.split(' ').filter(item => item !== name).join(' '); }, setText(value) { this.text = value; }, setAttr(name, value) { this.attr[name] = value; },
     addEventListener(name, handler) { if (name === 'click') this.click = handler; }, empty() { this.children = []; this.rendered = undefined; }, focus() { this.focused = true; }
   });
   const find = (root, predicate) => predicate(root) ? root : root.children.map(child => find(child, predicate)).find(Boolean);
-  const buttons = [];
-  class Setting { constructor() {} addButton(fn) { const b = { text: '', cta: false, disabled: false, setButtonText(v) { this.text = v; return this; }, setCta() { this.cta = true; return this; }, setDisabled(v) { this.disabled = v; return this; }, onClick(h) { this.click = h; return this; } }; fn(b); buttons.push(b); return this; } }
   class Modal { constructor() { this.modalEl = element('modal'); this.titleEl = element('title'); this.contentEl = element('content'); } close() { this.closed = true; this.onClose?.(); } }
   class Component { load() { this.loaded = true; } unload() { this.loaded = false; } }
   const MarkdownRenderer = { render: async (_app, markdown, el) => { el.rendered = markdown; } };
-  const { DraftReviewModal } = load('main.ts', { obsidian: { ...obsidian, Modal, Setting, Component, MarkdownRenderer, setIcon: () => {} } });
+  const { DraftReviewModal } = load('main.ts', { obsidian: { ...obsidian, Modal, Component, MarkdownRenderer, setIcon: () => {} } });
   const saved = []; let failNext = true;
   const modal = new DraftReviewModal({}, 'New summary', '## Result\n\n- **one**', { intro: 'Confirming replaces the summary and details of “Parent”.', currentSummary: 'Old summary', confirmLabel: 'Confirm update to parent topic' }, async (summary, detail) => {
     if (failNext) { failNext = false; throw new Error('The topic changed'); }
@@ -681,11 +679,43 @@ integrationTest('draft review renders the draft, edits on demand and keeps the d
   inputs[1].value = '## Edited';
   toggle.click();
   assert.equal(previews[1].rendered, '## Edited');
-  const confirm = buttons.find(b => b.text === 'Confirm update to parent topic');
-  assert.equal(confirm.cta, true);
+  // Actions sit in a fixed bar below the scrolling content, not inside it.
+  const actions = find(modal.modalEl, item => item.cls === 'vam-next-actions');
+  assert.ok(modal.modalEl.cls.includes('vam-review-modal')); assert.equal(find(modal.contentEl, item => item.cls === 'vam-next-actions'), undefined);
+  const actionButtons = actions.children.filter(item => item.tag === 'button');
+  assert.deepEqual(actionButtons.map(item => item.text), ['Cancel', 'Confirm update to parent topic']);
+  const confirm = actionButtons[1];
+  assert.ok(confirm.cls.includes('mod-cta'));
   confirm.click(); await new Promise(resolve => setTimeout(resolve, 0));
   assert.notEqual(modal.closed, true); assert.equal(confirm.disabled, false);
-  assert.ok(find(modal.contentEl, item => item.cls.includes('vam-next-status') && /The topic changed/.test(item.text ?? '')));
+  assert.ok(find(actions, item => item.cls.includes('vam-next-status') && /The topic changed/.test(item.text ?? '')));
   confirm.click(); await new Promise(resolve => setTimeout(resolve, 0));
   assert.deepEqual(saved, [['New summary', '## Edited']]); assert.equal(modal.closed, true);
+});
+integrationTest('draft review asks once more before discarding the AI draft', async () => {
+  const element = (tag, options = {}) => ({
+    tag, text: options.text, value: options.text ?? '', cls: options.cls ?? '', attr: options.attr ?? {}, children: [], hidden: false,
+    createDiv(value) { const child = element('div', typeof value === 'string' ? { cls: value } : value); this.children.push(child); return child; },
+    createEl(name, value) { const child = element(name, value); this.children.push(child); return child; },
+    createSpan(value) { const child = element('span', value); this.children.push(child); return child; },
+    addClass(name) { this.cls = `${this.cls} ${name}`.trim(); }, removeClass(name) { this.cls = this.cls.split(' ').filter(item => item !== name).join(' '); }, setText(value) { this.text = value; }, setAttr(name, value) { this.attr[name] = value; },
+    addEventListener(name, handler) { if (name === 'click') this.click = handler; }, empty() { this.children = []; }, focus() {}
+  });
+  const find = (root, predicate) => predicate(root) ? root : root.children.map(child => find(child, predicate)).find(Boolean);
+  class Modal { constructor() { this.modalEl = element('modal'); this.titleEl = element('title'); this.contentEl = element('content'); } close() { this.closed = true; this.onClose?.(); } }
+  class Component { load() {} unload() {} }
+  const { DraftReviewModal } = load('main.ts', { obsidian: { ...obsidian, Modal, Component, MarkdownRenderer: { render: async () => {} }, setIcon: () => {} } });
+  let discarded = 0;
+  const modal = new DraftReviewModal({}, 'S', 'D', { intro: 'Intro', confirmLabel: 'Confirm update to parent topic' }, () => {}, () => { discarded++; });
+  modal.onOpen();
+  const actions = find(modal.modalEl, item => item.cls === 'vam-next-actions');
+  assert.deepEqual(actions.children.filter(item => item.tag === 'button').map(item => item.text), ['Discard', 'Cancel', 'Confirm update to parent topic']);
+  const discard = actions.children.find(item => item.tag === 'button');
+  assert.ok(discard.cls.includes('vam-discard')); assert.ok(!discard.cls.includes('mod-warning'));
+  discard.click();
+  assert.equal(discarded, 0); assert.notEqual(modal.closed, true);
+  assert.equal(discard.text, 'Discard draft?'); assert.ok(discard.cls.includes('mod-warning'));
+  assert.match(find(actions, item => item.cls.includes('vam-next-status')).text, /cannot be recovered/);
+  discard.click();
+  assert.equal(discarded, 1); assert.equal(modal.closed, true);
 });

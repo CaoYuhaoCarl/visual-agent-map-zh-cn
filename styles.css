@@ -140,6 +140,12 @@
 .vam-modal-intro { margin-top: 0; color: var(--text-muted); line-height: 1.55; white-space: pre-wrap; }
 .vam-next-modal { display: flex; flex-direction: column; width: min(720px, calc(100vw - 32px)); max-height: 85vh; }
 .vam-next-modal .modal-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+/* Review dialogs share the fixed action bar: content scrolls, actions stay in view. */
+.vam-review-modal { display: flex; flex-direction: column; max-height: 85vh; }
+.vam-review-modal .modal-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+.vam-next-actions > .vam-discard { order: -2; color: var(--text-error); }
+.vam-next-actions > .vam-next-status:empty { flex: 1 1 0; }
+.vam-next-actions > .vam-discard.mod-warning { color: var(--text-on-accent); }
 /* The step's primary action always sits in the same place: a bar below the scrolling content. */
 .vam-next-actions { display: flex; flex-shrink: 0; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--background-modifier-border); }
 .vam-next-actions > [hidden], .vam-next-modal .vam-hint[hidden] { display: none; }

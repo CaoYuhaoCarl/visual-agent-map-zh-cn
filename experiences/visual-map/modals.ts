@@ -1340,6 +1340,11 @@ export class NextStepModal extends Modal {
     });
   }
 }
+/** A fixed action bar below the scrolling content, shared by the review dialogs. */
+function reviewActions(modal: Modal): HTMLDivElement {
+  modal.modalEl.addClass("vam-review-modal");
+  return modal.modalEl.createDiv("vam-next-actions");
+}
 export interface DraftReview {
   /** What confirming does, e.g. which topic's summary and details it replaces. */
   intro: string;
@@ -1415,34 +1420,53 @@ export class DraftReviewModal extends Modal {
     // Start on the draft itself: a stray Enter from whatever opened the dialog must not switch to editing.
     intro.tabIndex = -1;
     intro.focus();
-    const status = this.contentEl.createEl("p", { cls: "vam-next-status", attr: { "aria-live": "polite" } });
-    const buttons = new Setting(this.contentEl).addButton(button =>
-      button.setButtonText(t("ui.cancel")).onClick(() => this.close())
-    );
-    if (this.discard)
-      buttons.addButton(button =>
-        button.setButtonText(t("ui.discard_synthesis")).onClick(() => {
+    const actions = reviewActions(this);
+    // Next to the buttons, so a save error or the discard warning is seen even when the draft is scrolled.
+    const status = actions.createSpan({
+      cls: "vam-next-actions-note vam-next-status",
+      attr: { "aria-live": "polite" }
+    });
+    if (this.discard) {
+      // Discarding loses the AI's work, so it sits apart and asks once more before acting.
+      const discard = actions.createEl("button", { text: t("ui.discard_synthesis"), cls: "vam-discard" });
+      discard.addEventListener("click", () => {
+        if (this.discardArmed) {
+          this.disarmDiscard(discard);
           this.discard?.();
           this.close();
-        })
+          return;
+        }
+        this.discardArmed = window.setTimeout(() => {
+          this.disarmDiscard(discard);
+          status.setText("");
+        }, 5000);
+        discard.setText(t("ui.discard_confirm"));
+        discard.addClass("mod-warning");
+        status.setText(t("ui.discard_confirm_hint"));
+      });
+    }
+    actions.createEl("button", { text: t("ui.cancel") }).addEventListener("click", () => this.close());
+    const confirm = actions.createEl("button", { text: this.review.confirmLabel, cls: "mod-cta" });
+    confirm.addEventListener("click", () => {
+      confirm.disabled = true;
+      void Promise.resolve(this.confirm(summary.input.value, detail.input.value)).then(
+        () => this.close(),
+        error => {
+          status.setText(error instanceof Error ? error.message : String(error));
+          confirm.disabled = false;
+        }
       );
-    buttons.addButton(button =>
-      button
-        .setButtonText(this.review.confirmLabel)
-        .setCta()
-        .onClick(() => {
-          button.setDisabled(true);
-          void Promise.resolve(this.confirm(summary.input.value, detail.input.value)).then(
-            () => this.close(),
-            error => {
-              status.setText(error instanceof Error ? error.message : String(error));
-              button.setDisabled(false);
-            }
-          );
-        })
-    );
+    });
+  }
+  private discardArmed = 0;
+  private disarmDiscard(button: HTMLButtonElement): void {
+    window.clearTimeout(this.discardArmed);
+    this.discardArmed = 0;
+    button.setText(t("ui.discard_synthesis"));
+    button.removeClass("mod-warning");
   }
   onClose(): void {
+    window.clearTimeout(this.discardArmed);
     this.renderer.unload();
     this.contentEl.empty();
   }
@@ -1488,37 +1512,32 @@ export class ChildProposalModal extends Modal {
       contribution.setAttr("aria-label", t("ui.contribution_to_the_parent_topic"));
       rows.push({ item, check, title, task, contribution });
     }
-    new Setting(this.contentEl)
-      .addButton(b => b.setButtonText(t("ui.cancel")).onClick(() => this.close()))
-      .addButton(b =>
-        b
-          .setButtonText(t("ui.create_subtopics"))
-          .setCta()
-          .onClick(() => {
-            const selected = rows.filter(row => row.check.checked && row.title.value.trim());
-            const renamed = new Map(
-              selected.filter(row => !row.item.parentTitle).map(row => [row.item.title, row.title.value.trim()])
-            );
-            const rootNames = selected.filter(row => !row.item.parentTitle).map(row => row.title.value.trim());
-            if (new Set(rootNames).size !== rootNames.length) {
-              new Notice(t("ui.first_level_topic_names_must_be_unique"));
-              return;
-            }
-            if (selected.some(row => row.item.parentTitle && !renamed.has(row.item.parentTitle))) {
-              new Notice(t("ui.select_the_parent_topic_before_its_child"));
-              return;
-            }
-            this.close();
-            this.submit(
-              selected.map(row => ({
-                title: row.title.value.trim(),
-                task: row.task.value.trim(),
-                contribution: row.contribution.value.trim(),
-                parentTitle: row.item.parentTitle ? renamed.get(row.item.parentTitle)! : ""
-              }))
-            );
-          })
+    const actions = reviewActions(this);
+    actions.createEl("button", { text: t("ui.cancel") }).addEventListener("click", () => this.close());
+    actions.createEl("button", { text: t("ui.create_subtopics"), cls: "mod-cta" }).addEventListener("click", () => {
+      const selected = rows.filter(row => row.check.checked && row.title.value.trim());
+      const renamed = new Map(
+        selected.filter(row => !row.item.parentTitle).map(row => [row.item.title, row.title.value.trim()])
       );
+      const rootNames = selected.filter(row => !row.item.parentTitle).map(row => row.title.value.trim());
+      if (new Set(rootNames).size !== rootNames.length) {
+        new Notice(t("ui.first_level_topic_names_must_be_unique"));
+        return;
+      }
+      if (selected.some(row => row.item.parentTitle && !renamed.has(row.item.parentTitle))) {
+        new Notice(t("ui.select_the_parent_topic_before_its_child"));
+        return;
+      }
+      this.close();
+      this.submit(
+        selected.map(row => ({
+          title: row.title.value.trim(),
+          task: row.task.value.trim(),
+          contribution: row.contribution.value.trim(),
+          parentTitle: row.item.parentTitle ? renamed.get(row.item.parentTitle)! : ""
+        }))
+      );
+    });
   }
 }
 export class IntegrationModal extends Modal {
@@ -1555,9 +1574,9 @@ export class IntegrationModal extends Modal {
       this.close();
       this.submit(title.value.trim(), goal.value.trim(), "");
     };
-    new Setting(this.contentEl)
-      .addButton(button => button.setButtonText(t("ui.cancel")).onClick(() => this.close()))
-      .addButton(button => button.setButtonText(t("ui.next_set_ai_sources")).setCta().onClick(save));
+    const actions = reviewActions(this);
+    actions.createEl("button", { text: t("ui.cancel") }).addEventListener("click", () => this.close());
+    actions.createEl("button", { text: t("ui.next_set_ai_sources"), cls: "mod-cta" }).addEventListener("click", save);
     title.focus();
     title.select();
   }

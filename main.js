@@ -712,6 +712,8 @@ var english = {
   "ui.scan_for_recognizable_vam_workspaces_and_reconnect_only_afte": "Scan for recognizable VAM workspaces and reconnect only after confirmation, without moving or overwriting data.",
   "ui.scan": "Scan",
   "ui.check_again": "Check again",
+  "ui.discard_confirm": "Discard draft?",
+  "ui.discard_confirm_hint": "Press again within 5 seconds to discard this AI draft. It cannot be recovered.",
   "ui.ai_draft": "AI draft",
   "ui.edit_draft": "Edit",
   "ui.preview_draft": "Preview",
@@ -1981,6 +1983,8 @@ var traditionalChinese = {
   "ui.scan_for_recognizable_vam_workspaces_and_reconnect_only_afte": "\u6383\u63CF\u53EF\u8FA8\u8B58\u7684 VAM Workspace\uFF0C\u78BA\u8A8D\u5F8C\u624D\u91CD\u65B0\u9023\u7D50\uFF0C\u4E0D\u6703\u642C\u79FB\u6216\u8986\u5BEB\u8CC7\u6599\u3002",
   "ui.scan": "\u6383\u63CF",
   "ui.check_again": "\u91CD\u65B0\u6AA2\u67E5",
+  "ui.discard_confirm": "\u78BA\u5B9A\u6368\u68C4\uFF1F",
+  "ui.discard_confirm_hint": "5 \u79D2\u5167\u518D\u6309\u4E00\u6B21\u5C31\u6703\u6368\u68C4\u9019\u4EFD AI \u8349\u7A3F\uFF0C\u6368\u68C4\u5F8C\u7121\u6CD5\u5FA9\u539F\u3002",
   "ui.ai_draft": "AI \u8349\u7A3F",
   "ui.edit_draft": "\u7DE8\u8F2F",
   "ui.preview_draft": "\u9810\u89BD",
@@ -21444,6 +21448,10 @@ var NextStepModal = class extends import_obsidian15.Modal {
     });
   }
 };
+function reviewActions(modal) {
+  modal.modalEl.addClass("vam-review-modal");
+  return modal.modalEl.createDiv("vam-next-actions");
+}
 var DraftReviewModal = class extends import_obsidian15.Modal {
   constructor(app, summary, detail, review, confirm, discard) {
     super(app);
@@ -21453,6 +21461,7 @@ var DraftReviewModal = class extends import_obsidian15.Modal {
     this.confirm = confirm;
     this.discard = discard;
     __publicField(this, "renderer", new import_obsidian15.Component());
+    __publicField(this, "discardArmed", 0);
   }
   onOpen() {
     var _a;
@@ -21509,32 +21518,51 @@ var DraftReviewModal = class extends import_obsidian15.Modal {
     setEditing(false);
     intro.tabIndex = -1;
     intro.focus();
-    const status = this.contentEl.createEl("p", { cls: "vam-next-status", attr: { "aria-live": "polite" } });
-    const buttons = new import_obsidian15.Setting(this.contentEl).addButton(
-      (button) => button.setButtonText(t("ui.cancel")).onClick(() => this.close())
-    );
-    if (this.discard)
-      buttons.addButton(
-        (button) => button.setButtonText(t("ui.discard_synthesis")).onClick(() => {
-          var _a2;
+    const actions = reviewActions(this);
+    const status = actions.createSpan({
+      cls: "vam-next-actions-note vam-next-status",
+      attr: { "aria-live": "polite" }
+    });
+    if (this.discard) {
+      const discard = actions.createEl("button", { text: t("ui.discard_synthesis"), cls: "vam-discard" });
+      discard.addEventListener("click", () => {
+        var _a2;
+        if (this.discardArmed) {
+          this.disarmDiscard(discard);
           (_a2 = this.discard) == null ? void 0 : _a2.call(this);
           this.close();
-        })
+          return;
+        }
+        this.discardArmed = window.setTimeout(() => {
+          this.disarmDiscard(discard);
+          status.setText("");
+        }, 5e3);
+        discard.setText(t("ui.discard_confirm"));
+        discard.addClass("mod-warning");
+        status.setText(t("ui.discard_confirm_hint"));
+      });
+    }
+    actions.createEl("button", { text: t("ui.cancel") }).addEventListener("click", () => this.close());
+    const confirm = actions.createEl("button", { text: this.review.confirmLabel, cls: "mod-cta" });
+    confirm.addEventListener("click", () => {
+      confirm.disabled = true;
+      void Promise.resolve(this.confirm(summary.input.value, detail.input.value)).then(
+        () => this.close(),
+        (error) => {
+          status.setText(error instanceof Error ? error.message : String(error));
+          confirm.disabled = false;
+        }
       );
-    buttons.addButton(
-      (button) => button.setButtonText(this.review.confirmLabel).setCta().onClick(() => {
-        button.setDisabled(true);
-        void Promise.resolve(this.confirm(summary.input.value, detail.input.value)).then(
-          () => this.close(),
-          (error) => {
-            status.setText(error instanceof Error ? error.message : String(error));
-            button.setDisabled(false);
-          }
-        );
-      })
-    );
+    });
+  }
+  disarmDiscard(button) {
+    window.clearTimeout(this.discardArmed);
+    this.discardArmed = 0;
+    button.setText(t("ui.discard_synthesis"));
+    button.removeClass("mod-warning");
   }
   onClose() {
+    window.clearTimeout(this.discardArmed);
     this.renderer.unload();
     this.contentEl.empty();
   }
@@ -21572,32 +21600,32 @@ var ChildProposalModal = class extends import_obsidian15.Modal {
       contribution.setAttr("aria-label", t("ui.contribution_to_the_parent_topic"));
       rows.push({ item, check, title, task, contribution });
     }
-    new import_obsidian15.Setting(this.contentEl).addButton((b) => b.setButtonText(t("ui.cancel")).onClick(() => this.close())).addButton(
-      (b) => b.setButtonText(t("ui.create_subtopics")).setCta().onClick(() => {
-        const selected = rows.filter((row) => row.check.checked && row.title.value.trim());
-        const renamed = new Map(
-          selected.filter((row) => !row.item.parentTitle).map((row) => [row.item.title, row.title.value.trim()])
-        );
-        const rootNames = selected.filter((row) => !row.item.parentTitle).map((row) => row.title.value.trim());
-        if (new Set(rootNames).size !== rootNames.length) {
-          new import_obsidian15.Notice(t("ui.first_level_topic_names_must_be_unique"));
-          return;
-        }
-        if (selected.some((row) => row.item.parentTitle && !renamed.has(row.item.parentTitle))) {
-          new import_obsidian15.Notice(t("ui.select_the_parent_topic_before_its_child"));
-          return;
-        }
-        this.close();
-        this.submit(
-          selected.map((row) => ({
-            title: row.title.value.trim(),
-            task: row.task.value.trim(),
-            contribution: row.contribution.value.trim(),
-            parentTitle: row.item.parentTitle ? renamed.get(row.item.parentTitle) : ""
-          }))
-        );
-      })
-    );
+    const actions = reviewActions(this);
+    actions.createEl("button", { text: t("ui.cancel") }).addEventListener("click", () => this.close());
+    actions.createEl("button", { text: t("ui.create_subtopics"), cls: "mod-cta" }).addEventListener("click", () => {
+      const selected = rows.filter((row) => row.check.checked && row.title.value.trim());
+      const renamed = new Map(
+        selected.filter((row) => !row.item.parentTitle).map((row) => [row.item.title, row.title.value.trim()])
+      );
+      const rootNames = selected.filter((row) => !row.item.parentTitle).map((row) => row.title.value.trim());
+      if (new Set(rootNames).size !== rootNames.length) {
+        new import_obsidian15.Notice(t("ui.first_level_topic_names_must_be_unique"));
+        return;
+      }
+      if (selected.some((row) => row.item.parentTitle && !renamed.has(row.item.parentTitle))) {
+        new import_obsidian15.Notice(t("ui.select_the_parent_topic_before_its_child"));
+        return;
+      }
+      this.close();
+      this.submit(
+        selected.map((row) => ({
+          title: row.title.value.trim(),
+          task: row.task.value.trim(),
+          contribution: row.contribution.value.trim(),
+          parentTitle: row.item.parentTitle ? renamed.get(row.item.parentTitle) : ""
+        }))
+      );
+    });
   }
 };
 var IntegrationModal = class extends import_obsidian15.Modal {
@@ -21631,7 +21659,9 @@ var IntegrationModal = class extends import_obsidian15.Modal {
       this.close();
       this.submit(title.value.trim(), goal.value.trim(), "");
     };
-    new import_obsidian15.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => this.close())).addButton((button) => button.setButtonText(t("ui.next_set_ai_sources")).setCta().onClick(save));
+    const actions = reviewActions(this);
+    actions.createEl("button", { text: t("ui.cancel") }).addEventListener("click", () => this.close());
+    actions.createEl("button", { text: t("ui.next_set_ai_sources"), cls: "mod-cta" }).addEventListener("click", save);
     title.focus();
     title.select();
   }
