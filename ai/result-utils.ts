@@ -2,6 +2,7 @@ import type { VisualReference } from "../repository";
 import { translate, type UiLanguage } from "../i18n";
 import type { AiResult } from "./types";
 import { fencedLines } from "./markdown-blocks";
+import { sectionKeys, standardTemplate, type DetailTemplate } from "./detail-templates";
 
 export { fencedLines } from "./markdown-blocks";
 
@@ -52,24 +53,19 @@ export function sourceFootnoteDefinition(line: string): { label: string; target:
     : null;
 }
 
-export function canonicalDetail(value: string, language: UiLanguage = "zh-TW"): string {
+export function canonicalDetail(
+  value: string,
+  language: UiLanguage = "zh-TW",
+  template: DetailTemplate = standardTemplate(language)
+): string {
   const detail = value.trim();
-  const keys = [
-    "detail.core_conclusions",
-    "detail.key_knowledge",
-    "detail.evidence_and_sources",
-    "detail.tradeoffs_and_limitations",
-    "detail.open_questions",
-    "detail.update_log"
-  ] as const;
-  const headings = keys.map(key => translate(language, key));
+  const headings = template.sections.map(section => section.name);
   const aliases = new Map<string, number>();
-  for (let index = 0; index < keys.length; index++)
-    for (const locale of ["zh-TW", "en"] as const)
-      aliases.set(translate(locale, keys[index]).toLocaleLowerCase(), index);
+  template.sections.forEach((section, index) => sectionKeys(section).forEach(key => aliases.set(key, index)));
+  const sourcesIndex = template.sections.findIndex(section => section.role === "sources");
   const sections = new Map<number, string[]>();
   const leading: string[] = [];
-  // Source footnote definitions all belong to "Evidence and sources", wherever the reply put them.
+  // Source footnote definitions all belong to the sources section (or the end), wherever the reply put them.
   const footnotes: string[] = [];
   let current: number | null = null;
   const detailLines = detail.split("\n");
@@ -90,14 +86,15 @@ export function canonicalDetail(value: string, language: UiLanguage = "zh-TW"): 
   }
   if (sections.size === 0) sections.set(0, [leading.join("\n").trim()]);
   else if (leading.join("\n").trim()) sections.set(0, [leading.join("\n").trim(), ...(sections.get(0) ?? [])]);
-  if (footnotes.length) {
-    const evidence = (sections.get(2) ?? []).join("\n").trim();
-    sections.set(2, [[evidence, footnotes.join("\n")].filter(Boolean).join("\n\n")]);
+  if (footnotes.length && sourcesIndex >= 0) {
+    const evidence = (sections.get(sourcesIndex) ?? []).join("\n").trim();
+    sections.set(sourcesIndex, [[evidence, footnotes.join("\n")].filter(Boolean).join("\n\n")]);
   }
   const empty = translate(language, "note.no_new_information");
-  return headings
+  const body = headings
     .map((heading, index) => `### ${heading}\n\n${sections.get(index)?.join("\n").trim() || empty}`)
     .join("\n\n");
+  return footnotes.length && sourcesIndex < 0 ? `${body}\n\n${footnotes.join("\n")}` : body;
 }
 
 export function visualReferencesMarkdown(references: VisualReference[] = [], language: UiLanguage = "zh-TW"): string {

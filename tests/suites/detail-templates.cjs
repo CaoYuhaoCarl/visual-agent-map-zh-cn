@@ -90,3 +90,50 @@ test('normalizeTemplates keeps the first of duplicate ids', () => {
   const result = api.normalizeTemplates([first, second]);
   assert.deepEqual(plain(result.map(item => item.name)), ['First']);
 });
+
+const utils = load('ai/result-utils.ts');
+const refs = load('ai/reference-materials.ts', { obsidian: require('../support.cjs').obsidian });
+const teach = () => {
+  const t = api.copyTemplate(api.standardTemplate('zh-TW'), '教學', 't1');
+  t.sections[1] = { ...t.sections[1], name: '概念', aliases: ['關鍵知識', 'Key knowledge'] };
+  t.sections.splice(2, 0, { id: 'ex', name: '範例', description: '', role: 'none', count: { mode: 'exact', n: 3 }, aliases: [] });
+  t.sections = t.sections.filter(s => s.id !== 'tradeoffs');
+  return t;
+};
+test('canonicalDetail without a template is unchanged (Standard)', () => {
+  const input = '### 核心結論\n\nA\n\n### 更新紀錄\n\n- x';
+  assert.equal(utils.canonicalDetail(input, 'zh-TW'), utils.canonicalDetail(input, 'zh-TW', api.standardTemplate('zh-TW')));
+});
+test('canonicalDetail follows a custom template: order, aliases, empty fill, removed sections kept as text', () => {
+  const out = utils.canonicalDetail('### 關鍵知識\n\nK\n\n### 取捨與限制\n\nT\n\n### 核心結論\n\nC', 'zh-TW', teach());
+  assert.deepEqual(out.split('\n').filter(l => l.startsWith('### ')), ['### 核心結論', '### 概念', '### 取捨與限制', '### 範例', '### 證據與來源', '### 待確認事項', '### 更新紀錄']); // '### 取捨與限制' is kept text, not a section
+  assert.match(out, /### 概念\n\nK\n\n### 取捨與限制\n\nT/); // unknown heading stays as text inside the section where it appeared
+  assert.match(out, /### 範例\n\n本次無新增內容。/);
+});
+test('canonicalDetail keeps a user ### sub-heading inside its section', () => {
+  const out = utils.canonicalDetail('### 核心結論\n\nA\n\n### 我的小節\n\nB\n\n### 更新紀錄\n\n- x', 'zh-TW');
+  assert.match(out, /### 核心結論\n\nA\n\n### 我的小節\n\nB\n\n### 關鍵知識/);
+});
+test('footnote definitions go to the sources section, or to the end when the template has none', () => {
+  const noSources = { id: 'n', name: 'N', sections: [{ id: 'a', name: 'A', description: '', role: 'none', aliases: [] }, { id: 'b', name: 'B', description: '', role: 'log', aliases: [] }] };
+  const out = utils.canonicalDetail('### A\n\nfact[^1]\n\n[^1]: [[Notes/X|X]]\n\n### B\n\n- log', 'en', noSources);
+  assert.match(out, /### B\n\n- log\n\n\[\^1\]: \[\[Notes\/X\|X\]\]$/);
+  const t = teach();
+  const placed = refs.resolveDetailReferences('### 核心結論\n\nfact [S1]\n\n### 證據與來源\n\nE', [{ id: 'g', name: 'g', location: '', documents: [{ path: 'Notes/X.md', content: 'x' }] }], '', t);
+  assert.match(placed, /### 證據與來源\n\nE\n\n\[\^1\]: \[\[Notes\/X\.md\|X\]\]/);
+});
+test('Standard canonicalDetail is idempotent and unchanged on repo Markdown corpus', () => {
+  const fs = require('node:fs'), path = require('node:path'), { root } = require('../support.cjs');
+  const files = [];
+  const walk = dir => { for (const entry of fs.readdirSync(dir, { withFileTypes: true })) { if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue; const full = path.join(dir, entry.name); if (entry.isDirectory()) walk(full); else if (entry.name.endsWith('.md')) files.push(full); } };
+  for (const dir of ['samples', 'tests/fixtures']) if (fs.existsSync(path.join(root, dir))) walk(path.join(root, dir));
+  assert.ok(files.length > 0, 'corpus is not empty');
+  for (const file of files) {
+    const text = fs.readFileSync(file, 'utf8');
+    for (const language of ['zh-TW', 'en']) {
+      const once = utils.canonicalDetail(text, language);
+      assert.equal(utils.canonicalDetail(once, language), once, `idempotent: ${file} (${language})`);
+      assert.equal(utils.canonicalDetail(text, language, api.standardTemplate(language)), once, `Standard default: ${file} (${language})`);
+    }
+  }
+});

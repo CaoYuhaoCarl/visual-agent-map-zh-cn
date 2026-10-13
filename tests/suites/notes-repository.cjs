@@ -567,3 +567,29 @@ integrationTest('topic remembers its content template and format issues in front
   assert.equal(note.detailTemplateId, undefined); assert.deepEqual(plain(note.detailFormatIssues), []);
   assert.doesNotMatch(await app.vault.read(app.vault.getAbstractFileByPath(node.path)), /detail-format-issues|detail-template/);
 });
+integrationTest('visual reference without a related paragraph goes before the sources section (zh and en)', async () => {
+  const { canonicalDetail } = load('ai/result-utils.ts');
+  const reference = '**Pic**\n\n![Pic](https://x/y.png)\n\nSource: https://x';
+  {
+    const { repo } = fixture('en'); const n = await topicNote(repo, 'English picture');
+    await repo.updateNote(n.path, { detail: canonicalDetail('### Key knowledge\n\nK', 'en'), visualReferences: reference });
+    const detail = (await repo.readNote(n.path)).detail;
+    assert.ok(detail.indexOf('**Pic**') > detail.indexOf('\nK\n'), 'after the knowledge text');
+    assert.ok(detail.indexOf('**Pic**') < detail.indexOf('### Evidence and sources'), 'before the sources section');
+  }
+  {
+    const { repo } = fixture(); const n = await topicNote(repo, '中文圖片');
+    await repo.updateNote(n.path, { detail: canonicalDetail('### 關鍵知識\n\nK', 'zh-TW'), visualReferences: reference });
+    const detail = (await repo.readNote(n.path)).detail;
+    assert.ok(detail.indexOf('**Pic**') > detail.indexOf('\nK\n'));
+    assert.ok(detail.indexOf('**Pic**') < detail.indexOf('### 證據與來源'));
+  }
+  {
+    const { repo } = fixture('en'); const n = await topicNote(repo, 'No sources picture');
+    const template = { id: 't1', name: 'T', sections: [{ id: 'a', name: 'A', description: '', role: 'none', aliases: [] }, { id: 'b', name: 'B', description: '', role: 'log', aliases: [] }] };
+    await repo.updateNote(n.path, { detail: canonicalDetail('### A\n\nK', 'en', template), visualReferences: reference }, { detailTemplate: template });
+    const detail = (await repo.readNote(n.path)).detail;
+    assert.ok(detail.indexOf('**Pic**') > detail.indexOf('### B'), 'at the end');
+    assert.match(detail, /Source: https:\/\/x$/);
+  }
+});

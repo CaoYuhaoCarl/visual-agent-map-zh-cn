@@ -337,3 +337,25 @@ integrationTest('result draft readback accepts the Repository whitespace normali
   assert.equal(saved.detail, 'Research status: search completed\nDetail with surrounding whitespace.');
   assert.equal(await store.updateResultDraftPresentation(created.mapPath, attempt, draft.id, ' Final synthesis title ', 'synthesis'), true);
 });
+integrationTest('task prompt uses the context template; no template keeps the Standard text', async () => {
+  const { AiTaskService } = load('core/ai-task-service.ts');
+  const templates = load('ai/detail-templates.ts');
+  const teach = () => {
+    const t = templates.copyTemplate(templates.standardTemplate('zh-TW'), '教學', 't1');
+    t.sections[1] = { ...t.sections[1], name: '概念', aliases: ['關鍵知識', 'Key knowledge'] };
+    t.sections.splice(2, 0, { id: 'ex', name: '範例', description: '', role: 'none', count: { mode: 'exact', n: 3 }, aliases: [] });
+    t.sections = t.sections.filter(s => s.id !== 'tradeoffs');
+    return t;
+  };
+  const prompts = [];
+  const runtime = { runTask: async prompt => { prompts.push(prompt); return JSON.stringify({ summary: 'S', detail: 'D', suggestions: [], visualReferences: [] }); } };
+  const service = new AiTaskService({ pluginDirectory: () => '/plugin', language: () => 'zh-TW', defaultReasoning: () => 'low', exchangeLoggingEnabled: () => false, exchanges: () => null, codexRuntime: () => runtime, claudeRuntime: () => runtime });
+  const base = { title: 'Goal', summary: '', rules: '', detail: '', task: 'Write', ancestors: '', mode: 'task', researchMode: 'local', outputLanguage: 'zh-TW' };
+  await service.askModel(base, 'gpt-6-luna', 'low');
+  await service.askModel({ ...base, detailTemplate: teach() }, 'gpt-6-luna', 'low');
+  assert.match(prompts[0], /### 核心結論, ### 關鍵知識/);
+  assert.match(prompts[0], /依序使用以下六個三級標題/);
+  assert.match(prompts[1], /### 範例 必須剛好有 3 個項目/);
+  assert.match(prompts[1], /6 個三級標題/);
+  assert.doesNotMatch(prompts[1], /### 取捨與限制/);
+});

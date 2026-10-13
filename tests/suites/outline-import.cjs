@@ -412,3 +412,24 @@ test('outline modal: a clipboard failure shows a Notice', async () => {
   await new Promise(resolve => setTimeout(resolve, 0));
   assert.deepEqual(h.notices, ['Could not copy the format instructions to the clipboard.']);
 });
+
+integrationTest('createOutlineMap writes the import line into the template log section, or the first section without one', async () => {
+  const section = (id, name, role = 'none') => ({ id, name, description: '', role, aliases: [] });
+  const when = new Date('2026-10-13T09:00:00+08:00');
+  {
+    const { repo } = fixture('en');
+    const template = { id: 't1', name: 'T', sections: [section('a', '重點'), section('log', '紀錄', 'log')] };
+    const result = await api.createOutlineMap(repo, 'gpt-6-luna', api.parseOutline('# R').nodes, null, when, template);
+    const detail = (await repo.readNote((await repo.readMap(result.mapPath)).nodes[0].path)).detail;
+    assert.match(detail, /### 紀錄\n\n- Imported from an outline \(2026-10-13\)/);
+    assert.match(detail, /^### 重點\n\nNo new information in this task\.\n\n### 紀錄/);
+  }
+  {
+    const { repo } = fixture('en');
+    const template = { id: 't2', name: 'T', sections: [section('a', '重點'), section('b', '其他')] };
+    const result = await api.createOutlineMap(repo, 'gpt-6-luna', api.parseOutline('# R').nodes, null, when, template);
+    const detail = (await repo.readNote((await repo.readMap(result.mapPath)).nodes[0].path)).detail;
+    assert.match(detail, /^### 重點\n\n- Imported from an outline \(2026-10-13\)/);
+    assert.doesNotMatch(detail, /### Update log/);
+  }
+});

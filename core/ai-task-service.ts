@@ -188,7 +188,7 @@ export class AiTaskService {
       if (referenceGroups.length) result.summary = resolveSummaryReferences(result.summary, referenceGroups);
       // Runs without sources too, so a source footnote kept from the previous detail keeps its definition.
       if (referenceGroups.length || /\[\^/.test(result.detail))
-        result.detail = resolveDetailReferences(result.detail, referenceGroups, input.detail);
+        result.detail = resolveDetailReferences(result.detail, referenceGroups, input.detail, input.detailTemplate);
       if (this.options.exchangeLoggingEnabled()) exchanges?.parsed(exchangeId);
       console.debug("Visual Agent Map AI metrics", {
         ...prepared.metrics,

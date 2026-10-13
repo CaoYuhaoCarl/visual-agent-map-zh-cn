@@ -6,7 +6,8 @@ import { MapDocument, MapNode, serializeMap, parseMap } from "./map-model";
 import type { CoffeeStyle } from "./experiences/coffee-tables/types";
 import type { ReasoningLevel, ResearchDepth, ResearchMode, VisualMode } from "./ai/types";
 import { normalizeReasoningLevel } from "./ai/task-policy";
-import type { DetailTemplate } from "./ai/detail-templates";
+import { sectionKeys, standardTemplate, type DetailTemplate } from "./ai/detail-templates";
+import { fencedLines } from "./ai/markdown-blocks";
 import { managedHeadingValue, managedSectionValue } from "./note-values";
 import { upgradeLegacyAimText } from "./experiences/aim/legacy-names";
 export type { ReasoningLevel, ResearchDepth, ResearchMode, VisualMode, VisualReference } from "./ai/types";
@@ -284,7 +285,7 @@ function withoutReference(content: string): string {
   return legacy.test(content) ? content.replace(legacy, "\n") : content;
 }
 
-function detailWithVisualReferences(detail: string, visualReferences: string): string {
+function detailWithVisualReferences(detail: string, visualReferences: string, template: DetailTemplate): string {
   let current = detail.trim();
   const references = visualReferences
     .trim()
@@ -301,10 +302,20 @@ function detailWithVisualReferences(detail: string, visualReferences: string): s
       paragraphs.splice(related + 1, 0, block);
       current = paragraphs.join("\n\n");
     } else {
-      const knowledge = /^### 關鍵知識\s*$/m.exec(current);
-      const next = knowledge ? /^### .+$/m.exec(current.slice(knowledge.index + knowledge[0].length)) : null;
-      const at = knowledge && next ? knowledge.index + knowledge[0].length + next.index : current.length;
-      current = [current.slice(0, at).trimEnd(), block, current.slice(at).trimStart()].filter(Boolean).join("\n\n");
+      const sources = template.sections.find(item => item.role === "sources");
+      const keys = new Set(sources ? sectionKeys(sources) : []);
+      const lines = current.split("\n");
+      const code = fencedLines(lines);
+      const at = lines.findIndex((line, index) => {
+        const heading = code[index] ? null : /^###\s+(.+?)\s*$/.exec(line);
+        return !!heading && keys.has(heading[1].toLocaleLowerCase());
+      });
+      current =
+        at < 0
+          ? [current.trimEnd(), block].filter(Boolean).join("\n\n")
+          : [lines.slice(0, at).join("\n").trimEnd(), block, lines.slice(at).join("\n").trimStart()]
+              .filter(Boolean)
+              .join("\n\n");
     }
   }
   return current;
@@ -327,7 +338,7 @@ function noteBody(
   newFindings = "",
   leftover = ""
 ): string {
-  const detailBlock = `${DETAIL_START}\n${detailWithVisualReferences(detail, visualReferences)}\n${DETAIL_END}`;
+  const detailBlock = `${DETAIL_START}\n${detailWithVisualReferences(detail, visualReferences, standardTemplate(language))}\n${DETAIL_END}`;
   return (
     [
       `# ${title}`,
@@ -357,7 +368,11 @@ function normalizeBodyOrder(
   const prompt = section(clean, "Prompt");
   const rules = section(clean, "Rules");
   const preview = previewSection(clean);
-  const detail = detailWithVisualReferences(section(clean, "Detail"), section(clean, "Visual References"));
+  const detail = detailWithVisualReferences(
+    section(clean, "Detail"),
+    section(clean, "Visual References"),
+    standardTemplate(language)
+  );
   const newFindings = section(clean, "Working Findings") || section(clean, "New Findings");
   let leftover = clean.replace(/^# .*$(?:\r?\n)*/m, "");
   for (const heading of [
@@ -570,7 +585,11 @@ export class Repository {
    * `options.contentLanguage` is the AIM content language: it only chooses the language of generated placeholder text;
    * headings and the reference frame stay in the interface language. Notes created by AIM remember it in frontmatter.
    */
-  async updateNote(path: string, patch: NotePatch, options: { contentLanguage?: NoteLanguage } = {}): Promise<void> {
+  async updateNote(
+    path: string,
+    patch: NotePatch,
+    options: { contentLanguage?: NoteLanguage; detailTemplate?: DetailTemplate } = {}
+  ): Promise<void> {
     await this.app.vault.process(this.file(path), content => {
       const fm = frontmatter(content);
       ensureNoteCssClass(fm);
@@ -624,7 +643,11 @@ export class Repository {
           body = replaceSection(
             body,
             "Detail",
-            detailWithVisualReferences(section(body, "Detail"), patch.visualReferences)
+            detailWithVisualReferences(
+              section(body, "Detail"),
+              patch.visualReferences,
+              options.detailTemplate ?? standardTemplate(this.settings.language)
+            )
           );
       }
       if (patch.newFindings !== undefined) {

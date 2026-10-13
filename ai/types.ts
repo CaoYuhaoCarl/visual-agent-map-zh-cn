@@ -1,3 +1,4 @@
+import type { DetailTemplate } from "./detail-templates";
 import type { AimContract } from "./aim-contracts";
 import type { UiLanguage } from "../i18n";
 import type { ReferenceGroup } from "./reference-materials";
@@ -41,6 +42,8 @@ export interface TaskContext {
   mode?: AiTaskKind;
   /** Let a task choose its Markdown structure while retaining the structured result contract. */
   detailFormat?: "adaptive";
+  /** Content template for fixed-section details (trusted; Standard when absent). */
+  detailTemplate?: DetailTemplate;
   /** Select a phase-aware prompt builder for AIM requests. */
   promptProfile?: PromptProfile;
   /** Selects a narrow trusted response schema for the AIM gap audit only. */

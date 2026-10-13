@@ -10184,6 +10184,284 @@ function fencedLines(lines) {
   });
 }
 
+// core/steps/task/source-registry.md
+var source_registry_default = "Source registry (retain these identities in citations):\n{{catalog}}\n";
+
+// core/steps/task/adaptive-detail-structure.zh.md
+var adaptive_detail_structure_zh_default = "detail \u4F7F\u7528 Markdown\uFF0C\u4F9D\u4F7F\u7528\u8005\u6700\u521D\u554F\u984C\u8207\u671F\u671B\u6210\u679C\u6C7A\u5B9A\u5167\u5BB9\u7D50\u69CB\u3002\u6309\u9700\u8981\u9078\u64C7\u6A19\u984C\u3001\u6BB5\u843D\u3001\u6B65\u9A5F\u3001\u8868\u683C\u6216\u5176\u4ED6\u5408\u9069\u5F62\u5F0F\uFF0C\u4E0D\u5957\u56FA\u5B9A\u6BB5\u843D\u6A21\u677F\u3002\u6574\u5408\u5DF2\u77E5\u4F7F\u7528\u8005\u689D\u4EF6\u8207\u76F8\u95DC\u8B49\u64DA\uFF0C\u5BEB\u6210\u9023\u8CAB\u3001\u53EF\u7368\u7ACB\u95B1\u8B80\u7684\u5B8C\u6574\u56DE\u7B54\uFF1B\u5728\u76F8\u95DC\u5167\u5BB9\u4EA4\u4EE3\u4F86\u6E90\u53CA\u91CD\u8981\u4E0D\u78BA\u5B9A\u6027\u3002\u4E0D\u8981\u8CBC\u4E0A\u4E2D\u9593\u7814\u7A76\u5831\u544A\uFF0C\u4E0D\u52A0\u7A7A\u6BB5\u843D\u6216\u66F4\u65B0\u7D00\u9304\u3002\u4FDD\u7559\u4EFB\u52D9\u8981\u6C42\u7684\u6A5F\u5668\u53EF\u8B80\u6C7A\u7B56\u6A19\u8A18\u8207\u5916\u5C64 JSON \u56DE\u61C9\u683C\u5F0F\u3002\n";
+
+// core/steps/task/adaptive-detail-structure.en.md
+var adaptive_detail_structure_en_default = "Write detail in Markdown with a structure suited to the user's original question and requested outcome. Choose headings, prose, steps, tables, or other appropriate formats as needed; there is no fixed section template. Produce a coherent, self-contained answer that incorporates the user's known conditions and relevant evidence. Integrate source attribution and material uncertainties where they matter. Do not paste the intermediate research reports or add empty sections and update logs. Preserve any machine-readable decision marker required by the task and the outer JSON response contract.\n";
+
+// core/steps/task/custom-detail-structure.zh.md
+var custom_detail_structure_zh_default = "detail \u5FC5\u9808\u4E14\u53EA\u80FD\u4F9D\u5E8F\u4F7F\u7528\u4EE5\u4E0B {{count}} \u500B\u4E09\u7D1A\u6A19\u984C\uFF1A{{headings}}\u3002\u6C92\u6709\u9069\u7528\u5167\u5BB9\u7684\u6BB5\u843D\u5BEB\u300C\u672C\u6B21\u7121\u65B0\u589E\u5167\u5BB9\u300D\u3002\u4F7F\u7528\u8005\u8981\u6C42\u67D0\u6BB5\u7684\u6578\u91CF\u6642\uFF0C\u9808\u9075\u5B88\u8A72\u6578\u91CF\u3002{{rules}}\n";
+
+// core/steps/task/custom-detail-structure.en.md
+var custom_detail_structure_en_default = "The detail must use exactly these {{count}} level-three headings in order: {{headings}}. Write 'No new content this time' in sections with nothing applicable. Follow any count the user requests for a section.{{rules}}\n";
+
+// core/steps/task/custom-detail-rule-log.zh.md
+var custom_detail_rule_log_zh_default = "{{heading}} \u53EA\u65B0\u589E\u4E00\u884C\u672C\u6B21\u8B8A\u66F4\u6458\u8981\uFF0C\u4E0D\u53EF\u91CD\u8CBC\u5B8C\u6574\u7B54\u6848\u3002\n";
+
+// core/steps/task/custom-detail-rule-log.en.md
+var custom_detail_rule_log_en_default = "{{heading}} gets only one new line summarizing this update; do not repeat the full answer.\n";
+
+// core/steps/task/custom-detail-rule-description.zh.md
+var custom_detail_rule_description_zh_default = "{{heading}}\uFF1A{{description}}\n";
+
+// core/steps/task/custom-detail-rule-description.en.md
+var custom_detail_rule_description_en_default = "{{heading}}: {{description}}\n";
+
+// core/steps/task/custom-detail-rule-exact.zh.md
+var custom_detail_rule_exact_zh_default = "{{heading}} \u5FC5\u9808\u525B\u597D\u6709 {{n}} \u500B\u9805\u76EE\uFF08\u7B2C\u4E00\u5C64\u6E05\u55AE\u9805\u76EE\uFF0C\u6216\u6539\u7528 #### \u5C0F\u6A19\u984C\u5206\u9805\uFF09\u3002\n";
+
+// core/steps/task/custom-detail-rule-exact.en.md
+var custom_detail_rule_exact_en_default = "{{heading}} must have exactly {{n}} items (top-level list items, or #### sub-headings).\n";
+
+// core/steps/task/custom-detail-rule-min.zh.md
+var custom_detail_rule_min_zh_default = "{{heading}} \u5FC5\u9808\u81F3\u5C11\u6709 {{n}} \u500B\u9805\u76EE\uFF08\u7B2C\u4E00\u5C64\u6E05\u55AE\u9805\u76EE\uFF0C\u6216\u6539\u7528 #### \u5C0F\u6A19\u984C\u5206\u9805\uFF09\u3002\n";
+
+// core/steps/task/custom-detail-rule-min.en.md
+var custom_detail_rule_min_en_default = "{{heading}} must have at least {{n}} items (top-level list items, or #### sub-headings).\n";
+
+// core/steps/task/decompose.zh.md
+var decompose_zh_default = "\u9019\u662F Decompose \u6A21\u5F0F\uFF1A\u4F9D\u672C\u6B21\u4EFB\u52D9\u6307\u5B9A\u7684\u5C64\u6578\u8207\u6578\u91CF\u63D0\u51FA\u53EF\u7368\u7ACB\u8655\u7406\u7684\u5B50\u8B70\u984C\uFF1B\u82E5\u73FE\u6709\u5B50\u8B70\u984C\u5DF2\u6DB5\u84CB\u9700\u6C42\uFF0C\u56DE\u50B3\u7A7A\u9663\u5217\uFF0C\u4E0D\u8981\u6E4A\u6578\u3002summary \u7C21\u8FF0\u662F\u5426\u5EFA\u8B70\u62C6\u89E3\uFF0Cdetail \u7C21\u8FF0\u62C6\u89E3\u7406\u7531\uFF1B\u4E0D\u8981\u66F4\u65B0\u7D50\u8AD6\u3002\n";
+
+// core/steps/task/decompose.en.md
+var decompose_en_default = "Decompose mode: propose independently actionable subtopics at the requested depth and count. If existing subtopics already cover the need, return an empty array; do not pad the count. Summarize whether decomposition is useful and briefly explain why in detail. Do not update conclusions.\n";
+
+// core/steps/task/default-task.zh.md
+var default_task_zh_default = "summary \u5FC5\u9808\u662F\u4E00\u53E5\u9069\u5408\u5FC3\u667A\u5716\u986F\u793A\u7684\u65B0\u76EE\u524D\u7406\u89E3\uFF0Cdetail \u5FC5\u9808\u662F\u5B8C\u6574 Markdown \u5206\u6790\u3002\n";
+
+// core/steps/task/default-task.en.md
+var default_task_en_default = "Summary must be one new insight suitable for the mind map; detail must be a complete Markdown analysis.\n";
+
+// core/steps/task/detail-structure.zh.md
+var detail_structure_zh_default = "detail \u5FC5\u9808\u4E14\u53EA\u80FD\u4F9D\u5E8F\u4F7F\u7528\u4EE5\u4E0B\u516D\u500B\u4E09\u7D1A\u6A19\u984C\uFF1A{{headings}}\u3002\u66F4\u65B0\u7D00\u9304\u53EA\u65B0\u589E\u4E00\u884C\u672C\u6B21\u8B8A\u66F4\u6458\u8981\uFF0C\u4E0D\u53EF\u91CD\u8CBC\u5B8C\u6574\u7B54\u6848\uFF1B\u6C92\u6709\u9069\u7528\u5167\u5BB9\u7684\u6BB5\u843D\u5BEB\u300C\u672C\u6B21\u7121\u65B0\u589E\u5167\u5BB9\u300D\u3002\u6838\u5FC3\u7D50\u8AD6\u82E5\u6709\u6307\u5B9A\u6578\u91CF\uFF0C\u9808\u9075\u5B88\u8A72\u6578\u91CF\u3002\n";
+
+// core/steps/task/detail-structure.en.md
+var detail_structure_en_default = "The detail must use exactly these six level-three headings in order: {{headings}}. Add only one line summarizing this update in Update log; do not repeat the full answer. Write 'No new content this time' in sections with nothing applicable. Follow any requested count for the core conclusions.\n";
+
+// core/steps/task/general-task.zh.md
+var general_task_zh_default = "\u9019\u662F\u4E00\u822C\u4EFB\u52D9\uFF1Asummary \u5FC5\u9808\u662F\u4E00\u53E5\u9069\u5408\u5FC3\u667A\u5716\u986F\u793A\u7684\u65B0\u76EE\u524D\u7406\u89E3\uFF0C80 \u5B57\u5167\uFF1Bdetail \u662F\u6703\u76F4\u63A5\u53D6\u4EE3\u820A Detail \u7684\u5B8C\u6574\u77E5\u8B58\u9801\uFF0C\u5FC5\u9808\u5438\u6536\u820A\u5167\u5BB9\u8207\u672C\u6B21\u767C\u73FE\u3001\u53BB\u9664\u91CD\u8907\u3001\u4FDD\u7559\u4ECD\u6709\u6548\u7684\u4F86\u6E90\u3002\u82E5\u8B70\u984C\u904E\u65BC\u8907\u96DC\u624D\u63D0\u4F9B suggestions\uFF0C\u5426\u5247\u56DE\u50B3\u7A7A\u9663\u5217\u3002\n";
+
+// core/steps/task/general-task.en.md
+var general_task_en_default = "General task: summary is one new insight for the mind map, within 80 characters. Detail replaces the old Detail with a complete knowledge page that incorporates valid existing content and new findings, removes duplication, and retains valid sources. Provide suggestions only if the topic is too complex; otherwise return an empty array.\n";
+
+// core/steps/task/json.zh.md
+var json_zh_default = '\u53EA\u56DE\u50B3 JSON\uFF0C\u4E0D\u8981\u4F7F\u7528 Markdown code fence\u3002\u683C\u5F0F\u5FC5\u9808\u7B26\u5408\uFF1A{"summary":"...","detail":"...","suggestions":[{"title":"...","task":"...","contribution":"...","parentTitle":""}],"visualReferences":[{"title":"...","imageUrl":"https://...","sourceUrl":"https://...","description":"...","palette":["navy","white"],"formula":"..."}]}\u3002\u82E5\u6C92\u6709\u8996\u89BA\u53C3\u8003\uFF0CvisualReferences \u56DE\u50B3\u7A7A\u9663\u5217\u3002\n';
+
+// core/steps/task/json.en.md
+var json_en_default = 'Return JSON only, without a Markdown code fence. Use this exact shape: {"summary":"...","detail":"...","suggestions":[{"title":"...","task":"...","contribution":"...","parentTitle":""}],"visualReferences":[{"title":"...","imageUrl":"https://...","sourceUrl":"https://...","description":"...","palette":["navy","white"],"formula":"..."}]}. Return an empty visualReferences array when there are no visual references.\n';
+
+// core/steps/task/label-detail.zh.md
+var label_detail_zh_default = "\u73FE\u6709 Detail\uFF08\u9808\u6574\u5408\u5F8C\u5B8C\u6574\u53D6\u4EE3\uFF0C\u4E0D\u80FD\u539F\u6A23\u91CD\u8907\u8FFD\u52A0\uFF09\n";
+
+// core/steps/task/label-detail.en.md
+var label_detail_en_default = "Existing Detail (integrate and replace fully, do not append unchanged)\n";
+
+// core/steps/task/label-findings.zh.md
+var label_findings_zh_default = "\u820A\u7248\u5F85\u6574\u7406\u767C\u73FE\uFF08\u672C\u6B21\u5FC5\u9808\u4E00\u4F75\u6536\u6582\uFF09\n";
+
+// core/steps/task/label-findings.en.md
+var label_findings_en_default = "Older findings to consolidate\n";
+
+// core/steps/task/output-language.zh.md
+var output_language_zh_default = "\u65B0\u7522\u751F\u7684\u5167\u5BB9\u9810\u8A2D\u4F7F\u7528\u7E41\u9AD4\u4E2D\u6587\uFF0C\u5305\u62EC\u6458\u8981\u3001Detail \u6B63\u6587\u3001\u5EFA\u8B70\u6A19\u984C\u8207\u8AAA\u660E\u3001\u5716\u7247\u63CF\u8FF0\u3002\u516D\u500B\u6A19\u6E96 Detail \u6A19\u984C\u56FA\u5B9A\u8DDF\u96A8\u4ECB\u9762\u8A9E\u8A00\u3002\u4FDD\u7559\u4F86\u6E90\u539F\u6587\u5F15\u8FF0\u8207\u5C08\u6709\u540D\u7A31\uFF1B\u53EA\u6709\u76EE\u524D\u4EFB\u52D9\u6216\u8B70\u984C AI \u898F\u5247\u660E\u78BA\u6307\u5B9A\u5176\u4ED6\u8F38\u51FA\u8A9E\u8A00\u6642\u624D\u6539\u7528\u8A72\u8A9E\u8A00\u3002\n";
+
+// core/steps/task/output-language.en.md
+var output_language_en_default = "Write newly generated content in English by default, including summaries, detail text, suggestion titles, tasks, contributions, and image descriptions. The six standard Detail headings must follow the interface language. Preserve quoted source text and proper names. Follow a different output language only when the current task or topic AI rules explicitly request it.\n";
+
+// core/steps/task/synthesize.zh.md
+var synthesize_zh_default = "\u9019\u662F Synthesize \u6A21\u5F0F\uFF1Asummary \u5FC5\u9808\u662F\u9AD8\u54C1\u8CEA\u6574\u5408\u7D50\u8AD6\uFF0C80 \u5B57\u5167\uFF1Bdetail \u5FC5\u9808\u6574\u5408\u4F86\u6E90\u5B8C\u6574\u77E5\u8B58\u3001\u6536\u6582\u91CD\u8907\u5167\u5BB9\u3001\u6E05\u695A\u5448\u73FE\u5171\u8B58\u3001\u5206\u6B67\u3001\u53D6\u6368\u8207\u672A\u89E3\u554F\u984C\uFF1B\u82E5\u4ECB\u9762\u63D0\u4F9B\u78BA\u8A8D\u8349\u7A3F\uFF0C\u78BA\u8A8D\u5F8C\u624D\u6703\u5BEB\u56DE\u3002\n";
+
+// core/steps/task/synthesize.en.md
+var synthesize_en_default = "Synthesize mode: summary is a high-quality integrated conclusion within 80 characters. Detail integrates complete source knowledge, removes duplication, and clearly presents agreements, disagreements, tradeoffs, and unresolved questions. If the UI offers draft review, write only after confirmation.\n";
+
+// core/steps/task/visual-auto.zh.md
+var visual_auto_zh_default = "\u5716\u7247\u80FD\u660E\u986F\u5E6B\u52A9\u7406\u89E3\u6216\u4F7F\u7528\u8005\u660E\u78BA\u8981\u6C42\u5716\u7247\u6642\uFF0C\u624D\u641C\u5C0B\u5716\u7247\u53C3\u8003\uFF1B\u4E00\u822C\u77E5\u8B58\u578B\u554F\u984C\u4E0D\u8981\u641C\u5C0B\u5716\u7247\u3002\n";
+
+// core/steps/task/visual-auto.en.md
+var visual_auto_en_default = "Search for image references when they materially aid understanding or the user explicitly asks for images; do not search for images for ordinary knowledge questions.\n";
+
+// core/steps/task/visual-embed.zh.md
+var visual_embed_zh_default = "\u6709\u52A9\u7406\u89E3\u7684\u5716\u7247\u76F4\u63A5\u5D4C\u5165 detail \u76F8\u95DC\u6BB5\u843D\u4E26\u9644\u4F86\u6E90\u9801\u9023\u7D50\u3002\u6574\u5408\u6642\u53EA\u6CBF\u7528\u6709\u52A9\u8AAA\u660E\u6574\u5408\u767C\u73FE\u7684\u4F86\u6E90\u5716\u7247\uFF1B\u4E0D\u8981\u5EFA\u7ACB\u7368\u7ACB\u5716\u7247\u96C6\u5408\uFF0C\u4E5F\u4E0D\u8981\u7DE8\u9020\u4F86\u6E90\u3002\n";
+
+// core/steps/task/visual-embed.en.md
+var visual_embed_en_default = "Embed useful images directly in relevant detail paragraphs with source-page links. In synthesis, reuse source images only when they help explain the integrated findings. Do not create a separate image collection or invent sources.\n";
+
+// core/steps/task/visual-none.zh.md
+var visual_none_zh_default = "\u4E0D\u8981\u641C\u5C0B\u65B0\u5716\u7247\uFF1BvisualReferences \u56DE\u50B3\u7A7A\u9663\u5217\u3002\n";
+
+// core/steps/task/visual-none.en.md
+var visual_none_en_default = "Do not search for new images; return an empty visualReferences array unless synthesis can reuse a relevant image already included in the provided source context.\n";
+
+// core/steps/task/visual-on.zh.md
+var visual_on_zh_default = "\u8ACB\u5C0B\u627E 1\u20136 \u500B\u80FD\u5E6B\u52A9\u7406\u89E3\u8B70\u984C\u7684\u5716\u7247\u53C3\u8003\uFF1B\u5FC5\u9808\u63D0\u4F9B\u771F\u5BE6\u5716\u7247 URL \u8207\u4F86\u6E90\u9801 URL\uFF0C\u627E\u4E0D\u5230\u53EF\u9760\u5716\u7247\u6642\u56DE\u50B3\u7A7A\u9663\u5217\u3002\n";
+
+// core/steps/task/visual-on.en.md
+var visual_on_en_default = "Find 1\u20136 image references that help explain the topic. Provide real image and source-page URLs; return an empty array if reliable images are unavailable.\n";
+
+// core/steps/task/visual-preserve.zh.md
+var visual_preserve_zh_default = "\u6574\u5408\u6642\u82E5\u63D0\u4F9B\u7684\u4F86\u6E90\u5167\u5BB9\u5DF2\u6709\u76F8\u95DC\u5716\u7247\uFF0C\u8ACB\u4FDD\u7559\u539F\u5716\u7247\u8207\u4F86\u6E90 URL\uFF0C\u4E26\u56DE\u50B3\u8A72\u53C3\u8003\u3002\n";
+
+// core/steps/task/visual-preserve.en.md
+var visual_preserve_en_default = "When reusing one, preserve its original image and source URLs.\n";
+
+// core/steps/task/fragments.ts
+var text4 = (template) => renderTemplate(template, {});
+var pair4 = (zh, en) => ({ zh: text4(zh), en: text4(en) });
+var ADAPTIVE_DETAIL_STRUCTURE = pair4(adaptive_detail_structure_zh_default, adaptive_detail_structure_en_default);
+var DECOMPOSE = pair4(decompose_zh_default, decompose_en_default);
+var DEFAULT_TASK = pair4(default_task_zh_default, default_task_en_default);
+var DETAIL_STRUCTURE_TEMPLATE = { zh: detail_structure_zh_default, en: detail_structure_en_default };
+var GENERAL_TASK = pair4(general_task_zh_default, general_task_en_default);
+var JSON_CONTRACT = pair4(json_zh_default, json_en_default);
+var LABEL_DETAIL = pair4(label_detail_zh_default, label_detail_en_default);
+var LABEL_FINDINGS = pair4(label_findings_zh_default, label_findings_en_default);
+var OUTPUT_LANGUAGE = pair4(output_language_zh_default, output_language_en_default);
+var SYNTHESIZE = pair4(synthesize_zh_default, synthesize_en_default);
+var VISUAL_AUTO = pair4(visual_auto_zh_default, visual_auto_en_default);
+var VISUAL_EMBED = pair4(visual_embed_zh_default, visual_embed_en_default);
+var VISUAL_NONE = pair4(visual_none_zh_default, visual_none_en_default);
+var VISUAL_ON = pair4(visual_on_zh_default, visual_on_en_default);
+var VISUAL_PRESERVE = pair4(visual_preserve_zh_default, visual_preserve_en_default);
+function detailStructure(language2, headings) {
+  return renderTemplate(inLanguage(DETAIL_STRUCTURE_TEMPLATE, language2), { headings });
+}
+var CUSTOM_DETAIL_STRUCTURE_TEMPLATE = { zh: custom_detail_structure_zh_default, en: custom_detail_structure_en_default };
+function customDetailStructure(language2, values) {
+  return renderTemplate(inLanguage(CUSTOM_DETAIL_STRUCTURE_TEMPLATE, language2), values);
+}
+var CUSTOM_DETAIL_RULES = {
+  log: { zh: custom_detail_rule_log_zh_default, en: custom_detail_rule_log_en_default },
+  description: { zh: custom_detail_rule_description_zh_default, en: custom_detail_rule_description_en_default },
+  exact: { zh: custom_detail_rule_exact_zh_default, en: custom_detail_rule_exact_en_default },
+  min: { zh: custom_detail_rule_min_zh_default, en: custom_detail_rule_min_en_default }
+};
+function customDetailRule(kind, language2, values) {
+  return renderTemplate(inLanguage(CUSTOM_DETAIL_RULES[kind], language2), values);
+}
+function sourceRegistry(catalog) {
+  return renderTemplate(source_registry_default, { catalog });
+}
+
+// ai/detail-templates.ts
+var STANDARD_TEMPLATE_ID = "standard";
+var LANGUAGES = ["zh-TW", "en"];
+var STANDARD = [
+  ["core", "detail.core_conclusions", "none"],
+  ["knowledge", "detail.key_knowledge", "none"],
+  ["sources", "detail.evidence_and_sources", "sources"],
+  ["tradeoffs", "detail.tradeoffs_and_limitations", "none"],
+  ["questions", "detail.open_questions", "none"],
+  ["log", "detail.update_log", "log"]
+];
+function standardTemplate(language2) {
+  return {
+    id: STANDARD_TEMPLATE_ID,
+    name: translate(language2, "ui.detail_template_standard"),
+    sections: STANDARD.map(([id, key2, role]) => {
+      const name = translate(language2, key2);
+      return {
+        id,
+        name,
+        description: "",
+        role,
+        aliases: LANGUAGES.map((locale) => translate(locale, key2)).filter((alias) => alias !== name)
+      };
+    })
+  };
+}
+function sectionKeys(section3) {
+  return [section3.name, ...section3.aliases].map((value) => value.trim().toLocaleLowerCase()).filter(Boolean);
+}
+function validateTemplate(template, others) {
+  const issues = [];
+  const name = template.name.trim();
+  if (!name) issues.push({ key: "ui.detail_template_error_name_required", values: [] });
+  else if (name.length > 40) issues.push({ key: "ui.detail_template_error_name_long", values: [] });
+  else if (others.some((other) => other.id !== template.id && other.name.trim().toLocaleLowerCase() === name.toLocaleLowerCase()))
+    issues.push({ key: "ui.detail_template_error_name_taken", values: [name] });
+  if (template.sections.length < 1 || template.sections.length > 12)
+    issues.push({ key: "ui.detail_template_error_section_count", values: [] });
+  const seen = /* @__PURE__ */ new Set();
+  template.sections.forEach((section3, index) => {
+    const number = index + 1;
+    const sectionName = section3.name.trim();
+    if (!sectionName)
+      issues.push({ key: "ui.detail_template_error_section_name_required", values: [number], section: number });
+    else if (/[#\r\n]/.test(section3.name))
+      issues.push({ key: "ui.detail_template_error_section_name_invalid", values: [number], section: number });
+    else if (sectionName.length > 40)
+      issues.push({ key: "ui.detail_template_error_section_name_long", values: [number], section: number });
+    else if (seen.has(sectionName.toLocaleLowerCase()))
+      issues.push({ key: "ui.detail_template_error_section_name_taken", values: [number], section: number });
+    seen.add(sectionName.toLocaleLowerCase());
+    if (section3.description.length > 300)
+      issues.push({ key: "ui.detail_template_error_description_long", values: [number], section: number });
+    if (section3.count && (!Number.isInteger(section3.count.n) || section3.count.n < 1 || section3.count.n > 20))
+      issues.push({ key: "ui.detail_template_error_count_range", values: [number], section: number });
+  });
+  for (const role of ["sources", "log"])
+    if (template.sections.filter((section3) => section3.role === role).length > 1)
+      issues.push({
+        key: "ui.detail_template_error_role_taken",
+        values: [role === "sources" ? "ui.detail_template_role_sources" : "ui.detail_template_role_log"]
+      });
+  return issues;
+}
+function section(value) {
+  if (!value || typeof value !== "object") return null;
+  const item = value;
+  if (typeof item.id !== "string" || typeof item.name !== "string") return null;
+  const role = item.role === "sources" || item.role === "log" ? item.role : "none";
+  const count = item.count && (item.count.mode === "exact" || item.count.mode === "min") && typeof item.count.n === "number" ? { mode: item.count.mode, n: item.count.n } : void 0;
+  return {
+    id: item.id,
+    name: item.name,
+    description: typeof item.description === "string" ? item.description : "",
+    role,
+    ...count ? { count } : {},
+    aliases: Array.isArray(item.aliases) ? item.aliases.filter((alias) => typeof alias === "string") : []
+  };
+}
+function normalizeTemplates(value) {
+  if (!Array.isArray(value)) return [];
+  const result = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object") continue;
+    const item = entry;
+    if (typeof item.id !== "string" || item.id === STANDARD_TEMPLATE_ID || typeof item.name !== "string") continue;
+    if (result.some((existing) => existing.id === item.id)) continue;
+    if (!Array.isArray(item.sections)) continue;
+    const sections = item.sections.map(section);
+    if (sections.some((entry2) => !entry2)) continue;
+    const template = { id: item.id, name: item.name, sections };
+    if (validateTemplate(template, result).length) continue;
+    result.push(template);
+  }
+  return result;
+}
+function detailStructurePrompt(template, language2, standardText) {
+  const headings = template.sections.map((section3) => `### ${section3.name}`).join(", ");
+  if (template.id === STANDARD_TEMPLATE_ID) return standardText(headings);
+  const rules = [];
+  for (const section3 of template.sections) {
+    const heading = `### ${section3.name}`;
+    if (section3.role === "log") rules.push(customDetailRule("log", language2, { heading }));
+    if (section3.description.trim())
+      rules.push(customDetailRule("description", language2, { heading, description: section3.description.trim() }));
+    if (section3.count)
+      rules.push(customDetailRule(section3.count.mode, language2, { heading, n: String(section3.count.n) }));
+  }
+  return customDetailStructure(language2, {
+    count: String(template.sections.length),
+    headings,
+    rules: rules.length ? `
+${rules.join("\n")}` : ""
+  });
+}
+
 // ai/result-utils.ts
 var SENTENCE_END = /[。！？；!?;]/;
 function truncateSummary(value, limit = 80) {
@@ -10216,22 +10494,13 @@ function sourceFootnoteDefinition(line) {
   );
   return match[1].startsWith("src-") || /^\[\[[^\]]+\]\]$/.test(target) || external ? { label: match[1], target } : null;
 }
-function canonicalDetail(value, language2 = "zh-TW") {
+function canonicalDetail(value, language2 = "zh-TW", template = standardTemplate(language2)) {
   var _a, _b;
   const detail = value.trim();
-  const keys = [
-    "detail.core_conclusions",
-    "detail.key_knowledge",
-    "detail.evidence_and_sources",
-    "detail.tradeoffs_and_limitations",
-    "detail.open_questions",
-    "detail.update_log"
-  ];
-  const headings = keys.map((key2) => translate(language2, key2));
+  const headings = template.sections.map((section3) => section3.name);
   const aliases = /* @__PURE__ */ new Map();
-  for (let index = 0; index < keys.length; index++)
-    for (const locale of ["zh-TW", "en"])
-      aliases.set(translate(locale, keys[index]).toLocaleLowerCase(), index);
+  template.sections.forEach((section3, index) => sectionKeys(section3).forEach((key2) => aliases.set(key2, index)));
+  const sourcesIndex = template.sections.findIndex((section3) => section3.role === "sources");
   const sections = /* @__PURE__ */ new Map();
   const leading = [];
   const footnotes = [];
@@ -10254,17 +10523,20 @@ function canonicalDetail(value, language2 = "zh-TW") {
   }
   if (sections.size === 0) sections.set(0, [leading.join("\n").trim()]);
   else if (leading.join("\n").trim()) sections.set(0, [leading.join("\n").trim(), ...(_a = sections.get(0)) != null ? _a : []]);
-  if (footnotes.length) {
-    const evidence = ((_b = sections.get(2)) != null ? _b : []).join("\n").trim();
-    sections.set(2, [[evidence, footnotes.join("\n")].filter(Boolean).join("\n\n")]);
+  if (footnotes.length && sourcesIndex >= 0) {
+    const evidence = ((_b = sections.get(sourcesIndex)) != null ? _b : []).join("\n").trim();
+    sections.set(sourcesIndex, [[evidence, footnotes.join("\n")].filter(Boolean).join("\n\n")]);
   }
   const empty = translate(language2, "note.no_new_information");
-  return headings.map((heading, index) => {
+  const body = headings.map((heading, index) => {
     var _a2;
     return `### ${heading}
 
 ${((_a2 = sections.get(index)) == null ? void 0 : _a2.join("\n").trim()) || empty}`;
   }).join("\n\n");
+  return footnotes.length && sourcesIndex < 0 ? `${body}
+
+${footnotes.join("\n")}` : body;
 }
 function visualReferencesMarkdown(references2 = [], language2 = "zh-TW") {
   return references2.map((item) => {
@@ -10393,7 +10665,7 @@ function sourceDefinitions(detail) {
   });
   return definitions;
 }
-function resolveDetailReferences(detail, groups, previousDetail = "") {
+function resolveDetailReferences(detail, groups, previousDetail = "", template) {
   const documents = dedupeReferenceGroups(groups).flatMap((group) => group.documents);
   const cited = /* @__PURE__ */ new Map();
   const source = (line) => {
@@ -10472,9 +10744,8 @@ function resolveDetailReferences(detail, groups, previousDetail = "") {
   );
   const text11 = compact.join("\n").trimEnd();
   if (!ordered.length) return text11;
-  const headings = new Set(
-    ["zh-TW", "en"].map((locale) => translate(locale, "detail.evidence_and_sources").toLocaleLowerCase())
-  );
+  const sourcesSection = (template != null ? template : standardTemplate("en")).sections.find((section3) => section3.role === "sources");
+  const headings = new Set(sourcesSection ? sectionKeys(sourcesSection) : []);
   const textLines = text11.split("\n");
   const textCode = fencedLines(textLines);
   const start = textLines.findIndex((line, index) => {
@@ -11087,7 +11358,7 @@ ${JSON.stringify(map, null, 2)}
 function marker(value) {
   return value === true || value === "true";
 }
-function text4(value, fallback = "") {
+function text5(value, fallback = "") {
   return typeof value === "string" ? value : fallback;
 }
 function parentPath(path) {
@@ -11113,13 +11384,13 @@ function frontmatter(content) {
 function noteTitle(content, fm, fallback) {
   var _a, _b;
   const body = content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "");
-  return ((_b = (_a = /^# (.+)$/m.exec(body)) == null ? void 0 : _a[1]) == null ? void 0 : _b.trim()) || text4(fm.title, fallback);
+  return ((_b = (_a = /^# (.+)$/m.exec(body)) == null ? void 0 : _a[1]) == null ? void 0 : _b.trim()) || text5(fm.title, fallback);
 }
 var noteContentLanguage = (fm) => fm["content-language"] === "en" || fm["content-language"] === "zh-TW" ? fm["content-language"] : void 0;
 var placeholder = (language2) => translate(language2, "detail.no_conclusion_yet");
 var isPlaceholder = (value) => value === translate("zh-TW", "detail.no_conclusion_yet") || value === translate("en", "detail.no_conclusion_yet");
 var previewHeading = (language2) => translate(language2, "detail.preview");
-var previewSection = (content) => [...new Set([section(content, "Preview"), section(content, "\u9810\u89BD")].filter(Boolean))].join("\n\n");
+var previewSection = (content) => [...new Set([section2(content, "Preview"), section2(content, "\u9810\u89BD")].filter(Boolean))].join("\n\n");
 function sectionBounds(content, heading) {
   if (heading === "Detail") {
     const managedStart = content.indexOf(DETAIL_START), managedEnd = content.indexOf(DETAIL_END);
@@ -11134,7 +11405,7 @@ function sectionBounds(content, heading) {
   const candidates = [next ? start + next.index : content.length, reference >= 0 ? reference : content.length];
   return { start, end: Math.min(...candidates) };
 }
-function section(content, heading) {
+function section2(content, heading) {
   const bounds = sectionBounds(content, heading);
   return bounds ? content.slice(bounds.start, bounds.end).trim() : "";
 }
@@ -11171,7 +11442,7 @@ function originMarkdown(value) {
   return value.split(/\r?\n/).map((line) => `> ${line.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}`).join("\n");
 }
 function readThinkingOrigin(content) {
-  const value = section(content, "Thinking Origin");
+  const value = section2(content, "Thinking Origin");
   if (!value) return void 0;
   return value.split("\n").map((line) => line.replace(/^> ?/, "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&")).join("\n");
 }
@@ -11208,7 +11479,7 @@ ${content.slice(managedEnd + DETAIL_END.length).trimStart()}`;
 ${content.slice(bounds.end).trimStart()}`;
 }
 function ensurePreview(content, language2, textLanguage = language2) {
-  const legacy = section(content, "User Notes");
+  const legacy = section2(content, "User Notes");
   const preview = previewSection(content);
   const merged = [isPlaceholder(preview) ? placeholder(textLanguage) : preview, legacy].filter(Boolean).join("\n\n");
   const clean3 = removeSection(removeSection(removeSection(content, "User Notes"), "\u9810\u89BD"), "Preview");
@@ -11220,7 +11491,7 @@ function withoutReference(content) {
   const legacy = /\n?^## 關聯議題\s*\n+(?:母議題：[^\n]*\n+)?(?:子議題：[^\n]*\n*)?$/m;
   return legacy.test(content) ? content.replace(legacy, "\n") : content;
 }
-function detailWithVisualReferences(detail, visualReferences) {
+function detailWithVisualReferences(detail, visualReferences, template) {
   var _a;
   let current = detail.trim();
   const references2 = visualReferences.trim().split(/\n(?=\*\*[^\n]+\*\*\n|### )/).filter(Boolean);
@@ -11235,10 +11506,15 @@ function detailWithVisualReferences(detail, visualReferences) {
       paragraphs.splice(related + 1, 0, block);
       current = paragraphs.join("\n\n");
     } else {
-      const knowledge = /^### 關鍵知識\s*$/m.exec(current);
-      const next = knowledge ? /^### .+$/m.exec(current.slice(knowledge.index + knowledge[0].length)) : null;
-      const at = knowledge && next ? knowledge.index + knowledge[0].length + next.index : current.length;
-      current = [current.slice(0, at).trimEnd(), block, current.slice(at).trimStart()].filter(Boolean).join("\n\n");
+      const sources2 = template.sections.find((item) => item.role === "sources");
+      const keys = new Set(sources2 ? sectionKeys(sources2) : []);
+      const lines = current.split("\n");
+      const code = fencedLines(lines);
+      const at = lines.findIndex((line, index) => {
+        const heading = code[index] ? null : /^###\s+(.+?)\s*$/.exec(line);
+        return !!heading && keys.has(heading[1].toLocaleLowerCase());
+      });
+      current = at < 0 ? [current.trimEnd(), block].filter(Boolean).join("\n\n") : [lines.slice(0, at).join("\n").trimEnd(), block, lines.slice(at).join("\n").trimStart()].filter(Boolean).join("\n\n");
     }
   }
   return current;
@@ -11250,7 +11526,7 @@ function initialPreview(summary, detail) {
 }
 function noteBody(title, summary, language2, prompt = "", rules = "", preview = "", detail = "", visualReferences = "", newFindings = "", leftover = "") {
   const detailBlock = `${DETAIL_START}
-${detailWithVisualReferences(detail, visualReferences)}
+${detailWithVisualReferences(detail, visualReferences, standardTemplate(language2))}
 ${DETAIL_END}`;
   return [
     `# ${title}`,
@@ -11277,13 +11553,17 @@ ${newFindings.trim()}` : "",
 }
 function normalizeBodyOrder(content, title, summaryFallback, language2, textLanguage = language2) {
   const clean3 = ensurePreview(withoutReference(content), language2, textLanguage);
-  const currentSummary = section(clean3, "Current Summary") || summaryFallback;
+  const currentSummary = section2(clean3, "Current Summary") || summaryFallback;
   const summary = isPlaceholder(currentSummary) ? placeholder(textLanguage) : currentSummary;
-  const prompt = section(clean3, "Prompt");
-  const rules = section(clean3, "Rules");
+  const prompt = section2(clean3, "Prompt");
+  const rules = section2(clean3, "Rules");
   const preview = previewSection(clean3);
-  const detail = detailWithVisualReferences(section(clean3, "Detail"), section(clean3, "Visual References"));
-  const newFindings = section(clean3, "Working Findings") || section(clean3, "New Findings");
+  const detail = detailWithVisualReferences(
+    section2(clean3, "Detail"),
+    section2(clean3, "Visual References"),
+    standardTemplate(language2)
+  );
+  const newFindings = section2(clean3, "Working Findings") || section2(clean3, "New Findings");
   let leftover = clean3.replace(/^# .*$(?:\r?\n)*/m, "");
   for (const heading of [
     "Current Summary",
@@ -11409,26 +11689,26 @@ var Repository = class {
   async readNote(path) {
     var _a;
     const file = this.file(path), content = upgradeLegacyAimText(await this.app.vault.read(file)), fm = frontmatter(content);
-    const status = text4(fm.status, "idea");
+    const status = text5(fm.status, "idea");
     const normalized = status === "review" || status === "accepted" ? "completed" : status;
-    const source = text4(fm["model-source"], "workspace");
-    const state = text4(
+    const source = text5(fm["model-source"], "workspace");
+    const state = text5(
       fm["topic-state"],
       path.includes("/Archive/") ? "archived" : path.includes("/Unassigned/") ? "unassigned" : path.startsWith(`${this.settings.inboxFolder}/`) ? "inbox" : "active"
     );
     return {
       title: noteTitle(content, fm, file.basename),
-      summary: section(content, "Current Summary") || text4(fm.summary, placeholder(this.settings.language)),
-      prompt: section(content, "Prompt"),
-      rules: section(content, "Rules"),
-      detail: section(content, "Detail"),
+      summary: section2(content, "Current Summary") || text5(fm.summary, placeholder(this.settings.language)),
+      prompt: section2(content, "Prompt"),
+      rules: section2(content, "Rules"),
+      detail: section2(content, "Detail"),
       thinkingOrigin: readThinkingOrigin(content),
-      visualReferences: section(content, "Visual References"),
-      newFindings: section(content, "Working Findings") || section(content, "New Findings"),
-      preview: [previewSection(content), section(content, "User Notes")].filter(Boolean).join("\n\n"),
+      visualReferences: section2(content, "Visual References"),
+      newFindings: section2(content, "Working Findings") || section2(content, "New Findings"),
+      preview: [previewSection(content), section2(content, "User Notes")].filter(Boolean).join("\n\n"),
       previewSection: previewSection(content),
       previewInitialized: fm["preview-initialized"] === true,
-      model: text4(fm.model, this.settings.cliModel),
+      model: text5(fm.model, this.settings.cliModel),
       modelSource: ["workspace", "inherited", "manual"].includes(source) ? source : "workspace",
       reasoning: normalizeReasoningLevel((_a = fm["reasoning-level"]) != null ? _a : this.settings.cliReasoning),
       researchMode: fm["research-mode"] === "local" ? "local" : "research",
@@ -11437,8 +11717,8 @@ var Repository = class {
       ...typeof fm["detail-template"] === "string" && fm["detail-template"] ? { detailTemplateId: fm["detail-template"] } : {},
       detailFormatIssues: Array.isArray(fm["detail-format-issues"]) ? fm["detail-format-issues"].filter((v) => typeof v === "string") : [],
       status: ["idea", "running", "completed", "error"].includes(normalized) ? normalized : "idea",
-      mapId: text4(fm["agent-map-id"]),
-      topicId: text4(fm["topic-id"], text4(fm["agent-map-id"])),
+      mapId: text5(fm["agent-map-id"]),
+      topicId: text5(fm["topic-id"], text5(fm["agent-map-id"])),
       topicState: ["active", "unassigned", "archived", "inbox"].includes(state) ? state : "active",
       referencePaths: Array.isArray(fm["reference-materials"]) ? fm["reference-materials"].filter((value) => typeof value === "string" && Boolean(value)) : [],
       sourcePaths: Array.isArray(fm["source-notes"]) ? fm["source-notes"].filter((value) => typeof value === "string" && Boolean(value)) : []
@@ -11450,7 +11730,7 @@ var Repository = class {
    */
   async updateNote(path, patch, options = {}) {
     await this.app.vault.process(this.file(path), (content) => {
-      var _a, _b, _c;
+      var _a, _b, _c, _d;
       const fm = frontmatter(content);
       ensureNoteCssClass(fm);
       if (Array.isArray(fm["agent-map-references"]))
@@ -11481,7 +11761,7 @@ var Repository = class {
       if (options.contentLanguage !== void 0 && noteContentLanguage(fm) === void 0)
         fm["content-language"] = options.contentLanguage;
       body = ensurePreview(body, this.settings.language, textLanguage);
-      if (isPlaceholder(text4(fm.summary))) fm.summary = placeholder(textLanguage);
+      if (isPlaceholder(text5(fm.summary))) fm.summary = placeholder(textLanguage);
       if (patch.title !== void 0) {
         const heading = managedHeadingValue(patch.title);
         body = body.replace(/^# .*$/m, () => `# ${heading}`);
@@ -11498,7 +11778,11 @@ var Repository = class {
           body = replaceSection(
             body,
             "Detail",
-            detailWithVisualReferences(section(body, "Detail"), patch.visualReferences)
+            detailWithVisualReferences(
+              section2(body, "Detail"),
+              patch.visualReferences,
+              (_d = options.detailTemplate) != null ? _d : standardTemplate(this.settings.language)
+            )
           );
       }
       if (patch.newFindings !== void 0) {
@@ -11519,15 +11803,15 @@ var Repository = class {
           body = replaceSection(
             body,
             previewHeading(this.settings.language),
-            initialPreview(patch.summary, section(body, "Detail"))
+            initialPreview(patch.summary, section2(body, "Detail"))
           );
         fm["preview-initialized"] = true;
       }
       if (patch.previewInitialized !== void 0) fm["preview-initialized"] = patch.previewInitialized;
       body = normalizeBodyOrder(
         body,
-        text4(fm.title, path.replace(/\.md$/, "")),
-        text4(fm.summary, placeholder(textLanguage)),
+        text5(fm.title, path.replace(/\.md$/, "")),
+        text5(fm.summary, placeholder(textLanguage)),
         this.settings.language,
         textLanguage
       );
@@ -11580,7 +11864,7 @@ ${noteBody(title, (_b = initial.summary) != null ? _b : placeholder(this.setting
     if (existing) {
       if (existing instanceof import_obsidian8.TFile) {
         const fm = frontmatter(await this.app.vault.read(existing));
-        if (marker(fm["agent-map-node"]) && text4(fm["node-id"]) === id)
+        if (marker(fm["agent-map-node"]) && text5(fm["node-id"]) === id)
           return { id, path, parentId: null, x: 80, y: 80, collapsed: false };
       }
       throw new Error(`Reserved result note path already belongs to another file: ${path}`);
@@ -11617,7 +11901,7 @@ ${noteBody(title, metadata.summary, this.settings.language, (_d = initial.prompt
     await this.ensureTopicFolders(this.topicRoot(mapPath));
     const source = await this.app.vault.read(this.file(sourcePath));
     const metadata = frontmatter(source);
-    const title = `${text4(metadata.title, this.file(sourcePath).basename)} ${translate(this.settings.language, "note.copy_suffix")}`;
+    const title = `${text5(metadata.title, this.file(sourcePath).basename)} ${translate(this.settings.language, "note.copy_suffix")}`;
     const id = crypto.randomUUID(), path = this.unique(folder, title);
     metadata["node-id"] = id;
     metadata["topic-id"] = map.id;
@@ -11708,7 +11992,7 @@ ${body}`);
     const candidates = /* @__PURE__ */ new Map();
     for (const file of await this.markedFiles("agent-map-node")) {
       const fm = (_b = (_a = this.app.metadataCache.getFileCache(file)) == null ? void 0 : _a.frontmatter) != null ? _b : frontmatter(await this.app.vault.read(file));
-      const id = text4(fm["node-id"]);
+      const id = text5(fm["node-id"]);
       if (id) candidates.set(id, [...(_c = candidates.get(id)) != null ? _c : [], file.path]);
     }
     let repaired = 0;
@@ -11780,7 +12064,7 @@ ${body}`);
     const byId = /* @__PURE__ */ new Map();
     for (const file of candidates) {
       const fm = frontmatter(await this.app.vault.read(file));
-      const id = text4(fm["node-id"]);
+      const id = text5(fm["node-id"]);
       if (id) byId.set(id, file.path);
     }
     for (const node of map.nodes)
@@ -11939,7 +12223,7 @@ ${body}`);
     ensureNoteCssClass(fm);
     fm.title = noteTitle(content, fm, file.basename);
     const owner = ownership.get(file.path);
-    let state = file.path.startsWith(`${this.settings.inboxFolder}/`) ? "inbox" : file.path.includes("/Archive/") ? "archived" : file.path.includes("/Unassigned/") ? "unassigned" : owner ? "active" : text4(fm["topic-state"], "unassigned");
+    let state = file.path.startsWith(`${this.settings.inboxFolder}/`) ? "inbox" : file.path.includes("/Archive/") ? "archived" : file.path.includes("/Unassigned/") ? "unassigned" : owner ? "active" : text5(fm["topic-state"], "unassigned");
     if (owner) {
       fm["agent-map-id"] = owner.map.id;
       fm["topic-id"] = owner.map.id;
@@ -11959,10 +12243,10 @@ ${body}`);
       this.settings.language,
       textLanguage
     );
-    if (isPlaceholder(text4(fm.summary))) fm.summary = placeholder(textLanguage);
-    const topicId = text4(fm["topic-id"]), topic = topics.get(topicId);
+    if (isPlaceholder(text5(fm.summary))) fm.summary = placeholder(textLanguage);
+    const topicId = text5(fm["topic-id"]), topic = topics.get(topicId);
     if (owner) {
-      if (!body.includes(DETAIL_START)) body = replaceSection(body, "Detail", section(body, "Detail"));
+      if (!body.includes(DETAIL_START)) body = replaceSection(body, "Detail", section2(body, "Detail"));
       const parent = owner.node.parentId ? owner.map.nodes.find((item) => item.id === owner.node.parentId) : void 0;
       const children = owner.map.nodes.filter((item) => item.parentId === owner.node.id);
       fm["agent-map-references"] = this.settings.language === "en" ? [
@@ -11992,8 +12276,8 @@ ${body}`);
     }
     body = normalizeBodyOrder(
       body,
-      text4(fm.title, file.basename),
-      text4(fm.summary, placeholder(textLanguage)),
+      text5(fm.title, file.basename),
+      text5(fm.summary, placeholder(textLanguage)),
       this.settings.language,
       textLanguage
     );
@@ -12719,8 +13003,10 @@ function localDate(now) {
   const pad = (value) => String(value).padStart(2, "0");
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
-async function createOutlineMap(repository, model, nodes, source, now = /* @__PURE__ */ new Date()) {
+async function createOutlineMap(repository, model, nodes, source, now = /* @__PURE__ */ new Date(), template) {
+  var _a;
   const language2 = repository.settings.language;
+  const detailTemplate = template != null ? template : standardTemplate(language2);
   if (!nodes.length) throw new Error(translate(language2, "ui.outline_error_no_headings"));
   const mapPath = await repository.createMap(nodes[0].title, []);
   let map;
@@ -12730,9 +13016,10 @@ async function createOutlineMap(repository, model, nodes, source, now = /* @__PU
     throw Object.assign(new Error(errorText(error)), { mapCreated: true });
   }
   const log = source ? translate(language2, "ui.outline_import_log_source", localDate(now), source) : translate(language2, "ui.outline_import_log", localDate(now));
-  const rootDetail = canonicalDetail(`### ${translate(language2, "detail.update_log")}
+  const heading = ((_a = detailTemplate.sections.find((section3) => section3.role === "log")) != null ? _a : detailTemplate.sections[0]).name;
+  const rootDetail = canonicalDetail(`### ${heading}
 
-- ${log}`, language2);
+- ${log}`, language2, detailTemplate);
   const created = [];
   let failure;
   for (const node of nodes) {
@@ -13352,18 +13639,18 @@ var reuse_target_expected_value_default = "Retain adequate existing evidence wit
 var reuse_target_validity_reason_default = "Full report must pass the current-goal applicability and freshness audit\n";
 
 // experiences/aim/steps/_shared/rules.ts
-var text5 = (template) => renderTemplate(template, {});
-var PLANNER_COVERAGE_RULE = text5(planner_coverage_rule_default);
-var SEARCHER_TARGET_RULE = text5(searcher_target_rule_default);
-var USER_QUESTION_RULE = text5(user_question_rule_default);
-var FLOOR_ASK_RULE = text5(floor_ask_rule_default);
-var OUTCOME_EXPECTATION_RULE = text5(outcome_expectation_rule_default);
-var EVIDENCE_LOOKUP_RULE = text5(evidence_lookup_rule_default);
-var EVIDENCE_LOOKUP_FIELD_RULE = text5(evidence_lookup_field_rule_default);
-var TOPIC_ROOT_ANSWER = text5(topic_root_answer_default);
-var REUSE_TARGET_EXPECTED_VALUE = text5(reuse_target_expected_value_default);
-var REUSE_TARGET_VALIDITY_REASON = text5(reuse_target_validity_reason_default);
-var PASSAGE_REFERENCE = text5(passage_reference_default);
+var text6 = (template) => renderTemplate(template, {});
+var PLANNER_COVERAGE_RULE = text6(planner_coverage_rule_default);
+var SEARCHER_TARGET_RULE = text6(searcher_target_rule_default);
+var USER_QUESTION_RULE = text6(user_question_rule_default);
+var FLOOR_ASK_RULE = text6(floor_ask_rule_default);
+var OUTCOME_EXPECTATION_RULE = text6(outcome_expectation_rule_default);
+var EVIDENCE_LOOKUP_RULE = text6(evidence_lookup_rule_default);
+var EVIDENCE_LOOKUP_FIELD_RULE = text6(evidence_lookup_field_rule_default);
+var TOPIC_ROOT_ANSWER = text6(topic_root_answer_default);
+var REUSE_TARGET_EXPECTED_VALUE = text6(reuse_target_expected_value_default);
+var REUSE_TARGET_VALIDITY_REASON = text6(reuse_target_validity_reason_default);
+var PASSAGE_REFERENCE = text6(passage_reference_default);
 var renderEvidenceLookupFollowup = (task, evidence) => renderTemplate(evidence_lookup_followup_default, { task, evidence });
 
 // experiences/aim/evidence-context.ts
@@ -13884,8 +14171,8 @@ var announceTestOverrides = (_notify) => {
 // ai/aim-contracts.ts
 var AIM_NO_QUESTION = "__AIM_NO_QUESTION__";
 var QUESTION_SCOPE = "Ask about the user's goal, preferences, constraints or situation, never about this tool's workflow, counts, nodes or branches.";
-var text6 = { type: "string" };
-var texts = { type: "array", items: text6 };
+var text7 = { type: "string" };
+var texts = { type: "array", items: text7 };
 var nullable = (schema) => ({ anyOf: [schema, { type: "null" }] });
 var object = (properties) => ({
   type: "object",
@@ -13906,7 +14193,7 @@ function payloadSchema(contract) {
       return object({
         decision: { type: "string", enum: contract.requireQuestion ? ["ask_user"] : ["ask_user", "no_question"] },
         question: {
-          ...text6,
+          ...text7,
           description: `The one direct question for the user, written as a question. ${QUESTION_SCOPE} Empty only for no_question.`
         },
         answerOptions: {
@@ -13920,27 +14207,27 @@ function payloadSchema(contract) {
           type: "array",
           description: "0\u20135 distinct evidence tasks.",
           items: object({
-            id: text6,
-            title: text6,
-            task: text6,
-            expectedValue: text6,
+            id: text7,
+            title: text7,
+            task: text7,
+            expectedValue: text7,
             action: { type: "string", enum: ["research", "update", "reuse"] },
             dependsOn: { ...texts, description: "Ids of prerequisite targets in this plan; empty when independent." },
-            rationale: text6,
+            rationale: text7,
             source: {
               ...nullable(
                 object({
-                  branchId: text6,
-                  resultId: text6,
-                  notePath: text6,
+                  branchId: text7,
+                  resultId: text7,
+                  notePath: text7,
                   version: { type: "integer" },
-                  contentHash: text6
+                  contentHash: text7
                 })
               ),
               description: "For reuse/update: the exact source copied from the supplied ancestor report. Null for research."
             },
             validity: {
-              ...nullable(object({ conditionKeys: texts, reason: text6 })),
+              ...nullable(object({ conditionKeys: texts, reason: text7 })),
               description: "For reuse/update: which supplied condition keys the source depends on and why it still applies. Null for research."
             }
           })
@@ -13949,9 +14236,9 @@ function payloadSchema(contract) {
     case "reuse":
       return object({
         usable: { type: "boolean" },
-        rationale: text6,
+        rationale: text7,
         conditionKeys: texts,
-        validity: { ...text6, description: "Freshness and applicability assessment." }
+        validity: { ...text7, description: "Freshness and applicability assessment." }
       });
     case "review":
       return object({
@@ -13960,19 +14247,19 @@ function payloadSchema(contract) {
           description: "true when the supplied reports already answer the original goal under the known conditions; false when a material evidence gap in the goal itself remains."
         },
         decision: { type: "string", enum: [...contract.decisions] },
-        rationale: { ...text6, description: "Evidence-based reason for the decision." },
-        stopReason: { ...text6, description: "For conclude: why research can stop. Otherwise empty." },
+        rationale: { ...text7, description: "Evidence-based reason for the decision." },
+        stopReason: { ...text7, description: "For conclude: why research can stop. Otherwise empty." },
         question: {
-          ...text6,
+          ...text7,
           description: `For ask_user: the one direct question for the user, written as a question. ${QUESTION_SCOPE} Otherwise empty.`
         },
         answerOptions: { ...texts, description: "For ask_user: 2\u20135 distinct answer choices. Otherwise empty." },
         researchTarget: {
           ...nullable(
             object({
-              title: text6,
-              task: { ...text6, description: "Search instruction." },
-              expectedValue: { ...text6, description: "Uncertainty the search should reduce." }
+              title: text7,
+              task: { ...text7, description: "Search instruction." },
+              expectedValue: { ...text7, description: "Uncertainty the search should reduce." }
             })
           ),
           description: "For research_more: the one targeted evidence gap. Otherwise null."
@@ -13983,10 +14270,10 @@ function payloadSchema(contract) {
         sections: {
           type: "array",
           items: object({
-            heading: text6,
-            purpose: text6,
+            heading: text7,
+            purpose: text7,
             searchTask: {
-              ...text6,
+              ...text7,
               description: "Specific web search needed for this section, or empty if already supported."
             },
             evidenceIds: {
@@ -25994,194 +26281,6 @@ var VisualAgentMapSettingTab = class extends import_obsidian17.PluginSettingTab 
 // main.ts
 var import_node_path2 = require("node:path");
 
-// core/steps/task/source-registry.md
-var source_registry_default = "Source registry (retain these identities in citations):\n{{catalog}}\n";
-
-// core/steps/task/adaptive-detail-structure.zh.md
-var adaptive_detail_structure_zh_default = "detail \u4F7F\u7528 Markdown\uFF0C\u4F9D\u4F7F\u7528\u8005\u6700\u521D\u554F\u984C\u8207\u671F\u671B\u6210\u679C\u6C7A\u5B9A\u5167\u5BB9\u7D50\u69CB\u3002\u6309\u9700\u8981\u9078\u64C7\u6A19\u984C\u3001\u6BB5\u843D\u3001\u6B65\u9A5F\u3001\u8868\u683C\u6216\u5176\u4ED6\u5408\u9069\u5F62\u5F0F\uFF0C\u4E0D\u5957\u56FA\u5B9A\u6BB5\u843D\u6A21\u677F\u3002\u6574\u5408\u5DF2\u77E5\u4F7F\u7528\u8005\u689D\u4EF6\u8207\u76F8\u95DC\u8B49\u64DA\uFF0C\u5BEB\u6210\u9023\u8CAB\u3001\u53EF\u7368\u7ACB\u95B1\u8B80\u7684\u5B8C\u6574\u56DE\u7B54\uFF1B\u5728\u76F8\u95DC\u5167\u5BB9\u4EA4\u4EE3\u4F86\u6E90\u53CA\u91CD\u8981\u4E0D\u78BA\u5B9A\u6027\u3002\u4E0D\u8981\u8CBC\u4E0A\u4E2D\u9593\u7814\u7A76\u5831\u544A\uFF0C\u4E0D\u52A0\u7A7A\u6BB5\u843D\u6216\u66F4\u65B0\u7D00\u9304\u3002\u4FDD\u7559\u4EFB\u52D9\u8981\u6C42\u7684\u6A5F\u5668\u53EF\u8B80\u6C7A\u7B56\u6A19\u8A18\u8207\u5916\u5C64 JSON \u56DE\u61C9\u683C\u5F0F\u3002\n";
-
-// core/steps/task/adaptive-detail-structure.en.md
-var adaptive_detail_structure_en_default = "Write detail in Markdown with a structure suited to the user's original question and requested outcome. Choose headings, prose, steps, tables, or other appropriate formats as needed; there is no fixed section template. Produce a coherent, self-contained answer that incorporates the user's known conditions and relevant evidence. Integrate source attribution and material uncertainties where they matter. Do not paste the intermediate research reports or add empty sections and update logs. Preserve any machine-readable decision marker required by the task and the outer JSON response contract.\n";
-
-// core/steps/task/decompose.zh.md
-var decompose_zh_default = "\u9019\u662F Decompose \u6A21\u5F0F\uFF1A\u4F9D\u672C\u6B21\u4EFB\u52D9\u6307\u5B9A\u7684\u5C64\u6578\u8207\u6578\u91CF\u63D0\u51FA\u53EF\u7368\u7ACB\u8655\u7406\u7684\u5B50\u8B70\u984C\uFF1B\u82E5\u73FE\u6709\u5B50\u8B70\u984C\u5DF2\u6DB5\u84CB\u9700\u6C42\uFF0C\u56DE\u50B3\u7A7A\u9663\u5217\uFF0C\u4E0D\u8981\u6E4A\u6578\u3002summary \u7C21\u8FF0\u662F\u5426\u5EFA\u8B70\u62C6\u89E3\uFF0Cdetail \u7C21\u8FF0\u62C6\u89E3\u7406\u7531\uFF1B\u4E0D\u8981\u66F4\u65B0\u7D50\u8AD6\u3002\n";
-
-// core/steps/task/decompose.en.md
-var decompose_en_default = "Decompose mode: propose independently actionable subtopics at the requested depth and count. If existing subtopics already cover the need, return an empty array; do not pad the count. Summarize whether decomposition is useful and briefly explain why in detail. Do not update conclusions.\n";
-
-// core/steps/task/default-task.zh.md
-var default_task_zh_default = "summary \u5FC5\u9808\u662F\u4E00\u53E5\u9069\u5408\u5FC3\u667A\u5716\u986F\u793A\u7684\u65B0\u76EE\u524D\u7406\u89E3\uFF0Cdetail \u5FC5\u9808\u662F\u5B8C\u6574 Markdown \u5206\u6790\u3002\n";
-
-// core/steps/task/default-task.en.md
-var default_task_en_default = "Summary must be one new insight suitable for the mind map; detail must be a complete Markdown analysis.\n";
-
-// core/steps/task/detail-structure.zh.md
-var detail_structure_zh_default = "detail \u5FC5\u9808\u4E14\u53EA\u80FD\u4F9D\u5E8F\u4F7F\u7528\u4EE5\u4E0B\u516D\u500B\u4E09\u7D1A\u6A19\u984C\uFF1A{{headings}}\u3002\u66F4\u65B0\u7D00\u9304\u53EA\u65B0\u589E\u4E00\u884C\u672C\u6B21\u8B8A\u66F4\u6458\u8981\uFF0C\u4E0D\u53EF\u91CD\u8CBC\u5B8C\u6574\u7B54\u6848\uFF1B\u6C92\u6709\u9069\u7528\u5167\u5BB9\u7684\u6BB5\u843D\u5BEB\u300C\u672C\u6B21\u7121\u65B0\u589E\u5167\u5BB9\u300D\u3002\u6838\u5FC3\u7D50\u8AD6\u82E5\u6709\u6307\u5B9A\u6578\u91CF\uFF0C\u9808\u9075\u5B88\u8A72\u6578\u91CF\u3002\n";
-
-// core/steps/task/detail-structure.en.md
-var detail_structure_en_default = "The detail must use exactly these six level-three headings in order: {{headings}}. Add only one line summarizing this update in Update log; do not repeat the full answer. Write 'No new content this time' in sections with nothing applicable. Follow any requested count for the core conclusions.\n";
-
-// core/steps/task/general-task.zh.md
-var general_task_zh_default = "\u9019\u662F\u4E00\u822C\u4EFB\u52D9\uFF1Asummary \u5FC5\u9808\u662F\u4E00\u53E5\u9069\u5408\u5FC3\u667A\u5716\u986F\u793A\u7684\u65B0\u76EE\u524D\u7406\u89E3\uFF0C80 \u5B57\u5167\uFF1Bdetail \u662F\u6703\u76F4\u63A5\u53D6\u4EE3\u820A Detail \u7684\u5B8C\u6574\u77E5\u8B58\u9801\uFF0C\u5FC5\u9808\u5438\u6536\u820A\u5167\u5BB9\u8207\u672C\u6B21\u767C\u73FE\u3001\u53BB\u9664\u91CD\u8907\u3001\u4FDD\u7559\u4ECD\u6709\u6548\u7684\u4F86\u6E90\u3002\u82E5\u8B70\u984C\u904E\u65BC\u8907\u96DC\u624D\u63D0\u4F9B suggestions\uFF0C\u5426\u5247\u56DE\u50B3\u7A7A\u9663\u5217\u3002\n";
-
-// core/steps/task/general-task.en.md
-var general_task_en_default = "General task: summary is one new insight for the mind map, within 80 characters. Detail replaces the old Detail with a complete knowledge page that incorporates valid existing content and new findings, removes duplication, and retains valid sources. Provide suggestions only if the topic is too complex; otherwise return an empty array.\n";
-
-// core/steps/task/json.zh.md
-var json_zh_default = '\u53EA\u56DE\u50B3 JSON\uFF0C\u4E0D\u8981\u4F7F\u7528 Markdown code fence\u3002\u683C\u5F0F\u5FC5\u9808\u7B26\u5408\uFF1A{"summary":"...","detail":"...","suggestions":[{"title":"...","task":"...","contribution":"...","parentTitle":""}],"visualReferences":[{"title":"...","imageUrl":"https://...","sourceUrl":"https://...","description":"...","palette":["navy","white"],"formula":"..."}]}\u3002\u82E5\u6C92\u6709\u8996\u89BA\u53C3\u8003\uFF0CvisualReferences \u56DE\u50B3\u7A7A\u9663\u5217\u3002\n';
-
-// core/steps/task/json.en.md
-var json_en_default = 'Return JSON only, without a Markdown code fence. Use this exact shape: {"summary":"...","detail":"...","suggestions":[{"title":"...","task":"...","contribution":"...","parentTitle":""}],"visualReferences":[{"title":"...","imageUrl":"https://...","sourceUrl":"https://...","description":"...","palette":["navy","white"],"formula":"..."}]}. Return an empty visualReferences array when there are no visual references.\n';
-
-// core/steps/task/label-detail.zh.md
-var label_detail_zh_default = "\u73FE\u6709 Detail\uFF08\u9808\u6574\u5408\u5F8C\u5B8C\u6574\u53D6\u4EE3\uFF0C\u4E0D\u80FD\u539F\u6A23\u91CD\u8907\u8FFD\u52A0\uFF09\n";
-
-// core/steps/task/label-detail.en.md
-var label_detail_en_default = "Existing Detail (integrate and replace fully, do not append unchanged)\n";
-
-// core/steps/task/label-findings.zh.md
-var label_findings_zh_default = "\u820A\u7248\u5F85\u6574\u7406\u767C\u73FE\uFF08\u672C\u6B21\u5FC5\u9808\u4E00\u4F75\u6536\u6582\uFF09\n";
-
-// core/steps/task/label-findings.en.md
-var label_findings_en_default = "Older findings to consolidate\n";
-
-// core/steps/task/output-language.zh.md
-var output_language_zh_default = "\u65B0\u7522\u751F\u7684\u5167\u5BB9\u9810\u8A2D\u4F7F\u7528\u7E41\u9AD4\u4E2D\u6587\uFF0C\u5305\u62EC\u6458\u8981\u3001Detail \u6B63\u6587\u3001\u5EFA\u8B70\u6A19\u984C\u8207\u8AAA\u660E\u3001\u5716\u7247\u63CF\u8FF0\u3002\u516D\u500B\u6A19\u6E96 Detail \u6A19\u984C\u56FA\u5B9A\u8DDF\u96A8\u4ECB\u9762\u8A9E\u8A00\u3002\u4FDD\u7559\u4F86\u6E90\u539F\u6587\u5F15\u8FF0\u8207\u5C08\u6709\u540D\u7A31\uFF1B\u53EA\u6709\u76EE\u524D\u4EFB\u52D9\u6216\u8B70\u984C AI \u898F\u5247\u660E\u78BA\u6307\u5B9A\u5176\u4ED6\u8F38\u51FA\u8A9E\u8A00\u6642\u624D\u6539\u7528\u8A72\u8A9E\u8A00\u3002\n";
-
-// core/steps/task/output-language.en.md
-var output_language_en_default = "Write newly generated content in English by default, including summaries, detail text, suggestion titles, tasks, contributions, and image descriptions. The six standard Detail headings must follow the interface language. Preserve quoted source text and proper names. Follow a different output language only when the current task or topic AI rules explicitly request it.\n";
-
-// core/steps/task/synthesize.zh.md
-var synthesize_zh_default = "\u9019\u662F Synthesize \u6A21\u5F0F\uFF1Asummary \u5FC5\u9808\u662F\u9AD8\u54C1\u8CEA\u6574\u5408\u7D50\u8AD6\uFF0C80 \u5B57\u5167\uFF1Bdetail \u5FC5\u9808\u6574\u5408\u4F86\u6E90\u5B8C\u6574\u77E5\u8B58\u3001\u6536\u6582\u91CD\u8907\u5167\u5BB9\u3001\u6E05\u695A\u5448\u73FE\u5171\u8B58\u3001\u5206\u6B67\u3001\u53D6\u6368\u8207\u672A\u89E3\u554F\u984C\uFF1B\u82E5\u4ECB\u9762\u63D0\u4F9B\u78BA\u8A8D\u8349\u7A3F\uFF0C\u78BA\u8A8D\u5F8C\u624D\u6703\u5BEB\u56DE\u3002\n";
-
-// core/steps/task/synthesize.en.md
-var synthesize_en_default = "Synthesize mode: summary is a high-quality integrated conclusion within 80 characters. Detail integrates complete source knowledge, removes duplication, and clearly presents agreements, disagreements, tradeoffs, and unresolved questions. If the UI offers draft review, write only after confirmation.\n";
-
-// core/steps/task/visual-auto.zh.md
-var visual_auto_zh_default = "\u5716\u7247\u80FD\u660E\u986F\u5E6B\u52A9\u7406\u89E3\u6216\u4F7F\u7528\u8005\u660E\u78BA\u8981\u6C42\u5716\u7247\u6642\uFF0C\u624D\u641C\u5C0B\u5716\u7247\u53C3\u8003\uFF1B\u4E00\u822C\u77E5\u8B58\u578B\u554F\u984C\u4E0D\u8981\u641C\u5C0B\u5716\u7247\u3002\n";
-
-// core/steps/task/visual-auto.en.md
-var visual_auto_en_default = "Search for image references when they materially aid understanding or the user explicitly asks for images; do not search for images for ordinary knowledge questions.\n";
-
-// core/steps/task/visual-embed.zh.md
-var visual_embed_zh_default = "\u6709\u52A9\u7406\u89E3\u7684\u5716\u7247\u76F4\u63A5\u5D4C\u5165 detail \u76F8\u95DC\u6BB5\u843D\u4E26\u9644\u4F86\u6E90\u9801\u9023\u7D50\u3002\u6574\u5408\u6642\u53EA\u6CBF\u7528\u6709\u52A9\u8AAA\u660E\u6574\u5408\u767C\u73FE\u7684\u4F86\u6E90\u5716\u7247\uFF1B\u4E0D\u8981\u5EFA\u7ACB\u7368\u7ACB\u5716\u7247\u96C6\u5408\uFF0C\u4E5F\u4E0D\u8981\u7DE8\u9020\u4F86\u6E90\u3002\n";
-
-// core/steps/task/visual-embed.en.md
-var visual_embed_en_default = "Embed useful images directly in relevant detail paragraphs with source-page links. In synthesis, reuse source images only when they help explain the integrated findings. Do not create a separate image collection or invent sources.\n";
-
-// core/steps/task/visual-none.zh.md
-var visual_none_zh_default = "\u4E0D\u8981\u641C\u5C0B\u65B0\u5716\u7247\uFF1BvisualReferences \u56DE\u50B3\u7A7A\u9663\u5217\u3002\n";
-
-// core/steps/task/visual-none.en.md
-var visual_none_en_default = "Do not search for new images; return an empty visualReferences array unless synthesis can reuse a relevant image already included in the provided source context.\n";
-
-// core/steps/task/visual-on.zh.md
-var visual_on_zh_default = "\u8ACB\u5C0B\u627E 1\u20136 \u500B\u80FD\u5E6B\u52A9\u7406\u89E3\u8B70\u984C\u7684\u5716\u7247\u53C3\u8003\uFF1B\u5FC5\u9808\u63D0\u4F9B\u771F\u5BE6\u5716\u7247 URL \u8207\u4F86\u6E90\u9801 URL\uFF0C\u627E\u4E0D\u5230\u53EF\u9760\u5716\u7247\u6642\u56DE\u50B3\u7A7A\u9663\u5217\u3002\n";
-
-// core/steps/task/visual-on.en.md
-var visual_on_en_default = "Find 1\u20136 image references that help explain the topic. Provide real image and source-page URLs; return an empty array if reliable images are unavailable.\n";
-
-// core/steps/task/visual-preserve.zh.md
-var visual_preserve_zh_default = "\u6574\u5408\u6642\u82E5\u63D0\u4F9B\u7684\u4F86\u6E90\u5167\u5BB9\u5DF2\u6709\u76F8\u95DC\u5716\u7247\uFF0C\u8ACB\u4FDD\u7559\u539F\u5716\u7247\u8207\u4F86\u6E90 URL\uFF0C\u4E26\u56DE\u50B3\u8A72\u53C3\u8003\u3002\n";
-
-// core/steps/task/visual-preserve.en.md
-var visual_preserve_en_default = "When reusing one, preserve its original image and source URLs.\n";
-
-// core/steps/task/fragments.ts
-var text7 = (template) => renderTemplate(template, {});
-var pair4 = (zh, en) => ({ zh: text7(zh), en: text7(en) });
-var ADAPTIVE_DETAIL_STRUCTURE = pair4(adaptive_detail_structure_zh_default, adaptive_detail_structure_en_default);
-var DECOMPOSE = pair4(decompose_zh_default, decompose_en_default);
-var DEFAULT_TASK = pair4(default_task_zh_default, default_task_en_default);
-var DETAIL_STRUCTURE_TEMPLATE = { zh: detail_structure_zh_default, en: detail_structure_en_default };
-var GENERAL_TASK = pair4(general_task_zh_default, general_task_en_default);
-var JSON_CONTRACT = pair4(json_zh_default, json_en_default);
-var LABEL_DETAIL = pair4(label_detail_zh_default, label_detail_en_default);
-var LABEL_FINDINGS = pair4(label_findings_zh_default, label_findings_en_default);
-var OUTPUT_LANGUAGE = pair4(output_language_zh_default, output_language_en_default);
-var SYNTHESIZE = pair4(synthesize_zh_default, synthesize_en_default);
-var VISUAL_AUTO = pair4(visual_auto_zh_default, visual_auto_en_default);
-var VISUAL_EMBED = pair4(visual_embed_zh_default, visual_embed_en_default);
-var VISUAL_NONE = pair4(visual_none_zh_default, visual_none_en_default);
-var VISUAL_ON = pair4(visual_on_zh_default, visual_on_en_default);
-var VISUAL_PRESERVE = pair4(visual_preserve_zh_default, visual_preserve_en_default);
-function detailStructure(language2, headings) {
-  return renderTemplate(inLanguage(DETAIL_STRUCTURE_TEMPLATE, language2), { headings });
-}
-function sourceRegistry(catalog) {
-  return renderTemplate(source_registry_default, { catalog });
-}
-
-// ai/detail-templates.ts
-var STANDARD_TEMPLATE_ID = "standard";
-function validateTemplate(template, others) {
-  const issues = [];
-  const name = template.name.trim();
-  if (!name) issues.push({ key: "ui.detail_template_error_name_required", values: [] });
-  else if (name.length > 40) issues.push({ key: "ui.detail_template_error_name_long", values: [] });
-  else if (others.some((other) => other.id !== template.id && other.name.trim().toLocaleLowerCase() === name.toLocaleLowerCase()))
-    issues.push({ key: "ui.detail_template_error_name_taken", values: [name] });
-  if (template.sections.length < 1 || template.sections.length > 12)
-    issues.push({ key: "ui.detail_template_error_section_count", values: [] });
-  const seen = /* @__PURE__ */ new Set();
-  template.sections.forEach((section3, index) => {
-    const number = index + 1;
-    const sectionName = section3.name.trim();
-    if (!sectionName)
-      issues.push({ key: "ui.detail_template_error_section_name_required", values: [number], section: number });
-    else if (/[#\r\n]/.test(section3.name))
-      issues.push({ key: "ui.detail_template_error_section_name_invalid", values: [number], section: number });
-    else if (sectionName.length > 40)
-      issues.push({ key: "ui.detail_template_error_section_name_long", values: [number], section: number });
-    else if (seen.has(sectionName.toLocaleLowerCase()))
-      issues.push({ key: "ui.detail_template_error_section_name_taken", values: [number], section: number });
-    seen.add(sectionName.toLocaleLowerCase());
-    if (section3.description.length > 300)
-      issues.push({ key: "ui.detail_template_error_description_long", values: [number], section: number });
-    if (section3.count && (!Number.isInteger(section3.count.n) || section3.count.n < 1 || section3.count.n > 20))
-      issues.push({ key: "ui.detail_template_error_count_range", values: [number], section: number });
-  });
-  for (const role of ["sources", "log"])
-    if (template.sections.filter((section3) => section3.role === role).length > 1)
-      issues.push({
-        key: "ui.detail_template_error_role_taken",
-        values: [role === "sources" ? "ui.detail_template_role_sources" : "ui.detail_template_role_log"]
-      });
-  return issues;
-}
-function section2(value) {
-  if (!value || typeof value !== "object") return null;
-  const item = value;
-  if (typeof item.id !== "string" || typeof item.name !== "string") return null;
-  const role = item.role === "sources" || item.role === "log" ? item.role : "none";
-  const count = item.count && (item.count.mode === "exact" || item.count.mode === "min") && typeof item.count.n === "number" ? { mode: item.count.mode, n: item.count.n } : void 0;
-  return {
-    id: item.id,
-    name: item.name,
-    description: typeof item.description === "string" ? item.description : "",
-    role,
-    ...count ? { count } : {},
-    aliases: Array.isArray(item.aliases) ? item.aliases.filter((alias) => typeof alias === "string") : []
-  };
-}
-function normalizeTemplates(value) {
-  if (!Array.isArray(value)) return [];
-  const result = [];
-  for (const entry of value) {
-    if (!entry || typeof entry !== "object") continue;
-    const item = entry;
-    if (typeof item.id !== "string" || item.id === STANDARD_TEMPLATE_ID || typeof item.name !== "string") continue;
-    if (result.some((existing) => existing.id === item.id)) continue;
-    if (!Array.isArray(item.sections)) continue;
-    const sections = item.sections.map(section2);
-    if (sections.some((entry2) => !entry2)) continue;
-    const template = { id: item.id, name: item.name, sections };
-    if (validateTemplate(template, result).length) continue;
-    result.push(template);
-  }
-  return result;
-}
-
 // ui/outline-view.ts
 var import_obsidian18 = require("obsidian");
 var OUTLINE_VIEW_TYPE = "visual-agent-map-outline";
@@ -27939,15 +28038,8 @@ function visualGuidance(context, language2) {
 }
 
 // core/steps/task/render.ts
-var DETAIL_HEADINGS = [
-  "detail.core_conclusions",
-  "detail.key_knowledge",
-  "detail.evidence_and_sources",
-  "detail.tradeoffs_and_limitations",
-  "detail.open_questions",
-  "detail.update_log"
-];
 function generalTaskPrompt(context, language2) {
+  var _a;
   const modeFragment = context.mode === "task" ? GENERAL_TASK : context.mode === "decompose" ? DECOMPOSE : context.mode === "synthesize" ? SYNTHESIZE : DEFAULT_TASK;
   const none = inLanguage(NONE, language2);
   return [
@@ -27958,7 +28050,11 @@ function generalTaskPrompt(context, language2) {
     context.sourceContext && context.researchMode !== "local" ? inLanguage(LOCAL_FIRST, language2) : "",
     inLanguage(JSON_CONTRACT, language2),
     inLanguage(modeFragment, language2),
-    context.mode !== "decompose" ? context.detailFormat === "adaptive" ? inLanguage(ADAPTIVE_DETAIL_STRUCTURE, language2) : detailStructure(language2, DETAIL_HEADINGS.map((key2) => `### ${translate(language2, key2)}`).join(", ")) : "",
+    context.mode !== "decompose" ? context.detailFormat === "adaptive" ? inLanguage(ADAPTIVE_DETAIL_STRUCTURE, language2) : detailStructurePrompt(
+      (_a = context.detailTemplate) != null ? _a : standardTemplate(language2),
+      language2,
+      (headings) => detailStructure(language2, headings)
+    ) : "",
     researchGuidance(context, language2),
     ...visualGuidance(context, language2),
     `${inLanguage(LABEL_TOPIC, language2)}:
@@ -28117,7 +28213,7 @@ var AiTaskService = class {
       const result = step.parse(raw);
       if (referenceGroups.length) result.summary = resolveSummaryReferences(result.summary, referenceGroups);
       if (referenceGroups.length || /\[\^/.test(result.detail))
-        result.detail = resolveDetailReferences(result.detail, referenceGroups, input.detail);
+        result.detail = resolveDetailReferences(result.detail, referenceGroups, input.detail, input.detailTemplate);
       if (this.options.exchangeLoggingEnabled()) exchanges == null ? void 0 : exchanges.parsed(exchangeId);
       console.debug("Visual Agent Map AI metrics", {
         ...prepared.metrics,
