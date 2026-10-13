@@ -242,10 +242,10 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   button(modal.modalEl, 'Review AI subtopic suggestions').click(); await tick();
   assert.equal(expandCalls, 1); assert.equal(closed, 0);
   const proposalCheck = find(expand.querySelector('.vam-next-result'), item => item.tag === 'input' && item.type === 'checkbox');
-  proposalCheck.checked = false; button(expand, 'Create subtopics').click(); await tick();
+  proposalCheck.checked = false; button(expand, 'Create subtopics (1)').click(); await tick();
   assert.equal(created, undefined); assert.equal(expand.querySelector('.vam-next-status').text, 'Select at least one subtopic.');
   proposalCheck.checked = true;
-  button(expand, 'Create subtopics').click(); await tick();
+  button(expand, 'Create subtopics (1)').click(); await tick();
   assert.equal(created[0].title, 'Transport'); assert.equal(expandOptions.outputLanguage, 'zh-TW'); assert.equal(closed, 0);
   let firstCreated, firstAttempts = 0;
   const firstFlow = new NextStepModal({}, 'Parent', 'normal', 0, 0, plugin, async () => {}, async (_options, _direction, found, failed) => {
@@ -263,11 +263,11 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   assert.ok(find(firstPanel.querySelector('.vam-next-result'), item => item.text === 'AI subtopic proposals'));
   const firstCheckbox = find(firstPanel.querySelector('.vam-next-result'), item => item.tag === 'input' && item.type === 'checkbox');
   firstCheckbox.checked = false;
-  button(firstPanel, 'Create subtopics').click(); await tick();
+  button(firstPanel, 'Create subtopics (1)').click(); await tick();
   assert.equal(firstCreated, undefined); assert.equal(firstPanel.querySelector('.vam-next-status').text, 'Select at least one subtopic.');
   firstCheckbox.checked = true;
   const firstName = find(firstPanel.querySelector('.vam-next-result'), item => item.tag === 'input' && item.type === 'text'); firstName.value = 'Edited idea';
-  button(firstPanel, 'Create subtopics').click(); await tick();
+  button(firstPanel, 'Create subtopics (1)').click(); await tick();
   assert.equal(firstCreated[0].title, 'Edited idea'); assert.equal(closed, 0);
   const contentChoice = find(synthesize, item => item.tag === 'select' && item['aria-label'] === 'Topic synthesis content');
   assert.equal(contentChoice.value, 'full');
@@ -413,7 +413,7 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   pendingModal.onOpen(); find(pendingModal.contentEl, item => item.cls === 'vam-next-cards').children[1].click();
   button(pendingModal.modalEl, 'Review AI subtopic suggestions').click(); await tick();
   assert.equal(pendingCalls, 1); assert.equal(button(pendingModal.contentEl, 'Understand and run'), undefined);
-  button(pendingModal.contentEl, 'Create subtopics').click(); await tick();
+  button(pendingModal.contentEl, 'Create subtopics (1)').click(); await tick();
   assert.ok(button(pendingModal.modalEl, 'Get expansion directions'));
   button(pendingModal.modalEl, 'Get expansion directions').click(); await tick();
   assert.equal(pendingCalls, 1); assert.equal(button(pendingModal.contentEl, 'Understand and run'), undefined);
@@ -452,8 +452,8 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   button(guidedModal.modalEl, 'Get expansion directions').click(); await tick();
   assert.equal(closed, 5); assert.equal(guidedFinished, false);
   finishGuided(); await tick();
-  assert.equal(guidedFinished, true); assert.ok(button(guidedModal.contentEl, 'Create subtopics'));
-  button(guidedModal.contentEl, 'Create subtopics').click(); await tick();
+  assert.equal(guidedFinished, true); assert.ok(button(guidedModal.contentEl, 'Create subtopics (1)'));
+  button(guidedModal.contentEl, 'Create subtopics (1)').click(); await tick();
   assert.equal(closed, 5);
   const settingsWrites = []; let researchAfterSave = false;
   const settingsModal = new NextStepModal({}, 'Parent', 'normal', 0, 0,
@@ -642,4 +642,195 @@ test('templateField: keep option first, returns the chosen template id or undefi
   assert.equal(read(), undefined);
   select.value = 'A'; assert.equal(read(), 'A');
   select.value = ''; assert.equal(read(), undefined);
+});
+integrationTest('draft review renders the draft, edits on demand and keeps the dialog open when saving fails', async () => {
+  const element = (tag, options = {}) => ({
+    tag, text: options.text, value: options.text ?? '', cls: options.cls ?? '', attr: options.attr ?? {}, children: [], hidden: false,
+    createDiv(value) { const child = element('div', typeof value === 'string' ? { cls: value } : value); this.children.push(child); return child; },
+    createEl(name, value) { const child = element(name, value); this.children.push(child); return child; },
+    createSpan(value) { const child = element('span', value); this.children.push(child); return child; },
+    addClass(name) { this.cls = `${this.cls} ${name}`.trim(); }, removeClass(name) { this.cls = this.cls.split(' ').filter(item => item !== name).join(' '); }, setText(value) { this.text = value; }, setAttr(name, value) { this.attr[name] = value; },
+    addEventListener(name, handler) { if (name === 'click') this.click = handler; }, empty() { this.children = []; this.rendered = undefined; }, focus() { this.focused = true; }
+  });
+  const find = (root, predicate) => predicate(root) ? root : root.children.map(child => find(child, predicate)).find(Boolean);
+  class Modal { constructor() { this.modalEl = element('modal'); this.titleEl = element('title'); this.contentEl = element('content'); } close() { this.closed = true; this.onClose?.(); } }
+  class Component { load() { this.loaded = true; } unload() { this.loaded = false; } addChild(child) { return child; } removeChild() {} }
+  const MarkdownRenderer = { render: async (_app, markdown, el) => { el.rendered = markdown; } };
+  const { DraftReviewModal } = load('main.ts', { obsidian: { ...obsidian, Modal, Component, MarkdownRenderer, setIcon: () => {} } });
+  const saved = []; let failNext = true;
+  const modal = new DraftReviewModal({}, 'New summary', '## Result\n\n- **one**', { intro: 'Confirming replaces the summary and details of “Parent”.', currentSummary: 'Old summary', confirmLabel: 'Confirm update to parent topic' }, async (summary, detail) => {
+    if (failNext) { failNext = false; throw new Error('The topic changed'); }
+    saved.push([summary, detail]);
+  });
+  modal.onOpen();
+  assert.ok(find(modal.contentEl, item => item.text === 'Confirming replaces the summary and details of “Parent”.'));
+  assert.ok(find(modal.contentEl, item => item.text === 'Old summary'));
+  const previews = [];
+  (function collect(item) { if (item.cls.includes('vam-draft-preview')) previews.push(item); item.children.forEach(collect); })(modal.contentEl);
+  assert.deepEqual(previews.map(item => item.rendered), ['New summary', '## Result\n\n- **one**']);
+  const inputs = [];
+  (function collect(item) { if (item.tag === 'textarea') inputs.push(item); item.children.forEach(collect); })(modal.contentEl);
+  assert.deepEqual(inputs.map(item => item.hidden), [true, true]);
+  const toggle = find(modal.contentEl, item => item.cls.includes('vam-draft-toggle'));
+  assert.equal(toggle.text, 'Edit');
+  toggle.click();
+  assert.equal(toggle.text, 'Preview'); assert.equal(toggle.attr['aria-pressed'], 'true');
+  assert.deepEqual(inputs.map(item => item.hidden), [false, false]); assert.equal(inputs[0].focused, true);
+  inputs[1].value = '## Edited';
+  toggle.click();
+  assert.equal(previews[1].rendered, '## Edited');
+  // Actions sit in a fixed bar below the scrolling content, not inside it.
+  const actions = find(modal.modalEl, item => item.cls === 'vam-next-actions');
+  assert.ok(modal.modalEl.cls.includes('vam-review-modal')); assert.equal(find(modal.contentEl, item => item.cls === 'vam-next-actions'), undefined);
+  const actionButtons = actions.children.filter(item => item.tag === 'button');
+  assert.deepEqual(actionButtons.map(item => item.text), ['Cancel', 'Confirm update to parent topic']);
+  const confirm = actionButtons[1];
+  assert.ok(confirm.cls.includes('mod-cta'));
+  confirm.click(); await new Promise(resolve => setTimeout(resolve, 0));
+  assert.notEqual(modal.closed, true); assert.equal(confirm.disabled, false);
+  assert.ok(find(actions, item => item.cls.includes('vam-next-status') && /The topic changed/.test(item.text ?? '')));
+  confirm.click(); await new Promise(resolve => setTimeout(resolve, 0));
+  assert.deepEqual(saved, [['New summary', '## Edited']]); assert.equal(modal.closed, true);
+});
+integrationTest('draft review asks once more before discarding the AI draft', async () => {
+  const element = (tag, options = {}) => ({
+    tag, text: options.text, value: options.text ?? '', cls: options.cls ?? '', attr: options.attr ?? {}, children: [], hidden: false,
+    createDiv(value) { const child = element('div', typeof value === 'string' ? { cls: value } : value); this.children.push(child); return child; },
+    createEl(name, value) { const child = element(name, value); this.children.push(child); return child; },
+    createSpan(value) { const child = element('span', value); this.children.push(child); return child; },
+    addClass(name) { this.cls = `${this.cls} ${name}`.trim(); }, removeClass(name) { this.cls = this.cls.split(' ').filter(item => item !== name).join(' '); }, setText(value) { this.text = value; }, setAttr(name, value) { this.attr[name] = value; },
+    addEventListener(name, handler) { if (name === 'click') this.click = handler; }, empty() { this.children = []; }, focus() {}
+  });
+  const find = (root, predicate) => predicate(root) ? root : root.children.map(child => find(child, predicate)).find(Boolean);
+  class Modal { constructor() { this.modalEl = element('modal'); this.titleEl = element('title'); this.contentEl = element('content'); } close() { this.closed = true; this.onClose?.(); } }
+  class Component { load() {} unload() {} addChild(child) { return child; } removeChild() {} }
+  const { DraftReviewModal } = load('main.ts', { obsidian: { ...obsidian, Modal, Component, MarkdownRenderer: { render: async () => {} }, setIcon: () => {} } });
+  let discarded = 0;
+  const modal = new DraftReviewModal({}, 'S', 'D', { intro: 'Intro', confirmLabel: 'Confirm update to parent topic' }, () => {}, () => { discarded++; });
+  modal.onOpen();
+  const actions = find(modal.modalEl, item => item.cls === 'vam-next-actions');
+  assert.deepEqual(actions.children.filter(item => item.tag === 'button').map(item => item.text), ['Discard', 'Cancel', 'Confirm update to parent topic']);
+  const discard = actions.children.find(item => item.tag === 'button');
+  assert.ok(discard.cls.includes('vam-discard')); assert.ok(!discard.cls.includes('mod-warning'));
+  discard.click();
+  assert.equal(discarded, 0); assert.notEqual(modal.closed, true);
+  assert.equal(discard.text, 'Discard draft?'); assert.ok(discard.cls.includes('mod-warning'));
+  assert.match(find(actions, item => item.cls.includes('vam-next-status')).text, /cannot be recovered/);
+  discard.click();
+  assert.equal(discarded, 1); assert.equal(modal.closed, true);
+});
+integrationTest('proposal list groups children, links parent and child checks and keeps errors in the dialog', () => {
+  const element = (tag, options = {}) => ({
+    tag, type: options.type, text: options.text, value: options.value ?? options.text ?? '', cls: options.cls ?? '', attr: options.attr ?? {}, children: [], hidden: false, disabled: false, checked: false,
+    createDiv(value) { const child = element('div', typeof value === 'string' ? { cls: value } : value); this.children.push(child); return child; },
+    createEl(name, value) { const child = element(name, value); this.children.push(child); return child; },
+    createSpan(value) { const child = element('span', value); this.children.push(child); return child; },
+    addClass(name) { this.cls = `${this.cls} ${name}`.trim(); }, setText(value) { this.text = value; }, setAttr(name, value) { this.attr[name] = value; },
+    addEventListener(name, handler) { this[name] = handler; }, empty() { this.children = []; }, focus() {}
+  });
+  const all = (root, predicate) => [...(predicate(root) ? [root] : []), ...root.children.flatMap(child => all(child, predicate))];
+  const find = (root, predicate) => all(root, predicate)[0];
+  class Modal { constructor() { this.modalEl = element('modal'); this.titleEl = element('title'); this.contentEl = element('content'); } close() { this.closed = true; } }
+  const { ChildProposalModal } = load('main.ts', { obsidian: { ...obsidian, Modal, setIcon: () => {} } });
+  let submitted;
+  const modal = new ChildProposalModal({}, [
+    { title: 'Heat', task: 'T1', contribution: '', parentTitle: '' },
+    { title: 'Dry it', task: 'T3', contribution: '', parentTitle: 'Water' },
+    { title: 'Water', task: 'T2', contribution: '', parentTitle: '' }
+  ], items => { submitted = items; });
+  modal.onOpen();
+  const rows = all(modal.contentEl, item => item.cls.split(' ').includes('vam-proposal'));
+  const names = rows.map(row => find(row, item => item.tag === 'input' && item.type === 'text').value);
+  assert.deepEqual(names, ['Heat', 'Water', 'Dry it']);
+  assert.deepEqual(rows.map(row => row.cls.includes('is-child')), [false, false, true]);
+  // Details stay folded until asked for.
+  const body = find(rows[0], item => item.cls === 'vam-proposal-body'); const more = find(rows[0], item => item.cls === 'vam-proposal-more');
+  assert.equal(body.hidden, true); more.click(); assert.equal(body.hidden, false); assert.equal(more.attr['aria-expanded'], 'true');
+  const checks = rows.map(row => find(row, item => item.type === 'checkbox'));
+  const create = find(modal.modalEl, item => item.tag === 'button' && item.cls.includes('mod-cta'));
+  const count = find(modal.contentEl, item => item.cls === 'vam-proposal-count');
+  assert.equal(create.text, 'Create subtopics (3)'); assert.equal(count.text, '3 of 3 selected');
+  checks[1].checked = false; checks[1].change();
+  assert.equal(checks[2].checked, false, 'unchecking a parent unchecks its children');
+  assert.equal(create.text, 'Create subtopics (1)');
+  checks[2].checked = true; checks[2].change();
+  assert.equal(checks[1].checked, true, 'checking a child checks its parent');
+  const toggleAll = find(modal.contentEl, item => item.cls === 'vam-proposal-all');
+  assert.equal(toggleAll.text, 'Select none'); toggleAll.click();
+  assert.deepEqual(checks.map(check => check.checked), [false, false, false]); assert.equal(create.disabled, true); assert.equal(toggleAll.text, 'Select all');
+  toggleAll.click();
+  const waterName = find(rows[1], item => item.type === 'text'); waterName.value = 'Heat';
+  create.click();
+  assert.equal(modal.closed, undefined); assert.equal(submitted, undefined);
+  assert.match(find(modal.modalEl, item => item.cls.includes('vam-next-status')).text, /must be unique/);
+  waterName.value = 'Moisture';
+  create.click();
+  assert.equal(modal.closed, true);
+  assert.equal(JSON.stringify(submitted.map(item => [item.title, item.parentTitle])), JSON.stringify([['Heat', ''], ['Moisture', ''], ['Dry it', 'Moisture']]));
+});
+integrationTest('merge dialog names the topic after its sources and explains a blocked next step', () => {
+  const element = (tag, options = {}) => ({
+    tag, type: options.type, text: options.text, value: options.value ?? options.text ?? '', cls: options.cls ?? '', attr: options.attr ?? {}, children: [], disabled: false,
+    createDiv(value) { const child = element('div', typeof value === 'string' ? { cls: value } : value); this.children.push(child); return child; },
+    createEl(name, value) { const child = element(name, value); this.children.push(child); return child; },
+    createSpan(value) { const child = element('span', value); this.children.push(child); return child; },
+    addClass(name) { this.cls = `${this.cls} ${name}`.trim(); }, setText(value) { this.text = value; }, setAttr(name, value) { this.attr[name] = value; },
+    addEventListener(name, handler) { this[name] = handler; }, focus() {}, select() {}
+  });
+  const all = (root, predicate) => [...(predicate(root) ? [root] : []), ...root.children.flatMap(child => all(child, predicate))];
+  const find = (root, predicate) => all(root, predicate)[0];
+  class Modal { constructor() { this.modalEl = element('modal'); this.titleEl = element('title'); this.contentEl = element('content'); } close() { this.closed = true; } }
+  const { IntegrationModal } = load('main.ts', { obsidian: { ...obsidian, Modal, setIcon: () => {} } });
+  let submitted;
+  const modal = new IntegrationModal({}, ['Heat', 'Water'], (title, goal) => { submitted = [title, goal]; });
+  modal.onOpen();
+  const name = find(modal.contentEl, item => item.tag === 'input' && item.attr['aria-label'] === 'New topic name');
+  assert.equal(name.value, 'Synthesis: Heat, Water');
+  const many = new IntegrationModal({}, ['Heat', 'Water', 'Salt'], () => {}); many.onOpen();
+  assert.equal(find(many.contentEl, item => item.tag === 'input' && item.attr['aria-label'] === 'New topic name').value, 'Synthesis: Heat and others (3 topics)');
+  const next = find(modal.modalEl, item => item.tag === 'button' && item.cls.includes('mod-cta'));
+  const status = find(modal.modalEl, item => item.cls.includes('vam-next-status'));
+  assert.equal(next.text, 'Next (1 of 2): set AI sources'); assert.equal(next.disabled, false); assert.equal(status.text, '');
+  name.value = '  '; name.input();
+  assert.equal(next.disabled, true); assert.match(status.text, /topic name and a synthesis goal/);
+  name.value = 'Cooking water'; name.input();
+  assert.equal(next.disabled, false); assert.equal(status.text, '');
+  next.click();
+  assert.equal(modal.closed, true); assert.equal(submitted[0], 'Cooking water');
+});
+integrationTest('review dialogs: duplicate parents list each proposal once, discard waits for a running save, and a failed render shows plain text', async () => {
+  const element = (tag, options = {}) => ({
+    tag, type: options.type, text: options.text, value: options.value ?? options.text ?? '', cls: options.cls ?? '', attr: options.attr ?? {}, children: [], hidden: false, disabled: false, checked: false,
+    createDiv(value) { const child = element('div', typeof value === 'string' ? { cls: value } : value); this.children.push(child); return child; },
+    createEl(name, value) { const child = element(name, value); this.children.push(child); return child; },
+    createSpan(value) { const child = element('span', value); this.children.push(child); return child; },
+    addClass(name) { this.cls = `${this.cls} ${name}`.trim(); }, removeClass(name) { this.cls = this.cls.split(' ').filter(item => item !== name).join(' '); }, setText(value) { this.text = value; }, setAttr(name, value) { this.attr[name] = value; },
+    addEventListener(name, handler) { this[name] = handler; }, empty() { this.children = []; this.text = undefined; }, focus() {}
+  });
+  const all = (root, predicate) => [...(predicate(root) ? [root] : []), ...root.children.flatMap(child => all(child, predicate))];
+  const find = (root, predicate) => all(root, predicate)[0];
+  class Modal { constructor() { this.modalEl = element('modal'); this.titleEl = element('title'); this.contentEl = element('content'); } close() { this.closed = true; this.onClose?.(); } }
+  class Component { load() {} unload() {} addChild(child) { return child; } removeChild() {} }
+  const MarkdownRenderer = { render: async () => { throw new Error('render failed'); } };
+  const { ChildProposalModal, DraftReviewModal } = load('main.ts', { obsidian: { ...obsidian, Modal, Component, MarkdownRenderer, setIcon: () => {} } });
+  const proposals = new ChildProposalModal({}, [
+    { title: 'Heat', task: '', contribution: '', parentTitle: '' },
+    { title: 'Heat', task: '', contribution: '', parentTitle: '' },
+    { title: 'Pan', task: '', contribution: '', parentTitle: 'Heat' }
+  ], () => {});
+  proposals.onOpen();
+  assert.equal(all(proposals.contentEl, item => item.cls.split(' ').includes('vam-proposal')).length, 3);
+  let finishSave, discarded = 0;
+  const draft = new DraftReviewModal({}, 'S', '## D', { intro: 'Intro', confirmLabel: 'Confirm' }, () => new Promise(resolve => { finishSave = resolve; }), () => { discarded++; });
+  draft.onOpen(); await new Promise(resolve => setTimeout(resolve, 0));
+  const previews = all(draft.contentEl, item => item.cls.includes('vam-draft-preview'));
+  assert.deepEqual(previews.map(item => item.text), ['S', '## D']);
+  const buttons = all(draft.modalEl, item => item.tag === 'button' && item.cls !== 'vam-draft-toggle');
+  const [discard, cancel, confirm] = buttons;
+  confirm.click();
+  assert.equal(cancel.disabled, true);
+  discard.click(); discard.click();
+  assert.equal(discarded, 0, 'discard does nothing while the save runs');
+  finishSave(); await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(draft.closed, true);
 });

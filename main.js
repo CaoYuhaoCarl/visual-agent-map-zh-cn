@@ -21,6 +21,9 @@ var __publicField = (obj, key2, value) => __defNormalProp(obj, typeof key2 !== "
 // main.ts
 var main_exports = {};
 __export(main_exports, {
+  ChildProposalModal: () => ChildProposalModal,
+  DraftReviewModal: () => DraftReviewModal,
+  IntegrationModal: () => IntegrationModal,
   NextStepModal: () => NextStepModal,
   VisualAgentMapSettingTab: () => VisualAgentMapSettingTab,
   VisualAgentMapView: () => VisualAgentMapView,
@@ -407,12 +410,10 @@ var english = {
   "ui.reference_remove": "Remove",
   "ui.additional_requirements": "Additional requirements (optional)",
   "ui.confirm_and_run": "Confirm and run",
-  "ui.next_set_ai_sources": "Next: set AI sources",
-  "ui.markdown_detail_draft": "Markdown detail draft",
+  "ui.next_set_ai_sources": "Next (1 of 2): set AI sources",
   "ui.ai_subtopic_proposals": "AI subtopic proposals",
   "ui.select_subtopics_to_create_you_can_edit_their_names_and_task": "Select subtopics to create. You can edit their names and tasks first.",
   "ui.contribution_to_the_parent_topic": "Contribution to the parent topic",
-  "ui.create_subtopics": "Create subtopics",
   "ui.confirm_topic_synthesis": "Confirm topic synthesis",
   "ui.source_topics": "Source topics",
   "ui.expand": "Expand",
@@ -443,7 +444,6 @@ var english = {
   "ui.codex_app_server_0_did_not_respond_within_1_seconds": "Codex App Server {0} did not respond within {1} seconds",
   "ui.codex_app_server_has_not_started": "Codex App Server has not started",
   "ui.new_topic_name": "New topic name",
-  "ui.synthesize_topics": "Synthesize topics",
   "ui.synthesis_goal": "Synthesis goal",
   "ui.identify_shared_conclusions_key_differences_tradeoffs_and_ne": "Identify shared conclusions, key differences, tradeoffs and next steps.",
   "ui.use_file_contents": "Use file contents",
@@ -712,6 +712,25 @@ var english = {
   "ui.scan_for_recognizable_vam_workspaces_and_reconnect_only_afte": "Scan for recognizable VAM workspaces and reconnect only after confirmation, without moving or overwriting data.",
   "ui.scan": "Scan",
   "ui.check_again": "Check again",
+  "ui.list_separator": ", ",
+  "ui.synthesis_of_0": "Synthesis: {0}",
+  "ui.synthesis_of_0_and_1_more": "Synthesis: {0} and others ({1} topics)",
+  "ui.synthesis_needs_name_and_goal": "Add a topic name and a synthesis goal to continue.",
+  "ui.create_0_subtopics": "Create subtopics ({0})",
+  "ui.selected_0_of_1": "{0} of {1} selected",
+  "ui.select_all": "Select all",
+  "ui.select_none": "Select none",
+  "ui.proposal_details": "Details",
+  "ui.discard_confirm": "Discard draft?",
+  "ui.discard_confirm_hint": "Press again within 5 seconds to discard this AI draft. It cannot be recovered.",
+  "ui.ai_draft": "AI draft",
+  "ui.edit_draft": "Edit",
+  "ui.preview_draft": "Preview",
+  "ui.draft_summary": "Summary",
+  "ui.draft_detail": "Details",
+  "ui.current_summary": "Current summary",
+  "ui.draft_replaces_0": "Confirming replaces the summary and details of \u201C{0}\u201D.",
+  "ui.draft_creates_0": "Confirming creates a new topic \u201C{0}\u201D.",
   "ui.not_set": "Not set",
   "ui.task_started_in_background_0": "Started \u201C{0}\u201D in the background; progress shows on its card.",
   "ui.model_status_idle": "not checked",
@@ -1669,12 +1688,10 @@ var traditionalChinese = {
   "ui.reference_remove": "\u79FB\u9664",
   "ui.additional_requirements": "\u672C\u6B21\u9644\u52A0\u8981\u6C42\uFF08\u9078\u586B\uFF09",
   "ui.confirm_and_run": "\u78BA\u8A8D\u4E26\u57F7\u884C",
-  "ui.next_set_ai_sources": "\u4E0B\u4E00\u6B65\uFF1A\u8A2D\u5B9A AI \u4F86\u6E90",
-  "ui.markdown_detail_draft": "MD \u8A73\u60C5\u8349\u7A3F",
+  "ui.next_set_ai_sources": "\u4E0B\u4E00\u6B65\uFF081/2\uFF09\uFF1A\u8A2D\u5B9A AI \u4F86\u6E90",
   "ui.ai_subtopic_proposals": "AI \u5B50\u8B70\u984C\u63D0\u6848",
   "ui.select_subtopics_to_create_you_can_edit_their_names_and_task": "\u52FE\u9078\u8981\u5EFA\u7ACB\u7684\u5B50\u8B70\u984C\uFF1B\u5EFA\u7ACB\u524D\u53EF\u76F4\u63A5\u4FEE\u6539\u540D\u7A31\u8207\u4EFB\u52D9\u3002",
   "ui.contribution_to_the_parent_topic": "\u5C0D\u6BCD\u8B70\u984C\u7684\u8CA2\u737B",
-  "ui.create_subtopics": "\u5EFA\u7ACB\u5B50\u8B70\u984C",
   "ui.confirm_topic_synthesis": "\u78BA\u8A8D\u6574\u5408\u8B70\u984C",
   "ui.source_topics": "\u4F86\u6E90\u8B70\u984C",
   "ui.expand": "\u5C55\u958B",
@@ -1705,7 +1722,6 @@ var traditionalChinese = {
   "ui.codex_app_server_0_did_not_respond_within_1_seconds": "Codex App Server {0} \u5728 {1} \u79D2\u5167\u6C92\u6709\u56DE\u61C9",
   "ui.codex_app_server_has_not_started": "Codex App Server \u5C1A\u672A\u555F\u52D5",
   "ui.new_topic_name": "\u65B0\u8B70\u984C\u540D\u7A31",
-  "ui.synthesize_topics": "\u6574\u5408\u8B70\u984C",
   "ui.synthesis_goal": "\u6574\u5408\u76EE\u6A19",
   "ui.identify_shared_conclusions_key_differences_tradeoffs_and_ne": "\u627E\u51FA\u5171\u540C\u7D50\u8AD6\u3001\u91CD\u8981\u5DEE\u7570\u3001\u53D6\u6368\u8207\u4E0B\u4E00\u6B65\u3002",
   "ui.use_file_contents": "\u4F7F\u7528\u6A94\u6848\u5167\u5BB9",
@@ -1974,6 +1990,25 @@ var traditionalChinese = {
   "ui.scan_for_recognizable_vam_workspaces_and_reconnect_only_afte": "\u6383\u63CF\u53EF\u8FA8\u8B58\u7684 VAM Workspace\uFF0C\u78BA\u8A8D\u5F8C\u624D\u91CD\u65B0\u9023\u7D50\uFF0C\u4E0D\u6703\u642C\u79FB\u6216\u8986\u5BEB\u8CC7\u6599\u3002",
   "ui.scan": "\u6383\u63CF",
   "ui.check_again": "\u91CD\u65B0\u6AA2\u67E5",
+  "ui.list_separator": "\u3001",
+  "ui.synthesis_of_0": "\u6574\u5408\uFF1A{0}",
+  "ui.synthesis_of_0_and_1_more": "\u6574\u5408\uFF1A{0} \u7B49 {1} \u500B\u8B70\u984C",
+  "ui.synthesis_needs_name_and_goal": "\u586B\u5BEB\u65B0\u8B70\u984C\u540D\u7A31\u8207\u6574\u5408\u76EE\u6A19\u5F8C\u624D\u80FD\u7E7C\u7E8C\u3002",
+  "ui.create_0_subtopics": "\u5EFA\u7ACB {0} \u500B\u5B50\u8B70\u984C",
+  "ui.selected_0_of_1": "\u5DF2\u9078 {0}\uFF0F{1}",
+  "ui.select_all": "\u5168\u9078",
+  "ui.select_none": "\u5168\u4E0D\u9078",
+  "ui.proposal_details": "\u7D30\u7BC0",
+  "ui.discard_confirm": "\u78BA\u5B9A\u6368\u68C4\uFF1F",
+  "ui.discard_confirm_hint": "5 \u79D2\u5167\u518D\u6309\u4E00\u6B21\u5C31\u6703\u6368\u68C4\u9019\u4EFD AI \u8349\u7A3F\uFF0C\u6368\u68C4\u5F8C\u7121\u6CD5\u5FA9\u539F\u3002",
+  "ui.ai_draft": "AI \u8349\u7A3F",
+  "ui.edit_draft": "\u7DE8\u8F2F",
+  "ui.preview_draft": "\u9810\u89BD",
+  "ui.draft_summary": "\u6458\u8981",
+  "ui.draft_detail": "\u8A73\u7D30\u5167\u5BB9",
+  "ui.current_summary": "\u76EE\u524D\u7684\u6458\u8981",
+  "ui.draft_replaces_0": "\u78BA\u8A8D\u5F8C\u6703\u53D6\u4EE3\u300C{0}\u300D\u7684\u6458\u8981\u8207\u8A73\u7D30\u5167\u5BB9\u3002",
+  "ui.draft_creates_0": "\u78BA\u8A8D\u5F8C\u6703\u5EFA\u7ACB\u65B0\u8B70\u984C\u300C{0}\u300D\u3002",
   "ui.not_set": "\u672A\u586B",
   "ui.task_started_in_background_0": "\u5DF2\u5728\u80CC\u666F\u958B\u59CB\u300C{0}\u300D\uFF0C\u9032\u5EA6\u6703\u986F\u793A\u5728\u5361\u7247\u4E0A\u3002",
   "ui.model_status_idle": "\u5C1A\u672A\u6AA2\u67E5",
@@ -20815,51 +20850,25 @@ var NextStepModal = class extends import_obsidian15.Modal {
     result.empty();
     result.createEl("h4", { text: t("ui.ai_subtopic_proposals") });
     result.createEl("p", { text: t("ui.select_subtopics_to_create_you_can_edit_their_names_and_task") });
-    const rows = [];
-    const list = result.createDiv("vam-proposal-list");
-    for (const item of suggestions) {
-      const row = list.createDiv("vam-proposal");
-      if (item.parentTitle) row.createEl("p", { text: t("ui.child_of_0", item.parentTitle) });
-      const check = row.createEl("input", { type: "checkbox" });
-      check.checked = true;
-      check.setAttr("aria-label", t("ui.select_proposal_0", item.title));
-      const titleField = row.createEl("label", { cls: "vam-proposal-field" });
-      titleField.createSpan({ text: t("ui.subtopic_name") });
-      const title = titleField.createEl("input", { type: "text", value: item.title });
-      title.setAttr("aria-label", t("ui.proposal_name"));
-      const taskField = row.createEl("label", { cls: "vam-proposal-field" });
-      taskField.createSpan({ text: t("ui.research_task") });
-      const task = taskField.createEl("textarea", { text: item.task });
-      task.rows = 2;
-      task.setAttr("aria-label", t("ui.proposal_task"));
-      const contributionField = row.createEl("label", { cls: "vam-proposal-field" });
-      contributionField.createSpan({ text: t("ui.contribution_to_the_parent_topic") });
-      const contribution = contributionField.createEl("textarea", { text: item.contribution });
-      contribution.rows = 2;
-      contribution.placeholder = t("ui.contribution_to_the_parent_topic");
-      contribution.setAttr("aria-label", t("ui.contribution_to_the_parent_topic"));
-      rows.push({ item, check, title, task, contribution });
-    }
-    const confirm = result.createEl("button", { text: t("ui.create_subtopics"), cls: "mod-cta" });
+    let showCount = (_count) => {
+    };
+    const list = renderProposalList(result, suggestions, (count) => showCount(count));
+    const confirm = result.createEl("button", { text: t("ui.create_0_subtopics", list.count()), cls: "mod-cta" });
+    showCount = (count) => {
+      confirm.setText(t("ui.create_0_subtopics", count));
+      if (!this.runPending) confirm.disabled = count === 0;
+      const status = panel.querySelector(".vam-next-status");
+      if (status && status.textContent !== t("ui.review_ai_suggested_subtopics")) status.setText("");
+    };
     button.classList.toggle("mod-cta", false);
     confirm.addEventListener("click", () => {
       void (async () => {
         var _a2;
-        const selected = rows.filter((row) => row.check.checked && row.title.value.trim());
-        if (!selected.length) {
-          (_a2 = panel.querySelector(".vam-next-status")) == null ? void 0 : _a2.setText(t("ui.select_at_least_one_subtopic"));
-          return;
-        }
-        const renamed = new Map(
-          selected.filter((row) => !row.item.parentTitle).map((row) => [row.item.title, row.title.value.trim()])
-        );
-        const names2 = selected.filter((row) => !row.item.parentTitle).map((row) => row.title.value.trim());
-        if (new Set(names2).size !== names2.length) {
-          this.failed(panel, button, t("ui.first_level_topic_names_must_be_unique"));
-          return;
-        }
-        if (selected.some((row) => row.item.parentTitle && !renamed.has(row.item.parentTitle))) {
-          this.failed(panel, button, t("ui.select_the_parent_topic_before_its_child"));
+        const picked = list.selected();
+        if (typeof picked === "string") {
+          if (picked === t("ui.select_at_least_one_subtopic"))
+            (_a2 = panel.querySelector(".vam-next-status")) == null ? void 0 : _a2.setText(picked);
+          else this.failed(panel, button, picked);
           return;
         }
         void this.run(
@@ -20870,14 +20879,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
             options.signal = this.taskSignal;
             (_a3 = panel.querySelector(".vam-next-status")) == null ? void 0 : _a3.setText(t("ui.creating_subtopics"));
             try {
-              await create(
-                selected.map((row) => ({
-                  title: row.title.value.trim(),
-                  task: row.task.value.trim(),
-                  contribution: row.contribution.value.trim(),
-                  parentTitle: row.item.parentTitle ? renamed.get(row.item.parentTitle) : ""
-                }))
-              );
+              await create(picked);
               if (options.shallowResearch) {
                 this.taskSignal = void 0;
                 this.taskController = void 0;
@@ -21429,66 +21431,226 @@ var NextStepModal = class extends import_obsidian15.Modal {
     });
   }
 };
-var AiDraftModal = class extends import_obsidian15.Modal {
-  constructor(app, summary, detail, confirmLabel, confirm) {
+function renderProposalList(parent, suggestions, changed) {
+  const rows = [];
+  const toolbar = parent.createDiv("vam-proposal-toolbar");
+  const counter = toolbar.createSpan({ cls: "vam-proposal-count", attr: { "aria-live": "polite" } });
+  const all = toolbar.createEl("button", { cls: "vam-proposal-all" });
+  const list = parent.createDiv("vam-proposal-list");
+  const roots = suggestions.filter((item) => !item.parentTitle);
+  const ordered = [
+    .../* @__PURE__ */ new Set([
+      ...roots.flatMap((root) => [root, ...suggestions.filter((item) => item.parentTitle === root.title)]),
+      ...suggestions.filter((item) => item.parentTitle && !roots.some((root) => root.title === item.parentTitle))
+    ])
+  ];
+  const count = () => rows.filter((row) => row.check.checked).length;
+  const update = () => {
+    const picked = count();
+    counter.setText(t("ui.selected_0_of_1", picked, rows.length));
+    all.setText(t(picked === rows.length ? "ui.select_none" : "ui.select_all"));
+    changed(picked);
+  };
+  for (const item of ordered) {
+    const row = list.createDiv(item.parentTitle ? "vam-proposal is-child" : "vam-proposal");
+    const head = row.createDiv("vam-proposal-head");
+    const check = head.createEl("input", { type: "checkbox" });
+    check.checked = true;
+    check.setAttr("aria-label", t("ui.select_proposal_0", item.title));
+    const title = head.createEl("input", { type: "text", value: item.title, cls: "vam-proposal-title" });
+    title.setAttr("aria-label", t("ui.proposal_name"));
+    const more = head.createEl("button", { text: t("ui.proposal_details"), cls: "vam-proposal-more" });
+    more.setAttr("aria-expanded", "false");
+    const body = row.createDiv("vam-proposal-body");
+    body.hidden = true;
+    more.addEventListener("click", () => {
+      body.hidden = !body.hidden;
+      more.setAttr("aria-expanded", String(!body.hidden));
+    });
+    const taskField = body.createEl("label", { cls: "vam-proposal-field" });
+    taskField.createSpan({ text: t("ui.research_task") });
+    const task = taskField.createEl("textarea", { text: item.task });
+    task.rows = 2;
+    task.setAttr("aria-label", t("ui.proposal_task"));
+    const contributionField = body.createEl("label", { cls: "vam-proposal-field" });
+    contributionField.createSpan({ text: t("ui.contribution_to_the_parent_topic") });
+    const contribution = contributionField.createEl("textarea", { text: item.contribution });
+    contribution.rows = 2;
+    contribution.placeholder = t("ui.contribution_to_the_parent_topic");
+    contribution.setAttr("aria-label", t("ui.contribution_to_the_parent_topic"));
+    rows.push({ item, check, title, task, contribution });
+    check.addEventListener("change", () => {
+      if (item.parentTitle && check.checked)
+        rows.forEach((other) => {
+          if (!other.item.parentTitle && other.item.title === item.parentTitle) other.check.checked = true;
+        });
+      if (!item.parentTitle && !check.checked)
+        rows.forEach((other) => {
+          if (other.item.parentTitle === item.title) other.check.checked = false;
+        });
+      update();
+    });
+  }
+  all.addEventListener("click", () => {
+    const value = count() !== rows.length;
+    rows.forEach((row) => row.check.checked = value);
+    update();
+  });
+  update();
+  return {
+    count,
+    selected: () => {
+      const selected = rows.filter((row) => row.check.checked && row.title.value.trim());
+      if (!selected.length) return t("ui.select_at_least_one_subtopic");
+      const renamed = new Map(
+        selected.filter((row) => !row.item.parentTitle).map((row) => [row.item.title, row.title.value.trim()])
+      );
+      const names2 = selected.filter((row) => !row.item.parentTitle).map((row) => row.title.value.trim());
+      if (new Set(names2).size !== names2.length) return t("ui.first_level_topic_names_must_be_unique");
+      if (selected.some((row) => row.item.parentTitle && !renamed.has(row.item.parentTitle)))
+        return t("ui.select_the_parent_topic_before_its_child");
+      return selected.map((row) => ({
+        title: row.title.value.trim(),
+        task: row.task.value.trim(),
+        contribution: row.contribution.value.trim(),
+        parentTitle: row.item.parentTitle ? renamed.get(row.item.parentTitle) : ""
+      }));
+    }
+  };
+}
+function reviewActions(modal) {
+  modal.modalEl.addClass("vam-review-modal");
+  return modal.modalEl.createDiv("vam-next-actions");
+}
+var DraftReviewModal = class extends import_obsidian15.Modal {
+  constructor(app, summary, detail, review, confirm, discard) {
     super(app);
     this.summary = summary;
     this.detail = detail;
-    this.confirmLabel = confirmLabel;
-    this.confirm = confirm;
-  }
-  onOpen() {
-    this.titleEl.setText(t("ui.review_synthesis_draft"));
-    this.contentEl.createEl("strong", { text: t("ui.current_understanding") });
-    this.contentEl.createEl("p", { text: this.summary });
-    this.contentEl.createEl("strong", { text: t("ui.markdown_detail_draft") });
-    const detail = this.contentEl.createEl("textarea", { cls: "vam-task-input", text: this.detail });
-    detail.rows = 18;
-    detail.readOnly = true;
-    new import_obsidian15.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => this.close())).addButton(
-      (button) => button.setButtonText(this.confirmLabel).setCta().onClick(() => {
-        this.close();
-        this.confirm();
-      })
-    );
-  }
-};
-var SynthesisDraftModal = class extends import_obsidian15.Modal {
-  constructor(app, summary, detail, confirm, discard) {
-    super(app);
-    this.summary = summary;
-    this.detail = detail;
+    this.review = review;
     this.confirm = confirm;
     this.discard = discard;
+    __publicField(this, "renderer", new import_obsidian15.Component());
+    __publicField(this, "discardArmed", 0);
   }
   onOpen() {
+    var _a;
+    this.modalEl.addClass("vam-draft-modal");
     this.titleEl.setText(t("ui.review_synthesis_draft"));
-    this.contentEl.createEl("strong", { text: t("ui.current_understanding") });
-    const summary = this.contentEl.createEl("textarea", { cls: "vam-task-input", text: this.summary });
-    summary.rows = 4;
-    summary.setAttr("aria-label", t("ui.current_understanding"));
-    this.contentEl.createEl("strong", { text: t("ui.markdown_detail_draft") });
-    const detail = this.contentEl.createEl("textarea", { cls: "vam-task-input", text: this.detail });
-    detail.rows = 16;
-    detail.setAttr("aria-label", t("ui.markdown_detail_draft"));
-    const status = this.contentEl.createEl("p", { cls: "vam-next-status", attr: { "aria-live": "polite" } });
-    new import_obsidian15.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => this.close())).addButton(
-      (button) => button.setButtonText(t("ui.discard_synthesis")).onClick(() => {
-        this.discard();
-        this.close();
-      })
-    ).addButton(
-      (button) => button.setButtonText(t("ui.confirm_update_to_parent_topic")).setCta().onClick(() => {
-        button.setDisabled(true);
-        void this.confirm(summary.value, detail.value).then(
-          () => this.close(),
-          (error) => {
-            status.setText(error instanceof Error ? error.message : String(error));
-            button.setDisabled(false);
-          }
-        );
-      })
-    );
+    this.renderer.load();
+    const intro = this.contentEl.createEl("p", { cls: "vam-draft-intro", text: this.review.intro });
+    if ((_a = this.review.currentSummary) == null ? void 0 : _a.trim()) {
+      const current = this.contentEl.createEl("details", { cls: "vam-draft-current" });
+      current.createEl("summary", { text: t("ui.current_summary") });
+      current.createEl("p", { text: this.review.currentSummary });
+    }
+    const toolbar = this.contentEl.createDiv("vam-draft-toolbar");
+    toolbar.createEl("strong", { text: t("ui.ai_draft") });
+    const toggle = toolbar.createEl("button", { text: t("ui.edit_draft"), cls: "vam-draft-toggle" });
+    toggle.setAttr("aria-pressed", "false");
+    const section3 = (label, value, rows) => {
+      const wrap = this.contentEl.createDiv("vam-draft-section");
+      wrap.createEl("h4", { text: label });
+      const preview = wrap.createDiv("vam-draft-preview markdown-rendered");
+      const input = wrap.createEl("textarea", { cls: "vam-task-input", text: value });
+      input.rows = rows;
+      input.hidden = true;
+      input.setAttr("aria-label", label);
+      return { preview, input };
+    };
+    const summary = section3(t("ui.draft_summary"), this.summary, 4);
+    const detail = section3(t("ui.draft_detail"), this.detail, 16);
+    const generations = /* @__PURE__ */ new WeakMap();
+    const show = (target, markdown) => {
+      var _a2, _b;
+      const state = (_a2 = generations.get(target)) != null ? _a2 : { count: 0 };
+      const generation = ++state.count;
+      if (state.child) this.renderer.removeChild(state.child);
+      const child = this.renderer.addChild(new import_obsidian15.Component());
+      state.child = child;
+      generations.set(target, state);
+      target.empty();
+      const fallback = () => {
+        if (state.count !== generation) return;
+        target.empty();
+        target.setText(markdown);
+      };
+      try {
+        void import_obsidian15.MarkdownRenderer.render(this.app, markdown, target, (_b = this.review.sourcePath) != null ? _b : "", child).catch(fallback);
+      } catch (e) {
+        fallback();
+      }
+    };
+    let editing = false;
+    const setEditing = (value) => {
+      editing = value;
+      toggle.setText(t(value ? "ui.preview_draft" : "ui.edit_draft"));
+      toggle.setAttr("aria-pressed", String(value));
+      for (const part of [summary, detail]) {
+        part.preview.hidden = value;
+        part.input.hidden = !value;
+      }
+      if (value) summary.input.focus();
+      else {
+        show(summary.preview, summary.input.value);
+        show(detail.preview, detail.input.value);
+      }
+    };
+    toggle.addEventListener("click", () => setEditing(!editing));
+    setEditing(false);
+    intro.tabIndex = -1;
+    intro.focus();
+    const actions = reviewActions(this);
+    const status = actions.createSpan({
+      cls: "vam-next-actions-note vam-next-status",
+      attr: { "aria-live": "polite" }
+    });
+    if (this.discard) {
+      const discard = actions.createEl("button", { text: t("ui.discard_synthesis"), cls: "vam-discard" });
+      discard.addEventListener("click", () => {
+        var _a2;
+        if (confirm.disabled) return;
+        if (this.discardArmed) {
+          this.disarmDiscard(discard);
+          (_a2 = this.discard) == null ? void 0 : _a2.call(this);
+          this.close();
+          return;
+        }
+        this.discardArmed = window.setTimeout(() => {
+          this.disarmDiscard(discard);
+          status.setText("");
+        }, 5e3);
+        discard.setText(t("ui.discard_confirm"));
+        discard.addClass("mod-warning");
+        status.setText(t("ui.discard_confirm_hint"));
+      });
+    }
+    const cancelButton = actions.createEl("button", { text: t("ui.cancel") });
+    cancelButton.addEventListener("click", () => this.close());
+    const confirm = actions.createEl("button", { text: this.review.confirmLabel, cls: "mod-cta" });
+    confirm.addEventListener("click", () => {
+      confirm.disabled = true;
+      cancelButton.disabled = true;
+      void Promise.resolve(this.confirm(summary.input.value, detail.input.value)).then(
+        () => this.close(),
+        (error) => {
+          status.setText(error instanceof Error ? error.message : String(error));
+          confirm.disabled = false;
+          cancelButton.disabled = false;
+        }
+      );
+    });
+  }
+  disarmDiscard(button) {
+    window.clearTimeout(this.discardArmed);
+    this.discardArmed = 0;
+    button.setText(t("ui.discard_synthesis"));
+    button.removeClass("mod-warning");
+  }
+  onClose() {
+    window.clearTimeout(this.discardArmed);
+    this.renderer.unload();
+    this.contentEl.empty();
   }
 };
 var ChildProposalModal = class extends import_obsidian15.Modal {
@@ -21500,60 +21662,32 @@ var ChildProposalModal = class extends import_obsidian15.Modal {
   onOpen() {
     this.titleEl.setText(t("ui.ai_subtopic_proposals"));
     this.contentEl.createEl("p", { text: t("ui.select_subtopics_to_create_you_can_edit_their_names_and_task") });
-    const rows = [];
-    for (const item of this.suggestions) {
-      const row = this.contentEl.createDiv("vam-proposal");
-      if (item.parentTitle) row.createEl("p", { text: t("ui.child_of_0", item.parentTitle) });
-      const check = row.createEl("input", { type: "checkbox" });
-      check.checked = true;
-      check.setAttr("aria-label", t("ui.select_proposal_0", item.title));
-      const titleField = row.createEl("label", { cls: "vam-proposal-field" });
-      titleField.createSpan({ text: t("ui.subtopic_name") });
-      const title = titleField.createEl("input", { type: "text", value: item.title });
-      title.setAttr("aria-label", t("ui.proposal_name"));
-      const taskField = row.createEl("label", { cls: "vam-proposal-field" });
-      taskField.createSpan({ text: t("ui.research_task") });
-      const task = taskField.createEl("textarea", { text: item.task });
-      task.rows = 2;
-      task.setAttr("aria-label", t("ui.proposal_task"));
-      const contributionField = row.createEl("label", { cls: "vam-proposal-field" });
-      contributionField.createSpan({ text: t("ui.contribution_to_the_parent_topic") });
-      const contribution = contributionField.createEl("textarea", { text: item.contribution });
-      contribution.rows = 2;
-      contribution.placeholder = t("ui.contribution_to_the_parent_topic");
-      contribution.setAttr("aria-label", t("ui.contribution_to_the_parent_topic"));
-      rows.push({ item, check, title, task, contribution });
-    }
-    new import_obsidian15.Setting(this.contentEl).addButton((b) => b.setButtonText(t("ui.cancel")).onClick(() => this.close())).addButton(
-      (b) => b.setButtonText(t("ui.create_subtopics")).setCta().onClick(() => {
-        const selected = rows.filter((row) => row.check.checked && row.title.value.trim());
-        const renamed = new Map(
-          selected.filter((row) => !row.item.parentTitle).map((row) => [row.item.title, row.title.value.trim()])
-        );
-        const rootNames = selected.filter((row) => !row.item.parentTitle).map((row) => row.title.value.trim());
-        if (new Set(rootNames).size !== rootNames.length) {
-          new import_obsidian15.Notice(t("ui.first_level_topic_names_must_be_unique"));
-          return;
-        }
-        if (selected.some((row) => row.item.parentTitle && !renamed.has(row.item.parentTitle))) {
-          new import_obsidian15.Notice(t("ui.select_the_parent_topic_before_its_child"));
-          return;
-        }
-        this.close();
-        this.submit(
-          selected.map((row) => ({
-            title: row.title.value.trim(),
-            task: row.task.value.trim(),
-            contribution: row.contribution.value.trim(),
-            parentTitle: row.item.parentTitle ? renamed.get(row.item.parentTitle) : ""
-          }))
-        );
-      })
-    );
+    const actions = reviewActions(this);
+    const status = actions.createSpan({
+      cls: "vam-next-actions-note vam-next-status",
+      attr: { "aria-live": "polite" }
+    });
+    actions.createEl("button", { text: t("ui.cancel") }).addEventListener("click", () => this.close());
+    const create = actions.createEl("button", { cls: "mod-cta" });
+    const list = renderProposalList(this.contentEl, this.suggestions, (count) => {
+      create.setText(t("ui.create_0_subtopics", count));
+      create.disabled = count === 0;
+      status.setText("");
+    });
+    create.setText(t("ui.create_0_subtopics", list.count()));
+    create.addEventListener("click", () => {
+      const picked = list.selected();
+      if (typeof picked === "string") {
+        status.setText(picked);
+        return;
+      }
+      this.close();
+      this.submit(picked);
+    });
   }
 };
 var IntegrationModal = class extends import_obsidian15.Modal {
-  constructor(app, names2, _defaultRules, submit) {
+  constructor(app, names2, submit) {
     super(app);
     this.names = names2;
     this.submit = submit;
@@ -21569,7 +21703,10 @@ var IntegrationModal = class extends import_obsidian15.Modal {
     for (const name of this.names) sources2.createDiv({ text: name });
     const titleLabel = this.contentEl.createEl("label", { cls: "vam-field" });
     titleLabel.createSpan({ text: t("ui.new_topic_name") });
-    const title = titleLabel.createEl("input", { type: "text", value: t("ui.synthesize_topics") });
+    const title = titleLabel.createEl("input", {
+      type: "text",
+      value: this.names.length > 2 ? t("ui.synthesis_of_0_and_1_more", this.names[0], this.names.length) : t("ui.synthesis_of_0", this.names.join(t("ui.list_separator")))
+    });
     title.setAttr("aria-label", t("ui.new_topic_name"));
     const goalLabel = this.contentEl.createEl("label", { cls: "vam-field" });
     goalLabel.createSpan({ text: t("ui.synthesis_goal") });
@@ -21583,7 +21720,22 @@ var IntegrationModal = class extends import_obsidian15.Modal {
       this.close();
       this.submit(title.value.trim(), goal.value.trim(), "");
     };
-    new import_obsidian15.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => this.close())).addButton((button) => button.setButtonText(t("ui.next_set_ai_sources")).setCta().onClick(save));
+    const actions = reviewActions(this);
+    const status = actions.createSpan({
+      cls: "vam-next-actions-note vam-next-status",
+      attr: { "aria-live": "polite" }
+    });
+    actions.createEl("button", { text: t("ui.cancel") }).addEventListener("click", () => this.close());
+    const next = actions.createEl("button", { text: t("ui.next_set_ai_sources"), cls: "mod-cta" });
+    next.addEventListener("click", save);
+    const check = () => {
+      const missing = !title.value.trim() || !goal.value.trim();
+      next.disabled = missing;
+      status.setText(missing ? t("ui.synthesis_needs_name_and_goal") : "");
+    };
+    title.addEventListener("input", check);
+    goal.addEventListener("input", check);
+    check();
     title.focus();
     title.select();
   }
@@ -26200,9 +26352,18 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       });
       if (drafted) drafted(result, save);
       else
-        new AiDraftModal(this.app, result.summary, result.detail, t("ui.confirm_update_to_parent_topic"), () => {
-          void save(result.summary, result.detail);
-        }).open();
+        new DraftReviewModal(
+          this.app,
+          result.summary,
+          result.detail,
+          {
+            intro: t("ui.draft_replaces_0", note.title),
+            currentSummary: note.summary,
+            confirmLabel: t("ui.confirm_update_to_parent_topic"),
+            sourcePath: node.path
+          },
+          save
+        ).open();
     } catch (error) {
       if (((_j = options == null ? void 0 : options.signal) == null ? void 0 : _j.aborted) || error instanceof Error && error.name === "AbortError") {
         await this.plugin.repo.updateNote(node.path, { status: note.status });
@@ -26339,12 +26500,20 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     }
   }
   reviewSynthesisDraft(node) {
+    var _a;
     const task = this.synthesisTasks.get(node.path);
     if (!task || task.state !== "draft" || !task.draft || !task.save) return;
-    new SynthesisDraftModal(
+    const note = this.notes.get(node.id);
+    new DraftReviewModal(
       this.app,
       task.draft.summary,
       task.draft.detail,
+      {
+        intro: t("ui.draft_replaces_0", (_a = note == null ? void 0 : note.title) != null ? _a : ""),
+        currentSummary: note == null ? void 0 : note.summary,
+        confirmLabel: t("ui.confirm_update_to_parent_topic"),
+        sourcePath: node.path
+      },
       async (summary, detail) => {
         await task.save(summary, detail);
         if (this.synthesisTasks.get(node.path) === task) this.synthesisTasks.delete(node.path);
@@ -26382,11 +26551,9 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     }
     const nodes = [...this.multiSelected].map((id) => this.map.nodes.find((node) => node.id === id)).filter((node) => !!node);
     const notes = nodes.map((node) => this.notes.get(node.id)).filter((note) => !!note);
-    const sharedRules = notes.length && notes.every((note) => note.rules === notes[0].rules) ? notes[0].rules : "";
     new IntegrationModal(
       this.app,
       notes.map((note) => note.title),
-      sharedRules,
       (title, goal, rules) => {
         var _a;
         const selectedLabel = t("ui.reference_selected_topics_included", notes.map((note) => note.title).join(", "));
@@ -26533,12 +26700,13 @@ ${note.detail.trim()}` : "",
   }
   reviewIntegratedDraft(task) {
     if (!task.draft) return;
-    new AiDraftModal(
+    new DraftReviewModal(
       this.app,
       task.draft.summary,
       task.draft.detail,
-      t("ui.confirm_new_synthesis_topic"),
-      () => this.enqueue(
+      { intro: t("ui.draft_creates_0", task.title), confirmLabel: t("ui.confirm_new_synthesis_topic") },
+      // Return the save so a failure keeps the dialog, and the user's edits, open with the error.
+      (summary, detail) => this.plugin.mutate(
         () => {
           var _a;
           return this.saveIntegratedNode(
@@ -26547,7 +26715,7 @@ ${note.detail.trim()}` : "",
             task.goal,
             task.rules,
             this.plugin.settings.cliModel,
-            task.draft,
+            { ...task.draft, summary, detail },
             (_a = task.options.outputLanguage) != null ? _a : this.plugin.settings.language,
             task
           );
