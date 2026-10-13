@@ -16,14 +16,42 @@ test('reference batches include every selected Markdown source, deduplicate over
   assert.equal(joined.match(/duplicate/g), null);
   assert.match(joined, /part 1\/4/); assert.match(joined, /part 4\/4/);
   assert.match(api.referenceCatalog(groups), /\[S2\] External file \(plain path\): \/Volumes\/Refs\/source\.md/);
-  assert.equal(api.resolveReferenceLinks('See [[source.md]]', groups), 'See External source: /Volumes/Refs/source.md');
-  assert.equal(api.resolveReferenceLinks('Vault [S1], external [S2]', groups), 'Vault [[Maps/A/one.md]], external External source: /Volumes/Refs/source.md');
+  const label = path => api.sourceFootnoteLabel(path);
+  const one = label('Maps/A/one.md');
+  assert.match(one, /^src-[0-9a-z]+$/);
+  assert.equal(api.resolveDetailReferences('See [[source.md]]', groups), 'See External source: /Volumes/Refs/source.md');
+  // Intentional contract change: [S#] becomes a numbered footnote plus one definition, not a long [[path]] link.
+  assert.equal(api.resolveDetailReferences('Vault [S1], external [S2]', groups), 'Vault [^1], external [^2]\n\n[^1]: [[Maps/A/one.md|one]]\n[^2]: External source: /Volumes/Refs/source.md\n');
   const namesake = [{ id: 'mixed', documents: [{ path: 'Vault/source.md', content: 'vault' }, { path: '/Volumes/Refs/source.md', external: true, content: 'external' }] }];
-  assert.equal(api.resolveReferenceLinks('Vault [S1], external [S2]', namesake), 'Vault [[Vault/source.md]], external External source: /Volumes/Refs/source.md');
-  assert.equal(api.resolveReferenceLinks('Ambiguous [[source.md]]', namesake), 'Ambiguous Source to confirm: source.md');
-  assert.equal(api.resolveReferenceLinks('Exact [[Vault/source.md]]', namesake), 'Exact [[Vault/source.md]]');
-  assert.equal(api.resolveReferenceLinks('Unknown [S3]', namesake), 'Unknown Source to confirm: [S3]');
-  assert.equal(api.resolveReferenceLinks('See [[same.md]]', [{ id: 'a', documents: [{ path: '/a/same.md', external: true, content: '' }, { path: '/b/same.md', external: true, content: '' }] }]), 'See Source to confirm: same.md');
+  assert.equal(api.resolveDetailReferences('Vault [S1], external [S2]', namesake), 'Vault [^1], external [^2]\n\n[^1]: [[Vault/source.md|source]]\n[^2]: External source: /Volumes/Refs/source.md\n');
+  assert.equal(api.resolveDetailReferences('Ambiguous [[source.md]]', namesake), 'Ambiguous Source to confirm: source.md');
+  assert.equal(api.resolveDetailReferences('Exact [[Vault/source.md]]', namesake), 'Exact [[Vault/source.md]]');
+  assert.equal(api.resolveDetailReferences('Unknown [S3]', namesake), 'Unknown Source to confirm: [S3]');
+  assert.equal(api.resolveDetailReferences('See [[same.md]]', [{ id: 'a', documents: [{ path: '/a/same.md', external: true, content: '' }, { path: '/b/same.md', external: true, content: '' }] }]), 'See Source to confirm: same.md');
+});
+test('source footnotes: numbered by first use, one definition per source, placed in the evidence section', () => {
+  const api = load('ai/reference-materials.ts', { obsidian });
+  const groups = [{ id: 'g', documents: [{ path: 'Maps/A/one.md', content: '' }, { path: 'Maps/B/two.md', content: '' }, { path: '/Volumes/Refs/x.md', external: true, content: '' }] }];
+  const zh = '### 核心結論\n\n甲[S2]乙[S1]丙[S2]外部[S3]\n\n### 證據與來源\n\n- 文字證據\n\n### 取捨與限制\n\n限制';
+  const out = api.resolveDetailReferences(zh, groups);
+  assert.ok(out.includes('甲[^1]乙[^2]丙[^1]外部[^3]'));
+  assert.ok(out.includes('- 文字證據\n\n[^1]: [[Maps/B/two.md|two]]\n[^2]: [[Maps/A/one.md|one]]\n[^3]: External source: /Volumes/Refs/x.md\n\n### 取捨與限制'));
+  assert.equal(out.split('[^1]:').length, 2);
+  const en = api.resolveDetailReferences('### Core conclusions\n\nA[S2]\n\n### Evidence and sources\n\nnotes\n\n### Open questions\n\nq', groups);
+  assert.ok(en.includes('notes\n\n[^1]: [[Maps/B/two.md|two]]\n\n### Open questions'));
+  // Absent evidence section: appended at the end.
+  assert.equal(api.resolveDetailReferences('Body[S1]', groups), 'Body[^1]\n\n[^1]: [[Maps/A/one.md|one]]\n');
+  // A definition the reply already wrote is reused, not duplicated; unused definitions are dropped.
+  assert.equal(api.resolveDetailReferences('Body[S1]\n\n[^9]: [[Maps/Z/unused.md|unused]]', groups), 'Body[^1]\n\n[^1]: [[Maps/A/one.md|one]]\n');
+  assert.equal(api.resolveDetailReferences('Body[^7]\n\n[^7]: [[Maps/A/one.md|one]]', groups), 'Body[^1]\n\n[^1]: [[Maps/A/one.md|one]]\n');
+  // Summary: markers removed, no footnotes.
+  assert.equal(api.resolveSummaryReferences('結論 [S1]。重點[S2] [S9] end', groups), '結論。重點 end');
+  assert.equal(api.resolveSummaryReferences('See [[x.md]] [S1]', groups), 'See External source: /Volumes/Refs/x.md');
+  // canonicalDetail keeps definitions inside the evidence section.
+  const { canonicalDetail } = load('main.ts', { obsidian });
+  const evidence = canonicalDetail(out, 'zh-TW').split('### 證據與來源')[1].split('### 取捨與限制')[0];
+  assert.ok(evidence.includes('[^1]:') && evidence.includes('[^2]:') && evidence.includes('[^3]:'));
+  assert.ok(canonicalDetail(api.resolveDetailReferences('### Core conclusions\n\nA[S1]', groups), 'en').includes('### Evidence and sources\n\n[^1]: [[Maps/A/one.md|one]]'));
 });
 test('reference picker keeps source groups compact, collapsible and task-local', async () => {
   const css = fs.readFileSync(path.join(__dirname, '..', '..', 'styles.css'), 'utf8');
@@ -80,4 +108,91 @@ test('reference picker keeps source groups compact, collapsible and task-local',
   picker.addFiles([archived]); chosen = await picker.ready();
   assert.equal(chosen.groups.flatMap(group => group.documents).length, 3);
   assert.ok(chosen.groups.flatMap(group => group.documents).some(doc => doc.content.endsWith('Old')));
+});
+test('source footnotes survive reruns: numbers stay consistent, kept references get their definitions back, dead ones become a source to confirm', () => {
+  const api = load('ai/reference-materials.ts', { obsidian });
+  const groups = [{ id: 'g', documents: [{ path: 'Maps/A/one.md', content: '' }, { path: 'Maps/B/two.md', content: '' }] }];
+  const previous = 'Old[^1] and[^2]\n\n[^1]: [[Maps/Old/gone.md|gone]]\n[^2]: [[Maps/A/one.md|one]]';
+  // The reply keeps [^1] and [^2] without definitions and cites one.md again as [S1] and two.md as [S2].
+  const rerun = api.resolveDetailReferences('New[S2] kept[^1] again[S1] same[^2]', groups, previous);
+  assert.equal(rerun, 'New[^1] kept[^2] again[^3] same[^3]\n\n[^1]: [[Maps/B/two.md|two]]\n[^2]: [[Maps/Old/gone.md|gone]]\n[^3]: [[Maps/A/one.md|one]]\n');
+  // A reference after which a colon follows mid-line is still a reference.
+  assert.equal(api.resolveDetailReferences('Fact[S1]: more', groups), 'Fact[^1]: more\n\n[^1]: [[Maps/A/one.md|one]]\n');
+  // A source footnote nothing can restore becomes a source to confirm; a footnote VAM does not own stays as written.
+  assert.equal(api.resolveDetailReferences('C[^src-dead000]', []), 'C Source to confirm: src-dead000');
+  assert.equal(api.resolveDetailReferences('C[^4]', []), 'C[^4]');
+  // The same note with and without a display name gets one number.
+  assert.equal(api.resolveDetailReferences('A[^7] B[S1]\n\n[^7]: [[Maps/A/one.md]]', groups), 'A[^1] B[^1]\n\n[^1]: [[Maps/A/one.md]]\n');
+  // Summary punctuation left by removed markers is tidied.
+  assert.equal(api.resolveSummaryReferences('[S1] 開頭（[S2]）、see [S1], [S2].', groups), '開頭、see.');
+  assert.equal(api.resolveSummaryReferences('結論（[S1]、[S2]）。', groups), '結論。');
+  assert.equal(api.resolveSummaryReferences('依據 [S1]、[S2]。A [S1], B', groups), '依據。A, B');
+  // Only marker runs are removed; ordinary brackets and punctuation stay as written.
+  for (const text of ['Call foo() then bar()', 'Use .NET and a .gitignore file', 'smile :) ok', 'U.S. (e.g.) 3, 4.'])
+    assert.equal(api.resolveSummaryReferences(text, groups), text);
+});
+test('canonicalDetail gathers source footnote definitions into the evidence section', () => {
+  const { canonicalDetail } = load('main.ts', { obsidian });
+  const out = canonicalDetail('### Core conclusions\n\nA[^1]\n\n### Update log\n\n- today\n[^1]: [[a.md|a]]', 'en');
+  assert.ok(out.includes('### Evidence and sources\n\n[^1]: [[a.md|a]]\n\n### Tradeoffs and limitations'));
+  assert.ok(out.includes('### Update log\n\n- today'));
+  assert.equal(out.split('[^1]:').length, 2);
+  const flat = canonicalDetail('Body[^1]\n\n[^1]: [[a.md|a]]', 'en');
+  assert.ok(flat.startsWith('### Core conclusions\n\nBody[^1]\n\n### Key knowledge'));
+  assert.ok(flat.includes('### Evidence and sources\n\n[^1]: [[a.md|a]]'));
+});
+test('source footnotes leave code, links and the writer\'s own footnotes untouched', () => {
+  const api = load('ai/reference-materials.ts', { obsidian });
+  const { canonicalDetail } = load('main.ts', { obsidian });
+  const groups = [{ id: 'g', documents: [{ path: 'Maps/A/one.md', content: '' }] }];
+  const code = 'Match `/[^a-z]+/` here[S1].\n\n```js\nconst re = /[^0-9]/;\n[^x]: code line\n```\n\nSee [^foo](https://x.y) and ![^img](a.png).';
+  const out = api.resolveDetailReferences(code, groups);
+  assert.ok(out.startsWith('Match `/[^a-z]+/` here[^1].\n\n```js\nconst re = /[^0-9]/;\n[^x]: code line\n```\n\nSee [^foo](https://x.y) and ![^img](a.png).'));
+  assert.ok(out.endsWith('[^1]: [[Maps/A/one.md|one]]\n'));
+  // Without sources the resolver may still run (the detail contains "[^"); it must change nothing here.
+  const plain = 'Use `[^x]` and\n\n```\n[^1]: not a footnote\n```';
+  assert.equal(api.resolveDetailReferences(plain, []), plain);
+  // The writer's own footnote keeps its label, text and continuation line; source numbers skip its number.
+  const own = 'Claim[^1] and fact[S1].\n\n[^1]: My own note\n    continued here';
+  assert.equal(api.resolveDetailReferences(own, groups), 'Claim[^1] and fact[^2].\n\n[^1]: My own note\n    continued here\n\n[^2]: [[Maps/A/one.md|one]]\n');
+  // canonicalDetail never moves lines out of a code block.
+  const canon = canonicalDetail('### Core conclusions\n\n```\n[^x]: [[a.md|a]]\n```', 'en');
+  assert.ok(canon.includes('```\n[^x]: [[a.md|a]]\n```'));
+  assert.ok(!canon.split('### Evidence and sources')[1].split('### ')[0].includes('[^x]'));
+});
+test('source footnotes never reuse the number of a footnote kept as written', () => {
+  const api = load('ai/reference-materials.ts', { obsidian });
+  const groups = [{ id: 'g', documents: [{ path: 'Maps/A/one.md', content: '' }, { path: 'Maps/B/two.md', content: '' }] }];
+  // The reply kept the writer's [^2] but dropped its definition, and cites two new sources.
+  const out = api.resolveDetailReferences('Claim[^2] fact[S1] other[S2]', groups, 'Claim[^2]\n\n[^2]: my own remark');
+  assert.equal(out, 'Claim[^2] fact[^1] other[^3]\n\n[^1]: [[Maps/A/one.md|one]]\n[^3]: [[Maps/B/two.md|two]]\n');
+  assert.equal(api.resolveDetailReferences('Claim[^1] fact[S1]', groups), 'Claim[^1] fact[^2]\n\n[^2]: [[Maps/A/one.md|one]]\n');
+  // A fence opened with an info string is not closed by another info-string line.
+  const fenced = '```js\nx\n```js\ny\n```\n\nAfter[S1]';
+  assert.equal(api.resolveDetailReferences(fenced, groups), '```js\nx\n```js\ny\n```\n\nAfter[^1]\n\n[^1]: [[Maps/A/one.md|one]]\n');
+  // The same note written with and without ".md" shares one number.
+  assert.equal(api.resolveDetailReferences('A[^7] B[S1]\n\n[^7]: [[Maps/A/one]]', groups), 'A[^1] B[^1]\n\n[^1]: [[Maps/A/one]]\n');
+});
+test('source footnotes change nothing they do not own: a corpus round-trips unchanged and processing is idempotent', () => {
+  const api = load('ai/reference-materials.ts', { obsidian });
+  const groups = [{ id: 'g', documents: [{ path: 'Maps/A/one.md', content: '' }, { path: '/Volumes/Refs/x.md', external: true, content: '' }] }];
+  const root = path.join(__dirname, '..', '..');
+  const files = [];
+  const walk = dir => { for (const entry of fs.readdirSync(dir, { withFileTypes: true })) { if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue; const full = path.join(dir, entry.name); if (entry.isDirectory()) walk(full); else if (entry.name.endsWith('.md')) files.push(full); } };
+  for (const dir of ['samples', 'tests', 'experiences', 'core', 'ai']) if (fs.existsSync(path.join(root, dir))) walk(path.join(root, dir));
+  const corpus = [
+    ...files.map(file => fs.readFileSync(file, 'utf8')),
+    'Regex `/[^a-z]+/` and ``a`b [^1]`` stay.\n\n```js\nconst re = /[^0-9]/;\n[^x]: code\n```',
+    'Mine[^1] and[^note]\n\n[^1]: My remark\n    more\n[^note]: Another\n\nLink [^foo](https://x.y) and ![^img](a.png)',
+    '~~~\n[^1]: [[a.md|a]]\n~~~\n\n|a|b|\n|-|-|\n|[^x]|y|'
+  ];
+  for (const text of corpus) {
+    if (/\[S\d+\]/.test(text)) continue;
+    const once = api.resolveDetailReferences(text, []);
+    const owned = text.split('\n').some(line => /^\[\^[^\]\s]+\]:\s*(\[\[[^\]]+\]\]\s*$|External source:|外部來源：)/.test(line) || /\[\^src-/.test(line));
+    if (!owned) assert.equal(once.replace(/\n{2,}/g, '\n\n'), text.trimEnd().replace(/\n{2,}/g, '\n\n'), text.slice(0, 80));
+    assert.equal(api.resolveDetailReferences(once, [], once), once, `idempotent: ${text.slice(0, 80)}`);
+  }
+  const cited = api.resolveDetailReferences('### Core conclusions\n\nA[S2] b[S1] c[S2]\n\n### Evidence and sources\n\nnotes', groups);
+  assert.equal(api.resolveDetailReferences(cited, groups, cited), cited);
 });

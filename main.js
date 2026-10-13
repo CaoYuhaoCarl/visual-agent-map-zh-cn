@@ -10058,6 +10058,124 @@ function withThinkingOrigin(context, note) {
 var import_node_crypto9 = require("node:crypto");
 var import_obsidian14 = require("obsidian");
 
+// ai/result-utils.ts
+var SENTENCE_END = /[。！？；!?;]/;
+function truncateSummary(value, limit = 80) {
+  var _a;
+  const characters = Array.from(value.trim());
+  if (characters.length <= limit) return characters.join("");
+  const floor = Math.floor(limit / 2);
+  for (let index = limit - 1; index >= floor; index--) {
+    const character = characters[index];
+    if (SENTENCE_END.test(character) || character === "." && /\s/.test((_a = characters[index + 1]) != null ? _a : ""))
+      return characters.slice(0, index + 1).join("");
+  }
+  const window2 = characters.slice(0, limit - 1);
+  let gap = -1;
+  for (let index = window2.length - 1; index >= floor && gap < 0; index--) if (/\s/.test(window2[index])) gap = index;
+  return `${(gap >= 0 ? window2.slice(0, gap) : window2).join("").trimEnd()}\u2026`;
+}
+var LEGACY_SEARCH_FAILURE = /\bresearch status\s*:\s*(?:not searched|search failed|unavailable)\b/i;
+function reportedSearchFailure(result) {
+  if (result.searchStatus !== void 0) return result.searchStatus !== "completed";
+  return LEGACY_SEARCH_FAILURE.test(`${result.summary}
+${result.detail}`);
+}
+function fencedLines(lines) {
+  let fence = null;
+  return lines.map((line) => {
+    const open = /^\s*(`{3,}|~{3,})/.exec(line);
+    if (fence) {
+      const close = /^\s*(`{3,}|~{3,})\s*$/.exec(line);
+      if (close && close[1][0] === fence[0] && close[1].length >= fence.length) fence = null;
+      return true;
+    }
+    if (open) {
+      fence = open[1];
+      return true;
+    }
+    return false;
+  });
+}
+function sourceFootnoteDefinition(line) {
+  const match = /^\[\^([^\]\s]+)\]:[ \t]*(.*)$/.exec(line);
+  if (!match) return null;
+  const target = match[2].trim();
+  const external = ["zh-TW", "en"].some(
+    (locale) => target.startsWith(translate(locale, "note.external_source_0", "").trim())
+  );
+  return match[1].startsWith("src-") || /^\[\[[^\]]+\]\]$/.test(target) || external ? { label: match[1], target } : null;
+}
+function canonicalDetail(value, language2 = "zh-TW") {
+  var _a, _b;
+  const detail = value.trim();
+  const keys = [
+    "detail.core_conclusions",
+    "detail.key_knowledge",
+    "detail.evidence_and_sources",
+    "detail.tradeoffs_and_limitations",
+    "detail.open_questions",
+    "detail.update_log"
+  ];
+  const headings = keys.map((key2) => translate(language2, key2));
+  const aliases = /* @__PURE__ */ new Map();
+  for (let index = 0; index < keys.length; index++)
+    for (const locale of ["zh-TW", "en"])
+      aliases.set(translate(locale, keys[index]).toLocaleLowerCase(), index);
+  const sections = /* @__PURE__ */ new Map();
+  const leading = [];
+  const footnotes = [];
+  let current = null;
+  const detailLines = detail.split("\n");
+  const code = fencedLines(detailLines);
+  for (const [index, line] of detailLines.entries()) {
+    if (!code[index] && sourceFootnoteDefinition(line)) {
+      footnotes.push(line);
+      continue;
+    }
+    const heading = /^###\s+(.+?)\s*$/.exec(line);
+    const match = heading ? aliases.get(heading[1].toLocaleLowerCase()) : void 0;
+    if (match !== void 0) {
+      current = match;
+      if (!sections.has(match)) sections.set(match, []);
+      continue;
+    }
+    (current === null ? leading : sections.get(current)).push(line);
+  }
+  if (sections.size === 0) sections.set(0, [leading.join("\n").trim()]);
+  else if (leading.join("\n").trim()) sections.set(0, [leading.join("\n").trim(), ...(_a = sections.get(0)) != null ? _a : []]);
+  if (footnotes.length) {
+    const evidence = ((_b = sections.get(2)) != null ? _b : []).join("\n").trim();
+    sections.set(2, [[evidence, footnotes.join("\n")].filter(Boolean).join("\n\n")]);
+  }
+  const empty = translate(language2, "note.no_new_information");
+  return headings.map((heading, index) => {
+    var _a2;
+    return `### ${heading}
+
+${((_a2 = sections.get(index)) == null ? void 0 : _a2.join("\n").trim()) || empty}`;
+  }).join("\n\n");
+}
+function visualReferencesMarkdown(references2 = [], language2 = "zh-TW") {
+  return references2.map((item) => {
+    const title = item.title.trim() || translate(language2, "detail.visual_reference");
+    const imageUrl = item.imageUrl.trim();
+    const sourceUrl = item.sourceUrl.trim();
+    if (!imageUrl || !sourceUrl) return "";
+    const palette = item.palette.map((color) => color.trim()).filter(Boolean).join(" / ");
+    return [
+      `**${title}**`,
+      "",
+      `![${title}](${imageUrl})`,
+      "",
+      translate(language2, "detail.source", sourceUrl),
+      item.description.trim() ? translate(language2, "detail.purpose", item.description.trim()) : "",
+      palette ? translate(language2, "detail.palette", palette) : "",
+      item.formula.trim() ? translate(language2, "detail.reusable_formula", item.formula.trim()) : ""
+    ].filter(Boolean).join("\n");
+  }).filter(Boolean).join("\n\n");
+}
+
 // ai/reference-materials.ts
 async function readMarkdownFile(app, file) {
   if (file.extension.toLowerCase() !== "md")
@@ -10114,14 +10232,8 @@ function referenceCatalog(groups) {
     (document2, index) => `[S${index + 1}] ${document2.external ? "External file (plain path)" : "Vault note (wikilink)"}: ${document2.path}`
   ).join("\n");
 }
-function resolveReferenceLinks(detail, groups) {
-  const documents = dedupeReferenceGroups(groups).flatMap((group) => group.documents);
-  const identified = detail.replace(/\[S(\d+)\]/g, (original, number) => {
-    const document2 = documents[Number(number) - 1];
-    if (!document2) return t("note.source_unconfirmed_0", original);
-    return document2.external ? t("note.external_source_0", document2.path) : `[[${document2.path}]]`;
-  });
-  return identified.replace(/\[\[([^\]]+)\]\]/g, (original, target) => {
+function resolveWikilinks(text11, documents) {
+  return text11.replace(/\[\[([^\]]+)\]\]/g, (original, target) => {
     const name = target.split("|")[0].trim();
     const exact = documents.filter((document2) => document2.path === name);
     const matches = exact.length ? exact : documents.filter((document2) => {
@@ -10133,6 +10245,146 @@ function resolveReferenceLinks(detail, groups) {
     if (matches.length !== 1 || !matches[0].external) return original;
     return t("note.external_source_0", matches[0].path);
   });
+}
+function sourceFootnoteLabel(path) {
+  let hash = 2166136261;
+  for (let index = 0; index < path.length; index++) {
+    hash ^= path.charCodeAt(index);
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  return `src-${hash.toString(36).padStart(7, "0")}`;
+}
+function resolveSummaryReferences(summary, groups) {
+  const documents = dedupeReferenceGroups(groups).flatMap((group) => group.documents);
+  const run = String.raw`\[S\d+\](?:\s*[,，、;；]?\s*\[S\d+\])*`;
+  const stripped = summary.replace(new RegExp(String.raw`[ \t]*[（(]\s*${run}\s*[）)]`, "g"), "").replace(new RegExp(String.raw`[ \t]*${run}`, "g"), "").trim();
+  return resolveWikilinks(stripped, documents);
+}
+var FOOTNOTE_REFERENCE = /\[\^([^\]\s]+)\](?!\()/g;
+function footnoteTarget(document2) {
+  var _a;
+  const basename = ((_a = document2.path.split("/").pop()) != null ? _a : document2.path).replace(/\.md$/i, "");
+  return document2.external ? t("note.external_source_0", document2.path) : `[[${document2.path}|${basename}]]`;
+}
+function targetKey(target) {
+  const link = /^\[\[([^\]|]+)/.exec(target);
+  return link ? link[1].trim().replace(/\.md$/i, "") : target;
+}
+function outsideInlineCode(line, edit) {
+  return line.split(/(`+[^`]*`+)/).map((part, index) => index % 2 ? part : edit(part)).join("");
+}
+function sourceDefinitions(detail) {
+  const lines = detail.split("\n");
+  const code = fencedLines(lines);
+  const definitions = /* @__PURE__ */ new Map();
+  lines.forEach((line, index) => {
+    const definition = code[index] ? null : sourceFootnoteDefinition(line);
+    if (definition) definitions.set(definition.label, definition.target);
+  });
+  return definitions;
+}
+function resolveDetailReferences(detail, groups, previousDetail = "") {
+  const documents = dedupeReferenceGroups(groups).flatMap((group) => group.documents);
+  const cited = /* @__PURE__ */ new Map();
+  const source = (line) => {
+    const identified = line.replace(/\[S(\d+)\]/g, (original, number2) => {
+      const document2 = documents[Number(number2) - 1];
+      if (!document2) return t("note.source_unconfirmed_0", original);
+      const label = sourceFootnoteLabel(document2.path);
+      cited.set(label, footnoteTarget(document2));
+      return `[^${label}]`;
+    });
+    return documents.length ? resolveWikilinks(identified, documents) : identified;
+  };
+  const lines = detail.split("\n");
+  const code = fencedLines(lines);
+  const body = [];
+  const bodyCode = [];
+  const defined = /* @__PURE__ */ new Map();
+  const reserved = /* @__PURE__ */ new Set();
+  lines.forEach((line, index) => {
+    if (!code[index]) {
+      const definition = sourceFootnoteDefinition(line);
+      if (definition) {
+        defined.set(definition.label, definition.target);
+        return;
+      }
+      const other = /^\[\^([^\]\s]+)\]:/.exec(line);
+      if (other) reserved.add(other[1]);
+    }
+    body.push(code[index] ? line : outsideInlineCode(line, source));
+    bodyCode.push(code[index]);
+  });
+  const previous = sourceDefinitions(previousDetail);
+  const byLabel = new Map(documents.map((document2) => [sourceFootnoteLabel(document2.path), document2]));
+  const targetOf = (label) => {
+    var _a, _b;
+    const target = (_b = (_a = cited.get(label)) != null ? _a : defined.get(label)) != null ? _b : previous.get(label);
+    if (target) return target;
+    const document2 = byLabel.get(label);
+    return document2 ? footnoteTarget(document2) : void 0;
+  };
+  body.forEach((line, index) => {
+    if (bodyCode[index]) return;
+    outsideInlineCode(line, (text12) => {
+      for (const [, label] of text12.matchAll(FOOTNOTE_REFERENCE))
+        if (!label.startsWith("src-") && !targetOf(label)) reserved.add(label);
+      return text12;
+    });
+  });
+  const numbers = /* @__PURE__ */ new Map();
+  const ordered = [];
+  let next = 0;
+  const number = (target) => {
+    const key2 = targetKey(target);
+    if (!numbers.has(key2)) {
+      do
+        next++;
+      while (reserved.has(String(next)));
+      numbers.set(key2, next);
+      ordered.push(`[^${next}]: ${target}`);
+    }
+    return numbers.get(key2);
+  };
+  const renumbered = body.map(
+    (line, index) => bodyCode[index] ? line : outsideInlineCode(
+      line,
+      (text12) => text12.replace(FOOTNOTE_REFERENCE, (original, label) => {
+        if (reserved.has(label)) return original;
+        const target = targetOf(label);
+        if (target) return `[^${number(target)}]`;
+        return label.startsWith("src-") ? ` ${t("note.source_unconfirmed_0", label)}` : original;
+      })
+    )
+  );
+  const compact = renumbered.filter(
+    (line, index) => bodyCode[index] || line.trim() || index === 0 || renumbered[index - 1].trim() || bodyCode[index - 1]
+  );
+  const text11 = compact.join("\n").trimEnd();
+  if (!ordered.length) return text11;
+  const headings = new Set(
+    ["zh-TW", "en"].map((locale) => translate(locale, "detail.evidence_and_sources").toLocaleLowerCase())
+  );
+  const textLines = text11.split("\n");
+  const textCode = fencedLines(textLines);
+  const start = textLines.findIndex((line, index) => {
+    const match = textCode[index] ? null : /^###\s+(.+?)\s*$/.exec(line);
+    return !!match && headings.has(match[1].toLocaleLowerCase());
+  });
+  if (start < 0) return `${text11}
+
+${ordered.join("\n")}
+`;
+  let end = textLines.findIndex((line, index) => index > start && !textCode[index] && /^###\s+/.test(line));
+  if (end < 0) end = textLines.length;
+  while (end > start + 1 && !textLines[end - 1].trim()) end--;
+  return [
+    ...textLines.slice(0, end),
+    "",
+    ...ordered,
+    ...end < textLines.length && textLines[end].trim() ? [""] : [],
+    ...textLines.slice(end)
+  ].join("\n");
 }
 
 // ui/modals/name-modal.ts
@@ -11808,88 +12060,6 @@ ${body}`;
   async migrate() {
   }
 };
-
-// ai/result-utils.ts
-var SENTENCE_END = /[。！？；!?;]/;
-function truncateSummary(value, limit = 80) {
-  var _a;
-  const characters = Array.from(value.trim());
-  if (characters.length <= limit) return characters.join("");
-  const floor = Math.floor(limit / 2);
-  for (let index = limit - 1; index >= floor; index--) {
-    const character = characters[index];
-    if (SENTENCE_END.test(character) || character === "." && /\s/.test((_a = characters[index + 1]) != null ? _a : ""))
-      return characters.slice(0, index + 1).join("");
-  }
-  const window2 = characters.slice(0, limit - 1);
-  let gap = -1;
-  for (let index = window2.length - 1; index >= floor && gap < 0; index--) if (/\s/.test(window2[index])) gap = index;
-  return `${(gap >= 0 ? window2.slice(0, gap) : window2).join("").trimEnd()}\u2026`;
-}
-var LEGACY_SEARCH_FAILURE = /\bresearch status\s*:\s*(?:not searched|search failed|unavailable)\b/i;
-function reportedSearchFailure(result) {
-  if (result.searchStatus !== void 0) return result.searchStatus !== "completed";
-  return LEGACY_SEARCH_FAILURE.test(`${result.summary}
-${result.detail}`);
-}
-function canonicalDetail(value, language2 = "zh-TW") {
-  var _a;
-  const detail = value.trim();
-  const keys = [
-    "detail.core_conclusions",
-    "detail.key_knowledge",
-    "detail.evidence_and_sources",
-    "detail.tradeoffs_and_limitations",
-    "detail.open_questions",
-    "detail.update_log"
-  ];
-  const headings = keys.map((key2) => translate(language2, key2));
-  const aliases = /* @__PURE__ */ new Map();
-  for (let index = 0; index < keys.length; index++)
-    for (const locale of ["zh-TW", "en"])
-      aliases.set(translate(locale, keys[index]).toLocaleLowerCase(), index);
-  const sections = /* @__PURE__ */ new Map();
-  const leading = [];
-  let current = null;
-  for (const line of detail.split("\n")) {
-    const heading = /^###\s+(.+?)\s*$/.exec(line);
-    const match = heading ? aliases.get(heading[1].toLocaleLowerCase()) : void 0;
-    if (match !== void 0) {
-      current = match;
-      if (!sections.has(match)) sections.set(match, []);
-      continue;
-    }
-    (current === null ? leading : sections.get(current)).push(line);
-  }
-  if (sections.size === 0) sections.set(0, [detail]);
-  else if (leading.join("\n").trim()) sections.set(0, [leading.join("\n").trim(), ...(_a = sections.get(0)) != null ? _a : []]);
-  const empty = translate(language2, "note.no_new_information");
-  return headings.map((heading, index) => {
-    var _a2;
-    return `### ${heading}
-
-${((_a2 = sections.get(index)) == null ? void 0 : _a2.join("\n").trim()) || empty}`;
-  }).join("\n\n");
-}
-function visualReferencesMarkdown(references2 = [], language2 = "zh-TW") {
-  return references2.map((item) => {
-    const title = item.title.trim() || translate(language2, "detail.visual_reference");
-    const imageUrl = item.imageUrl.trim();
-    const sourceUrl = item.sourceUrl.trim();
-    if (!imageUrl || !sourceUrl) return "";
-    const palette = item.palette.map((color) => color.trim()).filter(Boolean).join(" / ");
-    return [
-      `**${title}**`,
-      "",
-      `![${title}](${imageUrl})`,
-      "",
-      translate(language2, "detail.source", sourceUrl),
-      item.description.trim() ? translate(language2, "detail.purpose", item.description.trim()) : "",
-      palette ? translate(language2, "detail.palette", palette) : "",
-      item.formula.trim() ? translate(language2, "detail.reusable_formula", item.formula.trim()) : ""
-    ].filter(Boolean).join("\n");
-  }).filter(Boolean).join("\n\n");
-}
 
 // ui/preview-utils.ts
 function clampPreviewScale(value) {
@@ -27095,10 +27265,9 @@ var AiTaskService = class {
       });
       stage = t("log.stage_parsing_reply");
       const result = step.parse(raw);
-      if (referenceGroups.length) {
-        result.summary = resolveReferenceLinks(result.summary, referenceGroups);
-        result.detail = resolveReferenceLinks(result.detail, referenceGroups);
-      }
+      if (referenceGroups.length) result.summary = resolveSummaryReferences(result.summary, referenceGroups);
+      if (referenceGroups.length || /\[\^/.test(result.detail))
+        result.detail = resolveDetailReferences(result.detail, referenceGroups, input.detail);
       if (this.options.exchangeLoggingEnabled()) exchanges == null ? void 0 : exchanges.parsed(exchangeId);
       console.debug("Visual Agent Map AI metrics", {
         ...prepared.metrics,
