@@ -302,6 +302,7 @@ export default class VisualAgentMapPlugin extends Plugin {
       await (this.pendingSuggestions as PendingSuggestions).load();
     }
     this.repo = new Repository(this.app, this.settings);
+    this.repo.onUnreadableMaps = failures => this.reportUnreadableMaps(failures);
     const initialize = (
       this.settings.migrated
         ? Promise.resolve()
@@ -518,8 +519,7 @@ export default class VisualAgentMapPlugin extends Plugin {
         this.runMutation(async () => {
           await this.repo.replaceSourcePath(oldPath, file.path);
           let mapChanged = false;
-          for (const mapFile of await this.repo.mapFiles()) {
-            const map = await this.repo.readMap(mapFile.path);
+          for (const { file: mapFile, map } of await this.repo.readableMaps()) {
             if (rebaseMapNotePaths(map, moveNotePath(oldPath, file.path))) {
               await this.repo.saveMap(mapFile.path, map);
               mapChanged = true;
@@ -536,6 +536,19 @@ export default class VisualAgentMapPlugin extends Plugin {
         });
       })
     );
+  }
+  private readonly unreadableReported = new Map<string, number>();
+  /** One Notice and log line per scan; the same map and error is not repeated within a few seconds (one rename = two scans). */
+  private reportUnreadableMaps(failures: { path: string; error: string }[]): void {
+    const now = Date.now();
+    for (const { path, error } of failures) {
+      const key = `${path}\n${error}`;
+      if (now - (this.unreadableReported.get(key) ?? 0) < 5000) continue;
+      this.unreadableReported.set(key, now);
+      const message = t("ui.map_unreadable_skipped_0_1", path, error);
+      this.logs.appendLog("warn", message);
+      new Notice(message);
+    }
   }
   consumeFirstInstallSample(): boolean {
     const pending = this.firstInstallSamplePending;

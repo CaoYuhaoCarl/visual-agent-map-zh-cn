@@ -497,6 +497,9 @@ export class Repository {
     readonly settings: Settings
   ) {}
 
+  /** Called once per vault-wide scan that skipped unreadable maps. */
+  onUnreadableMaps?: (failures: { path: string; error: string }[]) => void;
+
   private message(key: TranslationKey): string {
     return translate(this.settings.language, key);
   }
@@ -906,6 +909,25 @@ export class Repository {
   }
 
   /**
+   * Vault-wide scans read every map through here: a map that cannot be parsed is skipped (never written) and
+   * reported once per scan, so one broken Map.md does not stop the scan or leave later maps stale. Opening or editing
+   * one specific map keeps using readMap and still surfaces its error.
+   */
+  async readableMaps(): Promise<{ file: TFile; map: MapDocument }[]> {
+    const readable: { file: TFile; map: MapDocument }[] = [],
+      failures: { path: string; error: string }[] = [];
+    for (const file of await this.mapFiles()) {
+      try {
+        readable.push({ file, map: await this.readMap(file.path) });
+      } catch (error) {
+        failures.push({ path: file.path, error: error instanceof Error ? error.message : String(error) });
+      }
+    }
+    if (failures.length) this.onUnreadableMaps?.(failures);
+    return readable;
+  }
+
+  /**
    * Whether a rename of `file` (previously at `oldPath`) can affect VAM data, decided from the metadata cache without
    * reading notes: the file is a VAM note or map, or a VAM note cites the old path. Uncached files count as relevant.
    */
@@ -924,8 +946,7 @@ export class Repository {
 
   /** Whether any map lists `path` as a node; only map files are read. */
   async isMapNodePath(path: string): Promise<boolean> {
-    for (const file of await this.mapFiles())
-      if ((await this.readMap(file.path)).nodes.some(node => node.path === path)) return true;
+    for (const { map } of await this.readableMaps()) if (map.nodes.some(node => node.path === path)) return true;
     return false;
   }
 
@@ -937,8 +958,7 @@ export class Repository {
       if (id) candidates.set(id, [...(candidates.get(id) ?? []), file.path]);
     }
     let repaired = 0;
-    for (const file of await this.mapFiles()) {
-      const map = await this.readMap(file.path);
+    for (const { file, map } of await this.readableMaps()) {
       let changed = false;
       for (const node of [...map.nodes]) {
         if (this.app.vault.getAbstractFileByPath(node.path) instanceof TFile) continue;
@@ -957,8 +977,7 @@ export class Repository {
 
   async topics(): Promise<TopicInfo[]> {
     const topics: TopicInfo[] = [];
-    for (const file of await this.mapFiles()) {
-      const map = await this.readMap(file.path);
+    for (const { file, map } of await this.readableMaps()) {
       topics.push({ id: map.id, title: map.title, mapPath: file.path, root: this.topicRoot(file.path) });
     }
     return topics;
@@ -1029,8 +1048,7 @@ export class Repository {
 
   async assignedNotePaths(exceptMapId?: string): Promise<Set<string>> {
     const assigned = new Set<string>();
-    for (const file of await this.mapFiles()) {
-      const map = await this.readMap(file.path);
+    for (const { map } of await this.readableMaps()) {
       if (map.id === exceptMapId) continue;
       for (const node of map.nodes) assigned.add(node.path);
     }
@@ -1122,8 +1140,7 @@ export class Repository {
 
   async normalizeGeneratedNoteFilenames(): Promise<number> {
     let renamed = 0;
-    for (const mapFile of await this.mapFiles()) {
-      const map = await this.readMap(mapFile.path);
+    for (const { file: mapFile, map } of await this.readableMaps()) {
       let changed = false;
       for (const node of map.nodes) {
         const file = this.app.vault.getAbstractFileByPath(node.path);
@@ -1159,8 +1176,7 @@ export class Repository {
   async rebuildDerivedData(noteRoot?: string): Promise<void> {
     const ownership = new Map<string, { map: MapDocument; mapPath: string; node: MapNode }>();
     const topics = new Map<string, { map: MapDocument; mapPath: string }>();
-    for (const mapFile of await this.mapFiles()) {
-      const map = await this.readMap(mapFile.path);
+    for (const { file: mapFile, map } of await this.readableMaps()) {
       topics.set(map.id, { map, mapPath: mapFile.path });
       for (const node of map.nodes) {
         const existing = ownership.get(node.path);
@@ -1336,13 +1352,13 @@ export class Repository {
   }
 
   async legacyMigrationPlan(): Promise<LegacyMigrationPlan> {
-    const allMaps = await this.mapFiles();
-    const legacyMaps = allMaps.filter(file => !file.path.startsWith(`${this.settings.topicsFolder}/`));
+    const legacyMaps = (await this.readableMaps()).filter(
+      ({ file }) => !file.path.startsWith(`${this.settings.topicsFolder}/`)
+    );
     const assigned = new Set<string>(),
       maps: LegacyMigrationPlan["maps"] = [];
     const reservedRoots = new Set<string>();
-    for (const file of legacyMaps) {
-      const map = await this.readMap(file.path);
+    for (const { file, map } of legacyMaps) {
       for (const node of map.nodes) assigned.add(node.path);
       let targetRoot = normalizePath(`${this.settings.topicsFolder}/${safeName(map.title)}`),
         number = 2;

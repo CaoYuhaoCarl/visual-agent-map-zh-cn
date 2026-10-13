@@ -710,6 +710,7 @@ var english = {
   "ui.creates_only_missing_base_folders_it_never_restores_moves_or": "Creates only missing base folders. It never restores, moves, or overwrites notes or mind maps.",
   "ui.repair": "Repair",
   "ui.agent_workspace_is_ready": "Agent Workspace is ready.",
+  "ui.map_unreadable_skipped_0_1": "Skipped an unreadable mind map: {0} ({1}). Other maps were updated.",
   "ui.open_the_taiwan_travel_sample": "Open the Taiwan travel sample",
   "ui.open_debug_log": "Open Debug Log",
   "ui.debug_log": "Debug log",
@@ -1952,6 +1953,7 @@ var traditionalChinese = {
   "ui.creates_only_missing_base_folders_it_never_restores_moves_or": "\u53EA\u5EFA\u7ACB\u7F3A\u5C11\u7684\u57FA\u672C\u8CC7\u6599\u593E\uFF0C\u4E0D\u6703\u5FA9\u539F\u3001\u642C\u79FB\u6216\u8986\u5BEB\u7B46\u8A18\u8207\u5FC3\u667A\u5716\u3002",
   "ui.repair": "\u4FEE\u5FA9",
   "ui.agent_workspace_is_ready": "Agent Workspace \u5DF2\u53EF\u4F7F\u7528\u3002",
+  "ui.map_unreadable_skipped_0_1": "\u5DF2\u7565\u904E\u7121\u6CD5\u8B80\u53D6\u7684\u5FC3\u667A\u5716\uFF1A{0}\uFF08{1}\uFF09\u3002\u5176\u4ED6\u5FC3\u667A\u5716\u5DF2\u66F4\u65B0\u3002",
   "ui.open_the_taiwan_travel_sample": "\u958B\u555F\u53F0\u7063\u65C5\u884C\u7BC4\u4F8B",
   "ui.open_debug_log": "\u958B\u555F\u5075\u932F\u65E5\u8A8C (Open Debug Log)",
   "ui.debug_log": "\u5075\u932F\u65E5\u8A8C",
@@ -11899,6 +11901,8 @@ var Repository = class {
   constructor(app, settings) {
     this.app = app;
     this.settings = settings;
+    /** Called once per vault-wide scan that skipped unreadable maps. */
+    __publicField(this, "onUnreadableMaps");
   }
   message(key2) {
     return translate(this.settings.language, key2);
@@ -12247,6 +12251,24 @@ ${body}`);
     return (await this.markedFiles("visual-agent-map")).sort((a, b) => a.path.localeCompare(b.path));
   }
   /**
+   * Vault-wide scans read every map through here: a map that cannot be parsed is skipped (never written) and
+   * reported once per scan, so one broken Map.md does not stop the scan or leave later maps stale. Opening or editing
+   * one specific map keeps using readMap and still surfaces its error.
+   */
+  async readableMaps() {
+    var _a;
+    const readable = [], failures = [];
+    for (const file of await this.mapFiles()) {
+      try {
+        readable.push({ file, map: await this.readMap(file.path) });
+      } catch (error) {
+        failures.push({ path: file.path, error: error instanceof Error ? error.message : String(error) });
+      }
+    }
+    if (failures.length) (_a = this.onUnreadableMaps) == null ? void 0 : _a.call(this, failures);
+    return readable;
+  }
+  /**
    * Whether a rename of `file` (previously at `oldPath`) can affect VAM data, decided from the metadata cache without
    * reading notes: the file is a VAM note or map, or a VAM note cites the old path. Uncached files count as relevant.
    */
@@ -12265,8 +12287,7 @@ ${body}`);
   }
   /** Whether any map lists `path` as a node; only map files are read. */
   async isMapNodePath(path) {
-    for (const file of await this.mapFiles())
-      if ((await this.readMap(file.path)).nodes.some((node) => node.path === path)) return true;
+    for (const { map } of await this.readableMaps()) if (map.nodes.some((node) => node.path === path)) return true;
     return false;
   }
   async reconcileMissingNodePaths() {
@@ -12278,8 +12299,7 @@ ${body}`);
       if (id) candidates.set(id, [...(_c = candidates.get(id)) != null ? _c : [], file.path]);
     }
     let repaired = 0;
-    for (const file of await this.mapFiles()) {
-      const map = await this.readMap(file.path);
+    for (const { file, map } of await this.readableMaps()) {
       let changed = false;
       for (const node of [...map.nodes]) {
         if (this.app.vault.getAbstractFileByPath(node.path) instanceof import_obsidian8.TFile) continue;
@@ -12297,8 +12317,7 @@ ${body}`);
   }
   async topics() {
     const topics = [];
-    for (const file of await this.mapFiles()) {
-      const map = await this.readMap(file.path);
+    for (const { file, map } of await this.readableMaps()) {
       topics.push({ id: map.id, title: map.title, mapPath: file.path, root: this.topicRoot(file.path) });
     }
     return topics;
@@ -12362,8 +12381,7 @@ ${body}`);
   }
   async assignedNotePaths(exceptMapId) {
     const assigned = /* @__PURE__ */ new Set();
-    for (const file of await this.mapFiles()) {
-      const map = await this.readMap(file.path);
+    for (const { map } of await this.readableMaps()) {
       if (map.id === exceptMapId) continue;
       for (const node of map.nodes) assigned.add(node.path);
     }
@@ -12436,8 +12454,7 @@ ${body}`);
   }
   async normalizeGeneratedNoteFilenames() {
     let renamed = 0;
-    for (const mapFile of await this.mapFiles()) {
-      const map = await this.readMap(mapFile.path);
+    for (const { file: mapFile, map } of await this.readableMaps()) {
       let changed = false;
       for (const node of map.nodes) {
         const file = this.app.vault.getAbstractFileByPath(node.path);
@@ -12469,8 +12486,7 @@ ${body}`);
   async rebuildDerivedData(noteRoot) {
     const ownership = /* @__PURE__ */ new Map();
     const topics = /* @__PURE__ */ new Map();
-    for (const mapFile of await this.mapFiles()) {
-      const map = await this.readMap(mapFile.path);
+    for (const { file: mapFile, map } of await this.readableMaps()) {
       topics.set(map.id, { map, mapPath: mapFile.path });
       for (const node of map.nodes) {
         const existing = ownership.get(node.path);
@@ -12604,12 +12620,12 @@ ${body}`;
     return path;
   }
   async legacyMigrationPlan() {
-    const allMaps = await this.mapFiles();
-    const legacyMaps = allMaps.filter((file) => !file.path.startsWith(`${this.settings.topicsFolder}/`));
+    const legacyMaps = (await this.readableMaps()).filter(
+      ({ file }) => !file.path.startsWith(`${this.settings.topicsFolder}/`)
+    );
     const assigned = /* @__PURE__ */ new Set(), maps = [];
     const reservedRoots = /* @__PURE__ */ new Set();
-    for (const file of legacyMaps) {
-      const map = await this.readMap(file.path);
+    for (const { file, map } of legacyMaps) {
       for (const node of map.nodes) assigned.add(node.path);
       let targetRoot = (0, import_obsidian8.normalizePath)(`${this.settings.topicsFolder}/${safeName(map.title)}`), number = 2;
       const base = targetRoot;
@@ -30593,6 +30609,7 @@ var VisualAgentMapPlugin = class extends import_obsidian23.Plugin {
     __publicField(this, "firstInstallSamplePending", false);
     __publicField(this, "workspaceRecoveryCandidates", []);
     __publicField(this, "languageSwitchPending", false);
+    __publicField(this, "unreadableReported", /* @__PURE__ */ new Map());
   }
   recordFailure(context, error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -30756,6 +30773,7 @@ var VisualAgentMapPlugin = class extends import_obsidian23.Plugin {
       await this.pendingSuggestions.load();
     }
     this.repo = new Repository(this.app, this.settings);
+    this.repo.onUnreadableMaps = (failures) => this.reportUnreadableMaps(failures);
     const initialize = (this.settings.migrated ? Promise.resolve() : this.repo.migrate().then(async () => {
       await this.repo.rebuildDerivedData();
       this.settings.migrated = true;
@@ -30965,8 +30983,7 @@ var VisualAgentMapPlugin = class extends import_obsidian23.Plugin {
           var _a;
           await this.repo.replaceSourcePath(oldPath, file.path);
           let mapChanged = false;
-          for (const mapFile of await this.repo.mapFiles()) {
-            const map = await this.repo.readMap(mapFile.path);
+          for (const { file: mapFile, map } of await this.repo.readableMaps()) {
             if (rebaseMapNotePaths(map, moveNotePath(oldPath, file.path))) {
               await this.repo.saveMap(mapFile.path, map);
               mapChanged = true;
@@ -30981,6 +30998,20 @@ var VisualAgentMapPlugin = class extends import_obsidian23.Plugin {
         });
       })
     );
+  }
+  /** One Notice and log line per scan; the same map and error is not repeated within a few seconds (one rename = two scans). */
+  reportUnreadableMaps(failures) {
+    var _a;
+    const now = Date.now();
+    for (const { path, error } of failures) {
+      const key2 = `${path}
+${error}`;
+      if (now - ((_a = this.unreadableReported.get(key2)) != null ? _a : 0) < 5e3) continue;
+      this.unreadableReported.set(key2, now);
+      const message = t("ui.map_unreadable_skipped_0_1", path, error);
+      this.logs.appendLog("warn", message);
+      new import_obsidian23.Notice(message);
+    }
   }
   consumeFirstInstallSample() {
     const pending = this.firstInstallSamplePending;
