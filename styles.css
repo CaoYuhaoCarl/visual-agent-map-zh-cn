@@ -85,7 +85,8 @@
 .vam-node-tools .vam-icon-button { --icon-size: 15px; width: 26px; height: 26px; padding: 0; justify-content: center; }
 .vam-node-tools .vam-ai-tool { order: 99; color: var(--text-accent); }
 /* Secondary tools wait for intent: hover, keyboard focus, or selection. */
-.vam-node-tools > :not(.vam-ai-tool):not(.vam-pinned-tool):not(.is-collapsed) { opacity: 0; transition: opacity 120ms ease-out; }
+/* :where keeps this hide rule at single-class weight, so the hover/focus/selection rule below always wins. */
+.vam-node-tools > :where(:not(.vam-ai-tool, .vam-pinned-tool, .is-collapsed)) { opacity: 0; transition: opacity 120ms ease-out; }
 .vam-node:hover .vam-node-tools > *, .vam-node:focus-within .vam-node-tools > *, .vam-node.is-selected .vam-node-tools > *,
 .vam-node:hover > .vam-add-child, .vam-node:focus-within > .vam-add-child, .vam-node.is-selected > .vam-add-child { opacity: 1; }
 .vam-status { display: inline-flex; align-items: center; gap: 6px; padding: 0; font-size: var(--font-ui-smaller); color: var(--text-muted); white-space: nowrap; }
