@@ -9,12 +9,14 @@ const { load } = require('./support-replay.cjs');
 const root = path.resolve(__dirname, '..');
 
 class FakeElement {
-  constructor(tag = 'div') { Object.assign(this, { tag, children: [], style: {}, listeners: {}, attrs: {}, hidden: false, value: '', disabled: false, textContent: '', isConnected: true, scrollHeight: 100, cls: '' }); }
+  constructor(tag = 'div') { Object.assign(this, { tag, children: [], style: {}, listeners: {}, attrs: {}, hidden: false, value: '', disabled: false, textContent: '', isConnected: true, scrollHeight: 100, cls: '', dataset: {} }); }
   createEl(tag, options = {}) { const child = new FakeElement(tag); child.cls = options.cls ?? ''; child.textContent = options.text ?? ''; Object.assign(child.attrs, options.attr); this.children.push(child); return child; }
   createDiv(options) { return this.createEl('div', options); }
   createSpan(options) { return this.createEl('span', options); }
   addEventListener(type, listener) { (this.listeners[type] ??= []).push(listener); }
   setText(text) { this.textContent = text; }
+  toggleClass(name, on) { const set = new Set(this.cls.split(' ').filter(Boolean)); if (on) set.add(name); else set.delete(name); this.cls = [...set].join(' '); }
+  addClass(name) { this.toggleClass(name, true); }
   setAttribute(name, value) { this.attrs[name] = value; }
   empty() { this.children = []; }
   getBoundingClientRect() { return { left: 0, right: 100, top: 0, bottom: 20, width: 100, height: 20 }; }
@@ -39,7 +41,7 @@ function setup(initial) {
   class MarkdownView {}
   class HTMLImageElement { constructor() { this.alt = 'image'; this.src = ''; this.currentSrc = ''; } closest() { return null; } getBoundingClientRect() { return { left: 0, right: 10, top: 0, bottom: 10, width: 10, height: 10 }; } }
   class Setting { addButton(build) { const button = { setButtonText() { return button; }, setCta() { return button; }, onClick() { return button; } }; build(button); return this; } }
-  const obsidian = { Component, MarkdownView, MarkdownRenderer: { render: async () => {} }, Notice: class {}, Setting, requestUrl: async () => ({ json: {} }) };
+  const obsidian = { Component, MarkdownView, MarkdownRenderer: { render: async () => {} }, Notice: class {}, Setting, setIcon() {}, requestUrl: async () => ({ json: {} }) };
   const globals = {
     HTMLElement: FakeElement, HTMLImageElement, HTMLTextAreaElement: class {}, HTMLButtonElement: class {},
     document: { activeElement: null },

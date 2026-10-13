@@ -112,6 +112,25 @@ integrationTest('Claude stream-json keeps one request open for live guest interv
   assert.deepEqual(input.map(item => item.message.content[0].text), ['initial prompt', 'Ask Lin to explain the cost']);
   assert.deepEqual(chunks, ['Hello', 'Hello there']);
 });
+integrationTest('Claude receives an attached image as a base64 block in one stream-json message and returns the final result', async () => {
+  const { EventEmitter } = require('node:events'); let args, ended = false; const input = [];
+  const result = { type: 'result', subtype: 'success', is_error: false, result: 'Translated text' };
+  const spawn = (_executable, received) => {
+    args = received; const child = new EventEmitter(); child.stdout = new EventEmitter(); child.stderr = new EventEmitter(); child.kill = () => true;
+    child.stdin = { on: () => {}, write: (line, done) => { input.push(JSON.parse(line)); done?.(); process.nextTick(() => child.stdout.emit('data', Buffer.from(`not json warning\n${JSON.stringify(result)}\n`))); return true; }, end: () => { ended = true; process.nextTick(() => child.emit('close', 0)); } };
+    return child;
+  };
+  const { ClaudeCodeCliRuntime, claudeImageSource } = load('ai/runtime/claude-code-cli.ts', { 'node:child_process': { spawn } });
+  const runtime = new ClaudeCodeCliRuntime({ executable: 'claude', cwd: '/plugin', env: {}, spawn });
+  let accepted = 0;
+  const reply = await runtime.runTask('Translate the text in the image', 'sonnet', 'low', undefined, { imageDataUrl: 'data:image/png;base64,iVBORw0KGgo=', onAccepted: () => accepted++ });
+  assert.equal(reply, 'Translated text'); assert.equal(accepted, 1); assert.equal(ended, true);
+  assert.equal(args[args.indexOf('--output-format') + 1], 'stream-json'); assert.equal(args[args.indexOf('--input-format') + 1], 'stream-json');
+  assert.equal(input.length, 1);
+  assert.deepEqual(input[0].message.content, [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'iVBORw0KGgo=' } }, { type: 'text', text: 'Translate the text in the image' }]);
+  assert.throws(() => claudeImageSource('data:image/svg+xml;base64,PHN2Zz4='), /PNG|圖片|image/i);
+  assert.throws(() => claudeImageSource('https://example.org/a.png'));
+});
 test('Claude cancellation rejects immediately and terminates only its own process', async () => {
   const { EventEmitter } = require('node:events'); const kills = [];
   const spawn = () => {

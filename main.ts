@@ -9,6 +9,7 @@ import { t, setUiLanguage, translate, initialUiLanguage, type TranslationKey } f
 import {
   FileSystemAdapter,
   MarkdownView,
+  requestUrl,
   Notice,
   Plugin,
   TFile,
@@ -74,6 +75,38 @@ export { ChildProposalModal, DraftReviewModal, IntegrationModal, NextStepModal }
 export { VisualAgentMapSettingTab } from "./ui/settings-tab";
 export { firstMarkdownImage, firstMarkdownTable, markdownImages } from "./ui/preview-utils";
 export type { AiRunMetrics, PreparedTaskContext } from "./ai/types";
+/** Claude takes images up to 5 MB and works best within 1568 px; larger ones are re-encoded as JPEG. */
+async function fitImageForClaude(dataUrl: string, signal: AbortSignal): Promise<string> {
+  const limit = 5 * 1024 * 1024;
+  const image = createEl("img");
+  await new Promise<void>((resolve, reject) => {
+    image.onload = () => resolve();
+    image.onerror = () => reject(new Error(t("ui.context_ai_image_unavailable")));
+    image.src = dataUrl;
+  });
+  if (signal.aborted) throw new Error(t("ui.ai_task_cancelled"));
+  const longest = Math.max(image.naturalWidth, image.naturalHeight);
+  if (dataUrl.length <= limit && longest <= 1568) return dataUrl;
+  const canvas = createEl("canvas");
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error(t("ui.context_ai_image_unavailable"));
+  for (const [edge, quality] of [
+    [1568, 0.9],
+    [1280, 0.85],
+    [1024, 0.8]
+  ] as const) {
+    const scale = Math.min(1, edge / longest);
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+    context.fillStyle = "#fff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const fitted = canvas.toDataURL("image/jpeg", quality);
+    if (fitted.length <= limit) return fitted;
+  }
+  throw new Error(t("ui.context_ai_image_unavailable"));
+}
+
 export default class VisualAgentMapPlugin extends Plugin {
   settings: Settings = { ...DEFAULT_SETTINGS };
   repo!: Repository;
@@ -1097,8 +1130,16 @@ export default class VisualAgentMapPlugin extends Plugin {
           view instanceof MarkdownView ? (view.file?.path ?? "") : ""
         )
       : null;
+    const remote = image.currentSrc || image.src;
     if (file instanceof TFile) bytes = await this.app.vault.readBinary(file);
-    else throw new Error(t("ui.context_ai_image_unavailable"));
+    else if (/^https?:\/\//i.test(remote)) {
+      // A web image the note already shows: canvas reads are blocked cross-origin, so fetch its bytes directly.
+      try {
+        bytes = (await requestUrl({ url: remote, method: "GET", throw: true })).arrayBuffer;
+      } catch {
+        throw new Error(t("ui.context_ai_image_download_failed"));
+      }
+    } else throw new Error(t("ui.context_ai_image_unavailable"));
     if (signal.aborted) throw new Error(t("ui.ai_task_cancelled"));
     if (bytes.byteLength > 10 * 1024 * 1024) throw new Error(t("ui.context_ai_image_unavailable"));
     const buffer = Buffer.from(bytes);
@@ -1136,9 +1177,10 @@ export default class VisualAgentMapPlugin extends Plugin {
     image?: HTMLImageElement,
     webSearch = false
   ): Promise<string> {
-    if (image && providerForModel(model) === "claude") throw new Error(t("ui.context_ai_image_claude"));
     if (webSearch && providerForModel(model) === "claude") throw new Error(t("ui.context_ai_search_codex"));
-    const imageDataUrl = image ? await this.markdownContextImage(image, signal) : undefined;
+    const loaded = image ? await this.markdownContextImage(image, signal) : undefined;
+    const imageDataUrl =
+      loaded && providerForModel(model) === "claude" ? await fitImageForClaude(loaded, signal) : loaded;
     if (signal.aborted) throw new Error(t("ui.ai_task_cancelled"));
     const directory = this.pluginDirectory();
     const effort = effectiveReasoningLevel(
