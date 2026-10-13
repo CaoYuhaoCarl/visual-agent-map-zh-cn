@@ -1975,7 +1975,8 @@ export class VisualAgentMapView extends ItemView {
           action: () => this.enqueue(() => this.previewMigration())
         });
     }
-    if (this.map && !this.builtIn)
+    // Content templates do not apply to AIM maps.
+    if (this.map && !this.builtIn && !this.map.aim)
       choices.push({
         label: t("ui.detail_template_map_default"),
         description: t("ui.detail_template_map_default_desc"),
@@ -2003,9 +2004,11 @@ export class VisualAgentMapView extends ItemView {
           else delete map.detailTemplateId;
         }, false)
       );
+    const current = this.map?.detailTemplateId;
+    const mark = (id: string | undefined) => (id === current ? { description: t("ui.detail_template_current") } : {});
     new ChoiceModal(this.app, t("ui.detail_template_map_default"), t("ui.detail_template_map_default_desc"), [
-      { label: t("ui.detail_template_use_workspace"), action: () => apply(undefined) },
-      ...this.templateChoices().map(({ id, name }) => ({ label: name, action: () => apply(id) }))
+      { label: t("ui.detail_template_use_workspace"), ...mark(undefined), action: () => apply(undefined) },
+      ...this.templateChoices().map(({ id, name }) => ({ label: name, ...mark(id), action: () => apply(id) }))
     ]).open();
   }
   private aimActiveForPath(path: string): boolean {

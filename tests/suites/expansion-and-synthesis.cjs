@@ -1503,10 +1503,23 @@ integrationTest('map action: the default content template for this map is set an
   view.chooseMapTemplate();
   const choices = opened.at(-1).choices;
   assert.deepEqual(plain(choices.map(choice => choice.label)), ['Use the workspace default', 'Standard', 'Template A', 'Template B', 'Template C']);
+  assert.deepEqual(plain(choices.map(choice => choice.description ?? '')), ['Current setting', '', '', '', '']);
   await choices[3].action();
   await until(async () => (await h.repo.readMap(h.mapPath)).detailTemplateId === 'B');
   assert.equal(view.map.detailTemplateId, 'B');
+  view.chooseMapTemplate();
+  assert.deepEqual(plain(opened.at(-1).choices.map(choice => choice.description ?? '')), ['', '', '', 'Current setting', ''], 'the current map value is marked');
   await choices[0].action();
   await until(async () => (await h.repo.readMap(h.mapPath)).detailTemplateId === undefined);
   assert.equal(view.map.detailTemplateId, undefined);
+});
+integrationTest('map actions offer the default content template only on non-AIM maps', async () => {
+  const opened = [];
+  const h = await templateHarness({ language: 'en', settings: { detailTemplates: sampleTemplates() } });
+  const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Modal: class { constructor() {} open() { opened.push(this); } close() {} }, Notice: class {} } });
+  const view = new VisualAgentMapView({ app: h.app }, h.plugin); view.path = h.mapPath; view.map = h.doc; view.render = () => {};
+  const labels = () => { view.openMapActions(); return opened.at(-1).choices.map(choice => choice.label); };
+  assert.ok(labels().includes('Default content template for this map'));
+  view.map = { ...h.doc, aim: { runs: [] } };
+  assert.ok(!labels().includes('Default content template for this map'), 'templates do not apply to AIM maps');
 });

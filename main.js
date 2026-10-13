@@ -803,6 +803,7 @@ var english = {
   "ui.detail_template_map_default": "Default content template for this map",
   "ui.detail_template_map_default_desc": "New and unassigned topics in this map use it.",
   "ui.detail_template_use_workspace": "Use the workspace default",
+  "ui.detail_template_current": "Current setting",
   "ui.detail_count_issue_exact": "{0}: needs exactly {1}, has {2}",
   "ui.detail_count_issue_min": "{0}: needs at least {1}, has {2}",
   "ui.detail_template_missing_0": 'The content template "{0}" no longer exists; this topic now uses the next default.',
@@ -2016,6 +2017,7 @@ var traditionalChinese = {
   "ui.detail_template_map_default": "\u9019\u5F35\u5716\u7684\u9810\u8A2D\u5167\u5BB9\u6A21\u677F",
   "ui.detail_template_map_default_desc": "\u9019\u5F35\u5716\u4E2D\u6C92\u6709\u6307\u5B9A\u6A21\u677F\u7684\u8B70\u984C\u6703\u4F7F\u7528\u5B83\u3002",
   "ui.detail_template_use_workspace": "\u4F7F\u7528\u5DE5\u4F5C\u5340\u9810\u8A2D",
+  "ui.detail_template_current": "\u76EE\u524D\u8A2D\u5B9A",
   "ui.detail_count_issue_exact": "{0}\uFF1A\u8981\u6C42\u525B\u597D {1} \u500B\uFF0C\u5BE6\u969B {2} \u500B",
   "ui.detail_count_issue_min": "{0}\uFF1A\u8981\u6C42\u81F3\u5C11 {1} \u500B\uFF0C\u5BE6\u969B {2} \u500B",
   "ui.detail_template_missing_0": "\u5167\u5BB9\u6A21\u677F\u300C{0}\u300D\u5DF2\u4E0D\u5B58\u5728\uFF0C\u9019\u500B\u8B70\u984C\u6539\u7528\u4E0B\u4E00\u9806\u4F4D\u7684\u9810\u8A2D\u6A21\u677F\u3002",
@@ -22993,7 +22995,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
           action: () => this.enqueue(() => this.previewMigration())
         });
     }
-    if (this.map && !this.builtIn)
+    if (this.map && !this.builtIn && !this.map.aim)
       choices.push({
         label: t("ui.detail_template_map_default"),
         description: t("ui.detail_template_map_default_desc"),
@@ -23014,15 +23016,18 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     new ChoiceModal(this.app, t("ui.more_mind_map_actions"), t("ui.additional_map_management_actions"), choices).open();
   }
   chooseMapTemplate() {
+    var _a;
     const apply = (id) => this.enqueue(
       () => this.mapChange((map) => {
         if (id) map.detailTemplateId = id;
         else delete map.detailTemplateId;
       }, false)
     );
+    const current = (_a = this.map) == null ? void 0 : _a.detailTemplateId;
+    const mark = (id) => id === current ? { description: t("ui.detail_template_current") } : {};
     new ChoiceModal(this.app, t("ui.detail_template_map_default"), t("ui.detail_template_map_default_desc"), [
-      { label: t("ui.detail_template_use_workspace"), action: () => apply(void 0) },
-      ...this.templateChoices().map(({ id, name }) => ({ label: name, action: () => apply(id) }))
+      { label: t("ui.detail_template_use_workspace"), ...mark(void 0), action: () => apply(void 0) },
+      ...this.templateChoices().map(({ id, name }) => ({ label: name, ...mark(id), action: () => apply(id) }))
     ]).open();
   }
   aimActiveForPath(path) {
