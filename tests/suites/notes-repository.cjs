@@ -606,3 +606,20 @@ integrationTest('visual reference placement: a sources alias equal to another se
   assert.ok(detail.indexOf('**Pic**') > detail.indexOf('\nN\n'), 'after the Notes section text');
   assert.ok(detail.indexOf('**Pic**') < detail.indexOf('### Refs'), 'before the sources section');
 });
+integrationTest('legacy Visual References section moves into Detail before the Standard sources heading on rebuild (zh and en)', async () => {
+  const { canonicalDetail } = load('ai/result-utils.ts');
+  const legacy = '\n\n## Visual References\n\n**Pic**\n\n![Pic](https://x/y.png)\n\nSource: https://x\n';
+  for (const [language, knowledge, sources] of [['zh-TW', '關鍵知識', '證據與來源'], ['en', 'Key knowledge', 'Evidence and sources']]) {
+    const { repo, contents } = fixture(language); const n = await topicNote(repo, `Legacy ${language}`);
+    await repo.updateNote(n.path, { detail: canonicalDetail(`### ${knowledge}\n\nK`, language) });
+    contents.set(n.path, `${contents.get(n.path).trimEnd()}${legacy}`);
+    await repo.rebuildDerivedData();
+    const raw = contents.get(n.path);
+    assert.doesNotMatch(raw, /## Visual References/, language);
+    const detail = (await repo.readNote(n.path)).detail;
+    const image = detail.indexOf('![Pic](https://x/y.png)');
+    assert.ok(image > detail.indexOf(`### ${knowledge}\n\nK`), `${language}: after the key knowledge text\n${detail}`);
+    assert.ok(image < detail.indexOf(`### ${sources}`), `${language}: before the sources heading\n${detail}`);
+    assert.match(detail, new RegExp(`### ${knowledge}\\n\\nK\\n\\n\\*\\*Pic\\*\\*\\n\\n!\\[Pic\\]\\(https://x/y\\.png\\)\\n\\nSource: https://x\\n\\n### ${sources}`), language);
+  }
+});

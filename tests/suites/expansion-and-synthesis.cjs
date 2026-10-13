@@ -1469,6 +1469,17 @@ integrationTest('opening the AI dialog for a topic with a deleted template neith
   assert.equal(await h.app.vault.read(h.app.vault.getAbstractFileByPath(h.topic.path)), before, 'note file unchanged');
   assert.equal((await h.repo.readNote(h.topic.path)).detailTemplateId, 'gone');
 });
+integrationTest('no templates, zh-TW interface, English output: Standard follows the output language in the request and the saved note', async () => {
+  const h = await templateHarness({ language: 'zh-TW', reply: () => ({ summary: 'English summary', detail: '### Core conclusions\n\nC\n\n### Key knowledge\n\nK', visualReferences: [], suggestions: [] }) });
+  const handle = await h.view.runAgent(h.topic, undefined, message => assert.fail(message), { outputLanguage: 'en' });
+  await handle?.finished; await until(() => !h.plugin.running.size);
+  assert.equal(h.contexts[0].detailTemplate.id, 'standard');
+  assert.equal(h.contexts[0].detailTemplate.sections[0].name, 'Core conclusions');
+  const note = await h.repo.readNote(h.topic.path);
+  assert.equal(note.summary, 'English summary');
+  assert.deepEqual(note.detail.split('\n').filter(line => line.startsWith('### ')), ['### Core conclusions', '### Key knowledge', '### Evidence and sources', '### Tradeoffs and limitations', '### Open questions', '### Update log']);
+  assert.match(note.detail, /### Core conclusions\n\nC\n\n### Key knowledge\n\nK/);
+});
 integrationTest('multi research with a chosen template records it on each started topic and the AI request uses it (skipped topics untouched)', async () => {
   const h = await templateHarness({ language: 'en', settings: { detailTemplates: sampleTemplates(), defaultDetailTemplateId: 'C' } });
   const second = await h.repo.createNote('Second', 'model-a', h.doc, h.mapPath, 'workspace'); h.doc.nodes.push(second); await h.repo.saveMap(h.mapPath, h.doc);
