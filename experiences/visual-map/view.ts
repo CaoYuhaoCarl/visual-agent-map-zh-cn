@@ -45,7 +45,8 @@ import { PendingSuggestions } from "../../pending-suggestions";
 import { createAimMap } from "../aim/create-map";
 import { createOutlineMap } from "./outline-import";
 import { OutlineImportModal, type OutlineImportRequest } from "./outline-import-modal";
-import { MultiResearchModal, type MultiResearchModels, type MultiResearchRequest } from "./multi-research-modal";
+import { MultiResearchModal, type MultiResearchRequest } from "./multi-research-modal";
+import type { ModelChoices } from "./research-fields";
 import { AimStartModal } from "../../ui/modals/aim-start-modal";
 import { AimAnswerModal } from "../../ui/modals/aim-answer-modal";
 import {
@@ -552,13 +553,26 @@ export class VisualAgentMapView extends ItemView {
       }
     ).open();
   }
+  private modelChoices(): ModelChoices {
+    return {
+      list: () => this.plugin.availableModels().map(id => ({ id, label: this.plugin.modelLabel(id) })),
+      watch: changed => {
+        const unsubscribe = this.plugin.subscribeModelDiscovery(changed);
+        void this.plugin.refreshModelDiscovery("codex");
+        void this.plugin.refreshModelDiscovery("claude");
+        return unsubscribe;
+      }
+    };
+  }
   openOutlineImport(): void {
-    new OutlineImportModal(this.app, request => this.importOutline(request)).open();
+    new OutlineImportModal(this.app, request => this.importOutline(request), this.modelChoices()).open();
   }
   async importOutline(request: OutlineImportRequest): Promise<void> {
+    // A model chosen for the shallow research becomes the new topics' model, so later work on them uses it too.
+    const model = (request.shallowResearch && request.model) || this.plugin.settings.cliModel;
     let result: Awaited<ReturnType<typeof createOutlineMap>>;
     try {
-      result = await createOutlineMap(this.plugin.repo, this.plugin.settings.cliModel, request.nodes, request.source);
+      result = await createOutlineMap(this.plugin.repo, model, request.nodes, request.source);
     } catch (error) {
       // Once the map folder exists the import window must close, so a retry cannot create a second map.
       if (!(error as { mapCreated?: unknown } | null)?.mapCreated) throw error;
@@ -581,10 +595,10 @@ export class VisualAgentMapView extends ItemView {
     if (!root) return;
     const children = result.nodes.filter(node => node.parentId !== null);
     try {
-      await this.plugin.confirmAiUsage(this.plugin.settings.cliModel, () =>
+      await this.plugin.confirmAiUsage(model, () =>
         this.startShallowResearch(root, children, {
           researchMode: "research",
-          researchDepth: "fast",
+          researchDepth: request.researchDepth ?? "fast",
           referenceGroups: [],
           visualMode: "off"
         })
@@ -3990,16 +4004,12 @@ export class VisualAgentMapView extends ItemView {
   private openMultiResearch(): void {
     if (!this.map || this.map.aim || !this.multiSelected.size) return;
     const names = [...this.multiSelected].map(id => this.notes.get(id)?.title).filter((name): name is string => !!name);
-    const models: MultiResearchModels = {
-      list: () => this.plugin.availableModels().map(id => ({ id, label: this.plugin.modelLabel(id) })),
-      watch: changed => {
-        const unsubscribe = this.plugin.subscribeModelDiscovery(changed);
-        void this.plugin.refreshModelDiscovery("codex");
-        void this.plugin.refreshModelDiscovery("claude");
-        return unsubscribe;
-      }
-    };
-    new MultiResearchModal(this.app, names, models, request => void this.startMultiResearch(request)).open();
+    new MultiResearchModal(
+      this.app,
+      names,
+      this.modelChoices(),
+      request => void this.startMultiResearch(request)
+    ).open();
   }
   stopMultiResearch(): void {
     this.plugin.expansionCoordinator.stop(this.multiResearchKey());

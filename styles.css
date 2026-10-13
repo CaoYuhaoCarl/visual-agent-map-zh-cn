@@ -127,6 +127,7 @@
 .vam-next-focus { width: 100%; min-height: 72px; resize: vertical; }
 .vam-quick-limits { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
 .vam-quick-limits.is-hidden { display: none; }
+.vam-outline-research-options.is-hidden { display: none; }
 .vam-quick-limits input { width: 100%; max-width: 160px; }
 .vam-quick-limits > .vam-hint { grid-column: 1 / -1; margin: 0; }
 .vam-quick-limits > .vam-hint.is-error { color: var(--color-red); }

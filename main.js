@@ -12734,6 +12734,38 @@ async function createOutlineMap(repository, model, nodes, source, now = /* @__PU
 
 // experiences/visual-map/outline-import-modal.ts
 var import_obsidian9 = require("obsidian");
+
+// experiences/visual-map/research-fields.ts
+function researchDepthField(parent) {
+  const label = parent.createEl("label", { cls: "vam-field" });
+  label.createSpan({ text: t("ui.research_depth") });
+  const depth = label.createEl("select");
+  depth.setAttr("aria-label", t("ui.research_depth"));
+  depth.createEl("option", { value: "fast", text: t("ui.fast_quick_overview") });
+  depth.createEl("option", { value: "normal", text: t("ui.normal_standard_research") });
+  depth.createEl("option", { value: "deep", text: t("ui.deep_in_depth_research") });
+  depth.value = "fast";
+  return () => depth.value === "deep" ? "deep" : depth.value === "normal" ? "normal" : "fast";
+}
+function modelField(parent, models, defaultLabel) {
+  const label = parent.createEl("label", { cls: "vam-field" });
+  label.createSpan({ text: t("ui.model") });
+  const model = label.createEl("select");
+  model.setAttr("aria-label", t("ui.model"));
+  const fill = () => {
+    const selected = model.value;
+    model.replaceChildren();
+    model.createEl("option", { value: "", text: defaultLabel });
+    const choices = models.list();
+    for (const option of choices) model.createEl("option", { value: option.id, text: option.label });
+    model.value = choices.some((option) => option.id === selected) ? selected : "";
+  };
+  fill();
+  const dispose = models.watch(fill);
+  return { value: () => model.value || void 0, dispose };
+}
+
+// experiences/visual-map/outline-import-modal.ts
 var OutlineFileModal = class extends import_obsidian9.FuzzySuggestModal {
   constructor(app, choose) {
     super(app);
@@ -12751,9 +12783,11 @@ var OutlineFileModal = class extends import_obsidian9.FuzzySuggestModal {
   }
 };
 var OutlineImportModal = class extends import_obsidian9.Modal {
-  constructor(app, create) {
+  constructor(app, create, models = { list: () => [], watch: () => () => {
+  } }) {
     super(app);
     this.create = create;
+    this.models = models;
     __publicField(this, "textarea");
     __publicField(this, "preview");
     __publicField(this, "sourceLabel");
@@ -12763,6 +12797,9 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
     __publicField(this, "sourceText", "");
     __publicField(this, "nodes", []);
     __publicField(this, "submitting", false);
+    __publicField(this, "depth", () => "fast");
+    __publicField(this, "model", () => void 0);
+    __publicField(this, "unwatch");
   }
   onOpen() {
     this.titleEl.setText(t("ui.outline_import"));
@@ -12781,9 +12818,22 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
     const shallowLabel = this.contentEl.createEl("label", { cls: "vam-field vam-next-toggle" });
     this.shallow = shallowLabel.createEl("input", { type: "checkbox" });
     shallowLabel.createSpan({ text: t("ui.outline_import_shallow") });
+    const researchOptions = this.contentEl.createDiv("vam-outline-research-options");
+    this.depth = researchDepthField(researchOptions);
+    const model = modelField(researchOptions, this.models, t("ui.workspace_default"));
+    this.model = model.value;
+    this.unwatch = model.dispose;
+    const showOptions = () => researchOptions.toggleClass("is-hidden", !this.shallow.checked);
+    this.shallow.addEventListener("change", showOptions);
+    showOptions();
     this.createButton = this.contentEl.createEl("button", { text: t("ui.outline_import_create"), cls: "mod-cta" });
     this.createButton.addEventListener("click", () => void this.submit());
     this.refresh();
+  }
+  onClose() {
+    var _a;
+    (_a = this.unwatch) == null ? void 0 : _a.call(this);
+    this.unwatch = void 0;
   }
   async loadFile(file) {
     const text11 = await this.app.vault.cachedRead(file);
@@ -12828,7 +12878,15 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
     this.submitting = true;
     this.createButton.disabled = true;
     try {
-      await this.create({ nodes: this.nodes, source: this.source, shallowResearch: this.shallow.checked });
+      const shallowResearch = this.shallow.checked;
+      const model = shallowResearch ? this.model() : void 0;
+      await this.create({
+        nodes: this.nodes,
+        source: this.source,
+        shallowResearch,
+        ...shallowResearch ? { researchDepth: this.depth() } : {},
+        ...model ? { model } : {}
+      });
       this.close();
     } catch (error) {
       new import_obsidian9.Notice(error instanceof Error ? error.message : String(error));
@@ -12855,28 +12913,9 @@ var MultiResearchModal = class extends import_obsidian10.Modal {
     const topics = this.contentEl.createDiv("vam-integration-sources");
     topics.createEl("strong", { text: t("ui.multi_research_topics") });
     for (const name of this.names) topics.createDiv({ text: name });
-    const depthLabel = this.contentEl.createEl("label", { cls: "vam-field" });
-    depthLabel.createSpan({ text: t("ui.research_depth") });
-    const depth = depthLabel.createEl("select");
-    depth.setAttr("aria-label", t("ui.research_depth"));
-    depth.createEl("option", { value: "fast", text: t("ui.fast_quick_overview") });
-    depth.createEl("option", { value: "normal", text: t("ui.normal_standard_research") });
-    depth.createEl("option", { value: "deep", text: t("ui.deep_in_depth_research") });
-    depth.value = "fast";
-    const modelLabel = this.contentEl.createEl("label", { cls: "vam-field" });
-    modelLabel.createSpan({ text: t("ui.model") });
-    const model = modelLabel.createEl("select");
-    model.setAttr("aria-label", t("ui.model"));
-    const fillModels = () => {
-      const selected = model.value;
-      model.replaceChildren();
-      model.createEl("option", { value: "", text: t("ui.multi_research_keep_topic_models") });
-      const choices = this.models.list();
-      for (const option of choices) model.createEl("option", { value: option.id, text: option.label });
-      model.value = choices.some((option) => option.id === selected) ? selected : "";
-    };
-    fillModels();
-    this.unwatch = this.models.watch(fillModels);
+    const depth = researchDepthField(this.contentEl);
+    const model = modelField(this.contentEl, this.models, t("ui.multi_research_keep_topic_models"));
+    this.unwatch = model.dispose;
     const webLabel = this.contentEl.createEl("label", { cls: "vam-field vam-next-toggle" });
     const web = webLabel.createEl("input", { type: "checkbox" });
     web.checked = true;
@@ -12895,9 +12934,9 @@ var MultiResearchModal = class extends import_obsidian10.Modal {
       this.submitted = true;
       const request = {
         researchMode: web.checked ? "research" : "local",
-        researchDepth: depth.value === "deep" ? "deep" : depth.value === "normal" ? "normal" : "fast",
+        researchDepth: depth(),
         requirements: requirements.value.trim(),
-        ...model.value ? { model: model.value } : {}
+        ...model.value() ? { model: model.value() } : {}
       };
       this.close();
       this.submit(request);
@@ -21127,13 +21166,25 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       }
     ).open();
   }
+  modelChoices() {
+    return {
+      list: () => this.plugin.availableModels().map((id) => ({ id, label: this.plugin.modelLabel(id) })),
+      watch: (changed) => {
+        const unsubscribe = this.plugin.subscribeModelDiscovery(changed);
+        void this.plugin.refreshModelDiscovery("codex");
+        void this.plugin.refreshModelDiscovery("claude");
+        return unsubscribe;
+      }
+    };
+  }
   openOutlineImport() {
-    new OutlineImportModal(this.app, (request) => this.importOutline(request)).open();
+    new OutlineImportModal(this.app, (request) => this.importOutline(request), this.modelChoices()).open();
   }
   async importOutline(request) {
+    const model = request.shallowResearch && request.model || this.plugin.settings.cliModel;
     let result;
     try {
-      result = await createOutlineMap(this.plugin.repo, this.plugin.settings.cliModel, request.nodes, request.source);
+      result = await createOutlineMap(this.plugin.repo, model, request.nodes, request.source);
     } catch (error) {
       if (!(error == null ? void 0 : error.mapCreated)) throw error;
       new import_obsidian16.Notice(errorMessage(error));
@@ -21155,13 +21206,16 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     const children = result.nodes.filter((node) => node.parentId !== null);
     try {
       await this.plugin.confirmAiUsage(
-        this.plugin.settings.cliModel,
-        () => this.startShallowResearch(root, children, {
-          researchMode: "research",
-          researchDepth: "fast",
-          referenceGroups: [],
-          visualMode: "off"
-        })
+        model,
+        () => {
+          var _a;
+          return this.startShallowResearch(root, children, {
+            researchMode: "research",
+            researchDepth: (_a = request.researchDepth) != null ? _a : "fast",
+            referenceGroups: [],
+            visualMode: "off"
+          });
+        }
       );
     } catch (error) {
       new import_obsidian16.Notice(errorMessage(error));
@@ -24368,16 +24422,12 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
       var _a;
       return (_a = this.notes.get(id)) == null ? void 0 : _a.title;
     }).filter((name) => !!name);
-    const models = {
-      list: () => this.plugin.availableModels().map((id) => ({ id, label: this.plugin.modelLabel(id) })),
-      watch: (changed) => {
-        const unsubscribe = this.plugin.subscribeModelDiscovery(changed);
-        void this.plugin.refreshModelDiscovery("codex");
-        void this.plugin.refreshModelDiscovery("claude");
-        return unsubscribe;
-      }
-    };
-    new MultiResearchModal(this.app, names2, models, (request) => void this.startMultiResearch(request)).open();
+    new MultiResearchModal(
+      this.app,
+      names2,
+      this.modelChoices(),
+      (request) => void this.startMultiResearch(request)
+    ).open();
   }
   stopMultiResearch() {
     this.plugin.expansionCoordinator.stop(this.multiResearchKey());
