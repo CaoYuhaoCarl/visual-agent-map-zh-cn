@@ -583,6 +583,8 @@ export class VisualAgentMapView extends ItemView {
     let opened = true;
     try {
       await this.plugin.mutate(async () => {
+        // Notes and Map.md were written directly; derive their Reference Links (map, parent, children) like any map change.
+        await this.plugin.rebuildDerivedData();
         await this.openMapInMutation(result.mapPath);
         if (!this.closed && this.path === result.mapPath) this.fit();
       });
