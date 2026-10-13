@@ -3428,7 +3428,8 @@ export class VisualAgentMapView extends ItemView {
           cls: `vam-status vam-status-${note.status}`,
           text: topicStatusLabel(note.status, this.plugin.settings.language)
         });
-    } else {
+    } else if (!this.plugin.running?.has(node.path) && !this.plugin.quickExpandPending?.has(node.path)) {
+      // A running card keeps its running frame and chip until the next full render.
       const label =
         note.status === "completed" ? t("ui.researched") : topicStatusLabel(note.status, this.plugin.settings.language);
       card.dataset.status = note.status;

@@ -24596,7 +24596,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
     preview.style.top = `${Math.max(12, Math.min(rect.top - host.top, maxTop))}px`;
   }
   refreshCard(node) {
-    var _a;
+    var _a, _b, _c;
     const card = (_a = this.stageEl) == null ? void 0 : _a.querySelector(`[data-node-id="${CSS.escape(node.id)}"]`), note = this.notes.get(node.id);
     if (!card || !note) return;
     const title = card.querySelector(".vam-card-title");
@@ -24624,7 +24624,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian16.Ite
           cls: `vam-status vam-status-${note.status}`,
           text: topicStatusLabel(note.status, this.plugin.settings.language)
         });
-    } else {
+    } else if (!((_b = this.plugin.running) == null ? void 0 : _b.has(node.path)) && !((_c = this.plugin.quickExpandPending) == null ? void 0 : _c.has(node.path))) {
       const label = note.status === "completed" ? t("ui.researched") : topicStatusLabel(note.status, this.plugin.settings.language);
       card.dataset.status = note.status;
       card.setAttr("aria-label", t("ui.topic_card_label_0_1", note.title, label));
