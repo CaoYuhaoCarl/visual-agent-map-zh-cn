@@ -536,6 +536,25 @@ function localizeReference(value: string, language: NoteLanguage): string {
   return `${labels[index]}${language === "en" ? ": " : "："}${plain}`;
 }
 
+/**
+ * The language a note's derived scaffolding (Preview heading, summary placeholder, relationship labels) is already
+ * written in, or undefined when it has none. A rebuild keeps it, so changing the UI language never relabels notes.
+ */
+function derivedLabelLanguage(content: string, fm: Record<string, unknown>): NoteLanguage | undefined {
+  if (Array.isArray(fm["agent-map-references"]))
+    for (const entry of fm["agent-map-references"]) {
+      const label = /^([^：:]+)[：:]/.exec(String(entry))?.[1];
+      if (label && REFERENCE_LABELS.includes(label)) return "zh-TW";
+      if (label && ENGLISH_REFERENCE_LABELS.includes(label)) return "en";
+    }
+  if (/^## 預覽[ \t]*$/m.test(content)) return "zh-TW";
+  if (/^## Preview[ \t]*$/m.test(content)) return "en";
+  const summary = section(content, "Current Summary");
+  if (summary === placeholder("zh-TW")) return "zh-TW";
+  if (summary === placeholder("en")) return "en";
+  return undefined;
+}
+
 function withReferenceLinks(body: string, fm: Record<string, unknown>, language: NoteLanguage): string {
   const sources = Array.isArray(fm["source-notes"]) ? fm["source-notes"].map(String).filter(Boolean) : [];
   const relationships = Array.isArray(fm["agent-map-references"])
@@ -1290,6 +1309,8 @@ export class Repository {
   ): string | null {
     const fm = frontmatter(content);
     if (!marker(fm["agent-map-node"])) return null;
+    // Existing derived labels keep their language; only a note without any uses the current UI language.
+    const language = derivedLabelLanguage(content, fm) ?? this.settings.language;
     ensureNoteCssClass(fm);
     fm.title = noteTitle(content, fm, file.basename);
     const owner = ownership.get(file.path);
@@ -1322,13 +1343,9 @@ export class Repository {
     }
     // Notes owned by an AIM map write their placeholder text in the map's content language.
     const textLanguage = owner?.map.aim
-      ? resolveAimContentLanguage(owner.map, this.settings.language)
-      : (noteContentLanguage(fm) ?? this.settings.language);
-    let body = ensurePreview(
-      content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, ""),
-      this.settings.language,
-      textLanguage
-    );
+      ? resolveAimContentLanguage(owner.map, language)
+      : (noteContentLanguage(fm) ?? language);
+    let body = ensurePreview(content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, ""), language, textLanguage);
     if (isPlaceholder(text(fm.summary))) fm.summary = placeholder(textLanguage);
     const topicId = text(fm["topic-id"]),
       topic = topics.get(topicId);
@@ -1337,7 +1354,7 @@ export class Repository {
       const parent = owner.node.parentId ? owner.map.nodes.find(item => item.id === owner.node.parentId) : undefined;
       const children = owner.map.nodes.filter(item => item.parentId === owner.node.id);
       fm["agent-map-references"] =
-        this.settings.language === "en"
+        language === "en"
           ? [
               `Topic: [[${noteLink(owner.mapPath)}|${owner.map.title}]]`,
               `Mind map: [[${noteLink(owner.mapPath)}]]`,
@@ -1357,7 +1374,7 @@ export class Repository {
       body = withoutReference(body);
     } else if (topic && (state === "unassigned" || state === "archived")) {
       fm["agent-map-references"] =
-        this.settings.language === "en"
+        language === "en"
           ? [
               `Topic: [[${noteLink(topic.mapPath)}|${topic.map.title}]]`,
               `Status: ${state === "archived" ? "Archived" : "Unassigned"}`
@@ -1375,10 +1392,10 @@ export class Repository {
       body,
       text(fm.title, file.basename),
       text(fm.summary, placeholder(textLanguage)),
-      this.settings.language,
+      language,
       textLanguage
     );
-    return `---\n${stringifyYaml(fm)}---\n${withReferenceLinks(body, fm, this.settings.language)}`;
+    return `---\n${stringifyYaml(fm)}---\n${withReferenceLinks(body, fm, language)}`;
   }
 
   async ensureNodePresentation(): Promise<void> {

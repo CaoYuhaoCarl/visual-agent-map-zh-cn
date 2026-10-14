@@ -4,16 +4,16 @@ visual-agent-map: true
 
 # Steak doneness
 
-This file stores the mind map structure. Full content lives in the topic notes. Choose Open as mind map from the file menu.
+此檔案保存心智圖結構；完整內容保存在各議題筆記。從檔案選單選擇「以心智圖開啟」。
 
 ```agent-map
 {
   "version": 1,
-  "id": "d860d1bd-cec2-442a-abdc-b18097b1dd88",
+  "id": "32aca243-1454-4bd9-97fa-736ae5cbf606",
   "title": "Steak doneness",
   "nodes": [
     {
-      "id": "93bd7052-7f9c-4244-96c8-19897e2aabe7",
+      "id": "1aedef62-fdb7-4056-8452-8eb73bc929fe",
       "path": "Agent Workspace/Topics/Steak doneness/Notes/Steak doneness.md",
       "parentId": null,
       "x": 80,
@@ -22,7 +22,7 @@ This file stores the mind map structure. Full content lives in the topic notes. 
       "aimKind": "topic"
     },
     {
-      "id": "2d03f290-8a94-4ad0-9e1f-d241d2b7f442",
+      "id": "a5c1a979-cac0-4c6a-acc9-aa55635dcbfa",
       "path": "Agent Workspace/Topics/Steak doneness/Notes/Which doneness.md",
       "parentId": null,
       "x": 80,

@@ -10,6 +10,8 @@ if (layer && !['unit', 'integration'].includes(layer)) throw new Error('Unknown 
 const test = (name, fn) => { if (!layer || layer === 'unit') nodeTest(name, fn); };
 const integrationTest = (name, fn) => { if (!layer || layer === 'integration') nodeTest(name, fn); };
 const { buildSync } = require('./build.cjs');
+// Obsidian's own YAML options, so frontmatter in tests round-trips like the real app (not a one-line-per-key stub).
+const YAML = require('yaml');
 const root = path.resolve(__dirname, '..');
 function load(entry, overrides = {}, windowValues = {}) {
   if (overrides.obsidian && !overrides.obsidian.Component) overrides = { ...overrides, obsidian: { ...overrides.obsidian, Component: class {} } };
@@ -77,8 +79,8 @@ class TFile { constructor(path) { this.path = path; this.name = path.split('/').
 const obsidian = { setIcon: (parent, name) => { parent.iconName = name; }, Menu: class { addItem(callback) { callback({ setTitle() { return this; }, setIcon() { return this; }, setWarning() { return this; }, onClick() { return this; } }); return this; } addSeparator() { return this; } showAtMouseEvent() { return this; } },
   TFile, TFolder, App: class {}, Plugin: class {}, ItemView: class { constructor(leaf) { this.app = leaf.app; } async setState() {} }, PluginSettingTab: class {}, Modal: class {}, FuzzySuggestModal: class {}, Notice: class {}, FileSystemAdapter: class { getBasePath() { return '/vault'; } },
   normalizePath: value => value.replace(/\/+/g, '/').replace(/^\//, ''),
-  parseYaml: text => Object.fromEntries(text.trim().split('\n').filter(Boolean).map(line => { const index = line.indexOf(':'); const raw = line.slice(index + 1).trim(); let value; try { value = JSON.parse(raw); } catch { value = raw; } return [line.slice(0, index), value]; })),
-  stringifyYaml: obj => Object.entries(obj).map(([key, value]) => `${key}: ${JSON.stringify(value)}`).join('\n') + '\n'
+  parseYaml: text => YAML.parse(text, null, {}),
+  stringifyYaml: obj => YAML.stringify(obj, null, { nullStr: '', lineWidth: 0, aliasDuplicateObjects: false })
 };
 const { Repository, DEFAULT_SETTINGS, normalizeReasoningLevel } = load('repository.ts', { obsidian });
 function fixture(language = 'zh-TW') {

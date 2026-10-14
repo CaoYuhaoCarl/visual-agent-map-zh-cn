@@ -16,11 +16,11 @@ function fixtureFiles(dir = FIXTURE, prefix = '') {
 /** The data.json a 0.18 user has: no mindMapsFolder/aimFolder keys, and an inboxFolder that 0.19 ignores. */
 const SAVED_0_18 = { workspaceFolder: 'Agent Workspace', topicsFolder: 'Agent Workspace/Topics', inboxFolder: 'Agent Workspace/Inbox', notesFolder: 'Agent Workspace/Nodes', mapsFolder: 'Agent Workspace/Maps' };
 
-async function upgradedVault(mutate) {
+async function upgradedVault(mutate, language = 'en') {
   const data = fixture('en');
   const { app } = data;
   app.vault.modify = async (file, content) => app.vault.process(file, () => content);
-  const repo = new Repository(app, { ...DEFAULT_SETTINGS, ...SAVED_0_18, ...resolveMapFolders(SAVED_0_18), language: 'en' });
+  const repo = new Repository(app, { ...DEFAULT_SETTINGS, ...SAVED_0_18, ...resolveMapFolders(SAVED_0_18), language });
   const originals = new Map(fixtureFiles());
   if (mutate) mutate(originals);
   for (const [file, content] of originals) { await repo.folder(path.posix.dirname(file)); await app.vault.create(file, content); }
@@ -32,14 +32,16 @@ integrationTest('fixture sanity: it holds every 0.18 shape the upgrade must surv
   const files = new Map(fixtureFiles());
   assert.ok([...files.keys()].some(file => file.startsWith('Agent Workspace/Topics/') && file.endsWith('/Map.md')), 'maps under Topics');
   assert.ok([...files.values()].some(content => /"aim":/.test(content)), 'an AIM map');
-  assert.ok([...files.entries()].some(([file, content]) => file.startsWith('Agent Workspace/Inbox/') && /topic-state: "inbox"/.test(content)), 'Inbox notes with topic-state inbox');
+  assert.ok([...files.entries()].some(([file, content]) => file.startsWith('Agent Workspace/Inbox/') && /topic-state: inbox/.test(content)), 'Inbox notes with topic-state inbox');
   assert.ok(files.has('Agent Workspace/Maps/Pre-0.4 map.md') && files.has('Agent Workspace/Nodes/Legacy a.md'), 'a pre-0.4 map outside Topics');
   assert.ok(files.has('Journal/Daily.md'), 'an unrelated note');
   assert.ok([...files.keys()].some(file => file.includes('/Unassigned/')) && [...files.keys()].some(file => file.includes('/Archive/')));
 });
 
-integrationTest('upgrade 0.18 -> 0.19: every map opens, every note reads, a rebuild changes no file and removes none', async () => {
-  const vault = await upgradedVault();
+// The fixture mixes notes written under a zh-TW UI (labels 所屬主題, 預覽...) and an en UI; neither UI language may relabel the other's notes.
+for (const language of ['en', 'zh-TW'])
+integrationTest(`upgrade 0.18 -> 0.19 under a ${language} UI: every map opens, every note reads, a rebuild changes no file and removes none`, async () => {
+  const vault = await upgradedVault(undefined, language);
   const { repo, originals } = vault;
   await repo.ensureWorkspace();
   const mapFiles = await repo.mapFiles();

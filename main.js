@@ -12597,6 +12597,21 @@ function localizeReference(value, language2) {
   const plain = match[2] === "\u7121" || match[2] === "None" ? language2 === "en" ? "None" : "\u7121" : match[2] === "\u5DF2\u5C01\u5B58" || match[2] === "Archived" ? language2 === "en" ? "Archived" : "\u5DF2\u5C01\u5B58" : match[2] === "\u672A\u6B78\u985E" || match[2] === "Unassigned" ? language2 === "en" ? "Unassigned" : "\u672A\u6B78\u985E" : match[2];
   return `${labels[index]}${language2 === "en" ? ": " : "\uFF1A"}${plain}`;
 }
+function derivedLabelLanguage(content, fm) {
+  var _a;
+  if (Array.isArray(fm["agent-map-references"]))
+    for (const entry of fm["agent-map-references"]) {
+      const label = (_a = /^([^：:]+)[：:]/.exec(String(entry))) == null ? void 0 : _a[1];
+      if (label && REFERENCE_LABELS.includes(label)) return "zh-TW";
+      if (label && ENGLISH_REFERENCE_LABELS.includes(label)) return "en";
+    }
+  if (/^## 預覽[ \t]*$/m.test(content)) return "zh-TW";
+  if (/^## Preview[ \t]*$/m.test(content)) return "en";
+  const summary = section2(content, "Current Summary");
+  if (summary === placeholder("zh-TW")) return "zh-TW";
+  if (summary === placeholder("en")) return "en";
+  return void 0;
+}
 function withReferenceLinks(body, fm, language2) {
   const sources2 = Array.isArray(fm["source-notes"]) ? fm["source-notes"].map(String).filter(Boolean) : [];
   const relationships = Array.isArray(fm["agent-map-references"]) ? fm["agent-map-references"].map(String).filter((text11) => text11.includes("[[")) : [];
@@ -13251,9 +13266,10 @@ ${body}`);
   }
   /** The node note with derived lifecycle fields and references applied, or null when it is not a VAM node note. */
   derivedNoteContent(file, content, ownership, topics) {
-    var _a;
+    var _a, _b;
     const fm = frontmatter(content);
     if (!marker(fm["agent-map-node"])) return null;
+    const language2 = (_a = derivedLabelLanguage(content, fm)) != null ? _a : this.settings.language;
     ensureNoteCssClass(fm);
     fm.title = noteTitle(content, fm, file.basename);
     const owner = ownership.get(file.path);
@@ -13271,19 +13287,15 @@ ${body}`);
       } else if (fm["topic-state"] !== void 0 || file.path.includes("/Archive/") || file.path.includes("/Unassigned/"))
         fm["topic-state"] = state;
     }
-    const textLanguage = (owner == null ? void 0 : owner.map.aim) ? resolveAimContentLanguage(owner.map, this.settings.language) : (_a = noteContentLanguage(fm)) != null ? _a : this.settings.language;
-    let body = ensurePreview(
-      content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, ""),
-      this.settings.language,
-      textLanguage
-    );
+    const textLanguage = (owner == null ? void 0 : owner.map.aim) ? resolveAimContentLanguage(owner.map, language2) : (_b = noteContentLanguage(fm)) != null ? _b : language2;
+    let body = ensurePreview(content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, ""), language2, textLanguage);
     if (isPlaceholder(text5(fm.summary))) fm.summary = placeholder(textLanguage);
     const topicId = text5(fm["topic-id"]), topic = topics.get(topicId);
     if (owner) {
       if (!body.includes(DETAIL_START)) body = replaceSection(body, "Detail", section2(body, "Detail"));
       const parent = owner.node.parentId ? owner.map.nodes.find((item) => item.id === owner.node.parentId) : void 0;
       const children = owner.map.nodes.filter((item) => item.parentId === owner.node.id);
-      fm["agent-map-references"] = this.settings.language === "en" ? [
+      fm["agent-map-references"] = language2 === "en" ? [
         `Topic: [[${noteLink(owner.mapPath)}|${owner.map.title}]]`,
         `Mind map: [[${noteLink(owner.mapPath)}]]`,
         parent ? `Parent topic: [[${noteLink(parent.path)}]]` : "Parent topic: None",
@@ -13296,7 +13308,7 @@ ${body}`);
       ];
       body = withoutReference(body);
     } else if (topic && (state === "unassigned" || state === "archived")) {
-      fm["agent-map-references"] = this.settings.language === "en" ? [
+      fm["agent-map-references"] = language2 === "en" ? [
         `Topic: [[${noteLink(topic.mapPath)}|${topic.map.title}]]`,
         `Status: ${state === "archived" ? "Archived" : "Unassigned"}`
       ] : [
@@ -13312,12 +13324,12 @@ ${body}`);
       body,
       text5(fm.title, file.basename),
       text5(fm.summary, placeholder(textLanguage)),
-      this.settings.language,
+      language2,
       textLanguage
     );
     return `---
 ${(0, import_obsidian9.stringifyYaml)(fm)}---
-${withReferenceLinks(body, fm, this.settings.language)}`;
+${withReferenceLinks(body, fm, language2)}`;
   }
   async ensureNodePresentation() {
     for (const file of await this.markedFiles("agent-map-node")) {

@@ -1,18 +1,23 @@
 ---
 agent-map-node: true
-node-id: "2d03f290-8a94-4ad0-9e1f-d241d2b7f442"
-topic-id: "d860d1bd-cec2-442a-abdc-b18097b1dd88"
-topic-state: "active"
-agent-map-id: "d860d1bd-cec2-442a-abdc-b18097b1dd88"
-title: "Which doneness?"
-summary: "No conclusion yet"
+node-id: a5c1a979-cac0-4c6a-acc9-aa55635dcbfa
+topic-id: 32aca243-1454-4bd9-97fa-736ae5cbf606
+topic-state: active
+agent-map-id: 32aca243-1454-4bd9-97fa-736ae5cbf606
+title: Which doneness?
+summary: No conclusion yet
 preview-initialized: false
-model: "gpt-6-luna"
-model-source: "workspace"
-reasoning-level: "low"
-status: "idea"
-cssclasses: ["visual-agent-map-node"]
-agent-map-references: ["Topic: [[Agent Workspace/Topics/Steak doneness/Map|Steak doneness]]","Mind map: [[Agent Workspace/Topics/Steak doneness/Map]]","Parent topic: None","Child topics: None"]
+model: gpt-6-luna
+model-source: workspace
+reasoning-level: low
+status: idea
+cssclasses:
+  - visual-agent-map-node
+agent-map-references:
+  - 所屬主題：[[Agent Workspace/Topics/Steak doneness/Map|Steak doneness]]
+  - 所屬心智圖：[[Agent Workspace/Topics/Steak doneness/Map]]
+  - 母議題：無
+  - 子議題：無
 ---
 # Which doneness?
 
@@ -24,7 +29,7 @@ No conclusion yet
 
 
 
-## Preview
+## 預覽
 
 No conclusion yet
 
@@ -37,6 +42,6 @@ No conclusion yet
 <!-- visual-agent-map:references:start -->
 ## Reference Links
 
-- Topic: [[Agent Workspace/Topics/Steak doneness/Map|Steak doneness]]
-- Mind map: [[Agent Workspace/Topics/Steak doneness/Map]]
+- 所屬主題：[[Agent Workspace/Topics/Steak doneness/Map|Steak doneness]]
+- 所屬心智圖：[[Agent Workspace/Topics/Steak doneness/Map]]
 <!-- visual-agent-map:references:end -->

@@ -9,11 +9,11 @@ This file stores the mind map structure. Full content lives in the topic notes. 
 ```agent-map
 {
   "version": 1,
-  "id": "bcb87d83-4538-4b0b-bf7d-fdfb17526490",
+  "id": "55f14fbe-c4f8-4c90-a721-75da99a29b05",
   "title": "Beta budget",
   "nodes": [
     {
-      "id": "29bb16c3-de66-4935-8680-4cbaf0108ccb",
+      "id": "ddd240e1-ecaf-466c-ab22-c264ee04c277",
       "path": "Agent Workspace/Topics/Beta budget/Notes/Budget.md",
       "parentId": null,
       "x": 80,

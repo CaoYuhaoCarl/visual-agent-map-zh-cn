@@ -1,18 +1,21 @@
 ---
 agent-map-node: true
-node-id: "9e4b8655-1fb8-40c6-998c-4d64f4fa290a"
-topic-id: "55073c95-0ed6-4cc1-9dc3-f09d8903a103"
-topic-state: "unassigned"
-title: "Spare idea"
-summary: "Parked"
+node-id: 40b28085-6795-42b6-ac14-f8b4c4509ceb
+topic-id: bda67f5b-cb98-491f-8938-8e6325a94701
+topic-state: unassigned
+title: Spare idea
+summary: Parked
 preview-initialized: true
-model: "gpt-5.6-luna"
-model-source: "workspace"
-reasoning-level: "low"
-status: "idea"
-cssclasses: ["visual-agent-map-node"]
-updated: "2026-10-14T14:37:52.303Z"
-agent-map-references: ["Topic: [[Agent Workspace/Topics/Alpha trip/Map|Alpha trip]]","Status: Unassigned"]
+model: gpt-5.6-luna
+model-source: workspace
+reasoning-level: low
+status: idea
+cssclasses:
+  - visual-agent-map-node
+updated: 2026-10-14T16:19:47.382Z
+agent-map-references:
+  - 所屬主題：[[Agent Workspace/Topics/Alpha trip/Map|Alpha trip]]
+  - 狀態：未歸類
 ---
 # Spare idea
 
@@ -24,7 +27,7 @@ Parked
 
 
 
-## Preview
+## 預覽
 
 Parked
 
@@ -37,5 +40,5 @@ Parked
 <!-- visual-agent-map:references:start -->
 ## Reference Links
 
-- Topic: [[Agent Workspace/Topics/Alpha trip/Map|Alpha trip]]
+- 所屬主題：[[Agent Workspace/Topics/Alpha trip/Map|Alpha trip]]
 <!-- visual-agent-map:references:end -->

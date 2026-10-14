@@ -4,16 +4,16 @@ visual-agent-map: true
 
 # Alpha trip
 
-This file stores the mind map structure. Full content lives in the topic notes. Choose Open as mind map from the file menu.
+此檔案保存心智圖結構；完整內容保存在各議題筆記。從檔案選單選擇「以心智圖開啟」。
 
 ```agent-map
 {
   "version": 1,
-  "id": "55073c95-0ed6-4cc1-9dc3-f09d8903a103",
+  "id": "bda67f5b-cb98-491f-8938-8e6325a94701",
   "title": "Alpha trip",
   "nodes": [
     {
-      "id": "1b769f12-c488-4151-ae53-ee536fca2618",
+      "id": "e25b9f66-ba42-4157-94e5-201804a3b2b2",
       "path": "Agent Workspace/Topics/Alpha trip/Notes/Plan the trip.md",
       "parentId": null,
       "x": 80,
@@ -21,9 +21,9 @@ This file stores the mind map structure. Full content lives in the topic notes. 
       "collapsed": false
     },
     {
-      "id": "661fa42c-9ca3-4316-bc28-839ff0f87d6c",
+      "id": "42d8c4ed-844a-459a-a31f-bc78afb6652d",
       "path": "Agent Workspace/Topics/Alpha trip/Notes/Book trains.md",
-      "parentId": "1b769f12-c488-4151-ae53-ee536fca2618",
+      "parentId": "e25b9f66-ba42-4157-94e5-201804a3b2b2",
       "x": 80,
       "y": 80,
       "collapsed": false

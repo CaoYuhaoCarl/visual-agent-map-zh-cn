@@ -79,8 +79,8 @@ integrationTest('a legacy Inbox note with topic-state inbox reads without error 
   assert.equal((await repo.readNote(path)).topicState, 'inbox');
   await repo.rebuildDerivedData();
   const after = contents.get(path);
-  assert.match(after, /^topic-state: "inbox"/m, 'the inbox state is kept');
-  assert.match(after, /node-id: "loose"/);
+  assert.match(after, /^topic-state: inbox$/m, 'the inbox state is kept');
+  assert.match(after, /node-id: loose/);
   assert.ok(app.vault.getAbstractFileByPath(path), 'the note is not moved or deleted');
 });
 

@@ -1,21 +1,22 @@
 ---
 agent-map-node: true
-node-id: "loose-2"
-title: "Second loose"
-topic-state: "inbox"
-cssclasses: ["visual-agent-map-node"]
+node-id: loose-2
+title: Second loose
+topic-state: inbox
+cssclasses:
+  - visual-agent-map-node
 ---
 # Second loose
 
 ## Current Summary
 
-No conclusion yet
+尚未形成結論
 
 ## Prompt
 
 
 
-## Preview
+## 預覽
 
 
 

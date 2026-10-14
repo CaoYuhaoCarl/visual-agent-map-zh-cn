@@ -6,11 +6,19 @@ const fs = require('node:fs');
 const path = require('node:path');
 const worktree = path.resolve(process.argv[2] ?? '');
 if (!fs.existsSync(path.join(worktree, 'manifest.json')) || JSON.parse(fs.readFileSync(path.join(worktree, 'manifest.json'), 'utf8')).version !== '0.18.0') throw new Error('Pass a checkout of 3b92deb (version 0.18.0).');
-const { load, core, fixture, TFile } = require(path.join(worktree, 'tests/support.cjs'));
+const { load, core, fixture, obsidian, TFile } = require(path.join(worktree, 'tests/support.cjs'));
+// Real YAML with Obsidian's options (the 0.18 test double used a one-line-per-key stub).
+const YAML = require(path.join(worktree, 'node_modules/yaml'));
+obsidian.parseYaml = text => YAML.parse(text, null, {});
+obsidian.stringifyYaml = obj => YAML.stringify(obj, null, { nullStr: '', lineWidth: 0, aliasDuplicateObjects: false });
 const out = path.join(__dirname, 'vault');
 
 (async () => {
-  const { repo, app, files, contents } = fixture('en');
+  // Most of the vault was written under a zh-TW UI; Beta budget under en, so both label languages exist side by side.
+  const { Repository, DEFAULT_SETTINGS } = load('repository.ts', { obsidian }); // loaded after the YAML override above
+  const base = fixture('zh-TW');
+  const { app, files, contents } = base;
+  const repo = new Repository(app, { ...DEFAULT_SETTINGS, language: 'zh-TW' });
   const { createAimMap } = load('experiences/aim/create-map.ts');
   const topics = repo.settings.topicsFolder;
   await repo.ensureWorkspace();
@@ -29,11 +37,8 @@ const out = path.join(__dirname, 'vault');
   const old = await repo.createNote('Old idea', 'gpt-5.6-luna', alpha, alphaPath, 'workspace');
   const archived = `${topics}/Alpha trip/Archive/Old idea.md`;
   await repo.moveExact(old.path, archived); await repo.setLifecycle(archived, alpha.id, '', 'archived');
-  // A second mind map and an AIM map, both under Topics as 0.18 stored them.
-  const betaPath = await repo.createMap('Beta budget');
-  const beta = await repo.readMap(betaPath);
-  const bRoot = await repo.createNote('Budget', 'gpt-5.6-luna', beta, betaPath, 'workspace');
-  beta.nodes.push(bRoot); await repo.saveMap(betaPath, beta);
+  // Beta budget is generated separately under an en UI (below) so both label languages exist side by side.
+  // An AIM map under Topics as 0.18 stored it.
   const aimPath = (await createAimMap(repo, 'gpt-6-luna', { requestId: 'fixture-aim', topic: 'Steak doneness', context: 'Cast iron pan.' })).mapPath;
   const aim = await repo.readMap(aimPath);
   const question = await repo.createNote('Which doneness?', 'gpt-6-luna', aim, aimPath, 'workspace');
@@ -51,7 +56,17 @@ const out = path.join(__dirname, 'vault');
   await app.vault.create(`${repo.settings.inboxFolder}/Second loose.md`, '---\nagent-map-node: true\nnode-id: "loose-2"\ntitle: "Second loose"\ntopic-state: inbox\n---\n\n# Second loose\n');
   // An unrelated note VAM must never touch.
   await repo.folder('Journal'); await app.vault.create('Journal/Daily.md', '# Daily\n\nNot a VAM note.\n');
-  await repo.rebuildDerivedData(); // the 0.18 fixed point: what a 0.18 vault looks like after its own rebuild
+  await repo.rebuildDerivedData(); // NOTE: per-note label language is a 0.18 side effect of this rebuild (UI language); see the 0.19 test.
+  // the 0.18 fixed point: what a 0.18 vault looks like after its own rebuild
+  const en = fixture('en');
+  const enRepo = new Repository(en.app, { ...DEFAULT_SETTINGS, language: 'en' });
+  await enRepo.ensureWorkspace();
+  const betaPath = await enRepo.createMap('Beta budget');
+  const beta = await enRepo.readMap(betaPath);
+  const bRoot = await enRepo.createNote('Budget', 'gpt-5.6-luna', beta, betaPath, 'workspace');
+  beta.nodes.push(bRoot); await enRepo.saveMap(betaPath, beta);
+  await enRepo.rebuildDerivedData();
+  for (const [file, item] of en.files) if (item instanceof TFile && file.startsWith(`${topics}/Beta budget/`)) { files.set(file, item); contents.set(file, en.contents.get(file)); }
   fs.rmSync(out, { recursive: true, force: true });
   for (const [file, item] of files) {
     if (!(item instanceof TFile)) continue;

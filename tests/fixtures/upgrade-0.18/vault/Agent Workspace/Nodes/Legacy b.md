@@ -1,25 +1,30 @@
 ---
 agent-map-node: true
-node-id: "b"
-title: "Legacy b"
-cssclasses: ["visual-agent-map-node"]
-agent-map-id: "pre04"
-topic-id: "pre04"
-topic-state: "active"
-model-source: "inherited"
-agent-map-references: ["Topic: [[Agent Workspace/Maps/Pre-0.4 map|Pre-0.4 map]]","Mind map: [[Agent Workspace/Maps/Pre-0.4 map]]","Parent topic: [[Agent Workspace/Nodes/Legacy a]]","Child topics: None"]
+node-id: b
+title: Legacy b
+cssclasses:
+  - visual-agent-map-node
+agent-map-id: pre04
+topic-id: pre04
+topic-state: active
+model-source: inherited
+agent-map-references:
+  - 所屬主題：[[Agent Workspace/Maps/Pre-0.4 map|Pre-0.4 map]]
+  - 所屬心智圖：[[Agent Workspace/Maps/Pre-0.4 map]]
+  - 母議題：[[Agent Workspace/Nodes/Legacy a]]
+  - 子議題：無
 ---
 # Legacy b
 
 ## Current Summary
 
-No conclusion yet
+尚未形成結論
 
 ## Prompt
 
 
 
-## Preview
+## 預覽
 
 
 
@@ -32,7 +37,7 @@ Old detail b
 <!-- visual-agent-map:references:start -->
 ## Reference Links
 
-- Topic: [[Agent Workspace/Maps/Pre-0.4 map|Pre-0.4 map]]
-- Mind map: [[Agent Workspace/Maps/Pre-0.4 map]]
-- Parent topic: [[Agent Workspace/Nodes/Legacy a]]
+- 所屬主題：[[Agent Workspace/Maps/Pre-0.4 map|Pre-0.4 map]]
+- 所屬心智圖：[[Agent Workspace/Maps/Pre-0.4 map]]
+- 母議題：[[Agent Workspace/Nodes/Legacy a]]
 <!-- visual-agent-map:references:end -->

@@ -5,7 +5,7 @@ const path = require('node:path');
 const { integrationTest, root, load, core, layout, node, map, plain, tree, TFolder, obsidian, DEFAULT_SETTINGS, fixture, topicNote } = require('../support.cjs');
 integrationTest('editing note fields preserves latest AI detail and unrelated frontmatter', async () => {
   const { repo, contents } = fixture(); const n = await topicNote(repo);
-  contents.set(n.path, contents.get(n.path).replace('---\n', '---\ncustom: "retain me"\n'));
+  contents.set(n.path, contents.get(n.path).replace('---\n', '---\ncustom: retain me\n'));
   await repo.updateNote(n.path, { detail: '## Nested heading\n\nAI result with $& and ```code```', newFindings: 'Fresh research', status: 'review' });
   await repo.updateNote(n.path, { title: '修改標題', model: 'model-b', reasoning: 'high', prompt: 'A task with $&' });
   const result = await repo.readNote(n.path);
@@ -13,7 +13,7 @@ integrationTest('editing note fields preserves latest AI detail and unrelated fr
   assert.equal(result.reasoning, 'high');
   assert.equal(result.newFindings, 'Fresh research');
   assert.match(contents.get(n.path), /## Working Findings\n\nFresh research/);
-  assert.match(contents.get(n.path), /custom: "retain me"/);
+  assert.match(contents.get(n.path), /custom: retain me/);
 });
 integrationTest('local research mode persists without changing older notes', async () => {
   const { repo } = fixture(); const n = await topicNote(repo);
@@ -31,7 +31,7 @@ integrationTest('current summary is editable in the Markdown body', async () => 
   const { repo, contents } = fixture(); const n = await topicNote(repo, 'Editable summary');
   assert.match(contents.get(n.path), /## Current Summary\n\n尚未形成結論/);
   await repo.updateNote(n.path, { summary: 'AI conclusion that can be edited' });
-  assert.match(contents.get(n.path), /summary: "AI conclusion that can be edited"/);
+  assert.match(contents.get(n.path), /summary: AI conclusion that can be edited/);
   assert.match(contents.get(n.path), /## Current Summary\n\nAI conclusion that can be edited/);
   contents.set(n.path, contents.get(n.path).replace('## Current Summary\n\nAI conclusion that can be edited', '## Current Summary\n\nUser-edited conclusion'));
   assert.equal((await repo.readNote(n.path)).summary, 'User-edited conclusion');
@@ -78,15 +78,21 @@ integrationTest('language switch localizes only generated note scaffolding and p
   assert.match(markdown, /Keep detail/);
   assert.doesNotMatch(markdown, /## 預覽|尚未形成結論|所屬主題|來源議題/);
   await repo.updateNote(note.path, { preview: 'My own preview' });
+  // 0.19: a rebuild never relabels a note, whatever the UI language; only notes with no derived labels use it.
   repo.settings.language = 'zh-TW';
   await repo.rebuildDerivedData();
   markdown = contents.get(note.path);
-  assert.match(markdown, /## 預覽\n\nMy own preview/);
-  assert.match(markdown, /## Current Summary\n\n尚未形成結論/);
-  assert.match(markdown, /- 所屬主題：\[\[/);
+  assert.match(markdown, /## Preview\n\nMy own preview/);
+  assert.match(markdown, /- Topic: \[\[/);
   assert.match(markdown, /Keep detail/);
-  assert.doesNotMatch(markdown, /## Preview|No conclusion yet/);
+  assert.doesNotMatch(markdown, /## 預覽|尚未形成結論|所屬主題/);
   assert.equal((await repo.readNote(note.path)).preview, 'My own preview');
+  const bare = 'Agent Workspace/Unfiled/Bare.md';
+  await repo.folder('Agent Workspace/Unfiled');
+  const bareContent = '---\nagent-map-node: true\nnode-id: bare\ntitle: Bare\n---\n# Bare\n';
+  contents.set(bare, bareContent); await app.vault.create(bare, bareContent);
+  await repo.rebuildDerivedData();
+  assert.match(contents.get(bare), /## 預覽/, 'a note with no derived labels uses the current UI language');
 });
 integrationTest('editing a note heading updates its card title and survives later note writes', async () => {
   const { repo, contents } = fixture(); const n = await topicNote(repo, '新的子議題');
@@ -94,7 +100,7 @@ integrationTest('editing a note heading updates its card title and survives late
   assert.equal((await repo.readNote(n.path)).title, '要如何推廣VAM');
   await repo.updateNote(n.path, { summary: '新的摘要' });
   assert.equal((await repo.readNote(n.path)).title, '要如何推廣VAM');
-  assert.match(contents.get(n.path), /title: "要如何推廣VAM"/);
+  assert.match(contents.get(n.path), /title: 要如何推廣VAM/);
   assert.match(contents.get(n.path), /^# 要如何推廣VAM$/m);
   await repo.rebuildDerivedData();
   assert.equal((await repo.readNote(n.path)).title, '要如何推廣VAM');
@@ -131,7 +137,7 @@ integrationTest('reference rebuild keeps a note edit made after the rebuild read
 });
 integrationTest('node presentation repair keeps a note edit made after the check', async () => {
   const { repo, contents, app } = fixture(); const n = await topicNote(repo);
-  contents.set(n.path, contents.get(n.path).replace(/^cssclasses: .*\n/m, ''));
+  contents.set(n.path, contents.get(n.path).replace(/^cssclasses:\n(  - .*\n)+/m, ''));
   const process = app.vault.process;
   app.vault.process = async (file, change) => {
     contents.set(file.path, `${contents.get(file.path)}\n\nLate edit`);
@@ -316,7 +322,7 @@ integrationTest('saved integration is not offered for retry when derived-data re
 integrationTest('topic notes hide properties without removing existing css classes', async () => {
   const { repo, contents } = fixture(); const n = await topicNote(repo, 'Styled', 'a');
   let content = contents.get(n.path); assert.match(content, /visual-agent-map-node/);
-  content = content.replace('cssclasses: ["visual-agent-map-node"]', 'cssclasses: ["user-class"]'); contents.set(n.path, content);
+  content = content.replace('cssclasses:\n  - visual-agent-map-node', 'cssclasses:\n  - user-class'); contents.set(n.path, content);
   await repo.ensureNodePresentation(); content = contents.get(n.path); assert.match(content, /user-class/); assert.match(content, /visual-agent-map-node/);
 });
 integrationTest('deleted map restore refuses an occupied path without changing its contents', async () => {
