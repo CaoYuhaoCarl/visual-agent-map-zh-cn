@@ -671,6 +671,10 @@ export default class VisualAgentMapPlugin extends Plugin {
   }
   /** Owner-run only: previews the move of legacy Topics maps into Mind Maps / AIM and writes nothing until confirmed. */
   async offerOrganizeWorkspaceFolders(): Promise<void> {
+    // Repair a topic stranded by an earlier interrupted move before planning (no-op, no writes, when nothing is lost).
+    await this.mutate(async () => {
+      await this.repo.reconcileMissingNodePaths();
+    });
     const plan = await this.repo.planOrganizeWorkspaceFolders();
     if (!plan.moves.length) {
       new Notice(
@@ -722,6 +726,9 @@ export default class VisualAgentMapPlugin extends Plugin {
     new Notice(t("ui.agent_workspace_is_ready"));
   }
   async fullRebuild(): Promise<void> {
+    // First re-find notes whose path changed behind the maps' back (e.g. a move interrupted by an unload); rebuilding
+    // before that would read them as unowned and strip their map ids.
+    await this.repo.reconcileMissingNodePaths();
     await this.repo.rebuildDerivedData();
     for (const view of this.views()) await view.refreshFromPlugin();
     new Notice(t("ui.vam_data_has_been_refreshed"));

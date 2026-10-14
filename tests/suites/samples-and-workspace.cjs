@@ -172,7 +172,7 @@ test('Obsidian 1.13 declarative settings expose workspace recovery and App Serve
 integrationTest('full rebuild refreshes derived data and open views', async () => {
   const { default: Plugin } = load('main.ts', { obsidian }); let rebuilds = 0, refreshes = 0;
   const plugin = new Plugin();
-  plugin.repo = { rebuildDerivedData: async () => { rebuilds++; } };
+  plugin.repo = { reconcileMissingNodePaths: async () => 0, rebuildDerivedData: async () => { rebuilds++; } };
   plugin.views = () => [{ refreshFromPlugin: async () => { refreshes++; } }];
   await plugin.fullRebuild();
   assert.equal(rebuilds, 1);

@@ -57,7 +57,7 @@ Researching several topics at once uses more of your provider allowance, and a b
 
 Images found by AI web search may not be free to reuse; check each source page. Outline search covers titles in the current map, not full text. Map undo/redo is temporary and clears when you switch maps or close the view.
 
-New mind maps are created in `Mind Maps/` and new AIM maps in `AIM/` inside your workspace folder (both names can be changed in settings, which renames the existing folder). Existing maps in `Topics/` keep working where they are; VAM never moves them on its own. To move them, run the command "Organize workspace folders", which shows a preview first and restores everything if a step fails. The Inbox is no longer managed: existing `Inbox/` folders and notes are left untouched. Maps saved with the pre-0.4 structure (outside these folders) can still be opened and viewed, but cannot be renamed, edited structurally, or organized.
+New mind maps are created in `Mind Maps/` and new AIM maps in `AIM/` inside your workspace folder (both names can be changed in settings, which renames the existing folder). Existing maps in `Topics/` keep working where they are; VAM never moves them on its own. To move them, run the command "Organize workspace folders", which shows a preview first and restores everything if a step fails. The Inbox is no longer managed: existing `Inbox/` folders and notes are left untouched. Maps saved with the pre-0.4 structure (outside these folders) can still be opened and viewed, but cannot be renamed, edited structurally, or organized. If Obsidian is closed or VAM is disabled while a move is running, some maps may be left in their new folder with outdated links inside VAM; run "Refresh VAM data" (it repairs those paths first) or start "Organize workspace folders" again.
 
 Coffee Tables stores what it needs to continue a conversation in the hidden `Coffee Tables/.sessions` folder. Obsidian Sync skips hidden folders, so on other devices you can read synced conversations but not continue them; continue them on the device where they started.
 
@@ -128,7 +128,7 @@ AIM 會搜尋網路並提供來源連結，但找到來源不代表內容已證�
 
 AI 從網路找到的圖片不一定能自由使用，請查看各自的來源頁。大綱只搜尋目前地圖的議題名稱，不搜尋全文。地圖的復原／重做是暫存紀錄，切換地圖或關閉視圖後會清除。
 
-新的心智圖會建立在工作區資料夾內的 `Mind Maps/`，新的 AIM 會建立在 `AIM/`（資料夾名稱可在設定中修改，會一併重新命名既有資料夾）。`Topics/` 內既有的地圖維持原位、照常可用；VAM 不會自行搬動它們。要搬移請執行「整理工作區資料夾」指令，它會先顯示預覽，任一步失敗會還原全部。收件匣（Inbox）不再由 VAM 管理：既有的 `Inbox/` 資料夾與筆記原封不動。以 0.4 前舊結構儲存的地圖（不在上述資料夾內）仍可開啟與檢視，但不能改名、不能修改結構，也不會被整理。
+新的心智圖會建立在工作區資料夾內的 `Mind Maps/`，新的 AIM 會建立在 `AIM/`（資料夾名稱可在設定中修改，會一併重新命名既有資料夾）。`Topics/` 內既有的地圖維持原位、照常可用；VAM 不會自行搬動它們。要搬移請執行「整理工作區資料夾」指令，它會先顯示預覽，任一步失敗會還原全部。收件匣（Inbox）不再由 VAM 管理：既有的 `Inbox/` 資料夾與筆記原封不動。以 0.4 前舊結構儲存的地圖（不在上述資料夾內）仍可開啟與檢視，但不能改名、不能修改結構，也不會被整理。若搬移進行中關閉了 Obsidian 或停用了 VAM，部分地圖可能已在新資料夾但 VAM 內的路徑尚未更新；請執行「重新整理 VAM 資料」（會先修復這些路徑），或再次執行「整理工作區資料夾」。
 
 Coffee Tables 把接續對談所需的資料存在隱藏資料夾 `Coffee Tables/.sessions`。Obsidian Sync 不同步隱藏資料夾，因此在其他裝置上可以閱讀同步過去的對談，但無法接著聊；請回到開始對談的裝置繼續。
 

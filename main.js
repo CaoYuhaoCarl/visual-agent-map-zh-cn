@@ -715,7 +715,7 @@ var english = {
   "ui.organize_skipped_list_0": "Skipped: {0}",
   "ui.organize_start": "Start organizing",
   "ui.organize_progress_0_1_2": "Moving {0}/{1}: {2}. Waiting for Obsidian to update links; this can take a while.",
-  "ui.organize_link_wait_hint": "Each map can take a while because Obsidian updates its links. If \u201CAutomatically update internal links\u201D is off in Obsidian's Files & Links settings, Obsidian asks about the links of every map; answer each prompt, and do not close Obsidian until it finishes.",
+  "ui.organize_link_wait_hint": "Each map can take a while because Obsidian updates its links. Depending on Obsidian's \u201CAutomatically update internal links\u201D setting (Files & Links), Obsidian may ask about the links of each map; answer any prompt, and do not close Obsidian until it finishes.",
   "ui.organize_done_0": "Organized {0} map(s).",
   "ui.mind_maps_folder": "Mind Maps folder",
   "ui.aim_maps_folder": "AIM folder",
@@ -2120,7 +2120,7 @@ var traditionalChinese = {
   "ui.organize_skipped_list_0": "\u7565\u904E\uFF1A{0}",
   "ui.organize_start": "\u958B\u59CB\u6574\u7406",
   "ui.organize_progress_0_1_2": "\u642C\u79FB {0}/{1}\uFF1A{2}\u3002\u7B49\u5F85 Obsidian \u66F4\u65B0\u9023\u7D50\uFF0C\u53EF\u80FD\u9700\u8981\u4E00\u4E9B\u6642\u9593\u3002",
-  "ui.organize_link_wait_hint": "\u6BCF\u4EFD\u5FC3\u667A\u5716\u90FD\u8981\u7B49 Obsidian \u66F4\u65B0\u9023\u7D50\uFF0C\u53EF\u80FD\u9700\u8981\u4E00\u4E9B\u6642\u9593\u3002\u82E5 Obsidian\u300C\u6A94\u6848\u8207\u9023\u7D50\u300D\u8A2D\u5B9A\u4E2D\u7684\u300C\u81EA\u52D5\u66F4\u65B0\u5167\u90E8\u9023\u7D50\u300D\u662F\u95DC\u9589\u7684\uFF0CObsidian \u6703\u9010\u4EFD\u8A62\u554F\u9023\u7D50\u8655\u7406\u65B9\u5F0F\uFF1B\u8ACB\u9010\u4E00\u56DE\u7B54\uFF0C\u4E26\u5728\u5B8C\u6210\u524D\u4E0D\u8981\u95DC\u9589 Obsidian\u3002",
+  "ui.organize_link_wait_hint": "\u6BCF\u4EFD\u5FC3\u667A\u5716\u90FD\u8981\u7B49 Obsidian \u66F4\u65B0\u9023\u7D50\uFF0C\u53EF\u80FD\u9700\u8981\u4E00\u4E9B\u6642\u9593\u3002\u4F9D Obsidian\u300C\u6A94\u6848\u8207\u9023\u7D50\u300D\u8A2D\u5B9A\u4E2D\u7684\u300C\u81EA\u52D5\u66F4\u65B0\u5167\u90E8\u9023\u7D50\u300D\u800C\u5B9A\uFF0CObsidian \u53EF\u80FD\u6703\u9010\u4EFD\u8A62\u554F\u9023\u7D50\u8655\u7406\u65B9\u5F0F\uFF1B\u5982\u6709\u8A62\u554F\u8ACB\u56DE\u7B54\uFF0C\u4E26\u5728\u5B8C\u6210\u524D\u4E0D\u8981\u95DC\u9589 Obsidian\u3002",
   "ui.organize_done_0": "\u5DF2\u6574\u7406 {0} \u4EFD\u5FC3\u667A\u5716\u3002",
   "ui.mind_maps_folder": "\u5FC3\u667A\u5716\u8CC7\u6599\u593E",
   "ui.aim_maps_folder": "AIM \u8CC7\u6599\u593E",
@@ -35047,6 +35047,9 @@ ${error}`;
   }
   /** Owner-run only: previews the move of legacy Topics maps into Mind Maps / AIM and writes nothing until confirmed. */
   async offerOrganizeWorkspaceFolders() {
+    await this.mutate(async () => {
+      await this.repo.reconcileMissingNodePaths();
+    });
     const plan = await this.repo.planOrganizeWorkspaceFolders();
     if (!plan.moves.length) {
       new import_obsidian26.Notice(
@@ -35099,6 +35102,7 @@ ${t("ui.organize_link_wait_hint")}`;
     new import_obsidian26.Notice(t("ui.agent_workspace_is_ready"));
   }
   async fullRebuild() {
+    await this.repo.reconcileMissingNodePaths();
     await this.repo.rebuildDerivedData();
     for (const view of this.views()) await view.refreshFromPlugin();
     new import_obsidian26.Notice(t("ui.vam_data_has_been_refreshed"));

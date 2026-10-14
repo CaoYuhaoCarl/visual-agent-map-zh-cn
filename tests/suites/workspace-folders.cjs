@@ -329,7 +329,7 @@ integrationTest('the Organize command refuses while an open view has AIM work ru
   const { default: Plugin } = load('main.ts', { obsidian: fake });
   const plugin = new Plugin();
   Object.assign(plugin, { app: vault.app, repo: vault.repo, settings: vault.repo.settings });
-  plugin.views = () => [{ hasActiveAimWork: path => path === vault.paths.gamma }];
+  plugin.views = () => [{ hasActiveAimWork: path => path === vault.paths.gamma, synchronize: async () => {} }];
   const before = snapshot(vault);
   await plugin.offerOrganizeWorkspaceFolders();
   assert.equal(opened.length, 0); assert.match(notices[0], /still running or saving/);
@@ -650,4 +650,45 @@ integrationTest('reconcileMissingNodePaths and updateNote keep a zh-TW note zh u
   await repo.updateNote(moved, { summary: 'Edited' });
   assert.doesNotMatch(vault.contents.get(moved), EN_SCAFFOLD);
   assert.match(vault.contents.get(moved), ZH_SCAFFOLD);
+});
+
+integrationTest('Refresh VAM data restores a topic stranded by an interrupted move (folder moved, Map.md not rebased)', async () => {
+  const vault = await legacyVault('zh-TW', 'en');
+  const { repo, app, files, contents } = vault;
+  const { default: Plugin } = load('main.ts', { obsidian });
+  const plugin = new Plugin();
+  Object.assign(plugin, { app: { ...app, workspace: { requestSaveLayout() {}, getLeavesOfType: () => [] } }, repo, settings: repo.settings });
+  plugin.views = () => [];
+  // What an unload mid-Organize leaves: the folder is already at its new place, nothing else was updated.
+  await repo.folder('Agent Workspace/Mind Maps');
+  await app.fileManager.renameFile(files.get('Agent Workspace/Topics/Alpha'), 'Agent Workspace/Mind Maps/Alpha');
+  const stranded = 'Agent Workspace/Mind Maps/Alpha/Map.md';
+  assert.ok((await repo.readMap(stranded)).nodes.some(node => node.path.startsWith('Agent Workspace/Topics/Alpha/')), 'precondition: node paths are stale');
+  await plugin.fullRebuild();
+  const doc = await repo.readMap(stranded);
+  for (const node of doc.nodes) {
+    assert.ok(app.vault.getAbstractFileByPath(node.path), `${node.path} found again`);
+    assert.match(contents.get(node.path), /^agent-map-id: /m, 'ownership was not stripped');
+    assert.doesNotMatch(contents.get(node.path), EN_SCAFFOLD);
+  }
+  const second = await repo.readNote('Agent Workspace/Mind Maps/Alpha/Notes/Second.md');
+  assert.deepEqual(plain(second.sourcePaths), ['Agent Workspace/Mind Maps/Alpha/Notes/First.md'], 'citations follow too');
+  assert.equal((await repo.planOrganizeWorkspaceFolders()).moves.length, 2, 'Beta and Gamma are still organizable');
+});
+
+integrationTest('the Organize offer first repairs a stranded topic, then plans', async () => {
+  const vault = await legacyVault();
+  const { repo, app, files } = vault;
+  const opened = [];
+  const fake = { ...obsidian, Notice: class { setMessage() {} hide() {} }, Modal: class { open() { opened.push(this); } } };
+  const { default: Plugin } = load('main.ts', { obsidian: fake });
+  const plugin = new Plugin();
+  Object.assign(plugin, { app, repo, settings: repo.settings });
+  plugin.views = () => [];
+  await repo.folder('Agent Workspace/Mind Maps');
+  await app.fileManager.renameFile(files.get('Agent Workspace/Topics/Alpha'), 'Agent Workspace/Mind Maps/Alpha');
+  await plugin.offerOrganizeWorkspaceFolders();
+  const doc = await repo.readMap('Agent Workspace/Mind Maps/Alpha/Map.md');
+  assert.ok(doc.nodes.every(node => app.vault.getAbstractFileByPath(node.path)), 'node paths were repaired before planning');
+  assert.equal(opened.length, 1);
 });
