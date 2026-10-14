@@ -2,36 +2,23 @@ import { renderTemplate } from "../../../../core/step-runner";
 import template from "./task.md";
 import additionalResearch from "./additional-research.md";
 import noMappedSource from "./no-mapped-source.md";
-import writtenSectionsTemplate from "./written-sections.md";
 
 export interface WritingTaskVariables {
-  heading: string;
-  purpose: string;
   outline: string;
   knownConditions: string;
-  scopedEvidence: string;
-  /** The research report for this section, or undefined when the section needs no search. */
-  scopedResearch?: string;
-  /** Headings and summaries of the sections written before this one; omitted for the first section. */
-  writtenSections?: string;
+  evidence: string;
+  /** The final-document research report, or undefined when the outline needs no search. */
+  research?: string;
 }
-/** Task text of `aim.delivery-writing`: write one section from its mapped evidence. */
-export const renderWritingTask = (variables: WritingTaskVariables): string => {
-  const task = renderTemplate(template, {
-    heading: variables.heading,
-    purpose: variables.purpose,
+/** Task text of `aim.delivery-writing`: write the whole document in one call, so its sections cannot repeat each other. */
+export const renderWritingTask = (variables: WritingTaskVariables): string =>
+  renderTemplate(template, {
     outline: variables.outline,
     knownConditions: variables.knownConditions,
-    scopedEvidence: variables.scopedEvidence,
+    evidence: variables.evidence,
     additionalResearch:
-      variables.scopedResearch === undefined
-        ? ""
-        : renderTemplate(additionalResearch, { research: variables.scopedResearch })
+      variables.research === undefined ? "" : renderTemplate(additionalResearch, { research: variables.research })
   });
-  return variables.writtenSections
-    ? `${task}\n\n${renderTemplate(writtenSectionsTemplate, { writtenSections: variables.writtenSections })}`
-    : task;
-};
 
-/** Evidence text of a section that no supplied source is mapped to, while other sources exist. */
+/** Evidence text of a document that no supplied source is mapped to, while other sources exist. */
 export const NO_MAPPED_SOURCE = renderTemplate(noMappedSource, {});

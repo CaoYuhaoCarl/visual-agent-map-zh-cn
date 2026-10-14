@@ -41,7 +41,8 @@ for (const failedPhase of phases) {
     assert.deepEqual(firstCalls, phases.slice(0, phases.indexOf(failedPhase) + 1));
     assert.deepEqual(retryCalls, phases.slice(phases.indexOf(failedPhase)));
     assert.ok(delivery.result.detail.endsWith(outputs['delivery-writing'].detail));
-    assert.equal(events.length, retryCalls.length * 2 + (retryCalls.includes('delivery-writing') ? 1 : 0));
+    // Each phase announces itself once and saves one checkpoint; the one-call document saves with its draft.
+    assert.equal(events.length, retryCalls.length * 2);
   });
 }
 

@@ -16,10 +16,10 @@ Current task:
 Use the original goal, known user conditions and outcome preferences. Resolve important contradictions before concluding. Preserve evidence attribution and uncertainty. Do only the current phase; a research report is not the final deliverable.
 
 <!-- aim-phase: delivery-writing -->
-Write only the complete section "Execution plan" of the final document. Purpose: Complete the original goal. Full outline (structure only): [{"heading":"Execution plan","purpose":"Complete the original goal","searchTask":"Find verified runnable examples"}].
+Write the complete final document in one piece, following this outline in order and using each section heading as a ## heading: [{"heading":"Execution plan","purpose":"Complete the original goal","searchTask":"Find verified runnable examples"}].
 Known goal and user conditions:
 {"goal":"Snapshot goal","background":"## User-provided context\n\nInitial clarification: known background; unknown constraints may be explored conditionally.\n\n## User-provided outcome expectation\n\nWhat would you like from this exploration?: Get an actionable result or next steps\nPresentation preferences (optional): Steps, Table","conditions":{"What is your intended outcome?":"Executable project — Specific condition 1","Which constraint matters at stage 2?":"Time constraint — Specific condition 2","Which constraint matters at stage 3?":"Time constraint — Specific condition 3"},"currentQuestion":"Which constraint matters at stage 3?","currentAnswer":"{\"selectedOptions\":[\"Time constraint\"],\"freeText\":\"Specific condition 3\"}","earlierAnswers":["User answer to What is your intended outcome?: {\"selections\":[\"Executable project\"],\"freeText\":\"Specific condition 1\"}","User answer to Which constraint matters at stage 2?: {\"selections\":[\"Time constraint\"],\"freeText\":\"Specific condition 2\"}"],"model":"gpt-6-luna","reasoning":"low"}
-Section evidence (cite the source URLs or names where used; never show internal source IDs to the reader):
+Evidence (cite the source URLs or names where used; never show internal source IDs to the reader):
 Source ID: result-<uuid>-attempt-1
 ## Method and options
 
@@ -38,4 +38,4 @@ Applicable evidence: https://example.org/reference
 Additional final-document research:
 <!-- aim-delivery-research {"status":"searched"} -->
 Concrete example and source https://example.org/reference
-Develop this section into useful specific content answering the original user goal. Include steps, examples and resources when required. Preserve all necessary detail; summary is only a canvas preview. Do not write other sections, an audit, or a synopsis. Make each point once in the whole document: do not restate advice, conditions or caveats that another section of the outline covers, and put a limitation only beside the claim it changes. Do not fabricate or imply independent source verification. Output reader-facing Markdown in detail; cite sources where used and place limitations beside affected claims.
+Open with the direct answer or recommendation for this user. Use the user's stated situation and answers throughout, and give concrete steps, numbers, options and examples they can act on. Make each point once: no section repeats advice, conditions or caveats that another section already covers; put a limitation only beside the claim it changes, and gather what the user must still confirm in one place. Do not fabricate or imply independent source verification. Output reader-facing Markdown in detail; summary is only a short canvas preview.

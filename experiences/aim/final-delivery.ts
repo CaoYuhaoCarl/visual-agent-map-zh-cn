@@ -24,6 +24,8 @@ export interface DeliverySectionCheckpoint {
   evidenceIds: string[];
   result: AiResult;
 }
+/** Checkpoint key of the one written document; older per-section keys no longer match and are rewritten. */
+const DOCUMENT_KEY = "document";
 const fingerprint = (value: unknown): string => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 export function parseDeliveryOutline(detail: string): DeliverySection[] {
   const marker = detail.match(/<!--\s*aim-delivery-outline\s+([\s\S]*?)\s*-->/);
@@ -282,51 +284,32 @@ export async function buildFinalDelivery(
   const evidence = `Final document outline:\n${outline}\n\nFinal document research:\n${research.detail}\n\nSupplied source reports:\n${sourceCatalog}`;
   const available = new Map((options.evidence ?? []).map(source => [source.id, source]));
   if (available.size !== (options.evidence ?? []).length) throw new Error("Duplicate final delivery evidence IDs.");
-  const researchForSection = (section: DeliverySection): string => {
-    if (!section.searchTask.trim()) return "";
-    const lines = research.detail.split("\n");
-    const start = lines.findIndex(line => line.trim() === `## ${section.heading}`);
-    if (start >= 0) {
-      const end = lines.findIndex((line, index) => index > start && /^##\s+/.test(line));
-      return lines.slice(start, end < 0 ? undefined : end).join("\n");
-    }
-    if (options.evidence && sections.filter(item => item.searchTask.trim()).length > 1)
-      throw new Error("Final research is missing section-scoped evidence; no conclusion was saved.");
-    return research.detail;
-  };
-  const sectionPlans = sections.map(section => {
+  // The whole document is written in one call, so its sections cannot repeat each other. It reads the union of
+  // the sources the outline maps; an ID the outline invented is dropped and never read, and a section left with
+  // none (or a legacy section without a mapping) brings in all supplied evidence.
+  const sources = new Map<string, DeliveryEvidence>();
+  for (const section of sections) {
     const named = [...new Set([...(section.evidenceIds ?? []), ...(section.dependencies ?? [])])];
-    // An ID the outline invented is dropped, never read; a section left with none uses all supplied evidence.
     const ids = named.filter(id => available.has(id));
-    // Legacy outlines without a mapping depend on the complete supplied evidence.
-    const sources =
+    const scoped =
       (section.evidenceIds === undefined && section.dependencies === undefined) || (named.length && !ids.length)
         ? [...available.values()]
         : ids.map(id => available.get(id)!);
-    const scopedEvidence = sources.length
-      ? sources.map(source => `Source ID: ${source.id}\n${source.detail}`).join("\n\n")
-      : available.size
-        ? NO_MAPPED_SOURCE
-        : `${base.detail}\n\n${research.detail}`;
-    const scopedResearch = researchForSection(section);
-    const sectionFingerprint = fingerprint({
-      baseFingerprint,
-      heading: section.heading,
-      purpose: section.purpose,
-      searchTask: section.searchTask,
-      sources: sources.map(source => [source.id, source.hash]),
-      research: scopedResearch || (!available.size ? research.detail : undefined)
-    });
-    return {
-      section,
-      sources,
-      scopedEvidence,
-      scopedResearch,
-      sectionFingerprint,
-      key: section.heading.trim().toLowerCase()
-    };
+    for (const source of scoped) sources.set(source.id, source);
+  }
+  const documentSources = [...available.values()].filter(source => sources.has(source.id));
+  const documentEvidence = documentSources.length
+    ? documentSources.map(source => `Source ID: ${source.id}\n${source.detail}`).join("\n\n")
+    : available.size
+      ? NO_MAPPED_SOURCE
+      : `${base.detail}\n\n${research.detail}`;
+  const documentResearch = needsResearch ? research.detail : undefined;
+  const draftFingerprint = fingerprint({
+    baseFingerprint,
+    sections: sections.map(section => [section.heading, section.purpose, section.searchTask]),
+    sources: documentSources.map(source => [source.id, source.hash]),
+    research: documentResearch ?? (!available.size ? research.detail : undefined)
   });
-  const draftFingerprint = fingerprint(sectionPlans.map(plan => plan.sectionFingerprint));
   let draft: AiResult;
   let legacyDraft =
     reuseRemaining &&
@@ -346,75 +329,48 @@ export async function buildFinalDelivery(
     checkpoint.draftFingerprint = draftFingerprint;
   } else {
     reuseRemaining = false;
-    const completed = Object.create(null) as Record<string, DeliverySectionCheckpoint>;
-    // Keep valid sections even after a failed research/draft/acceptance stage.
-    for (const plan of sectionPlans) {
-      const saved = savedCheckpoint?.sections?.[plan.key];
-      if (saved?.fingerprint === plan.sectionFingerprint) {
-        try {
-          validateContent(saved.result);
-          completed[plan.key] = saved;
-        } catch {
-          /* Rewrite only this invalid section. */
-        }
+    const saved = savedCheckpoint?.sections?.[DOCUMENT_KEY];
+    let written: AiResult | undefined;
+    if (saved?.fingerprint === draftFingerprint) {
+      try {
+        validateContent(saved.result);
+        written = saved.result;
+      } catch {
+        /* Rewrite an invalid saved document. */
       }
     }
-    checkpoint.sections = completed;
-    for (const [index, plan] of sectionPlans.entries()) {
-      if (completed[plan.key]) continue;
-      // Earlier sections' summaries keep this section from repeating them; they do not change its fingerprint.
-      const earlierSections = sectionPlans
-        .slice(0, index)
-        .filter(earlier => completed[earlier.key])
-        .map(earlier => `## ${earlier.section.heading}\n${completed[earlier.key].result.summary}`)
-        .join("\n\n");
-      const written = await run(
+    if (!written) {
+      written = await run(
         "delivery-writing",
         renderWritingTask({
-          heading: plan.section.heading,
-          purpose: plan.section.purpose,
           outline,
           knownConditions: options.knownConditions ?? base.detail,
-          scopedEvidence: plan.scopedEvidence,
-          ...(plan.section.searchTask.trim() ? { scopedResearch: plan.scopedResearch } : {}),
-          ...(earlierSections ? { writtenSections: earlierSections } : {})
+          evidence: documentEvidence,
+          ...(documentResearch === undefined ? {} : { research: documentResearch })
         })
       );
       base.signal?.throwIfAborted();
-      completed[plan.key] = {
-        fingerprint: plan.sectionFingerprint,
-        evidenceIds: plan.sources.map(source => source.id),
-        result: written
-      };
-      await options.onCheckpoint?.({ ...checkpoint, sections: { ...completed } });
-      base.signal?.throwIfAborted();
     }
-    if (sectionPlans.some(plan => !completed[plan.key]))
-      throw new Error("Final delivery is missing a required section.");
-    const writtenSections = sectionPlans.map(plan => completed[plan.key].result);
-    const detail = writtenSections
-      .map((written, index) =>
-        sections.length === 1 ||
-        new RegExp(`^#{1,6}\\s+${sections[index].heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`, "m").test(
-          written.detail
-        )
-          ? written.detail
-          : `## ${sections[index].heading}\n\n${written.detail}`
-      )
-      .join("\n\n");
+    checkpoint.sections = {
+      [DOCUMENT_KEY]: {
+        fingerprint: draftFingerprint,
+        evidenceIds: documentSources.map(source => source.id),
+        result: written
+      }
+    };
     draft = {
-      summary: writtenSections[0].summary,
-      detail,
+      summary: written.summary,
+      detail: written.detail,
       suggestions: [],
-      visualReferences: writtenSections.flatMap(written => written.visualReferences ?? [])
+      visualReferences: written.visualReferences ?? []
     };
     validateContent(draft);
     checkpoint.draftFingerprint = draftFingerprint;
     checkpoint.draft = draft;
-    await options.onCheckpoint?.({ ...checkpoint, sections: { ...completed } });
+    await options.onCheckpoint?.({ ...checkpoint });
     base.signal?.throwIfAborted();
   }
-  // Acceptance belongs to the exact assembled document; changed sections invalidate it.
+  // Acceptance belongs to the exact written document; a rewritten document invalidates it.
   if (savedCheckpoint?.draftFingerprint && savedCheckpoint.draftFingerprint !== draftFingerprint)
     reuseRemaining = false;
   const result = await stage(
