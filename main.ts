@@ -39,6 +39,7 @@ import {
   type Settings
 } from "./repository";
 import { normalizeTemplates } from "./ai/detail-templates";
+import { normalizePresets } from "./ai/prompt-presets";
 import { effectiveReasoningLevel } from "./ai/task-policy";
 import type { AiResult, Suggestion, TaskContext } from "./ai/types";
 import { clampPreviewScale, legacyPreviewScale } from "./ui/preview-utils";
@@ -262,6 +263,7 @@ export default class VisualAgentMapPlugin extends Plugin {
     this.settings = {
       ...DEFAULT_SETTINGS,
       detailTemplates: normalizeTemplates(saved?.detailTemplates),
+      promptPresets: normalizePresets(saved?.promptPresets),
       defaultDetailTemplateId:
         typeof saved?.defaultDetailTemplateId === "string" ? saved.defaultDetailTemplateId : undefined,
       coffeeStyles: Array.isArray(saved?.coffeeStyles)

@@ -35,6 +35,7 @@ test('collect snapshots: AiTaskService general task prompt', async () => {
     await recordContext(`service.task-local-fast.${tag}`, 'AiTaskService instructions: mode task, local research, fast', language, { ...ctx, researchMode: 'local', researchDepth: 'fast' });
     await recordContext(`service.decompose-deep.${tag}`, 'AiTaskService instructions: mode decompose, deep research', language, { ...ctx, mode: 'decompose', researchDepth: 'deep' });
     await recordContext(`service.synthesize-local.${tag}`, 'AiTaskService instructions: mode synthesize, local, visual off', language, { ...ctx, mode: 'synthesize', researchMode: 'local', visualMode: 'off' });
+    await recordContext(`service.task-tone.${tag}`, 'AiTaskService instructions: mode task with a resolved tone text (B1)', language, { ...ctx, toneText: language === 'en' ? 'Tone: example voice. Write warmly.' : '寫作語氣：範例語氣。請溫暖地寫作。' });
     await recordContext(`service.default-adaptive.${tag}`, 'AiTaskService instructions: no mode, adaptive detail, no sources', language, { ...ctx, mode: undefined, detailFormat: 'adaptive', sourceContext: undefined, workingFindings: undefined, detail: '', rules: '', ancestors: '' });
     await recordContext(`service.reference-groups.${tag}`, 'AiTaskService reference extraction then task', language, { ...ctx, sourceContext: undefined, referenceGroups: [{ id: 'g1', name: 'Group', location: '/refs', documents: [{ path: '/refs/a.md', content: 'Reference body A' }] }] });
   }
@@ -49,6 +50,8 @@ test('collect snapshots: AIM prompt builder per phase', async () => {
     const context = { ...aimBase, task, outputLanguage: language, researchMode: research ? 'research' : 'local', ...(phase === 'research-gap-audit' ? { responseContract: 'aim-gap-audit' } : {}), ...(phase === 'delivery-acceptance' ? { responseContract: 'aim-delivery-acceptance' } : {}), ...(research ? { aimIsolatedResearch: true } : {}) };
     await recordContext(`aim-builder.${phase ?? 'no-phase'}.${tag}`, `buildAimPrompt via AiTaskService (phase ${phase ?? 'none'}, legacy marker contract)`, language, context);
   }
+  for (const [language, tag] of LANGUAGES)
+    await recordContext(`aim-builder.tone.${tag}`, 'buildAimPrompt via AiTaskService with a resolved tone text (B1)', language, { ...aimBase, task: 'Plain task text.', outputLanguage: language, toneText: language === 'en' ? 'Tone: example voice. Write warmly.' : '寫作語氣：範例語氣。請溫暖地寫作。' });
   const contracts = { intake: { kind: 'intake' }, 'question-required': { kind: 'question', requireQuestion: true }, 'question-optional': { kind: 'question', requireQuestion: false }, plan: { kind: 'plan' }, reuse: { kind: 'reuse' }, 'review-all': { kind: 'review', decisions: ['research_more', 'ask_user', 'conclude'] }, 'review-floor': { kind: 'review', decisions: ['research_more', 'ask_user'] }, outline: { kind: 'outline' }, 'delivery-research': { kind: 'delivery-research' } };
   for (const [name, contract] of Object.entries(contracts)) {
     const context = { ...aimBase, task: '<!-- aim-phase: report-review -->\nStructured contract task.', outputLanguage: 'en', aimContract: contract, aimEvidenceLookup: name === 'review-all', ...(name === 'delivery-research' ? { researchMode: 'research', aimIsolatedResearch: true } : {}) };

@@ -151,6 +151,16 @@
       "language": "zh-TW",
       "schema": true
     },
+    "aim-builder.tone.en": {
+      "builder": "buildAimPrompt via AiTaskService with a resolved tone text (B1)",
+      "language": "en",
+      "schema": true
+    },
+    "aim-builder.tone.zh": {
+      "builder": "buildAimPrompt via AiTaskService with a resolved tone text (B1)",
+      "language": "zh-TW",
+      "schema": true
+    },
     "aim-contract.delivery-research.en": {
       "builder": "AiTaskService schema + structured-contract prompt (delivery-research)",
       "language": "en",
@@ -718,6 +728,16 @@
     },
     "service.task-local-fast.zh": {
       "builder": "AiTaskService instructions: mode task, local research, fast",
+      "language": "zh-TW",
+      "schema": true
+    },
+    "service.task-tone.en": {
+      "builder": "AiTaskService instructions: mode task with a resolved tone text (B1)",
+      "language": "en",
+      "schema": true
+    },
+    "service.task-tone.zh": {
+      "builder": "AiTaskService instructions: mode task with a resolved tone text (B1)",
       "language": "zh-TW",
       "schema": true
     },

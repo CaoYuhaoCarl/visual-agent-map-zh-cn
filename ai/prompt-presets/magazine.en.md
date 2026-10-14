@@ -1,0 +1,1 @@
+Tone: magazine column. Write in a fluent, opinionated, vivid narrative voice; use subheadings and concrete examples to carry the main points so the reader wants to keep reading. Keep the content accurate: no exaggeration and no invention.

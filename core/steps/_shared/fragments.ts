@@ -22,6 +22,8 @@ import RoleZH from "./role.zh.md";
 import RoleEN from "./role.en.md";
 import SourceSafetyZH from "./source-safety.zh.md";
 import SourceSafetyEN from "./source-safety.en.md";
+import ToneZH from "./tone.zh.md";
+import ToneEN from "./tone.en.md";
 
 /**
  * Prompt text shared by the general task step and the AIM prompt builder. Each fragment is a Markdown file next to this
@@ -50,3 +52,11 @@ export const NONE: FragmentPair = pair(NoneZH, NoneEN);
 export const REFERENCE_CITATIONS: FragmentPair = pair(ReferenceCitationsZH, ReferenceCitationsEN);
 export const ROLE: FragmentPair = pair(RoleZH, RoleEN);
 export const SOURCE_SAFETY: FragmentPair = pair(SourceSafetyZH, SourceSafetyEN);
+
+/**
+ * The tone rule plus the resolved tone text. Callers add it only when a tone text exists (academic or absent adds
+ * nothing), so prompts without a tone stay byte-identical to before.
+ */
+export function toneBlock(toneText: string, language: UiLanguage): string {
+  return renderTemplate(language === "en" ? ToneEN : ToneZH, { tone: toneText });
+}

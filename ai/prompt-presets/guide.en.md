@@ -1,0 +1,1 @@
+Tone: practical guide. Write so the reader can act on it directly: state the situation and goal first, then give steps, checkpoints and common mistakes in order; prefer actionable advice and criteria for trade-offs.

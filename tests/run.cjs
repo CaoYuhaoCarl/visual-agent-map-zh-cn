@@ -20,6 +20,7 @@ const suites = [
   'outline-import.cjs',
   'detail-templates.cjs',
   'detail-templates-ui.cjs',
+  'prompt-presets.cjs',
   'shell-entrances.cjs',
   'coffee-tables-core.cjs',
   'coffee-tables-session.cjs',
