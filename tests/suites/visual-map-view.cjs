@@ -1438,6 +1438,14 @@ integrationTest('the more-actions menu holds Organize notes and folders; toolbar
   assert.equal(translate('zh-TW', 'ui.organize'), '整理筆記與資料夾'); assert.equal(translate('zh-TW', 'ui.rename_topic'), '重新命名'); assert.equal(translate('zh-TW', 'ui.ai_explore'), 'AI 探索');
   assert.equal(translate('zh-TW', 'ui.new_map'), '＋ 新增心智圖');
 });
+integrationTest('UI wording: quick research, not shallow research; the synthesis draft is reviewed (檢閱) everywhere', () => {
+  const { translate } = load('i18n.ts');
+  const source = fs.readFileSync(path.join(root, 'i18n.ts'), 'utf8');
+  const values = [...source.matchAll(/^  "((?:ui|notice|modal|settings)\.[^"]+)": "((?:[^"\\]|\\.)*)"/gm)];
+  assert.deepEqual(values.filter(([, , text]) => /淺研究|shallow research|檢查整合草稿/i.test(text)).map(([, key]) => key), []);
+  assert.equal(translate('zh-TW', 'ui.review_synthesis_draft'), '檢閱整合草稿'); assert.equal(translate('zh-TW', 'ui.review_the_synthesis_draft'), '請檢閱整合草稿。');
+  assert.equal(translate('zh-TW', 'ui.shallow_research_counts', 1, 3), '快速研究：完成 1／3'); assert.equal(translate('en', 'ui.shallow_research_counts', 1, 3), 'Quick research: 1 of 3 done');
+});
 integrationTest('map UI terms in zh-TW say 議題 and 心智圖, not 節點 or 地圖, and keep 工作區 consistent', () => {
   const { translate } = load('i18n.ts');
   const source = fs.readFileSync(path.join(root, 'i18n.ts'), 'utf8');
