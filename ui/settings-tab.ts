@@ -10,6 +10,62 @@ import { App, Modal, PluginSettingTab, Setting, type SettingDefinitionItem } fro
 export const CODEX_INSTALL_URL = "https://developers.openai.com/codex/cli/";
 export const CLAUDE_INSTALL_URL = "https://code.claude.com/docs/en/setup";
 
+/** The parts of an Obsidian text field the folder binding uses (also what tests fake). */
+export interface MapFolderInput {
+  inputEl: HTMLInputElement;
+  getValue(): string;
+  setValue(value: string): unknown;
+}
+
+/**
+ * A folder-name field changes the folder on disk, so it submits once: on blur or Enter, never per keystroke, never twice
+ * for the same value (Enter blurs the field, which would otherwise submit again), and the field is locked while it runs.
+ * The settings window is closed first: in Obsidian 1.14 it is a separate window, and the "update links" prompts and the
+ * progress notice belong in the main window (closing Settings mid-move would count as "Do not update").
+ */
+export function bindMapFolderInput(
+  plugin: VisualAgentMapPlugin,
+  key: "mindMapsFolder" | "aimFolder",
+  input: MapFolderInput
+): void {
+  const workspace = plugin.settings.workspaceFolder;
+  const relative = (path: string): string =>
+    path.startsWith(`${workspace}/`) ? path.slice(workspace.length + 1) : path;
+  let running = false;
+  const apply = (): void => {
+    if (running) return;
+    const name = input
+      .getValue()
+      .trim()
+      .replace(/[\\/]+/g, "/")
+      .replace(/^\/+|\/+$/g, "");
+    const target = `${workspace}/${name}`;
+    if (target === plugin.settings[key]) return;
+    running = true;
+    input.inputEl.disabled = true;
+    const settingsWindow = (plugin.app as unknown as { setting?: { close?: () => void } }).setting;
+    try {
+      settingsWindow?.close?.();
+    } catch {
+      /* Closing is a convenience; the change still runs. */
+    }
+    void plugin
+      .mutate(() => plugin.changeMapFolder(key, target))
+      .catch(() => {
+        /* mutate() already reported the failure in a Notice. */
+      })
+      .finally(() => {
+        running = false;
+        input.inputEl.disabled = false;
+        input.setValue(relative(plugin.settings[key]));
+      });
+  };
+  input.inputEl.addEventListener("blur", apply);
+  input.inputEl.addEventListener("keydown", event => {
+    if (event.key === "Enter") input.inputEl.blur();
+  });
+}
+
 export class CodexSetupModal extends Modal {
   constructor(
     app: App,
@@ -183,28 +239,7 @@ export class VisualAgentMapSettingTab extends PluginSettingTab {
       .setDesc(t("ui.map_folder_name_desc", workspace))
       .addText(input => {
         input.setPlaceholder(fallback).setValue(shown);
-        // Applied on blur/Enter, not per keystroke: a change renames the existing folder.
-        const apply = (): void => {
-          const name = input
-            .getValue()
-            .trim()
-            .replace(/[\\/]+/g, "/")
-            .replace(/^\/+|\/+$/g, "");
-          const revert = (): void => {
-            const now = this.plugin.settings[key];
-            input.setValue(now.startsWith(`${workspace}/`) ? now.slice(workspace.length + 1) : now);
-          };
-          void this.plugin
-            .mutate(() => this.plugin.changeMapFolder(key, `${workspace}/${name}`))
-            .then(
-              () => revert(),
-              () => revert()
-            );
-        };
-        input.inputEl.addEventListener("blur", apply);
-        input.inputEl.addEventListener("keydown", event => {
-          if (event.key === "Enter") input.inputEl.blur();
-        });
+        bindMapFolderInput(this.plugin, key, input);
       });
   }
   getSettingDefinitions(): SettingDefinitionItem[] {

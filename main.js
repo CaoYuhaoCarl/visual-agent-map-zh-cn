@@ -719,7 +719,7 @@ var english = {
   "ui.organize_done_0": "Organized {0} map(s).",
   "ui.mind_maps_folder": "Mind Maps folder",
   "ui.aim_maps_folder": "AIM folder",
-  "ui.map_folder_name_desc": "Folder name inside {0} where new maps are created. Changing it renames the existing folder, so its maps move with it.",
+  "ui.map_folder_name_desc": "Folder name inside {0} where new maps are created. Changing it renames the existing folder, so its maps move with it. Settings closes while it runs, and Obsidian may ask about links for each map.",
   "ui.synced_0_subtopic_filenames_with_their_names": "Synced {0} subtopic filenames with their names.",
   "ui.synced_0_topic_filenames": "Synced {0} topic filenames.",
   "ui.repair_topic_note_display": "Repair topic note display",
@@ -2124,7 +2124,7 @@ var traditionalChinese = {
   "ui.organize_done_0": "\u5DF2\u6574\u7406 {0} \u4EFD\u5FC3\u667A\u5716\u3002",
   "ui.mind_maps_folder": "\u5FC3\u667A\u5716\u8CC7\u6599\u593E",
   "ui.aim_maps_folder": "AIM \u8CC7\u6599\u593E",
-  "ui.map_folder_name_desc": "\u65B0\u7684\u9805\u76EE\u6703\u5EFA\u7ACB\u5728 {0} \u5167\u7684\u9019\u500B\u8CC7\u6599\u593E\u3002\u4FEE\u6539\u540D\u7A31\u6703\u4E00\u4F75\u91CD\u65B0\u547D\u540D\u65E2\u6709\u8CC7\u6599\u593E\uFF0C\u88E1\u9762\u7684\u9805\u76EE\u6703\u8DDF\u8457\u79FB\u52D5\u3002",
+  "ui.map_folder_name_desc": "\u65B0\u7684\u9805\u76EE\u6703\u5EFA\u7ACB\u5728 {0} \u5167\u7684\u9019\u500B\u8CC7\u6599\u593E\u3002\u4FEE\u6539\u540D\u7A31\u6703\u4E00\u4F75\u91CD\u65B0\u547D\u540D\u65E2\u6709\u8CC7\u6599\u593E\uFF0C\u88E1\u9762\u7684\u9805\u76EE\u6703\u8DDF\u8457\u79FB\u52D5\u3002\u57F7\u884C\u6642\u8A2D\u5B9A\u8996\u7A97\u6703\u95DC\u9589\uFF0CObsidian \u53EF\u80FD\u6703\u9010\u4EFD\u8A62\u554F\u9023\u7D50\u8655\u7406\u65B9\u5F0F\u3002",
   "ui.synced_0_subtopic_filenames_with_their_names": "\u5DF2\u5C07 {0} \u4EFD\u5B50\u8B70\u984C\u6A94\u540D\u540C\u6B65\u70BA\u8B70\u984C\u540D\u7A31\u3002",
   "ui.synced_0_topic_filenames": "\u5DF2\u540C\u6B65 {0} \u4EFD\u8B70\u984C\u6A94\u540D\u3002",
   "ui.repair_topic_note_display": "\u4FEE\u5FA9\u8B70\u984C\u7B46\u8A18\u986F\u793A",
@@ -30209,6 +30209,35 @@ var import_obsidian26 = require("obsidian");
 var import_obsidian21 = require("obsidian");
 var CODEX_INSTALL_URL = "https://developers.openai.com/codex/cli/";
 var CLAUDE_INSTALL_URL = "https://code.claude.com/docs/en/setup";
+function bindMapFolderInput(plugin, key2, input) {
+  const workspace = plugin.settings.workspaceFolder;
+  const relative = (path) => path.startsWith(`${workspace}/`) ? path.slice(workspace.length + 1) : path;
+  let running = false;
+  const apply = () => {
+    var _a;
+    if (running) return;
+    const name = input.getValue().trim().replace(/[\\/]+/g, "/").replace(/^\/+|\/+$/g, "");
+    const target = `${workspace}/${name}`;
+    if (target === plugin.settings[key2]) return;
+    running = true;
+    input.inputEl.disabled = true;
+    const settingsWindow = plugin.app.setting;
+    try {
+      (_a = settingsWindow == null ? void 0 : settingsWindow.close) == null ? void 0 : _a.call(settingsWindow);
+    } catch (e) {
+    }
+    void plugin.mutate(() => plugin.changeMapFolder(key2, target)).catch(() => {
+    }).finally(() => {
+      running = false;
+      input.inputEl.disabled = false;
+      input.setValue(relative(plugin.settings[key2]));
+    });
+  };
+  input.inputEl.addEventListener("blur", apply);
+  input.inputEl.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") input.inputEl.blur();
+  });
+}
 var CodexSetupModal = class extends import_obsidian21.Modal {
   constructor(app, executable, recheck) {
     super(app);
@@ -30341,21 +30370,7 @@ var VisualAgentMapSettingTab = class extends import_obsidian21.PluginSettingTab 
     const shown = current.startsWith(`${workspace}/`) ? current.slice(workspace.length + 1) : current;
     setting.setName(t(label)).setDesc(t("ui.map_folder_name_desc", workspace)).addText((input) => {
       input.setPlaceholder(fallback).setValue(shown);
-      const apply = () => {
-        const name = input.getValue().trim().replace(/[\\/]+/g, "/").replace(/^\/+|\/+$/g, "");
-        const revert = () => {
-          const now = this.plugin.settings[key2];
-          input.setValue(now.startsWith(`${workspace}/`) ? now.slice(workspace.length + 1) : now);
-        };
-        void this.plugin.mutate(() => this.plugin.changeMapFolder(key2, `${workspace}/${name}`)).then(
-          () => revert(),
-          () => revert()
-        );
-      };
-      input.inputEl.addEventListener("blur", apply);
-      input.inputEl.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") input.inputEl.blur();
-      });
+      bindMapFolderInput(this.plugin, key2, input);
     });
   }
   getSettingDefinitions() {

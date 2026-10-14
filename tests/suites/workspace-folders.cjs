@@ -692,3 +692,30 @@ integrationTest('the Organize offer first repairs a stranded topic, then plans',
   assert.ok(doc.nodes.every(node => app.vault.getAbstractFileByPath(node.path)), 'node paths were repaired before planning');
   assert.equal(opened.length, 1);
 });
+
+integrationTest('a folder-name field submits once (Enter then blur), locks while running, and closes Settings first', async () => {
+  const { bindMapFolderInput } = load('ui/settings-tab.ts', { obsidian });
+  const events = [], listeners = {};
+  let value = 'Ideas', release;
+  const inputEl = { disabled: false, addEventListener: (name, handler) => { listeners[name] = handler; }, blur: () => listeners.blur?.() };
+  const input = { inputEl, getValue: () => value, setValue: next => { value = next; } };
+  const plugin = {
+    settings: { workspaceFolder: 'Agent Workspace', mindMapsFolder: 'Agent Workspace/Mind Maps' },
+    app: { setting: { close: () => events.push('close-settings') } },
+    mutate: work => { events.push('mutate'); return work(); },
+    changeMapFolder: async (key, path) => { events.push(`change ${path}`); assert.equal(inputEl.disabled, true, 'locked while it runs'); await new Promise(resolve => { release = resolve; }); plugin.settings[key] = path; }
+  };
+  bindMapFolderInput(plugin, 'mindMapsFolder', input);
+  assert.equal(inputEl.disabled, false);
+  listeners.keydown({ key: 'Enter' });   // Enter blurs the field, which submits
+  listeners.blur();                      // the real blur that follows, while the change is still running
+  listeners.blur();
+  assert.deepEqual(events, ['close-settings', 'mutate', 'change Agent Workspace/Ideas'], 'one submit, Settings closed before the change starts');
+  release(); await new Promise(resolve => setTimeout(resolve, 10));
+  assert.equal(inputEl.disabled, false); assert.equal(plugin.settings.mindMapsFolder, 'Agent Workspace/Ideas');
+  listeners.blur();
+  assert.equal(events.filter(event => event === 'mutate').length, 1, 'the same value is never submitted again');
+  plugin.app = {}; value = 'Other'; listeners.blur();   // an app without a Settings window handle still works
+  assert.equal(events.filter(event => event === 'mutate').length, 2);
+  release(); await new Promise(resolve => setTimeout(resolve, 10));
+});
