@@ -73,19 +73,35 @@ export class StructureReviewModal extends Modal {
       start.setText(t("ui.cancel"));
       start.removeClass("mod-cta");
       status.setText(t("ui.structure_review_running"));
+      const ready = (message: string): void => {
+        status.setText(message);
+        start.setText(t("ui.structure_review_start"));
+        start.addClass("mod-cta");
+      };
       void this.host
         .review(controller.signal)
         .then(review => {
-          if (this.closed || controller.signal.aborted) return;
+          if (this.closed) return;
+          // A review that still arrived after Cancel is dropped, and Start is offered again.
+          if (controller.signal.aborted) {
+            ready(t("ui.structure_review_cancelled"));
+            return;
+          }
           status.setText("");
+          const hadFocus = start.ownerDocument?.activeElement === start;
           start.remove();
           this.showSuggestions(result, review);
+          // Start is gone: keep the keyboard in this window, on the first suggestion or on Close.
+          if (hadFocus)
+            (
+              Array.from(result.querySelectorAll<HTMLButtonElement>(".vam-structure-apply")).find(
+                button => !button.disabled
+              ) ?? close
+            ).focus();
         })
         .catch(error => {
           if (this.closed) return;
-          status.setText(controller.signal.aborted ? t("ui.structure_review_cancelled") : messageOf(error));
-          start.setText(t("ui.structure_review_start"));
-          start.addClass("mod-cta");
+          ready(controller.signal.aborted ? t("ui.structure_review_cancelled") : messageOf(error));
         })
         .finally(() => {
           if (this.controller === controller) this.controller = undefined;
@@ -148,7 +164,7 @@ export class StructureReviewModal extends Modal {
     let index = 0;
     renderProposalList(parent, items, () => {}, {
       compact: true,
-      apply: (_item, row) => {
+      apply: (item, row) => {
         const entry = this.entries[index++];
         const button = row.head.createEl("button", {
           text: t("ui.structure_review_apply"),
@@ -157,12 +173,23 @@ export class StructureReviewModal extends Modal {
         const note = row.element.createEl("p", { cls: "vam-structure-note", attr: { "aria-live": "polite" } });
         let busy = false;
         let message = "";
+        // Each row's button names its suggestion, so a screen reader can tell the Apply buttons apart.
+        const label = (): void =>
+          button.setAttr(
+            "aria-label",
+            t(
+              entry.applied ? "ui.structure_review_applied_named" : "ui.structure_review_apply_named",
+              row.title.value.trim() || item.title
+            )
+          );
+        row.title.addEventListener("input", label);
         const refresh = (): void => {
           const stale = entry.applied ? null : this.host.staleReason(entry.suggestion);
           row.element.toggleClass("is-applied", entry.applied);
           row.element.toggleClass("is-stale", !!stale);
           button.disabled = busy || entry.applied || !!stale;
           button.setText(t(entry.applied ? "ui.structure_review_applied" : "ui.structure_review_apply"));
+          label();
           row.title.readOnly = entry.applied || entry.suggestion.kind !== "strengthen";
           note.setText(stale ?? message);
         };

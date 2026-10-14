@@ -358,6 +358,55 @@ test('structure review window: Cancel during the review and closing early write 
   assert.equal(signal.aborted, true); assert.deepEqual(late.calls.apply, []);
 });
 
+test('structure review window: a review that still resolves after Cancel offers Start again and shows nothing', async () => {
+  let finish, reviews = 0;
+  const suggestions = { suggestions: [{ kind: 'reduce', targetId: 'a', reason: 'Body is out of scope.', basis: {} }], rejected: [] };
+  const h = windowHarness({ review: () => { reviews++; return new Promise(resolve => { finish = resolve; }); } });
+  button(h.modal.modalEl, 'Start review').click(); await tick();
+  const cancel = button(h.modal.modalEl, 'Cancel');
+  cancel.click(); finish(suggestions); await tick(); await tick();
+  assert.ok(find(h.modal.modalEl, i => i.text === 'Review cancelled. Nothing was changed.'));
+  assert.equal(button(h.modal.modalEl, 'Cancel'), undefined, 'the button no longer reads Cancel');
+  const start = button(h.modal.modalEl, 'Start review');
+  assert.equal(start, cancel); assert.ok(hasCls(start, 'mod-cta'));
+  assert.equal(h.rows().length, 0, 'the late review is not shown'); assert.deepEqual(h.calls.apply, []);
+  assert.equal(reviews, 1);
+  start.click(); await tick();
+  assert.equal(reviews, 2, 'Start runs a new review only when it says so');
+  assert.equal(button(h.modal.modalEl, 'Cancel'), start);
+});
+
+test('structure review window: focus stays in the window when Start goes away, and each Apply names its suggestion', async () => {
+  const h = windowHarness();
+  const doc = {};
+  const start = button(h.modal.modalEl, 'Start review');
+  start.ownerDocument = doc; start.root = doc; start.focus();
+  start.click(); await tick(); await tick();
+  assert.equal(button(h.modal.modalEl, 'Start review'), undefined);
+  const [add, move, merge, reduce] = h.rows();
+  assert.equal(h.applyOf(add).focused, true, 'the first suggestion takes the focus Start had');
+  assert.deepEqual([add, move, merge, reduce].map(row => h.applyOf(row).attrs['aria-label']), ['Apply: Sleep hygiene', 'Apply: REM', 'Apply: Dreams', 'Apply: Body']);
+  const name = find(add, i => hasCls(i, 'vam-proposal-title'));
+  name.value = 'Sleep habits'; name.input();
+  assert.equal(h.applyOf(add).attrs['aria-label'], 'Apply: Sleep habits');
+  h.applyOf(move).click(); await tick(); await tick();
+  assert.equal(h.applyOf(move).attrs['aria-label'], 'Applied: REM');
+  // Without focus on Start, nothing is focused for the user.
+  const other = windowHarness({ review: async () => ({ suggestions: [], rejected: [] }) });
+  button(other.modal.modalEl, 'Start review').click(); await tick(); await tick();
+  assert.equal(button(other.modal.modalEl, 'Close').focused, true, 'Close keeps the focus it got on open');
+});
+
+test('structure review window: with no suggestions, focus moves from Start to Close', async () => {
+  const h = windowHarness({ review: async () => ({ suggestions: [], rejected: [] }) });
+  const doc = {};
+  const close = button(h.modal.modalEl, 'Close'); close.focused = false;
+  const start = button(h.modal.modalEl, 'Start review');
+  start.ownerDocument = doc; start.root = doc; start.focus();
+  start.click(); await tick(); await tick();
+  assert.equal(close.focused, true);
+});
+
 // The real view and repository, with a fake provider behind the real structure review service.
 class Setting {
   constructor(el) { this.el = el; }
