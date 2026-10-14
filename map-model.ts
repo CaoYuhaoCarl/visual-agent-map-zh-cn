@@ -506,7 +506,8 @@ function validateAimMap(map: MapDocument): void {
       data.minimumAnswersBeforeConclusion > 10)
   )
     throw new Error("Invalid AIM exploration question target.");
-  if (data.interaction !== undefined && data.interaction !== "unattended") throw new Error("Invalid AIM interaction mode.");
+  if (data.interaction !== undefined && data.interaction !== "unattended")
+    throw new Error("Invalid AIM interaction mode.");
   if (
     data.rootDraft !== undefined &&
     (!data.rootDraft ||

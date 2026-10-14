@@ -12056,7 +12056,8 @@ function validateAimMap(map) {
     throw new Error("Invalid AIM content language.");
   if (data.minimumAnswersBeforeConclusion !== void 0 && (!Number.isInteger(data.minimumAnswersBeforeConclusion) || data.minimumAnswersBeforeConclusion < 1 || data.minimumAnswersBeforeConclusion > 10))
     throw new Error("Invalid AIM exploration question target.");
-  if (data.interaction !== void 0 && data.interaction !== "unattended") throw new Error("Invalid AIM interaction mode.");
+  if (data.interaction !== void 0 && data.interaction !== "unattended")
+    throw new Error("Invalid AIM interaction mode.");
   if (data.rootDraft !== void 0 && (!data.rootDraft || typeof data.rootDraft.nodeId !== "string" || typeof data.rootDraft.notePath !== "string" || !data.rootDraft.notePath.endsWith(".md") || typeof data.rootDraft.title !== "string" || typeof data.rootDraft.context !== "string" || data.rootDraft.model !== void 0 && (typeof data.rootDraft.model !== "string" || !data.rootDraft.model.trim()) || data.rootDraft.reasoning !== void 0 && !["low", "medium", "high"].includes(data.rootDraft.reasoning) || map.nodes.some((node) => node.id === data.rootDraft.nodeId)))
     throw new Error("Invalid AIM root draft.");
   if (data.questionDraft !== void 0) {
@@ -18537,7 +18538,9 @@ var AimStartModal = class extends import_obsidian18.Modal {
     const syncInteraction = () => {
       answerCountLabel.hidden = interaction.value === "unattended";
       interactionHint.setText(
-        t(interaction.value === "unattended" ? "ui.aim_interaction_unattended_hint" : "ui.aim_interaction_interactive_hint")
+        t(
+          interaction.value === "unattended" ? "ui.aim_interaction_unattended_hint" : "ui.aim_interaction_interactive_hint"
+        )
       );
     };
     syncInteraction();

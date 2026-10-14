@@ -182,7 +182,11 @@ export class AimStartModal extends Modal {
     const syncInteraction = (): void => {
       answerCountLabel.hidden = interaction.value === "unattended";
       interactionHint.setText(
-        t(interaction.value === "unattended" ? "ui.aim_interaction_unattended_hint" : "ui.aim_interaction_interactive_hint")
+        t(
+          interaction.value === "unattended"
+            ? "ui.aim_interaction_unattended_hint"
+            : "ui.aim_interaction_interactive_hint"
+        )
       );
     };
     syncInteraction();
