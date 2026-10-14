@@ -1372,39 +1372,96 @@ export class NextStepModal extends Modal {
     });
   }
 }
+/** What a proposal does: add a topic (the default), move or merge an existing one, or remove it. */
+export type ProposalKind = "add" | "move" | "merge" | "remove";
+export interface ProposalItem extends Suggestion {
+  kind?: ProposalKind;
+  /** Why the AI suggests it, shown under the name. */
+  reason?: string;
+  /** Move or merge: the card it goes to. */
+  destination?: string;
+  /** Links a child to its parent when titles may repeat (a generated outline); defaults to the title. */
+  key?: string;
+  parentKey?: string;
+}
+export interface ProposalListOptions {
+  rootTitle?: string;
+  /** Hide the task and contribution details (an outline has none). */
+  compact?: boolean;
+  /**
+   * Review mode: each row is applied on its own instead of checked. The caller adds its controls to `head`; the
+   * list has no checkboxes and `selected()` returns nothing.
+   */
+  apply?: (item: ProposalItem, row: { element: HTMLElement; head: HTMLElement; title: HTMLInputElement }) => void;
+}
+/** The label and reason of a proposal's kind; nothing for a plain add, so add-only lists look as before. */
+function renderProposalKind(head: HTMLElement, row: HTMLElement, item: ProposalItem): void {
+  if (item.kind)
+    head.createSpan({
+      cls: `vam-proposal-kind vam-proposal-kind-${item.kind}`,
+      text: t(`ui.proposal_kind_${item.kind}`)
+    });
+  if (item.destination)
+    row.createEl("p", {
+      cls: "vam-proposal-destination",
+      text: t(item.kind === "merge" ? "ui.proposal_merge_into_0" : "ui.proposal_destination_0", item.destination)
+    });
+  if (item.reason) row.createEl("p", { cls: "vam-proposal-reason", text: item.reason });
+}
 /**
  * The AI's subtopic proposals as one compact list: a checkbox and editable name per row, details on demand,
  * children indented under their parent. Checking a child checks its parent; unchecking a parent unchecks its children.
+ * A row may carry a kind (add, move, merge, remove) and a reason; in review mode (`apply`) rows are applied one by one.
  */
 export function renderProposalList(
   parent: HTMLElement,
-  suggestions: Suggestion[],
+  suggestions: ProposalItem[],
   changed: (count: number) => void,
-  options: { rootTitle?: string } = {}
-): { count: () => number; selected: () => Suggestion[] | string } {
+  options: ProposalListOptions = {}
+): { count: () => number; selected: () => ProposalItem[] | string } {
   // A suggestion whose parent is the topic being expanded is first-level.
   suggestions = suggestions.map(item =>
     options.rootTitle && item.parentTitle === options.rootTitle ? { ...item, parentTitle: "" } : item
   );
+  const keyOf = (item: ProposalItem): string => item.key ?? item.title;
+  const parentOf = (item: ProposalItem): string => (item.key !== undefined ? item.parentKey : item.parentTitle) ?? "";
+  const review = !!options.apply;
   const rows: {
-    item: Suggestion;
+    item: ProposalItem;
     check: HTMLInputElement;
     title: HTMLInputElement;
-    task: HTMLTextAreaElement;
-    contribution: HTMLTextAreaElement;
+    task?: HTMLTextAreaElement;
+    contribution?: HTMLTextAreaElement;
   }[] = [];
   const toolbar = parent.createDiv("vam-proposal-toolbar");
   const counter = toolbar.createSpan({ cls: "vam-proposal-count", attr: { "aria-live": "polite" } });
   const all = toolbar.createEl("button", { cls: "vam-proposal-all" });
+  if (review) toolbar.hidden = true;
   const list = parent.createDiv("vam-proposal-list");
-  const roots = suggestions.filter(item => !item.parentTitle);
-  // Children follow the first parent with their title; each proposal appears exactly once.
-  const ordered = [
-    ...new Set([
-      ...roots.flatMap(root => [root, ...suggestions.filter(item => item.parentTitle === root.title)]),
-      ...suggestions.filter(item => item.parentTitle && !roots.some(root => root.title === item.parentTitle))
-    ])
+  const roots = suggestions.filter(item => !parentOf(item));
+  const keyed = suggestions.some(item => item.key !== undefined);
+  // Keyed rows (an outline) follow depth-first at any depth; otherwise children follow the first parent with their
+  // title. Each proposal appears exactly once.
+  const depthFirst = (item: ProposalItem): ProposalItem[] => [
+    item,
+    ...suggestions.filter(other => parentOf(other) === keyOf(item)).flatMap(depthFirst)
   ];
+  const ordered = [
+    ...new Set(
+      keyed
+        ? [...roots.flatMap(depthFirst), ...suggestions]
+        : [
+            ...roots.flatMap(root => [root, ...suggestions.filter(item => parentOf(item) === keyOf(root))]),
+            ...suggestions.filter(item => parentOf(item) && !roots.some(root => keyOf(root) === parentOf(item)))
+          ]
+    )
+  ];
+  const depthOf = (item: ProposalItem): number => {
+    let depth = 0;
+    for (let up = parentOf(item); up && depth < 6; depth++)
+      up = parentOf(suggestions.find(other => keyOf(other) === up) ?? { title: "", task: "", contribution: "" });
+    return depth;
+  };
   const count = (): number => rows.filter(row => row.check.checked).length;
   const update = (): void => {
     const picked = count();
@@ -1413,52 +1470,61 @@ export function renderProposalList(
     changed(picked);
   };
   for (const item of ordered) {
-    const row = list.createDiv(item.parentTitle ? "vam-proposal is-child" : "vam-proposal");
+    const row = list.createDiv(parentOf(item) ? "vam-proposal is-child" : "vam-proposal");
+    if (keyed) row.addClass(`vam-proposal-depth-${Math.min(depthOf(item), 5)}`);
     const head = row.createDiv("vam-proposal-head");
     const check = head.createEl("input", { type: "checkbox" });
-    check.checked = true;
+    check.checked = !review;
+    check.hidden = review;
     check.setAttr("aria-label", t("ui.select_proposal_0", item.title));
     const title = head.createEl("input", { type: "text", value: item.title, cls: "vam-proposal-title" });
     title.setAttr("aria-label", t("ui.proposal_name"));
-    const more = head.createEl("button", { text: t("ui.proposal_details"), cls: "vam-proposal-more" });
-    more.setAttr("aria-expanded", "false");
-    const body = row.createDiv("vam-proposal-body");
-    body.hidden = true;
-    more.addEventListener("click", () => {
-      body.hidden = !body.hidden;
-      more.setAttr("aria-expanded", String(!body.hidden));
-    });
-    const taskField = body.createEl("label", { cls: "vam-proposal-field" });
-    taskField.createSpan({ text: t("ui.research_task") });
-    const task = taskField.createEl("textarea", { text: item.task });
-    task.rows = 2;
-    task.setAttr("aria-label", t("ui.proposal_task"));
-    const contributionField = body.createEl("label", { cls: "vam-proposal-field" });
-    contributionField.createSpan({ text: t("ui.contribution_to_the_parent_topic") });
-    const contribution = contributionField.createEl("textarea", { text: item.contribution });
-    contribution.rows = 2;
-    contribution.placeholder = t("ui.contribution_to_the_parent_topic");
-    contribution.setAttr("aria-label", t("ui.contribution_to_the_parent_topic"));
+    // Only a new topic's name can be edited; move, merge and remove name an existing card.
+    title.readOnly = !!item.kind && item.kind !== "add";
+    renderProposalKind(head, row, item);
+    let task: HTMLTextAreaElement | undefined, contribution: HTMLTextAreaElement | undefined;
+    if (!options.compact && (!item.kind || item.kind === "add")) {
+      const more = head.createEl("button", { text: t("ui.proposal_details"), cls: "vam-proposal-more" });
+      more.setAttr("aria-expanded", "false");
+      const body = row.createDiv("vam-proposal-body");
+      body.hidden = true;
+      more.addEventListener("click", () => {
+        body.hidden = !body.hidden;
+        more.setAttr("aria-expanded", String(!body.hidden));
+      });
+      const taskField = body.createEl("label", { cls: "vam-proposal-field" });
+      taskField.createSpan({ text: t("ui.research_task") });
+      task = taskField.createEl("textarea", { text: item.task });
+      task.rows = 2;
+      task.setAttr("aria-label", t("ui.proposal_task"));
+      const contributionField = body.createEl("label", { cls: "vam-proposal-field" });
+      contributionField.createSpan({ text: t("ui.contribution_to_the_parent_topic") });
+      contribution = contributionField.createEl("textarea", { text: item.contribution });
+      contribution.rows = 2;
+      contribution.placeholder = t("ui.contribution_to_the_parent_topic");
+      contribution.setAttr("aria-label", t("ui.contribution_to_the_parent_topic"));
+    }
     rows.push({ item, check, title, task, contribution });
+    options.apply?.(item, { element: row, head, title });
     check.addEventListener("change", () => {
       // Checking a row checks its ancestors; unchecking a row unchecks its descendants, at any depth.
-      const uncheckChildren = (title: string): void =>
+      const uncheckChildren = (key: string): void =>
         rows.forEach(other => {
-          if (other.item.parentTitle === title && other.check.checked) {
+          if (parentOf(other.item) === key && other.check.checked) {
             other.check.checked = false;
-            uncheckChildren(other.item.title);
+            uncheckChildren(keyOf(other.item));
           }
         });
-      if (check.checked && item.parentTitle) {
-        let parentTitle: string | undefined = item.parentTitle;
-        while (parentTitle) {
-          const parent = rows.find(other => other.item.title === parentTitle);
+      if (check.checked && parentOf(item)) {
+        let parentKey: string | undefined = parentOf(item);
+        while (parentKey) {
+          const parent = rows.find(other => keyOf(other.item) === parentKey);
           if (!parent) break;
           parent.check.checked = true;
-          parentTitle = parent.item.parentTitle;
+          parentKey = parentOf(parent.item);
         }
       }
-      if (!check.checked) uncheckChildren(item.title);
+      if (!check.checked) uncheckChildren(keyOf(item));
       update();
     });
   }
@@ -1474,16 +1540,17 @@ export function renderProposalList(
       const selected = rows.filter(row => row.check.checked && row.title.value.trim());
       if (!selected.length) return t("ui.select_at_least_one_subtopic");
       // Any selected row can be a parent, so deeper suggestions keep working.
-      const renamed = new Map(selected.map(row => [row.item.title, row.title.value.trim()]));
-      const names = selected.filter(row => !row.item.parentTitle).map(row => row.title.value.trim());
+      const renamed = new Map(selected.map(row => [keyOf(row.item), row.title.value.trim()]));
+      const names = selected.filter(row => !parentOf(row.item)).map(row => row.title.value.trim());
       if (new Set(names).size !== names.length) return t("ui.first_level_topic_names_must_be_unique");
-      if (selected.some(row => row.item.parentTitle && !renamed.has(row.item.parentTitle)))
+      if (selected.some(row => parentOf(row.item) && !renamed.has(parentOf(row.item))))
         return t("ui.select_the_parent_topic_before_its_child");
       return selected.map(row => ({
         title: row.title.value.trim(),
-        task: row.task.value.trim(),
-        contribution: row.contribution.value.trim(),
-        parentTitle: row.item.parentTitle ? renamed.get(row.item.parentTitle)! : ""
+        task: row.task?.value.trim() ?? row.item.task,
+        contribution: row.contribution?.value.trim() ?? row.item.contribution,
+        parentTitle: parentOf(row.item) ? renamed.get(parentOf(row.item))! : "",
+        ...(row.item.key !== undefined ? { key: row.item.key, parentKey: row.item.parentKey ?? "" } : {})
       }));
     }
   };

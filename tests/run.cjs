@@ -22,6 +22,7 @@ const suites = [
   'detail-templates-ui.cjs',
   'prompt-presets.cjs',
   'map-ai-dialog.cjs',
+  'map-structure.cjs',
   'shell-entrances.cjs',
   'coffee-tables-core.cjs',
   'coffee-tables-session.cjs',

@@ -62,6 +62,8 @@ import { ShallowExpansionCoordinator, type ExpansionBatchState } from "./experie
 import { AiTaskService } from "./core/ai-task-service";
 import { announceTestOverrides } from "./experiences/aim/flow-limits";
 import { ReframingService, providerReframeRunner } from "./core/reframing-service";
+import { OutlineGenerationService, providerOutlineRunner } from "./core/outline-generation-service";
+import { StructureReviewService, providerStructureReviewRunner } from "./core/structure-review-service";
 import { receiveVisualMapHandoff } from "./experiences/visual-map/handoff";
 import { openCoffeeResearchHandoff } from "./experiences/coffee-tables/handoff-modal";
 import { MarkdownSelectionAi } from "./experiences/markdown-context/selection-ai";
@@ -141,6 +143,12 @@ export default class VisualAgentMapPlugin extends Plugin {
     this.aiRuntime,
     this.aiTasks,
     new ReframingService(providerReframeRunner(this.aiTaskOptions, this.activeTasks))
+  );
+  readonly outlineGeneration = new OutlineGenerationService(
+    providerOutlineRunner(this.aiTaskOptions, this.activeTasks)
+  );
+  readonly structureReview = new StructureReviewService(
+    providerStructureReviewRunner(this.aiTaskOptions, this.activeTasks)
   );
   exchanges: AiExchangeLog | null = null;
   readonly modelDiscovery = new ModelDiscovery(

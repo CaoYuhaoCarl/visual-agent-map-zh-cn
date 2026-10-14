@@ -304,6 +304,16 @@
 .vam-proposal-field > span { color: var(--text-muted); font-weight: 500; text-align: left; }
 .vam-proposal-field > input, .vam-proposal-field > textarea { width: 100%; min-width: 0; box-sizing: border-box; }
 .vam-proposal textarea { resize: vertical; }
+.vam-proposal-kind { flex: 0 0 auto; padding: 1px 8px; border-radius: var(--radius-s); font-size: var(--font-ui-smaller); color: var(--text-muted); background: var(--background-modifier-hover); }
+.vam-proposal-kind-add { color: var(--color-green); }
+.vam-proposal-kind-move { color: var(--color-blue); }
+.vam-proposal-kind-merge { color: var(--color-purple); }
+.vam-proposal-kind-remove { color: var(--text-error); }
+.vam-proposal-reason, .vam-proposal-destination { margin: 4px 0 0 26px; color: var(--text-muted); font-size: var(--font-ui-small); }
+.vam-proposal-head > input[hidden] { display: none; }
+.vam-proposal.is-child.vam-proposal-depth-2 { margin-left: 52px; }
+.vam-proposal.is-child.vam-proposal-depth-3 { margin-left: 78px; }
+.vam-proposal.is-child.vam-proposal-depth-4, .vam-proposal.is-child.vam-proposal-depth-5 { margin-left: 104px; }
 .vam-task-input { width: 100%; box-sizing: border-box; resize: vertical; }
 .vam-name-input { width: 100%; }
 .vam-aim-topic, .vam-aim-context { width: 100%; resize: vertical; }
