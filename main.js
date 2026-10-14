@@ -23,7 +23,6 @@ var main_exports = {};
 __export(main_exports, {
   ChildProposalModal: () => ChildProposalModal,
   DraftReviewModal: () => DraftReviewModal,
-  IntegrationModal: () => IntegrationModal,
   NextStepModal: () => NextStepModal,
   VisualAgentMapSettingTab: () => VisualAgentMapSettingTab,
   VisualAgentMapView: () => VisualAgentMapView,
@@ -108,8 +107,6 @@ var english = {
   "ui.proposal_task": "Proposal task",
   "ui.on": "on",
   "ui.off": "off",
-  "ui.summary_fields_hint": "Summary = card conclusion; Prompt = topic task; Preview = card preview; Detail = full knowledge.",
-  "ui.ai_task_summary": "Run with {0} \xB7 {1}; sources: {2}; web: {3}; result: {4}",
   "ui.no_map_open": "No mind map is open",
   "ui.sample_outline_hint": "The read-only sample has no editable outline. Duplicate it from the map to begin.",
   "ui.empty_outline_hint": "This map has no topics yet. Add the first topic from the map.",
@@ -324,7 +321,6 @@ var english = {
   "ui.ai_does_not_recommend_decomposition_or_did_not_propose_3_to": "AI does not recommend decomposition, or did not propose 3 to 7 child topics that can be created.",
   "ui.save": "Save",
   "ui.select": "Select",
-  "ui.custom_ai_task": "Custom AI task",
   "ui.context_ai_open": "Use AI on selection",
   "ui.context_ai_title": "AI quick action",
   "ui.context_ai_image_load_failed": "Could not load this image for the requested caption. Choose another image.",
@@ -383,7 +379,6 @@ var english = {
   "ui.context_ai_result_empty": "Enter or generate a result before applying it.",
   "ui.context_ai_replaced": "Selected text replaced.",
   "ui.context_ai_appended": "Draft appended to the page.",
-  "ui.describe_what_you_want_ai_to_do_next": "Describe what you want AI to do next.",
   "ui.synthesis_content": "Topic synthesis content",
   "ui.synthesis_content_full": "Full-content synthesis (default)",
   "ui.synthesis_content_summary": "Quick summary synthesis",
@@ -427,8 +422,6 @@ var english = {
   "ui.reference_none": "No extra local data selected. The current task content is still included.",
   "ui.reference_remove": "Remove",
   "ui.additional_requirements": "Additional requirements (optional)",
-  "ui.confirm_and_run": "Confirm and run",
-  "ui.next_set_ai_sources": "Next (1 of 2): set AI sources",
   "ui.ai_subtopic_proposals": "AI subtopic proposals",
   "ui.select_subtopics_to_create_you_can_edit_their_names_and_task": "Select subtopics to create. You can edit their names and tasks first.",
   "ui.contribution_to_the_parent_topic": "Contribution to the parent topic",
@@ -442,8 +435,6 @@ var english = {
   "ui.synthesize_agreements_differences_tradeoffs_and_open_questio": "Synthesize agreements, differences, tradeoffs, and open questions. Propose a direction for my review first.",
   "ui.synthesize_subtopics": "Synthesize subtopics",
   "ui.ai_reads_direct_subtopics_and_prepares_a_synthesis_draft_not": "AI reads direct subtopics and prepares a synthesis draft. Nothing is saved until you confirm.",
-  "ui.synthesis_direction_and_sources": "Synthesis direction and sources",
-  "ui.prepare_a_synthesis_draft_first_then_create_the_topic_after": "Prepare a synthesis draft first, then create the topic after confirmation.",
   "ui.confirm_new_synthesis_topic": "Confirm new synthesis topic",
   "ui.mind_map_data_was_not_found_keep_the_agent_map_block": "Mind map data was not found. Keep the agent-map block.",
   "ui.invalid_mind_map_format": "Invalid mind map format.",
@@ -470,7 +461,6 @@ var english = {
   "ui.expand_all": "Expand all",
   "ui.expand_to_level_0": "Expand to level {0}",
   "ui.ai_explore": "AI explore",
-  "ui.synthesis_goal": "Synthesis goal",
   "ui.identify_shared_conclusions_key_differences_tradeoffs_and_ne": "Identify shared conclusions, key differences, tradeoffs and next steps.",
   "ui.use_file_contents": "Use file contents",
   "ui.keep_editor_contents": "Keep editor contents",
@@ -631,7 +621,6 @@ var english = {
   "ui.the_file_was_moved_or_deleted_you_can_remove_this_node_from": "The file was moved or deleted. You can remove this node from the map.",
   "ui.remove_from_map": "Remove from map",
   "ui.no_preview_content_yet": "No preview content yet",
-  "ui.current_understanding": "Current understanding",
   "ui.confirm_research_task": "Confirm research task",
   "ui.add_subtopic_manually": "Add subtopic manually",
   "ui.ai_running_ai": "AI running\u2026",
@@ -751,7 +740,6 @@ var english = {
   "ui.list_separator": ", ",
   "ui.synthesis_of_0": "Synthesis: {0}",
   "ui.synthesis_of_0_and_1_more": "Synthesis: {0} and others ({1} topics)",
-  "ui.synthesis_needs_name_and_goal": "Add a topic name and a synthesis goal to continue.",
   "ui.create_0_subtopics": "Create subtopics ({0})",
   "ui.selected_0_of_1": "{0} of {1} selected",
   "ui.select_all": "Select all",
@@ -853,11 +841,9 @@ var english = {
   "ui.fast_quick_overview": "Fast \xB7 quick overview",
   "ui.normal_standard_research": "Normal \xB7 standard research",
   "ui.deep_in_depth_research": "Deep \xB7 in-depth research",
-  "ui.create_two_levels_and_research_each_topic_briefly_up_to_15": "Create two levels and research each topic briefly (up to 15)",
   "ui.select_the_parent_topic_before_its_child": "Select the parent topic before its child.",
   "ui.first_level_topic_names_must_be_unique": "First-level topic names must be unique.",
   "ui.ai_proposed_duplicate_first_level_names_generate_the_proposa": "AI proposed duplicate first-level names. Generate the proposals again.",
-  "ui.expand_subtopics": "Expand subtopics",
   "ui.specify_an_expansion_direction_or_ask_ai_to_suggest_one_prev": "Specify an expansion direction or ask AI to suggest one. Preview before creating nodes.",
   "ui.this_topic_has_no_direct_subtopics_you_can_choose_other_note": "This topic has no direct subtopics. You can choose other notes to synthesize.",
   "ui.review_synthesis_draft": "Review synthesis draft",
@@ -888,6 +874,9 @@ var english = {
   "ui.next_summary_synth_summary": "Summary only",
   "ui.next_summary_web_on": "Web search",
   "ui.next_summary_web_off": "No web search",
+  "ui.synthesis_skip_suggestions": "Skip suggestions and draft now",
+  "ui.synthesis_stage_two_fixed": "Sources, content, language and template were fixed when the directions were requested; only the extra requirements can still change.",
+  "ui.synthesis_needs_name": "Enter a name for the new topic first.",
   "ui.tone": "Writing tone",
   "ui.tone_keep_each": "Each topic's current tone",
   "ui.tone_keep_0": "Keep current ({0})",
@@ -1465,8 +1454,6 @@ var traditionalChinese = {
   "ui.proposal_task": "\u63D0\u6848\u4EFB\u52D9",
   "ui.on": "\u958B\u555F",
   "ui.off": "\u95DC\u9589",
-  "ui.summary_fields_hint": "\u6458\u8981\uFF1D\u5361\u7247\u7D50\u8AD6\uFF1BPrompt\uFF1D\u8B70\u984C\u4EFB\u52D9\uFF1BPreview\uFF1D\u5361\u7247\u9810\u89BD\uFF1BDetail\uFF1D\u5B8C\u6574\u77E5\u8B58\u3002",
-  "ui.ai_task_summary": "\u4F7F\u7528 {0} \xB7 {1}\uFF1B\u4F86\u6E90\uFF1A{2}\uFF1B\u7DB2\u8DEF\uFF1A{3}\uFF1B\u7D50\u679C\uFF1A{4}",
   "ui.no_map_open": "\u76EE\u524D\u672A\u958B\u555F\u5FC3\u667A\u5716",
   "ui.sample_outline_hint": "\u552F\u8B80\u7BC4\u4F8B\u4E0D\u63D0\u4F9B\u53EF\u7DE8\u8F2F\u5927\u7DB1\uFF1B\u8ACB\u5F9E\u5FC3\u667A\u5716\u8907\u88FD\u5230\u81EA\u5DF1\u7684\u5DE5\u4F5C\u5340\u3002",
   "ui.empty_outline_hint": "\u9019\u5F35\u5716\u5C1A\u7121\u8B70\u984C\uFF1B\u8ACB\u5F9E\u5FC3\u667A\u5716\u65B0\u589E\u7B2C\u4E00\u500B\u8B70\u984C\u3002",
@@ -1681,7 +1668,6 @@ var traditionalChinese = {
   "ui.ai_does_not_recommend_decomposition_or_did_not_propose_3_to": "AI \u8A8D\u70BA\u76EE\u524D\u4E0D\u9700\u8981\u62C6\u89E3\uFF0C\u6216\u6C92\u6709\u63D0\u51FA 3 \u81F3 7 \u500B\u53EF\u5EFA\u7ACB\u7684\u5B50\u8B70\u984C\u3002",
   "ui.save": "\u5132\u5B58",
   "ui.select": "\u9078\u64C7",
-  "ui.custom_ai_task": "\u81EA\u8A02 AI \u4EFB\u52D9",
   "ui.context_ai_open": "\u7528 AI \u8655\u7406\u9078\u53D6\u6587\u5B57",
   "ui.context_ai_title": "AI \u5FEB\u6377\u8655\u7406",
   "ui.context_ai_image_load_failed": "\u7121\u6CD5\u8F09\u5165\u9019\u5F35\u5716\u7247\u4EE5\u5B8C\u6210\u5716\u8AAA\uFF0C\u8ACB\u6539\u9078\u53E6\u4E00\u5F35\u3002",
@@ -1740,7 +1726,6 @@ var traditionalChinese = {
   "ui.context_ai_result_empty": "\u8ACB\u5148\u8F38\u5165\u6216\u7522\u751F\u7D50\u679C\uFF0C\u518D\u5957\u7528\u3002",
   "ui.context_ai_replaced": "\u5DF2\u53D6\u4EE3\u9078\u53D6\u6587\u5B57\u3002",
   "ui.context_ai_appended": "\u8349\u7A3F\u5DF2\u9644\u52A0\u5230\u9801\u5C3E\u3002",
-  "ui.describe_what_you_want_ai_to_do_next": "\u63CF\u8FF0\u9019\u4E00\u6B65\u8981\u8ACB AI \u5B8C\u6210\u4EC0\u9EBC\u3002",
   "ui.synthesis_content": "\u8B70\u984C\u6574\u5408\u5167\u5BB9",
   "ui.synthesis_content_full": "\u5B8C\u6574\u5167\u5BB9\u6574\u5408\uFF08\u9810\u8A2D\uFF09",
   "ui.synthesis_content_summary": "\u6458\u8981\u5FEB\u901F\u6574\u5408",
@@ -1784,8 +1769,6 @@ var traditionalChinese = {
   "ui.reference_none": "\u6C92\u6709\u53E6\u5916\u9078\u53D6\u672C\u6A5F\u8CC7\u6599\uFF1B\u9019\u6B21\u4EFB\u52D9\u539F\u672C\u5305\u542B\u7684\u8B70\u984C\u5167\u5BB9\u4ECD\u6703\u4F7F\u7528\u3002",
   "ui.reference_remove": "\u79FB\u9664",
   "ui.additional_requirements": "\u672C\u6B21\u9644\u52A0\u8981\u6C42\uFF08\u9078\u586B\uFF09",
-  "ui.confirm_and_run": "\u78BA\u8A8D\u4E26\u57F7\u884C",
-  "ui.next_set_ai_sources": "\u4E0B\u4E00\u6B65\uFF081/2\uFF09\uFF1A\u8A2D\u5B9A AI \u4F86\u6E90",
   "ui.ai_subtopic_proposals": "AI \u5B50\u8B70\u984C\u63D0\u6848",
   "ui.select_subtopics_to_create_you_can_edit_their_names_and_task": "\u52FE\u9078\u8981\u5EFA\u7ACB\u7684\u5B50\u8B70\u984C\uFF1B\u5EFA\u7ACB\u524D\u53EF\u76F4\u63A5\u4FEE\u6539\u540D\u7A31\u8207\u4EFB\u52D9\u3002",
   "ui.contribution_to_the_parent_topic": "\u5C0D\u6BCD\u8B70\u984C\u7684\u8CA2\u737B",
@@ -1799,8 +1782,6 @@ var traditionalChinese = {
   "ui.synthesize_agreements_differences_tradeoffs_and_open_questio": "\u6574\u5408\u5171\u8B58\u3001\u5DEE\u7570\u3001\u53D6\u6368\u8207\u5F85\u78BA\u8A8D\u4E8B\u9805\uFF1B\u5148\u63D0\u51FA\u7D50\u8AD6\u65B9\u5411\u4F9B\u6211\u78BA\u8A8D\u3002",
   "ui.synthesize_subtopics": "\u6574\u5408\u5B50\u8B70\u984C",
   "ui.ai_reads_direct_subtopics_and_prepares_a_synthesis_draft_not": "AI \u6703\u8B80\u53D6\u76F4\u5C6C\u5B50\u8B70\u984C\uFF0C\u7522\u751F\u6574\u5408\u8349\u7A3F\uFF1B\u4F60\u78BA\u8A8D\u5F8C\u624D\u6703\u5BEB\u5165\u3002",
-  "ui.synthesis_direction_and_sources": "\u6574\u5408\u65B9\u5411\u8207\u4F86\u6E90",
-  "ui.prepare_a_synthesis_draft_first_then_create_the_topic_after": "\u5148\u7522\u751F\u6574\u5408\u8349\u7A3F\uFF0C\u78BA\u8A8D\u5F8C\u624D\u5EFA\u7ACB\u65B0\u8B70\u984C\u3002",
   "ui.confirm_new_synthesis_topic": "\u78BA\u8A8D\u5EFA\u7ACB\u6574\u5408\u8B70\u984C",
   "ui.mind_map_data_was_not_found_keep_the_agent_map_block": "\u627E\u4E0D\u5230\u5FC3\u667A\u5716\u8CC7\u6599\u5340\u584A\uFF0C\u8ACB\u4FDD\u7559 agent-map \u5340\u584A\u3002",
   "ui.invalid_mind_map_format": "\u5FC3\u667A\u5716\u683C\u5F0F\u4E0D\u6B63\u78BA\u3002",
@@ -1827,7 +1808,6 @@ var traditionalChinese = {
   "ui.expand_all": "\u5168\u90E8\u5C55\u958B",
   "ui.expand_to_level_0": "\u5C55\u958B\u5230\u7B2C {0} \u5C64",
   "ui.ai_explore": "AI \u63A2\u7D22",
-  "ui.synthesis_goal": "\u6574\u5408\u76EE\u6A19",
   "ui.identify_shared_conclusions_key_differences_tradeoffs_and_ne": "\u627E\u51FA\u5171\u540C\u7D50\u8AD6\u3001\u91CD\u8981\u5DEE\u7570\u3001\u53D6\u6368\u8207\u4E0B\u4E00\u6B65\u3002",
   "ui.use_file_contents": "\u4F7F\u7528\u6A94\u6848\u5167\u5BB9",
   "ui.keep_editor_contents": "\u4FDD\u7559\u756B\u9762\u5167\u5BB9",
@@ -1988,7 +1968,6 @@ var traditionalChinese = {
   "ui.the_file_was_moved_or_deleted_you_can_remove_this_node_from": "\u6A94\u6848\u5DF2\u79FB\u52D5\u6216\u522A\u9664\uFF0C\u53EF\u5F9E\u5716\u4E2D\u79FB\u9664\u6B64\u8B70\u984C\u3002",
   "ui.remove_from_map": "\u5F9E\u5716\u4E2D\u79FB\u9664",
   "ui.no_preview_content_yet": "\u5C1A\u672A\u52A0\u5165\u9810\u89BD\u5167\u5BB9",
-  "ui.current_understanding": "\u76EE\u524D\u7406\u89E3",
   "ui.confirm_research_task": "\u78BA\u8A8D\u7814\u7A76\u4EFB\u52D9",
   "ui.add_subtopic_manually": "\u624B\u52D5\u65B0\u589E\u5B50\u8B70\u984C",
   "ui.ai_running_ai": "AI \u57F7\u884C\u4E2D\u2026",
@@ -2108,7 +2087,6 @@ var traditionalChinese = {
   "ui.list_separator": "\u3001",
   "ui.synthesis_of_0": "\u6574\u5408\uFF1A{0}",
   "ui.synthesis_of_0_and_1_more": "\u6574\u5408\uFF1A{0} \u7B49 {1} \u500B\u8B70\u984C",
-  "ui.synthesis_needs_name_and_goal": "\u586B\u5BEB\u65B0\u8B70\u984C\u540D\u7A31\u8207\u6574\u5408\u76EE\u6A19\u5F8C\u624D\u80FD\u7E7C\u7E8C\u3002",
   "ui.create_0_subtopics": "\u5EFA\u7ACB {0} \u500B\u5B50\u8B70\u984C",
   "ui.selected_0_of_1": "\u5DF2\u9078 {0}\uFF0F{1}",
   "ui.select_all": "\u5168\u9078",
@@ -2210,11 +2188,9 @@ var traditionalChinese = {
   "ui.fast_quick_overview": "Fast \xB7 \u5FEB\u901F\u6982\u89BD",
   "ui.normal_standard_research": "Normal \xB7 \u4E00\u822C\u7814\u7A76",
   "ui.deep_in_depth_research": "Deep \xB7 \u6DF1\u5165\u7814\u7A76",
-  "ui.create_two_levels_and_research_each_topic_briefly_up_to_15": "\u5EFA\u7ACB\u5169\u5C64\u5B50\u8B70\u984C\u4E26\u9010\u4E00\u6DFA\u7814\u7A76\uFF08\u6700\u591A 15 \u500B\uFF09",
   "ui.select_the_parent_topic_before_its_child": "\u8ACB\u5148\u52FE\u9078\u5B50\u8B70\u984C\u7684\u6BCD\u8B70\u984C\u3002",
   "ui.first_level_topic_names_must_be_unique": "\u7B2C\u4E00\u5C64\u5B50\u8B70\u984C\u540D\u7A31\u4E0D\u80FD\u91CD\u8907\u3002",
   "ui.ai_proposed_duplicate_first_level_names_generate_the_proposa": "AI \u63D0\u6848\u7684\u7B2C\u4E00\u5C64\u540D\u7A31\u91CD\u8907\uFF0C\u8ACB\u91CD\u65B0\u7522\u751F\u63D0\u6848\u3002",
-  "ui.expand_subtopics": "\u5C55\u958B\u5B50\u8B70\u984C",
   "ui.specify_an_expansion_direction_or_ask_ai_to_suggest_one_prev": "\u53EF\u6307\u5B9A\u5C55\u958B\u65B9\u5411\uFF0C\u6216\u8B93 AI \u5EFA\u8B70\uFF1B\u7D50\u679C\u5148\u9810\u89BD\uFF0C\u78BA\u8A8D\u5F8C\u624D\u5EFA\u7ACB\u8B70\u984C\u3002",
   "ui.this_topic_has_no_direct_subtopics_you_can_choose_other_note": "\u9019\u500B\u8B70\u984C\u76EE\u524D\u6C92\u6709\u76F4\u5C6C\u5B50\u8B70\u984C\uFF1B\u53EF\u4EE5\u9078\u64C7\u5176\u4ED6\u7B46\u8A18\u4F5C\u70BA\u6574\u5408\u4F86\u6E90\u3002",
   "ui.review_synthesis_draft": "\u6AA2\u67E5\u6574\u5408\u8349\u7A3F",
@@ -2245,6 +2221,9 @@ var traditionalChinese = {
   "ui.next_summary_synth_summary": "\u50C5\u6458\u8981",
   "ui.next_summary_web_on": "\u641C\u5C0B\u7DB2\u8DEF",
   "ui.next_summary_web_off": "\u4E0D\u641C\u5C0B\u7DB2\u8DEF",
+  "ui.synthesis_skip_suggestions": "\u7565\u904E\u5EFA\u8B70\uFF0C\u76F4\u63A5\u7522\u751F\u8349\u7A3F",
+  "ui.synthesis_stage_two_fixed": "\u53D6\u5F97\u65B9\u5411\u6642\u5DF2\u56FA\u5B9A\u4F86\u6E90\u3001\u5167\u5BB9\u7BC4\u570D\u3001\u8A9E\u8A00\u8207\u6A21\u677F\uFF1B\u73FE\u5728\u53EA\u80FD\u8ABF\u6574\u984D\u5916\u8981\u6C42\u3002",
+  "ui.synthesis_needs_name": "\u8ACB\u5148\u66FF\u65B0\u8B70\u984C\u53D6\u540D\u3002",
   "ui.tone": "\u5BEB\u4F5C\u8A9E\u6C23",
   "ui.tone_keep_each": "\u5404\u8B70\u984C\u76EE\u524D\u7684\u8A9E\u6C23",
   "ui.tone_keep_0": "\u7DAD\u6301\u76EE\u524D\uFF08{0}\uFF09",
@@ -20937,114 +20916,8 @@ function quickSuggestions(items, layers, firstLayerCount, childrenPerParent) {
   if (selected.length !== items.length) invalid();
   return selected;
 }
-var TaskModal = class extends import_obsidian16.Modal {
-  constructor(app, value, submit, titleText = t("ui.custom_ai_task"), description = t("ui.describe_what_you_want_ai_to_do_next"), rules = "", mode = "research", depth = "normal", visual = "auto", _allowSave = true, expand = false, referenceSettings, synthesisTopics, currentLanguage = "zh-TW", modelId = "", reasoningId = "auto", targetLabel = "") {
-    super(app);
-    this.value = value;
-    this.submit = submit;
-    this.titleText = titleText;
-    this.description = description;
-    this.rules = rules;
-    this.mode = mode;
-    this.depth = depth;
-    this.visual = visual;
-    this.expand = expand;
-    this.referenceSettings = referenceSettings;
-    this.synthesisTopics = synthesisTopics;
-    this.currentLanguage = currentLanguage;
-    this.modelId = modelId;
-    this.reasoningId = reasoningId;
-    this.targetLabel = targetLabel;
-  }
-  onOpen() {
-    var _a, _b, _c, _d;
-    this.titleEl.setText(this.titleText);
-    this.contentEl.createEl("p", { text: this.description, cls: "vam-modal-intro" });
-    const label = this.contentEl.createEl("label", { cls: "vam-field" });
-    label.createSpan({ text: t("ui.additional_requirements") });
-    const input = label.createEl("textarea", { cls: "vam-task-input" });
-    input.rows = 3;
-    input.setAttr("aria-label", t("ui.additional_requirements"));
-    this.contentEl.createEl("p", { text: t("ui.requirements_this_task_only"), cls: "vam-hint" });
-    this.contentEl.createEl("p", { text: t("ui.summary_fields_hint"), cls: "vam-hint" });
-    const languageLabel = this.contentEl.createEl("label", { cls: "vam-field" });
-    languageLabel.createSpan({ text: t("ui.output_language") });
-    const languageSelect = languageLabel.createEl("select");
-    languageSelect.setAttr("aria-label", t("ui.output_language"));
-    for (const option2 of SUPPORTED_LANGUAGES)
-      languageSelect.createEl("option", { value: option2.id, text: option2.label });
-    languageSelect.value = this.currentLanguage;
-    if (this.rules.trim()) this.contentEl.createEl("p", { text: t("ui.legacy_rules_not_applied"), cls: "vam-hint" });
-    const synthesis = this.synthesisTopics ? renderSynthesisContent(this.contentEl, this.synthesisTopics) : void 0;
-    const referenceLabel = this.expand ? (_a = this.referenceSettings) == null ? void 0 : _a.currentLabel : (_d = (_b = this.referenceSettings) == null ? void 0 : _b.synthesisLabel) != null ? _d : (_c = this.referenceSettings) == null ? void 0 : _c.currentLabel;
-    const references2 = this.referenceSettings ? new ReferencePicker(
-      this.app,
-      this.contentEl,
-      this.referenceSettings.topics,
-      this.referenceSettings.readTopic,
-      this.referenceSettings.currentTopicId,
-      referenceLabel != null ? referenceLabel : "",
-      this.mode !== "local",
-      this.visual !== "off"
-    ) : null;
-    const executionSummary = this.contentEl.createEl("p", { cls: "vam-hint", attr: { "aria-live": "polite" } });
-    const updateSummary = () => {
-      var _a2;
-      const selected = references2 == null ? void 0 : references2.selection();
-      const result = this.synthesisTopics ? t("ui.review_synthesis_draft") : this.expand ? t("ui.expand_subtopics") : t("ui.current_understanding");
-      executionSummary.setText(
-        t(
-          "ui.ai_task_summary",
-          this.modelId,
-          reasoningLabel(this.reasoningId),
-          (_a2 = references2 == null ? void 0 : references2.describe()) != null ? _a2 : `0 ${t("ui.markdown_files")}`,
-          t((selected == null ? void 0 : selected.webSearch) ? "ui.on" : "ui.off"),
-          this.targetLabel ? `${this.targetLabel} \xB7 ${result}` : result
-        )
-      );
-    };
-    this.contentEl.addEventListener("change", updateSummary);
-    updateSummary();
-    const depth = researchDepthField(this.contentEl, { initial: this.depth });
-    const layers = this.expand ? this.contentEl.createEl("label", { cls: "vam-field" }) : null;
-    const multiLayer = layers == null ? void 0 : layers.createEl("input", { type: "checkbox" });
-    if (multiLayer) multiLayer.checked = true;
-    if (layers) layers.createSpan({ text: t("ui.create_two_levels_and_research_each_topic_briefly_up_to_15") });
-    const save = async (run) => {
-      var _a2, _b2;
-      const value = this.value;
-      const synthesisContent = (synthesis == null ? void 0 : synthesis.value) === "summary" ? "summary" : "full";
-      if (synthesis) synthesis.disabled = true;
-      const sources2 = await (references2 == null ? void 0 : references2.ready());
-      const shallowResearch = (_a2 = multiLayer == null ? void 0 : multiLayer.checked) != null ? _a2 : false;
-      this.close();
-      this.submit(
-        value,
-        run,
-        {
-          ...synthesis ? { synthesisContent } : {},
-          referenceGroups: (_b2 = sources2 == null ? void 0 : sources2.groups) != null ? _b2 : [],
-          requirements: input.value.trim(),
-          outputLanguage: languageSelect.value,
-          researchMode: (sources2 == null ? void 0 : sources2.webSearch) ? "research" : "local",
-          researchDepth: depth.value(),
-          visualMode: (sources2 == null ? void 0 : sources2.imageSearch) ? this.visual === "on" ? "on" : "auto" : "off",
-          multiLayer: shallowResearch
-        },
-        ""
-      );
-    };
-    new import_obsidian16.Setting(this.contentEl).addButton((b) => b.setButtonText(t("ui.cancel")).onClick(() => this.close())).addButton(
-      (b) => b.setButtonText(t("ui.confirm_and_run")).setCta().onClick(() => {
-        void save(true).catch((error) => new import_obsidian16.Notice(String(error)));
-      })
-    );
-    input.focus();
-    input.setSelectionRange(input.value.length, input.value.length);
-  }
-};
 var NextStepModal = class extends import_obsidian16.Modal {
-  constructor(app, topic, depth, childrenCount, pendingCount, plugin, research, expand, synthesize, modelSettings) {
+  constructor(app, topic, depth, childrenCount, pendingCount, plugin, research, expand, synthesize, modelSettings, selection) {
     super(app);
     this.topic = topic;
     this.depth = depth;
@@ -21055,14 +20928,22 @@ var NextStepModal = class extends import_obsidian16.Modal {
     this.expand = expand;
     this.synthesize = synthesize;
     this.modelSettings = modelSettings;
+    this.selection = selection;
     __publicField(this, "closed", false);
     __publicField(this, "runPending", false);
     /** Model and effort edits wait here; they are saved when a run starts, never when the dialog is cancelled. */
     __publicField(this, "pendingSettings", {});
+    /** The finished synthesis draft is being reviewed in this dialog. */
+    __publicField(this, "reviewView");
     __publicField(this, "taskSignal");
     __publicField(this, "taskController");
     __publicField(this, "unsubscribeModels");
     __publicField(this, "requirementsInput");
+  }
+  /** Where the shared fields (data sources, template, tone) come from: the topic's settings, or the selection's. */
+  get info() {
+    var _a, _b;
+    return (_b = this.modelSettings) != null ? _b : (_a = this.selection) == null ? void 0 : _a.fields;
   }
   /** Suggests the next step from where the topic stands: frontier → research, settled leaf → expand, settled branch → synthesize. */
   suggestedMode() {
@@ -21075,7 +20956,7 @@ var NextStepModal = class extends import_obsidian16.Modal {
   /** One data-source picker shared by every step, so choices survive switching steps. */
   addReferencePicker(panel) {
     var _a;
-    const sources2 = (_a = this.modelSettings) == null ? void 0 : _a.sources;
+    const sources2 = (_a = this.info) == null ? void 0 : _a.sources;
     if (!sources2) return void 0;
     const disclosure = panel.createEl("details", { cls: "vam-next-source-details" });
     disclosure.open = false;
@@ -21127,10 +21008,12 @@ var NextStepModal = class extends import_obsidian16.Modal {
     return (_b = (_a = this.requirementsInput) == null ? void 0 : _a.value.trim()) != null ? _b : "";
   }
   onClose() {
-    var _a, _b;
+    var _a, _b, _c;
     this.closed = true;
     (_a = this.taskController) == null ? void 0 : _a.abort();
     (_b = this.unsubscribeModels) == null ? void 0 : _b.call(this);
+    (_c = this.reviewView) == null ? void 0 : _c.dispose();
+    this.reviewView = void 0;
   }
   /** Saves the model and effort chosen in this dialog, once, at the moment a run actually starts. */
   async flushSettings() {
@@ -21222,24 +21105,14 @@ var NextStepModal = class extends import_obsidian16.Modal {
       save({ model: settings.model, modelSource: settings.modelSource });
       describeModel();
     });
-    const reasoningLabel2 = advanced.createEl("label", { cls: "vam-field" });
-    reasoningLabel2.createSpan({ text: t("ui.reasoning_level") });
-    const reasoning = reasoningLabel2.createEl("select");
+    const reasoningField = advanced.createEl("label", { cls: "vam-field" });
+    reasoningField.createSpan({ text: t("ui.reasoning_level") });
+    const reasoning = reasoningField.createEl("select");
     reasoning.setAttr("aria-label", t("ui.reasoning_level"));
-    const reasoningLabels = {
-      auto: t("ui.auto"),
-      low: t("ui.low"),
-      medium: t("ui.medium"),
-      high: t("ui.high")
-    };
-    for (const [value, label] of Object.entries(reasoningLabels)) reasoning.createEl("option", { value, text: label });
+    for (const value of ["auto", "low", "medium", "high"])
+      reasoning.createEl("option", { value, text: reasoningLabel(value) });
     reasoning.value = normalizeReasoningLevel(settings.reasoning);
-    const describeModel = () => {
-      var _a2;
-      return advancedValue.setText(
-        `${this.plugin.modelLabel(settings.model)} \xB7 ${(_a2 = reasoningLabels[normalizeReasoningLevel(settings.reasoning)]) != null ? _a2 : ""}`
-      );
-    };
+    const describeModel = () => advancedValue.setText(`${this.plugin.modelLabel(settings.model)} \xB7 ${reasoningLabel(settings.reasoning)}`);
     describeModel();
     reasoning.addEventListener("change", () => {
       settings.reasoning = normalizeReasoningLevel(reasoning.value);
@@ -21314,25 +21187,50 @@ var NextStepModal = class extends import_obsidian16.Modal {
       this.runPending = false;
     }
   }
-  launchSynthesis(panel, button, direction, buildOptions) {
+  /**
+   * One synthesis step (directions or draft) from this dialog. The run is the view's: while this dialog is open the
+   * next stage appears here, and if it is closed the run carries on in the background and falls back to the node badge.
+   */
+  launchSynthesis(panel, button, direction, buildOptions, flow) {
     void this.run(panel, button, async () => {
       const controller = this.taskController;
       if (!controller) return;
       const options = await buildOptions(controller.signal);
       if (this.closed || controller.signal.aborted) return;
-      let launchAccepted = false;
-      let launchFailed = false;
-      const release = () => {
-        if (this.taskController === controller) {
-          this.taskSignal = void 0;
-          this.taskController = void 0;
-        }
-        if (!this.closed) {
-          const cancel = panel.querySelector(".vam-task-cancel");
-          if (cancel) cancel.hidden = true;
+      const cancel = panel.querySelector(".vam-task-cancel");
+      let outcome = false;
+      let failedShown = false;
+      let userCancelled = false;
+      const settle = () => {
+        if (cancel && !this.closed) cancel.hidden = true;
+      };
+      const observer = {
+        isOpen: () => !this.closed,
+        accepted: (stop) => {
+          if (this.taskController === controller) {
+            this.taskSignal = void 0;
+            this.taskController = void 0;
+          }
+          if (cancel && !this.closed) {
+            cancel.hidden = false;
+            cancel.onclick = () => {
+              userCancelled = true;
+              stop();
+            };
+          }
+        },
+        directions: (items) => {
+          outcome = true;
+          settle();
+          flow.directions(items);
+        },
+        drafted: (draft) => {
+          outcome = true;
+          settle();
+          flow.drafted(draft);
         }
       };
-      const launch = this.synthesize(
+      await this.synthesize(
         options,
         direction,
         (message) => {
@@ -21340,21 +21238,17 @@ var NextStepModal = class extends import_obsidian16.Modal {
             new import_obsidian16.Notice(message);
             return;
           }
-          release();
-          launchFailed = true;
-          this.failedAi(panel, button, message);
+          settle();
+          failedShown = true;
+          if (userCancelled) this.failed(panel, button, message);
+          else this.failedAi(panel, button, message);
         },
         () => {
-        }
+        },
+        observer
       );
-      if (!launchFailed && !this.closed && !controller.signal.aborted && this.taskController === controller) {
-        launchAccepted = true;
-        release();
-        this.startedInBackground();
-      }
-      await launch;
-      if (!this.closed && !launchAccepted && !launchFailed) {
-        release();
+      if (!this.closed && !outcome && !failedShown) {
+        settle();
         this.failed(panel, button, t("ui.ai_task_cancelled"));
       }
     });
@@ -21453,11 +21347,12 @@ var NextStepModal = class extends import_obsidian16.Modal {
     (_a = panel.querySelector(".vam-next-status")) == null ? void 0 : _a.setText(t("ui.review_ai_suggested_subtopics"));
   }
   onOpen() {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v;
     this.modalEl.addClass("vam-next-modal");
-    this.titleEl.setText(t("ui.how_would_you_like_to_explore_next"));
+    const selection = this.selection;
+    this.titleEl.setText(t(selection ? "ui.confirm_topic_synthesis" : "ui.how_would_you_like_to_explore_next"));
     const intro = this.contentEl.createEl("p", { cls: "vam-modal-intro vam-next-topic" });
-    intro.createSpan({ text: t("ui.current_topic_0", this.topic) });
+    if (!selection) intro.createSpan({ text: t("ui.current_topic_0", this.topic) });
     const topicStatus = (_a = this.modelSettings) == null ? void 0 : _a.topicStatus;
     if (topicStatus)
       intro.createSpan({
@@ -21466,7 +21361,7 @@ var NextStepModal = class extends import_obsidian16.Modal {
           topicStatus === "completed" ? "ui.researched" : topicStatus === "running" ? "ui.ai_running" : topicStatus === "error" ? "ui.task_error" : "ui.to_research"
         )
       });
-    const initialMode = this.suggestedMode();
+    const initialMode = selection ? "synthesize" : this.suggestedMode();
     let currentMode = initialMode;
     const actions = modalActions(this);
     const closeButton = actions.createEl("button", { text: t("ui.close"), cls: "vam-next-close" });
@@ -21474,7 +21369,6 @@ var NextStepModal = class extends import_obsidian16.Modal {
     const confirm = actions.createEl("button", { text: t("ui.confirm_research_task"), cls: "mod-cta" });
     confirm.dataset.topicRun = t("ui.confirm_research_task");
     confirm.disabled = !!((_b = this.modelSettings) == null ? void 0 : _b.running);
-    let synthAction;
     let synthesisContentSelect;
     const cards = this.contentEl.createDiv("vam-next-cards");
     cards.setAttr("role", "radiogroup");
@@ -21516,6 +21410,7 @@ var NextStepModal = class extends import_obsidian16.Modal {
       "synthesize"
     );
     const cardFor = { research: researchCard, expand: expandCard, synthesize: synthesizeCard };
+    if (selection) cards.addClass("is-hidden");
     if ((_c = this.modelSettings) == null ? void 0 : _c.running) {
       const running = this.contentEl.createDiv("vam-next-running");
       running.createSpan({ text: t("ui.ai_running_ai") });
@@ -21820,93 +21715,185 @@ var NextStepModal = class extends import_obsidian16.Modal {
         multiLayer || !this.pendingCount
       );
     });
+    const pendingDirections = selection ? selection.pending : (_g = this.modelSettings) == null ? void 0 : _g.synthesisPending;
     synthesizePanel.createEl("p", {
-      text: this.childrenCount ? t("ui.ai_suggests_synthesis_angles_first_the_parent_topic_changes") : t("ui.this_topic_has_no_direct_subtopics_you_can_choose_other_note")
+      text: selection ? t("ui.synthesize_0_source_topics_ai_reads_their_full_knowledge_and", selection.names.length) : this.childrenCount ? t("ui.ai_suggests_synthesis_angles_first_the_parent_topic_changes") : t("ui.this_topic_has_no_direct_subtopics_you_can_choose_other_note")
     });
-    {
-      const pending = (_g = this.modelSettings) == null ? void 0 : _g.synthesisPending;
-      if (pending) {
-        const synthStatus = synthesizePanel.createEl("p", { cls: "vam-next-status", attr: { "aria-live": "polite" } });
-        const synthResult = synthesizePanel.createDiv("vam-next-result");
-        synthStatus.setText(t("ui.choose_or_edit_a_synthesis_direction_then_get_a_draft"));
-        for (const item of pending.directions) {
-          const choice2 = synthResult.createDiv("vam-next-angle");
-          choice2.createEl("strong", { text: item.title });
-          choice2.createEl("p", { text: item.contribution || item.task });
-          choice2.createEl("button", { text: t("ui.choose_this_direction") }).addEventListener("click", () => {
-            direction.value = item.task || item.title;
-          });
-        }
-        const direction = synthResult.createEl("textarea", {
-          cls: "vam-next-focus",
-          text: ((_h = pending.directions[0]) == null ? void 0 : _h.task) || ((_i = pending.directions[0]) == null ? void 0 : _i.title) || ""
+    let titleInput;
+    let titleField;
+    if (selection) {
+      const titleLabel = synthesizePanel.createEl("label", { cls: "vam-field vam-next-synth-setup" });
+      titleField = titleLabel;
+      titleLabel.createSpan({ text: t("ui.new_topic_name") });
+      titleInput = titleLabel.createEl("input", { type: "text", value: selection.initialTitle });
+      titleInput.setAttr("aria-label", t("ui.new_topic_name"));
+    }
+    synthesisContentSelect = renderSynthesisContent(
+      adjustFor.synthesize,
+      (_k = (_j = selection == null ? void 0 : selection.names) != null ? _j : (_i = (_h = this.modelSettings) == null ? void 0 : _h.sources) == null ? void 0 : _i.synthesisTopics) != null ? _k : []
+    );
+    const stageTwoHint = adjustFor.synthesize.createEl("p", {
+      cls: "vam-hint vam-next-synth-fixed",
+      text: t("ui.synthesis_stage_two_fixed")
+    });
+    stageTwoHint.hidden = true;
+    synthesizePanel.createEl("p", { cls: "vam-hint", text: t("ui.synthesis_web_default_hint") });
+    const synthStatus = synthesizePanel.createEl("p", { cls: "vam-next-status", attr: { "aria-live": "polite" } });
+    const synthResult = synthesizePanel.createDiv("vam-next-result");
+    const suggestButton = actions.createEl("button", { text: t("ui.get_synthesis_suggestions_first"), cls: "mod-cta" });
+    suggestButton.dataset.topicRun = (_l = suggestButton.textContent) != null ? _l : "";
+    const skipButton = actions.createEl("button", { text: t("ui.synthesis_skip_suggestions") });
+    const draftButton = actions.createEl("button", { text: t("ui.get_synthesis_draft"), cls: "mod-cta" });
+    for (const button of [suggestButton, skipButton, draftButton]) button.disabled = !!((_m = this.modelSettings) == null ? void 0 : _m.running);
+    let stage = pendingDirections ? "directions" : "setup";
+    let frozenSummary = "";
+    const syncSynthesisStage = () => {
+      const locked = stage === "directions";
+      const here = currentMode === "synthesize";
+      suggestButton.hidden = !here || locked;
+      skipButton.hidden = !here || locked;
+      draftButton.hidden = !here || !locked;
+      adjustFor.synthesize.toggleClass("is-fixed", locked);
+      stageTwoHint.hidden = !locked;
+      if (sharedSources) sharedSources.disclosure.hidden = here && locked;
+      output.hidden = here && locked;
+      titleField == null ? void 0 : titleField.toggleClass("is-hidden", locked);
+    };
+    let directionBox;
+    const showDirections = (items) => {
+      var _a2, _b2;
+      if (this.closed) return;
+      stage = "directions";
+      synthResult.empty();
+      for (const item of items) {
+        const choice2 = synthResult.createDiv("vam-next-angle");
+        choice2.createEl("strong", { text: item.title });
+        choice2.createEl("p", { text: item.contribution || item.task });
+        choice2.createEl("button", { text: t("ui.choose_this_direction") }).addEventListener("click", () => {
+          if (directionBox) directionBox.value = item.task || item.title;
         });
-        direction.setAttr("aria-label", t("ui.synthesis_direction"));
-        const draftButton = actions.createEl("button", { text: t("ui.get_synthesis_draft"), cls: "mod-cta" });
-        synthAction = draftButton;
-        draftButton.disabled = !!((_j = this.modelSettings) == null ? void 0 : _j.running);
-        draftButton.addEventListener(
-          "click",
-          () => this.launchSynthesis(synthesizePanel, draftButton, direction.value.trim(), (signal) => ({
-            outputLanguage: languageSelect.value,
-            requirements: this.requirements(),
-            researchMode: "local",
-            researchDepth: this.depth,
-            visualMode: "off",
-            signal,
-            onProgress: (message) => synthStatus.setText(message)
-          }))
+      }
+      const box = synthResult.createEl("textarea", {
+        cls: "vam-next-focus",
+        text: ((_a2 = items[0]) == null ? void 0 : _a2.task) || ((_b2 = items[0]) == null ? void 0 : _b2.title) || ""
+      });
+      box.setAttr("aria-label", t("ui.synthesis_direction"));
+      directionBox = box;
+      synthResult.createEl("button", { text: t("ui.discard_synthesis") }).addEventListener("click", () => {
+        var _a3, _b3;
+        (_b3 = selection ? selection.pending : (_a3 = this.modelSettings) == null ? void 0 : _a3.synthesisPending) == null ? void 0 : _b3.discard();
+        this.close();
+      });
+      synthStatus.setText(t("ui.choose_or_edit_a_synthesis_direction_then_get_a_draft"));
+      syncSynthesisStage();
+      refreshSummary();
+    };
+    const showReview = (draft) => {
+      var _a2, _b2, _c2;
+      if (this.closed) return;
+      for (const child of Array.from(this.contentEl.children)) child.addClass("is-hidden");
+      actions.addClass("is-hidden");
+      this.titleEl.setText(t("ui.review_synthesis_draft"));
+      const host = this.contentEl.createDiv("vam-next-review");
+      const review = selection ? {
+        intro: t("ui.draft_creates_0", (_a2 = titleInput == null ? void 0 : titleInput.value.trim()) != null ? _a2 : ""),
+        confirmLabel: t("ui.confirm_new_synthesis_topic")
+      } : {
+        intro: t("ui.draft_replaces_0", this.topic),
+        currentSummary: (_b2 = this.modelSettings) == null ? void 0 : _b2.currentSummary,
+        confirmLabel: t("ui.confirm_update_to_parent_topic"),
+        sourcePath: (_c2 = this.modelSettings) == null ? void 0 : _c2.path
+      };
+      const view = new DraftReviewView(
+        this.app,
+        draft.result.summary,
+        draft.result.detail,
+        review,
+        draft.confirm,
+        draft.discard,
+        () => this.close()
+      );
+      this.reviewView = view;
+      view.mount(host, modalActions(this));
+    };
+    const flow = { directions: showDirections, drafted: showReview };
+    const needsName = () => !!titleInput && !titleInput.value.trim();
+    const checkName = () => {
+      var _a2;
+      if (!titleInput || stage !== "setup") return;
+      const missing = needsName();
+      suggestButton.disabled = skipButton.disabled = missing || !!((_a2 = this.modelSettings) == null ? void 0 : _a2.running);
+      synthStatus.setText(missing ? t("ui.synthesis_needs_name") : "");
+    };
+    titleInput == null ? void 0 : titleInput.addEventListener("input", checkName);
+    const setupOptions = async (signal) => {
+      var _a2, _b2, _c2;
+      const content = (synthesisContentSelect == null ? void 0 : synthesisContentSelect.value) === "summary" ? "summary" : "full";
+      if (synthesisContentSelect) synthesisContentSelect.disabled = true;
+      const selected = await (sharedSources == null ? void 0 : sharedSources.picker.ready());
+      const options = {
+        synthesisContent: content,
+        referenceGroups: (_a2 = selected == null ? void 0 : selected.groups) != null ? _a2 : [],
+        outputLanguage: languageSelect.value,
+        requirements: this.requirements(),
+        researchMode: (selected == null ? void 0 : selected.webSearch) ? "research" : "local",
+        researchDepth: this.depth,
+        visualMode: (selected == null ? void 0 : selected.imageSearch) ? "auto" : "off",
+        ...templateId() ? { detailTemplateId: templateId() } : {},
+        ...toneId() ? { toneId: toneId() } : {},
+        ...titleInput ? { synthesisTitle: titleInput.value.trim() } : {},
+        signal,
+        onProgress: (message) => synthStatus.setText(message)
+      };
+      if (!selection && !this.childrenCount && !((_b2 = options.referenceGroups) == null ? void 0 : _b2.some((group) => group.documents.length)))
+        throw new Error(t("ui.choose_another_note_source_first"));
+      frozenSummary = (_c2 = summaryEl.textContent) != null ? _c2 : "";
+      return options;
+    };
+    const draftOptions = (signal) => ({
+      continuesDirections: true,
+      outputLanguage: languageSelect.value,
+      requirements: this.requirements(),
+      researchMode: "local",
+      researchDepth: this.depth,
+      visualMode: "off",
+      ...titleInput ? { synthesisTitle: titleInput.value.trim() } : {},
+      signal,
+      onProgress: (message) => synthStatus.setText(message)
+    });
+    const guard = () => {
+      if (!needsName()) return true;
+      synthStatus.setText(t("ui.synthesis_needs_name"));
+      return false;
+    };
+    suggestButton.addEventListener("click", () => {
+      if (guard()) this.launchSynthesis(synthesizePanel, suggestButton, null, setupOptions, flow);
+    });
+    skipButton.addEventListener("click", () => {
+      if (guard())
+        this.launchSynthesis(
+          synthesizePanel,
+          skipButton,
+          selection ? selection.defaultDirection : "",
+          setupOptions,
+          flow
         );
-        synthResult.createEl("button", { text: t("ui.discard_synthesis") }).addEventListener("click", () => {
-          pending.discard();
-          this.close();
-        });
-      } else {
-        const synthesisContent = renderSynthesisContent(
-          adjustFor.synthesize,
-          (_m = (_l = (_k = this.modelSettings) == null ? void 0 : _k.sources) == null ? void 0 : _l.synthesisTopics) != null ? _m : []
-        );
-        synthesizePanel.createEl("p", { cls: "vam-hint", text: t("ui.synthesis_web_default_hint") });
-        const synthButton = actions.createEl("button", {
-          text: t("ui.get_synthesis_suggestions_first"),
-          cls: "mod-cta"
-        });
-        synthAction = synthButton;
-        synthButton.dataset.topicRun = t("ui.get_synthesis_suggestions_first");
-        synthButton.disabled = !!((_n = this.modelSettings) == null ? void 0 : _n.running);
-        const synthStatus = synthesizePanel.createEl("p", { cls: "vam-next-status", attr: { "aria-live": "polite" } });
-        synthesizePanel.createDiv("vam-next-result");
-        synthesisContentSelect = synthesisContent;
-        synthButton.addEventListener(
-          "click",
-          () => this.launchSynthesis(synthesizePanel, synthButton, null, async (signal) => {
-            var _a2, _b2;
-            const content = synthesisContent.value === "summary" ? "summary" : "full";
-            synthesisContent.disabled = true;
-            const selected = await (sharedSources == null ? void 0 : sharedSources.picker.ready());
-            const options = {
-              synthesisContent: content,
-              referenceGroups: (_a2 = selected == null ? void 0 : selected.groups) != null ? _a2 : [],
-              outputLanguage: languageSelect.value,
-              requirements: this.requirements(),
-              researchMode: (selected == null ? void 0 : selected.webSearch) ? "research" : "local",
-              researchDepth: this.depth,
-              visualMode: (selected == null ? void 0 : selected.imageSearch) ? "auto" : "off",
-              ...templateId() ? { detailTemplateId: templateId() } : {},
-              ...toneId() ? { toneId: toneId() } : {},
-              signal,
-              onProgress: (message) => synthStatus.setText(message)
-            };
-            if (!this.childrenCount && !((_b2 = options.referenceGroups) == null ? void 0 : _b2.some((group) => group.documents.length)))
-              throw new Error(t("ui.choose_another_note_source_first"));
-            return options;
-          })
+    });
+    draftButton.addEventListener(
+      "click",
+      () => {
+        var _a2;
+        return this.launchSynthesis(
+          synthesizePanel,
+          draftButton,
+          ((_a2 = directionBox == null ? void 0 : directionBox.value) != null ? _a2 : "").trim(),
+          async (signal) => draftOptions(signal),
+          flow
         );
       }
-    }
+    );
     const sharedSources = this.addReferencePicker(adjustBody);
     show = (mode) => {
-      var _a2;
       currentMode = mode;
       for (const [name, button, panel] of [
         ["research", researchCard, research],
@@ -21920,12 +21907,10 @@ var NextStepModal = class extends import_obsidian16.Modal {
         adjustFor[name].hidden = name !== mode;
       }
       sharedSources == null ? void 0 : sharedSources.forMode(mode);
-      if (sharedSources)
-        sharedSources.disclosure.hidden = mode === "synthesize" && !!((_a2 = this.modelSettings) == null ? void 0 : _a2.synthesisPending);
       confirm.hidden = mode !== "research";
       expandButton.hidden = mode !== "expand";
       expandFooterText.hidden = mode !== "expand";
-      if (synthAction) synthAction.hidden = mode !== "synthesize";
+      syncSynthesisStage();
       refreshSummary();
     };
     this.renderRequirements(adjustBody);
@@ -21944,13 +21929,13 @@ var NextStepModal = class extends import_obsidian16.Modal {
     languageSelect.setAttr("aria-label", t("ui.output_language"));
     const templateId = templateField(
       compactSettings,
-      (_p = (_o = this.modelSettings) == null ? void 0 : _o.templates) != null ? _p : [],
-      t("ui.detail_template_keep_0", (_r = (_q = this.modelSettings) == null ? void 0 : _q.currentTemplate) != null ? _r : "")
+      (_o = (_n = this.info) == null ? void 0 : _n.templates) != null ? _o : [],
+      t("ui.detail_template_keep_0", (_q = (_p = this.info) == null ? void 0 : _p.currentTemplate) != null ? _q : "")
     );
     const toneId = toneField(
       compactSettings,
-      (_t = (_s = this.modelSettings) == null ? void 0 : _s.tones) != null ? _t : [],
-      t("ui.tone_keep_0", (_v = (_u = this.modelSettings) == null ? void 0 : _u.currentTone) != null ? _v : "")
+      (_s = (_r = this.info) == null ? void 0 : _r.tones) != null ? _s : [],
+      t("ui.tone_keep_0", (_u = (_t = this.info) == null ? void 0 : _t.currentTone) != null ? _u : "")
     );
     const pickedName = (picked, choices) => {
       var _a2;
@@ -21958,14 +21943,18 @@ var NextStepModal = class extends import_obsidian16.Modal {
     };
     const describeOutput = () => {
       var _a2, _b2, _c2, _d2, _e2, _f2;
-      const template = (_c2 = pickedName(templateId(), (_a2 = this.modelSettings) == null ? void 0 : _a2.templates)) != null ? _c2 : (_b2 = this.modelSettings) == null ? void 0 : _b2.currentTemplate;
-      const tone = (_f2 = pickedName(toneId(), (_d2 = this.modelSettings) == null ? void 0 : _d2.tones)) != null ? _f2 : (_e2 = this.modelSettings) == null ? void 0 : _e2.currentTone;
+      const template = (_c2 = pickedName(templateId(), (_a2 = this.info) == null ? void 0 : _a2.templates)) != null ? _c2 : (_b2 = this.info) == null ? void 0 : _b2.currentTemplate;
+      const tone = (_f2 = pickedName(toneId(), (_d2 = this.info) == null ? void 0 : _d2.tones)) != null ? _f2 : (_e2 = this.info) == null ? void 0 : _e2.currentTone;
       outputValue.setText([supportedLanguageLabel(languageSelect.value), template, tone].filter(Boolean).join(" \xB7 "));
     };
     const depthName = (depth) => t(depth === "fast" ? "ui.quick" : depth === "deep" ? "ui.deep" : "ui.standard");
     const refreshSummary = () => {
       var _a2, _b2, _c2;
       describeOutput();
+      if (currentMode === "synthesize" && stage === "directions") {
+        summaryEl.setText(frozenSummary);
+        return;
+      }
       const parts = [];
       if (currentMode === "research") parts.push(t("ui.next_summary_depth_0", depthName(depthField.value())));
       else if (currentMode === "expand")
@@ -21979,14 +21968,16 @@ var NextStepModal = class extends import_obsidian16.Modal {
       const network = sharedSources == null ? void 0 : sharedSources.picker.selection();
       if (network) parts.push(t(network.webSearch ? "ui.next_summary_web_on" : "ui.next_summary_web_off"));
       parts.push(supportedLanguageLabel(languageSelect.value));
-      const tone = (_c2 = pickedName(toneId(), (_a2 = this.modelSettings) == null ? void 0 : _a2.tones)) != null ? _c2 : (_b2 = this.modelSettings) == null ? void 0 : _b2.currentTone;
+      const tone = (_c2 = pickedName(toneId(), (_a2 = this.info) == null ? void 0 : _a2.tones)) != null ? _c2 : (_b2 = this.info) == null ? void 0 : _b2.currentTone;
       if (tone) parts.push(tone);
       summaryEl.setText(parts.join(" \xB7 "));
     };
     this.contentEl.addEventListener("change", refreshSummary);
+    if (pendingDirections) showDirections(pendingDirections.directions);
+    else checkName();
     show(initialMode);
     cardFor[initialMode].focus();
-    ((_w = this.renderModelSettings(adjustBody)) != null ? _w : adjustBody).createEl("p", {
+    ((_v = this.renderModelSettings(adjustBody)) != null ? _v : adjustBody).createEl("p", {
       text: t("ui.if_an_ai_task_exceeds_3_minutes_vam_attempts_to_interrupt_it"),
       cls: "vam-hint"
     });
@@ -22091,34 +22082,40 @@ function renderProposalList(parent, suggestions, changed, options = {}) {
 function reviewActions(modal) {
   return modalActions(modal);
 }
-var DraftReviewModal = class extends import_obsidian16.Modal {
-  constructor(app, summary, detail, review, confirm, discard) {
-    super(app);
+var DraftReviewView = class {
+  constructor(app, summary, detail, review, confirm, discard, close) {
+    this.app = app;
     this.summary = summary;
     this.detail = detail;
     this.review = review;
     this.confirm = confirm;
     this.discard = discard;
+    this.close = close;
     __publicField(this, "renderer", new import_obsidian16.Component());
     __publicField(this, "disarm");
+    __publicField(this, "intro");
   }
-  onOpen() {
+  /** Starts on the draft itself: a stray Enter from whatever opened the dialog must not switch to editing. */
+  focus() {
     var _a;
-    this.modalEl.addClass("vam-draft-modal");
-    this.titleEl.setText(t("ui.review_synthesis_draft"));
+    (_a = this.intro) == null ? void 0 : _a.focus();
+  }
+  mount(content, actions) {
+    var _a;
     this.renderer.load();
-    const intro = this.contentEl.createEl("p", { cls: "vam-draft-intro", text: this.review.intro });
+    const intro = content.createEl("p", { cls: "vam-draft-intro", text: this.review.intro });
+    this.intro = intro;
     if ((_a = this.review.currentSummary) == null ? void 0 : _a.trim()) {
-      const current = this.contentEl.createEl("details", { cls: "vam-draft-current" });
+      const current = content.createEl("details", { cls: "vam-draft-current" });
       current.createEl("summary", { text: t("ui.current_summary") });
       current.createEl("p", { text: this.review.currentSummary });
     }
-    const toolbar = this.contentEl.createDiv("vam-draft-toolbar");
+    const toolbar = content.createDiv("vam-draft-toolbar");
     toolbar.createEl("strong", { text: t("ui.ai_draft") });
     const toggle = toolbar.createEl("button", { text: t("ui.edit_draft"), cls: "vam-draft-toggle" });
     toggle.setAttr("aria-pressed", "false");
     const section3 = (label, value, rows) => {
-      const wrap = this.contentEl.createDiv("vam-draft-section");
+      const wrap = content.createDiv("vam-draft-section");
       wrap.createEl("h4", { text: label });
       const preview = wrap.createDiv("vam-draft-preview markdown-rendered");
       const input = wrap.createEl("textarea", { cls: "vam-task-input", text: value });
@@ -22169,11 +22166,7 @@ var DraftReviewModal = class extends import_obsidian16.Modal {
     setEditing(false);
     intro.tabIndex = -1;
     intro.focus();
-    const actions = reviewActions(this);
-    const status = actions.createSpan({
-      cls: "vam-next-actions-note vam-next-status",
-      attr: { "aria-live": "polite" }
-    });
+    const status = actionStatus(actions);
     if (this.discard) {
       const discard = actions.createEl("button", { text: t("ui.discard_synthesis"), cls: "vam-discard" });
       this.disarm = armDiscard(
@@ -22203,10 +22196,25 @@ var DraftReviewModal = class extends import_obsidian16.Modal {
       );
     });
   }
-  onClose() {
+  dispose() {
     var _a;
     (_a = this.disarm) == null ? void 0 : _a.call(this);
     this.renderer.unload();
+  }
+};
+var DraftReviewModal = class extends import_obsidian16.Modal {
+  constructor(app, summary, detail, review, confirm, discard) {
+    super(app);
+    __publicField(this, "view");
+    this.view = new DraftReviewView(app, summary, detail, review, confirm, discard, () => this.close());
+  }
+  onOpen() {
+    this.modalEl.addClass("vam-draft-modal");
+    this.titleEl.setText(t("ui.review_synthesis_draft"));
+    this.view.mount(this.contentEl, reviewActions(this));
+  }
+  onClose() {
+    this.view.dispose();
     this.contentEl.empty();
   }
 };
@@ -22241,60 +22249,6 @@ var ChildProposalModal = class extends import_obsidian16.Modal {
       this.close();
       this.submit(picked);
     });
-  }
-};
-var IntegrationModal = class extends import_obsidian16.Modal {
-  constructor(app, names2, submit) {
-    super(app);
-    this.names = names2;
-    this.submit = submit;
-  }
-  onOpen() {
-    this.titleEl.setText(t("ui.confirm_topic_synthesis"));
-    this.contentEl.createEl("p", {
-      text: t("ui.synthesize_0_source_topics_ai_reads_their_full_knowledge_and", this.names.length),
-      cls: "vam-modal-intro"
-    });
-    const sources2 = this.contentEl.createDiv("vam-integration-sources");
-    sources2.createEl("strong", { text: t("ui.source_topics") });
-    for (const name of this.names) sources2.createDiv({ text: name });
-    const titleLabel = this.contentEl.createEl("label", { cls: "vam-field" });
-    titleLabel.createSpan({ text: t("ui.new_topic_name") });
-    const title = titleLabel.createEl("input", {
-      type: "text",
-      value: this.names.length > 2 ? t("ui.synthesis_of_0_and_1_more", this.names[0], this.names.length) : t("ui.synthesis_of_0", this.names.join(t("ui.list_separator")))
-    });
-    title.setAttr("aria-label", t("ui.new_topic_name"));
-    const goalLabel = this.contentEl.createEl("label", { cls: "vam-field" });
-    goalLabel.createSpan({ text: t("ui.synthesis_goal") });
-    const goal = goalLabel.createEl("textarea", {
-      text: t("ui.identify_shared_conclusions_key_differences_tradeoffs_and_ne")
-    });
-    goal.rows = 4;
-    goal.setAttr("aria-label", t("ui.synthesis_goal"));
-    const save = () => {
-      if (!title.value.trim() || !goal.value.trim()) return;
-      this.close();
-      this.submit(title.value.trim(), goal.value.trim(), "");
-    };
-    const actions = reviewActions(this);
-    const status = actions.createSpan({
-      cls: "vam-next-actions-note vam-next-status",
-      attr: { "aria-live": "polite" }
-    });
-    actions.createEl("button", { text: t("ui.cancel") }).addEventListener("click", () => this.close());
-    const next = actions.createEl("button", { text: t("ui.next_set_ai_sources"), cls: "mod-cta" });
-    next.addEventListener("click", save);
-    const check = () => {
-      const missing = !title.value.trim() || !goal.value.trim();
-      next.disabled = missing;
-      status.setText(missing ? t("ui.synthesis_needs_name_and_goal") : "");
-    };
-    title.addEventListener("input", check);
-    goal.addEventListener("input", check);
-    check();
-    title.focus();
-    title.select();
   }
 };
 var MapConflictModal = class extends import_obsidian16.Modal {
@@ -22463,6 +22417,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     __publicField(this, "history", new History());
     __publicField(this, "deletedMap", null);
     __publicField(this, "integrationTask", null);
+    /** A multi-select synthesis step is starting (before its task exists), so a second request is refused. */
+    __publicField(this, "selectionStarting", false);
     __publicField(this, "synthesisTasks", /* @__PURE__ */ new Map());
     __publicField(this, "viewportEl", null);
     __publicField(this, "stageEl", null);
@@ -24889,7 +24845,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
       const task = this.integrationTask, state = this.contentEl.createDiv("vam-integration-progress");
       state.setAttr("aria-live", "polite");
       state.createSpan({
-        text: task.state === "running" ? task.progress || t("ui.integration_running") : task.state === "draft" ? t("ui.integration_draft_ready") : task.state === "failed" ? task.progress || t("ui.integration_failed") : t("ui.research_stopped_existing_content_was_preserved")
+        text: task.state === "running" ? task.progress || t("ui.integration_running") : task.state === "directions" ? t("ui.choose_synthesis_direction") : task.state === "draft" ? t("ui.integration_draft_ready") : task.state === "failed" ? task.progress || t("ui.integration_failed") : t("ui.research_stopped_existing_content_was_preserved")
       });
       if (task.state === "running")
         this.button(state, t("ui.stop_research"), () => {
@@ -24897,16 +24853,18 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
           task.state = "cancelled";
           this.render();
         });
-      if (task.state === "draft")
-        this.button(state, t("ui.review_synthesis_draft"), () => this.reviewIntegratedDraft(task));
-      if (task.state === "failed" || task.state === "cancelled")
-        this.button(
-          state,
-          t("ui.try_again"),
-          () => this.enqueue(
-            () => this.createIntegratedNode(task.title, task.sources, task.goal, task.rules, task.options, true)
-          )
+      if (task.state === "directions")
+        this.button(state, t("ui.choose_synthesis_direction"), () => this.openSelectionSynthesis(task)).addClass(
+          "vam-badge-new"
         );
+      if (task.state === "draft")
+        this.button(state, t("ui.review_synthesis_draft"), () => this.reviewIntegratedDraft(task)).addClass(
+          "vam-badge-new"
+        );
+      if (task.state === "failed" || task.state === "cancelled") {
+        this.button(state, t("ui.try_again"), () => this.retrySelectionSynthesis(task));
+        this.button(state, t("ui.discard_synthesis"), () => this.discardSelectionSynthesis());
+      }
     }
     if (!this.map) {
       const empty = this.contentEl.createDiv("vam-empty-state");
@@ -25864,7 +25822,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
             return this.proposeChildren(node, options, direction, found, failed, false, created, accepted);
           return this.startQuickExpansion(node, options, direction, failed, created, accepted);
         },
-        (options, direction, failed, accepted) => this.startSynthesis(node, options, direction, failed, accepted),
+        (options, direction, failed, accepted, observer) => this.startSynthesis(node, options, direction, failed, accepted, observer),
         {
           model: note.model,
           modelSource: note.modelSource,
@@ -25882,6 +25840,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
           templates: this.templateChoices(),
           tones: this.toneChoices(),
           currentTone: this.toneLabelFor(note),
+          currentSummary: note.summary,
           // Only a label: a missing topic template is reported at the next AI update, not when the dialog opens.
           currentTemplate: this.resolveTopicTemplate(note).template.name,
           topicStatus: note.status,
@@ -27170,7 +27129,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
       this.render();
     }
   }
-  async startSynthesis(node, options, direction, failed, accepted) {
+  async startSynthesis(node, options, direction, failed, accepted, observer) {
     const path = node.path;
     const existing = this.synthesisTasks.get(path);
     const step = direction === null ? "directions" : "draft";
@@ -27186,9 +27145,15 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
       failed(t("ui.synthesis_pending_review_first"));
       return;
     }
-    if (step === "draft" && (!existing || existing.mapPath !== this.path || existing.mapId !== this.map.id || !existing.directions.length)) {
-      failed(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
-      return;
+    if (step === "draft") {
+      if (existing && (existing.mapPath !== this.path || existing.mapId !== this.map.id)) {
+        failed(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
+        return;
+      }
+      if ((existing == null ? void 0 : existing.state) === "draft") {
+        failed(t("ui.synthesis_pending_review_first"));
+        return;
+      }
     }
     const controller = new AbortController();
     const modalSignal = options.signal;
@@ -27196,7 +27161,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     if (modalSignal == null ? void 0 : modalSignal.aborted) controller.abort();
     else modalSignal == null ? void 0 : modalSignal.addEventListener("abort", abortBeforeAcceptance, { once: true });
     const stored = { ...options, signal: void 0, onProgress: void 0 };
-    const task = step === "draft" && existing ? existing : {
+    const task = step === "draft" && (existing == null ? void 0 : existing.directions.length) && (existing.state === "directions" || options.continuesDirections) ? existing : {
       mapPath: this.path,
       mapId: this.map.id,
       state: "running",
@@ -27229,16 +27194,21 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     let launched = false;
     let outcome = null;
     const markAccepted = () => {
+      var _a;
       if (launched || controller.signal.aborted) return;
       launched = true;
       modalSignal == null ? void 0 : modalSignal.removeEventListener("abort", abortBeforeAcceptance);
+      (_a = observer == null ? void 0 : observer.accepted) == null ? void 0 : _a.call(observer, () => controller.abort());
       accepted();
     };
     const fail = (message) => {
       if (outcome) return;
       outcome = "failed";
       if (this.synthesisTasks.get(path) === task) {
-        if (!launched && step === "draft") task.state = "directions";
+        if (controller.signal.aborted && (observer == null ? void 0 : observer.isOpen())) {
+          if (step === "draft" && task.directions.length) task.state = "directions";
+          else this.synthesisTasks.delete(path);
+        } else if (!launched && step === "draft" && task.directions.length) task.state = "directions";
         else {
           task.state = controller.signal.aborted ? "cancelled" : "failed";
           task.progress = message;
@@ -27255,7 +27225,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
             outcome = "found";
             task.state = "directions";
             task.directions = items;
-            new import_obsidian17.Notice(t("ui.choose_synthesis_direction"));
+            if ((observer == null ? void 0 : observer.isOpen()) && observer.directions) observer.directions(items);
+            else new import_obsidian17.Notice(t("ui.choose_synthesis_direction"));
           },
           () => {
           },
@@ -27272,7 +27243,17 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
             task.state = "draft";
             task.draft = result;
             task.save = save;
-            new import_obsidian17.Notice(t("ui.review_synthesis_draft"));
+            if ((observer == null ? void 0 : observer.isOpen()) && observer.drafted)
+              observer.drafted({
+                result,
+                confirm: async (summary, detail) => {
+                  await save(summary, detail);
+                  if (this.synthesisTasks.get(path) === task) this.synthesisTasks.delete(path);
+                  this.render();
+                },
+                discard: () => this.discardSynthesis(node)
+              });
+            else new import_obsidian17.Notice(t("ui.review_synthesis_draft"));
           },
           fail,
           markAccepted
@@ -27322,7 +27303,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
       (note) => this.plugin.confirmAiUsage(note.model, async () => {
         await this.startSynthesis(
           node,
-          { ...task.options },
+          { ...task.options, continuesDirections: task.step === "draft" },
           task.step === "directions" ? null : task.direction,
           (message) => new import_obsidian17.Notice(message),
           () => {
@@ -27331,46 +27312,239 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
       })
     );
   }
+  /** Multi-select synthesis: the same dialog and flow as a single topic's, over the selected topics. */
   integrateSelected() {
     if (!this.map || this.multiSelected.size < 2) {
       new import_obsidian17.Notice(t("ui.select_at_least_two_topics"));
       return;
     }
-    const nodes = [...this.multiSelected].map((id) => this.map.nodes.find((node) => node.id === id)).filter((node) => !!node);
-    const notes = nodes.map((node) => this.notes.get(node.id)).filter((note) => !!note);
-    new IntegrationModal(
+    const task = this.integrationTask && this.integrationTask.mapPath === this.path ? this.integrationTask : null;
+    if ((task == null ? void 0 : task.state) === "running") {
+      new import_obsidian17.Notice(t("ui.ai_running_ai"));
+      return;
+    }
+    if ((task == null ? void 0 : task.state) === "draft") {
+      this.reviewIntegratedDraft(task);
+      return;
+    }
+    this.openSelectionSynthesis((task == null ? void 0 : task.state) === "directions" ? task : null);
+  }
+  /** Opens the synthesis dialog for the selected topics, or for the waiting task's topics with its directions. */
+  openSelectionSynthesis(pending) {
+    var _a, _b;
+    if (!this.map) return;
+    const nodes = (_a = pending == null ? void 0 : pending.sources) != null ? _a : [...this.multiSelected].map((id) => this.map.nodes.find((node) => node.id === id)).filter((node) => !!node);
+    const names2 = nodes.map((node) => {
+      var _a2, _b2;
+      return (_b2 = (_a2 = this.notes.get(node.id)) == null ? void 0 : _a2.title) != null ? _b2 : node.path;
+    });
+    const selectedLabel = t("ui.reference_selected_topics_included", names2.join(", "));
+    const sources2 = this.taskSourceSettings(selectedLabel, this.map.id, selectedLabel);
+    const settings = this.plugin.settings;
+    new NextStepModal(
       this.app,
-      notes.map((note) => note.title),
-      (title, goal, rules) => {
-        var _a;
-        const selectedLabel = t("ui.reference_selected_topics_included", notes.map((note) => note.title).join(", "));
-        new TaskModal(
-          this.app,
-          goal,
-          (direction, run, options, topicRules) => {
-            if (run)
-              void this.plugin.confirmAiUsage(
-                this.plugin.settings.cliModel,
-                async () => this.enqueue(() => this.createIntegratedNode(title, nodes, direction, topicRules, options, true))
-              );
-          },
-          t("ui.synthesis_direction_and_sources"),
-          t("ui.prepare_a_synthesis_draft_first_then_create_the_topic_after"),
-          rules,
-          "local",
-          "normal",
-          "auto",
-          false,
-          false,
-          this.taskSourceSettings(selectedLabel, (_a = this.map) == null ? void 0 : _a.id, selectedLabel),
-          notes.map((note) => note.title),
-          this.plugin.settings.language,
-          this.plugin.modelLabel(this.plugin.settings.cliModel),
-          this.plugin.settings.cliReasoning,
-          title
-        ).open();
+      "",
+      "normal",
+      0,
+      0,
+      this.plugin,
+      async () => {
+      },
+      async () => {
+      },
+      (options, direction, failed, accepted, observer) => this.startSelectionSynthesis(nodes, options, direction, failed, accepted, observer),
+      void 0,
+      {
+        names: names2,
+        initialTitle: (_b = pending == null ? void 0 : pending.title) != null ? _b : names2.length > 2 ? t("ui.synthesis_of_0_and_1_more", names2[0], names2.length) : t("ui.synthesis_of_0", names2.join(t("ui.list_separator"))),
+        defaultDirection: t("ui.identify_shared_conclusions_key_differences_tradeoffs_and_ne"),
+        fields: {
+          sources: sources2,
+          templates: this.templateChoices(),
+          currentTemplate: this.mapDetailTemplate(settings.language).name,
+          tones: this.toneChoices(),
+          currentTone: this.toneLabelFor({})
+        },
+        ...pending ? { pending: { directions: pending.directions, discard: () => this.discardSelectionSynthesis() } } : {}
       }
     ).open();
+  }
+  /**
+   * One step of multi-select synthesis: the AI's suggested directions (`direction === null`), then the draft. Both
+   * report to the open dialog through `observer`; once it is closed the run carries on and the selection bar shows it.
+   */
+  async startSelectionSynthesis(sources2, options, direction, failed, accepted, observer) {
+    var _a, _b, _c;
+    if (!this.map || sources2.length < 2) {
+      failed(t("ui.select_at_least_two_topics"));
+      return;
+    }
+    const existing = this.integrationTask && this.integrationTask.mapPath === this.path ? this.integrationTask : null;
+    const step = direction === null ? "directions" : "draft";
+    if ((existing == null ? void 0 : existing.state) === "running" || this.selectionStarting) {
+      failed(t("ui.ai_running_ai"));
+      return;
+    }
+    if (step === "directions" && (existing == null ? void 0 : existing.state) === "directions" || (existing == null ? void 0 : existing.state) === "draft") {
+      failed(t("ui.synthesis_pending_review_first"));
+      return;
+    }
+    const continuing = step === "draft" && !!(existing == null ? void 0 : existing.directions.length) && (existing.state === "directions" || !!options.continuesDirections);
+    const base = continuing && existing ? existing.options : options;
+    const title = (continuing && existing ? existing.title : (_a = options.synthesisTitle) == null ? void 0 : _a.trim()) || (existing == null ? void 0 : existing.title) || "";
+    this.selectionStarting = true;
+    const controller = new AbortController();
+    const modalSignal = options.signal;
+    const abortBeforeAcceptance = () => controller.abort();
+    if (modalSignal == null ? void 0 : modalSignal.aborted) controller.abort();
+    else modalSignal == null ? void 0 : modalSignal.addEventListener("abort", abortBeforeAcceptance, { once: true });
+    let own;
+    const runOptions = {
+      ...base,
+      requirements: options.requirements || base.requirements,
+      signal: controller.signal,
+      onProgress: (message) => {
+        var _a2;
+        if (this.integrationTask) this.integrationTask.progress = message;
+        (_a2 = options.onProgress) == null ? void 0 : _a2.call(options, message);
+        this.render();
+      }
+    };
+    let launched = false;
+    const markAccepted = () => {
+      var _a2;
+      if (launched || controller.signal.aborted) return;
+      launched = true;
+      modalSignal == null ? void 0 : modalSignal.removeEventListener("abort", abortBeforeAcceptance);
+      (_a2 = observer == null ? void 0 : observer.accepted) == null ? void 0 : _a2.call(observer, () => controller.abort());
+      accepted();
+    };
+    const fail = (error) => {
+      const aborted = controller.signal.aborted || error instanceof Error && error.name === "AbortError";
+      const task = this.integrationTask;
+      if (aborted && (observer == null ? void 0 : observer.isOpen())) {
+        if (own && this.integrationTask === own) this.integrationTask = null;
+        this.render();
+        failed(t("ui.research_stopped_existing_content_was_preserved"));
+        return;
+      }
+      if (task) {
+        task.state = aborted ? "cancelled" : "failed";
+        task.progress = aborted ? t("ui.research_stopped_existing_content_was_preserved") : error instanceof Error ? error.message : String(error);
+        this.render();
+      }
+      failed(
+        aborted ? t("ui.research_stopped_existing_content_was_preserved") : this.plugin.recordFailure(
+          t(step === "draft" ? "log.child_integration_failed" : "log.integration_directions_failed"),
+          error
+        )
+      );
+    };
+    try {
+      if (step === "draft") {
+        await this.createIntegratedNode(title, sources2, direction != null ? direction : "", "", runOptions, false, {
+          observer,
+          accepted: markAccepted,
+          controller,
+          directions: continuing && existing ? existing.directions : []
+        });
+        markAccepted();
+        return;
+      }
+      const sourceGroup = await this.topicReferenceGroup(
+        sources2,
+        base.synthesisContent === "summary" ? "summary" : "strong"
+      );
+      const task = {
+        title,
+        goal: "",
+        rules: "",
+        sources: sources2,
+        options: { ...runOptions, signal: void 0, onProgress: void 0 },
+        mapPath: this.path,
+        mapId: this.map.id,
+        sourceContent: JSON.stringify(sourceGroup.documents),
+        controller,
+        state: "running",
+        step: "directions",
+        directions: [],
+        progress: ""
+      };
+      this.integrationTask = task;
+      own = task;
+      this.render();
+      const language2 = this.plugin.settings.language;
+      const result = await this.plugin.askModel(
+        {
+          title,
+          summary: translate(language2, "note.no_conclusion_yet"),
+          rules: "",
+          detail: "",
+          task: [synthesisDirectionsTask(language2), runOptions.requirements].filter(Boolean).join("\n\n"),
+          ancestors: "",
+          referenceGroups: [...(_b = runOptions.referenceGroups) != null ? _b : [], sourceGroup],
+          onProgress: runOptions.onProgress,
+          outputLanguage: runOptions.outputLanguage,
+          ...this.toneField(void 0, runOptions),
+          mode: "synthesize",
+          researchMode: runOptions.researchMode,
+          researchDepth: runOptions.researchDepth,
+          visualMode: "off"
+        },
+        this.plugin.settings.cliModel,
+        this.plugin.settings.cliReasoning,
+        controller.signal,
+        void 0,
+        markAccepted
+      );
+      markAccepted();
+      if (this.integrationTask !== task) return;
+      if (controller.signal.aborted || this.path !== task.mapPath || ((_c = this.map) == null ? void 0 : _c.id) !== task.mapId)
+        throw new DOMException("Aborted", "AbortError");
+      const latest = await this.topicReferenceGroup(
+        sources2,
+        base.synthesisContent === "summary" ? "summary" : "strong"
+      );
+      if (JSON.stringify(latest.documents) !== task.sourceContent)
+        throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
+      const angles = result.suggestions.slice(0, 2);
+      if (!angles.length) {
+        this.integrationTask = null;
+        this.render();
+        failed(t("ui.ai_did_not_suggest_a_synthesis_direction_please_retry"));
+        return;
+      }
+      task.state = "directions";
+      task.directions = angles;
+      this.render();
+      if ((observer == null ? void 0 : observer.isOpen()) && observer.directions) observer.directions(angles);
+      else new import_obsidian17.Notice(t("ui.choose_synthesis_direction"));
+    } catch (error) {
+      fail(error);
+    } finally {
+      this.selectionStarting = false;
+      modalSignal == null ? void 0 : modalSignal.removeEventListener("abort", abortBeforeAcceptance);
+      this.render();
+    }
+  }
+  discardSelectionSynthesis() {
+    const task = this.integrationTask;
+    if (!task || task.state === "running") return;
+    this.integrationTask = null;
+    this.render();
+  }
+  retrySelectionSynthesis(task) {
+    if (task.state !== "failed" && task.state !== "cancelled") return;
+    void this.plugin.confirmAiUsage(this.plugin.settings.cliModel, async () => {
+      await this.startSelectionSynthesis(
+        task.sources,
+        { ...task.options, synthesisTitle: task.title, continuesDirections: task.directions.length > 0 },
+        task.step === "directions" ? null : task.goal,
+        (message) => new import_obsidian17.Notice(message),
+        () => {
+        }
+      );
+    });
   }
   async topicReferenceGroup(sources2, mode = "strong") {
     var _a, _b, _c, _d;
@@ -27398,10 +27572,10 @@ ${note.detail.trim()}` : "",
       documents
     };
   }
-  async createIntegratedNode(title, sources2, goal, rules, options, review = false) {
-    var _a, _b, _c, _d, _e, _f, _g;
+  async createIntegratedNode(title, sources2, goal, rules, options, review = false, flow) {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k;
     if (!this.map || sources2.length < 2) return;
-    const controller = new AbortController();
+    const controller = (_a = flow == null ? void 0 : flow.controller) != null ? _a : new AbortController();
     const mapPath = this.path, mapId = this.map.id;
     const sourceGroup = await this.topicReferenceGroup(
       sources2,
@@ -27418,13 +27592,15 @@ ${note.detail.trim()}` : "",
       sourceContent: JSON.stringify(sourceGroup.documents),
       controller,
       state: "running",
+      step: "draft",
+      directions: (_b = flow == null ? void 0 : flow.directions) != null ? _b : [],
       progress: ""
     };
     this.integrationTask = task;
     this.render();
     const model = this.plugin.settings.cliModel;
     const language2 = this.plugin.settings.language;
-    const detailTemplate = this.mapDetailTemplate((_a = options == null ? void 0 : options.outputLanguage) != null ? _a : language2);
+    const detailTemplate = this.mapDetailTemplate((_c = options == null ? void 0 : options.outputLanguage) != null ? _c : language2);
     try {
       const result = await this.plugin.askModel(
         {
@@ -27434,7 +27610,7 @@ ${note.detail.trim()}` : "",
           detail: "",
           task: [goal, options == null ? void 0 : options.requirements].filter(Boolean).join("\n\n"),
           ancestors: "",
-          referenceGroups: [...(_b = options == null ? void 0 : options.referenceGroups) != null ? _b : [], sourceGroup],
+          referenceGroups: [...(_d = options == null ? void 0 : options.referenceGroups) != null ? _d : [], sourceGroup],
           onProgress: (message) => {
             var _a2;
             if (this.integrationTask !== task) return;
@@ -27445,17 +27621,19 @@ ${note.detail.trim()}` : "",
           outputLanguage: options == null ? void 0 : options.outputLanguage,
           ...this.toneField(void 0, options),
           mode: "synthesize",
-          researchMode: (_c = options == null ? void 0 : options.researchMode) != null ? _c : "local",
-          researchDepth: (_d = options == null ? void 0 : options.researchDepth) != null ? _d : "normal",
-          visualMode: (_e = options == null ? void 0 : options.visualMode) != null ? _e : "auto",
+          researchMode: (_e = options == null ? void 0 : options.researchMode) != null ? _e : "local",
+          researchDepth: (_f = options == null ? void 0 : options.researchDepth) != null ? _f : "normal",
+          visualMode: (_g = options == null ? void 0 : options.visualMode) != null ? _g : "auto",
           detailTemplate
         },
         model,
         this.plugin.settings.cliReasoning,
-        controller.signal
+        controller.signal,
+        void 0,
+        flow == null ? void 0 : flow.accepted
       );
       if (this.integrationTask !== task) return;
-      if (controller.signal.aborted || this.path !== mapPath || ((_f = this.map) == null ? void 0 : _f.id) !== mapId)
+      if (controller.signal.aborted || this.path !== mapPath || ((_h = this.map) == null ? void 0 : _h.id) !== mapId)
         throw new Error(t("ui.the_map_or_parent_topic_changed_while_ai_was_running_no_subt"));
       const latest = await this.topicReferenceGroup(
         sources2,
@@ -27466,7 +27644,29 @@ ${note.detail.trim()}` : "",
       task.state = "draft";
       task.draft = result;
       this.render();
-      if (review) this.reviewIntegratedDraft(task);
+      if (flow) {
+        if (((_i = flow.observer) == null ? void 0 : _i.isOpen()) && flow.observer.drafted)
+          flow.observer.drafted({
+            result,
+            confirm: (summary, detail) => this.plugin.mutate(
+              () => {
+                var _a2;
+                return this.saveIntegratedNode(
+                  title,
+                  sources2,
+                  goal,
+                  rules,
+                  model,
+                  { ...result, summary, detail },
+                  (_a2 = options == null ? void 0 : options.outputLanguage) != null ? _a2 : language2,
+                  task
+                );
+              }
+            ),
+            discard: () => this.discardSelectionSynthesis()
+          });
+        else new import_obsidian17.Notice(t("ui.review_synthesis_draft"));
+      } else if (review) this.reviewIntegratedDraft(task);
       else
         await this.saveIntegratedNode(
           title,
@@ -27475,11 +27675,17 @@ ${note.detail.trim()}` : "",
           rules,
           model,
           result,
-          (_g = options == null ? void 0 : options.outputLanguage) != null ? _g : language2,
+          (_j = options == null ? void 0 : options.outputLanguage) != null ? _j : language2,
           task
         );
     } catch (error) {
       if (this.integrationTask !== task) return;
+      if (flow && controller.signal.aborted && ((_k = flow.observer) == null ? void 0 : _k.isOpen())) {
+        if (task.directions.length) task.state = "directions";
+        else this.integrationTask = null;
+        this.render();
+        throw error;
+      }
       task.state = controller.signal.aborted ? "cancelled" : "failed";
       task.progress = controller.signal.aborted ? t("ui.research_stopped_existing_content_was_preserved") : error instanceof Error ? error.message : String(error);
       this.render();

@@ -282,3 +282,257 @@ integrationTest('map UI in zh-TW says 整合 for synthesis, never 收斂', () =>
   assert.deepEqual(drift, []);
   assert.match(entries.find(([, key]) => key === 'ui.choose_synthesis_direction')[2], /整合/);
 });
+
+// ---- B3: single-dialog synthesis (real view, fake provider) -----------------------------------------------------
+const { fixture, topicNote, withExpansionCoordinator, DEFAULT_SETTINGS, core, deferred, until } = require('../support.cjs');
+const { synthesisDirectionsTask } = load('experiences/visual-map/steps/fragments.ts');
+const DIRECTIONS = { summary: '', detail: '', visualReferences: [], suggestions: [{ title: 'Common ground', task: 'Find shared constraints', contribution: 'A shared view', parentTitle: '' }, { title: 'Differences', task: 'List differences', contribution: '', parentTitle: '' }] };
+const DRAFT = { summary: 'Draft summary', detail: '### Core conclusions\n\nDraft detail', visualReferences: [], suggestions: [] };
+const abortError = () => Object.assign(new Error('aborted'), { name: 'AbortError' });
+
+async function synthesisHarness({ language = 'en' } = {}) {
+  const { repo, app } = fixture(language);
+  const parent = await topicNote(repo, 'Parent', 'model-a');
+  const mapPath = 'Agent Workspace/Topics/map-a/Map.md';
+  const doc = { id: 'map-a', title: 'map-a', version: 1, nodes: [parent], viewport: { x: 0, y: 0, zoom: 1 } };
+  await app.vault.create(mapPath, core.serializeMap(doc));
+  const kids = [];
+  for (const title of ['Child A', 'Child B']) { const child = await repo.createNote(title, 'model-a', doc, mapPath, 'workspace'); child.parentId = parent.id; doc.nodes.push(child); kids.push(child); }
+  await repo.saveMap(mapPath, doc);
+  await repo.updateNote(parent.path, { status: 'completed', summary: 'Existing conclusion', detail: 'Existing knowledge' });
+  for (const kid of kids) await repo.updateNote(kid.path, { status: 'completed', summary: `${kid.title} summary`, detail: `${kid.title} detail` });
+  const calls = [], notices = [], modals = [], gates = [];
+  const Base = dom.makeModal();
+  class Modal extends Base { open() { modals.push(this); super.open(); } }
+  class Component { load() {} unload() {} addChild(child) { return child; } removeChild() {} }
+  const MarkdownRenderer = { render: async (_app, markdown, el) => { el.rendered = markdown; } };
+  const modelState = provider => ({ provider, status: 'ready', models: [] });
+  let view;
+  const plugin = withExpansionCoordinator({ repo, settings: { ...DEFAULT_SETTINGS, language, cliModel: 'model-a' }, running: new Set(), activeTasks: new Map(), pendingSuggestions: new Map(), pendingResearchOptions: new Map(), quickExpandFailures: new Map(),
+    rebuildDerivedData: async () => {}, mutate: async work => work(), views: () => [view], recordFailure: (_label, error) => error.message,
+    aiReadyForModel: async () => true, confirmAiUsage: async (_model, run) => { await run(); return true; }, saveSettings: async () => {}, availableModels: () => ['model-a'], modelLabel: model => model,
+    modelDiscoveryState: modelState, subscribeModelDiscovery: () => () => {}, refreshModelDiscovery: async provider => modelState(provider),
+    askModel: async (context, _model, _reasoning, signal, _exchange, onAccepted) => {
+      const entry = { context, signal, directions: context.task.includes(synthesisDirectionsTask(language)) };
+      calls.push(entry);
+      onAccepted?.();
+      const gate = gates.shift();
+      if (gate) await new Promise((resolve, reject) => { gate.promise.then(resolve); signal?.addEventListener('abort', () => reject(abortError()), { once: true }); });
+      if (signal?.aborted) throw abortError();
+      return entry.directions ? DIRECTIONS : DRAFT;
+    } });
+  const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Modal, Component, MarkdownRenderer, setIcon: () => {}, Notice: class { constructor(message) { notices.push(message); } } } });
+  view = new VisualAgentMapView({ app }, plugin);
+  view.path = mapPath; view.map = doc; view.contentEl = { querySelector: () => null }; view.render = () => {}; view.ancestorContext = async () => ''; view.focusNode = () => {};
+  view.enqueue = work => work();
+  view.hydrate = async () => { view.notes = new Map(await Promise.all(doc.nodes.map(async n => [n.id, await repo.readNote(n.path)]))); };
+  await view.hydrate();
+  const hold = () => { const gate = deferred(); gates.push(gate); return gate; };
+  const openSingle = async () => { const before = modals.length; view.openNextStep(parent); await until(() => modals.length === before + 1); const modal = modals.at(-1); dom.findAll(modal.contentEl, i => hasCls(i, 'vam-next-cards'))[0].children[2].click(); return modal; };
+  const note = async () => repo.readNote(parent.path);
+  const openSelection = async () => { const before = modals.length; view.multiSelected = new Set(kids.map(k => k.id)); view.integrationMode = true; view.integrateSelected(); await until(() => modals.length === before + 1); return modals.at(-1); };
+  return { openSelection, repo, app, view, plugin, doc, parent, kids, calls, notices, modals, hold, openSingle, note, mapPath };
+}
+const panelOf = (modal, index = 2) => findAll(modal.contentEl, i => hasCls(i, 'vam-next-research'))[index];
+const barButton = (modal, text) => findAll(modal.modalEl, i => i.tag === 'button' && i.text === text && !hasCls(i, 'is-hidden'))[0];
+const visibleBar = (modal, text) => { const b = button(modal.modalEl, text); return b && !b.hidden ? b : undefined; };
+const statusOf = modal => panelOf(modal).querySelector('.vam-next-status').text;
+
+integrationTest('synthesis in one dialog: directions, choose, draft and review without closing or reopening', async () => {
+  const h = await synthesisHarness();
+  const modal = await h.openSingle();
+  assert.equal(h.modals.length, 1);
+  const setupOutput = find(modal.contentEl, i => hasCls(i, 'vam-next-output'));
+  const setupSources = find(modal.contentEl, i => hasCls(i, 'vam-next-source-details'));
+  assert.equal(setupOutput.hidden, false); assert.equal(setupSources.hidden, false);
+  visibleBar(modal, 'Get synthesis suggestions first').click(); await tick(); await tick();
+  assert.equal(h.calls.length, 1); assert.equal(h.calls[0].directions, true);
+  // Stage 2 in the same dialog: the directions are listed, nothing was written, the closed-badge path was not used.
+  assert.equal(modal.closeCount, 0); assert.equal(h.modals.length, 1);
+  assert.deepEqual(findAll(modal.contentEl, i => hasCls(i, 'vam-next-angle')).map(a => find(a, x => x.tag === 'strong').text), ['Common ground', 'Differences']);
+  assert.equal(h.notices.some(m => /Choose|direction/i.test(m)), false, 'no badge Notice while the dialog shows the directions');
+  assert.equal((await h.note()).summary, 'Existing conclusion');
+  // Inputs the draft step ignores are hidden; the extra requirements stay.
+  assert.equal(setupOutput.hidden, true); assert.equal(setupSources.hidden, true);
+  assert.equal(visibleBar(modal, 'Get synthesis suggestions first'), undefined); assert.equal(visibleBar(modal, 'Skip suggestions and draft now'), undefined);
+  assert.ok(find(modal.contentEl, i => hasCls(i, 'vam-next-synth-fixed') && !i.hidden), 'the dialog says what is fixed now');
+  assert.ok(find(modal.contentEl, i => hasCls(i, 'vam-next-requirements')), 'requirements remain');
+  const box = byLabel(modal.contentEl, 'Synthesis direction');
+  assert.equal(box.value, 'Find shared constraints');
+  button(panelOf(modal), 'Choose this direction').click();
+  box.value = 'Edited direction';
+  visibleBar(modal, 'Get synthesis draft').click(); await tick(); await tick();
+  assert.equal(h.calls.length, 2); assert.equal(h.calls[1].directions, false); assert.equal(h.calls[1].context.task, 'Edited direction');
+  // Review in the same dialog: the draft is not written until it is confirmed.
+  assert.equal(h.modals.length, 1); assert.equal(modal.closeCount, 0);
+  assert.equal((await h.note()).summary, 'Existing conclusion');
+  const review = find(modal.contentEl, i => hasCls(i, 'vam-next-review'));
+  assert.ok(review && !hasCls(review, 'is-hidden'));
+  assert.equal(modal.titleEl.text, 'Review synthesis draft');
+  const summaryBox = findAll(review, i => i.tag === 'textarea')[0]; summaryBox.value = 'Edited summary';
+  button(modal.modalEl, 'Confirm update to parent topic').click(); await tick(); await tick();
+  const saved = await h.note();
+  assert.equal(saved.summary, 'Edited summary'); assert.match(saved.detail, /Draft detail/); assert.equal(saved.status, 'completed');
+  assert.equal(h.view.synthesisTasks.size, 0, 'a confirmed draft leaves no pending task');
+  assert.equal(modal.closeCount, 1);
+});
+integrationTest('synthesis: skipping the suggestions drafts directly and still reviews before writing', async () => {
+  const h = await synthesisHarness();
+  const modal = await h.openSingle();
+  visibleBar(modal, 'Skip suggestions and draft now').click(); await tick(); await tick();
+  assert.equal(h.calls.length, 1); assert.equal(h.calls[0].directions, false);
+  assert.equal((await h.note()).summary, 'Existing conclusion');
+  assert.ok(find(modal.contentEl, i => hasCls(i, 'vam-next-review')));
+  assert.equal(h.modals.length, 1);
+});
+integrationTest('synthesis: closing the dialog midway leaves the result pending on the node, never in the closed dialog', async () => {
+  const h = await synthesisHarness();
+  const modal = await h.openSingle();
+  const gate = h.hold();
+  visibleBar(modal, 'Get synthesis suggestions first').click(); await until(() => h.calls.length === 1);
+  modal.close();
+  assert.equal(h.calls[0].signal.aborted, false, 'closing after the provider accepted does not abort the run');
+  gate.resolve(); await until(() => h.view.synthesisTasks.get(h.parent.path)?.state === 'directions');
+  assert.equal(findAll(modal.contentEl, i => hasCls(i, 'vam-next-angle')).length, 0, 'nothing was written into the closed dialog');
+  assert.ok(h.notices.some(m => /direction/i.test(m)), 'the Notice and badge carry the result instead');
+  // Reopening shows the waiting directions in stage 2; the draft then arrives after a second close and takes the badge path.
+  const again = await h.openSingle();
+  assert.equal(h.modals.length, 2);
+  assert.equal(findAll(again.contentEl, i => hasCls(i, 'vam-next-angle')).length, 2);
+  const second = h.hold();
+  visibleBar(again, 'Get synthesis draft').click(); await until(() => h.calls.length === 2);
+  again.close();
+  second.resolve(); await until(() => h.view.synthesisTasks.get(h.parent.path)?.state === 'draft');
+  assert.equal(find(again.contentEl, i => hasCls(i, 'vam-next-review')), undefined, 'the draft was not rendered into the closed dialog');
+  assert.equal((await h.note()).summary, 'Existing conclusion', 'a pending draft writes nothing');
+  h.view.reviewSynthesisDraft(h.parent);
+  assert.equal(h.modals.length, 3, 'the badge opens the existing review dialog');
+});
+integrationTest('synthesis: Cancel stops the accepted run, writes nothing and leaves no badge', async () => {
+  const h = await synthesisHarness();
+  const modal = await h.openSingle();
+  const gate = h.hold();
+  const suggest = visibleBar(modal, 'Get synthesis suggestions first');
+  suggest.click(); await until(() => h.calls.length === 1); await tick();
+  const cancel = find(modal.contentEl, i => hasCls(i, 'vam-task-cancel'));
+  assert.equal(cancel.hidden, false);
+  cancel.onclick(); await until(() => h.calls[0].signal.aborted); await tick(); await tick();
+  assert.equal(h.view.synthesisTasks.size, 0, 'a stopped directions request leaves no pending task');
+  assert.equal(modal.closeCount, 0);
+  assert.match(statusOf(modal), /stopped|cancelled/i); assert.equal(suggest.disabled, false);
+  const saved = await h.note();
+  assert.equal(saved.summary, 'Existing conclusion'); assert.equal(saved.detail, 'Existing knowledge'); assert.equal(saved.status, 'completed');
+  assert.equal(h.plugin.running.size, 0); assert.equal(h.plugin.activeTasks.size, 0);
+  // A stopped draft returns to the directions, so the user can try again.
+  suggest.click(); await tick(); await tick();
+  const draftGate = h.hold();
+  visibleBar(modal, 'Get synthesis draft').click(); await until(() => h.calls.length === 3);
+  find(modal.contentEl, i => hasCls(i, 'vam-task-cancel')).onclick(); await until(() => h.calls[2].signal.aborted); await tick(); await tick();
+  assert.equal(h.view.synthesisTasks.get(h.parent.path).state, 'directions');
+  assert.equal((await h.note()).summary, 'Existing conclusion'); assert.equal((await h.note()).status, 'completed');
+  assert.ok(visibleBar(modal, 'Get synthesis draft'));
+  draftGate.resolve();
+});
+integrationTest('synthesis: two requests for the same topic start one run', async () => {
+  const h = await synthesisHarness();
+  const gate = h.hold();
+  const options = { researchMode: 'local', researchDepth: 'normal', visualMode: 'off', referenceGroups: [] };
+  const failures = [];
+  const first = h.view.startSynthesis(h.parent, options, null, m => failures.push(m), () => {});
+  await until(() => h.calls.length === 1);
+  await h.view.startSynthesis(h.parent, options, null, m => failures.push(m), () => {});
+  assert.equal(h.calls.length, 1, 'the second request never reached the provider'); assert.equal(failures.length, 1); assert.match(failures[0], /running/i);
+  gate.resolve(); await first;
+  assert.equal(h.view.synthesisTasks.get(h.parent.path).state, 'directions');
+});
+integrationTest('synthesis: a draft is never written when the topic changed while it was being made', async () => {
+  const h = await synthesisHarness();
+  const modal = await h.openSingle();
+  visibleBar(modal, 'Skip suggestions and draft now').click(); await tick(); await tick();
+  await h.repo.updateNote(h.parent.path, { summary: 'Edited elsewhere' });
+  button(modal.modalEl, 'Confirm update to parent topic').click(); await tick(); await tick();
+  assert.equal((await h.note()).summary, 'Edited elsewhere', 'the stale draft did not overwrite it');
+  assert.ok(findAll(modal.modalEl, i => hasCls(i, 'vam-next-status')).some(i => /changed/i.test(i.text)), 'the dialog keeps the draft and says why');
+  assert.equal(modal.closeCount, 0);
+});
+
+// Fields that belong to the run itself: both dialogs must show exactly these (the name is the selection's own extra).
+const fieldLabels = modal => findAll(modal.contentEl, i => ['select', 'textarea', 'input'].includes(i.tag) && i.type !== 'file' && i.type !== 'radio').map(i => i['aria-label'] ?? i.type ?? i.tag).filter(label => label !== 'New topic name' && label !== 'Model' && label !== 'Reasoning level');
+integrationTest('single-topic and multi-select synthesis share one flow and one field set', async () => {
+  const h = await synthesisHarness();
+  const single = await h.openSingle();
+  const multi = await h.openSelection();
+  assert.deepEqual(fieldLabels(multi), fieldLabels(single), 'the same controls in the same order');
+  for (const modal of [single, multi]) {
+    const panel = panelOf(modal);
+    assert.ok(visibleBar(modal, 'Get synthesis suggestions first') && visibleBar(modal, 'Skip suggestions and draft now'), 'the same two first steps');
+    assert.ok(findAll(modal.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Topic synthesis content').length === 1, 'the same content choice');
+    assert.ok(panel);
+  }
+  assert.equal(byLabel(multi.contentEl, 'New topic name').value, 'Synthesis: Child A, Child B');
+  assert.equal(find(multi.contentEl, i => hasCls(i, 'vam-next-cards')).cls.includes('is-hidden'), true);
+  assert.equal(multi.titleEl.text, 'Confirm topic synthesis');
+});
+integrationTest('multi-select synthesis: directions, choose, draft and review in one dialog, then the new topic is created', async () => {
+  const h = await synthesisHarness();
+  const modal = await h.openSelection();
+  const name = byLabel(modal.contentEl, 'New topic name'); name.value = 'Cooking water'; name.input();
+  visibleBar(modal, 'Get synthesis suggestions first').click(); await tick(); await tick();
+  assert.equal(h.calls.length, 1); assert.equal(h.calls[0].directions, true);
+  assert.equal(h.calls[0].context.title, 'Cooking water');
+  assert.equal(h.modals.length, 1); assert.equal(modal.closeCount, 0);
+  assert.equal(findAll(modal.contentEl, i => hasCls(i, 'vam-next-angle')).length, 2);
+  assert.equal(find(modal.contentEl, i => hasCls(i, 'vam-next-output')).hidden, true, 'ignored inputs are hidden in stage 2');
+  assert.equal(find(modal.contentEl, i => hasCls(i, 'vam-next-synth-setup')).cls.includes('is-hidden'), true, 'the name is fixed once the directions are requested');
+  const before = (await h.repo.readMap(h.mapPath)).nodes.length;
+  button(panelOf(modal), 'Choose this direction').click();
+  visibleBar(modal, 'Get synthesis draft').click(); await tick(); await tick();
+  assert.equal(h.calls[1].context.task, 'Find shared constraints'); assert.equal(h.calls[1].directions, false);
+  assert.equal((await h.repo.readMap(h.mapPath)).nodes.length, before, 'nothing is created before the draft is confirmed');
+  assert.equal(h.modals.length, 1);
+  button(modal.modalEl, 'Confirm new synthesis topic').click(); await tick(); await tick(); await tick();
+  const saved = await h.repo.readMap(h.mapPath);
+  assert.equal(saved.nodes.length, before + 1);
+  const created = await h.repo.readNote(saved.nodes.at(-1).path);
+  assert.equal(created.title, 'Cooking water'); assert.equal(created.summary, 'Draft summary'); assert.equal(created.status, 'completed');
+  assert.equal(h.view.integrationTask, null); assert.equal(modal.closeCount, 1);
+});
+integrationTest('multi-select synthesis: cancel writes nothing; closing midway falls back to the selection bar and never touches the closed dialog', async () => {
+  const h = await synthesisHarness();
+  const modal = await h.openSelection();
+  const notesBefore = (await h.repo.readMap(h.mapPath)).nodes.length;
+  const gate = h.hold();
+  const suggest = visibleBar(modal, 'Get synthesis suggestions first');
+  suggest.click(); await until(() => h.calls.length === 1); await tick();
+  find(modal.contentEl, i => hasCls(i, 'vam-task-cancel')).onclick(); await until(() => h.calls[0].signal.aborted); await tick(); await tick();
+  assert.equal(h.view.integrationTask, null, 'a stopped request leaves no task or badge');
+  assert.equal((await h.repo.readMap(h.mapPath)).nodes.length, notesBefore); assert.equal(modal.closeCount, 0);
+  assert.equal(suggest.disabled, false); assert.match(statusOf(modal), /stopped|cancelled/i);
+  // Closing while the draft is being made: the draft waits on the selection bar, the closed dialog stays untouched.
+  const draftGate = h.hold();
+  visibleBar(modal, 'Skip suggestions and draft now').click(); await until(() => h.calls.length === 2);
+  modal.close();
+  assert.equal(h.calls[1].signal.aborted, false);
+  draftGate.resolve(); await until(() => h.view.integrationTask?.state === 'draft');
+  assert.equal(find(modal.contentEl, i => hasCls(i, 'vam-next-review')), undefined);
+  assert.ok(h.notices.some(m => /review/i.test(m)));
+  assert.equal((await h.repo.readMap(h.mapPath)).nodes.length, notesBefore, 'a pending draft creates nothing');
+  h.view.integrateSelected();
+  assert.equal(h.modals.length, 2, 'the waiting draft opens the existing review dialog');
+  assert.ok(button(h.modals.at(-1).modalEl, 'Confirm new synthesis topic'));
+});
+integrationTest('multi-select synthesis: a request needs a name and two requests do not both start', async () => {
+  const h = await synthesisHarness();
+  const modal = await h.openSelection();
+  const name = byLabel(modal.contentEl, 'New topic name'); name.value = ' '; name.input();
+  assert.equal(visibleBar(modal, 'Get synthesis suggestions first').disabled, true);
+  assert.equal(h.calls.length, 0);
+  const options = { researchMode: 'local', researchDepth: 'normal', visualMode: 'off', referenceGroups: [], synthesisTitle: 'T' };
+  const failures = []; const gate = h.hold();
+  const nodes = h.kids;
+  const first = h.view.startSelectionSynthesis(nodes, options, null, m => failures.push(m), () => {});
+  const second = h.view.startSelectionSynthesis(nodes, options, null, m => failures.push(m), () => {});
+  await second; assert.equal(failures.length, 1); assert.match(failures[0], /running/i);
+  await until(() => h.calls.length === 1); gate.resolve(); await first;
+  assert.equal(h.calls.length, 1); assert.equal(h.view.integrationTask.state, 'directions');
+});

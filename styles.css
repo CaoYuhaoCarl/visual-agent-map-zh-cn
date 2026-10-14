@@ -214,6 +214,9 @@
 .vam-next-modal .vam-next-adjust:not([open]) > :not(summary) { display: none; }
 .vam-next-adjust-body { padding: 0 10px 10px; }
 .vam-next-adjust-section[hidden], .vam-next-adjust-section:empty { display: none; }
+.vam-next-modal .is-hidden { display: none; }
+.vam-next-adjust-section.is-fixed > :not(.vam-next-synth-fixed) { display: none; }
+.vam-next-synth-fixed[hidden] { display: none; }
 .vam-next-segmented { display: inline-flex; gap: 0; padding: 2px; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); background: var(--background-secondary); }
 .vam-next-modal .vam-next-choice .vam-next-segmented > button { margin: 0; border: 0; background: transparent; box-shadow: none; color: var(--text-muted); }
 .vam-next-modal .vam-next-choice .vam-next-segmented > button.is-active { background: var(--background-primary); box-shadow: var(--shadow-s); color: var(--text-normal); }

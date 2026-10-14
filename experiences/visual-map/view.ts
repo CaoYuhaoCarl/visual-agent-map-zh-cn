@@ -96,13 +96,12 @@ import {
   TaskSourceSettings,
   quickShape,
   quickSuggestions,
-  TaskModal,
   NextStepModal,
+  type SynthesisObserver,
   DraftReviewModal,
   armDiscard,
   renderProposalList,
   ChildProposalModal,
-  IntegrationModal,
   MapConflictModal,
   NoteCollectionModal,
   TopicPickerModal
@@ -216,10 +215,15 @@ export class VisualAgentMapView extends ItemView {
     mapId: string;
     sourceContent: string;
     controller: AbortController;
-    state: "running" | "draft" | "failed" | "cancelled";
+    state: "running" | "directions" | "draft" | "failed" | "cancelled";
+    /** The step this run is on: the AI's suggested directions, or the draft itself. */
+    step: "directions" | "draft";
+    directions: Suggestion[];
     progress: string;
     draft?: AiResult;
   } | null = null;
+  /** A multi-select synthesis step is starting (before its task exists), so a second request is refused. */
+  private selectionStarting = false;
   private synthesisTasks = new Map<
     string,
     {
@@ -2814,11 +2818,13 @@ export class VisualAgentMapView extends ItemView {
         text:
           task.state === "running"
             ? task.progress || t("ui.integration_running")
-            : task.state === "draft"
-              ? t("ui.integration_draft_ready")
-              : task.state === "failed"
-                ? task.progress || t("ui.integration_failed")
-                : t("ui.research_stopped_existing_content_was_preserved")
+            : task.state === "directions"
+              ? t("ui.choose_synthesis_direction")
+              : task.state === "draft"
+                ? t("ui.integration_draft_ready")
+                : task.state === "failed"
+                  ? task.progress || t("ui.integration_failed")
+                  : t("ui.research_stopped_existing_content_was_preserved")
       });
       if (task.state === "running")
         this.button(state, t("ui.stop_research"), () => {
@@ -2826,14 +2832,18 @@ export class VisualAgentMapView extends ItemView {
           task.state = "cancelled";
           this.render();
         });
-      if (task.state === "draft")
-        this.button(state, t("ui.review_synthesis_draft"), () => this.reviewIntegratedDraft(task));
-      if (task.state === "failed" || task.state === "cancelled")
-        this.button(state, t("ui.try_again"), () =>
-          this.enqueue(() =>
-            this.createIntegratedNode(task.title, task.sources, task.goal, task.rules, task.options, true)
-          )
+      if (task.state === "directions")
+        this.button(state, t("ui.choose_synthesis_direction"), () => this.openSelectionSynthesis(task)).addClass(
+          "vam-badge-new"
         );
+      if (task.state === "draft")
+        this.button(state, t("ui.review_synthesis_draft"), () => this.reviewIntegratedDraft(task)).addClass(
+          "vam-badge-new"
+        );
+      if (task.state === "failed" || task.state === "cancelled") {
+        this.button(state, t("ui.try_again"), () => this.retrySelectionSynthesis(task));
+        this.button(state, t("ui.discard_synthesis"), () => this.discardSelectionSynthesis());
+      }
     }
     if (!this.map) {
       const empty = this.contentEl.createDiv("vam-empty-state");
@@ -3837,7 +3847,8 @@ export class VisualAgentMapView extends ItemView {
             return this.proposeChildren(node, options, direction, found, failed, false, created, accepted);
           return this.startQuickExpansion(node, options, direction, failed, created, accepted);
         },
-        (options, direction, failed, accepted) => this.startSynthesis(node, options, direction, failed, accepted),
+        (options, direction, failed, accepted, observer) =>
+          this.startSynthesis(node, options, direction, failed, accepted, observer),
         {
           model: note.model,
           modelSource: note.modelSource,
@@ -3854,6 +3865,7 @@ export class VisualAgentMapView extends ItemView {
           templates: this.templateChoices(),
           tones: this.toneChoices(),
           currentTone: this.toneLabelFor(note),
+          currentSummary: note.summary,
           // Only a label: a missing topic template is reported at the next AI update, not when the dialog opens.
           currentTemplate: this.resolveTopicTemplate(note).template.name,
           topicStatus: note.status,
@@ -5267,7 +5279,8 @@ export class VisualAgentMapView extends ItemView {
     options: TaskOptions,
     direction: string | null,
     failed: (message: string) => void,
-    accepted: () => void
+    accepted: () => void,
+    observer?: SynthesisObserver
   ): Promise<void> {
     const path = node.path;
     const existing = this.synthesisTasks.get(path);
@@ -5284,12 +5297,17 @@ export class VisualAgentMapView extends ItemView {
       failed(t("ui.synthesis_pending_review_first"));
       return;
     }
-    if (
-      step === "draft" &&
-      (!existing || existing.mapPath !== this.path || existing.mapId !== this.map.id || !existing.directions.length)
-    ) {
-      failed(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
-      return;
+    if (step === "draft") {
+      // A draft follows chosen directions, or starts fresh when the suggestions were skipped; it never overwrites
+      // a draft that is still waiting for review.
+      if (existing && (existing.mapPath !== this.path || existing.mapId !== this.map.id)) {
+        failed(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
+        return;
+      }
+      if (existing?.state === "draft") {
+        failed(t("ui.synthesis_pending_review_first"));
+        return;
+      }
     }
     const controller = new AbortController();
     const modalSignal = options.signal;
@@ -5298,7 +5316,9 @@ export class VisualAgentMapView extends ItemView {
     else modalSignal?.addEventListener("abort", abortBeforeAcceptance, { once: true });
     const stored = { ...options, signal: undefined, onProgress: undefined };
     const task: NonNullable<ReturnType<VisualAgentMapView["synthesisTasks"]["get"]>> =
-      step === "draft" && existing
+      step === "draft" &&
+      existing?.directions.length &&
+      (existing.state === "directions" || options.continuesDirections)
         ? existing
         : {
             mapPath: this.path,
@@ -5337,15 +5357,19 @@ export class VisualAgentMapView extends ItemView {
       if (launched || controller.signal.aborted) return;
       launched = true;
       modalSignal?.removeEventListener("abort", abortBeforeAcceptance);
+      observer?.accepted?.(() => controller.abort());
       accepted();
     };
     const fail = (message: string): void => {
       if (outcome) return;
       outcome = "failed";
       if (this.synthesisTasks.get(path) === task) {
-        // The window closes as soon as synthesis starts, so a directions failure stays on the node
-        // with Try again. A draft that never started returns to its directions badge.
-        if (!launched && step === "draft") task.state = "directions";
+        if (controller.signal.aborted && observer?.isOpen()) {
+          // Stopped from the open dialog: nothing was produced, so leave no badge behind. A draft that was stopped
+          // returns to its directions; a directions request that was stopped just goes away.
+          if (step === "draft" && task.directions.length) task.state = "directions";
+          else this.synthesisTasks.delete(path);
+        } else if (!launched && step === "draft" && task.directions.length) task.state = "directions";
         else {
           task.state = controller.signal.aborted ? "cancelled" : "failed";
           task.progress = message;
@@ -5362,7 +5386,9 @@ export class VisualAgentMapView extends ItemView {
             outcome = "found";
             task.state = "directions";
             task.directions = items;
-            new Notice(t("ui.choose_synthesis_direction"));
+            // Shown in the dialog when it is still open; otherwise the node badge and a Notice carry it.
+            if (observer?.isOpen() && observer.directions) observer.directions(items);
+            else new Notice(t("ui.choose_synthesis_direction"));
           },
           () => {},
           fail,
@@ -5378,7 +5404,17 @@ export class VisualAgentMapView extends ItemView {
             task.state = "draft";
             task.draft = result;
             task.save = save;
-            new Notice(t("ui.review_synthesis_draft"));
+            if (observer?.isOpen() && observer.drafted)
+              observer.drafted({
+                result,
+                confirm: async (summary, detail) => {
+                  await save(summary, detail);
+                  if (this.synthesisTasks.get(path) === task) this.synthesisTasks.delete(path);
+                  this.render();
+                },
+                discard: () => this.discardSynthesis(node)
+              });
+            else new Notice(t("ui.review_synthesis_draft"));
           },
           fail,
           markAccepted
@@ -5427,7 +5463,7 @@ export class VisualAgentMapView extends ItemView {
       this.plugin.confirmAiUsage(note.model, async () => {
         await this.startSynthesis(
           node,
-          { ...task.options },
+          { ...task.options, continuesDirections: task.step === "draft" },
           task.step === "directions" ? null : task.direction,
           message => new Notice(message),
           () => {}
@@ -5435,46 +5471,259 @@ export class VisualAgentMapView extends ItemView {
       })
     );
   }
+  /** Multi-select synthesis: the same dialog and flow as a single topic's, over the selected topics. */
   private integrateSelected(): void {
     if (!this.map || this.multiSelected.size < 2) {
       new Notice(t("ui.select_at_least_two_topics"));
       return;
     }
-    const nodes = [...this.multiSelected]
-      .map(id => this.map!.nodes.find(node => node.id === id))
-      .filter((node): node is MapNode => !!node);
-    const notes = nodes.map(node => this.notes.get(node.id)).filter((note): note is Note => !!note);
-    new IntegrationModal(
+    const task = this.integrationTask && this.integrationTask.mapPath === this.path ? this.integrationTask : null;
+    if (task?.state === "running") {
+      new Notice(t("ui.ai_running_ai"));
+      return;
+    }
+    if (task?.state === "draft") {
+      this.reviewIntegratedDraft(task);
+      return;
+    }
+    this.openSelectionSynthesis(task?.state === "directions" ? task : null);
+  }
+  /** Opens the synthesis dialog for the selected topics, or for the waiting task's topics with its directions. */
+  private openSelectionSynthesis(pending: NonNullable<VisualAgentMapView["integrationTask"]> | null): void {
+    if (!this.map) return;
+    const nodes =
+      pending?.sources ??
+      [...this.multiSelected]
+        .map(id => this.map!.nodes.find(node => node.id === id))
+        .filter((node): node is MapNode => !!node);
+    const names = nodes.map(node => this.notes.get(node.id)?.title ?? node.path);
+    const selectedLabel = t("ui.reference_selected_topics_included", names.join(", "));
+    const sources = this.taskSourceSettings(selectedLabel, this.map.id, selectedLabel);
+    const settings = this.plugin.settings;
+    new NextStepModal(
       this.app,
-      notes.map(note => note.title),
-      (title, goal, rules) => {
-        const selectedLabel = t("ui.reference_selected_topics_included", notes.map(note => note.title).join(", "));
-        new TaskModal(
-          this.app,
-          goal,
-          (direction, run, options, topicRules) => {
-            if (run)
-              void this.plugin.confirmAiUsage(this.plugin.settings.cliModel, async () =>
-                this.enqueue(() => this.createIntegratedNode(title, nodes, direction, topicRules, options, true))
-              );
-          },
-          t("ui.synthesis_direction_and_sources"),
-          t("ui.prepare_a_synthesis_draft_first_then_create_the_topic_after"),
-          rules,
-          "local",
-          "normal",
-          "auto",
-          false,
-          false,
-          this.taskSourceSettings(selectedLabel, this.map?.id, selectedLabel),
-          notes.map(note => note.title),
-          this.plugin.settings.language,
-          this.plugin.modelLabel(this.plugin.settings.cliModel),
-          this.plugin.settings.cliReasoning,
-          title
-        ).open();
+      "",
+      "normal",
+      0,
+      0,
+      this.plugin,
+      async () => {},
+      async () => {},
+      (options, direction, failed, accepted, observer) =>
+        this.startSelectionSynthesis(nodes, options, direction, failed, accepted, observer),
+      undefined,
+      {
+        names,
+        initialTitle:
+          pending?.title ??
+          (names.length > 2
+            ? t("ui.synthesis_of_0_and_1_more", names[0], names.length)
+            : t("ui.synthesis_of_0", names.join(t("ui.list_separator")))),
+        defaultDirection: t("ui.identify_shared_conclusions_key_differences_tradeoffs_and_ne"),
+        fields: {
+          sources,
+          templates: this.templateChoices(),
+          currentTemplate: this.mapDetailTemplate(settings.language).name,
+          tones: this.toneChoices(),
+          currentTone: this.toneLabelFor({})
+        },
+        ...(pending
+          ? { pending: { directions: pending.directions, discard: () => this.discardSelectionSynthesis() } }
+          : {})
       }
     ).open();
+  }
+  /**
+   * One step of multi-select synthesis: the AI's suggested directions (`direction === null`), then the draft. Both
+   * report to the open dialog through `observer`; once it is closed the run carries on and the selection bar shows it.
+   */
+  private async startSelectionSynthesis(
+    sources: MapNode[],
+    options: TaskOptions,
+    direction: string | null,
+    failed: (message: string) => void,
+    accepted: () => void,
+    observer?: SynthesisObserver
+  ): Promise<void> {
+    if (!this.map || sources.length < 2) {
+      failed(t("ui.select_at_least_two_topics"));
+      return;
+    }
+    const existing = this.integrationTask && this.integrationTask.mapPath === this.path ? this.integrationTask : null;
+    const step = direction === null ? "directions" : "draft";
+    if (existing?.state === "running" || this.selectionStarting) {
+      failed(t("ui.ai_running_ai"));
+      return;
+    }
+    if ((step === "directions" && existing?.state === "directions") || existing?.state === "draft") {
+      failed(t("ui.synthesis_pending_review_first"));
+      return;
+    }
+    // A draft continues the waiting directions; after a failed draft only the dialog's own retry does (a fresh run does not).
+    const continuing =
+      step === "draft" &&
+      !!existing?.directions.length &&
+      (existing.state === "directions" || !!options.continuesDirections);
+    const base: TaskOptions = continuing && existing ? existing.options : options;
+    const title = (continuing && existing ? existing.title : options.synthesisTitle?.trim()) || existing?.title || "";
+    // Held across the awaits below, so two requests for the same selection cannot both start.
+    this.selectionStarting = true;
+    const controller = new AbortController();
+    const modalSignal = options.signal;
+    const abortBeforeAcceptance = (): void => controller.abort();
+    if (modalSignal?.aborted) controller.abort();
+    else modalSignal?.addEventListener("abort", abortBeforeAcceptance, { once: true });
+    let own: NonNullable<VisualAgentMapView["integrationTask"]> | undefined;
+    const runOptions: TaskOptions = {
+      ...base,
+      requirements: options.requirements || base.requirements,
+      signal: controller.signal,
+      onProgress: message => {
+        if (this.integrationTask) this.integrationTask.progress = message;
+        options.onProgress?.(message);
+        this.render();
+      }
+    };
+    let launched = false;
+    const markAccepted = (): void => {
+      if (launched || controller.signal.aborted) return;
+      launched = true;
+      modalSignal?.removeEventListener("abort", abortBeforeAcceptance);
+      observer?.accepted?.(() => controller.abort());
+      accepted();
+    };
+    const fail = (error: unknown): void => {
+      const aborted = controller.signal.aborted || (error instanceof Error && error.name === "AbortError");
+      const task = this.integrationTask;
+      if (aborted && observer?.isOpen()) {
+        // Stopped from the open dialog: nothing was produced, so no badge stays behind.
+        if (own && this.integrationTask === own) this.integrationTask = null;
+        this.render();
+        failed(t("ui.research_stopped_existing_content_was_preserved"));
+        return;
+      }
+      if (task) {
+        task.state = aborted ? "cancelled" : "failed";
+        task.progress = aborted
+          ? t("ui.research_stopped_existing_content_was_preserved")
+          : error instanceof Error
+            ? error.message
+            : String(error);
+        this.render();
+      }
+      failed(
+        aborted
+          ? t("ui.research_stopped_existing_content_was_preserved")
+          : this.plugin.recordFailure(
+              t(step === "draft" ? "log.child_integration_failed" : "log.integration_directions_failed"),
+              error
+            )
+      );
+    };
+    try {
+      if (step === "draft") {
+        await this.createIntegratedNode(title, sources, direction ?? "", "", runOptions, false, {
+          observer,
+          accepted: markAccepted,
+          controller,
+          directions: continuing && existing ? existing.directions : []
+        });
+        markAccepted();
+        return;
+      }
+      const sourceGroup = await this.topicReferenceGroup(
+        sources,
+        base.synthesisContent === "summary" ? "summary" : "strong"
+      );
+      const task: NonNullable<VisualAgentMapView["integrationTask"]> = {
+        title,
+        goal: "",
+        rules: "",
+        sources,
+        options: { ...runOptions, signal: undefined, onProgress: undefined },
+        mapPath: this.path,
+        mapId: this.map.id,
+        sourceContent: JSON.stringify(sourceGroup.documents),
+        controller,
+        state: "running",
+        step: "directions",
+        directions: [],
+        progress: ""
+      };
+      this.integrationTask = task;
+      own = task;
+      this.render();
+      const language = this.plugin.settings.language;
+      const result = await this.plugin.askModel(
+        {
+          title,
+          summary: translate(language, "note.no_conclusion_yet"),
+          rules: "",
+          detail: "",
+          task: [synthesisDirectionsTask(language), runOptions.requirements].filter(Boolean).join("\n\n"),
+          ancestors: "",
+          referenceGroups: [...(runOptions.referenceGroups ?? []), sourceGroup],
+          onProgress: runOptions.onProgress,
+          outputLanguage: runOptions.outputLanguage,
+          ...this.toneField(undefined, runOptions),
+          mode: "synthesize",
+          researchMode: runOptions.researchMode,
+          researchDepth: runOptions.researchDepth,
+          visualMode: "off"
+        },
+        this.plugin.settings.cliModel,
+        this.plugin.settings.cliReasoning,
+        controller.signal,
+        undefined,
+        markAccepted
+      );
+      markAccepted();
+      if (this.integrationTask !== task) return;
+      if (controller.signal.aborted || this.path !== task.mapPath || this.map?.id !== task.mapId)
+        throw new DOMException("Aborted", "AbortError");
+      const latest = await this.topicReferenceGroup(
+        sources,
+        base.synthesisContent === "summary" ? "summary" : "strong"
+      );
+      if (JSON.stringify(latest.documents) !== task.sourceContent)
+        throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
+      const angles = result.suggestions.slice(0, 2);
+      if (!angles.length) {
+        this.integrationTask = null;
+        this.render();
+        failed(t("ui.ai_did_not_suggest_a_synthesis_direction_please_retry"));
+        return;
+      }
+      task.state = "directions";
+      task.directions = angles;
+      this.render();
+      if (observer?.isOpen() && observer.directions) observer.directions(angles);
+      else new Notice(t("ui.choose_synthesis_direction"));
+    } catch (error) {
+      fail(error);
+    } finally {
+      this.selectionStarting = false;
+      modalSignal?.removeEventListener("abort", abortBeforeAcceptance);
+      this.render();
+    }
+  }
+  private discardSelectionSynthesis(): void {
+    const task = this.integrationTask;
+    if (!task || task.state === "running") return;
+    this.integrationTask = null;
+    this.render();
+  }
+  private retrySelectionSynthesis(task: NonNullable<VisualAgentMapView["integrationTask"]>): void {
+    if (task.state !== "failed" && task.state !== "cancelled") return;
+    void this.plugin.confirmAiUsage(this.plugin.settings.cliModel, async () => {
+      await this.startSelectionSynthesis(
+        task.sources,
+        { ...task.options, synthesisTitle: task.title, continuesDirections: task.directions.length > 0 },
+        task.step === "directions" ? null : task.goal,
+        message => new Notice(message),
+        () => {}
+      );
+    });
   }
   private async topicReferenceGroup(
     sources: MapNode[],
@@ -5512,10 +5761,16 @@ export class VisualAgentMapView extends ItemView {
     goal: string,
     rules: string,
     options?: TaskOptions,
-    review = false
+    review = false,
+    flow?: {
+      observer?: SynthesisObserver;
+      accepted?: () => void;
+      controller?: AbortController;
+      directions?: Suggestion[];
+    }
   ): Promise<void> {
     if (!this.map || sources.length < 2) return;
-    const controller = new AbortController();
+    const controller = flow?.controller ?? new AbortController();
     const mapPath = this.path,
       mapId = this.map.id;
     const sourceGroup = await this.topicReferenceGroup(
@@ -5533,6 +5788,8 @@ export class VisualAgentMapView extends ItemView {
       sourceContent: JSON.stringify(sourceGroup.documents),
       controller,
       state: "running",
+      step: "draft",
+      directions: flow?.directions ?? [],
       progress: ""
     };
     this.integrationTask = task;
@@ -5566,7 +5823,9 @@ export class VisualAgentMapView extends ItemView {
         },
         model,
         this.plugin.settings.cliReasoning,
-        controller.signal
+        controller.signal,
+        undefined,
+        flow?.accepted
       );
       if (this.integrationTask !== task) return;
       if (controller.signal.aborted || this.path !== mapPath || this.map?.id !== mapId)
@@ -5580,7 +5839,28 @@ export class VisualAgentMapView extends ItemView {
       task.state = "draft";
       task.draft = result;
       this.render();
-      if (review) this.reviewIntegratedDraft(task);
+      if (flow) {
+        // Shown in the dialog that asked for it while that is open; otherwise the selection bar and a Notice carry it.
+        if (flow.observer?.isOpen() && flow.observer.drafted)
+          flow.observer.drafted({
+            result,
+            confirm: (summary, detail) =>
+              this.plugin.mutate(() =>
+                this.saveIntegratedNode(
+                  title,
+                  sources,
+                  goal,
+                  rules,
+                  model,
+                  { ...result, summary, detail },
+                  options?.outputLanguage ?? language,
+                  task
+                )
+              ),
+            discard: () => this.discardSelectionSynthesis()
+          });
+        else new Notice(t("ui.review_synthesis_draft"));
+      } else if (review) this.reviewIntegratedDraft(task);
       else
         await this.saveIntegratedNode(
           title,
@@ -5594,6 +5874,13 @@ export class VisualAgentMapView extends ItemView {
         );
     } catch (error) {
       if (this.integrationTask !== task) return;
+      if (flow && controller.signal.aborted && flow.observer?.isOpen()) {
+        // Stopped from the open dialog: nothing was produced, so no badge stays behind.
+        if (task.directions.length) task.state = "directions";
+        else this.integrationTask = null;
+        this.render();
+        throw error;
+      }
       task.state = controller.signal.aborted ? "cancelled" : "failed";
       task.progress = controller.signal.aborted
         ? t("ui.research_stopped_existing_content_was_preserved")

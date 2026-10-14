@@ -5,7 +5,7 @@ import { App, Component, MarkdownRenderer, Modal, Notice, Setting, TFile } from 
 import { ReferencePicker, type ReferenceTopic } from "../../ui/reference-picker";
 import { type ReferenceGroup } from "../../ai/reference-materials";
 import { DebugLogModal } from "../../ui/modals/debug-log-modal";
-import { armDiscard, modalActions } from "../../ui/modals/action-bar";
+import { actionStatus, armDiscard, modalActions } from "../../ui/modals/action-bar";
 
 export { armDiscard };
 import { clone, type MapDocument, parseMap, serializeMap } from "../../map-model";
@@ -45,6 +45,62 @@ export interface TaskOptions {
   detailTemplateId?: string;
   /** This run's explicit writing tone choice; recorded on the topic when given. */
   toneId?: string;
+  /** Multi-select synthesis only: the name of the new topic. */
+  synthesisTitle?: string;
+  /** The synthesis draft step retried after chosen directions; it continues them even when the last draft failed. */
+  continuesDirections?: boolean;
+}
+/** A synthesis draft the dialog may review in place: confirming saves it, discarding drops the pending run. */
+export interface SynthesisDraft {
+  result: AiResult;
+  confirm: (summary: string, detail: string) => Promise<void>;
+  discard: () => void;
+}
+/**
+ * How the view reports a synthesis run to the dialog that started it. While the dialog is open the next stage is
+ * shown there; once it is closed the run falls back to the node badge (or selection bar) and a Notice, and nothing is
+ * written into the closed dialog.
+ */
+export interface SynthesisObserver {
+  isOpen: () => boolean;
+  /** The provider accepted the request; `cancel` stops the run from now on. */
+  accepted?: (cancel: () => void) => void;
+  directions?: (items: Suggestion[]) => void;
+  drafted?: (draft: SynthesisDraft) => void;
+}
+export interface NextStepSettings {
+  model: string;
+  modelSource: ModelSource;
+  reasoning: string;
+  rules?: string;
+  path?: string;
+  save: (patch: NotePatch) => Promise<void>;
+  running?: boolean;
+  stop?: () => void;
+  quickError?: string;
+  sources?: TaskSourceSettings;
+  synthesisPending?: { directions: Suggestion[]; discard: () => void };
+  templates?: { id: string; name: string }[];
+  currentTemplate?: string;
+  tones?: { id: string; name: string }[];
+  /** Name of the tone the topic resolves to today (shown as the "keep" option). */
+  currentTone?: string;
+  /** The topic's summary today, shown beside a draft that would replace it. */
+  currentSummary?: string;
+  /** The topic's research state and how many of its direct children are researched, for the suggested mode. */
+  topicStatus?: "idea" | "running" | "completed" | "error";
+  childrenCompleted?: number;
+}
+/** Multi-select synthesis runs in the same dialog as a single topic's synthesis; this is what differs. */
+export interface SelectionSynthesis {
+  names: string[];
+  /** Name offered for the new topic. */
+  initialTitle: string;
+  /** The direction used when the AI suggestions are skipped. */
+  defaultDirection: string;
+  fields: Pick<NextStepSettings, "sources" | "templates" | "currentTemplate" | "tones" | "currentTone">;
+  /** Reopened from the selection bar with directions waiting. */
+  pending?: { directions: Suggestion[]; discard: () => void };
 }
 export function renderSynthesisContent(parent: HTMLElement, topics: string[]): HTMLSelectElement {
   const label = parent.createEl("label", { cls: "vam-field" });
@@ -168,130 +224,13 @@ export function quickSuggestions(
   if (selected.length !== items.length) invalid();
   return selected;
 }
-export class TaskModal extends Modal {
-  constructor(
-    app: App,
-    private value: string,
-    private submit: (value: string, run: boolean, options: TaskOptions, rules: string) => void,
-    private titleText = t("ui.custom_ai_task"),
-    private description = t("ui.describe_what_you_want_ai_to_do_next"),
-    private rules = "",
-    private mode: ResearchMode = "research",
-    private depth: ResearchDepth = "normal",
-    private visual: VisualMode = "auto",
-    _allowSave = true,
-    private expand = false,
-    private referenceSettings?: TaskSourceSettings,
-    private synthesisTopics?: string[],
-    private currentLanguage: Settings["language"] = "zh-TW",
-    private modelId = "",
-    private reasoningId = "auto",
-    private targetLabel = ""
-  ) {
-    super(app);
-  }
-  onOpen(): void {
-    this.titleEl.setText(this.titleText);
-    this.contentEl.createEl("p", { text: this.description, cls: "vam-modal-intro" });
-    const label = this.contentEl.createEl("label", { cls: "vam-field" });
-    label.createSpan({ text: t("ui.additional_requirements") });
-    const input = label.createEl("textarea", { cls: "vam-task-input" });
-    input.rows = 3;
-    input.setAttr("aria-label", t("ui.additional_requirements"));
-    this.contentEl.createEl("p", { text: t("ui.requirements_this_task_only"), cls: "vam-hint" });
-    this.contentEl.createEl("p", { text: t("ui.summary_fields_hint"), cls: "vam-hint" });
-    const languageLabel = this.contentEl.createEl("label", { cls: "vam-field" });
-    languageLabel.createSpan({ text: t("ui.output_language") });
-    const languageSelect = languageLabel.createEl("select");
-    languageSelect.setAttr("aria-label", t("ui.output_language"));
-    for (const option of SUPPORTED_LANGUAGES)
-      languageSelect.createEl("option", { value: option.id, text: option.label });
-    languageSelect.value = this.currentLanguage;
-    if (this.rules.trim()) this.contentEl.createEl("p", { text: t("ui.legacy_rules_not_applied"), cls: "vam-hint" });
-    const synthesis = this.synthesisTopics ? renderSynthesisContent(this.contentEl, this.synthesisTopics) : undefined;
-    const referenceLabel = this.expand
-      ? this.referenceSettings?.currentLabel
-      : (this.referenceSettings?.synthesisLabel ?? this.referenceSettings?.currentLabel);
-    const references = this.referenceSettings
-      ? new ReferencePicker(
-          this.app,
-          this.contentEl,
-          this.referenceSettings.topics,
-          this.referenceSettings.readTopic,
-          this.referenceSettings.currentTopicId,
-          referenceLabel ?? "",
-          this.mode !== "local",
-          this.visual !== "off"
-        )
-      : null;
-    const executionSummary = this.contentEl.createEl("p", { cls: "vam-hint", attr: { "aria-live": "polite" } });
-    const updateSummary = (): void => {
-      const selected = references?.selection();
-      const result = this.synthesisTopics
-        ? t("ui.review_synthesis_draft")
-        : this.expand
-          ? t("ui.expand_subtopics")
-          : t("ui.current_understanding");
-      executionSummary.setText(
-        t(
-          "ui.ai_task_summary",
-          this.modelId,
-          reasoningLabel(this.reasoningId),
-          references?.describe() ?? `0 ${t("ui.markdown_files")}`,
-          t(selected?.webSearch ? "ui.on" : "ui.off"),
-          this.targetLabel ? `${this.targetLabel} · ${result}` : result
-        )
-      );
-    };
-    this.contentEl.addEventListener("change", updateSummary);
-    updateSummary();
-    const depth = researchDepthField(this.contentEl, { initial: this.depth });
-    const layers = this.expand ? this.contentEl.createEl("label", { cls: "vam-field" }) : null;
-    const multiLayer = layers?.createEl("input", { type: "checkbox" });
-    if (multiLayer) multiLayer.checked = true;
-    if (layers) layers.createSpan({ text: t("ui.create_two_levels_and_research_each_topic_briefly_up_to_15") });
-    const save = async (run: boolean): Promise<void> => {
-      const value = this.value;
-      const synthesisContent: SynthesisContent = synthesis?.value === "summary" ? "summary" : "full";
-      if (synthesis) synthesis.disabled = true;
-      const sources = await references?.ready();
-      const shallowResearch = multiLayer?.checked ?? false;
-      this.close();
-      this.submit(
-        value,
-        run,
-        {
-          ...(synthesis ? { synthesisContent } : {}),
-          referenceGroups: sources?.groups ?? [],
-          requirements: input.value.trim(),
-          outputLanguage: languageSelect.value as Settings["language"],
-          researchMode: sources?.webSearch ? "research" : "local",
-          researchDepth: depth.value(),
-          visualMode: sources?.imageSearch ? (this.visual === "on" ? "on" : "auto") : "off",
-          multiLayer: shallowResearch
-        },
-        ""
-      );
-    };
-    new Setting(this.contentEl)
-      .addButton(b => b.setButtonText(t("ui.cancel")).onClick(() => this.close()))
-      .addButton(b =>
-        b
-          .setButtonText(t("ui.confirm_and_run"))
-          .setCta()
-          .onClick(() => {
-            void save(true).catch(error => new Notice(String(error)));
-          })
-      );
-    input.focus();
-    input.setSelectionRange(input.value.length, input.value.length);
-  }
-}
 export class NextStepModal extends Modal {
   private closed = false;
   private runPending = false;
   /** Model and effort edits wait here; they are saved when a run starts, never when the dialog is cancelled. */
   private pendingSettings: NotePatch = {};
+  /** The finished synthesis draft is being reviewed in this dialog. */
+  private reviewView?: DraftReviewView;
   constructor(
     app: App,
     private topic: string,
@@ -318,31 +257,18 @@ export class NextStepModal extends Modal {
       options: TaskOptions,
       direction: string | null,
       failed: (message: string) => void,
-      accepted: () => void
+      accepted: () => void,
+      observer?: SynthesisObserver
     ) => Promise<void>,
-    private modelSettings?: {
-      model: string;
-      modelSource: ModelSource;
-      reasoning: string;
-      rules?: string;
-      path?: string;
-      save: (patch: NotePatch) => Promise<void>;
-      running?: boolean;
-      stop?: () => void;
-      quickError?: string;
-      sources?: TaskSourceSettings;
-      synthesisPending?: { directions: Suggestion[]; discard: () => void };
-      templates?: { id: string; name: string }[];
-      currentTemplate?: string;
-      tones?: { id: string; name: string }[];
-      /** Name of the tone the topic resolves to today (shown as the "keep" option). */
-      currentTone?: string;
-      /** The topic's research state and how many of its direct children are researched, for the suggested mode. */
-      topicStatus?: "idea" | "running" | "completed" | "error";
-      childrenCompleted?: number;
-    }
+    private modelSettings?: NextStepSettings,
+    private selection?: SelectionSynthesis
   ) {
     super(app);
+  }
+  /** Where the shared fields (data sources, template, tone) come from: the topic's settings, or the selection's. */
+  private get info():
+    Pick<NextStepSettings, "sources" | "templates" | "currentTemplate" | "tones" | "currentTone"> | undefined {
+    return this.modelSettings ?? this.selection?.fields;
   }
   /** Suggests the next step from where the topic stands: frontier → research, settled leaf → expand, settled branch → synthesize. */
   private suggestedMode(): "research" | "expand" | "synthesize" {
@@ -363,7 +289,7 @@ export class NextStepModal extends Modal {
         forMode: (mode: "research" | "expand" | "synthesize") => void;
       }
     | undefined {
-    const sources = this.modelSettings?.sources;
+    const sources = this.info?.sources;
     if (!sources) return undefined;
     const disclosure = panel.createEl("details", { cls: "vam-next-source-details" });
     disclosure.open = false;
@@ -415,8 +341,11 @@ export class NextStepModal extends Modal {
   }
   onClose(): void {
     this.closed = true;
+    // A run that the provider already accepted keeps going in the background; one still starting is stopped.
     this.taskController?.abort();
     this.unsubscribeModels?.();
+    this.reviewView?.dispose();
+    this.reviewView = undefined;
   }
   /** Saves the model and effort chosen in this dialog, once, at the moment a run actually starts. */
   private async flushSettings(): Promise<void> {
@@ -516,22 +445,15 @@ export class NextStepModal extends Modal {
       save({ model: settings.model, modelSource: settings.modelSource });
       describeModel();
     });
-    const reasoningLabel = advanced.createEl("label", { cls: "vam-field" });
-    reasoningLabel.createSpan({ text: t("ui.reasoning_level") });
-    const reasoning = reasoningLabel.createEl("select");
+    const reasoningField = advanced.createEl("label", { cls: "vam-field" });
+    reasoningField.createSpan({ text: t("ui.reasoning_level") });
+    const reasoning = reasoningField.createEl("select");
     reasoning.setAttr("aria-label", t("ui.reasoning_level"));
-    const reasoningLabels: Record<string, string> = {
-      auto: t("ui.auto"),
-      low: t("ui.low"),
-      medium: t("ui.medium"),
-      high: t("ui.high")
-    };
-    for (const [value, label] of Object.entries(reasoningLabels)) reasoning.createEl("option", { value, text: label });
+    for (const value of ["auto", "low", "medium", "high"])
+      reasoning.createEl("option", { value, text: reasoningLabel(value) });
     reasoning.value = normalizeReasoningLevel(settings.reasoning);
     const describeModel = (): void =>
-      advancedValue.setText(
-        `${this.plugin.modelLabel(settings.model)} · ${reasoningLabels[normalizeReasoningLevel(settings.reasoning)] ?? ""}`
-      );
+      advancedValue.setText(`${this.plugin.modelLabel(settings.model)} · ${reasoningLabel(settings.reasoning)}`);
     describeModel();
     reasoning.addEventListener("change", () => {
       settings.reasoning = normalizeReasoningLevel(reasoning.value);
@@ -611,30 +533,57 @@ export class NextStepModal extends Modal {
       this.runPending = false;
     }
   }
+  /**
+   * One synthesis step (directions or draft) from this dialog. The run is the view's: while this dialog is open the
+   * next stage appears here, and if it is closed the run carries on in the background and falls back to the node badge.
+   */
   private launchSynthesis(
     panel: HTMLElement,
     button: HTMLButtonElement,
     direction: string | null,
-    buildOptions: (signal: AbortSignal) => TaskOptions | Promise<TaskOptions>
+    buildOptions: (signal: AbortSignal) => TaskOptions | Promise<TaskOptions>,
+    flow: { directions: (items: Suggestion[]) => void; drafted: (draft: SynthesisDraft) => void }
   ): void {
     void this.run(panel, button, async () => {
       const controller = this.taskController;
       if (!controller) return;
       const options = await buildOptions(controller.signal);
       if (this.closed || controller.signal.aborted) return;
-      let launchAccepted = false;
-      let launchFailed = false;
-      const release = (): void => {
-        if (this.taskController === controller) {
-          this.taskSignal = undefined;
-          this.taskController = undefined;
-        }
-        if (!this.closed) {
-          const cancel = panel.querySelector<HTMLButtonElement>(".vam-task-cancel");
-          if (cancel) cancel.hidden = true;
+      const cancel = panel.querySelector<HTMLButtonElement>(".vam-task-cancel");
+      let outcome = false;
+      let failedShown = false;
+      let userCancelled = false;
+      const settle = (): void => {
+        if (cancel && !this.closed) cancel.hidden = true;
+      };
+      const observer: SynthesisObserver = {
+        isOpen: () => !this.closed,
+        accepted: stop => {
+          // From here the run has its own controller: closing this dialog must not stop it, Cancel does.
+          if (this.taskController === controller) {
+            this.taskSignal = undefined;
+            this.taskController = undefined;
+          }
+          if (cancel && !this.closed) {
+            cancel.hidden = false;
+            cancel.onclick = () => {
+              userCancelled = true;
+              stop();
+            };
+          }
+        },
+        directions: items => {
+          outcome = true;
+          settle();
+          flow.directions(items);
+        },
+        drafted: draft => {
+          outcome = true;
+          settle();
+          flow.drafted(draft);
         }
       };
-      const launch = this.synthesize(
+      await this.synthesize(
         options,
         direction,
         message => {
@@ -642,22 +591,16 @@ export class NextStepModal extends Modal {
             new Notice(message);
             return;
           }
-          release();
-          launchFailed = true;
-          this.failedAi(panel, button, message);
+          settle();
+          failedShown = true;
+          if (userCancelled) this.failed(panel, button, message);
+          else this.failedAi(panel, button, message);
         },
-        () => {}
+        () => {},
+        observer
       );
-      // The view registers the task before its first await, so the node already shows it running.
-      // Close right away; a failure from here on arrives as a Notice and the node's state.
-      if (!launchFailed && !this.closed && !controller.signal.aborted && this.taskController === controller) {
-        launchAccepted = true;
-        release();
-        this.startedInBackground();
-      }
-      await launch;
-      if (!this.closed && !launchAccepted && !launchFailed) {
-        release();
+      if (!this.closed && !outcome && !failedShown) {
+        settle();
         this.failed(panel, button, t("ui.ai_task_cancelled"));
       }
     });
@@ -763,10 +706,11 @@ export class NextStepModal extends Modal {
   }
   onOpen(): void {
     this.modalEl.addClass("vam-next-modal");
-    this.titleEl.setText(t("ui.how_would_you_like_to_explore_next"));
+    const selection = this.selection;
+    this.titleEl.setText(t(selection ? "ui.confirm_topic_synthesis" : "ui.how_would_you_like_to_explore_next"));
     // The decision comes first: where the topic stands, the next step and one summary line; every option sits under Adjust.
     const intro = this.contentEl.createEl("p", { cls: "vam-modal-intro vam-next-topic" });
-    intro.createSpan({ text: t("ui.current_topic_0", this.topic) });
+    if (!selection) intro.createSpan({ text: t("ui.current_topic_0", this.topic) });
     const topicStatus = this.modelSettings?.topicStatus;
     if (topicStatus)
       intro.createSpan({
@@ -781,7 +725,7 @@ export class NextStepModal extends Modal {
                 : "ui.to_research"
         )
       });
-    const initialMode = this.suggestedMode();
+    const initialMode = selection ? "synthesize" : this.suggestedMode();
     let currentMode: "research" | "expand" | "synthesize" = initialMode;
     // One action bar below the scrolling content: Close plus the current step's primary action.
     const actions = modalActions(this);
@@ -790,7 +734,6 @@ export class NextStepModal extends Modal {
     const confirm = actions.createEl("button", { text: t("ui.confirm_research_task"), cls: "mod-cta" });
     confirm.dataset.topicRun = t("ui.confirm_research_task");
     confirm.disabled = !!this.modelSettings?.running;
-    let synthAction: HTMLButtonElement | undefined;
     let synthesisContentSelect: HTMLSelectElement | undefined;
     // The three steps are one choice: a radio group with arrow-key movement, not three toggles.
     const cards = this.contentEl.createDiv("vam-next-cards");
@@ -841,6 +784,8 @@ export class NextStepModal extends Modal {
       "synthesize"
     );
     const cardFor = { research: researchCard, expand: expandCard, synthesize: synthesizeCard };
+    // Multi-select synthesis is this same dialog with only its synthesis step.
+    if (selection) cards.addClass("is-hidden");
     if (this.modelSettings?.running) {
       const running = this.contentEl.createDiv("vam-next-running");
       running.createSpan({ text: t("ui.ai_running_ai") });
@@ -1159,90 +1104,183 @@ export class NextStepModal extends Modal {
         multiLayer || !this.pendingCount
       );
     });
-    // --- Synthesize.
+    // --- Synthesize: setup, directions, draft and review all happen in this one dialog.
+    const pendingDirections = selection ? selection.pending : this.modelSettings?.synthesisPending;
     synthesizePanel.createEl("p", {
-      text: this.childrenCount
-        ? t("ui.ai_suggests_synthesis_angles_first_the_parent_topic_changes")
-        : t("ui.this_topic_has_no_direct_subtopics_you_can_choose_other_note")
+      text: selection
+        ? t("ui.synthesize_0_source_topics_ai_reads_their_full_knowledge_and", selection.names.length)
+        : this.childrenCount
+          ? t("ui.ai_suggests_synthesis_angles_first_the_parent_topic_changes")
+          : t("ui.this_topic_has_no_direct_subtopics_you_can_choose_other_note")
     });
-    {
-      const pending = this.modelSettings?.synthesisPending;
-      if (pending) {
-        const synthStatus = synthesizePanel.createEl("p", { cls: "vam-next-status", attr: { "aria-live": "polite" } });
-        const synthResult = synthesizePanel.createDiv("vam-next-result");
-        synthStatus.setText(t("ui.choose_or_edit_a_synthesis_direction_then_get_a_draft"));
-        for (const item of pending.directions) {
-          const choice = synthResult.createDiv("vam-next-angle");
-          choice.createEl("strong", { text: item.title });
-          choice.createEl("p", { text: item.contribution || item.task });
-          choice.createEl("button", { text: t("ui.choose_this_direction") }).addEventListener("click", () => {
-            direction.value = item.task || item.title;
-          });
-        }
-        const direction = synthResult.createEl("textarea", {
-          cls: "vam-next-focus",
-          text: pending.directions[0]?.task || pending.directions[0]?.title || ""
-        });
-        direction.setAttr("aria-label", t("ui.synthesis_direction"));
-        const draftButton = actions.createEl("button", { text: t("ui.get_synthesis_draft"), cls: "mod-cta" });
-        synthAction = draftButton;
-        draftButton.disabled = !!this.modelSettings?.running;
-        draftButton.addEventListener("click", () =>
-          this.launchSynthesis(synthesizePanel, draftButton, direction.value.trim(), signal => ({
-            outputLanguage: languageSelect.value as Settings["language"],
-            requirements: this.requirements(),
-            researchMode: "local",
-            researchDepth: this.depth,
-            visualMode: "off",
-            signal,
-            onProgress: message => synthStatus.setText(message)
-          }))
-        );
-        synthResult.createEl("button", { text: t("ui.discard_synthesis") }).addEventListener("click", () => {
-          pending.discard();
-          this.close();
-        });
-      } else {
-        const synthesisContent = renderSynthesisContent(
-          adjustFor.synthesize,
-          this.modelSettings?.sources?.synthesisTopics ?? []
-        );
-        synthesizePanel.createEl("p", { cls: "vam-hint", text: t("ui.synthesis_web_default_hint") });
-        const synthButton = actions.createEl("button", {
-          text: t("ui.get_synthesis_suggestions_first"),
-          cls: "mod-cta"
-        });
-        synthAction = synthButton;
-        synthButton.dataset.topicRun = t("ui.get_synthesis_suggestions_first");
-        synthButton.disabled = !!this.modelSettings?.running;
-        const synthStatus = synthesizePanel.createEl("p", { cls: "vam-next-status", attr: { "aria-live": "polite" } });
-        synthesizePanel.createDiv("vam-next-result");
-        synthesisContentSelect = synthesisContent;
-        synthButton.addEventListener("click", () =>
-          this.launchSynthesis(synthesizePanel, synthButton, null, async signal => {
-            const content: SynthesisContent = synthesisContent.value === "summary" ? "summary" : "full";
-            synthesisContent.disabled = true;
-            const selected = await sharedSources?.picker.ready();
-            const options: TaskOptions = {
-              synthesisContent: content,
-              referenceGroups: selected?.groups ?? [],
-              outputLanguage: languageSelect.value as Settings["language"],
-              requirements: this.requirements(),
-              researchMode: selected?.webSearch ? "research" : "local",
-              researchDepth: this.depth,
-              visualMode: selected?.imageSearch ? "auto" : "off",
-              ...(templateId() ? { detailTemplateId: templateId() } : {}),
-              ...(toneId() ? { toneId: toneId() } : {}),
-              signal,
-              onProgress: message => synthStatus.setText(message)
-            };
-            if (!this.childrenCount && !options.referenceGroups?.some(group => group.documents.length))
-              throw new Error(t("ui.choose_another_note_source_first"));
-            return options;
-          })
-        );
-      }
+    let titleInput: HTMLInputElement | undefined;
+    let titleField: HTMLElement | undefined;
+    if (selection) {
+      const titleLabel = synthesizePanel.createEl("label", { cls: "vam-field vam-next-synth-setup" });
+      titleField = titleLabel;
+      titleLabel.createSpan({ text: t("ui.new_topic_name") });
+      titleInput = titleLabel.createEl("input", { type: "text", value: selection.initialTitle });
+      titleInput.setAttr("aria-label", t("ui.new_topic_name"));
     }
+    synthesisContentSelect = renderSynthesisContent(
+      adjustFor.synthesize,
+      selection?.names ?? this.modelSettings?.sources?.synthesisTopics ?? []
+    );
+    const stageTwoHint = adjustFor.synthesize.createEl("p", {
+      cls: "vam-hint vam-next-synth-fixed",
+      text: t("ui.synthesis_stage_two_fixed")
+    });
+    stageTwoHint.hidden = true;
+    synthesizePanel.createEl("p", { cls: "vam-hint", text: t("ui.synthesis_web_default_hint") });
+    const synthStatus = synthesizePanel.createEl("p", { cls: "vam-next-status", attr: { "aria-live": "polite" } });
+    const synthResult = synthesizePanel.createDiv("vam-next-result");
+    const suggestButton = actions.createEl("button", { text: t("ui.get_synthesis_suggestions_first"), cls: "mod-cta" });
+    suggestButton.dataset.topicRun = suggestButton.textContent ?? "";
+    const skipButton = actions.createEl("button", { text: t("ui.synthesis_skip_suggestions") });
+    const draftButton = actions.createEl("button", { text: t("ui.get_synthesis_draft"), cls: "mod-cta" });
+    for (const button of [suggestButton, skipButton, draftButton]) button.disabled = !!this.modelSettings?.running;
+    let stage: "setup" | "directions" = pendingDirections ? "directions" : "setup";
+    // Language, template, sources and content are fixed once the directions are requested; the draft step ignores them.
+    let frozenSummary = "";
+    const syncSynthesisStage = (): void => {
+      const locked = stage === "directions";
+      const here = currentMode === "synthesize";
+      suggestButton.hidden = !here || locked;
+      skipButton.hidden = !here || locked;
+      draftButton.hidden = !here || !locked;
+      adjustFor.synthesize.toggleClass("is-fixed", locked);
+      stageTwoHint.hidden = !locked;
+      if (sharedSources) sharedSources.disclosure.hidden = here && locked;
+      output.hidden = here && locked;
+      titleField?.toggleClass("is-hidden", locked);
+    };
+    let directionBox: HTMLTextAreaElement | undefined;
+    const showDirections = (items: Suggestion[]): void => {
+      if (this.closed) return;
+      stage = "directions";
+      synthResult.empty();
+      for (const item of items) {
+        const choice = synthResult.createDiv("vam-next-angle");
+        choice.createEl("strong", { text: item.title });
+        choice.createEl("p", { text: item.contribution || item.task });
+        choice.createEl("button", { text: t("ui.choose_this_direction") }).addEventListener("click", () => {
+          if (directionBox) directionBox.value = item.task || item.title;
+        });
+      }
+      const box = synthResult.createEl("textarea", {
+        cls: "vam-next-focus",
+        text: items[0]?.task || items[0]?.title || ""
+      });
+      box.setAttr("aria-label", t("ui.synthesis_direction"));
+      directionBox = box;
+      synthResult.createEl("button", { text: t("ui.discard_synthesis") }).addEventListener("click", () => {
+        (selection ? selection.pending : this.modelSettings?.synthesisPending)?.discard();
+        this.close();
+      });
+      synthStatus.setText(t("ui.choose_or_edit_a_synthesis_direction_then_get_a_draft"));
+      syncSynthesisStage();
+      refreshSummary();
+    };
+    const showReview = (draft: SynthesisDraft): void => {
+      if (this.closed) return;
+      for (const child of Array.from(this.contentEl.children)) child.addClass("is-hidden");
+      actions.addClass("is-hidden");
+      this.titleEl.setText(t("ui.review_synthesis_draft"));
+      const host = this.contentEl.createDiv("vam-next-review");
+      const review: DraftReview = selection
+        ? {
+            intro: t("ui.draft_creates_0", titleInput?.value.trim() ?? ""),
+            confirmLabel: t("ui.confirm_new_synthesis_topic")
+          }
+        : {
+            intro: t("ui.draft_replaces_0", this.topic),
+            currentSummary: this.modelSettings?.currentSummary,
+            confirmLabel: t("ui.confirm_update_to_parent_topic"),
+            sourcePath: this.modelSettings?.path
+          };
+      const view = new DraftReviewView(
+        this.app,
+        draft.result.summary,
+        draft.result.detail,
+        review,
+        draft.confirm,
+        draft.discard,
+        () => this.close()
+      );
+      this.reviewView = view;
+      view.mount(host, modalActions(this));
+    };
+    const flow = { directions: showDirections, drafted: showReview };
+    const needsName = (): boolean => !!titleInput && !titleInput.value.trim();
+    const checkName = (): void => {
+      if (!titleInput || stage !== "setup") return;
+      const missing = needsName();
+      suggestButton.disabled = skipButton.disabled = missing || !!this.modelSettings?.running;
+      synthStatus.setText(missing ? t("ui.synthesis_needs_name") : "");
+    };
+    titleInput?.addEventListener("input", checkName);
+    // Setup and draft options: the setup step reads every field; the draft step reads only the extra requirements.
+    const setupOptions = async (signal: AbortSignal): Promise<TaskOptions> => {
+      const content: SynthesisContent = synthesisContentSelect?.value === "summary" ? "summary" : "full";
+      if (synthesisContentSelect) synthesisContentSelect.disabled = true;
+      const selected = await sharedSources?.picker.ready();
+      const options: TaskOptions = {
+        synthesisContent: content,
+        referenceGroups: selected?.groups ?? [],
+        outputLanguage: languageSelect.value as Settings["language"],
+        requirements: this.requirements(),
+        researchMode: selected?.webSearch ? "research" : "local",
+        researchDepth: this.depth,
+        visualMode: selected?.imageSearch ? "auto" : "off",
+        ...(templateId() ? { detailTemplateId: templateId() } : {}),
+        ...(toneId() ? { toneId: toneId() } : {}),
+        ...(titleInput ? { synthesisTitle: titleInput.value.trim() } : {}),
+        signal,
+        onProgress: message => synthStatus.setText(message)
+      };
+      if (!selection && !this.childrenCount && !options.referenceGroups?.some(group => group.documents.length))
+        throw new Error(t("ui.choose_another_note_source_first"));
+      frozenSummary = summaryEl.textContent ?? "";
+      return options;
+    };
+    const draftOptions = (signal: AbortSignal): TaskOptions => ({
+      continuesDirections: true,
+      outputLanguage: languageSelect.value as Settings["language"],
+      requirements: this.requirements(),
+      researchMode: "local",
+      researchDepth: this.depth,
+      visualMode: "off",
+      ...(titleInput ? { synthesisTitle: titleInput.value.trim() } : {}),
+      signal,
+      onProgress: message => synthStatus.setText(message)
+    });
+    const guard = (): boolean => {
+      if (!needsName()) return true;
+      synthStatus.setText(t("ui.synthesis_needs_name"));
+      return false;
+    };
+    suggestButton.addEventListener("click", () => {
+      if (guard()) this.launchSynthesis(synthesizePanel, suggestButton, null, setupOptions, flow);
+    });
+    skipButton.addEventListener("click", () => {
+      if (guard())
+        this.launchSynthesis(
+          synthesizePanel,
+          skipButton,
+          selection ? selection.defaultDirection : "",
+          setupOptions,
+          flow
+        );
+    });
+    draftButton.addEventListener("click", () =>
+      this.launchSynthesis(
+        synthesizePanel,
+        draftButton,
+        (directionBox?.value ?? "").trim(),
+        async signal => draftOptions(signal),
+        flow
+      )
+    );
     // --- Shared options, all under Adjust.
     const sharedSources = this.addReferencePicker(adjustBody);
     show = mode => {
@@ -1259,13 +1297,11 @@ export class NextStepModal extends Modal {
         adjustFor[name].hidden = name !== mode;
       }
       sharedSources?.forMode(mode);
-      // A pending synthesis draft uses only the chosen direction, so it has no sources to pick.
-      if (sharedSources)
-        sharedSources.disclosure.hidden = mode === "synthesize" && !!this.modelSettings?.synthesisPending;
       confirm.hidden = mode !== "research";
       expandButton.hidden = mode !== "expand";
       expandFooterText.hidden = mode !== "expand";
-      if (synthAction) synthAction.hidden = mode !== "synthesize";
+      // Once directions are requested, the synthesis step has no sources, language or template left to choose.
+      syncSynthesisStage();
       refreshSummary();
     };
     this.renderRequirements(adjustBody);
@@ -1284,25 +1320,29 @@ export class NextStepModal extends Modal {
     languageSelect.setAttr("aria-label", t("ui.output_language"));
     const templateId = templateField(
       compactSettings,
-      this.modelSettings?.templates ?? [],
-      t("ui.detail_template_keep_0", this.modelSettings?.currentTemplate ?? "")
+      this.info?.templates ?? [],
+      t("ui.detail_template_keep_0", this.info?.currentTemplate ?? "")
     );
     const toneId = toneField(
       compactSettings,
-      this.modelSettings?.tones ?? [],
-      t("ui.tone_keep_0", this.modelSettings?.currentTone ?? "")
+      this.info?.tones ?? [],
+      t("ui.tone_keep_0", this.info?.currentTone ?? "")
     );
     const pickedName = (picked: string | undefined, choices?: { id: string; name: string }[]): string | undefined =>
       picked ? choices?.find(item => item.id === picked)?.name : undefined;
     const describeOutput = (): void => {
-      const template = pickedName(templateId(), this.modelSettings?.templates) ?? this.modelSettings?.currentTemplate;
-      const tone = pickedName(toneId(), this.modelSettings?.tones) ?? this.modelSettings?.currentTone;
+      const template = pickedName(templateId(), this.info?.templates) ?? this.info?.currentTemplate;
+      const tone = pickedName(toneId(), this.info?.tones) ?? this.info?.currentTone;
       outputValue.setText([supportedLanguageLabel(languageSelect.value), template, tone].filter(Boolean).join(" · "));
     };
     const depthName = (depth: ResearchDepth): string =>
       t(depth === "fast" ? "ui.quick" : depth === "deep" ? "ui.deep" : "ui.standard");
     const refreshSummary = (): void => {
       describeOutput();
+      if (currentMode === "synthesize" && stage === "directions") {
+        summaryEl.setText(frozenSummary);
+        return;
+      }
       const parts: string[] = [];
       if (currentMode === "research") parts.push(t("ui.next_summary_depth_0", depthName(depthField.value())));
       else if (currentMode === "expand")
@@ -1316,12 +1356,14 @@ export class NextStepModal extends Modal {
       const network = sharedSources?.picker.selection();
       if (network) parts.push(t(network.webSearch ? "ui.next_summary_web_on" : "ui.next_summary_web_off"));
       parts.push(supportedLanguageLabel(languageSelect.value));
-      const tone = pickedName(toneId(), this.modelSettings?.tones) ?? this.modelSettings?.currentTone;
+      const tone = pickedName(toneId(), this.info?.tones) ?? this.info?.currentTone;
       if (tone) parts.push(tone);
       summaryEl.setText(parts.join(" · "));
     };
     // Select, checkbox and radio changes bubble up, so one listener keeps the summary current.
     this.contentEl.addEventListener("change", refreshSummary);
+    if (pendingDirections) showDirections(pendingDirections.directions);
+    else checkName();
     show(initialMode);
     cardFor[initialMode].focus();
     (this.renderModelSettings(adjustBody) ?? adjustBody).createEl("p", {
@@ -1458,35 +1500,42 @@ export interface DraftReview {
   confirmLabel: string;
   sourcePath?: string;
 }
-/** Review an AI draft: rendered by default, editable on demand, and clear about what it changes. */
-export class DraftReviewModal extends Modal {
+/**
+ * Reviews an AI draft inside any dialog: rendered by default, editable on demand, and clear about what it changes.
+ * The host passes the content area and a fixed action bar, and closes itself through `close`.
+ */
+export class DraftReviewView {
   private renderer = new Component();
+  private disarm?: () => void;
+  private intro?: HTMLElement;
   constructor(
-    app: App,
+    private app: App,
     private summary: string,
     private detail: string,
     private review: DraftReview,
     private confirm: (summary: string, detail: string) => void | Promise<void>,
-    private discard?: () => void
-  ) {
-    super(app);
+    private discard: (() => void) | undefined,
+    private close: () => void
+  ) {}
+  /** Starts on the draft itself: a stray Enter from whatever opened the dialog must not switch to editing. */
+  focus(): void {
+    this.intro?.focus();
   }
-  onOpen(): void {
-    this.modalEl.addClass("vam-draft-modal");
-    this.titleEl.setText(t("ui.review_synthesis_draft"));
+  mount(content: HTMLElement, actions: HTMLElement): void {
     this.renderer.load();
-    const intro = this.contentEl.createEl("p", { cls: "vam-draft-intro", text: this.review.intro });
+    const intro = content.createEl("p", { cls: "vam-draft-intro", text: this.review.intro });
+    this.intro = intro;
     if (this.review.currentSummary?.trim()) {
-      const current = this.contentEl.createEl("details", { cls: "vam-draft-current" });
+      const current = content.createEl("details", { cls: "vam-draft-current" });
       current.createEl("summary", { text: t("ui.current_summary") });
       current.createEl("p", { text: this.review.currentSummary });
     }
-    const toolbar = this.contentEl.createDiv("vam-draft-toolbar");
+    const toolbar = content.createDiv("vam-draft-toolbar");
     toolbar.createEl("strong", { text: t("ui.ai_draft") });
     const toggle = toolbar.createEl("button", { text: t("ui.edit_draft"), cls: "vam-draft-toggle" });
     toggle.setAttr("aria-pressed", "false");
     const section = (label: string, value: string, rows: number) => {
-      const wrap = this.contentEl.createDiv("vam-draft-section");
+      const wrap = content.createDiv("vam-draft-section");
       wrap.createEl("h4", { text: label });
       const preview = wrap.createDiv("vam-draft-preview markdown-rendered");
       const input = wrap.createEl("textarea", { cls: "vam-task-input", text: value });
@@ -1535,15 +1584,10 @@ export class DraftReviewModal extends Modal {
     };
     toggle.addEventListener("click", () => setEditing(!editing));
     setEditing(false);
-    // Start on the draft itself: a stray Enter from whatever opened the dialog must not switch to editing.
     intro.tabIndex = -1;
     intro.focus();
-    const actions = reviewActions(this);
     // Next to the buttons, so a save error or the discard warning is seen even when the draft is scrolled.
-    const status = actions.createSpan({
-      cls: "vam-next-actions-note vam-next-status",
-      attr: { "aria-live": "polite" }
-    });
+    const status = actionStatus(actions);
     if (this.discard) {
       // Discarding loses the AI's work, so it sits apart and asks once more before acting.
       const discard = actions.createEl("button", { text: t("ui.discard_synthesis"), cls: "vam-discard" });
@@ -1573,10 +1617,32 @@ export class DraftReviewModal extends Modal {
       );
     });
   }
-  private disarm?: () => void;
-  onClose(): void {
+  dispose(): void {
     this.disarm?.();
     this.renderer.unload();
+  }
+}
+/** The draft review as a dialog of its own: used when a finished draft is opened from its node badge or selection bar. */
+export class DraftReviewModal extends Modal {
+  private view: DraftReviewView;
+  constructor(
+    app: App,
+    summary: string,
+    detail: string,
+    review: DraftReview,
+    confirm: (summary: string, detail: string) => void | Promise<void>,
+    discard?: () => void
+  ) {
+    super(app);
+    this.view = new DraftReviewView(app, summary, detail, review, confirm, discard, () => this.close());
+  }
+  onOpen(): void {
+    this.modalEl.addClass("vam-draft-modal");
+    this.titleEl.setText(t("ui.review_synthesis_draft"));
+    this.view.mount(this.contentEl, reviewActions(this));
+  }
+  onClose(): void {
+    this.view.dispose();
     this.contentEl.empty();
   }
 }
@@ -1614,67 +1680,6 @@ export class ChildProposalModal extends Modal {
       this.close();
       this.submit(picked);
     });
-  }
-}
-export class IntegrationModal extends Modal {
-  constructor(
-    app: App,
-    private names: string[],
-    private submit: (title: string, goal: string, rules: string) => void
-  ) {
-    super(app);
-  }
-  onOpen(): void {
-    this.titleEl.setText(t("ui.confirm_topic_synthesis"));
-    this.contentEl.createEl("p", {
-      text: t("ui.synthesize_0_source_topics_ai_reads_their_full_knowledge_and", this.names.length),
-      cls: "vam-modal-intro"
-    });
-    const sources = this.contentEl.createDiv("vam-integration-sources");
-    sources.createEl("strong", { text: t("ui.source_topics") });
-    for (const name of this.names) sources.createDiv({ text: name });
-    const titleLabel = this.contentEl.createEl("label", { cls: "vam-field" });
-    titleLabel.createSpan({ text: t("ui.new_topic_name") });
-    // Name the new topic after its sources, short enough to read on a map card.
-    const title = titleLabel.createEl("input", {
-      type: "text",
-      value:
-        this.names.length > 2
-          ? t("ui.synthesis_of_0_and_1_more", this.names[0], this.names.length)
-          : t("ui.synthesis_of_0", this.names.join(t("ui.list_separator")))
-    });
-    title.setAttr("aria-label", t("ui.new_topic_name"));
-    const goalLabel = this.contentEl.createEl("label", { cls: "vam-field" });
-    goalLabel.createSpan({ text: t("ui.synthesis_goal") });
-    const goal = goalLabel.createEl("textarea", {
-      text: t("ui.identify_shared_conclusions_key_differences_tradeoffs_and_ne")
-    });
-    goal.rows = 4;
-    goal.setAttr("aria-label", t("ui.synthesis_goal"));
-    const save = (): void => {
-      if (!title.value.trim() || !goal.value.trim()) return;
-      this.close();
-      this.submit(title.value.trim(), goal.value.trim(), "");
-    };
-    const actions = reviewActions(this);
-    const status = actions.createSpan({
-      cls: "vam-next-actions-note vam-next-status",
-      attr: { "aria-live": "polite" }
-    });
-    actions.createEl("button", { text: t("ui.cancel") }).addEventListener("click", () => this.close());
-    const next = actions.createEl("button", { text: t("ui.next_set_ai_sources"), cls: "mod-cta" });
-    next.addEventListener("click", save);
-    // Say why the next step is unavailable instead of ignoring the click.
-    const check = (): void => {
-      const missing = !title.value.trim() || !goal.value.trim();
-      next.disabled = missing;
-      status.setText(missing ? t("ui.synthesis_needs_name_and_goal") : "");
-    };
-    title.addEventListener("input", check);
-    goal.addEventListener("input", check);
-    check();
-    title.focus();
-    title.select();
   }
 }
 export class MapConflictModal extends Modal {

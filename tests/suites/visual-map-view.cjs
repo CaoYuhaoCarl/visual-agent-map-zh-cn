@@ -201,7 +201,9 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   const { element, find, findAll: all, button } = dom;
   const tick = () => new Promise(resolve => setTimeout(resolve, 0));
   class Modal { constructor() { this.modalEl = element('modal'); this.titleEl = element('title'); this.contentEl = element('content'); this.modalEl.children.push(this.contentEl); } close() { closed++; this.onClose?.(); } }
-  const { NextStepModal } = load('main.ts', { obsidian: { ...obsidian, Modal, setIcon: () => {}, Notice: class { constructor(message) { notices.push(message); } } } });
+  class Component { load() {} unload() {} addChild(child) { return child; } removeChild() {} }
+  const MarkdownRenderer = { render: async (_app, markdown, el) => { el.rendered = markdown; } };
+  const { NextStepModal } = load('main.ts', { obsidian: { ...obsidian, Modal, Component, MarkdownRenderer, setIcon: () => {}, Notice: class { constructor(message) { notices.push(message); } } } });
   const checkedModels = [];
   const modelState = provider => ({ provider, status: 'ready', models: provider === 'codex' ? ['gpt-test'] : [] });
   const plugin = { settings: { codexUsageNoticeSeen: true, claudeUsageNoticeSeen: true, models: 'gpt-test', cliReasoning: 'low', language: 'en' }, aiReadyForModel: async model => { checkedModels.push(model); return true; }, confirmAiUsage: async (model, run) => { checkedModels.push(model); await run(); return true; }, saveSettings: async () => {}, activeTasks: new Map(), availableModels: () => ['gpt-test'], modelLabel: model => model, modelDiscoveryState: modelState, subscribeModelDiscovery: () => () => {}, refreshModelDiscovery: async provider => modelState(provider), sources: { currentTopicId: 'current', currentLabel: 'Current topic included', synthesisLabel: 'Current topic and child topics included', synthesisTopics: ['Child A', 'Child B'], topics: async () => [], readTopic: async () => [] } };
@@ -329,7 +331,9 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   button(synthModal.modalEl, 'Get synthesis suggestions first').click(); await tick();
   assert.equal(synthContentChoice.disabled, true);
   assert.equal(synthOptions.synthesisContent, 'summary');
-  assert.equal(synthCalls, 1); assert.equal(closed, closedBeforeSynthStart + 1); assert.equal(synthModal.closed, true);
+  // Synthesis stays in this dialog: it does not close when the run starts (the double here gives no outcome, so it reads as stopped).
+  assert.equal(synthCalls, 1); assert.equal(closed, closedBeforeSynthStart); assert.equal(synthModal.closed, false);
+  assert.match(find(synthModal.contentEl, item => item.cls.includes('vam-next-status') && /cancelled/i.test(item.text ?? '')).text, /cancelled/i);
   assert.equal(synthOptions.researchMode, 'local');
   // Untouched network options follow each step's default; a choice the user makes is kept across steps.
   const defaultsModal = new NextStepModal({}, 'Parent', 'normal', 1, 1, plugin, async () => {}, async () => {}, async () => {}, modelSettings);
@@ -394,32 +398,50 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   assert.equal(acceptedSignal.aborted, false); assert.equal(acceptedModal.taskSignal, undefined);
   assert.equal(startedNotices(), startedBefore + 1);
   continueBackground(); await tick();
-  // Synthesis runs in the background: accepting the dispatch closes the modal without aborting the AI.
-  let directionSignal, directionCalls = [];
-  const directionsModal = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => {}, async (options, direction, _failed, accepted) => { directionSignal = options.signal; directionCalls.push(direction); accepted(); await background2; }, modelSettings);
+  // Synthesis runs on its own controller once the provider accepted it: closing the dialog midway never aborts the AI,
+  // and a result that arrives afterwards is never written into the closed dialog.
+  let directionSignal, directionCalls = [], cancelRun, lateDirections = 0;
   let continueBackground2; const background2 = new Promise(resolve => { continueBackground2 = resolve; });
+  const directionsModal = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => {}, async (options, direction, _failed, accepted, observer) => {
+    directionSignal = options.signal; directionCalls.push(direction); accepted(); observer.accepted(() => { cancelRun = true; });
+    await background2;
+    if (observer.isOpen()) observer.directions([{ title: 'Late', task: 'Late', contribution: '' }]); else lateDirections++;
+  }, modelSettings);
   const closedBeforeSynth = closed;
   directionsModal.onOpen(); find(directionsModal.contentEl, item => item.cls === 'vam-next-cards').children[2].click();
   button(directionsModal.modalEl, 'Get synthesis suggestions first').click();
-  await until(() => directionsModal.closed);
-  assert.equal(closed, closedBeforeSynth + 1); assert.deepEqual(directionCalls, [null]);
-  assert.equal(directionSignal.aborted, false); assert.equal(directionsModal.taskSignal, undefined);
-  assert.equal(startedNotices(), startedBefore + 2);
+  await until(() => directionCalls.length === 1); await tick();
+  assert.equal(closed, closedBeforeSynth, 'starting a synthesis step does not close the dialog'); assert.deepEqual(directionCalls, [null]);
+  assert.equal(directionsModal.taskSignal, undefined, 'the accepted run no longer hangs on the dialog controller');
+  const runningCancel = find(directionsModal.contentEl, item => item.cls === 'vam-task-cancel');
+  assert.equal(runningCancel.hidden, false); runningCancel.onclick(); assert.equal(cancelRun, true, 'Cancel stops the accepted run itself');
+  directionsModal.close();
+  assert.equal(directionSignal.aborted, false, 'closing the dialog after dispatch does not abort the AI');
+  closed = closedBeforeSynth;
   continueBackground2(); await tick();
-  // Reopening from the node badge shows the pending directions; the draft step is also accepted and closes the modal.
-  let discarded = 0, draftSignal; const draftCalls = [];
-  const pendingModal2 = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => {}, async (options, direction, _failed, accepted) => { draftSignal = options.signal; draftCalls.push(direction); accepted(); },
-    { ...modelSettings, synthesisPending: { directions: [{ title: 'Shared constraints', task: 'Find tradeoffs', contribution: 'Across children' }, { title: 'Open questions', task: 'List gaps', contribution: '' }], discard: () => { discarded++; } } });
+  assert.equal(lateDirections, 1, 'a late result sees the closed dialog and takes the badge path');
+  assert.equal(find(directionsModal.contentEl, item => item.cls === 'vam-next-angle'), undefined, 'nothing is written into the closed dialog');
+  // Reopening from the node badge shows the pending directions; choosing one drafts and reviews it in the same dialog.
+  let discarded = 0, draftSignal, confirmed; const draftCalls = []; let draftStageOptions;
+  const pendingModal2 = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => {}, async (options, direction, _failed, accepted, observer) => { draftSignal = options.signal; draftStageOptions = options; draftCalls.push(direction); accepted();
+      observer.drafted({ result: { summary: 'Draft S', detail: 'Draft D', suggestions: [], visualReferences: [] }, confirm: async (summary, detail) => { confirmed = [summary, detail]; }, discard: () => { discarded++; } }); },
+    { ...modelSettings, currentSummary: 'Old summary', synthesisPending: { directions: [{ title: 'Shared constraints', task: 'Find tradeoffs', contribution: 'Across children' }, { title: 'Open questions', task: 'List gaps', contribution: '' }], discard: () => { discarded++; } } });
   pendingModal2.onOpen();
   const pendingPanel = all(pendingModal2.contentEl, item => item.cls.includes('vam-next-research'))[2];
-  assert.equal(button(pendingModal2.modalEl, 'Get synthesis suggestions first'), undefined);
+  assert.equal(button(pendingModal2.modalEl, 'Get synthesis suggestions first').hidden, true);
   assert.equal(pendingPanel.style.display, '');
   const directionBox = find(pendingPanel, item => item.tag === 'textarea' && item['aria-label'] === 'Synthesis direction');
   assert.equal(directionBox.value ?? directionBox.text, 'Find tradeoffs');
   button(pendingPanel, 'Choose this direction').click();
   directionBox.value = 'Edited direction';
-  button(pendingModal2.modalEl, 'Get synthesis draft').click(); await until(() => pendingModal2.closed);
-  assert.deepEqual(draftCalls, ['Edited direction']); assert.equal(draftSignal.aborted, false); assert.equal(discarded, 0);
+  button(pendingModal2.modalEl, 'Get synthesis draft').click(); await tick(); await tick();
+  assert.deepEqual(draftCalls, ['Edited direction']); assert.equal(draftStageOptions.continuesDirections, true); assert.equal(discarded, 0);
+  assert.equal(pendingModal2.closed, false, 'the draft is reviewed in the same dialog');
+  const reviewConfirm = button(pendingModal2.modalEl, 'Confirm update to parent topic');
+  assert.ok(reviewConfirm, 'the review stage offers the confirm action'); assert.ok(find(pendingModal2.contentEl, item => item.text === 'Old summary'));
+  const reviewText = all(find(pendingModal2.contentEl, item => item.cls === 'vam-next-review'), item => item.tag === 'textarea')[0]; reviewText.value = 'Edited S';
+  reviewConfirm.click(); await tick(); await tick();
+  assert.deepEqual(confirmed, ['Edited S', 'Draft D']); assert.equal(pendingModal2.closed, true);
   const discardModal = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => {}, async () => {}, { ...modelSettings, synthesisPending: { directions: [{ title: 'A', task: 'B', contribution: '' }], discard: () => { discarded++; } } });
   discardModal.onOpen(); button(discardModal.contentEl, 'Discard').click();
   assert.equal(discarded, 1); assert.equal(discardModal.closed, true);
@@ -807,37 +829,35 @@ integrationTest('proposal list groups children, links parent and child checks an
   assert.equal(modal.closed, true);
   assert.equal(JSON.stringify(submitted.map(item => [item.title, item.parentTitle])), JSON.stringify([['Heat', ''], ['Moisture', ''], ['Dry it', 'Moisture']]));
 });
-integrationTest('merge dialog names the topic after its sources and explains a blocked next step', () => {
-  const element = (tag, options = {}) => ({
-    tag, type: options.type, text: options.text, value: options.value ?? options.text ?? '', cls: options.cls ?? '', attr: options.attr ?? {}, children: [], disabled: false,
-    createDiv(value) { const child = element('div', typeof value === 'string' ? { cls: value } : value); this.children.push(child); return child; },
-    createEl(name, value) { const child = element(name, value); this.children.push(child); return child; },
-    createSpan(value) { const child = element('span', value); this.children.push(child); return child; },
-    addClass(name) { this.cls = `${this.cls} ${name}`.trim(); }, setText(value) { this.text = value; }, setAttr(name, value) { this.attr[name] = value; },
-    addEventListener(name, handler) { this[name] = handler; }, focus() {}, select() {}
-  });
-  const all = (root, predicate) => [...(predicate(root) ? [root] : []), ...root.children.flatMap(child => all(child, predicate))];
-  const find = (root, predicate) => all(root, predicate)[0];
-  class Modal { constructor() { this.modalEl = element('modal'); this.titleEl = element('title'); this.contentEl = element('content'); } close() { this.closed = true; } }
-  const { IntegrationModal } = load('main.ts', { obsidian: { ...obsidian, Modal, setIcon: () => {} } });
-  let submitted;
-  const modal = new IntegrationModal({}, ['Heat', 'Water'], (title, goal) => { submitted = [title, goal]; });
-  modal.onOpen();
-  const name = find(modal.contentEl, item => item.tag === 'input' && item.attr['aria-label'] === 'New topic name');
+integrationTest('merge dialog (the shared synthesis dialog) names the topic after its sources and explains a blocked first step', async () => {
+  const { element, find, button, tick } = dom;
+  class Modal { constructor() { this.modalEl = element('modal'); this.titleEl = element('title'); this.contentEl = element('content'); this.modalEl.children.push(this.contentEl); } close() { this.closed = true; this.onClose?.(); } }
+  class Component { load() {} unload() {} addChild(child) { return child; } removeChild() {} }
+  const { NextStepModal } = load('main.ts', { obsidian: { ...obsidian, Modal, Component, MarkdownRenderer: { render: async () => {} }, setIcon: () => {} } });
+  const plugin = { settings: { language: 'en', cliModel: 'gpt-test', codexUsageNoticeSeen: true }, aiReadyForModel: async () => true, confirmAiUsage: async (_model, run) => { await run(); return true; }, activeTasks: new Map() };
+  const sources = { currentTopicId: 'map', currentLabel: 'Selected topics included', topics: async () => [], readTopic: async () => [] };
+  const open = (names, title, calls) => {
+    const modal = new NextStepModal({}, '', 'normal', 0, 0, plugin, async () => {}, async () => {}, async (options, direction, _failed, accepted) => { calls.push({ options, direction }); accepted(); },
+      undefined, { names, initialTitle: title, defaultDirection: 'Find shared conclusions', fields: { sources, templates: [], tones: [] } });
+    modal.onOpen();
+    return modal;
+  };
+  const calls = [];
+  const modal = open(['Heat', 'Water'], 'Synthesis: Heat, Water', calls);
+  assert.equal(modal.titleEl.text, 'Confirm topic synthesis');
+  const name = find(modal.contentEl, item => item.tag === 'input' && item['aria-label'] === 'New topic name');
   assert.equal(name.value, 'Synthesis: Heat, Water');
-  const many = new IntegrationModal({}, ['Heat', 'Water', 'Salt'], () => {}); many.onOpen();
-  assert.equal(find(many.contentEl, item => item.tag === 'input' && item.attr['aria-label'] === 'New topic name').value, 'Synthesis: Heat and others (3 topics)');
-  const next = find(modal.modalEl, item => item.tag === 'button' && item.cls.includes('mod-cta'));
-  const status = find(modal.modalEl, item => item.cls.includes('vam-next-status'));
-  assert.equal(next.text, 'Next (1 of 2): set AI sources'); assert.equal(next.disabled, false); assert.equal(status.text, '');
+  assert.equal(find(modal.contentEl, item => item.cls.includes('vam-next-cards')).cls.includes('is-hidden'), true, 'a selection has no research or expand steps to pick');
+  const next = button(modal.modalEl, 'Get synthesis suggestions first'), skip = button(modal.modalEl, 'Skip suggestions and draft now');
+  const status = dom.findAll(modal.contentEl, item => item.cls.includes('vam-next-research'))[2].querySelector('.vam-next-status');
+  assert.equal(next.disabled, false); assert.equal(skip.disabled, false); assert.equal(status.text, '');
   name.value = '  '; name.input();
-  assert.equal(next.disabled, true); assert.match(status.text, /topic name and a synthesis goal/);
+  assert.equal(next.disabled, true); assert.equal(skip.disabled, true); assert.equal(status.text, 'Enter a name for the new topic first.');
   name.value = 'Cooking water'; name.input();
   assert.equal(next.disabled, false); assert.equal(status.text, '');
-  next.click();
-  assert.equal(modal.closed, true); assert.equal(submitted[0], 'Cooking water');
-});
-integrationTest('review dialogs: duplicate parents list each proposal once, discard waits for a running save, and a failed render shows plain text', async () => {
+  next.click(); await tick();
+  assert.equal(calls[0].direction, null); assert.equal(calls[0].options.synthesisTitle, 'Cooking water');
+});integrationTest('review dialogs: duplicate parents list each proposal once, discard waits for a running save, and a failed render shows plain text', async () => {
   const element = (tag, options = {}) => ({
     tag, type: options.type, text: options.text, value: options.value ?? options.text ?? '', cls: options.cls ?? '', attr: options.attr ?? {}, children: [], hidden: false, disabled: false, checked: false,
     createDiv(value) { const child = element('div', typeof value === 'string' ? { cls: value } : value); this.children.push(child); return child; },
