@@ -68,7 +68,7 @@ const auditEcho = context => {
 const tree = () => [node('a'), node('b', 'a'), node('c', 'b'), node('d')];
 function withExpansionCoordinator(plugin) {
   const { ShallowExpansionCoordinator } = load('experiences/visual-map/expansion-batch.ts');
-  plugin.activeTasks ??= new Map(); plugin.expansionBatches = new Map(); plugin.quickExpandPending ??= new Set(); plugin.quickExpandFailures ??= new Map();
+  plugin.activeTasks ??= new Map(); plugin.expansionBatches = new Map(); plugin.quickExpandPending ??= new Set();
   plugin.expansionCoordinator = new ShallowExpansionCoordinator(plugin.activeTasks, plugin.expansionBatches);
   return plugin;
 }

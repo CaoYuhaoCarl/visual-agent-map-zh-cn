@@ -116,7 +116,6 @@ export default class VisualAgentMapPlugin extends Plugin {
   ready: Promise<void> = Promise.resolve();
   readonly running = new Set<string>();
   readonly quickExpandPending = new Set<string>();
-  readonly quickExpandFailures = new Map<string, string>();
   readonly activeTasks = new Map<string, AbortController>();
   readonly expansionBatches = new Map<string, ExpansionBatchState>();
   readonly expansionCoordinator = new ShallowExpansionCoordinator(this.activeTasks, this.expansionBatches);

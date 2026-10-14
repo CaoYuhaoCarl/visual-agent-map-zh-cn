@@ -600,17 +600,6 @@ var english = {
   "ui.quickly_explore_a_map": "Quickly explore a map",
   "ui.run_shallow_research_on_each_created_subtopic": "Run shallow research on each created subtopic",
   "ui.get_expansion_directions": "Get expansion directions",
-  "ui.create_starter_map_now": "Create starter map now",
-  "ui.ai_creates_a_starter_map_at_the_chosen_size_shallow_research": "AI creates a starter map at the chosen size; shallow research is optional.",
-  "ui.number_of_levels": "Number of levels",
-  "ui.expansion_levels_exclude_current_topic": "Counts new subtopic levels only; the current topic is not included.",
-  "ui.first_level_subtopics": "First-level subtopics",
-  "ui.children_per_parent_topic": "Children per parent topic",
-  "ui.children_count_unused_for_one_level": "Not used when expanding only one level.",
-  "ui.topics_by_level_0_1_total": "Topics by level: {0}; {1} total.",
-  "ui.levels_first_level_count_and_children_per_topic_must_be_posi": "Levels and first-level count must be positive whole numbers; children per topic must be a positive whole number for multiple levels; at most 15 levels.",
-  "ui.this_would_create_0_subtopics_exceeding_the_limit_of_15_redu": "This would create {0} subtopics, exceeding the limit of 15. Reduce the levels, first-level count, or children per topic.",
-  "ui.ai_did_not_follow_the_requested_level_counts_and_parent_chil": "AI did not follow the requested level counts and parent-child structure. No nodes were created; please try again.",
   "ui.subtopic_names_must_be_unique": "Subtopic names must be unique.",
   "ui.create_subtopics_without_research": "Create subtopics without research",
   "ui.research_each_subtopic_after_creation_and_use_codex_quota": "Each new subtopic gets a shallow research pass, using AI quota",
@@ -621,7 +610,6 @@ var english = {
   "ui.create_subtopics_after_confirmation_without_running_research": "Create subtopics after confirmation without running research",
   "ui.creating_subtopics": "Creating subtopics\u2026",
   "ui.subtopics_created": "Subtopics created.",
-  "ui.failed_to_create_starter_map": "Failed to create starter map",
   "ui.current_topic_0": "Current topic: {0}",
   "ui.research_deeper": "Research deeper",
   "ui.find_answers_for_this_topic_at_your_chosen_depth": "Dig into this topic",
@@ -1449,7 +1437,6 @@ var english = {
   "note.visual_reference": "Visual reference",
   "ui.aim_preparing_clarification": "Preparing initial clarification\u2026",
   "ui.aim_answered_not_started": "Answered \xB7 research not started",
-  "log.preliminary_map_failed": "Building the preliminary map failed",
   "log.ai_split_failed": "AI split failed",
   "log.integration_directions_failed": "Integration direction suggestions failed",
   "log.child_integration_failed": "Subtopic integration failed",
@@ -1993,17 +1980,6 @@ var traditionalChinese = {
   "ui.quickly_explore_a_map": "\u5FEB\u901F\u63A2\u7D22\u5FC3\u667A\u5716",
   "ui.run_shallow_research_on_each_created_subtopic": "\u5EFA\u7ACB\u5F8C\u9010\u4E00\u6DFA\u7814\u7A76\u5B50\u8B70\u984C",
   "ui.get_expansion_directions": "\u53D6\u5F97\u5C55\u958B\u65B9\u5411",
-  "ui.create_starter_map_now": "\u76F4\u63A5\u5EFA\u7ACB\u521D\u6B65\u5FC3\u667A\u5716",
-  "ui.ai_creates_a_starter_map_at_the_chosen_size_shallow_research": "AI \u4F9D\u8A2D\u5B9A\u5EFA\u7ACB\u521D\u6B65\u5FC3\u667A\u5716\uFF1B\u53EF\u9078\u64C7\u5EFA\u7ACB\u5F8C\u6DFA\u7814\u7A76\u3002",
-  "ui.number_of_levels": "\u5C55\u958B\u5E7E\u5C64",
-  "ui.expansion_levels_exclude_current_topic": "\u53EA\u8A08\u7B97\u65B0\u5EFA\u7ACB\u7684\u5B50\u8B70\u984C\u5C64\u6578\uFF0C\u4E0D\u5305\u542B\u76EE\u524D\u8B70\u984C\u3002",
-  "ui.first_level_subtopics": "\u7B2C\u4E00\u5C64\u5B50\u8B70\u984C\u6578\u91CF",
-  "ui.children_per_parent_topic": "\u6BCF\u500B\u4E0A\u4E00\u5C64\u8B70\u984C\u5EF6\u4F38\u5E7E\u500B",
-  "ui.children_count_unused_for_one_level": "\u53EA\u5C55\u958B\u4E00\u5C64\u6642\u4E0D\u6703\u7528\u5230\u6B64\u8A2D\u5B9A\u3002",
-  "ui.topics_by_level_0_1_total": "\u6BCF\u5C64\u6578\u91CF\uFF1A{0}\uFF1B\u5171 {1} \u500B\u5B50\u8B70\u984C\u3002",
-  "ui.levels_first_level_count_and_children_per_topic_must_be_posi": "\u5C64\u6578\u8207\u7B2C\u4E00\u5C64\u6578\u91CF\u9808\u70BA\u6B63\u6574\u6578\uFF1B\u591A\u5C64\u6642\u6BCF\u500B\u8B70\u984C\u7684\u5EF6\u4F38\u6578\u91CF\u9808\u70BA\u6B63\u6574\u6578\uFF1B\u5C64\u6578\u6700\u591A 15\u3002",
-  "ui.this_would_create_0_subtopics_exceeding_the_limit_of_15_redu": "\u9810\u8A08\u5EFA\u7ACB {0} \u500B\u5B50\u8B70\u984C\uFF0C\u8D85\u904E\u4E0A\u9650 15 \u500B\u3002\u8ACB\u6E1B\u5C11\u5C64\u6578\u3001\u7B2C\u4E00\u5C64\u5B50\u8B70\u984C\u6578\uFF0C\u6216\u6BCF\u500B\u8B70\u984C\u7684\u5EF6\u4F38\u6578\u91CF\u3002",
-  "ui.ai_did_not_follow_the_requested_level_counts_and_parent_chil": "AI \u672A\u4F9D\u8A2D\u5B9A\u7522\u751F\u6BCF\u5C64\u6578\u91CF\u8207\u6BCD\u5B50\u95DC\u4FC2\uFF0C\u5C1A\u672A\u5EFA\u7ACB\u8B70\u984C\uFF1B\u8ACB\u518D\u8A66\u4E00\u6B21\u3002",
   "ui.subtopic_names_must_be_unique": "\u5B50\u8B70\u984C\u540D\u7A31\u4E0D\u80FD\u91CD\u8907\u3002",
   "ui.create_subtopics_without_research": "\u53EA\u5EFA\u7ACB\u5B50\u8B70\u984C\uFF0C\u4E0D\u57F7\u884C\u7814\u7A76",
   "ui.research_each_subtopic_after_creation_and_use_codex_quota": "\u5EFA\u7ACB\u5F8C\u6703\u9010\u4E00\u6DFA\u7814\u7A76\uFF0C\u6703\u4F7F\u7528 AI \u984D\u5EA6",
@@ -2014,7 +1990,6 @@ var traditionalChinese = {
   "ui.create_subtopics_after_confirmation_without_running_research": "\u78BA\u8A8D\u5F8C\u53EA\u5EFA\u7ACB\u5B50\u8B70\u984C\uFF0C\u4E0D\u57F7\u884C\u7814\u7A76",
   "ui.creating_subtopics": "\u6B63\u5728\u5EFA\u7ACB\u5B50\u8B70\u984C\u2026",
   "ui.subtopics_created": "\u5DF2\u5EFA\u7ACB\u5B50\u8B70\u984C\u3002",
-  "ui.failed_to_create_starter_map": "\u5EFA\u7ACB\u521D\u6B65\u5FC3\u667A\u5716\u5931\u6557",
   "ui.current_topic_0": "\u76EE\u524D\u8B70\u984C\uFF1A{0}",
   "ui.research_deeper": "\u7814\u7A76\u66F4\u6DF1",
   "ui.find_answers_for_this_topic_at_your_chosen_depth": "\u6DF1\u5165\u7814\u7A76\u9019\u500B\u8B70\u984C",
@@ -2842,7 +2817,6 @@ var traditionalChinese = {
   "note.visual_reference": "\u8996\u89BA\u53C3\u8003",
   "ui.aim_preparing_clarification": "\u6B63\u5728\u6E96\u5099\u958B\u59CB\u524D\u7684\u689D\u4EF6\u91D0\u6E05\u2026",
   "ui.aim_answered_not_started": "\u5DF2\u56DE\u7B54\u30FB\u7814\u7A76\u5C1A\u672A\u958B\u59CB",
-  "log.preliminary_map_failed": "\u5EFA\u7ACB\u521D\u6B65\u5FC3\u667A\u5716\u5931\u6557",
   "log.ai_split_failed": "AI \u62C6\u89E3\u5931\u6557",
   "log.integration_directions_failed": "\u6574\u5408\u65B9\u5411\u5EFA\u8B70\u5931\u6557",
   "log.child_integration_failed": "\u5B50\u8B70\u984C\u6574\u5408\u5931\u6557",
@@ -10814,12 +10788,6 @@ var avoid_duplicates_zh_default = "\u8ACB\u907F\u514D\u8207\u73FE\u6709\u5B50\u8
 // experiences/visual-map/steps/avoid-duplicates.en.md
 var avoid_duplicates_en_default = "Avoid duplicate or highly overlapping subtopics. If the topic is already covered, say that no new subtopics are needed; do not pad the count.\n";
 
-// experiences/visual-map/steps/direct-expansion.zh.md
-var direct_expansion_zh_default = "\u8ACB\u5EFA\u7ACB {{layers}} \u5C64\u521D\u6B65\u5730\u5716\uFF0C\u7B2C\u4E00\u5C64\u6070\u597D {{first}} \u500B\u5B50\u8B70\u984C\uFF1B\u7B2C\u4E8C\u5C64\u8D77\uFF0C\u6BCF\u500B\u4E0A\u4E00\u5C64\u8B70\u984C\u5404\u5EF6\u4F38\u6070\u597D {{children}} \u500B\u5B50\u8B70\u984C\u3002\u6BCF\u5C64\u6578\u91CF\u4F9D\u5E8F\u70BA {{counts}}\uFF0C\u7E3D\u5171 {{total}} \u500B\u3002\u7B2C\u4E00\u5C64\u7684 parentTitle \u70BA\u7A7A\u5B57\u4E32\uFF1B\u4E4B\u5F8C\u6BCF\u9805\u7684 parentTitle \u5FC5\u9808\u7B49\u65BC\u5176\u76F4\u5C6C\u6BCD\u8B70\u984C\u7684 title\uFF0C\u6BCF\u500B\u6BCD\u8B70\u984C\u90FD\u8981\u6709\u6307\u5B9A\u6578\u91CF\u7684\u5B50\u8B70\u984C\u3002title \u5728\u6574\u6279\u63D0\u6848\u4E2D\u4E0D\u53EF\u91CD\u8907\uFF0C\u4F9D\u5C64\u6578\u9806\u5E8F\u5217\u51FA\u3002\u53EA\u63D0\u51FA\u5F85\u7814\u7A76\u554F\u984C\uFF0C\u4E0D\u628A\u672A\u67E5\u8B49\u4E8B\u5BE6\u5BEB\u6210\u7D50\u8AD6\u3002\n";
-
-// experiences/visual-map/steps/direct-expansion.en.md
-var direct_expansion_en_default = "Create a preliminary map with {{layers}} levels. The first level must contain exactly {{first}} subtopics; at each later level, extend every topic in the previous level with exactly {{children}} subtopics. Counts by level: {{counts}}; total: {{total}}. First-level parentTitle must be empty; later parentTitle must equal the direct parent's title. Every parent must have the specified child count. Titles must be unique across the batch and ordered by level. Propose research questions, not unverified conclusions.\n";
-
 // experiences/visual-map/steps/existing-subtopics.zh.md
 var existing_subtopics_zh_default = "\u73FE\u6709\u76F4\u5C6C\u5B50\u8B70\u984C\uFF1A\n";
 
@@ -10868,12 +10836,6 @@ var no_summary_yet_zh_default = "\u5C1A\u7121\u6458\u8981\n";
 // experiences/visual-map/steps/no-summary-yet.en.md
 var no_summary_yet_en_default = "No summary yet\n";
 
-// experiences/visual-map/steps/preliminary-map.zh.md
-var preliminary_map_zh_default = "\u8ACB\u5EFA\u7ACB {{layers}} \u5C64\u521D\u6B65\u5730\u5716\uFF0C\u7B2C\u4E00\u5C64\u6070\u597D {{first}} \u500B\u5B50\u8B70\u984C\uFF1B\u7B2C\u4E8C\u5C64\u8D77\uFF0C\u6BCF\u500B\u4E0A\u4E00\u5C64\u8B70\u984C\u5404\u5EF6\u4F38\u6070\u597D {{children}} \u500B\u5B50\u8B70\u984C\u3002\u6BCF\u5C64\u6578\u91CF\u4F9D\u5E8F\u70BA {{counts}}\uFF0C\u7E3D\u5171 {{total}} \u500B\u3002\u7B2C\u4E00\u5C64\u7684 parentTitle \u70BA\u7A7A\u5B57\u4E32\uFF1B\u4E4B\u5F8C\u6BCF\u9805\u7684 parentTitle \u5FC5\u9808\u7B49\u65BC\u5176\u76F4\u5C6C\u6BCD\u8B70\u984C\u7684 title\uFF0C\u6BCF\u500B\u6BCD\u8B70\u984C\u90FD\u8981\u6709\u6307\u5B9A\u6578\u91CF\u7684\u5B50\u8B70\u984C\u3002title \u5728\u6574\u6279\u63D0\u6848\u4E2D\u4E0D\u53EF\u91CD\u8907\uFF0C\u4F9D\u5C64\u6578\u9806\u5E8F\u5217\u51FA\u3002\u53EA\u63D0\u51FA\u5F85\u7814\u7A76\u554F\u984C\uFF0C\u4E0D\u628A\u672A\u67E5\u8B49\u4E8B\u5BE6\u5BEB\u6210\u7D50\u8AD6\u3002\n";
-
-// experiences/visual-map/steps/preliminary-map.en.md
-var preliminary_map_en_default = "Create a preliminary map with {{layers}} levels and exactly {{first}} first-level topics, adding exactly {{children}} children to each topic at each later level. Counts by level: {{counts}}; total: {{total}}. First-level parentTitle must be empty; later parentTitle must equal the direct parent's title. Every parent must have the specified child count. Titles must be unique across the batch and ordered by level. Propose research questions, not unverified conclusions.\n";
-
 // experiences/visual-map/steps/research-topic.zh.md
 var research_topic_zh_default = "\u7814\u7A76\u300C{{title}}\u300D\uFF0C\u88DC\u8DB3\u8CC7\u8A0A\u3001\u4F86\u6E90\u8207\u4E0D\u78BA\u5B9A\u8655\u3002\n";
 
@@ -10896,7 +10858,6 @@ var synthesis_goal_en_default = "Using the direct subtopics and selected note so
 var text3 = (template) => renderTemplate(template, {});
 var pair3 = (zh, en) => ({ zh: text3(zh), en: text3(en) });
 var AVOID_DUPLICATES = pair3(avoid_duplicates_zh_default, avoid_duplicates_en_default);
-var DIRECT_EXPANSION = { zh: direct_expansion_zh_default, en: direct_expansion_en_default };
 var EXISTING_SUBTOPICS = pair3(existing_subtopics_zh_default, existing_subtopics_en_default);
 var EXPANSION_DIRECTION = pair3(expansion_direction_zh_default, expansion_direction_en_default);
 var GUIDED_EXPANSION = pair3(guided_expansion_zh_default, guided_expansion_en_default);
@@ -10905,25 +10866,16 @@ var LABEL_FULL_KNOWLEDGE = pair3(label_full_knowledge_zh_default, label_full_kno
 var LABEL_OLD_FINDINGS = pair3(label_old_findings_zh_default, label_old_findings_en_default);
 var LABEL_VISUAL_REFERENCES = pair3(label_visual_references_zh_default, label_visual_references_en_default);
 var NO_SUMMARY_YET = pair3(no_summary_yet_zh_default, no_summary_yet_en_default);
-var PRELIMINARY_MAP = { zh: preliminary_map_zh_default, en: preliminary_map_en_default };
 var RESEARCH_TOPIC = { zh: research_topic_zh_default, en: research_topic_en_default };
 var SYNTHESIS_DIRECTIONS = pair3(synthesis_directions_zh_default, synthesis_directions_en_default);
 var SYNTHESIS_GOAL = pair3(synthesis_goal_zh_default, synthesis_goal_en_default);
 var researchTopicTask = (language2, title) => renderTemplate(inLanguage(RESEARCH_TOPIC, language2), { title });
-function expansionTask(language2, existing, direction, shape) {
-  const values = shape ? {
-    layers: String(shape.layers),
-    first: String(shape.firstLayerCount),
-    children: String(shape.childrenPerParent),
-    counts: shape.counts,
-    total: shape.total
-  } : null;
-  const lead = values ? renderTemplate(inLanguage(PRELIMINARY_MAP, language2), values) : direction || inLanguage(EXPANSION_DIRECTION, language2);
-  const rules = values ? renderTemplate(inLanguage(DIRECT_EXPANSION, language2), values) : inLanguage(GUIDED_EXPANSION, language2);
+function expansionTask(language2, existing, direction) {
+  const lead = direction || inLanguage(EXPANSION_DIRECTION, language2);
   return `${lead}
 ${inLanguage(EXISTING_SUBTOPICS, language2)}
 ${existing}
-${inLanguage(AVOID_DUPLICATES, language2)} ${rules}`;
+${inLanguage(AVOID_DUPLICATES, language2)} ${inLanguage(GUIDED_EXPANSION, language2)}`;
 }
 var synthesisDirectionsTask = (language2) => inLanguage(SYNTHESIS_DIRECTIONS, language2);
 var synthesisGoalTask = (language2) => inLanguage(SYNTHESIS_GOAL, language2);
@@ -15338,55 +15290,6 @@ function reasoningLabel(level) {
 }
 var PartialChildBatchError = class extends Error {
 };
-function quickShape(layers, firstLayerCount, childrenPerParent) {
-  if (![layers, firstLayerCount].every(Number.isSafeInteger) || layers < 1 || layers > 15 || firstLayerCount < 1 || layers > 1 && (!Number.isSafeInteger(childrenPerParent) || childrenPerParent < 1))
-    throw new Error(t("ui.levels_first_level_count_and_children_per_topic_must_be_posi"));
-  const counts = [];
-  let count = BigInt(firstLayerCount), total2 = BigInt(0);
-  for (let level = 0; level < layers; level++) {
-    counts.push(count);
-    total2 += count;
-    if (level + 1 < layers) count *= BigInt(childrenPerParent);
-  }
-  return { counts, total: total2 };
-}
-function quickSuggestions(items, layers, firstLayerCount, childrenPerParent) {
-  var _a;
-  const shape = quickShape(layers, firstLayerCount, childrenPerParent);
-  if (shape.total > BigInt(15))
-    throw new Error(t("ui.this_would_create_0_subtopics_exceeding_the_limit_of_15_redu", shape.total.toString()));
-  const invalid2 = () => {
-    throw new Error(t("ui.ai_did_not_follow_the_requested_level_counts_and_parent_chil"));
-  };
-  const byTitle = /* @__PURE__ */ new Map();
-  for (const item of items) {
-    if (!((_a = item.title) == null ? void 0 : _a.trim()) || byTitle.has(item.title.trim())) invalid2();
-    byTitle.set(item.title.trim(), item);
-  }
-  const grouped = [];
-  let previous = /* @__PURE__ */ new Set();
-  for (let level = 0; level < layers; level++) {
-    const current = items.filter(
-      (item) => {
-        var _a2, _b;
-        return level === 0 ? !((_a2 = item.parentTitle) == null ? void 0 : _a2.trim()) : previous.has(((_b = item.parentTitle) == null ? void 0 : _b.trim()) || "");
-      }
-    );
-    if (current.length !== Number(shape.counts[level])) invalid2();
-    if (level > 0 && [...previous].some(
-      (title) => current.filter((item) => {
-        var _a2;
-        return ((_a2 = item.parentTitle) == null ? void 0 : _a2.trim()) === title;
-      }).length !== childrenPerParent
-    ))
-      invalid2();
-    grouped.push(current);
-    previous = new Set(current.map((item) => item.title.trim()));
-  }
-  const selected = grouped.flat();
-  if (selected.length !== items.length) invalid2();
-  return selected;
-}
 var NextStepModal = class extends import_obsidian14.Modal {
   constructor(app, topic, depth, childrenCount, pendingCount, plugin, research, expand, synthesize, modelSettings, selectionFlow) {
     super(app);
@@ -15869,7 +15772,7 @@ var NextStepModal = class extends import_obsidian14.Modal {
     (_a = status()) == null ? void 0 : _a.setText(t("ui.quick_outline_review_hint"));
   }
   onOpen() {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x;
     this.modalEl.addClass("vam-next-modal");
     const selection = this.selectionFlow;
     this.titleEl.setText(t(selection ? "ui.confirm_topic_synthesis" : "ui.how_would_you_like_to_explore_next"));
@@ -15950,8 +15853,7 @@ var NextStepModal = class extends import_obsidian14.Modal {
           var _a2, _b2;
           return (_b2 = (_a2 = this.modelSettings) == null ? void 0 : _a2.stop) == null ? void 0 : _b2.call(_a2);
         });
-    } else if ((_e = this.modelSettings) == null ? void 0 : _e.quickError)
-      this.contentEl.createEl("p", { cls: "vam-hint", text: this.modelSettings.quickError });
+    }
     const summaryEl = this.contentEl.createEl("p", { cls: "vam-next-summary", attr: { "aria-live": "polite" } });
     const research = this.contentEl.createDiv("vam-next-research");
     const expandPanel = this.contentEl.createDiv("vam-next-research vam-next-choice");
@@ -16088,13 +15990,13 @@ var NextStepModal = class extends import_obsidian14.Modal {
     const modeHint = expandPanel.createEl("p", {
       text: this.pendingCount ? t("ui.you_have_pending_proposals_review_them_here") : t("ui.ai_suggests_one_level_of_subtopics_review_or_edit_them_befor")
     });
-    const quickOutline = (_f = this.modelSettings) == null ? void 0 : _f.quickOutline;
+    const quickOutline = (_e = this.modelSettings) == null ? void 0 : _e.quickOutline;
     const quickLimits = adjustFor.expand.createDiv("vam-quick-limits is-hidden");
     const presetLabel = quickLimits.createEl("label", { cls: "vam-field" });
     presetLabel.createSpan({ text: t("ui.outline_ai_preset") });
     const presetSelect = presetLabel.createEl("select");
     presetSelect.setAttr("aria-label", t("ui.outline_ai_preset"));
-    for (const preset of (_g = quickOutline == null ? void 0 : quickOutline.presets) != null ? _g : [])
+    for (const preset of (_f = quickOutline == null ? void 0 : quickOutline.presets) != null ? _f : [])
       presetSelect.createEl("option", { value: preset.id, text: preset.name });
     quickLimits.createEl("p", { text: t("ui.quick_outline_hint"), cls: "vam-hint" });
     const shallowLabel = adjustFor.expand.createEl("label", { cls: "vam-field vam-next-toggle" });
@@ -16114,8 +16016,8 @@ var NextStepModal = class extends import_obsidian14.Modal {
       text: this.pendingCount ? t("ui.review_ai_subtopic_suggestions") : t("ui.get_expansion_directions"),
       cls: "mod-cta"
     });
-    expandButton.dataset.topicRun = (_h = expandButton.textContent) != null ? _h : "";
-    expandButton.disabled = !!((_i = this.modelSettings) == null ? void 0 : _i.running);
+    expandButton.dataset.topicRun = (_g = expandButton.textContent) != null ? _g : "";
+    expandButton.disabled = !!((_h = this.modelSettings) == null ? void 0 : _h.running);
     expandPanel.createEl("p", { cls: "vam-next-status", attr: { "aria-live": "polite" } });
     expandPanel.createDiv("vam-next-result");
     const consumed = () => {
@@ -16138,7 +16040,6 @@ var NextStepModal = class extends import_obsidian14.Modal {
             outputLanguage: languageSelect.value,
             requirements: this.requirements(),
             researchMode: (selected == null ? void 0 : selected.webSearch) ? "research" : "local",
-            multiLayer,
             shallowResearch: shallow.checked,
             researchDepth: "fast",
             visualMode: shallow.checked && (selected == null ? void 0 : selected.imageSearch) ? "auto" : "off",
@@ -16176,7 +16077,6 @@ var NextStepModal = class extends import_obsidian14.Modal {
               else this.failedAi(expandPanel, expandButton, message);
               if (retryable === false) expandButton.disabled = true;
             },
-            () => this.close(),
             () => {
               this.taskSignal = void 0;
               this.taskController = void 0;
@@ -16187,7 +16087,7 @@ var NextStepModal = class extends import_obsidian14.Modal {
         multiLayer || !this.pendingCount
       );
     });
-    const pendingDirections = selection ? selection.pending : (_j = this.modelSettings) == null ? void 0 : _j.synthesisPending;
+    const pendingDirections = selection ? selection.pending : (_i = this.modelSettings) == null ? void 0 : _i.synthesisPending;
     synthesizePanel.createEl("p", {
       text: selection ? t("ui.synthesize_0_source_topics_ai_reads_their_full_knowledge_and", selection.names.length) : this.childrenCount ? t("ui.ai_suggests_synthesis_angles_first_the_parent_topic_changes") : t("ui.this_topic_has_no_direct_subtopics_you_can_choose_other_note")
     });
@@ -16202,7 +16102,7 @@ var NextStepModal = class extends import_obsidian14.Modal {
     }
     synthesisContentSelect = renderSynthesisContent(
       adjustFor.synthesize,
-      (_n = (_m = selection == null ? void 0 : selection.names) != null ? _m : (_l = (_k = this.modelSettings) == null ? void 0 : _k.sources) == null ? void 0 : _l.synthesisTopics) != null ? _n : []
+      (_m = (_l = selection == null ? void 0 : selection.names) != null ? _l : (_k = (_j = this.modelSettings) == null ? void 0 : _j.sources) == null ? void 0 : _k.synthesisTopics) != null ? _m : []
     );
     const stageTwoHint = adjustFor.synthesize.createEl("p", {
       cls: "vam-hint vam-next-synth-fixed",
@@ -16213,10 +16113,10 @@ var NextStepModal = class extends import_obsidian14.Modal {
     const synthStatus = synthesizePanel.createEl("p", { cls: "vam-next-status", attr: { "aria-live": "polite" } });
     const synthResult = synthesizePanel.createDiv("vam-next-result");
     const suggestButton = actions.createEl("button", { text: t("ui.get_synthesis_suggestions_first"), cls: "mod-cta" });
-    suggestButton.dataset.topicRun = (_o = suggestButton.textContent) != null ? _o : "";
+    suggestButton.dataset.topicRun = (_n = suggestButton.textContent) != null ? _n : "";
     const skipButton = actions.createEl("button", { text: t("ui.synthesis_skip_suggestions") });
     const draftButton = actions.createEl("button", { text: t("ui.get_synthesis_draft"), cls: "mod-cta" });
-    for (const button of [suggestButton, skipButton, draftButton]) button.disabled = !!((_p = this.modelSettings) == null ? void 0 : _p.running);
+    for (const button of [suggestButton, skipButton, draftButton]) button.disabled = !!((_o = this.modelSettings) == null ? void 0 : _o.running);
     let stage = pendingDirections ? "directions" : "setup";
     let frozenSummary = "";
     const syncSynthesisStage = () => {
@@ -16405,13 +16305,13 @@ var NextStepModal = class extends import_obsidian14.Modal {
     languageSelect.setAttr("aria-label", t("ui.output_language"));
     const templateId = templateField(
       compactSettings,
-      (_r = (_q = this.info) == null ? void 0 : _q.templates) != null ? _r : [],
-      t("ui.detail_template_keep_0", (_t = (_s = this.info) == null ? void 0 : _s.currentTemplate) != null ? _t : "")
+      (_q = (_p = this.info) == null ? void 0 : _p.templates) != null ? _q : [],
+      t("ui.detail_template_keep_0", (_s = (_r = this.info) == null ? void 0 : _r.currentTemplate) != null ? _s : "")
     );
     const toneId = toneField(
       compactSettings,
-      (_v = (_u = this.info) == null ? void 0 : _u.tones) != null ? _v : [],
-      t("ui.tone_keep_0", (_x = (_w = this.info) == null ? void 0 : _w.currentTone) != null ? _x : ""),
+      (_u = (_t = this.info) == null ? void 0 : _t.tones) != null ? _u : [],
+      t("ui.tone_keep_0", (_w = (_v = this.info) == null ? void 0 : _v.currentTone) != null ? _w : ""),
       (selected, refreshed) => {
         const settings = this.plugin.settings;
         const choices = () => listPresets(settings.promptPresets, "tone", settings.language).map(({ id, name }) => ({ id, name }));
@@ -16459,7 +16359,7 @@ var NextStepModal = class extends import_obsidian14.Modal {
     else checkName();
     show(initialMode);
     (titleInput != null ? titleInput : cardFor[initialMode]).focus();
-    ((_y = this.renderModelSettings(adjustBody)) != null ? _y : adjustBody).createEl("p", {
+    ((_x = this.renderModelSettings(adjustBody)) != null ? _x : adjustBody).createEl("p", {
       text: t("ui.if_an_ai_task_exceeds_3_minutes_vam_attempts_to_interrupt_it"),
       cls: "vam-hint"
     });
@@ -26389,7 +26289,7 @@ ${request.requirements}` : preset.text,
     }
   }
   renderNode(node) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C, _D, _E;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C, _D;
     if (!this.stageEl) return;
     const note = this.notes.get(node.id), card = this.stageEl.createDiv({
       cls: `vam-node${node.id === this.selected || this.multiSelected.has(node.id) ? " is-selected" : ""}`
@@ -26499,21 +26399,15 @@ ${request.requirements}` : preset.text,
         return (_a2 = this.plugin.activeTasks.get(node.path)) == null ? void 0 : _a2.abort();
       });
     }
-    const quickError = (_m = this.plugin.quickExpandFailures) == null ? void 0 : _m.get(node.path);
-    if (quickError && !active) {
-      const badge = header.createSpan({ cls: "vam-status vam-status-error", text: t("ui.expansion_failed") });
-      badge.setAttr("title", quickError);
-      errorDetails.push(quickError);
-    }
-    const pendingCount = (_o = (_n = this.plugin.pendingSuggestions.get(node.path)) == null ? void 0 : _n.length) != null ? _o : 0;
-    if (pendingCount && !this.builtIn && !this.integrationMode && !((_p = this.map) == null ? void 0 : _p.aim))
+    const pendingCount = (_n = (_m = this.plugin.pendingSuggestions.get(node.path)) == null ? void 0 : _m.length) != null ? _n : 0;
+    if (pendingCount && !this.builtIn && !this.integrationMode && !((_o = this.map) == null ? void 0 : _o.aim))
       this.button(
         header,
         t("ui.view_0_expansion_suggestions", pendingCount),
         () => this.openNodePanel(node, "proposals")
       ).addClass("vam-badge-new");
     const synthesis = this.synthesisTasks.get(node.path);
-    if (synthesis && synthesis.mapPath === this.path && !this.builtIn && !this.integrationMode && !((_q = this.map) == null ? void 0 : _q.aim)) {
+    if (synthesis && synthesis.mapPath === this.path && !this.builtIn && !this.integrationMode && !((_p = this.map) == null ? void 0 : _p.aim)) {
       if (synthesis.state === "running") {
         if (synthesis.progress) header.createSpan({ cls: "vam-status vam-status-running", text: synthesis.progress });
         this.button(header, t("ui.stop_research"), () => synthesis.controller.abort());
@@ -26537,7 +26431,7 @@ ${request.requirements}` : preset.text,
     }
     const tools = header.createDiv("vam-node-tools");
     if (!this.builtIn && !this.integrationMode) {
-      if (!((_r = this.map) == null ? void 0 : _r.aim)) {
+      if (!((_q = this.map) == null ? void 0 : _q.aim)) {
         const ai = this.iconButton(
           tools,
           "sparkles",
@@ -26570,7 +26464,7 @@ ${request.requirements}` : preset.text,
         this.iconButton(tools, "x", t("ui.remove_from_map"), () => this.confirmRemoveNode(node)).addClass(
           "vam-node-tool"
         );
-      if (((_s = this.map) == null ? void 0 : _s.aim) && node.aimKind === "synthesis" && this.map.aim.branches.some((branch) => branch.results.some((result) => result.nodeId === node.id))) {
+      if (((_r = this.map) == null ? void 0 : _r.aim) && node.aimKind === "synthesis" && this.map.aim.branches.some((branch) => branch.results.some((result) => result.nodeId === node.id))) {
         const next = this.button(
           tools,
           t("ui.aim_new_question"),
@@ -26604,23 +26498,23 @@ ${request.requirements}` : preset.text,
       collapse.addClass("vam-collapse-button", ...node.collapsed ? ["is-collapsed"] : []);
       collapse.setAttr("aria-expanded", String(!node.collapsed));
     }
-    if (!this.builtIn && !this.integrationMode && !((_t = this.map) == null ? void 0 : _t.aim)) {
+    if (!this.builtIn && !this.integrationMode && !((_s = this.map) == null ? void 0 : _s.aim)) {
       const add = this.button(card, "+", () => this.enqueue(() => this.addNode(node)));
       add.addClass("vam-add-child");
       add.setAttr("aria-label", t("ui.add_subtopic_manually"));
     }
-    const title = card.createEl("h3", { text: (_u = note == null ? void 0 : note.title) != null ? _u : node.path, cls: "vam-card-title" });
-    title.setAttr("title", (_v = note == null ? void 0 : note.title) != null ? _v : node.path);
+    const title = card.createEl("h3", { text: (_t = note == null ? void 0 : note.title) != null ? _t : node.path, cls: "vam-card-title" });
+    title.setAttr("title", (_u = note == null ? void 0 : note.title) != null ? _u : node.path);
     if (!note || !isPlaceholder(note.summary))
       card.createEl("p", {
         cls: "vam-card-summary",
-        text: (_w = note == null ? void 0 : note.summary) != null ? _w : t("ui.the_file_was_moved_or_deleted_you_can_remove_this_node_from")
+        text: (_v = note == null ? void 0 : note.summary) != null ? _v : t("ui.the_file_was_moved_or_deleted_you_can_remove_this_node_from")
       });
     if (errorDetails.length) {
       const error = card.createEl("p", { cls: "vam-card-error", text: errorDetails[0] });
       error.setAttr("title", errorDetails.join("\n"));
     }
-    if (node.aimKind === "conclusion" && ((_x = this.map) == null ? void 0 : _x.aim) && !this.builtIn) {
+    if (node.aimKind === "conclusion" && ((_w = this.map) == null ? void 0 : _w.aim) && !this.builtIn) {
       const branch = this.map.aim.branches.find((item) => item.results.some((result) => result.nodeId === node.id));
       const hasFollowup = this.map.nodes.some((item) => item.parentId === node.id && item.aimKind === "question");
       if (branch && !hasFollowup && countAimAnsweredQuestions(this.map, branch.id) < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION) {
@@ -26633,7 +26527,7 @@ ${request.requirements}` : preset.text,
         ).addClass("mod-cta");
       }
     }
-    if (node.aimKind === "topic" && ((_y = this.map) == null ? void 0 : _y.aim) && !this.map.nodes.some((item) => item.aimKind === "question")) {
+    if (node.aimKind === "topic" && ((_x = this.map) == null ? void 0 : _x.aim) && !this.map.nodes.some((item) => item.aimKind === "question")) {
       const initialBranch = this.map.aim.branches.find((item) => item.questionNodeId === node.id && !item.parentBranchId);
       const initialRuns = initialBranch ? this.map.aim.runs.filter((item) => item.branchId === initialBranch.id) : [];
       const activeInitialRun = initialRuns.some((run) => {
@@ -26669,11 +26563,11 @@ ${request.requirements}` : preset.text,
         );
       }
     }
-    if (node.aimKind === "question" && ((_z = this.map) == null ? void 0 : _z.aim)) {
+    if (node.aimKind === "question" && ((_y = this.map) == null ? void 0 : _y.aim)) {
       const branch = this.map.aim.branches.find((item) => item.questionNodeId === node.id);
       if (branch) {
         this.renderAimFailure(card, branch);
-        const labels = (_B = (_A = node.aimQuestion) == null ? void 0 : _A.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _B : branch.answerSnapshot.selections;
+        const labels = (_A = (_z = node.aimQuestion) == null ? void 0 : _z.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _A : branch.answerSnapshot.selections;
         const answer = [...labels, branch.answerSnapshot.freeText].filter(Boolean).join(" \u2014 ");
         card.createEl("p", {
           cls: "vam-aim-answer-snapshot",
@@ -26716,11 +26610,11 @@ ${request.requirements}` : preset.text,
         }
       }
     }
-    if (node.aimKind === "answer" && ((_C = this.map) == null ? void 0 : _C.aim)) {
+    if (node.aimKind === "answer" && ((_B = this.map) == null ? void 0 : _B.aim)) {
       const branch = this.map.aim.branches.find((item) => item.answerNodeId === node.id);
       const question = branch && this.map.nodes.find((item) => item.id === branch.questionNodeId);
       if (branch) {
-        const labels = (_E = (_D = question == null ? void 0 : question.aimQuestion) == null ? void 0 : _D.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _E : branch.answerSnapshot.selections;
+        const labels = (_D = (_C = question == null ? void 0 : question.aimQuestion) == null ? void 0 : _C.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _D : branch.answerSnapshot.selections;
         const answer = [...labels, branch.answerSnapshot.freeText].filter(Boolean).join(" \u2014 ");
         card.createEl("p", {
           cls: "vam-aim-answer-snapshot",
@@ -27142,11 +27036,7 @@ ${request.requirements}` : preset.text,
             accepted
           );
         },
-        (options, direction, found, failed, created, accepted) => {
-          if (!options.multiLayer)
-            return this.proposeChildren(node, options, direction, found, failed, false, created, accepted);
-          return this.startQuickExpansion(node, options, direction, failed, created, accepted);
-        },
+        (options, direction, found, failed, accepted) => this.proposeChildren(node, options, direction, found, failed, accepted),
         (options, direction, failed, accepted, observer) => this.startSynthesis(node, options, direction, failed, accepted, observer),
         {
           model: note.model,
@@ -27160,7 +27050,6 @@ ${request.requirements}` : preset.text,
             var _a2;
             return (_a2 = this.plugin.activeTasks.get(node.path)) == null ? void 0 : _a2.abort();
           } : void 0,
-          quickError: this.plugin.quickExpandFailures.get(node.path),
           quickOutline: this.quickOutline(node),
           structureReview: this.structureReviewEntry(node),
           sources: sources2,
@@ -27534,26 +27423,8 @@ ${request.requirements}` : preset.text,
     if (this.map) this.map.viewport.zoom = Math.max(this.map.viewport.zoom, 0.7);
     this.focusNode(node);
   }
-  startQuickExpansion(parent, options, direction, failed, created, accepted) {
-    if (this.plugin.running.has(parent.path) || this.plugin.quickExpandPending.has(parent.path)) {
-      failed(t("ui.ai_running_ai"));
-      return Promise.resolve();
-    }
-    this.plugin.quickExpandFailures.delete(parent.path);
-    this.plugin.quickExpandPending.add(parent.path);
-    this.render();
-    return this.proposeChildren(parent, options, direction, void 0, failed, true, created, accepted).catch((error) => {
-      this.plugin.quickExpandFailures.set(parent.path, error instanceof Error ? error.message : String(error));
-      throw error;
-    }).finally(() => {
-      var _a;
-      if (((_a = this.plugin.expansionBatches.get(parent.path)) == null ? void 0 : _a.status) !== "running")
-        this.plugin.quickExpandPending.delete(parent.path);
-      this.render();
-    });
-  }
-  async proposeChildren(parent, options, direction = "", found, failed, direct = false, created, acceptedCallback) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s;
+  async proposeChildren(parent, options, direction = "", found, failed, acceptedCallback) {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i;
     if (this.plugin.expansionCoordinator.isRunning(parent.path)) {
       failed == null ? void 0 : failed(t("ui.ai_running_ai"));
       return;
@@ -27606,13 +27477,12 @@ ${request.requirements}` : preset.text,
           await this.startShallowResearch(parent, createdNodes, researchOptions);
       });
     };
-    if ((pending == null ? void 0 : pending.length) && !direct) {
+    if (pending == null ? void 0 : pending.length) {
       if (options) {
-        if ((_a = options.shallowResearch) != null ? _a : options.multiLayer)
-          this.plugin.pendingResearchOptions.set(parent.path, this.researchChoices(options));
+        if (options.shallowResearch) this.plugin.pendingResearchOptions.set(parent.path, this.researchChoices(options));
         else this.plugin.pendingResearchOptions.delete(parent.path);
       }
-      present(options && !options.multiLayer ? pending.filter((item) => !item.parentTitle) : pending);
+      present(options ? pending.filter((item) => !item.parentTitle) : pending);
       return;
     }
     if (this.plugin.running.has(parent.path)) {
@@ -27641,34 +27511,15 @@ ${request.requirements}` : preset.text,
     this.plugin.quickExpandPending.add(parent.path);
     this.plugin.activeTasks.set(parent.path, controller);
     this.render();
-    let building = false;
     try {
       const note = await this.plugin.repo.readNote(parent.path);
       if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
-      const targetMapPath = this.path, targetMapId = (_b = this.map) == null ? void 0 : _b.id;
-      const originalChildren = (_d = (_c = this.map) == null ? void 0 : _c.nodes.filter((item) => item.parentId === parent.id).map((item) => item.id).sort().join("|")) != null ? _d : "";
-      const outputLanguage = (_e = options == null ? void 0 : options.outputLanguage) != null ? _e : this.plugin.settings.language;
-      const existing = ((_f = this.map) == null ? void 0 : _f.nodes.filter((item) => item.parentId === parent.id).map((item) => {
+      const outputLanguage = (_a = options == null ? void 0 : options.outputLanguage) != null ? _a : this.plugin.settings.language;
+      const existing = ((_b = this.map) == null ? void 0 : _b.nodes.filter((item) => item.parentId === parent.id).map((item) => {
         const child = this.notes.get(item.id);
         return `- ${(child == null ? void 0 : child.title) || item.path}: ${(child == null ? void 0 : child.summary) || noSummaryYet(outputLanguage)}`;
       }).join("\n")) || inLanguage(NONE, outputLanguage);
-      const layers = (_g = options == null ? void 0 : options.layers) != null ? _g : 2, firstLayerCount = (_h = options == null ? void 0 : options.firstLayerCount) != null ? _h : 3, childrenPerParent = layers === 1 ? 1 : (_i = options == null ? void 0 : options.childrenPerParent) != null ? _i : 2;
-      const shape = direct ? quickShape(layers, firstLayerCount, childrenPerParent) : null;
-      const effectiveLayers = (_j = shape == null ? void 0 : shape.counts.length) != null ? _j : layers;
-      if (shape && shape.total > BigInt(15))
-        throw new Error(t("ui.this_would_create_0_subtopics_exceeding_the_limit_of_15_redu", shape.total.toString()));
-      const task = expansionTask(
-        outputLanguage,
-        existing,
-        direction,
-        shape ? {
-          layers: effectiveLayers,
-          firstLayerCount,
-          childrenPerParent,
-          counts: shape.counts.join(outputLanguage === "en" ? ", " : "\u3001"),
-          total: shape.total.toString()
-        } : null
-      );
+      const task = expansionTask(outputLanguage, existing, direction);
       const result = await this.plugin.askModel(
         withThinkingOrigin(
           {
@@ -27682,8 +27533,8 @@ ${request.requirements}` : preset.text,
             outputLanguage: options == null ? void 0 : options.outputLanguage,
             ...this.toneField(note, options),
             mode: "decompose",
-            researchMode: (_k = options == null ? void 0 : options.researchMode) != null ? _k : "research",
-            researchDepth: (_l = options == null ? void 0 : options.researchDepth) != null ? _l : note.researchDepth,
+            researchMode: (_c = options == null ? void 0 : options.researchMode) != null ? _c : "research",
+            researchDepth: (_d = options == null ? void 0 : options.researchDepth) != null ? _d : note.researchDepth,
             visualMode: "off"
           },
           note
@@ -27696,93 +27547,39 @@ ${request.requirements}` : preset.text,
       );
       if (!accepted) acceptDispatch();
       if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
-      const suggestions = direct ? quickSuggestions(result.suggestions, effectiveLayers, firstLayerCount, childrenPerParent) : result.suggestions.filter((item) => !item.parentTitle).slice(0, 7);
-      if (!direct && suggestions.length === 0) {
+      const suggestions = result.suggestions.filter((item) => !item.parentTitle).slice(0, 7);
+      if (suggestions.length === 0) {
         const message = result.detail.trim() || t("ui.ai_does_not_recommend_decomposition_or_did_not_propose_3_to");
         if (failed) failed(message);
         else new import_obsidian19.Notice(message);
         return;
       }
-      if (direct) {
-        building = true;
-        let batchFailure = null;
-        let createdNodes = [];
-        await this.plugin.mutate(async () => {
-          var _a2, _b2, _c2, _d2;
-          if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
-          try {
-            const currentParent = (_a2 = this.map) == null ? void 0 : _a2.nodes.find((item) => item.id === parent.id && item.path === parent.path);
-            const currentChildren = (_c2 = (_b2 = this.map) == null ? void 0 : _b2.nodes.filter((item) => item.parentId === parent.id).map((item) => item.id).sort().join("|")) != null ? _c2 : "";
-            if (this.path !== targetMapPath || ((_d2 = this.map) == null ? void 0 : _d2.id) !== targetMapId || !currentParent || currentChildren !== originalChildren)
-              throw new Error(t("ui.the_map_or_parent_topic_changed_while_ai_was_running_no_subt"));
-            const currentNote = await this.plugin.repo.readNote(parent.path);
-            const version = (value) => JSON.stringify([
-              value.title,
-              value.summary,
-              value.rules,
-              value.detail,
-              value.prompt,
-              value.model,
-              value.reasoning,
-              value.sourcePaths,
-              value.referencePaths,
-              value.thinkingOrigin
-            ]);
-            if (version(currentNote) !== version(note))
-              throw new Error(t("ui.the_map_or_parent_topic_changed_while_ai_was_running_no_subt"));
-            createdNodes = await this.createChildBatch(
-              currentParent,
-              suggestions,
-              (options == null ? void 0 : options.shallowResearch) ? { ...options, signal: controller.signal } : void 0,
-              controller.signal,
-              options == null ? void 0 : options.detailTemplateId
-            );
-          } catch (error) {
-            batchFailure = error instanceof Error ? error : new Error(typeof error === "string" ? error : t("ui.failed_to_create_starter_map"));
-          }
-        });
-        const batchError = batchFailure;
-        if (batchError) throw batchError;
-        if ((options == null ? void 0 : options.shallowResearch) && createdNodes.length)
-          await this.startShallowResearch(parent, createdNodes, { ...options, signal: controller.signal });
+      const latest = await this.plugin.repo.readNote(parent.path);
+      if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
+      if (latest.thinkingOrigin !== note.thinkingOrigin)
+        throw new Error(t("ui.the_topic_changed_so_the_outdated_ai_result_was_not_saved"));
+      const pendingItems = suggestions.map((item) => ({
+        ...item,
+        thinkingOriginBaseline: originBaseline(note.thinkingOrigin)
+      }));
+      this.plugin.pendingSuggestions.set(parent.path, pendingItems);
+      await ((_f = (_e = this.plugin.pendingSuggestions).flush) == null ? void 0 : _f.call(_e));
+      if (controller.signal.aborted) {
         this.plugin.pendingSuggestions.delete(parent.path);
-        this.plugin.pendingResearchOptions.delete(parent.path);
-        (_m = this.plugin.quickExpandFailures) == null ? void 0 : _m.delete(parent.path);
-        created == null ? void 0 : created();
-      } else {
-        const latest = await this.plugin.repo.readNote(parent.path);
-        if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
-        if (latest.thinkingOrigin !== note.thinkingOrigin)
-          throw new Error(t("ui.the_topic_changed_so_the_outdated_ai_result_was_not_saved"));
-        const pendingItems = suggestions.map((item) => ({
-          ...item,
-          thinkingOriginBaseline: originBaseline(note.thinkingOrigin)
-        }));
-        this.plugin.pendingSuggestions.set(parent.path, pendingItems);
-        await ((_o = (_n = this.plugin.pendingSuggestions).flush) == null ? void 0 : _o.call(_n));
-        if (controller.signal.aborted) {
-          this.plugin.pendingSuggestions.delete(parent.path);
-          await ((_q = (_p = this.plugin.pendingSuggestions).flush) == null ? void 0 : _q.call(_p));
-          throw new DOMException("Aborted", "AbortError");
-        }
-        if (options == null ? void 0 : options.shallowResearch)
-          this.plugin.pendingResearchOptions.set(parent.path, this.researchChoices(options));
-        else (_r = this.plugin.pendingResearchOptions) == null ? void 0 : _r.delete(parent.path);
-        present(pendingItems);
+        await ((_h = (_g = this.plugin.pendingSuggestions).flush) == null ? void 0 : _h.call(_g));
+        throw new DOMException("Aborted", "AbortError");
       }
+      if (options == null ? void 0 : options.shallowResearch) this.plugin.pendingResearchOptions.set(parent.path, this.researchChoices(options));
+      else (_i = this.plugin.pendingResearchOptions) == null ? void 0 : _i.delete(parent.path);
+      present(pendingItems);
     } catch (error) {
-      if (building && error instanceof PartialChildBatchError) await this.clearPartialSuggestions(parent.path, error);
       const partial = error instanceof PartialChildBatchError;
       const currentBatch = this.plugin.expansionBatches.get(parent.path);
       const stoppedBatch = currentBatch !== previousBatch && (currentBatch == null ? void 0 : currentBatch.status) === "stopped";
       const cancelled = !partial && (controller.signal.aborted || stoppedBatch);
       if (!cancelled) {
         console.error("Visual Agent Map AI split", error);
-        const message = this.plugin.recordFailure(
-          t(building ? "log.preliminary_map_failed" : "log.ai_split_failed"),
-          error
-        );
-        if (direct) (_s = this.plugin.quickExpandFailures) == null ? void 0 : _s.set(parent.path, message);
+        const message = this.plugin.recordFailure(t("log.ai_split_failed"), error);
         if (failed) failed(message, !partial);
         else new import_obsidian19.Notice(message);
       }
@@ -34331,7 +34128,6 @@ var VisualAgentMapPlugin = class extends import_obsidian26.Plugin {
     __publicField(this, "ready", Promise.resolve());
     __publicField(this, "running", /* @__PURE__ */ new Set());
     __publicField(this, "quickExpandPending", /* @__PURE__ */ new Set());
-    __publicField(this, "quickExpandFailures", /* @__PURE__ */ new Map());
     __publicField(this, "activeTasks", /* @__PURE__ */ new Map());
     __publicField(this, "expansionBatches", /* @__PURE__ */ new Map());
     __publicField(this, "expansionCoordinator", new ShallowExpansionCoordinator(this.activeTasks, this.expansionBatches));

@@ -210,7 +210,7 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   const modelSettings = { model: 'gpt-test', modelSource: 'workspace', reasoning: 'low', save: async () => {}, sources: plugin.sources };
   const modal = new NextStepModal({}, 'Parent', 'normal', 1, 1, plugin,
     async (options, _focus, _done, _failed, accepted) => { researchOptions = options; accepted(); },
-    async (options, _direction, found, _failed, _createdMap, accepted) => { expandOptions = options; expandCalls++; if (options.multiLayer) { quickOptions = options; accepted(); } else found([{ title: 'Transport', task: 'Compare', contribution: '', parentTitle: '' }], async items => { created = items; }); },
+    async (options, _direction, found) => { expandOptions = options; expandCalls++; found([{ title: 'Transport', task: 'Compare', contribution: '', parentTitle: '' }], async items => { created = items; }); },
     async (options, direction) => { synthCalls++; synthOptions = options; assert.equal(direction, null); }, modelSettings);
   modal.onOpen();
   assert.ok(find(modal.contentEl, item => /3 minutes.*avoid prolonged resource use/.test(item.text ?? '')));
@@ -389,7 +389,7 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   assert.equal(expandCalls, expandCallsBeforeQuick, 'the old multi-layer expansion is not called'); assert.equal(quickCreated, undefined); assert.equal(closed, 1);
   button(quickModal.contentEl, 'Create subtopics (2)').click(); await tick(); await tick();
   assert.deepEqual(plain(quickCreated.map(node => [node.title, node.parent])), [['Food', null], ['Breakfast', 0]]);
-  assert.equal(quickOptions.multiLayer, true); assert.equal(quickOptions.shallowResearch, false); assert.equal(closed, 2);
+  assert.equal(quickOptions.researchDepth, 'fast'); assert.equal(quickOptions.shallowResearch, false); assert.equal(closed, 2);
   assert.equal(quickOptions.researchMode, 'local'); assert.equal(quickOptions.referenceGroups.length, 0); assert.equal(quickOptions.outputLanguage, 'zh-TW');
   // A failure while creating keeps the dialog open with the reason, and the review can be confirmed again.
   const partial = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => {}, async () => {}, { ...modelSettings, quickOutline: quickOutline(async () => { throw new Error('部分子議題已建立，請重新開啟視窗。'); }) });

@@ -103,8 +103,6 @@ import {
   PartialChildBatchError,
   AgentTaskHandle,
   TaskSourceSettings,
-  quickShape,
-  quickSuggestions,
   NextStepModal,
   type QuickOutline,
   type SynthesisObserver,
@@ -3443,12 +3441,6 @@ export class VisualAgentMapView extends ItemView {
     if (this.plugin.quickExpandPending?.has(node.path) && batch?.status !== "running") {
       this.button(header, t("ui.stop_research"), () => this.plugin.activeTasks.get(node.path)?.abort());
     }
-    const quickError = this.plugin.quickExpandFailures?.get(node.path);
-    if (quickError && !active) {
-      const badge = header.createSpan({ cls: "vam-status vam-status-error", text: t("ui.expansion_failed") });
-      badge.setAttr("title", quickError);
-      errorDetails.push(quickError);
-    }
     const pendingCount = this.plugin.pendingSuggestions.get(node.path)?.length ?? 0;
     if (pendingCount && !this.builtIn && !this.integrationMode && !this.map?.aim)
       this.button(header, t("ui.view_0_expansion_suggestions", pendingCount), () =>
@@ -4114,11 +4106,8 @@ export class VisualAgentMapView extends ItemView {
             accepted
           );
         },
-        (options, direction, found, failed, created, accepted) => {
-          if (!options.multiLayer)
-            return this.proposeChildren(node, options, direction, found, failed, false, created, accepted);
-          return this.startQuickExpansion(node, options, direction, failed, created, accepted);
-        },
+        (options, direction, found, failed, accepted) =>
+          this.proposeChildren(node, options, direction, found, failed, accepted),
         (options, direction, failed, accepted, observer) =>
           this.startSynthesis(node, options, direction, failed, accepted, observer),
         {
@@ -4132,7 +4121,6 @@ export class VisualAgentMapView extends ItemView {
           stop: this.plugin.activeTasks.has(node.path)
             ? () => this.plugin.activeTasks.get(node.path)?.abort()
             : undefined,
-          quickError: this.plugin.quickExpandFailures.get(node.path),
           quickOutline: this.quickOutline(node),
           structureReview: this.structureReviewEntry(node),
           sources,
@@ -4526,40 +4514,12 @@ export class VisualAgentMapView extends ItemView {
     if (this.map) this.map.viewport.zoom = Math.max(this.map.viewport.zoom, 0.7);
     this.focusNode(node);
   }
-  private startQuickExpansion(
-    parent: MapNode,
-    options: TaskOptions,
-    direction: string,
-    failed: (message: string, retryable?: boolean) => void,
-    created: () => void,
-    accepted?: () => void
-  ): Promise<void> {
-    if (this.plugin.running.has(parent.path) || this.plugin.quickExpandPending.has(parent.path)) {
-      failed(t("ui.ai_running_ai"));
-      return Promise.resolve();
-    }
-    this.plugin.quickExpandFailures.delete(parent.path);
-    this.plugin.quickExpandPending.add(parent.path);
-    this.render();
-    return this.proposeChildren(parent, options, direction, undefined, failed, true, created, accepted)
-      .catch(error => {
-        this.plugin.quickExpandFailures.set(parent.path, error instanceof Error ? error.message : String(error));
-        throw error;
-      })
-      .finally(() => {
-        if (this.plugin.expansionBatches.get(parent.path)?.status !== "running")
-          this.plugin.quickExpandPending.delete(parent.path);
-        this.render();
-      });
-  }
   private async proposeChildren(
     parent: MapNode,
     options?: TaskOptions,
     direction = "",
     found?: (items: Suggestion[], create: (items: Suggestion[]) => Promise<void>) => void,
     failed?: (message: string, retryable?: boolean) => void,
-    direct = false,
-    created?: () => void,
     acceptedCallback?: () => void
   ): Promise<void> {
     if (this.plugin.expansionCoordinator.isRunning(parent.path)) {
@@ -4615,13 +4575,12 @@ export class VisualAgentMapView extends ItemView {
           await this.startShallowResearch(parent, createdNodes, researchOptions);
       });
     };
-    if (pending?.length && !direct) {
+    if (pending?.length) {
       if (options) {
-        if (options.shallowResearch ?? options.multiLayer)
-          this.plugin.pendingResearchOptions.set(parent.path, this.researchChoices(options));
+        if (options.shallowResearch) this.plugin.pendingResearchOptions.set(parent.path, this.researchChoices(options));
         else this.plugin.pendingResearchOptions.delete(parent.path);
       }
-      present(options && !options.multiLayer ? pending.filter(item => !item.parentTitle) : pending);
+      present(options ? pending.filter(item => !item.parentTitle) : pending);
       return;
     }
     if (this.plugin.running.has(parent.path)) {
@@ -4650,18 +4609,9 @@ export class VisualAgentMapView extends ItemView {
     this.plugin.quickExpandPending.add(parent.path);
     this.plugin.activeTasks.set(parent.path, controller);
     this.render();
-    let building = false;
     try {
       const note = await this.plugin.repo.readNote(parent.path);
       if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
-      const targetMapPath = this.path,
-        targetMapId = this.map?.id;
-      const originalChildren =
-        this.map?.nodes
-          .filter(item => item.parentId === parent.id)
-          .map(item => item.id)
-          .sort()
-          .join("|") ?? "";
       const outputLanguage = options?.outputLanguage ?? this.plugin.settings.language;
       const existing =
         this.map?.nodes
@@ -4671,27 +4621,7 @@ export class VisualAgentMapView extends ItemView {
             return `- ${child?.title || item.path}: ${child?.summary || noSummaryYet(outputLanguage)}`;
           })
           .join("\n") || inLanguage(NONE, outputLanguage);
-      const layers = options?.layers ?? 2,
-        firstLayerCount = options?.firstLayerCount ?? 3,
-        childrenPerParent = layers === 1 ? 1 : (options?.childrenPerParent ?? 2);
-      const shape = direct ? quickShape(layers, firstLayerCount, childrenPerParent) : null;
-      const effectiveLayers = shape?.counts.length ?? layers;
-      if (shape && shape.total > BigInt(15))
-        throw new Error(t("ui.this_would_create_0_subtopics_exceeding_the_limit_of_15_redu", shape.total.toString()));
-      const task = expansionTask(
-        outputLanguage,
-        existing,
-        direction,
-        shape
-          ? {
-              layers: effectiveLayers,
-              firstLayerCount,
-              childrenPerParent,
-              counts: shape.counts.join(outputLanguage === "en" ? ", " : "、"),
-              total: shape.total.toString()
-            }
-          : null
-      );
+      const task = expansionTask(outputLanguage, existing, direction);
       const result = await this.plugin.askModel(
         withThinkingOrigin(
           {
@@ -4719,108 +4649,39 @@ export class VisualAgentMapView extends ItemView {
       );
       if (!accepted) acceptDispatch();
       if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
-      const suggestions = direct
-        ? quickSuggestions(result.suggestions, effectiveLayers, firstLayerCount, childrenPerParent)
-        : result.suggestions.filter(item => !item.parentTitle).slice(0, 7);
-      if (!direct && suggestions.length === 0) {
+      const suggestions = result.suggestions.filter(item => !item.parentTitle).slice(0, 7);
+      if (suggestions.length === 0) {
         const message = result.detail.trim() || t("ui.ai_does_not_recommend_decomposition_or_did_not_propose_3_to");
         if (failed) failed(message);
         else new Notice(message);
         return;
       }
-      if (direct) {
-        building = true;
-        let batchFailure: Error | null = null;
-        let createdNodes: MapNode[] = [];
-        await this.plugin.mutate(async () => {
-          if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
-          try {
-            const currentParent = this.map?.nodes.find(item => item.id === parent.id && item.path === parent.path);
-            const currentChildren =
-              this.map?.nodes
-                .filter(item => item.parentId === parent.id)
-                .map(item => item.id)
-                .sort()
-                .join("|") ?? "";
-            if (
-              this.path !== targetMapPath ||
-              this.map?.id !== targetMapId ||
-              !currentParent ||
-              currentChildren !== originalChildren
-            )
-              throw new Error(t("ui.the_map_or_parent_topic_changed_while_ai_was_running_no_subt"));
-            const currentNote = await this.plugin.repo.readNote(parent.path);
-            const version = (value: Note): string =>
-              JSON.stringify([
-                value.title,
-                value.summary,
-                value.rules,
-                value.detail,
-                value.prompt,
-                value.model,
-                value.reasoning,
-                value.sourcePaths,
-                value.referencePaths,
-                value.thinkingOrigin
-              ]);
-            if (version(currentNote) !== version(note))
-              throw new Error(t("ui.the_map_or_parent_topic_changed_while_ai_was_running_no_subt"));
-            createdNodes = await this.createChildBatch(
-              currentParent,
-              suggestions,
-              options?.shallowResearch ? { ...options, signal: controller.signal } : undefined,
-              controller.signal,
-              options?.detailTemplateId
-            );
-          } catch (error) {
-            batchFailure =
-              error instanceof Error
-                ? error
-                : new Error(typeof error === "string" ? error : t("ui.failed_to_create_starter_map"));
-          }
-        });
-        const batchError = batchFailure as Error | null;
-        if (batchError) throw batchError;
-        if (options?.shallowResearch && createdNodes.length)
-          await this.startShallowResearch(parent, createdNodes, { ...options, signal: controller.signal });
+      const latest = await this.plugin.repo.readNote(parent.path);
+      if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
+      if (latest.thinkingOrigin !== note.thinkingOrigin)
+        throw new Error(t("ui.the_topic_changed_so_the_outdated_ai_result_was_not_saved"));
+      const pendingItems = suggestions.map(item => ({
+        ...item,
+        thinkingOriginBaseline: originBaseline(note.thinkingOrigin)
+      }));
+      this.plugin.pendingSuggestions.set(parent.path, pendingItems);
+      await (this.plugin.pendingSuggestions as PendingSuggestions).flush?.();
+      if (controller.signal.aborted) {
         this.plugin.pendingSuggestions.delete(parent.path);
-        this.plugin.pendingResearchOptions.delete(parent.path);
-        this.plugin.quickExpandFailures?.delete(parent.path);
-        created?.();
-      } else {
-        const latest = await this.plugin.repo.readNote(parent.path);
-        if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
-        if (latest.thinkingOrigin !== note.thinkingOrigin)
-          throw new Error(t("ui.the_topic_changed_so_the_outdated_ai_result_was_not_saved"));
-        const pendingItems = suggestions.map(item => ({
-          ...item,
-          thinkingOriginBaseline: originBaseline(note.thinkingOrigin)
-        }));
-        this.plugin.pendingSuggestions.set(parent.path, pendingItems);
         await (this.plugin.pendingSuggestions as PendingSuggestions).flush?.();
-        if (controller.signal.aborted) {
-          this.plugin.pendingSuggestions.delete(parent.path);
-          await (this.plugin.pendingSuggestions as PendingSuggestions).flush?.();
-          throw new DOMException("Aborted", "AbortError");
-        }
-        if (options?.shallowResearch)
-          this.plugin.pendingResearchOptions.set(parent.path, this.researchChoices(options));
-        else this.plugin.pendingResearchOptions?.delete(parent.path);
-        present(pendingItems);
+        throw new DOMException("Aborted", "AbortError");
       }
+      if (options?.shallowResearch) this.plugin.pendingResearchOptions.set(parent.path, this.researchChoices(options));
+      else this.plugin.pendingResearchOptions?.delete(parent.path);
+      present(pendingItems);
     } catch (error) {
-      if (building && error instanceof PartialChildBatchError) await this.clearPartialSuggestions(parent.path, error);
       const partial = error instanceof PartialChildBatchError;
       const currentBatch = this.plugin.expansionBatches.get(parent.path);
       const stoppedBatch = currentBatch !== previousBatch && currentBatch?.status === "stopped";
       const cancelled = !partial && (controller.signal.aborted || stoppedBatch);
       if (!cancelled) {
         console.error("Visual Agent Map AI split", error);
-        const message = this.plugin.recordFailure(
-          t(building ? "log.preliminary_map_failed" : "log.ai_split_failed"),
-          error
-        );
-        if (direct) this.plugin.quickExpandFailures?.set(parent.path, message);
+        const message = this.plugin.recordFailure(t("log.ai_split_failed"), error);
         if (failed) failed(message, !partial);
         else new Notice(message);
       }

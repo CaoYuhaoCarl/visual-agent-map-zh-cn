@@ -791,16 +791,6 @@
       "language": "zh-TW",
       "schema": true
     },
-    "view.direct.en": {
-      "builder": "VisualAgentMapView direct TaskContext through AiTaskService",
-      "language": "en",
-      "schema": true
-    },
-    "view.direct.zh": {
-      "builder": "VisualAgentMapView direct TaskContext through AiTaskService",
-      "language": "zh-TW",
-      "schema": true
-    },
     "view.guided-empty-direction.en": {
       "builder": "VisualAgentMapView guided-empty-direction TaskContext through AiTaskService",
       "language": "en",

@@ -646,14 +646,15 @@ integrationTest('importOutline under the selected topic with shallow research: r
 });
 
 integrationTest('quick explore: the real create path researches every created subtopic with the dialog research choices, at Quick depth', async () => {
-  const h = await placementHarness();
+  const template = { id: 't1', name: 'Template one', sections: [{ id: 's1', name: 'Findings', description: '', role: 'none', aliases: [] }] };
+  const h = await placementHarness({ detailTemplates: [template] });
   // The reviewed outline as the Next Step dialog hands it over: the topic's own root is already dropped.
   const nodes = [{ index: 0, title: 'Food', level: 1, parent: null }, { index: 1, title: 'Breakfast', level: 2, parent: 0 }];
   const group = { id: 'group-1', label: 'Sources', documents: [{ path: 'Inbox/source.md', content: 'x' }] };
   const signal = new AbortController().signal;
   await h.view.quickOutline(h.oldRoot).create(nodes, {
     researchMode: 'local', researchDepth: 'normal', visualMode: 'auto', referenceGroups: [group], outputLanguage: 'zh-TW',
-    toneId: 'tone-1', requirements: 'Keep it short', shallowResearch: true, multiLayer: true, signal, onProgress: () => {}
+    toneId: 'tone-1', requirements: 'Keep it short', detailTemplateId: 't1', shallowResearch: true, signal, onProgress: () => {}
   });
   const saved = await h.repo.readMap(h.mapPath);
   const food = saved.nodes.find(item => item.parentId === h.oldRoot.id && item.id !== h.oldChild.id);
@@ -667,6 +668,8 @@ integrationTest('quick explore: the real create path researches every created su
   assert.equal(options.visualMode, 'auto'); assert.equal(options.outputLanguage, 'zh-TW'); assert.equal(options.toneId, 'tone-1');
   assert.equal(options.requirements, 'Keep it short'); assert.equal(JSON.stringify(options.referenceGroups), JSON.stringify([group]));
   assert.equal(options.signal, undefined); assert.equal(options.onProgress, undefined);
+  assert.equal(options.detailTemplateId, 't1');
+  for (const item of [food, breakfast]) assert.equal((await h.repo.readNote(item.path)).detailTemplateId, 't1', 'the chosen template is recorded on each subtopic');
   // Without shallow research nothing is researched.
   const g = await placementHarness();
   await g.view.quickOutline(g.oldRoot).create(nodes, { researchMode: 'local', researchDepth: 'fast', visualMode: 'off', shallowResearch: false });

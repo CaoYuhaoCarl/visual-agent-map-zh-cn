@@ -39,11 +39,7 @@ export interface TaskOptions {
   researchMode: ResearchMode;
   researchDepth: ResearchDepth;
   visualMode: VisualMode;
-  multiLayer?: boolean;
   shallowResearch?: boolean;
-  layers?: number;
-  firstLayerCount?: number;
-  childrenPerParent?: number;
   /** This run's explicit content template choice; recorded on the topic when given. */
   detailTemplateId?: string;
   /** This run's explicit writing tone choice; recorded on the topic when given. */
@@ -80,7 +76,6 @@ export interface NextStepSettings {
   save: (patch: NotePatch) => Promise<void>;
   running?: boolean;
   stop?: () => void;
-  quickError?: string;
   sources?: TaskSourceSettings;
   synthesisPending?: { directions: Suggestion[]; discard: () => void };
   templates?: { id: string; name: string }[];
@@ -212,67 +207,6 @@ export interface TaskSourceSettings {
   synthesisLabel?: string;
   synthesisTopics?: string[];
 }
-export function quickShape(
-  layers: number,
-  firstLayerCount: number,
-  childrenPerParent: number
-): { counts: bigint[]; total: bigint } {
-  if (
-    ![layers, firstLayerCount].every(Number.isSafeInteger) ||
-    layers < 1 ||
-    layers > 15 ||
-    firstLayerCount < 1 ||
-    (layers > 1 && (!Number.isSafeInteger(childrenPerParent) || childrenPerParent < 1))
-  )
-    throw new Error(t("ui.levels_first_level_count_and_children_per_topic_must_be_posi"));
-  const counts: bigint[] = [];
-  let count = BigInt(firstLayerCount),
-    total = BigInt(0);
-  for (let level = 0; level < layers; level++) {
-    counts.push(count);
-    total += count;
-    if (level + 1 < layers) count *= BigInt(childrenPerParent);
-  }
-  return { counts, total };
-}
-export function quickSuggestions(
-  items: Suggestion[],
-  layers: number,
-  firstLayerCount: number,
-  childrenPerParent: number
-): Suggestion[] {
-  const shape = quickShape(layers, firstLayerCount, childrenPerParent);
-  if (shape.total > BigInt(15))
-    throw new Error(t("ui.this_would_create_0_subtopics_exceeding_the_limit_of_15_redu", shape.total.toString()));
-  const invalid = (): never => {
-    throw new Error(t("ui.ai_did_not_follow_the_requested_level_counts_and_parent_chil"));
-  };
-  const byTitle = new Map<string, Suggestion>();
-  for (const item of items) {
-    if (!item.title?.trim() || byTitle.has(item.title.trim())) invalid();
-    byTitle.set(item.title.trim(), item);
-  }
-  const grouped: Suggestion[][] = [];
-  let previous = new Set<string>();
-  for (let level = 0; level < layers; level++) {
-    const current = items.filter(item =>
-      level === 0 ? !item.parentTitle?.trim() : previous.has(item.parentTitle?.trim() || "")
-    );
-    if (current.length !== Number(shape.counts[level])) invalid();
-    if (
-      level > 0 &&
-      [...previous].some(
-        title => current.filter(item => item.parentTitle?.trim() === title).length !== childrenPerParent
-      )
-    )
-      invalid();
-    grouped.push(current);
-    previous = new Set(current.map(item => item.title.trim()));
-  }
-  const selected = grouped.flat();
-  if (selected.length !== items.length) invalid();
-  return selected;
-}
 export class NextStepModal extends Modal {
   private closed = false;
   private runPending = false;
@@ -299,7 +233,6 @@ export class NextStepModal extends Modal {
       direction: string,
       found: (items: Suggestion[], create: (items: Suggestion[]) => Promise<void>) => void,
       failed: (message: string, retryable?: boolean) => void,
-      created: () => void,
       accepted: () => void
     ) => Promise<void>,
     private synthesize: (
@@ -907,8 +840,7 @@ export class NextStepModal extends Modal {
         running
           .createEl("button", { text: t("ui.stop_research") })
           .addEventListener("click", () => this.modelSettings?.stop?.());
-    } else if (this.modelSettings?.quickError)
-      this.contentEl.createEl("p", { cls: "vam-hint", text: this.modelSettings.quickError });
+    }
     // What this run will do, in one line; the details are under Adjust.
     const summaryEl = this.contentEl.createEl("p", { cls: "vam-next-summary", attr: { "aria-live": "polite" } });
     const research = this.contentEl.createDiv("vam-next-research");
@@ -1109,7 +1041,6 @@ export class NextStepModal extends Modal {
             outputLanguage: languageSelect.value as Settings["language"],
             requirements: this.requirements(),
             researchMode: selected?.webSearch ? "research" : "local",
-            multiLayer,
             shallowResearch: shallow.checked,
             researchDepth: "fast",
             visualMode: shallow.checked && selected?.imageSearch ? "auto" : "off",
@@ -1144,7 +1075,6 @@ export class NextStepModal extends Modal {
               else this.failedAi(expandPanel, expandButton, message);
               if (retryable === false) expandButton.disabled = true;
             },
-            () => this.close(),
             () => {
               this.taskSignal = undefined;
               this.taskController = undefined;

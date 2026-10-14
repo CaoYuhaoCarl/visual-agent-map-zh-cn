@@ -98,16 +98,14 @@ test('collect snapshots: Visual Map expansion and synthesis tasks', async () => 
     const child = await repo.createNote('Child topic', 'model-a', mapDoc, mapPath, 'workspace'); child.parentId = parent.id; mapDoc.nodes.push(child);
     await repo.updateNote(child.path, { summary: 'Child summary', detail: 'Child detail', newFindings: 'Child finding', visualReferences: '![diagram](https://example.org/diagram.png)' });
     const contexts = [];
-    const plugin = support.withExpansionCoordinator({ repo, settings: { ...support.DEFAULT_SETTINGS, language }, running: new Set(), pendingSuggestions: new Map(), pendingResearchOptions: new Map(), quickExpandFailures: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), recordFailure: (_label, error) => error.message,
+    const plugin = support.withExpansionCoordinator({ repo, settings: { ...support.DEFAULT_SETTINGS, language }, running: new Set(), pendingSuggestions: new Map(), pendingResearchOptions: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), recordFailure: (_label, error) => error.message,
       askModel: async context => { contexts.push({ kind: contexts.kind, context }); return { summary: 'S', detail: 'D', visualReferences: [], suggestions: contexts.suggestions ?? [] }; } });
     const view = new VisualAgentMapView({ app }, plugin); view.path = mapPath; view.map = mapDoc; view.contentEl = { querySelector: () => null }; view.render = () => {}; view.hydrate = async () => {}; view.focusNode = () => {}; view.ancestorContext = async () => 'Ancestor chain A';
-    const options = { researchMode: 'research', researchDepth: 'fast', visualMode: 'off', referenceGroups: [], multiLayer: true, shallowResearch: false, layers: 2, firstLayerCount: 2, childrenPerParent: 1, outputLanguage: language };
-    contexts.kind = 'direct';
-    await view.proposeChildren(parent, options, '', () => {}, () => {}, true).catch(() => {});
+    const options = { researchMode: 'research', researchDepth: 'fast', visualMode: 'off', referenceGroups: [], shallowResearch: false, outputLanguage: language };
     contexts.kind = 'guided';
-    await view.proposeChildren(parent, { ...options, multiLayer: false }, 'Focus on risks', () => {}, () => {}, false).catch(() => {});
+    await view.proposeChildren(parent, options, 'Focus on risks', () => {}, () => {}).catch(() => {});
     contexts.kind = 'guided-empty-direction';
-    await view.proposeChildren(parent, { ...options, multiLayer: false }, '', () => {}, () => {}, false).catch(() => {});
+    await view.proposeChildren(parent, options, '', () => {}, () => {}).catch(() => {});
     contexts.kind = 'synthesis-directions';
     contexts.suggestions = [{ title: 'Direction one', task: 't', contribution: 'c' }];
     let choose;
@@ -120,7 +118,7 @@ test('collect snapshots: Visual Map expansion and synthesis tasks', async () => 
       assert.ok(context.task.length > 0);
       await recordContext(`view.${kind}.${tag}`, `VisualAgentMapView ${kind} TaskContext through AiTaskService`, language, { ...context, onProgress: undefined, signal: undefined });
     }
-    assert.ok(seen.has('direct') && seen.has('guided') && seen.has('synthesis-directions'), `view cases captured: ${[...seen].join(',')}`);
+    assert.ok(seen.has('guided') && seen.has('synthesis-directions'), `view cases captured: ${[...seen].join(',')}`);
   }
 });
 

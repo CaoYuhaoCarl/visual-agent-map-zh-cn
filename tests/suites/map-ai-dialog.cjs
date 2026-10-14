@@ -145,7 +145,7 @@ function nextStepHarness({ settings = {}, modelSettings = {}, topic = 'Parent', 
   const calls = { research: [], expand: [], synthesize: [] };
   const modal = new NextStepModal({}, topic, depth, children, pending, plugin,
     research ?? (async (options, _focus, _done, _failed, accepted) => { calls.research.push(options); accepted(); }),
-    expand ?? (async (options, _direction, _found, _failed, _created, accepted) => { calls.expand.push(options); accepted(); }),
+    expand ?? (async (options, _direction, _found, _failed, accepted) => { calls.expand.push(options); accepted(); }),
     synthesize ?? (async (options, direction, _failed, accepted) => { calls.synthesize.push({ options, direction }); accepted(); }),
     settingsArg);
   modal.open();
