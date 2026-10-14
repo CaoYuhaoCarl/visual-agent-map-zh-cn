@@ -20458,7 +20458,7 @@ function noteStopReason(language2, review, recorded, fallback) {
   return recorded;
 }
 var AIM_REQUEST_TOKEN_LIMIT = 6e4;
-var openItemsMarker = (titles) => `<!-- aim-open-items ${JSON.stringify(titles)} -->`;
+var openItemsMarker = (titles) => `<!-- aim-open-items ${JSON.stringify(titles).replace(/>/g, "\\u003e")} -->`;
 function readOpenItems(detail) {
   const marker4 = detail.match(/<!--\s*aim-open-items\s+(\[[^\n]*\])\s*-->/);
   if (!marker4) return [];
@@ -20858,8 +20858,26 @@ ${note.detail}`;
       context.outputLanguage
     ) : this.withOpenItems(review, context.outputLanguage);
   }
+  /** Past the question limit (or unattended), a question, user-only gap or unresolved condition becomes an open item. */
+  assumeInsteadOfAsking(review, context) {
+    var _a, _b;
+    const assumed = review.decision === "ask_user" && review.question || review.decision === "research_more" && review.gapKind === "user_only" ? this.limitToOpenItems(review, context) : review;
+    if (assumed.decision !== "conclude" || !((_a = assumed.unresolvedConditions) == null ? void 0 : _a.length)) return assumed;
+    return {
+      ...assumed,
+      unresolvedConditions: [],
+      openItems: [
+        ...(_b = assumed.openItems) != null ? _b : [],
+        ...assumed.unresolvedConditions.map((condition) => ({
+          title: condition,
+          task: assumed.rationale,
+          expectedValue: condition
+        }))
+      ]
+    };
+  }
   async reviewDecisionOnce(candidate, context, model, reasoning, signal) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i;
+    var _a, _b, _c, _d, _e, _f, _g, _h;
     throwIfAborted(signal);
     const uniqueLineage = lineageWithoutRepeatedReports(context.lineage, context.reportDetail);
     const taskContext = {
@@ -20880,23 +20898,8 @@ ${note.detail}`;
     };
     let reviewed = candidate.decision === "research_more" && candidate.gapKind === "not_decisive" ? this.withOpenItems(candidate, context.outputLanguage) : candidate;
     const checklist = context.goalDetail.includes(AIM_INTAKE_COMPLETE);
-    if (context.unattended || checklist && context.answeredQuestionCount >= CHECKLIST_QUESTION_LIMIT) {
-      if (reviewed.decision === "ask_user" && reviewed.question || reviewed.decision === "research_more" && reviewed.gapKind === "user_only")
-        reviewed = this.limitToOpenItems(reviewed, context);
-      if (reviewed.decision === "conclude" && ((_a = reviewed.unresolvedConditions) == null ? void 0 : _a.length))
-        reviewed = {
-          ...reviewed,
-          unresolvedConditions: [],
-          openItems: [
-            ...(_b = reviewed.openItems) != null ? _b : [],
-            ...reviewed.unresolvedConditions.map((condition) => ({
-              title: condition,
-              task: reviewed.rationale,
-              expectedValue: condition
-            }))
-          ]
-        };
-    }
+    if (context.unattended || checklist && context.answeredQuestionCount >= CHECKLIST_QUESTION_LIMIT)
+      reviewed = this.assumeInsteadOfAsking(reviewed, context);
     const repeatsKnownQuestion = context.questionHistory.some(
       (question) => {
         var _a2;
@@ -21015,8 +21018,9 @@ ${note.detail}`;
         throw new Error(
           "AIM could not replace research on an already answered goal with a conclusion or a new question; the result was not committed."
         );
+      if (context.unattended) reviewed = this.assumeInsteadOfAsking(reviewed, context);
     }
-    const unresolved = checklist && reviewed.decision === "conclude" ? (_c = reviewed.unresolvedConditions) != null ? _c : [] : [];
+    const unresolved = checklist && reviewed.decision === "conclude" ? (_a = reviewed.unresolvedConditions) != null ? _a : [] : [];
     if (unresolved.length) {
       const rationale = translate(context.outputLanguage, "note.aim_unresolved_conditions_0", unresolved.join("; "));
       try {
@@ -21036,14 +21040,22 @@ ${note.detail}`;
           ...reviewed,
           unresolvedConditions: [],
           openItems: [
-            ...(_d = reviewed.openItems) != null ? _d : [],
+            ...(_b = reviewed.openItems) != null ? _b : [],
             ...unresolved.map((condition) => ({ title: condition, task: rationale, expectedValue: condition }))
           ]
         };
       }
     }
+    const assumedOpenItems = (_c = reviewed.openItems) != null ? _c : [];
+    const assumeGap = (gap) => {
+      var _a2;
+      return this.withOpenItems(
+        { ...gap, openItems: [...assumedOpenItems, ...(_a2 = gap.openItems) != null ? _a2 : []] },
+        context.outputLanguage
+      );
+    };
     if (reviewed.decision === "conclude") {
-      const openItems = ((_e = reviewed.openItems) != null ? _e : []).map((item) => `- ${item.title}: ${item.task} (${item.expectedValue})`).join("\n");
+      const openItems = ((_d = reviewed.openItems) != null ? _d : []).map((item) => `- ${item.title}: ${item.task} (${item.expectedValue})`).join("\n");
       const deliveryContext = {
         ...taskContext,
         ...context.toneText ? { toneText: context.toneText } : {},
@@ -21060,8 +21072,8 @@ Prior research:
 ${context.reportDetail}${openItems ? `
 ${renderOpenItemsContext(openItems)}` : ""}`
       };
-      let checkpoint = (_g = (_f = context.deliveryRecovery) == null ? void 0 : _f.checkpoint) != null ? _g : {};
-      let phase = (_h = context.deliveryRecovery) == null ? void 0 : _h.phase;
+      let checkpoint = (_f = (_e = context.deliveryRecovery) == null ? void 0 : _e.checkpoint) != null ? _f : {};
+      let phase = (_g = context.deliveryRecovery) == null ? void 0 : _g.phase;
       const delivery = await buildFinalDelivery(
         deliveryContext,
         (step) => this.askAimModel({ ...step, outputLanguage: deliveryContext.outputLanguage }, model, reasoning, signal),
@@ -21116,8 +21128,10 @@ ${delivery.evidence}` },
           "Final delivery review must complete the document or identify a research gap, not restart user clarification."
         );
       if (final.decision === "research_more") this.deliveryRejections.add(final);
-      reviewed = final.decision === "conclude" && ((_i = reviewed.openItems) == null ? void 0 : _i.length) ? { ...final, openItems: reviewed.openItems } : final;
+      reviewed = final.decision === "conclude" && ((_h = reviewed.openItems) == null ? void 0 : _h.length) ? { ...final, openItems: reviewed.openItems } : final;
     }
+    if (context.unattended && reviewed.decision === "research_more" && reviewed.gapKind === "user_only")
+      return assumeGap(reviewed);
     if (reviewed.decision === "research_more" && reviewed.gapKind === "user_only")
       return this.requireUserConditionQuestion(
         reviewed,
@@ -21134,7 +21148,7 @@ ${delivery.evidence}` },
         rationale: "This exact target was classified as externally verifiable immediately before its bounded search."
       } : await this.classifyResearchGap(reviewed, context, model, reasoning, signal);
       if (gap.classification === "user_condition")
-        reviewed = await this.requireUserConditionQuestion(reviewed, context, gap, model, reasoning, signal);
+        reviewed = context.unattended ? assumeGap(reviewed) : await this.requireUserConditionQuestion(reviewed, context, gap, model, reasoning, signal);
     }
     return reviewed;
   }
@@ -21642,7 +21656,9 @@ ${runId}`, fingerprint2 = JSON.stringify({ model, reasoning });
       let stopReason = "";
       let preclassifiedResearchTarget;
       const priorDecision = (_h = priorAttempt.plannerReviews) == null ? void 0 : _h.at(-1);
-      if ((priorDecision == null ? void 0 : priorDecision.decision) === "research_more") {
+      if ((priorDecision == null ? void 0 : priorDecision.decision) === "research_more" && this.isUnattended(map))
+        preclassifiedResearchTarget = priorDecision.researchTarget;
+      else if ((priorDecision == null ? void 0 : priorDecision.decision) === "research_more") {
         const priorCandidate = {
           decision: "research_more",
           rationale: priorDecision.rationale,
@@ -22072,7 +22088,7 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
     });
   }
   async createPlannerQuestion(mapPath, parentNodeId, model, reasoning, requestId, parentBranchId, signal) {
-    var _a, _b, _c;
+    var _a, _b, _c, _d;
     throwIfAborted(signal);
     if (!requestId.trim()) throw new Error("Planner question request identity is required.");
     const map = await this.repository.readMap(mapPath), state = map.aim;
@@ -22180,7 +22196,10 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
       signal
     };
     throwIfAborted(signal);
-    if (this.isUnattended(map) && parentNode.aimKind === "topic" && !parentBranchId && !isSavedTerminalResult)
+    const topicConcluded = (_d = map.aim) == null ? void 0 : _d.branches.some(
+      (branch) => branch.submissionId === `initial-${parentNode.id}` && branch.results.some((result2) => result2.kind === "conclusion")
+    );
+    if (this.isUnattended(map) && parentNode.aimKind === "topic" && !parentBranchId && !isSavedTerminalResult && !topicConcluded)
       return this.researchFromTopic(mapPath, map, parentNode, model, reasoning, signal);
     let result = await this.askAimModel(context, model, reasoning, signal);
     throwIfAborted(signal);
@@ -24763,6 +24782,11 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian21.Ite
       await this.persistViewport();
     }
   }
+  /** The user switched to another map while AIM kept running: the document-ready notice still tells them it is done. */
+  noticeDocumentReadyElsewhere(status, epoch, mapPath) {
+    if (status === "completed" && !this.closed && this.aimViewEpoch === epoch && this.path !== mapPath)
+      new import_obsidian21.Notice(t("ui.aim_document_ready"), 0);
+  }
   aimViewIsCurrent(epoch, mapPath) {
     return !this.closed && this.aimViewEpoch === epoch && this.path === mapPath;
   }
@@ -24867,6 +24891,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian21.Ite
       await this.persistViewport();
       if (!isCurrent()) return;
     }
+    if (path !== this.path) this.stopAimProgress();
     let map = await this.plugin.repo.readMap(path);
     if (!isCurrent()) return;
     if (((_a = map.aim) == null ? void 0 : _a.creationId) && map.aim.rootDraft) {
@@ -25660,6 +25685,7 @@ ${request.requirements}` : preset.text,
     try {
       if (timeoutMs) await this.plugin.mutate(() => this.aimRuns.configureRetryTimeout(mapPath, branch.id, timeoutMs));
       const result = branch.researchPlan ? await this.aimManual.resumeAnswerResearch(mapPath, branch.id, note.model, note.reasoning, controller.signal) : await this.aimManual.retryAnswerResearch(mapPath, branch.id, note.model, note.reasoning, controller.signal);
+      this.noticeDocumentReadyElsewhere(result.status, epoch, mapPath);
       if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
       const latest = await this.plugin.repo.readMap(mapPath);
       if (this.aimViewIsCurrent(epoch, mapPath)) {
@@ -25723,7 +25749,11 @@ ${request.requirements}` : preset.text,
     var _a, _b;
     const node = (_a = this.map) == null ? void 0 : _a.nodes.find((item) => item.id === nodeId);
     const note = this.notes.get(nodeId);
-    if (this.closed || !node || !note || !this.path || !((_b = this.map) == null ? void 0 : _b.aim) || this.aimBusy) return;
+    if (this.closed || !node || !note || !this.path || !((_b = this.map) == null ? void 0 : _b.aim)) return;
+    if (this.aimBusy) {
+      new import_obsidian21.Notice(t("ui.aim_research_already_running"));
+      return;
+    }
     const epoch = this.aimViewEpoch, mapPath = this.path, controller = new AbortController();
     this.aimBusy = true;
     this.aimController = controller;
@@ -25740,6 +25770,7 @@ ${request.requirements}` : preset.text,
         note.reasoning,
         controller.signal
       );
+      this.noticeDocumentReadyElsewhere(outcome.status, epoch, mapPath);
       if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
       this.map = await this.plugin.repo.readMap(mapPath);
       await this.hydrate(() => this.aimViewIsCurrent(epoch, mapPath));
@@ -25764,7 +25795,7 @@ ${request.requirements}` : preset.text,
     }
   }
   async planAimFromSelection(nodeId = this.selected) {
-    var _a, _b, _c, _d, _e;
+    var _a, _b, _c, _d, _e, _f;
     const node = (_a = this.map) == null ? void 0 : _a.nodes.find((item) => item.id === nodeId);
     if (this.closed || !node || !this.path || !((_b = this.map) == null ? void 0 : _b.aim) || this.aimBusy) return;
     const epoch = this.aimViewEpoch, mapPath = this.path, controller = new AbortController();
@@ -25821,6 +25852,11 @@ ${request.requirements}` : preset.text,
       this.aimActivityKind = "planning";
       this.render();
       const result = await this.planAimQuestion(node.id, (0, import_node_crypto11.randomUUID)(), parentBranchId, controller.signal);
+      this.noticeDocumentReadyElsewhere(
+        result.status === "question" ? void 0 : (_e = result.outcome) == null ? void 0 : _e.status,
+        epoch,
+        mapPath
+      );
       if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
       if (result.status === "question") {
         this.selected = result.node.id;
@@ -25831,7 +25867,7 @@ ${request.requirements}` : preset.text,
         const outcome = result.outcome;
         if (outcome.status === "partial") new import_obsidian21.Notice(t("ui.aim_research_partial"));
         else if (outcome.status === "waiting-user") {
-          const question = (_e = this.map) == null ? void 0 : _e.nodes.find((item) => item.id === outcome.questionNodeId);
+          const question = (_f = this.map) == null ? void 0 : _f.nodes.find((item) => item.id === outcome.questionNodeId);
           if (question) {
             this.selected = question.id;
             this.render();
@@ -25876,6 +25912,7 @@ ${request.requirements}` : preset.text,
     this.render();
     try {
       const result = await this.reviewAimFailedReport(target.runId, target.diagnosticNotePath, controller.signal);
+      this.noticeDocumentReadyElsewhere(result.status, epoch, mapPath);
       if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
       if (result.status === "waiting-user") {
         const question = (_b = this.map) == null ? void 0 : _b.nodes.find((item) => item.id === result.questionNodeId);
@@ -25921,6 +25958,7 @@ ${request.requirements}` : preset.text,
       if (timeoutMs && branch)
         await this.plugin.mutate(() => this.aimRuns.configureRetryTimeout(mapPath, branch.id, timeoutMs));
       const result = await this.aimManual.continuePartial(mapPath, runId, void 0, void 0, controller.signal);
+      this.noticeDocumentReadyElsewhere(result.status, epoch, mapPath);
       if (!isCurrent()) return;
       if (result.status === "waiting-user") {
         this.selected = result.questionNodeId;
@@ -26194,11 +26232,18 @@ ${request.requirements}` : preset.text,
       this.aimProgress.stage = event.stage;
     }
     if (this.aimProgressTimer === null) this.aimProgressTimer = window.setInterval(() => this.paintAimProgress(), 1e3);
-    if (structural && this.aimProgressRenderTimer === null)
-      this.aimProgressRenderTimer = window.setTimeout(() => {
-        this.aimProgressRenderTimer = null;
-        if (!this.closed) this.renderPreservingFocus();
-      }, 300);
+    if (structural) this.scheduleAimProgressRender();
+  }
+  scheduleAimProgressRender() {
+    if (this.aimProgressRenderTimer !== null) return;
+    this.aimProgressRenderTimer = window.setTimeout(() => {
+      var _a;
+      this.aimProgressRenderTimer = null;
+      if (this.closed) return;
+      const typing = this.contentEl.contains(document.activeElement) && ((_a = document.activeElement) == null ? void 0 : _a.matches("input, textarea, select"));
+      if (this.dragging || typing) this.scheduleAimProgressRender();
+      else this.renderPreservingFocus();
+    }, 300);
   }
   stopAimProgress() {
     this.aimProgress = null;

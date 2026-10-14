@@ -214,6 +214,35 @@ integrationTest('AIM unattended: after the intake it researches the goal without
   assert.ok(question, 'the corrected assumption is saved as an answered question under the conclusion');
   assert.ok(phases.includes('research-plan'), 'the correction starts a new research round');
 });
+integrationTest('AIM unattended: a delivery rejection only the user can close keeps the delivered document and lists the gap instead of asking', async () => {
+  const { readOpenItems, openItemsMarker } = load('experiences/aim/manual-flow.ts', { obsidian });
+  const withField = (raw, field) => ({ ...raw, detail: raw.detail.replace(/"decision":"([a-z_]+)"/, `"decision":"$1",${field}`) });
+  assert.deepEqual(plain(readOpenItems(`Doc\n${openItemsMarker(['A --> B'])}`)), ['A --> B']);
+  assert.ok(!/A -->/.test(openItemsMarker(['A --> B'])), 'a title cannot end the hidden comment early');
+  for (const gapKind of ['user_only', undefined]) {
+    const phases = [];
+    const flow = new AimManualFlow({ settings: { language: 'en' } }, {}, async ctx => {
+      const phase = ctx.task.match(/aim-phase:\s*([a-z-]+)/)?.[1];
+      phases.push(phase);
+      if (aimPhase(ctx, 'delivery-acceptance')) {
+        const gap = plannerReview('research_more', { rationale: 'Only the user knows the commute.' }, 'Delivered.', 'Delivered document.', [{ title: 'Commute', task: 'Ask the commute.', contribution: 'Changes the area.' }]);
+        return gapKind ? withField(gap, `"gapKind":"${gapKind}"`) : gap;
+      }
+      if (aimPhase(ctx, 'research-gap-audit')) return reply('user_condition', 'Only the user knows the commute.');
+      const fixture = deliveryFixture(ctx);
+      if (fixture) return fixture;
+      throw new Error(`Unexpected phase ${phase}`);
+    });
+    const context = { goal: 'Where should I live?', goalDetail: '', unattended: true, outputLanguage: 'en', conditions: {}, currentQuestion: '', currentAnswer: '', answeredQuestionCount: 0, questionHistory: [], lineage: '', reportSummary: 'Saved.', reportDetail: 'Saved reports.' };
+    const candidate = { ...parseAimPlannerReview(plannerReview('conclude', { rationale: 'Sufficient.', stopReason: 'No gap.' }, 'Candidate.', 'Candidate answer.')), openItems: [{ title: 'Budget', task: 'Assumed.', expectedValue: 'Budget' }] };
+    const final = await flow.reviewPlannerDecisionQuality(candidate, context, 'gpt-6-luna', 'low');
+    assert.equal(final.decision, 'conclude', `gapKind=${gapKind}`);
+    assert.deepEqual(plain(final.openItems.map(item => item.title)), ['Budget', 'Commute'], 'earlier assumptions and the new gap are both listed');
+    assert.match(final.detail, /Delivered document/, 'the delivered document is kept');
+    assert.ok(!phases.includes('decision-quality-review'), 'no question is written');
+    assert.equal(phases.filter(phase => phase === 'delivery-acceptance').length, 1, 'the document is written once');
+  }
+});
 const gapTarget = { title: 'Missing evidence', task: 'Search for the missing evidence.', contribution: 'Closes the gap.' };
 /** A Planner that always wants more research, so the flow must end through the research-budget exit. */
 function gapModel(base, seen) {

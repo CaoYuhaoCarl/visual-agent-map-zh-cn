@@ -473,6 +473,11 @@ export class VisualAgentMapView extends ItemView {
       await this.persistViewport();
     }
   }
+  /** The user switched to another map while AIM kept running: the document-ready notice still tells them it is done. */
+  private noticeDocumentReadyElsewhere(status: string | undefined, epoch: number, mapPath: string): void {
+    if (status === "completed" && !this.closed && this.aimViewEpoch === epoch && this.path !== mapPath)
+      new Notice(t("ui.aim_document_ready"), 0);
+  }
   private aimViewIsCurrent(epoch: number, mapPath: string): boolean {
     return !this.closed && this.aimViewEpoch === epoch && this.path === mapPath;
   }
@@ -584,6 +589,7 @@ export class VisualAgentMapView extends ItemView {
       await this.persistViewport();
       if (!isCurrent()) return;
     }
+    if (path !== this.path) this.stopAimProgress();
     let map = await this.plugin.repo.readMap(path);
     if (!isCurrent()) return;
     if (map.aim?.creationId && map.aim.rootDraft) {
@@ -1416,6 +1422,7 @@ export class VisualAgentMapView extends ItemView {
       const result = branch.researchPlan
         ? await this.aimManual.resumeAnswerResearch(mapPath, branch.id, note.model, note.reasoning, controller.signal)
         : await this.aimManual.retryAnswerResearch(mapPath, branch.id, note.model, note.reasoning, controller.signal);
+      this.noticeDocumentReadyElsewhere(result.status, epoch, mapPath);
       if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
       const latest = await this.plugin.repo.readMap(mapPath);
       if (this.aimViewIsCurrent(epoch, mapPath)) {
@@ -1483,7 +1490,11 @@ export class VisualAgentMapView extends ItemView {
   private async correctAimAssumption(nodeId: string, assumption: string, correction: string): Promise<void> {
     const node = this.map?.nodes.find(item => item.id === nodeId);
     const note = this.notes.get(nodeId);
-    if (this.closed || !node || !note || !this.path || !this.map?.aim || this.aimBusy) return;
+    if (this.closed || !node || !note || !this.path || !this.map?.aim) return;
+    if (this.aimBusy) {
+      new Notice(t("ui.aim_research_already_running"));
+      return;
+    }
     const epoch = this.aimViewEpoch,
       mapPath = this.path,
       controller = new AbortController();
@@ -1502,6 +1513,7 @@ export class VisualAgentMapView extends ItemView {
         note.reasoning,
         controller.signal
       );
+      this.noticeDocumentReadyElsewhere(outcome.status, epoch, mapPath);
       if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
       this.map = await this.plugin.repo.readMap(mapPath);
       await this.hydrate(() => this.aimViewIsCurrent(epoch, mapPath));
@@ -1590,6 +1602,11 @@ export class VisualAgentMapView extends ItemView {
       this.aimActivityKind = "planning";
       this.render();
       const result = await this.planAimQuestion(node.id, randomUUID(), parentBranchId, controller.signal);
+      this.noticeDocumentReadyElsewhere(
+        result.status === "question" ? undefined : result.outcome?.status,
+        epoch,
+        mapPath
+      );
       if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
       if (result.status === "question") {
         this.selected = result.node.id;
@@ -1646,6 +1663,7 @@ export class VisualAgentMapView extends ItemView {
     this.render();
     try {
       const result = await this.reviewAimFailedReport(target.runId, target.diagnosticNotePath, controller.signal);
+      this.noticeDocumentReadyElsewhere(result.status, epoch, mapPath);
       if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
       if (result.status === "waiting-user") {
         const question = this.map?.nodes.find(item => item.id === result.questionNodeId);
@@ -1691,6 +1709,7 @@ export class VisualAgentMapView extends ItemView {
       if (timeoutMs && branch)
         await this.plugin.mutate(() => this.aimRuns.configureRetryTimeout(mapPath, branch.id, timeoutMs));
       const result = await this.aimManual.continuePartial(mapPath, runId, undefined, undefined, controller.signal);
+      this.noticeDocumentReadyElsewhere(result.status, epoch, mapPath);
       if (!isCurrent()) return;
       // Select the new question so the toolbar answers it, not the previously selected one; the finally block re-renders after reloading the map.
       if (result.status === "waiting-user") {
@@ -1987,11 +2006,19 @@ export class VisualAgentMapView extends ItemView {
       this.aimProgress.stage = event.stage;
     }
     if (this.aimProgressTimer === null) this.aimProgressTimer = window.setInterval(() => this.paintAimProgress(), 1000);
-    if (structural && this.aimProgressRenderTimer === null)
-      this.aimProgressRenderTimer = window.setTimeout(() => {
-        this.aimProgressRenderTimer = null;
-        if (!this.closed) this.renderPreservingFocus();
-      }, 300);
+    if (structural) this.scheduleAimProgressRender();
+  }
+  private scheduleAimProgressRender(): void {
+    if (this.aimProgressRenderTimer !== null) return;
+    this.aimProgressRenderTimer = window.setTimeout(() => {
+      this.aimProgressRenderTimer = null;
+      if (this.closed) return;
+      // Like changed(): never interrupt a drag or an open input; try again shortly instead.
+      const typing =
+        this.contentEl.contains(document.activeElement) && document.activeElement?.matches("input, textarea, select");
+      if (this.dragging || typing) this.scheduleAimProgressRender();
+      else this.renderPreservingFocus();
+    }, 300);
   }
   private stopAimProgress(): void {
     this.aimProgress = null;

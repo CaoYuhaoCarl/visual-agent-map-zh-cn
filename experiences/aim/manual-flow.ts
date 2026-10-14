@@ -126,8 +126,12 @@ function noteStopReason(
 
 /** Estimated tokens one AIM request may carry; larger requests fail whole instead of dropping goal or evidence. */
 const AIM_REQUEST_TOKEN_LIMIT = 60_000;
-/** Hidden marker on a conclusion note that lists the assumptions the user can correct afterwards. */
-export const openItemsMarker = (titles: string[]): string => `<!-- aim-open-items ${JSON.stringify(titles)} -->`;
+/**
+ * Hidden marker on a conclusion note that lists the assumptions the user can correct afterwards. ">" is escaped so a
+ * title containing "-->" cannot end the comment early; JSON.parse reads it back unchanged.
+ */
+export const openItemsMarker = (titles: string[]): string =>
+  `<!-- aim-open-items ${JSON.stringify(titles).replace(/>/g, "\\u003e")} -->`;
 /** The correctable assumptions of a conclusion note, or none. */
 export function readOpenItems(detail: string): string[] {
   const marker = detail.match(/<!--\s*aim-open-items\s+(\[[^\n]*\])\s*-->/);
@@ -628,6 +632,28 @@ export class AimManualFlow {
       : this.withOpenItems(review, context.outputLanguage);
   }
 
+  /** Past the question limit (or unattended), a question, user-only gap or unresolved condition becomes an open item. */
+  private assumeInsteadOfAsking(review: PlannerReview, context: PlannerQualityContext): PlannerReview {
+    const assumed =
+      (review.decision === "ask_user" && review.question) ||
+      (review.decision === "research_more" && review.gapKind === "user_only")
+        ? this.limitToOpenItems(review, context)
+        : review;
+    if (assumed.decision !== "conclude" || !assumed.unresolvedConditions?.length) return assumed;
+    return {
+      ...assumed,
+      unresolvedConditions: [],
+      openItems: [
+        ...(assumed.openItems ?? []),
+        ...assumed.unresolvedConditions.map(condition => ({
+          title: condition,
+          task: assumed.rationale,
+          expectedValue: condition
+        }))
+      ]
+    };
+  }
+
   private async reviewDecisionOnce(
     candidate: PlannerReview,
     context: PlannerQualityContext,
@@ -660,26 +686,8 @@ export class AimManualFlow {
     // Question limit of the checklist: past it, a new question or a gap only the user can close becomes an
     // assumption the document lists for the user to confirm, so the run ends with an answer instead of more questions.
     const checklist = context.goalDetail.includes(AIM_INTAKE_COMPLETE);
-    if (context.unattended || (checklist && context.answeredQuestionCount >= CHECKLIST_QUESTION_LIMIT)) {
-      if (
-        (reviewed.decision === "ask_user" && reviewed.question) ||
-        (reviewed.decision === "research_more" && reviewed.gapKind === "user_only")
-      )
-        reviewed = this.limitToOpenItems(reviewed, context);
-      if (reviewed.decision === "conclude" && reviewed.unresolvedConditions?.length)
-        reviewed = {
-          ...reviewed,
-          unresolvedConditions: [],
-          openItems: [
-            ...(reviewed.openItems ?? []),
-            ...reviewed.unresolvedConditions.map(condition => ({
-              title: condition,
-              task: reviewed.rationale,
-              expectedValue: condition
-            }))
-          ]
-        };
-    }
+    if (context.unattended || (checklist && context.answeredQuestionCount >= CHECKLIST_QUESTION_LIMIT))
+      reviewed = this.assumeInsteadOfAsking(reviewed, context);
     const repeatsKnownQuestion = context.questionHistory.some(
       question => question.trim().toLocaleLowerCase() === reviewed.question?.trim().toLocaleLowerCase()
     );
@@ -797,6 +805,7 @@ export class AimManualFlow {
         throw new Error(
           "AIM could not replace research on an already answered goal with a conclusion or a new question; the result was not committed."
         );
+      if (context.unattended) reviewed = this.assumeInsteadOfAsking(reviewed, context);
     }
     // The checklist gate: a conclusion that still names an unknown decision-changing condition asks about it first.
     // If that question would repeat one already asked, the user could not settle it, so the conclusion keeps the
@@ -827,6 +836,13 @@ export class AimManualFlow {
         };
       }
     }
+    const assumedOpenItems = reviewed.openItems ?? [];
+    // Unattended never waits for the user: a gap only the user can close keeps the delivered document and lists it.
+    const assumeGap = (gap: PlannerReview) =>
+      this.withOpenItems(
+        { ...gap, openItems: [...assumedOpenItems, ...(gap.openItems ?? [])] },
+        context.outputLanguage
+      );
     if (reviewed.decision === "conclude") {
       const openItems = (reviewed.openItems ?? [])
         .map(item => `- ${item.title}: ${item.task} (${item.expectedValue})`)
@@ -897,6 +913,8 @@ export class AimManualFlow {
           ? { ...final, openItems: reviewed.openItems }
           : final;
     }
+    if (context.unattended && reviewed.decision === "research_more" && reviewed.gapKind === "user_only")
+      return assumeGap(reviewed);
     if (reviewed.decision === "research_more" && reviewed.gapKind === "user_only")
       return this.requireUserConditionQuestion(
         reviewed,
@@ -919,7 +937,9 @@ export class AimManualFlow {
           }
         : await this.classifyResearchGap(reviewed, context, model, reasoning, signal);
       if (gap.classification === "user_condition")
-        reviewed = await this.requireUserConditionQuestion(reviewed, context, gap, model, reasoning, signal);
+        reviewed = context.unattended
+          ? assumeGap(reviewed)
+          : await this.requireUserConditionQuestion(reviewed, context, gap, model, reasoning, signal);
     }
     return reviewed;
   }
@@ -1497,7 +1517,10 @@ export class AimManualFlow {
       let stopReason = "";
       let preclassifiedResearchTarget: PlannerReview["researchTarget"];
       const priorDecision = priorAttempt.plannerReviews?.at(-1);
-      if (priorDecision?.decision === "research_more") {
+      // Unattended never stops to ask: a continuation goes straight back to research on the saved target.
+      if (priorDecision?.decision === "research_more" && this.isUnattended(map))
+        preclassifiedResearchTarget = priorDecision.researchTarget;
+      else if (priorDecision?.decision === "research_more") {
         const priorCandidate: PlannerReview = {
           decision: "research_more",
           rationale: priorDecision.rationale,
@@ -2099,7 +2122,19 @@ export class AimManualFlow {
     };
     throwIfAborted(signal);
     // Unattended: the intake was the only questionnaire, so the first round researches the goal directly.
-    if (this.isUnattended(map) && parentNode.aimKind === "topic" && !parentBranchId && !isSavedTerminalResult)
+    // Only until the topic's own research has a document; after that, another route asks the Planner as usual.
+    const topicConcluded = map.aim?.branches.some(
+      branch =>
+        branch.submissionId === `initial-${parentNode.id}` &&
+        branch.results.some(result => result.kind === "conclusion")
+    );
+    if (
+      this.isUnattended(map) &&
+      parentNode.aimKind === "topic" &&
+      !parentBranchId &&
+      !isSavedTerminalResult &&
+      !topicConcluded
+    )
       return this.researchFromTopic(mapPath, map, parentNode, model, reasoning, signal);
     let result = await this.askAimModel(context, model, reasoning, signal);
     throwIfAborted(signal);
