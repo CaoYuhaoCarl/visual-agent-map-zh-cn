@@ -1325,7 +1325,7 @@ integrationTest('card tools: the sparkle waits for hover, focus or selection; th
   const walk = item => { if (item.tag === 'button') buttons.push(item); item.children.forEach(walk); };
   walk(fixture.cards().a);
   const explore = buttons.find(button => button.classes.has('vam-ai-explore')), icon = buttons.find(button => button.classes.has('vam-ai-tool'));
-  assert.equal(explore.text, 'AI explore'); assert.equal(icon.attrs['aria-label'], 'How would you like to explore next?');
+  assert.equal(explore.text, 'AI explore'); assert.equal(icon.attrs['aria-label'], 'How would you like to explore next?'); assert.equal(explore.attrs['aria-label'], undefined, 'the visible text is the accessible name (WCAG 2.5.3)');
   assert.equal(buttons.find(button => button.attrs['aria-label'] === 'Rename') !== undefined, true);
 });
 integrationTest('status pill: researched topics show none, other states keep theirs and screen readers still hear the status', () => {
@@ -1385,7 +1385,7 @@ test('applyCollapseLevel: collapse all, expand all and expand to level N set the
   const cyclic = [node('x', 'y'), node('y', 'x')]; core.applyCollapseLevel(cyclic, 1);
   assert.equal(cyclic.length, 2, 'a corrupt parent cycle does not hang');
 });
-integrationTest('the New map menu no longer imports outlines, and the topic side option opens the import with the matching placement', () => {
+integrationTest('the New map menu no longer imports outlines; the topic side option and the palette command add to the open map only', () => {
   const opened = [], menus = [];
   class Modal { constructor(app) { this.app = app; } open() { opened.push(this); } close() {} }
   class Menu { constructor() { this.items = []; menus.push(this); } addItem(callback) { const item = { title: '', icon: '', click: null, setTitle(value) { this.title = value; return this; }, setIcon(value) { this.icon = value; return this; }, onClick(handler) { this.click = handler; return this; } }; callback(item); this.items.push(item); return this; } showAtMouseEvent() { return this; } }
@@ -1400,10 +1400,11 @@ integrationTest('the New map menu no longer imports outlines, and the topic side
   assert.deepEqual(plain(placement(opened.at(-1))), { kind: 'tree' }, 'no selection: add to the current map');
   view.selected = 'a'; paste.click();
   assert.deepEqual(plain(placement(opened.at(-1))), { kind: 'under', parentId: 'a' }, 'a selected topic: add under it');
+  const count = opened.length;
   view.path = 'elsewhere/Map.md'; view.selected = null; paste.click();
-  assert.deepEqual(plain(placement(opened.at(-1))), { kind: 'new' }, 'a map outside the workspace falls back to a new map');
+  assert.equal(opened.length, count, 'no editable map open: no import window (a new map starts from + New mind map)');
   view.path = `${DEFAULT_SETTINGS.topicsFolder}/Topic/Map.md`; view.openOutlineImport();
-  assert.deepEqual(plain(placement(opened.at(-1))), { kind: 'new' }, 'the palette command still starts with a new map');
+  assert.deepEqual(plain(placement(opened.at(-1))), { kind: 'tree' }, 'the palette command adds to the open map');
 });
 integrationTest('collapse control: sets the flags, fits the map and is a single undo entry', async () => {
   const fixture = viewportFixture();
@@ -1423,10 +1424,17 @@ integrationTest('collapse control: sets the flags, fits the map and is a single 
   assert.equal(saved, 2, 'an unchanged request writes nothing but still fits'); assert.equal(fitted, 3);
   view.collapseTo(1); await view.pending;
   assert.equal(doc.nodes.find(item => item.id === 'a').collapsed, true); assert.equal(doc.nodes.find(item => item.id === 'r').collapsed, false);
+  const at = id => doc.nodes.find(item => item.id === id);
+  assert.deepEqual([at('a').x - at('r').x, at('a').y], [360, at('r').y], 'collapsing re-arranges the map: the collapsed topic is a leaf beside its parent');
+  view.collapseTo(null); await view.pending;
+  assert.ok(at('b').y !== at('c').y && at('b').x === at('a').x + 360, 'expanding re-arranges the shown branch');
+  await view.travel(false);
   // One undo restores the state before the last action in one step.
   await view.travel(false);
   assert.ok(doc.nodes.every(item => !item.collapsed), 'one undo restores every flag');
-  assert.match(fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8'), /iconButton\(zoom, "chevrons-down-up", t\("ui\.collapse_levels"\)/);
+  const source = fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8');
+  assert.match(source, /iconButton\(zoom, "chevrons-down-up", t\("ui\.collapse_levels"\)/);
+  assert.match(source, /n\.collapsed = !n\.collapsed;\s*map\.nodes = arrangeMap\(map\.nodes\);/, 'the card collapse button re-arranges in the same change');
 });
 integrationTest('collapse menu offers collapse all, expand all and levels 1 to 3', () => {
   const menus = [];
@@ -1448,6 +1456,7 @@ integrationTest('map stylesheet: no :has() on the map surface, reduced motion be
   const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'), css.indexOf('.theme-dark .vam-viewport'));
   assert.ok(css.includes(`${scan} { content:`), 'the scan animation rule exists');
   assert.ok(reduced.includes(`${scan} { animation: none; }`) || reduced.includes(`, ${scan} { animation: none; }`), 'reduced motion uses the same selector weight as the animation it disables');
+  assert.match(css, /\.vam-node-tools > \.vam-collapse-button \{ order: -1;/, 'the fold toggle leads the card tools, so the icons line up on every card');
   assert.match(css, /\.vam-map-tools button:focus-visible, \.vam-zoom-controls button:focus-visible[^{]*\{ outline: 2px solid var\(--interactive-accent\)/);
   for (const dead of ['.vam-next-web', '.vam-next-usage', '.vam-next-sources', '.vam-rule-preview']) assert.equal(css.includes(dead), false, `${dead} is removed`);
   assert.equal((css.match(/^\.vam-toolbar \.vam-map-switcher \{/gm) ?? []).length, 1, 'the switcher rule is not duplicated');
@@ -1490,4 +1499,60 @@ test('dead code is gone: no unreachable TaskModal confirmation branches and a si
   const source = fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8');
   assert.equal(/confirmed = false/.test(source), false); assert.equal(/if \(!confirmed\)/.test(source), false);
   assert.equal((source.match(/ui\.aim_answered_not_started/g) ?? []).length, 1, 'the AIM chip is built once');
+});
+
+integrationTest('AIM map: arrow keys keep moving focus across full renders instead of snapping back to the old card', () => {
+  const fixture = selectionView(load);
+  const { view } = fixture;
+  view.map.aim = { version: 1, branches: [], runs: [], pendingCommits: [] };
+  fixture.build();
+  const restored = [];
+  view.render = () => { restored.push(view.focusNodeId); fixture.build(); view.focusNodeId = null; };
+  const key = (id, name) => fixture.cards()[id].handlers.get('keydown')({ key: name, target: fixture.cards()[id], preventDefault() {} });
+  key('root', 'ArrowRight');
+  assert.equal(view.selected, 'a'); assert.deepEqual(restored, ['a'], 'the render restores focus to the target card');
+  key('a', 'ArrowDown');
+  assert.equal(view.selected, 'b'); assert.deepEqual(restored, ['a', 'b'], 'the second press moves one more step');
+  assert.equal(fixture.cards().b.focused, 1, 'the live card gets focus, not a detached one'); assert.equal(view.focusNodeId, null);
+});
+integrationTest('legacy AIM map: a viewport write that stamps the content language leaves no false conflict', async () => {
+  const { view } = viewportFixture();
+  const clone = value => JSON.parse(JSON.stringify(value));
+  const disk = clone(view.map); disk.aim = { version: 1, branches: [], runs: [], pendingCommits: [] };
+  view.map = clone(disk);
+  view.plugin.repo.updateMap = async (_path, change) => { change(disk); disk.aim.contentLanguage ??= 'en'; return clone(disk); };
+  view.plugin.repo.readMap = async () => clone(disk);
+  view.plugin.rebuildDerivedData = async () => {};
+  view.persist = async () => {};
+  let cleared = 0; const history = view.history; const original = history.clear.bind(history); history.clear = () => { cleared++; original(); };
+  view.map.viewport.x = 77;
+  await view.persistViewport();
+  assert.equal(view.map.aim.contentLanguage, 'en', 'the stamped language is adopted');
+  await view.mapChange(map => { map.title = 'Renamed'; });
+  assert.equal(cleared, 0, 'no conflict modal, history kept'); assert.equal(view.map.title, 'Renamed');
+});
+integrationTest('dragging keeps moving the edges when a background synchronize redraws them mid-drag', () => {
+  const { view, events, near, down, frames, a, b } = dragFixture();
+  down();
+  events.get('pointermove')({ clientX: 50, clientY: 20 }); frames[0]();
+  assert.equal(near.attrs.length, 1);
+  const redrawn = { attrs: [], setAttribute(name, value) { this.attrs.push([name, value]); } };
+  view.edgeEls = new Map([[`${a.id}\u0000${b.id}`, redrawn]]);
+  events.get('pointermove')({ clientX: 60, clientY: 30 }); frames[1]();
+  assert.equal(redrawn.attrs.length, 1, 'the new path element follows the card'); assert.equal(near.attrs.length, 1, 'the detached path is left alone');
+});
+integrationTest('outline highlight follows the selected topic on in-place and full-render paths, falling back to the opened note', () => {
+  for (const aim of [false, true]) {
+    const fixture = selectionView(load);
+    const { view, outline } = fixture;
+    view.app = { workspace: { getActiveFile: () => ({ path: 'opened.md' }) } };
+    if (aim) view.map.aim = { version: 1, branches: [], runs: [], pendingCommits: [] };
+    fixture.build();
+    view.selectMapNode(view.map.nodes.find(item => item.id === 'a'));
+    assert.equal(outline.at(-1), 'a.md', `selected topic is active (aim=${aim})`);
+    assert.equal(fixture.renders(), aim ? 1 : 0);
+    const previous = view.selected; view.selected = null;
+    view.commitSelection(previous, null, []);
+    assert.equal(outline.at(-1), 'opened.md', `clearing selection falls back to the opened note (aim=${aim})`);
+  }
 });

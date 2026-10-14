@@ -199,7 +199,7 @@ test('outline modal: preview, errors block creation, shallow option and single s
   const modal = new h.mod.OutlineImportModal({ vault: { getMarkdownFiles: () => [] } }, request => { requests.push(request); return new Promise(resolve => { release = resolve; }); });
   modal.open();
   const textarea = h.find(modal.contentEl, item => item.tag === 'textarea');
-  const create = h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Create mind map');
+  const create = h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Add to mind map');
   assert.equal(create.disabled, true);
   textarea.value = '# A\n# B'; textarea.listeners.input();
   assert.equal(create.disabled, true);
@@ -235,7 +235,7 @@ test('outline modal: research depth and model show only with shallow research an
   assert.deepEqual(plain(model().children.map(c => c.value)), ['', 'm1']);
   depthRadios[2].checked = true; depthRadios[2].listeners.change(); model().value = 'm1';
   const textarea = h.find(modal.contentEl, item => item.tag === 'textarea'); textarea.value = '# R\n## A'; textarea.listeners.input();
-  h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Create mind map').listeners.click();
+  h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Add to mind map').listeners.click();
   await new Promise(resolve => setTimeout(resolve, 0));
   assert.equal(requests[0].researchDepth, 'deep'); assert.equal(requests[0].model, 'm1');
   modal.onClose(); assert.equal(unwatched, 1);
@@ -254,7 +254,7 @@ test('outline modal: the content template select sits in the research options an
     const textarea = h.find(modal.contentEl, item => item.tag === 'textarea'); textarea.value = '# R\n## A'; textarea.listeners.input();
     select.value = picked;
     const shallow = h.find(modal.contentEl, item => item.tag === 'input' && item.type === 'checkbox'); shallow.checked = shallowOn; shallow.listeners.change();
-    h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Create mind map').listeners.click();
+    h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Add to mind map').listeners.click();
     await new Promise(resolve => setTimeout(resolve, 0));
     return requests.at(-1);
   };
@@ -275,7 +275,7 @@ test('outline modal: copy format instructions and choose a vault note', async ()
   await modal.loadFile(file);
   assert.equal(h.find(modal.contentEl, item => item.tag === 'textarea').value, '# From file\n## Child');
   assert.ok(h.find(modal.contentEl, item => item.text === 'Source: Inbox/outline.md'));
-  h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Create mind map').listeners.click();
+  h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Add to mind map').listeners.click();
   await new Promise(resolve => setTimeout(resolve, 0));
   assert.equal(requests[0].source, 'Inbox/outline.md');
 });
@@ -492,7 +492,7 @@ function placementModal(target) {
   const text = value => h.find(label(value), item => item.tag === 'span').text;
   const submit = async () => {
     const textarea = h.find(modal.contentEl, item => item.tag === 'textarea'); textarea.value = '# R\n## A'; textarea.listeners.input();
-    h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Create mind map').listeners.click();
+    h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Add to mind map').listeners.click();
     await new Promise(resolve => setTimeout(resolve, 0));
     return requests.at(-1);
   };
@@ -501,26 +501,28 @@ function placementModal(target) {
   return { h, modal, radios, text, submit, choose, hints };
 }
 
-test('outline modal: "Put it in" offers three places, a new map by default, before the shallow option', async () => {
-  const m = placementModal();
+test('outline modal: "Put it in" offers only places in the open map, a new tree by default, before the shallow option', async () => {
+  const m = placementModal({ map: 'editable' });
   assert.ok(m.h.find(m.modal.contentEl, item => item.text === 'Put it in'));
-  assert.deepEqual(plain(m.radios.map(radio => [radio.value, radio.checked, radio.disabled])), [['new', true, false], ['tree', false, true], ['under', false, true]]);
-  assert.equal(m.text('new'), 'A new mind map'); assert.equal(m.text('tree'), 'This mind map, as a new tree'); assert.equal(m.text('under'), 'Under the selected topic');
-  assert.deepEqual(m.hints(), ['No editable mind map is open.', 'No editable mind map is open.']);
+  assert.deepEqual(plain(m.radios.map(radio => [radio.value, radio.checked])), [['tree', true], ['under', false]], 'no new-map option');
+  assert.equal(m.text('tree'), 'This mind map, as a new tree'); assert.equal(m.text('under'), 'Under the selected topic');
   const order = []; const walk = item => { order.push(item); item.children.forEach(walk); }; walk(m.modal.contentEl);
   assert.ok(order.indexOf(m.radios[0]) < order.findIndex(item => item.tag === 'input' && item.type === 'checkbox'), 'before the shallow-research checkbox');
-  assert.deepEqual(plain((await m.submit()).placement), { kind: 'new' });
+  assert.deepEqual(plain((await m.submit()).placement), { kind: 'tree' });
+  const none = placementModal();
+  assert.deepEqual(plain(none.radios.map(radio => radio.disabled)), [true, true]);
+  assert.deepEqual(none.hints(), ['No editable mind map is open.', 'No editable mind map is open.']);
 });
 
 test('outline modal: an AIM map disables both in-map places with its own reason', () => {
   const m = placementModal({ map: 'aim', selected: { id: 'n1', title: 'Q' } });
-  assert.deepEqual(plain(m.radios.map(radio => radio.disabled)), [false, true, true]);
+  assert.deepEqual(plain(m.radios.map(radio => radio.disabled)), [true, true]);
   assert.deepEqual(m.hints(), ["AIM maps don't support imports.", "AIM maps don't support imports."]);
 });
 
 test('outline modal: an editable map allows a new tree; under needs a selected topic', async () => {
   const m = placementModal({ map: 'editable' });
-  assert.deepEqual(plain(m.radios.map(radio => radio.disabled)), [false, false, true]);
+  assert.deepEqual(plain(m.radios.map(radio => radio.disabled)), [false, true]);
   assert.deepEqual(m.hints(), ['Select a topic on the map first.']);
   m.choose('tree');
   assert.deepEqual(plain((await m.submit()).placement), { kind: 'tree' });
@@ -528,7 +530,7 @@ test('outline modal: an editable map allows a new tree; under needs a selected t
 
 test('outline modal: under the selected topic shows its title and sends its id', async () => {
   const m = placementModal({ map: 'editable', selected: { id: 'n1', title: 'Food' } });
-  assert.deepEqual(plain(m.radios.map(radio => radio.disabled)), [false, false, false]);
+  assert.deepEqual(plain(m.radios.map(radio => radio.disabled)), [false, false]);
   assert.equal(m.text('under'), 'Under the selected topic (Food)');
   assert.deepEqual(m.hints(), []);
   m.choose('under');
@@ -538,7 +540,7 @@ test('outline modal: under the selected topic shows its title and sends its id',
 test('outline modal: placement labels in Traditional Chinese', () => {
   const { translate } = load('i18n.ts');
   assert.equal(translate('zh-TW', 'ui.outline_import_placement'), '放到哪裡');
-  assert.equal(translate('zh-TW', 'ui.outline_import_placement_new'), '建立新心智圖');
+  assert.equal(translate('zh-TW', 'ui.outline_import_add'), '加入心智圖');
   assert.equal(translate('zh-TW', 'ui.outline_import_placement_tree'), '目前心智圖（新增一棵樹）');
   assert.equal(translate('zh-TW', 'ui.outline_import_placement_under'), '選取的議題底下');
   assert.equal(translate('zh-TW', 'ui.outline_import_placement_under_named', 'X'), '選取的議題底下（X）');
@@ -718,7 +720,7 @@ test('outline modal: a create failure keeps the dialog open with the reason besi
   modal.open();
   const textarea = h.find(modal.contentEl, item => item.tag === 'textarea'); textarea.value = '# R\n## A'; textarea.listeners.input();
   assert.ok(h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Cancel'));
-  await h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Create mind map').listeners.click();
+  await h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Add to mind map').listeners.click();
   await new Promise(resolve => setTimeout(resolve, 0));
   assert.equal(modal.closed, false);
   assert.ok(h.find(modal.modalEl, item => /vam-next-status/.test(item.cls) && /Map.md could not be saved/.test(item.text)));

@@ -98,6 +98,8 @@
 .vam-node-tools { display: flex; align-items: center; gap: 0; margin-left: auto; }
 .vam-node-tools .vam-icon-button { --icon-size: 15px; width: 26px; height: 26px; padding: 0; justify-content: center; }
 .vam-node-tools .vam-ai-tool { order: 99; color: var(--text-accent); }
+/* The fold toggle leads the row: the icons keep the same place on every card, with or without subtopics. */
+.vam-node-tools > .vam-collapse-button { order: -1; min-width: 4.75em; margin-right: 4px; justify-content: center; font-variant-numeric: tabular-nums; }
 /* Secondary tools wait for intent: hover, keyboard focus, or selection. */
 /* :where keeps this hide rule at single-class weight, so the hover/focus/selection rule below always wins. */
 .vam-node-tools > :where(:not(.vam-pinned-tool, .is-collapsed)) { opacity: 0; transition: opacity 120ms ease-out; }

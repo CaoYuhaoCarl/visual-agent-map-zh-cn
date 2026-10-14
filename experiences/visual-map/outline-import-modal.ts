@@ -64,7 +64,7 @@ export class OutlineImportModal extends Modal {
   private model: () => string | undefined = () => undefined;
   private template: () => string | undefined = () => undefined;
   private unwatch?: () => void;
-  private placement: OutlinePlacement["kind"] = "new";
+  private placement: OutlinePlacement["kind"] = "tree";
 
   constructor(
     app: App,
@@ -72,13 +72,11 @@ export class OutlineImportModal extends Modal {
     private models: ModelChoices = { list: () => [], watch: () => () => {} },
     private templates: { id: string; name: string }[] = [],
     private target: OutlineImportTarget = { map: "none" },
-    initialPlacement: OutlinePlacement["kind"] = "new"
+    initialPlacement: OutlinePlacement["kind"] = "tree"
   ) {
     super(app);
-    // A placement the target cannot take (no open map, nothing selected) falls back to a new map.
-    const usable =
-      initialPlacement === "new" || (target.map === "editable" && (initialPlacement === "tree" || !!target.selected));
-    this.placement = usable ? initialPlacement : "new";
+    // The outline always joins the open map (a new map starts from + New mind map); without a selection it becomes a new tree.
+    this.placement = initialPlacement === "under" && target.selected ? "under" : "tree";
   }
 
   onOpen(): void {
@@ -123,7 +121,7 @@ export class OutlineImportModal extends Modal {
     const footer = modalActions(this);
     this.status = actionStatus(footer);
     footer.createEl("button", { text: t("ui.cancel") }).addEventListener("click", () => this.close());
-    this.createButton = footer.createEl("button", { text: t("ui.outline_import_create"), cls: "mod-cta" });
+    this.createButton = footer.createEl("button", { text: t("ui.outline_import_add"), cls: "mod-cta" });
     this.createButton.addEventListener("click", () => void this.submit());
     this.refresh();
   }
@@ -143,7 +141,6 @@ export class OutlineImportModal extends Modal {
           : null;
     const selected = this.target.selected;
     const options: { kind: OutlinePlacement["kind"]; text: string; reason: string | null }[] = [
-      { kind: "new", text: t("ui.outline_import_placement_new"), reason: null },
       { kind: "tree", text: t("ui.outline_import_placement_tree"), reason: mapReason },
       {
         kind: "under",
@@ -177,7 +174,7 @@ export class OutlineImportModal extends Modal {
 
   private placementRequest(): OutlinePlacement {
     if (this.placement === "under" && this.target.selected) return { kind: "under", parentId: this.target.selected.id };
-    return this.placement === "tree" ? { kind: "tree" } : { kind: "new" };
+    return { kind: "tree" };
   }
 
   onClose(): void {

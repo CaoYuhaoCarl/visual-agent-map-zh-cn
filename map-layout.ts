@@ -9,7 +9,8 @@ function positions(
   nodes: MapNode[],
   roots: MapNode[],
   left: number,
-  top: number
+  top: number,
+  folded = false
 ): Map<string, { x: number; y: number }> {
   const children = new Map<string, MapNode[]>();
   for (const node of nodes) {
@@ -21,7 +22,7 @@ function positions(
   const result = new Map<string, { x: number; y: number }>();
   let row = 0;
   const visit = (node: MapNode, depth: number): number => {
-    const descendants = children.get(node.id) ?? [];
+    const descendants = folded && node.collapsed ? [] : (children.get(node.id) ?? []);
     const childYs = descendants.map(child => visit(child, depth + 1));
     const y = childYs.length ? (childYs[0] + childYs[childYs.length - 1]) / 2 : top + row++ * ROW;
     result.set(node.id, { x: left + depth * COLUMN, y });
@@ -31,9 +32,10 @@ function positions(
   return result;
 }
 
+/** Lays out what is on screen: a collapsed topic is a leaf, and its hidden branch keeps its coordinates until it is shown again. */
 export function arrangeMap(nodes: MapNode[]): MapNode[] {
   const roots = nodes.filter(node => !node.parentId);
-  const placed = positions(nodes, roots, 80, 80);
+  const placed = positions(nodes, roots, 80, 80, true);
   return nodes.map(node => ({ ...node, ...placed.get(node.id) }));
 }
 

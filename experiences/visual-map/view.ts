@@ -697,10 +697,14 @@ export class VisualAgentMapView extends ItemView {
     const settings = this.plugin.settings;
     return [standardTemplate(settings.language), ...settings.detailTemplates].map(({ id, name }) => ({ id, name }));
   }
-  /** `intoOpenMap` starts with the placement that matches the card in front of the user: under the selected topic, else this map. */
-  openOutlineImport(intoOpenMap = false): void {
+  /** Adds an outline to the open map: under the selected topic, else as a new tree. A new map starts from + New mind map. */
+  openOutlineImport(): void {
     const target = this.outlineImportTarget();
-    const placement = !intoOpenMap || target.map !== "editable" ? "new" : target.selected ? "under" : "tree";
+    if (target.map !== "editable") {
+      new Notice(target.map === "aim" ? t("ui.outline_import_placement_aim") : t("ui.outline_import_placement_no_map"));
+      return;
+    }
+    const placement = target.selected ? "under" : "tree";
     new OutlineImportModal(
       this.app,
       request => this.importOutline(request),
@@ -717,7 +721,7 @@ export class VisualAgentMapView extends ItemView {
       item
         .setTitle(t("ui.paste_outline_add_many"))
         .setIcon("list-tree")
-        .onClick(() => this.openOutlineImport(true))
+        .onClick(() => this.openOutlineImport())
     );
     menu.showAtMouseEvent(event);
   }
@@ -729,7 +733,10 @@ export class VisualAgentMapView extends ItemView {
       applyCollapseLevel(preview, shownLevels);
       const changed = preview.some((node, index) => !!node.collapsed !== !!this.map!.nodes[index]?.collapsed);
       if (changed) {
-        await this.mapChange(map => applyCollapseLevel(map.nodes, shownLevels));
+        await this.mapChange(map => {
+          applyCollapseLevel(map.nodes, shownLevels);
+          map.nodes = arrangeMap(map.nodes);
+        });
         if (this.history.undoEntry) this.history.undoEntry.label = t("ui.collapse_levels");
         this.updateHistoryButtons();
       }
@@ -3230,7 +3237,6 @@ export class VisualAgentMapView extends ItemView {
         // The selected card swaps the bare icon for a labelled action (CSS keys off .is-selected).
         const explore = this.button(tools, t("ui.ai_explore"), () => this.openNextStep(node));
         explore.addClass("vam-node-tool", "vam-ai-explore");
-        explore.setAttr("aria-label", t("ui.how_would_you_like_to_explore_next"));
         this.iconButton(tools, "network", t("ui.structure_and_links"), () =>
           this.openNodePanel(node, "structure")
         ).addClass("vam-node-tool");
@@ -3274,6 +3280,7 @@ export class VisualAgentMapView extends ItemView {
           this.mapChange(map => {
             const n = map.nodes.find(n => n.id === node.id)!;
             n.collapsed = !n.collapsed;
+            map.nodes = arrangeMap(map.nodes);
           })
         )
       );
@@ -3534,8 +3541,16 @@ export class VisualAgentMapView extends ItemView {
       const previous = this.tabStopId;
       this.tabStopId = target.id;
       this.paintCards([previous, target.id]);
-    } else this.selectMapNode(target);
-    card?.focus({ preventScroll: true });
+    } else {
+      // A full render (AIM) rebuilds every card and restores focus to focusNodeId, so name the target first.
+      this.focusNodeId = target.id;
+      try {
+        this.selectMapNode(target);
+      } finally {
+        this.focusNodeId = null;
+      }
+    }
+    (this.cardEls.get(target.id) ?? card)?.focus({ preventScroll: true });
   }
   /** The tab stop when nothing moved it: the selected card, else the first root, else the first card. */
   private defaultTabStop(shown: MapNode[]): string | null {
@@ -3586,12 +3601,18 @@ export class VisualAgentMapView extends ItemView {
         this.selectionBarEl = bar;
       }
     }
-    this.plugin.setOutlineActive(this.map?.nodes.find(node => node.id === nextId)?.path ?? "");
+    this.syncOutlineActive(nextId);
+  }
+  /** The outline highlights the selected topic; with no selection it falls back to the opened note. */
+  private syncOutlineActive(nextId: string | null): void {
+    const selected = nextId ? this.map?.nodes.find(node => node.id === nextId)?.path : undefined;
+    this.plugin.setOutlineActive(selected ?? this.app?.workspace?.getActiveFile?.()?.path ?? "");
   }
   /** Selection changed: repaint in place, or render fully where selection also drives other chrome (AIM, sample). */
   private commitSelection(prevId: string | null, nextId: string | null, touched: Iterable<string> = []): void {
     if (this.map?.aim || this.builtIn || !this.cardEls.size) {
       this.render();
+      this.syncOutlineActive(nextId);
       return;
     }
     this.applySelectionState(prevId, nextId, touched);
@@ -6034,9 +6055,13 @@ export class VisualAgentMapView extends ItemView {
   private async persistViewport(): Promise<void> {
     if (this.builtIn || !this.map || !this.path) return;
     const viewport = { ...this.map.viewport };
-    await this.plugin.repo.updateMap(this.path, map => {
+    const written = await this.plugin.repo.updateMap(this.path, map => {
       map.viewport = viewport;
     });
+    // The write may stamp a derived field (legacy AIM content language); adopt it so the next change sees no conflict.
+    const stamped = written?.aim?.contentLanguage;
+    if (stamped !== undefined && this.map?.aim && this.map.aim.contentLanguage === undefined)
+      this.map.aim.contentLanguage = stamped;
   }
   private zoomBy(factor: number, point?: { x: number; y: number }): void {
     if (!this.map || !this.viewportEl) return;
@@ -6290,17 +6315,17 @@ export class VisualAgentMapView extends ItemView {
   private dragEdges(id: string, card: HTMLElement): { update: (x: number, y: number) => void } {
     const size = { width: card.offsetWidth, height: card.offsetHeight };
     const touching: {
-      path: SVGPathElement;
+      key: string;
       dragIsParent: boolean;
       far: { x: number; y: number; width: number; height: number };
     }[] = [];
-    for (const [key, path] of this.edgeEls) {
+    for (const key of this.edgeEls.keys()) {
       const [parentId, childId] = key.split("\u0000");
       if (parentId !== id && childId !== id) continue;
       const other = this.cardEls.get(parentId === id ? childId : parentId);
       if (!other) continue;
       touching.push({
-        path,
+        key,
         dragIsParent: parentId === id,
         far: { x: other.offsetLeft, y: other.offsetTop, width: other.offsetWidth, height: other.offsetHeight }
       });
@@ -6308,13 +6333,16 @@ export class VisualAgentMapView extends ItemView {
     return {
       update: (x, y) => {
         for (const edge of touching) {
+          // A background synchronize may redraw the edges mid-drag; always move the current path elements.
+          const path = this.edgeEls.get(edge.key);
+          if (!path) continue;
           if (edge.dragIsParent)
-            edge.path.setAttribute(
+            path.setAttribute(
               "d",
               edgePathData(x + size.width, y + size.height / 2, edge.far.x, edge.far.y + edge.far.height / 2)
             );
           else
-            edge.path.setAttribute(
+            path.setAttribute(
               "d",
               edgePathData(edge.far.x + edge.far.width, edge.far.y + edge.far.height / 2, x, y + size.height / 2)
             );
