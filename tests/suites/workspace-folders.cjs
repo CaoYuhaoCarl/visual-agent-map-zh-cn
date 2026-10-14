@@ -781,11 +781,61 @@ integrationTest('a non-empty Inbox (with a topic-state inbox note) and a non-emp
   assert.doesNotMatch(notices.at(-1), /trash/);
 });
 
-integrationTest('a failed or post-unload trash of an empty legacy folder is ignored', async () => {
+integrationTest('a failed trash of an empty legacy folder is ignored, and a disposed repository stops cleaning', async () => {
   const vault = await legacyVault();
   await vault.repo.organizeWorkspaceFolders(await vault.repo.planOrganizeWorkspaceFolders());
+  await vault.repo.folder('Agent Workspace/Inbox');
   vault.app.fileManager.trashFile = async () => { throw new Error('trash refused'); };
   assert.deepEqual(plain(await vault.repo.removeEmptyLegacyFolders()), []);
-  vault.repo.dispose();
+  const calls = [];
+  vault.app.fileManager.trashFile = async folder => { calls.push(folder.path); vault.repo.dispose(); };
+  assert.deepEqual(plain(await vault.repo.removeEmptyLegacyFolders()), ['Agent Workspace/Topics']);
+  assert.deepEqual(calls, ['Agent Workspace/Topics'], 'once disposed, the next folder is not trashed');
+});
+
+// Obsidian's vault tree hides dot-files and dot-folders, so "empty" must also hold on disk.
+const hiddenCase = async (setup) => {
+  const vault = await legacyVault();
+  vault.opened = []; installTrash(vault);
+  await vault.repo.folder('Agent Workspace/Inbox');
+  await setup(vault);
+  const notices = [], plugin = noticePlugin(vault, notices);
+  return { vault, notices, plugin };
+};
+
+integrationTest('a Topics folder holding only a hidden file is not trashed and keeps its bytes, and the preview does not promise it', async () => {
+  const { vault, plugin } = await hiddenCase(async v => { await v.app.vault.adapter.write('Agent Workspace/Topics/.hidden.md', 'private notes'); });
+  assert.equal(vault.app.vault.getAbstractFileByPath('Agent Workspace/Topics').children.length, 3, 'precondition: the tree shows only the three topics');
+  await plugin.offerOrganizeWorkspaceFolders();
+  assert.doesNotMatch(vault.opened[0].description, /Topics, /);
+  assert.match(vault.opened[0].description, /moved to the trash: Agent Workspace\/Inbox\./, 'only the really empty Inbox is promised');
+  vault.opened[0].choices[0].action(); await plugin.queue;
+  assert.deepEqual(plain(vault.trashed), ['Agent Workspace/Inbox']);
+  assert.equal(vault.contents.get('Agent Workspace/Topics/.hidden.md'), 'private notes');
+});
+
+integrationTest('an Inbox holding only a hidden subfolder is not trashed', async () => {
+  const { vault, plugin } = await hiddenCase(async v => { await v.app.vault.adapter.mkdir('Agent Workspace/Inbox/.git'); await v.app.vault.adapter.write('Agent Workspace/Inbox/.git/config', 'x'); });
+  await plugin.offerOrganizeWorkspaceFolders();
+  assert.doesNotMatch(vault.opened[0].description, /Inbox/);
+  vault.opened[0].choices[0].action(); await plugin.queue;
+  assert.deepEqual(plain(vault.trashed), ['Agent Workspace/Topics']);
+  assert.equal(vault.contents.get('Agent Workspace/Inbox/.git/config'), 'x');
+});
+
+integrationTest('folders holding only OS litter (.DS_Store) are still trashed', async () => {
+  const { vault, plugin } = await hiddenCase(async v => { await v.app.vault.adapter.write('Agent Workspace/Topics/.DS_Store', 'x'); await v.app.vault.adapter.write('Agent Workspace/Inbox/.DS_Store', 'x'); });
+  await plugin.offerOrganizeWorkspaceFolders();
+  assert.match(vault.opened[0].description, /Agent Workspace\/Topics, Agent Workspace\/Inbox/);
+  vault.opened[0].choices[0].action(); await plugin.queue;
+  assert.deepEqual(plain(vault.trashed), ['Agent Workspace/Topics', 'Agent Workspace/Inbox']);
+});
+
+integrationTest('a folder whose disk listing fails is skipped', async () => {
+  const vault = await legacyVault();
+  await vault.repo.organizeWorkspaceFolders(await vault.repo.planOrganizeWorkspaceFolders());
+  installTrash(vault);
+  vault.app.vault.adapter.list = async () => { throw new Error('no listing'); };
   assert.deepEqual(plain(await vault.repo.removeEmptyLegacyFolders()), []);
+  assert.deepEqual(plain(vault.trashed), []);
 });

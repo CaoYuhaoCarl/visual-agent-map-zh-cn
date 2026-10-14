@@ -703,7 +703,7 @@ export default class VisualAgentMapPlugin extends Plugin {
     );
     if (plan.skipped.length)
       description += `\n${t("ui.organize_skipped_list_0", plan.skipped.map(item => item.mapPath).join(", "))}`;
-    const toClean = this.repo.emptyLegacyFolders(plan);
+    const toClean = await this.repo.emptyLegacyFolders(plan);
     if (toClean.length) description += `\n${t("ui.organize_will_remove_0", toClean.join(", "))}`;
     description += `\n${t("ui.organize_link_wait_hint")}`;
     new ChoiceModal(this.app, t("ui.organize_workspace_folders"), description, [

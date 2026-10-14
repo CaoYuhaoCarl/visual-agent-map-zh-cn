@@ -12646,6 +12646,7 @@ ${REFERENCE_END}
 function noteLink(path) {
   return path.replace(/\.md$/, "").replace(/\|/g, "\\|");
 }
+var OS_LITTER = /* @__PURE__ */ new Set([".ds_store", "thumbs.db", "desktop.ini"]);
 var VAULT_WRITES = /* @__PURE__ */ new Set([
   "create",
   "createBinary",
@@ -13499,24 +13500,44 @@ ${body}`;
     return [this.settings.topicsFolder, `${this.settings.workspaceFolder}/Inbox`];
   }
   /**
-   * Which legacy folders are (or, after `plan`'s moves, will be) empty in Obsidian's vault tree. Never lists a folder
-   * that still has anything in it; OS files Obsidian cannot see do not count.
+   * Whether `path` holds nothing but OS litter on disk. Obsidian's vault tree hides dot-files and dot-folders, so a
+   * folder that looks empty there can still hold user content (.git, .sessions, hidden notes): ask the disk. Folders in
+   * `allowed` (topics about to move out) do not count. A failed listing counts as not empty.
    */
-  emptyLegacyFolders(plan) {
+  async emptyOnDisk(path, allowed = /* @__PURE__ */ new Set()) {
+    try {
+      const listing = await this.app.vault.adapter.list(path);
+      return listing.folders.every((folder) => allowed.has(folder)) && listing.files.every((file) => {
+        var _a;
+        return OS_LITTER.has(((_a = file.split("/").at(-1)) != null ? _a : file).toLowerCase());
+      });
+    } catch (e) {
+      return false;
+    }
+  }
+  /**
+   * Which legacy folders are (or, after `plan`'s moves, will be) empty both in Obsidian's vault tree and on disk (OS
+   * litter aside). Never lists a folder that still holds anything, hidden content included.
+   */
+  async emptyLegacyFolders(plan) {
     var _a;
     const moving = new Set(((_a = plan == null ? void 0 : plan.moves) != null ? _a : []).map((move) => move.fromRoot));
-    return this.legacyCleanupFolders().filter((path) => {
+    const empty = [];
+    for (const path of this.legacyCleanupFolders()) {
       const folder = this.app.vault.getAbstractFileByPath(path);
-      return folder instanceof import_obsidian9.TFolder && folder.children.every((child) => moving.has(child.path));
-    });
+      if (!(folder instanceof import_obsidian9.TFolder) || !folder.children.every((child) => moving.has(child.path))) continue;
+      if (await this.emptyOnDisk(path, moving)) empty.push(path);
+    }
+    return empty;
   }
-  /** Moves the legacy Topics/Inbox folders to the trash only if empty; a failed trash is ignored. Returns what went. */
+  /** Moves the legacy Topics/Inbox folders to the trash only if empty (re-checked on disk right before); returns what went. */
   async removeEmptyLegacyFolders() {
     const removed = [];
-    for (const path of this.emptyLegacyFolders()) {
+    for (const path of this.legacyCleanupFolders()) {
       if (this.disposed) break;
       const folder = this.app.vault.getAbstractFileByPath(path);
       if (!(folder instanceof import_obsidian9.TFolder) || folder.children.length) continue;
+      if (!await this.emptyOnDisk(path)) continue;
       try {
         await this.app.fileManager.trashFile(folder);
         removed.push(path);
@@ -35127,7 +35148,7 @@ ${error}`;
     if (plan.skipped.length)
       description += `
 ${t("ui.organize_skipped_list_0", plan.skipped.map((item) => item.mapPath).join(", "))}`;
-    const toClean = this.repo.emptyLegacyFolders(plan);
+    const toClean = await this.repo.emptyLegacyFolders(plan);
     if (toClean.length) description += `
 ${t("ui.organize_will_remove_0", toClean.join(", "))}`;
     description += `

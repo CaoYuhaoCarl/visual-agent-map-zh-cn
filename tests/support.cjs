@@ -85,7 +85,8 @@ const obsidian = { setIcon: (parent, name) => { parent.iconName = name; }, Menu:
 const { Repository, DEFAULT_SETTINGS, normalizeReasoningLevel } = load('repository.ts', { obsidian });
 function fixture(language = 'zh-TW') {
   const files = new Map(), contents = new Map();
-  const attach = item => { const folderPath = item.path.split('/').slice(0, -1).join('/'); item.parent = files.get(folderPath) || null; if (item.parent instanceof TFolder && !item.parent.children.includes(item)) item.parent.children.push(item); };
+  const attach = item => { const folderPath = item.path.split('/').slice(0, -1).join('/'); item.parent = files.get(folderPath) || null; // Obsidian's vault tree hides dot-files and dot-folders; the adapter (disk) listing below still reports them.
+    if (item.parent instanceof TFolder && !item.name.startsWith('.') && !item.parent.children.includes(item)) item.parent.children.push(item); };
   const renameTree = (from, to) => { const entries = Array.from(files.entries()).filter(([p]) => p === from || p.startsWith(`${from}/`)).sort((a, b) => a[0].length - b[0].length); for (const [old, item] of entries) { files.delete(old); if (item.parent?.children) item.parent.children = item.parent.children.filter(child => child !== item); const next = `${to}${old.slice(from.length)}`; item.path = next; item.name = next.split('/').at(-1); if (item instanceof TFile) { item.basename = item.name.replace(/\.md$/, ''); item.stat.mtime = Date.now(); const content = contents.get(old); contents.delete(old); contents.set(next, content); } files.set(next, item); } for (const [, item] of entries) attach(item); };
   const app = { vault: {
     getAbstractFileByPath: p => files.get(p),
