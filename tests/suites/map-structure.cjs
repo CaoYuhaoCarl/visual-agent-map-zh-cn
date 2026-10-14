@@ -564,6 +564,30 @@ integrationTest('structure review: a stale suggestion is blocked, a cancelled co
   assert.equal(JSON.stringify(await h.saved()), before, 'closing the window writes nothing');
 });
 
+integrationTest('structure review: a card renamed or moved while the remove or merge confirmation is open is checked again inside the write', async () => {
+  const h = await viewHarness(fullReply);
+  const { rows, apply } = await h.start(null);
+  const before = JSON.stringify(await h.saved());
+  // Remove: the confirmation opens, then Dreams is renamed before the user picks.
+  await apply(3, false); await tick();
+  assert.equal(h.opened.at(-1).titleEl.text, 'Remove from map');
+  h.view.notes.get(h.ids.d).title = 'Dream journal';
+  await h.choose('Remove entire branch');
+  assert.equal(JSON.stringify(await h.saved()), before, 'nothing written');
+  assert.ok(hasCls(rows()[3], 'is-stale'));
+  assert.equal(find(rows()[3], i => hasCls(i, 'vam-structure-note')).text, 'This suggestion is out of date: the card was renamed or moved after the review.');
+  assert.equal(find(rows()[3], i => hasCls(i, 'vam-structure-apply')).disabled, true);
+  // Merge: the confirmation opens, then Misc is moved under Mind before the user picks.
+  await apply(2, false); await tick();
+  assert.equal(h.opened.at(-1).titleEl.text, 'Merge “Misc” into “Body”');
+  h.view.map.nodes.find(n => n.id === h.ids.e).parentId = h.ids.b;
+  await h.choose('Merge and remove “Misc”');
+  assert.equal(JSON.stringify(await h.saved()), before, 'nothing written');
+  assert.ok(hasCls(rows()[2], 'is-stale'));
+  assert.equal(find(rows()[2], i => hasCls(i, 'vam-structure-note')).text, 'This suggestion is out of date: the card was renamed or moved after the review.');
+  assert.equal(h.view.history.canUndo, false, 'no undo entry was recorded');
+});
+
 integrationTest('structure review entry: the root topic offers the whole map, a subtopic with subtopics its branch, a leaf nothing', async () => {
   const h = await viewHarness({ suggestions: [] });
   const entry = id => h.view.structureReviewEntry(h.view.map.nodes.find(n => n.id === id));
