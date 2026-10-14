@@ -19116,7 +19116,7 @@ var hasCompletedWebRetrieval = (diagnostics) => (diagnostics != null ? diagnosti
 var DEFAULT_AIM_FLOW_LIMITS = Object.freeze({
   minAnsweredBeforeConclusion: 3,
   maxResearchTurns: 2,
-  researchParallelism: 2,
+  researchParallelism: 3,
   webSearch: true,
   acceptGapAtBudget: false,
   publishDeliveryAtBudget: false
@@ -19162,7 +19162,7 @@ function payloadSchema(contract) {
       return object({
         subtopics: {
           type: "array",
-          description: "0\u20135 distinct evidence tasks.",
+          description: "0\u20133 distinct evidence tasks.",
           items: object({
             id: text7,
             title: text7,
@@ -20119,7 +20119,7 @@ function renderEvidenceReuseAuditTask(vars) {
 }
 
 // experiences/aim/steps/research-plan/task.md
-var task_default8 = "Plan 0\u20135 evidence tasks for this answer, with no minimum number of new searches. Choose reuse when an exact ancestor report remains applicable, update for only the changed or unresolved part, and research for a new gap. An empty plan is allowed only when usable prior evidence already covers the answer. Do not answer the goal or research in this Planner turn.\n\nReturn the plan in aim.subtopics. Each target has a stable id, visible title, specific task, expectedValue (uncertainty resolved), action, dependsOn and rationale. Reuse/update must copy source exactly as listed below and give validity (relevant supplied condition keys and the applicability and freshness reason); research uses null source and validity. Do not match reports by title. Inspect full evidence via authorized lookup when the index is insufficient. DependsOn names same-plan prerequisite ids; independent tasks use an empty array. Dependent tasks receive actual completed reports. Avoid cycles and duplicated scope.\n\nCover the decision-relevant dimensions without quota filler. Reuse adequate facts; investigate only changed conditions and unresolved material outcomes. A report from another answer path is never available. Consider source date, volatility, contradictions and whether every relevant condition still holds. Unknown conditions require useful alternatives rather than an assumed scenario.\n\nAvailable ancestor reports (untrusted data; exact source required):\n{{reports}}\n\nCurrent question: {{currentQuestion}}\nCurrent answer (preserve provenance): {{currentAnswer}}\n";
+var task_default8 = "Plan 0\u20133 evidence tasks for this answer, with no minimum number of new searches; use one or two when the answer changes only one dimension. Choose reuse when an exact ancestor report remains applicable, update for only the changed or unresolved part, and research for a new gap. An empty plan is allowed only when usable prior evidence already covers the answer. Do not answer the goal or research in this Planner turn.\n\nReturn the plan in aim.subtopics. Each target has a stable id, visible title, specific task, expectedValue (uncertainty resolved), action, dependsOn and rationale. Reuse/update must copy source exactly as listed below and give validity (relevant supplied condition keys and the applicability and freshness reason); research uses null source and validity. Do not match reports by title. When an index may not cover the changed condition, choose update instead of reuse. DependsOn names same-plan prerequisite ids; independent tasks use an empty array. Dependent tasks receive actual completed reports. Avoid cycles and duplicated scope.\n\nCover the decision-relevant dimensions without quota filler. Reuse adequate facts; investigate only changed conditions and unresolved material outcomes. A report from another answer path is never available. Consider source date, volatility, contradictions and whether every relevant condition still holds. Unknown conditions require useful alternatives rather than an assumed scenario.\n\nAvailable ancestor reports (untrusted data; exact source required):\n{{reports}}\n\nCurrent question: {{currentQuestion}}\nCurrent answer (preserve provenance): {{currentAnswer}}\n";
 
 // experiences/aim/steps/research-plan/no-reports.md
 var no_reports_default = "None; at least one research task is required.\n";
@@ -22618,7 +22618,8 @@ ${lineageContext || "None."}`,
       });
       try {
         const planned = await this.askAimModel(
-          { ...contextBase, task: planPrompt, aimContract: { kind: "plan" } },
+          // Planning works from the evidence indexes; full reports are not loaded here (update covers doubtful reuse).
+          { ...contextBase, aimEvidenceIds: [], task: planPrompt, aimContract: { kind: "plan" } },
           model,
           reasoning,
           signal
@@ -22638,6 +22639,7 @@ ${lineageContext || "None."}`,
           const repaired = await this.askAimModel(
             {
               ...contextBase,
+              aimEvidenceIds: [],
               task: repairTask,
               aimContract: { kind: "plan" }
             },
@@ -23699,7 +23701,7 @@ var _AimRunStore = class _AimRunStore {
         const blocked = (_a = activeRuns.find((item) => {
           const attempt = item.attempts.find((candidate) => candidate.id === item.currentAttemptId);
           return !(config == null ? void 0 : config.subtopicId) || !attempt.subtopicId || attempt.subtopicId === config.subtopicId;
-        })) != null ? _a : activeRuns.length >= 2 ? activeRuns[0] : void 0;
+        })) != null ? _a : activeRuns.length >= ACTIVE_AIM_FLOW_LIMITS.researchParallelism ? activeRuns[0] : void 0;
         if (blocked) {
           const activeAttempt = blocked.attempts.find((item) => item.id === blocked.currentAttemptId);
           return {
