@@ -304,6 +304,13 @@
 .vam-proposal-field > span { color: var(--text-muted); font-weight: 500; text-align: left; }
 .vam-proposal-field > input, .vam-proposal-field > textarea { width: 100%; min-width: 0; box-sizing: border-box; }
 .vam-proposal textarea { resize: vertical; }
+.vam-node.vam-structure-suggested { box-shadow: 0 0 0 3px var(--background-primary), 0 0 0 6px var(--color-orange); }
+.vam-next-structure { display: flex; align-items: center; gap: var(--size-4-2); flex-wrap: wrap; margin: var(--size-4-2) 0; }
+.vam-proposal.is-applied { opacity: 0.6; }
+.vam-proposal.is-stale .vam-proposal-title { text-decoration: line-through; }
+.vam-structure-note { margin: 4px 0 0 26px; font-size: var(--font-ui-small); color: var(--text-muted); }
+.vam-proposal.is-stale .vam-structure-note { color: var(--text-error); }
+.vam-structure-apply { flex: 0 0 auto; }
 .vam-proposal-kind { flex: 0 0 auto; padding: 1px 8px; border-radius: var(--radius-s); font-size: var(--font-ui-smaller); color: var(--text-muted); background: var(--background-modifier-hover); }
 .vam-proposal-kind-add { color: var(--color-green); }
 .vam-proposal-kind-move { color: var(--color-blue); }

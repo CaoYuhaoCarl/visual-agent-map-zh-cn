@@ -93,6 +93,8 @@ export interface NextStepSettings {
   childrenCompleted?: number;
   /** Quick explore: an AI outline from a preset, reviewed in this dialog before any subtopic is created. */
   quickOutline?: QuickOutline;
+  /** 「檢視整張圖」 (root topic) or 「檢視這個分支」 (subtopic): opens the AI structure review instead of a step. */
+  structureReview?: { label: string; open: () => void };
 }
 export interface QuickOutline {
   presets: { id: string; name: string }[];
@@ -882,6 +884,17 @@ export class NextStepModal extends Modal {
       "synthesize"
     );
     const cardFor = { research: researchCard, expand: expandCard, synthesize: synthesizeCard };
+    const structureReview = selection ? undefined : this.modelSettings?.structureReview;
+    if (structureReview) {
+      const row = this.contentEl.createDiv("vam-next-structure");
+      row.createSpan({ cls: "vam-hint", text: t("ui.structure_review_entry_hint") });
+      row
+        .createEl("button", { text: structureReview.label, cls: "vam-next-structure-open" })
+        .addEventListener("click", () => {
+          this.close();
+          structureReview.open();
+        });
+    }
     // Multi-select synthesis is this same dialog with only its synthesis step.
     if (selection) cards.addClass("is-hidden");
     if (this.modelSettings?.running) {
@@ -1439,7 +1452,14 @@ function renderProposalKind(head: HTMLElement, row: HTMLElement, item: ProposalI
   if (item.destination)
     row.createEl("p", {
       cls: "vam-proposal-destination",
-      text: t(item.kind === "merge" ? "ui.proposal_merge_into_0" : "ui.proposal_destination_0", item.destination)
+      text: t(
+        item.kind === "merge"
+          ? "ui.proposal_merge_into_0"
+          : item.kind === "add"
+            ? "ui.proposal_add_under_0"
+            : "ui.proposal_destination_0",
+        item.destination
+      )
     });
   if (item.reason) row.createEl("p", { cls: "vam-proposal-reason", text: item.reason });
 }

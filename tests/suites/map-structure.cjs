@@ -261,3 +261,275 @@ test('outline proposals round-trip: the root is dropped, keys keep repeated titl
   assert.equal(JSON.stringify(nodes.map(n => [n.index, n.title, n.parent, n.level])), JSON.stringify([[0, 'B', null, 1], [1, 'Same', 0, 2]]));
   assert.throws(() => proposalOutline([items[3]]), /parent/);
 });
+
+// ---- C3: AI structure review --------------------------------------------------------------------------------------
+const { fixture, core, DEFAULT_SETTINGS, withExpansionCoordinator, until } = require('../support.cjs');
+
+// The window alone, against a fake host.
+function windowHarness({ review, stale = () => null, apply } = {}) {
+  const Modal = dom.makeModal();
+  const mod = load('experiences/visual-map/structure-review-modal.ts', { obsidian: { ...obsidian, Modal } });
+  const calls = { review: 0, apply: [], highlight: [] };
+  const titles = { root: 'Sleep', a: 'Body', b: 'Mind', c: 'REM', d: 'Dreams' };
+  const host = {
+    scope: 'map',
+    review: review ?? (async () => { calls.review++; return { suggestions: [
+      { kind: 'strengthen', targetId: 'root', title: 'Sleep hygiene', reason: 'Habits are missing.', basis: {} },
+      { kind: 'move', targetId: 'c', newParentId: 'b', reason: 'REM is about the mind.', basis: {} },
+      { kind: 'merge', targetId: 'd', mergeIntoId: 'b', reason: 'Dreams repeat Mind.', basis: {} },
+      { kind: 'reduce', targetId: 'a', reason: 'Body is out of scope.', basis: {} }
+    ], rejected: [{ index: 4, code: 'unknown_target' }] }; }),
+    titleOf: id => titles[id] ?? '',
+    staleReason: suggestion => stale(suggestion),
+    apply: apply ?? (async (suggestion, title) => { calls.apply.push([suggestion.kind, title]); return true; }),
+    highlight: ids => calls.highlight.push([...ids])
+  };
+  const modal = new mod.StructureReviewModal({}, host);
+  modal.open();
+  const rows = () => findAll(modal.contentEl, i => hasCls(i, 'vam-proposal'));
+  const applyOf = row => find(row, i => i.tag === 'button' && hasCls(i, 'vam-structure-apply'));
+  const noteOf = row => find(row, i => hasCls(i, 'vam-structure-note')).text;
+  return { modal, host, calls, rows, applyOf, noteOf };
+}
+
+test('structure review window: starts on Close, runs on request, lists every kind with its reason and marks the cards', async () => {
+  const h = windowHarness();
+  assert.equal(h.modal.titleEl.text, 'Review the whole map');
+  assert.ok(button(h.modal.modalEl, 'Close').focused, 'an Enter cannot start the review');
+  assert.equal(h.calls.review, 0, 'nothing runs before Start');
+  button(h.modal.modalEl, 'Start review').click(); await tick(); await tick();
+  assert.equal(h.calls.review, 1);
+  assert.deepEqual(h.rows().map(row => find(row, i => hasCls(i, 'vam-proposal-kind')).text), ['Add', 'Move', 'Merge', 'Remove']);
+  assert.deepEqual(h.rows().map(row => find(row, i => hasCls(i, 'vam-proposal-reason')).text), ['Habits are missing.', 'REM is about the mind.', 'Dreams repeat Mind.', 'Body is out of scope.']);
+  assert.deepEqual(h.rows().map(row => find(row, i => hasCls(i, 'vam-proposal-title')).value), ['Sleep hygiene', 'REM', 'Dreams', 'Body']);
+  assert.deepEqual(h.rows().map(row => find(row, i => hasCls(i, 'vam-proposal-destination'))?.text), ['Under: Sleep', 'To: Mind', 'Into: Mind', undefined]);
+  assert.ok(find(h.modal.contentEl, i => i.text === '1 suggestions pointed at cards that are not on the map and were left out.'));
+  assert.deepEqual(h.calls.highlight.at(-1), ['root', 'c', 'b', 'd', 'b', 'a'], 'every suggested card is marked');
+  assert.deepEqual(h.calls.apply, [], 'nothing is applied until asked');
+  h.modal.close();
+  assert.deepEqual(h.calls.highlight.at(-1), [], 'closing clears the marks');
+});
+
+test('structure review window: each suggestion is applied on its own; a new topic name can be edited first', async () => {
+  const h = windowHarness();
+  button(h.modal.modalEl, 'Start review').click(); await tick(); await tick();
+  const [add, move] = h.rows();
+  find(add, i => hasCls(i, 'vam-proposal-title')).value = 'Sleep habits';
+  h.applyOf(add).click(); await tick(); await tick();
+  assert.deepEqual(h.calls.apply, [['strengthen', 'Sleep habits']]);
+  assert.equal(h.applyOf(add).text, 'Applied'); assert.equal(h.applyOf(add).disabled, true); assert.ok(hasCls(add, 'is-applied'));
+  assert.equal(h.noteOf(add), 'Applied. Undo reverts this change.');
+  assert.deepEqual(h.calls.highlight.at(-1), ['c', 'b', 'd', 'b', 'a'], 'an applied suggestion is no longer marked');
+  h.applyOf(add).click(); await tick();
+  assert.equal(h.calls.apply.length, 1, 'applied once');
+  h.applyOf(move).click(); await tick(); await tick();
+  assert.deepEqual(h.calls.apply.map(c => c[0]), ['strengthen', 'move']);
+});
+
+test('structure review window: a stale suggestion is refused with its reason; a cancelled confirmation or a failure leaves it applicable', async () => {
+  let staleIds = new Set();
+  const outcomes = { merge: false, reduce: 'error' };
+  const h = windowHarness({ stale: s => staleIds.has(s.targetId) ? 'This suggestion is out of date: the card was renamed or moved after the review.' : null,
+    apply: async s => { h.calls.apply.push([s.kind]); if (outcomes[s.kind] === 'error') throw new Error('Disk is read-only'); return outcomes[s.kind] ?? true; } });
+  button(h.modal.modalEl, 'Start review').click(); await tick(); await tick();
+  const [add, , merge, reduce] = h.rows();
+  staleIds = new Set(['root']);
+  h.applyOf(add).click(); await tick();
+  assert.deepEqual(h.calls.apply, [], 'a stale suggestion is never applied');
+  assert.equal(h.applyOf(add).disabled, true); assert.ok(hasCls(add, 'is-stale'));
+  assert.equal(h.noteOf(add), 'This suggestion is out of date: the card was renamed or moved after the review.');
+  h.applyOf(merge).click(); await tick(); await tick();
+  assert.deepEqual(h.calls.apply, [['merge']]);
+  assert.equal(h.applyOf(merge).disabled, false, 'a cancelled confirmation can be applied later'); assert.equal(hasCls(merge, 'is-applied'), false);
+  h.applyOf(reduce).click(); await tick(); await tick();
+  assert.equal(h.noteOf(reduce), 'Disk is read-only'); assert.equal(h.applyOf(reduce).disabled, false);
+});
+
+test('structure review window: Cancel during the review and closing early write nothing', async () => {
+  let signal;
+  const h = windowHarness({ review: s => { signal = s; return new Promise((_resolve, reject) => s.addEventListener('abort', () => reject(new Error('aborted')))); } });
+  button(h.modal.modalEl, 'Start review').click(); await tick();
+  button(h.modal.modalEl, 'Cancel').click(); await tick(); await tick();
+  assert.equal(signal.aborted, true);
+  assert.ok(find(h.modal.modalEl, i => i.text === 'Review cancelled. Nothing was changed.'));
+  assert.deepEqual(h.calls.apply, []); assert.equal(h.rows().length, 0);
+  const late = windowHarness({ review: s => { signal = s; return new Promise(() => {}); } });
+  button(late.modal.modalEl, 'Start review').click(); late.modal.close();
+  assert.equal(signal.aborted, true); assert.deepEqual(late.calls.apply, []);
+});
+
+// The real view and repository, with a fake provider behind the real structure review service.
+class Setting {
+  constructor(el) { this.el = el; }
+  setName() { return this; } setDesc() { return this; }
+  addButton(callback) { const b = { setButtonText(text) { this.text = text; return this; }, onClick(fn) { this.run = fn; return this; }, setDestructive() { return this; } }; callback(b); (this.el.choiceButtons ??= []).push(b); return this; }
+}
+async function viewHarness(reply) {
+  const { repo, app } = fixture('en');
+  const settings = { ...DEFAULT_SETTINGS, language: 'en', cliModel: 'gpt-6-luna' };
+  repo.settings = settings;
+  const mapPath = 'Agent Workspace/Topics/map-a/Map.md';
+  const mapDoc = { id: 'map-a', title: 'Sleep map', version: 1, nodes: [], viewport: { x: 0, y: 0, zoom: 1 } };
+  await repo.ensureTopicFolders('Agent Workspace/Topics/map-a');
+  const ids = {};
+  const add = async (key, title, parent) => {
+    const created = await repo.createNote(title, 'gpt-6-luna', mapDoc, mapPath, parent ? 'inherited' : 'workspace');
+    Object.assign(created, { parentId: parent ? ids[parent] : null, x: parent ? 400 : 80, y: 80 + mapDoc.nodes.length * 200 });
+    mapDoc.nodes.push(created); ids[key] = created.id;
+    return created;
+  };
+  await add('root', 'Sleep'); await add('a', 'Body', 'root'); await add('b', 'Mind', 'root'); await add('c', 'REM', 'a');
+  await add('d', 'Dreams', 'b'); await add('e', 'Misc', 'root'); await add('f', 'Leftover', 'e');
+  await app.vault.create(mapPath, core.serializeMap(mapDoc));
+  await repo.rebuildDerivedData();
+  const body = mapDoc.nodes.find(n => n.id === ids.a);
+  await repo.updateNote(body.path, { summary: 'How the body sleeps.', detail: '### Findings\n\nSECRET FULL NOTE BODY' });
+  const opened = [], notices = [];
+  const Base = dom.makeModal();
+  class Modal extends Base { open() { opened.push(this); super.open(); } }
+  const plugin = withExpansionCoordinator({ repo, settings, running: new Set(), rebuildDerivedData: () => repo.rebuildDerivedData(), mutate: async work => work(), confirmAiUsage: async (_model, run) => { await run(); return true; } });
+  const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Modal, Setting, Notice: class { constructor(m) { notices.push(m); } } } });
+  const { StructureReviewService } = load('core/structure-review-service.ts');
+  const requests = [];
+  plugin.structureReview = new StructureReviewService(async request => { requests.push(request); return JSON.stringify(typeof reply === 'function' ? reply(ids) : reply); });
+  const view = new VisualAgentMapView({ app }, plugin);
+  const reload = async () => { view.notes = new Map(await Promise.all(view.map.nodes.map(async n => [n.id, await repo.readNote(n.path)]))); };
+  view.path = mapPath; view.map = await repo.readMap(mapPath); view.render = () => {}; view.focusNode = () => {}; view.hydrate = reload;
+  await reload();
+  const cards = new Map(view.map.nodes.map(n => [n.id, element('div', 'vam-node')]));
+  for (const [id, card] of cards) view.cardEls.set(id, card);
+  const saved = async () => (await repo.readMap(mapPath)).nodes;
+  const parentOf = async key => (await saved()).find(n => n.id === ids[key])?.parentId;
+  const start = async scope => {
+    view.openStructureReview(scope);
+    const modal = opened.at(-1);
+    button(modal.modalEl, 'Start review').click();
+    await until(() => findAll(modal.contentEl, i => hasCls(i, 'vam-proposal')).length || find(modal.modalEl, i => /suggestions|could not/.test(i.text ?? '')));
+    const rows = () => findAll(modal.contentEl, i => hasCls(i, 'vam-proposal'));
+    const apply = async (index, settle = true) => { find(rows()[index], i => hasCls(i, 'vam-structure-apply')).click(); if (settle) { await tick(); await tick(); } };
+    return { modal, rows, apply };
+  };
+  const choose = async label => {
+    const dialog = opened.at(-1);
+    const choice = dialog.contentEl.choiceButtons.find(b => b.text === label);
+    assert.ok(choice, `choice ${label}`); choice.run();
+    await until(() => true); await tick(); await tick(); await tick();
+  };
+  return { repo, app, view, plugin, ids, requests, opened, notices, cards, saved, parentOf, start, choose, mapPath };
+}
+const fullReply = ids => ({ suggestions: [
+  { kind: 'strengthen', targetId: ids.root, reason: 'Habits are missing.', title: 'Sleep hygiene', newParentId: '', mergeIntoId: '' },
+  { kind: 'move', targetId: ids.c, reason: 'REM is about the mind.', title: '', newParentId: ids.b, mergeIntoId: '' },
+  { kind: 'merge', targetId: ids.e, reason: 'Misc repeats Body.', title: '', newParentId: '', mergeIntoId: ids.a },
+  { kind: 'reduce', targetId: ids.d, reason: 'Dreams are out of scope.', title: '', newParentId: '', mergeIntoId: '' },
+  { kind: 'reduce', targetId: 'invented-id', reason: 'Not on the map.', title: '', newParentId: '', mergeIntoId: '' }
+] });
+
+integrationTest('structure review on the map: the AI gets titles, summaries and status only, unknown ids are dropped, cards are marked until the window closes', async () => {
+  const h = await viewHarness(fullReply);
+  const { modal, rows } = await h.start(null);
+  const sent = h.requests[0];
+  assert.equal(sent.rootQuestion, 'Sleep map');
+  assert.deepEqual(Object.keys(sent.nodes[0]).sort(), ['depth', 'id', 'parentId', 'status', 'summary', 'title']);
+  assert.ok(sent.nodes.some(n => n.title === 'Body' && n.summary === 'How the body sleeps.'));
+  assert.equal(JSON.stringify(sent).includes('SECRET FULL NOTE BODY'), false, 'no note body is sent');
+  assert.equal(rows().length, 4, 'the invented id is not offered');
+  assert.ok(find(modal.contentEl, i => i.text === '1 suggestions pointed at cards that are not on the map and were left out.'));
+  const marked = [...h.cards].filter(([, card]) => hasCls(card, 'vam-structure-suggested')).map(([id]) => id).sort();
+  assert.deepEqual(marked, [h.ids.root, h.ids.a, h.ids.b, h.ids.c, h.ids.d, h.ids.e].sort());
+  modal.close();
+  assert.equal([...h.cards.values()].filter(card => hasCls(card, 'vam-structure-suggested')).length, 0, 'closing clears every mark');
+});
+
+integrationTest('structure review: a branch review sends only that branch with the branch topic as its root', async () => {
+  const h = await viewHarness({ suggestions: [] });
+  h.view.openStructureReview(h.ids.a);
+  const branch = h.opened.at(-1);
+  assert.equal(branch.titleEl.text, 'Review this branch');
+  button(branch.modalEl, 'Start review').click(); await until(() => h.requests.length);
+  assert.equal(h.requests[0].rootQuestion, 'Body');
+  assert.equal(JSON.stringify(h.requests[0].nodes.map(n => [n.title, n.parentId === null])), JSON.stringify([['Body', true], ['REM', false]]));
+  await until(() => find(branch.contentEl, i => i.text === 'AI has no structure suggestions for this part of the map.'));
+});
+
+integrationTest('structure review: add, move, merge and remove each apply as one undo step', async () => {
+  const h = await viewHarness(fullReply);
+  const { rows, apply } = await h.start(null);
+  const before = JSON.stringify((await h.saved()).map(n => [n.id, n.parentId]));
+  // Add: a new child of the root.
+  await apply(0);
+  let nodes = await h.saved();
+  const added = nodes.find(n => n.parentId === h.ids.root && !Object.values(h.ids).includes(n.id));
+  assert.ok(added); assert.equal((await h.repo.readNote(added.path)).title, 'Sleep hygiene');
+  await h.view.history.undo().undo();
+  assert.equal(JSON.stringify((await h.saved()).map(n => [n.id, n.parentId])), before, 'one undo removes the added topic');
+  // Move: REM goes under Mind.
+  await apply(1);
+  assert.equal(await h.parentOf('c'), h.ids.b);
+  await h.view.history.undo().undo();
+  assert.equal(await h.parentOf('c'), h.ids.a);
+  // Merge: through the delete confirmation; Misc's subtopic moves to Body, Misc leaves the map.
+  await apply(2, false); await tick();
+  assert.equal(h.opened.at(-1).titleEl.text, 'Merge “Misc” into “Body”');
+  await h.choose('Merge and remove “Misc”');
+  nodes = await h.saved();
+  assert.equal(nodes.some(n => n.id === h.ids.e), false);
+  assert.equal(await h.parentOf('f'), h.ids.a);
+  assert.equal((await h.repo.collectionFiles(h.mapPath, 'Unassigned')).length, 1);
+  await h.view.history.undo().undo();
+  assert.equal(await h.parentOf('e'), h.ids.root); assert.equal(await h.parentOf('f'), h.ids.e);
+  // Remove: the existing delete confirmation, entire branch.
+  await apply(3, false); await tick();
+  assert.equal(h.opened.at(-1).titleEl.text, 'Remove from map');
+  await h.choose('Remove entire branch');
+  assert.equal((await h.saved()).some(n => n.id === h.ids.d), false);
+  await h.view.history.undo().undo();
+  assert.equal(await h.parentOf('d'), h.ids.b);
+  assert.equal(JSON.stringify((await h.saved()).map(n => [n.id, n.parentId])), before, 'every change undone');
+  assert.equal(rows().length, 4);
+});
+
+integrationTest('structure review: a stale suggestion is blocked, a cancelled confirmation and closing the window write nothing', async () => {
+  const h = await viewHarness(fullReply);
+  const { modal, rows, apply } = await h.start(null);
+  const before = JSON.stringify(await h.saved());
+  // The map changes after the review: REM is renamed, so the move suggestion is out of date.
+  h.view.notes.get(h.ids.c).title = 'REM sleep';
+  await apply(1);
+  assert.equal(JSON.stringify(await h.saved()), before, 'nothing written');
+  assert.ok(hasCls(rows()[1], 'is-stale'));
+  assert.equal(find(rows()[1], i => hasCls(i, 'vam-structure-note')).text, 'This suggestion is out of date: the card was renamed or moved after the review.');
+  assert.equal(find(rows()[1], i => hasCls(i, 'vam-structure-apply')).disabled, true);
+  // A card removed from the map makes its suggestion stale too.
+  h.view.map.nodes = h.view.map.nodes.filter(n => n.id !== h.ids.d);
+  await apply(3);
+  assert.match(find(rows()[3], i => hasCls(i, 'vam-structure-note')).text, /no longer on the map/);
+  h.view.map = await h.repo.readMap(h.mapPath);
+  // Cancel the merge confirmation: nothing changes and the suggestion stays available.
+  await apply(2, false); await tick();
+  h.opened.at(-1).close(); await tick(); await tick();
+  assert.equal(JSON.stringify(await h.saved()), before);
+  assert.equal(find(rows()[2], i => hasCls(i, 'vam-structure-apply')).disabled, false);
+  assert.equal(h.view.history.canUndo, false, 'no undo entry was recorded');
+  modal.close();
+  assert.equal(JSON.stringify(await h.saved()), before, 'closing the window writes nothing');
+});
+
+integrationTest('structure review entry: the root topic offers the whole map, a subtopic with subtopics its branch, a leaf nothing', async () => {
+  const h = await viewHarness({ suggestions: [] });
+  const entry = id => h.view.structureReviewEntry(h.view.map.nodes.find(n => n.id === id));
+  assert.equal(entry(h.ids.root).label, 'Review the whole map');
+  assert.equal(entry(h.ids.a).label, 'Review this branch');
+  assert.equal(entry(h.ids.c), undefined);
+  // The Next Step dialog shows it and opens the review in its place.
+  const notices = [];
+  const Modal = dom.makeModal();
+  const { NextStepModal } = load('main.ts', { obsidian: { ...obsidian, Modal, setIcon: () => {}, Notice: class { constructor(m) { notices.push(m); } } } });
+  const modelState = provider => ({ provider, status: 'ready', models: [] });
+  const plugin = { settings: { codexUsageNoticeSeen: true, claudeUsageNoticeSeen: true, models: 'gpt-test', cliModel: 'gpt-test', cliReasoning: 'low', language: 'en' }, aiReadyForModel: async () => true, confirmAiUsage: async (_m, run) => { await run(); return true; }, saveSettings: async () => {}, activeTasks: new Map(), availableModels: () => ['gpt-test'], modelLabel: m => m, modelDiscoveryState: modelState, subscribeModelDiscovery: () => () => {}, refreshModelDiscovery: async p => modelState(p) };
+  let opened = 0;
+  const modal = new NextStepModal({}, 'Sleep', 'normal', 3, 0, plugin, async () => {}, async () => {}, async () => {}, { model: 'gpt-test', modelSource: 'workspace', reasoning: 'low', save: async () => {}, structureReview: { label: 'Review the whole map', open: () => { opened++; } } });
+  modal.open();
+  button(modal.contentEl, 'Review the whole map').click();
+  assert.equal(opened, 1); assert.equal(modal.closeCount, 1);
+});

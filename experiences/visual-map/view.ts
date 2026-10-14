@@ -72,6 +72,13 @@ import {
   type OutlinePlacement
 } from "./outline-import-modal";
 import { MultiResearchModal, type MultiResearchRequest } from "./multi-research-modal";
+import { StructureReviewModal } from "./structure-review-modal";
+import {
+  buildStructureReviewNodes,
+  isSuggestionStale,
+  type StructureReviewResult,
+  type StructureSuggestion
+} from "../../core/structure-review-service";
 import { renderTopicTree } from "../../ui/topic-tree";
 import { TopicTreeModal } from "../../ui/modals/topic-tree-modal";
 import type { ModelChoices } from "./research-fields";
@@ -199,6 +206,8 @@ export class VisualAgentMapView extends ItemView {
   private notes = new Map<string, Note>();
   private selected: string | null = null;
   private multiSelected = new Set<string>();
+  /** Cards named by the open structure review; marked with a class, cleared when the review closes. */
+  private structureHighlight = new Set<string>();
   private history = new History<Action>();
   private deletedMap: {
     path: string;
@@ -773,6 +782,146 @@ export class VisualAgentMapView extends ItemView {
           ...(options.detailTemplateId ? { detailTemplateId: options.detailTemplateId } : {})
         })
     };
+  }
+  /** 「檢視整張圖」 on a root topic, 「檢視這個分支」 on a subtopic with subtopics; nothing on a leaf or an AIM map. */
+  private structureReviewEntry(node: MapNode): { label: string; open: () => void } | undefined {
+    if (!this.map || this.outlineImportTarget().map !== "editable") return undefined;
+    if (node.parentId === null)
+      return { label: t("ui.structure_review_map"), open: () => this.openStructureReview(null) };
+    if (this.map.nodes.some(item => item.parentId === node.id))
+      return { label: t("ui.structure_review_branch"), open: () => this.openStructureReview(node.id) };
+    return undefined;
+  }
+  /** The AI sees each card's title, summary and status only; never a note body. */
+  private describeForReview(id: string): { title: string; summary: string; status: string } | undefined {
+    const node = this.map?.nodes.find(item => item.id === id);
+    if (!node) return undefined;
+    const note = this.notes.get(id);
+    return { title: note?.title ?? node.path, summary: note?.summary ?? "", status: note?.status ?? "idea" };
+  }
+  /** AI structure review of the whole map (`scopeId` null) or one branch; each suggestion is applied on its own. */
+  openStructureReview(scopeId: string | null): void {
+    if (!this.map || this.outlineImportTarget().map !== "editable") return;
+    const mapPath = this.path;
+    const tree = (): ReturnType<typeof buildStructureReviewNodes> =>
+      this.path === mapPath && this.map
+        ? buildStructureReviewNodes(this.map.nodes, id => this.describeForReview(id), scopeId)
+        : [];
+    const nodes = tree();
+    const rootQuestion = scopeId ? (this.describeForReview(scopeId)?.title ?? "") : this.map.title;
+    const staleReason = (suggestion: StructureSuggestion): string | null => {
+      const current = tree();
+      if (!isSuggestionStale(suggestion, current)) return null;
+      const byId = new Map(current.map(item => [item.id, item]));
+      const target = byId.get(suggestion.targetId);
+      const destination = suggestion.newParentId ?? suggestion.mergeIntoId;
+      if (!target || (destination && !byId.has(destination))) return t("ui.structure_review_stale_missing");
+      if (target.title !== suggestion.basis.targetTitle || target.parentId !== suggestion.basis.targetParentId)
+        return t("ui.structure_review_stale_changed");
+      return t("ui.structure_review_stale_structure");
+    };
+    new StructureReviewModal(this.app, {
+      scope: scopeId ? "branch" : "map",
+      review: async signal => {
+        const settings = this.plugin.settings;
+        const model = settings.cliModel;
+        let result: StructureReviewResult | undefined;
+        const started = await this.plugin.confirmAiUsage(model, async () => {
+          result = await this.plugin.structureReview.review(
+            {
+              rootQuestion,
+              nodes,
+              language: settings.language,
+              model,
+              reasoning: normalizeReasoningLevel(settings.cliReasoning)
+            },
+            signal
+          );
+        });
+        if (!started || !result) throw new Error(t("ui.structure_review_not_started"));
+        return result;
+      },
+      titleOf: id => this.describeForReview(id)?.title ?? "",
+      staleReason,
+      apply: (suggestion, title) => this.applyStructureSuggestion(suggestion, title, staleReason),
+      highlight: ids => this.highlightStructure(ids)
+    }).open();
+  }
+  /** Marks the suggested cards in place; an empty list clears every mark. */
+  highlightStructure(ids: string[]): void {
+    const next = new Set(ids);
+    for (const id of new Set([...this.structureHighlight, ...next]))
+      this.cardEls.get(id)?.toggleClass("vam-structure-suggested", next.has(id));
+    this.structureHighlight = next;
+  }
+  /**
+   * Applies one structure suggestion as one undo step, after checking again that it still fits the map. Remove and
+   * merge go through the delete confirmation; resolves false when it is cancelled.
+   */
+  private applyStructureSuggestion(
+    suggestion: StructureSuggestion,
+    title: string,
+    staleReason: (suggestion: StructureSuggestion) => string | null
+  ): Promise<boolean> {
+    const guard = (): void => {
+      const reason = staleReason(suggestion);
+      if (reason) throw new Error(reason);
+    };
+    const nodeOf = (id: string): MapNode => {
+      const node = this.map?.nodes.find(item => item.id === id);
+      if (!node) throw new Error(t("ui.structure_review_stale_missing"));
+      return node;
+    };
+    try {
+      guard();
+    } catch (error) {
+      return Promise.reject(error instanceof Error ? error : new Error(String(error)));
+    }
+    const write = (work: () => Promise<void>): Promise<void> =>
+      this.plugin.mutate(async () => {
+        guard();
+        await work();
+      });
+    if (suggestion.kind === "strengthen")
+      return write(() => this.addNode(nodeOf(suggestion.targetId), title)).then(() => true);
+    if (suggestion.kind === "move")
+      return write(() => this.moveTopic(nodeOf(suggestion.targetId), nodeOf(suggestion.newParentId ?? ""))).then(
+        () => true
+      );
+    return new Promise<boolean>((resolve, reject) => {
+      const run = (work: () => Promise<void>): void => {
+        write(work).then(() => resolve(true), reject);
+      };
+      const node = nodeOf(suggestion.targetId);
+      if (suggestion.kind === "reduce") {
+        this.confirmRemoveNode(node, { run, dismissed: () => resolve(false) });
+        return;
+      }
+      const into = nodeOf(suggestion.mergeIntoId ?? "");
+      const name = (item: MapNode): string => this.describeForReview(item.id)?.title ?? item.path;
+      new ChoiceModal(
+        this.app,
+        t("ui.structure_review_merge_title", name(node), name(into)),
+        t("ui.structure_review_merge_desc", name(node), name(into)),
+        [
+          {
+            label: t("ui.structure_review_merge_confirm", name(node)),
+            warning: true,
+            action: () => run(() => this.removeToUnassigned(node, false, into.id))
+          }
+        ],
+        () => resolve(false)
+      ).open();
+    });
+  }
+  /** Moves one topic and its branch under a new parent, in one undo step. */
+  private async moveTopic(node: MapNode, parent: MapNode): Promise<void> {
+    await this.mapChange(map => {
+      if (!canParent(map.nodes, node.id, parent.id)) throw new Error(t("ui.circular_links_are_not_allowed"));
+      map.nodes.find(item => item.id === node.id)!.parentId = parent.id;
+      map.nodes.find(item => item.id === parent.id)!.collapsed = false;
+      map.nodes = arrangeNewBranch(map.nodes, parent.id, new Set([node.id, ...descendants(map.nodes, node.id)]));
+    });
   }
   /** The side option on "+ Topic": one topic by default, or a pasted outline for several at once. */
   private openTopicMenu(event: MouseEvent): void {
@@ -1782,7 +1931,8 @@ export class VisualAgentMapView extends ItemView {
       throw error;
     }
   }
-  private async removeToUnassigned(node: MapNode, branch: boolean): Promise<void> {
+  /** Removes a topic (or its branch) to Unassigned in one undo step; `adopterId` first takes over its children (merge). */
+  private async removeToUnassigned(node: MapNode, branch: boolean, adopterId?: string): Promise<void> {
     if (!this.map) return;
     const before = clone(this.map),
       ids = branch ? new Set([node.id, ...descendants(before.nodes, node.id)]) : new Set([node.id]);
@@ -1804,7 +1954,20 @@ export class VisualAgentMapView extends ItemView {
         await this.plugin.repo.setLifecycle(target, before.id, "", "unassigned");
       }
       const after = clone(before);
+      const adopted = new Set<string>();
+      if (adopterId)
+        for (const item of after.nodes)
+          if (item.parentId === node.id) {
+            item.parentId = adopterId;
+            adopted.add(item.id);
+            for (const id of descendants(after.nodes, item.id)) adopted.add(id);
+          }
       after.nodes = removeNodes(after.nodes, node.id, branch);
+      if (adopterId && adopted.size) {
+        const adopter = after.nodes.find(item => item.id === adopterId);
+        if (adopter) adopter.collapsed = false;
+        after.nodes = arrangeNewBranch(after.nodes, adopterId, adopted);
+      }
       this.removeAimReferences(after, ids, before.nodes);
       await this.plugin.repo.saveMap(this.path, after);
       this.map = after;
@@ -1845,7 +2008,12 @@ export class VisualAgentMapView extends ItemView {
       [{ label: t("ui.confirm_removal"), warning: true, action: () => this.enqueue(() => this.removeSelected()) }]
     ).open();
   }
-  private confirmRemoveNode(node: MapNode): void {
+  /** The delete confirmation. `hooks` lets a caller run the chosen removal itself and hear about a cancel. */
+  private confirmRemoveNode(
+    node: MapNode,
+    hooks: { run?: (work: () => Promise<void>) => void; dismissed?: () => void } = {}
+  ): void {
+    const run = hooks.run ?? ((work: () => Promise<void>) => this.enqueue(work));
     new ChoiceModal(
       this.app,
       t("ui.remove_from_map"),
@@ -1856,16 +2024,17 @@ export class VisualAgentMapView extends ItemView {
               {
                 label: t("ui.remove_only_this_node_children_become_roots"),
                 warning: true,
-                action: () => this.enqueue(() => this.removeToUnassigned(node, false))
+                action: () => run(() => this.removeToUnassigned(node, false))
               }
             ]
           : []),
         {
           label: t("ui.remove_entire_branch"),
           warning: true,
-          action: () => this.enqueue(() => this.removeToUnassigned(node, true))
+          action: () => run(() => this.removeToUnassigned(node, true))
         }
-      ]
+      ],
+      hooks.dismissed
     ).open();
   }
   private async removeSelected(): Promise<void> {
@@ -3129,6 +3298,7 @@ export class VisualAgentMapView extends ItemView {
         cls: `vam-node${node.id === this.selected || this.multiSelected.has(node.id) ? " is-selected" : ""}`
       });
     this.cardEls.set(node.id, card);
+    if (this.structureHighlight.has(node.id)) card.addClass("vam-structure-suggested");
     card.setAttr("role", "treeitem");
     card.setAttr("aria-level", String(this.nodeDepth(node)));
     card.setAttr("aria-selected", String(node.id === this.selected || this.multiSelected.has(node.id)));
@@ -3946,6 +4116,7 @@ export class VisualAgentMapView extends ItemView {
             : undefined,
           quickError: this.plugin.quickExpandFailures.get(node.path),
           quickOutline: this.quickOutline(node),
+          structureReview: this.structureReviewEntry(node),
           sources,
           templates: this.templateChoices(),
           tones: this.toneChoices(),

@@ -15,6 +15,12 @@ import {
   type PromptPreset
 } from "../../ai/prompt-presets";
 
+/** The message of any thrown value; errors may come from another realm, so no instanceof check. */
+const messageOf = (error: unknown): string => {
+  const message = (error as { message?: unknown } | null)?.message;
+  return typeof message === "string" ? message : String(error);
+};
+
 /** Where the imported outline goes; omitted means a new mind map. */
 export type OutlinePlacement = { kind: "new" } | { kind: "tree" } | { kind: "under"; parentId: string };
 
@@ -301,13 +307,7 @@ export class OutlineImportModal extends Modal {
         })
         .catch(error => {
           if (this.generation !== controller) return;
-          status.setText(
-            controller.signal.aborted
-              ? t("ui.outline_ai_stopped")
-              : error instanceof Error
-                ? error.message
-                : String(error)
-          );
+          status.setText(controller.signal.aborted ? t("ui.outline_ai_stopped") : messageOf(error));
         })
         .finally(() => {
           if (this.generation !== controller) return;
@@ -375,7 +375,7 @@ export class OutlineImportModal extends Modal {
       // The dialog stays open with the outline; the reason sits next to the button.
       this.submitting = false;
       this.refresh();
-      this.status.setText(error instanceof Error ? error.message : String(error));
+      this.status.setText(messageOf(error));
     }
   }
 }
