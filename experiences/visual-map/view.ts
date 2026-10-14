@@ -800,9 +800,9 @@ export class VisualAgentMapView extends ItemView {
   private structureReviewEntry(node: MapNode): { label: string; open: () => void } | undefined {
     if (!this.map || this.outlineImportTarget().map !== "editable") return undefined;
     if (node.parentId === null)
-      return { label: t("ui.structure_review_map"), open: () => this.openStructureReview(null) };
+      return { label: t("ui.structure_review_entry_map"), open: () => this.openStructureReview(null) };
     if (this.map.nodes.some(item => item.parentId === node.id))
-      return { label: t("ui.structure_review_branch"), open: () => this.openStructureReview(node.id) };
+      return { label: t("ui.structure_review_entry_branch"), open: () => this.openStructureReview(node.id) };
     return undefined;
   }
   /** The AI sees each card's title, summary and status only; never a note body. */

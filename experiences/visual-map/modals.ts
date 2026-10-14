@@ -823,13 +823,17 @@ export class NextStepModal extends Modal {
     const structureReview = selection ? undefined : this.modelSettings?.structureReview;
     if (structureReview) {
       const row = this.contentEl.createDiv("vam-next-structure");
-      row.createSpan({ cls: "vam-hint", text: t("ui.structure_review_entry_hint") });
+      row.createSpan({ cls: "vam-next-structure-label", text: t("ui.structure_review_entry_label") });
       row
         .createEl("button", { text: structureReview.label, cls: "vam-next-structure-open" })
         .addEventListener("click", () => {
           this.close();
           structureReview.open();
         });
+      this.contentEl.createEl("p", {
+        cls: "vam-hint vam-next-structure-hint",
+        text: t("ui.structure_review_entry_hint")
+      });
     }
     // Multi-select synthesis is this same dialog with only its synthesis step.
     if (selection) cards.addClass("is-hidden");

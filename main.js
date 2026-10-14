@@ -781,7 +781,10 @@ var english = {
   "ui.structure_review_merge_desc": "The subtopics of \u201C{0}\u201D move under \u201C{1}\u201D, then \u201C{0}\u201D leaves the map and its note moves to this map's Unassigned folder. Undo restores it.",
   "ui.structure_review_merge_confirm": "Merge and remove \u201C{0}\u201D",
   "ui.structure_review_not_started": "The structure review did not start.",
-  "ui.structure_review_entry_hint": "Or check the structure:",
+  "ui.structure_review_entry_label": "AI structure suggestions:",
+  "ui.structure_review_entry_map": "What to strengthen or cut? (whole map)",
+  "ui.structure_review_entry_branch": "What to strengthen or cut? (this branch)",
+  "ui.structure_review_entry_hint": "AI reads only titles, summaries and status, then suggests topics to add, cut, move or merge; apply each one on its own, and undo any.",
   "ui.discard_confirm": "Discard draft?",
   "ui.discard_confirm_hint": "Press again within 5 seconds to discard this AI draft. It cannot be recovered.",
   "ui.ai_draft": "AI draft",
@@ -2161,7 +2164,10 @@ var traditionalChinese = {
   "ui.structure_review_merge_desc": "\u300C{0}\u300D\u7684\u5B50\u8B70\u984C\u6703\u79FB\u5230\u300C{1}\u300D\u5E95\u4E0B\uFF0C\u63A5\u8457\u300C{0}\u300D\u96E2\u958B\u5FC3\u667A\u5716\uFF0C\u7B46\u8A18\u79FB\u5230\u9019\u5F35\u5716\u7684 Unassigned\u3002\u53EF\u4EE5\u7528\u5FA9\u539F\u9084\u539F\u3002",
   "ui.structure_review_merge_confirm": "\u5408\u4F75\u4E26\u79FB\u9664\u300C{0}\u300D",
   "ui.structure_review_not_started": "\u7D50\u69CB\u6AA2\u8996\u6C92\u6709\u958B\u59CB\u3002",
-  "ui.structure_review_entry_hint": "\u6216\u6AA2\u67E5\u7D50\u69CB\uFF1A",
+  "ui.structure_review_entry_label": "AI \u7D50\u69CB\u5EFA\u8B70\uFF1A",
+  "ui.structure_review_entry_map": "\u54EA\u88E1\u8A72\u52A0\u5F37\u6216\u522A\u6E1B\uFF1F\uFF08\u6574\u5F35\u5716\uFF09",
+  "ui.structure_review_entry_branch": "\u54EA\u88E1\u8A72\u52A0\u5F37\u6216\u522A\u6E1B\uFF1F\uFF08\u9019\u500B\u5206\u652F\uFF09",
+  "ui.structure_review_entry_hint": "AI \u53EA\u8B80\u6A19\u984C\u3001\u6458\u8981\u8207\u72C0\u614B\uFF0C\u5EFA\u8B70\u65B0\u589E\u3001\u522A\u6E1B\u3001\u79FB\u52D5\u6216\u5408\u4F75\u8B70\u984C\uFF1B\u6BCF\u689D\u53EF\u55AE\u7368\u5957\u7528\u3001\u53EF\u5FA9\u539F\u3002",
   "ui.discard_confirm": "\u78BA\u5B9A\u6368\u68C4\uFF1F",
   "ui.discard_confirm_hint": "5 \u79D2\u5167\u518D\u6309\u4E00\u6B21\u5C31\u6703\u6368\u68C4\u9019\u4EFD AI \u8349\u7A3F\uFF0C\u6368\u68C4\u5F8C\u7121\u6CD5\u5FA9\u539F\u3002",
   "ui.ai_draft": "AI \u8349\u7A3F",
@@ -15838,10 +15844,14 @@ var NextStepModal = class extends import_obsidian14.Modal {
     const structureReview = selection ? void 0 : (_c = this.modelSettings) == null ? void 0 : _c.structureReview;
     if (structureReview) {
       const row = this.contentEl.createDiv("vam-next-structure");
-      row.createSpan({ cls: "vam-hint", text: t("ui.structure_review_entry_hint") });
+      row.createSpan({ cls: "vam-next-structure-label", text: t("ui.structure_review_entry_label") });
       row.createEl("button", { text: structureReview.label, cls: "vam-next-structure-open" }).addEventListener("click", () => {
         this.close();
         structureReview.open();
+      });
+      this.contentEl.createEl("p", {
+        cls: "vam-hint vam-next-structure-hint",
+        text: t("ui.structure_review_entry_hint")
       });
     }
     if (selection) cards.addClass("is-hidden");
@@ -23898,9 +23908,9 @@ ${request.requirements}` : preset.text,
   structureReviewEntry(node) {
     if (!this.map || this.outlineImportTarget().map !== "editable") return void 0;
     if (node.parentId === null)
-      return { label: t("ui.structure_review_map"), open: () => this.openStructureReview(null) };
+      return { label: t("ui.structure_review_entry_map"), open: () => this.openStructureReview(null) };
     if (this.map.nodes.some((item) => item.parentId === node.id))
-      return { label: t("ui.structure_review_branch"), open: () => this.openStructureReview(node.id) };
+      return { label: t("ui.structure_review_entry_branch"), open: () => this.openStructureReview(node.id) };
     return void 0;
   }
   /** The AI sees each card's title, summary and status only; never a note body. */

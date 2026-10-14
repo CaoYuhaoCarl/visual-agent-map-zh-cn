@@ -588,11 +588,21 @@ integrationTest('structure review: a card renamed or moved while the remove or m
   assert.equal(h.view.history.canUndo, false, 'no undo entry was recorded');
 });
 
+test('structure review entry copy in Traditional Chinese; the review window titles stay as they are', () => {
+  const { translate } = load('i18n.ts');
+  assert.equal(translate('zh-TW', 'ui.structure_review_entry_label'), 'AI 結構建議：');
+  assert.equal(translate('zh-TW', 'ui.structure_review_entry_map'), '哪裡該加強或刪減？（整張圖）');
+  assert.equal(translate('zh-TW', 'ui.structure_review_entry_branch'), '哪裡該加強或刪減？（這個分支）');
+  assert.equal(translate('zh-TW', 'ui.structure_review_entry_hint'), 'AI 只讀標題、摘要與狀態，建議新增、刪減、移動或合併議題；每條可單獨套用、可復原。');
+  assert.equal(translate('zh-TW', 'ui.structure_review_map'), '檢視整張圖');
+  assert.equal(translate('zh-TW', 'ui.structure_review_branch'), '檢視這個分支');
+});
+
 integrationTest('structure review entry: the root topic offers the whole map, a subtopic with subtopics its branch, a leaf nothing', async () => {
   const h = await viewHarness({ suggestions: [] });
   const entry = id => h.view.structureReviewEntry(h.view.map.nodes.find(n => n.id === id));
-  assert.equal(entry(h.ids.root).label, 'Review the whole map');
-  assert.equal(entry(h.ids.a).label, 'Review this branch');
+  assert.equal(entry(h.ids.root).label, 'What to strengthen or cut? (whole map)');
+  assert.equal(entry(h.ids.a).label, 'What to strengthen or cut? (this branch)');
   assert.equal(entry(h.ids.c), undefined);
   // The Next Step dialog shows it and opens the review in its place.
   const notices = [];
@@ -601,8 +611,10 @@ integrationTest('structure review entry: the root topic offers the whole map, a 
   const modelState = provider => ({ provider, status: 'ready', models: [] });
   const plugin = { settings: { codexUsageNoticeSeen: true, claudeUsageNoticeSeen: true, models: 'gpt-test', cliModel: 'gpt-test', cliReasoning: 'low', language: 'en' }, aiReadyForModel: async () => true, confirmAiUsage: async (_m, run) => { await run(); return true; }, saveSettings: async () => {}, activeTasks: new Map(), availableModels: () => ['gpt-test'], modelLabel: m => m, modelDiscoveryState: modelState, subscribeModelDiscovery: () => () => {}, refreshModelDiscovery: async p => modelState(p) };
   let opened = 0;
-  const modal = new NextStepModal({}, 'Sleep', 'normal', 3, 0, plugin, async () => {}, async () => {}, async () => {}, { model: 'gpt-test', modelSource: 'workspace', reasoning: 'low', save: async () => {}, structureReview: { label: 'Review the whole map', open: () => { opened++; } } });
+  const modal = new NextStepModal({}, 'Sleep', 'normal', 3, 0, plugin, async () => {}, async () => {}, async () => {}, { model: 'gpt-test', modelSource: 'workspace', reasoning: 'low', save: async () => {}, structureReview: { label: 'What to strengthen or cut? (whole map)', open: () => { opened++; } } });
   modal.open();
-  button(modal.contentEl, 'Review the whole map').click();
+  assert.ok(find(modal.contentEl, i => hasCls(i, 'vam-next-structure-label') && i.text === 'AI structure suggestions:'));
+  assert.ok(find(modal.contentEl, i => hasCls(i, 'vam-next-structure-hint') && i.text === 'AI reads only titles, summaries and status, then suggests topics to add, cut, move or merge; apply each one on its own, and undo any.'));
+  button(modal.contentEl, 'What to strengthen or cut? (whole map)').click();
   assert.equal(opened, 1); assert.equal(modal.closeCount, 1);
 });
