@@ -22,7 +22,7 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
 const target = (id) => ({ id, title: `Target ${id}`, task: `Find ${id}`, expectedValue: `Resolve ${id}`, action: 'research', dependsOn: [] });
 
 integrationTest('AIM flow limits: production defaults equal the legacy values and the smoke module cannot shift derived constants', () => {
-  assert.deepEqual(plain(production.DEFAULT_AIM_FLOW_LIMITS), { minAnsweredBeforeConclusion: 3, maxResearchTurns: 2, researchParallelism: 2, webSearch: true, acceptGapAtBudget: false, publishDeliveryAtBudget: false });
+  assert.deepEqual(plain(production.DEFAULT_AIM_FLOW_LIMITS), { minAnsweredBeforeConclusion: 3, maxResearchTurns: 2, researchParallelism: 3, webSearch: true, acceptGapAtBudget: false, publishDeliveryAtBudget: false });
   assert.ok(Object.isFrozen(production.DEFAULT_AIM_FLOW_LIMITS));
   assert.equal(production.ACTIVE_AIM_FLOW_LIMITS, production.DEFAULT_AIM_FLOW_LIMITS, 'the flow uses the defaults unless a test injects limits');
   assert.equal(MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION, 3);
@@ -216,30 +216,31 @@ integrationTest('AIM flow limits: with smoke limits the Planner\'s own research_
   assert.equal(seen.filter(item => item.phase === 'targeted-followup-research').length, 1, 'the research budget (two turns) is unchanged');
 });
 
-integrationTest('AIM flow limits: the scheduler runs two independent tasks at once by default and an injected value caps it', async () => {
+integrationTest('AIM flow limits: the scheduler runs three independent tasks at once by default and an injected value caps it', async () => {
   const peak = async options => {
     let active = 0, max = 0;
-    await scheduleAimResearch([target('a'), target('b'), target('c')], async item => { max = Math.max(max, ++active); await tick(); await tick(); active--; return item.id; }, undefined, options);
+    await scheduleAimResearch([target('a'), target('b'), target('c'), target('d')], async item => { max = Math.max(max, ++active); await tick(); await tick(); active--; return item.id; }, undefined, options);
     return max;
   };
-  assert.equal(await peak(undefined), 2);
-  assert.equal(await peak({}), 2);
+  assert.equal(await peak(undefined), 3);
+  assert.equal(await peak({}), 3);
   assert.equal(await peak({ parallelism: 1 }), 1);
-  assert.equal(await peak({ parallelism: 3 }), 3);
+  assert.equal(await peak({ parallelism: 2 }), 2);
 });
-integrationTest('AIM flow limits: the flow researches two subtopics in parallel by default and one at a time under smoke limits', async () => {
-  for (const [limits, expected] of [[undefined, 2], [smokeLimits, 1]]) {
+integrationTest('AIM flow limits: the flow researches three subtopics in parallel by default, all of them finish, and one at a time under smoke limits', async () => {
+  for (const [limits, expected] of [[undefined, 3], [smokeLimits, 1]]) {
     const subject = await coverageSetup(`Parallel ${expected}`);
     let active = 0, max = 0;
     const base = subject.model.ask;
     subject.flow = new AimManualFlow(subject.repo, new AimRunStore(subject.repo), async (context, ...rest) => {
-      if (aimPhase(context, 'research-plan')) return reply('Two independent dimensions.', '<!-- aim-plan {"subtopics":[{"id":"method","title":"Method","task":"Research methods.","expectedValue":"Compare methods.","action":"research","dependsOn":[]},{"id":"constraints","title":"Constraints","task":"Research constraints.","expectedValue":"Find limits.","action":"research","dependsOn":[]}]} -->');
+      if (aimPhase(context, 'research-plan')) return reply('Three independent dimensions.', '<!-- aim-plan {"subtopics":[{"id":"method","title":"Method","task":"Research methods.","expectedValue":"Compare methods.","action":"research","dependsOn":[]},{"id":"constraints","title":"Constraints","task":"Research constraints.","expectedValue":"Find limits.","action":"research","dependsOn":[]},{"id":"costs","title":"Costs","task":"Research costs.","expectedValue":"Compare costs.","action":"research","dependsOn":[]}]} -->');
       if (aimPhase(context, 'subtopic-research')) { max = Math.max(max, ++active); await tick(); await tick(); active--; }
       return base(context, ...rest);
     }, undefined, undefined, limits);
     const question = (await subject.flow.planNextQuestion(subject.created.mapPath, subject.created.root.id, 'gpt-6-luna', 'low', 'parallel-question')).node;
-    await subject.flow.answerAndResearch(subject.created.mapPath, question.id, { requestId: 'parallel-answer', selections: [question.aimQuestion.options[0].id], freeText: 'Condition' }, 'gpt-6-luna', 'low');
+    const outcome = await subject.flow.answerAndResearch(subject.created.mapPath, question.id, { requestId: 'parallel-answer', selections: [question.aimQuestion.options[0].id], freeText: 'Condition' }, 'gpt-6-luna', 'low');
     assert.equal(max, expected);
+    assert.notEqual(outcome.status, 'in-progress', 'the run store admits every parallel subtopic');
   }
 });
 

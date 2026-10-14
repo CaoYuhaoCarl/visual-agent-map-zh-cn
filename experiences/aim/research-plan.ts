@@ -43,7 +43,7 @@ function hasProvenSource(item: AimResearchTarget): boolean {
  */
 export function researchUnprovenReuse(subtopics: unknown): unknown {
   if (!Array.isArray(subtopics)) return subtopics;
-  return subtopics.map(item => {
+  return (subtopics as unknown[]).map((item: unknown) => {
     if (!item || typeof item !== "object") return item;
     const target = hoistNestedValidity(item as AimResearchTarget);
     if ((target.action !== "reuse" && target.action !== "update") || hasProvenSource(target)) return item;

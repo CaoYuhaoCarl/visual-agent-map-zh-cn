@@ -2787,7 +2787,8 @@ export class AimManualFlow {
       });
       try {
         const planned = await this.askAimModel(
-          { ...contextBase, task: planPrompt, aimContract: { kind: "plan" } },
+          // Planning works from the evidence indexes; full reports are not loaded here (update covers doubtful reuse).
+          { ...contextBase, aimEvidenceIds: [], task: planPrompt, aimContract: { kind: "plan" } },
           model,
           reasoning,
           signal
@@ -2807,6 +2808,7 @@ export class AimManualFlow {
           const repaired = await this.askAimModel(
             {
               ...contextBase,
+              aimEvidenceIds: [],
               task: repairTask,
               aimContract: { kind: "plan" }
             },
@@ -3041,7 +3043,7 @@ export class AimManualFlow {
               // Read the message without instanceof: the runtime's error may come from another realm.
               SEARCH_NOT_PERFORMED.test(String((error as { message?: unknown } | null)?.message ?? error));
             if (searchSkipped && !taskSignal.aborted) {
-              searchFailure = error;
+              searchFailure = error as Error;
               return null;
             }
             throw error;

@@ -28,17 +28,18 @@ function fixture() {
 }
 const config = subtopicId => ({ subtopicId, model: 'test-model', reasoning: 'low', maxResearchTurns: 1 });
 
-test('at most two distinct subtopic attempts dispatch; duplicates and synthesis wait', async () => {
+test('at most three distinct subtopic attempts dispatch (the flow parallelism); duplicates and synthesis wait', async () => {
   const { store, repo, mapPath } = fixture();
-  const [first, second] = await Promise.all([store.startAttempt(mapPath, 'branch', undefined, config('one')), store.startAttempt(mapPath, 'branch', undefined, config('two'))]);
-  assert.ok(first.dispatch && second.dispatch);
+  const [first, second, third] = await Promise.all([store.startAttempt(mapPath, 'branch', undefined, config('one')), store.startAttempt(mapPath, 'branch', undefined, config('two')), store.startAttempt(mapPath, 'branch', undefined, config('three'))]);
+  assert.ok(first.dispatch && second.dispatch && third.dispatch);
   assert.notEqual(first.runId, second.runId);
   assert.equal((await store.startAttempt(mapPath, 'branch', undefined, config('one'))).dispatch, false);
-  assert.equal((await store.startAttempt(mapPath, 'branch', undefined, config('three'))).dispatch, false);
+  assert.equal((await store.startAttempt(mapPath, 'branch', undefined, config('four'))).dispatch, false);
   assert.equal((await store.startAttempt(mapPath, 'branch', undefined, config(undefined))).dispatch, false);
-  assert.equal((await repo.readMap(mapPath)).aim.runs.length, 2);
+  assert.equal((await repo.readMap(mapPath)).aim.runs.length, 3);
   await store.cancelAttempt(mapPath, first, 'done');
   await store.cancelAttempt(mapPath, second, 'done');
+  await store.cancelAttempt(mapPath, third, 'done');
 });
 test('explicit new run IDs cannot bypass cap, duplicate target or synthesis isolation', async () => {
   const { store, mapPath } = fixture();
@@ -46,10 +47,12 @@ test('explicit new run IDs cannot bypass cap, duplicate target or synthesis isol
   assert.equal((await store.startAttempt(mapPath, 'branch', 'duplicate-one', config('one'))).dispatch, false);
   assert.equal((await store.startAttempt(mapPath, 'branch', 'explicit-synthesis', config(undefined))).dispatch, false);
   const second = await store.startAttempt(mapPath, 'branch', 'explicit-two', config('two'));
-  assert.ok(second.dispatch);
-  assert.equal((await store.startAttempt(mapPath, 'branch', 'explicit-three', config('three'))).dispatch, false);
+  const third = await store.startAttempt(mapPath, 'branch', 'explicit-three', config('three'));
+  assert.ok(second.dispatch && third.dispatch);
+  assert.equal((await store.startAttempt(mapPath, 'branch', 'explicit-four', config('four'))).dispatch, false);
   await store.cancelAttempt(mapPath, first, 'done');
   await store.cancelAttempt(mapPath, second, 'done');
+  await store.cancelAttempt(mapPath, third, 'done');
 });
 test('both parallel results commit durably and remain available after reopening store', async () => {
   const { store, repo, mapPath, newStore } = fixture();

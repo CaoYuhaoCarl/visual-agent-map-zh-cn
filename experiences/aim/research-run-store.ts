@@ -1,5 +1,6 @@
 import { hasCompletedWebRetrieval } from "./search-diagnostic";
 import { validateAimResearchPlan } from "./research-plan";
+import { ACTIVE_AIM_FLOW_LIMITS } from "./flow-limits";
 import { createHash, randomUUID } from "node:crypto";
 import type { AiResult } from "../../ai/types";
 import type {
@@ -354,7 +355,7 @@ export class AimRunStore {
           activeRuns.find(item => {
             const attempt = item.attempts.find(candidate => candidate.id === item.currentAttemptId)!;
             return !config?.subtopicId || !attempt.subtopicId || attempt.subtopicId === config.subtopicId;
-          }) ?? (activeRuns.length >= 2 ? activeRuns[0] : undefined);
+          }) ?? (activeRuns.length >= ACTIVE_AIM_FLOW_LIMITS.researchParallelism ? activeRuns[0] : undefined);
         if (blocked) {
           const activeAttempt = blocked.attempts.find(item => item.id === blocked.currentAttemptId)!;
           return {

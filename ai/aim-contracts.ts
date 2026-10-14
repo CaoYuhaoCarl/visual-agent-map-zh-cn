@@ -62,7 +62,7 @@ function payloadSchema(contract: AimContract): Record<string, unknown> {
       return object({
         subtopics: {
           type: "array",
-          description: "0–5 distinct evidence tasks.",
+          description: "0–3 distinct evidence tasks.",
           items: object({
             id: text,
             title: text,
