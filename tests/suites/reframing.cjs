@@ -87,7 +87,7 @@ integrationTest('Root research and decomposition use Thinking Origin and preserv
   const plugin=withExpansionCoordinator({repo,settings:{...DEFAULT_SETTINGS,language:'en'},running:new Set(),activeTasks:new Map(),pendingSuggestions:new Map(),pendingResearchOptions:new Map(),mutate:work=>work(),views:()=>[view],askModel:async context=>{modes.push(context.mode);languages.push(context.outputLanguage);assert.match(context.sourceContext,/Important conditions/);assert.equal(context.rules,'');return {summary:'New understanding',detail:'Research findings',suggestions:[]};},rebuildDerivedData:async()=>{}});
   view=new VisualAgentMapView({app},plugin);view.path=mapPath;view.map=doc;view.render=()=>{};view.hydrate=async()=>{};view.contentEl={querySelector:()=>null};
   await view.runAgent(n,undefined,undefined,{outputLanguage:'zh-TW'});await until(()=>!plugin.running.size);assert.match((await repo.readNote(n.path)).thinkingOrigin,/Important conditions/);
-  await view.proposeChildren(n,true,{researchMode:'local',researchDepth:'normal',visualMode:'off',referenceGroups:[]},'Explore',()=>{},()=>{});
+  await view.proposeChildren(n,{researchMode:'local',researchDepth:'normal',visualMode:'off',referenceGroups:[]},'Explore',()=>{},()=>{});
   assert.deepEqual(modes,['task','decompose']);assert.equal(languages[0],'zh-TW');
 });
 integrationTest('Editing Thinking Origin during root research fences stale results', async () => {
@@ -149,7 +149,7 @@ integrationTest('Guided proposals fence Thinking Origin at publication and after
     const plugin=withExpansionCoordinator({repo,settings:{...DEFAULT_SETTINGS,language:'en'},running:new Set(),activeTasks:new Map(),quickExpandPending:new Set(),pendingSuggestions:new Map(),pendingResearchOptions:new Map(),mutate:work=>work(),views:()=>[view],askModel:(_context,_model,_reasoning,_signal,_exchange,accepted)=>{accepted?.();return deferredResult.promise;},recordFailure:(_label,e)=>e.message});
     view=new VisualAgentMapView({app},plugin);view.map=map([n]);view.render=()=>{};view.hydrate=async()=>{};
     const modalController=new AbortController(); let accepted=false;
-    const task=view.proposeChildren(n,true,{referenceGroups:[],shallowResearch:true,signal:modalController.signal,onProgress:()=>assert.fail('closed modal progress callback used')},'Explore',(_items,create)=>{accept=create;},message=>{error=message;},false,undefined,()=>{accepted=true;});
+    const task=view.proposeChildren(n,{referenceGroups:[],shallowResearch:true,signal:modalController.signal,onProgress:()=>assert.fail('closed modal progress callback used')},'Explore',(_items,create)=>{accept=create;},message=>{error=message;},()=>{accepted=true;});
     await until(()=>accepted);
     assert.equal(accepted,true); assert.equal(modalController.signal.aborted,false); assert.ok(plugin.activeTasks.has(n.path));
     if(stage==='publication')await repo.updateNote(n.path,{thinkingOrigin:'Corrected source'});
@@ -161,7 +161,7 @@ integrationTest('Guided proposals fence Thinking Origin at publication and after
     assert.equal(savedOptions.signal,undefined); assert.equal(savedOptions.onProgress,undefined);
     if(stage==='reload')plugin.pendingSuggestions.set(n.path,JSON.parse(JSON.stringify(proposals)));
     await repo.updateNote(n.path,{thinkingOrigin:'Corrected source'});
-    if(stage==='reload')await view.proposeChildren(n,true,undefined,'',(_items,create)=>{accept=create;});
+    if(stage==='reload')await view.proposeChildren(n,undefined,'',(_items,create)=>{accept=create;});
     await assert.rejects(accept(plugin.pendingSuggestions.get(n.path)),/changed|變更/);
     assert.equal(view.map.nodes.length,1);assert.equal(plugin.pendingSuggestions.size,0);
   }

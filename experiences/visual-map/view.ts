@@ -1,4 +1,5 @@
 import { resolveAimContentLanguage } from "../aim/content-language";
+import { PromptPresetsModal } from "../../ui/modals/prompt-presets-modal";
 import { AimClarificationModal } from "../../ui/modals/aim-clarification-modal";
 import { withThinkingOrigin } from "./thinking-origin";
 import { createHash, randomUUID } from "node:crypto";
@@ -9,6 +10,7 @@ import { readMarkdownFile, type ReferenceGroup } from "../../ai/reference-materi
 import { NameModal } from "../../ui/modals/name-modal";
 import { ChoiceModal } from "../../ui/modals/choice-modal";
 import {
+  applyCollapseLevel,
   canParent,
   clearQuestionConvergenceEdges,
   repairAimResultConvergence,
@@ -56,19 +58,28 @@ import {
   type CountIssue,
   type DetailTemplate
 } from "../../ai/detail-templates";
+import { listPresets, resolvePreset, resolveToneText } from "../../ai/prompt-presets";
 import type { AiResult, Suggestion, TaskContext } from "../../ai/types";
 import { previewMetrics } from "../../ui/preview-utils";
 import { BUILTIN_SAMPLE_ID, builtInSample, SAMPLE_TOUR_VERSION } from "../../builtin-sample";
 import { PendingSuggestions } from "../../pending-suggestions";
 import { createAimMap } from "../aim/create-map";
-import { addOutlineToMap, createOutlineMap } from "./outline-import";
+import { addOutlineToMap, createOutlineMap, type OutlineNode } from "./outline-import";
 import {
   OutlineImportModal,
+  type OutlineGenerator,
   type OutlineImportRequest,
   type OutlineImportTarget,
   type OutlinePlacement
 } from "./outline-import-modal";
 import { MultiResearchModal, type MultiResearchRequest } from "./multi-research-modal";
+import { StructureReviewModal } from "./structure-review-modal";
+import {
+  buildStructureReviewNodes,
+  isSuggestionStale,
+  type StructureReviewResult,
+  type StructureSuggestion
+} from "../../core/structure-review-service";
 import { renderTopicTree } from "../../ui/topic-tree";
 import { TopicTreeModal } from "../../ui/modals/topic-tree-modal";
 import type { ModelChoices } from "./research-fields";
@@ -92,15 +103,13 @@ import {
   PartialChildBatchError,
   AgentTaskHandle,
   TaskSourceSettings,
-  quickShape,
-  quickSuggestions,
-  TaskModal,
   NextStepModal,
+  type QuickOutline,
+  type SynthesisObserver,
   DraftReviewModal,
   armDiscard,
   renderProposalList,
   ChildProposalModal,
-  IntegrationModal,
   MapConflictModal,
   NoteCollectionModal,
   TopicPickerModal
@@ -184,6 +193,11 @@ interface FileMove {
 /** Unique ids for the hidden card labels; any view may render a card. */
 let cardLabelSequence = 0;
 const cardLabels = new WeakMap<HTMLElement, HTMLElement>();
+/** Path data for the curve from a parent card's right edge to a child card's left edge. */
+function edgePathData(x1: number, y1: number, x2: number, y2: number): string {
+  const bend = Math.max(60, Math.abs(x2 - x1) / 2);
+  return `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`;
+}
 
 export class VisualAgentMapView extends ItemView {
   private map: MapDocument | null = null;
@@ -191,6 +205,8 @@ export class VisualAgentMapView extends ItemView {
   private notes = new Map<string, Note>();
   private selected: string | null = null;
   private multiSelected = new Set<string>();
+  /** Cards named by the open structure review; marked with a class, cleared when the review closes. */
+  private structureHighlight = new Set<string>();
   private history = new History<Action>();
   private deletedMap: {
     path: string;
@@ -209,10 +225,15 @@ export class VisualAgentMapView extends ItemView {
     mapId: string;
     sourceContent: string;
     controller: AbortController;
-    state: "running" | "draft" | "failed" | "cancelled";
+    state: "running" | "directions" | "draft" | "failed" | "cancelled";
+    /** The step this run is on: the AI's suggested directions, or the draft itself. */
+    step: "directions" | "draft";
+    directions: Suggestion[];
     progress: string;
     draft?: AiResult;
   } | null = null;
+  /** A multi-select synthesis step is starting (before its task exists), so a second request is refused. */
+  private selectionStarting = false;
   private synthesisTasks = new Map<
     string,
     {
@@ -239,6 +260,12 @@ export class VisualAgentMapView extends ItemView {
   private hoverCard: HTMLElement | null = null;
   private integrationMode = false;
   private dragging = false;
+  /** Ends the drag in progress (listeners, pending frame, flag); set only while a card is being dragged. */
+  private dragCleanup: (() => void) | null = null;
+  private dragFrame: number | null = null;
+  /** A viewport write is already waiting in the queue; it reads the viewport when it runs, so later saves join it. */
+  private viewportQueued = false;
+  private edgeEls = new Map<string, SVGPathElement>();
   private suppressClickUntil = 0;
   /** Node whose card should hold keyboard focus once the next render finishes. */
   private focusNodeId: string | null = null;
@@ -246,6 +273,11 @@ export class VisualAgentMapView extends ItemView {
   private spaceHeld = false;
   /** The single card in the tab order (roving tabindex); arrows move between the rest. */
   private tabStopId: string | null = null;
+  /** Card element per topic id, rebuilt on every render, so a selection change touches only the affected cards. */
+  private cardEls = new Map<string, HTMLElement>();
+  private cardChecks = new Map<string, HTMLInputElement>();
+  private selectionBarEl: HTMLElement | null = null;
+  private hintEl: HTMLElement | null = null;
   /** While a card renders, its buttons stay out of the tab order until that card is focused. */
   private renderingCard = false;
   /** Set while render hands focus back to a card, so that refocus does not restart its preview. */
@@ -345,10 +377,14 @@ export class VisualAgentMapView extends ItemView {
         this.enqueue(() => this.travel(event.shiftKey));
       }
       if (event.key === "Escape") {
+        const previous = this.selected,
+          touched = [...this.multiSelected];
+        const wasSelecting = this.integrationMode;
         this.selected = null;
         this.multiSelected.clear();
         this.integrationMode = false;
-        this.render();
+        if (wasSelecting) this.render();
+        else this.commitSelection(previous, null, touched);
       }
     });
     await this.plugin.ready;
@@ -394,6 +430,7 @@ export class VisualAgentMapView extends ItemView {
     if (this.refreshTimer !== null) window.clearTimeout(this.refreshTimer);
     if (this.hoverTimer !== null) window.clearTimeout(this.hoverTimer);
     this.hoverCard?.remove();
+    this.dragCleanup?.();
     if (this.viewportTimer !== null) {
       window.clearTimeout(this.viewportTimer);
       this.viewportTimer = null;
@@ -632,19 +669,333 @@ export class VisualAgentMapView extends ItemView {
       }
     };
   }
+  /** `{ toneText }` for a TaskContext, or nothing when the resolved tone is academic. */
+  private toneField(
+    note: Pick<Note, "toneId"> | undefined,
+    options?: Pick<TaskOptions, "toneId" | "outputLanguage">
+  ): { toneText: string } | Record<string, never> {
+    const toneText = this.toneTextFor(note, options?.toneId, options?.outputLanguage ?? this.plugin.settings.language);
+    return toneText ? { toneText } : {};
+  }
+  /** The name of the tone this topic resolves to now (topic override, else map default, else academic). */
+  private toneLabelFor(note: Pick<Note, "toneId">): string {
+    const settings = this.plugin.settings;
+    const ids = [note.toneId, this.map?.toneId];
+    for (const id of ids) {
+      const found = listPresets(settings.promptPresets, "tone", settings.language).find(item => item.id === id);
+      if (found) return found.name;
+    }
+    return listPresets(settings.promptPresets, "tone", settings.language).find(item => item.id === "academic")!.name;
+  }
+  /** Built-in plus custom writing tones, for the tone selects. */
+  private toneChoices(): { id: string; name: string }[] {
+    const settings = this.plugin.settings;
+    return listPresets(settings.promptPresets, "tone", settings.language).map(({ id, name }) => ({ id, name }));
+  }
+  /**
+   * Writing tone for an AI run on `note`: this run's choice, then the topic override, then the map default. Academic
+   * (and nothing chosen) yields undefined so prompts stay unchanged.
+   */
+  private toneTextFor(
+    note: Pick<Note, "toneId"> | undefined,
+    chosenId?: string,
+    language: UiLanguage = this.plugin.settings.language
+  ): string | undefined {
+    return resolveToneText(this.plugin.settings.promptPresets, [chosenId, note?.toneId, this.map?.toneId], language);
+  }
   /** Built-in Standard plus the workspace's custom templates, for the template selects. */
   private templateChoices(): { id: string; name: string }[] {
     const settings = this.plugin.settings;
     return [standardTemplate(settings.language), ...settings.detailTemplates].map(({ id, name }) => ({ id, name }));
   }
+  /** Adds an outline to the open map: under the selected topic, else as a new tree. A new map starts from + New mind map. */
   openOutlineImport(): void {
+    const target = this.outlineImportTarget();
+    if (target.map !== "editable") {
+      new Notice(target.map === "aim" ? t("ui.outline_import_placement_aim") : t("ui.outline_import_placement_no_map"));
+      return;
+    }
+    const placement = target.selected ? "under" : "tree";
     new OutlineImportModal(
       this.app,
       request => this.importOutline(request),
       this.modelChoices(),
       this.templateChoices(),
-      this.outlineImportTarget()
+      target,
+      placement,
+      this.outlineGenerator(target.selected?.title)
     ).open();
+  }
+  /** The AI outline generator for the import window: workspace model, after the usual AI usage check. */
+  private outlineGenerator(initialTopic?: string): OutlineGenerator {
+    return {
+      presets: this.plugin,
+      initialTopic,
+      generate: async (request, signal) => {
+        const settings = this.plugin.settings;
+        const model = settings.cliModel;
+        let markdown: string | undefined;
+        const started = await this.plugin.confirmAiUsage(model, async () => {
+          const result = await this.plugin.outlineGeneration.generate(
+            {
+              ...request,
+              language: settings.language,
+              model,
+              reasoning: normalizeReasoningLevel(settings.cliReasoning)
+            },
+            signal
+          );
+          markdown = result.markdown;
+        });
+        if (!started || markdown === undefined) throw new Error(t("ui.outline_ai_not_started"));
+        return markdown;
+      }
+    };
+  }
+  /** Quick explore in the Next Step dialog: the same generator, reviewed in the dialog, then added under the topic. */
+  private quickOutline(node: MapNode): QuickOutline {
+    const settings = this.plugin.settings;
+    return {
+      presets: listPresets(settings.promptPresets, "outline", settings.language).map(({ id, name }) => ({ id, name })),
+      generate: async (request, signal): Promise<OutlineNode[]> => {
+        const note = await this.plugin.repo.readNote(node.path);
+        const { preset } = resolvePreset(settings.promptPresets, "outline", request.presetId, request.language);
+        const result = await this.plugin.outlineGeneration.generate(
+          {
+            topic: note.title,
+            presetText: request.requirements ? `${preset.text}\n\n${request.requirements}` : preset.text,
+            language: request.language,
+            model: note.model,
+            reasoning: normalizeReasoningLevel(note.reasoning ?? settings.cliReasoning)
+          },
+          signal
+        );
+        return result.nodes;
+      },
+      create: (nodes, options) =>
+        this.importOutline({
+          nodes,
+          placement: { kind: "under", parentId: node.id },
+          source: null,
+          shallowResearch: !!options.shallowResearch,
+          researchEveryTopic: true,
+          // Shallow research stays Quick (see the dialog); every other research choice is the dialog's.
+          ...(options.shallowResearch
+            ? {
+                researchDepth: "fast" as const,
+                researchOptions: {
+                  researchMode: options.researchMode,
+                  referenceGroups: options.referenceGroups ?? [],
+                  visualMode: options.visualMode,
+                  ...(options.outputLanguage ? { outputLanguage: options.outputLanguage } : {}),
+                  ...(options.toneId ? { toneId: options.toneId } : {}),
+                  ...(options.requirements ? { requirements: options.requirements } : {})
+                }
+              }
+            : {}),
+          ...(options.detailTemplateId ? { detailTemplateId: options.detailTemplateId } : {})
+        })
+    };
+  }
+  /** 「檢視整張圖」 on a root topic, 「檢視這個分支」 on a subtopic with subtopics; nothing on a leaf or an AIM map. */
+  private structureReviewEntry(node: MapNode): { label: string; open: () => void } | undefined {
+    if (!this.map || this.outlineImportTarget().map !== "editable") return undefined;
+    if (node.parentId === null)
+      return { label: t("ui.structure_review_entry_map"), open: () => this.openStructureReview(null) };
+    if (this.map.nodes.some(item => item.parentId === node.id))
+      return { label: t("ui.structure_review_entry_branch"), open: () => this.openStructureReview(node.id) };
+    return undefined;
+  }
+  /** The AI sees each card's title, summary and status only; never a note body. */
+  private describeForReview(id: string): { title: string; summary: string; status: string } | undefined {
+    const node = this.map?.nodes.find(item => item.id === id);
+    if (!node) return undefined;
+    const note = this.notes.get(id);
+    return { title: note?.title ?? node.path, summary: note?.summary ?? "", status: note?.status ?? "idea" };
+  }
+  /** AI structure review of the whole map (`scopeId` null) or one branch; each suggestion is applied on its own. */
+  openStructureReview(scopeId: string | null): void {
+    if (!this.map || this.outlineImportTarget().map !== "editable") return;
+    const mapPath = this.path;
+    const tree = (): ReturnType<typeof buildStructureReviewNodes> =>
+      this.path === mapPath && this.map
+        ? buildStructureReviewNodes(this.map.nodes, id => this.describeForReview(id), scopeId)
+        : [];
+    const nodes = tree();
+    const rootQuestion = scopeId ? (this.describeForReview(scopeId)?.title ?? "") : this.map.title;
+    const staleReason = (suggestion: StructureSuggestion): string | null => {
+      const current = tree();
+      if (!isSuggestionStale(suggestion, current)) return null;
+      const byId = new Map(current.map(item => [item.id, item]));
+      const target = byId.get(suggestion.targetId);
+      const destination = suggestion.newParentId ?? suggestion.mergeIntoId;
+      if (!target || (destination && !byId.has(destination))) return t("ui.structure_review_stale_missing");
+      if (target.title !== suggestion.basis.targetTitle || target.parentId !== suggestion.basis.targetParentId)
+        return t("ui.structure_review_stale_changed");
+      return t("ui.structure_review_stale_structure");
+    };
+    new StructureReviewModal(this.app, {
+      scope: scopeId ? "branch" : "map",
+      review: async signal => {
+        const settings = this.plugin.settings;
+        const model = settings.cliModel;
+        let result: StructureReviewResult | undefined;
+        const started = await this.plugin.confirmAiUsage(model, async () => {
+          result = await this.plugin.structureReview.review(
+            {
+              rootQuestion,
+              nodes,
+              language: settings.language,
+              model,
+              reasoning: normalizeReasoningLevel(settings.cliReasoning)
+            },
+            signal
+          );
+        });
+        if (!started || !result) throw new Error(t("ui.structure_review_not_started"));
+        return result;
+      },
+      titleOf: id => this.describeForReview(id)?.title ?? "",
+      staleReason,
+      apply: (suggestion, title) => this.applyStructureSuggestion(suggestion, title, staleReason),
+      highlight: ids => this.highlightStructure(ids)
+    }).open();
+  }
+  /** Marks the suggested cards in place; an empty list clears every mark. */
+  highlightStructure(ids: string[]): void {
+    const next = new Set(ids);
+    for (const id of new Set([...this.structureHighlight, ...next]))
+      this.cardEls.get(id)?.toggleClass("vam-structure-suggested", next.has(id));
+    this.structureHighlight = next;
+  }
+  /**
+   * Applies one structure suggestion as one undo step, after checking again that it still fits the map. Remove and
+   * merge go through the delete confirmation; resolves false when it is cancelled.
+   */
+  private applyStructureSuggestion(
+    suggestion: StructureSuggestion,
+    title: string,
+    staleReason: (suggestion: StructureSuggestion) => string | null
+  ): Promise<boolean> {
+    const guard = (): void => {
+      const reason = staleReason(suggestion);
+      if (reason) throw new Error(reason);
+    };
+    const nodeOf = (id: string): MapNode => {
+      const node = this.map?.nodes.find(item => item.id === id);
+      if (!node) throw new Error(t("ui.structure_review_stale_missing"));
+      return node;
+    };
+    try {
+      guard();
+    } catch (error) {
+      return Promise.reject(error instanceof Error ? error : new Error(String(error)));
+    }
+    const write = (work: () => Promise<void>): Promise<void> =>
+      this.plugin.mutate(async () => {
+        guard();
+        await work();
+      });
+    if (suggestion.kind === "strengthen")
+      return write(() => this.addNode(nodeOf(suggestion.targetId), title)).then(() => true);
+    if (suggestion.kind === "move")
+      return write(() => this.moveTopic(nodeOf(suggestion.targetId), nodeOf(suggestion.newParentId ?? ""))).then(
+        () => true
+      );
+    return new Promise<boolean>((resolve, reject) => {
+      const run = (work: () => Promise<void>): void => {
+        write(work).then(() => resolve(true), reject);
+      };
+      const node = nodeOf(suggestion.targetId);
+      if (suggestion.kind === "reduce") {
+        this.confirmRemoveNode(node, { run, dismissed: () => resolve(false) });
+        return;
+      }
+      const into = nodeOf(suggestion.mergeIntoId ?? "");
+      const name = (item: MapNode): string => this.describeForReview(item.id)?.title ?? item.path;
+      new ChoiceModal(
+        this.app,
+        t("ui.structure_review_merge_title", name(node), name(into)),
+        t("ui.structure_review_merge_desc", name(node), name(into)),
+        [
+          {
+            label: t("ui.structure_review_merge_confirm", name(node)),
+            warning: true,
+            action: () => run(() => this.removeToUnassigned(node, false, into.id))
+          }
+        ],
+        () => resolve(false)
+      ).open();
+    });
+  }
+  /** Moves one topic and its branch under a new parent, in one undo step. */
+  private async moveTopic(node: MapNode, parent: MapNode): Promise<void> {
+    await this.mapChange(map => {
+      if (!canParent(map.nodes, node.id, parent.id)) throw new Error(t("ui.circular_links_are_not_allowed"));
+      map.nodes.find(item => item.id === node.id)!.parentId = parent.id;
+      map.nodes.find(item => item.id === parent.id)!.collapsed = false;
+      map.nodes = arrangeNewBranch(map.nodes, parent.id, new Set([node.id, ...descendants(map.nodes, node.id)]));
+    });
+  }
+  /** The side option on "+ Topic": one topic by default, or a pasted outline for several at once. */
+  private openTopicMenu(event: MouseEvent): void {
+    const menu = new Menu();
+    menu.addItem(item =>
+      item
+        .setTitle(t("ui.paste_outline_add_many"))
+        .setIcon("list-tree")
+        .onClick(() => this.openOutlineImport())
+    );
+    menu.showAtMouseEvent(event);
+  }
+  /** Collapse or expand every branch in one undoable change, then fit the map. `shownLevels` as in applyCollapseLevel. */
+  private collapseTo(shownLevels: number | null): void {
+    this.enqueue(async () => {
+      if (!this.map) return;
+      const preview = clone(this.map.nodes);
+      applyCollapseLevel(preview, shownLevels);
+      const changed = preview.some((node, index) => !!node.collapsed !== !!this.map!.nodes[index]?.collapsed);
+      if (changed) {
+        await this.mapChange(map => {
+          applyCollapseLevel(map.nodes, shownLevels);
+          map.nodes = arrangeMap(map.nodes);
+        });
+        if (this.history.undoEntry) this.history.undoEntry.label = t("ui.collapse_levels");
+        this.updateHistoryButtons();
+      }
+      this.fit();
+    });
+  }
+  private autoLayout(): void {
+    this.enqueue(() =>
+      this.mapChange(map => {
+        map.nodes = arrangeMap(map.nodes);
+      }, false)
+    );
+  }
+  /** The zoom cluster's Layout menu: collapse or expand levels, then re-arrange the whole map. */
+  private openLayoutMenu(event: MouseEvent): void {
+    const menu = new Menu();
+    const choices: { title: string; icon: string; levels: number | null }[] = [
+      { title: t("ui.collapse_all"), icon: "chevrons-down-up", levels: 0 },
+      { title: t("ui.expand_all"), icon: "chevrons-up-down", levels: null },
+      ...[1, 2, 3].map(level => ({ title: t("ui.expand_to_level_0", level), icon: "list-tree", levels: level }))
+    ];
+    for (const choice of choices)
+      menu.addItem(item =>
+        item
+          .setTitle(choice.title)
+          .setIcon(choice.icon)
+          .onClick(() => this.collapseTo(choice.levels))
+      );
+    menu.addSeparator();
+    menu.addItem(item =>
+      item
+        .setTitle(t("ui.auto_layout"))
+        .setIcon("workflow")
+        .onClick(() => this.autoLayout())
+    );
+    menu.showAtMouseEvent(event);
   }
   /** Whether the open map can take an imported outline, and the selected topic for "under the selected topic". */
   private outlineImportTarget(): OutlineImportTarget {
@@ -821,19 +1172,25 @@ export class VisualAgentMapView extends ItemView {
     if (outcome.failure)
       new Notice(t("ui.outline_import_partial", outcome.created.length, outcome.total, outcome.failure));
     if (outcome.failure || state.saveFailed || !written || !request.shallowResearch || !outcome.created.length) return;
-    const top = this.map?.nodes.find(node => node.id === outcome.created[0].id);
+    // An outline with several top headings, or one without a root of its own (quick explore drops the topic's root),
+    // is researched under the parent.
+    const owner = placement.kind === "under" ? placement.parentId : null;
+    const several =
+      owner !== null && (!!request.researchEveryTopic || request.nodes.filter(node => node.parent === null).length > 1);
+    const top = this.map?.nodes.find(node => node.id === (several ? owner : outcome.created[0].id));
     if (!top) return;
     // Every other created topic descends from the outline's top topic; the top topic and an "under" parent are not researched.
-    const ids = new Set(outcome.created.slice(1).map(node => node.id));
+    const ids = new Set((several ? outcome.created : outcome.created.slice(1)).map(node => node.id));
     const children = (this.map?.nodes ?? []).filter(node => ids.has(node.id));
     if (!children.length) return;
     try {
       await this.plugin.confirmAiUsage(model, () =>
         this.startShallowResearch(top, children, {
           researchMode: "research",
-          researchDepth: request.researchDepth ?? "fast",
           referenceGroups: [],
           visualMode: "off",
+          ...request.researchOptions,
+          researchDepth: request.researchDepth ?? "fast",
           ...(request.detailTemplateId ? { detailTemplateId: request.detailTemplateId } : {})
         })
       );
@@ -1484,12 +1841,6 @@ export class VisualAgentMapView extends ItemView {
     );
     menu.addItem(item =>
       item
-        .setTitle(t("ui.outline_import"))
-        .setIcon("list-tree")
-        .onClick(() => this.openOutlineImport())
-    );
-    menu.addItem(item =>
-      item
         .setTitle(t("ui.aim_create_map"))
         .setIcon("route")
         .onClick(() => this.openAimStart())
@@ -1612,7 +1963,8 @@ export class VisualAgentMapView extends ItemView {
       throw error;
     }
   }
-  private async removeToUnassigned(node: MapNode, branch: boolean): Promise<void> {
+  /** Removes a topic (or its branch) to Unassigned in one undo step; `adopterId` first takes over its children (merge). */
+  private async removeToUnassigned(node: MapNode, branch: boolean, adopterId?: string): Promise<void> {
     if (!this.map) return;
     const before = clone(this.map),
       ids = branch ? new Set([node.id, ...descendants(before.nodes, node.id)]) : new Set([node.id]);
@@ -1634,7 +1986,20 @@ export class VisualAgentMapView extends ItemView {
         await this.plugin.repo.setLifecycle(target, before.id, "", "unassigned");
       }
       const after = clone(before);
+      const adopted = new Set<string>();
+      if (adopterId)
+        for (const item of after.nodes)
+          if (item.parentId === node.id) {
+            item.parentId = adopterId;
+            adopted.add(item.id);
+            for (const id of descendants(after.nodes, item.id)) adopted.add(id);
+          }
       after.nodes = removeNodes(after.nodes, node.id, branch);
+      if (adopterId && adopted.size) {
+        const adopter = after.nodes.find(item => item.id === adopterId);
+        if (adopter) adopter.collapsed = false;
+        after.nodes = arrangeNewBranch(after.nodes, adopterId, adopted);
+      }
       this.removeAimReferences(after, ids, before.nodes);
       await this.plugin.repo.saveMap(this.path, after);
       this.map = after;
@@ -1675,7 +2040,12 @@ export class VisualAgentMapView extends ItemView {
       [{ label: t("ui.confirm_removal"), warning: true, action: () => this.enqueue(() => this.removeSelected()) }]
     ).open();
   }
-  private confirmRemoveNode(node: MapNode): void {
+  /** The delete confirmation. `hooks` lets a caller run the chosen removal itself and hear about a cancel. */
+  private confirmRemoveNode(
+    node: MapNode,
+    hooks: { run?: (work: () => Promise<void>) => void; dismissed?: () => void } = {}
+  ): void {
+    const run = hooks.run ?? ((work: () => Promise<void>) => this.enqueue(work));
     new ChoiceModal(
       this.app,
       t("ui.remove_from_map"),
@@ -1686,16 +2056,17 @@ export class VisualAgentMapView extends ItemView {
               {
                 label: t("ui.remove_only_this_node_children_become_roots"),
                 warning: true,
-                action: () => this.enqueue(() => this.removeToUnassigned(node, false))
+                action: () => run(() => this.removeToUnassigned(node, false))
               }
             ]
           : []),
         {
           label: t("ui.remove_entire_branch"),
           warning: true,
-          action: () => this.enqueue(() => this.removeToUnassigned(node, true))
+          action: () => run(() => this.removeToUnassigned(node, true))
         }
-      ]
+      ],
+      hooks.dismissed
     ).open();
   }
   private async removeSelected(): Promise<void> {
@@ -2254,12 +2625,25 @@ export class VisualAgentMapView extends ItemView {
           action: () => this.enqueue(() => this.previewMigration())
         });
     }
+    if (this.map && !this.builtIn && !this.map.aim)
+      choices.push({
+        label: t("ui.organize"),
+        description: t("ui.manage_notes_that_are_currently_outside_the_mind_map"),
+        action: () => this.enqueue(() => this.openOrganizer())
+      });
     // Content templates do not apply to AIM maps.
     if (this.map && !this.builtIn && !this.map.aim)
       choices.push({
         label: t("ui.detail_template_map_default"),
         description: t("ui.detail_template_map_default_desc"),
         action: () => this.chooseMapTemplate()
+      });
+    // Writing tone applies to the notes AI writes; AIM maps use it for their research and final report.
+    if (this.map && !this.builtIn)
+      choices.push({
+        label: t("ui.tone_map_default"),
+        description: t("ui.tone_map_default_desc"),
+        action: () => this.chooseMapTone()
       });
     choices.push({
       label: t("ui.repair_missing_mind_map"),
@@ -2274,6 +2658,21 @@ export class VisualAgentMapView extends ItemView {
         action: () => this.deleteCurrentMap()
       });
     new ChoiceModal(this.app, t("ui.more_mind_map_actions"), t("ui.additional_map_management_actions"), choices).open();
+  }
+  private chooseMapTone(): void {
+    const apply = (id: string | undefined): void =>
+      this.enqueue(() =>
+        this.mapChange(map => {
+          if (id) map.toneId = id;
+          else delete map.toneId;
+        }, false)
+      );
+    const current = this.map?.toneId;
+    const mark = (id: string | undefined) => (id === current ? { description: t("ui.detail_template_current") } : {});
+    new ChoiceModal(this.app, t("ui.tone_map_default"), t("ui.tone_map_default_desc"), [
+      { label: t("ui.tone_use_default"), ...mark(undefined), action: () => apply(undefined) },
+      ...this.toneChoices().map(({ id, name }) => ({ label: name, ...mark(id), action: () => apply(id) }))
+    ]).open();
   }
   private chooseMapTemplate(): void {
     const apply = (id: string | undefined): void =>
@@ -2510,6 +2909,8 @@ export class VisualAgentMapView extends ItemView {
     ]).open();
   }
   private render(): void {
+    // The dragged card is about to be replaced, so its pointer events would never arrive and the drag would stay "on".
+    this.dragCleanup?.();
     if (this.closed) return;
     this.plugin.syncOutline(this.builtIn ? null : this.map, this.notes, this.builtIn);
     if (this.hoverTimer !== null) {
@@ -2549,6 +2950,9 @@ export class VisualAgentMapView extends ItemView {
       newMap.addEventListener("click", event => {
         event.stopPropagation();
         this.openNewMapMenu(event);
+      });
+      this.iconButton(headerActions, "list-tree", t("ui.open_topic_outline"), () => {
+        void this.plugin.activateOutline().catch(error => new Notice(String(error)));
       });
       const undo = this.iconButton(headerActions, "undo-2", t("ui.undo"), () => this.enqueue(() => this.travel(false)));
       undo.disabled = !this.history.canUndo;
@@ -2685,11 +3089,13 @@ export class VisualAgentMapView extends ItemView {
         text:
           task.state === "running"
             ? task.progress || t("ui.integration_running")
-            : task.state === "draft"
-              ? t("ui.integration_draft_ready")
-              : task.state === "failed"
-                ? task.progress || t("ui.integration_failed")
-                : t("ui.research_stopped_existing_content_was_preserved")
+            : task.state === "directions"
+              ? t("ui.choose_synthesis_direction")
+              : task.state === "draft"
+                ? t("ui.integration_draft_ready")
+                : task.state === "failed"
+                  ? task.progress || t("ui.integration_failed")
+                  : t("ui.research_stopped_existing_content_was_preserved")
       });
       if (task.state === "running")
         this.button(state, t("ui.stop_research"), () => {
@@ -2697,14 +3103,18 @@ export class VisualAgentMapView extends ItemView {
           task.state = "cancelled";
           this.render();
         });
-      if (task.state === "draft")
-        this.button(state, t("ui.review_synthesis_draft"), () => this.reviewIntegratedDraft(task));
-      if (task.state === "failed" || task.state === "cancelled")
-        this.button(state, t("ui.try_again"), () =>
-          this.enqueue(() =>
-            this.createIntegratedNode(task.title, task.sources, task.goal, task.rules, task.options, true)
-          )
+      if (task.state === "directions")
+        this.button(state, t("ui.choose_synthesis_direction"), () => this.openSelectionSynthesis(task)).addClass(
+          "vam-badge-new"
         );
+      if (task.state === "draft")
+        this.button(state, t("ui.review_synthesis_draft"), () => this.reviewIntegratedDraft(task)).addClass(
+          "vam-badge-new"
+        );
+      if (task.state === "failed" || task.state === "cancelled") {
+        this.button(state, t("ui.try_again"), () => this.retrySelectionSynthesis(task));
+        this.button(state, t("ui.discard_synthesis"), () => this.discardSelectionSynthesis());
+      }
     }
     if (!this.map) {
       const empty = this.contentEl.createDiv("vam-empty-state");
@@ -2802,16 +3212,13 @@ export class VisualAgentMapView extends ItemView {
     const tools = createDiv("vam-map-tools");
     if (!this.builtIn) {
       const aimMode = !!this.map.aim;
-      if (!aimMode) this.button(tools, t("ui.topic"), () => this.enqueue(() => this.addNode(null))).addClass("mod-cta");
+      if (!aimMode) {
+        this.button(tools, t("ui.topic"), () => this.enqueue(() => this.addNode(null))).addClass("mod-cta");
+        this.iconButton(tools, "chevron-down", t("ui.topic_more_options"), event => this.openTopicMenu(event)).addClass(
+          "vam-topic-more"
+        );
+      }
       if (aimMode) this.button(tools, t("ui.create_a_new_mind_map"), () => this.openNewMindMapModal());
-      if (!aimMode) this.button(tools, t("ui.organize"), () => this.enqueue(() => this.openOrganizer()));
-      this.button(tools, t("ui.auto_layout"), () =>
-        this.enqueue(() =>
-          this.mapChange(map => {
-            map.nodes = arrangeMap(map.nodes);
-          }, false)
-        )
-      );
       if (!aimMode) {
         const integrate = this.button(
           tools,
@@ -2823,6 +3230,7 @@ export class VisualAgentMapView extends ItemView {
             this.render();
           }
         );
+        integrate.setAttr("aria-pressed", String(this.integrationMode));
         if (this.integrationMode) integrate.addClass("is-active");
       }
     }
@@ -2833,14 +3241,18 @@ export class VisualAgentMapView extends ItemView {
     const overlay = workspace.createDiv("vam-canvas-overlay");
     if (tools.childElementCount) overlay.appendChild(tools);
     else tools.remove();
-    overlay.createSpan({
-      cls: "vam-hint",
-      text: t(
-        this.integrationMode
-          ? "ui.drag_to_select_topics_hint"
-          : "ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open"
-      )
-    });
+    // The gesture hint goes away once the user has panned or zoomed; select mode always explains its own gestures.
+    this.hintEl =
+      this.integrationMode || !this.plugin.settings.canvasHintSeen
+        ? overlay.createSpan({
+            cls: "vam-hint vam-canvas-hint",
+            text: t(
+              this.integrationMode
+                ? "ui.drag_to_select_topics_hint"
+                : "ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open"
+            )
+          })
+        : null;
     const zoom = overlay.createDiv("vam-zoom-controls");
     this.iconButton(zoom, "minus", t("ui.zoom_out"), () => this.zoomBy(1 / 1.2));
     const zoomReset = zoom.createEl("button", {
@@ -2855,19 +3267,30 @@ export class VisualAgentMapView extends ItemView {
     this.zoomLabel = zoomReset;
     this.iconButton(zoom, "plus", t("ui.zoom_in"), () => this.zoomBy(1.2));
     this.iconButton(zoom, "maximize", t("ui.show_all"), () => this.fit());
+    if (!this.builtIn) {
+      const layout = zoom.createEl("button", { text: t("ui.layout"), cls: "vam-layout-button" });
+      layout.setAttr("aria-haspopup", "menu");
+      layout.addEventListener("click", event => {
+        event.stopPropagation();
+        this.openLayoutMenu(event);
+      });
+    }
     this.stageEl = this.viewportEl.createDiv("vam-stage");
+    this.stageEl.setAttr("role", "tree");
+    this.stageEl.setAttr("aria-label", this.map.title);
+    this.stageEl.setAttr("aria-multiselectable", String(this.integrationMode));
+    this.cardEls.clear();
+    this.cardChecks.clear();
+    this.selectionBarEl = null;
     this.edgesEl = createSvg("svg");
     this.edgesEl.addClass("vam-edges");
+    this.edgesEl.setAttribute("aria-hidden", "true");
     this.stageEl.appendChild(this.edgesEl);
     const shown = visibleNodes(this.map.nodes);
     if (this.selected && !shown.some(node => node.id === this.selected)) this.selected = null;
     this.multiSelected = new Set([...this.multiSelected].filter(id => shown.some(node => node.id === id)));
-    if (this.integrationMode) this.renderSelectionBar(workspace);
-    this.tabStopId =
-      (this.selected && shown.some(node => node.id === this.selected) ? this.selected : null) ??
-      shown.find(node => !node.parentId)?.id ??
-      shown[0]?.id ??
-      null;
+    if (this.integrationMode) this.selectionBarEl = this.renderSelectionBar(workspace);
+    this.tabStopId = this.defaultTabStop(shown);
     this.renderingCard = true;
     try {
       for (const node of shown) this.renderNode(node);
@@ -2908,6 +3331,11 @@ export class VisualAgentMapView extends ItemView {
       card = this.stageEl.createDiv({
         cls: `vam-node${node.id === this.selected || this.multiSelected.has(node.id) ? " is-selected" : ""}`
       });
+    this.cardEls.set(node.id, card);
+    if (this.structureHighlight.has(node.id)) card.addClass("vam-structure-suggested");
+    card.setAttr("role", "treeitem");
+    card.setAttr("aria-level", String(this.nodeDepth(node)));
+    card.setAttr("aria-selected", String(node.id === this.selected || this.multiSelected.has(node.id)));
     if (node.aimKind) card.setAttr("data-aim-kind", node.aimKind);
     if (node.aimKind === "conclusion") {
       const background = createSvg("svg");
@@ -2940,17 +3368,28 @@ export class VisualAgentMapView extends ItemView {
       const select = header.createEl("input", { type: "checkbox" });
       select.checked = this.multiSelected.has(node.id);
       select.setAttr("aria-label", note?.title ?? node.path);
+      // The card itself is the tab stop; a checkbox per card would add one tab stop per topic.
+      select.tabIndex = -1;
+      this.cardChecks.set(node.id, select);
       select.addEventListener("click", event => {
         event.stopPropagation();
         if (select.checked) this.multiSelected.add(node.id);
         else this.multiSelected.delete(node.id);
-        this.render();
+        this.commitSelection(this.selected, this.selected, [node.id]);
       });
     }
     const batch = this.plugin.expansionBatches.get(node.path);
     const active = this.plugin.running?.has(node.path) || this.plugin.quickExpandPending?.has(node.path);
-    if (node.aimKind === "question" && this.map?.aim) {
-      const status = aimQuestionStatus(this.map, node.id, this.aimActiveQuestionNodeId);
+    const doc = this.map,
+      aimData = doc?.aim;
+    // An AIM question, and the AIM root topic that owns the first branch, show the branch progress instead of note state.
+    const aimProgress =
+      !!aimData &&
+      (node.aimKind === "question" ||
+        (node.aimKind === "topic" &&
+          aimData.branches.some(branch => branch.questionNodeId === node.id && !branch.parentBranchId)));
+    if (doc && aimData && aimProgress) {
+      const status = aimQuestionStatus(doc, node.id, this.aimActiveQuestionNodeId);
       const key: Record<AimQuestionStatus, TranslationKey> = {
         running: "ui.aim_branch_running",
         completed: "ui.aim_branch_completed",
@@ -2962,28 +3401,7 @@ export class VisualAgentMapView extends ItemView {
       header.createSpan({
         cls: `vam-status vam-aim-question-status vam-status-${status === "running" ? "running" : status === "completed" ? "completed" : status === "not_started" ? "idea" : "error"}`,
         text:
-          status === "not_started" && this.map.aim.branches.some(branch => branch.questionNodeId === node.id)
-            ? t("ui.aim_answered_not_started")
-            : t(key[status])
-      });
-    } else if (
-      node.aimKind === "topic" &&
-      this.map?.aim &&
-      this.map.aim.branches.some(branch => branch.questionNodeId === node.id && !branch.parentBranchId)
-    ) {
-      const status = aimQuestionStatus(this.map, node.id, this.aimActiveQuestionNodeId);
-      const key: Record<AimQuestionStatus, TranslationKey> = {
-        running: "ui.aim_branch_running",
-        completed: "ui.aim_branch_completed",
-        partial: "ui.aim_branch_partial",
-        failed: "ui.aim_branch_failed",
-        cancelled: "ui.aim_branch_cancelled",
-        not_started: "ui.aim_branch_not_started"
-      };
-      header.createSpan({
-        cls: `vam-status vam-aim-question-status vam-status-${status === "running" ? "running" : status === "completed" ? "completed" : status === "not_started" ? "idea" : "error"}`,
-        text:
-          status === "not_started" && this.map.aim.branches.some(branch => branch.questionNodeId === node.id)
+          status === "not_started" && aimData.branches.some(branch => branch.questionNodeId === node.id)
             ? t("ui.aim_answered_not_started")
             : t(key[status])
       });
@@ -2997,11 +3415,14 @@ export class VisualAgentMapView extends ItemView {
             : note
               ? topicStatusLabel(note.status, this.plugin.settings.language)
               : t("ui.note_missing");
-      const chip = header.createSpan({
-        cls: `vam-status vam-status-${active ? "running" : queued ? "queued" : (note?.status ?? "error")}`,
-        text: statusText
-      });
-      if (active) chip.setAttr("role", "status");
+      // A researched topic is the normal state, so only the other states earn a pill; screen readers still hear it.
+      if (!note || note.status !== "completed" || active || queued) {
+        const chip = header.createSpan({
+          cls: `vam-status vam-status-${active ? "running" : queued ? "queued" : (note?.status ?? "error")}`,
+          text: statusText
+        });
+        if (active) chip.setAttr("role", "status");
+      }
       if (note) this.labelCard(card, t("ui.topic_card_label_0_1", note.title, statusText));
     }
     // Failure reasons are shown on the card, not only in a hover tooltip.
@@ -3038,12 +3459,6 @@ export class VisualAgentMapView extends ItemView {
     if (this.plugin.quickExpandPending?.has(node.path) && batch?.status !== "running") {
       this.button(header, t("ui.stop_research"), () => this.plugin.activeTasks.get(node.path)?.abort());
     }
-    const quickError = this.plugin.quickExpandFailures?.get(node.path);
-    if (quickError && !active) {
-      const badge = header.createSpan({ cls: "vam-status vam-status-error", text: t("ui.expansion_failed") });
-      badge.setAttr("title", quickError);
-      errorDetails.push(quickError);
-    }
     const pendingCount = this.plugin.pendingSuggestions.get(node.path)?.length ?? 0;
     if (pendingCount && !this.builtIn && !this.integrationMode && !this.map?.aim)
       this.button(header, t("ui.view_0_expansion_suggestions", pendingCount), () =>
@@ -3072,35 +3487,53 @@ export class VisualAgentMapView extends ItemView {
         this.button(header, t("ui.discard_synthesis"), () => this.discardSynthesis(node));
       }
     }
-    // Tools sit after the status badges; only the AI action stays visible until the card is hovered or focused.
-    const tools = header.createDiv("vam-node-tools");
+    // Hover-only tools float above the card's top edge, so showing them (hover, focus, selection) never moves the card's
+    // content. What must always show (status, stop and review actions, a folded branch's count) stays in the header.
+    // Every tool is labelled: the toolbar floats, so its width never moves the card. Order: fold, structure, rename,
+    // details, then the AI action last.
+    const tools = card.createDiv("vam-node-tools");
+    const count = descendants(this.map!.nodes, node.id).size;
+    if (count && !this.builtIn) {
+      // A folded branch keeps its count on the card; the fold action itself is a hover tool.
+      const collapse = this.button(
+        node.collapsed ? header : tools,
+        node.collapsed ? t("ui.expand_0", count) : t("ui.collapse"),
+        () =>
+          this.enqueue(() =>
+            this.mapChange(map => {
+              const n = map.nodes.find(n => n.id === node.id)!;
+              n.collapsed = !n.collapsed;
+              map.nodes = arrangeMap(map.nodes);
+            })
+          )
+      );
+      collapse.addClass("vam-collapse-button", ...(node.collapsed ? ["is-collapsed"] : []));
+      collapse.setAttr("aria-expanded", String(!node.collapsed));
+    }
     if (!this.builtIn && !this.integrationMode) {
       if (!this.map?.aim) {
-        const ai = this.iconButton(tools, "sparkles", t("ui.how_would_you_like_to_explore_next"), () =>
-          this.openNextStep(node)
-        );
-        ai.addClass("vam-node-tool", "vam-ai-tool");
-        this.iconButton(tools, "network", t("ui.structure_and_links"), () =>
-          this.openNodePanel(node, "structure")
-        ).addClass("vam-node-tool");
+        const structure = this.button(tools, t("ui.node_tool_links"), () => this.openNodePanel(node, "structure"));
+        structure.addClass("vam-node-tool", "vam-structure-tool");
+        structure.setAttr("aria-label", t("ui.structure_and_links"));
         if (note)
-          this.iconButton(tools, "pencil", t("ui.new_topic_name"), () =>
+          this.button(tools, t("ui.node_tool_rename"), () =>
             new NameModal(this.app, t("ui.new_topic_name"), note.title, title =>
               this.enqueue(() => this.noteChange(node, { title }))
             ).open()
-          ).addClass("vam-node-tool");
+          ).addClass("vam-node-tool", "vam-rename-tool");
       }
-      if (node.aimKind === "question")
-        this.iconButton(tools, "x", t("ui.remove_from_map"), () => this.confirmRemoveNode(node)).addClass(
-          "vam-node-tool"
-        );
+      if (node.aimKind === "question") {
+        const remove = this.button(tools, t("ui.node_tool_remove"), () => this.confirmRemoveNode(node));
+        remove.addClass("vam-node-tool", "vam-remove-tool");
+        remove.setAttr("aria-label", t("ui.remove_from_map"));
+      }
       if (
         this.map?.aim &&
         node.aimKind === "synthesis" &&
         this.map.aim.branches.some(branch => branch.results.some(result => result.nodeId === node.id))
       ) {
         const next = this.button(
-          tools,
+          header,
           t("ui.aim_new_question"),
           () => void this.planAimFromSelection(node.id),
           this.aimBusy
@@ -3110,22 +3543,15 @@ export class VisualAgentMapView extends ItemView {
         next.setAttr("title", t("ui.aim_new_question_hint"));
       }
     }
-    this.iconButton(
-      tools,
-      "panel-right-open",
-      this.builtIn ? t("ui.view_sample_content") : t("ui.open_details_in_right_sidebar"),
-      () => (this.builtIn ? this.selectSampleNode(node.id) : this.openDetails(node))
-    ).addClass("vam-detail-button");
-    const count = descendants(this.map!.nodes, node.id).size;
-    if (count && !this.builtIn)
-      this.button(tools, node.collapsed ? t("ui.expand_0", count) : t("ui.collapse"), () =>
-        this.enqueue(() =>
-          this.mapChange(map => {
-            const n = map.nodes.find(n => n.id === node.id)!;
-            n.collapsed = !n.collapsed;
-          })
-        )
-      ).addClass("vam-collapse-button", ...(node.collapsed ? ["is-collapsed"] : []));
+    const details = this.button(tools, t("ui.node_tool_details"), () =>
+      this.builtIn ? this.selectSampleNode(node.id) : this.openDetails(node)
+    );
+    details.addClass("vam-node-tool", "vam-detail-button");
+    // The sample's longer description is a tooltip, so the accessible name still starts with the visible text.
+    if (this.builtIn) details.setAttr("title", t("ui.view_sample_content"));
+    else details.setAttr("aria-label", t("ui.open_details_in_right_sidebar"));
+    if (!this.builtIn && !this.integrationMode && !this.map?.aim)
+      this.button(tools, t("ui.ai_explore"), () => this.openNextStep(node)).addClass("vam-node-tool", "vam-ai-explore");
     if (!this.builtIn && !this.integrationMode && !this.map?.aim) {
       const add = this.button(card, "+", () => this.enqueue(() => this.addNode(node)));
       add.addClass("vam-add-child");
@@ -3277,7 +3703,7 @@ export class VisualAgentMapView extends ItemView {
       if (this.integrationMode) {
         if (this.multiSelected.has(node.id)) this.multiSelected.delete(node.id);
         else this.multiSelected.add(node.id);
-        this.render();
+        this.commitSelection(this.selected, this.selected, [node.id]);
         return;
       }
       // A click selects; an already open details sidebar follows the selection, a closed one stays closed.
@@ -3306,7 +3732,7 @@ export class VisualAgentMapView extends ItemView {
         if (this.integrationMode) {
           if (this.multiSelected.has(node.id)) this.multiSelected.delete(node.id);
           else this.multiSelected.add(node.id);
-          this.render();
+          this.commitSelection(this.selected, this.selected, [node.id]);
         } else if (this.builtIn) this.selectSampleNode(node.id);
         else {
           this.selectMapNode(node);
@@ -3358,7 +3784,9 @@ export class VisualAgentMapView extends ItemView {
     return siblings[index + (key === "ArrowUp" ? -1 : 1)];
   }
   private moveKeyboardFocus(target: MapNode): void {
-    const card = this.stageEl?.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(target.id)}"]`);
+    const card =
+      this.cardEls.get(target.id) ??
+      this.stageEl?.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(target.id)}"]`);
     const view = this.viewportEl?.getBoundingClientRect(),
       rect = card?.getBoundingClientRect();
     if (
@@ -3367,19 +3795,92 @@ export class VisualAgentMapView extends ItemView {
       (rect.left < view.left || rect.right > view.right || rect.top < view.top || rect.bottom > view.bottom)
     )
       this.focusNode(target);
-    this.focusNodeId = target.id;
+    if (this.builtIn) {
+      this.focusNodeId = target.id;
+      this.selectSampleNode(target.id);
+      this.focusNodeId = null;
+      return;
+    }
     if (this.integrationMode) {
       // Topic selection mode: moving focus must not clear the topics already ticked.
-      this.stageEl?.querySelectorAll<HTMLElement>(".vam-node").forEach(item => {
-        item.tabIndex = item === card ? 0 : -1;
-      });
+      const previous = this.tabStopId;
       this.tabStopId = target.id;
-    } else if (this.builtIn) this.selectSampleNode(target.id);
-    else this.selectMapNode(target);
-    if (this.focusNodeId) {
-      card?.focus({ preventScroll: true });
-      this.focusNodeId = null;
+      this.paintCards([previous, target.id]);
+    } else {
+      // A full render (AIM) rebuilds every card and restores focus to focusNodeId, so name the target first.
+      this.focusNodeId = target.id;
+      try {
+        this.selectMapNode(target);
+      } finally {
+        this.focusNodeId = null;
+      }
     }
+    (this.cardEls.get(target.id) ?? card)?.focus({ preventScroll: true });
+  }
+  /** The tab stop when nothing moved it: the selected card, else the first root, else the first card. */
+  private defaultTabStop(shown: MapNode[]): string | null {
+    return (
+      (this.selected && shown.some(node => node.id === this.selected) ? this.selected : null) ??
+      shown.find(node => !node.parentId)?.id ??
+      shown[0]?.id ??
+      null
+    );
+  }
+  /** Nesting level of a topic, 1 for a root; guards against a corrupt parent cycle. */
+  private nodeDepth(node: MapNode): number {
+    let depth = 1;
+    const seen = new Set([node.id]);
+    for (let parent = node.parentId; parent; depth++) {
+      if (seen.has(parent)) break;
+      seen.add(parent);
+      parent = this.map?.nodes.find(item => item.id === parent)?.parentId ?? null;
+    }
+    return depth;
+  }
+  /** Repaints only the named cards from the current selection state (class, aria-selected, roving tabindex, checkbox). */
+  private paintCards(ids: Iterable<string | null>): void {
+    for (const id of new Set(ids)) {
+      const card = id ? this.cardEls.get(id) : undefined;
+      if (!id || !card) continue;
+      const on = id === this.selected || this.multiSelected.has(id);
+      card.toggleClass("is-selected", on);
+      card.setAttr("aria-selected", String(on));
+      card.tabIndex = id === this.tabStopId ? 0 : -1;
+      const check = this.cardChecks.get(id);
+      if (check) check.checked = this.multiSelected.has(id);
+    }
+  }
+  /**
+   * Moves the selection without rebuilding the map: only the previous and next cards, the changed multi-select
+   * cards and the two tab stops are repainted, and the selection bar is refreshed in selection mode.
+   */
+  applySelectionState(prevId: string | null, nextId: string | null, touched: Iterable<string> = []): void {
+    const previousStop = this.tabStopId;
+    this.tabStopId = this.defaultTabStop(this.map ? visibleNodes(this.map.nodes) : []);
+    this.paintCards([prevId, nextId, previousStop, this.tabStopId, ...touched]);
+    if (this.integrationMode && this.selectionBarEl?.isConnected) {
+      const workspace = this.selectionBarEl.parentElement;
+      if (workspace) {
+        const bar = this.renderSelectionBar(workspace);
+        this.selectionBarEl.replaceWith(bar);
+        this.selectionBarEl = bar;
+      }
+    }
+    this.syncOutlineActive(nextId);
+  }
+  /** The outline highlights the selected topic; with no selection it falls back to the opened note. */
+  private syncOutlineActive(nextId: string | null): void {
+    const selected = nextId ? this.map?.nodes.find(node => node.id === nextId)?.path : undefined;
+    this.plugin.setOutlineActive(selected ?? this.app?.workspace?.getActiveFile?.()?.path ?? "");
+  }
+  /** Selection changed: repaint in place, or render fully where selection also drives other chrome (AIM, sample). */
+  private commitSelection(prevId: string | null, nextId: string | null, touched: Iterable<string> = []): void {
+    if (this.map?.aim || this.builtIn || !this.cardEls.size) {
+      this.render();
+      this.syncOutlineActive(nextId);
+      return;
+    }
+    this.applySelectionState(prevId, nextId, touched);
   }
   private clearHoverTimer(): void {
     if (this.hoverTimer !== null) window.clearTimeout(this.hoverTimer);
@@ -3430,10 +3931,14 @@ export class VisualAgentMapView extends ItemView {
     const current = this.map?.nodes.find(item => item.id === node.id);
     if (!current) return false;
     if (!this.integrationMode) {
+      const previous = this.selected,
+        touched = [...this.multiSelected];
       this.selected = current.id;
       this.multiSelected.clear();
-    }
-    this.render();
+      // Opening collapsed ancestors already rendered; a plain reveal only moves the selection.
+      if (collapsed.length) this.render();
+      else this.commitSelection(previous, current.id, touched);
+    } else this.render();
     this.focusNode(current);
     return true;
   }
@@ -3446,9 +3951,11 @@ export class VisualAgentMapView extends ItemView {
   }
   private selectMapNode(node: MapNode): void {
     if (this.selected === node.id && this.multiSelected.size === 0) return;
+    const previous = this.selected,
+      touched = [...this.multiSelected];
     this.selected = node.id;
     this.multiSelected.clear();
-    this.render();
+    this.commitSelection(previous, node.id, touched);
   }
   private hideHoverCardSoon(): void {
     this.clearHoverTimer();
@@ -3531,7 +4038,8 @@ export class VisualAgentMapView extends ItemView {
         note.status === "completed" ? t("ui.researched") : topicStatusLabel(note.status, this.plugin.settings.language);
       card.dataset.status = note.status;
       this.labelCard(card, t("ui.topic_card_label_0_1", note.title, label));
-      if (status) {
+      if (note.status === "completed") status?.remove();
+      else if (status) {
         status.className = `vam-status vam-status-${note.status}`;
         status.setText(label);
       } else header?.prepend(createSpan({ cls: `vam-status vam-status-${note.status}`, text: label }));
@@ -3600,7 +4108,7 @@ export class VisualAgentMapView extends ItemView {
         async (options, focus, done, failed, accepted) => {
           const latest = await this.plugin.repo.readNote(node.path);
           const task = researchTopicTask(this.plugin.settings.language, latest.title);
-          const detailTemplate = await this.detailTemplateFor(node, options.detailTemplateId);
+          const detailTemplate = await this.detailTemplateFor(node, options.detailTemplateId, options.toneId);
           await this.runAgent(
             node,
             done,
@@ -3620,12 +4128,10 @@ export class VisualAgentMapView extends ItemView {
             accepted
           );
         },
-        (options, direction, found, failed, created, accepted) => {
-          if (!options.multiLayer)
-            return this.proposeChildren(node, true, options, direction, found, failed, false, created, accepted);
-          return this.startQuickExpansion(node, options, direction, failed, created, accepted);
-        },
-        (options, direction, failed, accepted) => this.startSynthesis(node, options, direction, failed, accepted),
+        (options, direction, found, failed, accepted) =>
+          this.proposeChildren(node, options, direction, found, failed, accepted),
+        (options, direction, failed, accepted, observer) =>
+          this.startSynthesis(node, options, direction, failed, accepted, observer),
         {
           model: note.model,
           modelSource: note.modelSource,
@@ -3637,9 +4143,13 @@ export class VisualAgentMapView extends ItemView {
           stop: this.plugin.activeTasks.has(node.path)
             ? () => this.plugin.activeTasks.get(node.path)?.abort()
             : undefined,
-          quickError: this.plugin.quickExpandFailures.get(node.path),
+          quickOutline: this.quickOutline(node),
+          structureReview: this.structureReviewEntry(node),
           sources,
           templates: this.templateChoices(),
+          tones: this.toneChoices(),
+          currentTone: this.toneLabelFor(note),
+          currentSummary: note.summary,
           // Only a label: a missing topic template is reported at the next AI update, not when the dialog opens.
           currentTemplate: this.resolveTopicTemplate(note).template.name,
           topicStatus: note.status,
@@ -3673,6 +4183,8 @@ export class VisualAgentMapView extends ItemView {
     close?: () => void,
     host?: HTMLElement
   ): void {
+    // The canvas overlay makes room for the sample inspector; a class does it without a :has() selector.
+    if (this.builtIn) parent.addClass("has-inspector");
     const panel = parent.createDiv(this.builtIn ? "vam-inspector" : "vam-topic-panel"),
       note = this.notes.get(node.id);
     const heading = panel.createDiv("vam-inspector-heading");
@@ -4024,41 +4536,12 @@ export class VisualAgentMapView extends ItemView {
     if (this.map) this.map.viewport.zoom = Math.max(this.map.viewport.zoom, 0.7);
     this.focusNode(node);
   }
-  private startQuickExpansion(
-    parent: MapNode,
-    options: TaskOptions,
-    direction: string,
-    failed: (message: string, retryable?: boolean) => void,
-    created: () => void,
-    accepted?: () => void
-  ): Promise<void> {
-    if (this.plugin.running.has(parent.path) || this.plugin.quickExpandPending.has(parent.path)) {
-      failed(t("ui.ai_running_ai"));
-      return Promise.resolve();
-    }
-    this.plugin.quickExpandFailures.delete(parent.path);
-    this.plugin.quickExpandPending.add(parent.path);
-    this.render();
-    return this.proposeChildren(parent, true, options, direction, undefined, failed, true, created, accepted)
-      .catch(error => {
-        this.plugin.quickExpandFailures.set(parent.path, error instanceof Error ? error.message : String(error));
-        throw error;
-      })
-      .finally(() => {
-        if (this.plugin.expansionBatches.get(parent.path)?.status !== "running")
-          this.plugin.quickExpandPending.delete(parent.path);
-        this.render();
-      });
-  }
   private async proposeChildren(
     parent: MapNode,
-    confirmed = false,
     options?: TaskOptions,
     direction = "",
     found?: (items: Suggestion[], create: (items: Suggestion[]) => Promise<void>) => void,
     failed?: (message: string, retryable?: boolean) => void,
-    direct = false,
-    created?: () => void,
     acceptedCallback?: () => void
   ): Promise<void> {
     if (this.plugin.expansionCoordinator.isRunning(parent.path)) {
@@ -4114,45 +4597,16 @@ export class VisualAgentMapView extends ItemView {
           await this.startShallowResearch(parent, createdNodes, researchOptions);
       });
     };
-    if (pending?.length && !direct) {
+    if (pending?.length) {
       if (options) {
-        if (options.shallowResearch ?? options.multiLayer)
-          this.plugin.pendingResearchOptions.set(parent.path, this.researchChoices(options));
+        if (options.shallowResearch) this.plugin.pendingResearchOptions.set(parent.path, this.researchChoices(options));
         else this.plugin.pendingResearchOptions.delete(parent.path);
       }
-      present(options && !options.multiLayer ? pending.filter(item => !item.parentTitle) : pending);
+      present(options ? pending.filter(item => !item.parentTitle) : pending);
       return;
     }
     if (this.plugin.running.has(parent.path)) {
       failed?.(t("ui.ai_running_ai"));
-      return;
-    }
-    if (!confirmed) {
-      const note = await this.plugin.repo.readNote(parent.path);
-      new TaskModal(
-        this.app,
-        t("ui.suggest_the_most_useful_expansion_direction_or_follow_the_di"),
-        (value, run, chosen) => {
-          if (run)
-            void this.plugin.confirmAiUsage(note.model, async () =>
-              this.enqueue(() => this.proposeChildren(parent, true, chosen, value))
-            );
-        },
-        t("ui.expand_subtopics"),
-        t("ui.specify_an_expansion_direction_or_ask_ai_to_suggest_one_prev"),
-        note.rules,
-        note.researchMode,
-        note.researchDepth,
-        note.visualMode,
-        false,
-        true,
-        this.taskSourceSettings(t("ui.reference_current_topic_included", note.title)),
-        undefined,
-        this.plugin.settings.language,
-        note.model,
-        note.reasoning ?? this.plugin.settings.cliReasoning,
-        note.title
-      ).open();
       return;
     }
     const controller = new AbortController();
@@ -4177,18 +4631,9 @@ export class VisualAgentMapView extends ItemView {
     this.plugin.quickExpandPending.add(parent.path);
     this.plugin.activeTasks.set(parent.path, controller);
     this.render();
-    let building = false;
     try {
       const note = await this.plugin.repo.readNote(parent.path);
       if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
-      const targetMapPath = this.path,
-        targetMapId = this.map?.id;
-      const originalChildren =
-        this.map?.nodes
-          .filter(item => item.parentId === parent.id)
-          .map(item => item.id)
-          .sort()
-          .join("|") ?? "";
       const outputLanguage = options?.outputLanguage ?? this.plugin.settings.language;
       const existing =
         this.map?.nodes
@@ -4198,27 +4643,7 @@ export class VisualAgentMapView extends ItemView {
             return `- ${child?.title || item.path}: ${child?.summary || noSummaryYet(outputLanguage)}`;
           })
           .join("\n") || inLanguage(NONE, outputLanguage);
-      const layers = options?.layers ?? 2,
-        firstLayerCount = options?.firstLayerCount ?? 3,
-        childrenPerParent = layers === 1 ? 1 : (options?.childrenPerParent ?? 2);
-      const shape = direct ? quickShape(layers, firstLayerCount, childrenPerParent) : null;
-      const effectiveLayers = shape?.counts.length ?? layers;
-      if (shape && shape.total > BigInt(15))
-        throw new Error(t("ui.this_would_create_0_subtopics_exceeding_the_limit_of_15_redu", shape.total.toString()));
-      const task = expansionTask(
-        outputLanguage,
-        existing,
-        direction,
-        shape
-          ? {
-              layers: effectiveLayers,
-              firstLayerCount,
-              childrenPerParent,
-              counts: shape.counts.join(outputLanguage === "en" ? ", " : "、"),
-              total: shape.total.toString()
-            }
-          : null
-      );
+      const task = expansionTask(outputLanguage, existing, direction);
       const result = await this.plugin.askModel(
         withThinkingOrigin(
           {
@@ -4230,6 +4655,7 @@ export class VisualAgentMapView extends ItemView {
             ancestors: await this.ancestorContext(parent),
             referenceGroups: options?.referenceGroups,
             outputLanguage: options?.outputLanguage,
+            ...this.toneField(note, options),
             mode: "decompose",
             researchMode: options?.researchMode ?? "research",
             researchDepth: options?.researchDepth ?? note.researchDepth,
@@ -4245,108 +4671,39 @@ export class VisualAgentMapView extends ItemView {
       );
       if (!accepted) acceptDispatch();
       if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
-      const suggestions = direct
-        ? quickSuggestions(result.suggestions, effectiveLayers, firstLayerCount, childrenPerParent)
-        : result.suggestions.filter(item => !item.parentTitle).slice(0, 7);
-      if (!direct && suggestions.length === 0) {
+      const suggestions = result.suggestions.filter(item => !item.parentTitle).slice(0, 7);
+      if (suggestions.length === 0) {
         const message = result.detail.trim() || t("ui.ai_does_not_recommend_decomposition_or_did_not_propose_3_to");
         if (failed) failed(message);
         else new Notice(message);
         return;
       }
-      if (direct) {
-        building = true;
-        let batchFailure: Error | null = null;
-        let createdNodes: MapNode[] = [];
-        await this.plugin.mutate(async () => {
-          if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
-          try {
-            const currentParent = this.map?.nodes.find(item => item.id === parent.id && item.path === parent.path);
-            const currentChildren =
-              this.map?.nodes
-                .filter(item => item.parentId === parent.id)
-                .map(item => item.id)
-                .sort()
-                .join("|") ?? "";
-            if (
-              this.path !== targetMapPath ||
-              this.map?.id !== targetMapId ||
-              !currentParent ||
-              currentChildren !== originalChildren
-            )
-              throw new Error(t("ui.the_map_or_parent_topic_changed_while_ai_was_running_no_subt"));
-            const currentNote = await this.plugin.repo.readNote(parent.path);
-            const version = (value: Note): string =>
-              JSON.stringify([
-                value.title,
-                value.summary,
-                value.rules,
-                value.detail,
-                value.prompt,
-                value.model,
-                value.reasoning,
-                value.sourcePaths,
-                value.referencePaths,
-                value.thinkingOrigin
-              ]);
-            if (version(currentNote) !== version(note))
-              throw new Error(t("ui.the_map_or_parent_topic_changed_while_ai_was_running_no_subt"));
-            createdNodes = await this.createChildBatch(
-              currentParent,
-              suggestions,
-              options?.shallowResearch ? { ...options, signal: controller.signal } : undefined,
-              controller.signal,
-              options?.detailTemplateId
-            );
-          } catch (error) {
-            batchFailure =
-              error instanceof Error
-                ? error
-                : new Error(typeof error === "string" ? error : t("ui.failed_to_create_starter_map"));
-          }
-        });
-        const batchError = batchFailure as Error | null;
-        if (batchError) throw batchError;
-        if (options?.shallowResearch && createdNodes.length)
-          await this.startShallowResearch(parent, createdNodes, { ...options, signal: controller.signal });
+      const latest = await this.plugin.repo.readNote(parent.path);
+      if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
+      if (latest.thinkingOrigin !== note.thinkingOrigin)
+        throw new Error(t("ui.the_topic_changed_so_the_outdated_ai_result_was_not_saved"));
+      const pendingItems = suggestions.map(item => ({
+        ...item,
+        thinkingOriginBaseline: originBaseline(note.thinkingOrigin)
+      }));
+      this.plugin.pendingSuggestions.set(parent.path, pendingItems);
+      await (this.plugin.pendingSuggestions as PendingSuggestions).flush?.();
+      if (controller.signal.aborted) {
         this.plugin.pendingSuggestions.delete(parent.path);
-        this.plugin.pendingResearchOptions.delete(parent.path);
-        this.plugin.quickExpandFailures?.delete(parent.path);
-        created?.();
-      } else {
-        const latest = await this.plugin.repo.readNote(parent.path);
-        if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
-        if (latest.thinkingOrigin !== note.thinkingOrigin)
-          throw new Error(t("ui.the_topic_changed_so_the_outdated_ai_result_was_not_saved"));
-        const pendingItems = suggestions.map(item => ({
-          ...item,
-          thinkingOriginBaseline: originBaseline(note.thinkingOrigin)
-        }));
-        this.plugin.pendingSuggestions.set(parent.path, pendingItems);
         await (this.plugin.pendingSuggestions as PendingSuggestions).flush?.();
-        if (controller.signal.aborted) {
-          this.plugin.pendingSuggestions.delete(parent.path);
-          await (this.plugin.pendingSuggestions as PendingSuggestions).flush?.();
-          throw new DOMException("Aborted", "AbortError");
-        }
-        if (options?.shallowResearch)
-          this.plugin.pendingResearchOptions.set(parent.path, this.researchChoices(options));
-        else this.plugin.pendingResearchOptions?.delete(parent.path);
-        present(pendingItems);
+        throw new DOMException("Aborted", "AbortError");
       }
+      if (options?.shallowResearch) this.plugin.pendingResearchOptions.set(parent.path, this.researchChoices(options));
+      else this.plugin.pendingResearchOptions?.delete(parent.path);
+      present(pendingItems);
     } catch (error) {
-      if (building && error instanceof PartialChildBatchError) await this.clearPartialSuggestions(parent.path, error);
       const partial = error instanceof PartialChildBatchError;
       const currentBatch = this.plugin.expansionBatches.get(parent.path);
       const stoppedBatch = currentBatch !== previousBatch && currentBatch?.status === "stopped";
       const cancelled = !partial && (controller.signal.aborted || stoppedBatch);
       if (!cancelled) {
         console.error("Visual Agent Map AI split", error);
-        const message = this.plugin.recordFailure(
-          t(building ? "log.preliminary_map_failed" : "log.ai_split_failed"),
-          error
-        );
-        if (direct) this.plugin.quickExpandFailures?.set(parent.path, message);
+        const message = this.plugin.recordFailure(t("log.ai_split_failed"), error);
         if (failed) failed(message, !partial);
         else new Notice(message);
       }
@@ -4502,7 +4859,7 @@ export class VisualAgentMapView extends ItemView {
     accepted: () => void,
     choices: TaskOptions
   ): Promise<void> {
-    const detailTemplate = await this.detailTemplateFor(child, choices.detailTemplateId);
+    const detailTemplate = await this.detailTemplateFor(child, choices.detailTemplateId, choices.toneId);
     const note = await this.plugin.repo.readNote(child.path);
     let started = false;
     let failure: string | undefined;
@@ -4515,7 +4872,7 @@ export class VisualAgentMapView extends ItemView {
       {
         detailTemplate,
         rules: "",
-        referenceGroups: [],
+        referenceGroups: choices.referenceGroups ?? [],
         signal: batchSignal,
         outputLanguage: choices.outputLanguage,
         researchMode: choices.researchMode,
@@ -4548,7 +4905,10 @@ export class VisualAgentMapView extends ItemView {
       names,
       this.modelChoices(),
       this.templateChoices(),
-      request => void this.startMultiResearch(request, retryBatchKey)
+      request => void this.startMultiResearch(request, retryBatchKey),
+      this.toneChoices(),
+      (selected, refreshed) =>
+        new PromptPresetsModal(this.app, this.plugin, "tone", () => refreshed(this.toneChoices()), selected).open()
     ).open();
   }
   stopMultiResearch(): void {
@@ -4593,7 +4953,8 @@ export class VisualAgentMapView extends ItemView {
           visualMode: request.imageSearch ? "auto" : "off",
           referenceGroups: [],
           requirements: request.requirements,
-          ...(request.detailTemplateId ? { detailTemplateId: request.detailTemplateId } : {})
+          ...(request.detailTemplateId ? { detailTemplateId: request.detailTemplateId } : {}),
+          ...(request.toneId ? { toneId: request.toneId } : {})
         };
         // A retry replaces the failure state of the batch it came from (a running batch is never touched).
         if (retryBatchKey && this.plugin.expansionBatches.get(retryBatchKey)?.status !== "running")
@@ -4702,7 +5063,7 @@ export class VisualAgentMapView extends ItemView {
       dismiss.setAttr("aria-label", t("ui.dismiss"));
     }
   }
-  private renderSelectionBar(workspace: HTMLElement): void {
+  private renderSelectionBar(workspace: HTMLElement): HTMLElement {
     const selection = workspace.createDiv("vam-selection-bar");
     const names = [...this.multiSelected].map(id => this.notes.get(id)?.title).filter(Boolean);
     selection.createSpan({
@@ -4714,30 +5075,37 @@ export class VisualAgentMapView extends ItemView {
       selection,
       t("ui.clear"),
       () => {
+        const touched = [...this.multiSelected];
         this.multiSelected.clear();
-        this.render();
+        this.commitSelection(this.selected, this.selected, touched);
       },
       !this.multiSelected.size
     );
     this.button(selection, t("ui.remove"), () => this.confirmRemoveSelected(), !this.multiSelected.size);
     this.button(selection, t("ui.move_to"), () => this.chooseSelectedParent(false), !this.multiSelected.size);
     this.button(selection, t("ui.copy_to"), () => this.chooseSelectedParent(true), !this.multiSelected.size);
-    this.button(selection, t("ui.synthesize"), () => this.integrateSelected(), this.multiSelected.size < 2).addClass(
-      "mod-cta"
-    );
+    const count = this.multiSelected.size;
+    this.button(
+      selection,
+      count > 1 ? t("ui.synthesize_0_topics", count) : t("ui.synthesize"),
+      () => this.integrateSelected(),
+      count < 2
+    ).addClass("mod-cta");
     if (!this.map?.aim) {
       const running = this.plugin.expansionBatches.get(this.multiResearchKey())?.status === "running";
       this.button(
         selection,
-        t("ui.multi_research"),
+        count > 1 ? t("ui.research_0_topics", count) : count ? t("ui.research_one_topic") : t("ui.multi_research"),
         () => this.openMultiResearch(),
         !this.multiSelected.size || running
       );
     }
+    return selection;
   }
+  /** The dialog's choices for each child's research; the data sources the user picked go to every child. */
   private researchChoices(options: TaskOptions): TaskOptions {
     const { signal: _signal, onProgress: _onProgress, ...choices } = options;
-    return { ...choices, signal: undefined, onProgress: undefined, referenceGroups: [] };
+    return { ...choices, signal: undefined, onProgress: undefined, referenceGroups: options.referenceGroups ?? [] };
   }
   private async clearPendingSuggestions(path: string): Promise<void> {
     this.plugin.pendingSuggestions.delete(path);
@@ -4841,6 +5209,7 @@ export class VisualAgentMapView extends ItemView {
             referenceGroups: [...selectedSources, childSources],
             onProgress: options.onProgress,
             outputLanguage: options.outputLanguage,
+            ...this.toneField(note, options),
             mode: "synthesize",
             researchMode: options.researchMode,
             researchDepth: options.researchDepth,
@@ -4862,7 +5231,7 @@ export class VisualAgentMapView extends ItemView {
         return;
       }
       found(angles, direction =>
-        this.plugin.mutate(() => this.integrateChildren(node, true, options, direction, drafted, failed))
+        this.plugin.mutate(() => this.integrateChildren(node, options, direction, drafted, failed))
       );
     } catch (error) {
       if (options.signal?.aborted || (error instanceof Error && error.name === "AbortError")) {
@@ -4879,7 +5248,6 @@ export class VisualAgentMapView extends ItemView {
   }
   private async integrateChildren(
     node: MapNode,
-    confirmed = false,
     options?: TaskOptions,
     direction = "",
     drafted?: (result: AiResult, save: (summary: string, detail: string) => Promise<void>) => void,
@@ -4896,37 +5264,6 @@ export class VisualAgentMapView extends ItemView {
       const message = t("ui.choose_another_note_source_first");
       if (failed) failed(message);
       else new Notice(message);
-      return;
-    }
-    if (!confirmed) {
-      new TaskModal(
-        this.app,
-        t("ui.synthesize_agreements_differences_tradeoffs_and_open_questio"),
-        (value, run, chosen) => {
-          if (run)
-            void this.plugin.confirmAiUsage(note.model, async () =>
-              this.enqueue(() => this.integrateChildren(node, true, chosen, value))
-            );
-        },
-        t("ui.synthesize_subtopics"),
-        t("ui.ai_reads_direct_subtopics_and_prepares_a_synthesis_draft_not"),
-        note.rules,
-        "local",
-        note.researchDepth,
-        note.visualMode,
-        false,
-        false,
-        this.taskSourceSettings(
-          t("ui.reference_current_topic_included", note.title),
-          this.map?.id,
-          t("ui.reference_synthesis_topics_included", note.title)
-        ),
-        children.map(child => this.notes.get(child.id)?.title ?? child.path),
-        this.plugin.settings.language,
-        note.model,
-        note.reasoning ?? this.plugin.settings.cliReasoning,
-        note.title
-      ).open();
       return;
     }
     const childSources = await this.topicReferenceGroup(
@@ -4962,7 +5299,7 @@ export class VisualAgentMapView extends ItemView {
     const language = this.plugin.settings.language;
     const task = direction || synthesisGoalTask(language);
     const detailTemplate = templateInLanguage(
-      await this.detailTemplateFor(node, options?.detailTemplateId),
+      await this.detailTemplateFor(node, options?.detailTemplateId, options?.toneId),
       options?.outputLanguage ?? language
     );
     this.plugin.running.add(node.path);
@@ -4982,6 +5319,7 @@ export class VisualAgentMapView extends ItemView {
             referenceGroups: [...selectedSources, childSources],
             onProgress: options?.onProgress,
             outputLanguage: options?.outputLanguage,
+            ...this.toneField(note, options),
             mode: "synthesize",
             researchMode: options?.researchMode ?? "local",
             researchDepth: options?.researchDepth ?? note.researchDepth,
@@ -5105,7 +5443,8 @@ export class VisualAgentMapView extends ItemView {
     options: TaskOptions,
     direction: string | null,
     failed: (message: string) => void,
-    accepted: () => void
+    accepted: () => void,
+    observer?: SynthesisObserver
   ): Promise<void> {
     const path = node.path;
     const existing = this.synthesisTasks.get(path);
@@ -5122,12 +5461,17 @@ export class VisualAgentMapView extends ItemView {
       failed(t("ui.synthesis_pending_review_first"));
       return;
     }
-    if (
-      step === "draft" &&
-      (!existing || existing.mapPath !== this.path || existing.mapId !== this.map.id || !existing.directions.length)
-    ) {
-      failed(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
-      return;
+    if (step === "draft") {
+      // A draft follows chosen directions, or starts fresh when the suggestions were skipped; it never overwrites
+      // a draft that is still waiting for review.
+      if (existing && (existing.mapPath !== this.path || existing.mapId !== this.map.id)) {
+        failed(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
+        return;
+      }
+      if (existing?.state === "draft") {
+        failed(t("ui.synthesis_pending_review_first"));
+        return;
+      }
     }
     const controller = new AbortController();
     const modalSignal = options.signal;
@@ -5136,7 +5480,9 @@ export class VisualAgentMapView extends ItemView {
     else modalSignal?.addEventListener("abort", abortBeforeAcceptance, { once: true });
     const stored = { ...options, signal: undefined, onProgress: undefined };
     const task: NonNullable<ReturnType<VisualAgentMapView["synthesisTasks"]["get"]>> =
-      step === "draft" && existing
+      step === "draft" &&
+      existing?.directions.length &&
+      (existing.state === "directions" || options.continuesDirections)
         ? existing
         : {
             mapPath: this.path,
@@ -5175,15 +5521,19 @@ export class VisualAgentMapView extends ItemView {
       if (launched || controller.signal.aborted) return;
       launched = true;
       modalSignal?.removeEventListener("abort", abortBeforeAcceptance);
+      observer?.accepted?.(() => controller.abort());
       accepted();
     };
     const fail = (message: string): void => {
       if (outcome) return;
       outcome = "failed";
       if (this.synthesisTasks.get(path) === task) {
-        // The window closes as soon as synthesis starts, so a directions failure stays on the node
-        // with Try again. A draft that never started returns to its directions badge.
-        if (!launched && step === "draft") task.state = "directions";
+        if (controller.signal.aborted && observer?.isOpen()) {
+          // Stopped from the open dialog: nothing was produced, so leave no badge behind. A draft that was stopped
+          // returns to its directions; a directions request that was stopped just goes away.
+          if (step === "draft" && task.directions.length) task.state = "directions";
+          else this.synthesisTasks.delete(path);
+        } else if (!launched && step === "draft" && task.directions.length) task.state = "directions";
         else {
           task.state = controller.signal.aborted ? "cancelled" : "failed";
           task.progress = message;
@@ -5200,7 +5550,9 @@ export class VisualAgentMapView extends ItemView {
             outcome = "found";
             task.state = "directions";
             task.directions = items;
-            new Notice(t("ui.choose_synthesis_direction"));
+            // Shown in the dialog when it is still open; otherwise the node badge and a Notice carry it.
+            if (observer?.isOpen() && observer.directions) observer.directions(items);
+            else new Notice(t("ui.choose_synthesis_direction"));
           },
           () => {},
           fail,
@@ -5209,7 +5561,6 @@ export class VisualAgentMapView extends ItemView {
       else
         await this.integrateChildren(
           node,
-          true,
           runOptions,
           direction ?? "",
           (result, save) => {
@@ -5217,7 +5568,17 @@ export class VisualAgentMapView extends ItemView {
             task.state = "draft";
             task.draft = result;
             task.save = save;
-            new Notice(t("ui.review_synthesis_draft"));
+            if (observer?.isOpen() && observer.drafted)
+              observer.drafted({
+                result,
+                confirm: async (summary, detail) => {
+                  await save(summary, detail);
+                  if (this.synthesisTasks.get(path) === task) this.synthesisTasks.delete(path);
+                  this.render();
+                },
+                discard: () => this.discardSynthesis(node)
+              });
+            else new Notice(t("ui.review_synthesis_draft"));
           },
           fail,
           markAccepted
@@ -5266,7 +5627,7 @@ export class VisualAgentMapView extends ItemView {
       this.plugin.confirmAiUsage(note.model, async () => {
         await this.startSynthesis(
           node,
-          { ...task.options },
+          { ...task.options, continuesDirections: task.step === "draft" },
           task.step === "directions" ? null : task.direction,
           message => new Notice(message),
           () => {}
@@ -5274,46 +5635,259 @@ export class VisualAgentMapView extends ItemView {
       })
     );
   }
+  /** Multi-select synthesis: the same dialog and flow as a single topic's, over the selected topics. */
   private integrateSelected(): void {
     if (!this.map || this.multiSelected.size < 2) {
       new Notice(t("ui.select_at_least_two_topics"));
       return;
     }
-    const nodes = [...this.multiSelected]
-      .map(id => this.map!.nodes.find(node => node.id === id))
-      .filter((node): node is MapNode => !!node);
-    const notes = nodes.map(node => this.notes.get(node.id)).filter((note): note is Note => !!note);
-    new IntegrationModal(
+    const task = this.integrationTask && this.integrationTask.mapPath === this.path ? this.integrationTask : null;
+    if (task?.state === "running") {
+      new Notice(t("ui.ai_running_ai"));
+      return;
+    }
+    if (task?.state === "draft") {
+      this.reviewIntegratedDraft(task);
+      return;
+    }
+    this.openSelectionSynthesis(task?.state === "directions" ? task : null);
+  }
+  /** Opens the synthesis dialog for the selected topics, or for the waiting task's topics with its directions. */
+  private openSelectionSynthesis(pending: NonNullable<VisualAgentMapView["integrationTask"]> | null): void {
+    if (!this.map) return;
+    const nodes =
+      pending?.sources ??
+      [...this.multiSelected]
+        .map(id => this.map!.nodes.find(node => node.id === id))
+        .filter((node): node is MapNode => !!node);
+    const names = nodes.map(node => this.notes.get(node.id)?.title ?? node.path);
+    const selectedLabel = t("ui.reference_selected_topics_included", names.join(", "));
+    const sources = this.taskSourceSettings(selectedLabel, this.map.id, selectedLabel);
+    const settings = this.plugin.settings;
+    new NextStepModal(
       this.app,
-      notes.map(note => note.title),
-      (title, goal, rules) => {
-        const selectedLabel = t("ui.reference_selected_topics_included", notes.map(note => note.title).join(", "));
-        new TaskModal(
-          this.app,
-          goal,
-          (direction, run, options, topicRules) => {
-            if (run)
-              void this.plugin.confirmAiUsage(this.plugin.settings.cliModel, async () =>
-                this.enqueue(() => this.createIntegratedNode(title, nodes, direction, topicRules, options, true))
-              );
-          },
-          t("ui.synthesis_direction_and_sources"),
-          t("ui.prepare_a_synthesis_draft_first_then_create_the_topic_after"),
-          rules,
-          "local",
-          "normal",
-          "auto",
-          false,
-          false,
-          this.taskSourceSettings(selectedLabel, this.map?.id, selectedLabel),
-          notes.map(note => note.title),
-          this.plugin.settings.language,
-          this.plugin.settings.cliModel,
-          this.plugin.settings.cliReasoning,
-          title
-        ).open();
+      "",
+      "normal",
+      0,
+      0,
+      this.plugin,
+      async () => {},
+      async () => {},
+      (options, direction, failed, accepted, observer) =>
+        this.startSelectionSynthesis(nodes, options, direction, failed, accepted, observer),
+      undefined,
+      {
+        names,
+        initialTitle:
+          pending?.title ??
+          (names.length > 2
+            ? t("ui.synthesis_of_0_and_1_more", names[0], names.length)
+            : t("ui.synthesis_of_0", names.join(t("ui.list_separator")))),
+        defaultDirection: t("ui.identify_shared_conclusions_key_differences_tradeoffs_and_ne"),
+        fields: {
+          sources,
+          templates: this.templateChoices(),
+          currentTemplate: this.mapDetailTemplate(settings.language).name,
+          tones: this.toneChoices(),
+          currentTone: this.toneLabelFor({})
+        },
+        ...(pending
+          ? { pending: { directions: pending.directions, discard: () => this.discardSelectionSynthesis() } }
+          : {})
       }
     ).open();
+  }
+  /**
+   * One step of multi-select synthesis: the AI's suggested directions (`direction === null`), then the draft. Both
+   * report to the open dialog through `observer`; once it is closed the run carries on and the selection bar shows it.
+   */
+  private async startSelectionSynthesis(
+    sources: MapNode[],
+    options: TaskOptions,
+    direction: string | null,
+    failed: (message: string) => void,
+    accepted: () => void,
+    observer?: SynthesisObserver
+  ): Promise<void> {
+    if (!this.map || sources.length < 2) {
+      failed(t("ui.select_at_least_two_topics"));
+      return;
+    }
+    const existing = this.integrationTask && this.integrationTask.mapPath === this.path ? this.integrationTask : null;
+    const step = direction === null ? "directions" : "draft";
+    if (existing?.state === "running" || this.selectionStarting) {
+      failed(t("ui.ai_running_ai"));
+      return;
+    }
+    if ((step === "directions" && existing?.state === "directions") || existing?.state === "draft") {
+      failed(t("ui.synthesis_pending_review_first"));
+      return;
+    }
+    // A draft continues the waiting directions; after a failed draft only the dialog's own retry does (a fresh run does not).
+    const continuing =
+      step === "draft" &&
+      !!existing?.directions.length &&
+      (existing.state === "directions" || !!options.continuesDirections);
+    const base: TaskOptions = continuing && existing ? existing.options : options;
+    const title = (continuing && existing ? existing.title : options.synthesisTitle?.trim()) || existing?.title || "";
+    // Held across the awaits below, so two requests for the same selection cannot both start.
+    this.selectionStarting = true;
+    const controller = new AbortController();
+    const modalSignal = options.signal;
+    const abortBeforeAcceptance = (): void => controller.abort();
+    if (modalSignal?.aborted) controller.abort();
+    else modalSignal?.addEventListener("abort", abortBeforeAcceptance, { once: true });
+    let own: NonNullable<VisualAgentMapView["integrationTask"]> | undefined;
+    const runOptions: TaskOptions = {
+      ...base,
+      requirements: options.requirements || base.requirements,
+      signal: controller.signal,
+      onProgress: message => {
+        if (this.integrationTask) this.integrationTask.progress = message;
+        options.onProgress?.(message);
+        this.render();
+      }
+    };
+    let launched = false;
+    const markAccepted = (): void => {
+      if (launched || controller.signal.aborted) return;
+      launched = true;
+      modalSignal?.removeEventListener("abort", abortBeforeAcceptance);
+      observer?.accepted?.(() => controller.abort());
+      accepted();
+    };
+    const fail = (error: unknown): void => {
+      const aborted = controller.signal.aborted || (error instanceof Error && error.name === "AbortError");
+      const task = this.integrationTask;
+      if (aborted && observer?.isOpen()) {
+        // Stopped from the open dialog: nothing was produced, so no badge stays behind.
+        if (own && this.integrationTask === own) this.integrationTask = null;
+        this.render();
+        failed(t("ui.research_stopped_existing_content_was_preserved"));
+        return;
+      }
+      if (task) {
+        task.state = aborted ? "cancelled" : "failed";
+        task.progress = aborted
+          ? t("ui.research_stopped_existing_content_was_preserved")
+          : error instanceof Error
+            ? error.message
+            : String(error);
+        this.render();
+      }
+      failed(
+        aborted
+          ? t("ui.research_stopped_existing_content_was_preserved")
+          : this.plugin.recordFailure(
+              t(step === "draft" ? "log.child_integration_failed" : "log.integration_directions_failed"),
+              error
+            )
+      );
+    };
+    try {
+      if (step === "draft") {
+        await this.createIntegratedNode(title, sources, direction ?? "", "", runOptions, false, {
+          observer,
+          accepted: markAccepted,
+          controller,
+          directions: continuing && existing ? existing.directions : []
+        });
+        markAccepted();
+        return;
+      }
+      const sourceGroup = await this.topicReferenceGroup(
+        sources,
+        base.synthesisContent === "summary" ? "summary" : "strong"
+      );
+      const task: NonNullable<VisualAgentMapView["integrationTask"]> = {
+        title,
+        goal: "",
+        rules: "",
+        sources,
+        options: { ...runOptions, signal: undefined, onProgress: undefined },
+        mapPath: this.path,
+        mapId: this.map.id,
+        sourceContent: JSON.stringify(sourceGroup.documents),
+        controller,
+        state: "running",
+        step: "directions",
+        directions: [],
+        progress: ""
+      };
+      this.integrationTask = task;
+      own = task;
+      this.render();
+      const language = this.plugin.settings.language;
+      const result = await this.plugin.askModel(
+        {
+          title,
+          summary: translate(language, "note.no_conclusion_yet"),
+          rules: "",
+          detail: "",
+          task: [synthesisDirectionsTask(language), runOptions.requirements].filter(Boolean).join("\n\n"),
+          ancestors: "",
+          referenceGroups: [...(runOptions.referenceGroups ?? []), sourceGroup],
+          onProgress: runOptions.onProgress,
+          outputLanguage: runOptions.outputLanguage,
+          ...this.toneField(undefined, runOptions),
+          mode: "synthesize",
+          researchMode: runOptions.researchMode,
+          researchDepth: runOptions.researchDepth,
+          visualMode: "off"
+        },
+        this.plugin.settings.cliModel,
+        this.plugin.settings.cliReasoning,
+        controller.signal,
+        undefined,
+        markAccepted
+      );
+      markAccepted();
+      if (this.integrationTask !== task) return;
+      if (controller.signal.aborted || this.path !== task.mapPath || this.map?.id !== task.mapId)
+        throw new DOMException("Aborted", "AbortError");
+      const latest = await this.topicReferenceGroup(
+        sources,
+        base.synthesisContent === "summary" ? "summary" : "strong"
+      );
+      if (JSON.stringify(latest.documents) !== task.sourceContent)
+        throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
+      const angles = result.suggestions.slice(0, 2);
+      if (!angles.length) {
+        this.integrationTask = null;
+        this.render();
+        failed(t("ui.ai_did_not_suggest_a_synthesis_direction_please_retry"));
+        return;
+      }
+      task.state = "directions";
+      task.directions = angles;
+      this.render();
+      if (observer?.isOpen() && observer.directions) observer.directions(angles);
+      else new Notice(t("ui.choose_synthesis_direction"));
+    } catch (error) {
+      fail(error);
+    } finally {
+      this.selectionStarting = false;
+      modalSignal?.removeEventListener("abort", abortBeforeAcceptance);
+      this.render();
+    }
+  }
+  private discardSelectionSynthesis(): void {
+    const task = this.integrationTask;
+    if (!task || task.state === "running") return;
+    this.integrationTask = null;
+    this.render();
+  }
+  private retrySelectionSynthesis(task: NonNullable<VisualAgentMapView["integrationTask"]>): void {
+    if (task.state !== "failed" && task.state !== "cancelled") return;
+    void this.plugin.confirmAiUsage(this.plugin.settings.cliModel, async () => {
+      await this.startSelectionSynthesis(
+        task.sources,
+        { ...task.options, synthesisTitle: task.title, continuesDirections: task.directions.length > 0 },
+        task.step === "directions" ? null : task.goal,
+        message => new Notice(message),
+        () => {}
+      );
+    });
   }
   private async topicReferenceGroup(
     sources: MapNode[],
@@ -5351,10 +5925,16 @@ export class VisualAgentMapView extends ItemView {
     goal: string,
     rules: string,
     options?: TaskOptions,
-    review = false
+    review = false,
+    flow?: {
+      observer?: SynthesisObserver;
+      accepted?: () => void;
+      controller?: AbortController;
+      directions?: Suggestion[];
+    }
   ): Promise<void> {
     if (!this.map || sources.length < 2) return;
-    const controller = new AbortController();
+    const controller = flow?.controller ?? new AbortController();
     const mapPath = this.path,
       mapId = this.map.id;
     const sourceGroup = await this.topicReferenceGroup(
@@ -5372,13 +5952,15 @@ export class VisualAgentMapView extends ItemView {
       sourceContent: JSON.stringify(sourceGroup.documents),
       controller,
       state: "running",
+      step: "draft",
+      directions: flow?.directions ?? [],
       progress: ""
     };
     this.integrationTask = task;
     this.render();
     const model = this.plugin.settings.cliModel;
     const language = this.plugin.settings.language;
-    const detailTemplate = this.mapDetailTemplate(options?.outputLanguage ?? language);
+    const detailTemplate = this.mapDetailTemplate(options?.outputLanguage ?? language, options?.detailTemplateId);
     try {
       const result = await this.plugin.askModel(
         {
@@ -5396,6 +5978,7 @@ export class VisualAgentMapView extends ItemView {
             this.render();
           },
           outputLanguage: options?.outputLanguage,
+          ...this.toneField(undefined, options),
           mode: "synthesize",
           researchMode: options?.researchMode ?? "local",
           researchDepth: options?.researchDepth ?? "normal",
@@ -5404,7 +5987,9 @@ export class VisualAgentMapView extends ItemView {
         },
         model,
         this.plugin.settings.cliReasoning,
-        controller.signal
+        controller.signal,
+        undefined,
+        flow?.accepted
       );
       if (this.integrationTask !== task) return;
       if (controller.signal.aborted || this.path !== mapPath || this.map?.id !== mapId)
@@ -5418,7 +6003,28 @@ export class VisualAgentMapView extends ItemView {
       task.state = "draft";
       task.draft = result;
       this.render();
-      if (review) this.reviewIntegratedDraft(task);
+      if (flow) {
+        // Shown in the dialog that asked for it while that is open; otherwise the selection bar and a Notice carry it.
+        if (flow.observer?.isOpen() && flow.observer.drafted)
+          flow.observer.drafted({
+            result,
+            confirm: (summary, detail) =>
+              this.plugin.mutate(() =>
+                this.saveIntegratedNode(
+                  title,
+                  sources,
+                  goal,
+                  rules,
+                  model,
+                  { ...result, summary, detail },
+                  options?.outputLanguage ?? language,
+                  task
+                )
+              ),
+            discard: () => this.discardSelectionSynthesis()
+          });
+        else new Notice(t("ui.review_synthesis_draft"));
+      } else if (review) this.reviewIntegratedDraft(task);
       else
         await this.saveIntegratedNode(
           title,
@@ -5432,6 +6038,13 @@ export class VisualAgentMapView extends ItemView {
         );
     } catch (error) {
       if (this.integrationTask !== task) return;
+      if (flow && controller.signal.aborted && flow.observer?.isOpen()) {
+        // Stopped from the open dialog: nothing was produced, so no badge stays behind.
+        if (task.directions.length) task.state = "directions";
+        else this.integrationTask = null;
+        this.render();
+        throw error;
+      }
       task.state = controller.signal.aborted ? "cancelled" : "failed";
       task.progress = controller.signal.aborted
         ? t("ui.research_stopped_existing_content_was_preserved")
@@ -5493,7 +6106,7 @@ export class VisualAgentMapView extends ItemView {
     )
       throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
     const integrated = await this.plugin.repo.createNote(title, model, this.map, this.path, "workspace");
-    const detailTemplate = this.mapDetailTemplate(language);
+    const detailTemplate = this.mapDetailTemplate(language, task.options.detailTemplateId);
     try {
       await this.plugin.repo.updateNote(
         integrated.path,
@@ -5562,16 +6175,44 @@ export class VisualAgentMapView extends ItemView {
     if (this.viewportTimer !== null) window.clearTimeout(this.viewportTimer);
     this.viewportTimer = window.setTimeout(() => {
       this.viewportTimer = null;
-      this.enqueue(() => this.persistViewport());
+      this.queueViewportWrite();
     }, 250);
+  }
+  /** A viewport write skips the re-read of every note; saves that arrive while one waits in the queue join it. */
+  private queueViewportWrite(): void {
+    if (this.viewportQueued) return;
+    this.viewportQueued = true;
+    void this.plugin
+      .mutate(
+        async () => {
+          this.viewportQueued = false;
+          await this.persistViewport();
+        },
+        { sync: false }
+      )
+      .catch(() => {
+        this.viewportQueued = false;
+      });
   }
   /** Pan/zoom writes only the viewport onto the current file, never this view's possibly older map copy. */
   private async persistViewport(): Promise<void> {
     if (this.builtIn || !this.map || !this.path) return;
     const viewport = { ...this.map.viewport };
-    await this.plugin.repo.updateMap(this.path, map => {
+    const written = await this.plugin.repo.updateMap(this.path, map => {
       map.viewport = viewport;
     });
+    // The write may stamp a derived field (legacy AIM content language); adopt it so the next change sees no conflict.
+    const stamped = written?.aim?.contentLanguage;
+    if (stamped !== undefined && this.map?.aim && this.map.aim.contentLanguage === undefined)
+      this.map.aim.contentLanguage = stamped;
+  }
+  private markCanvasHintSeen(): void {
+    if (this.plugin.settings.canvasHintSeen) return;
+    this.plugin.settings.canvasHintSeen = true;
+    void this.plugin.saveSettings();
+    if (this.integrationMode) return;
+    this.hintEl?.remove();
+    this.hintEl = null;
   }
   private zoomBy(factor: number, point?: { x: number; y: number }): void {
     if (!this.map || !this.viewportEl) return;
@@ -5635,7 +6276,7 @@ export class VisualAgentMapView extends ItemView {
       for (const item of cards) item.card.removeClass("is-marquee-hit");
       if (!hits.size) return;
       for (const id of hits) this.multiSelected.add(id);
-      this.render();
+      this.commitSelection(this.selected, this.selected, hits);
     };
     viewport.addEventListener("pointermove", move);
     viewport.addEventListener("pointerup", up);
@@ -5680,6 +6321,8 @@ export class VisualAgentMapView extends ItemView {
       "wheel",
       event => {
         event.preventDefault();
+        // The hint teaches drag and wheel; it goes once the user has used one of them (a zoom button does not count).
+        this.markCanvasHintSeen();
         const rect = viewport.getBoundingClientRect();
         this.zoomBy(Math.exp(-event.deltaY * (event.deltaMode === 0 ? 0.002 : 0.04)), {
           x: event.clientX - rect.left,
@@ -5717,10 +6360,13 @@ export class VisualAgentMapView extends ItemView {
         viewport.removeEventListener("pointercancel", up);
         viewport.removeClass("is-panning");
         this.saveViewport();
+        if (moved) this.markCanvasHintSeen();
         if (!moved && !this.integrationMode && event.button === 0) {
+          const previous = this.selected,
+            touched = [...this.multiSelected];
           this.selected = null;
           this.multiSelected.clear();
-          this.render();
+          this.commitSelection(previous, null, touched);
         }
       };
       viewport.addEventListener("pointermove", move);
@@ -5735,17 +6381,24 @@ export class VisualAgentMapView extends ItemView {
       this.clearHoverTimer();
       this.hoverCard?.remove();
       this.hoverCard = null;
-      this.dragging = true;
+      // A previous drag whose release never arrived must not leave its listeners behind.
+      this.dragCleanup?.();
       const currentNode = this.map.nodes.find(item => item.id === node.id);
-      if (!currentNode) {
-        this.dragging = false;
-        return;
-      }
+      if (!currentNode) return;
+      this.dragging = true;
       const start = { x: event.clientX, y: event.clientY },
         origin = { x: currentNode.x, y: currentNode.y };
       let position = { ...origin },
         moved = false;
+      // Sizes and the far end of each touching edge are read once; a move then only writes.
+      const edges = this.dragEdges(node.id, card);
       card.setPointerCapture(event.pointerId);
+      const paint = (): void => {
+        this.dragFrame = null;
+        card.style.left = `${position.x}px`;
+        card.style.top = `${position.y}px`;
+        edges.update(position.x, position.y);
+      };
       const move = (e: PointerEvent): void => {
         moved ||= Math.hypot(e.clientX - start.x, e.clientY - start.y) > 3;
         if (!moved) return;
@@ -5753,23 +6406,30 @@ export class VisualAgentMapView extends ItemView {
           x: origin.x + (e.clientX - start.x) / this.map!.viewport.zoom,
           y: origin.y + (e.clientY - start.y) / this.map!.viewport.zoom
         };
-        card.style.left = `${position.x}px`;
-        card.style.top = `${position.y}px`;
-        this.drawEdges();
+        this.dragFrame ??= window.requestAnimationFrame(paint);
       };
-      const finish = (e: PointerEvent): void => {
+      const settle = (): void => {
         this.dragging = false;
-        this.suppressClickUntil = Date.now() + 250;
+        if (this.dragFrame !== null) window.cancelAnimationFrame(this.dragFrame);
+        this.dragFrame = null;
         card.removeEventListener("pointermove", move);
         card.removeEventListener("pointerup", finish);
         card.removeEventListener("pointercancel", finish);
-        if (e.type === "pointercancel") {
+        card.removeEventListener("lostpointercapture", finish);
+        this.dragCleanup = null;
+      };
+      const finish = (e: PointerEvent): void => {
+        settle();
+        this.suppressClickUntil = Date.now() + 250;
+        // The browser lost the pointer (or it was cancelled) without a release: put the card back.
+        if (e.type === "pointercancel" || e.type === "lostpointercapture") {
           card.style.left = `${origin.x}px`;
           card.style.top = `${origin.y}px`;
-          this.drawEdges();
+          edges.update(origin.x, origin.y);
           return;
         }
-        if (moved)
+        if (moved) {
+          paint();
           this.enqueue(() =>
             this.mapChange(map => {
               const current = map.nodes.find(n => n.id === node.id);
@@ -5778,43 +6438,96 @@ export class VisualAgentMapView extends ItemView {
               current.y = Math.round(position.y);
             })
           );
-        else if (e.metaKey || e.ctrlKey) {
+        } else if (e.metaKey || e.ctrlKey) {
+          const previous = this.selected,
+            touched = [...this.multiSelected, node.id];
           if (this.multiSelected.has(node.id)) this.multiSelected.delete(node.id);
           else this.multiSelected.add(node.id);
           this.selected = node.id;
-          this.render();
+          this.commitSelection(previous, node.id, touched);
         } else {
+          const previous = this.selected,
+            touched = [...this.multiSelected];
           this.multiSelected.clear();
           this.selected = node.id;
-          this.render();
+          this.commitSelection(previous, node.id, touched);
           if (node.aimKind === "question") this.openAimAnswer(node);
           else if (this.plugin.detailsShown()) this.openDetails(node);
         }
       };
+      this.dragCleanup = settle;
       card.addEventListener("pointermove", move);
       card.addEventListener("pointerup", finish);
       card.addEventListener("pointercancel", finish);
+      card.addEventListener("lostpointercapture", finish);
     });
+  }
+  /**
+   * The edges touching one card, with the geometry they need already measured. `update` moves only those edges to
+   * the dragged card's new position; every other edge stays untouched.
+   */
+  private dragEdges(id: string, card: HTMLElement): { update: (x: number, y: number) => void } {
+    const size = { width: card.offsetWidth, height: card.offsetHeight };
+    const touching: {
+      key: string;
+      dragIsParent: boolean;
+      far: { x: number; y: number; width: number; height: number };
+    }[] = [];
+    for (const key of this.edgeEls.keys()) {
+      const [parentId, childId] = key.split("\u0000");
+      if (parentId !== id && childId !== id) continue;
+      const other = this.cardEls.get(parentId === id ? childId : parentId);
+      if (!other) continue;
+      touching.push({
+        key,
+        dragIsParent: parentId === id,
+        far: { x: other.offsetLeft, y: other.offsetTop, width: other.offsetWidth, height: other.offsetHeight }
+      });
+    }
+    return {
+      update: (x, y) => {
+        for (const edge of touching) {
+          // A background synchronize may redraw the edges mid-drag; always move the current path elements.
+          const path = this.edgeEls.get(edge.key);
+          if (!path) continue;
+          if (edge.dragIsParent)
+            path.setAttribute(
+              "d",
+              edgePathData(x + size.width, y + size.height / 2, edge.far.x, edge.far.y + edge.far.height / 2)
+            );
+          else
+            path.setAttribute(
+              "d",
+              edgePathData(edge.far.x + edge.far.width, edge.far.y + edge.far.height / 2, x, y + size.height / 2)
+            );
+        }
+      }
+    };
   }
   private drawEdges(): void {
     if (!this.edgesEl || !this.stageEl || !this.map) return;
     this.edgesEl.replaceChildren();
+    this.edgeEls.clear();
     for (const node of visibleNodes(this.map.nodes)) {
       const parents = parentIdsForNode(node);
       for (const parentId of parents) {
-        const parent = this.stageEl.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(parentId)}"]`),
-          child = this.stageEl.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(node.id)}"]`);
+        const parent = this.cardEls.get(parentId),
+          child = this.cardEls.get(node.id);
         if (!parent || !child) continue;
-        const x1 = parent.offsetLeft + parent.offsetWidth,
-          y1 = parent.offsetTop + parent.offsetHeight / 2,
-          x2 = child.offsetLeft,
-          y2 = child.offsetTop + child.offsetHeight / 2,
-          bend = Math.max(60, Math.abs(x2 - x1) / 2);
         const path = createSvg("path");
-        path.setAttribute("d", `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`);
+        path.setAttribute(
+          "d",
+          edgePathData(
+            parent.offsetLeft + parent.offsetWidth,
+            parent.offsetTop + parent.offsetHeight / 2,
+            child.offsetLeft,
+            child.offsetTop + child.offsetHeight / 2
+          )
+        );
         path.addClass("vam-edge");
         if (parentId !== node.parentId) path.addClass("vam-edge-convergence");
         this.edgesEl.appendChild(path);
+        this.edgeEls.set(`${parentId}\u0000${node.id}`, path);
       }
     }
   }
@@ -5822,7 +6535,8 @@ export class VisualAgentMapView extends ItemView {
    * Content template for an AI update of this topic: this run's choice, then the topic, map and workspace defaults.
    * Only an explicit choice is written to the topic; a topic template that no longer exists is reported once and cleared.
    */
-  private async detailTemplateFor(node: MapNode, chosenId?: string): Promise<DetailTemplate> {
+  private async detailTemplateFor(node: MapNode, chosenId?: string, chosenToneId?: string): Promise<DetailTemplate> {
+    if (chosenToneId) await this.plugin.repo.updateNote(node.path, { toneId: chosenToneId });
     if (chosenId) await this.plugin.repo.updateNote(node.path, { detailTemplateId: chosenId });
     const note = await this.plugin.repo.readNote(node.path);
     const { template, missing } = this.resolveTopicTemplate(note, chosenId);
@@ -5893,6 +6607,7 @@ export class VisualAgentMapView extends ItemView {
         researchMode: note.researchMode,
         researchDepth: note.researchDepth,
         visualMode: note.visualMode,
+        ...this.toneField(note, overrides),
         ...overrides,
         detailTemplate
       },

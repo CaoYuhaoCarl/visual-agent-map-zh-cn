@@ -1,7 +1,14 @@
 import { App, Modal } from "obsidian";
 import { t } from "../../i18n";
 import type { ResearchDepth, ResearchMode } from "../../ai/types";
-import { modelField, researchDepthField, templateField, type ModelChoices } from "./research-fields";
+import {
+  modelField,
+  researchDepthField,
+  templateField,
+  toneField,
+  type ManageTones,
+  type ModelChoices
+} from "./research-fields";
 import { modalActions } from "../../ui/modals/action-bar";
 
 export interface MultiResearchRequest {
@@ -14,6 +21,8 @@ export interface MultiResearchRequest {
   model?: string;
   /** Content template for every started topic (saved on the topic); undefined keeps each topic's template. */
   detailTemplateId?: string;
+  /** Writing tone for every started topic (saved on the topic); undefined keeps each topic's tone. */
+  toneId?: string;
 }
 
 export class MultiResearchModal extends Modal {
@@ -25,7 +34,9 @@ export class MultiResearchModal extends Modal {
     private names: string[],
     private models: ModelChoices,
     private templates: { id: string; name: string }[],
-    private submit: (request: MultiResearchRequest) => void
+    private submit: (request: MultiResearchRequest) => void,
+    private tones: { id: string; name: string }[] = [],
+    private manageTones?: ManageTones
   ) {
     super(app);
   }
@@ -40,6 +51,7 @@ export class MultiResearchModal extends Modal {
     const model = modelField(this.contentEl, this.models, t("ui.multi_research_keep_topic_models"));
     this.unwatch = model.dispose;
     const template = templateField(this.contentEl, this.templates, t("ui.detail_template_keep_each"));
+    const tone = toneField(this.contentEl, this.tones, t("ui.tone_keep_each"), this.manageTones);
     const webLabel = this.contentEl.createEl("label", { cls: "vam-field vam-next-toggle" });
     const web = webLabel.createEl("input", { type: "checkbox" });
     web.checked = true;
@@ -69,11 +81,12 @@ export class MultiResearchModal extends Modal {
       this.submitted = true;
       const request: MultiResearchRequest = {
         researchMode: web.checked ? "research" : "local",
-        researchDepth: depth(),
+        researchDepth: depth.value(),
         requirements: requirements.value.trim(),
         imageSearch: web.checked && images.checked,
         ...(model.value() ? { model: model.value() } : {}),
-        ...(template() ? { detailTemplateId: template() } : {})
+        ...(template() ? { detailTemplateId: template() } : {}),
+        ...(tone() ? { toneId: tone() } : {})
       };
       this.close();
       this.submit(request);

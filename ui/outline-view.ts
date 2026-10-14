@@ -49,9 +49,17 @@ export class OutlineView extends ItemView {
         updated.setSelectionRange(selection[0], selection[1]);
     }
   }
-  setActivePath(path: string): void {
+  /** Moves the active-row marker in place; the tree, its search box and scroll position stay untouched. */
+  setActive(path: string): void {
+    if (path === this.activePath) return;
     this.activePath = path;
-    this.render();
+    const rows = Array.from(this.contentEl.querySelectorAll<HTMLElement>(".vam-outline-note"));
+    for (const row of rows) {
+      const active = !!path && row.getAttribute("data-path") === path;
+      row.toggleClass("is-active", active);
+      if (active) row.setAttr("aria-current", "true");
+      else row.removeAttribute("aria-current");
+    }
   }
   setCoffeeOutline(
     snapshot: CoffeeNavigationSnapshot | null,
@@ -169,6 +177,7 @@ export class OutlineView extends ItemView {
         });
         toggle.disabled = !!query;
         toggle.setAttr("aria-label", !query && this.collapsed.has(node.id) ? t("ui.expand") : t("ui.collapse"));
+        toggle.setAttr("aria-expanded", String(!!query || !this.collapsed.has(node.id)));
         toggle.addEventListener("click", () => {
           if (this.collapsed.has(node.id)) this.collapsed.delete(node.id);
           else this.collapsed.add(node.id);
@@ -178,13 +187,14 @@ export class OutlineView extends ItemView {
       const title = this.titles.get(node.id) ?? node.path.split("/").pop() ?? node.path;
       const button = row.createEl("button", { text: title, cls: "vam-outline-note" });
       button.title = title;
-      if (node.path === this.activePath) button.addClass("is-active");
+      button.setAttr("data-path", node.path);
+      if (node.path === this.activePath) {
+        button.addClass("is-active");
+        button.setAttr("aria-current", "true");
+      }
       button.addEventListener("click", () => {
         // Mark the row in place: a re-render would drop keyboard focus from the outline.
-        this.activePath = node.path;
-        for (const active of Array.from(tree.querySelectorAll(".vam-outline-note.is-active")))
-          active.removeClass("is-active");
-        button.addClass("is-active");
+        this.setActive(node.path);
         void this.openNote(node.path);
       });
       if (query || !this.collapsed.has(node.id)) for (const child of descendants) append(child, depth + 1);

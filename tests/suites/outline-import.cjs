@@ -182,7 +182,7 @@ function modalHarness(clipboardFails = false) {
     createEl(name, value = {}) { const child = element(name, value); this.children.push(child); return child; },
     createSpan(value = {}) { const child = element('span', value); this.children.push(child); return child; },
     setText(value) { this.text = value; }, empty() { this.children = []; }, replaceChildren() { this.children = []; }, toggleClass(name, on) { this.toggled = { ...(this.toggled ?? {}), [name]: on }; }, setAttr(name, value) { this[name] = value; },
-    addEventListener(name, handler) { this.listeners[name] = handler; }, addClass(name) { this.cls = `${this.cls} ${name}`.trim(); }
+    addEventListener(name, handler) { this.listeners[name] = handler; }, addClass(name) { this.cls = `${this.cls} ${name}`.trim(); }, removeClass() {}
   });
   const find = (root, predicate) => predicate(root) ? root : root.children.map(child => find(child, predicate)).find(Boolean);
   const all = (root, predicate) => [...(predicate(root) ? [root] : []), ...root.children.flatMap(child => all(child, predicate))];
@@ -199,7 +199,7 @@ test('outline modal: preview, errors block creation, shallow option and single s
   const modal = new h.mod.OutlineImportModal({ vault: { getMarkdownFiles: () => [] } }, request => { requests.push(request); return new Promise(resolve => { release = resolve; }); });
   modal.open();
   const textarea = h.find(modal.contentEl, item => item.tag === 'textarea');
-  const create = h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Create mind map');
+  const create = h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Add to mind map');
   assert.equal(create.disabled, true);
   textarea.value = '# A\n# B'; textarea.listeners.input();
   assert.equal(create.disabled, true);
@@ -226,14 +226,16 @@ test('outline modal: research depth and model show only with shallow research an
   const shallow = h.find(modal.contentEl, item => item.tag === 'input' && item.type === 'checkbox');
   assert.equal(options.toggled['is-hidden'], true);
   shallow.checked = true; shallow.listeners.change(); assert.equal(options.toggled['is-hidden'], false);
-  const depth = h.find(modal.contentEl, item => item.tag === 'select' && item['aria-label'] === 'Research depth');
+  // The shared depth widget: Quick / Standard / Deep radios, Quick checked here (shallow research is deliberately a first look).
+  const depthRadios = h.all(modal.contentEl, item => item.tag === 'input' && item.type === 'radio' && ['fast', 'normal', 'deep'].includes(item.value));
+  assert.equal(depthRadios.length, 3);
   const model = () => h.find(modal.contentEl, item => item.tag === 'select' && item['aria-label'] === 'Model');
-  assert.equal(depth.value, 'fast'); assert.deepEqual(plain(model().children.map(c => c.value)), ['']);
+  assert.deepEqual(depthRadios.map(radio => radio.checked), [true, false, false]); assert.deepEqual(plain(model().children.map(c => c.value)), ['']);
   models = [{ id: 'm1', label: 'Model One' }]; changed();
   assert.deepEqual(plain(model().children.map(c => c.value)), ['', 'm1']);
-  depth.value = 'deep'; model().value = 'm1';
+  depthRadios[2].checked = true; depthRadios[2].listeners.change(); model().value = 'm1';
   const textarea = h.find(modal.contentEl, item => item.tag === 'textarea'); textarea.value = '# R\n## A'; textarea.listeners.input();
-  h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Create mind map').listeners.click();
+  h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Add to mind map').listeners.click();
   await new Promise(resolve => setTimeout(resolve, 0));
   assert.equal(requests[0].researchDepth, 'deep'); assert.equal(requests[0].model, 'm1');
   modal.onClose(); assert.equal(unwatched, 1);
@@ -252,7 +254,7 @@ test('outline modal: the content template select sits in the research options an
     const textarea = h.find(modal.contentEl, item => item.tag === 'textarea'); textarea.value = '# R\n## A'; textarea.listeners.input();
     select.value = picked;
     const shallow = h.find(modal.contentEl, item => item.tag === 'input' && item.type === 'checkbox'); shallow.checked = shallowOn; shallow.listeners.change();
-    h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Create mind map').listeners.click();
+    h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Add to mind map').listeners.click();
     await new Promise(resolve => setTimeout(resolve, 0));
     return requests.at(-1);
   };
@@ -261,21 +263,21 @@ test('outline modal: the content template select sits in the research options an
   assert.equal('detailTemplateId' in await submit(true, ''), false);
 });
 
-test('outline modal: copy format instructions and choose a vault note', async () => {
+// C2 (owner decision): the vault file picker is removed; an outline is pasted or generated with AI.
+test('outline modal: copy format instructions; there is no vault file picker and the source is always pasted text', async () => {
   const h = modalHarness(); const requests = [];
-  const file = { path: 'Inbox/outline.md', basename: 'outline', extension: 'md' };
-  const app = { vault: { getMarkdownFiles: () => [file], cachedRead: async () => '# From file\n## Child' } };
-  const modal = new h.mod.OutlineImportModal(app, async request => { requests.push(request); });
+  const modal = new h.mod.OutlineImportModal({ vault: { getMarkdownFiles: () => [] } }, async request => { requests.push(request); });
   modal.open();
   h.find(modal.contentEl, item => item.tag === 'button' && item.text === 'Copy format instructions').listeners.click();
   await new Promise(resolve => setTimeout(resolve, 0));
   assert.match(h.copied[0], /exactly one # heading/);
-  await modal.loadFile(file);
-  assert.equal(h.find(modal.contentEl, item => item.tag === 'textarea').value, '# From file\n## Child');
-  assert.ok(h.find(modal.contentEl, item => item.text === 'Source: Inbox/outline.md'));
-  h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Create mind map').listeners.click();
+  assert.equal(h.mod.OutlineFileModal, undefined);
+  assert.equal(modal.loadFile, undefined);
+  assert.equal(h.find(modal.modalEl, item => /vault/i.test(item.text ?? '')), undefined, 'no vault picker or vault hint');
+  const textarea = h.find(modal.contentEl, item => item.tag === 'textarea'); textarea.value = '# From paste\n## Child'; textarea.listeners.input();
+  h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Add to mind map').listeners.click();
   await new Promise(resolve => setTimeout(resolve, 0));
-  assert.equal(requests[0].source, 'Inbox/outline.md');
+  assert.equal(requests[0].source, null);
 });
 
 integrationTest('importOutline creates the map, opens it, and starts shallow research only when asked', async () => {
@@ -485,12 +487,12 @@ function placementModal(target) {
   const h = modalHarness(); const requests = [];
   const modal = new h.mod.OutlineImportModal({ vault: { getMarkdownFiles: () => [] } }, async request => { requests.push(request); }, undefined, [], target);
   modal.open();
-  const radios = h.all(modal.contentEl, item => item.tag === 'input' && item.type === 'radio');
+  const radios = h.all(modal.contentEl, item => item.tag === 'input' && item.type === 'radio' && ['new', 'tree', 'under'].includes(item.value));
   const label = value => h.find(modal.contentEl, item => item.tag === 'label' && item.children.some(child => child === radios.find(radio => radio.value === value)));
   const text = value => h.find(label(value), item => item.tag === 'span').text;
   const submit = async () => {
     const textarea = h.find(modal.contentEl, item => item.tag === 'textarea'); textarea.value = '# R\n## A'; textarea.listeners.input();
-    h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Create mind map').listeners.click();
+    h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Add to mind map').listeners.click();
     await new Promise(resolve => setTimeout(resolve, 0));
     return requests.at(-1);
   };
@@ -499,26 +501,28 @@ function placementModal(target) {
   return { h, modal, radios, text, submit, choose, hints };
 }
 
-test('outline modal: "Put it in" offers three places, a new map by default, before the shallow option', async () => {
-  const m = placementModal();
+test('outline modal: "Put it in" offers only places in the open map, a new tree by default, before the shallow option', async () => {
+  const m = placementModal({ map: 'editable' });
   assert.ok(m.h.find(m.modal.contentEl, item => item.text === 'Put it in'));
-  assert.deepEqual(plain(m.radios.map(radio => [radio.value, radio.checked, radio.disabled])), [['new', true, false], ['tree', false, true], ['under', false, true]]);
-  assert.equal(m.text('new'), 'A new mind map'); assert.equal(m.text('tree'), 'This mind map, as a new tree'); assert.equal(m.text('under'), 'Under the selected topic');
-  assert.deepEqual(m.hints(), ['No editable mind map is open.', 'No editable mind map is open.']);
+  assert.deepEqual(plain(m.radios.map(radio => [radio.value, radio.checked])), [['tree', true], ['under', false]], 'no new-map option');
+  assert.equal(m.text('tree'), 'This mind map, as a new tree'); assert.equal(m.text('under'), 'Under the selected topic');
   const order = []; const walk = item => { order.push(item); item.children.forEach(walk); }; walk(m.modal.contentEl);
   assert.ok(order.indexOf(m.radios[0]) < order.findIndex(item => item.tag === 'input' && item.type === 'checkbox'), 'before the shallow-research checkbox');
-  assert.deepEqual(plain((await m.submit()).placement), { kind: 'new' });
+  assert.deepEqual(plain((await m.submit()).placement), { kind: 'tree' });
+  const none = placementModal();
+  assert.deepEqual(plain(none.radios.map(radio => radio.disabled)), [true, true]);
+  assert.deepEqual(none.hints(), ['No editable mind map is open.', 'No editable mind map is open.']);
 });
 
 test('outline modal: an AIM map disables both in-map places with its own reason', () => {
   const m = placementModal({ map: 'aim', selected: { id: 'n1', title: 'Q' } });
-  assert.deepEqual(plain(m.radios.map(radio => radio.disabled)), [false, true, true]);
+  assert.deepEqual(plain(m.radios.map(radio => radio.disabled)), [true, true]);
   assert.deepEqual(m.hints(), ["AIM maps don't support imports.", "AIM maps don't support imports."]);
 });
 
 test('outline modal: an editable map allows a new tree; under needs a selected topic', async () => {
   const m = placementModal({ map: 'editable' });
-  assert.deepEqual(plain(m.radios.map(radio => radio.disabled)), [false, false, true]);
+  assert.deepEqual(plain(m.radios.map(radio => radio.disabled)), [false, true]);
   assert.deepEqual(m.hints(), ['Select a topic on the map first.']);
   m.choose('tree');
   assert.deepEqual(plain((await m.submit()).placement), { kind: 'tree' });
@@ -526,7 +530,7 @@ test('outline modal: an editable map allows a new tree; under needs a selected t
 
 test('outline modal: under the selected topic shows its title and sends its id', async () => {
   const m = placementModal({ map: 'editable', selected: { id: 'n1', title: 'Food' } });
-  assert.deepEqual(plain(m.radios.map(radio => radio.disabled)), [false, false, false]);
+  assert.deepEqual(plain(m.radios.map(radio => radio.disabled)), [false, false]);
   assert.equal(m.text('under'), 'Under the selected topic (Food)');
   assert.deepEqual(m.hints(), []);
   m.choose('under');
@@ -536,7 +540,7 @@ test('outline modal: under the selected topic shows its title and sends its id',
 test('outline modal: placement labels in Traditional Chinese', () => {
   const { translate } = load('i18n.ts');
   assert.equal(translate('zh-TW', 'ui.outline_import_placement'), '放到哪裡');
-  assert.equal(translate('zh-TW', 'ui.outline_import_placement_new'), '建立新心智圖');
+  assert.equal(translate('zh-TW', 'ui.outline_import_add'), '加入心智圖');
   assert.equal(translate('zh-TW', 'ui.outline_import_placement_tree'), '目前心智圖（新增一棵樹）');
   assert.equal(translate('zh-TW', 'ui.outline_import_placement_under'), '選取的議題底下');
   assert.equal(translate('zh-TW', 'ui.outline_import_placement_under_named', 'X'), '選取的議題底下（X）');
@@ -641,6 +645,37 @@ integrationTest('importOutline under the selected topic with shallow research: r
   for (const item of [sub, ...saved.nodes.filter(node => node.parentId === sub.id)]) assert.equal((await h.repo.readNote(item.path)).model, 'model-x');
 });
 
+integrationTest('quick explore: the real create path researches every created subtopic with the dialog research choices, at Quick depth', async () => {
+  const template = { id: 't1', name: 'Template one', sections: [{ id: 's1', name: 'Findings', description: '', role: 'none', aliases: [] }] };
+  const h = await placementHarness({ detailTemplates: [template] });
+  // The reviewed outline as the Next Step dialog hands it over: the topic's own root is already dropped.
+  const nodes = [{ index: 0, title: 'Food', level: 1, parent: null }, { index: 1, title: 'Breakfast', level: 2, parent: 0 }];
+  const group = { id: 'group-1', label: 'Sources', documents: [{ path: 'Inbox/source.md', content: 'x' }] };
+  const signal = new AbortController().signal;
+  await h.view.quickOutline(h.oldRoot).create(nodes, {
+    researchMode: 'local', researchDepth: 'normal', visualMode: 'auto', referenceGroups: [group], outputLanguage: 'zh-TW',
+    toneId: 'tone-1', requirements: 'Keep it short', detailTemplateId: 't1', shallowResearch: true, signal, onProgress: () => {}
+  });
+  const saved = await h.repo.readMap(h.mapPath);
+  const food = saved.nodes.find(item => item.parentId === h.oldRoot.id && item.id !== h.oldChild.id);
+  const breakfast = saved.nodes.find(item => item.parentId === food.id);
+  assert.equal(await h.titleOf(food.id), 'Food'); assert.equal(await h.titleOf(breakfast.id), 'Breakfast');
+  assert.equal(h.researched.length, 1);
+  assert.equal(h.researched[0].parent, h.oldRoot.id, 'researched under the topic quick explore ran on');
+  assert.deepEqual(plain(h.researched[0].children.slice().sort()), plain([food.id, breakfast.id].sort()), 'the single top heading is researched too');
+  const options = h.researched[0].options;
+  assert.equal(options.researchMode, 'local'); assert.equal(options.researchDepth, 'fast', 'shallow research stays Quick');
+  assert.equal(options.visualMode, 'auto'); assert.equal(options.outputLanguage, 'zh-TW'); assert.equal(options.toneId, 'tone-1');
+  assert.equal(options.requirements, 'Keep it short'); assert.equal(JSON.stringify(options.referenceGroups), JSON.stringify([group]));
+  assert.equal(options.signal, undefined); assert.equal(options.onProgress, undefined);
+  assert.equal(options.detailTemplateId, 't1');
+  for (const item of [food, breakfast]) assert.equal((await h.repo.readNote(item.path)).detailTemplateId, 't1', 'the chosen template is recorded on each subtopic');
+  // Without shallow research nothing is researched.
+  const g = await placementHarness();
+  await g.view.quickOutline(g.oldRoot).create(nodes, { researchMode: 'local', researchDepth: 'fast', visualMode: 'off', shallowResearch: false });
+  assert.equal(g.researched.length, 0);
+});
+
 integrationTest('importOutline into the open map: a partial failure keeps every created note in the map and skips research', async () => {
   for (const kind of ['tree', 'under']) {
     const h = await placementHarness();
@@ -716,10 +751,47 @@ test('outline modal: a create failure keeps the dialog open with the reason besi
   modal.open();
   const textarea = h.find(modal.contentEl, item => item.tag === 'textarea'); textarea.value = '# R\n## A'; textarea.listeners.input();
   assert.ok(h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Cancel'));
-  await h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Create mind map').listeners.click();
+  await h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Add to mind map').listeners.click();
   await new Promise(resolve => setTimeout(resolve, 0));
   assert.equal(modal.closed, false);
   assert.ok(h.find(modal.modalEl, item => /vam-next-status/.test(item.cls) && /Map.md could not be saved/.test(item.text)));
   assert.equal(h.notices.length, 0);
 });
 
+
+integrationTest('quick explore from the view: the generator gets the topic, preset and its model; the reviewed outline goes under the topic and several top headings are researched there', async () => {
+  const h = await placementHarness({ promptPresets: [{ id: 'mine', kind: 'outline', name: 'Mine', text: 'Tree for {research topic}' }] });
+  const generated = [];
+  h.plugin.outlineGeneration = { generate: async (request, signal) => { generated.push({ request, signal }); return { markdown: '# Old root\n## A\n## B\n', nodes: api.parseOutline('# Old root\n## A\n## B').nodes }; } };
+  const quick = h.view.quickOutline(h.oldRoot);
+  assert.deepEqual(plain(quick.presets.map(p => p.id)), ['knowledge-tree', 'mine']);
+  const signal = new AbortController().signal;
+  const nodes = await quick.generate({ presetId: 'mine', requirements: 'Focus on habits', language: 'en' }, signal);
+  assert.equal(generated[0].request.topic, 'Old root');
+  assert.equal(generated[0].request.presetText, 'Tree for {research topic}\n\nFocus on habits');
+  assert.equal(generated[0].request.model, 'parent-model'); assert.equal(generated[0].signal, signal);
+  assert.equal(nodes.length, 3);
+  const modals = load('experiences/visual-map/modals.ts', { obsidian });
+  const reviewed = modals.proposalOutline(modals.outlineProposals(nodes));
+  await quick.create(reviewed, { shallowResearch: true, researchMode: 'research', researchDepth: 'fast', visualMode: 'off' });
+  const saved = await h.repo.readMap(h.mapPath);
+  const fresh = saved.nodes.filter(item => item.parentId === h.oldRoot.id && item.id !== h.oldChild.id);
+  assert.deepEqual(await Promise.all(fresh.map(item => h.titleOf(item.id))), ['A', 'B'], 'both headings sit directly under the topic');
+  assert.equal(h.researched.length, 1);
+  assert.equal(h.researched[0].parent, h.oldRoot.id, 'research runs under the topic');
+  assert.deepEqual(plain(h.researched[0].children), plain(fresh.map(item => item.id)));
+  assert.equal(h.view.history.canUndo, true);
+});
+
+integrationTest('the import window generator asks about AI usage first and says so when it does not start', async () => {
+  const h = await placementHarness();
+  const calls = [];
+  h.plugin.outlineGeneration = { generate: async request => { calls.push(request); return { markdown: '# T\n## A\n', nodes: [] }; } };
+  const generator = h.view.outlineGenerator('Topic');
+  assert.equal(generator.initialTopic, 'Topic'); assert.equal(generator.presets, h.plugin);
+  assert.equal(await generator.generate({ topic: 'T', presetText: 'p' }, new AbortController().signal), '# T\n## A\n');
+  assert.equal(calls[0].model, 'gpt-6-luna'); assert.equal(calls[0].language, 'en'); assert.deepEqual(h.confirms, ['gpt-6-luna']);
+  h.plugin.confirmAiUsage = async () => false;
+  await assert.rejects(generator.generate({ topic: 'T', presetText: 'p' }, new AbortController().signal), /did not start/);
+  assert.equal(calls.length, 1);
+});

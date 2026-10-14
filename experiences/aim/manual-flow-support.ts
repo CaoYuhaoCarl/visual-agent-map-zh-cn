@@ -160,6 +160,8 @@ export type PlannerQualityContext = {
   goalDetail: string;
   /** AIM content language of the map; every model call in the review pipeline uses it. */
   outputLanguage: UiLanguage;
+  /** Writing tone for the final delivery only; review and classification calls are structured and ignore it. */
+  toneText?: string;
   conditions: Record<string, string>;
   currentQuestion: string;
   currentAnswer: string;

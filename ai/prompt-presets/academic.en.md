@@ -1,0 +1,1 @@
+Tone: academic rigor (default). Write in neutral, precise, evidence-based formal prose; clearly separate facts, inferences and uncertainty, state sources and limits, and avoid colloquialism and rhetorical flourish.

@@ -1,0 +1,10 @@
+{
+  "dirs": [
+    "core/steps/outline-generate",
+    "core/steps/structure-review",
+    "core/outline-generation-service.ts",
+    "core/structure-review-service.ts",
+    "core/provider-step-runner.ts"
+  ],
+  "allow": []
+}

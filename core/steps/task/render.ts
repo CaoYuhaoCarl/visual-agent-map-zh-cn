@@ -16,7 +16,8 @@ import {
   NONE,
   REFERENCE_CITATIONS,
   ROLE,
-  SOURCE_SAFETY
+  SOURCE_SAFETY,
+  toneBlock
 } from "../_shared/fragments";
 import {
   ADAPTIVE_DETAIL_STRUCTURE,
@@ -49,6 +50,7 @@ export function generalTaskPrompt(context: TaskContext, language: UiLanguage): s
     context.sourceContext ? inLanguage(REFERENCE_CITATIONS, language) : "",
     context.sourceContext && context.researchMode !== "local" ? inLanguage(LOCAL_FIRST, language) : "",
     inLanguage(JSON_CONTRACT, language),
+    ...(context.toneText ? [toneBlock(context.toneText, language)] : []),
     inLanguage(modeFragment, language),
     context.mode !== "decompose"
       ? context.detailFormat === "adaptive"

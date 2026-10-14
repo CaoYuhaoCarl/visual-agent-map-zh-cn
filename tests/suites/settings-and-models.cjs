@@ -16,6 +16,7 @@ test('workspace defaults to the configured low-cost model and low reasoning', ()
   assert.equal(DEFAULT_SETTINGS.claudeUsageNoticeSeen, false);
   assert.equal(DEFAULT_SETTINGS.workspaceInitialized, false);
   assert.equal(DEFAULT_SETTINGS.sampleTourVersionSeen, 0);
+  assert.equal(DEFAULT_SETTINGS.canvasHintSeen, false);
   assert.doesNotMatch(DEFAULT_SETTINGS.models, /claude:/);
   assert.equal(normalizeReasoningLevel('medium'), 'medium');
   assert.equal(normalizeReasoningLevel('high'), 'high');

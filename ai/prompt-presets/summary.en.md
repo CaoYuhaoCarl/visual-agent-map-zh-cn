@@ -1,0 +1,1 @@
+Tone: key-point summary. Present conclusions, key facts and figures as compact bullets and short sentences, without build-up or embellishment; each point says one thing, so the reader grasps the whole picture in the least time.

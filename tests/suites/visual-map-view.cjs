@@ -1,20 +1,21 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { test, integrationTest, root, load, node, map, plain, obsidian, DEFAULT_SETTINGS, until } = require('../support.cjs');
+const { test, integrationTest, root, load, core, node, map, plain, obsidian, DEFAULT_SETTINGS, until } = require('../support.cjs');
+const dom = require('../support-dom.cjs');
 integrationTest('node plus adds a child without opening a duplicate right-click menu', () => {
-  const { VisualAgentMapView } = load('main.ts', { obsidian });
+  const { VisualAgentMapView } = load('main.ts', { obsidian }, { requestAnimationFrame: run => { run(); return 1; }, cancelAnimationFrame() {} });
   const events = new Map(), buttons = [];
   const element = tag => ({ tag, children: [], dataset: {}, style: {},
     createDiv(options) { const child = element('div'); child.cls = options?.cls ?? options; this.children.push(child); return child; },
     createEl(name, options) { const child = element(name); child.text = options?.text; this.children.push(child); if (name === 'button') buttons.push(child); return child; },
     createSpan(options) { const child = element('span'); child.text = options?.text; this.children.push(child); return child; },
-    setAttr(name, value) { this[name] = value; }, addClass(name) { this.cls = name; }, setPointerCapture() {},
+    setAttr(name, value) { this[name] = value; }, addClass(name) { this.cls = name; }, toggleClass(name, on) { this.toggled = [name, on]; }, setPointerCapture() {},
     addEventListener(name, handler) { events.set(`${tag}:${name}`, handler); if (tag === 'button') this.click = handler; }, removeEventListener() {}
   });
   const topic = node('parent');
   let detailsShown = false;
-  const view = new VisualAgentMapView({ app: {} }, { pendingSuggestions: new Map([['parent.md', [{ title: 'Idea', task: 'Investigate', contribution: '' }]]]), expansionBatches: new Map(), detailsShown: () => detailsShown });
+  const view = new VisualAgentMapView({ app: {} }, { pendingSuggestions: new Map([['parent.md', [{ title: 'Idea', task: 'Investigate', contribution: '' }]]]), expansionBatches: new Map(), detailsShown: () => detailsShown, setOutlineActive() {} });
   view.stageEl = element('stage'); view.map = map([topic]);
   view.notes = new Map([[topic.id, { title: 'Parent', summary: '', status: 'completed' }]]);
   view.render = () => {};
@@ -28,15 +29,15 @@ integrationTest('node plus adds a child without opening a duplicate right-click 
   assert.equal(added, 1);
   const badge = buttons.find(button => button.text === 'View 1 expansion suggestions');
   badge.click({ stopPropagation() {} });
-  buttons.find(button => button['aria-label'] === 'How would you like to explore next?').click({ stopPropagation() {} });
+  buttons.find(button => button.text === 'AI explore').click({ stopPropagation() {} });
   buttons.find(button => button['aria-label'] === 'Structure and links').click({ stopPropagation() {} });
   assert.deepEqual(opened, [[topic.id, 'proposals'], [topic.id, 'structure']]); assert.deepEqual(next, [topic.id]);
   assert.equal(view.selected, null);
   events.get('div:click')({ target: { closest: () => null }, metaKey: false, ctrlKey: false });
-  assert.equal(view.selected, topic.id); assert.equal(renders, 1); assert.deepEqual(details, [], 'a click selects without opening the sidebar note');
+  assert.equal(view.selected, topic.id); assert.equal(renders, 0, 'a click repaints the card in place instead of rendering'); assert.deepEqual(details, [], 'a click selects without opening the sidebar note');
   view.selected = null; renders = 0; details.length = 0;
   events.get('div:keydown')({ key: 'Enter', target: view.stageEl.children[0] });
-  assert.equal(view.selected, topic.id); assert.equal(renders, 1); assert.deepEqual(details, [topic.id]);
+  assert.equal(view.selected, topic.id); assert.equal(renders, 0); assert.deepEqual(details, [topic.id]);
   view.selected = null; renders = 0; details.length = 0;
   view.mapChange = async () => {}; view.drawEdges = () => {};
   events.get('div:pointerdown')({ target: { closest: () => null }, button: 0, pointerId: 2, clientX: 10, clientY: 10 });
@@ -79,15 +80,16 @@ integrationTest('AIM cards hide generic map actions while ordinary map cards ret
     view.renderNode(topic); return buttons;
   };
   const ordinaryButtons = render(map([topic]));
-  assert.ok(ordinaryButtons.some(button => button['aria-label'] === 'How would you like to explore next?'));
-  assert.ok(ordinaryButtons.some(button => button['aria-label'] === 'Structure and links'));
-  assert.ok(ordinaryButtons.some(button => button['aria-label'] === 'New topic name'));
+  assert.ok(ordinaryButtons.some(button => button.text === 'Links' && button['aria-label'] === 'Structure and links'));
+  assert.ok(ordinaryButtons.some(button => button.text === 'Rename'), 'the rename tool is labelled Rename');
+  assert.ok(ordinaryButtons.some(button => button.text === 'AI explore'), 'every card shows a labelled AI explore action');
+  assert.ok(ordinaryButtons.some(button => button.text === 'Details' && button['aria-label'] === 'Open details in right sidebar'));
   assert.ok(ordinaryButtons.some(button => button['aria-label'] === 'Add subtopic manually'));
   const aim = map([topic]); aim.aim = { version: 1, branches: [], runs: [], pendingCommits: [] };
   const aimButtons = render(aim);
-  for (const label of ['How would you like to explore next?', 'Structure and links', 'New topic name', 'Add subtopic manually']) {
-    assert.equal(aimButtons.some(button => button['aria-label'] === label), false, `${label} is hidden in AIM`);
-  }
+  for (const label of ['AI explore', 'Links', 'Rename']) assert.equal(aimButtons.some(button => button.text === label), false, `${label} is hidden in AIM`);
+  assert.equal(aimButtons.some(button => button['aria-label'] === 'Add subtopic manually'), false, 'Add subtopic manually is hidden in AIM');
+  assert.ok(aimButtons.some(button => button.text === 'Details'), 'AIM cards keep Details');
   const resultNode = node('saved-synthesis', topic.id); resultNode.aimKind = 'synthesis';
   const resultMap = map([topic, resultNode]);
   resultMap.aim = { version: 1, branches: [{ id: 'saved-branch', questionNodeId: topic.id, parentBranchId: null, answerSnapshot: { selections: [], freeText: '' }, inputSnapshot: { topic: 'Fixture', conditions: {}, upstreamResults: [] }, createdAt: '2026-10-09T00:00:00.000Z', results: [{ nodeId: resultNode.id, notePath: resultNode.path, version: 1, kind: 'synthesis' }] }], runs: [], pendingCommits: [] };
@@ -106,7 +108,6 @@ integrationTest('AIM cards hide generic map actions while ordinary map cards ret
   ordinaryResultView.stageEl = makeElement('stage', ordinaryButtonsForResult); ordinaryResultView.map = map([ordinaryResult]); ordinaryResultView.notes = new Map([[ordinaryResult.id, { title: 'Ordinary note', summary: '', status: 'completed' }]]);
   ordinaryResultView.renderNode(ordinaryResult);
   assert.equal(ordinaryButtonsForResult.some(button => button['aria-label'] === 'Generate another question from this research, keeping existing branches'), false, 'ordinary maps do not expose the AIM action');
-  assert.match(fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8'), /if \(!aimMode\) this\.button\(tools, t\("ui\.organize"\)/);
   assert.match(fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8'), /if \(!aimMode\) \{\s*const integrate = this\.button\(\s*tools/);
 });
 integrationTest('AIM question cards show branch progress instead of note lifecycle status', () => {
@@ -197,31 +198,19 @@ integrationTest('AIM outline keeps only note titles and hierarchy', () => {
 });
 integrationTest('Next Step reviews first expansion proposals in place and keeps existing proposal review', async () => {
   let closed = 0, expandCalls = 0, synthCalls = 0, created, saved, quickOptions, expandOptions, researchOptions, synthOptions; const notices = [];
-  const element = (tag, options = {}) => ({
-    tag, type: options.type, text: options.text, get textContent() { return this.text; }, value: options.value ?? options.text ?? '', cls: options.cls ?? '', children: [], get options() { return this.children.filter(child => child.tag === 'option' || child.value !== undefined); }, style: {}, dataset: {}, disabled: false,
-    classList: { toggle(name, enabled) { this[name] = enabled; } },
-    createDiv(value) { const child = element('div', { cls: typeof value === 'string' ? value : value?.cls }); this.children.push(child); return child; },
-    createEl(name, value) { const child = element(name, value); this.children.push(child); return child; },
-    createSpan(value) { const child = element('span', value); this.children.push(child); return child; },
-    addClass(name) { this.cls = name; }, setText(value) { this.text = value; }, setAttr(name, value) { this[name] = value; }, add(option) { this.children.push(option); }, replaceChildren(...children) { this.children = children; },
-    addEventListener(name, handler) { if (name === 'click') this.click = handler; if (name === 'change') this.change = handler; if (name === 'input') this.input = handler; if (name === 'keydown') this.keydown = handler; },
-    querySelector(selector) { const name = selector.slice(1); return find(this, item => item.cls.split(' ').includes(name)); },
-    querySelectorAll(selector) { return all(this, item => selector === 'button[data-topic-run]' && item.tag === 'button' && item.dataset.topicRun !== undefined); },
-    empty() { this.children = []; }, remove() { this.removed = true; }, focus() { this.focused = true; }
-  });
-  const find = (root, predicate) => predicate(root) ? root : root.children.map(child => find(child, predicate)).find(Boolean);
-  const all = (root, predicate) => [...(predicate(root) ? [root] : []), ...root.children.flatMap(child => all(child, predicate))];
-  const button = (root, label) => find(root, item => item.tag === 'button' && item.text === label);
+  const { element, find, findAll: all, button } = dom;
   const tick = () => new Promise(resolve => setTimeout(resolve, 0));
-  class Modal { constructor() { this.modalEl = element('modal'); this.titleEl = element('title'); this.contentEl = element('content'); } close() { closed++; this.onClose?.(); } }
-  const { NextStepModal } = load('main.ts', { obsidian: { ...obsidian, Modal, setIcon: () => {}, Notice: class { constructor(message) { notices.push(message); } } } });
+  class Modal { constructor() { this.modalEl = element('modal'); this.titleEl = element('title'); this.contentEl = element('content'); this.modalEl.children.push(this.contentEl); } close() { closed++; this.onClose?.(); } }
+  class Component { load() {} unload() {} addChild(child) { return child; } removeChild() {} }
+  const MarkdownRenderer = { render: async (_app, markdown, el) => { el.rendered = markdown; } };
+  const { NextStepModal } = load('main.ts', { obsidian: { ...obsidian, Modal, Component, MarkdownRenderer, setIcon: () => {}, Notice: class { constructor(message) { notices.push(message); } } } });
   const checkedModels = [];
   const modelState = provider => ({ provider, status: 'ready', models: provider === 'codex' ? ['gpt-test'] : [] });
   const plugin = { settings: { codexUsageNoticeSeen: true, claudeUsageNoticeSeen: true, models: 'gpt-test', cliReasoning: 'low', language: 'en' }, aiReadyForModel: async model => { checkedModels.push(model); return true; }, confirmAiUsage: async (model, run) => { checkedModels.push(model); await run(); return true; }, saveSettings: async () => {}, activeTasks: new Map(), availableModels: () => ['gpt-test'], modelLabel: model => model, modelDiscoveryState: modelState, subscribeModelDiscovery: () => () => {}, refreshModelDiscovery: async provider => modelState(provider), sources: { currentTopicId: 'current', currentLabel: 'Current topic included', synthesisLabel: 'Current topic and child topics included', synthesisTopics: ['Child A', 'Child B'], topics: async () => [], readTopic: async () => [] } };
   const modelSettings = { model: 'gpt-test', modelSource: 'workspace', reasoning: 'low', save: async () => {}, sources: plugin.sources };
   const modal = new NextStepModal({}, 'Parent', 'normal', 1, 1, plugin,
     async (options, _focus, _done, _failed, accepted) => { researchOptions = options; accepted(); },
-    async (options, _direction, found, _failed, _createdMap, accepted) => { expandOptions = options; expandCalls++; if (options.multiLayer) { quickOptions = options; accepted(); } else found([{ title: 'Transport', task: 'Compare', contribution: '', parentTitle: '' }], async items => { created = items; }); },
+    async (options, _direction, found) => { expandOptions = options; expandCalls++; found([{ title: 'Transport', task: 'Compare', contribution: '', parentTitle: '' }], async items => { created = items; }); },
     async (options, direction) => { synthCalls++; synthOptions = options; assert.equal(direction, null); }, modelSettings);
   modal.onOpen();
   assert.ok(find(modal.contentEl, item => /3 minutes.*avoid prolonged resource use/.test(item.text ?? '')));
@@ -252,9 +241,16 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   assert.equal(find(modal.contentEl, item => /Run with .*sources:.*result:/.test(item.text ?? '')), undefined);
   assert.equal(find(modal.contentEl, item => /Full results go to Markdown/.test(item.text ?? '')), undefined);
   assert.ok(find(research, item => item.cls.includes('vam-next-status')));
-  const depthSet = find(research, item => item.tag === 'fieldset');
+  // Every option sits under one Adjust disclosure; the research panel keeps only its description and status.
+  const adjust = find(modal.contentEl, item => item.tag === 'details' && item.cls.includes('vam-next-adjust'));
+  assert.equal(adjust.open, false); assert.equal(adjust.children[0].text, 'Adjust');
+  assert.equal(find(research, item => item.tag === 'fieldset'), undefined);
+  const [researchAdjust, expandAdjust, synthAdjust] = all(adjust, item => item.cls === 'vam-next-adjust-section');
+  const depthSet = find(researchAdjust, item => item.tag === 'fieldset');
   assert.equal(depthSet.children[0].tag, 'legend');
-  assert.equal(find(research, item => item.cls.includes('vam-next-depth-help')).open, false);
+  assert.equal(all(modal.contentEl, item => item.tag === 'fieldset').length, 1, 'one research-depth widget');
+  const summaryLine = find(modal.contentEl, item => item.cls === 'vam-next-summary');
+  assert.equal(summaryLine.text, 'Standard research · Web search · English');
   const sourceDisclosures = all(modal.contentEl, item => item.cls.includes('vam-next-source-details'));
   assert.equal(sourceDisclosures.length, 1, 'one data-source picker serves every step');
   const [sources] = sourceDisclosures;
@@ -272,8 +268,8 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   const sourceChecks = all(sources, item => item.tag === 'input' && item.type === 'checkbox');
   assert.equal(sourceChecks.length, 2); assert.ok(sourceChecks[0].checked); assert.ok(sourceChecks[1].checked);
   assert.ok(find(sources, item => item.text === 'Search for image references'));
-  assert.ok(find(research, item => /Standard: provide the main evidence, limits, and open questions/.test(item.text ?? '')), JSON.stringify(all(research, item => item.text).map(item => item.text)));
-  assert.equal(all(expand, item => item.tag === 'input' && item.type === 'checkbox').length, 1, 'expand keeps only its shallow-research option');
+  assert.ok(find(researchAdjust, item => /Standard: provide the main evidence, limits, and open questions/.test(item.text ?? '')));
+  assert.equal(all(expandAdjust, item => item.tag === 'input' && item.type === 'checkbox').length, 1, 'expand keeps only its shallow-research option');
   assert.equal(all(sources, item => item.tag === 'input' && item.type === 'file').length, 2);
   assert.ok(find(sources, item => item.text === 'Allow web search'));
   assert.ok(find(synthesize, item => /web search is off by default/.test(item.text ?? '')));
@@ -291,7 +287,8 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   assert.equal(created, undefined); assert.equal(expand.querySelector('.vam-next-status').text, 'Select at least one subtopic.');
   proposalCheck.checked = true;
   button(expand, 'Create subtopics (1)').click(); await tick();
-  assert.equal(created[0].title, 'Transport'); assert.equal(expandOptions.outputLanguage, 'zh-TW'); assert.equal(closed, 0);
+  assert.equal(created[0].title, 'Transport'); assert.equal(expandOptions.outputLanguage, 'zh-TW');
+  assert.equal(closed, 1, 'guided expansion closes after the subtopics are created'); closed = 0; // later absolute close counts stay as before
   let firstCreated, firstAttempts = 0;
   const firstFlow = new NextStepModal({}, 'Parent', 'normal', 0, 0, plugin, async () => {}, async (_options, _direction, found, failed) => {
     firstAttempts++;
@@ -313,26 +310,30 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   firstCheckbox.checked = true;
   const firstName = find(firstPanel.querySelector('.vam-next-result'), item => item.tag === 'input' && item.type === 'text'); firstName.value = 'Edited idea';
   button(firstPanel, 'Create subtopics (1)').click(); await tick();
-  assert.equal(firstCreated[0].title, 'Edited idea'); assert.equal(closed, 0);
-  const contentChoice = find(synthesize, item => item.tag === 'select' && item['aria-label'] === 'Topic synthesis content');
+  assert.equal(firstCreated[0].title, 'Edited idea'); assert.equal(closed, 1); closed = 0;
+  const contentChoice = find(synthAdjust, item => item.tag === 'select' && item['aria-label'] === 'Topic synthesis content');
   assert.equal(contentChoice.value, 'full');
-  assert.ok(find(synthesize, item => item.tag === 'li' && item.text === 'Child A'));
-  assert.ok(find(synthesize, item => item.tag === 'li' && item.text === 'Child B'));
+  assert.ok(find(synthAdjust, item => item.tag === 'li' && item.text === 'Child A'));
+  assert.ok(find(synthAdjust, item => item.tag === 'li' && item.text === 'Child B'));
   contentChoice.value = 'summary'; contentChoice.change();
-  assert.ok(find(synthesize, item => /Important conditions in the body may be omitted/.test(item.text ?? '')));
+  assert.ok(find(synthAdjust, item => /Important conditions in the body may be omitted/.test(item.text ?? '')));
+  assert.equal(find(modal.contentEl, item => item.cls === 'vam-next-summary').text, 'Choose directions together · Web search · 繁體中文', 'expand summary names the mode');
   cards.children[2].click(); assert.equal(activeCard(), 2); assert.equal(researchAction.hidden, true);
+  assert.equal(find(modal.contentEl, item => item.cls === 'vam-next-summary').text, 'Summary only · Web search · 繁體中文', 'the summary line follows the synthesis content choice');
   // Starting synthesis closes its window at once, so it runs on its own modal and this one stays open for research.
   const synthModal = new NextStepModal({}, 'Parent', 'normal', 1, 1, plugin, async () => {}, async () => {}, modal.synthesize, modelSettings);
   synthModal.onOpen(); find(synthModal.contentEl, item => item.cls === 'vam-next-cards').children[2].click();
   find(synthModal.contentEl, item => item['aria-label'] === 'Answer language for this task').value = 'zh-TW';
   const synthPanel = all(synthModal.contentEl, item => item.cls.includes('vam-next-research'))[2];
-  const synthContentChoice = find(synthPanel, item => item.tag === 'select' && item['aria-label'] === 'Topic synthesis content');
+  const synthContentChoice = find(synthModal.contentEl, item => item.tag === 'select' && item['aria-label'] === 'Topic synthesis content');
   synthContentChoice.value = 'summary'; synthContentChoice.change();
   const closedBeforeSynthStart = closed;
   button(synthModal.modalEl, 'Get synthesis suggestions first').click(); await tick();
   assert.equal(synthContentChoice.disabled, true);
   assert.equal(synthOptions.synthesisContent, 'summary');
-  assert.equal(synthCalls, 1); assert.equal(closed, closedBeforeSynthStart + 1); assert.equal(synthModal.closed, true);
+  // Synthesis stays in this dialog: it does not close when the run starts (the double here gives no outcome, so it reads as stopped).
+  assert.equal(synthCalls, 1); assert.equal(closed, closedBeforeSynthStart); assert.equal(synthModal.closed, false);
+  assert.match(find(synthModal.contentEl, item => item.cls.includes('vam-next-status') && /cancelled/i.test(item.text ?? '')).text, /cancelled/i);
   assert.equal(synthOptions.researchMode, 'local');
   // Untouched network options follow each step's default; a choice the user makes is kept across steps.
   const defaultsModal = new NextStepModal({}, 'Parent', 'normal', 1, 1, plugin, async () => {}, async () => {}, async () => {}, modelSettings);
@@ -347,10 +348,16 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   assert.equal(button(synthPanel, 'Choose this direction'), undefined);
   closed = closedBeforeSynthStart;
   cards.children[0].click(); assert.equal(activeCard(), 0); assert.equal(researchAction.hidden, false);
-  button(modal.modalEl, 'Confirm research task').click(); await tick();
+  // The first modal closed itself after creating subtopics, so a research run needs a fresh dialog: one confirm click starts it.
+  const researchModal = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin,
+    async (options, _focus, _done, _failed, accepted) => { researchOptions = options; accepted(); }, async () => {}, async () => {}, modelSettings);
+  researchModal.onOpen();
+  find(researchModal.contentEl, item => item.tag === 'textarea').value = 'Only this run';
+  find(researchModal.contentEl, item => item['aria-label'] === 'Answer language for this task').value = 'zh-TW';
+  button(researchModal.modalEl, 'Confirm research task').click(); await tick();
   assert.equal(researchOptions.requirements, 'Only this run'); assert.equal(researchOptions.researchMode, 'research'); assert.equal(researchOptions.referenceGroups.length, 0);
-  assert.equal(researchOptions.outputLanguage, 'zh-TW');
-  assert.equal(closed, 1); assert.equal(research.querySelector('.vam-next-result'), undefined);
+  assert.equal(researchOptions.outputLanguage, 'zh-TW'); assert.equal(researchOptions.researchDepth, 'normal');
+  assert.equal(closed, 1, 'research is two clicks in all: open, then confirm'); assert.equal(researchModal.closed, true);
   // The suggested step follows the topic's research state.
   const suggested = (childrenCount, topicStatus, childrenCompleted) => {
     const suggestModal = new NextStepModal({}, 'Parent', 'normal', childrenCount, 0, plugin, async () => {}, async () => {}, async () => {}, { ...modelSettings, topicStatus, childrenCompleted });
@@ -361,62 +368,93 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   assert.equal(suggested(0, 'completed', 0), 1, 'a researched topic without subtopics suggests expanding');
   assert.equal(suggested(2, 'completed', 2), 2, 'a researched topic whose subtopics are all researched suggests synthesis');
   assert.equal(suggested(2, 'completed', 1), 0, 'unfinished subtopics keep research as the suggestion');
-  const quickModal = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, modal.expand, async () => {});
+  // C2: quick explore generates an outline from a preset (no level or count fields) and reviews it before creating.
+  const outlineOf = markdown => plain(load('experiences/visual-map/outline-import.ts', { obsidian }).parseOutline(markdown).nodes);
+  let quickRequest, quickCreated;
+  const quickOutline = (create = async (nodes, options) => { quickCreated = nodes; quickOptions = options; }) => ({
+    presets: [{ id: 'knowledge-tree', name: 'Knowledge tree generator' }],
+    generate: async request => { quickRequest = request; return outlineOf('# Parent\n## Food\n### Breakfast'); },
+    create
+  });
+  const quickModal = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, modal.expand, async () => {}, { ...modelSettings, sources: undefined, quickOutline: quickOutline() });
   quickModal.onOpen(); find(quickModal.contentEl, item => item.cls === 'vam-next-cards').children[1].click(); button(quickModal.contentEl, 'Quickly explore a map').click();
   find(quickModal.contentEl, item => item['aria-label'] === 'Answer language for this task').value = 'zh-TW';
+  find(quickModal.contentEl, item => item.tag === 'textarea').value = 'Keep it short';
   assert.equal(button(quickModal.modalEl, 'Review AI subtopic suggestions'), undefined);
-  const quickNumbers = all(quickModal.contentEl, item => item.tag === 'input' && item.type === 'number');
-  const [levelInput, , childrenInput] = quickNumbers;
-  assert.equal(childrenInput.disabled, false);
-  levelInput.value = '1'; levelInput.input();
-  assert.equal(childrenInput.disabled, true);
-  assert.equal(find(quickModal.contentEl, item => item.text === 'Not used when expanding only one level.').hidden, false);
-  levelInput.value = '2'; levelInput.input();
-  assert.equal(childrenInput.disabled, false);
-  button(quickModal.modalEl, 'Create starter map now').click(); await tick();
-  assert.equal(quickOptions.multiLayer, true); assert.equal(quickOptions.shallowResearch, false); assert.equal(quickOptions.layers, 2); assert.equal(quickOptions.firstLayerCount, 3); assert.equal(quickOptions.childrenPerParent, 2); assert.equal(closed, 2);
+  assert.equal(all(quickModal.contentEl, item => item.tag === 'input' && item.type === 'number').length, 0);
+  assert.ok(find(quickModal.contentEl, item => item['aria-label'] === 'Outline preset'));
+  const expandCallsBeforeQuick = expandCalls;
+  button(quickModal.modalEl, 'Generate outline').click(); await tick(); await tick();
+  assert.equal(quickRequest.language, 'zh-TW'); assert.equal(quickRequest.requirements, 'Keep it short'); assert.equal(quickRequest.presetId, 'knowledge-tree');
+  assert.equal(expandCalls, expandCallsBeforeQuick, 'the old multi-layer expansion is not called'); assert.equal(quickCreated, undefined); assert.equal(closed, 1);
+  button(quickModal.contentEl, 'Create subtopics (2)').click(); await tick(); await tick();
+  assert.deepEqual(plain(quickCreated.map(node => [node.title, node.parent])), [['Food', null], ['Breakfast', 0]]);
+  assert.equal(quickOptions.researchDepth, 'fast'); assert.equal(quickOptions.shallowResearch, false); assert.equal(closed, 2);
   assert.equal(quickOptions.researchMode, 'local'); assert.equal(quickOptions.referenceGroups.length, 0); assert.equal(quickOptions.outputLanguage, 'zh-TW');
-  const partial = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async (_options, _direction, _found, failed) => failed('部分子議題已建立，請重新開啟視窗。', false), async () => {});
+  // A failure while creating keeps the dialog open with the reason, and the review can be confirmed again.
+  const partial = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => {}, async () => {}, { ...modelSettings, quickOutline: quickOutline(async () => { throw new Error('部分子議題已建立，請重新開啟視窗。'); }) });
   partial.onOpen(); find(partial.contentEl, item => item.cls === 'vam-next-cards').children[1].click(); button(partial.contentEl, 'Quickly explore a map').click();
   const closedBeforePartial = closed;
-  button(partial.modalEl, 'Create starter map now').click(); await tick();
-  assert.equal(closed, closedBeforePartial); assert.equal(button(partial.modalEl, 'Create starter map now').disabled, true); assert.match(all(partial.contentEl, item => item.cls.includes('vam-next-research'))[1].querySelector('.vam-next-status').text, /部分子議題已建立/);
+  button(partial.modalEl, 'Generate outline').click(); await tick(); await tick();
+  button(partial.contentEl, 'Create subtopics (2)').click(); await tick(); await tick();
+  assert.equal(closed, closedBeforePartial); assert.equal(button(partial.contentEl, 'Create subtopics (2)').disabled, false); assert.match(all(partial.contentEl, item => item.cls.includes('vam-next-research'))[1].querySelector('.vam-next-status').text, /部分子議題已建立/);
+  // With shallow research the dialog closes once the topics exist and the research continues in the background.
   const startedNotices = () => notices.filter(message => message === 'Started “Parent” in the background; progress shows on its card.').length;
   const startedBefore = startedNotices();
-  let continueBackground; let acceptedSignal;
-  const background = new Promise(resolve => { continueBackground = resolve; });
-  const acceptedModal = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async (options, _direction, _found, _failed, _created, accepted) => { acceptedSignal = options.signal; accepted(); await background; }, async () => {});
-  acceptedModal.onOpen(); find(acceptedModal.contentEl, item => item.cls === 'vam-next-cards').children[1].click(); button(acceptedModal.contentEl, 'Quickly explore a map').click(); button(acceptedModal.modalEl, 'Create starter map now').click();
+  let createSignal;
+  const acceptedModal = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => {}, async () => {}, { ...modelSettings, quickOutline: quickOutline(async (_nodes, options) => { createSignal = options.signal; quickOptions = options; }) });
+  acceptedModal.onOpen(); find(acceptedModal.contentEl, item => item.cls === 'vam-next-cards').children[1].click(); button(acceptedModal.contentEl, 'Quickly explore a map').click();
+  const shallowBox = find(acceptedModal.contentEl, item => item.tag === 'input' && item.type === 'checkbox' && item.parent?.cls?.includes('vam-next-toggle'));
+  shallowBox.checked = true; shallowBox.change();
+  button(acceptedModal.modalEl, 'Generate outline').click(); await tick(); await tick();
+  button(acceptedModal.contentEl, 'Create subtopics (2)').click();
   await until(() => acceptedModal.closed);
-  assert.equal(acceptedSignal.aborted, false); assert.equal(acceptedModal.taskSignal, undefined);
+  assert.equal(quickOptions.shallowResearch, true); assert.equal(createSignal.aborted, false); assert.equal(acceptedModal.taskSignal, undefined);
   assert.equal(startedNotices(), startedBefore + 1);
-  continueBackground(); await tick();
-  // Synthesis runs in the background: accepting the dispatch closes the modal without aborting the AI.
-  let directionSignal, directionCalls = [];
-  const directionsModal = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => {}, async (options, direction, _failed, accepted) => { directionSignal = options.signal; directionCalls.push(direction); accepted(); await background2; }, modelSettings);
+  // Synthesis runs on its own controller once the provider accepted it: closing the dialog midway never aborts the AI,
+  // and a result that arrives afterwards is never written into the closed dialog.
+  let directionSignal, directionCalls = [], cancelRun, lateDirections = 0;
   let continueBackground2; const background2 = new Promise(resolve => { continueBackground2 = resolve; });
+  const directionsModal = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => {}, async (options, direction, _failed, accepted, observer) => {
+    directionSignal = options.signal; directionCalls.push(direction); accepted(); observer.accepted(() => { cancelRun = true; });
+    await background2;
+    if (observer.isOpen()) observer.directions([{ title: 'Late', task: 'Late', contribution: '' }]); else lateDirections++;
+  }, modelSettings);
   const closedBeforeSynth = closed;
   directionsModal.onOpen(); find(directionsModal.contentEl, item => item.cls === 'vam-next-cards').children[2].click();
   button(directionsModal.modalEl, 'Get synthesis suggestions first').click();
-  await until(() => directionsModal.closed);
-  assert.equal(closed, closedBeforeSynth + 1); assert.deepEqual(directionCalls, [null]);
-  assert.equal(directionSignal.aborted, false); assert.equal(directionsModal.taskSignal, undefined);
-  assert.equal(startedNotices(), startedBefore + 2);
+  await until(() => directionCalls.length === 1); await tick();
+  assert.equal(closed, closedBeforeSynth, 'starting a synthesis step does not close the dialog'); assert.deepEqual(directionCalls, [null]);
+  assert.equal(directionsModal.taskSignal, undefined, 'the accepted run no longer hangs on the dialog controller');
+  const runningCancel = find(directionsModal.contentEl, item => item.cls === 'vam-task-cancel');
+  assert.equal(runningCancel.hidden, false); runningCancel.onclick(); assert.equal(cancelRun, true, 'Cancel stops the accepted run itself');
+  directionsModal.close();
+  assert.equal(directionSignal.aborted, false, 'closing the dialog after dispatch does not abort the AI');
+  closed = closedBeforeSynth;
   continueBackground2(); await tick();
-  // Reopening from the node badge shows the pending directions; the draft step is also accepted and closes the modal.
-  let discarded = 0, draftSignal; const draftCalls = [];
-  const pendingModal2 = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => {}, async (options, direction, _failed, accepted) => { draftSignal = options.signal; draftCalls.push(direction); accepted(); },
-    { ...modelSettings, synthesisPending: { directions: [{ title: 'Shared constraints', task: 'Find tradeoffs', contribution: 'Across children' }, { title: 'Open questions', task: 'List gaps', contribution: '' }], discard: () => { discarded++; } } });
+  assert.equal(lateDirections, 1, 'a late result sees the closed dialog and takes the badge path');
+  assert.equal(find(directionsModal.contentEl, item => item.cls === 'vam-next-angle'), undefined, 'nothing is written into the closed dialog');
+  // Reopening from the node badge shows the pending directions; choosing one drafts and reviews it in the same dialog.
+  let discarded = 0, draftSignal, confirmed; const draftCalls = []; let draftStageOptions;
+  const pendingModal2 = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => {}, async (options, direction, _failed, accepted, observer) => { draftSignal = options.signal; draftStageOptions = options; draftCalls.push(direction); accepted();
+      observer.drafted({ result: { summary: 'Draft S', detail: 'Draft D', suggestions: [], visualReferences: [] }, confirm: async (summary, detail) => { confirmed = [summary, detail]; }, discard: () => { discarded++; } }); },
+    { ...modelSettings, currentSummary: 'Old summary', synthesisPending: { directions: [{ title: 'Shared constraints', task: 'Find tradeoffs', contribution: 'Across children' }, { title: 'Open questions', task: 'List gaps', contribution: '' }], discard: () => { discarded++; } } });
   pendingModal2.onOpen();
   const pendingPanel = all(pendingModal2.contentEl, item => item.cls.includes('vam-next-research'))[2];
-  assert.equal(button(pendingModal2.modalEl, 'Get synthesis suggestions first'), undefined);
+  assert.equal(button(pendingModal2.modalEl, 'Get synthesis suggestions first').hidden, true);
   assert.equal(pendingPanel.style.display, '');
   const directionBox = find(pendingPanel, item => item.tag === 'textarea' && item['aria-label'] === 'Synthesis direction');
   assert.equal(directionBox.value ?? directionBox.text, 'Find tradeoffs');
   button(pendingPanel, 'Choose this direction').click();
   directionBox.value = 'Edited direction';
-  button(pendingModal2.modalEl, 'Get synthesis draft').click(); await until(() => pendingModal2.closed);
-  assert.deepEqual(draftCalls, ['Edited direction']); assert.equal(draftSignal.aborted, false); assert.equal(discarded, 0);
+  button(pendingModal2.modalEl, 'Get synthesis draft').click(); await tick(); await tick();
+  assert.deepEqual(draftCalls, ['Edited direction']); assert.equal(draftStageOptions.continuesDirections, true); assert.equal(discarded, 0);
+  assert.equal(pendingModal2.closed, false, 'the draft is reviewed in the same dialog');
+  const reviewConfirm = button(pendingModal2.modalEl, 'Confirm update to parent topic');
+  assert.ok(reviewConfirm, 'the review stage offers the confirm action'); assert.ok(find(pendingModal2.contentEl, item => item.text === 'Old summary'));
+  const reviewText = all(find(pendingModal2.contentEl, item => item.cls === 'vam-next-review'), item => item.tag === 'textarea')[0]; reviewText.value = 'Edited S';
+  reviewConfirm.click(); await tick(); await tick();
+  assert.deepEqual(confirmed, ['Edited S', 'Draft D']); assert.equal(pendingModal2.closed, true);
   const discardModal = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => {}, async () => {}, { ...modelSettings, synthesisPending: { directions: [{ title: 'A', task: 'B', contribution: '' }], discard: () => { discarded++; } } });
   discardModal.onOpen(); button(discardModal.contentEl, 'Discard').click();
   assert.equal(discarded, 1); assert.equal(discardModal.closed, true);
@@ -459,33 +497,34 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   button(pendingModal.modalEl, 'Review AI subtopic suggestions').click(); await tick();
   assert.equal(pendingCalls, 1); assert.equal(button(pendingModal.contentEl, 'Understand and run'), undefined);
   button(pendingModal.contentEl, 'Create subtopics (1)').click(); await tick();
-  assert.ok(button(pendingModal.modalEl, 'Get expansion directions'));
-  button(pendingModal.modalEl, 'Get expansion directions').click(); await tick();
+  assert.equal(pendingModal.closed, true, 'creating the reviewed subtopics ends the guided expansion'); closed -= 1;
   assert.equal(pendingCalls, 1); assert.equal(button(pendingModal.contentEl, 'Understand and run'), undefined);
-  let finishQuick, completedQuick = false, delayedOptions;
-  const delayed = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async (options, _direction, _failed, _failure, accepted) => {
-    delayedOptions = options;
-    accepted();
-    await new Promise(resolve => { finishQuick = resolve; });
-    completedQuick = true;
-  }, async () => {});
+  // C2: a slow outline keeps the dialog open until it is reviewed; the shallow-research choice reaches the create step.
+  let finishQuick, delayedOptions, delayedNodes;
+  const delayed = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => assert.fail('old quick expansion'), async () => {}, { ...modelSettings, quickOutline: {
+    presets: [{ id: 'knowledge-tree', name: 'Knowledge tree generator' }],
+    generate: () => new Promise(resolve => { finishQuick = () => resolve(outlineOf('# Parent\n## A\n### A1\n## B')); }),
+    create: async (nodes, options) => { delayedNodes = nodes; delayedOptions = options; }
+  } });
   delayed.onOpen(); find(delayed.contentEl, item => item.cls === 'vam-next-cards').children[1].click(); button(delayed.contentEl, 'Quickly explore a map').click();
-  const numbers = all(delayed.contentEl, item => item.tag === 'input' && item.type === 'number');
-  numbers[0].value = '3'; numbers[1].value = '2'; numbers[2].value = '2'; numbers[0].input();
-  const shallow = find(all(delayed.contentEl, item => item.cls.includes('vam-next-research'))[1], item => item.tag === 'input' && item.type === 'checkbox' && item.checked === false);
+  const shallow = find(all(delayed.contentEl, item => item.cls === 'vam-next-adjust-section')[1], item => item.tag === 'input' && item.type === 'checkbox');
   shallow.checked = true;
-  button(delayed.modalEl, 'Create starter map now').click(); await tick();
-  assert.equal(closed, 5); assert.equal(completedQuick, false);
-  assert.equal(delayedOptions.layers, 3); assert.equal(delayedOptions.firstLayerCount, 2); assert.equal(delayedOptions.childrenPerParent, 2); assert.equal(delayedOptions.shallowResearch, true);
-  finishQuick(); await tick(); assert.equal(completedQuick, true); assert.equal(closed, 5);
-  const invalid = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => assert.fail('over-limit task started'), async () => {});
+  button(delayed.modalEl, 'Generate outline').click(); await tick();
+  assert.equal(closed, 4); assert.equal(delayedNodes, undefined);
+  finishQuick(); await tick(); await tick();
+  assert.equal(closed, 4, 'the outline is reviewed before anything is created');
+  button(delayed.contentEl, 'Create subtopics (3)').click(); await until(() => delayed.closed);
+  assert.equal(closed, 5); assert.equal(delayedNodes.length, 3); assert.equal(delayedOptions.shallowResearch, true);
+  // A rejected outline (for example over the heading limit) says why and creates nothing.
+  const invalid = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => assert.fail('over-limit task started'), async () => {}, { ...modelSettings, quickOutline: {
+    presets: [{ id: 'knowledge-tree', name: 'Knowledge tree generator' }],
+    generate: async () => { throw new Error('The AI outline has 101 headings; the limit is 100.'); },
+    create: async () => assert.fail('nothing to create')
+  } });
   invalid.onOpen(); find(invalid.contentEl, item => item.cls === 'vam-next-cards').children[1].click(); button(invalid.contentEl, 'Quickly explore a map').click();
-  const invalidNumbers = all(invalid.contentEl, item => item.tag === 'input' && item.type === 'number'); invalidNumbers[0].value = '3'; invalidNumbers[1].value = '3'; invalidNumbers[2].value = '2'; invalidNumbers[0].input();
-  assert.match(find(invalid.contentEl, item => item.tag === 'p' && item.text?.includes('exceeding the limit of 15')).text, /21 subtopics/);
-  assert.equal(button(invalid.modalEl, 'Create starter map now').disabled, true);
-  invalidNumbers[0].value = '2'; invalidNumbers[0].input();
-  assert.equal(button(invalid.modalEl, 'Create starter map now').disabled, false);
-  assert.ok(all(invalid.contentEl, item => item.tag === 'p').some(item => /3/.test(item.text ?? '') && /6/.test(item.text ?? '') && /9/.test(item.text ?? '')));
+  button(invalid.modalEl, 'Generate outline').click(); await tick(); await tick();
+  assert.match(all(invalid.contentEl, item => item.cls.includes('vam-next-research'))[1].querySelector('.vam-next-status').text, /101 headings/);
+  assert.equal(button(invalid.modalEl, 'Generate outline').disabled, false);
   assert.equal(closed, 5);
   let finishGuided, guidedFinished = false;
   const guidedModal = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async (_options, _direction, found) => {
@@ -499,26 +538,32 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   finishGuided(); await tick();
   assert.equal(guidedFinished, true); assert.ok(button(guidedModal.contentEl, 'Create subtopics (1)'));
   button(guidedModal.contentEl, 'Create subtopics (1)').click(); await tick();
-  assert.equal(closed, 5);
+  assert.equal(closed, 6, 'the guided default closes the dialog once the subtopics are created'); closed = 5;
   const settingsWrites = []; let researchAfterSave = false;
   const settingsModal = new NextStepModal({}, 'Parent', 'normal', 0, 0,
     { settings: { codexUsageNoticeSeen: true, models: 'model-a,model-b' }, availableModels: () => ['model-a', 'model-b'], modelLabel: model => model, modelDiscoveryState: provider => ({ provider, status: 'ready', models: ['model-a', 'model-b'] }), subscribeModelDiscovery: () => () => {}, refreshModelDiscovery: async provider => ({ provider, status: 'ready', models: ['model-a', 'model-b'] }), aiReadyForModel: async model => { checkedModels.push(model); return true; }, confirmAiUsage: async (model, run) => { checkedModels.push(model); await run(); return true; }, saveSettings: async () => {} },
-    async (_options, _focus, _done, _failed, accepted) => { researchAfterSave = settingsWrites.length === 2; accepted(); }, async () => {}, async () => {},
+    async (_options, _focus, _done, _failed, accepted) => { researchAfterSave = settingsWrites.length === 1; accepted(); }, async () => {}, async () => {},
     { model: 'model-a', modelSource: 'workspace', reasoning: 'low', save: async patch => { settingsWrites.push(patch); } });
   settingsModal.onOpen();
-  assert.equal(settingsModal.contentEl.children.find(item => item.cls.includes('vam-next-model')).children[0].text, 'Model and advanced settings');
+  assert.equal(find(settingsModal.contentEl, item => item.cls.includes('vam-next-model')).children[0].text, 'Model and advanced settings');
   const modelSelect = find(settingsModal.contentEl, item => item['aria-label'] === 'Model');
   const reasoningSelect = find(settingsModal.contentEl, item => item['aria-label'] === 'Reasoning level');
   modelSelect.value = 'model-b'; modelSelect.change(); reasoningSelect.value = 'high'; reasoningSelect.change();
   assert.equal(researchAfterSave, false);
+  assert.deepEqual(plain(settingsWrites), [], 'adjusting the model and effort saves nothing yet');
   button(settingsModal.modalEl, 'Confirm research task').click(); await tick();
-  assert.deepEqual(plain(settingsWrites), [{ model: 'model-b', modelSource: 'manual' }, { reasoning: 'high' }]);
+  assert.deepEqual(plain(settingsWrites), [{ model: 'model-b', modelSource: 'manual', reasoning: 'high' }], 'saved once, when the run starts');
   assert.equal(checkedModels.at(-1), 'model-b');
   assert.equal(researchAfterSave, true);
   const closedBeforeCancel = closed;
-  const cancelModal = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async options => new Promise((_resolve, reject) => options.signal.addEventListener('abort', () => { const error = new Error('aborted'); error.name = 'AbortError'; reject(error); }, { once: true })), async () => {});
+  // C2: Cancel while the quick-explore outline is generated aborts it and creates nothing.
+  const cancelModal = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => assert.fail('old quick expansion'), async () => {}, { ...modelSettings, quickOutline: {
+    presets: [{ id: 'knowledge-tree', name: 'Knowledge tree generator' }],
+    generate: (_request, signal) => new Promise((_resolve, reject) => signal.addEventListener('abort', () => { const error = new Error('aborted'); error.name = 'AbortError'; reject(error); }, { once: true })),
+    create: async () => assert.fail('cancel creates nothing')
+  } });
   cancelModal.onOpen(); find(cancelModal.contentEl, item => item.cls === 'vam-next-cards').children[1].click();
-  button(cancelModal.contentEl, 'Quickly explore a map').click(); button(cancelModal.modalEl, 'Create starter map now').click(); await tick();
+  button(cancelModal.contentEl, 'Quickly explore a map').click(); button(cancelModal.modalEl, 'Generate outline').click(); await tick();
   const taskCancel = find(cancelModal.contentEl, item => item.cls === 'vam-task-cancel');
   assert.equal(taskCancel.hidden, false); taskCancel.onclick(); await tick();
   assert.match(find(all(cancelModal.contentEl, item => item.cls.includes('vam-next-research'))[1], item => item.cls.includes('vam-next-status')).text, /cancelled/i);
@@ -562,7 +607,7 @@ test('multi research modal: defaults, options and immediate close on start', () 
     createDiv(value) { const c = element('div', typeof value === 'string' ? { cls: value } : value); this.children.push(c); return c; },
     createEl(name, value = {}) { const c = element(name, value); this.children.push(c); return c; },
     createSpan(value = {}) { const c = element('span', value); this.children.push(c); return c; },
-    setText(value) { this.text = value; }, replaceChildren() { this.children = []; }, setAttr(name, value) { this[name] = value; }, addEventListener(name, fn) { this.listeners[name] = fn; }, addClass(n) { this.cls = `${this.cls} ${n}`.trim(); }, focus() {}
+    setText(value) { this.text = value; }, replaceChildren() { this.children = []; }, setAttr(name, value) { this[name] = value; }, addEventListener(name, fn) { this.listeners[name] = fn; }, addClass(n) { this.cls = `${this.cls} ${n}`.trim(); }, removeClass() {}, toggleClass() {}, focus() {}
   });
   const find = (root, predicate) => predicate(root) ? root : root.children.map(c => find(c, predicate)).find(Boolean);
   // As in Obsidian, the content sits inside modalEl; the action bar is modalEl's last child.
@@ -575,21 +620,23 @@ test('multi research modal: defaults, options and immediate close on start', () 
   assert.ok(find(modal.contentEl, i => i.text === 'Alpha')); assert.ok(find(modal.contentEl, i => i.text === 'Beta'));
   const web = find(modal.contentEl, i => i.tag === 'input' && i.type === 'checkbox'); assert.equal(web.checked, true);
   assert.ok(find(modal.contentEl, i => i.text === 'Search for image references'));
-  const depth = find(modal.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Research depth'); assert.equal(depth.value, 'fast');
+  // The shared depth widget, with the same default as every other research dialog.
+  const radios = (root) => { const out = []; const visit = n => { if (n.type === 'radio') out.push(n); n.children.forEach(visit); }; visit(root); return out; };
+  const depthRadios = radios(modal.contentEl); assert.deepEqual(depthRadios.map(r => r.checked), [false, true, false]);
   const model = () => find(modal.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Model'); assert.equal(model().value, '');
   assert.deepEqual(plain(model().children.map(c => c.value)), ['']);
   models = [{ id: 'm1', label: 'Model One' }, { id: 'm2', label: 'Model Two' }]; changed();
   assert.deepEqual(plain(model().children.map(c => [c.value, c.text])), [['', "Each topic's current model"], ['m1', 'Model One'], ['m2', 'Model Two']]);
-  assert.deepEqual(plain(depth.children.map(c => c.value)), ['fast', 'normal', 'deep']);
+  assert.equal(depthRadios.length, 3);
   const templateSelect = find(modal.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Content template');
   assert.deepEqual(plain(templateSelect.children.map(c => [c.value, c.text])), [['', "Each topic's current template"], ['standard', 'Standard'], ['A', 'Alpha template']]);
   const start = find(modal.modalEl, i => i.tag === 'button' && i.text === 'Start research (2)');
   start.listeners.click(); start.listeners.click();
   assert.equal(modal.closed, 1); assert.equal(requests.length, 1); modal.onClose(); assert.equal(unwatched, 1);
-  assert.deepEqual(plain(requests[0]), { researchMode: 'research', researchDepth: 'fast', requirements: '', imageSearch: true });
+  assert.deepEqual(plain(requests[0]), { researchMode: 'research', researchDepth: 'normal', requirements: '', imageSearch: true });
   const second = []; const m2 = new mod.MultiResearchModal({}, ['A'], { list: () => [{ id: 'm1', label: 'Model One' }], watch: () => () => {} }, templates, r => second.push(r)); m2.open();
   find(m2.contentEl, i => i.tag === 'input' && i.type === 'checkbox').checked = false;
-  const sel = find(m2.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Research depth'); sel.value = 'deep';
+  const second3 = radios(m2.contentEl)[2]; second3.checked = true; second3.listeners.change();
   find(m2.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Model').value = 'm1';
   find(m2.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Content template').value = 'A';
   find(m2.contentEl, i => i.tag === 'textarea').value = '  only 2025  ';
@@ -622,22 +669,9 @@ test('card shows a Format not met badge with the issues as tooltip', () => {
 });
 
 integrationTest('Next Step modal: the content template choice goes into research, expansion and synthesis options only when picked', async () => {
-  const element = (tag, options = {}) => ({
-    tag, type: options.type, text: options.text, value: options.value ?? options.text ?? '', cls: options.cls ?? '', children: [], style: {}, dataset: {}, disabled: false,
-    classList: { toggle() {} },
-    createDiv(value) { const child = element('div', { cls: typeof value === 'string' ? value : value?.cls }); this.children.push(child); return child; },
-    createEl(name, value) { const child = element(name, value); this.children.push(child); return child; },
-    createSpan(value) { const child = element('span', value); this.children.push(child); return child; },
-    addClass(name) { this.cls = name; }, setText(value) { this.text = value; }, setAttr(name, value) { this[name] = value; }, add(option) { this.children.push(option); }, replaceChildren(...children) { this.children = children; },
-    addEventListener(name, handler) { if (name === 'click') this.click = handler; if (name === 'change') this.change = handler; if (name === 'input') this.input = handler; },
-    querySelector(selector) { const name = selector.slice(1); return find(this, item => item.cls.split(' ').includes(name)); },
-    querySelectorAll() { return []; }, empty() { this.children = []; }, remove() {}, focus() {}
-  });
-  const find = (root, predicate) => predicate(root) ? root : root.children.map(child => find(child, predicate)).find(Boolean);
-  const all = (root, predicate) => [...(predicate(root) ? [root] : []), ...root.children.flatMap(child => all(child, predicate))];
-  const button = (root, label) => find(root, item => item.tag === 'button' && item.text === label);
+  const { element, find, findAll: all, button } = dom;
   const tick = () => new Promise(resolve => setTimeout(resolve, 0));
-  class Modal { constructor() { this.modalEl = element('modal'); this.titleEl = element('title'); this.contentEl = element('content'); } close() { this.onClose?.(); } }
+  class Modal { constructor() { this.modalEl = element('modal'); this.titleEl = element('title'); this.contentEl = element('content'); this.modalEl.children.push(this.contentEl); } close() { this.onClose?.(); } }
   const { NextStepModal } = load('main.ts', { obsidian: { ...obsidian, Modal, setIcon: () => {}, Notice: class {} } });
   const modelState = provider => ({ provider, status: 'ready', models: [] });
   const plugin = { settings: { codexUsageNoticeSeen: true, claudeUsageNoticeSeen: true, models: 'gpt-test', cliReasoning: 'low', language: 'en' }, aiReadyForModel: async () => true, confirmAiUsage: async (_m, run) => { await run(); return true; }, saveSettings: async () => {}, activeTasks: new Map(), availableModels: () => ['gpt-test'], modelLabel: model => model, modelDiscoveryState: modelState, subscribeModelDiscovery: () => () => {}, refreshModelDiscovery: async provider => modelState(provider), sources: { currentTopicId: 'current', currentLabel: 'Current', synthesisLabel: 'Current and children', synthesisTopics: ['Child'], topics: async () => [], readTopic: async () => [] } };
@@ -664,7 +698,13 @@ integrationTest('Next Step modal: the content template choice goes into research
   assert.equal(seen.research.detailTemplateId, 'A');
   cardsOf(modal).children[1].click();
   button(modal.contentEl, 'Quickly explore a map').click();
-  button(modal.modalEl, 'Create starter map now').click(); await tick();
+  // C2: quick explore is an AI outline reviewed in the dialog; the template choice reaches its create step.
+  const quickModal = open('quick', { ...settings, quickOutline: { presets: [{ id: 'knowledge-tree', name: 'Knowledge tree generator' }], generate: async () => plain(load('experiences/visual-map/outline-import.ts', { obsidian }).parseOutline('# Parent\n## A').nodes), create: async (_nodes, options) => { seen.expand = options; } } });
+  templateSelect(quickModal).value = 'A';
+  cardsOf(quickModal).children[1].click();
+  button(quickModal.contentEl, 'Quickly explore a map').click();
+  button(quickModal.modalEl, 'Generate outline').click(); await tick(); await tick();
+  button(quickModal.contentEl, 'Create subtopics (1)').click(); await tick(); await tick();
   assert.equal(seen.expand.detailTemplateId, 'A');
   const synthModal = open('synth', settings);
   templateSelect(synthModal).value = 'A';
@@ -815,37 +855,35 @@ integrationTest('proposal list groups children, links parent and child checks an
   assert.equal(modal.closed, true);
   assert.equal(JSON.stringify(submitted.map(item => [item.title, item.parentTitle])), JSON.stringify([['Heat', ''], ['Moisture', ''], ['Dry it', 'Moisture']]));
 });
-integrationTest('merge dialog names the topic after its sources and explains a blocked next step', () => {
-  const element = (tag, options = {}) => ({
-    tag, type: options.type, text: options.text, value: options.value ?? options.text ?? '', cls: options.cls ?? '', attr: options.attr ?? {}, children: [], disabled: false,
-    createDiv(value) { const child = element('div', typeof value === 'string' ? { cls: value } : value); this.children.push(child); return child; },
-    createEl(name, value) { const child = element(name, value); this.children.push(child); return child; },
-    createSpan(value) { const child = element('span', value); this.children.push(child); return child; },
-    addClass(name) { this.cls = `${this.cls} ${name}`.trim(); }, setText(value) { this.text = value; }, setAttr(name, value) { this.attr[name] = value; },
-    addEventListener(name, handler) { this[name] = handler; }, focus() {}, select() {}
-  });
-  const all = (root, predicate) => [...(predicate(root) ? [root] : []), ...root.children.flatMap(child => all(child, predicate))];
-  const find = (root, predicate) => all(root, predicate)[0];
-  class Modal { constructor() { this.modalEl = element('modal'); this.titleEl = element('title'); this.contentEl = element('content'); } close() { this.closed = true; } }
-  const { IntegrationModal } = load('main.ts', { obsidian: { ...obsidian, Modal, setIcon: () => {} } });
-  let submitted;
-  const modal = new IntegrationModal({}, ['Heat', 'Water'], (title, goal) => { submitted = [title, goal]; });
-  modal.onOpen();
-  const name = find(modal.contentEl, item => item.tag === 'input' && item.attr['aria-label'] === 'New topic name');
+integrationTest('merge dialog (the shared synthesis dialog) names the topic after its sources and explains a blocked first step', async () => {
+  const { element, find, button, tick } = dom;
+  class Modal { constructor() { this.modalEl = element('modal'); this.titleEl = element('title'); this.contentEl = element('content'); this.modalEl.children.push(this.contentEl); } close() { this.closed = true; this.onClose?.(); } }
+  class Component { load() {} unload() {} addChild(child) { return child; } removeChild() {} }
+  const { NextStepModal } = load('main.ts', { obsidian: { ...obsidian, Modal, Component, MarkdownRenderer: { render: async () => {} }, setIcon: () => {} } });
+  const plugin = { settings: { language: 'en', cliModel: 'gpt-test', codexUsageNoticeSeen: true }, aiReadyForModel: async () => true, confirmAiUsage: async (_model, run) => { await run(); return true; }, activeTasks: new Map() };
+  const sources = { currentTopicId: 'map', currentLabel: 'Selected topics included', topics: async () => [], readTopic: async () => [] };
+  const open = (names, title, calls) => {
+    const modal = new NextStepModal({}, '', 'normal', 0, 0, plugin, async () => {}, async () => {}, async (options, direction, _failed, accepted) => { calls.push({ options, direction }); accepted(); },
+      undefined, { names, initialTitle: title, defaultDirection: 'Find shared conclusions', fields: { sources, templates: [], tones: [] } });
+    modal.onOpen();
+    return modal;
+  };
+  const calls = [];
+  const modal = open(['Heat', 'Water'], 'Synthesis: Heat, Water', calls);
+  assert.equal(modal.titleEl.text, 'Confirm topic synthesis');
+  const name = find(modal.contentEl, item => item.tag === 'input' && item['aria-label'] === 'New topic name');
   assert.equal(name.value, 'Synthesis: Heat, Water');
-  const many = new IntegrationModal({}, ['Heat', 'Water', 'Salt'], () => {}); many.onOpen();
-  assert.equal(find(many.contentEl, item => item.tag === 'input' && item.attr['aria-label'] === 'New topic name').value, 'Synthesis: Heat and others (3 topics)');
-  const next = find(modal.modalEl, item => item.tag === 'button' && item.cls.includes('mod-cta'));
-  const status = find(modal.modalEl, item => item.cls.includes('vam-next-status'));
-  assert.equal(next.text, 'Next (1 of 2): set AI sources'); assert.equal(next.disabled, false); assert.equal(status.text, '');
+  assert.equal(find(modal.contentEl, item => item.cls.includes('vam-next-cards')).cls.includes('is-hidden'), true, 'a selection has no research or expand steps to pick');
+  const next = button(modal.modalEl, 'Get synthesis suggestions first'), skip = button(modal.modalEl, 'Skip suggestions and draft now');
+  const status = dom.findAll(modal.contentEl, item => item.cls.includes('vam-next-research'))[2].querySelector('.vam-next-status');
+  assert.equal(next.disabled, false); assert.equal(skip.disabled, false); assert.equal(status.text, '');
   name.value = '  '; name.input();
-  assert.equal(next.disabled, true); assert.match(status.text, /topic name and a synthesis goal/);
+  assert.equal(next.disabled, true); assert.equal(skip.disabled, true); assert.equal(status.text, 'Enter a name for the new topic first.');
   name.value = 'Cooking water'; name.input();
   assert.equal(next.disabled, false); assert.equal(status.text, '');
-  next.click();
-  assert.equal(modal.closed, true); assert.equal(submitted[0], 'Cooking water');
-});
-integrationTest('review dialogs: duplicate parents list each proposal once, discard waits for a running save, and a failed render shows plain text', async () => {
+  next.click(); await tick();
+  assert.equal(calls[0].direction, null); assert.equal(calls[0].options.synthesisTitle, 'Cooking water');
+});integrationTest('review dialogs: duplicate parents list each proposal once, discard waits for a running save, and a failed render shows plain text', async () => {
   const element = (tag, options = {}) => ({
     tag, type: options.type, text: options.text, value: options.value ?? options.text ?? '', cls: options.cls ?? '', attr: options.attr ?? {}, children: [], hidden: false, disabled: false, checked: false,
     createDiv(value) { const child = element('div', typeof value === 'string' ? { cls: value } : value); this.children.push(child); return child; },
@@ -1069,3 +1107,564 @@ integrationTest('proposal list links checks and parents at any depth', () => {
   assert.equal(JSON.stringify(picked.map(item => [item.title, item.parentTitle])), JSON.stringify([['Heat', ''], ['Pan', 'Heat'], ['Iron pan', 'Pan']]));
 });
 
+// A small fake DOM that keeps classes, attributes, tabIndex, handlers and focus calls so selection can be asserted per card.
+const selectionDom = () => {
+  const make = (tag, init = {}) => {
+    const el = { tag, children: [], dataset: {}, style: {}, attrs: {}, handlers: new Map(), classes: new Set(String(init.cls ?? '').split(' ').filter(Boolean)), text: init.text, tabIndex: init.tabIndex, checked: false, focused: 0, isConnected: true,
+      createDiv(value) { return this.createEl('div', typeof value === 'string' ? { cls: value } : value); },
+      createSpan(value) { return this.createEl('span', typeof value === 'string' ? { cls: value } : value); },
+      createEl(name, value = {}) { const child = make(name, value); child.parent = this; this.children.push(child); return child; },
+      setAttr(name, value) { this.attrs[name] = value; }, addClass(...names) { names.forEach(name => this.classes.add(name)); }, removeClass(name) { this.classes.delete(name); },
+      toggleClass(name, on) { if (on) this.classes.add(name); else this.classes.delete(name); }, addEventListener(name, handler) { this.handlers.set(name, handler); }, removeEventListener() {},
+      setPointerCapture() {}, focus() { this.focused++; }, remove() { this.removed = true; }, getBoundingClientRect() { return { left: 0, right: 10, top: 0, bottom: 10 }; },
+      querySelector() { return null; }, querySelectorAll() { return []; }, replaceWith() {} };
+    return el;
+  };
+  return make;
+};
+const selectionView = (load, extra = {}, shim = obsidian) => {
+  const { VisualAgentMapView } = load('main.ts', { obsidian: shim });
+  const root = node('root'), a = node('a', 'root'), b = node('b', 'root'), c = node('c', 'a');
+  root.x = 0; a.x = 400; a.y = 0; b.x = 400; b.y = 200; c.x = 800;
+  const doc = map([root, a, b, c]);
+  const outline = [];
+  const plugin = { settings: { ...DEFAULT_SETTINGS }, pendingSuggestions: new Map(), expansionBatches: new Map(), detailsShown: () => false, setOutlineActive: path => outline.push(path), ...extra };
+  const view = new VisualAgentMapView({ app: {} }, plugin);
+  const make = selectionDom();
+  view.stageEl = make('stage'); view.map = doc;
+  view.notes = new Map(doc.nodes.map(item => [item.id, { title: item.id, summary: '', status: 'completed' }]));
+  let renders = 0; view.render = () => { renders++; };
+  view.enqueue = work => work(); view.openDetails = () => {}; view.focusNode = () => {};
+  return { view, doc, outline, renders: () => renders, cards: () => Object.fromEntries(view.stageEl.children.map(card => [card.dataset.nodeId, card])), build: () => { view.cardEls.clear(); view.stageEl.children = []; view.tabStopId = view.defaultTabStop(doc.nodes); for (const item of doc.nodes) view.renderNode(item); } };
+};
+integrationTest('selection, arrow keys and select-mode toggles repaint only the affected cards and never render', () => {
+  const fixture = selectionView(load);
+  const { view, outline } = fixture;
+  fixture.build();
+  const cards = fixture.cards();
+  const stops = () => Object.entries(fixture.cards()).filter(([, card]) => card.tabIndex === 0).map(([id]) => id);
+  const click = id => cards[id].handlers.get('click')({ target: { closest: () => null }, metaKey: false, ctrlKey: false });
+  assert.deepEqual(stops(), ['root'], 'one roving tab stop before any selection');
+  assert.equal(cards.root.attrs.role, 'treeitem'); assert.equal(cards.root.attrs['aria-level'], '1');
+  assert.equal(cards.c.attrs['aria-level'], '3'); assert.equal(cards.a.attrs['aria-level'], '2');
+  click('a');
+  assert.equal(fixture.renders(), 0); assert.equal(view.selected, 'a');
+  assert.deepEqual(stops(), ['a']);
+  assert.equal(cards.a.attrs['aria-selected'], 'true'); assert.ok(cards.a.classes.has('is-selected'));
+  assert.equal(cards.root.attrs['aria-selected'], 'false'); assert.equal(cards.root.tabIndex, -1);
+  assert.deepEqual(outline.at(-1), 'a.md');
+  // Arrow keys walk the tree and move focus without a render.
+  cards.a.handlers.get('keydown')({ key: 'ArrowDown', target: cards.a, preventDefault() {} });
+  assert.equal(view.selected, 'b'); assert.equal(cards.b.focused, 1); assert.deepEqual(stops(), ['b']);
+  assert.equal(cards.a.classes.has('is-selected'), false);
+  cards.b.handlers.get('keydown')({ key: 'ArrowLeft', target: cards.b, preventDefault() {} });
+  assert.equal(view.selected, 'root'); assert.deepEqual(stops(), ['root']);
+  assert.equal(fixture.renders(), 0, 'selection and arrow keys never call render()');
+});
+integrationTest('select mode: the selection bar names each action with the topic count', () => {
+  const fixture = selectionView(load); const { view } = fixture;
+  view.integrationMode = true; fixture.build();
+  const labels = ids => {
+    view.multiSelected = new Set(ids);
+    const bar = view.renderSelectionBar(selectionDom()('div'));
+    return bar.children.filter(child => child.tag === 'button').map(button => [button.text, button.disabled]);
+  };
+  const none = labels([]);
+  assert.deepEqual(none.slice(-2), [['Synthesize', true], ['Research', true]]);
+  assert.deepEqual(labels(['a']).slice(-2), [['Synthesize', true], ['Research 1 topic', false]]);
+  assert.deepEqual(labels(['a', 'b', 'c']).slice(-2), [['Synthesize 3 topics', false], ['Research 3 topics', false]]);
+  const { translate } = load('i18n.ts');
+  assert.equal(translate('zh-TW', 'ui.synthesize_0_topics', 3), '整合 3 個議題'); assert.equal(translate('zh-TW', 'ui.research_0_topics', 3), '研究 3 個議題');
+});
+integrationTest('select mode toggles cards in place, keeps checkboxes out of the tab order and survives a full render', () => {
+  const { view, renders, cards, build } = (() => { const fixture = selectionView(load); fixture.view.integrationMode = true; fixture.build(); return fixture; })();
+  const byId = cards();
+  const checks = view.cardChecks;
+  assert.equal(checks.size, 4);
+  for (const check of checks.values()) assert.equal(check.tabIndex, -1, 'no checkbox per card in the tab order');
+  const click = id => byId[id].handlers.get('click')({ target: { closest: () => null }, metaKey: false, ctrlKey: false });
+  click('a'); click('c');
+  assert.deepEqual([...view.multiSelected].sort(), ['a', 'c']);
+  assert.equal(renders(), 0); assert.equal(checks.get('a').checked, true); assert.equal(byId.b.attrs['aria-selected'], 'false');
+  assert.equal(byId.c.attrs['aria-selected'], 'true');
+  click('a');
+  assert.deepEqual([...view.multiSelected], ['c']); assert.equal(checks.get('a').checked, false); assert.equal(byId.a.classes.has('is-selected'), false);
+  // Keyboard focus in select mode moves the tab stop only; the ticked cards stay ticked.
+  byId.c.handlers.get('keydown')({ key: 'ArrowLeft', target: byId.c, preventDefault() {} });
+  assert.deepEqual([...view.multiSelected], ['c']); assert.equal(byId.a.tabIndex, 0); assert.equal(byId.root.tabIndex, -1); assert.equal(byId.a.focused, 1);
+  // A full render afterwards reproduces the same state from the model.
+  build();
+  const again = cards();
+  assert.equal(again.c.classes.has('is-selected'), true); assert.equal(again.c.attrs['aria-selected'], 'true'); assert.equal(again.a.classes.has('is-selected'), false);
+  assert.equal(renders(), 0);
+});
+integrationTest('F2 starts rename, Enter opens details, and the collapse button reports aria-expanded', () => {
+  const dialogs = [];
+  class Modal { open() { dialogs.push(this); } close() {} }
+  const fixture = selectionView(load, {}, { ...obsidian, Modal });
+  const { view } = fixture;
+  const opened = [];
+  view.openDetails = topic => opened.push(topic.id);
+  fixture.build();
+  const cards = fixture.cards();
+  cards.a.handlers.get('keydown')({ key: 'Enter', target: cards.a, preventDefault() {} });
+  assert.deepEqual(opened, ['a']); assert.equal(view.selected, 'a'); assert.equal(fixture.renders(), 0);
+  let renamed = 0;
+  cards.a.handlers.get('keydown')({ key: 'F2', target: cards.a, preventDefault() { renamed++; } });
+  assert.equal(renamed, 1, 'F2 is handled as the rename shortcut'); assert.equal(dialogs.length, 1, 'F2 opens the name dialog');
+  assert.equal(fixture.renders(), 0);
+  const expanded = [];
+  const walk = item => { if (item.attrs && 'aria-expanded' in item.attrs) expanded.push(item.attrs['aria-expanded']); item.children.forEach(walk); };
+  walk(cards.root); assert.deepEqual(expanded, ['true']);
+  const source = fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8');
+  assert.match(source, /stageEl\.setAttr\("role", "tree"\)/); assert.match(source, /integrate\.setAttr\("aria-pressed"/);
+});
+integrationTest('outline setActive marks the row in place with aria-current and no re-render', () => {
+  const { OutlineView } = load('ui/outline-view.ts', { obsidian });
+  const view = new OutlineView({ app: {} }, async () => {});
+  const row = path => ({ path, classes: new Set(), attrs: new Map(), getAttribute(name) { return name === 'data-path' ? path : null; }, toggleClass(name, on) { if (on) this.classes.add(name); else this.classes.delete(name); }, setAttr(name, value) { this.attrs.set(name, value); }, removeAttribute(name) { this.attrs.delete(name); } });
+  const rows = [row('a.md'), row('b.md')];
+  let renders = 0; view.render = () => { renders++; };
+  view.contentEl = { querySelectorAll: () => rows };
+  view.setActive('b.md');
+  assert.equal(renders, 0); assert.equal(rows[1].classes.has('is-active'), true); assert.equal(rows[1].attrs.get('aria-current'), 'true');
+  view.setActive('a.md');
+  assert.equal(rows[1].classes.has('is-active'), false); assert.equal(rows[1].attrs.has('aria-current'), false); assert.equal(rows[0].attrs.get('aria-current'), 'true');
+});
+const viewportFixture = () => {
+  const frames = [], cancelled = [];
+  const windowValues = { setTimeout: run => { run(); return 1; }, clearTimeout() {}, requestAnimationFrame: run => { frames.push(run); return frames.length; }, cancelAnimationFrame: id => { cancelled.push(id); } };
+  const { default: Plugin, VisualAgentMapView } = load('main.ts', { obsidian }, windowValues);
+  const counts = { updateMap: 0, readMap: 0, readNote: 0 };
+  const a = node('a'), b = node('b', 'a');
+  const doc = map([a, b]);
+  const note = { title: 'T', summary: '', status: 'completed' };
+  const repo = { updateMap: async (_path, change) => { counts.updateMap++; change(doc); }, readMap: async () => { counts.readMap++; return JSON.parse(JSON.stringify(doc)); }, readNote: async () => { counts.readNote++; return { ...note }; } };
+  const plugin = Object.create(Plugin.prototype);
+  Object.assign(plugin, { queue: Promise.resolve(), writing: 0, logs: { appendLog() {} }, repo, settings: { ...DEFAULT_SETTINGS }, expansionBatches: new Map(), pendingSuggestions: new Map(), syncOutline() {}, detailsShown: () => false, setOutlineActive() {} });
+  const app = { vault: { getAbstractFileByPath: () => new obsidian.TFile('m/Map.md') } };
+  const view = new VisualAgentMapView({ app }, plugin);
+  view.app = app; view.path = 'm/Map.md'; view.map = doc; view.render = () => {};
+  view.notes = new Map([[a.id, { ...note }], [b.id, { ...note }]]);
+  plugin.views = () => [view];
+  return { plugin, view, counts, doc, frames, cancelled, a, b, windowValues, load: () => ({ VisualAgentMapView }) };
+};
+integrationTest('canvas hint: a solid chip that goes away after the first zoom or pan and remembers it in settings; select mode keeps its hint', () => {
+  const { plugin, view } = viewportFixture();
+  let saves = 0; plugin.saveSettings = async () => { saves++; };
+  view.viewportEl = { clientWidth: 800, clientHeight: 600 }; view.transform = () => {}; view.saveViewport = () => {};
+  const hint = { removed: 0, remove() { this.removed++; } };
+  view.hintEl = hint;
+  view.zoomBy(1.2);
+  assert.equal(plugin.settings.canvasHintSeen, false, 'a zoom button does not dismiss the hint that teaches drag and wheel'); assert.equal(hint.removed, 0);
+  view.markCanvasHintSeen();
+  assert.equal(plugin.settings.canvasHintSeen, true); assert.equal(saves, 1); assert.equal(hint.removed, 1); assert.equal(view.hintEl, null);
+  view.markCanvasHintSeen();
+  assert.equal(saves, 1, 'only the first gesture writes settings');
+  plugin.settings.canvasHintSeen = false; view.integrationMode = true; const selectHint = { removed: 0, remove() { this.removed++; } }; view.hintEl = selectHint;
+  view.markCanvasHintSeen();
+  assert.equal(plugin.settings.canvasHintSeen, true); assert.equal(selectHint.removed, 0, 'the select-mode hint stays while that mode is on');
+  const source = fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8');
+  assert.match(source, /this\.integrationMode \|\| !this\.plugin\.settings\.canvasHintSeen\s*\?\s*overlay\.createSpan\(\{\s*cls: "vam-hint vam-canvas-hint"/, 'the normal hint shows only until seen; select mode always shows its hint');
+  assert.match(source, /if \(moved\) this\.markCanvasHintSeen\(\);/, 'a pan counts');
+  assert.match(source, /event\.preventDefault\(\);\s*\/\/[^\n]*\n\s*this\.markCanvasHintSeen\(\);/, 'a wheel zoom counts');
+  assert.match(fs.readFileSync(path.join(root, 'main.ts'), 'utf8'), /canvasHintSeen: saved\?\.canvasHintSeen === true/);
+  const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
+  assert.match(css, /^\.vam-canvas-overlay > \.vam-canvas-hint \{ position: absolute;[^}]*border: 1px solid var\(--background-modifier-border\);[^}]*background: var\(--background-primary\);/m, 'a solid chip with a border');
+  const { translate } = load('i18n.ts');
+  assert.equal(translate('zh-TW', 'ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open'), '拖曳空白處平移 · 滾輪縮放 · 方向鍵切換議題');
+  assert.equal(translate('zh-TW', 'ui.drag_to_select_topics_hint'), '拖曳框選 · 按住 Option 或空白鍵拖曳平移 · 點議題加入或移除');
+});
+integrationTest('a viewport-only write skips the note re-read, while a content write still synchronizes', async () => {
+  const { plugin, view, counts } = viewportFixture();
+  view.map.viewport.x = 40;
+  view.saveViewport();
+  await plugin.queue;
+  assert.equal(counts.updateMap, 1, 'the viewport is written');
+  assert.equal(counts.readNote, 0, 'no note is read'); assert.equal(counts.readMap, 0, 'the map is not re-read either');
+  await plugin.mutate(async () => {});
+  assert.equal(counts.readNote, 2, 'a content write re-reads every note'); assert.equal(counts.readMap, 1);
+});
+integrationTest('write queue keeps order: a content write interleaved with viewport writes still synchronizes and none is lost', async () => {
+  const { plugin, counts } = viewportFixture();
+  const order = [];
+  const first = plugin.mutate(async () => { order.push('viewport 1'); }, { sync: false });
+  const content = plugin.mutate(async () => { order.push('content'); });
+  const second = plugin.mutate(async () => { order.push('viewport 2'); }, { sync: false });
+  await Promise.all([first, content, second]);
+  assert.deepEqual(order, ['viewport 1', 'content', 'viewport 2']);
+  assert.equal(counts.readMap, 1, 'only the content write synchronized'); assert.equal(counts.readNote, 2);
+  await plugin.mutate(async () => { throw new Error('failed'); }, { sync: false }).catch(() => {});
+  await plugin.mutate(async () => { order.push('after failure'); });
+  assert.equal(order.at(-1), 'after failure', 'a failed viewport write does not block later writes');
+});
+integrationTest('viewport saves coalesce into one queued write that reads the latest viewport and flushes on close', async () => {
+  const { plugin, view, counts, doc } = viewportFixture();
+  let release; const gate = new Promise(resolve => { release = resolve; });
+  plugin.queue = gate;
+  const queued = [];
+  const original = plugin.mutate.bind(plugin);
+  plugin.mutate = (work, options) => { queued.push(options); return original(work, options); };
+  view.map.viewport.x = 1; view.saveViewport(); view.map.viewport.x = 2; view.saveViewport(); view.map.viewport.x = 3; view.saveViewport();
+  assert.equal(queued.length, 1, 'three saves while one is waiting make a single write'); assert.deepEqual(plain(queued[0]), { sync: false });
+  release(); await plugin.queue; await plugin.queue;
+  assert.equal(counts.updateMap, 1); assert.equal(doc.viewport.x, 3, 'the write carries the newest viewport');
+  view.map.viewport.x = 9; view.saveViewport(); await plugin.queue;
+  assert.equal(queued.length, 2, 'a later save queues a new write'); assert.equal(counts.updateMap, 2);
+  const source = fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8');
+  assert.match(source, /async onClose\(\)[\s\S]*persistViewport\(\)/, 'closing flushes a pending viewport save');
+});
+const dragFixture = () => {
+  const fixture = viewportFixture();
+  const { view, a, b, doc, frames } = fixture;
+  const make = selectionDom();
+  const parentCard = make('div'), childCard = make('div');
+  Object.assign(parentCard, { offsetLeft: 0, offsetTop: 0, offsetWidth: 280, offsetHeight: 100 }); Object.assign(childCard, { offsetLeft: 400, offsetTop: 0, offsetWidth: 280, offsetHeight: 100 });
+  const other = node('c'); other.x = 0; other.y = 300; doc.nodes.push(other);
+  const otherCard = make('div'); Object.assign(otherCard, { offsetLeft: 0, offsetTop: 300, offsetWidth: 280, offsetHeight: 100 });
+  const edgeOf = () => { const attrs = []; return { attrs, setAttribute(name, value) { attrs.push([name, value]); } }; };
+  const near = edgeOf(), far = edgeOf();
+  view.cardEls = new Map([[a.id, parentCard], [b.id, childCard], [other.id, otherCard]]);
+  view.edgeEls = new Map([[`${a.id}\u0000${b.id}`, near], [`${other.id}\u0000${other.id}`, far]]);
+  view.enqueue = work => work(); view.mapChange = async () => {};
+  const events = new Map();
+  childCard.addEventListener = (name, handler) => events.set(name, handler); childCard.removeEventListener = name => events.delete(name);
+  childCard.setPointerCapture = () => {};
+  view.enableDrag(childCard, b);
+  const down = () => events.get('pointerdown')({ target: { closest: () => null }, button: 0, pointerId: 1, clientX: 0, clientY: 0 });
+  return { ...fixture, events, childCard, near, far, down };
+};
+integrationTest('dragging repaints only the edges touching the card, batched in one animation frame', () => {
+  const { view, events, childCard, near, far, down, frames } = dragFixture();
+  down();
+  assert.equal(view.dragging, true);
+  events.get('pointermove')({ clientX: 50, clientY: 20 }); events.get('pointermove')({ clientX: 60, clientY: 30 }); events.get('pointermove')({ clientX: 70, clientY: 40 });
+  assert.equal(frames.length, 1, 'three pointer moves share one frame'); assert.equal(near.attrs.length, 0, 'nothing is painted before the frame');
+  frames[0]();
+  assert.equal(near.attrs.length, 1); assert.equal(far.attrs.length, 0, 'an edge that does not touch the card is not changed');
+  assert.equal(near.attrs[0][1], 'M 280 50 C 385 50, -35 90, 70 90', 'the edge ends at the card\'s new left edge'); assert.equal(childCard.style.left, '70px'); assert.equal(childCard.style.top, '40px');
+  events.get('pointerup')({ type: 'pointerup' });
+  assert.equal(view.dragging, false); assert.equal(events.has('pointermove'), false, 'listeners are removed');
+});
+integrationTest('lostpointercapture, pointercancel, a render mid-drag and closing the view all end the drag and drop the pending frame', async () => {
+  for (const ending of ['lostpointercapture', 'pointercancel']) {
+    const { view, events, childCard, near, down, frames, cancelled } = dragFixture();
+    down(); events.get('pointermove')({ clientX: 50, clientY: 50 });
+    assert.equal(view.dragging, true); assert.equal(frames.length, 1);
+    events.get(ending)({ type: ending });
+    assert.equal(view.dragging, false, `${ending} ends the drag`); assert.deepEqual(cancelled, [1], 'the pending frame is cancelled');
+    assert.equal(childCard.style.left, '0px', 'the card goes back to where it started');
+    assert.deepEqual([...events.keys()], ['pointerdown'], 'only the permanent pointerdown listener remains');
+  }
+  { const { view, events, down, frames, cancelled } = dragFixture();
+    down(); events.get('pointermove')({ clientX: 50, clientY: 50 });
+    view.render = Object.getPrototypeOf(view).render; view.closed = true;
+    view.render();
+    assert.equal(view.dragging, false, 'a render mid-drag cannot leave dragging stuck'); assert.deepEqual(cancelled, [1]); assert.deepEqual([...events.keys()], ['pointerdown']); void frames; }
+  { const { view, events, down, cancelled } = dragFixture();
+    down(); events.get('pointermove')({ clientX: 50, clientY: 50 });
+    view.render = Object.getPrototypeOf(view).render;
+    await view.onClose();
+    assert.equal(view.dragging, false); assert.deepEqual(cancelled, [1], 'closing the view cancels the pending frame'); }
+});
+integrationTest('startup opens no topic outline, including on first install, while the outline command stays', async () => {
+  const { default: Plugin } = load('main.ts', { obsidian });
+  for (const firstInstall of [false, true]) {
+    const plugin = Object.create(Plugin.prototype), calls = [];
+    Object.assign(plugin, { app: { workspace: { getLeavesOfType: () => [] } }, ready: Promise.resolve(), workspaceRecoveryCandidates: [], firstInstallSamplePending: firstInstall,
+      activateBuiltInSample: async () => { calls.push('sample'); }, activateOutline: async () => { calls.push('outline'); }, styleNodeLeaf() {}, logs: { appendLog() {} } });
+    await plugin.finishStartup();
+    assert.deepEqual(calls, firstInstall ? ['sample'] : [], 'only the sample may open at startup, never the outline');
+  }
+  assert.match(fs.readFileSync(path.join(root, 'main.ts'), 'utf8'), /addLocalizedCommand\("open-topic-outline"/);
+});
+integrationTest('card tools: labelled actions wait for hover, focus or selection, in the order Collapse, Links, Rename, Details, AI explore', () => {
+  const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
+  // The tools float over the card's top edge, hidden until hover, focus or selection, and take no space.
+  assert.match(css, /^\.vam-node > \.vam-node-tools \{ position: absolute;[^}]*bottom: calc\(100% - 6px\);[^}]*opacity: 0; pointer-events: none;[^}]*width: max-content;/m);
+  assert.match(css, /\.vam-node:hover > \.vam-node-tools, \.vam-node:focus-within > \.vam-node-tools, \.vam-viewport:not\(\.is-selecting\) \.vam-node\.is-selected > \.vam-node-tools \{ opacity: 1; pointer-events: auto;/);
+  assert.equal(/vam-ai-slot|vam-ai-tool/.test(css), false, 'no selected-only swap remains');
+  assert.match(css, /\.vam-node-tools > \.vam-ai-explore::before \{ content: "✦" \/ "";/, 'the sparkle is decoration, not part of the name');
+  const toolsOf = (setup = () => {}) => {
+    const fixture = selectionView(load);
+    setup(fixture);
+    fixture.build();
+    const tools = fixture.cards().a.children.find(child => child.classes.has('vam-node-tools'));
+    return tools.children.filter(child => child.tag === 'button');
+  };
+  const buttons = toolsOf();
+  assert.deepEqual(buttons.map(button => button.text), ['Collapse', 'Links', 'Rename', 'Details', 'AI explore']);
+  const explore = buttons.at(-1);
+  assert.ok(explore.classes.has('vam-ai-explore')); assert.equal(explore.attrs['aria-label'], undefined, 'the visible text is the accessible name (WCAG 2.5.3)');
+  assert.equal(buttons.filter(button => button.classes.has('vam-ai-explore')).length, 1, 'one AI button');
+  assert.equal(buttons[1].attrs['aria-label'], 'Structure and links'); assert.equal(buttons[3].attrs['aria-label'], 'Open details in right sidebar');
+  assert.equal(buttons[2].attrs['aria-label'], undefined);
+  // A leaf has no Collapse; the sample keeps only Details; select mode keeps only Details.
+  assert.deepEqual(toolsOf(({ view }) => { view.map.nodes = view.map.nodes.filter(item => item.id !== 'c'); }).map(button => button.text), ['Links', 'Rename', 'Details', 'AI explore']);
+  const sample = toolsOf(({ view }) => { view.builtIn = true; });
+  assert.deepEqual(sample.map(button => button.text), ['Details']); assert.equal(sample[0].attrs.title, 'View sample content');
+  assert.deepEqual(toolsOf(({ view }) => { view.integrationMode = true; }).map(button => button.text), ['Collapse', 'Details']);
+  const { translate } = load('i18n.ts');
+  assert.deepEqual(['ui.collapse', 'ui.node_tool_links', 'ui.node_tool_rename', 'ui.node_tool_details', 'ui.ai_explore'].map(key => translate('zh-TW', key)), ['收合', '結構', '改名', '詳情', 'AI 探索']);
+});
+integrationTest('status pill: researched topics show none, other states keep theirs and screen readers still hear the status', () => {
+  const pills = status => {
+    const fixture = selectionView(load);
+    fixture.view.notes.get('a').status = status;
+    fixture.build();
+    const card = fixture.cards().a, found = [];
+    const walk = item => { if (item.classes?.has('vam-status')) found.push(item); item.children.forEach(walk); };
+    walk(card);
+    return { found, label: fixture.view.stageEl.children.find(item => item.dataset.nodeId === 'a') };
+  };
+  assert.equal(pills('completed').found.length, 0, 'completed cards have no pill');
+  for (const status of ['idea', 'error']) assert.equal(pills(status).found.length, 1, `${status} keeps its pill`);
+  const labelled = selectionView(load); labelled.build();
+  assert.ok(labelled.cards().a.attrs['aria-labelledby'], 'the card is still named');
+});
+integrationTest('the more-actions menu holds Organize notes and folders; toolbar keeps Select several topics; the zoom cluster Layout menu holds Auto layout', () => {
+  const opened = [];
+  class Modal { open() { opened.push(this); } close() {} }
+  const { view } = selectionView(load, {}, { ...obsidian, Modal });
+  view.openMapActions();
+  const labels = opened[0].choices.map(choice => choice.label);
+  assert.ok(labels.includes('Organize notes and folders'));
+  const organize = opened[0].choices.find(choice => choice.label === 'Organize notes and folders'); assert.equal(typeof organize.action, 'function');
+  const source = fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8');
+  const toolsBlock = source.slice(source.indexOf('const tools = createDiv("vam-map-tools")'), source.indexOf('const workspace = this.contentEl.createDiv("vam-workspace")'));
+  assert.ok(!/ui\.organize|ui\.auto_layout/.test(toolsBlock), 'neither control stays in the floating tools');
+  assert.match(source, /zoom\.createEl\("button", \{ text: t\("ui\.layout"\), cls: "vam-layout-button" \}\)/, 'the zoom cluster has one labelled Layout button');
+  assert.ok(!/iconButton\(zoom, "(workflow|chevrons-down-up)"/.test(source), 'no icon-only layout controls remain');
+  const { translate } = load('i18n.ts');
+  assert.equal(translate('en', 'ui.select_topics'), 'Select several topics'); assert.equal(translate('zh-TW', 'ui.select_topics'), '選取多個議題');
+  assert.equal(translate('en', 'ui.finish_topic_selection'), 'Done selecting'); assert.equal(translate('zh-TW', 'ui.finish_topic_selection'), '完成選取');
+  assert.equal(translate('zh-TW', 'ui.organize'), '整理筆記與資料夾'); assert.equal(translate('zh-TW', 'ui.rename_topic'), '重新命名'); assert.equal(translate('zh-TW', 'ui.ai_explore'), 'AI 探索');
+  assert.equal(translate('zh-TW', 'ui.new_map'), '＋ 新增心智圖');
+});
+integrationTest('UI wording: quick research, not shallow research; the synthesis draft is reviewed (檢閱) everywhere', () => {
+  const { translate } = load('i18n.ts');
+  const source = fs.readFileSync(path.join(root, 'i18n.ts'), 'utf8');
+  const values = [...source.matchAll(/^  "((?:ui|notice|modal|settings)\.[^"]+)": "((?:[^"\\]|\\.)*)"/gm)];
+  assert.deepEqual(values.filter(([, , text]) => /淺研究|shallow research|檢查整合草稿/i.test(text)).map(([, key]) => key), []);
+  assert.equal(translate('zh-TW', 'ui.review_synthesis_draft'), '檢閱整合草稿'); assert.equal(translate('zh-TW', 'ui.review_the_synthesis_draft'), '請檢閱整合草稿。');
+  assert.equal(translate('zh-TW', 'ui.shallow_research_counts', 1, 3), '快速研究：完成 1／3'); assert.equal(translate('en', 'ui.shallow_research_counts', 1, 3), 'Quick research: 1 of 3 done');
+});
+integrationTest('map UI terms in zh-TW say 議題 and 心智圖, not 節點 or 地圖, and keep 工作區 consistent', () => {
+  const { translate } = load('i18n.ts');
+  const source = fs.readFileSync(path.join(root, 'i18n.ts'), 'utf8');
+  const zh = source.slice(source.indexOf('const traditionalChinese'));
+  const mapUi = [...zh.matchAll(/^  "(ui\.[^"]+)": "((?:[^"\\]|\\.)*)"/gm)].filter(([, key]) => !/aim_/.test(key));
+  const drift = mapUi.filter(([, , text]) => /節點|地圖/.test(text)).map(([, key]) => key);
+  assert.deepEqual(drift, [], 'no map UI string uses 節點 or 地圖');
+  assert.equal(mapUi.filter(([, , text]) => /Workspace/.test(text.replace('Agent Workspace/', ''))).length, 0, 'prose says 工作區, not Workspace');
+  assert.equal(translate('zh-TW', 'ui.reconnect_existing_workspace'), '找回既有工作區');
+});
+test('applyCollapseLevel: collapse all, expand all and expand to level N set the collapsed flag on branches only', () => {
+  const nodes = () => [node('root'), node('a', 'root'), node('b', 'root'), node('a1', 'a'), node('a2', 'a'), node('a11', 'a1')];
+  const flags = list => Object.fromEntries(list.map(item => [item.id, item.collapsed]));
+  const collapsed = nodes(); core.applyCollapseLevel(collapsed, 0);
+  assert.deepEqual(flags(collapsed), { root: true, a: true, b: false, a1: true, a2: false, a11: false }, 'every branch collapses; leaves stay as they were');
+  core.applyCollapseLevel(collapsed, null);
+  assert.deepEqual(Object.values(flags(collapsed)), [false, false, false, false, false, false]);
+  for (const [level, expected] of [[1, { root: false, a: true, a1: true }], [2, { root: false, a: false, a1: true }], [3, { root: false, a: false, a1: false }]]) {
+    const list = nodes(); core.applyCollapseLevel(list, level);
+    const got = flags(list);
+    for (const [id, collapsedFlag] of Object.entries(expected)) assert.equal(got[id], collapsedFlag, `level ${level}: ${id}`);
+  }
+  const cyclic = [node('x', 'y'), node('y', 'x')]; core.applyCollapseLevel(cyclic, 1);
+  assert.equal(cyclic.length, 2, 'a corrupt parent cycle does not hang');
+});
+integrationTest('the New map menu no longer imports outlines; the topic side option and the palette command add to the open map only', () => {
+  const opened = [], menus = [];
+  class Modal { constructor(app) { this.app = app; } open() { opened.push(this); } close() {} }
+  class Menu { constructor() { this.items = []; menus.push(this); } addItem(callback) { const item = { title: '', icon: '', click: null, setTitle(value) { this.title = value; return this; }, setIcon(value) { this.icon = value; return this; }, onClick(handler) { this.click = handler; return this; } }; callback(item); this.items.push(item); return this; } showAtMouseEvent() { return this; } }
+  const { view } = selectionView(load, {}, { ...obsidian, Modal, Menu });
+  view.openNewMapMenu({});
+  assert.deepEqual(menus[0].items.map(item => item.title), ['New mind map', 'Create Adaptive Inquiry Map (AIM)'], 'the menu has no outline import');
+  view.path = `${DEFAULT_SETTINGS.topicsFolder}/Topic/Map.md`;
+  view.openTopicMenu({});
+  const paste = menus[1].items[0]; assert.equal(paste.title, 'Paste an outline to add several topics at once');
+  paste.click();
+  const placement = modal => modal.placementRequest();
+  assert.deepEqual(plain(placement(opened.at(-1))), { kind: 'tree' }, 'no selection: add to the current map');
+  view.selected = 'a'; paste.click();
+  assert.deepEqual(plain(placement(opened.at(-1))), { kind: 'under', parentId: 'a' }, 'a selected topic: add under it');
+  const count = opened.length;
+  view.path = 'elsewhere/Map.md'; view.selected = null; paste.click();
+  assert.equal(opened.length, count, 'no editable map open: no import window (a new map starts from + New mind map)');
+  view.path = `${DEFAULT_SETTINGS.topicsFolder}/Topic/Map.md`; view.openOutlineImport();
+  assert.deepEqual(plain(placement(opened.at(-1))), { kind: 'tree' }, 'the palette command adds to the open map');
+});
+integrationTest('collapse control: sets the flags, fits the map and is a single undo entry', async () => {
+  const fixture = viewportFixture();
+  const { view, plugin, doc, a, b } = fixture;
+  const top = node('r'); const c = node('c', a.id);
+  doc.nodes.length = 0; a.parentId = 'r'; b.parentId = 'a'; doc.nodes.push(top, a, b, c);
+  let saved = 0; plugin.repo.saveMap = async (_path, next) => { saved++; Object.assign(doc, JSON.parse(JSON.stringify(next))); };
+  plugin.mutate = async work => work();
+  view.map = doc; view.enqueue = work => { view.pending = work(); }; view.updateHistoryButtons = () => {}; view.hydrate = async () => {};
+  let fitted = 0; view.fit = () => { fitted++; };
+  view.collapseTo(0); await view.pending;
+  assert.deepEqual(doc.nodes.map(item => [item.id, !!item.collapsed]), [['r', true], ['a', true], ['b', false], ['c', false]]);
+  assert.equal(fitted, 1); assert.equal(saved, 1, 'one write');
+  view.collapseTo(null); await view.pending;
+  assert.ok(doc.nodes.every(item => !item.collapsed)); assert.equal(fitted, 2);
+  view.collapseTo(null); await view.pending;
+  assert.equal(saved, 2, 'an unchanged request writes nothing but still fits'); assert.equal(fitted, 3);
+  view.collapseTo(1); await view.pending;
+  assert.equal(doc.nodes.find(item => item.id === 'a').collapsed, true); assert.equal(doc.nodes.find(item => item.id === 'r').collapsed, false);
+  const at = id => doc.nodes.find(item => item.id === id);
+  assert.deepEqual([at('a').x - at('r').x, at('a').y], [360, at('r').y], 'collapsing re-arranges the map: the collapsed topic is a leaf beside its parent');
+  view.collapseTo(null); await view.pending;
+  assert.ok(at('b').y !== at('c').y && at('b').x === at('a').x + 360, 'expanding re-arranges the shown branch');
+  await view.travel(false);
+  // One undo restores the state before the last action in one step.
+  await view.travel(false);
+  assert.ok(doc.nodes.every(item => !item.collapsed), 'one undo restores every flag');
+  // Auto layout from the Layout menu re-arranges every topic in one write.
+  for (const nodes of [doc.nodes, view.map.nodes]) { nodes.find(item => item.id === 'b').x = 9999; nodes.find(item => item.id === 'c').y = -9999; }
+  const writes = saved;
+  view.autoLayout(); await view.pending;
+  assert.equal(saved, writes + 1, 'one write'); assert.equal(at('b').x, at('a').x + 360, 'auto layout re-arranges the map'); assert.notEqual(at('c').y, -9999);
+  const source = fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8');
+  assert.match(source, /n\.collapsed = !n\.collapsed;\s*map\.nodes = arrangeMap\(map\.nodes\);/, 'the card collapse button re-arranges in the same change');
+});
+integrationTest('Layout menu offers collapse all, expand all, levels 1 to 3, a separator and Auto layout', () => {
+  const menus = [];
+  class Menu { constructor() { this.items = []; menus.push(this); } addItem(callback) { const item = { setTitle(value) { this.title = value; return this; }, setIcon() { return this; }, onClick(handler) { this.click = handler; return this; } }; callback(item); this.items.push(item); return this; } addSeparator() { this.items.push({ separator: true }); return this; } showAtMouseEvent() { return this; } }
+  const { view } = selectionView(load, {}, { ...obsidian, Menu });
+  const calls = []; view.collapseTo = levels => calls.push(levels); view.autoLayout = () => calls.push('arrange');
+  view.openLayoutMenu({});
+  assert.deepEqual(menus[0].items.map(item => item.separator ? '---' : item.title), ['Collapse all', 'Expand all', 'Expand to level 1', 'Expand to level 2', 'Expand to level 3', '---', 'Auto layout']);
+  menus[0].items.filter(item => !item.separator).forEach(item => item.click());
+  assert.deepEqual(calls, [0, null, 1, 2, 3, 'arrange']);
+  const { translate } = load('i18n.ts');
+  assert.equal(translate('zh-TW', 'ui.layout'), '排版'); assert.equal(translate('en', 'ui.layout'), 'Layout');
+  assert.match(fs.readFileSync(path.join(root, 'styles.css'), 'utf8'), /\.vam-layout-button::after \{ content: "▾" \/ "";/, 'the menu caret is decoration, not part of the name');
+});
+integrationTest('map stylesheet: no :has() on the map surface, reduced motion beats the scan animation, buttons keep a focus ring, dead rules are gone', () => {
+  const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
+  const rules = css.split('\n');
+  const surface = /\.vam-(workspace|canvas-overlay|node|map-tools|zoom-controls|toolbar|outline-option|inspector)/;
+  assert.deepEqual(rules.filter(rule => rule.includes(':has(') && surface.test(rule)), [], 'no :has() on the map surface');
+  assert.match(css, /\.vam-workspace\.has-inspector > \.vam-canvas-overlay \{ right: 300px; \}/); assert.match(css, /\.vam-workspace\.has-inspector > \.vam-canvas-overlay \{ right: 260px; \}/);
+  const scan = '.vam-node:not([data-aim-kind])[data-status="running"]::after';
+  const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'), css.indexOf('.theme-dark .vam-viewport'));
+  assert.ok(css.includes(`${scan} { content:`), 'the scan animation rule exists');
+  assert.ok(reduced.includes(`${scan} { animation: none; }`) || reduced.includes(`, ${scan} { animation: none; }`), 'reduced motion uses the same selector weight as the animation it disables');
+  assert.match(css, /\.vam-node-tools > \.vam-collapse-button \{ order: -1;/, 'the fold toggle leads the card tools, so the icons line up on every card');
+  assert.match(css, /\.vam-map-tools button:focus-visible, \.vam-zoom-controls button:focus-visible[^{]*\{ outline: 2px solid var\(--interactive-accent\)/);
+  for (const dead of ['.vam-next-web', '.vam-next-usage', '.vam-next-sources', '.vam-rule-preview']) assert.equal(css.includes(dead), false, `${dead} is removed`);
+  assert.equal((css.match(/^\.vam-toolbar \.vam-map-switcher \{/gm) ?? []).length, 1, 'the switcher rule is not duplicated');
+});
+integrationTest('sample inspector marks its workspace so the overlay can move without :has()', () => {
+  const fixture = selectionView(load, {}, { ...obsidian, MarkdownRenderer: { render: async () => {} } });
+  const { view } = fixture;
+  view.builtIn = true; view.notes.get('root').sourcePaths = []; view.notes.get('root').detail = '';
+  const make = selectionDom();
+  const parent = make('div');
+  view.renderInspector(parent, fixture.doc.nodes[0]);
+  assert.ok(parent.classes.has('has-inspector'));
+  assert.ok(parent.children.some(child => child.classes.has('vam-inspector')));
+});
+integrationTest('outline toggles report aria-expanded and the open topic row reports aria-current', () => {
+  const { OutlineView } = load('ui/outline-view.ts', { obsidian });
+  const element = (tag, options = {}) => ({ tag, text: options.text, cls: options.cls ?? '', children: [], style: {},
+    get childElementCount() { return this.children.length; },
+    createDiv(value) { const child = element('div', { cls: typeof value === 'string' ? value : value?.cls }); this.children.push(child); return child; },
+    createEl(name, value = {}) { const child = element(name, value); this.children.push(child); return child; },
+    createSpan(value = {}) { const child = element('span', typeof value === 'string' ? { cls: value } : value); this.children.push(child); return child; },
+    addClass(value) { this.cls = `${this.cls} ${value}`.trim(); }, setAttr(name, value) { this[name] = value; }, addEventListener(name, handler) { this.handlers = { ...this.handlers, [name]: handler }; }, remove() {},
+    empty() { this.children = []; }, querySelector() { return null; } });
+  const root = node('root'), child = node('child', root.id), grand = node('grand', child.id);
+  const view = new OutlineView({ app: {} }, async () => {}); view.contentEl = element('content');
+  view.activePath = 'child.md';
+  view.setMap(map([root, child, grand]), new Map([['root', 'Root'], ['child', 'Child'], ['grand', 'Grand']]));
+  const all = item => [item, ...item.children.flatMap(all)];
+  const toggles = all(view.contentEl).filter(item => item.cls === 'vam-outline-toggle');
+  assert.deepEqual(toggles.map(item => item['aria-expanded']), ['true', 'true']);
+  toggles[1].handlers.click();
+  // The fake DOM keeps the old tree, so read the newest one.
+  const after = all(view.contentEl).filter(item => item.cls === 'vam-outline-toggle').slice(-2);
+  assert.deepEqual(after.map(item => item['aria-expanded']), ['true', 'false'], 'collapsing a branch flips aria-expanded');
+  const current = all(view.contentEl).filter(item => item['aria-current'] === 'true').slice(-1);
+  assert.deepEqual(current.map(item => item.text), ['Child'], 'the active topic row is aria-current');
+  assert.equal(all(view.contentEl).filter(item => item.cls === 'vam-outline-note' && item['aria-current'] === 'true' && item.text !== 'Child').length, 0, 'no other row is');
+});
+test('dead code is gone: no unreachable TaskModal confirmation branches and a single AIM status chip block', () => {
+  const source = fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8');
+  assert.equal(/confirmed = false/.test(source), false); assert.equal(/if \(!confirmed\)/.test(source), false);
+  assert.equal((source.match(/ui\.aim_answered_not_started/g) ?? []).length, 1, 'the AIM chip is built once');
+});
+
+integrationTest('AIM map: arrow keys keep moving focus across full renders instead of snapping back to the old card', () => {
+  const fixture = selectionView(load);
+  const { view } = fixture;
+  view.map.aim = { version: 1, branches: [], runs: [], pendingCommits: [] };
+  fixture.build();
+  const restored = [];
+  view.render = () => { restored.push(view.focusNodeId); fixture.build(); view.focusNodeId = null; };
+  const key = (id, name) => fixture.cards()[id].handlers.get('keydown')({ key: name, target: fixture.cards()[id], preventDefault() {} });
+  key('root', 'ArrowRight');
+  assert.equal(view.selected, 'a'); assert.deepEqual(restored, ['a'], 'the render restores focus to the target card');
+  key('a', 'ArrowDown');
+  assert.equal(view.selected, 'b'); assert.deepEqual(restored, ['a', 'b'], 'the second press moves one more step');
+  assert.equal(fixture.cards().b.focused, 1, 'the live card gets focus, not a detached one'); assert.equal(view.focusNodeId, null);
+});
+integrationTest('legacy AIM map: a viewport write that stamps the content language leaves no false conflict', async () => {
+  const { view } = viewportFixture();
+  const clone = value => JSON.parse(JSON.stringify(value));
+  const disk = clone(view.map); disk.aim = { version: 1, branches: [], runs: [], pendingCommits: [] };
+  view.map = clone(disk);
+  view.plugin.repo.updateMap = async (_path, change) => { change(disk); disk.aim.contentLanguage ??= 'en'; return clone(disk); };
+  view.plugin.repo.readMap = async () => clone(disk);
+  view.plugin.rebuildDerivedData = async () => {};
+  view.persist = async () => {};
+  let cleared = 0; const history = view.history; const original = history.clear.bind(history); history.clear = () => { cleared++; original(); };
+  view.map.viewport.x = 77;
+  await view.persistViewport();
+  assert.equal(view.map.aim.contentLanguage, 'en', 'the stamped language is adopted');
+  await view.mapChange(map => { map.title = 'Renamed'; });
+  assert.equal(cleared, 0, 'no conflict modal, history kept'); assert.equal(view.map.title, 'Renamed');
+});
+integrationTest('dragging keeps moving the edges when a background synchronize redraws them mid-drag', () => {
+  const { view, events, near, down, frames, a, b } = dragFixture();
+  down();
+  events.get('pointermove')({ clientX: 50, clientY: 20 }); frames[0]();
+  assert.equal(near.attrs.length, 1);
+  const redrawn = { attrs: [], setAttribute(name, value) { this.attrs.push([name, value]); } };
+  view.edgeEls = new Map([[`${a.id}\u0000${b.id}`, redrawn]]);
+  events.get('pointermove')({ clientX: 60, clientY: 30 }); frames[1]();
+  assert.equal(redrawn.attrs.length, 1, 'the new path element follows the card'); assert.equal(near.attrs.length, 1, 'the detached path is left alone');
+});
+integrationTest('outline highlight follows the selected topic on in-place and full-render paths, falling back to the opened note', () => {
+  for (const aim of [false, true]) {
+    const fixture = selectionView(load);
+    const { view, outline } = fixture;
+    view.app = { workspace: { getActiveFile: () => ({ path: 'opened.md' }) } };
+    if (aim) view.map.aim = { version: 1, branches: [], runs: [], pendingCommits: [] };
+    fixture.build();
+    view.selectMapNode(view.map.nodes.find(item => item.id === 'a'));
+    assert.equal(outline.at(-1), 'a.md', `selected topic is active (aim=${aim})`);
+    assert.equal(fixture.renders(), aim ? 1 : 0);
+    const previous = view.selected; view.selected = null;
+    view.commitSelection(previous, null, []);
+    assert.equal(outline.at(-1), 'opened.md', `clearing selection falls back to the opened note (aim=${aim})`);
+  }
+});
+integrationTest('card layout never depends on hover, focus or selection: state rules only change color, opacity and shadow', () => {
+  const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const layout = /^(display|width|min-width|max-width|height|min-height|max-height|padding[a-z-]*|margin[a-z-]*|font-size|font-weight|border(-(top|right|bottom|left))?(-width)?|gap|row-gap|column-gap|flex[a-z-]*|grid[a-z-]*|position|line-height|letter-spacing|white-space|order)$/;
+  const state = /:hover|\.is-selected|:focus-within|:focus-visible|:focus\b|:active/;
+  const offenders = [];
+  for (const [, selectors, body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    // Only what sits inside a card's flow matters; the floating toolbar and its contents never move the card's content.
+    const inCard = selectors.split(',').map(s => s.trim()).filter(s => /vam-node\b|vam-node-header|vam-card-|vam-status/.test(s) && state.test(s) && !/vam-node-tools|vam-ai-slot|vam-add-child/.test(s));
+    if (!inCard.length) continue;
+    for (const declaration of body.split(';')) {
+      const property = declaration.split(':')[0].trim();
+      if (layout.test(property) && !(property === 'border' && /^\s*border:\s*[^;]*\b1px\b/.test(declaration))) offenders.push(`${inCard.join(', ')} { ${declaration.trim()} }`);
+    }
+  }
+  assert.deepEqual(offenders, [], 'a hover/focus/selection rule changes card layout');
+});

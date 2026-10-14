@@ -35,6 +35,7 @@ test('collect snapshots: AiTaskService general task prompt', async () => {
     await recordContext(`service.task-local-fast.${tag}`, 'AiTaskService instructions: mode task, local research, fast', language, { ...ctx, researchMode: 'local', researchDepth: 'fast' });
     await recordContext(`service.decompose-deep.${tag}`, 'AiTaskService instructions: mode decompose, deep research', language, { ...ctx, mode: 'decompose', researchDepth: 'deep' });
     await recordContext(`service.synthesize-local.${tag}`, 'AiTaskService instructions: mode synthesize, local, visual off', language, { ...ctx, mode: 'synthesize', researchMode: 'local', visualMode: 'off' });
+    await recordContext(`service.task-tone.${tag}`, 'AiTaskService instructions: mode task with a resolved tone text (B1)', language, { ...ctx, toneText: language === 'en' ? 'Tone: example voice. Write warmly.' : '寫作語氣：範例語氣。請溫暖地寫作。' });
     await recordContext(`service.default-adaptive.${tag}`, 'AiTaskService instructions: no mode, adaptive detail, no sources', language, { ...ctx, mode: undefined, detailFormat: 'adaptive', sourceContext: undefined, workingFindings: undefined, detail: '', rules: '', ancestors: '' });
     await recordContext(`service.reference-groups.${tag}`, 'AiTaskService reference extraction then task', language, { ...ctx, sourceContext: undefined, referenceGroups: [{ id: 'g1', name: 'Group', location: '/refs', documents: [{ path: '/refs/a.md', content: 'Reference body A' }] }] });
   }
@@ -49,6 +50,8 @@ test('collect snapshots: AIM prompt builder per phase', async () => {
     const context = { ...aimBase, task, outputLanguage: language, researchMode: research ? 'research' : 'local', ...(phase === 'research-gap-audit' ? { responseContract: 'aim-gap-audit' } : {}), ...(phase === 'delivery-acceptance' ? { responseContract: 'aim-delivery-acceptance' } : {}), ...(research ? { aimIsolatedResearch: true } : {}) };
     await recordContext(`aim-builder.${phase ?? 'no-phase'}.${tag}`, `buildAimPrompt via AiTaskService (phase ${phase ?? 'none'}, legacy marker contract)`, language, context);
   }
+  for (const [language, tag] of LANGUAGES)
+    await recordContext(`aim-builder.tone.${tag}`, 'buildAimPrompt via AiTaskService with a resolved tone text (B1)', language, { ...aimBase, task: 'Plain task text.', outputLanguage: language, toneText: language === 'en' ? 'Tone: example voice. Write warmly.' : '寫作語氣：範例語氣。請溫暖地寫作。' });
   const contracts = { intake: { kind: 'intake' }, 'question-required': { kind: 'question', requireQuestion: true }, 'question-optional': { kind: 'question', requireQuestion: false }, plan: { kind: 'plan' }, reuse: { kind: 'reuse' }, 'review-all': { kind: 'review', decisions: ['research_more', 'ask_user', 'conclude'] }, 'review-floor': { kind: 'review', decisions: ['research_more', 'ask_user'] }, outline: { kind: 'outline' }, 'delivery-research': { kind: 'delivery-research' } };
   for (const [name, contract] of Object.entries(contracts)) {
     const context = { ...aimBase, task: '<!-- aim-phase: report-review -->\nStructured contract task.', outputLanguage: 'en', aimContract: contract, aimEvidenceLookup: name === 'review-all', ...(name === 'delivery-research' ? { researchMode: 'research', aimIsolatedResearch: true } : {}) };
@@ -95,16 +98,14 @@ test('collect snapshots: Visual Map expansion and synthesis tasks', async () => 
     const child = await repo.createNote('Child topic', 'model-a', mapDoc, mapPath, 'workspace'); child.parentId = parent.id; mapDoc.nodes.push(child);
     await repo.updateNote(child.path, { summary: 'Child summary', detail: 'Child detail', newFindings: 'Child finding', visualReferences: '![diagram](https://example.org/diagram.png)' });
     const contexts = [];
-    const plugin = support.withExpansionCoordinator({ repo, settings: { ...support.DEFAULT_SETTINGS, language }, running: new Set(), pendingSuggestions: new Map(), pendingResearchOptions: new Map(), quickExpandFailures: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), recordFailure: (_label, error) => error.message,
+    const plugin = support.withExpansionCoordinator({ repo, settings: { ...support.DEFAULT_SETTINGS, language }, running: new Set(), pendingSuggestions: new Map(), pendingResearchOptions: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), recordFailure: (_label, error) => error.message,
       askModel: async context => { contexts.push({ kind: contexts.kind, context }); return { summary: 'S', detail: 'D', visualReferences: [], suggestions: contexts.suggestions ?? [] }; } });
     const view = new VisualAgentMapView({ app }, plugin); view.path = mapPath; view.map = mapDoc; view.contentEl = { querySelector: () => null }; view.render = () => {}; view.hydrate = async () => {}; view.focusNode = () => {}; view.ancestorContext = async () => 'Ancestor chain A';
-    const options = { researchMode: 'research', researchDepth: 'fast', visualMode: 'off', referenceGroups: [], multiLayer: true, shallowResearch: false, layers: 2, firstLayerCount: 2, childrenPerParent: 1, outputLanguage: language };
-    contexts.kind = 'direct';
-    await view.proposeChildren(parent, true, options, '', () => {}, () => {}, true).catch(() => {});
+    const options = { researchMode: 'research', researchDepth: 'fast', visualMode: 'off', referenceGroups: [], shallowResearch: false, outputLanguage: language };
     contexts.kind = 'guided';
-    await view.proposeChildren(parent, true, { ...options, multiLayer: false }, 'Focus on risks', () => {}, () => {}, false).catch(() => {});
+    await view.proposeChildren(parent, options, 'Focus on risks', () => {}, () => {}).catch(() => {});
     contexts.kind = 'guided-empty-direction';
-    await view.proposeChildren(parent, true, { ...options, multiLayer: false }, '', () => {}, () => {}, false).catch(() => {});
+    await view.proposeChildren(parent, options, '', () => {}, () => {}).catch(() => {});
     contexts.kind = 'synthesis-directions';
     contexts.suggestions = [{ title: 'Direction one', task: 't', contribution: 'c' }];
     let choose;
@@ -117,7 +118,7 @@ test('collect snapshots: Visual Map expansion and synthesis tasks', async () => 
       assert.ok(context.task.length > 0);
       await recordContext(`view.${kind}.${tag}`, `VisualAgentMapView ${kind} TaskContext through AiTaskService`, language, { ...context, onProgress: undefined, signal: undefined });
     }
-    assert.ok(seen.has('direct') && seen.has('guided') && seen.has('synthesis-directions'), `view cases captured: ${[...seen].join(',')}`);
+    assert.ok(seen.has('guided') && seen.has('synthesis-directions'), `view cases captured: ${[...seen].join(',')}`);
   }
 });
 
@@ -150,6 +151,14 @@ test('collect snapshots: Coffee Tables, Reframe, Markdown context', async () => 
   }
   const { buildReframePrompt } = support.load('core/reframing-service.ts', { obsidian: support.obsidian });
   for (const [language, tag] of LANGUAGES) record(`reframe.${tag}`, 'core/reframing-service.ts buildReframePrompt', language, buildReframePrompt({ language, question: 'Direction question', context: 'Direction context', source: 'Source thinking text' }));
+  const { buildOutlineGeneratePrompt } = support.load('core/outline-generation-service.ts', { obsidian: support.obsidian });
+  const { buildStructureReviewPrompt, STRUCTURE_REVIEW_SCHEMA } = support.load('core/structure-review-service.ts', { obsidian: support.obsidian });
+  const reviewNodes = [{ id: 'n1', title: 'Root topic', summary: 'Root summary', status: 'completed', parentId: null, depth: 0 }, { id: 'n2', title: 'Child topic', summary: 'Child summary', status: 'idea', parentId: 'n1', depth: 1 }];
+  for (const [language, tag] of LANGUAGES) {
+    record(`outline-generate.${tag}`, 'core/outline-generation-service.ts buildOutlineGeneratePrompt (preset with topic placeholder)', language, buildOutlineGeneratePrompt({ language, topic: 'Topic under study', presetText: 'Build a knowledge tree for {填入研究主題} in three levels.', model: 'm', reasoning: 'low' }));
+    record(`outline-generate-appended.${tag}`, 'core/outline-generation-service.ts buildOutlineGeneratePrompt (preset without placeholder)', language, buildOutlineGeneratePrompt({ language, topic: 'Topic under study', presetText: 'Build a knowledge tree in three levels.', model: 'm', reasoning: 'low' }));
+    record(`structure-review.${tag}`, 'core/structure-review-service.ts buildStructureReviewPrompt', language, buildStructureReviewPrompt({ language, rootQuestion: 'Root question text', nodes: reviewNodes, model: 'm', reasoning: 'low' }), STRUCTURE_REVIEW_SCHEMA);
+  }
   const { planStep } = support.load('experiences/markdown-context/steps/plan/step.ts', { obsidian: support.obsidian });
   const planPrompt = (instruction, selected, context, hasImage) => planStep.render({ instruction, selected, context, hasImage });
   record('markdown-context.plan-text', 'markdown-context/action-plan.ts planPrompt (not localized)', 'none', planPrompt('Rewrite this', 'Selected text', 'Nearby context', false));

@@ -6,6 +6,7 @@ import { MapDocument, MapNode, serializeMap, parseMap, type AimReuseRecord } fro
 import type { CoffeeStyle } from "./experiences/coffee-tables/types";
 import type { ReasoningLevel, ResearchDepth, ResearchMode, VisualMode } from "./ai/types";
 import { normalizeReasoningLevel } from "./ai/task-policy";
+import type { PromptPreset } from "./ai/prompt-presets";
 import { sourcesHeadingKeys, standardTemplate, type DetailTemplate } from "./ai/detail-templates";
 import { fencedLines } from "./ai/markdown-blocks";
 import { managedHeadingValue, managedSectionValue } from "./note-values";
@@ -36,6 +37,8 @@ export interface Note {
   researchDepth: ResearchDepth;
   visualMode: VisualMode;
   detailTemplateId?: string;
+  /** Per-topic tone preset id (frontmatter `tone`); absent = use the map default. */
+  toneId?: string;
   detailFormatIssues: string[];
   status: Status;
   mapId: string;
@@ -49,6 +52,8 @@ export interface Settings {
   detailTemplates: DetailTemplate[];
   defaultDetailTemplateId?: string;
   coffeeStyles?: CoffeeStyle[];
+  /** Custom tone/outline presets; built-ins live in ai/prompt-presets.ts. Absent = none. */
+  promptPresets?: PromptPreset[];
   defaultCoffeeStyleId?: string;
   language: "zh-TW" | "en";
   workspaceFolder: string;
@@ -73,6 +78,7 @@ export interface Settings {
   markdownSelectionAiAutoOpen: boolean;
   workspaceInitialized: boolean;
   sampleTourVersionSeen: number;
+  canvasHintSeen: boolean;
 }
 export interface TopicInfo {
   id: string;
@@ -93,6 +99,7 @@ export interface LegacyMigrationPlan {
 export const DEFAULT_SETTINGS: Settings = {
   detailTemplates: [],
   coffeeStyles: [],
+  promptPresets: [],
   language: "en",
   workspaceFolder: "Agent Workspace",
   topicsFolder: "Agent Workspace/Topics",
@@ -114,7 +121,8 @@ export const DEFAULT_SETTINGS: Settings = {
   aiExchangeLoggingEnabled: false,
   markdownSelectionAiAutoOpen: true,
   workspaceInitialized: false,
-  sampleTourVersionSeen: 0
+  sampleTourVersionSeen: 0,
+  canvasHintSeen: false
 };
 
 const REFERENCE_START = "<!-- visual-agent-map:references:start -->";
@@ -622,6 +630,7 @@ export class Repository {
       ...(typeof fm["detail-template"] === "string" && fm["detail-template"]
         ? { detailTemplateId: fm["detail-template"] }
         : {}),
+      ...(typeof fm.tone === "string" && fm.tone ? { toneId: fm.tone } : {}),
       detailFormatIssues: Array.isArray(fm["detail-format-issues"])
         ? fm["detail-format-issues"].filter((v): v is string => typeof v === "string")
         : [],
@@ -663,6 +672,7 @@ export class Repository {
       if (patch.visualMode !== undefined) fm["visual-mode"] = patch.visualMode;
       if (patch.detailTemplateId !== undefined)
         patch.detailTemplateId ? (fm["detail-template"] = patch.detailTemplateId) : delete fm["detail-template"];
+      if (patch.toneId !== undefined) patch.toneId ? (fm.tone = patch.toneId) : delete fm.tone;
       if (patch.detailFormatIssues !== undefined)
         patch.detailFormatIssues.length
           ? (fm["detail-format-issues"] = patch.detailFormatIssues)

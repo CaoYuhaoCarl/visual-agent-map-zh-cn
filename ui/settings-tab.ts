@@ -3,6 +3,7 @@ import { SUPPORTED_LANGUAGES, t } from "../i18n";
 import { normalizeReasoningLevel } from "../repository";
 import { syncModelSelect } from "../core/model-discovery";
 import { renderDetailTemplatesSetting } from "./modals/detail-templates-modal";
+import { renderTonePresetsSetting } from "./modals/prompt-presets-modal";
 import { clampPreviewScale } from "./preview-utils";
 import { App, Modal, PluginSettingTab, Setting, type SettingDefinitionItem } from "obsidian";
 
@@ -248,6 +249,10 @@ export class VisualAgentMapSettingTab extends PluginSettingTab {
       {
         name: t("ui.detail_templates"),
         render: setting => renderDetailTemplatesSetting(setting, this.app, this.plugin, () => this.update())
+      },
+      {
+        name: t("ui.tone_presets"),
+        render: setting => renderTonePresetsSetting(setting, this.app, this.plugin, () => this.update())
       },
       {
         name: t("ui.markdown_selection_ai_auto_open"),

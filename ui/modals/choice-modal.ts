@@ -12,13 +12,20 @@ export interface Choice {
 }
 
 export class ChoiceModal extends Modal {
+  private chosen = false;
   constructor(
     app: App,
     private titleText: string,
     private description: string,
-    private choices: Choice[]
+    private choices: Choice[],
+    /** Called when the dialog closes without a choice (Cancel, Escape). */
+    private dismissed?: () => void
   ) {
     super(app);
+  }
+  onClose(): void {
+    if (!this.chosen) this.dismissed?.();
+    this.chosen = true;
   }
   onOpen(): void {
     this.titleEl.setText(this.titleText);
@@ -26,6 +33,7 @@ export class ChoiceModal extends Modal {
     for (const choice of this.choices) {
       const setting = new Setting(this.contentEl);
       const run = (): void => {
+        this.chosen = true;
         this.close();
         choice.action();
       };

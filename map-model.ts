@@ -32,6 +32,8 @@ export interface MapDocument {
   viewport: { x: number; y: number; zoom: number };
   aim?: AimMapData;
   detailTemplateId?: string;
+  /** Default tone preset id for the map; absent = academic. */
+  toneId?: string;
 }
 
 export function clearQuestionConvergenceEdges(map: MapDocument): boolean {
@@ -346,6 +348,31 @@ export function visibleNodes(nodes: MapNode[]): MapNode[] {
   for (const node of nodes) if (node.collapsed) for (const id of descendants(nodes, node.id)) hidden.add(id);
   return nodes.filter(node => !hidden.has(node.id));
 }
+/**
+ * Sets every branch's collapsed flag at once. `shownLevels` is how many levels below the roots stay visible:
+ * 0 shows only the roots, 2 shows children and grandchildren, and `null` expands everything. Leaves are left alone.
+ */
+export function applyCollapseLevel(nodes: MapNode[], shownLevels: number | null): void {
+  const byId = new Map(nodes.map(node => [node.id, node]));
+  const depthOf = (node: MapNode): number => {
+    let depth = 0;
+    const seen = new Set([node.id]);
+    for (
+      let parent = node.parentId;
+      parent && byId.has(parent) && !seen.has(parent);
+      parent = byId.get(parent)!.parentId
+    ) {
+      seen.add(parent);
+      depth++;
+    }
+    return depth;
+  };
+  const parents = new Set(nodes.map(node => node.parentId).filter((id): id is string => !!id && byId.has(id)));
+  for (const node of nodes) {
+    if (!parents.has(node.id)) continue;
+    node.collapsed = shownLevels === null ? false : depthOf(node) >= shownLevels;
+  }
+}
 export function removeNodes(nodes: MapNode[], id: string, branch: boolean): MapNode[] {
   const removed = branch ? descendants(nodes, id) : new Set<string>();
   removed.add(id);
@@ -369,6 +396,7 @@ export function parseMap(content: string): MapDocument {
   if (map.version !== 1 || typeof map.id !== "string" || typeof map.title !== "string" || !Array.isArray(map.nodes))
     throw new Error(t("ui.invalid_mind_map_format"));
   if (map.detailTemplateId !== undefined && typeof map.detailTemplateId !== "string") delete map.detailTemplateId;
+  if (map.toneId !== undefined && typeof map.toneId !== "string") delete map.toneId;
   const ids = new Set<string>(),
     aimQuestionRequests = new Set<string>();
   for (const n of map.nodes) {

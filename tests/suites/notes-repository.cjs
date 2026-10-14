@@ -472,7 +472,7 @@ integrationTest('dragging synthesized roots persists coordinates and removal pre
   const first = await repo.createNote('First','a',mapDoc,path,'workspace'), second=await repo.createNote('Second','a',mapDoc,path,'workspace'); mapDoc.nodes.push(first,second);await repo.saveMap(path,mapDoc);
   let pending=Promise.resolve();
   const plugin={repo,settings:{...DEFAULT_SETTINGS},rebuildDerivedData:()=>repo.rebuildDerivedData(),askModel:async()=>({summary:'Merged',detail:'Knowledge',visualReferences:[],suggestions:[]}),mutate(work){pending=pending.then(work);return pending}};
-  const {VisualAgentMapView}=load('main.ts',{obsidian}); const view=new VisualAgentMapView({app},plugin);view.path=path;view.map=mapDoc;view.integrationMode=true;view.render=()=>{};view.focusNode=()=>{};view.drawEdges=()=>{};view.updateHistoryButtons=()=>{};
+  const {VisualAgentMapView}=load('main.ts',{obsidian},{requestAnimationFrame:run=>{run();return 1},cancelAnimationFrame(){}}); const view=new VisualAgentMapView({app},plugin);view.path=path;view.map=mapDoc;view.integrationMode=true;view.render=()=>{};view.focusNode=()=>{};view.drawEdges=()=>{};view.updateHistoryButtons=()=>{};
   await view.createIntegratedNode('Combined',[first,second],'Combine','');
   const root=view.map.nodes.find(n=>n.id!==first.id&&n.id!==second.id); assert.equal(root.parentId,null);assert.equal(view.integrationMode,false);
   const origin={x:root.x,y:root.y}; const events=new Map(),card={style:{},setPointerCapture(){},addEventListener(name,fn){events.set(name,fn)},removeEventListener(name){events.delete(name)}};
@@ -566,6 +566,20 @@ integrationTest('topic remembers its content template and format issues in front
   note = await repo.readNote(node.path);
   assert.equal(note.detailTemplateId, undefined); assert.deepEqual(plain(note.detailFormatIssues), []);
   assert.doesNotMatch(await app.vault.read(app.vault.getAbstractFileByPath(node.path)), /detail-format-issues|detail-template/);
+});
+integrationTest('topic remembers its tone override in frontmatter `tone`; clearing removes it', async () => {
+  const { repo, app } = fixture('en');
+  const map = { id: 'm', title: 'M', version: 1, nodes: [], viewport: { x: 0, y: 0, zoom: 1 } };
+  const mapPath = 'Agent Workspace/Topics/M/Map.md';
+  await repo.ensureTopicFolders('Agent Workspace/Topics/M'); await app.vault.create(mapPath, core.serializeMap(map));
+  const node = await repo.createNote('T', 'model-a', map, mapPath, 'workspace');
+  assert.equal((await repo.readNote(node.path)).toneId, undefined);
+  await repo.updateNote(node.path, { toneId: 'magazine' });
+  assert.equal((await repo.readNote(node.path)).toneId, 'magazine');
+  assert.match(await app.vault.read(app.vault.getAbstractFileByPath(node.path)), /tone: "?magazine"?/);
+  await repo.updateNote(node.path, { toneId: '' });
+  assert.equal((await repo.readNote(node.path)).toneId, undefined);
+  assert.doesNotMatch(await app.vault.read(app.vault.getAbstractFileByPath(node.path)), /^tone:/m);
 });
 integrationTest('visual reference without a related paragraph goes before the sources section (zh and en)', async () => {
   const { canonicalDetail } = load('ai/result-utils.ts');

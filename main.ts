@@ -39,6 +39,7 @@ import {
   type Settings
 } from "./repository";
 import { normalizeTemplates } from "./ai/detail-templates";
+import { normalizePresets } from "./ai/prompt-presets";
 import { effectiveReasoningLevel } from "./ai/task-policy";
 import type { AiResult, Suggestion, TaskContext } from "./ai/types";
 import { clampPreviewScale, legacyPreviewScale } from "./ui/preview-utils";
@@ -61,6 +62,8 @@ import { ShallowExpansionCoordinator, type ExpansionBatchState } from "./experie
 import { AiTaskService } from "./core/ai-task-service";
 import { announceTestOverrides } from "./experiences/aim/flow-limits";
 import { ReframingService, providerReframeRunner } from "./core/reframing-service";
+import { OutlineGenerationService, providerOutlineRunner } from "./core/outline-generation-service";
+import { StructureReviewService, providerStructureReviewRunner } from "./core/structure-review-service";
 import { receiveVisualMapHandoff } from "./experiences/visual-map/handoff";
 import { openCoffeeResearchHandoff } from "./experiences/coffee-tables/handoff-modal";
 import { MarkdownSelectionAi } from "./experiences/markdown-context/selection-ai";
@@ -71,7 +74,7 @@ export { extractJsonObject } from "./core/ai-task-service";
 export { executableCandidates } from "./core/ai-runtime-service";
 export { canonicalDetail, visualReferencesMarkdown } from "./ai/result-utils";
 export { VisualAgentMapView } from "./experiences/visual-map/view";
-export { ChildProposalModal, DraftReviewModal, IntegrationModal, NextStepModal } from "./experiences/visual-map/modals";
+export { ChildProposalModal, DraftReviewModal, NextStepModal } from "./experiences/visual-map/modals";
 export { VisualAgentMapSettingTab } from "./ui/settings-tab";
 export { firstMarkdownImage, firstMarkdownTable, markdownImages } from "./ui/preview-utils";
 export type { AiRunMetrics, PreparedTaskContext } from "./ai/types";
@@ -113,7 +116,6 @@ export default class VisualAgentMapPlugin extends Plugin {
   ready: Promise<void> = Promise.resolve();
   readonly running = new Set<string>();
   readonly quickExpandPending = new Set<string>();
-  readonly quickExpandFailures = new Map<string, string>();
   readonly activeTasks = new Map<string, AbortController>();
   readonly expansionBatches = new Map<string, ExpansionBatchState>();
   readonly expansionCoordinator = new ShallowExpansionCoordinator(this.activeTasks, this.expansionBatches);
@@ -140,6 +142,12 @@ export default class VisualAgentMapPlugin extends Plugin {
     this.aiRuntime,
     this.aiTasks,
     new ReframingService(providerReframeRunner(this.aiTaskOptions, this.activeTasks))
+  );
+  readonly outlineGeneration = new OutlineGenerationService(
+    providerOutlineRunner(this.aiTaskOptions, this.activeTasks)
+  );
+  readonly structureReview = new StructureReviewService(
+    providerStructureReviewRunner(this.aiTaskOptions, this.activeTasks)
   );
   exchanges: AiExchangeLog | null = null;
   readonly modelDiscovery = new ModelDiscovery(
@@ -171,12 +179,16 @@ export default class VisualAgentMapPlugin extends Plugin {
     this.logs.appendLog("error", `${context}：${message}`);
     return message;
   }
-  async mutate(work: () => Promise<void>): Promise<void> {
+  /**
+   * Runs a write after every earlier one. Views re-read the map and its notes afterwards unless the caller states the
+   * write only touches the viewport (`sync: false`), which changes nothing another view could need to reload.
+   */
+  async mutate(work: () => Promise<void>, options: { sync?: boolean } = {}): Promise<void> {
     const result = this.queue.then(async () => {
       this.writing++;
       try {
         await work();
-        for (const view of this.views()) await view.synchronize();
+        if (options.sync !== false) for (const view of this.views()) await view.synchronize();
       } finally {
         this.writing--;
       }
@@ -210,6 +222,11 @@ export default class VisualAgentMapPlugin extends Plugin {
       if (leaf.view instanceof OutlineView) {
         if (!this.coffeeOutlineActive) leaf.view.setMap(map, titles, sample);
       }
+  }
+  /** Marks the active outline row without rebuilding the outline. */
+  setOutlineActive(path: string): void {
+    for (const leaf of this.app.workspace.getLeavesOfType(OUTLINE_VIEW_TYPE))
+      if (leaf.view instanceof OutlineView) leaf.view.setActive(path);
   }
   syncCoffeeOutline(view?: CoffeeTablesView): void {
     this.coffeeOutlineSource = view ?? null;
@@ -262,6 +279,7 @@ export default class VisualAgentMapPlugin extends Plugin {
     this.settings = {
       ...DEFAULT_SETTINGS,
       detailTemplates: normalizeTemplates(saved?.detailTemplates),
+      promptPresets: normalizePresets(saved?.promptPresets),
       defaultDetailTemplateId:
         typeof saved?.defaultDetailTemplateId === "string" ? saved.defaultDetailTemplateId : undefined,
       coffeeStyles: Array.isArray(saved?.coffeeStyles)
@@ -299,7 +317,8 @@ export default class VisualAgentMapPlugin extends Plugin {
       aiExchangeLoggingEnabled: saved?.aiExchangeLoggingEnabled === true,
       markdownSelectionAiAutoOpen: saved?.markdownSelectionAiAutoOpen !== false,
       workspaceInitialized: saved ? saved.workspaceInitialized !== false : false,
-      sampleTourVersionSeen: saved?.sampleTourVersionSeen ?? 0
+      sampleTourVersionSeen: saved?.sampleTourVersionSeen ?? 0,
+      canvasHintSeen: saved?.canvasHintSeen === true
     };
     setUiLanguage(this.settings.language);
     registerInternalMarkerPresentation(this);
@@ -517,29 +536,33 @@ export default class VisualAgentMapPlugin extends Plugin {
       this.app.workspace.on("file-open", file => {
         for (const leaf of this.app.workspace.getLeavesOfType("markdown")) this.styleNodeLeaf(leaf);
         for (const leaf of this.app.workspace.getLeavesOfType(OUTLINE_VIEW_TYPE))
-          if (leaf.view instanceof OutlineView) leaf.view.setActivePath(file?.path ?? "");
+          if (leaf.view instanceof OutlineView) leaf.view.setActive(file?.path ?? "");
       })
     );
     this.app.workspace.onLayoutReady(() => {
-      for (const leaf of this.app.workspace.getLeavesOfType("markdown")) this.styleNodeLeaf(leaf);
-      void this.ready
-        .then(async () => {
-          if (this.workspaceRecoveryCandidates.length)
-            await this.offerWorkspaceReconnect(this.workspaceRecoveryCandidates);
-          else if (this.firstInstallSamplePending) await this.activateBuiltInSample();
-          await this.activateOutline();
-        })
-        .catch(error => {
-          this.logs.appendLog(
-            "warn",
-            t("log.initialization_incomplete_0", error instanceof Error ? error.message : String(error))
-          );
-          console.warn("Visual Agent Map initialization", error);
-        });
+      void this.finishStartup();
     });
     this.registerVaultEvents();
   }
   /** Vault modify/delete/rename handlers; kept separate so tests can drive the real handlers on a fake vault. */
+  /**
+   * Work after Obsidian's layout is ready. The topic outline is deliberately not opened here: it opens only through
+   * its command or the map toolbar, and an outline pane the user already has is restored by Obsidian itself.
+   */
+  async finishStartup(): Promise<void> {
+    for (const leaf of this.app.workspace.getLeavesOfType("markdown")) this.styleNodeLeaf(leaf);
+    try {
+      await this.ready;
+      if (this.workspaceRecoveryCandidates.length) await this.offerWorkspaceReconnect(this.workspaceRecoveryCandidates);
+      else if (this.firstInstallSamplePending) await this.activateBuiltInSample();
+    } catch (error) {
+      this.logs.appendLog(
+        "warn",
+        t("log.initialization_incomplete_0", error instanceof Error ? error.message : String(error))
+      );
+      console.warn("Visual Agent Map initialization", error);
+    }
+  }
   registerVaultEvents(): void {
     this.registerEvent(
       this.app.vault.on("modify", file => {
