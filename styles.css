@@ -836,8 +836,9 @@ button.vam-template-section-header:hover { background: var(--background-modifier
 .vam-outline-actions { display: flex; gap: var(--size-4-1); }
 .vam-outline-ai > summary { cursor: pointer; font-weight: var(--font-semibold); }
 .vam-outline-ai[open] { display: flex; flex-direction: column; gap: var(--size-4-2); }
-.vam-outline-ai-preset { display: flex; align-items: flex-end; gap: var(--size-4-2); flex-wrap: wrap; }
-.vam-outline-ai-preset > .vam-field { flex: 1 1 200px; min-width: 0; }
+/* The field's own margin moves to the row, so Edit and Delete line up with the select rather than the margin below it. */
+.vam-outline-ai-preset { display: flex; align-items: flex-end; gap: var(--size-4-2); flex-wrap: wrap; margin: 14px 0; }
+.vam-outline-ai-preset > .vam-field { flex: 1 1 200px; min-width: 0; margin: 0; }
 .vam-outline-ai-editor { display: flex; flex-direction: column; gap: var(--size-4-2); }
 .vam-outline-ai-editor[hidden] { display: none; }
 .vam-outline-ai-text { width: 100%; box-sizing: border-box; resize: vertical; }
