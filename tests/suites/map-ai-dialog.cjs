@@ -250,7 +250,7 @@ integrationTest('one-click dialog: quick-explore numbers live under Adjust and s
   assert.equal(button(h.actions(), 'Get expansion directions').hidden, false);
   button(adjustOf(h), 'Quickly explore a map').click();
   assert.equal(hasCls(limits, 'is-hidden'), false);
-  assert.equal(summaryOf(h), 'Quickly explore a map · Web search · English');
+  assert.equal(summaryOf(h), 'Quick explore · 2 levels · up to 15 · Web search · English', 'the summary names the chosen levels and size');
 });
 integrationTest('one-click dialog: guided expansion closes itself once the reviewed subtopics are created', async () => {
   let created;

@@ -1,0 +1,1 @@
+Levels and size for this run (these override any count or depth settings in the preset above): expand {{levels}} levels of sub-headings below the root heading (the research topic itself), taking the main branches down to level {{levels}}; at most {{maxTopics}} headings besides the root.

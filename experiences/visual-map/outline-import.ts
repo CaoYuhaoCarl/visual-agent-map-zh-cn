@@ -393,3 +393,39 @@ export async function addOutlineToMap(
   );
   return { created, total: nodes.length, ...(failure ? { failure } : {}) };
 }
+
+/** Quick explore's bounds: levels below the topic and topics in total, as chosen in the dialog. */
+export const QUICK_OUTLINE_MAX_LEVELS = 6;
+export const QUICK_OUTLINE_MAX_TOPICS = 30;
+export interface OutlineLimits {
+  levels: number;
+  maxTopics: number;
+}
+/**
+ * Keeps an outline within `levels` below its root and `maxTopics` topics besides the root. A single top heading is
+ * the root (the topic itself); several top headings are all first-level topics. The size is filled level by level,
+ * so every main branch survives before any branch grows deeper; a node is kept only when its parent was, and the
+ * result keeps document order, so it is still a valid tree. `dropped` counts the rest.
+ */
+export function limitOutline(nodes: OutlineNode[], limits: OutlineLimits): { nodes: OutlineNode[]; dropped: number } {
+  const singleRoot = nodes.filter(node => node.parent === null).length === 1;
+  const depth = new Map<number, number>();
+  for (const node of nodes) {
+    const parentDepth = node.parent === null ? undefined : depth.get(node.parent);
+    if (node.parent !== null && parentDepth === undefined) continue;
+    depth.set(node.index, node.parent === null ? (singleRoot ? 0 : 1) : parentDepth! + 1);
+  }
+  const kept = new Set<number>();
+  let topics = 0;
+  for (let level = 0; level <= limits.levels; level++)
+    for (const node of nodes) {
+      if (depth.get(node.index) !== level || (node.parent !== null && !kept.has(node.parent))) continue;
+      if (level > 0) {
+        if (topics >= limits.maxTopics) break;
+        topics++;
+      }
+      kept.add(node.index);
+    }
+  const result = nodes.filter(node => kept.has(node.index));
+  return { nodes: result, dropped: nodes.length - result.length };
+}

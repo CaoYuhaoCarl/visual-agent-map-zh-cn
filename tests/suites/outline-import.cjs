@@ -795,3 +795,24 @@ integrationTest('the import window generator asks about AI usage first and says 
   await assert.rejects(generator.generate({ topic: 'T', presetText: 'p' }, new AbortController().signal), /did not start/);
   assert.equal(calls.length, 1);
 });
+test('limitOutline keeps the chosen levels below the root and the chosen number of topics, parents before children', () => {
+  const { parseOutline, limitOutline } = load('experiences/visual-map/outline-import.ts', { obsidian });
+  const nodes = parseOutline('# Root\n## A\n### A1\n#### A1x\n### A2\n## B\n### B1').nodes;
+  const titles = result => plain(result.nodes.map(node => node.title));
+  assert.deepEqual(titles(limitOutline(nodes, { levels: 1, maxTopics: 30 })), ['Root', 'A', 'B']);
+  assert.deepEqual(titles(limitOutline(nodes, { levels: 2, maxTopics: 3 })), ['Root', 'A', 'A1', 'B'], 'every main branch before any grows deeper, in document order');
+  assert.equal(limitOutline(nodes, { levels: 2, maxTopics: 3 }).dropped, 3);
+  assert.deepEqual(titles(limitOutline(nodes, { levels: 2, maxTopics: 1 })), ['Root', 'A']);
+  assert.deepEqual(titles(limitOutline(nodes, { levels: 6, maxTopics: 30 })), titles({ nodes }), 'within bounds nothing changes');
+  const forest = [{ index: 0, title: 'A', level: 1, parent: null, line: 1 }, { index: 1, title: 'A1', level: 2, parent: 0, line: 2 }, { index: 2, title: 'B', level: 1, parent: null, line: 3 }];
+  assert.deepEqual(titles(limitOutline(forest, { levels: 1, maxTopics: 30 })), ['A', 'B'], 'several top headings are the first level');
+});
+test('the outline prompt states the chosen levels and size after the preset only when they are given', () => {
+  const { buildOutlineGeneratePrompt } = load('core/outline-generation-service.ts', { obsidian });
+  const base = { topic: 'Sleep', presetText: 'Preset {research topic}', model: 'gpt-test', reasoning: 'low' };
+  const zh = buildOutlineGeneratePrompt({ ...base, language: 'zh-TW', limits: { levels: 3, maxTopics: 12 } });
+  assert.match(zh, /展開 3 層子標題/); assert.match(zh, /最多 12 個標題/);
+  assert.ok(zh.indexOf('Preset') < zh.indexOf('展開 3 層'), 'the limits follow the preset, so they override it');
+  assert.match(buildOutlineGeneratePrompt({ ...base, language: 'en', limits: { levels: 2, maxTopics: 15 } }), /expand 2 levels of sub-headings/);
+  assert.doesNotMatch(buildOutlineGeneratePrompt({ ...base, language: 'en' }), /Levels and size for this run/);
+});

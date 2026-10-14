@@ -210,12 +210,12 @@ function quickHarness(quickOutline) {
 }
 const outlineNodes = (markdown) => plain(load('experiences/visual-map/outline-import.ts', { obsidian }).parseOutline(markdown).nodes);
 
-integrationTest('quick explore: the outline generator with a preset select replaces the number fields', () => {
+integrationTest('quick explore: a preset select plus levels and size fields, defaulting to 2 levels and up to 15', () => {
   const h = quickHarness({ presets: [{ id: 'knowledge-tree', name: 'Knowledge tree generator' }, { id: 'mine', name: 'Mine' }], generate: async () => [], create: async () => {} });
   const limits = find(h.adjust, i => hasCls(i, 'vam-quick-limits'));
   assert.equal(hasCls(limits, 'is-hidden'), false);
   assert.deepEqual(plain(byLabel(limits, 'Outline preset').children.map(o => o.text)), ['Knowledge tree generator', 'Mine']);
-  assert.equal(findAll(limits, i => i.tag === 'input' && i.type === 'number').length, 0, 'no level or count fields');
+  assert.equal(byLabel(limits, 'Levels').value, '2'); assert.equal(byLabel(limits, 'Most subtopics').value, '15');
   assert.equal(button(h.actions(), 'Generate outline').hidden, false);
 });
 
@@ -241,6 +241,37 @@ integrationTest('quick explore: the generated outline is reviewed in the dialog 
   assert.equal(created.length, 1);
   assert.deepEqual(plain(created[0].nodes.map(node => [node.index, node.title, node.parent])), [[0, 'Body', null], [1, 'What it is', 0]]);
   assert.equal(h.modal.closeCount, 1); assert.ok(h.notices.includes('Subtopics created.'));
+});
+
+integrationTest('quick explore: the chosen levels and size reach the generator and an over-deep or over-long reply is trimmed before review', async () => {
+  const requests = [];
+  const h = quickHarness({
+    presets: [{ id: 'knowledge-tree', name: 'Knowledge tree generator' }],
+    generate: async request => { requests.push(request); return outlineNodes('# Sleep\n## Body\n### Definition\n#### Too deep\n## Mind\n## Dreams\n## Extra'); },
+    create: async () => {}
+  });
+  const levels = byLabel(h.adjust, 'Levels'), size = byLabel(h.adjust, 'Most subtopics');
+  levels.value = '2'; size.value = '5';
+  button(h.actions(), 'Generate outline').click(); await tick(); await tick();
+  assert.deepEqual(plain(requests[0].limits), { levels: 2, maxTopics: 5 });
+  const titles = findAll(h.modal.contentEl, i => hasCls(i, 'vam-proposal-title')).map(i => i.value);
+  assert.deepEqual(titles, ['Body', 'Definition', 'Mind', 'Dreams', 'Extra'], 'the level-3 heading is left out');
+  assert.ok(find(h.modal.contentEl, i => /Left out beyond the chosen levels or size: 1 heading/.test(i.text ?? '')), 'the review says what was left out');
+});
+integrationTest('quick explore: when the AI writes too many topics, every main branch is kept before any grows deeper', async () => {
+  const h = quickHarness({ presets: [{ id: 'knowledge-tree', name: 'Knowledge tree generator' }], create: async () => {},
+    generate: async () => outlineNodes('# Sleep\n## A\n### A1\n### A2\n## B\n### B1\n### B2\n## C\n### C1\n### C2') });
+  byLabel(h.adjust, 'Levels').value = '2'; byLabel(h.adjust, 'Most subtopics').value = '5';
+  button(h.actions(), 'Generate outline').click(); await tick(); await tick();
+  const titles = findAll(h.modal.contentEl, i => hasCls(i, 'vam-proposal-title')).map(i => i.value);
+  assert.deepEqual(titles, ['A', 'A1', 'A2', 'B', 'C'], 'A, B and C all survive; the extra depth is what gets cut');
+});
+integrationTest('quick explore: out-of-range levels and size are clamped to 1–6 and 1–30', async () => {
+  const requests = [];
+  const h = quickHarness({ presets: [{ id: 'knowledge-tree', name: 'Knowledge tree generator' }], generate: async request => { requests.push(request); return outlineNodes('# Sleep\n## Body'); }, create: async () => {} });
+  byLabel(h.adjust, 'Levels').value = '99'; byLabel(h.adjust, 'Most subtopics').value = '0';
+  button(h.actions(), 'Generate outline').click(); await tick(); await tick();
+  assert.deepEqual(plain(requests[0].limits), { levels: 6, maxTopics: 1 });
 });
 
 integrationTest('quick explore: closing the dialog while the outline is generated stops it and writes nothing', async () => {

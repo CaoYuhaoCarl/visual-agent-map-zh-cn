@@ -22,7 +22,13 @@ import {
   type VisualMode
 } from "../../repository";
 import type { AiResult, Suggestion } from "../../ai/types";
-import type { OutlineNode } from "./outline-import";
+import {
+  limitOutline,
+  QUICK_OUTLINE_MAX_LEVELS,
+  QUICK_OUTLINE_MAX_TOPICS,
+  type OutlineLimits,
+  type OutlineNode
+} from "./outline-import";
 import { syncModelSelect } from "../../core/model-discovery";
 import {
   fieldLink,
@@ -106,7 +112,7 @@ export interface QuickOutline {
   presets: { id: string; name: string }[];
   /** Generates the outline for this topic; the outline's root is the topic itself. */
   generate: (
-    request: { presetId: string; requirements: string; language: Settings["language"] },
+    request: { presetId: string; requirements: string; language: Settings["language"]; limits: OutlineLimits },
     signal: AbortSignal
   ) => Promise<OutlineNode[]>;
   /** Adds the reviewed outline under this topic. */
@@ -697,7 +703,9 @@ export class NextStepModal extends Modal {
     nodes: OutlineNode[],
     button: HTMLButtonElement,
     create: (nodes: OutlineNode[], options: TaskOptions) => Promise<void>,
-    options: TaskOptions
+    options: TaskOptions,
+    /** Headings the AI wrote beyond the chosen levels or size; they are left out of the review. */
+    dropped = 0
   ): void {
     if (this.closed) return;
     const result = panel.querySelector<HTMLElement>(".vam-next-result")!;
@@ -709,6 +717,7 @@ export class NextStepModal extends Modal {
       return;
     }
     result.createEl("h4", { text: t("ui.quick_outline_review") });
+    if (dropped) result.createEl("p", { cls: "vam-hint", text: t("ui.quick_outline_trimmed_0", dropped) });
     let showCount = (_count: number): void => {};
     const list = renderProposalList(result, items, count => showCount(count), { compact: true });
     const confirm = result.createEl("button", { text: t("ui.create_0_subtopics", list.count()), cls: "mod-cta" });
@@ -1007,6 +1016,22 @@ export class NextStepModal extends Modal {
     presetSelect.setAttr("aria-label", t("ui.outline_ai_preset"));
     for (const preset of quickOutline?.presets ?? [])
       presetSelect.createEl("option", { value: preset.id, text: preset.name });
+    // How deep and how big the tree may grow: told to the AI, then enforced on its reply before the review.
+    const numberField = (label: string, initial: number, max: number): (() => number) => {
+      const field = quickLimits.createEl("label", { cls: "vam-field" });
+      field.createSpan({ text: label });
+      const input = field.createEl("input", { type: "number", attr: { min: "1", max: String(max), step: "1" } });
+      input.value = String(initial);
+      input.setAttr("aria-label", label);
+      const read = (): number => Math.min(max, Math.max(1, Math.round(Number(input.value)) || 1));
+      input.addEventListener("change", () => {
+        input.value = String(read());
+        refreshSummary();
+      });
+      return read;
+    };
+    const quickLevels = numberField(t("ui.number_of_levels"), 2, QUICK_OUTLINE_MAX_LEVELS);
+    const quickTopics = numberField(t("ui.quick_outline_max_topics"), 15, QUICK_OUTLINE_MAX_TOPICS);
     quickLimits.createEl("p", { text: t("ui.quick_outline_hint"), cls: "vam-hint" });
     const shallowLabel = adjustFor.expand.createEl("label", { cls: "vam-field vam-next-toggle" });
     const shallow = shallowLabel.createEl("input", { type: "checkbox" });
@@ -1061,16 +1086,19 @@ export class NextStepModal extends Modal {
             if (!quickOutline) return;
             const signal = this.taskSignal;
             if (!signal) return;
-            const nodes = await quickOutline.generate(
+            const limits = { levels: quickLevels(), maxTopics: quickTopics() };
+            const generated = await quickOutline.generate(
               {
                 presetId: presetSelect.value,
                 requirements: this.requirements(),
-                language: options.outputLanguage ?? this.plugin.settings.language
+                language: options.outputLanguage ?? this.plugin.settings.language,
+                limits
               },
               signal
             );
             if (this.closed || signal.aborted) return;
-            this.outlineReview(expandPanel, nodes, expandButton, quickOutline.create, options);
+            const { nodes, dropped } = limitOutline(generated, limits);
+            this.outlineReview(expandPanel, nodes, expandButton, quickOutline.create, options, dropped);
             return;
           }
           await this.expand(
@@ -1353,7 +1381,11 @@ export class NextStepModal extends Modal {
       const parts: string[] = [];
       if (currentMode === "research") parts.push(t("ui.next_summary_depth_0", depthName(depthField.value())));
       else if (currentMode === "expand")
-        parts.push(t(multiLayer ? "ui.quickly_explore_a_map" : "ui.choose_directions_together"));
+        parts.push(
+          multiLayer
+            ? t("ui.quick_outline_summary_0_1", quickLevels(), quickTopics())
+            : t("ui.choose_directions_together")
+        );
       else
         parts.push(
           t(

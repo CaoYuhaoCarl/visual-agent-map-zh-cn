@@ -776,7 +776,8 @@ export class VisualAgentMapView extends ItemView {
             presetText: request.requirements ? `${preset.text}\n\n${request.requirements}` : preset.text,
             language: request.language,
             model: note.model,
-            reasoning: normalizeReasoningLevel(note.reasoning ?? settings.cliReasoning)
+            reasoning: normalizeReasoningLevel(note.reasoning ?? settings.cliReasoning),
+            limits: request.limits
           },
           signal
         );

@@ -381,7 +381,7 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   find(quickModal.contentEl, item => item['aria-label'] === 'Answer language for this task').value = 'zh-TW';
   find(quickModal.contentEl, item => item.tag === 'textarea').value = 'Keep it short';
   assert.equal(button(quickModal.modalEl, 'Review AI subtopic suggestions'), undefined);
-  assert.equal(all(quickModal.contentEl, item => item.tag === 'input' && item.type === 'number').length, 0);
+  assert.equal(all(quickModal.contentEl, item => item.tag === 'input' && item.type === 'number').length, 2, 'levels and size fields');
   assert.ok(find(quickModal.contentEl, item => item['aria-label'] === 'Outline preset'));
   const expandCallsBeforeQuick = expandCalls;
   button(quickModal.modalEl, 'Generate outline').click(); await tick(); await tick();
