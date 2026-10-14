@@ -458,6 +458,27 @@ integrationTest('AIM reviews the other reports when one subtopic search fails', 
   const branch = (await repo.readMap(mapPath)).aim.branches[0];
   assert.deepEqual(plain(branch.results.filter(item => item.kind === 'research').map(item => item.subtopicId)), ['route'], 'the failed search publishes no report');
 });
+integrationTest('AIM reviews the other reports when the provider ran no web search for one subtopic (zh-TW runtime message)', async () => {
+  const { repo, mapPath, question, store } = await aimMapFixture();
+  const map = await repo.readMap(mapPath), questionNode = map.nodes.find(node => node.id === question.id);
+  questionNode.aimKind = 'question';
+  questionNode.aimQuestion = { requestId: 'zh-search-question', parentBranchId: null, options: [{ id: 'history', label: '歷史街區' }, { id: 'museum', label: '博物館' }], allowMultiple: false, allowFreeText: true };
+  await repo.saveMap(mapPath, map);
+  const { AimManualFlow } = load('experiences/aim/manual-flow.ts');
+  let reviewed = '';
+  const flow = new AimManualFlow(repo, store, async context => {
+    if (aimPhase(context, 'research-plan')) return { summary: '路線與無障礙條件', detail: '<!-- aim-plan {"subtopics":[{"id":"route","title":"路線選項","task":"研究可行路線與轉乘","expectedValue":"比較路線方案"},{"id":"access","title":"無障礙條件","task":"研究無障礙步行與車站資訊","expectedValue":"確認實際通行限制"}]} -->', suggestions: [], visualReferences: [] };
+    if (context.researchMode === 'research' && context.task.includes('研究無障礙步行')) throw new Error('AI 服務沒有實際執行網路搜尋，無法提供已查證結果；請確認模型與工具可用性。');
+    if (context.researchMode === 'research') return { summary: 'Route evidence', detail: 'Research status: search completed\nROUTE_REPORT_ONLY a transit route report with its limits.', suggestions: [], visualReferences: [] };
+    if (aimPhase(context, 'report-review')) { reviewed = [context.task, context.ancestors, context.detail].join('\n'); return plannerReview('ask_user', { rationale: 'Travel-time preference remains unknown.', question: 'Should the route prioritize the shortest walk or the fewest transfers?' }, 'Conditional route answer.', 'Use the saved route evidence.', ['Shortest walk', 'Fewest transfers']); }
+    throw new Error(`Unexpected model request: ${context.task.slice(0, 100)}`);
+  });
+  const outcome = await flow.answerAndResearch(mapPath, question.id, { requestId: 'zh-search-answer', selections: ['history'], freeText: '' }, 'gpt-6-luna', 'low');
+  assert.equal(outcome.status, 'waiting-user');
+  assert.match(reviewed, /ROUTE_REPORT_ONLY/);
+  const branch = (await repo.readMap(mapPath)).aim.branches[0];
+  assert.deepEqual(plain(branch.results.filter(item => item.kind === 'research').map(item => item.subtopicId)), ['route'], 'the failed search publishes no report');
+});
 integrationTest('AIM resumes a failed search on the saved answer without duplicating its branch', async () => {
   const { repo, mapPath, question, store } = await aimMapFixture();
   const map = await repo.readMap(mapPath), questionNode = map.nodes.find(node => node.id === question.id);

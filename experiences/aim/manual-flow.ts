@@ -128,6 +128,8 @@ const AIM_REQUEST_TOKEN_LIMIT = 60_000;
 const AIM_INTAKE_COMPLETE = "<!-- aim-intake-complete -->";
 /** With the intake checklist, one answered question can precede a conclusion. */
 const CHECKLIST_FLOOR = 1;
+/** The runtime's translated "provider did not run web search" error, in either interface language. */
+const SEARCH_NOT_PERFORMED = /did not perform web search|沒有實際執行網路搜尋/;
 /** With the intake checklist, after this many answers what is still unknown becomes an assumption to confirm. */
 const CHECKLIST_QUESTION_LIMIT = 5;
 
@@ -548,8 +550,43 @@ export class AimManualFlow {
     return { ...repaired, summary: candidate.summary, detail: body };
   }
 
-  /** One bounded, no-search semantic check for every Planner decision. */
+  /**
+   * One bounded, no-search semantic check for every Planner decision. A result that still asks the user past the
+   * checklist question limit, or a gap that would not change the advice (including one the final delivery review
+   * returns), gets one more pass as a conclusion with that item open for the user to confirm.
+   */
   private async reviewPlannerDecisionQuality(
+    candidate: PlannerReview,
+    context: PlannerQualityContext,
+    model: string,
+    reasoning: unknown,
+    signal?: AbortSignal
+  ): Promise<PlannerReview> {
+    const reviewed = await this.reviewDecisionOnce(candidate, context, model, reasoning, signal);
+    const pastLimit =
+      context.goalDetail.includes(AIM_INTAKE_COMPLETE) && context.answeredQuestionCount >= CHECKLIST_QUESTION_LIMIT;
+    const asksUser =
+      reviewed.decision === "ask_user" || (reviewed.decision === "research_more" && reviewed.gapKind === "user_only");
+    if (!(pastLimit && asksUser) && !(reviewed.decision === "research_more" && reviewed.gapKind === "not_decisive"))
+      return reviewed;
+    throwIfAborted(signal);
+    return this.reviewDecisionOnce(this.limitToOpenItems(reviewed, context), context, model, reasoning, signal);
+  }
+
+  /** A question or a user-only/not-decisive gap becomes a conclusion that lists it for the user to confirm. */
+  private limitToOpenItems(review: PlannerReview, context: PlannerQualityContext): PlannerReview {
+    return review.decision === "ask_user" && review.question
+      ? this.withOpenItems(
+          {
+            ...review,
+            researchTarget: { title: review.question, task: review.rationale, expectedValue: review.question }
+          },
+          context.outputLanguage
+        )
+      : this.withOpenItems(review, context.outputLanguage);
+  }
+
+  private async reviewDecisionOnce(
     candidate: PlannerReview,
     context: PlannerQualityContext,
     model: string,
@@ -580,17 +617,13 @@ export class AimManualFlow {
         : candidate;
     // Question limit of the checklist: past it, a new question or a gap only the user can close becomes an
     // assumption the document lists for the user to confirm, so the run ends with an answer instead of more questions.
-    if (context.goalDetail.includes(AIM_INTAKE_COMPLETE) && context.answeredQuestionCount >= CHECKLIST_QUESTION_LIMIT) {
-      if (reviewed.decision === "ask_user" && reviewed.question)
-        reviewed = this.withOpenItems(
-          {
-            ...reviewed,
-            researchTarget: { title: reviewed.question, task: reviewed.rationale, expectedValue: reviewed.question }
-          },
-          context.outputLanguage
-        );
-      else if (reviewed.decision === "research_more" && reviewed.gapKind === "user_only")
-        reviewed = this.withOpenItems(reviewed, context.outputLanguage);
+    const checklist = context.goalDetail.includes(AIM_INTAKE_COMPLETE);
+    if (checklist && context.answeredQuestionCount >= CHECKLIST_QUESTION_LIMIT) {
+      if (
+        (reviewed.decision === "ask_user" && reviewed.question) ||
+        (reviewed.decision === "research_more" && reviewed.gapKind === "user_only")
+      )
+        reviewed = this.limitToOpenItems(reviewed, context);
       if (reviewed.decision === "conclude" && reviewed.unresolvedConditions?.length)
         reviewed = {
           ...reviewed,
@@ -726,7 +759,7 @@ export class AimManualFlow {
     // The checklist gate: a conclusion that still names an unknown decision-changing condition asks about it first.
     // If that question would repeat one already asked, the user could not settle it, so the conclusion keeps the
     // condition as an assumption to confirm instead.
-    const unresolved = reviewed.decision === "conclude" ? (reviewed.unresolvedConditions ?? []) : [];
+    const unresolved = checklist && reviewed.decision === "conclude" ? (reviewed.unresolvedConditions ?? []) : [];
     if (unresolved.length) {
       const rationale = translate(context.outputLanguage, "note.aim_unresolved_conditions_0", unresolved.join("; "));
       try {
@@ -2997,7 +3030,8 @@ export class AimManualFlow {
             }
             const searchSkipped =
               error instanceof SubtopicSearchUnavailable ||
-              (error instanceof Error && /did not perform web search/.test(error.message));
+              // Read the message without instanceof: the runtime's error may come from another realm.
+              SEARCH_NOT_PERFORMED.test(String((error as { message?: unknown } | null)?.message ?? error));
             if (searchSkipped && !taskSignal.aborted) {
               searchFailure = error;
               return null;
