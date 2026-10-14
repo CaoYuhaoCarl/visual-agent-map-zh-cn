@@ -23943,14 +23943,29 @@ ${request.requirements}` : preset.text,
         );
         return result.nodes;
       },
-      create: (nodes, options) => this.importOutline({
-        nodes,
-        placement: { kind: "under", parentId: node.id },
-        source: null,
-        shallowResearch: !!options.shallowResearch,
-        ...options.shallowResearch ? { researchDepth: "fast" } : {},
-        ...options.detailTemplateId ? { detailTemplateId: options.detailTemplateId } : {}
-      })
+      create: (nodes, options) => {
+        var _a;
+        return this.importOutline({
+          nodes,
+          placement: { kind: "under", parentId: node.id },
+          source: null,
+          shallowResearch: !!options.shallowResearch,
+          researchEveryTopic: true,
+          // Shallow research stays Quick (see the dialog); every other research choice is the dialog's.
+          ...options.shallowResearch ? {
+            researchDepth: "fast",
+            researchOptions: {
+              researchMode: options.researchMode,
+              referenceGroups: (_a = options.referenceGroups) != null ? _a : [],
+              visualMode: options.visualMode,
+              ...options.outputLanguage ? { outputLanguage: options.outputLanguage } : {},
+              ...options.toneId ? { toneId: options.toneId } : {},
+              ...options.requirements ? { requirements: options.requirements } : {}
+            }
+          } : {},
+          ...options.detailTemplateId ? { detailTemplateId: options.detailTemplateId } : {}
+        });
+      }
     };
   }
   /** 「檢視整張圖」 on a root topic, 「檢視這個分支」 on a subtopic with subtopics; nothing on a leaf or an AIM map. */
@@ -24303,7 +24318,7 @@ ${request.requirements}` : preset.text,
       new import_obsidian19.Notice(t("ui.outline_import_partial", outcome.created.length, outcome.total, outcome.failure));
     if (outcome.failure || state.saveFailed || !written || !request.shallowResearch || !outcome.created.length) return;
     const owner = placement.kind === "under" ? placement.parentId : null;
-    const several = owner !== null && request.nodes.filter((node) => node.parent === null).length > 1;
+    const several = owner !== null && (!!request.researchEveryTopic || request.nodes.filter((node) => node.parent === null).length > 1);
     const top = (_a = this.map) == null ? void 0 : _a.nodes.find((node) => node.id === (several ? owner : outcome.created[0].id));
     if (!top) return;
     const ids = new Set((several ? outcome.created : outcome.created.slice(1)).map((node) => node.id));
@@ -24316,9 +24331,10 @@ ${request.requirements}` : preset.text,
           var _a2;
           return this.startShallowResearch(top, children, {
             researchMode: "research",
-            researchDepth: (_a2 = request.researchDepth) != null ? _a2 : "fast",
             referenceGroups: [],
             visualMode: "off",
+            ...request.researchOptions,
+            researchDepth: (_a2 = request.researchDepth) != null ? _a2 : "fast",
             ...request.detailTemplateId ? { detailTemplateId: request.detailTemplateId } : {}
           });
         }

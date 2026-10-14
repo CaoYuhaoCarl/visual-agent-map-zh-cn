@@ -779,7 +779,21 @@ export class VisualAgentMapView extends ItemView {
           placement: { kind: "under", parentId: node.id },
           source: null,
           shallowResearch: !!options.shallowResearch,
-          ...(options.shallowResearch ? { researchDepth: "fast" as const } : {}),
+          researchEveryTopic: true,
+          // Shallow research stays Quick (see the dialog); every other research choice is the dialog's.
+          ...(options.shallowResearch
+            ? {
+                researchDepth: "fast" as const,
+                researchOptions: {
+                  researchMode: options.researchMode,
+                  referenceGroups: options.referenceGroups ?? [],
+                  visualMode: options.visualMode,
+                  ...(options.outputLanguage ? { outputLanguage: options.outputLanguage } : {}),
+                  ...(options.toneId ? { toneId: options.toneId } : {}),
+                  ...(options.requirements ? { requirements: options.requirements } : {})
+                }
+              }
+            : {}),
           ...(options.detailTemplateId ? { detailTemplateId: options.detailTemplateId } : {})
         })
     };
@@ -1144,9 +1158,11 @@ export class VisualAgentMapView extends ItemView {
     if (outcome.failure)
       new Notice(t("ui.outline_import_partial", outcome.created.length, outcome.total, outcome.failure));
     if (outcome.failure || state.saveFailed || !written || !request.shallowResearch || !outcome.created.length) return;
-    // An outline with several top headings (quick explore drops the topic's own root) is researched under the parent.
+    // An outline with several top headings, or one without a root of its own (quick explore drops the topic's root),
+    // is researched under the parent.
     const owner = placement.kind === "under" ? placement.parentId : null;
-    const several = owner !== null && request.nodes.filter(node => node.parent === null).length > 1;
+    const several =
+      owner !== null && (!!request.researchEveryTopic || request.nodes.filter(node => node.parent === null).length > 1);
     const top = this.map?.nodes.find(node => node.id === (several ? owner : outcome.created[0].id));
     if (!top) return;
     // Every other created topic descends from the outline's top topic; the top topic and an "under" parent are not researched.
@@ -1157,9 +1173,10 @@ export class VisualAgentMapView extends ItemView {
       await this.plugin.confirmAiUsage(model, () =>
         this.startShallowResearch(top, children, {
           researchMode: "research",
-          researchDepth: request.researchDepth ?? "fast",
           referenceGroups: [],
           visualMode: "off",
+          ...request.researchOptions,
+          researchDepth: request.researchDepth ?? "fast",
           ...(request.detailTemplateId ? { detailTemplateId: request.detailTemplateId } : {})
         })
       );

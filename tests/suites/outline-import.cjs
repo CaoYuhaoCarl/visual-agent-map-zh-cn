@@ -645,6 +645,34 @@ integrationTest('importOutline under the selected topic with shallow research: r
   for (const item of [sub, ...saved.nodes.filter(node => node.parentId === sub.id)]) assert.equal((await h.repo.readNote(item.path)).model, 'model-x');
 });
 
+integrationTest('quick explore: the real create path researches every created subtopic with the dialog research choices, at Quick depth', async () => {
+  const h = await placementHarness();
+  // The reviewed outline as the Next Step dialog hands it over: the topic's own root is already dropped.
+  const nodes = [{ index: 0, title: 'Food', level: 1, parent: null }, { index: 1, title: 'Breakfast', level: 2, parent: 0 }];
+  const group = { id: 'group-1', label: 'Sources', documents: [{ path: 'Inbox/source.md', content: 'x' }] };
+  const signal = new AbortController().signal;
+  await h.view.quickOutline(h.oldRoot).create(nodes, {
+    researchMode: 'local', researchDepth: 'normal', visualMode: 'auto', referenceGroups: [group], outputLanguage: 'zh-TW',
+    toneId: 'tone-1', requirements: 'Keep it short', shallowResearch: true, multiLayer: true, signal, onProgress: () => {}
+  });
+  const saved = await h.repo.readMap(h.mapPath);
+  const food = saved.nodes.find(item => item.parentId === h.oldRoot.id && item.id !== h.oldChild.id);
+  const breakfast = saved.nodes.find(item => item.parentId === food.id);
+  assert.equal(await h.titleOf(food.id), 'Food'); assert.equal(await h.titleOf(breakfast.id), 'Breakfast');
+  assert.equal(h.researched.length, 1);
+  assert.equal(h.researched[0].parent, h.oldRoot.id, 'researched under the topic quick explore ran on');
+  assert.deepEqual(plain(h.researched[0].children.slice().sort()), plain([food.id, breakfast.id].sort()), 'the single top heading is researched too');
+  const options = h.researched[0].options;
+  assert.equal(options.researchMode, 'local'); assert.equal(options.researchDepth, 'fast', 'shallow research stays Quick');
+  assert.equal(options.visualMode, 'auto'); assert.equal(options.outputLanguage, 'zh-TW'); assert.equal(options.toneId, 'tone-1');
+  assert.equal(options.requirements, 'Keep it short'); assert.equal(JSON.stringify(options.referenceGroups), JSON.stringify([group]));
+  assert.equal(options.signal, undefined); assert.equal(options.onProgress, undefined);
+  // Without shallow research nothing is researched.
+  const g = await placementHarness();
+  await g.view.quickOutline(g.oldRoot).create(nodes, { researchMode: 'local', researchDepth: 'fast', visualMode: 'off', shallowResearch: false });
+  assert.equal(g.researched.length, 0);
+});
+
 integrationTest('importOutline into the open map: a partial failure keeps every created note in the map and skips research', async () => {
   for (const kind of ['tree', 'under']) {
     const h = await placementHarness();

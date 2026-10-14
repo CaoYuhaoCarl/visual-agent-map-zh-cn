@@ -2,6 +2,7 @@ import { App, Modal, Notice } from "obsidian";
 import { t } from "../../i18n";
 import { parseOutline, type OutlineIssue, type OutlineNode } from "./outline-import";
 import type { ResearchDepth } from "../../ai/types";
+import type { TaskOptions } from "./modals";
 import { modelField, researchDepthField, templateField, type ModelChoices } from "./research-fields";
 import { actionStatus, armDiscard, modalActions } from "../../ui/modals/action-bar";
 import type { PromptPresetsHost } from "../../ui/modals/prompt-presets-modal";
@@ -37,6 +38,19 @@ export interface OutlineImportRequest {
   shallowResearch: boolean;
   /** Shallow research depth (fast when omitted). */
   researchDepth?: ResearchDepth;
+  /**
+   * The research choices for the shallow research (quick explore passes its dialog's); without them it searches the
+   * web with no reference groups, no images, the workspace language and tone, and no extra requirements.
+   */
+  researchOptions?: Pick<
+    TaskOptions,
+    "researchMode" | "referenceGroups" | "visualMode" | "outputLanguage" | "toneId" | "requirements"
+  >;
+  /**
+   * The outline has no root of its own (quick explore drops the topic it was generated for): every created topic is
+   * researched under the "under" parent, even when the outline has a single top heading.
+   */
+  researchEveryTopic?: boolean;
   /** Model for the new topics and their shallow research; undefined uses the workspace default. */
   model?: string;
   /**
