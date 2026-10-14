@@ -907,6 +907,8 @@ export default class VisualAgentMapPlugin extends Plugin {
     leaf.view.containerEl.toggleClass("vam-topic-markdown", !!leaf.view.file && this.isNode(leaf.view.file));
   }
   onunload(): void {
+    // In-flight work (a long Obsidian rename, a queued mutation) must not write into the vault after this point.
+    this.repo?.dispose();
     void this.coffeeManager?.stop();
     this.coffeeManager = null;
     this.resetCodexRuntime();

@@ -705,6 +705,7 @@ var english = {
   "error.map_folder_exists": "Folder name not changed: the new folder already contains a topic with the same name.",
   "error.map_folder_unreadable": "Folder name not changed: a map in the folder cannot be read, so it would be left behind. Fix or move it first.",
   "error.map_folder_rename_failed": "Folder name not changed: the folder could not be renamed.",
+  "error.plugin_unloaded": "Visual Agent Map was unloaded, so the operation stopped before its next step.",
   "error.legacy_map_view_only": "This map uses the pre-0.4 structure and is view-only.",
   "ui.organize_workspace_folders": "Organize workspace folders",
   "ui.organize_nothing_to_do": "No maps in the legacy Topics folder need organizing.",
@@ -2106,6 +2107,7 @@ var traditionalChinese = {
   "error.map_folder_exists": "\u8CC7\u6599\u593E\u540D\u7A31\u672A\u8B8A\u66F4\uFF1A\u65B0\u8CC7\u6599\u593E\u5167\u5DF2\u6709\u540C\u540D\u9805\u76EE\u3002",
   "error.map_folder_unreadable": "\u8CC7\u6599\u593E\u540D\u7A31\u672A\u8B8A\u66F4\uFF1A\u8CC7\u6599\u593E\u5167\u6709\u7121\u6CD5\u8B80\u53D6\u7684\u5FC3\u667A\u5716\uFF0C\u6703\u88AB\u7559\u5728\u539F\u8655\u3002\u8ACB\u5148\u4FEE\u5FA9\u6216\u79FB\u8D70\u3002",
   "error.map_folder_rename_failed": "\u8CC7\u6599\u593E\u540D\u7A31\u672A\u8B8A\u66F4\uFF1A\u7121\u6CD5\u91CD\u65B0\u547D\u540D\u8A72\u8CC7\u6599\u593E\u3002",
+  "error.plugin_unloaded": "Visual Agent Map \u5DF2\u5378\u8F09\uFF0C\u64CD\u4F5C\u5728\u4E0B\u4E00\u6B65\u4E4B\u524D\u505C\u6B62\u3002",
   "error.legacy_map_view_only": "\u6B64\u5FC3\u667A\u5716\u4F7F\u7528 0.4 \u524D\u7684\u820A\u7D50\u69CB\uFF0C\u53EA\u80FD\u6AA2\u8996\u3002",
   "ui.organize_workspace_folders": "\u6574\u7406\u5DE5\u4F5C\u5340\u8CC7\u6599\u593E",
   "ui.organize_nothing_to_do": "\u820A Topics \u8CC7\u6599\u593E\u5167\u6C92\u6709\u9700\u8981\u6574\u7406\u7684\u5FC3\u667A\u5716\u3002",
@@ -12634,14 +12636,59 @@ ${REFERENCE_END}
 function noteLink(path) {
   return path.replace(/\.md$/, "").replace(/\|/g, "\\|");
 }
+var VAULT_WRITES = /* @__PURE__ */ new Set([
+  "create",
+  "createBinary",
+  "createFolder",
+  "modify",
+  "process",
+  "append",
+  "delete",
+  "trash",
+  "rename",
+  "copy"
+]);
+var FILE_MANAGER_WRITES = /* @__PURE__ */ new Set(["renameFile", "trashFile", "processFrontMatter"]);
+function guardWrites(target, writes, disposed, message) {
+  return new Proxy(target, {
+    get(object2, property) {
+      const value = Reflect.get(object2, property, object2);
+      if (typeof property !== "string" || typeof value !== "function") return value;
+      const call = value;
+      return writes.has(property) ? (...args) => {
+        if (disposed()) return Promise.reject(new Error(message));
+        return call.apply(object2, args);
+      } : call.bind(object2);
+    }
+  });
+}
 var Repository = class {
   constructor(app, settings) {
-    this.app = app;
     this.settings = settings;
+    __publicField(this, "app");
+    /** Set when the plugin unloads: from then on no Repository write point does anything (in-flight work stops at its next write). */
+    __publicField(this, "disposed", false);
     /** Containers that temporarily count as managed while a folder-setting change moves topics into them. */
     __publicField(this, "pendingContainers", []);
     /** Called once per vault-wide scan that skipped unreadable maps. */
     __publicField(this, "onUnreadableMaps");
+    const stopped = () => this.disposed;
+    const message = "Visual Agent Map was unloaded; this write was not performed.";
+    this.app = new Proxy(app, {
+      get(object2, property) {
+        const value = Reflect.get(object2, property, object2);
+        if (property === "vault") return guardWrites(value, VAULT_WRITES, stopped, message);
+        if (property === "fileManager") return guardWrites(value, FILE_MANAGER_WRITES, stopped, message);
+        return value;
+      }
+    });
+  }
+  /** Called from onunload: no later write (including a rollback) may happen. */
+  dispose() {
+    this.disposed = true;
+  }
+  isDisposed() {
+    return this.disposed;
   }
   message(key2) {
     return translate(this.settings.language, key2);
@@ -13493,6 +13540,7 @@ ${body}`;
     });
     try {
       for (const move of moves) {
+        if (this.disposed) throw new Error(this.message("error.plugin_unloaded"));
         await this.folder(parentPath(move.toRoot));
         const originalMap = await this.app.vault.read(this.file(move.mapPath));
         const newMapPath = await this.renameTopic(move.mapPath, move.title, move.toRoot, { rebuild: false });
@@ -35201,8 +35249,9 @@ ${t("ui.organize_skipped_list_0", plan.skipped.map((item) => item.mapPath).join(
     leaf.view.containerEl.toggleClass("vam-topic-markdown", !!leaf.view.file && this.isNode(leaf.view.file));
   }
   onunload() {
-    var _a;
-    void ((_a = this.coffeeManager) == null ? void 0 : _a.stop());
+    var _a, _b;
+    (_a = this.repo) == null ? void 0 : _a.dispose();
+    void ((_b = this.coffeeManager) == null ? void 0 : _b.stop());
     this.coffeeManager = null;
     this.resetCodexRuntime();
   }

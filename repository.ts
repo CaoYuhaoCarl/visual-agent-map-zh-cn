@@ -575,11 +575,65 @@ function noteLink(path: string): string {
   return path.replace(/\.md$/, "").replace(/\|/g, "\\|");
 }
 
+const VAULT_WRITES = new Set([
+  "create",
+  "createBinary",
+  "createFolder",
+  "modify",
+  "process",
+  "append",
+  "delete",
+  "trash",
+  "rename",
+  "copy"
+]);
+const FILE_MANAGER_WRITES = new Set(["renameFile", "trashFile", "processFrontMatter"]);
+
+/** A view of `target` whose write methods throw once `disposed()` is true; reads and everything else pass through. */
+function guardWrites<T extends object>(target: T, writes: Set<string>, disposed: () => boolean, message: string): T {
+  return new Proxy(target, {
+    get(object, property) {
+      const value = Reflect.get(object, property, object) as unknown;
+      if (typeof property !== "string" || typeof value !== "function") return value;
+      const call = value as (...args: unknown[]) => unknown;
+      return writes.has(property)
+        ? (...args: unknown[]) => {
+            if (disposed()) return Promise.reject(new Error(message));
+            return call.apply(object, args);
+          }
+        : call.bind(object);
+    }
+  });
+}
+
 export class Repository {
+  readonly app: App;
+  /** Set when the plugin unloads: from then on no Repository write point does anything (in-flight work stops at its next write). */
+  private disposed = false;
+
   constructor(
-    readonly app: App,
+    app: App,
     readonly settings: Settings
-  ) {}
+  ) {
+    const stopped = (): boolean => this.disposed;
+    const message = "Visual Agent Map was unloaded; this write was not performed.";
+    this.app = new Proxy(app, {
+      get(object, property) {
+        const value = Reflect.get(object, property, object) as unknown;
+        if (property === "vault") return guardWrites(value as object, VAULT_WRITES, stopped, message);
+        if (property === "fileManager") return guardWrites(value as object, FILE_MANAGER_WRITES, stopped, message);
+        return value;
+      }
+    });
+  }
+
+  /** Called from onunload: no later write (including a rollback) may happen. */
+  dispose(): void {
+    this.disposed = true;
+  }
+  isDisposed(): boolean {
+    return this.disposed;
+  }
 
   /** Containers that temporarily count as managed while a folder-setting change moves topics into them. */
   private pendingContainers: string[] = [];
@@ -1590,6 +1644,7 @@ export class Repository {
     });
     try {
       for (const move of moves) {
+        if (this.disposed) throw new Error(this.message("error.plugin_unloaded"));
         await this.folder(parentPath(move.toRoot));
         const originalMap = await this.app.vault.read(this.file(move.mapPath));
         const newMapPath = await this.renameTopic(move.mapPath, move.title, move.toRoot, { rebuild: false });

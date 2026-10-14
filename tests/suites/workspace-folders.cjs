@@ -514,3 +514,36 @@ integrationTest('Organize and folder changes rebuild only the moved topics: note
   assert.notEqual(contents.get(stay.path), strayBefore, 'control: a vault-wide rebuild does rewrite that note');
   await assertResolves({ ...vault, contents });
 });
+
+integrationTest('after onunload an in-flight Organize performs zero further writes, even to roll back', async () => {
+  const vault = await legacyVault();
+  const { repo, app } = vault;
+  app.vault.modify = async (file, content) => app.vault.process(file, () => content);
+  const { default: Plugin } = load('main.ts', { obsidian });
+  const plugin = new Plugin();
+  Object.assign(plugin, { app, repo, settings: repo.settings });
+  const plan = await repo.planOrganizeWorkspaceFolders();
+  // Obsidian's rename can take a long time (it waits for its link-update queue). Hold the first one open.
+  const realRename = app.fileManager.renameFile;
+  let release; const held = new Promise(resolve => { release = resolve; });
+  let renames = 0;
+  app.fileManager.renameFile = async (item, target) => { renames++; await held; return realRename(item, target); };
+  const writes = [];
+  let unloaded = false;
+  for (const name of ['create', 'createFolder', 'modify', 'process']) {
+    const original = app.vault[name];
+    app.vault[name] = async (...args) => { if (unloaded) writes.push(`vault.${name}`); return original.apply(app.vault, args); };
+  }
+  const afterRename = app.fileManager.renameFile;
+  app.fileManager.renameFile = async (...args) => { if (unloaded) writes.push('fileManager.renameFile'); return afterRename(...args); };
+  const running = repo.organizeWorkspaceFolders(plan);
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.equal(renames, 1, 'the first rename is in flight');
+  plugin.onunload(); unloaded = true;
+  release();
+  await assert.rejects(running, /unloaded|rollback also failed/);
+  assert.deepEqual(writes, [], 'nothing was written after onunload');
+  assert.equal(renames, 1, 'no second topic was started');
+  assert.ok(repo.isDisposed());
+  await assert.rejects(repo.createMap('Late'), /unloaded/);
+});
