@@ -1339,15 +1339,11 @@ integrationTest('startup opens no topic outline, including on first install, whi
 });
 integrationTest('card tools: the sparkle waits for hover, focus or selection; the selected card shows a labelled AI explore action', () => {
   const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
-  const hide = css.match(/^\.vam-node-tools > :where\((.*)\) \{ opacity: 0;/m);
-  assert.ok(hide, 'one low-specificity rule hides the tools');
-  assert.ok(!hide[1].includes('vam-ai-tool'), 'the sparkle is hidden like the other tools');
-  assert.match(css, /\.vam-node\.is-selected \.vam-node-tools > \*[^{]*\{ opacity: 1; \}/); assert.match(css, /\.vam-node:hover \.vam-node-tools > \*/); assert.match(css, /\.vam-node:focus-within \.vam-node-tools > \*/);
-  // Both actions share one grid cell and swap by visibility, so selecting a card keeps the header's width and wrap.
-  assert.match(css, /\.vam-node-tools > \.vam-ai-slot \{ display: inline-grid;/); assert.match(css, /\.vam-ai-slot > \* \{ grid-area: 1 \/ 1; \}/);
-  assert.match(css, /\.vam-ai-slot > \.vam-ai-explore \{ visibility: hidden;/); assert.match(css, /\.vam-node\.is-selected \.vam-ai-slot > \.vam-ai-explore \{ visibility: visible; \}/);
-  assert.match(css, /\.vam-node\.is-selected \.vam-ai-slot > \.vam-ai-tool \{ visibility: hidden; \}/);
-  assert.doesNotMatch(css, /vam-ai-(explore|tool) \{ display: none/, 'no display swap that changes the width');
+  // The tools (sparkle included) float over the card's top edge, hidden until hover, focus or selection, and take no space.
+  assert.match(css, /^\.vam-node > \.vam-node-tools \{ position: absolute;[^}]*bottom: calc\(100% - 6px\);[^}]*opacity: 0; pointer-events: none;/m);
+  assert.match(css, /\.vam-node:hover > \.vam-node-tools, \.vam-node:focus-within > \.vam-node-tools, \.vam-node\.is-selected > \.vam-node-tools \{ opacity: 1; pointer-events: auto;/);
+  assert.match(css, /\.vam-ai-slot > \.vam-ai-explore \{ display: none;/); assert.match(css, /\.vam-node\.is-selected \.vam-ai-slot > \.vam-ai-explore \{ display: inline-flex; \}/);
+  assert.match(css, /\.vam-node\.is-selected \.vam-ai-slot > \.vam-ai-tool \{ display: none; \}/);
   const fixture = selectionView(load);
   fixture.build();
   const buttons = [];
@@ -1584,4 +1580,20 @@ integrationTest('outline highlight follows the selected topic on in-place and fu
     view.commitSelection(previous, null, []);
     assert.equal(outline.at(-1), 'opened.md', `clearing selection falls back to the opened note (aim=${aim})`);
   }
+});
+integrationTest('card layout never depends on hover, focus or selection: state rules only change color, opacity and shadow', () => {
+  const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const layout = /^(display|width|min-width|max-width|height|min-height|max-height|padding[a-z-]*|margin[a-z-]*|font-size|font-weight|border(-(top|right|bottom|left))?(-width)?|gap|row-gap|column-gap|flex[a-z-]*|grid[a-z-]*|position|line-height|letter-spacing|white-space|order)$/;
+  const state = /:hover|\.is-selected|:focus-within|:focus-visible|:focus\b|:active/;
+  const offenders = [];
+  for (const [, selectors, body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    // Only what sits inside a card's flow matters; the floating toolbar and its contents never move the card's content.
+    const inCard = selectors.split(',').map(s => s.trim()).filter(s => /vam-node\b|vam-node-header|vam-card-|vam-status/.test(s) && state.test(s) && !/vam-node-tools|vam-ai-slot|vam-add-child/.test(s));
+    if (!inCard.length) continue;
+    for (const declaration of body.split(';')) {
+      const property = declaration.split(':')[0].trim();
+      if (layout.test(property) && !(property === 'border' && /^\s*border:\s*[^;]*\b1px\b/.test(declaration))) offenders.push(`${inCard.join(', ')} { ${declaration.trim()} }`);
+    }
+  }
+  assert.deepEqual(offenders, [], 'a hover/focus/selection rule changes card layout');
 });

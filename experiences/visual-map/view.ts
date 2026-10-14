@@ -3469,21 +3469,12 @@ export class VisualAgentMapView extends ItemView {
         this.button(header, t("ui.discard_synthesis"), () => this.discardSynthesis(node));
       }
     }
-    // Tools sit after the status badges; only the AI action stays visible until the card is hovered or focused.
-    const tools = header.createDiv("vam-node-tools");
-    // Actions on a running or waiting card (stop, retry, review) lead the tools row and stay visible; the status text
-    // keeps the first row to itself, so hovering or selecting the card never re-wraps the header.
-    const actions = Array.from(header.children).filter(child => child.tagName === "BUTTON");
-    for (const action of actions) {
-      action.addClass("vam-node-action", "vam-pinned-tool");
-      tools.appendChild(action);
-    }
-    actions.at(-1)?.addClass("is-last-action");
-    if (actions.length) card.addClass("has-actions");
+    // Hover-only tools float above the card's top edge, so showing them (hover, focus, selection) never moves the card's
+    // content. What must always show (status, stop and review actions, a folded branch's count) stays in the header.
+    const tools = card.createDiv("vam-node-tools");
     if (!this.builtIn && !this.integrationMode) {
       if (!this.map?.aim) {
-        // The selected card swaps the bare icon for a labelled action (CSS keys off .is-selected). Both share one slot
-        // as wide as the wider of the two, so selecting a card never re-wraps its header.
+        // The selected card swaps the bare icon for a labelled action (CSS keys off .is-selected).
         const slot = tools.createSpan("vam-ai-slot");
         const ai = this.iconButton(slot, "sparkles", t("ui.how_would_you_like_to_explore_next"), () =>
           this.openNextStep(node)
@@ -3511,7 +3502,7 @@ export class VisualAgentMapView extends ItemView {
         this.map.aim.branches.some(branch => branch.results.some(result => result.nodeId === node.id))
       ) {
         const next = this.button(
-          tools,
+          header,
           t("ui.aim_new_question"),
           () => void this.planAimFromSelection(node.id),
           this.aimBusy
@@ -3529,14 +3520,18 @@ export class VisualAgentMapView extends ItemView {
     ).addClass("vam-detail-button");
     const count = descendants(this.map!.nodes, node.id).size;
     if (count && !this.builtIn) {
-      const collapse = this.button(tools, node.collapsed ? t("ui.expand_0", count) : t("ui.collapse"), () =>
-        this.enqueue(() =>
-          this.mapChange(map => {
-            const n = map.nodes.find(n => n.id === node.id)!;
-            n.collapsed = !n.collapsed;
-            map.nodes = arrangeMap(map.nodes);
-          })
-        )
+      // A folded branch keeps its count on the card; the fold action itself is a hover tool.
+      const collapse = this.button(
+        node.collapsed ? header : tools,
+        node.collapsed ? t("ui.expand_0", count) : t("ui.collapse"),
+        () =>
+          this.enqueue(() =>
+            this.mapChange(map => {
+              const n = map.nodes.find(n => n.id === node.id)!;
+              n.collapsed = !n.collapsed;
+              map.nodes = arrangeMap(map.nodes);
+            })
+          )
       );
       collapse.addClass("vam-collapse-button", ...(node.collapsed ? ["is-collapsed"] : []));
       collapse.setAttr("aria-expanded", String(!node.collapsed));

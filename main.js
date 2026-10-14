@@ -26304,7 +26304,7 @@ ${request.requirements}` : preset.text,
     }
   }
   renderNode(node) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C, _D, _E;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C, _D;
     if (!this.stageEl) return;
     const note = this.notes.get(node.id), card = this.stageEl.createDiv({
       cls: `vam-node${node.id === this.selected || this.multiSelected.has(node.id) ? " is-selected" : ""}`
@@ -26444,16 +26444,9 @@ ${request.requirements}` : preset.text,
         this.button(header, t("ui.discard_synthesis"), () => this.discardSynthesis(node));
       }
     }
-    const tools = header.createDiv("vam-node-tools");
-    const actions = Array.from(header.children).filter((child) => child.tagName === "BUTTON");
-    for (const action of actions) {
-      action.addClass("vam-node-action", "vam-pinned-tool");
-      tools.appendChild(action);
-    }
-    (_q = actions.at(-1)) == null ? void 0 : _q.addClass("is-last-action");
-    if (actions.length) card.addClass("has-actions");
+    const tools = card.createDiv("vam-node-tools");
     if (!this.builtIn && !this.integrationMode) {
-      if (!((_r = this.map) == null ? void 0 : _r.aim)) {
+      if (!((_q = this.map) == null ? void 0 : _q.aim)) {
         const slot = tools.createSpan("vam-ai-slot");
         const ai = this.iconButton(
           slot,
@@ -26487,9 +26480,9 @@ ${request.requirements}` : preset.text,
         this.iconButton(tools, "x", t("ui.remove_from_map"), () => this.confirmRemoveNode(node)).addClass(
           "vam-node-tool"
         );
-      if (((_s = this.map) == null ? void 0 : _s.aim) && node.aimKind === "synthesis" && this.map.aim.branches.some((branch) => branch.results.some((result) => result.nodeId === node.id))) {
+      if (((_r = this.map) == null ? void 0 : _r.aim) && node.aimKind === "synthesis" && this.map.aim.branches.some((branch) => branch.results.some((result) => result.nodeId === node.id))) {
         const next = this.button(
-          tools,
+          header,
           t("ui.aim_new_question"),
           () => void this.planAimFromSelection(node.id),
           this.aimBusy
@@ -26508,7 +26501,7 @@ ${request.requirements}` : preset.text,
     const count = descendants(this.map.nodes, node.id).size;
     if (count && !this.builtIn) {
       const collapse = this.button(
-        tools,
+        node.collapsed ? header : tools,
         node.collapsed ? t("ui.expand_0", count) : t("ui.collapse"),
         () => this.enqueue(
           () => this.mapChange((map) => {
@@ -26521,23 +26514,23 @@ ${request.requirements}` : preset.text,
       collapse.addClass("vam-collapse-button", ...node.collapsed ? ["is-collapsed"] : []);
       collapse.setAttr("aria-expanded", String(!node.collapsed));
     }
-    if (!this.builtIn && !this.integrationMode && !((_t = this.map) == null ? void 0 : _t.aim)) {
+    if (!this.builtIn && !this.integrationMode && !((_s = this.map) == null ? void 0 : _s.aim)) {
       const add = this.button(card, "+", () => this.enqueue(() => this.addNode(node)));
       add.addClass("vam-add-child");
       add.setAttr("aria-label", t("ui.add_subtopic_manually"));
     }
-    const title = card.createEl("h3", { text: (_u = note == null ? void 0 : note.title) != null ? _u : node.path, cls: "vam-card-title" });
-    title.setAttr("title", (_v = note == null ? void 0 : note.title) != null ? _v : node.path);
+    const title = card.createEl("h3", { text: (_t = note == null ? void 0 : note.title) != null ? _t : node.path, cls: "vam-card-title" });
+    title.setAttr("title", (_u = note == null ? void 0 : note.title) != null ? _u : node.path);
     if (!note || !isPlaceholder(note.summary))
       card.createEl("p", {
         cls: "vam-card-summary",
-        text: (_w = note == null ? void 0 : note.summary) != null ? _w : t("ui.the_file_was_moved_or_deleted_you_can_remove_this_node_from")
+        text: (_v = note == null ? void 0 : note.summary) != null ? _v : t("ui.the_file_was_moved_or_deleted_you_can_remove_this_node_from")
       });
     if (errorDetails.length) {
       const error = card.createEl("p", { cls: "vam-card-error", text: errorDetails[0] });
       error.setAttr("title", errorDetails.join("\n"));
     }
-    if (node.aimKind === "conclusion" && ((_x = this.map) == null ? void 0 : _x.aim) && !this.builtIn) {
+    if (node.aimKind === "conclusion" && ((_w = this.map) == null ? void 0 : _w.aim) && !this.builtIn) {
       const branch = this.map.aim.branches.find((item) => item.results.some((result) => result.nodeId === node.id));
       const hasFollowup = this.map.nodes.some((item) => item.parentId === node.id && item.aimKind === "question");
       if (branch && !hasFollowup && countAimAnsweredQuestions(this.map, branch.id) < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION) {
@@ -26550,7 +26543,7 @@ ${request.requirements}` : preset.text,
         ).addClass("mod-cta");
       }
     }
-    if (node.aimKind === "topic" && ((_y = this.map) == null ? void 0 : _y.aim) && !this.map.nodes.some((item) => item.aimKind === "question")) {
+    if (node.aimKind === "topic" && ((_x = this.map) == null ? void 0 : _x.aim) && !this.map.nodes.some((item) => item.aimKind === "question")) {
       const initialBranch = this.map.aim.branches.find((item) => item.questionNodeId === node.id && !item.parentBranchId);
       const initialRuns = initialBranch ? this.map.aim.runs.filter((item) => item.branchId === initialBranch.id) : [];
       const activeInitialRun = initialRuns.some((run) => {
@@ -26586,11 +26579,11 @@ ${request.requirements}` : preset.text,
         );
       }
     }
-    if (node.aimKind === "question" && ((_z = this.map) == null ? void 0 : _z.aim)) {
+    if (node.aimKind === "question" && ((_y = this.map) == null ? void 0 : _y.aim)) {
       const branch = this.map.aim.branches.find((item) => item.questionNodeId === node.id);
       if (branch) {
         this.renderAimFailure(card, branch);
-        const labels = (_B = (_A = node.aimQuestion) == null ? void 0 : _A.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _B : branch.answerSnapshot.selections;
+        const labels = (_A = (_z = node.aimQuestion) == null ? void 0 : _z.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _A : branch.answerSnapshot.selections;
         const answer = [...labels, branch.answerSnapshot.freeText].filter(Boolean).join(" \u2014 ");
         card.createEl("p", {
           cls: "vam-aim-answer-snapshot",
@@ -26633,11 +26626,11 @@ ${request.requirements}` : preset.text,
         }
       }
     }
-    if (node.aimKind === "answer" && ((_C = this.map) == null ? void 0 : _C.aim)) {
+    if (node.aimKind === "answer" && ((_B = this.map) == null ? void 0 : _B.aim)) {
       const branch = this.map.aim.branches.find((item) => item.answerNodeId === node.id);
       const question = branch && this.map.nodes.find((item) => item.id === branch.questionNodeId);
       if (branch) {
-        const labels = (_E = (_D = question == null ? void 0 : question.aimQuestion) == null ? void 0 : _D.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _E : branch.answerSnapshot.selections;
+        const labels = (_D = (_C = question == null ? void 0 : question.aimQuestion) == null ? void 0 : _C.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _D : branch.answerSnapshot.selections;
         const answer = [...labels, branch.answerSnapshot.freeText].filter(Boolean).join(" \u2014 ");
         card.createEl("p", {
           cls: "vam-aim-answer-snapshot",
