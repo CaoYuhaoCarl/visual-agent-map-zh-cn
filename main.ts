@@ -480,6 +480,11 @@ export default class VisualAgentMapPlugin extends Plugin {
         new Notice(t("ui.topic_note_display_repaired"));
       });
     });
+    this.addLocalizedCommand("organize-workspace-folders", "ui.organize_workspace_folders", () => {
+      void this.offerOrganizeWorkspaceFolders().catch(
+        error => new Notice(error instanceof Error ? error.message : String(error))
+      );
+    });
     this.addLocalizedCommand("open-built-in-sample", "ui.open_the_taiwan_travel_sample", () => {
       void this.activateBuiltInSample(true);
     });
@@ -628,6 +633,44 @@ export default class VisualAgentMapPlugin extends Plugin {
     const pending = this.firstInstallSamplePending;
     this.firstInstallSamplePending = false;
     return pending;
+  }
+  /** Owner-run only: previews the move of legacy Topics maps into Mind Maps / AIM and writes nothing until confirmed. */
+  async offerOrganizeWorkspaceFolders(): Promise<void> {
+    const plan = await this.repo.planOrganizeWorkspaceFolders();
+    if (!plan.moves.length) {
+      new Notice(
+        plan.skipped.length ? t("ui.organize_only_skipped_0", plan.skipped.length) : t("ui.organize_nothing_to_do")
+      );
+      return;
+    }
+    const busyOpen = this.views().some(view => plan.moves.some(move => view.hasActiveAimWork(move.mapPath)));
+    if (plan.busy.length || busyOpen) {
+      new Notice(t("error.organize_aim_busy"));
+      return;
+    }
+    const mind = plan.moves.filter(move => move.kind === "mind").length;
+    let description = t(
+      "ui.organize_preview_0_1_2_3_4",
+      mind,
+      plan.moves.length - mind,
+      plan.skipped.length,
+      this.settings.mindMapsFolder,
+      this.settings.aimFolder
+    );
+    if (plan.skipped.length)
+      description += `\n${t("ui.organize_skipped_list_0", plan.skipped.map(item => item.mapPath).join(", "))}`;
+    new ChoiceModal(this.app, t("ui.organize_workspace_folders"), description, [
+      {
+        label: t("ui.organize_start"),
+        action: () =>
+          this.runMutation(async () => {
+            const mapping = await this.repo.organizeWorkspaceFolders(plan);
+            for (const view of this.views()) view.relocate(mapping);
+            this.app.workspace.requestSaveLayout();
+            new Notice(t("ui.organize_done_0", mapping.size));
+          })
+      }
+    ]).open();
   }
   async repairWorkspace(): Promise<void> {
     await this.repo.ensureWorkspace();

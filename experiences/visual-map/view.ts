@@ -1786,6 +1786,24 @@ export class VisualAgentMapView extends ItemView {
       });
     }, 400);
   }
+  /** Whether this view is running or saving AIM work for the map at `path`. */
+  hasActiveAimWork(path: string): boolean {
+    return (
+      this.path === path &&
+      !!this.map?.aim &&
+      (this.aimBusy ||
+        this.map.aim.runs.some(run =>
+          run.attempts.some(attempt => attempt.status === "running" || attempt.status === "saving")
+        ))
+    );
+  }
+  /** After "Organize workspace folders" moved maps: follow the open map to its new path (the next synchronize reloads it). */
+  relocate(moved: Map<string, string>): void {
+    const next = moved.get(this.path);
+    if (!next) return;
+    this.path = next;
+    this.history.clear();
+  }
   async renamed(file: TFile, oldPath: string): Promise<void> {
     if (this.path === oldPath) this.path = file.path;
     if (this.map) {

@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict');
-const { integrationTest, load, core, map, obsidian, fixture, DEFAULT_SETTINGS } = require('../support.cjs');
+const { integrationTest, load, core, map, plain, obsidian, fixture, DEFAULT_SETTINGS } = require('../support.cjs');
 const repository = load('repository.ts', { obsidian });
 const { createAimMap } = load('experiences/aim/create-map.ts');
 const newAim = async (repo, topic) => (await createAimMap(repo, 'gpt-6-luna', { requestId: `req-${topic}`, topic, context: '' })).mapPath;
@@ -96,4 +96,238 @@ integrationTest('a pre-0.4 map outside every container opens and reads, but rena
   assert.equal((await repo.readMap(mapPath)).title, 'Old map');
   assert.equal(repository.isManagedMapPath(repo.settings, mapPath), false);
   await assert.rejects(repo.renameTopic(mapPath, 'Renamed'), /pre-0\.4 structure and is view-only/);
+});
+
+// ---- Organize workspace folders -------------------------------------------------------------------------------
+const { AimRunStore } = load('experiences/aim/research-run-store.ts');
+const LEGACY = 'Agent Workspace/Topics';
+const bodyOf = (title, links) => `\n# ${title}\n\n## Detail\n\n${links}\n`;
+
+/** A 0.18-style vault: legacy Topics holds two mind maps and one AIM map; an unfiled VAM note cites a moved note. */
+async function legacyVault() {
+  const data = fixture('en');
+  const { repo, app } = data;
+  app.vault.modify = async (file, content) => app.vault.process(file, () => content);
+  await repo.folder(LEGACY);
+  const toLegacy = (mapPath, title) => repo.renameTopic(mapPath, title, `${LEGACY}/${title}`);
+  const addNotes = async (mapPath) => {
+    const doc = await repo.readMap(mapPath);
+    const first = await repo.createNote('First', 'model', doc, mapPath, 'workspace');
+    const second = await repo.createNote('Second', 'model', doc, mapPath, 'inherited');
+    second.parentId = first.id;
+    doc.nodes.push(first, second);
+    await repo.saveMap(mapPath, doc);
+    await repo.updateNote(first.path, { detail: 'Links to [[Second]] by its short name.' });
+    await repo.updateNote(second.path, { sourcePaths: [first.path], referencePaths: [first.path] });
+  };
+  const alpha = await toLegacy(await repo.createMap('Alpha'), 'Alpha'); await addNotes(alpha);
+  const beta = await toLegacy(await repo.createMap('Beta'), 'Beta'); await addNotes(beta);
+  const gammaCreated = (await createAimMap(repo, 'gpt-6-luna', { requestId: 'req-gamma', topic: 'Gamma', context: '' })).mapPath;
+  const gamma = await toLegacy(gammaCreated, 'Gamma');
+  const aimDoc = await repo.readMap(gamma);
+  const question = await repo.createNote('Question', 'gpt-6-luna', aimDoc, gamma, 'workspace');
+  aimDoc.nodes.push(question); await repo.saveMap(gamma, aimDoc);
+  const paths = { alpha, beta, gamma };
+  const cites = 'Agent Workspace/Unfiled/Cites.md';
+  await repo.folder('Agent Workspace/Unfiled');
+  const betaFirst = (await repo.readMap(beta)).nodes[0].path;
+  await app.vault.create(cites, `---\nagent-map-node: true\nnode-id: "cites"\ntitle: "Cites"\ntopic-state: unassigned\nsource-notes: ${JSON.stringify([betaFirst])}\n---\n${bodyOf('Cites', '')}`);
+  await repo.rebuildDerivedData();
+  return { ...data, paths, cites, betaFirst };
+}
+const snapshot = ({ files, contents }) => ({ paths: [...files.keys()].sort(), contents: new Map(contents) });
+function assertUnchanged(vault, before, message) {
+  assert.deepEqual([...vault.files.keys()].sort(), before.paths, `${message}: file and folder paths`);
+  assert.equal(vault.contents.size, before.contents.size, `${message}: file count`);
+  for (const [path, content] of before.contents) assert.equal(vault.contents.get(path), content, `${message}: ${path}`);
+}
+/** Every [[link]] in a VAM note and every source-notes/reference-materials path must resolve. */
+async function assertResolves(vault) {
+  const { app, repo, contents } = vault;
+  for (const file of app.vault.getMarkdownFiles()) {
+    const text = contents.get(file.path);
+    for (const [, link] of text.matchAll(/\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g)) assert.ok(app.metadataCache.getFirstLinkpathDest(link, file.path), `${file.path} links to missing ${link}`);
+    if (!/agent-map-node: true/.test(text)) continue;
+    const note = await repo.readNote(file.path);
+    for (const path of [...note.sourcePaths, ...note.referencePaths]) assert.ok(app.vault.getAbstractFileByPath(path), `${file.path} cites missing ${path}`);
+  }
+  for (const { file, map } of await repo.readableMaps()) for (const node of map.nodes) assert.ok(app.vault.getAbstractFileByPath(node.path), `${file.path} node ${node.path}`);
+}
+
+integrationTest('Organize previews first and writes nothing until it runs', async () => {
+  const vault = await legacyVault();
+  const before = snapshot(vault);
+  const plan = await vault.repo.planOrganizeWorkspaceFolders();
+  assert.deepEqual(plain(plan.moves.map(move => [move.title, move.kind, move.toRoot])), [
+    ['Alpha', 'mind', 'Agent Workspace/Mind Maps/Alpha'], ['Beta', 'mind', 'Agent Workspace/Mind Maps/Beta'], ['Gamma', 'aim', 'Agent Workspace/AIM/Gamma']
+  ]);
+  assert.deepEqual(plain(plan.skipped), []); assert.deepEqual(plain(plan.busy), []);
+  assertUnchanged(vault, before, 'planning');
+});
+
+integrationTest('Organize moves mind maps to Mind Maps and AIM to AIM; every map opens, links and cited paths resolve; a second run is a no-op', async () => {
+  const vault = await legacyVault();
+  const { repo, app } = vault;
+  const mapping = await repo.organizeWorkspaceFolders(await repo.planOrganizeWorkspaceFolders());
+  assert.deepEqual(plain([...mapping.entries()].sort()), [
+    [vault.paths.alpha, 'Agent Workspace/Mind Maps/Alpha/Map.md'], [vault.paths.beta, 'Agent Workspace/Mind Maps/Beta/Map.md'], [vault.paths.gamma, 'Agent Workspace/AIM/Gamma/Map.md']
+  ].sort());
+  for (const next of mapping.values()) {
+    const doc = await repo.readMap(next);
+    assert.ok(doc.nodes.every(node => node.path.startsWith(`${repo.topicRoot(next)}/`)), `${next} nodes follow the folder`);
+  }
+  assert.ok(!app.vault.getAbstractFileByPath(`${LEGACY}/Alpha`) && !app.vault.getAbstractFileByPath(`${LEGACY}/Gamma`), 'nothing is left behind');
+  assert.ok(app.vault.getAbstractFileByPath(LEGACY), 'the empty legacy Topics folder is kept');
+  assert.deepEqual(Array.from((await repo.topics()).map(topic => topic.mapPath)).sort(), [...mapping.values()].sort());
+  await assertResolves(vault);
+  const cites = await repo.readNote(vault.cites);
+  assert.deepEqual(plain(cites.sourcePaths), ['Agent Workspace/Mind Maps/Beta/Notes/First.md'], 'a VAM note outside the topic follows the move');
+  const again = await repo.planOrganizeWorkspaceFolders();
+  assert.equal(again.moves.length, 0, 'idempotent: nothing left to organize');
+});
+
+integrationTest('Organize keeps a clash-free name: an existing target folder gets a numeric suffix', async () => {
+  const vault = await legacyVault();
+  await vault.repo.createMap('Alpha');
+  const mapping = await vault.repo.organizeWorkspaceFolders(await vault.repo.planOrganizeWorkspaceFolders());
+  assert.equal(mapping.get(vault.paths.alpha), 'Agent Workspace/Mind Maps/Alpha 2/Map.md');
+  assert.ok(vault.app.vault.getAbstractFileByPath('Agent Workspace/Mind Maps/Alpha/Map.md'), 'the pre-existing map is untouched');
+  await assertResolves(vault);
+});
+
+integrationTest('Organize refuses the whole batch while an AIM attempt is running or saving, with zero moves', async () => {
+  const vault = await legacyVault();
+  const store = new AimRunStore(vault.repo);
+  const doc = await vault.repo.readMap(vault.paths.gamma);
+  const branch = await store.createAnswerBranch(vault.paths.gamma, { questionNodeId: doc.nodes.find(node => node.path.endsWith('Question.md')).id, parentBranchId: null, answerSnapshot: { selections: [], freeText: 'x' }, inputSnapshot: { topic: 'Gamma', conditions: {}, upstreamResults: [] } });
+  await store.startAttempt(vault.paths.gamma, branch.id, 'running-run');
+  const before = snapshot(vault);
+  const plan = await vault.repo.planOrganizeWorkspaceFolders();
+  assert.deepEqual(plain(plan.busy), ['Gamma']);
+  await assert.rejects(vault.repo.organizeWorkspaceFolders(plan), /still running or saving/);
+  assertUnchanged(vault, before, 'busy refusal');
+  // A plan made while idle is re-checked right before the first write.
+  const stale = { ...plan, busy: [] };
+  await assert.rejects(vault.repo.organizeWorkspaceFolders(stale), /still running or saving/);
+  assertUnchanged(vault, before, 'stale plan refusal');
+});
+
+integrationTest('Organize skips an unreadable map, leaves it and its notes byte-identical, and still moves the rest', async () => {
+  const vault = await legacyVault();
+  const { repo, app, contents } = vault;
+  const corrupted = contents.get(vault.paths.gamma).replace(/"nodeId":\s*"[^"]+"/, '"nodeId": "missing-node"');
+  // Make Gamma unreadable the way an AIM reference to a missing node does; fall back to garbage for a non-AIM-shaped fixture.
+  const broken = corrupted === contents.get(vault.paths.gamma) ? '---\nvisual-agent-map: true\n---\nnot a map' : corrupted;
+  contents.set(vault.paths.gamma, broken);
+  await assert.rejects(() => repo.readMap(vault.paths.gamma), 'precondition: unreadable');
+  const gammaFiles = [...vault.files.keys()].filter(path => path.startsWith(`${LEGACY}/Gamma/`));
+  const gammaBefore = new Map(gammaFiles.map(path => [path, contents.get(path)]));
+  const plan = await repo.planOrganizeWorkspaceFolders();
+  assert.deepEqual(plain(plan.skipped.map(item => item.mapPath)), [vault.paths.gamma]);
+  assert.deepEqual(plain(plan.moves.map(move => move.title)), ['Alpha', 'Beta']);
+  await repo.organizeWorkspaceFolders(plan);
+  for (const [path, content] of gammaBefore) assert.equal(contents.get(path), content, `${path} untouched`);
+  assert.ok(app.vault.getAbstractFileByPath(vault.paths.gamma));
+  assert.ok(!app.vault.getAbstractFileByPath('Agent Workspace/AIM/Gamma'));
+});
+
+integrationTest('Organize restores every moved topic, path and content, when a later move fails', async () => {
+  const vault = await legacyVault();
+  const { repo, app } = vault;
+  const plan = await repo.planOrganizeWorkspaceFolders();
+  const before = snapshot(vault);
+  const rename = app.fileManager.renameFile;
+  app.fileManager.renameFile = async (item, target) => { if (target.startsWith('Agent Workspace/AIM/')) throw new Error('injected move failure'); return rename(item, target); };
+  await assert.rejects(repo.organizeWorkspaceFolders(plan), /injected move failure/);
+  app.fileManager.renameFile = rename;
+  assertUnchanged(vault, before, 'after a failed third move');
+  await assertResolves(vault);
+});
+
+integrationTest('Organize restores everything when the final derived-data rebuild fails after all moves', async () => {
+  const vault = await legacyVault();
+  const { repo } = vault;
+  const plan = await repo.planOrganizeWorkspaceFolders();
+  const before = snapshot(vault);
+  const rebuild = repo.rebuildDerivedData.bind(repo); let calls = 0;
+  repo.rebuildDerivedData = async (...args) => { if (++calls === plan.moves.length + 1) throw new Error('injected final rebuild failure'); return rebuild(...args); };
+  await assert.rejects(repo.organizeWorkspaceFolders(plan), /injected final rebuild failure/);
+  repo.rebuildDerivedData = rebuild;
+  assertUnchanged(vault, before, 'after the final rebuild failed');
+});
+
+integrationTest('Organize reports both errors when the rollback also fails', async () => {
+  const vault = await legacyVault();
+  const { repo, app } = vault;
+  const plan = await repo.planOrganizeWorkspaceFolders();
+  const rename = app.fileManager.renameFile;
+  app.fileManager.renameFile = async (item, target) => {
+    if (target.startsWith('Agent Workspace/AIM/')) throw new Error('injected move failure');
+    if (target.startsWith(`${LEGACY}/`)) throw new Error('injected rollback failure');
+    return rename(item, target);
+  };
+  await assert.rejects(repo.organizeWorkspaceFolders(plan), /injected move failure[\s\S]*rollback also failed[\s\S]*injected rollback failure/);
+});
+
+integrationTest('Organize leaves pre-0.4 maps, Inbox notes and Coffee Tables where they are', async () => {
+  const vault = await legacyVault();
+  const { repo, app } = vault;
+  await repo.folder('Agent Workspace/Maps'); await repo.folder('Agent Workspace/Nodes'); await repo.folder('Agent Workspace/Inbox'); await repo.folder('Agent Workspace/Coffee Tables');
+  const pre04 = 'Agent Workspace/Maps/Old.md', inbox = 'Agent Workspace/Inbox/Loose.md', coffee = 'Agent Workspace/Coffee Tables/Table.md';
+  await app.vault.create('Agent Workspace/Nodes/a.md', '---\nagent-map-node: true\nnode-id: "a"\ntitle: "a"\n---\n\n# a\n');
+  const old = map([{ id: 'a', parentId: null, path: 'Agent Workspace/Nodes/a.md', x: 0, y: 0, collapsed: false }]); old.title = 'Old';
+  await app.vault.create(pre04, core.serializeMap(old));
+  await app.vault.create(inbox, '---\nagent-map-node: true\nnode-id: "loose"\ntitle: "Loose"\ntopic-state: inbox\n---\n\n# Loose\n');
+  await app.vault.create(coffee, '# coffee\n');
+  await repo.rebuildDerivedData();
+  const keep = [pre04, 'Agent Workspace/Nodes/a.md', inbox, coffee]; const text = new Map(keep.map(path => [path, vault.contents.get(path)]));
+  const plan = await repo.planOrganizeWorkspaceFolders();
+  assert.equal(plan.moves.length, 3, 'only maps under legacy Topics are planned');
+  await repo.organizeWorkspaceFolders(plan);
+  for (const path of keep) { assert.ok(app.vault.getAbstractFileByPath(path), `${path} stays`); assert.equal(vault.contents.get(path), text.get(path), `${path} unchanged`); }
+});
+
+integrationTest('the Organize command is registered in both languages and writes nothing until the preview is confirmed', async () => {
+  const fs = require('node:fs'), pathModule = require('node:path');
+  const { translate } = load('i18n.ts');
+  assert.equal(translate('en', 'ui.organize_workspace_folders'), 'Organize workspace folders');
+  assert.equal(translate('zh-TW', 'ui.organize_workspace_folders'), '整理工作區資料夾');
+  assert.match(fs.readFileSync(pathModule.join(__dirname, '..', '..', 'main.ts'), 'utf8'), /addLocalizedCommand\(\s*"organize-workspace-folders",\s*"ui\.organize_workspace_folders"/);
+
+  const vault = await legacyVault();
+  const notices = [], opened = [];
+  const fake = { ...obsidian, Notice: class { constructor(message) { notices.push(message); } }, Modal: class { constructor(app) { this.app = app; } open() { opened.push(this); } close() {} } };
+  const { default: Plugin } = load('main.ts', { obsidian: fake });
+  const plugin = new Plugin();
+  const relocated = [];
+  Object.assign(plugin, { app: { ...vault.app, workspace: { requestSaveLayout() {}, getLeavesOfType: () => [] } }, repo: vault.repo, settings: vault.repo.settings });
+  plugin.views = () => [{ hasActiveAimWork: () => false, relocate: mapping => relocated.push(mapping), synchronize: async () => {} }];
+  const before = snapshot(vault);
+  await plugin.offerOrganizeWorkspaceFolders();
+  assert.equal(opened.length, 1, 'a preview dialog opens');
+  assert.match(opened[0].description, /2 mind map\(s\) into Agent Workspace\/Mind Maps and 1 AIM map\(s\) into Agent Workspace\/AIM/);
+  assertUnchanged(vault, before, 'preview only');
+  opened[0].choices[0].action();
+  await plugin.queue;
+  assert.equal(relocated.length, 1); assert.equal(relocated[0].size, 3, 'open views follow the moved maps');
+  assert.ok(vault.app.vault.getAbstractFileByPath('Agent Workspace/AIM/Gamma/Map.md'));
+  assert.deepEqual(notices, ['Organized 3 map(s).']);
+  notices.length = 0;
+  await plugin.offerOrganizeWorkspaceFolders();
+  assert.deepEqual(notices, ['No maps in the legacy Topics folder need organizing.']);
+  assert.equal(opened.length, 1, 'no dialog when there is nothing to do');
+});
+
+integrationTest('the Organize command refuses while an open view has AIM work running', async () => {
+  const vault = await legacyVault();
+  const notices = [], opened = [];
+  const fake = { ...obsidian, Notice: class { constructor(message) { notices.push(message); } }, Modal: class { open() { opened.push(this); } } };
+  const { default: Plugin } = load('main.ts', { obsidian: fake });
+  const plugin = new Plugin();
+  Object.assign(plugin, { app: vault.app, repo: vault.repo, settings: vault.repo.settings });
+  plugin.views = () => [{ hasActiveAimWork: path => path === vault.paths.gamma }];
+  const before = snapshot(vault);
+  await plugin.offerOrganizeWorkspaceFolders();
+  assert.equal(opened.length, 0); assert.match(notices[0], /still running or saving/);
+  assertUnchanged(vault, before, 'busy open view');
 });

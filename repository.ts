@@ -127,6 +127,25 @@ export function isManagedMapPath(
   return managedMapContainer(settings, path) !== undefined;
 }
 
+export interface OrganizeMove {
+  mapPath: string;
+  title: string;
+  kind: "mind" | "aim";
+  fromRoot: string;
+  toRoot: string;
+}
+interface PriorContent {
+  path: string;
+  content: string;
+}
+export interface OrganizePlan {
+  moves: OrganizeMove[];
+  /** Maps that could not be read: left exactly where they are. */
+  skipped: { mapPath: string; error: string }[];
+  /** Titles of AIM maps with a running or saving research attempt; any entry refuses the whole batch. */
+  busy: string[];
+}
+
 export const DEFAULT_SETTINGS: Settings = {
   detailTemplates: [],
   coffeeStyles: [],
@@ -168,6 +187,12 @@ const NOTE_CSS_CLASS = "visual-agent-map-node";
  * the matching snapshot hash, and so do its drafts. Changing only node paths leaves an AIM map unreadable.
  * Returns whether anything changed.
  */
+export function hasActiveAimAttempt(map: MapDocument): boolean {
+  return !!map.aim?.runs.some(run =>
+    run.attempts.some(attempt => attempt.status === "running" || attempt.status === "saving")
+  );
+}
+
 export function rebaseMapNotePaths(map: MapDocument, rebase: (path: string) => string): boolean {
   let changed = false;
   const move = (path: string): string => {
@@ -1391,6 +1416,116 @@ export class Repository {
     return path;
   }
 
+  /**
+   * Read-only preview of "Organize workspace folders": every readable topic folder directly inside the legacy Topics
+   * folder moves to Mind Maps (no `aim`) or AIM (`aim`). Unreadable maps are listed, never moved; a running or saving
+   * AIM attempt anywhere refuses the whole batch.
+   */
+  async planOrganizeWorkspaceFolders(): Promise<OrganizePlan> {
+    const plan: OrganizePlan = { moves: [], skipped: [], busy: [] };
+    const reserved = new Set<string>();
+    for (const file of await this.mapFiles()) {
+      const root = parentPath(file.path);
+      if (file.name !== "Map.md" || parentPath(root) !== this.settings.topicsFolder) continue;
+      let map: MapDocument;
+      try {
+        map = await this.readMap(file.path);
+      } catch (error) {
+        plan.skipped.push({ mapPath: file.path, error: error instanceof Error ? error.message : String(error) });
+        continue;
+      }
+      if (hasActiveAimAttempt(map)) plan.busy.push(map.title);
+      const container = map.aim ? this.settings.aimFolder : this.settings.mindMapsFolder;
+      const base = normalizePath(`${container}/${root.split("/").at(-1) ?? safeName(map.title)}`);
+      let toRoot = base,
+        number = 2;
+      while (this.app.vault.getAbstractFileByPath(toRoot) || reserved.has(toRoot)) toRoot = `${base} ${number++}`;
+      reserved.add(toRoot);
+      plan.moves.push({ mapPath: file.path, title: map.title, kind: map.aim ? "aim" : "mind", fromRoot: root, toRoot });
+    }
+    return plan;
+  }
+
+  /**
+   * Moves each planned topic folder with Obsidian's rename (so links update) via renameTopic. Any failure restores every
+   * topic already moved (folder, Map.md text, path references). Returns old Map.md path -> new Map.md path.
+   */
+  async organizeWorkspaceFolders(plan: OrganizePlan): Promise<Map<string, string>> {
+    if (plan.busy.length) throw new Error(this.message("error.organize_aim_busy"));
+    // Re-check just before the first write: the plan may be stale.
+    for (const move of plan.moves)
+      if (hasActiveAimAttempt(await this.readMap(move.mapPath)))
+        throw new Error(this.message("error.organize_aim_busy"));
+    const done: { move: OrganizeMove; newMapPath: string; originalMap: string; journal: PriorContent[] }[] = [],
+      mapping = new Map<string, string>();
+    try {
+      for (const move of plan.moves) {
+        await this.folder(parentPath(move.toRoot));
+        const originalMap = await this.app.vault.read(this.file(move.mapPath));
+        const newMapPath = await this.renameTopic(move.mapPath, move.title, move.toRoot);
+        const journal: PriorContent[] = [];
+        done.push({ move, newMapPath, originalMap, journal });
+        mapping.set(move.mapPath, newMapPath);
+        await this.rebasePathPrefix(move.fromRoot, move.toRoot, journal);
+      }
+      await this.rebuildDerivedData();
+      return mapping;
+    } catch (error) {
+      const rollbackErrors: string[] = [];
+      for (const { move, newMapPath, originalMap, journal } of [...done].reverse()) {
+        try {
+          // Put back the exact text of every note and map the path rebase rewrote, then undo the folder move.
+          for (const prior of [...journal].reverse()) {
+            const file = this.app.vault.getAbstractFileByPath(prior.path);
+            if (file instanceof TFile) await this.app.vault.modify(file, prior.content);
+          }
+          await this.renameTopic(newMapPath, move.title, move.fromRoot);
+          await this.app.vault.modify(this.file(`${move.fromRoot}/Map.md`), originalMap);
+        } catch (rollbackError) {
+          rollbackErrors.push(
+            `${move.fromRoot}: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`
+          );
+        }
+      }
+      try {
+        await this.rebuildDerivedData();
+      } catch (rebuildError) {
+        rollbackErrors.push(rebuildError instanceof Error ? rebuildError.message : String(rebuildError));
+      }
+      if (rollbackErrors.length)
+        throw new Error(
+          `Organize failed (${error instanceof Error ? error.message : String(error)}); rollback also failed (${rollbackErrors.join("; ")}).`
+        );
+      throw error;
+    }
+  }
+
+  /** After a folder move: point note `source-notes`/`reference-materials` and other maps' references at the new prefix. */
+  private async rebasePathPrefix(from: string, to: string, journal: PriorContent[]): Promise<void> {
+    const rebase = (path: string): string =>
+      path.startsWith(`${from}/`) ? `${to}/${path.slice(from.length + 1)}` : path;
+    for (const file of await this.markedFiles("agent-map-node")) {
+      const cached = this.app.metadataCache.getFileCache(file)?.frontmatter;
+      const mentions = (list: unknown): boolean =>
+        Array.isArray(list) && list.some(item => typeof item === "string" && item.startsWith(`${from}/`));
+      if (cached && !mentions(cached["source-notes"]) && !mentions(cached["reference-materials"])) continue;
+      const note = await this.readNoteIfManaged(file);
+      if (!note) continue;
+      const patch: NotePatch = {};
+      const references = note.referencePaths ?? [];
+      if (references.some(path => rebase(path) !== path)) patch.referencePaths = references.map(rebase);
+      if (note.sourcePaths.some(path => rebase(path) !== path)) patch.sourcePaths = note.sourcePaths.map(rebase);
+      if (!Object.keys(patch).length) continue;
+      journal.push({ path: file.path, content: await this.app.vault.read(file) });
+      await this.updateNote(file.path, patch);
+    }
+    for (const { file, map } of await this.readableMaps()) {
+      if (!rebaseMapNotePaths(map, rebase)) continue;
+      journal.push({ path: file.path, content: await this.app.vault.read(file) });
+      await this.saveMap(file.path, map);
+    }
+  }
+
   async renameTopic(mapPath: string, title: string, targetRoot?: string): Promise<string> {
     const file = this.file(mapPath),
       root = file.parent;
@@ -1406,11 +1541,7 @@ export class Repository {
     const originalMapPath = `${originalRoot}/Map.md`,
       originalContent = await this.app.vault.read(this.file(originalMapPath));
     const originalMap = parseMap(originalContent);
-    if (
-      originalMap.aim?.runs.some(run =>
-        run.attempts.some(attempt => attempt.status === "running" || attempt.status === "saving")
-      )
-    ) {
+    if (hasActiveAimAttempt(originalMap)) {
       throw new Error(
         "An AIM research attempt is still running or saving. Wait for it to finish before renaming this topic."
       );
