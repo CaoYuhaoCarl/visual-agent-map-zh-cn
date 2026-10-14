@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { prepareTestVault, updateCurrentTestVault, verifyTestVault, root, main, sourceFingerprint, assertSourceUnchanged, prepareObsidianProfile, selectObsidianRuntime } from '../scripts/test-harness.mjs';
+import { canonicalVault, prepareTestVault, updateCurrentTestVault, verifyTestVault, root, main, sourceFingerprint, assertSourceUnchanged, prepareObsidianProfile, selectObsidianRuntime } from '../scripts/test-harness.mjs';
 
 function environment(t) {
   const folder = mkdtempSync(join(tmpdir(), 'vam-harness-test-'));
@@ -191,4 +191,13 @@ test('isolated profile uses a compatible installed runtime, including updates ou
   prepareTestVault({ vault });
   const profile = prepareObsidianProfile(vault, runtime);
   assert.deepEqual(readFileSync(join(profile, 'obsidian-1.13.7.asar')), readFileSync(update));
+});
+
+test('reset never replaces the owner testing vault; it is only updated in place', t => {
+  // Only exercised where the testing vault exists, so the test can never create or remove it.
+  if (!existsSync(canonicalVault)) return t.skip('no testing vault on this machine');
+  const before = readdirSync(canonicalVault).sort();
+  for (const profile of ['normal', 'onboarding', 'reinstall'])
+    assert.throws(() => prepareTestVault({ vault: canonicalVault, profile }), /owner's testing vault/);
+  assert.deepEqual(readdirSync(canonicalVault).sort(), before);
 });

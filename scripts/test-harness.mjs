@@ -33,6 +33,9 @@ export function verifyTestVault(vault, artifact = root) {
 // Only a vault created by this checkout may be reset. Never follow a root symlink.
 export function prepareTestVault({ vault = canonicalVault, artifact = root, profile = "normal", workspaceRoot = "Agent Workspace", source = {} } = {}) {
   if (existsSync(vault) || (() => { try { lstatSync(vault); return true; } catch { return false; } })()) {
+    // The canonical vault is the owner's designated testing vault and holds their maps: it is created once and then
+    // only updated in place (--update-current). A fresh profile needs a different vault path, never a reset of this one.
+    if (resolve(vault) === resolve(canonicalVault)) throw new Error(`Refusing to reset ${canonicalVault}: it is the owner's testing vault and may only be updated in place with --update-current.`);
     if (lstatSync(vault).isSymbolicLink() || !lstatSync(vault).isDirectory()) throw new Error("Refusing non-directory/symlink test vault.");
     if (!existsSync(join(vault, marker))) throw new Error("Refusing to reset an unowned vault.");
     const previous = json(join(vault, marker));
