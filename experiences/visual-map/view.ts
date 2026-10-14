@@ -4872,7 +4872,7 @@ export class VisualAgentMapView extends ItemView {
       {
         detailTemplate,
         rules: "",
-        referenceGroups: [],
+        referenceGroups: choices.referenceGroups ?? [],
         signal: batchSignal,
         outputLanguage: choices.outputLanguage,
         researchMode: choices.researchMode,
@@ -5102,9 +5102,10 @@ export class VisualAgentMapView extends ItemView {
     }
     return selection;
   }
+  /** The dialog's choices for each child's research; the data sources the user picked go to every child. */
   private researchChoices(options: TaskOptions): TaskOptions {
     const { signal: _signal, onProgress: _onProgress, ...choices } = options;
-    return { ...choices, signal: undefined, onProgress: undefined, referenceGroups: [] };
+    return { ...choices, signal: undefined, onProgress: undefined, referenceGroups: options.referenceGroups ?? [] };
   }
   private async clearPendingSuggestions(path: string): Promise<void> {
     this.plugin.pendingSuggestions.delete(path);

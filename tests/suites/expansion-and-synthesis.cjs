@@ -386,6 +386,23 @@ integrationTest('cancelling shallow research stops the batch without marking uns
   assert.equal((await repo.readNote(saved.nodes[4].path)).status, 'idea');
   assert.deepEqual(failures, []);
 });
+integrationTest('shallow research without chosen sources gives each child no reference groups', async () => {
+  const { repo, app } = fixture(), parent = await topicNote(repo, 'Parent', 'model-a');
+  const mapPath = 'Agent Workspace/Topics/map-a/Map.md', mapDoc = map([parent]); mapDoc.id = 'map-a';
+  await app.vault.create(mapPath, core.serializeMap(mapDoc));
+  const plugin = withExpansionCoordinator({ repo, settings: { ...DEFAULT_SETTINGS }, rebuildDerivedData: async () => {}, recordFailure: (_context, error) => error.message, mutate: async work => work(), views: () => [view] });
+  const { VisualAgentMapView } = load('main.ts', { obsidian });
+  const view = new VisualAgentMapView({ app }, plugin); view.path = mapPath; view.map = mapDoc; view.contentEl = { querySelector: () => null }; view.render = () => {}; view.hydrate = async () => {};
+  const received = [];
+  view.runAgent = async (_child, _done, _failed, options, accepted) => { received.push(options.referenceGroups); accepted(); return { finished: Promise.resolve() }; };
+  const children = await view.createChildBatch(parent, [
+    { title: 'First', task: 'Research first', contribution: '' },
+    { title: 'Second', task: 'Research second', contribution: '' }
+  ], { researchMode: 'research', researchDepth: 'fast', visualMode: 'off' });
+  await view.startShallowResearch(parent, children, { researchMode: 'research', researchDepth: 'fast', visualMode: 'off', shallowResearch: true });
+  await until(() => plugin.expansionBatches.get(parent.path)?.status !== 'running');
+  assert.deepEqual(plain(received), [[], []]);
+});
 integrationTest('accepted shallow research is parallel, detached from modal close, and stopped by the parent', async () => {
   const { repo, app } = fixture(), parent = await topicNote(repo, 'Parent', 'model-a');
   const mapPath = 'Agent Workspace/Topics/map-a/Map.md', mapDoc = map([parent]); mapDoc.id = 'map-a';
@@ -394,9 +411,10 @@ integrationTest('accepted shallow research is parallel, detached from modal clos
   const plugin = withExpansionCoordinator({ repo, settings: { ...DEFAULT_SETTINGS }, rebuildDerivedData: async () => {}, recordFailure: (_context, error) => error.message, mutate: async work => work(), views: () => [view] });
   const { VisualAgentMapView } = load('main.ts', { obsidian });
   const view = new VisualAgentMapView({ app }, plugin); view.path = mapPath; view.map = mapDoc; view.contentEl = { querySelector: () => null }; view.render = () => {}; view.hydrate = async () => {};
+  const received = new Map();
   view.runAgent = async (child, _done, _failed, options, accepted) => {
     started.push((await repo.readNote(child.path)).title);
-    assert.equal(options.referenceGroups.length, 0); assert.equal(options.onProgress, undefined);
+    received.set(child.path, options.referenceGroups); assert.equal(options.onProgress, undefined);
     signals.push(options.signal); accepted();
     return { finished: new Promise(resolve => finish.set(child.path, resolve)) };
   };
@@ -408,6 +426,7 @@ integrationTest('accepted shallow research is parallel, detached from modal clos
   await pending;
   await until(() => started.length === 2);
   assert.deepEqual(started, ['First', 'Second']);
+  for (const child of children) assert.deepEqual(plain(received.get(child.path)), [{ id: 'parent-source', documents: [{ path: 'External.md' }] }], 'each child researches with the sources chosen in the dialog');
   controller.abort();
   assert.equal(signals[0].aborted, false);
   finish.get(children[0].path)();
@@ -643,10 +662,10 @@ integrationTest('pending proposals use this run\'s shallow research choice and s
   await view.proposeChildren({ id: 'parent', path: 'parent.md' }, options, '', (_items, confirm) => { create = confirm; }, message => assert.fail(message));
   const storedChoices = plugin.pendingResearchOptions.get('parent.md');
   assert.equal(storedChoices.researchMode, 'local'); assert.equal(storedChoices.researchDepth, 'fast'); assert.equal(storedChoices.visualMode, 'off');
-  assert.equal(storedChoices.referenceGroups.length, 0); assert.equal(storedChoices.signal, undefined); assert.equal(storedChoices.onProgress, undefined);
+  assert.deepEqual(storedChoices.referenceGroups, options.referenceGroups, 'the sources chosen in the dialog are kept for the children'); assert.equal(storedChoices.signal, undefined); assert.equal(storedChoices.onProgress, undefined);
   await create(suggestions);
-  assert.equal(queued, 1); assert.equal(used.researchMode, 'local'); assert.equal(used.researchDepth, 'fast'); assert.equal(used.visualMode, 'off'); assert.equal(used.referenceGroups.length, 0); assert.notEqual(used, options); assert.equal(plugin.pendingSuggestions.has('parent.md'), false);
-  assert.equal(startedResearch.queued, 1); assert.equal(startedResearch.children.length, 1); assert.equal(startedResearch.options.referenceGroups.length, 0);
+  assert.equal(queued, 1); assert.equal(used.researchMode, 'local'); assert.equal(used.researchDepth, 'fast'); assert.equal(used.visualMode, 'off'); assert.deepEqual(used.referenceGroups, options.referenceGroups); assert.notEqual(used, options); assert.equal(plugin.pendingSuggestions.has('parent.md'), false);
+  assert.equal(startedResearch.queued, 1); assert.equal(startedResearch.children.length, 1); assert.deepEqual(startedResearch.options.referenceGroups, options.referenceGroups);
   plugin.pendingSuggestions.set('parent.md', suggestions); plugin.pendingResearchOptions.set('parent.md', options);
   await view.proposeChildren({ id: 'parent', path: 'parent.md' }, { ...options, shallowResearch: false }, '', () => {}, message => assert.fail(message));
   assert.equal(plugin.pendingResearchOptions.has('parent.md'), false);

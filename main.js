@@ -27746,7 +27746,7 @@ ${request.requirements}` : preset.text,
     );
   }
   async researchChild(child, batchSignal, accepted, choices) {
-    var _a;
+    var _a, _b;
     const detailTemplate = await this.detailTemplateFor(child, choices.detailTemplateId, choices.toneId);
     const note = await this.plugin.repo.readNote(child.path);
     let started = false;
@@ -27760,14 +27760,14 @@ ${request.requirements}` : preset.text,
       {
         detailTemplate,
         rules: "",
-        referenceGroups: [],
+        referenceGroups: (_a = choices.referenceGroups) != null ? _a : [],
         signal: batchSignal,
         outputLanguage: choices.outputLanguage,
         researchMode: choices.researchMode,
         researchDepth: choices.researchDepth,
         visualMode: choices.visualMode,
         task: [
-          note.prompt || researchTopicTask((_a = choices.outputLanguage) != null ? _a : this.plugin.settings.language, note.title),
+          note.prompt || researchTopicTask((_b = choices.outputLanguage) != null ? _b : this.plugin.settings.language, note.title),
           choices.requirements
         ].filter(Boolean).join("\n\n")
       },
@@ -27983,9 +27983,11 @@ ${request.requirements}` : preset.text,
     }
     return selection;
   }
+  /** The dialog's choices for each child's research; the data sources the user picked go to every child. */
   researchChoices(options) {
+    var _a;
     const { signal: _signal, onProgress: _onProgress, ...choices } = options;
-    return { ...choices, signal: void 0, onProgress: void 0, referenceGroups: [] };
+    return { ...choices, signal: void 0, onProgress: void 0, referenceGroups: (_a = options.referenceGroups) != null ? _a : [] };
   }
   async clearPendingSuggestions(path) {
     var _a, _b;
