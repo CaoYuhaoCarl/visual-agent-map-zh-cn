@@ -360,8 +360,14 @@ export async function buildFinalDelivery(
       }
     }
     checkpoint.sections = completed;
-    for (const plan of sectionPlans) {
+    for (const [index, plan] of sectionPlans.entries()) {
       if (completed[plan.key]) continue;
+      // Earlier sections' summaries keep this section from repeating them; they do not change its fingerprint.
+      const earlierSections = sectionPlans
+        .slice(0, index)
+        .filter(earlier => completed[earlier.key])
+        .map(earlier => `## ${earlier.section.heading}\n${completed[earlier.key].result.summary}`)
+        .join("\n\n");
       const written = await run(
         "delivery-writing",
         renderWritingTask({
@@ -370,7 +376,8 @@ export async function buildFinalDelivery(
           outline,
           knownConditions: options.knownConditions ?? base.detail,
           scopedEvidence: plan.scopedEvidence,
-          ...(plan.section.searchTask.trim() ? { scopedResearch: plan.scopedResearch } : {})
+          ...(plan.section.searchTask.trim() ? { scopedResearch: plan.scopedResearch } : {}),
+          ...(earlierSections ? { writtenSections: earlierSections } : {})
         })
       );
       base.signal?.throwIfAborted();
