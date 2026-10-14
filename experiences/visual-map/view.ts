@@ -88,8 +88,10 @@ import { DetailTemplatesModal } from "../../ui/modals/detail-templates-modal";
 import type { ExpansionBatchState } from "./expansion-batch";
 import { AimStartModal } from "../../ui/modals/aim-start-modal";
 import { AimAnswerModal } from "../../ui/modals/aim-answer-modal";
+import { AimAssumptionModal } from "../../ui/modals/aim-assumption-modal";
 import {
   AimManualFlow,
+  readOpenItems,
   countAimAnsweredQuestions,
   MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION,
   type ManualResearchResult,
@@ -1477,6 +1479,51 @@ export class VisualAgentMapView extends ItemView {
       }
     }
     return outcome;
+  }
+  private async correctAimAssumption(nodeId: string, assumption: string, correction: string): Promise<void> {
+    const node = this.map?.nodes.find(item => item.id === nodeId);
+    const note = this.notes.get(nodeId);
+    if (this.closed || !node || !note || !this.path || !this.map?.aim || this.aimBusy) return;
+    const epoch = this.aimViewEpoch,
+      mapPath = this.path,
+      controller = new AbortController();
+    this.aimBusy = true;
+    this.aimController = controller;
+    this.aimActiveQuestionNodeId = node.id;
+    this.aimActivityKind = "research";
+    this.render();
+    try {
+      const outcome = await this.aimManual.correctAssumption(
+        mapPath,
+        nodeId,
+        assumption,
+        correction,
+        note.model,
+        note.reasoning,
+        controller.signal
+      );
+      if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
+      this.map = await this.plugin.repo.readMap(mapPath);
+      await this.hydrate(() => this.aimViewIsCurrent(epoch, mapPath));
+      if (outcome.status === "completed") new Notice(t("ui.aim_document_ready"), 0);
+      else if (outcome.status === "partial") new Notice(t("ui.aim_research_partial"));
+      else if (outcome.status === "waiting-user") new Notice(t("ui.aim_waiting_user"));
+    } catch (error) {
+      if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
+      if (controller.signal.aborted) new Notice(t("ui.research_stopped_existing_content_was_preserved"));
+      else new Notice(error instanceof Error ? error.message : String(error));
+    } finally {
+      if (this.aimController === controller) {
+        this.aimBusy = false;
+        this.aimController = null;
+        this.aimActiveQuestionNodeId = null;
+        this.aimActivityKind = null;
+        if (this.aimViewIsCurrent(epoch, mapPath)) {
+          this.render();
+          this.syncOutline();
+        }
+      }
+    }
   }
   private async planAimFromSelection(nodeId = this.selected): Promise<void> {
     const node = this.map?.nodes.find(item => item.id === nodeId);
@@ -3687,6 +3734,20 @@ export class VisualAgentMapView extends ItemView {
         next.addClass("vam-node-tool", "vam-pinned-tool");
         next.setAttr("aria-label", t("ui.aim_new_question_hint"));
         next.setAttr("title", t("ui.aim_new_question_hint"));
+      }
+      const assumptions = node.aimKind === "conclusion" && note ? readOpenItems(note.detail) : [];
+      if (this.map?.aim && assumptions.length) {
+        const correct = this.button(
+          header,
+          t("ui.aim_correct_assumption"),
+          () =>
+            new AimAssumptionModal(this.app, assumptions, (assumption, correction) => {
+              void this.correctAimAssumption(node.id, assumption, correction);
+            }).open(),
+          this.aimBusy
+        );
+        correct.addClass("vam-node-tool", "vam-pinned-tool");
+        correct.setAttr("title", t("ui.aim_correct_assumption_hint"));
       }
     }
     const details = this.button(tools, t("ui.node_tool_details"), () =>

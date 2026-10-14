@@ -126,6 +126,21 @@ function noteStopReason(
 
 /** Estimated tokens one AIM request may carry; larger requests fail whole instead of dropping goal or evidence. */
 const AIM_REQUEST_TOKEN_LIMIT = 60_000;
+/** Hidden marker on a conclusion note that lists the assumptions the user can correct afterwards. */
+export const openItemsMarker = (titles: string[]): string => `<!-- aim-open-items ${JSON.stringify(titles)} -->`;
+/** The correctable assumptions of a conclusion note, or none. */
+export function readOpenItems(detail: string): string[] {
+  const marker = detail.match(/<!--\s*aim-open-items\s+(\[[^\n]*\])\s*-->/);
+  if (!marker) return [];
+  try {
+    const value: unknown = JSON.parse(marker[1]);
+    return Array.isArray(value)
+      ? value.filter((item): item is string => typeof item === "string" && !!item.trim())
+      : [];
+  } catch {
+    return [];
+  }
+}
 /** Marker the visual map appends to the topic detail once the intake clarification is done. */
 const AIM_INTAKE_COMPLETE = "<!-- aim-intake-complete -->";
 /** With the intake checklist, one answered question can precede a conclusion. */
@@ -876,7 +891,11 @@ export class AimManualFlow {
         );
       // Remember that this research_more is the final delivery acceptance's own verdict (smoke publication needs it).
       if (final.decision === "research_more") this.deliveryRejections.add(final);
-      reviewed = final;
+      // The accepted document keeps the assumptions it was written with, so the user can correct them later.
+      reviewed =
+        final.decision === "conclude" && reviewed.openItems?.length
+          ? { ...final, openItems: reviewed.openItems }
+          : final;
     }
     if (reviewed.decision === "research_more" && reviewed.gapKind === "user_only")
       return this.requireUserConditionQuestion(
@@ -2298,6 +2317,54 @@ export class AimManualFlow {
     return { status: "question", node, options };
   }
 
+  /**
+   * Corrects one assumption of a saved conclusion. The assumption becomes an answered question under the conclusion,
+   * so the next round reuses evidence that still holds and rewrites the document with the user's real situation.
+   */
+  async correctAssumption(
+    mapPath: string,
+    conclusionNodeId: string,
+    assumption: string,
+    correction: string,
+    model: string,
+    reasoning: unknown,
+    signal?: AbortSignal
+  ): Promise<ManualResearchResult> {
+    const map = await this.repository.readMap(mapPath);
+    const branch = map.aim?.branches.find(item =>
+      item.results.some(result => result.nodeId === conclusionNodeId && result.kind === "conclusion")
+    );
+    if (!branch) throw new Error("Only a saved AIM conclusion can have its assumptions corrected.");
+    if (!assumption.trim() || !correction.trim()) throw new Error("Choose an assumption and describe your situation.");
+    const level = normalizeReasoningLevel(reasoning);
+    const planned = await this.saveManualQuestion(
+      mapPath,
+      conclusionNodeId,
+      branch.id,
+      `assumption-${this.id()}`,
+      model,
+      level === "medium" || level === "high" ? level : "low",
+      assumption.trim(),
+      "",
+      [translate(this.languageOf(map), "note.aim_assumption_corrected")],
+      "",
+      signal
+    );
+    if (planned.status !== "question") throw new Error("The assumption could not be saved as a question.");
+    return this.answerAndResearch(
+      mapPath,
+      planned.node.id,
+      {
+        requestId: `assumption-answer-${planned.node.id}`,
+        selections: [planned.options[0].id],
+        freeText: correction.trim()
+      },
+      model,
+      reasoning,
+      signal
+    );
+  }
+
   async answerAndResearch(
     mapPath: string,
     questionNodeId: string,
@@ -3532,7 +3599,9 @@ export class AimManualFlow {
               translate(language, "note.aim_source_boundary"),
               translate(language, "note.aim_source_boundary_claims")
             ].join("\n\n")
-          : finalReview.detail;
+          : finalReview.openItems?.length
+            ? `${finalReview.detail}\n\n${openItemsMarker(finalReview.openItems.map(item => item.title))}`
+            : finalReview.detail;
       const presentation = isPartial
         ? {
             title: translate(language, "note.aim_needs_followup"),

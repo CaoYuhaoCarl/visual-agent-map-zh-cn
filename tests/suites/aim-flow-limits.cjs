@@ -199,6 +199,20 @@ integrationTest('AIM unattended: after the intake it researches the goal without
   assert.notEqual(planned.outcome.status, 'waiting-user', 'the run never stops for an answer');
   const notes = await Promise.all((await subject.repo.readMap(subject.created.mapPath)).nodes.map(node => subject.repo.readNote(node.path)));
   assert.ok(notes.some(note => /What is your budget\?/.test(note.detail)) || phases.includes('delivery-outline'), 'the question became an assumption carried into delivery');
+  // The conclusion keeps its assumptions; correcting one researches again under the conclusion.
+  const { readOpenItems } = load('experiences/aim/manual-flow.ts', { obsidian });
+  const map = await subject.repo.readMap(subject.created.mapPath);
+  const conclusionRef = map.aim.branches.flatMap(branch => branch.results).find(result => result.kind === 'conclusion');
+  assert.ok(conclusionRef, 'an unattended run ends with a conclusion');
+  const conclusion = await subject.repo.readNote(conclusionRef.notePath);
+  assert.deepEqual(plain(readOpenItems(conclusion.detail)), ['What is your budget?']);
+  phases.length = 0;
+  const corrected = await subject.flow.correctAssumption(subject.created.mapPath, conclusionRef.nodeId, 'What is your budget?', 'About 1,500 a month', 'gpt-6-luna', 'low');
+  assert.notEqual(corrected.status, 'stale');
+  const after = await subject.repo.readMap(subject.created.mapPath);
+  const question = after.nodes.find(node => node.aimKind === 'question' && node.parentId === conclusionRef.nodeId);
+  assert.ok(question, 'the corrected assumption is saved as an answered question under the conclusion');
+  assert.ok(phases.includes('research-plan'), 'the correction starts a new research round');
 });
 const gapTarget = { title: 'Missing evidence', task: 'Search for the missing evidence.', contribution: 'Closes the gap.' };
 /** A Planner that always wants more research, so the flow must end through the research-budget exit. */
