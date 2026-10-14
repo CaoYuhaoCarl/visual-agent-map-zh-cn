@@ -25,8 +25,7 @@
 .ct-outline-highlight .ct-bubble { outline: 2px solid var(--interactive-accent); outline-offset: 3px; transition: outline-color 1s ease; }
 .vam-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; min-height: 48px; padding: 6px 10px 6px 6px; border-bottom: 1px solid var(--background-modifier-border); background: var(--background-primary); flex-shrink: 0; }
 .vam-toolbar button, .vam-map-tools button, .vam-actions button { font-size: var(--font-ui-small); }
-.vam-toolbar .vam-map-switcher { display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: min(460px, 45%); height: auto; padding: 6px 8px; border: 0; border-radius: var(--radius-m); background: transparent; box-shadow: none; color: var(--text-normal); cursor: pointer; }
-.vam-toolbar .vam-map-switcher { font-size: var(--font-ui-medium); }
+.vam-toolbar .vam-map-switcher { display: inline-flex; align-items: center; gap: 6px; font-size: var(--font-ui-medium); min-width: 0; max-width: min(460px, 45%); height: auto; padding: 6px 8px; border: 0; border-radius: var(--radius-m); background: transparent; box-shadow: none; color: var(--text-normal); cursor: pointer; }
 .vam-toolbar .vam-map-switcher:hover { background: var(--background-modifier-hover); }
 .vam-map-switcher:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
 .vam-map-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; }
@@ -41,12 +40,14 @@
 .vam-new-map-icon svg { width: 14px; height: 14px; }
 .vam-icon-button:disabled { opacity: 0.4; cursor: default; }
 .vam-canvas-overlay { position: absolute; z-index: 4; inset: 0; pointer-events: none; }
-.vam-workspace:has(> .vam-inspector) > .vam-canvas-overlay { right: 300px; }
+.vam-workspace.has-inspector > .vam-canvas-overlay { right: 300px; }
 .vam-canvas-overlay > * { pointer-events: auto; }
 .vam-map-tools, .vam-zoom-controls { position: absolute; display: flex; align-items: center; gap: 2px; padding: 4px; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); background: var(--background-primary); box-shadow: var(--shadow-s); }
 .vam-map-tools { top: 12px; left: 12px; flex-wrap: wrap; max-width: calc(100% - 24px); }
 .vam-map-tools button:not(.mod-cta), .vam-zoom-controls button { background: transparent; box-shadow: none; }
 .vam-map-tools .vam-topic-more { margin-left: -2px; }
+/* box-shadow: none above removes Obsidian's own focus ring, so these buttons draw one. */
+.vam-map-tools button:focus-visible, .vam-zoom-controls button:focus-visible, .vam-node-tools button:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
 .vam-map-tools button:not(.mod-cta):hover, .vam-zoom-controls button:hover { background: var(--background-modifier-hover); }
 .vam-map-tools button.is-active { background: var(--background-modifier-active-hover); color: var(--text-accent); }
 .vam-zoom-controls { right: 12px; bottom: 12px; }
@@ -134,8 +135,9 @@
 @keyframes vam-orbit { to { --vam-orbit: 360deg; } }
 @keyframes vam-scan { from { background-position: -100% 0; } to { background-position: 200% 0; } }
 @media (prefers-reduced-motion: reduce) {
-  .vam-status-running::before, .vam-node[data-status="running"]::after { animation: none; }
-  .vam-node[data-status="running"]::after { background: var(--interactive-accent); }
+  /* Same selector weight as the scan animation rule above, otherwise that rule keeps winning. */
+  .vam-status-running::before, .vam-node:not([data-aim-kind])[data-status="running"]::after { animation: none; }
+  .vam-node:not([data-aim-kind])[data-status="running"]::after { background: var(--interactive-accent); }
   .vam-node, .vam-node .vam-add-child, .vam-node-tools > * { transition: none; }
 }
 .theme-dark .vam-viewport { background-color: var(--background-primary); }
@@ -198,7 +200,6 @@
 .vam-field.vam-next-toggle { flex-direction: row; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; }
 .vam-field.vam-next-toggle input[type="checkbox"] { width: 22px; min-width: 22px; height: 22px; flex: 0 0 22px; margin: 0; }
 .vam-field.vam-next-toggle > span { color: var(--text-normal); font-weight: 400; }
-.vam-next-sources > summary { min-height: 44px; cursor: pointer; }
 .vam-next-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 12px 0; }
 .vam-next-card { display: flex; align-items: flex-start; justify-content: center; flex-direction: column; gap: 4px; width: 100%; min-width: 0; height: auto; min-height: 58px; padding: 9px 12px; text-align: left; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); background: var(--background-secondary); }
 .vam-next-card.is-active { border-color: var(--interactive-accent); background: var(--background-modifier-hover); }
@@ -233,7 +234,6 @@
 .vam-quick-limits input { width: 100%; max-width: 160px; }
 .vam-quick-limits > .vam-hint { grid-column: 1 / -1; margin: 0; }
 .vam-quick-limits > .vam-hint.is-error { color: var(--color-red); }
-.vam-next-web { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
 .vam-next-choice button { margin-top: 12px; }
 .vam-next-depths button.is-active { border-color: var(--interactive-accent); background: var(--background-modifier-hover); }
 .vam-next-status { min-height: 1.4em; color: var(--text-muted); }
@@ -244,8 +244,6 @@
 .vam-next-modal .vam-proposal-list, .vam-next-modal .vam-reference-file-list { max-height: none; overflow: visible; }
 .vam-next-angle { margin: 10px 0; padding: 12px; border: 1px solid var(--background-modifier-border); border-radius: 8px; }
 .vam-next-angle p { margin: 4px 0; color: var(--text-muted); }
-.vam-next-usage { margin-top: 12px; padding: 12px; border: 1px solid var(--interactive-accent); border-radius: 8px; }
-.vam-next-usage p { color: var(--text-muted); }
 @media (max-width: 520px) {
   .vam-next-compact-settings { align-items: flex-start; }
   .vam-next-language { display: flex; width: 100%; }
@@ -255,8 +253,6 @@
   .vam-next-depths { flex-wrap: wrap; }
   .vam-next-depths label { flex: 1 1 84px; min-width: 0; }
 }
-.vam-rule-preview { margin: 12px 0; padding: 10px 12px; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-s); background: var(--background-secondary); }
-.vam-rule-preview p { margin: 6px 0 0; color: var(--text-muted); line-height: 1.5; white-space: pre-wrap; }
 .vam-integration-sources { display: flex; flex-direction: column; gap: 5px; max-height: 150px; overflow-y: auto; margin: 12px 0; padding: 10px 12px; border-radius: var(--radius-s); background: var(--background-secondary); color: var(--text-muted); }
 .vam-integration-sources strong { color: var(--text-normal); }
 .vam-empty { margin: 60px auto; padding: 24px; max-width: 440px; color: var(--text-muted); text-align: center; line-height: 1.8; pointer-events: none; }
@@ -328,7 +324,7 @@
 .markdown-preview-view.visual-agent-map-node .metadata-container,
 body .workspace-leaf-content.vam-topic-markdown .markdown-source-view.mod-cm6 .metadata-container { display: none; }
 .workspace-leaf-content.vam-topic-markdown .inline-title { display: none; }
-@media (max-width: 900px) { .vam-inspector { width: 260px; } .vam-workspace:has(> .vam-inspector) > .vam-canvas-overlay { right: 260px; } }
+@media (max-width: 900px) { .vam-inspector { width: 260px; } .vam-workspace.has-inspector > .vam-canvas-overlay { right: 260px; } }
 @media (max-width: 600px) { .vam-inspector { position: absolute; right: 0; top: 0; bottom: 0; width: min(300px, 85%); z-index: 5; box-shadow: var(--shadow-l); } }
 
 .vam-hover-markdown { font-size: var(--vam-hover-body-size, 13px); line-height: var(--vam-hover-line-height, 1.45); }
@@ -823,7 +819,7 @@ button.vam-template-section-header:hover { background: var(--background-modifier
 .vam-outline-option { display: flex; align-items: flex-start; gap: var(--size-4-3); padding: var(--size-4-2) var(--size-4-3); cursor: pointer; }
 .vam-outline-option + .vam-outline-option { border-top: 1px solid var(--background-modifier-border); }
 .vam-outline-option:hover:not(.is-disabled) { background: var(--background-modifier-hover); }
-.vam-outline-option:has(input:checked) { background: var(--background-modifier-active-hover); }
+.vam-outline-option.is-checked { background: var(--background-modifier-active-hover); }
 .vam-outline-option.is-disabled { cursor: default; color: var(--text-faint); }
 .vam-outline-option input[type="radio"] { margin: 3px 0 0; flex: 0 0 auto; }
 .vam-outline-option-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }

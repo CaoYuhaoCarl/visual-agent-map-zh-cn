@@ -188,7 +188,7 @@ integrationTest('cancelling child synthesis restores the topic status and does n
   };
   const { VisualAgentMapView } = load('main.ts', { obsidian });
   view = new VisualAgentMapView({ app }, plugin); view.path = mapPath; view.map = mapDoc; view.render = () => {}; view.hydrate = async () => {};
-  const pending = view.integrateChildren(parent, true, { researchMode: 'local', researchDepth: 'normal', visualMode: 'off', referenceGroups: [], signal: controller.signal });
+  const pending = view.integrateChildren(parent, { researchMode: 'local', researchDepth: 'normal', visualMode: 'off', referenceGroups: [], signal: controller.signal });
   await new Promise(resolve => setImmediate(resolve)); controller.abort(); await pending;
   const after = await repo.readNote(parent.path);
   assert.equal(after.status, 'completed'); assert.equal(after.summary, 'Existing conclusion'); assert.equal(after.detail, 'Existing knowledge');

@@ -1426,3 +1426,56 @@ integrationTest('collapse menu offers collapse all, expand all and levels 1 to 3
   menus[0].items.forEach(item => item.click());
   assert.deepEqual(calls, [0, null, 1, 2, 3]);
 });
+integrationTest('map stylesheet: no :has() on the map surface, reduced motion beats the scan animation, buttons keep a focus ring, dead rules are gone', () => {
+  const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
+  const rules = css.split('\n');
+  const surface = /\.vam-(workspace|canvas-overlay|node|map-tools|zoom-controls|toolbar|outline-option|inspector)/;
+  assert.deepEqual(rules.filter(rule => rule.includes(':has(') && surface.test(rule)), [], 'no :has() on the map surface');
+  assert.match(css, /\.vam-workspace\.has-inspector > \.vam-canvas-overlay \{ right: 300px; \}/); assert.match(css, /\.vam-workspace\.has-inspector > \.vam-canvas-overlay \{ right: 260px; \}/);
+  const scan = '.vam-node:not([data-aim-kind])[data-status="running"]::after';
+  const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'), css.indexOf('.theme-dark .vam-viewport'));
+  assert.ok(css.includes(`${scan} { content:`), 'the scan animation rule exists');
+  assert.ok(reduced.includes(`${scan} { animation: none; }`) || reduced.includes(`, ${scan} { animation: none; }`), 'reduced motion uses the same selector weight as the animation it disables');
+  assert.match(css, /\.vam-map-tools button:focus-visible, \.vam-zoom-controls button:focus-visible[^{]*\{ outline: 2px solid var\(--interactive-accent\)/);
+  for (const dead of ['.vam-next-web', '.vam-next-usage', '.vam-next-sources', '.vam-rule-preview']) assert.equal(css.includes(dead), false, `${dead} is removed`);
+  assert.equal((css.match(/^\.vam-toolbar \.vam-map-switcher \{/gm) ?? []).length, 1, 'the switcher rule is not duplicated');
+});
+integrationTest('sample inspector marks its workspace so the overlay can move without :has()', () => {
+  const fixture = selectionView(load, {}, { ...obsidian, MarkdownRenderer: { render: async () => {} } });
+  const { view } = fixture;
+  view.builtIn = true; view.notes.get('root').sourcePaths = []; view.notes.get('root').detail = '';
+  const make = selectionDom();
+  const parent = make('div');
+  view.renderInspector(parent, fixture.doc.nodes[0]);
+  assert.ok(parent.classes.has('has-inspector'));
+  assert.ok(parent.children.some(child => child.classes.has('vam-inspector')));
+});
+integrationTest('outline toggles report aria-expanded and the open topic row reports aria-current', () => {
+  const { OutlineView } = load('ui/outline-view.ts', { obsidian });
+  const element = (tag, options = {}) => ({ tag, text: options.text, cls: options.cls ?? '', children: [], style: {},
+    get childElementCount() { return this.children.length; },
+    createDiv(value) { const child = element('div', { cls: typeof value === 'string' ? value : value?.cls }); this.children.push(child); return child; },
+    createEl(name, value = {}) { const child = element(name, value); this.children.push(child); return child; },
+    createSpan(value = {}) { const child = element('span', typeof value === 'string' ? { cls: value } : value); this.children.push(child); return child; },
+    addClass(value) { this.cls = `${this.cls} ${value}`.trim(); }, setAttr(name, value) { this[name] = value; }, addEventListener(name, handler) { this.handlers = { ...this.handlers, [name]: handler }; }, remove() {},
+    empty() { this.children = []; }, querySelector() { return null; } });
+  const root = node('root'), child = node('child', root.id), grand = node('grand', child.id);
+  const view = new OutlineView({ app: {} }, async () => {}); view.contentEl = element('content');
+  view.activePath = 'child.md';
+  view.setMap(map([root, child, grand]), new Map([['root', 'Root'], ['child', 'Child'], ['grand', 'Grand']]));
+  const all = item => [item, ...item.children.flatMap(all)];
+  const toggles = all(view.contentEl).filter(item => item.cls === 'vam-outline-toggle');
+  assert.deepEqual(toggles.map(item => item['aria-expanded']), ['true', 'true']);
+  toggles[1].handlers.click();
+  // The fake DOM keeps the old tree, so read the newest one.
+  const after = all(view.contentEl).filter(item => item.cls === 'vam-outline-toggle').slice(-2);
+  assert.deepEqual(after.map(item => item['aria-expanded']), ['true', 'false'], 'collapsing a branch flips aria-expanded');
+  const current = all(view.contentEl).filter(item => item['aria-current'] === 'true').slice(-1);
+  assert.deepEqual(current.map(item => item.text), ['Child'], 'the active topic row is aria-current');
+  assert.equal(all(view.contentEl).filter(item => item.cls === 'vam-outline-note' && item['aria-current'] === 'true' && item.text !== 'Child').length, 0, 'no other row is');
+});
+test('dead code is gone: no unreachable TaskModal confirmation branches and a single AIM status chip block', () => {
+  const source = fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8');
+  assert.equal(/confirmed = false/.test(source), false); assert.equal(/if \(!confirmed\)/.test(source), false);
+  assert.equal((source.match(/ui\.aim_answered_not_started/g) ?? []).length, 1, 'the AIM chip is built once');
+});

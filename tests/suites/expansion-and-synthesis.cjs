@@ -436,7 +436,7 @@ integrationTest('quick exploration creates two levels directly and leaves them u
   view.path = mapPath; view.map = mapDoc; view.contentEl = { querySelector: () => null }; view.render = () => {}; view.hydrate = async () => {}; view.focusNode = () => {};
   let reviewed = 0, completed = 0, researched = 0;
   view.runAgent = async () => { researched++; };
-  await view.proposeChildren(parent, true, { researchMode: 'research', researchDepth: 'fast', visualMode: 'off', referenceGroups: [], multiLayer: true, shallowResearch: false, layers: 2, firstLayerCount: 2, childrenPerParent: 1 }, '', () => { reviewed++; }, message => assert.fail(message), true, () => { completed++; });
+  await view.proposeChildren(parent, { researchMode: 'research', researchDepth: 'fast', visualMode: 'off', referenceGroups: [], multiLayer: true, shallowResearch: false, layers: 2, firstLayerCount: 2, childrenPerParent: 1 }, '', () => { reviewed++; }, message => assert.fail(message), true, () => { completed++; });
   const saved = await repo.readMap(mapPath);
   assert.equal(saved.nodes.length, 5); assert.equal(saved.nodes[3].parentId, saved.nodes[1].id); assert.equal(saved.nodes[4].parentId, saved.nodes[2].id);
   assert.equal(reviewed, 0); assert.equal(completed, 1); assert.equal(researched, 0);
@@ -456,9 +456,9 @@ integrationTest('quick exploration rejects zero for multiple levels and ignores 
   const view = new VisualAgentMapView({ app }, plugin); view.path = mapPath; view.map = mapDoc; view.contentEl = { querySelector: () => null }; view.render = () => {}; view.hydrate = async () => {}; view.focusNode = () => {};
   let completed = false;
   let failure = '';
-  await view.proposeChildren(parent, true, { multiLayer: true, layers: 2, firstLayerCount: 10, childrenPerParent: 0 }, '', () => assert.fail('invalid shape'), message => { failure = message; }, true);
+  await view.proposeChildren(parent, { multiLayer: true, layers: 2, firstLayerCount: 10, childrenPerParent: 0 }, '', () => assert.fail('invalid shape'), message => { failure = message; }, true);
   assert.match(failure, /positive whole/); assert.equal(task, ''); assert.equal((await repo.readMap(mapPath)).nodes.length, 1);
-  await view.proposeChildren(parent, true, { researchMode: 'research', researchDepth: 'fast', visualMode: 'off', referenceGroups: [], multiLayer: true, layers: 1, firstLayerCount: 10, childrenPerParent: NaN }, '', () => assert.fail('quick map should not show review'), message => assert.fail(message), true, () => { completed = true; });
+  await view.proposeChildren(parent, { researchMode: 'research', researchDepth: 'fast', visualMode: 'off', referenceGroups: [], multiLayer: true, layers: 1, firstLayerCount: 10, childrenPerParent: NaN }, '', () => assert.fail('quick map should not show review'), message => assert.fail(message), true, () => { completed = true; });
   const saved = await repo.readMap(mapPath);
   assert.equal(saved.nodes.length, 11);
   assert.ok(saved.nodes.slice(1).every(child => child.parentId === parent.id));
@@ -484,7 +484,7 @@ integrationTest('quick exploration gives every parent two children across three 
   const { VisualAgentMapView } = load('main.ts', { obsidian });
   const view = new VisualAgentMapView({ app }, plugin); view.path = mapPath; view.map = mapDoc; view.contentEl = { querySelector: () => null }; view.render = () => {}; view.hydrate = async () => {}; view.focusNode = () => {};
   let researched = 0; view.runAgent = async (child, _done, _failed, _options, accepted) => { researched++; await repo.updateNote(child.path, { status: 'running' }); accepted?.(); return { finished: Promise.resolve() }; };
-  await view.proposeChildren(parent, true, { researchMode: 'research', researchDepth: 'fast', visualMode: 'off', referenceGroups: [], multiLayer: true, shallowResearch: true, layers: 3, firstLayerCount: 2, childrenPerParent: 2 }, '', () => assert.fail('quick map should not show review'), message => assert.fail(message), true);
+  await view.proposeChildren(parent, { researchMode: 'research', researchDepth: 'fast', visualMode: 'off', referenceGroups: [], multiLayer: true, shallowResearch: true, layers: 3, firstLayerCount: 2, childrenPerParent: 2 }, '', () => assert.fail('quick map should not show review'), message => assert.fail(message), true);
   await until(() => plugin.expansionBatches.get(parent.path).status !== 'running');
   const saved = await repo.readMap(mapPath);
   assert.equal(saved.nodes.length, 15); assert.equal(researched, 14);
@@ -505,7 +505,7 @@ integrationTest('quick exploration rejects an uneven branch before creating any 
   const { VisualAgentMapView } = load('main.ts', { obsidian });
   const view = new VisualAgentMapView({ app }, plugin); view.path = mapPath; view.map = mapDoc; view.contentEl = { querySelector: () => null }; view.render = () => {}; view.hydrate = async () => {};
   let failure = '';
-  await view.proposeChildren(parent, true, { researchMode: 'research', researchDepth: 'fast', visualMode: 'off', referenceGroups: [], multiLayer: true, layers: 2, firstLayerCount: 2, childrenPerParent: 1 }, '', () => assert.fail('uneven map accepted'), message => { failure = message; }, true);
+  await view.proposeChildren(parent, { researchMode: 'research', researchDepth: 'fast', visualMode: 'off', referenceGroups: [], multiLayer: true, layers: 2, firstLayerCount: 2, childrenPerParent: 1 }, '', () => assert.fail('uneven map accepted'), message => { failure = message; }, true);
   assert.match(failure, /level counts and parent-child structure/);
   assert.equal((await repo.readMap(mapPath)).nodes.length, 1);
 });
@@ -728,7 +728,7 @@ integrationTest('pending proposals use this run\'s shallow research choice and s
   view.createChildBatch = async (_parent, _items, options) => { used = options; return [node('created')]; };
   view.startShallowResearch = async (_parent, children, options) => { assert.equal(insideMutation, false); startedResearch = { children, options, queued }; };
   const options = { researchMode: 'local', researchDepth: 'fast', visualMode: 'off', referenceGroups: [{ name: 'Reference map', documents: [{ path: 'map/topic.md', content: 'private source' }] }], multiLayer: false, shallowResearch: true };
-  await view.proposeChildren({ id: 'parent', path: 'parent.md' }, true, options, '', (_items, confirm) => { create = confirm; }, message => assert.fail(message));
+  await view.proposeChildren({ id: 'parent', path: 'parent.md' }, options, '', (_items, confirm) => { create = confirm; }, message => assert.fail(message));
   const storedChoices = plugin.pendingResearchOptions.get('parent.md');
   assert.equal(storedChoices.researchMode, 'local'); assert.equal(storedChoices.researchDepth, 'fast'); assert.equal(storedChoices.visualMode, 'off');
   assert.equal(storedChoices.referenceGroups.length, 0); assert.equal(storedChoices.signal, undefined); assert.equal(storedChoices.onProgress, undefined);
@@ -736,7 +736,7 @@ integrationTest('pending proposals use this run\'s shallow research choice and s
   assert.equal(queued, 1); assert.equal(used.researchMode, 'local'); assert.equal(used.researchDepth, 'fast'); assert.equal(used.visualMode, 'off'); assert.equal(used.referenceGroups.length, 0); assert.notEqual(used, options); assert.equal(plugin.pendingSuggestions.has('parent.md'), false);
   assert.equal(startedResearch.queued, 1); assert.equal(startedResearch.children.length, 1); assert.equal(startedResearch.options.referenceGroups.length, 0);
   plugin.pendingSuggestions.set('parent.md', suggestions); plugin.pendingResearchOptions.set('parent.md', options);
-  await view.proposeChildren({ id: 'parent', path: 'parent.md' }, true, { ...options, shallowResearch: false }, '', () => {}, message => assert.fail(message));
+  await view.proposeChildren({ id: 'parent', path: 'parent.md' }, { ...options, shallowResearch: false }, '', () => {}, message => assert.fail(message));
   assert.equal(plugin.pendingResearchOptions.has('parent.md'), false);
 });
 integrationTest('two views cannot create the same pending proposals twice', async () => {
@@ -747,8 +747,8 @@ integrationTest('two views cannot create the same pending proposals twice', asyn
   const first = new VisualAgentMapView({ app: {} }, plugin), second = new VisualAgentMapView({ app: {} }, plugin);
   for (const view of [first, second]) { view.render = () => {}; view.createChildBatch = async () => { created++; return []; }; }
   let acceptFirst, acceptSecond;
-  await first.proposeChildren({ id: 'parent', path: 'parent.md' }, true, undefined, '', (_items, accept) => { acceptFirst = accept; });
-  await second.proposeChildren({ id: 'parent', path: 'parent.md' }, true, undefined, '', (_items, accept) => { acceptSecond = accept; });
+  await first.proposeChildren({ id: 'parent', path: 'parent.md' }, undefined, '', (_items, accept) => { acceptFirst = accept; });
+  await second.proposeChildren({ id: 'parent', path: 'parent.md' }, undefined, '', (_items, accept) => { acceptSecond = accept; });
   const outcomes = await Promise.allSettled([acceptFirst(suggestions), acceptSecond(suggestions)]);
   assert.equal(created, 1);
   assert.deepEqual(outcomes.map(outcome => outcome.status), ['fulfilled', 'rejected']);
@@ -767,7 +767,7 @@ integrationTest('partial child creation invalidates the proposal so retry cannot
   const { VisualAgentMapView } = load('main.ts', { obsidian });
   const view = new VisualAgentMapView({ app }, plugin); view.path = mapPath; view.map = mapDoc; view.contentEl = { querySelector: () => null }; view.render = () => {}; view.hydrate = async () => {}; view.focusNode = () => {};
   view.noteChange = async () => { if (++changes === 2) throw new Error('injected note write failure'); };
-  await view.proposeChildren(parent, true, undefined, '', (_items, confirm) => { create = confirm; }, message => assert.fail(message));
+  await view.proposeChildren(parent, undefined, '', (_items, confirm) => { create = confirm; }, message => assert.fail(message));
   await assert.rejects(create(suggestions), /Some subtopics were created/);
   assert.equal(queued, 1); assert.equal(plugin.pendingSuggestions.has(parent.path), false);
   assert.deepEqual(persisted, []);
@@ -928,16 +928,16 @@ integrationTest('decomposition accepts 1 to 7 proposals and does not write nodes
   const { VisualAgentMapView } = load('main.ts', { obsidian });
   const plugin = withExpansionCoordinator({ repo, settings: { ...DEFAULT_SETTINGS }, running: new Set(), pendingSuggestions: new Map(), askModel: async () => ({ summary: '', detail: '', visualReferences: [], suggestions: [{ title: 'Only one', task: '', contribution: '' }, { title: 'Only two', task: '', contribution: '' }] }) });
   const view = new VisualAgentMapView({ app }, plugin); view.path = mapPath; view.map = mapDoc; view.render = () => {}; view.hydrate = async () => {}; view.openChildSuggestions = () => {};
-  await view.proposeChildren(parent, true);
+  await view.proposeChildren(parent);
   assert.equal(plugin.pendingSuggestions.get(parent.path).length, 2);
   plugin.pendingSuggestions.clear();
   assert.equal((await repo.readMap(mapPath)).nodes.length, 1);
   plugin.askModel = async () => ({ summary: '', detail: '', visualReferences: [], suggestions: [{ title: 'Only one', task: '', contribution: '' }] });
-  await view.proposeChildren(parent, true);
+  await view.proposeChildren(parent);
   assert.equal(plugin.pendingSuggestions.get(parent.path).length, 1);
   plugin.pendingSuggestions.clear();
   plugin.askModel = async () => ({ summary: '', detail: '', visualReferences: [], suggestions: Array.from({ length: 8 }, (_, index) => ({ title: `Suggestion ${index + 1}`, task: '', contribution: '' })) });
-  await view.proposeChildren(parent, true);
+  await view.proposeChildren(parent);
   assert.equal(plugin.pendingSuggestions.get(parent.path).length, 7);
   assert.equal((await repo.readMap(mapPath)).nodes.length, 1);
 });
@@ -950,7 +950,7 @@ integrationTest('English expansion uses English-generated task instructions', as
   let task = '';
   const plugin = withExpansionCoordinator({ recordFailure: (_label, error) => String(error), repo, settings: { ...DEFAULT_SETTINGS, language: 'en' }, running: new Set(), pendingSuggestions: new Map(), askModel: async context => { task = context.task; return { summary: '', detail: '', visualReferences: [], suggestions: Array.from({ length: 3 }, (_, index) => ({ title: `Idea ${index}`, task: 'Research', contribution: '' })) }; } });
   const view = new VisualAgentMapView({ app }, plugin); view.path = mapPath; view.map = mapDoc; view.render = () => {}; view.hydrate = async () => {}; view.openChildSuggestions = () => {}; view.ancestorContext = async () => '';
-  await view.proposeChildren(parent, true);
+  await view.proposeChildren(parent);
   assert.match(task, /Existing direct subtopics/);
   assert.doesNotMatch(task, /[一-龥]/);
 });
@@ -966,7 +966,7 @@ integrationTest('decomposition receives existing child topics to avoid duplicate
   const plugin = withExpansionCoordinator({ repo, settings: { ...DEFAULT_SETTINGS }, running: new Set(), pendingSuggestions: new Map(), askModel: async context => { captured = context; return { summary: 'No split', detail: '', visualReferences: [], suggestions: [] }; } });
   const { VisualAgentMapView } = load('main.ts', { obsidian });
   const view = new VisualAgentMapView({ app }, plugin); view.path = mapPath; view.map = mapDoc; view.notes.set(child.id, await repo.readNote(child.path)); view.render = () => {}; view.hydrate = async () => {};
-  await view.proposeChildren(parent, true);
+  await view.proposeChildren(parent);
   assert.match(captured.task, /Existing direct subtopics/);
   assert.match(captured.task, /交通/);
   assert.match(captured.task, /do not pad the count/);
@@ -984,7 +984,7 @@ integrationTest('guided proposals support zero, one, two and seven, saving selec
     const view = new VisualAgentMapView({app}, plugin); Object.assign(view, {path, map: doc, contentEl: {querySelector: () => null}, render() {}, async hydrate() {}, focusNode() {}});
     let offered, confirm, failure, renderedPending;
     view.render = () => { renderedPending = plugin.pendingSuggestions.size; };
-    await view.proposeChildren(parent, true, {}, '', (items, create) => { offered = items; confirm = create; }, message => { failure = message; });
+    await view.proposeChildren(parent, {}, '', (items, create) => { offered = items; confirm = create; }, message => { failure = message; });
     assert.equal((await repo.readMap(path)).nodes.length, 1);
     if (!count) { assert.equal(failure, 'No useful split'); continue; }
     assert.equal(offered.length, count);
@@ -1457,7 +1457,7 @@ integrationTest('expand without shallow research: the chosen template shapes con
   const h = await templateHarness({ language: 'en', settings: { detailTemplates: [partsTemplate()] }, reply });
   const options = { researchMode: 'local', researchDepth: 'fast', visualMode: 'off', referenceGroups: [], shallowResearch: false, multiLayer: false, detailTemplateId: 'X' };
   let create;
-  await h.view.proposeChildren(h.topic, true, options, '', (items, run) => { create = () => run(items.slice(0, 1)); }, message => assert.fail(message));
+  await h.view.proposeChildren(h.topic, options, '', (items, run) => { create = () => run(items.slice(0, 1)); }, message => assert.fail(message));
   assert.ok(create, 'suggestions were presented');
   await create();
   const saved = await h.repo.readMap(h.mapPath);

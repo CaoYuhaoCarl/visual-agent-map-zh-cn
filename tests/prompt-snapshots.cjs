@@ -100,11 +100,11 @@ test('collect snapshots: Visual Map expansion and synthesis tasks', async () => 
     const view = new VisualAgentMapView({ app }, plugin); view.path = mapPath; view.map = mapDoc; view.contentEl = { querySelector: () => null }; view.render = () => {}; view.hydrate = async () => {}; view.focusNode = () => {}; view.ancestorContext = async () => 'Ancestor chain A';
     const options = { researchMode: 'research', researchDepth: 'fast', visualMode: 'off', referenceGroups: [], multiLayer: true, shallowResearch: false, layers: 2, firstLayerCount: 2, childrenPerParent: 1, outputLanguage: language };
     contexts.kind = 'direct';
-    await view.proposeChildren(parent, true, options, '', () => {}, () => {}, true).catch(() => {});
+    await view.proposeChildren(parent, options, '', () => {}, () => {}, true).catch(() => {});
     contexts.kind = 'guided';
-    await view.proposeChildren(parent, true, { ...options, multiLayer: false }, 'Focus on risks', () => {}, () => {}, false).catch(() => {});
+    await view.proposeChildren(parent, { ...options, multiLayer: false }, 'Focus on risks', () => {}, () => {}, false).catch(() => {});
     contexts.kind = 'guided-empty-direction';
-    await view.proposeChildren(parent, true, { ...options, multiLayer: false }, '', () => {}, () => {}, false).catch(() => {});
+    await view.proposeChildren(parent, { ...options, multiLayer: false }, '', () => {}, () => {}, false).catch(() => {});
     contexts.kind = 'synthesis-directions';
     contexts.suggestions = [{ title: 'Direction one', task: 't', contribution: 'c' }];
     let choose;

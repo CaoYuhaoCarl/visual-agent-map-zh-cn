@@ -153,14 +153,21 @@ export class OutlineImportModal extends Modal {
         reason: mapReason ?? (selected ? null : t("ui.outline_import_placement_no_selection"))
       }
     ];
+    // The chosen option is marked with a class (no :has() selector needed).
+    const marks: { label: HTMLElement; kind: OutlinePlacement["kind"] }[] = [];
     for (const option of options) {
-      const label = group.createEl("label", { cls: `vam-outline-option${option.reason ? " is-disabled" : ""}` });
+      const label = group.createEl("label", {
+        cls: `vam-outline-option${option.reason ? " is-disabled" : ""}${option.kind === this.placement ? " is-checked" : ""}`
+      });
+      marks.push({ label, kind: option.kind });
       const input = label.createEl("input", { type: "radio", value: option.kind });
       input.name = "vam-outline-placement";
       input.checked = option.kind === this.placement;
       input.disabled = option.reason !== null;
       input.addEventListener("change", () => {
-        if (input.checked) this.placement = option.kind;
+        if (!input.checked) return;
+        this.placement = option.kind;
+        for (const mark of marks) mark.label.toggleClass("is-checked", mark.kind === this.placement);
       });
       const text = label.createDiv("vam-outline-option-text");
       text.createSpan({ text: option.text });

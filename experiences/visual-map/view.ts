@@ -3039,8 +3039,16 @@ export class VisualAgentMapView extends ItemView {
     }
     const batch = this.plugin.expansionBatches.get(node.path);
     const active = this.plugin.running?.has(node.path) || this.plugin.quickExpandPending?.has(node.path);
-    if (node.aimKind === "question" && this.map?.aim) {
-      const status = aimQuestionStatus(this.map, node.id, this.aimActiveQuestionNodeId);
+    const doc = this.map,
+      aimData = doc?.aim;
+    // An AIM question, and the AIM root topic that owns the first branch, show the branch progress instead of note state.
+    const aimProgress =
+      !!aimData &&
+      (node.aimKind === "question" ||
+        (node.aimKind === "topic" &&
+          aimData.branches.some(branch => branch.questionNodeId === node.id && !branch.parentBranchId)));
+    if (doc && aimData && aimProgress) {
+      const status = aimQuestionStatus(doc, node.id, this.aimActiveQuestionNodeId);
       const key: Record<AimQuestionStatus, TranslationKey> = {
         running: "ui.aim_branch_running",
         completed: "ui.aim_branch_completed",
@@ -3052,28 +3060,7 @@ export class VisualAgentMapView extends ItemView {
       header.createSpan({
         cls: `vam-status vam-aim-question-status vam-status-${status === "running" ? "running" : status === "completed" ? "completed" : status === "not_started" ? "idea" : "error"}`,
         text:
-          status === "not_started" && this.map.aim.branches.some(branch => branch.questionNodeId === node.id)
-            ? t("ui.aim_answered_not_started")
-            : t(key[status])
-      });
-    } else if (
-      node.aimKind === "topic" &&
-      this.map?.aim &&
-      this.map.aim.branches.some(branch => branch.questionNodeId === node.id && !branch.parentBranchId)
-    ) {
-      const status = aimQuestionStatus(this.map, node.id, this.aimActiveQuestionNodeId);
-      const key: Record<AimQuestionStatus, TranslationKey> = {
-        running: "ui.aim_branch_running",
-        completed: "ui.aim_branch_completed",
-        partial: "ui.aim_branch_partial",
-        failed: "ui.aim_branch_failed",
-        cancelled: "ui.aim_branch_cancelled",
-        not_started: "ui.aim_branch_not_started"
-      };
-      header.createSpan({
-        cls: `vam-status vam-aim-question-status vam-status-${status === "running" ? "running" : status === "completed" ? "completed" : status === "not_started" ? "idea" : "error"}`,
-        text:
-          status === "not_started" && this.map.aim.branches.some(branch => branch.questionNodeId === node.id)
+          status === "not_started" && aimData.branches.some(branch => branch.questionNodeId === node.id)
             ? t("ui.aim_answered_not_started")
             : t(key[status])
       });
@@ -3790,7 +3777,7 @@ export class VisualAgentMapView extends ItemView {
         },
         (options, direction, found, failed, created, accepted) => {
           if (!options.multiLayer)
-            return this.proposeChildren(node, true, options, direction, found, failed, false, created, accepted);
+            return this.proposeChildren(node, options, direction, found, failed, false, created, accepted);
           return this.startQuickExpansion(node, options, direction, failed, created, accepted);
         },
         (options, direction, failed, accepted) => this.startSynthesis(node, options, direction, failed, accepted),
@@ -3841,6 +3828,8 @@ export class VisualAgentMapView extends ItemView {
     close?: () => void,
     host?: HTMLElement
   ): void {
+    // The canvas overlay makes room for the sample inspector; a class does it without a :has() selector.
+    if (this.builtIn) parent.addClass("has-inspector");
     const panel = parent.createDiv(this.builtIn ? "vam-inspector" : "vam-topic-panel"),
       note = this.notes.get(node.id);
     const heading = panel.createDiv("vam-inspector-heading");
@@ -4207,7 +4196,7 @@ export class VisualAgentMapView extends ItemView {
     this.plugin.quickExpandFailures.delete(parent.path);
     this.plugin.quickExpandPending.add(parent.path);
     this.render();
-    return this.proposeChildren(parent, true, options, direction, undefined, failed, true, created, accepted)
+    return this.proposeChildren(parent, options, direction, undefined, failed, true, created, accepted)
       .catch(error => {
         this.plugin.quickExpandFailures.set(parent.path, error instanceof Error ? error.message : String(error));
         throw error;
@@ -4220,7 +4209,6 @@ export class VisualAgentMapView extends ItemView {
   }
   private async proposeChildren(
     parent: MapNode,
-    confirmed = false,
     options?: TaskOptions,
     direction = "",
     found?: (items: Suggestion[], create: (items: Suggestion[]) => Promise<void>) => void,
@@ -4293,34 +4281,6 @@ export class VisualAgentMapView extends ItemView {
     }
     if (this.plugin.running.has(parent.path)) {
       failed?.(t("ui.ai_running_ai"));
-      return;
-    }
-    if (!confirmed) {
-      const note = await this.plugin.repo.readNote(parent.path);
-      new TaskModal(
-        this.app,
-        t("ui.suggest_the_most_useful_expansion_direction_or_follow_the_di"),
-        (value, run, chosen) => {
-          if (run)
-            void this.plugin.confirmAiUsage(note.model, async () =>
-              this.enqueue(() => this.proposeChildren(parent, true, chosen, value))
-            );
-        },
-        t("ui.expand_subtopics"),
-        t("ui.specify_an_expansion_direction_or_ask_ai_to_suggest_one_prev"),
-        note.rules,
-        note.researchMode,
-        note.researchDepth,
-        note.visualMode,
-        false,
-        true,
-        this.taskSourceSettings(t("ui.reference_current_topic_included", note.title)),
-        undefined,
-        this.plugin.settings.language,
-        note.model,
-        note.reasoning ?? this.plugin.settings.cliReasoning,
-        note.title
-      ).open();
       return;
     }
     const controller = new AbortController();
@@ -5032,7 +4992,7 @@ export class VisualAgentMapView extends ItemView {
         return;
       }
       found(angles, direction =>
-        this.plugin.mutate(() => this.integrateChildren(node, true, options, direction, drafted, failed))
+        this.plugin.mutate(() => this.integrateChildren(node, options, direction, drafted, failed))
       );
     } catch (error) {
       if (options.signal?.aborted || (error instanceof Error && error.name === "AbortError")) {
@@ -5049,7 +5009,6 @@ export class VisualAgentMapView extends ItemView {
   }
   private async integrateChildren(
     node: MapNode,
-    confirmed = false,
     options?: TaskOptions,
     direction = "",
     drafted?: (result: AiResult, save: (summary: string, detail: string) => Promise<void>) => void,
@@ -5066,37 +5025,6 @@ export class VisualAgentMapView extends ItemView {
       const message = t("ui.choose_another_note_source_first");
       if (failed) failed(message);
       else new Notice(message);
-      return;
-    }
-    if (!confirmed) {
-      new TaskModal(
-        this.app,
-        t("ui.synthesize_agreements_differences_tradeoffs_and_open_questio"),
-        (value, run, chosen) => {
-          if (run)
-            void this.plugin.confirmAiUsage(note.model, async () =>
-              this.enqueue(() => this.integrateChildren(node, true, chosen, value))
-            );
-        },
-        t("ui.synthesize_subtopics"),
-        t("ui.ai_reads_direct_subtopics_and_prepares_a_synthesis_draft_not"),
-        note.rules,
-        "local",
-        note.researchDepth,
-        note.visualMode,
-        false,
-        false,
-        this.taskSourceSettings(
-          t("ui.reference_current_topic_included", note.title),
-          this.map?.id,
-          t("ui.reference_synthesis_topics_included", note.title)
-        ),
-        children.map(child => this.notes.get(child.id)?.title ?? child.path),
-        this.plugin.settings.language,
-        note.model,
-        note.reasoning ?? this.plugin.settings.cliReasoning,
-        note.title
-      ).open();
       return;
     }
     const childSources = await this.topicReferenceGroup(
@@ -5379,7 +5307,6 @@ export class VisualAgentMapView extends ItemView {
       else
         await this.integrateChildren(
           node,
-          true,
           runOptions,
           direction ?? "",
           (result, save) => {
