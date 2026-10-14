@@ -44,6 +44,8 @@ export interface TaskContext {
   detailFormat?: "adaptive";
   /** Content template for fixed-section details (trusted; Standard when absent). */
   detailTemplate?: DetailTemplate;
+  /** Resolved writing-tone text (trusted). Absent for the default academic tone, so prompts stay unchanged. */
+  toneText?: string;
   /** internal: this request is the single count repair. */
   countRepair?: boolean;
   /** Select a phase-aware prompt builder for AIM requests. */

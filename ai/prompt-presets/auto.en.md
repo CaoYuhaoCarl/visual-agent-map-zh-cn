@@ -1,0 +1,1 @@
+Tone: AI choice. Choose the most suitable writing tone yourself from the nature of the topic and its context (the reader, the purpose, the style of the existing content), and state your choice and reason in one line at the very top of detail (format: "Tone: <name> | <one-sentence reason>") before the body begins.

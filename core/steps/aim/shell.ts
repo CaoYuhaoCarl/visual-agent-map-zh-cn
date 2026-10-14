@@ -13,6 +13,7 @@ import {
   REFERENCE_CITATIONS,
   ROLE,
   SOURCE_SAFETY,
+  toneBlock,
   type FragmentPair
 } from "../_shared/fragments";
 import LanguageZH from "./language.zh.md";
@@ -126,6 +127,7 @@ export function buildAimPrompt(context: TaskContext, language: UiLanguage): stri
     context.sourceContext ? inLanguage(REFERENCE_CITATIONS, language) : "",
     context.sourceContext && context.researchMode !== "local" ? inLanguage(LOCAL_FIRST, language) : "",
     inLanguage(JSON_CONTRACT, language),
+    context.toneText ? toneBlock(context.toneText, language) : "",
     phaseGuidance(phase, language, context.responseContract, !!context.aimContract),
     context.researchMode === "local"
       ? inLanguage(WEB_SEARCH_OFF, language)

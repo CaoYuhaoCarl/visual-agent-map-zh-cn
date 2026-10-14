@@ -1,0 +1,1 @@
+Tone: plain explanation. Explain to a non-specialist reader in everyday language with short sentences and little jargon; explain any necessary term in one sentence the first time it appears. Lead with the conclusion and the key points, then add background, and do not pile up technical terms.

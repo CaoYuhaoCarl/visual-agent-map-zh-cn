@@ -567,6 +567,20 @@ integrationTest('topic remembers its content template and format issues in front
   assert.equal(note.detailTemplateId, undefined); assert.deepEqual(plain(note.detailFormatIssues), []);
   assert.doesNotMatch(await app.vault.read(app.vault.getAbstractFileByPath(node.path)), /detail-format-issues|detail-template/);
 });
+integrationTest('topic remembers its tone override in frontmatter `tone`; clearing removes it', async () => {
+  const { repo, app } = fixture('en');
+  const map = { id: 'm', title: 'M', version: 1, nodes: [], viewport: { x: 0, y: 0, zoom: 1 } };
+  const mapPath = 'Agent Workspace/Topics/M/Map.md';
+  await repo.ensureTopicFolders('Agent Workspace/Topics/M'); await app.vault.create(mapPath, core.serializeMap(map));
+  const node = await repo.createNote('T', 'model-a', map, mapPath, 'workspace');
+  assert.equal((await repo.readNote(node.path)).toneId, undefined);
+  await repo.updateNote(node.path, { toneId: 'magazine' });
+  assert.equal((await repo.readNote(node.path)).toneId, 'magazine');
+  assert.match(await app.vault.read(app.vault.getAbstractFileByPath(node.path)), /tone: "?magazine"?/);
+  await repo.updateNote(node.path, { toneId: '' });
+  assert.equal((await repo.readNote(node.path)).toneId, undefined);
+  assert.doesNotMatch(await app.vault.read(app.vault.getAbstractFileByPath(node.path)), /^tone:/m);
+});
 integrationTest('visual reference without a related paragraph goes before the sources section (zh and en)', async () => {
   const { canonicalDetail } = load('ai/result-utils.ts');
   const reference = '**Pic**\n\n![Pic](https://x/y.png)\n\nSource: https://x';
