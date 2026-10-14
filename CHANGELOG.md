@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.19.0] - 2026-10-15
+
+### Changed
+
+- Mind maps and AIM maps are stored separately: new mind maps go to `Mind Maps/` and new AIM maps to `AIM/` inside your workspace folder, so the file explorer no longer mixes the two. Both folder names can be changed in settings; changing one renames the existing folder and closes the Settings window while it runs.
+- The Inbox is no longer created or managed. Notes in an existing `Inbox/` folder are left untouched, and the pre-0.4 workspace migration was removed.
+
+### Added
+
+- **Organize workspace folders** command moves existing maps from `Topics/` into `Mind Maps/` and `AIM/`. It shows a preview first, uses Obsidian's rename so links follow, shows progress per map, and restores every moved map if a step fails. VAM never moves maps on its own; maps left in `Topics/` keep working.
+- When Organize leaves the old `Topics/` or `Inbox/` folder completely empty, it moves that empty folder to the trash (following your Obsidian trash setting). A folder that still holds anything, including hidden files, is never touched.
+
+### Fixed
+
+- Rebuilding or updating notes keeps each note's existing label language instead of switching it to the current interface language.
+- VAM no longer writes to the vault after it is disabled or Obsidian closes.
+- **Refresh VAM data** and Organize first repair maps left with outdated paths by an interrupted move.
+
+### Notes
+
+- When Obsidian's "Automatically update internal links" is off, Obsidian may ask about links once per moved map.
+- Obsidian's link update may turn relative image embeds in moved notes into full vault paths.
+- Moved AIM maps are saved with current field names.
+
 ## [0.18.0] - 2026-10-14
 
 ### Added
