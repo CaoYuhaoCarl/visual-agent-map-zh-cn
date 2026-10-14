@@ -104,8 +104,8 @@ const LEGACY = 'Agent Workspace/Topics';
 const bodyOf = (title, links) => `\n# ${title}\n\n## Detail\n\n${links}\n`;
 
 /** A 0.18-style vault: legacy Topics holds two mind maps and one AIM map; an unfiled VAM note cites a moved note. */
-async function legacyVault() {
-  const data = fixture('en');
+async function legacyVault(writtenIn = 'en', uiLanguage = writtenIn) {
+  const data = fixture(writtenIn);
   const { repo, app } = data;
   app.vault.modify = async (file, content) => app.vault.process(file, () => content);
   await repo.folder(LEGACY);
@@ -133,6 +133,7 @@ async function legacyVault() {
   const betaFirst = (await repo.readMap(beta)).nodes[0].path;
   await app.vault.create(cites, `---\nagent-map-node: true\nnode-id: "cites"\ntitle: "Cites"\ntopic-state: unassigned\nsource-notes: ${JSON.stringify([betaFirst])}\n---\n${bodyOf('Cites', '')}`);
   await repo.rebuildDerivedData();
+  repo.settings.language = uiLanguage; // the notes were written under `writtenIn`; operations now run under `uiLanguage`
   return { ...data, paths, cites, betaFirst };
 }
 const snapshot = ({ files, contents }) => ({ paths: [...files.keys()].sort(), contents: new Map(contents) });
@@ -562,4 +563,91 @@ integrationTest('a move that Obsidian reports as done but that did not happen on
   await assert.rejects(repo.organizeWorkspaceFolders(plan), /did not take effect on disk/);
   app.fileManager.renameFile = rename;
   assertUnchanged(vault, before, 'a silently ignored rename');
+});
+
+// ---- Label language: no write path relabels a note ---------------------------------------------------------------
+const EN_SCAFFOLD = /^- (Topic|Mind map|Parent topic|Child topics|Source topic|Status): |^## Preview$/m;
+const ZH_SCAFFOLD = /^- (所屬主題|所屬心智圖|母議題|子議題|來源議題|狀態)：|^## 預覽$/m;
+const withoutUpdated = text => text.replace(/^updated:.*\n/m, '');
+const substitute = (text, pairs) => pairs.reduce((out, [from, to]) => out.split(from).join(to), text);
+/** Every VAM note keeps its written language, and its text is the original with only the moved path prefixes replaced. */
+function assertScaffoldingKept(vault, originals, pairs, language, message) {
+  const mdPaths = vault.app.vault.getMarkdownFiles().map(file => file.path);
+  let checked = 0;
+  for (const [before, text] of originals) {
+    if (!/agent-map-node: true/.test(text)) continue;
+    const after = vault.contents.get(substitute(before, pairs));
+    assert.ok(after !== undefined, `${message}: ${before} still exists`);
+    assert.equal(withoutUpdated(after), withoutUpdated(substitute(text, pairs)), `${message}: ${before} keeps its text and labels`);
+    (language === 'zh-TW' ? assert.doesNotMatch : assert.match)(after, EN_SCAFFOLD, `${message}: ${before} language`);
+    checked++;
+  }
+  assert.ok(checked >= 6 && mdPaths.length >= checked, 'the check really covered notes');
+}
+const noteOriginals = vault => new Map([...vault.contents.entries()].filter(([, text]) => /agent-map-node: true/.test(text)));
+
+integrationTest('zh-TW notes under an en UI keep every label through Organize (in-topic and cross-topic citations)', async () => {
+  const vault = await legacyVault('zh-TW', 'en');
+  const { repo } = vault;
+  const originals = noteOriginals(vault);
+  assert.match(vault.contents.get(vault.cites), ZH_SCAFFOLD);
+  assert.equal(repo.settings.language, 'en');
+  const mapping = await repo.organizeWorkspaceFolders(await repo.planOrganizeWorkspaceFolders());
+  const pairs = [...mapping.entries()].map(([from, to]) => [from.replace(/\/Map\.md$/, '/'), to.replace(/\/Map\.md$/, '/')]);
+  assertScaffoldingKept(vault, originals, pairs, 'zh-TW', 'Organize');
+  await assertResolves(vault);
+});
+
+integrationTest('en notes under a zh-TW UI keep every label through Organize', async () => {
+  const vault = await legacyVault('en', 'zh-TW');
+  const originals = noteOriginals(vault);
+  const mapping = await vault.repo.organizeWorkspaceFolders(await vault.repo.planOrganizeWorkspaceFolders());
+  const pairs = [...mapping.entries()].map(([from, to]) => [from.replace(/\/Map\.md$/, '/'), to.replace(/\/Map\.md$/, '/')]);
+  assertScaffoldingKept(vault, originals, pairs, 'en', 'Organize');
+});
+
+integrationTest('zh-TW notes under an en UI keep every label through a folder-setting change', async () => {
+  const vault = await legacyVault('zh-TW', 'en');
+  const { repo, app } = vault;
+  app.vault.modify = async (file, content) => app.vault.process(file, () => content);
+  app.fileManager.trashFile = async () => {};
+  await repo.organizeWorkspaceFolders(await repo.planOrganizeWorkspaceFolders());
+  const originals = noteOriginals(vault);
+  const moved = await repo.changeMapFolder('mindMapsFolder', 'Agent Workspace/Ideas');
+  const pairs = [...moved.entries()].map(([from, to]) => [from.replace(/\/Map\.md$/, '/'), to.replace(/\/Map\.md$/, '/')]);
+  assert.equal(moved.size, 2);
+  assertScaffoldingKept(vault, originals, pairs, 'zh-TW', 'folder change');
+  await assertResolves(vault);
+});
+
+integrationTest('zh-TW notes under an en UI keep their labels when the rename handler rewrites citations', async () => {
+  const vault = await legacyVault('zh-TW', 'en');
+  const { repo, app, files } = vault;
+  const handlers = {};
+  app.vault.on = (name, handler) => { handlers[name] = handler; return {}; };
+  app.workspace = { getLeavesOfType: () => [] };
+  const { default: Plugin } = load('main.ts', { obsidian });
+  const plugin = new Plugin();
+  Object.assign(plugin, { app, repo, settings: repo.settings, registerEvent: () => {} });
+  plugin.registerVaultEvents();
+  const cited = vault.betaFirst, renamed = cited.replace('First.md', 'First renamed.md');
+  await app.fileManager.renameFile(files.get(cited), renamed);
+  handlers.rename(files.get(renamed), cited);
+  await plugin.queue;
+  const cites = vault.contents.get(vault.cites);
+  assert.match(cites, new RegExp(renamed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), 'the citation followed the rename');
+  assert.doesNotMatch(cites, EN_SCAFFOLD);
+  for (const [path, text] of vault.contents) if (/agent-map-node: true/.test(text)) assert.doesNotMatch(text, EN_SCAFFOLD, path);
+});
+
+integrationTest('reconcileMissingNodePaths and updateNote keep a zh-TW note zh under an en UI', async () => {
+  const vault = await legacyVault('zh-TW', 'en');
+  const { repo, app, files } = vault;
+  const note = (await repo.readMap(vault.paths.alpha)).nodes[0].path;
+  const moved = note.replace('First.md', 'Elsewhere.md');
+  await app.fileManager.renameFile(files.get(note), moved); // moved without the map being told
+  assert.equal(await repo.reconcileMissingNodePaths(), 1);
+  await repo.updateNote(moved, { summary: 'Edited' });
+  assert.doesNotMatch(vault.contents.get(moved), EN_SCAFFOLD);
+  assert.match(vault.contents.get(moved), ZH_SCAFFOLD);
 });

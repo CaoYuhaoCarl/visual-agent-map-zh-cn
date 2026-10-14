@@ -60,7 +60,7 @@ integrationTest('English notes use English preview, pending summary, and managed
   assert.match(copy.path, /Route copy\.md$/);
   assert.throws(() => repo.file('Missing.md'), /File not found/);
 });
-integrationTest('language switch localizes only generated note scaffolding and preserves authored text', async () => {
+integrationTest('a language switch never relabels an existing note: writes and rebuilds keep its scaffolding language; new notes use the UI language', async () => {
   const { repo, app, contents } = fixture();
   const mapPath = await repo.createMap('Travel'), map = await repo.readMap(mapPath);
   const note = await repo.createNote('Route', 'model-a', map, mapPath, 'workspace');
@@ -71,28 +71,29 @@ integrationTest('language switch localizes only generated note scaffolding and p
   assert.equal(contents.get(note.path), beforeSwitch);
   await repo.updateNote(note.path, { model: 'model-b' });
   let markdown = contents.get(note.path);
-  assert.match(markdown, /## Preview\n\nNo conclusion yet/);
-  assert.match(markdown, /## Current Summary\n\nNo conclusion yet/);
-  assert.match(markdown, /- Topic: \[\[/);
-  assert.match(markdown, /- Source topic: \[\[Source\]\]/);
+  assert.match(markdown, /## 預覽\n\n尚未形成結論/);
+  assert.match(markdown, /## Current Summary\n\n尚未形成結論/);
+  assert.match(markdown, /- 所屬主題：\[\[/);
+  assert.match(markdown, /- 來源議題：\[\[Source\]\]/);
   assert.match(markdown, /Keep detail/);
-  assert.doesNotMatch(markdown, /## 預覽|尚未形成結論|所屬主題|來源議題/);
+  assert.doesNotMatch(markdown, /## Preview|No conclusion yet|- Topic:|Source topic/);
   await repo.updateNote(note.path, { preview: 'My own preview' });
-  // 0.19: a rebuild never relabels a note, whatever the UI language; only notes with no derived labels use it.
-  repo.settings.language = 'zh-TW';
   await repo.rebuildDerivedData();
   markdown = contents.get(note.path);
-  assert.match(markdown, /## Preview\n\nMy own preview/);
-  assert.match(markdown, /- Topic: \[\[/);
-  assert.match(markdown, /Keep detail/);
-  assert.doesNotMatch(markdown, /## 預覽|尚未形成結論|所屬主題/);
+  assert.match(markdown, /## 預覽\n\nMy own preview/);
+  assert.match(markdown, /- 所屬主題：\[\[/);
+  assert.doesNotMatch(markdown, /## Preview|No conclusion yet|- Topic:/);
   assert.equal((await repo.readNote(note.path)).preview, 'My own preview');
+  const fresh = await repo.createNote('Fresh', 'model-a', map, mapPath, 'workspace');
+  map.nodes.push(fresh); await repo.saveMap(mapPath, map); await repo.rebuildDerivedData();
+  assert.match(contents.get(fresh.path), /## Preview/, 'a new note uses the current UI language');
+  assert.match(contents.get(fresh.path), /- Topic: \[\[/);
   const bare = 'Agent Workspace/Unfiled/Bare.md';
   await repo.folder('Agent Workspace/Unfiled');
   const bareContent = '---\nagent-map-node: true\nnode-id: bare\ntitle: Bare\n---\n# Bare\n';
   contents.set(bare, bareContent); await app.vault.create(bare, bareContent);
   await repo.rebuildDerivedData();
-  assert.match(contents.get(bare), /## 預覽/, 'a note with no derived labels uses the current UI language');
+  assert.match(contents.get(bare), /## Preview/, 'a note with no derived labels uses the current UI language');
 });
 integrationTest('editing a note heading updates its card title and survives later note writes', async () => {
   const { repo, contents } = fixture(); const n = await topicNote(repo, '新的子議題');

@@ -12689,6 +12689,15 @@ var Repository = class {
       }
     });
   }
+  /**
+   * The single decision of which language a note's derived scaffolding (relationship labels, Preview heading, summary
+   * placeholder, Reference Links) is written in: the language it already has, else the current UI language. Every writer
+   * of such text uses this, so no write path can relabel a note just because the UI language differs.
+   */
+  scaffoldLanguage(content, fm) {
+    var _a;
+    return (_a = derivedLabelLanguage(content, fm)) != null ? _a : this.settings.language;
+  }
   /** Called from onunload: no later write (including a rollback) may happen. */
   dispose() {
     this.disposed = true;
@@ -12818,10 +12827,11 @@ var Repository = class {
     await this.app.vault.process(this.file(path), (content) => {
       var _a, _b, _c, _d;
       const fm = frontmatter(content);
+      const language2 = this.scaffoldLanguage(content, fm);
       ensureNoteCssClass(fm);
       if (Array.isArray(fm["agent-map-references"]))
         fm["agent-map-references"] = fm["agent-map-references"].map(
-          (value) => localizeReference(String(value), this.settings.language)
+          (value) => localizeReference(String(value), language2)
         );
       fm.title = (_a = patch.title) != null ? _a : noteTitle(content, fm, baseName(path).replace(/\.md$/, ""));
       for (const key2 of ["summary", "model", "status"]) if (patch[key2] !== void 0) fm[key2] = patch[key2];
@@ -12844,10 +12854,10 @@ var Repository = class {
         patch.sourcePaths.length ? fm["source-notes"] = patch.sourcePaths : delete fm["source-notes"];
       fm.updated = (/* @__PURE__ */ new Date()).toISOString();
       let body = content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "");
-      const textLanguage = (_c = (_b = options.contentLanguage) != null ? _b : noteContentLanguage(fm)) != null ? _c : this.settings.language;
+      const textLanguage = (_c = (_b = options.contentLanguage) != null ? _b : noteContentLanguage(fm)) != null ? _c : language2;
       if (options.contentLanguage !== void 0 && noteContentLanguage(fm) === void 0)
         fm["content-language"] = options.contentLanguage;
-      body = ensurePreview(body, this.settings.language, textLanguage);
+      body = ensurePreview(body, language2, textLanguage);
       if (isPlaceholder(text5(fm.summary))) fm.summary = placeholder(textLanguage);
       if (patch.title !== void 0) {
         const heading = managedHeadingValue(patch.title);
@@ -12868,7 +12878,7 @@ var Repository = class {
             detailWithVisualReferences(
               section2(body, "Detail"),
               patch.visualReferences,
-              (_d = options.detailTemplate) != null ? _d : standardTemplate(this.settings.language)
+              (_d = options.detailTemplate) != null ? _d : standardTemplate(language2)
             )
           );
       }
@@ -12880,18 +12890,14 @@ var Repository = class {
         }
       }
       if (patch.preview !== void 0) {
-        body = replaceSection(body, previewHeading(this.settings.language), patch.preview);
+        body = replaceSection(body, previewHeading(language2), patch.preview);
         fm["preview-initialized"] = true;
       } else if (patch.previewSection !== void 0) {
-        body = replaceSection(body, previewHeading(this.settings.language), patch.previewSection);
+        body = replaceSection(body, previewHeading(language2), patch.previewSection);
       } else if (patch.summary !== void 0 && patch.summary.trim() && !isPlaceholder(patch.summary) && fm["preview-initialized"] !== true) {
         const preview = previewSection(body).trim();
         if (!preview || isPlaceholder(preview))
-          body = replaceSection(
-            body,
-            previewHeading(this.settings.language),
-            initialPreview(patch.summary, section2(body, "Detail"))
-          );
+          body = replaceSection(body, previewHeading(language2), initialPreview(patch.summary, section2(body, "Detail")));
         fm["preview-initialized"] = true;
       }
       if (patch.previewInitialized !== void 0) fm["preview-initialized"] = patch.previewInitialized;
@@ -12899,12 +12905,12 @@ var Repository = class {
         body,
         text5(fm.title, path.replace(/\.md$/, "")),
         text5(fm.summary, placeholder(textLanguage)),
-        this.settings.language,
+        language2,
         textLanguage
       );
       return `---
 ${(0, import_obsidian9.stringifyYaml)(fm)}---
-${withReferenceLinks(body, fm, this.settings.language)}`;
+${withReferenceLinks(body, fm, language2)}`;
     });
   }
   async createNote(title, model, map, mapPath, modelSource, initial = {}, onCreate) {
@@ -13326,10 +13332,10 @@ ${body}`);
   }
   /** The node note with derived lifecycle fields and references applied, or null when it is not a VAM node note. */
   derivedNoteContent(file, content, ownership, topics) {
-    var _a, _b;
+    var _a;
     const fm = frontmatter(content);
     if (!marker(fm["agent-map-node"])) return null;
-    const language2 = (_a = derivedLabelLanguage(content, fm)) != null ? _a : this.settings.language;
+    const language2 = this.scaffoldLanguage(content, fm);
     ensureNoteCssClass(fm);
     fm.title = noteTitle(content, fm, file.basename);
     const owner = ownership.get(file.path);
@@ -13347,7 +13353,7 @@ ${body}`);
       } else if (fm["topic-state"] !== void 0 || file.path.includes("/Archive/") || file.path.includes("/Unassigned/"))
         fm["topic-state"] = state;
     }
-    const textLanguage = (owner == null ? void 0 : owner.map.aim) ? resolveAimContentLanguage(owner.map, language2) : (_b = noteContentLanguage(fm)) != null ? _b : language2;
+    const textLanguage = (owner == null ? void 0 : owner.map.aim) ? resolveAimContentLanguage(owner.map, language2) : (_a = noteContentLanguage(fm)) != null ? _a : language2;
     let body = ensurePreview(content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, ""), language2, textLanguage);
     if (isPlaceholder(text5(fm.summary))) fm.summary = placeholder(textLanguage);
     const topicId = text5(fm["topic-id"]), topic = topics.get(topicId);

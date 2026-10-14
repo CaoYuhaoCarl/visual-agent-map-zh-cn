@@ -68,8 +68,9 @@ integrationTest('the upgrade check can fail: a note that 0.19 would have to repa
   assert.notEqual(vault.contents.get('Agent Workspace/Topics/Beta budget/Notes/Budget.md'), vault.originals.get('Agent Workspace/Topics/Beta budget/Notes/Budget.md'));
 });
 
-integrationTest('Organize on the upgraded vault moves Topics maps only; Inbox, pre-0.4 map, its notes and other files stay byte-identical', async () => {
-  const vault = await upgradedVault();
+for (const language of ['en', 'zh-TW'])
+integrationTest(`Organize on the upgraded vault under a ${language} UI moves Topics maps only; Inbox, pre-0.4 map, its notes and other files stay byte-identical, and moved notes keep their labels`, async () => {
+  const vault = await upgradedVault(undefined, language);
   const { repo, app, originals } = vault;
   await repo.ensureWorkspace();
   await repo.rebuildDerivedData();
@@ -77,6 +78,18 @@ integrationTest('Organize on the upgraded vault moves Topics maps only; Inbox, p
   assert.deepEqual([...mapping.values()].sort(), [
     'Agent Workspace/AIM/Steak doneness/Map.md', 'Agent Workspace/Mind Maps/Alpha trip/Map.md', 'Agent Workspace/Mind Maps/Beta budget/Map.md'
   ]);
+  // Moved notes: the original text with only the moved path prefixes replaced (labels in each note's own language), `updated` aside.
+  const pairs = [...mapping.entries()].map(([from, to]) => [from.replace(/\/Map\.md$/, '/'), to.replace(/\/Map\.md$/, '/')]);
+  const strip = text => text.replace(/^updated:.*\n/m, '');
+  let movedNotes = 0;
+  for (const [file, content] of originals) {
+    if (!file.startsWith('Agent Workspace/Topics/') || file.endsWith('/Map.md')) continue;
+    const next = pairs.reduce((out, [from, to]) => out.split(from).join(to), file);
+    const text = pairs.reduce((out, [from, to]) => out.split(from).join(to), content);
+    assert.equal(strip(vault.contents.get(next)), strip(text), `${file} keeps its text and labels`);
+    movedNotes++;
+  }
+  assert.ok(movedNotes >= 6);
   const untouched = [...originals.keys()].filter(file => !file.startsWith('Agent Workspace/Topics/'));
   for (const file of untouched) assert.equal(vault.contents.get(file), originals.get(file), `${file} untouched`);
   assert.equal(filePaths(vault).length, originals.size, 'no file lost');
@@ -88,5 +101,5 @@ integrationTest('Organize on the upgraded vault moves Topics maps only; Inbox, p
   const book = await repo.readNote('Agent Workspace/Mind Maps/Alpha trip/Notes/Book trains.md');
   assert.deepEqual(Array.from(book.sourcePaths), ['Agent Workspace/Mind Maps/Alpha trip/Notes/Plan the trip.md']);
   assert.equal((await repo.planOrganizeWorkspaceFolders()).moves.length, 0, 'a second run has nothing to do');
-  await assert.rejects(repo.renameTopic('Agent Workspace/Maps/Pre-0.4 map.md', 'Renamed'), /view-only/);
+  await assert.rejects(repo.renameTopic('Agent Workspace/Maps/Pre-0.4 map.md', 'Renamed'), /view-only|只能檢視/);
 });
