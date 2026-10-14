@@ -181,20 +181,33 @@ export class VisualAgentMapSettingTab extends PluginSettingTab {
     setting
       .setName(t(label))
       .setDesc(t("ui.map_folder_name_desc", workspace))
-      .addText(input =>
-        input
-          .setPlaceholder(fallback)
-          .setValue(shown)
-          .onChange(async value => {
-            const name = value
-              .trim()
-              .replace(/[\\/]+/g, "/")
-              .replace(/^\/+|\/+$/g, "");
-            if (!name || name.split("/").some(part => part === "." || part === "..")) return;
-            this.plugin.settings[key] = `${workspace}/${name}`;
-            await this.plugin.saveSettings();
-          })
-      );
+      .addText(input => {
+        input.setPlaceholder(fallback).setValue(shown);
+        // Applied on blur/Enter, not per keystroke: a change renames the existing folder.
+        const apply = (): void => {
+          const name = input
+            .getValue()
+            .trim()
+            .replace(/[\\/]+/g, "/")
+            .replace(/^\/+|\/+$/g, "");
+          const revert = (): void => {
+            const now = this.plugin.settings[key];
+            input.setValue(now.startsWith(`${workspace}/`) ? now.slice(workspace.length + 1) : now);
+          };
+          void this.plugin
+            .mutate(async () => {
+              if (await this.plugin.repo.changeMapFolder(key, `${workspace}/${name}`)) await this.plugin.saveSettings();
+            })
+            .then(
+              () => revert(),
+              () => revert()
+            );
+        };
+        input.inputEl.addEventListener("blur", apply);
+        input.inputEl.addEventListener("keydown", event => {
+          if (event.key === "Enter") input.inputEl.blur();
+        });
+      });
   }
   getSettingDefinitions(): SettingDefinitionItem[] {
     const text = (name: string, key: "codexPath" | "claudePath", desc: string): SettingDefinitionItem => ({

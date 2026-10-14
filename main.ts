@@ -594,6 +594,8 @@ export default class VisualAgentMapPlugin extends Plugin {
     this.registerEvent(
       this.app.vault.on("rename", (file, oldPath) => {
         if (!(file instanceof TFile) || !this.repo.renameAffectsVam(file, oldPath)) return;
+        // A rename event whose path did not change (replayed after a rolled-back move) has nothing to update.
+        if (file.path === oldPath) return;
         const external = !this.writing;
         this.runMutation(async () => {
           await this.repo.replaceSourcePath(oldPath, file.path);

@@ -701,6 +701,9 @@ var english = {
   "ui.workspace_location_0_legacy_topics_1": "Workspace: {0} \xB7 Legacy Topics folder (still readable): {1}",
   "ui.legacy_map_view_only": "This map uses the pre-0.4 structure and is view-only.",
   "error.organize_aim_busy": "An AIM research attempt is still running or saving. Wait for it to finish before organizing workspace folders. Nothing was moved.",
+  "error.map_folder_invalid": "Folder name not changed: it must be a new name inside the workspace, and must not be empty, the legacy Topics folder (or inside/around it), or the other map folder.",
+  "error.map_folder_exists": "Folder name not changed: a folder with that name already exists.",
+  "error.map_folder_rename_failed": "Folder name not changed: the folder could not be renamed.",
   "error.legacy_map_view_only": "This map uses the pre-0.4 structure and is view-only.",
   "ui.organize_workspace_folders": "Organize workspace folders",
   "ui.organize_nothing_to_do": "No maps in the legacy Topics folder need organizing.",
@@ -711,7 +714,7 @@ var english = {
   "ui.organize_done_0": "Organized {0} map(s).",
   "ui.mind_maps_folder": "Mind Maps folder",
   "ui.aim_maps_folder": "AIM folder",
-  "ui.map_folder_name_desc": "Folder name inside {0} where new maps are created. Existing maps are not moved; use Organize workspace folders for that.",
+  "ui.map_folder_name_desc": "Folder name inside {0} where new maps are created. Changing it renames the existing folder, so its maps move with it.",
   "ui.synced_0_subtopic_filenames_with_their_names": "Synced {0} subtopic filenames with their names.",
   "ui.synced_0_topic_filenames": "Synced {0} topic filenames.",
   "ui.repair_topic_note_display": "Repair topic note display",
@@ -2098,6 +2101,9 @@ var traditionalChinese = {
   "ui.workspace_location_0_legacy_topics_1": "\u5DE5\u4F5C\u5340\uFF1A{0}\u3000\u820A\u4E3B\u984C\u8CC7\u6599\u593E\uFF08\u4ECD\u53EF\u8B80\u53D6\uFF09\uFF1A{1}",
   "ui.legacy_map_view_only": "\u6B64\u5FC3\u667A\u5716\u4F7F\u7528 0.4 \u524D\u7684\u820A\u7D50\u69CB\uFF0C\u53EA\u80FD\u6AA2\u8996\u3002",
   "error.organize_aim_busy": "\u6709 AIM \u7814\u7A76\u4ECD\u5728\u57F7\u884C\u6216\u5132\u5B58\u4E2D\u3002\u8ACB\u7B49\u5B83\u5B8C\u6210\u5F8C\u518D\u6574\u7406\u5DE5\u4F5C\u5340\u8CC7\u6599\u593E\u3002\u5C1A\u672A\u642C\u79FB\u4EFB\u4F55\u9805\u76EE\u3002",
+  "error.map_folder_invalid": "\u8CC7\u6599\u593E\u540D\u7A31\u672A\u8B8A\u66F4\uFF1A\u5FC5\u9808\u662F\u5DE5\u4F5C\u5340\u5167\u7684\u65B0\u540D\u7A31\uFF0C\u4E0D\u53EF\u70BA\u7A7A\u3001\u4E0D\u53EF\u8207\u820A Topics \u8CC7\u6599\u593E\u76F8\u540C\uFF08\u6216\u5728\u5176\u5167\u5916\uFF09\uFF0C\u4E5F\u4E0D\u53EF\u8207\u53E6\u4E00\u500B\u9805\u76EE\u8CC7\u6599\u593E\u885D\u7A81\u3002",
+  "error.map_folder_exists": "\u8CC7\u6599\u593E\u540D\u7A31\u672A\u8B8A\u66F4\uFF1A\u5DF2\u6709\u540C\u540D\u8CC7\u6599\u593E\u3002",
+  "error.map_folder_rename_failed": "\u8CC7\u6599\u593E\u540D\u7A31\u672A\u8B8A\u66F4\uFF1A\u7121\u6CD5\u91CD\u65B0\u547D\u540D\u8A72\u8CC7\u6599\u593E\u3002",
   "error.legacy_map_view_only": "\u6B64\u5FC3\u667A\u5716\u4F7F\u7528 0.4 \u524D\u7684\u820A\u7D50\u69CB\uFF0C\u53EA\u80FD\u6AA2\u8996\u3002",
   "ui.organize_workspace_folders": "\u6574\u7406\u5DE5\u4F5C\u5340\u8CC7\u6599\u593E",
   "ui.organize_nothing_to_do": "\u820A Topics \u8CC7\u6599\u593E\u5167\u6C92\u6709\u9700\u8981\u6574\u7406\u7684\u5FC3\u667A\u5716\u3002",
@@ -2108,7 +2114,7 @@ var traditionalChinese = {
   "ui.organize_done_0": "\u5DF2\u6574\u7406 {0} \u4EFD\u5FC3\u667A\u5716\u3002",
   "ui.mind_maps_folder": "\u5FC3\u667A\u5716\u8CC7\u6599\u593E",
   "ui.aim_maps_folder": "AIM \u8CC7\u6599\u593E",
-  "ui.map_folder_name_desc": "\u65B0\u7684\u9805\u76EE\u6703\u5EFA\u7ACB\u5728 {0} \u5167\u7684\u9019\u500B\u8CC7\u6599\u593E\u3002\u65E2\u6709\u9805\u76EE\u4E0D\u6703\u88AB\u79FB\u52D5\uFF1B\u8981\u79FB\u52D5\u8ACB\u7528\u300C\u6574\u7406\u5DE5\u4F5C\u5340\u8CC7\u6599\u593E\u300D\u3002",
+  "ui.map_folder_name_desc": "\u65B0\u7684\u9805\u76EE\u6703\u5EFA\u7ACB\u5728 {0} \u5167\u7684\u9019\u500B\u8CC7\u6599\u593E\u3002\u4FEE\u6539\u540D\u7A31\u6703\u4E00\u4F75\u91CD\u65B0\u547D\u540D\u65E2\u6709\u8CC7\u6599\u593E\uFF0C\u88E1\u9762\u7684\u9805\u76EE\u6703\u8DDF\u8457\u79FB\u52D5\u3002",
   "ui.synced_0_subtopic_filenames_with_their_names": "\u5DF2\u5C07 {0} \u4EFD\u5B50\u8B70\u984C\u6A94\u540D\u540C\u6B65\u70BA\u8B70\u984C\u540D\u7A31\u3002",
   "ui.synced_0_topic_filenames": "\u5DF2\u540C\u6B65 {0} \u4EFD\u8B70\u984C\u6A94\u540D\u3002",
   "ui.repair_topic_note_display": "\u4FEE\u5FA9\u8B70\u984C\u7B46\u8A18\u986F\u793A",
@@ -12640,9 +12646,16 @@ var Repository = class {
     return this.app.vault.getAbstractFileByPath(this.settings.workspaceFolder) instanceof import_obsidian9.TFolder;
   }
   async workspaceCandidates() {
+    var _a;
     const candidates = /* @__PURE__ */ new Set();
+    const workspace = `${this.settings.workspaceFolder}/`;
+    const names2 = /* @__PURE__ */ new Set(["Topics", "Mind Maps", "AIM"]);
+    for (const folder of managedMapContainers(this.settings))
+      names2.add(folder.startsWith(workspace) ? folder.slice(workspace.length) : (_a = folder.split("/").at(-1)) != null ? _a : folder);
+    const escape = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const containerPattern = new RegExp(`^(.*)/(?:${[...names2].map(escape).join("|")})/[^/]+/Map\\.md$`);
     for (const file of this.app.vault.getMarkdownFiles()) {
-      const match = file.path.match(/^(.*)\/(?:Topics|Mind Maps|AIM)\/[^/]+\/Map\.md$/);
+      const match = file.path.match(containerPattern);
       if (!(match == null ? void 0 : match[1])) continue;
       try {
         parseMap(await this.app.vault.read(file));
@@ -13147,6 +13160,7 @@ ${body}`);
   }
   async replaceSourcePath(oldPath, newPath) {
     var _a, _b;
+    if (oldPath === newPath) return;
     for (const file of await this.markedFiles("agent-map-node")) {
       const cached = (_a = this.app.metadataCache.getFileCache(file)) == null ? void 0 : _a.frontmatter;
       if (cached && ![cached["source-notes"], cached["reference-materials"]].some(
@@ -13250,7 +13264,8 @@ ${body}`);
       delete fm["agent-map-id"];
       if (state === "inbox") {
         fm["topic-state"] = "inbox";
-      } else fm["topic-state"] = state;
+      } else if (fm["topic-state"] !== void 0 || file.path.includes("/Archive/") || file.path.includes("/Unassigned/"))
+        fm["topic-state"] = state;
     }
     const textLanguage = (owner == null ? void 0 : owner.map.aim) ? resolveAimContentLanguage(owner.map, this.settings.language) : (_a = noteContentLanguage(fm)) != null ? _a : this.settings.language;
     let body = ensurePreview(
@@ -13337,6 +13352,40 @@ ${body}`;
     if (aim == null ? void 0 : aim.creationId) await this.ensureTopicFolders(root);
     return path;
   }
+  /** Why `path` cannot be a Mind Maps/AIM folder, or null: empty, inside/around the legacy Topics folder, or clashing with the other one. */
+  mapFolderProblem(key2, path) {
+    const other = this.settings[key2 === "mindMapsFolder" ? "aimFolder" : "mindMapsFolder"];
+    const related = (a, b) => a === b || a.startsWith(`${b}/`) || b.startsWith(`${a}/`);
+    const workspace = this.settings.workspaceFolder;
+    if (!path || path === workspace || !path.startsWith(`${workspace}/`)) return "error.map_folder_invalid";
+    if (path.split("/").some((part) => !part || part === "." || part === "..")) return "error.map_folder_invalid";
+    if (related(path, this.settings.topicsFolder) || related(path, other)) return "error.map_folder_invalid";
+    return null;
+  }
+  /**
+   * Changes the Mind Maps/AIM folder. If the old folder exists it is renamed (Obsidian updates links) so its maps stay
+   * managed; on any refusal or failure the setting is left unchanged and the error says why.
+   */
+  async changeMapFolder(key2, path) {
+    const next = (0, import_obsidian9.normalizePath)(path), current = this.settings[key2];
+    if (next === current) return false;
+    const problem = this.mapFolderProblem(key2, next);
+    if (problem) throw new Error(this.message(problem));
+    const old = this.app.vault.getAbstractFileByPath(current);
+    if (old instanceof import_obsidian9.TFolder) {
+      if (this.app.vault.getAbstractFileByPath(next)) throw new Error(this.message("error.map_folder_exists"));
+      await this.folder(parentPath(next));
+      try {
+        await this.app.fileManager.renameFile(old, next);
+      } catch (error) {
+        throw new Error(
+          `${this.message("error.map_folder_rename_failed")} ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+    this.settings[key2] = next;
+    return true;
+  }
   /**
    * Read-only preview of "Organize workspace folders": every readable topic folder directly inside the legacy Topics
    * folder moves to Mind Maps (no `aim`) or AIM (`aim`). Unreadable maps are listed, never moved; a running or saving
@@ -13358,6 +13407,7 @@ ${body}`;
       }
       if (hasActiveAimAttempt(map)) plan.busy.push(map.title);
       const container = map.aim ? this.settings.aimFolder : this.settings.mindMapsFolder;
+      if (container === this.settings.topicsFolder) continue;
       const base = (0, import_obsidian9.normalizePath)(`${container}/${(_a = root.split("/").at(-1)) != null ? _a : safeName(map.title)}`);
       let toRoot = base, number = 2;
       while (this.app.vault.getAbstractFileByPath(toRoot) || reserved.has(toRoot)) toRoot = `${base} ${number++}`;
@@ -30156,14 +30206,26 @@ var VisualAgentMapSettingTab = class extends import_obsidian21.PluginSettingTab 
   renderMapFolderSetting(setting, key2, label, fallback) {
     const workspace = this.plugin.settings.workspaceFolder, current = this.plugin.settings[key2];
     const shown = current.startsWith(`${workspace}/`) ? current.slice(workspace.length + 1) : current;
-    setting.setName(t(label)).setDesc(t("ui.map_folder_name_desc", workspace)).addText(
-      (input) => input.setPlaceholder(fallback).setValue(shown).onChange(async (value) => {
-        const name = value.trim().replace(/[\\/]+/g, "/").replace(/^\/+|\/+$/g, "");
-        if (!name || name.split("/").some((part) => part === "." || part === "..")) return;
-        this.plugin.settings[key2] = `${workspace}/${name}`;
-        await this.plugin.saveSettings();
-      })
-    );
+    setting.setName(t(label)).setDesc(t("ui.map_folder_name_desc", workspace)).addText((input) => {
+      input.setPlaceholder(fallback).setValue(shown);
+      const apply = () => {
+        const name = input.getValue().trim().replace(/[\\/]+/g, "/").replace(/^\/+|\/+$/g, "");
+        const revert = () => {
+          const now = this.plugin.settings[key2];
+          input.setValue(now.startsWith(`${workspace}/`) ? now.slice(workspace.length + 1) : now);
+        };
+        void this.plugin.mutate(async () => {
+          if (await this.plugin.repo.changeMapFolder(key2, `${workspace}/${name}`)) await this.plugin.saveSettings();
+        }).then(
+          () => revert(),
+          () => revert()
+        );
+      };
+      input.inputEl.addEventListener("blur", apply);
+      input.inputEl.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") input.inputEl.blur();
+      });
+    });
   }
   getSettingDefinitions() {
     const text11 = (name, key2, desc) => ({
@@ -34778,6 +34840,7 @@ var VisualAgentMapPlugin = class extends import_obsidian26.Plugin {
     this.registerEvent(
       this.app.vault.on("rename", (file, oldPath) => {
         if (!(file instanceof import_obsidian26.TFile) || !this.repo.renameAffectsVam(file, oldPath)) return;
+        if (file.path === oldPath) return;
         const external = !this.writing;
         this.runMutation(async () => {
           var _a;

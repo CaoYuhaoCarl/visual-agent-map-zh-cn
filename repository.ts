@@ -593,8 +593,15 @@ export class Repository {
 
   async workspaceCandidates(): Promise<string[]> {
     const candidates = new Set<string>();
+    // The folder names are the configured ones (relative to the workspace folder) plus the defaults and legacy Topics.
+    const workspace = `${this.settings.workspaceFolder}/`;
+    const names = new Set(["Topics", "Mind Maps", "AIM"]);
+    for (const folder of managedMapContainers(this.settings))
+      names.add(folder.startsWith(workspace) ? folder.slice(workspace.length) : (folder.split("/").at(-1) ?? folder));
+    const escape = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const containerPattern = new RegExp(`^(.*)/(?:${[...names].map(escape).join("|")})/[^/]+/Map\\.md$`);
     for (const file of this.app.vault.getMarkdownFiles()) {
-      const match = file.path.match(/^(.*)\/(?:Topics|Mind Maps|AIM)\/[^/]+\/Map\.md$/);
+      const match = file.path.match(containerPattern);
       if (!match?.[1]) continue;
       try {
         parseMap(await this.app.vault.read(file));
@@ -1172,6 +1179,7 @@ export class Repository {
   }
 
   async replaceSourcePath(oldPath: string, newPath: string): Promise<void> {
+    if (oldPath === newPath) return;
     for (const file of await this.markedFiles("agent-map-node")) {
       // Skip notes whose indexed frontmatter does not mention the old path.
       const cached = this.app.metadataCache.getFileCache(file)?.frontmatter;
@@ -1302,7 +1310,13 @@ export class Repository {
       if (state === "inbox") {
         // Legacy Inbox note: keep topic-id and the state exactly as written.
         fm["topic-state"] = "inbox";
-      } else fm["topic-state"] = state;
+      } else if (
+        fm["topic-state"] !== undefined ||
+        file.path.includes("/Archive/") ||
+        file.path.includes("/Unassigned/")
+      )
+        fm["topic-state"] = state;
+      // else: an unowned note that never had a state keeps none (no rewrite just to say "unassigned").
     }
     // Notes owned by an AIM map write their placeholder text in the map's content language.
     const textLanguage = owner?.map.aim
@@ -1416,6 +1430,43 @@ export class Repository {
     return path;
   }
 
+  /** Why `path` cannot be a Mind Maps/AIM folder, or null: empty, inside/around the legacy Topics folder, or clashing with the other one. */
+  mapFolderProblem(key: "mindMapsFolder" | "aimFolder", path: string): "error.map_folder_invalid" | null {
+    const other = this.settings[key === "mindMapsFolder" ? "aimFolder" : "mindMapsFolder"];
+    const related = (a: string, b: string): boolean => a === b || a.startsWith(`${b}/`) || b.startsWith(`${a}/`);
+    const workspace = this.settings.workspaceFolder;
+    if (!path || path === workspace || !path.startsWith(`${workspace}/`)) return "error.map_folder_invalid";
+    if (path.split("/").some(part => !part || part === "." || part === "..")) return "error.map_folder_invalid";
+    if (related(path, this.settings.topicsFolder) || related(path, other)) return "error.map_folder_invalid";
+    return null;
+  }
+
+  /**
+   * Changes the Mind Maps/AIM folder. If the old folder exists it is renamed (Obsidian updates links) so its maps stay
+   * managed; on any refusal or failure the setting is left unchanged and the error says why.
+   */
+  async changeMapFolder(key: "mindMapsFolder" | "aimFolder", path: string): Promise<boolean> {
+    const next = normalizePath(path),
+      current = this.settings[key];
+    if (next === current) return false;
+    const problem = this.mapFolderProblem(key, next);
+    if (problem) throw new Error(this.message(problem));
+    const old = this.app.vault.getAbstractFileByPath(current);
+    if (old instanceof TFolder) {
+      if (this.app.vault.getAbstractFileByPath(next)) throw new Error(this.message("error.map_folder_exists"));
+      await this.folder(parentPath(next));
+      try {
+        await this.app.fileManager.renameFile(old, next);
+      } catch (error) {
+        throw new Error(
+          `${this.message("error.map_folder_rename_failed")} ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+    this.settings[key] = next;
+    return true;
+  }
+
   /**
    * Read-only preview of "Organize workspace folders": every readable topic folder directly inside the legacy Topics
    * folder moves to Mind Maps (no `aim`) or AIM (`aim`). Unreadable maps are listed, never moved; a running or saving
@@ -1436,6 +1487,8 @@ export class Repository {
       }
       if (hasActiveAimAttempt(map)) plan.busy.push(map.title);
       const container = map.aim ? this.settings.aimFolder : this.settings.mindMapsFolder;
+      // A misconfigured target equal to the source container would rename every topic on every run.
+      if (container === this.settings.topicsFolder) continue;
       const base = normalizePath(`${container}/${root.split("/").at(-1) ?? safeName(map.title)}`);
       let toRoot = base,
         number = 2;
