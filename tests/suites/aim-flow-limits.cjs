@@ -227,19 +227,20 @@ integrationTest('AIM flow limits: the scheduler runs three independent tasks at 
   assert.equal(await peak({ parallelism: 1 }), 1);
   assert.equal(await peak({ parallelism: 2 }), 2);
 });
-integrationTest('AIM flow limits: the flow researches two subtopics in parallel by default and one at a time under smoke limits', async () => {
-  for (const [limits, expected] of [[undefined, 2], [smokeLimits, 1]]) {
+integrationTest('AIM flow limits: the flow researches three subtopics in parallel by default, all of them finish, and one at a time under smoke limits', async () => {
+  for (const [limits, expected] of [[undefined, 3], [smokeLimits, 1]]) {
     const subject = await coverageSetup(`Parallel ${expected}`);
     let active = 0, max = 0;
     const base = subject.model.ask;
     subject.flow = new AimManualFlow(subject.repo, new AimRunStore(subject.repo), async (context, ...rest) => {
-      if (aimPhase(context, 'research-plan')) return reply('Two independent dimensions.', '<!-- aim-plan {"subtopics":[{"id":"method","title":"Method","task":"Research methods.","expectedValue":"Compare methods.","action":"research","dependsOn":[]},{"id":"constraints","title":"Constraints","task":"Research constraints.","expectedValue":"Find limits.","action":"research","dependsOn":[]}]} -->');
+      if (aimPhase(context, 'research-plan')) return reply('Three independent dimensions.', '<!-- aim-plan {"subtopics":[{"id":"method","title":"Method","task":"Research methods.","expectedValue":"Compare methods.","action":"research","dependsOn":[]},{"id":"constraints","title":"Constraints","task":"Research constraints.","expectedValue":"Find limits.","action":"research","dependsOn":[]},{"id":"costs","title":"Costs","task":"Research costs.","expectedValue":"Compare costs.","action":"research","dependsOn":[]}]} -->');
       if (aimPhase(context, 'subtopic-research')) { max = Math.max(max, ++active); await tick(); await tick(); active--; }
       return base(context, ...rest);
     }, undefined, undefined, limits);
     const question = (await subject.flow.planNextQuestion(subject.created.mapPath, subject.created.root.id, 'gpt-6-luna', 'low', 'parallel-question')).node;
-    await subject.flow.answerAndResearch(subject.created.mapPath, question.id, { requestId: 'parallel-answer', selections: [question.aimQuestion.options[0].id], freeText: 'Condition' }, 'gpt-6-luna', 'low');
+    const outcome = await subject.flow.answerAndResearch(subject.created.mapPath, question.id, { requestId: 'parallel-answer', selections: [question.aimQuestion.options[0].id], freeText: 'Condition' }, 'gpt-6-luna', 'low');
     assert.equal(max, expected);
+    assert.notEqual(outcome.status, 'in-progress', 'the run store admits every parallel subtopic');
   }
 });
 
