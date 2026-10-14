@@ -894,3 +894,9 @@ button.vam-template-section-header:hover { background: var(--background-modifier
 .vam-field-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .vam-field-head > .vam-field-link { padding: 0; height: auto; border: 0; background: none; box-shadow: none; color: var(--text-accent); font-size: var(--font-ui-smaller); cursor: pointer; }
 .vam-field-head > .vam-field-link:hover { text-decoration: underline; }
+.vam-aim-pending { cursor: default; border-style: dashed; opacity: .85; pointer-events: none; }
+.vam-aim-pending strong { display: block; font-size: var(--font-ui-small); }
+.vam-aim-pending-state { margin: 6px 0 0; color: var(--text-muted); font-size: var(--font-ui-smaller); font-variant-numeric: tabular-nums; }
+.vam-aim-pending[data-status="running"] { border-color: var(--interactive-accent); opacity: 1; }
+.vam-aim-pending[data-status="done"] .vam-aim-pending-state { color: var(--text-success); }
+.vam-aim-eta { margin-left: auto; }

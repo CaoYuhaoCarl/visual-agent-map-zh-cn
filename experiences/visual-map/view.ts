@@ -96,6 +96,7 @@ import {
   type PlannerQuestionResult
 } from "../aim/manual-flow";
 import { AimRunStore } from "../aim/research-run-store";
+import type { AimProgressEvent } from "../aim/manual-flow-support";
 import { matchAimFailedReportTargets } from "../aim/retry-targets";
 import { aimRepairHint, aimTimedOut } from "../aim/failure-hint";
 
@@ -201,6 +202,24 @@ function edgePathData(x1: number, y1: number, x2: number, y2: number): string {
   return `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`;
 }
 
+/** One planned subtopic of the running AIM branch, as the map shows it before its research note exists. */
+type AimTargetProgress = {
+  title: string;
+  state: "queued" | "searching" | "done" | "skipped";
+  searches: number;
+  startedAt?: number;
+};
+
+const AIM_STAGE_KEYS: Record<string, Parameters<typeof t>[0]> = {
+  "research-plan": "ui.aim_stage_research-plan",
+  "report-review": "ui.aim_stage_report-review",
+  "targeted-research": "ui.aim_stage_targeted-research",
+  "delivery-outline": "ui.aim_stage_delivery-outline",
+  "delivery-research": "ui.aim_stage_delivery-research",
+  "delivery-writing": "ui.aim_stage_delivery-writing",
+  "delivery-acceptance": "ui.aim_stage_delivery-acceptance"
+};
+
 export class VisualAgentMapView extends ItemView {
   private map: MapDocument | null = null;
   private path = "";
@@ -298,6 +317,17 @@ export class VisualAgentMapView extends ItemView {
   private aimController: AbortController | null = null;
   private aimActiveQuestionNodeId: string | null = null;
   private aimActivityKind: "planning" | "research" | "clarifying" | null = null;
+  /** Live progress of the running AIM branch; in memory only and dropped when the run ends. */
+  private aimProgress: {
+    branchId: string;
+    stage: string;
+    startedAt: number;
+    targets: Map<string, AimTargetProgress>;
+  } | null = null;
+  /** Text spans the one-second tick rewrites in place, so progress never re-renders the whole map. */
+  private aimProgressEls = new Map<string, HTMLElement>();
+  private aimProgressTimer: number | null = null;
+  private aimProgressRenderTimer: number | null = null;
   private aimFailedReports = new Map<string, { runId: string; diagnosticNotePath: string }>();
   private aimAnswerRequestIds = new Map<string, string>();
   constructor(
@@ -320,6 +350,7 @@ export class VisualAgentMapView extends ItemView {
         return result;
       }
     );
+    this.aimManual.onProgress = event => this.onAimProgress(event);
     // openMapInMutation already owns the repository queue. Startup recovery must persist
     // directly within that scope instead of attempting to enqueue the same operation again.
     this.aimRecovery = new AimManualFlow(
@@ -429,6 +460,7 @@ export class VisualAgentMapView extends ItemView {
     this.aimActiveQuestionNodeId = null;
     this.aimActivityKind = null;
     controller?.abort();
+    this.stopAimProgress();
     if (this.refreshTimer !== null) window.clearTimeout(this.refreshTimer);
     if (this.hoverTimer !== null) window.clearTimeout(this.hoverTimer);
     this.hoverCard?.remove();
@@ -1399,7 +1431,7 @@ export class VisualAgentMapView extends ItemView {
         }
         new Notice(t("ui.aim_waiting_user"));
       } else if (result.status === "partial") new Notice(t("ui.aim_research_partial"));
-      else if (result.status === "completed") new Notice(t("ui.aim_research_saved"));
+      else if (result.status === "completed") new Notice(t("ui.aim_document_ready"), 0);
       else if (result.status === "in-progress") new Notice(t("ui.aim_research_already_running"));
     } catch (error) {
       if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
@@ -1528,7 +1560,7 @@ export class VisualAgentMapView extends ItemView {
             this.focusNode(question);
           }
           new Notice(t("ui.aim_waiting_user"));
-        } else if (outcome.status === "completed") new Notice(t("ui.aim_research_saved"));
+        } else if (outcome.status === "completed") new Notice(t("ui.aim_document_ready"), 0);
         else if (outcome.status === "in-progress") new Notice(t("ui.aim_research_already_running"));
         else new Notice(t("ui.aim_research_result_stale"));
       } else new Notice(t("ui.aim_no_question_needed"));
@@ -1577,7 +1609,7 @@ export class VisualAgentMapView extends ItemView {
         }
         new Notice(t("ui.aim_waiting_user"));
       } else if (result.status === "partial") new Notice(t("ui.aim_research_partial"));
-      else if (result.status === "completed") new Notice(t("ui.aim_research_saved"));
+      else if (result.status === "completed") new Notice(t("ui.aim_document_ready"), 0);
       else if (result.status === "in-progress") new Notice(t("ui.aim_research_already_running"));
       else new Notice(t("ui.aim_research_result_stale"));
     } catch (error) {
@@ -1618,7 +1650,7 @@ export class VisualAgentMapView extends ItemView {
         this.selected = result.questionNodeId;
         new Notice(t("ui.aim_waiting_user"));
       } else if (result.status === "partial") new Notice(t("ui.aim_research_partial"));
-      else if (result.status === "completed") new Notice(t("ui.aim_research_saved"));
+      else if (result.status === "completed") new Notice(t("ui.aim_document_ready"), 0);
       else if (result.status === "in-progress") new Notice(t("ui.aim_research_already_running"));
     } catch (error) {
       if (!isCurrent()) return;
@@ -1711,7 +1743,7 @@ export class VisualAgentMapView extends ItemView {
             }
             new Notice(t("ui.aim_waiting_user"));
           } else if (result.status === "partial") new Notice(t("ui.aim_research_partial"));
-          else if (result.status === "completed") new Notice(t("ui.aim_research_saved"));
+          else if (result.status === "completed") new Notice(t("ui.aim_document_ready"), 0);
           else if (result.status === "in-progress") new Notice(t("ui.aim_research_already_running"));
           else new Notice(t("ui.aim_research_result_stale"));
         } catch (error) {
@@ -1877,6 +1909,112 @@ export class VisualAgentMapView extends ItemView {
     menu.showAtMouseEvent(event);
   }
   /** Research coverage is the map's headline fact: how much of the frontier already has a conclusion. */
+  private onAimProgress(event: AimProgressEvent): void {
+    if (this.closed || event.mapPath !== this.path) return;
+    let structural = false;
+    if (event.kind === "plan") {
+      this.aimProgress = {
+        branchId: event.branchId,
+        stage: "research",
+        startedAt: this.aimProgress?.branchId === event.branchId ? this.aimProgress.startedAt : Date.now(),
+        targets: new Map(
+          event.targets.map(target => [target.id, { title: target.title, state: "queued", searches: 0 }])
+        )
+      };
+      structural = true;
+    } else if (!this.aimProgress || this.aimProgress.branchId !== event.branchId) {
+      if (event.kind !== "stage") return;
+      this.aimProgress = { branchId: event.branchId, stage: event.stage, startedAt: Date.now(), targets: new Map() };
+      structural = true;
+    } else if (event.kind === "subtopic") {
+      const target = this.aimProgress.targets.get(event.subtopicId);
+      if (!target) return;
+      if (target.state !== event.state) {
+        structural = true;
+        target.state = event.state;
+        if (event.state === "searching") target.startedAt = Date.now();
+      }
+      if (event.searches !== undefined) target.searches = event.searches;
+      this.aimProgress.stage = "research";
+    } else {
+      this.aimProgress.stage = event.stage;
+    }
+    if (this.aimProgressTimer === null) this.aimProgressTimer = window.setInterval(() => this.paintAimProgress(), 1000);
+    if (structural && this.aimProgressRenderTimer === null)
+      this.aimProgressRenderTimer = window.setTimeout(() => {
+        this.aimProgressRenderTimer = null;
+        if (!this.closed) this.renderPreservingFocus();
+      }, 300);
+  }
+  private stopAimProgress(): void {
+    this.aimProgress = null;
+    this.aimProgressEls.clear();
+    if (this.aimProgressTimer !== null) window.clearInterval(this.aimProgressTimer);
+    if (this.aimProgressRenderTimer !== null) window.clearTimeout(this.aimProgressRenderTimer);
+    this.aimProgressTimer = this.aimProgressRenderTimer = null;
+  }
+  private aimTargetText(target: AimTargetProgress): string {
+    if (target.state === "queued") return t("ui.aim_progress_queued");
+    if (target.state === "done") return t("ui.aim_progress_done");
+    if (target.state === "skipped") return t("ui.aim_progress_skipped");
+    return t(
+      "ui.aim_progress_searching_0_1",
+      target.searches,
+      Math.round((Date.now() - (target.startedAt ?? Date.now())) / 1000)
+    );
+  }
+  private aimStageText(): string {
+    const progress = this.aimProgress;
+    if (!progress) return "";
+    const elapsed = Math.round((Date.now() - progress.startedAt) / 1000);
+    const clock = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}`;
+    const targets = [...progress.targets.values()];
+    const stage =
+      progress.stage === "research" && targets.length
+        ? t(
+            "ui.aim_stage_research_0_1",
+            targets.filter(item => item.state === "done" || item.state === "skipped").length,
+            targets.length
+          )
+        : t(AIM_STAGE_KEYS[progress.stage] ?? "ui.aim_stage_research");
+    return t("ui.aim_stage_with_elapsed_0_1", stage, clock);
+  }
+  /** One-second tick: rewrite only the progress texts; stop when the run is over. */
+  private paintAimProgress(): void {
+    if (this.closed || !this.aimBusy || !this.aimProgress) {
+      if (!this.aimBusy) this.stopAimProgress();
+      return;
+    }
+    this.aimProgressEls.get("status")?.setText(this.aimStageText());
+    for (const [id, target] of this.aimProgress.targets)
+      this.aimProgressEls.get(id)?.setText(this.aimTargetText(target));
+  }
+  /** Cards for the planned subtopics whose research notes do not exist yet, beside their question. */
+  private renderAimPendingCards(shown: MapNode[]): void {
+    const progress = this.aimProgress;
+    if (!progress || !this.aimBusy || !this.stageEl || !this.map?.aim) return;
+    const branch = this.map.aim.branches.find(item => item.id === progress.branchId);
+    const question = branch && shown.find(node => node.id === branch.questionNodeId);
+    if (!branch || !question) return;
+    const saved = new Set(branch.results.filter(item => item.kind === "research").map(item => item.subtopicId));
+    const children = shown.filter(node => node.parentId === question.id);
+    const x = children.length ? Math.max(...children.map(node => node.x)) : question.x + 420;
+    let y = children.length ? Math.max(...children.map(node => node.y)) + 150 : question.y;
+    for (const [id, target] of progress.targets) {
+      if (saved.has(id)) continue;
+      const card = this.stageEl.createDiv("vam-node vam-aim-pending");
+      card.dataset.status = target.state === "searching" ? "running" : target.state;
+      card.style.left = `${x}px`;
+      card.style.top = `${y}px`;
+      card.setAttr("aria-hidden", "true");
+      card.createEl("strong", { text: target.title });
+      this.aimProgressEls.set(
+        id,
+        card.createEl("p", { cls: "vam-aim-pending-state", text: this.aimTargetText(target) })
+      );
+      y += 120;
+    }
+  }
   private renderResearchProgress(parent: HTMLElement): void {
     const nodes = this.map?.nodes ?? [];
     const done = nodes.filter(node => this.notes.get(node.id)?.status === "completed").length;
@@ -2907,6 +3045,7 @@ export class VisualAgentMapView extends ItemView {
     ]).open();
   }
   private render(): void {
+    this.aimProgressEls.clear();
     // The dragged card is about to be replaced, so its pointer events would never arrive and the drag would stay "on".
     this.dragCleanup?.();
     if (this.closed) return;
@@ -2985,7 +3124,9 @@ export class VisualAgentMapView extends ItemView {
         stateText =
           this.aimActivityKind === "clarifying"
             ? t("ui.aim_preparing_clarification")
-            : t(planning ? "ui.aim_status_planning_0" : "ui.aim_status_researching_0", activeTitle);
+            : this.aimProgress
+              ? this.aimStageText()
+              : t(planning ? "ui.aim_status_planning_0" : "ui.aim_status_researching_0", activeTitle);
         stateClass = "running";
       } else if (runningBranch) {
         const activeTitle = this.notes.get(runningBranch.questionNodeId)?.title ?? this.map.title;
@@ -3005,7 +3146,11 @@ export class VisualAgentMapView extends ItemView {
         stateClass = "idea";
       }
       statusbar.createSpan({ cls: "vam-aim-status-title", text: "AIM" });
-      statusbar.createSpan({ cls: `vam-aim-status-value vam-status-${stateClass}`, text: stateText });
+      const stateEl = statusbar.createSpan({ cls: `vam-aim-status-value vam-status-${stateClass}`, text: stateText });
+      if (this.aimBusy && this.aimProgress) {
+        this.aimProgressEls.set("status", stateEl);
+        statusbar.createSpan({ cls: "vam-hint vam-aim-eta", text: t("ui.aim_eta_hint") });
+      }
       if (this.aimBusy)
         this.button(statusbar, t("ui.stop_research"), () => {
           this.aimController?.abort();
@@ -3297,6 +3442,7 @@ export class VisualAgentMapView extends ItemView {
     } finally {
       this.renderingCard = false;
     }
+    this.renderAimPendingCards(shown);
     if (this.focusNodeId) {
       this.restoringFocus = true;
       try {

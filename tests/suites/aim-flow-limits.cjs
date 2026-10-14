@@ -186,7 +186,12 @@ integrationTest('AIM unattended: after the intake it researches the goal without
     }
     return base(context, ...rest);
   });
+  const progress = [];
+  subject.flow.onProgress = event => { progress.push(event.kind === 'subtopic' ? `subtopic:${event.state}` : event.kind === 'stage' ? `stage:${event.stage}` : 'plan'); throw new Error('a broken listener must not stop research'); };
   const planned = await subject.flow.planNextQuestion(subject.created.mapPath, subject.created.root.id, 'gpt-6-luna', 'low', 'unattended-start');
+  assert.equal(progress[0], 'stage:research-plan');
+  assert.ok(progress.includes('plan') && progress.includes('subtopic:searching') && progress.includes('subtopic:done') && progress.includes('stage:report-review'), progress.join(','));
+  assert.ok(progress.indexOf('plan') < progress.indexOf('subtopic:searching'), 'the plan is announced before any subtopic starts');
   assert.equal(planned.status, 'no-question', 'no Planner question is saved');
   assert.ok(!phases.includes('initial-question'), 'the first Planner question is skipped');
   assert.equal(phases[0], 'research-plan', 'research starts right away');

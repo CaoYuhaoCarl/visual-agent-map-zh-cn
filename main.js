@@ -294,6 +294,22 @@ var english = {
   "ui.aim_question_ready": "A follow-up question is ready. Your answer is still yours to choose.",
   "ui.aim_no_question_needed": "No additional user condition is needed before continuing.",
   "ui.aim_research_saved": "This answer branch and its research report were saved.",
+  "ui.aim_document_ready": "AIM is done: the final document is on the map.",
+  "ui.aim_progress_queued": "Queued",
+  "ui.aim_progress_searching_0_1": "Searching \xB7 {0} searches \xB7 {1}s",
+  "ui.aim_progress_done": "Done \u2713",
+  "ui.aim_progress_skipped": "Search failed; skipped",
+  "ui.aim_stage_research_0_1": "Researching: {0}/{1} done",
+  "ui.aim_stage_research": "Researching",
+  "ui.aim_stage_research-plan": "Planning the research",
+  "ui.aim_stage_report-review": "Reviewing the research",
+  "ui.aim_stage_targeted-research": "Filling one gap",
+  "ui.aim_stage_delivery-outline": "Outlining the document",
+  "ui.aim_stage_delivery-research": "Checking sources for the document",
+  "ui.aim_stage_delivery-writing": "Writing the document",
+  "ui.aim_stage_delivery-acceptance": "Checking the document",
+  "ui.aim_stage_with_elapsed_0_1": "{0} \xB7 {1}",
+  "ui.aim_eta_hint": "Usually 3\u20135 minutes. You can leave this; a notice appears when it is done.",
   "ui.aim_waiting_user": "The Planner saved a follow-up question. Your answer is needed to continue.",
   "ui.aim_research_already_running": "Research for this answer branch is already running.",
   "ui.aim_research_partial": "Saved a partial result. The Planner still identified a follow-up; this branch is not complete.",
@@ -1708,6 +1724,22 @@ var traditionalChinese = {
   "ui.aim_question_ready": "\u4E0B\u4E00\u500B\u554F\u984C\u5DF2\u6E96\u5099\u597D\uFF0C\u7B54\u6848\u4ECD\u7531\u4F60\u6C7A\u5B9A\u3002",
   "ui.aim_no_question_needed": "\u76EE\u524D\u4E0D\u9700\u518D\u88DC\u5145\u4F7F\u7528\u8005\u689D\u4EF6\u5373\u53EF\u7E7C\u7E8C\u3002",
   "ui.aim_research_saved": "\u9019\u500B\u7B54\u6848\u5206\u652F\u53CA\u7814\u7A76\u5831\u544A\u5DF2\u4FDD\u5B58\u3002",
+  "ui.aim_document_ready": "AIM \u5B8C\u6210\u4E86\uFF1A\u6700\u7D42\u6587\u4EF6\u5DF2\u653E\u5728\u5730\u5716\u4E0A\u3002",
+  "ui.aim_progress_queued": "\u6392\u968A\u4E2D",
+  "ui.aim_progress_searching_0_1": "\u641C\u5C0B\u4E2D\u30FB\u5DF2\u641C\u5C0B {0} \u6B21\u30FB{1} \u79D2",
+  "ui.aim_progress_done": "\u5B8C\u6210 \u2713",
+  "ui.aim_progress_skipped": "\u641C\u5C0B\u5931\u6557\uFF0C\u5DF2\u7565\u904E",
+  "ui.aim_stage_research_0_1": "\u7814\u7A76\u4E2D\uFF1A{0}/{1} \u5B8C\u6210",
+  "ui.aim_stage_research": "\u7814\u7A76\u4E2D",
+  "ui.aim_stage_research-plan": "\u898F\u5283\u7814\u7A76\u4E2D",
+  "ui.aim_stage_report-review": "\u5BE9\u67E5\u7814\u7A76\u7D50\u679C\u4E2D",
+  "ui.aim_stage_targeted-research": "\u88DC\u67E5\u4E00\u500B\u7F3A\u53E3\u4E2D",
+  "ui.aim_stage_delivery-outline": "\u898F\u5283\u6587\u4EF6\u5927\u7DB1\u4E2D",
+  "ui.aim_stage_delivery-research": "\u88DC\u67E5\u6587\u4EF6\u8CC7\u6599\u4E2D",
+  "ui.aim_stage_delivery-writing": "\u64B0\u5BEB\u6587\u4EF6\u4E2D",
+  "ui.aim_stage_delivery-acceptance": "\u9A57\u6536\u6587\u4EF6\u4E2D",
+  "ui.aim_stage_with_elapsed_0_1": "{0}\u30FB{1}",
+  "ui.aim_eta_hint": "\u901A\u5E38 3\u20135 \u5206\u9418\uFF0C\u53EF\u4EE5\u5148\u53BB\u505A\u5225\u7684\uFF0C\u5B8C\u6210\u6642\u6703\u901A\u77E5\u4F60\u3002",
   "ui.aim_waiting_user": "Planner \u5DF2\u4FDD\u5B58\u5F8C\u7E8C\u554F\u984C\uFF1B\u9700\u8981\u4F60\u56DE\u7B54\u5F8C\u624D\u80FD\u7E7C\u7E8C\u3002",
   "ui.aim_research_already_running": "\u9019\u500B\u7B54\u6848\u5206\u652F\u7684\u7814\u7A76\u5DF2\u5728\u57F7\u884C\u3002",
   "ui.aim_research_result_stale": "\u6B64\u7D50\u679C\u5C6C\u65BC\u8F03\u820A\u7684\u57F7\u884C\uFF0C\u6C92\u6709\u767C\u5E03\u3002",
@@ -20382,6 +20414,15 @@ var _AimManualFlow = class _AimManualFlow {
     __publicField(this, "answerRuns", /* @__PURE__ */ new Map());
     /** Reviews whose research_more came from final delivery acceptance rather than from the Planner's report review. */
     __publicField(this, "deliveryRejections", /* @__PURE__ */ new WeakSet());
+    /** The map view's live progress listener; set by the view, absent in tests and recovery flows. */
+    __publicField(this, "onProgress");
+  }
+  emitProgress(event) {
+    var _a;
+    try {
+      (_a = this.onProgress) == null ? void 0 : _a.call(this, event);
+    } catch (e) {
+    }
   }
   /** Research phases use provider web search unless a test turned it off. */
   researchMode() {
@@ -22660,6 +22701,7 @@ ${lineageContext || "None."}`,
     };
     let plan = branch.researchPlan;
     if (!plan) {
+      this.emitProgress({ kind: "stage", mapPath, branchId, stage: "research-plan" });
       const planPrompt = renderResearchPlanTask({
         reports: candidates.map(
           (candidate) => JSON.stringify({ source: candidate.source, conditions: candidate.conditions }) + "\n" + evidenceCard(candidate.evidenceId, candidate.summary, candidate.detail)
@@ -22721,6 +22763,12 @@ Planner format diagnostic: ${JSON.stringify({ initial: { detail: planned.detail.
       executionPlan = await materializeExistingEvidence();
       await this.persist(() => this.runs.saveResearchPlan(mapPath, branchId, executionPlan));
     }
+    this.emitProgress({
+      kind: "plan",
+      mapPath,
+      branchId,
+      targets: executionPlan.map((target) => ({ id: target.id, title: target.title }))
+    });
     let scheduled;
     let searchFailure;
     try {
@@ -22757,6 +22805,7 @@ Planner format diagnostic: ${JSON.stringify({ initial: { detail: planned.detail.
               throw new Error(
                 "The copied research report changed after reuse validation; its provenance no longer matches."
               );
+            this.emitProgress({ kind: "subtopic", mapPath, branchId, subtopicId: target.id, state: "done" });
             return {
               subtopicId: target.id,
               nodeId: savedRef.nodeId,
@@ -22843,7 +22892,20 @@ ${dependencyReports}` : "")
                 currentConditions: currentBranch.inputSnapshot.conditions,
                 rejectedReuse
               });
-              const { diagnostic, onEvent } = createSearchDiagnostic(1);
+              const { diagnostic, onEvent: recordSearchEvent } = createSearchDiagnostic(1);
+              const progress = (state) => this.emitProgress({
+                kind: "subtopic",
+                mapPath,
+                branchId,
+                subtopicId: target.id,
+                state,
+                searches: diagnostic.completedSearchActions
+              });
+              const onEvent = (event) => {
+                recordSearchEvent(event);
+                progress("searching");
+              };
+              progress("searching");
               result = await this.askAimModel(
                 {
                   ...contextBase,
@@ -22886,6 +22948,7 @@ ${dependencyReports}` : "")
             });
             if (committed.status !== "committed") throw new ResearchWorkflowInterrupted("stale");
             const saved = await this.repository.readNote(committed.notePath);
+            this.emitProgress({ kind: "subtopic", mapPath, branchId, subtopicId: target.id, state: "done" });
             return {
               subtopicId: target.id,
               nodeId: draft.draft.nodeId,
@@ -22908,6 +22971,7 @@ ${dependencyReports}` : "")
             const searchSkipped = error instanceof SubtopicSearchUnavailable || // Read the message without instanceof: the runtime's error may come from another realm.
             SEARCH_NOT_PERFORMED.test(String((_c2 = error == null ? void 0 : error.message) != null ? _c2 : error));
             if (searchSkipped && !taskSignal.aborted) {
+              this.emitProgress({ kind: "subtopic", mapPath, branchId, subtopicId: target.id, state: "skipped" });
               searchFailure = error;
               return null;
             }
@@ -23077,6 +23141,7 @@ ${currentReports.detail}`,
         };
         const fingerprint2 = sourceFingerprint;
         const savedRecovery = resumeDelivery;
+        this.emitProgress({ kind: "stage", mapPath, branchId, stage: "report-review" });
         if (!savedRecovery) await this.persist(() => this.runs.recordPhase(mapPath, synthesisHandle, "report-review"));
         const synthesis = (_i = savedRecovery == null ? void 0 : savedRecovery.planner) != null ? _i : await this.askAimModel(plannerContext, model, reasoning, signal);
         finalReview = await this.parsePlannerReviewWithRecovery(
@@ -23112,6 +23177,7 @@ ${currentReports.detail}`,
           deliveryEvidence: deliveryEvidence(),
           setPhase: (phase) => this.persist(() => this.runs.recordPhase(mapPath, synthesisHandle, phase)),
           saveDeliveryRecovery: async (checkpoint, phase) => {
+            if (phase) this.emitProgress({ kind: "stage", mapPath, branchId, stage: phase });
             throwIfAborted(signal);
             await this.persist(
               () => this.runs.saveDeliveryRecovery(mapPath, synthesisHandle, {
@@ -23206,6 +23272,7 @@ ${currentReports.detail}`,
           currentAnswer: answerDescription
         });
         let followup;
+        this.emitProgress({ kind: "stage", mapPath, branchId, stage: "targeted-research" });
         await this.persist(() => this.runs.recordPhase(mapPath, synthesisHandle, "targeted-research"));
         try {
           followup = await this.askAimModel(
@@ -24390,6 +24457,15 @@ function edgePathData(x1, y1, x2, y2) {
   const bend = Math.max(60, Math.abs(x2 - x1) / 2);
   return `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`;
 }
+var AIM_STAGE_KEYS = {
+  "research-plan": "ui.aim_stage_research-plan",
+  "report-review": "ui.aim_stage_report-review",
+  "targeted-research": "ui.aim_stage_targeted-research",
+  "delivery-outline": "ui.aim_stage_delivery-outline",
+  "delivery-research": "ui.aim_stage_delivery-research",
+  "delivery-writing": "ui.aim_stage_delivery-writing",
+  "delivery-acceptance": "ui.aim_stage_delivery-acceptance"
+};
 var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian20.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
@@ -24453,6 +24529,12 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian20.Ite
     __publicField(this, "aimController", null);
     __publicField(this, "aimActiveQuestionNodeId", null);
     __publicField(this, "aimActivityKind", null);
+    /** Live progress of the running AIM branch; in memory only and dropped when the run ends. */
+    __publicField(this, "aimProgress", null);
+    /** Text spans the one-second tick rewrites in place, so progress never re-renders the whole map. */
+    __publicField(this, "aimProgressEls", /* @__PURE__ */ new Map());
+    __publicField(this, "aimProgressTimer", null);
+    __publicField(this, "aimProgressRenderTimer", null);
     __publicField(this, "aimFailedReports", /* @__PURE__ */ new Map());
     __publicField(this, "aimAnswerRequestIds", /* @__PURE__ */ new Map());
     this.aimRuns = new AimRunStore(plugin.repo);
@@ -24469,6 +24551,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian20.Ite
         return result;
       }
     );
+    this.aimManual.onProgress = (event) => this.onAimProgress(event);
     this.aimRecovery = new AimManualFlow(
       plugin.repo,
       this.aimRuns,
@@ -24568,6 +24651,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian20.Ite
     this.aimActiveQuestionNodeId = null;
     this.aimActivityKind = null;
     controller == null ? void 0 : controller.abort();
+    this.stopAimProgress();
     if (this.refreshTimer !== null) window.clearTimeout(this.refreshTimer);
     if (this.hoverTimer !== null) window.clearTimeout(this.hoverTimer);
     (_a = this.hoverCard) == null ? void 0 : _a.remove();
@@ -25492,7 +25576,7 @@ ${request.requirements}` : preset.text,
         }
         new import_obsidian20.Notice(t("ui.aim_waiting_user"));
       } else if (result.status === "partial") new import_obsidian20.Notice(t("ui.aim_research_partial"));
-      else if (result.status === "completed") new import_obsidian20.Notice(t("ui.aim_research_saved"));
+      else if (result.status === "completed") new import_obsidian20.Notice(t("ui.aim_document_ready"), 0);
       else if (result.status === "in-progress") new import_obsidian20.Notice(t("ui.aim_research_already_running"));
     } catch (error) {
       if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
@@ -25609,7 +25693,7 @@ ${request.requirements}` : preset.text,
             this.focusNode(question);
           }
           new import_obsidian20.Notice(t("ui.aim_waiting_user"));
-        } else if (outcome.status === "completed") new import_obsidian20.Notice(t("ui.aim_research_saved"));
+        } else if (outcome.status === "completed") new import_obsidian20.Notice(t("ui.aim_document_ready"), 0);
         else if (outcome.status === "in-progress") new import_obsidian20.Notice(t("ui.aim_research_already_running"));
         else new import_obsidian20.Notice(t("ui.aim_research_result_stale"));
       } else new import_obsidian20.Notice(t("ui.aim_no_question_needed"));
@@ -25657,7 +25741,7 @@ ${request.requirements}` : preset.text,
         }
         new import_obsidian20.Notice(t("ui.aim_waiting_user"));
       } else if (result.status === "partial") new import_obsidian20.Notice(t("ui.aim_research_partial"));
-      else if (result.status === "completed") new import_obsidian20.Notice(t("ui.aim_research_saved"));
+      else if (result.status === "completed") new import_obsidian20.Notice(t("ui.aim_document_ready"), 0);
       else if (result.status === "in-progress") new import_obsidian20.Notice(t("ui.aim_research_already_running"));
       else new import_obsidian20.Notice(t("ui.aim_research_result_stale"));
     } catch (error) {
@@ -25697,7 +25781,7 @@ ${request.requirements}` : preset.text,
         this.selected = result.questionNodeId;
         new import_obsidian20.Notice(t("ui.aim_waiting_user"));
       } else if (result.status === "partial") new import_obsidian20.Notice(t("ui.aim_research_partial"));
-      else if (result.status === "completed") new import_obsidian20.Notice(t("ui.aim_research_saved"));
+      else if (result.status === "completed") new import_obsidian20.Notice(t("ui.aim_document_ready"), 0);
       else if (result.status === "in-progress") new import_obsidian20.Notice(t("ui.aim_research_already_running"));
     } catch (error) {
       if (!isCurrent()) return;
@@ -25780,7 +25864,7 @@ ${request.requirements}` : preset.text,
             }
             new import_obsidian20.Notice(t("ui.aim_waiting_user"));
           } else if (result.status === "partial") new import_obsidian20.Notice(t("ui.aim_research_partial"));
-          else if (result.status === "completed") new import_obsidian20.Notice(t("ui.aim_research_saved"));
+          else if (result.status === "completed") new import_obsidian20.Notice(t("ui.aim_document_ready"), 0);
           else if (result.status === "in-progress") new import_obsidian20.Notice(t("ui.aim_research_already_running"));
           else new import_obsidian20.Notice(t("ui.aim_research_result_stale"));
         } catch (error) {
@@ -25933,6 +26017,114 @@ ${request.requirements}` : preset.text,
     menu.showAtMouseEvent(event);
   }
   /** Research coverage is the map's headline fact: how much of the frontier already has a conclusion. */
+  onAimProgress(event) {
+    var _a;
+    if (this.closed || event.mapPath !== this.path) return;
+    let structural = false;
+    if (event.kind === "plan") {
+      this.aimProgress = {
+        branchId: event.branchId,
+        stage: "research",
+        startedAt: ((_a = this.aimProgress) == null ? void 0 : _a.branchId) === event.branchId ? this.aimProgress.startedAt : Date.now(),
+        targets: new Map(
+          event.targets.map((target) => [target.id, { title: target.title, state: "queued", searches: 0 }])
+        )
+      };
+      structural = true;
+    } else if (!this.aimProgress || this.aimProgress.branchId !== event.branchId) {
+      if (event.kind !== "stage") return;
+      this.aimProgress = { branchId: event.branchId, stage: event.stage, startedAt: Date.now(), targets: /* @__PURE__ */ new Map() };
+      structural = true;
+    } else if (event.kind === "subtopic") {
+      const target = this.aimProgress.targets.get(event.subtopicId);
+      if (!target) return;
+      if (target.state !== event.state) {
+        structural = true;
+        target.state = event.state;
+        if (event.state === "searching") target.startedAt = Date.now();
+      }
+      if (event.searches !== void 0) target.searches = event.searches;
+      this.aimProgress.stage = "research";
+    } else {
+      this.aimProgress.stage = event.stage;
+    }
+    if (this.aimProgressTimer === null) this.aimProgressTimer = window.setInterval(() => this.paintAimProgress(), 1e3);
+    if (structural && this.aimProgressRenderTimer === null)
+      this.aimProgressRenderTimer = window.setTimeout(() => {
+        this.aimProgressRenderTimer = null;
+        if (!this.closed) this.renderPreservingFocus();
+      }, 300);
+  }
+  stopAimProgress() {
+    this.aimProgress = null;
+    this.aimProgressEls.clear();
+    if (this.aimProgressTimer !== null) window.clearInterval(this.aimProgressTimer);
+    if (this.aimProgressRenderTimer !== null) window.clearTimeout(this.aimProgressRenderTimer);
+    this.aimProgressTimer = this.aimProgressRenderTimer = null;
+  }
+  aimTargetText(target) {
+    var _a;
+    if (target.state === "queued") return t("ui.aim_progress_queued");
+    if (target.state === "done") return t("ui.aim_progress_done");
+    if (target.state === "skipped") return t("ui.aim_progress_skipped");
+    return t(
+      "ui.aim_progress_searching_0_1",
+      target.searches,
+      Math.round((Date.now() - ((_a = target.startedAt) != null ? _a : Date.now())) / 1e3)
+    );
+  }
+  aimStageText() {
+    var _a;
+    const progress = this.aimProgress;
+    if (!progress) return "";
+    const elapsed = Math.round((Date.now() - progress.startedAt) / 1e3);
+    const clock = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}`;
+    const targets = [...progress.targets.values()];
+    const stage = progress.stage === "research" && targets.length ? t(
+      "ui.aim_stage_research_0_1",
+      targets.filter((item) => item.state === "done" || item.state === "skipped").length,
+      targets.length
+    ) : t((_a = AIM_STAGE_KEYS[progress.stage]) != null ? _a : "ui.aim_stage_research");
+    return t("ui.aim_stage_with_elapsed_0_1", stage, clock);
+  }
+  /** One-second tick: rewrite only the progress texts; stop when the run is over. */
+  paintAimProgress() {
+    var _a, _b;
+    if (this.closed || !this.aimBusy || !this.aimProgress) {
+      if (!this.aimBusy) this.stopAimProgress();
+      return;
+    }
+    (_a = this.aimProgressEls.get("status")) == null ? void 0 : _a.setText(this.aimStageText());
+    for (const [id, target] of this.aimProgress.targets)
+      (_b = this.aimProgressEls.get(id)) == null ? void 0 : _b.setText(this.aimTargetText(target));
+  }
+  /** Cards for the planned subtopics whose research notes do not exist yet, beside their question. */
+  renderAimPendingCards(shown) {
+    var _a;
+    const progress = this.aimProgress;
+    if (!progress || !this.aimBusy || !this.stageEl || !((_a = this.map) == null ? void 0 : _a.aim)) return;
+    const branch = this.map.aim.branches.find((item) => item.id === progress.branchId);
+    const question = branch && shown.find((node) => node.id === branch.questionNodeId);
+    if (!branch || !question) return;
+    const saved = new Set(branch.results.filter((item) => item.kind === "research").map((item) => item.subtopicId));
+    const children = shown.filter((node) => node.parentId === question.id);
+    const x = children.length ? Math.max(...children.map((node) => node.x)) : question.x + 420;
+    let y = children.length ? Math.max(...children.map((node) => node.y)) + 150 : question.y;
+    for (const [id, target] of progress.targets) {
+      if (saved.has(id)) continue;
+      const card = this.stageEl.createDiv("vam-node vam-aim-pending");
+      card.dataset.status = target.state === "searching" ? "running" : target.state;
+      card.style.left = `${x}px`;
+      card.style.top = `${y}px`;
+      card.setAttr("aria-hidden", "true");
+      card.createEl("strong", { text: target.title });
+      this.aimProgressEls.set(
+        id,
+        card.createEl("p", { cls: "vam-aim-pending-state", text: this.aimTargetText(target) })
+      );
+      y += 120;
+    }
+  }
   renderResearchProgress(parent) {
     var _a, _b;
     const nodes = (_b = (_a = this.map) == null ? void 0 : _a.nodes) != null ? _b : [];
@@ -26914,6 +27106,7 @@ ${request.requirements}` : preset.text,
   }
   render() {
     var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t;
+    this.aimProgressEls.clear();
     (_a = this.dragCleanup) == null ? void 0 : _a.call(this);
     if (this.closed) return;
     this.plugin.syncOutline(this.builtIn ? null : this.map, this.notes, this.builtIn);
@@ -26987,7 +27180,7 @@ ${request.requirements}` : preset.text,
       if (this.aimBusy) {
         const activeTitle = (_l = (_k = this.notes.get((_j = this.aimActiveQuestionNodeId) != null ? _j : "")) == null ? void 0 : _k.title) != null ? _l : this.map.title;
         const planning = this.aimActivityKind === "planning";
-        stateText = this.aimActivityKind === "clarifying" ? t("ui.aim_preparing_clarification") : t(planning ? "ui.aim_status_planning_0" : "ui.aim_status_researching_0", activeTitle);
+        stateText = this.aimActivityKind === "clarifying" ? t("ui.aim_preparing_clarification") : this.aimProgress ? this.aimStageText() : t(planning ? "ui.aim_status_planning_0" : "ui.aim_status_researching_0", activeTitle);
         stateClass = "running";
       } else if (runningBranch) {
         const activeTitle = (_n = (_m = this.notes.get(runningBranch.questionNodeId)) == null ? void 0 : _m.title) != null ? _n : this.map.title;
@@ -27007,7 +27200,11 @@ ${request.requirements}` : preset.text,
         stateClass = "idea";
       }
       statusbar.createSpan({ cls: "vam-aim-status-title", text: "AIM" });
-      statusbar.createSpan({ cls: `vam-aim-status-value vam-status-${stateClass}`, text: stateText });
+      const stateEl = statusbar.createSpan({ cls: `vam-aim-status-value vam-status-${stateClass}`, text: stateText });
+      if (this.aimBusy && this.aimProgress) {
+        this.aimProgressEls.set("status", stateEl);
+        statusbar.createSpan({ cls: "vam-hint vam-aim-eta", text: t("ui.aim_eta_hint") });
+      }
       if (this.aimBusy)
         this.button(statusbar, t("ui.stop_research"), () => {
           var _a2;
@@ -27288,6 +27485,7 @@ ${request.requirements}` : preset.text,
     } finally {
       this.renderingCard = false;
     }
+    this.renderAimPendingCards(shown);
     if (this.focusNodeId) {
       this.restoringFocus = true;
       try {

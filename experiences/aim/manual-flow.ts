@@ -61,6 +61,7 @@ import {
   parseAimResearchPlan,
   ResearchWorkflowInterrupted,
   SubtopicSearchUnavailable,
+  type AimProgressEvent,
   ReuseEvidenceRejected,
   type AimAskModel,
   type PlannerQuestionResult,
@@ -152,6 +153,17 @@ export class AimManualFlow {
     /** Test-only injection; production never passes it, so the defaults apply. */
     private readonly limits: AimFlowLimits = ACTIVE_AIM_FLOW_LIMITS
   ) {}
+
+  /** The map view's live progress listener; set by the view, absent in tests and recovery flows. */
+  onProgress?: (event: AimProgressEvent) => void;
+
+  private emitProgress(event: AimProgressEvent): void {
+    try {
+      this.onProgress?.(event);
+    } catch {
+      /* Progress display must never stop research. */
+    }
+  }
 
   /** Research phases use provider web search unless a test turned it off. */
   private researchMode(): "research" | "local" {
@@ -2807,6 +2819,7 @@ export class AimManualFlow {
 
     let plan = branch.researchPlan;
     if (!plan) {
+      this.emitProgress({ kind: "stage", mapPath, branchId, stage: "research-plan" });
       const planPrompt = renderResearchPlanTask({
         reports: candidates.map(
           candidate =>
@@ -2872,6 +2885,12 @@ export class AimManualFlow {
       executionPlan = await materializeExistingEvidence();
       await this.persist(() => this.runs.saveResearchPlan(mapPath, branchId, executionPlan));
     }
+    this.emitProgress({
+      kind: "plan",
+      mapPath,
+      branchId,
+      targets: executionPlan.map(target => ({ id: target.id, title: target.title }))
+    });
     // null: that subtopic's web search failed; the round continues on the other reports.
     let scheduled: Map<string, SubtopicReport | null>;
     let searchFailure: Error | undefined;
@@ -2911,6 +2930,7 @@ export class AimManualFlow {
               throw new Error(
                 "The copied research report changed after reuse validation; its provenance no longer matches."
               );
+            this.emitProgress({ kind: "subtopic", mapPath, branchId, subtopicId: target.id, state: "done" });
             return {
               subtopicId: target.id,
               nodeId: savedRef.nodeId,
@@ -3001,7 +3021,21 @@ export class AimManualFlow {
                 currentConditions: currentBranch.inputSnapshot.conditions,
                 rejectedReuse
               });
-              const { diagnostic, onEvent } = createSearchDiagnostic(1);
+              const { diagnostic, onEvent: recordSearchEvent } = createSearchDiagnostic(1);
+              const progress = (state: "searching") =>
+                this.emitProgress({
+                  kind: "subtopic",
+                  mapPath,
+                  branchId,
+                  subtopicId: target.id,
+                  state,
+                  searches: diagnostic.completedSearchActions
+                });
+              const onEvent: typeof recordSearchEvent = event => {
+                recordSearchEvent(event);
+                progress("searching");
+              };
+              progress("searching");
               result = await this.askAimModel(
                 {
                   ...contextBase,
@@ -3046,6 +3080,7 @@ export class AimManualFlow {
             });
             if (committed.status !== "committed") throw new ResearchWorkflowInterrupted("stale");
             const saved = await this.repository.readNote(committed.notePath);
+            this.emitProgress({ kind: "subtopic", mapPath, branchId, subtopicId: target.id, state: "done" });
             return {
               subtopicId: target.id,
               nodeId: draft.draft.nodeId,
@@ -3075,6 +3110,7 @@ export class AimManualFlow {
               // Read the message without instanceof: the runtime's error may come from another realm.
               SEARCH_NOT_PERFORMED.test(String((error as { message?: unknown } | null)?.message ?? error));
             if (searchSkipped && !taskSignal.aborted) {
+              this.emitProgress({ kind: "subtopic", mapPath, branchId, subtopicId: target.id, state: "skipped" });
               searchFailure = error as Error;
               return null;
             }
@@ -3240,6 +3276,7 @@ export class AimManualFlow {
         };
         const fingerprint = sourceFingerprint;
         const savedRecovery = resumeDelivery;
+        this.emitProgress({ kind: "stage", mapPath, branchId, stage: "report-review" });
         if (!savedRecovery) await this.persist(() => this.runs.recordPhase(mapPath, synthesisHandle, "report-review"));
         const synthesis = savedRecovery?.planner ?? (await this.askAimModel(plannerContext, model, reasoning, signal));
         finalReview = await this.parsePlannerReviewWithRecovery(
@@ -3275,6 +3312,7 @@ export class AimManualFlow {
           deliveryEvidence: deliveryEvidence(),
           setPhase: phase => this.persist(() => this.runs.recordPhase(mapPath, synthesisHandle, phase)),
           saveDeliveryRecovery: async (checkpoint, phase) => {
+            if (phase) this.emitProgress({ kind: "stage", mapPath, branchId, stage: phase });
             throwIfAborted(signal);
             await this.persist(() =>
               this.runs.saveDeliveryRecovery(mapPath, synthesisHandle, {
@@ -3390,6 +3428,7 @@ export class AimManualFlow {
           currentAnswer: answerDescription
         });
         let followup: AiResult;
+        this.emitProgress({ kind: "stage", mapPath, branchId, stage: "targeted-research" });
         await this.persist(() => this.runs.recordPhase(mapPath, synthesisHandle, "targeted-research"));
         try {
           followup = await this.askAimModel(

@@ -159,6 +159,22 @@ export class ResearchWorkflowInterrupted extends Error {
   }
 }
 export class ReuseEvidenceRejected extends Error {}
+/**
+ * Live progress of one answer branch for the map view. It lives in memory only: nothing is saved, and a listener
+ * that throws cannot disturb the research.
+ */
+export type AimProgressEvent =
+  | { kind: "plan"; mapPath: string; branchId: string; targets: { id: string; title: string }[] }
+  | {
+      kind: "subtopic";
+      mapPath: string;
+      branchId: string;
+      subtopicId: string;
+      state: "searching" | "done" | "skipped";
+      /** Web searches the provider has finished for this subtopic so far. */
+      searches?: number;
+    }
+  | { kind: "stage"; mapPath: string; branchId: string; stage: string };
 /** One subtopic's web search failed; its siblings still feed the review. */
 export class SubtopicSearchUnavailable extends Error {}
 
