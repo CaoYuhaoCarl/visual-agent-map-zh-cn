@@ -2787,7 +2787,8 @@ export class AimManualFlow {
       });
       try {
         const planned = await this.askAimModel(
-          { ...contextBase, task: planPrompt, aimContract: { kind: "plan" } },
+          // Planning works from the evidence indexes; full reports are not loaded here (update covers doubtful reuse).
+          { ...contextBase, aimEvidenceIds: [], task: planPrompt, aimContract: { kind: "plan" } },
           model,
           reasoning,
           signal
@@ -2807,6 +2808,7 @@ export class AimManualFlow {
           const repaired = await this.askAimModel(
             {
               ...contextBase,
+              aimEvidenceIds: [],
               task: repairTask,
               aimContract: { kind: "plan" }
             },

@@ -22,7 +22,7 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
 const target = (id) => ({ id, title: `Target ${id}`, task: `Find ${id}`, expectedValue: `Resolve ${id}`, action: 'research', dependsOn: [] });
 
 integrationTest('AIM flow limits: production defaults equal the legacy values and the smoke module cannot shift derived constants', () => {
-  assert.deepEqual(plain(production.DEFAULT_AIM_FLOW_LIMITS), { minAnsweredBeforeConclusion: 3, maxResearchTurns: 2, researchParallelism: 2, webSearch: true, acceptGapAtBudget: false, publishDeliveryAtBudget: false });
+  assert.deepEqual(plain(production.DEFAULT_AIM_FLOW_LIMITS), { minAnsweredBeforeConclusion: 3, maxResearchTurns: 2, researchParallelism: 3, webSearch: true, acceptGapAtBudget: false, publishDeliveryAtBudget: false });
   assert.ok(Object.isFrozen(production.DEFAULT_AIM_FLOW_LIMITS));
   assert.equal(production.ACTIVE_AIM_FLOW_LIMITS, production.DEFAULT_AIM_FLOW_LIMITS, 'the flow uses the defaults unless a test injects limits');
   assert.equal(MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION, 3);
@@ -216,16 +216,16 @@ integrationTest('AIM flow limits: with smoke limits the Planner\'s own research_
   assert.equal(seen.filter(item => item.phase === 'targeted-followup-research').length, 1, 'the research budget (two turns) is unchanged');
 });
 
-integrationTest('AIM flow limits: the scheduler runs two independent tasks at once by default and an injected value caps it', async () => {
+integrationTest('AIM flow limits: the scheduler runs three independent tasks at once by default and an injected value caps it', async () => {
   const peak = async options => {
     let active = 0, max = 0;
-    await scheduleAimResearch([target('a'), target('b'), target('c')], async item => { max = Math.max(max, ++active); await tick(); await tick(); active--; return item.id; }, undefined, options);
+    await scheduleAimResearch([target('a'), target('b'), target('c'), target('d')], async item => { max = Math.max(max, ++active); await tick(); await tick(); active--; return item.id; }, undefined, options);
     return max;
   };
-  assert.equal(await peak(undefined), 2);
-  assert.equal(await peak({}), 2);
+  assert.equal(await peak(undefined), 3);
+  assert.equal(await peak({}), 3);
   assert.equal(await peak({ parallelism: 1 }), 1);
-  assert.equal(await peak({ parallelism: 3 }), 3);
+  assert.equal(await peak({ parallelism: 2 }), 2);
 });
 integrationTest('AIM flow limits: the flow researches two subtopics in parallel by default and one at a time under smoke limits', async () => {
   for (const [limits, expected] of [[undefined, 2], [smokeLimits, 1]]) {

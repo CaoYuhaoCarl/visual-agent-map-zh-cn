@@ -27,7 +27,7 @@ export interface AimFlowLimits {
 export const DEFAULT_AIM_FLOW_LIMITS: AimFlowLimits = Object.freeze({
   minAnsweredBeforeConclusion: 3,
   maxResearchTurns: 2,
-  researchParallelism: 2,
+  researchParallelism: 3,
   webSearch: true,
   acceptGapAtBudget: false,
   publishDeliveryAtBudget: false
