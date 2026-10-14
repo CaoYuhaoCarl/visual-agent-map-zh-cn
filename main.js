@@ -709,7 +709,10 @@ var english = {
   "ui.expand_0": "Expand {0}",
   "ui.0_moved": "{0} (moved)",
   "ui.0_1_reasoning_can_be_adjusted_per_topic": "{0} \xB7 {1}; reasoning can be adjusted per topic.",
-  "ui.topics_folder_0_inbox_1": "Topics folder: {0} \xB7 Inbox: {1}",
+  "ui.workspace_location_0_legacy_topics_1": "Workspace: {0} \xB7 Legacy Topics folder (still readable): {1}",
+  "ui.mind_maps_folder": "Mind Maps folder",
+  "ui.aim_maps_folder": "AIM folder",
+  "ui.map_folder_name_desc": "Folder name inside {0} where new maps are created. Existing maps are not moved; use Organize workspace folders for that.",
   "ui.synced_0_subtopic_filenames_with_their_names": "Synced {0} subtopic filenames with their names.",
   "ui.synced_0_topic_filenames": "Synced {0} topic filenames.",
   "ui.repair_topic_note_display": "Repair topic note display",
@@ -2106,7 +2109,10 @@ var traditionalChinese = {
   "ui.expand_0": "\u5C55\u958B {0}",
   "ui.0_moved": "{0}\uFF08\u5DF2\u79FB\u52D5\uFF09",
   "ui.0_1_reasoning_can_be_adjusted_per_topic": "{0} \xB7 {1}\uFF1B\u63A8\u7406\u7B49\u7D1A\u53EF\u4F9D\u8B70\u984C\u8ABF\u6574\u3002",
-  "ui.topics_folder_0_inbox_1": "\u4E3B\u984C\u8CC7\u6599\u593E\uFF1A{0}\u3000\u672A\u5206\u985E\u6536\u4EF6\u5323\uFF1A{1}",
+  "ui.workspace_location_0_legacy_topics_1": "\u5DE5\u4F5C\u5340\uFF1A{0}\u3000\u820A\u4E3B\u984C\u8CC7\u6599\u593E\uFF08\u4ECD\u53EF\u8B80\u53D6\uFF09\uFF1A{1}",
+  "ui.mind_maps_folder": "\u601D\u7DAD\u5C0E\u5716\u8CC7\u6599\u593E",
+  "ui.aim_maps_folder": "AIM \u8CC7\u6599\u593E",
+  "ui.map_folder_name_desc": "\u65B0\u7684\u9805\u76EE\u6703\u5EFA\u7ACB\u5728 {0} \u5167\u7684\u9019\u500B\u8CC7\u6599\u593E\u3002\u65E2\u6709\u9805\u76EE\u4E0D\u6703\u88AB\u79FB\u52D5\uFF1B\u8981\u79FB\u52D5\u8ACB\u7528\u300C\u6574\u7406\u5DE5\u4F5C\u5340\u8CC7\u6599\u593E\u300D\u3002",
   "ui.synced_0_subtopic_filenames_with_their_names": "\u5DF2\u5C07 {0} \u4EFD\u5B50\u8B70\u984C\u6A94\u540D\u540C\u6B65\u70BA\u8B70\u984C\u540D\u7A31\u3002",
   "ui.synced_0_topic_filenames": "\u5DF2\u540C\u6B65 {0} \u4EFD\u8B70\u984C\u6A94\u540D\u3002",
   "ui.repair_topic_note_display": "\u4FEE\u5FA9\u8B70\u984C\u7B46\u8A18\u986F\u793A",
@@ -12244,6 +12250,22 @@ var managedSectionValue = (value) => value.trim();
 var managedHeadingValue = (value) => value.replace(/\n/g, " ").trim();
 
 // repository.ts
+function resolveMapFolders(saved) {
+  const workspace = (saved == null ? void 0 : saved.workspaceFolder) || DEFAULT_SETTINGS.workspaceFolder;
+  return {
+    mindMapsFolder: (saved == null ? void 0 : saved.mindMapsFolder) || `${workspace}/Mind Maps`,
+    aimFolder: (saved == null ? void 0 : saved.aimFolder) || `${workspace}/AIM`
+  };
+}
+function managedMapContainers(settings) {
+  return [settings.mindMapsFolder, settings.aimFolder, settings.topicsFolder];
+}
+function managedMapContainer(settings, path) {
+  return managedMapContainers(settings).find((folder) => path.startsWith(`${folder}/`));
+}
+function isManagedMapPath(settings, path) {
+  return managedMapContainer(settings, path) !== void 0;
+}
 var DEFAULT_SETTINGS = {
   detailTemplates: [],
   coffeeStyles: [],
@@ -12251,6 +12273,8 @@ var DEFAULT_SETTINGS = {
   language: "en",
   workspaceFolder: "Agent Workspace",
   topicsFolder: "Agent Workspace/Topics",
+  mindMapsFolder: "Agent Workspace/Mind Maps",
+  aimFolder: "Agent Workspace/AIM",
   inboxFolder: "Agent Workspace/Inbox",
   notesFolder: "Agent Workspace/Nodes",
   mapsFolder: "Agent Workspace/Maps",
@@ -12619,7 +12643,7 @@ var Repository = class {
   async workspaceCandidates() {
     const candidates = /* @__PURE__ */ new Set();
     for (const file of this.app.vault.getMarkdownFiles()) {
-      const match = file.path.match(/^(.*)\/Topics\/[^/]+\/Map\.md$/);
+      const match = file.path.match(/^(.*)\/(?:Topics|Mind Maps|AIM)\/[^/]+\/Map\.md$/);
       if (!(match == null ? void 0 : match[1])) continue;
       try {
         parseMap(await this.app.vault.read(file));
@@ -12630,7 +12654,8 @@ var Repository = class {
     return [...candidates].sort((left, right) => left.localeCompare(right));
   }
   async ensureWorkspace() {
-    await this.folder(this.settings.topicsFolder);
+    await this.folder(this.settings.mindMapsFolder);
+    await this.folder(this.settings.aimFolder);
     await this.folder(this.settings.inboxFolder);
   }
   unique(folder, name) {
@@ -13023,14 +13048,16 @@ ${body}`);
     return topics;
   }
   async brokenTopics() {
-    const root = this.app.vault.getAbstractFileByPath(this.settings.topicsFolder);
-    if (!(root instanceof import_obsidian9.TFolder)) return [];
     const broken = [];
-    for (const child of root.children) {
-      if (!(child instanceof import_obsidian9.TFolder) || this.app.vault.getAbstractFileByPath(`${child.path}/Map.md`)) continue;
-      const prefix = `${child.path}/Notes/`;
-      const noteCount = this.app.vault.getMarkdownFiles().filter((file) => file.path.startsWith(prefix)).length;
-      broken.push({ title: child.name, root: child.path, noteCount });
+    for (const containerPath of managedMapContainers(this.settings)) {
+      const root = this.app.vault.getAbstractFileByPath(containerPath);
+      if (!(root instanceof import_obsidian9.TFolder)) continue;
+      for (const child of root.children) {
+        if (!(child instanceof import_obsidian9.TFolder) || this.app.vault.getAbstractFileByPath(`${child.path}/Map.md`)) continue;
+        const prefix = `${child.path}/Notes/`;
+        const noteCount = this.app.vault.getMarkdownFiles().filter((file) => file.path.startsWith(prefix)).length;
+        broken.push({ title: child.name, root: child.path, noteCount });
+      }
     }
     return broken.sort((a, b) => a.title.localeCompare(b.title));
   }
@@ -13300,11 +13327,12 @@ ${body}`;
     }
   }
   async createMap(title, nodes = [], onRootCreated, aim) {
-    await this.folder(this.settings.topicsFolder);
-    const preferredRoot = (0, import_obsidian9.normalizePath)(`${this.settings.topicsFolder}/${safeName(title)}`);
+    const container = aim ? this.settings.aimFolder : this.settings.mindMapsFolder;
+    await this.folder(container);
+    const preferredRoot = (0, import_obsidian9.normalizePath)(`${container}/${safeName(title)}`);
     const preferredFolder = this.app.vault.getAbstractFileByPath(preferredRoot);
     const recoverEmptyAimFolder = !!(aim == null ? void 0 : aim.creationId) && preferredFolder instanceof import_obsidian9.TFolder && preferredFolder.children.length === 0;
-    const root = recoverEmptyAimFolder ? preferredRoot : this.uniqueFolder(this.settings.topicsFolder, title);
+    const root = recoverEmptyAimFolder ? preferredRoot : this.uniqueFolder(container, title);
     const folder = recoverEmptyAimFolder && preferredFolder instanceof import_obsidian9.TFolder ? preferredFolder : await this.app.vault.createFolder(root);
     onRootCreated == null ? void 0 : onRootCreated(folder);
     if (!(aim == null ? void 0 : aim.creationId)) await this.ensureTopicFolders(root);
@@ -13398,9 +13426,9 @@ ${body}`;
   async renameTopic(mapPath, title, targetRoot) {
     var _a;
     const file = this.file(mapPath), root = file.parent;
-    if (!(root instanceof import_obsidian9.TFolder) || !mapPath.startsWith(`${this.settings.topicsFolder}/`))
+    if (!(root instanceof import_obsidian9.TFolder) || !isManagedMapPath(this.settings, mapPath))
       throw new Error(this.message("error.migrate_legacy_map"));
-    const desired = targetRoot ? (0, import_obsidian9.normalizePath)(targetRoot) : (0, import_obsidian9.normalizePath)(`${this.settings.topicsFolder}/${safeName(title)}`);
+    const desired = targetRoot ? (0, import_obsidian9.normalizePath)(targetRoot) : (0, import_obsidian9.normalizePath)(`${parentPath(root.path)}/${safeName(title)}`);
     if (desired !== root.path && this.app.vault.getAbstractFileByPath(desired))
       throw new Error(this.message("error.topic_folder_exists"));
     const originalRoot = root.path;
@@ -24628,8 +24656,7 @@ ${request.requirements}` : preset.text,
   /** Whether the open map can take an imported outline, and the selected topic for "under the selected topic". */
   outlineImportTarget() {
     var _a, _b;
-    if (!this.map || this.builtIn || !this.path.startsWith(`${this.plugin.settings.topicsFolder}/`))
-      return { map: "none" };
+    if (!this.map || this.builtIn || !isManagedMapPath(this.plugin.settings, this.path)) return { map: "none" };
     if (this.map.aim) return { map: "aim" };
     const node = this.map.nodes.find((item) => item.id === this.selected);
     if (!node) return { map: "editable" };
@@ -26128,7 +26155,7 @@ ${request.requirements}` : preset.text,
         description: t("ui.update_the_topic_folder_and_mind_map_name_together"),
         action: () => this.renameCurrentMap()
       });
-      if (!this.path.startsWith(`${this.plugin.settings.topicsFolder}/`))
+      if (!isManagedMapPath(this.plugin.settings, this.path))
         choices.push({
           label: t("ui.migrate_old_data"),
           description: t("ui.preview_and_migrate_old_maps_into_the_current_topic_structur"),
@@ -26224,7 +26251,7 @@ ${request.requirements}` : preset.text,
           new import_obsidian20.Notice(t("ui.aim_research_already_running"));
           return;
         }
-        if (!this.path.startsWith(`${this.plugin.settings.topicsFolder}/`)) {
+        if (!isManagedMapPath(this.plugin.settings, this.path)) {
           new import_obsidian20.Notice(t("ui.migrate_old_data_before_renaming_this_topic"));
           return;
         }
@@ -27889,7 +27916,7 @@ ${request.requirements}` : preset.text,
               label: t("ui.relink_existing_map"),
               action: () => this.enqueue(async () => {
                 const candidates = (await this.plugin.repo.mapFiles()).filter(
-                  (file) => !file.path.startsWith(`${this.plugin.settings.topicsFolder}/`)
+                  (file) => !isManagedMapPath(this.plugin.settings, file.path)
                 );
                 new ChoiceModal(
                   this.app,
@@ -27925,7 +27952,7 @@ ${request.requirements}` : preset.text,
       parent ? (await this.plugin.repo.readNote(parent.path)).model : void 0,
       this.plugin.settings.cliModel
     );
-    if (!this.path.startsWith(`${this.plugin.settings.topicsFolder}/`)) {
+    if (!isManagedMapPath(this.plugin.settings, this.path)) {
       new import_obsidian20.Notice(t("ui.use_migrate_old_data_to_convert_this_map_first"));
       return;
     }
@@ -30159,6 +30186,19 @@ var VisualAgentMapSettingTab = class extends import_obsidian21.PluginSettingTab 
     });
     selector == null ? void 0 : selector.focus();
   }
+  /** Folder name (relative to the workspace folder) for new Mind Maps / AIM maps; stored as a full path. */
+  renderMapFolderSetting(setting, key2, label, fallback) {
+    const workspace = this.plugin.settings.workspaceFolder, current = this.plugin.settings[key2];
+    const shown = current.startsWith(`${workspace}/`) ? current.slice(workspace.length + 1) : current;
+    setting.setName(t(label)).setDesc(t("ui.map_folder_name_desc", workspace)).addText(
+      (input) => input.setPlaceholder(fallback).setValue(shown).onChange(async (value) => {
+        const name = value.trim().replace(/[\\/]+/g, "/").replace(/^\/+|\/+$/g, "");
+        if (!name || name.split("/").some((part) => part === "." || part === "..")) return;
+        this.plugin.settings[key2] = `${workspace}/${name}`;
+        await this.plugin.saveSettings();
+      })
+    );
+  }
   getSettingDefinitions() {
     const text11 = (name, key2, desc) => ({
       name,
@@ -30275,9 +30315,21 @@ var VisualAgentMapSettingTab = class extends import_obsidian21.PluginSettingTab 
         name: t("ui.workspace_location"),
         render: (setting) => {
           setting.setName(t("ui.workspace_location")).setDesc(
-            t("ui.topics_folder_0_inbox_1", this.plugin.settings.topicsFolder, this.plugin.settings.inboxFolder)
+            t(
+              "ui.workspace_location_0_legacy_topics_1",
+              this.plugin.settings.workspaceFolder,
+              this.plugin.settings.topicsFolder
+            )
           );
         }
+      },
+      {
+        name: t("ui.mind_maps_folder"),
+        render: (setting) => this.renderMapFolderSetting(setting, "mindMapsFolder", "ui.mind_maps_folder", "Mind Maps")
+      },
+      {
+        name: t("ui.aim_maps_folder"),
+        render: (setting) => this.renderMapFolderSetting(setting, "aimFolder", "ui.aim_maps_folder", "AIM")
       },
       {
         name: t("ui.repair_agent_workspace"),
@@ -34463,6 +34515,7 @@ var VisualAgentMapPlugin = class extends import_obsidian26.Plugin {
     announceTestOverrides((message) => new import_obsidian26.Notice(message, 0));
     const saved = await this.loadData();
     const legacy = saved;
+    const savedWorkspace = (saved == null ? void 0 : saved.workspaceFolder) || DEFAULT_SETTINGS.workspaceFolder;
     this.settings = {
       ...DEFAULT_SETTINGS,
       detailTemplates: normalizeTemplates(saved == null ? void 0 : saved.detailTemplates),
@@ -34473,8 +34526,9 @@ var VisualAgentMapPlugin = class extends import_obsidian26.Plugin {
       ) : [],
       defaultCoffeeStyleId: typeof (saved == null ? void 0 : saved.defaultCoffeeStyleId) === "string" ? saved.defaultCoffeeStyleId : void 0,
       language: initialUiLanguage(saved == null ? void 0 : saved.language),
-      workspaceFolder: (saved == null ? void 0 : saved.workspaceFolder) || DEFAULT_SETTINGS.workspaceFolder,
+      workspaceFolder: savedWorkspace,
       topicsFolder: (saved == null ? void 0 : saved.topicsFolder) || DEFAULT_SETTINGS.topicsFolder,
+      ...resolveMapFolders(saved),
       inboxFolder: (saved == null ? void 0 : saved.inboxFolder) || DEFAULT_SETTINGS.inboxFolder,
       notesFolder: (saved == null ? void 0 : saved.notesFolder) || DEFAULT_SETTINGS.notesFolder,
       mapsFolder: (saved == null ? void 0 : saved.mapsFolder) || DEFAULT_SETTINGS.mapsFolder,
@@ -34746,7 +34800,7 @@ var VisualAgentMapPlugin = class extends import_obsidian26.Plugin {
         if (file instanceof import_obsidian26.TFile) this.scheduleExternalReconciliation(file.path);
         if (!this.writing && file instanceof import_obsidian26.TFile) {
           for (const view of this.views()) view.deleted(file);
-          if (file.path.startsWith(`${this.settings.mapsFolder}/`) || file.path.startsWith(`${this.settings.topicsFolder}/`) && file.name === "Map.md")
+          if (file.path.startsWith(`${this.settings.mapsFolder}/`) || isManagedMapPath(this.settings, file.path) && file.name === "Map.md")
             this.runMutation(() => this.repo.rebuildDerivedData());
         }
       })
@@ -34809,6 +34863,8 @@ ${error}`;
   connectWorkspace(root) {
     this.settings.workspaceFolder = root;
     this.settings.topicsFolder = `${root}/Topics`;
+    this.settings.mindMapsFolder = `${root}/Mind Maps`;
+    this.settings.aimFolder = `${root}/AIM`;
     this.settings.inboxFolder = `${root}/Inbox`;
     this.settings.notesFolder = `${root}/Nodes`;
     this.settings.mapsFolder = `${root}/Maps`;
@@ -34986,12 +35042,12 @@ ${error}`;
   isMap(file) {
     var _a, _b;
     const marker4 = (_b = (_a = this.app.metadataCache.getFileCache(file)) == null ? void 0 : _a.frontmatter) == null ? void 0 : _b["visual-agent-map"];
-    return marker4 === true || marker4 === "true" || file.extension === "md" && (file.path.startsWith(`${this.settings.mapsFolder}/`) || file.path.startsWith(`${this.settings.topicsFolder}/`) && file.name === "Map.md");
+    return marker4 === true || marker4 === "true" || file.extension === "md" && (file.path.startsWith(`${this.settings.mapsFolder}/`) || isManagedMapPath(this.settings, file.path) && file.name === "Map.md");
   }
   isNode(file) {
     var _a, _b;
     const marker4 = (_b = (_a = this.app.metadataCache.getFileCache(file)) == null ? void 0 : _a.frontmatter) == null ? void 0 : _b["agent-map-node"];
-    return marker4 === true || marker4 === "true" || file.extension === "md" && (file.path.startsWith(`${this.settings.notesFolder}/`) || file.path.startsWith(`${this.settings.topicsFolder}/`) || file.path.startsWith(`${this.settings.inboxFolder}/`));
+    return marker4 === true || marker4 === "true" || file.extension === "md" && (file.path.startsWith(`${this.settings.notesFolder}/`) || isManagedMapPath(this.settings, file.path) || file.path.startsWith(`${this.settings.inboxFolder}/`));
   }
   styleNodeLeaf(leaf) {
     if (!((leaf == null ? void 0 : leaf.view) instanceof import_obsidian26.MarkdownView)) return;

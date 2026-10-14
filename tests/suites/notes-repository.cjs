@@ -245,8 +245,8 @@ integrationTest('external rename reconciliation only follows a unique matching n
 });
 integrationTest('new topics contain Map, Notes, Unassigned and Archive', async () => {
   const { repo, app } = fixture(), mapPath = await repo.createMap('Topic A');
-  assert.equal(mapPath, 'Agent Workspace/Topics/Topic A/Map.md');
-  for (const name of ['Notes', 'Unassigned', 'Archive']) assert.ok(app.vault.getAbstractFileByPath(`Agent Workspace/Topics/Topic A/${name}`) instanceof TFolder);
+  assert.equal(mapPath, 'Agent Workspace/Mind Maps/Topic A/Map.md');
+  for (const name of ['Notes', 'Unassigned', 'Archive']) assert.ok(app.vault.getAbstractFileByPath(`Agent Workspace/Mind Maps/Topic A/${name}`) instanceof TFolder);
 });
 integrationTest('unassigned and archived notes keep topic ownership but leave the map', async () => {
   const { repo, contents } = fixture(), mapPath = await repo.createMap('Lifecycle'), mapDoc = await repo.readMap(mapPath);

@@ -30,7 +30,9 @@ integrationTest('workspace repair creates only the configured base folders and i
   const { repo, app } = fixture();
   assert.equal(repo.workspaceExists(), false);
   await repo.ensureWorkspace(); await repo.ensureWorkspace();
-  assert.ok(app.vault.getAbstractFileByPath('Agent Workspace/Topics') instanceof TFolder);
+  assert.ok(app.vault.getAbstractFileByPath('Agent Workspace/Mind Maps') instanceof TFolder);
+  assert.ok(app.vault.getAbstractFileByPath('Agent Workspace/AIM') instanceof TFolder);
+  assert.ok(!app.vault.getAbstractFileByPath('Agent Workspace/Topics'), 'the legacy Topics folder is no longer created');
   assert.ok(app.vault.getAbstractFileByPath('Agent Workspace/Inbox') instanceof TFolder);
 });
 integrationTest('workspace rediscovery finds valid custom VAM workspaces without accepting unrelated Map files', async () => {
@@ -48,15 +50,15 @@ integrationTest('duplicating the built-in sample creates an independent editable
   const plugin = new Plugin(); plugin.app = app; plugin.repo = repo; plugin.settings = { ...DEFAULT_SETTINGS }; plugin.saveSettings = async () => {};
   const mapPath = await plugin.duplicateBuiltInSample();
   const sample = await repo.readMap(mapPath);
-  assert.match(mapPath, /Agent Workspace\/Topics\/Sample Planning a Taiwan Journey\/Map\.md$/);
+  assert.match(mapPath, /Agent Workspace\/Mind Maps\/Sample Planning a Taiwan Journey\/Map\.md$/);
   assert.equal(sample.nodes.length, 12);
   assert.equal(sample.nodes.filter(node => node.parentId === null).length, 2);
   assert.notEqual(sample.id, 'builtin-taiwan-travel');
   assert.ok(sample.nodes.every(node => !['explore', 'constraints', 'transport', 'food', 'nature', 'journey'].includes(node.id)));
   const synthesis = await repo.readNote(sample.nodes.find(node => node.x === 1050).path);
   assert.equal(synthesis.status, 'completed'); assert.equal(synthesis.sourcePaths.length, 6);
-  assert.ok(synthesis.sourcePaths.every(source => source.startsWith('Agent Workspace/Topics/')));
-  assert.ok(app.vault.getAbstractFileByPath('Agent Workspace/Topics/Sample Planning a Taiwan Journey/Attachments/east-coast-landscape.webp'));
+  assert.ok(synthesis.sourcePaths.every(source => source.startsWith('Agent Workspace/Mind Maps/')));
+  assert.ok(app.vault.getAbstractFileByPath('Agent Workspace/Mind Maps/Sample Planning a Taiwan Journey/Attachments/east-coast-landscape.webp'));
 });
 integrationTest('failed Sample duplication removes only its new map and reports cleanup failures', async () => {
   const { repo, app, files, contents } = fixture();
@@ -74,12 +76,12 @@ integrationTest('failed Sample duplication removes only its new map and reports 
   app.vault.createBinary = createBinary;
   assert.equal(contents.get(existingPath), existingMap);
   assert.ok(app.vault.getAbstractFileByPath(existingPath));
-  assert.equal(!!app.vault.getAbstractFileByPath('Agent Workspace/Topics/Sample Planning a Taiwan Journey 2'), false);
+  assert.equal(!!app.vault.getAbstractFileByPath('Agent Workspace/Mind Maps/Sample Planning a Taiwan Journey 2'), false);
 
   const cleanupFailure = new Error('injected cleanup failure');
   app.fileManager.trashFile = async () => { throw cleanupFailure; };
   app.vault.createBinary = async () => { throw new Error('injected second attachment failure'); };
-  await assert.rejects(plugin.duplicateBuiltInSample(), /cleanup failed for Agent Workspace\/Topics\/Sample Planning a Taiwan Journey 2: Error: injected cleanup failure/);
+  await assert.rejects(plugin.duplicateBuiltInSample(), /cleanup failed for Agent Workspace\/Mind Maps\/Sample Planning a Taiwan Journey 2: Error: injected cleanup failure/);
 });
 integrationTest('Sample rollback covers creation failures and never adopts a colliding or replaced folder', async () => {
   const { default: Plugin } = load('main.ts', { obsidian });
@@ -90,7 +92,7 @@ integrationTest('Sample rollback covers creation failures and never adopts a col
     const oldNode = await repo.createNote('Existing note', 'model', oldMap, oldPath, 'workspace');
     const before = new Map(contents);
     const plugin = new Plugin(); Object.assign(plugin, { app, repo, settings: { ...DEFAULT_SETTINGS }, saveSettings: async () => {} });
-    const root = 'Agent Workspace/Topics/Sample Planning a Taiwan Journey';
+    const root = 'Agent Workspace/Mind Maps/Sample Planning a Taiwan Journey';
     const trashed = [];
     app.fileManager.trashFile = async folder => { trashed.push(folder.path); for (const key of [...files.keys()]) if (key === folder.path || key.startsWith(folder.path + '/')) { files.delete(key); contents.delete(key); } };
     const fail = () => { throw new Error('injected ' + stage); };

@@ -234,7 +234,7 @@ integrationTest('AIM topic rename blocks persisted running or saving attempts ac
   await assert.rejects(reopenedRepo.renameTopic(created.mapPath, 'Should not move'), /still running or saving/);
   releaseSave(); await commit;
   assert.ok(repo.app.vault.getAbstractFileByPath(repo.topicRoot(created.mapPath)));
-  assert.equal(repo.app.vault.getAbstractFileByPath('Agent Workspace/Topics/Should not move'), undefined);
+  assert.equal(repo.app.vault.getAbstractFileByPath('Agent Workspace/AIM/Should not move'), undefined);
 });
 integrationTest('AIM Manual Planner question, user answer, research result and outline metadata share one persisted branch', async () => {
   const { repo } = fixture();

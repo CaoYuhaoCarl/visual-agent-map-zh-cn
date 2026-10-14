@@ -57,7 +57,10 @@ export interface Settings {
   defaultCoffeeStyleId?: string;
   language: "zh-TW" | "en";
   workspaceFolder: string;
+  /** Legacy container (pre-0.19): maps here stay openable; new maps go to mindMapsFolder / aimFolder. */
   topicsFolder: string;
+  mindMapsFolder: string;
+  aimFolder: string;
   inboxFolder: string;
   notesFolder: string;
   mapsFolder: string;
@@ -96,6 +99,40 @@ export interface LegacyMigrationPlan {
   orphanPaths: string[];
 }
 
+/**
+ * Map container folders for loaded settings: a saved value wins (never rewritten for upgraded users);
+ * otherwise they derive from the saved workspace folder, so a custom workspace gets sibling folders.
+ */
+export function resolveMapFolders(
+  saved: Partial<Pick<Settings, "workspaceFolder" | "mindMapsFolder" | "aimFolder">> | null | undefined
+): Pick<Settings, "mindMapsFolder" | "aimFolder"> {
+  const workspace = saved?.workspaceFolder || DEFAULT_SETTINGS.workspaceFolder;
+  return {
+    mindMapsFolder: saved?.mindMapsFolder || `${workspace}/Mind Maps`,
+    aimFolder: saved?.aimFolder || `${workspace}/AIM`
+  };
+}
+
+/** Folders that hold managed topic folders: the two current containers plus the legacy Topics container. */
+export function managedMapContainers(
+  settings: Pick<Settings, "topicsFolder" | "mindMapsFolder" | "aimFolder">
+): string[] {
+  return [settings.mindMapsFolder, settings.aimFolder, settings.topicsFolder];
+}
+/** The container (from managedMapContainers) that holds `path`, or undefined for maps outside all of them. */
+export function managedMapContainer(
+  settings: Pick<Settings, "topicsFolder" | "mindMapsFolder" | "aimFolder">,
+  path: string
+): string | undefined {
+  return managedMapContainers(settings).find(folder => path.startsWith(`${folder}/`));
+}
+export function isManagedMapPath(
+  settings: Pick<Settings, "topicsFolder" | "mindMapsFolder" | "aimFolder">,
+  path: string
+): boolean {
+  return managedMapContainer(settings, path) !== undefined;
+}
+
 export const DEFAULT_SETTINGS: Settings = {
   detailTemplates: [],
   coffeeStyles: [],
@@ -103,6 +140,8 @@ export const DEFAULT_SETTINGS: Settings = {
   language: "en",
   workspaceFolder: "Agent Workspace",
   topicsFolder: "Agent Workspace/Topics",
+  mindMapsFolder: "Agent Workspace/Mind Maps",
+  aimFolder: "Agent Workspace/AIM",
   inboxFolder: "Agent Workspace/Inbox",
   notesFolder: "Agent Workspace/Nodes",
   mapsFolder: "Agent Workspace/Maps",
@@ -537,7 +576,7 @@ export class Repository {
   async workspaceCandidates(): Promise<string[]> {
     const candidates = new Set<string>();
     for (const file of this.app.vault.getMarkdownFiles()) {
-      const match = file.path.match(/^(.*)\/Topics\/[^/]+\/Map\.md$/);
+      const match = file.path.match(/^(.*)\/(?:Topics|Mind Maps|AIM)\/[^/]+\/Map\.md$/);
       if (!match?.[1]) continue;
       try {
         parseMap(await this.app.vault.read(file));
@@ -550,7 +589,8 @@ export class Repository {
   }
 
   async ensureWorkspace(): Promise<void> {
-    await this.folder(this.settings.topicsFolder);
+    await this.folder(this.settings.mindMapsFolder);
+    await this.folder(this.settings.aimFolder);
     await this.folder(this.settings.inboxFolder);
   }
 
@@ -1005,14 +1045,16 @@ export class Repository {
   }
 
   async brokenTopics(): Promise<BrokenTopic[]> {
-    const root = this.app.vault.getAbstractFileByPath(this.settings.topicsFolder);
-    if (!(root instanceof TFolder)) return [];
     const broken: BrokenTopic[] = [];
-    for (const child of root.children) {
-      if (!(child instanceof TFolder) || this.app.vault.getAbstractFileByPath(`${child.path}/Map.md`)) continue;
-      const prefix = `${child.path}/Notes/`;
-      const noteCount = this.app.vault.getMarkdownFiles().filter(file => file.path.startsWith(prefix)).length;
-      broken.push({ title: child.name, root: child.path, noteCount });
+    for (const containerPath of managedMapContainers(this.settings)) {
+      const root = this.app.vault.getAbstractFileByPath(containerPath);
+      if (!(root instanceof TFolder)) continue;
+      for (const child of root.children) {
+        if (!(child instanceof TFolder) || this.app.vault.getAbstractFileByPath(`${child.path}/Map.md`)) continue;
+        const prefix = `${child.path}/Notes/`;
+        const noteCount = this.app.vault.getMarkdownFiles().filter(file => file.path.startsWith(prefix)).length;
+        broken.push({ title: child.name, root: child.path, noteCount });
+      }
     }
     return broken.sort((a, b) => a.title.localeCompare(b.title));
   }
@@ -1345,15 +1387,16 @@ export class Repository {
     onRootCreated?: (folder: TFolder) => void,
     aim?: MapDocument["aim"]
   ): Promise<string> {
-    await this.folder(this.settings.topicsFolder);
-    const preferredRoot = normalizePath(`${this.settings.topicsFolder}/${safeName(title)}`);
+    const container = aim ? this.settings.aimFolder : this.settings.mindMapsFolder;
+    await this.folder(container);
+    const preferredRoot = normalizePath(`${container}/${safeName(title)}`);
     const preferredFolder = this.app.vault.getAbstractFileByPath(preferredRoot);
     // A failed first Map.md write can leave only the just-created empty topic folder.
     // For an identity-bearing AIM create, reuse that empty folder on retry;
     // any non-empty existing folder remains untouched and receives the usual suffix.
     const recoverEmptyAimFolder =
       !!aim?.creationId && preferredFolder instanceof TFolder && preferredFolder.children.length === 0;
-    const root = recoverEmptyAimFolder ? preferredRoot : this.uniqueFolder(this.settings.topicsFolder, title);
+    const root = recoverEmptyAimFolder ? preferredRoot : this.uniqueFolder(container, title);
     const folder =
       recoverEmptyAimFolder && preferredFolder instanceof TFolder
         ? preferredFolder
@@ -1466,11 +1509,12 @@ export class Repository {
   async renameTopic(mapPath: string, title: string, targetRoot?: string): Promise<string> {
     const file = this.file(mapPath),
       root = file.parent;
-    if (!(root instanceof TFolder) || !mapPath.startsWith(`${this.settings.topicsFolder}/`))
+    if (!(root instanceof TFolder) || !isManagedMapPath(this.settings, mapPath))
       throw new Error(this.message("error.migrate_legacy_map"));
+    // A rename keeps the topic in the container it is already in (Mind Maps, AIM or legacy Topics).
     const desired = targetRoot
       ? normalizePath(targetRoot)
-      : normalizePath(`${this.settings.topicsFolder}/${safeName(title)}`);
+      : normalizePath(`${parentPath(root.path)}/${safeName(title)}`);
     if (desired !== root.path && this.app.vault.getAbstractFileByPath(desired))
       throw new Error(this.message("error.topic_folder_exists"));
     const originalRoot = root.path;

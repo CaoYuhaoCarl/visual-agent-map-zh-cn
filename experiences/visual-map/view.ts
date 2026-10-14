@@ -39,6 +39,7 @@ import {
   thinkingOriginDocumentBlock
 } from "./steps/fragments";
 import {
+  isManagedMapPath,
   moveNotePath,
   normalizeReasoningLevel,
   rebaseMapNotePaths,
@@ -1010,8 +1011,7 @@ export class VisualAgentMapView extends ItemView {
   }
   /** Whether the open map can take an imported outline, and the selected topic for "under the selected topic". */
   private outlineImportTarget(): OutlineImportTarget {
-    if (!this.map || this.builtIn || !this.path.startsWith(`${this.plugin.settings.topicsFolder}/`))
-      return { map: "none" };
+    if (!this.map || this.builtIn || !isManagedMapPath(this.plugin.settings, this.path)) return { map: "none" };
     if (this.map.aim) return { map: "aim" };
     const node = this.map.nodes.find(item => item.id === this.selected);
     if (!node) return { map: "editable" };
@@ -2629,7 +2629,7 @@ export class VisualAgentMapView extends ItemView {
         description: t("ui.update_the_topic_folder_and_mind_map_name_together"),
         action: () => this.renameCurrentMap()
       });
-      if (!this.path.startsWith(`${this.plugin.settings.topicsFolder}/`))
+      if (!isManagedMapPath(this.plugin.settings, this.path))
         choices.push({
           label: t("ui.migrate_old_data"),
           description: t("ui.preview_and_migrate_old_maps_into_the_current_topic_structur"),
@@ -2726,7 +2726,7 @@ export class VisualAgentMapView extends ItemView {
           new Notice(t("ui.aim_research_already_running"));
           return;
         }
-        if (!this.path.startsWith(`${this.plugin.settings.topicsFolder}/`)) {
+        if (!isManagedMapPath(this.plugin.settings, this.path)) {
           new Notice(t("ui.migrate_old_data_before_renaming_this_topic"));
           return;
         }
@@ -4488,7 +4488,7 @@ export class VisualAgentMapView extends ItemView {
               action: () =>
                 this.enqueue(async () => {
                   const candidates = (await this.plugin.repo.mapFiles()).filter(
-                    file => !file.path.startsWith(`${this.plugin.settings.topicsFolder}/`)
+                    file => !isManagedMapPath(this.plugin.settings, file.path)
                   );
                   new ChoiceModal(
                     this.app,
@@ -4521,7 +4521,7 @@ export class VisualAgentMapView extends ItemView {
       parent ? (await this.plugin.repo.readNote(parent.path)).model : undefined,
       this.plugin.settings.cliModel
     );
-    if (!this.path.startsWith(`${this.plugin.settings.topicsFolder}/`)) {
+    if (!isManagedMapPath(this.plugin.settings, this.path)) {
       new Notice(t("ui.use_migrate_old_data_to_convert_this_map_first"));
       return;
     }

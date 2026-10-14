@@ -31,9 +31,11 @@ import { join } from "node:path";
 import { type MapDocument, type MapNode } from "./map-model";
 import {
   DEFAULT_SETTINGS,
+  isManagedMapPath,
   moveNotePath,
   normalizeReasoningLevel,
   rebaseMapNotePaths,
+  resolveMapFolders,
   type Note,
   Repository,
   type Settings
@@ -276,6 +278,7 @@ export default class VisualAgentMapPlugin extends Plugin {
     announceTestOverrides(message => new Notice(message, 0));
     const saved = (await this.loadData()) as Partial<Settings> | null;
     const legacy: (Partial<Settings> & { cliPath?: string }) | null = saved;
+    const savedWorkspace = saved?.workspaceFolder || DEFAULT_SETTINGS.workspaceFolder;
     this.settings = {
       ...DEFAULT_SETTINGS,
       detailTemplates: normalizeTemplates(saved?.detailTemplates),
@@ -294,8 +297,9 @@ export default class VisualAgentMapPlugin extends Plugin {
         : [],
       defaultCoffeeStyleId: typeof saved?.defaultCoffeeStyleId === "string" ? saved.defaultCoffeeStyleId : undefined,
       language: initialUiLanguage(saved?.language),
-      workspaceFolder: saved?.workspaceFolder || DEFAULT_SETTINGS.workspaceFolder,
+      workspaceFolder: savedWorkspace,
       topicsFolder: saved?.topicsFolder || DEFAULT_SETTINGS.topicsFolder,
+      ...resolveMapFolders(saved),
       inboxFolder: saved?.inboxFolder || DEFAULT_SETTINGS.inboxFolder,
       notesFolder: saved?.notesFolder || DEFAULT_SETTINGS.notesFolder,
       mapsFolder: saved?.mapsFolder || DEFAULT_SETTINGS.mapsFolder,
@@ -576,7 +580,7 @@ export default class VisualAgentMapPlugin extends Plugin {
           for (const view of this.views()) view.deleted(file);
           if (
             file.path.startsWith(`${this.settings.mapsFolder}/`) ||
-            (file.path.startsWith(`${this.settings.topicsFolder}/`) && file.name === "Map.md")
+            (isManagedMapPath(this.settings, file.path) && file.name === "Map.md")
           )
             this.runMutation(() => this.repo.rebuildDerivedData());
         }
@@ -641,6 +645,8 @@ export default class VisualAgentMapPlugin extends Plugin {
   private connectWorkspace(root: string): void {
     this.settings.workspaceFolder = root;
     this.settings.topicsFolder = `${root}/Topics`;
+    this.settings.mindMapsFolder = `${root}/Mind Maps`;
+    this.settings.aimFolder = `${root}/AIM`;
     this.settings.inboxFolder = `${root}/Inbox`;
     this.settings.notesFolder = `${root}/Nodes`;
     this.settings.mapsFolder = `${root}/Maps`;
@@ -832,7 +838,7 @@ export default class VisualAgentMapPlugin extends Plugin {
       marker === "true" ||
       (file.extension === "md" &&
         (file.path.startsWith(`${this.settings.mapsFolder}/`) ||
-          (file.path.startsWith(`${this.settings.topicsFolder}/`) && file.name === "Map.md")))
+          (isManagedMapPath(this.settings, file.path) && file.name === "Map.md")))
     );
   }
   private isNode(file: TFile): boolean {
@@ -842,7 +848,7 @@ export default class VisualAgentMapPlugin extends Plugin {
       marker === "true" ||
       (file.extension === "md" &&
         (file.path.startsWith(`${this.settings.notesFolder}/`) ||
-          file.path.startsWith(`${this.settings.topicsFolder}/`) ||
+          isManagedMapPath(this.settings, file.path) ||
           file.path.startsWith(`${this.settings.inboxFolder}/`)))
     );
   }

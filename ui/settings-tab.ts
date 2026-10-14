@@ -168,6 +168,34 @@ export class VisualAgentMapSettingTab extends PluginSettingTab {
     });
     selector?.focus();
   }
+  /** Folder name (relative to the workspace folder) for new Mind Maps / AIM maps; stored as a full path. */
+  private renderMapFolderSetting(
+    setting: Setting,
+    key: "mindMapsFolder" | "aimFolder",
+    label: "ui.mind_maps_folder" | "ui.aim_maps_folder",
+    fallback: string
+  ): void {
+    const workspace = this.plugin.settings.workspaceFolder,
+      current = this.plugin.settings[key];
+    const shown = current.startsWith(`${workspace}/`) ? current.slice(workspace.length + 1) : current;
+    setting
+      .setName(t(label))
+      .setDesc(t("ui.map_folder_name_desc", workspace))
+      .addText(input =>
+        input
+          .setPlaceholder(fallback)
+          .setValue(shown)
+          .onChange(async value => {
+            const name = value
+              .trim()
+              .replace(/[\\/]+/g, "/")
+              .replace(/^\/+|\/+$/g, "");
+            if (!name || name.split("/").some(part => part === "." || part === "..")) return;
+            this.plugin.settings[key] = `${workspace}/${name}`;
+            await this.plugin.saveSettings();
+          })
+      );
+  }
   getSettingDefinitions(): SettingDefinitionItem[] {
     const text = (name: string, key: "codexPath" | "claudePath", desc: string): SettingDefinitionItem => ({
       name,
@@ -305,9 +333,21 @@ export class VisualAgentMapSettingTab extends PluginSettingTab {
           setting
             .setName(t("ui.workspace_location"))
             .setDesc(
-              t("ui.topics_folder_0_inbox_1", this.plugin.settings.topicsFolder, this.plugin.settings.inboxFolder)
+              t(
+                "ui.workspace_location_0_legacy_topics_1",
+                this.plugin.settings.workspaceFolder,
+                this.plugin.settings.topicsFolder
+              )
             );
         }
+      },
+      {
+        name: t("ui.mind_maps_folder"),
+        render: setting => this.renderMapFolderSetting(setting, "mindMapsFolder", "ui.mind_maps_folder", "Mind Maps")
+      },
+      {
+        name: t("ui.aim_maps_folder"),
+        render: setting => this.renderMapFolderSetting(setting, "aimFolder", "ui.aim_maps_folder", "AIM")
       },
       {
         name: t("ui.repair_agent_workspace"),

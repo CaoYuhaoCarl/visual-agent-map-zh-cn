@@ -4,7 +4,7 @@ integrationTest('topic rename restores the original folder and exact Map.md when
   const { repo, app } = fixture();
   app.vault.modify = async (file, content) => app.vault.process(file, () => content);
   const originalPath = await repo.createMap('Rollback source');
-  const originalRoot = repo.topicRoot(originalPath), destination = 'Agent Workspace/Topics/Rollback target';
+  const originalRoot = repo.topicRoot(originalPath), destination = 'Agent Workspace/AIM/Rollback target';
   const originalContent = await app.vault.read(repo.file(originalPath));
   const rebuild = repo.rebuildDerivedData.bind(repo); let failOnce = true;
   repo.rebuildDerivedData = async (...args) => { if (failOnce) { failOnce = false; throw new Error('simulated rebuild failure'); } return rebuild(...args); };
@@ -159,10 +159,10 @@ integrationTest('AIM start reuses only its empty topic folder after the first Ma
     return create(path, content);
   };
   await assert.rejects(createAimMap(repo, 'gpt-6-luna', input), /simulated first Map write failure/);
-  const stranded = files.get('Agent Workspace/Topics/牛排熟度決策');
+  const stranded = files.get('Agent Workspace/AIM/牛排熟度決策');
   assert.ok(stranded); assert.equal(stranded.children.length, 0);
   const resumed = await createAimMap(repo, 'gpt-6-luna', input);
-  assert.equal(resumed.mapPath, 'Agent Workspace/Topics/牛排熟度決策/Map.md');
+  assert.equal(resumed.mapPath, 'Agent Workspace/AIM/牛排熟度決策/Map.md');
   assert.equal((await repo.mapFiles()).length, 1);
   assert.equal((await repo.readNote(resumed.root.path)).detail, `## 使用者提供的背景\n\n${input.context}`);
 });
