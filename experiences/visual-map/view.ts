@@ -9,6 +9,7 @@ import { readMarkdownFile, type ReferenceGroup } from "../../ai/reference-materi
 import { NameModal } from "../../ui/modals/name-modal";
 import { ChoiceModal } from "../../ui/modals/choice-modal";
 import {
+  applyCollapseLevel,
   canParent,
   clearQuestionConvergenceEdges,
   repairAimResultConvergence,
@@ -657,14 +658,60 @@ export class VisualAgentMapView extends ItemView {
     const settings = this.plugin.settings;
     return [standardTemplate(settings.language), ...settings.detailTemplates].map(({ id, name }) => ({ id, name }));
   }
-  openOutlineImport(): void {
+  /** `intoOpenMap` starts with the placement that matches the card in front of the user: under the selected topic, else this map. */
+  openOutlineImport(intoOpenMap = false): void {
+    const target = this.outlineImportTarget();
+    const placement = !intoOpenMap || target.map !== "editable" ? "new" : target.selected ? "under" : "tree";
     new OutlineImportModal(
       this.app,
       request => this.importOutline(request),
       this.modelChoices(),
       this.templateChoices(),
-      this.outlineImportTarget()
+      target,
+      placement
     ).open();
+  }
+  /** The side option on "+ Topic": one topic by default, or a pasted outline for several at once. */
+  private openTopicMenu(event: MouseEvent): void {
+    const menu = new Menu();
+    menu.addItem(item =>
+      item
+        .setTitle(t("ui.paste_outline_add_many"))
+        .setIcon("list-tree")
+        .onClick(() => this.openOutlineImport(true))
+    );
+    menu.showAtMouseEvent(event);
+  }
+  /** Collapse or expand every branch in one undoable change, then fit the map. `shownLevels` as in applyCollapseLevel. */
+  private collapseTo(shownLevels: number | null): void {
+    this.enqueue(async () => {
+      if (!this.map) return;
+      const preview = clone(this.map.nodes);
+      applyCollapseLevel(preview, shownLevels);
+      const changed = preview.some((node, index) => !!node.collapsed !== !!this.map!.nodes[index]?.collapsed);
+      if (changed) {
+        await this.mapChange(map => applyCollapseLevel(map.nodes, shownLevels));
+        if (this.history.undoEntry) this.history.undoEntry.label = t("ui.collapse_levels");
+        this.updateHistoryButtons();
+      }
+      this.fit();
+    });
+  }
+  private openCollapseMenu(event: MouseEvent): void {
+    const menu = new Menu();
+    const choices: { title: string; icon: string; levels: number | null }[] = [
+      { title: t("ui.collapse_all"), icon: "chevrons-down-up", levels: 0 },
+      { title: t("ui.expand_all"), icon: "chevrons-up-down", levels: null },
+      ...[1, 2, 3].map(level => ({ title: t("ui.expand_to_level_0", level), icon: "list-tree", levels: level }))
+    ];
+    for (const choice of choices)
+      menu.addItem(item =>
+        item
+          .setTitle(choice.title)
+          .setIcon(choice.icon)
+          .onClick(() => this.collapseTo(choice.levels))
+      );
+    menu.showAtMouseEvent(event);
   }
   /** Whether the open map can take an imported outline, and the selected topic for "under the selected topic". */
   private outlineImportTarget(): OutlineImportTarget {
@@ -1501,12 +1548,6 @@ export class VisualAgentMapView extends ItemView {
             this.enqueue(async () => this.openMapInMutation(await this.plugin.repo.createMap(title)))
           ).open()
         )
-    );
-    menu.addItem(item =>
-      item
-        .setTitle(t("ui.outline_import"))
-        .setIcon("list-tree")
-        .onClick(() => this.openOutlineImport())
     );
     menu.addItem(item =>
       item
@@ -2833,7 +2874,12 @@ export class VisualAgentMapView extends ItemView {
     const tools = createDiv("vam-map-tools");
     if (!this.builtIn) {
       const aimMode = !!this.map.aim;
-      if (!aimMode) this.button(tools, t("ui.topic"), () => this.enqueue(() => this.addNode(null))).addClass("mod-cta");
+      if (!aimMode) {
+        this.button(tools, t("ui.topic"), () => this.enqueue(() => this.addNode(null))).addClass("mod-cta");
+        this.iconButton(tools, "chevron-down", t("ui.topic_more_options"), event => this.openTopicMenu(event)).addClass(
+          "vam-topic-more"
+        );
+      }
       if (aimMode) this.button(tools, t("ui.create_a_new_mind_map"), () => this.openNewMindMapModal());
       if (!aimMode) {
         const integrate = this.button(
@@ -2879,6 +2925,8 @@ export class VisualAgentMapView extends ItemView {
     this.zoomLabel = zoomReset;
     this.iconButton(zoom, "plus", t("ui.zoom_in"), () => this.zoomBy(1.2));
     this.iconButton(zoom, "maximize", t("ui.show_all"), () => this.fit());
+    if (!this.builtIn)
+      this.iconButton(zoom, "chevrons-down-up", t("ui.collapse_levels"), event => this.openCollapseMenu(event));
     if (!this.builtIn)
       this.iconButton(zoom, "workflow", t("ui.auto_layout"), () =>
         this.enqueue(() =>

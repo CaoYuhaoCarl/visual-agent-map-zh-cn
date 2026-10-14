@@ -46,6 +46,7 @@
 .vam-map-tools, .vam-zoom-controls { position: absolute; display: flex; align-items: center; gap: 2px; padding: 4px; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); background: var(--background-primary); box-shadow: var(--shadow-s); }
 .vam-map-tools { top: 12px; left: 12px; flex-wrap: wrap; max-width: calc(100% - 24px); }
 .vam-map-tools button:not(.mod-cta), .vam-zoom-controls button { background: transparent; box-shadow: none; }
+.vam-map-tools .vam-topic-more { margin-left: -2px; }
 .vam-map-tools button:not(.mod-cta):hover, .vam-zoom-controls button:hover { background: var(--background-modifier-hover); }
 .vam-map-tools button.is-active { background: var(--background-modifier-active-hover); color: var(--text-accent); }
 .vam-zoom-controls { right: 12px; bottom: 12px; }

@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { test, integrationTest, root, load, node, map, plain, obsidian, DEFAULT_SETTINGS, until } = require('../support.cjs');
+const { test, integrationTest, root, load, core, node, map, plain, obsidian, DEFAULT_SETTINGS, until } = require('../support.cjs');
 integrationTest('node plus adds a child without opening a duplicate right-click menu', () => {
   const { VisualAgentMapView } = load('main.ts', { obsidian }, { requestAnimationFrame: run => { run(); return 1; }, cancelAnimationFrame() {} });
   const events = new Map(), buttons = [];
@@ -1357,4 +1357,72 @@ integrationTest('map UI terms in zh-TW say 議題 and 心智圖, not 節點 or �
   assert.deepEqual(drift, [], 'no map UI string uses 節點 or 地圖');
   assert.equal(mapUi.filter(([, , text]) => /Workspace/.test(text.replace('Agent Workspace/', ''))).length, 0, 'prose says 工作區, not Workspace');
   assert.equal(translate('zh-TW', 'ui.reconnect_existing_workspace'), '找回既有工作區');
+});
+test('applyCollapseLevel: collapse all, expand all and expand to level N set the collapsed flag on branches only', () => {
+  const nodes = () => [node('root'), node('a', 'root'), node('b', 'root'), node('a1', 'a'), node('a2', 'a'), node('a11', 'a1')];
+  const flags = list => Object.fromEntries(list.map(item => [item.id, item.collapsed]));
+  const collapsed = nodes(); core.applyCollapseLevel(collapsed, 0);
+  assert.deepEqual(flags(collapsed), { root: true, a: true, b: false, a1: true, a2: false, a11: false }, 'every branch collapses; leaves stay as they were');
+  core.applyCollapseLevel(collapsed, null);
+  assert.deepEqual(Object.values(flags(collapsed)), [false, false, false, false, false, false]);
+  for (const [level, expected] of [[1, { root: false, a: true, a1: true }], [2, { root: false, a: false, a1: true }], [3, { root: false, a: false, a1: false }]]) {
+    const list = nodes(); core.applyCollapseLevel(list, level);
+    const got = flags(list);
+    for (const [id, collapsedFlag] of Object.entries(expected)) assert.equal(got[id], collapsedFlag, `level ${level}: ${id}`);
+  }
+  const cyclic = [node('x', 'y'), node('y', 'x')]; core.applyCollapseLevel(cyclic, 1);
+  assert.equal(cyclic.length, 2, 'a corrupt parent cycle does not hang');
+});
+integrationTest('the New map menu no longer imports outlines, and the topic side option opens the import with the matching placement', () => {
+  const opened = [], menus = [];
+  class Modal { constructor(app) { this.app = app; } open() { opened.push(this); } close() {} }
+  class Menu { constructor() { this.items = []; menus.push(this); } addItem(callback) { const item = { title: '', icon: '', click: null, setTitle(value) { this.title = value; return this; }, setIcon(value) { this.icon = value; return this; }, onClick(handler) { this.click = handler; return this; } }; callback(item); this.items.push(item); return this; } showAtMouseEvent() { return this; } }
+  const { view } = selectionView(load, {}, { ...obsidian, Modal, Menu });
+  view.openNewMapMenu({});
+  assert.deepEqual(menus[0].items.map(item => item.title), ['New mind map', 'Create Adaptive Inquiry Map (AIM)'], 'the menu has no outline import');
+  view.path = `${DEFAULT_SETTINGS.topicsFolder}/Topic/Map.md`;
+  view.openTopicMenu({});
+  const paste = menus[1].items[0]; assert.equal(paste.title, 'Paste an outline to add several topics at once');
+  paste.click();
+  const placement = modal => modal.placementRequest();
+  assert.deepEqual(plain(placement(opened.at(-1))), { kind: 'tree' }, 'no selection: add to the current map');
+  view.selected = 'a'; paste.click();
+  assert.deepEqual(plain(placement(opened.at(-1))), { kind: 'under', parentId: 'a' }, 'a selected topic: add under it');
+  view.path = 'elsewhere/Map.md'; view.selected = null; paste.click();
+  assert.deepEqual(plain(placement(opened.at(-1))), { kind: 'new' }, 'a map outside the workspace falls back to a new map');
+  view.path = `${DEFAULT_SETTINGS.topicsFolder}/Topic/Map.md`; view.openOutlineImport();
+  assert.deepEqual(plain(placement(opened.at(-1))), { kind: 'new' }, 'the palette command still starts with a new map');
+});
+integrationTest('collapse control: sets the flags, fits the map and is a single undo entry', async () => {
+  const fixture = viewportFixture();
+  const { view, plugin, doc, a, b } = fixture;
+  const top = node('r'); const c = node('c', a.id);
+  doc.nodes.length = 0; a.parentId = 'r'; b.parentId = 'a'; doc.nodes.push(top, a, b, c);
+  let saved = 0; plugin.repo.saveMap = async (_path, next) => { saved++; Object.assign(doc, JSON.parse(JSON.stringify(next))); };
+  plugin.mutate = async work => work();
+  view.map = doc; view.enqueue = work => { view.pending = work(); }; view.updateHistoryButtons = () => {}; view.hydrate = async () => {};
+  let fitted = 0; view.fit = () => { fitted++; };
+  view.collapseTo(0); await view.pending;
+  assert.deepEqual(doc.nodes.map(item => [item.id, !!item.collapsed]), [['r', true], ['a', true], ['b', false], ['c', false]]);
+  assert.equal(fitted, 1); assert.equal(saved, 1, 'one write');
+  view.collapseTo(null); await view.pending;
+  assert.ok(doc.nodes.every(item => !item.collapsed)); assert.equal(fitted, 2);
+  view.collapseTo(null); await view.pending;
+  assert.equal(saved, 2, 'an unchanged request writes nothing but still fits'); assert.equal(fitted, 3);
+  view.collapseTo(1); await view.pending;
+  assert.equal(doc.nodes.find(item => item.id === 'a').collapsed, true); assert.equal(doc.nodes.find(item => item.id === 'r').collapsed, false);
+  // One undo restores the state before the last action in one step.
+  await view.travel(false);
+  assert.ok(doc.nodes.every(item => !item.collapsed), 'one undo restores every flag');
+  assert.match(fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8'), /iconButton\(zoom, "chevrons-down-up", t\("ui\.collapse_levels"\)/);
+});
+integrationTest('collapse menu offers collapse all, expand all and levels 1 to 3', () => {
+  const menus = [];
+  class Menu { constructor() { this.items = []; menus.push(this); } addItem(callback) { const item = { setTitle(value) { this.title = value; return this; }, setIcon() { return this; }, onClick(handler) { this.click = handler; return this; } }; callback(item); this.items.push(item); return this; } showAtMouseEvent() { return this; } }
+  const { view } = selectionView(load, {}, { ...obsidian, Menu });
+  const calls = []; view.collapseTo = levels => calls.push(levels);
+  view.openCollapseMenu({});
+  assert.deepEqual(menus[0].items.map(item => item.title), ['Collapse all', 'Expand all', 'Expand to level 1', 'Expand to level 2', 'Expand to level 3']);
+  menus[0].items.forEach(item => item.click());
+  assert.deepEqual(calls, [0, null, 1, 2, 3]);
 });

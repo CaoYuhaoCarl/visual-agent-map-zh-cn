@@ -463,6 +463,12 @@ var english = {
   "ui.codex_app_server_has_not_started": "Codex App Server has not started",
   "ui.new_topic_name": "New topic name",
   "ui.rename_topic": "Rename",
+  "ui.paste_outline_add_many": "Paste an outline to add several topics at once",
+  "ui.topic_more_options": "More ways to add topics",
+  "ui.collapse_levels": "Collapse or expand the whole map",
+  "ui.collapse_all": "Collapse all",
+  "ui.expand_all": "Expand all",
+  "ui.expand_to_level_0": "Expand to level {0}",
   "ui.ai_explore": "AI explore",
   "ui.synthesis_goal": "Synthesis goal",
   "ui.identify_shared_conclusions_key_differences_tradeoffs_and_ne": "Identify shared conclusions, key differences, tradeoffs and next steps.",
@@ -1774,6 +1780,12 @@ var traditionalChinese = {
   "ui.codex_app_server_has_not_started": "Codex App Server \u5C1A\u672A\u555F\u52D5",
   "ui.new_topic_name": "\u65B0\u8B70\u984C\u540D\u7A31",
   "ui.rename_topic": "\u91CD\u65B0\u547D\u540D",
+  "ui.paste_outline_add_many": "\u8CBC\u4E0A\u5927\u7DB1\uFF0C\u4E00\u6B21\u65B0\u589E\u591A\u500B",
+  "ui.topic_more_options": "\u66F4\u591A\u65B0\u589E\u8B70\u984C\u7684\u65B9\u5F0F",
+  "ui.collapse_levels": "\u6536\u5408\u6216\u5C55\u958B\u6574\u5F35\u5FC3\u667A\u5716",
+  "ui.collapse_all": "\u5168\u90E8\u6536\u5408",
+  "ui.expand_all": "\u5168\u90E8\u5C55\u958B",
+  "ui.expand_to_level_0": "\u5C55\u958B\u5230\u7B2C {0} \u5C64",
   "ui.ai_explore": "AI \u63A2\u7D22",
   "ui.synthesis_goal": "\u6574\u5408\u76EE\u6A19",
   "ui.identify_shared_conclusions_key_differences_tradeoffs_and_ne": "\u627E\u51FA\u5171\u540C\u7D50\u8AD6\u3001\u91CD\u8981\u5DEE\u7570\u3001\u53D6\u6368\u8207\u4E0B\u4E00\u6B65\u3002",
@@ -11384,6 +11396,23 @@ function visibleNodes(nodes) {
   for (const node of nodes) if (node.collapsed) for (const id of descendants(nodes, node.id)) hidden.add(id);
   return nodes.filter((node) => !hidden.has(node.id));
 }
+function applyCollapseLevel(nodes, shownLevels) {
+  const byId = new Map(nodes.map((node) => [node.id, node]));
+  const depthOf = (node) => {
+    let depth = 0;
+    const seen = /* @__PURE__ */ new Set([node.id]);
+    for (let parent = node.parentId; parent && byId.has(parent) && !seen.has(parent); parent = byId.get(parent).parentId) {
+      seen.add(parent);
+      depth++;
+    }
+    return depth;
+  };
+  const parents = new Set(nodes.map((node) => node.parentId).filter((id) => !!id && byId.has(id)));
+  for (const node of nodes) {
+    if (!parents.has(node.id)) continue;
+    node.collapsed = shownLevels === null ? false : depthOf(node) >= shownLevels;
+  }
+}
 function removeNodes(nodes, id, branch) {
   const removed = branch ? descendants(nodes, id) : /* @__PURE__ */ new Set();
   removed.add(id);
@@ -13604,7 +13633,7 @@ var OutlineFileModal = class extends import_obsidian9.FuzzySuggestModal {
 };
 var OutlineImportModal = class extends import_obsidian9.Modal {
   constructor(app, create, models = { list: () => [], watch: () => () => {
-  } }, templates = [], target = { map: "none" }) {
+  } }, templates = [], target = { map: "none" }, initialPlacement = "new") {
     super(app);
     this.create = create;
     this.models = models;
@@ -13625,6 +13654,8 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
     __publicField(this, "template", () => void 0);
     __publicField(this, "unwatch");
     __publicField(this, "placement", "new");
+    const usable = initialPlacement === "new" || target.map === "editable" && (initialPlacement === "tree" || !!target.selected);
+    this.placement = usable ? initialPlacement : "new";
   }
   onOpen() {
     this.titleEl.setText(t("ui.outline_import"));
@@ -22490,14 +22521,57 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     const settings = this.plugin.settings;
     return [standardTemplate(settings.language), ...settings.detailTemplates].map(({ id, name }) => ({ id, name }));
   }
-  openOutlineImport() {
+  /** `intoOpenMap` starts with the placement that matches the card in front of the user: under the selected topic, else this map. */
+  openOutlineImport(intoOpenMap = false) {
+    const target = this.outlineImportTarget();
+    const placement = !intoOpenMap || target.map !== "editable" ? "new" : target.selected ? "under" : "tree";
     new OutlineImportModal(
       this.app,
       (request) => this.importOutline(request),
       this.modelChoices(),
       this.templateChoices(),
-      this.outlineImportTarget()
+      target,
+      placement
     ).open();
+  }
+  /** The side option on "+ Topic": one topic by default, or a pasted outline for several at once. */
+  openTopicMenu(event) {
+    const menu = new import_obsidian17.Menu();
+    menu.addItem(
+      (item) => item.setTitle(t("ui.paste_outline_add_many")).setIcon("list-tree").onClick(() => this.openOutlineImport(true))
+    );
+    menu.showAtMouseEvent(event);
+  }
+  /** Collapse or expand every branch in one undoable change, then fit the map. `shownLevels` as in applyCollapseLevel. */
+  collapseTo(shownLevels) {
+    this.enqueue(async () => {
+      if (!this.map) return;
+      const preview = clone(this.map.nodes);
+      applyCollapseLevel(preview, shownLevels);
+      const changed = preview.some((node, index) => {
+        var _a;
+        return !!node.collapsed !== !!((_a = this.map.nodes[index]) == null ? void 0 : _a.collapsed);
+      });
+      if (changed) {
+        await this.mapChange((map) => applyCollapseLevel(map.nodes, shownLevels));
+        if (this.history.undoEntry) this.history.undoEntry.label = t("ui.collapse_levels");
+        this.updateHistoryButtons();
+      }
+      this.fit();
+    });
+  }
+  openCollapseMenu(event) {
+    const menu = new import_obsidian17.Menu();
+    const choices = [
+      { title: t("ui.collapse_all"), icon: "chevrons-down-up", levels: 0 },
+      { title: t("ui.expand_all"), icon: "chevrons-up-down", levels: null },
+      ...[1, 2, 3].map((level) => ({ title: t("ui.expand_to_level_0", level), icon: "list-tree", levels: level }))
+    ];
+    for (const choice2 of choices)
+      menu.addItem(
+        (item) => item.setTitle(choice2.title).setIcon(choice2.icon).onClick(() => this.collapseTo(choice2.levels))
+      );
+    menu.showAtMouseEvent(event);
   }
   /** Whether the open map can take an imported outline, and the selected topic for "under the selected topic". */
   outlineImportTarget() {
@@ -23276,9 +23350,6 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
           (title) => this.enqueue(async () => this.openMapInMutation(await this.plugin.repo.createMap(title)))
         ).open()
       )
-    );
-    menu.addItem(
-      (item) => item.setTitle(t("ui.outline_import")).setIcon("list-tree").onClick(() => this.openOutlineImport())
     );
     menu.addItem(
       (item) => item.setTitle(t("ui.aim_create_map")).setIcon("route").onClick(() => this.openAimStart())
@@ -24554,7 +24625,12 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     const tools = createDiv("vam-map-tools");
     if (!this.builtIn) {
       const aimMode = !!this.map.aim;
-      if (!aimMode) this.button(tools, t("ui.topic"), () => this.enqueue(() => this.addNode(null))).addClass("mod-cta");
+      if (!aimMode) {
+        this.button(tools, t("ui.topic"), () => this.enqueue(() => this.addNode(null))).addClass("mod-cta");
+        this.iconButton(tools, "chevron-down", t("ui.topic_more_options"), (event) => this.openTopicMenu(event)).addClass(
+          "vam-topic-more"
+        );
+      }
       if (aimMode) this.button(tools, t("ui.create_a_new_mind_map"), () => this.openNewMindMapModal());
       if (!aimMode) {
         const integrate = this.button(
@@ -24597,6 +24673,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     this.zoomLabel = zoomReset;
     this.iconButton(zoom, "plus", t("ui.zoom_in"), () => this.zoomBy(1.2));
     this.iconButton(zoom, "maximize", t("ui.show_all"), () => this.fit());
+    if (!this.builtIn)
+      this.iconButton(zoom, "chevrons-down-up", t("ui.collapse_levels"), (event) => this.openCollapseMenu(event));
     if (!this.builtIn)
       this.iconButton(
         zoom,

@@ -71,9 +71,14 @@ export class OutlineImportModal extends Modal {
     private create: (request: OutlineImportRequest) => Promise<void>,
     private models: ModelChoices = { list: () => [], watch: () => () => {} },
     private templates: { id: string; name: string }[] = [],
-    private target: OutlineImportTarget = { map: "none" }
+    private target: OutlineImportTarget = { map: "none" },
+    initialPlacement: OutlinePlacement["kind"] = "new"
   ) {
     super(app);
+    // A placement the target cannot take (no open map, nothing selected) falls back to a new map.
+    const usable =
+      initialPlacement === "new" || (target.map === "editable" && (initialPlacement === "tree" || !!target.selected));
+    this.placement = usable ? initialPlacement : "new";
   }
 
   onOpen(): void {
