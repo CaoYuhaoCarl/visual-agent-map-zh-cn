@@ -702,7 +702,8 @@ var english = {
   "ui.legacy_map_view_only": "This map uses the pre-0.4 structure and is view-only.",
   "error.organize_aim_busy": "An AIM research attempt is still running or saving. Wait for it to finish before organizing workspace folders. Nothing was moved.",
   "error.map_folder_invalid": "Folder name not changed: it must be a new name inside the workspace, and must not be empty, the legacy Topics folder (or inside/around it), or the other map folder.",
-  "error.map_folder_exists": "Folder name not changed: a folder with that name already exists.",
+  "error.map_folder_exists": "Folder name not changed: the new folder already contains a topic with the same name.",
+  "error.map_folder_unreadable": "Folder name not changed: a map in the folder cannot be read, so it would be left behind. Fix or move it first.",
   "error.map_folder_rename_failed": "Folder name not changed: the folder could not be renamed.",
   "error.legacy_map_view_only": "This map uses the pre-0.4 structure and is view-only.",
   "ui.organize_workspace_folders": "Organize workspace folders",
@@ -2102,7 +2103,8 @@ var traditionalChinese = {
   "ui.legacy_map_view_only": "\u6B64\u5FC3\u667A\u5716\u4F7F\u7528 0.4 \u524D\u7684\u820A\u7D50\u69CB\uFF0C\u53EA\u80FD\u6AA2\u8996\u3002",
   "error.organize_aim_busy": "\u6709 AIM \u7814\u7A76\u4ECD\u5728\u57F7\u884C\u6216\u5132\u5B58\u4E2D\u3002\u8ACB\u7B49\u5B83\u5B8C\u6210\u5F8C\u518D\u6574\u7406\u5DE5\u4F5C\u5340\u8CC7\u6599\u593E\u3002\u5C1A\u672A\u642C\u79FB\u4EFB\u4F55\u9805\u76EE\u3002",
   "error.map_folder_invalid": "\u8CC7\u6599\u593E\u540D\u7A31\u672A\u8B8A\u66F4\uFF1A\u5FC5\u9808\u662F\u5DE5\u4F5C\u5340\u5167\u7684\u65B0\u540D\u7A31\uFF0C\u4E0D\u53EF\u70BA\u7A7A\u3001\u4E0D\u53EF\u8207\u820A Topics \u8CC7\u6599\u593E\u76F8\u540C\uFF08\u6216\u5728\u5176\u5167\u5916\uFF09\uFF0C\u4E5F\u4E0D\u53EF\u8207\u53E6\u4E00\u500B\u9805\u76EE\u8CC7\u6599\u593E\u885D\u7A81\u3002",
-  "error.map_folder_exists": "\u8CC7\u6599\u593E\u540D\u7A31\u672A\u8B8A\u66F4\uFF1A\u5DF2\u6709\u540C\u540D\u8CC7\u6599\u593E\u3002",
+  "error.map_folder_exists": "\u8CC7\u6599\u593E\u540D\u7A31\u672A\u8B8A\u66F4\uFF1A\u65B0\u8CC7\u6599\u593E\u5167\u5DF2\u6709\u540C\u540D\u9805\u76EE\u3002",
+  "error.map_folder_unreadable": "\u8CC7\u6599\u593E\u540D\u7A31\u672A\u8B8A\u66F4\uFF1A\u8CC7\u6599\u593E\u5167\u6709\u7121\u6CD5\u8B80\u53D6\u7684\u5FC3\u667A\u5716\uFF0C\u6703\u88AB\u7559\u5728\u539F\u8655\u3002\u8ACB\u5148\u4FEE\u5FA9\u6216\u79FB\u8D70\u3002",
   "error.map_folder_rename_failed": "\u8CC7\u6599\u593E\u540D\u7A31\u672A\u8B8A\u66F4\uFF1A\u7121\u6CD5\u91CD\u65B0\u547D\u540D\u8A72\u8CC7\u6599\u593E\u3002",
   "error.legacy_map_view_only": "\u6B64\u5FC3\u667A\u5716\u4F7F\u7528 0.4 \u524D\u7684\u820A\u7D50\u69CB\uFF0C\u53EA\u80FD\u6AA2\u8996\u3002",
   "ui.organize_workspace_folders": "\u6574\u7406\u5DE5\u4F5C\u5340\u8CC7\u6599\u593E",
@@ -12621,6 +12623,8 @@ var Repository = class {
   constructor(app, settings) {
     this.app = app;
     this.settings = settings;
+    /** Containers that temporarily count as managed while a folder-setting change moves topics into them. */
+    __publicField(this, "pendingContainers", []);
     /** Called once per vault-wide scan that skipped unreadable maps. */
     __publicField(this, "onUnreadableMaps");
   }
@@ -13363,28 +13367,50 @@ ${body}`;
     return null;
   }
   /**
-   * Changes the Mind Maps/AIM folder. If the old folder exists it is renamed (Obsidian updates links) so its maps stay
-   * managed; on any refusal or failure the setting is left unchanged and the error says why.
+   * Changes the Mind Maps/AIM folder on the same move engine as Organize: every topic in the old container moves to the
+   * new one (links, node paths and cited paths follow; any failure restores everything and the setting is unchanged),
+   * then the old folder is removed only if it is empty. Returns old Map.md path -> new Map.md path.
+   * `busy` lets the caller veto when an open view has AIM work running.
    */
-  async changeMapFolder(key2, path) {
+  async changeMapFolder(key2, path, busy = () => false) {
+    var _a;
     const next = (0, import_obsidian9.normalizePath)(path), current = this.settings[key2];
-    if (next === current) return false;
+    if (next === current) return /* @__PURE__ */ new Map();
     const problem = this.mapFolderProblem(key2, next);
     if (problem) throw new Error(this.message(problem));
     const old = this.app.vault.getAbstractFileByPath(current);
+    let mapping = /* @__PURE__ */ new Map();
     if (old instanceof import_obsidian9.TFolder) {
-      if (this.app.vault.getAbstractFileByPath(next)) throw new Error(this.message("error.map_folder_exists"));
-      await this.folder(parentPath(next));
-      try {
-        await this.app.fileManager.renameFile(old, next);
-      } catch (error) {
-        throw new Error(
-          `${this.message("error.map_folder_rename_failed")} ${error instanceof Error ? error.message : String(error)}`
-        );
+      const moves = [];
+      for (const file of await this.mapFiles()) {
+        const root = parentPath(file.path);
+        if (file.name !== "Map.md" || parentPath(root) !== current) continue;
+        let map;
+        try {
+          map = await this.readMap(file.path);
+        } catch (e) {
+          throw new Error(this.message("error.map_folder_unreadable"));
+        }
+        if (hasActiveAimAttempt(map) || busy(file.path)) throw new Error(this.message("error.organize_aim_busy"));
+        const toRoot = (0, import_obsidian9.normalizePath)(`${next}/${(_a = root.split("/").at(-1)) != null ? _a : safeName(map.title)}`);
+        if (this.app.vault.getAbstractFileByPath(toRoot)) throw new Error(this.message("error.map_folder_exists"));
+        moves.push({ mapPath: file.path, title: map.title, kind: map.aim ? "aim" : "mind", fromRoot: root, toRoot });
+      }
+      if (moves.length || !this.app.vault.getAbstractFileByPath(next)) {
+        await this.folder(parentPath(next));
+        if (!this.app.vault.getAbstractFileByPath(next)) await this.folder(next);
+      }
+      mapping = await this.runTopicMoves(moves, [next]);
+      const left = this.app.vault.getAbstractFileByPath(current);
+      if (left instanceof import_obsidian9.TFolder && left.children.length === 0) {
+        try {
+          await this.app.fileManager.trashFile(left);
+        } catch (e) {
+        }
       }
     }
     this.settings[key2] = next;
-    return true;
+    return mapping;
   }
   /**
    * Read-only preview of "Organize workspace folders": every readable topic folder directly inside the legacy Topics
@@ -13422,12 +13448,28 @@ ${body}`;
    */
   async organizeWorkspaceFolders(plan) {
     if (plan.busy.length) throw new Error(this.message("error.organize_aim_busy"));
-    for (const move of plan.moves)
+    return this.runTopicMoves(plan.moves);
+  }
+  /**
+   * The shared move engine (Organize and folder-setting changes): re-checks for AIM work right before the first write,
+   * moves each topic, and on any failure restores every topic already moved. `alsoManaged` lists containers that are
+   * not yet in the settings but hold topics during the move (so renameTopic and the rollback accept them).
+   */
+  async runTopicMoves(moves, alsoManaged = []) {
+    for (const move of moves)
       if (hasActiveAimAttempt(await this.readMap(move.mapPath)))
         throw new Error(this.message("error.organize_aim_busy"));
+    this.pendingContainers = alsoManaged;
+    try {
+      return await this.moveTopicsWithRollback(moves);
+    } finally {
+      this.pendingContainers = [];
+    }
+  }
+  async moveTopicsWithRollback(moves) {
     const done = [], mapping = /* @__PURE__ */ new Map();
     try {
-      for (const move of plan.moves) {
+      for (const move of moves) {
         await this.folder(parentPath(move.toRoot));
         const originalMap = await this.app.vault.read(this.file(move.mapPath));
         const newMapPath = await this.renameTopic(move.mapPath, move.title, move.toRoot);
@@ -13492,7 +13534,7 @@ ${body}`;
   }
   async renameTopic(mapPath, title, targetRoot) {
     const file = this.file(mapPath), root = file.parent;
-    if (!(root instanceof import_obsidian9.TFolder) || !isManagedMapPath(this.settings, mapPath))
+    if (!(root instanceof import_obsidian9.TFolder) || !(isManagedMapPath(this.settings, mapPath) || this.pendingContainers.some((c) => mapPath.startsWith(`${c}/`))))
       throw new Error(this.message("error.legacy_map_view_only"));
     const desired = targetRoot ? (0, import_obsidian9.normalizePath)(targetRoot) : (0, import_obsidian9.normalizePath)(`${parentPath(root.path)}/${safeName(title)}`);
     if (desired !== root.path && this.app.vault.getAbstractFileByPath(desired))
@@ -30214,9 +30256,7 @@ var VisualAgentMapSettingTab = class extends import_obsidian21.PluginSettingTab 
           const now = this.plugin.settings[key2];
           input.setValue(now.startsWith(`${workspace}/`) ? now.slice(workspace.length + 1) : now);
         };
-        void this.plugin.mutate(async () => {
-          if (await this.plugin.repo.changeMapFolder(key2, `${workspace}/${name}`)) await this.plugin.saveSettings();
-        }).then(
+        void this.plugin.mutate(() => this.plugin.changeMapFolder(key2, `${workspace}/${name}`)).then(
           () => revert(),
           () => revert()
         );
@@ -34880,6 +34920,17 @@ ${error}`;
     const pending = this.firstInstallSamplePending;
     this.firstInstallSamplePending = false;
     return pending;
+  }
+  /** Settings-page folder rename: moves the maps with it, keeps open views on their maps, then saves the setting. */
+  async changeMapFolder(key2, path) {
+    const mapping = await this.repo.changeMapFolder(
+      key2,
+      path,
+      (mapPath) => this.views().some((view) => view.hasActiveAimWork(mapPath))
+    );
+    for (const view of this.views()) view.relocate(mapping);
+    this.app.workspace.requestSaveLayout();
+    await this.saveSettings();
   }
   /** Owner-run only: previews the move of legacy Topics maps into Mind Maps / AIM and writes nothing until confirmed. */
   async offerOrganizeWorkspaceFolders() {

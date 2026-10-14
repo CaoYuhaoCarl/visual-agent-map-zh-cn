@@ -562,6 +562,8 @@ export class Repository {
     readonly settings: Settings
   ) {}
 
+  /** Containers that temporarily count as managed while a folder-setting change moves topics into them. */
+  private pendingContainers: string[] = [];
   /** Called once per vault-wide scan that skipped unreadable maps. */
   onUnreadableMaps?: (failures: { path: string; error: string }[]) => void;
 
@@ -1442,29 +1444,56 @@ export class Repository {
   }
 
   /**
-   * Changes the Mind Maps/AIM folder. If the old folder exists it is renamed (Obsidian updates links) so its maps stay
-   * managed; on any refusal or failure the setting is left unchanged and the error says why.
+   * Changes the Mind Maps/AIM folder on the same move engine as Organize: every topic in the old container moves to the
+   * new one (links, node paths and cited paths follow; any failure restores everything and the setting is unchanged),
+   * then the old folder is removed only if it is empty. Returns old Map.md path -> new Map.md path.
+   * `busy` lets the caller veto when an open view has AIM work running.
    */
-  async changeMapFolder(key: "mindMapsFolder" | "aimFolder", path: string): Promise<boolean> {
+  async changeMapFolder(
+    key: "mindMapsFolder" | "aimFolder",
+    path: string,
+    busy: (mapPath: string) => boolean = () => false
+  ): Promise<Map<string, string>> {
     const next = normalizePath(path),
       current = this.settings[key];
-    if (next === current) return false;
+    if (next === current) return new Map();
     const problem = this.mapFolderProblem(key, next);
     if (problem) throw new Error(this.message(problem));
     const old = this.app.vault.getAbstractFileByPath(current);
+    let mapping = new Map<string, string>();
     if (old instanceof TFolder) {
-      if (this.app.vault.getAbstractFileByPath(next)) throw new Error(this.message("error.map_folder_exists"));
-      await this.folder(parentPath(next));
-      try {
-        await this.app.fileManager.renameFile(old, next);
-      } catch (error) {
-        throw new Error(
-          `${this.message("error.map_folder_rename_failed")} ${error instanceof Error ? error.message : String(error)}`
-        );
+      const moves: OrganizeMove[] = [];
+      for (const file of await this.mapFiles()) {
+        const root = parentPath(file.path);
+        if (file.name !== "Map.md" || parentPath(root) !== current) continue;
+        let map: MapDocument;
+        try {
+          map = await this.readMap(file.path);
+        } catch {
+          throw new Error(this.message("error.map_folder_unreadable"));
+        }
+        if (hasActiveAimAttempt(map) || busy(file.path)) throw new Error(this.message("error.organize_aim_busy"));
+        const toRoot = normalizePath(`${next}/${root.split("/").at(-1) ?? safeName(map.title)}`);
+        if (this.app.vault.getAbstractFileByPath(toRoot)) throw new Error(this.message("error.map_folder_exists"));
+        moves.push({ mapPath: file.path, title: map.title, kind: map.aim ? "aim" : "mind", fromRoot: root, toRoot });
+      }
+      if (moves.length || !this.app.vault.getAbstractFileByPath(next)) {
+        await this.folder(parentPath(next));
+        if (!this.app.vault.getAbstractFileByPath(next)) await this.folder(next);
+      }
+      mapping = await this.runTopicMoves(moves, [next]);
+      const left = this.app.vault.getAbstractFileByPath(current);
+      // Never delete a non-empty folder; a failed removal only leaves an empty folder behind.
+      if (left instanceof TFolder && left.children.length === 0) {
+        try {
+          await this.app.fileManager.trashFile(left);
+        } catch {
+          /* The empty old folder stays. */
+        }
       }
     }
     this.settings[key] = next;
-    return true;
+    return mapping;
   }
 
   /**
@@ -1505,14 +1534,32 @@ export class Repository {
    */
   async organizeWorkspaceFolders(plan: OrganizePlan): Promise<Map<string, string>> {
     if (plan.busy.length) throw new Error(this.message("error.organize_aim_busy"));
+    return this.runTopicMoves(plan.moves);
+  }
+
+  /**
+   * The shared move engine (Organize and folder-setting changes): re-checks for AIM work right before the first write,
+   * moves each topic, and on any failure restores every topic already moved. `alsoManaged` lists containers that are
+   * not yet in the settings but hold topics during the move (so renameTopic and the rollback accept them).
+   */
+  private async runTopicMoves(moves: OrganizeMove[], alsoManaged: string[] = []): Promise<Map<string, string>> {
     // Re-check just before the first write: the plan may be stale.
-    for (const move of plan.moves)
+    for (const move of moves)
       if (hasActiveAimAttempt(await this.readMap(move.mapPath)))
         throw new Error(this.message("error.organize_aim_busy"));
+    this.pendingContainers = alsoManaged;
+    try {
+      return await this.moveTopicsWithRollback(moves);
+    } finally {
+      this.pendingContainers = [];
+    }
+  }
+
+  private async moveTopicsWithRollback(moves: OrganizeMove[]): Promise<Map<string, string>> {
     const done: { move: OrganizeMove; newMapPath: string; originalMap: string; journal: PriorContent[] }[] = [],
       mapping = new Map<string, string>();
     try {
-      for (const move of plan.moves) {
+      for (const move of moves) {
         await this.folder(parentPath(move.toRoot));
         const originalMap = await this.app.vault.read(this.file(move.mapPath));
         const newMapPath = await this.renameTopic(move.mapPath, move.title, move.toRoot);
@@ -1582,7 +1629,10 @@ export class Repository {
   async renameTopic(mapPath: string, title: string, targetRoot?: string): Promise<string> {
     const file = this.file(mapPath),
       root = file.parent;
-    if (!(root instanceof TFolder) || !isManagedMapPath(this.settings, mapPath))
+    if (
+      !(root instanceof TFolder) ||
+      !(isManagedMapPath(this.settings, mapPath) || this.pendingContainers.some(c => mapPath.startsWith(`${c}/`)))
+    )
       throw new Error(this.message("error.legacy_map_view_only"));
     // A rename keeps the topic in the container it is already in (Mind Maps, AIM or legacy Topics).
     const desired = targetRoot

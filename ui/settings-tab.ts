@@ -195,9 +195,7 @@ export class VisualAgentMapSettingTab extends PluginSettingTab {
             input.setValue(now.startsWith(`${workspace}/`) ? now.slice(workspace.length + 1) : now);
           };
           void this.plugin
-            .mutate(async () => {
-              if (await this.plugin.repo.changeMapFolder(key, `${workspace}/${name}`)) await this.plugin.saveSettings();
-            })
+            .mutate(() => this.plugin.changeMapFolder(key, `${workspace}/${name}`))
             .then(
               () => revert(),
               () => revert()

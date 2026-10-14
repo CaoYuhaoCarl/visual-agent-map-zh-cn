@@ -636,6 +636,15 @@ export default class VisualAgentMapPlugin extends Plugin {
     this.firstInstallSamplePending = false;
     return pending;
   }
+  /** Settings-page folder rename: moves the maps with it, keeps open views on their maps, then saves the setting. */
+  async changeMapFolder(key: "mindMapsFolder" | "aimFolder", path: string): Promise<void> {
+    const mapping = await this.repo.changeMapFolder(key, path, mapPath =>
+      this.views().some(view => view.hasActiveAimWork(mapPath))
+    );
+    for (const view of this.views()) view.relocate(mapping);
+    this.app.workspace.requestSaveLayout();
+    await this.saveSettings();
+  }
   /** Owner-run only: previews the move of legacy Topics maps into Mind Maps / AIM and writes nothing until confirmed. */
   async offerOrganizeWorkspaceFolders(): Promise<void> {
     const plan = await this.repo.planOrganizeWorkspaceFolders();

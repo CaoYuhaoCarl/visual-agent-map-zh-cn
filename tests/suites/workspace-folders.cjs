@@ -336,7 +336,7 @@ integrationTest('the Organize command refuses while an open view has AIM work ru
 integrationTest('renaming the Mind Maps folder setting renames the folder; its maps stay managed and editable', async () => {
   const { repo, app } = fixture('en');
   const mapPath = await repo.createMap('Keep me');
-  assert.equal(await repo.changeMapFolder('mindMapsFolder', 'Agent Workspace/Ideas'), true);
+  assert.equal((await repo.changeMapFolder('mindMapsFolder', 'Agent Workspace/Ideas')).size, 1);
   assert.equal(repo.settings.mindMapsFolder, 'Agent Workspace/Ideas');
   const moved = 'Agent Workspace/Ideas/Keep me/Map.md';
   assert.ok(app.vault.getAbstractFileByPath(moved) && !app.vault.getAbstractFileByPath(mapPath));
@@ -348,10 +348,11 @@ integrationTest('renaming the Mind Maps folder setting renames the folder; its m
 
 integrationTest('map folder changes are refused with the setting unchanged: existing target, empty, Topics-related, clashing, failing rename', async () => {
   const { repo, app } = fixture('en');
-  await repo.createMap('A'); await repo.folder('Agent Workspace/Taken');
+  app.vault.modify = async (file, content) => app.vault.process(file, () => content);
+  await repo.createMap('A'); await repo.folder('Agent Workspace/Taken/A');
   const before = { ...repo.settings };
   const refuse = async (key, path, pattern) => { await assert.rejects(repo.changeMapFolder(key, path), pattern, path); assert.equal(repo.settings[key], before[key], `${path} left the setting unchanged`); };
-  await refuse('mindMapsFolder', 'Agent Workspace/Taken', /already exists/);
+  await refuse('mindMapsFolder', 'Agent Workspace/Taken', /already contains a topic with the same name/);
   await refuse('mindMapsFolder', 'Agent Workspace/', /not changed/);
   await refuse('mindMapsFolder', 'Agent Workspace', /not changed/);
   await refuse('mindMapsFolder', 'Agent Workspace/Topics', /not changed/);
@@ -361,7 +362,7 @@ integrationTest('map folder changes are refused with the setting unchanged: exis
   await refuse('mindMapsFolder', 'Outside/Maps', /not changed/);
   const rename = app.fileManager.renameFile;
   app.fileManager.renameFile = async () => { throw new Error('injected'); };
-  await refuse('mindMapsFolder', 'Agent Workspace/Renamed', /could not be renamed[\s\S]*injected/);
+  await refuse('mindMapsFolder', 'Agent Workspace/Renamed', /injected/);
   app.fileManager.renameFile = rename;
   assert.ok(app.vault.getAbstractFileByPath('Agent Workspace/Mind Maps/A/Map.md'), 'maps stay where they were');
 });
@@ -401,7 +402,6 @@ integrationTest('replaying rename events after a rolled-back Organize rewrites n
 integrationTest('rediscovery uses the configured folder names, and an unowned note without topic-state is not given one', async () => {
   const { app, repo } = fixture('en');
   const custom = new repository.Repository(app, { ...repo.settings, mindMapsFolder: 'Agent Workspace/Ideas', aimFolder: 'Agent Workspace/Research' });
-  await custom.changeMapFolder('mindMapsFolder', 'Agent Workspace/Ideas');
   await custom.createMap('M');
   assert.deepEqual(Array.from(await custom.workspaceCandidates()), ['Agent Workspace']);
   const path = 'Agent Workspace/Unfiled/Bare.md';
@@ -410,4 +410,86 @@ integrationTest('rediscovery uses the configured folder names, and an unowned no
   await app.vault.create(path, text);
   await custom.rebuildDerivedData();
   assert.ok(!/topic-state/.test(await app.vault.read(app.vault.getAbstractFileByPath(path))), 'no topic-state was written');
+});
+
+integrationTest('a folder-setting change moves every map with notes, cross-map citations and an AIM map; everything resolves', async () => {
+  const vault = await legacyVault();
+  const { repo, app } = vault;
+  app.vault.modify = async (file, content) => app.vault.process(file, () => content);
+  const trashed = [];
+  app.fileManager.trashFile = async folder => { trashed.push([folder.path, folder.children.length]); for (const key of [...vault.files.keys()]) if (key === folder.path) vault.files.delete(key); };
+  await repo.organizeWorkspaceFolders(await repo.planOrganizeWorkspaceFolders());
+  const mind = await repo.changeMapFolder('mindMapsFolder', 'Agent Workspace/Ideas');
+  assert.deepEqual(Array.from(mind.values()).sort(), ['Agent Workspace/Ideas/Alpha/Map.md', 'Agent Workspace/Ideas/Beta/Map.md']);
+  const aimMoved = await repo.changeMapFolder('aimFolder', 'Agent Workspace/Research');
+  assert.deepEqual(Array.from(aimMoved.values()), ['Agent Workspace/Research/Gamma/Map.md']);
+  assert.equal(repo.settings.mindMapsFolder, 'Agent Workspace/Ideas'); assert.equal(repo.settings.aimFolder, 'Agent Workspace/Research');
+  assert.deepEqual(trashed, [['Agent Workspace/Mind Maps', 0], ['Agent Workspace/AIM', 0]], 'only empty old folders are removed');
+  assert.deepEqual(plain((await repo.readNote(vault.cites)).sourcePaths), ['Agent Workspace/Ideas/Beta/Notes/First.md'], 'a note in another place follows');
+  const second = await repo.readNote('Agent Workspace/Ideas/Alpha/Notes/Second.md');
+  assert.deepEqual(plain(second.sourcePaths), ['Agent Workspace/Ideas/Alpha/Notes/First.md']);
+  for (const file of await repo.mapFiles()) assert.equal(repository.isManagedMapPath(repo.settings, file.path), true);
+  await assertResolves(vault);
+});
+
+integrationTest('a folder-setting change never deletes a non-empty old folder', async () => {
+  const { repo, app } = fixture('en');
+  await repo.createMap('A'); await app.vault.create('Agent Workspace/Mind Maps/stray.md', 'keep');
+  const trashed = []; app.fileManager.trashFile = async folder => { trashed.push(folder.path); };
+  app.vault.modify = async (file, content) => app.vault.process(file, () => content);
+  await repo.changeMapFolder('mindMapsFolder', 'Agent Workspace/Ideas');
+  assert.deepEqual(trashed, []); assert.ok(app.vault.getAbstractFileByPath('Agent Workspace/Mind Maps/stray.md'));
+});
+
+integrationTest('a folder-setting change is refused with zero moves while an AIM attempt runs or a view has AIM work', async () => {
+  const { repo, app, files, contents } = fixture('en');
+  const mapPath = await newAim(repo, 'Busy');
+  const store = new AimRunStore(repo);
+  const doc = await repo.readMap(mapPath);
+  const question = await repo.createNote('Q', 'gpt-6-luna', doc, mapPath, 'workspace');
+  doc.nodes.push(question); await repo.saveMap(mapPath, doc);
+  const branch = await store.createAnswerBranch(mapPath, { questionNodeId: question.id, parentBranchId: null, answerSnapshot: { selections: [], freeText: 'x' }, inputSnapshot: { topic: 'Busy', conditions: {}, upstreamResults: [] } });
+  await repo.createMap('Idle');
+  const idleBefore = snapshot({ files, contents });
+  await assert.rejects(repo.changeMapFolder('mindMapsFolder', 'Agent Workspace/Ideas', () => true), /still running or saving/);
+  assertUnchanged({ files, contents }, idleBefore, 'view busy');
+  await store.startAttempt(mapPath, branch.id, 'run');
+  const before = snapshot({ files, contents });
+  await assert.rejects(repo.changeMapFolder('aimFolder', 'Agent Workspace/Research'), /still running or saving/);
+  assertUnchanged({ files, contents }, before, 'persisted running attempt');
+  assert.equal(repo.settings.aimFolder, 'Agent Workspace/AIM');
+});
+
+integrationTest('a folder-setting change restores all bytes and keeps the old setting when a later move fails', async () => {
+  const vault = await legacyVault();
+  const { repo, app } = vault;
+  app.vault.modify = async (file, content) => app.vault.process(file, () => content);
+  await repo.organizeWorkspaceFolders(await repo.planOrganizeWorkspaceFolders());
+  const before = snapshot(vault);
+  const rename = app.fileManager.renameFile;
+  app.fileManager.renameFile = async (item, target) => { if (target === 'Agent Workspace/Ideas/Beta') throw new Error('injected move failure'); return rename(item, target); };
+  await assert.rejects(repo.changeMapFolder('mindMapsFolder', 'Agent Workspace/Ideas'), /injected move failure/);
+  app.fileManager.renameFile = rename;
+  assert.equal(repo.settings.mindMapsFolder, 'Agent Workspace/Mind Maps');
+  assert.deepEqual([...vault.files.keys()].filter(key => vault.contents.has(key)).sort(), before.paths.filter(key => before.contents.has(key)));
+  for (const [path, content] of before.contents) assert.equal(vault.contents.get(path), content, path);
+  await assertResolves(vault);
+});
+
+integrationTest('the plugin keeps open views on their maps after a folder-setting change and saves the setting', async () => {
+  const vault = await legacyVault();
+  const { repo, app } = vault;
+  app.vault.modify = async (file, content) => app.vault.process(file, () => content);
+  await repo.organizeWorkspaceFolders(await repo.planOrganizeWorkspaceFolders());
+  const { default: Plugin } = load('main.ts', { obsidian });
+  const plugin = new Plugin();
+  const relocated = []; let saved = 0;
+  Object.assign(plugin, { app: { ...app, workspace: { requestSaveLayout() {}, getLeavesOfType: () => [] } }, repo, settings: repo.settings, saveSettings: async () => { saved++; } });
+  plugin.views = () => [{ hasActiveAimWork: () => false, relocate: mapping => relocated.push(mapping) }];
+  await plugin.changeMapFolder('mindMapsFolder', 'Agent Workspace/Ideas');
+  assert.equal(relocated.length, 1); assert.equal(relocated[0].get('Agent Workspace/Mind Maps/Alpha/Map.md'), 'Agent Workspace/Ideas/Alpha/Map.md');
+  assert.equal(saved, 1); assert.equal(repo.settings.mindMapsFolder, 'Agent Workspace/Ideas');
+  plugin.views = () => [{ hasActiveAimWork: () => true, relocate: () => {} }];
+  await assert.rejects(plugin.changeMapFolder('mindMapsFolder', 'Agent Workspace/Again'), /still running or saving/);
+  assert.equal(saved, 1);
 });
