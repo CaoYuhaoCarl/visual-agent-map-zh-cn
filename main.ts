@@ -211,6 +211,11 @@ export default class VisualAgentMapPlugin extends Plugin {
         if (!this.coffeeOutlineActive) leaf.view.setMap(map, titles, sample);
       }
   }
+  /** Marks the active outline row without rebuilding the outline. */
+  setOutlineActive(path: string): void {
+    for (const leaf of this.app.workspace.getLeavesOfType(OUTLINE_VIEW_TYPE))
+      if (leaf.view instanceof OutlineView) leaf.view.setActive(path);
+  }
   syncCoffeeOutline(view?: CoffeeTablesView): void {
     this.coffeeOutlineSource = view ?? null;
     this.coffeeOutlineActive = !!view;
@@ -517,7 +522,7 @@ export default class VisualAgentMapPlugin extends Plugin {
       this.app.workspace.on("file-open", file => {
         for (const leaf of this.app.workspace.getLeavesOfType("markdown")) this.styleNodeLeaf(leaf);
         for (const leaf of this.app.workspace.getLeavesOfType(OUTLINE_VIEW_TYPE))
-          if (leaf.view instanceof OutlineView) leaf.view.setActivePath(file?.path ?? "");
+          if (leaf.view instanceof OutlineView) leaf.view.setActive(file?.path ?? "");
       })
     );
     this.app.workspace.onLayoutReady(() => {

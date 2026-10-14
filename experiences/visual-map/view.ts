@@ -246,6 +246,10 @@ export class VisualAgentMapView extends ItemView {
   private spaceHeld = false;
   /** The single card in the tab order (roving tabindex); arrows move between the rest. */
   private tabStopId: string | null = null;
+  /** Card element per topic id, rebuilt on every render, so a selection change touches only the affected cards. */
+  private cardEls = new Map<string, HTMLElement>();
+  private cardChecks = new Map<string, HTMLInputElement>();
+  private selectionBarEl: HTMLElement | null = null;
   /** While a card renders, its buttons stay out of the tab order until that card is focused. */
   private renderingCard = false;
   /** Set while render hands focus back to a card, so that refocus does not restart its preview. */
@@ -345,10 +349,14 @@ export class VisualAgentMapView extends ItemView {
         this.enqueue(() => this.travel(event.shiftKey));
       }
       if (event.key === "Escape") {
+        const previous = this.selected,
+          touched = [...this.multiSelected];
+        const wasSelecting = this.integrationMode;
         this.selected = null;
         this.multiSelected.clear();
         this.integrationMode = false;
-        this.render();
+        if (wasSelecting) this.render();
+        else this.commitSelection(previous, null, touched);
       }
     });
     await this.plugin.ready;
@@ -2823,6 +2831,7 @@ export class VisualAgentMapView extends ItemView {
             this.render();
           }
         );
+        integrate.setAttr("aria-pressed", String(this.integrationMode));
         if (this.integrationMode) integrate.addClass("is-active");
       }
     }
@@ -2856,18 +2865,21 @@ export class VisualAgentMapView extends ItemView {
     this.iconButton(zoom, "plus", t("ui.zoom_in"), () => this.zoomBy(1.2));
     this.iconButton(zoom, "maximize", t("ui.show_all"), () => this.fit());
     this.stageEl = this.viewportEl.createDiv("vam-stage");
+    this.stageEl.setAttr("role", "tree");
+    this.stageEl.setAttr("aria-label", this.map.title);
+    this.stageEl.setAttr("aria-multiselectable", String(this.integrationMode));
+    this.cardEls.clear();
+    this.cardChecks.clear();
+    this.selectionBarEl = null;
     this.edgesEl = createSvg("svg");
     this.edgesEl.addClass("vam-edges");
+    this.edgesEl.setAttribute("aria-hidden", "true");
     this.stageEl.appendChild(this.edgesEl);
     const shown = visibleNodes(this.map.nodes);
     if (this.selected && !shown.some(node => node.id === this.selected)) this.selected = null;
     this.multiSelected = new Set([...this.multiSelected].filter(id => shown.some(node => node.id === id)));
-    if (this.integrationMode) this.renderSelectionBar(workspace);
-    this.tabStopId =
-      (this.selected && shown.some(node => node.id === this.selected) ? this.selected : null) ??
-      shown.find(node => !node.parentId)?.id ??
-      shown[0]?.id ??
-      null;
+    if (this.integrationMode) this.selectionBarEl = this.renderSelectionBar(workspace);
+    this.tabStopId = this.defaultTabStop(shown);
     this.renderingCard = true;
     try {
       for (const node of shown) this.renderNode(node);
@@ -2908,6 +2920,10 @@ export class VisualAgentMapView extends ItemView {
       card = this.stageEl.createDiv({
         cls: `vam-node${node.id === this.selected || this.multiSelected.has(node.id) ? " is-selected" : ""}`
       });
+    this.cardEls.set(node.id, card);
+    card.setAttr("role", "treeitem");
+    card.setAttr("aria-level", String(this.nodeDepth(node)));
+    card.setAttr("aria-selected", String(node.id === this.selected || this.multiSelected.has(node.id)));
     if (node.aimKind) card.setAttr("data-aim-kind", node.aimKind);
     if (node.aimKind === "conclusion") {
       const background = createSvg("svg");
@@ -2940,11 +2956,14 @@ export class VisualAgentMapView extends ItemView {
       const select = header.createEl("input", { type: "checkbox" });
       select.checked = this.multiSelected.has(node.id);
       select.setAttr("aria-label", note?.title ?? node.path);
+      // The card itself is the tab stop; a checkbox per card would add one tab stop per topic.
+      select.tabIndex = -1;
+      this.cardChecks.set(node.id, select);
       select.addEventListener("click", event => {
         event.stopPropagation();
         if (select.checked) this.multiSelected.add(node.id);
         else this.multiSelected.delete(node.id);
-        this.render();
+        this.commitSelection(this.selected, this.selected, [node.id]);
       });
     }
     const batch = this.plugin.expansionBatches.get(node.path);
@@ -3117,15 +3136,18 @@ export class VisualAgentMapView extends ItemView {
       () => (this.builtIn ? this.selectSampleNode(node.id) : this.openDetails(node))
     ).addClass("vam-detail-button");
     const count = descendants(this.map!.nodes, node.id).size;
-    if (count && !this.builtIn)
-      this.button(tools, node.collapsed ? t("ui.expand_0", count) : t("ui.collapse"), () =>
+    if (count && !this.builtIn) {
+      const collapse = this.button(tools, node.collapsed ? t("ui.expand_0", count) : t("ui.collapse"), () =>
         this.enqueue(() =>
           this.mapChange(map => {
             const n = map.nodes.find(n => n.id === node.id)!;
             n.collapsed = !n.collapsed;
           })
         )
-      ).addClass("vam-collapse-button", ...(node.collapsed ? ["is-collapsed"] : []));
+      );
+      collapse.addClass("vam-collapse-button", ...(node.collapsed ? ["is-collapsed"] : []));
+      collapse.setAttr("aria-expanded", String(!node.collapsed));
+    }
     if (!this.builtIn && !this.integrationMode && !this.map?.aim) {
       const add = this.button(card, "+", () => this.enqueue(() => this.addNode(node)));
       add.addClass("vam-add-child");
@@ -3277,7 +3299,7 @@ export class VisualAgentMapView extends ItemView {
       if (this.integrationMode) {
         if (this.multiSelected.has(node.id)) this.multiSelected.delete(node.id);
         else this.multiSelected.add(node.id);
-        this.render();
+        this.commitSelection(this.selected, this.selected, [node.id]);
         return;
       }
       // A click selects; an already open details sidebar follows the selection, a closed one stays closed.
@@ -3306,7 +3328,7 @@ export class VisualAgentMapView extends ItemView {
         if (this.integrationMode) {
           if (this.multiSelected.has(node.id)) this.multiSelected.delete(node.id);
           else this.multiSelected.add(node.id);
-          this.render();
+          this.commitSelection(this.selected, this.selected, [node.id]);
         } else if (this.builtIn) this.selectSampleNode(node.id);
         else {
           this.selectMapNode(node);
@@ -3358,7 +3380,9 @@ export class VisualAgentMapView extends ItemView {
     return siblings[index + (key === "ArrowUp" ? -1 : 1)];
   }
   private moveKeyboardFocus(target: MapNode): void {
-    const card = this.stageEl?.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(target.id)}"]`);
+    const card =
+      this.cardEls.get(target.id) ??
+      this.stageEl?.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(target.id)}"]`);
     const view = this.viewportEl?.getBoundingClientRect(),
       rect = card?.getBoundingClientRect();
     if (
@@ -3367,19 +3391,78 @@ export class VisualAgentMapView extends ItemView {
       (rect.left < view.left || rect.right > view.right || rect.top < view.top || rect.bottom > view.bottom)
     )
       this.focusNode(target);
-    this.focusNodeId = target.id;
+    if (this.builtIn) {
+      this.focusNodeId = target.id;
+      this.selectSampleNode(target.id);
+      this.focusNodeId = null;
+      return;
+    }
     if (this.integrationMode) {
       // Topic selection mode: moving focus must not clear the topics already ticked.
-      this.stageEl?.querySelectorAll<HTMLElement>(".vam-node").forEach(item => {
-        item.tabIndex = item === card ? 0 : -1;
-      });
+      const previous = this.tabStopId;
       this.tabStopId = target.id;
-    } else if (this.builtIn) this.selectSampleNode(target.id);
-    else this.selectMapNode(target);
-    if (this.focusNodeId) {
-      card?.focus({ preventScroll: true });
-      this.focusNodeId = null;
+      this.paintCards([previous, target.id]);
+    } else this.selectMapNode(target);
+    card?.focus({ preventScroll: true });
+  }
+  /** The tab stop when nothing moved it: the selected card, else the first root, else the first card. */
+  private defaultTabStop(shown: MapNode[]): string | null {
+    return (
+      (this.selected && shown.some(node => node.id === this.selected) ? this.selected : null) ??
+      shown.find(node => !node.parentId)?.id ??
+      shown[0]?.id ??
+      null
+    );
+  }
+  /** Nesting level of a topic, 1 for a root; guards against a corrupt parent cycle. */
+  private nodeDepth(node: MapNode): number {
+    let depth = 1;
+    const seen = new Set([node.id]);
+    for (let parent = node.parentId; parent; depth++) {
+      if (seen.has(parent)) break;
+      seen.add(parent);
+      parent = this.map?.nodes.find(item => item.id === parent)?.parentId ?? null;
     }
+    return depth;
+  }
+  /** Repaints only the named cards from the current selection state (class, aria-selected, roving tabindex, checkbox). */
+  private paintCards(ids: Iterable<string | null>): void {
+    for (const id of new Set(ids)) {
+      const card = id ? this.cardEls.get(id) : undefined;
+      if (!id || !card) continue;
+      const on = id === this.selected || this.multiSelected.has(id);
+      card.toggleClass("is-selected", on);
+      card.setAttr("aria-selected", String(on));
+      card.tabIndex = id === this.tabStopId ? 0 : -1;
+      const check = this.cardChecks.get(id);
+      if (check) check.checked = this.multiSelected.has(id);
+    }
+  }
+  /**
+   * Moves the selection without rebuilding the map: only the previous and next cards, the changed multi-select
+   * cards and the two tab stops are repainted, and the selection bar is refreshed in selection mode.
+   */
+  applySelectionState(prevId: string | null, nextId: string | null, touched: Iterable<string> = []): void {
+    const previousStop = this.tabStopId;
+    this.tabStopId = this.defaultTabStop(this.map ? visibleNodes(this.map.nodes) : []);
+    this.paintCards([prevId, nextId, previousStop, this.tabStopId, ...touched]);
+    if (this.integrationMode && this.selectionBarEl?.isConnected) {
+      const workspace = this.selectionBarEl.parentElement;
+      if (workspace) {
+        const bar = this.renderSelectionBar(workspace);
+        this.selectionBarEl.replaceWith(bar);
+        this.selectionBarEl = bar;
+      }
+    }
+    this.plugin.setOutlineActive(this.map?.nodes.find(node => node.id === nextId)?.path ?? "");
+  }
+  /** Selection changed: repaint in place, or render fully where selection also drives other chrome (AIM, sample). */
+  private commitSelection(prevId: string | null, nextId: string | null, touched: Iterable<string> = []): void {
+    if (this.map?.aim || this.builtIn || !this.cardEls.size) {
+      this.render();
+      return;
+    }
+    this.applySelectionState(prevId, nextId, touched);
   }
   private clearHoverTimer(): void {
     if (this.hoverTimer !== null) window.clearTimeout(this.hoverTimer);
@@ -3430,10 +3513,14 @@ export class VisualAgentMapView extends ItemView {
     const current = this.map?.nodes.find(item => item.id === node.id);
     if (!current) return false;
     if (!this.integrationMode) {
+      const previous = this.selected,
+        touched = [...this.multiSelected];
       this.selected = current.id;
       this.multiSelected.clear();
-    }
-    this.render();
+      // Opening collapsed ancestors already rendered; a plain reveal only moves the selection.
+      if (collapsed.length) this.render();
+      else this.commitSelection(previous, current.id, touched);
+    } else this.render();
     this.focusNode(current);
     return true;
   }
@@ -3446,9 +3533,11 @@ export class VisualAgentMapView extends ItemView {
   }
   private selectMapNode(node: MapNode): void {
     if (this.selected === node.id && this.multiSelected.size === 0) return;
+    const previous = this.selected,
+      touched = [...this.multiSelected];
     this.selected = node.id;
     this.multiSelected.clear();
-    this.render();
+    this.commitSelection(previous, node.id, touched);
   }
   private hideHoverCardSoon(): void {
     this.clearHoverTimer();
@@ -4702,7 +4791,7 @@ export class VisualAgentMapView extends ItemView {
       dismiss.setAttr("aria-label", t("ui.dismiss"));
     }
   }
-  private renderSelectionBar(workspace: HTMLElement): void {
+  private renderSelectionBar(workspace: HTMLElement): HTMLElement {
     const selection = workspace.createDiv("vam-selection-bar");
     const names = [...this.multiSelected].map(id => this.notes.get(id)?.title).filter(Boolean);
     selection.createSpan({
@@ -4714,8 +4803,9 @@ export class VisualAgentMapView extends ItemView {
       selection,
       t("ui.clear"),
       () => {
+        const touched = [...this.multiSelected];
         this.multiSelected.clear();
-        this.render();
+        this.commitSelection(this.selected, this.selected, touched);
       },
       !this.multiSelected.size
     );
@@ -4734,6 +4824,7 @@ export class VisualAgentMapView extends ItemView {
         !this.multiSelected.size || running
       );
     }
+    return selection;
   }
   private researchChoices(options: TaskOptions): TaskOptions {
     const { signal: _signal, onProgress: _onProgress, ...choices } = options;
@@ -5635,7 +5726,7 @@ export class VisualAgentMapView extends ItemView {
       for (const item of cards) item.card.removeClass("is-marquee-hit");
       if (!hits.size) return;
       for (const id of hits) this.multiSelected.add(id);
-      this.render();
+      this.commitSelection(this.selected, this.selected, hits);
     };
     viewport.addEventListener("pointermove", move);
     viewport.addEventListener("pointerup", up);

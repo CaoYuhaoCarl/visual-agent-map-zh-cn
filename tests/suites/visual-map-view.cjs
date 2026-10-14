@@ -9,12 +9,12 @@ integrationTest('node plus adds a child without opening a duplicate right-click 
     createDiv(options) { const child = element('div'); child.cls = options?.cls ?? options; this.children.push(child); return child; },
     createEl(name, options) { const child = element(name); child.text = options?.text; this.children.push(child); if (name === 'button') buttons.push(child); return child; },
     createSpan(options) { const child = element('span'); child.text = options?.text; this.children.push(child); return child; },
-    setAttr(name, value) { this[name] = value; }, addClass(name) { this.cls = name; }, setPointerCapture() {},
+    setAttr(name, value) { this[name] = value; }, addClass(name) { this.cls = name; }, toggleClass(name, on) { this.toggled = [name, on]; }, setPointerCapture() {},
     addEventListener(name, handler) { events.set(`${tag}:${name}`, handler); if (tag === 'button') this.click = handler; }, removeEventListener() {}
   });
   const topic = node('parent');
   let detailsShown = false;
-  const view = new VisualAgentMapView({ app: {} }, { pendingSuggestions: new Map([['parent.md', [{ title: 'Idea', task: 'Investigate', contribution: '' }]]]), expansionBatches: new Map(), detailsShown: () => detailsShown });
+  const view = new VisualAgentMapView({ app: {} }, { pendingSuggestions: new Map([['parent.md', [{ title: 'Idea', task: 'Investigate', contribution: '' }]]]), expansionBatches: new Map(), detailsShown: () => detailsShown, setOutlineActive() {} });
   view.stageEl = element('stage'); view.map = map([topic]);
   view.notes = new Map([[topic.id, { title: 'Parent', summary: '', status: 'completed' }]]);
   view.render = () => {};
@@ -33,10 +33,10 @@ integrationTest('node plus adds a child without opening a duplicate right-click 
   assert.deepEqual(opened, [[topic.id, 'proposals'], [topic.id, 'structure']]); assert.deepEqual(next, [topic.id]);
   assert.equal(view.selected, null);
   events.get('div:click')({ target: { closest: () => null }, metaKey: false, ctrlKey: false });
-  assert.equal(view.selected, topic.id); assert.equal(renders, 1); assert.deepEqual(details, [], 'a click selects without opening the sidebar note');
+  assert.equal(view.selected, topic.id); assert.equal(renders, 0, 'a click repaints the card in place instead of rendering'); assert.deepEqual(details, [], 'a click selects without opening the sidebar note');
   view.selected = null; renders = 0; details.length = 0;
   events.get('div:keydown')({ key: 'Enter', target: view.stageEl.children[0] });
-  assert.equal(view.selected, topic.id); assert.equal(renders, 1); assert.deepEqual(details, [topic.id]);
+  assert.equal(view.selected, topic.id); assert.equal(renders, 0); assert.deepEqual(details, [topic.id]);
   view.selected = null; renders = 0; details.length = 0;
   view.mapChange = async () => {}; view.drawEdges = () => {};
   events.get('div:pointerdown')({ target: { closest: () => null }, button: 0, pointerId: 2, clientX: 10, clientY: 10 });
@@ -1069,3 +1069,112 @@ integrationTest('proposal list links checks and parents at any depth', () => {
   assert.equal(JSON.stringify(picked.map(item => [item.title, item.parentTitle])), JSON.stringify([['Heat', ''], ['Pan', 'Heat'], ['Iron pan', 'Pan']]));
 });
 
+// A small fake DOM that keeps classes, attributes, tabIndex, handlers and focus calls so selection can be asserted per card.
+const selectionDom = () => {
+  const make = (tag, init = {}) => {
+    const el = { tag, children: [], dataset: {}, style: {}, attrs: {}, handlers: new Map(), classes: new Set(String(init.cls ?? '').split(' ').filter(Boolean)), text: init.text, tabIndex: init.tabIndex, checked: false, focused: 0, isConnected: true,
+      createDiv(value) { return this.createEl('div', typeof value === 'string' ? { cls: value } : value); },
+      createSpan(value) { return this.createEl('span', typeof value === 'string' ? { cls: value } : value); },
+      createEl(name, value = {}) { const child = make(name, value); child.parent = this; this.children.push(child); return child; },
+      setAttr(name, value) { this.attrs[name] = value; }, addClass(...names) { names.forEach(name => this.classes.add(name)); }, removeClass(name) { this.classes.delete(name); },
+      toggleClass(name, on) { if (on) this.classes.add(name); else this.classes.delete(name); }, addEventListener(name, handler) { this.handlers.set(name, handler); }, removeEventListener() {},
+      setPointerCapture() {}, focus() { this.focused++; }, remove() { this.removed = true; }, getBoundingClientRect() { return { left: 0, right: 10, top: 0, bottom: 10 }; },
+      querySelector() { return null; }, querySelectorAll() { return []; }, replaceWith() {} };
+    return el;
+  };
+  return make;
+};
+const selectionView = (load, extra = {}, shim = obsidian) => {
+  const { VisualAgentMapView } = load('main.ts', { obsidian: shim });
+  const root = node('root'), a = node('a', 'root'), b = node('b', 'root'), c = node('c', 'a');
+  root.x = 0; a.x = 400; a.y = 0; b.x = 400; b.y = 200; c.x = 800;
+  const doc = map([root, a, b, c]);
+  const outline = [];
+  const plugin = { pendingSuggestions: new Map(), expansionBatches: new Map(), detailsShown: () => false, setOutlineActive: path => outline.push(path), ...extra };
+  const view = new VisualAgentMapView({ app: {} }, plugin);
+  const make = selectionDom();
+  view.stageEl = make('stage'); view.map = doc;
+  view.notes = new Map(doc.nodes.map(item => [item.id, { title: item.id, summary: '', status: 'completed' }]));
+  let renders = 0; view.render = () => { renders++; };
+  view.enqueue = work => work(); view.openDetails = () => {}; view.focusNode = () => {};
+  return { view, doc, outline, renders: () => renders, cards: () => Object.fromEntries(view.stageEl.children.map(card => [card.dataset.nodeId, card])), build: () => { view.cardEls.clear(); view.stageEl.children = []; view.tabStopId = view.defaultTabStop(doc.nodes); for (const item of doc.nodes) view.renderNode(item); } };
+};
+integrationTest('selection, arrow keys and select-mode toggles repaint only the affected cards and never render', () => {
+  const fixture = selectionView(load);
+  const { view, outline } = fixture;
+  fixture.build();
+  const cards = fixture.cards();
+  const stops = () => Object.entries(fixture.cards()).filter(([, card]) => card.tabIndex === 0).map(([id]) => id);
+  const click = id => cards[id].handlers.get('click')({ target: { closest: () => null }, metaKey: false, ctrlKey: false });
+  assert.deepEqual(stops(), ['root'], 'one roving tab stop before any selection');
+  assert.equal(cards.root.attrs.role, 'treeitem'); assert.equal(cards.root.attrs['aria-level'], '1');
+  assert.equal(cards.c.attrs['aria-level'], '3'); assert.equal(cards.a.attrs['aria-level'], '2');
+  click('a');
+  assert.equal(fixture.renders(), 0); assert.equal(view.selected, 'a');
+  assert.deepEqual(stops(), ['a']);
+  assert.equal(cards.a.attrs['aria-selected'], 'true'); assert.ok(cards.a.classes.has('is-selected'));
+  assert.equal(cards.root.attrs['aria-selected'], 'false'); assert.equal(cards.root.tabIndex, -1);
+  assert.deepEqual(outline.at(-1), 'a.md');
+  // Arrow keys walk the tree and move focus without a render.
+  cards.a.handlers.get('keydown')({ key: 'ArrowDown', target: cards.a, preventDefault() {} });
+  assert.equal(view.selected, 'b'); assert.equal(cards.b.focused, 1); assert.deepEqual(stops(), ['b']);
+  assert.equal(cards.a.classes.has('is-selected'), false);
+  cards.b.handlers.get('keydown')({ key: 'ArrowLeft', target: cards.b, preventDefault() {} });
+  assert.equal(view.selected, 'root'); assert.deepEqual(stops(), ['root']);
+  assert.equal(fixture.renders(), 0, 'selection and arrow keys never call render()');
+});
+integrationTest('select mode toggles cards in place, keeps checkboxes out of the tab order and survives a full render', () => {
+  const { view, renders, cards, build } = (() => { const fixture = selectionView(load); fixture.view.integrationMode = true; fixture.build(); return fixture; })();
+  const byId = cards();
+  const checks = view.cardChecks;
+  assert.equal(checks.size, 4);
+  for (const check of checks.values()) assert.equal(check.tabIndex, -1, 'no checkbox per card in the tab order');
+  const click = id => byId[id].handlers.get('click')({ target: { closest: () => null }, metaKey: false, ctrlKey: false });
+  click('a'); click('c');
+  assert.deepEqual([...view.multiSelected].sort(), ['a', 'c']);
+  assert.equal(renders(), 0); assert.equal(checks.get('a').checked, true); assert.equal(byId.b.attrs['aria-selected'], 'false');
+  assert.equal(byId.c.attrs['aria-selected'], 'true');
+  click('a');
+  assert.deepEqual([...view.multiSelected], ['c']); assert.equal(checks.get('a').checked, false); assert.equal(byId.a.classes.has('is-selected'), false);
+  // Keyboard focus in select mode moves the tab stop only; the ticked cards stay ticked.
+  byId.c.handlers.get('keydown')({ key: 'ArrowLeft', target: byId.c, preventDefault() {} });
+  assert.deepEqual([...view.multiSelected], ['c']); assert.equal(byId.a.tabIndex, 0); assert.equal(byId.root.tabIndex, -1); assert.equal(byId.a.focused, 1);
+  // A full render afterwards reproduces the same state from the model.
+  build();
+  const again = cards();
+  assert.equal(again.c.classes.has('is-selected'), true); assert.equal(again.c.attrs['aria-selected'], 'true'); assert.equal(again.a.classes.has('is-selected'), false);
+  assert.equal(renders(), 0);
+});
+integrationTest('F2 starts rename, Enter opens details, and the collapse button reports aria-expanded', () => {
+  const dialogs = [];
+  class Modal { open() { dialogs.push(this); } close() {} }
+  const fixture = selectionView(load, {}, { ...obsidian, Modal });
+  const { view } = fixture;
+  const opened = [];
+  view.openDetails = topic => opened.push(topic.id);
+  fixture.build();
+  const cards = fixture.cards();
+  cards.a.handlers.get('keydown')({ key: 'Enter', target: cards.a, preventDefault() {} });
+  assert.deepEqual(opened, ['a']); assert.equal(view.selected, 'a'); assert.equal(fixture.renders(), 0);
+  let renamed = 0;
+  cards.a.handlers.get('keydown')({ key: 'F2', target: cards.a, preventDefault() { renamed++; } });
+  assert.equal(renamed, 1, 'F2 is handled as the rename shortcut'); assert.equal(dialogs.length, 1, 'F2 opens the name dialog');
+  assert.equal(fixture.renders(), 0);
+  const expanded = [];
+  const walk = item => { if (item.attrs && 'aria-expanded' in item.attrs) expanded.push(item.attrs['aria-expanded']); item.children.forEach(walk); };
+  walk(cards.root); assert.deepEqual(expanded, ['true']);
+  const source = fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8');
+  assert.match(source, /stageEl\.setAttr\("role", "tree"\)/); assert.match(source, /integrate\.setAttr\("aria-pressed"/);
+});
+integrationTest('outline setActive marks the row in place with aria-current and no re-render', () => {
+  const { OutlineView } = load('ui/outline-view.ts', { obsidian });
+  const view = new OutlineView({ app: {} }, async () => {});
+  const row = path => ({ path, classes: new Set(), attrs: new Map(), getAttribute(name) { return name === 'data-path' ? path : null; }, toggleClass(name, on) { if (on) this.classes.add(name); else this.classes.delete(name); }, setAttr(name, value) { this.attrs.set(name, value); }, removeAttribute(name) { this.attrs.delete(name); } });
+  const rows = [row('a.md'), row('b.md')];
+  let renders = 0; view.render = () => { renders++; };
+  view.contentEl = { querySelectorAll: () => rows };
+  view.setActive('b.md');
+  assert.equal(renders, 0); assert.equal(rows[1].classes.has('is-active'), true); assert.equal(rows[1].attrs.get('aria-current'), 'true');
+  view.setActive('a.md');
+  assert.equal(rows[1].classes.has('is-active'), false); assert.equal(rows[1].attrs.has('aria-current'), false); assert.equal(rows[0].attrs.get('aria-current'), 'true');
+});

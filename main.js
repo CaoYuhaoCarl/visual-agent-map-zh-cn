@@ -22107,6 +22107,10 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     __publicField(this, "spaceHeld", false);
     /** The single card in the tab order (roving tabindex); arrows move between the rest. */
     __publicField(this, "tabStopId", null);
+    /** Card element per topic id, rebuilt on every render, so a selection change touches only the affected cards. */
+    __publicField(this, "cardEls", /* @__PURE__ */ new Map());
+    __publicField(this, "cardChecks", /* @__PURE__ */ new Map());
+    __publicField(this, "selectionBarEl", null);
     /** While a card renders, its buttons stay out of the tab order until that card is focused. */
     __publicField(this, "renderingCard", false);
     /** Set while render hands focus back to a card, so that refocus does not restart its preview. */
@@ -22190,10 +22194,13 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
         this.enqueue(() => this.travel(event.shiftKey));
       }
       if (event.key === "Escape") {
+        const previous = this.selected, touched = [...this.multiSelected];
+        const wasSelecting = this.integrationMode;
         this.selected = null;
         this.multiSelected.clear();
         this.integrationMode = false;
-        this.render();
+        if (wasSelecting) this.render();
+        else this.commitSelection(previous, null, touched);
       }
     });
     await this.plugin.ready;
@@ -24232,7 +24239,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     ]).open();
   }
   render() {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s;
     if (this.closed) return;
     this.plugin.syncOutline(this.builtIn ? null : this.map, this.notes, this.builtIn);
     if (this.hoverTimer !== null) {
@@ -24545,6 +24552,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
             this.render();
           }
         );
+        integrate.setAttr("aria-pressed", String(this.integrationMode));
         if (this.integrationMode) integrate.addClass("is-active");
       }
     }
@@ -24575,14 +24583,21 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     this.iconButton(zoom, "plus", t("ui.zoom_in"), () => this.zoomBy(1.2));
     this.iconButton(zoom, "maximize", t("ui.show_all"), () => this.fit());
     this.stageEl = this.viewportEl.createDiv("vam-stage");
+    this.stageEl.setAttr("role", "tree");
+    this.stageEl.setAttr("aria-label", this.map.title);
+    this.stageEl.setAttr("aria-multiselectable", String(this.integrationMode));
+    this.cardEls.clear();
+    this.cardChecks.clear();
+    this.selectionBarEl = null;
     this.edgesEl = createSvg("svg");
     this.edgesEl.addClass("vam-edges");
+    this.edgesEl.setAttribute("aria-hidden", "true");
     this.stageEl.appendChild(this.edgesEl);
     const shown = visibleNodes(this.map.nodes);
     if (this.selected && !shown.some((node) => node.id === this.selected)) this.selected = null;
     this.multiSelected = new Set([...this.multiSelected].filter((id) => shown.some((node) => node.id === id)));
-    if (this.integrationMode) this.renderSelectionBar(workspace);
-    this.tabStopId = (_w = (_v = (_t = this.selected && shown.some((node) => node.id === this.selected) ? this.selected : null) != null ? _t : (_s = shown.find((node) => !node.parentId)) == null ? void 0 : _s.id) != null ? _v : (_u = shown[0]) == null ? void 0 : _u.id) != null ? _w : null;
+    if (this.integrationMode) this.selectionBarEl = this.renderSelectionBar(workspace);
+    this.tabStopId = this.defaultTabStop(shown);
     this.renderingCard = true;
     try {
       for (const node of shown) this.renderNode(node);
@@ -24592,7 +24607,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     if (this.focusNodeId) {
       this.restoringFocus = true;
       try {
-        (_x = this.stageEl.querySelector(`[data-node-id="${CSS.escape(this.focusNodeId)}"]`)) == null ? void 0 : _x.focus({ preventScroll: true });
+        (_s = this.stageEl.querySelector(`[data-node-id="${CSS.escape(this.focusNodeId)}"]`)) == null ? void 0 : _s.focus({ preventScroll: true });
       } finally {
         this.restoringFocus = false;
       }
@@ -24621,6 +24636,10 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     const note = this.notes.get(node.id), card = this.stageEl.createDiv({
       cls: `vam-node${node.id === this.selected || this.multiSelected.has(node.id) ? " is-selected" : ""}`
     });
+    this.cardEls.set(node.id, card);
+    card.setAttr("role", "treeitem");
+    card.setAttr("aria-level", String(this.nodeDepth(node)));
+    card.setAttr("aria-selected", String(node.id === this.selected || this.multiSelected.has(node.id)));
     if (node.aimKind) card.setAttr("data-aim-kind", node.aimKind);
     if (node.aimKind === "conclusion") {
       const background = createSvg("svg");
@@ -24647,11 +24666,13 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
       const select = header.createEl("input", { type: "checkbox" });
       select.checked = this.multiSelected.has(node.id);
       select.setAttr("aria-label", (_e = note == null ? void 0 : note.title) != null ? _e : node.path);
+      select.tabIndex = -1;
+      this.cardChecks.set(node.id, select);
       select.addEventListener("click", (event) => {
         event.stopPropagation();
         if (select.checked) this.multiSelected.add(node.id);
         else this.multiSelected.delete(node.id);
-        this.render();
+        this.commitSelection(this.selected, this.selected, [node.id]);
       });
     }
     const batch = this.plugin.expansionBatches.get(node.path);
@@ -24817,8 +24838,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
       () => this.builtIn ? this.selectSampleNode(node.id) : this.openDetails(node)
     ).addClass("vam-detail-button");
     const count = descendants(this.map.nodes, node.id).size;
-    if (count && !this.builtIn)
-      this.button(
+    if (count && !this.builtIn) {
+      const collapse = this.button(
         tools,
         node.collapsed ? t("ui.expand_0", count) : t("ui.collapse"),
         () => this.enqueue(
@@ -24827,7 +24848,10 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
             n.collapsed = !n.collapsed;
           })
         )
-      ).addClass("vam-collapse-button", ...node.collapsed ? ["is-collapsed"] : []);
+      );
+      collapse.addClass("vam-collapse-button", ...node.collapsed ? ["is-collapsed"] : []);
+      collapse.setAttr("aria-expanded", String(!node.collapsed));
+    }
     if (!this.builtIn && !this.integrationMode && !((_v = this.map) == null ? void 0 : _v.aim)) {
       const add = this.button(card, "+", () => this.enqueue(() => this.addNode(node)));
       add.addClass("vam-add-child");
@@ -24960,7 +24984,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
       if (this.integrationMode) {
         if (this.multiSelected.has(node.id)) this.multiSelected.delete(node.id);
         else this.multiSelected.add(node.id);
-        this.render();
+        this.commitSelection(this.selected, this.selected, [node.id]);
         return;
       }
       if (this.builtIn) this.selectSampleNode(node.id);
@@ -24992,7 +25016,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
         if (this.integrationMode) {
           if (this.multiSelected.has(node.id)) this.multiSelected.delete(node.id);
           else this.multiSelected.add(node.id);
-          this.render();
+          this.commitSelection(this.selected, this.selected, [node.id]);
         } else if (this.builtIn) this.selectSampleNode(node.id);
         else {
           this.selectMapNode(node);
@@ -25041,22 +25065,80 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
   }
   moveKeyboardFocus(target) {
     var _a, _b, _c;
-    const card = (_a = this.stageEl) == null ? void 0 : _a.querySelector(`[data-node-id="${CSS.escape(target.id)}"]`);
-    const view = (_b = this.viewportEl) == null ? void 0 : _b.getBoundingClientRect(), rect = card == null ? void 0 : card.getBoundingClientRect();
+    const card = (_b = this.cardEls.get(target.id)) != null ? _b : (_a = this.stageEl) == null ? void 0 : _a.querySelector(`[data-node-id="${CSS.escape(target.id)}"]`);
+    const view = (_c = this.viewportEl) == null ? void 0 : _c.getBoundingClientRect(), rect = card == null ? void 0 : card.getBoundingClientRect();
     if (view && rect && (rect.left < view.left || rect.right > view.right || rect.top < view.top || rect.bottom > view.bottom))
       this.focusNode(target);
-    this.focusNodeId = target.id;
-    if (this.integrationMode) {
-      (_c = this.stageEl) == null ? void 0 : _c.querySelectorAll(".vam-node").forEach((item) => {
-        item.tabIndex = item === card ? 0 : -1;
-      });
-      this.tabStopId = target.id;
-    } else if (this.builtIn) this.selectSampleNode(target.id);
-    else this.selectMapNode(target);
-    if (this.focusNodeId) {
-      card == null ? void 0 : card.focus({ preventScroll: true });
+    if (this.builtIn) {
+      this.focusNodeId = target.id;
+      this.selectSampleNode(target.id);
       this.focusNodeId = null;
+      return;
     }
+    if (this.integrationMode) {
+      const previous = this.tabStopId;
+      this.tabStopId = target.id;
+      this.paintCards([previous, target.id]);
+    } else this.selectMapNode(target);
+    card == null ? void 0 : card.focus({ preventScroll: true });
+  }
+  /** The tab stop when nothing moved it: the selected card, else the first root, else the first card. */
+  defaultTabStop(shown) {
+    var _a, _b, _c, _d, _e;
+    return (_e = (_d = (_b = this.selected && shown.some((node) => node.id === this.selected) ? this.selected : null) != null ? _b : (_a = shown.find((node) => !node.parentId)) == null ? void 0 : _a.id) != null ? _d : (_c = shown[0]) == null ? void 0 : _c.id) != null ? _e : null;
+  }
+  /** Nesting level of a topic, 1 for a root; guards against a corrupt parent cycle. */
+  nodeDepth(node) {
+    var _a, _b, _c;
+    let depth = 1;
+    const seen = /* @__PURE__ */ new Set([node.id]);
+    for (let parent = node.parentId; parent; depth++) {
+      if (seen.has(parent)) break;
+      seen.add(parent);
+      parent = (_c = (_b = (_a = this.map) == null ? void 0 : _a.nodes.find((item) => item.id === parent)) == null ? void 0 : _b.parentId) != null ? _c : null;
+    }
+    return depth;
+  }
+  /** Repaints only the named cards from the current selection state (class, aria-selected, roving tabindex, checkbox). */
+  paintCards(ids) {
+    for (const id of new Set(ids)) {
+      const card = id ? this.cardEls.get(id) : void 0;
+      if (!id || !card) continue;
+      const on = id === this.selected || this.multiSelected.has(id);
+      card.toggleClass("is-selected", on);
+      card.setAttr("aria-selected", String(on));
+      card.tabIndex = id === this.tabStopId ? 0 : -1;
+      const check = this.cardChecks.get(id);
+      if (check) check.checked = this.multiSelected.has(id);
+    }
+  }
+  /**
+   * Moves the selection without rebuilding the map: only the previous and next cards, the changed multi-select
+   * cards and the two tab stops are repainted, and the selection bar is refreshed in selection mode.
+   */
+  applySelectionState(prevId, nextId, touched = []) {
+    var _a, _b, _c, _d;
+    const previousStop = this.tabStopId;
+    this.tabStopId = this.defaultTabStop(this.map ? visibleNodes(this.map.nodes) : []);
+    this.paintCards([prevId, nextId, previousStop, this.tabStopId, ...touched]);
+    if (this.integrationMode && ((_a = this.selectionBarEl) == null ? void 0 : _a.isConnected)) {
+      const workspace = this.selectionBarEl.parentElement;
+      if (workspace) {
+        const bar = this.renderSelectionBar(workspace);
+        this.selectionBarEl.replaceWith(bar);
+        this.selectionBarEl = bar;
+      }
+    }
+    this.plugin.setOutlineActive((_d = (_c = (_b = this.map) == null ? void 0 : _b.nodes.find((node) => node.id === nextId)) == null ? void 0 : _c.path) != null ? _d : "");
+  }
+  /** Selection changed: repaint in place, or render fully where selection also drives other chrome (AIM, sample). */
+  commitSelection(prevId, nextId, touched = []) {
+    var _a;
+    if (((_a = this.map) == null ? void 0 : _a.aim) || this.builtIn || !this.cardEls.size) {
+      this.render();
+      return;
+    }
+    this.applySelectionState(prevId, nextId, touched);
   }
   clearHoverTimer() {
     if (this.hoverTimer !== null) window.clearTimeout(this.hoverTimer);
@@ -25109,10 +25191,12 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     const current = (_b = this.map) == null ? void 0 : _b.nodes.find((item) => item.id === node.id);
     if (!current) return false;
     if (!this.integrationMode) {
+      const previous = this.selected, touched = [...this.multiSelected];
       this.selected = current.id;
       this.multiSelected.clear();
-    }
-    this.render();
+      if (collapsed.length) this.render();
+      else this.commitSelection(previous, current.id, touched);
+    } else this.render();
     this.focusNode(current);
     return true;
   }
@@ -25126,9 +25210,10 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
   }
   selectMapNode(node) {
     if (this.selected === node.id && this.multiSelected.size === 0) return;
+    const previous = this.selected, touched = [...this.multiSelected];
     this.selected = node.id;
     this.multiSelected.clear();
-    this.render();
+    this.commitSelection(previous, node.id, touched);
   }
   hideHoverCardSoon() {
     this.clearHoverTimer();
@@ -26294,8 +26379,9 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
       selection,
       t("ui.clear"),
       () => {
+        const touched = [...this.multiSelected];
         this.multiSelected.clear();
-        this.render();
+        this.commitSelection(this.selected, this.selected, touched);
       },
       !this.multiSelected.size
     );
@@ -26314,6 +26400,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
         !this.multiSelected.size || running
       );
     }
+    return selection;
   }
   researchChoices(options) {
     const { signal: _signal, onProgress: _onProgress, ...choices } = options;
@@ -27144,7 +27231,7 @@ ${note.detail.trim()}` : "",
       for (const item of cards) item.card.removeClass("is-marquee-hit");
       if (!hits.size) return;
       for (const id of hits) this.multiSelected.add(id);
-      this.render();
+      this.commitSelection(this.selected, this.selected, hits);
     };
     viewport.addEventListener("pointermove", move);
     viewport.addEventListener("pointerup", up);
@@ -28314,9 +28401,17 @@ var OutlineView = class extends import_obsidian20.ItemView {
         updated.setSelectionRange(selection[0], selection[1]);
     }
   }
-  setActivePath(path) {
+  /** Moves the active-row marker in place; the tree, its search box and scroll position stay untouched. */
+  setActive(path) {
+    if (path === this.activePath) return;
     this.activePath = path;
-    this.render();
+    const rows = Array.from(this.contentEl.querySelectorAll(".vam-outline-note"));
+    for (const row of rows) {
+      const active = !!path && row.getAttribute("data-path") === path;
+      row.toggleClass("is-active", active);
+      if (active) row.setAttr("aria-current", "true");
+      else row.removeAttribute("aria-current");
+    }
   }
   setCoffeeOutline(snapshot, active, locate, fill = null) {
     const search = this.contentEl.querySelector(".vam-outline-search"), restoreFocus = !!search && search === document.activeElement;
@@ -28425,6 +28520,7 @@ var OutlineView = class extends import_obsidian20.ItemView {
         });
         toggle.disabled = !!query;
         toggle.setAttr("aria-label", !query && this.collapsed.has(node.id) ? t("ui.expand") : t("ui.collapse"));
+        toggle.setAttr("aria-expanded", String(!!query || !this.collapsed.has(node.id)));
         toggle.addEventListener("click", () => {
           if (this.collapsed.has(node.id)) this.collapsed.delete(node.id);
           else this.collapsed.add(node.id);
@@ -28434,12 +28530,13 @@ var OutlineView = class extends import_obsidian20.ItemView {
       const title = (_c2 = (_b2 = this.titles.get(node.id)) != null ? _b2 : node.path.split("/").pop()) != null ? _c2 : node.path;
       const button = row.createEl("button", { text: title, cls: "vam-outline-note" });
       button.title = title;
-      if (node.path === this.activePath) button.addClass("is-active");
-      button.addEventListener("click", () => {
-        this.activePath = node.path;
-        for (const active of Array.from(tree.querySelectorAll(".vam-outline-note.is-active")))
-          active.removeClass("is-active");
+      button.setAttr("data-path", node.path);
+      if (node.path === this.activePath) {
         button.addClass("is-active");
+        button.setAttr("aria-current", "true");
+      }
+      button.addEventListener("click", () => {
+        this.setActive(node.path);
         void this.openNote(node.path);
       });
       if (query || !this.collapsed.has(node.id)) for (const child of descendants2) append(child, depth + 1);
@@ -32229,6 +32326,11 @@ var VisualAgentMapPlugin = class extends import_obsidian24.Plugin {
         if (!this.coffeeOutlineActive) leaf.view.setMap(map, titles, sample);
       }
   }
+  /** Marks the active outline row without rebuilding the outline. */
+  setOutlineActive(path) {
+    for (const leaf of this.app.workspace.getLeavesOfType(OUTLINE_VIEW_TYPE))
+      if (leaf.view instanceof OutlineView) leaf.view.setActive(path);
+  }
   syncCoffeeOutline(view) {
     var _a, _b;
     this.coffeeOutlineSource = view != null ? view : null;
@@ -32527,7 +32629,7 @@ var VisualAgentMapPlugin = class extends import_obsidian24.Plugin {
         var _a2;
         for (const leaf of this.app.workspace.getLeavesOfType("markdown")) this.styleNodeLeaf(leaf);
         for (const leaf of this.app.workspace.getLeavesOfType(OUTLINE_VIEW_TYPE))
-          if (leaf.view instanceof OutlineView) leaf.view.setActivePath((_a2 = file == null ? void 0 : file.path) != null ? _a2 : "");
+          if (leaf.view instanceof OutlineView) leaf.view.setActive((_a2 = file == null ? void 0 : file.path) != null ? _a2 : "");
       })
     );
     this.app.workspace.onLayoutReady(() => {
