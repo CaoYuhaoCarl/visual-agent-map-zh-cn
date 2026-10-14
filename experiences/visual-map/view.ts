@@ -57,6 +57,7 @@ import {
   type CountIssue,
   type DetailTemplate
 } from "../../ai/detail-templates";
+import { listPresets, resolveToneText } from "../../ai/prompt-presets";
 import type { AiResult, Suggestion, TaskContext } from "../../ai/types";
 import { previewMetrics } from "../../ui/preview-utils";
 import { BUILTIN_SAMPLE_ID, builtInSample, SAMPLE_TOUR_VERSION } from "../../builtin-sample";
@@ -652,6 +653,40 @@ export class VisualAgentMapView extends ItemView {
         return unsubscribe;
       }
     };
+  }
+  /** `{ toneText }` for a TaskContext, or nothing when the resolved tone is academic. */
+  private toneField(
+    note: Pick<Note, "toneId"> | undefined,
+    options?: Pick<TaskOptions, "toneId" | "outputLanguage">
+  ): { toneText: string } | Record<string, never> {
+    const toneText = this.toneTextFor(note, options?.toneId, options?.outputLanguage ?? this.plugin.settings.language);
+    return toneText ? { toneText } : {};
+  }
+  /** The name of the tone this topic resolves to now (topic override, else map default, else academic). */
+  private toneLabelFor(note: Pick<Note, "toneId">): string {
+    const settings = this.plugin.settings;
+    const ids = [note.toneId, this.map?.toneId];
+    for (const id of ids) {
+      const found = listPresets(settings.promptPresets, "tone", settings.language).find(item => item.id === id);
+      if (found) return found.name;
+    }
+    return listPresets(settings.promptPresets, "tone", settings.language).find(item => item.id === "academic")!.name;
+  }
+  /** Built-in plus custom writing tones, for the tone selects. */
+  private toneChoices(): { id: string; name: string }[] {
+    const settings = this.plugin.settings;
+    return listPresets(settings.promptPresets, "tone", settings.language).map(({ id, name }) => ({ id, name }));
+  }
+  /**
+   * Writing tone for an AI run on `note`: this run's choice, then the topic override, then the map default. Academic
+   * (and nothing chosen) yields undefined so prompts stay unchanged.
+   */
+  private toneTextFor(
+    note: Pick<Note, "toneId"> | undefined,
+    chosenId?: string,
+    language: UiLanguage = this.plugin.settings.language
+  ): string | undefined {
+    return resolveToneText(this.plugin.settings.promptPresets, [chosenId, note?.toneId, this.map?.toneId], language);
   }
   /** Built-in Standard plus the workspace's custom templates, for the template selects. */
   private templateChoices(): { id: string; name: string }[] {
@@ -2328,6 +2363,13 @@ export class VisualAgentMapView extends ItemView {
         description: t("ui.detail_template_map_default_desc"),
         action: () => this.chooseMapTemplate()
       });
+    // Writing tone applies to the notes AI writes; AIM maps use it for their research and final report.
+    if (this.map && !this.builtIn)
+      choices.push({
+        label: t("ui.tone_map_default"),
+        description: t("ui.tone_map_default_desc"),
+        action: () => this.chooseMapTone()
+      });
     choices.push({
       label: t("ui.repair_missing_mind_map"),
       description: t("ui.rebuild_a_missing_map_from_existing_topic_notes"),
@@ -2341,6 +2383,21 @@ export class VisualAgentMapView extends ItemView {
         action: () => this.deleteCurrentMap()
       });
     new ChoiceModal(this.app, t("ui.more_mind_map_actions"), t("ui.additional_map_management_actions"), choices).open();
+  }
+  private chooseMapTone(): void {
+    const apply = (id: string | undefined): void =>
+      this.enqueue(() =>
+        this.mapChange(map => {
+          if (id) map.toneId = id;
+          else delete map.toneId;
+        }, false)
+      );
+    const current = this.map?.toneId;
+    const mark = (id: string | undefined) => (id === current ? { description: t("ui.detail_template_current") } : {});
+    new ChoiceModal(this.app, t("ui.tone_map_default"), t("ui.tone_map_default_desc"), [
+      { label: t("ui.tone_use_default"), ...mark(undefined), action: () => apply(undefined) },
+      ...this.toneChoices().map(({ id, name }) => ({ label: name, ...mark(id), action: () => apply(id) }))
+    ]).open();
   }
   private chooseMapTemplate(): void {
     const apply = (id: string | undefined): void =>
@@ -3755,7 +3812,7 @@ export class VisualAgentMapView extends ItemView {
         async (options, focus, done, failed, accepted) => {
           const latest = await this.plugin.repo.readNote(node.path);
           const task = researchTopicTask(this.plugin.settings.language, latest.title);
-          const detailTemplate = await this.detailTemplateFor(node, options.detailTemplateId);
+          const detailTemplate = await this.detailTemplateFor(node, options.detailTemplateId, options.toneId);
           await this.runAgent(
             node,
             done,
@@ -3795,6 +3852,8 @@ export class VisualAgentMapView extends ItemView {
           quickError: this.plugin.quickExpandFailures.get(node.path),
           sources,
           templates: this.templateChoices(),
+          tones: this.toneChoices(),
+          currentTone: this.toneLabelFor(note),
           // Only a label: a missing topic template is reported at the next AI update, not when the dialog opens.
           currentTemplate: this.resolveTopicTemplate(note).template.name,
           topicStatus: note.status,
@@ -4358,6 +4417,7 @@ export class VisualAgentMapView extends ItemView {
             ancestors: await this.ancestorContext(parent),
             referenceGroups: options?.referenceGroups,
             outputLanguage: options?.outputLanguage,
+            ...this.toneField(note, options),
             mode: "decompose",
             researchMode: options?.researchMode ?? "research",
             researchDepth: options?.researchDepth ?? note.researchDepth,
@@ -4630,7 +4690,7 @@ export class VisualAgentMapView extends ItemView {
     accepted: () => void,
     choices: TaskOptions
   ): Promise<void> {
-    const detailTemplate = await this.detailTemplateFor(child, choices.detailTemplateId);
+    const detailTemplate = await this.detailTemplateFor(child, choices.detailTemplateId, choices.toneId);
     const note = await this.plugin.repo.readNote(child.path);
     let started = false;
     let failure: string | undefined;
@@ -4676,7 +4736,8 @@ export class VisualAgentMapView extends ItemView {
       names,
       this.modelChoices(),
       this.templateChoices(),
-      request => void this.startMultiResearch(request, retryBatchKey)
+      request => void this.startMultiResearch(request, retryBatchKey),
+      this.toneChoices()
     ).open();
   }
   stopMultiResearch(): void {
@@ -4721,7 +4782,8 @@ export class VisualAgentMapView extends ItemView {
           visualMode: request.imageSearch ? "auto" : "off",
           referenceGroups: [],
           requirements: request.requirements,
-          ...(request.detailTemplateId ? { detailTemplateId: request.detailTemplateId } : {})
+          ...(request.detailTemplateId ? { detailTemplateId: request.detailTemplateId } : {}),
+          ...(request.toneId ? { toneId: request.toneId } : {})
         };
         // A retry replaces the failure state of the batch it came from (a running batch is never touched).
         if (retryBatchKey && this.plugin.expansionBatches.get(retryBatchKey)?.status !== "running")
@@ -4971,6 +5033,7 @@ export class VisualAgentMapView extends ItemView {
             referenceGroups: [...selectedSources, childSources],
             onProgress: options.onProgress,
             outputLanguage: options.outputLanguage,
+            ...this.toneField(note, options),
             mode: "synthesize",
             researchMode: options.researchMode,
             researchDepth: options.researchDepth,
@@ -5060,7 +5123,7 @@ export class VisualAgentMapView extends ItemView {
     const language = this.plugin.settings.language;
     const task = direction || synthesisGoalTask(language);
     const detailTemplate = templateInLanguage(
-      await this.detailTemplateFor(node, options?.detailTemplateId),
+      await this.detailTemplateFor(node, options?.detailTemplateId, options?.toneId),
       options?.outputLanguage ?? language
     );
     this.plugin.running.add(node.path);
@@ -5080,6 +5143,7 @@ export class VisualAgentMapView extends ItemView {
             referenceGroups: [...selectedSources, childSources],
             onProgress: options?.onProgress,
             outputLanguage: options?.outputLanguage,
+            ...this.toneField(note, options),
             mode: "synthesize",
             researchMode: options?.researchMode ?? "local",
             researchDepth: options?.researchDepth ?? note.researchDepth,
@@ -5493,6 +5557,7 @@ export class VisualAgentMapView extends ItemView {
             this.render();
           },
           outputLanguage: options?.outputLanguage,
+          ...this.toneField(undefined, options),
           mode: "synthesize",
           researchMode: options?.researchMode ?? "local",
           researchDepth: options?.researchDepth ?? "normal",
@@ -6001,7 +6066,8 @@ export class VisualAgentMapView extends ItemView {
    * Content template for an AI update of this topic: this run's choice, then the topic, map and workspace defaults.
    * Only an explicit choice is written to the topic; a topic template that no longer exists is reported once and cleared.
    */
-  private async detailTemplateFor(node: MapNode, chosenId?: string): Promise<DetailTemplate> {
+  private async detailTemplateFor(node: MapNode, chosenId?: string, chosenToneId?: string): Promise<DetailTemplate> {
+    if (chosenToneId) await this.plugin.repo.updateNote(node.path, { toneId: chosenToneId });
     if (chosenId) await this.plugin.repo.updateNote(node.path, { detailTemplateId: chosenId });
     const note = await this.plugin.repo.readNote(node.path);
     const { template, missing } = this.resolveTopicTemplate(note, chosenId);
@@ -6072,6 +6138,7 @@ export class VisualAgentMapView extends ItemView {
         researchMode: note.researchMode,
         researchDepth: note.researchDepth,
         visualMode: note.visualMode,
+        ...this.toneField(note, overrides),
         ...overrides,
         detailTemplate
       },

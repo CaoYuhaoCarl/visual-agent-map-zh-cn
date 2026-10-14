@@ -4,6 +4,7 @@ import { resolveAimContentLanguage } from "./content-language";
 import { buildFinalDelivery } from "./final-delivery";
 import { createHash, randomUUID } from "node:crypto";
 import type { AiResult, TaskContext } from "../../ai/types";
+import { resolveToneText } from "../../ai/prompt-presets";
 import { reportedSearchFailure } from "../../ai/result-utils";
 import { createSearchDiagnostic } from "./search-diagnostic";
 import type { MapDocument, AimBranchRecord, AimQuestionDraft } from "../../map-model";
@@ -148,6 +149,14 @@ export class AimManualFlow {
     return decision === "research_more" && !this.limits.acceptGapAtBudget ? "partial" : "completed";
   }
 
+  /**
+   * Tone text for prose-producing AIM calls (research and final delivery). Structured Planner/review calls carry an
+   * aimContract and never get it (askAimModel drops it), so tone cannot disturb their schemas.
+   */
+  private toneOf(map: MapDocument, language: UiLanguage): string | undefined {
+    return resolveToneText(this.repository.settings.promptPresets, [map.toneId], language);
+  }
+
   /** Content language of the map as read now; never cached on the flow, so a UI language switch cannot change it. */
   private languageOf(map: MapDocument): UiLanguage {
     return resolveAimContentLanguage(map, this.repository.settings.language);
@@ -219,6 +228,8 @@ export class AimManualFlow {
       aimEvidenceLookup: structuredLookup,
       task: `${sharedInstructions}\n\n${context.task ?? ""}`
     };
+    // Tone shapes prose only; structured (contract) calls never carry it.
+    if (context.aimContract) delete prepared.toneText;
     const task = typeof prepared.task === "string" ? prepared.task : "";
     for (const field of ["title", "summary", "rules", "detail", "ancestors"] as const) {
       const value = prepared[field];
@@ -633,6 +644,7 @@ export class AimManualFlow {
     if (reviewed.decision === "conclude") {
       const deliveryContext: AimTaskContext = {
         ...taskContext,
+        ...(context.toneText ? { toneText: context.toneText } : {}),
         title: context.goal,
         summary: "",
         task: "",
@@ -954,6 +966,7 @@ export class AimManualFlow {
             goal: topic.title,
             goalDetail: topic.detail,
             outputLanguage: language,
+            toneText: this.toneOf(map, language),
             conditions: branch.inputSnapshot.conditions,
             currentQuestion: parent.summary,
             currentAnswer: answerDescription,
@@ -1023,6 +1036,7 @@ export class AimManualFlow {
             task,
             ancestors: `Topic: ${topic.title}\n\n${topic.detail}\n\nConditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
             outputLanguage: language,
+            ...(this.toneOf(map, language) ? { toneText: this.toneOf(map, language) } : {}),
             mode: "task",
             researchMode: this.researchMode(),
             researchDepth: "normal",
@@ -1288,6 +1302,7 @@ export class AimManualFlow {
           goal: topicNote.title,
           goalDetail: topicNote.detail,
           outputLanguage: language,
+          toneText: this.toneOf(map, language),
           conditions: branch.inputSnapshot.conditions,
           currentQuestion: parent.summary,
           currentAnswer: JSON.stringify(branch.answerSnapshot),
@@ -1379,6 +1394,7 @@ export class AimManualFlow {
               task,
               ancestors: `Original goal: ${topicNote.title}\n\n${topicNote.detail}\n\n${lineage.context}\n\nPersisted answer branch conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
               outputLanguage: language,
+              ...(this.toneOf(map, language) ? { toneText: this.toneOf(map, language) } : {}),
               mode: "task",
               researchMode: this.researchMode(),
               researchDepth: "normal",
@@ -1476,6 +1492,7 @@ export class AimManualFlow {
             goal: topicNote.title,
             goalDetail: topicNote.detail,
             outputLanguage: language,
+            toneText: this.toneOf(map, language),
             conditions: branch.inputSnapshot.conditions,
             currentQuestion: parent.summary,
             currentAnswer: JSON.stringify(branch.answerSnapshot),
@@ -2530,6 +2547,7 @@ export class AimManualFlow {
       task: "",
       ancestors: `Original goal and background:\n${topicNote.title}\n\n${topicNote.detail}\n\nBranch lineage:\n${lineageContext || "None."}`,
       outputLanguage: language,
+      ...(this.toneOf(map, language) ? { toneText: this.toneOf(map, language) } : {}),
       mode: "task" as const,
       researchMode: "local" as const,
       researchDepth: "fast" as const,
@@ -3026,6 +3044,7 @@ export class AimManualFlow {
             goal: topicNote.title,
             goalDetail: topicNote.detail,
             outputLanguage: language,
+            toneText: this.toneOf(map, language),
             conditions: branch.inputSnapshot.conditions,
             currentQuestion: parent.summary,
             currentAnswer: answerDescription,

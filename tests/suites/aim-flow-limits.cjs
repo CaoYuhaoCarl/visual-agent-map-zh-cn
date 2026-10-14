@@ -250,3 +250,24 @@ integrationTest('AIM flow limits: with smoke limits a rejected final delivery at
   assert.ok(!attempts.some(attempt => ['running', 'saving'].includes(attempt.status)));
   assert.equal(results.filter(result => result.kind === 'conclusion').length, 1);
 });
+
+integrationTest('AIM tone: research calls carry the map tone, structured Planner calls never do, and no tone leaves every context untouched', async () => {
+  const run = async toneId => {
+    const seen = [];
+    const subject = await coverageSetup(`Tone ${toneId ?? 'none'}`);
+    if (toneId) { const doc = await subject.repo.readMap(subject.created.mapPath); doc.toneId = toneId; await subject.repo.saveMap(subject.created.mapPath, doc); }
+    const base = subject.model.ask;
+    subject.flow = new AimManualFlow(subject.repo, new AimRunStore(subject.repo), async (context, ...rest) => {
+      seen.push({ phase: aimPhase(context, 'subtopic-research') ? 'research' : 'other', structured: !!context.aimContract, hasTone: 'toneText' in context, toneText: context.toneText });
+      return base(context, ...rest);
+    });
+    const question = (await subject.flow.planNextQuestion(subject.created.mapPath, subject.created.root.id, 'gpt-6-luna', 'low', 'tone-question')).node;
+    await subject.flow.answerAndResearch(subject.created.mapPath, question.id, { requestId: 'tone-answer', selections: [question.aimQuestion.options[0].id], freeText: 'Condition' }, 'gpt-6-luna', 'low');
+    return seen;
+  };
+  const withTone = await run('plain');
+  const research = withTone.filter(item => item.phase === 'research');
+  assert.ok(research.length > 0 && research.every(item => item.hasTone && /\S/.test(item.toneText)), 'subtopic research gets the tone');
+  assert.ok(withTone.filter(item => item.structured).every(item => !item.hasTone), 'contract calls never carry the tone');
+  assert.ok(!(await run(undefined)).some(item => item.hasTone), 'no tone: no context has the key');
+});

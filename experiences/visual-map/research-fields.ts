@@ -59,3 +59,19 @@ export function templateField(
   select.value = "";
   return () => select.value || undefined;
 }
+
+/** Writing tone select whose first option (empty value) is `defaultLabel`; returns the chosen preset id, or undefined when that first option is selected. */
+export function toneField(
+  parent: HTMLElement,
+  tones: { id: string; name: string }[],
+  defaultLabel: string
+): () => string | undefined {
+  const label = parent.createEl("label", { cls: "vam-field" });
+  label.createSpan({ text: t("ui.tone") });
+  const select = label.createEl("select");
+  select.setAttr("aria-label", t("ui.tone"));
+  select.createEl("option", { value: "", text: defaultLabel });
+  for (const tone of tones) select.createEl("option", { value: tone.id, text: tone.name });
+  select.value = "";
+  return () => select.value || undefined;
+}

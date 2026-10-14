@@ -1413,6 +1413,61 @@ integrationTest('synthesis and integrated topics save with the template', async 
   const contributed = await h.repo.readNote(created[0].path);
   assert.ok(contributed.detail.indexOf('### First part') < contributed.detail.indexOf('### Second part'), contributed.detail);
 });
+// Writing tone (B1): every TaskContext builder resolves chosen > topic override > map default > academic.
+const toneTexts = language => Object.fromEntries(load('ai/prompt-presets.ts').builtinPresets(language, 'tone').map(item => [item.id, item.text]));
+const { taskPrompt: renderTaskPrompt } = load('core/steps/task/render.ts');
+integrationTest('tone: runAgent resolves topic override > map default > academic and the prompt carries the tone block', async () => {
+  const tones = toneTexts('en');
+  const h = await templateHarness({ language: 'en', settings: { promptPresets: [{ id: 'mine', kind: 'tone', name: 'Mine', text: 'Write like a friendly neighbour.' }] } });
+  await h.run();
+  assert.equal('toneText' in h.contexts.at(-1), false, 'no tone: prompts unchanged');
+  h.doc.toneId = 'plain'; await h.run();
+  assert.equal(h.contexts.at(-1).toneText, tones.plain);
+  assert.ok(renderTaskPrompt(h.contexts.at(-1), 'en').includes(tones.plain), 'the rendered prompt contains the tone text');
+  await h.repo.updateNote(h.topic.path, { toneId: 'mine' }); await h.run();
+  assert.equal(h.contexts.at(-1).toneText, 'Write like a friendly neighbour.');
+  await h.repo.updateNote(h.topic.path, { toneId: 'academic' }); await h.run();
+  assert.equal('toneText' in h.contexts.at(-1), false, 'an explicit academic topic override beats the map default');
+  assert.ok(!renderTaskPrompt(h.contexts.at(-1), 'en').includes(tones.plain) && !renderTaskPrompt(h.contexts.at(-1), 'en').includes(tones.academic), 'academic adds no tone block');
+  await h.repo.updateNote(h.topic.path, { toneId: 'gone' }); await h.run();
+  assert.equal(h.contexts.at(-1).toneText, tones.plain, 'a deleted topic tone falls through to the map default');
+});
+integrationTest('tone: a dialog choice is recorded on the topic and used by that run (single and batch research)', async () => {
+  const tones = toneTexts('en');
+  const h = await templateHarness({ language: 'en' });
+  await h.view.researchChild(h.topic, new AbortController().signal, () => {}, { researchMode: 'local', researchDepth: 'fast', visualMode: 'off', referenceGroups: [], toneId: 'magazine' });
+  await until(() => !h.plugin.running.size);
+  assert.equal(h.contexts.at(-1).toneText, tones.magazine);
+  assert.equal((await h.repo.readNote(h.topic.path)).toneId, 'magazine');
+  await h.view.researchChild(h.topic, new AbortController().signal, () => {}, { researchMode: 'local', researchDepth: 'fast', visualMode: 'off', referenceGroups: [] });
+  await until(() => !h.plugin.running.size);
+  assert.equal(h.contexts.at(-1).toneText, tones.magazine, 'no choice keeps the topic tone');
+});
+integrationTest('tone: expansion, synthesis directions, draft and integrated topics all pass toneText', async () => {
+  const tones = toneTexts('en');
+  const reply = (_context, call) => call === 1
+    ? { summary: '', detail: '', visualReferences: [], suggestions: [{ title: 'Angle', task: 'Compare them', contribution: '', parentTitle: '' }] }
+    : { summary: 'Synth', detail: '### Core conclusions\n\nTwo', visualReferences: [], suggestions: [] };
+  const h = await templateHarness({ language: 'en', reply });
+  h.doc.toneId = 'summary';
+  const child = await h.repo.createNote('Child', 'model-a', h.doc, h.mapPath, 'workspace'); child.parentId = h.topic.id; h.doc.nodes.push(child); await h.repo.saveMap(h.mapPath, h.doc);
+  await h.repo.updateNote(h.topic.path, { status: 'completed' });
+  const options = () => ({ researchMode: 'local', researchDepth: 'normal', visualMode: 'off', referenceGroups: [] });
+  await h.view.startSynthesis(h.topic, options(), null, message => assert.fail(message), () => {});
+  assert.equal(h.contexts.at(-1).mode, 'synthesize');
+  assert.equal(h.contexts.at(-1).toneText, tones.summary, 'synthesis directions');
+  await h.view.startSynthesis(h.topic, options(), 'Compare them', message => assert.fail(message), () => {});
+  assert.equal(h.contexts.at(-1).toneText, tones.summary, 'synthesis draft');
+  await h.view.proposeChildren(h.topic, options(), '', () => {}, () => {}, false, () => {}, () => {});
+  assert.equal(h.contexts.at(-1).mode, 'decompose');
+  assert.equal(h.contexts.at(-1).toneText, tones.summary, 'expand');
+  const other = await h.repo.createNote('Other', 'model-a', h.doc, h.mapPath, 'workspace'); h.doc.nodes.push(other); await h.repo.saveMap(h.mapPath, h.doc);
+  await h.view.createIntegratedNode('Combined', [h.topic, other], 'Compare', '');
+  assert.equal(h.contexts.at(-1).toneText, tones.summary, 'multi-select integration uses the map tone');
+  delete h.doc.toneId; await h.repo.saveMap(h.mapPath, h.doc);
+  await h.view.createIntegratedNode('Plain', [h.topic, other], 'Compare', '');
+  assert.equal('toneText' in h.contexts.at(-1), false);
+});
 const countedTemplate = () => ({ id: 'K', name: 'Counted', sections: [templateSection('k0', 'Main'), templateSection('k1', 'Examples', { count: { mode: 'exact', n: 3 } })] });
 // Synthesis: call 1 proposes an angle, call 2 drafts; the draft is then saved (optionally edited) through the real save path.
 async function synthesisWithIssues({ settings, mapTemplate, draft }) {

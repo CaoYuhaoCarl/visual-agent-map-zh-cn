@@ -5,7 +5,9 @@ import { App, Component, MarkdownRenderer, Modal, Notice, Setting, TFile } from 
 import { ReferencePicker, type ReferenceTopic } from "../../ui/reference-picker";
 import { type ReferenceGroup } from "../../ai/reference-materials";
 import { DebugLogModal } from "../../ui/modals/debug-log-modal";
-import { modalActions } from "../../ui/modals/action-bar";
+import { armDiscard, modalActions } from "../../ui/modals/action-bar";
+
+export { armDiscard };
 import { clone, type MapDocument, parseMap, serializeMap } from "../../map-model";
 import {
   normalizeReasoningLevel,
@@ -19,7 +21,7 @@ import {
 } from "../../repository";
 import type { AiResult, Suggestion } from "../../ai/types";
 import { syncModelSelect } from "../../core/model-discovery";
-import { templateField } from "./research-fields";
+import { templateField, toneField } from "./research-fields";
 
 export type SynthesisContent = "full" | "summary";
 export interface TaskOptions {
@@ -39,6 +41,8 @@ export interface TaskOptions {
   childrenPerParent?: number;
   /** This run's explicit content template choice; recorded on the topic when given. */
   detailTemplateId?: string;
+  /** This run's explicit writing tone choice; recorded on the topic when given. */
+  toneId?: string;
 }
 export function renderSynthesisContent(parent: HTMLElement, topics: string[]): HTMLSelectElement {
   const label = parent.createEl("label", { cls: "vam-field" });
@@ -339,6 +343,9 @@ export class NextStepModal extends Modal {
       synthesisPending?: { directions: Suggestion[]; discard: () => void };
       templates?: { id: string; name: string }[];
       currentTemplate?: string;
+      tones?: { id: string; name: string }[];
+      /** Name of the tone the topic resolves to today (shown as the "keep" option). */
+      currentTone?: string;
       /** The topic's research state and how many of its direct children are researched, for the suggested mode. */
       topicStatus?: "idea" | "running" | "completed" | "error";
       childrenCompleted?: number;
@@ -882,6 +889,7 @@ export class NextStepModal extends Modal {
           visualMode: selected?.imageSearch ? "auto" : "off",
           requirements: this.requirements(),
           ...(templateId() ? { detailTemplateId: templateId() } : {}),
+          ...(toneId() ? { toneId: toneId() } : {}),
           signal: controller.signal,
           onProgress: message => {
             if (!this.closed && !controller.signal.aborted)
@@ -1104,6 +1112,7 @@ export class NextStepModal extends Modal {
             researchDepth: "fast",
             visualMode: shallow.checked && selected?.imageSearch ? "auto" : "off",
             ...(templateId() ? { detailTemplateId: templateId() } : {}),
+            ...(toneId() ? { toneId: toneId() } : {}),
             signal: this.taskSignal,
             onProgress: message => expandPanel.querySelector<HTMLElement>(".vam-next-status")?.setText(message)
           };
@@ -1231,6 +1240,7 @@ export class NextStepModal extends Modal {
               researchDepth: this.depth,
               visualMode: selected?.imageSearch ? "auto" : "off",
               ...(templateId() ? { detailTemplateId: templateId() } : {}),
+              ...(toneId() ? { toneId: toneId() } : {}),
               signal,
               onProgress: message => synthStatus.setText(message)
             };
@@ -1281,12 +1291,21 @@ export class NextStepModal extends Modal {
       this.modelSettings?.templates ?? [],
       t("ui.detail_template_keep_0", this.modelSettings?.currentTemplate ?? "")
     );
+    const toneId = toneField(
+      compactSettings,
+      this.modelSettings?.tones ?? [],
+      t("ui.tone_keep_0", this.modelSettings?.currentTone ?? "")
+    );
     const describeOutput = (): void => {
       const picked = templateId();
       const template = picked
         ? this.modelSettings?.templates?.find(item => item.id === picked)?.name
         : this.modelSettings?.currentTemplate;
-      outputValue.setText([supportedLanguageLabel(languageSelect.value), template].filter(Boolean).join(" · "));
+      const pickedTone = toneId();
+      const tone = pickedTone
+        ? this.modelSettings?.tones?.find(item => item.id === pickedTone)?.name
+        : this.modelSettings?.currentTone;
+      outputValue.setText([supportedLanguageLabel(languageSelect.value), template, tone].filter(Boolean).join(" · "));
     };
     languageSelect.addEventListener("change", describeOutput);
     // The template select is built by a shared helper; its change bubbles up here.
@@ -1415,41 +1434,6 @@ export function renderProposalList(
       }));
     }
   };
-}
-/**
- * A discard button that asks once more: the first press arms it for five seconds and explains that the
- * work cannot be recovered; only a second press runs `discard`. Returns a function that cancels the timer.
- */
-export function armDiscard(
-  button: HTMLButtonElement,
-  status: HTMLElement,
-  discard: () => void,
-  blocked: () => boolean = () => false
-): () => void {
-  const label = button.textContent ?? "";
-  let timer = 0;
-  const disarm = (): void => {
-    window.clearTimeout(timer);
-    timer = 0;
-    button.setText(label);
-    button.removeClass("mod-warning");
-  };
-  button.addEventListener("click", () => {
-    if (blocked()) return;
-    if (timer) {
-      disarm();
-      discard();
-      return;
-    }
-    timer = window.setTimeout(() => {
-      disarm();
-      status.setText("");
-    }, 5000);
-    button.setText(t("ui.discard_confirm"));
-    button.addClass("mod-warning");
-    status.setText(t("ui.discard_confirm_hint"));
-  });
-  return disarm;
 }
 /** A fixed action bar below the scrolling content, shared by the review dialogs. */
 function reviewActions(modal: Modal): HTMLDivElement {
