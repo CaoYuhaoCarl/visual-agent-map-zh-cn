@@ -4,27 +4,21 @@ import additionalResearch from "./additional-research.md";
 import noMappedSource from "./no-mapped-source.md";
 
 export interface WritingTaskVariables {
-  heading: string;
-  purpose: string;
   outline: string;
   knownConditions: string;
-  scopedEvidence: string;
-  /** The research report for this section, or undefined when the section needs no search. */
-  scopedResearch?: string;
+  evidence: string;
+  /** The final-document research report, or undefined when the outline needs no search. */
+  research?: string;
 }
-/** Task text of `aim.delivery-writing`: write one section from its mapped evidence. */
+/** Task text of `aim.delivery-writing`: write the whole document in one call, so its sections cannot repeat each other. */
 export const renderWritingTask = (variables: WritingTaskVariables): string =>
   renderTemplate(template, {
-    heading: variables.heading,
-    purpose: variables.purpose,
     outline: variables.outline,
     knownConditions: variables.knownConditions,
-    scopedEvidence: variables.scopedEvidence,
+    evidence: variables.evidence,
     additionalResearch:
-      variables.scopedResearch === undefined
-        ? ""
-        : renderTemplate(additionalResearch, { research: variables.scopedResearch })
+      variables.research === undefined ? "" : renderTemplate(additionalResearch, { research: variables.research })
   });
 
-/** Evidence text of a section that no supplied source is mapped to, while other sources exist. */
+/** Evidence text of a document that no supplied source is mapped to, while other sources exist. */
 export const NO_MAPPED_SOURCE = renderTemplate(noMappedSource, {});

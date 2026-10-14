@@ -7,6 +7,8 @@ import outcomeExpectationRule from "./outcome-expectation-rule.md";
 import evidenceLookupRule from "./evidence-lookup-rule.md";
 import evidenceLookupFieldRule from "./evidence-lookup-field-rule.md";
 import evidenceLookupFollowup from "./evidence-lookup-followup.md";
+import evidenceLookupUnavailable from "./evidence-lookup-unavailable.md";
+import openItemsContext from "./open-items-context.md";
 import topicRootAnswer from "./topic-root-answer.md";
 import passageReference from "./passage-reference.md";
 import reuseTargetExpectedValue from "./reuse-target-expected-value.md";
@@ -32,6 +34,10 @@ export const REUSE_TARGET_EXPECTED_VALUE = text(reuseTargetExpectedValue);
 export const REUSE_TARGET_VALIDITY_REASON = text(reuseTargetValidityReason);
 /** Replaces a long passage that already appears elsewhere in the same request. */
 export const PASSAGE_REFERENCE = text(passageReference);
+/** Stands in for the evidence when a lookup named no ID the phase may read; the phase then answers from its summaries. */
+export const EVIDENCE_LOOKUP_UNAVAILABLE = text(evidenceLookupUnavailable);
+/** Unverified gaps a conclusion carries into the delivery context for the user to confirm. */
+export const renderOpenItemsContext = (openItems: string): string => renderTemplate(openItemsContext, { openItems });
 /** Appends the full text of the evidence a phase asked to look up to that phase's own task. */
 export const renderEvidenceLookupFollowup = (task: string, evidence: string): string =>
   renderTemplate(evidenceLookupFollowup, { task, evidence });

@@ -108,7 +108,7 @@ integrationTest('AIM removes duplicated topic context and rejects oversized prom
   assert.ok(acceptedContext.task.includes(duplicatedDetail), 'deduplication preserves the full topic detail in the task');
 
   const oversizedMap = await createAimMap(repo, 'gpt-6-luna', { requestId: 'aim-context-oversized', topic: 'Synthetic oversized context', context: '' });
-  const completeGoal = 'G'.repeat(112_000);
+  const completeGoal = 'G'.repeat(240_000);
   await repo.updateNote(oversizedMap.root.path, { detail: completeGoal });
   let modelCalls = 0;
   const oversizedFlow = new AimManualFlow(repo, new (load('experiences/aim/research-run-store.ts').AimRunStore)(repo), async () => {

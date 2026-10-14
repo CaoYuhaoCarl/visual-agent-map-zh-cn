@@ -30,7 +30,9 @@ import {
 } from "./research-plan";
 import { scheduleAimResearch } from "./research-scheduler";
 import {
+  EVIDENCE_LOOKUP_UNAVAILABLE,
   renderEvidenceLookupFollowup,
+  renderOpenItemsContext,
   REUSE_TARGET_EXPECTED_VALUE,
   REUSE_TARGET_VALIDITY_REASON,
   TOPIC_ROOT_ANSWER
@@ -58,6 +60,7 @@ import {
   normalizePersistedAnswerOptions,
   parseAimResearchPlan,
   ResearchWorkflowInterrupted,
+  SubtopicSearchUnavailable,
   ReuseEvidenceRejected,
   type AimAskModel,
   type PlannerQuestionResult,
@@ -78,7 +81,7 @@ import {
   renderSavedTerminalQuestionTask
 } from "./steps/initial-question/step";
 import { renderEvidenceReuseAuditTask } from "./steps/evidence-reuse-audit/step";
-import { renderResearchPlanTask } from "./steps/research-plan/step";
+import { FALLBACK_TARGET_VALUE, renderFallbackTargetTask, renderResearchPlanTask } from "./steps/research-plan/step";
 import { renderResearchPlanRepairTask } from "./steps/research-plan-repair/step";
 import { renderSubtopicResearchTask } from "./steps/subtopic-research/step";
 import { renderResearchGapAuditTask } from "./steps/research-gap-audit/step";
@@ -119,6 +122,17 @@ function noteStopReason(
   return recorded;
 }
 
+/** Estimated tokens one AIM request may carry; larger requests fail whole instead of dropping goal or evidence. */
+const AIM_REQUEST_TOKEN_LIMIT = 60_000;
+/** Marker the visual map appends to the topic detail once the intake clarification is done. */
+const AIM_INTAKE_COMPLETE = "<!-- aim-intake-complete -->";
+/** With the intake checklist, one answered question can precede a conclusion. */
+const CHECKLIST_FLOOR = 1;
+/** The runtime's translated "provider did not run web search" error, in either interface language. */
+const SEARCH_NOT_PERFORMED = /did not perform web search|沒有實際執行網路搜尋/;
+/** With the intake checklist, after this many answers what is still unknown becomes an assumption to confirm. */
+const CHECKLIST_QUESTION_LIMIT = 5;
+
 export class AimManualFlow {
   private readonly evidenceReports = new Map<string, { path: string; hash: string }>();
   private readonly answerRuns = new Map<string, { fingerprint: string; promise: Promise<ManualResearchResult> }>();
@@ -147,6 +161,34 @@ export class AimManualFlow {
   /** The only exit acceptGapAtBudget changes: a research_more left at the last turn is saved partial unless accepted. */
   private budgetExitStatus(decision: string): "partial" | "completed" {
     return decision === "research_more" && !this.limits.acceptGapAtBudget ? "partial" : "completed";
+  }
+
+  /**
+   * Answered questions required before a conclusion. Once the intake checklist ran (its marker is in the goal
+   * detail), conclusion waits on unresolved decision-changing conditions instead of a question count.
+   */
+  private floorFor(goalDetail: string): number {
+    return goalDetail.includes(AIM_INTAKE_COMPLETE)
+      ? Math.min(CHECKLIST_FLOOR, this.limits.minAnsweredBeforeConclusion)
+      : this.limits.minAnsweredBeforeConclusion;
+  }
+
+  /**
+   * A gap that would not change the advice, or that is still open when the research budget is spent, becomes an
+   * open item of a conditional conclusion: the document states it for the user to confirm instead of stopping.
+   */
+  private withOpenItems(review: PlannerReview, language: UiLanguage): PlannerReview {
+    const openItems = [...(review.openItems ?? []), ...(review.researchTarget ? [review.researchTarget] : [])];
+    return {
+      decision: "conclude",
+      rationale: review.rationale,
+      stopReason: translate(language, "note.aim_open_items_stop_0", openItems.map(item => item.title).join("; ")),
+      ...(review.goalAnswered !== undefined ? { goalAnswered: review.goalAnswered } : {}),
+      ...(review.unresolvedConditions ? { unresolvedConditions: review.unresolvedConditions } : {}),
+      openItems,
+      summary: review.summary,
+      detail: review.detail
+    };
   }
 
   /**
@@ -249,7 +291,7 @@ export class AimManualFlow {
       deduplicated.workingFindings,
       deduplicated.sourceContext
     ].reduce((sum, value) => sum + estimateTokens(value), 0);
-    if (requestTokens > 28_000)
+    if (requestTokens > AIM_REQUEST_TOKEN_LIMIT)
       throw new Error(
         `AIM model request is too large (${requestTokens} estimated tokens); no goal, condition, or evidence was discarded.`
       );
@@ -266,26 +308,32 @@ export class AimManualFlow {
         ?.map(line => line.slice(13)) ?? []
     );
     const available = new Set((context.aimEvidenceIds ?? []).filter(id => visibleIds.has(id)));
-    if (
-      !Array.isArray(ids) ||
-      !ids.length ||
-      ids.length > 3 ||
-      ids.some(id => typeof id !== "string" || !available.has(id) || !this.evidenceReports.has(id))
-    )
-      throw new Error("Invalid AIM evidence lookup; no decision was saved.");
-    const evidence = (
-      await Promise.all(
-        [...new Set(ids as string[])].map(async id => {
-          const ref = this.evidenceReports.get(id)!;
-          const note = await this.repository.readNote(ref.path);
-          if (createHash("sha256").update(note.detail).digest("hex") !== ref.hash)
-            throw new Error("AIM evidence changed after indexing; retry with the updated report.");
-          return `Evidence ID: ${id}\nFull report:\n${note.detail}`;
-        })
-      )
-    ).join("\n\n");
+    // Only IDs this phase may read are loaded (at most three); an unreadable ID is never read, and a lookup that
+    // names none gets one answer from the summaries instead of failing the whole run.
+    const readable = Array.isArray(ids)
+      ? [
+          ...new Set(
+            ids.filter(
+              (id): id is string => typeof id === "string" && available.has(id) && this.evidenceReports.has(id)
+            )
+          )
+        ].slice(0, 3)
+      : [];
+    const evidence = readable.length
+      ? (
+          await Promise.all(
+            readable.map(async id => {
+              const ref = this.evidenceReports.get(id)!;
+              const note = await this.repository.readNote(ref.path);
+              if (createHash("sha256").update(note.detail).digest("hex") !== ref.hash)
+                throw new Error("AIM evidence changed after indexing; retry with the updated report.");
+              return `Evidence ID: ${id}\nFull report:\n${note.detail}`;
+            })
+          )
+        ).join("\n\n")
+      : EVIDENCE_LOOKUP_UNAVAILABLE;
     throwIfAborted(signal);
-    if (requestTokens + estimateTokens(evidence) > 28_000)
+    if (requestTokens + estimateTokens(evidence) > AIM_REQUEST_TOKEN_LIMIT)
       throw new Error("Requested evidence exceeds the context budget; no evidence was truncated or conclusion saved.");
     const loaded = await this.askModel(
       {
@@ -299,8 +347,13 @@ export class AimManualFlow {
       onWebSearchEvent
     );
     throwIfAborted(signal);
-    if (/<!--\s*aim-evidence-request/.test(loaded.detail))
-      throw new Error("AIM evidence lookup limit reached; no conclusion was saved.");
+    // The one lookup is spent: a second request is dropped and the rest of the reply is used. A reply that is only a
+    // request has nothing to use.
+    if (/<!--\s*aim-evidence-request/.test(loaded.detail)) {
+      const detail = loaded.detail.replace(/<!--\s*aim-evidence-request\s+[^\n]*?-->\s*/g, "").trim();
+      if (!detail) throw new Error("AIM evidence lookup limit reached; no conclusion was saved.");
+      return { ...loaded, detail };
+    }
     return loaded;
   }
 
@@ -497,8 +550,43 @@ export class AimManualFlow {
     return { ...repaired, summary: candidate.summary, detail: body };
   }
 
-  /** One bounded, no-search semantic check for every Planner decision. */
+  /**
+   * One bounded, no-search semantic check for every Planner decision. A result that still asks the user past the
+   * checklist question limit, or a gap that would not change the advice (including one the final delivery review
+   * returns), gets one more pass as a conclusion with that item open for the user to confirm.
+   */
   private async reviewPlannerDecisionQuality(
+    candidate: PlannerReview,
+    context: PlannerQualityContext,
+    model: string,
+    reasoning: unknown,
+    signal?: AbortSignal
+  ): Promise<PlannerReview> {
+    const reviewed = await this.reviewDecisionOnce(candidate, context, model, reasoning, signal);
+    const pastLimit =
+      context.goalDetail.includes(AIM_INTAKE_COMPLETE) && context.answeredQuestionCount >= CHECKLIST_QUESTION_LIMIT;
+    const asksUser =
+      reviewed.decision === "ask_user" || (reviewed.decision === "research_more" && reviewed.gapKind === "user_only");
+    if (!(pastLimit && asksUser) && !(reviewed.decision === "research_more" && reviewed.gapKind === "not_decisive"))
+      return reviewed;
+    throwIfAborted(signal);
+    return this.reviewDecisionOnce(this.limitToOpenItems(reviewed, context), context, model, reasoning, signal);
+  }
+
+  /** A question or a user-only/not-decisive gap becomes a conclusion that lists it for the user to confirm. */
+  private limitToOpenItems(review: PlannerReview, context: PlannerQualityContext): PlannerReview {
+    return review.decision === "ask_user" && review.question
+      ? this.withOpenItems(
+          {
+            ...review,
+            researchTarget: { title: review.question, task: review.rationale, expectedValue: review.question }
+          },
+          context.outputLanguage
+        )
+      : this.withOpenItems(review, context.outputLanguage);
+  }
+
+  private async reviewDecisionOnce(
     candidate: PlannerReview,
     context: PlannerQualityContext,
     model: string,
@@ -523,11 +611,38 @@ export class AimManualFlow {
       visualMode: "off",
       signal
     };
-    let reviewed = candidate;
+    let reviewed =
+      candidate.decision === "research_more" && candidate.gapKind === "not_decisive"
+        ? this.withOpenItems(candidate, context.outputLanguage)
+        : candidate;
+    // Question limit of the checklist: past it, a new question or a gap only the user can close becomes an
+    // assumption the document lists for the user to confirm, so the run ends with an answer instead of more questions.
+    const checklist = context.goalDetail.includes(AIM_INTAKE_COMPLETE);
+    if (checklist && context.answeredQuestionCount >= CHECKLIST_QUESTION_LIMIT) {
+      if (
+        (reviewed.decision === "ask_user" && reviewed.question) ||
+        (reviewed.decision === "research_more" && reviewed.gapKind === "user_only")
+      )
+        reviewed = this.limitToOpenItems(reviewed, context);
+      if (reviewed.decision === "conclude" && reviewed.unresolvedConditions?.length)
+        reviewed = {
+          ...reviewed,
+          unresolvedConditions: [],
+          openItems: [
+            ...(reviewed.openItems ?? []),
+            ...reviewed.unresolvedConditions.map(condition => ({
+              title: condition,
+              task: reviewed.rationale,
+              expectedValue: condition
+            }))
+          ]
+        };
+    }
     const repeatsKnownQuestion = context.questionHistory.some(
       question => question.trim().toLocaleLowerCase() === reviewed.question?.trim().toLocaleLowerCase()
     );
-    const belowFloor = context.answeredQuestionCount < this.limits.minAnsweredBeforeConclusion;
+    const floor = this.floorFor(context.goalDetail);
+    const belowFloor = context.answeredQuestionCount < floor;
     // Below the floor, research on an already answered goal cannot satisfy the floor; only a user question can.
     const researchesAnsweredGoal =
       belowFloor && reviewed.decision === "research_more" && reviewed.goalAnswered === true;
@@ -540,7 +655,7 @@ export class AimManualFlow {
       const correctionTask = renderBelowFloorReviewTask({
         userQuestionRule: USER_QUESTION_RULE,
         answeredQuestionCount: context.answeredQuestionCount,
-        minimumAnswers: this.limits.minAnsweredBeforeConclusion,
+        minimumAnswers: floor,
         goal: context.goal,
         goalDetail: context.goalDetail,
         conditions: context.conditions,
@@ -576,7 +691,7 @@ export class AimManualFlow {
             context.outputLanguage,
             "note.aim_below_floor_rationale_0_1",
             context.answeredQuestionCount,
-            this.limits.minAnsweredBeforeConclusion
+            floor
           )
         },
         correctionContext,
@@ -641,7 +756,39 @@ export class AimManualFlow {
           "AIM could not replace research on an already answered goal with a conclusion or a new question; the result was not committed."
         );
     }
+    // The checklist gate: a conclusion that still names an unknown decision-changing condition asks about it first.
+    // If that question would repeat one already asked, the user could not settle it, so the conclusion keeps the
+    // condition as an assumption to confirm instead.
+    const unresolved = checklist && reviewed.decision === "conclude" ? (reviewed.unresolvedConditions ?? []) : [];
+    if (unresolved.length) {
+      const rationale = translate(context.outputLanguage, "note.aim_unresolved_conditions_0", unresolved.join("; "));
+      try {
+        reviewed = await this.requireUserConditionQuestion(
+          reviewed,
+          context,
+          { classification: "user_condition", rationale },
+          model,
+          reasoning,
+          signal,
+          false
+        );
+      } catch (error) {
+        throwIfAborted(signal);
+        if (!(error instanceof Error) || !/repeating a prior question/.test(error.message)) throw error;
+        reviewed = {
+          ...reviewed,
+          unresolvedConditions: [],
+          openItems: [
+            ...(reviewed.openItems ?? []),
+            ...unresolved.map(condition => ({ title: condition, task: rationale, expectedValue: condition }))
+          ]
+        };
+      }
+    }
     if (reviewed.decision === "conclude") {
+      const openItems = (reviewed.openItems ?? [])
+        .map(item => `- ${item.title}: ${item.task} (${item.expectedValue})`)
+        .join("\n");
       const deliveryContext: AimTaskContext = {
         ...taskContext,
         ...(context.toneText ? { toneText: context.toneText } : {}),
@@ -649,7 +796,7 @@ export class AimManualFlow {
         summary: "",
         task: "",
         ancestors: "",
-        detail: `Original user goal: ${context.goal}\nUser background and requested outcome: ${context.goalDetail}\nKnown conditions: ${JSON.stringify(context.conditions)}\nCurrent answer: ${context.currentAnswer}\nEarlier answers: ${uniqueLineage}\nPrior research:\n${context.reportDetail}`
+        detail: `Original user goal: ${context.goal}\nUser background and requested outcome: ${context.goalDetail}\nKnown conditions: ${JSON.stringify(context.conditions)}\nCurrent answer: ${context.currentAnswer}\nEarlier answers: ${uniqueLineage}\nPrior research:\n${context.reportDetail}${openItems ? `\n${renderOpenItemsContext(openItems)}` : ""}`
       };
       let checkpoint = context.deliveryRecovery?.checkpoint ?? {};
       let phase = context.deliveryRecovery?.phase;
@@ -668,9 +815,11 @@ export class AimManualFlow {
             currentQuestion: context.currentQuestion,
             currentAnswer: context.currentAnswer,
             earlierAnswers: context.lineage.split("\n").filter(line => line.startsWith("User answer to ")),
+            ...(openItems ? { unverifiedItemsToConfirmWithUser: openItems } : {}),
             model,
             reasoning
           }),
+          ...(openItems ? { openItems } : {}),
           onPhase: async current => {
             phase = current;
             await context.saveDeliveryRecovery?.(checkpoint, phase);
@@ -702,7 +851,17 @@ export class AimManualFlow {
       if (final.decision === "research_more") this.deliveryRejections.add(final);
       reviewed = final;
     }
-    if (reviewed.decision === "research_more") {
+    if (reviewed.decision === "research_more" && reviewed.gapKind === "user_only")
+      return this.requireUserConditionQuestion(
+        reviewed,
+        context,
+        { classification: "user_condition", rationale: reviewed.rationale },
+        model,
+        reasoning,
+        signal
+      );
+    // The review names who can close the gap; only a legacy response without gapKind still needs the gap audit.
+    if (reviewed.decision === "research_more" && !reviewed.gapKind) {
       const alreadyClassified =
         context.preclassifiedResearchTarget &&
         JSON.stringify(context.preclassifiedResearchTarget) === JSON.stringify(reviewed.researchTarget);
@@ -846,6 +1005,7 @@ export class AimManualFlow {
     const questionHistory = await this.questionHistory(map, branch.id);
     const explorationTarget = map.aim?.minimumAnswersBeforeConclusion ?? 2;
     const answeredQuestionCount = this.answerCountInLineage(map, branch.id);
+    const floor = this.floorFor(topic.detail);
     const model = diagnostic.model || priorAttempt.model || "gpt-6-luna";
     const taskDefaults: TaskContext = {
       timeoutMs: branch.retryTimeoutMs,
@@ -909,7 +1069,7 @@ export class AimManualFlow {
           floorAskRule: FLOOR_ASK_RULE,
           userQuestionRule: USER_QUESTION_RULE,
           answeredQuestionCount,
-          minimumAnswers: this.limits.minAnsweredBeforeConclusion,
+          minimumAnswers: floor,
           explorationTarget,
           goal: topic.title,
           question: parent.summary,
@@ -934,7 +1094,7 @@ export class AimManualFlow {
           researchDepth: "fast" as const,
           visualMode: "off" as const,
           detailFormat: "adaptive" as const,
-          aimContract: reviewContract(floorDecisions(answeredQuestionCount, this.limits)),
+          aimContract: reviewContract(floorDecisions(answeredQuestionCount, { minAnsweredBeforeConclusion: floor })),
           signal
         };
         const planner = await this.askAimModel(plannerContext, model, reasoning, signal);
@@ -1249,6 +1409,7 @@ export class AimManualFlow {
         }
       : undefined;
     const answeredQuestionCount = this.answerCountInLineage(map, branch.id);
+    const floor = this.floorFor(topicNote.detail);
     const explorationTarget = map.aim?.minimumAnswersBeforeConclusion ?? 2;
     const questionsAlreadyAsked = await this.questionHistory(map, branch.id);
     const modelToUse = model?.trim() || priorAttempt.model || "gpt-6-luna";
@@ -1442,7 +1603,7 @@ export class AimManualFlow {
           floorAskRule: FLOOR_ASK_RULE,
           userQuestionRule: USER_QUESTION_RULE,
           answeredQuestionCount,
-          minimumAnswers: this.limits.minAnsweredBeforeConclusion,
+          minimumAnswers: floor,
           explorationTarget,
           questionsAlreadyAsked,
           goal: topicNote.title,
@@ -1468,7 +1629,7 @@ export class AimManualFlow {
           researchDepth: "fast" as const,
           visualMode: "off" as const,
           detailFormat: "adaptive" as const,
-          aimContract: reviewContract(floorDecisions(answeredQuestionCount, this.limits)),
+          aimContract: reviewContract(floorDecisions(answeredQuestionCount, { minAnsweredBeforeConclusion: floor })),
           signal
         };
         const planner = await this.askAimModel(plannerContext, modelToUse, reasoningToUse, signal);
@@ -1814,6 +1975,7 @@ export class AimManualFlow {
     const lineage = await this.branchLineage(map, parentBranchId);
     const explorationTarget = state.minimumAnswersBeforeConclusion ?? 2;
     const answeredQuestionCount = this.answerCountInLineage(map, parentBranchId);
+    const floor = this.floorFor(mother.detail);
     const priorQuestions = await this.questionHistory(map, parentBranchId);
     const savedConditions: { branchId: string; conditions: Record<string, string> }[] = [];
     let conditionBranch = parentBranch;
@@ -1858,7 +2020,7 @@ export class AimManualFlow {
       motherNode && motherNode.id !== parentNode.id ? { title: mother.title, detail: mother.detail } : undefined;
     const questionVars = {
       userQuestionRule: USER_QUESTION_RULE,
-      minimumAnswers: this.limits.minAnsweredBeforeConclusion,
+      minimumAnswers: floor,
       answeredQuestionCount,
       explorationTarget,
       currentTopic: { title: parent.title, summary: parent.summary, detail: parent.detail },
@@ -1869,7 +2031,7 @@ export class AimManualFlow {
       ? renderSavedTerminalQuestionTask({ ...questionVars, savedConditions, knownQuestions })
       : renderInitialQuestionTask(questionVars);
     // Below the floor, or when the user explicitly asked for a new question, the schema itself forbids skipping.
-    const requireQuestion = isSavedTerminalResult || answeredQuestionCount < this.limits.minAnsweredBeforeConclusion;
+    const requireQuestion = isSavedTerminalResult || answeredQuestionCount < floor;
     const context: AimTaskContext = {
       aimEvidenceIds: this.lineageEvidenceIds(map, parentBranchId),
       title: parent.title,
@@ -1893,15 +2055,11 @@ export class AimManualFlow {
       throw new Error(
         "Planner must create a new question from this saved result; no conclusion or no-question response is allowed."
       );
-    if (
-      !isSavedTerminalResult &&
-      result.summary.trim() === AIM_NO_QUESTION &&
-      answeredQuestionCount < this.limits.minAnsweredBeforeConclusion
-    ) {
+    if (!isSavedTerminalResult && result.summary.trim() === AIM_NO_QUESTION && answeredQuestionCount < floor) {
       const previousQuestions = await this.questionHistory(map, parentBranchId);
       const correctionPrompt = renderQuestionCorrectionTask({
         answeredQuestionCount,
-        minimumAnswers: this.limits.minAnsweredBeforeConclusion,
+        minimumAnswers: floor,
         originalTopic: { title: parent.title, summary: parent.summary, detail: parent.detail },
         mother: motherGoal,
         previousQuestions,
@@ -1934,7 +2092,7 @@ export class AimManualFlow {
       throw new Error(
         "Planner repeated an existing question instead of creating a new question from the saved result."
       );
-    if (!isSavedTerminalResult && answeredQuestionCount < this.limits.minAnsweredBeforeConclusion) {
+    if (!isSavedTerminalResult && answeredQuestionCount < floor) {
       if (
         priorQuestions.some(
           question => question.trim().toLocaleLowerCase() === result.summary.trim().toLocaleLowerCase()
@@ -2600,10 +2758,18 @@ export class AimManualFlow {
           if (!(error instanceof ReuseEvidenceRejected)) throw error;
         }
       }
+      // An empty plan with nothing reusable still needs evidence: research the current answer instead of failing.
       if (!reusable.length)
-        throw new Error(
-          "An empty research plan requires usable ancestor evidence; at least one research target is needed."
-        );
+        return validateAimResearchPlan([
+          {
+            id: "current-answer-evidence",
+            title: parent.summary || topicNote.title,
+            task: renderFallbackTargetTask(answerDescription),
+            expectedValue: FALLBACK_TARGET_VALUE,
+            action: "research",
+            dependsOn: []
+          }
+        ]);
       return validateAimResearchPlan(reusable);
     };
 
@@ -2672,9 +2838,11 @@ export class AimManualFlow {
       executionPlan = await materializeExistingEvidence();
       await this.persist(() => this.runs.saveResearchPlan(mapPath, branchId, executionPlan));
     }
-    let scheduled: Map<string, SubtopicReport>;
+    // null: that subtopic's web search failed; the round continues on the other reports.
+    let scheduled: Map<string, SubtopicReport | null>;
+    let searchFailure: Error | undefined;
     try {
-      scheduled = await scheduleAimResearch<SubtopicReport>(
+      scheduled = await scheduleAimResearch<SubtopicReport | null>(
         executionPlan,
         async (target, predecessors, taskSignal) => {
           throwIfAborted(taskSignal);
@@ -2744,6 +2912,7 @@ export class AimManualFlow {
               }
             }
             const dependencyReports = [...predecessors]
+              .filter((entry): entry is [string, SubtopicReport] => entry[1] !== null)
               .map(
                 ([id, report]) =>
                   `Prerequisite ${id} (${report.title}), actual completed report:\n${report.summary}\n\n${report.detail}`
@@ -2833,7 +3002,7 @@ export class AimManualFlow {
             )
               throw new ResearchWorkflowInterrupted("stale");
             if (reportedSearchFailure(result))
-              throw new Error(
+              throw new SubtopicSearchUnavailable(
                 "The Agent explicitly says no web search succeeded; the report remains an unpublished diagnostic."
               );
             if (reuse) await this.verifyResearchSource(mapPath, branchId, target);
@@ -2867,6 +3036,14 @@ export class AimManualFlow {
             } catch {
               /* Preserve the original research error. */
             }
+            const searchSkipped =
+              error instanceof SubtopicSearchUnavailable ||
+              // Read the message without instanceof: the runtime's error may come from another realm.
+              SEARCH_NOT_PERFORMED.test(String((error as { message?: unknown } | null)?.message ?? error));
+            if (searchSkipped && !taskSignal.aborted) {
+              searchFailure = error;
+              return null;
+            }
             throw error;
           } finally {
             this.runs.releaseAttempt(mapPath, handle);
@@ -2879,13 +3056,18 @@ export class AimManualFlow {
       if (error instanceof ResearchWorkflowInterrupted) return { status: error.status, branchId };
       throw error;
     }
-    const reports = executionPlan.map(target => scheduled.get(target.id)!);
+    const reports = executionPlan
+      .map(target => scheduled.get(target.id))
+      .filter((report): report is SubtopicReport => !!report);
+    // Every search failed: there is no evidence to review, so the round fails with the search error.
+    if (!reports.length && searchFailure) throw searchFailure;
     if (!reports.length) throw new Error("AIM requires at least one usable evidence report before terminal review.");
     throwIfAborted(signal);
     map = await this.repository.readMap(mapPath);
     branch = map.aim?.branches.find(item => item.id === branchId);
     if (!branch) throw new Error("AIM answer branch disappeared before synthesis.");
     const answeredQuestionCount = this.answerCountInLineage(map, branch.id);
+    const floor = this.floorFor(topicNote.detail);
     const explorationTarget = map.aim?.minimumAnswersBeforeConclusion ?? 2;
     const existingConclusion = [...branch.results]
       .reverse()
@@ -2995,6 +3177,7 @@ export class AimManualFlow {
             };
       let synthesisDraftId: string | undefined;
       let finalReview: ReturnType<typeof parseAimPlannerReview> | undefined;
+      let lastQualityContext: PlannerQualityContext | undefined;
       const resumeTurn = resumeDelivery?.researchTurn ?? 1;
       if (resumeTurn === 2) await this.persist(() => this.runs.recordResearchTurn(mapPath, synthesisHandle));
       for (let researchTurn = resumeTurn; researchTurn <= this.limits.maxResearchTurns; researchTurn++) {
@@ -3005,7 +3188,7 @@ export class AimManualFlow {
           userQuestionRule: USER_QUESTION_RULE,
           floorAskRule: FLOOR_ASK_RULE,
           answeredQuestionCount,
-          minimumAnswers: this.limits.minAnsweredBeforeConclusion,
+          minimumAnswers: floor,
           explorationTarget,
           questionsAlreadyAsked,
           currentQuestion: parent.summary,
@@ -3019,7 +3202,7 @@ export class AimManualFlow {
           detail: `${contextBase.detail}\n\nPersisted research reports:\n${currentReports.summary}\n\n${currentReports.detail}`,
           task: plannerPrompt,
           detailFormat: "adaptive" as const,
-          aimContract: reviewContract(floorDecisions(answeredQuestionCount, this.limits))
+          aimContract: reviewContract(floorDecisions(answeredQuestionCount, { minAnsweredBeforeConclusion: floor }))
         };
         const fingerprint = sourceFingerprint;
         const savedRecovery = resumeDelivery;
@@ -3038,46 +3221,65 @@ export class AimManualFlow {
           reasoning,
           signal
         );
+        lastQualityContext = {
+          goal: topicNote.title,
+          goalDetail: topicNote.detail,
+          outputLanguage: language,
+          toneText: this.toneOf(map, language),
+          conditions: branch.inputSnapshot.conditions,
+          currentQuestion: parent.summary,
+          currentAnswer: answerDescription,
+          answeredQuestionCount,
+          questionHistory: questionsAlreadyAsked,
+          lineage: lineageContext,
+          evidenceIds: contextBase.aimEvidenceIds,
+          reportSummary: currentReports.summary,
+          reportDetail: currentReports.detail,
+          timeoutMs: branch.retryTimeoutMs,
+          deliveryRecovery: savedRecovery ?? sectionRecovery,
+          deliveryEvidence: deliveryEvidence(),
+          setPhase: phase => this.persist(() => this.runs.recordPhase(mapPath, synthesisHandle, phase)),
+          saveDeliveryRecovery: async (checkpoint, phase) => {
+            throwIfAborted(signal);
+            await this.persist(() =>
+              this.runs.saveDeliveryRecovery(mapPath, synthesisHandle, {
+                fingerprint,
+                planner: synthesis,
+                checkpoint,
+                phase,
+                reports: currentReports,
+                researchTurn,
+                evidence: deliveryEvidence()
+              })
+            );
+          }
+        };
         finalReview = await this.reviewPlannerDecisionQuality(
           finalReview,
-          {
-            goal: topicNote.title,
-            goalDetail: topicNote.detail,
-            outputLanguage: language,
-            toneText: this.toneOf(map, language),
-            conditions: branch.inputSnapshot.conditions,
-            currentQuestion: parent.summary,
-            currentAnswer: answerDescription,
-            answeredQuestionCount,
-            questionHistory: questionsAlreadyAsked,
-            lineage: lineageContext,
-            evidenceIds: contextBase.aimEvidenceIds,
-            reportSummary: currentReports.summary,
-            reportDetail: currentReports.detail,
-            timeoutMs: branch.retryTimeoutMs,
-            deliveryRecovery: savedRecovery ?? sectionRecovery,
-            deliveryEvidence: deliveryEvidence(),
-            setPhase: phase => this.persist(() => this.runs.recordPhase(mapPath, synthesisHandle, phase)),
-            saveDeliveryRecovery: async (checkpoint, phase) => {
-              throwIfAborted(signal);
-              await this.persist(() =>
-                this.runs.saveDeliveryRecovery(mapPath, synthesisHandle, {
-                  fingerprint,
-                  planner: synthesis,
-                  checkpoint,
-                  phase,
-                  reports: currentReports,
-                  researchTurn,
-                  evidence: deliveryEvidence()
-                })
-              );
-            }
-          },
+          lastQualityContext,
           model,
           reasoning,
           signal
         );
         throwIfAborted(signal);
+        // Research budget spent with a gap the review still wants searched: give the conditional answer with the gap
+        // as an open item (or, below the floor, the next question) instead of stopping. A rejected final delivery is
+        // not retried here; it stays partial.
+        if (
+          researchTurn === this.limits.maxResearchTurns &&
+          finalReview.decision === "research_more" &&
+          !this.deliveryRejections.has(finalReview) &&
+          !this.limits.acceptGapAtBudget
+        ) {
+          finalReview = await this.reviewPlannerDecisionQuality(
+            this.withOpenItems(finalReview, language),
+            lastQualityContext,
+            model,
+            reasoning,
+            signal
+          );
+          throwIfAborted(signal);
+        }
 
         const reviewStopReason =
           finalReview.decision === "conclude"

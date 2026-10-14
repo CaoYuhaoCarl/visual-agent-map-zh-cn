@@ -179,11 +179,9 @@
       }
     },
     {
-      "name": "historical delivery-writing x3 are accepted, historical delivery-acceptance (old mindsearch-review marker) is rejected",
+      "name": "historical delivery-writing is accepted as the one-call document, historical delivery-acceptance (old mindsearch-review marker) is rejected",
       "feed": [
         1,
-        2,
-        3,
         4
       ],
       "fills": [
@@ -202,11 +200,9 @@
           "report-review",
           "delivery-outline",
           "delivery-writing",
-          "delivery-writing",
-          "delivery-writing",
           "delivery-acceptance"
         ],
-        "consumed": 4,
+        "consumed": 2,
         "error": "Final delivery acceptance marker missing",
         "recoveryPhase": "delivery-acceptance"
       }

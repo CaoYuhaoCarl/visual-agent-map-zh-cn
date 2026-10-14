@@ -7,7 +7,12 @@ import type { CodexWebSearchEvent } from "../../ai/runtime/codex-app-server";
 import { AIM_NO_QUESTION, type AimContract, type AimDecision } from "../../ai/aim-contracts";
 import { parseAimPlannerReview } from "./planner-review";
 import { DEFAULT_AIM_FLOW_LIMITS, type AimFlowLimits } from "./flow-limits";
-import { validateAimResearchPlan, type AimResearchPlan, type AimResearchTarget } from "./research-plan";
+import {
+  researchUnprovenReuse,
+  validateAimResearchPlan,
+  type AimResearchPlan,
+  type AimResearchTarget
+} from "./research-plan";
 
 export const AIM_UNKNOWN_OPTION_ID = "__aim_unknown__";
 export { AIM_NO_QUESTION };
@@ -110,7 +115,7 @@ export function parseAimResearchPlan(result: Pick<AiResult, "detail" | "suggesti
     try {
       const raw: unknown = JSON.parse(payload);
       const subtopics = raw && typeof raw === "object" ? (raw as { subtopics?: unknown }).subtopics : undefined;
-      return validateAimResearchPlan(subtopics);
+      return validateAimResearchPlan(researchUnprovenReuse(subtopics));
     } catch (error) {
       markerError = error; /* Use the provider's structured suggestions below when its detail marker is malformed. */
     }
@@ -154,6 +159,8 @@ export class ResearchWorkflowInterrupted extends Error {
   }
 }
 export class ReuseEvidenceRejected extends Error {}
+/** One subtopic's web search failed; its siblings still feed the review. */
+export class SubtopicSearchUnavailable extends Error {}
 
 export type PlannerQualityContext = {
   goal: string;

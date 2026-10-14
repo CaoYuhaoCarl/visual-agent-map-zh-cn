@@ -40,9 +40,12 @@ test('AIM planner moves validity nested in source beside it and keeps the source
   assert.deepEqual(item.source, nestedValiditySource);
 });
 
-test('AIM plan parser reports the specific marker defect instead of the generic count error', () => {
+test('AIM plan parser turns an unproven reuse claim into new research and still reports malformed markers', () => {
   const detail = `<!-- aim-plan ${JSON.stringify({ subtopics: [nestedValidityTarget()] })} -->`;
-  assert.throws(() => parseAimResearchPlan(answer('Plan', detail)), /Reuse and update targets need an exact source/);
+  const [item] = plain(parseAimResearchPlan(answer('Plan', detail)));
+  assert.equal(item.action, 'research');
+  assert.equal(item.source, undefined, 'an incomplete source claim is not kept');
+  assert.throws(() => validateAimResearchPlan([nestedValidityTarget()]), /Reuse and update targets need an exact source/, 'saved plans are still validated strictly');
   assert.throws(() => parseAimResearchPlan(answer('Plan', '<!-- aim-plan {not json} -->')), /0–5 valid research subtopics/);
 });
 
@@ -181,11 +184,18 @@ test('AIM zero-task plan materializes audited reuse before persistence and can r
   assert.deepEqual(phases.slice(previous), ['report-review']);
 });
 
-test('AIM zero-task plan without evidence fails before saving the plan or terminal review', async () => {
+test('AIM zero-task plan without reusable evidence researches the current answer instead of failing', async () => {
   const subject = fixture({ ancestor: false }); await subject.setPlan(undefined); const phases = [];
-  const flow = new AimManualFlow(subject.repository, subject.store, async context => { phases.push(phase(context)); return answer('Empty', '<!-- aim-plan {"subtopics":[]} -->'); });
-  await assert.rejects(flow.retryAnswerResearch('Map.md', 'current', 'test', 'low'), /requires usable ancestor evidence/);
-  assert.equal(subject.getMap().aim.branches[0].researchPlan, undefined); assert.deepEqual(phases, ['research-plan']);
+  const flow = new AimManualFlow(subject.repository, subject.store, async context => {
+    phases.push(phase(context));
+    if (phase(context) === 'research-plan') return answer('Empty', '<!-- aim-plan {"subtopics":[]} -->');
+    if (phase(context) === 'subtopic-research') return answer('Fresh evidence', 'Research status: search completed\nFRESH https://example.org/fresh');
+    throw new Error('STOP_AT_REVIEW');
+  });
+  await assert.rejects(flow.retryAnswerResearch('Map.md', 'current', 'test', 'low'), /STOP_AT_REVIEW/);
+  const plan = subject.getMap().aim.branches[0].researchPlan;
+  assert.equal(plan.length, 1); assert.equal(plan[0].action, 'research'); assert.equal(plan[0].id, 'current-answer-evidence');
+  assert.deepEqual(phases, ['research-plan', 'subtopic-research', 'report-review']);
 });
 
 test('AIM update targets use the exact prior report and restrict new research to changed claims', async () => {
