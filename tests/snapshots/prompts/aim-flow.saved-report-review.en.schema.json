@@ -136,6 +136,22 @@
             }
           ],
           "description": "For research_more: the one targeted evidence gap. Otherwise null."
+        },
+        "gapKind": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "searchable",
+                "user_only",
+                "not_decisive"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "For research_more: searchable when public web sources can close the gap; user_only when only the user or someone they must contact can supply it (their own documents, quotes, offers, devices, account or company data); not_decisive when closing it would not change the recommendation. Otherwise null."
         }
       },
       "required": [
@@ -145,7 +161,8 @@
         "stopReason",
         "question",
         "answerOptions",
-        "researchTarget"
+        "researchTarget",
+        "gapKind"
       ],
       "additionalProperties": false
     }

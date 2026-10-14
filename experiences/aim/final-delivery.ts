@@ -94,6 +94,8 @@ export interface FinalDeliveryOptions {
   evidence?: readonly DeliveryEvidence[];
   /** Goal, original background and answered conditions, excluding research reports. */
   knownConditions?: string;
+  /** Unverified items the document lists for the user to confirm instead of blocking acceptance. */
+  openItems?: string;
   /** Must finish saving the snapshot before the next model phase starts. */
   onCheckpoint?: (checkpoint: FinalDeliveryCheckpoint) => void | Promise<void>;
 }
@@ -413,7 +415,13 @@ export async function buildFinalDelivery(
     () =>
       run(
         "delivery-acceptance",
-        renderAcceptanceTask({ outline, research: research.detail, sourceCatalog, draft: draft.detail })
+        renderAcceptanceTask({
+          outline,
+          research: research.detail,
+          sourceCatalog,
+          draft: draft.detail,
+          ...(options.openItems ? { openItems: options.openItems } : {})
+        })
       ),
     result => {
       parseAcceptance(result);

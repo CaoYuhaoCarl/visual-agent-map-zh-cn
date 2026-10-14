@@ -442,9 +442,13 @@ integrationTest('coverage: ask_user and research_more fallback notes write the s
   assert.doesNotMatch(text, /Awaiting the user's answer to/);
   const askReason = saved.aim.runs.flatMap(run => run.attempts).find(attempt => attempt.stopReason?.startsWith('Awaiting'));
   assert.ok(askReason, 'attempt record keeps the stored English value');
-  mode = 'research_more';
   const q2 = saved.nodes.find(node => node.id === asked.questionNodeId);
-  const partial = await subject.flow.answerAndResearch(subject.created.mapPath, q2.id, { requestId: 'stop-a2', selections: [q2.aimQuestion.options[0].id], freeText: '條件二' }, 'gpt-6-luna', 'low');
+  const asked2 = await subject.flow.answerAndResearch(subject.created.mapPath, q2.id, { requestId: 'stop-a2', selections: [q2.aimQuestion.options[0].id], freeText: '條件二' }, 'gpt-6-luna', 'low');
+  // A gap left at the research budget becomes a conditional answer; only a rejected final delivery stays partial,
+  // so the third answer (at the floor) reaches delivery and its acceptance keeps asking for research.
+  mode = 'research_more';
+  const q3 = (await subject.repo.readMap(subject.created.mapPath)).nodes.find(node => node.id === asked2.questionNodeId);
+  const partial = await subject.flow.answerAndResearch(subject.created.mapPath, q3.id, { requestId: 'stop-a3', selections: [q3.aimQuestion.options[0].id], freeText: '條件三' }, 'gpt-6-luna', 'low');
   assert.equal(partial.status, 'partial');
   ({ saved } = await readAll());
   const run = saved.aim.runs.find(item => item.attempts.some(attempt => attempt.status === 'partial'));

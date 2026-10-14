@@ -56,4 +56,6 @@ test('AIM lookup loads only the readable IDs it names, at most three', async () 
 test('AIM changed evidence and repeated lookup cannot reach conclusion', async () => {
   await assert.rejects(setup(async () => lookup, async () => ({ detail: 'Changed' })).askAimModel(context, 'test'), /evidence changed/);
   await assert.rejects(setup(async () => lookup).askAimModel(context, 'test'), /lookup limit reached/);
+  const repeated = await setup(async request => request.task.includes(report) ? { ...lookup, detail: `${lookup.detail}\nChecked from the loaded report.` } : lookup).askAimModel(context, 'test');
+  assert.equal(repeated.detail, 'Checked from the loaded report.', 'a second request is dropped and the rest of the reply is used');
 });

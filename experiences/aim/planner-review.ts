@@ -10,6 +10,9 @@ import {
 
 export const AIM_MAX_RESEARCH_TURNS = DEFAULT_AIM_FLOW_LIMITS.maxResearchTurns;
 export type AimReviewDecision = "research_more" | "ask_user" | "conclude";
+/** Who can close a research_more gap: the web, only the user, or nobody needs to because the advice would not change. */
+export type AimGapKind = "searchable" | "user_only" | "not_decisive";
+const GAP_KINDS: readonly string[] = ["searchable", "user_only", "not_decisive"];
 export interface AimPlannerReview {
   decision: AimReviewDecision;
   rationale: string;
@@ -18,6 +21,10 @@ export interface AimPlannerReview {
   goalAnswered?: boolean;
   question?: string;
   researchTarget?: { title: string; task: string; expectedValue: string };
+  /** research_more only; absent in legacy responses, which the gap audit then classifies. */
+  gapKind?: AimGapKind;
+  /** Unverified gaps a conclusion carries into the document as items for the user to confirm. */
+  openItems?: { title: string; task: string; expectedValue: string }[];
   answerOptions?: string[];
   summary: string;
   detail: string;
@@ -130,6 +137,9 @@ export function parseAimPlannerReview(result: AiResult): AimPlannerReview {
         task: target.task.trim(),
         expectedValue: target.contribution.trim()
       },
+      ...(typeof raw.gapKind === "string" && GAP_KINDS.includes(raw.gapKind)
+        ? { gapKind: raw.gapKind as AimGapKind }
+        : {}),
       summary,
       detail,
       ...answered

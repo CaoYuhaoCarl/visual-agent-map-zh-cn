@@ -123,6 +123,11 @@ function payloadSchema(contract: AimContract): Record<string, unknown> {
             })
           ),
           description: "For research_more: the one targeted evidence gap. Otherwise null."
+        },
+        gapKind: {
+          anyOf: [{ type: "string", enum: ["searchable", "user_only", "not_decisive"] }, { type: "null" }],
+          description:
+            "For research_more: searchable when public web sources can close the gap; user_only when only the user or someone they must contact can supply it (their own documents, quotes, offers, devices, account or company data); not_decisive when closing it would not change the recommendation. Otherwise null."
         }
       });
     case "outline":
@@ -241,6 +246,7 @@ function foldPayload(contract: AimContract, aim: Record<string, unknown>, result
       };
       if (decision === "conclude") fields.stopReason = clean(aim.stopReason);
       if (decision === "ask_user") fields.question = clean(aim.question);
+      if (decision === "research_more" && typeof aim.gapKind === "string") fields.gapKind = aim.gapKind;
       const target =
         aim.researchTarget && typeof aim.researchTarget === "object"
           ? (aim.researchTarget as Record<string, unknown>)

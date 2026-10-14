@@ -32,6 +32,7 @@ import { scheduleAimResearch } from "./research-scheduler";
 import {
   EVIDENCE_LOOKUP_UNAVAILABLE,
   renderEvidenceLookupFollowup,
+  renderOpenItemsContext,
   REUSE_TARGET_EXPECTED_VALUE,
   REUSE_TARGET_VALIDITY_REASON,
   TOPIC_ROOT_ANSWER
@@ -121,6 +122,9 @@ function noteStopReason(
   return recorded;
 }
 
+/** Estimated tokens one AIM request may carry; larger requests fail whole instead of dropping goal or evidence. */
+const AIM_REQUEST_TOKEN_LIMIT = 60_000;
+
 export class AimManualFlow {
   private readonly evidenceReports = new Map<string, { path: string; hash: string }>();
   private readonly answerRuns = new Map<string, { fingerprint: string; promise: Promise<ManualResearchResult> }>();
@@ -149,6 +153,23 @@ export class AimManualFlow {
   /** The only exit acceptGapAtBudget changes: a research_more left at the last turn is saved partial unless accepted. */
   private budgetExitStatus(decision: string): "partial" | "completed" {
     return decision === "research_more" && !this.limits.acceptGapAtBudget ? "partial" : "completed";
+  }
+
+  /**
+   * A gap that would not change the advice, or that is still open when the research budget is spent, becomes an
+   * open item of a conditional conclusion: the document states it for the user to confirm instead of stopping.
+   */
+  private withOpenItems(review: PlannerReview, language: UiLanguage): PlannerReview {
+    const openItems = [...(review.openItems ?? []), ...(review.researchTarget ? [review.researchTarget] : [])];
+    return {
+      decision: "conclude",
+      rationale: review.rationale,
+      stopReason: translate(language, "note.aim_open_items_stop_0", openItems.map(item => item.title).join("; ")),
+      ...(review.goalAnswered !== undefined ? { goalAnswered: review.goalAnswered } : {}),
+      openItems,
+      summary: review.summary,
+      detail: review.detail
+    };
   }
 
   /**
@@ -251,7 +272,7 @@ export class AimManualFlow {
       deduplicated.workingFindings,
       deduplicated.sourceContext
     ].reduce((sum, value) => sum + estimateTokens(value), 0);
-    if (requestTokens > 28_000)
+    if (requestTokens > AIM_REQUEST_TOKEN_LIMIT)
       throw new Error(
         `AIM model request is too large (${requestTokens} estimated tokens); no goal, condition, or evidence was discarded.`
       );
@@ -293,7 +314,7 @@ export class AimManualFlow {
         ).join("\n\n")
       : EVIDENCE_LOOKUP_UNAVAILABLE;
     throwIfAborted(signal);
-    if (requestTokens + estimateTokens(evidence) > 28_000)
+    if (requestTokens + estimateTokens(evidence) > AIM_REQUEST_TOKEN_LIMIT)
       throw new Error("Requested evidence exceeds the context budget; no evidence was truncated or conclusion saved.");
     const loaded = await this.askModel(
       {
@@ -307,8 +328,13 @@ export class AimManualFlow {
       onWebSearchEvent
     );
     throwIfAborted(signal);
-    if (/<!--\s*aim-evidence-request/.test(loaded.detail))
-      throw new Error("AIM evidence lookup limit reached; no conclusion was saved.");
+    // The one lookup is spent: a second request is dropped and the rest of the reply is used. A reply that is only a
+    // request has nothing to use.
+    if (/<!--\s*aim-evidence-request/.test(loaded.detail)) {
+      const detail = loaded.detail.replace(/<!--\s*aim-evidence-request\s+[^\n]*?-->\s*/g, "").trim();
+      if (!detail) throw new Error("AIM evidence lookup limit reached; no conclusion was saved.");
+      return { ...loaded, detail };
+    }
     return loaded;
   }
 
@@ -531,7 +557,10 @@ export class AimManualFlow {
       visualMode: "off",
       signal
     };
-    let reviewed = candidate;
+    let reviewed =
+      candidate.decision === "research_more" && candidate.gapKind === "not_decisive"
+        ? this.withOpenItems(candidate, context.outputLanguage)
+        : candidate;
     const repeatsKnownQuestion = context.questionHistory.some(
       question => question.trim().toLocaleLowerCase() === reviewed.question?.trim().toLocaleLowerCase()
     );
@@ -650,6 +679,9 @@ export class AimManualFlow {
         );
     }
     if (reviewed.decision === "conclude") {
+      const openItems = (reviewed.openItems ?? [])
+        .map(item => `- ${item.title}: ${item.task} (${item.expectedValue})`)
+        .join("\n");
       const deliveryContext: AimTaskContext = {
         ...taskContext,
         ...(context.toneText ? { toneText: context.toneText } : {}),
@@ -657,7 +689,7 @@ export class AimManualFlow {
         summary: "",
         task: "",
         ancestors: "",
-        detail: `Original user goal: ${context.goal}\nUser background and requested outcome: ${context.goalDetail}\nKnown conditions: ${JSON.stringify(context.conditions)}\nCurrent answer: ${context.currentAnswer}\nEarlier answers: ${uniqueLineage}\nPrior research:\n${context.reportDetail}`
+        detail: `Original user goal: ${context.goal}\nUser background and requested outcome: ${context.goalDetail}\nKnown conditions: ${JSON.stringify(context.conditions)}\nCurrent answer: ${context.currentAnswer}\nEarlier answers: ${uniqueLineage}\nPrior research:\n${context.reportDetail}${openItems ? `\n${renderOpenItemsContext(openItems)}` : ""}`
       };
       let checkpoint = context.deliveryRecovery?.checkpoint ?? {};
       let phase = context.deliveryRecovery?.phase;
@@ -676,9 +708,11 @@ export class AimManualFlow {
             currentQuestion: context.currentQuestion,
             currentAnswer: context.currentAnswer,
             earlierAnswers: context.lineage.split("\n").filter(line => line.startsWith("User answer to ")),
+            ...(openItems ? { unverifiedItemsToConfirmWithUser: openItems } : {}),
             model,
             reasoning
           }),
+          ...(openItems ? { openItems } : {}),
           onPhase: async current => {
             phase = current;
             await context.saveDeliveryRecovery?.(checkpoint, phase);
@@ -710,7 +744,17 @@ export class AimManualFlow {
       if (final.decision === "research_more") this.deliveryRejections.add(final);
       reviewed = final;
     }
-    if (reviewed.decision === "research_more") {
+    if (reviewed.decision === "research_more" && reviewed.gapKind === "user_only")
+      return this.requireUserConditionQuestion(
+        reviewed,
+        context,
+        { classification: "user_condition", rationale: reviewed.rationale },
+        model,
+        reasoning,
+        signal
+      );
+    // The review names who can close the gap; only a legacy response without gapKind still needs the gap audit.
+    if (reviewed.decision === "research_more" && !reviewed.gapKind) {
       const alreadyClassified =
         context.preclassifiedResearchTarget &&
         JSON.stringify(context.preclassifiedResearchTarget) === JSON.stringify(reviewed.researchTarget);
@@ -3014,6 +3058,7 @@ export class AimManualFlow {
             };
       let synthesisDraftId: string | undefined;
       let finalReview: ReturnType<typeof parseAimPlannerReview> | undefined;
+      let lastQualityContext: PlannerQualityContext | undefined;
       const resumeTurn = resumeDelivery?.researchTurn ?? 1;
       if (resumeTurn === 2) await this.persist(() => this.runs.recordResearchTurn(mapPath, synthesisHandle));
       for (let researchTurn = resumeTurn; researchTurn <= this.limits.maxResearchTurns; researchTurn++) {
@@ -3057,46 +3102,65 @@ export class AimManualFlow {
           reasoning,
           signal
         );
+        lastQualityContext = {
+          goal: topicNote.title,
+          goalDetail: topicNote.detail,
+          outputLanguage: language,
+          toneText: this.toneOf(map, language),
+          conditions: branch.inputSnapshot.conditions,
+          currentQuestion: parent.summary,
+          currentAnswer: answerDescription,
+          answeredQuestionCount,
+          questionHistory: questionsAlreadyAsked,
+          lineage: lineageContext,
+          evidenceIds: contextBase.aimEvidenceIds,
+          reportSummary: currentReports.summary,
+          reportDetail: currentReports.detail,
+          timeoutMs: branch.retryTimeoutMs,
+          deliveryRecovery: savedRecovery ?? sectionRecovery,
+          deliveryEvidence: deliveryEvidence(),
+          setPhase: phase => this.persist(() => this.runs.recordPhase(mapPath, synthesisHandle, phase)),
+          saveDeliveryRecovery: async (checkpoint, phase) => {
+            throwIfAborted(signal);
+            await this.persist(() =>
+              this.runs.saveDeliveryRecovery(mapPath, synthesisHandle, {
+                fingerprint,
+                planner: synthesis,
+                checkpoint,
+                phase,
+                reports: currentReports,
+                researchTurn,
+                evidence: deliveryEvidence()
+              })
+            );
+          }
+        };
         finalReview = await this.reviewPlannerDecisionQuality(
           finalReview,
-          {
-            goal: topicNote.title,
-            goalDetail: topicNote.detail,
-            outputLanguage: language,
-            toneText: this.toneOf(map, language),
-            conditions: branch.inputSnapshot.conditions,
-            currentQuestion: parent.summary,
-            currentAnswer: answerDescription,
-            answeredQuestionCount,
-            questionHistory: questionsAlreadyAsked,
-            lineage: lineageContext,
-            evidenceIds: contextBase.aimEvidenceIds,
-            reportSummary: currentReports.summary,
-            reportDetail: currentReports.detail,
-            timeoutMs: branch.retryTimeoutMs,
-            deliveryRecovery: savedRecovery ?? sectionRecovery,
-            deliveryEvidence: deliveryEvidence(),
-            setPhase: phase => this.persist(() => this.runs.recordPhase(mapPath, synthesisHandle, phase)),
-            saveDeliveryRecovery: async (checkpoint, phase) => {
-              throwIfAborted(signal);
-              await this.persist(() =>
-                this.runs.saveDeliveryRecovery(mapPath, synthesisHandle, {
-                  fingerprint,
-                  planner: synthesis,
-                  checkpoint,
-                  phase,
-                  reports: currentReports,
-                  researchTurn,
-                  evidence: deliveryEvidence()
-                })
-              );
-            }
-          },
+          lastQualityContext,
           model,
           reasoning,
           signal
         );
         throwIfAborted(signal);
+        // Research budget spent with a gap the review still wants searched: give the conditional answer with the gap
+        // as an open item (or, below the floor, the next question) instead of stopping. A rejected final delivery is
+        // not retried here; it stays partial.
+        if (
+          researchTurn === this.limits.maxResearchTurns &&
+          finalReview.decision === "research_more" &&
+          !this.deliveryRejections.has(finalReview) &&
+          !this.limits.acceptGapAtBudget
+        ) {
+          finalReview = await this.reviewPlannerDecisionQuality(
+            this.withOpenItems(finalReview, language),
+            lastQualityContext,
+            model,
+            reasoning,
+            signal
+          );
+          throwIfAborted(signal);
+        }
 
         const reviewStopReason =
           finalReview.decision === "conclude"

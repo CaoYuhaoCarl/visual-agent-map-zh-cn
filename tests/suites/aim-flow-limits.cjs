@@ -81,6 +81,30 @@ integrationTest('AIM flow limits: smoke limits let one answer conclude without a
   assert.equal(below.review.decision, 'ask_user', 'the injected floor of one still withholds conclude with no answer');
 });
 
+integrationTest('AIM gap kind: a user_only gap becomes a question without the gap audit, and a not_decisive gap at the floor goes to delivery as an open item', async () => {
+  const run = async (gapKind, answered) => {
+    const calls = [], tasks = [];
+    const flow = new AimManualFlow({ settings: { language: 'en' } }, {}, async context => {
+      calls.push(context.task.match(/aim-phase:\s*([a-z-]+)/)?.[1]); tasks.push(context);
+      if (aimPhase(context, 'delivery-outline')) throw new Error('STOP_AT_DELIVERY');
+      if (aimPhase(context, 'decision-quality-review')) return plannerReview('ask_user', { rationale: 'Only you know this.', question: 'What does the offer letter say about backend work?' }, 'Conditional answer.', 'Saved reports stay valid.', ['Mostly backend', 'Not stated']);
+      throw new Error(`Unexpected phase ${context.task.slice(0, 80)}`);
+    });
+    const context = { goal: 'Should I take the offer?', goalDetail: '', outputLanguage: 'en', conditions: {}, currentQuestion: 'What matters most?', currentAnswer: 'Backend work', answeredQuestionCount: answered, questionHistory: ['What matters most?'], lineage: '', reportSummary: 'Saved.', reportDetail: 'Saved reports.' };
+    const raw = plannerReview('research_more', { rationale: 'The offer duties are unknown.' }, 'Interim.', 'Interim answer.', [{ title: 'Offer duties', task: 'Find the offer duties.', contribution: 'Shows whether the role is backend.' }]);
+    const candidate = parseAimPlannerReview({ ...raw, detail: raw.detail.replace('"decision":"research_more"', `"decision":"research_more","gapKind":"${gapKind}"`) });
+    assert.equal(candidate.gapKind, gapKind);
+    try { return { review: await flow.reviewPlannerDecisionQuality(candidate, context, 'gpt-6-luna', 'low'), calls, tasks }; }
+    catch (error) { if (/STOP_AT_DELIVERY/.test(error.message)) return { review: { decision: 'conclude' }, calls, tasks }; throw error; }
+  };
+  const userOnly = await run('user_only', 1);
+  assert.equal(userOnly.review.decision, 'ask_user');
+  assert.ok(!userOnly.calls.includes('research-gap-audit'), 'no gap audit call');
+  const notDecisive = await run('not_decisive', 3);
+  assert.equal(notDecisive.review.decision, 'conclude');
+  assert.deepEqual(notDecisive.calls, ['delivery-outline']);
+  assert.match(notDecisive.tasks[0].detail, /Offer duties/, 'the open item reaches the delivery context');
+});
 const gapTarget = { title: 'Missing evidence', task: 'Search for the missing evidence.', contribution: 'Closes the gap.' };
 /** A Planner that always wants more research, so the flow must end through the research-budget exit. */
 function gapModel(base, seen) {
@@ -89,6 +113,7 @@ function gapModel(base, seen) {
     seen?.push({ phase, researchMode: context.researchMode });
     if (aimPhase(context, 'report-review')) return plannerReview('research_more', { rationale: 'Evidence is still missing.' }, 'Partial', 'Detail.', [gapTarget]);
     if (aimPhase(context, 'research-gap-audit')) return reply('external_evidence', 'An external fact is missing.');
+    if (aimPhase(context, 'decision-quality-review')) return plannerReview('ask_user', { rationale: 'A decision-changing condition is unknown.', question: 'Which budget range fits you?' }, 'Conditional answer', 'Existing reports remain valid.', ['Low budget', 'High budget']);
     if (aimPhase(context, 'targeted-followup-research')) return reply('Follow-up', `Research status: search completed\nMore evidence ${'https://example.org/more'}`);
     if (context.aimContract?.kind === 'review' && !aimPhase(context, 'decision-quality-review') && !aimPhase(context, 'saved-evidence-review')) return plannerReview('research_more', { rationale: 'Evidence is still missing.' }, 'Partial', 'Detail.', [gapTarget]);
     return base(context, ...rest);
@@ -104,13 +129,12 @@ async function runOneAnswer(limits, seen) {
   const notes = await Promise.all(results.map(result => subject.repo.readNote(result.notePath)));
   return { outcome, saved, results, notes, attempts: saved.aim.runs.flatMap(run => run.attempts), seen };
 }
-integrationTest('AIM flow limits: with production limits a research_more left at the second turn is saved partial', async () => {
+integrationTest('AIM flow limits: with production limits a research_more left at the second turn becomes the next question below the floor, not a partial stop', async () => {
   for (const limits of [undefined, production.DEFAULT_AIM_FLOW_LIMITS]) {
     const seen = [];
     const { outcome, attempts } = await runOneAnswer(limits, seen);
-    assert.equal(outcome.status, 'partial');
-    assert.equal(outcome.result.resultStatus, 'partial');
-    assert.deepEqual(plain(attempts.map(attempt => attempt.status).filter(status => status !== 'completed')), ['partial'], 'only the final synthesis attempt is partial');
+    assert.equal(outcome.status, 'waiting-user');
+    assert.ok(!attempts.some(attempt => attempt.status === 'partial'), 'no attempt is saved partial');
     assert.equal(seen.filter(item => item.phase === 'targeted-followup-research').length, 1, 'exactly one bounded follow-up search before the budget ends');
   }
 });
