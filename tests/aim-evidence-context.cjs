@@ -37,9 +37,21 @@ test('AIM requested report is loaded intact only for the authorized context', as
 });
 test('AIM text cannot authorize evidence outside the branch allowlist', async () => {
   let reads = 0;
-  const flow = setup(async () => lookup, async () => { reads++; return { detail: report }; });
-  await assert.rejects(flow.askAimModel({ ...context, aimEvidenceIds: [] }, 'test'), /Invalid AIM evidence lookup/);
+  const calls = [];
+  const flow = setup(async request => { calls.push(request); return calls.length === 1 ? lookup : { summary: 'From summaries', detail: 'Supported by the summaries', suggestions: [] }; }, async () => { reads++; return { detail: report }; });
+  const result = await flow.askAimModel({ ...context, aimEvidenceIds: [] }, 'test');
   assert.equal(reads, 0);
+  assert.equal(calls.length, 2);
+  assert.ok(!calls[1].task.includes(report));
+  assert.match(calls[1].task, /None of the requested evidence IDs is available/);
+  assert.equal(result.summary, 'From summaries');
+});
+test('AIM lookup loads only the readable IDs it names, at most three', async () => {
+  const calls = [];
+  const flow = setup(async request => { calls.push(request); return calls.length === 1 ? { ...lookup, detail: '<!-- aim-evidence-request {"ids":["missing","report-v1"]} -->' } : { summary: 'Checked', detail: 'Supported', suggestions: [] }; });
+  await flow.askAimModel(context, 'test');
+  assert.ok(calls[1].task.includes(report));
+  assert.ok(!calls[1].task.includes('Evidence ID: missing'));
 });
 test('AIM changed evidence and repeated lookup cannot reach conclusion', async () => {
   await assert.rejects(setup(async () => lookup, async () => ({ detail: 'Changed' })).askAimModel(context, 'test'), /evidence changed/);

@@ -154,6 +154,8 @@ export class ResearchWorkflowInterrupted extends Error {
   }
 }
 export class ReuseEvidenceRejected extends Error {}
+/** One subtopic's web search failed; its siblings still feed the review. */
+export class SubtopicSearchUnavailable extends Error {}
 
 export type PlannerQualityContext = {
   goal: string;

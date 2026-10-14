@@ -30,6 +30,7 @@ import {
 } from "./research-plan";
 import { scheduleAimResearch } from "./research-scheduler";
 import {
+  EVIDENCE_LOOKUP_UNAVAILABLE,
   renderEvidenceLookupFollowup,
   REUSE_TARGET_EXPECTED_VALUE,
   REUSE_TARGET_VALIDITY_REASON,
@@ -58,6 +59,7 @@ import {
   normalizePersistedAnswerOptions,
   parseAimResearchPlan,
   ResearchWorkflowInterrupted,
+  SubtopicSearchUnavailable,
   ReuseEvidenceRejected,
   type AimAskModel,
   type PlannerQuestionResult,
@@ -266,24 +268,30 @@ export class AimManualFlow {
         ?.map(line => line.slice(13)) ?? []
     );
     const available = new Set((context.aimEvidenceIds ?? []).filter(id => visibleIds.has(id)));
-    if (
-      !Array.isArray(ids) ||
-      !ids.length ||
-      ids.length > 3 ||
-      ids.some(id => typeof id !== "string" || !available.has(id) || !this.evidenceReports.has(id))
-    )
-      throw new Error("Invalid AIM evidence lookup; no decision was saved.");
-    const evidence = (
-      await Promise.all(
-        [...new Set(ids as string[])].map(async id => {
-          const ref = this.evidenceReports.get(id)!;
-          const note = await this.repository.readNote(ref.path);
-          if (createHash("sha256").update(note.detail).digest("hex") !== ref.hash)
-            throw new Error("AIM evidence changed after indexing; retry with the updated report.");
-          return `Evidence ID: ${id}\nFull report:\n${note.detail}`;
-        })
-      )
-    ).join("\n\n");
+    // Only IDs this phase may read are loaded (at most three); an unreadable ID is never read, and a lookup that
+    // names none gets one answer from the summaries instead of failing the whole run.
+    const readable = Array.isArray(ids)
+      ? [
+          ...new Set(
+            ids.filter(
+              (id): id is string => typeof id === "string" && available.has(id) && this.evidenceReports.has(id)
+            )
+          )
+        ].slice(0, 3)
+      : [];
+    const evidence = readable.length
+      ? (
+          await Promise.all(
+            readable.map(async id => {
+              const ref = this.evidenceReports.get(id)!;
+              const note = await this.repository.readNote(ref.path);
+              if (createHash("sha256").update(note.detail).digest("hex") !== ref.hash)
+                throw new Error("AIM evidence changed after indexing; retry with the updated report.");
+              return `Evidence ID: ${id}\nFull report:\n${note.detail}`;
+            })
+          )
+        ).join("\n\n")
+      : EVIDENCE_LOOKUP_UNAVAILABLE;
     throwIfAborted(signal);
     if (requestTokens + estimateTokens(evidence) > 28_000)
       throw new Error("Requested evidence exceeds the context budget; no evidence was truncated or conclusion saved.");
@@ -2672,9 +2680,11 @@ export class AimManualFlow {
       executionPlan = await materializeExistingEvidence();
       await this.persist(() => this.runs.saveResearchPlan(mapPath, branchId, executionPlan));
     }
-    let scheduled: Map<string, SubtopicReport>;
+    // null: that subtopic's web search failed; the round continues on the other reports.
+    let scheduled: Map<string, SubtopicReport | null>;
+    let searchFailure: Error | undefined;
     try {
-      scheduled = await scheduleAimResearch<SubtopicReport>(
+      scheduled = await scheduleAimResearch<SubtopicReport | null>(
         executionPlan,
         async (target, predecessors, taskSignal) => {
           throwIfAborted(taskSignal);
@@ -2744,6 +2754,7 @@ export class AimManualFlow {
               }
             }
             const dependencyReports = [...predecessors]
+              .filter((entry): entry is [string, SubtopicReport] => entry[1] !== null)
               .map(
                 ([id, report]) =>
                   `Prerequisite ${id} (${report.title}), actual completed report:\n${report.summary}\n\n${report.detail}`
@@ -2833,7 +2844,7 @@ export class AimManualFlow {
             )
               throw new ResearchWorkflowInterrupted("stale");
             if (reportedSearchFailure(result))
-              throw new Error(
+              throw new SubtopicSearchUnavailable(
                 "The Agent explicitly says no web search succeeded; the report remains an unpublished diagnostic."
               );
             if (reuse) await this.verifyResearchSource(mapPath, branchId, target);
@@ -2867,6 +2878,10 @@ export class AimManualFlow {
             } catch {
               /* Preserve the original research error. */
             }
+            if (error instanceof SubtopicSearchUnavailable && !taskSignal.aborted) {
+              searchFailure = error;
+              return null;
+            }
             throw error;
           } finally {
             this.runs.releaseAttempt(mapPath, handle);
@@ -2879,7 +2894,11 @@ export class AimManualFlow {
       if (error instanceof ResearchWorkflowInterrupted) return { status: error.status, branchId };
       throw error;
     }
-    const reports = executionPlan.map(target => scheduled.get(target.id)!);
+    const reports = executionPlan
+      .map(target => scheduled.get(target.id))
+      .filter((report): report is SubtopicReport => !!report);
+    // Every search failed: there is no evidence to review, so the round fails with the search error.
+    if (!reports.length && searchFailure) throw searchFailure;
     if (!reports.length) throw new Error("AIM requires at least one usable evidence report before terminal review.");
     throwIfAborted(signal);
     map = await this.repository.readMap(mapPath);
