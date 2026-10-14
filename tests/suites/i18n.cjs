@@ -172,3 +172,13 @@ test('all user-facing translations use stable semantic keys', () => {
   const placeholders = value => [...value.matchAll(/\{\d+\}/g)].map(match => match[0]).sort();
   for (const [key, value] of englishValues) assert.deepEqual(placeholders(chineseValues.get(key)), placeholders(value), `${key} placeholders must match between locales`);
 });
+test('the sample tour names the controls exactly as the map labels them, in both languages', () => {
+  const { translate } = load('i18n.ts');
+  for (const lang of ['en', 'zh-TW']) {
+    const tr = key => translate(lang, key);
+    for (const key of ['ui.collapse', 'ui.node_tool_links', 'ui.node_tool_rename', 'ui.node_tool_details', 'ui.ai_explore'])
+      assert.ok(tr('ui.tour_2_body').includes(tr(key)), `${lang}: tour step 2 names ${tr(key)}`);
+    assert.ok(tr('ui.tour_4_body').includes(tr('ui.select_topics')), `${lang}: tour step 4 names the select button`);
+    assert.ok(tr('ui.tour_5_body').includes(tr('ui.topic')), `${lang}: tour step 5 names the add-topic button`);
+  }
+});

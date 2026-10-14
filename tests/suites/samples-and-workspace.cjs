@@ -15,7 +15,7 @@ test('built-in Taiwan sample is bilingual, read-only source data with exploratio
 });
 test('official samples teach per-run requirements without active Rules in both languages', () => {
   const sample = load('builtin-sample.ts');
-  assert.equal(sample.SAMPLE_CONTENT_VERSION, 3); assert.equal(sample.SAMPLE_TOUR_VERSION, 2);
+  assert.equal(sample.SAMPLE_CONTENT_VERSION, 3); assert.equal(sample.SAMPLE_TOUR_VERSION, 3);
   for (const locale of ['en', 'zh-TW']) {
     const data = sample.builtInSample(locale, false);
     for (const note of data.notes.values()) {

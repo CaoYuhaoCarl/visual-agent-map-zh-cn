@@ -629,7 +629,7 @@ var english = {
   "ui.note_missing": "Note missing",
   "ui.open_details_in_right_sidebar": "Open details in right sidebar",
   "ui.collapse": "Collapse",
-  "ui.node_tool_links": "Links",
+  "ui.node_tool_links": "Structure",
   "ui.node_tool_rename": "Rename",
   "ui.node_tool_details": "Details",
   "ui.node_tool_remove": "Remove",
@@ -717,16 +717,16 @@ var english = {
   "ui.sample_taiwan_travel_plan": "Sample: Planning a Taiwan Journey",
   "ui.official_read_only_sample": "Official read-only sample",
   "ui.duplicate_to_my_workspace": "Duplicate to my workspace",
-  "ui.1_5_start_with_the_question": "1 / 5  Start with the question",
-  "ui.break_a_fuzzy_goal_into_topics_that_can_be_explored_independ": "Break a fuzzy goal into topics that can be explored independently.",
-  "ui.2_5_expand_layered_subtopics": "2 / 5  Expand layered subtopics",
-  "ui.subtopics_can_branch_again_after_duplicating_you_can_collaps": "Subtopics can branch again; after duplicating, you can collapse and reshape the structure.",
-  "ui.3_5_present_key_ideas_in_preview": "3 / 5  Present key ideas in Preview",
-  "ui.you_control_preview_content_it_can_contain_text_images_and_t": "You control Preview content: it can contain text, images, and tables shown in the hover card.",
-  "ui.4_5_synthesize_sources_into_a_new_root": "4 / 5  Synthesize sources into a new root",
-  "ui.the_complete_journey_cites_the_sources_it_actually_uses_so_i": "The complete journey cites the sources it actually uses, so its assumptions remain reviewable.",
-  "ui.5_5_duplicate_your_own_version": "5 / 5  Duplicate your own version",
-  "ui.the_sample_runs_no_ai_and_writes_nothing_to_the_vault_duplic": "The sample runs no AI and writes nothing to the Vault; duplicate it to edit and continue researching.",
+  "ui.tour_1_title": "1 / 5  Each card is one question",
+  "ui.tour_1_body": "The map breaks a fuzzy goal into topics you can research separately. Drag empty space to move around; scroll to zoom.",
+  "ui.tour_2_title": "2 / 5  Click a card to work on it",
+  "ui.tour_2_body": "Its toolbar appears above the card: Collapse, Structure, Rename, Details and \u2726 AI explore. This sample is read-only, so only Details shows here.",
+  "ui.tour_3_title": "3 / 5  Findings live in Details",
+  "ui.tour_3_body": "Details opens the topic's note on the right, with text, images and tables. Hover a card for a quick preview.",
+  "ui.tour_4_title": "4 / 5  Combine topics into a conclusion",
+  "ui.tour_4_body": "In your own map, press Select several topics at the top left, pick cards, then synthesize them. The result is a new root that cites the sources it used.",
+  "ui.tour_5_title": "5 / 5  Make it yours",
+  "ui.tour_5_body": "Duplicate this sample to edit it, or create an empty mind map. Add topics with \uFF0B Topic; its \u25BE takes a pasted or AI-generated outline. AI runs only when you press an AI button.",
   "ui.back": "Back",
   "ui.skip_tour": "Skip tour",
   "ui.finish_tour": "Finish tour",
@@ -2108,16 +2108,16 @@ var traditionalChinese = {
   "ui.sample_taiwan_travel_plan": "\u7BC4\u4F8B\uFF1A\u53F0\u7063\u65C5\u884C\u898F\u5283",
   "ui.official_read_only_sample": "\u5B98\u65B9\u552F\u8B80\u7BC4\u4F8B",
   "ui.duplicate_to_my_workspace": "\u8907\u88FD\u5230\u6211\u7684\u5DE5\u4F5C\u5340",
-  "ui.1_5_start_with_the_question": "1 / 5\u3000\u5F9E\u554F\u984C\u958B\u59CB",
-  "ui.break_a_fuzzy_goal_into_topics_that_can_be_explored_independ": "\u5148\u628A\u6A21\u7CCA\u76EE\u6A19\u62C6\u6210\u53EF\u4EE5\u5206\u5225\u7814\u7A76\u7684\u8B70\u984C\u3002",
-  "ui.2_5_expand_layered_subtopics": "2 / 5\u3000\u5C55\u958B\u591A\u5C64\u5B50\u8B70\u984C",
-  "ui.subtopics_can_branch_again_after_duplicating_you_can_collaps": "\u5B50\u8B70\u984C\u9084\u80FD\u7E7C\u7E8C\u5C55\u958B\uFF1B\u8907\u88FD\u5F8C\u4E5F\u53EF\u4EE5\u6536\u5408\u8207\u8ABF\u6574\u7D50\u69CB\u3002",
-  "ui.3_5_present_key_ideas_in_preview": "3 / 5\u3000\u7528\u9810\u89BD\u5448\u73FE\u91CD\u9EDE",
-  "ui.you_control_preview_content_it_can_contain_text_images_and_t": "\u9810\u89BD\u7531\u4F60\u63A7\u5236\uFF0C\u53EF\u4EE5\u653E\u6587\u5B57\u3001\u5716\u7247\u8207\u8868\u683C\uFF0C\u4E26\u986F\u793A\u5728 hover card\u3002",
-  "ui.4_5_synthesize_sources_into_a_new_root": "4 / 5\u3000\u628A\u4F86\u6E90\u6574\u5408\u6210\u65B0\u6839\u8B70\u984C",
-  "ui.the_complete_journey_cites_the_sources_it_actually_uses_so_i": "\u5B8C\u6574\u65C5\u7A0B\u5F15\u7528\u5BE6\u969B\u63A1\u7528\u7684\u4F86\u6E90\uFF0C\u65B9\u4FBF\u56DE\u982D\u6AA2\u67E5\u5047\u8A2D\u3002",
-  "ui.5_5_duplicate_your_own_version": "5 / 5\u3000\u8907\u88FD\u6210\u81EA\u5DF1\u7684\u7248\u672C",
-  "ui.the_sample_runs_no_ai_and_writes_nothing_to_the_vault_duplic": "\u9019\u5F35\u7BC4\u4F8B\u4E0D\u57F7\u884C AI\u3001\u4E0D\u5BEB\u5165 Vault\uFF1B\u8907\u88FD\u5F8C\u5373\u53EF\u81EA\u7531\u4FEE\u6539\u8207\u7E7C\u7E8C\u7814\u7A76\u3002",
+  "ui.tour_1_title": "1 / 5\u3000\u6BCF\u5F35\u5361\u7247\u662F\u4E00\u500B\u554F\u984C",
+  "ui.tour_1_body": "\u5FC3\u667A\u5716\u628A\u6A21\u7CCA\u7684\u76EE\u6A19\u62C6\u6210\u53EF\u4EE5\u5206\u982D\u7814\u7A76\u7684\u8B70\u984C\u3002\u62D6\u66F3\u7A7A\u767D\u8655\u79FB\u52D5\u756B\u9762\uFF0C\u6EFE\u8F2A\u7E2E\u653E\u3002",
+  "ui.tour_2_title": "2 / 5\u3000\u9EDE\u4E00\u4E0B\u5361\u7247\u5C31\u80FD\u64CD\u4F5C",
+  "ui.tour_2_body": "\u5361\u7247\u4E0A\u65B9\u6703\u51FA\u73FE\u5DE5\u5177\u5217\uFF1A\u6536\u5408\u3001\u7D50\u69CB\u3001\u6539\u540D\u3001\u8A73\u60C5\u3001\u2726 AI \u63A2\u7D22\u3002\u7BC4\u4F8B\u662F\u552F\u8B80\u7684\uFF0C\u6240\u4EE5\u9019\u88E1\u53EA\u6709\u300C\u8A73\u60C5\u300D\u3002",
+  "ui.tour_3_title": "3 / 5\u3000\u7814\u7A76\u7D50\u679C\u653E\u5728\u8A73\u60C5",
+  "ui.tour_3_body": "\u300C\u8A73\u60C5\u300D\u6703\u5728\u53F3\u5074\u6253\u958B\u8B70\u984C\u7B46\u8A18\uFF0C\u53EF\u4EE5\u653E\u6587\u5B57\u3001\u5716\u7247\u548C\u8868\u683C\u3002\u6ED1\u904E\u5361\u7247\u53EF\u4EE5\u5FEB\u901F\u9810\u89BD\u3002",
+  "ui.tour_4_title": "4 / 5\u3000\u628A\u591A\u500B\u8B70\u984C\u6574\u5408\u6210\u7D50\u8AD6",
+  "ui.tour_4_body": "\u5728\u4F60\u81EA\u5DF1\u7684\u5FC3\u667A\u5716\uFF0C\u6309\u5DE6\u4E0A\u89D2\u300C\u9078\u53D6\u591A\u500B\u8B70\u984C\u300D\uFF0C\u9078\u597D\u5361\u7247\u5F8C\u6574\u5408\u3002\u7D50\u679C\u6703\u6210\u70BA\u65B0\u7684\u6839\u8B70\u984C\uFF0C\u4E26\u6A19\u51FA\u7528\u5230\u7684\u4F86\u6E90\u3002",
+  "ui.tour_5_title": "5 / 5\u3000\u505A\u6210\u4F60\u81EA\u5DF1\u7684\u7248\u672C",
+  "ui.tour_5_body": "\u8907\u88FD\u9019\u4EFD\u7BC4\u4F8B\u4F86\u7DE8\u8F2F\uFF0C\u6216\u5EFA\u7ACB\u7A7A\u767D\u5FC3\u667A\u5716\u3002\u7528\u300C\uFF0B \u8B70\u984C\u300D\u65B0\u589E\u8B70\u984C\uFF1B\u65C1\u908A\u7684 \u25BE \u53EF\u4EE5\u8CBC\u4E0A\u5927\u7DB1\u6216\u7528 AI \u751F\u6210\u5927\u7DB1\u3002\u53EA\u6709\u6309\u4E0B AI \u6309\u9215\u6642\u624D\u6703\u7528\u5230 AI\u3002",
   "ui.back": "\u4E0A\u4E00\u6B65",
   "ui.skip_tour": "\u8DF3\u904E\u5C0E\u89BD",
   "ui.finish_tour": "\u5B8C\u6210\u5C0E\u89BD",
@@ -13501,7 +13501,7 @@ var compiled_default = { contentVersion: 3, locales: { "zh-TW": { version: 1, id
 // builtin-sample.ts
 var BUILTIN_SAMPLE_ID = "taiwan-travel";
 var SAMPLE_CONTENT_VERSION = compiled_default.contentVersion;
-var SAMPLE_TOUR_VERSION = 2;
+var SAMPLE_TOUR_VERSION = 3;
 var sources = compiled_default.locales;
 function binary(dataUri) {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -25958,10 +25958,11 @@ ${request.requirements}` : preset.text,
     if (this.map && !this.builtIn && !this.map.aim && this.map.nodes.length) this.renderResearchProgress(toolbar);
     const headerActions = toolbar.createDiv("vam-toolbar-actions");
     if (this.builtIn) {
-      this.button(headerActions, t("ui.show_tour_again"), () => {
-        this.showSampleTour = true;
-        this.render();
-      });
+      if (!this.showSampleTour)
+        this.button(headerActions, t("ui.show_tour_again"), () => {
+          this.showSampleTour = true;
+          this.render();
+        });
     } else if (this.map) {
       const newMap = headerActions.createEl("button", { cls: "vam-new-map" });
       newMap.createSpan({ text: t("ui.new_map") });
@@ -26150,28 +26151,28 @@ ${request.requirements}` : preset.text,
       const steps = [
         {
           id: "explore",
-          title: t("ui.1_5_start_with_the_question"),
-          body: t("ui.break_a_fuzzy_goal_into_topics_that_can_be_explored_independ")
+          title: t("ui.tour_1_title"),
+          body: t("ui.tour_1_body")
         },
         {
           id: "constraints",
-          title: t("ui.2_5_expand_layered_subtopics"),
-          body: t("ui.subtopics_can_branch_again_after_duplicating_you_can_collaps")
+          title: t("ui.tour_2_title"),
+          body: t("ui.tour_2_body")
         },
         {
           id: "food",
-          title: t("ui.3_5_present_key_ideas_in_preview"),
-          body: t("ui.you_control_preview_content_it_can_contain_text_images_and_t")
+          title: t("ui.tour_3_title"),
+          body: t("ui.tour_3_body")
         },
         {
           id: "journey",
-          title: t("ui.4_5_synthesize_sources_into_a_new_root"),
-          body: t("ui.the_complete_journey_cites_the_sources_it_actually_uses_so_i")
+          title: t("ui.tour_4_title"),
+          body: t("ui.tour_4_body")
         },
         {
           id: "next",
-          title: t("ui.5_5_duplicate_your_own_version"),
-          body: t("ui.the_sample_runs_no_ai_and_writes_nothing_to_the_vault_duplic")
+          title: t("ui.tour_5_title"),
+          body: t("ui.tour_5_body")
         }
       ];
       const step = steps[this.sampleTourStep];

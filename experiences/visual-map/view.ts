@@ -2939,10 +2939,12 @@ export class VisualAgentMapView extends ItemView {
     if (this.map && !this.builtIn && !this.map.aim && this.map.nodes.length) this.renderResearchProgress(toolbar);
     const headerActions = toolbar.createDiv("vam-toolbar-actions");
     if (this.builtIn) {
-      this.button(headerActions, t("ui.show_tour_again"), () => {
-        this.showSampleTour = true;
-        this.render();
-      });
+      // While the tour is open, a second way to start it only competes with Next.
+      if (!this.showSampleTour)
+        this.button(headerActions, t("ui.show_tour_again"), () => {
+          this.showSampleTour = true;
+          this.render();
+        });
     } else if (this.map) {
       const newMap = headerActions.createEl("button", { cls: "vam-new-map" });
       newMap.createSpan({ text: t("ui.new_map") });
@@ -3145,28 +3147,28 @@ export class VisualAgentMapView extends ItemView {
       const steps = [
         {
           id: "explore",
-          title: t("ui.1_5_start_with_the_question"),
-          body: t("ui.break_a_fuzzy_goal_into_topics_that_can_be_explored_independ")
+          title: t("ui.tour_1_title"),
+          body: t("ui.tour_1_body")
         },
         {
           id: "constraints",
-          title: t("ui.2_5_expand_layered_subtopics"),
-          body: t("ui.subtopics_can_branch_again_after_duplicating_you_can_collaps")
+          title: t("ui.tour_2_title"),
+          body: t("ui.tour_2_body")
         },
         {
           id: "food",
-          title: t("ui.3_5_present_key_ideas_in_preview"),
-          body: t("ui.you_control_preview_content_it_can_contain_text_images_and_t")
+          title: t("ui.tour_3_title"),
+          body: t("ui.tour_3_body")
         },
         {
           id: "journey",
-          title: t("ui.4_5_synthesize_sources_into_a_new_root"),
-          body: t("ui.the_complete_journey_cites_the_sources_it_actually_uses_so_i")
+          title: t("ui.tour_4_title"),
+          body: t("ui.tour_4_body")
         },
         {
           id: "next",
-          title: t("ui.5_5_duplicate_your_own_version"),
-          body: t("ui.the_sample_runs_no_ai_and_writes_nothing_to_the_vault_duplic")
+          title: t("ui.tour_5_title"),
+          body: t("ui.tour_5_body")
         }
       ];
       const step = steps[this.sampleTourStep];

@@ -80,14 +80,14 @@ integrationTest('AIM cards hide generic map actions while ordinary map cards ret
     view.renderNode(topic); return buttons;
   };
   const ordinaryButtons = render(map([topic]));
-  assert.ok(ordinaryButtons.some(button => button.text === 'Links' && button['aria-label'] === 'Structure and links'));
+  assert.ok(ordinaryButtons.some(button => button.text === 'Structure' && button['aria-label'] === 'Structure and links'));
   assert.ok(ordinaryButtons.some(button => button.text === 'Rename'), 'the rename tool is labelled Rename');
   assert.ok(ordinaryButtons.some(button => button.text === 'AI explore'), 'every card shows a labelled AI explore action');
   assert.ok(ordinaryButtons.some(button => button.text === 'Details' && button['aria-label'] === 'Open details in right sidebar'));
   assert.ok(ordinaryButtons.some(button => button['aria-label'] === 'Add subtopic manually'));
   const aim = map([topic]); aim.aim = { version: 1, branches: [], runs: [], pendingCommits: [] };
   const aimButtons = render(aim);
-  for (const label of ['AI explore', 'Links', 'Rename']) assert.equal(aimButtons.some(button => button.text === label), false, `${label} is hidden in AIM`);
+  for (const label of ['AI explore', 'Structure', 'Rename']) assert.equal(aimButtons.some(button => button.text === label), false, `${label} is hidden in AIM`);
   assert.equal(aimButtons.some(button => button['aria-label'] === 'Add subtopic manually'), false, 'Add subtopic manually is hidden in AIM');
   assert.ok(aimButtons.some(button => button.text === 'Details'), 'AIM cards keep Details');
   const resultNode = node('saved-synthesis', topic.id); resultNode.aimKind = 'synthesis';
@@ -1378,7 +1378,7 @@ integrationTest('startup opens no topic outline, including on first install, whi
   }
   assert.match(fs.readFileSync(path.join(root, 'main.ts'), 'utf8'), /addLocalizedCommand\("open-topic-outline"/);
 });
-integrationTest('card tools: labelled actions wait for hover, focus or selection, in the order Collapse, Links, Rename, Details, AI explore', () => {
+integrationTest('card tools: labelled actions wait for hover, focus or selection, in the order Collapse, Structure, Rename, Details, AI explore', () => {
   const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
   // The tools float over the card's top edge, hidden until hover, focus or selection, and take no space.
   assert.match(css, /^\.vam-node > \.vam-node-tools \{ position: absolute;[^}]*bottom: calc\(100% - 6px\);[^}]*opacity: 0; pointer-events: none;[^}]*width: max-content;/m);
@@ -1393,14 +1393,14 @@ integrationTest('card tools: labelled actions wait for hover, focus or selection
     return tools.children.filter(child => child.tag === 'button');
   };
   const buttons = toolsOf();
-  assert.deepEqual(buttons.map(button => button.text), ['Collapse', 'Links', 'Rename', 'Details', 'AI explore']);
+  assert.deepEqual(buttons.map(button => button.text), ['Collapse', 'Structure', 'Rename', 'Details', 'AI explore']);
   const explore = buttons.at(-1);
   assert.ok(explore.classes.has('vam-ai-explore')); assert.equal(explore.attrs['aria-label'], undefined, 'the visible text is the accessible name (WCAG 2.5.3)');
   assert.equal(buttons.filter(button => button.classes.has('vam-ai-explore')).length, 1, 'one AI button');
   assert.equal(buttons[1].attrs['aria-label'], 'Structure and links'); assert.equal(buttons[3].attrs['aria-label'], 'Open details in right sidebar');
   assert.equal(buttons[2].attrs['aria-label'], undefined);
   // A leaf has no Collapse; the sample keeps only Details; select mode keeps only Details.
-  assert.deepEqual(toolsOf(({ view }) => { view.map.nodes = view.map.nodes.filter(item => item.id !== 'c'); }).map(button => button.text), ['Links', 'Rename', 'Details', 'AI explore']);
+  assert.deepEqual(toolsOf(({ view }) => { view.map.nodes = view.map.nodes.filter(item => item.id !== 'c'); }).map(button => button.text), ['Structure', 'Rename', 'Details', 'AI explore']);
   const sample = toolsOf(({ view }) => { view.builtIn = true; });
   assert.deepEqual(sample.map(button => button.text), ['Details']); assert.equal(sample[0].attrs.title, 'View sample content');
   assert.deepEqual(toolsOf(({ view }) => { view.integrationMode = true; }).map(button => button.text), ['Collapse', 'Details']);

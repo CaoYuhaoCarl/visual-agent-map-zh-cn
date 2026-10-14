@@ -4,7 +4,7 @@ import compiled from "./samples/taiwan-travel/compiled.json";
 
 export const BUILTIN_SAMPLE_ID = "taiwan-travel";
 export const SAMPLE_CONTENT_VERSION = compiled.contentVersion;
-export const SAMPLE_TOUR_VERSION = 2;
+export const SAMPLE_TOUR_VERSION = 3;
 
 type SourceNote = Pick<
   Note,

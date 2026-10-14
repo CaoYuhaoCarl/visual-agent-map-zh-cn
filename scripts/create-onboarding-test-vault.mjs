@@ -4,6 +4,8 @@ import { isAbsolute, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
+// Seeded vaults have already seen the current tour; read the version so a tour bump cannot leave them behind.
+const sampleTourVersion = Number(/SAMPLE_TOUR_VERSION = (\d+)/.exec(readFileSync(join(root, "builtin-sample.ts"), "utf8"))[1]);
 // Shared fixture builder; environment/reset/launch policy belongs to test-harness.mjs.
 export function ensureSourceSelectionFixture(vault, workspaceRoot = "Agent Workspace", { preserveExisting = false } = {}) {
   const topic = join(vault, workspaceRoot, "Topics", "Local Source Fixture");
@@ -75,7 +77,7 @@ if (requested !== "onboarding") {
   writeFileSync(join(plugin, "data.json"), JSON.stringify({
     language: "zh-TW", workspaceFolder: workspaceRoot, topicsFolder: `${workspaceRoot}/Topics`, inboxFolder: `${workspaceRoot}/Inbox`,
     notesFolder: `${workspaceRoot}/Nodes`, mapsFolder: `${workspaceRoot}/Maps`, migrated: true, structureVersion: 2,
-    workspaceInitialized: true, firstUseNoticeSeen: true, sampleTourVersionSeen: 2
+    workspaceInitialized: true, firstUseNoticeSeen: true, sampleTourVersionSeen: sampleTourVersion
   }, null, 2));
   if (requested === "reinstall") writeFileSync(join(config, "vam-reinstall-baseline.json"), JSON.stringify({ profile: requested, workspaceRoot, hashes: workspaceHashes(workspace) }, null, 2));
 }
