@@ -1299,6 +1299,18 @@ const english = {
   "note.aim_answer_hint": "Select any applicable choices, add free text, or choose Unknown / no preference.",
   "note.copy_suffix": "copy",
   "note.source_topic_label": "Source topic: ",
+  "error.outline_generate_empty_topic": "Enter a research topic before generating an outline.",
+  "error.outline_generate_over_budget": "The topic and preset are too long to send; shorten them.",
+  "error.outline_generate_stopped": "Outline generation stopped.",
+  "error.outline_generate_invalid": "The AI outline could not be used: {0}",
+  "error.outline_generate_no_headings": "The AI returned no Markdown headings.",
+  "error.outline_generate_non_heading": "The AI returned text that is not a heading ({0} lines); only headings are accepted.",
+  "error.outline_generate_too_many": "The AI outline has {0} headings; the limit is {1}.",
+  "error.structure_review_empty": "There is nothing to review: the selected branch has no cards.",
+  "error.structure_review_over_budget": "The map is too large to review at once; review a smaller branch.",
+  "error.structure_review_stopped": "Structure review stopped.",
+  "error.structure_review_invalid": "The AI structure review could not be used: {0}",
+  "error.structure_review_too_many": "The AI returned {0} suggestions; the limit is {1}.",
 } as const;
 
 export type UiLanguage = "zh-TW" | "en";
@@ -2616,6 +2628,18 @@ const traditionalChinese: Record<TranslationKey, string> = {
   "note.aim_answer_hint": "可複選、補充自由文字，或選擇「未知／無偏好」。",
   "note.copy_suffix": "副本",
   "note.source_topic_label": "來源議題：",
+  "error.outline_generate_empty_topic": "請先輸入研究主題，再生成大綱。",
+  "error.outline_generate_over_budget": "主題與預設太長，無法送出；請縮短。",
+  "error.outline_generate_stopped": "大綱生成已停止。",
+  "error.outline_generate_invalid": "無法使用 AI 的大綱：{0}",
+  "error.outline_generate_no_headings": "AI 沒有回傳任何 Markdown 標題。",
+  "error.outline_generate_non_heading": "AI 回傳了非標題的文字（{0} 行）；只接受標題。",
+  "error.outline_generate_too_many": "AI 的大綱有 {0} 個標題，上限是 {1} 個。",
+  "error.structure_review_empty": "沒有可檢視的內容：所選分支沒有卡片。",
+  "error.structure_review_over_budget": "地圖太大，無法一次檢視；請改檢視較小的分支。",
+  "error.structure_review_stopped": "結構檢視已停止。",
+  "error.structure_review_invalid": "無法使用 AI 的結構檢視：{0}",
+  "error.structure_review_too_many": "AI 回傳了 {0} 項建議，上限是 {1} 項。",
 };
 
 let language: UiLanguage = "en";
