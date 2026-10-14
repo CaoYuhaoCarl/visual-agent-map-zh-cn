@@ -104,9 +104,11 @@
 /* :where keeps this hide rule at single-class weight, so the hover/focus/selection rule below always wins. */
 .vam-node-tools > :where(:not(.vam-pinned-tool, .is-collapsed)) { opacity: 0; transition: opacity 120ms ease-out; }
 /* The selected card swaps the bare sparkle icon for a labelled "AI explore" action. */
-.vam-node-tools > .vam-ai-explore { display: none; order: 99; color: var(--text-accent); }
-.vam-node.is-selected .vam-node-tools > .vam-ai-explore { display: inline-flex; align-items: center; }
-.vam-node.is-selected .vam-node-tools > .vam-ai-tool { display: none; }
+.vam-node-tools > .vam-ai-slot { display: inline-grid; order: 99; align-items: center; justify-items: end; }
+.vam-ai-slot > * { grid-area: 1 / 1; }
+.vam-ai-slot > .vam-ai-explore { visibility: hidden; display: inline-flex; align-items: center; color: var(--text-accent); }
+.vam-node.is-selected .vam-ai-slot > .vam-ai-explore { visibility: visible; }
+.vam-node.is-selected .vam-ai-slot > .vam-ai-tool { visibility: hidden; }
 .vam-node:hover .vam-node-tools > *, .vam-node:focus-within .vam-node-tools > *, .vam-node.is-selected .vam-node-tools > *,
 .vam-node:hover > .vam-add-child, .vam-node:focus-within > .vam-add-child, .vam-node.is-selected > .vam-add-child { opacity: 1; }
 .vam-status { display: inline-flex; align-items: center; gap: 6px; padding: 0; font-size: var(--font-ui-smaller); color: var(--text-muted); white-space: nowrap; }

@@ -26447,14 +26447,15 @@ ${request.requirements}` : preset.text,
     const tools = header.createDiv("vam-node-tools");
     if (!this.builtIn && !this.integrationMode) {
       if (!((_q = this.map) == null ? void 0 : _q.aim)) {
+        const slot = tools.createSpan("vam-ai-slot");
         const ai = this.iconButton(
-          tools,
+          slot,
           "sparkles",
           t("ui.how_would_you_like_to_explore_next"),
           () => this.openNextStep(node)
         );
         ai.addClass("vam-node-tool", "vam-ai-tool");
-        const explore = this.button(tools, t("ui.ai_explore"), () => this.openNextStep(node));
+        const explore = this.button(slot, t("ui.ai_explore"), () => this.openNextStep(node));
         explore.addClass("vam-node-tool", "vam-ai-explore");
         this.iconButton(
           tools,

@@ -1343,8 +1343,11 @@ integrationTest('card tools: the sparkle waits for hover, focus or selection; th
   assert.ok(hide, 'one low-specificity rule hides the tools');
   assert.ok(!hide[1].includes('vam-ai-tool'), 'the sparkle is hidden like the other tools');
   assert.match(css, /\.vam-node\.is-selected \.vam-node-tools > \*[^{]*\{ opacity: 1; \}/); assert.match(css, /\.vam-node:hover \.vam-node-tools > \*/); assert.match(css, /\.vam-node:focus-within \.vam-node-tools > \*/);
-  assert.match(css, /\.vam-node-tools > \.vam-ai-explore \{ display: none;/); assert.match(css, /\.vam-node\.is-selected \.vam-node-tools > \.vam-ai-explore \{ display: inline-flex;/);
-  assert.match(css, /\.vam-node\.is-selected \.vam-node-tools > \.vam-ai-tool \{ display: none; \}/);
+  // Both actions share one grid cell and swap by visibility, so selecting a card keeps the header's width and wrap.
+  assert.match(css, /\.vam-node-tools > \.vam-ai-slot \{ display: inline-grid;/); assert.match(css, /\.vam-ai-slot > \* \{ grid-area: 1 \/ 1; \}/);
+  assert.match(css, /\.vam-ai-slot > \.vam-ai-explore \{ visibility: hidden;/); assert.match(css, /\.vam-node\.is-selected \.vam-ai-slot > \.vam-ai-explore \{ visibility: visible; \}/);
+  assert.match(css, /\.vam-node\.is-selected \.vam-ai-slot > \.vam-ai-tool \{ visibility: hidden; \}/);
+  assert.doesNotMatch(css, /vam-ai-(explore|tool) \{ display: none/, 'no display swap that changes the width');
   const fixture = selectionView(load);
   fixture.build();
   const buttons = [];

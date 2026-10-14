@@ -3473,12 +3473,14 @@ export class VisualAgentMapView extends ItemView {
     const tools = header.createDiv("vam-node-tools");
     if (!this.builtIn && !this.integrationMode) {
       if (!this.map?.aim) {
-        const ai = this.iconButton(tools, "sparkles", t("ui.how_would_you_like_to_explore_next"), () =>
+        // The selected card swaps the bare icon for a labelled action (CSS keys off .is-selected). Both share one slot
+        // as wide as the wider of the two, so selecting a card never re-wraps its header.
+        const slot = tools.createSpan("vam-ai-slot");
+        const ai = this.iconButton(slot, "sparkles", t("ui.how_would_you_like_to_explore_next"), () =>
           this.openNextStep(node)
         );
         ai.addClass("vam-node-tool", "vam-ai-tool");
-        // The selected card swaps the bare icon for a labelled action (CSS keys off .is-selected).
-        const explore = this.button(tools, t("ui.ai_explore"), () => this.openNextStep(node));
+        const explore = this.button(slot, t("ui.ai_explore"), () => this.openNextStep(node));
         explore.addClass("vam-node-tool", "vam-ai-explore");
         this.iconButton(tools, "network", t("ui.structure_and_links"), () =>
           this.openNodePanel(node, "structure")
