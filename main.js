@@ -705,6 +705,7 @@ var english = {
   "error.map_folder_exists": "Folder name not changed: the new folder already contains a topic with the same name.",
   "error.map_folder_unreadable": "Folder name not changed: a map in the folder cannot be read, so it would be left behind. Fix or move it first.",
   "error.map_folder_rename_failed": "Folder name not changed: the folder could not be renamed.",
+  "error.move_not_applied": "A folder move did not take effect on disk, so the operation was stopped and restored.",
   "error.plugin_unloaded": "Visual Agent Map was unloaded, so the operation stopped before its next step.",
   "error.legacy_map_view_only": "This map uses the pre-0.4 structure and is view-only.",
   "ui.organize_workspace_folders": "Organize workspace folders",
@@ -713,6 +714,8 @@ var english = {
   "ui.organize_preview_0_1_2_3_4": "Move {0} mind map(s) into {3} and {1} AIM map(s) into {4}. Skipped and left untouched because they cannot be read: {2}. Obsidian updates links according to your settings; if any step fails, everything already moved is restored.",
   "ui.organize_skipped_list_0": "Skipped: {0}",
   "ui.organize_start": "Start organizing",
+  "ui.organize_progress_0_1_2": "Moving {0}/{1}: {2}. Waiting for Obsidian to update links; this can take a while.",
+  "ui.organize_link_wait_hint": "Each map can take a while because Obsidian updates its links. If \u201CAutomatically update internal links\u201D is off in Obsidian's Files & Links settings, Obsidian asks about the links of every map; answer each prompt, and do not close Obsidian until it finishes.",
   "ui.organize_done_0": "Organized {0} map(s).",
   "ui.mind_maps_folder": "Mind Maps folder",
   "ui.aim_maps_folder": "AIM folder",
@@ -2107,6 +2110,7 @@ var traditionalChinese = {
   "error.map_folder_exists": "\u8CC7\u6599\u593E\u540D\u7A31\u672A\u8B8A\u66F4\uFF1A\u65B0\u8CC7\u6599\u593E\u5167\u5DF2\u6709\u540C\u540D\u9805\u76EE\u3002",
   "error.map_folder_unreadable": "\u8CC7\u6599\u593E\u540D\u7A31\u672A\u8B8A\u66F4\uFF1A\u8CC7\u6599\u593E\u5167\u6709\u7121\u6CD5\u8B80\u53D6\u7684\u5FC3\u667A\u5716\uFF0C\u6703\u88AB\u7559\u5728\u539F\u8655\u3002\u8ACB\u5148\u4FEE\u5FA9\u6216\u79FB\u8D70\u3002",
   "error.map_folder_rename_failed": "\u8CC7\u6599\u593E\u540D\u7A31\u672A\u8B8A\u66F4\uFF1A\u7121\u6CD5\u91CD\u65B0\u547D\u540D\u8A72\u8CC7\u6599\u593E\u3002",
+  "error.move_not_applied": "\u8CC7\u6599\u593E\u642C\u79FB\u6C92\u6709\u5BE6\u969B\u751F\u6548\uFF0C\u64CD\u4F5C\u5DF2\u505C\u6B62\u4E26\u9084\u539F\u3002",
   "error.plugin_unloaded": "Visual Agent Map \u5DF2\u5378\u8F09\uFF0C\u64CD\u4F5C\u5728\u4E0B\u4E00\u6B65\u4E4B\u524D\u505C\u6B62\u3002",
   "error.legacy_map_view_only": "\u6B64\u5FC3\u667A\u5716\u4F7F\u7528 0.4 \u524D\u7684\u820A\u7D50\u69CB\uFF0C\u53EA\u80FD\u6AA2\u8996\u3002",
   "ui.organize_workspace_folders": "\u6574\u7406\u5DE5\u4F5C\u5340\u8CC7\u6599\u593E",
@@ -2115,6 +2119,8 @@ var traditionalChinese = {
   "ui.organize_preview_0_1_2_3_4": "\u5C07\u628A {0} \u4EFD\u5FC3\u667A\u5716\u642C\u5230\u300C{3}\u300D\u3001{1} \u4EFD AIM \u642C\u5230\u300C{4}\u300D\u3002\u7121\u6CD5\u8B80\u53D6\u800C\u7565\u904E\u3001\u4E0D\u6703\u88AB\u52D5\u5230\u7684\u6709 {2} \u4EFD\u3002\u9023\u7D50\u6703\u4F9D\u4F60\u7684 Obsidian \u8A2D\u5B9A\u66F4\u65B0\uFF1B\u4EFB\u4E00\u6B65\u5931\u6557\u6703\u9084\u539F\u6240\u6709\u5DF2\u642C\u79FB\u7684\u9805\u76EE\u3002",
   "ui.organize_skipped_list_0": "\u7565\u904E\uFF1A{0}",
   "ui.organize_start": "\u958B\u59CB\u6574\u7406",
+  "ui.organize_progress_0_1_2": "\u642C\u79FB {0}/{1}\uFF1A{2}\u3002\u7B49\u5F85 Obsidian \u66F4\u65B0\u9023\u7D50\uFF0C\u53EF\u80FD\u9700\u8981\u4E00\u4E9B\u6642\u9593\u3002",
+  "ui.organize_link_wait_hint": "\u6BCF\u4EFD\u5FC3\u667A\u5716\u90FD\u8981\u7B49 Obsidian \u66F4\u65B0\u9023\u7D50\uFF0C\u53EF\u80FD\u9700\u8981\u4E00\u4E9B\u6642\u9593\u3002\u82E5 Obsidian\u300C\u6A94\u6848\u8207\u9023\u7D50\u300D\u8A2D\u5B9A\u4E2D\u7684\u300C\u81EA\u52D5\u66F4\u65B0\u5167\u90E8\u9023\u7D50\u300D\u662F\u95DC\u9589\u7684\uFF0CObsidian \u6703\u9010\u4EFD\u8A62\u554F\u9023\u7D50\u8655\u7406\u65B9\u5F0F\uFF1B\u8ACB\u9010\u4E00\u56DE\u7B54\uFF0C\u4E26\u5728\u5B8C\u6210\u524D\u4E0D\u8981\u95DC\u9589 Obsidian\u3002",
   "ui.organize_done_0": "\u5DF2\u6574\u7406 {0} \u4EFD\u5FC3\u667A\u5716\u3002",
   "ui.mind_maps_folder": "\u5FC3\u667A\u5716\u8CC7\u6599\u593E",
   "ui.aim_maps_folder": "AIM \u8CC7\u6599\u593E",
@@ -13438,7 +13444,7 @@ ${body}`;
    * then the old folder is removed only if it is empty. Returns old Map.md path -> new Map.md path.
    * `busy` lets the caller veto when an open view has AIM work running.
    */
-  async changeMapFolder(key2, path, busy = () => false) {
+  async changeMapFolder(key2, path, busy = () => false, onProgress) {
     var _a;
     const next = (0, import_obsidian9.normalizePath)(path), current = this.settings[key2];
     if (next === current) return /* @__PURE__ */ new Map();
@@ -13466,7 +13472,7 @@ ${body}`;
         await this.folder(parentPath(next));
         if (!this.app.vault.getAbstractFileByPath(next)) await this.folder(next);
       }
-      mapping = await this.runTopicMoves(moves, [next]);
+      mapping = await this.runTopicMoves(moves, [next], onProgress);
       const left = this.app.vault.getAbstractFileByPath(current);
       if (left instanceof import_obsidian9.TFolder && left.children.length === 0) {
         try {
@@ -13512,39 +13518,42 @@ ${body}`;
    * Moves each planned topic folder with Obsidian's rename (so links update) via renameTopic. Any failure restores every
    * topic already moved (folder, Map.md text, path references). Returns old Map.md path -> new Map.md path.
    */
-  async organizeWorkspaceFolders(plan) {
+  async organizeWorkspaceFolders(plan, onProgress) {
     if (plan.busy.length) throw new Error(this.message("error.organize_aim_busy"));
-    return this.runTopicMoves(plan.moves);
+    return this.runTopicMoves(plan.moves, [], onProgress);
   }
   /**
    * The shared move engine (Organize and folder-setting changes): re-checks for AIM work right before the first write,
    * moves each topic, and on any failure restores every topic already moved. `alsoManaged` lists containers that are
    * not yet in the settings but hold topics during the move (so renameTopic and the rollback accept them).
    */
-  async runTopicMoves(moves, alsoManaged = []) {
+  async runTopicMoves(moves, alsoManaged = [], onProgress) {
     for (const move of moves)
       if (hasActiveAimAttempt(await this.readMap(move.mapPath)))
         throw new Error(this.message("error.organize_aim_busy"));
     this.pendingContainers = alsoManaged;
     try {
-      return await this.moveTopicsWithRollback(moves);
+      return await this.moveTopicsWithRollback(moves, onProgress);
     } finally {
       this.pendingContainers = [];
     }
   }
-  async moveTopicsWithRollback(moves) {
+  async moveTopicsWithRollback(moves, onProgress) {
     const done = [], mapping = /* @__PURE__ */ new Map();
     const scope = () => ({
       roots: moves.flatMap((move) => [move.fromRoot, move.toRoot]),
       paths: done.flatMap((item) => item.journal.map((prior) => prior.path))
     });
     try {
-      for (const move of moves) {
+      for (const [index, move] of moves.entries()) {
         if (this.disposed) throw new Error(this.message("error.plugin_unloaded"));
+        onProgress == null ? void 0 : onProgress(index + 1, moves.length, move.title);
         await this.folder(parentPath(move.toRoot));
         const originalMap = await this.app.vault.read(this.file(move.mapPath));
         const newMapPath = await this.renameTopic(move.mapPath, move.title, move.toRoot, { rebuild: false });
         const journal = [];
+        if (!(this.app.vault.getAbstractFileByPath(move.toRoot) instanceof import_obsidian9.TFolder) || !(this.app.vault.getAbstractFileByPath(newMapPath) instanceof import_obsidian9.TFile))
+          throw new Error(this.message("error.move_not_applied"));
         done.push({ move, newMapPath, originalMap, journal });
         mapping.set(move.mapPath, newMapPath);
         await this.rebasePathPrefix(move.fromRoot, move.toRoot, journal);
@@ -13627,6 +13636,8 @@ ${body}`;
       if (desired !== originalRoot) {
         await this.app.fileManager.renameFile(root, desired);
         moved = true;
+        if (!(this.app.vault.getAbstractFileByPath(desired) instanceof import_obsidian9.TFolder))
+          throw new Error(this.message("error.move_not_applied"));
       }
       const map = await this.readMap(next);
       map.title = title;
@@ -34995,13 +35006,35 @@ ${error}`;
     this.firstInstallSamplePending = false;
     return pending;
   }
+  /**
+   * One persistent Notice that follows a multi-topic move: Obsidian may take a while per topic to update links (and asks
+   * for each one when "Automatically update internal links" is off), so say what is being waited for.
+   */
+  moveProgress() {
+    let notice = null;
+    return {
+      report: (done, total2, title) => {
+        const message = t("ui.organize_progress_0_1_2", done, total2, title);
+        if (notice) notice.setMessage(message);
+        else notice = new import_obsidian26.Notice(message, 0);
+      },
+      done: () => notice == null ? void 0 : notice.hide()
+    };
+  }
   /** Settings-page folder rename: moves the maps with it, keeps open views on their maps, then saves the setting. */
   async changeMapFolder(key2, path) {
-    const mapping = await this.repo.changeMapFolder(
-      key2,
-      path,
-      (mapPath) => this.views().some((view) => view.hasActiveAimWork(mapPath))
-    );
+    const progress = this.moveProgress();
+    let mapping;
+    try {
+      mapping = await this.repo.changeMapFolder(
+        key2,
+        path,
+        (mapPath) => this.views().some((view) => view.hasActiveAimWork(mapPath)),
+        progress.report
+      );
+    } finally {
+      progress.done();
+    }
     for (const view of this.views()) view.relocate(mapping);
     this.app.workspace.requestSaveLayout();
     await this.saveSettings();
@@ -35032,11 +35065,19 @@ ${error}`;
     if (plan.skipped.length)
       description += `
 ${t("ui.organize_skipped_list_0", plan.skipped.map((item) => item.mapPath).join(", "))}`;
+    description += `
+${t("ui.organize_link_wait_hint")}`;
     new ChoiceModal(this.app, t("ui.organize_workspace_folders"), description, [
       {
         label: t("ui.organize_start"),
         action: () => this.runMutation(async () => {
-          const mapping = await this.repo.organizeWorkspaceFolders(plan);
+          const progress = this.moveProgress();
+          let mapping;
+          try {
+            mapping = await this.repo.organizeWorkspaceFolders(plan, progress.report);
+          } finally {
+            progress.done();
+          }
           for (const view of this.views()) view.relocate(mapping);
           this.app.workspace.requestSaveLayout();
           new import_obsidian26.Notice(t("ui.organize_done_0", mapping.size));

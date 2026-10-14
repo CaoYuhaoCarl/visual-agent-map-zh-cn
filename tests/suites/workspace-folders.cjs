@@ -295,8 +295,8 @@ integrationTest('the Organize command is registered in both languages and writes
   assert.match(fs.readFileSync(pathModule.join(__dirname, '..', '..', 'main.ts'), 'utf8'), /addLocalizedCommand\(\s*"organize-workspace-folders",\s*"ui\.organize_workspace_folders"/);
 
   const vault = await legacyVault();
-  const notices = [], opened = [];
-  const fake = { ...obsidian, Notice: class { constructor(message) { notices.push(message); } }, Modal: class { constructor(app) { this.app = app; } open() { opened.push(this); } close() {} } };
+  const notices = [], opened = [], progress = [];
+  const fake = { ...obsidian, Notice: class { constructor(message, timeout) { if (timeout === 0) { this.timeline = progress; progress.push(message); } else notices.push(message); } setMessage(message) { progress.push(message); } hide() { progress.push('hidden'); } }, Modal: class { constructor(app) { this.app = app; } open() { opened.push(this); } close() {} } };
   const { default: Plugin } = load('main.ts', { obsidian: fake });
   const plugin = new Plugin();
   const relocated = [];
@@ -312,6 +312,9 @@ integrationTest('the Organize command is registered in both languages and writes
   assert.equal(relocated.length, 1); assert.equal(relocated[0].size, 3, 'open views follow the moved maps');
   assert.ok(vault.app.vault.getAbstractFileByPath('Agent Workspace/AIM/Gamma/Map.md'));
   assert.deepEqual(notices, ['Organized 3 map(s).']);
+  assert.match(opened[0].description, /Automatically update internal links/, 'the preview explains the wait and the per-map prompts');
+  assert.deepEqual(progress.map(message => message.replace(/: .*/, '')), ['Moving 1/3', 'Moving 2/3', 'Moving 3/3', 'hidden'], 'one persistent progress notice, closed at the end');
+  assert.match(progress[0], /Waiting for Obsidian to update links/);
   notices.length = 0;
   await plugin.offerOrganizeWorkspaceFolders();
   assert.deepEqual(notices, ['No maps in the legacy Topics folder need organizing.']);
@@ -481,7 +484,7 @@ integrationTest('the plugin keeps open views on their maps after a folder-settin
   const { repo, app } = vault;
   app.vault.modify = async (file, content) => app.vault.process(file, () => content);
   await repo.organizeWorkspaceFolders(await repo.planOrganizeWorkspaceFolders());
-  const { default: Plugin } = load('main.ts', { obsidian });
+  const { default: Plugin } = load('main.ts', { obsidian: { ...obsidian, Notice: class { setMessage() {} hide() {} } } });
   const plugin = new Plugin();
   const relocated = []; let saved = 0;
   Object.assign(plugin, { app: { ...app, workspace: { requestSaveLayout() {}, getLeavesOfType: () => [] } }, repo, settings: repo.settings, saveSettings: async () => { saved++; } });
@@ -546,4 +549,17 @@ integrationTest('after onunload an in-flight Organize performs zero further writ
   assert.equal(renames, 1, 'no second topic was started');
   assert.ok(repo.isDisposed());
   await assert.rejects(repo.createMap('Late'), /unloaded/);
+});
+
+integrationTest('a move that Obsidian reports as done but that did not happen on disk is stopped and restored', async () => {
+  const vault = await legacyVault();
+  const { repo, app } = vault;
+  const plan = await repo.planOrganizeWorkspaceFolders();
+  const before = snapshot(vault);
+  const rename = app.fileManager.renameFile;
+  let calls = 0;
+  app.fileManager.renameFile = async (item, target) => { if (++calls === 2) return; return rename(item, target); };
+  await assert.rejects(repo.organizeWorkspaceFolders(plan), /did not take effect on disk/);
+  app.fileManager.renameFile = rename;
+  assertUnchanged(vault, before, 'a silently ignored rename');
 });

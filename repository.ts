@@ -138,6 +138,8 @@ interface PriorContent {
   path: string;
   content: string;
 }
+/** Reports "moving topic `title`, step `done` of `total`" before each topic move starts. */
+export type MoveProgress = (done: number, total: number, title: string) => void;
 export interface OrganizePlan {
   moves: OrganizeMove[];
   /** Maps that could not be read: left exactly where they are. */
@@ -1531,7 +1533,8 @@ export class Repository {
   async changeMapFolder(
     key: "mindMapsFolder" | "aimFolder",
     path: string,
-    busy: (mapPath: string) => boolean = () => false
+    busy: (mapPath: string) => boolean = () => false,
+    onProgress?: MoveProgress
   ): Promise<Map<string, string>> {
     const next = normalizePath(path),
       current = this.settings[key];
@@ -1560,7 +1563,7 @@ export class Repository {
         await this.folder(parentPath(next));
         if (!this.app.vault.getAbstractFileByPath(next)) await this.folder(next);
       }
-      mapping = await this.runTopicMoves(moves, [next]);
+      mapping = await this.runTopicMoves(moves, [next], onProgress);
       const left = this.app.vault.getAbstractFileByPath(current);
       // Never delete a non-empty folder; a failed removal only leaves an empty folder behind.
       if (left instanceof TFolder && left.children.length === 0) {
@@ -1611,9 +1614,9 @@ export class Repository {
    * Moves each planned topic folder with Obsidian's rename (so links update) via renameTopic. Any failure restores every
    * topic already moved (folder, Map.md text, path references). Returns old Map.md path -> new Map.md path.
    */
-  async organizeWorkspaceFolders(plan: OrganizePlan): Promise<Map<string, string>> {
+  async organizeWorkspaceFolders(plan: OrganizePlan, onProgress?: MoveProgress): Promise<Map<string, string>> {
     if (plan.busy.length) throw new Error(this.message("error.organize_aim_busy"));
-    return this.runTopicMoves(plan.moves);
+    return this.runTopicMoves(plan.moves, [], onProgress);
   }
 
   /**
@@ -1621,20 +1624,24 @@ export class Repository {
    * moves each topic, and on any failure restores every topic already moved. `alsoManaged` lists containers that are
    * not yet in the settings but hold topics during the move (so renameTopic and the rollback accept them).
    */
-  private async runTopicMoves(moves: OrganizeMove[], alsoManaged: string[] = []): Promise<Map<string, string>> {
+  private async runTopicMoves(
+    moves: OrganizeMove[],
+    alsoManaged: string[] = [],
+    onProgress?: MoveProgress
+  ): Promise<Map<string, string>> {
     // Re-check just before the first write: the plan may be stale.
     for (const move of moves)
       if (hasActiveAimAttempt(await this.readMap(move.mapPath)))
         throw new Error(this.message("error.organize_aim_busy"));
     this.pendingContainers = alsoManaged;
     try {
-      return await this.moveTopicsWithRollback(moves);
+      return await this.moveTopicsWithRollback(moves, onProgress);
     } finally {
       this.pendingContainers = [];
     }
   }
 
-  private async moveTopicsWithRollback(moves: OrganizeMove[]): Promise<Map<string, string>> {
+  private async moveTopicsWithRollback(moves: OrganizeMove[], onProgress?: MoveProgress): Promise<Map<string, string>> {
     const done: { move: OrganizeMove; newMapPath: string; originalMap: string; journal: PriorContent[] }[] = [],
       mapping = new Map<string, string>();
     // Only the moved topics and the notes that cite them can change: rebuild just those, once.
@@ -1643,12 +1650,19 @@ export class Repository {
       paths: done.flatMap(item => item.journal.map(prior => prior.path))
     });
     try {
-      for (const move of moves) {
+      for (const [index, move] of moves.entries()) {
         if (this.disposed) throw new Error(this.message("error.plugin_unloaded"));
+        onProgress?.(index + 1, moves.length, move.title);
         await this.folder(parentPath(move.toRoot));
         const originalMap = await this.app.vault.read(this.file(move.mapPath));
         const newMapPath = await this.renameTopic(move.mapPath, move.title, move.toRoot, { rebuild: false });
         const journal: PriorContent[] = [];
+        // Trust the disk, not the order of awaits: the topic must really be at its new place before going on.
+        if (
+          !(this.app.vault.getAbstractFileByPath(move.toRoot) instanceof TFolder) ||
+          !(this.app.vault.getAbstractFileByPath(newMapPath) instanceof TFile)
+        )
+          throw new Error(this.message("error.move_not_applied"));
         done.push({ move, newMapPath, originalMap, journal });
         mapping.set(move.mapPath, newMapPath);
         await this.rebasePathPrefix(move.fromRoot, move.toRoot, journal);
@@ -1749,6 +1763,8 @@ export class Repository {
       if (desired !== originalRoot) {
         await this.app.fileManager.renameFile(root, desired);
         moved = true;
+        if (!(this.app.vault.getAbstractFileByPath(desired) instanceof TFolder))
+          throw new Error(this.message("error.move_not_applied"));
       }
       const map = await this.readMap(next);
       map.title = title;

@@ -636,11 +636,35 @@ export default class VisualAgentMapPlugin extends Plugin {
     this.firstInstallSamplePending = false;
     return pending;
   }
+  /**
+   * One persistent Notice that follows a multi-topic move: Obsidian may take a while per topic to update links (and asks
+   * for each one when "Automatically update internal links" is off), so say what is being waited for.
+   */
+  private moveProgress(): { report: (done: number, total: number, title: string) => void; done: () => void } {
+    let notice: Notice | null = null;
+    return {
+      report: (done, total, title) => {
+        const message = t("ui.organize_progress_0_1_2", done, total, title);
+        if (notice) notice.setMessage(message);
+        else notice = new Notice(message, 0);
+      },
+      done: () => notice?.hide()
+    };
+  }
   /** Settings-page folder rename: moves the maps with it, keeps open views on their maps, then saves the setting. */
   async changeMapFolder(key: "mindMapsFolder" | "aimFolder", path: string): Promise<void> {
-    const mapping = await this.repo.changeMapFolder(key, path, mapPath =>
-      this.views().some(view => view.hasActiveAimWork(mapPath))
-    );
+    const progress = this.moveProgress();
+    let mapping: Map<string, string>;
+    try {
+      mapping = await this.repo.changeMapFolder(
+        key,
+        path,
+        mapPath => this.views().some(view => view.hasActiveAimWork(mapPath)),
+        progress.report
+      );
+    } finally {
+      progress.done();
+    }
     for (const view of this.views()) view.relocate(mapping);
     this.app.workspace.requestSaveLayout();
     await this.saveSettings();
@@ -670,12 +694,19 @@ export default class VisualAgentMapPlugin extends Plugin {
     );
     if (plan.skipped.length)
       description += `\n${t("ui.organize_skipped_list_0", plan.skipped.map(item => item.mapPath).join(", "))}`;
+    description += `\n${t("ui.organize_link_wait_hint")}`;
     new ChoiceModal(this.app, t("ui.organize_workspace_folders"), description, [
       {
         label: t("ui.organize_start"),
         action: () =>
           this.runMutation(async () => {
-            const mapping = await this.repo.organizeWorkspaceFolders(plan);
+            const progress = this.moveProgress();
+            let mapping: Map<string, string>;
+            try {
+              mapping = await this.repo.organizeWorkspaceFolders(plan, progress.report);
+            } finally {
+              progress.done();
+            }
             for (const view of this.views()) view.relocate(mapping);
             this.app.workspace.requestSaveLayout();
             new Notice(t("ui.organize_done_0", mapping.size));
