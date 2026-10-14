@@ -661,6 +661,26 @@
       "language": "none",
       "schema": false
     },
+    "outline-generate-appended.en": {
+      "builder": "core/outline-generation-service.ts buildOutlineGeneratePrompt (preset without placeholder)",
+      "language": "en",
+      "schema": false
+    },
+    "outline-generate-appended.zh": {
+      "builder": "core/outline-generation-service.ts buildOutlineGeneratePrompt (preset without placeholder)",
+      "language": "zh-TW",
+      "schema": false
+    },
+    "outline-generate.en": {
+      "builder": "core/outline-generation-service.ts buildOutlineGeneratePrompt (preset with topic placeholder)",
+      "language": "en",
+      "schema": false
+    },
+    "outline-generate.zh": {
+      "builder": "core/outline-generation-service.ts buildOutlineGeneratePrompt (preset with topic placeholder)",
+      "language": "zh-TW",
+      "schema": false
+    },
     "reframe.en": {
       "builder": "core/reframing-service.ts buildReframePrompt",
       "language": "en",
@@ -758,6 +778,16 @@
     },
     "service.task-web.zh": {
       "builder": "AiTaskService instructions: mode task, web research, visual auto",
+      "language": "zh-TW",
+      "schema": true
+    },
+    "structure-review.en": {
+      "builder": "core/structure-review-service.ts buildStructureReviewPrompt",
+      "language": "en",
+      "schema": true
+    },
+    "structure-review.zh": {
+      "builder": "core/structure-review-service.ts buildStructureReviewPrompt",
       "language": "zh-TW",
       "schema": true
     },
