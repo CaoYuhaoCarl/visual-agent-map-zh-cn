@@ -142,7 +142,12 @@ test('structure input is built from ids, titles, short summaries and status only
 
 test('structure prompt carries the tree, the cap, the schema and the untrusted-data wording', () => {
   const prompt = review.buildStructureReviewPrompt(reviewRequest());
-  assert.match(prompt, /Return at most 12 suggestions/); assert.match(prompt, /untrusted data/);
+  assert.match(prompt, /the most valuable first, up to 12;/); assert.match(prompt, /untrusted data/);
+  assert.equal(review.STRUCTURE_REVIEW_MAX_SUGGESTIONS, 12);
+  // Every first-level branch is checked against the root question, in both directions, without padding.
+  assert.match(prompt, /Check every first-level branch/); assert.match(prompt, /coverage gaps.*depth imbalance.*redundancy.*misplacement/);
+  assert.match(prompt, /Weigh both directions/); assert.match(prompt, /never pad the list/);
+  assert.match(prompt, /Each strengthen suggestion adds exactly one new child card/);
   assert.match(prompt, /"id":"a1","title":"A1"/);
   assert.equal(structureReviewStep.id, 'structure-review'); assert.equal(JSON.stringify(structureReviewStep.schema), JSON.stringify(review.STRUCTURE_REVIEW_SCHEMA));
   assert.equal(review.STRUCTURE_REVIEW_SCHEMA.additionalProperties, false);
