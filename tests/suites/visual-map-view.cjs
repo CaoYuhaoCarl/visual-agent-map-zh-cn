@@ -29,7 +29,7 @@ integrationTest('node plus adds a child without opening a duplicate right-click 
   assert.equal(added, 1);
   const badge = buttons.find(button => button.text === 'View 1 expansion suggestions');
   badge.click({ stopPropagation() {} });
-  buttons.find(button => button['aria-label'] === 'How would you like to explore next?').click({ stopPropagation() {} });
+  buttons.find(button => button.text === 'AI explore').click({ stopPropagation() {} });
   buttons.find(button => button['aria-label'] === 'Structure and links').click({ stopPropagation() {} });
   assert.deepEqual(opened, [[topic.id, 'proposals'], [topic.id, 'structure']]); assert.deepEqual(next, [topic.id]);
   assert.equal(view.selected, null);
@@ -80,16 +80,16 @@ integrationTest('AIM cards hide generic map actions while ordinary map cards ret
     view.renderNode(topic); return buttons;
   };
   const ordinaryButtons = render(map([topic]));
-  assert.ok(ordinaryButtons.some(button => button['aria-label'] === 'How would you like to explore next?'));
-  assert.ok(ordinaryButtons.some(button => button['aria-label'] === 'Structure and links'));
-  assert.ok(ordinaryButtons.some(button => button['aria-label'] === 'Rename'), 'the pencil tool is labelled Rename');
-  assert.ok(ordinaryButtons.some(button => button.text === 'AI explore'), 'the selected card shows a labelled AI explore action');
+  assert.ok(ordinaryButtons.some(button => button.text === 'Links' && button['aria-label'] === 'Structure and links'));
+  assert.ok(ordinaryButtons.some(button => button.text === 'Rename'), 'the rename tool is labelled Rename');
+  assert.ok(ordinaryButtons.some(button => button.text === 'AI explore'), 'every card shows a labelled AI explore action');
+  assert.ok(ordinaryButtons.some(button => button.text === 'Details' && button['aria-label'] === 'Open details in right sidebar'));
   assert.ok(ordinaryButtons.some(button => button['aria-label'] === 'Add subtopic manually'));
   const aim = map([topic]); aim.aim = { version: 1, branches: [], runs: [], pendingCommits: [] };
   const aimButtons = render(aim);
-  for (const label of ['How would you like to explore next?', 'Structure and links', 'Rename', 'Add subtopic manually']) {
-    assert.equal(aimButtons.some(button => button['aria-label'] === label), false, `${label} is hidden in AIM`);
-  }
+  for (const label of ['AI explore', 'Links', 'Rename']) assert.equal(aimButtons.some(button => button.text === label), false, `${label} is hidden in AIM`);
+  assert.equal(aimButtons.some(button => button['aria-label'] === 'Add subtopic manually'), false, 'Add subtopic manually is hidden in AIM');
+  assert.ok(aimButtons.some(button => button.text === 'Details'), 'AIM cards keep Details');
   const resultNode = node('saved-synthesis', topic.id); resultNode.aimKind = 'synthesis';
   const resultMap = map([topic, resultNode]);
   resultMap.aim = { version: 1, branches: [{ id: 'saved-branch', questionNodeId: topic.id, parentBranchId: null, answerSnapshot: { selections: [], freeText: '' }, inputSnapshot: { topic: 'Fixture', conditions: {}, upstreamResults: [] }, createdAt: '2026-10-09T00:00:00.000Z', results: [{ nodeId: resultNode.id, notePath: resultNode.path, version: 1, kind: 'synthesis' }] }], runs: [], pendingCommits: [] };
@@ -1375,21 +1375,34 @@ integrationTest('startup opens no topic outline, including on first install, whi
   }
   assert.match(fs.readFileSync(path.join(root, 'main.ts'), 'utf8'), /addLocalizedCommand\("open-topic-outline"/);
 });
-integrationTest('card tools: the sparkle waits for hover, focus or selection; the selected card shows a labelled AI explore action', () => {
+integrationTest('card tools: labelled actions wait for hover, focus or selection, in the order Collapse, Links, Rename, Details, AI explore', () => {
   const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
-  // The tools (sparkle included) float over the card's top edge, hidden until hover, focus or selection, and take no space.
-  assert.match(css, /^\.vam-node > \.vam-node-tools \{ position: absolute;[^}]*bottom: calc\(100% - 6px\);[^}]*opacity: 0; pointer-events: none;/m);
+  // The tools float over the card's top edge, hidden until hover, focus or selection, and take no space.
+  assert.match(css, /^\.vam-node > \.vam-node-tools \{ position: absolute;[^}]*bottom: calc\(100% - 6px\);[^}]*opacity: 0; pointer-events: none;[^}]*width: max-content;/m);
   assert.match(css, /\.vam-node:hover > \.vam-node-tools, \.vam-node:focus-within > \.vam-node-tools, \.vam-node\.is-selected > \.vam-node-tools \{ opacity: 1; pointer-events: auto;/);
-  assert.match(css, /\.vam-ai-slot > \.vam-ai-explore \{ display: none;/); assert.match(css, /\.vam-node\.is-selected \.vam-ai-slot > \.vam-ai-explore \{ display: inline-flex; \}/);
-  assert.match(css, /\.vam-node\.is-selected \.vam-ai-slot > \.vam-ai-tool \{ display: none; \}/);
-  const fixture = selectionView(load);
-  fixture.build();
-  const buttons = [];
-  const walk = item => { if (item.tag === 'button') buttons.push(item); item.children.forEach(walk); };
-  walk(fixture.cards().a);
-  const explore = buttons.find(button => button.classes.has('vam-ai-explore')), icon = buttons.find(button => button.classes.has('vam-ai-tool'));
-  assert.equal(explore.text, 'AI explore'); assert.equal(icon.attrs['aria-label'], 'How would you like to explore next?'); assert.equal(explore.attrs['aria-label'], undefined, 'the visible text is the accessible name (WCAG 2.5.3)');
-  assert.equal(buttons.find(button => button.attrs['aria-label'] === 'Rename') !== undefined, true);
+  assert.equal(/vam-ai-slot|vam-ai-tool/.test(css), false, 'no selected-only swap remains');
+  assert.match(css, /\.vam-node-tools > \.vam-ai-explore::before \{ content: "✦" \/ "";/, 'the sparkle is decoration, not part of the name');
+  const toolsOf = (setup = () => {}) => {
+    const fixture = selectionView(load);
+    setup(fixture);
+    fixture.build();
+    const tools = fixture.cards().a.children.find(child => child.classes.has('vam-node-tools'));
+    return tools.children.filter(child => child.tag === 'button');
+  };
+  const buttons = toolsOf();
+  assert.deepEqual(buttons.map(button => button.text), ['Collapse', 'Links', 'Rename', 'Details', 'AI explore']);
+  const explore = buttons.at(-1);
+  assert.ok(explore.classes.has('vam-ai-explore')); assert.equal(explore.attrs['aria-label'], undefined, 'the visible text is the accessible name (WCAG 2.5.3)');
+  assert.equal(buttons.filter(button => button.classes.has('vam-ai-explore')).length, 1, 'one AI button');
+  assert.equal(buttons[1].attrs['aria-label'], 'Structure and links'); assert.equal(buttons[3].attrs['aria-label'], 'Open details in right sidebar');
+  assert.equal(buttons[2].attrs['aria-label'], undefined);
+  // A leaf has no Collapse; the sample keeps only Details; select mode keeps only Details.
+  assert.deepEqual(toolsOf(({ view }) => { view.map.nodes = view.map.nodes.filter(item => item.id !== 'c'); }).map(button => button.text), ['Links', 'Rename', 'Details', 'AI explore']);
+  const sample = toolsOf(({ view }) => { view.builtIn = true; });
+  assert.deepEqual(sample.map(button => button.text), ['Details']); assert.equal(sample[0].attrs.title, 'View sample content');
+  assert.deepEqual(toolsOf(({ view }) => { view.integrationMode = true; }).map(button => button.text), ['Collapse', 'Details']);
+  const { translate } = load('i18n.ts');
+  assert.deepEqual(['ui.collapse', 'ui.node_tool_links', 'ui.node_tool_rename', 'ui.node_tool_details', 'ui.ai_explore'].map(key => translate('zh-TW', key)), ['收合', '結構', '改名', '詳情', 'AI 探索']);
 });
 integrationTest('status pill: researched topics show none, other states keep theirs and screen readers still hear the status', () => {
   const pills = status => {

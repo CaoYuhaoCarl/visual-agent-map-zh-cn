@@ -3489,53 +3489,9 @@ export class VisualAgentMapView extends ItemView {
     }
     // Hover-only tools float above the card's top edge, so showing them (hover, focus, selection) never moves the card's
     // content. What must always show (status, stop and review actions, a folded branch's count) stays in the header.
+    // Every tool is labelled: the toolbar floats, so its width never moves the card. Order: fold, structure, rename,
+    // details, then the AI action last.
     const tools = card.createDiv("vam-node-tools");
-    if (!this.builtIn && !this.integrationMode) {
-      if (!this.map?.aim) {
-        // The selected card swaps the bare icon for a labelled action (CSS keys off .is-selected).
-        const slot = tools.createSpan("vam-ai-slot");
-        const ai = this.iconButton(slot, "sparkles", t("ui.how_would_you_like_to_explore_next"), () =>
-          this.openNextStep(node)
-        );
-        ai.addClass("vam-node-tool", "vam-ai-tool");
-        const explore = this.button(slot, t("ui.ai_explore"), () => this.openNextStep(node));
-        explore.addClass("vam-node-tool", "vam-ai-explore");
-        this.iconButton(tools, "network", t("ui.structure_and_links"), () =>
-          this.openNodePanel(node, "structure")
-        ).addClass("vam-node-tool");
-        if (note)
-          this.iconButton(tools, "pencil", t("ui.rename_topic"), () =>
-            new NameModal(this.app, t("ui.new_topic_name"), note.title, title =>
-              this.enqueue(() => this.noteChange(node, { title }))
-            ).open()
-          ).addClass("vam-node-tool");
-      }
-      if (node.aimKind === "question")
-        this.iconButton(tools, "x", t("ui.remove_from_map"), () => this.confirmRemoveNode(node)).addClass(
-          "vam-node-tool"
-        );
-      if (
-        this.map?.aim &&
-        node.aimKind === "synthesis" &&
-        this.map.aim.branches.some(branch => branch.results.some(result => result.nodeId === node.id))
-      ) {
-        const next = this.button(
-          header,
-          t("ui.aim_new_question"),
-          () => void this.planAimFromSelection(node.id),
-          this.aimBusy
-        );
-        next.addClass("vam-node-tool", "vam-pinned-tool");
-        next.setAttr("aria-label", t("ui.aim_new_question_hint"));
-        next.setAttr("title", t("ui.aim_new_question_hint"));
-      }
-    }
-    this.iconButton(
-      tools,
-      "panel-right-open",
-      this.builtIn ? t("ui.view_sample_content") : t("ui.open_details_in_right_sidebar"),
-      () => (this.builtIn ? this.selectSampleNode(node.id) : this.openDetails(node))
-    ).addClass("vam-detail-button");
     const count = descendants(this.map!.nodes, node.id).size;
     if (count && !this.builtIn) {
       // A folded branch keeps its count on the card; the fold action itself is a hover tool.
@@ -3554,6 +3510,48 @@ export class VisualAgentMapView extends ItemView {
       collapse.addClass("vam-collapse-button", ...(node.collapsed ? ["is-collapsed"] : []));
       collapse.setAttr("aria-expanded", String(!node.collapsed));
     }
+    if (!this.builtIn && !this.integrationMode) {
+      if (!this.map?.aim) {
+        const structure = this.button(tools, t("ui.node_tool_links"), () => this.openNodePanel(node, "structure"));
+        structure.addClass("vam-node-tool", "vam-structure-tool");
+        structure.setAttr("aria-label", t("ui.structure_and_links"));
+        if (note)
+          this.button(tools, t("ui.node_tool_rename"), () =>
+            new NameModal(this.app, t("ui.new_topic_name"), note.title, title =>
+              this.enqueue(() => this.noteChange(node, { title }))
+            ).open()
+          ).addClass("vam-node-tool", "vam-rename-tool");
+      }
+      if (node.aimKind === "question") {
+        const remove = this.button(tools, t("ui.node_tool_remove"), () => this.confirmRemoveNode(node));
+        remove.addClass("vam-node-tool", "vam-remove-tool");
+        remove.setAttr("aria-label", t("ui.remove_from_map"));
+      }
+      if (
+        this.map?.aim &&
+        node.aimKind === "synthesis" &&
+        this.map.aim.branches.some(branch => branch.results.some(result => result.nodeId === node.id))
+      ) {
+        const next = this.button(
+          header,
+          t("ui.aim_new_question"),
+          () => void this.planAimFromSelection(node.id),
+          this.aimBusy
+        );
+        next.addClass("vam-node-tool", "vam-pinned-tool");
+        next.setAttr("aria-label", t("ui.aim_new_question_hint"));
+        next.setAttr("title", t("ui.aim_new_question_hint"));
+      }
+    }
+    const details = this.button(tools, t("ui.node_tool_details"), () =>
+      this.builtIn ? this.selectSampleNode(node.id) : this.openDetails(node)
+    );
+    details.addClass("vam-node-tool", "vam-detail-button");
+    // The sample's longer description is a tooltip, so the accessible name still starts with the visible text.
+    if (this.builtIn) details.setAttr("title", t("ui.view_sample_content"));
+    else details.setAttr("aria-label", t("ui.open_details_in_right_sidebar"));
+    if (!this.builtIn && !this.integrationMode && !this.map?.aim)
+      this.button(tools, t("ui.ai_explore"), () => this.openNextStep(node)).addClass("vam-node-tool", "vam-ai-explore");
     if (!this.builtIn && !this.integrationMode && !this.map?.aim) {
       const add = this.button(card, "+", () => this.enqueue(() => this.addNode(node)));
       add.addClass("vam-add-child");
