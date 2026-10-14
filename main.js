@@ -882,6 +882,12 @@ var english = {
   "ui.detail_template": "Content template",
   "ui.detail_template_keep_0": "Keep current ({0})",
   "ui.detail_template_keep_each": "Each topic's current template",
+  "ui.adjust": "Adjust",
+  "ui.next_summary_depth_0": "{0} research",
+  "ui.next_summary_synth_full": "Full content",
+  "ui.next_summary_synth_summary": "Summary only",
+  "ui.next_summary_web_on": "Web search",
+  "ui.next_summary_web_off": "No web search",
   "ui.tone": "Writing tone",
   "ui.tone_keep_each": "Each topic's current tone",
   "ui.tone_keep_0": "Keep current ({0})",
@@ -2070,7 +2076,7 @@ var traditionalChinese = {
   "ui.subtopics_can_branch_again_after_duplicating_you_can_collaps": "\u5B50\u8B70\u984C\u9084\u80FD\u7E7C\u7E8C\u5C55\u958B\uFF1B\u8907\u88FD\u5F8C\u4E5F\u53EF\u4EE5\u6536\u5408\u8207\u8ABF\u6574\u7D50\u69CB\u3002",
   "ui.3_5_present_key_ideas_in_preview": "3 / 5\u3000\u7528\u9810\u89BD\u5448\u73FE\u91CD\u9EDE",
   "ui.you_control_preview_content_it_can_contain_text_images_and_t": "\u9810\u89BD\u7531\u4F60\u63A7\u5236\uFF0C\u53EF\u4EE5\u653E\u6587\u5B57\u3001\u5716\u7247\u8207\u8868\u683C\uFF0C\u4E26\u986F\u793A\u5728 hover card\u3002",
-  "ui.4_5_synthesize_sources_into_a_new_root": "4 / 5\u3000\u628A\u4F86\u6E90\u6536\u6582\u6210\u65B0\u6839\u8B70\u984C",
+  "ui.4_5_synthesize_sources_into_a_new_root": "4 / 5\u3000\u628A\u4F86\u6E90\u6574\u5408\u6210\u65B0\u6839\u8B70\u984C",
   "ui.the_complete_journey_cites_the_sources_it_actually_uses_so_i": "\u5B8C\u6574\u65C5\u7A0B\u5F15\u7528\u5BE6\u969B\u63A1\u7528\u7684\u4F86\u6E90\uFF0C\u65B9\u4FBF\u56DE\u982D\u6AA2\u67E5\u5047\u8A2D\u3002",
   "ui.5_5_duplicate_your_own_version": "5 / 5\u3000\u8907\u88FD\u6210\u81EA\u5DF1\u7684\u7248\u672C",
   "ui.the_sample_runs_no_ai_and_writes_nothing_to_the_vault_duplic": "\u9019\u5F35\u7BC4\u4F8B\u4E0D\u57F7\u884C AI\u3001\u4E0D\u5BEB\u5165 Vault\uFF1B\u8907\u88FD\u5F8C\u5373\u53EF\u81EA\u7531\u4FEE\u6539\u8207\u7E7C\u7E8C\u7814\u7A76\u3002",
@@ -2212,9 +2218,9 @@ var traditionalChinese = {
   "ui.specify_an_expansion_direction_or_ask_ai_to_suggest_one_prev": "\u53EF\u6307\u5B9A\u5C55\u958B\u65B9\u5411\uFF0C\u6216\u8B93 AI \u5EFA\u8B70\uFF1B\u7D50\u679C\u5148\u9810\u89BD\uFF0C\u78BA\u8A8D\u5F8C\u624D\u5EFA\u7ACB\u8B70\u984C\u3002",
   "ui.this_topic_has_no_direct_subtopics_you_can_choose_other_note": "\u9019\u500B\u8B70\u984C\u76EE\u524D\u6C92\u6709\u76F4\u5C6C\u5B50\u8B70\u984C\uFF1B\u53EF\u4EE5\u9078\u64C7\u5176\u4ED6\u7B46\u8A18\u4F5C\u70BA\u6574\u5408\u4F86\u6E90\u3002",
   "ui.review_synthesis_draft": "\u6AA2\u67E5\u6574\u5408\u8349\u7A3F",
-  "ui.choose_synthesis_direction": "\u9078\u64C7\u6536\u6582\u65B9\u5411",
+  "ui.choose_synthesis_direction": "\u9078\u64C7\u6574\u5408\u65B9\u5411",
   "ui.discard_synthesis": "\u6368\u68C4",
-  "ui.synthesis_pending_review_first": "\u8ACB\u5148\u8655\u7406\u6216\u6368\u68C4\u9019\u500B\u4E3B\u984C\u5F85\u8655\u7406\u7684\u6536\u6582\u7D50\u679C\u3002",
+  "ui.synthesis_pending_review_first": "\u8ACB\u5148\u8655\u7406\u6216\u6368\u68C4\u9019\u500B\u4E3B\u984C\u5F85\u8655\u7406\u7684\u6574\u5408\u7D50\u679C\u3002",
   "ui.confirm_update_to_parent_topic": "\u78BA\u8A8D\u5BEB\u5165\u6BCD\u8B70\u984C",
   "ui.the_topic_changed_the_synthesis_draft_was_not_saved": "\u8B70\u984C\u5DF2\u8B8A\u66F4\uFF0C\u6574\u5408\u8349\u7A3F\u672A\u5BEB\u5165\u3002",
   "detail.core_conclusions": "\u6838\u5FC3\u7D50\u8AD6",
@@ -2233,6 +2239,12 @@ var traditionalChinese = {
   "ui.detail_template": "\u5167\u5BB9\u6A21\u677F",
   "ui.detail_template_keep_0": "\u6CBF\u7528\u76EE\u524D\uFF08{0}\uFF09",
   "ui.detail_template_keep_each": "\u6CBF\u7528\u5404\u8B70\u984C\u76EE\u524D\u7684\u6A21\u677F",
+  "ui.adjust": "\u8ABF\u6574",
+  "ui.next_summary_depth_0": "{0}\u7814\u7A76",
+  "ui.next_summary_synth_full": "\u5B8C\u6574\u5167\u5BB9",
+  "ui.next_summary_synth_summary": "\u50C5\u6458\u8981",
+  "ui.next_summary_web_on": "\u641C\u5C0B\u7DB2\u8DEF",
+  "ui.next_summary_web_off": "\u4E0D\u641C\u5C0B\u7DB2\u8DEF",
   "ui.tone": "\u5BEB\u4F5C\u8A9E\u6C23",
   "ui.tone_keep_each": "\u5404\u8B70\u984C\u76EE\u524D\u7684\u8A9E\u6C23",
   "ui.tone_keep_0": "\u7DAD\u6301\u76EE\u524D\uFF08{0}\uFF09",
@@ -13833,16 +13845,52 @@ async function addOutlineToMap(repository, map, mapPath, model, nodes, source, p
 var import_obsidian9 = require("obsidian");
 
 // experiences/visual-map/research-fields.ts
-function researchDepthField(parent) {
-  const label = parent.createEl("label", { cls: "vam-field" });
-  label.createSpan({ text: t("ui.research_depth") });
-  const depth = label.createEl("select");
-  depth.setAttr("aria-label", t("ui.research_depth"));
-  depth.createEl("option", { value: "fast", text: t("ui.fast_quick_overview") });
-  depth.createEl("option", { value: "normal", text: t("ui.normal_standard_research") });
-  depth.createEl("option", { value: "deep", text: t("ui.deep_in_depth_research") });
-  depth.value = "fast";
-  return () => depth.value === "deep" ? "deep" : depth.value === "normal" ? "normal" : "fast";
+var DEFAULT_RESEARCH_DEPTH = "normal";
+function researchDepthDescription(depth) {
+  const description = depth === "fast" ? t("ui.quick_aim_for_up_to_1_web_search_and_2_main_sources_answer_t") : depth === "deep" ? t("ui.deep_aim_for_up_to_6_web_searches_and_10_main_sources_compar") : t("ui.standard_aim_for_up_to_3_web_searches_and_5_main_sources_sum");
+  return `${description} ${t("ui.web_and_image_searches_share_the_search_limit_search_counts")}`;
+}
+var depthGroup = 0;
+function researchDepthField(parent, options = {}) {
+  var _a;
+  const fieldset = parent.createEl("fieldset", { cls: "vam-next-depth-set" });
+  fieldset.createEl("legend", { text: t("ui.research_depth") });
+  const group = `vam-depth-${++depthGroup}`;
+  const row = fieldset.createDiv("vam-next-depths");
+  const hint = fieldset.createEl("p", { cls: "vam-hint", attr: { "aria-live": "polite" } });
+  const radios = /* @__PURE__ */ new Map();
+  const paint = () => {
+    for (const { input, label } of radios.values()) label.toggleClass("is-checked", input.checked);
+  };
+  const value = () => {
+    var _a2, _b;
+    return (_b = (_a2 = [...radios].find(([, item]) => item.input.checked)) == null ? void 0 : _a2[0]) != null ? _b : DEFAULT_RESEARCH_DEPTH;
+  };
+  const set = (depth) => {
+    for (const [key2, item] of radios) item.input.checked = key2 === depth;
+    hint.setText(researchDepthDescription(depth));
+    paint();
+  };
+  for (const [depth, key2] of [
+    ["fast", "ui.quick"],
+    ["normal", "ui.standard"],
+    ["deep", "ui.deep"]
+  ]) {
+    const label = row.createEl("label");
+    const input = label.createEl("input", { type: "radio", value: depth, attr: { name: group } });
+    label.createSpan({ text: t(key2) });
+    radios.set(depth, { input, label });
+    input.addEventListener("change", () => {
+      var _a2;
+      if (!input.checked) return;
+      set(depth);
+      (_a2 = options.onChange) == null ? void 0 : _a2.call(options, depth);
+    });
+    input.addEventListener("focus", () => label.addClass("is-focused"));
+    input.addEventListener("blur", () => label.removeClass("is-focused"));
+  }
+  set((_a = options.initial) != null ? _a : DEFAULT_RESEARCH_DEPTH);
+  return { value, set };
 }
 function modelField(parent, models, defaultLabel) {
   const label = parent.createEl("label", { cls: "vam-field" });
@@ -13949,7 +13997,7 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
     this.shallow = shallowLabel.createEl("input", { type: "checkbox" });
     shallowLabel.createSpan({ text: t("ui.outline_import_shallow") });
     const researchOptions = research.createDiv("vam-outline-research-options");
-    this.depth = researchDepthField(researchOptions);
+    this.depth = researchDepthField(researchOptions, { initial: "fast" }).value;
     const model = modelField(researchOptions, this.models, t("ui.workspace_default"));
     this.model = model.value;
     this.unwatch = model.dispose;
@@ -14130,7 +14178,7 @@ var MultiResearchModal = class extends import_obsidian10.Modal {
       this.submitted = true;
       const request = {
         researchMode: web.checked ? "research" : "local",
-        researchDepth: depth(),
+        researchDepth: depth.value(),
         requirements: requirements.value.trim(),
         imageSearch: web.checked && images.checked,
         ...model.value() ? { model: model.value() } : {},
@@ -14344,9 +14392,9 @@ var AimStartModal = class extends import_obsidian12.Modal {
         }
       })();
     });
-    const reasoningLabel = this.contentEl.createEl("label", { cls: "vam-field" });
-    reasoningLabel.createSpan({ text: t("ui.reasoning_level") });
-    const reasoning = reasoningLabel.createEl("select");
+    const reasoningLabel2 = this.contentEl.createEl("label", { cls: "vam-field" });
+    reasoningLabel2.createSpan({ text: t("ui.reasoning_level") });
+    const reasoning = reasoningLabel2.createEl("select");
     reasoning.setAttr("aria-label", t("ui.reasoning_level"));
     for (const [value, label] of [
       ["low", t("ui.low")],
@@ -20820,10 +20868,6 @@ function renderSynthesisContent(parent, topics) {
   } else parent.createEl("p", { cls: "vam-hint", text: t("ui.synthesis_no_source_topics") });
   return select;
 }
-function researchDepthDescription(depth) {
-  const description = depth === "fast" ? t("ui.quick_aim_for_up_to_1_web_search_and_2_main_sources_answer_t") : depth === "deep" ? t("ui.deep_aim_for_up_to_6_web_searches_and_10_main_sources_compar") : t("ui.standard_aim_for_up_to_3_web_searches_and_5_main_sources_sum");
-  return `${description} ${t("ui.web_and_image_searches_share_the_search_limit_search_counts")}`;
-}
 function imageReferencesFromMarkdown(markdown) {
   const lines = markdown.split("\n");
   const blocks = lines.flatMap(
@@ -20832,6 +20876,15 @@ function imageReferencesFromMarkdown(markdown) {
     ] : []
   );
   return [...new Set(blocks)].join("\n\n");
+}
+function reasoningLabel(level) {
+  const labels = {
+    auto: t("ui.auto"),
+    low: t("ui.low"),
+    medium: t("ui.medium"),
+    high: t("ui.high")
+  };
+  return labels[normalizeReasoningLevel(level)];
 }
 var PartialChildBatchError = class extends Error {
 };
@@ -20943,7 +20996,7 @@ var TaskModal = class extends import_obsidian16.Modal {
         t(
           "ui.ai_task_summary",
           this.modelId,
-          this.reasoningId,
+          reasoningLabel(this.reasoningId),
           (_a2 = references2 == null ? void 0 : references2.describe()) != null ? _a2 : `0 ${t("ui.markdown_files")}`,
           t((selected == null ? void 0 : selected.webSearch) ? "ui.on" : "ui.off"),
           this.targetLabel ? `${this.targetLabel} \xB7 ${result}` : result
@@ -20952,19 +21005,7 @@ var TaskModal = class extends import_obsidian16.Modal {
     };
     this.contentEl.addEventListener("change", updateSummary);
     updateSummary();
-    const depthLabel = this.contentEl.createEl("label", { cls: "vam-field" });
-    depthLabel.createSpan({ text: t("ui.research_depth") });
-    const depthHint = this.contentEl.createEl("p", { cls: "vam-hint", text: researchDepthDescription(this.depth) });
-    const depth = this.contentEl.createEl("select", { cls: "vam-depth-select" });
-    depth.setAttr("aria-label", t("ui.research_depth"));
-    for (const [value, key2] of [
-      ["fast", "ui.fast_quick_overview"],
-      ["normal", "ui.normal_standard_research"],
-      ["deep", "ui.deep_in_depth_research"]
-    ])
-      depth.createEl("option", { value, text: t(key2) });
-    depth.value = this.depth;
-    depth.addEventListener("change", () => depthHint.setText(researchDepthDescription(depth.value)));
+    const depth = researchDepthField(this.contentEl, { initial: this.depth });
     const layers = this.expand ? this.contentEl.createEl("label", { cls: "vam-field" }) : null;
     const multiLayer = layers == null ? void 0 : layers.createEl("input", { type: "checkbox" });
     if (multiLayer) multiLayer.checked = true;
@@ -20986,7 +21027,7 @@ var TaskModal = class extends import_obsidian16.Modal {
           requirements: input.value.trim(),
           outputLanguage: languageSelect.value,
           researchMode: (sources2 == null ? void 0 : sources2.webSearch) ? "research" : "local",
-          researchDepth: depth.value,
+          researchDepth: depth.value(),
           visualMode: (sources2 == null ? void 0 : sources2.imageSearch) ? this.visual === "on" ? "on" : "auto" : "off",
           multiLayer: shallowResearch
         },
@@ -21016,8 +21057,8 @@ var NextStepModal = class extends import_obsidian16.Modal {
     this.modelSettings = modelSettings;
     __publicField(this, "closed", false);
     __publicField(this, "runPending", false);
-    __publicField(this, "settingsPending", Promise.resolve());
-    __publicField(this, "settingsError", null);
+    /** Model and effort edits wait here; they are saved when a run starts, never when the dialog is cancelled. */
+    __publicField(this, "pendingSettings", {});
     __publicField(this, "taskSignal");
     __publicField(this, "taskController");
     __publicField(this, "unsubscribeModels");
@@ -21063,9 +21104,9 @@ var NextStepModal = class extends import_obsidian16.Modal {
     };
     return { picker, disclosure, forMode };
   }
-  renderRequirements() {
+  renderRequirements(parent) {
     var _a, _b;
-    const disclosure = this.contentEl.createEl("details", { cls: "vam-next-requirements" });
+    const disclosure = parent.createEl("details", { cls: "vam-next-requirements" });
     disclosure.open = false;
     const summary = disclosure.createEl("summary", { text: t("ui.additional_requirements") });
     const value = summary.createSpan({ cls: "vam-next-disclosure-value", text: t("ui.not_set") });
@@ -21079,7 +21120,7 @@ var NextStepModal = class extends import_obsidian16.Modal {
     });
     disclosure.createEl("p", { text: t("ui.requirements_this_task_only"), cls: "vam-hint" });
     if ((_b = (_a = this.modelSettings) == null ? void 0 : _a.rules) == null ? void 0 : _b.trim())
-      this.contentEl.createEl("p", { text: t("ui.legacy_rules_not_applied"), cls: "vam-hint" });
+      parent.createEl("p", { text: t("ui.legacy_rules_not_applied"), cls: "vam-hint" });
   }
   requirements() {
     var _a, _b;
@@ -21091,24 +21132,26 @@ var NextStepModal = class extends import_obsidian16.Modal {
     (_a = this.taskController) == null ? void 0 : _a.abort();
     (_b = this.unsubscribeModels) == null ? void 0 : _b.call(this);
   }
-  async readySettings() {
-    await this.settingsPending;
-    if (this.settingsError) throw new Error(this.settingsError);
+  /** Saves the model and effort chosen in this dialog, once, at the moment a run actually starts. */
+  async flushSettings() {
+    const patch = this.pendingSettings;
+    if (!Object.keys(patch).length || !this.modelSettings) return;
+    this.pendingSettings = {};
+    try {
+      await this.modelSettings.save(patch);
+    } catch (error) {
+      this.pendingSettings = { ...patch, ...this.pendingSettings };
+      throw error;
+    }
   }
-  renderModelSettings() {
+  renderModelSettings(parent) {
     var _a;
     if (!this.modelSettings) return;
     const settings = this.modelSettings;
-    const advanced = this.contentEl.createEl("details", { cls: "vam-advanced vam-next-model" });
+    const advanced = parent.createEl("details", { cls: "vam-advanced vam-next-model" });
     const advancedValue = advanced.createEl("summary", { text: t("ui.model_and_advanced_settings") }).createSpan({ cls: "vam-next-disclosure-value" });
-    const error = advanced.createEl("p", { cls: "vam-hint" });
     const save = (patch) => {
-      this.settingsError = null;
-      error.setText("");
-      this.settingsPending = this.settingsPending.then(() => settings.save(patch)).catch((cause) => {
-        this.settingsError = cause instanceof Error ? cause.message : String(cause);
-        error.setText(this.settingsError);
-      });
+      this.pendingSettings = { ...this.pendingSettings, ...patch };
     };
     const modelLabel = advanced.createEl("label", { cls: "vam-field" });
     modelLabel.createSpan({ text: t("ui.model") });
@@ -21158,7 +21201,11 @@ var NextStepModal = class extends import_obsidian16.Modal {
     };
     const modelSummary = advanced.createEl("p", {
       cls: "vam-hint",
-      text: t("ui.0_1_reasoning_can_be_adjusted_per_topic", settings.model, sourceLabels[settings.modelSource])
+      text: t(
+        "ui.0_1_reasoning_can_be_adjusted_per_topic",
+        this.plugin.modelLabel(settings.model),
+        sourceLabels[settings.modelSource]
+      )
     });
     model.value = settings.model;
     model.addEventListener("change", () => {
@@ -21166,14 +21213,18 @@ var NextStepModal = class extends import_obsidian16.Modal {
       settings.model = model.value;
       settings.modelSource = "manual";
       modelSummary.setText(
-        t("ui.0_1_reasoning_can_be_adjusted_per_topic", settings.model, sourceLabels[settings.modelSource])
+        t(
+          "ui.0_1_reasoning_can_be_adjusted_per_topic",
+          this.plugin.modelLabel(settings.model),
+          sourceLabels[settings.modelSource]
+        )
       );
       save({ model: settings.model, modelSource: settings.modelSource });
       describeModel();
     });
-    const reasoningLabel = advanced.createEl("label", { cls: "vam-field" });
-    reasoningLabel.createSpan({ text: t("ui.reasoning_level") });
-    const reasoning = reasoningLabel.createEl("select");
+    const reasoningLabel2 = advanced.createEl("label", { cls: "vam-field" });
+    reasoningLabel2.createSpan({ text: t("ui.reasoning_level") });
+    const reasoning = reasoningLabel2.createEl("select");
     reasoning.setAttr("aria-label", t("ui.reasoning_level"));
     const reasoningLabels = {
       auto: t("ui.auto"),
@@ -21219,7 +21270,7 @@ var NextStepModal = class extends import_obsidian16.Modal {
       cancel.hidden = false;
       cancel.onclick = () => controller.abort();
       try {
-        await this.readySettings();
+        await this.flushSettings();
         if (this.closed || controller.signal.aborted) return;
         await work();
       } catch (error) {
@@ -21369,7 +21420,7 @@ var NextStepModal = class extends import_obsidian16.Modal {
           panel,
           confirm,
           async () => {
-            var _a3, _b;
+            var _a3;
             options.signal = this.taskSignal;
             (_a3 = panel.querySelector(".vam-next-status")) == null ? void 0 : _a3.setText(t("ui.creating_subtopics"));
             try {
@@ -21380,12 +21431,11 @@ var NextStepModal = class extends import_obsidian16.Modal {
                 this.startedInBackground();
                 return;
               }
-              result.empty();
-              button.classList.toggle("mod-cta", true);
               consumed();
-              (_b = panel.querySelector(".vam-next-status")) == null ? void 0 : _b.setText(t("ui.subtopics_created"));
-              confirm.disabled = false;
-              button.disabled = false;
+              new import_obsidian16.Notice(t("ui.subtopics_created"));
+              this.taskSignal = void 0;
+              this.taskController = void 0;
+              this.close();
             } catch (error) {
               if (error instanceof PartialChildBatchError) {
                 result.empty();
@@ -21417,13 +21467,15 @@ var NextStepModal = class extends import_obsidian16.Modal {
         )
       });
     const initialMode = this.suggestedMode();
-    const actions = this.modalEl.createDiv("vam-next-actions");
+    let currentMode = initialMode;
+    const actions = modalActions(this);
     const closeButton = actions.createEl("button", { text: t("ui.close"), cls: "vam-next-close" });
     closeButton.addEventListener("click", () => this.close());
     const confirm = actions.createEl("button", { text: t("ui.confirm_research_task"), cls: "mod-cta" });
     confirm.dataset.topicRun = t("ui.confirm_research_task");
     confirm.disabled = !!((_b = this.modelSettings) == null ? void 0 : _b.running);
     let synthAction;
+    let synthesisContentSelect;
     const cards = this.contentEl.createDiv("vam-next-cards");
     cards.setAttr("role", "radiogroup");
     cards.setAttr("aria-label", t("ui.how_would_you_like_to_explore_next"));
@@ -21474,36 +21526,28 @@ var NextStepModal = class extends import_obsidian16.Modal {
         });
     } else if ((_d = this.modelSettings) == null ? void 0 : _d.quickError)
       this.contentEl.createEl("p", { cls: "vam-hint", text: this.modelSettings.quickError });
+    const summaryEl = this.contentEl.createEl("p", { cls: "vam-next-summary", attr: { "aria-live": "polite" } });
     const research = this.contentEl.createDiv("vam-next-research");
+    const expandPanel = this.contentEl.createDiv("vam-next-research vam-next-choice");
+    const synthesizePanel = this.contentEl.createDiv("vam-next-research vam-next-choice");
+    const adjust = this.contentEl.createEl("details", { cls: "vam-next-adjust" });
+    adjust.open = false;
+    adjust.createEl("summary", { text: t("ui.adjust") });
+    const adjustBody = adjust.createDiv("vam-next-adjust-body");
+    const adjustFor = {
+      research: adjustBody.createDiv("vam-next-adjust-section"),
+      expand: adjustBody.createDiv("vam-next-adjust-section"),
+      synthesize: adjustBody.createDiv("vam-next-adjust-section")
+    };
     research.createEl("p", { text: t("ui.start_from_this_node_s_question_update_only_this_node") });
-    const depthSet = research.createEl("fieldset", { cls: "vam-next-depth-set" });
-    depthSet.createEl("legend", { text: t("ui.research_depth") });
-    const depths = depthSet.createDiv("vam-next-depths");
-    const radios = [];
-    for (const [value, key2] of [
-      ["fast", "ui.quick"],
-      ["normal", "ui.standard"],
-      ["deep", "ui.deep"]
-    ]) {
-      const option2 = depths.createEl("label");
-      const radio = option2.createEl("input", { type: "radio", attr: { name: "vam-next-depth", value } });
-      radio.checked = this.depth === value;
-      radios.push(radio);
-      option2.createSpan({ text: t(key2) });
-    }
-    const depthDisclosure = research.createEl("details", { cls: "vam-next-depth-help" });
-    depthDisclosure.open = false;
-    depthDisclosure.createEl("summary", { text: t("ui.depth_guidance") });
-    const depthHint = depthDisclosure.createEl("p", { cls: "vam-hint", text: researchDepthDescription(this.depth) });
-    radios.forEach(
-      (radio) => radio.addEventListener("change", () => {
-        if (radio.checked) depthHint.setText(researchDepthDescription(radio.value));
-      })
-    );
+    const depthField = researchDepthField(adjustFor.research, {
+      initial: this.depth,
+      onChange: () => refreshSummary()
+    });
     research.createEl("p", { cls: "vam-next-status", attr: { "aria-live": "polite" } });
     confirm.addEventListener("click", () => {
       void this.run(research, confirm, async () => {
-        var _a2, _b2;
+        var _a2;
         const controller = this.taskController;
         const selected = await (sharedSources == null ? void 0 : sharedSources.picker.ready());
         if (this.closed || !controller || controller.signal.aborted) return;
@@ -21511,7 +21555,7 @@ var NextStepModal = class extends import_obsidian16.Modal {
           referenceGroups: (_a2 = selected == null ? void 0 : selected.groups) != null ? _a2 : [],
           outputLanguage: languageSelect.value,
           researchMode: (selected == null ? void 0 : selected.webSearch) ? "research" : "local",
-          researchDepth: ((_b2 = radios.find((radio) => radio.checked)) == null ? void 0 : _b2.value) || "normal",
+          researchDepth: depthField.value(),
           visualMode: (selected == null ? void 0 : selected.imageSearch) ? "auto" : "off",
           requirements: this.requirements(),
           ...templateId() ? { detailTemplateId: templateId() } : {},
@@ -21569,8 +21613,7 @@ var NextStepModal = class extends import_obsidian16.Modal {
         }
       });
     });
-    const expandPanel = this.contentEl.createDiv("vam-next-research vam-next-choice");
-    const modes = expandPanel.createDiv("vam-next-depths vam-next-segmented");
+    const modes = adjustFor.expand.createDiv("vam-next-depths vam-next-segmented");
     modes.setAttr("role", "radiogroup");
     modes.setAttr("aria-label", t("ui.expand_the_map"));
     const guided = modes.createEl("button", { text: t("ui.choose_directions_together"), cls: "is-active" });
@@ -21612,13 +21655,14 @@ var NextStepModal = class extends import_obsidian16.Modal {
       );
       expandButton.dataset.topicRun = (_a2 = expandButton.textContent) != null ? _a2 : "";
       expandButton.disabled = !!((_b2 = this.modelSettings) == null ? void 0 : _b2.running) || value && !!quickError;
+      refreshSummary();
     };
     guided.addEventListener("click", () => setExpandMode(false));
     quick.addEventListener("click", () => setExpandMode(true));
     const modeHint = expandPanel.createEl("p", {
       text: this.pendingCount ? t("ui.you_have_pending_proposals_review_them_here") : t("ui.ai_suggests_one_level_of_subtopics_review_or_edit_them_befor")
     });
-    const quickLimits = expandPanel.createDiv("vam-quick-limits is-hidden");
+    const quickLimits = adjustFor.expand.createDiv("vam-quick-limits is-hidden");
     const layersLabel = quickLimits.createEl("label", { cls: "vam-field" });
     layersLabel.createSpan({ text: t("ui.number_of_levels") });
     const layersInput = layersLabel.createEl("input", {
@@ -21665,27 +21709,18 @@ var NextStepModal = class extends import_obsidian16.Modal {
       }
       totalHint.classList.toggle("is-error", !!quickError);
     };
-    layersInput.addEventListener("input", () => {
-      var _a2;
-      updateTotal();
-      expandButton.disabled = !!((_a2 = this.modelSettings) == null ? void 0 : _a2.running) || multiLayer && !!quickError;
-    });
-    firstInput.addEventListener("input", () => {
-      var _a2;
-      updateTotal();
-      expandButton.disabled = !!((_a2 = this.modelSettings) == null ? void 0 : _a2.running) || multiLayer && !!quickError;
-    });
-    childrenInput.addEventListener("input", () => {
-      var _a2;
-      updateTotal();
-      expandButton.disabled = !!((_a2 = this.modelSettings) == null ? void 0 : _a2.running) || multiLayer && !!quickError;
-    });
+    for (const input of [layersInput, firstInput, childrenInput])
+      input.addEventListener("input", () => {
+        var _a2;
+        updateTotal();
+        expandButton.disabled = !!((_a2 = this.modelSettings) == null ? void 0 : _a2.running) || multiLayer && !!quickError;
+      });
     updateTotal();
-    const shallowLabel = expandPanel.createEl("label", { cls: "vam-field vam-next-toggle" });
+    const shallowLabel = adjustFor.expand.createEl("label", { cls: "vam-field vam-next-toggle" });
     const shallow = shallowLabel.createEl("input", { type: "checkbox" });
     shallow.checked = false;
     shallowLabel.createSpan({ text: t("ui.run_shallow_research_on_each_created_subtopic") });
-    const shallowHint = expandPanel.createEl("p", {
+    const shallowHint = adjustFor.expand.createEl("p", {
       cls: "vam-hint",
       text: t("ui.shallow_research_for_expanded_subtopics_0", researchDepthDescription("fast"))
     });
@@ -21785,7 +21820,6 @@ var NextStepModal = class extends import_obsidian16.Modal {
         multiLayer || !this.pendingCount
       );
     });
-    const synthesizePanel = this.contentEl.createDiv("vam-next-research vam-next-choice");
     synthesizePanel.createEl("p", {
       text: this.childrenCount ? t("ui.ai_suggests_synthesis_angles_first_the_parent_topic_changes") : t("ui.this_topic_has_no_direct_subtopics_you_can_choose_other_note")
     });
@@ -21829,7 +21863,7 @@ var NextStepModal = class extends import_obsidian16.Modal {
         });
       } else {
         const synthesisContent = renderSynthesisContent(
-          synthesizePanel,
+          adjustFor.synthesize,
           (_m = (_l = (_k = this.modelSettings) == null ? void 0 : _k.sources) == null ? void 0 : _l.synthesisTopics) != null ? _m : []
         );
         synthesizePanel.createEl("p", { cls: "vam-hint", text: t("ui.synthesis_web_default_hint") });
@@ -21842,6 +21876,7 @@ var NextStepModal = class extends import_obsidian16.Modal {
         synthButton.disabled = !!((_n = this.modelSettings) == null ? void 0 : _n.running);
         const synthStatus = synthesizePanel.createEl("p", { cls: "vam-next-status", attr: { "aria-live": "polite" } });
         synthesizePanel.createDiv("vam-next-result");
+        synthesisContentSelect = synthesisContent;
         synthButton.addEventListener(
           "click",
           () => this.launchSynthesis(synthesizePanel, synthButton, null, async (signal) => {
@@ -21869,9 +21904,10 @@ var NextStepModal = class extends import_obsidian16.Modal {
         );
       }
     }
-    const sharedSources = this.addReferencePicker(this.contentEl);
+    const sharedSources = this.addReferencePicker(adjustBody);
     show = (mode) => {
       var _a2;
+      currentMode = mode;
       for (const [name, button, panel] of [
         ["research", researchCard, research],
         ["expand", expandCard, expandPanel],
@@ -21881,6 +21917,7 @@ var NextStepModal = class extends import_obsidian16.Modal {
         button.setAttr("aria-checked", name === mode ? "true" : "false");
         button.tabIndex = name === mode ? 0 : -1;
         panel.style.display = name === mode ? "" : "none";
+        adjustFor[name].hidden = name !== mode;
       }
       sharedSources == null ? void 0 : sharedSources.forMode(mode);
       if (sharedSources)
@@ -21889,9 +21926,10 @@ var NextStepModal = class extends import_obsidian16.Modal {
       expandButton.hidden = mode !== "expand";
       expandFooterText.hidden = mode !== "expand";
       if (synthAction) synthAction.hidden = mode !== "synthesize";
+      refreshSummary();
     };
-    this.renderRequirements();
-    const output = this.contentEl.createEl("details", { cls: "vam-next-output" });
+    this.renderRequirements(adjustBody);
+    const output = adjustBody.createEl("details", { cls: "vam-next-output" });
     output.open = false;
     const outputSummary = output.createEl("summary").createSpan({ cls: "vam-next-source-summary-row" });
     outputSummary.createEl("strong", { text: t("ui.output_settings") });
@@ -21914,20 +21952,41 @@ var NextStepModal = class extends import_obsidian16.Modal {
       (_t = (_s = this.modelSettings) == null ? void 0 : _s.tones) != null ? _t : [],
       t("ui.tone_keep_0", (_v = (_u = this.modelSettings) == null ? void 0 : _u.currentTone) != null ? _v : "")
     );
+    const pickedName = (picked, choices) => {
+      var _a2;
+      return picked ? (_a2 = choices == null ? void 0 : choices.find((item) => item.id === picked)) == null ? void 0 : _a2.name : void 0;
+    };
     const describeOutput = () => {
-      var _a2, _b2, _c2, _d2, _e2, _f2, _g2, _h2;
-      const picked = templateId();
-      const template = picked ? (_c2 = (_b2 = (_a2 = this.modelSettings) == null ? void 0 : _a2.templates) == null ? void 0 : _b2.find((item) => item.id === picked)) == null ? void 0 : _c2.name : (_d2 = this.modelSettings) == null ? void 0 : _d2.currentTemplate;
-      const pickedTone = toneId();
-      const tone = pickedTone ? (_g2 = (_f2 = (_e2 = this.modelSettings) == null ? void 0 : _e2.tones) == null ? void 0 : _f2.find((item) => item.id === pickedTone)) == null ? void 0 : _g2.name : (_h2 = this.modelSettings) == null ? void 0 : _h2.currentTone;
+      var _a2, _b2, _c2, _d2, _e2, _f2;
+      const template = (_c2 = pickedName(templateId(), (_a2 = this.modelSettings) == null ? void 0 : _a2.templates)) != null ? _c2 : (_b2 = this.modelSettings) == null ? void 0 : _b2.currentTemplate;
+      const tone = (_f2 = pickedName(toneId(), (_d2 = this.modelSettings) == null ? void 0 : _d2.tones)) != null ? _f2 : (_e2 = this.modelSettings) == null ? void 0 : _e2.currentTone;
       outputValue.setText([supportedLanguageLabel(languageSelect.value), template, tone].filter(Boolean).join(" \xB7 "));
     };
-    languageSelect.addEventListener("change", describeOutput);
-    compactSettings.addEventListener("change", describeOutput);
-    describeOutput();
+    const depthName = (depth) => t(depth === "fast" ? "ui.quick" : depth === "deep" ? "ui.deep" : "ui.standard");
+    const refreshSummary = () => {
+      var _a2, _b2, _c2;
+      describeOutput();
+      const parts = [];
+      if (currentMode === "research") parts.push(t("ui.next_summary_depth_0", depthName(depthField.value())));
+      else if (currentMode === "expand")
+        parts.push(t(multiLayer ? "ui.quickly_explore_a_map" : "ui.choose_directions_together"));
+      else
+        parts.push(
+          t(
+            (synthesisContentSelect == null ? void 0 : synthesisContentSelect.value) === "summary" ? "ui.next_summary_synth_summary" : "ui.next_summary_synth_full"
+          )
+        );
+      const network = sharedSources == null ? void 0 : sharedSources.picker.selection();
+      if (network) parts.push(t(network.webSearch ? "ui.next_summary_web_on" : "ui.next_summary_web_off"));
+      parts.push(supportedLanguageLabel(languageSelect.value));
+      const tone = (_c2 = pickedName(toneId(), (_a2 = this.modelSettings) == null ? void 0 : _a2.tones)) != null ? _c2 : (_b2 = this.modelSettings) == null ? void 0 : _b2.currentTone;
+      if (tone) parts.push(tone);
+      summaryEl.setText(parts.join(" \xB7 "));
+    };
+    this.contentEl.addEventListener("change", refreshSummary);
     show(initialMode);
     cardFor[initialMode].focus();
-    ((_w = this.renderModelSettings()) != null ? _w : this.contentEl).createEl("p", {
+    ((_w = this.renderModelSettings(adjustBody)) != null ? _w : adjustBody).createEl("p", {
       text: t("ui.if_an_ai_task_exceeds_3_minutes_vam_attempts_to_interrupt_it"),
       cls: "vam-hint"
     });
@@ -27306,7 +27365,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
           this.taskSourceSettings(selectedLabel, (_a = this.map) == null ? void 0 : _a.id, selectedLabel),
           notes.map((note) => note.title),
           this.plugin.settings.language,
-          this.plugin.settings.cliModel,
+          this.plugin.modelLabel(this.plugin.settings.cliModel),
           this.plugin.settings.cliReasoning,
           title
         ).open();

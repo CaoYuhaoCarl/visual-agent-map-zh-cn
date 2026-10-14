@@ -182,7 +182,7 @@ function modalHarness(clipboardFails = false) {
     createEl(name, value = {}) { const child = element(name, value); this.children.push(child); return child; },
     createSpan(value = {}) { const child = element('span', value); this.children.push(child); return child; },
     setText(value) { this.text = value; }, empty() { this.children = []; }, replaceChildren() { this.children = []; }, toggleClass(name, on) { this.toggled = { ...(this.toggled ?? {}), [name]: on }; }, setAttr(name, value) { this[name] = value; },
-    addEventListener(name, handler) { this.listeners[name] = handler; }, addClass(name) { this.cls = `${this.cls} ${name}`.trim(); }
+    addEventListener(name, handler) { this.listeners[name] = handler; }, addClass(name) { this.cls = `${this.cls} ${name}`.trim(); }, removeClass() {}
   });
   const find = (root, predicate) => predicate(root) ? root : root.children.map(child => find(child, predicate)).find(Boolean);
   const all = (root, predicate) => [...(predicate(root) ? [root] : []), ...root.children.flatMap(child => all(child, predicate))];
@@ -226,12 +226,14 @@ test('outline modal: research depth and model show only with shallow research an
   const shallow = h.find(modal.contentEl, item => item.tag === 'input' && item.type === 'checkbox');
   assert.equal(options.toggled['is-hidden'], true);
   shallow.checked = true; shallow.listeners.change(); assert.equal(options.toggled['is-hidden'], false);
-  const depth = h.find(modal.contentEl, item => item.tag === 'select' && item['aria-label'] === 'Research depth');
+  // The shared depth widget: Quick / Standard / Deep radios, Quick checked here (shallow research is deliberately a first look).
+  const depthRadios = h.all(modal.contentEl, item => item.tag === 'input' && item.type === 'radio' && ['fast', 'normal', 'deep'].includes(item.value));
+  assert.equal(depthRadios.length, 3);
   const model = () => h.find(modal.contentEl, item => item.tag === 'select' && item['aria-label'] === 'Model');
-  assert.equal(depth.value, 'fast'); assert.deepEqual(plain(model().children.map(c => c.value)), ['']);
+  assert.deepEqual(depthRadios.map(radio => radio.checked), [true, false, false]); assert.deepEqual(plain(model().children.map(c => c.value)), ['']);
   models = [{ id: 'm1', label: 'Model One' }]; changed();
   assert.deepEqual(plain(model().children.map(c => c.value)), ['', 'm1']);
-  depth.value = 'deep'; model().value = 'm1';
+  depthRadios[2].checked = true; depthRadios[2].listeners.change(); model().value = 'm1';
   const textarea = h.find(modal.contentEl, item => item.tag === 'textarea'); textarea.value = '# R\n## A'; textarea.listeners.input();
   h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Create mind map').listeners.click();
   await new Promise(resolve => setTimeout(resolve, 0));
@@ -485,7 +487,7 @@ function placementModal(target) {
   const h = modalHarness(); const requests = [];
   const modal = new h.mod.OutlineImportModal({ vault: { getMarkdownFiles: () => [] } }, async request => { requests.push(request); }, undefined, [], target);
   modal.open();
-  const radios = h.all(modal.contentEl, item => item.tag === 'input' && item.type === 'radio');
+  const radios = h.all(modal.contentEl, item => item.tag === 'input' && item.type === 'radio' && ['new', 'tree', 'under'].includes(item.value));
   const label = value => h.find(modal.contentEl, item => item.tag === 'label' && item.children.some(child => child === radios.find(radio => radio.value === value)));
   const text = value => h.find(label(value), item => item.tag === 'span').text;
   const submit = async () => {

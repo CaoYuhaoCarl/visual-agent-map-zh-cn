@@ -8,17 +8,64 @@ export interface ModelChoices {
   watch(changed: () => void): () => void;
 }
 
-/** Research depth select (fast by default). */
-export function researchDepthField(parent: HTMLElement): () => ResearchDepth {
-  const label = parent.createEl("label", { cls: "vam-field" });
-  label.createSpan({ text: t("ui.research_depth") });
-  const depth = label.createEl("select");
-  depth.setAttr("aria-label", t("ui.research_depth"));
-  depth.createEl("option", { value: "fast", text: t("ui.fast_quick_overview") });
-  depth.createEl("option", { value: "normal", text: t("ui.normal_standard_research") });
-  depth.createEl("option", { value: "deep", text: t("ui.deep_in_depth_research") });
-  depth.value = "fast";
-  return () => (depth.value === "deep" ? "deep" : depth.value === "normal" ? "normal" : "fast");
+/** Today's standard depth for every research dialog; a dialog passes `initial` only for a deliberate exception. */
+export const DEFAULT_RESEARCH_DEPTH: ResearchDepth = "normal";
+
+/** What each depth searches and how it answers, shown under the depth choice. */
+export function researchDepthDescription(depth: ResearchDepth): string {
+  const description =
+    depth === "fast"
+      ? t("ui.quick_aim_for_up_to_1_web_search_and_2_main_sources_answer_t")
+      : depth === "deep"
+        ? t("ui.deep_aim_for_up_to_6_web_searches_and_10_main_sources_compar")
+        : t("ui.standard_aim_for_up_to_3_web_searches_and_5_main_sources_sum");
+  return `${description} ${t("ui.web_and_image_searches_share_the_search_limit_search_counts")}`;
+}
+
+let depthGroup = 0;
+
+/**
+ * The one research-depth choice: Quick / Standard / Deep as a radio group with the chosen depth's description below.
+ * Checked and focused state are JS-toggled classes (`is-checked`, `is-focused`), so the stylesheet needs no :has().
+ */
+export function researchDepthField(
+  parent: HTMLElement,
+  options: { initial?: ResearchDepth; onChange?: (depth: ResearchDepth) => void } = {}
+): { value: () => ResearchDepth; set: (depth: ResearchDepth) => void } {
+  const fieldset = parent.createEl("fieldset", { cls: "vam-next-depth-set" });
+  fieldset.createEl("legend", { text: t("ui.research_depth") });
+  const group = `vam-depth-${++depthGroup}`;
+  const row = fieldset.createDiv("vam-next-depths");
+  const hint = fieldset.createEl("p", { cls: "vam-hint", attr: { "aria-live": "polite" } });
+  const radios = new Map<ResearchDepth, { input: HTMLInputElement; label: HTMLElement }>();
+  const paint = (): void => {
+    for (const { input, label } of radios.values()) label.toggleClass("is-checked", input.checked);
+  };
+  const value = (): ResearchDepth => [...radios].find(([, item]) => item.input.checked)?.[0] ?? DEFAULT_RESEARCH_DEPTH;
+  const set = (depth: ResearchDepth): void => {
+    for (const [key, item] of radios) item.input.checked = key === depth;
+    hint.setText(researchDepthDescription(depth));
+    paint();
+  };
+  for (const [depth, key] of [
+    ["fast", "ui.quick"],
+    ["normal", "ui.standard"],
+    ["deep", "ui.deep"]
+  ] as const) {
+    const label = row.createEl("label");
+    const input = label.createEl("input", { type: "radio", value: depth, attr: { name: group } });
+    label.createSpan({ text: t(key) });
+    radios.set(depth, { input, label });
+    input.addEventListener("change", () => {
+      if (!input.checked) return;
+      set(depth);
+      options.onChange?.(depth);
+    });
+    input.addEventListener("focus", () => label.addClass("is-focused"));
+    input.addEventListener("blur", () => label.removeClass("is-focused"));
+  }
+  set(options.initial ?? DEFAULT_RESEARCH_DEPTH);
+  return { value, set };
 }
 
 /** Model select whose first option (empty value) is `defaultLabel`; returns the chosen model (or undefined) and a dispose function. */

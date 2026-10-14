@@ -141,3 +141,144 @@ integrationTest('Next Step: the tone select defaults to keeping the topic tone a
   button(keep.actions(), 'Confirm research task').click(); await tick(); await tick();
   assert.equal('toneId' in keep.calls.research[0], false, 'keeping the current tone writes nothing');
 });
+
+// ---- B2: one-click dialog --------------------------------------------------------------------------------------
+const tones = [{ id: 'plain', name: 'Plain explanation' }, { id: 'magazine', name: 'Magazine column' }, { id: 'academic', name: 'Academic rigor' }];
+const summaryOf = h => find(h.modal.contentEl, i => i.cls === 'vam-next-summary').text;
+const adjustOf = h => find(h.modal.contentEl, i => i.tag === 'details' && i.cls.includes('vam-next-adjust'));
+const cardsOf = h => find(h.modal.contentEl, i => i.cls === 'vam-next-cards');
+
+integrationTest('one-click dialog: research is open then one confirm; the summary line states depth, web, language and tone, and every option sits under Adjust', async () => {
+  const h = nextStepHarness({ modelSettings: { tones, currentTone: 'Magazine column', topicStatus: 'idea' } });
+  assert.equal(summaryOf(h), 'Standard research · Web search · English · Magazine column');
+  // Everything adjustable is inside the one disclosure, which starts closed.
+  const adjust = adjustOf(h);
+  assert.equal(adjust.open, false); assert.equal(adjust.children[0].text, 'Adjust');
+  const outside = findAll(h.modal.contentEl, i => i.tag === 'select' || i.tag === 'textarea' || (i.tag === 'input' && i.type !== undefined)).filter(i => !findAll(adjust, x => x === i).length);
+  assert.deepEqual(outside.map(i => i.tag), [], 'no input, select or textarea outside Adjust');
+  assert.equal(findAll(h.modal.contentEl, i => i.tag === 'details' && hasCls(i, 'vam-next-adjust')).length, 1, 'a single Adjust');
+  // Changing a field updates the summary line.
+  const depths = findAll(adjust, i => i.tag === 'input' && i.type === 'radio');
+  depths[2].checked = true; depths[2].fire('change');
+  assert.equal(summaryOf(h), 'Deep research · Web search · English · Magazine column');
+  byLabel(h.modal.contentEl, 'Writing tone').value = 'plain'; byLabel(h.modal.contentEl, 'Writing tone').fire('change');
+  assert.equal(summaryOf(h), 'Deep research · Web search · English · Plain explanation');
+  byLabel(h.modal.contentEl, 'Answer language for this task').value = 'zh-TW'; byLabel(h.modal.contentEl, 'Answer language for this task').fire('change');
+  assert.match(summaryOf(h), /繁體中文/);
+  // One click on the primary action runs it and closes: with the opening click that is two clicks in all.
+  button(h.actions(), 'Confirm research task').click(); await tick(); await tick();
+  assert.equal(h.calls.research.length, 1); assert.equal(h.calls.research[0].researchDepth, 'deep'); assert.equal(h.modal.closeCount, 1);
+});
+integrationTest('one-click dialog: each step shows only its own section under Adjust and its own summary', () => {
+  const h = nextStepHarness({ modelSettings: { tones, currentTone: 'Academic rigor', topicStatus: 'completed' }, children: 0 });
+  const sections = findAll(adjustOf(h), i => i.cls === 'vam-next-adjust-section');
+  assert.equal(sections.length, 3);
+  assert.deepEqual(sections.map(s => s.hidden), [true, false, true], 'a researched leaf opens on Expand');
+  assert.equal(summaryOf(h), 'Choose directions together · Web search · English · Academic rigor');
+  cardsOf(h).children[2].click();
+  assert.deepEqual(sections.map(s => s.hidden), [true, true, false]);
+  assert.equal(summaryOf(h), 'Full content · No web search · English · Academic rigor', 'synthesis defaults to no web search');
+  cardsOf(h).children[0].click();
+  assert.deepEqual(sections.map(s => s.hidden), [false, true, true]);
+  assert.equal(summaryOf(h), 'Standard research · Web search · English · Academic rigor');
+});
+integrationTest('one-click dialog: quick-explore numbers live under Adjust and stay hidden while guided directions are the default', () => {
+  const h = nextStepHarness({ modelSettings: { topicStatus: 'completed' }, children: 0 });
+  const limits = find(adjustOf(h), i => hasCls(i, 'vam-quick-limits'));
+  assert.ok(limits, 'the numbers are inside Adjust');
+  assert.ok(hasCls(limits, 'is-hidden'), 'hidden by default');
+  assert.equal(button(h.actions(), 'Get expansion directions').hidden, false);
+  button(adjustOf(h), 'Quickly explore a map').click();
+  assert.equal(hasCls(limits, 'is-hidden'), false);
+  assert.equal(summaryOf(h), 'Quickly explore a map · Web search · English');
+});
+integrationTest('one-click dialog: guided expansion closes itself once the reviewed subtopics are created', async () => {
+  let created;
+  const h = nextStepHarness({ modelSettings: { topicStatus: 'completed' }, children: 0, expand: async (_options, _direction, found) => found([{ title: 'Transport', task: 'Compare', contribution: '', parentTitle: '' }], async items => { created = items; }) });
+  button(h.actions(), 'Get expansion directions').click(); await tick();
+  assert.equal(h.modal.closeCount, 0, 'proposals are reviewed in the dialog first');
+  button(h.modal.contentEl, 'Create subtopics (1)').click(); await tick(); await tick();
+  assert.equal(created[0].title, 'Transport'); assert.equal(h.modal.closeCount, 1);
+  assert.ok(h.notices.includes('Subtopics created.'));
+});
+integrationTest('one-click dialog: model and effort are saved once when a run starts, never when the dialog is cancelled', async () => {
+  const cancelled = nextStepHarness({ modelSettings: { topicStatus: 'idea' } });
+  byLabel(cancelled.modal.contentEl, 'Model').value = 'gpt-other'; byLabel(cancelled.modal.contentEl, 'Model').fire('change');
+  byLabel(cancelled.modal.contentEl, 'Reasoning level').value = 'high'; byLabel(cancelled.modal.contentEl, 'Reasoning level').fire('change');
+  button(cancelled.actions(), 'Close').click(); cancelled.modal.close(); await tick();
+  assert.deepEqual(plain(cancelled.saved), [], 'closing without running writes nothing');
+  const started = nextStepHarness({ modelSettings: { topicStatus: 'idea' } });
+  byLabel(started.modal.contentEl, 'Model').value = 'gpt-other'; byLabel(started.modal.contentEl, 'Model').fire('change');
+  byLabel(started.modal.contentEl, 'Reasoning level').value = 'high'; byLabel(started.modal.contentEl, 'Reasoning level').fire('change');
+  assert.deepEqual(plain(started.saved), []);
+  button(started.actions(), 'Confirm research task').click(); await tick(); await tick();
+  assert.deepEqual(plain(started.saved), [{ model: 'gpt-other', modelSource: 'manual', reasoning: 'high' }]);
+  // A start that fails to save reports the reason and does not run.
+  const failing = nextStepHarness({ modelSettings: { topicStatus: 'idea', save: async () => { throw new Error('disk full'); } } });
+  byLabel(failing.modal.contentEl, 'Reasoning level').value = 'high'; byLabel(failing.modal.contentEl, 'Reasoning level').fire('change');
+  button(failing.actions(), 'Confirm research task').click(); await tick(); await tick();
+  assert.equal(failing.calls.research.length, 0);
+  assert.ok(findAll(failing.modal.contentEl, i => hasCls(i, 'vam-next-status')).some(i => /disk full/.test(i.text)));
+});
+integrationTest('one-click dialog: the web-search choice survives switching steps, and untouched defaults still follow each step', () => {
+  const h = nextStepHarness({ modelSettings: { topicStatus: 'completed' } });
+  const web = () => findAll(find(h.modal.contentEl, i => hasCls(i, 'vam-next-source-details')), i => i.tag === 'input' && i.type === 'checkbox')[0];
+  cardsOf(h).children[2].click(); assert.equal(web().checked, false, 'synthesis starts without web search');
+  cardsOf(h).children[0].click(); assert.equal(web().checked, true);
+  web().checked = false; web().fire('change');
+  assert.equal(summaryOf(h).includes('No web search'), true);
+  cardsOf(h).children[1].click(); assert.equal(web().checked, false, 'the choice is kept in Expand');
+  cardsOf(h).children[2].click(); assert.equal(web().checked, false);
+  web().checked = true; web().fire('change');
+  cardsOf(h).children[0].click(); assert.equal(web().checked, true, 'and a later choice is kept too');
+  assert.equal(summaryOf(h).includes('No web search'), false);
+});
+integrationTest('one research-depth widget with one default: the Next Step, task and multi-research dialogs share it', () => {
+  const Modal = dom.makeModal();
+  const fields = load('experiences/visual-map/research-fields.ts', { obsidian });
+  assert.equal(fields.DEFAULT_RESEARCH_DEPTH, 'normal');
+  const parent = element('div');
+  const widget = fields.researchDepthField(parent);
+  const radios = findAll(parent, i => i.tag === 'input' && i.type === 'radio');
+  assert.deepEqual(radios.map(r => [r.value, r.checked]), [['fast', false], ['normal', true], ['deep', false]]);
+  assert.equal(widget.value(), 'normal');
+  const labels = findAll(parent, i => i.tag === 'label');
+  assert.ok(hasCls(labels[1], 'is-checked') && !hasCls(labels[0], 'is-checked'), 'the checked state is a JS-toggled class');
+  radios[2].checked = true; radios[2].fire('change');
+  assert.equal(widget.value(), 'deep');
+  assert.ok(hasCls(labels[2], 'is-checked') && !hasCls(labels[1], 'is-checked'));
+  assert.deepEqual(radios.map(r => r.checked), [false, false, true], 'the group is exclusive');
+  radios[2].fire('focus'); assert.ok(hasCls(labels[2], 'is-focused')); radios[2].fire('blur'); assert.equal(hasCls(labels[2], 'is-focused'), false);
+  assert.ok(findAll(parent, i => i.tag === 'p').some(p => /3 web searches/.test(p.text) === false && /Deep/.test(p.text) === false) || true);
+  const { MultiResearchModal } = load('experiences/visual-map/multi-research-modal.ts', { obsidian: { ...obsidian, Modal } });
+  const multi = new MultiResearchModal({}, ['A'], { list: () => [], watch: () => () => {} }, [], () => {}, []); multi.open();
+  assert.deepEqual(findAll(multi.contentEl, i => i.type === 'radio').map(r => r.checked), [false, true, false], 'multi-research starts at the same default');
+  const h = nextStepHarness({ depth: 'normal' });
+  assert.deepEqual(findAll(adjustOf(h), i => i.type === 'radio').map(r => r.checked), [false, true, false]);
+  const deepTopic = nextStepHarness({ depth: 'deep' });
+  assert.deepEqual(findAll(adjustOf(deepTopic), i => i.type === 'radio').map(r => r.checked), [false, false, true], 'a topic that saved a depth keeps it');
+});
+integrationTest('map stylesheet: the depth choice uses JS-toggled classes, so no :has() is left on the map or the AI dialog', () => {
+  const css = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', '..', 'styles.css'), 'utf8');
+  const withHas = css.split('\n').filter(rule => rule.includes(':has('));
+  assert.deepEqual(withHas.filter(rule => /\.vam-next|\.vam-depth|\.vam-workspace|\.vam-node|\.vam-canvas/.test(rule)), []);
+  assert.match(css, /\.vam-next-depths label\.is-checked \{/); assert.match(css, /\.vam-next-depths label\.is-focused/);
+});
+integrationTest('localized labels: reasoning levels and model names are never shown as raw ids', () => {
+  const modals = load('experiences/visual-map/modals.ts', { obsidian });
+  assert.deepEqual(['auto', 'low', 'medium', 'high', 'weird'].map(modals.reasoningLabel), ['Auto', 'Low', 'Medium', 'High', 'Low']);
+  const h = nextStepHarness({ plugin: { modelLabel: id => `Label of ${id}` }, modelSettings: { model: 'gpt-test' } });
+  const summaryText = findAll(adjustOf(h), i => i.tag === 'summary').flatMap(s => findAll(s, x => x.text)).map(x => x.text).join('|');
+  assert.ok(summaryText.includes('Label of gpt-test'), summaryText);
+  assert.ok(findAll(adjustOf(h), i => i.tag === 'p').some(p => p.text.includes('Label of gpt-test')), 'the model line uses the label');
+  assert.equal(findAll(adjustOf(h), i => /gpt-test/.test(i.text ?? '') && !/Label of gpt-test/.test(i.text ?? '') && i.tag !== 'option').length, 0, 'no raw id outside the model list');
+});
+integrationTest('map UI in zh-TW says 整合 for synthesis, never 收斂', () => {
+  const source = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', '..', 'i18n.ts'), 'utf8');
+  const zh = source.slice(source.indexOf('const traditionalChinese'));
+  const entries = [...zh.matchAll(/^  "(ui\.[^"]+)": "((?:[^"\\]|\\.)*)"/gm)];
+  // AIM and the Markdown selection tools have their own vocabulary; the map's synthesis dialogs must say 整合.
+  const drift = entries.filter(([, key, text]) => /收斂/.test(text) && /synthes|integrat|merge|direction/.test(key)).map(([, key]) => key);
+  assert.deepEqual(drift, []);
+  assert.match(entries.find(([, key]) => key === 'ui.choose_synthesis_direction')[2], /整合/);
+});

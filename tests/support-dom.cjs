@@ -27,7 +27,7 @@ function element(tag, options = {}) {
     addEventListener(name, fn) { (this.listeners[name] ??= []).push(fn); },
     removeEventListener(name, fn) { this.listeners[name] = (this.listeners[name] ?? []).filter(f => f !== fn); },
     fire(name, event = {}) { let stopped = false; const e = { preventDefault() {}, stopPropagation() { stopped = true; }, target: this, ...event }; for (const fn of this.listeners[name] ?? []) fn(e); if (!stopped && this.parent && ['change', 'input', 'click'].includes(name)) this.parent.fire(name, { ...e, target: e.target }); },
-    click() { if (!this.disabled) this.fire('click'); },
+    click() { if (!this.disabled) this.fire('click'); }, change() { this.fire('change'); }, input() { this.fire('input'); }, keydown(event) { this.fire('keydown', event); },
     focus() { this.focused = true; if (this.root) this.root.activeElement = this; }, select() {}, setSelectionRange() {},
     querySelector(selector) { return findAll(this, matcher(selector))[0] ?? null; },
     querySelectorAll(selector) { return findAll(this, matcher(selector)); }

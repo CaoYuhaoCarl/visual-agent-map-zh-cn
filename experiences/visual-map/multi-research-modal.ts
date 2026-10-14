@@ -73,7 +73,7 @@ export class MultiResearchModal extends Modal {
       this.submitted = true;
       const request: MultiResearchRequest = {
         researchMode: web.checked ? "research" : "local",
-        researchDepth: depth(),
+        researchDepth: depth.value(),
         requirements: requirements.value.trim(),
         imageSearch: web.checked && images.checked,
         ...(model.value() ? { model: model.value() } : {}),

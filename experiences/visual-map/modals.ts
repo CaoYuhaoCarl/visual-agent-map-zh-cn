@@ -21,7 +21,9 @@ import {
 } from "../../repository";
 import type { AiResult, Suggestion } from "../../ai/types";
 import { syncModelSelect } from "../../core/model-discovery";
-import { templateField, toneField } from "./research-fields";
+import { researchDepthDescription, researchDepthField, templateField, toneField } from "./research-fields";
+
+export { researchDepthDescription };
 
 export type SynthesisContent = "full" | "summary";
 export interface TaskOptions {
@@ -65,15 +67,6 @@ export function renderSynthesisContent(parent: HTMLElement, topics: string[]): H
   } else parent.createEl("p", { cls: "vam-hint", text: t("ui.synthesis_no_source_topics") });
   return select;
 }
-export function researchDepthDescription(depth: ResearchDepth): string {
-  const description =
-    depth === "fast"
-      ? t("ui.quick_aim_for_up_to_1_web_search_and_2_main_sources_answer_t")
-      : depth === "deep"
-        ? t("ui.deep_aim_for_up_to_6_web_searches_and_10_main_sources_compar")
-        : t("ui.standard_aim_for_up_to_3_web_searches_and_5_main_sources_sum");
-  return `${description} ${t("ui.web_and_image_searches_share_the_search_limit_search_counts")}`;
-}
 export function imageReferencesFromMarkdown(markdown: string): string {
   const lines = markdown.split("\n");
   const blocks = lines.flatMap((line, index) =>
@@ -87,6 +80,16 @@ export function imageReferencesFromMarkdown(markdown: string): string {
       : []
   );
   return [...new Set(blocks)].join("\n\n");
+}
+/** Localized name of a reasoning level, for summaries; unknown values normalize the way the settings do. */
+export function reasoningLabel(level: string): string {
+  const labels: Record<string, string> = {
+    auto: t("ui.auto"),
+    low: t("ui.low"),
+    medium: t("ui.medium"),
+    high: t("ui.high")
+  };
+  return labels[normalizeReasoningLevel(level)];
 }
 export class PartialChildBatchError extends Error {}
 export interface AgentTaskHandle {
@@ -233,7 +236,7 @@ export class TaskModal extends Modal {
         t(
           "ui.ai_task_summary",
           this.modelId,
-          this.reasoningId,
+          reasoningLabel(this.reasoningId),
           references?.describe() ?? `0 ${t("ui.markdown_files")}`,
           t(selected?.webSearch ? "ui.on" : "ui.off"),
           this.targetLabel ? `${this.targetLabel} · ${result}` : result
@@ -242,19 +245,7 @@ export class TaskModal extends Modal {
     };
     this.contentEl.addEventListener("change", updateSummary);
     updateSummary();
-    const depthLabel = this.contentEl.createEl("label", { cls: "vam-field" });
-    depthLabel.createSpan({ text: t("ui.research_depth") });
-    const depthHint = this.contentEl.createEl("p", { cls: "vam-hint", text: researchDepthDescription(this.depth) });
-    const depth = this.contentEl.createEl("select", { cls: "vam-depth-select" });
-    depth.setAttr("aria-label", t("ui.research_depth"));
-    for (const [value, key] of [
-      ["fast", "ui.fast_quick_overview"],
-      ["normal", "ui.normal_standard_research"],
-      ["deep", "ui.deep_in_depth_research"]
-    ] as const)
-      depth.createEl("option", { value, text: t(key) });
-    depth.value = this.depth;
-    depth.addEventListener("change", () => depthHint.setText(researchDepthDescription(depth.value as ResearchDepth)));
+    const depth = researchDepthField(this.contentEl, { initial: this.depth });
     const layers = this.expand ? this.contentEl.createEl("label", { cls: "vam-field" }) : null;
     const multiLayer = layers?.createEl("input", { type: "checkbox" });
     if (multiLayer) multiLayer.checked = true;
@@ -275,7 +266,7 @@ export class TaskModal extends Modal {
           requirements: input.value.trim(),
           outputLanguage: languageSelect.value as Settings["language"],
           researchMode: sources?.webSearch ? "research" : "local",
-          researchDepth: depth.value as ResearchDepth,
+          researchDepth: depth.value(),
           visualMode: sources?.imageSearch ? (this.visual === "on" ? "on" : "auto") : "off",
           multiLayer: shallowResearch
         },
@@ -299,8 +290,8 @@ export class TaskModal extends Modal {
 export class NextStepModal extends Modal {
   private closed = false;
   private runPending = false;
-  private settingsPending: Promise<void> = Promise.resolve();
-  private settingsError: string | null = null;
+  /** Model and effort edits wait here; they are saved when a run starts, never when the dialog is cancelled. */
+  private pendingSettings: NotePatch = {};
   constructor(
     app: App,
     private topic: string,
@@ -402,8 +393,8 @@ export class NextStepModal extends Modal {
     return { picker, disclosure, forMode };
   }
   private requirementsInput?: HTMLTextAreaElement;
-  private renderRequirements(): void {
-    const disclosure = this.contentEl.createEl("details", { cls: "vam-next-requirements" });
+  private renderRequirements(parent: HTMLElement): void {
+    const disclosure = parent.createEl("details", { cls: "vam-next-requirements" });
     disclosure.open = false;
     const summary = disclosure.createEl("summary", { text: t("ui.additional_requirements") });
     const value = summary.createSpan({ cls: "vam-next-disclosure-value", text: t("ui.not_set") });
@@ -417,7 +408,7 @@ export class NextStepModal extends Modal {
     });
     disclosure.createEl("p", { text: t("ui.requirements_this_task_only"), cls: "vam-hint" });
     if (this.modelSettings?.rules?.trim())
-      this.contentEl.createEl("p", { text: t("ui.legacy_rules_not_applied"), cls: "vam-hint" });
+      parent.createEl("p", { text: t("ui.legacy_rules_not_applied"), cls: "vam-hint" });
   }
   private requirements(): string {
     return this.requirementsInput?.value.trim() ?? "";
@@ -427,27 +418,27 @@ export class NextStepModal extends Modal {
     this.taskController?.abort();
     this.unsubscribeModels?.();
   }
-  private async readySettings(): Promise<void> {
-    await this.settingsPending;
-    if (this.settingsError) throw new Error(this.settingsError);
+  /** Saves the model and effort chosen in this dialog, once, at the moment a run actually starts. */
+  private async flushSettings(): Promise<void> {
+    const patch = this.pendingSettings;
+    if (!Object.keys(patch).length || !this.modelSettings) return;
+    this.pendingSettings = {};
+    try {
+      await this.modelSettings.save(patch);
+    } catch (error) {
+      this.pendingSettings = { ...patch, ...this.pendingSettings };
+      throw error;
+    }
   }
-  private renderModelSettings(): HTMLElement | undefined {
+  private renderModelSettings(parent: HTMLElement): HTMLElement | undefined {
     if (!this.modelSettings) return;
     const settings = this.modelSettings;
-    const advanced = this.contentEl.createEl("details", { cls: "vam-advanced vam-next-model" });
+    const advanced = parent.createEl("details", { cls: "vam-advanced vam-next-model" });
     const advancedValue = advanced
       .createEl("summary", { text: t("ui.model_and_advanced_settings") })
       .createSpan({ cls: "vam-next-disclosure-value" });
-    const error = advanced.createEl("p", { cls: "vam-hint" });
     const save = (patch: NotePatch): void => {
-      this.settingsError = null;
-      error.setText("");
-      this.settingsPending = this.settingsPending
-        .then(() => settings.save(patch))
-        .catch(cause => {
-          this.settingsError = cause instanceof Error ? cause.message : String(cause);
-          error.setText(this.settingsError);
-        });
+      this.pendingSettings = { ...this.pendingSettings, ...patch };
     };
     const modelLabel = advanced.createEl("label", { cls: "vam-field" });
     modelLabel.createSpan({ text: t("ui.model") });
@@ -504,7 +495,11 @@ export class NextStepModal extends Modal {
     };
     const modelSummary = advanced.createEl("p", {
       cls: "vam-hint",
-      text: t("ui.0_1_reasoning_can_be_adjusted_per_topic", settings.model, sourceLabels[settings.modelSource])
+      text: t(
+        "ui.0_1_reasoning_can_be_adjusted_per_topic",
+        this.plugin.modelLabel(settings.model),
+        sourceLabels[settings.modelSource]
+      )
     });
     model.value = settings.model;
     model.addEventListener("change", () => {
@@ -512,7 +507,11 @@ export class NextStepModal extends Modal {
       settings.model = model.value;
       settings.modelSource = "manual";
       modelSummary.setText(
-        t("ui.0_1_reasoning_can_be_adjusted_per_topic", settings.model, sourceLabels[settings.modelSource])
+        t(
+          "ui.0_1_reasoning_can_be_adjusted_per_topic",
+          this.plugin.modelLabel(settings.model),
+          sourceLabels[settings.modelSource]
+        )
       );
       save({ model: settings.model, modelSource: settings.modelSource });
       describeModel();
@@ -566,7 +565,7 @@ export class NextStepModal extends Modal {
       cancel.hidden = false;
       cancel.onclick = () => controller.abort();
       try {
-        await this.readySettings();
+        await this.flushSettings();
         if (this.closed || controller.signal.aborted) return;
         await work();
       } catch (error) {
@@ -740,12 +739,12 @@ export class NextStepModal extends Modal {
                 this.startedInBackground();
                 return;
               }
-              result.empty();
-              button.classList.toggle("mod-cta", true);
+              // Guided expansion ends here: the subtopics exist, so say so and close instead of leaving a spent dialog.
               consumed();
-              panel.querySelector<HTMLElement>(".vam-next-status")?.setText(t("ui.subtopics_created"));
-              confirm.disabled = false;
-              button.disabled = false;
+              new Notice(t("ui.subtopics_created"));
+              this.taskSignal = undefined;
+              this.taskController = undefined;
+              this.close();
             } catch (error) {
               if (error instanceof PartialChildBatchError) {
                 result.empty();
@@ -765,7 +764,7 @@ export class NextStepModal extends Modal {
   onOpen(): void {
     this.modalEl.addClass("vam-next-modal");
     this.titleEl.setText(t("ui.how_would_you_like_to_explore_next"));
-    // The decision comes first: where the topic stands, then the three next steps; output settings follow the panel.
+    // The decision comes first: where the topic stands, the next step and one summary line; every option sits under Adjust.
     const intro = this.contentEl.createEl("p", { cls: "vam-modal-intro vam-next-topic" });
     intro.createSpan({ text: t("ui.current_topic_0", this.topic) });
     const topicStatus = this.modelSettings?.topicStatus;
@@ -783,14 +782,16 @@ export class NextStepModal extends Modal {
         )
       });
     const initialMode = this.suggestedMode();
+    let currentMode: "research" | "expand" | "synthesize" = initialMode;
     // One action bar below the scrolling content: Close plus the current step's primary action.
-    const actions = this.modalEl.createDiv("vam-next-actions");
+    const actions = modalActions(this);
     const closeButton = actions.createEl("button", { text: t("ui.close"), cls: "vam-next-close" });
     closeButton.addEventListener("click", () => this.close());
     const confirm = actions.createEl("button", { text: t("ui.confirm_research_task"), cls: "mod-cta" });
     confirm.dataset.topicRun = t("ui.confirm_research_task");
     confirm.disabled = !!this.modelSettings?.running;
     let synthAction: HTMLButtonElement | undefined;
+    let synthesisContentSelect: HTMLSelectElement | undefined;
     // The three steps are one choice: a radio group with arrow-key movement, not three toggles.
     const cards = this.contentEl.createDiv("vam-next-cards");
     cards.setAttr("role", "radiogroup");
@@ -849,32 +850,27 @@ export class NextStepModal extends Modal {
           .addEventListener("click", () => this.modelSettings?.stop?.());
     } else if (this.modelSettings?.quickError)
       this.contentEl.createEl("p", { cls: "vam-hint", text: this.modelSettings.quickError });
+    // What this run will do, in one line; the details are under Adjust.
+    const summaryEl = this.contentEl.createEl("p", { cls: "vam-next-summary", attr: { "aria-live": "polite" } });
     const research = this.contentEl.createDiv("vam-next-research");
+    const expandPanel = this.contentEl.createDiv("vam-next-research vam-next-choice");
+    const synthesizePanel = this.contentEl.createDiv("vam-next-research vam-next-choice");
+    // Every option for every step lives here, in one disclosure; each step shows only its own section.
+    const adjust = this.contentEl.createEl("details", { cls: "vam-next-adjust" });
+    adjust.open = false;
+    adjust.createEl("summary", { text: t("ui.adjust") });
+    const adjustBody = adjust.createDiv("vam-next-adjust-body");
+    const adjustFor = {
+      research: adjustBody.createDiv("vam-next-adjust-section"),
+      expand: adjustBody.createDiv("vam-next-adjust-section"),
+      synthesize: adjustBody.createDiv("vam-next-adjust-section")
+    };
+    // --- Research: one confirm; the depth is under Adjust.
     research.createEl("p", { text: t("ui.start_from_this_node_s_question_update_only_this_node") });
-    const depthSet = research.createEl("fieldset", { cls: "vam-next-depth-set" });
-    depthSet.createEl("legend", { text: t("ui.research_depth") });
-    const depths = depthSet.createDiv("vam-next-depths");
-    const radios: HTMLInputElement[] = [];
-    for (const [value, key] of [
-      ["fast", "ui.quick"],
-      ["normal", "ui.standard"],
-      ["deep", "ui.deep"]
-    ] as const) {
-      const option = depths.createEl("label");
-      const radio = option.createEl("input", { type: "radio", attr: { name: "vam-next-depth", value } });
-      radio.checked = this.depth === value;
-      radios.push(radio);
-      option.createSpan({ text: t(key) });
-    }
-    const depthDisclosure = research.createEl("details", { cls: "vam-next-depth-help" });
-    depthDisclosure.open = false;
-    depthDisclosure.createEl("summary", { text: t("ui.depth_guidance") });
-    const depthHint = depthDisclosure.createEl("p", { cls: "vam-hint", text: researchDepthDescription(this.depth) });
-    radios.forEach(radio =>
-      radio.addEventListener("change", () => {
-        if (radio.checked) depthHint.setText(researchDepthDescription(radio.value as ResearchDepth));
-      })
-    );
+    const depthField = researchDepthField(adjustFor.research, {
+      initial: this.depth,
+      onChange: () => refreshSummary()
+    });
     research.createEl("p", { cls: "vam-next-status", attr: { "aria-live": "polite" } });
     confirm.addEventListener("click", () => {
       void this.run(research, confirm, async () => {
@@ -885,7 +881,7 @@ export class NextStepModal extends Modal {
           referenceGroups: selected?.groups ?? [],
           outputLanguage: languageSelect.value as Settings["language"],
           researchMode: selected?.webSearch ? "research" : "local",
-          researchDepth: (radios.find(radio => radio.checked)?.value || "normal") as ResearchDepth,
+          researchDepth: depthField.value(),
           visualMode: selected?.imageSearch ? "auto" : "off",
           requirements: this.requirements(),
           ...(templateId() ? { detailTemplateId: templateId() } : {}),
@@ -942,8 +938,8 @@ export class NextStepModal extends Modal {
         }
       });
     });
-    const expandPanel = this.contentEl.createDiv("vam-next-research vam-next-choice");
-    const modes = expandPanel.createDiv("vam-next-depths vam-next-segmented");
+    // --- Expand: guided directions by default; the quick-explore numbers are under Adjust.
+    const modes = adjustFor.expand.createDiv("vam-next-depths vam-next-segmented");
     modes.setAttr("role", "radiogroup");
     modes.setAttr("aria-label", t("ui.expand_the_map"));
     const guided = modes.createEl("button", { text: t("ui.choose_directions_together"), cls: "is-active" });
@@ -994,6 +990,7 @@ export class NextStepModal extends Modal {
       );
       expandButton.dataset.topicRun = expandButton.textContent ?? "";
       expandButton.disabled = !!this.modelSettings?.running || (value && !!quickError);
+      refreshSummary();
     };
     guided.addEventListener("click", () => setExpandMode(false));
     quick.addEventListener("click", () => setExpandMode(true));
@@ -1002,7 +999,7 @@ export class NextStepModal extends Modal {
         ? t("ui.you_have_pending_proposals_review_them_here")
         : t("ui.ai_suggests_one_level_of_subtopics_review_or_edit_them_befor")
     });
-    const quickLimits = expandPanel.createDiv("vam-quick-limits is-hidden");
+    const quickLimits = adjustFor.expand.createDiv("vam-quick-limits is-hidden");
     const layersLabel = quickLimits.createEl("label", { cls: "vam-field" });
     layersLabel.createSpan({ text: t("ui.number_of_levels") });
     const layersInput = layersLabel.createEl("input", {
@@ -1054,24 +1051,18 @@ export class NextStepModal extends Modal {
       }
       totalHint.classList.toggle("is-error", !!quickError);
     };
-    layersInput.addEventListener("input", () => {
-      updateTotal();
-      expandButton.disabled = !!this.modelSettings?.running || (multiLayer && !!quickError);
-    });
-    firstInput.addEventListener("input", () => {
-      updateTotal();
-      expandButton.disabled = !!this.modelSettings?.running || (multiLayer && !!quickError);
-    });
-    childrenInput.addEventListener("input", () => {
-      updateTotal();
-      expandButton.disabled = !!this.modelSettings?.running || (multiLayer && !!quickError);
-    });
+    for (const input of [layersInput, firstInput, childrenInput])
+      input.addEventListener("input", () => {
+        updateTotal();
+        expandButton.disabled = !!this.modelSettings?.running || (multiLayer && !!quickError);
+      });
     updateTotal();
-    const shallowLabel = expandPanel.createEl("label", { cls: "vam-field vam-next-toggle" });
+    const shallowLabel = adjustFor.expand.createEl("label", { cls: "vam-field vam-next-toggle" });
     const shallow = shallowLabel.createEl("input", { type: "checkbox" });
     shallow.checked = false;
     shallowLabel.createSpan({ text: t("ui.run_shallow_research_on_each_created_subtopic") });
-    const shallowHint = expandPanel.createEl("p", {
+    // Shallow research on new subtopics is deliberately Quick: it is a first look at many topics, not a full study.
+    const shallowHint = adjustFor.expand.createEl("p", {
       cls: "vam-hint",
       text: t("ui.shallow_research_for_expanded_subtopics_0", researchDepthDescription("fast"))
     });
@@ -1168,7 +1159,7 @@ export class NextStepModal extends Modal {
         multiLayer || !this.pendingCount
       );
     });
-    const synthesizePanel = this.contentEl.createDiv("vam-next-research vam-next-choice");
+    // --- Synthesize.
     synthesizePanel.createEl("p", {
       text: this.childrenCount
         ? t("ui.ai_suggests_synthesis_angles_first_the_parent_topic_changes")
@@ -1213,7 +1204,7 @@ export class NextStepModal extends Modal {
         });
       } else {
         const synthesisContent = renderSynthesisContent(
-          synthesizePanel,
+          adjustFor.synthesize,
           this.modelSettings?.sources?.synthesisTopics ?? []
         );
         synthesizePanel.createEl("p", { cls: "vam-hint", text: t("ui.synthesis_web_default_hint") });
@@ -1226,6 +1217,7 @@ export class NextStepModal extends Modal {
         synthButton.disabled = !!this.modelSettings?.running;
         const synthStatus = synthesizePanel.createEl("p", { cls: "vam-next-status", attr: { "aria-live": "polite" } });
         synthesizePanel.createDiv("vam-next-result");
+        synthesisContentSelect = synthesisContent;
         synthButton.addEventListener("click", () =>
           this.launchSynthesis(synthesizePanel, synthButton, null, async signal => {
             const content: SynthesisContent = synthesisContent.value === "summary" ? "summary" : "full";
@@ -1251,8 +1243,10 @@ export class NextStepModal extends Modal {
         );
       }
     }
-    const sharedSources = this.addReferencePicker(this.contentEl);
+    // --- Shared options, all under Adjust.
+    const sharedSources = this.addReferencePicker(adjustBody);
     show = mode => {
+      currentMode = mode;
       for (const [name, button, panel] of [
         ["research", researchCard, research],
         ["expand", expandCard, expandPanel],
@@ -1262,6 +1256,7 @@ export class NextStepModal extends Modal {
         button.setAttr("aria-checked", name === mode ? "true" : "false");
         button.tabIndex = name === mode ? 0 : -1;
         panel.style.display = name === mode ? "" : "none";
+        adjustFor[name].hidden = name !== mode;
       }
       sharedSources?.forMode(mode);
       // A pending synthesis draft uses only the chosen direction, so it has no sources to pick.
@@ -1271,9 +1266,10 @@ export class NextStepModal extends Modal {
       expandButton.hidden = mode !== "expand";
       expandFooterText.hidden = mode !== "expand";
       if (synthAction) synthAction.hidden = mode !== "synthesize";
+      refreshSummary();
     };
-    this.renderRequirements();
-    const output = this.contentEl.createEl("details", { cls: "vam-next-output" });
+    this.renderRequirements(adjustBody);
+    const output = adjustBody.createEl("details", { cls: "vam-next-output" });
     output.open = false;
     const outputSummary = output.createEl("summary").createSpan({ cls: "vam-next-source-summary-row" });
     outputSummary.createEl("strong", { text: t("ui.output_settings") });
@@ -1296,24 +1292,39 @@ export class NextStepModal extends Modal {
       this.modelSettings?.tones ?? [],
       t("ui.tone_keep_0", this.modelSettings?.currentTone ?? "")
     );
+    const pickedName = (picked: string | undefined, choices?: { id: string; name: string }[]): string | undefined =>
+      picked ? choices?.find(item => item.id === picked)?.name : undefined;
     const describeOutput = (): void => {
-      const picked = templateId();
-      const template = picked
-        ? this.modelSettings?.templates?.find(item => item.id === picked)?.name
-        : this.modelSettings?.currentTemplate;
-      const pickedTone = toneId();
-      const tone = pickedTone
-        ? this.modelSettings?.tones?.find(item => item.id === pickedTone)?.name
-        : this.modelSettings?.currentTone;
+      const template = pickedName(templateId(), this.modelSettings?.templates) ?? this.modelSettings?.currentTemplate;
+      const tone = pickedName(toneId(), this.modelSettings?.tones) ?? this.modelSettings?.currentTone;
       outputValue.setText([supportedLanguageLabel(languageSelect.value), template, tone].filter(Boolean).join(" · "));
     };
-    languageSelect.addEventListener("change", describeOutput);
-    // The template select is built by a shared helper; its change bubbles up here.
-    compactSettings.addEventListener("change", describeOutput);
-    describeOutput();
+    const depthName = (depth: ResearchDepth): string =>
+      t(depth === "fast" ? "ui.quick" : depth === "deep" ? "ui.deep" : "ui.standard");
+    const refreshSummary = (): void => {
+      describeOutput();
+      const parts: string[] = [];
+      if (currentMode === "research") parts.push(t("ui.next_summary_depth_0", depthName(depthField.value())));
+      else if (currentMode === "expand")
+        parts.push(t(multiLayer ? "ui.quickly_explore_a_map" : "ui.choose_directions_together"));
+      else
+        parts.push(
+          t(
+            synthesisContentSelect?.value === "summary" ? "ui.next_summary_synth_summary" : "ui.next_summary_synth_full"
+          )
+        );
+      const network = sharedSources?.picker.selection();
+      if (network) parts.push(t(network.webSearch ? "ui.next_summary_web_on" : "ui.next_summary_web_off"));
+      parts.push(supportedLanguageLabel(languageSelect.value));
+      const tone = pickedName(toneId(), this.modelSettings?.tones) ?? this.modelSettings?.currentTone;
+      if (tone) parts.push(tone);
+      summaryEl.setText(parts.join(" · "));
+    };
+    // Select, checkbox and radio changes bubble up, so one listener keeps the summary current.
+    this.contentEl.addEventListener("change", refreshSummary);
     show(initialMode);
     cardFor[initialMode].focus();
-    (this.renderModelSettings() ?? this.contentEl).createEl("p", {
+    (this.renderModelSettings(adjustBody) ?? adjustBody).createEl("p", {
       text: t("ui.if_an_ai_task_exceeds_3_minutes_vam_attempts_to_interrupt_it"),
       cls: "vam-hint"
     });

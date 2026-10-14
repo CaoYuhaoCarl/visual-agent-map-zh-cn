@@ -112,7 +112,7 @@ export class OutlineImportModal extends Modal {
     this.shallow = shallowLabel.createEl("input", { type: "checkbox" });
     shallowLabel.createSpan({ text: t("ui.outline_import_shallow") });
     const researchOptions = research.createDiv("vam-outline-research-options");
-    this.depth = researchDepthField(researchOptions);
+    this.depth = researchDepthField(researchOptions, { initial: "fast" }).value;
     const model = modelField(researchOptions, this.models, t("ui.workspace_default"));
     this.model = model.value;
     this.unwatch = model.dispose;

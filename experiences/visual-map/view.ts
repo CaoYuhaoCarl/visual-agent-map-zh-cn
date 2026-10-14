@@ -5469,7 +5469,7 @@ export class VisualAgentMapView extends ItemView {
           this.taskSourceSettings(selectedLabel, this.map?.id, selectedLabel),
           notes.map(note => note.title),
           this.plugin.settings.language,
-          this.plugin.settings.cliModel,
+          this.plugin.modelLabel(this.plugin.settings.cliModel),
           this.plugin.settings.cliReasoning,
           title
         ).open();

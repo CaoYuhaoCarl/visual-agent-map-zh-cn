@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { test, integrationTest, root, load, core, node, map, plain, obsidian, DEFAULT_SETTINGS, until } = require('../support.cjs');
+const dom = require('../support-dom.cjs');
 integrationTest('node plus adds a child without opening a duplicate right-click menu', () => {
   const { VisualAgentMapView } = load('main.ts', { obsidian }, { requestAnimationFrame: run => { run(); return 1; }, cancelAnimationFrame() {} });
   const events = new Map(), buttons = [];
@@ -197,23 +198,9 @@ integrationTest('AIM outline keeps only note titles and hierarchy', () => {
 });
 integrationTest('Next Step reviews first expansion proposals in place and keeps existing proposal review', async () => {
   let closed = 0, expandCalls = 0, synthCalls = 0, created, saved, quickOptions, expandOptions, researchOptions, synthOptions; const notices = [];
-  const element = (tag, options = {}) => ({
-    tag, type: options.type, text: options.text, get textContent() { return this.text; }, value: options.value ?? options.text ?? '', cls: options.cls ?? '', children: [], get options() { return this.children.filter(child => child.tag === 'option' || child.value !== undefined); }, style: {}, dataset: {}, disabled: false,
-    classList: { toggle(name, enabled) { this[name] = enabled; } },
-    createDiv(value) { const child = element('div', { cls: typeof value === 'string' ? value : value?.cls }); this.children.push(child); return child; },
-    createEl(name, value) { const child = element(name, value); this.children.push(child); return child; },
-    createSpan(value) { const child = element('span', value); this.children.push(child); return child; },
-    addClass(name) { this.cls = name; }, setText(value) { this.text = value; }, setAttr(name, value) { this[name] = value; }, add(option) { this.children.push(option); }, replaceChildren(...children) { this.children = children; },
-    addEventListener(name, handler) { if (name === 'click') this.click = handler; if (name === 'change') this.change = handler; if (name === 'input') this.input = handler; if (name === 'keydown') this.keydown = handler; },
-    querySelector(selector) { const name = selector.slice(1); return find(this, item => item.cls.split(' ').includes(name)); },
-    querySelectorAll(selector) { return all(this, item => selector === 'button[data-topic-run]' && item.tag === 'button' && item.dataset.topicRun !== undefined); },
-    empty() { this.children = []; }, remove() { this.removed = true; }, focus() { this.focused = true; }
-  });
-  const find = (root, predicate) => predicate(root) ? root : root.children.map(child => find(child, predicate)).find(Boolean);
-  const all = (root, predicate) => [...(predicate(root) ? [root] : []), ...root.children.flatMap(child => all(child, predicate))];
-  const button = (root, label) => find(root, item => item.tag === 'button' && item.text === label);
+  const { element, find, findAll: all, button } = dom;
   const tick = () => new Promise(resolve => setTimeout(resolve, 0));
-  class Modal { constructor() { this.modalEl = element('modal'); this.titleEl = element('title'); this.contentEl = element('content'); } close() { closed++; this.onClose?.(); } }
+  class Modal { constructor() { this.modalEl = element('modal'); this.titleEl = element('title'); this.contentEl = element('content'); this.modalEl.children.push(this.contentEl); } close() { closed++; this.onClose?.(); } }
   const { NextStepModal } = load('main.ts', { obsidian: { ...obsidian, Modal, setIcon: () => {}, Notice: class { constructor(message) { notices.push(message); } } } });
   const checkedModels = [];
   const modelState = provider => ({ provider, status: 'ready', models: provider === 'codex' ? ['gpt-test'] : [] });
@@ -252,9 +239,16 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   assert.equal(find(modal.contentEl, item => /Run with .*sources:.*result:/.test(item.text ?? '')), undefined);
   assert.equal(find(modal.contentEl, item => /Full results go to Markdown/.test(item.text ?? '')), undefined);
   assert.ok(find(research, item => item.cls.includes('vam-next-status')));
-  const depthSet = find(research, item => item.tag === 'fieldset');
+  // Every option sits under one Adjust disclosure; the research panel keeps only its description and status.
+  const adjust = find(modal.contentEl, item => item.tag === 'details' && item.cls.includes('vam-next-adjust'));
+  assert.equal(adjust.open, false); assert.equal(adjust.children[0].text, 'Adjust');
+  assert.equal(find(research, item => item.tag === 'fieldset'), undefined);
+  const [researchAdjust, expandAdjust, synthAdjust] = all(adjust, item => item.cls === 'vam-next-adjust-section');
+  const depthSet = find(researchAdjust, item => item.tag === 'fieldset');
   assert.equal(depthSet.children[0].tag, 'legend');
-  assert.equal(find(research, item => item.cls.includes('vam-next-depth-help')).open, false);
+  assert.equal(all(modal.contentEl, item => item.tag === 'fieldset').length, 1, 'one research-depth widget');
+  const summaryLine = find(modal.contentEl, item => item.cls === 'vam-next-summary');
+  assert.equal(summaryLine.text, 'Standard research · Web search · English');
   const sourceDisclosures = all(modal.contentEl, item => item.cls.includes('vam-next-source-details'));
   assert.equal(sourceDisclosures.length, 1, 'one data-source picker serves every step');
   const [sources] = sourceDisclosures;
@@ -272,8 +266,8 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   const sourceChecks = all(sources, item => item.tag === 'input' && item.type === 'checkbox');
   assert.equal(sourceChecks.length, 2); assert.ok(sourceChecks[0].checked); assert.ok(sourceChecks[1].checked);
   assert.ok(find(sources, item => item.text === 'Search for image references'));
-  assert.ok(find(research, item => /Standard: provide the main evidence, limits, and open questions/.test(item.text ?? '')), JSON.stringify(all(research, item => item.text).map(item => item.text)));
-  assert.equal(all(expand, item => item.tag === 'input' && item.type === 'checkbox').length, 1, 'expand keeps only its shallow-research option');
+  assert.ok(find(researchAdjust, item => /Standard: provide the main evidence, limits, and open questions/.test(item.text ?? '')));
+  assert.equal(all(expandAdjust, item => item.tag === 'input' && item.type === 'checkbox').length, 1, 'expand keeps only its shallow-research option');
   assert.equal(all(sources, item => item.tag === 'input' && item.type === 'file').length, 2);
   assert.ok(find(sources, item => item.text === 'Allow web search'));
   assert.ok(find(synthesize, item => /web search is off by default/.test(item.text ?? '')));
@@ -291,7 +285,8 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   assert.equal(created, undefined); assert.equal(expand.querySelector('.vam-next-status').text, 'Select at least one subtopic.');
   proposalCheck.checked = true;
   button(expand, 'Create subtopics (1)').click(); await tick();
-  assert.equal(created[0].title, 'Transport'); assert.equal(expandOptions.outputLanguage, 'zh-TW'); assert.equal(closed, 0);
+  assert.equal(created[0].title, 'Transport'); assert.equal(expandOptions.outputLanguage, 'zh-TW');
+  assert.equal(closed, 1, 'guided expansion closes after the subtopics are created'); closed = 0; // later absolute close counts stay as before
   let firstCreated, firstAttempts = 0;
   const firstFlow = new NextStepModal({}, 'Parent', 'normal', 0, 0, plugin, async () => {}, async (_options, _direction, found, failed) => {
     firstAttempts++;
@@ -313,20 +308,22 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   firstCheckbox.checked = true;
   const firstName = find(firstPanel.querySelector('.vam-next-result'), item => item.tag === 'input' && item.type === 'text'); firstName.value = 'Edited idea';
   button(firstPanel, 'Create subtopics (1)').click(); await tick();
-  assert.equal(firstCreated[0].title, 'Edited idea'); assert.equal(closed, 0);
-  const contentChoice = find(synthesize, item => item.tag === 'select' && item['aria-label'] === 'Topic synthesis content');
+  assert.equal(firstCreated[0].title, 'Edited idea'); assert.equal(closed, 1); closed = 0;
+  const contentChoice = find(synthAdjust, item => item.tag === 'select' && item['aria-label'] === 'Topic synthesis content');
   assert.equal(contentChoice.value, 'full');
-  assert.ok(find(synthesize, item => item.tag === 'li' && item.text === 'Child A'));
-  assert.ok(find(synthesize, item => item.tag === 'li' && item.text === 'Child B'));
+  assert.ok(find(synthAdjust, item => item.tag === 'li' && item.text === 'Child A'));
+  assert.ok(find(synthAdjust, item => item.tag === 'li' && item.text === 'Child B'));
   contentChoice.value = 'summary'; contentChoice.change();
-  assert.ok(find(synthesize, item => /Important conditions in the body may be omitted/.test(item.text ?? '')));
+  assert.ok(find(synthAdjust, item => /Important conditions in the body may be omitted/.test(item.text ?? '')));
+  assert.equal(find(modal.contentEl, item => item.cls === 'vam-next-summary').text, 'Choose directions together · Web search · 繁體中文', 'expand summary names the mode');
   cards.children[2].click(); assert.equal(activeCard(), 2); assert.equal(researchAction.hidden, true);
+  assert.equal(find(modal.contentEl, item => item.cls === 'vam-next-summary').text, 'Summary only · Web search · 繁體中文', 'the summary line follows the synthesis content choice');
   // Starting synthesis closes its window at once, so it runs on its own modal and this one stays open for research.
   const synthModal = new NextStepModal({}, 'Parent', 'normal', 1, 1, plugin, async () => {}, async () => {}, modal.synthesize, modelSettings);
   synthModal.onOpen(); find(synthModal.contentEl, item => item.cls === 'vam-next-cards').children[2].click();
   find(synthModal.contentEl, item => item['aria-label'] === 'Answer language for this task').value = 'zh-TW';
   const synthPanel = all(synthModal.contentEl, item => item.cls.includes('vam-next-research'))[2];
-  const synthContentChoice = find(synthPanel, item => item.tag === 'select' && item['aria-label'] === 'Topic synthesis content');
+  const synthContentChoice = find(synthModal.contentEl, item => item.tag === 'select' && item['aria-label'] === 'Topic synthesis content');
   synthContentChoice.value = 'summary'; synthContentChoice.change();
   const closedBeforeSynthStart = closed;
   button(synthModal.modalEl, 'Get synthesis suggestions first').click(); await tick();
@@ -347,10 +344,16 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   assert.equal(button(synthPanel, 'Choose this direction'), undefined);
   closed = closedBeforeSynthStart;
   cards.children[0].click(); assert.equal(activeCard(), 0); assert.equal(researchAction.hidden, false);
-  button(modal.modalEl, 'Confirm research task').click(); await tick();
+  // The first modal closed itself after creating subtopics, so a research run needs a fresh dialog: one confirm click starts it.
+  const researchModal = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin,
+    async (options, _focus, _done, _failed, accepted) => { researchOptions = options; accepted(); }, async () => {}, async () => {}, modelSettings);
+  researchModal.onOpen();
+  find(researchModal.contentEl, item => item.tag === 'textarea').value = 'Only this run';
+  find(researchModal.contentEl, item => item['aria-label'] === 'Answer language for this task').value = 'zh-TW';
+  button(researchModal.modalEl, 'Confirm research task').click(); await tick();
   assert.equal(researchOptions.requirements, 'Only this run'); assert.equal(researchOptions.researchMode, 'research'); assert.equal(researchOptions.referenceGroups.length, 0);
-  assert.equal(researchOptions.outputLanguage, 'zh-TW');
-  assert.equal(closed, 1); assert.equal(research.querySelector('.vam-next-result'), undefined);
+  assert.equal(researchOptions.outputLanguage, 'zh-TW'); assert.equal(researchOptions.researchDepth, 'normal');
+  assert.equal(closed, 1, 'research is two clicks in all: open, then confirm'); assert.equal(researchModal.closed, true);
   // The suggested step follows the topic's research state.
   const suggested = (childrenCount, topicStatus, childrenCompleted) => {
     const suggestModal = new NextStepModal({}, 'Parent', 'normal', childrenCount, 0, plugin, async () => {}, async () => {}, async () => {}, { ...modelSettings, topicStatus, childrenCompleted });
@@ -459,8 +462,7 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   button(pendingModal.modalEl, 'Review AI subtopic suggestions').click(); await tick();
   assert.equal(pendingCalls, 1); assert.equal(button(pendingModal.contentEl, 'Understand and run'), undefined);
   button(pendingModal.contentEl, 'Create subtopics (1)').click(); await tick();
-  assert.ok(button(pendingModal.modalEl, 'Get expansion directions'));
-  button(pendingModal.modalEl, 'Get expansion directions').click(); await tick();
+  assert.equal(pendingModal.closed, true, 'creating the reviewed subtopics ends the guided expansion'); closed -= 1;
   assert.equal(pendingCalls, 1); assert.equal(button(pendingModal.contentEl, 'Understand and run'), undefined);
   let finishQuick, completedQuick = false, delayedOptions;
   const delayed = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async (options, _direction, _failed, _failure, accepted) => {
@@ -472,7 +474,7 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   delayed.onOpen(); find(delayed.contentEl, item => item.cls === 'vam-next-cards').children[1].click(); button(delayed.contentEl, 'Quickly explore a map').click();
   const numbers = all(delayed.contentEl, item => item.tag === 'input' && item.type === 'number');
   numbers[0].value = '3'; numbers[1].value = '2'; numbers[2].value = '2'; numbers[0].input();
-  const shallow = find(all(delayed.contentEl, item => item.cls.includes('vam-next-research'))[1], item => item.tag === 'input' && item.type === 'checkbox' && item.checked === false);
+  const shallow = find(all(delayed.contentEl, item => item.cls === 'vam-next-adjust-section')[1], item => item.tag === 'input' && item.type === 'checkbox');
   shallow.checked = true;
   button(delayed.modalEl, 'Create starter map now').click(); await tick();
   assert.equal(closed, 5); assert.equal(completedQuick, false);
@@ -499,20 +501,21 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   finishGuided(); await tick();
   assert.equal(guidedFinished, true); assert.ok(button(guidedModal.contentEl, 'Create subtopics (1)'));
   button(guidedModal.contentEl, 'Create subtopics (1)').click(); await tick();
-  assert.equal(closed, 5);
+  assert.equal(closed, 6, 'the guided default closes the dialog once the subtopics are created'); closed = 5;
   const settingsWrites = []; let researchAfterSave = false;
   const settingsModal = new NextStepModal({}, 'Parent', 'normal', 0, 0,
     { settings: { codexUsageNoticeSeen: true, models: 'model-a,model-b' }, availableModels: () => ['model-a', 'model-b'], modelLabel: model => model, modelDiscoveryState: provider => ({ provider, status: 'ready', models: ['model-a', 'model-b'] }), subscribeModelDiscovery: () => () => {}, refreshModelDiscovery: async provider => ({ provider, status: 'ready', models: ['model-a', 'model-b'] }), aiReadyForModel: async model => { checkedModels.push(model); return true; }, confirmAiUsage: async (model, run) => { checkedModels.push(model); await run(); return true; }, saveSettings: async () => {} },
-    async (_options, _focus, _done, _failed, accepted) => { researchAfterSave = settingsWrites.length === 2; accepted(); }, async () => {}, async () => {},
+    async (_options, _focus, _done, _failed, accepted) => { researchAfterSave = settingsWrites.length === 1; accepted(); }, async () => {}, async () => {},
     { model: 'model-a', modelSource: 'workspace', reasoning: 'low', save: async patch => { settingsWrites.push(patch); } });
   settingsModal.onOpen();
-  assert.equal(settingsModal.contentEl.children.find(item => item.cls.includes('vam-next-model')).children[0].text, 'Model and advanced settings');
+  assert.equal(find(settingsModal.contentEl, item => item.cls.includes('vam-next-model')).children[0].text, 'Model and advanced settings');
   const modelSelect = find(settingsModal.contentEl, item => item['aria-label'] === 'Model');
   const reasoningSelect = find(settingsModal.contentEl, item => item['aria-label'] === 'Reasoning level');
   modelSelect.value = 'model-b'; modelSelect.change(); reasoningSelect.value = 'high'; reasoningSelect.change();
   assert.equal(researchAfterSave, false);
+  assert.deepEqual(plain(settingsWrites), [], 'adjusting the model and effort saves nothing yet');
   button(settingsModal.modalEl, 'Confirm research task').click(); await tick();
-  assert.deepEqual(plain(settingsWrites), [{ model: 'model-b', modelSource: 'manual' }, { reasoning: 'high' }]);
+  assert.deepEqual(plain(settingsWrites), [{ model: 'model-b', modelSource: 'manual', reasoning: 'high' }], 'saved once, when the run starts');
   assert.equal(checkedModels.at(-1), 'model-b');
   assert.equal(researchAfterSave, true);
   const closedBeforeCancel = closed;
@@ -562,7 +565,7 @@ test('multi research modal: defaults, options and immediate close on start', () 
     createDiv(value) { const c = element('div', typeof value === 'string' ? { cls: value } : value); this.children.push(c); return c; },
     createEl(name, value = {}) { const c = element(name, value); this.children.push(c); return c; },
     createSpan(value = {}) { const c = element('span', value); this.children.push(c); return c; },
-    setText(value) { this.text = value; }, replaceChildren() { this.children = []; }, setAttr(name, value) { this[name] = value; }, addEventListener(name, fn) { this.listeners[name] = fn; }, addClass(n) { this.cls = `${this.cls} ${n}`.trim(); }, focus() {}
+    setText(value) { this.text = value; }, replaceChildren() { this.children = []; }, setAttr(name, value) { this[name] = value; }, addEventListener(name, fn) { this.listeners[name] = fn; }, addClass(n) { this.cls = `${this.cls} ${n}`.trim(); }, removeClass() {}, toggleClass() {}, focus() {}
   });
   const find = (root, predicate) => predicate(root) ? root : root.children.map(c => find(c, predicate)).find(Boolean);
   // As in Obsidian, the content sits inside modalEl; the action bar is modalEl's last child.
@@ -575,21 +578,23 @@ test('multi research modal: defaults, options and immediate close on start', () 
   assert.ok(find(modal.contentEl, i => i.text === 'Alpha')); assert.ok(find(modal.contentEl, i => i.text === 'Beta'));
   const web = find(modal.contentEl, i => i.tag === 'input' && i.type === 'checkbox'); assert.equal(web.checked, true);
   assert.ok(find(modal.contentEl, i => i.text === 'Search for image references'));
-  const depth = find(modal.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Research depth'); assert.equal(depth.value, 'fast');
+  // The shared depth widget, with the same default as every other research dialog.
+  const radios = (root) => { const out = []; const visit = n => { if (n.type === 'radio') out.push(n); n.children.forEach(visit); }; visit(root); return out; };
+  const depthRadios = radios(modal.contentEl); assert.deepEqual(depthRadios.map(r => r.checked), [false, true, false]);
   const model = () => find(modal.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Model'); assert.equal(model().value, '');
   assert.deepEqual(plain(model().children.map(c => c.value)), ['']);
   models = [{ id: 'm1', label: 'Model One' }, { id: 'm2', label: 'Model Two' }]; changed();
   assert.deepEqual(plain(model().children.map(c => [c.value, c.text])), [['', "Each topic's current model"], ['m1', 'Model One'], ['m2', 'Model Two']]);
-  assert.deepEqual(plain(depth.children.map(c => c.value)), ['fast', 'normal', 'deep']);
+  assert.equal(depthRadios.length, 3);
   const templateSelect = find(modal.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Content template');
   assert.deepEqual(plain(templateSelect.children.map(c => [c.value, c.text])), [['', "Each topic's current template"], ['standard', 'Standard'], ['A', 'Alpha template']]);
   const start = find(modal.modalEl, i => i.tag === 'button' && i.text === 'Start research (2)');
   start.listeners.click(); start.listeners.click();
   assert.equal(modal.closed, 1); assert.equal(requests.length, 1); modal.onClose(); assert.equal(unwatched, 1);
-  assert.deepEqual(plain(requests[0]), { researchMode: 'research', researchDepth: 'fast', requirements: '', imageSearch: true });
+  assert.deepEqual(plain(requests[0]), { researchMode: 'research', researchDepth: 'normal', requirements: '', imageSearch: true });
   const second = []; const m2 = new mod.MultiResearchModal({}, ['A'], { list: () => [{ id: 'm1', label: 'Model One' }], watch: () => () => {} }, templates, r => second.push(r)); m2.open();
   find(m2.contentEl, i => i.tag === 'input' && i.type === 'checkbox').checked = false;
-  const sel = find(m2.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Research depth'); sel.value = 'deep';
+  const second3 = radios(m2.contentEl)[2]; second3.checked = true; second3.listeners.change();
   find(m2.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Model').value = 'm1';
   find(m2.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Content template').value = 'A';
   find(m2.contentEl, i => i.tag === 'textarea').value = '  only 2025  ';
@@ -622,22 +627,9 @@ test('card shows a Format not met badge with the issues as tooltip', () => {
 });
 
 integrationTest('Next Step modal: the content template choice goes into research, expansion and synthesis options only when picked', async () => {
-  const element = (tag, options = {}) => ({
-    tag, type: options.type, text: options.text, value: options.value ?? options.text ?? '', cls: options.cls ?? '', children: [], style: {}, dataset: {}, disabled: false,
-    classList: { toggle() {} },
-    createDiv(value) { const child = element('div', { cls: typeof value === 'string' ? value : value?.cls }); this.children.push(child); return child; },
-    createEl(name, value) { const child = element(name, value); this.children.push(child); return child; },
-    createSpan(value) { const child = element('span', value); this.children.push(child); return child; },
-    addClass(name) { this.cls = name; }, setText(value) { this.text = value; }, setAttr(name, value) { this[name] = value; }, add(option) { this.children.push(option); }, replaceChildren(...children) { this.children = children; },
-    addEventListener(name, handler) { if (name === 'click') this.click = handler; if (name === 'change') this.change = handler; if (name === 'input') this.input = handler; },
-    querySelector(selector) { const name = selector.slice(1); return find(this, item => item.cls.split(' ').includes(name)); },
-    querySelectorAll() { return []; }, empty() { this.children = []; }, remove() {}, focus() {}
-  });
-  const find = (root, predicate) => predicate(root) ? root : root.children.map(child => find(child, predicate)).find(Boolean);
-  const all = (root, predicate) => [...(predicate(root) ? [root] : []), ...root.children.flatMap(child => all(child, predicate))];
-  const button = (root, label) => find(root, item => item.tag === 'button' && item.text === label);
+  const { element, find, findAll: all, button } = dom;
   const tick = () => new Promise(resolve => setTimeout(resolve, 0));
-  class Modal { constructor() { this.modalEl = element('modal'); this.titleEl = element('title'); this.contentEl = element('content'); } close() { this.onClose?.(); } }
+  class Modal { constructor() { this.modalEl = element('modal'); this.titleEl = element('title'); this.contentEl = element('content'); this.modalEl.children.push(this.contentEl); } close() { this.onClose?.(); } }
   const { NextStepModal } = load('main.ts', { obsidian: { ...obsidian, Modal, setIcon: () => {}, Notice: class {} } });
   const modelState = provider => ({ provider, status: 'ready', models: [] });
   const plugin = { settings: { codexUsageNoticeSeen: true, claudeUsageNoticeSeen: true, models: 'gpt-test', cliReasoning: 'low', language: 'en' }, aiReadyForModel: async () => true, confirmAiUsage: async (_m, run) => { await run(); return true; }, saveSettings: async () => {}, activeTasks: new Map(), availableModels: () => ['gpt-test'], modelLabel: model => model, modelDiscoveryState: modelState, subscribeModelDiscovery: () => () => {}, refreshModelDiscovery: async provider => modelState(provider), sources: { currentTopicId: 'current', currentLabel: 'Current', synthesisLabel: 'Current and children', synthesisTopics: ['Child'], topics: async () => [], readTopic: async () => [] } };
