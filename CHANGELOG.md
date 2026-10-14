@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.18.0] - 2026-10-14
+
+### Added
+
+- **Writing tones** change how AI words its notes: Plain explanation, Magazine column, Key-point summary, Practical guide, Academic rigor (the previous behavior) or AI choice. Pick one per map, per topic or per run. Write and save your own tones in Settings → Writing tones, or with **Edit tones…** beside any tone picker. A tone never changes the source, citation or accuracy rules.
+- **Generate an outline with AI** in **Import outline**: give a topic and an outline preset (the built-in **Knowledge tree generator** or your own saved preset), review the headings, then add them to the map.
+- **Quick explore** in **Expand** drafts a whole tree of subtopics at once. Choose how many levels (1–6) and how many subtopics (up to 30); you review and edit the tree before anything is created. **Choose directions together** still proposes one level at a time.
+- **AI structure suggestions** for the whole map or one branch: AI reads only topic titles, summaries and status, and suggests what to add, move, merge or remove, each with a reason. Apply suggestions one at a time; each is a single undo step.
+- **Translate image**: click an image in a note, pick a language, then **Replace image** or **Add new image**. Codex draws a translated version, saves it as an attachment and writes it into the note; the original file is kept. A glow on the image shows the work in progress.
+- Researching several selected topics has the **Search for image references** option.
+
+### Changed
+
+- The AI dialog opens on a one-line summary of what will run. **Adjust** holds every option: one depth control, sources, extra requirements, output settings, model and the expand mode.
+- Card tools float above the card as labelled buttons: **Collapse**, **Structure**, **Rename**, **Details** and **AI explore**. Hovering, selecting or focusing a card never moves or re-wraps it.
+- **Select several topics** sits at the top left of the map, and a **Layout** menu (expand to a level, expand all, collapse all, auto layout) sits with the zoom controls. The gesture hint goes away after your first pan or zoom.
+- Collapsing or expanding a branch re-arranges the shown map; hidden branches keep their places.
+- **Import outline** adds to the open map, as a new tree or under the selected topic. Start a new map from **＋ New map**. Picking an outline file from the vault is replaced by pasting or generating one.
+- **Fix connection…** beside the model picker opens the setup guide when the AI service's CLI is missing and checks it again otherwise. **Edit templates…** beside the content template picker opens the template library at the chosen template.
+- Image search in **Use AI on selection** looks across the web instead of only Wikimedia Commons and lists each image with its source page; web images may not be free to reuse. Clicking an image shows **Translate image** instead of the image panel.
+- The sample tour teaches the current map controls.
+- Automatic image search no longer skips ordinary knowledge questions.
+
 ## [0.17.0] - 2026-10-13
 
 ### Changed

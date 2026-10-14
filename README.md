@@ -8,7 +8,7 @@
 
 **Start with a question. See the pieces. Follow the ideas worth exploring.** Build a visual research map, let AIM investigate a question, or talk through a new idea in Coffee Tables. Keep what you learn in editable Markdown notes.
 
-[**Get started**](#get-started) · [See the 0.17.0 release](https://github.com/kevcltsai/visual-agent-map/releases/tag/0.17.0) · [Installation guide](INSTALL.md)
+[**Get started**](#get-started) · [See the 0.18.0 release](https://github.com/kevcltsai/visual-agent-map/releases/tag/0.18.0) · [Installation guide](INSTALL.md)
 
 ### Take a look
 
@@ -18,7 +18,7 @@
 
 ### Three ways to explore
 
-- **Visual maps.** Break a question into topics, research a branch with AI, and review suggestions before adding them. Turn a heading outline into a map, research several topics in the background, and choose which sections each research note has with reusable content templates. Manual mapping needs no AI.
+- **Visual maps.** Break a question into topics, research a branch with AI, and review suggestions before adding them. Let AI draft a multi-level outline or suggest what to strengthen or cut, paste a heading outline, and research several topics in the background. Content templates choose which sections a research note has; writing tones choose how it reads. Manual mapping needs no AI.
 - **AIM — Adaptive Inquiry Map.** Work from your question and background toward a document with supporting sources. Follow the research in the map, build on useful earlier findings, and resume unfinished work when a step fails.
 - **Coffee Tables.** Bring an unfinished idea to simulated AI guests. Add `.txt` / `.md` background, choose a conversation style, invite guests with a question, and revisit observer insights and conversation segments.
 
@@ -36,7 +36,7 @@ For detailed setup, manual installation, and troubleshooting, see [INSTALL.md](I
 
 Maps, research reports, Coffee Tables conversations, and observer notes are readable Markdown in your vault. You can edit and keep them outside VAM.
 
-AI actions for selected Markdown text and clicked images produce editable drafts. You explicitly accept a draft before it changes a note. To stop the automatic selection button and image-click panel, turn off **Show “Use AI on selection” automatically** in settings; the **Use AI on selection** command still works. Image interpretation currently requires Codex and sends the selected image data when you run the action; original images remain unchanged.
+AI actions for selected Markdown text produce editable drafts. You explicitly accept a draft before it changes a note. **Translate image** writes a translated copy into the note once you choose **Replace image** or **Add new image**; it requires Codex, sends the image data when you run it, and keeps the original image file. To stop the automatic selection button and image button, turn off **Show “Use AI on selection” automatically** in settings; the **Use AI on selection** command still works.
 
 VAM has no telemetry and does not store API keys. AI tasks send relevant content, including research context, selected background files, or guest profiles, through your local CLI to OpenAI or Anthropic. Your provider allowance or charges may apply. AI request/reply logging is off by default; enabled logs may contain private note content.
 
@@ -55,7 +55,7 @@ AIM searches the web and provides source links, but finding a source does not pr
 
 Researching several topics at once uses more of your provider allowance, and a busy model can make some topics fail; retry them, for example with another model. A content template that requires an item count can send one extra AI request to fix the count.
 
-Outline search covers titles in the current map, not full text. Map undo/redo is temporary and clears when you switch maps or close the view.
+Images found by AI web search may not be free to reuse; check each source page. Outline search covers titles in the current map, not full text. Map undo/redo is temporary and clears when you switch maps or close the view.
 
 Coffee Tables stores what it needs to continue a conversation in the hidden `Coffee Tables/.sessions` folder. Obsidian Sync skips hidden folders, so on other devices you can read synced conversations but not continue them; continue them on the device where they started.
 
@@ -77,7 +77,7 @@ Copyright © 2026 Kevin Tsai
 
 **從一個問題出發，看見各個部分，再追你想探索的線索。** 建立視覺化研究地圖、讓 AIM 深入查證問題，或到 Coffee Tables 聊出新角度；想留下的發現都能存成可編輯的 Markdown 筆記。
 
-[**開始使用**](#開始使用) · [查看 0.17.0 正式版](https://github.com/kevcltsai/visual-agent-map/releases/tag/0.17.0) · [安裝指南](INSTALL.md)
+[**開始使用**](#開始使用) · [查看 0.18.0 正式版](https://github.com/kevcltsai/visual-agent-map/releases/tag/0.18.0) · [安裝指南](INSTALL.md)
 
 ### 看看畫面
 
@@ -87,7 +87,7 @@ Copyright © 2026 Kevin Tsai
 
 ### 三種探索方式
 
-- **視覺化地圖。** 把問題拆成議題，用 AI 深入一個分支；先查看建議，再決定是否加入。也能把標題大綱轉成地圖、在背景同時研究多個議題，並用可重複使用的內容模板決定研究筆記有哪些段落。手動繪圖不需要 AI。
+- **視覺化地圖。** 把問題拆成議題，用 AI 深入一個分支；先查看建議，再決定是否加入。也能讓 AI 草擬多層大綱、建議哪裡該加強或刪減，貼上標題大綱，並在背景同時研究多個議題。內容模板決定研究筆記有哪些段落，寫作語氣決定它讀起來的風格。手動繪圖不需要 AI。
 - **AIM — Adaptive Inquiry Map。** 從你的問題與背景出發，逐步形成附有來源的文件。在地圖中追蹤研究、沿用有用的既有發現，遇到失敗時接續未完成的工作。
 - **Coffee Tables。** 把未成形的想法帶來，與模擬 AI 來賓對談。加入 `.txt`／`.md` 背景、選擇對談風格、透過追問邀請來賓，並回看觀察者洞見與對話段落。
 
@@ -105,7 +105,7 @@ Coffee Tables 來賓是模擬角色，不是真實專家；對談內容不會自
 
 地圖、研究報告、Coffee Tables 對談與觀察者筆記，都是 Vault 裡可閱讀的 Markdown。你可以編輯它們，也可以離開 VAM 繼續使用。
 
-選取 Markdown 文字與點選圖片的 AI 操作會產生可編輯草稿。你必須明確接受草稿，才會改動筆記。若不想在選取文字或點選圖片時自動出現 AI 操作，可在設定關閉「自動顯示『用 AI 處理選取文字』」；「用 AI 處理選取文字」命令仍可使用。圖片辨識目前需要 Codex，執行時才傳送選取圖片的資料；原始圖片保持不變。
+選取 Markdown 文字的 AI 操作會產生可編輯草稿，你必須明確接受草稿，才會改動筆記。「生成翻譯圖片」在你選擇「取代原圖」或「新增一張」後，會把翻譯版圖片寫入筆記；它需要 Codex，執行時才傳送圖片資料，原始圖片檔保持不變。若不想在選取文字或點選圖片時自動出現 AI 按鈕，可在設定關閉「自動顯示『用 AI 處理選取文字』」；「用 AI 處理選取文字」命令仍可使用。
 
 VAM 不含遙測，也不儲存 API key。AI 任務會透過本機 CLI 將相關內容，包括研究脈絡、選取的背景檔或來賓設定，傳送至 OpenAI 或 Anthropic，可能使用帳號額度或產生費用。AI 請求／回覆紀錄預設關閉；啟用後的紀錄可能包含私人筆記。
 
@@ -124,7 +124,7 @@ AIM 會搜尋網路並提供來源連結，但找到來源不代表內容已證�
 
 同時研究多個議題會用掉較多額度，模型忙碌時部分議題可能失敗，可以重試，例如換一個模型。內容模板設定了項目數時，可能多送一次 AI 請求來修正數量。
 
-大綱只搜尋目前地圖的議題名稱，不搜尋全文。地圖的復原／重做是暫存紀錄，切換地圖或關閉視圖後會清除。
+AI 從網路找到的圖片不一定能自由使用，請查看各自的來源頁。大綱只搜尋目前地圖的議題名稱，不搜尋全文。地圖的復原／重做是暫存紀錄，切換地圖或關閉視圖後會清除。
 
 Coffee Tables 把接續對談所需的資料存在隱藏資料夾 `Coffee Tables/.sessions`。Obsidian Sync 不同步隱藏資料夾，因此在其他裝置上可以閱讀同步過去的對談，但無法接著聊；請回到開始對談的裝置繼續。
 
