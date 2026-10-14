@@ -220,8 +220,8 @@
 .vam-next-adjust-section.is-fixed > :not(.vam-next-synth-fixed) { display: none; }
 .vam-next-synth-fixed[hidden] { display: none; }
 .vam-next-segmented { display: inline-flex; gap: 0; padding: 2px; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); background: var(--background-secondary); }
-.vam-next-modal .vam-next-choice .vam-next-segmented > button { margin: 0; border: 0; background: transparent; box-shadow: none; color: var(--text-muted); }
-.vam-next-modal .vam-next-choice .vam-next-segmented > button.is-active { background: var(--background-primary); box-shadow: var(--shadow-s); color: var(--text-normal); }
+.vam-next-modal .vam-next-segmented > button { margin: 0; border: 0; background: transparent; box-shadow: none; color: var(--text-muted); }
+.vam-next-modal .vam-next-segmented > button.is-active { background: var(--background-primary); box-shadow: var(--shadow-s); color: var(--text-normal); }
 .vam-next-research > p { color: var(--text-muted); }
 .vam-next-research { border-top: 1px solid var(--background-modifier-border); padding-top: 16px; }
 .vam-next-depth-set { margin: 12px 0 0; padding: 0; border: 0; }

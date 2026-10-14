@@ -830,16 +830,12 @@ var english = {
   "ui.the_topic_changed_so_the_outdated_ai_result_was_not_saved": "The topic changed, so the outdated AI result was not saved.",
   "ui.allow_web_search": "Allow web search",
   "ui.research_depth": "Research depth",
-  "ui.depth_guidance": "What each depth includes",
   "ui.quick_aim_for_up_to_1_web_search_and_2_main_sources_answer_t": "Quick: answer the core question first, then briefly note relevant evidence and gaps. Continue research when it could resolve an important uncertainty.",
   "ui.standard_aim_for_up_to_3_web_searches_and_5_main_sources_sum": "Standard: provide the main evidence, limits, and open questions needed to support the conclusion.",
   "ui.deep_aim_for_up_to_6_web_searches_and_10_main_sources_compar": "Deep: compare evidence for agreement and disagreement, and explain important support, limits, and unresolved questions.",
   "ui.web_and_image_searches_share_the_search_limit_search_counts": "There is no fixed query or source count. Continue while a useful search could resolve a decision-relevant uncertainty; stop when evidence is sufficient or further searches have low expected value.",
   "ui.search_for_image_references": "Search for image references",
   "ui.shallow_research_for_expanded_subtopics_0": "Shallow research: {0}",
-  "ui.fast_quick_overview": "Fast \xB7 quick overview",
-  "ui.normal_standard_research": "Normal \xB7 standard research",
-  "ui.deep_in_depth_research": "Deep \xB7 in-depth research",
   "ui.select_the_parent_topic_before_its_child": "Select the parent topic before its child.",
   "ui.first_level_topic_names_must_be_unique": "First-level topic names must be unique.",
   "ui.ai_proposed_duplicate_first_level_names_generate_the_proposa": "AI proposed duplicate first-level names. Generate the proposals again.",
@@ -2176,16 +2172,12 @@ var traditionalChinese = {
   "ui.the_topic_changed_so_the_outdated_ai_result_was_not_saved": "\u8B70\u984C\u5167\u5BB9\u5DF2\u8B8A\u66F4\uFF0C\u904E\u6642\u7684 AI \u7D50\u679C\u672A\u5BEB\u5165\u3002",
   "ui.allow_web_search": "\u5141\u8A31\u641C\u5C0B\u7DB2\u8DEF",
   "ui.research_depth": "\u7814\u7A76\u6DF1\u5EA6",
-  "ui.depth_guidance": "\u5404\u7814\u7A76\u6DF1\u5EA6\u8AAA\u660E",
   "ui.quick_aim_for_up_to_1_web_search_and_2_main_sources_answer_t": "\u5FEB\u901F\uFF1A\u5148\u56DE\u7B54\u6838\u5FC3\u554F\u984C\uFF0C\u518D\u7C21\u8FF0\u76F8\u95DC\u4F9D\u64DA\u8207\u7F3A\u53E3\uFF1B\u82E5\u641C\u5C0B\u53EF\u80FD\u91D0\u6E05\u91CD\u8981\u4E0D\u78BA\u5B9A\u6027\uFF0C\u4ECD\u53EF\u7E7C\u7E8C\u7814\u7A76\u3002",
   "ui.standard_aim_for_up_to_3_web_searches_and_5_main_sources_sum": "\u6A19\u6E96\uFF1A\u6574\u7406\u8DB3\u4EE5\u652F\u6301\u7D50\u8AD6\u7684\u4E3B\u8981\u8B49\u64DA\u3001\u9650\u5236\u8207\u5F85\u78BA\u8A8D\u4E8B\u9805\u3002",
   "ui.deep_aim_for_up_to_6_web_searches_and_10_main_sources_compar": "\u6DF1\u5165\uFF1A\u6BD4\u8F03\u8B49\u64DA\u7684\u4E00\u81F4\u8207\u5206\u6B67\uFF0C\u8AAA\u660E\u91CD\u8981\u4F9D\u64DA\u3001\u9650\u5236\u53CA\u672A\u89E3\u554F\u984C\u3002",
   "ui.web_and_image_searches_share_the_search_limit_search_counts": "\u641C\u5C0B\u6B21\u6578\u8207\u4F86\u6E90\u6578\u6C92\u6709\u56FA\u5B9A\u4E0A\u9650\u3002\u53EA\u8981\u5408\u7406\u7684\u65B0\u641C\u5C0B\u4ECD\u53EF\u80FD\u89E3\u6C7A\u6703\u5F71\u97FF\u5224\u65B7\u7684\u4E0D\u78BA\u5B9A\u6027\uFF0C\u5C31\u7E7C\u7E8C\u67E5\u8B49\uFF1B\u8B49\u64DA\u8DB3\u5920\u6216\u5F8C\u7E8C\u641C\u5C0B\u9810\u671F\u50F9\u503C\u504F\u4F4E\u6642\u505C\u6B62\u3002",
   "ui.search_for_image_references": "\u641C\u5C0B\u5716\u7247\u53C3\u8003",
   "ui.shallow_research_for_expanded_subtopics_0": "\u6DFA\u7814\u7A76\uFF1A{0}",
-  "ui.fast_quick_overview": "Fast \xB7 \u5FEB\u901F\u6982\u89BD",
-  "ui.normal_standard_research": "Normal \xB7 \u4E00\u822C\u7814\u7A76",
-  "ui.deep_in_depth_research": "Deep \xB7 \u6DF1\u5165\u7814\u7A76",
   "ui.select_the_parent_topic_before_its_child": "\u8ACB\u5148\u52FE\u9078\u5B50\u8B70\u984C\u7684\u6BCD\u8B70\u984C\u3002",
   "ui.first_level_topic_names_must_be_unique": "\u7B2C\u4E00\u5C64\u5B50\u8B70\u984C\u540D\u7A31\u4E0D\u80FD\u91CD\u8907\u3002",
   "ui.ai_proposed_duplicate_first_level_names_generate_the_proposa": "AI \u63D0\u6848\u7684\u7B2C\u4E00\u5C64\u540D\u7A31\u91CD\u8907\uFF0C\u8ACB\u91CD\u65B0\u7522\u751F\u63D0\u6848\u3002",
@@ -21839,7 +21831,9 @@ var NextStepModal = class extends import_obsidian16.Modal {
         ...toneId() ? { toneId: toneId() } : {},
         ...titleInput ? { synthesisTitle: titleInput.value.trim() } : {},
         signal,
-        onProgress: (message) => synthStatus.setText(message)
+        onProgress: (message) => {
+          if (!this.closed) synthStatus.setText(message);
+        }
       };
       if (!selection && !this.childrenCount && !((_b2 = options.referenceGroups) == null ? void 0 : _b2.some((group) => group.documents.length)))
         throw new Error(t("ui.choose_another_note_source_first"));
@@ -21855,7 +21849,9 @@ var NextStepModal = class extends import_obsidian16.Modal {
       visualMode: "off",
       ...titleInput ? { synthesisTitle: titleInput.value.trim() } : {},
       signal,
-      onProgress: (message) => synthStatus.setText(message)
+      onProgress: (message) => {
+        if (!this.closed) synthStatus.setText(message);
+      }
     });
     const guard = () => {
       if (!needsName()) return true;
@@ -21972,7 +21968,7 @@ var NextStepModal = class extends import_obsidian16.Modal {
     if (pendingDirections) showDirections(pendingDirections.directions);
     else checkName();
     show(initialMode);
-    cardFor[initialMode].focus();
+    (titleInput != null ? titleInput : cardFor[initialMode]).focus();
     ((_v = this.renderModelSettings(adjustBody)) != null ? _v : adjustBody).createEl("p", {
       text: t("ui.if_an_ai_task_exceeds_3_minutes_vam_attempts_to_interrupt_it"),
       cls: "vam-hint"
@@ -27617,7 +27613,7 @@ ${note.detail.trim()}` : "",
     this.render();
     const model = this.plugin.settings.cliModel;
     const language2 = this.plugin.settings.language;
-    const detailTemplate = this.mapDetailTemplate((_c = options == null ? void 0 : options.outputLanguage) != null ? _c : language2);
+    const detailTemplate = this.mapDetailTemplate((_c = options == null ? void 0 : options.outputLanguage) != null ? _c : language2, options == null ? void 0 : options.detailTemplateId);
     try {
       const result = await this.plugin.askModel(
         {
@@ -27747,7 +27743,7 @@ ${note.detail.trim()}` : "",
     }))
       throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
     const integrated = await this.plugin.repo.createNote(title, model, this.map, this.path, "workspace");
-    const detailTemplate = this.mapDetailTemplate(language2);
+    const detailTemplate = this.mapDetailTemplate(language2, task.options.detailTemplateId);
     try {
       await this.plugin.repo.updateNote(
         integrated.path,

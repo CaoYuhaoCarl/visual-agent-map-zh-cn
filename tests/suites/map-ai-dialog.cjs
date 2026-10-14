@@ -497,6 +497,19 @@ integrationTest('multi-select synthesis: directions, choose, draft and review in
   assert.equal(created.title, 'Cooking water'); assert.equal(created.summary, 'Draft summary'); assert.equal(created.status, 'completed');
   assert.equal(h.view.integrationTask, null); assert.equal(modal.closeCount, 1);
 });
+integrationTest('multi-select synthesis: the chosen content template reaches the draft and the saved topic', async () => {
+  const h = await synthesisHarness();
+  const section = (id, name) => ({ id, name, description: '', role: 'none', aliases: [] });
+  h.plugin.settings.detailTemplates = [{ id: 't1', name: 'Brief', sections: [section('key', 'Key points'), section('more', 'Further')] }];
+  const modal = await h.openSelection();
+  const name = byLabel(modal.contentEl, 'New topic name'); name.value = 'Cooking water'; name.input();
+  const select = byLabel(modal.contentEl, 'Content template'); select.value = 't1'; select.change?.();
+  visibleBar(modal, 'Skip suggestions and draft now').click(); await tick(); await tick();
+  assert.equal(h.calls.at(-1).context.detailTemplate?.id, 't1', 'the draft is written for the chosen template');
+  button(modal.modalEl, 'Confirm new synthesis topic').click(); await tick(); await tick(); await tick();
+  const saved = await h.repo.readMap(h.mapPath);
+  assert.match((await h.repo.readNote(saved.nodes.at(-1).path)).detail, /Key points/, 'the saved topic uses the chosen template');
+});
 integrationTest('multi-select synthesis: cancel writes nothing; closing midway falls back to the selection bar and never touches the closed dialog', async () => {
   const h = await synthesisHarness();
   const modal = await h.openSelection();

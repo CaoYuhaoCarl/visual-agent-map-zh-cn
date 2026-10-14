@@ -1236,7 +1236,9 @@ export class NextStepModal extends Modal {
         ...(toneId() ? { toneId: toneId() } : {}),
         ...(titleInput ? { synthesisTitle: titleInput.value.trim() } : {}),
         signal,
-        onProgress: message => synthStatus.setText(message)
+        onProgress: message => {
+          if (!this.closed) synthStatus.setText(message);
+        }
       };
       if (!selection && !this.childrenCount && !options.referenceGroups?.some(group => group.documents.length))
         throw new Error(t("ui.choose_another_note_source_first"));
@@ -1252,7 +1254,9 @@ export class NextStepModal extends Modal {
       visualMode: "off",
       ...(titleInput ? { synthesisTitle: titleInput.value.trim() } : {}),
       signal,
-      onProgress: message => synthStatus.setText(message)
+      onProgress: message => {
+        if (!this.closed) synthStatus.setText(message);
+      }
     });
     const guard = (): boolean => {
       if (!needsName()) return true;
@@ -1365,7 +1369,8 @@ export class NextStepModal extends Modal {
     if (pendingDirections) showDirections(pendingDirections.directions);
     else checkName();
     show(initialMode);
-    cardFor[initialMode].focus();
+    // A selection shows no mode cards, so its name field takes the focus.
+    (titleInput ?? cardFor[initialMode]).focus();
     (this.renderModelSettings(adjustBody) ?? adjustBody).createEl("p", {
       text: t("ui.if_an_ai_task_exceeds_3_minutes_vam_attempts_to_interrupt_it"),
       cls: "vam-hint"

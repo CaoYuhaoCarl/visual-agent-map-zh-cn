@@ -5817,7 +5817,7 @@ export class VisualAgentMapView extends ItemView {
     this.render();
     const model = this.plugin.settings.cliModel;
     const language = this.plugin.settings.language;
-    const detailTemplate = this.mapDetailTemplate(options?.outputLanguage ?? language);
+    const detailTemplate = this.mapDetailTemplate(options?.outputLanguage ?? language, options?.detailTemplateId);
     try {
       const result = await this.plugin.askModel(
         {
@@ -5963,7 +5963,7 @@ export class VisualAgentMapView extends ItemView {
     )
       throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
     const integrated = await this.plugin.repo.createNote(title, model, this.map, this.path, "workspace");
-    const detailTemplate = this.mapDetailTemplate(language);
+    const detailTemplate = this.mapDetailTemplate(language, task.options.detailTemplateId);
     try {
       await this.plugin.repo.updateNote(
         integrated.path,
