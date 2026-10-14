@@ -19176,6 +19176,19 @@ function createSearchDiagnostic(researchTurn) {
 }
 var hasCompletedWebRetrieval = (diagnostics) => (diagnostics != null ? diagnostics : []).some((item) => item.completedSearchActions + item.otherCompletedActions > 0);
 
+// experiences/aim/failure-hint.ts
+function aimTimedOut(reason) {
+  return /超過.*分鐘|timed?\s*out|timeout|exceeded.*minutes/i.test(reason);
+}
+var SEARCH_FAILURE = /no web search succeeded|usable searched report|did not perform web search|search (?:was )?not performed|web search (?:is )?unavailable|沒有實際執行網路搜尋|未執行(?:網路)?搜尋|\bENOTFOUND\b|\bECONN(?:REFUSED|RESET)\b|\bEAI_AGAIN\b|network (?:error|unavailable)|網路連線/i;
+function aimRepairHint(reason) {
+  if (aimTimedOut(reason)) return "ui.aim_repair_timeout_hint";
+  if (/auth|login|sign.in|登入|unauthorized|quota|rate.limit/i.test(reason)) return "ui.aim_repair_auth_hint";
+  if (/format|schema|JSON|marker|格式|分類/i.test(reason)) return "ui.aim_repair_format_hint";
+  if (SEARCH_FAILURE.test(reason)) return "ui.aim_repair_search_hint";
+  return "ui.aim_repair_retry_hint";
+}
+
 // experiences/aim/flow-limits.ts
 var DEFAULT_AIM_FLOW_LIMITS = Object.freeze({
   minAnsweredBeforeConclusion: 3,
@@ -22775,7 +22788,7 @@ Planner format diagnostic: ${JSON.stringify({ initial: { detail: planned.detail.
       scheduled = await scheduleAimResearch(
         executionPlan,
         async (target, predecessors, taskSignal) => {
-          var _a2, _b2, _c2;
+          var _a2, _b2, _c2, _d2;
           throwIfAborted(taskSignal);
           const currentMap = await this.repository.readMap(mapPath), currentBranch = (_a2 = currentMap.aim) == null ? void 0 : _a2.branches.find((item) => item.id === branchId);
           if (!currentBranch) throw new Error("AIM answer branch disappeared during subtopic research.");
@@ -22968,8 +22981,9 @@ ${dependencyReports}` : "")
                 );
             } catch (e) {
             }
-            const searchSkipped = error instanceof SubtopicSearchUnavailable || // Read the message without instanceof: the runtime's error may come from another realm.
-            SEARCH_NOT_PERFORMED.test(String((_c2 = error == null ? void 0 : error.message) != null ? _c2 : error));
+            const searchSkipped = error instanceof SubtopicSearchUnavailable || // Read the message without instanceof: the runtime's error may come from another realm. A subtopic
+            // that ran past its time limit is skipped the same way, so one slow search cannot end the run.
+            SEARCH_NOT_PERFORMED.test(String((_c2 = error == null ? void 0 : error.message) != null ? _c2 : error)) || aimTimedOut(String((_d2 = error == null ? void 0 : error.message) != null ? _d2 : error));
             if (searchSkipped && !taskSignal.aborted) {
               this.emitProgress({ kind: "subtopic", mapPath, branchId, subtopicId: target.id, state: "skipped" });
               searchFailure = error;
@@ -24390,19 +24404,6 @@ __publicField(_AimRunStore, "liveAttempts", /* @__PURE__ */ new Set());
 /** Per-repository map locks, shared by every store instance so that separate views serialize their writes. */
 __publicField(_AimRunStore, "repositoryLocks", /* @__PURE__ */ new WeakMap());
 var AimRunStore = _AimRunStore;
-
-// experiences/aim/failure-hint.ts
-function aimTimedOut(reason) {
-  return /超過.*分鐘|timed?\s*out|timeout|exceeded.*minutes/i.test(reason);
-}
-var SEARCH_FAILURE = /no web search succeeded|usable searched report|did not perform web search|search (?:was )?not performed|web search (?:is )?unavailable|沒有實際執行網路搜尋|未執行(?:網路)?搜尋|\bENOTFOUND\b|\bECONN(?:REFUSED|RESET)\b|\bEAI_AGAIN\b|network (?:error|unavailable)|網路連線/i;
-function aimRepairHint(reason) {
-  if (aimTimedOut(reason)) return "ui.aim_repair_timeout_hint";
-  if (/auth|login|sign.in|登入|unauthorized|quota|rate.limit/i.test(reason)) return "ui.aim_repair_auth_hint";
-  if (/format|schema|JSON|marker|格式|分類/i.test(reason)) return "ui.aim_repair_format_hint";
-  if (SEARCH_FAILURE.test(reason)) return "ui.aim_repair_search_hint";
-  return "ui.aim_repair_retry_hint";
-}
 
 // experiences/visual-map/view.ts
 var VIEW_TYPE = "visual-agent-map-view";

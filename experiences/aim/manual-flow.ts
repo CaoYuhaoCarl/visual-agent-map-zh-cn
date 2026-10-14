@@ -7,6 +7,7 @@ import type { AiResult, TaskContext } from "../../ai/types";
 import { resolveToneText } from "../../ai/prompt-presets";
 import { reportedSearchFailure } from "../../ai/result-utils";
 import { createSearchDiagnostic } from "./search-diagnostic";
+import { aimTimedOut } from "./failure-hint";
 import type { MapDocument, MapNode, AimBranchRecord, AimQuestionDraft } from "../../map-model";
 import type { Repository } from "../../repository";
 import { AimRunStore, type CommitResult } from "./research-run-store";
@@ -3107,8 +3108,10 @@ export class AimManualFlow {
             }
             const searchSkipped =
               error instanceof SubtopicSearchUnavailable ||
-              // Read the message without instanceof: the runtime's error may come from another realm.
-              SEARCH_NOT_PERFORMED.test(String((error as { message?: unknown } | null)?.message ?? error));
+              // Read the message without instanceof: the runtime's error may come from another realm. A subtopic
+              // that ran past its time limit is skipped the same way, so one slow search cannot end the run.
+              SEARCH_NOT_PERFORMED.test(String((error as { message?: unknown } | null)?.message ?? error)) ||
+              aimTimedOut(String((error as { message?: unknown } | null)?.message ?? error));
             if (searchSkipped && !taskSignal.aborted) {
               this.emitProgress({ kind: "subtopic", mapPath, branchId, subtopicId: target.id, state: "skipped" });
               searchFailure = error as Error;
