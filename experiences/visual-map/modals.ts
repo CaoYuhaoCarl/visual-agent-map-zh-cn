@@ -20,6 +20,7 @@ import {
   type VisualMode
 } from "../../repository";
 import type { AiResult, Suggestion } from "../../ai/types";
+import type { OutlineNode } from "./outline-import";
 import { syncModelSelect } from "../../core/model-discovery";
 import { researchDepthDescription, researchDepthField, templateField, toneField } from "./research-fields";
 
@@ -90,6 +91,50 @@ export interface NextStepSettings {
   /** The topic's research state and how many of its direct children are researched, for the suggested mode. */
   topicStatus?: "idea" | "running" | "completed" | "error";
   childrenCompleted?: number;
+  /** Quick explore: an AI outline from a preset, reviewed in this dialog before any subtopic is created. */
+  quickOutline?: QuickOutline;
+}
+export interface QuickOutline {
+  presets: { id: string; name: string }[];
+  /** Generates the outline for this topic; the outline's root is the topic itself. */
+  generate: (
+    request: { presetId: string; requirements: string; language: Settings["language"] },
+    signal: AbortSignal
+  ) => Promise<OutlineNode[]>;
+  /** Adds the reviewed outline under this topic. */
+  create: (nodes: OutlineNode[], options: TaskOptions) => Promise<void>;
+}
+/** An outline's headings below its root as keyed proposals, so repeated titles stay in their own branch. */
+export function outlineProposals(nodes: OutlineNode[]): ProposalItem[] {
+  const root = nodes.filter(node => node.parent === null).length === 1 ? nodes[0]?.index : undefined;
+  return nodes
+    .filter(node => node.index !== root)
+    .map(node => ({
+      key: String(node.index),
+      parentKey: node.parent === null || node.parent === root ? "" : String(node.parent),
+      title: node.title,
+      task: "",
+      contribution: ""
+    }));
+}
+/** The reviewed proposals back as outline nodes, parents before children, indexed from 0. */
+export function proposalOutline(items: ProposalItem[]): OutlineNode[] {
+  const index = new Map<string, number>();
+  const nodes: OutlineNode[] = [];
+  for (const item of items) {
+    const parent = item.parentKey ? index.get(item.parentKey) : undefined;
+    if (item.parentKey && parent === undefined) throw new Error(t("ui.select_the_parent_topic_before_its_child"));
+    const node: OutlineNode = {
+      index: nodes.length,
+      title: item.title,
+      level: parent === undefined ? 1 : nodes[parent].level + 1,
+      parent: parent ?? null,
+      line: 0
+    };
+    index.set(item.key ?? item.title, node.index);
+    nodes.push(node);
+  }
+  return nodes;
 }
 /** Multi-select synthesis runs in the same dialog as a single topic's synthesis; this is what differs. */
 export interface SelectionSynthesis {
@@ -704,6 +749,59 @@ export class NextStepModal extends Modal {
     });
     panel.querySelector<HTMLElement>(".vam-next-status")?.setText(t("ui.review_ai_suggested_subtopics"));
   }
+  /** The generated outline, reviewed here; nothing is created until the user confirms. */
+  private outlineReview(
+    panel: HTMLElement,
+    nodes: OutlineNode[],
+    button: HTMLButtonElement,
+    create: (nodes: OutlineNode[], options: TaskOptions) => Promise<void>,
+    options: TaskOptions
+  ): void {
+    if (this.closed) return;
+    const result = panel.querySelector<HTMLElement>(".vam-next-result")!;
+    result.empty();
+    const status = (): HTMLElement | null => panel.querySelector<HTMLElement>(".vam-next-status");
+    const items = outlineProposals(nodes);
+    if (!items.length) {
+      this.failed(panel, button, t("ui.quick_outline_empty"));
+      return;
+    }
+    result.createEl("h4", { text: t("ui.quick_outline_review") });
+    let showCount = (_count: number): void => {};
+    const list = renderProposalList(result, items, count => showCount(count), { compact: true });
+    const confirm = result.createEl("button", { text: t("ui.create_0_subtopics", list.count()), cls: "mod-cta" });
+    showCount = count => {
+      confirm.setText(t("ui.create_0_subtopics", count));
+      if (!this.runPending) confirm.disabled = count === 0;
+    };
+    button.classList.toggle("mod-cta", false);
+    confirm.addEventListener("click", () => {
+      const picked = list.selected();
+      if (typeof picked === "string") {
+        status()?.setText(picked);
+        return;
+      }
+      void this.run(
+        panel,
+        confirm,
+        async () => {
+          options.signal = this.taskSignal;
+          status()?.setText(t("ui.creating_subtopics"));
+          await create(proposalOutline(picked), options);
+          this.taskSignal = undefined;
+          this.taskController = undefined;
+          if (options.shallowResearch) {
+            this.startedInBackground();
+            return;
+          }
+          new Notice(t("ui.subtopics_created"));
+          this.close();
+        },
+        false
+      );
+    });
+    status()?.setText(t("ui.quick_outline_review_hint"));
+  }
   onOpen(): void {
     this.modalEl.addClass("vam-next-modal");
     const selection = this.selection;
@@ -915,7 +1013,7 @@ export class NextStepModal extends Modal {
       quick.tabIndex = value ? 0 : -1;
       modeHint.setText(
         value
-          ? t("ui.ai_creates_a_starter_map_at_the_chosen_size_shallow_research")
+          ? t("ui.quick_outline_mode_hint")
           : this.pendingCount
             ? t("ui.you_have_pending_proposals_review_them_here")
             : t("ui.ai_suggests_one_level_of_subtopics_review_or_edit_them_befor")
@@ -928,13 +1026,13 @@ export class NextStepModal extends Modal {
       );
       expandButton.setText(
         value
-          ? t("ui.create_starter_map_now")
+          ? t("ui.outline_ai_run")
           : this.pendingCount
             ? t("ui.review_ai_subtopic_suggestions")
             : t("ui.get_expansion_directions")
       );
       expandButton.dataset.topicRun = expandButton.textContent ?? "";
-      expandButton.disabled = !!this.modelSettings?.running || (value && !!quickError);
+      expandButton.disabled = !!this.modelSettings?.running || (value && !quickOutline);
       refreshSummary();
     };
     guided.addEventListener("click", () => setExpandMode(false));
@@ -944,64 +1042,16 @@ export class NextStepModal extends Modal {
         ? t("ui.you_have_pending_proposals_review_them_here")
         : t("ui.ai_suggests_one_level_of_subtopics_review_or_edit_them_befor")
     });
+    // Quick explore generates an outline from a preset; it is reviewed here before anything is created.
+    const quickOutline = this.modelSettings?.quickOutline;
     const quickLimits = adjustFor.expand.createDiv("vam-quick-limits is-hidden");
-    const layersLabel = quickLimits.createEl("label", { cls: "vam-field" });
-    layersLabel.createSpan({ text: t("ui.number_of_levels") });
-    const layersInput = layersLabel.createEl("input", {
-      type: "number",
-      attr: { min: "1", max: "15", step: "1", value: "2" }
-    });
-    layersInput.value = "2";
-    quickLimits.createEl("p", { text: t("ui.expansion_levels_exclude_current_topic"), cls: "vam-hint" });
-    const firstLabel = quickLimits.createEl("label", { cls: "vam-field" });
-    firstLabel.createSpan({ text: t("ui.first_level_subtopics") });
-    const firstInput = firstLabel.createEl("input", {
-      type: "number",
-      attr: { min: "1", max: "15", step: "1", value: "3" }
-    });
-    firstInput.value = "3";
-    const childrenLabel = quickLimits.createEl("label", { cls: "vam-field" });
-    childrenLabel.createSpan({ text: t("ui.children_per_parent_topic") });
-    const childrenInput = childrenLabel.createEl("input", {
-      type: "number",
-      attr: { min: "1", max: "15", step: "1", value: "2" }
-    });
-    childrenInput.value = "2";
-    const childrenHint = quickLimits.createEl("p", {
-      text: t("ui.children_count_unused_for_one_level"),
-      cls: "vam-hint"
-    });
-    childrenHint.hidden = true;
-    const totalHint = quickLimits.createEl("p", { cls: "vam-hint" });
-    totalHint.setAttr("aria-live", "polite");
-    let quickError = "";
-    const updateTotal = (): void => {
-      try {
-        const layers = Number(layersInput.value),
-          firstLayerCount = Number(firstInput.value),
-          childrenPerParent = Number(childrenInput.value);
-        childrenInput.disabled = layers === 1;
-        childrenHint.hidden = !childrenInput.disabled;
-        const shape = quickShape(layers, firstLayerCount, childrenPerParent);
-        quickError =
-          shape.total > BigInt(15)
-            ? t("ui.this_would_create_0_subtopics_exceeding_the_limit_of_15_redu", shape.total.toString())
-            : "";
-        totalHint.setText(
-          quickError || t("ui.topics_by_level_0_1_total", shape.counts.map(String).join(" → "), shape.total.toString())
-        );
-      } catch (error) {
-        quickError = error instanceof Error ? error.message : String(error);
-        totalHint.setText(quickError);
-      }
-      totalHint.classList.toggle("is-error", !!quickError);
-    };
-    for (const input of [layersInput, firstInput, childrenInput])
-      input.addEventListener("input", () => {
-        updateTotal();
-        expandButton.disabled = !!this.modelSettings?.running || (multiLayer && !!quickError);
-      });
-    updateTotal();
+    const presetLabel = quickLimits.createEl("label", { cls: "vam-field" });
+    presetLabel.createSpan({ text: t("ui.outline_ai_preset") });
+    const presetSelect = presetLabel.createEl("select");
+    presetSelect.setAttr("aria-label", t("ui.outline_ai_preset"));
+    for (const preset of quickOutline?.presets ?? [])
+      presetSelect.createEl("option", { value: preset.id, text: preset.name });
+    quickLimits.createEl("p", { text: t("ui.quick_outline_hint"), cls: "vam-hint" });
     const shallowLabel = adjustFor.expand.createEl("label", { cls: "vam-field vam-next-toggle" });
     const shallow = shallowLabel.createEl("input", { type: "checkbox" });
     shallow.checked = false;
@@ -1053,34 +1103,19 @@ export class NextStepModal extends Modal {
             onProgress: message => expandPanel.querySelector<HTMLElement>(".vam-next-status")?.setText(message)
           };
           if (multiLayer) {
-            const layers = Number(layersInput.value),
-              firstLayerCount = Number(firstInput.value),
-              childrenPerParent = Number(childrenInput.value);
-            const shape = quickShape(layers, firstLayerCount, childrenPerParent);
-            if (shape.total > BigInt(15))
-              throw new Error(
-                t("ui.this_would_create_0_subtopics_exceeding_the_limit_of_15_redu", shape.total.toString())
-              );
-            options.layers = layers;
-            options.firstLayerCount = firstLayerCount;
-            options.childrenPerParent = layers === 1 ? 1 : childrenPerParent;
-            await this.expand(
-              options,
-              "",
-              () => {},
-              (message, retryable) => {
-                if (retryable === false) {
-                  this.failed(expandPanel, expandButton, message);
-                  expandButton.disabled = true;
-                } else this.failedAi(expandPanel, expandButton, message);
+            if (!quickOutline) return;
+            const signal = this.taskSignal;
+            if (!signal) return;
+            const nodes = await quickOutline.generate(
+              {
+                presetId: presetSelect.value,
+                requirements: this.requirements(),
+                language: options.outputLanguage ?? this.plugin.settings.language
               },
-              () => this.close(),
-              () => {
-                this.taskSignal = undefined;
-                this.taskController = undefined;
-                this.startedInBackground();
-              }
+              signal
             );
+            if (this.closed || signal.aborted) return;
+            this.outlineReview(expandPanel, nodes, expandButton, quickOutline.create, options);
             return;
           }
           await this.expand(

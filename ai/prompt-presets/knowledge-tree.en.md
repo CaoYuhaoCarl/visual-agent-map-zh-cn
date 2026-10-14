@@ -2,7 +2,7 @@
 
 ## 1. User settings (adjust as needed)
 
-Research topic: {Enter research topic}
+Research topic: {research topic}
 
 ### Quantity limits
 - Maximum number of headings: 30 (including the root heading)

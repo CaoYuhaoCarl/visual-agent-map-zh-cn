@@ -263,21 +263,21 @@ test('outline modal: the content template select sits in the research options an
   assert.equal('detailTemplateId' in await submit(true, ''), false);
 });
 
-test('outline modal: copy format instructions and choose a vault note', async () => {
+// C2 (owner decision): the vault file picker is removed; an outline is pasted or generated with AI.
+test('outline modal: copy format instructions; there is no vault file picker and the source is always pasted text', async () => {
   const h = modalHarness(); const requests = [];
-  const file = { path: 'Inbox/outline.md', basename: 'outline', extension: 'md' };
-  const app = { vault: { getMarkdownFiles: () => [file], cachedRead: async () => '# From file\n## Child' } };
-  const modal = new h.mod.OutlineImportModal(app, async request => { requests.push(request); });
+  const modal = new h.mod.OutlineImportModal({ vault: { getMarkdownFiles: () => [] } }, async request => { requests.push(request); });
   modal.open();
   h.find(modal.contentEl, item => item.tag === 'button' && item.text === 'Copy format instructions').listeners.click();
   await new Promise(resolve => setTimeout(resolve, 0));
   assert.match(h.copied[0], /exactly one # heading/);
-  await modal.loadFile(file);
-  assert.equal(h.find(modal.contentEl, item => item.tag === 'textarea').value, '# From file\n## Child');
-  assert.ok(h.find(modal.contentEl, item => item.text === 'Source: Inbox/outline.md'));
+  assert.equal(h.mod.OutlineFileModal, undefined);
+  assert.equal(modal.loadFile, undefined);
+  assert.equal(h.find(modal.modalEl, item => /vault/i.test(item.text ?? '')), undefined, 'no vault picker or vault hint');
+  const textarea = h.find(modal.contentEl, item => item.tag === 'textarea'); textarea.value = '# From paste\n## Child'; textarea.listeners.input();
   h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Add to mind map').listeners.click();
   await new Promise(resolve => setTimeout(resolve, 0));
-  assert.equal(requests[0].source, 'Inbox/outline.md');
+  assert.equal(requests[0].source, null);
 });
 
 integrationTest('importOutline creates the map, opens it, and starts shallow research only when asked', async () => {
@@ -727,3 +727,40 @@ test('outline modal: a create failure keeps the dialog open with the reason besi
   assert.equal(h.notices.length, 0);
 });
 
+
+integrationTest('quick explore from the view: the generator gets the topic, preset and its model; the reviewed outline goes under the topic and several top headings are researched there', async () => {
+  const h = await placementHarness({ promptPresets: [{ id: 'mine', kind: 'outline', name: 'Mine', text: 'Tree for {research topic}' }] });
+  const generated = [];
+  h.plugin.outlineGeneration = { generate: async (request, signal) => { generated.push({ request, signal }); return { markdown: '# Old root\n## A\n## B\n', nodes: api.parseOutline('# Old root\n## A\n## B').nodes }; } };
+  const quick = h.view.quickOutline(h.oldRoot);
+  assert.deepEqual(plain(quick.presets.map(p => p.id)), ['knowledge-tree', 'mine']);
+  const signal = new AbortController().signal;
+  const nodes = await quick.generate({ presetId: 'mine', requirements: 'Focus on habits', language: 'en' }, signal);
+  assert.equal(generated[0].request.topic, 'Old root');
+  assert.equal(generated[0].request.presetText, 'Tree for {research topic}\n\nFocus on habits');
+  assert.equal(generated[0].request.model, 'parent-model'); assert.equal(generated[0].signal, signal);
+  assert.equal(nodes.length, 3);
+  const modals = load('experiences/visual-map/modals.ts', { obsidian });
+  const reviewed = modals.proposalOutline(modals.outlineProposals(nodes));
+  await quick.create(reviewed, { shallowResearch: true, researchMode: 'research', researchDepth: 'fast', visualMode: 'off' });
+  const saved = await h.repo.readMap(h.mapPath);
+  const fresh = saved.nodes.filter(item => item.parentId === h.oldRoot.id && item.id !== h.oldChild.id);
+  assert.deepEqual(await Promise.all(fresh.map(item => h.titleOf(item.id))), ['A', 'B'], 'both headings sit directly under the topic');
+  assert.equal(h.researched.length, 1);
+  assert.equal(h.researched[0].parent, h.oldRoot.id, 'research runs under the topic');
+  assert.deepEqual(plain(h.researched[0].children), plain(fresh.map(item => item.id)));
+  assert.equal(h.view.history.canUndo, true);
+});
+
+integrationTest('the import window generator asks about AI usage first and says so when it does not start', async () => {
+  const h = await placementHarness();
+  const calls = [];
+  h.plugin.outlineGeneration = { generate: async request => { calls.push(request); return { markdown: '# T\n## A\n', nodes: [] }; } };
+  const generator = h.view.outlineGenerator('Topic');
+  assert.equal(generator.initialTopic, 'Topic'); assert.equal(generator.presets, h.plugin);
+  assert.equal(await generator.generate({ topic: 'T', presetText: 'p' }, new AbortController().signal), '# T\n## A\n');
+  assert.equal(calls[0].model, 'gpt-6-luna'); assert.equal(calls[0].language, 'en'); assert.deepEqual(h.confirms, ['gpt-6-luna']);
+  h.plugin.confirmAiUsage = async () => false;
+  await assert.rejects(generator.generate({ topic: 'T', presetText: 'p' }, new AbortController().signal), /did not start/);
+  assert.equal(calls.length, 1);
+});

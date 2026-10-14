@@ -1,9 +1,19 @@
-import { App, FuzzySuggestModal, Modal, Notice, TFile } from "obsidian";
+import { App, Modal, Notice } from "obsidian";
 import { t } from "../../i18n";
 import { parseOutline, type OutlineIssue, type OutlineNode } from "./outline-import";
 import type { ResearchDepth } from "../../ai/types";
 import { modelField, researchDepthField, templateField, type ModelChoices } from "./research-fields";
-import { actionStatus, modalActions } from "../../ui/modals/action-bar";
+import { actionStatus, armDiscard, modalActions } from "../../ui/modals/action-bar";
+import type { PromptPresetsHost } from "../../ui/modals/prompt-presets-modal";
+import {
+  createPreset,
+  deletePreset,
+  DEFAULT_OUTLINE_PRESET_ID,
+  isBuiltinPreset,
+  listPresets,
+  updatePreset,
+  type PromptPreset
+} from "../../ai/prompt-presets";
 
 /** Where the imported outline goes; omitted means a new mind map. */
 export type OutlinePlacement = { kind: "new" } | { kind: "tree" } | { kind: "under"; parentId: string };
@@ -30,34 +40,20 @@ export interface OutlineImportRequest {
   detailTemplateId?: string;
 }
 
-export class OutlineFileModal extends FuzzySuggestModal<TFile> {
-  constructor(
-    app: App,
-    private choose: (file: TFile) => void
-  ) {
-    super(app);
-    this.setPlaceholder(t("ui.outline_import_choose_file_placeholder"));
-  }
-  getItems(): TFile[] {
-    return this.app.vault.getMarkdownFiles();
-  }
-  getItemText(file: TFile): string {
-    return file.path;
-  }
-  onChooseItem(file: TFile): void {
-    this.choose(file);
-  }
+/** The AI outline generator as the import window uses it; without it the window has no AI section. */
+export interface OutlineGenerator {
+  presets: PromptPresetsHost;
+  /** Generates heading-only Markdown for the topic (asking about AI usage first); rejects with a readable reason. */
+  generate: (request: { topic: string; presetText: string }, signal: AbortSignal) => Promise<string>;
+  initialTopic?: string;
 }
 
 export class OutlineImportModal extends Modal {
   private textarea!: HTMLTextAreaElement;
   private preview!: HTMLElement;
-  private sourceLabel!: HTMLElement;
   private createButton!: HTMLButtonElement;
   private status!: HTMLElement;
   private shallow!: HTMLInputElement;
-  private source: string | null = null;
-  private sourceText = "";
   private nodes: OutlineNode[] = [];
   private submitting = false;
   private depth: () => ResearchDepth = () => "fast";
@@ -65,6 +61,8 @@ export class OutlineImportModal extends Modal {
   private template: () => string | undefined = () => undefined;
   private unwatch?: () => void;
   private placement: OutlinePlacement["kind"] = "tree";
+  private generation?: AbortController;
+  private disarm?: () => void;
 
   constructor(
     app: App,
@@ -72,7 +70,8 @@ export class OutlineImportModal extends Modal {
     private models: ModelChoices = { list: () => [], watch: () => () => {} },
     private templates: { id: string; name: string }[] = [],
     private target: OutlineImportTarget = { map: "none" },
-    initialPlacement: OutlinePlacement["kind"] = "tree"
+    initialPlacement: OutlinePlacement["kind"] = "tree",
+    private generator?: OutlineGenerator
   ) {
     super(app);
     // The outline always joins the open map (a new map starts from + New mind map); without a selection it becomes a new tree.
@@ -83,13 +82,11 @@ export class OutlineImportModal extends Modal {
     this.titleEl.setText(t("ui.outline_import"));
     this.modalEl.addClass("vam-outline-import-modal");
     this.contentEl.createEl("p", { text: t("ui.outline_import_hint"), cls: "vam-hint vam-outline-intro" });
+    if (this.generator) this.aiSection(this.contentEl.createDiv("vam-outline-section"), this.generator);
     const source = this.contentEl.createDiv("vam-outline-section");
     const sourceHeader = source.createDiv("vam-outline-section-header");
     sourceHeader.createSpan({ text: t("ui.outline_import_text_label"), cls: "vam-outline-label" });
     const actions = sourceHeader.createDiv("vam-outline-actions");
-    actions
-      .createEl("button", { text: t("ui.outline_import_choose_file"), cls: "vam-outline-link" })
-      .addEventListener("click", () => new OutlineFileModal(this.app, file => void this.loadFile(file)).open());
     actions
       .createEl("button", { text: t("ui.outline_import_copy_format"), cls: "vam-outline-link" })
       .addEventListener("click", () => {
@@ -102,7 +99,6 @@ export class OutlineImportModal extends Modal {
     this.textarea.rows = 8;
     this.textarea.setAttr("aria-label", t("ui.outline_import_text_label"));
     this.textarea.addEventListener("input", () => this.refresh());
-    this.sourceLabel = source.createEl("p", { cls: "vam-hint vam-outline-source" });
     this.preview = source.createDiv("vam-outline-preview");
     this.placementField();
     const research = this.contentEl.createDiv("vam-outline-section");
@@ -180,14 +176,146 @@ export class OutlineImportModal extends Modal {
   onClose(): void {
     this.unwatch?.();
     this.unwatch = undefined;
+    this.generation?.abort();
+    this.generation = undefined;
+    this.disarm?.();
   }
 
-  async loadFile(file: TFile): Promise<void> {
-    const text = await this.app.vault.cachedRead(file);
-    this.textarea.value = text;
-    this.source = file.path;
-    this.sourceText = text;
-    this.refresh();
+  /**
+   * 「AI 生成大綱」: a topic, an outline preset (edit, save as, delete) and Generate. The result fills the outline
+   * box below, where it is previewed and can be edited before anything is added.
+   */
+  private aiSection(parent: HTMLElement, generator: OutlineGenerator): void {
+    const host = generator.presets;
+    const language = host.settings.language;
+    const custom = (): PromptPreset[] => host.settings.promptPresets ?? [];
+    const presets = (): PromptPreset[] => listPresets(custom(), "outline", language);
+    const section = parent.createEl("details", { cls: "vam-outline-ai" });
+    section.createEl("summary", { text: t("ui.outline_ai_generate") });
+    const topicLabel = section.createEl("label", { cls: "vam-field" });
+    topicLabel.createSpan({ text: t("ui.outline_ai_topic") });
+    const topic = topicLabel.createEl("input", { type: "text", value: generator.initialTopic ?? "" });
+    topic.value = generator.initialTopic ?? "";
+    topic.setAttr("aria-label", t("ui.outline_ai_topic"));
+    const presetRow = section.createDiv("vam-outline-ai-preset");
+    const presetLabel = presetRow.createEl("label", { cls: "vam-field" });
+    presetLabel.createSpan({ text: t("ui.outline_ai_preset") });
+    const select = presetLabel.createEl("select");
+    select.setAttr("aria-label", t("ui.outline_ai_preset"));
+    const edit = presetRow.createEl("button", { text: t("ui.preset_edit") });
+    edit.setAttr("aria-expanded", "false");
+    const remove = presetRow.createEl("button", { text: t("ui.preset_delete"), cls: "vam-danger-text" });
+    const editor = section.createDiv("vam-outline-ai-editor");
+    editor.hidden = true;
+    const text = editor.createEl("textarea", { cls: "vam-outline-ai-text" });
+    text.rows = 8;
+    text.setAttr("aria-label", t("ui.outline_ai_preset_text"));
+    editor.createEl("p", { cls: "vam-hint", text: t("ui.outline_ai_preset_text_hint") });
+    const nameLabel = editor.createEl("label", { cls: "vam-field" });
+    nameLabel.createSpan({ text: t("ui.outline_ai_preset_name") });
+    const name = nameLabel.createEl("input", { type: "text" });
+    name.setAttr("aria-label", t("ui.outline_ai_preset_name"));
+    const editorActions = editor.createDiv("vam-outline-actions");
+    const save = editorActions.createEl("button", { text: t("ui.save") });
+    const saveAs = editorActions.createEl("button", { text: t("ui.outline_ai_save_as") });
+    const generateRow = section.createDiv("vam-outline-ai-run");
+    const generate = generateRow.createEl("button", { text: t("ui.outline_ai_run"), cls: "mod-cta" });
+    const status = generateRow.createSpan({ cls: "vam-hint vam-outline-ai-status", attr: { "aria-live": "polite" } });
+    const current = (): PromptPreset | undefined => presets().find(item => item.id === select.value);
+    const fill = (selectedId: string): void => {
+      select.empty();
+      for (const preset of presets()) select.createEl("option", { value: preset.id, text: preset.name });
+      select.value = presets().some(item => item.id === selectedId) ? selectedId : DEFAULT_OUTLINE_PRESET_ID;
+      load();
+    };
+    const load = (): void => {
+      const preset = current();
+      text.value = preset?.text ?? "";
+      name.value = preset ? (isBuiltinPreset(preset.id) ? t("ui.outline_ai_copy_name", preset.name) : preset.name) : "";
+      const builtin = !preset || isBuiltinPreset(preset.id);
+      remove.disabled = builtin;
+      save.disabled = builtin;
+    };
+    const persist = async (next: PromptPreset[], selectedId: string, message: string): Promise<void> => {
+      host.settings.promptPresets = next;
+      await host.saveSettings();
+      fill(selectedId);
+      status.setText(message);
+    };
+    select.addEventListener("change", () => {
+      load();
+      status.setText("");
+    });
+    edit.addEventListener("click", () => {
+      editor.hidden = !editor.hidden;
+      edit.setAttr("aria-expanded", String(!editor.hidden));
+    });
+    save.addEventListener("click", () => {
+      const preset = current();
+      if (!preset || isBuiltinPreset(preset.id)) return;
+      if (!name.value.trim()) return void status.setText(t("ui.preset_name_required"));
+      void persist(
+        updatePreset(custom(), preset.id, { name: name.value, text: text.value }),
+        preset.id,
+        t("ui.outline_ai_preset_saved")
+      );
+    });
+    saveAs.addEventListener("click", () => {
+      const { presets: next, created } = createPreset(custom(), {
+        kind: "outline",
+        name: name.value,
+        text: text.value
+      });
+      if (!created) return void status.setText(t("ui.preset_name_required"));
+      void persist(next, created.id, t("ui.outline_ai_preset_saved"));
+    });
+    this.disarm = armDiscard(
+      remove,
+      status,
+      () => {
+        const preset = current();
+        if (!preset || isBuiltinPreset(preset.id)) return;
+        void persist(deletePreset(custom(), preset.id), DEFAULT_OUTLINE_PRESET_ID, t("ui.outline_ai_preset_deleted"));
+      },
+      () => remove.disabled,
+      { confirm: t("ui.outline_ai_delete_confirm"), hint: t("ui.outline_ai_delete_hint") }
+    );
+    generate.addEventListener("click", () => {
+      if (this.generation) {
+        this.generation.abort();
+        return;
+      }
+      if (!topic.value.trim()) return void status.setText(t("error.outline_generate_empty_topic"));
+      const controller = new AbortController();
+      this.generation = controller;
+      generate.setText(t("ui.outline_ai_stop"));
+      status.setText(t("ui.outline_ai_running"));
+      // Unsaved edits in the preset box are used for this run only.
+      void generator
+        .generate({ topic: topic.value.trim(), presetText: text.value }, controller.signal)
+        .then(markdown => {
+          if (controller.signal.aborted) throw new Error(t("ui.outline_ai_stopped"));
+          this.textarea.value = markdown.trimEnd();
+          this.refresh();
+          status.setText(t("ui.outline_ai_filled", this.nodes.length));
+        })
+        .catch(error => {
+          if (this.generation !== controller) return;
+          status.setText(
+            controller.signal.aborted
+              ? t("ui.outline_ai_stopped")
+              : error instanceof Error
+                ? error.message
+                : String(error)
+          );
+        })
+        .finally(() => {
+          if (this.generation !== controller) return;
+          this.generation = undefined;
+          generate.setText(t("ui.outline_ai_run"));
+        });
+    });
+    fill(DEFAULT_OUTLINE_PRESET_ID);
   }
 
   private issueText(issue: OutlineIssue): string {
@@ -195,9 +323,6 @@ export class OutlineImportModal extends Modal {
   }
 
   private refresh(): void {
-    // A source path stays attached only while the text is the file's text.
-    if (this.source && this.textarea.value !== this.sourceText) this.source = null;
-    this.sourceLabel.setText(this.source ? t("ui.outline_import_source", this.source) : "");
     this.preview.empty();
     const text = this.textarea.value;
     if (!text.trim()) {
@@ -239,7 +364,7 @@ export class OutlineImportModal extends Modal {
       await this.create({
         nodes: this.nodes,
         placement: this.placementRequest(),
-        source: this.source,
+        source: null,
         shallowResearch,
         ...(shallowResearch ? { researchDepth: this.depth() } : {}),
         ...(model ? { model } : {}),

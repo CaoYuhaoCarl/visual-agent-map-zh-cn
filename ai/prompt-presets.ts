@@ -34,7 +34,7 @@ export const DEFAULT_OUTLINE_PRESET_ID = "knowledge-tree";
 /** The outline preset's topic placeholder, per language; the outline generator replaces it with the topic. */
 export const OUTLINE_TOPIC_PLACEHOLDER: Readonly<Record<UiLanguage, string>> = {
   "zh-TW": "{填入研究主題}",
-  en: "{Enter research topic}"
+  en: "{research topic}"
 };
 
 const strip = (text: string): string => (text.endsWith("\n") ? text.slice(0, -1) : text);

@@ -57,15 +57,16 @@ import {
   type CountIssue,
   type DetailTemplate
 } from "../../ai/detail-templates";
-import { listPresets, resolveToneText } from "../../ai/prompt-presets";
+import { listPresets, resolvePreset, resolveToneText } from "../../ai/prompt-presets";
 import type { AiResult, Suggestion, TaskContext } from "../../ai/types";
 import { previewMetrics } from "../../ui/preview-utils";
 import { BUILTIN_SAMPLE_ID, builtInSample, SAMPLE_TOUR_VERSION } from "../../builtin-sample";
 import { PendingSuggestions } from "../../pending-suggestions";
 import { createAimMap } from "../aim/create-map";
-import { addOutlineToMap, createOutlineMap } from "./outline-import";
+import { addOutlineToMap, createOutlineMap, type OutlineNode } from "./outline-import";
 import {
   OutlineImportModal,
+  type OutlineGenerator,
   type OutlineImportRequest,
   type OutlineImportTarget,
   type OutlinePlacement
@@ -97,6 +98,7 @@ import {
   quickShape,
   quickSuggestions,
   NextStepModal,
+  type QuickOutline,
   type SynthesisObserver,
   DraftReviewModal,
   armDiscard,
@@ -711,8 +713,66 @@ export class VisualAgentMapView extends ItemView {
       this.modelChoices(),
       this.templateChoices(),
       target,
-      placement
+      placement,
+      this.outlineGenerator(target.selected?.title)
     ).open();
+  }
+  /** The AI outline generator for the import window: workspace model, after the usual AI usage check. */
+  private outlineGenerator(initialTopic?: string): OutlineGenerator {
+    return {
+      presets: this.plugin,
+      initialTopic,
+      generate: async (request, signal) => {
+        const settings = this.plugin.settings;
+        const model = settings.cliModel;
+        let markdown: string | undefined;
+        const started = await this.plugin.confirmAiUsage(model, async () => {
+          const result = await this.plugin.outlineGeneration.generate(
+            {
+              ...request,
+              language: settings.language,
+              model,
+              reasoning: normalizeReasoningLevel(settings.cliReasoning)
+            },
+            signal
+          );
+          markdown = result.markdown;
+        });
+        if (!started || markdown === undefined) throw new Error(t("ui.outline_ai_not_started"));
+        return markdown;
+      }
+    };
+  }
+  /** Quick explore in the Next Step dialog: the same generator, reviewed in the dialog, then added under the topic. */
+  private quickOutline(node: MapNode): QuickOutline {
+    const settings = this.plugin.settings;
+    return {
+      presets: listPresets(settings.promptPresets, "outline", settings.language).map(({ id, name }) => ({ id, name })),
+      generate: async (request, signal): Promise<OutlineNode[]> => {
+        const note = await this.plugin.repo.readNote(node.path);
+        const { preset } = resolvePreset(settings.promptPresets, "outline", request.presetId, request.language);
+        const result = await this.plugin.outlineGeneration.generate(
+          {
+            topic: note.title,
+            presetText: request.requirements ? `${preset.text}\n\n${request.requirements}` : preset.text,
+            language: request.language,
+            model: note.model,
+            reasoning: normalizeReasoningLevel(note.reasoning ?? settings.cliReasoning)
+          },
+          signal
+        );
+        return result.nodes;
+      },
+      create: (nodes, options) =>
+        this.importOutline({
+          nodes,
+          placement: { kind: "under", parentId: node.id },
+          source: null,
+          shallowResearch: !!options.shallowResearch,
+          ...(options.shallowResearch ? { researchDepth: "fast" as const } : {}),
+          ...(options.detailTemplateId ? { detailTemplateId: options.detailTemplateId } : {})
+        })
+    };
   }
   /** The side option on "+ Topic": one topic by default, or a pasted outline for several at once. */
   private openTopicMenu(event: MouseEvent): void {
@@ -934,10 +994,13 @@ export class VisualAgentMapView extends ItemView {
     if (outcome.failure)
       new Notice(t("ui.outline_import_partial", outcome.created.length, outcome.total, outcome.failure));
     if (outcome.failure || state.saveFailed || !written || !request.shallowResearch || !outcome.created.length) return;
-    const top = this.map?.nodes.find(node => node.id === outcome.created[0].id);
+    // An outline with several top headings (quick explore drops the topic's own root) is researched under the parent.
+    const owner = placement.kind === "under" ? placement.parentId : null;
+    const several = owner !== null && request.nodes.filter(node => node.parent === null).length > 1;
+    const top = this.map?.nodes.find(node => node.id === (several ? owner : outcome.created[0].id));
     if (!top) return;
     // Every other created topic descends from the outline's top topic; the top topic and an "under" parent are not researched.
-    const ids = new Set(outcome.created.slice(1).map(node => node.id));
+    const ids = new Set((several ? outcome.created : outcome.created.slice(1)).map(node => node.id));
     const children = (this.map?.nodes ?? []).filter(node => ids.has(node.id));
     if (!children.length) return;
     try {
@@ -3882,6 +3945,7 @@ export class VisualAgentMapView extends ItemView {
             ? () => this.plugin.activeTasks.get(node.path)?.abort()
             : undefined,
           quickError: this.plugin.quickExpandFailures.get(node.path),
+          quickOutline: this.quickOutline(node),
           sources,
           templates: this.templateChoices(),
           tones: this.toneChoices(),

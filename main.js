@@ -169,17 +169,14 @@ var english = {
   "ui.outline_import_log_source": "Imported from an outline ({0}): [[{1}]]",
   "ui.outline_import_map_save_failed": "The topic notes were created but the map could not be saved: {0}",
   "ui.outline_import": "Import outline",
-  "ui.outline_import_hint": "Paste a heading-only Markdown outline, or choose a note from your vault. Each heading becomes a topic.",
+  "ui.outline_import_hint": "Paste a heading-only Markdown outline, or generate one with AI from a topic. Each heading becomes a topic.",
   "ui.outline_import_text_label": "Outline",
-  "ui.outline_import_choose_file": "Choose from vault",
-  "ui.outline_import_choose_file_placeholder": "Type to find a Markdown note",
   "ui.outline_import_copy_format": "Copy format instructions",
   "ui.outline_import_format_copied": "Format instructions copied. Paste them to the AI that writes your outline.",
   "ui.outline_import_copy_failed": "Could not copy the format instructions to the clipboard.",
   "ui.outline_import_format": "Write the outline as Markdown headings only, with no other text.\n- Use exactly one # heading for the main topic.\n- Use ## for first-level subtopics, ### for the next level, and so on.\n- Do not use bold text or bullet lists instead of headings.\n- Use at most 100 headings in total.\nOutput only the outline.",
   "ui.outline_import_preview_count": "{0} topics, {1} levels",
-  "ui.outline_import_preview_empty": "Paste an outline or choose a note to see the preview.",
-  "ui.outline_import_source": "Source: {0}",
+  "ui.outline_import_preview_empty": "Paste or generate an outline to see the preview.",
   "ui.outline_import_shallow": "Run shallow research on each topic after creation (uses AI quota)",
   "ui.outline_import_add": "Add to mind map",
   "ui.outline_import_placement": "Put it in",
@@ -207,6 +204,29 @@ var english = {
   "ui.multi_research_finished": "Research finished: {0} of {1} succeeded, {2} failed, {3} skipped.",
   "ui.multi_research_stopped": "Research stopped: {0} of {1} succeeded, {2} failed, {3} skipped.",
   "ui.outline_import_partial": "Created {0} of {1} topics: {2}",
+  "ui.outline_ai_generate": "Generate an outline with AI",
+  "ui.outline_ai_topic": "Research topic",
+  "ui.outline_ai_preset": "Outline preset",
+  "ui.outline_ai_preset_text": "Preset instructions",
+  "ui.outline_ai_preset_text_hint": "Edits here are used for the next run; save them to keep them. {research topic} is replaced with the topic above.",
+  "ui.outline_ai_preset_name": "Preset name",
+  "ui.outline_ai_save_as": "Save as new preset",
+  "ui.outline_ai_copy_name": "{0} copy",
+  "ui.outline_ai_preset_saved": "Preset saved.",
+  "ui.outline_ai_preset_deleted": "Preset deleted.",
+  "ui.outline_ai_delete_confirm": "Delete preset?",
+  "ui.outline_ai_delete_hint": "Press again within 5 seconds to delete this outline preset.",
+  "ui.outline_ai_run": "Generate outline",
+  "ui.outline_ai_stop": "Stop",
+  "ui.outline_ai_running": "AI is writing the outline\u2026",
+  "ui.outline_ai_stopped": "Outline generation stopped.",
+  "ui.outline_ai_filled": "{0} headings filled in below. Edit them before adding.",
+  "ui.quick_outline_hint": "AI writes an outline for this topic with the chosen preset. You review it here before any subtopic is created.",
+  "ui.quick_outline_mode_hint": "AI drafts a multi-level outline under this topic; review and edit it here before creating.",
+  "ui.quick_outline_review": "AI outline",
+  "ui.quick_outline_review_hint": "Uncheck what you don't need and edit names, then create the subtopics.",
+  "ui.quick_outline_empty": "The AI outline has no headings under the topic.",
+  "ui.outline_ai_not_started": "Outline generation did not start.",
   "ui.aim_create_map": "Create Adaptive Inquiry Map (AIM)",
   "ui.aim_start_title": "Create an Adaptive Inquiry Map (AIM)",
   "ui.aim_empty_map_hint": "This Adaptive Inquiry Map has no topic yet. AIM starts with a research topic.",
@@ -1521,17 +1541,14 @@ var traditionalChinese = {
   "ui.outline_import_log_source": "\u5F9E\u5927\u7DB1\u532F\u5165\uFF08{0}\uFF09\uFF1A[[{1}]]",
   "ui.outline_import_map_save_failed": "\u8B70\u984C\u7B46\u8A18\u5DF2\u5EFA\u7ACB\uFF0C\u4F46\u5FC3\u667A\u5716\u7121\u6CD5\u5132\u5B58\uFF1A{0}",
   "ui.outline_import": "\u532F\u5165\u5927\u7DB1",
-  "ui.outline_import_hint": "\u8CBC\u4E0A\u53EA\u6709\u6A19\u984C\u7684 Markdown \u5927\u7DB1\uFF0C\u6216\u5F9E vault \u9078\u4E00\u4EFD\u7B46\u8A18\u3002\u6BCF\u500B\u6A19\u984C\u6703\u8B8A\u6210\u4E00\u500B\u8B70\u984C\u3002",
+  "ui.outline_import_hint": "\u8CBC\u4E0A\u53EA\u6709\u6A19\u984C\u7684 Markdown \u5927\u7DB1\uFF0C\u6216\u7528 AI \u4F9D\u4E3B\u984C\u751F\u6210\u3002\u6BCF\u500B\u6A19\u984C\u6703\u8B8A\u6210\u4E00\u500B\u8B70\u984C\u3002",
   "ui.outline_import_text_label": "\u5927\u7DB1",
-  "ui.outline_import_choose_file": "\u5F9E vault \u9078\u6A94",
-  "ui.outline_import_choose_file_placeholder": "\u8F38\u5165\u6587\u5B57\u641C\u5C0B Markdown \u7B46\u8A18",
   "ui.outline_import_copy_format": "\u8907\u88FD\u683C\u5F0F\u8AAA\u660E",
   "ui.outline_import_format_copied": "\u5DF2\u8907\u88FD\u683C\u5F0F\u8AAA\u660E\uFF0C\u8CBC\u7D66\u7522\u751F\u5927\u7DB1\u7684 AI \u5373\u53EF\u3002",
   "ui.outline_import_copy_failed": "\u7121\u6CD5\u8907\u88FD\u683C\u5F0F\u8AAA\u660E\u5230\u526A\u8CBC\u7C3F\u3002",
   "ui.outline_import_format": "\u8ACB\u53EA\u7528 Markdown \u6A19\u984C\u5BEB\u5927\u7DB1\uFF0C\u4E0D\u8981\u5BEB\u5176\u4ED6\u6587\u5B57\u3002\n- \u53EA\u7528\u4E00\u500B # \u6A19\u984C\u7576\u4E3B\u984C\u3002\n- \u7B2C\u4E00\u5C64\u5B50\u8B70\u984C\u7528 ##\uFF0C\u4E0B\u4E00\u5C64\u7528 ###\uFF0C\u4F9D\u6B64\u985E\u63A8\u3002\n- \u4E0D\u8981\u7528\u7C97\u9AD4\u6216\u6E05\u55AE\u4EE3\u66FF\u6A19\u984C\u3002\n- \u6A19\u984C\u7E3D\u6578\u4E0D\u8D85\u904E 100 \u500B\u3002\n\u53EA\u8F38\u51FA\u5927\u7DB1\u672C\u8EAB\u3002",
   "ui.outline_import_preview_count": "{0} \u500B\u8B70\u984C\uFF0C{1} \u5C64",
-  "ui.outline_import_preview_empty": "\u8CBC\u4E0A\u5927\u7DB1\u6216\u9078\u4E00\u4EFD\u7B46\u8A18\uFF0C\u5C31\u6703\u986F\u793A\u9810\u89BD\u3002",
-  "ui.outline_import_source": "\u4F86\u6E90\uFF1A{0}",
+  "ui.outline_import_preview_empty": "\u8CBC\u4E0A\u6216\u751F\u6210\u5927\u7DB1\uFF0C\u5C31\u6703\u986F\u793A\u9810\u89BD\u3002",
   "ui.outline_import_shallow": "\u5EFA\u7ACB\u5F8C\u9010\u4E00\u6DFA\u7814\u7A76\u6BCF\u500B\u8B70\u984C\uFF08\u6703\u4F7F\u7528 AI \u984D\u5EA6\uFF09",
   "ui.outline_import_add": "\u52A0\u5165\u5FC3\u667A\u5716",
   "ui.outline_import_placement": "\u653E\u5230\u54EA\u88E1",
@@ -1559,6 +1576,29 @@ var traditionalChinese = {
   "ui.multi_research_finished": "\u7814\u7A76\u5B8C\u6210\uFF1A\u6210\u529F {0}\uFF0F{1}\uFF0C{2} \u500B\u5931\u6557\uFF0C{3} \u500B\u8DF3\u904E\u3002",
   "ui.multi_research_stopped": "\u7814\u7A76\u5DF2\u505C\u6B62\uFF1A\u6210\u529F {0}\uFF0F{1}\uFF0C{2} \u500B\u5931\u6557\uFF0C{3} \u500B\u8DF3\u904E\u3002",
   "ui.outline_import_partial": "\u5EFA\u7ACB\u4E86 {0}\uFF0F{1} \u500B\u8B70\u984C\uFF1A{2}",
+  "ui.outline_ai_generate": "AI \u751F\u6210\u5927\u7DB1",
+  "ui.outline_ai_topic": "\u7814\u7A76\u4E3B\u984C",
+  "ui.outline_ai_preset": "\u5927\u7DB1\u9810\u8A2D",
+  "ui.outline_ai_preset_text": "\u9810\u8A2D\u5167\u5BB9",
+  "ui.outline_ai_preset_text_hint": "\u9019\u88E1\u7684\u4FEE\u6539\u6703\u7528\u5728\u4E0B\u4E00\u6B21\u751F\u6210\uFF1B\u8981\u4FDD\u7559\u8ACB\u5132\u5B58\u3002{\u586B\u5165\u7814\u7A76\u4E3B\u984C} \u6703\u63DB\u6210\u4E0A\u9762\u7684\u4E3B\u984C\u3002",
+  "ui.outline_ai_preset_name": "\u9810\u8A2D\u540D\u7A31",
+  "ui.outline_ai_save_as": "\u53E6\u5B58\u70BA\u65B0\u9810\u8A2D",
+  "ui.outline_ai_copy_name": "{0} \u526F\u672C",
+  "ui.outline_ai_preset_saved": "\u9810\u8A2D\u5DF2\u5132\u5B58\u3002",
+  "ui.outline_ai_preset_deleted": "\u9810\u8A2D\u5DF2\u522A\u9664\u3002",
+  "ui.outline_ai_delete_confirm": "\u78BA\u5B9A\u522A\u9664\u9810\u8A2D\uFF1F",
+  "ui.outline_ai_delete_hint": "5 \u79D2\u5167\u518D\u6309\u4E00\u6B21\uFF0C\u5C31\u6703\u522A\u9664\u9019\u500B\u5927\u7DB1\u9810\u8A2D\u3002",
+  "ui.outline_ai_run": "\u751F\u6210\u5927\u7DB1",
+  "ui.outline_ai_stop": "\u505C\u6B62",
+  "ui.outline_ai_running": "AI \u6B63\u5728\u64B0\u5BEB\u5927\u7DB1\u2026",
+  "ui.outline_ai_stopped": "\u5927\u7DB1\u751F\u6210\u5DF2\u505C\u6B62\u3002",
+  "ui.outline_ai_filled": "\u5DF2\u5728\u4E0B\u65B9\u586B\u5165 {0} \u500B\u6A19\u984C\uFF0C\u52A0\u5165\u524D\u53EF\u4EE5\u4FEE\u6539\u3002",
+  "ui.quick_outline_hint": "AI \u4F9D\u6240\u9078\u9810\u8A2D\u70BA\u9019\u500B\u8B70\u984C\u5BEB\u4E00\u4EFD\u5927\u7DB1\uFF0C\u5EFA\u7ACB\u4EFB\u4F55\u5B50\u8B70\u984C\u524D\u6703\u5148\u5728\u9019\u88E1\u6AA2\u8996\u3002",
+  "ui.quick_outline_mode_hint": "AI \u70BA\u9019\u500B\u8B70\u984C\u8349\u64EC\u591A\u5C64\u5927\u7DB1\uFF1B\u5EFA\u7ACB\u524D\u53EF\u4EE5\u5728\u9019\u88E1\u6AA2\u8996\u8207\u4FEE\u6539\u3002",
+  "ui.quick_outline_review": "AI \u5927\u7DB1",
+  "ui.quick_outline_review_hint": "\u53D6\u6D88\u4E0D\u9700\u8981\u7684\u9805\u76EE\u3001\u4FEE\u6539\u540D\u7A31\uFF0C\u518D\u5EFA\u7ACB\u5B50\u8B70\u984C\u3002",
+  "ui.quick_outline_empty": "AI \u7684\u5927\u7DB1\u5728\u4E3B\u984C\u5E95\u4E0B\u6C92\u6709\u4EFB\u4F55\u6A19\u984C\u3002",
+  "ui.outline_ai_not_started": "\u5927\u7DB1\u751F\u6210\u6C92\u6709\u958B\u59CB\u3002",
   "ui.aim_create_map": "\u5EFA\u7ACB Adaptive Inquiry Map\uFF08AIM\uFF09",
   "ui.aim_start_title": "\u5EFA\u7ACB Adaptive Inquiry Map\uFF08AIM\uFF09",
   "ui.aim_empty_map_hint": "\u9019\u5F35 Adaptive Inquiry Map \u76EE\u524D\u6C92\u6709\u8B70\u984C\u3002AIM \u6703\u5F9E\u7814\u7A76\u8B70\u984C\u958B\u59CB\u3002",
@@ -13110,7 +13150,7 @@ var auto_en_default = 'Tone: AI choice. Choose the most suitable writing tone yo
 var knowledge_tree_zh_default = "# VAM Knowledge Tree Generator\n\n## \u4E00\u3001\u4F7F\u7528\u8005\u8A2D\u5B9A\uFF08\u53EF\u81EA\u884C\u8ABF\u6574\uFF09\n\n\u7814\u7A76\u4E3B\u984C\uFF1A{\u586B\u5165\u7814\u7A76\u4E3B\u984C}\n\n### \u6578\u91CF\u9650\u5236\n- \u6700\u5927\u6A19\u984C\u6578\u91CF\uFF1A30\uFF08\u5305\u542B\u6839\u6A19\u984C\uFF09\n- \u6700\u5927\u968E\u5C64\u6DF1\u5EA6\uFF1A6\uFF08Markdown # \u81F3 ######\uFF09\n\n### \u6DF1\u5EA6\u63A7\u5236\n- \u968E\u5C64\u6A21\u5F0F\uFF1A\u81EA\u7136\u5C55\u958B\n- \u6700\u4F4E\u7814\u7A76\u6DF1\u5EA6\uFF1A\u4E0D\u9650\u5236\n- \u5141\u8A31\u4E0D\u540C\u5206\u652F\u6DF1\u5EA6\uFF1A\u662F\n- \u5141\u8A31\u4E0D\u540C\u5206\u652F\u7684\u5B50\u7BC0\u9EDE\u6578\u91CF\uFF1A\u662F\n\n### \u77E5\u8B58\u8986\u84CB\n- \u77E5\u8B58\u5B8C\u6574\u6027\uFF1A\u512A\u5148\n- \u77E5\u8B58\u5EE3\u5EA6\u8207\u6DF1\u5EA6\uFF1A\u4F9D\u4E3B\u984C\u8907\u96DC\u5EA6\u52D5\u614B\u5206\u914D\n- \u672B\u7AEF\u7BC0\u9EDE\u8981\u6C42\uFF1A\u53EF\u4EE5\u7368\u7ACB\u7814\u7A76\n\n---\n\n## \u4E8C\u3001\u4EFB\u52D9\u76EE\u6A19\n\n\u8ACB\u91DD\u5C0D\u4F7F\u7528\u8005\u8A2D\u5B9A\u7684\u7814\u7A76\u4E3B\u984C\uFF0C\u5EFA\u7ACB\u4E00\u4EFD\u9069\u5408\u7CFB\u7D71\u6027\u77E5\u8B58\u63A2\u7D22\u8207\u6DF1\u5165\u7814\u7A76\u7684 Markdown \u968E\u5C64\u5F0F\u5927\u7DB1\u3002\n\n\u76EE\u6A19\u4E0D\u662F\u88FD\u4F5C\u50B3\u7D71\u7684\u8AB2\u7A0B\u76EE\u9304\uFF0C\u800C\u662F\u5EFA\u7ACB\u4E00\u68F5\u5177\u6709\u77E5\u8B58\u908F\u8F2F\u3001\u6DF1\u5EA6\u4E0D\u5C0D\u7A31\u3001\u80FD\u5920\u9010\u5C64\u6DF1\u5165\u7814\u7A76\u7684\u77E5\u8B58\u6A39\u3002\n\n\u6240\u6709\u751F\u6210\u898F\u5247\u90FD\u5FC5\u9808\u9075\u5B88\u6700\u4E0A\u65B9\u7684\u300C\u4F7F\u7528\u8005\u8A2D\u5B9A\u300D\u3002\n\n## \u4E09\u3001\u77E5\u8B58\u7D44\u7E54\u539F\u5247\n\n1. \u4EE5\u77E5\u8B58\u9AD4\u7CFB\u7684\u5B8C\u6574\u6027\u3001\u908F\u8F2F\u6027\u8207\u7814\u7A76\u50F9\u503C\u70BA\u512A\u5148\u3002\n2. \u8ACB\u4EE5\u77E5\u8B58\u4E4B\u9593\u7684\u4F9D\u8CF4\u95DC\u4FC2\u3001\u56E0\u679C\u95DC\u4FC2\u8207\u6982\u5FF5\u7D30\u5206\u95DC\u4FC2\u7D44\u7E54\u5927\u7DB1\uFF0C\u800C\u4E0D\u662F\u4F9D\u7167\u6559\u79D1\u66F8\u7AE0\u7BC0\u6216\u8AB2\u7A0B\u9806\u5E8F\u5206\u985E\u3002\n3. \u5927\u7DB1\u61C9\u662F\u4E00\u68F5\u975E\u5C0D\u7A31\u77E5\u8B58\u6A39\uFF0C\u800C\u4E0D\u662F\u5E73\u5747\u5206\u914D\u7684\u5206\u985E\u76EE\u9304\u3002\n4. \u4F9D\u7167\u6BCF\u500B\u77E5\u8B58\u9818\u57DF\u7684\u8907\u96DC\u7A0B\u5EA6\uFF0C\u81EA\u7136\u6C7A\u5B9A\u5206\u652F\u6DF1\u5EA6\u3002\n5. \u4E0D\u540C\u5206\u652F\u53EF\u4EE5\u6709\u4E0D\u540C\u6DF1\u5EA6\uFF0C\u4E5F\u53EF\u4EE5\u6709\u4E0D\u540C\u6578\u91CF\u7684\u5B50\u7BC0\u9EDE\u3002\n6. \u7236\u7BC0\u9EDE\u4EE3\u8868\u77E5\u8B58\u9818\u57DF\u3001\u6838\u5FC3\u6982\u5FF5\u6216\u4F5C\u7528\u6A5F\u5236\uFF1B\u5B50\u7BC0\u9EDE\u4EE3\u8868\u66F4\u5177\u9AD4\u7684\u539F\u7406\u3001\u6A5F\u5236\u3001\u56E0\u679C\u95DC\u4FC2\u6216\u7814\u7A76\u554F\u984C\u3002\n7. \u6BCF\u500B\u5B50\u7BC0\u9EDE\u90FD\u5FC5\u9808\u8207\u7236\u7BC0\u9EDE\u5B58\u5728\u660E\u78BA\u7684\u77E5\u8B58\u908F\u8F2F\u95DC\u4FC2\uFF0C\u800C\u975E\u50C5\u50C5\u5C6C\u65BC\u76F8\u540C\u4E3B\u984C\u3002\n8. \u6BCF\u500B\u672B\u7AEF\u7BC0\u9EDE\u90FD\u5FC5\u9808\u5177\u6709\u7368\u7ACB\u7814\u7A76\u50F9\u503C\uFF0C\u9069\u5408\u4F5C\u70BA\u4E00\u500B\u5B8C\u6574\u7684\u7814\u7A76\u55AE\u5143\u3002\n9. \u907F\u514D\u77E5\u8B58\u91CD\u8907\u3001\u904E\u5EA6\u62C6\u5206\uFF0C\u4EE5\u53CA\u6C92\u6709\u5BE6\u969B\u7814\u7A76\u50F9\u503C\u7684\u5206\u985E\u3002\n\n## \u56DB\u3001\u968E\u5C64\u8207\u6DF1\u5EA6\u898F\u5247\n\n1. \u4F7F\u7528 Markdown \u6A19\u984C\u8868\u793A\u77E5\u8B58\u968E\u5C64\u3002\n2. \u53EA\u4F7F\u7528\u4E00\u500B # \u6A19\u984C\u4F5C\u70BA\u6839\u4E3B\u984C\u3002\n3. \u7B2C\u4E00\u5C64\u5B50\u8B70\u984C\u4F7F\u7528 ##\uFF0C\u4E0B\u4E00\u5C64\u4F7F\u7528 ###\uFF0C\u4F9D\u6B64\u985E\u63A8\u3002\n4. \u968E\u5C64\u4E0D\u5F97\u8D85\u904E\u4F7F\u7528\u8005\u8A2D\u5B9A\u7684\u6700\u5927\u6DF1\u5EA6\u3002\n5. \u4E0D\u8981\u628A\u6240\u6709\u5206\u652F\u56FA\u5B9A\u5728\u76F8\u540C\u6DF1\u5EA6\u3002\n6. \u7C21\u55AE\u6982\u5FF5\u53EF\u4EE5\u505C\u7559\u5728\u8F03\u6DFA\u5C64\u7D1A\u3002\n7. \u8907\u96DC\u6982\u5FF5\u61C9\u4F9D\u5176\u77E5\u8B58\u4F9D\u8CF4\u95DC\u4FC2\u7E7C\u7E8C\u6DF1\u5165\u3002\n8. \u6BCF\u4E00\u5C64\u90FD\u5FC5\u9808\u4EE3\u8868\u6709\u610F\u7FA9\u7684\u77E5\u8B58\u6DF1\u5316\uFF0C\u800C\u4E0D\u662F\u55AE\u7D14\u589E\u52A0\u6A19\u984C\u3002\n9. \u4E0D\u8981\u70BA\u4E86\u8FFD\u6C42\u6DF1\u5EA6\u800C\u5275\u9020\u4E0D\u5FC5\u8981\u7684\u4E2D\u9593\u7BC0\u9EDE\u3002\n10. \u7576\u67D0\u500B\u6982\u5FF5\u503C\u5F97\u9032\u4E00\u6B65\u7814\u7A76\u6642\uFF0C\u61C9\u512A\u5148\u6CBF\u8457\u8A72\u5206\u652F\u6DF1\u5165\uFF0C\u800C\u4E0D\u662F\u6301\u7E8C\u589E\u52A0\u540C\u5C64\u5206\u985E\u3002\n\n## \u4E94\u3001\u77E5\u8B58\u95DC\u4FC2\u8207\u7BC0\u9EDE\u8A2D\u8A08\n\n\u512A\u5148\u5448\u73FE\u4EE5\u4E0B\u4E09\u7A2E\u77E5\u8B58\u95DC\u4FC2\uFF1A\n\n1. \u6982\u5FF5\u7D30\u5206\uFF1A\u5F9E\u62BD\u8C61\u6982\u5FF5\u6DF1\u5165\u5177\u9AD4\u539F\u7406\u8207\u6A5F\u5236\u3002\n2. \u56E0\u679C\u95DC\u4FC2\uFF1A\u5F9E\u73FE\u8C61\u6DF1\u5165\u5F71\u97FF\u56E0\u7D20\u3001\u4F5C\u7528\u6A5F\u5236\u8207\u7D50\u679C\u3002\n3. \u4F9D\u8CF4\u95DC\u4FC2\uFF1A\u5F9E\u57FA\u790E\u6982\u5FF5\u6DF1\u5165\u5EFA\u7ACB\u5728\u5176\u4E0A\u7684\u9032\u968E\u77E5\u8B58\u3002\n\n\u7BC0\u9EDE\u8A2D\u8A08\u8981\u6C42\uFF1A\n\n1. \u540C\u4E00\u689D\u77E5\u8B58\u8DEF\u5F91\u61C9\u5448\u73FE\u9010\u6B65\u6DF1\u5316\u7684\u7814\u7A76\u908F\u8F2F\u3002\n2. \u7236\u7BC0\u9EDE\u61C9\u80FD\u5408\u7406\u7D71\u6574\u5176\u6240\u6709\u5B50\u7BC0\u9EDE\u3002\n3. \u5B50\u7BC0\u9EDE\u61C9\u63D0\u4F9B\u65B0\u7684\u7814\u7A76\u65B9\u5411\uFF0C\u800C\u4E0D\u662F\u63DB\u53E5\u8A71\u8AAA\u660E\u7236\u7BC0\u9EDE\u3002\n4. \u672B\u7AEF\u7BC0\u9EDE\u61C9\u5177\u6709\u8DB3\u5920\u7684\u5177\u9AD4\u6027\uFF0C\u53EF\u4EE5\u9032\u4E00\u6B65\u7814\u7A76\u5176\u539F\u7406\u3001\u8B49\u64DA\u3001\u9650\u5236\u8207\u5BE6\u969B\u61C9\u7528\u3002\n5. \u907F\u514D\u53EA\u6709\u5206\u985E\u529F\u80FD\u3001\u7F3A\u4E4F\u7814\u7A76\u610F\u7FA9\u7684\u7BC0\u9EDE\u3002\n6. \u77E5\u8B58\u4E4B\u9593\u82E5\u5B58\u5728\u8DE8\u9818\u57DF\u95DC\u4FC2\uFF0C\u61C9\u9078\u64C7\u6700\u80FD\u89E3\u91CB\u5176\u6838\u5FC3\u6A5F\u5236\u7684\u4F4D\u7F6E\uFF0C\u907F\u514D\u91CD\u8907\u5EFA\u7ACB\u76F8\u540C\u7BC0\u9EDE\u3002\n7. \u4E0D\u8981\u70BA\u4E86\u586B\u6EFF\u968E\u5C64\u800C\u523B\u610F\u589E\u52A0\u6C92\u6709\u7814\u7A76\u50F9\u503C\u7684\u7BC0\u9EDE\u3002\n\n## \u516D\u3001\u6578\u91CF\u8207\u5B8C\u6574\u6027\u898F\u5247\n\n1. \u6A19\u984C\u7E3D\u6578\u4E0D\u5F97\u8D85\u904E\u4F7F\u7528\u8005\u8A2D\u5B9A\u7684\u6700\u5927\u6A19\u984C\u6578\u91CF\u3002\n2. \u5728\u6578\u91CF\u9650\u5236\u5167\uFF0C\u512A\u5148\u6DB5\u84CB\u6700\u91CD\u8981\u7684\u6838\u5FC3\u77E5\u8B58\u9818\u57DF\u3002\n3. \u517C\u9867\u77E5\u8B58\u5EE3\u5EA6\u8207\u5FC5\u8981\u7684\u7814\u7A76\u6DF1\u5EA6\uFF0C\u4E0D\u8981\u70BA\u4E86\u8FFD\u6C42\u5EE3\u5EA6\u800C\u72A7\u7272\u6240\u6709\u5206\u652F\u7684\u6DF1\u5EA6\u3002\n4. \u4E0D\u8981\u5E73\u5747\u5206\u914D\u6BCF\u500B\u5206\u985E\u7684\u6A19\u984C\u6578\u91CF\u3002\n5. \u4E0D\u5FC5\u70BA\u4E86\u6E4A\u6EFF\u6A19\u984C\u6578\u91CF\u800C\u589E\u52A0\u5167\u5BB9\u3002\n6. \u512A\u5148\u4FDD\u7559\u5177\u6709\u9AD8\u5EA6\u7814\u7A76\u50F9\u503C\u3001\u89E3\u91CB\u80FD\u529B\u6216\u77E5\u8B58\u4F9D\u8CF4\u6027\u7684\u7BC0\u9EDE\u3002\n7. \u4E0D\u8981\u4F7F\u7528\u56FA\u5B9A\u7684\u300C\u6BCF\u500B\u5927\u5206\u985E\u914D\u7F6E\u76F8\u540C\u6578\u91CF\u5B50\u8B70\u984C\u300D\u6A21\u5F0F\u3002\n8. \u5982\u679C\u6578\u91CF\u9650\u5236\u8207\u5B8C\u6574\u6027\u767C\u751F\u885D\u7A81\uFF0C\u61C9\u512A\u5148\u4FDD\u7559\u6838\u5FC3\u77E5\u8B58\u3001\u95DC\u9375\u4F9D\u8CF4\u95DC\u4FC2\u8207\u6700\u6709\u50F9\u503C\u7684\u7814\u7A76\u8DEF\u5F91\u3002\n\n## \u4E03\u3001\u8F38\u51FA\u524D\u7684\u54C1\u8CEA\u6AA2\u67E5\n\n\u5728\u8F38\u51FA\u6700\u7D42\u7D50\u679C\u524D\uFF0C\u8ACB\u81EA\u884C\u6AA2\u67E5\uFF1A\n\n1. \u662F\u5426\u6DB5\u84CB\u7814\u7A76\u4E3B\u984C\u6700\u91CD\u8981\u7684\u6838\u5FC3\u77E5\u8B58\uFF1F\n2. \u662F\u5426\u5177\u6709\u660E\u78BA\u7684\u6982\u5FF5\u7D30\u5206\u3001\u56E0\u679C\u6216\u4F9D\u8CF4\u95DC\u4FC2\uFF1F\n3. \u5206\u652F\u6DF1\u5EA6\u662F\u5426\u7531\u77E5\u8B58\u8907\u96DC\u5EA6\u6C7A\u5B9A\uFF0C\u800C\u975E\u56FA\u5B9A\u6A21\u677F\uFF1F\n4. \u662F\u5426\u5B58\u5728\u503C\u5F97\u6DF1\u5165\u537B\u904E\u65E9\u505C\u6B62\u7684\u5206\u652F\uFF1F\n5. \u662F\u5426\u6240\u6709\u6DF1\u5165\u7684\u7BC0\u9EDE\u90FD\u6709\u5BE6\u969B\u77E5\u8B58\u50F9\u503C\uFF1F\n6. \u662F\u5426\u5B58\u5728\u4E0D\u5FC5\u8981\u7684\u4E2D\u9593\u5206\u985E\u6216\u91CD\u8907\u7BC0\u9EDE\uFF1F\n7. \u662F\u5426\u907F\u514D\u5C07\u77E5\u8B58\u6A39\u5BEB\u6210\u50B3\u7D71\u6559\u79D1\u66F8\u76EE\u9304\uFF1F\n8. \u662F\u5426\u7B26\u5408\u4F7F\u7528\u8005\u8A2D\u5B9A\u7684\u6578\u91CF\u8207\u968E\u5C64\u9650\u5236\uFF1F\n\n\u5982\u679C\u4E0D\u7B26\u5408\uFF0C\u8ACB\u5148\u81EA\u884C\u8ABF\u6574\u7D50\u69CB\uFF0C\u518D\u8F38\u51FA\u6700\u7D42\u7D50\u679C\u3002\n\n## \u516B\u3001\u8F38\u51FA\u683C\u5F0F\n\n1. \u53EA\u8F38\u51FA Markdown \u6A19\u984C\u3002\n2. \u4F7F\u7528 # \u81F3\u4F7F\u7528\u8005\u8A2D\u5B9A\u7684\u6700\u5927\u968E\u5C64\u6DF1\u5EA6\u3002\n3. \u4E0D\u4F7F\u7528\u7C97\u9AD4\u3001\u6E05\u55AE\u3001\u8868\u683C\u6216\u4EFB\u4F55\u88DC\u5145\u8AAA\u660E\u3002\n4. \u4E0D\u8981\u89E3\u91CB\u8A2D\u8A08\u908F\u8F2F\u3002\n5. \u4E0D\u8981\u8F38\u51FA\u54C1\u8CEA\u6AA2\u67E5\u7D50\u679C\u3002\n6. \u4E0D\u8981\u4F7F\u7528 Markdown \u7A0B\u5F0F\u78BC\u5340\u584A\u5305\u4F4F\u7D50\u679C\u3002\n7. \u53EA\u8F38\u51FA\u6700\u7D42\u5927\u7DB1\u672C\u8EAB\u3002\n";
 
 // ai/prompt-presets/knowledge-tree.en.md
-var knowledge_tree_en_default = '# VAM Knowledge Tree Generator\n\n## 1. User settings (adjust as needed)\n\nResearch topic: {Enter research topic}\n\n### Quantity limits\n- Maximum number of headings: 30 (including the root heading)\n- Maximum hierarchy depth: 6 (Markdown # through ######)\n\n### Depth control\n- Hierarchy mode: natural expansion\n- Minimum research depth: no limit\n- Branches may have different depths: yes\n- Branches may have different numbers of child nodes: yes\n\n### Knowledge coverage\n- Knowledge completeness: prioritized\n- Breadth and depth of knowledge: allocated dynamically by the complexity of the topic\n- Leaf node requirement: each can be researched on its own\n\n---\n\n## 2. Task goal\n\nFor the research topic set by the user, build a hierarchical Markdown outline suited to systematic knowledge exploration and in-depth research.\n\nThe goal is not a traditional course table of contents. It is a knowledge tree with real knowledge logic, uneven depth, and the ability to be researched deeper level by level.\n\nAll generation rules must follow the "User settings" at the top.\n\n## 3. Principles for organizing knowledge\n\n1. Prioritize the completeness, logic and research value of the knowledge system.\n2. Organize the outline by dependency, causality and conceptual subdivision between pieces of knowledge, not by textbook chapters or course order.\n3. The outline should be an asymmetric knowledge tree, not an evenly distributed catalogue.\n4. Decide the depth of each branch naturally from the complexity of that knowledge area.\n5. Different branches may have different depths and different numbers of child nodes.\n6. A parent node stands for a knowledge area, a core concept or a mechanism; its child nodes stand for more specific principles, mechanisms, causal relations or research questions.\n7. Every child node must have a clear knowledge-logic relation to its parent, not merely belong to the same topic.\n8. Every leaf node must have independent research value and suit being a complete research unit.\n9. Avoid duplicated knowledge, over-splitting, and categories with no real research value.\n\n## 4. Hierarchy and depth rules\n\n1. Use Markdown headings to express the knowledge hierarchy.\n2. Use exactly one # heading as the root topic.\n3. First-level subtopics use ##, the next level uses ###, and so on.\n4. The hierarchy must not exceed the maximum depth set in the user settings.\n5. Do not fix all branches at the same depth.\n6. Simple concepts may stay at a shallower level.\n7. Complex concepts should go deeper along their knowledge dependencies.\n8. Every level must represent a meaningful deepening of knowledge, not just more headings.\n9. Do not create unnecessary intermediate nodes just to chase depth.\n10. When a concept deserves further research, go deeper along that branch first instead of adding more categories at the same level.\n\n## 5. Knowledge relations and node design\n\nPrefer presenting these three kinds of knowledge relations:\n\n1. Conceptual subdivision: from an abstract concept down to concrete principles and mechanisms.\n2. Causal relation: from a phenomenon down to influencing factors, mechanisms and results.\n3. Dependency relation: from foundational concepts down to the advanced knowledge built on them.\n\nNode design requirements:\n\n1. A single knowledge path should show a progressively deepening line of research logic.\n2. A parent node should be able to reasonably unify all of its child nodes.\n3. A child node should offer a new research direction, not restate the parent in other words.\n4. A leaf node should be specific enough to be researched further for its principles, evidence, limits and practical applications.\n5. Avoid nodes that only classify and have no research meaning.\n6. When knowledge relates across fields, place it where it best explains its core mechanism and avoid creating the same node twice.\n7. Do not add nodes without research value just to fill the hierarchy.\n\n## 6. Quantity and completeness rules\n\n1. The total number of headings must not exceed the maximum set in the user settings.\n2. Within the quantity limit, cover the most important core knowledge areas first.\n3. Balance breadth with the research depth that is needed; do not sacrifice the depth of every branch for the sake of breadth.\n4. Do not distribute headings evenly across categories.\n5. Do not add content just to reach the heading limit.\n6. Keep nodes with high research value, explanatory power or knowledge dependency first.\n7. Do not use a fixed pattern of "every major category has the same number of subtopics".\n8. If the quantity limit conflicts with completeness, keep the core knowledge, the key dependencies and the most valuable research paths first.\n\n## 7. Quality check before output\n\nBefore producing the final result, check for yourself:\n\n1. Does it cover the most important core knowledge of the research topic?\n2. Does it have clear conceptual subdivision, causal or dependency relations?\n3. Is branch depth decided by the complexity of the knowledge rather than a fixed template?\n4. Is there a branch worth going deeper that stops too early?\n5. Does every deepened node have real knowledge value?\n6. Are there unnecessary intermediate categories or duplicated nodes?\n7. Does it avoid writing the knowledge tree as a traditional textbook table of contents?\n8. Does it respect the quantity and hierarchy limits set by the user?\n\nIf not, adjust the structure yourself first, then produce the final result.\n\n## 8. Output format\n\n1. Output Markdown headings only.\n2. Use # up to the maximum hierarchy depth set by the user.\n3. Do not use bold, lists, tables or any extra explanation.\n4. Do not explain the design logic.\n5. Do not output the quality-check results.\n6. Do not wrap the result in a Markdown code block.\n7. Output only the final outline itself.\n';
+var knowledge_tree_en_default = '# VAM Knowledge Tree Generator\n\n## 1. User settings (adjust as needed)\n\nResearch topic: {research topic}\n\n### Quantity limits\n- Maximum number of headings: 30 (including the root heading)\n- Maximum hierarchy depth: 6 (Markdown # through ######)\n\n### Depth control\n- Hierarchy mode: natural expansion\n- Minimum research depth: no limit\n- Branches may have different depths: yes\n- Branches may have different numbers of child nodes: yes\n\n### Knowledge coverage\n- Knowledge completeness: prioritized\n- Breadth and depth of knowledge: allocated dynamically by the complexity of the topic\n- Leaf node requirement: each can be researched on its own\n\n---\n\n## 2. Task goal\n\nFor the research topic set by the user, build a hierarchical Markdown outline suited to systematic knowledge exploration and in-depth research.\n\nThe goal is not a traditional course table of contents. It is a knowledge tree with real knowledge logic, uneven depth, and the ability to be researched deeper level by level.\n\nAll generation rules must follow the "User settings" at the top.\n\n## 3. Principles for organizing knowledge\n\n1. Prioritize the completeness, logic and research value of the knowledge system.\n2. Organize the outline by dependency, causality and conceptual subdivision between pieces of knowledge, not by textbook chapters or course order.\n3. The outline should be an asymmetric knowledge tree, not an evenly distributed catalogue.\n4. Decide the depth of each branch naturally from the complexity of that knowledge area.\n5. Different branches may have different depths and different numbers of child nodes.\n6. A parent node stands for a knowledge area, a core concept or a mechanism; its child nodes stand for more specific principles, mechanisms, causal relations or research questions.\n7. Every child node must have a clear knowledge-logic relation to its parent, not merely belong to the same topic.\n8. Every leaf node must have independent research value and suit being a complete research unit.\n9. Avoid duplicated knowledge, over-splitting, and categories with no real research value.\n\n## 4. Hierarchy and depth rules\n\n1. Use Markdown headings to express the knowledge hierarchy.\n2. Use exactly one # heading as the root topic.\n3. First-level subtopics use ##, the next level uses ###, and so on.\n4. The hierarchy must not exceed the maximum depth set in the user settings.\n5. Do not fix all branches at the same depth.\n6. Simple concepts may stay at a shallower level.\n7. Complex concepts should go deeper along their knowledge dependencies.\n8. Every level must represent a meaningful deepening of knowledge, not just more headings.\n9. Do not create unnecessary intermediate nodes just to chase depth.\n10. When a concept deserves further research, go deeper along that branch first instead of adding more categories at the same level.\n\n## 5. Knowledge relations and node design\n\nPrefer presenting these three kinds of knowledge relations:\n\n1. Conceptual subdivision: from an abstract concept down to concrete principles and mechanisms.\n2. Causal relation: from a phenomenon down to influencing factors, mechanisms and results.\n3. Dependency relation: from foundational concepts down to the advanced knowledge built on them.\n\nNode design requirements:\n\n1. A single knowledge path should show a progressively deepening line of research logic.\n2. A parent node should be able to reasonably unify all of its child nodes.\n3. A child node should offer a new research direction, not restate the parent in other words.\n4. A leaf node should be specific enough to be researched further for its principles, evidence, limits and practical applications.\n5. Avoid nodes that only classify and have no research meaning.\n6. When knowledge relates across fields, place it where it best explains its core mechanism and avoid creating the same node twice.\n7. Do not add nodes without research value just to fill the hierarchy.\n\n## 6. Quantity and completeness rules\n\n1. The total number of headings must not exceed the maximum set in the user settings.\n2. Within the quantity limit, cover the most important core knowledge areas first.\n3. Balance breadth with the research depth that is needed; do not sacrifice the depth of every branch for the sake of breadth.\n4. Do not distribute headings evenly across categories.\n5. Do not add content just to reach the heading limit.\n6. Keep nodes with high research value, explanatory power or knowledge dependency first.\n7. Do not use a fixed pattern of "every major category has the same number of subtopics".\n8. If the quantity limit conflicts with completeness, keep the core knowledge, the key dependencies and the most valuable research paths first.\n\n## 7. Quality check before output\n\nBefore producing the final result, check for yourself:\n\n1. Does it cover the most important core knowledge of the research topic?\n2. Does it have clear conceptual subdivision, causal or dependency relations?\n3. Is branch depth decided by the complexity of the knowledge rather than a fixed template?\n4. Is there a branch worth going deeper that stops too early?\n5. Does every deepened node have real knowledge value?\n6. Are there unnecessary intermediate categories or duplicated nodes?\n7. Does it avoid writing the knowledge tree as a traditional textbook table of contents?\n8. Does it respect the quantity and hierarchy limits set by the user?\n\nIf not, adjust the structure yourself first, then produce the final result.\n\n## 8. Output format\n\n1. Output Markdown headings only.\n2. Use # up to the maximum hierarchy depth set by the user.\n3. Do not use bold, lists, tables or any extra explanation.\n4. Do not explain the design logic.\n5. Do not output the quality-check results.\n6. Do not wrap the result in a Markdown code block.\n7. Output only the final outline itself.\n';
 
 // ai/prompt-presets.ts
 var DEFAULT_TONE_ID = "academic";
@@ -13175,6 +13215,11 @@ function listPresets(custom, kind, language2) {
 }
 function findPreset(custom, kind, id, language2) {
   return id ? listPresets(custom, kind, language2).find((item) => item.id === id) : void 0;
+}
+function resolvePreset(custom, kind, id, language2) {
+  const found = findPreset(custom, kind, id, language2);
+  const fallbackId = kind === "tone" ? DEFAULT_TONE_ID : DEFAULT_OUTLINE_PRESET_ID;
+  return { preset: found != null ? found : findPreset(custom, kind, fallbackId, language2), missing: !!id && !found };
 }
 function resolveToneText(custom, ids, language2) {
   for (const id of ids) {
@@ -13920,38 +13965,20 @@ function toneField(parent, tones, defaultLabel) {
 }
 
 // experiences/visual-map/outline-import-modal.ts
-var OutlineFileModal = class extends import_obsidian9.FuzzySuggestModal {
-  constructor(app, choose) {
-    super(app);
-    this.choose = choose;
-    this.setPlaceholder(t("ui.outline_import_choose_file_placeholder"));
-  }
-  getItems() {
-    return this.app.vault.getMarkdownFiles();
-  }
-  getItemText(file) {
-    return file.path;
-  }
-  onChooseItem(file) {
-    this.choose(file);
-  }
-};
 var OutlineImportModal = class extends import_obsidian9.Modal {
   constructor(app, create, models = { list: () => [], watch: () => () => {
-  } }, templates = [], target = { map: "none" }, initialPlacement = "tree") {
+  } }, templates = [], target = { map: "none" }, initialPlacement = "tree", generator) {
     super(app);
     this.create = create;
     this.models = models;
     this.templates = templates;
     this.target = target;
+    this.generator = generator;
     __publicField(this, "textarea");
     __publicField(this, "preview");
-    __publicField(this, "sourceLabel");
     __publicField(this, "createButton");
     __publicField(this, "status");
     __publicField(this, "shallow");
-    __publicField(this, "source", null);
-    __publicField(this, "sourceText", "");
     __publicField(this, "nodes", []);
     __publicField(this, "submitting", false);
     __publicField(this, "depth", () => "fast");
@@ -13959,17 +13986,19 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
     __publicField(this, "template", () => void 0);
     __publicField(this, "unwatch");
     __publicField(this, "placement", "tree");
+    __publicField(this, "generation");
+    __publicField(this, "disarm");
     this.placement = initialPlacement === "under" && target.selected ? "under" : "tree";
   }
   onOpen() {
     this.titleEl.setText(t("ui.outline_import"));
     this.modalEl.addClass("vam-outline-import-modal");
     this.contentEl.createEl("p", { text: t("ui.outline_import_hint"), cls: "vam-hint vam-outline-intro" });
+    if (this.generator) this.aiSection(this.contentEl.createDiv("vam-outline-section"), this.generator);
     const source = this.contentEl.createDiv("vam-outline-section");
     const sourceHeader = source.createDiv("vam-outline-section-header");
     sourceHeader.createSpan({ text: t("ui.outline_import_text_label"), cls: "vam-outline-label" });
     const actions = sourceHeader.createDiv("vam-outline-actions");
-    actions.createEl("button", { text: t("ui.outline_import_choose_file"), cls: "vam-outline-link" }).addEventListener("click", () => new OutlineFileModal(this.app, (file) => void this.loadFile(file)).open());
     actions.createEl("button", { text: t("ui.outline_import_copy_format"), cls: "vam-outline-link" }).addEventListener("click", () => {
       void navigator.clipboard.writeText(t("ui.outline_import_format")).then(() => new import_obsidian9.Notice(t("ui.outline_import_format_copied"))).catch(() => new import_obsidian9.Notice(t("ui.outline_import_copy_failed")));
     });
@@ -13977,7 +14006,6 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
     this.textarea.rows = 8;
     this.textarea.setAttr("aria-label", t("ui.outline_import_text_label"));
     this.textarea.addEventListener("input", () => this.refresh());
-    this.sourceLabel = source.createEl("p", { cls: "vam-hint vam-outline-source" });
     this.preview = source.createDiv("vam-outline-preview");
     this.placementField();
     const research = this.contentEl.createDiv("vam-outline-section");
@@ -14042,23 +14070,149 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
     return { kind: "tree" };
   }
   onClose() {
-    var _a;
+    var _a, _b, _c;
     (_a = this.unwatch) == null ? void 0 : _a.call(this);
     this.unwatch = void 0;
+    (_b = this.generation) == null ? void 0 : _b.abort();
+    this.generation = void 0;
+    (_c = this.disarm) == null ? void 0 : _c.call(this);
   }
-  async loadFile(file) {
-    const text11 = await this.app.vault.cachedRead(file);
-    this.textarea.value = text11;
-    this.source = file.path;
-    this.sourceText = text11;
-    this.refresh();
+  /**
+   * 「AI 生成大綱」: a topic, an outline preset (edit, save as, delete) and Generate. The result fills the outline
+   * box below, where it is previewed and can be edited before anything is added.
+   */
+  aiSection(parent, generator) {
+    var _a, _b;
+    const host = generator.presets;
+    const language2 = host.settings.language;
+    const custom = () => {
+      var _a2;
+      return (_a2 = host.settings.promptPresets) != null ? _a2 : [];
+    };
+    const presets = () => listPresets(custom(), "outline", language2);
+    const section3 = parent.createEl("details", { cls: "vam-outline-ai" });
+    section3.createEl("summary", { text: t("ui.outline_ai_generate") });
+    const topicLabel = section3.createEl("label", { cls: "vam-field" });
+    topicLabel.createSpan({ text: t("ui.outline_ai_topic") });
+    const topic = topicLabel.createEl("input", { type: "text", value: (_a = generator.initialTopic) != null ? _a : "" });
+    topic.value = (_b = generator.initialTopic) != null ? _b : "";
+    topic.setAttr("aria-label", t("ui.outline_ai_topic"));
+    const presetRow = section3.createDiv("vam-outline-ai-preset");
+    const presetLabel = presetRow.createEl("label", { cls: "vam-field" });
+    presetLabel.createSpan({ text: t("ui.outline_ai_preset") });
+    const select = presetLabel.createEl("select");
+    select.setAttr("aria-label", t("ui.outline_ai_preset"));
+    const edit = presetRow.createEl("button", { text: t("ui.preset_edit") });
+    edit.setAttr("aria-expanded", "false");
+    const remove = presetRow.createEl("button", { text: t("ui.preset_delete"), cls: "vam-danger-text" });
+    const editor = section3.createDiv("vam-outline-ai-editor");
+    editor.hidden = true;
+    const text11 = editor.createEl("textarea", { cls: "vam-outline-ai-text" });
+    text11.rows = 8;
+    text11.setAttr("aria-label", t("ui.outline_ai_preset_text"));
+    editor.createEl("p", { cls: "vam-hint", text: t("ui.outline_ai_preset_text_hint") });
+    const nameLabel = editor.createEl("label", { cls: "vam-field" });
+    nameLabel.createSpan({ text: t("ui.outline_ai_preset_name") });
+    const name = nameLabel.createEl("input", { type: "text" });
+    name.setAttr("aria-label", t("ui.outline_ai_preset_name"));
+    const editorActions = editor.createDiv("vam-outline-actions");
+    const save = editorActions.createEl("button", { text: t("ui.save") });
+    const saveAs = editorActions.createEl("button", { text: t("ui.outline_ai_save_as") });
+    const generateRow = section3.createDiv("vam-outline-ai-run");
+    const generate = generateRow.createEl("button", { text: t("ui.outline_ai_run"), cls: "mod-cta" });
+    const status = generateRow.createSpan({ cls: "vam-hint vam-outline-ai-status", attr: { "aria-live": "polite" } });
+    const current = () => presets().find((item) => item.id === select.value);
+    const fill = (selectedId) => {
+      select.empty();
+      for (const preset of presets()) select.createEl("option", { value: preset.id, text: preset.name });
+      select.value = presets().some((item) => item.id === selectedId) ? selectedId : DEFAULT_OUTLINE_PRESET_ID;
+      load();
+    };
+    const load = () => {
+      var _a2;
+      const preset = current();
+      text11.value = (_a2 = preset == null ? void 0 : preset.text) != null ? _a2 : "";
+      name.value = preset ? isBuiltinPreset(preset.id) ? t("ui.outline_ai_copy_name", preset.name) : preset.name : "";
+      const builtin = !preset || isBuiltinPreset(preset.id);
+      remove.disabled = builtin;
+      save.disabled = builtin;
+    };
+    const persist = async (next, selectedId, message) => {
+      host.settings.promptPresets = next;
+      await host.saveSettings();
+      fill(selectedId);
+      status.setText(message);
+    };
+    select.addEventListener("change", () => {
+      load();
+      status.setText("");
+    });
+    edit.addEventListener("click", () => {
+      editor.hidden = !editor.hidden;
+      edit.setAttr("aria-expanded", String(!editor.hidden));
+    });
+    save.addEventListener("click", () => {
+      const preset = current();
+      if (!preset || isBuiltinPreset(preset.id)) return;
+      if (!name.value.trim()) return void status.setText(t("ui.preset_name_required"));
+      void persist(
+        updatePreset(custom(), preset.id, { name: name.value, text: text11.value }),
+        preset.id,
+        t("ui.outline_ai_preset_saved")
+      );
+    });
+    saveAs.addEventListener("click", () => {
+      const { presets: next, created } = createPreset(custom(), {
+        kind: "outline",
+        name: name.value,
+        text: text11.value
+      });
+      if (!created) return void status.setText(t("ui.preset_name_required"));
+      void persist(next, created.id, t("ui.outline_ai_preset_saved"));
+    });
+    this.disarm = armDiscard(
+      remove,
+      status,
+      () => {
+        const preset = current();
+        if (!preset || isBuiltinPreset(preset.id)) return;
+        void persist(deletePreset(custom(), preset.id), DEFAULT_OUTLINE_PRESET_ID, t("ui.outline_ai_preset_deleted"));
+      },
+      () => remove.disabled,
+      { confirm: t("ui.outline_ai_delete_confirm"), hint: t("ui.outline_ai_delete_hint") }
+    );
+    generate.addEventListener("click", () => {
+      if (this.generation) {
+        this.generation.abort();
+        return;
+      }
+      if (!topic.value.trim()) return void status.setText(t("error.outline_generate_empty_topic"));
+      const controller = new AbortController();
+      this.generation = controller;
+      generate.setText(t("ui.outline_ai_stop"));
+      status.setText(t("ui.outline_ai_running"));
+      void generator.generate({ topic: topic.value.trim(), presetText: text11.value }, controller.signal).then((markdown) => {
+        if (controller.signal.aborted) throw new Error(t("ui.outline_ai_stopped"));
+        this.textarea.value = markdown.trimEnd();
+        this.refresh();
+        status.setText(t("ui.outline_ai_filled", this.nodes.length));
+      }).catch((error) => {
+        if (this.generation !== controller) return;
+        status.setText(
+          controller.signal.aborted ? t("ui.outline_ai_stopped") : error instanceof Error ? error.message : String(error)
+        );
+      }).finally(() => {
+        if (this.generation !== controller) return;
+        this.generation = void 0;
+        generate.setText(t("ui.outline_ai_run"));
+      });
+    });
+    fill(DEFAULT_OUTLINE_PRESET_ID);
   }
   issueText(issue) {
     return t(issue.key, ...issue.values);
   }
   refresh() {
-    if (this.source && this.textarea.value !== this.sourceText) this.source = null;
-    this.sourceLabel.setText(this.source ? t("ui.outline_import_source", this.source) : "");
     this.preview.empty();
     const text11 = this.textarea.value;
     if (!text11.trim()) {
@@ -14097,7 +14251,7 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
       await this.create({
         nodes: this.nodes,
         placement: this.placementRequest(),
-        source: this.source,
+        source: null,
         shallowResearch,
         ...shallowResearch ? { researchDepth: this.depth() } : {},
         ...model ? { model } : {},
@@ -20833,6 +20987,36 @@ var DebugLogModal = class extends import_obsidian15.Modal {
 };
 
 // experiences/visual-map/modals.ts
+function outlineProposals(nodes) {
+  var _a;
+  const root = nodes.filter((node) => node.parent === null).length === 1 ? (_a = nodes[0]) == null ? void 0 : _a.index : void 0;
+  return nodes.filter((node) => node.index !== root).map((node) => ({
+    key: String(node.index),
+    parentKey: node.parent === null || node.parent === root ? "" : String(node.parent),
+    title: node.title,
+    task: "",
+    contribution: ""
+  }));
+}
+function proposalOutline(items) {
+  var _a;
+  const index = /* @__PURE__ */ new Map();
+  const nodes = [];
+  for (const item of items) {
+    const parent = item.parentKey ? index.get(item.parentKey) : void 0;
+    if (item.parentKey && parent === void 0) throw new Error(t("ui.select_the_parent_topic_before_its_child"));
+    const node = {
+      index: nodes.length,
+      title: item.title,
+      level: parent === void 0 ? 1 : nodes[parent].level + 1,
+      parent: parent != null ? parent : null,
+      line: 0
+    };
+    index.set((_a = item.key) != null ? _a : item.title, node.index);
+    nodes.push(node);
+  }
+  return nodes;
+}
 function renderSynthesisContent(parent, topics) {
   const label = parent.createEl("label", { cls: "vam-field" });
   label.createSpan({ text: t("ui.synthesis_content") });
@@ -21354,8 +21538,59 @@ var NextStepModal = class extends import_obsidian16.Modal {
     });
     (_a = panel.querySelector(".vam-next-status")) == null ? void 0 : _a.setText(t("ui.review_ai_suggested_subtopics"));
   }
+  /** The generated outline, reviewed here; nothing is created until the user confirms. */
+  outlineReview(panel, nodes, button, create, options) {
+    var _a;
+    if (this.closed) return;
+    const result = panel.querySelector(".vam-next-result");
+    result.empty();
+    const status = () => panel.querySelector(".vam-next-status");
+    const items = outlineProposals(nodes);
+    if (!items.length) {
+      this.failed(panel, button, t("ui.quick_outline_empty"));
+      return;
+    }
+    result.createEl("h4", { text: t("ui.quick_outline_review") });
+    let showCount = (_count) => {
+    };
+    const list = renderProposalList(result, items, (count) => showCount(count), { compact: true });
+    const confirm = result.createEl("button", { text: t("ui.create_0_subtopics", list.count()), cls: "mod-cta" });
+    showCount = (count) => {
+      confirm.setText(t("ui.create_0_subtopics", count));
+      if (!this.runPending) confirm.disabled = count === 0;
+    };
+    button.classList.toggle("mod-cta", false);
+    confirm.addEventListener("click", () => {
+      var _a2;
+      const picked = list.selected();
+      if (typeof picked === "string") {
+        (_a2 = status()) == null ? void 0 : _a2.setText(picked);
+        return;
+      }
+      void this.run(
+        panel,
+        confirm,
+        async () => {
+          var _a3;
+          options.signal = this.taskSignal;
+          (_a3 = status()) == null ? void 0 : _a3.setText(t("ui.creating_subtopics"));
+          await create(proposalOutline(picked), options);
+          this.taskSignal = void 0;
+          this.taskController = void 0;
+          if (options.shallowResearch) {
+            this.startedInBackground();
+            return;
+          }
+          new import_obsidian16.Notice(t("ui.subtopics_created"));
+          this.close();
+        },
+        false
+      );
+    });
+    (_a = status()) == null ? void 0 : _a.setText(t("ui.quick_outline_review_hint"));
+  }
   onOpen() {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x;
     this.modalEl.addClass("vam-next-modal");
     const selection = this.selection;
     this.titleEl.setText(t(selection ? "ui.confirm_topic_synthesis" : "ui.how_would_you_like_to_explore_next"));
@@ -21547,17 +21782,17 @@ var NextStepModal = class extends import_obsidian16.Modal {
       guided.tabIndex = value ? -1 : 0;
       quick.tabIndex = value ? 0 : -1;
       modeHint.setText(
-        value ? t("ui.ai_creates_a_starter_map_at_the_chosen_size_shallow_research") : this.pendingCount ? t("ui.you_have_pending_proposals_review_them_here") : t("ui.ai_suggests_one_level_of_subtopics_review_or_edit_them_befor")
+        value ? t("ui.quick_outline_mode_hint") : this.pendingCount ? t("ui.you_have_pending_proposals_review_them_here") : t("ui.ai_suggests_one_level_of_subtopics_review_or_edit_them_befor")
       );
       quickLimits.classList.toggle("is-hidden", !value);
       expandFooterText.setText(
         shallow.checked ? t("ui.research_each_subtopic_after_creation_and_use_codex_quota") : t("ui.create_subtopics_without_research")
       );
       expandButton.setText(
-        value ? t("ui.create_starter_map_now") : this.pendingCount ? t("ui.review_ai_subtopic_suggestions") : t("ui.get_expansion_directions")
+        value ? t("ui.outline_ai_run") : this.pendingCount ? t("ui.review_ai_subtopic_suggestions") : t("ui.get_expansion_directions")
       );
       expandButton.dataset.topicRun = (_a2 = expandButton.textContent) != null ? _a2 : "";
-      expandButton.disabled = !!((_b2 = this.modelSettings) == null ? void 0 : _b2.running) || value && !!quickError;
+      expandButton.disabled = !!((_b2 = this.modelSettings) == null ? void 0 : _b2.running) || value && !quickOutline;
       refreshSummary();
     };
     guided.addEventListener("click", () => setExpandMode(false));
@@ -21565,60 +21800,15 @@ var NextStepModal = class extends import_obsidian16.Modal {
     const modeHint = expandPanel.createEl("p", {
       text: this.pendingCount ? t("ui.you_have_pending_proposals_review_them_here") : t("ui.ai_suggests_one_level_of_subtopics_review_or_edit_them_befor")
     });
+    const quickOutline = (_e = this.modelSettings) == null ? void 0 : _e.quickOutline;
     const quickLimits = adjustFor.expand.createDiv("vam-quick-limits is-hidden");
-    const layersLabel = quickLimits.createEl("label", { cls: "vam-field" });
-    layersLabel.createSpan({ text: t("ui.number_of_levels") });
-    const layersInput = layersLabel.createEl("input", {
-      type: "number",
-      attr: { min: "1", max: "15", step: "1", value: "2" }
-    });
-    layersInput.value = "2";
-    quickLimits.createEl("p", { text: t("ui.expansion_levels_exclude_current_topic"), cls: "vam-hint" });
-    const firstLabel = quickLimits.createEl("label", { cls: "vam-field" });
-    firstLabel.createSpan({ text: t("ui.first_level_subtopics") });
-    const firstInput = firstLabel.createEl("input", {
-      type: "number",
-      attr: { min: "1", max: "15", step: "1", value: "3" }
-    });
-    firstInput.value = "3";
-    const childrenLabel = quickLimits.createEl("label", { cls: "vam-field" });
-    childrenLabel.createSpan({ text: t("ui.children_per_parent_topic") });
-    const childrenInput = childrenLabel.createEl("input", {
-      type: "number",
-      attr: { min: "1", max: "15", step: "1", value: "2" }
-    });
-    childrenInput.value = "2";
-    const childrenHint = quickLimits.createEl("p", {
-      text: t("ui.children_count_unused_for_one_level"),
-      cls: "vam-hint"
-    });
-    childrenHint.hidden = true;
-    const totalHint = quickLimits.createEl("p", { cls: "vam-hint" });
-    totalHint.setAttr("aria-live", "polite");
-    let quickError = "";
-    const updateTotal = () => {
-      try {
-        const layers = Number(layersInput.value), firstLayerCount = Number(firstInput.value), childrenPerParent = Number(childrenInput.value);
-        childrenInput.disabled = layers === 1;
-        childrenHint.hidden = !childrenInput.disabled;
-        const shape = quickShape(layers, firstLayerCount, childrenPerParent);
-        quickError = shape.total > BigInt(15) ? t("ui.this_would_create_0_subtopics_exceeding_the_limit_of_15_redu", shape.total.toString()) : "";
-        totalHint.setText(
-          quickError || t("ui.topics_by_level_0_1_total", shape.counts.map(String).join(" \u2192 "), shape.total.toString())
-        );
-      } catch (error) {
-        quickError = error instanceof Error ? error.message : String(error);
-        totalHint.setText(quickError);
-      }
-      totalHint.classList.toggle("is-error", !!quickError);
-    };
-    for (const input of [layersInput, firstInput, childrenInput])
-      input.addEventListener("input", () => {
-        var _a2;
-        updateTotal();
-        expandButton.disabled = !!((_a2 = this.modelSettings) == null ? void 0 : _a2.running) || multiLayer && !!quickError;
-      });
-    updateTotal();
+    const presetLabel = quickLimits.createEl("label", { cls: "vam-field" });
+    presetLabel.createSpan({ text: t("ui.outline_ai_preset") });
+    const presetSelect = presetLabel.createEl("select");
+    presetSelect.setAttr("aria-label", t("ui.outline_ai_preset"));
+    for (const preset of (_f = quickOutline == null ? void 0 : quickOutline.presets) != null ? _f : [])
+      presetSelect.createEl("option", { value: preset.id, text: preset.name });
+    quickLimits.createEl("p", { text: t("ui.quick_outline_hint"), cls: "vam-hint" });
     const shallowLabel = adjustFor.expand.createEl("label", { cls: "vam-field vam-next-toggle" });
     const shallow = shallowLabel.createEl("input", { type: "checkbox" });
     shallow.checked = false;
@@ -21636,8 +21826,8 @@ var NextStepModal = class extends import_obsidian16.Modal {
       text: this.pendingCount ? t("ui.review_ai_subtopic_suggestions") : t("ui.get_expansion_directions"),
       cls: "mod-cta"
     });
-    expandButton.dataset.topicRun = (_e = expandButton.textContent) != null ? _e : "";
-    expandButton.disabled = !!((_f = this.modelSettings) == null ? void 0 : _f.running);
+    expandButton.dataset.topicRun = (_g = expandButton.textContent) != null ? _g : "";
+    expandButton.disabled = !!((_h = this.modelSettings) == null ? void 0 : _h.running);
     expandPanel.createEl("p", { cls: "vam-next-status", attr: { "aria-live": "polite" } });
     expandPanel.createDiv("vam-next-result");
     const consumed = () => {
@@ -21653,7 +21843,7 @@ var NextStepModal = class extends import_obsidian16.Modal {
         expandPanel,
         expandButton,
         async () => {
-          var _a2;
+          var _a2, _b2;
           const selected = await (sharedSources == null ? void 0 : sharedSources.picker.ready());
           const options = {
             referenceGroups: (_a2 = selected == null ? void 0 : selected.groups) != null ? _a2 : [],
@@ -21673,33 +21863,19 @@ var NextStepModal = class extends import_obsidian16.Modal {
             }
           };
           if (multiLayer) {
-            const layers = Number(layersInput.value), firstLayerCount = Number(firstInput.value), childrenPerParent = Number(childrenInput.value);
-            const shape = quickShape(layers, firstLayerCount, childrenPerParent);
-            if (shape.total > BigInt(15))
-              throw new Error(
-                t("ui.this_would_create_0_subtopics_exceeding_the_limit_of_15_redu", shape.total.toString())
-              );
-            options.layers = layers;
-            options.firstLayerCount = firstLayerCount;
-            options.childrenPerParent = layers === 1 ? 1 : childrenPerParent;
-            await this.expand(
-              options,
-              "",
-              () => {
+            if (!quickOutline) return;
+            const signal = this.taskSignal;
+            if (!signal) return;
+            const nodes = await quickOutline.generate(
+              {
+                presetId: presetSelect.value,
+                requirements: this.requirements(),
+                language: (_b2 = options.outputLanguage) != null ? _b2 : this.plugin.settings.language
               },
-              (message, retryable) => {
-                if (retryable === false) {
-                  this.failed(expandPanel, expandButton, message);
-                  expandButton.disabled = true;
-                } else this.failedAi(expandPanel, expandButton, message);
-              },
-              () => this.close(),
-              () => {
-                this.taskSignal = void 0;
-                this.taskController = void 0;
-                this.startedInBackground();
-              }
+              signal
             );
+            if (this.closed || signal.aborted) return;
+            this.outlineReview(expandPanel, nodes, expandButton, quickOutline.create, options);
             return;
           }
           await this.expand(
@@ -21723,7 +21899,7 @@ var NextStepModal = class extends import_obsidian16.Modal {
         multiLayer || !this.pendingCount
       );
     });
-    const pendingDirections = selection ? selection.pending : (_g = this.modelSettings) == null ? void 0 : _g.synthesisPending;
+    const pendingDirections = selection ? selection.pending : (_i = this.modelSettings) == null ? void 0 : _i.synthesisPending;
     synthesizePanel.createEl("p", {
       text: selection ? t("ui.synthesize_0_source_topics_ai_reads_their_full_knowledge_and", selection.names.length) : this.childrenCount ? t("ui.ai_suggests_synthesis_angles_first_the_parent_topic_changes") : t("ui.this_topic_has_no_direct_subtopics_you_can_choose_other_note")
     });
@@ -21738,7 +21914,7 @@ var NextStepModal = class extends import_obsidian16.Modal {
     }
     synthesisContentSelect = renderSynthesisContent(
       adjustFor.synthesize,
-      (_k = (_j = selection == null ? void 0 : selection.names) != null ? _j : (_i = (_h = this.modelSettings) == null ? void 0 : _h.sources) == null ? void 0 : _i.synthesisTopics) != null ? _k : []
+      (_m = (_l = selection == null ? void 0 : selection.names) != null ? _l : (_k = (_j = this.modelSettings) == null ? void 0 : _j.sources) == null ? void 0 : _k.synthesisTopics) != null ? _m : []
     );
     const stageTwoHint = adjustFor.synthesize.createEl("p", {
       cls: "vam-hint vam-next-synth-fixed",
@@ -21749,10 +21925,10 @@ var NextStepModal = class extends import_obsidian16.Modal {
     const synthStatus = synthesizePanel.createEl("p", { cls: "vam-next-status", attr: { "aria-live": "polite" } });
     const synthResult = synthesizePanel.createDiv("vam-next-result");
     const suggestButton = actions.createEl("button", { text: t("ui.get_synthesis_suggestions_first"), cls: "mod-cta" });
-    suggestButton.dataset.topicRun = (_l = suggestButton.textContent) != null ? _l : "";
+    suggestButton.dataset.topicRun = (_n = suggestButton.textContent) != null ? _n : "";
     const skipButton = actions.createEl("button", { text: t("ui.synthesis_skip_suggestions") });
     const draftButton = actions.createEl("button", { text: t("ui.get_synthesis_draft"), cls: "mod-cta" });
-    for (const button of [suggestButton, skipButton, draftButton]) button.disabled = !!((_m = this.modelSettings) == null ? void 0 : _m.running);
+    for (const button of [suggestButton, skipButton, draftButton]) button.disabled = !!((_o = this.modelSettings) == null ? void 0 : _o.running);
     let stage = pendingDirections ? "directions" : "setup";
     let frozenSummary = "";
     const syncSynthesisStage = () => {
@@ -21937,13 +22113,13 @@ var NextStepModal = class extends import_obsidian16.Modal {
     languageSelect.setAttr("aria-label", t("ui.output_language"));
     const templateId = templateField(
       compactSettings,
-      (_o = (_n = this.info) == null ? void 0 : _n.templates) != null ? _o : [],
-      t("ui.detail_template_keep_0", (_q = (_p = this.info) == null ? void 0 : _p.currentTemplate) != null ? _q : "")
+      (_q = (_p = this.info) == null ? void 0 : _p.templates) != null ? _q : [],
+      t("ui.detail_template_keep_0", (_s = (_r = this.info) == null ? void 0 : _r.currentTemplate) != null ? _s : "")
     );
     const toneId = toneField(
       compactSettings,
-      (_s = (_r = this.info) == null ? void 0 : _r.tones) != null ? _s : [],
-      t("ui.tone_keep_0", (_u = (_t = this.info) == null ? void 0 : _t.currentTone) != null ? _u : "")
+      (_u = (_t = this.info) == null ? void 0 : _t.tones) != null ? _u : [],
+      t("ui.tone_keep_0", (_w = (_v = this.info) == null ? void 0 : _v.currentTone) != null ? _w : "")
     );
     const pickedName = (picked, choices) => {
       var _a2;
@@ -21985,7 +22161,7 @@ var NextStepModal = class extends import_obsidian16.Modal {
     else checkName();
     show(initialMode);
     cardFor[initialMode].focus();
-    ((_v = this.renderModelSettings(adjustBody)) != null ? _v : adjustBody).createEl("p", {
+    ((_x = this.renderModelSettings(adjustBody)) != null ? _x : adjustBody).createEl("p", {
       text: t("ui.if_an_ai_task_exceeds_3_minutes_vam_attempts_to_interrupt_it"),
       cls: "vam-hint"
     });
@@ -22902,6 +23078,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
   }
   /** Adds an outline to the open map: under the selected topic, else as a new tree. A new map starts from + New mind map. */
   openOutlineImport() {
+    var _a;
     const target = this.outlineImportTarget();
     if (target.map !== "editable") {
       new import_obsidian17.Notice(target.map === "aim" ? t("ui.outline_import_placement_aim") : t("ui.outline_import_placement_no_map"));
@@ -22914,8 +23091,68 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
       this.modelChoices(),
       this.templateChoices(),
       target,
-      placement
+      placement,
+      this.outlineGenerator((_a = target.selected) == null ? void 0 : _a.title)
     ).open();
+  }
+  /** The AI outline generator for the import window: workspace model, after the usual AI usage check. */
+  outlineGenerator(initialTopic) {
+    return {
+      presets: this.plugin,
+      initialTopic,
+      generate: async (request, signal) => {
+        const settings = this.plugin.settings;
+        const model = settings.cliModel;
+        let markdown;
+        const started = await this.plugin.confirmAiUsage(model, async () => {
+          const result = await this.plugin.outlineGeneration.generate(
+            {
+              ...request,
+              language: settings.language,
+              model,
+              reasoning: normalizeReasoningLevel(settings.cliReasoning)
+            },
+            signal
+          );
+          markdown = result.markdown;
+        });
+        if (!started || markdown === void 0) throw new Error(t("ui.outline_ai_not_started"));
+        return markdown;
+      }
+    };
+  }
+  /** Quick explore in the Next Step dialog: the same generator, reviewed in the dialog, then added under the topic. */
+  quickOutline(node) {
+    const settings = this.plugin.settings;
+    return {
+      presets: listPresets(settings.promptPresets, "outline", settings.language).map(({ id, name }) => ({ id, name })),
+      generate: async (request, signal) => {
+        var _a;
+        const note = await this.plugin.repo.readNote(node.path);
+        const { preset } = resolvePreset(settings.promptPresets, "outline", request.presetId, request.language);
+        const result = await this.plugin.outlineGeneration.generate(
+          {
+            topic: note.title,
+            presetText: request.requirements ? `${preset.text}
+
+${request.requirements}` : preset.text,
+            language: request.language,
+            model: note.model,
+            reasoning: normalizeReasoningLevel((_a = note.reasoning) != null ? _a : settings.cliReasoning)
+          },
+          signal
+        );
+        return result.nodes;
+      },
+      create: (nodes, options) => this.importOutline({
+        nodes,
+        placement: { kind: "under", parentId: node.id },
+        source: null,
+        shallowResearch: !!options.shallowResearch,
+        ...options.shallowResearch ? { researchDepth: "fast" } : {},
+        ...options.detailTemplateId ? { detailTemplateId: options.detailTemplateId } : {}
+      })
+    };
   }
   /** The side option on "+ Topic": one topic by default, or a pasted outline for several at once. */
   openTopicMenu(event) {
@@ -23083,11 +23320,11 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
         try {
           await this.mapChange((next) => {
             next.nodes.push(...created);
-            const owner = parent ? next.nodes.find((node) => node.id === parent.id && !ids2.has(node.id)) : void 0;
+            const owner2 = parent ? next.nodes.find((node) => node.id === parent.id && !ids2.has(node.id)) : void 0;
             const outlineTop = next.nodes.find((node) => node.id === top2.id);
-            if (owner) {
-              owner.collapsed = false;
-              next.nodes = arrangeNewBranch(next.nodes, owner.id, ids2);
+            if (owner2) {
+              owner2.collapsed = false;
+              next.nodes = arrangeNewBranch(next.nodes, owner2.id, ids2);
             } else {
               outlineTop.parentId = null;
               next.nodes = arrangeNewTree(next.nodes, top2.id, ids2);
@@ -23119,9 +23356,11 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     if (outcome.failure)
       new import_obsidian17.Notice(t("ui.outline_import_partial", outcome.created.length, outcome.total, outcome.failure));
     if (outcome.failure || state.saveFailed || !written || !request.shallowResearch || !outcome.created.length) return;
-    const top = (_a = this.map) == null ? void 0 : _a.nodes.find((node) => node.id === outcome.created[0].id);
+    const owner = placement.kind === "under" ? placement.parentId : null;
+    const several = owner !== null && request.nodes.filter((node) => node.parent === null).length > 1;
+    const top = (_a = this.map) == null ? void 0 : _a.nodes.find((node) => node.id === (several ? owner : outcome.created[0].id));
     if (!top) return;
-    const ids = new Set(outcome.created.slice(1).map((node) => node.id));
+    const ids = new Set((several ? outcome.created : outcome.created.slice(1)).map((node) => node.id));
     const children = ((_c = (_b = this.map) == null ? void 0 : _b.nodes) != null ? _c : []).filter((node) => ids.has(node.id));
     if (!children.length) return;
     try {
@@ -25915,6 +26154,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
             return (_a2 = this.plugin.activeTasks.get(node.path)) == null ? void 0 : _a2.abort();
           } : void 0,
           quickError: this.plugin.quickExpandFailures.get(node.path),
+          quickOutline: this.quickOutline(node),
           sources: sources2,
           templates: this.templateChoices(),
           tones: this.toneChoices(),
