@@ -1444,6 +1444,7 @@ integrationTest('map stylesheet: no :has() on the map surface, reduced motion be
   const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'), css.indexOf('.theme-dark .vam-viewport'));
   assert.ok(css.includes(`${scan} { content:`), 'the scan animation rule exists');
   assert.ok(reduced.includes(`${scan} { animation: none; }`) || reduced.includes(`, ${scan} { animation: none; }`), 'reduced motion uses the same selector weight as the animation it disables');
+  assert.match(css, /\.vam-node-tools > \.vam-collapse-button \{ order: -1;/, 'the fold toggle leads the card tools, so the icons line up on every card');
   assert.match(css, /\.vam-map-tools button:focus-visible, \.vam-zoom-controls button:focus-visible[^{]*\{ outline: 2px solid var\(--interactive-accent\)/);
   for (const dead of ['.vam-next-web', '.vam-next-usage', '.vam-next-sources', '.vam-rule-preview']) assert.equal(css.includes(dead), false, `${dead} is removed`);
   assert.equal((css.match(/^\.vam-toolbar \.vam-map-switcher \{/gm) ?? []).length, 1, 'the switcher rule is not duplicated');
