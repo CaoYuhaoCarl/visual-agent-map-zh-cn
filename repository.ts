@@ -1264,7 +1264,15 @@ export class Repository {
     await this.updateNote(path, { topicId, mapId, topicState: state });
   }
 
-  async rebuildDerivedData(noteRoot?: string): Promise<void> {
+  /**
+   * Rebuilds derived note fields. `scope` limits which notes are rewritten (maps are always read in full): a folder
+   * prefix, or several roots plus individual note paths (a move rebuilds only the moved topics and their citing notes).
+   */
+  async rebuildDerivedData(scope?: string | { roots: string[]; paths?: Iterable<string> }): Promise<void> {
+    const roots = typeof scope === "string" ? [scope] : (scope?.roots ?? []),
+      extra = new Set(typeof scope === "string" ? [] : (scope?.paths ?? []));
+    const inScope = (path: string): boolean =>
+      !scope || extra.has(path) || roots.some(root => path.startsWith(`${root}/`));
     const ownership = new Map<string, { map: MapDocument; mapPath: string; node: MapNode }>();
     const topics = new Map<string, { map: MapDocument; mapPath: string }>();
     const scan = await this.scanMaps();
@@ -1285,7 +1293,7 @@ export class Repository {
       if (file instanceof TFile) nodeFiles.set(path, file);
     }
     for (const file of nodeFiles.values()) {
-      if (noteRoot && !file.path.startsWith(`${noteRoot}/`)) continue;
+      if (!inScope(file.path)) continue;
       // Notes inside an unreadable map's folder are not judged without that map: leave them exactly as they are.
       if (scan.skippedRoots.some(root => file.path.startsWith(`${root}/`) && !ownership.has(file.path))) continue;
       // Compare against the in-memory copy, then derive again from the file's current content inside the write,
@@ -1575,17 +1583,22 @@ export class Repository {
   private async moveTopicsWithRollback(moves: OrganizeMove[]): Promise<Map<string, string>> {
     const done: { move: OrganizeMove; newMapPath: string; originalMap: string; journal: PriorContent[] }[] = [],
       mapping = new Map<string, string>();
+    // Only the moved topics and the notes that cite them can change: rebuild just those, once.
+    const scope = (): { roots: string[]; paths: string[] } => ({
+      roots: moves.flatMap(move => [move.fromRoot, move.toRoot]),
+      paths: done.flatMap(item => item.journal.map(prior => prior.path))
+    });
     try {
       for (const move of moves) {
         await this.folder(parentPath(move.toRoot));
         const originalMap = await this.app.vault.read(this.file(move.mapPath));
-        const newMapPath = await this.renameTopic(move.mapPath, move.title, move.toRoot);
+        const newMapPath = await this.renameTopic(move.mapPath, move.title, move.toRoot, { rebuild: false });
         const journal: PriorContent[] = [];
         done.push({ move, newMapPath, originalMap, journal });
         mapping.set(move.mapPath, newMapPath);
         await this.rebasePathPrefix(move.fromRoot, move.toRoot, journal);
       }
-      await this.rebuildDerivedData();
+      await this.rebuildDerivedData(scope());
       return mapping;
     } catch (error) {
       const rollbackErrors: string[] = [];
@@ -1596,7 +1609,7 @@ export class Repository {
             const file = this.app.vault.getAbstractFileByPath(prior.path);
             if (file instanceof TFile) await this.app.vault.modify(file, prior.content);
           }
-          await this.renameTopic(newMapPath, move.title, move.fromRoot);
+          await this.renameTopic(newMapPath, move.title, move.fromRoot, { rebuild: false });
           await this.app.vault.modify(this.file(`${move.fromRoot}/Map.md`), originalMap);
         } catch (rollbackError) {
           rollbackErrors.push(
@@ -1605,7 +1618,7 @@ export class Repository {
         }
       }
       try {
-        await this.rebuildDerivedData();
+        await this.rebuildDerivedData(scope());
       } catch (rebuildError) {
         rollbackErrors.push(rebuildError instanceof Error ? rebuildError.message : String(rebuildError));
       }
@@ -1643,7 +1656,12 @@ export class Repository {
     }
   }
 
-  async renameTopic(mapPath: string, title: string, targetRoot?: string): Promise<string> {
+  async renameTopic(
+    mapPath: string,
+    title: string,
+    targetRoot?: string,
+    options: { rebuild?: boolean } = {}
+  ): Promise<string> {
     const file = this.file(mapPath),
       root = file.parent;
     if (
@@ -1666,6 +1684,10 @@ export class Repository {
         "An AIM research attempt is still running or saving. Wait for it to finish before renaming this topic."
       );
     }
+    // A rename only changes this topic's folder: rebuild just it (or nothing, when a batch rebuilds once itself).
+    const rebuild = async (): Promise<void> => {
+      if (options.rebuild !== false) await this.rebuildDerivedData({ roots: [originalRoot, desired] });
+    };
     const next = `${desired}/Map.md`;
     let moved = false;
     try {
@@ -1679,7 +1701,7 @@ export class Repository {
         path.startsWith(`${originalRoot}/`) ? `${desired}/${path.slice(originalRoot.length + 1)}` : path;
       rebaseMapNotePaths(map, rebasePath);
       await this.saveMap(next, map);
-      await this.rebuildDerivedData();
+      await rebuild();
       return next;
     } catch (error) {
       if (moved) {
@@ -1691,7 +1713,7 @@ export class Repository {
           if (!(restoredMap instanceof TFile))
             throw new Error("Original Map.md was not found after restoring the topic folder.");
           await this.app.vault.modify(restoredMap, originalContent);
-          await this.rebuildDerivedData();
+          await rebuild();
         } catch (rollbackError) {
           const originalMessage = error instanceof Error ? error.message : String(error);
           throw new Error(
@@ -1701,7 +1723,7 @@ export class Repository {
       } else if (this.app.vault.getAbstractFileByPath(originalMapPath) instanceof TFile) {
         // A same-folder rename can still fail after the Map.md update; restore its exact source.
         await this.app.vault.modify(this.file(originalMapPath), originalContent);
-        await this.rebuildDerivedData();
+        await rebuild();
       }
       throw error;
     }

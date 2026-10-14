@@ -13232,7 +13232,14 @@ ${body}`);
   async setLifecycle(path, topicId, mapId, state) {
     await this.updateNote(path, { topicId, mapId, topicState: state });
   }
-  async rebuildDerivedData(noteRoot) {
+  /**
+   * Rebuilds derived note fields. `scope` limits which notes are rewritten (maps are always read in full): a folder
+   * prefix, or several roots plus individual note paths (a move rebuilds only the moved topics and their citing notes).
+   */
+  async rebuildDerivedData(scope) {
+    var _a, _b;
+    const roots = typeof scope === "string" ? [scope] : (_a = scope == null ? void 0 : scope.roots) != null ? _a : [], extra = new Set(typeof scope === "string" ? [] : (_b = scope == null ? void 0 : scope.paths) != null ? _b : []);
+    const inScope = (path) => !scope || extra.has(path) || roots.some((root) => path.startsWith(`${root}/`));
     const ownership = /* @__PURE__ */ new Map();
     const topics = /* @__PURE__ */ new Map();
     const scan = await this.scanMaps();
@@ -13251,15 +13258,15 @@ ${body}`);
       if (file instanceof import_obsidian9.TFile) nodeFiles.set(path, file);
     }
     for (const file of nodeFiles.values()) {
-      if (noteRoot && !file.path.startsWith(`${noteRoot}/`)) continue;
+      if (!inScope(file.path)) continue;
       if (scan.skippedRoots.some((root) => file.path.startsWith(`${root}/`) && !ownership.has(file.path))) continue;
       const cached = await this.app.vault.cachedRead(file), derived = this.derivedNoteContent(file, cached, ownership, topics);
       if (derived === null || derived === cached) continue;
       await this.app.vault.process(
         file,
         (content) => {
-          var _a;
-          return (_a = this.derivedNoteContent(file, content, ownership, topics)) != null ? _a : content;
+          var _a2;
+          return (_a2 = this.derivedNoteContent(file, content, ownership, topics)) != null ? _a2 : content;
         }
       );
     }
@@ -13480,17 +13487,21 @@ ${body}`;
   }
   async moveTopicsWithRollback(moves) {
     const done = [], mapping = /* @__PURE__ */ new Map();
+    const scope = () => ({
+      roots: moves.flatMap((move) => [move.fromRoot, move.toRoot]),
+      paths: done.flatMap((item) => item.journal.map((prior) => prior.path))
+    });
     try {
       for (const move of moves) {
         await this.folder(parentPath(move.toRoot));
         const originalMap = await this.app.vault.read(this.file(move.mapPath));
-        const newMapPath = await this.renameTopic(move.mapPath, move.title, move.toRoot);
+        const newMapPath = await this.renameTopic(move.mapPath, move.title, move.toRoot, { rebuild: false });
         const journal = [];
         done.push({ move, newMapPath, originalMap, journal });
         mapping.set(move.mapPath, newMapPath);
         await this.rebasePathPrefix(move.fromRoot, move.toRoot, journal);
       }
-      await this.rebuildDerivedData();
+      await this.rebuildDerivedData(scope());
       return mapping;
     } catch (error) {
       const rollbackErrors = [];
@@ -13500,7 +13511,7 @@ ${body}`;
             const file = this.app.vault.getAbstractFileByPath(prior.path);
             if (file instanceof import_obsidian9.TFile) await this.app.vault.modify(file, prior.content);
           }
-          await this.renameTopic(newMapPath, move.title, move.fromRoot);
+          await this.renameTopic(newMapPath, move.title, move.fromRoot, { rebuild: false });
           await this.app.vault.modify(this.file(`${move.fromRoot}/Map.md`), originalMap);
         } catch (rollbackError) {
           rollbackErrors.push(
@@ -13509,7 +13520,7 @@ ${body}`;
         }
       }
       try {
-        await this.rebuildDerivedData();
+        await this.rebuildDerivedData(scope());
       } catch (rebuildError) {
         rollbackErrors.push(rebuildError instanceof Error ? rebuildError.message : String(rebuildError));
       }
@@ -13544,7 +13555,7 @@ ${body}`;
       await this.saveMap(file.path, map);
     }
   }
-  async renameTopic(mapPath, title, targetRoot) {
+  async renameTopic(mapPath, title, targetRoot, options = {}) {
     const file = this.file(mapPath), root = file.parent;
     if (!(root instanceof import_obsidian9.TFolder) || !(isManagedMapPath(this.settings, mapPath) || this.pendingContainers.some((c) => mapPath.startsWith(`${c}/`))))
       throw new Error(this.message("error.legacy_map_view_only"));
@@ -13559,6 +13570,9 @@ ${body}`;
         "An AIM research attempt is still running or saving. Wait for it to finish before renaming this topic."
       );
     }
+    const rebuild = async () => {
+      if (options.rebuild !== false) await this.rebuildDerivedData({ roots: [originalRoot, desired] });
+    };
     const next = `${desired}/Map.md`;
     let moved = false;
     try {
@@ -13571,7 +13585,7 @@ ${body}`;
       const rebasePath = (path) => path.startsWith(`${originalRoot}/`) ? `${desired}/${path.slice(originalRoot.length + 1)}` : path;
       rebaseMapNotePaths(map, rebasePath);
       await this.saveMap(next, map);
-      await this.rebuildDerivedData();
+      await rebuild();
       return next;
     } catch (error) {
       if (moved) {
@@ -13583,7 +13597,7 @@ ${body}`;
           if (!(restoredMap instanceof import_obsidian9.TFile))
             throw new Error("Original Map.md was not found after restoring the topic folder.");
           await this.app.vault.modify(restoredMap, originalContent);
-          await this.rebuildDerivedData();
+          await rebuild();
         } catch (rollbackError) {
           const originalMessage = error instanceof Error ? error.message : String(error);
           throw new Error(
@@ -13592,7 +13606,7 @@ ${body}`;
         }
       } else if (this.app.vault.getAbstractFileByPath(originalMapPath) instanceof import_obsidian9.TFile) {
         await this.app.vault.modify(this.file(originalMapPath), originalContent);
-        await this.rebuildDerivedData();
+        await rebuild();
       }
       throw error;
     }

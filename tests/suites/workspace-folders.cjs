@@ -250,7 +250,7 @@ integrationTest('Organize restores everything when the final derived-data rebuil
   const plan = await repo.planOrganizeWorkspaceFolders();
   const before = snapshot(vault);
   const rebuild = repo.rebuildDerivedData.bind(repo); let calls = 0;
-  repo.rebuildDerivedData = async (...args) => { if (++calls === plan.moves.length + 1) throw new Error('injected final rebuild failure'); return rebuild(...args); };
+  repo.rebuildDerivedData = async (...args) => { if (++calls === 1) throw new Error('injected final rebuild failure'); return rebuild(...args); };
   await assert.rejects(repo.organizeWorkspaceFolders(plan), /injected final rebuild failure/);
   repo.rebuildDerivedData = rebuild;
   assertUnchanged(vault, before, 'after the final rebuild failed');
@@ -492,4 +492,25 @@ integrationTest('the plugin keeps open views on their maps after a folder-settin
   plugin.views = () => [{ hasActiveAimWork: () => true, relocate: () => {} }];
   await assert.rejects(plugin.changeMapFolder('mindMapsFolder', 'Agent Workspace/Again'), /still running or saving/);
   assert.equal(saved, 1);
+});
+
+integrationTest('Organize and folder changes rebuild only the moved topics: notes of other topics are not rewritten', async () => {
+  const vault = await legacyVault();
+  const { repo, contents } = vault;
+  repo.app.vault.modify = async (file, content) => repo.app.vault.process(file, () => content);
+  // A topic that stays put, with a note a vault-wide rebuild would repair (it lost its relationship metadata).
+  const stayPath = await repo.createMap('Stay');
+  const doc = await repo.readMap(stayPath);
+  const stay = await repo.createNote('Stay note', 'model', doc, stayPath, 'workspace');
+  doc.nodes.push(stay); await repo.saveMap(stayPath, doc); await repo.rebuildDerivedData();
+  contents.set(stay.path, contents.get(stay.path).replace(/^agent-map-references:\n(  - .*\n)+/m, ''));
+  const strayBefore = contents.get(stay.path);
+  assert.notEqual(strayBefore, undefined);
+  await repo.organizeWorkspaceFolders(await repo.planOrganizeWorkspaceFolders());
+  assert.equal(contents.get(stay.path), strayBefore, 'a note of an unmoved topic is byte-identical after Organize');
+  await repo.changeMapFolder('aimFolder', 'Agent Workspace/Research');
+  assert.equal(contents.get(stay.path), strayBefore, 'and after a folder-setting change of another container');
+  await repo.rebuildDerivedData();
+  assert.notEqual(contents.get(stay.path), strayBefore, 'control: a vault-wide rebuild does rewrite that note');
+  await assertResolves({ ...vault, contents });
 });
