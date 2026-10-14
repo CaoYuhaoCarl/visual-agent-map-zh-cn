@@ -165,6 +165,8 @@ export class SubtopicSearchUnavailable extends Error {}
 export type PlannerQualityContext = {
   goal: string;
   goalDetail: string;
+  /** The map runs unattended: no question may stop it, so what is unknown becomes an assumption to confirm. */
+  unattended?: boolean;
   /** AIM content language of the map; every model call in the review pipeline uses it. */
   outputLanguage: UiLanguage;
   /** Writing tone for the final delivery only; review and classification calls are structured and ignore it. */

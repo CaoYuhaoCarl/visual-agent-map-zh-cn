@@ -307,6 +307,11 @@ export interface AimMapData {
   contentLanguage?: "en" | "zh-TW";
   /** Exploration target; legacy field name retained for saved maps. Never forces questions or completion. */
   minimumAnswersBeforeConclusion?: number;
+  /**
+   * "unattended": the user answers the intake once and the run never waits for them again; questions that come up
+   * later become stated assumptions. Absent means the interactive question-by-question flow.
+   */
+  interaction?: "unattended";
   rootDraft?: {
     nodeId: string;
     notePath: string;
@@ -501,6 +506,7 @@ function validateAimMap(map: MapDocument): void {
       data.minimumAnswersBeforeConclusion > 10)
   )
     throw new Error("Invalid AIM exploration question target.");
+  if (data.interaction !== undefined && data.interaction !== "unattended") throw new Error("Invalid AIM interaction mode.");
   if (
     data.rootDraft !== undefined &&
     (!data.rootDraft ||

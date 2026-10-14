@@ -170,6 +170,31 @@ integrationTest('AIM checklist limit also covers questions made later in the rev
   assert.equal(acceptances, 2);
   assert.match(tasks.filter(ctx => aimPhase(ctx, 'delivery-acceptance')).at(-1).task, /Exact closing fees/, 'the second acceptance knows the gap is an open item');
 });
+integrationTest('AIM unattended: after the intake it researches the goal without a Planner question and never stops to ask', async () => {
+  const subject = await coverageSetup('Unattended run');
+  const saved = await subject.repo.readMap(subject.created.mapPath);
+  saved.aim.interaction = 'unattended';
+  await subject.repo.saveMap(subject.created.mapPath, saved);
+  const phases = [], contracts = [];
+  const base = subject.model.ask;
+  subject.flow = new AimManualFlow(subject.repo, new AimRunStore(subject.repo), async (context, ...rest) => {
+    const phase = context.task.match(/aim-phase:\s*([a-z-]+)/)?.[1];
+    phases.push(phase);
+    if (aimPhase(context, 'report-review')) {
+      contracts.push(context.aimContract?.decisions);
+      return plannerReview('ask_user', { rationale: 'Budget would change the advice.', question: 'What is your budget?' }, 'Conditional answer.', 'Saved reports stay valid.', ['Low', 'High']);
+    }
+    return base(context, ...rest);
+  });
+  const planned = await subject.flow.planNextQuestion(subject.created.mapPath, subject.created.root.id, 'gpt-6-luna', 'low', 'unattended-start');
+  assert.equal(planned.status, 'no-question', 'no Planner question is saved');
+  assert.ok(!phases.includes('initial-question'), 'the first Planner question is skipped');
+  assert.equal(phases[0], 'research-plan', 'research starts right away');
+  assert.deepEqual(plain(contracts[0]), ['research_more', 'conclude'], 'the review schema cannot ask the user');
+  assert.notEqual(planned.outcome.status, 'waiting-user', 'the run never stops for an answer');
+  const notes = await Promise.all((await subject.repo.readMap(subject.created.mapPath)).nodes.map(node => subject.repo.readNote(node.path)));
+  assert.ok(notes.some(note => /What is your budget\?/.test(note.detail)) || phases.includes('delivery-outline'), 'the question became an assumption carried into delivery');
+});
 const gapTarget = { title: 'Missing evidence', task: 'Search for the missing evidence.', contribution: 'Closes the gap.' };
 /** A Planner that always wants more research, so the flow must end through the research-budget exit. */
 function gapModel(base, seen) {

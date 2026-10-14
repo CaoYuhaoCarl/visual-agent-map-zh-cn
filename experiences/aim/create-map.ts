@@ -13,6 +13,8 @@ export interface AimStartInput {
   model?: string;
   reasoning?: "low" | "medium" | "high";
   minimumAnswersBeforeConclusion?: number;
+  /** Unattended runs ask everything in the intake and never wait for the user afterwards. */
+  interaction?: "unattended" | "interactive";
 }
 export interface AimStartResult {
   mapPath: string;
@@ -46,6 +48,7 @@ export async function createAimMap(
       creationId: requestId,
       contentLanguage: detectedLanguage,
       minimumAnswersBeforeConclusion,
+      ...(input.interaction === "unattended" ? { interaction: "unattended" as const } : {}),
       branches: [],
       runs: [],
       resultDrafts: [],

@@ -15,6 +15,7 @@ export interface AimStartInput {
   model: string;
   reasoning: "low" | "medium" | "high";
   minimumAnswersBeforeConclusion: number;
+  interaction: "unattended" | "interactive";
 }
 type ModelChoice = { id: string; label: string };
 type ModelRefreshResult = ModelChoice[] | { models: ModelChoice[]; message?: string; preserveSelection?: boolean };
@@ -154,6 +155,13 @@ export class AimStartModal extends Modal {
     ] as const)
       reasoning.createEl("option", { value, text: label });
     reasoning.value = this.defaultReasoning;
+    const interactionLabel = this.contentEl.createEl("label", { cls: "vam-field" });
+    interactionLabel.createSpan({ text: t("ui.aim_interaction") });
+    const interaction = interactionLabel.createEl("select");
+    interaction.createEl("option", { value: "unattended", text: t("ui.aim_interaction_unattended") });
+    interaction.createEl("option", { value: "interactive", text: t("ui.aim_interaction_interactive") });
+    interaction.value = "unattended";
+    const interactionHint = interactionLabel.createEl("p", { cls: "vam-hint" });
     const answerCountLabel = this.contentEl.createEl("label", { cls: "vam-field" });
     answerCountLabel.createSpan({ text: t("ui.aim_minimum_answers") });
     const answerCount = answerCountLabel.createEl("input", {
@@ -170,6 +178,18 @@ export class AimStartModal extends Modal {
     model.addEventListener("change", newRequest);
     reasoning.addEventListener("change", newRequest);
     answerCount.addEventListener("input", newRequest);
+    // The question target only applies when AIM asks question by question.
+    const syncInteraction = (): void => {
+      answerCountLabel.hidden = interaction.value === "unattended";
+      interactionHint.setText(
+        t(interaction.value === "unattended" ? "ui.aim_interaction_unattended_hint" : "ui.aim_interaction_interactive_hint")
+      );
+    };
+    syncInteraction();
+    interaction.addEventListener("change", () => {
+      syncInteraction();
+      newRequest();
+    });
     outcome.addEventListener("change", () => {
       customLabel.hidden = outcome.value !== "custom";
       if (outcome.value !== "custom") customDescription.value = "";
@@ -223,6 +243,7 @@ export class AimStartModal extends Modal {
                 ...formatInputs.map(item => item.checkbox),
                 model,
                 reasoning,
+                interaction,
                 answerCount
               ];
               controls.forEach(control => {
@@ -243,7 +264,8 @@ export class AimStartModal extends Modal {
                   requestId: this.requestId,
                   model: model.value,
                   reasoning: reasoning.value as "low" | "medium" | "high",
-                  minimumAnswersBeforeConclusion
+                  minimumAnswersBeforeConclusion,
+                  interaction: interaction.value === "interactive" ? "interactive" : "unattended"
                 });
                 this.close();
               } catch (error) {

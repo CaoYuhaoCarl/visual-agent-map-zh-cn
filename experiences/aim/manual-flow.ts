@@ -7,7 +7,7 @@ import type { AiResult, TaskContext } from "../../ai/types";
 import { resolveToneText } from "../../ai/prompt-presets";
 import { reportedSearchFailure } from "../../ai/result-utils";
 import { createSearchDiagnostic } from "./search-diagnostic";
-import type { MapDocument, AimBranchRecord, AimQuestionDraft } from "../../map-model";
+import type { MapDocument, MapNode, AimBranchRecord, AimQuestionDraft } from "../../map-model";
 import type { Repository } from "../../repository";
 import { AimRunStore, type CommitResult } from "./research-run-store";
 import type { CodexWebSearchEvent } from "../../ai/runtime/codex-app-server";
@@ -167,10 +167,23 @@ export class AimManualFlow {
    * Answered questions required before a conclusion. Once the intake checklist ran (its marker is in the goal
    * detail), conclusion waits on unresolved decision-changing conditions instead of a question count.
    */
-  private floorFor(goalDetail: string): number {
+  private floorFor(goalDetail: string, map?: MapDocument): number {
+    if (map && this.isUnattended(map)) return 0;
     return goalDetail.includes(AIM_INTAKE_COMPLETE)
       ? Math.min(CHECKLIST_FLOOR, this.limits.minAnsweredBeforeConclusion)
       : this.limits.minAnsweredBeforeConclusion;
+  }
+
+  /** An unattended run answers the intake once and never waits for the user again. */
+  private isUnattended(map: MapDocument): boolean {
+    return map.aim?.interaction === "unattended";
+  }
+
+  /** Review decisions the schema allows: an unattended run cannot ask the user, so it researches or concludes. */
+  private reviewDecisions(answeredQuestionCount: number, floor: number, map: MapDocument): readonly AimDecision[] {
+    return this.isUnattended(map)
+      ? ["research_more", "conclude"]
+      : floorDecisions(answeredQuestionCount, { minAnsweredBeforeConclusion: floor });
   }
 
   /**
@@ -564,7 +577,8 @@ export class AimManualFlow {
   ): Promise<PlannerReview> {
     const reviewed = await this.reviewDecisionOnce(candidate, context, model, reasoning, signal);
     const pastLimit =
-      context.goalDetail.includes(AIM_INTAKE_COMPLETE) && context.answeredQuestionCount >= CHECKLIST_QUESTION_LIMIT;
+      !!context.unattended ||
+      (context.goalDetail.includes(AIM_INTAKE_COMPLETE) && context.answeredQuestionCount >= CHECKLIST_QUESTION_LIMIT);
     const asksUser =
       reviewed.decision === "ask_user" || (reviewed.decision === "research_more" && reviewed.gapKind === "user_only");
     if (!(pastLimit && asksUser) && !(reviewed.decision === "research_more" && reviewed.gapKind === "not_decisive"))
@@ -618,7 +632,7 @@ export class AimManualFlow {
     // Question limit of the checklist: past it, a new question or a gap only the user can close becomes an
     // assumption the document lists for the user to confirm, so the run ends with an answer instead of more questions.
     const checklist = context.goalDetail.includes(AIM_INTAKE_COMPLETE);
-    if (checklist && context.answeredQuestionCount >= CHECKLIST_QUESTION_LIMIT) {
+    if (context.unattended || (checklist && context.answeredQuestionCount >= CHECKLIST_QUESTION_LIMIT)) {
       if (
         (reviewed.decision === "ask_user" && reviewed.question) ||
         (reviewed.decision === "research_more" && reviewed.gapKind === "user_only")
@@ -641,7 +655,7 @@ export class AimManualFlow {
     const repeatsKnownQuestion = context.questionHistory.some(
       question => question.trim().toLocaleLowerCase() === reviewed.question?.trim().toLocaleLowerCase()
     );
-    const floor = this.floorFor(context.goalDetail);
+    const floor = context.unattended ? 0 : this.floorFor(context.goalDetail);
     const belowFloor = context.answeredQuestionCount < floor;
     // Below the floor, research on an already answered goal cannot satisfy the floor; only a user question can.
     const researchesAnsweredGoal =
@@ -1005,7 +1019,7 @@ export class AimManualFlow {
     const questionHistory = await this.questionHistory(map, branch.id);
     const explorationTarget = map.aim?.minimumAnswersBeforeConclusion ?? 2;
     const answeredQuestionCount = this.answerCountInLineage(map, branch.id);
-    const floor = this.floorFor(topic.detail);
+    const floor = this.floorFor(topic.detail, map);
     const model = diagnostic.model || priorAttempt.model || "gpt-6-luna";
     const taskDefaults: TaskContext = {
       timeoutMs: branch.retryTimeoutMs,
@@ -1094,7 +1108,7 @@ export class AimManualFlow {
           researchDepth: "fast" as const,
           visualMode: "off" as const,
           detailFormat: "adaptive" as const,
-          aimContract: reviewContract(floorDecisions(answeredQuestionCount, { minAnsweredBeforeConclusion: floor })),
+          aimContract: reviewContract(this.reviewDecisions(answeredQuestionCount, floor, map)),
           signal
         };
         const planner = await this.askAimModel(plannerContext, model, reasoning, signal);
@@ -1125,6 +1139,7 @@ export class AimManualFlow {
           {
             goal: topic.title,
             goalDetail: topic.detail,
+            unattended: this.isUnattended(map),
             outputLanguage: language,
             toneText: this.toneOf(map, language),
             conditions: branch.inputSnapshot.conditions,
@@ -1409,7 +1424,7 @@ export class AimManualFlow {
         }
       : undefined;
     const answeredQuestionCount = this.answerCountInLineage(map, branch.id);
-    const floor = this.floorFor(topicNote.detail);
+    const floor = this.floorFor(topicNote.detail, map);
     const explorationTarget = map.aim?.minimumAnswersBeforeConclusion ?? 2;
     const questionsAlreadyAsked = await this.questionHistory(map, branch.id);
     const modelToUse = model?.trim() || priorAttempt.model || "gpt-6-luna";
@@ -1462,6 +1477,7 @@ export class AimManualFlow {
         const qualityContext: PlannerQualityContext = {
           goal: topicNote.title,
           goalDetail: topicNote.detail,
+          unattended: this.isUnattended(map),
           outputLanguage: language,
           toneText: this.toneOf(map, language),
           conditions: branch.inputSnapshot.conditions,
@@ -1629,7 +1645,7 @@ export class AimManualFlow {
           researchDepth: "fast" as const,
           visualMode: "off" as const,
           detailFormat: "adaptive" as const,
-          aimContract: reviewContract(floorDecisions(answeredQuestionCount, { minAnsweredBeforeConclusion: floor })),
+          aimContract: reviewContract(this.reviewDecisions(answeredQuestionCount, floor, map)),
           signal
         };
         const planner = await this.askAimModel(plannerContext, modelToUse, reasoningToUse, signal);
@@ -1652,6 +1668,7 @@ export class AimManualFlow {
           {
             goal: topicNote.title,
             goalDetail: topicNote.detail,
+            unattended: this.isUnattended(map),
             outputLanguage: language,
             toneText: this.toneOf(map, language),
             conditions: branch.inputSnapshot.conditions,
@@ -1975,7 +1992,7 @@ export class AimManualFlow {
     const lineage = await this.branchLineage(map, parentBranchId);
     const explorationTarget = state.minimumAnswersBeforeConclusion ?? 2;
     const answeredQuestionCount = this.answerCountInLineage(map, parentBranchId);
-    const floor = this.floorFor(mother.detail);
+    const floor = this.floorFor(mother.detail, map);
     const priorQuestions = await this.questionHistory(map, parentBranchId);
     const savedConditions: { branchId: string; conditions: Record<string, string> }[] = [];
     let conditionBranch = parentBranch;
@@ -2049,6 +2066,9 @@ export class AimManualFlow {
       signal
     };
     throwIfAborted(signal);
+    // Unattended: the intake was the only questionnaire, so the first round researches the goal directly.
+    if (this.isUnattended(map) && parentNode.aimKind === "topic" && !parentBranchId && !isSavedTerminalResult)
+      return this.researchFromTopic(mapPath, map, parentNode, model, reasoning, signal);
     let result = await this.askAimModel(context, model, reasoning, signal);
     throwIfAborted(signal);
     if (isSavedTerminalResult && result.summary.trim() === AIM_NO_QUESTION)
@@ -2104,29 +2124,7 @@ export class AimManualFlow {
     }
     if (result.summary.trim() === AIM_NO_QUESTION) {
       if (parentNode.aimKind !== "topic" || parentBranchId) return { status: "no-question" };
-      const topic = await this.repository.readNote(parentNode.path);
-      const branch = await this.persist(() =>
-        this.runs.createAnswerBranch(mapPath, {
-          requestId: `initial-${parentNode.id}`,
-          questionNodeId: parentNode.id,
-          parentBranchId: null,
-          answerSnapshot: { selections: [], freeText: "" },
-          inputSnapshot: { topic: map.title, conditions: {}, upstreamResults: [] }
-        })
-      );
-      const outcome = await this.runSubtopicWorkflow(
-        mapPath,
-        branch.id,
-        topic,
-        topic,
-        [],
-        "",
-        "",
-        model,
-        reasoning,
-        signal
-      );
-      return { status: "no-question", outcome };
+      return this.researchFromTopic(mapPath, map, parentNode, model, reasoning, signal);
     }
     const labels = [...new Set(result.suggestions.map(item => item.title.trim()).filter(Boolean))];
     if (!result.summary.trim() || labels.length < 2 || labels.length > 5)
@@ -2145,6 +2143,40 @@ export class AimManualFlow {
       signal,
       expectedResultBranchSnapshot
     );
+  }
+
+  /** Researches the goal itself from the topic, with no Planner question in between. */
+  private async researchFromTopic(
+    mapPath: string,
+    map: MapDocument,
+    parentNode: MapNode,
+    model: string,
+    reasoning: unknown,
+    signal?: AbortSignal
+  ): Promise<PlannerQuestionResult> {
+    const topic = await this.repository.readNote(parentNode.path);
+    const branch = await this.persist(() =>
+      this.runs.createAnswerBranch(mapPath, {
+        requestId: `initial-${parentNode.id}`,
+        questionNodeId: parentNode.id,
+        parentBranchId: null,
+        answerSnapshot: { selections: [], freeText: "" },
+        inputSnapshot: { topic: map.title, conditions: {}, upstreamResults: [] }
+      })
+    );
+    const outcome = await this.runSubtopicWorkflow(
+      mapPath,
+      branch.id,
+      topic,
+      topic,
+      [],
+      "",
+      "",
+      model,
+      reasoning,
+      signal
+    );
+    return { status: "no-question", outcome };
   }
 
   private async saveManualQuestion(
@@ -3069,7 +3101,7 @@ export class AimManualFlow {
     branch = map.aim?.branches.find(item => item.id === branchId);
     if (!branch) throw new Error("AIM answer branch disappeared before synthesis.");
     const answeredQuestionCount = this.answerCountInLineage(map, branch.id);
-    const floor = this.floorFor(topicNote.detail);
+    const floor = this.floorFor(topicNote.detail, map);
     const explorationTarget = map.aim?.minimumAnswersBeforeConclusion ?? 2;
     const existingConclusion = [...branch.results]
       .reverse()
@@ -3204,7 +3236,7 @@ export class AimManualFlow {
           detail: `${contextBase.detail}\n\nPersisted research reports:\n${currentReports.summary}\n\n${currentReports.detail}`,
           task: plannerPrompt,
           detailFormat: "adaptive" as const,
-          aimContract: reviewContract(floorDecisions(answeredQuestionCount, { minAnsweredBeforeConclusion: floor }))
+          aimContract: reviewContract(this.reviewDecisions(answeredQuestionCount, floor, map))
         };
         const fingerprint = sourceFingerprint;
         const savedRecovery = resumeDelivery;
@@ -3226,6 +3258,7 @@ export class AimManualFlow {
         lastQualityContext = {
           goal: topicNote.title,
           goalDetail: topicNote.detail,
+          unattended: this.isUnattended(map),
           outputLanguage: language,
           toneText: this.toneOf(map, language),
           conditions: branch.inputSnapshot.conditions,

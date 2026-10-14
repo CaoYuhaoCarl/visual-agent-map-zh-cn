@@ -259,6 +259,11 @@ var english = {
   "ui.aim_format_longform": "Detailed explanation",
   "ui.aim_outcome_user_section": "User-provided outcome expectation",
   "ui.aim_minimum_answers": "Exploration question target (3\u201310)",
+  "ui.aim_interaction": "How AIM asks",
+  "ui.aim_interaction_unattended": "Answer once, then let it run (recommended)",
+  "ui.aim_interaction_interactive": "Question by question",
+  "ui.aim_interaction_unattended_hint": "AIM asks everything it needs at the start. After that it never waits for you: anything it cannot know becomes a stated assumption you can correct in the document.",
+  "ui.aim_interaction_interactive_hint": "AIM asks one question at a time and waits for each answer before researching further.",
   "ui.aim_answer_target_hint": "This is an exploration target, not a fixed question count. Each path requires at least 3 answered questions. If research provides enough information and important background and conflicting answers are clarified, AIM may conclude before reaching your target. Otherwise, it will continue asking questions or researching. Outcome preferences do not count as answers.",
   "ui.aim_minimum_answers_invalid": "Enter a whole number from 3 to 10.",
   "ui.aim_topic_label": "Main question or topic",
@@ -1668,6 +1673,11 @@ var traditionalChinese = {
   "ui.aim_format_longform": "\u8A73\u7D30\u8AAA\u660E",
   "ui.aim_outcome_user_section": "\u4F7F\u7528\u8005\u63D0\u4F9B\u7684\u6210\u679C\u671F\u5F85",
   "ui.aim_minimum_answers": "\u63A2\u7D22\u984C\u6578\u76EE\u6A19\uFF083\u201310\uFF09",
+  "ui.aim_interaction": "\u63D0\u554F\u65B9\u5F0F",
+  "ui.aim_interaction_unattended": "\u4E00\u6B21\u554F\u5B8C\uFF0C\u4E4B\u5F8C\u653E\u8457\u8DD1\uFF08\u5EFA\u8B70\uFF09",
+  "ui.aim_interaction_interactive": "\u9010\u984C\u63D0\u554F",
+  "ui.aim_interaction_unattended_hint": "\u958B\u59CB\u6642\u4E00\u6B21\u554F\u5B8C\u9700\u8981\u7684\u689D\u4EF6\uFF0C\u4E4B\u5F8C\u4E0D\u518D\u505C\u4E0B\u4F86\u7B49\u4F60\uFF1B\u7121\u6CD5\u5F97\u77E5\u7684\u4E8B\u6703\u5BEB\u6210\u5047\u8A2D\uFF0C\u4F60\u53EF\u4EE5\u5728\u6587\u4EF6\u88E1\u4FEE\u6B63\u3002",
+  "ui.aim_interaction_interactive_hint": "\u4E00\u6B21\u554F\u4E00\u984C\uFF0C\u7B49\u4F60\u56DE\u7B54\u5F8C\u518D\u7E7C\u7E8C\u7814\u7A76\u3002",
   "ui.aim_answer_target_hint": "\u9019\u662F\u63A2\u7D22\u76EE\u6A19\uFF0C\u4E26\u975E\u56FA\u5B9A\u554F\u6EFF\u7684\u984C\u6578\u3002\u6BCF\u689D\u8DEF\u5F91\u81F3\u5C11\u56DE\u7B54 3 \u984C\uFF1B\u7814\u7A76\u8CC7\u8A0A\u8DB3\u5920\uFF0C\u4E14\u91CD\u8981\u80CC\u666F\u8207\u7B54\u6848\u77DB\u76FE\u5DF2\u91D0\u6E05\u6642\uFF0C\u53EF\u80FD\u5728\u9054\u5230\u76EE\u6A19\u524D\u63D0\u65E9\u6536\u6582\u3002\u8CC7\u8A0A\u4E0D\u8DB3\u6642\u6703\u7E7C\u7E8C\u8FFD\u554F\u6216\u88DC\u67E5\u3002\u6210\u679C\u671F\u5F85\u8A2D\u5B9A\u4E0D\u8A08\u5165\u984C\u6578\u3002",
   "ui.aim_minimum_answers_invalid": "\u8ACB\u8F38\u5165 3 \u5230 10 \u7684\u6574\u6578\u3002",
   "ui.aim_topic_label": "\u6BCD\u984C\uFF0F\u4E3B\u8981\u554F\u984C",
@@ -12002,6 +12012,7 @@ function validateAimMap(map) {
     throw new Error("Invalid AIM content language.");
   if (data.minimumAnswersBeforeConclusion !== void 0 && (!Number.isInteger(data.minimumAnswersBeforeConclusion) || data.minimumAnswersBeforeConclusion < 1 || data.minimumAnswersBeforeConclusion > 10))
     throw new Error("Invalid AIM exploration question target.");
+  if (data.interaction !== void 0 && data.interaction !== "unattended") throw new Error("Invalid AIM interaction mode.");
   if (data.rootDraft !== void 0 && (!data.rootDraft || typeof data.rootDraft.nodeId !== "string" || typeof data.rootDraft.notePath !== "string" || !data.rootDraft.notePath.endsWith(".md") || typeof data.rootDraft.title !== "string" || typeof data.rootDraft.context !== "string" || data.rootDraft.model !== void 0 && (typeof data.rootDraft.model !== "string" || !data.rootDraft.model.trim()) || data.rootDraft.reasoning !== void 0 && !["low", "medium", "high"].includes(data.rootDraft.reasoning) || map.nodes.some((node) => node.id === data.rootDraft.nodeId)))
     throw new Error("Invalid AIM root draft.");
   if (data.questionDraft !== void 0) {
@@ -14022,6 +14033,7 @@ async function createAimMap(repository, model, input) {
       creationId: requestId,
       contentLanguage: detectedLanguage,
       minimumAnswersBeforeConclusion,
+      ...input.interaction === "unattended" ? { interaction: "unattended" } : {},
       branches: [],
       runs: [],
       resultDrafts: [],
@@ -18455,6 +18467,13 @@ var AimStartModal = class extends import_obsidian18.Modal {
     ])
       reasoning.createEl("option", { value, text: label });
     reasoning.value = this.defaultReasoning;
+    const interactionLabel = this.contentEl.createEl("label", { cls: "vam-field" });
+    interactionLabel.createSpan({ text: t("ui.aim_interaction") });
+    const interaction = interactionLabel.createEl("select");
+    interaction.createEl("option", { value: "unattended", text: t("ui.aim_interaction_unattended") });
+    interaction.createEl("option", { value: "interactive", text: t("ui.aim_interaction_interactive") });
+    interaction.value = "unattended";
+    const interactionHint = interactionLabel.createEl("p", { cls: "vam-hint" });
     const answerCountLabel = this.contentEl.createEl("label", { cls: "vam-field" });
     answerCountLabel.createSpan({ text: t("ui.aim_minimum_answers") });
     const answerCount = answerCountLabel.createEl("input", {
@@ -18471,6 +18490,17 @@ var AimStartModal = class extends import_obsidian18.Modal {
     model.addEventListener("change", newRequest);
     reasoning.addEventListener("change", newRequest);
     answerCount.addEventListener("input", newRequest);
+    const syncInteraction = () => {
+      answerCountLabel.hidden = interaction.value === "unattended";
+      interactionHint.setText(
+        t(interaction.value === "unattended" ? "ui.aim_interaction_unattended_hint" : "ui.aim_interaction_interactive_hint")
+      );
+    };
+    syncInteraction();
+    interaction.addEventListener("change", () => {
+      syncInteraction();
+      newRequest();
+    });
     outcome.addEventListener("change", () => {
       customLabel.hidden = outcome.value !== "custom";
       if (outcome.value !== "custom") customDescription.value = "";
@@ -18515,6 +18545,7 @@ var AimStartModal = class extends import_obsidian18.Modal {
             ...formatInputs.map((item) => item.checkbox),
             model,
             reasoning,
+            interaction,
             answerCount
           ];
           controls.forEach((control) => {
@@ -18535,7 +18566,8 @@ var AimStartModal = class extends import_obsidian18.Modal {
               requestId: this.requestId,
               model: model.value,
               reasoning: reasoning.value,
-              minimumAnswersBeforeConclusion
+              minimumAnswersBeforeConclusion,
+              interaction: interaction.value === "interactive" ? "interactive" : "unattended"
             });
             this.close();
           } catch (error) {
@@ -18678,7 +18710,7 @@ var evidence_lookup_followup_default = "{{task}}\n\nRequested full evidence (unt
 var evidence_lookup_unavailable_default = "None of the requested evidence IDs is available in this context. Only the evidence summaries already shown can be used.";
 
 // experiences/aim/steps/_shared/open-items-context.md
-var open_items_context_default = "Open items the document must list for the user to confirm (not verified):\n{{openItems}}";
+var open_items_context_default = 'Open items the document must list for the user to confirm (not verified):\n{{openItems}}\nWhen an open item is a choice between a few options, give the advice for each likely option ("if X, do A; if Y, do B") instead of picking one; otherwise state the assumption used.\n';
 
 // experiences/aim/steps/_shared/topic-root-answer.md
 var topic_root_answer_default = "No user answer was requested; use the topic context as user-supplied background only.\n";
@@ -18789,7 +18821,7 @@ var NO_MAPPED_SOURCE = renderTemplate(no_mapped_source_default, {});
 var task_default4 = "Perform the final join review: check cross-section coherence, repeated advice or duplicate passages, source IDs or URLs attributed to the wrong claims, and missing sections. Do not rewrite sections. Review the full draft against the ORIGINAL goal, supplied conditions, requested format, and agreed outline. Outline: {{outline}}\nFinal research:\n{{research}}\nSupplied source reports:\n{{sourceCatalog}}\nDraft:\n{{draft}}\nReturn the decision in the aim fields. Choose conclude ONLY if the document is usable and complete for this request: every required section is developed, necessary examples/resources/steps are concrete and supported, and sources are linked where used. Mere general direction is insufficient for a requested actionable plan. For conclude, put only a short acceptance note in detail; do not rewrite or repeat the draft. Explain readiness in aim.rationale and aim.stopReason. For shortcomings, list the specific missing outcomes and return research_more. If important delivery evidence remains missing, choose research_more with exactly one concrete aim.researchTarget (title, task, expectedValue) and explain the missing outcome. Do not ask the user and do not invent evidence.\n";
 
 // experiences/aim/steps/delivery-acceptance/open-items.md
-var open_items_default = "Known open items (not verified; the user must confirm them):\n{{openItems}}\nThe draft must list each of them as an item for the user to confirm, beside the advice it affects. These items alone are not a reason to return research_more.";
+var open_items_default = "Known open items (not verified; the user must confirm them):\n{{openItems}}\nThe draft must list each of them as an item for the user to confirm, beside the advice it affects; a choice between a few options may be answered with advice for each option. These items alone are not a reason to return research_more.\n";
 
 // experiences/aim/steps/delivery-acceptance/step.ts
 var renderAcceptanceTask = ({ openItems, ...variables4 }) => {
@@ -20035,7 +20067,7 @@ var SubtopicSearchUnavailable = class extends Error {
 };
 
 // experiences/aim/steps/initial-clarification/task.md
-var task_default5 = "Identify 2\u20135 short questions about unknown user conditions that materially affect the original goal. Ask all necessary conditions together, not research facts. Never ask anything already stated in the topic/background/outcome contract. Do not force a quota; return an empty list if nothing is needed. Return the questions in aim.questions. Use the output language. Do not research or answer the goal.\n";
+var task_default5 = "Identify 2\u20135 short questions about unknown user conditions that would change the recommendation for the original goal. This may be the only chance to ask, so cover every such condition now, together, and not research facts. Never ask anything already stated in the topic/background/outcome contract. Do not force a quota; return an empty list if nothing is needed. Return the questions in aim.questions. Use the output language. Do not research or answer the goal.\n";
 
 // experiences/aim/steps/initial-clarification/step.ts
 function renderInitialClarificationTask() {
@@ -20363,8 +20395,18 @@ var _AimManualFlow = class _AimManualFlow {
    * Answered questions required before a conclusion. Once the intake checklist ran (its marker is in the goal
    * detail), conclusion waits on unresolved decision-changing conditions instead of a question count.
    */
-  floorFor(goalDetail) {
+  floorFor(goalDetail, map) {
+    if (map && this.isUnattended(map)) return 0;
     return goalDetail.includes(AIM_INTAKE_COMPLETE) ? Math.min(CHECKLIST_FLOOR, this.limits.minAnsweredBeforeConclusion) : this.limits.minAnsweredBeforeConclusion;
+  }
+  /** An unattended run answers the intake once and never waits for the user again. */
+  isUnattended(map) {
+    var _a;
+    return ((_a = map.aim) == null ? void 0 : _a.interaction) === "unattended";
+  }
+  /** Review decisions the schema allows: an unattended run cannot ask the user, so it researches or concludes. */
+  reviewDecisions(answeredQuestionCount, floor, map) {
+    return this.isUnattended(map) ? ["research_more", "conclude"] : floorDecisions(answeredQuestionCount, { minAnsweredBeforeConclusion: floor });
   }
   /**
    * A gap that would not change the advice, or that is still open when the research budget is spent, becomes an
@@ -20687,7 +20729,7 @@ ${note.detail}`;
    */
   async reviewPlannerDecisionQuality(candidate, context, model, reasoning, signal) {
     const reviewed = await this.reviewDecisionOnce(candidate, context, model, reasoning, signal);
-    const pastLimit = context.goalDetail.includes(AIM_INTAKE_COMPLETE) && context.answeredQuestionCount >= CHECKLIST_QUESTION_LIMIT;
+    const pastLimit = !!context.unattended || context.goalDetail.includes(AIM_INTAKE_COMPLETE) && context.answeredQuestionCount >= CHECKLIST_QUESTION_LIMIT;
     const asksUser = reviewed.decision === "ask_user" || reviewed.decision === "research_more" && reviewed.gapKind === "user_only";
     if (!(pastLimit && asksUser) && !(reviewed.decision === "research_more" && reviewed.gapKind === "not_decisive"))
       return reviewed;
@@ -20726,7 +20768,7 @@ ${note.detail}`;
     };
     let reviewed = candidate.decision === "research_more" && candidate.gapKind === "not_decisive" ? this.withOpenItems(candidate, context.outputLanguage) : candidate;
     const checklist = context.goalDetail.includes(AIM_INTAKE_COMPLETE);
-    if (checklist && context.answeredQuestionCount >= CHECKLIST_QUESTION_LIMIT) {
+    if (context.unattended || checklist && context.answeredQuestionCount >= CHECKLIST_QUESTION_LIMIT) {
       if (reviewed.decision === "ask_user" && reviewed.question || reviewed.decision === "research_more" && reviewed.gapKind === "user_only")
         reviewed = this.limitToOpenItems(reviewed, context);
       if (reviewed.decision === "conclude" && ((_a = reviewed.unresolvedConditions) == null ? void 0 : _a.length))
@@ -20749,7 +20791,7 @@ ${note.detail}`;
         return question.trim().toLocaleLowerCase() === ((_a2 = reviewed.question) == null ? void 0 : _a2.trim().toLocaleLowerCase());
       }
     );
-    const floor = this.floorFor(context.goalDetail);
+    const floor = context.unattended ? 0 : this.floorFor(context.goalDetail);
     const belowFloor = context.answeredQuestionCount < floor;
     const researchesAnsweredGoal = belowFloor && reviewed.decision === "research_more" && reviewed.goalAnswered === true;
     if (belowFloor && reviewed.decision === "conclude" || researchesAnsweredGoal || reviewed.decision === "ask_user" && repeatsKnownQuestion) {
@@ -21093,7 +21135,7 @@ ${delivery.evidence}` },
     const questionHistory = await this.questionHistory(map, branch.id);
     const explorationTarget = (_f = (_e = map.aim) == null ? void 0 : _e.minimumAnswersBeforeConclusion) != null ? _f : 2;
     const answeredQuestionCount = this.answerCountInLineage(map, branch.id);
-    const floor = this.floorFor(topic.detail);
+    const floor = this.floorFor(topic.detail, map);
     const model = diagnostic.model || priorAttempt.model || "gpt-6-luna";
     const taskDefaults = {
       timeoutMs: branch.retryTimeoutMs,
@@ -21191,7 +21233,7 @@ Branch conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
           researchDepth: "fast",
           visualMode: "off",
           detailFormat: "adaptive",
-          aimContract: reviewContract(floorDecisions(answeredQuestionCount, { minAnsweredBeforeConclusion: floor })),
+          aimContract: reviewContract(this.reviewDecisions(answeredQuestionCount, floor, map)),
           signal
         };
         const planner = await this.askAimModel(plannerContext, model, reasoning, signal);
@@ -21222,6 +21264,7 @@ Branch conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
           {
             goal: topic.title,
             goalDetail: topic.detail,
+            unattended: this.isUnattended(map),
             outputLanguage: language2,
             toneText: this.toneOf(map, language2),
             conditions: branch.inputSnapshot.conditions,
@@ -21449,7 +21492,7 @@ ${runId}`, fingerprint2 = JSON.stringify({ model, reasoning });
       convergesFromNodeIds: savedResearchNodeIds
     } : void 0;
     const answeredQuestionCount = this.answerCountInLineage(map, branch.id);
-    const floor = this.floorFor(topicNote.detail);
+    const floor = this.floorFor(topicNote.detail, map);
     const explorationTarget = (_d = (_c = map.aim) == null ? void 0 : _c.minimumAnswersBeforeConclusion) != null ? _d : 2;
     const questionsAlreadyAsked = await this.questionHistory(map, branch.id);
     const modelToUse = (model == null ? void 0 : model.trim()) || priorAttempt.model || "gpt-6-luna";
@@ -21499,6 +21542,7 @@ ${runId}`, fingerprint2 = JSON.stringify({ model, reasoning });
         const qualityContext = {
           goal: topicNote.title,
           goalDetail: topicNote.detail,
+          unattended: this.isUnattended(map),
           outputLanguage: language2,
           toneText: this.toneOf(map, language2),
           conditions: branch.inputSnapshot.conditions,
@@ -21680,7 +21724,7 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
           researchDepth: "fast",
           visualMode: "off",
           detailFormat: "adaptive",
-          aimContract: reviewContract(floorDecisions(answeredQuestionCount, { minAnsweredBeforeConclusion: floor })),
+          aimContract: reviewContract(this.reviewDecisions(answeredQuestionCount, floor, map)),
           signal
         };
         const planner = await this.askAimModel(plannerContext, modelToUse, reasoningToUse, signal);
@@ -21703,6 +21747,7 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
           {
             goal: topicNote.title,
             goalDetail: topicNote.detail,
+            unattended: this.isUnattended(map),
             outputLanguage: language2,
             toneText: this.toneOf(map, language2),
             conditions: branch.inputSnapshot.conditions,
@@ -21960,7 +22005,7 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
     const lineage = await this.branchLineage(map, parentBranchId);
     const explorationTarget = (_c = state.minimumAnswersBeforeConclusion) != null ? _c : 2;
     const answeredQuestionCount = this.answerCountInLineage(map, parentBranchId);
-    const floor = this.floorFor(mother.detail);
+    const floor = this.floorFor(mother.detail, map);
     const priorQuestions = await this.questionHistory(map, parentBranchId);
     const savedConditions = [];
     let conditionBranch = parentBranch;
@@ -22023,6 +22068,8 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
       signal
     };
     throwIfAborted(signal);
+    if (this.isUnattended(map) && parentNode.aimKind === "topic" && !parentBranchId && !isSavedTerminalResult)
+      return this.researchFromTopic(mapPath, map, parentNode, model, reasoning, signal);
     let result = await this.askAimModel(context, model, reasoning, signal);
     throwIfAborted(signal);
     if (isSavedTerminalResult && result.summary.trim() === AIM_NO_QUESTION)
@@ -22071,29 +22118,7 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
     }
     if (result.summary.trim() === AIM_NO_QUESTION) {
       if (parentNode.aimKind !== "topic" || parentBranchId) return { status: "no-question" };
-      const topic = await this.repository.readNote(parentNode.path);
-      const branch = await this.persist(
-        () => this.runs.createAnswerBranch(mapPath, {
-          requestId: `initial-${parentNode.id}`,
-          questionNodeId: parentNode.id,
-          parentBranchId: null,
-          answerSnapshot: { selections: [], freeText: "" },
-          inputSnapshot: { topic: map.title, conditions: {}, upstreamResults: [] }
-        })
-      );
-      const outcome = await this.runSubtopicWorkflow(
-        mapPath,
-        branch.id,
-        topic,
-        topic,
-        [],
-        "",
-        "",
-        model,
-        reasoning,
-        signal
-      );
-      return { status: "no-question", outcome };
+      return this.researchFromTopic(mapPath, map, parentNode, model, reasoning, signal);
     }
     const labels = [...new Set(result.suggestions.map((item) => item.title.trim()).filter(Boolean))];
     if (!result.summary.trim() || labels.length < 2 || labels.length > 5)
@@ -22112,6 +22137,32 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
       signal,
       expectedResultBranchSnapshot
     );
+  }
+  /** Researches the goal itself from the topic, with no Planner question in between. */
+  async researchFromTopic(mapPath, map, parentNode, model, reasoning, signal) {
+    const topic = await this.repository.readNote(parentNode.path);
+    const branch = await this.persist(
+      () => this.runs.createAnswerBranch(mapPath, {
+        requestId: `initial-${parentNode.id}`,
+        questionNodeId: parentNode.id,
+        parentBranchId: null,
+        answerSnapshot: { selections: [], freeText: "" },
+        inputSnapshot: { topic: map.title, conditions: {}, upstreamResults: [] }
+      })
+    );
+    const outcome = await this.runSubtopicWorkflow(
+      mapPath,
+      branch.id,
+      topic,
+      topic,
+      [],
+      "",
+      "",
+      model,
+      reasoning,
+      signal
+    );
+    return { status: "no-question", outcome };
   }
   async saveManualQuestion(mapPath, parentNodeId, parentBranchId, requestId, model, reasoning, questionText, plannerDetail, labels, prompt, signal, expectedResultBranchSnapshot) {
     throwIfAborted(signal);
@@ -22880,7 +22931,7 @@ ${dependencyReports}` : "")
     branch = (_c = map.aim) == null ? void 0 : _c.branches.find((item) => item.id === branchId);
     if (!branch) throw new Error("AIM answer branch disappeared before synthesis.");
     const answeredQuestionCount = this.answerCountInLineage(map, branch.id);
-    const floor = this.floorFor(topicNote.detail);
+    const floor = this.floorFor(topicNote.detail, map);
     const explorationTarget = (_e = (_d = map.aim) == null ? void 0 : _d.minimumAnswersBeforeConclusion) != null ? _e : 2;
     const existingConclusion = [...branch.results].reverse().find((item) => item.kind === "conclusion" || item.kind === "synthesis");
     if (existingConclusion) {
@@ -23022,7 +23073,7 @@ ${currentReports.summary}
 ${currentReports.detail}`,
           task: plannerPrompt,
           detailFormat: "adaptive",
-          aimContract: reviewContract(floorDecisions(answeredQuestionCount, { minAnsweredBeforeConclusion: floor }))
+          aimContract: reviewContract(this.reviewDecisions(answeredQuestionCount, floor, map))
         };
         const fingerprint2 = sourceFingerprint;
         const savedRecovery = resumeDelivery;
@@ -23044,6 +23095,7 @@ ${currentReports.detail}`,
         lastQualityContext = {
           goal: topicNote.title,
           goalDetail: topicNote.detail,
+          unattended: this.isUnattended(map),
           outputLanguage: language2,
           toneText: this.toneOf(map, language2),
           conditions: branch.inputSnapshot.conditions,
