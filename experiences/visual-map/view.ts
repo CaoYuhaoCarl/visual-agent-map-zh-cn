@@ -6216,7 +6216,6 @@ export class VisualAgentMapView extends ItemView {
   }
   private zoomBy(factor: number, point?: { x: number; y: number }): void {
     if (!this.map || !this.viewportEl) return;
-    this.markCanvasHintSeen();
     const center = point ?? { x: this.viewportEl.clientWidth / 2, y: this.viewportEl.clientHeight / 2 },
       v = this.map.viewport;
     const zoom = Math.min(2, Math.max(0.25, v.zoom * factor)),
@@ -6322,6 +6321,8 @@ export class VisualAgentMapView extends ItemView {
       "wheel",
       event => {
         event.preventDefault();
+        // The hint teaches drag and wheel; it goes once the user has used one of them (a zoom button does not count).
+        this.markCanvasHintSeen();
         const rect = viewport.getBoundingClientRect();
         this.zoomBy(Math.exp(-event.deltaY * (event.deltaMode === 0 ? 0.002 : 0.04)), {
           x: event.clientX - rect.left,

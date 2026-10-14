@@ -1256,21 +1256,24 @@ integrationTest('canvas hint: a solid chip that goes away after the first zoom o
   const hint = { removed: 0, remove() { this.removed++; } };
   view.hintEl = hint;
   view.zoomBy(1.2);
+  assert.equal(plugin.settings.canvasHintSeen, false, 'a zoom button does not dismiss the hint that teaches drag and wheel'); assert.equal(hint.removed, 0);
+  view.markCanvasHintSeen();
   assert.equal(plugin.settings.canvasHintSeen, true); assert.equal(saves, 1); assert.equal(hint.removed, 1); assert.equal(view.hintEl, null);
-  view.zoomBy(1.2);
+  view.markCanvasHintSeen();
   assert.equal(saves, 1, 'only the first gesture writes settings');
   plugin.settings.canvasHintSeen = false; view.integrationMode = true; const selectHint = { removed: 0, remove() { this.removed++; } }; view.hintEl = selectHint;
-  view.zoomBy(1.2);
+  view.markCanvasHintSeen();
   assert.equal(plugin.settings.canvasHintSeen, true); assert.equal(selectHint.removed, 0, 'the select-mode hint stays while that mode is on');
   const source = fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8');
   assert.match(source, /this\.integrationMode \|\| !this\.plugin\.settings\.canvasHintSeen\s*\?\s*overlay\.createSpan\(\{\s*cls: "vam-hint vam-canvas-hint"/, 'the normal hint shows only until seen; select mode always shows its hint');
-  assert.match(source, /if \(moved\) this\.markCanvasHintSeen\(\);/, 'a pan also counts');
+  assert.match(source, /if \(moved\) this\.markCanvasHintSeen\(\);/, 'a pan counts');
+  assert.match(source, /event\.preventDefault\(\);\s*\/\/[^\n]*\n\s*this\.markCanvasHintSeen\(\);/, 'a wheel zoom counts');
   assert.match(fs.readFileSync(path.join(root, 'main.ts'), 'utf8'), /canvasHintSeen: saved\?\.canvasHintSeen === true/);
   const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
   assert.match(css, /^\.vam-canvas-overlay > \.vam-canvas-hint \{ position: absolute;[^}]*border: 1px solid var\(--background-modifier-border\);[^}]*background: var\(--background-primary\);/m, 'a solid chip with a border');
   const { translate } = load('i18n.ts');
   assert.equal(translate('zh-TW', 'ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open'), '拖曳空白處平移 · 滾輪縮放 · 方向鍵切換議題');
-  assert.equal(translate('zh-TW', 'ui.drag_to_select_topics_hint'), '拖曳框選 · 點議題加入或移除');
+  assert.equal(translate('zh-TW', 'ui.drag_to_select_topics_hint'), '拖曳框選 · 按住 Option 或空白鍵拖曳平移 · 點議題加入或移除');
 });
 integrationTest('a viewport-only write skips the note re-read, while a content write still synchronizes', async () => {
   const { plugin, view, counts } = viewportFixture();
@@ -1379,7 +1382,7 @@ integrationTest('card tools: labelled actions wait for hover, focus or selection
   const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
   // The tools float over the card's top edge, hidden until hover, focus or selection, and take no space.
   assert.match(css, /^\.vam-node > \.vam-node-tools \{ position: absolute;[^}]*bottom: calc\(100% - 6px\);[^}]*opacity: 0; pointer-events: none;[^}]*width: max-content;/m);
-  assert.match(css, /\.vam-node:hover > \.vam-node-tools, \.vam-node:focus-within > \.vam-node-tools, \.vam-node\.is-selected > \.vam-node-tools \{ opacity: 1; pointer-events: auto;/);
+  assert.match(css, /\.vam-node:hover > \.vam-node-tools, \.vam-node:focus-within > \.vam-node-tools, \.vam-viewport:not\(\.is-selecting\) \.vam-node\.is-selected > \.vam-node-tools \{ opacity: 1; pointer-events: auto;/);
   assert.equal(/vam-ai-slot|vam-ai-tool/.test(css), false, 'no selected-only swap remains');
   assert.match(css, /\.vam-node-tools > \.vam-ai-explore::before \{ content: "✦" \/ "";/, 'the sparkle is decoration, not part of the name');
   const toolsOf = (setup = () => {}) => {
