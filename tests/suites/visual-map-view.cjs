@@ -1161,6 +1161,21 @@ integrationTest('selection, arrow keys and select-mode toggles repaint only the 
   assert.equal(view.selected, 'root'); assert.deepEqual(stops(), ['root']);
   assert.equal(fixture.renders(), 0, 'selection and arrow keys never call render()');
 });
+integrationTest('select mode: the selection bar names each action with the topic count', () => {
+  const fixture = selectionView(load); const { view } = fixture;
+  view.integrationMode = true; fixture.build();
+  const labels = ids => {
+    view.multiSelected = new Set(ids);
+    const bar = view.renderSelectionBar(selectionDom()('div'));
+    return bar.children.filter(child => child.tag === 'button').map(button => [button.text, button.disabled]);
+  };
+  const none = labels([]);
+  assert.deepEqual(none.slice(-2), [['Synthesize', true], ['Research', true]]);
+  assert.deepEqual(labels(['a']).slice(-2), [['Synthesize', true], ['Research 1 topic', false]]);
+  assert.deepEqual(labels(['a', 'b', 'c']).slice(-2), [['Synthesize 3 topics', false], ['Research 3 topics', false]]);
+  const { translate } = load('i18n.ts');
+  assert.equal(translate('zh-TW', 'ui.synthesize_0_topics', 3), '整合 3 個議題'); assert.equal(translate('zh-TW', 'ui.research_0_topics', 3), '研究 3 個議題');
+});
 integrationTest('select mode toggles cards in place, keeps checkboxes out of the tab order and survives a full render', () => {
   const { view, renders, cards, build } = (() => { const fixture = selectionView(load); fixture.view.integrationMode = true; fixture.build(); return fixture; })();
   const byId = cards();
@@ -1381,7 +1396,8 @@ integrationTest('the more-actions menu holds Organize notes and folders; toolbar
   assert.ok(!/ui\.organize|ui\.auto_layout/.test(toolsBlock), 'neither control stays in the floating tools');
   assert.match(source, /iconButton\(zoom, "workflow", t\("ui\.auto_layout"\)/);
   const { translate } = load('i18n.ts');
-  assert.equal(translate('en', 'ui.select_topics'), 'Multi-select synthesis'); assert.equal(translate('zh-TW', 'ui.select_topics'), '多選整合');
+  assert.equal(translate('en', 'ui.select_topics'), 'Select several topics'); assert.equal(translate('zh-TW', 'ui.select_topics'), '選取多個議題');
+  assert.equal(translate('en', 'ui.finish_topic_selection'), 'Done selecting'); assert.equal(translate('zh-TW', 'ui.finish_topic_selection'), '完成選取');
   assert.equal(translate('zh-TW', 'ui.organize'), '整理筆記與資料夾'); assert.equal(translate('zh-TW', 'ui.rename_topic'), '重新命名'); assert.equal(translate('zh-TW', 'ui.ai_explore'), 'AI 探索');
   assert.equal(translate('zh-TW', 'ui.new_map'), '＋ 新增心智圖');
 });

@@ -569,13 +569,16 @@ var english = {
   "ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open": "Drag empty space to pan \xB7 Scroll to zoom \xB7 Click a node to select it \xB7 Arrow keys move between topics",
   "ui.clear": "Clear",
   "ui.next": "Next",
-  "ui.select_topics": "Multi-select synthesis",
-  "ui.finish_topic_selection": "Finish selection",
+  "ui.select_topics": "Select several topics",
+  "ui.finish_topic_selection": "Done selecting",
   "ui.prompt_select_topics": "Select topics",
   "ui.remove": "Remove",
   "ui.move_to": "Move to\u2026",
   "ui.copy_to": "Copy to\u2026",
   "ui.synthesize": "Synthesize",
+  "ui.synthesize_0_topics": "Synthesize {0} topics",
+  "ui.research_0_topics": "Research {0} topics",
+  "ui.research_one_topic": "Research 1 topic",
   "ui.remove_selected_topics": "Remove selected topics",
   "ui.selected_branches_leave_the_map_their_notes_move_to_unassign": "Selected branches leave the map; their notes move to Unassigned and can be restored.",
   "ui.confirm_removal": "Confirm removal",
@@ -1952,13 +1955,16 @@ var traditionalChinese = {
   "ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open": "\u62D6\u66F3\u7A7A\u767D\u8655\u5E73\u79FB \xB7 \u6EFE\u8F2A\u7E2E\u653E \xB7 \u9EDE\u9078\u8B70\u984C\u5373\u53EF\u9078\u53D6 \xB7 \u65B9\u5411\u9375\u5207\u63DB\u8B70\u984C",
   "ui.clear": "\u6E05\u9664",
   "ui.next": "\u4E0B\u4E00\u6B65",
-  "ui.select_topics": "\u591A\u9078\u6574\u5408",
-  "ui.finish_topic_selection": "\u7D50\u675F\u9078\u53D6",
+  "ui.select_topics": "\u9078\u53D6\u591A\u500B\u8B70\u984C",
+  "ui.finish_topic_selection": "\u5B8C\u6210\u9078\u53D6",
   "ui.prompt_select_topics": "\u8ACB\u9078\u53D6\u8B70\u984C",
   "ui.remove": "\u522A\u9664",
   "ui.move_to": "\u79FB\u52D5\u5230\u2026",
   "ui.copy_to": "\u8907\u88FD\u5230\u2026",
   "ui.synthesize": "\u6574\u5408",
+  "ui.synthesize_0_topics": "\u6574\u5408 {0} \u500B\u8B70\u984C",
+  "ui.research_0_topics": "\u7814\u7A76 {0} \u500B\u8B70\u984C",
+  "ui.research_one_topic": "\u7814\u7A76 1 \u500B\u8B70\u984C",
   "ui.remove_selected_topics": "\u522A\u9664\u9078\u53D6\u7684\u8B70\u984C",
   "ui.selected_branches_leave_the_map_their_notes_move_to_unassign": "\u9078\u53D6\u7684\u5206\u652F\u6703\u5F9E\u5716\u4E2D\u79FB\u9664\uFF0C\u7B46\u8A18\u79FB\u5230 Unassigned\uFF0C\u53EF\u5FA9\u539F\u3002",
   "ui.confirm_removal": "\u78BA\u8A8D\u79FB\u9664",
@@ -27949,14 +27955,18 @@ ${request.requirements}` : preset.text,
     this.button(selection, t("ui.remove"), () => this.confirmRemoveSelected(), !this.multiSelected.size);
     this.button(selection, t("ui.move_to"), () => this.chooseSelectedParent(false), !this.multiSelected.size);
     this.button(selection, t("ui.copy_to"), () => this.chooseSelectedParent(true), !this.multiSelected.size);
-    this.button(selection, t("ui.synthesize"), () => this.integrateSelected(), this.multiSelected.size < 2).addClass(
-      "mod-cta"
-    );
+    const count = this.multiSelected.size;
+    this.button(
+      selection,
+      count > 1 ? t("ui.synthesize_0_topics", count) : t("ui.synthesize"),
+      () => this.integrateSelected(),
+      count < 2
+    ).addClass("mod-cta");
     if (!((_a = this.map) == null ? void 0 : _a.aim)) {
       const running = ((_b = this.plugin.expansionBatches.get(this.multiResearchKey())) == null ? void 0 : _b.status) === "running";
       this.button(
         selection,
-        t("ui.multi_research"),
+        count > 1 ? t("ui.research_0_topics", count) : count ? t("ui.research_one_topic") : t("ui.multi_research"),
         () => this.openMultiResearch(),
         !this.multiSelected.size || running
       );

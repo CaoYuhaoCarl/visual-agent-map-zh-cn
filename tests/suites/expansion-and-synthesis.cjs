@@ -1135,9 +1135,9 @@ integrationTest('selection bar shows Research; starting leaves selection mode an
   const bar = (view = h.view) => { const root = element('workspace'); view.renderSelectionBar(root); return all(root); };
   const toolbar = () => { const root = element('content'); h.view.renderMultiResearchStatus(root); return all(root); };
   h.view.notes = new Map(h.nodes.map(n => [n.id, { title: n.id }]));
-  let items = bar(); const research = () => items.find(i => i.tag === 'button' && i.text === 'Research');
+  let items = bar(); const research = () => items.find(i => i.tag === 'button' && /^Research( 1 topic)?$/.test(i.text));
   items = bar(); assert.ok(research()); assert.equal(research().disabled, true);
-  h.view.multiSelected = new Set([h.nodes[0].id]); items = bar(); assert.equal(research().disabled, false);
+  h.view.multiSelected = new Set([h.nodes[0].id]); items = bar(); assert.equal(research().disabled, false); assert.equal(research().text, 'Research 1 topic');
   h.view.map.aim = {}; items = bar(); assert.equal(research(), undefined); delete h.view.map.aim;
   assert.equal(toolbar().length, 1);
   h.view.integrationMode = true;

@@ -5068,14 +5068,18 @@ export class VisualAgentMapView extends ItemView {
     this.button(selection, t("ui.remove"), () => this.confirmRemoveSelected(), !this.multiSelected.size);
     this.button(selection, t("ui.move_to"), () => this.chooseSelectedParent(false), !this.multiSelected.size);
     this.button(selection, t("ui.copy_to"), () => this.chooseSelectedParent(true), !this.multiSelected.size);
-    this.button(selection, t("ui.synthesize"), () => this.integrateSelected(), this.multiSelected.size < 2).addClass(
-      "mod-cta"
-    );
+    const count = this.multiSelected.size;
+    this.button(
+      selection,
+      count > 1 ? t("ui.synthesize_0_topics", count) : t("ui.synthesize"),
+      () => this.integrateSelected(),
+      count < 2
+    ).addClass("mod-cta");
     if (!this.map?.aim) {
       const running = this.plugin.expansionBatches.get(this.multiResearchKey())?.status === "running";
       this.button(
         selection,
-        t("ui.multi_research"),
+        count > 1 ? t("ui.research_0_topics", count) : count ? t("ui.research_one_topic") : t("ui.multi_research"),
         () => this.openMultiResearch(),
         !this.multiSelected.size || running
       );
