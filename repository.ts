@@ -595,13 +595,13 @@ function guardWrites<T extends object>(target: T, writes: Set<string>, disposed:
     get(object, property) {
       const value = Reflect.get(object, property, object) as unknown;
       if (typeof property !== "string" || typeof value !== "function") return value;
-      const call = value as (...args: unknown[]) => unknown;
+      const call = value as (this: object, ...args: unknown[]) => unknown;
       return writes.has(property)
         ? (...args: unknown[]) => {
             if (disposed()) return Promise.reject(new Error(message));
-            return call.apply(object, args);
+            return Reflect.apply(call, object, args);
           }
-        : call.bind(object);
+        : (...args: unknown[]): unknown => Reflect.apply(call, object, args);
     }
   });
 }

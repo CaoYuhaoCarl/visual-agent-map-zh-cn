@@ -12657,8 +12657,8 @@ function guardWrites(target, writes, disposed, message) {
       const call = value;
       return writes.has(property) ? (...args) => {
         if (disposed()) return Promise.reject(new Error(message));
-        return call.apply(object2, args);
-      } : call.bind(object2);
+        return Reflect.apply(call, object2, args);
+      } : (...args) => Reflect.apply(call, object2, args);
     }
   });
 }
