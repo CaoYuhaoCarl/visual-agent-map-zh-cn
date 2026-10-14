@@ -300,7 +300,6 @@ export default class VisualAgentMapPlugin extends Plugin {
       workspaceFolder: savedWorkspace,
       topicsFolder: saved?.topicsFolder || DEFAULT_SETTINGS.topicsFolder,
       ...resolveMapFolders(saved),
-      inboxFolder: saved?.inboxFolder || DEFAULT_SETTINGS.inboxFolder,
       notesFolder: saved?.notesFolder || DEFAULT_SETTINGS.notesFolder,
       mapsFolder: saved?.mapsFolder || DEFAULT_SETTINGS.mapsFolder,
       mapId: saved?.mapId || "default",
@@ -647,7 +646,6 @@ export default class VisualAgentMapPlugin extends Plugin {
     this.settings.topicsFolder = `${root}/Topics`;
     this.settings.mindMapsFolder = `${root}/Mind Maps`;
     this.settings.aimFolder = `${root}/AIM`;
-    this.settings.inboxFolder = `${root}/Inbox`;
     this.settings.notesFolder = `${root}/Nodes`;
     this.settings.mapsFolder = `${root}/Maps`;
     this.settings.workspaceInitialized = true;
@@ -847,9 +845,7 @@ export default class VisualAgentMapPlugin extends Plugin {
       marker === true ||
       marker === "true" ||
       (file.extension === "md" &&
-        (file.path.startsWith(`${this.settings.notesFolder}/`) ||
-          isManagedMapPath(this.settings, file.path) ||
-          file.path.startsWith(`${this.settings.inboxFolder}/`)))
+        (file.path.startsWith(`${this.settings.notesFolder}/`) || isManagedMapPath(this.settings, file.path)))
     );
   }
   private styleNodeLeaf(leaf: WorkspaceLeaf | null): void {

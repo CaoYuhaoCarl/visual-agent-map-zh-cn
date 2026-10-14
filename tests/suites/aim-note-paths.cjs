@@ -148,16 +148,3 @@ integrationTest('rebuildDerivedData leaves notes in an unreadable map folder byt
   assert.match(vault.contents.get(valid), /^agent-map-id:/m, 'the readable map note was updated');
 });
 
-integrationTest('legacy migration plan refuses when any map is unreadable and nothing moves', async () => {
-  const vault = await aimVault([]);
-  const note = 'Agent Workspace/Nodes/a.md', mapPath = 'Agent Workspace/Maps/Legacy.md';
-  const noteContent = '---\nagent-map-node: true\nnode-id: "a"\ntitle: "a"\n---\n\n# a\n';
-  await vault.app.vault.create(note, noteContent);
-  const corrupted = vault.contents.get(vault.mapPath).replace(/"nodeId":\s*"[^"]+"/, '"nodeId": "missing-node"');
-  await vault.app.vault.create(mapPath, corrupted);
-  const paths = [...vault.files.keys()].sort();
-  await assert.rejects(() => vault.repo.legacyMigrationPlan(), /Agent Workspace\/Maps\/Legacy\.md/);
-  assert.equal(vault.contents.get(note), noteContent);
-  assert.equal(vault.contents.get(mapPath), corrupted);
-  assert.deepEqual([...vault.files.keys()].sort(), paths);
-});

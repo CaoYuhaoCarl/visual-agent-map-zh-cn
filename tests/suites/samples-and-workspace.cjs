@@ -33,7 +33,7 @@ integrationTest('workspace repair creates only the configured base folders and i
   assert.ok(app.vault.getAbstractFileByPath('Agent Workspace/Mind Maps') instanceof TFolder);
   assert.ok(app.vault.getAbstractFileByPath('Agent Workspace/AIM') instanceof TFolder);
   assert.ok(!app.vault.getAbstractFileByPath('Agent Workspace/Topics'), 'the legacy Topics folder is no longer created');
-  assert.ok(app.vault.getAbstractFileByPath('Agent Workspace/Inbox') instanceof TFolder);
+  assert.ok(!app.vault.getAbstractFileByPath('Agent Workspace/Inbox'), 'Inbox is no longer created');
 });
 integrationTest('workspace rediscovery finds valid custom VAM workspaces without accepting unrelated Map files', async () => {
   const { repo, app } = fixture();

@@ -514,8 +514,6 @@ var english = {
   "ui.the_node_to_relink_was_not_found": "The node to relink was not found.",
   "ui.rename_current_mind_map": "Rename current mind map",
   "ui.update_the_topic_folder_and_mind_map_name_together": "Update the topic folder and mind map name together.",
-  "ui.migrate_old_data": "Migrate old data",
-  "ui.preview_and_migrate_old_maps_into_the_current_topic_structur": "Preview and migrate old maps into the current topic structure.",
   "ui.repair_missing_mind_map": "Repair missing mind map",
   "ui.rebuild_a_missing_map_from_existing_topic_notes": "Rebuild a missing map from existing topic notes.",
   "ui.delete_current_mind_map": "Delete current mind map",
@@ -524,7 +522,6 @@ var english = {
   "ui.more_mind_map_actions": "More mind map actions",
   "ui.additional_map_management_actions": "Additional map management actions.",
   "ui.rename_mind_map": "Rename mind map",
-  "ui.migrate_old_data_before_renaming_this_topic": "Migrate old data before renaming this topic.",
   "ui.delete_mind_map": "Delete mind map",
   "ui.move_only_the_map_file_to_the_vault_trash_keep_all_notes_you": "Move only the map file to the vault trash. Keep all notes. Restore is available in this Obsidian session.",
   "ui.topic_notes_will_be_kept": "Topic notes will be kept.",
@@ -533,7 +530,6 @@ var english = {
   "ui.manage_notes_that_are_currently_outside_the_mind_map": "Manage notes that are currently outside the mind map.",
   "ui.add_to_the_current_map_archive_or_move_to_another_topic": "Add to the current map, archive, or move to another topic.",
   "ui.view_archived_notes_or_move_them_back_to_unassigned": "View archived notes or move them back to Unassigned.",
-  "ui.move_notes_without_a_topic_to_a_suitable_location": "Move notes without a topic to a suitable location.",
   "ui.unassigned_notes": "Unassigned notes",
   "ui.add_to_mind_map": "Add to mind map",
   "ui.archive": "Archive",
@@ -542,7 +538,6 @@ var english = {
   "ui.move_and_add_to_another_mind_map": "Move and add to another mind map",
   "ui.archived_notes": "Archived notes",
   "ui.unarchive": "Unarchive",
-  "ui.notes_without_a_topic": "Notes without a topic",
   "ui.move_to_current_topic": "Move to current topic",
   "ui.move_and_add_to_current_mind_map": "Move and add to current mind map",
   "ui.choose_another_topic": "Choose another topic",
@@ -661,10 +656,6 @@ var english = {
   "ui.the_note_will_move_to_this_topic_s_unassigned_folder_you_can": "The note will move to this topic's Unassigned folder. You can add it back or undo.",
   "ui.remove_only_this_node_children_become_roots": "Remove only this node; children become roots",
   "ui.remove_entire_branch": "Remove entire branch",
-  "ui.no_old_data_to_migrate": "No old data to migrate.",
-  "ui.migrate_legacy_data": "Migrate legacy data",
-  "ui.confirm_migration": "Confirm migration",
-  "ui.old_data_was_migrated_into_topic_folders": "Old data was migrated into topic folders.",
   "ui.no_topics_with_a_missing_map_md": "No topics with a missing Map.md.",
   "ui.repair_missing_map": "Repair missing map",
   "ui.choose_a_topic_to_repair": "Choose a topic to repair",
@@ -673,7 +664,6 @@ var english = {
   "ui.relink_existing_map": "Relink existing map",
   "ui.choose_existing_map": "Choose existing map",
   "ui.move_the_selected_map_into_this_topic_and_rebuild_node_paths": "Move the selected map into this topic and rebuild node paths.",
-  "ui.use_migrate_old_data_to_convert_this_map_first": "Use \u201CMigrate old data\u201D to convert this map first.",
   "ui.new_subtopic": "New subtopic",
   "ui.my_core_topic": "My core topic",
   "ui.subtopic_synthesis_was_saved_to_current_understanding_and_ma": "Subtopic synthesis was saved to current understanding and Markdown details.",
@@ -703,13 +693,14 @@ var english = {
   "ui.delete_0": "Delete \u201C{0}\u201D",
   "ui.unassigned_0": "Unassigned ({0})",
   "ui.archived_0": "Archived ({0})",
-  "ui.inbox_0": "Inbox ({0})",
   "ui.selected_0_1_2": "Selected {0}: {1}{2}",
   "ui.multi_research_keep_topic_models": "Each topic's current model",
   "ui.expand_0": "Expand {0}",
   "ui.0_moved": "{0} (moved)",
   "ui.0_1_reasoning_can_be_adjusted_per_topic": "{0} \xB7 {1}; reasoning can be adjusted per topic.",
   "ui.workspace_location_0_legacy_topics_1": "Workspace: {0} \xB7 Legacy Topics folder (still readable): {1}",
+  "ui.legacy_map_view_only": "This map uses the pre-0.4 structure and is view-only.",
+  "error.legacy_map_view_only": "This map uses the pre-0.4 structure and is view-only.",
   "ui.mind_maps_folder": "Mind Maps folder",
   "ui.aim_maps_folder": "AIM folder",
   "ui.map_folder_name_desc": "Folder name inside {0} where new maps are created. Existing maps are not moved; use Organize workspace folders for that.",
@@ -718,7 +709,6 @@ var english = {
   "ui.repair_topic_note_display": "Repair topic note display",
   "ui.topic_note_display_repaired": "Topic note display repaired.",
   "ui.map_saved_but_reference_update_failed_0": "Map saved, but reference update failed: {0}",
-  "ui.create_0_topic_folders_move_1_map_notes_and_move_2_orphan_no": "Create {0} topic folders, move {1} map notes and move {2} orphan notes to Inbox. If any step fails, moved files will be restored.",
   "ui.0_1_notes": "{0} ({1} notes)",
   "ui.official_sample_read_only": "Official sample \xB7 Read-only",
   "ui.sample_taiwan_travel_plan": "Sample: Planning a Taiwan Journey",
@@ -1032,7 +1022,6 @@ var english = {
   "error.map_already_exists": "This topic already has a Map.md file.",
   "error.target_exists": "Target file already exists",
   "error.note_in_multiple_maps": "A topic note appears in two mind maps",
-  "error.migrate_legacy_map": "Migrate the legacy mind map first.",
   "error.topic_folder_exists": "A topic folder with this name already exists.",
   "detail.no_conclusion_yet": "No conclusion yet",
   "detail.preview": "Preview",
@@ -1914,8 +1903,6 @@ var traditionalChinese = {
   "ui.the_node_to_relink_was_not_found": "\u627E\u4E0D\u5230\u8981\u91CD\u65B0\u9023\u7D50\u7684\u8B70\u984C\u3002",
   "ui.rename_current_mind_map": "\u91CD\u65B0\u547D\u540D\u76EE\u524D\u5FC3\u667A\u5716",
   "ui.update_the_topic_folder_and_mind_map_name_together": "\u540C\u6642\u66F4\u65B0\u4E3B\u984C\u8CC7\u6599\u593E\u8207\u5FC3\u667A\u5716\u540D\u7A31\u3002",
-  "ui.migrate_old_data": "\u6574\u7406\u820A\u8CC7\u6599",
-  "ui.preview_and_migrate_old_maps_into_the_current_topic_structur": "\u9810\u89BD\u5F8C\u628A\u820A\u7248\u5FC3\u667A\u5716\u6574\u7406\u6210\u76EE\u524D\u7684\u4E3B\u984C\u7D50\u69CB\u3002",
   "ui.repair_missing_mind_map": "\u4FEE\u5FA9\u907A\u5931\u7684\u5FC3\u667A\u5716",
   "ui.rebuild_a_missing_map_from_existing_topic_notes": "\u5F9E\u73FE\u6709\u8B70\u984C\u7B46\u8A18\u91CD\u65B0\u5EFA\u7ACB\u7F3A\u5C11\u7684\u5FC3\u667A\u5716\u3002",
   "ui.delete_current_mind_map": "\u522A\u9664\u76EE\u524D\u5FC3\u667A\u5716",
@@ -1924,7 +1911,6 @@ var traditionalChinese = {
   "ui.more_mind_map_actions": "\u66F4\u591A\u5FC3\u667A\u5716\u64CD\u4F5C",
   "ui.additional_map_management_actions": "\u4F4E\u983B\u7684\u7BA1\u7406\u64CD\u4F5C\u96C6\u4E2D\u5728\u9019\u88E1\u3002",
   "ui.rename_mind_map": "\u91CD\u65B0\u547D\u540D\u5FC3\u667A\u5716",
-  "ui.migrate_old_data_before_renaming_this_topic": "\u8ACB\u5148\u6574\u7406\u820A\u8CC7\u6599\uFF0C\u518D\u91CD\u65B0\u547D\u540D\u4E3B\u984C\u3002",
   "ui.delete_mind_map": "\u522A\u9664\u5FC3\u667A\u5716",
   "ui.move_only_the_map_file_to_the_vault_trash_keep_all_notes_you": "\u53EA\u5C07\u5FC3\u667A\u5716\u6A94\u6848\u79FB\u5230 Vault \u5783\u573E\u6876\uFF0C\u4FDD\u7559\u6240\u6709\u8B70\u984C\u7B46\u8A18\uFF1B\u53EF\u5728\u9019\u6B21 Obsidian \u5DE5\u4F5C\u968E\u6BB5\u9084\u539F\u3002",
   "ui.topic_notes_will_be_kept": "\u8B70\u984C\u7B46\u8A18\u4E0D\u6703\u88AB\u522A\u9664\u3002",
@@ -1933,7 +1919,6 @@ var traditionalChinese = {
   "ui.manage_notes_that_are_currently_outside_the_mind_map": "\u96C6\u4E2D\u8655\u7406\u66AB\u6642\u4E0D\u5728\u5FC3\u667A\u5716\u4E0A\u7684\u5167\u5BB9\u3002",
   "ui.add_to_the_current_map_archive_or_move_to_another_topic": "\u8A8D\u9818\u5230\u76EE\u524D\u5FC3\u667A\u5716\u3001\u5C01\u5B58\uFF0C\u6216\u79FB\u81F3\u5176\u4ED6\u4E3B\u984C\u3002",
   "ui.view_archived_notes_or_move_them_back_to_unassigned": "\u67E5\u770B\u5DF2\u5C01\u5B58\u7B46\u8A18\uFF0C\u6216\u5C07\u5B83\u5011\u79FB\u56DE\u672A\u6B78\u985E\u3002",
-  "ui.move_notes_without_a_topic_to_a_suitable_location": "\u5C07\u9084\u6C92\u6709\u4E3B\u984C\u7684\u7B46\u8A18\u79FB\u5165\u9069\u5408\u7684\u4F4D\u7F6E\u3002",
   "ui.unassigned_notes": "\u672A\u6B78\u985E\u7B46\u8A18",
   "ui.add_to_mind_map": "\u8A8D\u9818\u5230\u5FC3\u667A\u5716",
   "ui.archive": "\u5C01\u5B58",
@@ -1942,7 +1927,6 @@ var traditionalChinese = {
   "ui.move_and_add_to_another_mind_map": "\u79FB\u52D5\u4E26\u52A0\u5165\u5176\u4ED6\u5FC3\u667A\u5716",
   "ui.archived_notes": "\u5C01\u5B58\u7B46\u8A18",
   "ui.unarchive": "\u53D6\u6D88\u5C01\u5B58",
-  "ui.notes_without_a_topic": "\u672A\u6307\u5B9A\u4E3B\u984C\u7684\u7B46\u8A18",
   "ui.move_to_current_topic": "\u79FB\u81F3\u76EE\u524D\u4E3B\u984C",
   "ui.move_and_add_to_current_mind_map": "\u79FB\u52D5\u4E26\u52A0\u5165\u76EE\u524D\u5FC3\u667A\u5716",
   "ui.choose_another_topic": "\u9078\u64C7\u5176\u4ED6\u4E3B\u984C",
@@ -2061,10 +2045,6 @@ var traditionalChinese = {
   "ui.the_note_will_move_to_this_topic_s_unassigned_folder_you_can": "\u7B46\u8A18\u6703\u79FB\u81F3\u76EE\u524D\u4E3B\u984C\u7684 Unassigned\uFF0C\u53EF\u91CD\u65B0\u8A8D\u9818\u6216\u5FA9\u539F\u3002",
   "ui.remove_only_this_node_children_become_roots": "\u53EA\u79FB\u9664\u6B64\u8B70\u984C\uFF0C\u5B50\u8B70\u984C\u8B8A\u6210\u6839\u8B70\u984C",
   "ui.remove_entire_branch": "\u79FB\u9664\u6574\u500B\u5206\u652F",
-  "ui.no_old_data_to_migrate": "\u6C92\u6709\u9700\u8981\u6574\u7406\u7684\u820A\u8CC7\u6599\u3002",
-  "ui.migrate_legacy_data": "\u6574\u7406\u820A\u7248\u8CC7\u6599",
-  "ui.confirm_migration": "\u78BA\u8A8D\u6574\u7406",
-  "ui.old_data_was_migrated_into_topic_folders": "\u820A\u8CC7\u6599\u5DF2\u6574\u7406\u70BA\u4E3B\u984C\u8CC7\u6599\u593E\u3002",
   "ui.no_topics_with_a_missing_map_md": "\u6C92\u6709\u7F3A\u5C11 Map.md \u7684\u4E3B\u984C\u3002",
   "ui.repair_missing_map": "\u4FEE\u5FA9\u907A\u5931\u7684\u5FC3\u667A\u5716",
   "ui.choose_a_topic_to_repair": "\u9078\u64C7\u8981\u4FEE\u5FA9\u7684\u4E3B\u984C",
@@ -2073,7 +2053,6 @@ var traditionalChinese = {
   "ui.relink_existing_map": "\u91CD\u65B0\u9023\u7D50\u65E2\u6709\u5FC3\u667A\u5716",
   "ui.choose_existing_map": "\u9078\u64C7\u65E2\u6709\u5FC3\u667A\u5716",
   "ui.move_the_selected_map_into_this_topic_and_rebuild_node_paths": "\u9078\u53D6\u5F8C\u6703\u642C\u56DE\u6B64\u4E3B\u984C\u4E26\u91CD\u65B0\u5EFA\u7ACB\u53EF\u8FA8\u8B58\u7684\u8B70\u984C\u8DEF\u5F91\u3002",
-  "ui.use_migrate_old_data_to_convert_this_map_first": "\u8ACB\u5148\u4F7F\u7528\u300C\u6574\u7406\u820A\u8CC7\u6599\u300D\u8F49\u63DB\u76EE\u524D\u5FC3\u667A\u5716\u3002",
   "ui.new_subtopic": "\u65B0\u7684\u5B50\u8B70\u984C",
   "ui.my_core_topic": "\u6211\u7684\u6838\u5FC3\u8B70\u984C",
   "ui.subtopic_synthesis_was_saved_to_current_understanding_and_ma": "\u5B50\u8B70\u984C\u6574\u5408\u5DF2\u5BEB\u5165\u76EE\u524D\u7406\u89E3\u8207 MD \u8A73\u60C5\u3002",
@@ -2103,13 +2082,14 @@ var traditionalChinese = {
   "ui.delete_0": "\u522A\u9664\u300C{0}\u300D",
   "ui.unassigned_0": "\u672A\u6B78\u985E\uFF08{0}\uFF09",
   "ui.archived_0": "\u5C01\u5B58\uFF08{0}\uFF09",
-  "ui.inbox_0": "\u6536\u4EF6\u5323\uFF08{0}\uFF09",
   "ui.selected_0_1_2": "\u5DF2\u9078 {0} \u500B\uFF1A{1}{2}",
   "ui.multi_research_keep_topic_models": "\u6CBF\u7528\u5404\u8B70\u984C\u76EE\u524D\u7684\u6A21\u578B",
   "ui.expand_0": "\u5C55\u958B {0}",
   "ui.0_moved": "{0}\uFF08\u5DF2\u79FB\u52D5\uFF09",
   "ui.0_1_reasoning_can_be_adjusted_per_topic": "{0} \xB7 {1}\uFF1B\u63A8\u7406\u7B49\u7D1A\u53EF\u4F9D\u8B70\u984C\u8ABF\u6574\u3002",
   "ui.workspace_location_0_legacy_topics_1": "\u5DE5\u4F5C\u5340\uFF1A{0}\u3000\u820A\u4E3B\u984C\u8CC7\u6599\u593E\uFF08\u4ECD\u53EF\u8B80\u53D6\uFF09\uFF1A{1}",
+  "ui.legacy_map_view_only": "\u6B64\u5FC3\u667A\u5716\u4F7F\u7528 0.4 \u524D\u7684\u820A\u7D50\u69CB\uFF0C\u53EA\u80FD\u6AA2\u8996\u3002",
+  "error.legacy_map_view_only": "\u6B64\u5FC3\u667A\u5716\u4F7F\u7528 0.4 \u524D\u7684\u820A\u7D50\u69CB\uFF0C\u53EA\u80FD\u6AA2\u8996\u3002",
   "ui.mind_maps_folder": "\u601D\u7DAD\u5C0E\u5716\u8CC7\u6599\u593E",
   "ui.aim_maps_folder": "AIM \u8CC7\u6599\u593E",
   "ui.map_folder_name_desc": "\u65B0\u7684\u9805\u76EE\u6703\u5EFA\u7ACB\u5728 {0} \u5167\u7684\u9019\u500B\u8CC7\u6599\u593E\u3002\u65E2\u6709\u9805\u76EE\u4E0D\u6703\u88AB\u79FB\u52D5\uFF1B\u8981\u79FB\u52D5\u8ACB\u7528\u300C\u6574\u7406\u5DE5\u4F5C\u5340\u8CC7\u6599\u593E\u300D\u3002",
@@ -2118,7 +2098,6 @@ var traditionalChinese = {
   "ui.repair_topic_note_display": "\u4FEE\u5FA9\u8B70\u984C\u7B46\u8A18\u986F\u793A",
   "ui.topic_note_display_repaired": "\u5DF2\u4FEE\u5FA9\u8B70\u984C\u7B46\u8A18\u986F\u793A\u3002",
   "ui.map_saved_but_reference_update_failed_0": "\u5FC3\u667A\u5716\u5DF2\u5132\u5B58\uFF0C\u4F46 reference \u66F4\u65B0\u5931\u6557\uFF1A{0}",
-  "ui.create_0_topic_folders_move_1_map_notes_and_move_2_orphan_no": "\u5C07\u5EFA\u7ACB {0} \u500B\u4E3B\u984C\u8CC7\u6599\u593E\uFF0C\u642C\u79FB {1} \u4EFD\u5716\u5167\u7B46\u8A18\uFF0C\u4E26\u5C07 {2} \u4EFD\u5B64\u5152\u7B46\u8A18\u79FB\u81F3 Inbox\u3002\u4EFB\u4E00\u6B65\u5931\u6557\u90FD\u6703\u9084\u539F\u5DF2\u642C\u79FB\u7684\u6A94\u6848\u3002",
   "ui.0_1_notes": "{0}\uFF08{1} \u4EFD Notes\uFF09",
   "ui.official_sample_read_only": "\u5B98\u65B9\u7BC4\u4F8B \xB7 \u552F\u8B80",
   "ui.sample_taiwan_travel_plan": "\u7BC4\u4F8B\uFF1A\u53F0\u7063\u65C5\u884C\u898F\u5283",
@@ -2432,7 +2411,6 @@ var traditionalChinese = {
   "error.map_already_exists": "\u9019\u500B\u4E3B\u984C\u5DF2\u6709 Map.md\u3002",
   "error.target_exists": "\u76EE\u6A19\u6A94\u6848\u5DF2\u5B58\u5728",
   "error.note_in_multiple_maps": "\u8B70\u984C\u7B46\u8A18\u540C\u6642\u51FA\u73FE\u5728\u5169\u5F35\u5FC3\u667A\u5716",
-  "error.migrate_legacy_map": "\u820A\u7248\u5FC3\u667A\u5716\u8ACB\u5148\u57F7\u884C\u8CC7\u6599\u6574\u7406\u3002",
   "error.topic_folder_exists": "\u540C\u540D\u4E3B\u984C\u8CC7\u6599\u593E\u5DF2\u5B58\u5728\u3002",
   "detail.no_conclusion_yet": "\u5C1A\u672A\u5F62\u6210\u7D50\u8AD6",
   "detail.preview": "\u9810\u89BD",
@@ -12275,7 +12253,6 @@ var DEFAULT_SETTINGS = {
   topicsFolder: "Agent Workspace/Topics",
   mindMapsFolder: "Agent Workspace/Mind Maps",
   aimFolder: "Agent Workspace/AIM",
-  inboxFolder: "Agent Workspace/Inbox",
   notesFolder: "Agent Workspace/Nodes",
   mapsFolder: "Agent Workspace/Maps",
   mapId: "default",
@@ -12656,7 +12633,6 @@ var Repository = class {
   async ensureWorkspace() {
     await this.folder(this.settings.mindMapsFolder);
     await this.folder(this.settings.aimFolder);
-    await this.folder(this.settings.inboxFolder);
   }
   unique(folder, name) {
     const base = (0, import_obsidian9.normalizePath)(`${folder}/${safeName(name)}`);
@@ -12696,7 +12672,7 @@ var Repository = class {
     const source = text5(fm["model-source"], "workspace");
     const state = text5(
       fm["topic-state"],
-      path.includes("/Archive/") ? "archived" : path.includes("/Unassigned/") ? "unassigned" : path.startsWith(`${this.settings.inboxFolder}/`) ? "inbox" : "active"
+      path.includes("/Archive/") ? "archived" : path.includes("/Unassigned/") ? "unassigned" : "active"
     );
     return {
       title: noteTitle(content, fm, file.basename),
@@ -13123,15 +13099,6 @@ ${body}`);
       }
     ).sort((a, b) => a.basename.localeCompare(b.basename));
   }
-  async inboxFiles() {
-    const prefix = `${this.settings.inboxFolder}/`;
-    return this.app.vault.getMarkdownFiles().filter(
-      (file) => {
-        var _a, _b;
-        return file.path.startsWith(prefix) && marker((_b = (_a = this.app.metadataCache.getFileCache(file)) == null ? void 0 : _a.frontmatter) == null ? void 0 : _b["agent-map-node"]);
-      }
-    ).sort((a, b) => a.basename.localeCompare(b.basename));
-  }
   async moveUnique(path, folder) {
     await this.folder(folder);
     const file = this.file(path), desired = (0, import_obsidian9.normalizePath)(`${folder}/${baseName(path)}`);
@@ -13250,7 +13217,7 @@ ${body}`);
     ensureNoteCssClass(fm);
     fm.title = noteTitle(content, fm, file.basename);
     const owner = ownership.get(file.path);
-    let state = file.path.startsWith(`${this.settings.inboxFolder}/`) ? "inbox" : file.path.includes("/Archive/") ? "archived" : file.path.includes("/Unassigned/") ? "unassigned" : owner ? "active" : text5(fm["topic-state"], "unassigned");
+    let state = file.path.includes("/Archive/") ? "archived" : file.path.includes("/Unassigned/") ? "unassigned" : owner ? "active" : text5(fm["topic-state"], "unassigned");
     if (owner) {
       fm["agent-map-id"] = owner.map.id;
       fm["topic-id"] = owner.map.id;
@@ -13260,7 +13227,6 @@ ${body}`);
     } else {
       delete fm["agent-map-id"];
       if (state === "inbox") {
-        delete fm["topic-id"];
         fm["topic-state"] = "inbox";
       } else fm["topic-state"] = state;
     }
@@ -13349,85 +13315,11 @@ ${body}`;
     if (aim == null ? void 0 : aim.creationId) await this.ensureTopicFolders(root);
     return path;
   }
-  async legacyMigrationPlan() {
-    const legacyMaps = [];
-    for (const file of await this.mapFiles()) {
-      let map;
-      try {
-        map = await this.readMap(file.path);
-      } catch (error) {
-        throw new Error(`${file.path}: ${error instanceof Error ? error.message : String(error)}`);
-      }
-      if (!file.path.startsWith(`${this.settings.topicsFolder}/`)) legacyMaps.push({ file, map });
-    }
-    const assigned = /* @__PURE__ */ new Set(), maps = [];
-    const reservedRoots = /* @__PURE__ */ new Set();
-    for (const { file, map } of legacyMaps) {
-      for (const node of map.nodes) assigned.add(node.path);
-      let targetRoot = (0, import_obsidian9.normalizePath)(`${this.settings.topicsFolder}/${safeName(map.title)}`), number = 2;
-      const base = targetRoot;
-      while (this.app.vault.getAbstractFileByPath(targetRoot) || reservedRoots.has(targetRoot))
-        targetRoot = `${base} ${number++}`;
-      reservedRoots.add(targetRoot);
-      maps.push({ oldPath: file.path, title: map.title, targetRoot, notePaths: map.nodes.map((node) => node.path) });
-    }
-    const orphanPaths = [];
-    for (const file of this.app.vault.getMarkdownFiles()) {
-      const fm = frontmatter(await this.app.vault.read(file));
-      if (marker(fm["agent-map-node"]) && !assigned.has(file.path) && !file.path.startsWith(`${this.settings.topicsFolder}/`) && !file.path.startsWith(`${this.settings.inboxFolder}/`))
-        orphanPaths.push(file.path);
-    }
-    return { maps, orphanPaths };
-  }
-  async migrateLegacyWorkspace(plan) {
-    const originals = /* @__PURE__ */ new Map(), moves = [], mapPaths = /* @__PURE__ */ new Map();
-    const remember = async (path) => {
-      if (!originals.has(path)) originals.set(path, await this.app.vault.read(this.file(path)));
-    };
-    try {
-      await this.folder(this.settings.inboxFolder);
-      for (const item of plan.maps) {
-        await this.ensureTopicFolders(item.targetRoot);
-        await remember(item.oldPath);
-        const map = await this.readMap(item.oldPath), mapTarget = `${item.targetRoot}/Map.md`;
-        await this.moveExact(item.oldPath, mapTarget);
-        moves.push({ from: item.oldPath, to: mapTarget });
-        mapPaths.set(item.oldPath, mapTarget);
-        for (const node of map.nodes) {
-          await remember(node.path);
-          const old = node.path, next = await this.moveUnique(old, `${item.targetRoot}/Notes`);
-          moves.push({ from: old, to: next });
-          rebaseMapNotePaths(map, moveNotePath(old, next));
-          await this.setLifecycle(next, map.id, map.id, "active");
-        }
-        await this.saveMap(mapTarget, map);
-      }
-      for (const path of plan.orphanPaths) {
-        await remember(path);
-        const next = await this.moveUnique(path, this.settings.inboxFolder);
-        moves.push({ from: path, to: next });
-        await this.setLifecycle(next, "", "", "inbox");
-      }
-      await this.rebuildDerivedData();
-      return mapPaths;
-    } catch (error) {
-      for (const move of [...moves].reverse()) {
-        const current = this.app.vault.getAbstractFileByPath(move.to);
-        if (current instanceof import_obsidian9.TFile && !this.app.vault.getAbstractFileByPath(move.from))
-          await this.app.fileManager.renameFile(current, move.from);
-      }
-      for (const [path, content] of originals) {
-        const file = this.app.vault.getAbstractFileByPath(path);
-        if (file instanceof import_obsidian9.TFile) await this.app.vault.process(file, () => content);
-      }
-      throw error;
-    }
-  }
   async renameTopic(mapPath, title, targetRoot) {
     var _a;
     const file = this.file(mapPath), root = file.parent;
     if (!(root instanceof import_obsidian9.TFolder) || !isManagedMapPath(this.settings, mapPath))
-      throw new Error(this.message("error.migrate_legacy_map"));
+      throw new Error(this.message("error.legacy_map_view_only"));
     const desired = targetRoot ? (0, import_obsidian9.normalizePath)(targetRoot) : (0, import_obsidian9.normalizePath)(`${parentPath(root.path)}/${safeName(title)}`);
     if (desired !== root.path && this.app.vault.getAbstractFileByPath(desired))
       throw new Error(this.message("error.topic_folder_exists"));
@@ -26155,12 +26047,6 @@ ${request.requirements}` : preset.text,
         description: t("ui.update_the_topic_folder_and_mind_map_name_together"),
         action: () => this.renameCurrentMap()
       });
-      if (!isManagedMapPath(this.plugin.settings, this.path))
-        choices.push({
-          label: t("ui.migrate_old_data"),
-          description: t("ui.preview_and_migrate_old_maps_into_the_current_topic_structur"),
-          action: () => this.enqueue(() => this.previewMigration())
-        });
     }
     if (this.map && !this.builtIn && !this.map.aim)
       choices.push({
@@ -26252,7 +26138,7 @@ ${request.requirements}` : preset.text,
           return;
         }
         if (!isManagedMapPath(this.plugin.settings, this.path)) {
-          new import_obsidian20.Notice(t("ui.migrate_old_data_before_renaming_this_topic"));
+          new import_obsidian20.Notice(t("ui.legacy_map_view_only"));
           return;
         }
         const before = clone(this.map), beforeRoot = this.plugin.repo.topicRoot(this.path);
@@ -26366,10 +26252,9 @@ ${request.requirements}` : preset.text,
   }
   async openOrganizer() {
     if (!this.map) return;
-    const [unassigned, archived, inbox] = await Promise.all([
+    const [unassigned, archived] = await Promise.all([
       this.plugin.repo.collectionFiles(this.path, "Unassigned"),
-      this.plugin.repo.collectionFiles(this.path, "Archive"),
-      this.plugin.repo.inboxFiles()
+      this.plugin.repo.collectionFiles(this.path, "Archive")
     ]);
     new ChoiceModal(this.app, t("ui.organize_notes"), t("ui.manage_notes_that_are_currently_outside_the_mind_map"), [
       {
@@ -26381,11 +26266,6 @@ ${request.requirements}` : preset.text,
         label: t("ui.archived_0", archived.length),
         description: t("ui.view_archived_notes_or_move_them_back_to_unassigned"),
         action: () => this.openArchive(archived)
-      },
-      {
-        label: t("ui.inbox_0", inbox.length),
-        description: t("ui.move_notes_without_a_topic_to_a_suitable_location"),
-        action: () => this.openInbox(inbox)
       }
     ]).open();
   }
@@ -26428,27 +26308,6 @@ ${request.requirements}` : preset.text,
   openArchive(files) {
     new NoteCollectionModal(this.app, t("ui.archived_notes"), files, [
       { label: t("ui.unarchive"), run: (file) => this.enqueue(() => this.parkFile(file, "Unassigned", "unassigned")) }
-    ]).open();
-  }
-  openInbox(files) {
-    new NoteCollectionModal(this.app, t("ui.notes_without_a_topic"), files, [
-      {
-        label: t("ui.move_to_current_topic"),
-        run: (file) => this.enqueue(() => this.parkFile(file, "Unassigned", "unassigned"))
-      },
-      { label: t("ui.move_and_add_to_current_mind_map"), run: (file) => this.enqueue(() => this.claimToCurrent(file)) },
-      {
-        label: t("ui.choose_another_topic"),
-        run: (file) => this.enqueue(async () => {
-          const topics = await this.plugin.repo.topics();
-          new TopicPickerModal(
-            this.app,
-            t("ui.move_to_topic"),
-            topics,
-            (topic) => this.enqueue(() => this.transferToTopic(file, topic))
-          ).open();
-        })
-      }
     ]).open();
   }
   render() {
@@ -27700,10 +27559,7 @@ ${request.requirements}` : preset.text,
         panel,
         t("ui.relink_note"),
         () => this.enqueue(async () => {
-          const candidates = [
-            ...await this.plugin.repo.collectionFiles(this.path, "Unassigned"),
-            ...await this.plugin.repo.inboxFiles()
-          ];
+          const candidates = await this.plugin.repo.collectionFiles(this.path, "Unassigned");
           new NoteCollectionModal(this.app, t("ui.relink_note"), candidates, [
             { label: t("ui.use_this_note"), run: (file) => this.enqueue(() => this.relinkMissingNode(node, file)) }
           ]).open();
@@ -27868,32 +27724,6 @@ ${request.requirements}` : preset.text,
       })()
     );
   }
-  async previewMigration() {
-    const plan = await this.plugin.repo.legacyMigrationPlan();
-    if (!plan.maps.length && !plan.orphanPaths.length) {
-      new import_obsidian20.Notice(t("ui.no_old_data_to_migrate"));
-      return;
-    }
-    const noteCount = plan.maps.reduce((sum, item) => sum + item.notePaths.length, 0);
-    const description = t(
-      "ui.create_0_topic_folders_move_1_map_notes_and_move_2_orphan_no",
-      plan.maps.length,
-      noteCount,
-      plan.orphanPaths.length
-    );
-    new ChoiceModal(this.app, t("ui.migrate_legacy_data"), description, [
-      {
-        label: t("ui.confirm_migration"),
-        action: () => this.enqueue(async () => {
-          const current = this.path, mapping = await this.plugin.repo.migrateLegacyWorkspace(plan), next = mapping.get(current);
-          this.history.clear();
-          if (next) await this.openMapInMutation(next);
-          else this.render();
-          new import_obsidian20.Notice(t("ui.old_data_was_migrated_into_topic_folders"));
-        })
-      }
-    ]).open();
-  }
   async repairMissingTopic() {
     const broken = await this.plugin.repo.brokenTopics();
     if (!broken.length) {
@@ -27953,7 +27783,7 @@ ${request.requirements}` : preset.text,
       this.plugin.settings.cliModel
     );
     if (!isManagedMapPath(this.plugin.settings, this.path)) {
-      new import_obsidian20.Notice(t("ui.use_migrate_old_data_to_convert_this_map_first"));
+      new import_obsidian20.Notice(t("ui.legacy_map_view_only"));
       return;
     }
     const node = await this.plugin.repo.createNote(
@@ -34529,7 +34359,6 @@ var VisualAgentMapPlugin = class extends import_obsidian26.Plugin {
       workspaceFolder: savedWorkspace,
       topicsFolder: (saved == null ? void 0 : saved.topicsFolder) || DEFAULT_SETTINGS.topicsFolder,
       ...resolveMapFolders(saved),
-      inboxFolder: (saved == null ? void 0 : saved.inboxFolder) || DEFAULT_SETTINGS.inboxFolder,
       notesFolder: (saved == null ? void 0 : saved.notesFolder) || DEFAULT_SETTINGS.notesFolder,
       mapsFolder: (saved == null ? void 0 : saved.mapsFolder) || DEFAULT_SETTINGS.mapsFolder,
       mapId: (saved == null ? void 0 : saved.mapId) || "default",
@@ -34865,7 +34694,6 @@ ${error}`;
     this.settings.topicsFolder = `${root}/Topics`;
     this.settings.mindMapsFolder = `${root}/Mind Maps`;
     this.settings.aimFolder = `${root}/AIM`;
-    this.settings.inboxFolder = `${root}/Inbox`;
     this.settings.notesFolder = `${root}/Nodes`;
     this.settings.mapsFolder = `${root}/Maps`;
     this.settings.workspaceInitialized = true;
@@ -35047,7 +34875,7 @@ ${error}`;
   isNode(file) {
     var _a, _b;
     const marker4 = (_b = (_a = this.app.metadataCache.getFileCache(file)) == null ? void 0 : _a.frontmatter) == null ? void 0 : _b["agent-map-node"];
-    return marker4 === true || marker4 === "true" || file.extension === "md" && (file.path.startsWith(`${this.settings.notesFolder}/`) || isManagedMapPath(this.settings, file.path) || file.path.startsWith(`${this.settings.inboxFolder}/`));
+    return marker4 === true || marker4 === "true" || file.extension === "md" && (file.path.startsWith(`${this.settings.notesFolder}/`) || isManagedMapPath(this.settings, file.path));
   }
   styleNodeLeaf(leaf) {
     if (!((leaf == null ? void 0 : leaf.view) instanceof import_obsidian26.MarkdownView)) return;

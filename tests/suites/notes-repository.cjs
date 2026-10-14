@@ -172,38 +172,6 @@ integrationTest('maps keep independent layout and preserve Markdown prose', asyn
   const changed = await repo.readMap(first); changed.nodes[0].x = 600; changed.title = 'Renamed'; await repo.saveMap(first, changed);
   assert.equal((await repo.readMap(second)).nodes[0].x, 80); assert.match(contents.get(first), /User annotation/); assert.match(contents.get(first), /# Renamed/);
 });
-integrationTest('preview migration moves owned notes into a topic and unknown orphans into Inbox', async () => {
-  const { repo, app } = fixture();
-  await repo.folder('Agent Workspace/Maps'); await repo.folder('Agent Workspace/Nodes');
-  const content = id => `---\nagent-map-node: true\nnode-id: "${id}"\ntitle: "${id}"\n---\n\n# ${id}\n\n## Prompt\n\n## Rules\n\n## Detail\n\nOld detail\n`;
-  await app.vault.create('Agent Workspace/Nodes/a.md', content('a')); await app.vault.create('Agent Workspace/Nodes/orphan.md', content('orphan'));
-  const legacy = map([node('a')]); legacy.title = 'Legacy'; legacy.nodes[0].path = 'Agent Workspace/Nodes/a.md';
-  await app.vault.create('Agent Workspace/Maps/Legacy.md', core.serializeMap(legacy));
-  const plan = await repo.legacyMigrationPlan(); assert.equal(plan.maps.length, 1); assert.deepEqual(plain(plan.orphanPaths), ['Agent Workspace/Nodes/orphan.md']);
-  const mapping = await repo.migrateLegacyWorkspace(plan), next = mapping.get('Agent Workspace/Maps/Legacy.md');
-  assert.equal(next, 'Agent Workspace/Topics/Legacy/Map.md');
-  const movedMap = await repo.readMap(next); assert.match(movedMap.nodes[0].path, /\/Notes\/a\.md$/);
-  assert.equal((await repo.readNote(movedMap.nodes[0].path)).topicState, 'active');
-  assert.equal((await repo.inboxFiles()).length, 1); assert.equal((await repo.readNote((await repo.inboxFiles())[0].path)).topicState, 'inbox');
-});
-integrationTest('preview migration rolls back all completed moves when a later move fails', async () => {
-  const { repo, app } = fixture();
-  await repo.folder('Agent Workspace/Maps'); await repo.folder('Agent Workspace/Nodes');
-  const content = `---\nagent-map-node: true\nnode-id: "a"\ntitle: "a"\n---\n\n# a\n`;
-  await app.vault.create('Agent Workspace/Nodes/a.md', content);
-  const legacy = map([node('a')]); legacy.title = 'Rollback'; legacy.nodes[0].path = 'Agent Workspace/Nodes/a.md';
-  await app.vault.create('Agent Workspace/Maps/Rollback.md', core.serializeMap(legacy));
-  const rename = app.fileManager.renameFile; let failed = false;
-  app.fileManager.renameFile = async (item, target) => {
-    if (!failed && target.includes('/Notes/')) { failed = true; throw new Error('controlled migration failure'); }
-    await rename(item, target);
-  };
-  const plan = await repo.legacyMigrationPlan();
-  await assert.rejects(() => repo.migrateLegacyWorkspace(plan), /controlled migration failure/);
-  assert.ok(app.vault.getAbstractFileByPath('Agent Workspace/Maps/Rollback.md'));
-  assert.ok(app.vault.getAbstractFileByPath('Agent Workspace/Nodes/a.md'));
-  assert.equal(app.vault.getAbstractFileByPath('Agent Workspace/Topics/Rollback/Map.md'), undefined);
-});
 integrationTest('large vaults: map discovery, unrelated renames and rebuilds read only VAM files', async () => {
   const { repo, app } = fixture();
   const path = await repo.createMap('Perf', []), map = await repo.readMap(path);

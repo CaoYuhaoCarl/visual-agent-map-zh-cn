@@ -2629,12 +2629,6 @@ export class VisualAgentMapView extends ItemView {
         description: t("ui.update_the_topic_folder_and_mind_map_name_together"),
         action: () => this.renameCurrentMap()
       });
-      if (!isManagedMapPath(this.plugin.settings, this.path))
-        choices.push({
-          label: t("ui.migrate_old_data"),
-          description: t("ui.preview_and_migrate_old_maps_into_the_current_topic_structur"),
-          action: () => this.enqueue(() => this.previewMigration())
-        });
     }
     if (this.map && !this.builtIn && !this.map.aim)
       choices.push({
@@ -2727,7 +2721,7 @@ export class VisualAgentMapView extends ItemView {
           return;
         }
         if (!isManagedMapPath(this.plugin.settings, this.path)) {
-          new Notice(t("ui.migrate_old_data_before_renaming_this_topic"));
+          new Notice(t("ui.legacy_map_view_only"));
           return;
         }
         const before = clone(this.map),
@@ -2846,10 +2840,9 @@ export class VisualAgentMapView extends ItemView {
   }
   private async openOrganizer(): Promise<void> {
     if (!this.map) return;
-    const [unassigned, archived, inbox] = await Promise.all([
+    const [unassigned, archived] = await Promise.all([
       this.plugin.repo.collectionFiles(this.path, "Unassigned"),
-      this.plugin.repo.collectionFiles(this.path, "Archive"),
-      this.plugin.repo.inboxFiles()
+      this.plugin.repo.collectionFiles(this.path, "Archive")
     ]);
     new ChoiceModal(this.app, t("ui.organize_notes"), t("ui.manage_notes_that_are_currently_outside_the_mind_map"), [
       {
@@ -2861,11 +2854,6 @@ export class VisualAgentMapView extends ItemView {
         label: t("ui.archived_0", archived.length),
         description: t("ui.view_archived_notes_or_move_them_back_to_unassigned"),
         action: () => this.openArchive(archived)
-      },
-      {
-        label: t("ui.inbox_0", inbox.length),
-        description: t("ui.move_notes_without_a_topic_to_a_suitable_location"),
-        action: () => this.openInbox(inbox)
       }
     ]).open();
   }
@@ -2898,25 +2886,6 @@ export class VisualAgentMapView extends ItemView {
   private openArchive(files: TFile[]): void {
     new NoteCollectionModal(this.app, t("ui.archived_notes"), files, [
       { label: t("ui.unarchive"), run: file => this.enqueue(() => this.parkFile(file, "Unassigned", "unassigned")) }
-    ]).open();
-  }
-  private openInbox(files: TFile[]): void {
-    new NoteCollectionModal(this.app, t("ui.notes_without_a_topic"), files, [
-      {
-        label: t("ui.move_to_current_topic"),
-        run: file => this.enqueue(() => this.parkFile(file, "Unassigned", "unassigned"))
-      },
-      { label: t("ui.move_and_add_to_current_mind_map"), run: file => this.enqueue(() => this.claimToCurrent(file)) },
-      {
-        label: t("ui.choose_another_topic"),
-        run: file =>
-          this.enqueue(async () => {
-            const topics = await this.plugin.repo.topics();
-            new TopicPickerModal(this.app, t("ui.move_to_topic"), topics, topic =>
-              this.enqueue(() => this.transferToTopic(file, topic))
-            ).open();
-          })
-      }
     ]).open();
   }
   private render(): void {
@@ -4262,10 +4231,7 @@ export class VisualAgentMapView extends ItemView {
       panel.createEl("p", { text: t("ui.this_node_s_note_is_missing_relink_an_unassigned_note_or_rem") });
       this.button(panel, t("ui.relink_note"), () =>
         this.enqueue(async () => {
-          const candidates = [
-            ...(await this.plugin.repo.collectionFiles(this.path, "Unassigned")),
-            ...(await this.plugin.repo.inboxFiles())
-          ];
+          const candidates = await this.plugin.repo.collectionFiles(this.path, "Unassigned");
           new NoteCollectionModal(this.app, t("ui.relink_note"), candidates, [
             { label: t("ui.use_this_note"), run: file => this.enqueue(() => this.relinkMissingNode(node, file)) }
           ]).open();
@@ -4435,35 +4401,6 @@ export class VisualAgentMapView extends ItemView {
         })()
     );
   }
-  private async previewMigration(): Promise<void> {
-    const plan = await this.plugin.repo.legacyMigrationPlan();
-    if (!plan.maps.length && !plan.orphanPaths.length) {
-      new Notice(t("ui.no_old_data_to_migrate"));
-      return;
-    }
-    const noteCount = plan.maps.reduce((sum, item) => sum + item.notePaths.length, 0);
-    const description = t(
-      "ui.create_0_topic_folders_move_1_map_notes_and_move_2_orphan_no",
-      plan.maps.length,
-      noteCount,
-      plan.orphanPaths.length
-    );
-    new ChoiceModal(this.app, t("ui.migrate_legacy_data"), description, [
-      {
-        label: t("ui.confirm_migration"),
-        action: () =>
-          this.enqueue(async () => {
-            const current = this.path,
-              mapping = await this.plugin.repo.migrateLegacyWorkspace(plan),
-              next = mapping.get(current);
-            this.history.clear();
-            if (next) await this.openMapInMutation(next);
-            else this.render();
-            new Notice(t("ui.old_data_was_migrated_into_topic_folders"));
-          })
-      }
-    ]).open();
-  }
   private async repairMissingTopic(): Promise<void> {
     const broken = await this.plugin.repo.brokenTopics();
     if (!broken.length) {
@@ -4522,7 +4459,7 @@ export class VisualAgentMapView extends ItemView {
       this.plugin.settings.cliModel
     );
     if (!isManagedMapPath(this.plugin.settings, this.path)) {
-      new Notice(t("ui.use_migrate_old_data_to_convert_this_map_first"));
+      new Notice(t("ui.legacy_map_view_only"));
       return;
     }
     const node = await this.plugin.repo.createNote(

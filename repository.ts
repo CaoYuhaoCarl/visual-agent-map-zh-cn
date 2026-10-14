@@ -61,7 +61,6 @@ export interface Settings {
   topicsFolder: string;
   mindMapsFolder: string;
   aimFolder: string;
-  inboxFolder: string;
   notesFolder: string;
   mapsFolder: string;
   mapId: string;
@@ -94,11 +93,6 @@ export interface BrokenTopic {
   root: string;
   noteCount: number;
 }
-export interface LegacyMigrationPlan {
-  maps: { oldPath: string; title: string; targetRoot: string; notePaths: string[] }[];
-  orphanPaths: string[];
-}
-
 /**
  * Map container folders for loaded settings: a saved value wins (never rewritten for upgraded users);
  * otherwise they derive from the saved workspace folder, so a custom workspace gets sibling folders.
@@ -142,7 +136,6 @@ export const DEFAULT_SETTINGS: Settings = {
   topicsFolder: "Agent Workspace/Topics",
   mindMapsFolder: "Agent Workspace/Mind Maps",
   aimFolder: "Agent Workspace/AIM",
-  inboxFolder: "Agent Workspace/Inbox",
   notesFolder: "Agent Workspace/Nodes",
   mapsFolder: "Agent Workspace/Maps",
   mapId: "default",
@@ -591,7 +584,6 @@ export class Repository {
   async ensureWorkspace(): Promise<void> {
     await this.folder(this.settings.mindMapsFolder);
     await this.folder(this.settings.aimFolder);
-    await this.folder(this.settings.inboxFolder);
   }
 
   unique(folder: string, name: string): string {
@@ -640,13 +632,7 @@ export class Repository {
     const source = text(fm["model-source"], "workspace");
     const state = text(
       fm["topic-state"],
-      path.includes("/Archive/")
-        ? "archived"
-        : path.includes("/Unassigned/")
-          ? "unassigned"
-          : path.startsWith(`${this.settings.inboxFolder}/`)
-            ? "inbox"
-            : "active"
+      path.includes("/Archive/") ? "archived" : path.includes("/Unassigned/") ? "unassigned" : "active"
     );
     return {
       title: noteTitle(content, fm, file.basename),
@@ -1130,18 +1116,6 @@ export class Repository {
       .sort((a, b) => a.basename.localeCompare(b.basename));
   }
 
-  async inboxFiles(): Promise<TFile[]> {
-    const prefix = `${this.settings.inboxFolder}/`;
-    return this.app.vault
-      .getMarkdownFiles()
-      .filter(
-        file =>
-          file.path.startsWith(prefix) &&
-          marker(this.app.metadataCache.getFileCache(file)?.frontmatter?.["agent-map-node"])
-      )
-      .sort((a, b) => a.basename.localeCompare(b.basename));
-  }
-
   async moveUnique(path: string, folder: string): Promise<string> {
     await this.folder(folder);
     const file = this.file(path),
@@ -1284,15 +1258,14 @@ export class Repository {
     ensureNoteCssClass(fm);
     fm.title = noteTitle(content, fm, file.basename);
     const owner = ownership.get(file.path);
-    let state: TopicState = file.path.startsWith(`${this.settings.inboxFolder}/`)
-      ? "inbox"
-      : file.path.includes("/Archive/")
-        ? "archived"
-        : file.path.includes("/Unassigned/")
-          ? "unassigned"
-          : owner
-            ? "active"
-            : (text(fm["topic-state"], "unassigned") as TopicState);
+    // `topic-state: inbox` is a legacy value (the Inbox concept was removed in 0.19): it is read and kept as written.
+    let state: TopicState = file.path.includes("/Archive/")
+      ? "archived"
+      : file.path.includes("/Unassigned/")
+        ? "unassigned"
+        : owner
+          ? "active"
+          : (text(fm["topic-state"], "unassigned") as TopicState);
     if (owner) {
       fm["agent-map-id"] = owner.map.id;
       fm["topic-id"] = owner.map.id;
@@ -1302,7 +1275,7 @@ export class Repository {
     } else {
       delete fm["agent-map-id"];
       if (state === "inbox") {
-        delete fm["topic-id"];
+        // Legacy Inbox note: keep topic-id and the state exactly as written.
         fm["topic-state"] = "inbox";
       } else fm["topic-state"] = state;
     }
@@ -1418,99 +1391,11 @@ export class Repository {
     return path;
   }
 
-  async legacyMigrationPlan(): Promise<LegacyMigrationPlan> {
-    // Every map must parse: a skipped map's notes would look orphaned and be moved to the Inbox with ids cleared.
-    const legacyMaps: { file: TFile; map: MapDocument }[] = [];
-    for (const file of await this.mapFiles()) {
-      let map: MapDocument;
-      try {
-        map = await this.readMap(file.path);
-      } catch (error) {
-        throw new Error(`${file.path}: ${error instanceof Error ? error.message : String(error)}`);
-      }
-      if (!file.path.startsWith(`${this.settings.topicsFolder}/`)) legacyMaps.push({ file, map });
-    }
-    const assigned = new Set<string>(),
-      maps: LegacyMigrationPlan["maps"] = [];
-    const reservedRoots = new Set<string>();
-    for (const { file, map } of legacyMaps) {
-      for (const node of map.nodes) assigned.add(node.path);
-      let targetRoot = normalizePath(`${this.settings.topicsFolder}/${safeName(map.title)}`),
-        number = 2;
-      const base = targetRoot;
-      while (this.app.vault.getAbstractFileByPath(targetRoot) || reservedRoots.has(targetRoot))
-        targetRoot = `${base} ${number++}`;
-      reservedRoots.add(targetRoot);
-      maps.push({ oldPath: file.path, title: map.title, targetRoot, notePaths: map.nodes.map(node => node.path) });
-    }
-    const orphanPaths: string[] = [];
-    for (const file of this.app.vault.getMarkdownFiles()) {
-      const fm = frontmatter(await this.app.vault.read(file));
-      if (
-        marker(fm["agent-map-node"]) &&
-        !assigned.has(file.path) &&
-        !file.path.startsWith(`${this.settings.topicsFolder}/`) &&
-        !file.path.startsWith(`${this.settings.inboxFolder}/`)
-      )
-        orphanPaths.push(file.path);
-    }
-    return { maps, orphanPaths };
-  }
-
-  async migrateLegacyWorkspace(plan: LegacyMigrationPlan): Promise<Map<string, string>> {
-    const originals = new Map<string, string>(),
-      moves: { from: string; to: string }[] = [],
-      mapPaths = new Map<string, string>();
-    const remember = async (path: string): Promise<void> => {
-      if (!originals.has(path)) originals.set(path, await this.app.vault.read(this.file(path)));
-    };
-    try {
-      await this.folder(this.settings.inboxFolder);
-      for (const item of plan.maps) {
-        await this.ensureTopicFolders(item.targetRoot);
-        await remember(item.oldPath);
-        const map = await this.readMap(item.oldPath),
-          mapTarget = `${item.targetRoot}/Map.md`;
-        await this.moveExact(item.oldPath, mapTarget);
-        moves.push({ from: item.oldPath, to: mapTarget });
-        mapPaths.set(item.oldPath, mapTarget);
-        for (const node of map.nodes) {
-          await remember(node.path);
-          const old = node.path,
-            next = await this.moveUnique(old, `${item.targetRoot}/Notes`);
-          moves.push({ from: old, to: next });
-          rebaseMapNotePaths(map, moveNotePath(old, next));
-          await this.setLifecycle(next, map.id, map.id, "active");
-        }
-        await this.saveMap(mapTarget, map);
-      }
-      for (const path of plan.orphanPaths) {
-        await remember(path);
-        const next = await this.moveUnique(path, this.settings.inboxFolder);
-        moves.push({ from: path, to: next });
-        await this.setLifecycle(next, "", "", "inbox");
-      }
-      await this.rebuildDerivedData();
-      return mapPaths;
-    } catch (error) {
-      for (const move of [...moves].reverse()) {
-        const current = this.app.vault.getAbstractFileByPath(move.to);
-        if (current instanceof TFile && !this.app.vault.getAbstractFileByPath(move.from))
-          await this.app.fileManager.renameFile(current, move.from);
-      }
-      for (const [path, content] of originals) {
-        const file = this.app.vault.getAbstractFileByPath(path);
-        if (file instanceof TFile) await this.app.vault.process(file, () => content);
-      }
-      throw error;
-    }
-  }
-
   async renameTopic(mapPath: string, title: string, targetRoot?: string): Promise<string> {
     const file = this.file(mapPath),
       root = file.parent;
     if (!(root instanceof TFolder) || !isManagedMapPath(this.settings, mapPath))
-      throw new Error(this.message("error.migrate_legacy_map"));
+      throw new Error(this.message("error.legacy_map_view_only"));
     // A rename keeps the topic in the container it is already in (Mind Maps, AIM or legacy Topics).
     const desired = targetRoot
       ? normalizePath(targetRoot)
@@ -1572,6 +1457,6 @@ export class Repository {
   }
 
   async migrate(): Promise<void> {
-    /* v0.2 import remains intentionally disabled; v0.3 legacy data uses the preview migration. */
+    /* v0.2 import remains intentionally disabled; the pre-0.4 workspace migration was removed in 0.19. */
   }
 }
