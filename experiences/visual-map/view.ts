@@ -965,7 +965,15 @@ export class VisualAgentMapView extends ItemView {
       this.fit();
     });
   }
-  private openCollapseMenu(event: MouseEvent): void {
+  private autoLayout(): void {
+    this.enqueue(() =>
+      this.mapChange(map => {
+        map.nodes = arrangeMap(map.nodes);
+      }, false)
+    );
+  }
+  /** The zoom cluster's Layout menu: collapse or expand levels, then re-arrange the whole map. */
+  private openLayoutMenu(event: MouseEvent): void {
     const menu = new Menu();
     const choices: { title: string; icon: string; levels: number | null }[] = [
       { title: t("ui.collapse_all"), icon: "chevrons-down-up", levels: 0 },
@@ -979,6 +987,13 @@ export class VisualAgentMapView extends ItemView {
           .setIcon(choice.icon)
           .onClick(() => this.collapseTo(choice.levels))
       );
+    menu.addSeparator();
+    menu.addItem(item =>
+      item
+        .setTitle(t("ui.auto_layout"))
+        .setIcon("workflow")
+        .onClick(() => this.autoLayout())
+    );
     menu.showAtMouseEvent(event);
   }
   /** Whether the open map can take an imported outline, and the selected topic for "under the selected topic". */
@@ -3247,16 +3262,14 @@ export class VisualAgentMapView extends ItemView {
     this.zoomLabel = zoomReset;
     this.iconButton(zoom, "plus", t("ui.zoom_in"), () => this.zoomBy(1.2));
     this.iconButton(zoom, "maximize", t("ui.show_all"), () => this.fit());
-    if (!this.builtIn)
-      this.iconButton(zoom, "chevrons-down-up", t("ui.collapse_levels"), event => this.openCollapseMenu(event));
-    if (!this.builtIn)
-      this.iconButton(zoom, "workflow", t("ui.auto_layout"), () =>
-        this.enqueue(() =>
-          this.mapChange(map => {
-            map.nodes = arrangeMap(map.nodes);
-          }, false)
-        )
-      );
+    if (!this.builtIn) {
+      const layout = zoom.createEl("button", { text: t("ui.layout"), cls: "vam-layout-button" });
+      layout.setAttr("aria-haspopup", "menu");
+      layout.addEventListener("click", event => {
+        event.stopPropagation();
+        this.openLayoutMenu(event);
+      });
+    }
     this.stageEl = this.viewportEl.createDiv("vam-stage");
     this.stageEl.setAttr("role", "tree");
     this.stageEl.setAttr("aria-label", this.map.title);

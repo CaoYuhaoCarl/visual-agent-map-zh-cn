@@ -607,6 +607,7 @@ var english = {
   "ui.create_subtopics_without_research": "Create subtopics without research",
   "ui.research_each_subtopic_after_creation_and_use_codex_quota": "Each new subtopic gets a shallow research pass, using AI quota",
   "ui.auto_layout": "Auto layout",
+  "ui.layout": "Layout",
   "ui.expansion_failed": "Expansion failed",
   "ui.the_map_or_parent_topic_changed_while_ai_was_running_no_subt": "The map or parent topic changed while AI was running. No subtopics were created.",
   "ui.ai_suggests_one_level_of_subtopics_review_or_edit_them_befor": "AI suggests one level of subtopics; review or edit them before creation.",
@@ -1993,6 +1994,7 @@ var traditionalChinese = {
   "ui.create_subtopics_without_research": "\u53EA\u5EFA\u7ACB\u5B50\u8B70\u984C\uFF0C\u4E0D\u57F7\u884C\u7814\u7A76",
   "ui.research_each_subtopic_after_creation_and_use_codex_quota": "\u5EFA\u7ACB\u5F8C\u6703\u9010\u4E00\u6DFA\u7814\u7A76\uFF0C\u6703\u4F7F\u7528 AI \u984D\u5EA6",
   "ui.auto_layout": "\u81EA\u52D5\u6392\u7248",
+  "ui.layout": "\u6392\u7248",
   "ui.expansion_failed": "\u5C55\u958B\u5931\u6557",
   "ui.the_map_or_parent_topic_changed_while_ai_was_running_no_subt": "\u5FC3\u667A\u5716\u6216\u6BCD\u8B70\u984C\u5728 AI \u57F7\u884C\u671F\u9593\u5DF2\u8B8A\u66F4\uFF0C\u672A\u5EFA\u7ACB\u5B50\u8B70\u984C\u3002",
   "ui.ai_suggests_one_level_of_subtopics_review_or_edit_them_befor": "AI \u5148\u63D0\u51FA\u4E00\u5C64\u5B50\u8B70\u984C\uFF0C\u4F60\u9078\u64C7\u6216\u4FEE\u6539\u5F8C\u624D\u5EFA\u7ACB\u3002",
@@ -24091,7 +24093,15 @@ ${request.requirements}` : preset.text,
       this.fit();
     });
   }
-  openCollapseMenu(event) {
+  autoLayout() {
+    this.enqueue(
+      () => this.mapChange((map) => {
+        map.nodes = arrangeMap(map.nodes);
+      }, false)
+    );
+  }
+  /** The zoom cluster's Layout menu: collapse or expand levels, then re-arrange the whole map. */
+  openLayoutMenu(event) {
     const menu = new import_obsidian19.Menu();
     const choices = [
       { title: t("ui.collapse_all"), icon: "chevrons-down-up", levels: 0 },
@@ -24102,6 +24112,10 @@ ${request.requirements}` : preset.text,
       menu.addItem(
         (item) => item.setTitle(choice2.title).setIcon(choice2.icon).onClick(() => this.collapseTo(choice2.levels))
       );
+    menu.addSeparator();
+    menu.addItem(
+      (item) => item.setTitle(t("ui.auto_layout")).setIcon("workflow").onClick(() => this.autoLayout())
+    );
     menu.showAtMouseEvent(event);
   }
   /** Whether the open map can take an imported outline, and the selected topic for "under the selected topic". */
@@ -26248,19 +26262,14 @@ ${request.requirements}` : preset.text,
     this.zoomLabel = zoomReset;
     this.iconButton(zoom, "plus", t("ui.zoom_in"), () => this.zoomBy(1.2));
     this.iconButton(zoom, "maximize", t("ui.show_all"), () => this.fit());
-    if (!this.builtIn)
-      this.iconButton(zoom, "chevrons-down-up", t("ui.collapse_levels"), (event) => this.openCollapseMenu(event));
-    if (!this.builtIn)
-      this.iconButton(
-        zoom,
-        "workflow",
-        t("ui.auto_layout"),
-        () => this.enqueue(
-          () => this.mapChange((map) => {
-            map.nodes = arrangeMap(map.nodes);
-          }, false)
-        )
-      );
+    if (!this.builtIn) {
+      const layout = zoom.createEl("button", { text: t("ui.layout"), cls: "vam-layout-button" });
+      layout.setAttr("aria-haspopup", "menu");
+      layout.addEventListener("click", (event) => {
+        event.stopPropagation();
+        this.openLayoutMenu(event);
+      });
+    }
     this.stageEl = this.viewportEl.createDiv("vam-stage");
     this.stageEl.setAttr("role", "tree");
     this.stageEl.setAttr("aria-label", this.map.title);

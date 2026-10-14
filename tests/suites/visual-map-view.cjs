@@ -1383,7 +1383,7 @@ integrationTest('status pill: researched topics show none, other states keep the
   const labelled = selectionView(load); labelled.build();
   assert.ok(labelled.cards().a.attrs['aria-labelledby'], 'the card is still named');
 });
-integrationTest('the more-actions menu holds Organize notes and folders; toolbar keeps Multi-select; zoom cluster holds Auto layout', () => {
+integrationTest('the more-actions menu holds Organize notes and folders; toolbar keeps Select several topics; the zoom cluster Layout menu holds Auto layout', () => {
   const opened = [];
   class Modal { open() { opened.push(this); } close() {} }
   const { view } = selectionView(load, {}, { ...obsidian, Modal });
@@ -1394,7 +1394,8 @@ integrationTest('the more-actions menu holds Organize notes and folders; toolbar
   const source = fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8');
   const toolsBlock = source.slice(source.indexOf('const tools = createDiv("vam-map-tools")'), source.indexOf('const workspace = this.contentEl.createDiv("vam-workspace")'));
   assert.ok(!/ui\.organize|ui\.auto_layout/.test(toolsBlock), 'neither control stays in the floating tools');
-  assert.match(source, /iconButton\(zoom, "workflow", t\("ui\.auto_layout"\)/);
+  assert.match(source, /zoom\.createEl\("button", \{ text: t\("ui\.layout"\), cls: "vam-layout-button" \}\)/, 'the zoom cluster has one labelled Layout button');
+  assert.ok(!/iconButton\(zoom, "(workflow|chevrons-down-up)"/.test(source), 'no icon-only layout controls remain');
   const { translate } = load('i18n.ts');
   assert.equal(translate('en', 'ui.select_topics'), 'Select several topics'); assert.equal(translate('zh-TW', 'ui.select_topics'), '選取多個議題');
   assert.equal(translate('en', 'ui.finish_topic_selection'), 'Done selecting'); assert.equal(translate('zh-TW', 'ui.finish_topic_selection'), '完成選取');
@@ -1473,19 +1474,26 @@ integrationTest('collapse control: sets the flags, fits the map and is a single 
   // One undo restores the state before the last action in one step.
   await view.travel(false);
   assert.ok(doc.nodes.every(item => !item.collapsed), 'one undo restores every flag');
+  // Auto layout from the Layout menu re-arranges every topic in one write.
+  for (const nodes of [doc.nodes, view.map.nodes]) { nodes.find(item => item.id === 'b').x = 9999; nodes.find(item => item.id === 'c').y = -9999; }
+  const writes = saved;
+  view.autoLayout(); await view.pending;
+  assert.equal(saved, writes + 1, 'one write'); assert.equal(at('b').x, at('a').x + 360, 'auto layout re-arranges the map'); assert.notEqual(at('c').y, -9999);
   const source = fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8');
-  assert.match(source, /iconButton\(zoom, "chevrons-down-up", t\("ui\.collapse_levels"\)/);
   assert.match(source, /n\.collapsed = !n\.collapsed;\s*map\.nodes = arrangeMap\(map\.nodes\);/, 'the card collapse button re-arranges in the same change');
 });
-integrationTest('collapse menu offers collapse all, expand all and levels 1 to 3', () => {
+integrationTest('Layout menu offers collapse all, expand all, levels 1 to 3, a separator and Auto layout', () => {
   const menus = [];
-  class Menu { constructor() { this.items = []; menus.push(this); } addItem(callback) { const item = { setTitle(value) { this.title = value; return this; }, setIcon() { return this; }, onClick(handler) { this.click = handler; return this; } }; callback(item); this.items.push(item); return this; } showAtMouseEvent() { return this; } }
+  class Menu { constructor() { this.items = []; menus.push(this); } addItem(callback) { const item = { setTitle(value) { this.title = value; return this; }, setIcon() { return this; }, onClick(handler) { this.click = handler; return this; } }; callback(item); this.items.push(item); return this; } addSeparator() { this.items.push({ separator: true }); return this; } showAtMouseEvent() { return this; } }
   const { view } = selectionView(load, {}, { ...obsidian, Menu });
-  const calls = []; view.collapseTo = levels => calls.push(levels);
-  view.openCollapseMenu({});
-  assert.deepEqual(menus[0].items.map(item => item.title), ['Collapse all', 'Expand all', 'Expand to level 1', 'Expand to level 2', 'Expand to level 3']);
-  menus[0].items.forEach(item => item.click());
-  assert.deepEqual(calls, [0, null, 1, 2, 3]);
+  const calls = []; view.collapseTo = levels => calls.push(levels); view.autoLayout = () => calls.push('arrange');
+  view.openLayoutMenu({});
+  assert.deepEqual(menus[0].items.map(item => item.separator ? '---' : item.title), ['Collapse all', 'Expand all', 'Expand to level 1', 'Expand to level 2', 'Expand to level 3', '---', 'Auto layout']);
+  menus[0].items.filter(item => !item.separator).forEach(item => item.click());
+  assert.deepEqual(calls, [0, null, 1, 2, 3, 'arrange']);
+  const { translate } = load('i18n.ts');
+  assert.equal(translate('zh-TW', 'ui.layout'), '排版'); assert.equal(translate('en', 'ui.layout'), 'Layout');
+  assert.match(fs.readFileSync(path.join(root, 'styles.css'), 'utf8'), /\.vam-layout-button::after \{ content: "▾" \/ "";/, 'the menu caret is decoration, not part of the name');
 });
 integrationTest('map stylesheet: no :has() on the map surface, reduced motion beats the scan animation, buttons keep a focus ring, dead rules are gone', () => {
   const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
