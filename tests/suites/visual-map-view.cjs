@@ -1313,7 +1313,7 @@ integrationTest('card tools: the sparkle waits for hover, focus or selection; th
   const walk = item => { if (item.tag === 'button') buttons.push(item); item.children.forEach(walk); };
   walk(fixture.cards().a);
   const explore = buttons.find(button => button.classes.has('vam-ai-explore')), icon = buttons.find(button => button.classes.has('vam-ai-tool'));
-  assert.equal(explore.text, 'AI explore'); assert.equal(icon.attrs['aria-label'], 'How would you like to explore next?');
+  assert.equal(explore.text, 'AI explore'); assert.equal(icon.attrs['aria-label'], 'How would you like to explore next?'); assert.equal(explore.attrs['aria-label'], undefined, 'the visible text is the accessible name (WCAG 2.5.3)');
   assert.equal(buttons.find(button => button.attrs['aria-label'] === 'Rename') !== undefined, true);
 });
 integrationTest('status pill: researched topics show none, other states keep theirs and screen readers still hear the status', () => {
@@ -1478,4 +1478,60 @@ test('dead code is gone: no unreachable TaskModal confirmation branches and a si
   const source = fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8');
   assert.equal(/confirmed = false/.test(source), false); assert.equal(/if \(!confirmed\)/.test(source), false);
   assert.equal((source.match(/ui\.aim_answered_not_started/g) ?? []).length, 1, 'the AIM chip is built once');
+});
+
+integrationTest('AIM map: arrow keys keep moving focus across full renders instead of snapping back to the old card', () => {
+  const fixture = selectionView(load);
+  const { view } = fixture;
+  view.map.aim = { version: 1, branches: [], runs: [], pendingCommits: [] };
+  fixture.build();
+  const restored = [];
+  view.render = () => { restored.push(view.focusNodeId); fixture.build(); view.focusNodeId = null; };
+  const key = (id, name) => fixture.cards()[id].handlers.get('keydown')({ key: name, target: fixture.cards()[id], preventDefault() {} });
+  key('root', 'ArrowRight');
+  assert.equal(view.selected, 'a'); assert.deepEqual(restored, ['a'], 'the render restores focus to the target card');
+  key('a', 'ArrowDown');
+  assert.equal(view.selected, 'b'); assert.deepEqual(restored, ['a', 'b'], 'the second press moves one more step');
+  assert.equal(fixture.cards().b.focused, 1, 'the live card gets focus, not a detached one'); assert.equal(view.focusNodeId, null);
+});
+integrationTest('legacy AIM map: a viewport write that stamps the content language leaves no false conflict', async () => {
+  const { view } = viewportFixture();
+  const clone = value => JSON.parse(JSON.stringify(value));
+  const disk = clone(view.map); disk.aim = { version: 1, branches: [], runs: [], pendingCommits: [] };
+  view.map = clone(disk);
+  view.plugin.repo.updateMap = async (_path, change) => { change(disk); disk.aim.contentLanguage ??= 'en'; return clone(disk); };
+  view.plugin.repo.readMap = async () => clone(disk);
+  view.plugin.rebuildDerivedData = async () => {};
+  view.persist = async () => {};
+  let cleared = 0; const history = view.history; const original = history.clear.bind(history); history.clear = () => { cleared++; original(); };
+  view.map.viewport.x = 77;
+  await view.persistViewport();
+  assert.equal(view.map.aim.contentLanguage, 'en', 'the stamped language is adopted');
+  await view.mapChange(map => { map.title = 'Renamed'; });
+  assert.equal(cleared, 0, 'no conflict modal, history kept'); assert.equal(view.map.title, 'Renamed');
+});
+integrationTest('dragging keeps moving the edges when a background synchronize redraws them mid-drag', () => {
+  const { view, events, near, down, frames, a, b } = dragFixture();
+  down();
+  events.get('pointermove')({ clientX: 50, clientY: 20 }); frames[0]();
+  assert.equal(near.attrs.length, 1);
+  const redrawn = { attrs: [], setAttribute(name, value) { this.attrs.push([name, value]); } };
+  view.edgeEls = new Map([[`${a.id}\u0000${b.id}`, redrawn]]);
+  events.get('pointermove')({ clientX: 60, clientY: 30 }); frames[1]();
+  assert.equal(redrawn.attrs.length, 1, 'the new path element follows the card'); assert.equal(near.attrs.length, 1, 'the detached path is left alone');
+});
+integrationTest('outline highlight follows the selected topic on in-place and full-render paths, falling back to the opened note', () => {
+  for (const aim of [false, true]) {
+    const fixture = selectionView(load);
+    const { view, outline } = fixture;
+    view.app = { workspace: { getActiveFile: () => ({ path: 'opened.md' }) } };
+    if (aim) view.map.aim = { version: 1, branches: [], runs: [], pendingCommits: [] };
+    fixture.build();
+    view.selectMapNode(view.map.nodes.find(item => item.id === 'a'));
+    assert.equal(outline.at(-1), 'a.md', `selected topic is active (aim=${aim})`);
+    assert.equal(fixture.renders(), aim ? 1 : 0);
+    const previous = view.selected; view.selected = null;
+    view.commitSelection(previous, null, []);
+    assert.equal(outline.at(-1), 'opened.md', `clearing selection falls back to the opened note (aim=${aim})`);
+  }
 });

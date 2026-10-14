@@ -24898,7 +24898,6 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
         ai.addClass("vam-node-tool", "vam-ai-tool");
         const explore = this.button(tools, t("ui.ai_explore"), () => this.openNextStep(node));
         explore.addClass("vam-node-tool", "vam-ai-explore");
-        explore.setAttr("aria-label", t("ui.how_would_you_like_to_explore_next"));
         this.iconButton(
           tools,
           "network",
@@ -25167,7 +25166,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     return siblings[index + (key2 === "ArrowUp" ? -1 : 1)];
   }
   moveKeyboardFocus(target) {
-    var _a, _b, _c;
+    var _a, _b, _c, _d, _e;
     const card = (_b = this.cardEls.get(target.id)) != null ? _b : (_a = this.stageEl) == null ? void 0 : _a.querySelector(`[data-node-id="${CSS.escape(target.id)}"]`);
     const view = (_c = this.viewportEl) == null ? void 0 : _c.getBoundingClientRect(), rect = card == null ? void 0 : card.getBoundingClientRect();
     if (view && rect && (rect.left < view.left || rect.right > view.right || rect.top < view.top || rect.bottom > view.bottom))
@@ -25182,8 +25181,15 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
       const previous = this.tabStopId;
       this.tabStopId = target.id;
       this.paintCards([previous, target.id]);
-    } else this.selectMapNode(target);
-    card == null ? void 0 : card.focus({ preventScroll: true });
+    } else {
+      this.focusNodeId = target.id;
+      try {
+        this.selectMapNode(target);
+      } finally {
+        this.focusNodeId = null;
+      }
+    }
+    (_e = (_d = this.cardEls.get(target.id)) != null ? _d : card) == null ? void 0 : _e.focus({ preventScroll: true });
   }
   /** The tab stop when nothing moved it: the selected card, else the first root, else the first card. */
   defaultTabStop(shown) {
@@ -25220,7 +25226,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
    * cards and the two tab stops are repainted, and the selection bar is refreshed in selection mode.
    */
   applySelectionState(prevId, nextId, touched = []) {
-    var _a, _b, _c, _d;
+    var _a;
     const previousStop = this.tabStopId;
     this.tabStopId = this.defaultTabStop(this.map ? visibleNodes(this.map.nodes) : []);
     this.paintCards([prevId, nextId, previousStop, this.tabStopId, ...touched]);
@@ -25232,13 +25238,20 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
         this.selectionBarEl = bar;
       }
     }
-    this.plugin.setOutlineActive((_d = (_c = (_b = this.map) == null ? void 0 : _b.nodes.find((node) => node.id === nextId)) == null ? void 0 : _c.path) != null ? _d : "");
+    this.syncOutlineActive(nextId);
+  }
+  /** The outline highlights the selected topic; with no selection it falls back to the opened note. */
+  syncOutlineActive(nextId) {
+    var _a, _b, _c, _d, _e, _f, _g;
+    const selected = nextId ? (_b = (_a = this.map) == null ? void 0 : _a.nodes.find((node) => node.id === nextId)) == null ? void 0 : _b.path : void 0;
+    this.plugin.setOutlineActive((_g = selected != null ? selected : (_f = (_e = (_d = (_c = this.app) == null ? void 0 : _c.workspace) == null ? void 0 : _d.getActiveFile) == null ? void 0 : _e.call(_d)) == null ? void 0 : _f.path) != null ? _g : "");
   }
   /** Selection changed: repaint in place, or render fully where selection also drives other chrome (AIM, sample). */
   commitSelection(prevId, nextId, touched = []) {
     var _a;
     if (((_a = this.map) == null ? void 0 : _a.aim) || this.builtIn || !this.cardEls.size) {
       this.render();
+      this.syncOutlineActive(nextId);
       return;
     }
     this.applySelectionState(prevId, nextId, touched);
@@ -27225,11 +27238,15 @@ ${note.detail.trim()}` : "",
   }
   /** Pan/zoom writes only the viewport onto the current file, never this view's possibly older map copy. */
   async persistViewport() {
+    var _a, _b;
     if (this.builtIn || !this.map || !this.path) return;
     const viewport = { ...this.map.viewport };
-    await this.plugin.repo.updateMap(this.path, (map) => {
+    const written = await this.plugin.repo.updateMap(this.path, (map) => {
       map.viewport = viewport;
     });
+    const stamped = (_a = written == null ? void 0 : written.aim) == null ? void 0 : _a.contentLanguage;
+    if (stamped !== void 0 && ((_b = this.map) == null ? void 0 : _b.aim) && this.map.aim.contentLanguage === void 0)
+      this.map.aim.contentLanguage = stamped;
   }
   zoomBy(factor, point) {
     if (!this.map || !this.viewportEl) return;
@@ -27463,13 +27480,13 @@ ${note.detail.trim()}` : "",
   dragEdges(id, card) {
     const size = { width: card.offsetWidth, height: card.offsetHeight };
     const touching = [];
-    for (const [key2, path] of this.edgeEls) {
+    for (const key2 of this.edgeEls.keys()) {
       const [parentId, childId] = key2.split("\0");
       if (parentId !== id && childId !== id) continue;
       const other = this.cardEls.get(parentId === id ? childId : parentId);
       if (!other) continue;
       touching.push({
-        path,
+        key: key2,
         dragIsParent: parentId === id,
         far: { x: other.offsetLeft, y: other.offsetTop, width: other.offsetWidth, height: other.offsetHeight }
       });
@@ -27477,13 +27494,15 @@ ${note.detail.trim()}` : "",
     return {
       update: (x, y) => {
         for (const edge of touching) {
+          const path = this.edgeEls.get(edge.key);
+          if (!path) continue;
           if (edge.dragIsParent)
-            edge.path.setAttribute(
+            path.setAttribute(
               "d",
               edgePathData(x + size.width, y + size.height / 2, edge.far.x, edge.far.y + edge.far.height / 2)
             );
           else
-            edge.path.setAttribute(
+            path.setAttribute(
               "d",
               edgePathData(edge.far.x + edge.far.width, edge.far.y + edge.far.height / 2, x, y + size.height / 2)
             );
