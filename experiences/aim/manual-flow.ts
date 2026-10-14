@@ -124,6 +124,10 @@ function noteStopReason(
 
 /** Estimated tokens one AIM request may carry; larger requests fail whole instead of dropping goal or evidence. */
 const AIM_REQUEST_TOKEN_LIMIT = 60_000;
+/** Marker the visual map appends to the topic detail once the intake clarification is done. */
+const AIM_INTAKE_COMPLETE = "<!-- aim-intake-complete -->";
+/** With the intake checklist, one answered question can precede a conclusion. */
+const CHECKLIST_FLOOR = 1;
 
 export class AimManualFlow {
   private readonly evidenceReports = new Map<string, { path: string; hash: string }>();
@@ -156,6 +160,16 @@ export class AimManualFlow {
   }
 
   /**
+   * Answered questions required before a conclusion. Once the intake checklist ran (its marker is in the goal
+   * detail), conclusion waits on unresolved decision-changing conditions instead of a question count.
+   */
+  private floorFor(goalDetail: string): number {
+    return goalDetail.includes(AIM_INTAKE_COMPLETE)
+      ? Math.min(CHECKLIST_FLOOR, this.limits.minAnsweredBeforeConclusion)
+      : this.limits.minAnsweredBeforeConclusion;
+  }
+
+  /**
    * A gap that would not change the advice, or that is still open when the research budget is spent, becomes an
    * open item of a conditional conclusion: the document states it for the user to confirm instead of stopping.
    */
@@ -166,6 +180,7 @@ export class AimManualFlow {
       rationale: review.rationale,
       stopReason: translate(language, "note.aim_open_items_stop_0", openItems.map(item => item.title).join("; ")),
       ...(review.goalAnswered !== undefined ? { goalAnswered: review.goalAnswered } : {}),
+      ...(review.unresolvedConditions ? { unresolvedConditions: review.unresolvedConditions } : {}),
       openItems,
       summary: review.summary,
       detail: review.detail
@@ -564,7 +579,8 @@ export class AimManualFlow {
     const repeatsKnownQuestion = context.questionHistory.some(
       question => question.trim().toLocaleLowerCase() === reviewed.question?.trim().toLocaleLowerCase()
     );
-    const belowFloor = context.answeredQuestionCount < this.limits.minAnsweredBeforeConclusion;
+    const floor = this.floorFor(context.goalDetail);
+    const belowFloor = context.answeredQuestionCount < floor;
     // Below the floor, research on an already answered goal cannot satisfy the floor; only a user question can.
     const researchesAnsweredGoal =
       belowFloor && reviewed.decision === "research_more" && reviewed.goalAnswered === true;
@@ -577,7 +593,7 @@ export class AimManualFlow {
       const correctionTask = renderBelowFloorReviewTask({
         userQuestionRule: USER_QUESTION_RULE,
         answeredQuestionCount: context.answeredQuestionCount,
-        minimumAnswers: this.limits.minAnsweredBeforeConclusion,
+        minimumAnswers: floor,
         goal: context.goal,
         goalDetail: context.goalDetail,
         conditions: context.conditions,
@@ -613,7 +629,7 @@ export class AimManualFlow {
             context.outputLanguage,
             "note.aim_below_floor_rationale_0_1",
             context.answeredQuestionCount,
-            this.limits.minAnsweredBeforeConclusion
+            floor
           )
         },
         correctionContext,
@@ -677,6 +693,35 @@ export class AimManualFlow {
         throw new Error(
           "AIM could not replace research on an already answered goal with a conclusion or a new question; the result was not committed."
         );
+    }
+    // The checklist gate: a conclusion that still names an unknown decision-changing condition asks about it first.
+    // If that question would repeat one already asked, the user could not settle it, so the conclusion keeps the
+    // condition as an assumption to confirm instead.
+    const unresolved = reviewed.decision === "conclude" ? (reviewed.unresolvedConditions ?? []) : [];
+    if (unresolved.length) {
+      const rationale = translate(context.outputLanguage, "note.aim_unresolved_conditions_0", unresolved.join("; "));
+      try {
+        reviewed = await this.requireUserConditionQuestion(
+          reviewed,
+          context,
+          { classification: "user_condition", rationale },
+          model,
+          reasoning,
+          signal,
+          false
+        );
+      } catch (error) {
+        throwIfAborted(signal);
+        if (!(error instanceof Error) || !/repeating a prior question/.test(error.message)) throw error;
+        reviewed = {
+          ...reviewed,
+          unresolvedConditions: [],
+          openItems: [
+            ...(reviewed.openItems ?? []),
+            ...unresolved.map(condition => ({ title: condition, task: rationale, expectedValue: condition }))
+          ]
+        };
+      }
     }
     if (reviewed.decision === "conclude") {
       const openItems = (reviewed.openItems ?? [])
@@ -898,6 +943,7 @@ export class AimManualFlow {
     const questionHistory = await this.questionHistory(map, branch.id);
     const explorationTarget = map.aim?.minimumAnswersBeforeConclusion ?? 2;
     const answeredQuestionCount = this.answerCountInLineage(map, branch.id);
+    const floor = this.floorFor(topic.detail);
     const model = diagnostic.model || priorAttempt.model || "gpt-6-luna";
     const taskDefaults: TaskContext = {
       timeoutMs: branch.retryTimeoutMs,
@@ -961,7 +1007,7 @@ export class AimManualFlow {
           floorAskRule: FLOOR_ASK_RULE,
           userQuestionRule: USER_QUESTION_RULE,
           answeredQuestionCount,
-          minimumAnswers: this.limits.minAnsweredBeforeConclusion,
+          minimumAnswers: floor,
           explorationTarget,
           goal: topic.title,
           question: parent.summary,
@@ -986,7 +1032,7 @@ export class AimManualFlow {
           researchDepth: "fast" as const,
           visualMode: "off" as const,
           detailFormat: "adaptive" as const,
-          aimContract: reviewContract(floorDecisions(answeredQuestionCount, this.limits)),
+          aimContract: reviewContract(floorDecisions(answeredQuestionCount, { minAnsweredBeforeConclusion: floor })),
           signal
         };
         const planner = await this.askAimModel(plannerContext, model, reasoning, signal);
@@ -1301,6 +1347,7 @@ export class AimManualFlow {
         }
       : undefined;
     const answeredQuestionCount = this.answerCountInLineage(map, branch.id);
+    const floor = this.floorFor(topicNote.detail);
     const explorationTarget = map.aim?.minimumAnswersBeforeConclusion ?? 2;
     const questionsAlreadyAsked = await this.questionHistory(map, branch.id);
     const modelToUse = model?.trim() || priorAttempt.model || "gpt-6-luna";
@@ -1494,7 +1541,7 @@ export class AimManualFlow {
           floorAskRule: FLOOR_ASK_RULE,
           userQuestionRule: USER_QUESTION_RULE,
           answeredQuestionCount,
-          minimumAnswers: this.limits.minAnsweredBeforeConclusion,
+          minimumAnswers: floor,
           explorationTarget,
           questionsAlreadyAsked,
           goal: topicNote.title,
@@ -1520,7 +1567,7 @@ export class AimManualFlow {
           researchDepth: "fast" as const,
           visualMode: "off" as const,
           detailFormat: "adaptive" as const,
-          aimContract: reviewContract(floorDecisions(answeredQuestionCount, this.limits)),
+          aimContract: reviewContract(floorDecisions(answeredQuestionCount, { minAnsweredBeforeConclusion: floor })),
           signal
         };
         const planner = await this.askAimModel(plannerContext, modelToUse, reasoningToUse, signal);
@@ -1866,6 +1913,7 @@ export class AimManualFlow {
     const lineage = await this.branchLineage(map, parentBranchId);
     const explorationTarget = state.minimumAnswersBeforeConclusion ?? 2;
     const answeredQuestionCount = this.answerCountInLineage(map, parentBranchId);
+    const floor = this.floorFor(mother.detail);
     const priorQuestions = await this.questionHistory(map, parentBranchId);
     const savedConditions: { branchId: string; conditions: Record<string, string> }[] = [];
     let conditionBranch = parentBranch;
@@ -1910,7 +1958,7 @@ export class AimManualFlow {
       motherNode && motherNode.id !== parentNode.id ? { title: mother.title, detail: mother.detail } : undefined;
     const questionVars = {
       userQuestionRule: USER_QUESTION_RULE,
-      minimumAnswers: this.limits.minAnsweredBeforeConclusion,
+      minimumAnswers: floor,
       answeredQuestionCount,
       explorationTarget,
       currentTopic: { title: parent.title, summary: parent.summary, detail: parent.detail },
@@ -1921,7 +1969,7 @@ export class AimManualFlow {
       ? renderSavedTerminalQuestionTask({ ...questionVars, savedConditions, knownQuestions })
       : renderInitialQuestionTask(questionVars);
     // Below the floor, or when the user explicitly asked for a new question, the schema itself forbids skipping.
-    const requireQuestion = isSavedTerminalResult || answeredQuestionCount < this.limits.minAnsweredBeforeConclusion;
+    const requireQuestion = isSavedTerminalResult || answeredQuestionCount < floor;
     const context: AimTaskContext = {
       aimEvidenceIds: this.lineageEvidenceIds(map, parentBranchId),
       title: parent.title,
@@ -1945,15 +1993,11 @@ export class AimManualFlow {
       throw new Error(
         "Planner must create a new question from this saved result; no conclusion or no-question response is allowed."
       );
-    if (
-      !isSavedTerminalResult &&
-      result.summary.trim() === AIM_NO_QUESTION &&
-      answeredQuestionCount < this.limits.minAnsweredBeforeConclusion
-    ) {
+    if (!isSavedTerminalResult && result.summary.trim() === AIM_NO_QUESTION && answeredQuestionCount < floor) {
       const previousQuestions = await this.questionHistory(map, parentBranchId);
       const correctionPrompt = renderQuestionCorrectionTask({
         answeredQuestionCount,
-        minimumAnswers: this.limits.minAnsweredBeforeConclusion,
+        minimumAnswers: floor,
         originalTopic: { title: parent.title, summary: parent.summary, detail: parent.detail },
         mother: motherGoal,
         previousQuestions,
@@ -1986,7 +2030,7 @@ export class AimManualFlow {
       throw new Error(
         "Planner repeated an existing question instead of creating a new question from the saved result."
       );
-    if (!isSavedTerminalResult && answeredQuestionCount < this.limits.minAnsweredBeforeConclusion) {
+    if (!isSavedTerminalResult && answeredQuestionCount < floor) {
       if (
         priorQuestions.some(
           question => question.trim().toLocaleLowerCase() === result.summary.trim().toLocaleLowerCase()
@@ -2949,6 +2993,7 @@ export class AimManualFlow {
     branch = map.aim?.branches.find(item => item.id === branchId);
     if (!branch) throw new Error("AIM answer branch disappeared before synthesis.");
     const answeredQuestionCount = this.answerCountInLineage(map, branch.id);
+    const floor = this.floorFor(topicNote.detail);
     const explorationTarget = map.aim?.minimumAnswersBeforeConclusion ?? 2;
     const existingConclusion = [...branch.results]
       .reverse()
@@ -3069,7 +3114,7 @@ export class AimManualFlow {
           userQuestionRule: USER_QUESTION_RULE,
           floorAskRule: FLOOR_ASK_RULE,
           answeredQuestionCount,
-          minimumAnswers: this.limits.minAnsweredBeforeConclusion,
+          minimumAnswers: floor,
           explorationTarget,
           questionsAlreadyAsked,
           currentQuestion: parent.summary,
@@ -3083,7 +3128,7 @@ export class AimManualFlow {
           detail: `${contextBase.detail}\n\nPersisted research reports:\n${currentReports.summary}\n\n${currentReports.detail}`,
           task: plannerPrompt,
           detailFormat: "adaptive" as const,
-          aimContract: reviewContract(floorDecisions(answeredQuestionCount, this.limits))
+          aimContract: reviewContract(floorDecisions(answeredQuestionCount, { minAnsweredBeforeConclusion: floor }))
         };
         const fingerprint = sourceFingerprint;
         const savedRecovery = resumeDelivery;

@@ -23,6 +23,8 @@ export interface AimPlannerReview {
   researchTarget?: { title: string; task: string; expectedValue: string };
   /** research_more only; absent in legacy responses, which the gap audit then classifies. */
   gapKind?: AimGapKind;
+  /** Decision-changing user conditions the review still sees as unknown; a conclusion must have none. */
+  unresolvedConditions?: string[];
   /** Unverified gaps a conclusion carries into the document as items for the user to confirm. */
   openItems?: { title: string; task: string; expectedValue: string }[];
   answerOptions?: string[];
@@ -117,7 +119,13 @@ export function parseAimPlannerReview(result: AiResult): AimPlannerReview {
   const detail = result.detail.slice(match[0].length).trim();
   if (!summary || !detail)
     throw new Error("Planner review must include a useful supported answer or interim conclusion.");
-  const answered = typeof raw.goalAnswered === "boolean" ? { goalAnswered: raw.goalAnswered } : {};
+  const unresolvedConditions = Array.isArray(raw.unresolvedConditions)
+    ? raw.unresolvedConditions.filter((item): item is string => typeof item === "string" && !!item.trim())
+    : [];
+  const answered = {
+    ...(typeof raw.goalAnswered === "boolean" ? { goalAnswered: raw.goalAnswered } : {}),
+    ...(unresolvedConditions.length ? { unresolvedConditions } : {})
+  };
   if (decision === "conclude") {
     const stopReason = typeof raw.stopReason === "string" ? raw.stopReason.trim() : "";
     if (!stopReason) throw new Error("A conclude decision must record why research should stop.");

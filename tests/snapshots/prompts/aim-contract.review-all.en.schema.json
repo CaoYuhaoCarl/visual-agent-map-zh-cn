@@ -138,6 +138,13 @@
           ],
           "description": "For research_more: the one targeted evidence gap. Otherwise null."
         },
+        "unresolvedConditions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Decision-changing user conditions that are still unknown and cannot reasonably be assumed. A condition the user said they do not know is resolved by a stated assumption. Empty when none."
+        },
         "gapKind": {
           "anyOf": [
             {
@@ -170,6 +177,7 @@
         "question",
         "answerOptions",
         "researchTarget",
+        "unresolvedConditions",
         "gapKind",
         "evidenceRequestIds"
       ],

@@ -105,6 +105,31 @@ integrationTest('AIM gap kind: a user_only gap becomes a question without the ga
   assert.deepEqual(notDecisive.calls, ['delivery-outline']);
   assert.match(notDecisive.tasks[0].detail, /Offer duties/, 'the open item reaches the delivery context');
 });
+integrationTest('AIM checklist: after the intake, one answer may conclude, and a conclusion naming an unknown condition asks about it first', async () => {
+  const run = async ({ detail, answered, unresolved, history = ['What matters most?'] }) => {
+    const calls = [], tasks = [];
+    const flow = new AimManualFlow({ settings: { language: 'en' } }, {}, async context => {
+      calls.push(context.task.match(/aim-phase:\s*([a-z-]+)/)?.[1]); tasks.push(context);
+      if (aimPhase(context, 'delivery-outline')) throw new Error('STOP_AT_DELIVERY');
+      if (aimPhase(context, 'decision-quality-review')) return plannerReview('ask_user', { rationale: 'Unknown condition.', question: 'What is your budget?' }, 'Conditional answer.', 'Saved reports stay valid.', ['Under 1,000', 'Over 1,000']);
+      throw new Error(`Unexpected phase ${context.task.slice(0, 80)}`);
+    });
+    const context = { goal: 'Choose a laptop', goalDetail: detail, outputLanguage: 'en', conditions: {}, currentQuestion: 'What matters most?', currentAnswer: 'Battery', answeredQuestionCount: answered, questionHistory: history, lineage: '', reportSummary: 'Saved.', reportDetail: 'Saved reports.' };
+    const raw = plannerReview('conclude', { rationale: 'Sufficient.', stopReason: 'No gap.' }, 'Candidate.', 'Candidate answer.');
+    const candidate = parseAimPlannerReview(unresolved ? { ...raw, detail: raw.detail.replace('"decision":"conclude"', `"decision":"conclude","unresolvedConditions":${JSON.stringify(unresolved)}`) } : raw);
+    try { return { review: await flow.reviewPlannerDecisionQuality(candidate, context, 'gpt-6-luna', 'low'), calls, tasks }; }
+    catch (error) { if (/STOP_AT_DELIVERY/.test(error.message)) return { review: { decision: 'conclude' }, calls, tasks }; throw error; }
+  };
+  const intake = 'Background.\n\n<!-- aim-intake-complete -->\n## Initial clarification\n\nBudget unknown.';
+  assert.deepEqual((await run({ detail: intake, answered: 1 })).calls, ['delivery-outline'], 'the checklist floor lets one answer conclude');
+  assert.equal((await run({ detail: 'Background.', answered: 1 })).review.decision, 'ask_user', 'without the intake the legacy floor still applies');
+  const gated = await run({ detail: intake, answered: 1, unresolved: ['Budget'] });
+  assert.equal(gated.review.decision, 'ask_user');
+  assert.equal(gated.review.question, 'What is your budget?');
+  const assumed = await run({ detail: intake, answered: 1, unresolved: ['Budget'], history: ['What matters most?', 'What is your budget?'] });
+  assert.equal(assumed.review.decision, 'conclude', 'a condition the user was already asked about is kept as an assumption');
+  assert.match(assumed.tasks.at(-1).detail, /Budget/, 'the assumption reaches the delivery as an open item');
+});
 const gapTarget = { title: 'Missing evidence', task: 'Search for the missing evidence.', contribution: 'Closes the gap.' };
 /** A Planner that always wants more research, so the flow must end through the research-budget exit. */
 function gapModel(base, seen) {

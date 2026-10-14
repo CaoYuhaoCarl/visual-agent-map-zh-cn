@@ -124,6 +124,11 @@ function payloadSchema(contract: AimContract): Record<string, unknown> {
           ),
           description: "For research_more: the one targeted evidence gap. Otherwise null."
         },
+        unresolvedConditions: {
+          ...texts,
+          description:
+            "Decision-changing user conditions that are still unknown and cannot reasonably be assumed. A condition the user said they do not know is resolved by a stated assumption. Empty when none."
+        },
         gapKind: {
           anyOf: [{ type: "string", enum: ["searchable", "user_only", "not_decisive"] }, { type: "null" }],
           description:
@@ -239,7 +244,7 @@ function foldPayload(contract: AimContract, aim: Record<string, unknown>, result
       };
     case "review": {
       const decision = aim.decision as AimDecision;
-      const fields: Record<string, string | boolean> = {
+      const fields: Record<string, string | boolean | string[]> = {
         decision,
         rationale: clean(aim.rationale),
         ...(typeof aim.goalAnswered === "boolean" ? { goalAnswered: aim.goalAnswered } : {})
@@ -247,6 +252,8 @@ function foldPayload(contract: AimContract, aim: Record<string, unknown>, result
       if (decision === "conclude") fields.stopReason = clean(aim.stopReason);
       if (decision === "ask_user") fields.question = clean(aim.question);
       if (decision === "research_more" && typeof aim.gapKind === "string") fields.gapKind = aim.gapKind;
+      const unresolved = cleanList(aim.unresolvedConditions);
+      if (unresolved.length) fields.unresolvedConditions = unresolved;
       const target =
         aim.researchTarget && typeof aim.researchTarget === "object"
           ? (aim.researchTarget as Record<string, unknown>)

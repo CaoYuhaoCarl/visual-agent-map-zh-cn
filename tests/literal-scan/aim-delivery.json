@@ -103,6 +103,11 @@
       "file": "ai/aim-contracts.ts",
       "text": "For research_more: searchable when publi",
       "reason": "JSON response-schema field description sent as part of the AIM contract schema (checked by the aim-contract.* .schema.json snapshots), not a prompt template; schema description text stays in TypeScript until a later stage"
+    },
+    {
+      "file": "ai/aim-contracts.ts",
+      "text": "Decision-changing user conditions that a",
+      "reason": "JSON response-schema field description sent as part of the AIM contract schema (checked by the aim-contract.* .schema.json snapshots), not a prompt template; schema description text stays in TypeScript until a later stage"
     }
   ]
 }
