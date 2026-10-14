@@ -50,7 +50,8 @@ const texts = root => findAll(root, i => i.text).map(i => i.text);
 function makeModal() {
   return class Modal {
     constructor(app) { this.app = app; this.titleEl = element('title'); this.contentEl = element('content'); this.modalEl = element('modal'); this.modalEl.children.push(this.contentEl); this.closeCount = 0; }
-    open() { this.onOpen?.(); }
+    // Like Obsidian's Modal, opening stores the page's text selection on `this.selection`.
+    open() { this.selection = { rangeCount: 0 }; this.onOpen?.(); }
     close() { this.closeCount++; this.onClose?.(); }
   };
 }

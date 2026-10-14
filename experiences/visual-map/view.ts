@@ -1,4 +1,5 @@
 import { resolveAimContentLanguage } from "../aim/content-language";
+import { PromptPresetsModal } from "../../ui/modals/prompt-presets-modal";
 import { AimClarificationModal } from "../../ui/modals/aim-clarification-modal";
 import { withThinkingOrigin } from "./thinking-origin";
 import { createHash, randomUUID } from "node:crypto";
@@ -5005,7 +5006,9 @@ export class VisualAgentMapView extends ItemView {
       this.modelChoices(),
       this.templateChoices(),
       request => void this.startMultiResearch(request, retryBatchKey),
-      this.toneChoices()
+      this.toneChoices(),
+      (selected, refreshed) =>
+        new PromptPresetsModal(this.app, this.plugin, "tone", () => refreshed(this.toneChoices()), selected).open()
     ).open();
   }
   stopMultiResearch(): void {
@@ -6052,7 +6055,7 @@ export class VisualAgentMapView extends ItemView {
     this.render();
     const model = this.plugin.settings.cliModel;
     const language = this.plugin.settings.language;
-    const detailTemplate = this.mapDetailTemplate(options?.outputLanguage ?? language);
+    const detailTemplate = this.mapDetailTemplate(options?.outputLanguage ?? language, options?.detailTemplateId);
     try {
       const result = await this.plugin.askModel(
         {
@@ -6198,7 +6201,7 @@ export class VisualAgentMapView extends ItemView {
     )
       throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
     const integrated = await this.plugin.repo.createNote(title, model, this.map, this.path, "workspace");
-    const detailTemplate = this.mapDetailTemplate(language);
+    const detailTemplate = this.mapDetailTemplate(language, task.options.detailTemplateId);
     try {
       await this.plugin.repo.updateNote(
         integrated.path,

@@ -46,7 +46,9 @@ export class PromptPresetsModal extends Modal {
     app: App,
     private plugin: PromptPresetsHost,
     private kind: PromptPresetKind = "tone",
-    private onChanged: () => void = () => {}
+    private onChanged: () => void = () => {},
+    /** Opens straight into this preset (edit, or view for a built-in), as from a dialog's tone picker. */
+    private initialId?: string
   ) {
     super(app);
   }
@@ -69,7 +71,8 @@ export class PromptPresetsModal extends Modal {
 
   onOpen(): void {
     this.titleEl.setText(t("ui.tone_presets"));
-    this.showList();
+    if (this.initialId) this.showEditor(this.initialId);
+    else this.showList();
   }
 
   private get custom() {
