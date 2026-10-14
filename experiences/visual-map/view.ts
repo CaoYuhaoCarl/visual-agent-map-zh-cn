@@ -1,4 +1,5 @@
 import { resolveAimContentLanguage } from "../aim/content-language";
+import { PromptPresetsModal } from "../../ui/modals/prompt-presets-modal";
 import { AimClarificationModal } from "../../ui/modals/aim-clarification-modal";
 import { withThinkingOrigin } from "./thinking-origin";
 import { createHash, randomUUID } from "node:crypto";
@@ -4770,7 +4771,9 @@ export class VisualAgentMapView extends ItemView {
       this.modelChoices(),
       this.templateChoices(),
       request => void this.startMultiResearch(request, retryBatchKey),
-      this.toneChoices()
+      this.toneChoices(),
+      (selected, refreshed) =>
+        new PromptPresetsModal(this.app, this.plugin, "tone", () => refreshed(this.toneChoices()), selected).open()
     ).open();
   }
   stopMultiResearch(): void {

@@ -107,6 +107,29 @@ integrationTest('multi-select research dialog: the tone picker defaults to keepi
   assert.equal(submitted[1].toneId, 'plain');
 });
 
+integrationTest('tone picker: the edit link opens the tone library at the chosen tone and refreshes the list when it closes', () => {
+  const Modal = dom.makeModal();
+  const { MultiResearchModal } = load('experiences/visual-map/multi-research-modal.ts', { obsidian: { ...obsidian, Modal } });
+  const models = { list: () => [], watch: () => () => {} };
+  const tones = [{ id: 'plain', name: 'Plain' }, { id: 'custom-1', name: 'Mine' }];
+  const opened = [];
+  const modal = new MultiResearchModal({}, ['A', 'B'], models, [], () => {}, tones, (selected, refreshed) => opened.push({ selected, refreshed }));
+  modal.open();
+  const select = byLabel(modal.contentEl, 'Writing tone');
+  select.value = 'custom-1';
+  button(modal.contentEl, 'Edit tones…').click();
+  assert.equal(opened.length, 1); assert.equal(opened[0].selected, 'custom-1', 'the library opens at the chosen tone');
+  opened[0].refreshed([{ id: 'plain', name: 'Plain' }, { id: 'custom-1', name: 'Mine, edited' }, { id: 'custom-2', name: 'New one' }]);
+  assert.deepEqual(plain(select.children.map(o => o.text)), ["Each topic's current tone", 'Plain', 'Mine, edited', 'New one'], 'edited and new tones show at once');
+  assert.equal(select.value, 'custom-1', 'the choice survives the refresh');
+  opened[0].refreshed([{ id: 'plain', name: 'Plain' }]);
+  assert.equal(select.value, '', 'a deleted choice falls back to the default option');
+  const presets = load('ui/modals/prompt-presets-modal.ts', { obsidian: { ...obsidian, Modal } });
+  const host = { settings: { language: 'en', promptPresets: [{ id: 'custom-1', kind: 'tone', name: 'Mine', text: 'Short and warm.' }] }, saveSettings: async () => {} };
+  const library = new presets.PromptPresetsModal({}, host, 'tone', () => {}, 'custom-1'); library.open();
+  assert.equal(byLabel(library.contentEl, 'Tone text')?.value ?? findAll(library.contentEl, i => i.tag === 'textarea')[0].value, 'Short and warm.', 'opens straight into the editor');
+});
+
 // ---- Next Step dialog harness -------------------------------------------------------------------------------
 function nextStepHarness({ settings = {}, modelSettings = {}, topic = 'Parent', depth = 'normal', children = 1, pending = 0, research, expand, synthesize, language = 'en', plugin: pluginOverrides = {} } = {}) {
   const notices = [];
@@ -133,6 +156,7 @@ integrationTest('Next Step: the tone select defaults to keeping the topic tone a
   const h = nextStepHarness({ modelSettings: { tones: [{ id: 'plain', name: 'Plain explanation' }, { id: 'academic', name: 'Academic rigor' }], currentTone: 'Academic rigor' } });
   const tone = byLabel(h.modal.contentEl, 'Writing tone');
   assert.deepEqual(plain(tone.children.map(o => o.text)), ['Keep current (Academic rigor)', 'Plain explanation', 'Academic rigor']);
+  assert.ok(button(h.modal.contentEl, 'Edit tones…'), 'the tone picker offers an edit link to the tone library');
   tone.value = 'plain'; tone.fire('change');
   assert.ok(find(h.modal.contentEl, i => hasCls(i, 'vam-next-source-summary') && /Plain explanation/.test(i.text)), 'the output summary names the chosen tone');
   button(h.actions(), 'Confirm research task').click(); await tick(); await tick();

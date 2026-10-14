@@ -873,6 +873,7 @@ var english = {
   "ui.synthesis_stage_two_fixed": "Sources, content, language and template were fixed when the directions were requested; only the extra requirements can still change.",
   "ui.synthesis_needs_name": "Enter a name for the new topic first.",
   "ui.tone": "Writing tone",
+  "ui.tone_edit": "Edit tones\u2026",
   "ui.tone_keep_each": "Each topic's current tone",
   "ui.tone_keep_0": "Keep current ({0})",
   "ui.tone_map_default": "Default writing tone for this map",
@@ -2215,6 +2216,7 @@ var traditionalChinese = {
   "ui.synthesis_stage_two_fixed": "\u53D6\u5F97\u65B9\u5411\u6642\u5DF2\u56FA\u5B9A\u4F86\u6E90\u3001\u5167\u5BB9\u7BC4\u570D\u3001\u8A9E\u8A00\u8207\u6A21\u677F\uFF1B\u73FE\u5728\u53EA\u80FD\u8ABF\u6574\u984D\u5916\u8981\u6C42\u3002",
   "ui.synthesis_needs_name": "\u8ACB\u5148\u66FF\u65B0\u8B70\u984C\u53D6\u540D\u3002",
   "ui.tone": "\u5BEB\u4F5C\u8A9E\u6C23",
+  "ui.tone_edit": "\u7DE8\u8F2F\u8A9E\u6C23\u2026",
   "ui.tone_keep_each": "\u5404\u8B70\u984C\u76EE\u524D\u7684\u8A9E\u6C23",
   "ui.tone_keep_0": "\u7DAD\u6301\u76EE\u524D\uFF08{0}\uFF09",
   "ui.tone_map_default": "\u9019\u5F35\u5716\u7684\u9810\u8A2D\u5BEB\u4F5C\u8A9E\u6C23",
@@ -10204,9 +10206,350 @@ function resolveAimContentLanguage(map, uiLanguage) {
   return chooseAimContentLanguage(uiLanguage, map == null ? void 0 : map.title);
 }
 
-// ui/modals/aim-clarification-modal.ts
+// ui/modals/prompt-presets-modal.ts
 var import_obsidian5 = require("obsidian");
-var AimClarificationModal = class extends import_obsidian5.Modal {
+
+// ui/modals/action-bar.ts
+function modalActions(modal) {
+  modal.modalEl.addClass("vam-review-modal");
+  return modal.modalEl.createDiv("vam-next-actions");
+}
+function actionStatus(actions) {
+  return actions.createSpan({ cls: "vam-next-actions-note vam-next-status", attr: { "aria-live": "polite" } });
+}
+function armDiscard(button, status, discard, blocked = () => false, labels = { confirm: t("ui.discard_confirm"), hint: t("ui.discard_confirm_hint") }) {
+  var _a;
+  const label = (_a = button.textContent) != null ? _a : "";
+  let timer = 0;
+  const disarm = () => {
+    window.clearTimeout(timer);
+    timer = 0;
+    button.setText(label);
+    button.removeClass("mod-warning");
+  };
+  button.addEventListener("click", () => {
+    if (blocked()) return;
+    if (timer) {
+      disarm();
+      discard();
+      return;
+    }
+    timer = window.setTimeout(() => {
+      disarm();
+      status.setText("");
+    }, 5e3);
+    button.setText(labels.confirm);
+    button.addClass("mod-warning");
+    status.setText(labels.hint);
+  });
+  return disarm;
+}
+
+// ai/prompt-presets/plain.zh.md
+var plain_zh_default = "\u5BEB\u4F5C\u8A9E\u6C23\uFF1A\u767D\u8A71\u8AAA\u660E\u3002\u7528\u65E5\u5E38\u7528\u8A9E\u5411\u975E\u5C08\u696D\u8B80\u8005\u89E3\u91CB\uFF0C\u53E5\u5B50\u77ED\u3001\u5C11\u7528\u8853\u8A9E\uFF1B\u5FC5\u8981\u7684\u8853\u8A9E\u7B2C\u4E00\u6B21\u51FA\u73FE\u6642\u7528\u4E00\u53E5\u8A71\u8AAA\u660E\u3002\u5148\u8B1B\u7D50\u8AD6\u8207\u91CD\u9EDE\uFF0C\u518D\u88DC\u80CC\u666F\uFF0C\u4E0D\u5806\u780C\u5C08\u6709\u540D\u8A5E\u3002\n";
+
+// ai/prompt-presets/plain.en.md
+var plain_en_default = "Tone: plain explanation. Explain to a non-specialist reader in everyday language with short sentences and little jargon; explain any necessary term in one sentence the first time it appears. Lead with the conclusion and the key points, then add background, and do not pile up technical terms.\n";
+
+// ai/prompt-presets/magazine.zh.md
+var magazine_zh_default = "\u5BEB\u4F5C\u8A9E\u6C23\uFF1A\u96DC\u8A8C\u5C08\u6B04\u3002\u4EE5\u6D41\u66A2\u3001\u6709\u89C0\u9EDE\u3001\u6709\u756B\u9762\u7684\u6558\u4E8B\u7B46\u8ABF\u5BEB\u4F5C\uFF0C\u53EF\u7528\u5C0F\u6A19\u8207\u5177\u9AD4\u4F8B\u5B50\u5E36\u51FA\u91CD\u9EDE\uFF0C\u8B93\u8B80\u8005\u9858\u610F\u4E00\u8DEF\u8B80\u4E0B\u53BB\uFF1B\u4FDD\u6301\u5167\u5BB9\u6E96\u78BA\uFF0C\u4E0D\u8A87\u5927\u3001\u4E0D\u7DE8\u9020\u3002\n";
+
+// ai/prompt-presets/magazine.en.md
+var magazine_en_default = "Tone: magazine column. Write in a fluent, opinionated, vivid narrative voice; use subheadings and concrete examples to carry the main points so the reader wants to keep reading. Keep the content accurate: no exaggeration and no invention.\n";
+
+// ai/prompt-presets/summary.zh.md
+var summary_zh_default = "\u5BEB\u4F5C\u8A9E\u6C23\uFF1A\u91CD\u9EDE\u6458\u8981\u3002\u4EE5\u7CBE\u7C21\u7684\u689D\u5217\u8207\u77ED\u53E5\u5448\u73FE\u7D50\u8AD6\u3001\u95DC\u9375\u4E8B\u5BE6\u8207\u6578\u5B57\uFF0C\u53BB\u9664\u92EA\u9673\u8207\u4FEE\u98FE\uFF1B\u6BCF\u9EDE\u53EA\u8AAA\u4E00\u4EF6\u4E8B\uFF0C\u8B93\u8B80\u8005\u5728\u6700\u77ED\u6642\u9593\u5167\u638C\u63E1\u5168\u8C8C\u3002\n";
+
+// ai/prompt-presets/summary.en.md
+var summary_en_default = "Tone: key-point summary. Present conclusions, key facts and figures as compact bullets and short sentences, without build-up or embellishment; each point says one thing, so the reader grasps the whole picture in the least time.\n";
+
+// ai/prompt-presets/guide.zh.md
+var guide_zh_default = "\u5BEB\u4F5C\u8A9E\u6C23\uFF1A\u5BE6\u7528\u6307\u5357\u3002\u4EE5\u53EF\u76F4\u63A5\u7167\u505A\u7684\u53E3\u543B\u5BEB\u4F5C\uFF1A\u5148\u8AAA\u9069\u7528\u60C5\u5883\u8207\u76EE\u6A19\uFF0C\u518D\u4F9D\u5E8F\u7D66\u51FA\u6B65\u9A5F\u3001\u6AA2\u67E5\u9EDE\u8207\u5E38\u898B\u932F\u8AA4\uFF1B\u512A\u5148\u63D0\u4F9B\u53EF\u64CD\u4F5C\u7684\u5EFA\u8B70\u8207\u53D6\u6368\u5224\u6E96\u3002\n";
+
+// ai/prompt-presets/guide.en.md
+var guide_en_default = "Tone: practical guide. Write so the reader can act on it directly: state the situation and goal first, then give steps, checkpoints and common mistakes in order; prefer actionable advice and criteria for trade-offs.\n";
+
+// ai/prompt-presets/academic.zh.md
+var academic_zh_default = "\u5BEB\u4F5C\u8A9E\u6C23\uFF1A\u5B78\u8853\u56B4\u8B39\uFF08\u9810\u8A2D\uFF09\u3002\u4EE5\u4E2D\u6027\u3001\u7CBE\u78BA\u3001\u4EE5\u8B49\u64DA\u70BA\u672C\u7684\u66F8\u9762\u8A9E\u5BEB\u4F5C\uFF1B\u660E\u78BA\u5340\u5206\u4E8B\u5BE6\u3001\u63A8\u8AD6\u8207\u4E0D\u78BA\u5B9A\u4E4B\u8655\uFF0C\u6A19\u660E\u4F86\u6E90\u8207\u9650\u5236\uFF0C\u907F\u514D\u53E3\u8A9E\u8207\u4FEE\u8FAD\u6027\u8A87\u98FE\u3002\n";
+
+// ai/prompt-presets/academic.en.md
+var academic_en_default = "Tone: academic rigor (default). Write in neutral, precise, evidence-based formal prose; clearly separate facts, inferences and uncertainty, state sources and limits, and avoid colloquialism and rhetorical flourish.\n";
+
+// ai/prompt-presets/auto.zh.md
+var auto_zh_default = "\u5BEB\u4F5C\u8A9E\u6C23\uFF1AAI \u5EFA\u8B70\u3002\u8ACB\u4F9D\u4E3B\u984C\u6027\u8CEA\u8207\u4E0A\u4E0B\u6587\uFF08\u8B80\u8005\u3001\u7528\u9014\u3001\u65E2\u6709\u5167\u5BB9\u7684\u98A8\u683C\uFF09\u81EA\u884C\u9078\u64C7\u6700\u5408\u9069\u7684\u5BEB\u4F5C\u8A9E\u6C23\uFF1B\u4E26\u5728 detail \u6700\u958B\u982D\u4EE5\u4E00\u884C\u5BEB\u660E\u4F60\u9078\u64C7\u7684\u8A9E\u6C23\u8207\u7406\u7531\uFF08\u683C\u5F0F\uFF1A\u300C\u8A9E\u6C23\uFF1A<\u540D\u7A31>\uFF5C<\u4E00\u53E5\u7406\u7531>\u300D\uFF09\uFF0C\u4E4B\u5F8C\u518D\u958B\u59CB\u6B63\u6587\u3002\n";
+
+// ai/prompt-presets/auto.en.md
+var auto_en_default = 'Tone: AI choice. Choose the most suitable writing tone yourself from the nature of the topic and its context (the reader, the purpose, the style of the existing content), and state your choice and reason in one line at the very top of detail (format: "Tone: <name> | <one-sentence reason>") before the body begins.\n';
+
+// ai/prompt-presets/knowledge-tree.zh.md
+var knowledge_tree_zh_default = "# VAM Knowledge Tree Generator\n\n## \u4E00\u3001\u4F7F\u7528\u8005\u8A2D\u5B9A\uFF08\u53EF\u81EA\u884C\u8ABF\u6574\uFF09\n\n\u7814\u7A76\u4E3B\u984C\uFF1A{\u586B\u5165\u7814\u7A76\u4E3B\u984C}\n\n### \u6578\u91CF\u9650\u5236\n- \u6700\u5927\u6A19\u984C\u6578\u91CF\uFF1A30\uFF08\u5305\u542B\u6839\u6A19\u984C\uFF09\n- \u6700\u5927\u968E\u5C64\u6DF1\u5EA6\uFF1A6\uFF08Markdown # \u81F3 ######\uFF09\n\n### \u6DF1\u5EA6\u63A7\u5236\n- \u968E\u5C64\u6A21\u5F0F\uFF1A\u81EA\u7136\u5C55\u958B\n- \u6700\u4F4E\u7814\u7A76\u6DF1\u5EA6\uFF1A\u4E0D\u9650\u5236\n- \u5141\u8A31\u4E0D\u540C\u5206\u652F\u6DF1\u5EA6\uFF1A\u662F\n- \u5141\u8A31\u4E0D\u540C\u5206\u652F\u7684\u5B50\u7BC0\u9EDE\u6578\u91CF\uFF1A\u662F\n\n### \u77E5\u8B58\u8986\u84CB\n- \u77E5\u8B58\u5B8C\u6574\u6027\uFF1A\u512A\u5148\n- \u77E5\u8B58\u5EE3\u5EA6\u8207\u6DF1\u5EA6\uFF1A\u4F9D\u4E3B\u984C\u8907\u96DC\u5EA6\u52D5\u614B\u5206\u914D\n- \u672B\u7AEF\u7BC0\u9EDE\u8981\u6C42\uFF1A\u53EF\u4EE5\u7368\u7ACB\u7814\u7A76\n\n---\n\n## \u4E8C\u3001\u4EFB\u52D9\u76EE\u6A19\n\n\u8ACB\u91DD\u5C0D\u4F7F\u7528\u8005\u8A2D\u5B9A\u7684\u7814\u7A76\u4E3B\u984C\uFF0C\u5EFA\u7ACB\u4E00\u4EFD\u9069\u5408\u7CFB\u7D71\u6027\u77E5\u8B58\u63A2\u7D22\u8207\u6DF1\u5165\u7814\u7A76\u7684 Markdown \u968E\u5C64\u5F0F\u5927\u7DB1\u3002\n\n\u76EE\u6A19\u4E0D\u662F\u88FD\u4F5C\u50B3\u7D71\u7684\u8AB2\u7A0B\u76EE\u9304\uFF0C\u800C\u662F\u5EFA\u7ACB\u4E00\u68F5\u5177\u6709\u77E5\u8B58\u908F\u8F2F\u3001\u6DF1\u5EA6\u4E0D\u5C0D\u7A31\u3001\u80FD\u5920\u9010\u5C64\u6DF1\u5165\u7814\u7A76\u7684\u77E5\u8B58\u6A39\u3002\n\n\u6240\u6709\u751F\u6210\u898F\u5247\u90FD\u5FC5\u9808\u9075\u5B88\u6700\u4E0A\u65B9\u7684\u300C\u4F7F\u7528\u8005\u8A2D\u5B9A\u300D\u3002\n\n## \u4E09\u3001\u77E5\u8B58\u7D44\u7E54\u539F\u5247\n\n1. \u4EE5\u77E5\u8B58\u9AD4\u7CFB\u7684\u5B8C\u6574\u6027\u3001\u908F\u8F2F\u6027\u8207\u7814\u7A76\u50F9\u503C\u70BA\u512A\u5148\u3002\n2. \u8ACB\u4EE5\u77E5\u8B58\u4E4B\u9593\u7684\u4F9D\u8CF4\u95DC\u4FC2\u3001\u56E0\u679C\u95DC\u4FC2\u8207\u6982\u5FF5\u7D30\u5206\u95DC\u4FC2\u7D44\u7E54\u5927\u7DB1\uFF0C\u800C\u4E0D\u662F\u4F9D\u7167\u6559\u79D1\u66F8\u7AE0\u7BC0\u6216\u8AB2\u7A0B\u9806\u5E8F\u5206\u985E\u3002\n3. \u5927\u7DB1\u61C9\u662F\u4E00\u68F5\u975E\u5C0D\u7A31\u77E5\u8B58\u6A39\uFF0C\u800C\u4E0D\u662F\u5E73\u5747\u5206\u914D\u7684\u5206\u985E\u76EE\u9304\u3002\n4. \u4F9D\u7167\u6BCF\u500B\u77E5\u8B58\u9818\u57DF\u7684\u8907\u96DC\u7A0B\u5EA6\uFF0C\u81EA\u7136\u6C7A\u5B9A\u5206\u652F\u6DF1\u5EA6\u3002\n5. \u4E0D\u540C\u5206\u652F\u53EF\u4EE5\u6709\u4E0D\u540C\u6DF1\u5EA6\uFF0C\u4E5F\u53EF\u4EE5\u6709\u4E0D\u540C\u6578\u91CF\u7684\u5B50\u7BC0\u9EDE\u3002\n6. \u7236\u7BC0\u9EDE\u4EE3\u8868\u77E5\u8B58\u9818\u57DF\u3001\u6838\u5FC3\u6982\u5FF5\u6216\u4F5C\u7528\u6A5F\u5236\uFF1B\u5B50\u7BC0\u9EDE\u4EE3\u8868\u66F4\u5177\u9AD4\u7684\u539F\u7406\u3001\u6A5F\u5236\u3001\u56E0\u679C\u95DC\u4FC2\u6216\u7814\u7A76\u554F\u984C\u3002\n7. \u6BCF\u500B\u5B50\u7BC0\u9EDE\u90FD\u5FC5\u9808\u8207\u7236\u7BC0\u9EDE\u5B58\u5728\u660E\u78BA\u7684\u77E5\u8B58\u908F\u8F2F\u95DC\u4FC2\uFF0C\u800C\u975E\u50C5\u50C5\u5C6C\u65BC\u76F8\u540C\u4E3B\u984C\u3002\n8. \u6BCF\u500B\u672B\u7AEF\u7BC0\u9EDE\u90FD\u5FC5\u9808\u5177\u6709\u7368\u7ACB\u7814\u7A76\u50F9\u503C\uFF0C\u9069\u5408\u4F5C\u70BA\u4E00\u500B\u5B8C\u6574\u7684\u7814\u7A76\u55AE\u5143\u3002\n9. \u907F\u514D\u77E5\u8B58\u91CD\u8907\u3001\u904E\u5EA6\u62C6\u5206\uFF0C\u4EE5\u53CA\u6C92\u6709\u5BE6\u969B\u7814\u7A76\u50F9\u503C\u7684\u5206\u985E\u3002\n\n## \u56DB\u3001\u968E\u5C64\u8207\u6DF1\u5EA6\u898F\u5247\n\n1. \u4F7F\u7528 Markdown \u6A19\u984C\u8868\u793A\u77E5\u8B58\u968E\u5C64\u3002\n2. \u53EA\u4F7F\u7528\u4E00\u500B # \u6A19\u984C\u4F5C\u70BA\u6839\u4E3B\u984C\u3002\n3. \u7B2C\u4E00\u5C64\u5B50\u8B70\u984C\u4F7F\u7528 ##\uFF0C\u4E0B\u4E00\u5C64\u4F7F\u7528 ###\uFF0C\u4F9D\u6B64\u985E\u63A8\u3002\n4. \u968E\u5C64\u4E0D\u5F97\u8D85\u904E\u4F7F\u7528\u8005\u8A2D\u5B9A\u7684\u6700\u5927\u6DF1\u5EA6\u3002\n5. \u4E0D\u8981\u628A\u6240\u6709\u5206\u652F\u56FA\u5B9A\u5728\u76F8\u540C\u6DF1\u5EA6\u3002\n6. \u7C21\u55AE\u6982\u5FF5\u53EF\u4EE5\u505C\u7559\u5728\u8F03\u6DFA\u5C64\u7D1A\u3002\n7. \u8907\u96DC\u6982\u5FF5\u61C9\u4F9D\u5176\u77E5\u8B58\u4F9D\u8CF4\u95DC\u4FC2\u7E7C\u7E8C\u6DF1\u5165\u3002\n8. \u6BCF\u4E00\u5C64\u90FD\u5FC5\u9808\u4EE3\u8868\u6709\u610F\u7FA9\u7684\u77E5\u8B58\u6DF1\u5316\uFF0C\u800C\u4E0D\u662F\u55AE\u7D14\u589E\u52A0\u6A19\u984C\u3002\n9. \u4E0D\u8981\u70BA\u4E86\u8FFD\u6C42\u6DF1\u5EA6\u800C\u5275\u9020\u4E0D\u5FC5\u8981\u7684\u4E2D\u9593\u7BC0\u9EDE\u3002\n10. \u7576\u67D0\u500B\u6982\u5FF5\u503C\u5F97\u9032\u4E00\u6B65\u7814\u7A76\u6642\uFF0C\u61C9\u512A\u5148\u6CBF\u8457\u8A72\u5206\u652F\u6DF1\u5165\uFF0C\u800C\u4E0D\u662F\u6301\u7E8C\u589E\u52A0\u540C\u5C64\u5206\u985E\u3002\n\n## \u4E94\u3001\u77E5\u8B58\u95DC\u4FC2\u8207\u7BC0\u9EDE\u8A2D\u8A08\n\n\u512A\u5148\u5448\u73FE\u4EE5\u4E0B\u4E09\u7A2E\u77E5\u8B58\u95DC\u4FC2\uFF1A\n\n1. \u6982\u5FF5\u7D30\u5206\uFF1A\u5F9E\u62BD\u8C61\u6982\u5FF5\u6DF1\u5165\u5177\u9AD4\u539F\u7406\u8207\u6A5F\u5236\u3002\n2. \u56E0\u679C\u95DC\u4FC2\uFF1A\u5F9E\u73FE\u8C61\u6DF1\u5165\u5F71\u97FF\u56E0\u7D20\u3001\u4F5C\u7528\u6A5F\u5236\u8207\u7D50\u679C\u3002\n3. \u4F9D\u8CF4\u95DC\u4FC2\uFF1A\u5F9E\u57FA\u790E\u6982\u5FF5\u6DF1\u5165\u5EFA\u7ACB\u5728\u5176\u4E0A\u7684\u9032\u968E\u77E5\u8B58\u3002\n\n\u7BC0\u9EDE\u8A2D\u8A08\u8981\u6C42\uFF1A\n\n1. \u540C\u4E00\u689D\u77E5\u8B58\u8DEF\u5F91\u61C9\u5448\u73FE\u9010\u6B65\u6DF1\u5316\u7684\u7814\u7A76\u908F\u8F2F\u3002\n2. \u7236\u7BC0\u9EDE\u61C9\u80FD\u5408\u7406\u7D71\u6574\u5176\u6240\u6709\u5B50\u7BC0\u9EDE\u3002\n3. \u5B50\u7BC0\u9EDE\u61C9\u63D0\u4F9B\u65B0\u7684\u7814\u7A76\u65B9\u5411\uFF0C\u800C\u4E0D\u662F\u63DB\u53E5\u8A71\u8AAA\u660E\u7236\u7BC0\u9EDE\u3002\n4. \u672B\u7AEF\u7BC0\u9EDE\u61C9\u5177\u6709\u8DB3\u5920\u7684\u5177\u9AD4\u6027\uFF0C\u53EF\u4EE5\u9032\u4E00\u6B65\u7814\u7A76\u5176\u539F\u7406\u3001\u8B49\u64DA\u3001\u9650\u5236\u8207\u5BE6\u969B\u61C9\u7528\u3002\n5. \u907F\u514D\u53EA\u6709\u5206\u985E\u529F\u80FD\u3001\u7F3A\u4E4F\u7814\u7A76\u610F\u7FA9\u7684\u7BC0\u9EDE\u3002\n6. \u77E5\u8B58\u4E4B\u9593\u82E5\u5B58\u5728\u8DE8\u9818\u57DF\u95DC\u4FC2\uFF0C\u61C9\u9078\u64C7\u6700\u80FD\u89E3\u91CB\u5176\u6838\u5FC3\u6A5F\u5236\u7684\u4F4D\u7F6E\uFF0C\u907F\u514D\u91CD\u8907\u5EFA\u7ACB\u76F8\u540C\u7BC0\u9EDE\u3002\n7. \u4E0D\u8981\u70BA\u4E86\u586B\u6EFF\u968E\u5C64\u800C\u523B\u610F\u589E\u52A0\u6C92\u6709\u7814\u7A76\u50F9\u503C\u7684\u7BC0\u9EDE\u3002\n\n## \u516D\u3001\u6578\u91CF\u8207\u5B8C\u6574\u6027\u898F\u5247\n\n1. \u6A19\u984C\u7E3D\u6578\u4E0D\u5F97\u8D85\u904E\u4F7F\u7528\u8005\u8A2D\u5B9A\u7684\u6700\u5927\u6A19\u984C\u6578\u91CF\u3002\n2. \u5728\u6578\u91CF\u9650\u5236\u5167\uFF0C\u512A\u5148\u6DB5\u84CB\u6700\u91CD\u8981\u7684\u6838\u5FC3\u77E5\u8B58\u9818\u57DF\u3002\n3. \u517C\u9867\u77E5\u8B58\u5EE3\u5EA6\u8207\u5FC5\u8981\u7684\u7814\u7A76\u6DF1\u5EA6\uFF0C\u4E0D\u8981\u70BA\u4E86\u8FFD\u6C42\u5EE3\u5EA6\u800C\u72A7\u7272\u6240\u6709\u5206\u652F\u7684\u6DF1\u5EA6\u3002\n4. \u4E0D\u8981\u5E73\u5747\u5206\u914D\u6BCF\u500B\u5206\u985E\u7684\u6A19\u984C\u6578\u91CF\u3002\n5. \u4E0D\u5FC5\u70BA\u4E86\u6E4A\u6EFF\u6A19\u984C\u6578\u91CF\u800C\u589E\u52A0\u5167\u5BB9\u3002\n6. \u512A\u5148\u4FDD\u7559\u5177\u6709\u9AD8\u5EA6\u7814\u7A76\u50F9\u503C\u3001\u89E3\u91CB\u80FD\u529B\u6216\u77E5\u8B58\u4F9D\u8CF4\u6027\u7684\u7BC0\u9EDE\u3002\n7. \u4E0D\u8981\u4F7F\u7528\u56FA\u5B9A\u7684\u300C\u6BCF\u500B\u5927\u5206\u985E\u914D\u7F6E\u76F8\u540C\u6578\u91CF\u5B50\u8B70\u984C\u300D\u6A21\u5F0F\u3002\n8. \u5982\u679C\u6578\u91CF\u9650\u5236\u8207\u5B8C\u6574\u6027\u767C\u751F\u885D\u7A81\uFF0C\u61C9\u512A\u5148\u4FDD\u7559\u6838\u5FC3\u77E5\u8B58\u3001\u95DC\u9375\u4F9D\u8CF4\u95DC\u4FC2\u8207\u6700\u6709\u50F9\u503C\u7684\u7814\u7A76\u8DEF\u5F91\u3002\n\n## \u4E03\u3001\u8F38\u51FA\u524D\u7684\u54C1\u8CEA\u6AA2\u67E5\n\n\u5728\u8F38\u51FA\u6700\u7D42\u7D50\u679C\u524D\uFF0C\u8ACB\u81EA\u884C\u6AA2\u67E5\uFF1A\n\n1. \u662F\u5426\u6DB5\u84CB\u7814\u7A76\u4E3B\u984C\u6700\u91CD\u8981\u7684\u6838\u5FC3\u77E5\u8B58\uFF1F\n2. \u662F\u5426\u5177\u6709\u660E\u78BA\u7684\u6982\u5FF5\u7D30\u5206\u3001\u56E0\u679C\u6216\u4F9D\u8CF4\u95DC\u4FC2\uFF1F\n3. \u5206\u652F\u6DF1\u5EA6\u662F\u5426\u7531\u77E5\u8B58\u8907\u96DC\u5EA6\u6C7A\u5B9A\uFF0C\u800C\u975E\u56FA\u5B9A\u6A21\u677F\uFF1F\n4. \u662F\u5426\u5B58\u5728\u503C\u5F97\u6DF1\u5165\u537B\u904E\u65E9\u505C\u6B62\u7684\u5206\u652F\uFF1F\n5. \u662F\u5426\u6240\u6709\u6DF1\u5165\u7684\u7BC0\u9EDE\u90FD\u6709\u5BE6\u969B\u77E5\u8B58\u50F9\u503C\uFF1F\n6. \u662F\u5426\u5B58\u5728\u4E0D\u5FC5\u8981\u7684\u4E2D\u9593\u5206\u985E\u6216\u91CD\u8907\u7BC0\u9EDE\uFF1F\n7. \u662F\u5426\u907F\u514D\u5C07\u77E5\u8B58\u6A39\u5BEB\u6210\u50B3\u7D71\u6559\u79D1\u66F8\u76EE\u9304\uFF1F\n8. \u662F\u5426\u7B26\u5408\u4F7F\u7528\u8005\u8A2D\u5B9A\u7684\u6578\u91CF\u8207\u968E\u5C64\u9650\u5236\uFF1F\n\n\u5982\u679C\u4E0D\u7B26\u5408\uFF0C\u8ACB\u5148\u81EA\u884C\u8ABF\u6574\u7D50\u69CB\uFF0C\u518D\u8F38\u51FA\u6700\u7D42\u7D50\u679C\u3002\n\n## \u516B\u3001\u8F38\u51FA\u683C\u5F0F\n\n1. \u53EA\u8F38\u51FA Markdown \u6A19\u984C\u3002\n2. \u4F7F\u7528 # \u81F3\u4F7F\u7528\u8005\u8A2D\u5B9A\u7684\u6700\u5927\u968E\u5C64\u6DF1\u5EA6\u3002\n3. \u4E0D\u4F7F\u7528\u7C97\u9AD4\u3001\u6E05\u55AE\u3001\u8868\u683C\u6216\u4EFB\u4F55\u88DC\u5145\u8AAA\u660E\u3002\n4. \u4E0D\u8981\u89E3\u91CB\u8A2D\u8A08\u908F\u8F2F\u3002\n5. \u4E0D\u8981\u8F38\u51FA\u54C1\u8CEA\u6AA2\u67E5\u7D50\u679C\u3002\n6. \u4E0D\u8981\u4F7F\u7528 Markdown \u7A0B\u5F0F\u78BC\u5340\u584A\u5305\u4F4F\u7D50\u679C\u3002\n7. \u53EA\u8F38\u51FA\u6700\u7D42\u5927\u7DB1\u672C\u8EAB\u3002\n";
+
+// ai/prompt-presets/knowledge-tree.en.md
+var knowledge_tree_en_default = '# VAM Knowledge Tree Generator\n\n## 1. User settings (adjust as needed)\n\nResearch topic: {Enter research topic}\n\n### Quantity limits\n- Maximum number of headings: 30 (including the root heading)\n- Maximum hierarchy depth: 6 (Markdown # through ######)\n\n### Depth control\n- Hierarchy mode: natural expansion\n- Minimum research depth: no limit\n- Branches may have different depths: yes\n- Branches may have different numbers of child nodes: yes\n\n### Knowledge coverage\n- Knowledge completeness: prioritized\n- Breadth and depth of knowledge: allocated dynamically by the complexity of the topic\n- Leaf node requirement: each can be researched on its own\n\n---\n\n## 2. Task goal\n\nFor the research topic set by the user, build a hierarchical Markdown outline suited to systematic knowledge exploration and in-depth research.\n\nThe goal is not a traditional course table of contents. It is a knowledge tree with real knowledge logic, uneven depth, and the ability to be researched deeper level by level.\n\nAll generation rules must follow the "User settings" at the top.\n\n## 3. Principles for organizing knowledge\n\n1. Prioritize the completeness, logic and research value of the knowledge system.\n2. Organize the outline by dependency, causality and conceptual subdivision between pieces of knowledge, not by textbook chapters or course order.\n3. The outline should be an asymmetric knowledge tree, not an evenly distributed catalogue.\n4. Decide the depth of each branch naturally from the complexity of that knowledge area.\n5. Different branches may have different depths and different numbers of child nodes.\n6. A parent node stands for a knowledge area, a core concept or a mechanism; its child nodes stand for more specific principles, mechanisms, causal relations or research questions.\n7. Every child node must have a clear knowledge-logic relation to its parent, not merely belong to the same topic.\n8. Every leaf node must have independent research value and suit being a complete research unit.\n9. Avoid duplicated knowledge, over-splitting, and categories with no real research value.\n\n## 4. Hierarchy and depth rules\n\n1. Use Markdown headings to express the knowledge hierarchy.\n2. Use exactly one # heading as the root topic.\n3. First-level subtopics use ##, the next level uses ###, and so on.\n4. The hierarchy must not exceed the maximum depth set in the user settings.\n5. Do not fix all branches at the same depth.\n6. Simple concepts may stay at a shallower level.\n7. Complex concepts should go deeper along their knowledge dependencies.\n8. Every level must represent a meaningful deepening of knowledge, not just more headings.\n9. Do not create unnecessary intermediate nodes just to chase depth.\n10. When a concept deserves further research, go deeper along that branch first instead of adding more categories at the same level.\n\n## 5. Knowledge relations and node design\n\nPrefer presenting these three kinds of knowledge relations:\n\n1. Conceptual subdivision: from an abstract concept down to concrete principles and mechanisms.\n2. Causal relation: from a phenomenon down to influencing factors, mechanisms and results.\n3. Dependency relation: from foundational concepts down to the advanced knowledge built on them.\n\nNode design requirements:\n\n1. A single knowledge path should show a progressively deepening line of research logic.\n2. A parent node should be able to reasonably unify all of its child nodes.\n3. A child node should offer a new research direction, not restate the parent in other words.\n4. A leaf node should be specific enough to be researched further for its principles, evidence, limits and practical applications.\n5. Avoid nodes that only classify and have no research meaning.\n6. When knowledge relates across fields, place it where it best explains its core mechanism and avoid creating the same node twice.\n7. Do not add nodes without research value just to fill the hierarchy.\n\n## 6. Quantity and completeness rules\n\n1. The total number of headings must not exceed the maximum set in the user settings.\n2. Within the quantity limit, cover the most important core knowledge areas first.\n3. Balance breadth with the research depth that is needed; do not sacrifice the depth of every branch for the sake of breadth.\n4. Do not distribute headings evenly across categories.\n5. Do not add content just to reach the heading limit.\n6. Keep nodes with high research value, explanatory power or knowledge dependency first.\n7. Do not use a fixed pattern of "every major category has the same number of subtopics".\n8. If the quantity limit conflicts with completeness, keep the core knowledge, the key dependencies and the most valuable research paths first.\n\n## 7. Quality check before output\n\nBefore producing the final result, check for yourself:\n\n1. Does it cover the most important core knowledge of the research topic?\n2. Does it have clear conceptual subdivision, causal or dependency relations?\n3. Is branch depth decided by the complexity of the knowledge rather than a fixed template?\n4. Is there a branch worth going deeper that stops too early?\n5. Does every deepened node have real knowledge value?\n6. Are there unnecessary intermediate categories or duplicated nodes?\n7. Does it avoid writing the knowledge tree as a traditional textbook table of contents?\n8. Does it respect the quantity and hierarchy limits set by the user?\n\nIf not, adjust the structure yourself first, then produce the final result.\n\n## 8. Output format\n\n1. Output Markdown headings only.\n2. Use # up to the maximum hierarchy depth set by the user.\n3. Do not use bold, lists, tables or any extra explanation.\n4. Do not explain the design logic.\n5. Do not output the quality-check results.\n6. Do not wrap the result in a Markdown code block.\n7. Output only the final outline itself.\n';
+
+// ai/prompt-presets.ts
+var DEFAULT_TONE_ID = "academic";
+var AUTO_TONE_ID = "auto";
+var DEFAULT_OUTLINE_PRESET_ID = "knowledge-tree";
+var strip = (text11) => text11.endsWith("\n") ? text11.slice(0, -1) : text11;
+var BUILTINS = [
+  { id: "plain", kind: "tone", name: { "zh-TW": "\u767D\u8A71\u8AAA\u660E", en: "Plain explanation" }, zh: plain_zh_default, en: plain_en_default },
+  {
+    id: "magazine",
+    kind: "tone",
+    name: { "zh-TW": "\u96DC\u8A8C\u5C08\u6B04", en: "Magazine column" },
+    zh: magazine_zh_default,
+    en: magazine_en_default
+  },
+  { id: "summary", kind: "tone", name: { "zh-TW": "\u91CD\u9EDE\u6458\u8981", en: "Key-point summary" }, zh: summary_zh_default, en: summary_en_default },
+  { id: "guide", kind: "tone", name: { "zh-TW": "\u5BE6\u7528\u6307\u5357", en: "Practical guide" }, zh: guide_zh_default, en: guide_en_default },
+  {
+    id: DEFAULT_TONE_ID,
+    kind: "tone",
+    name: { "zh-TW": "\u5B78\u8853\u56B4\u8B39", en: "Academic rigor" },
+    zh: academic_zh_default,
+    en: academic_en_default
+  },
+  { id: AUTO_TONE_ID, kind: "tone", name: { "zh-TW": "AI \u5EFA\u8B70", en: "AI choice" }, zh: auto_zh_default, en: auto_en_default },
+  {
+    id: DEFAULT_OUTLINE_PRESET_ID,
+    kind: "outline",
+    name: { "zh-TW": "\u77E5\u8B58\u6A39\u751F\u6210\u5668", en: "Knowledge tree generator" },
+    zh: knowledge_tree_zh_default,
+    en: knowledge_tree_en_default
+  }
+];
+function isBuiltinPreset(id) {
+  return BUILTINS.some((item) => item.id === id);
+}
+function builtinPresets(language2, kind) {
+  const locale = language2 === "en" ? "en" : "zh-TW";
+  return BUILTINS.filter((item) => !kind || item.kind === kind).map((item) => ({
+    id: item.id,
+    kind: item.kind,
+    name: item.name[locale],
+    text: strip(locale === "en" ? item.en : item.zh)
+  }));
+}
+function normalizePresets(value) {
+  if (!Array.isArray(value)) return [];
+  const result = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object") continue;
+    const item = entry;
+    if (typeof item.id !== "string" || !item.id.trim() || isBuiltinPreset(item.id)) continue;
+    if (item.kind !== "tone" && item.kind !== "outline") continue;
+    if (typeof item.name !== "string" || !item.name.trim() || typeof item.text !== "string") continue;
+    if (result.some((existing) => existing.id === item.id)) continue;
+    result.push({ id: item.id, kind: item.kind, name: item.name, text: item.text });
+  }
+  return result;
+}
+function listPresets(custom, kind, language2) {
+  return [...builtinPresets(language2, kind), ...(custom != null ? custom : []).filter((item) => item.kind === kind)];
+}
+function findPreset(custom, kind, id, language2) {
+  return id ? listPresets(custom, kind, language2).find((item) => item.id === id) : void 0;
+}
+function resolveToneText(custom, ids, language2) {
+  for (const id of ids) {
+    const found = findPreset(custom, "tone", id, language2);
+    if (!found) continue;
+    return found.id === DEFAULT_TONE_ID ? void 0 : found.text.trim() || void 0;
+  }
+  return void 0;
+}
+function uniqueId(existing, kind) {
+  for (let n = 1; ; n++) {
+    const id = `custom-${kind}-${n}`;
+    if (!existing.some((item) => item.id === id) && !isBuiltinPreset(id)) return id;
+  }
+}
+function createPreset(custom, input) {
+  if (!input.name.trim()) return { presets: [...custom] };
+  const created = {
+    id: uniqueId(custom, input.kind),
+    kind: input.kind,
+    name: input.name.trim(),
+    text: input.text
+  };
+  return { presets: [...custom, created], created };
+}
+function duplicatePreset(custom, sourceId, language2, name) {
+  const source = [...builtinPresets(language2), ...custom].find((item) => item.id === sourceId);
+  if (!source) return { presets: [...custom] };
+  const suffix = language2 === "en" ? " copy" : " \u526F\u672C";
+  return createPreset(custom, { kind: source.kind, name: name != null ? name : `${source.name}${suffix}`, text: source.text });
+}
+function updatePreset(custom, id, patch) {
+  if (isBuiltinPreset(id) || patch.name !== void 0 && !patch.name.trim()) return [...custom];
+  return custom.map(
+    (item) => item.id === id ? {
+      ...item,
+      ...patch.name !== void 0 ? { name: patch.name.trim() } : {},
+      ...patch.text !== void 0 ? { text: patch.text } : {}
+    } : item
+  );
+}
+function deletePreset(custom, id) {
+  return isBuiltinPreset(id) ? [...custom] : custom.filter((item) => item.id !== id);
+}
+
+// ui/modals/prompt-presets-modal.ts
+function renderTonePresetsSetting(setting, app, plugin, refresh = () => {
+}) {
+  setting.setName(t("ui.tone_presets")).setDesc(t("ui.tone_presets_hint")).addButton(
+    (button) => button.setButtonText(t("ui.tone_presets_manage")).onClick(() => new PromptPresetsModal(app, plugin, "tone", refresh).open())
+  );
+}
+var PromptPresetsModal = class extends import_obsidian5.Modal {
+  constructor(app, plugin, kind = "tone", onChanged = () => {
+  }, initialId) {
+    super(app);
+    this.plugin = plugin;
+    this.kind = kind;
+    this.onChanged = onChanged;
+    this.initialId = initialId;
+    __publicField(this, "bar");
+    __publicField(this, "disarms", []);
+  }
+  actionBar() {
+    var _a;
+    (_a = this.bar) == null ? void 0 : _a.remove();
+    this.bar = modalActions(this);
+    return this.bar;
+  }
+  disarmAll() {
+    for (const disarm of this.disarms) disarm();
+    this.disarms = [];
+  }
+  onClose() {
+    this.disarmAll();
+    this.onChanged();
+  }
+  onOpen() {
+    this.titleEl.setText(t("ui.tone_presets"));
+    if (this.initialId) this.showEditor(this.initialId);
+    else this.showList();
+  }
+  get custom() {
+    var _a;
+    return (_a = this.plugin.settings.promptPresets) != null ? _a : [];
+  }
+  async persist(presets) {
+    this.plugin.settings.promptPresets = presets;
+    await this.plugin.saveSettings();
+  }
+  showList() {
+    this.disarmAll();
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.createEl("p", { text: t("ui.tone_presets_hint"), cls: "vam-modal-intro" });
+    const footer = this.actionBar();
+    const status = actionStatus(footer);
+    for (const preset of listPresets(this.custom, this.kind, this.plugin.settings.language)) {
+      const builtin = isBuiltinPreset(preset.id);
+      const row = contentEl.createDiv("vam-template-row");
+      const info = row.createDiv("vam-template-info");
+      info.createEl("strong", { text: preset.name });
+      if (builtin) info.createSpan({ text: t("ui.preset_builtin_tag"), cls: "vam-template-tag" });
+      const actions = row.createDiv("vam-template-actions");
+      const button = (label, run) => {
+        const element = actions.createEl("button", { text: label });
+        element.addEventListener("click", () => void run());
+        return element;
+      };
+      button(t(builtin ? "ui.preset_view" : "ui.preset_edit"), () => this.showEditor(preset.id));
+      button(t("ui.preset_copy"), () => this.duplicate(preset.id));
+      if (!builtin) {
+        const remove = actions.createEl("button", { text: t("ui.preset_delete"), cls: "vam-danger-text" });
+        this.disarms.push(
+          armDiscard(
+            remove,
+            status,
+            () => {
+              void this.remove(preset.id);
+            },
+            () => false,
+            { confirm: t("ui.preset_delete_confirm"), hint: t("ui.preset_delete_hint") }
+          )
+        );
+      }
+    }
+    footer.createEl("button", { text: t("ui.close") }).addEventListener("click", () => this.close());
+    footer.createEl("button", { text: t("ui.tone_presets_new"), cls: "mod-cta" }).addEventListener("click", () => {
+      void this.create();
+    });
+  }
+  async create() {
+    const { presets, created } = createPreset(this.custom, {
+      kind: this.kind,
+      name: t("ui.tone_presets_new_name"),
+      text: ""
+    });
+    if (!created) return;
+    await this.persist(presets);
+    this.showEditor(created.id);
+  }
+  async duplicate(id) {
+    const { presets, created } = duplicatePreset(this.custom, id, this.plugin.settings.language);
+    if (!created) return;
+    await this.persist(presets);
+    this.showList();
+  }
+  async remove(id) {
+    await this.persist(deletePreset(this.custom, id));
+    this.showList();
+  }
+  /** Edits one preset; built-ins open read-only. Nothing is written until Save, so Cancel discards the edit. */
+  showEditor(id) {
+    this.disarmAll();
+    const preset = listPresets(this.custom, this.kind, this.plugin.settings.language).find((item) => item.id === id);
+    if (!preset) {
+      this.showList();
+      return;
+    }
+    const readOnly = isBuiltinPreset(id);
+    const { contentEl } = this;
+    contentEl.empty();
+    const nameLabel = contentEl.createEl("label", { cls: "vam-field" });
+    nameLabel.createSpan({ text: t("ui.tone_preset_name") });
+    const name = nameLabel.createEl("input", { type: "text" });
+    name.value = preset.name;
+    name.disabled = readOnly;
+    name.setAttr("aria-label", t("ui.tone_preset_name"));
+    const textLabel = contentEl.createEl("label", { cls: "vam-field" });
+    textLabel.createSpan({ text: t("ui.tone_preset_text") });
+    const text11 = textLabel.createEl("textarea");
+    text11.rows = 10;
+    text11.value = preset.text;
+    text11.disabled = readOnly;
+    text11.setAttr("aria-label", t("ui.tone_preset_text"));
+    text11.setAttr("placeholder", t("ui.tone_preset_text_placeholder"));
+    const footer = this.actionBar();
+    const status = actionStatus(footer);
+    footer.createEl("button", { text: t(readOnly ? "ui.close" : "ui.cancel") }).addEventListener("click", () => this.showList());
+    if (readOnly) return;
+    const save = footer.createEl("button", { text: t("ui.save"), cls: "mod-cta" });
+    const check = () => {
+      save.disabled = !name.value.trim();
+      status.setText(save.disabled ? t("ui.preset_name_required") : "");
+    };
+    name.addEventListener("input", check);
+    save.addEventListener("click", () => {
+      if (!name.value.trim()) return;
+      save.disabled = true;
+      void this.persist(updatePreset(this.custom, id, { name: name.value, text: text11.value })).then(
+        () => this.showList()
+      );
+    });
+    check();
+  }
+};
+
+// ui/modals/aim-clarification-modal.ts
+var import_obsidian6 = require("obsidian");
+var AimClarificationModal = class extends import_obsidian6.Modal {
   constructor(app, questions, submit, english2, contentLanguage) {
     super(app);
     this.questions = questions;
@@ -10231,7 +10574,7 @@ var AimClarificationModal = class extends import_obsidian5.Modal {
     });
     const status = this.contentEl.createEl("p", { cls: "vam-hint", attr: { "aria-live": "polite" } });
     let pending = false;
-    new import_obsidian5.Setting(this.contentEl).addButton(
+    new import_obsidian6.Setting(this.contentEl).addButton(
       (button) => button.setButtonText(text11("ui.cancel")).onClick(() => {
         if (!pending) this.close();
       })
@@ -10499,7 +10842,7 @@ function withThinkingOrigin(context, note) {
 
 // experiences/visual-map/view.ts
 var import_node_crypto9 = require("node:crypto");
-var import_obsidian17 = require("obsidian");
+var import_obsidian18 = require("obsidian");
 
 // ai/markdown-blocks.ts
 function fencedLines(lines) {
@@ -11206,46 +11549,8 @@ ${ordered.join("\n")}
 }
 
 // ui/modals/name-modal.ts
-var import_obsidian6 = require("obsidian");
-
-// ui/modals/action-bar.ts
-function modalActions(modal) {
-  modal.modalEl.addClass("vam-review-modal");
-  return modal.modalEl.createDiv("vam-next-actions");
-}
-function actionStatus(actions) {
-  return actions.createSpan({ cls: "vam-next-actions-note vam-next-status", attr: { "aria-live": "polite" } });
-}
-function armDiscard(button, status, discard, blocked = () => false, labels = { confirm: t("ui.discard_confirm"), hint: t("ui.discard_confirm_hint") }) {
-  var _a;
-  const label = (_a = button.textContent) != null ? _a : "";
-  let timer = 0;
-  const disarm = () => {
-    window.clearTimeout(timer);
-    timer = 0;
-    button.setText(label);
-    button.removeClass("mod-warning");
-  };
-  button.addEventListener("click", () => {
-    if (blocked()) return;
-    if (timer) {
-      disarm();
-      discard();
-      return;
-    }
-    timer = window.setTimeout(() => {
-      disarm();
-      status.setText("");
-    }, 5e3);
-    button.setText(labels.confirm);
-    button.addClass("mod-warning");
-    status.setText(labels.hint);
-  });
-  return disarm;
-}
-
-// ui/modals/name-modal.ts
-var NameModal = class extends import_obsidian6.Modal {
+var import_obsidian7 = require("obsidian");
+var NameModal = class extends import_obsidian7.Modal {
   constructor(app, titleText, value, submit) {
     super(app);
     this.titleText = titleText;
@@ -11283,8 +11588,8 @@ var NameModal = class extends import_obsidian6.Modal {
 };
 
 // ui/modals/choice-modal.ts
-var import_obsidian7 = require("obsidian");
-var ChoiceModal = class extends import_obsidian7.Modal {
+var import_obsidian8 = require("obsidian");
+var ChoiceModal = class extends import_obsidian8.Modal {
   constructor(app, titleText, description, choices) {
     super(app);
     this.titleText = titleText;
@@ -11295,7 +11600,7 @@ var ChoiceModal = class extends import_obsidian7.Modal {
     this.titleEl.setText(this.titleText);
     this.contentEl.createEl("p", { text: this.description, cls: "vam-modal-intro" });
     for (const choice2 of this.choices) {
-      const setting = new import_obsidian7.Setting(this.contentEl);
+      const setting = new import_obsidian8.Setting(this.contentEl);
       const run = () => {
         this.close();
         choice2.action();
@@ -11814,7 +12119,7 @@ function arrangeNewTree(nodes, rootId, newIds) {
 }
 
 // repository.ts
-var import_obsidian8 = require("obsidian");
+var import_obsidian9 = require("obsidian");
 var import_node_crypto2 = require("node:crypto");
 
 // ai/task-policy.ts
@@ -11950,7 +12255,7 @@ function safeName(title) {
 function frontmatter(content) {
   var _a, _b;
   const yaml = (_a = content.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)) == null ? void 0 : _a[1];
-  return yaml ? (_b = (0, import_obsidian8.parseYaml)(yaml)) != null ? _b : {} : {};
+  return yaml ? (_b = (0, import_obsidian9.parseYaml)(yaml)) != null ? _b : {} : {};
 }
 function noteTitle(content, fm, fallback) {
   var _a, _b;
@@ -12195,21 +12500,21 @@ var Repository = class {
   }
   file(path) {
     const file = this.app.vault.getAbstractFileByPath(path);
-    if (!(file instanceof import_obsidian8.TFile)) throw new Error(`${this.message("error.file_not_found")}: ${path}`);
+    if (!(file instanceof import_obsidian9.TFile)) throw new Error(`${this.message("error.file_not_found")}: ${path}`);
     return file;
   }
   hasNote(path) {
-    return this.app.vault.getAbstractFileByPath(path) instanceof import_obsidian8.TFile;
+    return this.app.vault.getAbstractFileByPath(path) instanceof import_obsidian9.TFile;
   }
   async folder(path) {
     let current = "";
-    for (const part of (0, import_obsidian8.normalizePath)(path).split("/").filter(Boolean)) {
+    for (const part of (0, import_obsidian9.normalizePath)(path).split("/").filter(Boolean)) {
       current = current ? `${current}/${part}` : part;
       if (!this.app.vault.getAbstractFileByPath(current)) await this.app.vault.createFolder(current);
     }
   }
   workspaceExists() {
-    return this.app.vault.getAbstractFileByPath(this.settings.workspaceFolder) instanceof import_obsidian8.TFolder;
+    return this.app.vault.getAbstractFileByPath(this.settings.workspaceFolder) instanceof import_obsidian9.TFolder;
   }
   async workspaceCandidates() {
     const candidates = /* @__PURE__ */ new Set();
@@ -12229,7 +12534,7 @@ var Repository = class {
     await this.folder(this.settings.inboxFolder);
   }
   unique(folder, name) {
-    const base = (0, import_obsidian8.normalizePath)(`${folder}/${safeName(name)}`);
+    const base = (0, import_obsidian9.normalizePath)(`${folder}/${safeName(name)}`);
     let path = `${base}.md`, number = 2;
     while (this.pathTaken(path)) path = `${base} ${number++}.md`;
     return path;
@@ -12238,12 +12543,12 @@ var Repository = class {
   pathTaken(path) {
     if (this.app.vault.getAbstractFileByPath(path)) return true;
     const folder = this.app.vault.getAbstractFileByPath(parentPath(path));
-    if (!(folder instanceof import_obsidian8.TFolder)) return false;
+    if (!(folder instanceof import_obsidian9.TFolder)) return false;
     const lower = path.toLowerCase();
     return folder.children.some((child) => child.path.toLowerCase() === lower);
   }
   uniqueFolder(folder, name) {
-    const base = (0, import_obsidian8.normalizePath)(`${folder}/${safeName(name)}`);
+    const base = (0, import_obsidian9.normalizePath)(`${folder}/${safeName(name)}`);
     let path = base, number = 2;
     while (this.app.vault.getAbstractFileByPath(path)) path = `${base} ${number++}`;
     return path;
@@ -12390,7 +12695,7 @@ var Repository = class {
         textLanguage
       );
       return `---
-${(0, import_obsidian8.stringifyYaml)(fm)}---
+${(0, import_obsidian9.stringifyYaml)(fm)}---
 ${withReferenceLinks(body, fm, this.settings.language)}`;
     });
   }
@@ -12421,7 +12726,7 @@ ${originMarkdown(initial.thinkingOrigin)}` : "";
     await this.app.vault.create(
       path,
       `---
-${(0, import_obsidian8.stringifyYaml)(metadata)}---
+${(0, import_obsidian9.stringifyYaml)(metadata)}---
 ${noteBody(title, (_b = initial.summary) != null ? _b : placeholder(this.settings.language), this.settings.language, "", "", placeholder(this.settings.language), (_c = initial.detail) != null ? _c : "", "", "", origin)}`
     );
     return { id, path, parentId: null, x: 80, y: 80, collapsed: false };
@@ -12436,7 +12741,7 @@ ${noteBody(title, (_b = initial.summary) != null ? _b : placeholder(this.setting
       throw new Error("A reserved note must use a valid identity inside this map's Notes folder.");
     const existing = this.app.vault.getAbstractFileByPath(path);
     if (existing) {
-      if (existing instanceof import_obsidian8.TFile) {
+      if (existing instanceof import_obsidian9.TFile) {
         const fm = frontmatter(await this.app.vault.read(existing));
         if (marker(fm["agent-map-node"]) && text5(fm["node-id"]) === id)
           return { id, path, parentId: null, x: 80, y: 80, collapsed: false };
@@ -12465,7 +12770,7 @@ ${originMarkdown(initial.thinkingOrigin)}` : "";
     await this.app.vault.create(
       path,
       `---
-${(0, import_obsidian8.stringifyYaml)(metadata)}---
+${(0, import_obsidian9.stringifyYaml)(metadata)}---
 ${noteBody(title, metadata.summary, this.settings.language, (_d = initial.prompt) != null ? _d : "", "", placeholder(textLanguage), (_e = initial.detail) != null ? _e : "", "", "", origin)}`
     );
     return { id, path, parentId: null, x: 80, y: 80, collapsed: false };
@@ -12484,7 +12789,7 @@ ${noteBody(title, metadata.summary, this.settings.language, (_d = initial.prompt
     metadata.title = title;
     const body = source.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "").replace(/^# .*$/m, `# ${title}`);
     await this.app.vault.create(path, `---
-${(0, import_obsidian8.stringifyYaml)(metadata)}---
+${(0, import_obsidian9.stringifyYaml)(metadata)}---
 ${body}`);
     return { id, path, parentId: null, x: 80, y: 80, collapsed: false };
   }
@@ -12597,7 +12902,7 @@ ${body}`);
     for (const { file, map } of await this.readableMaps()) {
       let changed = false;
       for (const node of [...map.nodes]) {
-        if (this.app.vault.getAbstractFileByPath(node.path) instanceof import_obsidian8.TFile) continue;
+        if (this.app.vault.getAbstractFileByPath(node.path) instanceof import_obsidian9.TFile) continue;
         const matches = (_d = candidates.get(node.id)) != null ? _d : [];
         if (matches.length !== 1) continue;
         const oldPath = node.path;
@@ -12619,10 +12924,10 @@ ${body}`);
   }
   async brokenTopics() {
     const root = this.app.vault.getAbstractFileByPath(this.settings.topicsFolder);
-    if (!(root instanceof import_obsidian8.TFolder)) return [];
+    if (!(root instanceof import_obsidian9.TFolder)) return [];
     const broken = [];
     for (const child of root.children) {
-      if (!(child instanceof import_obsidian8.TFolder) || this.app.vault.getAbstractFileByPath(`${child.path}/Map.md`)) continue;
+      if (!(child instanceof import_obsidian9.TFolder) || this.app.vault.getAbstractFileByPath(`${child.path}/Map.md`)) continue;
       const prefix = `${child.path}/Notes/`;
       const noteCount = this.app.vault.getMarkdownFiles().filter((file) => file.path.startsWith(prefix)).length;
       broken.push({ title: child.name, root: child.path, noteCount });
@@ -12664,12 +12969,12 @@ ${body}`);
       if (id) byId.set(id, file.path);
     }
     for (const node of [...map.nodes])
-      if (!(this.app.vault.getAbstractFileByPath(node.path) instanceof import_obsidian8.TFile) && byId.has(node.id))
+      if (!(this.app.vault.getAbstractFileByPath(node.path) instanceof import_obsidian9.TFile) && byId.has(node.id))
         rebaseMapNotePaths(map, moveNotePath(node.path, byId.get(node.id)));
     await this.moveExact(sourcePath, target);
     await this.saveMap(target, map);
     for (const node of map.nodes)
-      if (this.app.vault.getAbstractFileByPath(node.path) instanceof import_obsidian8.TFile)
+      if (this.app.vault.getAbstractFileByPath(node.path) instanceof import_obsidian9.TFile)
         await this.setLifecycle(node.path, map.id, map.id, "active");
     await this.rebuildDerivedData();
     return target;
@@ -12702,7 +13007,7 @@ ${body}`);
   }
   async moveUnique(path, folder) {
     await this.folder(folder);
-    const file = this.file(path), desired = (0, import_obsidian8.normalizePath)(`${folder}/${baseName(path)}`);
+    const file = this.file(path), desired = (0, import_obsidian9.normalizePath)(`${folder}/${baseName(path)}`);
     const target = this.app.vault.getAbstractFileByPath(desired) ? this.unique(folder, file.basename) : desired;
     await this.app.fileManager.renameFile(file, target);
     await this.replaceSourcePath(path, target);
@@ -12717,7 +13022,7 @@ ${body}`);
   }
   async renameNote(path, title, exactTarget) {
     await this.updateNote(path, { title });
-    const folder = parentPath(path), desired = exactTarget != null ? exactTarget : (0, import_obsidian8.normalizePath)(`${folder}/${safeName(title)}.md`);
+    const folder = parentPath(path), desired = exactTarget != null ? exactTarget : (0, import_obsidian9.normalizePath)(`${folder}/${safeName(title)}.md`);
     if (desired === path) return path;
     const target = exactTarget != null ? exactTarget : this.app.vault.getAbstractFileByPath(desired) ? this.unique(folder, title) : desired;
     await this.app.fileManager.renameFile(this.file(path), target);
@@ -12753,7 +13058,7 @@ ${body}`);
       let changed = false;
       for (const node of map.nodes) {
         const file = this.app.vault.getAbstractFileByPath(node.path);
-        if (!(file instanceof import_obsidian8.TFile) || !/^新的子議題(?: \d+)*$/.test(file.basename)) continue;
+        if (!(file instanceof import_obsidian9.TFile) || !/^新的子議題(?: \d+)*$/.test(file.basename)) continue;
         const note = await this.readNote(node.path);
         if (!note.title.trim() || safeName(note.title) === file.basename) continue;
         const oldPath = node.path, newPath = await this.renameNote(oldPath, note.title);
@@ -12794,7 +13099,7 @@ ${body}`);
     const nodeFiles = new Map((await this.markedFiles("agent-map-node")).map((file) => [file.path, file]));
     for (const path of ownership.keys()) {
       const file = this.app.vault.getAbstractFileByPath(path);
-      if (file instanceof import_obsidian8.TFile) nodeFiles.set(path, file);
+      if (file instanceof import_obsidian9.TFile) nodeFiles.set(path, file);
     }
     for (const file of nodeFiles.values()) {
       if (noteRoot && !file.path.startsWith(`${noteRoot}/`)) continue;
@@ -12877,7 +13182,7 @@ ${body}`);
       textLanguage
     );
     return `---
-${(0, import_obsidian8.stringifyYaml)(fm)}---
+${(0, import_obsidian9.stringifyYaml)(fm)}---
 ${withReferenceLinks(body, fm, this.settings.language)}`;
   }
   async ensureNodePresentation() {
@@ -12889,18 +13194,18 @@ ${withReferenceLinks(body, fm, this.settings.language)}`;
         if (!marker(current["agent-map-node"]) || !ensureNoteCssClass(current)) return content;
         const body = content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "");
         return `---
-${(0, import_obsidian8.stringifyYaml)(current)}---
+${(0, import_obsidian9.stringifyYaml)(current)}---
 ${body}`;
       });
     }
   }
   async createMap(title, nodes = [], onRootCreated, aim) {
     await this.folder(this.settings.topicsFolder);
-    const preferredRoot = (0, import_obsidian8.normalizePath)(`${this.settings.topicsFolder}/${safeName(title)}`);
+    const preferredRoot = (0, import_obsidian9.normalizePath)(`${this.settings.topicsFolder}/${safeName(title)}`);
     const preferredFolder = this.app.vault.getAbstractFileByPath(preferredRoot);
-    const recoverEmptyAimFolder = !!(aim == null ? void 0 : aim.creationId) && preferredFolder instanceof import_obsidian8.TFolder && preferredFolder.children.length === 0;
+    const recoverEmptyAimFolder = !!(aim == null ? void 0 : aim.creationId) && preferredFolder instanceof import_obsidian9.TFolder && preferredFolder.children.length === 0;
     const root = recoverEmptyAimFolder ? preferredRoot : this.uniqueFolder(this.settings.topicsFolder, title);
-    const folder = recoverEmptyAimFolder && preferredFolder instanceof import_obsidian8.TFolder ? preferredFolder : await this.app.vault.createFolder(root);
+    const folder = recoverEmptyAimFolder && preferredFolder instanceof import_obsidian9.TFolder ? preferredFolder : await this.app.vault.createFolder(root);
     onRootCreated == null ? void 0 : onRootCreated(folder);
     if (!(aim == null ? void 0 : aim.creationId)) await this.ensureTopicFolders(root);
     const path = `${root}/Map.md`;
@@ -12931,7 +13236,7 @@ ${body}`;
     const reservedRoots = /* @__PURE__ */ new Set();
     for (const { file, map } of legacyMaps) {
       for (const node of map.nodes) assigned.add(node.path);
-      let targetRoot = (0, import_obsidian8.normalizePath)(`${this.settings.topicsFolder}/${safeName(map.title)}`), number = 2;
+      let targetRoot = (0, import_obsidian9.normalizePath)(`${this.settings.topicsFolder}/${safeName(map.title)}`), number = 2;
       const base = targetRoot;
       while (this.app.vault.getAbstractFileByPath(targetRoot) || reservedRoots.has(targetRoot))
         targetRoot = `${base} ${number++}`;
@@ -12980,12 +13285,12 @@ ${body}`;
     } catch (error) {
       for (const move of [...moves].reverse()) {
         const current = this.app.vault.getAbstractFileByPath(move.to);
-        if (current instanceof import_obsidian8.TFile && !this.app.vault.getAbstractFileByPath(move.from))
+        if (current instanceof import_obsidian9.TFile && !this.app.vault.getAbstractFileByPath(move.from))
           await this.app.fileManager.renameFile(current, move.from);
       }
       for (const [path, content] of originals) {
         const file = this.app.vault.getAbstractFileByPath(path);
-        if (file instanceof import_obsidian8.TFile) await this.app.vault.process(file, () => content);
+        if (file instanceof import_obsidian9.TFile) await this.app.vault.process(file, () => content);
       }
       throw error;
     }
@@ -12993,9 +13298,9 @@ ${body}`;
   async renameTopic(mapPath, title, targetRoot) {
     var _a;
     const file = this.file(mapPath), root = file.parent;
-    if (!(root instanceof import_obsidian8.TFolder) || !mapPath.startsWith(`${this.settings.topicsFolder}/`))
+    if (!(root instanceof import_obsidian9.TFolder) || !mapPath.startsWith(`${this.settings.topicsFolder}/`))
       throw new Error(this.message("error.migrate_legacy_map"));
-    const desired = targetRoot ? (0, import_obsidian8.normalizePath)(targetRoot) : (0, import_obsidian8.normalizePath)(`${this.settings.topicsFolder}/${safeName(title)}`);
+    const desired = targetRoot ? (0, import_obsidian9.normalizePath)(targetRoot) : (0, import_obsidian9.normalizePath)(`${this.settings.topicsFolder}/${safeName(title)}`);
     if (desired !== root.path && this.app.vault.getAbstractFileByPath(desired))
       throw new Error(this.message("error.topic_folder_exists"));
     const originalRoot = root.path;
@@ -13026,10 +13331,10 @@ ${body}`;
       if (moved) {
         try {
           const movedRoot = this.app.vault.getAbstractFileByPath(desired);
-          if (!(movedRoot instanceof import_obsidian8.TFolder)) throw new Error("Renamed topic folder was not found for rollback.");
+          if (!(movedRoot instanceof import_obsidian9.TFolder)) throw new Error("Renamed topic folder was not found for rollback.");
           await this.app.fileManager.renameFile(movedRoot, originalRoot);
           const restoredMap = this.app.vault.getAbstractFileByPath(originalMapPath);
-          if (!(restoredMap instanceof import_obsidian8.TFile))
+          if (!(restoredMap instanceof import_obsidian9.TFile))
             throw new Error("Original Map.md was not found after restoring the topic folder.");
           await this.app.vault.modify(restoredMap, originalContent);
           await this.rebuildDerivedData();
@@ -13039,7 +13344,7 @@ ${body}`;
             `Topic rename failed (${originalMessage}); rollback also failed (${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}).`
           );
         }
-      } else if (this.app.vault.getAbstractFileByPath(originalMapPath) instanceof import_obsidian8.TFile) {
+      } else if (this.app.vault.getAbstractFileByPath(originalMapPath) instanceof import_obsidian9.TFile) {
         await this.app.vault.modify(this.file(originalMapPath), originalContent);
         await this.rebuildDerivedData();
       }
@@ -13049,156 +13354,6 @@ ${body}`;
   async migrate() {
   }
 };
-
-// ai/prompt-presets/plain.zh.md
-var plain_zh_default = "\u5BEB\u4F5C\u8A9E\u6C23\uFF1A\u767D\u8A71\u8AAA\u660E\u3002\u7528\u65E5\u5E38\u7528\u8A9E\u5411\u975E\u5C08\u696D\u8B80\u8005\u89E3\u91CB\uFF0C\u53E5\u5B50\u77ED\u3001\u5C11\u7528\u8853\u8A9E\uFF1B\u5FC5\u8981\u7684\u8853\u8A9E\u7B2C\u4E00\u6B21\u51FA\u73FE\u6642\u7528\u4E00\u53E5\u8A71\u8AAA\u660E\u3002\u5148\u8B1B\u7D50\u8AD6\u8207\u91CD\u9EDE\uFF0C\u518D\u88DC\u80CC\u666F\uFF0C\u4E0D\u5806\u780C\u5C08\u6709\u540D\u8A5E\u3002\n";
-
-// ai/prompt-presets/plain.en.md
-var plain_en_default = "Tone: plain explanation. Explain to a non-specialist reader in everyday language with short sentences and little jargon; explain any necessary term in one sentence the first time it appears. Lead with the conclusion and the key points, then add background, and do not pile up technical terms.\n";
-
-// ai/prompt-presets/magazine.zh.md
-var magazine_zh_default = "\u5BEB\u4F5C\u8A9E\u6C23\uFF1A\u96DC\u8A8C\u5C08\u6B04\u3002\u4EE5\u6D41\u66A2\u3001\u6709\u89C0\u9EDE\u3001\u6709\u756B\u9762\u7684\u6558\u4E8B\u7B46\u8ABF\u5BEB\u4F5C\uFF0C\u53EF\u7528\u5C0F\u6A19\u8207\u5177\u9AD4\u4F8B\u5B50\u5E36\u51FA\u91CD\u9EDE\uFF0C\u8B93\u8B80\u8005\u9858\u610F\u4E00\u8DEF\u8B80\u4E0B\u53BB\uFF1B\u4FDD\u6301\u5167\u5BB9\u6E96\u78BA\uFF0C\u4E0D\u8A87\u5927\u3001\u4E0D\u7DE8\u9020\u3002\n";
-
-// ai/prompt-presets/magazine.en.md
-var magazine_en_default = "Tone: magazine column. Write in a fluent, opinionated, vivid narrative voice; use subheadings and concrete examples to carry the main points so the reader wants to keep reading. Keep the content accurate: no exaggeration and no invention.\n";
-
-// ai/prompt-presets/summary.zh.md
-var summary_zh_default = "\u5BEB\u4F5C\u8A9E\u6C23\uFF1A\u91CD\u9EDE\u6458\u8981\u3002\u4EE5\u7CBE\u7C21\u7684\u689D\u5217\u8207\u77ED\u53E5\u5448\u73FE\u7D50\u8AD6\u3001\u95DC\u9375\u4E8B\u5BE6\u8207\u6578\u5B57\uFF0C\u53BB\u9664\u92EA\u9673\u8207\u4FEE\u98FE\uFF1B\u6BCF\u9EDE\u53EA\u8AAA\u4E00\u4EF6\u4E8B\uFF0C\u8B93\u8B80\u8005\u5728\u6700\u77ED\u6642\u9593\u5167\u638C\u63E1\u5168\u8C8C\u3002\n";
-
-// ai/prompt-presets/summary.en.md
-var summary_en_default = "Tone: key-point summary. Present conclusions, key facts and figures as compact bullets and short sentences, without build-up or embellishment; each point says one thing, so the reader grasps the whole picture in the least time.\n";
-
-// ai/prompt-presets/guide.zh.md
-var guide_zh_default = "\u5BEB\u4F5C\u8A9E\u6C23\uFF1A\u5BE6\u7528\u6307\u5357\u3002\u4EE5\u53EF\u76F4\u63A5\u7167\u505A\u7684\u53E3\u543B\u5BEB\u4F5C\uFF1A\u5148\u8AAA\u9069\u7528\u60C5\u5883\u8207\u76EE\u6A19\uFF0C\u518D\u4F9D\u5E8F\u7D66\u51FA\u6B65\u9A5F\u3001\u6AA2\u67E5\u9EDE\u8207\u5E38\u898B\u932F\u8AA4\uFF1B\u512A\u5148\u63D0\u4F9B\u53EF\u64CD\u4F5C\u7684\u5EFA\u8B70\u8207\u53D6\u6368\u5224\u6E96\u3002\n";
-
-// ai/prompt-presets/guide.en.md
-var guide_en_default = "Tone: practical guide. Write so the reader can act on it directly: state the situation and goal first, then give steps, checkpoints and common mistakes in order; prefer actionable advice and criteria for trade-offs.\n";
-
-// ai/prompt-presets/academic.zh.md
-var academic_zh_default = "\u5BEB\u4F5C\u8A9E\u6C23\uFF1A\u5B78\u8853\u56B4\u8B39\uFF08\u9810\u8A2D\uFF09\u3002\u4EE5\u4E2D\u6027\u3001\u7CBE\u78BA\u3001\u4EE5\u8B49\u64DA\u70BA\u672C\u7684\u66F8\u9762\u8A9E\u5BEB\u4F5C\uFF1B\u660E\u78BA\u5340\u5206\u4E8B\u5BE6\u3001\u63A8\u8AD6\u8207\u4E0D\u78BA\u5B9A\u4E4B\u8655\uFF0C\u6A19\u660E\u4F86\u6E90\u8207\u9650\u5236\uFF0C\u907F\u514D\u53E3\u8A9E\u8207\u4FEE\u8FAD\u6027\u8A87\u98FE\u3002\n";
-
-// ai/prompt-presets/academic.en.md
-var academic_en_default = "Tone: academic rigor (default). Write in neutral, precise, evidence-based formal prose; clearly separate facts, inferences and uncertainty, state sources and limits, and avoid colloquialism and rhetorical flourish.\n";
-
-// ai/prompt-presets/auto.zh.md
-var auto_zh_default = "\u5BEB\u4F5C\u8A9E\u6C23\uFF1AAI \u5EFA\u8B70\u3002\u8ACB\u4F9D\u4E3B\u984C\u6027\u8CEA\u8207\u4E0A\u4E0B\u6587\uFF08\u8B80\u8005\u3001\u7528\u9014\u3001\u65E2\u6709\u5167\u5BB9\u7684\u98A8\u683C\uFF09\u81EA\u884C\u9078\u64C7\u6700\u5408\u9069\u7684\u5BEB\u4F5C\u8A9E\u6C23\uFF1B\u4E26\u5728 detail \u6700\u958B\u982D\u4EE5\u4E00\u884C\u5BEB\u660E\u4F60\u9078\u64C7\u7684\u8A9E\u6C23\u8207\u7406\u7531\uFF08\u683C\u5F0F\uFF1A\u300C\u8A9E\u6C23\uFF1A<\u540D\u7A31>\uFF5C<\u4E00\u53E5\u7406\u7531>\u300D\uFF09\uFF0C\u4E4B\u5F8C\u518D\u958B\u59CB\u6B63\u6587\u3002\n";
-
-// ai/prompt-presets/auto.en.md
-var auto_en_default = 'Tone: AI choice. Choose the most suitable writing tone yourself from the nature of the topic and its context (the reader, the purpose, the style of the existing content), and state your choice and reason in one line at the very top of detail (format: "Tone: <name> | <one-sentence reason>") before the body begins.\n';
-
-// ai/prompt-presets/knowledge-tree.zh.md
-var knowledge_tree_zh_default = "# VAM Knowledge Tree Generator\n\n## \u4E00\u3001\u4F7F\u7528\u8005\u8A2D\u5B9A\uFF08\u53EF\u81EA\u884C\u8ABF\u6574\uFF09\n\n\u7814\u7A76\u4E3B\u984C\uFF1A{\u586B\u5165\u7814\u7A76\u4E3B\u984C}\n\n### \u6578\u91CF\u9650\u5236\n- \u6700\u5927\u6A19\u984C\u6578\u91CF\uFF1A30\uFF08\u5305\u542B\u6839\u6A19\u984C\uFF09\n- \u6700\u5927\u968E\u5C64\u6DF1\u5EA6\uFF1A6\uFF08Markdown # \u81F3 ######\uFF09\n\n### \u6DF1\u5EA6\u63A7\u5236\n- \u968E\u5C64\u6A21\u5F0F\uFF1A\u81EA\u7136\u5C55\u958B\n- \u6700\u4F4E\u7814\u7A76\u6DF1\u5EA6\uFF1A\u4E0D\u9650\u5236\n- \u5141\u8A31\u4E0D\u540C\u5206\u652F\u6DF1\u5EA6\uFF1A\u662F\n- \u5141\u8A31\u4E0D\u540C\u5206\u652F\u7684\u5B50\u7BC0\u9EDE\u6578\u91CF\uFF1A\u662F\n\n### \u77E5\u8B58\u8986\u84CB\n- \u77E5\u8B58\u5B8C\u6574\u6027\uFF1A\u512A\u5148\n- \u77E5\u8B58\u5EE3\u5EA6\u8207\u6DF1\u5EA6\uFF1A\u4F9D\u4E3B\u984C\u8907\u96DC\u5EA6\u52D5\u614B\u5206\u914D\n- \u672B\u7AEF\u7BC0\u9EDE\u8981\u6C42\uFF1A\u53EF\u4EE5\u7368\u7ACB\u7814\u7A76\n\n---\n\n## \u4E8C\u3001\u4EFB\u52D9\u76EE\u6A19\n\n\u8ACB\u91DD\u5C0D\u4F7F\u7528\u8005\u8A2D\u5B9A\u7684\u7814\u7A76\u4E3B\u984C\uFF0C\u5EFA\u7ACB\u4E00\u4EFD\u9069\u5408\u7CFB\u7D71\u6027\u77E5\u8B58\u63A2\u7D22\u8207\u6DF1\u5165\u7814\u7A76\u7684 Markdown \u968E\u5C64\u5F0F\u5927\u7DB1\u3002\n\n\u76EE\u6A19\u4E0D\u662F\u88FD\u4F5C\u50B3\u7D71\u7684\u8AB2\u7A0B\u76EE\u9304\uFF0C\u800C\u662F\u5EFA\u7ACB\u4E00\u68F5\u5177\u6709\u77E5\u8B58\u908F\u8F2F\u3001\u6DF1\u5EA6\u4E0D\u5C0D\u7A31\u3001\u80FD\u5920\u9010\u5C64\u6DF1\u5165\u7814\u7A76\u7684\u77E5\u8B58\u6A39\u3002\n\n\u6240\u6709\u751F\u6210\u898F\u5247\u90FD\u5FC5\u9808\u9075\u5B88\u6700\u4E0A\u65B9\u7684\u300C\u4F7F\u7528\u8005\u8A2D\u5B9A\u300D\u3002\n\n## \u4E09\u3001\u77E5\u8B58\u7D44\u7E54\u539F\u5247\n\n1. \u4EE5\u77E5\u8B58\u9AD4\u7CFB\u7684\u5B8C\u6574\u6027\u3001\u908F\u8F2F\u6027\u8207\u7814\u7A76\u50F9\u503C\u70BA\u512A\u5148\u3002\n2. \u8ACB\u4EE5\u77E5\u8B58\u4E4B\u9593\u7684\u4F9D\u8CF4\u95DC\u4FC2\u3001\u56E0\u679C\u95DC\u4FC2\u8207\u6982\u5FF5\u7D30\u5206\u95DC\u4FC2\u7D44\u7E54\u5927\u7DB1\uFF0C\u800C\u4E0D\u662F\u4F9D\u7167\u6559\u79D1\u66F8\u7AE0\u7BC0\u6216\u8AB2\u7A0B\u9806\u5E8F\u5206\u985E\u3002\n3. \u5927\u7DB1\u61C9\u662F\u4E00\u68F5\u975E\u5C0D\u7A31\u77E5\u8B58\u6A39\uFF0C\u800C\u4E0D\u662F\u5E73\u5747\u5206\u914D\u7684\u5206\u985E\u76EE\u9304\u3002\n4. \u4F9D\u7167\u6BCF\u500B\u77E5\u8B58\u9818\u57DF\u7684\u8907\u96DC\u7A0B\u5EA6\uFF0C\u81EA\u7136\u6C7A\u5B9A\u5206\u652F\u6DF1\u5EA6\u3002\n5. \u4E0D\u540C\u5206\u652F\u53EF\u4EE5\u6709\u4E0D\u540C\u6DF1\u5EA6\uFF0C\u4E5F\u53EF\u4EE5\u6709\u4E0D\u540C\u6578\u91CF\u7684\u5B50\u7BC0\u9EDE\u3002\n6. \u7236\u7BC0\u9EDE\u4EE3\u8868\u77E5\u8B58\u9818\u57DF\u3001\u6838\u5FC3\u6982\u5FF5\u6216\u4F5C\u7528\u6A5F\u5236\uFF1B\u5B50\u7BC0\u9EDE\u4EE3\u8868\u66F4\u5177\u9AD4\u7684\u539F\u7406\u3001\u6A5F\u5236\u3001\u56E0\u679C\u95DC\u4FC2\u6216\u7814\u7A76\u554F\u984C\u3002\n7. \u6BCF\u500B\u5B50\u7BC0\u9EDE\u90FD\u5FC5\u9808\u8207\u7236\u7BC0\u9EDE\u5B58\u5728\u660E\u78BA\u7684\u77E5\u8B58\u908F\u8F2F\u95DC\u4FC2\uFF0C\u800C\u975E\u50C5\u50C5\u5C6C\u65BC\u76F8\u540C\u4E3B\u984C\u3002\n8. \u6BCF\u500B\u672B\u7AEF\u7BC0\u9EDE\u90FD\u5FC5\u9808\u5177\u6709\u7368\u7ACB\u7814\u7A76\u50F9\u503C\uFF0C\u9069\u5408\u4F5C\u70BA\u4E00\u500B\u5B8C\u6574\u7684\u7814\u7A76\u55AE\u5143\u3002\n9. \u907F\u514D\u77E5\u8B58\u91CD\u8907\u3001\u904E\u5EA6\u62C6\u5206\uFF0C\u4EE5\u53CA\u6C92\u6709\u5BE6\u969B\u7814\u7A76\u50F9\u503C\u7684\u5206\u985E\u3002\n\n## \u56DB\u3001\u968E\u5C64\u8207\u6DF1\u5EA6\u898F\u5247\n\n1. \u4F7F\u7528 Markdown \u6A19\u984C\u8868\u793A\u77E5\u8B58\u968E\u5C64\u3002\n2. \u53EA\u4F7F\u7528\u4E00\u500B # \u6A19\u984C\u4F5C\u70BA\u6839\u4E3B\u984C\u3002\n3. \u7B2C\u4E00\u5C64\u5B50\u8B70\u984C\u4F7F\u7528 ##\uFF0C\u4E0B\u4E00\u5C64\u4F7F\u7528 ###\uFF0C\u4F9D\u6B64\u985E\u63A8\u3002\n4. \u968E\u5C64\u4E0D\u5F97\u8D85\u904E\u4F7F\u7528\u8005\u8A2D\u5B9A\u7684\u6700\u5927\u6DF1\u5EA6\u3002\n5. \u4E0D\u8981\u628A\u6240\u6709\u5206\u652F\u56FA\u5B9A\u5728\u76F8\u540C\u6DF1\u5EA6\u3002\n6. \u7C21\u55AE\u6982\u5FF5\u53EF\u4EE5\u505C\u7559\u5728\u8F03\u6DFA\u5C64\u7D1A\u3002\n7. \u8907\u96DC\u6982\u5FF5\u61C9\u4F9D\u5176\u77E5\u8B58\u4F9D\u8CF4\u95DC\u4FC2\u7E7C\u7E8C\u6DF1\u5165\u3002\n8. \u6BCF\u4E00\u5C64\u90FD\u5FC5\u9808\u4EE3\u8868\u6709\u610F\u7FA9\u7684\u77E5\u8B58\u6DF1\u5316\uFF0C\u800C\u4E0D\u662F\u55AE\u7D14\u589E\u52A0\u6A19\u984C\u3002\n9. \u4E0D\u8981\u70BA\u4E86\u8FFD\u6C42\u6DF1\u5EA6\u800C\u5275\u9020\u4E0D\u5FC5\u8981\u7684\u4E2D\u9593\u7BC0\u9EDE\u3002\n10. \u7576\u67D0\u500B\u6982\u5FF5\u503C\u5F97\u9032\u4E00\u6B65\u7814\u7A76\u6642\uFF0C\u61C9\u512A\u5148\u6CBF\u8457\u8A72\u5206\u652F\u6DF1\u5165\uFF0C\u800C\u4E0D\u662F\u6301\u7E8C\u589E\u52A0\u540C\u5C64\u5206\u985E\u3002\n\n## \u4E94\u3001\u77E5\u8B58\u95DC\u4FC2\u8207\u7BC0\u9EDE\u8A2D\u8A08\n\n\u512A\u5148\u5448\u73FE\u4EE5\u4E0B\u4E09\u7A2E\u77E5\u8B58\u95DC\u4FC2\uFF1A\n\n1. \u6982\u5FF5\u7D30\u5206\uFF1A\u5F9E\u62BD\u8C61\u6982\u5FF5\u6DF1\u5165\u5177\u9AD4\u539F\u7406\u8207\u6A5F\u5236\u3002\n2. \u56E0\u679C\u95DC\u4FC2\uFF1A\u5F9E\u73FE\u8C61\u6DF1\u5165\u5F71\u97FF\u56E0\u7D20\u3001\u4F5C\u7528\u6A5F\u5236\u8207\u7D50\u679C\u3002\n3. \u4F9D\u8CF4\u95DC\u4FC2\uFF1A\u5F9E\u57FA\u790E\u6982\u5FF5\u6DF1\u5165\u5EFA\u7ACB\u5728\u5176\u4E0A\u7684\u9032\u968E\u77E5\u8B58\u3002\n\n\u7BC0\u9EDE\u8A2D\u8A08\u8981\u6C42\uFF1A\n\n1. \u540C\u4E00\u689D\u77E5\u8B58\u8DEF\u5F91\u61C9\u5448\u73FE\u9010\u6B65\u6DF1\u5316\u7684\u7814\u7A76\u908F\u8F2F\u3002\n2. \u7236\u7BC0\u9EDE\u61C9\u80FD\u5408\u7406\u7D71\u6574\u5176\u6240\u6709\u5B50\u7BC0\u9EDE\u3002\n3. \u5B50\u7BC0\u9EDE\u61C9\u63D0\u4F9B\u65B0\u7684\u7814\u7A76\u65B9\u5411\uFF0C\u800C\u4E0D\u662F\u63DB\u53E5\u8A71\u8AAA\u660E\u7236\u7BC0\u9EDE\u3002\n4. \u672B\u7AEF\u7BC0\u9EDE\u61C9\u5177\u6709\u8DB3\u5920\u7684\u5177\u9AD4\u6027\uFF0C\u53EF\u4EE5\u9032\u4E00\u6B65\u7814\u7A76\u5176\u539F\u7406\u3001\u8B49\u64DA\u3001\u9650\u5236\u8207\u5BE6\u969B\u61C9\u7528\u3002\n5. \u907F\u514D\u53EA\u6709\u5206\u985E\u529F\u80FD\u3001\u7F3A\u4E4F\u7814\u7A76\u610F\u7FA9\u7684\u7BC0\u9EDE\u3002\n6. \u77E5\u8B58\u4E4B\u9593\u82E5\u5B58\u5728\u8DE8\u9818\u57DF\u95DC\u4FC2\uFF0C\u61C9\u9078\u64C7\u6700\u80FD\u89E3\u91CB\u5176\u6838\u5FC3\u6A5F\u5236\u7684\u4F4D\u7F6E\uFF0C\u907F\u514D\u91CD\u8907\u5EFA\u7ACB\u76F8\u540C\u7BC0\u9EDE\u3002\n7. \u4E0D\u8981\u70BA\u4E86\u586B\u6EFF\u968E\u5C64\u800C\u523B\u610F\u589E\u52A0\u6C92\u6709\u7814\u7A76\u50F9\u503C\u7684\u7BC0\u9EDE\u3002\n\n## \u516D\u3001\u6578\u91CF\u8207\u5B8C\u6574\u6027\u898F\u5247\n\n1. \u6A19\u984C\u7E3D\u6578\u4E0D\u5F97\u8D85\u904E\u4F7F\u7528\u8005\u8A2D\u5B9A\u7684\u6700\u5927\u6A19\u984C\u6578\u91CF\u3002\n2. \u5728\u6578\u91CF\u9650\u5236\u5167\uFF0C\u512A\u5148\u6DB5\u84CB\u6700\u91CD\u8981\u7684\u6838\u5FC3\u77E5\u8B58\u9818\u57DF\u3002\n3. \u517C\u9867\u77E5\u8B58\u5EE3\u5EA6\u8207\u5FC5\u8981\u7684\u7814\u7A76\u6DF1\u5EA6\uFF0C\u4E0D\u8981\u70BA\u4E86\u8FFD\u6C42\u5EE3\u5EA6\u800C\u72A7\u7272\u6240\u6709\u5206\u652F\u7684\u6DF1\u5EA6\u3002\n4. \u4E0D\u8981\u5E73\u5747\u5206\u914D\u6BCF\u500B\u5206\u985E\u7684\u6A19\u984C\u6578\u91CF\u3002\n5. \u4E0D\u5FC5\u70BA\u4E86\u6E4A\u6EFF\u6A19\u984C\u6578\u91CF\u800C\u589E\u52A0\u5167\u5BB9\u3002\n6. \u512A\u5148\u4FDD\u7559\u5177\u6709\u9AD8\u5EA6\u7814\u7A76\u50F9\u503C\u3001\u89E3\u91CB\u80FD\u529B\u6216\u77E5\u8B58\u4F9D\u8CF4\u6027\u7684\u7BC0\u9EDE\u3002\n7. \u4E0D\u8981\u4F7F\u7528\u56FA\u5B9A\u7684\u300C\u6BCF\u500B\u5927\u5206\u985E\u914D\u7F6E\u76F8\u540C\u6578\u91CF\u5B50\u8B70\u984C\u300D\u6A21\u5F0F\u3002\n8. \u5982\u679C\u6578\u91CF\u9650\u5236\u8207\u5B8C\u6574\u6027\u767C\u751F\u885D\u7A81\uFF0C\u61C9\u512A\u5148\u4FDD\u7559\u6838\u5FC3\u77E5\u8B58\u3001\u95DC\u9375\u4F9D\u8CF4\u95DC\u4FC2\u8207\u6700\u6709\u50F9\u503C\u7684\u7814\u7A76\u8DEF\u5F91\u3002\n\n## \u4E03\u3001\u8F38\u51FA\u524D\u7684\u54C1\u8CEA\u6AA2\u67E5\n\n\u5728\u8F38\u51FA\u6700\u7D42\u7D50\u679C\u524D\uFF0C\u8ACB\u81EA\u884C\u6AA2\u67E5\uFF1A\n\n1. \u662F\u5426\u6DB5\u84CB\u7814\u7A76\u4E3B\u984C\u6700\u91CD\u8981\u7684\u6838\u5FC3\u77E5\u8B58\uFF1F\n2. \u662F\u5426\u5177\u6709\u660E\u78BA\u7684\u6982\u5FF5\u7D30\u5206\u3001\u56E0\u679C\u6216\u4F9D\u8CF4\u95DC\u4FC2\uFF1F\n3. \u5206\u652F\u6DF1\u5EA6\u662F\u5426\u7531\u77E5\u8B58\u8907\u96DC\u5EA6\u6C7A\u5B9A\uFF0C\u800C\u975E\u56FA\u5B9A\u6A21\u677F\uFF1F\n4. \u662F\u5426\u5B58\u5728\u503C\u5F97\u6DF1\u5165\u537B\u904E\u65E9\u505C\u6B62\u7684\u5206\u652F\uFF1F\n5. \u662F\u5426\u6240\u6709\u6DF1\u5165\u7684\u7BC0\u9EDE\u90FD\u6709\u5BE6\u969B\u77E5\u8B58\u50F9\u503C\uFF1F\n6. \u662F\u5426\u5B58\u5728\u4E0D\u5FC5\u8981\u7684\u4E2D\u9593\u5206\u985E\u6216\u91CD\u8907\u7BC0\u9EDE\uFF1F\n7. \u662F\u5426\u907F\u514D\u5C07\u77E5\u8B58\u6A39\u5BEB\u6210\u50B3\u7D71\u6559\u79D1\u66F8\u76EE\u9304\uFF1F\n8. \u662F\u5426\u7B26\u5408\u4F7F\u7528\u8005\u8A2D\u5B9A\u7684\u6578\u91CF\u8207\u968E\u5C64\u9650\u5236\uFF1F\n\n\u5982\u679C\u4E0D\u7B26\u5408\uFF0C\u8ACB\u5148\u81EA\u884C\u8ABF\u6574\u7D50\u69CB\uFF0C\u518D\u8F38\u51FA\u6700\u7D42\u7D50\u679C\u3002\n\n## \u516B\u3001\u8F38\u51FA\u683C\u5F0F\n\n1. \u53EA\u8F38\u51FA Markdown \u6A19\u984C\u3002\n2. \u4F7F\u7528 # \u81F3\u4F7F\u7528\u8005\u8A2D\u5B9A\u7684\u6700\u5927\u968E\u5C64\u6DF1\u5EA6\u3002\n3. \u4E0D\u4F7F\u7528\u7C97\u9AD4\u3001\u6E05\u55AE\u3001\u8868\u683C\u6216\u4EFB\u4F55\u88DC\u5145\u8AAA\u660E\u3002\n4. \u4E0D\u8981\u89E3\u91CB\u8A2D\u8A08\u908F\u8F2F\u3002\n5. \u4E0D\u8981\u8F38\u51FA\u54C1\u8CEA\u6AA2\u67E5\u7D50\u679C\u3002\n6. \u4E0D\u8981\u4F7F\u7528 Markdown \u7A0B\u5F0F\u78BC\u5340\u584A\u5305\u4F4F\u7D50\u679C\u3002\n7. \u53EA\u8F38\u51FA\u6700\u7D42\u5927\u7DB1\u672C\u8EAB\u3002\n";
-
-// ai/prompt-presets/knowledge-tree.en.md
-var knowledge_tree_en_default = '# VAM Knowledge Tree Generator\n\n## 1. User settings (adjust as needed)\n\nResearch topic: {Enter research topic}\n\n### Quantity limits\n- Maximum number of headings: 30 (including the root heading)\n- Maximum hierarchy depth: 6 (Markdown # through ######)\n\n### Depth control\n- Hierarchy mode: natural expansion\n- Minimum research depth: no limit\n- Branches may have different depths: yes\n- Branches may have different numbers of child nodes: yes\n\n### Knowledge coverage\n- Knowledge completeness: prioritized\n- Breadth and depth of knowledge: allocated dynamically by the complexity of the topic\n- Leaf node requirement: each can be researched on its own\n\n---\n\n## 2. Task goal\n\nFor the research topic set by the user, build a hierarchical Markdown outline suited to systematic knowledge exploration and in-depth research.\n\nThe goal is not a traditional course table of contents. It is a knowledge tree with real knowledge logic, uneven depth, and the ability to be researched deeper level by level.\n\nAll generation rules must follow the "User settings" at the top.\n\n## 3. Principles for organizing knowledge\n\n1. Prioritize the completeness, logic and research value of the knowledge system.\n2. Organize the outline by dependency, causality and conceptual subdivision between pieces of knowledge, not by textbook chapters or course order.\n3. The outline should be an asymmetric knowledge tree, not an evenly distributed catalogue.\n4. Decide the depth of each branch naturally from the complexity of that knowledge area.\n5. Different branches may have different depths and different numbers of child nodes.\n6. A parent node stands for a knowledge area, a core concept or a mechanism; its child nodes stand for more specific principles, mechanisms, causal relations or research questions.\n7. Every child node must have a clear knowledge-logic relation to its parent, not merely belong to the same topic.\n8. Every leaf node must have independent research value and suit being a complete research unit.\n9. Avoid duplicated knowledge, over-splitting, and categories with no real research value.\n\n## 4. Hierarchy and depth rules\n\n1. Use Markdown headings to express the knowledge hierarchy.\n2. Use exactly one # heading as the root topic.\n3. First-level subtopics use ##, the next level uses ###, and so on.\n4. The hierarchy must not exceed the maximum depth set in the user settings.\n5. Do not fix all branches at the same depth.\n6. Simple concepts may stay at a shallower level.\n7. Complex concepts should go deeper along their knowledge dependencies.\n8. Every level must represent a meaningful deepening of knowledge, not just more headings.\n9. Do not create unnecessary intermediate nodes just to chase depth.\n10. When a concept deserves further research, go deeper along that branch first instead of adding more categories at the same level.\n\n## 5. Knowledge relations and node design\n\nPrefer presenting these three kinds of knowledge relations:\n\n1. Conceptual subdivision: from an abstract concept down to concrete principles and mechanisms.\n2. Causal relation: from a phenomenon down to influencing factors, mechanisms and results.\n3. Dependency relation: from foundational concepts down to the advanced knowledge built on them.\n\nNode design requirements:\n\n1. A single knowledge path should show a progressively deepening line of research logic.\n2. A parent node should be able to reasonably unify all of its child nodes.\n3. A child node should offer a new research direction, not restate the parent in other words.\n4. A leaf node should be specific enough to be researched further for its principles, evidence, limits and practical applications.\n5. Avoid nodes that only classify and have no research meaning.\n6. When knowledge relates across fields, place it where it best explains its core mechanism and avoid creating the same node twice.\n7. Do not add nodes without research value just to fill the hierarchy.\n\n## 6. Quantity and completeness rules\n\n1. The total number of headings must not exceed the maximum set in the user settings.\n2. Within the quantity limit, cover the most important core knowledge areas first.\n3. Balance breadth with the research depth that is needed; do not sacrifice the depth of every branch for the sake of breadth.\n4. Do not distribute headings evenly across categories.\n5. Do not add content just to reach the heading limit.\n6. Keep nodes with high research value, explanatory power or knowledge dependency first.\n7. Do not use a fixed pattern of "every major category has the same number of subtopics".\n8. If the quantity limit conflicts with completeness, keep the core knowledge, the key dependencies and the most valuable research paths first.\n\n## 7. Quality check before output\n\nBefore producing the final result, check for yourself:\n\n1. Does it cover the most important core knowledge of the research topic?\n2. Does it have clear conceptual subdivision, causal or dependency relations?\n3. Is branch depth decided by the complexity of the knowledge rather than a fixed template?\n4. Is there a branch worth going deeper that stops too early?\n5. Does every deepened node have real knowledge value?\n6. Are there unnecessary intermediate categories or duplicated nodes?\n7. Does it avoid writing the knowledge tree as a traditional textbook table of contents?\n8. Does it respect the quantity and hierarchy limits set by the user?\n\nIf not, adjust the structure yourself first, then produce the final result.\n\n## 8. Output format\n\n1. Output Markdown headings only.\n2. Use # up to the maximum hierarchy depth set by the user.\n3. Do not use bold, lists, tables or any extra explanation.\n4. Do not explain the design logic.\n5. Do not output the quality-check results.\n6. Do not wrap the result in a Markdown code block.\n7. Output only the final outline itself.\n';
-
-// ai/prompt-presets.ts
-var DEFAULT_TONE_ID = "academic";
-var AUTO_TONE_ID = "auto";
-var DEFAULT_OUTLINE_PRESET_ID = "knowledge-tree";
-var strip = (text11) => text11.endsWith("\n") ? text11.slice(0, -1) : text11;
-var BUILTINS = [
-  { id: "plain", kind: "tone", name: { "zh-TW": "\u767D\u8A71\u8AAA\u660E", en: "Plain explanation" }, zh: plain_zh_default, en: plain_en_default },
-  {
-    id: "magazine",
-    kind: "tone",
-    name: { "zh-TW": "\u96DC\u8A8C\u5C08\u6B04", en: "Magazine column" },
-    zh: magazine_zh_default,
-    en: magazine_en_default
-  },
-  { id: "summary", kind: "tone", name: { "zh-TW": "\u91CD\u9EDE\u6458\u8981", en: "Key-point summary" }, zh: summary_zh_default, en: summary_en_default },
-  { id: "guide", kind: "tone", name: { "zh-TW": "\u5BE6\u7528\u6307\u5357", en: "Practical guide" }, zh: guide_zh_default, en: guide_en_default },
-  {
-    id: DEFAULT_TONE_ID,
-    kind: "tone",
-    name: { "zh-TW": "\u5B78\u8853\u56B4\u8B39", en: "Academic rigor" },
-    zh: academic_zh_default,
-    en: academic_en_default
-  },
-  { id: AUTO_TONE_ID, kind: "tone", name: { "zh-TW": "AI \u5EFA\u8B70", en: "AI choice" }, zh: auto_zh_default, en: auto_en_default },
-  {
-    id: DEFAULT_OUTLINE_PRESET_ID,
-    kind: "outline",
-    name: { "zh-TW": "\u77E5\u8B58\u6A39\u751F\u6210\u5668", en: "Knowledge tree generator" },
-    zh: knowledge_tree_zh_default,
-    en: knowledge_tree_en_default
-  }
-];
-function isBuiltinPreset(id) {
-  return BUILTINS.some((item) => item.id === id);
-}
-function builtinPresets(language2, kind) {
-  const locale = language2 === "en" ? "en" : "zh-TW";
-  return BUILTINS.filter((item) => !kind || item.kind === kind).map((item) => ({
-    id: item.id,
-    kind: item.kind,
-    name: item.name[locale],
-    text: strip(locale === "en" ? item.en : item.zh)
-  }));
-}
-function normalizePresets(value) {
-  if (!Array.isArray(value)) return [];
-  const result = [];
-  for (const entry of value) {
-    if (!entry || typeof entry !== "object") continue;
-    const item = entry;
-    if (typeof item.id !== "string" || !item.id.trim() || isBuiltinPreset(item.id)) continue;
-    if (item.kind !== "tone" && item.kind !== "outline") continue;
-    if (typeof item.name !== "string" || !item.name.trim() || typeof item.text !== "string") continue;
-    if (result.some((existing) => existing.id === item.id)) continue;
-    result.push({ id: item.id, kind: item.kind, name: item.name, text: item.text });
-  }
-  return result;
-}
-function listPresets(custom, kind, language2) {
-  return [...builtinPresets(language2, kind), ...(custom != null ? custom : []).filter((item) => item.kind === kind)];
-}
-function findPreset(custom, kind, id, language2) {
-  return id ? listPresets(custom, kind, language2).find((item) => item.id === id) : void 0;
-}
-function resolveToneText(custom, ids, language2) {
-  for (const id of ids) {
-    const found = findPreset(custom, "tone", id, language2);
-    if (!found) continue;
-    return found.id === DEFAULT_TONE_ID ? void 0 : found.text.trim() || void 0;
-  }
-  return void 0;
-}
-function uniqueId(existing, kind) {
-  for (let n = 1; ; n++) {
-    const id = `custom-${kind}-${n}`;
-    if (!existing.some((item) => item.id === id) && !isBuiltinPreset(id)) return id;
-  }
-}
-function createPreset(custom, input) {
-  if (!input.name.trim()) return { presets: [...custom] };
-  const created = {
-    id: uniqueId(custom, input.kind),
-    kind: input.kind,
-    name: input.name.trim(),
-    text: input.text
-  };
-  return { presets: [...custom, created], created };
-}
-function duplicatePreset(custom, sourceId, language2, name) {
-  const source = [...builtinPresets(language2), ...custom].find((item) => item.id === sourceId);
-  if (!source) return { presets: [...custom] };
-  const suffix = language2 === "en" ? " copy" : " \u526F\u672C";
-  return createPreset(custom, { kind: source.kind, name: name != null ? name : `${source.name}${suffix}`, text: source.text });
-}
-function updatePreset(custom, id, patch) {
-  if (isBuiltinPreset(id) || patch.name !== void 0 && !patch.name.trim()) return [...custom];
-  return custom.map(
-    (item) => item.id === id ? {
-      ...item,
-      ...patch.name !== void 0 ? { name: patch.name.trim() } : {},
-      ...patch.text !== void 0 ? { text: patch.text } : {}
-    } : item
-  );
-}
-function deletePreset(custom, id) {
-  return isBuiltinPreset(id) ? [...custom] : custom.filter((item) => item.id !== id);
-}
 
 // ui/preview-utils.ts
 function clampPreviewScale(value) {
@@ -13811,7 +13966,7 @@ async function addOutlineToMap(repository, map, mapPath, model, nodes, source, p
 }
 
 // experiences/visual-map/outline-import-modal.ts
-var import_obsidian9 = require("obsidian");
+var import_obsidian10 = require("obsidian");
 
 // experiences/visual-map/research-fields.ts
 var DEFAULT_RESEARCH_DEPTH = "normal";
@@ -13888,19 +14043,38 @@ function templateField(parent, templates, defaultLabel) {
   select.value = "";
   return () => select.value || void 0;
 }
-function toneField(parent, tones, defaultLabel) {
-  const label = parent.createEl("label", { cls: "vam-field" });
-  label.createSpan({ text: t("ui.tone") });
-  const select = label.createEl("select");
+function toneField(parent, tones, defaultLabel, manage, changed = () => {
+}) {
+  const field = parent.createDiv("vam-field");
+  const head = field.createDiv("vam-field-head");
+  head.createSpan({ text: t("ui.tone") });
+  const select = field.createEl("select");
   select.setAttr("aria-label", t("ui.tone"));
-  select.createEl("option", { value: "", text: defaultLabel });
-  for (const tone of tones) select.createEl("option", { value: tone.id, text: tone.name });
-  select.value = "";
+  const fill = () => {
+    const selected = select.value;
+    select.replaceChildren();
+    select.createEl("option", { value: "", text: defaultLabel });
+    for (const tone of tones) select.createEl("option", { value: tone.id, text: tone.name });
+    select.value = tones.some((tone) => tone.id === selected) ? selected : "";
+  };
+  fill();
+  if (manage) {
+    const edit = head.createEl("button", { text: t("ui.tone_edit"), cls: "vam-field-link" });
+    edit.type = "button";
+    edit.addEventListener("click", (event) => {
+      event.preventDefault();
+      manage(select.value || void 0, (next) => {
+        tones.splice(0, tones.length, ...next);
+        fill();
+        changed();
+      });
+    });
+  }
   return () => select.value || void 0;
 }
 
 // experiences/visual-map/outline-import-modal.ts
-var OutlineFileModal = class extends import_obsidian9.FuzzySuggestModal {
+var OutlineFileModal = class extends import_obsidian10.FuzzySuggestModal {
   constructor(app, choose) {
     super(app);
     this.choose = choose;
@@ -13916,7 +14090,7 @@ var OutlineFileModal = class extends import_obsidian9.FuzzySuggestModal {
     this.choose(file);
   }
 };
-var OutlineImportModal = class extends import_obsidian9.Modal {
+var OutlineImportModal = class extends import_obsidian10.Modal {
   constructor(app, create, models = { list: () => [], watch: () => () => {
   } }, templates = [], target = { map: "none" }, initialPlacement = "tree") {
     super(app);
@@ -13951,7 +14125,7 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
     const actions = sourceHeader.createDiv("vam-outline-actions");
     actions.createEl("button", { text: t("ui.outline_import_choose_file"), cls: "vam-outline-link" }).addEventListener("click", () => new OutlineFileModal(this.app, (file) => void this.loadFile(file)).open());
     actions.createEl("button", { text: t("ui.outline_import_copy_format"), cls: "vam-outline-link" }).addEventListener("click", () => {
-      void navigator.clipboard.writeText(t("ui.outline_import_format")).then(() => new import_obsidian9.Notice(t("ui.outline_import_format_copied"))).catch(() => new import_obsidian9.Notice(t("ui.outline_import_copy_failed")));
+      void navigator.clipboard.writeText(t("ui.outline_import_format")).then(() => new import_obsidian10.Notice(t("ui.outline_import_format_copied"))).catch(() => new import_obsidian10.Notice(t("ui.outline_import_copy_failed")));
     });
     this.textarea = source.createEl("textarea", { cls: "vam-task-input vam-outline-text" });
     this.textarea.rows = 8;
@@ -14093,15 +14267,16 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
 };
 
 // experiences/visual-map/multi-research-modal.ts
-var import_obsidian10 = require("obsidian");
-var MultiResearchModal = class extends import_obsidian10.Modal {
-  constructor(app, names2, models, templates, submit, tones = []) {
+var import_obsidian11 = require("obsidian");
+var MultiResearchModal = class extends import_obsidian11.Modal {
+  constructor(app, names2, models, templates, submit, tones = [], manageTones) {
     super(app);
     this.names = names2;
     this.models = models;
     this.templates = templates;
     this.submit = submit;
     this.tones = tones;
+    this.manageTones = manageTones;
     __publicField(this, "submitted", false);
     __publicField(this, "unwatch");
   }
@@ -14115,7 +14290,7 @@ var MultiResearchModal = class extends import_obsidian10.Modal {
     const model = modelField(this.contentEl, this.models, t("ui.multi_research_keep_topic_models"));
     this.unwatch = model.dispose;
     const template = templateField(this.contentEl, this.templates, t("ui.detail_template_keep_each"));
-    const tone = toneField(this.contentEl, this.tones, t("ui.tone_keep_each"));
+    const tone = toneField(this.contentEl, this.tones, t("ui.tone_keep_each"), this.manageTones);
     const webLabel = this.contentEl.createEl("label", { cls: "vam-field vam-next-toggle" });
     const web = webLabel.createEl("input", { type: "checkbox" });
     web.checked = true;
@@ -14206,8 +14381,8 @@ function renderTopicTree(parent, options) {
 }
 
 // ui/modals/topic-tree-modal.ts
-var import_obsidian11 = require("obsidian");
-var TopicTreeModal = class extends import_obsidian11.Modal {
+var import_obsidian12 = require("obsidian");
+var TopicTreeModal = class extends import_obsidian12.Modal {
   constructor(app, titleText, description, nodes, title, selectable, choose) {
     super(app);
     this.titleText = titleText;
@@ -14239,9 +14414,9 @@ var TopicTreeModal = class extends import_obsidian11.Modal {
 };
 
 // ui/modals/aim-start-modal.ts
-var import_obsidian12 = require("obsidian");
+var import_obsidian13 = require("obsidian");
 var import_node_crypto4 = require("node:crypto");
-var AimStartModal = class extends import_obsidian12.Modal {
+var AimStartModal = class extends import_obsidian13.Modal {
   constructor(app, submit, models = [], defaultModel = "gpt-6-luna", defaultReasoning = "low", refreshModels) {
     super(app);
     this.submit = submit;
@@ -14396,7 +14571,7 @@ var AimStartModal = class extends import_obsidian12.Modal {
     const status = this.contentEl.createEl("p", { cls: "vam-hint", attr: { "aria-live": "polite" } });
     let pending = false;
     let cancelButton;
-    const create = new import_obsidian12.Setting(this.contentEl).addButton((button) => {
+    const create = new import_obsidian13.Setting(this.contentEl).addButton((button) => {
       cancelButton = button;
       button.setButtonText(t("ui.cancel")).onClick(() => this.close());
     }).addButton(
@@ -14472,9 +14647,9 @@ var AimStartModal = class extends import_obsidian12.Modal {
 };
 
 // ui/modals/aim-answer-modal.ts
-var import_obsidian13 = require("obsidian");
+var import_obsidian14 = require("obsidian");
 var import_node_crypto5 = require("node:crypto");
-var AimAnswerModal = class extends import_obsidian13.Modal {
+var AimAnswerModal = class extends import_obsidian14.Modal {
   constructor(app, question, options, submit, requestId = (0, import_node_crypto5.randomUUID)()) {
     super(app);
     this.question = question;
@@ -14516,7 +14691,7 @@ var AimAnswerModal = class extends import_obsidian13.Modal {
     });
     const status = this.contentEl.createEl("p", { cls: "vam-hint", attr: { "aria-live": "polite" } });
     let pending = false, submitButton;
-    const setting = new import_obsidian13.Setting(this.contentEl).addButton(
+    const setting = new import_obsidian14.Setting(this.contentEl).addButton(
       (button) => button.setButtonText(t("ui.cancel")).onClick(() => {
         if (!pending) this.close();
       })
@@ -20113,10 +20288,10 @@ function aimRepairHint(reason) {
 }
 
 // experiences/visual-map/modals.ts
-var import_obsidian16 = require("obsidian");
+var import_obsidian17 = require("obsidian");
 
 // ui/reference-picker.ts
-var import_obsidian14 = require("obsidian");
+var import_obsidian15 = require("obsidian");
 var ReferencePicker = class {
   constructor(app, parent, topics, readTopic, currentTopicId, currentLabel, initialWeb = true, initialImages = true) {
     this.app = app;
@@ -20241,7 +20416,7 @@ var ReferencePicker = class {
         const details = card.createEl("details");
         const summary = details.createEl("summary");
         const disclosure = summary.createSpan({ cls: "vam-reference-disclosure" });
-        (0, import_obsidian14.setIcon)(disclosure, "file-text");
+        (0, import_obsidian15.setIcon)(disclosure, "file-text");
         const summaryText2 = summary.createSpan({ cls: "vam-reference-summary-text" });
         summaryText2.createEl("strong", { text: group.name });
         summaryText2.createSpan({ text: group.location, cls: "vam-hint vam-reference-location" });
@@ -20291,7 +20466,7 @@ var ReferencePicker = class {
   createSourceButton(parent, icon, key2) {
     const button = parent.createEl("button", { cls: "vam-reference-action" });
     const image = button.createSpan({ cls: "vam-reference-action-icon" });
-    (0, import_obsidian14.setIcon)(image, icon);
+    (0, import_obsidian15.setIcon)(image, icon);
     button.createSpan({ text: t(key2), cls: "vam-reference-action-label" });
     return button;
   }
@@ -20322,7 +20497,7 @@ var ReferencePicker = class {
   async selectTopic() {
     try {
       const topics = (await this.topics()).filter((topic) => topic.id !== this.currentTopicId);
-      const modal = new import_obsidian14.Modal(this.app);
+      const modal = new import_obsidian15.Modal(this.app);
       modal.titleEl.setText(t("ui.reference_select_mind_map"));
       if (!topics.length)
         modal.contentEl.createEl("p", { text: t("ui.reference_no_other_mind_maps"), cls: "vam-hint" });
@@ -20377,7 +20552,7 @@ var ReferencePicker = class {
         if (!yaml) return true;
         let metadata;
         try {
-          metadata = (0, import_obsidian14.parseYaml)(yaml);
+          metadata = (0, import_obsidian15.parseYaml)(yaml);
         } catch (error) {
           if (yaml.includes("agent-map-node")) throw error;
           return true;
@@ -20414,7 +20589,7 @@ var ReferencePicker = class {
     var _a;
     const nativePath = (_a = file.path) == null ? void 0 : _a.replace(/\\/g, "/");
     const adapter = this.app.vault.adapter;
-    const vaultRoot = adapter instanceof import_obsidian14.FileSystemAdapter ? adapter.getBasePath().replace(/\\/g, "/").replace(/\/$/, "") : "";
+    const vaultRoot = adapter instanceof import_obsidian15.FileSystemAdapter ? adapter.getBasePath().replace(/\\/g, "/").replace(/\/$/, "") : "";
     const isInVault = !!nativePath && !!vaultRoot && nativePath.startsWith(`${vaultRoot}/`);
     const path = isInVault ? nativePath.slice(vaultRoot.length + 1) : nativePath || (fromFolder ? file.webkitRelativePath : file.name) || file.name;
     return {
@@ -20436,7 +20611,7 @@ var ReferencePicker = class {
 };
 
 // ui/modals/debug-log-modal.ts
-var import_obsidian15 = require("obsidian");
+var import_obsidian16 = require("obsidian");
 
 // log-manager.ts
 var LogManager = class {
@@ -20664,7 +20839,7 @@ var AiExchangeLog = class {
 };
 
 // ui/modals/debug-log-modal.ts
-var DebugLogModal = class extends import_obsidian15.Modal {
+var DebugLogModal = class extends import_obsidian16.Modal {
   constructor(app, logs, exchanges, exchangeEnabled, setExchangeEnabled) {
     super(app);
     this.logs = logs;
@@ -20688,20 +20863,20 @@ var DebugLogModal = class extends import_obsidian15.Modal {
       cls: "vam-modal-intro",
       text: t("ui.logs_are_kept_in_memory_only_and_disappear_when_the_plugin_r")
     });
-    const actions = new import_obsidian15.Setting(this.contentEl);
+    const actions = new import_obsidian16.Setting(this.contentEl);
     actions.addButton((button) => button.setButtonText(t("ui.refresh_logs")).onClick(() => this.renderLogs()));
     actions.addButton(
       (button) => button.setButtonText(t("ui.copy_logs")).setCta().onClick(async () => {
         const text11 = formatDebugLogs(this.logs.getLogs());
         if (!text11) {
-          new import_obsidian15.Notice(t("ui.there_are_no_debug_logs_yet"));
+          new import_obsidian16.Notice(t("ui.there_are_no_debug_logs_yet"));
           return;
         }
         try {
           await navigator.clipboard.writeText(text11);
-          new import_obsidian15.Notice(t("ui.debug_log_copied"));
+          new import_obsidian16.Notice(t("ui.debug_log_copied"));
         } catch (e) {
-          new import_obsidian15.Notice(t("ui.unable_to_copy_the_debug_log"));
+          new import_obsidian16.Notice(t("ui.unable_to_copy_the_debug_log"));
         }
       })
     );
@@ -20726,7 +20901,7 @@ var DebugLogModal = class extends import_obsidian15.Modal {
       cls: "vam-modal-intro",
       text: this.exchangeEnabled() ? t("ui.up_to_20_exchanges_are_stored_in_this_vault_s_plugin_folder") : t("ui.ai_exchange_recording_is_off_enable_it_in_vam_settings")
     });
-    const exchangeActions = new import_obsidian15.Setting(this.contentEl);
+    const exchangeActions = new import_obsidian16.Setting(this.contentEl);
     if (this.setExchangeEnabled)
       exchangeActions.setName(t("ui.record_ai_exchanges")).addToggle(
         (toggle) => toggle.setValue(this.exchangeEnabled()).onChange(async (value) => {
@@ -20742,9 +20917,9 @@ var DebugLogModal = class extends import_obsidian15.Modal {
           await navigator.clipboard.writeText(
             ((_b2 = (_a2 = this.exchanges) == null ? void 0 : _a2.getEntries()) != null ? _b2 : []).map(formatAiExchange).join("\n\n---\n\n")
           );
-          new import_obsidian15.Notice(t("ui.ai_exchange_copied"));
+          new import_obsidian16.Notice(t("ui.ai_exchange_copied"));
         } catch (e) {
-          new import_obsidian15.Notice(t("ui.unable_to_copy_the_ai_exchange"));
+          new import_obsidian16.Notice(t("ui.unable_to_copy_the_ai_exchange"));
         }
       })
     );
@@ -20791,7 +20966,7 @@ var DebugLogModal = class extends import_obsidian15.Modal {
       if (exchange.error) item.createEl("pre", { text: `${t("ui.error")}: ${exchange.error}` });
       const copy = item.createEl("button", { text: t("ui.copy_this_exchange") });
       copy.addEventListener("click", () => {
-        void navigator.clipboard.writeText(formatAiExchange(exchange)).then(() => new import_obsidian15.Notice(t("ui.ai_exchange_copied"))).catch(() => new import_obsidian15.Notice(t("ui.unable_to_copy_the_ai_exchange")));
+        void navigator.clipboard.writeText(formatAiExchange(exchange)).then(() => new import_obsidian16.Notice(t("ui.ai_exchange_copied"))).catch(() => new import_obsidian16.Notice(t("ui.unable_to_copy_the_ai_exchange")));
       });
     }
   }
@@ -20904,8 +21079,8 @@ function quickSuggestions(items, layers, firstLayerCount, childrenPerParent) {
   if (selected.length !== items.length) invalid();
   return selected;
 }
-var NextStepModal = class extends import_obsidian16.Modal {
-  constructor(app, topic, depth, childrenCount, pendingCount, plugin, research, expand, synthesize, modelSettings, selection) {
+var NextStepModal = class extends import_obsidian17.Modal {
+  constructor(app, topic, depth, childrenCount, pendingCount, plugin, research, expand, synthesize, modelSettings, selectionFlow) {
     super(app);
     this.topic = topic;
     this.depth = depth;
@@ -20916,7 +21091,7 @@ var NextStepModal = class extends import_obsidian16.Modal {
     this.expand = expand;
     this.synthesize = synthesize;
     this.modelSettings = modelSettings;
-    this.selection = selection;
+    this.selectionFlow = selectionFlow;
     __publicField(this, "closed", false);
     __publicField(this, "runPending", false);
     /** Model and effort edits wait here; they are saved when a run starts, never when the dialog is cancelled. */
@@ -20931,7 +21106,7 @@ var NextStepModal = class extends import_obsidian16.Modal {
   /** Where the shared fields (data sources, template, tone) come from: the topic's settings, or the selection's. */
   get info() {
     var _a, _b;
-    return (_b = this.modelSettings) != null ? _b : (_a = this.selection) == null ? void 0 : _a.fields;
+    return (_b = this.modelSettings) != null ? _b : (_a = this.selectionFlow) == null ? void 0 : _a.fields;
   }
   /** Suggests the next step from where the topic stands: frontier → research, settled leaf → expand, settled branch → synthesize. */
   suggestedMode() {
@@ -21136,7 +21311,7 @@ var NextStepModal = class extends import_obsidian16.Modal {
         await work();
       } catch (error) {
         if (this.closed && !controller.signal.aborted)
-          new import_obsidian16.Notice(error instanceof Error ? error.message : String(error));
+          new import_obsidian17.Notice(error instanceof Error ? error.message : String(error));
         this.failed(
           panel,
           button,
@@ -21223,7 +21398,7 @@ var NextStepModal = class extends import_obsidian16.Modal {
         direction,
         (message) => {
           if (this.closed) {
-            new import_obsidian16.Notice(message);
+            new import_obsidian17.Notice(message);
             return;
           }
           settle();
@@ -21248,7 +21423,7 @@ var NextStepModal = class extends import_obsidian16.Modal {
     button.disabled = false;
   }
   startedInBackground() {
-    new import_obsidian16.Notice(t("ui.task_started_in_background_0", this.topic));
+    new import_obsidian17.Notice(t("ui.task_started_in_background_0", this.topic));
     this.close();
   }
   failedAi(panel, button, message) {
@@ -21314,7 +21489,7 @@ var NextStepModal = class extends import_obsidian16.Modal {
                 return;
               }
               consumed();
-              new import_obsidian16.Notice(t("ui.subtopics_created"));
+              new import_obsidian17.Notice(t("ui.subtopics_created"));
               this.taskSignal = void 0;
               this.taskController = void 0;
               this.close();
@@ -21337,7 +21512,7 @@ var NextStepModal = class extends import_obsidian16.Modal {
   onOpen() {
     var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v;
     this.modalEl.addClass("vam-next-modal");
-    const selection = this.selection;
+    const selection = this.selectionFlow;
     this.titleEl.setText(t(selection ? "ui.confirm_topic_synthesis" : "ui.how_would_you_like_to_explore_next"));
     const intro = this.contentEl.createEl("p", { cls: "vam-modal-intro vam-next-topic" });
     if (!selection) intro.createSpan({ text: t("ui.current_topic_0", this.topic) });
@@ -21481,7 +21656,7 @@ var NextStepModal = class extends import_obsidian16.Modal {
           },
           (message) => {
             if (this.closed) {
-              new import_obsidian16.Notice(message);
+              new import_obsidian17.Notice(message);
               return;
             }
             release();
@@ -21927,7 +22102,13 @@ var NextStepModal = class extends import_obsidian16.Modal {
     const toneId = toneField(
       compactSettings,
       (_s = (_r = this.info) == null ? void 0 : _r.tones) != null ? _s : [],
-      t("ui.tone_keep_0", (_u = (_t = this.info) == null ? void 0 : _t.currentTone) != null ? _u : "")
+      t("ui.tone_keep_0", (_u = (_t = this.info) == null ? void 0 : _t.currentTone) != null ? _u : ""),
+      (selected, refreshed) => {
+        const settings = this.plugin.settings;
+        const choices = () => listPresets(settings.promptPresets, "tone", settings.language).map(({ id, name }) => ({ id, name }));
+        new PromptPresetsModal(this.app, this.plugin, "tone", () => refreshed(choices()), selected).open();
+      },
+      () => refreshSummary()
     );
     const pickedName = (picked, choices) => {
       var _a2;
@@ -22083,7 +22264,7 @@ var DraftReviewView = class {
     this.confirm = confirm;
     this.discard = discard;
     this.close = close;
-    __publicField(this, "renderer", new import_obsidian16.Component());
+    __publicField(this, "renderer", new import_obsidian17.Component());
     __publicField(this, "disarm");
     __publicField(this, "intro");
   }
@@ -22124,7 +22305,7 @@ var DraftReviewView = class {
       const state = (_a2 = generations.get(target)) != null ? _a2 : { count: 0 };
       const generation = ++state.count;
       if (state.child) this.renderer.removeChild(state.child);
-      const child = this.renderer.addChild(new import_obsidian16.Component());
+      const child = this.renderer.addChild(new import_obsidian17.Component());
       state.child = child;
       generations.set(target, state);
       target.empty();
@@ -22134,7 +22315,7 @@ var DraftReviewView = class {
         target.setText(markdown);
       };
       try {
-        void import_obsidian16.MarkdownRenderer.render(this.app, markdown, target, (_b = this.review.sourcePath) != null ? _b : "", child).catch(fallback);
+        void import_obsidian17.MarkdownRenderer.render(this.app, markdown, target, (_b = this.review.sourcePath) != null ? _b : "", child).catch(fallback);
       } catch (e) {
         fallback();
       }
@@ -22194,7 +22375,7 @@ var DraftReviewView = class {
     this.renderer.unload();
   }
 };
-var DraftReviewModal = class extends import_obsidian16.Modal {
+var DraftReviewModal = class extends import_obsidian17.Modal {
   constructor(app, summary, detail, review, confirm, discard) {
     super(app);
     __publicField(this, "view");
@@ -22210,7 +22391,7 @@ var DraftReviewModal = class extends import_obsidian16.Modal {
     this.contentEl.empty();
   }
 };
-var ChildProposalModal = class extends import_obsidian16.Modal {
+var ChildProposalModal = class extends import_obsidian17.Modal {
   constructor(app, suggestions, submit) {
     super(app);
     this.suggestions = suggestions;
@@ -22243,7 +22424,7 @@ var ChildProposalModal = class extends import_obsidian16.Modal {
     });
   }
 };
-var MapConflictModal = class extends import_obsidian16.Modal {
+var MapConflictModal = class extends import_obsidian17.Modal {
   constructor(app, local, disk, resolve) {
     super(app);
     this.local = local;
@@ -22300,7 +22481,7 @@ var MapConflictModal = class extends import_obsidian16.Modal {
     if (!this.settled) this.resolve(clone(this.disk));
   }
 };
-var NoteCollectionModal = class extends import_obsidian16.Modal {
+var NoteCollectionModal = class extends import_obsidian17.Modal {
   constructor(app, titleText, files, actions) {
     super(app);
     this.titleText = titleText;
@@ -22320,10 +22501,10 @@ var NoteCollectionModal = class extends import_obsidian16.Modal {
           action.run(file);
         });
     }
-    new import_obsidian16.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.close")).onClick(() => this.close()));
+    new import_obsidian17.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.close")).onClick(() => this.close()));
   }
 };
-var TopicPickerModal = class extends import_obsidian16.Modal {
+var TopicPickerModal = class extends import_obsidian17.Modal {
   constructor(app, titleText, topics, choose) {
     super(app);
     this.titleText = titleText;
@@ -22333,14 +22514,14 @@ var TopicPickerModal = class extends import_obsidian16.Modal {
   onOpen() {
     this.titleEl.setText(this.titleText);
     for (const topic of this.topics)
-      new import_obsidian16.Setting(this.contentEl).setName(topic.title).setDesc(topic.root).addButton(
+      new import_obsidian17.Setting(this.contentEl).setName(topic.title).setDesc(topic.root).addButton(
         (button) => button.setButtonText(t("ui.select")).onClick(() => {
           this.close();
           this.choose(topic);
         })
       );
     if (!this.topics.length) this.contentEl.createEl("p", { text: t("ui.no_other_topics") });
-    new import_obsidian16.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => this.close()));
+    new import_obsidian17.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => this.close()));
   }
 };
 
@@ -22397,7 +22578,7 @@ function edgePathData(x1, y1, x2, y2) {
   const bend = Math.max(60, Math.abs(x2 - x1) / 2);
   return `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`;
 }
-var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.ItemView {
+var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian18.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.plugin = plugin;
@@ -22838,7 +23019,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
   openOutlineImport() {
     const target = this.outlineImportTarget();
     if (target.map !== "editable") {
-      new import_obsidian17.Notice(target.map === "aim" ? t("ui.outline_import_placement_aim") : t("ui.outline_import_placement_no_map"));
+      new import_obsidian18.Notice(target.map === "aim" ? t("ui.outline_import_placement_aim") : t("ui.outline_import_placement_no_map"));
       return;
     }
     const placement = target.selected ? "under" : "tree";
@@ -22853,7 +23034,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
   }
   /** The side option on "+ Topic": one topic by default, or a pasted outline for several at once. */
   openTopicMenu(event) {
-    const menu = new import_obsidian17.Menu();
+    const menu = new import_obsidian18.Menu();
     menu.addItem(
       (item) => item.setTitle(t("ui.paste_outline_add_many")).setIcon("list-tree").onClick(() => this.openOutlineImport())
     );
@@ -22881,7 +23062,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     });
   }
   openCollapseMenu(event) {
-    const menu = new import_obsidian17.Menu();
+    const menu = new import_obsidian18.Menu();
     const choices = [
       { title: t("ui.collapse_all"), icon: "chevrons-down-up", levels: 0 },
       { title: t("ui.expand_all"), icon: "chevrons-up-down", levels: null },
@@ -22919,7 +23100,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
       result = await createOutlineMap(this.plugin.repo, model, request.nodes, request.source, void 0, template);
     } catch (error) {
       if (!(error == null ? void 0 : error.mapCreated)) throw error;
-      new import_obsidian17.Notice(errorMessage(error));
+      new import_obsidian18.Notice(errorMessage(error));
       return;
     }
     let opened = true;
@@ -22937,7 +23118,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     } catch (e) {
       opened = false;
     }
-    if (result.failure) new import_obsidian17.Notice(t("ui.outline_import_partial", result.created, result.total, result.failure));
+    if (result.failure) new import_obsidian18.Notice(t("ui.outline_import_partial", result.created, result.total, result.failure));
     if (result.failure || !opened || !request.shallowResearch || result.nodes.length < 2) return;
     const root = result.nodes.find((node) => node.parentId === null);
     if (!root) return;
@@ -22956,7 +23137,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
         }
       );
     } catch (error) {
-      new import_obsidian17.Notice(errorMessage(error));
+      new import_obsidian18.Notice(errorMessage(error));
     }
   }
   /** Adds the outline to the open map, as a new top-level tree or under the selected topic; existing nodes stay put. */
@@ -23029,7 +23210,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
           });
         } catch (error) {
           state.saveFailed = true;
-          new import_obsidian17.Notice(
+          new import_obsidian18.Notice(
             t(
               "ui.outline_import_map_save_failed",
               `${errorMessage(error)} (${created.map((node) => node.path).join(", ")})`
@@ -23051,7 +23232,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     const outcome = state.result;
     if (!outcome) return;
     if (outcome.failure)
-      new import_obsidian17.Notice(t("ui.outline_import_partial", outcome.created.length, outcome.total, outcome.failure));
+      new import_obsidian18.Notice(t("ui.outline_import_partial", outcome.created.length, outcome.total, outcome.failure));
     if (outcome.failure || state.saveFailed || !written || !request.shallowResearch || !outcome.created.length) return;
     const top = (_a = this.map) == null ? void 0 : _a.nodes.find((node) => node.id === outcome.created[0].id);
     if (!top) return;
@@ -23073,7 +23254,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
         }
       );
     } catch (error) {
-      new import_obsidian17.Notice(errorMessage(error));
+      new import_obsidian18.Notice(errorMessage(error));
     }
   }
   openNewMindMapModal() {
@@ -23248,14 +23429,14 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
           this.render();
           this.focusNode(question2);
         }
-        new import_obsidian17.Notice(t("ui.aim_waiting_user"));
-      } else if (result.status === "partial") new import_obsidian17.Notice(t("ui.aim_research_partial"));
-      else if (result.status === "completed") new import_obsidian17.Notice(t("ui.aim_research_saved"));
-      else if (result.status === "in-progress") new import_obsidian17.Notice(t("ui.aim_research_already_running"));
+        new import_obsidian18.Notice(t("ui.aim_waiting_user"));
+      } else if (result.status === "partial") new import_obsidian18.Notice(t("ui.aim_research_partial"));
+      else if (result.status === "completed") new import_obsidian18.Notice(t("ui.aim_research_saved"));
+      else if (result.status === "in-progress") new import_obsidian18.Notice(t("ui.aim_research_already_running"));
     } catch (error) {
       if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
-      if (controller.signal.aborted) new import_obsidian17.Notice(t("ui.research_stopped_existing_content_was_preserved"));
-      else new import_obsidian17.Notice(error instanceof Error ? error.message : String(error));
+      if (controller.signal.aborted) new import_obsidian18.Notice(t("ui.research_stopped_existing_content_was_preserved"));
+      else new import_obsidian18.Notice(error instanceof Error ? error.message : String(error));
       const latest = await this.plugin.repo.readMap(mapPath);
       if (this.aimViewIsCurrent(epoch, mapPath)) {
         this.map = latest;
@@ -23355,10 +23536,10 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
         this.selected = result.node.id;
         this.render();
         this.focusNode(result.node);
-        new import_obsidian17.Notice(t("ui.aim_question_ready"));
+        new import_obsidian18.Notice(t("ui.aim_question_ready"));
       } else if (result.outcome) {
         const outcome = result.outcome;
-        if (outcome.status === "partial") new import_obsidian17.Notice(t("ui.aim_research_partial"));
+        if (outcome.status === "partial") new import_obsidian18.Notice(t("ui.aim_research_partial"));
         else if (outcome.status === "waiting-user") {
           const question = (_e = this.map) == null ? void 0 : _e.nodes.find((item) => item.id === outcome.questionNodeId);
           if (question) {
@@ -23366,15 +23547,15 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
             this.render();
             this.focusNode(question);
           }
-          new import_obsidian17.Notice(t("ui.aim_waiting_user"));
-        } else if (outcome.status === "completed") new import_obsidian17.Notice(t("ui.aim_research_saved"));
-        else if (outcome.status === "in-progress") new import_obsidian17.Notice(t("ui.aim_research_already_running"));
-        else new import_obsidian17.Notice(t("ui.aim_research_result_stale"));
-      } else new import_obsidian17.Notice(t("ui.aim_no_question_needed"));
+          new import_obsidian18.Notice(t("ui.aim_waiting_user"));
+        } else if (outcome.status === "completed") new import_obsidian18.Notice(t("ui.aim_research_saved"));
+        else if (outcome.status === "in-progress") new import_obsidian18.Notice(t("ui.aim_research_already_running"));
+        else new import_obsidian18.Notice(t("ui.aim_research_result_stale"));
+      } else new import_obsidian18.Notice(t("ui.aim_no_question_needed"));
     } catch (error) {
       if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
-      if (controller.signal.aborted) new import_obsidian17.Notice(t("ui.research_stopped_existing_content_was_preserved"));
-      else new import_obsidian17.Notice(error instanceof Error ? error.message : String(error));
+      if (controller.signal.aborted) new import_obsidian18.Notice(t("ui.research_stopped_existing_content_was_preserved"));
+      else new import_obsidian18.Notice(error instanceof Error ? error.message : String(error));
     } finally {
       if (this.aimController === controller) {
         this.aimBusy = false;
@@ -23413,15 +23594,15 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
           this.render();
           this.focusNode(question);
         }
-        new import_obsidian17.Notice(t("ui.aim_waiting_user"));
-      } else if (result.status === "partial") new import_obsidian17.Notice(t("ui.aim_research_partial"));
-      else if (result.status === "completed") new import_obsidian17.Notice(t("ui.aim_research_saved"));
-      else if (result.status === "in-progress") new import_obsidian17.Notice(t("ui.aim_research_already_running"));
-      else new import_obsidian17.Notice(t("ui.aim_research_result_stale"));
+        new import_obsidian18.Notice(t("ui.aim_waiting_user"));
+      } else if (result.status === "partial") new import_obsidian18.Notice(t("ui.aim_research_partial"));
+      else if (result.status === "completed") new import_obsidian18.Notice(t("ui.aim_research_saved"));
+      else if (result.status === "in-progress") new import_obsidian18.Notice(t("ui.aim_research_already_running"));
+      else new import_obsidian18.Notice(t("ui.aim_research_result_stale"));
     } catch (error) {
       if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
-      if (controller.signal.aborted) new import_obsidian17.Notice(t("ui.research_stopped_existing_content_was_preserved"));
-      else new import_obsidian17.Notice(error instanceof Error ? error.message : String(error));
+      if (controller.signal.aborted) new import_obsidian18.Notice(t("ui.research_stopped_existing_content_was_preserved"));
+      else new import_obsidian18.Notice(error instanceof Error ? error.message : String(error));
     } finally {
       if (this.aimController === controller) {
         this.aimBusy = false;
@@ -23453,13 +23634,13 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
       if (!isCurrent()) return;
       if (result.status === "waiting-user") {
         this.selected = result.questionNodeId;
-        new import_obsidian17.Notice(t("ui.aim_waiting_user"));
-      } else if (result.status === "partial") new import_obsidian17.Notice(t("ui.aim_research_partial"));
-      else if (result.status === "completed") new import_obsidian17.Notice(t("ui.aim_research_saved"));
-      else if (result.status === "in-progress") new import_obsidian17.Notice(t("ui.aim_research_already_running"));
+        new import_obsidian18.Notice(t("ui.aim_waiting_user"));
+      } else if (result.status === "partial") new import_obsidian18.Notice(t("ui.aim_research_partial"));
+      else if (result.status === "completed") new import_obsidian18.Notice(t("ui.aim_research_saved"));
+      else if (result.status === "in-progress") new import_obsidian18.Notice(t("ui.aim_research_already_running"));
     } catch (error) {
       if (!isCurrent()) return;
-      new import_obsidian17.Notice(
+      new import_obsidian18.Notice(
         controller.signal.aborted ? t("ui.research_stopped_existing_content_was_preserved") : error instanceof Error ? error.message : String(error)
       );
     } finally {
@@ -23473,7 +23654,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
             }
           }
         } catch (error) {
-          if (isCurrent()) new import_obsidian17.Notice(error instanceof Error ? error.message : String(error));
+          if (isCurrent()) new import_obsidian18.Notice(error instanceof Error ? error.message : String(error));
         } finally {
           if (this.aimController === controller) {
             this.aimBusy = false;
@@ -23506,7 +23687,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
         const current = (_a2 = this.map) == null ? void 0 : _a2.nodes.find((item) => item.id === node.id);
         if (current) this.openAimAnswer(current);
       }).catch((error) => {
-        if (this.aimViewIsCurrent(epoch, mapPath)) new import_obsidian17.Notice(error instanceof Error ? error.message : String(error));
+        if (this.aimViewIsCurrent(epoch, mapPath)) new import_obsidian18.Notice(error instanceof Error ? error.message : String(error));
       });
       return;
     }
@@ -23536,16 +23717,16 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
               this.render();
               this.focusNode(question);
             }
-            new import_obsidian17.Notice(t("ui.aim_waiting_user"));
-          } else if (result.status === "partial") new import_obsidian17.Notice(t("ui.aim_research_partial"));
-          else if (result.status === "completed") new import_obsidian17.Notice(t("ui.aim_research_saved"));
-          else if (result.status === "in-progress") new import_obsidian17.Notice(t("ui.aim_research_already_running"));
-          else new import_obsidian17.Notice(t("ui.aim_research_result_stale"));
+            new import_obsidian18.Notice(t("ui.aim_waiting_user"));
+          } else if (result.status === "partial") new import_obsidian18.Notice(t("ui.aim_research_partial"));
+          else if (result.status === "completed") new import_obsidian18.Notice(t("ui.aim_research_saved"));
+          else if (result.status === "in-progress") new import_obsidian18.Notice(t("ui.aim_research_already_running"));
+          else new import_obsidian18.Notice(t("ui.aim_research_result_stale"));
         } catch (error) {
           if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) throw error;
           this.aimAnswerRequestIds.set(node.id, input.requestId);
-          if (controller.signal.aborted) new import_obsidian17.Notice(t("ui.research_stopped_existing_content_was_preserved"));
-          else new import_obsidian17.Notice(error instanceof Error ? error.message : String(error));
+          if (controller.signal.aborted) new import_obsidian18.Notice(t("ui.research_stopped_existing_content_was_preserved"));
+          else new import_obsidian18.Notice(error instanceof Error ? error.message : String(error));
           throw error;
         } finally {
           if (this.aimController === controller) {
@@ -23634,7 +23815,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     if (this.renderingCard) button.tabIndex = -1;
     button.setAttr("aria-label", label);
     button.dataset.icon = icon;
-    (0, import_obsidian17.setIcon)(button, icon);
+    (0, import_obsidian18.setIcon)(button, icon);
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       action(event);
@@ -23660,7 +23841,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
   }
   /** The three ways to start a map sit together, so none reads as the only or the hidden option. */
   openNewMapMenu(event) {
-    const menu = new import_obsidian17.Menu();
+    const menu = new import_obsidian18.Menu();
     menu.addItem(
       (item) => item.setTitle(t("ui.new_mind_map")).setIcon("file-plus").onClick(
         () => new NameModal(
@@ -24310,7 +24491,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     this.updateHistoryButtons();
   }
   openDetails(node) {
-    void this.plugin.openDetails(this.plugin.repo.file(node.path)).catch((error) => new import_obsidian17.Notice(error instanceof Error ? error.message : String(error)));
+    void this.plugin.openDetails(this.plugin.repo.file(node.path)).catch((error) => new import_obsidian18.Notice(error instanceof Error ? error.message : String(error)));
   }
   async travel(redo) {
     const action = redo ? this.history.redo() : this.history.undo();
@@ -24345,7 +24526,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     var _a;
     if (this.builtIn) return;
     if (!this.path || !this.map || this.closed) return;
-    if (!(this.app.vault.getAbstractFileByPath(this.path) instanceof import_obsidian17.TFile)) {
+    if (!(this.app.vault.getAbstractFileByPath(this.path) instanceof import_obsidian18.TFile)) {
       this.map = null;
       this.path = "";
       this.history.clear();
@@ -24458,7 +24639,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
   renameCurrentMap() {
     if (!this.map) return;
     if (this.aimActiveForPath(this.path)) {
-      new import_obsidian17.Notice(t("ui.aim_research_already_running"));
+      new import_obsidian18.Notice(t("ui.aim_research_already_running"));
       return;
     }
     new NameModal(
@@ -24468,11 +24649,11 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
       (title) => this.enqueue(async () => {
         if (!this.map) return;
         if (this.aimActiveForPath(this.path)) {
-          new import_obsidian17.Notice(t("ui.aim_research_already_running"));
+          new import_obsidian18.Notice(t("ui.aim_research_already_running"));
           return;
         }
         if (!this.path.startsWith(`${this.plugin.settings.topicsFolder}/`)) {
-          new import_obsidian17.Notice(t("ui.migrate_old_data_before_renaming_this_topic"));
+          new import_obsidian18.Notice(t("ui.migrate_old_data_before_renaming_this_topic"));
           return;
         }
         const before = clone(this.map), beforeRoot = this.plugin.repo.topicRoot(this.path);
@@ -24556,7 +24737,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     const deleted = this.deletedMap;
     if (!deleted || deleted.deleted) return;
     const file = this.app.vault.getAbstractFileByPath(deleted.path);
-    if (!(file instanceof import_obsidian17.TFile) || await this.app.vault.read(file) !== deleted.content)
+    if (!(file instanceof import_obsidian18.TFile) || await this.app.vault.read(file) !== deleted.content)
       throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
     await this.app.fileManager.trashFile(file);
     deleted.deleted = true;
@@ -24696,7 +24877,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     const switcher = toolbar.createEl("button", { cls: "vam-map-switcher" });
     switcher.setAttr("aria-label", t("ui.switch_mind_map"));
     switcher.createSpan({ text: (_g = (_f = this.map) == null ? void 0 : _f.title) != null ? _g : "Visual Agent Map", cls: "vam-map-title" });
-    (0, import_obsidian17.setIcon)(switcher.createSpan("vam-map-switcher-icon"), "chevrons-up-down");
+    (0, import_obsidian18.setIcon)(switcher.createSpan("vam-map-switcher-icon"), "chevrons-up-down");
     switcher.addEventListener("click", () => this.openMapSwitcher());
     if (this.builtIn) toolbar.createSpan({ cls: "vam-readonly-badge", text: t("ui.official_sample_read_only") });
     if (this.map && !this.builtIn && !this.map.aim && this.map.nodes.length) this.renderResearchProgress(toolbar);
@@ -24709,13 +24890,13 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     } else if (this.map) {
       const newMap = headerActions.createEl("button", { cls: "vam-new-map" });
       newMap.createSpan({ text: t("ui.new_map") });
-      (0, import_obsidian17.setIcon)(newMap.createSpan("vam-new-map-icon"), "chevron-down");
+      (0, import_obsidian18.setIcon)(newMap.createSpan("vam-new-map-icon"), "chevron-down");
       newMap.addEventListener("click", (event) => {
         event.stopPropagation();
         this.openNewMapMenu(event);
       });
       this.iconButton(headerActions, "list-tree", t("ui.open_topic_outline"), () => {
-        void this.plugin.activateOutline().catch((error) => new import_obsidian17.Notice(String(error)));
+        void this.plugin.activateOutline().catch((error) => new import_obsidian18.Notice(String(error)));
       });
       const undo = this.iconButton(headerActions, "undo-2", t("ui.undo"), () => this.enqueue(() => this.travel(false)));
       undo.disabled = !this.history.canUndo;
@@ -25699,7 +25880,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     preview.createEl("strong", { text: note.title });
     const content = preview.createDiv("vam-hover-markdown");
     const path = (_d = (_c = (_b = this.map) == null ? void 0 : _b.nodes.find((node) => node.id === card.dataset.nodeId)) == null ? void 0 : _c.path) != null ? _d : "";
-    void import_obsidian17.MarkdownRenderer.render(this.app, note.preview || t("ui.no_preview_content_yet"), content, path, this);
+    void import_obsidian18.MarkdownRenderer.render(this.app, note.preview || t("ui.no_preview_content_yet"), content, path, this);
     const host = workspace.getBoundingClientRect(), rect = card.getBoundingClientRect();
     const availableWidth = Math.max(180, host.width - 24);
     const width = Math.min(size.max, Math.max(Math.min(size.min, availableWidth), availableWidth));
@@ -25771,7 +25952,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
         const map = await this.plugin.repo.readMap(topic.mapPath);
         const files = map.nodes.map((node) => {
           const file = this.app.vault.getAbstractFileByPath(node.path);
-          if (!(file instanceof import_obsidian17.TFile) || file.extension.toLowerCase() !== "md")
+          if (!(file instanceof import_obsidian18.TFile) || file.extension.toLowerCase() !== "md")
             throw new Error(t("ui.reference_map_note_unavailable", node.path));
           return file;
         });
@@ -25871,7 +26052,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
   }
   openNodePanel(node, mode) {
     const render = (content, close, host) => this.renderInspector(content, node, mode, close, host);
-    new class extends import_obsidian17.Modal {
+    new class extends import_obsidian18.Modal {
       onOpen() {
         this.modalEl.addClass("vam-topic-modal", "vam-review-modal");
         render(this.contentEl, () => this.close(), this.modalEl);
@@ -25897,7 +26078,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
         panel.createEl("h3", { text: note.title });
         panel.createEl("p", { text: note.summary, cls: "vam-sample-summary" });
         const detail = panel.createDiv("vam-sample-detail");
-        void import_obsidian17.MarkdownRenderer.render(this.app, note.detail, detail, "", this);
+        void import_obsidian18.MarkdownRenderer.render(this.app, note.detail, detail, "", this);
         if (note.sourcePaths.length) {
           const sources2 = panel.createDiv("vam-reference-sources");
           sources2.createEl("strong", { text: t("ui.source_topics") });
@@ -25920,16 +26101,16 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
             const file = this.app.vault.getAbstractFileByPath(path);
             this.button(
               sources2,
-              (_f = sourceNote == null ? void 0 : sourceNote.title) != null ? _f : file instanceof import_obsidian17.TFile ? file.basename : t("ui.0_moved", (_e = path.split("/").at(-1)) == null ? void 0 : _e.replace(/\.md$/, "")),
+              (_f = sourceNote == null ? void 0 : sourceNote.title) != null ? _f : file instanceof import_obsidian18.TFile ? file.basename : t("ui.0_moved", (_e = path.split("/").at(-1)) == null ? void 0 : _e.replace(/\.md$/, "")),
               () => {
                 close == null ? void 0 : close();
                 if (sourceNode) {
                   this.selected = sourceNode.id;
                   this.render();
                   this.focusNode(sourceNode);
-                } else if (file instanceof import_obsidian17.TFile) void this.plugin.openDetails(file);
+                } else if (file instanceof import_obsidian18.TFile) void this.plugin.openDetails(file);
               },
-              !(sourceNode || file instanceof import_obsidian17.TFile)
+              !(sourceNode || file instanceof import_obsidian18.TFile)
             );
           }
         }
@@ -26111,7 +26292,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
   async previewMigration() {
     const plan = await this.plugin.repo.legacyMigrationPlan();
     if (!plan.maps.length && !plan.orphanPaths.length) {
-      new import_obsidian17.Notice(t("ui.no_old_data_to_migrate"));
+      new import_obsidian18.Notice(t("ui.no_old_data_to_migrate"));
       return;
     }
     const noteCount = plan.maps.reduce((sum, item) => sum + item.notePaths.length, 0);
@@ -26129,7 +26310,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
           this.history.clear();
           if (next) await this.openMapInMutation(next);
           else this.render();
-          new import_obsidian17.Notice(t("ui.old_data_was_migrated_into_topic_folders"));
+          new import_obsidian18.Notice(t("ui.old_data_was_migrated_into_topic_folders"));
         })
       }
     ]).open();
@@ -26137,7 +26318,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
   async repairMissingTopic() {
     const broken = await this.plugin.repo.brokenTopics();
     if (!broken.length) {
-      new import_obsidian17.Notice(t("ui.no_topics_with_a_missing_map_md"));
+      new import_obsidian18.Notice(t("ui.no_topics_with_a_missing_map_md"));
       return;
     }
     new ChoiceModal(
@@ -26193,7 +26374,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
       this.plugin.settings.cliModel
     );
     if (!this.path.startsWith(`${this.plugin.settings.topicsFolder}/`)) {
-      new import_obsidian17.Notice(t("ui.use_migrate_old_data_to_convert_this_map_first"));
+      new import_obsidian18.Notice(t("ui.use_migrate_old_data_to_convert_this_map_first"));
       return;
     }
     const node = await this.plugin.repo.createNote(
@@ -26254,7 +26435,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
         this.plugin.pendingResearchOptions.delete(parent.path);
         const message = t("ui.ai_proposed_duplicate_first_level_names_generate_the_proposa");
         if (failed) failed(message);
-        else new import_obsidian17.Notice(message);
+        else new import_obsidian18.Notice(message);
         return;
       }
       if (!found) {
@@ -26386,7 +26567,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
       if (!direct && suggestions.length === 0) {
         const message = result.detail.trim() || t("ui.ai_does_not_recommend_decomposition_or_did_not_propose_3_to");
         if (failed) failed(message);
-        else new import_obsidian17.Notice(message);
+        else new import_obsidian18.Notice(message);
         return;
       }
       if (direct) {
@@ -26470,7 +26651,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
         );
         if (direct) (_s = this.plugin.quickExpandFailures) == null ? void 0 : _s.set(parent.path, message);
         if (failed) failed(message, !partial);
-        else new import_obsidian17.Notice(message);
+        else new import_obsidian18.Notice(message);
       }
     } finally {
       releaseTask();
@@ -26496,7 +26677,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     if (new Set(roots).size !== roots.length) {
       this.plugin.pendingSuggestions.delete(parent.path);
       this.plugin.pendingResearchOptions.delete(parent.path);
-      new import_obsidian17.Notice(t("ui.ai_proposed_duplicate_first_level_names_generate_the_proposa"));
+      new import_obsidian18.Notice(t("ui.ai_proposed_duplicate_first_level_names_generate_the_proposa"));
       return;
     }
     new ChildProposalModal(this.app, suggestions.slice(0, 15), (items) => {
@@ -26523,7 +26704,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
         if ((researchOptions == null ? void 0 : researchOptions.shallowResearch) && createdNodes.length)
           await this.startShallowResearch(parent, createdNodes, researchOptions);
       })().catch((error) => {
-        new import_obsidian17.Notice(error instanceof Error ? error.message : String(error));
+        new import_obsidian18.Notice(error instanceof Error ? error.message : String(error));
       });
     }).open();
   }
@@ -26652,7 +26833,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
       this.modelChoices(),
       this.templateChoices(),
       (request) => void this.startMultiResearch(request, retryBatchKey),
-      this.toneChoices()
+      this.toneChoices(),
+      (selected, refreshed) => new PromptPresetsModal(this.app, this.plugin, "tone", () => refreshed(this.toneChoices()), selected).open()
     ).open();
   }
   stopMultiResearch() {
@@ -26663,7 +26845,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     if (!this.map || this.map.aim || this.builtIn || !this.multiSelected.size) return;
     const key2 = this.multiResearchKey();
     if (this.plugin.expansionCoordinator.isRunning(key2)) {
-      new import_obsidian17.Notice(t("ui.multi_research_already_running"));
+      new import_obsidian18.Notice(t("ui.multi_research_already_running"));
       return;
     }
     const selected = [...this.multiSelected].map((id) => this.map.nodes.find((node) => node.id === id)).filter((node) => !!node);
@@ -26671,16 +26853,16 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
       await this.plugin.confirmAiUsage((_a = request.model) != null ? _a : this.plugin.settings.cliModel, async () => {
         var _a2;
         if (this.plugin.expansionCoordinator.isRunning(key2)) {
-          new import_obsidian17.Notice(t("ui.multi_research_already_running"));
+          new import_obsidian18.Notice(t("ui.multi_research_already_running"));
           return;
         }
         const busy = (node) => this.plugin.running.has(node.path) || this.plugin.quickExpandPending.has(node.path) || this.plugin.activeTasks.has(node.path);
         const nodes = selected.filter((node) => !busy(node));
         if (!nodes.length) {
-          new import_obsidian17.Notice(t("ui.multi_research_all_skipped"));
+          new import_obsidian18.Notice(t("ui.multi_research_all_skipped"));
           return;
         }
-        if (nodes.length < selected.length) new import_obsidian17.Notice(t("ui.multi_research_skipped", selected.length - nodes.length));
+        if (nodes.length < selected.length) new import_obsidian18.Notice(t("ui.multi_research_skipped", selected.length - nodes.length));
         if (request.model)
           for (const node of nodes)
             await this.plugin.repo.updateNote(node.path, { model: request.model, modelSource: "manual" });
@@ -26717,7 +26899,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
               const state = this.plugin.expansionBatches.get(key2);
               if (state && state.status !== "running" && !reported) {
                 reported = true;
-                new import_obsidian17.Notice(
+                new import_obsidian18.Notice(
                   t(
                     state.status === "stopped" ? "ui.multi_research_stopped" : "ui.multi_research_finished",
                     state.succeeded,
@@ -26734,7 +26916,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
         }
       });
     } catch (error) {
-      new import_obsidian17.Notice(errorMessage(error));
+      new import_obsidian18.Notice(errorMessage(error));
     }
   }
   /** Counts that cannot be misread: succeeded of total, failures, optional current topic and stopped marker. */
@@ -26891,7 +27073,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     const paths = [...section3.matchAll(/\[\[([^\]|#]+)(?:[|#][^\]]*)?\]\]/g)].map((match) => {
       var _a, _b;
       const link = match[1], direct = link.endsWith(".md") ? link : `${link}.md`;
-      if (this.app.vault.getAbstractFileByPath(direct) instanceof import_obsidian17.TFile) return direct;
+      if (this.app.vault.getAbstractFileByPath(direct) instanceof import_obsidian18.TFile) return direct;
       return (_b = (_a = this.app.metadataCache.getFirstLinkpathDest(link, ownerPath)) == null ? void 0 : _a.path) != null ? _b : direct;
     });
     return [...new Set(paths)];
@@ -26986,7 +27168,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     if (!children.length && !((_a = options == null ? void 0 : options.referenceGroups) == null ? void 0 : _a.some((group) => group.documents.length))) {
       const message = t("ui.choose_another_note_source_first");
       if (failed) failed(message);
-      else new import_obsidian17.Notice(message);
+      else new import_obsidian18.Notice(message);
       return;
     }
     const childSources = await this.topicReferenceGroup(
@@ -27012,7 +27194,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     if (!children.length && !selectedSources.some((group) => group.documents.length)) {
       const message = t("ui.the_selected_sources_contain_no_markdown_content_to_synthesi");
       if (failed) failed(message);
-      else new import_obsidian17.Notice(message);
+      else new import_obsidian18.Notice(message);
       return;
     }
     const language2 = this.plugin.settings.language;
@@ -27108,7 +27290,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
         );
         await this.hydrate();
         this.render();
-        new import_obsidian17.Notice(t("ui.subtopic_synthesis_was_saved_to_current_understanding_and_ma"));
+        new import_obsidian18.Notice(t("ui.subtopic_synthesis_was_saved_to_current_understanding_and_ma"));
       });
       if (drafted) drafted(result, save);
       else
@@ -27128,13 +27310,13 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
       if (((_h = options == null ? void 0 : options.signal) == null ? void 0 : _h.aborted) || error instanceof Error && error.name === "AbortError") {
         await this.plugin.repo.updateNote(node.path, { status: note.status });
         if (failed) failed(t("ui.research_stopped_existing_content_was_preserved"));
-        else new import_obsidian17.Notice(t("ui.research_stopped_existing_content_was_preserved"));
+        else new import_obsidian18.Notice(t("ui.research_stopped_existing_content_was_preserved"));
       } else {
         console.error("Visual Agent Map child integration", error);
         await this.plugin.repo.updateNote(node.path, { status: "error" });
         const message = this.plugin.recordFailure(t("log.child_integration_failed"), error);
         if (failed) failed(message);
-        else new import_obsidian17.Notice(message);
+        else new import_obsidian18.Notice(message);
       }
     } finally {
       this.plugin.running.delete(node.path);
@@ -27239,7 +27421,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
             task.state = "directions";
             task.directions = items;
             if ((observer == null ? void 0 : observer.isOpen()) && observer.directions) observer.directions(items);
-            else new import_obsidian17.Notice(t("ui.choose_synthesis_direction"));
+            else new import_obsidian18.Notice(t("ui.choose_synthesis_direction"));
           },
           () => {
           },
@@ -27266,7 +27448,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
                 },
                 discard: () => this.discardSynthesis(node)
               });
-            else new import_obsidian17.Notice(t("ui.review_synthesis_draft"));
+            else new import_obsidian18.Notice(t("ui.review_synthesis_draft"));
           },
           fail,
           markAccepted
@@ -27318,7 +27500,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
           node,
           { ...task.options, continuesDirections: task.step === "draft" },
           task.step === "directions" ? null : task.direction,
-          (message) => new import_obsidian17.Notice(message),
+          (message) => new import_obsidian18.Notice(message),
           () => {
           }
         );
@@ -27328,12 +27510,12 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
   /** Multi-select synthesis: the same dialog and flow as a single topic's, over the selected topics. */
   integrateSelected() {
     if (!this.map || this.multiSelected.size < 2) {
-      new import_obsidian17.Notice(t("ui.select_at_least_two_topics"));
+      new import_obsidian18.Notice(t("ui.select_at_least_two_topics"));
       return;
     }
     const task = this.integrationTask && this.integrationTask.mapPath === this.path ? this.integrationTask : null;
     if ((task == null ? void 0 : task.state) === "running") {
-      new import_obsidian17.Notice(t("ui.ai_running_ai"));
+      new import_obsidian18.Notice(t("ui.ai_running_ai"));
       return;
     }
     if ((task == null ? void 0 : task.state) === "draft") {
@@ -27531,7 +27713,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
       task.directions = angles;
       this.render();
       if ((observer == null ? void 0 : observer.isOpen()) && observer.directions) observer.directions(angles);
-      else new import_obsidian17.Notice(t("ui.choose_synthesis_direction"));
+      else new import_obsidian18.Notice(t("ui.choose_synthesis_direction"));
     } catch (error) {
       fail(error);
     } finally {
@@ -27553,7 +27735,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
         task.sources,
         { ...task.options, synthesisTitle: task.title, continuesDirections: task.directions.length > 0 },
         task.step === "directions" ? null : task.goal,
-        (message) => new import_obsidian17.Notice(message),
+        (message) => new import_obsidian18.Notice(message),
         () => {
         }
       );
@@ -27678,7 +27860,7 @@ ${note.detail.trim()}` : "",
             ),
             discard: () => this.discardSelectionSynthesis()
           });
-        else new import_obsidian17.Notice(t("ui.review_synthesis_draft"));
+        else new import_obsidian18.Notice(t("ui.review_synthesis_draft"));
       } else if (review) this.reviewIntegratedDraft(task);
       else
         await this.saveIntegratedNode(
@@ -27794,7 +27976,7 @@ ${note.detail.trim()}` : "",
           this.focusNode(integrated);
         } catch (e) {
           this.render();
-          new import_obsidian17.Notice(t("ui.synthesis_saved_refresh_failed"));
+          new import_obsidian18.Notice(t("ui.synthesis_saved_refresh_failed"));
         }
         return;
       }
@@ -28140,7 +28322,7 @@ ${note.detail.trim()}` : "",
     const note = await this.plugin.repo.readNote(node.path);
     const { template, missing } = this.resolveTopicTemplate(note, chosenId);
     if (note.detailTemplateId && missing.includes(note.detailTemplateId)) {
-      new import_obsidian17.Notice(t("ui.detail_template_missing_0", note.detailTemplateId));
+      new import_obsidian18.Notice(t("ui.detail_template_missing_0", note.detailTemplateId));
       await this.plugin.repo.updateNote(node.path, { detailTemplateId: "" });
     }
     return template;
@@ -28178,7 +28360,7 @@ ${note.detail.trim()}` : "",
     if (!((_a = overrides == null ? void 0 : overrides.task) != null ? _a : note.prompt)) {
       const message = t("ui.enter_a_question_or_task_for_ai_first");
       if (failed) failed(message);
-      else new import_obsidian17.Notice(message);
+      else new import_obsidian18.Notice(message);
       return null;
     }
     if (this.plugin.running.has(node.path)) {
@@ -28281,7 +28463,7 @@ ${note.detail.trim()}` : "",
             );
           if (stale) {
             if (failed) failed(t("ui.the_topic_changed_so_the_outdated_ai_result_was_not_saved"));
-            else new import_obsidian17.Notice(t("ui.the_topic_changed_so_the_outdated_ai_result_was_not_saved"));
+            else new import_obsidian18.Notice(t("ui.the_topic_changed_so_the_outdated_ai_result_was_not_saved"));
           }
           return;
         }
@@ -28320,7 +28502,7 @@ ${note.detail.trim()}` : "",
             await ((_e2 = (_d2 = this.plugin.pendingSuggestions).flush) == null ? void 0 : _e2.call(_d2));
           } catch (error) {
             const message = this.plugin.recordFailure(t("log.expansion_suggestions_save_failed"), error);
-            new import_obsidian17.Notice(message);
+            new import_obsidian18.Notice(message);
           }
         }
         done == null ? void 0 : done(result);
@@ -28331,7 +28513,7 @@ ${note.detail.trim()}` : "",
         if (controller.signal.aborted || error instanceof Error && error.name === "AbortError") {
           await this.plugin.repo.updateNote(node.path, { status: note.status });
           if (failed) failed(t("ui.research_stopped_existing_content_was_preserved"));
-          else new import_obsidian17.Notice(t("ui.research_stopped_existing_content_was_preserved"));
+          else new import_obsidian18.Notice(t("ui.research_stopped_existing_content_was_preserved"));
           return;
         }
         console.error("Visual Agent Map AI task", error);
@@ -28343,7 +28525,7 @@ ${note.detail.trim()}` : "",
         await this.plugin.repo.updateNote(node.path, { status: "error" });
         const message = this.plugin.recordFailure(t("log.ai_task_failed"), error);
         if (failed) failed(message);
-        else new import_obsidian17.Notice(message);
+        else new import_obsidian18.Notice(message);
       })
     ).finally(() => {
       var _a2;
@@ -28370,7 +28552,7 @@ ${note.detail.trim()}` : "",
 var import_obsidian25 = require("obsidian");
 
 // ui/modals/detail-templates-modal.ts
-var import_obsidian18 = require("obsidian");
+var import_obsidian19 = require("obsidian");
 var same = (a, b) => a.trim().toLocaleLowerCase() === b.trim().toLocaleLowerCase();
 var PURPOSES = [
   ["none", "ui.detail_section_kind_none"],
@@ -28416,7 +28598,7 @@ function renderDetailTemplatesSetting(setting, app, plugin, refresh = () => {
     (button) => button.setButtonText(t("ui.manage_detail_templates")).onClick(() => new DetailTemplatesModal(app, plugin, refresh).open())
   );
 }
-var DetailTemplatesModal = class extends import_obsidian18.Modal {
+var DetailTemplatesModal = class extends import_obsidian19.Modal {
   constructor(app, plugin, onChanged = () => {
   }) {
     super(app);
@@ -28656,7 +28838,7 @@ var DetailTemplatesModal = class extends import_obsidian18.Modal {
     });
     const icon = (glyph, label, run, disabled) => {
       const button = header.createEl("button", { cls: "clickable-icon" });
-      (0, import_obsidian18.setIcon)(button, glyph);
+      (0, import_obsidian19.setIcon)(button, glyph);
       button.setAttr("aria-label", label);
       button.setAttr("title", label);
       button.disabled = readOnly || disabled;
@@ -28755,157 +28937,6 @@ var DetailTemplatesModal = class extends import_obsidian18.Modal {
         })
       )
     };
-  }
-};
-
-// ui/modals/prompt-presets-modal.ts
-var import_obsidian19 = require("obsidian");
-function renderTonePresetsSetting(setting, app, plugin, refresh = () => {
-}) {
-  setting.setName(t("ui.tone_presets")).setDesc(t("ui.tone_presets_hint")).addButton(
-    (button) => button.setButtonText(t("ui.tone_presets_manage")).onClick(() => new PromptPresetsModal(app, plugin, "tone", refresh).open())
-  );
-}
-var PromptPresetsModal = class extends import_obsidian19.Modal {
-  constructor(app, plugin, kind = "tone", onChanged = () => {
-  }) {
-    super(app);
-    this.plugin = plugin;
-    this.kind = kind;
-    this.onChanged = onChanged;
-    __publicField(this, "bar");
-    __publicField(this, "disarms", []);
-  }
-  actionBar() {
-    var _a;
-    (_a = this.bar) == null ? void 0 : _a.remove();
-    this.bar = modalActions(this);
-    return this.bar;
-  }
-  disarmAll() {
-    for (const disarm of this.disarms) disarm();
-    this.disarms = [];
-  }
-  onClose() {
-    this.disarmAll();
-    this.onChanged();
-  }
-  onOpen() {
-    this.titleEl.setText(t("ui.tone_presets"));
-    this.showList();
-  }
-  get custom() {
-    var _a;
-    return (_a = this.plugin.settings.promptPresets) != null ? _a : [];
-  }
-  async persist(presets) {
-    this.plugin.settings.promptPresets = presets;
-    await this.plugin.saveSettings();
-  }
-  showList() {
-    this.disarmAll();
-    const { contentEl } = this;
-    contentEl.empty();
-    contentEl.createEl("p", { text: t("ui.tone_presets_hint"), cls: "vam-modal-intro" });
-    const footer = this.actionBar();
-    const status = actionStatus(footer);
-    for (const preset of listPresets(this.custom, this.kind, this.plugin.settings.language)) {
-      const builtin = isBuiltinPreset(preset.id);
-      const row = contentEl.createDiv("vam-template-row");
-      const info = row.createDiv("vam-template-info");
-      info.createEl("strong", { text: preset.name });
-      if (builtin) info.createSpan({ text: t("ui.preset_builtin_tag"), cls: "vam-template-tag" });
-      const actions = row.createDiv("vam-template-actions");
-      const button = (label, run) => {
-        const element = actions.createEl("button", { text: label });
-        element.addEventListener("click", () => void run());
-        return element;
-      };
-      button(t(builtin ? "ui.preset_view" : "ui.preset_edit"), () => this.showEditor(preset.id));
-      button(t("ui.preset_copy"), () => this.duplicate(preset.id));
-      if (!builtin) {
-        const remove = actions.createEl("button", { text: t("ui.preset_delete"), cls: "vam-danger-text" });
-        this.disarms.push(
-          armDiscard(
-            remove,
-            status,
-            () => {
-              void this.remove(preset.id);
-            },
-            () => false,
-            { confirm: t("ui.preset_delete_confirm"), hint: t("ui.preset_delete_hint") }
-          )
-        );
-      }
-    }
-    footer.createEl("button", { text: t("ui.close") }).addEventListener("click", () => this.close());
-    footer.createEl("button", { text: t("ui.tone_presets_new"), cls: "mod-cta" }).addEventListener("click", () => {
-      void this.create();
-    });
-  }
-  async create() {
-    const { presets, created } = createPreset(this.custom, {
-      kind: this.kind,
-      name: t("ui.tone_presets_new_name"),
-      text: ""
-    });
-    if (!created) return;
-    await this.persist(presets);
-    this.showEditor(created.id);
-  }
-  async duplicate(id) {
-    const { presets, created } = duplicatePreset(this.custom, id, this.plugin.settings.language);
-    if (!created) return;
-    await this.persist(presets);
-    this.showList();
-  }
-  async remove(id) {
-    await this.persist(deletePreset(this.custom, id));
-    this.showList();
-  }
-  /** Edits one preset; built-ins open read-only. Nothing is written until Save, so Cancel discards the edit. */
-  showEditor(id) {
-    this.disarmAll();
-    const preset = listPresets(this.custom, this.kind, this.plugin.settings.language).find((item) => item.id === id);
-    if (!preset) {
-      this.showList();
-      return;
-    }
-    const readOnly = isBuiltinPreset(id);
-    const { contentEl } = this;
-    contentEl.empty();
-    const nameLabel = contentEl.createEl("label", { cls: "vam-field" });
-    nameLabel.createSpan({ text: t("ui.tone_preset_name") });
-    const name = nameLabel.createEl("input", { type: "text" });
-    name.value = preset.name;
-    name.disabled = readOnly;
-    name.setAttr("aria-label", t("ui.tone_preset_name"));
-    const textLabel = contentEl.createEl("label", { cls: "vam-field" });
-    textLabel.createSpan({ text: t("ui.tone_preset_text") });
-    const text11 = textLabel.createEl("textarea");
-    text11.rows = 10;
-    text11.value = preset.text;
-    text11.disabled = readOnly;
-    text11.setAttr("aria-label", t("ui.tone_preset_text"));
-    text11.setAttr("placeholder", t("ui.tone_preset_text_placeholder"));
-    const footer = this.actionBar();
-    const status = actionStatus(footer);
-    footer.createEl("button", { text: t(readOnly ? "ui.close" : "ui.cancel") }).addEventListener("click", () => this.showList());
-    if (readOnly) return;
-    const save = footer.createEl("button", { text: t("ui.save"), cls: "mod-cta" });
-    const check = () => {
-      save.disabled = !name.value.trim();
-      status.setText(save.disabled ? t("ui.preset_name_required") : "");
-    };
-    name.addEventListener("input", check);
-    save.addEventListener("click", () => {
-      if (!name.value.trim()) return;
-      save.disabled = true;
-      void this.persist(updatePreset(this.custom, id, { name: name.value, text: text11.value })).then(
-        () => this.showList()
-      );
-    });
-    check();
   }
 };
 

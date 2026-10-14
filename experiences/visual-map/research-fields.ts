@@ -107,18 +107,49 @@ export function templateField(
   return () => select.value || undefined;
 }
 
-/** Writing tone select whose first option (empty value) is `defaultLabel`; returns the chosen preset id, or undefined when that first option is selected. */
+/** Opens the tone library (at `selected` when given) and reports the tone list once it closes. */
+export type ManageTones = (
+  selected: string | undefined,
+  refreshed: (tones: { id: string; name: string }[]) => void
+) => void;
+
+/**
+ * Writing tone select whose first option (empty value) is `defaultLabel`; returns the chosen preset id, or undefined when
+ * that first option is selected. With `manage`, an edit link beside it opens the tone library; `tones` is updated in place.
+ */
 export function toneField(
   parent: HTMLElement,
   tones: { id: string; name: string }[],
-  defaultLabel: string
+  defaultLabel: string,
+  manage?: ManageTones,
+  /** Runs after the list was refreshed, so a summary that names the tone stays current. */
+  changed: () => void = () => {}
 ): () => string | undefined {
-  const label = parent.createEl("label", { cls: "vam-field" });
-  label.createSpan({ text: t("ui.tone") });
-  const select = label.createEl("select");
+  // A div, not a label: the edit link must not become the label's control. The select keeps its own aria-label.
+  const field = parent.createDiv("vam-field");
+  const head = field.createDiv("vam-field-head");
+  head.createSpan({ text: t("ui.tone") });
+  const select = field.createEl("select");
   select.setAttr("aria-label", t("ui.tone"));
-  select.createEl("option", { value: "", text: defaultLabel });
-  for (const tone of tones) select.createEl("option", { value: tone.id, text: tone.name });
-  select.value = "";
+  const fill = (): void => {
+    const selected = select.value;
+    select.replaceChildren();
+    select.createEl("option", { value: "", text: defaultLabel });
+    for (const tone of tones) select.createEl("option", { value: tone.id, text: tone.name });
+    select.value = tones.some(tone => tone.id === selected) ? selected : "";
+  };
+  fill();
+  if (manage) {
+    const edit = head.createEl("button", { text: t("ui.tone_edit"), cls: "vam-field-link" });
+    edit.type = "button";
+    edit.addEventListener("click", event => {
+      event.preventDefault();
+      manage(select.value || undefined, next => {
+        tones.splice(0, tones.length, ...next);
+        fill();
+        changed();
+      });
+    });
+  }
   return () => select.value || undefined;
 }

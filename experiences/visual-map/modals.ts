@@ -1,5 +1,7 @@
 // Modals and task helpers used by the Visual Map view; moved from view.ts unchanged.
 import type VisualAgentMapPlugin from "../../main";
+import { listPresets } from "../../ai/prompt-presets";
+import { PromptPresetsModal } from "../../ui/modals/prompt-presets-modal";
 import { supportedLanguageLabel, SUPPORTED_LANGUAGES, t, type TranslationKey } from "../../i18n";
 import { App, Component, MarkdownRenderer, Modal, Notice, Setting, TFile } from "obsidian";
 import { ReferencePicker, type ReferenceTopic } from "../../ui/reference-picker";
@@ -261,14 +263,15 @@ export class NextStepModal extends Modal {
       observer?: SynthesisObserver
     ) => Promise<void>,
     private modelSettings?: NextStepSettings,
-    private selection?: SelectionSynthesis
+    /** Not `selection`: Obsidian's Modal keeps the page's text selection in that field when it opens. */
+    private selectionFlow?: SelectionSynthesis
   ) {
     super(app);
   }
   /** Where the shared fields (data sources, template, tone) come from: the topic's settings, or the selection's. */
   private get info():
     Pick<NextStepSettings, "sources" | "templates" | "currentTemplate" | "tones" | "currentTone"> | undefined {
-    return this.modelSettings ?? this.selection?.fields;
+    return this.modelSettings ?? this.selectionFlow?.fields;
   }
   /** Suggests the next step from where the topic stands: frontier → research, settled leaf → expand, settled branch → synthesize. */
   private suggestedMode(): "research" | "expand" | "synthesize" {
@@ -706,7 +709,7 @@ export class NextStepModal extends Modal {
   }
   onOpen(): void {
     this.modalEl.addClass("vam-next-modal");
-    const selection = this.selection;
+    const selection = this.selectionFlow;
     this.titleEl.setText(t(selection ? "ui.confirm_topic_synthesis" : "ui.how_would_you_like_to_explore_next"));
     // The decision comes first: where the topic stands, the next step and one summary line; every option sits under Adjust.
     const intro = this.contentEl.createEl("p", { cls: "vam-modal-intro vam-next-topic" });
@@ -1330,7 +1333,14 @@ export class NextStepModal extends Modal {
     const toneId = toneField(
       compactSettings,
       this.info?.tones ?? [],
-      t("ui.tone_keep_0", this.info?.currentTone ?? "")
+      t("ui.tone_keep_0", this.info?.currentTone ?? ""),
+      (selected, refreshed) => {
+        const settings = this.plugin.settings;
+        const choices = (): { id: string; name: string }[] =>
+          listPresets(settings.promptPresets, "tone", settings.language).map(({ id, name }) => ({ id, name }));
+        new PromptPresetsModal(this.app, this.plugin, "tone", () => refreshed(choices()), selected).open();
+      },
+      () => refreshSummary()
     );
     const pickedName = (picked: string | undefined, choices?: { id: string; name: string }[]): string | undefined =>
       picked ? choices?.find(item => item.id === picked)?.name : undefined;
