@@ -3471,6 +3471,15 @@ export class VisualAgentMapView extends ItemView {
     }
     // Tools sit after the status badges; only the AI action stays visible until the card is hovered or focused.
     const tools = header.createDiv("vam-node-tools");
+    // Actions on a running or waiting card (stop, retry, review) lead the tools row and stay visible; the status text
+    // keeps the first row to itself, so hovering or selecting the card never re-wraps the header.
+    const actions = Array.from(header.children).filter(child => child.tagName === "BUTTON");
+    for (const action of actions) {
+      action.addClass("vam-node-action", "vam-pinned-tool");
+      tools.appendChild(action);
+    }
+    actions.at(-1)?.addClass("is-last-action");
+    if (actions.length) card.addClass("has-actions");
     if (!this.builtIn && !this.integrationMode) {
       if (!this.map?.aim) {
         // The selected card swaps the bare icon for a labelled action (CSS keys off .is-selected). Both share one slot

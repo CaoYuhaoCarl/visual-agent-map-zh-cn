@@ -96,6 +96,9 @@
 .vam-node-header { display: flex; flex-wrap: wrap; align-items: center; min-height: 26px; gap: 4px 6px; }
 .vam-node-header button { font-size: var(--font-ui-smaller); height: 24px; padding: 2px 8px; }
 .vam-node-tools { display: flex; align-items: center; gap: 0; margin-left: auto; }
+.vam-node.has-actions .vam-node-tools { flex: 1 0 100%; flex-wrap: wrap; justify-content: flex-end; row-gap: 4px; }
+.vam-node-tools > .vam-node-action { order: -2; margin-right: 4px; }
+.vam-node-tools > .vam-node-action.is-last-action { margin-right: auto; }
 .vam-node-tools .vam-icon-button { --icon-size: 15px; width: 26px; height: 26px; padding: 0; justify-content: center; }
 .vam-node-tools .vam-ai-tool { order: 99; color: var(--text-accent); }
 /* The fold toggle leads the row: the icons keep the same place on every card, with or without subtopics. */

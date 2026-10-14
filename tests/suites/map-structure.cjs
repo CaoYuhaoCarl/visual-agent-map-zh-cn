@@ -303,7 +303,7 @@ test('structure review window: starts on Close, runs on request, lists every kin
   assert.deepEqual(h.rows().map(row => find(row, i => hasCls(i, 'vam-proposal-reason')).text), ['Habits are missing.', 'REM is about the mind.', 'Dreams repeat Mind.', 'Body is out of scope.']);
   assert.deepEqual(h.rows().map(row => find(row, i => hasCls(i, 'vam-proposal-title')).value), ['Sleep hygiene', 'REM', 'Dreams', 'Body']);
   assert.deepEqual(h.rows().map(row => find(row, i => hasCls(i, 'vam-proposal-destination'))?.text), ['Under: Sleep', 'To: Mind', 'Into: Mind', undefined]);
-  assert.ok(find(h.modal.contentEl, i => i.text === '1 suggestions pointed at cards that are not on the map and were left out.'));
+  assert.ok(find(h.modal.contentEl, i => i.text === '1 suggestions could not be used (an unknown card, the root, a loop, a duplicate or no change) and were left out.'));
   assert.deepEqual(h.calls.highlight.at(-1), ['root', 'c', 'b', 'd', 'b', 'a'], 'every suggested card is marked');
   assert.deepEqual(h.calls.apply, [], 'nothing is applied until asked');
   h.modal.close();
@@ -483,7 +483,7 @@ integrationTest('structure review on the map: the AI gets titles, summaries and 
   assert.ok(sent.nodes.some(n => n.title === 'Body' && n.summary === 'How the body sleeps.'));
   assert.equal(JSON.stringify(sent).includes('SECRET FULL NOTE BODY'), false, 'no note body is sent');
   assert.equal(rows().length, 4, 'the invented id is not offered');
-  assert.ok(find(modal.contentEl, i => i.text === '1 suggestions pointed at cards that are not on the map and were left out.'));
+  assert.ok(find(modal.contentEl, i => i.text === '1 suggestions could not be used (an unknown card, the root, a loop, a duplicate or no change) and were left out.'));
   const marked = [...h.cards].filter(([, card]) => hasCls(card, 'vam-structure-suggested')).map(([id]) => id).sort();
   assert.deepEqual(marked, [h.ids.root, h.ids.a, h.ids.b, h.ids.c, h.ids.d, h.ids.e].sort());
   modal.close();
@@ -617,4 +617,70 @@ integrationTest('structure review entry: the root topic offers the whole map, a 
   assert.ok(find(modal.contentEl, i => hasCls(i, 'vam-next-structure-hint') && i.text === 'AI reads only titles, summaries and status, then suggests topics to add, cut, move or merge; apply each one on its own, and undo any.'));
   button(modal.contentEl, 'What to strengthen or cut? (whole map)').click();
   assert.equal(opened, 1); assert.equal(modal.closeCount, 1);
+});
+
+// ---- Adversarial cases from the Phase C test pass: late results, cancelled confirms and entry points -------------
+const diffWorld = (a0, b0) => { const strip = j => JSON.stringify(JSON.parse(j).map(([k, v]) => [k, v.replace(/^updated: .*\n/gm, '').replace(/^updated: .*$/gm, '').replace(/^agent-map-id: .*\n/gm, '')])); const a = strip(a0), b = strip(b0); return diffWorld0(a, b); };
+const diffWorld0 = (a, b) => { const A = new Map(JSON.parse(a)), B = new Map(JSON.parse(b)); const out = []; for (const k of new Set([...A.keys(), ...B.keys()])) { if (!A.has(k)) out.push('ADDED ' + k); else if (!B.has(k)) out.push('MISSING ' + k); else if (A.get(k) !== B.get(k)) { const x = A.get(k).split('\n'), y = B.get(k).split('\n'); out.push('CHANGED ' + k + JSON.stringify([A.get(k).slice(0,400), B.get(k).slice(0,400)]) + ': ' + x.filter(l => !y.includes(l)).join(' | ') + ' => ' + y.filter(l => !x.includes(l)).join(' | ')); } } return out.join('\n'); };
+const world = async h => { const files = h.app.vault.getMarkdownFiles().sort((a, b) => a.path.localeCompare(b.path)); const out = []; for (const f of files) out.push([f.path, await h.app.vault.read(f)]); return JSON.stringify(out); };
+const noteText = (row) => find(row, i => hasCls(i, 'vam-structure-note')).text;
+const applyBtn = (row) => find(row, i => hasCls(i, 'vam-structure-apply'));
+integrationTest('structure review: cancelled confirm for reduce and merge: suggestion applicable, nothing written; Escape-like close path too', async () => {
+  const h = await viewHarness(fullReply);
+  const { rows, apply } = await h.start(null);
+  const w0 = await world(h);
+  for (const idx of [3, 2]) {
+    await apply(idx, false); await tick();
+    h.opened.at(-1).close(); await tick(); await tick();
+    assert.equal(applyBtn(rows()[idx]).disabled, false, `row ${idx} still applicable`);
+    assert.equal(await world(h), w0); assert.equal(h.view.history.canUndo, false);
+  }
+  // now actually apply after cancelling: still works
+  await apply(3, false); await tick(); await h.choose('Remove entire branch');
+  assert.equal((await h.saved()).some(n => n.id === h.ids.d), false);
+});
+integrationTest('structure review entries: leaf, AIM map, builtin sample, outside topics folder', async () => {
+  const h = await viewHarness({ suggestions: [] });
+  const entry = id => h.view.structureReviewEntry(h.view.map.nodes.find(n => n.id === id));
+  assert.equal(entry(h.ids.c), undefined); assert.equal(entry(h.ids.f), undefined);
+  assert.ok(entry(h.ids.root)); assert.ok(entry(h.ids.a));
+  h.view.map.aim = { kind: 'aim' };
+  assert.equal(entry(h.ids.root), undefined, 'aim: root'); assert.equal(entry(h.ids.a), undefined, 'aim: branch');
+  delete h.view.map.aim;
+  h.view.builtIn = true;
+  assert.equal(entry(h.ids.root), undefined, 'sample root'); assert.equal(entry(h.ids.a), undefined);
+  h.view.openStructureReview(null); assert.equal(h.opened.length, 0, 'direct open refused on sample');
+  h.view.builtIn = false;
+  h.view.openStructureReview(null); assert.equal(h.opened.length, 1);
+  const p = h.view.path; h.view.path = 'Other/Map.md';
+  assert.equal(entry(h.ids.root), undefined);
+  h.view.path = p;
+});
+
+test('structure review window: a host that ignores abort and resolves late writes nothing into a closed or cancelled window', async () => {
+  const result = { suggestions: [{ kind: 'strengthen', targetId: 'root', title: 'T', reason: 'r', basis: {} }], rejected: [] };
+  for (const how of ['close', 'cancel']) {
+    let release; const h = windowHarness({ review: () => new Promise(r => { release = () => r(result); }) });
+    button(h.modal.modalEl, 'Start review').click(); await tick();
+    if (how === 'close') h.modal.close(); else button(h.modal.modalEl, 'Cancel').click();
+    await tick(); release(); await tick(); await tick();
+    assert.equal(h.rows().length, 0, how + ': no rows');
+    assert.deepEqual(h.calls.highlight.at(-1) ?? [], [], how + ': highlight clear');
+    assert.equal(h.calls.highlight.some(ids => ids.length), false, how + ': never highlighted');
+  }
+});
+test('outline modal: a generator that ignores abort and resolves late changes nothing after Stop or close; prose reply shows error and blocks add', async () => {
+  for (const how of ['stop', 'close']) {
+    let release; const h = importHarness({ generate: () => new Promise(r => { release = () => r('# Late\n## Result'); }) });
+    h.textarea().value = '# Mine'; h.textarea().fire('input');
+    button(h.ai, 'Generate outline').click(); await tick();
+    if (how === 'stop') button(h.ai, 'Stop').click(); else h.modal.close();
+    await tick(); release(); await tick(); await tick();
+    assert.equal(h.textarea().value, '# Mine', how);
+  }
+  const outline = load('core/outline-generation-service.ts', { obsidian });
+  const cases = { leadingProse: 'Here is your outline:\n# Sleep\n## Stages', trailingProse: '# Sleep\n## Stages\nHope this helps!', bullets: '# Sleep\n- item', proseFenceMix: 'Sure!\n```markdown\n# Sleep\n## A\n```', fenceThenProse: '```md\n# Sleep\n## A\n```\nDone.', frontMatter: '---\ntitle: x\n---\n# Sleep\n## A', html: '<!-- c -->\n# Sleep\n## A', empty: '', onlyProse: 'No headings here' };
+  for (const [name, raw] of Object.entries(cases)) assert.throws(() => outline.parseOutlineReply(raw, 'en'), e => e.name === 'OutlineGenerateError', name);
+  assert.doesNotThrow(() => outline.parseOutlineReply('```markdown\n# Sleep\n## A\n```', 'en'));
+  assert.doesNotThrow(() => outline.parseOutlineReply('# Sleep\n## A\n', 'en'));
 });
