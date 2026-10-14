@@ -40,9 +40,12 @@ test('AIM planner moves validity nested in source beside it and keeps the source
   assert.deepEqual(item.source, nestedValiditySource);
 });
 
-test('AIM plan parser reports the specific marker defect instead of the generic count error', () => {
+test('AIM plan parser turns an unproven reuse claim into new research and still reports malformed markers', () => {
   const detail = `<!-- aim-plan ${JSON.stringify({ subtopics: [nestedValidityTarget()] })} -->`;
-  assert.throws(() => parseAimResearchPlan(answer('Plan', detail)), /Reuse and update targets need an exact source/);
+  const [item] = plain(parseAimResearchPlan(answer('Plan', detail)));
+  assert.equal(item.action, 'research');
+  assert.equal(item.source, undefined, 'an incomplete source claim is not kept');
+  assert.throws(() => validateAimResearchPlan([nestedValidityTarget()]), /Reuse and update targets need an exact source/, 'saved plans are still validated strictly');
   assert.throws(() => parseAimResearchPlan(answer('Plan', '<!-- aim-plan {not json} -->')), /0–5 valid research subtopics/);
 });
 

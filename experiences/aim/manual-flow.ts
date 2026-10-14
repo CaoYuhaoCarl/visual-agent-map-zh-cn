@@ -128,6 +128,8 @@ const AIM_REQUEST_TOKEN_LIMIT = 60_000;
 const AIM_INTAKE_COMPLETE = "<!-- aim-intake-complete -->";
 /** With the intake checklist, one answered question can precede a conclusion. */
 const CHECKLIST_FLOOR = 1;
+/** With the intake checklist, after this many answers what is still unknown becomes an assumption to confirm. */
+const CHECKLIST_QUESTION_LIMIT = 5;
 
 export class AimManualFlow {
   private readonly evidenceReports = new Map<string, { path: string; hash: string }>();
@@ -576,6 +578,33 @@ export class AimManualFlow {
       candidate.decision === "research_more" && candidate.gapKind === "not_decisive"
         ? this.withOpenItems(candidate, context.outputLanguage)
         : candidate;
+    // Question limit of the checklist: past it, a new question or a gap only the user can close becomes an
+    // assumption the document lists for the user to confirm, so the run ends with an answer instead of more questions.
+    if (context.goalDetail.includes(AIM_INTAKE_COMPLETE) && context.answeredQuestionCount >= CHECKLIST_QUESTION_LIMIT) {
+      if (reviewed.decision === "ask_user" && reviewed.question)
+        reviewed = this.withOpenItems(
+          {
+            ...reviewed,
+            researchTarget: { title: reviewed.question, task: reviewed.rationale, expectedValue: reviewed.question }
+          },
+          context.outputLanguage
+        );
+      else if (reviewed.decision === "research_more" && reviewed.gapKind === "user_only")
+        reviewed = this.withOpenItems(reviewed, context.outputLanguage);
+      if (reviewed.decision === "conclude" && reviewed.unresolvedConditions?.length)
+        reviewed = {
+          ...reviewed,
+          unresolvedConditions: [],
+          openItems: [
+            ...(reviewed.openItems ?? []),
+            ...reviewed.unresolvedConditions.map(condition => ({
+              title: condition,
+              task: reviewed.rationale,
+              expectedValue: condition
+            }))
+          ]
+        };
+    }
     const repeatsKnownQuestion = context.questionHistory.some(
       question => question.trim().toLocaleLowerCase() === reviewed.question?.trim().toLocaleLowerCase()
     );
@@ -2966,7 +2995,10 @@ export class AimManualFlow {
             } catch {
               /* Preserve the original research error. */
             }
-            if (error instanceof SubtopicSearchUnavailable && !taskSignal.aborted) {
+            const searchSkipped =
+              error instanceof SubtopicSearchUnavailable ||
+              (error instanceof Error && /did not perform web search/.test(error.message));
+            if (searchSkipped && !taskSignal.aborted) {
               searchFailure = error;
               return null;
             }

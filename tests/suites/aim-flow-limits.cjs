@@ -129,6 +129,9 @@ integrationTest('AIM checklist: after the intake, one answer may conclude, and a
   const assumed = await run({ detail: intake, answered: 1, unresolved: ['Budget'], history: ['What matters most?', 'What is your budget?'] });
   assert.equal(assumed.review.decision, 'conclude', 'a condition the user was already asked about is kept as an assumption');
   assert.match(assumed.tasks.at(-1).detail, /Budget/, 'the assumption reaches the delivery as an open item');
+  const limited = await run({ detail: intake, answered: 5, unresolved: ['Budget'] });
+  assert.deepEqual(limited.calls, ['delivery-outline'], 'past the question limit an unknown condition is not asked again');
+  assert.match(limited.tasks.at(-1).detail, /Budget/);
 });
 const gapTarget = { title: 'Missing evidence', task: 'Search for the missing evidence.', contribution: 'Closes the gap.' };
 /** A Planner that always wants more research, so the flow must end through the research-budget exit. */

@@ -295,12 +295,12 @@ export async function buildFinalDelivery(
     return research.detail;
   };
   const sectionPlans = sections.map(section => {
-    const ids = [...new Set([...(section.evidenceIds ?? []), ...(section.dependencies ?? [])])];
-    if (ids.some(id => !available.has(id)))
-      throw new Error("Final delivery outline references an unavailable source ID.");
+    const named = [...new Set([...(section.evidenceIds ?? []), ...(section.dependencies ?? [])])];
+    // An ID the outline invented is dropped, never read; a section left with none uses all supplied evidence.
+    const ids = named.filter(id => available.has(id));
     // Legacy outlines without a mapping depend on the complete supplied evidence.
     const sources =
-      section.evidenceIds === undefined && section.dependencies === undefined
+      (section.evidenceIds === undefined && section.dependencies === undefined) || (named.length && !ids.length)
         ? [...available.values()]
         : ids.map(id => available.get(id)!);
     const scopedEvidence = sources.length

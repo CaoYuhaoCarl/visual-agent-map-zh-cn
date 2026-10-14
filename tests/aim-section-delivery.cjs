@@ -83,13 +83,19 @@ test('acceptance failure retries only the final join review with every section i
   await buildFinalDelivery(base, provider(calls), { ...options, checkpoint: saved });
   assert.deepEqual(calls, ['delivery-acceptance']);
 });
-test('unknown source mapping is rejected before a section writer is dispatched', async () => {
-  const calls = [];
-  await assert.rejects(buildFinalDelivery(base, async context => {
-    calls.push(phaseOf(context));
-    return answer(outline.detail.replace('source-a', 'unknown-source'));
-  }, options), /unavailable source ID/);
-  assert.deepEqual(calls, ['delivery-outline']);
+test('an outline source ID that does not exist is dropped and never read, and the section still gets evidence', async () => {
+  const tasks = [];
+  await buildFinalDelivery(base, async context => {
+    tasks.push(context);
+    const phase = phaseOf(context);
+    if (phase === 'delivery-outline') return answer(outline.detail.replace('source-a', 'unknown-source'));
+    if (phase === 'delivery-writing') return answer(`Detailed ${sectionOf(context)} content with https://a.example/docs`);
+    return acceptance;
+  }, options);
+  const writing = tasks.filter(context => phaseOf(context) === 'delivery-writing');
+  assert.ok(writing.length, 'the sections are written');
+  assert.ok(writing.every(context => !/Source ID: unknown-source/.test(context.task)), 'the invented ID is never read');
+  assert.ok(writing.every(context => /Source ID: /.test(context.task)), 'every section still has supplied evidence');
 });
 test('changed known user conditions invalidate all sections', async () => {
   let saved;

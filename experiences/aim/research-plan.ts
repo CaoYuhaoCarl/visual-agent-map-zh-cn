@@ -19,6 +19,39 @@ function hoistNestedValidity(item: AimResearchTarget): AimResearchTarget {
   return { ...item, source, validity: nested as AimResearchTarget["validity"] };
 }
 
+/** A reuse/update target names an exact saved source, why it applies, and which conditions it depends on. */
+function hasProvenSource(item: AimResearchTarget): boolean {
+  const source = item.source;
+  return !(
+    !source ||
+    [source.branchId, source.resultId, source.notePath, source.contentHash].some(
+      value => typeof value !== "string" || !value.trim()
+    ) ||
+    !Number.isInteger(source.version) ||
+    source.version < 1 ||
+    !/^[a-f0-9]{64}$/i.test(source.contentHash) ||
+    !item.rationale?.trim() ||
+    !item.validity?.reason?.trim() ||
+    !Array.isArray(item.validity.conditionKeys) ||
+    item.validity.conditionKeys.some(key => typeof key !== "string" || !key.trim())
+  );
+}
+
+/**
+ * A freshly planned reuse/update target whose source claim is incomplete becomes new research, as the spec asks for
+ * a source that is missing or does not apply. Only the parser of a new plan calls this; saved plans are not changed.
+ */
+export function researchUnprovenReuse(subtopics: unknown): unknown {
+  if (!Array.isArray(subtopics)) return subtopics;
+  return subtopics.map(item => {
+    if (!item || typeof item !== "object") return item;
+    const target = hoistNestedValidity(item as AimResearchTarget);
+    if ((target.action !== "reuse" && target.action !== "update") || hasProvenSource(target)) return item;
+    const { source: _source, validity: _validity, ...rest } = target;
+    return { ...rest, action: "research" };
+  });
+}
+
 /** Legacy targets remain valid; explicit dependency metadata opts into bounded parallel work. */
 export function validateAimResearchPlan(subtopics: unknown): AimResearchPlan {
   if (
@@ -47,23 +80,8 @@ export function validateAimResearchPlan(subtopics: unknown): AimResearchPlan {
         item.dependsOn.some(id => typeof id !== "string" || !ids.has(id) || id === item.id))
     )
       throw new Error("Research dependencies must name distinct existing targets other than themselves.");
-    if (item.action === "reuse" || item.action === "update") {
-      const source = item.source;
-      if (
-        !source ||
-        [source.branchId, source.resultId, source.notePath, source.contentHash].some(
-          value => typeof value !== "string" || !value.trim()
-        ) ||
-        !Number.isInteger(source.version) ||
-        source.version < 1 ||
-        !/^[a-f0-9]{64}$/i.test(source.contentHash) ||
-        !item.rationale?.trim() ||
-        !item.validity?.reason?.trim() ||
-        !Array.isArray(item.validity.conditionKeys) ||
-        item.validity.conditionKeys.some(key => typeof key !== "string" || !key.trim())
-      )
-        throw new Error("Reuse and update targets need an exact source, rationale and condition validity assessment.");
-    }
+    if ((item.action === "reuse" || item.action === "update") && !hasProvenSource(item))
+      throw new Error("Reuse and update targets need an exact source, rationale and condition validity assessment.");
   }
   const visiting = new Set<string>(),
     visited = new Set<string>();
