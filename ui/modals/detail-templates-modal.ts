@@ -88,7 +88,9 @@ export class DetailTemplatesModal extends Modal {
   constructor(
     app: App,
     private plugin: DetailTemplatesHost,
-    private onChanged: () => void = () => {}
+    private onChanged: () => void = () => {},
+    /** Opens straight into this template (edit, or view for Standard), as from a dialog's template picker. */
+    private initialId?: string
   ) {
     super(app);
   }
@@ -107,7 +109,13 @@ export class DetailTemplatesModal extends Modal {
 
   onOpen(): void {
     this.titleEl.setText(t("ui.detail_templates"));
-    this.showList();
+    const initial = this.initialId
+      ? [standardTemplate(this.settings.language), ...this.settings.detailTemplates].find(
+          template => template.id === this.initialId
+        )
+      : undefined;
+    if (initial) this.showEditor(initial, false, initial.id === STANDARD_TEMPLATE_ID);
+    else this.showList();
   }
 
   private get settings(): Settings {

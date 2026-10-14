@@ -68,15 +68,38 @@ export function researchDepthField(
   return { value, set };
 }
 
-/** Model select whose first option (empty value) is `defaultLabel`; returns the chosen model (or undefined) and a dispose function. */
+/**
+ * A field whose label row can carry a small link (edit, fix). A div, not a label: the link must not become the label's
+ * control, so each select keeps its own aria-label.
+ */
+export function linkedField(parent: HTMLElement, label: string): { field: HTMLDivElement; head: HTMLDivElement } {
+  const field = parent.createDiv("vam-field");
+  const head = field.createDiv("vam-field-head");
+  head.createSpan({ text: label });
+  return { field, head };
+}
+
+export function fieldLink(head: HTMLElement, text: string, run: () => void): void {
+  const link = head.createEl("button", { text, cls: "vam-field-link" });
+  link.type = "button";
+  link.addEventListener("click", event => {
+    event.preventDefault();
+    run();
+  });
+}
+
+/**
+ * Model select whose first option (empty value) is `defaultLabel`; returns the chosen model (or undefined) and a dispose
+ * function. With `repair`, a "Fix connection…" link beside it checks the chosen model's AI service.
+ */
 export function modelField(
   parent: HTMLElement,
   models: ModelChoices,
-  defaultLabel: string
+  defaultLabel: string,
+  repair?: (model: string | undefined) => void
 ): { value: () => string | undefined; dispose: () => void } {
-  const label = parent.createEl("label", { cls: "vam-field" });
-  label.createSpan({ text: t("ui.model") });
-  const model = label.createEl("select");
+  const { field, head } = linkedField(parent, t("ui.model"));
+  const model = field.createEl("select");
   model.setAttr("aria-label", t("ui.model"));
   const fill = (): void => {
     const selected = model.value;
@@ -87,31 +110,57 @@ export function modelField(
     model.value = choices.some(option => option.id === selected) ? selected : "";
   };
   fill();
+  if (repair) fieldLink(head, t("ui.connection_repair"), () => repair(model.value || undefined));
   const dispose = models.watch(fill);
   return { value: () => model.value || undefined, dispose };
 }
 
-/** Content template select whose first option (empty value) is `defaultLabel`; returns the chosen template id, or undefined when that first option is selected. */
+/**
+ * Content template select whose first option (empty value) is `defaultLabel`; returns the chosen template id, or
+ * undefined when that first option is selected. With `manage`, an edit link beside it opens the template library;
+ * `templates` is updated in place.
+ */
 export function templateField(
   parent: HTMLElement,
   templates: { id: string; name: string }[],
-  defaultLabel: string
+  defaultLabel: string,
+  manage?: ManageChoices,
+  /** Runs after the list was refreshed, so a summary that names the template stays current. */
+  changed: () => void = () => {}
 ): () => string | undefined {
-  const label = parent.createEl("label", { cls: "vam-field" });
-  label.createSpan({ text: t("ui.detail_template") });
-  const select = label.createEl("select");
+  const { field, head } = linkedField(parent, t("ui.detail_template"));
+  const select = field.createEl("select");
   select.setAttr("aria-label", t("ui.detail_template"));
-  select.createEl("option", { value: "", text: defaultLabel });
-  for (const template of templates) select.createEl("option", { value: template.id, text: template.name });
-  select.value = "";
+  const fill = (): void => {
+    const selected = select.value;
+    select.replaceChildren();
+    select.createEl("option", { value: "", text: defaultLabel });
+    for (const template of templates) select.createEl("option", { value: template.id, text: template.name });
+    select.value = templates.some(template => template.id === selected) ? selected : "";
+  };
+  fill();
+  if (manage)
+    fieldLink(head, t("ui.template_edit"), () =>
+      manage(select.value || undefined, next => {
+        templates.splice(0, templates.length, ...next);
+        fill();
+        changed();
+      })
+    );
   return () => select.value || undefined;
 }
 
-/** Opens the tone library (at `selected` when given) and reports the tone list once it closes. */
-export type ManageTones = (
+/** Opens a library (tones, templates) at `selected` when given, and reports the refreshed list once it closes. */
+export type ManageChoices = (
   selected: string | undefined,
-  refreshed: (tones: { id: string; name: string }[]) => void
+  refreshed: (choices: { id: string; name: string }[]) => void
 ) => void;
+export type ManageTones = ManageChoices;
+/** The small links a research dialog can show beside its model and template fields. */
+export interface FieldLinks {
+  repair?: (model: string | undefined) => void;
+  manageTemplates?: ManageChoices;
+}
 
 /**
  * Writing tone select whose first option (empty value) is `defaultLabel`; returns the chosen preset id, or undefined when
@@ -125,10 +174,7 @@ export function toneField(
   /** Runs after the list was refreshed, so a summary that names the tone stays current. */
   changed: () => void = () => {}
 ): () => string | undefined {
-  // A div, not a label: the edit link must not become the label's control. The select keeps its own aria-label.
-  const field = parent.createDiv("vam-field");
-  const head = field.createDiv("vam-field-head");
-  head.createSpan({ text: t("ui.tone") });
+  const { field, head } = linkedField(parent, t("ui.tone"));
   const select = field.createEl("select");
   select.setAttr("aria-label", t("ui.tone"));
   const fill = (): void => {
@@ -139,17 +185,13 @@ export function toneField(
     select.value = tones.some(tone => tone.id === selected) ? selected : "";
   };
   fill();
-  if (manage) {
-    const edit = head.createEl("button", { text: t("ui.tone_edit"), cls: "vam-field-link" });
-    edit.type = "button";
-    edit.addEventListener("click", event => {
-      event.preventDefault();
+  if (manage)
+    fieldLink(head, t("ui.tone_edit"), () =>
       manage(select.value || undefined, next => {
         tones.splice(0, tones.length, ...next);
         fill();
         changed();
-      });
-    });
-  }
+      })
+    );
   return () => select.value || undefined;
 }

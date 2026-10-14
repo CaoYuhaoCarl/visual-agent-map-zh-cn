@@ -949,6 +949,18 @@ export default class VisualAgentMapPlugin extends Plugin {
   async codexReadyForAi(): Promise<boolean> {
     return this.aiReadyForModel(this.settings.cliModel);
   }
+  /** The dialogs' "Fix connection…" link: the setup guide when the model's CLI is missing, otherwise a fresh check. */
+  repairConnection(model?: string): void {
+    // The other service is refreshed quietly too, so a CLI fixed meanwhile brings its models back to the picker.
+    if (providerForModel(model || this.settings.cliModel) === "claude") {
+      if (this.claudeDiagnostic().installed) void this.recheckClaude();
+      else this.openClaudeSetupGuide();
+      void this.refreshModelDiscovery("codex");
+      return;
+    }
+    void this.recheckCodex(true);
+    void this.refreshModelDiscovery("claude");
+  }
   openClaudeSetupGuide(): void {
     new ClaudeSetupModal(this.app, this.claudeDiagnostic().executable, CLAUDE_INSTALL_URL, () => {
       void this.recheckClaude();

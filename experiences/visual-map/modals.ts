@@ -24,7 +24,16 @@ import {
 import type { AiResult, Suggestion } from "../../ai/types";
 import type { OutlineNode } from "./outline-import";
 import { syncModelSelect } from "../../core/model-discovery";
-import { researchDepthDescription, researchDepthField, templateField, toneField } from "./research-fields";
+import {
+  fieldLink,
+  linkedField,
+  researchDepthDescription,
+  researchDepthField,
+  templateField,
+  toneField
+} from "./research-fields";
+import { DetailTemplatesModal } from "../../ui/modals/detail-templates-modal";
+import { standardTemplate } from "../../ai/detail-templates";
 
 export { researchDepthDescription };
 
@@ -352,8 +361,7 @@ export class NextStepModal extends Modal {
     const save = (patch: NotePatch): void => {
       this.pendingSettings = { ...this.pendingSettings, ...patch };
     };
-    const modelLabel = advanced.createEl("label", { cls: "vam-field" });
-    modelLabel.createSpan({ text: t("ui.model") });
+    const { field: modelLabel, head: modelHead } = linkedField(advanced, t("ui.model"));
     const model = modelLabel.createEl("select");
     model.setAttr("aria-label", t("ui.model"));
     model.add(new Option(this.plugin.modelLabel(settings.model), settings.model));
@@ -377,25 +385,21 @@ export class NextStepModal extends Modal {
       this.plugin.availableModels().forEach(id => options.add(id));
     };
     syncModels();
+    // One way to recover: the link opens the setup guide when the CLI is missing, otherwise checks again.
+    fieldLink(modelHead, t("ui.connection_repair"), () => this.plugin.repairConnection(model.value));
     const discovery = advanced.createDiv("vam-model-discovery-status");
     const discoveryText = discovery.createSpan({ cls: "vam-hint" });
-    const retry = discovery.createEl("button", { text: t("ui.check_again") });
     const updateDiscovery = (): void => {
       const codex = this.plugin.modelDiscoveryState("codex"),
         claude = this.plugin.modelDiscoveryState("claude");
       discoveryText.setText(
         `Codex: ${t(`ui.model_status_${codex.status}`)}${codex.error ? ` · ${codex.error}` : ""} | Claude: ${t(`ui.model_status_${claude.status}`)}`
       );
-      retry.disabled = codex.status === "loading";
       syncModels();
     };
     this.unsubscribeModels?.();
     this.unsubscribeModels = this.plugin.subscribeModelDiscovery(() => {
       if (!this.closed) updateDiscovery();
-    });
-    retry.addEventListener("click", () => {
-      void this.plugin.refreshModelDiscovery("codex");
-      void this.plugin.refreshModelDiscovery("claude");
     });
     updateDiscovery();
     void this.plugin.refreshModelDiscovery("codex");
@@ -1310,7 +1314,14 @@ export class NextStepModal extends Modal {
     const templateId = templateField(
       compactSettings,
       this.info?.templates ?? [],
-      t("ui.detail_template_keep_0", this.info?.currentTemplate ?? "")
+      t("ui.detail_template_keep_0", this.info?.currentTemplate ?? ""),
+      (selected, refreshed) => {
+        const settings = this.plugin.settings;
+        const choices = (): { id: string; name: string }[] =>
+          [standardTemplate(settings.language), ...settings.detailTemplates].map(({ id, name }) => ({ id, name }));
+        new DetailTemplatesModal(this.app, this.plugin, () => refreshed(choices()), selected).open();
+      },
+      () => refreshSummary()
     );
     const toneId = toneField(
       compactSettings,

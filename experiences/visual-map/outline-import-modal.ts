@@ -3,7 +3,7 @@ import { t } from "../../i18n";
 import { parseOutline, type OutlineIssue, type OutlineNode } from "./outline-import";
 import type { ResearchDepth } from "../../ai/types";
 import type { TaskOptions } from "./modals";
-import { modelField, researchDepthField, templateField, type ModelChoices } from "./research-fields";
+import { modelField, researchDepthField, templateField, type FieldLinks, type ModelChoices } from "./research-fields";
 import { actionStatus, armDiscard, modalActions } from "../../ui/modals/action-bar";
 import type { PromptPresetsHost } from "../../ui/modals/prompt-presets-modal";
 import {
@@ -91,7 +91,8 @@ export class OutlineImportModal extends Modal {
     private templates: { id: string; name: string }[] = [],
     private target: OutlineImportTarget = { map: "none" },
     initialPlacement: OutlinePlacement["kind"] = "tree",
-    private generator?: OutlineGenerator
+    private generator?: OutlineGenerator,
+    private links: FieldLinks = {}
   ) {
     super(app);
     // The outline always joins the open map (a new map starts from + New mind map); without a selection it becomes a new tree.
@@ -127,10 +128,15 @@ export class OutlineImportModal extends Modal {
     shallowLabel.createSpan({ text: t("ui.outline_import_shallow") });
     const researchOptions = research.createDiv("vam-outline-research-options");
     this.depth = researchDepthField(researchOptions, { initial: "fast" }).value;
-    const model = modelField(researchOptions, this.models, t("ui.workspace_default"));
+    const model = modelField(researchOptions, this.models, t("ui.workspace_default"), this.links.repair);
     this.model = model.value;
     this.unwatch = model.dispose;
-    this.template = templateField(researchOptions, this.templates, t("ui.detail_template_use_workspace"));
+    this.template = templateField(
+      researchOptions,
+      this.templates,
+      t("ui.detail_template_use_workspace"),
+      this.links.manageTemplates
+    );
     const showOptions = (): void => researchOptions.toggleClass("is-hidden", !this.shallow.checked);
     this.shallow.addEventListener("change", showOptions);
     showOptions();

@@ -6,6 +6,7 @@ import {
   researchDepthField,
   templateField,
   toneField,
+  type FieldLinks,
   type ManageTones,
   type ModelChoices
 } from "./research-fields";
@@ -36,7 +37,8 @@ export class MultiResearchModal extends Modal {
     private templates: { id: string; name: string }[],
     private submit: (request: MultiResearchRequest) => void,
     private tones: { id: string; name: string }[] = [],
-    private manageTones?: ManageTones
+    private manageTones?: ManageTones,
+    private links: FieldLinks = {}
   ) {
     super(app);
   }
@@ -48,9 +50,14 @@ export class MultiResearchModal extends Modal {
     topics.createEl("strong", { text: t("ui.multi_research_topics") });
     for (const name of this.names) topics.createDiv({ text: name });
     const depth = researchDepthField(this.contentEl);
-    const model = modelField(this.contentEl, this.models, t("ui.multi_research_keep_topic_models"));
+    const model = modelField(this.contentEl, this.models, t("ui.multi_research_keep_topic_models"), this.links.repair);
     this.unwatch = model.dispose;
-    const template = templateField(this.contentEl, this.templates, t("ui.detail_template_keep_each"));
+    const template = templateField(
+      this.contentEl,
+      this.templates,
+      t("ui.detail_template_keep_each"),
+      this.links.manageTemplates
+    );
     const tone = toneField(this.contentEl, this.tones, t("ui.tone_keep_each"), this.manageTones);
     const webLabel = this.contentEl.createEl("label", { cls: "vam-field vam-next-toggle" });
     const web = webLabel.createEl("input", { type: "checkbox" });

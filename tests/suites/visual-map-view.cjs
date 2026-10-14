@@ -718,7 +718,9 @@ integrationTest('Next Step modal: the content template choice goes into research
 test('templateField: keep option first, returns the chosen template id or undefined for keep', () => {
   const element = (tag, options = {}) => ({ tag, text: options.text, value: options.value ?? '', children: [],
     createEl(name, value = {}) { const child = element(name, value); this.children.push(child); return child; },
+    createDiv(value = {}) { return this.createEl('div', typeof value === 'string' ? { cls: value } : value); },
     createSpan(value = {}) { const child = element('span', value); this.children.push(child); return child; },
+    replaceChildren() { this.children = []; },
     setAttr(name, value) { this[name] = value; } });
   const { templateField } = load('experiences/visual-map/research-fields.ts', { obsidian });
   const parent = element('div');

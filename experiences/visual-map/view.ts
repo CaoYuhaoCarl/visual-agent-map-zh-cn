@@ -82,7 +82,8 @@ import {
 } from "../../core/structure-review-service";
 import { renderTopicTree } from "../../ui/topic-tree";
 import { TopicTreeModal } from "../../ui/modals/topic-tree-modal";
-import type { ModelChoices } from "./research-fields";
+import type { FieldLinks, ModelChoices } from "./research-fields";
+import { DetailTemplatesModal } from "../../ui/modals/detail-templates-modal";
 import type { ExpansionBatchState } from "./expansion-batch";
 import { AimStartModal } from "../../ui/modals/aim-start-modal";
 import { AimAnswerModal } from "../../ui/modals/aim-answer-modal";
@@ -703,6 +704,14 @@ export class VisualAgentMapView extends ItemView {
   ): string | undefined {
     return resolveToneText(this.plugin.settings.promptPresets, [chosenId, note?.toneId, this.map?.toneId], language);
   }
+  /** The repair and edit-templates links beside a dialog's model and template fields. */
+  private fieldLinks(): FieldLinks {
+    return {
+      repair: model => this.plugin.repairConnection(model),
+      manageTemplates: (selected, refreshed) =>
+        new DetailTemplatesModal(this.app, this.plugin, () => refreshed(this.templateChoices()), selected).open()
+    };
+  }
   /** Built-in Standard plus the workspace's custom templates, for the template selects. */
   private templateChoices(): { id: string; name: string }[] {
     const settings = this.plugin.settings;
@@ -723,7 +732,8 @@ export class VisualAgentMapView extends ItemView {
       this.templateChoices(),
       target,
       placement,
-      this.outlineGenerator(target.selected?.title)
+      this.outlineGenerator(target.selected?.title),
+      this.fieldLinks()
     ).open();
   }
   /** The AI outline generator for the import window: workspace model, after the usual AI usage check. */
@@ -4910,7 +4920,8 @@ export class VisualAgentMapView extends ItemView {
       request => void this.startMultiResearch(request, retryBatchKey),
       this.toneChoices(),
       (selected, refreshed) =>
-        new PromptPresetsModal(this.app, this.plugin, "tone", () => refreshed(this.toneChoices()), selected).open()
+        new PromptPresetsModal(this.app, this.plugin, "tone", () => refreshed(this.toneChoices()), selected).open(),
+      this.fieldLinks()
     ).open();
   }
   stopMultiResearch(): void {

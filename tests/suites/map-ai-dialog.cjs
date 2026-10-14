@@ -130,6 +130,42 @@ integrationTest('tone picker: the edit link opens the tone library at the chosen
   assert.equal(byLabel(library.contentEl, 'Tone text')?.value ?? findAll(library.contentEl, i => i.tag === 'textarea')[0].value, 'Short and warm.', 'opens straight into the editor');
 });
 
+integrationTest('template and model pickers: the edit link opens the template library at the chosen template, the fix link checks the chosen model', () => {
+  const Modal = dom.makeModal();
+  const { MultiResearchModal } = load('experiences/visual-map/multi-research-modal.ts', { obsidian: { ...obsidian, Modal } });
+  const models = { list: () => [{ id: 'gpt-a', label: 'Codex · gpt-a' }], watch: () => () => {} };
+  const templates = [{ id: 'standard', name: 'Standard' }, { id: 'mine', name: 'Mine' }];
+  const opened = [], repaired = [];
+  const modal = new MultiResearchModal({}, ['A', 'B'], models, templates, () => {}, [], undefined, {
+    repair: model => repaired.push(model), manageTemplates: (selected, refreshed) => opened.push({ selected, refreshed }) });
+  modal.open();
+  const select = byLabel(modal.contentEl, 'Content template');
+  select.value = 'mine';
+  button(modal.contentEl, 'Edit templates…').click();
+  assert.equal(opened.length, 1); assert.equal(opened[0].selected, 'mine', 'the library opens at the chosen template');
+  opened[0].refreshed([{ id: 'standard', name: 'Standard' }, { id: 'mine', name: 'Mine, edited' }]);
+  assert.deepEqual(plain(select.children.map(o => o.text)), ["Each topic's current template", 'Standard', 'Mine, edited'], 'edited templates show at once');
+  assert.equal(select.value, 'mine', 'the choice survives the refresh');
+  byLabel(modal.contentEl, 'Model').value = 'gpt-a';
+  button(modal.contentEl, 'Fix connection…').click();
+  assert.deepEqual(repaired, ['gpt-a'], 'the fix link checks the chosen model');
+  const bare = new MultiResearchModal({}, ['A'], models, templates, () => {}); bare.open();
+  assert.equal(button(bare.contentEl, 'Edit templates…'), undefined, 'no link without a handler');
+  assert.equal(button(bare.contentEl, 'Fix connection…'), undefined);
+  const library = load('ui/modals/detail-templates-modal.ts', { obsidian: { ...obsidian, Modal } });
+  const host = { settings: { language: 'en', detailTemplates: [{ id: 'mine', name: 'Mine', sections: [] }] }, saveSettings: async () => {} };
+  const editor = new library.DetailTemplatesModal({}, host, () => {}, 'mine'); editor.open();
+  assert.ok(findAll(editor.contentEl, i => i.tag === 'input' && i.value === 'Mine').length, 'opens straight into the editor of the chosen template');
+});
+integrationTest('Next Step: the model field offers Fix connection and the template field offers Edit templates', () => {
+  const repaired = [];
+  const h = nextStepHarness({ plugin: { repairConnection: model => repaired.push(model) }, modelSettings: { templates: [{ id: 'standard', name: 'Standard' }], currentTemplate: 'Standard' } });
+  assert.ok(button(h.modal.contentEl, 'Edit templates…'), 'the template picker offers an edit link');
+  button(h.modal.contentEl, 'Fix connection…').click();
+  assert.deepEqual(repaired, ['gpt-test'], 'the link checks the model shown in the dialog');
+  assert.equal(button(h.modal.contentEl, 'Check again'), undefined, 'one way to recover, not two');
+});
+
 // ---- Next Step dialog harness -------------------------------------------------------------------------------
 function nextStepHarness({ settings = {}, modelSettings = {}, topic = 'Parent', depth = 'normal', children = 1, pending = 0, research, expand, synthesize, language = 'en', plugin: pluginOverrides = {} } = {}) {
   const notices = [];
