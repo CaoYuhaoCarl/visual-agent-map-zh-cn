@@ -714,6 +714,8 @@ var english = {
   "ui.organize_preview_0_1_2_3_4": "Move {0} mind map(s) into {3} and {1} AIM map(s) into {4}. Skipped and left untouched because they cannot be read: {2}. Obsidian updates links according to your settings; if any step fails, everything already moved is restored.",
   "ui.organize_skipped_list_0": "Skipped: {0}",
   "ui.organize_start": "Start organizing",
+  "ui.organize_will_remove_0": "Afterwards these folders are empty and are moved to the trash: {0}.",
+  "ui.organize_cleaned_0": "Moved the empty legacy folders to the trash: {0}.",
   "ui.organize_progress_0_1_2": "Moving {0}/{1}: {2}. Waiting for Obsidian to update links; this can take a while.",
   "ui.organize_link_wait_hint": "Each map can take a while because Obsidian updates its links. Depending on Obsidian's \u201CAutomatically update internal links\u201D setting (Files & Links), Obsidian may ask about the links of each map; answer any prompt, and do not close Obsidian until it finishes.",
   "ui.organize_done_0": "Organized {0} map(s).",
@@ -2119,6 +2121,8 @@ var traditionalChinese = {
   "ui.organize_preview_0_1_2_3_4": "\u5C07\u628A {0} \u4EFD\u5FC3\u667A\u5716\u642C\u5230\u300C{3}\u300D\u3001{1} \u4EFD AIM \u642C\u5230\u300C{4}\u300D\u3002\u7121\u6CD5\u8B80\u53D6\u800C\u7565\u904E\u3001\u4E0D\u6703\u88AB\u52D5\u5230\u7684\u6709 {2} \u4EFD\u3002\u9023\u7D50\u6703\u4F9D\u4F60\u7684 Obsidian \u8A2D\u5B9A\u66F4\u65B0\uFF1B\u4EFB\u4E00\u6B65\u5931\u6557\u6703\u9084\u539F\u6240\u6709\u5DF2\u642C\u79FB\u7684\u9805\u76EE\u3002",
   "ui.organize_skipped_list_0": "\u7565\u904E\uFF1A{0}",
   "ui.organize_start": "\u958B\u59CB\u6574\u7406",
+  "ui.organize_will_remove_0": "\u6574\u7406\u5F8C\u4E0B\u5217\u8CC7\u6599\u593E\u6703\u662F\u7A7A\u7684\uFF0C\u4E26\u79FB\u5230\u5783\u573E\u6876\uFF1A{0}\u3002",
+  "ui.organize_cleaned_0": "\u5DF2\u628A\u7A7A\u7684\u820A\u8CC7\u6599\u593E\u79FB\u5230\u5783\u573E\u6876\uFF1A{0}\u3002",
   "ui.organize_progress_0_1_2": "\u642C\u79FB {0}/{1}\uFF1A{2}\u3002\u7B49\u5F85 Obsidian \u66F4\u65B0\u9023\u7D50\uFF0C\u53EF\u80FD\u9700\u8981\u4E00\u4E9B\u6642\u9593\u3002",
   "ui.organize_link_wait_hint": "\u6BCF\u4EFD\u5FC3\u667A\u5716\u90FD\u8981\u7B49 Obsidian \u66F4\u65B0\u9023\u7D50\uFF0C\u53EF\u80FD\u9700\u8981\u4E00\u4E9B\u6642\u9593\u3002\u4F9D Obsidian\u300C\u6A94\u6848\u8207\u9023\u7D50\u300D\u8A2D\u5B9A\u4E2D\u7684\u300C\u81EA\u52D5\u66F4\u65B0\u5167\u90E8\u9023\u7D50\u300D\u800C\u5B9A\uFF0CObsidian \u53EF\u80FD\u6703\u9010\u4EFD\u8A62\u554F\u9023\u7D50\u8655\u7406\u65B9\u5F0F\uFF1B\u5982\u6709\u8A62\u554F\u8ACB\u56DE\u7B54\uFF0C\u4E26\u5728\u5B8C\u6210\u524D\u4E0D\u8981\u95DC\u9589 Obsidian\u3002",
   "ui.organize_done_0": "\u5DF2\u6574\u7406 {0} \u4EFD\u5FC3\u667A\u5716\u3002",
@@ -13489,6 +13493,37 @@ ${body}`;
     }
     this.settings[key2] = next;
     return mapping;
+  }
+  /** The legacy folders that are cleaned up once empty: the old Topics folder and the old Inbox folder. */
+  legacyCleanupFolders() {
+    return [this.settings.topicsFolder, `${this.settings.workspaceFolder}/Inbox`];
+  }
+  /**
+   * Which legacy folders are (or, after `plan`'s moves, will be) empty in Obsidian's vault tree. Never lists a folder
+   * that still has anything in it; OS files Obsidian cannot see do not count.
+   */
+  emptyLegacyFolders(plan) {
+    var _a;
+    const moving = new Set(((_a = plan == null ? void 0 : plan.moves) != null ? _a : []).map((move) => move.fromRoot));
+    return this.legacyCleanupFolders().filter((path) => {
+      const folder = this.app.vault.getAbstractFileByPath(path);
+      return folder instanceof import_obsidian9.TFolder && folder.children.every((child) => moving.has(child.path));
+    });
+  }
+  /** Moves the legacy Topics/Inbox folders to the trash only if empty; a failed trash is ignored. Returns what went. */
+  async removeEmptyLegacyFolders() {
+    const removed = [];
+    for (const path of this.emptyLegacyFolders()) {
+      if (this.disposed) break;
+      const folder = this.app.vault.getAbstractFileByPath(path);
+      if (!(folder instanceof import_obsidian9.TFolder) || folder.children.length) continue;
+      try {
+        await this.app.fileManager.trashFile(folder);
+        removed.push(path);
+      } catch (e) {
+      }
+    }
+    return removed;
   }
   /**
    * Read-only preview of "Organize workspace folders": every readable topic folder directly inside the legacy Topics
@@ -35067,9 +35102,12 @@ ${error}`;
     });
     const plan = await this.repo.planOrganizeWorkspaceFolders();
     if (!plan.moves.length) {
-      new import_obsidian26.Notice(
-        plan.skipped.length ? t("ui.organize_only_skipped_0", plan.skipped.length) : t("ui.organize_nothing_to_do")
-      );
+      let cleaned = [];
+      await this.mutate(async () => {
+        cleaned = await this.repo.removeEmptyLegacyFolders();
+      });
+      const base = plan.skipped.length ? t("ui.organize_only_skipped_0", plan.skipped.length) : t("ui.organize_nothing_to_do");
+      new import_obsidian26.Notice(cleaned.length ? `${base} ${t("ui.organize_cleaned_0", cleaned.join(", "))}` : base);
       return;
     }
     const busyOpen = this.views().some((view) => plan.moves.some((move) => view.hasActiveAimWork(move.mapPath)));
@@ -35089,6 +35127,9 @@ ${error}`;
     if (plan.skipped.length)
       description += `
 ${t("ui.organize_skipped_list_0", plan.skipped.map((item) => item.mapPath).join(", "))}`;
+    const toClean = this.repo.emptyLegacyFolders(plan);
+    if (toClean.length) description += `
+${t("ui.organize_will_remove_0", toClean.join(", "))}`;
     description += `
 ${t("ui.organize_link_wait_hint")}`;
     new ChoiceModal(this.app, t("ui.organize_workspace_folders"), description, [
@@ -35104,7 +35145,10 @@ ${t("ui.organize_link_wait_hint")}`;
           }
           for (const view of this.views()) view.relocate(mapping);
           this.app.workspace.requestSaveLayout();
-          new import_obsidian26.Notice(t("ui.organize_done_0", mapping.size));
+          const cleaned = await this.repo.removeEmptyLegacyFolders();
+          new import_obsidian26.Notice(
+            cleaned.length ? `${t("ui.organize_done_0", mapping.size)} ${t("ui.organize_cleaned_0", cleaned.join(", "))}` : t("ui.organize_done_0", mapping.size)
+          );
         })
       }
     ]).open();

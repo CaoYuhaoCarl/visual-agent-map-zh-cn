@@ -677,9 +677,14 @@ export default class VisualAgentMapPlugin extends Plugin {
     });
     const plan = await this.repo.planOrganizeWorkspaceFolders();
     if (!plan.moves.length) {
-      new Notice(
-        plan.skipped.length ? t("ui.organize_only_skipped_0", plan.skipped.length) : t("ui.organize_nothing_to_do")
-      );
+      let cleaned: string[] = [];
+      await this.mutate(async () => {
+        cleaned = await this.repo.removeEmptyLegacyFolders();
+      });
+      const base = plan.skipped.length
+        ? t("ui.organize_only_skipped_0", plan.skipped.length)
+        : t("ui.organize_nothing_to_do");
+      new Notice(cleaned.length ? `${base} ${t("ui.organize_cleaned_0", cleaned.join(", "))}` : base);
       return;
     }
     const busyOpen = this.views().some(view => plan.moves.some(move => view.hasActiveAimWork(move.mapPath)));
@@ -698,6 +703,8 @@ export default class VisualAgentMapPlugin extends Plugin {
     );
     if (plan.skipped.length)
       description += `\n${t("ui.organize_skipped_list_0", plan.skipped.map(item => item.mapPath).join(", "))}`;
+    const toClean = this.repo.emptyLegacyFolders(plan);
+    if (toClean.length) description += `\n${t("ui.organize_will_remove_0", toClean.join(", "))}`;
     description += `\n${t("ui.organize_link_wait_hint")}`;
     new ChoiceModal(this.app, t("ui.organize_workspace_folders"), description, [
       {
@@ -713,7 +720,12 @@ export default class VisualAgentMapPlugin extends Plugin {
             }
             for (const view of this.views()) view.relocate(mapping);
             this.app.workspace.requestSaveLayout();
-            new Notice(t("ui.organize_done_0", mapping.size));
+            const cleaned = await this.repo.removeEmptyLegacyFolders();
+            new Notice(
+              cleaned.length
+                ? `${t("ui.organize_done_0", mapping.size)} ${t("ui.organize_cleaned_0", cleaned.join(", "))}`
+                : t("ui.organize_done_0", mapping.size)
+            );
           })
       }
     ]).open();

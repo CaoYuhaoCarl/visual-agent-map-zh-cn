@@ -1585,6 +1585,40 @@ export class Repository {
     return mapping;
   }
 
+  /** The legacy folders that are cleaned up once empty: the old Topics folder and the old Inbox folder. */
+  legacyCleanupFolders(): string[] {
+    return [this.settings.topicsFolder, `${this.settings.workspaceFolder}/Inbox`];
+  }
+
+  /**
+   * Which legacy folders are (or, after `plan`'s moves, will be) empty in Obsidian's vault tree. Never lists a folder
+   * that still has anything in it; OS files Obsidian cannot see do not count.
+   */
+  emptyLegacyFolders(plan?: OrganizePlan): string[] {
+    const moving = new Set((plan?.moves ?? []).map(move => move.fromRoot));
+    return this.legacyCleanupFolders().filter(path => {
+      const folder = this.app.vault.getAbstractFileByPath(path);
+      return folder instanceof TFolder && folder.children.every(child => moving.has(child.path));
+    });
+  }
+
+  /** Moves the legacy Topics/Inbox folders to the trash only if empty; a failed trash is ignored. Returns what went. */
+  async removeEmptyLegacyFolders(): Promise<string[]> {
+    const removed: string[] = [];
+    for (const path of this.emptyLegacyFolders()) {
+      if (this.disposed) break;
+      const folder = this.app.vault.getAbstractFileByPath(path);
+      if (!(folder instanceof TFolder) || folder.children.length) continue;
+      try {
+        await this.app.fileManager.trashFile(folder);
+        removed.push(path);
+      } catch {
+        /* The empty folder stays. */
+      }
+    }
+    return removed;
+  }
+
   /**
    * Read-only preview of "Organize workspace folders": every readable topic folder directly inside the legacy Topics
    * folder moves to Mind Maps (no `aim`) or AIM (`aim`). Unreadable maps are listed, never moved; a running or saving

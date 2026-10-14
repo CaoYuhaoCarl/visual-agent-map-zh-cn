@@ -136,6 +136,15 @@ async function legacyVault(writtenIn = 'en', uiLanguage = writtenIn) {
   repo.settings.language = uiLanguage; // the notes were written under `writtenIn`; operations now run under `uiLanguage`
   return { ...data, paths, cites, betaFirst };
 }
+/** Obsidian's trash: the folder (and anything in it) leaves the tree. */
+function installTrash(vault) {
+  vault.trashed = [];
+  vault.app.fileManager.trashFile = async item => {
+    vault.trashed.push(item.path);
+    for (const key of [...vault.files.keys()]) if (key === item.path || key.startsWith(`${item.path}/`)) { vault.files.delete(key); vault.contents.delete(key); }
+    if (item.parent?.children) item.parent.children = item.parent.children.filter(child => child !== item);
+  };
+}
 const snapshot = ({ files, contents }) => ({ paths: [...files.keys()].sort(), contents: new Map(contents) });
 function assertUnchanged(vault, before, message) {
   assert.deepEqual([...vault.files.keys()].sort(), before.paths, `${message}: file and folder paths`);
@@ -303,16 +312,18 @@ integrationTest('the Organize command is registered in both languages and writes
   const relocated = [];
   Object.assign(plugin, { app: { ...vault.app, workspace: { requestSaveLayout() {}, getLeavesOfType: () => [] } }, repo: vault.repo, settings: vault.repo.settings });
   plugin.views = () => [{ hasActiveAimWork: () => false, relocate: mapping => relocated.push(mapping), synchronize: async () => {} }];
+  installTrash(vault);
   const before = snapshot(vault);
   await plugin.offerOrganizeWorkspaceFolders();
   assert.equal(opened.length, 1, 'a preview dialog opens');
+  assert.match(opened[0].description, /Afterwards these folders are empty and are moved to the trash: Agent Workspace\/Topics\./);
   assert.match(opened[0].description, /2 mind map\(s\) into Agent Workspace\/Mind Maps and 1 AIM map\(s\) into Agent Workspace\/AIM/);
   assertUnchanged(vault, before, 'preview only');
   opened[0].choices[0].action();
   await plugin.queue;
   assert.equal(relocated.length, 1); assert.equal(relocated[0].size, 3, 'open views follow the moved maps');
   assert.ok(vault.app.vault.getAbstractFileByPath('Agent Workspace/AIM/Gamma/Map.md'));
-  assert.deepEqual(notices, ['Organized 3 map(s).']);
+  assert.deepEqual(notices, ['Organized 3 map(s). Moved the empty legacy folders to the trash: Agent Workspace/Topics.']);
   assert.match(opened[0].description, /Automatically update internal links/, 'the preview explains the wait and the per-map prompts');
   assert.deepEqual(progress.map(message => message.replace(/: .*/, '')), ['Moving 1/3', 'Moving 2/3', 'Moving 3/3', 'hidden'], 'one persistent progress notice, closed at the end');
   assert.match(progress[0], /Waiting for Obsidian to update links/);
@@ -718,4 +729,63 @@ integrationTest('a folder-name field submits once (Enter then blur), locks while
   plugin.app = {}; value = 'Other'; listeners.blur();   // an app without a Settings window handle still works
   assert.equal(events.filter(event => event === 'mutate').length, 2);
   release(); await new Promise(resolve => setTimeout(resolve, 10));
+});
+
+// ---- Empty legacy folders (Topics, Inbox) ----------------------------------------------------------------------
+const noticePlugin = (vault, notices) => {
+  const fake = { ...obsidian, Notice: class { constructor(message, timeout) { if (timeout !== 0) notices.push(message); } setMessage() {} hide() {} }, Modal: class { open() { vault.opened.push(this); } } };
+  const { default: Plugin } = load('main.ts', { obsidian: fake });
+  const plugin = new Plugin();
+  Object.assign(plugin, { app: { ...vault.app, workspace: { requestSaveLayout() {}, getLeavesOfType: () => [] } }, repo: vault.repo, settings: vault.repo.settings });
+  plugin.views = () => [{ hasActiveAimWork: () => false, relocate() {}, synchronize: async () => {} }];
+  return plugin;
+};
+
+integrationTest('after Organize the empty legacy Topics and Inbox folders go to the trash; with nothing to move they are cleaned too', async () => {
+  const vault = await legacyVault();
+  vault.opened = []; installTrash(vault);
+  await vault.repo.folder('Agent Workspace/Inbox');
+  const notices = [], plugin = noticePlugin(vault, notices);
+  await plugin.offerOrganizeWorkspaceFolders();
+  assert.match(vault.opened[0].description, /Agent Workspace\/Topics, Agent Workspace\/Inbox/);
+  vault.opened[0].choices[0].action(); await plugin.queue;
+  assert.deepEqual(plain(vault.trashed), ['Agent Workspace/Topics', 'Agent Workspace/Inbox']);
+  assert.match(notices.at(-1), /Organized 3 map\(s\)\. Moved the empty legacy folders to the trash: Agent Workspace\/Topics, Agent Workspace\/Inbox/);
+  // Nothing to move (a vault organized earlier), empty folders left over:
+  await vault.repo.folder('Agent Workspace/Topics'); await vault.repo.folder('Agent Workspace/Inbox');
+  vault.trashed.length = 0; notices.length = 0;
+  await plugin.offerOrganizeWorkspaceFolders();
+  assert.deepEqual(plain(vault.trashed), ['Agent Workspace/Topics', 'Agent Workspace/Inbox']);
+  assert.match(notices[0], /No maps in the legacy Topics folder need organizing\. Moved the empty legacy folders to the trash/);
+  assert.equal(vault.opened.length, 1, 'no dialog when there is nothing to move');
+});
+
+integrationTest('a non-empty Inbox (with a topic-state inbox note) and a non-empty Topics (unreadable map) are never touched', async () => {
+  const vault = await legacyVault();
+  const { repo, app, contents } = vault;
+  vault.opened = []; installTrash(vault);
+  const inbox = 'Agent Workspace/Inbox/Loose.md';
+  await repo.folder('Agent Workspace/Inbox');
+  await app.vault.create(inbox, '---\nagent-map-node: true\nnode-id: loose\ntitle: Loose\ntopic-state: inbox\n---\n# Loose\n');
+  const good = contents.get(vault.paths.gamma), corrupted = good.replace(/"nodeId":\s*"[^"]+"/, '"nodeId": "missing-node"');
+  contents.set(vault.paths.gamma, corrupted === good ? '---\nvisual-agent-map: true\n---\nnot a map' : corrupted);
+  await assert.rejects(() => repo.readMap(vault.paths.gamma), 'precondition: unreadable');
+  const keep = new Map([[inbox, contents.get(inbox)], ...[...contents.entries()].filter(([path]) => path.startsWith('Agent Workspace/Topics/Gamma/'))]);
+  const notices = [], plugin = noticePlugin(vault, notices);
+  await plugin.offerOrganizeWorkspaceFolders();
+  assert.doesNotMatch(vault.opened[0].description, /moved to the trash/, 'the preview promises no cleanup');
+  vault.opened[0].choices[0].action(); await plugin.queue;
+  assert.deepEqual(plain(vault.trashed), [], 'no folder was trashed');
+  for (const [path, text] of keep) assert.equal(contents.get(path), text, `${path} byte-identical`);
+  assert.ok(app.vault.getAbstractFileByPath('Agent Workspace/Topics') && app.vault.getAbstractFileByPath('Agent Workspace/Inbox'));
+  assert.doesNotMatch(notices.at(-1), /trash/);
+});
+
+integrationTest('a failed or post-unload trash of an empty legacy folder is ignored', async () => {
+  const vault = await legacyVault();
+  await vault.repo.organizeWorkspaceFolders(await vault.repo.planOrganizeWorkspaceFolders());
+  vault.app.fileManager.trashFile = async () => { throw new Error('trash refused'); };
+  assert.deepEqual(plain(await vault.repo.removeEmptyLegacyFolders()), []);
+  vault.repo.dispose();
+  assert.deepEqual(plain(await vault.repo.removeEmptyLegacyFolders()), []);
 });
