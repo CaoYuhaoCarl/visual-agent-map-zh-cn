@@ -577,6 +577,8 @@ function noteLink(path: string): string {
   return path.replace(/\.md$/, "").replace(/\|/g, "\\|");
 }
 
+/** Files an OS leaves in a folder; they do not make it non-empty. */
+const OS_LITTER = new Set([".ds_store", "thumbs.db", "desktop.ini"]);
 const VAULT_WRITES = new Set([
   "create",
   "createBinary",
@@ -1583,6 +1585,61 @@ export class Repository {
     }
     this.settings[key] = next;
     return mapping;
+  }
+
+  /** The legacy folders that are cleaned up once empty: the old Topics folder and the old Inbox folder. */
+  legacyCleanupFolders(): string[] {
+    return [this.settings.topicsFolder, `${this.settings.workspaceFolder}/Inbox`];
+  }
+
+  /**
+   * Whether `path` holds nothing but OS litter on disk. Obsidian's vault tree hides dot-files and dot-folders, so a
+   * folder that looks empty there can still hold user content (.git, .sessions, hidden notes): ask the disk. Folders in
+   * `allowed` (topics about to move out) do not count. A failed listing counts as not empty.
+   */
+  private async emptyOnDisk(path: string, allowed: Set<string> = new Set()): Promise<boolean> {
+    try {
+      const listing = await this.app.vault.adapter.list(path);
+      return (
+        listing.folders.every(folder => allowed.has(folder)) &&
+        listing.files.every(file => OS_LITTER.has((file.split("/").at(-1) ?? file).toLowerCase()))
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Which legacy folders are (or, after `plan`'s moves, will be) empty both in Obsidian's vault tree and on disk (OS
+   * litter aside). Never lists a folder that still holds anything, hidden content included.
+   */
+  async emptyLegacyFolders(plan?: OrganizePlan): Promise<string[]> {
+    const moving = new Set((plan?.moves ?? []).map(move => move.fromRoot));
+    const empty: string[] = [];
+    for (const path of this.legacyCleanupFolders()) {
+      const folder = this.app.vault.getAbstractFileByPath(path);
+      if (!(folder instanceof TFolder) || !folder.children.every(child => moving.has(child.path))) continue;
+      if (await this.emptyOnDisk(path, moving)) empty.push(path);
+    }
+    return empty;
+  }
+
+  /** Moves the legacy Topics/Inbox folders to the trash only if empty (re-checked on disk right before); returns what went. */
+  async removeEmptyLegacyFolders(): Promise<string[]> {
+    const removed: string[] = [];
+    for (const path of this.legacyCleanupFolders()) {
+      if (this.disposed) break;
+      const folder = this.app.vault.getAbstractFileByPath(path);
+      if (!(folder instanceof TFolder) || folder.children.length) continue;
+      if (!(await this.emptyOnDisk(path))) continue;
+      try {
+        await this.app.fileManager.trashFile(folder);
+        removed.push(path);
+      } catch {
+        /* The empty folder stays. */
+      }
+    }
+    return removed;
   }
 
   /**

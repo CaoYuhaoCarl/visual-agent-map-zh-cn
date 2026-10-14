@@ -714,6 +714,8 @@ var english = {
   "ui.organize_preview_0_1_2_3_4": "Move {0} mind map(s) into {3} and {1} AIM map(s) into {4}. Skipped and left untouched because they cannot be read: {2}. Obsidian updates links according to your settings; if any step fails, everything already moved is restored.",
   "ui.organize_skipped_list_0": "Skipped: {0}",
   "ui.organize_start": "Start organizing",
+  "ui.organize_will_remove_0": "Afterwards these folders are empty and are moved to the trash: {0}.",
+  "ui.organize_cleaned_0": "Moved the empty legacy folders to the trash: {0}.",
   "ui.organize_progress_0_1_2": "Moving {0}/{1}: {2}. Waiting for Obsidian to update links; this can take a while.",
   "ui.organize_link_wait_hint": "Each map can take a while because Obsidian updates its links. Depending on Obsidian's \u201CAutomatically update internal links\u201D setting (Files & Links), Obsidian may ask about the links of each map; answer any prompt, and do not close Obsidian until it finishes.",
   "ui.organize_done_0": "Organized {0} map(s).",
@@ -1416,6 +1418,8 @@ var english = {
   "note.aim_followup_heading_0": "## Follow-up: {0}",
   "note.aim_smoke_publication_0": "> profile=smoke: published as the conclusion at the research budget although delivery acceptance asked for more research. This is smoke evidence, not a verified conclusion. Acceptance rejection reason: {0}",
   "note.aim_round_limit_0": "The research round limit was reached and an important evidence gap remains: {0}",
+  "note.aim_open_items_stop_0": "The answer is given with these items for you to confirm: {0}",
+  "note.aim_unresolved_conditions_0": "These conditions would change the answer and are still unknown: {0}",
   "note.aim_partial_heading": "## Research status: partial, can continue",
   "note.aim_pending_target_0": "Still to research: {0}",
   "note.aim_pending_task_0": "Follow-up task: {0}",
@@ -2119,6 +2123,8 @@ var traditionalChinese = {
   "ui.organize_preview_0_1_2_3_4": "\u5C07\u628A {0} \u4EFD\u5FC3\u667A\u5716\u642C\u5230\u300C{3}\u300D\u3001{1} \u4EFD AIM \u642C\u5230\u300C{4}\u300D\u3002\u7121\u6CD5\u8B80\u53D6\u800C\u7565\u904E\u3001\u4E0D\u6703\u88AB\u52D5\u5230\u7684\u6709 {2} \u4EFD\u3002\u9023\u7D50\u6703\u4F9D\u4F60\u7684 Obsidian \u8A2D\u5B9A\u66F4\u65B0\uFF1B\u4EFB\u4E00\u6B65\u5931\u6557\u6703\u9084\u539F\u6240\u6709\u5DF2\u642C\u79FB\u7684\u9805\u76EE\u3002",
   "ui.organize_skipped_list_0": "\u7565\u904E\uFF1A{0}",
   "ui.organize_start": "\u958B\u59CB\u6574\u7406",
+  "ui.organize_will_remove_0": "\u6574\u7406\u5F8C\u4E0B\u5217\u8CC7\u6599\u593E\u6703\u662F\u7A7A\u7684\uFF0C\u4E26\u79FB\u5230\u5783\u573E\u6876\uFF1A{0}\u3002",
+  "ui.organize_cleaned_0": "\u5DF2\u628A\u7A7A\u7684\u820A\u8CC7\u6599\u593E\u79FB\u5230\u5783\u573E\u6876\uFF1A{0}\u3002",
   "ui.organize_progress_0_1_2": "\u642C\u79FB {0}/{1}\uFF1A{2}\u3002\u7B49\u5F85 Obsidian \u66F4\u65B0\u9023\u7D50\uFF0C\u53EF\u80FD\u9700\u8981\u4E00\u4E9B\u6642\u9593\u3002",
   "ui.organize_link_wait_hint": "\u6BCF\u4EFD\u5FC3\u667A\u5716\u90FD\u8981\u7B49 Obsidian \u66F4\u65B0\u9023\u7D50\uFF0C\u53EF\u80FD\u9700\u8981\u4E00\u4E9B\u6642\u9593\u3002\u4F9D Obsidian\u300C\u6A94\u6848\u8207\u9023\u7D50\u300D\u8A2D\u5B9A\u4E2D\u7684\u300C\u81EA\u52D5\u66F4\u65B0\u5167\u90E8\u9023\u7D50\u300D\u800C\u5B9A\uFF0CObsidian \u53EF\u80FD\u6703\u9010\u4EFD\u8A62\u554F\u9023\u7D50\u8655\u7406\u65B9\u5F0F\uFF1B\u5982\u6709\u8A62\u554F\u8ACB\u56DE\u7B54\uFF0C\u4E26\u5728\u5B8C\u6210\u524D\u4E0D\u8981\u95DC\u9589 Obsidian\u3002",
   "ui.organize_done_0": "\u5DF2\u6574\u7406 {0} \u4EFD\u5FC3\u667A\u5716\u3002",
@@ -2821,6 +2827,8 @@ var traditionalChinese = {
   "note.aim_followup_heading_0": "## \u88DC\u67E5\uFF1A{0}",
   "note.aim_smoke_publication_0": "> profile=smoke\uFF1A\u7814\u7A76\u9810\u7B97\u7528\u76E1\uFF0C\u4EA4\u4ED8\u9A57\u6536\u4ECD\u8981\u6C42\u88DC\u67E5\uFF0C\u4F46\u4F9D smoke \u8A2D\u5B9A\u76F4\u63A5\u767C\u5E03\u70BA\u7D50\u8AD6\u3002\u9019\u662F smoke \u6E2C\u8A66\u8B49\u64DA\uFF0C\u4E0D\u662F\u5DF2\u9A57\u8B49\u7684\u7D50\u8AD6\u3002\u9A57\u6536\u9000\u56DE\u539F\u56E0\uFF1A{0}",
   "note.aim_round_limit_0": "\u7814\u7A76\u8F2A\u6578\u5DF2\u9054\u4E0A\u9650\uFF0C\u4ECD\u6709\u91CD\u8981\u8B49\u64DA\u7F3A\u53E3\uFF1A{0}",
+  "note.aim_open_items_stop_0": "\u5148\u7D66\u51FA\u9644\u689D\u4EF6\u7684\u7B54\u6848\uFF0C\u4EE5\u4E0B\u4E8B\u9805\u8ACB\u4F60\u78BA\u8A8D\uFF1A{0}",
+  "note.aim_unresolved_conditions_0": "\u4EE5\u4E0B\u689D\u4EF6\u6703\u6539\u8B8A\u7B54\u6848\uFF0C\u76EE\u524D\u4ECD\u672A\u77E5\uFF1A{0}",
   "note.aim_partial_heading": "## \u7814\u7A76\u72C0\u614B\uFF1A\u90E8\u5206\u5B8C\u6210\uFF0C\u53EF\u7E7C\u7E8C\u7814\u7A76",
   "note.aim_pending_target_0": "\u5C1A\u5F85\u88DC\u67E5\uFF1A{0}",
   "note.aim_pending_task_0": "\u88DC\u67E5\u4EFB\u52D9\uFF1A{0}",
@@ -11750,8 +11758,24 @@ function hoistNestedValidity(item) {
   const { validity: _validity, ...source } = item.source;
   return { ...item, source, validity: nested };
 }
-function validateAimResearchPlan(subtopics) {
+function hasProvenSource(item) {
   var _a, _b, _c;
+  const source = item.source;
+  return !(!source || [source.branchId, source.resultId, source.notePath, source.contentHash].some(
+    (value) => typeof value !== "string" || !value.trim()
+  ) || !Number.isInteger(source.version) || source.version < 1 || !/^[a-f0-9]{64}$/i.test(source.contentHash) || !((_a = item.rationale) == null ? void 0 : _a.trim()) || !((_c = (_b = item.validity) == null ? void 0 : _b.reason) == null ? void 0 : _c.trim()) || !Array.isArray(item.validity.conditionKeys) || item.validity.conditionKeys.some((key2) => typeof key2 !== "string" || !key2.trim()));
+}
+function researchUnprovenReuse(subtopics) {
+  if (!Array.isArray(subtopics)) return subtopics;
+  return subtopics.map((item) => {
+    if (!item || typeof item !== "object") return item;
+    const target = hoistNestedValidity(item);
+    if (target.action !== "reuse" && target.action !== "update" || hasProvenSource(target)) return item;
+    const { source: _source, validity: _validity, ...rest } = target;
+    return { ...rest, action: "research" };
+  });
+}
+function validateAimResearchPlan(subtopics) {
   if (!Array.isArray(subtopics) || subtopics.length > 5 || subtopics.some((item) => {
     if (!item || typeof item !== "object") return true;
     const fields = item;
@@ -11769,21 +11793,16 @@ function validateAimResearchPlan(subtopics) {
       throw new Error("Invalid AIM research action.");
     if (item.dependsOn !== void 0 && (!Array.isArray(item.dependsOn) || new Set(item.dependsOn).size !== item.dependsOn.length || item.dependsOn.some((id) => typeof id !== "string" || !ids.has(id) || id === item.id)))
       throw new Error("Research dependencies must name distinct existing targets other than themselves.");
-    if (item.action === "reuse" || item.action === "update") {
-      const source = item.source;
-      if (!source || [source.branchId, source.resultId, source.notePath, source.contentHash].some(
-        (value) => typeof value !== "string" || !value.trim()
-      ) || !Number.isInteger(source.version) || source.version < 1 || !/^[a-f0-9]{64}$/i.test(source.contentHash) || !((_a = item.rationale) == null ? void 0 : _a.trim()) || !((_c = (_b = item.validity) == null ? void 0 : _b.reason) == null ? void 0 : _c.trim()) || !Array.isArray(item.validity.conditionKeys) || item.validity.conditionKeys.some((key2) => typeof key2 !== "string" || !key2.trim()))
-        throw new Error("Reuse and update targets need an exact source, rationale and condition validity assessment.");
-    }
+    if ((item.action === "reuse" || item.action === "update") && !hasProvenSource(item))
+      throw new Error("Reuse and update targets need an exact source, rationale and condition validity assessment.");
   }
   const visiting = /* @__PURE__ */ new Set(), visited = /* @__PURE__ */ new Set();
   const visit = (id) => {
-    var _a2, _b2;
+    var _a, _b;
     if (visiting.has(id)) throw new Error("Research dependencies cannot contain a cycle.");
     if (visited.has(id)) return;
     visiting.add(id);
-    for (const dependency of (_b2 = (_a2 = plan.find((item) => item.id === id)) == null ? void 0 : _a2.dependsOn) != null ? _b2 : []) visit(dependency);
+    for (const dependency of (_b = (_a = plan.find((item) => item.id === id)) == null ? void 0 : _a.dependsOn) != null ? _b : []) visit(dependency);
     visiting.delete(id);
     visited.add(id);
   };
@@ -12642,6 +12661,7 @@ ${REFERENCE_END}
 function noteLink(path) {
   return path.replace(/\.md$/, "").replace(/\|/g, "\\|");
 }
+var OS_LITTER = /* @__PURE__ */ new Set([".ds_store", "thumbs.db", "desktop.ini"]);
 var VAULT_WRITES = /* @__PURE__ */ new Set([
   "create",
   "createBinary",
@@ -13489,6 +13509,57 @@ ${body}`;
     }
     this.settings[key2] = next;
     return mapping;
+  }
+  /** The legacy folders that are cleaned up once empty: the old Topics folder and the old Inbox folder. */
+  legacyCleanupFolders() {
+    return [this.settings.topicsFolder, `${this.settings.workspaceFolder}/Inbox`];
+  }
+  /**
+   * Whether `path` holds nothing but OS litter on disk. Obsidian's vault tree hides dot-files and dot-folders, so a
+   * folder that looks empty there can still hold user content (.git, .sessions, hidden notes): ask the disk. Folders in
+   * `allowed` (topics about to move out) do not count. A failed listing counts as not empty.
+   */
+  async emptyOnDisk(path, allowed = /* @__PURE__ */ new Set()) {
+    try {
+      const listing = await this.app.vault.adapter.list(path);
+      return listing.folders.every((folder) => allowed.has(folder)) && listing.files.every((file) => {
+        var _a;
+        return OS_LITTER.has(((_a = file.split("/").at(-1)) != null ? _a : file).toLowerCase());
+      });
+    } catch (e) {
+      return false;
+    }
+  }
+  /**
+   * Which legacy folders are (or, after `plan`'s moves, will be) empty both in Obsidian's vault tree and on disk (OS
+   * litter aside). Never lists a folder that still holds anything, hidden content included.
+   */
+  async emptyLegacyFolders(plan) {
+    var _a;
+    const moving = new Set(((_a = plan == null ? void 0 : plan.moves) != null ? _a : []).map((move) => move.fromRoot));
+    const empty = [];
+    for (const path of this.legacyCleanupFolders()) {
+      const folder = this.app.vault.getAbstractFileByPath(path);
+      if (!(folder instanceof import_obsidian9.TFolder) || !folder.children.every((child) => moving.has(child.path))) continue;
+      if (await this.emptyOnDisk(path, moving)) empty.push(path);
+    }
+    return empty;
+  }
+  /** Moves the legacy Topics/Inbox folders to the trash only if empty (re-checked on disk right before); returns what went. */
+  async removeEmptyLegacyFolders() {
+    const removed = [];
+    for (const path of this.legacyCleanupFolders()) {
+      if (this.disposed) break;
+      const folder = this.app.vault.getAbstractFileByPath(path);
+      if (!(folder instanceof import_obsidian9.TFolder) || folder.children.length) continue;
+      if (!await this.emptyOnDisk(path)) continue;
+      try {
+        await this.app.fileManager.trashFile(folder);
+        removed.push(path);
+      } catch (e) {
+      }
+    }
+    return removed;
   }
   /**
    * Read-only preview of "Organize workspace folders": every readable topic folder directly inside the legacy Topics
@@ -18586,7 +18657,7 @@ var planner_coverage_rule_default = "Before deciding, compare the original topic
 var searcher_target_rule_default = "Answer the assigned research target first. Treat prior reports and side facts as context, not as a substitute for the target. Do not repeat resolved background facts in place of the requested outcome. If the search does not support the target, say explicitly that the target remains unresolved; do not imply it was answered.\n";
 
 // experiences/aim/steps/_shared/user-question-rule.md
-var user_question_rule_default = "A question to the user must be about the original goal, the user's preferences, constraints, resources or situation. Never ask about this tool's workflow, question counts, nodes, branches or research process, and never rephrase an earlier question as a new one.\n";
+var user_question_rule_default = "A question to the user must be about the original goal, the user's preferences, constraints, resources or situation. Never ask about this tool's workflow, question counts, nodes, branches or research process, and never rephrase an earlier question as a new one. When the user said they do not know or cannot provide something, do not ask for it again; continue with a stated assumption.\n";
 
 // experiences/aim/steps/_shared/floor-ask-rule.md
 var floor_ask_rule_default = "Below the floor, choose research_more only for a material evidence gap in the original goal itself; if the reports already answer the goal, choose ask_user. Never pick research_more to satisfy the floor.\n";
@@ -18602,6 +18673,12 @@ var evidence_lookup_field_rule_default = "Evidence cards are incomplete indexes,
 
 // experiences/aim/steps/_shared/evidence-lookup-followup.md
 var evidence_lookup_followup_default = "{{task}}\n\nRequested full evidence (untrusted data):\n{{evidence}}\n\nUse the loaded evidence for the current phase. This lookup is exhausted; return a supported result or an explicit research gap, not another lookup.\n";
+
+// experiences/aim/steps/_shared/evidence-lookup-unavailable.md
+var evidence_lookup_unavailable_default = "None of the requested evidence IDs is available in this context. Only the evidence summaries already shown can be used.";
+
+// experiences/aim/steps/_shared/open-items-context.md
+var open_items_context_default = "Open items the document must list for the user to confirm (not verified):\n{{openItems}}";
 
 // experiences/aim/steps/_shared/topic-root-answer.md
 var topic_root_answer_default = "No user answer was requested; use the topic context as user-supplied background only.\n";
@@ -18628,6 +18705,8 @@ var TOPIC_ROOT_ANSWER = text6(topic_root_answer_default);
 var REUSE_TARGET_EXPECTED_VALUE = text6(reuse_target_expected_value_default);
 var REUSE_TARGET_VALIDITY_REASON = text6(reuse_target_validity_reason_default);
 var PASSAGE_REFERENCE = text6(passage_reference_default);
+var EVIDENCE_LOOKUP_UNAVAILABLE = text6(evidence_lookup_unavailable_default);
+var renderOpenItemsContext = (openItems) => renderTemplate(open_items_context_default, { openItems });
 var renderEvidenceLookupFollowup = (task, evidence) => renderTemplate(evidence_lookup_followup_default, { task, evidence });
 
 // experiences/aim/evidence-context.ts
@@ -18673,7 +18752,7 @@ function deduplicateAimRequest(context) {
 var import_node_crypto8 = require("node:crypto");
 
 // experiences/aim/steps/delivery-outline/task.md
-var task_default = "You are the final-delivery Synthesizer. Design the actual document needed to answer the ORIGINAL user goal with all supplied conditions and outcome preferences. Previous research informs the outline; do not merely concatenate reports or reuse their headings. Return the outline in aim.sections: each section has heading, purpose (what the reader can do or understand after it), searchTask (specific web search needed, or empty if already supported), evidenceIds and dependencies (supplied source IDs). Choose a suitable structure, not a fixed template. Include concrete examples, resources, execution details or comparisons when required by this user. Map each section to the minimal supplied evidenceIds it needs. Dependencies also name supplied source IDs. Leave searchTask empty when mapped supplied reports already support the section; do not request a full search merely to repeat them. Identify exact source gaps for the deliverable. Do not ask the user or deliver the document yet.\nSupplied evidence IDs and reports:\n{{sourceCatalog}}\n";
+var task_default = "You are the final-delivery Synthesizer. Design the actual document needed to answer the ORIGINAL user goal with all supplied conditions and outcome preferences. Previous research informs the outline; do not merely concatenate reports or reuse their headings. Return the outline in aim.sections: each section has heading, purpose (what the reader can do or understand after it), searchTask (specific web search needed, or empty if already supported), evidenceIds and dependencies (supplied source IDs). Choose a suitable structure, not a fixed template. Open with a section that gives the direct answer or recommendation. Give every section a distinct purpose so no two sections cover the same advice or caveats; gather the items the user must still confirm in at most one section; use no more sections than the answer needs (usually 3 to 5). Include concrete examples, resources, execution details or comparisons when required by this user. Map each section to the minimal supplied evidenceIds it needs. Dependencies also name supplied source IDs. Leave searchTask empty when mapped supplied reports already support the section; do not request a full search merely to repeat them. Identify exact source gaps for the deliverable. Do not ask the user or deliver the document yet.\nSupplied evidence IDs and reports:\n{{sourceCatalog}}\n";
 
 // experiences/aim/steps/delivery-outline/step.ts
 var renderOutlineTask = (sourceCatalog) => renderTemplate(task_default, { sourceCatalog });
@@ -18689,32 +18768,39 @@ var renderResearchTask = (outline) => renderTemplate(task_default2, { outline })
 var REUSED_RESEARCH_DETAIL = renderTemplate(reused_evidence_default, {});
 
 // experiences/aim/steps/delivery-writing/task.md
-var task_default3 = 'Write only the complete section "{{heading}}" of the final document. Purpose: {{purpose}}. Full outline (structure only): {{outline}}.\nKnown goal and user conditions:\n{{knownConditions}}\nSection evidence (cite these explicit source IDs and URLs where used):\n{{scopedEvidence}}\n{{additionalResearch}}\nDevelop this section into useful specific content answering the original user goal. Include steps, examples and resources when required. Preserve all necessary detail; summary is only a canvas preview. Do not write other sections, an audit, or a synopsis. Do not fabricate or imply independent source verification. Output reader-facing Markdown in detail; cite sources where used and place limitations beside affected claims.\n';
+var task_default3 = "Write the complete final document in one piece, following this outline in order and using each section heading as a ## heading: {{outline}}.\nKnown goal and user conditions:\n{{knownConditions}}\nEvidence (cite the source URLs or names where used; never show internal source IDs to the reader):\n{{evidence}}\n{{additionalResearch}}\nOpen with the direct answer or recommendation for this user. Use the user's stated situation and answers throughout, and give concrete steps, numbers, options and examples they can act on. Make each point once: no section repeats advice, conditions or caveats that another section already covers; put a limitation only beside the claim it changes, and gather what the user must still confirm in one place. Do not fabricate or imply independent source verification. Output reader-facing Markdown in detail; summary is only a short canvas preview.\n";
 
 // experiences/aim/steps/delivery-writing/additional-research.md
 var additional_research_default = "Additional final-document research:\n{{research}}\n";
 
 // experiences/aim/steps/delivery-writing/no-mapped-source.md
-var no_mapped_source_default = "No external source is mapped to this section. Do not make source-backed claims.\n";
+var no_mapped_source_default = "No external source is mapped to this document. Do not make source-backed claims.\n";
 
 // experiences/aim/steps/delivery-writing/step.ts
 var renderWritingTask = (variables4) => renderTemplate(task_default3, {
-  heading: variables4.heading,
-  purpose: variables4.purpose,
   outline: variables4.outline,
   knownConditions: variables4.knownConditions,
-  scopedEvidence: variables4.scopedEvidence,
-  additionalResearch: variables4.scopedResearch === void 0 ? "" : renderTemplate(additional_research_default, { research: variables4.scopedResearch })
+  evidence: variables4.evidence,
+  additionalResearch: variables4.research === void 0 ? "" : renderTemplate(additional_research_default, { research: variables4.research })
 });
 var NO_MAPPED_SOURCE = renderTemplate(no_mapped_source_default, {});
 
 // experiences/aim/steps/delivery-acceptance/task.md
 var task_default4 = "Perform the final join review: check cross-section coherence, repeated advice or duplicate passages, source IDs or URLs attributed to the wrong claims, and missing sections. Do not rewrite sections. Review the full draft against the ORIGINAL goal, supplied conditions, requested format, and agreed outline. Outline: {{outline}}\nFinal research:\n{{research}}\nSupplied source reports:\n{{sourceCatalog}}\nDraft:\n{{draft}}\nReturn the decision in the aim fields. Choose conclude ONLY if the document is usable and complete for this request: every required section is developed, necessary examples/resources/steps are concrete and supported, and sources are linked where used. Mere general direction is insufficient for a requested actionable plan. For conclude, put only a short acceptance note in detail; do not rewrite or repeat the draft. Explain readiness in aim.rationale and aim.stopReason. For shortcomings, list the specific missing outcomes and return research_more. If important delivery evidence remains missing, choose research_more with exactly one concrete aim.researchTarget (title, task, expectedValue) and explain the missing outcome. Do not ask the user and do not invent evidence.\n";
 
+// experiences/aim/steps/delivery-acceptance/open-items.md
+var open_items_default = "Known open items (not verified; the user must confirm them):\n{{openItems}}\nThe draft must list each of them as an item for the user to confirm, beside the advice it affects. These items alone are not a reason to return research_more.";
+
 // experiences/aim/steps/delivery-acceptance/step.ts
-var renderAcceptanceTask = (variables4) => renderTemplate(task_default4, { ...variables4 });
+var renderAcceptanceTask = ({ openItems, ...variables4 }) => {
+  const task = renderTemplate(task_default4, { ...variables4 });
+  return openItems ? `${task}
+
+${renderTemplate(open_items_default, { openItems })}` : task;
+};
 
 // experiences/aim/final-delivery.ts
+var DOCUMENT_KEY = "document";
 var fingerprint = (value) => (0, import_node_crypto8.createHash)("sha256").update(JSON.stringify(value)).digest("hex");
 function parseDeliveryOutline(detail) {
   const marker4 = detail.match(/<!--\s*aim-delivery-outline\s+([\s\S]*?)\s*-->/);
@@ -18730,9 +18816,10 @@ function parseDeliveryOutline(detail) {
     for (const key2 of ["evidenceIds", "dependencies"]) {
       if (key2 in section3) {
         const ids = section3[key2];
-        if (!Array.isArray(ids) || ids.some((id) => typeof id !== "string" || !id.trim()) || new Set(ids).size !== ids.length)
-          throw new Error("Invalid final delivery source mapping.");
-        mapping[key2] = ids;
+        if (!Array.isArray(ids)) continue;
+        mapping[key2] = [
+          ...new Set(ids.filter((id) => typeof id === "string" && !!id.trim()).map((id) => id.trim()))
+        ];
       }
     }
     return { heading: section3.heading, purpose: section3.purpose, searchTask: section3.searchTask, ...mapping };
@@ -18767,7 +18854,7 @@ function parseAcceptance(result) {
   return { marker: acceptance[0].trim(), decision: decision.decision };
 }
 async function buildFinalDelivery(base, ask, options = {}) {
-  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n;
+  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o;
   const baseFingerprint = fingerprint({
     title: base.title,
     rules: base.rules,
@@ -18886,47 +18973,25 @@ Supplied source reports:
 ${sourceCatalog}`;
   const available = new Map(((_e = options.evidence) != null ? _e : []).map((source) => [source.id, source]));
   if (available.size !== ((_f = options.evidence) != null ? _f : []).length) throw new Error("Duplicate final delivery evidence IDs.");
-  const researchForSection = (section3) => {
-    if (!section3.searchTask.trim()) return "";
-    const lines = research.detail.split("\n");
-    const start = lines.findIndex((line) => line.trim() === `## ${section3.heading}`);
-    if (start >= 0) {
-      const end = lines.findIndex((line, index) => index > start && /^##\s+/.test(line));
-      return lines.slice(start, end < 0 ? void 0 : end).join("\n");
-    }
-    if (options.evidence && sections.filter((item) => item.searchTask.trim()).length > 1)
-      throw new Error("Final research is missing section-scoped evidence; no conclusion was saved.");
-    return research.detail;
-  };
-  const sectionPlans = sections.map((section3) => {
-    var _a2, _b2;
-    const ids = [.../* @__PURE__ */ new Set([...(_a2 = section3.evidenceIds) != null ? _a2 : [], ...(_b2 = section3.dependencies) != null ? _b2 : []])];
-    if (ids.some((id) => !available.has(id)))
-      throw new Error("Final delivery outline references an unavailable source ID.");
-    const sources2 = section3.evidenceIds === void 0 && section3.dependencies === void 0 ? [...available.values()] : ids.map((id) => available.get(id));
-    const scopedEvidence = sources2.length ? sources2.map((source) => `Source ID: ${source.id}
+  const sources2 = /* @__PURE__ */ new Map();
+  for (const section3 of sections) {
+    const named = [.../* @__PURE__ */ new Set([...(_g = section3.evidenceIds) != null ? _g : [], ...(_h = section3.dependencies) != null ? _h : []])];
+    const ids = named.filter((id) => available.has(id));
+    const scoped = section3.evidenceIds === void 0 && section3.dependencies === void 0 || named.length && !ids.length ? [...available.values()] : ids.map((id) => available.get(id));
+    for (const source of scoped) sources2.set(source.id, source);
+  }
+  const documentSources = [...available.values()].filter((source) => sources2.has(source.id));
+  const documentEvidence = documentSources.length ? documentSources.map((source) => `Source ID: ${source.id}
 ${source.detail}`).join("\n\n") : available.size ? NO_MAPPED_SOURCE : `${base.detail}
 
 ${research.detail}`;
-    const scopedResearch = researchForSection(section3);
-    const sectionFingerprint = fingerprint({
-      baseFingerprint,
-      heading: section3.heading,
-      purpose: section3.purpose,
-      searchTask: section3.searchTask,
-      sources: sources2.map((source) => [source.id, source.hash]),
-      research: scopedResearch || (!available.size ? research.detail : void 0)
-    });
-    return {
-      section: section3,
-      sources: sources2,
-      scopedEvidence,
-      scopedResearch,
-      sectionFingerprint,
-      key: section3.heading.trim().toLowerCase()
-    };
+  const documentResearch = needsResearch ? research.detail : void 0;
+  const draftFingerprint = fingerprint({
+    baseFingerprint,
+    sections: sections.map((section3) => [section3.heading, section3.purpose, section3.searchTask]),
+    sources: documentSources.map((source) => [source.id, source.hash]),
+    research: documentResearch != null ? documentResearch : !available.size ? research.detail : void 0
   });
-  const draftFingerprint = fingerprint(sectionPlans.map((plan) => plan.sectionFingerprint));
   let draft;
   let legacyDraft = reuseRemaining && (savedCheckpoint == null ? void 0 : savedCheckpoint.draft) && (!savedCheckpoint.draftFingerprint || savedCheckpoint.draftFingerprint === draftFingerprint);
   if (legacyDraft) {
@@ -18943,64 +19008,45 @@ ${research.detail}`;
     checkpoint.draftFingerprint = draftFingerprint;
   } else {
     reuseRemaining = false;
-    const completed = /* @__PURE__ */ Object.create(null);
-    for (const plan of sectionPlans) {
-      const saved = (_g = savedCheckpoint == null ? void 0 : savedCheckpoint.sections) == null ? void 0 : _g[plan.key];
-      if ((saved == null ? void 0 : saved.fingerprint) === plan.sectionFingerprint) {
-        try {
-          validateContent(saved.result);
-          completed[plan.key] = saved;
-        } catch (e) {
-        }
+    const saved = (_i = savedCheckpoint == null ? void 0 : savedCheckpoint.sections) == null ? void 0 : _i[DOCUMENT_KEY];
+    let written;
+    if ((saved == null ? void 0 : saved.fingerprint) === draftFingerprint) {
+      try {
+        validateContent(saved.result);
+        written = saved.result;
+      } catch (e) {
       }
     }
-    checkpoint.sections = completed;
-    for (const plan of sectionPlans) {
-      if (completed[plan.key]) continue;
-      const written = await run(
+    if (!written) {
+      written = await run(
         "delivery-writing",
         renderWritingTask({
-          heading: plan.section.heading,
-          purpose: plan.section.purpose,
           outline,
-          knownConditions: (_h = options.knownConditions) != null ? _h : base.detail,
-          scopedEvidence: plan.scopedEvidence,
-          ...plan.section.searchTask.trim() ? { scopedResearch: plan.scopedResearch } : {}
+          knownConditions: (_j = options.knownConditions) != null ? _j : base.detail,
+          evidence: documentEvidence,
+          ...documentResearch === void 0 ? {} : { research: documentResearch }
         })
       );
-      (_i = base.signal) == null ? void 0 : _i.throwIfAborted();
-      completed[plan.key] = {
-        fingerprint: plan.sectionFingerprint,
-        evidenceIds: plan.sources.map((source) => source.id),
-        result: written
-      };
-      await ((_j = options.onCheckpoint) == null ? void 0 : _j.call(options, { ...checkpoint, sections: { ...completed } }));
       (_k = base.signal) == null ? void 0 : _k.throwIfAborted();
     }
-    if (sectionPlans.some((plan) => !completed[plan.key]))
-      throw new Error("Final delivery is missing a required section.");
-    const writtenSections = sectionPlans.map((plan) => completed[plan.key].result);
-    const detail = writtenSections.map(
-      (written, index) => sections.length === 1 || new RegExp(`^#{1,6}\\s+${sections[index].heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`, "m").test(
-        written.detail
-      ) ? written.detail : `## ${sections[index].heading}
-
-${written.detail}`
-    ).join("\n\n");
+    checkpoint.sections = {
+      [DOCUMENT_KEY]: {
+        fingerprint: draftFingerprint,
+        evidenceIds: documentSources.map((source) => source.id),
+        result: written
+      }
+    };
     draft = {
-      summary: writtenSections[0].summary,
-      detail,
+      summary: written.summary,
+      detail: written.detail,
       suggestions: [],
-      visualReferences: writtenSections.flatMap((written) => {
-        var _a2;
-        return (_a2 = written.visualReferences) != null ? _a2 : [];
-      })
+      visualReferences: (_l = written.visualReferences) != null ? _l : []
     };
     validateContent(draft);
     checkpoint.draftFingerprint = draftFingerprint;
     checkpoint.draft = draft;
-    await ((_l = options.onCheckpoint) == null ? void 0 : _l.call(options, { ...checkpoint, sections: { ...completed } }));
-    (_m = base.signal) == null ? void 0 : _m.throwIfAborted();
+    await ((_m = options.onCheckpoint) == null ? void 0 : _m.call(options, { ...checkpoint }));
+    (_n = base.signal) == null ? void 0 : _n.throwIfAborted();
   }
   if ((savedCheckpoint == null ? void 0 : savedCheckpoint.draftFingerprint) && savedCheckpoint.draftFingerprint !== draftFingerprint)
     reuseRemaining = false;
@@ -19008,7 +19054,13 @@ ${written.detail}`
     "acceptance",
     () => run(
       "delivery-acceptance",
-      renderAcceptanceTask({ outline, research: research.detail, sourceCatalog, draft: draft.detail })
+      renderAcceptanceTask({
+        outline,
+        research: research.detail,
+        sourceCatalog,
+        draft: draft.detail,
+        ...options.openItems ? { openItems: options.openItems } : {}
+      })
     ),
     (result2) => {
       parseAcceptance(result2);
@@ -19025,7 +19077,7 @@ ${draft.detail}`, suggestions: [] }, evidence };
       ...result,
       detail: `${result.detail}
 
-${translate((_n = base.outputLanguage) != null ? _n : "en", "note.aim_draft_pending")}
+${translate((_o = base.outputLanguage) != null ? _o : "en", "note.aim_draft_pending")}
 
 ${draft.detail}`
     },
@@ -19168,6 +19220,14 @@ function payloadSchema(contract) {
             })
           ),
           description: "For research_more: the one targeted evidence gap. Otherwise null."
+        },
+        unresolvedConditions: {
+          ...texts,
+          description: "Decision-changing user conditions that are still unknown and cannot reasonably be assumed. A condition the user said they do not know is resolved by a stated assumption. Empty when none."
+        },
+        gapKind: {
+          anyOf: [{ type: "string", enum: ["searchable", "user_only", "not_decisive"] }, { type: "null" }],
+          description: "For research_more: searchable when public web sources can close the gap; user_only when only the user or someone they must contact can supply it (their own documents, quotes, offers, devices, account or company data); not_decisive when closing it would not change the recommendation. Otherwise null."
         }
       });
     case "outline":
@@ -19270,6 +19330,9 @@ function foldPayload(contract, aim, result) {
       };
       if (decision === "conclude") fields.stopReason = clean2(aim.stopReason);
       if (decision === "ask_user") fields.question = clean2(aim.question);
+      if (decision === "research_more" && typeof aim.gapKind === "string") fields.gapKind = aim.gapKind;
+      const unresolved = cleanList(aim.unresolvedConditions);
+      if (unresolved.length) fields.unresolvedConditions = unresolved;
       const target = aim.researchTarget && typeof aim.researchTarget === "object" ? aim.researchTarget : void 0;
       const suggestions = decision === "ask_user" ? cleanList(aim.answerOptions).map(choice) : decision === "research_more" && target ? [
         {
@@ -19381,6 +19444,7 @@ var clarificationRequiredRationale = (language2) => language2 === "zh-TW" ? rend
 
 // experiences/aim/planner-review.ts
 var AIM_MAX_RESEARCH_TURNS = DEFAULT_AIM_FLOW_LIMITS.maxResearchTurns;
+var GAP_KINDS = ["searchable", "user_only", "not_decisive"];
 var errorText2 = (error) => error instanceof Error ? error.message : String(error);
 var marker3 = /^\s*<!--\s*aim-review\s+(\{[^\n]*\})\s*-->\s*/;
 function readMarker(detail) {
@@ -19446,7 +19510,11 @@ function parseAimPlannerReview(result) {
   const detail = result.detail.slice(match[0].length).trim();
   if (!summary || !detail)
     throw new Error("Planner review must include a useful supported answer or interim conclusion.");
-  const answered = typeof raw.goalAnswered === "boolean" ? { goalAnswered: raw.goalAnswered } : {};
+  const unresolvedConditions = Array.isArray(raw.unresolvedConditions) ? raw.unresolvedConditions.filter((item) => typeof item === "string" && !!item.trim()) : [];
+  const answered = {
+    ...typeof raw.goalAnswered === "boolean" ? { goalAnswered: raw.goalAnswered } : {},
+    ...unresolvedConditions.length ? { unresolvedConditions } : {}
+  };
   if (decision === "conclude") {
     const stopReason = typeof raw.stopReason === "string" ? raw.stopReason.trim() : "";
     if (!stopReason) throw new Error("A conclude decision must record why research should stop.");
@@ -19466,6 +19534,7 @@ function parseAimPlannerReview(result) {
         task: target.task.trim(),
         expectedValue: target.contribution.trim()
       },
+      ...typeof raw.gapKind === "string" && GAP_KINDS.includes(raw.gapKind) ? { gapKind: raw.gapKind } : {},
       summary,
       detail,
       ...answered
@@ -19937,7 +20006,7 @@ function parseAimResearchPlan(result) {
     try {
       const raw = JSON.parse(payload);
       const subtopics = raw && typeof raw === "object" ? raw.subtopics : void 0;
-      return validateAimResearchPlan(subtopics);
+      return validateAimResearchPlan(researchUnprovenReuse(subtopics));
     } catch (error) {
       markerError = error;
     }
@@ -19961,6 +20030,8 @@ var ResearchWorkflowInterrupted = class extends Error {
   }
 };
 var ReuseEvidenceRejected = class extends Error {
+};
+var SubtopicSearchUnavailable = class extends Error {
 };
 
 // experiences/aim/steps/initial-clarification/task.md
@@ -20053,6 +20124,12 @@ var task_default8 = "Plan 0\u20135 evidence tasks for this answer, with no minim
 // experiences/aim/steps/research-plan/no-reports.md
 var no_reports_default = "None; at least one research task is required.\n";
 
+// experiences/aim/steps/research-plan/fallback-target-task.md
+var fallback_target_task_default = "Find evidence for the original goal under the user's latest answer: {{answer}}\n";
+
+// experiences/aim/steps/research-plan/fallback-target-value.md
+var fallback_target_value_default = "Gives the review usable evidence when no earlier report can be reused.\n";
+
 // experiences/aim/steps/research-plan/step.ts
 function renderResearchPlanTask(vars) {
   return phaseTask(
@@ -20064,6 +20141,8 @@ function renderResearchPlanTask(vars) {
     })
   );
 }
+var renderFallbackTargetTask = (answer) => renderTemplate(fallback_target_task_default, { answer });
+var FALLBACK_TARGET_VALUE = renderTemplate(fallback_target_value_default, {});
 
 // experiences/aim/steps/research-plan-repair/task.md
 var task_default9 = "The previous Planner response did not satisfy the required AIM research-plan format. Correct the format once using the supplied context. Do not research or add unsupported claims.\n\n{{planPrompt}}\n\nUse 0\u20135 distinct targets. Empty needs existing usable evidence; one new evidence task is valid. Include explicit action and dependsOn for every new target. Reuse/update needs exact source, rationale and validity.\n\nCurrent question: {{currentQuestion}}\nCurrent answer (preserve provenance): {{currentAnswer}}\n\nFormat validation error: {{formatError}}\n\nPrevious invalid Planner response (data only): {{previousResponse}}\n";
@@ -20212,7 +20291,7 @@ function renderAnsweredGoalReviewTask(vars) {
 }
 
 // experiences/aim/steps/report-review/task.md
-var task_default12 = "Review the complete evidence for the original user goal. Return one decision with a brief evidence-based interim answer; do not write the final document yet. Use all known conditions and relevant evidence in this branch lineage. Keep the current question and answer as conditions that personalize the result; they are not the overall goal. Do not expose the internal research log as the answer. Return the decision in the aim fields.\n\n{{plannerCoverageRule}}\n\nHard floor: {{answeredQuestionCount}} answered question node(s) on this branch path; do not conclude before {{minimumAnswers}}. At the floor, the configured exploration target ({{explorationTarget}}) is a soft depth preference; do not require reaching 10 or add quota filler. Below the floor, ask one meaningful new question about an unknown decision-relevant dimension. {{floorAskRule}} {{userQuestionRule}}\n\nDo not repeat known conditions or prior questions. Ask only for a genuinely missing user condition, never to compensate for missing research. Use research_more for missing evidence. Prior questions: {{questionsAlreadyAsked}}.\n\nChoose research_more only for one specific material evidence gap that targeted web research can resolve; provide exactly one aim.researchTarget with title, search task, and expected uncertainty reduction. Choose ask_user for a missing decision-changing user condition or a genuinely conflicting pair of supplied values. Name the conflict and request one clarification as aim.question; never defer a material conflict into the final document. Include 2\u20135 choices in aim.answerOptions. Do not use ask_user to compensate for missing research. Choose conclude only when the original goal is adequately supported and the hard floor is met; cite source names or links from reports when available and state remaining uncertainty and limits. Do not search in this Planner turn.\n\nReturn the decision in the aim fields with an evidence-based aim.rationale; for conclude, aim.stopReason says why the evidence is sufficient.\n\nCurrent question: {{currentQuestion}}\nCurrent answer: {{currentAnswer}}\n\nResearch budget: review {{researchTurn}} of {{maxResearchTurns}}. One targeted follow-up search remains when this is review 1; if a material gap remains after review 2, return research_more so VAM saves a partial result.\n";
+var task_default12 = "Review the complete evidence for the original user goal. Return one decision with a brief evidence-based interim answer; do not write the final document yet. Use all known conditions and relevant evidence in this branch lineage. Keep the current question and answer as conditions that personalize the result; they are not the overall goal. Do not expose the internal research log as the answer. Return the decision in the aim fields.\n\n{{plannerCoverageRule}}\n\nHard floor: {{answeredQuestionCount}} answered question node(s) on this branch path; do not conclude before {{minimumAnswers}}. At the floor, the configured exploration target ({{explorationTarget}}) is a soft depth preference; do not require reaching 10 or add quota filler. Below the floor, ask one meaningful new question about an unknown decision-relevant dimension. {{floorAskRule}} {{userQuestionRule}}\n\nDo not repeat known conditions or prior questions. Ask only for a genuinely missing user condition, never to compensate for missing research. Use research_more for missing evidence. Prior questions: {{questionsAlreadyAsked}}.\n\nChoose research_more only for one specific material evidence gap (material means closing it could change the recommendation, not just make it more precise); provide exactly one aim.researchTarget with title, search task, and expected uncertainty reduction, and set aim.gapKind: searchable when public web sources can close it; user_only when only the user or someone they must contact can supply it (their own offer, quote, device model, account, or company data), so VAM asks the user instead of searching; not_decisive when closing it would not change the recommendation, so VAM delivers the answer and lists the gap for the user to confirm. Choose ask_user for a missing decision-changing user condition or a genuinely conflicting pair of supplied values. Name the conflict and request one clarification as aim.question; never defer a material conflict into the final document. Include 2\u20135 choices in aim.answerOptions. Do not use ask_user to compensate for missing research. List in aim.unresolvedConditions every user condition that would change the recommendation and is still unknown, checking the intake clarification answers and every earlier answer; a condition the user said they do not know is resolved by stating an assumption, not listed. Choose conclude only when the original goal is adequately supported, aim.unresolvedConditions is empty, and the hard floor is met; cite source names or links from reports when available and state remaining uncertainty and limits. Do not search in this Planner turn.\n\nReturn the decision in the aim fields with an evidence-based aim.rationale; for conclude, aim.stopReason says why the evidence is sufficient.\n\nCurrent question: {{currentQuestion}}\nCurrent answer: {{currentAnswer}}\n\nResearch budget: review {{researchTurn}} of {{maxResearchTurns}}. One targeted follow-up search remains when this is review 1; if a material gap remains after review 2, return research_more; VAM then delivers a conditional answer that lists the gap for the user to confirm.\n";
 
 // experiences/aim/steps/report-review/step.ts
 function renderReportReviewTask(vars) {
@@ -20254,6 +20333,11 @@ function noteStopReason(language2, review, recorded, fallback) {
     );
   return recorded;
 }
+var AIM_REQUEST_TOKEN_LIMIT = 6e4;
+var AIM_INTAKE_COMPLETE = "<!-- aim-intake-complete -->";
+var CHECKLIST_FLOOR = 1;
+var SEARCH_NOT_PERFORMED = /did not perform web search|沒有實際執行網路搜尋/;
+var CHECKLIST_QUESTION_LIMIT = 5;
 var _AimManualFlow = class _AimManualFlow {
   constructor(repository, runs, askModel, id = import_node_crypto9.randomUUID, persist = (operation) => operation(), limits = ACTIVE_AIM_FLOW_LIMITS) {
     this.repository = repository;
@@ -20274,6 +20358,31 @@ var _AimManualFlow = class _AimManualFlow {
   /** The only exit acceptGapAtBudget changes: a research_more left at the last turn is saved partial unless accepted. */
   budgetExitStatus(decision) {
     return decision === "research_more" && !this.limits.acceptGapAtBudget ? "partial" : "completed";
+  }
+  /**
+   * Answered questions required before a conclusion. Once the intake checklist ran (its marker is in the goal
+   * detail), conclusion waits on unresolved decision-changing conditions instead of a question count.
+   */
+  floorFor(goalDetail) {
+    return goalDetail.includes(AIM_INTAKE_COMPLETE) ? Math.min(CHECKLIST_FLOOR, this.limits.minAnsweredBeforeConclusion) : this.limits.minAnsweredBeforeConclusion;
+  }
+  /**
+   * A gap that would not change the advice, or that is still open when the research budget is spent, becomes an
+   * open item of a conditional conclusion: the document states it for the user to confirm instead of stopping.
+   */
+  withOpenItems(review, language2) {
+    var _a;
+    const openItems = [...(_a = review.openItems) != null ? _a : [], ...review.researchTarget ? [review.researchTarget] : []];
+    return {
+      decision: "conclude",
+      rationale: review.rationale,
+      stopReason: translate(language2, "note.aim_open_items_stop_0", openItems.map((item) => item.title).join("; ")),
+      ...review.goalAnswered !== void 0 ? { goalAnswered: review.goalAnswered } : {},
+      ...review.unresolvedConditions ? { unresolvedConditions: review.unresolvedConditions } : {},
+      openItems,
+      summary: review.summary,
+      detail: review.detail
+    };
   }
   /**
    * Tone text for prose-producing AIM calls (research and final delivery). Structured Planner/review calls carry an
@@ -20362,7 +20471,7 @@ ${(_d = context.task) != null ? _d : ""}`
       deduplicated.workingFindings,
       deduplicated.sourceContext
     ].reduce((sum, value) => sum + estimateTokens(value), 0);
-    if (requestTokens > 28e3)
+    if (requestTokens > AIM_REQUEST_TOKEN_LIMIT)
       throw new Error(
         `AIM model request is too large (${requestTokens} estimated tokens); no goal, condition, or evidence was discarded.`
       );
@@ -20376,10 +20485,15 @@ ${(_d = context.task) != null ? _d : ""}`
       (_f = (_e = [deduplicated.task, deduplicated.detail, deduplicated.ancestors].join("\n").match(/Evidence ID: ([^\s]+)/g)) == null ? void 0 : _e.map((line) => line.slice(13))) != null ? _f : []
     );
     const available = new Set(((_g = context.aimEvidenceIds) != null ? _g : []).filter((id) => visibleIds.has(id)));
-    if (!Array.isArray(ids) || !ids.length || ids.length > 3 || ids.some((id) => typeof id !== "string" || !available.has(id) || !this.evidenceReports.has(id)))
-      throw new Error("Invalid AIM evidence lookup; no decision was saved.");
-    const evidence = (await Promise.all(
-      [...new Set(ids)].map(async (id) => {
+    const readable = Array.isArray(ids) ? [
+      ...new Set(
+        ids.filter(
+          (id) => typeof id === "string" && available.has(id) && this.evidenceReports.has(id)
+        )
+      )
+    ].slice(0, 3) : [];
+    const evidence = readable.length ? (await Promise.all(
+      readable.map(async (id) => {
         const ref = this.evidenceReports.get(id);
         const note = await this.repository.readNote(ref.path);
         if ((0, import_node_crypto9.createHash)("sha256").update(note.detail).digest("hex") !== ref.hash)
@@ -20388,9 +20502,9 @@ ${(_d = context.task) != null ? _d : ""}`
 Full report:
 ${note.detail}`;
       })
-    )).join("\n\n");
+    )).join("\n\n") : EVIDENCE_LOOKUP_UNAVAILABLE;
     throwIfAborted(signal);
-    if (requestTokens + estimateTokens(evidence) > 28e3)
+    if (requestTokens + estimateTokens(evidence) > AIM_REQUEST_TOKEN_LIMIT)
       throw new Error("Requested evidence exceeds the context budget; no evidence was truncated or conclusion saved.");
     const loaded = await this.askModel(
       {
@@ -20404,8 +20518,11 @@ ${note.detail}`;
       onWebSearchEvent
     );
     throwIfAborted(signal);
-    if (/<!--\s*aim-evidence-request/.test(loaded.detail))
-      throw new Error("AIM evidence lookup limit reached; no conclusion was saved.");
+    if (/<!--\s*aim-evidence-request/.test(loaded.detail)) {
+      const detail = loaded.detail.replace(/<!--\s*aim-evidence-request\s+[^\n]*?-->\s*/g, "").trim();
+      if (!detail) throw new Error("AIM evidence lookup limit reached; no conclusion was saved.");
+      return { ...loaded, detail };
+    }
     return loaded;
   }
   parsePlannerReviewWithRecovery(original, recoveryContext, taskContext, model, reasoning, signal) {
@@ -20563,9 +20680,32 @@ ${note.detail}`;
     const body = candidate.detail.replace(/^\s*<!--\s*aim-review\s+[^\n]*?-->\s*/, "").trim();
     return { ...repaired, summary: candidate.summary, detail: body };
   }
-  /** One bounded, no-search semantic check for every Planner decision. */
+  /**
+   * One bounded, no-search semantic check for every Planner decision. A result that still asks the user past the
+   * checklist question limit, or a gap that would not change the advice (including one the final delivery review
+   * returns), gets one more pass as a conclusion with that item open for the user to confirm.
+   */
   async reviewPlannerDecisionQuality(candidate, context, model, reasoning, signal) {
-    var _a, _b, _c;
+    const reviewed = await this.reviewDecisionOnce(candidate, context, model, reasoning, signal);
+    const pastLimit = context.goalDetail.includes(AIM_INTAKE_COMPLETE) && context.answeredQuestionCount >= CHECKLIST_QUESTION_LIMIT;
+    const asksUser = reviewed.decision === "ask_user" || reviewed.decision === "research_more" && reviewed.gapKind === "user_only";
+    if (!(pastLimit && asksUser) && !(reviewed.decision === "research_more" && reviewed.gapKind === "not_decisive"))
+      return reviewed;
+    throwIfAborted(signal);
+    return this.reviewDecisionOnce(this.limitToOpenItems(reviewed, context), context, model, reasoning, signal);
+  }
+  /** A question or a user-only/not-decisive gap becomes a conclusion that lists it for the user to confirm. */
+  limitToOpenItems(review, context) {
+    return review.decision === "ask_user" && review.question ? this.withOpenItems(
+      {
+        ...review,
+        researchTarget: { title: review.question, task: review.rationale, expectedValue: review.question }
+      },
+      context.outputLanguage
+    ) : this.withOpenItems(review, context.outputLanguage);
+  }
+  async reviewDecisionOnce(candidate, context, model, reasoning, signal) {
+    var _a, _b, _c, _d, _e, _f, _g, _h;
     throwIfAborted(signal);
     const uniqueLineage = lineageWithoutRepeatedReports(context.lineage, context.reportDetail);
     const taskContext = {
@@ -20584,21 +20724,40 @@ ${note.detail}`;
       visualMode: "off",
       signal
     };
-    let reviewed = candidate;
+    let reviewed = candidate.decision === "research_more" && candidate.gapKind === "not_decisive" ? this.withOpenItems(candidate, context.outputLanguage) : candidate;
+    const checklist = context.goalDetail.includes(AIM_INTAKE_COMPLETE);
+    if (checklist && context.answeredQuestionCount >= CHECKLIST_QUESTION_LIMIT) {
+      if (reviewed.decision === "ask_user" && reviewed.question || reviewed.decision === "research_more" && reviewed.gapKind === "user_only")
+        reviewed = this.limitToOpenItems(reviewed, context);
+      if (reviewed.decision === "conclude" && ((_a = reviewed.unresolvedConditions) == null ? void 0 : _a.length))
+        reviewed = {
+          ...reviewed,
+          unresolvedConditions: [],
+          openItems: [
+            ...(_b = reviewed.openItems) != null ? _b : [],
+            ...reviewed.unresolvedConditions.map((condition) => ({
+              title: condition,
+              task: reviewed.rationale,
+              expectedValue: condition
+            }))
+          ]
+        };
+    }
     const repeatsKnownQuestion = context.questionHistory.some(
       (question) => {
         var _a2;
         return question.trim().toLocaleLowerCase() === ((_a2 = reviewed.question) == null ? void 0 : _a2.trim().toLocaleLowerCase());
       }
     );
-    const belowFloor = context.answeredQuestionCount < this.limits.minAnsweredBeforeConclusion;
+    const floor = this.floorFor(context.goalDetail);
+    const belowFloor = context.answeredQuestionCount < floor;
     const researchesAnsweredGoal = belowFloor && reviewed.decision === "research_more" && reviewed.goalAnswered === true;
     if (belowFloor && reviewed.decision === "conclude" || researchesAnsweredGoal || reviewed.decision === "ask_user" && repeatsKnownQuestion) {
       throwIfAborted(signal);
       const correctionTask = renderBelowFloorReviewTask({
         userQuestionRule: USER_QUESTION_RULE,
         answeredQuestionCount: context.answeredQuestionCount,
-        minimumAnswers: this.limits.minAnsweredBeforeConclusion,
+        minimumAnswers: floor,
         goal: context.goal,
         goalDetail: context.goalDetail,
         conditions: context.conditions,
@@ -20634,7 +20793,7 @@ ${note.detail}`;
             context.outputLanguage,
             "note.aim_below_floor_rationale_0_1",
             context.answeredQuestionCount,
-            this.limits.minAnsweredBeforeConclusion
+            floor
           )
         },
         correctionContext,
@@ -20703,7 +20862,34 @@ ${note.detail}`;
           "AIM could not replace research on an already answered goal with a conclusion or a new question; the result was not committed."
         );
     }
+    const unresolved = checklist && reviewed.decision === "conclude" ? (_c = reviewed.unresolvedConditions) != null ? _c : [] : [];
+    if (unresolved.length) {
+      const rationale = translate(context.outputLanguage, "note.aim_unresolved_conditions_0", unresolved.join("; "));
+      try {
+        reviewed = await this.requireUserConditionQuestion(
+          reviewed,
+          context,
+          { classification: "user_condition", rationale },
+          model,
+          reasoning,
+          signal,
+          false
+        );
+      } catch (error) {
+        throwIfAborted(signal);
+        if (!(error instanceof Error) || !/repeating a prior question/.test(error.message)) throw error;
+        reviewed = {
+          ...reviewed,
+          unresolvedConditions: [],
+          openItems: [
+            ...(_d = reviewed.openItems) != null ? _d : [],
+            ...unresolved.map((condition) => ({ title: condition, task: rationale, expectedValue: condition }))
+          ]
+        };
+      }
+    }
     if (reviewed.decision === "conclude") {
+      const openItems = ((_e = reviewed.openItems) != null ? _e : []).map((item) => `- ${item.title}: ${item.task} (${item.expectedValue})`).join("\n");
       const deliveryContext = {
         ...taskContext,
         ...context.toneText ? { toneText: context.toneText } : {},
@@ -20717,10 +20903,11 @@ Known conditions: ${JSON.stringify(context.conditions)}
 Current answer: ${context.currentAnswer}
 Earlier answers: ${uniqueLineage}
 Prior research:
-${context.reportDetail}`
+${context.reportDetail}${openItems ? `
+${renderOpenItemsContext(openItems)}` : ""}`
       };
-      let checkpoint = (_b = (_a = context.deliveryRecovery) == null ? void 0 : _a.checkpoint) != null ? _b : {};
-      let phase = (_c = context.deliveryRecovery) == null ? void 0 : _c.phase;
+      let checkpoint = (_g = (_f = context.deliveryRecovery) == null ? void 0 : _f.checkpoint) != null ? _g : {};
+      let phase = (_h = context.deliveryRecovery) == null ? void 0 : _h.phase;
       const delivery = await buildFinalDelivery(
         deliveryContext,
         (step) => this.askAimModel({ ...step, outputLanguage: deliveryContext.outputLanguage }, model, reasoning, signal),
@@ -20736,9 +20923,11 @@ ${context.reportDetail}`
             currentQuestion: context.currentQuestion,
             currentAnswer: context.currentAnswer,
             earlierAnswers: context.lineage.split("\n").filter((line) => line.startsWith("User answer to ")),
+            ...openItems ? { unverifiedItemsToConfirmWithUser: openItems } : {},
             model,
             reasoning
           }),
+          ...openItems ? { openItems } : {},
           onPhase: async (current) => {
             var _a2;
             phase = current;
@@ -20775,7 +20964,16 @@ ${delivery.evidence}` },
       if (final.decision === "research_more") this.deliveryRejections.add(final);
       reviewed = final;
     }
-    if (reviewed.decision === "research_more") {
+    if (reviewed.decision === "research_more" && reviewed.gapKind === "user_only")
+      return this.requireUserConditionQuestion(
+        reviewed,
+        context,
+        { classification: "user_condition", rationale: reviewed.rationale },
+        model,
+        reasoning,
+        signal
+      );
+    if (reviewed.decision === "research_more" && !reviewed.gapKind) {
       const alreadyClassified = context.preclassifiedResearchTarget && JSON.stringify(context.preclassifiedResearchTarget) === JSON.stringify(reviewed.researchTarget);
       const gap = alreadyClassified ? {
         classification: "external_evidence",
@@ -20895,6 +21093,7 @@ ${delivery.evidence}` },
     const questionHistory = await this.questionHistory(map, branch.id);
     const explorationTarget = (_f = (_e = map.aim) == null ? void 0 : _e.minimumAnswersBeforeConclusion) != null ? _f : 2;
     const answeredQuestionCount = this.answerCountInLineage(map, branch.id);
+    const floor = this.floorFor(topic.detail);
     const model = diagnostic.model || priorAttempt.model || "gpt-6-luna";
     const taskDefaults = {
       timeoutMs: branch.retryTimeoutMs,
@@ -20961,7 +21160,7 @@ ${report.detail}`).join("\n\n")
           floorAskRule: FLOOR_ASK_RULE,
           userQuestionRule: USER_QUESTION_RULE,
           answeredQuestionCount,
-          minimumAnswers: this.limits.minAnsweredBeforeConclusion,
+          minimumAnswers: floor,
           explorationTarget,
           goal: topic.title,
           question: parent.summary,
@@ -20992,7 +21191,7 @@ Branch conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
           researchDepth: "fast",
           visualMode: "off",
           detailFormat: "adaptive",
-          aimContract: reviewContract(floorDecisions(answeredQuestionCount, this.limits)),
+          aimContract: reviewContract(floorDecisions(answeredQuestionCount, { minAnsweredBeforeConclusion: floor })),
           signal
         };
         const planner = await this.askAimModel(plannerContext, model, reasoning, signal);
@@ -21250,6 +21449,7 @@ ${runId}`, fingerprint2 = JSON.stringify({ model, reasoning });
       convergesFromNodeIds: savedResearchNodeIds
     } : void 0;
     const answeredQuestionCount = this.answerCountInLineage(map, branch.id);
+    const floor = this.floorFor(topicNote.detail);
     const explorationTarget = (_d = (_c = map.aim) == null ? void 0 : _c.minimumAnswersBeforeConclusion) != null ? _d : 2;
     const questionsAlreadyAsked = await this.questionHistory(map, branch.id);
     const modelToUse = (model == null ? void 0 : model.trim()) || priorAttempt.model || "gpt-6-luna";
@@ -21448,7 +21648,7 @@ ${searcher.detail}`
           floorAskRule: FLOOR_ASK_RULE,
           userQuestionRule: USER_QUESTION_RULE,
           answeredQuestionCount,
-          minimumAnswers: this.limits.minAnsweredBeforeConclusion,
+          minimumAnswers: floor,
           explorationTarget,
           questionsAlreadyAsked,
           goal: topicNote.title,
@@ -21480,7 +21680,7 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
           researchDepth: "fast",
           visualMode: "off",
           detailFormat: "adaptive",
-          aimContract: reviewContract(floorDecisions(answeredQuestionCount, this.limits)),
+          aimContract: reviewContract(floorDecisions(answeredQuestionCount, { minAnsweredBeforeConclusion: floor })),
           signal
         };
         const planner = await this.askAimModel(plannerContext, modelToUse, reasoningToUse, signal);
@@ -21760,6 +21960,7 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
     const lineage = await this.branchLineage(map, parentBranchId);
     const explorationTarget = (_c = state.minimumAnswersBeforeConclusion) != null ? _c : 2;
     const answeredQuestionCount = this.answerCountInLineage(map, parentBranchId);
+    const floor = this.floorFor(mother.detail);
     const priorQuestions = await this.questionHistory(map, parentBranchId);
     const savedConditions = [];
     let conditionBranch = parentBranch;
@@ -21796,7 +21997,7 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
     const motherGoal = motherNode && motherNode.id !== parentNode.id ? { title: mother.title, detail: mother.detail } : void 0;
     const questionVars = {
       userQuestionRule: USER_QUESTION_RULE,
-      minimumAnswers: this.limits.minAnsweredBeforeConclusion,
+      minimumAnswers: floor,
       answeredQuestionCount,
       explorationTarget,
       currentTopic: { title: parent.title, summary: parent.summary, detail: parent.detail },
@@ -21804,7 +22005,7 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
       lineage: lineage.context
     };
     const prompt = isSavedTerminalResult ? renderSavedTerminalQuestionTask({ ...questionVars, savedConditions, knownQuestions }) : renderInitialQuestionTask(questionVars);
-    const requireQuestion = isSavedTerminalResult || answeredQuestionCount < this.limits.minAnsweredBeforeConclusion;
+    const requireQuestion = isSavedTerminalResult || answeredQuestionCount < floor;
     const context = {
       aimEvidenceIds: this.lineageEvidenceIds(map, parentBranchId),
       title: parent.title,
@@ -21828,11 +22029,11 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
       throw new Error(
         "Planner must create a new question from this saved result; no conclusion or no-question response is allowed."
       );
-    if (!isSavedTerminalResult && result.summary.trim() === AIM_NO_QUESTION && answeredQuestionCount < this.limits.minAnsweredBeforeConclusion) {
+    if (!isSavedTerminalResult && result.summary.trim() === AIM_NO_QUESTION && answeredQuestionCount < floor) {
       const previousQuestions = await this.questionHistory(map, parentBranchId);
       const correctionPrompt = renderQuestionCorrectionTask({
         answeredQuestionCount,
-        minimumAnswers: this.limits.minAnsweredBeforeConclusion,
+        minimumAnswers: floor,
         originalTopic: { title: parent.title, summary: parent.summary, detail: parent.detail },
         mother: motherGoal,
         previousQuestions,
@@ -21860,7 +22061,7 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
       throw new Error(
         "Planner repeated an existing question instead of creating a new question from the saved result."
       );
-    if (!isSavedTerminalResult && answeredQuestionCount < this.limits.minAnsweredBeforeConclusion) {
+    if (!isSavedTerminalResult && answeredQuestionCount < floor) {
       if (priorQuestions.some(
         (question) => question.trim().toLocaleLowerCase() === result.summary.trim().toLocaleLowerCase()
       ))
@@ -22394,9 +22595,16 @@ ${lineageContext || "None."}`,
         }
       }
       if (!reusable.length)
-        throw new Error(
-          "An empty research plan requires usable ancestor evidence; at least one research target is needed."
-        );
+        return validateAimResearchPlan([
+          {
+            id: "current-answer-evidence",
+            title: parent.summary || topicNote.title,
+            task: renderFallbackTargetTask(answerDescription),
+            expectedValue: FALLBACK_TARGET_VALUE,
+            action: "research",
+            dependsOn: []
+          }
+        ]);
       return validateAimResearchPlan(reusable);
     };
     let plan = branch.researchPlan;
@@ -22461,11 +22669,12 @@ Planner format diagnostic: ${JSON.stringify({ initial: { detail: planned.detail.
       await this.persist(() => this.runs.saveResearchPlan(mapPath, branchId, executionPlan));
     }
     let scheduled;
+    let searchFailure;
     try {
       scheduled = await scheduleAimResearch(
         executionPlan,
         async (target, predecessors, taskSignal) => {
-          var _a2, _b2;
+          var _a2, _b2, _c2;
           throwIfAborted(taskSignal);
           const currentMap = await this.repository.readMap(mapPath), currentBranch = (_a2 = currentMap.aim) == null ? void 0 : _a2.branches.find((item) => item.id === branchId);
           if (!currentBranch) throw new Error("AIM answer branch disappeared during subtopic research.");
@@ -22528,7 +22737,7 @@ Planner format diagnostic: ${JSON.stringify({ initial: { detail: planned.detail.
                 rejectedReuse = error.message;
               }
             }
-            const dependencyReports = [...predecessors].map(
+            const dependencyReports = [...predecessors].filter((entry) => entry[1] !== null).map(
               ([id, report]) => `Prerequisite ${id} (${report.title}), actual completed report:
 ${report.summary}
 
@@ -22614,7 +22823,7 @@ ${dependencyReports}` : "")
             ))
               throw new ResearchWorkflowInterrupted("stale");
             if (reportedSearchFailure(result))
-              throw new Error(
+              throw new SubtopicSearchUnavailable(
                 "The Agent explicitly says no web search succeeded; the report remains an unpublished diagnostic."
               );
             if (reuse) await this.verifyResearchSource(mapPath, branchId, target);
@@ -22643,6 +22852,12 @@ ${dependencyReports}` : "")
                 );
             } catch (e) {
             }
+            const searchSkipped = error instanceof SubtopicSearchUnavailable || // Read the message without instanceof: the runtime's error may come from another realm.
+            SEARCH_NOT_PERFORMED.test(String((_c2 = error == null ? void 0 : error.message) != null ? _c2 : error));
+            if (searchSkipped && !taskSignal.aborted) {
+              searchFailure = error;
+              return null;
+            }
             throw error;
           } finally {
             this.runs.releaseAttempt(mapPath, handle);
@@ -22655,13 +22870,15 @@ ${dependencyReports}` : "")
       if (error instanceof ResearchWorkflowInterrupted) return { status: error.status, branchId };
       throw error;
     }
-    const reports = executionPlan.map((target) => scheduled.get(target.id));
+    const reports = executionPlan.map((target) => scheduled.get(target.id)).filter((report) => !!report);
+    if (!reports.length && searchFailure) throw searchFailure;
     if (!reports.length) throw new Error("AIM requires at least one usable evidence report before terminal review.");
     throwIfAborted(signal);
     map = await this.repository.readMap(mapPath);
     branch = (_c = map.aim) == null ? void 0 : _c.branches.find((item) => item.id === branchId);
     if (!branch) throw new Error("AIM answer branch disappeared before synthesis.");
     const answeredQuestionCount = this.answerCountInLineage(map, branch.id);
+    const floor = this.floorFor(topicNote.detail);
     const explorationTarget = (_e = (_d = map.aim) == null ? void 0 : _d.minimumAnswersBeforeConclusion) != null ? _e : 2;
     const existingConclusion = [...branch.results].reverse().find((item) => item.kind === "conclusion" || item.kind === "synthesis");
     if (existingConclusion) {
@@ -22773,6 +22990,7 @@ ${item.detail}`
       };
       let synthesisDraftId;
       let finalReview;
+      let lastQualityContext;
       const resumeTurn = (_h = resumeDelivery == null ? void 0 : resumeDelivery.researchTurn) != null ? _h : 1;
       if (resumeTurn === 2) await this.persist(() => this.runs.recordResearchTurn(mapPath, synthesisHandle));
       for (let researchTurn = resumeTurn; researchTurn <= this.limits.maxResearchTurns; researchTurn++) {
@@ -22783,7 +23001,7 @@ ${item.detail}`
           userQuestionRule: USER_QUESTION_RULE,
           floorAskRule: FLOOR_ASK_RULE,
           answeredQuestionCount,
-          minimumAnswers: this.limits.minAnsweredBeforeConclusion,
+          minimumAnswers: floor,
           explorationTarget,
           questionsAlreadyAsked,
           currentQuestion: parent.summary,
@@ -22802,7 +23020,7 @@ ${currentReports.summary}
 ${currentReports.detail}`,
           task: plannerPrompt,
           detailFormat: "adaptive",
-          aimContract: reviewContract(floorDecisions(answeredQuestionCount, this.limits))
+          aimContract: reviewContract(floorDecisions(answeredQuestionCount, { minAnsweredBeforeConclusion: floor }))
         };
         const fingerprint2 = sourceFingerprint;
         const savedRecovery = resumeDelivery;
@@ -22821,46 +23039,57 @@ ${currentReports.detail}`,
           reasoning,
           signal
         );
+        lastQualityContext = {
+          goal: topicNote.title,
+          goalDetail: topicNote.detail,
+          outputLanguage: language2,
+          toneText: this.toneOf(map, language2),
+          conditions: branch.inputSnapshot.conditions,
+          currentQuestion: parent.summary,
+          currentAnswer: answerDescription,
+          answeredQuestionCount,
+          questionHistory: questionsAlreadyAsked,
+          lineage: lineageContext,
+          evidenceIds: contextBase.aimEvidenceIds,
+          reportSummary: currentReports.summary,
+          reportDetail: currentReports.detail,
+          timeoutMs: branch.retryTimeoutMs,
+          deliveryRecovery: savedRecovery != null ? savedRecovery : sectionRecovery,
+          deliveryEvidence: deliveryEvidence(),
+          setPhase: (phase) => this.persist(() => this.runs.recordPhase(mapPath, synthesisHandle, phase)),
+          saveDeliveryRecovery: async (checkpoint, phase) => {
+            throwIfAborted(signal);
+            await this.persist(
+              () => this.runs.saveDeliveryRecovery(mapPath, synthesisHandle, {
+                fingerprint: fingerprint2,
+                planner: synthesis,
+                checkpoint,
+                phase,
+                reports: currentReports,
+                researchTurn,
+                evidence: deliveryEvidence()
+              })
+            );
+          }
+        };
         finalReview = await this.reviewPlannerDecisionQuality(
           finalReview,
-          {
-            goal: topicNote.title,
-            goalDetail: topicNote.detail,
-            outputLanguage: language2,
-            toneText: this.toneOf(map, language2),
-            conditions: branch.inputSnapshot.conditions,
-            currentQuestion: parent.summary,
-            currentAnswer: answerDescription,
-            answeredQuestionCount,
-            questionHistory: questionsAlreadyAsked,
-            lineage: lineageContext,
-            evidenceIds: contextBase.aimEvidenceIds,
-            reportSummary: currentReports.summary,
-            reportDetail: currentReports.detail,
-            timeoutMs: branch.retryTimeoutMs,
-            deliveryRecovery: savedRecovery != null ? savedRecovery : sectionRecovery,
-            deliveryEvidence: deliveryEvidence(),
-            setPhase: (phase) => this.persist(() => this.runs.recordPhase(mapPath, synthesisHandle, phase)),
-            saveDeliveryRecovery: async (checkpoint, phase) => {
-              throwIfAborted(signal);
-              await this.persist(
-                () => this.runs.saveDeliveryRecovery(mapPath, synthesisHandle, {
-                  fingerprint: fingerprint2,
-                  planner: synthesis,
-                  checkpoint,
-                  phase,
-                  reports: currentReports,
-                  researchTurn,
-                  evidence: deliveryEvidence()
-                })
-              );
-            }
-          },
+          lastQualityContext,
           model,
           reasoning,
           signal
         );
         throwIfAborted(signal);
+        if (researchTurn === this.limits.maxResearchTurns && finalReview.decision === "research_more" && !this.deliveryRejections.has(finalReview) && !this.limits.acceptGapAtBudget) {
+          finalReview = await this.reviewPlannerDecisionQuality(
+            this.withOpenItems(finalReview, language2),
+            lastQualityContext,
+            model,
+            reasoning,
+            signal
+          );
+          throwIfAborted(signal);
+        }
         const reviewStopReason = finalReview.decision === "conclude" ? finalReview.stopReason : finalReview.decision === "ask_user" ? `Awaiting the user's answer to: ${finalReview.question}` : researchTurn === this.limits.maxResearchTurns ? `Research-turn limit reached with an unresolved evidence gap: ${finalReview.rationale}` : void 0;
         await this.persist(
           () => this.runs.recordPlannerReview(
@@ -35067,9 +35296,12 @@ ${error}`;
     });
     const plan = await this.repo.planOrganizeWorkspaceFolders();
     if (!plan.moves.length) {
-      new import_obsidian26.Notice(
-        plan.skipped.length ? t("ui.organize_only_skipped_0", plan.skipped.length) : t("ui.organize_nothing_to_do")
-      );
+      let cleaned = [];
+      await this.mutate(async () => {
+        cleaned = await this.repo.removeEmptyLegacyFolders();
+      });
+      const base = plan.skipped.length ? t("ui.organize_only_skipped_0", plan.skipped.length) : t("ui.organize_nothing_to_do");
+      new import_obsidian26.Notice(cleaned.length ? `${base} ${t("ui.organize_cleaned_0", cleaned.join(", "))}` : base);
       return;
     }
     const busyOpen = this.views().some((view) => plan.moves.some((move) => view.hasActiveAimWork(move.mapPath)));
@@ -35089,6 +35321,9 @@ ${error}`;
     if (plan.skipped.length)
       description += `
 ${t("ui.organize_skipped_list_0", plan.skipped.map((item) => item.mapPath).join(", "))}`;
+    const toClean = await this.repo.emptyLegacyFolders(plan);
+    if (toClean.length) description += `
+${t("ui.organize_will_remove_0", toClean.join(", "))}`;
     description += `
 ${t("ui.organize_link_wait_hint")}`;
     new ChoiceModal(this.app, t("ui.organize_workspace_folders"), description, [
@@ -35104,7 +35339,10 @@ ${t("ui.organize_link_wait_hint")}`;
           }
           for (const view of this.views()) view.relocate(mapping);
           this.app.workspace.requestSaveLayout();
-          new import_obsidian26.Notice(t("ui.organize_done_0", mapping.size));
+          const cleaned = await this.repo.removeEmptyLegacyFolders();
+          new import_obsidian26.Notice(
+            cleaned.length ? `${t("ui.organize_done_0", mapping.size)} ${t("ui.organize_cleaned_0", cleaned.join(", "))}` : t("ui.organize_done_0", mapping.size)
+          );
         })
       }
     ]).open();
