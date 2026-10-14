@@ -3043,7 +3043,7 @@ export class AimManualFlow {
               // Read the message without instanceof: the runtime's error may come from another realm.
               SEARCH_NOT_PERFORMED.test(String((error as { message?: unknown } | null)?.message ?? error));
             if (searchSkipped && !taskSignal.aborted) {
-              searchFailure = error;
+              searchFailure = error as Error;
               return null;
             }
             throw error;
