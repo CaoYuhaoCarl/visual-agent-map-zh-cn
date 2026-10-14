@@ -565,8 +565,8 @@ var english = {
   "ui.research_progress_0_of_1": "Researched {0} / {1}",
   "ui.preview_card_size": "Hover preview size",
   "ui.preview_card_size_desc": "Scale of the note preview shown when you hover a topic on the map.",
-  "ui.drag_to_select_topics_hint": "Drag empty space to box-select topics \xB7 Option-drag or Space-drag to pan \xB7 Scroll to zoom \xB7 Click a topic to add or remove it",
-  "ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open": "Drag empty space to pan \xB7 Scroll to zoom \xB7 Click a node to select it \xB7 Arrow keys move between topics",
+  "ui.drag_to_select_topics_hint": "Drag to box-select \xB7 Click a topic to add or remove it",
+  "ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open": "Drag empty space to pan \xB7 Scroll to zoom \xB7 Arrow keys move between topics",
   "ui.clear": "Clear",
   "ui.next": "Next",
   "ui.select_topics": "Select several topics",
@@ -1952,8 +1952,8 @@ var traditionalChinese = {
   "ui.research_progress_0_of_1": "\u5DF2\u7814\u7A76 {0} / {1}",
   "ui.preview_card_size": "\u61F8\u505C\u9810\u89BD\u5927\u5C0F",
   "ui.preview_card_size_desc": "\u5728\u5FC3\u667A\u5716\u4E0A\u628A\u6ED1\u9F20\u79FB\u5230\u8B70\u984C\u6642\uFF0C\u7B46\u8A18\u9810\u89BD\u5361\u7684\u7E2E\u653E\u6BD4\u4F8B\u3002",
-  "ui.drag_to_select_topics_hint": "\u62D6\u66F3\u7A7A\u767D\u8655\u6846\u9078\u8B70\u984C \xB7 \u6309\u4F4F Option \u6216\u7A7A\u767D\u9375\u62D6\u66F3\u5E73\u79FB \xB7 \u6EFE\u8F2A\u7E2E\u653E \xB7 \u9EDE\u9078\u8B70\u984C\u52A0\u5165\u6216\u79FB\u9664",
-  "ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open": "\u62D6\u66F3\u7A7A\u767D\u8655\u5E73\u79FB \xB7 \u6EFE\u8F2A\u7E2E\u653E \xB7 \u9EDE\u9078\u8B70\u984C\u5373\u53EF\u9078\u53D6 \xB7 \u65B9\u5411\u9375\u5207\u63DB\u8B70\u984C",
+  "ui.drag_to_select_topics_hint": "\u62D6\u66F3\u6846\u9078 \xB7 \u9EDE\u8B70\u984C\u52A0\u5165\u6216\u79FB\u9664",
+  "ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open": "\u62D6\u66F3\u7A7A\u767D\u8655\u5E73\u79FB \xB7 \u6EFE\u8F2A\u7E2E\u653E \xB7 \u65B9\u5411\u9375\u5207\u63DB\u8B70\u984C",
   "ui.clear": "\u6E05\u9664",
   "ui.next": "\u4E0B\u4E00\u6B65",
   "ui.select_topics": "\u9078\u53D6\u591A\u500B\u8B70\u984C",
@@ -12249,7 +12249,8 @@ var DEFAULT_SETTINGS = {
   aiExchangeLoggingEnabled: false,
   markdownSelectionAiAutoOpen: true,
   workspaceInitialized: false,
-  sampleTourVersionSeen: 0
+  sampleTourVersionSeen: 0,
+  canvasHintSeen: false
 };
 var REFERENCE_START = "<!-- visual-agent-map:references:start -->";
 var REFERENCE_END = "<!-- visual-agent-map:references:end -->";
@@ -23429,6 +23430,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian19.Ite
     __publicField(this, "cardEls", /* @__PURE__ */ new Map());
     __publicField(this, "cardChecks", /* @__PURE__ */ new Map());
     __publicField(this, "selectionBarEl", null);
+    __publicField(this, "hintEl", null);
     /** While a card renders, its buttons stay out of the tab order until that card is focused. */
     __publicField(this, "renderingCard", false);
     /** Set while render hands focus back to a card, so that refocus does not restart its preview. */
@@ -26242,12 +26244,12 @@ ${request.requirements}` : preset.text,
     const overlay = workspace.createDiv("vam-canvas-overlay");
     if (tools.childElementCount) overlay.appendChild(tools);
     else tools.remove();
-    overlay.createSpan({
-      cls: "vam-hint",
+    this.hintEl = this.integrationMode || !this.plugin.settings.canvasHintSeen ? overlay.createSpan({
+      cls: "vam-hint vam-canvas-hint",
       text: t(
         this.integrationMode ? "ui.drag_to_select_topics_hint" : "ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open"
       )
-    });
+    }) : null;
     const zoom = overlay.createDiv("vam-zoom-controls");
     this.iconButton(zoom, "minus", t("ui.zoom_out"), () => this.zoomBy(1 / 1.2));
     const zoomReset = zoom.createEl("button", {
@@ -28989,8 +28991,18 @@ ${note.detail.trim()}` : "",
     if (stamped !== void 0 && ((_b = this.map) == null ? void 0 : _b.aim) && this.map.aim.contentLanguage === void 0)
       this.map.aim.contentLanguage = stamped;
   }
+  markCanvasHintSeen() {
+    var _a;
+    if (this.plugin.settings.canvasHintSeen) return;
+    this.plugin.settings.canvasHintSeen = true;
+    void this.plugin.saveSettings();
+    if (this.integrationMode) return;
+    (_a = this.hintEl) == null ? void 0 : _a.remove();
+    this.hintEl = null;
+  }
   zoomBy(factor, point) {
     if (!this.map || !this.viewportEl) return;
+    this.markCanvasHintSeen();
     const center = point != null ? point : { x: this.viewportEl.clientWidth / 2, y: this.viewportEl.clientHeight / 2 }, v = this.map.viewport;
     const zoom = Math.min(2, Math.max(0.25, v.zoom * factor)), ratio = zoom / v.zoom;
     v.x = center.x - (center.x - v.x) * ratio;
@@ -29119,6 +29131,7 @@ ${note.detail.trim()}` : "",
         viewport.removeEventListener("pointercancel", up);
         viewport.removeClass("is-panning");
         this.saveViewport();
+        if (moved) this.markCanvasHintSeen();
         if (!moved && !this.integrationMode && event.button === 0) {
           const previous = this.selected, touched = [...this.multiSelected];
           this.selected = null;
@@ -34358,7 +34371,8 @@ var VisualAgentMapPlugin = class extends import_obsidian26.Plugin {
       aiExchangeLoggingEnabled: (saved == null ? void 0 : saved.aiExchangeLoggingEnabled) === true,
       markdownSelectionAiAutoOpen: (saved == null ? void 0 : saved.markdownSelectionAiAutoOpen) !== false,
       workspaceInitialized: saved ? saved.workspaceInitialized !== false : false,
-      sampleTourVersionSeen: (_b = saved == null ? void 0 : saved.sampleTourVersionSeen) != null ? _b : 0
+      sampleTourVersionSeen: (_b = saved == null ? void 0 : saved.sampleTourVersionSeen) != null ? _b : 0,
+      canvasHintSeen: (saved == null ? void 0 : saved.canvasHintSeen) === true
     };
     setUiLanguage(this.settings.language);
     registerInternalMarkerPresentation(this);

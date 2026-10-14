@@ -277,6 +277,7 @@ export class VisualAgentMapView extends ItemView {
   private cardEls = new Map<string, HTMLElement>();
   private cardChecks = new Map<string, HTMLInputElement>();
   private selectionBarEl: HTMLElement | null = null;
+  private hintEl: HTMLElement | null = null;
   /** While a card renders, its buttons stay out of the tab order until that card is focused. */
   private renderingCard = false;
   /** Set while render hands focus back to a card, so that refocus does not restart its preview. */
@@ -3240,14 +3241,18 @@ export class VisualAgentMapView extends ItemView {
     const overlay = workspace.createDiv("vam-canvas-overlay");
     if (tools.childElementCount) overlay.appendChild(tools);
     else tools.remove();
-    overlay.createSpan({
-      cls: "vam-hint",
-      text: t(
-        this.integrationMode
-          ? "ui.drag_to_select_topics_hint"
-          : "ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open"
-      )
-    });
+    // The gesture hint goes away once the user has panned or zoomed; select mode always explains its own gestures.
+    this.hintEl =
+      this.integrationMode || !this.plugin.settings.canvasHintSeen
+        ? overlay.createSpan({
+            cls: "vam-hint vam-canvas-hint",
+            text: t(
+              this.integrationMode
+                ? "ui.drag_to_select_topics_hint"
+                : "ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open"
+            )
+          })
+        : null;
     const zoom = overlay.createDiv("vam-zoom-controls");
     this.iconButton(zoom, "minus", t("ui.zoom_out"), () => this.zoomBy(1 / 1.2));
     const zoomReset = zoom.createEl("button", {
@@ -6202,8 +6207,17 @@ export class VisualAgentMapView extends ItemView {
     if (stamped !== undefined && this.map?.aim && this.map.aim.contentLanguage === undefined)
       this.map.aim.contentLanguage = stamped;
   }
+  private markCanvasHintSeen(): void {
+    if (this.plugin.settings.canvasHintSeen) return;
+    this.plugin.settings.canvasHintSeen = true;
+    void this.plugin.saveSettings();
+    if (this.integrationMode) return;
+    this.hintEl?.remove();
+    this.hintEl = null;
+  }
   private zoomBy(factor: number, point?: { x: number; y: number }): void {
     if (!this.map || !this.viewportEl) return;
+    this.markCanvasHintSeen();
     const center = point ?? { x: this.viewportEl.clientWidth / 2, y: this.viewportEl.clientHeight / 2 },
       v = this.map.viewport;
     const zoom = Math.min(2, Math.max(0.25, v.zoom * factor)),
@@ -6346,6 +6360,7 @@ export class VisualAgentMapView extends ItemView {
         viewport.removeEventListener("pointercancel", up);
         viewport.removeClass("is-panning");
         this.saveViewport();
+        if (moved) this.markCanvasHintSeen();
         if (!moved && !this.integrationMode && event.button === 0) {
           const previous = this.selected,
             touched = [...this.multiSelected];

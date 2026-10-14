@@ -78,6 +78,7 @@ export interface Settings {
   markdownSelectionAiAutoOpen: boolean;
   workspaceInitialized: boolean;
   sampleTourVersionSeen: number;
+  canvasHintSeen: boolean;
 }
 export interface TopicInfo {
   id: string;
@@ -120,7 +121,8 @@ export const DEFAULT_SETTINGS: Settings = {
   aiExchangeLoggingEnabled: false,
   markdownSelectionAiAutoOpen: true,
   workspaceInitialized: false,
-  sampleTourVersionSeen: 0
+  sampleTourVersionSeen: 0,
+  canvasHintSeen: false
 };
 
 const REFERENCE_START = "<!-- visual-agent-map:references:start -->";

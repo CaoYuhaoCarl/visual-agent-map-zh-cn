@@ -1249,6 +1249,29 @@ const viewportFixture = () => {
   plugin.views = () => [view];
   return { plugin, view, counts, doc, frames, cancelled, a, b, windowValues, load: () => ({ VisualAgentMapView }) };
 };
+integrationTest('canvas hint: a solid chip that goes away after the first zoom or pan and remembers it in settings; select mode keeps its hint', () => {
+  const { plugin, view } = viewportFixture();
+  let saves = 0; plugin.saveSettings = async () => { saves++; };
+  view.viewportEl = { clientWidth: 800, clientHeight: 600 }; view.transform = () => {}; view.saveViewport = () => {};
+  const hint = { removed: 0, remove() { this.removed++; } };
+  view.hintEl = hint;
+  view.zoomBy(1.2);
+  assert.equal(plugin.settings.canvasHintSeen, true); assert.equal(saves, 1); assert.equal(hint.removed, 1); assert.equal(view.hintEl, null);
+  view.zoomBy(1.2);
+  assert.equal(saves, 1, 'only the first gesture writes settings');
+  plugin.settings.canvasHintSeen = false; view.integrationMode = true; const selectHint = { removed: 0, remove() { this.removed++; } }; view.hintEl = selectHint;
+  view.zoomBy(1.2);
+  assert.equal(plugin.settings.canvasHintSeen, true); assert.equal(selectHint.removed, 0, 'the select-mode hint stays while that mode is on');
+  const source = fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8');
+  assert.match(source, /this\.integrationMode \|\| !this\.plugin\.settings\.canvasHintSeen\s*\?\s*overlay\.createSpan\(\{\s*cls: "vam-hint vam-canvas-hint"/, 'the normal hint shows only until seen; select mode always shows its hint');
+  assert.match(source, /if \(moved\) this\.markCanvasHintSeen\(\);/, 'a pan also counts');
+  assert.match(fs.readFileSync(path.join(root, 'main.ts'), 'utf8'), /canvasHintSeen: saved\?\.canvasHintSeen === true/);
+  const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
+  assert.match(css, /^\.vam-canvas-overlay > \.vam-canvas-hint \{ position: absolute;[^}]*border: 1px solid var\(--background-modifier-border\);[^}]*background: var\(--background-primary\);/m, 'a solid chip with a border');
+  const { translate } = load('i18n.ts');
+  assert.equal(translate('zh-TW', 'ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open'), '拖曳空白處平移 · 滾輪縮放 · 方向鍵切換議題');
+  assert.equal(translate('zh-TW', 'ui.drag_to_select_topics_hint'), '拖曳框選 · 點議題加入或移除');
+});
 integrationTest('a viewport-only write skips the note re-read, while a content write still synchronizes', async () => {
   const { plugin, view, counts } = viewportFixture();
   view.map.viewport.x = 40;

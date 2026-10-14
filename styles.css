@@ -1,6 +1,6 @@
 .workspace-leaf-content[data-type="visual-agent-map-view"] .vam-view { padding: 0; overflow: hidden; display: flex; flex-direction: column; height: 100%; container-type: inline-size; }
 /* The map pane, not the window, decides what the header and canvas captions can afford. */
-@container (max-width: 820px) { .vam-research-progress-track, .vam-canvas-overlay > .vam-hint { display: none; } }
+@container (max-width: 820px) { .vam-research-progress-track, .vam-canvas-overlay > .vam-canvas-hint { display: none; } }
 @container (max-width: 600px) { .vam-research-progress { display: none; } .vam-toolbar .vam-map-switcher { max-width: 60%; } }
 .workspace-leaf-content[data-type="visual-agent-map-outline"] .vam-outline { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 .vam-outline-heading { padding: 14px 12px 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -55,7 +55,8 @@
 .vam-layout-button::after { content: "▾" / ""; margin-left: 4px; color: var(--text-muted); }
 .vam-zoom { min-width: 52px; padding: 0 6px; text-align: center; font-variant-numeric: tabular-nums; color: var(--text-muted); }
 .vam-hint { color: var(--text-muted); font-size: var(--font-ui-smaller); line-height: 1.5; }
-.vam-canvas-overlay > .vam-hint { position: absolute; left: 12px; bottom: 14px; max-width: 50%; padding: 2px 8px; border-radius: var(--radius-s); background: color-mix(in srgb, var(--background-primary) 85%, transparent); color: var(--text-faint); pointer-events: none; }
+/* A solid chip like the zoom cluster, so the hint stays readable when it sits over a card. */
+.vam-canvas-overlay > .vam-canvas-hint { position: absolute; left: 12px; bottom: 12px; max-width: 50%; padding: 6px 10px; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); background: var(--background-primary); box-shadow: var(--shadow-s); color: var(--text-muted); pointer-events: none; }
 .vam-workspace { display: flex; flex: 1; min-height: 0; min-width: 0; position: relative; }
 .vam-viewport { position: relative; flex: 1; min-width: 0; overflow: hidden; cursor: grab; touch-action: none; background-color: var(--background-secondary); background-image: radial-gradient(var(--background-modifier-border) 1px, transparent 1px); background-size: 24px 24px; }
 .vam-viewport.is-panning { cursor: grabbing; }

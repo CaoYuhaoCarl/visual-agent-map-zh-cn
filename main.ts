@@ -317,7 +317,8 @@ export default class VisualAgentMapPlugin extends Plugin {
       aiExchangeLoggingEnabled: saved?.aiExchangeLoggingEnabled === true,
       markdownSelectionAiAutoOpen: saved?.markdownSelectionAiAutoOpen !== false,
       workspaceInitialized: saved ? saved.workspaceInitialized !== false : false,
-      sampleTourVersionSeen: saved?.sampleTourVersionSeen ?? 0
+      sampleTourVersionSeen: saved?.sampleTourVersionSeen ?? 0,
+      canvasHintSeen: saved?.canvasHintSeen === true
     };
     setUiLanguage(this.settings.language);
     registerInternalMarkerPresentation(this);
