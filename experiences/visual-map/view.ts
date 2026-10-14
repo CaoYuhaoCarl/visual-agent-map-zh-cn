@@ -2274,6 +2274,12 @@ export class VisualAgentMapView extends ItemView {
           action: () => this.enqueue(() => this.previewMigration())
         });
     }
+    if (this.map && !this.builtIn && !this.map.aim)
+      choices.push({
+        label: t("ui.organize"),
+        description: t("ui.manage_notes_that_are_currently_outside_the_mind_map"),
+        action: () => this.enqueue(() => this.openOrganizer())
+      });
     // Content templates do not apply to AIM maps.
     if (this.map && !this.builtIn && !this.map.aim)
       choices.push({
@@ -2572,6 +2578,9 @@ export class VisualAgentMapView extends ItemView {
         event.stopPropagation();
         this.openNewMapMenu(event);
       });
+      this.iconButton(headerActions, "list-tree", t("ui.open_topic_outline"), () => {
+        void this.plugin.activateOutline().catch(error => new Notice(String(error)));
+      });
       const undo = this.iconButton(headerActions, "undo-2", t("ui.undo"), () => this.enqueue(() => this.travel(false)));
       undo.disabled = !this.history.canUndo;
       undo.dataset.history = "undo";
@@ -2826,14 +2835,6 @@ export class VisualAgentMapView extends ItemView {
       const aimMode = !!this.map.aim;
       if (!aimMode) this.button(tools, t("ui.topic"), () => this.enqueue(() => this.addNode(null))).addClass("mod-cta");
       if (aimMode) this.button(tools, t("ui.create_a_new_mind_map"), () => this.openNewMindMapModal());
-      if (!aimMode) this.button(tools, t("ui.organize"), () => this.enqueue(() => this.openOrganizer()));
-      this.button(tools, t("ui.auto_layout"), () =>
-        this.enqueue(() =>
-          this.mapChange(map => {
-            map.nodes = arrangeMap(map.nodes);
-          }, false)
-        )
-      );
       if (!aimMode) {
         const integrate = this.button(
           tools,
@@ -2878,6 +2879,14 @@ export class VisualAgentMapView extends ItemView {
     this.zoomLabel = zoomReset;
     this.iconButton(zoom, "plus", t("ui.zoom_in"), () => this.zoomBy(1.2));
     this.iconButton(zoom, "maximize", t("ui.show_all"), () => this.fit());
+    if (!this.builtIn)
+      this.iconButton(zoom, "workflow", t("ui.auto_layout"), () =>
+        this.enqueue(() =>
+          this.mapChange(map => {
+            map.nodes = arrangeMap(map.nodes);
+          }, false)
+        )
+      );
     this.stageEl = this.viewportEl.createDiv("vam-stage");
     this.stageEl.setAttr("role", "tree");
     this.stageEl.setAttr("aria-label", this.map.title);
@@ -3030,11 +3039,14 @@ export class VisualAgentMapView extends ItemView {
             : note
               ? topicStatusLabel(note.status, this.plugin.settings.language)
               : t("ui.note_missing");
-      const chip = header.createSpan({
-        cls: `vam-status vam-status-${active ? "running" : queued ? "queued" : (note?.status ?? "error")}`,
-        text: statusText
-      });
-      if (active) chip.setAttr("role", "status");
+      // A researched topic is the normal state, so only the other states earn a pill; screen readers still hear it.
+      if (!note || note.status !== "completed" || active || queued) {
+        const chip = header.createSpan({
+          cls: `vam-status vam-status-${active ? "running" : queued ? "queued" : (note?.status ?? "error")}`,
+          text: statusText
+        });
+        if (active) chip.setAttr("role", "status");
+      }
       if (note) this.labelCard(card, t("ui.topic_card_label_0_1", note.title, statusText));
     }
     // Failure reasons are shown on the card, not only in a hover tooltip.
@@ -3113,11 +3125,15 @@ export class VisualAgentMapView extends ItemView {
           this.openNextStep(node)
         );
         ai.addClass("vam-node-tool", "vam-ai-tool");
+        // The selected card swaps the bare icon for a labelled action (CSS keys off .is-selected).
+        const explore = this.button(tools, t("ui.ai_explore"), () => this.openNextStep(node));
+        explore.addClass("vam-node-tool", "vam-ai-explore");
+        explore.setAttr("aria-label", t("ui.how_would_you_like_to_explore_next"));
         this.iconButton(tools, "network", t("ui.structure_and_links"), () =>
           this.openNodePanel(node, "structure")
         ).addClass("vam-node-tool");
         if (note)
-          this.iconButton(tools, "pencil", t("ui.new_topic_name"), () =>
+          this.iconButton(tools, "pencil", t("ui.rename_topic"), () =>
             new NameModal(this.app, t("ui.new_topic_name"), note.title, title =>
               this.enqueue(() => this.noteChange(node, { title }))
             ).open()
@@ -3634,7 +3650,8 @@ export class VisualAgentMapView extends ItemView {
         note.status === "completed" ? t("ui.researched") : topicStatusLabel(note.status, this.plugin.settings.language);
       card.dataset.status = note.status;
       this.labelCard(card, t("ui.topic_card_label_0_1", note.title, label));
-      if (status) {
+      if (note.status === "completed") status?.remove();
+      else if (status) {
         status.className = `vam-status vam-status-${note.status}`;
         status.setText(label);
       } else header?.prepend(createSpan({ cls: `vam-status vam-status-${note.status}`, text: label }));

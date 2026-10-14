@@ -530,25 +530,29 @@ export default class VisualAgentMapPlugin extends Plugin {
       })
     );
     this.app.workspace.onLayoutReady(() => {
-      for (const leaf of this.app.workspace.getLeavesOfType("markdown")) this.styleNodeLeaf(leaf);
-      void this.ready
-        .then(async () => {
-          if (this.workspaceRecoveryCandidates.length)
-            await this.offerWorkspaceReconnect(this.workspaceRecoveryCandidates);
-          else if (this.firstInstallSamplePending) await this.activateBuiltInSample();
-          await this.activateOutline();
-        })
-        .catch(error => {
-          this.logs.appendLog(
-            "warn",
-            t("log.initialization_incomplete_0", error instanceof Error ? error.message : String(error))
-          );
-          console.warn("Visual Agent Map initialization", error);
-        });
+      void this.finishStartup();
     });
     this.registerVaultEvents();
   }
   /** Vault modify/delete/rename handlers; kept separate so tests can drive the real handlers on a fake vault. */
+  /**
+   * Work after Obsidian's layout is ready. The topic outline is deliberately not opened here: it opens only through
+   * its command or the map toolbar, and an outline pane the user already has is restored by Obsidian itself.
+   */
+  async finishStartup(): Promise<void> {
+    for (const leaf of this.app.workspace.getLeavesOfType("markdown")) this.styleNodeLeaf(leaf);
+    try {
+      await this.ready;
+      if (this.workspaceRecoveryCandidates.length) await this.offerWorkspaceReconnect(this.workspaceRecoveryCandidates);
+      else if (this.firstInstallSamplePending) await this.activateBuiltInSample();
+    } catch (error) {
+      this.logs.appendLog(
+        "warn",
+        t("log.initialization_incomplete_0", error instanceof Error ? error.message : String(error))
+      );
+      console.warn("Visual Agent Map initialization", error);
+    }
+  }
   registerVaultEvents(): void {
     this.registerEvent(
       this.app.vault.on("modify", file => {

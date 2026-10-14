@@ -462,6 +462,8 @@ var english = {
   "ui.codex_app_server_0_did_not_respond_within_1_seconds": "Codex App Server {0} did not respond within {1} seconds",
   "ui.codex_app_server_has_not_started": "Codex App Server has not started",
   "ui.new_topic_name": "New topic name",
+  "ui.rename_topic": "Rename",
+  "ui.ai_explore": "AI explore",
   "ui.synthesis_goal": "Synthesis goal",
   "ui.identify_shared_conclusions_key_differences_tradeoffs_and_ne": "Identify shared conclusions, key differences, tradeoffs and next steps.",
   "ui.use_file_contents": "Use file contents",
@@ -533,7 +535,7 @@ var english = {
   "ui.undo": "Undo",
   "ui.redo": "Redo",
   "ui.topic": "\uFF0B Topic",
-  "ui.organize": "Organize",
+  "ui.organize": "Organize notes and folders",
   "ui.zoom_out": "Zoom out",
   "ui.zoom_in": "Zoom in",
   "ui.show_all": "Show all",
@@ -552,7 +554,7 @@ var english = {
   "ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open": "Drag empty space to pan \xB7 Scroll to zoom \xB7 Click a node to select it \xB7 Arrow keys move between topics",
   "ui.clear": "Clear",
   "ui.next": "Next",
-  "ui.select_topics": "Select topics",
+  "ui.select_topics": "Multi-select synthesis",
   "ui.finish_topic_selection": "Finish selection",
   "ui.prompt_select_topics": "Select topics",
   "ui.remove": "Remove",
@@ -1420,15 +1422,15 @@ var traditionalChinese = {
   "ui.summary_fields_hint": "\u6458\u8981\uFF1D\u5361\u7247\u7D50\u8AD6\uFF1BPrompt\uFF1D\u8B70\u984C\u4EFB\u52D9\uFF1BPreview\uFF1D\u5361\u7247\u9810\u89BD\uFF1BDetail\uFF1D\u5B8C\u6574\u77E5\u8B58\u3002",
   "ui.ai_task_summary": "\u4F7F\u7528 {0} \xB7 {1}\uFF1B\u4F86\u6E90\uFF1A{2}\uFF1B\u7DB2\u8DEF\uFF1A{3}\uFF1B\u7D50\u679C\uFF1A{4}",
   "ui.no_map_open": "\u76EE\u524D\u672A\u958B\u555F\u5FC3\u667A\u5716",
-  "ui.sample_outline_hint": "\u552F\u8B80\u7BC4\u4F8B\u4E0D\u63D0\u4F9B\u53EF\u7DE8\u8F2F\u5927\u7DB1\uFF1B\u8ACB\u5F9E\u5730\u5716\u8907\u88FD\u5230\u81EA\u5DF1\u7684\u5DE5\u4F5C\u5340\u3002",
-  "ui.empty_outline_hint": "\u9019\u5F35\u5716\u5C1A\u7121\u8B70\u984C\uFF1B\u8ACB\u5F9E\u5730\u5716\u65B0\u589E\u7B2C\u4E00\u500B\u8B70\u984C\u3002",
+  "ui.sample_outline_hint": "\u552F\u8B80\u7BC4\u4F8B\u4E0D\u63D0\u4F9B\u53EF\u7DE8\u8F2F\u5927\u7DB1\uFF1B\u8ACB\u5F9E\u5FC3\u667A\u5716\u8907\u88FD\u5230\u81EA\u5DF1\u7684\u5DE5\u4F5C\u5340\u3002",
+  "ui.empty_outline_hint": "\u9019\u5F35\u5716\u5C1A\u7121\u8B70\u984C\uFF1B\u8ACB\u5F9E\u5FC3\u667A\u5716\u65B0\u589E\u7B2C\u4E00\u500B\u8B70\u984C\u3002",
   "ui.clear_search": "\u6E05\u9664\u641C\u5C0B",
-  "ui.restore_deleted_map": "\u9084\u539F\u525B\u522A\u9664\u7684\u5730\u5716",
+  "ui.restore_deleted_map": "\u9084\u539F\u525B\u522A\u9664\u7684\u5FC3\u667A\u5716",
   "ui.restore_path_occupied": "\u522A\u9664\u524D\u7684\u8DEF\u5F91\u5DF2\u6709\u6A94\u6848\uFF1B\u8ACB\u5148\u79FB\u8D70\u8A72\u6A94\u6848\u518D\u9084\u539F\u3002",
   "ui.integration_running": "\u6B63\u5728\u6574\u5408\u5DF2\u9078\u8B70\u984C\u2026",
   "ui.integration_draft_ready": "\u6574\u5408\u8349\u7A3F\u5DF2\u5C31\u7DD2\uFF0C\u8ACB\u6AA2\u8996\u3002",
   "ui.integration_failed": "\u6574\u5408\u5931\u6557\uFF1B\u5DF2\u9078\u8B70\u984C\u4ECD\u4FDD\u7559\u3002",
-  "ui.synthesis_saved_refresh_failed": "\u65B0\u8B70\u984C\u5DF2\u5132\u5B58\uFF0C\u4F46\u9023\u7D50\u5C1A\u672A\u66F4\u65B0\u3002\u8ACB\u91CD\u65B0\u958B\u555F\u5730\u5716\u6216\u57F7\u884C\u5DE5\u4F5C\u5340\u4FEE\u5FA9\uFF0C\u4E0D\u8981\u91CD\u8DD1\u6574\u5408\u3002",
+  "ui.synthesis_saved_refresh_failed": "\u65B0\u8B70\u984C\u5DF2\u5132\u5B58\uFF0C\u4F46\u9023\u7D50\u5C1A\u672A\u66F4\u65B0\u3002\u8ACB\u91CD\u65B0\u958B\u555F\u5FC3\u667A\u5716\u6216\u57F7\u884C\u5DE5\u4F5C\u5340\u4FEE\u5FA9\uFF0C\u4E0D\u8981\u91CD\u8DD1\u6574\u5408\u3002",
   "ui.try_again": "\u91CD\u8A66",
   "ui.ai_failure_next_steps": "\u65E2\u6709\u5167\u5BB9\u672A\u66F4\u65B0\uFF0C\u8F38\u5165\u4E5F\u4ECD\u4FDD\u7559\u3002\u53EF\u91CD\u8A66\uFF0C\u6216\u5728\u300C\u6A21\u578B\u8207\u9032\u968E\u8A2D\u5B9A\u300D\u5207\u63DB\u6A21\u578B\u3002",
   "ui.open_or_create_map_hint": "\u958B\u555F\u73FE\u6709\u5FC3\u667A\u5716\uFF0C\u6216\u5EFA\u7ACB\u65B0\u5716\u3002",
@@ -1756,7 +1758,7 @@ var traditionalChinese = {
   "ui.confirm_new_synthesis_topic": "\u78BA\u8A8D\u5EFA\u7ACB\u6574\u5408\u8B70\u984C",
   "ui.mind_map_data_was_not_found_keep_the_agent_map_block": "\u627E\u4E0D\u5230\u5FC3\u667A\u5716\u8CC7\u6599\u5340\u584A\uFF0C\u8ACB\u4FDD\u7559 agent-map \u5340\u584A\u3002",
   "ui.invalid_mind_map_format": "\u5FC3\u667A\u5716\u683C\u5F0F\u4E0D\u6B63\u78BA\u3002",
-  "ui.invalid_node_data_or_duplicate_id": "\u7BC0\u9EDE\u8CC7\u6599\u4E0D\u6B63\u78BA\u6216 ID \u91CD\u8907\u3002",
+  "ui.invalid_node_data_or_duplicate_id": "\u8B70\u984C\u8CC7\u6599\u4E0D\u6B63\u78BA\u6216 ID \u91CD\u8907\u3002",
   "ui.a_link_contains_a_cycle_or_points_to_a_missing_parent_topic": "\u9023\u7D50\u6709\u5FAA\u74B0\u6216\u6307\u5411\u4E0D\u5B58\u5728\u7684\u6BCD\u8B70\u984C\u3002",
   "ui.ai_task_cancelled": "AI \u4EFB\u52D9\u5DF2\u53D6\u6D88",
   "ui.codex_app_server_has_stopped": "Codex App Server \u5DF2\u505C\u6B62",
@@ -1771,6 +1773,8 @@ var traditionalChinese = {
   "ui.codex_app_server_0_did_not_respond_within_1_seconds": "Codex App Server {0} \u5728 {1} \u79D2\u5167\u6C92\u6709\u56DE\u61C9",
   "ui.codex_app_server_has_not_started": "Codex App Server \u5C1A\u672A\u555F\u52D5",
   "ui.new_topic_name": "\u65B0\u8B70\u984C\u540D\u7A31",
+  "ui.rename_topic": "\u91CD\u65B0\u547D\u540D",
+  "ui.ai_explore": "AI \u63A2\u7D22",
   "ui.synthesis_goal": "\u6574\u5408\u76EE\u6A19",
   "ui.identify_shared_conclusions_key_differences_tradeoffs_and_ne": "\u627E\u51FA\u5171\u540C\u7D50\u8AD6\u3001\u91CD\u8981\u5DEE\u7570\u3001\u53D6\u6368\u8207\u4E0B\u4E00\u6B65\u3002",
   "ui.use_file_contents": "\u4F7F\u7528\u6A94\u6848\u5167\u5BB9",
@@ -1799,13 +1803,13 @@ var traditionalChinese = {
   "ui.could_not_open_the_left_sidebar": "\u7121\u6CD5\u958B\u555F\u5DE6\u5074\u6B04\u3002",
   "ui.close": "\u95DC\u9589",
   "ui.no_other_topics": "\u6C92\u6709\u5176\u4ED6\u4E3B\u984C\u3002",
-  "ui.the_node_to_relink_was_not_found": "\u627E\u4E0D\u5230\u8981\u91CD\u65B0\u9023\u7D50\u7684\u7BC0\u9EDE\u3002",
+  "ui.the_node_to_relink_was_not_found": "\u627E\u4E0D\u5230\u8981\u91CD\u65B0\u9023\u7D50\u7684\u8B70\u984C\u3002",
   "ui.rename_current_mind_map": "\u91CD\u65B0\u547D\u540D\u76EE\u524D\u5FC3\u667A\u5716",
   "ui.update_the_topic_folder_and_mind_map_name_together": "\u540C\u6642\u66F4\u65B0\u4E3B\u984C\u8CC7\u6599\u593E\u8207\u5FC3\u667A\u5716\u540D\u7A31\u3002",
   "ui.migrate_old_data": "\u6574\u7406\u820A\u8CC7\u6599",
   "ui.preview_and_migrate_old_maps_into_the_current_topic_structur": "\u9810\u89BD\u5F8C\u628A\u820A\u7248\u5FC3\u667A\u5716\u6574\u7406\u6210\u76EE\u524D\u7684\u4E3B\u984C\u7D50\u69CB\u3002",
   "ui.repair_missing_mind_map": "\u4FEE\u5FA9\u907A\u5931\u7684\u5FC3\u667A\u5716",
-  "ui.rebuild_a_missing_map_from_existing_topic_notes": "\u5F9E\u73FE\u6709\u8B70\u984C\u7B46\u8A18\u91CD\u65B0\u5EFA\u7ACB\u7F3A\u5C11\u7684 Map\u3002",
+  "ui.rebuild_a_missing_map_from_existing_topic_notes": "\u5F9E\u73FE\u6709\u8B70\u984C\u7B46\u8A18\u91CD\u65B0\u5EFA\u7ACB\u7F3A\u5C11\u7684\u5FC3\u667A\u5716\u3002",
   "ui.delete_current_mind_map": "\u522A\u9664\u76EE\u524D\u5FC3\u667A\u5716",
   "ui.remove_only_the_map_file_keep_all_topic_notes_undo_is_availa": "\u53EA\u79FB\u9664\u5FC3\u667A\u5716\u6A94\u6848\uFF0C\u4FDD\u7559\u6240\u6709\u8B70\u984C\u7B46\u8A18\uFF1B\u53EF\u5728\u9019\u6B21 Obsidian \u5DE5\u4F5C\u968E\u6BB5\u9084\u539F\u3002",
   "ui.review": "\u6AA2\u8996",
@@ -1842,12 +1846,12 @@ var traditionalChinese = {
   "ui.undo": "\u5FA9\u539F",
   "ui.redo": "\u91CD\u505A",
   "ui.topic": "\uFF0B \u8B70\u984C",
-  "ui.organize": "\u6574\u7406",
+  "ui.organize": "\u6574\u7406\u7B46\u8A18\u8207\u8CC7\u6599\u593E",
   "ui.zoom_out": "\u7E2E\u5C0F",
   "ui.zoom_in": "\u653E\u5927",
   "ui.show_all": "\u986F\u793A\u5168\u90E8",
   "ui.zoom_level_0_reset": "\u76EE\u524D\u7E2E\u653E {0}\uFF0C\u6309\u4E00\u4E0B\u91CD\u8A2D\u70BA 100%",
-  "ui.new_map": "\uFF0B \u65B0\u589E\u5730\u5716",
+  "ui.new_map": "\uFF0B \u65B0\u589E\u5FC3\u667A\u5716",
   "ui.researched": "\u5DF2\u7814\u7A76",
   "ui.suggested": "\u5EFA\u8B70",
   "ui.synthesis_web_default_hint": "\u6574\u5408\u6703\u6839\u64DA\u5DF2\u6709\u7684\u7814\u7A76\u7D50\u679C\uFF0C\u6240\u4EE5\u9810\u8A2D\u4E0D\u641C\u5C0B\u7DB2\u8DEF\uFF1B\u9700\u8981\u6642\u53EF\u5728\u300C\u8CC7\u6599\u4F86\u6E90\u300D\u958B\u555F\u3002",
@@ -1856,12 +1860,12 @@ var traditionalChinese = {
   "ui.researching_0": "\u7814\u7A76\u4E2D {0}",
   "ui.research_progress_0_of_1": "\u5DF2\u7814\u7A76 {0} / {1}",
   "ui.preview_card_size": "\u61F8\u505C\u9810\u89BD\u5927\u5C0F",
-  "ui.preview_card_size_desc": "\u5728\u5730\u5716\u4E0A\u628A\u6ED1\u9F20\u79FB\u5230\u8B70\u984C\u6642\uFF0C\u7B46\u8A18\u9810\u89BD\u5361\u7684\u7E2E\u653E\u6BD4\u4F8B\u3002",
+  "ui.preview_card_size_desc": "\u5728\u5FC3\u667A\u5716\u4E0A\u628A\u6ED1\u9F20\u79FB\u5230\u8B70\u984C\u6642\uFF0C\u7B46\u8A18\u9810\u89BD\u5361\u7684\u7E2E\u653E\u6BD4\u4F8B\u3002",
   "ui.drag_to_select_topics_hint": "\u62D6\u66F3\u7A7A\u767D\u8655\u6846\u9078\u8B70\u984C \xB7 \u6309\u4F4F Option \u6216\u7A7A\u767D\u9375\u62D6\u66F3\u5E73\u79FB \xB7 \u6EFE\u8F2A\u7E2E\u653E \xB7 \u9EDE\u9078\u8B70\u984C\u52A0\u5165\u6216\u79FB\u9664",
-  "ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open": "\u62D6\u66F3\u7A7A\u767D\u8655\u5E73\u79FB \xB7 \u6EFE\u8F2A\u7E2E\u653E \xB7 \u9EDE\u9078\u7BC0\u9EDE\u5373\u53EF\u9078\u53D6 \xB7 \u65B9\u5411\u9375\u5207\u63DB\u8B70\u984C",
+  "ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open": "\u62D6\u66F3\u7A7A\u767D\u8655\u5E73\u79FB \xB7 \u6EFE\u8F2A\u7E2E\u653E \xB7 \u9EDE\u9078\u8B70\u984C\u5373\u53EF\u9078\u53D6 \xB7 \u65B9\u5411\u9375\u5207\u63DB\u8B70\u984C",
   "ui.clear": "\u6E05\u9664",
   "ui.next": "\u4E0B\u4E00\u6B65",
-  "ui.select_topics": "\u9078\u53D6\u8B70\u984C",
+  "ui.select_topics": "\u591A\u9078\u6574\u5408",
   "ui.finish_topic_selection": "\u7D50\u675F\u9078\u53D6",
   "ui.prompt_select_topics": "\u8ACB\u9078\u53D6\u8B70\u984C",
   "ui.remove": "\u522A\u9664",
@@ -1877,7 +1881,7 @@ var traditionalChinese = {
   "ui.the_selected_sources_contain_no_markdown_content_to_synthesi": "\u6240\u9078\u4F86\u6E90\u6C92\u6709\u53EF\u6574\u5408\u7684 Markdown \u5167\u5BB9\u3002",
   "ui.review_ai_suggested_subtopics": "\u8ACB\u78BA\u8A8D AI \u5EFA\u8B70\u7684\u5B50\u8B70\u984C\u3002",
   "ui.select_at_least_one_subtopic": "\u8ACB\u81F3\u5C11\u9078\u53D6\u4E00\u500B\u5B50\u8B70\u984C\u3002",
-  "ui.some_subtopics_were_created_reopen_this_window_and_check_the": "\u90E8\u5206\u5B50\u8B70\u984C\u5DF2\u5EFA\u7ACB\uFF0C\u8ACB\u91CD\u65B0\u958B\u555F\u8996\u7A97\u78BA\u8A8D\u76EE\u524D\u5730\u5716\uFF0C\u518D\u7E7C\u7E8C\u64CD\u4F5C\u3002",
+  "ui.some_subtopics_were_created_reopen_this_window_and_check_the": "\u90E8\u5206\u5B50\u8B70\u984C\u5DF2\u5EFA\u7ACB\uFF0C\u8ACB\u91CD\u65B0\u958B\u555F\u8996\u7A97\u78BA\u8A8D\u76EE\u524D\u5FC3\u667A\u5716\uFF0C\u518D\u7E7C\u7E8C\u64CD\u4F5C\u3002",
   "ui.you_have_pending_proposals_review_them_here": "\u5DF2\u6709\u5F85\u78BA\u8A8D\u63D0\u6848\uFF1B\u53EF\u76F4\u63A5\u5728\u9019\u88E1\u6AA2\u67E5\u3002",
   "ui.review_ai_subtopic_suggestions": "\u67E5\u770B AI \u5B50\u8B70\u984C\u5EFA\u8B70",
   "ui.review_the_synthesis_draft": "\u8ACB\u6AA2\u67E5\u6574\u5408\u8349\u7A3F\u3002",
@@ -1889,11 +1893,11 @@ var traditionalChinese = {
   "ui.ai_suggests_synthesis_angles_first_the_parent_topic_changes": "AI \u5148\u63D0\u51FA\u6574\u5408\u89D2\u5EA6\uFF1B\u9078\u5B9A\u65B9\u5411\u5F8C\uFF0C\u624D\u66F4\u65B0\u6BCD\u8B70\u984C\u3002",
   "ui.ai_did_not_suggest_a_synthesis_direction_please_retry": "AI \u672A\u63D0\u51FA\u6574\u5408\u65B9\u5411\uFF0C\u8ACB\u91CD\u8A66\u3002",
   "ui.choose_directions_together": "\u4E00\u8D77\u9078\u65B9\u5411",
-  "ui.quickly_explore_a_map": "\u5FEB\u901F\u63A2\u7D22\u5730\u5716",
+  "ui.quickly_explore_a_map": "\u5FEB\u901F\u63A2\u7D22\u5FC3\u667A\u5716",
   "ui.run_shallow_research_on_each_created_subtopic": "\u5EFA\u7ACB\u5F8C\u9010\u4E00\u6DFA\u7814\u7A76\u5B50\u8B70\u984C",
   "ui.get_expansion_directions": "\u53D6\u5F97\u5C55\u958B\u65B9\u5411",
-  "ui.create_starter_map_now": "\u76F4\u63A5\u5EFA\u7ACB\u521D\u6B65\u5730\u5716",
-  "ui.ai_creates_a_starter_map_at_the_chosen_size_shallow_research": "AI \u4F9D\u8A2D\u5B9A\u5EFA\u7ACB\u521D\u6B65\u5730\u5716\uFF1B\u53EF\u9078\u64C7\u5EFA\u7ACB\u5F8C\u6DFA\u7814\u7A76\u3002",
+  "ui.create_starter_map_now": "\u76F4\u63A5\u5EFA\u7ACB\u521D\u6B65\u5FC3\u667A\u5716",
+  "ui.ai_creates_a_starter_map_at_the_chosen_size_shallow_research": "AI \u4F9D\u8A2D\u5B9A\u5EFA\u7ACB\u521D\u6B65\u5FC3\u667A\u5716\uFF1B\u53EF\u9078\u64C7\u5EFA\u7ACB\u5F8C\u6DFA\u7814\u7A76\u3002",
   "ui.number_of_levels": "\u5C55\u958B\u5E7E\u5C64",
   "ui.expansion_levels_exclude_current_topic": "\u53EA\u8A08\u7B97\u65B0\u5EFA\u7ACB\u7684\u5B50\u8B70\u984C\u5C64\u6578\uFF0C\u4E0D\u5305\u542B\u76EE\u524D\u8B70\u984C\u3002",
   "ui.first_level_subtopics": "\u7B2C\u4E00\u5C64\u5B50\u8B70\u984C\u6578\u91CF",
@@ -1902,22 +1906,22 @@ var traditionalChinese = {
   "ui.topics_by_level_0_1_total": "\u6BCF\u5C64\u6578\u91CF\uFF1A{0}\uFF1B\u5171 {1} \u500B\u5B50\u8B70\u984C\u3002",
   "ui.levels_first_level_count_and_children_per_topic_must_be_posi": "\u5C64\u6578\u8207\u7B2C\u4E00\u5C64\u6578\u91CF\u9808\u70BA\u6B63\u6574\u6578\uFF1B\u591A\u5C64\u6642\u6BCF\u500B\u8B70\u984C\u7684\u5EF6\u4F38\u6578\u91CF\u9808\u70BA\u6B63\u6574\u6578\uFF1B\u5C64\u6578\u6700\u591A 15\u3002",
   "ui.this_would_create_0_subtopics_exceeding_the_limit_of_15_redu": "\u9810\u8A08\u5EFA\u7ACB {0} \u500B\u5B50\u8B70\u984C\uFF0C\u8D85\u904E\u4E0A\u9650 15 \u500B\u3002\u8ACB\u6E1B\u5C11\u5C64\u6578\u3001\u7B2C\u4E00\u5C64\u5B50\u8B70\u984C\u6578\uFF0C\u6216\u6BCF\u500B\u8B70\u984C\u7684\u5EF6\u4F38\u6578\u91CF\u3002",
-  "ui.ai_did_not_follow_the_requested_level_counts_and_parent_chil": "AI \u672A\u4F9D\u8A2D\u5B9A\u7522\u751F\u6BCF\u5C64\u6578\u91CF\u8207\u6BCD\u5B50\u95DC\u4FC2\uFF0C\u5C1A\u672A\u5EFA\u7ACB\u7BC0\u9EDE\uFF1B\u8ACB\u518D\u8A66\u4E00\u6B21\u3002",
+  "ui.ai_did_not_follow_the_requested_level_counts_and_parent_chil": "AI \u672A\u4F9D\u8A2D\u5B9A\u7522\u751F\u6BCF\u5C64\u6578\u91CF\u8207\u6BCD\u5B50\u95DC\u4FC2\uFF0C\u5C1A\u672A\u5EFA\u7ACB\u8B70\u984C\uFF1B\u8ACB\u518D\u8A66\u4E00\u6B21\u3002",
   "ui.subtopic_names_must_be_unique": "\u5B50\u8B70\u984C\u540D\u7A31\u4E0D\u80FD\u91CD\u8907\u3002",
   "ui.create_subtopics_without_research": "\u53EA\u5EFA\u7ACB\u5B50\u8B70\u984C\uFF0C\u4E0D\u57F7\u884C\u7814\u7A76",
   "ui.research_each_subtopic_after_creation_and_use_codex_quota": "\u5EFA\u7ACB\u5F8C\u6703\u9010\u4E00\u6DFA\u7814\u7A76\uFF0C\u6703\u4F7F\u7528 AI \u984D\u5EA6",
   "ui.auto_layout": "\u81EA\u52D5\u6392\u7248",
   "ui.expansion_failed": "\u5C55\u958B\u5931\u6557",
-  "ui.the_map_or_parent_topic_changed_while_ai_was_running_no_subt": "\u5730\u5716\u6216\u6BCD\u8B70\u984C\u5728 AI \u57F7\u884C\u671F\u9593\u5DF2\u8B8A\u66F4\uFF0C\u672A\u5EFA\u7ACB\u5B50\u8B70\u984C\u3002",
+  "ui.the_map_or_parent_topic_changed_while_ai_was_running_no_subt": "\u5FC3\u667A\u5716\u6216\u6BCD\u8B70\u984C\u5728 AI \u57F7\u884C\u671F\u9593\u5DF2\u8B8A\u66F4\uFF0C\u672A\u5EFA\u7ACB\u5B50\u8B70\u984C\u3002",
   "ui.ai_suggests_one_level_of_subtopics_review_or_edit_them_befor": "AI \u5148\u63D0\u51FA\u4E00\u5C64\u5B50\u8B70\u984C\uFF0C\u4F60\u9078\u64C7\u6216\u4FEE\u6539\u5F8C\u624D\u5EFA\u7ACB\u3002",
   "ui.create_subtopics_after_confirmation_without_running_research": "\u78BA\u8A8D\u5F8C\u53EA\u5EFA\u7ACB\u5B50\u8B70\u984C\uFF0C\u4E0D\u57F7\u884C\u7814\u7A76",
   "ui.creating_subtopics": "\u6B63\u5728\u5EFA\u7ACB\u5B50\u8B70\u984C\u2026",
   "ui.subtopics_created": "\u5DF2\u5EFA\u7ACB\u5B50\u8B70\u984C\u3002",
-  "ui.failed_to_create_starter_map": "\u5EFA\u7ACB\u521D\u6B65\u5730\u5716\u5931\u6557",
+  "ui.failed_to_create_starter_map": "\u5EFA\u7ACB\u521D\u6B65\u5FC3\u667A\u5716\u5931\u6557",
   "ui.current_topic_0": "\u76EE\u524D\u8B70\u984C\uFF1A{0}",
   "ui.research_deeper": "\u7814\u7A76\u66F4\u6DF1",
   "ui.find_answers_for_this_topic_at_your_chosen_depth": "\u6DF1\u5165\u7814\u7A76\u9019\u500B\u8B70\u984C",
-  "ui.expand_the_map": "\u5C55\u958B\u5730\u5716",
+  "ui.expand_the_map": "\u5C55\u958B\u5FC3\u667A\u5716",
   "ui.discuss_directions_or_explore_multiple_levels_with_shallow_r": "\u62C6\u51FA\u5B50\u8B70\u984C\uFF0C\u5F80\u4E0B\u63A2\u7D22",
   "ui.synthesize_findings": "\u6574\u5408\u767C\u73FE",
   "ui.find_shared_conclusions_differences_and_next_steps_across_su": "\u6574\u5408\u5B50\u8B70\u984C\u7684\u7D50\u8AD6\u8207\u5206\u6B67",
@@ -1925,11 +1929,11 @@ var traditionalChinese = {
   "ui.quick": "\u5FEB\u901F",
   "ui.standard": "\u6A19\u6E96",
   "ui.deep": "\u6DF1\u5165",
-  "ui.this_mind_map_has_no_topics_click_topic_to_create_the_first": "\u9019\u5F35\u5FC3\u667A\u5716\u9084\u6C92\u6709\u8B70\u984C\u3002\u9EDE\u300C\uFF0B \u8B70\u984C\u300D\u5EFA\u7ACB\u7B2C\u4E00\u500B\u7BC0\u9EDE\u3002",
+  "ui.this_mind_map_has_no_topics_click_topic_to_create_the_first": "\u9019\u5F35\u5FC3\u667A\u5716\u9084\u6C92\u6709\u8B70\u984C\u3002\u9EDE\u300C\uFF0B \u8B70\u984C\u300D\u5EFA\u7ACB\u7B2C\u4E00\u500B\u8B70\u984C\u3002",
   "ui.note_missing": "\u7B46\u8A18\u4E0D\u5B58\u5728",
   "ui.open_details_in_right_sidebar": "\u5728\u53F3\u5074\u6B04\u958B\u555F\u8A73\u60C5",
   "ui.collapse": "\u6536\u5408",
-  "ui.the_file_was_moved_or_deleted_you_can_remove_this_node_from": "\u6A94\u6848\u5DF2\u79FB\u52D5\u6216\u522A\u9664\uFF0C\u53EF\u5F9E\u5716\u4E2D\u79FB\u9664\u6B64\u7BC0\u9EDE\u3002",
+  "ui.the_file_was_moved_or_deleted_you_can_remove_this_node_from": "\u6A94\u6848\u5DF2\u79FB\u52D5\u6216\u522A\u9664\uFF0C\u53EF\u5F9E\u5716\u4E2D\u79FB\u9664\u6B64\u8B70\u984C\u3002",
   "ui.remove_from_map": "\u5F9E\u5716\u4E2D\u79FB\u9664",
   "ui.no_preview_content_yet": "\u5C1A\u672A\u52A0\u5165\u9810\u89BD\u5167\u5BB9",
   "ui.current_understanding": "\u76EE\u524D\u7406\u89E3",
@@ -1942,7 +1946,7 @@ var traditionalChinese = {
   "ui.workspace_default": "\u5DE5\u4F5C\u5340\u9810\u8A2D",
   "ui.inherited_at_creation": "\u5EFA\u7ACB\u6642\u7E7C\u627F",
   "ui.manually_selected": "\u624B\u52D5\u6307\u5B9A",
-  "ui.this_node_s_note_is_missing_relink_an_unassigned_note_or_rem": "\u6B64\u7BC0\u9EDE\u7684\u7B46\u8A18\u4E0D\u5B58\u5728\uFF0C\u53EF\u91CD\u65B0\u9023\u7D50\u672A\u6B78\u985E\u7B46\u8A18\u6216\u5F9E\u5716\u4E2D\u79FB\u9664\u3002",
+  "ui.this_node_s_note_is_missing_relink_an_unassigned_note_or_rem": "\u6B64\u8B70\u984C\u7684\u7B46\u8A18\u4E0D\u5B58\u5728\uFF0C\u53EF\u91CD\u65B0\u9023\u7D50\u672A\u6B78\u985E\u7B46\u8A18\u6216\u5F9E\u5716\u4E2D\u79FB\u9664\u3002",
   "ui.relink_note": "\u91CD\u65B0\u9023\u7D50\u7B46\u8A18",
   "ui.use_this_note": "\u4F7F\u7528\u9019\u4EFD\u7B46\u8A18",
   "ui.structure_and_links": "\u7D50\u69CB\u8207\u9023\u7D50",
@@ -1952,20 +1956,20 @@ var traditionalChinese = {
   "ui.circular_links_are_not_allowed": "\u4E0D\u80FD\u5EFA\u7ACB\u5FAA\u74B0\u9023\u7D50\u3002",
   "ui.changing_the_parent_affects_context_for_the_next_ai_task_the": "\u66F4\u63DB\u6BCD\u8B70\u984C\u6703\u5F71\u97FF\u4E0B\u6B21 AI \u4EFB\u52D9\u53D6\u5F97\u7684\u80CC\u666F\uFF0C\u4E0D\u6703\u66F4\u52D5\u6A21\u578B\u3002",
   "ui.the_note_will_move_to_this_topic_s_unassigned_folder_you_can": "\u7B46\u8A18\u6703\u79FB\u81F3\u76EE\u524D\u4E3B\u984C\u7684 Unassigned\uFF0C\u53EF\u91CD\u65B0\u8A8D\u9818\u6216\u5FA9\u539F\u3002",
-  "ui.remove_only_this_node_children_become_roots": "\u53EA\u79FB\u9664\u6B64\u7BC0\u9EDE\uFF0C\u5B50\u8B70\u984C\u8B8A\u6210\u6839\u8B70\u984C",
+  "ui.remove_only_this_node_children_become_roots": "\u53EA\u79FB\u9664\u6B64\u8B70\u984C\uFF0C\u5B50\u8B70\u984C\u8B8A\u6210\u6839\u8B70\u984C",
   "ui.remove_entire_branch": "\u79FB\u9664\u6574\u500B\u5206\u652F",
   "ui.no_old_data_to_migrate": "\u6C92\u6709\u9700\u8981\u6574\u7406\u7684\u820A\u8CC7\u6599\u3002",
   "ui.migrate_legacy_data": "\u6574\u7406\u820A\u7248\u8CC7\u6599",
   "ui.confirm_migration": "\u78BA\u8A8D\u6574\u7406",
   "ui.old_data_was_migrated_into_topic_folders": "\u820A\u8CC7\u6599\u5DF2\u6574\u7406\u70BA\u4E3B\u984C\u8CC7\u6599\u593E\u3002",
   "ui.no_topics_with_a_missing_map_md": "\u6C92\u6709\u7F3A\u5C11 Map.md \u7684\u4E3B\u984C\u3002",
-  "ui.repair_missing_map": "\u4FEE\u5FA9\u907A\u5931 Map",
+  "ui.repair_missing_map": "\u4FEE\u5FA9\u907A\u5931\u7684\u5FC3\u667A\u5716",
   "ui.choose_a_topic_to_repair": "\u9078\u64C7\u8981\u4FEE\u5FA9\u7684\u4E3B\u984C",
-  "ui.rebuild_a_map_from_notes_as_root_nodes_or_relink_an_existing": "\u53EF\u7531 Notes \u91CD\u5EFA\u6240\u6709\u7BC0\u9EDE\u7686\u70BA\u6839\u7BC0\u9EDE\u7684\u65B0 Map\uFF0C\u6216\u91CD\u65B0\u9023\u7D50\u4F4D\u65BC\u4E3B\u984C\u8CC7\u6599\u593E\u5916\u7684\u65E2\u6709 Map\u3002",
+  "ui.rebuild_a_map_from_notes_as_root_nodes_or_relink_an_existing": "\u53EF\u7531 Notes \u91CD\u5EFA\u6240\u6709\u8B70\u984C\u7686\u70BA\u6839\u8B70\u984C\u7684\u65B0\u5FC3\u667A\u5716\uFF0C\u6216\u91CD\u65B0\u9023\u7D50\u4F4D\u65BC\u4E3B\u984C\u8CC7\u6599\u593E\u5916\u7684\u65E2\u6709\u5FC3\u667A\u5716\u3002",
   "ui.rebuild_from_notes": "\u5F9E Notes \u91CD\u5EFA",
-  "ui.relink_existing_map": "\u91CD\u65B0\u9023\u7D50\u65E2\u6709 Map",
-  "ui.choose_existing_map": "\u9078\u64C7\u65E2\u6709 Map",
-  "ui.move_the_selected_map_into_this_topic_and_rebuild_node_paths": "\u9078\u53D6\u5F8C\u6703\u642C\u56DE\u6B64\u4E3B\u984C\u4E26\u91CD\u65B0\u5EFA\u7ACB\u53EF\u8FA8\u8B58\u7684\u7BC0\u9EDE\u8DEF\u5F91\u3002",
+  "ui.relink_existing_map": "\u91CD\u65B0\u9023\u7D50\u65E2\u6709\u5FC3\u667A\u5716",
+  "ui.choose_existing_map": "\u9078\u64C7\u65E2\u6709\u5FC3\u667A\u5716",
+  "ui.move_the_selected_map_into_this_topic_and_rebuild_node_paths": "\u9078\u53D6\u5F8C\u6703\u642C\u56DE\u6B64\u4E3B\u984C\u4E26\u91CD\u65B0\u5EFA\u7ACB\u53EF\u8FA8\u8B58\u7684\u8B70\u984C\u8DEF\u5F91\u3002",
   "ui.use_migrate_old_data_to_convert_this_map_first": "\u8ACB\u5148\u4F7F\u7528\u300C\u6574\u7406\u820A\u8CC7\u6599\u300D\u8F49\u63DB\u76EE\u524D\u5FC3\u667A\u5716\u3002",
   "ui.new_subtopic": "\u65B0\u7684\u5B50\u8B70\u984C",
   "ui.my_core_topic": "\u6211\u7684\u6838\u5FC3\u8B70\u984C",
@@ -2031,16 +2035,16 @@ var traditionalChinese = {
   "ui.sample_cleanup_folder_changed": "\u8CC7\u6599\u593E\u5DF2\u88AB\u66FF\u63DB\uFF0C\u5DF2\u4FDD\u7559\u5167\u5BB9\u3002",
   "ui.created_an_editable_copy_of_the_sample": "\u5DF2\u5EFA\u7ACB\u53EF\u81EA\u7531\u4FEE\u6539\u7684\u7BC4\u4F8B\u526F\u672C\u3002",
   "ui.show_tour_again": "\u91CD\u65B0\u986F\u793A\u5C0E\u89BD",
-  "ui.agent_workspace_is_missing": "Agent Workspace \u4E0D\u5B58\u5728",
+  "ui.agent_workspace_is_missing": "Agent \u5DE5\u4F5C\u5340\u4E0D\u5B58\u5728",
   "ui.the_base_folders_can_be_safely_recreated_existing_notes_will": "\u53EF\u4EE5\u5B89\u5168\u5730\u91CD\u5EFA\u57FA\u672C\u8CC7\u6599\u593E\uFF1B\u65E2\u6709\u7B46\u8A18\u4E0D\u6703\u88AB\u8986\u5BEB\u3002",
-  "ui.repair_agent_workspace": "\u4FEE\u5FA9 Agent Workspace",
-  "ui.reconnect_existing_workspace": "\u627E\u56DE\u65E2\u6709 Workspace",
-  "ui.workspace_location": "Workspace \u4F4D\u7F6E",
-  "ui.scan_for_recognizable_vam_workspaces_and_reconnect_only_afte": "\u6383\u63CF\u53EF\u8FA8\u8B58\u7684 VAM Workspace\uFF0C\u78BA\u8A8D\u5F8C\u624D\u91CD\u65B0\u9023\u7D50\uFF0C\u4E0D\u6703\u642C\u79FB\u6216\u8986\u5BEB\u8CC7\u6599\u3002",
+  "ui.repair_agent_workspace": "\u4FEE\u5FA9 Agent \u5DE5\u4F5C\u5340",
+  "ui.reconnect_existing_workspace": "\u627E\u56DE\u65E2\u6709\u5DE5\u4F5C\u5340",
+  "ui.workspace_location": "\u5DE5\u4F5C\u5340\u4F4D\u7F6E",
+  "ui.scan_for_recognizable_vam_workspaces_and_reconnect_only_afte": "\u6383\u63CF\u53EF\u8FA8\u8B58\u7684 VAM \u5DE5\u4F5C\u5340\uFF0C\u78BA\u8A8D\u5F8C\u624D\u91CD\u65B0\u9023\u7D50\uFF0C\u4E0D\u6703\u642C\u79FB\u6216\u8986\u5BEB\u8CC7\u6599\u3002",
   "ui.scan": "\u6383\u63CF",
   "ui.check_again": "\u91CD\u65B0\u6AA2\u67E5",
   "ui.conflict_use_file_desc": "\u4FDD\u7559\u78C1\u789F\u4E0A\u76EE\u524D\u7684 Map.md\uFF1B\u4E4B\u5F8C\u5728\u756B\u9762\u4E0A\u505A\u7684\u8B8A\u66F4\u6703\u88AB\u6368\u68C4\u3002",
-  "ui.conflict_keep_editor_desc": "\u4FDD\u7559\u756B\u9762\u4E0A\u7684\u5730\u5716\uFF0C\u8986\u5BEB Map.md \u5728\u5916\u90E8\u7684\u8B8A\u66F4\u3002",
+  "ui.conflict_keep_editor_desc": "\u4FDD\u7559\u756B\u9762\u4E0A\u7684\u5FC3\u667A\u5716\uFF0C\u8986\u5BEB Map.md \u5728\u5916\u90E8\u7684\u8B8A\u66F4\u3002",
   "ui.conflict_merge_by_hand": "\u9032\u968E\uFF1A\u624B\u52D5\u5408\u4F75 JSON",
   "ui.conflict_close_uses_file": "\u76F4\u63A5\u95DC\u9589\u8996\u7A97\u7B49\u540C\u4F7F\u7528\u6A94\u6848\u5167\u5BB9\u3002",
   "ui.name_required": "\u8ACB\u8F38\u5165\u540D\u7A31\u624D\u80FD\u5132\u5B58\u3002",
@@ -2075,16 +2079,16 @@ var traditionalChinese = {
   "ui.model_status_ready": "\u53EF\u7528",
   "ui.model_status_missing": "\u627E\u4E0D\u5230",
   "ui.model_status_error": "\u932F\u8AA4",
-  "ui.no_recognizable_existing_vam_workspace_was_found": "\u627E\u4E0D\u5230\u53EF\u8FA8\u8B58\u7684\u65E2\u6709 VAM Workspace\u3002",
+  "ui.no_recognizable_existing_vam_workspace_was_found": "\u627E\u4E0D\u5230\u53EF\u8FA8\u8B58\u7684\u65E2\u6709 VAM \u5DE5\u4F5C\u5340\u3002",
   "ui.choosing_a_workspace_only_reconnects_the_setting_it_does_not": "\u9078\u64C7\u5F8C\u53EA\u6703\u91CD\u65B0\u9023\u7D50\u8A2D\u5B9A\uFF0C\u4E0D\u6703\u642C\u79FB\u6216\u6539\u5BEB\u5167\u5BB9\u3002",
-  "ui.reconnected_workspace_0": "\u5DF2\u91CD\u65B0\u9023\u7D50 Workspace\uFF1A{0}",
+  "ui.reconnected_workspace_0": "\u5DF2\u91CD\u65B0\u9023\u7D50\u5DE5\u4F5C\u5340\uFF1A{0}",
   "ui.create_a_new_mind_map": "\u5EFA\u7ACB\u65B0\u5FC3\u667A\u5716",
   "ui.view_sample": "\u67E5\u770B\u7BC4\u4F8B",
   "ui.view_sample_content": "\u67E5\u770B\u7BC4\u4F8B\u5167\u5BB9",
   "ui.sample_content": "\u7BC4\u4F8B\u5167\u5BB9",
   "ui.creates_only_missing_base_folders_it_never_restores_moves_or": "\u53EA\u5EFA\u7ACB\u7F3A\u5C11\u7684\u57FA\u672C\u8CC7\u6599\u593E\uFF0C\u4E0D\u6703\u5FA9\u539F\u3001\u642C\u79FB\u6216\u8986\u5BEB\u7B46\u8A18\u8207\u5FC3\u667A\u5716\u3002",
   "ui.repair": "\u4FEE\u5FA9",
-  "ui.agent_workspace_is_ready": "Agent Workspace \u5DF2\u53EF\u4F7F\u7528\u3002",
+  "ui.agent_workspace_is_ready": "Agent \u5DE5\u4F5C\u5340\u5DF2\u53EF\u4F7F\u7528\u3002",
   "ui.map_unreadable_skipped_0_1": "\u5DF2\u7565\u904E\u7121\u6CD5\u8B80\u53D6\u7684\u5FC3\u667A\u5716\uFF1A{0}\uFF08{1}\uFF09\u3002\u5176\u4ED6\u5FC3\u667A\u5716\u5DF2\u66F4\u65B0\u3002",
   "ui.open_the_taiwan_travel_sample": "\u958B\u555F\u53F0\u7063\u65C5\u884C\u7BC4\u4F8B",
   "ui.open_debug_log": "\u958B\u555F\u5075\u932F\u65E5\u8A8C (Open Debug Log)",
@@ -2159,7 +2163,7 @@ var traditionalChinese = {
   "ui.first_level_topic_names_must_be_unique": "\u7B2C\u4E00\u5C64\u5B50\u8B70\u984C\u540D\u7A31\u4E0D\u80FD\u91CD\u8907\u3002",
   "ui.ai_proposed_duplicate_first_level_names_generate_the_proposa": "AI \u63D0\u6848\u7684\u7B2C\u4E00\u5C64\u540D\u7A31\u91CD\u8907\uFF0C\u8ACB\u91CD\u65B0\u7522\u751F\u63D0\u6848\u3002",
   "ui.expand_subtopics": "\u5C55\u958B\u5B50\u8B70\u984C",
-  "ui.specify_an_expansion_direction_or_ask_ai_to_suggest_one_prev": "\u53EF\u6307\u5B9A\u5C55\u958B\u65B9\u5411\uFF0C\u6216\u8B93 AI \u5EFA\u8B70\uFF1B\u7D50\u679C\u5148\u9810\u89BD\uFF0C\u78BA\u8A8D\u5F8C\u624D\u5EFA\u7ACB\u7BC0\u9EDE\u3002",
+  "ui.specify_an_expansion_direction_or_ask_ai_to_suggest_one_prev": "\u53EF\u6307\u5B9A\u5C55\u958B\u65B9\u5411\uFF0C\u6216\u8B93 AI \u5EFA\u8B70\uFF1B\u7D50\u679C\u5148\u9810\u89BD\uFF0C\u78BA\u8A8D\u5F8C\u624D\u5EFA\u7ACB\u8B70\u984C\u3002",
   "ui.this_topic_has_no_direct_subtopics_you_can_choose_other_note": "\u9019\u500B\u8B70\u984C\u76EE\u524D\u6C92\u6709\u76F4\u5C6C\u5B50\u8B70\u984C\uFF1B\u53EF\u4EE5\u9078\u64C7\u5176\u4ED6\u7B46\u8A18\u4F5C\u70BA\u6574\u5408\u4F86\u6E90\u3002",
   "ui.review_synthesis_draft": "\u6AA2\u67E5\u6574\u5408\u8349\u7A3F",
   "ui.choose_synthesis_direction": "\u9078\u64C7\u6536\u6582\u65B9\u5411",
@@ -2687,7 +2691,7 @@ var traditionalChinese = {
   "note.visual_reference": "\u8996\u89BA\u53C3\u8003",
   "ui.aim_preparing_clarification": "\u6B63\u5728\u6E96\u5099\u958B\u59CB\u524D\u7684\u689D\u4EF6\u91D0\u6E05\u2026",
   "ui.aim_answered_not_started": "\u5DF2\u56DE\u7B54\u30FB\u7814\u7A76\u5C1A\u672A\u958B\u59CB",
-  "log.preliminary_map_failed": "\u5EFA\u7ACB\u521D\u6B65\u5730\u5716\u5931\u6557",
+  "log.preliminary_map_failed": "\u5EFA\u7ACB\u521D\u6B65\u5FC3\u667A\u5716\u5931\u6557",
   "log.ai_split_failed": "AI \u62C6\u89E3\u5931\u6557",
   "log.integration_directions_failed": "\u6574\u5408\u65B9\u5411\u5EFA\u8B70\u5931\u6557",
   "log.child_integration_failed": "\u5B50\u8B70\u984C\u6574\u5408\u5931\u6557",
@@ -23989,6 +23993,12 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     }
     if (this.map && !this.builtIn && !this.map.aim)
       choices.push({
+        label: t("ui.organize"),
+        description: t("ui.manage_notes_that_are_currently_outside_the_mind_map"),
+        action: () => this.enqueue(() => this.openOrganizer())
+      });
+    if (this.map && !this.builtIn && !this.map.aim)
+      choices.push({
         label: t("ui.detail_template_map_default"),
         description: t("ui.detail_template_map_default_desc"),
         action: () => this.chooseMapTemplate()
@@ -24292,6 +24302,9 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
         event.stopPropagation();
         this.openNewMapMenu(event);
       });
+      this.iconButton(headerActions, "list-tree", t("ui.open_topic_outline"), () => {
+        void this.plugin.activateOutline().catch((error) => new import_obsidian17.Notice(String(error)));
+      });
       const undo = this.iconButton(headerActions, "undo-2", t("ui.undo"), () => this.enqueue(() => this.travel(false)));
       undo.disabled = !this.history.canUndo;
       undo.dataset.history = "undo";
@@ -24543,16 +24556,6 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
       const aimMode = !!this.map.aim;
       if (!aimMode) this.button(tools, t("ui.topic"), () => this.enqueue(() => this.addNode(null))).addClass("mod-cta");
       if (aimMode) this.button(tools, t("ui.create_a_new_mind_map"), () => this.openNewMindMapModal());
-      if (!aimMode) this.button(tools, t("ui.organize"), () => this.enqueue(() => this.openOrganizer()));
-      this.button(
-        tools,
-        t("ui.auto_layout"),
-        () => this.enqueue(
-          () => this.mapChange((map) => {
-            map.nodes = arrangeMap(map.nodes);
-          }, false)
-        )
-      );
       if (!aimMode) {
         const integrate = this.button(
           tools,
@@ -24594,6 +24597,17 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     this.zoomLabel = zoomReset;
     this.iconButton(zoom, "plus", t("ui.zoom_in"), () => this.zoomBy(1.2));
     this.iconButton(zoom, "maximize", t("ui.show_all"), () => this.fit());
+    if (!this.builtIn)
+      this.iconButton(
+        zoom,
+        "workflow",
+        t("ui.auto_layout"),
+        () => this.enqueue(
+          () => this.mapChange((map) => {
+            map.nodes = arrangeMap(map.nodes);
+          }, false)
+        )
+      );
     this.stageEl = this.viewportEl.createDiv("vam-stage");
     this.stageEl.setAttr("role", "tree");
     this.stageEl.setAttr("aria-label", this.map.title);
@@ -24719,11 +24733,13 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
       });
     } else if (!node.aimKind || active || queued || !note || note.status !== "completed") {
       const statusText = active ? t("ui.ai_running") : queued ? t("ui.research_queued") : (note == null ? void 0 : note.status) === "completed" ? t("ui.researched") : note ? topicStatusLabel(note.status, this.plugin.settings.language) : t("ui.note_missing");
-      const chip = header.createSpan({
-        cls: `vam-status vam-status-${active ? "running" : queued ? "queued" : (_j = note == null ? void 0 : note.status) != null ? _j : "error"}`,
-        text: statusText
-      });
-      if (active) chip.setAttr("role", "status");
+      if (!note || note.status !== "completed" || active || queued) {
+        const chip = header.createSpan({
+          cls: `vam-status vam-status-${active ? "running" : queued ? "queued" : (_j = note == null ? void 0 : note.status) != null ? _j : "error"}`,
+          text: statusText
+        });
+        if (active) chip.setAttr("role", "status");
+      }
       if (note) this.labelCard(card, t("ui.topic_card_label_0_1", note.title, statusText));
     }
     const errorDetails = [];
@@ -24808,6 +24824,9 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
           () => this.openNextStep(node)
         );
         ai.addClass("vam-node-tool", "vam-ai-tool");
+        const explore = this.button(tools, t("ui.ai_explore"), () => this.openNextStep(node));
+        explore.addClass("vam-node-tool", "vam-ai-explore");
+        explore.setAttr("aria-label", t("ui.how_would_you_like_to_explore_next"));
         this.iconButton(
           tools,
           "network",
@@ -24818,7 +24837,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
           this.iconButton(
             tools,
             "pencil",
-            t("ui.new_topic_name"),
+            t("ui.rename_topic"),
             () => new NameModal(
               this.app,
               t("ui.new_topic_name"),
@@ -25302,7 +25321,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
       const label = note.status === "completed" ? t("ui.researched") : topicStatusLabel(note.status, this.plugin.settings.language);
       card.dataset.status = note.status;
       this.labelCard(card, t("ui.topic_card_label_0_1", note.title, label));
-      if (status) {
+      if (note.status === "completed") status == null ? void 0 : status.remove();
+      else if (status) {
         status.className = `vam-status vam-status-${note.status}`;
         status.setText(label);
       } else header == null ? void 0 : header.prepend(createSpan({ cls: `vam-status vam-status-${note.status}`, text: label }));
@@ -32724,23 +32744,29 @@ var VisualAgentMapPlugin = class extends import_obsidian24.Plugin {
       })
     );
     this.app.workspace.onLayoutReady(() => {
-      for (const leaf of this.app.workspace.getLeavesOfType("markdown")) this.styleNodeLeaf(leaf);
-      void this.ready.then(async () => {
-        if (this.workspaceRecoveryCandidates.length)
-          await this.offerWorkspaceReconnect(this.workspaceRecoveryCandidates);
-        else if (this.firstInstallSamplePending) await this.activateBuiltInSample();
-        await this.activateOutline();
-      }).catch((error) => {
-        this.logs.appendLog(
-          "warn",
-          t("log.initialization_incomplete_0", error instanceof Error ? error.message : String(error))
-        );
-        console.warn("Visual Agent Map initialization", error);
-      });
+      void this.finishStartup();
     });
     this.registerVaultEvents();
   }
   /** Vault modify/delete/rename handlers; kept separate so tests can drive the real handlers on a fake vault. */
+  /**
+   * Work after Obsidian's layout is ready. The topic outline is deliberately not opened here: it opens only through
+   * its command or the map toolbar, and an outline pane the user already has is restored by Obsidian itself.
+   */
+  async finishStartup() {
+    for (const leaf of this.app.workspace.getLeavesOfType("markdown")) this.styleNodeLeaf(leaf);
+    try {
+      await this.ready;
+      if (this.workspaceRecoveryCandidates.length) await this.offerWorkspaceReconnect(this.workspaceRecoveryCandidates);
+      else if (this.firstInstallSamplePending) await this.activateBuiltInSample();
+    } catch (error) {
+      this.logs.appendLog(
+        "warn",
+        t("log.initialization_incomplete_0", error instanceof Error ? error.message : String(error))
+      );
+      console.warn("Visual Agent Map initialization", error);
+    }
+  }
   registerVaultEvents() {
     this.registerEvent(
       this.app.vault.on("modify", (file) => {

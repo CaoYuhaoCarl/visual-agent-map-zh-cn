@@ -81,11 +81,12 @@ integrationTest('AIM cards hide generic map actions while ordinary map cards ret
   const ordinaryButtons = render(map([topic]));
   assert.ok(ordinaryButtons.some(button => button['aria-label'] === 'How would you like to explore next?'));
   assert.ok(ordinaryButtons.some(button => button['aria-label'] === 'Structure and links'));
-  assert.ok(ordinaryButtons.some(button => button['aria-label'] === 'New topic name'));
+  assert.ok(ordinaryButtons.some(button => button['aria-label'] === 'Rename'), 'the pencil tool is labelled Rename');
+  assert.ok(ordinaryButtons.some(button => button.text === 'AI explore'), 'the selected card shows a labelled AI explore action');
   assert.ok(ordinaryButtons.some(button => button['aria-label'] === 'Add subtopic manually'));
   const aim = map([topic]); aim.aim = { version: 1, branches: [], runs: [], pendingCommits: [] };
   const aimButtons = render(aim);
-  for (const label of ['How would you like to explore next?', 'Structure and links', 'New topic name', 'Add subtopic manually']) {
+  for (const label of ['How would you like to explore next?', 'Structure and links', 'Rename', 'Add subtopic manually']) {
     assert.equal(aimButtons.some(button => button['aria-label'] === label), false, `${label} is hidden in AIM`);
   }
   const resultNode = node('saved-synthesis', topic.id); resultNode.aimKind = 'synthesis';
@@ -106,7 +107,6 @@ integrationTest('AIM cards hide generic map actions while ordinary map cards ret
   ordinaryResultView.stageEl = makeElement('stage', ordinaryButtonsForResult); ordinaryResultView.map = map([ordinaryResult]); ordinaryResultView.notes = new Map([[ordinaryResult.id, { title: 'Ordinary note', summary: '', status: 'completed' }]]);
   ordinaryResultView.renderNode(ordinaryResult);
   assert.equal(ordinaryButtonsForResult.some(button => button['aria-label'] === 'Generate another question from this research, keeping existing branches'), false, 'ordinary maps do not expose the AIM action');
-  assert.match(fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8'), /if \(!aimMode\) this\.button\(tools, t\("ui\.organize"\)/);
   assert.match(fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8'), /if \(!aimMode\) \{\s*const integrate = this\.button\(\s*tools/);
 });
 integrationTest('AIM question cards show branch progress instead of note lifecycle status', () => {
@@ -1090,7 +1090,7 @@ const selectionView = (load, extra = {}, shim = obsidian) => {
   root.x = 0; a.x = 400; a.y = 0; b.x = 400; b.y = 200; c.x = 800;
   const doc = map([root, a, b, c]);
   const outline = [];
-  const plugin = { pendingSuggestions: new Map(), expansionBatches: new Map(), detailsShown: () => false, setOutlineActive: path => outline.push(path), ...extra };
+  const plugin = { settings: { ...DEFAULT_SETTINGS }, pendingSuggestions: new Map(), expansionBatches: new Map(), detailsShown: () => false, setOutlineActive: path => outline.push(path), ...extra };
   const view = new VisualAgentMapView({ app: {} }, plugin);
   const make = selectionDom();
   view.stageEl = make('stage'); view.map = doc;
@@ -1287,4 +1287,74 @@ integrationTest('lostpointercapture, pointercancel, a render mid-drag and closin
     view.render = Object.getPrototypeOf(view).render;
     await view.onClose();
     assert.equal(view.dragging, false); assert.deepEqual(cancelled, [1], 'closing the view cancels the pending frame'); }
+});
+integrationTest('startup opens no topic outline, including on first install, while the outline command stays', async () => {
+  const { default: Plugin } = load('main.ts', { obsidian });
+  for (const firstInstall of [false, true]) {
+    const plugin = Object.create(Plugin.prototype), calls = [];
+    Object.assign(plugin, { app: { workspace: { getLeavesOfType: () => [] } }, ready: Promise.resolve(), workspaceRecoveryCandidates: [], firstInstallSamplePending: firstInstall,
+      activateBuiltInSample: async () => { calls.push('sample'); }, activateOutline: async () => { calls.push('outline'); }, styleNodeLeaf() {}, logs: { appendLog() {} } });
+    await plugin.finishStartup();
+    assert.deepEqual(calls, firstInstall ? ['sample'] : [], 'only the sample may open at startup, never the outline');
+  }
+  assert.match(fs.readFileSync(path.join(root, 'main.ts'), 'utf8'), /addLocalizedCommand\("open-topic-outline"/);
+});
+integrationTest('card tools: the sparkle waits for hover, focus or selection; the selected card shows a labelled AI explore action', () => {
+  const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
+  const hide = css.match(/^\.vam-node-tools > :where\((.*)\) \{ opacity: 0;/m);
+  assert.ok(hide, 'one low-specificity rule hides the tools');
+  assert.ok(!hide[1].includes('vam-ai-tool'), 'the sparkle is hidden like the other tools');
+  assert.match(css, /\.vam-node\.is-selected \.vam-node-tools > \*[^{]*\{ opacity: 1; \}/); assert.match(css, /\.vam-node:hover \.vam-node-tools > \*/); assert.match(css, /\.vam-node:focus-within \.vam-node-tools > \*/);
+  assert.match(css, /\.vam-node-tools > \.vam-ai-explore \{ display: none;/); assert.match(css, /\.vam-node\.is-selected \.vam-node-tools > \.vam-ai-explore \{ display: inline-flex;/);
+  assert.match(css, /\.vam-node\.is-selected \.vam-node-tools > \.vam-ai-tool \{ display: none; \}/);
+  const fixture = selectionView(load);
+  fixture.build();
+  const buttons = [];
+  const walk = item => { if (item.tag === 'button') buttons.push(item); item.children.forEach(walk); };
+  walk(fixture.cards().a);
+  const explore = buttons.find(button => button.classes.has('vam-ai-explore')), icon = buttons.find(button => button.classes.has('vam-ai-tool'));
+  assert.equal(explore.text, 'AI explore'); assert.equal(icon.attrs['aria-label'], 'How would you like to explore next?');
+  assert.equal(buttons.find(button => button.attrs['aria-label'] === 'Rename') !== undefined, true);
+});
+integrationTest('status pill: researched topics show none, other states keep theirs and screen readers still hear the status', () => {
+  const pills = status => {
+    const fixture = selectionView(load);
+    fixture.view.notes.get('a').status = status;
+    fixture.build();
+    const card = fixture.cards().a, found = [];
+    const walk = item => { if (item.classes?.has('vam-status')) found.push(item); item.children.forEach(walk); };
+    walk(card);
+    return { found, label: fixture.view.stageEl.children.find(item => item.dataset.nodeId === 'a') };
+  };
+  assert.equal(pills('completed').found.length, 0, 'completed cards have no pill');
+  for (const status of ['idea', 'error']) assert.equal(pills(status).found.length, 1, `${status} keeps its pill`);
+  const labelled = selectionView(load); labelled.build();
+  assert.ok(labelled.cards().a.attrs['aria-labelledby'], 'the card is still named');
+});
+integrationTest('the more-actions menu holds Organize notes and folders; toolbar keeps Multi-select; zoom cluster holds Auto layout', () => {
+  const opened = [];
+  class Modal { open() { opened.push(this); } close() {} }
+  const { view } = selectionView(load, {}, { ...obsidian, Modal });
+  view.openMapActions();
+  const labels = opened[0].choices.map(choice => choice.label);
+  assert.ok(labels.includes('Organize notes and folders'));
+  const organize = opened[0].choices.find(choice => choice.label === 'Organize notes and folders'); assert.equal(typeof organize.action, 'function');
+  const source = fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8');
+  const toolsBlock = source.slice(source.indexOf('const tools = createDiv("vam-map-tools")'), source.indexOf('const workspace = this.contentEl.createDiv("vam-workspace")'));
+  assert.ok(!/ui\.organize|ui\.auto_layout/.test(toolsBlock), 'neither control stays in the floating tools');
+  assert.match(source, /iconButton\(zoom, "workflow", t\("ui\.auto_layout"\)/);
+  const { translate } = load('i18n.ts');
+  assert.equal(translate('en', 'ui.select_topics'), 'Multi-select synthesis'); assert.equal(translate('zh-TW', 'ui.select_topics'), '多選整合');
+  assert.equal(translate('zh-TW', 'ui.organize'), '整理筆記與資料夾'); assert.equal(translate('zh-TW', 'ui.rename_topic'), '重新命名'); assert.equal(translate('zh-TW', 'ui.ai_explore'), 'AI 探索');
+  assert.equal(translate('zh-TW', 'ui.new_map'), '＋ 新增心智圖');
+});
+integrationTest('map UI terms in zh-TW say 議題 and 心智圖, not 節點 or 地圖, and keep 工作區 consistent', () => {
+  const { translate } = load('i18n.ts');
+  const source = fs.readFileSync(path.join(root, 'i18n.ts'), 'utf8');
+  const zh = source.slice(source.indexOf('const traditionalChinese'));
+  const mapUi = [...zh.matchAll(/^  "(ui\.[^"]+)": "((?:[^"\\]|\\.)*)"/gm)].filter(([, key]) => !/aim_/.test(key));
+  const drift = mapUi.filter(([, , text]) => /節點|地圖/.test(text)).map(([, key]) => key);
+  assert.deepEqual(drift, [], 'no map UI string uses 節點 or 地圖');
+  assert.equal(mapUi.filter(([, , text]) => /Workspace/.test(text.replace('Agent Workspace/', ''))).length, 0, 'prose says 工作區, not Workspace');
+  assert.equal(translate('zh-TW', 'ui.reconnect_existing_workspace'), '找回既有工作區');
 });
