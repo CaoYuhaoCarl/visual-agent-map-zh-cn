@@ -81,7 +81,7 @@ import {
   renderSavedTerminalQuestionTask
 } from "./steps/initial-question/step";
 import { renderEvidenceReuseAuditTask } from "./steps/evidence-reuse-audit/step";
-import { renderResearchPlanTask } from "./steps/research-plan/step";
+import { FALLBACK_TARGET_VALUE, renderFallbackTargetTask, renderResearchPlanTask } from "./steps/research-plan/step";
 import { renderResearchPlanRepairTask } from "./steps/research-plan-repair/step";
 import { renderSubtopicResearchTask } from "./steps/subtopic-research/step";
 import { renderResearchGapAuditTask } from "./steps/research-gap-audit/step";
@@ -2758,10 +2758,18 @@ export class AimManualFlow {
           if (!(error instanceof ReuseEvidenceRejected)) throw error;
         }
       }
+      // An empty plan with nothing reusable still needs evidence: research the current answer instead of failing.
       if (!reusable.length)
-        throw new Error(
-          "An empty research plan requires usable ancestor evidence; at least one research target is needed."
-        );
+        return validateAimResearchPlan([
+          {
+            id: "current-answer-evidence",
+            title: parent.summary || topicNote.title,
+            task: renderFallbackTargetTask(answerDescription),
+            expectedValue: FALLBACK_TARGET_VALUE,
+            action: "research",
+            dependsOn: []
+          }
+        ]);
       return validateAimResearchPlan(reusable);
     };
 

@@ -135,3 +135,16 @@ test('a supplemental research failure after a source update resumes at research'
   await buildFinalDelivery(base, async context => { calls.push(phaseOf(context)); return ask(context); }, { ...options, evidence: updatedEvidence, checkpoint: saved });
   assert.deepEqual(calls, ['delivery-research', 'delivery-writing', 'delivery-acceptance']);
 });
+test('a malformed outline source mapping is cleaned instead of ending the delivery', async () => {
+  const tasks = [];
+  const messy = answer('<!-- aim-delivery-outline {"sections":[{"heading":"First","purpose":"Use first evidence","searchTask":"","evidenceIds":["source-a","source-a",""," ",3]},{"heading":"Second","purpose":"Use second evidence","searchTask":"","evidenceIds":null,"dependencies":"source-b"}]} -->');
+  await buildFinalDelivery(base, async context => {
+    tasks.push(context);
+    const phase = phaseOf(context);
+    if (phase === 'delivery-outline') return messy;
+    if (phase === 'delivery-writing') return answer('## First\n\nContent https://a.example/docs');
+    return acceptance;
+  }, options);
+  const [writing] = tasks.filter(context => phaseOf(context) === 'delivery-writing');
+  assert.ok(/Source ID: source-a/.test(writing.task) && /Source ID: source-b/.test(writing.task), 'a section without a usable mapping uses all supplied evidence');
+});

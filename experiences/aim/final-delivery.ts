@@ -51,14 +51,13 @@ export function parseDeliveryOutline(detail: string): DeliverySection[] {
     const mapping: { evidenceIds?: string[]; dependencies?: string[] } = {};
     for (const key of ["evidenceIds", "dependencies"] as const) {
       if (key in section) {
+        // A malformed mapping is cleaned, not fatal: non-string or blank IDs and duplicates are dropped, and a value
+        // that is not a list means no mapping (the section then uses all supplied evidence).
         const ids = (section as Record<string, unknown>)[key];
-        if (
-          !Array.isArray(ids) ||
-          ids.some(id => typeof id !== "string" || !id.trim()) ||
-          new Set(ids).size !== ids.length
-        )
-          throw new Error("Invalid final delivery source mapping.");
-        mapping[key] = ids;
+        if (!Array.isArray(ids)) continue;
+        mapping[key] = [
+          ...new Set(ids.filter((id): id is string => typeof id === "string" && !!id.trim()).map(id => id.trim()))
+        ];
       }
     }
     return { heading: section.heading, purpose: section.purpose, searchTask: section.searchTask, ...mapping };

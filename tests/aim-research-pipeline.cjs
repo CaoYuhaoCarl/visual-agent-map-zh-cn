@@ -184,11 +184,18 @@ test('AIM zero-task plan materializes audited reuse before persistence and can r
   assert.deepEqual(phases.slice(previous), ['report-review']);
 });
 
-test('AIM zero-task plan without evidence fails before saving the plan or terminal review', async () => {
+test('AIM zero-task plan without reusable evidence researches the current answer instead of failing', async () => {
   const subject = fixture({ ancestor: false }); await subject.setPlan(undefined); const phases = [];
-  const flow = new AimManualFlow(subject.repository, subject.store, async context => { phases.push(phase(context)); return answer('Empty', '<!-- aim-plan {"subtopics":[]} -->'); });
-  await assert.rejects(flow.retryAnswerResearch('Map.md', 'current', 'test', 'low'), /requires usable ancestor evidence/);
-  assert.equal(subject.getMap().aim.branches[0].researchPlan, undefined); assert.deepEqual(phases, ['research-plan']);
+  const flow = new AimManualFlow(subject.repository, subject.store, async context => {
+    phases.push(phase(context));
+    if (phase(context) === 'research-plan') return answer('Empty', '<!-- aim-plan {"subtopics":[]} -->');
+    if (phase(context) === 'subtopic-research') return answer('Fresh evidence', 'Research status: search completed\nFRESH https://example.org/fresh');
+    throw new Error('STOP_AT_REVIEW');
+  });
+  await assert.rejects(flow.retryAnswerResearch('Map.md', 'current', 'test', 'low'), /STOP_AT_REVIEW/);
+  const plan = subject.getMap().aim.branches[0].researchPlan;
+  assert.equal(plan.length, 1); assert.equal(plan[0].action, 'research'); assert.equal(plan[0].id, 'current-answer-evidence');
+  assert.deepEqual(phases, ['research-plan', 'subtopic-research', 'report-review']);
 });
 
 test('AIM update targets use the exact prior report and restrict new research to changed claims', async () => {
