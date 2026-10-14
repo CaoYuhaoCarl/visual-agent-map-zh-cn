@@ -133,7 +133,7 @@ function launchObsidian(appProfile) {
   if (!existsSync(obsidianApp)) throw new Error(`Obsidian app bundle not found at ${obsidianApp}.`);
   const executable = join(obsidianApp, "Contents/MacOS/Obsidian");
   if (!existsSync(executable)) throw new Error(`Obsidian executable not found at ${executable}.`);
-  const child = spawn(executable, [`--user-data-dir=${appProfile}`], { cwd: root, detached: true, stdio: "ignore" });
+  const child = spawn(executable, [`--user-data-dir=${appProfile}`, "--disable-background-timer-throttling", "--disable-renderer-backgrounding", "--disable-backgrounding-occluded-windows"], { cwd: root, detached: true, stdio: "ignore" });
   child.unref();
 }
 
