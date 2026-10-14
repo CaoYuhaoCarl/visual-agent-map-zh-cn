@@ -1373,7 +1373,7 @@ test('applyCollapseLevel: collapse all, expand all and expand to level N set the
   const cyclic = [node('x', 'y'), node('y', 'x')]; core.applyCollapseLevel(cyclic, 1);
   assert.equal(cyclic.length, 2, 'a corrupt parent cycle does not hang');
 });
-integrationTest('the New map menu no longer imports outlines, and the topic side option opens the import with the matching placement', () => {
+integrationTest('the New map menu no longer imports outlines; the topic side option and the palette command add to the open map only', () => {
   const opened = [], menus = [];
   class Modal { constructor(app) { this.app = app; } open() { opened.push(this); } close() {} }
   class Menu { constructor() { this.items = []; menus.push(this); } addItem(callback) { const item = { title: '', icon: '', click: null, setTitle(value) { this.title = value; return this; }, setIcon(value) { this.icon = value; return this; }, onClick(handler) { this.click = handler; return this; } }; callback(item); this.items.push(item); return this; } showAtMouseEvent() { return this; } }
@@ -1388,10 +1388,11 @@ integrationTest('the New map menu no longer imports outlines, and the topic side
   assert.deepEqual(plain(placement(opened.at(-1))), { kind: 'tree' }, 'no selection: add to the current map');
   view.selected = 'a'; paste.click();
   assert.deepEqual(plain(placement(opened.at(-1))), { kind: 'under', parentId: 'a' }, 'a selected topic: add under it');
+  const count = opened.length;
   view.path = 'elsewhere/Map.md'; view.selected = null; paste.click();
-  assert.deepEqual(plain(placement(opened.at(-1))), { kind: 'new' }, 'a map outside the workspace falls back to a new map');
+  assert.equal(opened.length, count, 'no editable map open: no import window (a new map starts from + New mind map)');
   view.path = `${DEFAULT_SETTINGS.topicsFolder}/Topic/Map.md`; view.openOutlineImport();
-  assert.deepEqual(plain(placement(opened.at(-1))), { kind: 'new' }, 'the palette command still starts with a new map');
+  assert.deepEqual(plain(placement(opened.at(-1))), { kind: 'tree' }, 'the palette command adds to the open map');
 });
 integrationTest('collapse control: sets the flags, fits the map and is a single undo entry', async () => {
   const fixture = viewportFixture();
@@ -1411,10 +1412,17 @@ integrationTest('collapse control: sets the flags, fits the map and is a single 
   assert.equal(saved, 2, 'an unchanged request writes nothing but still fits'); assert.equal(fitted, 3);
   view.collapseTo(1); await view.pending;
   assert.equal(doc.nodes.find(item => item.id === 'a').collapsed, true); assert.equal(doc.nodes.find(item => item.id === 'r').collapsed, false);
+  const at = id => doc.nodes.find(item => item.id === id);
+  assert.deepEqual([at('a').x - at('r').x, at('a').y], [360, at('r').y], 'collapsing re-arranges the map: the collapsed topic is a leaf beside its parent');
+  view.collapseTo(null); await view.pending;
+  assert.ok(at('b').y !== at('c').y && at('b').x === at('a').x + 360, 'expanding re-arranges the shown branch');
+  await view.travel(false);
   // One undo restores the state before the last action in one step.
   await view.travel(false);
   assert.ok(doc.nodes.every(item => !item.collapsed), 'one undo restores every flag');
-  assert.match(fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8'), /iconButton\(zoom, "chevrons-down-up", t\("ui\.collapse_levels"\)/);
+  const source = fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8');
+  assert.match(source, /iconButton\(zoom, "chevrons-down-up", t\("ui\.collapse_levels"\)/);
+  assert.match(source, /n\.collapsed = !n\.collapsed;\s*map\.nodes = arrangeMap\(map\.nodes\);/, 'the card collapse button re-arranges in the same change');
 });
 integrationTest('collapse menu offers collapse all, expand all and levels 1 to 3', () => {
   const menus = [];

@@ -658,10 +658,14 @@ export class VisualAgentMapView extends ItemView {
     const settings = this.plugin.settings;
     return [standardTemplate(settings.language), ...settings.detailTemplates].map(({ id, name }) => ({ id, name }));
   }
-  /** `intoOpenMap` starts with the placement that matches the card in front of the user: under the selected topic, else this map. */
-  openOutlineImport(intoOpenMap = false): void {
+  /** Adds an outline to the open map: under the selected topic, else as a new tree. A new map starts from + New mind map. */
+  openOutlineImport(): void {
     const target = this.outlineImportTarget();
-    const placement = !intoOpenMap || target.map !== "editable" ? "new" : target.selected ? "under" : "tree";
+    if (target.map !== "editable") {
+      new Notice(target.map === "aim" ? t("ui.outline_import_placement_aim") : t("ui.outline_import_placement_no_map"));
+      return;
+    }
+    const placement = target.selected ? "under" : "tree";
     new OutlineImportModal(
       this.app,
       request => this.importOutline(request),
@@ -678,7 +682,7 @@ export class VisualAgentMapView extends ItemView {
       item
         .setTitle(t("ui.paste_outline_add_many"))
         .setIcon("list-tree")
-        .onClick(() => this.openOutlineImport(true))
+        .onClick(() => this.openOutlineImport())
     );
     menu.showAtMouseEvent(event);
   }
@@ -690,7 +694,10 @@ export class VisualAgentMapView extends ItemView {
       applyCollapseLevel(preview, shownLevels);
       const changed = preview.some((node, index) => !!node.collapsed !== !!this.map!.nodes[index]?.collapsed);
       if (changed) {
-        await this.mapChange(map => applyCollapseLevel(map.nodes, shownLevels));
+        await this.mapChange(map => {
+          applyCollapseLevel(map.nodes, shownLevels);
+          map.nodes = arrangeMap(map.nodes);
+        });
         if (this.history.undoEntry) this.history.undoEntry.label = t("ui.collapse_levels");
         this.updateHistoryButtons();
       }
@@ -3206,6 +3213,7 @@ export class VisualAgentMapView extends ItemView {
           this.mapChange(map => {
             const n = map.nodes.find(n => n.id === node.id)!;
             n.collapsed = !n.collapsed;
+            map.nodes = arrangeMap(map.nodes);
           })
         )
       );

@@ -208,3 +208,18 @@ test('map default content template survives parse and serialize; non-strings are
   assert.equal(core.parseMap(core.serializeMap(map)).detailTemplateId, 't1');
   assert.equal(core.parseMap(core.serializeMap({ ...map, detailTemplateId: 5 })).detailTemplateId, undefined);
 });
+
+test('full layout treats a collapsed topic as a leaf and leaves its hidden branch where it was', () => {
+  const nodes = [
+    { ...node('root'), x: 0, y: 0 },
+    { ...node('big', 'root'), x: 0, y: 0, collapsed: true },
+    ...Array.from({ length: 6 }, (_, index) => ({ ...node(`hidden-${index}`, 'big'), x: 999, y: index })),
+    { ...node('next', 'root'), x: 0, y: 0 }
+  ];
+  const at = (list, id) => list.find(item => item.id === id);
+  const folded = layout.arrangeMap(nodes);
+  assert.equal(at(folded, 'next').y - at(folded, 'big').y, 220, 'the sibling sits one row below, not below six hidden rows');
+  for (let index = 0; index < 6; index++) assert.deepEqual([at(folded, `hidden-${index}`).x, at(folded, `hidden-${index}`).y], [999, index]);
+  const open = layout.arrangeMap(folded.map(item => ({ ...item, collapsed: false })));
+  assert.equal(at(open, 'next').y - at(open, 'hidden-5').y, 220, 'expanded, the branch takes its rows again');
+});

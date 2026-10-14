@@ -184,9 +184,8 @@ var english = {
   "ui.outline_import_preview_empty": "Paste an outline or choose a note to see the preview.",
   "ui.outline_import_source": "Source: {0}",
   "ui.outline_import_shallow": "Run shallow research on each topic after creation (uses AI quota)",
-  "ui.outline_import_create": "Create mind map",
+  "ui.outline_import_add": "Add to mind map",
   "ui.outline_import_placement": "Put it in",
-  "ui.outline_import_placement_new": "A new mind map",
   "ui.outline_import_placement_tree": "This mind map, as a new tree",
   "ui.outline_import_placement_under": "Under the selected topic",
   "ui.outline_import_placement_under_named": "Under the selected topic ({0})",
@@ -1501,9 +1500,8 @@ var traditionalChinese = {
   "ui.outline_import_preview_empty": "\u8CBC\u4E0A\u5927\u7DB1\u6216\u9078\u4E00\u4EFD\u7B46\u8A18\uFF0C\u5C31\u6703\u986F\u793A\u9810\u89BD\u3002",
   "ui.outline_import_source": "\u4F86\u6E90\uFF1A{0}",
   "ui.outline_import_shallow": "\u5EFA\u7ACB\u5F8C\u9010\u4E00\u6DFA\u7814\u7A76\u6BCF\u500B\u8B70\u984C\uFF08\u6703\u4F7F\u7528 AI \u984D\u5EA6\uFF09",
-  "ui.outline_import_create": "\u5EFA\u7ACB\u5FC3\u667A\u5716",
+  "ui.outline_import_add": "\u52A0\u5165\u5FC3\u667A\u5716",
   "ui.outline_import_placement": "\u653E\u5230\u54EA\u88E1",
-  "ui.outline_import_placement_new": "\u5EFA\u7ACB\u65B0\u5FC3\u667A\u5716",
   "ui.outline_import_placement_tree": "\u76EE\u524D\u5FC3\u667A\u5716\uFF08\u65B0\u589E\u4E00\u68F5\u6A39\uFF09",
   "ui.outline_import_placement_under": "\u9078\u53D6\u7684\u8B70\u984C\u5E95\u4E0B",
   "ui.outline_import_placement_under_named": "\u9078\u53D6\u7684\u8B70\u984C\u5E95\u4E0B\uFF08{0}\uFF09",
@@ -11656,7 +11654,7 @@ var COLUMN = 360;
 var ROW = 220;
 var WIDTH = 300;
 var HEIGHT = 190;
-function positions(nodes, roots, left, top) {
+function positions(nodes, roots, left, top, folded = false) {
   var _a;
   const children = /* @__PURE__ */ new Map();
   for (const node of nodes) {
@@ -11669,7 +11667,7 @@ function positions(nodes, roots, left, top) {
   let row = 0;
   const visit = (node, depth) => {
     var _a2;
-    const descendants2 = (_a2 = children.get(node.id)) != null ? _a2 : [];
+    const descendants2 = folded && node.collapsed ? [] : (_a2 = children.get(node.id)) != null ? _a2 : [];
     const childYs = descendants2.map((child) => visit(child, depth + 1));
     const y = childYs.length ? (childYs[0] + childYs[childYs.length - 1]) / 2 : top + row++ * ROW;
     result.set(node.id, { x: left + depth * COLUMN, y });
@@ -11680,7 +11678,7 @@ function positions(nodes, roots, left, top) {
 }
 function arrangeMap(nodes) {
   const roots = nodes.filter((node) => !node.parentId);
-  const placed = positions(nodes, roots, 80, 80);
+  const placed = positions(nodes, roots, 80, 80, true);
   return nodes.map((node) => ({ ...node, ...placed.get(node.id) }));
 }
 function arrangeNewBranch(nodes, parentId, newIds) {
@@ -13633,7 +13631,7 @@ var OutlineFileModal = class extends import_obsidian9.FuzzySuggestModal {
 };
 var OutlineImportModal = class extends import_obsidian9.Modal {
   constructor(app, create, models = { list: () => [], watch: () => () => {
-  } }, templates = [], target = { map: "none" }, initialPlacement = "new") {
+  } }, templates = [], target = { map: "none" }, initialPlacement = "tree") {
     super(app);
     this.create = create;
     this.models = models;
@@ -13653,9 +13651,8 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
     __publicField(this, "model", () => void 0);
     __publicField(this, "template", () => void 0);
     __publicField(this, "unwatch");
-    __publicField(this, "placement", "new");
-    const usable = initialPlacement === "new" || target.map === "editable" && (initialPlacement === "tree" || !!target.selected);
-    this.placement = usable ? initialPlacement : "new";
+    __publicField(this, "placement", "tree");
+    this.placement = initialPlacement === "under" && target.selected ? "under" : "tree";
   }
   onOpen() {
     this.titleEl.setText(t("ui.outline_import"));
@@ -13692,7 +13689,7 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
     const footer = modalActions(this);
     this.status = actionStatus(footer);
     footer.createEl("button", { text: t("ui.cancel") }).addEventListener("click", () => this.close());
-    this.createButton = footer.createEl("button", { text: t("ui.outline_import_create"), cls: "mod-cta" });
+    this.createButton = footer.createEl("button", { text: t("ui.outline_import_add"), cls: "mod-cta" });
     this.createButton.addEventListener("click", () => void this.submit());
     this.refresh();
   }
@@ -13706,7 +13703,6 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
     const mapReason = this.target.map === "aim" ? t("ui.outline_import_placement_aim") : this.target.map === "none" ? t("ui.outline_import_placement_no_map") : null;
     const selected = this.target.selected;
     const options = [
-      { kind: "new", text: t("ui.outline_import_placement_new"), reason: null },
       { kind: "tree", text: t("ui.outline_import_placement_tree"), reason: mapReason },
       {
         kind: "under",
@@ -13736,7 +13732,7 @@ var OutlineImportModal = class extends import_obsidian9.Modal {
   }
   placementRequest() {
     if (this.placement === "under" && this.target.selected) return { kind: "under", parentId: this.target.selected.id };
-    return this.placement === "tree" ? { kind: "tree" } : { kind: "new" };
+    return { kind: "tree" };
   }
   onClose() {
     var _a;
@@ -22527,10 +22523,14 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     const settings = this.plugin.settings;
     return [standardTemplate(settings.language), ...settings.detailTemplates].map(({ id, name }) => ({ id, name }));
   }
-  /** `intoOpenMap` starts with the placement that matches the card in front of the user: under the selected topic, else this map. */
-  openOutlineImport(intoOpenMap = false) {
+  /** Adds an outline to the open map: under the selected topic, else as a new tree. A new map starts from + New mind map. */
+  openOutlineImport() {
     const target = this.outlineImportTarget();
-    const placement = !intoOpenMap || target.map !== "editable" ? "new" : target.selected ? "under" : "tree";
+    if (target.map !== "editable") {
+      new import_obsidian17.Notice(target.map === "aim" ? t("ui.outline_import_placement_aim") : t("ui.outline_import_placement_no_map"));
+      return;
+    }
+    const placement = target.selected ? "under" : "tree";
     new OutlineImportModal(
       this.app,
       (request) => this.importOutline(request),
@@ -22544,7 +22544,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
   openTopicMenu(event) {
     const menu = new import_obsidian17.Menu();
     menu.addItem(
-      (item) => item.setTitle(t("ui.paste_outline_add_many")).setIcon("list-tree").onClick(() => this.openOutlineImport(true))
+      (item) => item.setTitle(t("ui.paste_outline_add_many")).setIcon("list-tree").onClick(() => this.openOutlineImport())
     );
     menu.showAtMouseEvent(event);
   }
@@ -22559,7 +22559,10 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
         return !!node.collapsed !== !!((_a = this.map.nodes[index]) == null ? void 0 : _a.collapsed);
       });
       if (changed) {
-        await this.mapChange((map) => applyCollapseLevel(map.nodes, shownLevels));
+        await this.mapChange((map) => {
+          applyCollapseLevel(map.nodes, shownLevels);
+          map.nodes = arrangeMap(map.nodes);
+        });
         if (this.history.undoEntry) this.history.undoEntry.label = t("ui.collapse_levels");
         this.updateHistoryButtons();
       }
@@ -24948,6 +24951,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
           () => this.mapChange((map) => {
             const n = map.nodes.find((n2) => n2.id === node.id);
             n.collapsed = !n.collapsed;
+            map.nodes = arrangeMap(map.nodes);
           })
         )
       );
