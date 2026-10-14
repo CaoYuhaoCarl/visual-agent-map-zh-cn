@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { test, integrationTest, root, load, node, map, plain, obsidian, DEFAULT_SETTINGS, until } = require('../support.cjs');
 integrationTest('node plus adds a child without opening a duplicate right-click menu', () => {
-  const { VisualAgentMapView } = load('main.ts', { obsidian });
+  const { VisualAgentMapView } = load('main.ts', { obsidian }, { requestAnimationFrame: run => { run(); return 1; }, cancelAnimationFrame() {} });
   const events = new Map(), buttons = [];
   const element = tag => ({ tag, children: [], dataset: {}, style: {},
     createDiv(options) { const child = element('div'); child.cls = options?.cls ?? options; this.children.push(child); return child; },
@@ -1177,4 +1177,114 @@ integrationTest('outline setActive marks the row in place with aria-current and 
   assert.equal(renders, 0); assert.equal(rows[1].classes.has('is-active'), true); assert.equal(rows[1].attrs.get('aria-current'), 'true');
   view.setActive('a.md');
   assert.equal(rows[1].classes.has('is-active'), false); assert.equal(rows[1].attrs.has('aria-current'), false); assert.equal(rows[0].attrs.get('aria-current'), 'true');
+});
+const viewportFixture = () => {
+  const frames = [], cancelled = [];
+  const windowValues = { setTimeout: run => { run(); return 1; }, clearTimeout() {}, requestAnimationFrame: run => { frames.push(run); return frames.length; }, cancelAnimationFrame: id => { cancelled.push(id); } };
+  const { default: Plugin, VisualAgentMapView } = load('main.ts', { obsidian }, windowValues);
+  const counts = { updateMap: 0, readMap: 0, readNote: 0 };
+  const a = node('a'), b = node('b', 'a');
+  const doc = map([a, b]);
+  const note = { title: 'T', summary: '', status: 'completed' };
+  const repo = { updateMap: async (_path, change) => { counts.updateMap++; change(doc); }, readMap: async () => { counts.readMap++; return JSON.parse(JSON.stringify(doc)); }, readNote: async () => { counts.readNote++; return { ...note }; } };
+  const plugin = Object.create(Plugin.prototype);
+  Object.assign(plugin, { queue: Promise.resolve(), writing: 0, logs: { appendLog() {} }, repo, settings: { ...DEFAULT_SETTINGS }, expansionBatches: new Map(), pendingSuggestions: new Map(), syncOutline() {}, detailsShown: () => false, setOutlineActive() {} });
+  const app = { vault: { getAbstractFileByPath: () => new obsidian.TFile('m/Map.md') } };
+  const view = new VisualAgentMapView({ app }, plugin);
+  view.app = app; view.path = 'm/Map.md'; view.map = doc; view.render = () => {};
+  view.notes = new Map([[a.id, { ...note }], [b.id, { ...note }]]);
+  plugin.views = () => [view];
+  return { plugin, view, counts, doc, frames, cancelled, a, b, windowValues, load: () => ({ VisualAgentMapView }) };
+};
+integrationTest('a viewport-only write skips the note re-read, while a content write still synchronizes', async () => {
+  const { plugin, view, counts } = viewportFixture();
+  view.map.viewport.x = 40;
+  view.saveViewport();
+  await plugin.queue;
+  assert.equal(counts.updateMap, 1, 'the viewport is written');
+  assert.equal(counts.readNote, 0, 'no note is read'); assert.equal(counts.readMap, 0, 'the map is not re-read either');
+  await plugin.mutate(async () => {});
+  assert.equal(counts.readNote, 2, 'a content write re-reads every note'); assert.equal(counts.readMap, 1);
+});
+integrationTest('write queue keeps order: a content write interleaved with viewport writes still synchronizes and none is lost', async () => {
+  const { plugin, counts } = viewportFixture();
+  const order = [];
+  const first = plugin.mutate(async () => { order.push('viewport 1'); }, { sync: false });
+  const content = plugin.mutate(async () => { order.push('content'); });
+  const second = plugin.mutate(async () => { order.push('viewport 2'); }, { sync: false });
+  await Promise.all([first, content, second]);
+  assert.deepEqual(order, ['viewport 1', 'content', 'viewport 2']);
+  assert.equal(counts.readMap, 1, 'only the content write synchronized'); assert.equal(counts.readNote, 2);
+  await plugin.mutate(async () => { throw new Error('failed'); }, { sync: false }).catch(() => {});
+  await plugin.mutate(async () => { order.push('after failure'); });
+  assert.equal(order.at(-1), 'after failure', 'a failed viewport write does not block later writes');
+});
+integrationTest('viewport saves coalesce into one queued write that reads the latest viewport and flushes on close', async () => {
+  const { plugin, view, counts, doc } = viewportFixture();
+  let release; const gate = new Promise(resolve => { release = resolve; });
+  plugin.queue = gate;
+  const queued = [];
+  const original = plugin.mutate.bind(plugin);
+  plugin.mutate = (work, options) => { queued.push(options); return original(work, options); };
+  view.map.viewport.x = 1; view.saveViewport(); view.map.viewport.x = 2; view.saveViewport(); view.map.viewport.x = 3; view.saveViewport();
+  assert.equal(queued.length, 1, 'three saves while one is waiting make a single write'); assert.deepEqual(plain(queued[0]), { sync: false });
+  release(); await plugin.queue; await plugin.queue;
+  assert.equal(counts.updateMap, 1); assert.equal(doc.viewport.x, 3, 'the write carries the newest viewport');
+  view.map.viewport.x = 9; view.saveViewport(); await plugin.queue;
+  assert.equal(queued.length, 2, 'a later save queues a new write'); assert.equal(counts.updateMap, 2);
+  const source = fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8');
+  assert.match(source, /async onClose\(\)[\s\S]*persistViewport\(\)/, 'closing flushes a pending viewport save');
+});
+const dragFixture = () => {
+  const fixture = viewportFixture();
+  const { view, a, b, doc, frames } = fixture;
+  const make = selectionDom();
+  const parentCard = make('div'), childCard = make('div');
+  Object.assign(parentCard, { offsetLeft: 0, offsetTop: 0, offsetWidth: 280, offsetHeight: 100 }); Object.assign(childCard, { offsetLeft: 400, offsetTop: 0, offsetWidth: 280, offsetHeight: 100 });
+  const other = node('c'); other.x = 0; other.y = 300; doc.nodes.push(other);
+  const otherCard = make('div'); Object.assign(otherCard, { offsetLeft: 0, offsetTop: 300, offsetWidth: 280, offsetHeight: 100 });
+  const edgeOf = () => { const attrs = []; return { attrs, setAttribute(name, value) { attrs.push([name, value]); } }; };
+  const near = edgeOf(), far = edgeOf();
+  view.cardEls = new Map([[a.id, parentCard], [b.id, childCard], [other.id, otherCard]]);
+  view.edgeEls = new Map([[`${a.id}\u0000${b.id}`, near], [`${other.id}\u0000${other.id}`, far]]);
+  view.enqueue = work => work(); view.mapChange = async () => {};
+  const events = new Map();
+  childCard.addEventListener = (name, handler) => events.set(name, handler); childCard.removeEventListener = name => events.delete(name);
+  childCard.setPointerCapture = () => {};
+  view.enableDrag(childCard, b);
+  const down = () => events.get('pointerdown')({ target: { closest: () => null }, button: 0, pointerId: 1, clientX: 0, clientY: 0 });
+  return { ...fixture, events, childCard, near, far, down };
+};
+integrationTest('dragging repaints only the edges touching the card, batched in one animation frame', () => {
+  const { view, events, childCard, near, far, down, frames } = dragFixture();
+  down();
+  assert.equal(view.dragging, true);
+  events.get('pointermove')({ clientX: 50, clientY: 20 }); events.get('pointermove')({ clientX: 60, clientY: 30 }); events.get('pointermove')({ clientX: 70, clientY: 40 });
+  assert.equal(frames.length, 1, 'three pointer moves share one frame'); assert.equal(near.attrs.length, 0, 'nothing is painted before the frame');
+  frames[0]();
+  assert.equal(near.attrs.length, 1); assert.equal(far.attrs.length, 0, 'an edge that does not touch the card is not changed');
+  assert.equal(near.attrs[0][1], 'M 280 50 C 385 50, -35 90, 70 90', 'the edge ends at the card\'s new left edge'); assert.equal(childCard.style.left, '70px'); assert.equal(childCard.style.top, '40px');
+  events.get('pointerup')({ type: 'pointerup' });
+  assert.equal(view.dragging, false); assert.equal(events.has('pointermove'), false, 'listeners are removed');
+});
+integrationTest('lostpointercapture, pointercancel, a render mid-drag and closing the view all end the drag and drop the pending frame', async () => {
+  for (const ending of ['lostpointercapture', 'pointercancel']) {
+    const { view, events, childCard, near, down, frames, cancelled } = dragFixture();
+    down(); events.get('pointermove')({ clientX: 50, clientY: 50 });
+    assert.equal(view.dragging, true); assert.equal(frames.length, 1);
+    events.get(ending)({ type: ending });
+    assert.equal(view.dragging, false, `${ending} ends the drag`); assert.deepEqual(cancelled, [1], 'the pending frame is cancelled');
+    assert.equal(childCard.style.left, '0px', 'the card goes back to where it started');
+    assert.deepEqual([...events.keys()], ['pointerdown'], 'only the permanent pointerdown listener remains');
+  }
+  { const { view, events, down, frames, cancelled } = dragFixture();
+    down(); events.get('pointermove')({ clientX: 50, clientY: 50 });
+    view.render = Object.getPrototypeOf(view).render; view.closed = true;
+    view.render();
+    assert.equal(view.dragging, false, 'a render mid-drag cannot leave dragging stuck'); assert.deepEqual(cancelled, [1]); assert.deepEqual([...events.keys()], ['pointerdown']); void frames; }
+  { const { view, events, down, cancelled } = dragFixture();
+    down(); events.get('pointermove')({ clientX: 50, clientY: 50 });
+    view.render = Object.getPrototypeOf(view).render;
+    await view.onClose();
+    assert.equal(view.dragging, false); assert.deepEqual(cancelled, [1], 'closing the view cancels the pending frame'); }
 });

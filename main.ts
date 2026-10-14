@@ -171,12 +171,16 @@ export default class VisualAgentMapPlugin extends Plugin {
     this.logs.appendLog("error", `${context}：${message}`);
     return message;
   }
-  async mutate(work: () => Promise<void>): Promise<void> {
+  /**
+   * Runs a write after every earlier one. Views re-read the map and its notes afterwards unless the caller states the
+   * write only touches the viewport (`sync: false`), which changes nothing another view could need to reload.
+   */
+  async mutate(work: () => Promise<void>, options: { sync?: boolean } = {}): Promise<void> {
     const result = this.queue.then(async () => {
       this.writing++;
       try {
         await work();
-        for (const view of this.views()) await view.synchronize();
+        if (options.sync !== false) for (const view of this.views()) await view.synchronize();
       } finally {
         this.writing--;
       }

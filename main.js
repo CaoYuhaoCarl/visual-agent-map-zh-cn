@@ -22077,6 +22077,10 @@ function aimQuestionStatus(map, questionNodeId, activeQuestionNodeId) {
 }
 var cardLabelSequence = 0;
 var cardLabels = /* @__PURE__ */ new WeakMap();
+function edgePathData(x1, y1, x2, y2) {
+  const bend = Math.max(60, Math.abs(x2 - x1) / 2);
+  return `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`;
+}
 var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
@@ -22100,6 +22104,12 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     __publicField(this, "hoverCard", null);
     __publicField(this, "integrationMode", false);
     __publicField(this, "dragging", false);
+    /** Ends the drag in progress (listeners, pending frame, flag); set only while a card is being dragged. */
+    __publicField(this, "dragCleanup", null);
+    __publicField(this, "dragFrame", null);
+    /** A viewport write is already waiting in the queue; it reads the viewport when it runs, so later saves join it. */
+    __publicField(this, "viewportQueued", false);
+    __publicField(this, "edgeEls", /* @__PURE__ */ new Map());
     __publicField(this, "suppressClickUntil", 0);
     /** Node whose card should hold keyboard focus once the next render finishes. */
     __publicField(this, "focusNodeId", null);
@@ -22232,7 +22242,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     }
   }
   async onClose() {
-    var _a;
+    var _a, _b;
     this.closed = true;
     for (const task of this.synthesisTasks.values()) if (task.state === "running") task.controller.abort();
     this.synthesisTasks.clear();
@@ -22247,6 +22257,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     if (this.refreshTimer !== null) window.clearTimeout(this.refreshTimer);
     if (this.hoverTimer !== null) window.clearTimeout(this.hoverTimer);
     (_a = this.hoverCard) == null ? void 0 : _a.remove();
+    (_b = this.dragCleanup) == null ? void 0 : _b.call(this);
     if (this.viewportTimer !== null) {
       window.clearTimeout(this.viewportTimer);
       this.viewportTimer = null;
@@ -24239,14 +24250,15 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     ]).open();
   }
   render() {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t;
+    (_a = this.dragCleanup) == null ? void 0 : _a.call(this);
     if (this.closed) return;
     this.plugin.syncOutline(this.builtIn ? null : this.map, this.notes, this.builtIn);
     if (this.hoverTimer !== null) {
       window.clearTimeout(this.hoverTimer);
       this.hoverTimer = null;
     }
-    (_a = this.hoverCard) == null ? void 0 : _a.remove();
+    (_b = this.hoverCard) == null ? void 0 : _b.remove();
     this.hoverCard = null;
     const title = this.getDisplayText();
     if (title !== this.headerTitle) {
@@ -24255,13 +24267,13 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
         if (!this.closed) void this.leaf.setViewState({ type: VIEW_TYPE, state: this.getState() });
       }, 0);
     }
-    const focusedCard = (_b = activeDocument.activeElement) == null ? void 0 : _b.closest(".vam-node");
-    if (focusedCard && this.contentEl.contains(focusedCard)) (_d = this.focusNodeId) != null ? _d : this.focusNodeId = (_c = focusedCard.dataset.nodeId) != null ? _c : null;
+    const focusedCard = (_c = activeDocument.activeElement) == null ? void 0 : _c.closest(".vam-node");
+    if (focusedCard && this.contentEl.contains(focusedCard)) (_e = this.focusNodeId) != null ? _e : this.focusNodeId = (_d = focusedCard.dataset.nodeId) != null ? _d : null;
     this.contentEl.empty();
     const toolbar = this.contentEl.createDiv("vam-toolbar");
     const switcher = toolbar.createEl("button", { cls: "vam-map-switcher" });
     switcher.setAttr("aria-label", t("ui.switch_mind_map"));
-    switcher.createSpan({ text: (_f = (_e = this.map) == null ? void 0 : _e.title) != null ? _f : "Visual Agent Map", cls: "vam-map-title" });
+    switcher.createSpan({ text: (_g = (_f = this.map) == null ? void 0 : _f.title) != null ? _g : "Visual Agent Map", cls: "vam-map-title" });
     (0, import_obsidian17.setIcon)(switcher.createSpan("vam-map-switcher-icon"), "chevrons-up-down");
     switcher.addEventListener("click", () => this.openMapSwitcher());
     if (this.builtIn) toolbar.createSpan({ cls: "vam-readonly-badge", text: t("ui.official_sample_read_only") });
@@ -24289,8 +24301,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
       this.updateHistoryButtons();
       this.iconButton(headerActions, "more-vertical", t("ui.more_mind_map_actions"), () => this.openMapActions());
     }
-    const selectedNode = (_g = this.map) == null ? void 0 : _g.nodes.find((node) => node.id === this.selected);
-    if (!this.builtIn && ((_h = this.map) == null ? void 0 : _h.aim)) {
+    const selectedNode = (_h = this.map) == null ? void 0 : _h.nodes.find((node) => node.id === this.selected);
+    if (!this.builtIn && ((_i = this.map) == null ? void 0 : _i.aim)) {
       const statusbar = this.contentEl.createDiv(`vam-aim-statusbar${this.aimBusy ? " is-active" : ""}`);
       statusbar.setAttr("aria-live", "polite");
       const data = this.map.aim;
@@ -24306,19 +24318,19 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
       let stateText;
       let stateClass;
       if (this.aimBusy) {
-        const activeTitle = (_k = (_j = this.notes.get((_i = this.aimActiveQuestionNodeId) != null ? _i : "")) == null ? void 0 : _j.title) != null ? _k : this.map.title;
+        const activeTitle = (_l = (_k = this.notes.get((_j = this.aimActiveQuestionNodeId) != null ? _j : "")) == null ? void 0 : _k.title) != null ? _l : this.map.title;
         const planning = this.aimActivityKind === "planning";
         stateText = this.aimActivityKind === "clarifying" ? t("ui.aim_preparing_clarification") : t(planning ? "ui.aim_status_planning_0" : "ui.aim_status_researching_0", activeTitle);
         stateClass = "running";
       } else if (runningBranch) {
-        const activeTitle = (_m = (_l = this.notes.get(runningBranch.questionNodeId)) == null ? void 0 : _l.title) != null ? _m : this.map.title;
+        const activeTitle = (_n = (_m = this.notes.get(runningBranch.questionNodeId)) == null ? void 0 : _m.title) != null ? _n : this.map.title;
         stateText = t("ui.aim_status_researching_0", activeTitle);
         stateClass = "running";
       } else if (!questions.length) {
         stateText = t("ui.aim_status_ready");
         stateClass = "idea";
       } else if (pendingQuestion) {
-        stateText = t("ui.aim_status_waiting_answer_0", (_o = (_n = this.notes.get(pendingQuestion.id)) == null ? void 0 : _n.title) != null ? _o : "");
+        stateText = t("ui.aim_status_waiting_answer_0", (_p = (_o = this.notes.get(pendingQuestion.id)) == null ? void 0 : _o.title) != null ? _p : "");
         stateClass = "idea";
       } else if (data.branches.some((branch) => branch.results.some((result) => result.kind === "conclusion"))) {
         stateText = t("ui.aim_status_complete");
@@ -24347,7 +24359,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
         attr: { target: "_blank", rel: "noopener noreferrer" }
       });
     }
-    if (!this.builtIn && ((_p = this.map) == null ? void 0 : _p.aim)) {
+    if (!this.builtIn && ((_q = this.map) == null ? void 0 : _q.aim)) {
       const data = this.map.aim;
       const isAnswered = (node) => data.branches.some((branch) => branch.questionNodeId === node.id);
       const pending = this.map.nodes.find((node) => node.aimKind === "question" && node.aimQuestion && !isAnswered(node));
@@ -24401,7 +24413,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
       redo.dataset.history = "redo";
       this.updateHistoryButtons();
     }
-    if ((_q = this.deletedMap) == null ? void 0 : _q.deleted)
+    if ((_r = this.deletedMap) == null ? void 0 : _r.deleted)
       this.button(toolbar, t("ui.restore_deleted_map"), () => this.enqueue(() => this.restoreDeletedMapFromUi()));
     if (this.integrationTask && this.integrationTask.mapPath === this.path) {
       const task = this.integrationTask, state = this.contentEl.createDiv("vam-integration-progress");
@@ -24446,7 +24458,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
       this.button(actions, t("ui.create_a_new_mind_map"), () => this.openNewMindMapModal()).addClass("mod-cta");
       this.button(actions, t("ui.aim_create_map"), () => this.openAimStart());
       this.button(actions, t("ui.view_sample"), () => this.enqueue(() => this.openBuiltInSample(true)));
-      if ((_r = this.deletedMap) == null ? void 0 : _r.deleted)
+      if ((_s = this.deletedMap) == null ? void 0 : _s.deleted)
         this.button(actions, t("ui.restore_deleted_map"), () => this.enqueue(() => this.restoreDeletedMapFromUi()));
       return;
     }
@@ -24607,7 +24619,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian17.Ite
     if (this.focusNodeId) {
       this.restoringFocus = true;
       try {
-        (_s = this.stageEl.querySelector(`[data-node-id="${CSS.escape(this.focusNodeId)}"]`)) == null ? void 0 : _s.focus({ preventScroll: true });
+        (_t = this.stageEl.querySelector(`[data-node-id="${CSS.escape(this.focusNodeId)}"]`)) == null ? void 0 : _t.focus({ preventScroll: true });
       } finally {
         this.restoringFocus = false;
       }
@@ -27166,8 +27178,22 @@ ${note.detail.trim()}` : "",
     if (this.viewportTimer !== null) window.clearTimeout(this.viewportTimer);
     this.viewportTimer = window.setTimeout(() => {
       this.viewportTimer = null;
-      this.enqueue(() => this.persistViewport());
+      this.queueViewportWrite();
     }, 250);
+  }
+  /** A viewport write skips the re-read of every note; saves that arrive while one waits in the queue join it. */
+  queueViewportWrite() {
+    if (this.viewportQueued) return;
+    this.viewportQueued = true;
+    void this.plugin.mutate(
+      async () => {
+        this.viewportQueued = false;
+        await this.persistViewport();
+      },
+      { sync: false }
+    ).catch(() => {
+      this.viewportQueued = false;
+    });
   }
   /** Pan/zoom writes only the viewport onto the current file, never this view's possibly older map copy. */
   async persistViewport() {
@@ -27308,9 +27334,10 @@ ${note.detail.trim()}` : "",
         viewport.removeClass("is-panning");
         this.saveViewport();
         if (!moved && !this.integrationMode && event.button === 0) {
+          const previous = this.selected, touched = [...this.multiSelected];
           this.selected = null;
           this.multiSelected.clear();
-          this.render();
+          this.commitSelection(previous, null, touched);
         }
       };
       viewport.addEventListener("pointermove", move);
@@ -27320,45 +27347,57 @@ ${note.detail.trim()}` : "",
   }
   enableDrag(card, node) {
     card.addEventListener("pointerdown", (event) => {
-      var _a;
+      var _a, _b;
       if (this.integrationMode || event.target.closest("button") || event.button !== 0 || !this.map)
         return;
       this.clearHoverTimer();
       (_a = this.hoverCard) == null ? void 0 : _a.remove();
       this.hoverCard = null;
-      this.dragging = true;
+      (_b = this.dragCleanup) == null ? void 0 : _b.call(this);
       const currentNode = this.map.nodes.find((item) => item.id === node.id);
-      if (!currentNode) {
-        this.dragging = false;
-        return;
-      }
+      if (!currentNode) return;
+      this.dragging = true;
       const start = { x: event.clientX, y: event.clientY }, origin = { x: currentNode.x, y: currentNode.y };
       let position = { ...origin }, moved = false;
+      const edges = this.dragEdges(node.id, card);
       card.setPointerCapture(event.pointerId);
+      const paint = () => {
+        this.dragFrame = null;
+        card.style.left = `${position.x}px`;
+        card.style.top = `${position.y}px`;
+        edges.update(position.x, position.y);
+      };
       const move = (e) => {
+        var _a2;
         moved || (moved = Math.hypot(e.clientX - start.x, e.clientY - start.y) > 3);
         if (!moved) return;
         position = {
           x: origin.x + (e.clientX - start.x) / this.map.viewport.zoom,
           y: origin.y + (e.clientY - start.y) / this.map.viewport.zoom
         };
-        card.style.left = `${position.x}px`;
-        card.style.top = `${position.y}px`;
-        this.drawEdges();
+        (_a2 = this.dragFrame) != null ? _a2 : this.dragFrame = window.requestAnimationFrame(paint);
       };
-      const finish = (e) => {
+      const settle = () => {
         this.dragging = false;
-        this.suppressClickUntil = Date.now() + 250;
+        if (this.dragFrame !== null) window.cancelAnimationFrame(this.dragFrame);
+        this.dragFrame = null;
         card.removeEventListener("pointermove", move);
         card.removeEventListener("pointerup", finish);
         card.removeEventListener("pointercancel", finish);
-        if (e.type === "pointercancel") {
+        card.removeEventListener("lostpointercapture", finish);
+        this.dragCleanup = null;
+      };
+      const finish = (e) => {
+        settle();
+        this.suppressClickUntil = Date.now() + 250;
+        if (e.type === "pointercancel" || e.type === "lostpointercapture") {
           card.style.left = `${origin.x}px`;
           card.style.top = `${origin.y}px`;
-          this.drawEdges();
+          edges.update(origin.x, origin.y);
           return;
         }
-        if (moved)
+        if (moved) {
+          paint();
           this.enqueue(
             () => this.mapChange((map) => {
               const current = map.nodes.find((n) => n.id === node.id);
@@ -27367,38 +27406,86 @@ ${note.detail.trim()}` : "",
               current.y = Math.round(position.y);
             })
           );
-        else if (e.metaKey || e.ctrlKey) {
+        } else if (e.metaKey || e.ctrlKey) {
+          const previous = this.selected, touched = [...this.multiSelected, node.id];
           if (this.multiSelected.has(node.id)) this.multiSelected.delete(node.id);
           else this.multiSelected.add(node.id);
           this.selected = node.id;
-          this.render();
+          this.commitSelection(previous, node.id, touched);
         } else {
+          const previous = this.selected, touched = [...this.multiSelected];
           this.multiSelected.clear();
           this.selected = node.id;
-          this.render();
+          this.commitSelection(previous, node.id, touched);
           if (node.aimKind === "question") this.openAimAnswer(node);
           else if (this.plugin.detailsShown()) this.openDetails(node);
         }
       };
+      this.dragCleanup = settle;
       card.addEventListener("pointermove", move);
       card.addEventListener("pointerup", finish);
       card.addEventListener("pointercancel", finish);
+      card.addEventListener("lostpointercapture", finish);
     });
+  }
+  /**
+   * The edges touching one card, with the geometry they need already measured. `update` moves only those edges to
+   * the dragged card's new position; every other edge stays untouched.
+   */
+  dragEdges(id, card) {
+    const size = { width: card.offsetWidth, height: card.offsetHeight };
+    const touching = [];
+    for (const [key2, path] of this.edgeEls) {
+      const [parentId, childId] = key2.split("\0");
+      if (parentId !== id && childId !== id) continue;
+      const other = this.cardEls.get(parentId === id ? childId : parentId);
+      if (!other) continue;
+      touching.push({
+        path,
+        dragIsParent: parentId === id,
+        far: { x: other.offsetLeft, y: other.offsetTop, width: other.offsetWidth, height: other.offsetHeight }
+      });
+    }
+    return {
+      update: (x, y) => {
+        for (const edge of touching) {
+          if (edge.dragIsParent)
+            edge.path.setAttribute(
+              "d",
+              edgePathData(x + size.width, y + size.height / 2, edge.far.x, edge.far.y + edge.far.height / 2)
+            );
+          else
+            edge.path.setAttribute(
+              "d",
+              edgePathData(edge.far.x + edge.far.width, edge.far.y + edge.far.height / 2, x, y + size.height / 2)
+            );
+        }
+      }
+    };
   }
   drawEdges() {
     if (!this.edgesEl || !this.stageEl || !this.map) return;
     this.edgesEl.replaceChildren();
+    this.edgeEls.clear();
     for (const node of visibleNodes(this.map.nodes)) {
       const parents = parentIdsForNode(node);
       for (const parentId of parents) {
-        const parent = this.stageEl.querySelector(`[data-node-id="${CSS.escape(parentId)}"]`), child = this.stageEl.querySelector(`[data-node-id="${CSS.escape(node.id)}"]`);
+        const parent = this.cardEls.get(parentId), child = this.cardEls.get(node.id);
         if (!parent || !child) continue;
-        const x1 = parent.offsetLeft + parent.offsetWidth, y1 = parent.offsetTop + parent.offsetHeight / 2, x2 = child.offsetLeft, y2 = child.offsetTop + child.offsetHeight / 2, bend = Math.max(60, Math.abs(x2 - x1) / 2);
         const path = createSvg("path");
-        path.setAttribute("d", `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`);
+        path.setAttribute(
+          "d",
+          edgePathData(
+            parent.offsetLeft + parent.offsetWidth,
+            parent.offsetTop + parent.offsetHeight / 2,
+            child.offsetLeft,
+            child.offsetTop + child.offsetHeight / 2
+          )
+        );
         path.addClass("vam-edge");
         if (parentId !== node.parentId) path.addClass("vam-edge-convergence");
         this.edgesEl.appendChild(path);
+        this.edgeEls.set(`${parentId}\0${node.id}`, path);
       }
     }
   }
@@ -32290,12 +32377,16 @@ var VisualAgentMapPlugin = class extends import_obsidian24.Plugin {
     this.logs.appendLog("error", `${context}\uFF1A${message}`);
     return message;
   }
-  async mutate(work) {
+  /**
+   * Runs a write after every earlier one. Views re-read the map and its notes afterwards unless the caller states the
+   * write only touches the viewport (`sync: false`), which changes nothing another view could need to reload.
+   */
+  async mutate(work, options = {}) {
     const result = this.queue.then(async () => {
       this.writing++;
       try {
         await work();
-        for (const view of this.views()) await view.synchronize();
+        if (options.sync !== false) for (const view of this.views()) await view.synchronize();
       } finally {
         this.writing--;
       }

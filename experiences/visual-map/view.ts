@@ -184,6 +184,11 @@ interface FileMove {
 /** Unique ids for the hidden card labels; any view may render a card. */
 let cardLabelSequence = 0;
 const cardLabels = new WeakMap<HTMLElement, HTMLElement>();
+/** Path data for the curve from a parent card's right edge to a child card's left edge. */
+function edgePathData(x1: number, y1: number, x2: number, y2: number): string {
+  const bend = Math.max(60, Math.abs(x2 - x1) / 2);
+  return `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`;
+}
 
 export class VisualAgentMapView extends ItemView {
   private map: MapDocument | null = null;
@@ -239,6 +244,12 @@ export class VisualAgentMapView extends ItemView {
   private hoverCard: HTMLElement | null = null;
   private integrationMode = false;
   private dragging = false;
+  /** Ends the drag in progress (listeners, pending frame, flag); set only while a card is being dragged. */
+  private dragCleanup: (() => void) | null = null;
+  private dragFrame: number | null = null;
+  /** A viewport write is already waiting in the queue; it reads the viewport when it runs, so later saves join it. */
+  private viewportQueued = false;
+  private edgeEls = new Map<string, SVGPathElement>();
   private suppressClickUntil = 0;
   /** Node whose card should hold keyboard focus once the next render finishes. */
   private focusNodeId: string | null = null;
@@ -402,6 +413,7 @@ export class VisualAgentMapView extends ItemView {
     if (this.refreshTimer !== null) window.clearTimeout(this.refreshTimer);
     if (this.hoverTimer !== null) window.clearTimeout(this.hoverTimer);
     this.hoverCard?.remove();
+    this.dragCleanup?.();
     if (this.viewportTimer !== null) {
       window.clearTimeout(this.viewportTimer);
       this.viewportTimer = null;
@@ -2518,6 +2530,8 @@ export class VisualAgentMapView extends ItemView {
     ]).open();
   }
   private render(): void {
+    // The dragged card is about to be replaced, so its pointer events would never arrive and the drag would stay "on".
+    this.dragCleanup?.();
     if (this.closed) return;
     this.plugin.syncOutline(this.builtIn ? null : this.map, this.notes, this.builtIn);
     if (this.hoverTimer !== null) {
@@ -5653,8 +5667,24 @@ export class VisualAgentMapView extends ItemView {
     if (this.viewportTimer !== null) window.clearTimeout(this.viewportTimer);
     this.viewportTimer = window.setTimeout(() => {
       this.viewportTimer = null;
-      this.enqueue(() => this.persistViewport());
+      this.queueViewportWrite();
     }, 250);
+  }
+  /** A viewport write skips the re-read of every note; saves that arrive while one waits in the queue join it. */
+  private queueViewportWrite(): void {
+    if (this.viewportQueued) return;
+    this.viewportQueued = true;
+    void this.plugin
+      .mutate(
+        async () => {
+          this.viewportQueued = false;
+          await this.persistViewport();
+        },
+        { sync: false }
+      )
+      .catch(() => {
+        this.viewportQueued = false;
+      });
   }
   /** Pan/zoom writes only the viewport onto the current file, never this view's possibly older map copy. */
   private async persistViewport(): Promise<void> {
@@ -5809,9 +5839,11 @@ export class VisualAgentMapView extends ItemView {
         viewport.removeClass("is-panning");
         this.saveViewport();
         if (!moved && !this.integrationMode && event.button === 0) {
+          const previous = this.selected,
+            touched = [...this.multiSelected];
           this.selected = null;
           this.multiSelected.clear();
-          this.render();
+          this.commitSelection(previous, null, touched);
         }
       };
       viewport.addEventListener("pointermove", move);
@@ -5826,17 +5858,24 @@ export class VisualAgentMapView extends ItemView {
       this.clearHoverTimer();
       this.hoverCard?.remove();
       this.hoverCard = null;
-      this.dragging = true;
+      // A previous drag whose release never arrived must not leave its listeners behind.
+      this.dragCleanup?.();
       const currentNode = this.map.nodes.find(item => item.id === node.id);
-      if (!currentNode) {
-        this.dragging = false;
-        return;
-      }
+      if (!currentNode) return;
+      this.dragging = true;
       const start = { x: event.clientX, y: event.clientY },
         origin = { x: currentNode.x, y: currentNode.y };
       let position = { ...origin },
         moved = false;
+      // Sizes and the far end of each touching edge are read once; a move then only writes.
+      const edges = this.dragEdges(node.id, card);
       card.setPointerCapture(event.pointerId);
+      const paint = (): void => {
+        this.dragFrame = null;
+        card.style.left = `${position.x}px`;
+        card.style.top = `${position.y}px`;
+        edges.update(position.x, position.y);
+      };
       const move = (e: PointerEvent): void => {
         moved ||= Math.hypot(e.clientX - start.x, e.clientY - start.y) > 3;
         if (!moved) return;
@@ -5844,23 +5883,30 @@ export class VisualAgentMapView extends ItemView {
           x: origin.x + (e.clientX - start.x) / this.map!.viewport.zoom,
           y: origin.y + (e.clientY - start.y) / this.map!.viewport.zoom
         };
-        card.style.left = `${position.x}px`;
-        card.style.top = `${position.y}px`;
-        this.drawEdges();
+        this.dragFrame ??= window.requestAnimationFrame(paint);
       };
-      const finish = (e: PointerEvent): void => {
+      const settle = (): void => {
         this.dragging = false;
-        this.suppressClickUntil = Date.now() + 250;
+        if (this.dragFrame !== null) window.cancelAnimationFrame(this.dragFrame);
+        this.dragFrame = null;
         card.removeEventListener("pointermove", move);
         card.removeEventListener("pointerup", finish);
         card.removeEventListener("pointercancel", finish);
-        if (e.type === "pointercancel") {
+        card.removeEventListener("lostpointercapture", finish);
+        this.dragCleanup = null;
+      };
+      const finish = (e: PointerEvent): void => {
+        settle();
+        this.suppressClickUntil = Date.now() + 250;
+        // The browser lost the pointer (or it was cancelled) without a release: put the card back.
+        if (e.type === "pointercancel" || e.type === "lostpointercapture") {
           card.style.left = `${origin.x}px`;
           card.style.top = `${origin.y}px`;
-          this.drawEdges();
+          edges.update(origin.x, origin.y);
           return;
         }
-        if (moved)
+        if (moved) {
+          paint();
           this.enqueue(() =>
             this.mapChange(map => {
               const current = map.nodes.find(n => n.id === node.id);
@@ -5869,43 +5915,93 @@ export class VisualAgentMapView extends ItemView {
               current.y = Math.round(position.y);
             })
           );
-        else if (e.metaKey || e.ctrlKey) {
+        } else if (e.metaKey || e.ctrlKey) {
+          const previous = this.selected,
+            touched = [...this.multiSelected, node.id];
           if (this.multiSelected.has(node.id)) this.multiSelected.delete(node.id);
           else this.multiSelected.add(node.id);
           this.selected = node.id;
-          this.render();
+          this.commitSelection(previous, node.id, touched);
         } else {
+          const previous = this.selected,
+            touched = [...this.multiSelected];
           this.multiSelected.clear();
           this.selected = node.id;
-          this.render();
+          this.commitSelection(previous, node.id, touched);
           if (node.aimKind === "question") this.openAimAnswer(node);
           else if (this.plugin.detailsShown()) this.openDetails(node);
         }
       };
+      this.dragCleanup = settle;
       card.addEventListener("pointermove", move);
       card.addEventListener("pointerup", finish);
       card.addEventListener("pointercancel", finish);
+      card.addEventListener("lostpointercapture", finish);
     });
+  }
+  /**
+   * The edges touching one card, with the geometry they need already measured. `update` moves only those edges to
+   * the dragged card's new position; every other edge stays untouched.
+   */
+  private dragEdges(id: string, card: HTMLElement): { update: (x: number, y: number) => void } {
+    const size = { width: card.offsetWidth, height: card.offsetHeight };
+    const touching: {
+      path: SVGPathElement;
+      dragIsParent: boolean;
+      far: { x: number; y: number; width: number; height: number };
+    }[] = [];
+    for (const [key, path] of this.edgeEls) {
+      const [parentId, childId] = key.split("\u0000");
+      if (parentId !== id && childId !== id) continue;
+      const other = this.cardEls.get(parentId === id ? childId : parentId);
+      if (!other) continue;
+      touching.push({
+        path,
+        dragIsParent: parentId === id,
+        far: { x: other.offsetLeft, y: other.offsetTop, width: other.offsetWidth, height: other.offsetHeight }
+      });
+    }
+    return {
+      update: (x, y) => {
+        for (const edge of touching) {
+          if (edge.dragIsParent)
+            edge.path.setAttribute(
+              "d",
+              edgePathData(x + size.width, y + size.height / 2, edge.far.x, edge.far.y + edge.far.height / 2)
+            );
+          else
+            edge.path.setAttribute(
+              "d",
+              edgePathData(edge.far.x + edge.far.width, edge.far.y + edge.far.height / 2, x, y + size.height / 2)
+            );
+        }
+      }
+    };
   }
   private drawEdges(): void {
     if (!this.edgesEl || !this.stageEl || !this.map) return;
     this.edgesEl.replaceChildren();
+    this.edgeEls.clear();
     for (const node of visibleNodes(this.map.nodes)) {
       const parents = parentIdsForNode(node);
       for (const parentId of parents) {
-        const parent = this.stageEl.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(parentId)}"]`),
-          child = this.stageEl.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(node.id)}"]`);
+        const parent = this.cardEls.get(parentId),
+          child = this.cardEls.get(node.id);
         if (!parent || !child) continue;
-        const x1 = parent.offsetLeft + parent.offsetWidth,
-          y1 = parent.offsetTop + parent.offsetHeight / 2,
-          x2 = child.offsetLeft,
-          y2 = child.offsetTop + child.offsetHeight / 2,
-          bend = Math.max(60, Math.abs(x2 - x1) / 2);
         const path = createSvg("path");
-        path.setAttribute("d", `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`);
+        path.setAttribute(
+          "d",
+          edgePathData(
+            parent.offsetLeft + parent.offsetWidth,
+            parent.offsetTop + parent.offsetHeight / 2,
+            child.offsetLeft,
+            child.offsetTop + child.offsetHeight / 2
+          )
+        );
         path.addClass("vam-edge");
         if (parentId !== node.parentId) path.addClass("vam-edge-convergence");
         this.edgesEl.appendChild(path);
+        this.edgeEls.set(`${parentId}\u0000${node.id}`, path);
       }
     }
   }
