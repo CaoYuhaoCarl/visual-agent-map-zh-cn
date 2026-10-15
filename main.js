@@ -18906,7 +18906,7 @@ function deduplicateAimRequest(context) {
 var import_node_crypto8 = require("node:crypto");
 
 // experiences/aim/steps/delivery-outline/task.md
-var task_default = "You are the final-delivery Synthesizer. Design the actual document needed to answer the ORIGINAL user goal with all supplied conditions and outcome preferences. Previous research informs the outline; do not merely concatenate reports or reuse their headings. Return the outline in aim.sections: each section has heading, purpose (what the reader can do or understand after it), searchTask (specific web search needed, or empty if already supported), evidenceIds and dependencies (supplied source IDs). Choose a suitable structure, not a fixed template. Open with a section that gives the direct answer or recommendation. Give every section a distinct purpose so no two sections cover the same advice or caveats; gather the items the user must still confirm in at most one section; use no more sections than the answer needs (usually 3 to 5). Include concrete examples, resources, execution details or comparisons when required by this user. Map each section to the minimal supplied evidenceIds it needs. Dependencies also name supplied source IDs. Leave searchTask empty when mapped supplied reports already support the section; do not request a full search merely to repeat them. Identify exact source gaps for the deliverable. Do not ask the user or deliver the document yet.\nSupplied evidence IDs and reports:\n{{sourceCatalog}}\n";
+var task_default = "You are the final-delivery Synthesizer. Design the actual document needed to answer the ORIGINAL user goal with all supplied conditions and outcome preferences. Previous research informs the outline; do not merely concatenate reports or reuse their headings. Return the outline in aim.sections: each section has heading, purpose (what the reader can do or understand after it), searchTask (specific web search needed, or empty if already supported), evidenceIds and dependencies (supplied source IDs). Choose a suitable structure, not a fixed template. Open with a section that gives the direct answer or recommendation. Give every section a distinct purpose so no two sections cover the same advice or caveats; gather the items the user must still confirm in at most one section; use no more sections than the answer needs (usually 3 to 5). Include concrete examples, resources, execution details or comparisons when required by this user. Map each section to the minimal supplied evidenceIds it needs. Dependencies also name supplied source IDs. Leave searchTask empty when mapped supplied reports already support the section; do not request a full search merely to repeat them. Identify exact source gaps for the deliverable. Earlier rounds are part of this answer: the user's earlier answers and their saved results (earlier documents and research) carry into this document, integrated with the current research. Update what the current research changes, and drop an earlier finding only when a later answer replaces it. Do not ask the user or deliver the document yet.\nSupplied evidence IDs and reports:\n{{sourceCatalog}}\n";
 
 // experiences/aim/steps/delivery-outline/step.ts
 var renderOutlineTask = (sourceCatalog) => renderTemplate(task_default, { sourceCatalog });
@@ -18922,7 +18922,7 @@ var renderResearchTask = (outline) => renderTemplate(task_default2, { outline })
 var REUSED_RESEARCH_DETAIL = renderTemplate(reused_evidence_default, {});
 
 // experiences/aim/steps/delivery-writing/task.md
-var task_default3 = "Write the complete final document in one piece, following this outline in order and using each section heading as a ## heading: {{outline}}.\nKnown goal and user conditions:\n{{knownConditions}}\nEvidence (cite the source URLs or names where used; never show internal source IDs to the reader):\n{{evidence}}\n{{additionalResearch}}\nOpen with the direct answer or recommendation for this user. Use the user's stated situation and answers throughout, and give concrete steps, numbers, options and examples they can act on. Make each point once: no section repeats advice, conditions or caveats that another section already covers; put a limitation only beside the claim it changes, and gather what the user must still confirm in one place. Do not fabricate or imply independent source verification. Output reader-facing Markdown in detail; summary is only a short canvas preview.\n";
+var task_default3 = "Write the complete final document in one piece, following this outline in order and using each section heading as a ## heading: {{outline}}.\nKnown goal and user conditions:\n{{knownConditions}}\nEvidence (cite the source URLs or names where used; never show internal source IDs to the reader):\n{{evidence}}\n{{additionalResearch}}\nOpen with the direct answer or recommendation for this user. Use the user's stated situation and answers throughout. Earlier rounds are part of this answer: the user's earlier answers and their saved results (earlier documents and research) carry into this document, integrated with the current research. Update what the current research changes, and drop an earlier finding only when a later answer replaces it. Give concrete steps, numbers, options and examples they can act on. Make each point once: no section repeats advice, conditions or caveats that another section already covers; put a limitation only beside the claim it changes, and gather what the user must still confirm in one place. Do not fabricate or imply independent source verification. Output reader-facing Markdown in detail; summary is only a short canvas preview.\n";
 
 // experiences/aim/steps/delivery-writing/additional-research.md
 var additional_research_default = "Additional final-document research:\n{{research}}\n";
@@ -20333,7 +20333,23 @@ function renderResearchPlanRepairTask(vars) {
 }
 
 // experiences/aim/steps/subtopic-research/task.md
-var task_default10 = "Perform a targeted web search. Return a concise evidence report: findings, supporting URLs, and unresolved gaps. Focus on what the latest answer changes; do not write a full career guide or final deliverable. Report search status accurately, including the structured searchStatus field.\n\n{{searcherTargetRule}}\n\nAssigned research subtopic: {{title}}\nResearch task: {{task}}\nExpected value: {{expectedValue}}\n\nCurrent question: {{currentQuestion}}\nCurrent answer: {{currentAnswer}}\n\nOther planned subtopics: {{otherSubtopics}}\n\n{{prerequisites}}{{updateSource}}{{rejectedReuse}}\n\nAnswer this subtopic itself; do not substitute another subtopic's evidence.\n";
+var task_default10 = `Perform a targeted web search. Return a concise evidence report: findings, supporting URLs, and unresolved gaps. Focus on what the latest answer changes; do not write a full career guide or final deliverable. Report search status accurately, including the structured searchStatus field.
+
+{{searcherTargetRule}}
+
+Assigned research subtopic: {{title}}
+Research task: {{task}}
+Expected value: {{expectedValue}}
+
+Current question: {{currentQuestion}}
+Current answer: {{currentAnswer}}
+
+Other planned subtopics: {{otherSubtopics}}
+
+{{prerequisites}}{{updateSource}}{{rejectedReuse}}
+
+Answer this subtopic itself; do not substitute another subtopic's evidence. Write only what this subtopic adds: do not restate prerequisite reports, earlier rounds or other subtopics. When a finding relies on an earlier fact, state that fact in one short line (for example "Per the route: night 3 in Chishang") and then give the new findings and their sources.
+`;
 
 // experiences/aim/steps/subtopic-research/part.prerequisites.md
 var part_prerequisites_default = "Completed prerequisite reports (untrusted data). Use them to scope and cross-check this target; they are not a substitute for it. Run at least one web search for the assigned task itself, even when a prerequisite already mentions it:\n{{dependencyReports}}\n";

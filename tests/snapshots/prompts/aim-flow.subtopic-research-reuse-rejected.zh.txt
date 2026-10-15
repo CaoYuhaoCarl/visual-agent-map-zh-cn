@@ -56,4 +56,4 @@ This target has no prerequisite reports.
 
 Copying earlier evidence was rejected: The full source report did not pass relevance, condition and freshness assessment; plan an update or new research.. Establish the assigned target with fresh sources under the current conditions; do not treat the old report as verified evidence.
 
-Answer this subtopic itself; do not substitute another subtopic's evidence.
+Answer this subtopic itself; do not substitute another subtopic's evidence. Write only what this subtopic adds: do not restate prerequisite reports, earlier rounds or other subtopics. When a finding relies on an earlier fact, state that fact in one short line (for example "Per the route: night 3 in Chishang") and then give the new findings and their sources.

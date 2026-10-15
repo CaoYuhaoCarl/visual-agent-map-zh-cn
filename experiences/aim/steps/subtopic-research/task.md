@@ -13,4 +13,4 @@ Other planned subtopics: {{otherSubtopics}}
 
 {{prerequisites}}{{updateSource}}{{rejectedReuse}}
 
-Answer this subtopic itself; do not substitute another subtopic's evidence.
+Answer this subtopic itself; do not substitute another subtopic's evidence. Write only what this subtopic adds: do not restate prerequisite reports, earlier rounds or other subtopics. When a finding relies on an earlier fact, state that fact in one short line (for example "Per the route: night 3 in Chishang") and then give the new findings and their sources.

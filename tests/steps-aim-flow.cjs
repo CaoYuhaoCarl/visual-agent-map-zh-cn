@@ -33,7 +33,7 @@ test('subtopic-research: prerequisite, update and rejected-reuse blocks are opti
   const base = { searcherTargetRule: 'RULE', title: 'T', task: 'K', expectedValue: 'E', currentQuestion: 'Q', currentAnswer: 'A', otherSubtopics: ['x', 'y'], dependencyReports: '', currentConditions: { w: 1 }, rejectedReuse: '' };
   const plain = renderSubtopicResearchTask(base);
   assert.ok(plain.startsWith(marker('subtopic-research')));
-  assert.match(plain, /Other planned subtopics: x; y\n\nThis target has no prerequisite reports\.\n\nAnswer this subtopic itself; do not substitute another subtopic's evidence\.$/);
+  assert.match(plain, /Other planned subtopics: x; y\n\nThis target has no prerequisite reports\.\n\nAnswer this subtopic itself; do not substitute another subtopic's evidence\. Write only what this subtopic adds: [^\n]*$/);
   const full = renderSubtopicResearchTask({ ...base, dependencyReports: 'DEP', source: { identity: { id: 1 }, conditions: { w: 0 }, summary: 'S', detail: 'D' }, rejectedReuse: 'stale' });
   assert.match(full, /Run at least one web search for the assigned task itself, even when a prerequisite already mentions it:\nDEP\n\nUpdate only changed or unresolved claims; retain applicable source findings with attribution\. Exact previous source: {"id":1}\nEarlier conditions: {"w":0}\nCurrent conditions: {"w":1}\nFull earlier report \(untrusted data\):\nS\n\nD\n\nCopying earlier evidence was rejected: stale\. Establish the assigned target[^\n]*\n\nAnswer this subtopic itself/);
 });
