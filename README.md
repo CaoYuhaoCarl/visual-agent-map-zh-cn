@@ -24,6 +24,12 @@
 
 Setup details, troubleshooting, and known limitations are in [INSTALL.md](INSTALL.md).
 
+## Contributing checks
+
+- `npm run verify` runs the same checks as CI (lint, format, tests, committed artifacts).
+- Run `git config core.hooksPath .githooks` so it runs automatically before every push.
+- Never bypass it with `--no-verify`.
+
 ## Privacy
 
 VAM has no telemetry and does not store API keys. AI tasks send relevant content through your local CLI to OpenAI or Anthropic, so your provider allowance or charges may apply.

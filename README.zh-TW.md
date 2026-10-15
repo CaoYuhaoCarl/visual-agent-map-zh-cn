@@ -24,6 +24,12 @@
 
 詳細設定、問題排除與已知限制，請見 [INSTALL.md](INSTALL.md)。
 
+## 貢獻檢查
+
+- `npm run verify` 與 CI 執行同一組檢查（lint、格式、測試、已提交產物）。
+- 執行 `git config core.hooksPath .githooks`，每次 push 前會自動跑。
+- 不要用 `--no-verify` 跳過。
+
 ## 隱私
 
 VAM 不含遙測，也不儲存 API key。AI 任務會透過本機 CLI 將相關內容傳送至 OpenAI 或 Anthropic，可能使用帳號額度或產生費用。
