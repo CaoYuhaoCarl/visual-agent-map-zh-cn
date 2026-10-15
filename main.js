@@ -12273,10 +12273,14 @@ var History = class {
 
 // map-layout.ts
 var COLUMN = 360;
-var ROW = 220;
 var WIDTH = 300;
-var HEIGHT = 190;
-function positions(nodes, roots, left, top, folded = false) {
+var LAYOUT_GAP = 24;
+var DEFAULT_CARD_HEIGHT = 180;
+var cardHeight = (heightOf, id) => {
+  const value = heightOf == null ? void 0 : heightOf(id);
+  return value !== void 0 && Number.isFinite(value) && value > 0 ? value : DEFAULT_CARD_HEIGHT;
+};
+function positions(nodes, roots, left, top, folded = false, heightOf) {
   var _a, _b;
   const ids = new Map(nodes.map((node) => [node.id, node]));
   const children = /* @__PURE__ */ new Map();
@@ -12305,69 +12309,78 @@ function positions(nodes, roots, left, top, folded = false) {
       return !(folded && ((_a3 = ids.get(join3.parentId)) == null ? void 0 : _a3.collapsed));
     });
   };
-  const sum = (list) => list.reduce((total2, value) => total2 + value, 0);
-  const heights = /* @__PURE__ */ new Map();
+  const heightFor = (node) => cardHeight(heightOf, node.id);
+  const sizes = /* @__PURE__ */ new Map();
   const spans = /* @__PURE__ */ new Map();
+  const stackHeight = (list) => list.reduce((total2, item) => total2 + sizes.get(item.id), 0) + Math.max(0, list.length - 1) * LAYOUT_GAP;
   const measure = (node) => {
     const kids = kidsOf(node);
     const extra = joinsOf(node);
     for (const child of [...kids, ...extra]) measure(child);
-    heights.set(
-      node.id,
-      Math.max(1, sum(kids.map((kid) => heights.get(kid.id))), sum(extra.map((join3) => heights.get(join3.id))))
-    );
+    sizes.set(node.id, Math.max(heightFor(node), stackHeight(kids), stackHeight(extra)));
     spans.set(node.id, 1 + Math.max(0, ...kids.map((kid) => spans.get(kid.id))));
   };
-  const place = (node, depth, topRow) => {
+  const place = (node, depth, topY) => {
     const kids = kidsOf(node);
     const extra = joinsOf(node);
-    const height = heights.get(node.id);
-    const stack = (list, column) => {
-      let next = topRow + (height - sum(list.map((item) => heights.get(item.id)))) / 2;
-      return list.map((item) => {
-        const y = place(item, column, next);
-        next += heights.get(item.id);
-        return y;
+    const size = sizes.get(node.id);
+    const stack = (list2, column) => {
+      let next = topY + (size - stackHeight(list2)) / 2;
+      return list2.map((item) => {
+        const y2 = place(item, column, next);
+        next += sizes.get(item.id) + LAYOUT_GAP;
+        return y2;
       });
     };
     const kidYs = stack(kids, depth + 1);
     const joinYs = stack(extra, depth + spans.get(node.id));
+    const list = kidYs.length ? kids : extra;
     const ys = kidYs.length ? kidYs : joinYs;
-    const row2 = ys.length ? (ys[0] + ys[ys.length - 1]) / 2 : topRow;
-    result.set(node.id, { x: left + depth * COLUMN, y: top + row2 * ROW });
-    return row2;
+    const own = heightFor(node);
+    let y = topY + (size - own) / 2;
+    if (ys.length) {
+      const first = ys[0] + heightFor(list[0]) / 2;
+      const last = ys[ys.length - 1] + heightFor(list[list.length - 1]) / 2;
+      y = (first + last) / 2 - own / 2;
+    }
+    result.set(node.id, { x: left + depth * COLUMN, y: top + y });
+    return y;
   };
-  let row = 0;
+  let offset = 0;
   for (const root of roots) {
     measure(root);
-    place(root, 0, row);
-    row += heights.get(root.id);
+    place(root, 0, offset);
+    offset += sizes.get(root.id) + LAYOUT_GAP;
   }
   return result;
 }
-function arrangeMap(nodes, hidden) {
+function arrangeMap(nodes, hidden, heightOf) {
   const laidOut = (hidden == null ? void 0 : hidden.size) ? nodes.filter((node) => !hidden.has(node.id)) : nodes;
   const roots = laidOut.filter((node) => !node.parentId);
-  const placed = positions(laidOut, roots, 80, 80, true);
+  const placed = positions(laidOut, roots, 80, 80, true, heightOf);
   return nodes.map((node) => ({ ...node, ...placed.get(node.id) }));
 }
-function arrangeNewBranch(nodes, parentId, newIds) {
+function arrangeNewBranch(nodes, parentId, newIds, heightOf) {
   const parent = nodes.find((node) => node.id === parentId);
   if (!parent || !newIds.size) return nodes;
   const fresh = nodes.filter((node) => newIds.has(node.id));
   const roots = fresh.filter((node) => node.parentId === parentId);
-  const placed = positions(fresh, roots, parent.x + COLUMN, 0);
-  const rootYs = roots.map((root) => placed.get(root.id).y);
-  const center = rootYs.length ? (Math.min(...rootYs) + Math.max(...rootYs)) / 2 : 0;
-  let offset = parent.y - center;
+  const placed = positions(fresh, roots, parent.x + COLUMN, 0, false, heightOf);
+  const centers = roots.map((root) => placed.get(root.id).y + cardHeight(heightOf, root.id) / 2);
+  const center = centers.length ? (Math.min(...centers) + Math.max(...centers)) / 2 : 0;
+  let offset = parent.y + cardHeight(heightOf, parent.id) / 2 - center;
   const fixed = nodes.filter((node) => !newIds.has(node.id));
   for (; ; ) {
     let next = offset;
-    for (const point of placed.values())
+    for (const [id, point] of placed) {
+      const own = cardHeight(heightOf, id);
       for (const node of fixed) {
-        if (Math.abs(point.x - node.x) < WIDTH && Math.abs(point.y + offset - node.y) < HEIGHT)
-          next = Math.max(next, node.y + HEIGHT - point.y);
+        const other = cardHeight(heightOf, node.id);
+        const top = point.y + offset;
+        if (Math.abs(point.x - node.x) < WIDTH && top < node.y + other + LAYOUT_GAP && node.y < top + own + LAYOUT_GAP)
+          next = Math.max(next, node.y + other + LAYOUT_GAP - point.y);
       }
+    }
     if (next === offset) break;
     offset = next;
   }
@@ -12376,18 +12389,20 @@ function arrangeNewBranch(nodes, parentId, newIds) {
     return point ? { ...node, x: point.x, y: Math.round(point.y + offset) } : node;
   });
 }
-function arrangeNewTree(nodes, rootId, newIds) {
+function arrangeNewTree(nodes, rootId, newIds, heightOf) {
   const root = nodes.find((node) => node.id === rootId);
   if (!root || !newIds.has(rootId)) return nodes;
   const fixed = nodes.filter((node) => !newIds.has(node.id));
   const fixedRoots = fixed.filter((node) => !node.parentId);
   const left = Math.min(...(fixedRoots.length ? fixedRoots : fixed).map((node) => node.x), fixed.length ? Infinity : 80);
-  const top = fixed.length ? Math.max(...fixed.map((node) => node.y)) + ROW : 80;
+  const top = fixed.length ? Math.max(...fixed.map((node) => node.y + cardHeight(heightOf, node.id))) + LAYOUT_GAP : 80;
   const placed = positions(
     nodes.filter((node) => newIds.has(node.id)),
     [root],
     left,
-    top
+    top,
+    false,
+    heightOf
   );
   return nodes.map((node) => {
     const point = placed.get(node.id);
@@ -25042,6 +25057,11 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian22.Ite
     __publicField(this, "tabStopId", null);
     /** Card element per topic id, rebuilt on every render, so a selection change touches only the affected cards. */
     __publicField(this, "cardEls", /* @__PURE__ */ new Map());
+    /** Rendered card height in canvas units (offsetHeight ignores zoom); undefined when the card is not on screen. */
+    __publicField(this, "cardHeightOf", (id) => {
+      var _a;
+      return ((_a = this.cardEls.get(id)) == null ? void 0 : _a.offsetHeight) || void 0;
+    });
     __publicField(this, "cardChecks", /* @__PURE__ */ new Map());
     __publicField(this, "selectionBarEl", null);
     __publicField(this, "hintEl", null);
@@ -25702,7 +25722,12 @@ ${request.requirements}` : preset.text,
       if (!canParent(map.nodes, node.id, parent.id)) throw new Error(t("ui.circular_links_are_not_allowed"));
       map.nodes.find((item) => item.id === node.id).parentId = parent.id;
       map.nodes.find((item) => item.id === parent.id).collapsed = false;
-      map.nodes = arrangeNewBranch(map.nodes, parent.id, /* @__PURE__ */ new Set([node.id, ...descendants(map.nodes, node.id)]));
+      map.nodes = arrangeNewBranch(
+        map.nodes,
+        parent.id,
+        /* @__PURE__ */ new Set([node.id, ...descendants(map.nodes, node.id)]),
+        this.cardHeightOf
+      );
     });
   }
   /** The side option on "+ Topic": one topic by default, or a pasted outline for several at once. */
@@ -25726,7 +25751,7 @@ ${request.requirements}` : preset.text,
       if (changed) {
         await this.mapChange((map) => {
           applyCollapseLevel(map.nodes, shownLevels);
-          map.nodes = arrangeMap(map.nodes, supersededAimNodeIds(map));
+          map.nodes = arrangeMap(map.nodes, supersededAimNodeIds(map), this.cardHeightOf);
         });
         if (this.history.undoEntry) this.history.undoEntry.label = t("ui.collapse_levels");
         this.updateHistoryButtons();
@@ -25737,7 +25762,7 @@ ${request.requirements}` : preset.text,
   autoLayout() {
     this.enqueue(
       () => this.mapChange((map) => {
-        map.nodes = arrangeMap(map.nodes, supersededAimNodeIds(map));
+        map.nodes = arrangeMap(map.nodes, supersededAimNodeIds(map), this.cardHeightOf);
       }, false)
     );
   }
@@ -25886,10 +25911,10 @@ ${request.requirements}` : preset.text,
             const outlineTop = next.nodes.find((node) => node.id === top2.id);
             if (owner2) {
               owner2.collapsed = false;
-              next.nodes = arrangeNewBranch(next.nodes, owner2.id, ids2);
+              next.nodes = arrangeNewBranch(next.nodes, owner2.id, ids2, this.cardHeightOf);
             } else {
               outlineTop.parentId = null;
-              next.nodes = arrangeNewTree(next.nodes, top2.id, ids2);
+              next.nodes = arrangeNewTree(next.nodes, top2.id, ids2, this.cardHeightOf);
             }
           });
         } catch (error) {
@@ -26898,7 +26923,7 @@ ${request.requirements}` : preset.text,
       if (adopterId && adopted.size) {
         const adopter = after.nodes.find((item) => item.id === adopterId);
         if (adopter) adopter.collapsed = false;
-        after.nodes = arrangeNewBranch(after.nodes, adopterId, adopted);
+        after.nodes = arrangeNewBranch(after.nodes, adopterId, adopted, this.cardHeightOf);
       }
       this.removeAimReferences(after, ids, before.nodes);
       await this.plugin.repo.saveMap(this.path, after);
@@ -28293,7 +28318,7 @@ ${request.requirements}` : preset.text,
           () => this.mapChange((map) => {
             const n = map.nodes.find((n2) => n2.id === node.id);
             n.collapsed = !n.collapsed;
-            map.nodes = arrangeMap(map.nodes, supersededAimNodeIds(map));
+            map.nodes = arrangeMap(map.nodes, supersededAimNodeIds(map), this.cardHeightOf);
           })
         )
       );
@@ -29529,7 +29554,7 @@ ${request.requirements}` : preset.text,
       if (signal == null ? void 0 : signal.aborted) throw new DOMException("Aborted", "AbortError");
       if (newNodes.length)
         await this.mapChange((map) => {
-          map.nodes = arrangeNewBranch(map.nodes, parent.id, new Set(newNodes.map((node) => node.id)));
+          map.nodes = arrangeNewBranch(map.nodes, parent.id, new Set(newNodes.map((node) => node.id)), this.cardHeightOf);
         }, false);
       if (created) await this.plugin.rebuildDerivedData();
       return newNodes;

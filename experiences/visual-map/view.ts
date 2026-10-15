@@ -307,6 +307,8 @@ export class VisualAgentMapView extends ItemView {
   private tabStopId: string | null = null;
   /** Card element per topic id, rebuilt on every render, so a selection change touches only the affected cards. */
   private cardEls = new Map<string, HTMLElement>();
+  /** Rendered card height in canvas units (offsetHeight ignores zoom); undefined when the card is not on screen. */
+  private cardHeightOf = (id: string): number | undefined => this.cardEls.get(id)?.offsetHeight || undefined;
   private cardChecks = new Map<string, HTMLInputElement>();
   private selectionBarEl: HTMLElement | null = null;
   private hintEl: HTMLElement | null = null;
@@ -997,7 +999,12 @@ export class VisualAgentMapView extends ItemView {
       if (!canParent(map.nodes, node.id, parent.id)) throw new Error(t("ui.circular_links_are_not_allowed"));
       map.nodes.find(item => item.id === node.id)!.parentId = parent.id;
       map.nodes.find(item => item.id === parent.id)!.collapsed = false;
-      map.nodes = arrangeNewBranch(map.nodes, parent.id, new Set([node.id, ...descendants(map.nodes, node.id)]));
+      map.nodes = arrangeNewBranch(
+        map.nodes,
+        parent.id,
+        new Set([node.id, ...descendants(map.nodes, node.id)]),
+        this.cardHeightOf
+      );
     });
   }
   /** The side option on "+ Topic": one topic by default, or a pasted outline for several at once. */
@@ -1021,7 +1028,7 @@ export class VisualAgentMapView extends ItemView {
       if (changed) {
         await this.mapChange(map => {
           applyCollapseLevel(map.nodes, shownLevels);
-          map.nodes = arrangeMap(map.nodes, supersededAimNodeIds(map));
+          map.nodes = arrangeMap(map.nodes, supersededAimNodeIds(map), this.cardHeightOf);
         });
         if (this.history.undoEntry) this.history.undoEntry.label = t("ui.collapse_levels");
         this.updateHistoryButtons();
@@ -1032,7 +1039,7 @@ export class VisualAgentMapView extends ItemView {
   private autoLayout(): void {
     this.enqueue(() =>
       this.mapChange(map => {
-        map.nodes = arrangeMap(map.nodes, supersededAimNodeIds(map));
+        map.nodes = arrangeMap(map.nodes, supersededAimNodeIds(map), this.cardHeightOf);
       }, false)
     );
   }
@@ -1201,10 +1208,10 @@ export class VisualAgentMapView extends ItemView {
             const outlineTop = next.nodes.find(node => node.id === top.id)!;
             if (owner) {
               owner.collapsed = false;
-              next.nodes = arrangeNewBranch(next.nodes, owner.id, ids);
+              next.nodes = arrangeNewBranch(next.nodes, owner.id, ids, this.cardHeightOf);
             } else {
               outlineTop.parentId = null;
-              next.nodes = arrangeNewTree(next.nodes, top.id, ids);
+              next.nodes = arrangeNewTree(next.nodes, top.id, ids, this.cardHeightOf);
             }
           });
         } catch (error) {
@@ -2267,7 +2274,7 @@ export class VisualAgentMapView extends ItemView {
       if (adopterId && adopted.size) {
         const adopter = after.nodes.find(item => item.id === adopterId);
         if (adopter) adopter.collapsed = false;
-        after.nodes = arrangeNewBranch(after.nodes, adopterId, adopted);
+        after.nodes = arrangeNewBranch(after.nodes, adopterId, adopted, this.cardHeightOf);
       }
       this.removeAimReferences(after, ids, before.nodes);
       await this.plugin.repo.saveMap(this.path, after);
@@ -3756,7 +3763,7 @@ export class VisualAgentMapView extends ItemView {
             this.mapChange(map => {
               const n = map.nodes.find(n => n.id === node.id)!;
               n.collapsed = !n.collapsed;
-              map.nodes = arrangeMap(map.nodes, supersededAimNodeIds(map));
+              map.nodes = arrangeMap(map.nodes, supersededAimNodeIds(map), this.cardHeightOf);
             })
           )
       );
@@ -5073,7 +5080,7 @@ export class VisualAgentMapView extends ItemView {
       if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
       if (newNodes.length)
         await this.mapChange(map => {
-          map.nodes = arrangeNewBranch(map.nodes, parent.id, new Set(newNodes.map(node => node.id)));
+          map.nodes = arrangeNewBranch(map.nodes, parent.id, new Set(newNodes.map(node => node.id)), this.cardHeightOf);
         }, false);
       if (created) await this.plugin.rebuildDerivedData();
       return newNodes;

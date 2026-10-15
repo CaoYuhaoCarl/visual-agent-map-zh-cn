@@ -1,16 +1,27 @@
 import { parentIdsForNode, type MapNode } from "./map-model";
 
 const COLUMN = 360;
-const ROW = 220;
 const WIDTH = 300;
-const HEIGHT = 190;
+/** Vertical space kept between two stacked cards, in canvas units. */
+export const LAYOUT_GAP = 24;
+/** Card height assumed when the rendered height is unknown (not yet rendered or hidden). */
+export const DEFAULT_CARD_HEIGHT = 180;
+
+/** Rendered card height in canvas units, or undefined when unknown. */
+export type HeightOf = (id: string) => number | undefined;
+
+const cardHeight = (heightOf: HeightOf | undefined, id: string): number => {
+  const value = heightOf?.(id);
+  return value !== undefined && Number.isFinite(value) && value > 0 ? value : DEFAULT_CARD_HEIGHT;
+};
 
 function positions(
   nodes: MapNode[],
   roots: MapNode[],
   left: number,
   top: number,
-  folded = false
+  folded = false,
+  heightOf?: HeightOf
 ): Map<string, { x: number; y: number }> {
   const ids = new Map(nodes.map(node => [node.id, node]));
   const children = new Map<string, MapNode[]>();
@@ -35,72 +46,89 @@ function positions(
     folded && node.collapsed
       ? []
       : (joins.get(node.id) ?? []).filter(join => !(folded && ids.get(join.parentId!)?.collapsed));
-  const sum = (list: number[]) => list.reduce((total, value) => total + value, 0);
-  const heights = new Map<string, number>();
+  const heightFor = (node: MapNode) => cardHeight(heightOf, node.id);
+  const sizes = new Map<string, number>();
   const spans = new Map<string, number>();
+  /** Total height of stacked subtrees, with the fixed gap between neighbours. */
+  const stackHeight = (list: MapNode[]) =>
+    list.reduce((total, item) => total + sizes.get(item.id)!, 0) + Math.max(0, list.length - 1) * LAYOUT_GAP;
   const measure = (node: MapNode): void => {
     const kids = kidsOf(node);
     const extra = joinsOf(node);
     for (const child of [...kids, ...extra]) measure(child);
-    heights.set(
-      node.id,
-      Math.max(1, sum(kids.map(kid => heights.get(kid.id)!)), sum(extra.map(join => heights.get(join.id)!)))
-    );
+    sizes.set(node.id, Math.max(heightFor(node), stackHeight(kids), stackHeight(extra)));
     spans.set(node.id, 1 + Math.max(0, ...kids.map(kid => spans.get(kid.id)!)));
   };
-  const place = (node: MapNode, depth: number, topRow: number): number => {
+  /** Places a subtree inside the band starting at topY; returns the card's top y. */
+  const place = (node: MapNode, depth: number, topY: number): number => {
     const kids = kidsOf(node);
     const extra = joinsOf(node);
-    const height = heights.get(node.id)!;
+    const size = sizes.get(node.id)!;
     const stack = (list: MapNode[], column: number) => {
-      let next = topRow + (height - sum(list.map(item => heights.get(item.id)!))) / 2;
+      let next = topY + (size - stackHeight(list)) / 2;
       return list.map(item => {
         const y = place(item, column, next);
-        next += heights.get(item.id)!;
+        next += sizes.get(item.id)! + LAYOUT_GAP;
         return y;
       });
     };
     const kidYs = stack(kids, depth + 1);
     const joinYs = stack(extra, depth + spans.get(node.id)!);
+    const list = kidYs.length ? kids : extra;
     const ys = kidYs.length ? kidYs : joinYs;
-    const row = ys.length ? (ys[0] + ys[ys.length - 1]) / 2 : topRow;
-    result.set(node.id, { x: left + depth * COLUMN, y: top + row * ROW });
-    return row;
+    const own = heightFor(node);
+    let y = topY + (size - own) / 2;
+    if (ys.length) {
+      const first = ys[0] + heightFor(list[0]) / 2;
+      const last = ys[ys.length - 1] + heightFor(list[list.length - 1]) / 2;
+      y = (first + last) / 2 - own / 2;
+    }
+    result.set(node.id, { x: left + depth * COLUMN, y: top + y });
+    return y;
   };
-  let row = 0;
+  let offset = 0;
   for (const root of roots) {
     measure(root);
-    place(root, 0, row);
-    row += heights.get(root.id)!;
+    place(root, 0, offset);
+    offset += sizes.get(root.id)! + LAYOUT_GAP;
   }
   return result;
 }
 
 /** Lays out what is on screen: a collapsed topic is a leaf, and its hidden branch keeps its coordinates until it is shown again. */
-export function arrangeMap(nodes: MapNode[], hidden?: Set<string>): MapNode[] {
+export function arrangeMap(nodes: MapNode[], hidden?: Set<string>, heightOf?: HeightOf): MapNode[] {
   const laidOut = hidden?.size ? nodes.filter(node => !hidden.has(node.id)) : nodes;
   const roots = laidOut.filter(node => !node.parentId);
-  const placed = positions(laidOut, roots, 80, 80, true);
+  const placed = positions(laidOut, roots, 80, 80, true, heightOf);
   return nodes.map(node => ({ ...node, ...placed.get(node.id) }));
 }
 
-export function arrangeNewBranch(nodes: MapNode[], parentId: string, newIds: Set<string>): MapNode[] {
+export function arrangeNewBranch(
+  nodes: MapNode[],
+  parentId: string,
+  newIds: Set<string>,
+  heightOf?: HeightOf
+): MapNode[] {
   const parent = nodes.find(node => node.id === parentId);
   if (!parent || !newIds.size) return nodes;
   const fresh = nodes.filter(node => newIds.has(node.id));
   const roots = fresh.filter(node => node.parentId === parentId);
-  const placed = positions(fresh, roots, parent.x + COLUMN, 0);
-  const rootYs = roots.map(root => placed.get(root.id)!.y);
-  const center = rootYs.length ? (Math.min(...rootYs) + Math.max(...rootYs)) / 2 : 0;
-  let offset = parent.y - center;
+  const placed = positions(fresh, roots, parent.x + COLUMN, 0, false, heightOf);
+  const centers = roots.map(root => placed.get(root.id)!.y + cardHeight(heightOf, root.id) / 2);
+  const center = centers.length ? (Math.min(...centers) + Math.max(...centers)) / 2 : 0;
+  let offset = parent.y + cardHeight(heightOf, parent.id) / 2 - center;
   const fixed = nodes.filter(node => !newIds.has(node.id));
   for (;;) {
     let next = offset;
-    for (const point of placed.values())
+    for (const [id, point] of placed) {
+      const own = cardHeight(heightOf, id);
       for (const node of fixed) {
-        if (Math.abs(point.x - node.x) < WIDTH && Math.abs(point.y + offset - node.y) < HEIGHT)
-          next = Math.max(next, node.y + HEIGHT - point.y);
+        const other = cardHeight(heightOf, node.id);
+        const top = point.y + offset;
+        if (Math.abs(point.x - node.x) < WIDTH && top < node.y + other + LAYOUT_GAP && node.y < top + own + LAYOUT_GAP)
+          next = Math.max(next, node.y + other + LAYOUT_GAP - point.y);
       }
+    }
     if (next === offset) break;
     offset = next;
   }
@@ -111,18 +139,20 @@ export function arrangeNewBranch(nodes: MapNode[], parentId: string, newIds: Set
 }
 
 /** Lays out a new top-level tree below every existing node, in the leftmost root column; existing nodes never move. */
-export function arrangeNewTree(nodes: MapNode[], rootId: string, newIds: Set<string>): MapNode[] {
+export function arrangeNewTree(nodes: MapNode[], rootId: string, newIds: Set<string>, heightOf?: HeightOf): MapNode[] {
   const root = nodes.find(node => node.id === rootId);
   if (!root || !newIds.has(rootId)) return nodes;
   const fixed = nodes.filter(node => !newIds.has(node.id));
   const fixedRoots = fixed.filter(node => !node.parentId);
   const left = Math.min(...(fixedRoots.length ? fixedRoots : fixed).map(node => node.x), fixed.length ? Infinity : 80);
-  const top = fixed.length ? Math.max(...fixed.map(node => node.y)) + ROW : 80;
+  const top = fixed.length ? Math.max(...fixed.map(node => node.y + cardHeight(heightOf, node.id))) + LAYOUT_GAP : 80;
   const placed = positions(
     nodes.filter(node => newIds.has(node.id)),
     [root],
     left,
-    top
+    top,
+    false,
+    heightOf
   );
   return nodes.map(node => {
     const point = placed.get(node.id);
