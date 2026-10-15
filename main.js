@@ -12276,6 +12276,12 @@ var COLUMN = 360;
 var WIDTH = 300;
 var LAYOUT_GAP = 24;
 var DEFAULT_CARD_HEIGHT = 180;
+function medianHeight(values) {
+  const sorted = values.filter((value) => Number.isFinite(value) && value > 0).sort((a, b) => a - b);
+  if (!sorted.length) return void 0;
+  const mid = sorted.length >> 1;
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
 var cardHeight = (heightOf, id) => {
   const value = heightOf == null ? void 0 : heightOf(id);
   return value !== void 0 && Number.isFinite(value) && value > 0 ? value : DEFAULT_CARD_HEIGHT;
@@ -25057,10 +25063,10 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian22.Ite
     __publicField(this, "tabStopId", null);
     /** Card element per topic id, rebuilt on every render, so a selection change touches only the affected cards. */
     __publicField(this, "cardEls", /* @__PURE__ */ new Map());
-    /** Rendered card height in canvas units (offsetHeight ignores zoom); undefined when the card is not on screen. */
+    /** Rendered card height in canvas units (offsetHeight ignores zoom). A card not on screen yet gets the median of the rendered ones; undefined when nothing is rendered. */
     __publicField(this, "cardHeightOf", (id) => {
       var _a;
-      return ((_a = this.cardEls.get(id)) == null ? void 0 : _a.offsetHeight) || void 0;
+      return ((_a = this.cardEls.get(id)) == null ? void 0 : _a.offsetHeight) || medianHeight([...this.cardEls.values()].map((card) => card.offsetHeight));
     });
     __publicField(this, "cardChecks", /* @__PURE__ */ new Map());
     __publicField(this, "selectionBarEl", null);

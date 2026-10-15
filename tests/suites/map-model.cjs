@@ -350,3 +350,14 @@ test('card-height overlap checks use real heights plus the gap', () => {
   const tree = layout.arrangeNewTree(fixed, 'n', new Set(['n']), id => (id === 'low' ? 250 : 60));
   assert.equal(tree[2].y, 500 + 250 + LAYOUT_GAP, 'a new tree starts below the lowest real card bottom plus the gap');
 });
+
+test('medianHeight gives the typical rendered card height for unmeasured cards', () => {
+  assert.equal(layout.medianHeight([]), undefined, 'nothing rendered');
+  assert.equal(layout.medianHeight([0, NaN, -5]), undefined, 'unusable values are ignored');
+  assert.equal(layout.medianHeight([90, 60, 400]), 90, 'odd count: middle value, a tall outlier does not skew it');
+  assert.equal(layout.medianHeight([60, 80, 100, 400]), 90, 'even count: mean of the middle two');
+  const nodes = [node('r'), node('a', 'r'), node('b', 'r')];
+  const typical = layout.medianHeight([70, 70, 70]);
+  const placed = layout.arrangeMap(nodes, undefined, id => (id === 'r' ? 70 : typical));
+  assert.equal(placed.find(item => item.id === 'b').y - placed.find(item => item.id === 'a').y, 70 + layout.LAYOUT_GAP);
+});

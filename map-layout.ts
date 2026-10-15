@@ -10,6 +10,14 @@ export const DEFAULT_CARD_HEIGHT = 180;
 /** Rendered card height in canvas units, or undefined when unknown. */
 export type HeightOf = (id: string) => number | undefined;
 
+/** Typical card height from measured ones (median of the positive finite values); undefined when none. */
+export function medianHeight(values: number[]): number | undefined {
+  const sorted = values.filter(value => Number.isFinite(value) && value > 0).sort((a, b) => a - b);
+  if (!sorted.length) return undefined;
+  const mid = sorted.length >> 1;
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
 const cardHeight = (heightOf: HeightOf | undefined, id: string): number => {
   const value = heightOf?.(id);
   return value !== undefined && Number.isFinite(value) && value > 0 ? value : DEFAULT_CARD_HEIGHT;

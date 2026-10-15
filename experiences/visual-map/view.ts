@@ -25,7 +25,7 @@ import {
   supersededAimNodeIds,
   visibleNodes
 } from "../../map-model";
-import { arrangeMap, arrangeNewBranch, arrangeNewTree } from "../../map-layout";
+import { arrangeMap, arrangeNewBranch, arrangeNewTree, medianHeight } from "../../map-layout";
 import { inLanguage, NONE } from "../../core/steps/_shared/fragments";
 import {
   expansionTask,
@@ -307,8 +307,9 @@ export class VisualAgentMapView extends ItemView {
   private tabStopId: string | null = null;
   /** Card element per topic id, rebuilt on every render, so a selection change touches only the affected cards. */
   private cardEls = new Map<string, HTMLElement>();
-  /** Rendered card height in canvas units (offsetHeight ignores zoom); undefined when the card is not on screen. */
-  private cardHeightOf = (id: string): number | undefined => this.cardEls.get(id)?.offsetHeight || undefined;
+  /** Rendered card height in canvas units (offsetHeight ignores zoom). A card not on screen yet gets the median of the rendered ones; undefined when nothing is rendered. */
+  private cardHeightOf = (id: string): number | undefined =>
+    this.cardEls.get(id)?.offsetHeight || medianHeight([...this.cardEls.values()].map(card => card.offsetHeight));
   private cardChecks = new Map<string, HTMLInputElement>();
   private selectionBarEl: HTMLElement | null = null;
   private hintEl: HTMLElement | null = null;
