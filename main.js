@@ -27796,7 +27796,6 @@ ${request.requirements}` : preset.text,
           "vam-topic-more"
         );
       }
-      if (aimMode) this.button(tools, t("ui.create_a_new_mind_map"), () => this.openNewMindMapModal());
       if (!aimMode) {
         const integrate = this.button(
           tools,
