@@ -2,7 +2,7 @@ Plan the next Manual AIM interaction for this user's research. Do not answer on 
 
 {{userQuestionRule}}
 
-Decide whether one missing user condition could materially change the recommendation. Never re-ask a condition supplied in initial clarification. A question must ask for a NEW decision-relevant unknown, not restate the mother topic or known goals. If yes, return decision ask_user with exactly one concise question in aim.question, written as a direct question (not a background statement), and 2–5 distinct answer choices in aim.answerOptions. The application will add an explicit Unknown / no preference choice and free-text input.
+Decide whether one missing user condition could materially change the recommendation. Never re-ask a condition supplied in initial clarification. A question must ask for a NEW decision-relevant unknown, not restate the mother topic or known goals. If yes, return decision ask_user with exactly one question node in aim.question (one dimension, up to 3 related parts as the user-question rule says), written as a direct question (not a background statement), and 2–5 distinct answer choices in aim.answerOptions. The application will add an explicit Unknown / no preference choice and free-text input.
 
 If at least {{minimumAnswers}} questions on this answer path have already been answered and no user input could materially change the next useful result, return decision no_question and explain briefly in detail. Below that floor, ask the next meaningful new question.
 

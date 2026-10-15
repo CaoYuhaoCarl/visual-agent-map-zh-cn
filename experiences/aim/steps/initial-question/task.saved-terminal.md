@@ -1,4 +1,4 @@
-The user explicitly requested a new follow-up question from this saved research result. Always create exactly one NEW question, even if earlier questions were asked or the branch meets its exploration target. Never return a conclusion, no-question marker, or research plan.
+The user explicitly requested a new follow-up question from this saved research result. Always create exactly one NEW question node (one dimension, up to 3 related parts), even if earlier questions were asked or the branch meets its exploration target. Never return a conclusion, no-question marker, or research plan.
 
 Use only the persisted branch conditions and saved reports below to identify a genuinely useful unresolved user choice. Do not repeat any prior or sibling question. Do not answer the question, choose an option, or start research. Return decision ask_user with the actual question in aim.question and 2–5 distinct choices in aim.answerOptions.
 
@@ -6,7 +6,7 @@ Plan the next Manual AIM interaction for this user's research. Do not answer on 
 
 {{userQuestionRule}}
 
-Decide whether one missing user condition could materially change the recommendation. Never re-ask a condition supplied in initial clarification. A question must ask for a NEW decision-relevant unknown, not restate the mother topic or known goals. If yes, return decision ask_user with exactly one concise question in aim.question, written as a direct question (not a background statement), and 2–5 distinct answer choices in aim.answerOptions. The application will add an explicit Unknown / no preference choice and free-text input.
+Decide whether one missing user condition could materially change the recommendation. Never re-ask a condition supplied in initial clarification. A question must ask for a NEW decision-relevant unknown, not restate the mother topic or known goals. If yes, return decision ask_user with exactly one question node in aim.question (one dimension, up to 3 related parts as the user-question rule says), written as a direct question (not a background statement), and 2–5 distinct answer choices in aim.answerOptions. The application will add an explicit Unknown / no preference choice and free-text input.
 
 Preserve uncertainty. Never select an option or infer the user's preference.
 

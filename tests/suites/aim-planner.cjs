@@ -269,7 +269,7 @@ integrationTest('AIM Manual Planner question, user answer, research result and o
   assert.equal(question.aimKind, 'question'); assert.equal(question.aimQuestion.allowMultiple, true); assert.equal(question.aimQuestion.allowFreeText, true);
   assert.equal(question.aimQuestion.options.at(-1).id, AIM_UNKNOWN_OPTION_ID);
   const questionNote = await repo.readNote(question.path);
-  assert.equal(questionNote.summary, '你偏好的牛排熟度是什麼？'); assert.match(questionNote.prompt, /one concise question/i);
+  assert.equal(questionNote.summary, '你偏好的牛排熟度是什麼？'); assert.match(questionNote.prompt, /exactly one question node/i);
 
   const answer = { requestId: 'manual-answer-1', selections: question.aimQuestion.options.slice(0, 2).map(option => option.id), freeText: '約 1.5 吋；沒有烤箱。' };
   const first = flow.answerAndResearch(created.mapPath, question.id, answer, 'gpt-6-luna', 'low');
