@@ -286,7 +286,8 @@ export class AiTaskService {
             mode: "task",
             researchMode: "local",
             researchDepth: "fast",
-            visualMode: "off"
+            visualMode: "off",
+            intermediateDetail: true
           },
           model,
           reasoning,

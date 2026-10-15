@@ -354,6 +354,8 @@
 .markdown-preview-view.visual-agent-map-node .metadata-container,
 body .workspace-leaf-content.vam-topic-markdown .markdown-source-view.mod-cm6 .metadata-container { display: none; }
 .workspace-leaf-content.vam-topic-markdown .inline-title { display: none; }
+/* A wide AI-written flowchart scales to the note width instead of running off the page. */
+.visual-agent-map-node .mermaid svg { max-width: 100%; height: auto; }
 @media (max-width: 900px) { .vam-inspector { width: 260px; } .vam-workspace.has-inspector > .vam-canvas-overlay { right: 260px; } }
 @media (max-width: 600px) { .vam-inspector { position: absolute; right: 0; top: 0; bottom: 0; width: min(300px, 85%); z-index: 5; box-shadow: var(--shadow-l); } }
 

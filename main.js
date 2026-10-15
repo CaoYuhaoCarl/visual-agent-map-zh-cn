@@ -10853,6 +10853,12 @@ var none_zh_default = "\uFF08\u7121\uFF09\n";
 // core/steps/_shared/none.en.md
 var none_en_default = "(none)\n";
 
+// core/steps/_shared/obsidian-format.zh.md
+var obsidian_format_zh_default = "detail \u6703\u5728 Obsidian \u4E2D\u6E32\u67D3\uFF0C\u8ACB\u4F9D\u5167\u5BB9\u7684\u5F62\u614B\u9078\u7528\u4E0B\u5217\u8A9E\u6CD5\uFF0C\u4E0D\u8981\u6574\u9801\u90FD\u5BEB\u6210\u6BB5\u843D\u6216\u689D\u5217\uFF1A\n\n- \u6838\u5FC3\u7D50\u8AD6\u6216\u95DC\u9375\u5B9A\u7FA9\uFF1A`> [!summary]` callout\uFF0C1\u20133 \u53E5\u3002\n- \u98A8\u96AA\u3001\u5E38\u898B\u8AA4\u89E3\u3001\u9650\u5236\uFF1A`> [!warning]`\u3002\n- \u5F85\u9A57\u8B49\u7684\u5047\u8A2D\u6216\u958B\u653E\u554F\u984C\uFF1A`> [!question]`\u3002\n- \u5BE6\u7528\u6280\u5DE7\u6216\u4F8B\u5B50\uFF1A`> [!tip]` \u6216 `> [!example]`\u3002\n- \u5169\u500B\u4EE5\u4E0A\u7684\u9078\u9805\uFF0C\u6216\u5169\u500B\u4EE5\u4E0A\u7684\u6BD4\u8F03\u7DAD\u5EA6\uFF1AMarkdown \u8868\u683C\u3002\n- \u6D41\u7A0B\u3001\u56E0\u679C\u3001\u6B65\u9A5F\u4E4B\u9593\u7684\u4F9D\u8CF4\uFF1A\u4E00\u500B ```mermaid``` flowchart\uFF08LR \u6216 TD\uFF09\uFF0C\u6700\u591A 12 \u500B\u7BC0\u9EDE\u3002\n- \u6642\u9593\u4E0A\u7684\u6F14\u8B8A\u6216\u968E\u6BB5\uFF1A```mermaid``` timeline\u3002\n- \u4F7F\u7528\u8005\u63A5\u4E0B\u4F86\u8981\u505A\u7684\u4E8B\u3001\u5B78\u7FD2\u884C\u52D5\uFF1A`- [ ]` \u4EFB\u52D9\u6E05\u55AE\u3002\n- \u6574\u9801\u6700\u95DC\u9375\u7684\u4E00\u5169\u500B\u8A5E\uFF1A`==highlight==`\uFF0C\u6BCF\u6BB5\u6700\u591A\u4E00\u8655\u3002\n\n\u898F\u5247\uFF1A\n1. \u5F62\u614B\u6C92\u6709\u5C0D\u61C9\u7684\u8A9E\u6CD5\u6642\uFF0C\u5C31\u5BEB\u4E00\u822C\u6BB5\u843D\uFF1B\u4E0D\u8981\u70BA\u4E86\u597D\u770B\u800C\u786C\u5957\u8A9E\u6CD5\uFF0C\u6BCF\u500B\u8A9E\u6CD5\u90FD\u5FC5\u9808\u8B93\u5167\u5BB9\u66F4\u5BB9\u6613\u7406\u89E3\u3002\n2. \u6BCF\u500B\u6BB5\u843D\u6700\u591A\u4F7F\u7528\u5169\u7A2E\u7279\u6B8A\u8A9E\u6CD5\uFF1Bcallout \u4E0D\u5F97\u5DE2\u72C0\u3002\n3. mermaid \u53EA\u7528\u6587\u5B57\u7BC0\u9EDE\u8207\u7BAD\u982D\uFF1B\u7981\u6B62\u4F7F\u7528 click\u3001HTML \u6A19\u7C64\u3001%%{}%% \u8A2D\u5B9A\u3001URL\u3001\u5716\u7247\u8207\u6A23\u5F0F\u6307\u4EE4\u3002\u7BC0\u9EDE\u6587\u5B57\u6709\u62EC\u865F\u6216\u6A19\u9EDE\u6642\u8981\u7528\u96D9\u5F15\u865F\u5305\u8D77\u4F86\u3002\n4. \u6C92\u6709\u5167\u5BB9\u7684\u6BB5\u843D\u53EA\u5BEB\u300C\u672C\u6B21\u7121\u65B0\u589E\u5167\u5BB9\u300D\uFF0C\u4E0D\u52A0 callout\u3002\n5. \u4E0D\u8981\u8F38\u51FA Obsidian \u4E0D\u652F\u63F4\u7684\u8A9E\u6CD5\uFF08\u4F8B\u5982 :::\u3001<details>\u3001\u81EA\u8A02 HTML\uFF09\u3002\n6. \u6709\u6307\u5B9A\u9805\u76EE\u6578\u91CF\u7684\u6BB5\u843D\uFF0C\u9805\u76EE\u8981\u5BEB\u6210\u9802\u5C64\u6E05\u55AE\u6216 #### \u5C0F\u6A19\u984C\uFF0C\u4E0D\u8981\u653E\u9032 callout \u6216\u8868\u683C\u3002\n";
+
+// core/steps/_shared/obsidian-format.en.md
+var obsidian_format_en_default = 'The detail is rendered in Obsidian. Choose the syntax below by the shape of the content; do not write the whole page as paragraphs or bullet lists:\n\n- Core conclusion or key definition: a `> [!summary]` callout, 1\u20133 sentences.\n- Risks, common misconceptions, limitations: `> [!warning]`.\n- Assumptions to verify or open questions: `> [!question]`.\n- Practical tips or examples: `> [!tip]` or `> [!example]`.\n- Two or more options, or two or more comparison dimensions: a Markdown table.\n- A process, cause and effect, or dependencies between steps: one ```mermaid``` flowchart (LR or TD), at most 12 nodes.\n- Change or stages over time: a ```mermaid``` timeline.\n- What the user should do next, learning actions: a `- [ ]` task list.\n- The one or two most important terms on the page: `==highlight==`, at most one per section.\n\nRules:\n1. When no syntax fits the content\'s shape, write a plain paragraph. Do not force syntax for looks; every syntax must make the content easier to understand.\n2. Use at most two kinds of special syntax per section; do not nest callouts.\n3. Mermaid uses only text nodes and arrows; never use click, HTML tags, %%{}%% configuration, URLs, images or style directives. Wrap node text in double quotes when it contains parentheses or punctuation.\n4. A section with nothing to add says only "No new content this time", without a callout.\n5. Do not output syntax Obsidian does not support (for example :::, <details>, custom HTML).\n6. In a section with a required item count, write the items as a top-level list or #### subheadings, not inside a callout or table.\n';
+
 // core/steps/_shared/reference-citations.zh.md
 var reference_citations_zh_default = "\u6BCF\u500B\u4F9D\u64DA\u672C\u6A5F\u8CC7\u6599\u7684\u91CD\u8981\u4E8B\u5BE6\u65C1\u4FDD\u7559\u5176 [S#] \u4F86\u6E90\u6A19\u8A18\u3002VAM \u6703\u5728\u56DE\u8986\u5F8C\u4F9D\u5DF2\u9078\u4F86\u6E90\u8F49\u6210 Vault \u9023\u7D50\u6216\u5916\u90E8\u8DEF\u5F91\u3002\u4E0D\u53EF\u7DE8\u9020\u6216\u6539\u5BEB\u4F86\u6E90\u7DE8\u865F\u3001\u8DEF\u5F91\u8207\u7AE0\u7BC0\u6A19\u984C\u3002\n";
 
@@ -10891,6 +10897,7 @@ var LABEL_TASK = pair2(label_task_zh_default, label_task_en_default);
 var LABEL_TOPIC = pair2(label_topic_zh_default, label_topic_en_default);
 var LOCAL_FIRST = pair2(local_first_zh_default, local_first_en_default);
 var NONE = pair2(none_zh_default, none_en_default);
+var OBSIDIAN_FORMAT = pair2(obsidian_format_zh_default, obsidian_format_en_default);
 var REFERENCE_CITATIONS = pair2(reference_citations_zh_default, reference_citations_en_default);
 var ROLE = pair2(role_zh_default, role_en_default);
 var SOURCE_SAFETY = pair2(source_safety_zh_default, source_safety_en_default);
@@ -33123,6 +33130,11 @@ var PHASE_RULES = {
   "delivery-writing": pair5(delivery_writing_zh_default, delivery_writing_en_default),
   "delivery-acceptance": pair5(delivery_acceptance_zh_default, delivery_acceptance_en_default)
 };
+var READER_FACING_PHASES = /* @__PURE__ */ new Set([
+  "subtopic-research",
+  "targeted-followup-research",
+  "delivery-writing"
+]);
 function aimPhase(task) {
   var _a;
   return (_a = task.match(/<!--\s*aim-phase:\s*([a-z-]+)\s*-->/)) == null ? void 0 : _a[1];
@@ -33146,6 +33158,7 @@ ${value}` : "";
     inLanguage(JSON_CONTRACT2, language2),
     context.toneText ? toneBlock(context.toneText, language2) : "",
     phaseGuidance(phase, language2, context.responseContract, !!context.aimContract),
+    phase && READER_FACING_PHASES.has(phase) ? inLanguage(OBSIDIAN_FORMAT, language2) : "",
     context.researchMode === "local" ? inLanguage(WEB_SEARCH_OFF, language2) : context.researchMode === "research" ? inLanguage(WEB_SEARCH_ON, language2) : "",
     field(inLanguage(LABEL_TOPIC, language2), context.title),
     field(inLanguage(LABEL_SUMMARY, language2), context.summary),
@@ -33160,6 +33173,63 @@ ${context.sourceContext}` : "",
     field(inLanguage(LABEL_TASK, language2), context.task)
   ];
   return blocks.filter(Boolean).join("\n\n");
+}
+
+// ai/mermaid-safety.ts
+var ALLOWED_DIAGRAM = /^(?:flowchart|graph)(?:\s+(?:LR|RL|TD|TB|BT))?\s*;?\s*$|^timeline\b/i;
+var UNSAFE_LINE = [
+  // A directive starts a line or follows a `;` statement separator.
+  /(?:^|;)\s*(?:click|call|href|link|links|style|classDef|class|linkStyle|interpolate)\b/i,
+  /%%\s*\{/,
+  // init or config directive
+  /<\s*\/?\s*[a-z!?]/i,
+  // HTML tag, comment or processing instruction
+  /\b[a-z][a-z0-9+.-]*:\/\//i,
+  // URL with a scheme
+  /\b(?:javascript|vbscript|data|mailto|file):/i,
+  /\bwww\./i,
+  /:::/,
+  // class shorthand
+  /@\{/,
+  // shape/image/icon metadata
+  /\b(?:fa|fab|fas|far|img):/i,
+  /!\[/
+  // Markdown image
+];
+var FENCE = /^(`{3,}|~{3,})(.*)$/;
+var PREFIX = /^(?:[ \t]+|>|(?:[-*+]|\d+[.)])(?=[ \t])|\[[ xX]\](?=[ \t]))/;
+function core(line) {
+  let rest = line;
+  for (let match = PREFIX.exec(rest); match; match = PREFIX.exec(rest)) rest = rest.slice(match[0].length);
+  return rest;
+}
+function fenceOf(line) {
+  const fence = FENCE.exec(core(line));
+  return fence && !(fence[1][0] === "`" && fence[2].includes("`")) ? fence : null;
+}
+function unsafeMermaid(body) {
+  const lines = body.map((line) => line.trim()).filter(Boolean);
+  if (!lines.length) return false;
+  if (lines[0] === "---") return true;
+  const header = lines.find((line) => !line.startsWith("%%"));
+  if (!header || !ALLOWED_DIAGRAM.test(header)) return true;
+  return lines.some((line) => UNSAFE_LINE.some((pattern) => pattern.test(line)));
+}
+function neutralizeUnsafeMermaid(markdown) {
+  const lines = markdown.split("\n");
+  lines.forEach((line, index) => {
+    const fence = fenceOf(line);
+    if (!fence || !/^mermaid\b/i.test(fence[2].trim())) return;
+    const body = [];
+    for (let next = index + 1; next < lines.length; next++) {
+      const content = core(lines[next]);
+      const close = FENCE.exec(content);
+      if (close && close[1][0] === fence[1][0] && close[1].length >= fence[1].length && !close[2].trim()) break;
+      body.push(content);
+    }
+    if (unsafeMermaid(body)) lines[index] = line.replace(/mermaid/i, "text");
+  });
+  return lines.join("\n");
 }
 
 // core/steps/task/parse.ts
@@ -33229,7 +33299,8 @@ function parseAiResult(raw, label, language2, strictGapAudit = false, webResearc
   const searchStatus = webResearch && SEARCH_STATUSES.includes(parsed.searchStatus) ? parsed.searchStatus : void 0;
   const result = {
     summary: truncateSummary(parsed.summary),
-    detail: parsed.detail.trim(),
+    // Checked before anything is written: an unsafe mermaid block is kept as plain code, never rendered.
+    detail: neutralizeUnsafeMermaid(parsed.detail.trim()),
     suggestions,
     visualReferences,
     ...searchStatus ? { searchStatus } : {}
@@ -33266,11 +33337,14 @@ function generalTaskPrompt(context, language2) {
     inLanguage(JSON_CONTRACT, language2),
     ...context.toneText ? [toneBlock(context.toneText, language2)] : [],
     inLanguage(modeFragment, language2),
-    context.mode !== "decompose" ? context.detailFormat === "adaptive" ? inLanguage(ADAPTIVE_DETAIL_STRUCTURE, language2) : detailStructurePrompt(
-      (_a = context.detailTemplate) != null ? _a : standardTemplate(language2),
-      language2,
-      (headings) => detailStructure(language2, headings)
-    ) : "",
+    context.mode !== "decompose" ? [
+      context.detailFormat === "adaptive" ? inLanguage(ADAPTIVE_DETAIL_STRUCTURE, language2) : detailStructurePrompt(
+        (_a = context.detailTemplate) != null ? _a : standardTemplate(language2),
+        language2,
+        (headings) => detailStructure(language2, headings)
+      ),
+      context.intermediateDetail ? "" : inLanguage(OBSIDIAN_FORMAT, language2)
+    ].filter(Boolean).join("\n\n") : "",
     researchGuidance(context, language2),
     ...visualGuidance(context, language2),
     `${inLanguage(LABEL_TOPIC, language2)}:
@@ -33510,7 +33584,8 @@ var AiTaskService = class {
             mode: "task",
             researchMode: "local",
             researchDepth: "fast",
-            visualMode: "off"
+            visualMode: "off",
+            intermediateDetail: true
           },
           model,
           reasoning,

@@ -42,6 +42,8 @@ export interface TaskContext {
   mode?: AiTaskKind;
   /** Let a task choose its Markdown structure while retaining the structured result contract. */
   detailFormat?: "adaptive";
+  /** The detail is intermediate evidence for a later call, never shown to the reader: no Obsidian syntax rules. */
+  intermediateDetail?: boolean;
   /** Content template for fixed-section details (trusted; Standard when absent). */
   detailTemplate?: DetailTemplate;
   /** Resolved writing-tone text (trusted). Absent for the default academic tone, so prompts stay unchanged. */

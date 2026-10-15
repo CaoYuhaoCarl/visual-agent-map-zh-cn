@@ -14,6 +14,7 @@ import {
   LABEL_TOPIC,
   LOCAL_FIRST,
   NONE,
+  OBSIDIAN_FORMAT,
   REFERENCE_CITATIONS,
   ROLE,
   SOURCE_SAFETY,
@@ -53,11 +54,16 @@ export function generalTaskPrompt(context: TaskContext, language: UiLanguage): s
     ...(context.toneText ? [toneBlock(context.toneText, language)] : []),
     inLanguage(modeFragment, language),
     context.mode !== "decompose"
-      ? context.detailFormat === "adaptive"
-        ? inLanguage(ADAPTIVE_DETAIL_STRUCTURE, language)
-        : detailStructurePrompt(context.detailTemplate ?? standardTemplate(language), language, headings =>
-            detailStructure(language, headings)
-          )
+      ? [
+          context.detailFormat === "adaptive"
+            ? inLanguage(ADAPTIVE_DETAIL_STRUCTURE, language)
+            : detailStructurePrompt(context.detailTemplate ?? standardTemplate(language), language, headings =>
+                detailStructure(language, headings)
+              ),
+          context.intermediateDetail ? "" : inLanguage(OBSIDIAN_FORMAT, language)
+        ]
+          .filter(Boolean)
+          .join("\n\n")
       : "",
     researchGuidance(context, language),
     ...visualGuidance(context, language),

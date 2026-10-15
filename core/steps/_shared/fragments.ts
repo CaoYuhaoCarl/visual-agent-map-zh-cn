@@ -16,6 +16,8 @@ import LocalFirstZH from "./local-first.zh.md";
 import LocalFirstEN from "./local-first.en.md";
 import NoneZH from "./none.zh.md";
 import NoneEN from "./none.en.md";
+import ObsidianFormatZH from "./obsidian-format.zh.md";
+import ObsidianFormatEN from "./obsidian-format.en.md";
 import ReferenceCitationsZH from "./reference-citations.zh.md";
 import ReferenceCitationsEN from "./reference-citations.en.md";
 import RoleZH from "./role.zh.md";
@@ -49,6 +51,8 @@ export const LABEL_TASK: FragmentPair = pair(LabelTaskZH, LabelTaskEN);
 export const LABEL_TOPIC: FragmentPair = pair(LabelTopicZH, LabelTopicEN);
 export const LOCAL_FIRST: FragmentPair = pair(LocalFirstZH, LocalFirstEN);
 export const NONE: FragmentPair = pair(NoneZH, NoneEN);
+/** How a reader-facing detail uses Obsidian syntax (callouts, tables, mermaid, task lists, highlights). */
+export const OBSIDIAN_FORMAT: FragmentPair = pair(ObsidianFormatZH, ObsidianFormatEN);
 export const REFERENCE_CITATIONS: FragmentPair = pair(ReferenceCitationsZH, ReferenceCitationsEN);
 export const ROLE: FragmentPair = pair(RoleZH, RoleEN);
 export const SOURCE_SAFETY: FragmentPair = pair(SourceSafetyZH, SourceSafetyEN);
