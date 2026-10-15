@@ -354,6 +354,12 @@
       "text": "None yet.",
       "class": "prompt-only",
       "reason": "Empty-section filler in the initial-question prompt"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "The follow-up search found nothing usable:",
+      "class": "attempt-record",
+      "reason": "Stop reason recorded with the Planner review on the attempt when a follow-up search finds nothing"
     }
   ],
   "markdown": {

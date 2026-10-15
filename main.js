@@ -22779,7 +22779,7 @@ ${note.detail}`
     }
   }
   async executeSubtopicWorkflow(mapPath, branchId, parent, topicNote, answerLabels, freeText, lineageContext, model, reasoning, signal) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l;
     let map = await this.repository.readMap(mapPath);
     const language2 = this.languageOf(map);
     let branch = (_a = map.aim) == null ? void 0 : _a.branches.find((item) => item.id === branchId);
@@ -23465,14 +23465,36 @@ ${beforeSearch.detail}`,
           );
         } catch (error) {
           await this.persist(() => this.runs.recordSearchDiagnostic(mapPath, synthesisHandle, diagnostic));
-          throw error;
+          const message = String((_j = error == null ? void 0 : error.message) != null ? _j : error);
+          if ((signal == null ? void 0 : signal.aborted) || !(SEARCH_NOT_PERFORMED.test(message) || aimTimedOut(message))) throw error;
         }
         await this.persist(() => this.runs.recordSearchDiagnostic(mapPath, synthesisHandle, diagnostic));
         throwIfAborted(signal);
-        if (!followup.summary.trim() || !followup.detail.trim() || reportedSearchFailure(followup))
-          throw new Error(
-            "The targeted follow-up did not produce a usable searched report; the attempt remains incomplete."
+        if (!(followup == null ? void 0 : followup.summary.trim()) || !followup.detail.trim() || reportedSearchFailure(followup)) {
+          finalReview = this.deliveryRejections.has(finalReview) ? this.atBudget(finalReview, language2) : await this.reviewPlannerDecisionQuality(
+            this.withOpenItems(finalReview, language2),
+            lastQualityContext,
+            model,
+            reasoning,
+            signal
           );
+          throwIfAborted(signal);
+          await this.persist(
+            () => this.runs.recordPlannerReview(
+              mapPath,
+              synthesisHandle,
+              {
+                decision: finalReview.decision,
+                rationale: finalReview.rationale,
+                researchTurn: researchTurn + 1,
+                ...finalReview.decision === "ask_user" ? { question: finalReview.question, answerOptions: finalReview.answerOptions } : {},
+                ...finalReview.decision === "research_more" ? { researchTarget: finalReview.researchTarget } : {}
+              },
+              finalReview.decision === "conclude" ? finalReview.stopReason : `The follow-up search found nothing usable: ${target.title}`
+            )
+          );
+          break;
+        }
         supplementalReports.push({ target, summary: followup.summary, detail: followup.detail });
         const updatedReports = aggregateReports();
         if (!await this.persist(
@@ -23566,7 +23588,7 @@ ${beforeSearch.detail}`,
       });
       if (committed.status !== "committed") return { status: "stale", branchId };
       if (isQuestion) {
-        const latestMap = await this.repository.readMap(mapPath), resultRef = (_k = (_j = latestMap.aim) == null ? void 0 : _j.branches.find((item) => item.id === branchId)) == null ? void 0 : _k.results.find(
+        const latestMap = await this.repository.readMap(mapPath), resultRef = (_l = (_k = latestMap.aim) == null ? void 0 : _k.branches.find((item) => item.id === branchId)) == null ? void 0 : _l.results.find(
           (item) => item.runId === synthesisHandle.runId && item.attemptId === synthesisHandle.attemptId
         );
         if (!resultRef)

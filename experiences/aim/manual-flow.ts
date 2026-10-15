@@ -3579,7 +3579,7 @@ export class AimManualFlow {
           currentQuestion: parent.summary,
           currentAnswer: answerDescription
         });
-        let followup: AiResult;
+        let followup: AiResult | undefined;
         this.emitProgress({ kind: "stage", mapPath, branchId, stage: "targeted-research" });
         await this.persist(() => this.runs.recordPhase(mapPath, synthesisHandle, "targeted-research"));
         try {
@@ -3600,14 +3600,44 @@ export class AimManualFlow {
           );
         } catch (error) {
           await this.persist(() => this.runs.recordSearchDiagnostic(mapPath, synthesisHandle, diagnostic));
-          throw error;
+          const message = String((error as { message?: unknown } | null)?.message ?? error);
+          if (signal?.aborted || !(SEARCH_NOT_PERFORMED.test(message) || aimTimedOut(message))) throw error;
         }
         await this.persist(() => this.runs.recordSearchDiagnostic(mapPath, synthesisHandle, diagnostic));
         throwIfAborted(signal);
-        if (!followup.summary.trim() || !followup.detail.trim() || reportedSearchFailure(followup))
-          throw new Error(
-            "The targeted follow-up did not produce a usable searched report; the attempt remains incomplete."
+        // A follow-up search that finds nothing usable does not end the run: the gap stays open in the answer, as at
+        // the research budget, and the saved subtopic reports carry the document.
+        if (!followup?.summary.trim() || !followup.detail.trim() || reportedSearchFailure(followup)) {
+          finalReview = this.deliveryRejections.has(finalReview)
+            ? this.atBudget(finalReview, language)
+            : await this.reviewPlannerDecisionQuality(
+                this.withOpenItems(finalReview, language),
+                lastQualityContext,
+                model,
+                reasoning,
+                signal
+              );
+          throwIfAborted(signal);
+          await this.persist(() =>
+            this.runs.recordPlannerReview(
+              mapPath,
+              synthesisHandle,
+              {
+                decision: finalReview!.decision,
+                rationale: finalReview!.rationale,
+                researchTurn: researchTurn + 1,
+                ...(finalReview!.decision === "ask_user"
+                  ? { question: finalReview!.question, answerOptions: finalReview!.answerOptions }
+                  : {}),
+                ...(finalReview!.decision === "research_more" ? { researchTarget: finalReview!.researchTarget } : {})
+              },
+              finalReview!.decision === "conclude"
+                ? finalReview!.stopReason
+                : `The follow-up search found nothing usable: ${target.title}`
+            )
           );
+          break;
+        }
         supplementalReports.push({ target, summary: followup.summary, detail: followup.detail });
         const updatedReports = aggregateReports();
         if (

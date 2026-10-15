@@ -72,6 +72,11 @@
       "file": "experiences/aim/retry-targets.ts",
       "text": "This draft was not published because attempt",
       "reason": "exact-match string used to recognize the persisted retired-draft note written by research-run-store.ts; compared against saved text, not sent to a model"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "The follow-up search found nothing usable:",
+      "reason": "stop reason persisted on the attempt record and shown in the UI, not a prompt"
     }
   ]
 }

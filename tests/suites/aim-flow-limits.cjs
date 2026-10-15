@@ -262,6 +262,33 @@ integrationTest('AIM unattended: a legacy gap only the user can close, before an
   assert.ok(!phases.includes('decision-quality-review'), 'no question is written');
   assert.ok(final.openItems.some(item => item.title === 'Commute'));
 });
+integrationTest('AIM: a targeted follow-up that finds nothing keeps the gap open and still delivers the document', async () => {
+  const withField = (raw, field) => ({ ...raw, detail: raw.detail.replace(/"decision":"([a-z_]+)"/, `"decision":"$1",${field}`) });
+  for (const failure of ['throw', 'empty']) {
+    const subject = await coverageSetup(`Follow-up ${failure}`);
+    const saved = await subject.repo.readMap(subject.created.mapPath);
+    saved.aim.interaction = 'unattended';
+    await subject.repo.saveMap(subject.created.mapPath, saved);
+    const base = subject.model.ask;
+    let reviews = 0;
+    subject.flow = new AimManualFlow(subject.repo, new AimRunStore(subject.repo), async (context, ...rest) => {
+      if (aimPhase(context, 'report-review') && ++reviews === 1)
+        return withField(plannerReview('research_more', { rationale: 'Daily drive times are unverified.' }, 'Interim', 'Interim answer.', [{ title: 'Daily drive times', task: 'Verify drive times.', contribution: 'Sets the pace.' }]), '"gapKind":"searchable"');
+      if (aimPhase(context, 'targeted-followup-research')) {
+        if (failure === 'throw') throw new Error('Search did not perform web search.');
+        return reply('Nothing', 'Research status: search failed');
+      }
+      return base(context, ...rest);
+    });
+    const planned = await subject.flow.planNextQuestion(subject.created.mapPath, subject.created.root.id, 'gpt-6-luna', 'low', `followup-${failure}`);
+    assert.equal(planned.outcome.status, 'completed', failure);
+    const map = await subject.repo.readMap(subject.created.mapPath);
+    const conclusionRef = map.aim.branches.flatMap(branch => branch.results).find(result => result.kind === 'conclusion');
+    assert.ok(conclusionRef, 'a conclusion is published');
+    const { readOpenItems } = load('experiences/aim/manual-flow.ts', { obsidian });
+    assert.ok(readOpenItems((await subject.repo.readNote(conclusionRef.notePath)).detail).includes('Daily drive times'), 'the unsearched gap is an open item');
+  }
+});
 const gapTarget = { title: 'Missing evidence', task: 'Search for the missing evidence.', contribution: 'Closes the gap.' };
 /** A Planner that always wants more research, so the flow must end through the research-budget exit. */
 function gapModel(base, seen) {
