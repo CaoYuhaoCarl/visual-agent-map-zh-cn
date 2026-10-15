@@ -144,7 +144,7 @@ export async function buildFinalDelivery(
   base: TaskContext,
   ask: (context: TaskContext) => Promise<AiResult>,
   options: FinalDeliveryOptions = {}
-): Promise<{ result: AiResult; evidence: string }> {
+): Promise<{ result: AiResult; evidence: string; draft?: AiResult }> {
   const baseFingerprint = fingerprint({
     title: base.title,
     rules: base.rules,
@@ -398,6 +398,7 @@ export async function buildFinalDelivery(
       ...result,
       detail: `${result.detail}\n\n${translate(base.outputLanguage ?? "en", "note.aim_draft_pending")}\n\n${draft.detail}`
     },
-    evidence
+    evidence,
+    draft
   };
 }

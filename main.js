@@ -1468,6 +1468,7 @@ var english = {
   "note.aim_below_floor_rationale_0_1": "The branch has {0} answered question node(s); at least {1} are required before conclusion.",
   "note.aim_result_pending": "AIM result pending synthesis.",
   "note.aim_draft_pending": "## Draft pending completion",
+  "note.aim_unverified_gap_0_1": "**Not yet verified:** {0}. {1}",
   "note.aim_followup_question_prompt": "Follow-up question after reviewing all saved research, including any targeted evidence follow-up.",
   "note.aim_stop_awaiting_0": "Awaiting the user's answer to: {0}",
   "note.aim_stop_bounded_followup_0": "One bounded follow-up was used; a material gap remains: {0}",
@@ -2904,6 +2905,7 @@ var traditionalChinese = {
   "note.aim_below_floor_rationale_0_1": "\u6B64\u5206\u652F\u76EE\u524D\u6709 {0} \u500B\u5DF2\u56DE\u7B54\u7684\u554F\u984C\u7BC0\u9EDE\uFF1B\u4E0B\u7D50\u8AD6\u524D\u81F3\u5C11\u9700\u8981 {1} \u500B\u3002",
   "note.aim_result_pending": "AIM \u7814\u7A76\u7D50\u679C\u5F85\u5F59\u6574\u3002",
   "note.aim_draft_pending": "## \u8349\u7A3F\u5F85\u88DC\u5B8C",
+  "note.aim_unverified_gap_0_1": "**\u5C1A\u672A\u6838\u5BE6\uFF1A**{0}\u3002{1}",
   "note.aim_followup_question_prompt": "\u5BE9\u95B1\u6240\u6709\u5DF2\u5B58\u7814\u7A76\uFF08\u542B\u91DD\u5C0D\u6027\u88DC\u67E5\u8B49\u64DA\uFF09\u5F8C\u63D0\u51FA\u7684\u5F8C\u7E8C\u554F\u984C\u3002",
   "note.aim_stop_awaiting_0": "\u7B49\u5F85\u4F7F\u7528\u8005\u56DE\u7B54\uFF1A{0}",
   "note.aim_stop_bounded_followup_0": "\u5DF2\u9032\u884C\u4E00\u6B21\u6709\u9650\u88DC\u67E5\uFF0C\u4ECD\u6709\u91CD\u8981\u7F3A\u53E3\uFF1A{0}",
@@ -19195,7 +19197,8 @@ ${translate((_o = base.outputLanguage) != null ? _o : "en", "note.aim_draft_pend
 
 ${draft.detail}`
     },
-    evidence
+    evidence,
+    draft
   };
 }
 
@@ -20487,7 +20490,8 @@ var _AimManualFlow = class _AimManualFlow {
     __publicField(this, "evidenceReports", /* @__PURE__ */ new Map());
     __publicField(this, "answerRuns", /* @__PURE__ */ new Map());
     /** Reviews whose research_more came from final delivery acceptance rather than from the Planner's report review. */
-    __publicField(this, "deliveryRejections", /* @__PURE__ */ new WeakSet());
+    /** Final delivery rejections, with the document that was written and the open items it was written with. */
+    __publicField(this, "deliveryRejections", /* @__PURE__ */ new WeakMap());
     /** The map view's live progress listener; set by the view, absent in tests and recovery flows. */
     __publicField(this, "onProgress");
   }
@@ -20540,6 +20544,22 @@ var _AimManualFlow = class _AimManualFlow {
       summary: review.summary,
       detail: review.detail
     };
+  }
+  /**
+   * A rejected final delivery given as the answer: the document that was written, with the rejected gap stated in
+   * it and listed as an open item, instead of a draft left pending.
+   */
+  publishRejectedDelivery(review, language2) {
+    const written = this.deliveryRejections.get(review);
+    if (!written) return this.withOpenItems(review, language2);
+    const gap = review.researchTarget;
+    const notice = gap ? `
+
+${translate(language2, "note.aim_unverified_gap_0_1", gap.title, review.rationale)}` : "";
+    return this.withOpenItems(
+      { ...review, summary: written.summary, detail: `${written.detail}${notice}`, openItems: written.openItems },
+      language2
+    );
   }
   /**
    * Tone text for prose-producing AIM calls (research and final delivery). Structured Planner/review calls carry an
@@ -20880,7 +20900,7 @@ ${note.detail}`;
     };
   }
   async reviewDecisionOnce(candidate, context, model, reasoning, signal) {
-    var _a, _b, _c, _d, _e, _f, _g, _h;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l;
     throwIfAborted(signal);
     const uniqueLineage = lineageWithoutRepeatedReports(context.lineage, context.reportDetail);
     const taskContext = {
@@ -21049,16 +21069,9 @@ ${note.detail}`;
         };
       }
     }
-    const assumedOpenItems = (_c = reviewed.openItems) != null ? _c : [];
-    const assumeGap = (gap) => {
-      var _a2;
-      return this.withOpenItems(
-        { ...gap, openItems: [...assumedOpenItems, ...(_a2 = gap.openItems) != null ? _a2 : []] },
-        context.outputLanguage
-      );
-    };
+    const assumeGap = (gap) => this.deliveryRejections.has(gap) ? this.publishRejectedDelivery(gap, context.outputLanguage) : { ...gap, gapKind: "user_only" };
     if (reviewed.decision === "conclude") {
-      const openItems = ((_d = reviewed.openItems) != null ? _d : []).map((item) => `- ${item.title}: ${item.task} (${item.expectedValue})`).join("\n");
+      const openItems = ((_c = reviewed.openItems) != null ? _c : []).map((item) => `- ${item.title}: ${item.task} (${item.expectedValue})`).join("\n");
       const deliveryContext = {
         ...taskContext,
         ...context.toneText ? { toneText: context.toneText } : {},
@@ -21075,8 +21088,8 @@ Prior research:
 ${context.reportDetail}${openItems ? `
 ${renderOpenItemsContext(openItems)}` : ""}`
       };
-      let checkpoint = (_f = (_e = context.deliveryRecovery) == null ? void 0 : _e.checkpoint) != null ? _f : {};
-      let phase = (_g = context.deliveryRecovery) == null ? void 0 : _g.phase;
+      let checkpoint = (_e = (_d = context.deliveryRecovery) == null ? void 0 : _d.checkpoint) != null ? _e : {};
+      let phase = (_f = context.deliveryRecovery) == null ? void 0 : _f.phase;
       const delivery = await buildFinalDelivery(
         deliveryContext,
         (step) => this.askAimModel({ ...step, outputLanguage: deliveryContext.outputLanguage }, model, reasoning, signal),
@@ -21130,8 +21143,13 @@ ${delivery.evidence}` },
         throw new Error(
           "Final delivery review must complete the document or identify a research gap, not restart user clarification."
         );
-      if (final.decision === "research_more") this.deliveryRejections.add(final);
-      reviewed = final.decision === "conclude" && ((_h = reviewed.openItems) == null ? void 0 : _h.length) ? { ...final, openItems: reviewed.openItems } : final;
+      if (final.decision === "research_more")
+        this.deliveryRejections.set(final, {
+          summary: (_h = (_g = delivery.draft) == null ? void 0 : _g.summary) != null ? _h : final.summary,
+          detail: (_j = (_i = delivery.draft) == null ? void 0 : _i.detail) != null ? _j : final.detail,
+          openItems: (_k = reviewed.openItems) != null ? _k : []
+        });
+      reviewed = final.decision === "conclude" && ((_l = reviewed.openItems) == null ? void 0 : _l.length) ? { ...final, openItems: reviewed.openItems } : final;
     }
     if (context.unattended && reviewed.decision === "research_more" && reviewed.gapKind === "user_only")
       return assumeGap(reviewed);
@@ -23334,7 +23352,9 @@ ${currentReports.detail}`,
           signal
         );
         throwIfAborted(signal);
-        if (researchTurn === this.limits.maxResearchTurns && finalReview.decision === "research_more" && !this.deliveryRejections.has(finalReview) && !this.limits.acceptGapAtBudget) {
+        if (researchTurn === this.limits.maxResearchTurns && finalReview.decision === "research_more" && this.deliveryRejections.has(finalReview) && !this.limits.acceptGapAtBudget && !this.limits.publishDeliveryAtBudget)
+          finalReview = this.publishRejectedDelivery(finalReview, language2);
+        else if (researchTurn === this.limits.maxResearchTurns && finalReview.decision === "research_more" && !this.deliveryRejections.has(finalReview) && !this.limits.acceptGapAtBudget) {
           finalReview = await this.reviewPlannerDecisionQuality(
             this.withOpenItems(finalReview, language2),
             lastQualityContext,

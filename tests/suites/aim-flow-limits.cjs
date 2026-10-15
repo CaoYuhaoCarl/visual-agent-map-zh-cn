@@ -238,7 +238,8 @@ integrationTest('AIM unattended: a delivery rejection only the user can close ke
     const final = await flow.reviewPlannerDecisionQuality(candidate, context, 'gpt-6-luna', 'low');
     assert.equal(final.decision, 'conclude', `gapKind=${gapKind}`);
     assert.deepEqual(plain(final.openItems.map(item => item.title)), ['Budget', 'Commute'], 'earlier assumptions and the new gap are both listed');
-    assert.match(final.detail, /Delivered document/, 'the delivered document is kept');
+    assert.match(final.detail, /\*\*Not yet verified:\*\* Commute\./, 'the delivered document states the gap');
+    assert.ok(!/Draft pending|Delivered document/.test(final.detail), 'the written document, not the rejection text');
     assert.ok(!phases.includes('decision-quality-review'), 'no question is written');
     assert.equal(phases.filter(phase => phase === 'delivery-acceptance').length, 1, 'the document is written once');
   }
@@ -393,13 +394,18 @@ async function deliveryRejected(limits) {
   assert.ok(phases.includes('delivery-acceptance'), 'the scenario reached final delivery acceptance');
   return { outcome, saved, results, notes, attempts: saved.aim.runs.flatMap(run => run.attempts) };
 }
-integrationTest('AIM flow limits: with production limits a rejected final delivery at the budget still saves partial and no conclusion', async () => {
+integrationTest('AIM flow limits: with production limits a rejected final delivery at the budget publishes the written document with the gap stated and open', async () => {
+  const { readOpenItems } = load('experiences/aim/manual-flow.ts', { obsidian });
   for (const limits of [undefined, production.DEFAULT_AIM_FLOW_LIMITS]) {
     const { outcome, results, notes, attempts } = await deliveryRejected(limits);
-    assert.equal(outcome.status, 'partial');
-    assert.ok(!results.some(result => result.kind === 'conclusion'), 'no conclusion is published');
+    assert.equal(outcome.status, 'completed');
+    assert.equal(results.filter(result => result.kind === 'conclusion').length, 1, 'one conclusion is published');
+    const conclusion = notes.find(item => item.result.kind === 'conclusion').note;
+    assert.match(conclusion.detail, /\*\*Not yet verified:\*\* Verify claim\. A cited claim does not match its source\./, 'the rejected gap is stated in the document');
+    assert.ok(!/Draft pending completion/.test(conclusion.detail), 'the written document, not the pending draft wrapper');
+    assert.ok(readOpenItems(conclusion.detail).includes('Verify claim'), 'the gap is an open item');
     assert.ok(!notes.some(item => /profile=smoke/.test(item.note.detail)), 'production notes never carry the smoke label');
-    assert.ok(attempts.some(attempt => attempt.status === 'partial'));
+    assert.ok(!attempts.some(attempt => attempt.status === 'partial'), 'no attempt is left partial');
   }
 });
 integrationTest('AIM flow limits: with smoke limits a rejected final delivery at the budget is published as a labelled conclusion that keeps the rejection reason', async () => {

@@ -158,7 +158,11 @@ export class AimManualFlow {
   private readonly evidenceReports = new Map<string, { path: string; hash: string }>();
   private readonly answerRuns = new Map<string, { fingerprint: string; promise: Promise<ManualResearchResult> }>();
   /** Reviews whose research_more came from final delivery acceptance rather than from the Planner's report review. */
-  private readonly deliveryRejections = new WeakSet<object>();
+  /** Final delivery rejections, with the document that was written and the open items it was written with. */
+  private readonly deliveryRejections = new WeakMap<
+    object,
+    { summary: string; detail: string; openItems: NonNullable<PlannerReview["openItems"]> }
+  >();
   private static readonly questionPlans = new Map<string, QuestionPlanEntry>();
   private static readonly continuationRuns = new Map<
     string,
@@ -234,6 +238,21 @@ export class AimManualFlow {
       summary: review.summary,
       detail: review.detail
     };
+  }
+
+  /**
+   * A rejected final delivery given as the answer: the document that was written, with the rejected gap stated in
+   * it and listed as an open item, instead of a draft left pending.
+   */
+  private publishRejectedDelivery(review: PlannerReview, language: UiLanguage): PlannerReview {
+    const written = this.deliveryRejections.get(review);
+    if (!written) return this.withOpenItems(review, language);
+    const gap = review.researchTarget;
+    const notice = gap ? `\n\n${translate(language, "note.aim_unverified_gap_0_1", gap.title, review.rationale)}` : "";
+    return this.withOpenItems(
+      { ...review, summary: written.summary, detail: `${written.detail}${notice}`, openItems: written.openItems },
+      language
+    );
   }
 
   /**
@@ -836,13 +855,12 @@ export class AimManualFlow {
         };
       }
     }
-    const assumedOpenItems = reviewed.openItems ?? [];
     // Unattended never waits for the user: a gap only the user can close keeps the delivered document and lists it.
-    const assumeGap = (gap: PlannerReview) =>
-      this.withOpenItems(
-        { ...gap, openItems: [...assumedOpenItems, ...(gap.openItems ?? [])] },
-        context.outputLanguage
-      );
+    // Without a delivered document yet, the gap goes back as user-only so the next pass delivers with it open.
+    const assumeGap = (gap: PlannerReview): PlannerReview =>
+      this.deliveryRejections.has(gap)
+        ? this.publishRejectedDelivery(gap, context.outputLanguage)
+        : { ...gap, gapKind: "user_only" };
     if (reviewed.decision === "conclude") {
       const openItems = (reviewed.openItems ?? [])
         .map(item => `- ${item.title}: ${item.task} (${item.expectedValue})`)
@@ -906,7 +924,12 @@ export class AimManualFlow {
           "Final delivery review must complete the document or identify a research gap, not restart user clarification."
         );
       // Remember that this research_more is the final delivery acceptance's own verdict (smoke publication needs it).
-      if (final.decision === "research_more") this.deliveryRejections.add(final);
+      if (final.decision === "research_more")
+        this.deliveryRejections.set(final, {
+          summary: delivery.draft?.summary ?? final.summary,
+          detail: delivery.draft?.detail ?? final.detail,
+          openItems: reviewed.openItems ?? []
+        });
       // The accepted document keeps the assumptions it was written with, so the user can correct them later.
       reviewed =
         final.decision === "conclude" && reviewed.openItems?.length
@@ -3442,8 +3465,16 @@ export class AimManualFlow {
         throwIfAborted(signal);
         // Research budget spent with a gap the review still wants searched: give the conditional answer with the gap
         // as an open item (or, below the floor, the next question) instead of stopping. A rejected final delivery is
-        // not retried here; it stays partial.
+        // not reviewed again: its written document is the answer, with the gap stated and open.
         if (
+          researchTurn === this.limits.maxResearchTurns &&
+          finalReview.decision === "research_more" &&
+          this.deliveryRejections.has(finalReview) &&
+          !this.limits.acceptGapAtBudget &&
+          !this.limits.publishDeliveryAtBudget
+        )
+          finalReview = this.publishRejectedDelivery(finalReview, language);
+        else if (
           researchTurn === this.limits.maxResearchTurns &&
           finalReview.decision === "research_more" &&
           !this.deliveryRejections.has(finalReview) &&
