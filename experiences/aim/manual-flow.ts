@@ -2445,6 +2445,74 @@ export class AimManualFlow {
     );
   }
 
+  /**
+   * Changes the direction of a run, during it or after its document: the user's new focus becomes an answered
+   * question (titled by that focus) on a new route after what is already saved, so finished research is reused and
+   * the earlier document stays.
+   */
+  async steer(
+    mapPath: string,
+    from: { nodeId?: string | null; branchId?: string | null },
+    direction: string,
+    model: string,
+    reasoning: unknown,
+    signal?: AbortSignal
+  ): Promise<ManualResearchResult> {
+    if (!direction.trim()) throw new Error("Describe the direction to research.");
+    const map = await this.repository.readMap(mapPath);
+    const anchor = this.steerAnchor(map, from);
+    const level = normalizeReasoningLevel(reasoning);
+    const planned = await this.saveManualQuestion(
+      mapPath,
+      anchor.nodeId,
+      anchor.branchId,
+      `steer-${this.id()}`,
+      model,
+      level === "medium" || level === "high" ? level : "low",
+      direction.trim(),
+      "",
+      [translate(this.languageOf(map), "note.aim_steer_answer")],
+      "",
+      signal
+    );
+    if (planned.status !== "question") throw new Error("The new direction could not be saved as a question.");
+    return this.answerAndResearch(
+      mapPath,
+      planned.node.id,
+      { requestId: `steer-answer-${planned.node.id}`, selections: [planned.options[0].id], freeText: direction.trim() },
+      model,
+      reasoning,
+      signal
+    );
+  }
+
+  /** Where a new direction attaches: the chosen saved result, else the latest saved result of the run, else its start. */
+  private steerAnchor(
+    map: MapDocument,
+    from: { nodeId?: string | null; branchId?: string | null }
+  ): { nodeId: string; branchId: string | null } {
+    const branches = map.aim?.branches ?? [];
+    const topic =
+      map.nodes.find(node => node.aimKind === "topic" && !node.parentId) ??
+      map.nodes.find(node => node.aimKind === "topic");
+    if (!topic) throw new Error("This AIM map has no topic to change direction from.");
+    const owning = from.nodeId
+      ? branches.find(branch => branch.results.some(result => result.nodeId === from.nodeId))
+      : undefined;
+    if (owning && from.nodeId) return { nodeId: from.nodeId, branchId: owning.id };
+    let branch =
+      branches.find(item => item.id === from.branchId) ??
+      (from.nodeId ? [...branches].reverse().find(item => item.questionNodeId === from.nodeId) : undefined);
+    while (branch) {
+      const latest = branch.results.at(-1);
+      if (latest) return { nodeId: latest.nodeId, branchId: branch.id };
+      // Nothing saved on this route yet: start from where it began.
+      const parentBranchId = branch.parentBranchId;
+      branch = parentBranchId ? branches.find(item => item.id === parentBranchId) : undefined;
+    }
+    return { nodeId: topic.id, branchId: null };
+  }
+
   async answerAndResearch(
     mapPath: string,
     questionNodeId: string,

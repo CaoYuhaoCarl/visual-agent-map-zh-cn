@@ -289,6 +289,42 @@ integrationTest('AIM: a targeted follow-up that finds nothing keeps the gap open
     assert.ok(readOpenItems((await subject.repo.readNote(conclusionRef.notePath)).detail).includes('Daily drive times'), 'the unsearched gap is an open item');
   }
 });
+integrationTest('AIM steer: a new direction is a question titled by it, after the latest saved research, from the topic when nothing is saved yet', async () => {
+  const subject = await coverageSetup('Steer');
+  const saved = await subject.repo.readMap(subject.created.mapPath);
+  saved.aim.interaction = 'unattended';
+  await subject.repo.saveMap(subject.created.mapPath, saved);
+  const phases = [];
+  const base = subject.model.ask;
+  subject.flow = new AimManualFlow(subject.repo, new AimRunStore(subject.repo), async (context, ...rest) => {
+    phases.push(context.task.match(/aim-phase:\s*([a-z-]+)/)?.[1]);
+    return base(context, ...rest);
+  });
+  const questionUnder = async parentId => {
+    const map = await subject.repo.readMap(subject.created.mapPath);
+    const node = map.nodes.filter(item => item.aimKind === 'question' && item.parentId === parentId).at(-1);
+    return node && { node, note: await subject.repo.readNote(node.path), map };
+  };
+  // Nothing saved yet: the direction starts from the topic.
+  const fromTopic = await subject.flow.steer(subject.created.mapPath, { nodeId: subject.created.root.id }, 'Focus on guesthouses', 'gpt-6-luna', 'low');
+  assert.notEqual(fromTopic.status, 'stale');
+  const first = await questionUnder(subject.created.root.id);
+  assert.ok(first, 'the steer question hangs under the topic');
+  assert.match(first.note.title, /Focus on guesthouses/, 'the question is titled by the new direction');
+  assert.ok(phases.includes('research-plan'), 'the new direction is researched');
+  // After a document: from the conclusion, which stays.
+  const conclusion = first.map.aim.branches.flatMap(branch => branch.results).find(result => result.kind === 'conclusion');
+  assert.ok(conclusion);
+  await subject.flow.steer(subject.created.mapPath, { nodeId: conclusion.nodeId }, 'Only rural stays', 'gpt-6-luna', 'low');
+  const second = await questionUnder(conclusion.nodeId);
+  assert.ok(second && /Only rural stays/.test(second.note.title));
+  assert.ok(second.map.nodes.some(node => node.id === conclusion.nodeId), 'the earlier document stays');
+  // During a run, from its branch: after the latest saved result of that branch.
+  const branch = second.map.aim.branches.find(item => item.results.some(result => result.nodeId === conclusion.nodeId));
+  await subject.flow.steer(subject.created.mapPath, { nodeId: branch.questionNodeId, branchId: branch.id }, 'Near the coast', 'gpt-6-luna', 'low');
+  const third = await questionUnder(branch.results.at(-1).nodeId);
+  assert.ok(third && /Near the coast/.test(third.note.title), 'it continues after the latest saved result of that run');
+});
 const gapTarget = { title: 'Missing evidence', task: 'Search for the missing evidence.', contribution: 'Closes the gap.' };
 /** A Planner that always wants more research, so the flow must end through the research-budget exit. */
 function gapModel(base, seen) {

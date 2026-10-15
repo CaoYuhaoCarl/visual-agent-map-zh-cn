@@ -89,6 +89,7 @@ import type { ExpansionBatchState } from "./expansion-batch";
 import { AimStartModal } from "../../ui/modals/aim-start-modal";
 import { AimAnswerModal } from "../../ui/modals/aim-answer-modal";
 import { AimAssumptionModal } from "../../ui/modals/aim-assumption-modal";
+import { AimSteerModal } from "../../ui/modals/aim-steer-modal";
 import {
   AimManualFlow,
   readOpenItems,
@@ -1488,8 +1489,33 @@ export class VisualAgentMapView extends ItemView {
     return outcome;
   }
   private async correctAimAssumption(nodeId: string, assumption: string, correction: string): Promise<void> {
-    const node = this.map?.nodes.find(item => item.id === nodeId);
-    const note = this.notes.get(nodeId);
+    await this.runAimFollowup(nodeId, (mapPath, model, reasoning, signal) =>
+      this.aimManual.correctAssumption(mapPath, nodeId, assumption, correction, model, reasoning, signal)
+    );
+  }
+  /** Change direction: during a run it stops that run first (finished research stays), then follows the new focus. */
+  private async steerAim(from: { nodeId?: string | null; branchId?: string | null }, direction: string): Promise<void> {
+    if (this.aimBusy) {
+      this.aimController?.abort();
+      for (let waited = 0; this.aimBusy && waited < 30_000; waited += 100)
+        await new Promise(resolve => window.setTimeout(resolve, 100));
+      if (this.aimBusy) {
+        new Notice(t("ui.aim_research_already_running"));
+        return;
+      }
+    }
+    await this.runAimFollowup(from.nodeId ?? null, (mapPath, model, reasoning, signal) =>
+      this.aimManual.steer(mapPath, from, direction, model, reasoning, signal)
+    );
+  }
+  /** Runs one AIM follow-up from a node (or the topic) with the usual busy state, notices and refresh. */
+  private async runAimFollowup(
+    nodeId: string | null,
+    run: (mapPath: string, model: string, reasoning: unknown, signal: AbortSignal) => Promise<ManualResearchResult>
+  ): Promise<void> {
+    const topic = this.map?.nodes.find(item => item.aimKind === "topic");
+    const node = this.map?.nodes.find(item => item.id === nodeId) ?? topic;
+    const note = (node && this.notes.get(node.id)) ?? (topic && this.notes.get(topic.id));
     if (this.closed || !node || !note || !this.path || !this.map?.aim) return;
     if (this.aimBusy) {
       new Notice(t("ui.aim_research_already_running"));
@@ -1504,15 +1530,7 @@ export class VisualAgentMapView extends ItemView {
     this.aimActivityKind = "research";
     this.render();
     try {
-      const outcome = await this.aimManual.correctAssumption(
-        mapPath,
-        nodeId,
-        assumption,
-        correction,
-        note.model,
-        note.reasoning,
-        controller.signal
-      );
+      const outcome = await run(mapPath, note.model, note.reasoning, controller.signal);
       this.noticeDocumentReadyElsewhere(outcome.status, epoch, mapPath);
       if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
       this.map = await this.plugin.repo.readMap(mapPath);
@@ -3225,10 +3243,16 @@ export class VisualAgentMapView extends ItemView {
         this.aimProgressEls.set("status", stateEl);
         statusbar.createSpan({ cls: "vam-hint vam-aim-eta", text: t("ui.aim_eta_hint") });
       }
-      if (this.aimBusy)
+      if (this.aimBusy) {
         this.button(statusbar, t("ui.stop_research"), () => {
           this.aimController?.abort();
         });
+        const from = { nodeId: this.aimActiveQuestionNodeId, branchId: this.aimProgress?.branchId ?? null };
+        const steer = this.button(statusbar, t("ui.aim_steer"), () =>
+          new AimSteerModal(this.app, direction => void this.steerAim(from, direction)).open()
+        );
+        steer.setAttr("title", t("ui.aim_steer_hint"));
+      }
       const attribution = this.contentEl.createDiv("vam-aim-attribution");
       attribution.createSpan({ text: t("ui.aim_attribution") });
       attribution.createEl("a", {
@@ -3775,6 +3799,16 @@ export class VisualAgentMapView extends ItemView {
         );
         correct.addClass("vam-node-tool", "vam-pinned-tool");
         correct.setAttr("title", t("ui.aim_correct_assumption_hint"));
+      }
+      if (this.map?.aim && node.aimKind === "conclusion") {
+        const steer = this.button(
+          header,
+          t("ui.aim_steer"),
+          () => new AimSteerModal(this.app, direction => void this.steerAim({ nodeId: node.id }, direction)).open(),
+          this.aimBusy
+        );
+        steer.addClass("vam-node-tool", "vam-pinned-tool");
+        steer.setAttr("title", t("ui.aim_steer_hint"));
       }
     }
     const details = this.button(tools, t("ui.node_tool_details"), () =>
