@@ -1482,7 +1482,7 @@ integrationTest('the New map menu no longer imports outlines; the topic side opt
   class Menu { constructor() { this.items = []; menus.push(this); } addItem(callback) { const item = { title: '', icon: '', click: null, setTitle(value) { this.title = value; return this; }, setIcon(value) { this.icon = value; return this; }, onClick(handler) { this.click = handler; return this; } }; callback(item); this.items.push(item); return this; } showAtMouseEvent() { return this; } }
   const { view } = selectionView(load, {}, { ...obsidian, Modal, Menu });
   view.openNewMapMenu({});
-  assert.deepEqual(menus[0].items.map(item => item.title), ['New mind map', 'Create Adaptive Inquiry Map (AIM)'], 'the menu has no outline import');
+  assert.deepEqual(menus[0].items.map(item => item.title), ['New mind map', 'New AIM'], 'the menu has no outline import');
   view.path = `${DEFAULT_SETTINGS.topicsFolder}/Topic/Map.md`;
   view.openTopicMenu({});
   const paste = menus[1].items[0]; assert.equal(paste.title, 'Paste an outline to add several topics at once');

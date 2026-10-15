@@ -223,6 +223,13 @@ const AIM_STAGE_KEYS: Record<string, Parameters<typeof t>[0]> = {
   "delivery-acceptance": "ui.aim_stage_delivery-acceptance"
 };
 
+/** One "document ready" notice at a time: a new one replaces the last, and it closes itself after a minute. */
+let documentReadyNotice: Notice | null = null;
+function showDocumentReady(): void {
+  documentReadyNotice?.hide();
+  documentReadyNotice = new Notice(t("ui.aim_document_ready"), 60_000);
+}
+
 export class VisualAgentMapView extends ItemView {
   private map: MapDocument | null = null;
   private path = "";
@@ -477,7 +484,7 @@ export class VisualAgentMapView extends ItemView {
   /** The user switched to another map while AIM kept running: the document-ready notice still tells them it is done. */
   private noticeDocumentReadyElsewhere(status: string | undefined, epoch: number, mapPath: string): void {
     if (status === "completed" && !this.closed && this.aimViewEpoch === epoch && this.path !== mapPath)
-      new Notice(t("ui.aim_document_ready"), 0);
+      showDocumentReady();
   }
   private aimViewIsCurrent(epoch: number, mapPath: string): boolean {
     return !this.closed && this.aimViewEpoch === epoch && this.path === mapPath;
@@ -1441,7 +1448,7 @@ export class VisualAgentMapView extends ItemView {
         }
         new Notice(t("ui.aim_waiting_user"));
       } else if (result.status === "partial") new Notice(t("ui.aim_research_partial"));
-      else if (result.status === "completed") new Notice(t("ui.aim_document_ready"), 0);
+      else if (result.status === "completed") showDocumentReady();
       else if (result.status === "in-progress") new Notice(t("ui.aim_research_already_running"));
     } catch (error) {
       if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
@@ -1535,7 +1542,7 @@ export class VisualAgentMapView extends ItemView {
       if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
       this.map = await this.plugin.repo.readMap(mapPath);
       await this.hydrate(() => this.aimViewIsCurrent(epoch, mapPath));
-      if (outcome.status === "completed") new Notice(t("ui.aim_document_ready"), 0);
+      if (outcome.status === "completed") showDocumentReady();
       else if (outcome.status === "partial") new Notice(t("ui.aim_research_partial"));
       else if (outcome.status === "waiting-user") new Notice(t("ui.aim_waiting_user"));
     } catch (error) {
@@ -1642,7 +1649,7 @@ export class VisualAgentMapView extends ItemView {
             this.focusNode(question);
           }
           new Notice(t("ui.aim_waiting_user"));
-        } else if (outcome.status === "completed") new Notice(t("ui.aim_document_ready"), 0);
+        } else if (outcome.status === "completed") showDocumentReady();
         else if (outcome.status === "in-progress") new Notice(t("ui.aim_research_already_running"));
         else new Notice(t("ui.aim_research_result_stale"));
       } else new Notice(t("ui.aim_no_question_needed"));
@@ -1692,7 +1699,7 @@ export class VisualAgentMapView extends ItemView {
         }
         new Notice(t("ui.aim_waiting_user"));
       } else if (result.status === "partial") new Notice(t("ui.aim_research_partial"));
-      else if (result.status === "completed") new Notice(t("ui.aim_document_ready"), 0);
+      else if (result.status === "completed") showDocumentReady();
       else if (result.status === "in-progress") new Notice(t("ui.aim_research_already_running"));
       else new Notice(t("ui.aim_research_result_stale"));
     } catch (error) {
@@ -1734,7 +1741,7 @@ export class VisualAgentMapView extends ItemView {
         this.selected = result.questionNodeId;
         new Notice(t("ui.aim_waiting_user"));
       } else if (result.status === "partial") new Notice(t("ui.aim_research_partial"));
-      else if (result.status === "completed") new Notice(t("ui.aim_document_ready"), 0);
+      else if (result.status === "completed") showDocumentReady();
       else if (result.status === "in-progress") new Notice(t("ui.aim_research_already_running"));
     } catch (error) {
       if (!isCurrent()) return;
@@ -1827,7 +1834,7 @@ export class VisualAgentMapView extends ItemView {
             }
             new Notice(t("ui.aim_waiting_user"));
           } else if (result.status === "partial") new Notice(t("ui.aim_research_partial"));
-          else if (result.status === "completed") new Notice(t("ui.aim_document_ready"), 0);
+          else if (result.status === "completed") showDocumentReady();
           else if (result.status === "in-progress") new Notice(t("ui.aim_research_already_running"));
           else new Notice(t("ui.aim_research_result_stale"));
         } catch (error) {

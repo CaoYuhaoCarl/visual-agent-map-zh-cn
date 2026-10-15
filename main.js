@@ -231,7 +231,7 @@ var english = {
   "ui.quick_outline_review_hint": "Uncheck what you don't need and edit names, then create the subtopics.",
   "ui.quick_outline_empty": "The AI outline has no headings under the topic.",
   "ui.outline_ai_not_started": "Outline generation did not start.",
-  "ui.aim_create_map": "Create Adaptive Inquiry Map (AIM)",
+  "ui.aim_create_map": "New AIM",
   "ui.aim_start_title": "Create an Adaptive Inquiry Map (AIM)",
   "ui.aim_empty_map_hint": "This Adaptive Inquiry Map has no topic yet. AIM starts with a research topic.",
   "ui.aim_refresh_models": "Refresh model list",
@@ -1673,7 +1673,7 @@ var traditionalChinese = {
   "ui.quick_outline_review_hint": "\u53D6\u6D88\u4E0D\u9700\u8981\u7684\u9805\u76EE\u3001\u4FEE\u6539\u540D\u7A31\uFF0C\u518D\u5EFA\u7ACB\u5B50\u8B70\u984C\u3002",
   "ui.quick_outline_empty": "AI \u7684\u5927\u7DB1\u5728\u4E3B\u984C\u5E95\u4E0B\u6C92\u6709\u4EFB\u4F55\u6A19\u984C\u3002",
   "ui.outline_ai_not_started": "\u5927\u7DB1\u751F\u6210\u6C92\u6709\u958B\u59CB\u3002",
-  "ui.aim_create_map": "\u5EFA\u7ACB Adaptive Inquiry Map\uFF08AIM\uFF09",
+  "ui.aim_create_map": "\u65B0\u589E AIM",
   "ui.aim_start_title": "\u5EFA\u7ACB Adaptive Inquiry Map\uFF08AIM\uFF09",
   "ui.aim_empty_map_hint": "\u9019\u5F35 Adaptive Inquiry Map \u76EE\u524D\u6C92\u6709\u8B70\u984C\u3002AIM \u6703\u5F9E\u7814\u7A76\u8B70\u984C\u958B\u59CB\u3002",
   "ui.aim_refresh_models": "\u4FEE\u5FA9 Model \u6E05\u55AE",
@@ -20517,6 +20517,7 @@ function readOpenItems(detail) {
 }
 var AIM_INTAKE_COMPLETE = "<!-- aim-intake-complete -->";
 var CHECKLIST_FLOOR = 1;
+var OTHER_ROUTE_REUSE_LIMIT = 6;
 var SEARCH_NOT_PERFORMED = /did not perform web search|沒有實際執行網路搜尋/;
 var CHECKLIST_QUESTION_LIMIT = 5;
 var _AimManualFlow = class _AimManualFlow {
@@ -22712,19 +22713,33 @@ ${input.requestId}`;
       signal
     );
   }
+  /**
+   * Saved research this branch may reuse: its own lineage first, then other routes of the map (for example another
+   * answer to the same question), newest first and capped. Every reuse still passes the applicability audit against
+   * this branch's conditions, so research tied to a different answer is not carried over.
+   */
   async reusableResearchCandidates(map, branch) {
-    var _a, _b, _c, _d;
-    const candidates = [], visited = /* @__PURE__ */ new Set();
-    let ancestor = (_a = map.aim) == null ? void 0 : _a.branches.find((item) => item.id === branch.parentBranchId);
-    while (ancestor && !visited.has(ancestor.id)) {
-      visited.add(ancestor.id);
+    var _a, _b, _c, _d, _e, _f;
+    const candidates = [], visited = /* @__PURE__ */ new Set([branch.id]), lineage = [];
+    let next = (_a = map.aim) == null ? void 0 : _a.branches.find((item) => item.id === branch.parentBranchId);
+    while (next && !visited.has(next.id)) {
+      visited.add(next.id);
+      lineage.push(next);
+      const parentBranchId = next.parentBranchId;
+      next = (_b = map.aim) == null ? void 0 : _b.branches.find((item) => item.id === parentBranchId);
+    }
+    const otherRoutes = [...(_d = (_c = map.aim) == null ? void 0 : _c.branches) != null ? _d : []].reverse().filter((item) => !visited.has(item.id));
+    let fromLineage = 0;
+    for (const ancestor of [...lineage, ...otherRoutes]) {
+      if (ancestor === otherRoutes[0]) fromLineage = candidates.length;
+      if (otherRoutes.includes(ancestor) && candidates.length - fromLineage >= OTHER_ROUTE_REUSE_LIMIT) break;
       for (const result of ancestor.results.filter((item) => item.kind === "research")) {
         if (!map.nodes.some(
           (node) => node.id === result.nodeId && node.path === result.notePath && node.aimKind === "research"
         ))
           continue;
         if (result.reuse) {
-          const origin = (_c = (_b = map.aim) == null ? void 0 : _b.branches.find((item) => item.id === result.reuse.sourceBranchId)) == null ? void 0 : _c.results.find(
+          const origin = (_f = (_e = map.aim) == null ? void 0 : _e.branches.find((item) => item.id === result.reuse.sourceBranchId)) == null ? void 0 : _f.results.find(
             (item) => item.resultId === result.reuse.sourceResultId && item.notePath === result.reuse.sourceNotePath && item.version === result.reuse.sourceVersion
           );
           if (!origin) continue;
@@ -22769,7 +22784,6 @@ ${note.detail}`
           if (oldest) this.evidenceReports.delete(oldest);
         }
       }
-      ancestor = (_d = map.aim) == null ? void 0 : _d.branches.find((item) => item.id === ancestor.parentBranchId);
     }
     return candidates;
   }
@@ -24735,6 +24749,11 @@ var AIM_STAGE_KEYS = {
   "delivery-writing": "ui.aim_stage_delivery-writing",
   "delivery-acceptance": "ui.aim_stage_delivery-acceptance"
 };
+var documentReadyNotice = null;
+function showDocumentReady() {
+  documentReadyNotice == null ? void 0 : documentReadyNotice.hide();
+  documentReadyNotice = new import_obsidian22.Notice(t("ui.aim_document_ready"), 6e4);
+}
 var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian22.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
@@ -24934,7 +24953,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian22.Ite
   /** The user switched to another map while AIM kept running: the document-ready notice still tells them it is done. */
   noticeDocumentReadyElsewhere(status, epoch, mapPath) {
     if (status === "completed" && !this.closed && this.aimViewEpoch === epoch && this.path !== mapPath)
-      new import_obsidian22.Notice(t("ui.aim_document_ready"), 0);
+      showDocumentReady();
   }
   aimViewIsCurrent(epoch, mapPath) {
     return !this.closed && this.aimViewEpoch === epoch && this.path === mapPath;
@@ -25852,7 +25871,7 @@ ${request.requirements}` : preset.text,
         }
         new import_obsidian22.Notice(t("ui.aim_waiting_user"));
       } else if (result.status === "partial") new import_obsidian22.Notice(t("ui.aim_research_partial"));
-      else if (result.status === "completed") new import_obsidian22.Notice(t("ui.aim_document_ready"), 0);
+      else if (result.status === "completed") showDocumentReady();
       else if (result.status === "in-progress") new import_obsidian22.Notice(t("ui.aim_research_already_running"));
     } catch (error) {
       if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
@@ -25940,7 +25959,7 @@ ${request.requirements}` : preset.text,
       if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
       this.map = await this.plugin.repo.readMap(mapPath);
       await this.hydrate(() => this.aimViewIsCurrent(epoch, mapPath));
-      if (outcome.status === "completed") new import_obsidian22.Notice(t("ui.aim_document_ready"), 0);
+      if (outcome.status === "completed") showDocumentReady();
       else if (outcome.status === "partial") new import_obsidian22.Notice(t("ui.aim_research_partial"));
       else if (outcome.status === "waiting-user") new import_obsidian22.Notice(t("ui.aim_waiting_user"));
     } catch (error) {
@@ -26040,7 +26059,7 @@ ${request.requirements}` : preset.text,
             this.focusNode(question);
           }
           new import_obsidian22.Notice(t("ui.aim_waiting_user"));
-        } else if (outcome.status === "completed") new import_obsidian22.Notice(t("ui.aim_document_ready"), 0);
+        } else if (outcome.status === "completed") showDocumentReady();
         else if (outcome.status === "in-progress") new import_obsidian22.Notice(t("ui.aim_research_already_running"));
         else new import_obsidian22.Notice(t("ui.aim_research_result_stale"));
       } else new import_obsidian22.Notice(t("ui.aim_no_question_needed"));
@@ -26089,7 +26108,7 @@ ${request.requirements}` : preset.text,
         }
         new import_obsidian22.Notice(t("ui.aim_waiting_user"));
       } else if (result.status === "partial") new import_obsidian22.Notice(t("ui.aim_research_partial"));
-      else if (result.status === "completed") new import_obsidian22.Notice(t("ui.aim_document_ready"), 0);
+      else if (result.status === "completed") showDocumentReady();
       else if (result.status === "in-progress") new import_obsidian22.Notice(t("ui.aim_research_already_running"));
       else new import_obsidian22.Notice(t("ui.aim_research_result_stale"));
     } catch (error) {
@@ -26130,7 +26149,7 @@ ${request.requirements}` : preset.text,
         this.selected = result.questionNodeId;
         new import_obsidian22.Notice(t("ui.aim_waiting_user"));
       } else if (result.status === "partial") new import_obsidian22.Notice(t("ui.aim_research_partial"));
-      else if (result.status === "completed") new import_obsidian22.Notice(t("ui.aim_document_ready"), 0);
+      else if (result.status === "completed") showDocumentReady();
       else if (result.status === "in-progress") new import_obsidian22.Notice(t("ui.aim_research_already_running"));
     } catch (error) {
       if (!isCurrent()) return;
@@ -26213,7 +26232,7 @@ ${request.requirements}` : preset.text,
             }
             new import_obsidian22.Notice(t("ui.aim_waiting_user"));
           } else if (result.status === "partial") new import_obsidian22.Notice(t("ui.aim_research_partial"));
-          else if (result.status === "completed") new import_obsidian22.Notice(t("ui.aim_document_ready"), 0);
+          else if (result.status === "completed") showDocumentReady();
           else if (result.status === "in-progress") new import_obsidian22.Notice(t("ui.aim_research_already_running"));
           else new import_obsidian22.Notice(t("ui.aim_research_result_stale"));
         } catch (error) {

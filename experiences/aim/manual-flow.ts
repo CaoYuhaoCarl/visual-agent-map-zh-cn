@@ -150,6 +150,8 @@ const AIM_INTAKE_COMPLETE = "<!-- aim-intake-complete -->";
 /** With the intake checklist, one answered question can precede a conclusion. */
 const CHECKLIST_FLOOR = 1;
 /** The runtime's translated "provider did not run web search" error, in either interface language. */
+/** At most this many saved reports from other routes of the map are offered for reuse. */
+const OTHER_ROUTE_REUSE_LIMIT = 6;
 const SEARCH_NOT_PERFORMED = /did not perform web search|沒有實際執行網路搜尋/;
 /** With the intake checklist, after this many answers what is still unknown becomes an assumption to confirm. */
 const CHECKLIST_QUESTION_LIMIT = 5;
@@ -2725,12 +2727,27 @@ export class AimManualFlow {
     );
   }
 
+  /**
+   * Saved research this branch may reuse: its own lineage first, then other routes of the map (for example another
+   * answer to the same question), newest first and capped. Every reuse still passes the applicability audit against
+   * this branch's conditions, so research tied to a different answer is not carried over.
+   */
   private async reusableResearchCandidates(map: MapDocument, branch: AimBranchRecord): Promise<ResearchCandidate[]> {
     const candidates: ResearchCandidate[] = [],
-      visited = new Set<string>();
-    let ancestor = map.aim?.branches.find(item => item.id === branch.parentBranchId);
-    while (ancestor && !visited.has(ancestor.id)) {
-      visited.add(ancestor.id);
+      visited = new Set<string>([branch.id]),
+      lineage: AimBranchRecord[] = [];
+    let next = map.aim?.branches.find(item => item.id === branch.parentBranchId);
+    while (next && !visited.has(next.id)) {
+      visited.add(next.id);
+      lineage.push(next);
+      const parentBranchId = next.parentBranchId;
+      next = map.aim?.branches.find(item => item.id === parentBranchId);
+    }
+    const otherRoutes = [...(map.aim?.branches ?? [])].reverse().filter(item => !visited.has(item.id));
+    let fromLineage = 0;
+    for (const ancestor of [...lineage, ...otherRoutes]) {
+      if (ancestor === otherRoutes[0]) fromLineage = candidates.length;
+      if (otherRoutes.includes(ancestor) && candidates.length - fromLineage >= OTHER_ROUTE_REUSE_LIMIT) break;
       for (const result of ancestor.results.filter(item => item.kind === "research")) {
         if (
           !map.nodes.some(
@@ -2792,7 +2809,6 @@ export class AimManualFlow {
           if (oldest) this.evidenceReports.delete(oldest);
         }
       }
-      ancestor = map.aim?.branches.find(item => item.id === ancestor!.parentBranchId);
     }
     return candidates;
   }

@@ -325,6 +325,22 @@ integrationTest('AIM steer: a new direction is a question titled by it, after th
   const third = await questionUnder(branch.results.at(-1).nodeId);
   assert.ok(third && /Near the coast/.test(third.note.title), 'it continues after the latest saved result of that run');
 });
+integrationTest('AIM reuse: saved research from another answer to the same question is offered after the lineage, newest first and capped', async () => {
+  const research = (branch, n) => ({ resultId: `${branch}-r${n}`, nodeId: `${branch}-n${n}`, notePath: `${branch}-${n}.md`, version: 1, kind: 'research' });
+  const branch = (id, parentBranchId, results) => ({ id, parentBranchId, questionNodeId: 'q', results, inputSnapshot: { topic: 'Trip', conditions: { answer: id }, upstreamResults: [] }, answerSnapshot: { selections: [], freeText: '' } });
+  const root = branch('root', null, [research('root', 1)]);
+  const siblings = Array.from({ length: 4 }, (_, i) => branch(`sib${i}`, 'root', [research(`sib${i}`, 1), research(`sib${i}`, 2)]));
+  const current = branch('current', 'root', []);
+  const map = { aim: { branches: [root, ...siblings, current] }, nodes: [root, ...siblings].flatMap(item => item.results).map(result => ({ id: result.nodeId, path: result.notePath, aimKind: 'research' })) };
+  const repo = { settings: { language: 'en' }, readNote: async path => ({ title: `Transport ${path}`, summary: 'Rail and bus times.', detail: 'Research status: search completed\nhttps://example.org/transport' }) };
+  const flow = new AimManualFlow(repo, {}, async () => { throw new Error('no model call'); });
+  const candidates = await flow.reusableResearchCandidates(map, current);
+  assert.equal(candidates[0].source.branchId, 'root', 'the lineage comes first');
+  assert.equal(candidates[1].source.branchId, 'sib3', 'then the newest other route');
+  assert.deepEqual(plain(candidates[1].conditions), { answer: 'sib3' }, 'its own conditions go to the applicability audit');
+  assert.equal(candidates.length, 1 + 6, 'other routes are capped');
+  assert.ok(!candidates.some(item => item.source.branchId === 'current'));
+});
 const gapTarget = { title: 'Missing evidence', task: 'Search for the missing evidence.', contribution: 'Closes the gap.' };
 /** A Planner that always wants more research, so the flow must end through the research-budget exit. */
 function gapModel(base, seen) {
