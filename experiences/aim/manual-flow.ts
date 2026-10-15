@@ -3588,6 +3588,8 @@ export class AimManualFlow {
             signal
           );
           throwIfAborted(signal);
+          // That conclusion is written now; if its delivery is rejected, the written document is still the answer.
+          finalReview = this.atBudget(finalReview, language);
         }
 
         const reviewStopReason =
@@ -3694,12 +3696,15 @@ export class AimManualFlow {
         if (!followup?.summary.trim() || !followup.detail.trim() || reportedSearchFailure(followup)) {
           finalReview = this.deliveryRejections.has(finalReview)
             ? this.atBudget(finalReview, language)
-            : await this.reviewPlannerDecisionQuality(
-                this.withOpenItems(finalReview, language),
-                lastQualityContext,
-                model,
-                reasoning,
-                signal
+            : this.atBudget(
+                await this.reviewPlannerDecisionQuality(
+                  this.withOpenItems(finalReview, language),
+                  lastQualityContext,
+                  model,
+                  reasoning,
+                  signal
+                ),
+                language
               );
           throwIfAborted(signal);
           await this.persist(() =>

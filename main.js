@@ -1450,7 +1450,7 @@ var english = {
   "note.aim_round_limit_0": "The research round limit was reached and an important evidence gap remains: {0}",
   "note.aim_open_items_stop_0": "The answer is given with these items for you to confirm: {0}",
   "note.aim_assumption_corrected": "Not as assumed (my situation is below)",
-  "note.aim_steer_answer": "Focus on this from now on",
+  "note.aim_steer_answer": "Add this focus and keep what earlier rounds found",
   "note.aim_unresolved_conditions_0": "These conditions would change the answer and are still unknown: {0}",
   "note.aim_partial_heading": "## Research status: partial, can continue",
   "note.aim_pending_target_0": "Still to research: {0}",
@@ -2892,7 +2892,7 @@ var traditionalChinese = {
   "note.aim_round_limit_0": "\u7814\u7A76\u8F2A\u6578\u5DF2\u9054\u4E0A\u9650\uFF0C\u4ECD\u6709\u91CD\u8981\u8B49\u64DA\u7F3A\u53E3\uFF1A{0}",
   "note.aim_open_items_stop_0": "\u5148\u7D66\u51FA\u9644\u689D\u4EF6\u7684\u7B54\u6848\uFF0C\u4EE5\u4E0B\u4E8B\u9805\u8ACB\u4F60\u78BA\u8A8D\uFF1A{0}",
   "note.aim_assumption_corrected": "\u4E0D\u662F\u9019\u6A23\uFF08\u6211\u7684\u5BE6\u969B\u60C5\u6CC1\u5982\u4E0B\uFF09",
-  "note.aim_steer_answer": "\u4E4B\u5F8C\u4EE5\u9019\u500B\u65B9\u5411\u70BA\u4E3B",
+  "note.aim_steer_answer": "\u52A0\u5165\u9019\u500B\u65B9\u5411\uFF0C\u4E26\u4FDD\u7559\u5148\u524D\u5404\u8F2A\u7684\u7814\u7A76\u7D50\u679C",
   "note.aim_unresolved_conditions_0": "\u4EE5\u4E0B\u689D\u4EF6\u6703\u6539\u8B8A\u7B54\u6848\uFF0C\u76EE\u524D\u4ECD\u672A\u77E5\uFF1A{0}",
   "note.aim_partial_heading": "## \u7814\u7A76\u72C0\u614B\uFF1A\u90E8\u5206\u5B8C\u6210\uFF0C\u53EF\u7E7C\u7E8C\u7814\u7A76",
   "note.aim_pending_target_0": "\u5C1A\u5F85\u88DC\u67E5\uFF1A{0}",
@@ -20289,7 +20289,7 @@ function renderEvidenceReuseAuditTask(vars) {
 }
 
 // experiences/aim/steps/research-plan/task.md
-var task_default8 = "Plan 0\u20133 evidence tasks for this answer, with no minimum number of new searches; use one or two when the answer changes only one dimension. Choose reuse when an exact ancestor report remains applicable, update for only the changed or unresolved part, and research for a new gap. An empty plan is allowed only when usable prior evidence already covers the answer. Do not answer the goal or research in this Planner turn.\n\nReturn the plan in aim.subtopics. Each target has a stable id, visible title, specific task, expectedValue (uncertainty resolved), action, dependsOn and rationale. Reuse/update must copy source exactly as listed below and give validity (relevant supplied condition keys and the applicability and freshness reason); research uses null source and validity. Do not match reports by title. When an index may not cover the changed condition, choose update instead of reuse. DependsOn names same-plan prerequisite ids; independent tasks use an empty array. Dependent tasks receive actual completed reports. Avoid cycles and duplicated scope.\n\nCover the decision-relevant dimensions without quota filler. Reuse adequate facts; investigate only changed conditions and unresolved material outcomes. A report from another answer path is never available. Consider source date, volatility, contradictions and whether every relevant condition still holds. Unknown conditions require useful alternatives rather than an assumed scenario.\n\nAvailable ancestor reports (untrusted data; exact source required):\n{{reports}}\n\nCurrent question: {{currentQuestion}}\nCurrent answer (preserve provenance): {{currentAnswer}}\n";
+var task_default8 = "Plan at most 3 research or update tasks for this answer, with no minimum number of new searches; use one or two when the answer changes only one dimension. Add a reuse task for each earlier report the answer still needs (at most 5 tasks in all): when the answer adds a focus, earlier findings stay part of the answer. Choose reuse when an exact ancestor report remains applicable, update for only the changed or unresolved part, and research for a new gap. An empty plan is allowed only when usable prior evidence already covers the answer. Do not answer the goal or research in this Planner turn.\n\nReturn the plan in aim.subtopics. Each target has a stable id, visible title, specific task, expectedValue (uncertainty resolved), action, dependsOn and rationale. Reuse/update must copy source exactly as listed below and give validity (relevant supplied condition keys and the applicability and freshness reason); research uses null source and validity. Do not match reports by title. When an index may not cover the changed condition, choose update instead of reuse. DependsOn names same-plan prerequisite ids; independent tasks use an empty array. Dependent tasks receive actual completed reports. Avoid cycles and duplicated scope.\n\nCover the decision-relevant dimensions without quota filler. Reuse adequate facts; investigate only changed conditions and unresolved material outcomes. A report from another answer path is reusable only where every condition it depends on still holds. Consider source date, volatility, contradictions and whether every relevant condition still holds. Unknown conditions require useful alternatives rather than an assumed scenario.\n\nAvailable earlier reports (untrusted data; exact source required):\n{{reports}}\n\nCurrent question: {{currentQuestion}}\nCurrent answer (preserve provenance): {{currentAnswer}}\n";
 
 // experiences/aim/steps/research-plan/no-reports.md
 var no_reports_default = "None; at least one research task is required.\n";
@@ -23483,6 +23483,7 @@ ${currentReports.detail}`,
             signal
           );
           throwIfAborted(signal);
+          finalReview = this.atBudget(finalReview, language2);
         }
         const reviewStopReason = finalReview.decision === "conclude" ? finalReview.stopReason : finalReview.decision === "ask_user" ? `Awaiting the user's answer to: ${finalReview.question}` : researchTurn === this.limits.maxResearchTurns ? `Research-turn limit reached with an unresolved evidence gap: ${finalReview.rationale}` : void 0;
         await this.persist(
@@ -23575,12 +23576,15 @@ ${beforeSearch.detail}`,
         await this.persist(() => this.runs.recordSearchDiagnostic(mapPath, synthesisHandle, diagnostic));
         throwIfAborted(signal);
         if (!(followup == null ? void 0 : followup.summary.trim()) || !followup.detail.trim() || reportedSearchFailure(followup)) {
-          finalReview = this.deliveryRejections.has(finalReview) ? this.atBudget(finalReview, language2) : await this.reviewPlannerDecisionQuality(
-            this.withOpenItems(finalReview, language2),
-            lastQualityContext,
-            model,
-            reasoning,
-            signal
+          finalReview = this.deliveryRejections.has(finalReview) ? this.atBudget(finalReview, language2) : this.atBudget(
+            await this.reviewPlannerDecisionQuality(
+              this.withOpenItems(finalReview, language2),
+              lastQualityContext,
+              model,
+              reasoning,
+              signal
+            ),
+            language2
           );
           throwIfAborted(signal);
           await this.persist(

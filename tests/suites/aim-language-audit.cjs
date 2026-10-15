@@ -100,7 +100,7 @@ integrationTest('AIM language audit: UI en + Chinese content, failed search leav
   await subject.flow.resumeAnswerResearch(subject.created.mapPath, saved.aim.branches[0].id, 'gpt-6-luna', 'low');
   await auditNotes(subject, 'latin', 'retry-resumed');
 });
-integrationTest('AIM language audit: UI en + Chinese content, partial result continued past its research budget', async () => {
+integrationTest('AIM language audit: UI en + Chinese content, a delivery rejected at the research budget is published in the content language', async () => {
   const subject = await subjectFor('en', zhTopic);
   const { AimRunStore } = load('experiences/aim/research-run-store.ts');
   const { AimManualFlow } = load('experiences/aim/manual-flow.ts');
@@ -120,14 +120,15 @@ integrationTest('AIM language audit: UI en + Chinese content, partial result con
   const asked = await subject.flow.answerAndResearch(subject.created.mapPath, q1.id, { requestId: 'audit-a1', selections: [q1.aimQuestion.options[0].id], freeText: '條件一' }, 'gpt-6-luna', 'low');
   const q2 = (await subject.repo.readMap(subject.created.mapPath)).nodes.find(node => node.id === asked.questionNodeId);
   const asked2 = await subject.flow.answerAndResearch(subject.created.mapPath, q2.id, { requestId: 'audit-a2', selections: [q2.aimQuestion.options[0].id], freeText: '條件二' }, 'gpt-6-luna', 'low');
-  // A gap left at the research budget becomes a conditional answer; only a rejected final delivery stays partial,
-  // so the third answer (at the floor) reaches delivery and its acceptance keeps asking for research.
+  // A gap left at the research budget becomes a conditional answer, and a final delivery still rejected there is
+  // published with the gap stated, so no attempt is left partial.
   mode = 'research_more';
   const q3 = (await subject.repo.readMap(subject.created.mapPath)).nodes.find(node => node.id === asked2.questionNodeId);
   await subject.flow.answerAndResearch(subject.created.mapPath, q3.id, { requestId: 'audit-a3', selections: [q3.aimQuestion.options[0].id], freeText: '條件三' }, 'gpt-6-luna', 'low');
-  const run = (await subject.repo.readMap(subject.created.mapPath)).aim.runs.find(item => item.attempts.some(attempt => attempt.status === 'partial'));
-  await subject.flow.continuePartial(subject.created.mapPath, run.id, 'gpt-6-luna', 'low');
-  await auditNotes(subject, 'latin', 'partial-continuation');
+  const map = await subject.repo.readMap(subject.created.mapPath);
+  assert.ok(!map.aim.runs.some(item => item.attempts.some(attempt => attempt.status === 'partial')), 'nothing is left partial');
+  assert.ok(map.aim.branches.at(-1).results.some(result => result.kind === 'conclusion'), 'the written document is published');
+  await auditNotes(subject, 'latin', 'published-at-budget');
 });
 integrationTest('AIM language audit mirror: UI zh-TW + English content, full flow keeps notes free of Chinese text', async () => {
   const subject = await subjectFor('zh-TW', enTopic);
