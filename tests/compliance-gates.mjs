@@ -24,7 +24,7 @@ export function regression(app: App): string {
 
 test('artifact gate rejects invalid manifests, version drift and missing distribution files', () => {
   const directory = mkdtempSync(join(tmpdir(), 'vam-compliance-'));
-  const files = ['main.js', 'manifest.json', 'styles.css', 'README.md', 'LICENSE', 'response-schema.json', 'package.json', 'package-lock.json', 'versions.json'];
+  const files = ['main.js', 'manifest.json', 'styles.css', 'README.md', 'README.zh-TW.md', 'INSTALL.md', 'LICENSE', 'response-schema.json', 'package.json', 'package-lock.json', 'versions.json'];
   const run = () => spawnSync(process.execPath, [join(root, 'scripts/check-artifacts.mjs')], { cwd: directory, encoding: 'utf8' });
   const reset = () => { for (const file of files) copyFileSync(join(root, file), join(directory, file)); };
   try {
@@ -34,7 +34,7 @@ test('artifact gate rejects invalid manifests, version drift and missing distrib
       writeFileSync(join(directory, 'manifest.json'), JSON.stringify(manifest));
       const result = run(); assert.notEqual(result.status, 0); assert.ok(result.stderr.includes(message), result.stderr);
     }
-    for (const file of ['main.js', 'styles.css', 'manifest.json', 'LICENSE', 'README.md']) {
+    for (const file of ['main.js', 'styles.css', 'manifest.json', 'LICENSE', 'README.md', 'README.zh-TW.md', 'INSTALL.md']) {
       reset(); rmSync(join(directory, file)); const result = run(); assert.notEqual(result.status, 0); assert.ok(result.stderr.includes(file));
     }
   } finally { rmSync(directory, { recursive: true, force: true }); }
