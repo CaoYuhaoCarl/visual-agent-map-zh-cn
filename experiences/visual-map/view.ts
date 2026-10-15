@@ -982,6 +982,8 @@ export class VisualAgentMapView extends ItemView {
     });
     chip.setAttr("aria-description", t(goal ? "ui.relevance_goal_edit_hint" : "ui.relevance_goal_set_hint"));
     setTooltip(chip, goal ?? t("ui.relevance_goal_set_hint"));
+    // The tooltip helper makes the goal alone the accessible name; keep the "Goal:" label a screen reader needs.
+    chip.setAttr("aria-label", goal ? t("ui.relevance_goal_0", goal) : t("ui.relevance_goal_set"));
     chip.disabled = this.plugin.relevanceGrades.get(this.path)?.status === "running";
     chip.addEventListener("click", event => {
       event.stopPropagation();
@@ -1048,6 +1050,22 @@ export class VisualAgentMapView extends ItemView {
     run.status = status;
     run.message = message;
     this.refreshRelevance();
+  }
+  /**
+   * Call before a repaint: when the keyboard is inside the relevance status bar, the returned function (call it after
+   * the repaint) moves focus to what is left of it (its first button, else the goal chip) so it never falls to the page.
+   */
+  private keepRelevanceBarFocus(): () => void {
+    const bar = this.contentEl?.querySelector?.(".vam-relevance-statusbar") as HTMLElement | null | undefined;
+    const active = this.contentEl?.ownerDocument?.activeElement ?? null;
+    if (!bar || !active || !bar.contains?.(active)) return () => {};
+    return () => {
+      const target =
+        (this.contentEl?.querySelector?.(".vam-relevance-statusbar")?.querySelector?.("button") as
+          HTMLElement | null | undefined) ??
+        (this.contentEl?.querySelector?.(".vam-relevance-goal") as HTMLElement | null | undefined);
+      target?.focus();
+    };
   }
   /** Repaints the map and keeps the keyboard in the status bar when it had it (its buttons come and go). */
   private refreshRelevance(focusBar = false): void {
@@ -3516,6 +3534,7 @@ export class VisualAgentMapView extends ItemView {
     }
     const focusedCard = activeDocument.activeElement?.closest<HTMLElement>(".vam-node");
     if (focusedCard && this.contentEl.contains(focusedCard)) this.focusNodeId ??= focusedCard.dataset.nodeId ?? null;
+    const restoreRelevanceFocus = this.keepRelevanceBarFocus();
     this.contentEl.empty();
     const toolbar = this.contentEl.createDiv("vam-toolbar");
     const switcher = toolbar.createEl("button", { cls: "vam-map-switcher" });
@@ -3928,6 +3947,7 @@ export class VisualAgentMapView extends ItemView {
       const node = this.map.nodes.find(n => n.id === this.selected);
       if (node) this.renderInspector(workspace, node);
     }
+    restoreRelevanceFocus();
   }
   private renderNode(node: MapNode): void {
     if (!this.stageEl) return;

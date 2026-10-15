@@ -380,3 +380,52 @@ integrationTest('relevance: grading changes only frontmatter of the graded notes
   assert.equal(h.contents.get(h.view.map.nodes.find(n => n.id === h.ids.root).path), before.get(h.ids.root), 'the top-level note is byte-identical');
   assert.equal(JSON.stringify(await h.saved()), mapBefore, 'the map structure is unchanged');
 });
+
+integrationTest('relevance: the suggested-card ring outranks every status rule that sets a box-shadow (idea cards used to hide it)', () => {
+  const css = fs.readFileSync(path.join(projectRoot, 'styles.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  // Class-level specificity: classes, attributes and pseudo-classes (:not(x) counts as x); no ids or elements are used.
+  const specificity = selector => (selector.replace(/:not\(/g, ' (').match(/\.[\w-]+|\[[^\]]+\]|:(?!:)[\w-]+/g) ?? []).length;
+  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ selectors: m[1].split(',').map(s => s.trim()), body: m[2] }));
+  const ring = rules.filter(r => r.selectors.some(s => /\.vam-structure-suggested$/.test(s)) && /box-shadow/.test(r.body));
+  assert.ok(ring.length, 'a ring rule exists');
+  const ringSpec = Math.max(...ring.flatMap(r => r.selectors.filter(s => s.includes('vam-structure-suggested')).map(specificity)));
+  const statusRules = rules.filter(r => r.selectors.some(s => /^\.vam-node:not\(\[data-aim-kind\]\)\[data-status=/.test(s)) && /box-shadow/.test(r.body));
+  assert.ok(statusRules.some(r => /data-status="idea"/.test(r.selectors[0])), 'the idea rule that hides shadows is found');
+  for (const rule of statusRules) assert.ok(ringSpec > Math.max(...rule.selectors.map(specificity)), `ring beats ${rule.selectors[0]}`);
+});
+
+integrationTest('relevance: the goal chip is named "Goal: <goal>" for assistive tech, and "Set goal" when empty (zh too)', async () => {
+  const h = await harness();
+  assert.equal(h.chip().attrs['aria-label'], 'Set goal');
+  await h.enter('Sleep better'); await h.settled();
+  assert.equal(h.chip().attrs['aria-label'], 'Goal: Sleep better');
+  // The view builds the name from these two keys; each bundle has its own language, so check the zh strings directly.
+  const { translate } = load('i18n.ts');
+  assert.equal(translate('zh-TW', 'ui.relevance_goal_0', '睡得更好'), '目標：睡得更好');
+  assert.equal(translate('zh-TW', 'ui.relevance_goal_set'), '設定目標');
+});
+
+integrationTest('relevance: focus inside the status bar survives a repaint (Stop vanishing on completion, Undo by keyboard) and is never stolen', async () => {
+  const h = await harness();
+  const doc = { activeElement: null };
+  h.rootEl.ownerDocument = doc; h.rootEl.root = doc;
+  const focus = el => { el.focus(); doc.activeElement = el; };
+  // Re-render the way view.render does: capture before, rebuild, restore after.
+  const render = h.view.render;
+  h.view.render = () => { const restore = h.view.keepRelevanceBarFocus(); render(); restore(); };
+  h.control.reply = async request => { await tick(); return gradeAll(request); };
+  h.chip().click(); const input = h.input(); input.value = 'Goal'; input.fire('keydown', { key: 'Enter' });
+  assert.deepEqual(h.barButtons(), ['Stop']); focus(h.bar().children.find(c => c.tag === 'button'));
+  await h.settled(); await tick(); await tick();
+  assert.ok(h.barText().startsWith('Graded'));
+  h.view.render();
+  assert.equal(doc.activeElement.text, 'View changes', 'focus lands on a button that still exists, not on the page');
+  // Undo by keyboard: the bar is repainted without the Undo button.
+  focus(button(h.bar(), 'Undo')); button(h.bar(), 'Undo').click(); await afterTravel(h);
+  assert.equal(h.barButtons().includes('Undo'), false);
+  assert.ok(h.bar().contains(doc.activeElement), 'focus stays in the status bar after Undo');
+  // Focus elsewhere is left alone.
+  const chip = h.chip(); focus(chip); h.view.render();
+  assert.equal(h.bar().contains(doc.activeElement), false, 'a repaint never pulls focus into the bar');
+  assert.equal(doc.activeElement, chip);
+});

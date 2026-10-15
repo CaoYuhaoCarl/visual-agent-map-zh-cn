@@ -331,7 +331,8 @@
 .vam-proposal-field > span { color: var(--text-muted); font-weight: 500; text-align: left; }
 .vam-proposal-field > input, .vam-proposal-field > textarea { width: 100%; min-width: 0; box-sizing: border-box; }
 .vam-proposal textarea { resize: vertical; }
-.vam-node.vam-structure-suggested { box-shadow: 0 0 0 3px var(--background-primary), 0 0 0 6px var(--color-orange); }
+/* The research-frame status rules (idea: box-shadow none) are more specific than the bare class, so name the status too. */
+.vam-node.vam-structure-suggested, .vam-node:not([data-aim-kind])[data-status].vam-structure-suggested { box-shadow: 0 0 0 3px var(--background-primary), 0 0 0 6px var(--color-orange); }
 .vam-next-structure { display: flex; align-items: center; gap: var(--size-4-2); flex-wrap: wrap; margin: var(--size-4-2) 0 var(--size-4-1); }
 .vam-next-structure-label { font-size: var(--font-ui-small); font-weight: 600; }
 .vam-next-structure-hint { margin: 0 0 var(--size-4-2); font-size: var(--font-ui-smaller); }

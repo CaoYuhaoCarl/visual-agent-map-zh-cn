@@ -25897,6 +25897,7 @@ ${request.requirements}` : preset.text,
     });
     chip.setAttr("aria-description", t(goal ? "ui.relevance_goal_edit_hint" : "ui.relevance_goal_set_hint"));
     (0, import_obsidian24.setTooltip)(chip, goal != null ? goal : t("ui.relevance_goal_set_hint"));
+    chip.setAttr("aria-label", goal ? t("ui.relevance_goal_0", goal) : t("ui.relevance_goal_set"));
     chip.disabled = ((_a = this.plugin.relevanceGrades.get(this.path)) == null ? void 0 : _a.status) === "running";
     chip.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -25951,6 +25952,22 @@ ${request.requirements}` : preset.text,
     run.status = status;
     run.message = message;
     this.refreshRelevance();
+  }
+  /**
+   * Call before a repaint: when the keyboard is inside the relevance status bar, the returned function (call it after
+   * the repaint) moves focus to what is left of it (its first button, else the goal chip) so it never falls to the page.
+   */
+  keepRelevanceBarFocus() {
+    var _a, _b, _c, _d, _e, _f;
+    const bar = (_b = (_a = this.contentEl) == null ? void 0 : _a.querySelector) == null ? void 0 : _b.call(_a, ".vam-relevance-statusbar");
+    const active = (_e = (_d = (_c = this.contentEl) == null ? void 0 : _c.ownerDocument) == null ? void 0 : _d.activeElement) != null ? _e : null;
+    if (!bar || !active || !((_f = bar.contains) == null ? void 0 : _f.call(bar, active))) return () => {
+    };
+    return () => {
+      var _a2, _b2, _c2, _d2, _e2, _f2, _g;
+      const target = (_g = (_d2 = (_c2 = (_b2 = (_a2 = this.contentEl) == null ? void 0 : _a2.querySelector) == null ? void 0 : _b2.call(_a2, ".vam-relevance-statusbar")) == null ? void 0 : _c2.querySelector) == null ? void 0 : _d2.call(_c2, "button")) != null ? _g : (_f2 = (_e2 = this.contentEl) == null ? void 0 : _e2.querySelector) == null ? void 0 : _f2.call(_e2, ".vam-relevance-goal");
+      target == null ? void 0 : target.focus();
+    };
   }
   /** Repaints the map and keeps the keyboard in the status bar when it had it (its buttons come and go). */
   refreshRelevance(focusBar = false) {
@@ -28282,6 +28299,7 @@ ${request.requirements}` : preset.text,
     }
     const focusedCard = (_c = activeDocument.activeElement) == null ? void 0 : _c.closest(".vam-node");
     if (focusedCard && this.contentEl.contains(focusedCard)) (_e = this.focusNodeId) != null ? _e : this.focusNodeId = (_d = focusedCard.dataset.nodeId) != null ? _d : null;
+    const restoreRelevanceFocus = this.keepRelevanceBarFocus();
     this.contentEl.empty();
     const toolbar = this.contentEl.createDiv("vam-toolbar");
     const switcher = toolbar.createEl("button", { cls: "vam-map-switcher" });
@@ -28677,6 +28695,7 @@ ${request.requirements}` : preset.text,
       const node = this.map.nodes.find((n) => n.id === this.selected);
       if (node) this.renderInspector(workspace, node);
     }
+    restoreRelevanceFocus();
   }
   renderNode(node) {
     var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C, _D, _E, _F, _G, _H, _I;
