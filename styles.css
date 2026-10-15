@@ -138,11 +138,22 @@
 @property --vam-orbit { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
 @keyframes vam-orbit { to { --vam-orbit: 360deg; } }
 @keyframes vam-scan { from { background-position: -100% 0; } to { background-position: 200% 0; } }
+/* Offline relevance grading (mind maps only): a quiet icon + text tag, no fill. Side topics fade but stay in place. */
+.vam-relevance-tag { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; font-size: var(--font-ui-smaller); line-height: 1.4; white-space: nowrap; }
+.vam-relevance-tag > .vam-relevance-icon { display: inline-flex; flex: none; }
+.vam-relevance-tag .svg-icon { width: 14px; height: 14px; }
+.vam-relevance-tag[data-tier="core"] { color: var(--text-accent); }
+.vam-relevance-tag[data-tier="support"] { color: var(--text-muted); }
+.vam-relevance-tag[data-tier="side"] { color: var(--text-faint); }
+.vam-node[data-relevance="side"] { opacity: .5; transition: border-color 160ms ease-out, box-shadow 160ms ease-out, opacity 160ms ease-out; }
+.vam-node[data-relevance="side"]:hover, .vam-node[data-relevance="side"]:focus-within, .vam-node[data-relevance="side"].is-selected { opacity: 1; }
+.vam-edge.vam-edge-side { opacity: .2; }
+.vam-map-tools > .vam-relevance-goal { flex: 1 0 100%; max-width: 360px; box-sizing: border-box; padding: 2px 6px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: var(--font-ui-smaller); }
 @media (prefers-reduced-motion: reduce) {
   /* Same selector weight as the scan animation rule above, otherwise that rule keeps winning. */
   .vam-status-running::before, .vam-node:not([data-aim-kind])[data-status="running"]::after { animation: none; }
   .vam-node:not([data-aim-kind])[data-status="running"]::after { background: var(--interactive-accent); }
-  .vam-node, .vam-node .vam-add-child, .vam-node > .vam-node-tools { transition: none; }
+  .vam-node, .vam-node[data-relevance="side"], .vam-node .vam-add-child, .vam-node > .vam-node-tools { transition: none; }
 }
 .theme-dark .vam-viewport { background-color: var(--background-primary); }
 .theme-dark .vam-node { --vam-card-bg: var(--background-secondary); }

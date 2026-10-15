@@ -129,3 +129,65 @@ test('compare flags rubber-stamp and useless', () => {
   assert.equal(tool.compareLabels({ goal: '', rows: diff }).signal, 'useless');
   assert.equal(tool.compareLabels({ goal: '', rows: [row('core', null)] }).signal, 'no-labels');
 });
+
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+
+function makeVault() {
+  const vault = fs.mkdtempSync(path.join(os.tmpdir(), 'relevance-apply-'));
+  const mapDir = path.join(vault, 'Maps', 'M');
+  fs.mkdirSync(path.join(mapDir, 'Notes'), { recursive: true });
+  const nodes = [
+    { id: 'a', path: 'Maps/M/Notes/a.md', parentId: null, x: 0, y: 0 },
+    { id: 'b', path: 'Maps/M/Notes/b.md', parentId: 'a', x: 0, y: 0 }
+  ];
+  fs.writeFileSync(path.join(mapDir, 'Map.md'), `---\nvisual-agent-map: true\n---\n\n# M\n\n\`\`\`agent-map\n${JSON.stringify({ version: 1, id: 'm', title: 'M', nodes })}\n\`\`\`\n`);
+  fs.writeFileSync(path.join(vault, nodes[0].path), '---\ntitle: A\n---\nroot body\n');
+  fs.writeFileSync(path.join(vault, nodes[1].path), '---\ntitle: "B: x"\nrelevance-tier: core\nrelevance-reason: old\nsummary: keep me\nlist:\n  - one\n---\n# B\n\nbody\n');
+  return { vault, mapDir };
+}
+const record = { goal: 'Learn: "basics"', items: [{ id: 'b', tier: 'side', reason: 'Skip: not on the path | really' }] };
+
+test('setFrontmatterKeys replaces only the given keys and keeps everything else', () => {
+  const out = tool.setFrontmatterKeys('---\ntitle: T\nrelevance-reason: old\nrelevance-tier: core\nlist:\n  - x\n---\nbody\n', { 'relevance-tier': 'side', 'relevance-reason': 'r' });
+  assert.equal(out, '---\ntitle: T\nlist:\n  - x\nrelevance-tier: "side"\nrelevance-reason: "r"\n---\nbody\n');
+  assert.equal(tool.setFrontmatterKeys('body\n', { a: 'b' }), '---\na: "b"\n---\nbody\n');
+  assert.equal(tool.setFrontmatterKeys(tool.setFrontmatterKeys('---\nt: 1\n---\nx', { a: 'b' }), { a: 'b' }), '---\nt: 1\na: "b"\n---\nx');
+});
+
+test('applyRun writes tier, reason and goal, touches only those keys, and reads back through parseFrontmatter', () => {
+  const { vault, mapDir } = makeVault();
+  assert.equal(tool.applyRun({ vault, mapDir, record }), 2);
+  const note = fs.readFileSync(path.join(vault, 'Maps/M/Notes/b.md'), 'utf8');
+  const fm = tool.parseFrontmatter(note);
+  assert.equal(fm['relevance-tier'], 'side');
+  assert.equal(JSON.parse(note.match(/^relevance-reason: (.*)$/m)[1]), 'Skip: not on the path | really');
+  assert.equal(fm.summary, 'keep me');
+  assert.equal(fm.title, 'B: x');
+  assert.match(note, /list:\n {2}- one\n/);
+  assert.match(note, /\n---\n# B\n\nbody\n$/);
+  assert.equal(fs.readFileSync(path.join(vault, 'Maps/M/Notes/a.md'), 'utf8'), '---\ntitle: A\n---\nroot body\n', 'root is not graded');
+  const mapText = fs.readFileSync(path.join(mapDir, 'Map.md'), 'utf8');
+  assert.equal(JSON.parse(mapText.match(/^relevance-goal: (.*)$/m)[1]), 'Learn: "basics"');
+  assert.match(mapText, /visual-agent-map: true/);
+  assert.equal(tool.parseMap(mapText).nodes.length, 2);
+});
+
+test('applyRun is idempotent and rejects ids that are not in the map', () => {
+  const { vault, mapDir } = makeVault();
+  tool.applyRun({ vault, mapDir, record });
+  const once = fs.readFileSync(path.join(vault, 'Maps/M/Notes/b.md'), 'utf8');
+  tool.applyRun({ vault, mapDir, record });
+  assert.equal(fs.readFileSync(path.join(vault, 'Maps/M/Notes/b.md'), 'utf8'), once);
+  assert.throws(() => tool.applyRun({ vault, mapDir, record: { goal: 'g', items: [{ id: 'zz', tier: 'core', reason: 'r' }] } }), /not in Map.md/);
+});
+
+test('apply refuses the live test vault and anything under it', () => {
+  assert.throws(() => tool.assertWritable('/private/tmp/vam-e2e-current'), /refusing/);
+  assert.throws(() => tool.assertWritable('/private/tmp/vam-e2e-current/Agent Workspace/Mind Maps/x'), /refusing/);
+  assert.doesNotThrow(() => tool.assertWritable('/private/tmp/vam-e2e-relevance'));
+  assert.doesNotThrow(() => tool.assertWritable('/private/tmp/vam-e2e-current-other'));
+  const { mapDir } = makeVault();
+  assert.throws(() => tool.applyRun({ vault: '/private/tmp/vam-e2e-current', mapDir, record }), /refusing/);
+});

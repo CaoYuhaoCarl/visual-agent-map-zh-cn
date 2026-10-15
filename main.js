@@ -586,6 +586,11 @@ var english = {
   "ui.zoom_level_0_reset": "Zoom {0}, reset to 100%",
   "ui.new_map": "\uFF0B New map",
   "ui.researched": "Researched",
+  "ui.relevance_core": "Must learn",
+  "ui.relevance_support": "Learn when needed",
+  "ui.relevance_side": "Skippable",
+  "ui.relevance_description_0_1": "{0}: {1}",
+  "ui.relevance_goal_0": "Goal: {0}",
   "ui.suggested": "Suggested",
   "ui.synthesis_web_default_hint": "Synthesis works from existing findings, so web search is off by default. You can turn it on under Data sources.",
   "ui.output_settings": "Output",
@@ -2027,6 +2032,11 @@ var traditionalChinese = {
   "ui.zoom_level_0_reset": "\u76EE\u524D\u7E2E\u653E {0}\uFF0C\u6309\u4E00\u4E0B\u91CD\u8A2D\u70BA 100%",
   "ui.new_map": "\uFF0B \u65B0\u589E\u5FC3\u667A\u5716",
   "ui.researched": "\u5DF2\u7814\u7A76",
+  "ui.relevance_core": "\u5FC5\u5B78",
+  "ui.relevance_support": "\u9700\u8981\u6642\u5B78",
+  "ui.relevance_side": "\u53EF\u8DF3\u904E",
+  "ui.relevance_description_0_1": "{0}\uFF1A{1}",
+  "ui.relevance_goal_0": "\u76EE\u6A19\uFF1A{0}",
   "ui.suggested": "\u5EFA\u8B70",
   "ui.synthesis_web_default_hint": "\u6574\u5408\u6703\u6839\u64DA\u5DF2\u6709\u7684\u7814\u7A76\u7D50\u679C\uFF0C\u6240\u4EE5\u9810\u8A2D\u4E0D\u641C\u5C0B\u7DB2\u8DEF\uFF1B\u9700\u8981\u6642\u53EF\u5728\u300C\u8CC7\u6599\u4F86\u6E90\u300D\u958B\u555F\u3002",
   "ui.output_settings": "\u8F38\u51FA\u8A2D\u5B9A",
@@ -12343,6 +12353,17 @@ function researchGuidance(context, language2 = "zh-TW") {
 // note-values.ts
 var managedSectionValue = (value) => value.trim();
 var managedHeadingValue = (value) => value.replace(/\n/g, " ").trim();
+var RELEVANCE_TIERS = ["core", "support", "side"];
+function readRelevance(fm) {
+  const tier = fm["relevance-tier"], reason = fm["relevance-reason"];
+  if (typeof tier !== "string" || !RELEVANCE_TIERS.includes(tier)) return void 0;
+  if (typeof reason !== "string" || !reason.trim()) return void 0;
+  return { tier, reason: reason.trim() };
+}
+function readRelevanceGoal(fm) {
+  const goal = fm["relevance-goal"];
+  return typeof goal === "string" && goal.trim() ? goal.trim() : void 0;
+}
 
 // repository.ts
 function resolveMapFolders(saved) {
@@ -12896,6 +12917,7 @@ var Repository = class {
       visualMode: fm["visual-mode"] === "on" || fm["visual-mode"] === "off" ? fm["visual-mode"] : "auto",
       ...typeof fm["detail-template"] === "string" && fm["detail-template"] ? { detailTemplateId: fm["detail-template"] } : {},
       ...typeof fm.tone === "string" && fm.tone ? { toneId: fm.tone } : {},
+      ...readRelevance(fm) ? { relevance: readRelevance(fm) } : {},
       detailFormatIssues: Array.isArray(fm["detail-format-issues"]) ? fm["detail-format-issues"].filter((v) => typeof v === "string") : [],
       status: ["idea", "running", "completed", "error"].includes(normalized) ? normalized : "idea",
       mapId: text5(fm["agent-map-id"]),
@@ -13095,6 +13117,10 @@ ${body}`);
   }
   async readMap(path) {
     return parseMap(await this.app.vault.read(this.file(path)));
+  }
+  /** The map file's `relevance-goal` frontmatter, if any. The map file keeps its frontmatter across saves. */
+  async readRelevanceGoal(path) {
+    return readRelevanceGoal(frontmatter(await this.app.vault.read(this.file(path))));
   }
   /**
    * Legacy AIM maps have no stored content language. Persist the derived value the first time the map is written
@@ -24757,6 +24783,12 @@ function aimQuestionStatus(map, questionNodeId, activeQuestionNodeId) {
 }
 var cardLabelSequence = 0;
 var cardLabels = /* @__PURE__ */ new WeakMap();
+var RELEVANCE_ICON = { core: "target", support: "library", side: "skip-forward" };
+var RELEVANCE_LABEL = {
+  core: "ui.relevance_core",
+  support: "ui.relevance_support",
+  side: "ui.relevance_side"
+};
 function edgePathData(x1, y1, x2, y2) {
   const bend = Math.max(60, Math.abs(x2 - x1) / 2);
   return `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`;
@@ -24782,6 +24814,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian22.Ite
     __publicField(this, "map", null);
     __publicField(this, "path", "");
     __publicField(this, "notes", /* @__PURE__ */ new Map());
+    /** Learning goal from the map file's frontmatter; shown only on mind maps (never AIM) and absent when not graded. */
+    __publicField(this, "relevanceGoal");
     __publicField(this, "selected", null);
     __publicField(this, "multiSelected", /* @__PURE__ */ new Set());
     /** Cards named by the open structure review; marked with a class, cleared when the review closes. */
@@ -25024,14 +25058,24 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian22.Ite
     if (!this.builtIn && this.map && this.path) await this.plugin.repo.saveMap(this.path, this.map);
   }
   async hydrate(isCurrent = () => true) {
-    var _a, _b;
+    var _a, _b, _c;
     this.aimFailedReports.clear();
     if (this.builtIn) {
-      if (isCurrent()) this.notes = builtInSample(this.plugin.settings.language).notes;
+      if (isCurrent()) {
+        this.notes = builtInSample(this.plugin.settings.language).notes;
+        this.relevanceGoal = void 0;
+      }
       return;
     }
+    let goal;
+    if (this.path && !((_a = this.map) == null ? void 0 : _a.aim)) {
+      try {
+        goal = await this.plugin.repo.readRelevanceGoal(this.path);
+      } catch (e) {
+      }
+    }
     const loaded = /* @__PURE__ */ new Map();
-    for (const node of (_b = (_a = this.map) == null ? void 0 : _a.nodes) != null ? _b : []) {
+    for (const node of (_c = (_b = this.map) == null ? void 0 : _b.nodes) != null ? _c : []) {
       if (!isCurrent()) return;
       try {
         loaded.set(node.id, await this.plugin.repo.readNote(node.path));
@@ -25040,6 +25084,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian22.Ite
     }
     if (!isCurrent()) return;
     this.notes = loaded;
+    this.relevanceGoal = goal;
     await this.hydrateFailedReportTargets(isCurrent);
   }
   async hydrateFailedReportTargets(isCurrent) {
@@ -27830,6 +27875,13 @@ ${request.requirements}` : preset.text,
         );
         integrate.setAttr("aria-pressed", String(this.integrationMode));
         if (this.integrationMode) integrate.addClass("is-active");
+        if (this.relevanceGoal) {
+          const goal = tools.createSpan({
+            cls: "vam-relevance-goal",
+            text: t("ui.relevance_goal_0", this.relevanceGoal)
+          });
+          (0, import_obsidian22.setTooltip)(goal, this.relevanceGoal);
+        }
       }
     }
     const workspace = this.contentEl.createDiv("vam-workspace");
@@ -27916,7 +27968,7 @@ ${request.requirements}` : preset.text,
     }
   }
   renderNode(node) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C, _D, _E, _F, _G;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C, _D, _E, _F, _G, _H, _I;
     if (!this.stageEl) return;
     const note = this.notes.get(node.id), card = this.stageEl.createDiv({
       cls: `vam-node${node.id === this.selected || this.multiSelected.has(node.id) ? " is-selected" : ""}`
@@ -27990,15 +28042,28 @@ ${request.requirements}` : preset.text,
       }
       if (note) this.labelCard(card, t("ui.topic_card_label_0_1", note.title, statusText));
     }
+    const relevance = !node.aimKind && !((_i = this.map) == null ? void 0 : _i.aim) && !this.builtIn ? note == null ? void 0 : note.relevance : void 0;
+    if (relevance) {
+      const tierLabel = t(RELEVANCE_LABEL[relevance.tier]);
+      card.dataset.relevance = relevance.tier;
+      const tag = header.createSpan({ cls: "vam-relevance-tag" });
+      tag.dataset.tier = relevance.tier;
+      (0, import_obsidian22.setIcon)(tag.createSpan({ cls: "vam-relevance-icon" }), RELEVANCE_ICON[relevance.tier]);
+      tag.createSpan({ text: tierLabel });
+      (0, import_obsidian22.setTooltip)(tag, relevance.reason);
+      card.setAttr("aria-description", t("ui.relevance_description_0_1", tierLabel, relevance.reason));
+      const named = (_j = cardLabels.get(card)) == null ? void 0 : _j.textContent;
+      if (named) this.labelCard(card, t("ui.topic_card_label_0_1", named, tierLabel));
+    }
     const errorDetails = [];
-    if ((_i = note == null ? void 0 : note.detailFormatIssues) == null ? void 0 : _i.length) {
+    if ((_k = note == null ? void 0 : note.detailFormatIssues) == null ? void 0 : _k.length) {
       const issue = header.createSpan({ cls: "vam-status vam-status-error", text: t("ui.detail_format_unmet") });
       issue.setAttr("title", note.detailFormatIssues.join("\n"));
       errorDetails.push(...note.detailFormatIssues);
     }
     if (batch) {
-      const currentNode = batch.currentPath ? (_j = this.map) == null ? void 0 : _j.nodes.find((item) => item.path === batch.currentPath) : void 0;
-      const currentTitle = currentNode ? (_k = this.notes.get(currentNode.id)) == null ? void 0 : _k.title : void 0;
+      const currentNode = batch.currentPath ? (_l = this.map) == null ? void 0 : _l.nodes.find((item) => item.path === batch.currentPath) : void 0;
+      const currentTitle = currentNode ? (_m = this.notes.get(currentNode.id)) == null ? void 0 : _m.title : void 0;
       const label = this.batchProgressLabel(
         t("ui.shallow_research_counts", batch.succeeded, batch.total),
         batch,
@@ -28020,21 +28085,21 @@ ${request.requirements}` : preset.text,
       }
       this.renderRetryFailedButton(header, node.path, batch);
     }
-    if (((_l = this.plugin.quickExpandPending) == null ? void 0 : _l.has(node.path)) && (batch == null ? void 0 : batch.status) !== "running") {
+    if (((_n = this.plugin.quickExpandPending) == null ? void 0 : _n.has(node.path)) && (batch == null ? void 0 : batch.status) !== "running") {
       this.button(header, t("ui.stop_research"), () => {
         var _a2;
         return (_a2 = this.plugin.activeTasks.get(node.path)) == null ? void 0 : _a2.abort();
       });
     }
-    const pendingCount = (_n = (_m = this.plugin.pendingSuggestions.get(node.path)) == null ? void 0 : _m.length) != null ? _n : 0;
-    if (pendingCount && !this.builtIn && !this.integrationMode && !((_o = this.map) == null ? void 0 : _o.aim))
+    const pendingCount = (_p = (_o = this.plugin.pendingSuggestions.get(node.path)) == null ? void 0 : _o.length) != null ? _p : 0;
+    if (pendingCount && !this.builtIn && !this.integrationMode && !((_q = this.map) == null ? void 0 : _q.aim))
       this.button(
         header,
         t("ui.view_0_expansion_suggestions", pendingCount),
         () => this.openNodePanel(node, "proposals")
       ).addClass("vam-badge-new");
     const synthesis = this.synthesisTasks.get(node.path);
-    if (synthesis && synthesis.mapPath === this.path && !this.builtIn && !this.integrationMode && !((_p = this.map) == null ? void 0 : _p.aim)) {
+    if (synthesis && synthesis.mapPath === this.path && !this.builtIn && !this.integrationMode && !((_r = this.map) == null ? void 0 : _r.aim)) {
       if (synthesis.state === "running") {
         if (synthesis.progress) header.createSpan({ cls: "vam-status vam-status-running", text: synthesis.progress });
         this.button(header, t("ui.stop_research"), () => synthesis.controller.abort());
@@ -28074,7 +28139,7 @@ ${request.requirements}` : preset.text,
       collapse.setAttr("aria-expanded", String(!node.collapsed));
     }
     if (!this.builtIn && !this.integrationMode) {
-      if (!((_q = this.map) == null ? void 0 : _q.aim)) {
+      if (!((_s = this.map) == null ? void 0 : _s.aim)) {
         const structure = this.button(tools, t("ui.node_tool_links"), () => this.openNodePanel(node, "structure"));
         structure.addClass("vam-node-tool", "vam-structure-tool");
         structure.setAttr("aria-label", t("ui.structure_and_links"));
@@ -28095,7 +28160,7 @@ ${request.requirements}` : preset.text,
         remove.addClass("vam-node-tool", "vam-remove-tool");
         remove.setAttr("aria-label", t("ui.remove_from_map"));
       }
-      if (((_r = this.map) == null ? void 0 : _r.aim) && node.aimKind === "synthesis" && this.map.aim.branches.some((branch) => branch.results.some((result) => result.nodeId === node.id))) {
+      if (((_t = this.map) == null ? void 0 : _t.aim) && node.aimKind === "synthesis" && this.map.aim.branches.some((branch) => branch.results.some((result) => result.nodeId === node.id))) {
         const next = this.button(
           header,
           t("ui.aim_new_question"),
@@ -28107,7 +28172,7 @@ ${request.requirements}` : preset.text,
         next.setAttr("title", t("ui.aim_new_question_hint"));
       }
       const assumptions = node.aimKind === "conclusion" && note ? readOpenItems(note.detail) : [];
-      if (((_s = this.map) == null ? void 0 : _s.aim) && assumptions.length) {
+      if (((_u = this.map) == null ? void 0 : _u.aim) && assumptions.length) {
         const correct = this.button(
           header,
           t("ui.aim_correct_assumption"),
@@ -28119,7 +28184,7 @@ ${request.requirements}` : preset.text,
         correct.addClass("vam-node-tool", "vam-pinned-tool");
         correct.setAttr("title", t("ui.aim_correct_assumption_hint"));
       }
-      if (((_t = this.map) == null ? void 0 : _t.aim) && node.aimKind === "conclusion") {
+      if (((_v = this.map) == null ? void 0 : _v.aim) && node.aimKind === "conclusion") {
         const steer = this.button(
           header,
           t("ui.aim_steer"),
@@ -28138,25 +28203,25 @@ ${request.requirements}` : preset.text,
     details.addClass("vam-node-tool", "vam-detail-button");
     if (this.builtIn) details.setAttr("title", t("ui.view_sample_content"));
     else details.setAttr("aria-label", t("ui.open_details_in_right_sidebar"));
-    if (!this.builtIn && !this.integrationMode && !((_u = this.map) == null ? void 0 : _u.aim))
+    if (!this.builtIn && !this.integrationMode && !((_w = this.map) == null ? void 0 : _w.aim))
       this.button(tools, t("ui.ai_explore"), () => this.openNextStep(node)).addClass("vam-node-tool", "vam-ai-explore");
-    if (!this.builtIn && !this.integrationMode && !((_v = this.map) == null ? void 0 : _v.aim)) {
+    if (!this.builtIn && !this.integrationMode && !((_x = this.map) == null ? void 0 : _x.aim)) {
       const add = this.button(card, "+", () => this.enqueue(() => this.addNode(node)));
       add.addClass("vam-add-child");
       add.setAttr("aria-label", t("ui.add_subtopic_manually"));
     }
-    const title = card.createEl("h3", { text: (_w = note == null ? void 0 : note.title) != null ? _w : node.path, cls: "vam-card-title" });
-    title.setAttr("title", (_x = note == null ? void 0 : note.title) != null ? _x : node.path);
+    const title = card.createEl("h3", { text: (_y = note == null ? void 0 : note.title) != null ? _y : node.path, cls: "vam-card-title" });
+    title.setAttr("title", (_z = note == null ? void 0 : note.title) != null ? _z : node.path);
     if (!note || !isPlaceholder(note.summary))
       card.createEl("p", {
         cls: "vam-card-summary",
-        text: (_y = note == null ? void 0 : note.summary) != null ? _y : t("ui.the_file_was_moved_or_deleted_you_can_remove_this_node_from")
+        text: (_A = note == null ? void 0 : note.summary) != null ? _A : t("ui.the_file_was_moved_or_deleted_you_can_remove_this_node_from")
       });
     if (errorDetails.length) {
       const error = card.createEl("p", { cls: "vam-card-error", text: errorDetails[0] });
       error.setAttr("title", errorDetails.join("\n"));
     }
-    if (node.aimKind === "conclusion" && ((_z = this.map) == null ? void 0 : _z.aim) && !this.builtIn) {
+    if (node.aimKind === "conclusion" && ((_B = this.map) == null ? void 0 : _B.aim) && !this.builtIn) {
       const branch = this.map.aim.branches.find((item) => item.results.some((result) => result.nodeId === node.id));
       const hasFollowup = this.map.nodes.some((item) => item.parentId === node.id && item.aimKind === "question");
       if (branch && !hasFollowup && countAimAnsweredQuestions(this.map, branch.id) < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION) {
@@ -28169,7 +28234,7 @@ ${request.requirements}` : preset.text,
         ).addClass("mod-cta");
       }
     }
-    if (node.aimKind === "topic" && ((_A = this.map) == null ? void 0 : _A.aim) && !this.map.nodes.some((item) => item.aimKind === "question")) {
+    if (node.aimKind === "topic" && ((_C = this.map) == null ? void 0 : _C.aim) && !this.map.nodes.some((item) => item.aimKind === "question")) {
       const initialBranch = this.map.aim.branches.find((item) => item.questionNodeId === node.id && !item.parentBranchId);
       const initialRuns = initialBranch ? this.map.aim.runs.filter((item) => item.branchId === initialBranch.id) : [];
       const activeInitialRun = initialRuns.some((run) => {
@@ -28205,11 +28270,11 @@ ${request.requirements}` : preset.text,
         );
       }
     }
-    if (node.aimKind === "question" && ((_B = this.map) == null ? void 0 : _B.aim)) {
+    if (node.aimKind === "question" && ((_D = this.map) == null ? void 0 : _D.aim)) {
       const branch = this.map.aim.branches.find((item) => item.questionNodeId === node.id);
       if (branch) {
         this.renderAimFailure(card, branch);
-        const labels = (_D = (_C = node.aimQuestion) == null ? void 0 : _C.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _D : branch.answerSnapshot.selections;
+        const labels = (_F = (_E = node.aimQuestion) == null ? void 0 : _E.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _F : branch.answerSnapshot.selections;
         const answer = [...labels, branch.answerSnapshot.freeText].filter(Boolean).join(" \u2014 ");
         card.createEl("p", {
           cls: "vam-aim-answer-snapshot",
@@ -28252,11 +28317,11 @@ ${request.requirements}` : preset.text,
         }
       }
     }
-    if (node.aimKind === "answer" && ((_E = this.map) == null ? void 0 : _E.aim)) {
+    if (node.aimKind === "answer" && ((_G = this.map) == null ? void 0 : _G.aim)) {
       const branch = this.map.aim.branches.find((item) => item.answerNodeId === node.id);
       const question = branch && this.map.nodes.find((item) => item.id === branch.questionNodeId);
       if (branch) {
-        const labels = (_G = (_F = question == null ? void 0 : question.aimQuestion) == null ? void 0 : _F.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _G : branch.answerSnapshot.selections;
+        const labels = (_I = (_H = question == null ? void 0 : question.aimQuestion) == null ? void 0 : _H.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _I : branch.answerSnapshot.selections;
         const answer = [...labels, branch.answerSnapshot.freeText].filter(Boolean).join(" \u2014 ");
         card.createEl("p", {
           cls: "vam-aim-answer-snapshot",
@@ -30848,6 +30913,7 @@ ${note.detail.trim()}` : "",
     };
   }
   drawEdges() {
+    var _a, _b;
     if (!this.edgesEl || !this.stageEl || !this.map) return;
     this.edgesEl.replaceChildren();
     this.edgeEls.clear();
@@ -30868,6 +30934,8 @@ ${note.detail.trim()}` : "",
         );
         path.addClass("vam-edge");
         if (parentId !== node.parentId) path.addClass("vam-edge-convergence");
+        if (!this.map.aim && !this.builtIn && ((_b = (_a = this.notes.get(node.id)) == null ? void 0 : _a.relevance) == null ? void 0 : _b.tier) === "side")
+          path.addClass("vam-edge-side");
         this.edgesEl.appendChild(path);
         this.edgeEls.set(`${parentId}\0${node.id}`, path);
       }

@@ -5,7 +5,7 @@ import { withThinkingOrigin } from "./thinking-origin";
 import { createHash, randomUUID } from "node:crypto";
 import type VisualAgentMapPlugin from "../../main";
 import { t, topicStatusLabel, translate, type TranslationKey, type UiLanguage } from "../../i18n";
-import { MarkdownRenderer, ItemView, Menu, Modal, Notice, TFile, WorkspaceLeaf, setIcon } from "obsidian";
+import { MarkdownRenderer, ItemView, Menu, Modal, Notice, TFile, WorkspaceLeaf, setIcon, setTooltip } from "obsidian";
 import { readMarkdownFile, type ReferenceGroup } from "../../ai/reference-materials";
 import { NameModal } from "../../ui/modals/name-modal";
 import { ChoiceModal } from "../../ui/modals/choice-modal";
@@ -63,6 +63,7 @@ import { listPresets, resolvePreset, resolveToneText } from "../../ai/prompt-pre
 import type { AiResult, Suggestion, TaskContext } from "../../ai/types";
 import { previewMetrics } from "../../ui/preview-utils";
 import { BUILTIN_SAMPLE_ID, builtInSample, SAMPLE_TOUR_VERSION } from "../../builtin-sample";
+import type { RelevanceTier } from "../../note-values";
 import { PendingSuggestions } from "../../pending-suggestions";
 import { createAimMap } from "../aim/create-map";
 import { addOutlineToMap, createOutlineMap, type OutlineNode } from "./outline-import";
@@ -199,6 +200,12 @@ interface FileMove {
 /** Unique ids for the hidden card labels; any view may render a card. */
 let cardLabelSequence = 0;
 const cardLabels = new WeakMap<HTMLElement, HTMLElement>();
+const RELEVANCE_ICON: Record<RelevanceTier, string> = { core: "target", support: "library", side: "skip-forward" };
+const RELEVANCE_LABEL: Record<RelevanceTier, TranslationKey> = {
+  core: "ui.relevance_core",
+  support: "ui.relevance_support",
+  side: "ui.relevance_side"
+};
 /** Path data for the curve from a parent card's right edge to a child card's left edge. */
 function edgePathData(x1: number, y1: number, x2: number, y2: number): string {
   const bend = Math.max(60, Math.abs(x2 - x1) / 2);
@@ -234,6 +241,8 @@ export class VisualAgentMapView extends ItemView {
   private map: MapDocument | null = null;
   private path = "";
   private notes = new Map<string, Note>();
+  /** Learning goal from the map file's frontmatter; shown only on mind maps (never AIM) and absent when not graded. */
+  private relevanceGoal: string | undefined;
   private selected: string | null = null;
   private multiSelected = new Set<string>();
   /** Cards named by the open structure review; marked with a class, cleared when the review closes. */
@@ -543,8 +552,19 @@ export class VisualAgentMapView extends ItemView {
   private async hydrate(isCurrent: () => boolean = () => true): Promise<void> {
     this.aimFailedReports.clear();
     if (this.builtIn) {
-      if (isCurrent()) this.notes = builtInSample(this.plugin.settings.language).notes;
+      if (isCurrent()) {
+        this.notes = builtInSample(this.plugin.settings.language).notes;
+        this.relevanceGoal = undefined;
+      }
       return;
+    }
+    let goal: string | undefined;
+    if (this.path && !this.map?.aim) {
+      try {
+        goal = await this.plugin.repo.readRelevanceGoal(this.path);
+      } catch {
+        /* An unreadable goal is simply not shown. */
+      }
     }
     const loaded = new Map<string, Note>();
     for (const node of this.map?.nodes ?? []) {
@@ -557,6 +577,7 @@ export class VisualAgentMapView extends ItemView {
     }
     if (!isCurrent()) return;
     this.notes = loaded;
+    this.relevanceGoal = goal;
     await this.hydrateFailedReportTargets(isCurrent);
   }
   private async hydrateFailedReportTargets(isCurrent: () => boolean): Promise<void> {
@@ -3481,6 +3502,13 @@ export class VisualAgentMapView extends ItemView {
         );
         integrate.setAttr("aria-pressed", String(this.integrationMode));
         if (this.integrationMode) integrate.addClass("is-active");
+        if (this.relevanceGoal) {
+          const goal = tools.createSpan({
+            cls: "vam-relevance-goal",
+            text: t("ui.relevance_goal_0", this.relevanceGoal)
+          });
+          setTooltip(goal, this.relevanceGoal);
+        }
       }
     }
     const workspace = this.contentEl.createDiv("vam-workspace");
@@ -3674,6 +3702,21 @@ export class VisualAgentMapView extends ItemView {
         if (active) chip.setAttr("role", "status");
       }
       if (note) this.labelCard(card, t("ui.topic_card_label_0_1", note.title, statusText));
+    }
+    // Offline relevance grading: mind maps only, and only a valid tier shows anything. Side topics fade (see styles.css)
+    // but are never hidden, moved or collapsed.
+    const relevance = !node.aimKind && !this.map?.aim && !this.builtIn ? note?.relevance : undefined;
+    if (relevance) {
+      const tierLabel = t(RELEVANCE_LABEL[relevance.tier]);
+      card.dataset.relevance = relevance.tier;
+      const tag = header.createSpan({ cls: "vam-relevance-tag" });
+      tag.dataset.tier = relevance.tier;
+      setIcon(tag.createSpan({ cls: "vam-relevance-icon" }), RELEVANCE_ICON[relevance.tier]);
+      tag.createSpan({ text: tierLabel });
+      setTooltip(tag, relevance.reason);
+      card.setAttr("aria-description", t("ui.relevance_description_0_1", tierLabel, relevance.reason));
+      const named = cardLabels.get(card)?.textContent;
+      if (named) this.labelCard(card, t("ui.topic_card_label_0_1", named, tierLabel));
     }
     // Failure reasons are shown on the card, not only in a hover tooltip.
     const errorDetails: string[] = [];
@@ -6769,6 +6812,8 @@ export class VisualAgentMapView extends ItemView {
         );
         path.addClass("vam-edge");
         if (parentId !== node.parentId) path.addClass("vam-edge-convergence");
+        if (!this.map.aim && !this.builtIn && this.notes.get(node.id)?.relevance?.tier === "side")
+          path.addClass("vam-edge-side");
         this.edgesEl.appendChild(path);
         this.edgeEls.set(`${parentId}\u0000${node.id}`, path);
       }

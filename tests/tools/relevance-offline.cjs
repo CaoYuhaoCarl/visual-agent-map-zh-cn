@@ -5,6 +5,9 @@
 //   node tests/tools/relevance-offline.cjs run --map=<map dir> --vault=<vault root> --out=<runs dir> --slug=<slug>
 //        [--runs=2] [--label-depth=2|all] [--model=sonnet]
 //   node tests/tools/relevance-offline.cjs compare --out=<runs dir> --slug=<slug>
+//   node tests/tools/relevance-offline.cjs apply --vault=<vault root> --map=<map dir> --out=<runs dir> --slug=<slug>
+//        writes relevance-tier / relevance-reason into node notes and relevance-goal into Map.md (those keys only).
+//        Refuses the owner's live test vault (/private/tmp/vam-e2e-current) and anything under it.
 //
 // The vault is only read. Everything written (it contains note titles and summaries) goes to --out, which must
 // not be inside this repository.
@@ -433,17 +436,84 @@ function compareCommand(options) {
   process.stdout.write(`${slug}: labeled ${result.labeled}/${result.total}, agreement ${pct(result.agreement)}, kappa ${result.kappa.toFixed(3)}, changed ${pct(result.changeRatio)} (${result.signal})\n`);
 }
 
+// ---- apply ---------------------------------------------------------------------------------------------------
+
+const PROTECTED_VAULT = '/private/tmp/vam-e2e-current';
+
+function assertWritable(target) {
+  const forms = new Set([path.resolve(target)]);
+  try {
+    forms.add(fs.realpathSync(target));
+  } catch {
+    /* not existing yet: the resolved form is enough */
+  }
+  for (const form of forms)
+    if (form === PROTECTED_VAULT || form.startsWith(PROTECTED_VAULT + path.sep))
+      throw new Error(`refusing to write ${PROTECTED_VAULT}`);
+}
+
+// Sets exactly the given top-level keys in a note's frontmatter and leaves every other line untouched. Values are
+// written as JSON strings, which are valid YAML double-quoted scalars.
+function setFrontmatterKeys(text, values) {
+  const eol = text.includes('\r\n') ? '\r\n' : '\n';
+  const lines = Object.entries(values).map(([key, value]) => `${key}: ${JSON.stringify(String(value))}`);
+  const match = /^---\r?\n([\s\S]*?)\r?\n---(?=\r?\n|$)/.exec(text);
+  if (!match) return `---${eol}${lines.join(eol)}${eol}---${eol}${text}`;
+  const keep = [];
+  let skipping = false;
+  for (const line of match[1].split(/\r?\n/)) {
+    const key = /^([A-Za-z][\w-]*):/.exec(line)?.[1];
+    if (key) skipping = key in values;
+    else if (skipping && !/^\s+/.test(line) && line !== '') skipping = false;
+    if (!skipping) keep.push(line);
+  }
+  const body = [...keep, ...lines].join(eol);
+  return `---${eol}${body}${eol}---${text.slice(match[0].length)}`;
+}
+
+function applyRun({ vault, mapDir, record }) {
+  assertWritable(vault);
+  assertWritable(mapDir);
+  const mapFile = path.join(mapDir, 'Map.md');
+  const map = parseMap(fs.readFileSync(mapFile, 'utf8'));
+  const pathById = new Map(map.nodes.map(n => [n.id, n.path]));
+  const writes = [];
+  for (const item of record.items) {
+    const rel = pathById.get(item.id);
+    if (!rel) throw new Error(`run item ${item.id} is not in Map.md`);
+    if (!TIERS.includes(item.tier) || typeof item.reason !== 'string' || !item.reason.trim())
+      throw new Error(`run item ${item.id} has no valid tier or reason`);
+    const file = path.join(vault, rel);
+    assertWritable(file);
+    writes.push([file, { 'relevance-tier': item.tier, 'relevance-reason': clip(item.reason, 400) }]);
+  }
+  if (typeof record.goal !== 'string' || !record.goal.trim()) throw new Error('run has no goal');
+  writes.push([mapFile, { 'relevance-goal': clip(record.goal, 400) }]);
+  for (const [file, values] of writes) fs.writeFileSync(file, setFrontmatterKeys(fs.readFileSync(file, 'utf8'), values));
+  return writes.length;
+}
+
+function applyCommand(options) {
+  const { vault, map, out, slug } = options;
+  if (!vault || !map || !out || !slug) throw new Error('apply needs --vault --map --out --slug');
+  const record = JSON.parse(fs.readFileSync(path.join(out, slug, 'run-1.json'), 'utf8'));
+  const count = applyRun({ vault, mapDir: map, record });
+  process.stdout.write(`${slug}: wrote relevance to ${count} files (${count - 1} notes + Map.md)\n`);
+}
+
 function main(argv) {
   const [command, ...rest] = argv;
   const options = parseArgs(rest);
   if (command === 'run') return runCommand(options);
   if (command === 'compare') return compareCommand(options);
-  throw new Error('usage: relevance-offline.cjs run|compare --out=<dir> --slug=<slug> [...]');
+  if (command === 'apply') return applyCommand(options);
+  throw new Error('usage: relevance-offline.cjs run|compare|apply --out=<dir> --slug=<slug> [...]');
 }
 
 module.exports = {
   TIERS, parseMap, parseFrontmatter, buildNodes, validateReply, extractJson, gradedNodes, confusion, agreement,
-  cohenKappa, stability, tierDistribution, parseTier, renderLabels, parseLabels, compareLabels, renderCompare
+  cohenKappa, stability, tierDistribution, parseTier, renderLabels, parseLabels, compareLabels, renderCompare,
+  setFrontmatterKeys, applyRun, assertWritable
 };
 
 if (require.main === module) {

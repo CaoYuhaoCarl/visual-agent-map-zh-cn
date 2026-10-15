@@ -612,3 +612,31 @@ integrationTest('legacy Visual References section moves into Detail before the S
     assert.match(detail, new RegExp(`### ${knowledge}\\n\\nK\\n\\n\\*\\*Pic\\*\\*\\n\\n!\\[Pic\\]\\(https://x/y\\.png\\)\\n\\nSource: https://x\\n\\n### ${sources}`), language);
   }
 });
+integrationTest('relevance frontmatter reads when valid, is absent when missing or invalid, and survives note updates', async () => {
+  const { repo, contents } = fixture(); const n = await topicNote(repo, 'Graded');
+  const original = contents.get(n.path);
+  assert.equal((await repo.readNote(n.path)).relevance, undefined, 'missing: no relevance');
+  const withKeys = (tier, reason) => original.replace('---\n', `---\nrelevance-tier: ${tier}\nrelevance-reason: ${reason}\n`);
+  for (const tier of ['core', 'support', 'side']) {
+    contents.set(n.path, withKeys(tier, '"Because: it matters"'));
+    assert.deepEqual(plain((await repo.readNote(n.path)).relevance), { tier, reason: 'Because: it matters' });
+  }
+  for (const bad of [withKeys('huge', 'ok'), withKeys('core', '""'), withKeys('[core]', 'ok'), original.replace('---\n', '---\nrelevance-tier: core\n')]) {
+    contents.set(n.path, bad);
+    assert.equal((await repo.readNote(n.path)).relevance, undefined, 'invalid or incomplete: no relevance');
+  }
+  contents.set(n.path, withKeys('side', 'Skip it'));
+  await repo.updateNote(n.path, { status: 'completed' });
+  assert.deepEqual(plain((await repo.readNote(n.path)).relevance), { tier: 'side', reason: 'Skip it' });
+});
+integrationTest('relevance goal reads from map file frontmatter and is absent when missing or blank', async () => {
+  const { repo, contents } = fixture(); const n = await topicNote(repo, 'Goal host');
+  const original = contents.get(n.path);
+  assert.equal(await repo.readRelevanceGoal(n.path), undefined);
+  contents.set(n.path, original.replace('---\n', '---\nrelevance-goal: "Learn: the basics"\n'));
+  assert.equal(await repo.readRelevanceGoal(n.path), 'Learn: the basics');
+  contents.set(n.path, original.replace('---\n', '---\nrelevance-goal: "  "\n'));
+  assert.equal(await repo.readRelevanceGoal(n.path), undefined);
+  contents.set(n.path, original.replace('---\n', '---\nrelevance-goal: 5\n'));
+  assert.equal(await repo.readRelevanceGoal(n.path), undefined);
+});

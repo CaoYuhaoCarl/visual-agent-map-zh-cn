@@ -9,7 +9,13 @@ import { normalizeReasoningLevel } from "./ai/task-policy";
 import type { PromptPreset } from "./ai/prompt-presets";
 import { sourcesHeadingKeys, standardTemplate, type DetailTemplate } from "./ai/detail-templates";
 import { fencedLines } from "./ai/markdown-blocks";
-import { managedHeadingValue, managedSectionValue } from "./note-values";
+import {
+  managedHeadingValue,
+  managedSectionValue,
+  readRelevance,
+  readRelevanceGoal,
+  type NoteRelevance
+} from "./note-values";
 import { upgradeLegacyAimText } from "./experiences/aim/legacy-names";
 export type { ReasoningLevel, ResearchDepth, ResearchMode, VisualMode, VisualReference } from "./ai/types";
 export { normalizeReasoningLevel } from "./ai/task-policy";
@@ -46,6 +52,8 @@ export interface Note {
   topicState: TopicState;
   sourcePaths: string[];
   referencePaths?: string[];
+  /** Read-only grading from frontmatter (see readRelevance); absent when missing or invalid. */
+  relevance?: NoteRelevance;
 }
 export type NotePatch = Partial<Note>;
 export interface Settings {
@@ -777,6 +785,7 @@ export class Repository {
         ? { detailTemplateId: fm["detail-template"] }
         : {}),
       ...(typeof fm.tone === "string" && fm.tone ? { toneId: fm.tone } : {}),
+      ...(readRelevance(fm) ? { relevance: readRelevance(fm) } : {}),
       detailFormatIssues: Array.isArray(fm["detail-format-issues"])
         ? fm["detail-format-issues"].filter((v): v is string => typeof v === "string")
         : [],
@@ -1009,6 +1018,11 @@ export class Repository {
 
   async readMap(path: string): Promise<MapDocument> {
     return parseMap(await this.app.vault.read(this.file(path)));
+  }
+
+  /** The map file's `relevance-goal` frontmatter, if any. The map file keeps its frontmatter across saves. */
+  async readRelevanceGoal(path: string): Promise<string | undefined> {
+    return readRelevanceGoal(frontmatter(await this.app.vault.read(this.file(path))));
   }
 
   /**
