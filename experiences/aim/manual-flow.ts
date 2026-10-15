@@ -1,7 +1,7 @@
 import { evidenceCard, EVIDENCE_LOOKUP_FIELD_RULE, EVIDENCE_LOOKUP_RULE } from "./evidence-context";
 import { deduplicateAimRequest } from "./request-context";
 import { resolveAimContentLanguage } from "./content-language";
-import { buildFinalDelivery } from "./final-delivery";
+import { buildFinalDelivery, type DeliveryEvidence } from "./final-delivery";
 import { createHash, randomUUID } from "node:crypto";
 import type { AiResult, TaskContext } from "../../ai/types";
 import { resolveToneText } from "../../ai/prompt-presets";
@@ -920,6 +920,7 @@ export class AimManualFlow {
           timeoutMs: context.timeoutMs,
           webSearch: this.limits.webSearch,
           evidence: context.deliveryEvidence,
+          ...(context.lineageEvidence?.length ? { lineageEvidence: context.lineageEvidence } : {}),
           knownConditions: JSON.stringify({
             goal: context.goal,
             background: context.goalDetail,
@@ -3428,6 +3429,8 @@ export class AimManualFlow {
           })
         ).values()
       ];
+      // Earlier rounds' results the outline can map to by their evidence-card ids; recomputed, never persisted.
+      const deliveryLineage = (await this.branchLineage(map, branch.parentBranchId)).sources;
       const resumeReports = resumeDelivery?.reports;
       const deliveryEvidence = () => [
         ...(resumeDelivery?.evidence ?? initialDeliveryEvidence),
@@ -3532,6 +3535,7 @@ export class AimManualFlow {
           timeoutMs: branch.retryTimeoutMs,
           deliveryRecovery: savedRecovery ?? sectionRecovery,
           deliveryEvidence: deliveryEvidence(),
+          lineageEvidence: deliveryLineage,
           setPhase: phase => this.persist(() => this.runs.recordPhase(mapPath, synthesisHandle, phase)),
           saveDeliveryRecovery: async (checkpoint, phase) => {
             if (phase) this.emitProgress({ kind: "stage", mapPath, branchId, stage: phase });
@@ -3945,9 +3949,11 @@ export class AimManualFlow {
     context: string;
     resultRefs: { notePath: string; version: number }[];
     evidence: Awaited<ReturnType<Repository["readNote"]>>[];
+    /** The same selected results as delivery sources, under the ids the evidence cards use. */
+    sources: DeliveryEvidence[];
   }> {
     const data = map.aim;
-    if (!branchId || !data) return { context: "", resultRefs: [], evidence: [] };
+    if (!branchId || !data) return { context: "", resultRefs: [], evidence: [], sources: [] };
     const chain = [] as typeof data.branches;
     let current = data.branches.find(branch => branch.id === branchId);
     while (current) {
@@ -3958,7 +3964,8 @@ export class AimManualFlow {
     }
     const sections: string[] = [],
       resultRefs: { notePath: string; version: number }[] = [],
-      evidence: Awaited<ReturnType<Repository["readNote"]>>[] = [];
+      evidence: Awaited<ReturnType<Repository["readNote"]>>[] = [],
+      sources: DeliveryEvidence[] = [];
     for (const branch of chain) {
       const question = map.nodes.find(node => node.id === branch.questionNodeId);
       const questionNote = question ? await this.repository.readNote(question.path) : undefined;
@@ -4007,10 +4014,15 @@ export class AimManualFlow {
           `Saved research result v${result.version} (${note.title}):\n${evidenceCard(evidenceId, note.summary, note.detail)}`
         );
         evidence.push(note);
+        sources.push({
+          id: evidenceId,
+          hash: createHash("sha256").update(note.detail).digest("hex"),
+          detail: `## ${note.title}\n\n${note.summary}\n\n${note.detail}`
+        });
       }
       for (const { result } of saved) resultRefs.push({ notePath: result.notePath, version: result.version });
     }
-    return { context: sections.join("\n\n"), resultRefs, evidence };
+    return { context: sections.join("\n\n"), resultRefs, evidence, sources };
   }
 
   private async questionHistory(map: MapDocument, branchId: string | null): Promise<string[]> {

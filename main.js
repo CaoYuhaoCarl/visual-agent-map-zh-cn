@@ -19189,7 +19189,7 @@ function parseAcceptance(result) {
   return { marker: acceptance[0].trim(), decision: decision.decision };
 }
 async function buildFinalDelivery(base, ask, options = {}) {
-  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o;
+  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p;
   const baseFingerprint = fingerprint({
     title: base.title,
     rules: base.rules,
@@ -19306,18 +19306,22 @@ ${research.detail}
 
 Supplied source reports:
 ${sourceCatalog}`;
-  const available = new Map(((_e = options.evidence) != null ? _e : []).map((source) => [source.id, source]));
-  if (available.size !== ((_f = options.evidence) != null ? _f : []).length) throw new Error("Duplicate final delivery evidence IDs.");
+  const current = new Map(((_e = options.evidence) != null ? _e : []).map((source) => [source.id, source]));
+  if (current.size !== ((_f = options.evidence) != null ? _f : []).length) throw new Error("Duplicate final delivery evidence IDs.");
+  const available = new Map([
+    ...((_g = options.lineageEvidence) != null ? _g : []).map((source) => [source.id, source]),
+    ...current
+  ]);
   const sources2 = /* @__PURE__ */ new Map();
   for (const section3 of sections) {
-    const named = [.../* @__PURE__ */ new Set([...(_g = section3.evidenceIds) != null ? _g : [], ...(_h = section3.dependencies) != null ? _h : []])];
+    const named = [.../* @__PURE__ */ new Set([...(_h = section3.evidenceIds) != null ? _h : [], ...(_i = section3.dependencies) != null ? _i : []])];
     const ids = named.filter((id) => available.has(id));
-    const scoped = section3.evidenceIds === void 0 && section3.dependencies === void 0 || named.length && !ids.length ? [...available.values()] : ids.map((id) => available.get(id));
+    const scoped = section3.evidenceIds === void 0 && section3.dependencies === void 0 || named.length && !ids.length ? [...current.values()] : ids.map((id) => available.get(id));
     for (const source of scoped) sources2.set(source.id, source);
   }
   const documentSources = [...available.values()].filter((source) => sources2.has(source.id));
   const documentEvidence = documentSources.length ? documentSources.map((source) => `Source ID: ${source.id}
-${source.detail}`).join("\n\n") : available.size ? NO_MAPPED_SOURCE : `${base.detail}
+${source.detail}`).join("\n\n") : current.size ? NO_MAPPED_SOURCE : `${base.detail}
 
 ${research.detail}`;
   const documentResearch = needsResearch ? research.detail : void 0;
@@ -19325,7 +19329,7 @@ ${research.detail}`;
     baseFingerprint,
     sections: sections.map((section3) => [section3.heading, section3.purpose, section3.searchTask]),
     sources: documentSources.map((source) => [source.id, source.hash]),
-    research: documentResearch != null ? documentResearch : !available.size ? research.detail : void 0
+    research: documentResearch != null ? documentResearch : !current.size ? research.detail : void 0
   });
   let draft;
   let legacyDraft = reuseRemaining && (savedCheckpoint == null ? void 0 : savedCheckpoint.draft) && (!savedCheckpoint.draftFingerprint || savedCheckpoint.draftFingerprint === draftFingerprint);
@@ -19343,7 +19347,7 @@ ${research.detail}`;
     checkpoint.draftFingerprint = draftFingerprint;
   } else {
     reuseRemaining = false;
-    const saved = (_i = savedCheckpoint == null ? void 0 : savedCheckpoint.sections) == null ? void 0 : _i[DOCUMENT_KEY];
+    const saved = (_j = savedCheckpoint == null ? void 0 : savedCheckpoint.sections) == null ? void 0 : _j[DOCUMENT_KEY];
     let written;
     if ((saved == null ? void 0 : saved.fingerprint) === draftFingerprint) {
       try {
@@ -19357,12 +19361,12 @@ ${research.detail}`;
         "delivery-writing",
         renderWritingTask({
           outline,
-          knownConditions: (_j = options.knownConditions) != null ? _j : base.detail,
+          knownConditions: (_k = options.knownConditions) != null ? _k : base.detail,
           evidence: documentEvidence,
           ...documentResearch === void 0 ? {} : { research: documentResearch }
         })
       );
-      (_k = base.signal) == null ? void 0 : _k.throwIfAborted();
+      (_l = base.signal) == null ? void 0 : _l.throwIfAborted();
     }
     checkpoint.sections = {
       [DOCUMENT_KEY]: {
@@ -19375,13 +19379,13 @@ ${research.detail}`;
       summary: written.summary,
       detail: written.detail,
       suggestions: [],
-      visualReferences: (_l = written.visualReferences) != null ? _l : []
+      visualReferences: (_m = written.visualReferences) != null ? _m : []
     };
     validateContent(draft);
     checkpoint.draftFingerprint = draftFingerprint;
     checkpoint.draft = draft;
-    await ((_m = options.onCheckpoint) == null ? void 0 : _m.call(options, { ...checkpoint }));
-    (_n = base.signal) == null ? void 0 : _n.throwIfAborted();
+    await ((_n = options.onCheckpoint) == null ? void 0 : _n.call(options, { ...checkpoint }));
+    (_o = base.signal) == null ? void 0 : _o.throwIfAborted();
   }
   if ((savedCheckpoint == null ? void 0 : savedCheckpoint.draftFingerprint) && savedCheckpoint.draftFingerprint !== draftFingerprint)
     reuseRemaining = false;
@@ -19412,7 +19416,7 @@ ${draft.detail}`, suggestions: [] }, evidence };
       ...result,
       detail: `${result.detail}
 
-${translate((_o = base.outputLanguage) != null ? _o : "en", "note.aim_draft_pending")}
+${translate((_p = base.outputLanguage) != null ? _p : "en", "note.aim_draft_pending")}
 
 ${draft.detail}`
     },
@@ -21197,7 +21201,7 @@ ${note.detail}`;
     };
   }
   async reviewDecisionOnce(candidate, context, model, reasoning, signal) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m;
     throwIfAborted(signal);
     const uniqueLineage = lineageWithoutRepeatedReports(context.lineage, context.reportDetail);
     const taskContext = {
@@ -21395,6 +21399,7 @@ ${renderOpenItemsContext(openItems)}` : ""}`
           timeoutMs: context.timeoutMs,
           webSearch: this.limits.webSearch,
           evidence: context.deliveryEvidence,
+          ...((_g = context.lineageEvidence) == null ? void 0 : _g.length) ? { lineageEvidence: context.lineageEvidence } : {},
           knownConditions: JSON.stringify({
             goal: context.goal,
             background: context.goalDetail,
@@ -21442,11 +21447,11 @@ ${delivery.evidence}` },
         );
       if (final.decision === "research_more")
         this.deliveryRejections.set(final, {
-          summary: (_h = (_g = delivery.draft) == null ? void 0 : _g.summary) != null ? _h : final.summary,
-          detail: (_j = (_i = delivery.draft) == null ? void 0 : _i.detail) != null ? _j : final.detail,
-          openItems: (_k = reviewed.openItems) != null ? _k : []
+          summary: (_i = (_h = delivery.draft) == null ? void 0 : _h.summary) != null ? _i : final.summary,
+          detail: (_k = (_j = delivery.draft) == null ? void 0 : _j.detail) != null ? _k : final.detail,
+          openItems: (_l = reviewed.openItems) != null ? _l : []
         });
-      reviewed = final.decision === "conclude" && ((_l = reviewed.openItems) == null ? void 0 : _l.length) ? { ...final, openItems: reviewed.openItems } : final;
+      reviewed = final.decision === "conclude" && ((_m = reviewed.openItems) == null ? void 0 : _m.length) ? { ...final, openItems: reviewed.openItems } : final;
     }
     if (context.unattended && reviewed.decision === "research_more" && reviewed.gapKind === "user_only")
       return assumeGap(reviewed);
@@ -23553,6 +23558,7 @@ ${report.detail}`
           })
         ).values()
       ];
+      const deliveryLineage = (await this.branchLineage(map, branch.parentBranchId)).sources;
       const resumeReports = resumeDelivery == null ? void 0 : resumeDelivery.reports;
       const deliveryEvidence = () => {
         var _a2;
@@ -23670,6 +23676,7 @@ ${currentReports.detail}`,
           timeoutMs: branch.retryTimeoutMs,
           deliveryRecovery: savedRecovery != null ? savedRecovery : sectionRecovery,
           deliveryEvidence: deliveryEvidence(),
+          lineageEvidence: deliveryLineage,
           setPhase: (phase) => this.persist(() => this.runs.recordPhase(mapPath, synthesisHandle, phase)),
           saveDeliveryRecovery: async (checkpoint, phase) => {
             if (phase) this.emitProgress({ kind: "stage", mapPath, branchId, stage: phase });
@@ -24016,14 +24023,14 @@ ${beforeSearch.detail}`,
   async branchLineage(map, branchId) {
     var _a, _b, _c;
     const data = map.aim;
-    if (!branchId || !data) return { context: "", resultRefs: [], evidence: [] };
+    if (!branchId || !data) return { context: "", resultRefs: [], evidence: [], sources: [] };
     const chain = [];
     let current = data.branches.find((branch) => branch.id === branchId);
     while (current) {
       chain.unshift(current);
       current = current.parentBranchId ? data.branches.find((branch) => branch.id === current.parentBranchId) : void 0;
     }
-    const sections = [], resultRefs = [], evidence = [];
+    const sections = [], resultRefs = [], evidence = [], sources2 = [];
     for (const branch of chain) {
       const question = map.nodes.find((node) => node.id === branch.questionNodeId);
       const questionNote = question ? await this.repository.readNote(question.path) : void 0;
@@ -24062,10 +24069,19 @@ ${beforeSearch.detail}`,
 ${evidenceCard(evidenceId, note.summary, note.detail)}`
         );
         evidence.push(note);
+        sources2.push({
+          id: evidenceId,
+          hash: (0, import_node_crypto9.createHash)("sha256").update(note.detail).digest("hex"),
+          detail: `## ${note.title}
+
+${note.summary}
+
+${note.detail}`
+        });
       }
       for (const { result } of saved) resultRefs.push({ notePath: result.notePath, version: result.version });
     }
-    return { context: sections.join("\n\n"), resultRefs, evidence };
+    return { context: sections.join("\n\n"), resultRefs, evidence, sources: sources2 };
   }
   async questionHistory(map, branchId) {
     var _a;

@@ -93,6 +93,8 @@ export interface FinalDeliveryOptions {
   checkpoint?: FinalDeliveryCheckpoint;
   /** Persisted source reports; hashes identify content changes, not verification. */
   evidence?: readonly DeliveryEvidence[];
+  /** Earlier rounds' results: readable only when the outline maps a section to their id; never in the outline catalog. */
+  lineageEvidence?: readonly DeliveryEvidence[];
   /** Goal, original background and answered conditions, excluding research reports. */
   knownConditions?: string;
   /** Unverified items the document lists for the user to confirm instead of blocking acceptance. */
@@ -281,25 +283,30 @@ export async function buildFinalDelivery(
     }
   );
   const evidence = `Final document outline:\n${outline}\n\nFinal document research:\n${research.detail}\n\nSupplied source reports:\n${sourceCatalog}`;
-  const available = new Map((options.evidence ?? []).map(source => [source.id, source]));
-  if (available.size !== (options.evidence ?? []).length) throw new Error("Duplicate final delivery evidence IDs.");
+  const current = new Map((options.evidence ?? []).map(source => [source.id, source]));
+  if (current.size !== (options.evidence ?? []).length) throw new Error("Duplicate final delivery evidence IDs.");
+  const available = new Map([
+    ...(options.lineageEvidence ?? []).map(source => [source.id, source] as const),
+    ...current
+  ]);
   // The whole document is written in one call, so its sections cannot repeat each other. It reads the union of
-  // the sources the outline maps; an ID the outline invented is dropped and never read, and a section left with
-  // none (or a legacy section without a mapping) brings in all supplied evidence.
+  // the sources the outline maps, from this round's evidence or earlier rounds' lineage; an ID that is neither is
+  // dropped and never read, and a section left with none (or a legacy section without a mapping) brings in all
+  // of this round's supplied evidence (not the lineage).
   const sources = new Map<string, DeliveryEvidence>();
   for (const section of sections) {
     const named = [...new Set([...(section.evidenceIds ?? []), ...(section.dependencies ?? [])])];
     const ids = named.filter(id => available.has(id));
     const scoped =
       (section.evidenceIds === undefined && section.dependencies === undefined) || (named.length && !ids.length)
-        ? [...available.values()]
+        ? [...current.values()]
         : ids.map(id => available.get(id)!);
     for (const source of scoped) sources.set(source.id, source);
   }
   const documentSources = [...available.values()].filter(source => sources.has(source.id));
   const documentEvidence = documentSources.length
     ? documentSources.map(source => `Source ID: ${source.id}\n${source.detail}`).join("\n\n")
-    : available.size
+    : current.size
       ? NO_MAPPED_SOURCE
       : `${base.detail}\n\n${research.detail}`;
   const documentResearch = needsResearch ? research.detail : undefined;
@@ -307,7 +314,7 @@ export async function buildFinalDelivery(
     baseFingerprint,
     sections: sections.map(section => [section.heading, section.purpose, section.searchTask]),
     sources: documentSources.map(source => [source.id, source.hash]),
-    research: documentResearch ?? (!available.size ? research.detail : undefined)
+    research: documentResearch ?? (!current.size ? research.detail : undefined)
   });
   let draft: AiResult;
   let legacyDraft =
