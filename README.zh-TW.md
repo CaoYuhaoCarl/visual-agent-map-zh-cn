@@ -1,0 +1,43 @@
+# Visual Agent Map
+
+[English](README.md) · **繁體中文**
+
+### 在 Obsidian，用視覺化 AI 地圖探索問題
+
+**從一個問題出發，看見各個部分，再追你想探索的線索。** 建立視覺化研究地圖、讓 AIM 深入查證問題，或到 Coffee Tables 聊出新角度。想留下的內容都是 Vault 裡可編輯的 Markdown。
+
+[**開始使用**](#開始使用) · [查看 0.20.0 正式版](https://github.com/kevcltsai/visual-agent-map/releases/tag/0.20.0) · [安裝指南](INSTALL.md)
+
+![Obsidian 中的 Visual Agent Map 研究地圖範例，顯示相連的議題卡片](assets/screenshots/map-overview.png)
+
+## 三種探索方式
+
+- **視覺化地圖。** 把問題拆成議題，用 AI 深入任何一個分支。可以草擬多層大綱、先看過建議再決定是否加入，也能在背景同時研究多個議題。手動繪圖不需要 AI。
+- **AIM — Adaptive Inquiry Map。** 給它你的問題與背景，一次回答開頭的條件問題後就能放著跑。在地圖上看各子議題的進度，最後得到附有來源的文件。
+- **Coffee Tables。** 把未成形的想法帶來，與模擬的 AI 來賓對談，再回看觀察者整理的洞見。
+
+## 開始使用
+
+1. 到 **Obsidian 桌面版 → 設定 → 第三方外掛 → 瀏覽** 搜尋 **Visual Agent Map**，安裝並啟用。需要桌面版 Obsidian **1.13.7+**。
+2. 開啟內建範例，或建立自己的地圖。使用 AI 功能前，安裝並登入 [Codex CLI](https://developers.openai.com/codex/cli/) 或 [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview)，再到 VAM 設定檢查 CLI。
+3. 選擇「**＋ 新增地圖 → 新增 AIM**」體驗 AIM。
+
+詳細設定、問題排除與已知限制，請見 [INSTALL.md](INSTALL.md)。
+
+## 貢獻檢查
+
+- `npm run verify` 與 CI 執行同一組檢查（lint、格式、測試、已提交產物）。
+- 執行 `git config core.hooksPath .githooks`，每次 push 前會自動跑。
+- 不要用 `--no-verify` 跳過。
+
+## 隱私
+
+VAM 不含遙測，也不儲存 API key。AI 任務會透過本機 CLI 將相關內容傳送至 OpenAI 或 Anthropic，可能使用帳號額度或產生費用。
+
+## 致謝與授權
+
+AIM 的研究方式參考 [MindSearch](https://github.com/InternLM/MindSearch) 與 [Chen 等人（2024）的論文](https://arxiv.org/abs/2407.20183)。VAM 為獨立實作；此標註不代表隸屬或獲得原專案背書。
+
+[回報問題](https://github.com/kevcltsai/visual-agent-map/issues) · [版本紀錄](CHANGELOG.md) · [AGPL-3.0-only](LICENSE)
+
+Copyright © 2026 Kevin Tsai

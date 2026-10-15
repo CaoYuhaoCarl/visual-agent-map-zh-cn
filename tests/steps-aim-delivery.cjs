@@ -77,6 +77,7 @@ function sharedTexts() {
   };
 }
 
+// The delivery-writing pins changed once on 2026-10-15: section headings moved from ## to ### (note layout P1-b).
 const PINS = {
   "repair": {
     "state-question": "ca17c00fc8c08294586e95faacae9669bd68b7fa069ef037471a5b26abffcae8",
@@ -92,23 +93,23 @@ const PINS = {
     "mapped": [
       "2d23df4380f710d2b0a91980994fb804ab0d9688996d867100307f01acd3e2f7",
       "9b8289f160e654474dab0a4adf82819e9e46fc1d361cbac1fc5d2371353dd905",
-      "cbbf3738adcb2fd929e3cd206594791da7050dfe934e622d2c93ab79208d72b1",
+      "c5e331768f3698b84d9ac4ecbee5bb4f310f038d24f16020681bec887796b237",
       "e4fb1604b7a3c470fdf61a5d097d9ac72d52328d6b9fc525937e6f3e895a710f"
     ],
     "unmapped": [
       "2d23df4380f710d2b0a91980994fb804ab0d9688996d867100307f01acd3e2f7",
-      "ca6780daad513ba06adbec8abd565f554dd54e8015712de124173662af7b19f0",
+      "1f7db522df8261ec8a7dc05c8191c004924780ac473de16677470a985ca62f1d",
       "edc8f32d42f6d481ae9097ff102d838ed58e689b43f27c6b203074fb46ff6b04"
     ],
     "legacy": [
       "dae96d085c24a06cf4bc9f80f4b71cdaccad5d958cd1eeda80c06ed45c6a36e7",
       "abf7d0a43a99d0bf7dbdf023790127ca200a3d6d82a93a2833b0ee55d8325d09",
-      "29c8babf8a8b6c1d5dd5efa60a7762bf0af16f1cd15db10d8db558f1561751d4",
+      "15426d0922cfeb2a0556ff58130c61894c503635f16c63fc0ac977cab89d02af",
       "7f8097ab6624c7837dc6d70882f38248dcfe619d0411c542927e92eecb975ef8"
     ],
     "reused": [
       "dae96d085c24a06cf4bc9f80f4b71cdaccad5d958cd1eeda80c06ed45c6a36e7",
-      "1a441e2e16d006e080c2025ebd8ec761ac15dffafaf6ef4b7fd3fc89edea664f",
+      "48b7812fc4a4e6346e13c1e8b930d98e1411b9ca04b83bbb4fcc625938da2bef",
       "6f9bad8888b16e29fa4e7e5eeed285587282f905782802e0c414531688d208bb"
     ]
   },

@@ -1529,7 +1529,7 @@ integrationTest('collapse control: sets the flags, fits the map and is a single 
   view.autoLayout(); await view.pending;
   assert.equal(saved, writes + 1, 'one write'); assert.equal(at('b').x, at('a').x + 360, 'auto layout re-arranges the map'); assert.notEqual(at('c').y, -9999);
   const source = fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8');
-  assert.match(source, /n\.collapsed = !n\.collapsed;\s*map\.nodes = arrangeMap\(map\.nodes\);/, 'the card collapse button re-arranges in the same change');
+  assert.match(source, /n\.collapsed = !n\.collapsed;\s*map\.nodes = arrangeMap\(map\.nodes(?:, supersededAimNodeIds\(map\))?\);/, 'the card collapse button re-arranges in the same change');
 });
 integrationTest('Layout menu offers collapse all, expand all, levels 1 to 3, a separator and Auto layout', () => {
   const menus = [];
@@ -1669,4 +1669,20 @@ integrationTest('card layout never depends on hover, focus or selection: state r
     }
   }
   assert.deepEqual(offenders, [], 'a hover/focus/selection rule changes card layout');
+});
+integrationTest('AIM canvas treats superseded interim results as hidden (behaviour + source wiring)', () => {
+  const { VisualAgentMapView } = load('main.ts', { obsidian });
+  const q = node('Q'), r = node('R', 'Q'), s1 = node('S1', 'R'), s2 = node('S2', 'R'), c = node('C', 'R');
+  q.aimKind = 'question'; r.aimKind = 'research'; s1.aimKind = s2.aimKind = 'synthesis'; c.aimKind = 'conclusion';
+  s1.y = 10; s2.y = 20; c.y = 30;
+  const doc = map([q, r, s1, s2, c]);
+  const res = (nodeId, kind) => ({ resultId: nodeId, runId: 'run', attemptId: 'a', nodeId, notePath: `${nodeId}.md`, version: 1, kind });
+  doc.aim = { version: 1, branches: [{ id: 'b', questionNodeId: 'Q', parentBranchId: null, answerSnapshot: { selections: [], freeText: '' }, inputSnapshot: { topic: 't', conditions: {}, upstreamResults: [] }, createdAt: '2026-10-09T00:00:00.000Z', results: [res('S1', 'synthesis'), res('S2', 'synthesis'), res('C', 'conclusion')] }], runs: [], pendingCommits: [] };
+  const view = new VisualAgentMapView({ app: {} }, { pendingSuggestions: new Map(), expansionBatches: new Map() });
+  view.map = doc;
+  assert.deepEqual(view.canvasNodes().map(item => item.id), ['Q', 'R', 'C']);
+  assert.equal(view.keyboardNeighbor(r, 'ArrowRight').id, 'C', 'keyboard skips hidden nodes');
+  const source = fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8');
+  assert.equal((source.match(/visibleNodes\(this\.map/g) ?? []).length, 1, 'only canvasNodes() calls visibleNodes on the map');
+  assert.equal((source.match(/arrangeMap\(map\.nodes\)/g) ?? []).length, 0, 'every arrangeMap call passes the hidden set');
 });

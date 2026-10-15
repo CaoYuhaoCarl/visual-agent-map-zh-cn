@@ -4,7 +4,7 @@ import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdir
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { canonicalVault, prepareTestVault, updateCurrentTestVault, verifyTestVault, root, main, sourceFingerprint, assertSourceUnchanged, prepareObsidianProfile, selectObsidianRuntime } from '../scripts/test-harness.mjs';
+import { canonicalVault, prepareTestVault, updateCurrentTestVault, verifyTestVault, root, main, sourceFingerprint, assertSourceUnchanged, prepareObsidianProfile, selectObsidianRuntime, sessionVault, sessionVaultPrefix } from '../scripts/test-harness.mjs';
 
 function environment(t) {
   const folder = mkdtempSync(join(tmpdir(), 'vam-harness-test-'));
@@ -200,4 +200,21 @@ test('reset never replaces the owner testing vault; it is only updated in place'
   for (const profile of ['normal', 'onboarding', 'reinstall'])
     assert.throws(() => prepareTestVault({ vault: canonicalVault, profile }), /owner's testing vault/);
   assert.deepEqual(readdirSync(canonicalVault).sort(), before);
+});
+
+test('session vaults get their own path, refuse reserved names and bad options before building', () => {
+  assert.equal(sessionVault('md-rich-syntax'), `${sessionVaultPrefix}md-rich-syntax`);
+  for (const name of ['', 'Upper', 'has space', '../escape', '-lead', 'x'.repeat(33)]) assert.throws(() => sessionVault(name), /lowercase letters/);
+  for (const name of ['current', 'smoke']) assert.throws(() => sessionVault(name), /reserved/);
+  assert.throws(() => main(['--session=current']), /reserved/);
+  assert.throws(() => main(['--session=a', '--ui']), /cannot be combined/);
+  assert.throws(() => main(['--session=a', '--update-current']), /cannot be combined/);
+});
+
+test('session app profiles disable the CLI so a shared CLI socket never drives the wrong vault', t => {
+  const { vault } = environment(t);
+  prepareTestVault({ vault });
+  const config = JSON.parse(readFileSync(join(prepareObsidianProfile(vault, undefined, { cli: false }), 'obsidian.json')));
+  assert.equal(config.cli, false);
+  assert.equal(Object.keys(config.vaults).length, 1);
 });

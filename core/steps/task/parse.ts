@@ -1,4 +1,5 @@
 import { foldAimContract, type AimContract } from "../../../ai/aim-contracts";
+import { neutralizeUnsafeMermaid } from "../../../ai/mermaid-safety";
 import { truncateSummary } from "../../../ai/result-utils";
 import { SEARCH_STATUSES, type AiResult, type SearchStatus } from "../../../ai/types";
 import { t, translate, type UiLanguage } from "../../../i18n";
@@ -128,7 +129,8 @@ export function parseAiResult(
       : undefined;
   const result: AiResult = {
     summary: truncateSummary(parsed.summary),
-    detail: parsed.detail.trim(),
+    // Checked before anything is written: an unsafe mermaid block is kept as plain code, never rendered.
+    detail: neutralizeUnsafeMermaid(parsed.detail.trim()),
     suggestions,
     visualReferences,
     ...(searchStatus ? { searchStatus } : {})

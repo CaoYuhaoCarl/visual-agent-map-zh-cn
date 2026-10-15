@@ -9,7 +9,7 @@ export default defineConfig([
     languageOptions: {
       parserOptions: {
         projectService: {
-          allowDefaultProject: ["eslint.config.*", "esbuild.config.*", "scripts/*.mjs"]
+          allowDefaultProject: ["eslint.config.*", "esbuild.config.*"]
         }
       }
     }
@@ -38,6 +38,13 @@ export default defineConfig([
     },
   },
   {
+    // Node-side tooling (*.mjs) is linted without type information: type-aware
+    // linting would need every script in the default project, which exceeds
+    // projectService's default file-count limit.
+    files: ["**/*.mjs"],
+    extends: [tseslint.configs.disableTypeChecked]
+  },
+  {
     files: ["package.json"],
     plugins: { depend },
     rules: { "depend/ban-dependencies": "error" },
@@ -47,6 +54,12 @@ export default defineConfig([
     // directory. They do not address a user's existing Vault configuration.
     files: ["scripts/create-onboarding-test-vault.mjs", "scripts/test-harness.mjs"],
     rules: { "obsidianmd/hardcoded-config-path": "off" }
+  },
+  {
+    // Node-side CDP client for the disposable test Vault; it talks to a local
+    // debugging port, not through Obsidian's requestUrl.
+    files: ["scripts/obsidian-cdp.mjs"],
+    rules: { "no-restricted-globals": "off" }
   },
   {
     ignores: [

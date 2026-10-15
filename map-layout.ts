@@ -1,4 +1,4 @@
-import type { MapNode } from "./map-model";
+import { parentIdsForNode, type MapNode } from "./map-model";
 
 const COLUMN = 360;
 const ROW = 220;
@@ -12,30 +12,75 @@ function positions(
   top: number,
   folded = false
 ): Map<string, { x: number; y: number }> {
+  const ids = new Map(nodes.map(node => [node.id, node]));
   const children = new Map<string, MapNode[]>();
+  const joins = new Map<string, MapNode[]>();
+  const add = (map: Map<string, MapNode[]>, key: string, node: MapNode) =>
+    map.set(key, [...(map.get(key) ?? []), node]);
   for (const node of nodes) {
     if (!node.parentId) continue;
-    const list = children.get(node.parentId) ?? [];
-    list.push(node);
-    children.set(node.parentId, list);
+    // A conclusion converging on sibling sources joins after all of them instead of hanging under one.
+    const sources =
+      node.aimKind !== "question" && node.aimConvergesFromNodeIds?.length
+        ? parentIdsForNode(node).map(id => ids.get(id))
+        : [];
+    const anchor = sources[0]?.parentId;
+    if (anchor && ids.has(anchor) && sources.every(source => source && source.parentId === anchor))
+      add(joins, anchor, node);
+    else add(children, node.parentId, node);
   }
   const result = new Map<string, { x: number; y: number }>();
-  let row = 0;
-  const visit = (node: MapNode, depth: number): number => {
-    const descendants = folded && node.collapsed ? [] : (children.get(node.id) ?? []);
-    const childYs = descendants.map(child => visit(child, depth + 1));
-    const y = childYs.length ? (childYs[0] + childYs[childYs.length - 1]) / 2 : top + row++ * ROW;
-    result.set(node.id, { x: left + depth * COLUMN, y });
-    return y;
+  const kidsOf = (node: MapNode) => (folded && node.collapsed ? [] : (children.get(node.id) ?? []));
+  const joinsOf = (node: MapNode) =>
+    folded && node.collapsed
+      ? []
+      : (joins.get(node.id) ?? []).filter(join => !(folded && ids.get(join.parentId!)?.collapsed));
+  const sum = (list: number[]) => list.reduce((total, value) => total + value, 0);
+  const heights = new Map<string, number>();
+  const spans = new Map<string, number>();
+  const measure = (node: MapNode): void => {
+    const kids = kidsOf(node);
+    const extra = joinsOf(node);
+    for (const child of [...kids, ...extra]) measure(child);
+    heights.set(
+      node.id,
+      Math.max(1, sum(kids.map(kid => heights.get(kid.id)!)), sum(extra.map(join => heights.get(join.id)!)))
+    );
+    spans.set(node.id, 1 + Math.max(0, ...kids.map(kid => spans.get(kid.id)!)));
   };
-  for (const root of roots) visit(root, 0);
+  const place = (node: MapNode, depth: number, topRow: number): number => {
+    const kids = kidsOf(node);
+    const extra = joinsOf(node);
+    const height = heights.get(node.id)!;
+    const stack = (list: MapNode[], column: number) => {
+      let next = topRow + (height - sum(list.map(item => heights.get(item.id)!))) / 2;
+      return list.map(item => {
+        const y = place(item, column, next);
+        next += heights.get(item.id)!;
+        return y;
+      });
+    };
+    const kidYs = stack(kids, depth + 1);
+    const joinYs = stack(extra, depth + spans.get(node.id)!);
+    const ys = kidYs.length ? kidYs : joinYs;
+    const row = ys.length ? (ys[0] + ys[ys.length - 1]) / 2 : topRow;
+    result.set(node.id, { x: left + depth * COLUMN, y: top + row * ROW });
+    return row;
+  };
+  let row = 0;
+  for (const root of roots) {
+    measure(root);
+    place(root, 0, row);
+    row += heights.get(root.id)!;
+  }
   return result;
 }
 
 /** Lays out what is on screen: a collapsed topic is a leaf, and its hidden branch keeps its coordinates until it is shown again. */
-export function arrangeMap(nodes: MapNode[]): MapNode[] {
-  const roots = nodes.filter(node => !node.parentId);
-  const placed = positions(nodes, roots, 80, 80, true);
+export function arrangeMap(nodes: MapNode[], hidden?: Set<string>): MapNode[] {
+  const laidOut = hidden?.size ? nodes.filter(node => !hidden.has(node.id)) : nodes;
+  const roots = laidOut.filter(node => !node.parentId);
+  const placed = positions(laidOut, roots, 80, 80, true);
   return nodes.map(node => ({ ...node, ...placed.get(node.id) }));
 }
 

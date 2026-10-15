@@ -1065,6 +1065,15 @@ integrationTest('multi research runs selected topics in the background with the 
   await until(() => h.plugin.expansionBatches.get(h.key).status === 'completed');
   assert.equal(h.plugin.activeTasks.has(h.key), false);
 });
+integrationTest('multi research without an explicit language answers each topic in its own title language', async () => {
+  const h = await multiResearchHarness(['要如何在陽台養香草', 'Balcony herbs']);
+  h.view.multiSelected = new Set(h.nodes.map(n => n.id));
+  await h.view.startMultiResearch(h.request); await until(() => h.runs.length === 2);
+  assert.equal(h.runs.find(r => r.title === '要如何在陽台養香草').options.outputLanguage, 'zh-TW');
+  assert.equal(h.runs.find(r => r.title === 'Balcony herbs').options.outputLanguage, 'en');
+  assert.match(h.runs.find(r => r.title === '要如何在陽台養香草').options.task, /[\u4e00-\u9fff]/);
+  h.finish.get('要如何在陽台養香草')(); h.finish.get('Balcony herbs')();
+});
 integrationTest('multi research with image search runs each topic with auto visual mode', async () => {
   const h = await multiResearchHarness(['Img']);
   h.view.multiSelected = new Set([h.nodes[0].id]);

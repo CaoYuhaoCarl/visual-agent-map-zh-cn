@@ -10,13 +10,35 @@ Follow the phase task exactly. Do not impose a fixed heading template or turn pl
 
 Write the requested reader-facing deliverable from supplied context and evidence. Follow the task's requested structure and preserve attribution and uncertainty.
 
+The detail is rendered in Obsidian. Choose the syntax below by the shape of the content; do not write the whole page as paragraphs or bullet lists:
+
+- Core conclusion or key definition: a `> [!summary]` callout, 1–3 sentences; add the reasons or conditions the summary leaves out instead of repeating the summary word for word.
+- Risks, common misconceptions, limitations: `> [!warning]`.
+- Assumptions to verify or open questions: `> [!question]`.
+- Practical tips or examples: `> [!tip]` or `> [!example]`.
+- Two or more options, or two or more comparison dimensions: a Markdown table.
+- A process, cause and effect, or dependencies between steps: one ```mermaid``` flowchart, at most 12 nodes; use TD (top-down) by default and LR only for a short chain of at most 4 nodes, so the diagram is not too wide to read.
+- Change or stages over time: a ```mermaid``` timeline.
+- What the user should do next, learning actions: a `- [ ]` task list.
+- The one or two most important terms on the page: `==highlight==`, at most one per section.
+
+Rules:
+1. When no syntax fits the content's shape, write a plain paragraph. Do not force syntax for looks; every syntax must make the content easier to understand.
+2. Use at most two kinds of special syntax per section; do not nest callouts.
+3. Mermaid uses only text nodes and arrows; never use click, HTML tags, %%{}%% configuration, URLs, images or style directives. Wrap node text in double quotes when it contains parentheses or punctuation.
+4. A section with nothing to add says only "No new content this time", without a callout.
+5. Do not output syntax Obsidian does not support (for example :::, <details>, custom HTML).
+6. In a section with a required item count, write the items as a top-level list or #### subheadings, not inside a callout or table.
+7. The detail is for the reader: do not write internal IDs (of nodes, evidence, sources or reports), review comments, or remarks about the draft or the research process itself.
+8. Headings in the detail start at level-three headings (###) and go down one level at a time (####); never skip a level or use # or ##.
+
 Do not use web search in this local-only phase.
 
 Current task:
 Use the original goal, known user conditions and outcome preferences. Resolve important contradictions before concluding. Preserve evidence attribution and uncertainty. Do only the current phase; a research report is not the final deliverable.
 
 <!-- aim-phase: delivery-writing -->
-Write the complete final document in one piece, following this outline in order and using each section heading as a ## heading: [{"heading":"Execution plan","purpose":"Complete the original goal","searchTask":"Find verified runnable examples"}].
+Write the complete final document in one piece, following this outline in order and using each section heading as a ### heading: [{"heading":"Execution plan","purpose":"Complete the original goal","searchTask":"Find verified runnable examples"}].
 Known goal and user conditions:
 {"goal":"Snapshot goal","background":"## User-provided context\n\nInitial clarification: known background; unknown constraints may be explored conditionally.\n\n## User-provided outcome expectation\n\nWhat would you like from this exploration?: Get an actionable result or next steps\nPresentation preferences (optional): Steps, Table","conditions":{"What is your intended outcome?":"Executable project — Specific condition 1","Which constraint matters at stage 2?":"Time constraint — Specific condition 2","Which constraint matters at stage 3?":"Time constraint — Specific condition 3"},"currentQuestion":"Which constraint matters at stage 3?","currentAnswer":"{\"selectedOptions\":[\"Time constraint\"],\"freeText\":\"Specific condition 3\"}","earlierAnswers":["User answer to What is your intended outcome?: {\"selections\":[\"Executable project\"],\"freeText\":\"Specific condition 1\"}","User answer to Which constraint matters at stage 2?: {\"selections\":[\"Time constraint\"],\"freeText\":\"Specific condition 2\"}"],"model":"gpt-6-luna","reasoning":"low"}
 Evidence (cite the source URLs or names where used; never show internal source IDs to the reader):

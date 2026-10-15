@@ -8,6 +8,7 @@ import {
 import { buildPreparedTaskContext, estimateTokens } from "../ai/context-builder";
 import { effectiveReasoningLevel, normalizeReasoningLevel } from "../ai/task-policy";
 import { canonicalDetail } from "../ai/result-utils";
+import { normalizeDetailHeadings } from "../ai/markdown-blocks";
 import { checkCounts, countIssueText } from "../ai/detail-templates";
 import type { AiResult, ReasoningLevel, TaskContext } from "../ai/types";
 import { translate, t, type UiLanguage } from "../i18n";
@@ -21,6 +22,7 @@ import { referenceTask } from "./steps/reference/step";
 import { taskResponseShape } from "./steps/task/schemas";
 import { repairCounts, sourceRegistry } from "./steps/task/fragments";
 import { createTaskStep, taskStepId, type TaskStepRole } from "./steps/task/step";
+import { readerFacingDetail } from "./steps/task/render";
 
 export { extractJsonObject } from "./steps/task/parse";
 
@@ -189,6 +191,7 @@ export class AiTaskService {
       });
       stage = t("log.stage_parsing_reply");
       let result = step.parse(raw);
+      if (readerFacingDetail(input)) result.detail = normalizeDetailHeadings(result.detail);
       if (referenceGroups.length) result.summary = resolveSummaryReferences(result.summary, referenceGroups);
       // Runs without sources too, so a source footnote kept from the previous detail keeps its definition.
       if (referenceGroups.length || /\[\^/.test(result.detail))
@@ -286,7 +289,8 @@ export class AiTaskService {
             mode: "task",
             researchMode: "local",
             researchDepth: "fast",
-            visualMode: "off"
+            visualMode: "off",
+            intermediateDetail: true
           },
           model,
           reasoning,

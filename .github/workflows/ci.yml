@@ -8,17 +8,12 @@ on:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run lint
-      - run: npm run format:check
-      - run: npm test
-      - name: Verify generated artifacts are committed
-        run: git diff --exit-code -- main.js samples/taiwan-travel/compiled.json
-      - run: npm run check:artifacts
+      - run: npm run verify

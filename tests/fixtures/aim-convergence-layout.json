@@ -1,0 +1,325 @@
+[
+ {
+  "id": "n0",
+  "parentId": null,
+  "aimKind": "topic",
+  "collapsed": false
+ },
+ {
+  "id": "n1",
+  "parentId": "n0",
+  "aimKind": "research",
+  "collapsed": false
+ },
+ {
+  "id": "n2",
+  "parentId": "n0",
+  "aimKind": "research",
+  "collapsed": false
+ },
+ {
+  "id": "n3",
+  "parentId": "n0",
+  "aimKind": "research",
+  "collapsed": false
+ },
+ {
+  "id": "n4",
+  "parentId": "n3",
+  "aimKind": "conclusion",
+  "collapsed": false,
+  "aimConvergesFromNodeIds": [
+   "n1",
+   "n2",
+   "n3"
+  ]
+ },
+ {
+  "id": "n5",
+  "parentId": "n4",
+  "aimKind": "question",
+  "collapsed": false
+ },
+ {
+  "id": "n6",
+  "parentId": "n5",
+  "aimKind": "research",
+  "collapsed": false
+ },
+ {
+  "id": "n7",
+  "parentId": "n5",
+  "aimKind": "research",
+  "collapsed": false
+ },
+ {
+  "id": "n8",
+  "parentId": "n5",
+  "aimKind": "research",
+  "collapsed": false
+ },
+ {
+  "id": "n9",
+  "parentId": "n7",
+  "aimKind": "conclusion",
+  "collapsed": false,
+  "aimConvergesFromNodeIds": [
+   "n8",
+   "n6",
+   "n7"
+  ]
+ },
+ {
+  "id": "n10",
+  "parentId": "n9",
+  "aimKind": "question",
+  "collapsed": false
+ },
+ {
+  "id": "n11",
+  "parentId": "n10",
+  "aimKind": "research",
+  "collapsed": false
+ },
+ {
+  "id": "n12",
+  "parentId": "n10",
+  "aimKind": "research",
+  "collapsed": false
+ },
+ {
+  "id": "n13",
+  "parentId": "n10",
+  "aimKind": "research",
+  "collapsed": false
+ },
+ {
+  "id": "n14",
+  "parentId": "n10",
+  "aimKind": "research",
+  "collapsed": false
+ },
+ {
+  "id": "n15",
+  "parentId": "n12",
+  "aimKind": "conclusion",
+  "collapsed": false,
+  "aimConvergesFromNodeIds": [
+   "n13",
+   "n11",
+   "n14",
+   "n12"
+  ]
+ },
+ {
+  "id": "n16",
+  "parentId": "n15",
+  "aimKind": "question",
+  "collapsed": false
+ },
+ {
+  "id": "n17",
+  "parentId": "n16",
+  "aimKind": "research",
+  "collapsed": false
+ },
+ {
+  "id": "n18",
+  "parentId": "n16",
+  "aimKind": "research",
+  "collapsed": false
+ },
+ {
+  "id": "n19",
+  "parentId": "n16",
+  "aimKind": "research",
+  "collapsed": false
+ },
+ {
+  "id": "n20",
+  "parentId": "n19",
+  "aimKind": "conclusion",
+  "collapsed": false,
+  "aimConvergesFromNodeIds": [
+   "n17",
+   "n18",
+   "n19"
+  ]
+ },
+ {
+  "id": "n21",
+  "parentId": "n20",
+  "aimKind": "question",
+  "collapsed": false
+ },
+ {
+  "id": "n22",
+  "parentId": "n21",
+  "aimKind": "research",
+  "collapsed": false
+ },
+ {
+  "id": "n23",
+  "parentId": "n21",
+  "aimKind": "research",
+  "collapsed": false
+ },
+ {
+  "id": "n24",
+  "parentId": "n21",
+  "aimKind": "research",
+  "collapsed": false
+ },
+ {
+  "id": "n25",
+  "parentId": "n23",
+  "aimKind": "conclusion",
+  "collapsed": false,
+  "aimConvergesFromNodeIds": [
+   "n22",
+   "n24",
+   "n23"
+  ]
+ },
+ {
+  "id": "n26",
+  "parentId": "n25",
+  "aimKind": "question",
+  "collapsed": false
+ },
+ {
+  "id": "n27",
+  "parentId": "n26",
+  "aimKind": "research",
+  "collapsed": false
+ },
+ {
+  "id": "n28",
+  "parentId": "n26",
+  "aimKind": "research",
+  "collapsed": false
+ },
+ {
+  "id": "n29",
+  "parentId": "n26",
+  "aimKind": "research",
+  "collapsed": false
+ },
+ {
+  "id": "n30",
+  "parentId": "n29",
+  "aimKind": "synthesis",
+  "collapsed": false,
+  "aimConvergesFromNodeIds": [
+   "n27",
+   "n28",
+   "n29"
+  ]
+ },
+ {
+  "id": "n31",
+  "parentId": "n29",
+  "aimKind": "synthesis",
+  "collapsed": false,
+  "aimConvergesFromNodeIds": [
+   "n27",
+   "n28",
+   "n29"
+  ]
+ },
+ {
+  "id": "n32",
+  "parentId": "n29",
+  "aimKind": "conclusion",
+  "collapsed": false,
+  "aimConvergesFromNodeIds": [
+   "n27",
+   "n28",
+   "n29"
+  ]
+ },
+ {
+  "id": "n33",
+  "parentId": "n32",
+  "aimKind": "question",
+  "collapsed": false
+ },
+ {
+  "id": "n34",
+  "parentId": "n33",
+  "aimKind": "research",
+  "collapsed": false
+ },
+ {
+  "id": "n35",
+  "parentId": "n33",
+  "aimKind": "research",
+  "collapsed": false
+ },
+ {
+  "id": "n36",
+  "parentId": "n33",
+  "aimKind": "research",
+  "collapsed": false
+ },
+ {
+  "id": "n37",
+  "parentId": "n33",
+  "aimKind": "research",
+  "collapsed": false
+ },
+ {
+  "id": "n38",
+  "parentId": "n33",
+  "aimKind": "research",
+  "collapsed": false
+ },
+ {
+  "id": "n39",
+  "parentId": "n38",
+  "aimKind": "conclusion",
+  "collapsed": false,
+  "aimConvergesFromNodeIds": [
+   "n34",
+   "n35",
+   "n36",
+   "n37",
+   "n38"
+  ]
+ },
+ {
+  "id": "n40",
+  "parentId": "n39",
+  "aimKind": "question",
+  "collapsed": false
+ },
+ {
+  "id": "n41",
+  "parentId": "n40",
+  "aimKind": "research",
+  "collapsed": false
+ },
+ {
+  "id": "n42",
+  "parentId": "n40",
+  "aimKind": "research",
+  "collapsed": false
+ },
+ {
+  "id": "n43",
+  "parentId": "n40",
+  "aimKind": "research",
+  "collapsed": false
+ },
+ {
+  "id": "n44",
+  "parentId": "n42",
+  "aimKind": "synthesis",
+  "collapsed": false,
+  "aimConvergesFromNodeIds": [
+   "n43",
+   "n41",
+   "n42"
+  ]
+ }
+]

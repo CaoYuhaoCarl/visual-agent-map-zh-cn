@@ -190,6 +190,20 @@ const REFERENCE_START = "<!-- visual-agent-map:references:start -->";
 const REFERENCE_END = "<!-- visual-agent-map:references:end -->";
 const DETAIL_START = "<!-- visual-agent-map:detail:start -->";
 const DETAIL_END = "<!-- visual-agent-map:detail:end -->";
+/**
+ * The AIM open-items marker of a conclusion note. It is saved right after the Detail block, so Detail holds only what
+ * the reader reads; `readNote` hands it back at the end of `detail`, where the AIM code and older notes keep it.
+ */
+const OPEN_ITEMS_MARKER = /\n*^<!--\s*aim-open-items\s+\[[^\n]*\]\s*-->[ \t]*$/m;
+function splitOpenItems(value: string): { text: string; marker: string } {
+  const match = OPEN_ITEMS_MARKER.exec(value);
+  return match
+    ? {
+        text: (value.slice(0, match.index) + value.slice(match.index + match[0].length)).trim(),
+        marker: match[0].trim()
+      }
+    : { text: value, marker: "" };
+}
 const NOTE_CSS_CLASS = "visual-agent-map-node";
 /**
  * Point every reference to a moved note at its new path: node paths and the AIM records that must name the same note
@@ -320,6 +334,50 @@ const placeholder = (language: NoteLanguage): string => translate(language, "det
 export const isPlaceholder = (value: string): boolean =>
   value === translate("zh-TW", "detail.no_conclusion_yet") || value === translate("en", "detail.no_conclusion_yet");
 const previewHeading = (language: NoteLanguage): NoteSection => translate(language, "detail.preview") as NoteSection;
+
+/**
+ * Preview and Prompt are written as collapsed callouts after Detail (`> [!info]- 預覽`, `> [!info]- Prompt`) so the
+ * note opens on the answer. Every read and write first turns these callouts back into the `## ` sections the rest
+ * of this module works with; `noteBody` writes them as callouts again. Older notes keep their `## ` sections.
+ */
+const CALLOUT_SECTION = /^> \[!info\][+-]? (預覽|Preview|Prompt)[ \t]*\r?$/;
+function decodeCalloutSections(content: string): string {
+  const lines = content.split("\n");
+  const code = fencedLines(lines);
+  const out: string[] = [];
+  let inDetail = false;
+  // Thinking Origin is quoted source text: a line there that looks like a callout title is still source text.
+  let origin: "none" | "heading" | "quote" = "none";
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
+    if (line.trim() === DETAIL_START) inDetail = true;
+    if (line.trim() === DETAIL_END) inDetail = false;
+    if (/^## Thinking Origin\s*$/.test(line)) origin = "heading";
+    else if (origin === "heading" && line.startsWith(">")) origin = "quote";
+    else if (origin === "heading" && line.trim()) origin = "none";
+    else if (origin === "quote" && !line.startsWith(">")) origin = "none";
+    const callout = inDetail || code[index] || origin !== "none" ? null : CALLOUT_SECTION.exec(line);
+    if (!callout) {
+      out.push(line);
+      continue;
+    }
+    // A callout ends at the first line without ">" or at the next Preview/Prompt callout title.
+    let end = index + 1;
+    while (end < lines.length && lines[end].startsWith(">") && !CALLOUT_SECTION.test(lines[end])) end++;
+    out.push(
+      `## ${callout[1]}`,
+      "",
+      ...lines.slice(index + 1, end).map(item => item.replace(/^> ?/, "").replace(/\r$/, "")),
+      ""
+    );
+    index = end - 1;
+  }
+  return out.join("\n");
+}
+function calloutSection(title: string, value: string): string {
+  const lines = value.trim().split("\n");
+  return [`> [!info]- ${title}`, ...lines.map(line => (line ? `> ${line}` : ">"))].join("\n");
+}
 const previewSection = (content: string): string =>
   [...new Set([section(content, "Preview"), section(content, "預覽")].filter(Boolean))].join("\n\n");
 
@@ -337,6 +395,17 @@ function sectionBounds(content: string, heading: NoteSection): { start: number; 
   const reference = content.indexOf(REFERENCE_START, start);
   const candidates = [next ? start + next.index : content.length, reference >= 0 ? reference : content.length];
   return { start, end: Math.min(...candidates) };
+}
+
+/** Detail as the app uses it: the Detail block, plus the open-items marker saved after it. */
+function detailWithOpenItems(content: string): string {
+  const detail = section(content, "Detail");
+  if (splitOpenItems(detail).marker) return detail;
+  const end = content.indexOf(DETAIL_END);
+  const after = end >= 0 ? content.slice(end + DETAIL_END.length) : "";
+  const next = after.search(/^## /m);
+  const { marker } = splitOpenItems(next >= 0 ? after.slice(0, next) : after);
+  return marker ? `${detail}\n\n${marker}` : detail;
 }
 
 function section(content: string, heading: NoteSection): string {
@@ -465,17 +534,38 @@ function noteBody(
   detail = "",
   visualReferences = "",
   newFindings = "",
-  leftover = ""
+  leftover = "",
+  layout: "answer-first" | "legacy" = "answer-first"
 ): string {
-  const detailBlock = `${DETAIL_START}\n${detailWithVisualReferences(detail, visualReferences, standardTemplate(language))}\n${DETAIL_END}`;
+  if (layout === "legacy") {
+    const legacyBlock = `${DETAIL_START}\n${detailWithVisualReferences(detail, visualReferences, standardTemplate(language))}\n${DETAIL_END}`;
+    return (
+      [
+        `# ${title}`,
+        `## Current Summary\n\n${summary.trim() || placeholder(language)}`,
+        `## Prompt\n\n${prompt.trim()}`,
+        rules.trim() ? `## Rules\n\n${rules.trim()}` : "",
+        `## ${previewHeading(language)}\n\n${preview.trim()}`,
+        `## Detail\n\n${legacyBlock}`,
+        newFindings.trim() ? `## Working Findings\n\n${newFindings.trim()}` : "",
+        leftover.trim()
+      ]
+        .filter(Boolean)
+        .join("\n\n") + "\n"
+    );
+  }
+  const { text: readerDetail, marker } = splitOpenItems(detail);
+  const detailBlock = `${DETAIL_START}\n${detailWithVisualReferences(readerDetail, visualReferences, standardTemplate(language))}\n${DETAIL_END}${marker ? `\n\n${marker}` : ""}`;
+  // The answer comes first: summary, then Detail; Preview and the task text follow as collapsed callouts, and an empty
+  // (or placeholder) Preview and an empty Prompt are left out. Whether Preview was initialized stays in frontmatter.
   return (
     [
       `# ${title}`,
       `## Current Summary\n\n${summary.trim() || placeholder(language)}`,
-      `## Prompt\n\n${prompt.trim()}`,
-      rules.trim() ? `## Rules\n\n${rules.trim()}` : "",
-      `## ${previewHeading(language)}\n\n${preview.trim()}`,
       `## Detail\n\n${detailBlock}`,
+      preview.trim() && !isPlaceholder(preview.trim()) ? calloutSection(previewHeading(language), preview) : "",
+      prompt.trim() ? calloutSection("Prompt", prompt) : "",
+      rules.trim() ? `## Rules\n\n${rules.trim()}` : "",
       newFindings.trim() ? `## Working Findings\n\n${newFindings.trim()}` : "",
       leftover.trim()
     ]
@@ -504,6 +594,9 @@ function normalizeBodyOrder(
   );
   const newFindings = section(clean, "Working Findings") || section(clean, "New Findings");
   let leftover = clean.replace(/^# .*$(?:\r?\n)*/m, "");
+  // An open-items marker saved after the Detail block is left over once Detail is removed; it goes back beside Detail.
+  const openItems = splitOpenItems(leftover);
+  leftover = openItems.text;
   for (const heading of [
     "Current Summary",
     "Prompt",
@@ -516,7 +609,24 @@ function normalizeBodyOrder(
     "New Findings"
   ] as NoteSection[])
     leftover = removeSection(leftover, heading);
-  return noteBody(title, summary, language, prompt, rules, preview, detail, "", newFindings, leftover);
+  const withMarker = openItems.marker && !splitOpenItems(detail).marker ? `${detail}\n\n${openItems.marker}` : detail;
+  // A note written before the answer-first layout (its Prompt sits above Detail) keeps its layout, so a write that
+  // does not change its content leaves it byte-identical; new notes use the answer-first layout.
+  const detailAt = clean.search(/^## Detail\s*$/m);
+  const legacy = /^## Prompt\s*$/m.test(detailAt >= 0 ? clean.slice(0, detailAt) : clean);
+  return noteBody(
+    title,
+    summary,
+    language,
+    prompt,
+    rules,
+    preview,
+    withMarker,
+    "",
+    newFindings,
+    leftover,
+    legacy ? "legacy" : "answer-first"
+  );
 }
 
 const REFERENCE_LABELS = ["所屬主題", "所屬心智圖", "母議題", "子議題", "來源議題", "狀態"];
@@ -557,8 +667,8 @@ function derivedLabelLanguage(content: string, fm: Record<string, unknown>): Not
       if (label && REFERENCE_LABELS.includes(label)) return "zh-TW";
       if (label && ENGLISH_REFERENCE_LABELS.includes(label)) return "en";
     }
-  if (/^## 預覽[ \t]*$/m.test(content)) return "zh-TW";
-  if (/^## Preview[ \t]*$/m.test(content)) return "en";
+  if (/^(?:## |> \[!info\][+-]? )預覽[ \t]*$/m.test(content)) return "zh-TW";
+  if (/^(?:## |> \[!info\][+-]? )Preview[ \t]*$/m.test(content)) return "en";
   const summary = section(content, "Current Summary");
   if (summary === placeholder("zh-TW")) return "zh-TW";
   if (summary === placeholder("en")) return "en";
@@ -753,7 +863,7 @@ export class Repository {
 
   async readNote(path: string): Promise<Note> {
     const file = this.file(path),
-      content = upgradeLegacyAimText(await this.app.vault.read(file)),
+      content = decodeCalloutSections(upgradeLegacyAimText(await this.app.vault.read(file))),
       fm = frontmatter(content);
     const status = text(fm.status, "idea");
     const normalized = status === "review" || status === "accepted" ? "completed" : status;
@@ -767,7 +877,7 @@ export class Repository {
       summary: section(content, "Current Summary") || text(fm.summary, placeholder(this.settings.language)),
       prompt: section(content, "Prompt"),
       rules: section(content, "Rules"),
-      detail: section(content, "Detail"),
+      detail: detailWithOpenItems(content),
       thinkingOrigin: readThinkingOrigin(content),
       visualReferences: section(content, "Visual References"),
       newFindings: section(content, "Working Findings") || section(content, "New Findings"),
@@ -844,7 +954,7 @@ export class Repository {
       if (patch.sourcePaths !== undefined)
         patch.sourcePaths.length ? (fm["source-notes"] = patch.sourcePaths) : delete fm["source-notes"];
       fm.updated = new Date().toISOString();
-      let body = content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "");
+      let body = decodeCalloutSections(content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, ""));
       // AIM notes carry their content language; every other note keeps following the interface language.
       const textLanguage = options.contentLanguage ?? noteContentLanguage(fm) ?? language;
       if (options.contentLanguage !== undefined && noteContentLanguage(fm) === undefined)
@@ -858,7 +968,8 @@ export class Repository {
       if (patch.summary !== undefined) body = replaceSummarySection(body, patch.summary);
       if (patch.prompt !== undefined) body = replaceSection(body, "Prompt", patch.prompt);
       if (patch.rules !== undefined) body = replaceSection(body, "Rules", patch.rules);
-      if (patch.detail !== undefined) body = replaceSection(body, "Detail", patch.detail);
+      // A new detail carries its own open items, if any; the marker of the old one goes with it.
+      if (patch.detail !== undefined) body = replaceSection(splitOpenItems(body).text, "Detail", patch.detail);
       if (patch.thinkingOrigin !== undefined)
         body = replaceSection(body, "Thinking Origin", originMarkdown(patch.thinkingOrigin));
       if (patch.visualReferences !== undefined) {
@@ -1432,7 +1543,11 @@ export class Repository {
     const textLanguage = owner?.map.aim
       ? resolveAimContentLanguage(owner.map, language)
       : (noteContentLanguage(fm) ?? language);
-    let body = ensurePreview(content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, ""), language, textLanguage);
+    let body = ensurePreview(
+      decodeCalloutSections(content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "")),
+      language,
+      textLanguage
+    );
     if (isPlaceholder(text(fm.summary))) fm.summary = placeholder(textLanguage);
     const topicId = text(fm["topic-id"]),
       topic = topics.get(topicId);

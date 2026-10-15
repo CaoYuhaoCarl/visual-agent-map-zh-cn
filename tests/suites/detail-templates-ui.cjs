@@ -23,7 +23,7 @@ function harness(settings = {}) {
   const rows = () => all(modal.contentEl, i => i.cls === 'vam-template-row');
   const rowButtons = row => all(row, i => i.tag === 'button').map(b => b.text);
   const rowNames = () => rows().map(r => find(r, i => i.tag === 'strong').text);
-  const sections = () => all(modal.contentEl, i => i.cls === 'vam-template-section');
+  const sections = () => all(modal.contentEl, i => String(i.cls ?? '').split(' ').includes('vam-template-section'));
   const field = (row, label) => find(row, i => i['aria-label'] === label);
   const issueTexts = root => all(root, i => i.cls === 'vam-template-issue').map(i => i.text);
   const isOpen = row => Boolean(field(row, 'Section heading'));

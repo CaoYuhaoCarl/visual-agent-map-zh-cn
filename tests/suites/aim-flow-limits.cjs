@@ -238,7 +238,8 @@ integrationTest('AIM unattended: a delivery rejection only the user can close ke
     const final = await flow.reviewPlannerDecisionQuality(candidate, context, 'gpt-6-luna', 'low');
     assert.equal(final.decision, 'conclude', `gapKind=${gapKind}`);
     assert.deepEqual(plain(final.openItems.map(item => item.title)), ['Budget', 'Commute'], 'earlier assumptions and the new gap are both listed');
-    assert.match(final.detail, /\*\*Not yet verified:\*\* Commute\./, 'the delivered document states the gap');
+    assert.match(final.detail, /^> \[!warning\][^\n]*\n(?:>[^\n]*\n)*> - Commute$/m, 'the delivered document opens with a warning that lists the gap');
+    assert.ok(!/Only the user knows the commute|Not yet verified/.test(final.detail), 'the reviewer rationale stays out of the document');
     assert.ok(!/Draft pending|Delivered document/.test(final.detail), 'the written document, not the rejection text');
     assert.ok(!phases.includes('decision-quality-review'), 'no question is written');
     assert.equal(phases.filter(phase => phase === 'delivery-acceptance').length, 1, 'the document is written once');
@@ -492,13 +493,16 @@ async function deliveryRejected(limits) {
   return { outcome, saved, results, notes, attempts: saved.aim.runs.flatMap(run => run.attempts) };
 }
 integrationTest('AIM flow limits: with production limits a rejected final delivery at the budget publishes the written document with the gap stated and open', async () => {
+  // Reviewer findings can name evidence IDs; none reaches the document.
   const { readOpenItems } = load('experiences/aim/manual-flow.ts', { obsidian });
   for (const limits of [undefined, production.DEFAULT_AIM_FLOW_LIMITS]) {
     const { outcome, results, notes, attempts } = await deliveryRejected(limits);
     assert.equal(outcome.status, 'completed');
     assert.equal(results.filter(result => result.kind === 'conclusion').length, 1, 'one conclusion is published');
     const conclusion = notes.find(item => item.result.kind === 'conclusion').note;
-    assert.match(conclusion.detail, /\*\*Not yet verified:\*\* Verify claim\. A cited claim does not match its source\./, 'the rejected gap is stated in the document');
+    assert.match(conclusion.detail, /^> \[!warning\]/, 'the rejected document opens with a warning');
+    assert.match(conclusion.detail, /^> - Verify claim$/m, 'the warning lists what to fix');
+    assert.ok(!/A cited claim does not match its source|Not yet verified/.test(conclusion.detail), 'the reviewer rationale stays out of the document');
     assert.ok(!/Draft pending completion/.test(conclusion.detail), 'the written document, not the pending draft wrapper');
     assert.ok(readOpenItems(conclusion.detail).includes('Verify claim'), 'the gap is an open item');
     assert.ok(!notes.some(item => /profile=smoke/.test(item.note.detail)), 'production notes never carry the smoke label');

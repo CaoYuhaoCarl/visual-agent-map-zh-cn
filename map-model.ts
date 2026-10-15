@@ -354,6 +354,26 @@ export function visibleNodes(nodes: MapNode[]): MapNode[] {
   return nodes.filter(node => !hidden.has(node.id));
 }
 /**
+ * Interim "research gap" synthesis results the map no longer shows: a synthesis whose run later committed a conclusion
+ * in the same branch. Display only; a node that owns children is never hidden. Nothing is stored for this.
+ */
+export function supersededAimNodeIds(map: MapDocument): Set<string> {
+  const hidden = new Set<string>();
+  const parents = new Set(map.nodes.map(node => node.parentId).filter((id): id is string => !!id));
+  for (const branch of map.aim?.branches ?? []) {
+    branch.results.forEach((result, index) => {
+      if (result.kind !== "synthesis" || parents.has(result.nodeId)) return;
+      if (
+        branch.results.some(
+          (later, laterIndex) => laterIndex > index && later.runId === result.runId && later.kind === "conclusion"
+        )
+      )
+        hidden.add(result.nodeId);
+    });
+  }
+  return hidden;
+}
+/**
  * Sets every branch's collapsed flag at once. `shownLevels` is how many levels below the roots stay visible:
  * 0 shows only the roots, 2 shows children and grandchildren, and `null` expands everything. Leaves are left alone.
  */

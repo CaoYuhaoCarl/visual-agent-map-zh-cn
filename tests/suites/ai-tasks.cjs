@@ -82,7 +82,10 @@ test('hover helpers extract image and table from user notes markdown', () => {
 });
 integrationTest('new notes omit inactive rules and working findings; clearing legacy findings removes the section', async () => {
   const { repo, contents } = fixture(), n = await topicNote(repo, 'Direct write', 'a');
-  assert.match(contents.get(n.path), /## Prompt[\s\S]*## 預覽[\s\S]*## Detail/);
+  // Answer first: summary, Detail, then Preview; an empty Prompt is not written.
+  assert.match(contents.get(n.path), /## Current Summary[\s\S]*## Detail/);
+  assert.doesNotMatch(contents.get(n.path), /## 預覽|\[!info\]- 預覽/, 'an empty (placeholder) Preview is not written');
+  assert.doesNotMatch(contents.get(n.path), /## Prompt/);
   assert.doesNotMatch(contents.get(n.path), /## Rules/);
   assert.doesNotMatch(contents.get(n.path), /## Working Findings/);
   await repo.updateNote(n.path, { newFindings: 'Legacy finding' });

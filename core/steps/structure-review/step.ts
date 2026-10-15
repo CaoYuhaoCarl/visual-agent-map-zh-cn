@@ -26,6 +26,8 @@ export interface StructureReviewRequest {
   rootQuestion: string;
   nodes: StructureNode[];
   language: UiLanguage;
+  /** Language of the prompt and model output; defaults to `language`, which stays the interface language for errors. */
+  contentLanguage?: UiLanguage;
   model: string;
   reasoning: ReasoningLevel;
 }
@@ -279,7 +281,10 @@ export const structureReviewStep: StepDefinition<StructureReviewRequest, Structu
   version: 1,
   render: request =>
     renderTemplate(template, {
-      languageInstruction: renderTemplate(request.language === "zh-TW" ? languageZh : languageEn, {}),
+      languageInstruction: renderTemplate(
+        (request.contentLanguage ?? request.language) === "zh-TW" ? languageZh : languageEn,
+        {}
+      ),
       limit: String(STRUCTURE_REVIEW_MAX_SUGGESTIONS),
       question: JSON.stringify(request.rootQuestion),
       tree: JSON.stringify(

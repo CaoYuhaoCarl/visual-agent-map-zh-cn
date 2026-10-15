@@ -197,6 +197,8 @@ export type PlannerQualityContext = {
   reportDetail: string;
   evidenceIds?: readonly string[];
   deliveryEvidence?: import("./final-delivery").DeliveryEvidence[];
+  /** Earlier rounds' results the final document may read when the outline maps to them. */
+  lineageEvidence?: import("./final-delivery").DeliveryEvidence[];
   preclassifiedResearchTarget?: PlannerReview["researchTarget"];
   deliveryRecovery?: AimBranchRecord["deliveryRecovery"];
   saveDeliveryRecovery?: (

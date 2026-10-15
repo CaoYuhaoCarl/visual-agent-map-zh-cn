@@ -10,6 +10,7 @@ import {
   LABEL_TASK,
   LABEL_TOPIC,
   LOCAL_FIRST,
+  OBSIDIAN_FORMAT,
   REFERENCE_CITATIONS,
   ROLE,
   SOURCE_SAFETY,
@@ -99,6 +100,18 @@ const PHASE_RULES: Readonly<Record<string, FragmentPair>> = {
   "delivery-acceptance": pair(PhaseDeliveryAcceptanceZH, PhaseDeliveryAcceptanceEN)
 };
 
+/** Phases whose detail is saved as a note the reader opens: research reports and the final document. */
+const READER_FACING_PHASES: ReadonlySet<string> = new Set([
+  "subtopic-research",
+  "targeted-followup-research",
+  "delivery-writing"
+]);
+
+/** Whether an AIM request's detail is saved as a note the reader opens. */
+export function readerFacingAimPhase(phase: string | undefined): boolean {
+  return !!phase && READER_FACING_PHASES.has(phase);
+}
+
 export function aimPhase(task: string): string | undefined {
   return task.match(/<!--\s*aim-phase:\s*([a-z-]+)\s*-->/)?.[1];
 }
@@ -129,6 +142,7 @@ export function buildAimPrompt(context: TaskContext, language: UiLanguage): stri
     inLanguage(JSON_CONTRACT, language),
     context.toneText ? toneBlock(context.toneText, language) : "",
     phaseGuidance(phase, language, context.responseContract, !!context.aimContract),
+    readerFacingAimPhase(phase) ? inLanguage(OBSIDIAN_FORMAT, language) : "",
     context.researchMode === "local"
       ? inLanguage(WEB_SEARCH_OFF, language)
       : context.researchMode === "research"

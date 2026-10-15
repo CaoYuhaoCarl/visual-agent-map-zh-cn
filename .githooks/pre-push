@@ -1,0 +1,6 @@
+#!/bin/sh
+# Git exports GIT_DIR (and friends) to hooks. Tests that create throwaway repos would otherwise act on this
+# repository: `git init` there rewrote the shared config to core.bare=true. Let every nested git find its repo from cwd.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_PREFIX GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
+echo "pre-push: npm run verify"
+exec npm run verify

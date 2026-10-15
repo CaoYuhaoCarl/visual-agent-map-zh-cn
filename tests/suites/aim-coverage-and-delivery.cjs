@@ -346,11 +346,13 @@ integrationTest('coverage: interface en with a Chinese question runs every AIM s
     const raw = await subject.repo.app.vault.read(subject.repo.file(node.path));
     for (const english of ['No conclusion yet', 'Draft pending completion', 'Follow-up question after reviewing all saved research']) assert.ok(!raw.includes(english), `${node.path}: ${english}`);
   }
-  assert.ok((await subject.repo.app.vault.read(subject.repo.file(subject.created.root.path))).includes('尚未形成結論'));
+  assert.ok(!(await subject.repo.app.vault.read(subject.repo.file(subject.created.root.path))).includes('No conclusion yet'));
   const raws = await Promise.all(saved.nodes.map(node => subject.repo.app.vault.read(subject.repo.file(node.path))));
   assert.ok(raws.some(raw => raw.includes('審閱所有已存研究')));
   for (const english of ['## User-provided context', '## Interim result', '## Supporting research', '## Source boundary', '## Answer options', 'Rationale:', 'Stop reason:', 'Question · ', 'Research synthesis', 'Research conclusion', 'Unknown / no preference']) assert.ok(!text.includes(english), english);
-  for (const chinese of ['## 使用者提供的背景', '## 暫定結果', '## 佐證研究', '## 來源界線', '## 回答選項', '理由：', '停止原因：', '問題 · ']) assert.ok(text.includes(chinese), chinese);
+  for (const chinese of ['## 使用者提供的背景', '### 佐證研究', '### 來源界線', '## 回答選項', '問題 · ']) assert.ok(text.includes(chinese), chinese);
+  // The reviewer's rationale and the stop reason stay in the run records; notes show reader callouts instead.
+  for (const internal of ['理由：', '停止原因：']) assert.ok(!text.includes(internal), internal);
 });
 integrationTest('coverage: interface zh with an English question keeps every stage and note in English with no Chinese characters', async () => {
   const subject = await languageSubject('zh-TW', 'Plan a 5-day Taipei trip');
@@ -438,7 +440,8 @@ integrationTest('coverage: ask_user and research_more fallback notes write the s
   const asked = await subject.flow.answerAndResearch(subject.created.mapPath, q1.id, { requestId: 'stop-a1', selections: [q1.aimQuestion.options[0].id], freeText: '條件一' }, 'gpt-6-luna', 'low');
   assert.equal(asked.status, 'waiting-user');
   let { saved, text } = await readAll();
-  assert.match(text, /停止原因：等待使用者回答：/);
+  assert.match(text, /^> \[!question\] 等待你的回答\n> Which constraint matters at stage 2\?$/m);
+  assert.doesNotMatch(text, /停止原因|理由：/);
   assert.doesNotMatch(text, /Awaiting the user's answer to/);
   const askReason = saved.aim.runs.flatMap(run => run.attempts).find(attempt => attempt.stopReason?.startsWith('Awaiting'));
   assert.ok(askReason, 'attempt record keeps the stored English value');
@@ -463,7 +466,8 @@ integrationTest('coverage: ask_user and research_more fallback notes write the s
   const continued = await subject.flow.continuePartial(subject.created.mapPath, run.id, 'gpt-6-luna', 'low');
   assert.equal(continued.status, 'partial');
   ({ saved, text } = await readAll());
-  assert.match(text, /停止原因：續跑已達原型研究輪數上限，仍有重要缺口：/);
+  assert.match(text, /^> \[!warning\] 研究尚未完成\n> [^\n]+\n> - /m);
+  assert.doesNotMatch(text, /停止原因|理由：|Evidence is still missing/);
   assert.doesNotMatch(text, /Continuation attempt reached its prototype/);
   // Content (the gap title) may be Chinese; the stored wording around it never is.
   assert.ok(!recordedStops.some(stop => /[\u4e00-\u9fff]/.test((stop ?? '').replaceAll(target.title, ''))), 'attempt records never receive the localized note text');

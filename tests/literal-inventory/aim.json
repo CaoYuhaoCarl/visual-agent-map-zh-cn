@@ -107,7 +107,7 @@
       "file": "experiences/aim/manual-flow.ts",
       "text": "Awaiting the user's answer to: ${}",
       "class": "attempt-record",
-      "reason": "Stop reason stored on the attempt record; the note text uses note.aim_stop_awaiting_0 via noteStopReason"
+      "reason": "Stop reason stored on the attempt record; notes show the question in a reader callout instead (note.aim_awaiting_answer_title)"
     },
     {
       "file": "experiences/aim/manual-flow.ts",
@@ -143,7 +143,7 @@
       "file": "experiences/aim/manual-flow.ts",
       "text": "Continuation attempt reached its prototype research-turn budget",
       "class": "attempt-record",
-      "reason": "Stop reason stored on the attempt record; the note text uses note.aim_stop_budget_gap_0"
+      "reason": "Stop reason stored on the attempt record; notes show the missing evidence in a reader warning instead (note.aim_incomplete_warning_title)"
     },
     {
       "file": "experiences/aim/manual-flow.ts",
@@ -209,7 +209,7 @@
       "file": "experiences/aim/manual-flow.ts",
       "text": "Research-turn limit reached with an unresolved evidence gap:",
       "class": "attempt-record",
-      "reason": "Stop reason recorded with the Planner review on the attempt; the note uses note.aim_round_limit_0"
+      "reason": "Stop reason recorded with the Planner review on the attempt; notes show the missing evidence in a reader warning instead (note.aim_incomplete_warning_title)"
     },
     {
       "file": "experiences/aim/manual-flow.ts",
