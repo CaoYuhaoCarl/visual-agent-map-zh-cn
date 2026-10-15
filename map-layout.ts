@@ -77,9 +77,10 @@ function positions(
 }
 
 /** Lays out what is on screen: a collapsed topic is a leaf, and its hidden branch keeps its coordinates until it is shown again. */
-export function arrangeMap(nodes: MapNode[]): MapNode[] {
-  const roots = nodes.filter(node => !node.parentId);
-  const placed = positions(nodes, roots, 80, 80, true);
+export function arrangeMap(nodes: MapNode[], hidden?: Set<string>): MapNode[] {
+  const laidOut = hidden?.size ? nodes.filter(node => !hidden.has(node.id)) : nodes;
+  const roots = laidOut.filter(node => !node.parentId);
+  const placed = positions(laidOut, roots, 80, 80, true);
   return nodes.map(node => ({ ...node, ...placed.get(node.id) }));
 }
 

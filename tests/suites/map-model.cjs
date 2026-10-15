@@ -275,3 +275,38 @@ test('ordinary trees keep their exact full-layout coordinates', () => {
   const nodes = [node('r'), node('a', 'r'), node('b', 'r'), node('a1', 'a'), node('a2', 'a'), node('a3', 'a'), node('b1', 'b'), node('r2'), node('c', 'r2')];
   assert.deepEqual(layout.arrangeMap(nodes).map(item => [item.id, item.x, item.y]), [['r', 80, 520], ['a', 440, 300], ['b', 440, 740], ['a1', 800, 80], ['a2', 800, 300], ['a3', 800, 520], ['b1', 800, 740], ['r2', 80, 960], ['c', 440, 960]]);
 });
+
+const interimMap = (overrides = {}) => {
+  const nodes = [
+    aimNode('topic', null, 'topic'), aimNode('Q', 'topic', 'question'),
+    aimNode('R1', 'Q', 'research'), aimNode('R2', 'Q', 'research'), aimNode('R3', 'Q', 'research'),
+    aimNode('c098a2c1', 'R3', 'synthesis', ['R1', 'R2', 'R3']), aimNode('03d99151', 'R3', 'synthesis', ['R1', 'R2', 'R3']),
+    aimNode('cd914778', 'R3', 'conclusion', ['R1', 'R2', 'R3'])
+  ];
+  const result = (nodeId, kind, runId = 'run') => ({ resultId: `res-${nodeId}`, runId, attemptId: `att-${nodeId}`, nodeId, notePath: `${nodeId}.md`, version: 1, kind });
+  const doc = map(nodes);
+  doc.aim = { version: 1, branches: [{ id: 'b', questionNodeId: 'Q', parentBranchId: null, answerSnapshot: { selections: [], freeText: '' }, inputSnapshot: { topic: 't', conditions: {}, upstreamResults: [] }, createdAt: '2026-10-09T00:00:00.000Z',
+    results: [result('R1', 'research'), result('c098a2c1', 'synthesis'), result('03d99151', 'synthesis'), ...(overrides.noConclusion ? [] : [result('cd914778', 'conclusion', overrides.conclusionRun ?? 'run')])] }], runs: [], pendingCommits: [] };
+  if (overrides.child) doc.nodes.push(aimNode('ask', 'c098a2c1', 'question'));
+  return doc;
+};
+test('supersededAimNodeIds lists interim synthesis nodes once the same run has a later conclusion', () => {
+  assert.deepEqual([...core.supersededAimNodeIds(interimMap())].sort(), ['03d99151', 'c098a2c1']);
+  assert.equal(core.supersededAimNodeIds(map(tree())).size, 0, 'ordinary maps have none');
+});
+test('supersededAimNodeIds keeps interim nodes for a different run, a pending run, or a node that owns children', () => {
+  assert.equal(core.supersededAimNodeIds(interimMap({ conclusionRun: 'other' })).size, 0);
+  assert.equal(core.supersededAimNodeIds(interimMap({ noConclusion: true })).size, 0);
+  assert.deepEqual([...core.supersededAimNodeIds(interimMap({ child: true }))], ['03d99151']);
+});
+test('arrangeMap with a hidden set lays out as if the hidden nodes did not exist and leaves their coordinates alone', () => {
+  const doc = interimMap();
+  const hidden = core.supersededAimNodeIds(doc);
+  const nodes = doc.nodes.map(item => hidden.has(item.id) ? { ...item, x: 777, y: 999 } : item);
+  const placed = layout.arrangeMap(nodes, hidden);
+  const at = id => placed.find(item => item.id === id);
+  const bare = layout.arrangeMap(nodes.filter(item => !hidden.has(item.id)));
+  for (const item of bare) assert.deepEqual([at(item.id).x, at(item.id).y], [item.x, item.y], `${item.id} is placed as without the hidden nodes`);
+  for (const id of hidden) assert.deepEqual([at(id).x, at(id).y], [777, 999], `${id} keeps its stored coordinates`);
+  assert.equal(at('R2').y - at('R1').y, 220); assert.equal(at('R1').y, at('R1').y);
+});

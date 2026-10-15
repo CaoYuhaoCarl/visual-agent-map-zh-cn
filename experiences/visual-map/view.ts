@@ -22,6 +22,7 @@ import {
   type MapNode,
   parentIdsForNode,
   removeNodes,
+  supersededAimNodeIds,
   visibleNodes
 } from "../../map-model";
 import { arrangeMap, arrangeNewBranch, arrangeNewTree } from "../../map-layout";
@@ -1018,7 +1019,7 @@ export class VisualAgentMapView extends ItemView {
       if (changed) {
         await this.mapChange(map => {
           applyCollapseLevel(map.nodes, shownLevels);
-          map.nodes = arrangeMap(map.nodes);
+          map.nodes = arrangeMap(map.nodes, supersededAimNodeIds(map));
         });
         if (this.history.undoEntry) this.history.undoEntry.label = t("ui.collapse_levels");
         this.updateHistoryButtons();
@@ -1029,7 +1030,7 @@ export class VisualAgentMapView extends ItemView {
   private autoLayout(): void {
     this.enqueue(() =>
       this.mapChange(map => {
-        map.nodes = arrangeMap(map.nodes);
+        map.nodes = arrangeMap(map.nodes, supersededAimNodeIds(map));
       }, false)
     );
   }
@@ -3535,7 +3536,7 @@ export class VisualAgentMapView extends ItemView {
     this.edgesEl.addClass("vam-edges");
     this.edgesEl.setAttribute("aria-hidden", "true");
     this.stageEl.appendChild(this.edgesEl);
-    const shown = visibleNodes(this.map.nodes);
+    const shown = this.canvasNodes();
     if (this.selected && !shown.some(node => node.id === this.selected)) this.selected = null;
     this.multiSelected = new Set([...this.multiSelected].filter(id => shown.some(node => node.id === id)));
     if (this.integrationMode) this.selectionBarEl = this.renderSelectionBar(workspace);
@@ -3753,7 +3754,7 @@ export class VisualAgentMapView extends ItemView {
             this.mapChange(map => {
               const n = map.nodes.find(n => n.id === node.id)!;
               n.collapsed = !n.collapsed;
-              map.nodes = arrangeMap(map.nodes);
+              map.nodes = arrangeMap(map.nodes, supersededAimNodeIds(map));
             })
           )
       );
@@ -4046,10 +4047,17 @@ export class VisualAgentMapView extends ItemView {
       this.hideHoverCardSoon();
     });
   }
+  /** What the canvas draws: visible nodes minus interim AIM results already superseded by their run's conclusion. */
+  private canvasNodes(): MapNode[] {
+    if (!this.map) return [];
+    const superseded = supersededAimNodeIds(this.map);
+    const shown = visibleNodes(this.map.nodes);
+    return superseded.size ? shown.filter(node => !superseded.has(node.id)) : shown;
+  }
   /** Arrow keys walk the tree: left to the parent, right to the first child, up/down among siblings. */
   private keyboardNeighbor(node: MapNode, key: string): MapNode | undefined {
     if (!this.map || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(key)) return undefined;
-    const shown = visibleNodes(this.map.nodes);
+    const shown = this.canvasNodes();
     const byY = (a: MapNode, b: MapNode): number => a.y - b.y || a.x - b.x;
     if (key === "ArrowLeft") return shown.find(item => item.id === node.parentId);
     if (key === "ArrowRight") return shown.filter(item => item.parentId === node.id).sort(byY)[0];
@@ -4130,7 +4138,7 @@ export class VisualAgentMapView extends ItemView {
    */
   applySelectionState(prevId: string | null, nextId: string | null, touched: Iterable<string> = []): void {
     const previousStop = this.tabStopId;
-    this.tabStopId = this.defaultTabStop(this.map ? visibleNodes(this.map.nodes) : []);
+    this.tabStopId = this.defaultTabStop(this.map ? this.canvasNodes() : []);
     this.paintCards([prevId, nextId, previousStop, this.tabStopId, ...touched]);
     if (this.integrationMode && this.selectionBarEl?.isConnected) {
       const workspace = this.selectionBarEl.parentElement;
@@ -6535,7 +6543,7 @@ export class VisualAgentMapView extends ItemView {
   }
   private fit(): void {
     if (!this.map || !this.viewportEl) return;
-    const nodes = visibleNodes(this.map.nodes);
+    const nodes = this.canvasNodes();
     if (!nodes.length) return;
     const minX = Math.min(...nodes.map(n => n.x)),
       maxX = Math.max(...nodes.map(n => n.x + 280));
@@ -6751,7 +6759,7 @@ export class VisualAgentMapView extends ItemView {
     if (!this.edgesEl || !this.stageEl || !this.map) return;
     this.edgesEl.replaceChildren();
     this.edgeEls.clear();
-    for (const node of visibleNodes(this.map.nodes)) {
+    for (const node of this.canvasNodes()) {
       const parents = parentIdsForNode(node);
       for (const parentId of parents) {
         const parent = this.cardEls.get(parentId),

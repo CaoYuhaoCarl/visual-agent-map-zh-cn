@@ -11998,6 +11998,21 @@ function visibleNodes(nodes) {
   for (const node of nodes) if (node.collapsed) for (const id of descendants(nodes, node.id)) hidden.add(id);
   return nodes.filter((node) => !hidden.has(node.id));
 }
+function supersededAimNodeIds(map) {
+  var _a, _b;
+  const hidden = /* @__PURE__ */ new Set();
+  const parents = new Set(map.nodes.map((node) => node.parentId).filter((id) => !!id));
+  for (const branch of (_b = (_a = map.aim) == null ? void 0 : _a.branches) != null ? _b : []) {
+    branch.results.forEach((result, index) => {
+      if (result.kind !== "synthesis" || parents.has(result.nodeId)) return;
+      if (branch.results.some(
+        (later, laterIndex) => laterIndex > index && later.runId === result.runId && later.kind === "conclusion"
+      ))
+        hidden.add(result.nodeId);
+    });
+  }
+  return hidden;
+}
 function applyCollapseLevel(nodes, shownLevels) {
   const byId = new Map(nodes.map((node) => [node.id, node]));
   const depthOf = (node) => {
@@ -12330,9 +12345,10 @@ function positions(nodes, roots, left, top, folded = false) {
   }
   return result;
 }
-function arrangeMap(nodes) {
-  const roots = nodes.filter((node) => !node.parentId);
-  const placed = positions(nodes, roots, 80, 80, true);
+function arrangeMap(nodes, hidden) {
+  const laidOut = (hidden == null ? void 0 : hidden.size) ? nodes.filter((node) => !hidden.has(node.id)) : nodes;
+  const roots = laidOut.filter((node) => !node.parentId);
+  const placed = positions(laidOut, roots, 80, 80, true);
   return nodes.map((node) => ({ ...node, ...placed.get(node.id) }));
 }
 function arrangeNewBranch(nodes, parentId, newIds) {
@@ -25686,7 +25702,7 @@ ${request.requirements}` : preset.text,
       if (changed) {
         await this.mapChange((map) => {
           applyCollapseLevel(map.nodes, shownLevels);
-          map.nodes = arrangeMap(map.nodes);
+          map.nodes = arrangeMap(map.nodes, supersededAimNodeIds(map));
         });
         if (this.history.undoEntry) this.history.undoEntry.label = t("ui.collapse_levels");
         this.updateHistoryButtons();
@@ -25697,7 +25713,7 @@ ${request.requirements}` : preset.text,
   autoLayout() {
     this.enqueue(
       () => this.mapChange((map) => {
-        map.nodes = arrangeMap(map.nodes);
+        map.nodes = arrangeMap(map.nodes, supersededAimNodeIds(map));
       }, false)
     );
   }
@@ -28064,7 +28080,7 @@ ${request.requirements}` : preset.text,
     this.edgesEl.addClass("vam-edges");
     this.edgesEl.setAttribute("aria-hidden", "true");
     this.stageEl.appendChild(this.edgesEl);
-    const shown = visibleNodes(this.map.nodes);
+    const shown = this.canvasNodes();
     if (this.selected && !shown.some((node) => node.id === this.selected)) this.selected = null;
     this.multiSelected = new Set([...this.multiSelected].filter((id) => shown.some((node) => node.id === id)));
     if (this.integrationMode) this.selectionBarEl = this.renderSelectionBar(workspace);
@@ -28253,7 +28269,7 @@ ${request.requirements}` : preset.text,
           () => this.mapChange((map) => {
             const n = map.nodes.find((n2) => n2.id === node.id);
             n.collapsed = !n.collapsed;
-            map.nodes = arrangeMap(map.nodes);
+            map.nodes = arrangeMap(map.nodes, supersededAimNodeIds(map));
           })
         )
       );
@@ -28524,10 +28540,17 @@ ${request.requirements}` : preset.text,
       this.hideHoverCardSoon();
     });
   }
+  /** What the canvas draws: visible nodes minus interim AIM results already superseded by their run's conclusion. */
+  canvasNodes() {
+    if (!this.map) return [];
+    const superseded = supersededAimNodeIds(this.map);
+    const shown = visibleNodes(this.map.nodes);
+    return superseded.size ? shown.filter((node) => !superseded.has(node.id)) : shown;
+  }
   /** Arrow keys walk the tree: left to the parent, right to the first child, up/down among siblings. */
   keyboardNeighbor(node, key2) {
     if (!this.map || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(key2)) return void 0;
-    const shown = visibleNodes(this.map.nodes);
+    const shown = this.canvasNodes();
     const byY = (a, b) => a.y - b.y || a.x - b.x;
     if (key2 === "ArrowLeft") return shown.find((item) => item.id === node.parentId);
     if (key2 === "ArrowRight") return shown.filter((item) => item.parentId === node.id).sort(byY)[0];
@@ -28601,7 +28624,7 @@ ${request.requirements}` : preset.text,
   applySelectionState(prevId, nextId, touched = []) {
     var _a;
     const previousStop = this.tabStopId;
-    this.tabStopId = this.defaultTabStop(this.map ? visibleNodes(this.map.nodes) : []);
+    this.tabStopId = this.defaultTabStop(this.map ? this.canvasNodes() : []);
     this.paintCards([prevId, nextId, previousStop, this.tabStopId, ...touched]);
     if (this.integrationMode && ((_a = this.selectionBarEl) == null ? void 0 : _a.isConnected)) {
       const workspace = this.selectionBarEl.parentElement;
@@ -30840,7 +30863,7 @@ ${note.detail.trim()}` : "",
   }
   fit() {
     if (!this.map || !this.viewportEl) return;
-    const nodes = visibleNodes(this.map.nodes);
+    const nodes = this.canvasNodes();
     if (!nodes.length) return;
     const minX = Math.min(...nodes.map((n) => n.x)), maxX = Math.max(...nodes.map((n) => n.x + 280));
     const minY = Math.min(...nodes.map((n) => n.y)), maxY = Math.max(
@@ -31038,7 +31061,7 @@ ${note.detail.trim()}` : "",
     if (!this.edgesEl || !this.stageEl || !this.map) return;
     this.edgesEl.replaceChildren();
     this.edgeEls.clear();
-    for (const node of visibleNodes(this.map.nodes)) {
+    for (const node of this.canvasNodes()) {
       const parents = parentIdsForNode(node);
       for (const parentId of parents) {
         const parent = this.cardEls.get(parentId), child = this.cardEls.get(node.id);
