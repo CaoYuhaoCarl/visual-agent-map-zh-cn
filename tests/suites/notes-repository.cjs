@@ -640,3 +640,75 @@ integrationTest('relevance goal reads from map file frontmatter and is absent wh
   contents.set(n.path, original.replace('---\n', '---\nrelevance-goal: 5\n'));
   assert.equal(await repo.readRelevanceGoal(n.path), undefined);
 });
+// ---- Phase 3: relevance writers (frontmatter only; other keys, the body and `updated` stay as they were) ----
+integrationTest('relevance writer sets, replaces and removes only its two keys; body and other frontmatter are untouched', async () => {
+  const { repo, contents } = fixture(); const n = await topicNote(repo, 'Graded');
+  contents.set(n.path, contents.get(n.path).replace('---\n', '---\ncustom: retain me\nlist:\n  - one\n  - two\n'));
+  const before = await repo.readNote(n.path);
+  const bodyOf = text => text.replace(/^---\r?\n[\s\S]*?\r?\n---/, '');
+  const keysOf = text => text.match(/^---\r?\n([\s\S]*?)\r?\n---/)[1].split('\n').filter(line => !/^relevance-/.test(line)).join('\n');
+  const original = contents.get(n.path);
+  await repo.writeRelevance(n.path, { tier: 'core', reason: 'Why: "quoted" and\nmultiline' });
+  const written = contents.get(n.path);
+  assert.deepEqual(plain((await repo.readNote(n.path)).relevance), { tier: 'core', reason: 'Why: "quoted" and multiline' });
+  assert.equal(bodyOf(written), bodyOf(original), 'body unchanged'); assert.equal(keysOf(written), keysOf(original), 'other keys unchanged');
+  assert.equal((await repo.readNote(n.path)).updated, before.updated, '`updated` is not bumped');
+  await repo.writeRelevance(n.path, { tier: 'side', reason: 'Skip' });
+  assert.equal(written.match(/relevance-tier/g).length, 1); assert.equal(contents.get(n.path).match(/relevance-tier/g).length, 1, 'replaced in place, not duplicated');
+  assert.deepEqual(plain((await repo.readNote(n.path)).relevance), { tier: 'side', reason: 'Skip' });
+  await repo.writeRelevance(n.path, null);
+  assert.equal(contents.get(n.path), original, 'removing restores the file byte for byte');
+  assert.equal((await repo.readNote(n.path)).relevance, undefined);
+  await assert.rejects(repo.writeRelevance(n.path, { tier: 'core', reason: '   ' }), /reason/);
+  assert.equal(contents.get(n.path), original, 'a blank reason writes nothing');
+});
+integrationTest('relevance writer keeps CRLF files CRLF and drops a stale multi-line value of its own key', async () => {
+  const { repo, contents } = fixture(); const n = await topicNote(repo, 'Windows');
+  contents.set(n.path, contents.get(n.path).replace(/\n/g, '\r\n').replace('---\r\n', '---\r\nrelevance-tier: core\r\nrelevance-reason: >-\r\n  folded old\r\n  value\r\n'));
+  await repo.writeRelevance(n.path, { tier: 'support', reason: 'New' });
+  const text = contents.get(n.path);
+  assert.equal(/[^\r]\n/.test(text.replace(/^[\s\S]*?$/, m => m)), false, 'no bare LF introduced');
+  assert.doesNotMatch(text, /folded old/);
+  assert.deepEqual(plain((await repo.readNote(n.path)).relevance), { tier: 'support', reason: 'New' });
+});
+async function mapFile(language = 'en') {
+  const { repo, app, contents } = fixture(language);
+  const mapPath = 'Agent Workspace/Topics/map-a/Map.md';
+  await repo.ensureTopicFolders('Agent Workspace/Topics/map-a');
+  const mapDoc = { id: 'map-a', title: 'Cooking', version: 1, nodes: [], viewport: { x: 0, y: 0, zoom: 1 } };
+  await app.vault.create(mapPath, core.serializeMap(mapDoc));
+  return { repo, contents, mapPath, mapDoc };
+}
+integrationTest('relevance goal writer sets the goal and appends one dated history entry only when the goal changes', async () => {
+  const { repo, contents, mapPath } = await mapFile();
+  const today = new Date(); const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const first = await repo.writeRelevanceGoal(mapPath, '  Cook a\n steak  ');
+  assert.equal(first.changed, true); assert.deepEqual(plain(first.previous), {});
+  assert.equal(await repo.readRelevanceGoal(mapPath), 'Cook a steak');
+  assert.match(contents.get(mapPath), new RegExp(`relevance-goal-history:\\n  - "${date}: Cook a steak"`));
+  const same = await repo.writeRelevanceGoal(mapPath, 'Cook a steak');
+  assert.equal(same.changed, false, 'the same goal is not a new history entry');
+  assert.equal(contents.get(mapPath).match(/relevance-goal-history/g).length, 1); assert.equal(contents.get(mapPath).match(/- "/g).length, 1);
+  const second = await repo.writeRelevanceGoal(mapPath, 'Cook a steak for guests');
+  assert.equal(second.changed, true);
+  assert.equal(await repo.readRelevanceGoal(mapPath), 'Cook a steak for guests');
+  assert.equal(contents.get(mapPath).match(/- "/g).length, 2, 'history only grows, oldest first');
+  assert.match(contents.get(mapPath), /relevance-goal-history:\n  - "[\d-]+: Cook a steak"\n  - "[\d-]+: Cook a steak for guests"/);
+  assert.equal(contents.get(mapPath).startsWith('---\nvisual-agent-map: true\n'), true);
+  // Restoring the state it found puts the file back exactly (the goal undo).
+  await repo.restoreRelevanceGoal(mapPath, second.previous);
+  assert.equal(await repo.readRelevanceGoal(mapPath), 'Cook a steak'); assert.equal(contents.get(mapPath).match(/- "/g).length, 1);
+  await repo.restoreRelevanceGoal(mapPath, first.previous);
+  assert.equal(await repo.readRelevanceGoal(mapPath), undefined); assert.doesNotMatch(contents.get(mapPath), /relevance-goal/);
+  await assert.rejects(repo.writeRelevanceGoal(mapPath, ' \n '), /goal/);
+});
+integrationTest('relevance goal keys survive every later map save (writeMapContent keeps the frontmatter)', async () => {
+  const { repo, contents, mapPath } = await mapFile();
+  await repo.writeRelevanceGoal(mapPath, 'Goal one'); await repo.writeRelevanceGoal(mapPath, 'Goal two');
+  const map = await repo.readMap(mapPath); map.viewport = { x: 5, y: 6, zoom: 2 };
+  await repo.saveMap(mapPath, map);
+  await repo.updateMap(mapPath, doc => { doc.title = 'Cooking again'; });
+  assert.equal(await repo.readRelevanceGoal(mapPath), 'Goal two');
+  assert.equal(contents.get(mapPath).match(/- "/g).length, 2);
+  assert.equal((await repo.readMap(mapPath)).title, 'Cooking again');
+});

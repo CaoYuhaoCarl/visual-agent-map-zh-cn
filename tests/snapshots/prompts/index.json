@@ -691,6 +691,16 @@
       "language": "zh-TW",
       "schema": false
     },
+    "relevance-grade.en": {
+      "builder": "core/relevance-grade-service.ts buildRelevanceGradePrompt",
+      "language": "en",
+      "schema": true
+    },
+    "relevance-grade.zh": {
+      "builder": "core/relevance-grade-service.ts buildRelevanceGradePrompt",
+      "language": "zh-TW",
+      "schema": true
+    },
     "service.decompose-deep.en": {
       "builder": "AiTaskService instructions: mode decompose, deep research",
       "language": "en",

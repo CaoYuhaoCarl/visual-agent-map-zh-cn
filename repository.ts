@@ -14,6 +14,7 @@ import {
   managedSectionValue,
   readRelevance,
   readRelevanceGoal,
+  normalizeRelevanceGoal,
   type NoteRelevance
 } from "./note-values";
 import { upgradeLegacyAimText } from "./experiences/aim/legacy-names";
@@ -308,6 +309,51 @@ export function safeName(title: string): string {
 function frontmatter(content: string): Record<string, unknown> {
   const yaml = content.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)?.[1];
   return yaml ? ((parseYaml(yaml) ?? {}) as Record<string, unknown>) : {};
+}
+
+/** A frontmatter value the relevance writers set: a string, a list of strings, or null to remove the key. */
+type FrontmatterValue = string | string[] | null;
+/**
+ * Sets or removes top-level frontmatter keys and leaves every other line, and the body, exactly as it was. A key that
+ * is already there keeps its place; new keys go at the end. Strings are written as JSON strings, which are valid YAML
+ * double-quoted scalars.
+ */
+export function setFrontmatterKeys(content: string, values: Record<string, FrontmatterValue>): string {
+  const eol = content.includes("\r\n") ? "\r\n" : "\n";
+  const render = (key: string, value: string | string[]): string[] =>
+    Array.isArray(value)
+      ? [`${key}:`, ...value.map(item => `  - ${JSON.stringify(item)}`)]
+      : [`${key}: ${JSON.stringify(value)}`];
+  const match = /^---\r?\n([\s\S]*?)\r?\n---(?=\r?\n|$)/.exec(content);
+  if (!match) {
+    const lines = Object.entries(values).flatMap(([key, value]) => (value === null ? [] : render(key, value)));
+    return lines.length ? `---${eol}${lines.join(eol)}${eol}---${eol}${content}` : content;
+  }
+  const kept: string[] = [];
+  const written = new Set<string>();
+  let skipping = false;
+  for (const line of match[1].split(/\r?\n/)) {
+    const key = /^([A-Za-z][\w-]*):/.exec(line)?.[1];
+    if (key) {
+      skipping = Object.keys(values).includes(key);
+      if (skipping && !written.has(key)) {
+        written.add(key);
+        const value = values[key];
+        if (value !== null) kept.push(...render(key, value));
+      }
+    } else if (skipping && !/^\s+|^-(\s|$)/.test(line) && line !== "") skipping = false;
+    if (!skipping) kept.push(line);
+  }
+  for (const [key, value] of Object.entries(values))
+    if (!written.has(key) && value !== null) kept.push(...render(key, value));
+  return `---${eol}${kept.join(eol)}${eol}---${content.slice(match[0].length)}`;
+}
+const localDate = (date = new Date()): string =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+/** What the map file's frontmatter said about the goal before a write; handed back to restore it exactly. */
+export interface RelevanceGoalState {
+  goal: string | undefined;
+  history: string[] | undefined;
 }
 
 function noteTitle(content: string, fm: Record<string, unknown>, fallback: string): string {
@@ -1134,6 +1180,66 @@ export class Repository {
   /** The map file's `relevance-goal` frontmatter, if any. The map file keeps its frontmatter across saves. */
   async readRelevanceGoal(path: string): Promise<string | undefined> {
     return readRelevanceGoal(frontmatter(await this.app.vault.read(this.file(path))));
+  }
+
+  /**
+   * Sets or removes only the two relevance keys of a note's frontmatter (`relevance-tier`, `relevance-reason`). The
+   * body and every other key stay as they were, and `updated` is not bumped: grading is not an edit of the note.
+   */
+  async writeRelevance(path: string, value: NoteRelevance | null): Promise<void> {
+    const reason = value ? value.reason.replace(/\s+/g, " ").trim() : "";
+    if (value && !reason) throw new Error("A relevance reason is required.");
+    await this.app.vault.process(this.file(path), content =>
+      setFrontmatterKeys(content, {
+        "relevance-tier": value ? value.tier : null,
+        "relevance-reason": value ? reason : null
+      })
+    );
+  }
+
+  /**
+   * Sets the map's `relevance-goal` and, when it differs from the current goal (or there was none), appends
+   * `"YYYY-MM-DD: <goal>"` (local date) to `relevance-goal-history`. Only those two keys change. Resolves with what
+   * was there before, for {@link restoreRelevanceGoal}.
+   */
+  async writeRelevanceGoal(
+    mapPath: string,
+    goal: string
+  ): Promise<{ previous: RelevanceGoalState; next: RelevanceGoalState; changed: boolean }> {
+    const next = normalizeRelevanceGoal(goal);
+    if (!next) throw new Error("A relevance goal is required.");
+    let previous: RelevanceGoalState = { goal: undefined, history: undefined };
+    let nextState: RelevanceGoalState = { goal: next, history: undefined };
+    let changed = false;
+    await this.app.vault.process(this.file(mapPath), content => {
+      const fm = frontmatter(content);
+      previous = {
+        goal: typeof fm["relevance-goal"] === "string" ? fm["relevance-goal"] : undefined,
+        history: Array.isArray(fm["relevance-goal-history"])
+          ? fm["relevance-goal-history"].filter((item): item is string => typeof item === "string")
+          : undefined
+      };
+      changed = previous.goal?.trim() !== next;
+      nextState = {
+        goal: next,
+        history: changed ? [...(previous.history ?? []), `${localDate()}: ${next}`] : previous.history
+      };
+      return setFrontmatterKeys(content, {
+        "relevance-goal": next,
+        ...(changed ? { "relevance-goal-history": nextState.history ?? null } : {})
+      });
+    });
+    return { previous, next: nextState, changed };
+  }
+
+  /** Puts the goal keys back exactly as {@link writeRelevanceGoal} found them (a missing value removes the key). */
+  async restoreRelevanceGoal(mapPath: string, state: RelevanceGoalState): Promise<void> {
+    await this.app.vault.process(this.file(mapPath), content =>
+      setFrontmatterKeys(content, {
+        "relevance-goal": state.goal ?? null,
+        "relevance-goal-history": state.history ?? null
+      })
+    );
   }
 
   /**

@@ -148,7 +148,21 @@
 .vam-node[data-relevance="side"] { opacity: .5; transition: border-color 160ms ease-out, box-shadow 160ms ease-out, opacity 160ms ease-out; }
 .vam-node[data-relevance="side"]:hover, .vam-node[data-relevance="side"]:focus-within, .vam-node[data-relevance="side"].is-selected { opacity: 1; }
 .vam-edge.vam-edge-side { opacity: .2; }
-.vam-map-tools > .vam-relevance-goal { flex: 1 0 100%; max-width: 360px; box-sizing: border-box; padding: 2px 6px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: var(--font-ui-smaller); }
+.vam-map-tools > .vam-relevance-goal-slot { display: flex; flex: 1 0 100%; max-width: 360px; box-sizing: border-box; }
+.vam-map-tools .vam-relevance-goal { display: block; min-width: 0; max-width: 100%; height: auto; padding: 2px 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; color: var(--text-muted); font-size: var(--font-ui-smaller); }
+.vam-map-tools .vam-relevance-goal:not(:disabled):hover { color: var(--text-normal); }
+.vam-map-tools .vam-relevance-goal:disabled { cursor: default; }
+.vam-relevance-goal-input { flex: 1 1 auto; min-width: 0; box-sizing: border-box; font-size: var(--font-ui-small); }
+.vam-relevance-goal-input:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
+.vam-relevance-changes { margin: 0; padding: 0; list-style: none; }
+.vam-relevance-change { padding: 10px 0; border-bottom: 1px solid var(--background-modifier-border); }
+.vam-relevance-change:last-child { border-bottom: 0; }
+.vam-relevance-change-title { font-weight: 600; overflow-wrap: anywhere; }
+.vam-relevance-change-tags { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; margin-top: 4px; }
+.vam-relevance-ungraded { font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.vam-relevance-arrow { display: inline-flex; color: var(--text-muted); }
+.vam-relevance-arrow .svg-icon { width: 14px; height: 14px; }
+.vam-relevance-change-reason { margin: 4px 0 0; font-size: var(--font-ui-small); color: var(--text-muted); overflow-wrap: anywhere; }
 @media (prefers-reduced-motion: reduce) {
   /* Same selector weight as the scan animation rule above, otherwise that rule keeps winning. */
   .vam-status-running::before, .vam-node:not([data-aim-kind])[data-status="running"]::after { animation: none; }

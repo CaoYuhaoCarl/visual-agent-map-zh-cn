@@ -153,11 +153,13 @@ test('collect snapshots: Coffee Tables, Reframe, Markdown context', async () => 
   for (const [language, tag] of LANGUAGES) record(`reframe.${tag}`, 'core/reframing-service.ts buildReframePrompt', language, buildReframePrompt({ language, question: 'Direction question', context: 'Direction context', source: 'Source thinking text' }));
   const { buildOutlineGeneratePrompt } = support.load('core/outline-generation-service.ts', { obsidian: support.obsidian });
   const { buildStructureReviewPrompt, STRUCTURE_REVIEW_SCHEMA } = support.load('core/structure-review-service.ts', { obsidian: support.obsidian });
+  const { buildRelevanceGradePrompt, RELEVANCE_GRADE_SCHEMA } = support.load('core/relevance-grade-service.ts', { obsidian: support.obsidian });
   const reviewNodes = [{ id: 'n1', title: 'Root topic', summary: 'Root summary', status: 'completed', parentId: null, depth: 0 }, { id: 'n2', title: 'Child topic', summary: 'Child summary', status: 'idea', parentId: 'n1', depth: 1 }];
   for (const [language, tag] of LANGUAGES) {
     record(`outline-generate.${tag}`, 'core/outline-generation-service.ts buildOutlineGeneratePrompt (preset with topic placeholder)', language, buildOutlineGeneratePrompt({ language, topic: 'Topic under study', presetText: 'Build a knowledge tree for {填入研究主題} in three levels.', model: 'm', reasoning: 'low' }));
     record(`outline-generate-appended.${tag}`, 'core/outline-generation-service.ts buildOutlineGeneratePrompt (preset without placeholder)', language, buildOutlineGeneratePrompt({ language, topic: 'Topic under study', presetText: 'Build a knowledge tree in three levels.', model: 'm', reasoning: 'low' }));
     record(`structure-review.${tag}`, 'core/structure-review-service.ts buildStructureReviewPrompt', language, buildStructureReviewPrompt({ language, rootQuestion: 'Root question text', nodes: reviewNodes, model: 'm', reasoning: 'low' }), STRUCTURE_REVIEW_SCHEMA);
+    record(`relevance-grade.${tag}`, 'core/relevance-grade-service.ts buildRelevanceGradePrompt', language, buildRelevanceGradePrompt({ language, goal: 'Learner goal text', nodes: reviewNodes, model: 'm', reasoning: 'low' }), RELEVANCE_GRADE_SCHEMA);
   }
   const { planStep } = support.load('experiences/markdown-context/steps/plan/step.ts', { obsidian: support.obsidian });
   const planPrompt = (instruction, selected, context, hasImage) => planStep.render({ instruction, selected, context, hasImage });

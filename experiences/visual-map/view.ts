@@ -64,7 +64,9 @@ import { listPresets, resolvePreset, resolveToneText } from "../../ai/prompt-pre
 import type { AiResult, Suggestion, TaskContext } from "../../ai/types";
 import { previewMetrics } from "../../ui/preview-utils";
 import { BUILTIN_SAMPLE_ID, builtInSample, SAMPLE_TOUR_VERSION } from "../../builtin-sample";
-import type { RelevanceTier } from "../../note-values";
+import { normalizeRelevanceGoal, RELEVANCE_GOAL_MAX_LENGTH, type NoteRelevance } from "../../note-values";
+import { RELEVANCE_LABEL, renderRelevanceTag } from "./relevance-tag";
+import { RelevanceSummaryModal } from "./relevance-summary-modal";
 import { PendingSuggestions } from "../../pending-suggestions";
 import { createAimMap } from "../aim/create-map";
 import { addOutlineToMap, createOutlineMap, type OutlineNode } from "./outline-import";
@@ -80,9 +82,17 @@ import { StructureReviewModal } from "./structure-review-modal";
 import {
   buildStructureReviewNodes,
   isSuggestionStale,
+  type StructureNode,
   type StructureReviewResult,
   type StructureSuggestion
 } from "../../core/structure-review-service";
+import type {
+  RelevanceGradeChange,
+  RelevanceGradeItem,
+  RelevanceGradeOutcome,
+  RelevanceGradeResult,
+  RelevanceGradeRun
+} from "../../core/relevance-grade-service";
 import { renderTopicTree } from "../../ui/topic-tree";
 import { TopicTreeModal } from "../../ui/modals/topic-tree-modal";
 import type { FieldLinks, ModelChoices } from "./research-fields";
@@ -201,12 +211,8 @@ interface FileMove {
 /** Unique ids for the hidden card labels; any view may render a card. */
 let cardLabelSequence = 0;
 const cardLabels = new WeakMap<HTMLElement, HTMLElement>();
-const RELEVANCE_ICON: Record<RelevanceTier, string> = { core: "target", support: "library", side: "skip-forward" };
-const RELEVANCE_LABEL: Record<RelevanceTier, TranslationKey> = {
-  core: "ui.relevance_core",
-  support: "ui.relevance_support",
-  side: "ui.relevance_side"
-};
+/** Identifies one relevance grading run, so a late result can tell it is no longer the current one. */
+let relevanceRunToken = 0;
 /** Path data for the curve from a parent card's right edge to a child card's left edge. */
 function edgePathData(x1: number, y1: number, x2: number, y2: number): string {
   const bend = Math.max(60, Math.abs(x2 - x1) / 2);
@@ -248,6 +254,8 @@ export class VisualAgentMapView extends ItemView {
   private multiSelected = new Set<string>();
   /** Cards named by the open structure review; marked with a class, cleared when the review closes. */
   private structureHighlight = new Set<string>();
+  /** True once this view has started a relevance grading run (so closing it has a run to abort). */
+  private startedRelevance = false;
   private history = new History<Action>();
   private deletedMap: {
     path: string;
@@ -470,6 +478,7 @@ export class VisualAgentMapView extends ItemView {
   }
   async onClose(): Promise<void> {
     this.closed = true;
+    this.abortRelevanceGrade();
     for (const task of this.synthesisTasks.values()) if (task.state === "running") task.controller.abort();
     this.synthesisTasks.clear();
     this.aimViewEpoch++;
@@ -619,7 +628,10 @@ export class VisualAgentMapView extends ItemView {
       await this.persistViewport();
       if (!isCurrent()) return;
     }
-    if (path !== this.path) this.stopAimProgress();
+    if (path !== this.path) {
+      this.stopAimProgress();
+      this.abortRelevanceGrade();
+    }
     let map = await this.plugin.repo.readMap(path);
     if (!isCurrent()) return;
     if (map.aim?.creationId && map.aim.rootDraft) {
@@ -951,6 +963,321 @@ export class VisualAgentMapView extends ItemView {
     for (const id of new Set([...this.structureHighlight, ...next]))
       this.cardEls.get(id)?.toggleClass("vam-structure-suggested", next.has(id));
     this.structureHighlight = next;
+  }
+  // ---- Relevance grading: goal chip, status bar and change summary ----------------------------------------------
+  /** Mind maps only: not the built-in sample and not an AIM map. */
+  private relevanceGradeable(): boolean {
+    return !this.builtIn && !!this.map && !this.map.aim && !!this.path;
+  }
+  /** The goal as a quiet button in the map toolbar; clicking it swaps in a text field in place. */
+  private renderRelevanceGoalControl(parent: HTMLElement): void {
+    this.drawRelevanceChip(parent.createSpan("vam-relevance-goal-slot"), false);
+  }
+  private drawRelevanceChip(slot: HTMLElement, focus: boolean): void {
+    slot.empty();
+    const goal = this.relevanceGoal;
+    const chip = slot.createEl("button", {
+      cls: `vam-relevance-goal${goal ? "" : " is-empty"}`,
+      text: goal ? t("ui.relevance_goal_0", goal) : t("ui.relevance_goal_set")
+    });
+    chip.setAttr("aria-description", t(goal ? "ui.relevance_goal_edit_hint" : "ui.relevance_goal_set_hint"));
+    setTooltip(chip, goal ?? t("ui.relevance_goal_set_hint"));
+    chip.disabled = this.plugin.relevanceGrades.get(this.path)?.status === "running";
+    chip.addEventListener("click", event => {
+      event.stopPropagation();
+      this.editRelevanceGoal(slot);
+    });
+    if (focus && !chip.disabled) chip.focus();
+  }
+  private editRelevanceGoal(slot: HTMLElement): void {
+    slot.empty();
+    const input = slot.createEl("input", { cls: "vam-relevance-goal-input", type: "text" });
+    input.value = this.relevanceGoal ?? "";
+    input.maxLength = RELEVANCE_GOAL_MAX_LENGTH;
+    input.setAttr("aria-label", t("ui.relevance_goal_label"));
+    input.setAttr("placeholder", t("ui.relevance_goal_placeholder"));
+    let finished = false;
+    // Enter confirms, Esc and leaving the field cancel; an empty field never reaches the AI.
+    const finish = (submit: boolean, refocus: boolean): void => {
+      if (finished) return;
+      finished = true;
+      const value = input.value;
+      this.drawRelevanceChip(slot, refocus);
+      if (submit) void this.submitRelevanceGoal(value);
+    };
+    input.addEventListener("keydown", event => {
+      event.stopPropagation();
+      if (event.key === "Enter") {
+        // Enter that confirms an IME composition (Chinese input) is not the field's Enter.
+        if (event.isComposing) return;
+        event.preventDefault();
+        finish(true, !normalizeRelevanceGoal(input.value));
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        finish(false, true);
+      }
+    });
+    input.addEventListener("blur", () => finish(false, false));
+    input.focus();
+    input.select();
+  }
+  private relevanceRunIsCurrent(run: RelevanceGradeRun, mapPath: string): boolean {
+    return (
+      !this.closed &&
+      this.path === mapPath &&
+      this.plugin.relevanceGrades.get(mapPath) === run &&
+      run.status === "running" &&
+      !run.controller.signal.aborted
+    );
+  }
+  /** View closed or map switched: stop this view's run and forget it. A late result then fails every fence. */
+  private abortRelevanceGrade(mapPath = this.path): void {
+    if (!this.startedRelevance) return;
+    const run = this.plugin.relevanceGrades.get(mapPath);
+    if (!run || run.owner !== this) return;
+    this.plugin.relevanceGrades.delete(mapPath);
+    run.controller.abort();
+  }
+  private finishRelevance(
+    run: RelevanceGradeRun,
+    mapPath: string,
+    status: "failed" | "declined",
+    message: string
+  ): void {
+    if (!this.relevanceRunIsCurrent(run, mapPath)) return;
+    run.status = status;
+    run.message = message;
+    this.refreshRelevance();
+  }
+  /** Repaints the map and keeps the keyboard in the status bar when it had it (its buttons come and go). */
+  private refreshRelevance(focusBar = false): void {
+    if (this.closed) return;
+    const bar = this.contentEl?.querySelector?.(".vam-relevance-statusbar") as HTMLElement | null | undefined;
+    const hadFocus = !!bar && !!bar.contains?.(this.contentEl.ownerDocument?.activeElement ?? null);
+    this.render();
+    if (focusBar || hadFocus)
+      (this.contentEl?.querySelector?.(".vam-relevance-statusbar button") as HTMLElement | null | undefined)?.focus();
+  }
+  /**
+   * Enter in the goal field. The goal is saved first (its own undo step), then, after the usage confirmation, the
+   * whole map is graded and the result is written in one step. Nothing is written when the AI is declined, stopped,
+   * fails or returns anything but exactly one valid grade for every card.
+   */
+  private async submitRelevanceGoal(raw: string): Promise<void> {
+    const goal = normalizeRelevanceGoal(raw);
+    const mapPath = this.path;
+    if (!goal || !this.relevanceGradeable()) return;
+    if (this.plugin.relevanceGrades.get(mapPath)?.status === "running") return;
+    const run: RelevanceGradeRun = {
+      token: ++relevanceRunToken,
+      owner: this,
+      controller: new AbortController(),
+      goal,
+      status: "running"
+    };
+    // Claim the map before the first await, so a second Enter cannot start another run.
+    this.plugin.relevanceGrades.set(mapPath, run);
+    this.startedRelevance = true;
+    this.refreshRelevance(true);
+    const settings = this.plugin.settings;
+    let result: RelevanceGradeResult | undefined;
+    let basis: StructureNode[] = [];
+    try {
+      await this.plugin.mutate(async () => {
+        const { previous, next, changed } = await this.plugin.repo.writeRelevanceGoal(mapPath, goal);
+        if (this.path !== mapPath) return;
+        this.relevanceGoal = goal;
+        if (!changed) return;
+        this.history.push({
+          label: t("ui.relevance_goal_history_label"),
+          undo: () => this.plugin.repo.restoreRelevanceGoal(mapPath, previous),
+          redo: () => this.plugin.repo.restoreRelevanceGoal(mapPath, next)
+        });
+        this.updateHistoryButtons();
+      });
+      const model = settings.cliModel;
+      const started = await this.plugin.confirmAiUsage(model, async () => {
+        // Stopped, or the map changed, while the usage dialog was open.
+        if (!this.relevanceRunIsCurrent(run, mapPath) || !this.map) return;
+        basis = buildStructureReviewNodes(this.map.nodes, id => this.describeForReview(id));
+        result = await this.plugin.relevanceGrade.grade(
+          {
+            goal,
+            nodes: basis,
+            language: settings.language,
+            contentLanguage: chooseAimContentLanguage(settings.language, this.map.title),
+            model,
+            reasoning: normalizeReasoningLevel(settings.cliReasoning)
+          },
+          run.controller.signal
+        );
+      });
+      if (!this.relevanceRunIsCurrent(run, mapPath)) return;
+      if (!started) return this.finishRelevance(run, mapPath, "declined", t("ui.relevance_not_started"));
+      const graded = result;
+      if (!graded) return;
+      await this.plugin.mutate(() => this.applyRelevanceGrade(run, mapPath, basis, graded.items));
+      this.refreshRelevance();
+    } catch (error) {
+      this.finishRelevance(run, mapPath, "failed", t("ui.relevance_failed_0", errorMessage(error)));
+    }
+  }
+  /**
+   * Writes the grades as one undo step. Each card is checked against what the AI was shown: a card deleted, renamed
+   * or moved meanwhile is skipped (its old grade stays), and cards added meanwhile are not in the result so they stay
+   * ungraded. A note that cannot be written is counted; the undo step covers only the notes actually written.
+   */
+  private async applyRelevanceGrade(
+    run: RelevanceGradeRun,
+    mapPath: string,
+    basis: StructureNode[],
+    items: RelevanceGradeItem[]
+  ): Promise<void> {
+    if (!this.relevanceRunIsCurrent(run, mapPath) || !this.map) return;
+    run.writing = true;
+    const repo = this.plugin.repo;
+    const fresh = new Map<string, Note>();
+    for (const node of this.map.nodes) {
+      try {
+        fresh.set(node.id, await repo.readNote(node.path));
+      } catch {
+        /* A card whose note cannot be read counts as changed and is skipped below. */
+      }
+    }
+    const current = new Map(
+      buildStructureReviewNodes(this.map.nodes, id => {
+        const note = fresh.get(id);
+        return note ? { title: note.title, summary: "", status: "" } : undefined;
+      }).map(node => [node.id, node])
+    );
+    const pathOf = new Map(this.map.nodes.map(node => [node.id, node.path]));
+    const byId = new Map(items.map(item => [item.id, item]));
+    const outcome: RelevanceGradeOutcome = { graded: 0, changes: [], skipped: 0, failed: 0 };
+    try {
+      for (const base of basis) {
+        const item = byId.get(base.id);
+        if (!item) continue;
+        const now = current.get(base.id),
+          note = fresh.get(base.id),
+          path = pathOf.get(base.id);
+        if (!now || !note || !path || now.title !== base.title || now.parentId !== base.parentId) {
+          outcome.skipped++;
+          continue;
+        }
+        const after = { tier: item.tier, reason: item.reason };
+        const before = note.relevance ? { tier: note.relevance.tier, reason: note.relevance.reason } : undefined;
+        if (before && before.tier === after.tier && before.reason === after.reason) {
+          outcome.graded++;
+          continue;
+        }
+        try {
+          await repo.writeRelevance(path, after);
+          outcome.graded++;
+          outcome.changes.push({ id: base.id, path, title: note.title, before, after });
+        } catch (error) {
+          outcome.failed++;
+          this.plugin.logs.appendLog("error", t("log.operation_failed_0", errorMessage(error)));
+        }
+      }
+    } finally {
+      if (outcome.changes.length) {
+        const changes = outcome.changes;
+        const entry: Action = {
+          label: t("ui.relevance_history_label"),
+          undo: () => this.restoreRelevance(changes, "undo"),
+          redo: () => this.restoreRelevance(changes, "redo")
+        };
+        this.history.push(entry);
+        run.historyEntry = entry;
+        this.updateHistoryButtons();
+      }
+      run.outcome = outcome;
+      run.status = "done";
+    }
+  }
+  /**
+   * Undo or redo a grading run. A note is only put back when it still holds exactly what the run wrote (or, for redo,
+   * what it replaced); a note the owner edited since is left alone and counted in a Notice.
+   */
+  private async restoreRelevance(changes: RelevanceGradeChange[], direction: "undo" | "redo"): Promise<void> {
+    let skipped = 0;
+    const same = (a: NoteRelevance | undefined, b: NoteRelevance | undefined): boolean =>
+      a === b || (!!a && !!b && a.tier === b.tier && a.reason === b.reason);
+    for (const change of changes) {
+      const expected = direction === "undo" ? change.after : change.before;
+      const replacement = direction === "undo" ? change.before : change.after;
+      try {
+        const latest = (await this.plugin.repo.readNote(change.path)).relevance;
+        if (!same(latest, expected)) {
+          skipped++;
+          continue;
+        }
+        await this.plugin.repo.writeRelevance(change.path, replacement ?? null);
+      } catch {
+        skipped++;
+      }
+    }
+    if (skipped) new Notice(t("ui.relevance_undo_skipped_0", skipped));
+  }
+  private stopRelevanceGrade(): void {
+    const run = this.plugin.relevanceGrades.get(this.path);
+    if (!run || run.status !== "running" || run.writing) return;
+    run.status = "stopped";
+    run.message = t("ui.relevance_stopped");
+    run.controller.abort();
+    this.refreshRelevance();
+  }
+  /** Status bar under the toolbar, same place and look as the AIM and multi-research bars. */
+  private renderRelevanceStatus(parent: HTMLElement): void {
+    const run = this.plugin.relevanceGrades.get(this.path);
+    if (!run) return;
+    const running = run.status === "running";
+    const bar = parent.createDiv(`vam-aim-statusbar vam-relevance-statusbar${running ? " is-active" : ""}`);
+    bar.setAttr("aria-live", "polite");
+    bar.createSpan({ cls: "vam-aim-status-title", text: t("ui.relevance_history_label") });
+    const outcome = run.outcome;
+    const text = running
+      ? t("ui.relevance_running")
+      : run.status === "done" && outcome
+        ? [
+            t("ui.relevance_done_0_1_2", outcome.graded, outcome.changes.length, outcome.skipped),
+            outcome.failed ? t("ui.relevance_write_failed_0", outcome.failed) : ""
+          ]
+            .filter(Boolean)
+            .join(" ")
+        : (run.message ?? "");
+    const tone = running
+      ? " vam-status-running"
+      : run.status === "failed" || outcome?.failed
+        ? " vam-status-error"
+        : "";
+    bar.createSpan({ cls: `vam-aim-status-value${tone}`, text });
+    if (running) {
+      if (!run.writing) this.button(bar, t("ui.relevance_stop"), () => this.stopRelevanceGrade());
+      return;
+    }
+    if (outcome?.changes.length) {
+      this.button(bar, t("ui.relevance_view_changes"), () => this.openRelevanceSummary(run));
+      if (this.history.undoEntry && this.history.undoEntry === run.historyEntry)
+        this.button(bar, t("ui.undo"), () => this.enqueue(() => this.travel(false)));
+    }
+    this.iconButton(bar, "x", t("ui.dismiss"), () => {
+      this.plugin.relevanceGrades.delete(this.path);
+      this.render();
+      (this.contentEl?.querySelector?.(".vam-relevance-goal") as HTMLElement | null | undefined)?.focus();
+    });
+  }
+  private openRelevanceSummary(run: RelevanceGradeRun): void {
+    const changes = run.outcome?.changes ?? [];
+    new RelevanceSummaryModal(this.app, {
+      rows: changes.map(change => ({
+        id: change.id,
+        title: change.title,
+        before: change.before,
+        after: change.after
+      })),
+      highlight: ids => this.highlightStructure(ids)
+    }).open();
   }
   /**
    * Applies one structure suggestion as one undo step, after checking again that it still fits the map. Remove and
@@ -1890,6 +2217,7 @@ export class VisualAgentMapView extends ItemView {
       await this.persistViewport();
     }
     if (!isCurrent()) return;
+    this.abortRelevanceGrade();
     const sample = builtInSample(this.plugin.settings.language);
     if (!this.builtIn) this.plugin.closeStaleDetails();
     this.builtIn = true;
@@ -3483,6 +3811,7 @@ export class VisualAgentMapView extends ItemView {
         this.button(actions, t("ui.check_codex"), () => this.enqueue(() => this.plugin.recheckCodex()));
     }
     if (!this.builtIn && !this.map.aim) this.renderMultiResearchStatus(this.contentEl);
+    if (!this.builtIn && !this.map.aim) this.renderRelevanceStatus(this.contentEl);
     const tools = createDiv("vam-map-tools");
     if (!this.builtIn) {
       const aimMode = !!this.map.aim;
@@ -3505,13 +3834,7 @@ export class VisualAgentMapView extends ItemView {
         );
         integrate.setAttr("aria-pressed", String(this.integrationMode));
         if (this.integrationMode) integrate.addClass("is-active");
-        if (this.relevanceGoal) {
-          const goal = tools.createSpan({
-            cls: "vam-relevance-goal",
-            text: t("ui.relevance_goal_0", this.relevanceGoal)
-          });
-          setTooltip(goal, this.relevanceGoal);
-        }
+        this.renderRelevanceGoalControl(tools);
       }
     }
     const workspace = this.contentEl.createDiv("vam-workspace");
@@ -3712,11 +4035,7 @@ export class VisualAgentMapView extends ItemView {
     if (relevance) {
       const tierLabel = t(RELEVANCE_LABEL[relevance.tier]);
       card.dataset.relevance = relevance.tier;
-      const tag = header.createSpan({ cls: "vam-relevance-tag" });
-      tag.dataset.tier = relevance.tier;
-      setIcon(tag.createSpan({ cls: "vam-relevance-icon" }), RELEVANCE_ICON[relevance.tier]);
-      tag.createSpan({ text: tierLabel });
-      setTooltip(tag, relevance.reason);
+      setTooltip(renderRelevanceTag(header, relevance.tier, tierLabel), relevance.reason);
       card.setAttr("aria-description", t("ui.relevance_description_0_1", tierLabel, relevance.reason));
       const named = cardLabels.get(card)?.textContent;
       if (named) this.labelCard(card, t("ui.topic_card_label_0_1", named, tierLabel));

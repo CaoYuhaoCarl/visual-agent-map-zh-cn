@@ -24,3 +24,9 @@ export function readRelevanceGoal(fm: Record<string, unknown>): string | undefin
   const goal = fm["relevance-goal"];
   return typeof goal === "string" && goal.trim() ? goal.trim() : undefined;
 }
+/** The longest goal the map accepts (characters). */
+export const RELEVANCE_GOAL_MAX_LENGTH = 200;
+/** A goal as stored: one line, single spaces, trimmed, at most {@link RELEVANCE_GOAL_MAX_LENGTH} characters. */
+export function normalizeRelevanceGoal(value: string): string {
+  return [...value.replace(/\s+/g, " ").trim()].slice(0, RELEVANCE_GOAL_MAX_LENGTH).join("").trim();
+}
