@@ -8,7 +8,7 @@
 
 **Start with a question. See the pieces. Follow the ideas worth exploring.** Build a visual research map, let AIM investigate a question, or talk through a new idea in Coffee Tables. Keep what you learn in editable Markdown notes.
 
-[**Get started**](#get-started) · [See the 0.19.0 release](https://github.com/kevcltsai/visual-agent-map/releases/tag/0.19.0) · [Installation guide](INSTALL.md)
+[**Get started**](#get-started) · [See the 0.20.0 release](https://github.com/kevcltsai/visual-agent-map/releases/tag/0.20.0) · [Installation guide](INSTALL.md)
 
 ### Take a look
 
@@ -19,7 +19,7 @@
 ### Three ways to explore
 
 - **Visual maps.** Break a question into topics, research a branch with AI, and review suggestions before adding them. Let AI draft a multi-level outline or suggest what to strengthen or cut, paste a heading outline, and research several topics in the background. Content templates choose which sections a research note has; writing tones choose how it reads. Manual mapping needs no AI.
-- **AIM — Adaptive Inquiry Map.** Work from your question and background toward a document with supporting sources. Follow the research in the map, build on useful earlier findings, and resume unfinished work when a step fails.
+- **AIM — Adaptive Inquiry Map.** Work from your question and background toward a document with supporting sources. Answer the opening questions once and let it run; watch each subtopic on the map, change direction or correct an assumption afterwards, and build on useful earlier findings.
 - **Coffee Tables.** Bring an unfinished idea to simulated AI guests. Add `.txt` / `.md` background, choose a conversation style, invite guests with a question, and revisit observer insights and conversation segments.
 
 Coffee Tables guests are simulated, not real experts; their conversations are not automatically fact-checked.
@@ -28,7 +28,7 @@ Coffee Tables guests are simulated, not real experts; their conversations are no
 
 1. In **Obsidian Desktop → Settings → Community plugins → Browse**, find **Visual Agent Map**, then install and enable it. Requires Obsidian **1.13.7+**.
 2. Try the built-in sample or create a visual map. For AI features, install and sign in to [Codex CLI](https://developers.openai.com/codex/cli/) or [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview), then check the CLI in VAM settings.
-3. Choose **＋ New map → New AIM** to try AIM. Enter your question and background, answer the questions that matter, and open the connected notes to inspect research and the final document.
+3. Choose **＋ New map → New AIM** to try AIM. Enter your question and background, answer the opening questions once, and open the connected notes to inspect research and the final document when the ready notice appears.
 
 For detailed setup, manual installation, and troubleshooting, see [INSTALL.md](INSTALL.md).
 
@@ -79,7 +79,7 @@ Copyright © 2026 Kevin Tsai
 
 **從一個問題出發，看見各個部分，再追你想探索的線索。** 建立視覺化研究地圖、讓 AIM 深入查證問題，或到 Coffee Tables 聊出新角度；想留下的發現都能存成可編輯的 Markdown 筆記。
 
-[**開始使用**](#開始使用) · [查看 0.19.0 正式版](https://github.com/kevcltsai/visual-agent-map/releases/tag/0.19.0) · [安裝指南](INSTALL.md)
+[**開始使用**](#開始使用) · [查看 0.20.0 正式版](https://github.com/kevcltsai/visual-agent-map/releases/tag/0.20.0) · [安裝指南](INSTALL.md)
 
 ### 看看畫面
 
@@ -90,7 +90,7 @@ Copyright © 2026 Kevin Tsai
 ### 三種探索方式
 
 - **視覺化地圖。** 把問題拆成議題，用 AI 深入一個分支；先查看建議，再決定是否加入。也能讓 AI 草擬多層大綱、建議哪裡該加強或刪減，貼上標題大綱，並在背景同時研究多個議題。內容模板決定研究筆記有哪些段落，寫作語氣決定它讀起來的風格。手動繪圖不需要 AI。
-- **AIM — Adaptive Inquiry Map。** 從你的問題與背景出發，逐步形成附有來源的文件。在地圖中追蹤研究、沿用有用的既有發現，遇到失敗時接續未完成的工作。
+- **AIM — Adaptive Inquiry Map。** 從你的問題與背景出發，形成附有來源的文件。開頭一次回答條件問題後就能放著跑；在地圖上看各子議題的進度，事後可調整方向或修正假設，並沿用有用的既有發現。
 - **Coffee Tables。** 把未成形的想法帶來，與模擬 AI 來賓對談。加入 `.txt`／`.md` 背景、選擇對談風格、透過追問邀請來賓，並回看觀察者洞見與對話段落。
 
 Coffee Tables 來賓是模擬角色，不是真實專家；對談內容不會自動查證。
@@ -99,7 +99,7 @@ Coffee Tables 來賓是模擬角色，不是真實專家；對談內容不會自
 
 1. 到 **Obsidian 桌面版 → 設定 → 第三方外掛 → 瀏覽** 搜尋 **Visual Agent Map**，安裝並啟用。需要 Obsidian **1.13.7+**。
 2. 先試內建範例，或建立自己的視覺化地圖。使用 AI 功能前，安裝並登入 [Codex CLI](https://developers.openai.com/codex/cli/) 或 [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview)，再到 VAM 設定檢查 CLI。
-3. 選擇「**＋ 新增地圖 → 新增 AIM**」體驗 AIM。輸入問題與背景，回答重要的條件問題，再開啟相連的筆記查看研究與最終文件。
+3. 選擇「**＋ 新增地圖 → 新增 AIM**」體驗 AIM。輸入問題與背景，一次回答開頭的條件問題；看到完成通知後，開啟相連的筆記查看研究與最終文件。
 
 詳細設定、手動安裝與問題排除，請見 [INSTALL.md](INSTALL.md)。
 

@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.20.0] - 2026-10-15
+
+### Added
+
+- **Answer once, then let it run.** When you start an AIM, "How AIM asks" defaults to answering the opening questions once: AIM asks for every condition that would change its advice up front, then researches and writes the document without stopping. Questions that come up during research become stated assumptions or "if X, do A; if Y, do B" advice. The previous one-question-at-a-time mode is still available.
+- **See what AIM is doing.** As soon as the research plan is ready, each planned subtopic appears on the map as a dashed card showing queued, searching (with the number of searches and elapsed time) or done. The status bar shows the current stage and elapsed time, and a notice tells you when the document is ready.
+- **Change direction** during a run or after a document: write what you care about now. A run in progress stops first and keeps its finished research; the new focus becomes a question titled by your words, earlier findings are kept, and the earlier document stays.
+- **Correct an assumption** on a finished document: pick an assumption that is wrong, describe your real situation, and AIM reuses the research that still holds and rewrites the document.
+
+### Changed
+
+- AIM ends with a usable document much more often. When research turns run out, it gives a conditional answer and lists what you should confirm instead of stopping as unfinished; when the final review still finds a gap, the written document is kept with the gap stated.
+- AIM decides when to stop with a checklist of conditions that would change the answer, instead of a fixed minimum of three questions, and asks related details (for example licence, daily driving time and transport) together in one question.
+- The final document is written in one pass, opens with the answer, and says each point once. Subtopic notes report only what they add; the document brings earlier rounds and new research together.
+- Research reuses saved findings from other answers on the same map when their conditions still hold.
+- Fewer AI calls and shorter waits per document; three subtopics are researched at a time.
+- The menu item is now **New AIM**, and AIM maps no longer show a separate "Create a new mind map" button.
+
+### Fixed
+
+- A subtopic search that times out, is not performed or returns nothing usable is skipped instead of ending the whole run; small AI formatting slips are repaired or skipped instead of failing.
+
 ## [0.19.0] - 2026-10-15
 
 ### Changed
