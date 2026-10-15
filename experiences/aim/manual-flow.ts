@@ -229,11 +229,14 @@ export class AimManualFlow {
    * open item of a conditional conclusion: the document states it for the user to confirm instead of stopping.
    */
   private withOpenItems(review: PlannerReview, language: UiLanguage): PlannerReview {
-    const openItems = [...(review.openItems ?? []), ...(review.researchTarget ? [review.researchTarget] : [])];
+    const openItems = [...(review.openItems ?? []), ...(review.researchTarget ? [review.researchTarget] : [])].filter(
+      (item, index, all) => all.findIndex(other => other.title === item.title) === index
+    );
     return {
       decision: "conclude",
       rationale: review.rationale,
-      stopReason: translate(language, "note.aim_open_items_stop_0", openItems.map(item => item.title).join("; ")),
+      // Attempt records keep stored (English) stop reasons; notes localize what they show.
+      stopReason: `Answered with items for the user to confirm: ${openItems.map(item => item.title).join("; ")}`,
       ...(review.goalAnswered !== undefined ? { goalAnswered: review.goalAnswered } : {}),
       ...(review.unresolvedConditions ? { unresolvedConditions: review.unresolvedConditions } : {}),
       openItems,

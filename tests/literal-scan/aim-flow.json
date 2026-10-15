@@ -77,6 +77,11 @@
       "file": "experiences/aim/manual-flow.ts",
       "text": "The follow-up search found nothing usable:",
       "reason": "stop reason persisted on the attempt record and shown in the UI, not a prompt"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "Answered with items for the user to confirm:",
+      "reason": "stop reason persisted on the attempt record and shown in the UI, not a prompt"
     }
   ]
 }

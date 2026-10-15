@@ -444,21 +444,29 @@ integrationTest('coverage: ask_user and research_more fallback notes write the s
   assert.ok(askReason, 'attempt record keeps the stored English value');
   const q2 = saved.nodes.find(node => node.id === asked.questionNodeId);
   const asked2 = await subject.flow.answerAndResearch(subject.created.mapPath, q2.id, { requestId: 'stop-a2', selections: [q2.aimQuestion.options[0].id], freeText: '條件二' }, 'gpt-6-luna', 'low');
-  // A gap left at the research budget becomes a conditional answer; only a rejected final delivery stays partial,
-  // so the third answer (at the floor) reaches delivery and its acceptance keeps asking for research.
+  // A gap left at the research budget becomes a conditional answer, and a delivery still rejected there is published
+  // with the gap stated; a partial attempt (as older maps keep) is seeded to cover the continuation stop reason.
   mode = 'research_more';
   const q3 = (await subject.repo.readMap(subject.created.mapPath)).nodes.find(node => node.id === asked2.questionNodeId);
-  const partial = await subject.flow.answerAndResearch(subject.created.mapPath, q3.id, { requestId: 'stop-a3', selections: [q3.aimQuestion.options[0].id], freeText: '條件三' }, 'gpt-6-luna', 'low');
-  assert.equal(partial.status, 'partial');
+  const published = await subject.flow.answerAndResearch(subject.created.mapPath, q3.id, { requestId: 'stop-a3', selections: [q3.aimQuestion.options[0].id], freeText: '條件三' }, 'gpt-6-luna', 'low');
+  assert.equal(published.status, 'completed');
   ({ saved } = await readAll());
-  const run = saved.aim.runs.find(item => item.attempts.some(attempt => attempt.status === 'partial'));
-  assert.ok(run, 'a partial run exists to continue');
+  const third = saved.aim.branches.find(item => item.questionNodeId === q3.id);
+  const seededBranch = await store.createAnswerBranch(subject.created.mapPath, { requestId: 'stop-seeded', questionNodeId: q3.id, parentBranchId: third.parentBranchId, answerSnapshot: { selections: [], freeText: '條件四' }, inputSnapshot: third.inputSnapshot });
+  const seeded = await store.startAttempt(subject.created.mapPath, seededBranch.id, 'stop-seeded-run', { model: 'gpt-6-luna', reasoning: 'low', maxResearchTurns: 2 });
+  await store.recordResearchTurn(subject.created.mapPath, seeded);
+  const seedDraft = (await store.createResultDraft(subject.created.mapPath, seeded, '較早的部分研究', 'gpt-6-luna', 'low', { kind: 'synthesis' })).draft;
+  await store.updateResultDraftReport(subject.created.mapPath, seeded, seedDraft.id, '已保存的部分研究。', '已保存的研究仍缺一個來源。');
+  await store.recordPlannerReview(subject.created.mapPath, seeded, { decision: 'research_more', rationale: 'Evidence is still missing.', researchTurn: 1, researchTarget: { title: '補查目標', task: 'Search for the missing evidence.', expectedValue: 'Closes the gap.' } }, 'Evidence is still missing.');
+  await store.commitResult(subject.created.mapPath, seeded, seedDraft.id, { summary: '已保存的部分研究。', detail: '已保存的研究仍缺一個來源。' }, 'partial');
+  const run = { id: 'stop-seeded-run' };
   const continued = await subject.flow.continuePartial(subject.created.mapPath, run.id, 'gpt-6-luna', 'low');
   assert.equal(continued.status, 'partial');
   ({ saved, text } = await readAll());
   assert.match(text, /停止原因：續跑已達原型研究輪數上限，仍有重要缺口：/);
   assert.doesNotMatch(text, /Continuation attempt reached its prototype/);
-  assert.ok(!recordedStops.some(stop => /[\u4e00-\u9fff]/.test(stop ?? '')), 'attempt records never receive the localized note text');
+  // Content (the gap title) may be Chinese; the stored wording around it never is.
+  assert.ok(!recordedStops.some(stop => /[\u4e00-\u9fff]/.test((stop ?? '').replaceAll(target.title, ''))), 'attempt records never receive the localized note text');
   assert.ok(recordedStops.includes("Awaiting the user's answer to: Which constraint matters at stage 2?"));
 });
 

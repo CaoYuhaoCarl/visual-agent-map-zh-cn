@@ -1448,7 +1448,6 @@ var english = {
   "note.aim_followup_heading_0": "## Follow-up: {0}",
   "note.aim_smoke_publication_0": "> profile=smoke: published as the conclusion at the research budget although delivery acceptance asked for more research. This is smoke evidence, not a verified conclusion. Acceptance rejection reason: {0}",
   "note.aim_round_limit_0": "The research round limit was reached and an important evidence gap remains: {0}",
-  "note.aim_open_items_stop_0": "The answer is given with these items for you to confirm: {0}",
   "note.aim_assumption_corrected": "Not as assumed (my situation is below)",
   "note.aim_steer_answer": "Add this focus and keep what earlier rounds found",
   "note.aim_unresolved_conditions_0": "These conditions would change the answer and are still unknown: {0}",
@@ -2890,7 +2889,6 @@ var traditionalChinese = {
   "note.aim_followup_heading_0": "## \u88DC\u67E5\uFF1A{0}",
   "note.aim_smoke_publication_0": "> profile=smoke\uFF1A\u7814\u7A76\u9810\u7B97\u7528\u76E1\uFF0C\u4EA4\u4ED8\u9A57\u6536\u4ECD\u8981\u6C42\u88DC\u67E5\uFF0C\u4F46\u4F9D smoke \u8A2D\u5B9A\u76F4\u63A5\u767C\u5E03\u70BA\u7D50\u8AD6\u3002\u9019\u662F smoke \u6E2C\u8A66\u8B49\u64DA\uFF0C\u4E0D\u662F\u5DF2\u9A57\u8B49\u7684\u7D50\u8AD6\u3002\u9A57\u6536\u9000\u56DE\u539F\u56E0\uFF1A{0}",
   "note.aim_round_limit_0": "\u7814\u7A76\u8F2A\u6578\u5DF2\u9054\u4E0A\u9650\uFF0C\u4ECD\u6709\u91CD\u8981\u8B49\u64DA\u7F3A\u53E3\uFF1A{0}",
-  "note.aim_open_items_stop_0": "\u5148\u7D66\u51FA\u9644\u689D\u4EF6\u7684\u7B54\u6848\uFF0C\u4EE5\u4E0B\u4E8B\u9805\u8ACB\u4F60\u78BA\u8A8D\uFF1A{0}",
   "note.aim_assumption_corrected": "\u4E0D\u662F\u9019\u6A23\uFF08\u6211\u7684\u5BE6\u969B\u60C5\u6CC1\u5982\u4E0B\uFF09",
   "note.aim_steer_answer": "\u52A0\u5165\u9019\u500B\u65B9\u5411\uFF0C\u4E26\u4FDD\u7559\u5148\u524D\u5404\u8F2A\u7684\u7814\u7A76\u7D50\u679C",
   "note.aim_unresolved_conditions_0": "\u4EE5\u4E0B\u689D\u4EF6\u6703\u6539\u8B8A\u7B54\u6848\uFF0C\u76EE\u524D\u4ECD\u672A\u77E5\uFF1A{0}",
@@ -20574,11 +20572,14 @@ var _AimManualFlow = class _AimManualFlow {
    */
   withOpenItems(review, language2) {
     var _a;
-    const openItems = [...(_a = review.openItems) != null ? _a : [], ...review.researchTarget ? [review.researchTarget] : []];
+    const openItems = [...(_a = review.openItems) != null ? _a : [], ...review.researchTarget ? [review.researchTarget] : []].filter(
+      (item, index, all) => all.findIndex((other) => other.title === item.title) === index
+    );
     return {
       decision: "conclude",
       rationale: review.rationale,
-      stopReason: translate(language2, "note.aim_open_items_stop_0", openItems.map((item) => item.title).join("; ")),
+      // Attempt records keep stored (English) stop reasons; notes localize what they show.
+      stopReason: `Answered with items for the user to confirm: ${openItems.map((item) => item.title).join("; ")}`,
       ...review.goalAnswered !== void 0 ? { goalAnswered: review.goalAnswered } : {},
       ...review.unresolvedConditions ? { unresolvedConditions: review.unresolvedConditions } : {},
       openItems,

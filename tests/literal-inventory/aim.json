@@ -360,6 +360,12 @@
       "text": "The follow-up search found nothing usable:",
       "class": "attempt-record",
       "reason": "Stop reason recorded with the Planner review on the attempt when a follow-up search finds nothing"
+    },
+    {
+      "file": "experiences/aim/manual-flow.ts",
+      "text": "Answered with items for the user to confirm:",
+      "class": "attempt-record",
+      "reason": "Stop reason recorded with the Planner review when the answer lists open items"
     }
   ],
   "markdown": {
