@@ -799,7 +799,8 @@ export class VisualAgentMapView extends ItemView {
           const result = await this.plugin.outlineGeneration.generate(
             {
               ...request,
-              language: chooseAimContentLanguage(settings.language, request.topic),
+              language: settings.language,
+              contentLanguage: chooseAimContentLanguage(settings.language, request.topic),
               model,
               reasoning: normalizeReasoningLevel(settings.cliReasoning)
             },
@@ -907,6 +908,7 @@ export class VisualAgentMapView extends ItemView {
               rootQuestion,
               nodes,
               language: settings.language,
+              contentLanguage: chooseAimContentLanguage(settings.language, rootQuestion),
               model,
               reasoning: normalizeReasoningLevel(settings.cliReasoning)
             },

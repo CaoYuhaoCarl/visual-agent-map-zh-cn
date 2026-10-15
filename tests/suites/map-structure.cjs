@@ -521,6 +521,23 @@ integrationTest('structure review on the map: the AI gets titles, summaries and 
   assert.equal([...h.cards.values()].filter(card => hasCls(card, 'vam-structure-suggested')).length, 0, 'closing clears every mark');
 });
 
+integrationTest('structure review: suggestions follow the map language while errors stay in the interface language', async () => {
+  const { buildStructureReviewPrompt } = load('core/structure-review-service.ts');
+  const h = await viewHarness({ suggestions: [] });
+  h.view.map.title = '要如何在陽台養香草';
+  h.view.openStructureReview(null);
+  button(h.opened.at(-1).modalEl, 'Start review').click(); await until(() => h.requests.length);
+  assert.equal(h.requests[0].language, 'en');
+  assert.equal(h.requests[0].contentLanguage, 'zh-TW');
+  assert.match(buildStructureReviewPrompt(h.requests[0]), /Traditional Chinese/);
+  assert.doesNotMatch(buildStructureReviewPrompt({ ...h.requests[0], contentLanguage: undefined }), /Traditional Chinese/);
+  const english = await viewHarness({ suggestions: [] });
+  english.view.openStructureReview(null);
+  button(english.opened.at(-1).modalEl, 'Start review').click(); await until(() => english.requests.length);
+  assert.equal(english.requests[0].contentLanguage, 'en');
+  assert.doesNotMatch(buildStructureReviewPrompt(english.requests[0]), /Traditional Chinese/);
+});
+
 integrationTest('structure review: a branch review sends only that branch with the branch topic as its root', async () => {
   const h = await viewHarness({ suggestions: [] });
   h.view.openStructureReview(h.ids.a);

@@ -21,6 +21,8 @@ export interface OutlineGenerateRequest {
   /** The preset's instruction text; may contain a topic placeholder. */
   presetText: string;
   language: UiLanguage;
+  /** Language of the prompt and model output; defaults to `language`, which stays the interface language for errors. */
+  contentLanguage?: UiLanguage;
   model: string;
   reasoning: ReasoningLevel;
   /** Quick explore's chosen levels and size; they override the preset's own and are enforced after parsing. */
@@ -109,16 +111,18 @@ export function parseOutlineReply(raw: string, language: UiLanguage): OutlineGen
 export const outlineGenerateStep: StepDefinition<OutlineGenerateRequest, OutlineGenerateResult> = {
   id: "outline-generate",
   version: 1,
-  render: request =>
-    renderTemplate(template, {
-      languageInstruction: renderTemplate(request.language === "zh-TW" ? languageZh : languageEn, {}),
+  render: request => {
+    const content = request.contentLanguage ?? request.language;
+    return renderTemplate(template, {
+      languageInstruction: renderTemplate(content === "zh-TW" ? languageZh : languageEn, {}),
       preset: request.limits
-        ? `${applyTopicToPreset(request.presetText, request.topic, request.language)}\n\n${renderTemplate(
-            request.language === "zh-TW" ? limitsZh : limitsEn,
+        ? `${applyTopicToPreset(request.presetText, request.topic, content)}\n\n${renderTemplate(
+            content === "zh-TW" ? limitsZh : limitsEn,
             { levels: String(request.limits.levels), maxTopics: String(request.limits.maxTopics) }
           )}`
-        : applyTopicToPreset(request.presetText, request.topic, request.language)
-    }),
+        : applyTopicToPreset(request.presetText, request.topic, content)
+    });
+  },
   policy: (prompt, request) => {
     const locale = uiLocale(request.language);
     if (!request.topic.trim())

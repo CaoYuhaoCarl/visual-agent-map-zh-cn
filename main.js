@@ -18437,21 +18437,27 @@ function isSuggestionStale(suggestion, currentTree) {
 var structureReviewStep = {
   id: "structure-review",
   version: 1,
-  render: (request) => renderTemplate(prompt_default, {
-    languageInstruction: renderTemplate(request.language === "zh-TW" ? language_zh_default : language_en_default, {}),
-    limit: String(STRUCTURE_REVIEW_MAX_SUGGESTIONS),
-    question: JSON.stringify(request.rootQuestion),
-    tree: JSON.stringify(
-      request.nodes.map((node) => ({
-        id: node.id,
-        title: node.title,
-        summary: node.summary,
-        status: node.status,
-        parentId: node.parentId,
-        depth: node.depth
-      }))
-    )
-  }),
+  render: (request) => {
+    var _a;
+    return renderTemplate(prompt_default, {
+      languageInstruction: renderTemplate(
+        ((_a = request.contentLanguage) != null ? _a : request.language) === "zh-TW" ? language_zh_default : language_en_default,
+        {}
+      ),
+      limit: String(STRUCTURE_REVIEW_MAX_SUGGESTIONS),
+      question: JSON.stringify(request.rootQuestion),
+      tree: JSON.stringify(
+        request.nodes.map((node) => ({
+          id: node.id,
+          title: node.title,
+          summary: node.summary,
+          status: node.status,
+          parentId: node.parentId,
+          depth: node.depth
+        }))
+      )
+    });
+  },
   schema: STRUCTURE_REVIEW_SCHEMA,
   policy: (prompt, request) => {
     const locale = uiLocale(request.language);
@@ -25488,7 +25494,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian22.Ite
           const result = await this.plugin.outlineGeneration.generate(
             {
               ...request,
-              language: chooseAimContentLanguage(settings.language, request.topic),
+              language: settings.language,
+              contentLanguage: chooseAimContentLanguage(settings.language, request.topic),
               model,
               reasoning: normalizeReasoningLevel(settings.cliReasoning)
             },
@@ -25599,6 +25606,7 @@ ${request.requirements}` : preset.text,
               rootQuestion,
               nodes,
               language: settings.language,
+              contentLanguage: chooseAimContentLanguage(settings.language, rootQuestion),
               model,
               reasoning: normalizeReasoningLevel(settings.cliReasoning)
             },
@@ -34041,15 +34049,19 @@ function parseOutlineReply(raw, language2) {
 var outlineGenerateStep = {
   id: "outline-generate",
   version: 1,
-  render: (request) => renderTemplate(prompt_default3, {
-    languageInstruction: renderTemplate(request.language === "zh-TW" ? language_zh_default4 : language_en_default4, {}),
-    preset: request.limits ? `${applyTopicToPreset(request.presetText, request.topic, request.language)}
+  render: (request) => {
+    var _a;
+    const content = (_a = request.contentLanguage) != null ? _a : request.language;
+    return renderTemplate(prompt_default3, {
+      languageInstruction: renderTemplate(content === "zh-TW" ? language_zh_default4 : language_en_default4, {}),
+      preset: request.limits ? `${applyTopicToPreset(request.presetText, request.topic, content)}
 
 ${renderTemplate(
-      request.language === "zh-TW" ? limits_zh_default : limits_en_default,
-      { levels: String(request.limits.levels), maxTopics: String(request.limits.maxTopics) }
-    )}` : applyTopicToPreset(request.presetText, request.topic, request.language)
-  }),
+        content === "zh-TW" ? limits_zh_default : limits_en_default,
+        { levels: String(request.limits.levels), maxTopics: String(request.limits.maxTopics) }
+      )}` : applyTopicToPreset(request.presetText, request.topic, content)
+    });
+  },
   policy: (prompt, request) => {
     const locale = uiLocale(request.language);
     if (!request.topic.trim())
