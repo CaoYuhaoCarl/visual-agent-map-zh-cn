@@ -12559,6 +12559,42 @@ var noteContentLanguage = (fm) => fm["content-language"] === "en" || fm["content
 var placeholder = (language2) => translate(language2, "detail.no_conclusion_yet");
 var isPlaceholder = (value) => value === translate("zh-TW", "detail.no_conclusion_yet") || value === translate("en", "detail.no_conclusion_yet");
 var previewHeading = (language2) => translate(language2, "detail.preview");
+var CALLOUT_SECTION = /^> \[!info\][+-]? (預覽|Preview|Prompt)[ \t]*\r?$/;
+function decodeCalloutSections(content) {
+  const lines = content.split("\n");
+  const code = fencedLines(lines);
+  const out = [];
+  let inDetail = false;
+  let origin = "none";
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
+    if (line.trim() === DETAIL_START) inDetail = true;
+    if (line.trim() === DETAIL_END) inDetail = false;
+    if (/^## Thinking Origin\s*$/.test(line)) origin = "heading";
+    else if (origin === "heading" && line.startsWith(">")) origin = "quote";
+    else if (origin === "heading" && line.trim()) origin = "none";
+    else if (origin === "quote" && !line.startsWith(">")) origin = "none";
+    const callout = inDetail || code[index] || origin !== "none" ? null : CALLOUT_SECTION.exec(line);
+    if (!callout) {
+      out.push(line);
+      continue;
+    }
+    let end = index + 1;
+    while (end < lines.length && lines[end].startsWith(">") && !CALLOUT_SECTION.test(lines[end])) end++;
+    out.push(
+      `## ${callout[1]}`,
+      "",
+      ...lines.slice(index + 1, end).map((item) => item.replace(/^> ?/, "").replace(/\r$/, "")),
+      ""
+    );
+    index = end - 1;
+  }
+  return out.join("\n");
+}
+function calloutSection(title, value) {
+  const lines = value.trim().split("\n");
+  return [`> [!info]- ${title}`, ...lines.map((line) => line ? `> ${line}` : ">")].join("\n");
+}
 var previewSection = (content) => [...new Set([section2(content, "Preview"), section2(content, "\u9810\u89BD")].filter(Boolean))].join("\n\n");
 function sectionBounds(content, heading) {
   if (heading === "Detail") {
@@ -12745,12 +12781,8 @@ ${summary.trim() || placeholder(language2)}`,
     `## Detail
 
 ${detailBlock}`,
-    `## ${previewHeading(language2)}
-
-${preview.trim()}`,
-    prompt.trim() ? `## Prompt
-
-${prompt.trim()}` : "",
+    preview.trim() && !isPlaceholder(preview.trim()) ? calloutSection(previewHeading(language2), preview) : "",
+    prompt.trim() ? calloutSection("Prompt", prompt) : "",
     rules.trim() ? `## Rules
 
 ${rules.trim()}` : "",
@@ -12827,8 +12859,8 @@ function derivedLabelLanguage(content, fm) {
       if (label && REFERENCE_LABELS.includes(label)) return "zh-TW";
       if (label && ENGLISH_REFERENCE_LABELS.includes(label)) return "en";
     }
-  if (/^## 預覽[ \t]*$/m.test(content)) return "zh-TW";
-  if (/^## Preview[ \t]*$/m.test(content)) return "en";
+  if (/^(?:## |> \[!info\][+-]? )預覽[ \t]*$/m.test(content)) return "zh-TW";
+  if (/^(?:## |> \[!info\][+-]? )Preview[ \t]*$/m.test(content)) return "en";
   const summary = section2(content, "Current Summary");
   if (summary === placeholder("zh-TW")) return "zh-TW";
   if (summary === placeholder("en")) return "en";
@@ -12997,7 +13029,7 @@ var Repository = class {
   }
   async readNote(path) {
     var _a;
-    const file = this.file(path), content = upgradeLegacyAimText(await this.app.vault.read(file)), fm = frontmatter(content);
+    const file = this.file(path), content = decodeCalloutSections(upgradeLegacyAimText(await this.app.vault.read(file))), fm = frontmatter(content);
     const status = text5(fm.status, "idea");
     const normalized = status === "review" || status === "accepted" ? "completed" : status;
     const source = text5(fm["model-source"], "workspace");
@@ -13068,7 +13100,7 @@ var Repository = class {
       if (patch.sourcePaths !== void 0)
         patch.sourcePaths.length ? fm["source-notes"] = patch.sourcePaths : delete fm["source-notes"];
       fm.updated = (/* @__PURE__ */ new Date()).toISOString();
-      let body = content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "");
+      let body = decodeCalloutSections(content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, ""));
       const textLanguage = (_c = (_b = options.contentLanguage) != null ? _b : noteContentLanguage(fm)) != null ? _c : language2;
       if (options.contentLanguage !== void 0 && noteContentLanguage(fm) === void 0)
         fm["content-language"] = options.contentLanguage;
@@ -13569,7 +13601,11 @@ ${body}`);
         fm["topic-state"] = state;
     }
     const textLanguage = (owner == null ? void 0 : owner.map.aim) ? resolveAimContentLanguage(owner.map, language2) : (_a = noteContentLanguage(fm)) != null ? _a : language2;
-    let body = ensurePreview(content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, ""), language2, textLanguage);
+    let body = ensurePreview(
+      decodeCalloutSections(content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "")),
+      language2,
+      textLanguage
+    );
     if (isPlaceholder(text5(fm.summary))) fm.summary = placeholder(textLanguage);
     const topicId = text5(fm["topic-id"]), topic = topics.get(topicId);
     if (owner) {

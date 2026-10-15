@@ -326,6 +326,50 @@ const placeholder = (language: NoteLanguage): string => translate(language, "det
 export const isPlaceholder = (value: string): boolean =>
   value === translate("zh-TW", "detail.no_conclusion_yet") || value === translate("en", "detail.no_conclusion_yet");
 const previewHeading = (language: NoteLanguage): NoteSection => translate(language, "detail.preview") as NoteSection;
+
+/**
+ * Preview and Prompt are written as collapsed callouts after Detail (`> [!info]- 預覽`, `> [!info]- Prompt`) so the
+ * note opens on the answer. Every read and write first turns these callouts back into the `## ` sections the rest
+ * of this module works with; `noteBody` writes them as callouts again. Older notes keep their `## ` sections.
+ */
+const CALLOUT_SECTION = /^> \[!info\][+-]? (預覽|Preview|Prompt)[ \t]*\r?$/;
+function decodeCalloutSections(content: string): string {
+  const lines = content.split("\n");
+  const code = fencedLines(lines);
+  const out: string[] = [];
+  let inDetail = false;
+  // Thinking Origin is quoted source text: a line there that looks like a callout title is still source text.
+  let origin: "none" | "heading" | "quote" = "none";
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
+    if (line.trim() === DETAIL_START) inDetail = true;
+    if (line.trim() === DETAIL_END) inDetail = false;
+    if (/^## Thinking Origin\s*$/.test(line)) origin = "heading";
+    else if (origin === "heading" && line.startsWith(">")) origin = "quote";
+    else if (origin === "heading" && line.trim()) origin = "none";
+    else if (origin === "quote" && !line.startsWith(">")) origin = "none";
+    const callout = inDetail || code[index] || origin !== "none" ? null : CALLOUT_SECTION.exec(line);
+    if (!callout) {
+      out.push(line);
+      continue;
+    }
+    // A callout ends at the first line without ">" or at the next Preview/Prompt callout title.
+    let end = index + 1;
+    while (end < lines.length && lines[end].startsWith(">") && !CALLOUT_SECTION.test(lines[end])) end++;
+    out.push(
+      `## ${callout[1]}`,
+      "",
+      ...lines.slice(index + 1, end).map(item => item.replace(/^> ?/, "").replace(/\r$/, "")),
+      ""
+    );
+    index = end - 1;
+  }
+  return out.join("\n");
+}
+function calloutSection(title: string, value: string): string {
+  const lines = value.trim().split("\n");
+  return [`> [!info]- ${title}`, ...lines.map(line => (line ? `> ${line}` : ">"))].join("\n");
+}
 const previewSection = (content: string): string =>
   [...new Set([section(content, "Preview"), section(content, "預覽")].filter(Boolean))].join("\n\n");
 
@@ -504,14 +548,15 @@ function noteBody(
   }
   const { text: readerDetail, marker } = splitOpenItems(detail);
   const detailBlock = `${DETAIL_START}\n${detailWithVisualReferences(readerDetail, visualReferences, standardTemplate(language))}\n${DETAIL_END}${marker ? `\n\n${marker}` : ""}`;
-  // The answer comes first: summary, then Detail; Preview and the task text follow, and an empty Prompt is left out.
+  // The answer comes first: summary, then Detail; Preview and the task text follow as collapsed callouts, and an empty
+  // (or placeholder) Preview and an empty Prompt are left out. Whether Preview was initialized stays in frontmatter.
   return (
     [
       `# ${title}`,
       `## Current Summary\n\n${summary.trim() || placeholder(language)}`,
       `## Detail\n\n${detailBlock}`,
-      `## ${previewHeading(language)}\n\n${preview.trim()}`,
-      prompt.trim() ? `## Prompt\n\n${prompt.trim()}` : "",
+      preview.trim() && !isPlaceholder(preview.trim()) ? calloutSection(previewHeading(language), preview) : "",
+      prompt.trim() ? calloutSection("Prompt", prompt) : "",
       rules.trim() ? `## Rules\n\n${rules.trim()}` : "",
       newFindings.trim() ? `## Working Findings\n\n${newFindings.trim()}` : "",
       leftover.trim()
@@ -614,8 +659,8 @@ function derivedLabelLanguage(content: string, fm: Record<string, unknown>): Not
       if (label && REFERENCE_LABELS.includes(label)) return "zh-TW";
       if (label && ENGLISH_REFERENCE_LABELS.includes(label)) return "en";
     }
-  if (/^## 預覽[ \t]*$/m.test(content)) return "zh-TW";
-  if (/^## Preview[ \t]*$/m.test(content)) return "en";
+  if (/^(?:## |> \[!info\][+-]? )預覽[ \t]*$/m.test(content)) return "zh-TW";
+  if (/^(?:## |> \[!info\][+-]? )Preview[ \t]*$/m.test(content)) return "en";
   const summary = section(content, "Current Summary");
   if (summary === placeholder("zh-TW")) return "zh-TW";
   if (summary === placeholder("en")) return "en";
@@ -810,7 +855,7 @@ export class Repository {
 
   async readNote(path: string): Promise<Note> {
     const file = this.file(path),
-      content = upgradeLegacyAimText(await this.app.vault.read(file)),
+      content = decodeCalloutSections(upgradeLegacyAimText(await this.app.vault.read(file))),
       fm = frontmatter(content);
     const status = text(fm.status, "idea");
     const normalized = status === "review" || status === "accepted" ? "completed" : status;
@@ -900,7 +945,7 @@ export class Repository {
       if (patch.sourcePaths !== undefined)
         patch.sourcePaths.length ? (fm["source-notes"] = patch.sourcePaths) : delete fm["source-notes"];
       fm.updated = new Date().toISOString();
-      let body = content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "");
+      let body = decodeCalloutSections(content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, ""));
       // AIM notes carry their content language; every other note keeps following the interface language.
       const textLanguage = options.contentLanguage ?? noteContentLanguage(fm) ?? language;
       if (options.contentLanguage !== undefined && noteContentLanguage(fm) === undefined)
@@ -1484,7 +1529,11 @@ export class Repository {
     const textLanguage = owner?.map.aim
       ? resolveAimContentLanguage(owner.map, language)
       : (noteContentLanguage(fm) ?? language);
-    let body = ensurePreview(content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, ""), language, textLanguage);
+    let body = ensurePreview(
+      decodeCalloutSections(content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "")),
+      language,
+      textLanguage
+    );
     if (isPlaceholder(text(fm.summary))) fm.summary = placeholder(textLanguage);
     const topicId = text(fm["topic-id"]),
       topic = topics.get(topicId);

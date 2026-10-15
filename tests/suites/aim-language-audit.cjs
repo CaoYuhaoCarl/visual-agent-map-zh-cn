@@ -39,6 +39,9 @@ function residual(raw) {
   let text = raw.replace(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/, (_, fm) => fm.split('\n').filter(line => /^(title|summary):/.test(line)).map(line => line.replace(/^(title|summary): /, '')).join('\n') + '\n');
   // The Prompt section holds the task text sent to the model; it sits above Preview (older layout) or after it.
   text = text.replace(/## Prompt[\s\S]*?(?=\n## |$)/, '## Prompt');
+  // Preview and Prompt as collapsed callouts: the titles are frame labels and the Prompt holds the model task text.
+  text = text.replace(/^> \[!info\]- Prompt\n(?:>.*(?:\n|$))*/m, '');
+  text = text.replace(/^> \[!info\]- (Preview|預覽)$/gm, '');
   text = text.split('\n').filter(line => !FRAME_HEADINGS.test(line)).join('\n');
   // A callout type such as [!warning] is Obsidian syntax and is not shown; the callout's own title text is still checked.
   text = text.replace(/^((?:> ?)+)\[![a-z]+\][+-]?/gm, '$1');

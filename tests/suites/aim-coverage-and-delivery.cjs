@@ -346,7 +346,7 @@ integrationTest('coverage: interface en with a Chinese question runs every AIM s
     const raw = await subject.repo.app.vault.read(subject.repo.file(node.path));
     for (const english of ['No conclusion yet', 'Draft pending completion', 'Follow-up question after reviewing all saved research']) assert.ok(!raw.includes(english), `${node.path}: ${english}`);
   }
-  assert.ok((await subject.repo.app.vault.read(subject.repo.file(subject.created.root.path))).includes('尚未形成結論'));
+  assert.ok(!(await subject.repo.app.vault.read(subject.repo.file(subject.created.root.path))).includes('No conclusion yet'));
   const raws = await Promise.all(saved.nodes.map(node => subject.repo.app.vault.read(subject.repo.file(node.path))));
   assert.ok(raws.some(raw => raw.includes('審閱所有已存研究')));
   for (const english of ['## User-provided context', '## Interim result', '## Supporting research', '## Source boundary', '## Answer options', 'Rationale:', 'Stop reason:', 'Question · ', 'Research synthesis', 'Research conclusion', 'Unknown / no preference']) assert.ok(!text.includes(english), english);

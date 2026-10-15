@@ -45,17 +45,17 @@ integrationTest('English notes use English preview, pending summary, and managed
   map.nodes.push(note); await repo.saveMap(mapPath, map); await repo.rebuildDerivedData();
   let markdown = contents.get(note.path);
   assert.match(markdown, /## Current Summary\n\nNo conclusion yet/);
-  assert.match(markdown, /## Preview\n\nNo conclusion yet/);
+  assert.doesNotMatch(markdown, /\[!info\]- Preview|## Preview/, 'an empty (placeholder) Preview is not written');
   assert.match(markdown, /- Topic: \[\[/);
   assert.match(markdown, /- Mind map: \[\[/);
   assert.doesNotMatch(markdown, /尚未形成結論|## 預覽|所屬主題|所屬心智圖/);
   await repo.updateNote(note.path, { sourcePaths: ['Source.md'], detail: 'English detail' });
   markdown = contents.get(note.path);
   assert.match(markdown, /- Source topic: \[\[Source\]\]/);
-  assert.equal((await repo.readNote(note.path)).preview, 'No conclusion yet');
+  assert.equal((await repo.readNote(note.path)).preview, '');
   await repo.updateNote(note.path, { summary: 'English conclusion' });
   assert.equal((await repo.readNote(note.path)).preview, 'English conclusion');
-  assert.match(contents.get(note.path), /## Preview\n\nEnglish conclusion/);
+  assert.match(contents.get(note.path), /> \[!info\]- Preview\n> English conclusion/);
   const copy = await repo.duplicateNote(note.path, map, mapPath);
   assert.match(copy.path, /Route copy\.md$/);
   assert.throws(() => repo.file('Missing.md'), /File not found/);
@@ -71,7 +71,7 @@ integrationTest('a language switch never relabels an existing note: writes and r
   assert.equal(contents.get(note.path), beforeSwitch);
   await repo.updateNote(note.path, { model: 'model-b' });
   let markdown = contents.get(note.path);
-  assert.match(markdown, /## 預覽\n\n尚未形成結論/);
+  assert.doesNotMatch(markdown, /\[!info\]- (預覽|Preview)/, 'an empty (placeholder) Preview is not written');
   assert.match(markdown, /## Current Summary\n\n尚未形成結論/);
   assert.match(markdown, /- 所屬主題：\[\[/);
   assert.match(markdown, /- 來源議題：\[\[Source\]\]/);
@@ -80,20 +80,20 @@ integrationTest('a language switch never relabels an existing note: writes and r
   await repo.updateNote(note.path, { preview: 'My own preview' });
   await repo.rebuildDerivedData();
   markdown = contents.get(note.path);
-  assert.match(markdown, /## 預覽\n\nMy own preview/);
+  assert.match(markdown, /> \[!info\]- 預覽\n> My own preview/);
   assert.match(markdown, /- 所屬主題：\[\[/);
-  assert.doesNotMatch(markdown, /## Preview|No conclusion yet|- Topic:/);
+  assert.doesNotMatch(markdown, /## Preview|\[!info\]- Preview|No conclusion yet|- Topic:/);
   assert.equal((await repo.readNote(note.path)).preview, 'My own preview');
   const fresh = await repo.createNote('Fresh', 'model-a', map, mapPath, 'workspace');
   map.nodes.push(fresh); await repo.saveMap(mapPath, map); await repo.rebuildDerivedData();
-  assert.match(contents.get(fresh.path), /## Preview/, 'a new note uses the current UI language');
+  assert.doesNotMatch(contents.get(fresh.path), /預覽|尚未形成結論/, 'a new note uses the current UI language');
   assert.match(contents.get(fresh.path), /- Topic: \[\[/);
   const bare = 'Agent Workspace/Unfiled/Bare.md';
   await repo.folder('Agent Workspace/Unfiled');
   const bareContent = '---\nagent-map-node: true\nnode-id: bare\ntitle: Bare\n---\n# Bare\n';
   contents.set(bare, bareContent); await app.vault.create(bare, bareContent);
   await repo.rebuildDerivedData();
-  assert.match(contents.get(bare), /## Preview/, 'a note with no derived labels uses the current UI language');
+  assert.match(contents.get(bare), /## Current Summary\n\nNo conclusion yet/, 'a note with no derived labels uses the current UI language');
 });
 integrationTest('editing a note heading updates its card title and survives later note writes', async () => {
   const { repo, contents } = fixture(); const n = await topicNote(repo, '新的子議題');
@@ -378,7 +378,7 @@ integrationTest('legacy User Notes move to preview without losing either section
 });
 integrationTest('first AI answer seeds summary and image in preview, later answers preserve it including an explicit clear', async () => {
   const { repo } = fixture(), n = await topicNote(repo, 'Preview default');
-  assert.equal((await repo.readNote(n.path)).preview, '尚未形成結論');
+  assert.equal((await repo.readNote(n.path)).preview, '', 'a new note has no Preview until the first answer');
   await repo.updateNote(n.path, { summary: '簡短結論', detail: '文字\n\n![相關圖片](https://example.com/image.jpg)' });
   assert.equal((await repo.readNote(n.path)).preview, '簡短結論\n\n![相關圖片](https://example.com/image.jpg)');
   await repo.updateNote(n.path, { summary: '第二次結論', detail: '新正文' });
