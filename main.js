@@ -15954,7 +15954,7 @@ var DetailTemplatesModal = class extends import_obsidian14.Modal {
   /** The expanded accordion row with every field of one section. */
   openSection(parent, draft, section3, index, readOnly, open, refresh) {
     var _a, _b;
-    const row = parent.createDiv("vam-template-section");
+    const row = parent.createDiv("vam-template-section is-open");
     const header = row.createDiv("vam-template-section-header is-open");
     header.createSpan({ text: String(index + 1), cls: "vam-template-section-number" });
     const name = header.createEl("input", { type: "text" });

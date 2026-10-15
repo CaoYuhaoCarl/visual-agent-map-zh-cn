@@ -352,7 +352,7 @@ export class DetailTemplatesModal extends Modal {
     open: (id: string | undefined) => void,
     refresh: () => void
   ): (issues: string[]) => void {
-    const row = parent.createDiv("vam-template-section");
+    const row = parent.createDiv("vam-template-section is-open");
     const header = row.createDiv("vam-template-section-header is-open");
     header.createSpan({ text: String(index + 1), cls: "vam-template-section-number" });
     const name = header.createEl("input", { type: "text" });
