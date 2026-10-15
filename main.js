@@ -1447,12 +1447,10 @@ var english = {
   "note.aim_followup_summary_0_1": "Follow-up: {0}: {1}",
   "note.aim_followup_heading_0": "## Follow-up: {0}",
   "note.aim_smoke_publication_0": "> profile=smoke: published as the conclusion at the research budget although delivery acceptance asked for more research. This is smoke evidence, not a verified conclusion. Acceptance rejection reason: {0}",
-  "note.aim_round_limit_0": "The research round limit was reached and an important evidence gap remains: {0}",
   "note.aim_assumption_corrected": "Not as assumed (my situation is below)",
   "note.aim_steer_answer": "Add this focus and keep what earlier rounds found",
   "note.aim_unresolved_conditions_0": "These conditions would change the answer and are still unknown: {0}",
   "note.aim_partial_heading": "## Research status: partial, can continue",
-  "note.aim_pending_target_0": "Still to research: {0}",
   "note.aim_pending_task_0": "Follow-up task: {0}",
   "note.aim_pending_value_0": "Expected to clarify: {0}",
   "note.aim_unknown_option": "Unknown / no preference",
@@ -1472,13 +1470,13 @@ var english = {
   "note.aim_below_floor_rationale_0_1": "The branch has {0} answered question node(s); at least {1} are required before conclusion.",
   "note.aim_result_pending": "AIM result pending synthesis.",
   "note.aim_draft_pending": "## Draft pending completion",
-  "note.aim_unverified_gap_0_1": "**Not yet verified:** {0}. {1}",
+  "note.aim_rejected_warning_title": "This document did not pass the final review",
+  "note.aim_rejected_warning_intro": "Fill in or confirm these items before you rely on it:",
+  "note.aim_incomplete_warning_title": "Research is not finished",
+  "note.aim_incomplete_warning_intro": "This is an interim result. Still to research:",
+  "note.aim_incomplete_warning_no_items": "This is an interim result; some evidence is still missing.",
+  "note.aim_awaiting_answer_title": "Waiting for your answer",
   "note.aim_followup_question_prompt": "Follow-up question after reviewing all saved research, including any targeted evidence follow-up.",
-  "note.aim_stop_awaiting_0": "Awaiting the user's answer to: {0}",
-  "note.aim_stop_bounded_followup_0": "One bounded follow-up was used; a material gap remains: {0}",
-  "note.aim_stop_budget_gap_0": "Continuation attempt reached its prototype research-turn budget with a material gap remaining: {0}",
-  "note.aim_rationale_0": "Rationale: {0}",
-  "note.aim_stop_reason_0": "Stop reason: {0}",
   "note.aim_supporting_research": "## Supporting research",
   "note.aim_source_boundary": "## Source boundary",
   "note.aim_source_boundary_not_verified": "Agent-reported sources are not independently verified by VAM.",
@@ -1487,8 +1485,6 @@ var english = {
   "note.aim_research_status_partial": "## Research status: partial / continuable",
   "note.aim_interim_result": "## Interim result",
   "note.aim_saved_evidence": "## Saved evidence",
-  "note.aim_still_open_0": "Still open: {0}",
-  "note.aim_gap_fallback_task": "A material evidence gap remains; continue with a targeted search.",
   "note.aim_attempt_budget_gap": "This continuation reached its attempt budget with a material gap still open; it is not complete.",
   "note.no_conclusion_yet": "No conclusion yet",
   "note.untitled_topic": "Untitled topic",
@@ -2888,12 +2884,10 @@ var traditionalChinese = {
   "note.aim_followup_summary_0_1": "\u88DC\u67E5\uFF1A{0}: {1}",
   "note.aim_followup_heading_0": "## \u88DC\u67E5\uFF1A{0}",
   "note.aim_smoke_publication_0": "> profile=smoke\uFF1A\u7814\u7A76\u9810\u7B97\u7528\u76E1\uFF0C\u4EA4\u4ED8\u9A57\u6536\u4ECD\u8981\u6C42\u88DC\u67E5\uFF0C\u4F46\u4F9D smoke \u8A2D\u5B9A\u76F4\u63A5\u767C\u5E03\u70BA\u7D50\u8AD6\u3002\u9019\u662F smoke \u6E2C\u8A66\u8B49\u64DA\uFF0C\u4E0D\u662F\u5DF2\u9A57\u8B49\u7684\u7D50\u8AD6\u3002\u9A57\u6536\u9000\u56DE\u539F\u56E0\uFF1A{0}",
-  "note.aim_round_limit_0": "\u7814\u7A76\u8F2A\u6578\u5DF2\u9054\u4E0A\u9650\uFF0C\u4ECD\u6709\u91CD\u8981\u8B49\u64DA\u7F3A\u53E3\uFF1A{0}",
   "note.aim_assumption_corrected": "\u4E0D\u662F\u9019\u6A23\uFF08\u6211\u7684\u5BE6\u969B\u60C5\u6CC1\u5982\u4E0B\uFF09",
   "note.aim_steer_answer": "\u52A0\u5165\u9019\u500B\u65B9\u5411\uFF0C\u4E26\u4FDD\u7559\u5148\u524D\u5404\u8F2A\u7684\u7814\u7A76\u7D50\u679C",
   "note.aim_unresolved_conditions_0": "\u4EE5\u4E0B\u689D\u4EF6\u6703\u6539\u8B8A\u7B54\u6848\uFF0C\u76EE\u524D\u4ECD\u672A\u77E5\uFF1A{0}",
   "note.aim_partial_heading": "## \u7814\u7A76\u72C0\u614B\uFF1A\u90E8\u5206\u5B8C\u6210\uFF0C\u53EF\u7E7C\u7E8C\u7814\u7A76",
-  "note.aim_pending_target_0": "\u5C1A\u5F85\u88DC\u67E5\uFF1A{0}",
   "note.aim_pending_task_0": "\u88DC\u67E5\u4EFB\u52D9\uFF1A{0}",
   "note.aim_pending_value_0": "\u9810\u671F\u91D0\u6E05\uFF1A{0}",
   "note.aim_unknown_option": "\u672A\u77E5\uFF0F\u7121\u504F\u597D",
@@ -2913,13 +2907,13 @@ var traditionalChinese = {
   "note.aim_below_floor_rationale_0_1": "\u6B64\u5206\u652F\u76EE\u524D\u6709 {0} \u500B\u5DF2\u56DE\u7B54\u7684\u554F\u984C\u7BC0\u9EDE\uFF1B\u4E0B\u7D50\u8AD6\u524D\u81F3\u5C11\u9700\u8981 {1} \u500B\u3002",
   "note.aim_result_pending": "AIM \u7814\u7A76\u7D50\u679C\u5F85\u5F59\u6574\u3002",
   "note.aim_draft_pending": "## \u8349\u7A3F\u5F85\u88DC\u5B8C",
-  "note.aim_unverified_gap_0_1": "**\u5C1A\u672A\u6838\u5BE6\uFF1A**{0}\u3002{1}",
+  "note.aim_rejected_warning_title": "\u9019\u4EFD\u6587\u4EF6\u672A\u901A\u904E\u6700\u7D42\u5BE9\u67E5",
+  "note.aim_rejected_warning_intro": "\u4F7F\u7528\u524D\u8ACB\u5148\u88DC\u9F4A\u6216\u78BA\u8A8D\u4EE5\u4E0B\u9805\u76EE\uFF1A",
+  "note.aim_incomplete_warning_title": "\u7814\u7A76\u5C1A\u672A\u5B8C\u6210",
+  "note.aim_incomplete_warning_intro": "\u9019\u662F\u66AB\u5B9A\u7D50\u679C\uFF0C\u4ECD\u5F85\u88DC\u67E5\uFF1A",
+  "note.aim_incomplete_warning_no_items": "\u9019\u662F\u66AB\u5B9A\u7D50\u679C\uFF0C\u90E8\u5206\u8B49\u64DA\u4ECD\u6709\u7F3A\u53E3\u3002",
+  "note.aim_awaiting_answer_title": "\u7B49\u5F85\u4F60\u7684\u56DE\u7B54",
   "note.aim_followup_question_prompt": "\u5BE9\u95B1\u6240\u6709\u5DF2\u5B58\u7814\u7A76\uFF08\u542B\u91DD\u5C0D\u6027\u88DC\u67E5\u8B49\u64DA\uFF09\u5F8C\u63D0\u51FA\u7684\u5F8C\u7E8C\u554F\u984C\u3002",
-  "note.aim_stop_awaiting_0": "\u7B49\u5F85\u4F7F\u7528\u8005\u56DE\u7B54\uFF1A{0}",
-  "note.aim_stop_bounded_followup_0": "\u5DF2\u9032\u884C\u4E00\u6B21\u6709\u9650\u88DC\u67E5\uFF0C\u4ECD\u6709\u91CD\u8981\u7F3A\u53E3\uFF1A{0}",
-  "note.aim_stop_budget_gap_0": "\u7E8C\u8DD1\u5DF2\u9054\u539F\u578B\u7814\u7A76\u8F2A\u6578\u4E0A\u9650\uFF0C\u4ECD\u6709\u91CD\u8981\u7F3A\u53E3\uFF1A{0}",
-  "note.aim_rationale_0": "\u7406\u7531\uFF1A{0}",
-  "note.aim_stop_reason_0": "\u505C\u6B62\u539F\u56E0\uFF1A{0}",
   "note.aim_supporting_research": "## \u4F50\u8B49\u7814\u7A76",
   "note.aim_source_boundary": "## \u4F86\u6E90\u754C\u7DDA",
   "note.aim_source_boundary_not_verified": "\u4EE3\u7406\u56DE\u5831\u7684\u4F86\u6E90\u672A\u7D93 VAM \u7368\u7ACB\u9A57\u8B49\u3002",
@@ -2928,8 +2922,6 @@ var traditionalChinese = {
   "note.aim_research_status_partial": "## \u7814\u7A76\u72C0\u614B\uFF1A\u90E8\u5206\u5B8C\u6210\uFF0F\u53EF\u7E7C\u7E8C",
   "note.aim_interim_result": "## \u66AB\u5B9A\u7D50\u679C",
   "note.aim_saved_evidence": "## \u5DF2\u5132\u5B58\u8B49\u64DA",
-  "note.aim_still_open_0": "\u5C1A\u672A\u89E3\u6C7A\uFF1A{0}",
-  "note.aim_gap_fallback_task": "\u4ECD\u6709\u91CD\u8981\u8B49\u64DA\u7F3A\u53E3\uFF1B\u8ACB\u7E7C\u7E8C\u9032\u884C\u91DD\u5C0D\u6027\u641C\u5C0B\u3002",
   "note.aim_attempt_budget_gap": "\u9019\u6B21\u7E8C\u8DD1\u5DF2\u7528\u5B8C\u5617\u8A66\u984D\u5EA6\uFF0C\u91CD\u8981\u7F3A\u53E3\u4ECD\u672A\u89E3\u6C7A\uFF0C\u5C1A\u672A\u5B8C\u6210\u3002",
   "note.no_conclusion_yet": "\u5C1A\u672A\u5F62\u6210\u7D50\u8AD6",
   "note.untitled_topic": "\u672A\u547D\u540D\u4E3B\u984C",
@@ -10854,10 +10846,10 @@ var none_zh_default = "\uFF08\u7121\uFF09\n";
 var none_en_default = "(none)\n";
 
 // core/steps/_shared/obsidian-format.zh.md
-var obsidian_format_zh_default = "detail \u6703\u5728 Obsidian \u4E2D\u6E32\u67D3\uFF0C\u8ACB\u4F9D\u5167\u5BB9\u7684\u5F62\u614B\u9078\u7528\u4E0B\u5217\u8A9E\u6CD5\uFF0C\u4E0D\u8981\u6574\u9801\u90FD\u5BEB\u6210\u6BB5\u843D\u6216\u689D\u5217\uFF1A\n\n- \u6838\u5FC3\u7D50\u8AD6\u6216\u95DC\u9375\u5B9A\u7FA9\uFF1A`> [!summary]` callout\uFF0C1\u20133 \u53E5\u3002\n- \u98A8\u96AA\u3001\u5E38\u898B\u8AA4\u89E3\u3001\u9650\u5236\uFF1A`> [!warning]`\u3002\n- \u5F85\u9A57\u8B49\u7684\u5047\u8A2D\u6216\u958B\u653E\u554F\u984C\uFF1A`> [!question]`\u3002\n- \u5BE6\u7528\u6280\u5DE7\u6216\u4F8B\u5B50\uFF1A`> [!tip]` \u6216 `> [!example]`\u3002\n- \u5169\u500B\u4EE5\u4E0A\u7684\u9078\u9805\uFF0C\u6216\u5169\u500B\u4EE5\u4E0A\u7684\u6BD4\u8F03\u7DAD\u5EA6\uFF1AMarkdown \u8868\u683C\u3002\n- \u6D41\u7A0B\u3001\u56E0\u679C\u3001\u6B65\u9A5F\u4E4B\u9593\u7684\u4F9D\u8CF4\uFF1A\u4E00\u500B ```mermaid``` flowchart\uFF0C\u6700\u591A 12 \u500B\u7BC0\u9EDE\uFF1B\u9810\u8A2D\u7528 TD\uFF08\u7531\u4E0A\u800C\u4E0B\uFF09\uFF0C\u53EA\u6709 4 \u500B\u7BC0\u9EDE\u4EE5\u5167\u7684\u77ED\u93C8\u624D\u7528 LR\uFF0C\u907F\u514D\u5716\u904E\u5BEC\u800C\u7E2E\u5C0F\u3002\n- \u6642\u9593\u4E0A\u7684\u6F14\u8B8A\u6216\u968E\u6BB5\uFF1A```mermaid``` timeline\u3002\n- \u4F7F\u7528\u8005\u63A5\u4E0B\u4F86\u8981\u505A\u7684\u4E8B\u3001\u5B78\u7FD2\u884C\u52D5\uFF1A`- [ ]` \u4EFB\u52D9\u6E05\u55AE\u3002\n- \u6574\u9801\u6700\u95DC\u9375\u7684\u4E00\u5169\u500B\u8A5E\uFF1A`==highlight==`\uFF0C\u6BCF\u6BB5\u6700\u591A\u4E00\u8655\u3002\n\n\u898F\u5247\uFF1A\n1. \u5F62\u614B\u6C92\u6709\u5C0D\u61C9\u7684\u8A9E\u6CD5\u6642\uFF0C\u5C31\u5BEB\u4E00\u822C\u6BB5\u843D\uFF1B\u4E0D\u8981\u70BA\u4E86\u597D\u770B\u800C\u786C\u5957\u8A9E\u6CD5\uFF0C\u6BCF\u500B\u8A9E\u6CD5\u90FD\u5FC5\u9808\u8B93\u5167\u5BB9\u66F4\u5BB9\u6613\u7406\u89E3\u3002\n2. \u6BCF\u500B\u6BB5\u843D\u6700\u591A\u4F7F\u7528\u5169\u7A2E\u7279\u6B8A\u8A9E\u6CD5\uFF1Bcallout \u4E0D\u5F97\u5DE2\u72C0\u3002\n3. mermaid \u53EA\u7528\u6587\u5B57\u7BC0\u9EDE\u8207\u7BAD\u982D\uFF1B\u7981\u6B62\u4F7F\u7528 click\u3001HTML \u6A19\u7C64\u3001%%{}%% \u8A2D\u5B9A\u3001URL\u3001\u5716\u7247\u8207\u6A23\u5F0F\u6307\u4EE4\u3002\u7BC0\u9EDE\u6587\u5B57\u6709\u62EC\u865F\u6216\u6A19\u9EDE\u6642\u8981\u7528\u96D9\u5F15\u865F\u5305\u8D77\u4F86\u3002\n4. \u6C92\u6709\u5167\u5BB9\u7684\u6BB5\u843D\u53EA\u5BEB\u300C\u672C\u6B21\u7121\u65B0\u589E\u5167\u5BB9\u300D\uFF0C\u4E0D\u52A0 callout\u3002\n5. \u4E0D\u8981\u8F38\u51FA Obsidian \u4E0D\u652F\u63F4\u7684\u8A9E\u6CD5\uFF08\u4F8B\u5982 :::\u3001<details>\u3001\u81EA\u8A02 HTML\uFF09\u3002\n6. \u6709\u6307\u5B9A\u9805\u76EE\u6578\u91CF\u7684\u6BB5\u843D\uFF0C\u9805\u76EE\u8981\u5BEB\u6210\u9802\u5C64\u6E05\u55AE\u6216 #### \u5C0F\u6A19\u984C\uFF0C\u4E0D\u8981\u653E\u9032 callout \u6216\u8868\u683C\u3002\n";
+var obsidian_format_zh_default = "detail \u6703\u5728 Obsidian \u4E2D\u6E32\u67D3\uFF0C\u8ACB\u4F9D\u5167\u5BB9\u7684\u5F62\u614B\u9078\u7528\u4E0B\u5217\u8A9E\u6CD5\uFF0C\u4E0D\u8981\u6574\u9801\u90FD\u5BEB\u6210\u6BB5\u843D\u6216\u689D\u5217\uFF1A\n\n- \u6838\u5FC3\u7D50\u8AD6\u6216\u95DC\u9375\u5B9A\u7FA9\uFF1A`> [!summary]` callout\uFF0C1\u20133 \u53E5\uFF1B\u88DC\u4E0A summary \u6C92\u5BEB\u5230\u7684\u7406\u7531\u6216\u689D\u4EF6\uFF0C\u4E0D\u8981\u9010\u5B57\u91CD\u8907 summary\u3002\n- \u98A8\u96AA\u3001\u5E38\u898B\u8AA4\u89E3\u3001\u9650\u5236\uFF1A`> [!warning]`\u3002\n- \u5F85\u9A57\u8B49\u7684\u5047\u8A2D\u6216\u958B\u653E\u554F\u984C\uFF1A`> [!question]`\u3002\n- \u5BE6\u7528\u6280\u5DE7\u6216\u4F8B\u5B50\uFF1A`> [!tip]` \u6216 `> [!example]`\u3002\n- \u5169\u500B\u4EE5\u4E0A\u7684\u9078\u9805\uFF0C\u6216\u5169\u500B\u4EE5\u4E0A\u7684\u6BD4\u8F03\u7DAD\u5EA6\uFF1AMarkdown \u8868\u683C\u3002\n- \u6D41\u7A0B\u3001\u56E0\u679C\u3001\u6B65\u9A5F\u4E4B\u9593\u7684\u4F9D\u8CF4\uFF1A\u4E00\u500B ```mermaid``` flowchart\uFF0C\u6700\u591A 12 \u500B\u7BC0\u9EDE\uFF1B\u9810\u8A2D\u7528 TD\uFF08\u7531\u4E0A\u800C\u4E0B\uFF09\uFF0C\u53EA\u6709 4 \u500B\u7BC0\u9EDE\u4EE5\u5167\u7684\u77ED\u93C8\u624D\u7528 LR\uFF0C\u907F\u514D\u5716\u904E\u5BEC\u800C\u7E2E\u5C0F\u3002\n- \u6642\u9593\u4E0A\u7684\u6F14\u8B8A\u6216\u968E\u6BB5\uFF1A```mermaid``` timeline\u3002\n- \u4F7F\u7528\u8005\u63A5\u4E0B\u4F86\u8981\u505A\u7684\u4E8B\u3001\u5B78\u7FD2\u884C\u52D5\uFF1A`- [ ]` \u4EFB\u52D9\u6E05\u55AE\u3002\n- \u6574\u9801\u6700\u95DC\u9375\u7684\u4E00\u5169\u500B\u8A5E\uFF1A`==highlight==`\uFF0C\u6BCF\u6BB5\u6700\u591A\u4E00\u8655\u3002\n\n\u898F\u5247\uFF1A\n1. \u5F62\u614B\u6C92\u6709\u5C0D\u61C9\u7684\u8A9E\u6CD5\u6642\uFF0C\u5C31\u5BEB\u4E00\u822C\u6BB5\u843D\uFF1B\u4E0D\u8981\u70BA\u4E86\u597D\u770B\u800C\u786C\u5957\u8A9E\u6CD5\uFF0C\u6BCF\u500B\u8A9E\u6CD5\u90FD\u5FC5\u9808\u8B93\u5167\u5BB9\u66F4\u5BB9\u6613\u7406\u89E3\u3002\n2. \u6BCF\u500B\u6BB5\u843D\u6700\u591A\u4F7F\u7528\u5169\u7A2E\u7279\u6B8A\u8A9E\u6CD5\uFF1Bcallout \u4E0D\u5F97\u5DE2\u72C0\u3002\n3. mermaid \u53EA\u7528\u6587\u5B57\u7BC0\u9EDE\u8207\u7BAD\u982D\uFF1B\u7981\u6B62\u4F7F\u7528 click\u3001HTML \u6A19\u7C64\u3001%%{}%% \u8A2D\u5B9A\u3001URL\u3001\u5716\u7247\u8207\u6A23\u5F0F\u6307\u4EE4\u3002\u7BC0\u9EDE\u6587\u5B57\u6709\u62EC\u865F\u6216\u6A19\u9EDE\u6642\u8981\u7528\u96D9\u5F15\u865F\u5305\u8D77\u4F86\u3002\n4. \u6C92\u6709\u5167\u5BB9\u7684\u6BB5\u843D\u53EA\u5BEB\u300C\u672C\u6B21\u7121\u65B0\u589E\u5167\u5BB9\u300D\uFF0C\u4E0D\u52A0 callout\u3002\n5. \u4E0D\u8981\u8F38\u51FA Obsidian \u4E0D\u652F\u63F4\u7684\u8A9E\u6CD5\uFF08\u4F8B\u5982 :::\u3001<details>\u3001\u81EA\u8A02 HTML\uFF09\u3002\n6. \u6709\u6307\u5B9A\u9805\u76EE\u6578\u91CF\u7684\u6BB5\u843D\uFF0C\u9805\u76EE\u8981\u5BEB\u6210\u9802\u5C64\u6E05\u55AE\u6216 #### \u5C0F\u6A19\u984C\uFF0C\u4E0D\u8981\u653E\u9032 callout \u6216\u8868\u683C\u3002\n7. detail \u662F\u7D66\u8B80\u8005\u770B\u7684\u5167\u5BB9\uFF1A\u4E0D\u8981\u5BEB\u5167\u90E8 ID\uFF08\u7BC0\u9EDE\u3001\u8B49\u64DA\u3001\u4F86\u6E90\u6216\u5831\u544A\u7684 ID\uFF09\u3001\u5BE9\u67E5\u610F\u898B\uFF0C\u6216\u5C0D\u8349\u7A3F\u8207\u7814\u7A76\u904E\u7A0B\u672C\u8EAB\u7684\u8A55\u8AD6\u3002\n8. detail \u5167\u7684\u6A19\u984C\u4E00\u5F8B\u5F9E\u4E09\u7D1A\u6A19\u984C\uFF08###\uFF09\u958B\u59CB\uFF0C\u5F80\u4E0B\u4F9D\u5E8F\u7528 ####\uFF0C\u4E0D\u8DF3\u7D1A\uFF1B\u4E0D\u8981\u7528 # \u6216 ##\u3002\n";
 
 // core/steps/_shared/obsidian-format.en.md
-var obsidian_format_en_default = 'The detail is rendered in Obsidian. Choose the syntax below by the shape of the content; do not write the whole page as paragraphs or bullet lists:\n\n- Core conclusion or key definition: a `> [!summary]` callout, 1\u20133 sentences.\n- Risks, common misconceptions, limitations: `> [!warning]`.\n- Assumptions to verify or open questions: `> [!question]`.\n- Practical tips or examples: `> [!tip]` or `> [!example]`.\n- Two or more options, or two or more comparison dimensions: a Markdown table.\n- A process, cause and effect, or dependencies between steps: one ```mermaid``` flowchart, at most 12 nodes; use TD (top-down) by default and LR only for a short chain of at most 4 nodes, so the diagram is not too wide to read.\n- Change or stages over time: a ```mermaid``` timeline.\n- What the user should do next, learning actions: a `- [ ]` task list.\n- The one or two most important terms on the page: `==highlight==`, at most one per section.\n\nRules:\n1. When no syntax fits the content\'s shape, write a plain paragraph. Do not force syntax for looks; every syntax must make the content easier to understand.\n2. Use at most two kinds of special syntax per section; do not nest callouts.\n3. Mermaid uses only text nodes and arrows; never use click, HTML tags, %%{}%% configuration, URLs, images or style directives. Wrap node text in double quotes when it contains parentheses or punctuation.\n4. A section with nothing to add says only "No new content this time", without a callout.\n5. Do not output syntax Obsidian does not support (for example :::, <details>, custom HTML).\n6. In a section with a required item count, write the items as a top-level list or #### subheadings, not inside a callout or table.\n';
+var obsidian_format_en_default = 'The detail is rendered in Obsidian. Choose the syntax below by the shape of the content; do not write the whole page as paragraphs or bullet lists:\n\n- Core conclusion or key definition: a `> [!summary]` callout, 1\u20133 sentences; add the reasons or conditions the summary leaves out instead of repeating the summary word for word.\n- Risks, common misconceptions, limitations: `> [!warning]`.\n- Assumptions to verify or open questions: `> [!question]`.\n- Practical tips or examples: `> [!tip]` or `> [!example]`.\n- Two or more options, or two or more comparison dimensions: a Markdown table.\n- A process, cause and effect, or dependencies between steps: one ```mermaid``` flowchart, at most 12 nodes; use TD (top-down) by default and LR only for a short chain of at most 4 nodes, so the diagram is not too wide to read.\n- Change or stages over time: a ```mermaid``` timeline.\n- What the user should do next, learning actions: a `- [ ]` task list.\n- The one or two most important terms on the page: `==highlight==`, at most one per section.\n\nRules:\n1. When no syntax fits the content\'s shape, write a plain paragraph. Do not force syntax for looks; every syntax must make the content easier to understand.\n2. Use at most two kinds of special syntax per section; do not nest callouts.\n3. Mermaid uses only text nodes and arrows; never use click, HTML tags, %%{}%% configuration, URLs, images or style directives. Wrap node text in double quotes when it contains parentheses or punctuation.\n4. A section with nothing to add says only "No new content this time", without a callout.\n5. Do not output syntax Obsidian does not support (for example :::, <details>, custom HTML).\n6. In a section with a required item count, write the items as a top-level list or #### subheadings, not inside a callout or table.\n7. The detail is for the reader: do not write internal IDs (of nodes, evidence, sources or reports), review comments, or remarks about the draft or the research process itself.\n8. Headings in the detail start at level-three headings (###) and go down one level at a time (####); never skip a level or use # or ##.\n';
 
 // core/steps/_shared/reference-citations.zh.md
 var reference_citations_zh_default = "\u6BCF\u500B\u4F9D\u64DA\u672C\u6A5F\u8CC7\u6599\u7684\u91CD\u8981\u4E8B\u5BE6\u65C1\u4FDD\u7559\u5176 [S#] \u4F86\u6E90\u6A19\u8A18\u3002VAM \u6703\u5728\u56DE\u8986\u5F8C\u4F9D\u5DF2\u9078\u4F86\u6E90\u8F49\u6210 Vault \u9023\u7D50\u6216\u5916\u90E8\u8DEF\u5F91\u3002\u4E0D\u53EF\u7DE8\u9020\u6216\u6539\u5BEB\u4F86\u6E90\u7DE8\u865F\u3001\u8DEF\u5F91\u8207\u7AE0\u7BC0\u6A19\u984C\u3002\n";
@@ -11046,6 +11038,21 @@ function fencedLines(lines) {
     }
     return false;
   });
+}
+function normalizeDetailHeadings(markdown) {
+  const lines = markdown.split("\n");
+  const code = fencedLines(lines);
+  const parents = [];
+  return lines.map((line, index) => {
+    var _a, _b;
+    const heading = code[index] ? null : /^(#{1,6})([ \t]+.*|[ \t]*)$/.exec(line);
+    if (!heading) return line;
+    const original = heading[1].length;
+    while (parents.length && parents[parents.length - 1].original >= original) parents.pop();
+    const level = Math.min(6, ((_b = (_a = parents[parents.length - 1]) == null ? void 0 : _a.level) != null ? _b : 2) + 1);
+    parents.push({ original, level });
+    return `${"#".repeat(level)}${heading[2]}`;
+  }).join("\n");
 }
 
 // core/steps/task/source-registry.md
@@ -12448,6 +12455,14 @@ var REFERENCE_START = "<!-- visual-agent-map:references:start -->";
 var REFERENCE_END = "<!-- visual-agent-map:references:end -->";
 var DETAIL_START = "<!-- visual-agent-map:detail:start -->";
 var DETAIL_END = "<!-- visual-agent-map:detail:end -->";
+var OPEN_ITEMS_MARKER = /\n*^<!--\s*aim-open-items\s+\[[^\n]*\]\s*-->[ \t]*$/m;
+function splitOpenItems(value) {
+  const match = OPEN_ITEMS_MARKER.exec(value);
+  return match ? {
+    text: (value.slice(0, match.index) + value.slice(match.index + match[0].length)).trim(),
+    marker: match[0].trim()
+  } : { text: value, marker: "" };
+}
 var NOTE_CSS_CLASS = "visual-agent-map-node";
 function hasActiveAimAttempt(map) {
   var _a;
@@ -12558,6 +12573,17 @@ function sectionBounds(content, heading) {
   const reference = content.indexOf(REFERENCE_START, start);
   const candidates = [next ? start + next.index : content.length, reference >= 0 ? reference : content.length];
   return { start, end: Math.min(...candidates) };
+}
+function detailWithOpenItems(content) {
+  const detail = section2(content, "Detail");
+  if (splitOpenItems(detail).marker) return detail;
+  const end = content.indexOf(DETAIL_END);
+  const after = end >= 0 ? content.slice(end + DETAIL_END.length) : "";
+  const next = after.search(/^## /m);
+  const { marker: marker4 } = splitOpenItems(next >= 0 ? after.slice(0, next) : after);
+  return marker4 ? `${detail}
+
+${marker4}` : detail;
 }
 function section2(content, heading) {
   const bounds = sectionBounds(content, heading);
@@ -12677,27 +12703,57 @@ function initialPreview(summary, detail) {
   const image = (_a = detail.match(/!\[[^\]]*\]\((?:https?:\/\/[^)\s]+)\)/)) == null ? void 0 : _a[0];
   return [summary.trim(), image].filter(Boolean).join("\n\n");
 }
-function noteBody(title, summary, language2, prompt = "", rules = "", preview = "", detail = "", visualReferences = "", newFindings = "", leftover = "") {
-  const detailBlock = `${DETAIL_START}
+function noteBody(title, summary, language2, prompt = "", rules = "", preview = "", detail = "", visualReferences = "", newFindings = "", leftover = "", layout = "answer-first") {
+  if (layout === "legacy") {
+    const legacyBlock = `${DETAIL_START}
 ${detailWithVisualReferences(detail, visualReferences, standardTemplate(language2))}
 ${DETAIL_END}`;
+    return [
+      `# ${title}`,
+      `## Current Summary
+
+${summary.trim() || placeholder(language2)}`,
+      `## Prompt
+
+${prompt.trim()}`,
+      rules.trim() ? `## Rules
+
+${rules.trim()}` : "",
+      `## ${previewHeading(language2)}
+
+${preview.trim()}`,
+      `## Detail
+
+${legacyBlock}`,
+      newFindings.trim() ? `## Working Findings
+
+${newFindings.trim()}` : "",
+      leftover.trim()
+    ].filter(Boolean).join("\n\n") + "\n";
+  }
+  const { text: readerDetail, marker: marker4 } = splitOpenItems(detail);
+  const detailBlock = `${DETAIL_START}
+${detailWithVisualReferences(readerDetail, visualReferences, standardTemplate(language2))}
+${DETAIL_END}${marker4 ? `
+
+${marker4}` : ""}`;
   return [
     `# ${title}`,
     `## Current Summary
 
 ${summary.trim() || placeholder(language2)}`,
-    `## Prompt
-
-${prompt.trim()}`,
-    rules.trim() ? `## Rules
-
-${rules.trim()}` : "",
-    `## ${previewHeading(language2)}
-
-${preview.trim()}`,
     `## Detail
 
 ${detailBlock}`,
+    `## ${previewHeading(language2)}
+
+${preview.trim()}`,
+    prompt.trim() ? `## Prompt
+
+${prompt.trim()}` : "",
+    rules.trim() ? `## Rules
+
+${rules.trim()}` : "",
     newFindings.trim() ? `## Working Findings
 
 ${newFindings.trim()}` : "",
@@ -12718,6 +12774,8 @@ function normalizeBodyOrder(content, title, summaryFallback, language2, textLang
   );
   const newFindings = section2(clean3, "Working Findings") || section2(clean3, "New Findings");
   let leftover = clean3.replace(/^# .*$(?:\r?\n)*/m, "");
+  const openItems = splitOpenItems(leftover);
+  leftover = openItems.text;
   for (const heading of [
     "Current Summary",
     "Prompt",
@@ -12730,7 +12788,24 @@ function normalizeBodyOrder(content, title, summaryFallback, language2, textLang
     "New Findings"
   ])
     leftover = removeSection(leftover, heading);
-  return noteBody(title, summary, language2, prompt, rules, preview, detail, "", newFindings, leftover);
+  const withMarker = openItems.marker && !splitOpenItems(detail).marker ? `${detail}
+
+${openItems.marker}` : detail;
+  const detailAt = clean3.search(/^## Detail\s*$/m);
+  const legacy = /^## Prompt\s*$/m.test(detailAt >= 0 ? clean3.slice(0, detailAt) : clean3);
+  return noteBody(
+    title,
+    summary,
+    language2,
+    prompt,
+    rules,
+    preview,
+    withMarker,
+    "",
+    newFindings,
+    leftover,
+    legacy ? "legacy" : "answer-first"
+  );
 }
 var REFERENCE_LABELS = ["\u6240\u5C6C\u4E3B\u984C", "\u6240\u5C6C\u5FC3\u667A\u5716", "\u6BCD\u8B70\u984C", "\u5B50\u8B70\u984C", "\u4F86\u6E90\u8B70\u984C", "\u72C0\u614B"];
 var ENGLISH_REFERENCE_LABELS = ["Topic", "Mind map", "Parent topic", "Child topics", "Source topic", "Status"];
@@ -12935,7 +13010,7 @@ var Repository = class {
       summary: section2(content, "Current Summary") || text5(fm.summary, placeholder(this.settings.language)),
       prompt: section2(content, "Prompt"),
       rules: section2(content, "Rules"),
-      detail: section2(content, "Detail"),
+      detail: detailWithOpenItems(content),
       thinkingOrigin: readThinkingOrigin(content),
       visualReferences: section2(content, "Visual References"),
       newFindings: section2(content, "Working Findings") || section2(content, "New Findings"),
@@ -13006,7 +13081,7 @@ var Repository = class {
       if (patch.summary !== void 0) body = replaceSummarySection(body, patch.summary);
       if (patch.prompt !== void 0) body = replaceSection(body, "Prompt", patch.prompt);
       if (patch.rules !== void 0) body = replaceSection(body, "Rules", patch.rules);
-      if (patch.detail !== void 0) body = replaceSection(body, "Detail", patch.detail);
+      if (patch.detail !== void 0) body = replaceSection(splitOpenItems(body).text, "Detail", patch.detail);
       if (patch.thinkingOrigin !== void 0)
         body = replaceSection(body, "Thinking Origin", originMarkdown(patch.thinkingOrigin));
       if (patch.visualReferences !== void 0) {
@@ -18976,7 +19051,7 @@ var renderResearchTask = (outline) => renderTemplate(task_default2, { outline })
 var REUSED_RESEARCH_DETAIL = renderTemplate(reused_evidence_default, {});
 
 // experiences/aim/steps/delivery-writing/task.md
-var task_default3 = "Write the complete final document in one piece, following this outline in order and using each section heading as a ## heading: {{outline}}.\nKnown goal and user conditions:\n{{knownConditions}}\nEvidence (cite the source URLs or names where used; never show internal source IDs to the reader):\n{{evidence}}\n{{additionalResearch}}\nOpen with the direct answer or recommendation for this user. Use the user's stated situation and answers throughout. Earlier rounds are part of this answer: the user's earlier answers and their saved results (earlier documents and research) carry into this document, integrated with the current research. Update what the current research changes, and drop an earlier finding only when a later answer replaces it. Give concrete steps, numbers, options and examples they can act on. Make each point once: no section repeats advice, conditions or caveats that another section already covers; put a limitation only beside the claim it changes, and gather what the user must still confirm in one place. Do not fabricate or imply independent source verification. Output reader-facing Markdown in detail; summary is only a short canvas preview.\n";
+var task_default3 = "Write the complete final document in one piece, following this outline in order and using each section heading as a ### heading: {{outline}}.\nKnown goal and user conditions:\n{{knownConditions}}\nEvidence (cite the source URLs or names where used; never show internal source IDs to the reader):\n{{evidence}}\n{{additionalResearch}}\nOpen with the direct answer or recommendation for this user. Use the user's stated situation and answers throughout. Earlier rounds are part of this answer: the user's earlier answers and their saved results (earlier documents and research) carry into this document, integrated with the current research. Update what the current research changes, and drop an earlier finding only when a later answer replaces it. Give concrete steps, numbers, options and examples they can act on. Make each point once: no section repeats advice, conditions or caveats that another section already covers; put a limitation only beside the claim it changes, and gather what the user must still confirm in one place. Do not fabricate or imply independent source verification. Output reader-facing Markdown in detail; summary is only a short canvas preview.\n";
 
 // experiences/aim/steps/delivery-writing/additional-research.md
 var additional_research_default = "Additional final-document research:\n{{research}}\n";
@@ -20528,6 +20603,37 @@ function renderAnsweredGoalReviewTask(vars) {
   return phaseTask("decision-quality-review", renderTemplate(task_answered_goal_default, floorVariables(vars)));
 }
 
+// experiences/aim/rejected-warning.ts
+var INTERNAL_ID = /[0-9a-f]{8}-[^\s、，,;；）)\]]*/gi;
+function readerText(value) {
+  return value.replace(INTERNAL_ID, "").replace(/\s*[、，,;；]\s*(?=[、，,;；]|$)/g, "").replace(/(^|\s)[、，,;；]\s*/g, "$1").replace(/\s{2,}/g, " ").trim();
+}
+function itemLines(items) {
+  return [...new Set(items.map(readerText).filter(Boolean))];
+}
+function rejectedDeliveryWarning(items, language2) {
+  const lines = itemLines(items);
+  if (!lines.length) return "";
+  return [
+    `> [!warning] ${translate(language2, "note.aim_rejected_warning_title")}`,
+    `> ${translate(language2, "note.aim_rejected_warning_intro")}`,
+    ...lines.map((line) => `> - ${line}`)
+  ].join("\n");
+}
+function incompleteResearchWarning(items, language2) {
+  const lines = itemLines(items);
+  return [
+    `> [!warning] ${translate(language2, "note.aim_incomplete_warning_title")}`,
+    `> ${translate(language2, lines.length ? "note.aim_incomplete_warning_intro" : "note.aim_incomplete_warning_no_items")}`,
+    ...lines.map((line) => `> - ${line}`)
+  ].join("\n");
+}
+function awaitingAnswerCallout(question, language2) {
+  const text11 = readerText(question.replace(/\s*\n\s*/g, " "));
+  return text11 ? `> [!question] ${translate(language2, "note.aim_awaiting_answer_title")}
+> ${text11}` : "";
+}
+
 // experiences/aim/steps/report-review/task.md
 var task_default12 = "Review the complete evidence for the original user goal. Return one decision with a brief evidence-based interim answer; do not write the final document yet. Use all known conditions and relevant evidence in this branch lineage. Keep the current question and answer as conditions that personalize the result; they are not the overall goal. Do not expose the internal research log as the answer. Return the decision in the aim fields.\n\n{{plannerCoverageRule}}\n\nHard floor: {{answeredQuestionCount}} answered question node(s) on this branch path; do not conclude before {{minimumAnswers}}. At the floor, the configured exploration target ({{explorationTarget}}) is a soft depth preference; do not require reaching 10 or add quota filler. Below the floor, ask one meaningful new question about an unknown decision-relevant dimension. {{floorAskRule}} {{userQuestionRule}}\n\nDo not repeat known conditions or prior questions. Ask only for a genuinely missing user condition, never to compensate for missing research. Use research_more for missing evidence. Prior questions: {{questionsAlreadyAsked}}.\n\nChoose research_more only for one specific material evidence gap (material means closing it could change the recommendation, not just make it more precise); provide exactly one aim.researchTarget with title, search task, and expected uncertainty reduction, and set aim.gapKind: searchable when public web sources can close it; user_only when only the user or someone they must contact can supply it (their own offer, quote, device model, account, or company data), so VAM asks the user instead of searching; not_decisive when closing it would not change the recommendation, so VAM delivers the answer and lists the gap for the user to confirm. Choose ask_user for a missing decision-changing user condition or a genuinely conflicting pair of supplied values. Name the conflict and request one clarification as aim.question; never defer a material conflict into the final document. Include 2\u20135 choices in aim.answerOptions. Do not use ask_user to compensate for missing research. List in aim.unresolvedConditions every user condition that would change the recommendation and is still unknown, checking the intake clarification answers and every earlier answer; a condition the user said they do not know is resolved by stating an assumption, not listed. Choose conclude only when the original goal is adequately supported, aim.unresolvedConditions is empty, and the hard floor is met; cite source names or links from reports when available and state remaining uncertainty and limits. Do not search in this Planner turn.\n\nReturn the decision in the aim fields with an evidence-based aim.rationale; for conclude, aim.stopReason says why the evidence is sufficient.\n\nCurrent question: {{currentQuestion}}\nCurrent answer: {{currentAnswer}}\n\nResearch budget: review {{researchTurn}} of {{maxResearchTurns}}. One targeted follow-up search remains when this is review 1; if a material gap remains after review 2, return research_more; VAM then delivers a conditional answer that lists the gap for the user to confirm.\n";
 
@@ -20560,17 +20666,6 @@ function renderTargetedFollowupResearchTask(vars) {
 }
 
 // experiences/aim/manual-flow.ts
-function noteStopReason(language2, review, recorded, fallback) {
-  var _a;
-  if (review.decision === "ask_user") return translate(language2, "note.aim_stop_awaiting_0", (_a = review.question) != null ? _a : "");
-  if (review.decision === "research_more")
-    return translate(
-      language2,
-      fallback === "bounded" ? "note.aim_stop_bounded_followup_0" : "note.aim_stop_budget_gap_0",
-      review.rationale
-    );
-  return recorded;
-}
 var AIM_REQUEST_TOKEN_LIMIT = 6e4;
 var openItemsMarker = (titles) => `<!-- aim-open-items ${JSON.stringify(titles).replace(/>/g, "\\u003e")} -->`;
 function readOpenItems(detail) {
@@ -20661,6 +20756,25 @@ var _AimManualFlow = class _AimManualFlow {
   atBudget(review, language2) {
     return review.decision === "research_more" && this.deliveryRejections.has(review) && !this.limits.acceptGapAtBudget && !this.limits.publishDeliveryAtBudget ? this.publishRejectedDelivery(review, language2) : review;
   }
+  /**
+   * What an interim note says to the reader in place of the reviewer's rationale and the stop reason (both stay in the
+   * run records): the evidence still missing, or the question it waits on.
+   */
+  interimNotice(review, language2) {
+    if (review.decision === "ask_user") return review.question ? awaitingAnswerCallout(review.question, language2) : "";
+    if (review.decision === "research_more")
+      return incompleteResearchWarning(review.researchTarget ? [review.researchTarget.title] : [], language2);
+    return "";
+  }
+  /** An interim note's parts in order; its headings sit under the note's `## Detail` (nothing parses them later). */
+  interimDetail(parts) {
+    return normalizeDetailHeadings(parts.filter((part) => part.trim()).join("\n\n"));
+  }
+  /** The document a review stands for: the draft a final review rejected, never the reviewer's critique of it. */
+  readerDetail(review) {
+    var _a, _b;
+    return (_b = (_a = this.deliveryRejections.get(review)) == null ? void 0 : _a.detail) != null ? _b : review.detail;
+  }
   /** A conclusion note keeps its open items in a hidden marker, so the user can correct them later. */
   concludedDetail(review) {
     var _a;
@@ -20669,18 +20783,23 @@ var _AimManualFlow = class _AimManualFlow {
 ${openItemsMarker(review.openItems.map((item) => item.title))}` : review.detail;
   }
   /**
-   * A rejected final delivery given as the answer: the document that was written, with the rejected gap stated in
-   * it and listed as an open item, instead of a draft left pending.
+   * A rejected final delivery given as the answer: the document that was written, opened by a warning that names the
+   * rejected gap in reader words, which is also listed as an open item, instead of a draft left pending. The
+   * reviewer's rationale stays in the run records; it can name internal IDs and critiques the draft, not the topic.
    */
   publishRejectedDelivery(review, language2) {
     const written = this.deliveryRejections.get(review);
     if (!written) return this.withOpenItems(review, language2);
-    const gap = review.researchTarget;
-    const notice = gap ? `
-
-${translate(language2, "note.aim_unverified_gap_0_1", gap.title, review.rationale)}` : "";
+    const warning = rejectedDeliveryWarning(review.researchTarget ? [review.researchTarget.title] : [], language2);
     return this.withOpenItems(
-      { ...review, summary: written.summary, detail: `${written.detail}${notice}`, openItems: written.openItems },
+      {
+        ...review,
+        summary: written.summary,
+        detail: warning ? `${warning}
+
+${written.detail}` : written.detail,
+        openItems: written.openItems
+      },
       language2
     );
   }
@@ -21557,7 +21676,7 @@ Branch conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
         throwIfAborted(signal);
         if (reviewTurn === this.limits.maxResearchTurns) finalReview = this.atBudget(finalReview, language2);
         if (finalReview.decision !== "research_more" || reviewTurn === this.limits.maxResearchTurns) {
-          const stopReason2 = finalReview.decision === "conclude" ? finalReview.stopReason : finalReview.decision === "ask_user" ? `Awaiting the user's answer to: ${finalReview.question}` : `One bounded follow-up was used; a material gap remains: ${finalReview.rationale}`;
+          const stopReason = finalReview.decision === "conclude" ? finalReview.stopReason : finalReview.decision === "ask_user" ? `Awaiting the user's answer to: ${finalReview.question}` : `One bounded follow-up was used; a material gap remains: ${finalReview.rationale}`;
           await this.persist(
             () => this.runs.recordPlannerReview(
               mapPath,
@@ -21569,7 +21688,7 @@ Branch conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
                 ...finalReview.decision === "ask_user" ? { question: finalReview.question, answerOptions: finalReview.answerOptions } : {},
                 ...finalReview.decision === "research_more" ? { researchTarget: finalReview.researchTarget } : {}
               },
-              stopReason2
+              stopReason
             )
           );
           break;
@@ -21629,20 +21748,14 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
         if (!await saveReports()) return { status: "stale", branchId: branch.id };
       }
       if (!finalReview) throw new Error("Planner review did not produce a validated decision.");
-      const stopReason = finalReview.decision === "conclude" ? finalReview.stopReason : finalReview.decision === "ask_user" ? `Awaiting the user's answer to: ${finalReview.question}` : `One bounded follow-up was used; a material gap remains: ${finalReview.rationale}`;
-      const detail = finalReview.decision === "conclude" ? this.concludedDetail(finalReview) : [
-        finalReview.detail,
-        translate(language2, "note.aim_rationale_0", finalReview.rationale),
-        translate(
-          language2,
-          "note.aim_stop_reason_0",
-          noteStopReason(language2, finalReview, stopReason, "bounded")
-        ),
+      const detail = finalReview.decision === "conclude" ? this.concludedDetail(finalReview) : this.interimDetail([
+        this.interimNotice(finalReview, language2),
+        this.readerDetail(finalReview),
         translate(language2, "note.aim_supporting_research"),
         ...reports.map((report) => report.detail),
         translate(language2, "note.aim_source_boundary"),
         translate(language2, "note.aim_source_boundary_not_verified")
-      ].join("\n\n");
+      ]);
       const presentation = finalReview.decision === "conclude" ? {
         title: translate(language2, "note.aim_conclusion"),
         kind: "conclusion"
@@ -21734,7 +21847,7 @@ ${runId}`, fingerprint2 = JSON.stringify({ model, reasoning });
     return promise;
   }
   async runPartialContinuation(mapPath, runId, model, reasoning, signal) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l;
     throwIfAborted(signal);
     const map = await this.repository.readMap(mapPath), run = (_a = map.aim) == null ? void 0 : _a.runs.find((item) => item.id === runId);
     const language2 = this.languageOf(map);
@@ -22075,29 +22188,16 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
       }
       if (!draft || !review) throw new Error("Continuation ended without a persisted Planner decision.");
       const finalDraft = draft, finalReview = review;
-      const detail = finalReview.decision === "conclude" ? this.concludedDetail(finalReview) : [
+      const detail = finalReview.decision === "conclude" ? this.concludedDetail(finalReview) : this.interimDetail([
+        this.interimNotice(finalReview, language2),
         finalReview.decision === "research_more" ? translate(language2, "note.aim_research_status_partial") : translate(language2, "note.aim_interim_result"),
-        finalReview.detail,
-        translate(language2, "note.aim_rationale_0", finalReview.rationale),
-        translate(
-          language2,
-          "note.aim_stop_reason_0",
-          noteStopReason(language2, finalReview, stopReason, "budget")
-        ),
+        this.readerDetail(finalReview),
+        ...finalReview.decision === "research_more" ? [translate(language2, "note.aim_attempt_budget_gap")] : [],
         translate(language2, "note.aim_saved_evidence"),
         report.detail,
-        ...finalReview.decision === "research_more" ? [
-          translate(
-            language2,
-            "note.aim_still_open_0",
-            (_l = (_k = finalReview.researchTarget) == null ? void 0 : _k.title) != null ? _l : finalReview.rationale
-          ),
-          (_n = (_m = finalReview.researchTarget) == null ? void 0 : _m.task) != null ? _n : translate(language2, "note.aim_gap_fallback_task"),
-          translate(language2, "note.aim_attempt_budget_gap")
-        ] : [],
         translate(language2, "note.aim_source_boundary"),
         translate(language2, "note.aim_source_boundary_were_not_verified")
-      ].join("\n\n");
+      ]);
       const finalKind = finalReview.decision === "conclude" ? "conclusion" : "synthesis";
       const finalTitle = finalReview.decision === "conclude" ? translate(language2, "note.aim_conclusion") : finalReview.decision === "research_more" ? translate(language2, "note.aim_needs_followup") : translate(language2, "note.aim_synthesis");
       if (!await this.persist(
@@ -22119,7 +22219,7 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
       });
       if (committed.status !== "committed") return { status: "stale", branchId: branch.id };
       if (review.decision === "ask_user") {
-        const latest = await this.repository.readMap(mapPath), newResult = (_p = (_o = latest.aim) == null ? void 0 : _o.branches.find((item) => item.id === branch.id)) == null ? void 0 : _p.results.at(-1);
+        const latest = await this.repository.readMap(mapPath), newResult = (_l = (_k = latest.aim) == null ? void 0 : _k.branches.find((item) => item.id === branch.id)) == null ? void 0 : _l.results.at(-1);
         if (!newResult)
           throw new Error("Continuation result was committed without a result parent for the pending question.");
         const answerOptions = normalizePersistedAnswerOptions(review.answerOptions);
@@ -23715,23 +23815,20 @@ ${beforeSearch.detail}`,
         if (draft.status === "stale") return { status: "stale", branchId };
         synthesisDraftId = draft.draft.id;
       }
-      const stopReason = isPartial ? translate(language2, "note.aim_round_limit_0", finalReview.rationale) : isQuestion ? translate(language2, "note.aim_stop_awaiting_0", finalReview.question) : finalReview.stopReason;
       const partialSection = isPartial && finalReview.researchTarget ? [
         translate(language2, "note.aim_partial_heading"),
-        translate(language2, "note.aim_pending_target_0", finalReview.researchTarget.title),
         translate(language2, "note.aim_pending_task_0", finalReview.researchTarget.task),
         translate(language2, "note.aim_pending_value_0", finalReview.researchTarget.expectedValue)
       ].join("\n\n") : "";
-      const detail = smokePublish ? [translate(language2, "note.aim_smoke_publication_0", finalReview.rationale), finalReview.detail].join("\n\n") : isPartial || isQuestion ? [
+      const detail = smokePublish ? [translate(language2, "note.aim_smoke_publication_0", finalReview.rationale), finalReview.detail].join("\n\n") : isPartial || isQuestion ? this.interimDetail([
+        this.interimNotice(finalReview, language2),
         partialSection || translate(language2, "note.aim_interim_result"),
-        finalReview.detail,
-        translate(language2, "note.aim_rationale_0", finalReview.rationale),
-        translate(language2, "note.aim_stop_reason_0", stopReason),
+        this.readerDetail(finalReview),
         translate(language2, "note.aim_supporting_research"),
         reportDetail,
         translate(language2, "note.aim_source_boundary"),
         translate(language2, "note.aim_source_boundary_claims")
-      ].join("\n\n") : this.concludedDetail(finalReview);
+      ]) : this.concludedDetail(finalReview);
       const presentation = isPartial ? {
         title: translate(language2, "note.aim_needs_followup"),
         kind: "synthesis"
@@ -33182,6 +33279,9 @@ var READER_FACING_PHASES = /* @__PURE__ */ new Set([
   "targeted-followup-research",
   "delivery-writing"
 ]);
+function readerFacingAimPhase(phase) {
+  return !!phase && READER_FACING_PHASES.has(phase);
+}
 function aimPhase(task) {
   var _a;
   return (_a = task.match(/<!--\s*aim-phase:\s*([a-z-]+)\s*-->/)) == null ? void 0 : _a[1];
@@ -33205,7 +33305,7 @@ ${value}` : "";
     inLanguage(JSON_CONTRACT2, language2),
     context.toneText ? toneBlock(context.toneText, language2) : "",
     phaseGuidance(phase, language2, context.responseContract, !!context.aimContract),
-    phase && READER_FACING_PHASES.has(phase) ? inLanguage(OBSIDIAN_FORMAT, language2) : "",
+    readerFacingAimPhase(phase) ? inLanguage(OBSIDIAN_FORMAT, language2) : "",
     context.researchMode === "local" ? inLanguage(WEB_SEARCH_OFF, language2) : context.researchMode === "research" ? inLanguage(WEB_SEARCH_ON, language2) : "",
     field(inLanguage(LABEL_TOPIC, language2), context.title),
     field(inLanguage(LABEL_SUMMARY, language2), context.summary),
@@ -33371,6 +33471,9 @@ function visualGuidance(context, language2) {
 }
 
 // core/steps/task/render.ts
+function readerFacingDetail(context) {
+  return context.promptProfile === "aim" ? readerFacingAimPhase(aimPhase(context.task)) : context.mode !== "decompose" && !context.intermediateDetail;
+}
 function generalTaskPrompt(context, language2) {
   var _a;
   const modeFragment = context.mode === "task" ? GENERAL_TASK : context.mode === "decompose" ? DECOMPOSE : context.mode === "synthesize" ? SYNTHESIZE : DEFAULT_TASK;
@@ -33390,7 +33493,7 @@ function generalTaskPrompt(context, language2) {
         language2,
         (headings) => detailStructure(language2, headings)
       ),
-      context.intermediateDetail ? "" : inLanguage(OBSIDIAN_FORMAT, language2)
+      readerFacingDetail(context) ? inLanguage(OBSIDIAN_FORMAT, language2) : ""
     ].filter(Boolean).join("\n\n") : "",
     researchGuidance(context, language2),
     ...visualGuidance(context, language2),
@@ -33549,6 +33652,7 @@ var AiTaskService = class {
       });
       stage = t("log.stage_parsing_reply");
       let result = step.parse(raw);
+      if (readerFacingDetail(input)) result.detail = normalizeDetailHeadings(result.detail);
       if (referenceGroups.length) result.summary = resolveSummaryReferences(result.summary, referenceGroups);
       if (referenceGroups.length || /\[\^/.test(result.detail))
         result.detail = resolveDetailReferences(result.detail, referenceGroups, input.detail, input.detailTemplate);

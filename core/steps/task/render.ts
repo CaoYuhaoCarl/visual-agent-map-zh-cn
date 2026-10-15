@@ -1,4 +1,4 @@
-import { buildAimPrompt } from "../aim/shell";
+import { aimPhase, buildAimPrompt, readerFacingAimPhase } from "../aim/shell";
 import { researchGuidance } from "../../../ai/task-policy";
 import type { TaskContext } from "../../../ai/types";
 import { visualGuidance } from "../../../ai/visual-guidance";
@@ -33,6 +33,13 @@ import {
   SYNTHESIZE
 } from "./fragments";
 
+/** Whether the request's detail is written for the reader, so it gets the Obsidian syntax rules and heading levels. */
+export function readerFacingDetail(context: TaskContext): boolean {
+  return context.promptProfile === "aim"
+    ? readerFacingAimPhase(aimPhase(context.task))
+    : context.mode !== "decompose" && !context.intermediateDetail;
+}
+
 /** The regular (non-AIM) task prompt. Empty blocks are kept, so the blank-line layout matches the original builder. */
 export function generalTaskPrompt(context: TaskContext, language: UiLanguage): string {
   const modeFragment =
@@ -60,7 +67,7 @@ export function generalTaskPrompt(context: TaskContext, language: UiLanguage): s
             : detailStructurePrompt(context.detailTemplate ?? standardTemplate(language), language, headings =>
                 detailStructure(language, headings)
               ),
-          context.intermediateDetail ? "" : inLanguage(OBSIDIAN_FORMAT, language)
+          readerFacingDetail(context) ? inLanguage(OBSIDIAN_FORMAT, language) : ""
         ]
           .filter(Boolean)
           .join("\n\n")

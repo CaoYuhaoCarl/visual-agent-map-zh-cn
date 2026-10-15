@@ -182,6 +182,20 @@ const REFERENCE_START = "<!-- visual-agent-map:references:start -->";
 const REFERENCE_END = "<!-- visual-agent-map:references:end -->";
 const DETAIL_START = "<!-- visual-agent-map:detail:start -->";
 const DETAIL_END = "<!-- visual-agent-map:detail:end -->";
+/**
+ * The AIM open-items marker of a conclusion note. It is saved right after the Detail block, so Detail holds only what
+ * the reader reads; `readNote` hands it back at the end of `detail`, where the AIM code and older notes keep it.
+ */
+const OPEN_ITEMS_MARKER = /\n*^<!--\s*aim-open-items\s+\[[^\n]*\]\s*-->[ \t]*$/m;
+function splitOpenItems(value: string): { text: string; marker: string } {
+  const match = OPEN_ITEMS_MARKER.exec(value);
+  return match
+    ? {
+        text: (value.slice(0, match.index) + value.slice(match.index + match[0].length)).trim(),
+        marker: match[0].trim()
+      }
+    : { text: value, marker: "" };
+}
 const NOTE_CSS_CLASS = "visual-agent-map-node";
 /**
  * Point every reference to a moved note at its new path: node paths and the AIM records that must name the same note
@@ -331,6 +345,17 @@ function sectionBounds(content: string, heading: NoteSection): { start: number; 
   return { start, end: Math.min(...candidates) };
 }
 
+/** Detail as the app uses it: the Detail block, plus the open-items marker saved after it. */
+function detailWithOpenItems(content: string): string {
+  const detail = section(content, "Detail");
+  if (splitOpenItems(detail).marker) return detail;
+  const end = content.indexOf(DETAIL_END);
+  const after = end >= 0 ? content.slice(end + DETAIL_END.length) : "";
+  const next = after.search(/^## /m);
+  const { marker } = splitOpenItems(next >= 0 ? after.slice(0, next) : after);
+  return marker ? `${detail}\n\n${marker}` : detail;
+}
+
 function section(content: string, heading: NoteSection): string {
   const bounds = sectionBounds(content, heading);
   return bounds ? content.slice(bounds.start, bounds.end).trim() : "";
@@ -457,17 +482,37 @@ function noteBody(
   detail = "",
   visualReferences = "",
   newFindings = "",
-  leftover = ""
+  leftover = "",
+  layout: "answer-first" | "legacy" = "answer-first"
 ): string {
-  const detailBlock = `${DETAIL_START}\n${detailWithVisualReferences(detail, visualReferences, standardTemplate(language))}\n${DETAIL_END}`;
+  if (layout === "legacy") {
+    const legacyBlock = `${DETAIL_START}\n${detailWithVisualReferences(detail, visualReferences, standardTemplate(language))}\n${DETAIL_END}`;
+    return (
+      [
+        `# ${title}`,
+        `## Current Summary\n\n${summary.trim() || placeholder(language)}`,
+        `## Prompt\n\n${prompt.trim()}`,
+        rules.trim() ? `## Rules\n\n${rules.trim()}` : "",
+        `## ${previewHeading(language)}\n\n${preview.trim()}`,
+        `## Detail\n\n${legacyBlock}`,
+        newFindings.trim() ? `## Working Findings\n\n${newFindings.trim()}` : "",
+        leftover.trim()
+      ]
+        .filter(Boolean)
+        .join("\n\n") + "\n"
+    );
+  }
+  const { text: readerDetail, marker } = splitOpenItems(detail);
+  const detailBlock = `${DETAIL_START}\n${detailWithVisualReferences(readerDetail, visualReferences, standardTemplate(language))}\n${DETAIL_END}${marker ? `\n\n${marker}` : ""}`;
+  // The answer comes first: summary, then Detail; Preview and the task text follow, and an empty Prompt is left out.
   return (
     [
       `# ${title}`,
       `## Current Summary\n\n${summary.trim() || placeholder(language)}`,
-      `## Prompt\n\n${prompt.trim()}`,
-      rules.trim() ? `## Rules\n\n${rules.trim()}` : "",
-      `## ${previewHeading(language)}\n\n${preview.trim()}`,
       `## Detail\n\n${detailBlock}`,
+      `## ${previewHeading(language)}\n\n${preview.trim()}`,
+      prompt.trim() ? `## Prompt\n\n${prompt.trim()}` : "",
+      rules.trim() ? `## Rules\n\n${rules.trim()}` : "",
       newFindings.trim() ? `## Working Findings\n\n${newFindings.trim()}` : "",
       leftover.trim()
     ]
@@ -496,6 +541,9 @@ function normalizeBodyOrder(
   );
   const newFindings = section(clean, "Working Findings") || section(clean, "New Findings");
   let leftover = clean.replace(/^# .*$(?:\r?\n)*/m, "");
+  // An open-items marker saved after the Detail block is left over once Detail is removed; it goes back beside Detail.
+  const openItems = splitOpenItems(leftover);
+  leftover = openItems.text;
   for (const heading of [
     "Current Summary",
     "Prompt",
@@ -508,7 +556,24 @@ function normalizeBodyOrder(
     "New Findings"
   ] as NoteSection[])
     leftover = removeSection(leftover, heading);
-  return noteBody(title, summary, language, prompt, rules, preview, detail, "", newFindings, leftover);
+  const withMarker = openItems.marker && !splitOpenItems(detail).marker ? `${detail}\n\n${openItems.marker}` : detail;
+  // A note written before the answer-first layout (its Prompt sits above Detail) keeps its layout, so a write that
+  // does not change its content leaves it byte-identical; new notes use the answer-first layout.
+  const detailAt = clean.search(/^## Detail\s*$/m);
+  const legacy = /^## Prompt\s*$/m.test(detailAt >= 0 ? clean.slice(0, detailAt) : clean);
+  return noteBody(
+    title,
+    summary,
+    language,
+    prompt,
+    rules,
+    preview,
+    withMarker,
+    "",
+    newFindings,
+    leftover,
+    legacy ? "legacy" : "answer-first"
+  );
 }
 
 const REFERENCE_LABELS = ["所屬主題", "所屬心智圖", "母議題", "子議題", "來源議題", "狀態"];
@@ -759,7 +824,7 @@ export class Repository {
       summary: section(content, "Current Summary") || text(fm.summary, placeholder(this.settings.language)),
       prompt: section(content, "Prompt"),
       rules: section(content, "Rules"),
-      detail: section(content, "Detail"),
+      detail: detailWithOpenItems(content),
       thinkingOrigin: readThinkingOrigin(content),
       visualReferences: section(content, "Visual References"),
       newFindings: section(content, "Working Findings") || section(content, "New Findings"),
@@ -849,7 +914,8 @@ export class Repository {
       if (patch.summary !== undefined) body = replaceSummarySection(body, patch.summary);
       if (patch.prompt !== undefined) body = replaceSection(body, "Prompt", patch.prompt);
       if (patch.rules !== undefined) body = replaceSection(body, "Rules", patch.rules);
-      if (patch.detail !== undefined) body = replaceSection(body, "Detail", patch.detail);
+      // A new detail carries its own open items, if any; the marker of the old one goes with it.
+      if (patch.detail !== undefined) body = replaceSection(splitOpenItems(body).text, "Detail", patch.detail);
       if (patch.thinkingOrigin !== undefined)
         body = replaceSection(body, "Thinking Origin", originMarkdown(patch.thinkingOrigin));
       if (patch.visualReferences !== undefined) {

@@ -33,9 +33,8 @@ Saved research result v3 (Research synthesis):
 Evidence ID: <uuid>-v3
 Summary: Interim evidence
 Limitations excerpt (not exhaustive): Applicable evidence and limitations.
-Rationale: A different unknown constraint changes execution.
 Source index (first 6 of 1): https://example.org/reference
-Full report retained (565 characters). This index is incomplete; request the evidence ID when detail is needed.
+Full report retained (504 characters). This index is incomplete; request the evidence ID when detail is needed.
 
 User answer to Which constraint matters at stage 2?: {"selections":["Time constraint"],"freeText":"Specific condition 2"}
 
@@ -43,9 +42,8 @@ Saved research result v3 (Research synthesis):
 Evidence ID: <uuid>-v3
 Summary: Interim evidence
 Limitations excerpt (not exhaustive): Applicable evidence and limitations.
-Rationale: A different unknown constraint changes execution.
 Source index (first 6 of 1): https://example.org/reference
-Full report retained (565 characters). This index is incomplete; request the evidence ID when detail is needed.
+Full report retained (504 characters). This index is incomplete; request the evidence ID when detail is needed.
 Prior research:
 ## Method and options
 

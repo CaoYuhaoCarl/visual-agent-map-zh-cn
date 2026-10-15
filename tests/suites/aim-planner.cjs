@@ -539,7 +539,8 @@ integrationTest('Planner reviews a saved Searcher diagnostic on a new fenced att
       const modelDetail = reviews.at(-1).detail.replace(/^<!-- aim-review [^\n]* -->\s*\n/, '');
       assert.equal(resultNote.detail, 'Complete conditional document with practical details and source https://example.org/reference', 'a completed conclusion preserves its model-authored detail without a fixed Markdown wrapper');
     } else {
-      assert.ok(resultNote.detail.includes(reportDetail), 'a partial result preserves the saved diagnostic report and its source boundary');
+      // The report sits under the note's supporting-research heading, so its own headings are one level deeper.
+      assert.ok(resultNote.detail.includes(reportDetail.replace(/^### /gm, '#### ')), 'a partial result preserves the saved diagnostic report and its source boundary');
       assert.match(resultNote.detail, /Agent-reported only/);
     }
     assert.equal(savedMap.aim.pendingCommits.length, 0); assert.equal(savedMap.aim.resultDrafts.length, 0);
@@ -571,7 +572,7 @@ integrationTest('Planner reviews a saved Searcher diagnostic on a new fenced att
   assert.match(targetedFollowup.task, /Planner follow-up target: Cast-iron crust method[\s\S]*Find an agent-reported stovetop method/);
   assert.equal(coreGap.savedRun.attempts[1].status, 'partial');
   assert.deepEqual(plain(coreGap.savedRun.attempts[1].plannerReviews.map(item => item.decision)), ['research_more', 'research_more']);
-  assert.match(coreGap.resultNote.detail, /partial/i); assert.match(coreGap.resultNote.detail, /core outcome remains open/i);
+  assert.match(coreGap.resultNote.detail, /partial/i); assert.match(coreGap.resultNote.detail, /^> \[!warning\] Research is not finished\n(?:>.*\n)*> - Still unresolved: stovetop crust method$/m); assert.doesNotMatch(coreGap.resultNote.detail, /core outcome remains open/i, 'the reviewer rationale stays in the run records');
   assert.match(coreGap.resultNote.detail, /does not provide a cast-iron browning sequence/);
 
   const repairedMissingMarker = await runCase('format-repair', [

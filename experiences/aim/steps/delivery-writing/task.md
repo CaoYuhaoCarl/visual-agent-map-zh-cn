@@ -1,4 +1,4 @@
-Write the complete final document in one piece, following this outline in order and using each section heading as a ## heading: {{outline}}.
+Write the complete final document in one piece, following this outline in order and using each section heading as a ### heading: {{outline}}.
 Known goal and user conditions:
 {{knownConditions}}
 Evidence (cite the source URLs or names where used; never show internal source IDs to the reader):

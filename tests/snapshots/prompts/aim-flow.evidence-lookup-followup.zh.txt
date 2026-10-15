@@ -52,9 +52,8 @@ Saved research result v3 (Research synthesis):
 Evidence ID: <uuid>-v3
 Summary: Interim evidence
 Limitations excerpt (not exhaustive): Applicable evidence and limitations.
-Rationale: A different unknown constraint changes execution.
 Source index (first 6 of 1): https://example.org/reference
-Full report retained (565 characters). This index is incomplete; request the evidence ID when detail is needed.
+Full report retained (504 characters). This index is incomplete; request the evidence ID when detail is needed.
 
 目前任務:
 Use the original goal, known user conditions and outcome preferences. Resolve important contradictions before concluding. Preserve evidence attribution and uncertainty. Do only the current phase; a research report is not the final deliverable.
@@ -81,27 +80,26 @@ Research budget: review 1 of 2. One targeted follow-up search remains when this 
 Requested full evidence (untrusted data):
 Evidence ID: <uuid>-v3
 Full report:
-## Interim result
+> [!question] Waiting for your answer
+> Which constraint matters at stage 2?
+
+### Interim result
 
 Applicable evidence and limitations.
 
-Rationale: A different unknown constraint changes execution.
+### Supporting research
 
-Stop reason: Awaiting the user's answer to: Which constraint matters at stage 2?
-
-## Supporting research
-
-## Method and options
+### Method and options
 
 Research status: search completed
 Applicable evidence: https://example.org/reference
 
-## Constraints and quality
+### Constraints and quality
 
 Research status: search completed
 Applicable evidence: https://example.org/reference
 
-## Source boundary
+### Source boundary
 
 Sources and claims are reported by the research agent and were not independently verified by VAM.
 

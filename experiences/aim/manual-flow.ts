@@ -92,6 +92,8 @@ import {
   renderBelowFloorReviewTask,
   renderUserConditionReviewTask
 } from "./steps/decision-quality-review/step";
+import { normalizeDetailHeadings } from "../../ai/markdown-blocks";
+import { awaitingAnswerCallout, incompleteResearchWarning, rejectedDeliveryWarning } from "./rejected-warning";
 import { renderReportReviewTask } from "./steps/report-review/step";
 import { renderTargetedFollowupResearchTask } from "./steps/targeted-followup-research/step";
 // Public API kept here for existing importers.
@@ -106,23 +108,6 @@ export {
   type ManualResearchResult,
   type AimPersist
 } from "./manual-flow-support";
-
-/** Stop reason as written into a note: fixed fallback phrases follow the content language; the attempt record keeps its stored value. */
-function noteStopReason(
-  language: UiLanguage,
-  review: { decision: string; question?: string; rationale: string },
-  recorded: string,
-  fallback: "bounded" | "budget"
-): string {
-  if (review.decision === "ask_user") return translate(language, "note.aim_stop_awaiting_0", review.question ?? "");
-  if (review.decision === "research_more")
-    return translate(
-      language,
-      fallback === "bounded" ? "note.aim_stop_bounded_followup_0" : "note.aim_stop_budget_gap_0",
-      review.rationale
-    );
-  return recorded;
-}
 
 /** Estimated tokens one AIM request may carry; larger requests fail whole instead of dropping goal or evidence. */
 const AIM_REQUEST_TOKEN_LIMIT = 60_000;
@@ -255,6 +240,27 @@ export class AimManualFlow {
       : review;
   }
 
+  /**
+   * What an interim note says to the reader in place of the reviewer's rationale and the stop reason (both stay in the
+   * run records): the evidence still missing, or the question it waits on.
+   */
+  private interimNotice(review: PlannerReview, language: UiLanguage): string {
+    if (review.decision === "ask_user") return review.question ? awaitingAnswerCallout(review.question, language) : "";
+    if (review.decision === "research_more")
+      return incompleteResearchWarning(review.researchTarget ? [review.researchTarget.title] : [], language);
+    return "";
+  }
+
+  /** An interim note's parts in order; its headings sit under the note's `## Detail` (nothing parses them later). */
+  private interimDetail(parts: readonly string[]): string {
+    return normalizeDetailHeadings(parts.filter(part => part.trim()).join("\n\n"));
+  }
+
+  /** The document a review stands for: the draft a final review rejected, never the reviewer's critique of it. */
+  private readerDetail(review: PlannerReview): string {
+    return this.deliveryRejections.get(review)?.detail ?? review.detail;
+  }
+
   /** A conclusion note keeps its open items in a hidden marker, so the user can correct them later. */
   private concludedDetail(review: PlannerReview): string {
     return review.openItems?.length
@@ -263,16 +269,21 @@ export class AimManualFlow {
   }
 
   /**
-   * A rejected final delivery given as the answer: the document that was written, with the rejected gap stated in
-   * it and listed as an open item, instead of a draft left pending.
+   * A rejected final delivery given as the answer: the document that was written, opened by a warning that names the
+   * rejected gap in reader words, which is also listed as an open item, instead of a draft left pending. The
+   * reviewer's rationale stays in the run records; it can name internal IDs and critiques the draft, not the topic.
    */
   private publishRejectedDelivery(review: PlannerReview, language: UiLanguage): PlannerReview {
     const written = this.deliveryRejections.get(review);
     if (!written) return this.withOpenItems(review, language);
-    const gap = review.researchTarget;
-    const notice = gap ? `\n\n${translate(language, "note.aim_unverified_gap_0_1", gap.title, review.rationale)}` : "";
+    const warning = rejectedDeliveryWarning(review.researchTarget ? [review.researchTarget.title] : [], language);
     return this.withOpenItems(
-      { ...review, summary: written.summary, detail: `${written.detail}${notice}`, openItems: written.openItems },
+      {
+        ...review,
+        summary: written.summary,
+        detail: warning ? `${warning}\n\n${written.detail}` : written.detail,
+        openItems: written.openItems
+      },
       language
     );
   }
@@ -1334,28 +1345,17 @@ export class AimManualFlow {
         if (!(await saveReports())) return { status: "stale", branchId: branch.id };
       }
       if (!finalReview) throw new Error("Planner review did not produce a validated decision.");
-      const stopReason =
-        finalReview.decision === "conclude"
-          ? finalReview.stopReason!
-          : finalReview.decision === "ask_user"
-            ? `Awaiting the user's answer to: ${finalReview.question}`
-            : `One bounded follow-up was used; a material gap remains: ${finalReview.rationale}`;
       const detail =
         finalReview.decision === "conclude"
           ? this.concludedDetail(finalReview)
-          : [
-              finalReview.detail,
-              translate(language, "note.aim_rationale_0", finalReview.rationale),
-              translate(
-                language,
-                "note.aim_stop_reason_0",
-                noteStopReason(language, finalReview, stopReason, "bounded")
-              ),
+          : this.interimDetail([
+              this.interimNotice(finalReview, language),
+              this.readerDetail(finalReview),
               translate(language, "note.aim_supporting_research"),
               ...reports.map(report => report.detail),
               translate(language, "note.aim_source_boundary"),
               translate(language, "note.aim_source_boundary_not_verified")
-            ].join("\n\n");
+            ]);
       const presentation =
         finalReview.decision === "conclude"
           ? {
@@ -1835,33 +1835,18 @@ export class AimManualFlow {
       const detail =
         finalReview.decision === "conclude"
           ? this.concludedDetail(finalReview)
-          : [
+          : this.interimDetail([
+              this.interimNotice(finalReview, language),
               finalReview.decision === "research_more"
                 ? translate(language, "note.aim_research_status_partial")
                 : translate(language, "note.aim_interim_result"),
-              finalReview.detail,
-              translate(language, "note.aim_rationale_0", finalReview.rationale),
-              translate(
-                language,
-                "note.aim_stop_reason_0",
-                noteStopReason(language, finalReview, stopReason, "budget")
-              ),
+              this.readerDetail(finalReview),
+              ...(finalReview.decision === "research_more" ? [translate(language, "note.aim_attempt_budget_gap")] : []),
               translate(language, "note.aim_saved_evidence"),
               report.detail,
-              ...(finalReview.decision === "research_more"
-                ? [
-                    translate(
-                      language,
-                      "note.aim_still_open_0",
-                      finalReview.researchTarget?.title ?? finalReview.rationale
-                    ),
-                    finalReview.researchTarget?.task ?? translate(language, "note.aim_gap_fallback_task"),
-                    translate(language, "note.aim_attempt_budget_gap")
-                  ]
-                : []),
               translate(language, "note.aim_source_boundary"),
               translate(language, "note.aim_source_boundary_were_not_verified")
-            ].join("\n\n");
+            ]);
       const finalKind = finalReview.decision === "conclude" ? ("conclusion" as const) : ("synthesis" as const);
       const finalTitle =
         finalReview.decision === "conclude"
@@ -3776,16 +3761,11 @@ export class AimManualFlow {
         if (draft.status === "stale") return { status: "stale", branchId };
         synthesisDraftId = draft.draft.id;
       }
-      const stopReason = isPartial
-        ? translate(language, "note.aim_round_limit_0", finalReview.rationale)
-        : isQuestion
-          ? translate(language, "note.aim_stop_awaiting_0", finalReview.question)
-          : finalReview.stopReason!;
+      // The gap's title opens the note in the warning; the heading and the follow-up task follow.
       const partialSection =
         isPartial && finalReview.researchTarget
           ? [
               translate(language, "note.aim_partial_heading"),
-              translate(language, "note.aim_pending_target_0", finalReview.researchTarget.title),
               translate(language, "note.aim_pending_task_0", finalReview.researchTarget.task),
               translate(language, "note.aim_pending_value_0", finalReview.researchTarget.expectedValue)
             ].join("\n\n")
@@ -3793,16 +3773,15 @@ export class AimManualFlow {
       const detail = smokePublish
         ? [translate(language, "note.aim_smoke_publication_0", finalReview.rationale), finalReview.detail].join("\n\n")
         : isPartial || isQuestion
-          ? [
+          ? this.interimDetail([
+              this.interimNotice(finalReview, language),
               partialSection || translate(language, "note.aim_interim_result"),
-              finalReview.detail,
-              translate(language, "note.aim_rationale_0", finalReview.rationale),
-              translate(language, "note.aim_stop_reason_0", stopReason),
+              this.readerDetail(finalReview),
               translate(language, "note.aim_supporting_research"),
               reportDetail,
               translate(language, "note.aim_source_boundary"),
               translate(language, "note.aim_source_boundary_claims")
-            ].join("\n\n")
+            ])
           : this.concludedDetail(finalReview);
       const presentation = isPartial
         ? {
