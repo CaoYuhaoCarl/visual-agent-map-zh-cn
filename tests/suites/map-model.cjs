@@ -223,3 +223,55 @@ test('full layout treats a collapsed topic as a leaf and leaves its hidden branc
   const open = layout.arrangeMap(folded.map(item => ({ ...item, collapsed: false })));
   assert.equal(at(open, 'next').y - at(open, 'hidden-5').y, 220, 'expanded, the branch takes its rows again');
 });
+
+const aimNode = (id, parentId, aimKind, converges, collapsed = false) => ({ ...node(id, parentId, collapsed), aimKind, ...(converges ? { aimConvergesFromNodeIds: converges } : {}) });
+const noOverlap = placed => {
+  for (const a of placed) for (const b of placed) if (a.id < b.id && a.x === b.x) assert.ok(Math.abs(a.y - b.y) >= 220, `${a.id} and ${b.id} overlap`);
+};
+const checkJoins = (source, placed) => {
+  const at = id => placed.find(item => item.id === id);
+  for (const join of source.filter(item => item.aimConvergesFromNodeIds?.length && item.aimKind !== 'question')) {
+    const ys = join.aimConvergesFromNodeIds.map(id => at(id).y).sort((a, b) => a - b);
+    ys.forEach((y, index) => index && assert.equal(y - ys[index - 1], 220, `${join.id} sources are consecutive rows`));
+    assert.equal(at(join.id).x, at(join.aimConvergesFromNodeIds[0]).x + 360, `${join.id} is one column right of its sources`);
+    // Sibling joins stack by subtree height, so only a lone join is centered on its sources.
+    if (source.filter(item => item.aimConvergesFromNodeIds?.join() === join.aimConvergesFromNodeIds.join() && item.aimKind !== 'question').length === 1)
+      assert.ok(at(join.id).y >= ys[0] && at(join.id).y <= ys[ys.length - 1], `${join.id} sits among its sources`);
+  }
+};
+const aimChain = () => [
+  aimNode('topic', null, 'topic'), aimNode('Q', 'topic', 'question'),
+  aimNode('R1', 'Q', 'research'), aimNode('R2', 'Q', 'research'), aimNode('R3', 'Q', 'research'),
+  aimNode('C', 'R3', 'conclusion', ['R1', 'R2', 'R3']), aimNode('Q2', 'C', 'question'),
+  ...[1, 2, 3, 4].map(i => aimNode(`S${i}`, 'Q2', 'research')),
+  aimNode('C2', 'S4', 'conclusion', ['S1', 'S2', 'S3', 'S4'])
+];
+test('AIM convergence nodes are laid out after all their research sources', () => {
+  const placed = layout.arrangeMap(aimChain());
+  const at = id => placed.find(item => item.id === id);
+  assert.equal(at('R2').y - at('R1').y, 220);
+  assert.equal(at('R3').y - at('R2').y, 220);
+  assert.equal(at('C').x, at('R1').x + 360);
+  assert.ok(Math.abs(at('C').y - (at('R1').y + at('R3').y) / 2) <= 1);
+  checkJoins(aimChain(), placed);
+  noOverlap(placed);
+});
+test('real-shaped AIM map: every convergence node sits among consecutive source rows without overlap', () => {
+  const source = require('../fixtures/aim-convergence-layout.json').map(item => ({ ...item, path: `${item.id}.md`, x: 0, y: 0 }));
+  const placed = layout.arrangeMap(source);
+  checkJoins(source, placed);
+  noOverlap(placed);
+});
+test('collapsing the primary source hides the convergence node and its subtree from layout', () => {
+  const nodes = aimChain().map((item, index) => ({ ...item, x: 900 + index, y: 5 + index, collapsed: item.id === 'R3' }));
+  const placed = layout.arrangeMap(nodes);
+  for (const id of ['C', 'Q2', 'S1', 'S4', 'C2']) {
+    const before = nodes.find(item => item.id === id), after = placed.find(item => item.id === id);
+    assert.deepEqual([after.x, after.y], [before.x, before.y], `${id} keeps its coordinates`);
+  }
+  assert.equal(placed.find(item => item.id === 'R3').y - placed.find(item => item.id === 'R1').y, 440);
+});
+test('ordinary trees keep their exact full-layout coordinates', () => {
+  const nodes = [node('r'), node('a', 'r'), node('b', 'r'), node('a1', 'a'), node('a2', 'a'), node('a3', 'a'), node('b1', 'b'), node('r2'), node('c', 'r2')];
+  assert.deepEqual(layout.arrangeMap(nodes).map(item => [item.id, item.x, item.y]), [['r', 80, 520], ['a', 440, 300], ['b', 440, 740], ['a1', 800, 80], ['a2', 800, 300], ['a3', 800, 520], ['b1', 800, 740], ['r2', 80, 960], ['c', 440, 960]]);
+});

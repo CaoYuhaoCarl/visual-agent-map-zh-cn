@@ -12255,25 +12255,72 @@ var ROW = 220;
 var WIDTH = 300;
 var HEIGHT = 190;
 function positions(nodes, roots, left, top, folded = false) {
-  var _a;
+  var _a, _b;
+  const ids = new Map(nodes.map((node) => [node.id, node]));
   const children = /* @__PURE__ */ new Map();
+  const joins = /* @__PURE__ */ new Map();
+  const add = (map, key2, node) => {
+    var _a2;
+    return map.set(key2, [...(_a2 = map.get(key2)) != null ? _a2 : [], node]);
+  };
   for (const node of nodes) {
     if (!node.parentId) continue;
-    const list = (_a = children.get(node.parentId)) != null ? _a : [];
-    list.push(node);
-    children.set(node.parentId, list);
+    const sources2 = node.aimKind !== "question" && ((_a = node.aimConvergesFromNodeIds) == null ? void 0 : _a.length) ? parentIdsForNode(node).map((id) => ids.get(id)) : [];
+    const anchor = (_b = sources2[0]) == null ? void 0 : _b.parentId;
+    if (anchor && ids.has(anchor) && sources2.every((source) => source && source.parentId === anchor))
+      add(joins, anchor, node);
+    else add(children, node.parentId, node);
   }
   const result = /* @__PURE__ */ new Map();
-  let row = 0;
-  const visit = (node, depth) => {
+  const kidsOf = (node) => {
     var _a2;
-    const descendants2 = folded && node.collapsed ? [] : (_a2 = children.get(node.id)) != null ? _a2 : [];
-    const childYs = descendants2.map((child) => visit(child, depth + 1));
-    const y = childYs.length ? (childYs[0] + childYs[childYs.length - 1]) / 2 : top + row++ * ROW;
-    result.set(node.id, { x: left + depth * COLUMN, y });
-    return y;
+    return folded && node.collapsed ? [] : (_a2 = children.get(node.id)) != null ? _a2 : [];
   };
-  for (const root of roots) visit(root, 0);
+  const joinsOf = (node) => {
+    var _a2;
+    return folded && node.collapsed ? [] : ((_a2 = joins.get(node.id)) != null ? _a2 : []).filter((join3) => {
+      var _a3;
+      return !(folded && ((_a3 = ids.get(join3.parentId)) == null ? void 0 : _a3.collapsed));
+    });
+  };
+  const sum = (list) => list.reduce((total2, value) => total2 + value, 0);
+  const heights = /* @__PURE__ */ new Map();
+  const spans = /* @__PURE__ */ new Map();
+  const measure = (node) => {
+    const kids = kidsOf(node);
+    const extra = joinsOf(node);
+    for (const child of [...kids, ...extra]) measure(child);
+    heights.set(
+      node.id,
+      Math.max(1, sum(kids.map((kid) => heights.get(kid.id))), sum(extra.map((join3) => heights.get(join3.id))))
+    );
+    spans.set(node.id, 1 + Math.max(0, ...kids.map((kid) => spans.get(kid.id))));
+  };
+  const place = (node, depth, topRow) => {
+    const kids = kidsOf(node);
+    const extra = joinsOf(node);
+    const height = heights.get(node.id);
+    const stack = (list, column) => {
+      let next = topRow + (height - sum(list.map((item) => heights.get(item.id)))) / 2;
+      return list.map((item) => {
+        const y = place(item, column, next);
+        next += heights.get(item.id);
+        return y;
+      });
+    };
+    const kidYs = stack(kids, depth + 1);
+    const joinYs = stack(extra, depth + spans.get(node.id));
+    const ys = kidYs.length ? kidYs : joinYs;
+    const row2 = ys.length ? (ys[0] + ys[ys.length - 1]) / 2 : topRow;
+    result.set(node.id, { x: left + depth * COLUMN, y: top + row2 * ROW });
+    return row2;
+  };
+  let row = 0;
+  for (const root of roots) {
+    measure(root);
+    place(root, 0, row);
+    row += heights.get(root.id);
+  }
   return result;
 }
 function arrangeMap(nodes) {
