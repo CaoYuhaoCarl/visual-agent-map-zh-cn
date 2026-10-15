@@ -3,7 +3,7 @@ import { copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSy
 import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { execFileSync, spawn, spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { createTestVault, ensureSourceSelectionFixture } from "./create-onboarding-test-vault.mjs";
 
 export const root = fileURLToPath(new URL("..", import.meta.url));
@@ -92,11 +92,13 @@ export function updateCurrentTestVault({ vault = canonicalVault, artifact = root
 
 // A private Electron profile registers only the canonical vault. URI path alone
 // cannot reliably open a freshly created, previously unregistered vault.
-export function prepareObsidianProfile(vault, runtime) {
+// Session profiles disable the CLI: a second instance takes over the per-user CLI socket anyway, and a disabled CLI
+// fails loudly instead of silently driving the wrong vault. Session instances are driven through obsidian-cdp.mjs.
+export function prepareObsidianProfile(vault, runtime, { cli = true } = {}) {
   const directory = join(vault, ".vam-app");
   mkdirSync(directory);
   const id = hash(resolve(vault)).slice(0, 16);
-  writeFileSync(join(directory, "obsidian.json"), JSON.stringify({ vaults: { [id]: { path: resolve(vault), ts: 0, open: true } }, updateDisabled: true, cli: true }, null, 2));
+  writeFileSync(join(directory, "obsidian.json"), JSON.stringify({ vaults: { [id]: { path: resolve(vault), ts: 0, open: true } }, updateDisabled: true, cli }, null, 2));
   if (runtime) {
     const destination = join(directory, `obsidian-${runtime.version}.asar`);
     copyFileSync(runtime.path, destination);
@@ -129,12 +131,80 @@ function installedObsidianRuntime() {
   return selectObsidianRuntime(json(join(root, "manifest.json")).minAppVersion, candidates);
 }
 
+// Opens in the background (`open -g`) so testing never takes over the owner's screen or focus. Port 0 lets Chromium
+// pick a free DevTools port and record it in <profile>/DevToolsActivePort for obsidian-cdp.mjs.
 function launchObsidian(appProfile) {
   if (!existsSync(obsidianApp)) throw new Error(`Obsidian app bundle not found at ${obsidianApp}.`);
-  const executable = join(obsidianApp, "Contents/MacOS/Obsidian");
-  if (!existsSync(executable)) throw new Error(`Obsidian executable not found at ${executable}.`);
-  const child = spawn(executable, [`--user-data-dir=${appProfile}`, "--disable-background-timer-throttling", "--disable-renderer-backgrounding", "--disable-backgrounding-occluded-windows"], { cwd: root, detached: true, stdio: "ignore" });
-  child.unref();
+  if (instanceRunning(appProfile)) return;
+  rmSync(join(appProfile, "DevToolsActivePort"), { force: true });
+  const previous = frontApp();
+  execFileSync("open", ["-g", "-n", "-a", obsidianApp, "--args", `--user-data-dir=${appProfile}`, "--remote-debugging-port=0", "--disable-background-timer-throttling", "--disable-renderer-backgrounding", "--disable-backgrounding-occluded-windows"]);
+  returnFocus(appProfile, previous);
+}
+
+function frontApp() {
+  const info = spawnSync("sh", ["-c", "lsappinfo info -only pid -only bundlepath \"$(lsappinfo front)\""], { encoding: "utf8" }).stdout ?? "";
+  return { pid: Number(/"pid"=(\d+)/.exec(info)?.[1]), path: /"LSBundlePath"="([^"]+)"/.exec(info)?.[1] };
+}
+
+// Obsidian activates itself when its first window opens, even under `open -g`, and nothing outside the app prevents
+// that. Hand focus straight back to whatever the owner had in front for the launch window, so the flash stays short.
+function returnFocus(appProfile, previous) {
+  if (!previous.path || previous.path === obsidianApp) return;
+  for (let tick = 0; tick < 150; tick++) {
+    const main = Number(spawnSync("pgrep", ["-f", "--", instancePattern(appProfile)], { encoding: "utf8" }).stdout.trim().split("\n")[0]);
+    if (main && frontApp().pid === main) spawnSync("open", ["-a", previous.path]);
+    spawnSync("sleep", ["0.1"]);
+  }
+}
+
+// `--` keeps pgrep/pkill from reading the pattern as an option; matching the main executable leaves helpers to it.
+const instancePattern = appProfile => `MacOS/Obsidian --user-data-dir=${appProfile}`;
+const instanceRunning = appProfile => spawnSync("pgrep", ["-f", "--", instancePattern(appProfile)], { encoding: "utf8" }).status === 0;
+
+// Per-session vaults let parallel sessions run UI acceptance without sharing the owner's testing vault.
+export const sessionVaultPrefix = process.platform === "darwin" ? "/private/tmp/vam-e2e-" : join(tmpdir(), "vam-e2e-");
+export function sessionVault(name) {
+  if (!/^[a-z0-9][a-z0-9-]{0,31}$/.test(name ?? "")) throw new Error("--session needs a name of lowercase letters, digits and hyphens (at most 32).");
+  const vault = `${sessionVaultPrefix}${name}`;
+  if ([canonicalVault, smokeVault].some(reserved => resolve(reserved) === resolve(vault))) throw new Error(`Session name "${name}" is reserved.`);
+  return vault;
+}
+
+function sessionMain(args) {
+  for (const arg of args) if (!/^--session=/.test(arg) && arg !== "--stop" && !/^--profile=(normal|onboarding|reinstall)$/.test(arg)) throw new Error(`--session cannot be combined with: ${arg}`);
+  const vault = sessionVault(args.find(arg => arg.startsWith("--session=")).slice("--session=".length));
+  const appProfile = join(vault, ".vam-app");
+  if (args.includes("--stop")) {
+    // SIGTERM lets Obsidian save its workspace. Only the instance using this session's own profile is stopped.
+    spawnSync("pkill", ["-TERM", "-f", "--", instancePattern(appProfile)]);
+    for (let wait = 0; wait < 40 && instanceRunning(appProfile); wait++) spawnSync("sleep", ["0.25"]);
+    if (instanceRunning(appProfile)) throw new Error(`Obsidian on ${vault} did not stop.`);
+    process.stdout.write(`${JSON.stringify({ vault, stopped: true })}\n`);
+    return;
+  }
+  if (process.platform !== "darwin") throw new Error("Automatic Obsidian preparation/launch currently supports macOS only; automated tests are cross-platform.");
+  // Refreshing files under a running instance would leave it on the old build; stopping it is the session's call.
+  if (instanceRunning(appProfile)) throw new Error(`Obsidian is running on ${vault}. Finish or stop its work, run with --stop, then rerun.`);
+  const exists = existsSync(vault);
+  if (exists && args.some(arg => arg.startsWith("--profile="))) throw new Error(`${vault} exists and is updated in place; --profile applies only when it is first created.`);
+  const fingerprint = sourceFingerprint();
+  run("npm", ["run", "build"]);
+  const builtHashes = hashes(root);
+  run("npm", ["run", "test:unit"]);
+  run("npm", ["run", "test:integration"]);
+  assertSourceUnchanged(fingerprint);
+  if (JSON.stringify(hashes(root)) !== JSON.stringify(builtHashes)) throw new Error("Build artifacts changed during tests.");
+  const git = (...values) => execFileSync("git", values, { cwd: root, encoding: "utf8" }).trim();
+  const runtime = installedObsidianRuntime();
+  const source = { branch: git("branch", "--show-current"), commit: git("rev-parse", "HEAD"), status: git("status", "--short"), diffHash: gitDiffHash(root, ["diff", "HEAD", "--binary"]), fingerprint, obsidianRuntime: { version: runtime.version, hash: runtime.hash } };
+  const record = exists
+    ? updateCurrentTestVault({ vault, source })
+    : prepareTestVault({ vault, profile: args.find(arg => arg.startsWith("--profile="))?.split("=")[1] || "normal", source });
+  if (!existsSync(join(appProfile, "obsidian.json"))) prepareObsidianProfile(vault, runtime, { cli: false });
+  launchObsidian(appProfile);
+  const cdp = `node scripts/obsidian-cdp.mjs --vault=${vault}`;
+  process.stdout.write(`${JSON.stringify({ vault, created: !exists, version: record.version, hashes: record.hashes, next: [`${cdp} wait`, `${cdp} trust`, `${cdp} eval "<expression>"`, `${cdp} screenshot <file.png>`, `node scripts/test-harness.mjs --session=${vault.slice(sessionVaultPrefix.length)} --stop`] }, null, 2)}\n`);
 }
 
 export function sourceFingerprint(directory = root) {
@@ -191,10 +261,11 @@ function smokeSetup(args) {
 }
 
 export function main(args = process.argv.slice(2)) {
+  if (args.some(arg => arg.startsWith("--session="))) return sessionMain(args);
   if (args.includes("--smoke")) {
     for (const arg of args) if (arg !== "--smoke" && arg !== "--smoke-launch" && !/^--smoke-web-search=(on|off)$/.test(arg)) throw new Error(`--smoke cannot be combined with: ${arg}`);
     // The smoke vault has its own private Obsidian profile, so a personal Obsidian may stay open; only a smoke instance blocks a reset.
-    if (spawnSync("pgrep", ["-f", `--user-data-dir=${smokeVault}`], { encoding: "utf8" }).status === 0) throw new Error("Close the Obsidian instance that has the smoke vault open, then rerun.");
+    if (spawnSync("pgrep", ["-f", "--", `--user-data-dir=${smokeVault}`], { encoding: "utf8" }).status === 0) throw new Error("Close the Obsidian instance that has the smoke vault open, then rerun.");
     const appProfile = smokeSetup(args);
     if (args.includes("--smoke-launch")) { launchObsidian(appProfile); process.stdout.write("Smoke vault opened. Run the planned smoke case, then record the result as profile=smoke.\n"); }
     return;
