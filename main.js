@@ -17352,7 +17352,7 @@ var NextStepModal = class extends import_obsidian15.Modal {
     const languageSelect = languageLabel.createEl("select");
     for (const option2 of SUPPORTED_LANGUAGES)
       languageSelect.createEl("option", { value: option2.id, text: option2.label });
-    languageSelect.value = this.plugin.settings.language;
+    languageSelect.value = chooseAimContentLanguage(this.plugin.settings.language, this.topic);
     languageSelect.setAttr("aria-label", t("ui.output_language"));
     const templateId = templateField(
       compactSettings,
@@ -25488,7 +25488,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian22.Ite
           const result = await this.plugin.outlineGeneration.generate(
             {
               ...request,
-              language: settings.language,
+              language: chooseAimContentLanguage(settings.language, request.topic),
               model,
               reasoning: normalizeReasoningLevel(settings.cliReasoning)
             },
@@ -29556,6 +29556,7 @@ ${request.requirements}` : preset.text,
     var _a, _b;
     const detailTemplate = await this.detailTemplateFor(child, choices.detailTemplateId, choices.toneId);
     const note = await this.plugin.repo.readNote(child.path);
+    const outputLanguage = (_a = choices.outputLanguage) != null ? _a : chooseAimContentLanguage(this.plugin.settings.language, note.title);
     let started = false;
     let failure;
     const handle = await this.runAgent(
@@ -29567,16 +29568,13 @@ ${request.requirements}` : preset.text,
       {
         detailTemplate,
         rules: "",
-        referenceGroups: (_a = choices.referenceGroups) != null ? _a : [],
+        referenceGroups: (_b = choices.referenceGroups) != null ? _b : [],
         signal: batchSignal,
-        outputLanguage: choices.outputLanguage,
+        outputLanguage,
         researchMode: choices.researchMode,
         researchDepth: choices.researchDepth,
         visualMode: choices.visualMode,
-        task: [
-          note.prompt || researchTopicTask((_b = choices.outputLanguage) != null ? _b : this.plugin.settings.language, note.title),
-          choices.requirements
-        ].filter(Boolean).join("\n\n")
+        task: [note.prompt || researchTopicTask(outputLanguage, note.title), choices.requirements].filter(Boolean).join("\n\n")
       },
       () => {
         started = true;

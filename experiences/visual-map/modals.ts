@@ -2,6 +2,7 @@
 import type VisualAgentMapPlugin from "../../main";
 import { listPresets } from "../../ai/prompt-presets";
 import { PromptPresetsModal } from "../../ui/modals/prompt-presets-modal";
+import { chooseAimContentLanguage } from "../aim/content-language";
 import { supportedLanguageLabel, SUPPORTED_LANGUAGES, t, type TranslationKey } from "../../i18n";
 import { App, Component, MarkdownRenderer, Modal, Notice, Setting, TFile } from "obsidian";
 import { ReferencePicker, type ReferenceTopic } from "../../ui/reference-picker";
@@ -1337,7 +1338,7 @@ export class NextStepModal extends Modal {
     const languageSelect = languageLabel.createEl("select");
     for (const option of SUPPORTED_LANGUAGES)
       languageSelect.createEl("option", { value: option.id, text: option.label });
-    languageSelect.value = this.plugin.settings.language;
+    languageSelect.value = chooseAimContentLanguage(this.plugin.settings.language, this.topic);
     languageSelect.setAttr("aria-label", t("ui.output_language"));
     const templateId = templateField(
       compactSettings,

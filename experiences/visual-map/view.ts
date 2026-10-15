@@ -1,4 +1,4 @@
-import { resolveAimContentLanguage } from "../aim/content-language";
+import { chooseAimContentLanguage, resolveAimContentLanguage } from "../aim/content-language";
 import { PromptPresetsModal } from "../../ui/modals/prompt-presets-modal";
 import { AimClarificationModal } from "../../ui/modals/aim-clarification-modal";
 import { withThinkingOrigin } from "./thinking-origin";
@@ -799,7 +799,7 @@ export class VisualAgentMapView extends ItemView {
           const result = await this.plugin.outlineGeneration.generate(
             {
               ...request,
-              language: settings.language,
+              language: chooseAimContentLanguage(settings.language, request.topic),
               model,
               reasoning: normalizeReasoningLevel(settings.cliReasoning)
             },
@@ -5111,6 +5111,8 @@ export class VisualAgentMapView extends ItemView {
   ): Promise<void> {
     const detailTemplate = await this.detailTemplateFor(child, choices.detailTemplateId, choices.toneId);
     const note = await this.plugin.repo.readNote(child.path);
+    const outputLanguage =
+      choices.outputLanguage ?? chooseAimContentLanguage(this.plugin.settings.language, note.title);
     let started = false;
     let failure: string | undefined;
     const handle = await this.runAgent(
@@ -5124,14 +5126,11 @@ export class VisualAgentMapView extends ItemView {
         rules: "",
         referenceGroups: choices.referenceGroups ?? [],
         signal: batchSignal,
-        outputLanguage: choices.outputLanguage,
+        outputLanguage,
         researchMode: choices.researchMode,
         researchDepth: choices.researchDepth,
         visualMode: choices.visualMode,
-        task: [
-          note.prompt || researchTopicTask(choices.outputLanguage ?? this.plugin.settings.language, note.title),
-          choices.requirements
-        ]
+        task: [note.prompt || researchTopicTask(outputLanguage, note.title), choices.requirements]
           .filter(Boolean)
           .join("\n\n")
       },

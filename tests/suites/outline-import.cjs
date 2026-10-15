@@ -795,6 +795,15 @@ integrationTest('the import window generator asks about AI usage first and says 
   await assert.rejects(generator.generate({ topic: 'T', presetText: 'p' }, new AbortController().signal), /did not start/);
   assert.equal(calls.length, 1);
 });
+integrationTest('the import window generator answers in the typed topic language, not the interface language', async () => {
+  const h = await placementHarness();
+  const calls = [];
+  h.plugin.outlineGeneration = { generate: async request => { calls.push(request); return { markdown: '# T\n', nodes: [] }; } };
+  const generator = h.view.outlineGenerator();
+  await generator.generate({ topic: '要如何在陽台養香草', presetText: 'p' }, new AbortController().signal);
+  await generator.generate({ topic: 'Balcony herbs', presetText: 'p' }, new AbortController().signal);
+  assert.deepEqual(calls.map(c => c.language), ['zh-TW', 'en']);
+});
 test('limitOutline keeps the chosen levels below the root and the chosen number of topics, parents before children', () => {
   const { parseOutline, limitOutline } = load('experiences/visual-map/outline-import.ts', { obsidian });
   const nodes = parseOutline('# Root\n## A\n### A1\n#### A1x\n### A2\n## B\n### B1').nodes;

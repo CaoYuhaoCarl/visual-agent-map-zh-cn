@@ -202,6 +202,21 @@ integrationTest('Next Step: the tone select defaults to keeping the topic tone a
   assert.equal('toneId' in keep.calls.research[0], false, 'keeping the current tone writes nothing');
 });
 
+integrationTest('Next Step: the answer language follows the topic text, and a manual choice still wins', async () => {
+  const selectOf = h => findAll(find(h.modal.contentEl, i => hasCls(i, 'vam-next-language')), i => i.tag === 'select')[0];
+  const langOf = h => selectOf(h).value;
+  const zhTopic = nextStepHarness({ topic: '要如何在陽台養香草', language: 'en' });
+  assert.equal(langOf(zhTopic), 'zh-TW', 'English UI + Chinese topic answers in Chinese');
+  button(zhTopic.actions(), 'Confirm research task').click(); await tick(); await tick();
+  assert.equal(zhTopic.calls.research[0].outputLanguage, 'zh-TW');
+  assert.equal(langOf(nextStepHarness({ topic: 'Balcony herbs', language: 'en' })), 'en');
+  assert.equal(langOf(nextStepHarness({ topic: 'Balcony herbs', language: 'zh-TW' })), 'en', 'Chinese UI + English topic answers in English');
+  const manual = nextStepHarness({ topic: '要如何在陽台養香草', language: 'en' });
+  const select = selectOf(manual); select.value = 'en'; select.fire('change');
+  button(manual.actions(), 'Confirm research task').click(); await tick(); await tick();
+  assert.equal(manual.calls.research[0].outputLanguage, 'en', 'the manual choice wins');
+});
+
 // ---- B2: one-click dialog --------------------------------------------------------------------------------------
 const tones = [{ id: 'plain', name: 'Plain explanation' }, { id: 'magazine', name: 'Magazine column' }, { id: 'academic', name: 'Academic rigor' }];
 const summaryOf = h => find(h.modal.contentEl, i => i.cls === 'vam-next-summary').text;
