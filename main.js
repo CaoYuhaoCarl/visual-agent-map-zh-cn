@@ -20545,6 +20545,17 @@ var _AimManualFlow = class _AimManualFlow {
       detail: review.detail
     };
   }
+  /** At the research budget a rejected final delivery is published (smoke limits keep their own exits). */
+  atBudget(review, language2) {
+    return review.decision === "research_more" && this.deliveryRejections.has(review) && !this.limits.acceptGapAtBudget && !this.limits.publishDeliveryAtBudget ? this.publishRejectedDelivery(review, language2) : review;
+  }
+  /** A conclusion note keeps its open items in a hidden marker, so the user can correct them later. */
+  concludedDetail(review) {
+    var _a;
+    return ((_a = review.openItems) == null ? void 0 : _a.length) ? `${review.detail}
+
+${openItemsMarker(review.openItems.map((item) => item.title))}` : review.detail;
+  }
   /**
    * A rejected final delivery given as the answer: the document that was written, with the rejected gap stated in
    * it and listed as an open item, instead of a draft left pending.
@@ -20863,13 +20874,16 @@ ${note.detail}`;
    * returns), gets one more pass as a conclusion with that item open for the user to confirm.
    */
   async reviewPlannerDecisionQuality(candidate, context, model, reasoning, signal) {
+    var _a, _b, _c;
     const reviewed = await this.reviewDecisionOnce(candidate, context, model, reasoning, signal);
     const pastLimit = !!context.unattended || context.goalDetail.includes(AIM_INTAKE_COMPLETE) && context.answeredQuestionCount >= CHECKLIST_QUESTION_LIMIT;
     const asksUser = reviewed.decision === "ask_user" || reviewed.decision === "research_more" && reviewed.gapKind === "user_only";
     if (!(pastLimit && asksUser) && !(reviewed.decision === "research_more" && reviewed.gapKind === "not_decisive"))
       return reviewed;
     throwIfAborted(signal);
-    return this.reviewDecisionOnce(this.limitToOpenItems(reviewed, context), context, model, reasoning, signal);
+    const written = (_b = (_a = this.deliveryRejections.get(reviewed)) == null ? void 0 : _a.openItems) != null ? _b : [];
+    const carried = written.length ? { ...reviewed, openItems: [...written, ...(_c = reviewed.openItems) != null ? _c : []] } : reviewed;
+    return this.reviewDecisionOnce(this.limitToOpenItems(carried, context), context, model, reasoning, signal);
   }
   /** A question or a user-only/not-decisive gap becomes a conclusion that lists it for the user to confirm. */
   limitToOpenItems(review, context) {
@@ -21429,6 +21443,7 @@ Branch conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
           signal
         );
         throwIfAborted(signal);
+        if (reviewTurn === this.limits.maxResearchTurns) finalReview = this.atBudget(finalReview, language2);
         if (finalReview.decision !== "research_more" || reviewTurn === this.limits.maxResearchTurns) {
           const stopReason2 = finalReview.decision === "conclude" ? finalReview.stopReason : finalReview.decision === "ask_user" ? `Awaiting the user's answer to: ${finalReview.question}` : `One bounded follow-up was used; a material gap remains: ${finalReview.rationale}`;
           await this.persist(
@@ -21503,7 +21518,7 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
       }
       if (!finalReview) throw new Error("Planner review did not produce a validated decision.");
       const stopReason = finalReview.decision === "conclude" ? finalReview.stopReason : finalReview.decision === "ask_user" ? `Awaiting the user's answer to: ${finalReview.question}` : `One bounded follow-up was used; a material gap remains: ${finalReview.rationale}`;
-      const detail = finalReview.decision === "conclude" ? finalReview.detail : [
+      const detail = finalReview.decision === "conclude" ? this.concludedDetail(finalReview) : [
         finalReview.detail,
         translate(language2, "note.aim_rationale_0", finalReview.rationale),
         translate(
@@ -21916,6 +21931,7 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
           signal
         );
         throwIfAborted(signal);
+        if (researchTurn === this.limits.maxResearchTurns) review = this.atBudget(review, language2);
         latestReview = { rationale: review.rationale, researchTarget: review.researchTarget };
         if (review.decision === "research_more" && researchTurn < this.limits.maxResearchTurns) {
           await this.persist(
@@ -21947,7 +21963,7 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
       }
       if (!draft || !review) throw new Error("Continuation ended without a persisted Planner decision.");
       const finalDraft = draft, finalReview = review;
-      const detail = finalReview.decision === "conclude" ? finalReview.detail : [
+      const detail = finalReview.decision === "conclude" ? this.concludedDetail(finalReview) : [
         finalReview.decision === "research_more" ? translate(language2, "note.aim_research_status_partial") : translate(language2, "note.aim_interim_result"),
         finalReview.detail,
         translate(language2, "note.aim_rationale_0", finalReview.rationale),
@@ -22763,7 +22779,7 @@ ${note.detail}`
     }
   }
   async executeSubtopicWorkflow(mapPath, branchId, parent, topicNote, answerLabels, freeText, lineageContext, model, reasoning, signal) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k;
     let map = await this.repository.readMap(mapPath);
     const language2 = this.languageOf(map);
     let branch = (_a = map.aim) == null ? void 0 : _a.branches.find((item) => item.id === branchId);
@@ -23352,8 +23368,8 @@ ${currentReports.detail}`,
           signal
         );
         throwIfAborted(signal);
-        if (researchTurn === this.limits.maxResearchTurns && finalReview.decision === "research_more" && this.deliveryRejections.has(finalReview) && !this.limits.acceptGapAtBudget && !this.limits.publishDeliveryAtBudget)
-          finalReview = this.publishRejectedDelivery(finalReview, language2);
+        if (researchTurn === this.limits.maxResearchTurns && this.deliveryRejections.has(finalReview))
+          finalReview = this.atBudget(finalReview, language2);
         else if (researchTurn === this.limits.maxResearchTurns && finalReview.decision === "research_more" && !this.deliveryRejections.has(finalReview) && !this.limits.acceptGapAtBudget) {
           finalReview = await this.reviewPlannerDecisionQuality(
             this.withOpenItems(finalReview, language2),
@@ -23514,9 +23530,7 @@ ${beforeSearch.detail}`,
         reportDetail,
         translate(language2, "note.aim_source_boundary"),
         translate(language2, "note.aim_source_boundary_claims")
-      ].join("\n\n") : ((_j = finalReview.openItems) == null ? void 0 : _j.length) ? `${finalReview.detail}
-
-${openItemsMarker(finalReview.openItems.map((item) => item.title))}` : finalReview.detail;
+      ].join("\n\n") : this.concludedDetail(finalReview);
       const presentation = isPartial ? {
         title: translate(language2, "note.aim_needs_followup"),
         kind: "synthesis"
@@ -23552,7 +23566,7 @@ ${openItemsMarker(finalReview.openItems.map((item) => item.title))}` : finalRevi
       });
       if (committed.status !== "committed") return { status: "stale", branchId };
       if (isQuestion) {
-        const latestMap = await this.repository.readMap(mapPath), resultRef = (_l = (_k = latestMap.aim) == null ? void 0 : _k.branches.find((item) => item.id === branchId)) == null ? void 0 : _l.results.find(
+        const latestMap = await this.repository.readMap(mapPath), resultRef = (_k = (_j = latestMap.aim) == null ? void 0 : _j.branches.find((item) => item.id === branchId)) == null ? void 0 : _k.results.find(
           (item) => item.runId === synthesisHandle.runId && item.attemptId === synthesisHandle.attemptId
         );
         if (!resultRef)

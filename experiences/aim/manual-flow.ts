@@ -240,6 +240,23 @@ export class AimManualFlow {
     };
   }
 
+  /** At the research budget a rejected final delivery is published (smoke limits keep their own exits). */
+  private atBudget(review: PlannerReview, language: UiLanguage): PlannerReview {
+    return review.decision === "research_more" &&
+      this.deliveryRejections.has(review) &&
+      !this.limits.acceptGapAtBudget &&
+      !this.limits.publishDeliveryAtBudget
+      ? this.publishRejectedDelivery(review, language)
+      : review;
+  }
+
+  /** A conclusion note keeps its open items in a hidden marker, so the user can correct them later. */
+  private concludedDetail(review: PlannerReview): string {
+    return review.openItems?.length
+      ? `${review.detail}\n\n${openItemsMarker(review.openItems.map(item => item.title))}`
+      : review.detail;
+  }
+
   /**
    * A rejected final delivery given as the answer: the document that was written, with the rejected gap stated in
    * it and listed as an open item, instead of a draft left pending.
@@ -635,7 +652,10 @@ export class AimManualFlow {
     if (!(pastLimit && asksUser) && !(reviewed.decision === "research_more" && reviewed.gapKind === "not_decisive"))
       return reviewed;
     throwIfAborted(signal);
-    return this.reviewDecisionOnce(this.limitToOpenItems(reviewed, context), context, model, reasoning, signal);
+    // A rejected delivery's review lacks the assumptions the document was written with; carry them into the next pass.
+    const written = this.deliveryRejections.get(reviewed)?.openItems ?? [];
+    const carried = written.length ? { ...reviewed, openItems: [...written, ...(reviewed.openItems ?? [])] } : reviewed;
+    return this.reviewDecisionOnce(this.limitToOpenItems(carried, context), context, model, reasoning, signal);
   }
 
   /** A question or a user-only/not-decisive gap becomes a conclusion that lists it for the user to confirm. */
@@ -1232,6 +1252,7 @@ export class AimManualFlow {
           signal
         );
         throwIfAborted(signal);
+        if (reviewTurn === this.limits.maxResearchTurns) finalReview = this.atBudget(finalReview, language);
         if (finalReview.decision !== "research_more" || reviewTurn === this.limits.maxResearchTurns) {
           const stopReason =
             finalReview.decision === "conclude"
@@ -1316,7 +1337,7 @@ export class AimManualFlow {
             : `One bounded follow-up was used; a material gap remains: ${finalReview.rationale}`;
       const detail =
         finalReview.decision === "conclude"
-          ? finalReview.detail
+          ? this.concludedDetail(finalReview)
           : [
               finalReview.detail,
               translate(language, "note.aim_rationale_0", finalReview.rationale),
@@ -1766,6 +1787,7 @@ export class AimManualFlow {
           signal
         );
         throwIfAborted(signal);
+        if (researchTurn === this.limits.maxResearchTurns) review = this.atBudget(review, language);
         latestReview = { rationale: review.rationale, researchTarget: review.researchTarget };
         if (review.decision === "research_more" && researchTurn < this.limits.maxResearchTurns) {
           await this.persist(() =>
@@ -1807,7 +1829,7 @@ export class AimManualFlow {
         finalReview = review;
       const detail =
         finalReview.decision === "conclude"
-          ? finalReview.detail
+          ? this.concludedDetail(finalReview)
           : [
               finalReview.decision === "research_more"
                 ? translate(language, "note.aim_research_status_partial")
@@ -3466,14 +3488,8 @@ export class AimManualFlow {
         // Research budget spent with a gap the review still wants searched: give the conditional answer with the gap
         // as an open item (or, below the floor, the next question) instead of stopping. A rejected final delivery is
         // not reviewed again: its written document is the answer, with the gap stated and open.
-        if (
-          researchTurn === this.limits.maxResearchTurns &&
-          finalReview.decision === "research_more" &&
-          this.deliveryRejections.has(finalReview) &&
-          !this.limits.acceptGapAtBudget &&
-          !this.limits.publishDeliveryAtBudget
-        )
-          finalReview = this.publishRejectedDelivery(finalReview, language);
+        if (researchTurn === this.limits.maxResearchTurns && this.deliveryRejections.has(finalReview))
+          finalReview = this.atBudget(finalReview, language);
         else if (
           researchTurn === this.limits.maxResearchTurns &&
           finalReview.decision === "research_more" &&
@@ -3665,9 +3681,7 @@ export class AimManualFlow {
               translate(language, "note.aim_source_boundary"),
               translate(language, "note.aim_source_boundary_claims")
             ].join("\n\n")
-          : finalReview.openItems?.length
-            ? `${finalReview.detail}\n\n${openItemsMarker(finalReview.openItems.map(item => item.title))}`
-            : finalReview.detail;
+          : this.concludedDetail(finalReview);
       const presentation = isPartial
         ? {
             title: translate(language, "note.aim_needs_followup"),

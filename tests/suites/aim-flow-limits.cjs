@@ -244,6 +244,24 @@ integrationTest('AIM unattended: a delivery rejection only the user can close ke
     assert.equal(phases.filter(phase => phase === 'delivery-acceptance').length, 1, 'the document is written once');
   }
 });
+integrationTest('AIM unattended: a legacy gap only the user can close, before any document, is delivered as an open item', async () => {
+  const phases = [];
+  const flow = new AimManualFlow({ settings: { language: 'en' } }, {}, async ctx => {
+    phases.push(ctx.task.match(/aim-phase:\s*([a-z-]+)/)?.[1]);
+    if (aimPhase(ctx, 'research-gap-audit')) return reply('user_condition', 'Only the user knows the commute.');
+    if (aimPhase(ctx, 'delivery-acceptance')) return plannerReview('conclude', { rationale: 'Complete.', stopReason: 'Ready.' }, 'Complete document', 'Accepted.');
+    const fixture = deliveryFixture(ctx);
+    if (fixture) return fixture;
+    throw new Error(`Unexpected phase ${phases.at(-1)}`);
+  });
+  const context = { goal: 'Where should I live?', goalDetail: '', unattended: true, outputLanguage: 'en', conditions: {}, currentQuestion: '', currentAnswer: '', answeredQuestionCount: 0, questionHistory: [], lineage: '', reportSummary: 'Saved.', reportDetail: 'Saved reports.' };
+  const legacy = parseAimPlannerReview(plannerReview('research_more', { rationale: 'Commute unknown.' }, 'Interim.', 'Interim answer.', [{ title: 'Commute', task: 'Find the commute.', contribution: 'Changes the area.' }]));
+  const final = await flow.reviewPlannerDecisionQuality(legacy, context, 'gpt-6-luna', 'low');
+  assert.equal(final.decision, 'conclude');
+  assert.ok(phases.includes('delivery-writing'), 'the document is written before it is published');
+  assert.ok(!phases.includes('decision-quality-review'), 'no question is written');
+  assert.ok(final.openItems.some(item => item.title === 'Commute'));
+});
 const gapTarget = { title: 'Missing evidence', task: 'Search for the missing evidence.', contribution: 'Closes the gap.' };
 /** A Planner that always wants more research, so the flow must end through the research-budget exit. */
 function gapModel(base, seen) {
