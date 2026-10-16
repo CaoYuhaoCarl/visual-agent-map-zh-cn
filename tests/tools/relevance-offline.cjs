@@ -5,7 +5,7 @@
 //   node tests/tools/relevance-offline.cjs run --map=<map dir> --vault=<vault root> --out=<runs dir> --slug=<slug>
 //        [--runs=2] [--label-depth=2|all] [--model=sonnet] [--goal=<text>]
 //        [--prompt=v1|v2] [--level=beginner|intermediate|familiar] [--context=<text>] [--hierarchy=count|reject]
-//        v2 (default) sends level/context and rejects a reply that ranks a card above its parent (--hierarchy=reject,
+//        v2 (default) sends the context (the level is recorded but never sent) and rejects a reply that ranks a card above its parent (--hierarchy=reject,
 //        default); v1 is the old prompt (no level/context) and only counts such violations.
 //   node tests/tools/relevance-offline.cjs compare --out=<runs dir> --slug=<slug>
 //   node tests/tools/relevance-offline.cjs compare --out=<runs dir> --review     (reads owner-review.md back)
@@ -477,7 +477,8 @@ function buildPrompt({ version, goal, level, context, tree }) {
   if (version === 'v1') return fill(template, { GOAL: goal, NODES: nodes });
   return fill(template, {
     GOAL: JSON.stringify(goal),
-    LEVEL: level ? JSON.stringify(level) : 'null',
+    // The level is recorded in the run summary and by apply, but never sent to the AI (see core/steps/relevance-grade/step.ts).
+    LEVEL: 'null',
     CONTEXT: context ? JSON.stringify(context) : 'null',
     NODES: nodes
   });

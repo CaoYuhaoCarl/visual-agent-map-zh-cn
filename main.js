@@ -34846,7 +34846,7 @@ Classify every branch (every card whose parentId is not null) into exactly one t
 How to decide:
 - Siblings compete. For cards that share a parent, give "core" only to the ones the goal truly depends on; a sibling that only deepens, illustrates or extends a core sibling is "support". Every card of a group of three or more may be "core" only when the goal needs each one on its own, and then each reason says why it cannot wait.
 - A card never ranks above its parent: under a "support" parent every child is "support" or "side"; under a "side" parent every child is "side". If a child seems more important than its parent, lower the child or raise the parent; if you raise the parent, check its ancestors too, because none of them may rank below it. Decide each parent with its children in view.
-- Level: for "beginner", foundations are core and refinements are support or side; for "intermediate", the learner already knows the basics, so the basics are support, core goes to the topics the goal needs that go beyond the basics, and advanced refinements the goal does not call for are side; for "familiar", basics the learner already has are support, and core goes only to what still moves them toward the goal. With no level, judge from the goal alone.
+- Level: for "beginner", foundations are core and refinements are support or side; for "familiar", basics the learner already has are support, and core goes to what still moves them toward the goal. With no level, judge from the goal alone.
 - Context: use it to tell which situations will actually come up; a branch for a situation the context rules out is side.
 - An empty summary, or one that only says there is no conclusion yet, means the card has not been researched: judge it from its title and position, and do not lower its tier for that.
 - Do not aim for a fixed number or share of any tier; the goal decides.
@@ -35014,12 +35014,13 @@ var promptCards = (nodes) => {
   }));
 };
 var gradePrompt = (request) => {
-  var _a, _b;
+  var _a;
   return renderTemplate(prompt_default4, {
     languageInstruction: languageLine(request),
     goal: JSON.stringify(request.goal),
-    level: JSON.stringify((_a = request.level) != null ? _a : null),
-    context: JSON.stringify((_b = request.context) != null ? _b : null),
+    // The level is stored and shown but never sent to the AI: an undefined "intermediate" made grades unstable (grammar 78% vs 94% agreement without it).
+    level: "null",
+    context: JSON.stringify((_a = request.context) != null ? _a : null),
     nodes: JSON.stringify(promptCards(request.nodes))
   });
 };
@@ -35032,7 +35033,7 @@ var refuseIfTooBig = (prompt, request) => {
 };
 var relevanceGradeStep = {
   id: "relevance-grade",
-  version: 5,
+  version: 6,
   render: gradePrompt,
   schema: RELEVANCE_GRADE_SCHEMA,
   policy: refuseIfTooBig,

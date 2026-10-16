@@ -197,7 +197,8 @@ const gradePrompt = (request: RelevanceGradeRequest): string =>
   renderTemplate(template, {
     languageInstruction: languageLine(request),
     goal: JSON.stringify(request.goal),
-    level: JSON.stringify(request.level ?? null),
+    // The level is stored and shown but never sent to the AI: an undefined "intermediate" made grades unstable (grammar 78% vs 94% agreement without it).
+    level: "null",
     context: JSON.stringify(request.context ?? null),
     nodes: JSON.stringify(promptCards(request.nodes))
   });
@@ -213,7 +214,7 @@ const refuseIfTooBig = (prompt: string, request: RelevanceGradeRequest): void =>
 /** Grade every card of a map against the learner's goal. Input is titles, summaries and structure; the reply is strict JSON. */
 export const relevanceGradeStep: StepDefinition<RelevanceGradeRequest, RelevanceGradeResult> = {
   id: "relevance-grade",
-  version: 5,
+  version: 6,
   render: gradePrompt,
   schema: RELEVANCE_GRADE_SCHEMA,
   policy: refuseIfTooBig,
