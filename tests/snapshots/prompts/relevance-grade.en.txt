@@ -11,7 +11,7 @@ Classify every branch (every card whose parentId is not null) into exactly one t
 
 How to decide:
 - Siblings compete. For cards that share a parent, give "core" only to the ones the goal truly depends on; a sibling that only deepens, illustrates or extends a core sibling is "support". Every card of a group of three or more may be "core" only when the goal needs each one on its own, and then each reason says why it cannot wait.
-- A card never ranks above its parent: under a "support" parent every child is "support" or "side"; under a "side" parent every child is "side". If a child seems more important than its parent, raise the parent instead; decide each parent with its children in view.
+- A card never ranks above its parent: under a "support" parent every child is "support" or "side"; under a "side" parent every child is "side". If a child seems more important than its parent, lower the child or raise the parent; if you raise the parent, check its ancestors too, because none of them may rank below it. Decide each parent with its children in view.
 - Level: for "beginner", foundations are core and refinements are support or side; for "familiar", basics the learner already has are support, and core goes to what still moves them toward the goal. With no level, judge from the goal alone.
 - Context: use it to tell which situations will actually come up; a branch for a situation the context rules out is side.
 - An empty summary, or one that only says there is no conclusion yet, means the card has not been researched: judge it from its title and position, and do not lower its tier for that.

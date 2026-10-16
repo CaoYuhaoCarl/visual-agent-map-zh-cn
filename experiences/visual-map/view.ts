@@ -1191,9 +1191,15 @@ export class VisualAgentMapView extends ItemView {
         this.updateHistoryButtons();
       });
       const model = settings.cliModel;
+      // The run stays "running" (the map is locked and Stop works) but the bar must not claim grading while the
+      // usage notice waits for an answer.
+      run.awaitingUsage = true;
+      this.refreshRelevance();
       const started = await this.plugin.confirmAiUsage(model, async () => {
         // Stopped, or the map changed, while the usage dialog was open.
         if (!this.relevanceRunIsCurrent(run, mapPath) || !this.map) return;
+        run.awaitingUsage = false;
+        this.refreshRelevance();
         basis = buildStructureReviewNodes(this.map.nodes, id => this.describeForReview(id));
         result = await this.plugin.relevanceGrade.grade(
           {
@@ -1341,7 +1347,13 @@ export class VisualAgentMapView extends ItemView {
     bar.createSpan({ cls: "vam-aim-status-title", text: t("ui.relevance_history_label") });
     const outcome = run.outcome;
     const text = running
-      ? t(run.repairing ? "ui.relevance_repairing" : "ui.relevance_running")
+      ? t(
+          run.awaitingUsage
+            ? "ui.relevance_awaiting_usage"
+            : run.repairing
+              ? "ui.relevance_repairing"
+              : "ui.relevance_running"
+        )
       : run.status === "done" && outcome
         ? [
             t("ui.relevance_done_0_1_2", outcome.graded, outcome.changes.length, outcome.skipped),

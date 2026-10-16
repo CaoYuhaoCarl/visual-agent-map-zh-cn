@@ -505,6 +505,7 @@ const english = {
   "ui.relevance_context_placeholder": "Optional: what you already know, conditions or limits",
   "ui.relevance_grade_button": "Grade with this",
   "ui.relevance_running": "Grading by goal…",
+  "ui.relevance_awaiting_usage": "Waiting for AI usage confirmation…",
   "ui.relevance_repairing": "Fixing parent-child order…",
   "ui.relevance_stop": "Stop",
   "ui.relevance_stopped": "Grading stopped. No topic was changed.",
@@ -1466,6 +1467,7 @@ const english = {
   "error.relevance_grade_over_budget": "The map is too large to grade at once. Nothing was changed.",
   "error.relevance_grade_stopped": "Grading stopped.",
   "error.relevance_grade_invalid": "The AI grading could not be used: {0}",
+  "error.relevance_grade_hierarchy": "The AI's parent-child tiers were still inconsistent. Press Enter to try again.",
 } as const;
 
 export type UiLanguage = "zh-TW" | "en";
@@ -1989,6 +1991,7 @@ const traditionalChinese: Record<TranslationKey, string> = {
   "ui.relevance_context_placeholder": "補充（選填）：已經會什麼、條件或限制",
   "ui.relevance_grade_button": "依此分級",
   "ui.relevance_running": "依目標分級中…",
+  "ui.relevance_awaiting_usage": "等待確認 AI 用量…",
   "ui.relevance_repairing": "修正上下層一致中…",
   "ui.relevance_stop": "停止",
   "ui.relevance_stopped": "已停止分級，沒有任何議題被改變。",
@@ -2950,6 +2953,7 @@ const traditionalChinese: Record<TranslationKey, string> = {
   "error.relevance_grade_over_budget": "心智圖太大，無法一次分級，沒有任何改變。",
   "error.relevance_grade_stopped": "分級已停止。",
   "error.relevance_grade_invalid": "無法使用 AI 的分級結果：{0}",
+  "error.relevance_grade_hierarchy": "AI 的上下層分級仍不一致，請再按一次 Enter 重試",
 };
 
 let language: UiLanguage = "en";

@@ -54,7 +54,9 @@ export class RelevanceGradeError extends Error {
   constructor(
     readonly code: "empty" | "over_budget" | "stopped" | "invalid",
     message: string,
-    readonly hierarchy?: RelevanceHierarchyFailure
+    readonly hierarchy?: RelevanceHierarchyFailure,
+    /** Technical detail (may contain card ids) for logs; never shown to the user. */
+    readonly detail?: string
   ) {
     super(message);
     this.name = "RelevanceGradeError";
@@ -211,22 +213,39 @@ const refuseIfTooBig = (prompt: string, request: RelevanceGradeRequest): void =>
 /** Grade every card of a map against the learner's goal. Input is titles, summaries and structure; the reply is strict JSON. */
 export const relevanceGradeStep: StepDefinition<RelevanceGradeRequest, RelevanceGradeResult> = {
   id: "relevance-grade",
-  version: 3,
+  version: 4,
   render: gradePrompt,
   schema: RELEVANCE_GRADE_SCHEMA,
   policy: refuseIfTooBig,
   parse: (raw, request) => parseRelevanceGrade(raw, request.nodes, request.language)
 };
 
-/** The one repair round: the first reply was complete and valid except for the listed parent-child violations. */
+/** The most repair rounds one grade may use; each round fixes only parent-child violations of the latest reply. */
+export const RELEVANCE_REPAIR_MAX_ROUNDS = 2;
+/** A repair round: the latest reply was complete and valid except for the listed parent-child violations. */
 export interface RelevanceRepairRequest extends RelevanceGradeRequest {
   previousReply: RelevanceGradeResult;
   violations: RelevanceHierarchyViolation[];
 }
-/** The repair prompt speaks position ids like the grade prompt: the reply and the pairs are converted before they are sent. */
+/**
+ * The repair prompt speaks position ids like the grade prompt: the reply and the pairs are converted before they are sent.
+ * Each pair also carries the chain of ancestors from the parent up to the top-level card with each one's tier in the
+ * previous reply (the top-level card is context only, so its tier is null): raising a parent may need its ancestors raised.
+ */
 const repairPrompt = (request: RelevanceRepairRequest): string => {
   const ids = positionIds(request.nodes.map(node => node.id));
   const label = (id: string): string => ids.short(id) ?? id;
+  const parentOf = new Map(request.nodes.map(node => [node.id, node.parentId]));
+  const tierOf = new Map(request.previousReply.items.map(item => [item.id, item.tier]));
+  const chain = (parentId: string): Array<{ id: string; tier: RelevanceTier | null }> => {
+    const result: Array<{ id: string; tier: RelevanceTier | null }> = [];
+    const seen = new Set<string>();
+    for (let id: string | null | undefined = parentId; id && !seen.has(id); id = parentOf.get(id)) {
+      seen.add(id);
+      result.push({ id: label(id), tier: tierOf.get(id) ?? null });
+    }
+    return result;
+  };
   return renderTemplate(repairTemplate, {
     originalPrompt: gradePrompt(request),
     previousReply: JSON.stringify({
@@ -236,7 +255,8 @@ const repairPrompt = (request: RelevanceRepairRequest): string => {
       request.violations.map(violation => ({
         ...violation,
         childId: label(violation.childId),
-        parentId: label(violation.parentId)
+        parentId: label(violation.parentId),
+        ancestors: chain(violation.parentId)
       }))
     ),
     languageInstruction: languageLine(request)
@@ -244,10 +264,11 @@ const repairPrompt = (request: RelevanceRepairRequest): string => {
 };
 export const relevanceGradeRepairStep: StepDefinition<RelevanceRepairRequest, RelevanceGradeResult> = {
   id: "relevance-grade-repair",
-  version: 2,
+  version: 3,
   render: repairPrompt,
   schema: RELEVANCE_GRADE_SCHEMA,
   policy: refuseIfTooBig,
-  // The same strict parser; a repair that still violates (or breaks anything else) fails the grade.
+  // The same strict parser; a repair that breaks anything but hierarchy fails the grade, and one that still violates
+  // hierarchy gets another round until RELEVANCE_REPAIR_MAX_ROUNDS is used up.
   parse: (raw, request) => parseRelevanceGrade(raw, request.nodes, request.language)
 };

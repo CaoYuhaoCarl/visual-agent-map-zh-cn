@@ -39,7 +39,7 @@ async function harness({ language = 'en', mapTitle = 'Sleep map' } = {}) {
   const plugin = withExpansionCoordinator({
     repo, settings, running: new Set(), logs: { appendLog() {} }, rebuildDerivedData: () => repo.rebuildDerivedData(), relevanceGrades: new Map(),
     mutate: async work => { await work(); await ctx.view?.hydrate(); },
-    confirmAiUsage: async (_model, run) => { control.usageAsks++; if (control.decline) return false; await run(); return true; }
+    confirmAiUsage: async (_model, run) => { control.usageAsks++; if (control.confirmGate) await control.confirmGate; if (control.decline) return false; await run(); return true; }
   });
   const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Modal, Notice: class { constructor(m) { notices.push(m); } }, setTooltip() {} } });
   const gradeModule = load('core/relevance-grade-service.ts');
@@ -219,6 +219,23 @@ integrationTest('relevance: Stop aborts the call, writes no note, keeps the goal
   assert.equal(h.bar(), undefined, 'the status can be dismissed'); assert.equal(h.chip().text, 'Goal: Goal');
 });
 
+integrationTest('relevance: while the AI usage confirmation is pending the bar says so, not "grading", the map stays locked, and Stop works', async () => {
+  const h = await harness();
+  const gate = deferred();
+  h.control.confirmGate = gate.promise;
+  await h.enter('Goal'); await until(() => h.control.usageAsks === 1);
+  assert.equal(h.run().status, 'running', 'the map is locked during the wait');
+  assert.equal(h.barText(), 'Waiting for AI usage confirmation…');
+  assert.notEqual(h.barText(), 'Grading by goal…');
+  assert.equal(h.control.calls.length, 0, 'nothing is sent while waiting');
+  assert.ok(h.chip().disabled, 'the chip is disabled during the wait');
+  await h.view.submitRelevanceGoal('Another goal'); await tick();
+  assert.equal(h.control.usageAsks, 1, 'a second submit is refused while the confirmation is pending');
+  assert.equal(h.run().goal, 'Goal');
+  gate.resolve(); await h.settled();
+  assert.equal(h.run().status, 'done');
+});
+
 integrationTest('relevance: a reply that is not exactly one valid grade per card writes nothing and the bar names the problem', async () => {
   const cases = {
     'not JSON': () => 'sorry, I cannot',
@@ -237,7 +254,9 @@ integrationTest('relevance: a reply that is not exactly one valid grade per card
     h.control.reply = async request => reply(request);
     await h.enter('Goal'); await h.settled();
     assert.equal(h.run().status, 'failed', name);
-    assert.match(h.barText(), /^Grading failed\. No topic was changed\. The AI grading could not be used: /, name);
+    // A hierarchy-only failure that survives both repair rounds shows a plain message instead of card ids.
+    if (name === 'a child above its parent') assert.equal(h.barText(), "Grading failed. No topic was changed. The AI's parent-child tiers were still inconsistent. Press Enter to try again.", name);
+    else assert.match(h.barText(), /^Grading failed\. No topic was changed\. The AI grading could not be used: /, name);
     assert.deepEqual(await graded(h), [], `${name}: no note written`);
     assert.deepEqual(h.barButtons(), ['Dismiss'], name);
     assert.equal(h.view.history.past.length, 1, `${name}: only the goal step`);
@@ -562,7 +581,7 @@ integrationTest('relevance repair: a parent-child violation sends ONE repair req
   assert.deepEqual(h.control.calls.map(c => c.step), ['relevance-grade', 'relevance-grade-repair']);
   const mind = labelOf(h.control.calls[0].request, h.ids.b), dreams = labelOf(h.control.calls[0].request, h.ids.d);
   assert.doesNotMatch(h.control.calls[1].prompt, new RegExp(h.ids.b), 'the repair prompt carries no real id');
-  assert.ok(h.control.calls[1].prompt.includes(JSON.stringify([{ childId: dreams, childTier: 'core', parentId: mind, parentTier: 'support' }])), 'the pair is in the repair prompt');
+  assert.ok(h.control.calls[1].prompt.includes(`{"childId":"${dreams}","childTier":"core","parentId":"${mind}","parentTier":"support","ancestors":[{"id":"${mind}","tier":"support"}`), 'the pair and its ancestor chain (parent first) are in the repair prompt');
   assert.equal(seen[2], 'Fixing parent-child order…', 'the bar shows the repair text while it runs');
   assert.equal(h.run().status, 'done'); assert.equal(h.barText(), 'Graded 4 topics, 4 changed (0 skipped)');
   assert.deepEqual(await h.relevanceOf('d'), ['support', 'Dreams, fixed.']);
@@ -570,12 +589,14 @@ integrationTest('relevance repair: a parent-child violation sends ONE repair req
   assert.equal(h.control.usageAsks, 1, 'one usage notice for both requests');
 });
 
-integrationTest('relevance repair: a repair that still violates writes nothing, sends no third request and shows the error bar', async () => {
+integrationTest('relevance repair: still violating after TWO repair rounds writes nothing, sends no third repair and shows a plain error bar without ids', async () => {
   const h = await harness();
   h.control.reply = async request => dreamsAboveParent(request);
   await h.enter('Goal'); await h.settled();
-  assert.equal(h.control.calls.length, 2, 'exactly one repair, never a third request');
-  assert.equal(h.run().status, 'failed'); assert.match(h.barText(), /^Grading failed\. No topic was changed\..*hierarchy/);
+  assert.deepEqual(h.control.calls.map(c => c.step), ['relevance-grade', 'relevance-grade-repair', 'relevance-grade-repair'], 'at most two repair rounds');
+  assert.equal(h.run().status, 'failed');
+  assert.equal(h.barText(), "Grading failed. No topic was changed. The AI's parent-child tiers were still inconsistent. Press Enter to try again.");
+  assert.doesNotMatch(h.barText(), /hierarchy|[0-9a-f]{8}-[0-9a-f]{4}/, 'no card id or UUID in the user-facing text');
   assert.deepEqual(await graded(h), [], 'nothing written'); assert.equal(h.view.history.past.length, 1, 'only the goal step');
 });
 

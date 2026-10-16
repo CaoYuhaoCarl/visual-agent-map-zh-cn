@@ -476,7 +476,7 @@ test('repair: a violation-only first reply gets one repair prompt with every pai
   const out = fx.run();
   assert.equal(fx.prompts.length, 2);
   assert.ok(fx.prompts[1].includes(tool.buildPrompt({ version: 'v2', goal: 'g', level: null, context: null, tree: TREE2 })), 'original prompt included');
-  assert.ok(fx.prompts[1].includes(JSON.stringify([{ childId: 'c3', childTier: 'core', parentId: 'c2', parentTier: 'side' }])), 'the pair speaks position ids');
+  assert.ok(fx.prompts[1].includes(JSON.stringify([{ childId: 'c3', childTier: 'core', parentId: 'c2', parentTier: 'side', ancestors: [{ id: 'c2', tier: 'side' }, { id: 'c1', tier: null }] }])), 'the pair speaks position ids and carries the ancestor chain');
   assert.deepEqual(out.value.items.map(i => i.id), ['a', 'a1', 'a2', 'a3', 'b'], 'the accepted result carries real ids');
   assert.deepEqual(out.value.items.map(i => i.tier), ['core', 'core', 'side', 'side', 'core']);
   assert.equal(out.repair.attempted, true); assert.equal(out.repair.ok, true); assert.equal(out.repair.firstViolations, 1);
@@ -484,12 +484,36 @@ test('repair: a violation-only first reply gets one repair prompt with every pai
   assert.doesNotMatch(fx.prompts[1], /\{\{[A-Z_]+\}\}/);
 });
 
-test('repair: a repair that still violates or is malformed fails the attempt as hierarchy; there is no second round', () => {
-  for (const second of [replyOf(BAD), { text: 'nope' }, replyOf({ a: 'core', a1: 'core' })]) {
-    const fx = classifyWith([replyOf(BAD), second]);
+test('repair: a malformed repair fails the attempt as hierarchy at once; a repair that still violates gets ONE more round, then fails', () => {
+  for (const second of [{ text: 'nope' }, replyOf({ a: 'core', a1: 'core' })]) {
+    const fx = classifyWith([replyOf(BAD), second, replyOf(FIXED)]);
     assert.throws(() => fx.run(), error => error.failureClass === 'hierarchy' && error.repair.attempted === true && error.repair.ok === false && error.violations.length === 1);
     assert.equal(fx.prompts.length, 2);
   }
+  const twice = classifyWith([replyOf(BAD), replyOf(BAD), replyOf(BAD), replyOf(FIXED)]);
+  assert.throws(() => twice.run(), error => error.failureClass === 'hierarchy' && error.repair.rounds === 2 && error.repair.ok === false);
+  assert.equal(twice.prompts.length, 3, 'first request plus at most two repair rounds');
+});
+
+// Chain: r -> a -> a1; round one raises a1's parent... here a stays side while a1 is core; the model raises `a` only if
+// its ancestors allow it. Tree has no grandparent below the top level, so use a deeper tree.
+const TREE3 = [
+  { id: 'r', title: 'Root', summary: '', status: '', depth: 0, parentId: null },
+  { id: 'g', title: 'Grand', summary: '', status: '', depth: 1, parentId: 'r' },
+  { id: 'p', title: 'P', summary: '', status: '', depth: 2, parentId: 'g' },
+  { id: 'c', title: 'C', summary: '', status: '', depth: 3, parentId: 'p' }
+];
+const L3 = { r: 'c1', g: 'c2', p: 'c3', c: 'c4' };
+const replyOf3 = tiers => ({ text: JSON.stringify({ goal: 'g', items: Object.entries(tiers).map(([id, tier]) => ({ id: L3[id], title: id, depth: 1, tier, reason: 'r' })) }) });
+test('repair: round two repairs the latest reply with its own violations and the full ancestor chain', () => {
+  const prompts = [];
+  const replies = [replyOf3({ g: 'support', p: 'support', c: 'core' }), replyOf3({ g: 'support', p: 'core', c: 'core' }), replyOf3({ g: 'core', p: 'core', c: 'core' })];
+  const call = prompt => { prompts.push(prompt); return replies[prompts.length - 1]; };
+  const out = tool.classify({ version: 'v2', goal: 'g', level: null, context: null, tree: TREE3, model: 'm', hierarchy: 'reject', call });
+  assert.equal(prompts.length, 3); assert.equal(out.repair.rounds, 2); assert.equal(out.repair.ok, true);
+  assert.ok(prompts[1].includes('"ancestors":[{"id":"c3","tier":"support"},{"id":"c2","tier":"support"},{"id":"c1","tier":null}]'));
+  assert.ok(prompts[2].includes(JSON.stringify([{ childId: 'c3', childTier: 'core', parentId: 'c2', parentTier: 'support', ancestors: [{ id: 'c2', tier: 'support' }, { id: 'c1', tier: null }] }])));
+  assert.ok(!prompts[2].includes('"childId":"c4"'), 'round two carries only the violations of the round-one reply');
 });
 
 test('repair: a non-hierarchy failure of the first reply, a clean reply, and --hierarchy=count make no repair call', () => {

@@ -487,12 +487,26 @@ function classifyFailure(error) {
   return error.failureClass || (error instanceof SyntaxError ? 'json' : 'call');
 }
 
-// Builds the one repair prompt: the original prompt, the first reply and every violating pair.
+const REPAIR_MAX_ROUNDS = 2;
+
+// Builds a repair prompt: the original prompt, the latest reply and every violating pair, each with the chain of
+// ancestors from the parent up to the top-level card and their tiers in that reply (null for the top-level card).
 function buildRepairPrompt({ prompt, value, violations, tree }) {
   const template = fs.readFileSync(path.join(TOOL_DIR, 'repair.md'), 'utf8');
   const { toShort } = positionLabels(tree);
   const label = id => toShort.get(id) ?? id;
-  const pairs = violations.map(v => ({ childId: label(v.child), childTier: v.childTier, parentId: label(v.parent), parentTier: v.parentTier }));
+  const parentOf = new Map(tree.map(n => [n.id, n.parentId]));
+  const tierOf = new Map(value.items.map(i => [i.id, i.tier]));
+  const chain = parentId => {
+    const result = [];
+    const seen = new Set();
+    for (let id = parentId; id && !seen.has(id); id = parentOf.get(id)) {
+      seen.add(id);
+      result.push({ id: label(id), tier: tierOf.get(id) ?? null });
+    }
+    return result;
+  };
+  const pairs = violations.map(v => ({ childId: label(v.child), childTier: v.childTier, parentId: label(v.parent), parentTier: v.parentTier, ancestors: chain(v.parent) }));
   const previous = { ...value, items: value.items.map(i => ({ ...i, id: label(i.id) })) };
   return fill(template, { PROMPT: prompt, PREVIOUS: JSON.stringify(previous), VIOLATIONS: JSON.stringify(pairs) });
 }
@@ -524,10 +538,10 @@ function parseReply(text, tree, { shortIds = true } = {}) {
 const sumOrNull = (a, b) => (typeof a === 'number' && typeof b === 'number' ? a + b : (a ?? b ?? null));
 
 // One attempt. Throws an error carrying failureClass (and violations for a hierarchy rejection). Under
-// --hierarchy=reject a reply that is complete and valid except for parent-child violations gets ONE repair round
-// (as in the plugin): the repair reply goes through the same strict checks, and if it still violates, or breaks
-// anything else, the attempt fails. Any other failure of the first reply fails at once. `repair` records it.
-// `call` is injectable for tests.
+// --hierarchy=reject a reply that is complete and valid except for parent-child violations gets up to
+// REPAIR_MAX_ROUNDS repair rounds (as in the plugin): each round repairs the latest reply, goes through the same strict
+// checks, and a round that breaks anything but hierarchy, or a hierarchy failure after the last round, fails the
+// attempt. Any other failure of the first reply fails at once. `repair` records it. `call` is injectable for tests.
 function classify({ version, goal, level, context, tree, model, hierarchy, call = callClaude }) {
   const prompt = buildPrompt({ version, goal, level, context, tree });
   const reply = call(prompt, model);
@@ -535,56 +549,44 @@ function classify({ version, goal, level, context, tree, model, hierarchy, call 
   const value = parseReply(reply.text, tree, { shortIds });
   const violations = hierarchyViolations(value.items, tree);
   if (hierarchy !== 'reject' || !violations.length) return { value, usage: reply.usage, cost: reply.cost, violations, repair: null };
-  const repair = { attempted: true, firstViolations: violations.length, ok: false, failureClass: null, violations: null };
-  let repaired;
-  let second;
-  try {
-    second = call(shortIds ? buildRepairPrompt({ prompt, value, violations, tree }) : buildRepairPrompt({ prompt, value, violations, tree: [] }), model);
-    repaired = parseReply(second.text, tree, { shortIds });
-  } catch (error) {
-    repair.failureClass = classifyFailure(error);
-    error.repair = repair;
-    error.failureClass = 'hierarchy';
-    error.violations = violations;
-    throw error;
+  const repair = { attempted: true, rounds: 0, firstViolations: violations.length, ok: false, failureClass: null, violations: null };
+  let current = value;
+  let pending = violations;
+  let usage = reply.usage;
+  let cost = reply.cost;
+  for (let round = 1; round <= REPAIR_MAX_ROUNDS; round += 1) {
+    repair.rounds = round;
+    let repaired;
+    let next;
+    try {
+      next = call(buildRepairPrompt({ prompt, value: current, violations: pending, tree: shortIds ? tree : [] }), model);
+      repaired = parseReply(next.text, tree, { shortIds });
+    } catch (error) {
+      repair.failureClass = classifyFailure(error);
+      error.repair = repair;
+      error.failureClass = 'hierarchy';
+      error.violations = violations;
+      throw error;
+    }
+    usage = usage && next.usage ? (usage.first ? { ...usage, [`repair${round}`]: next.usage } : { first: usage, repair: next.usage }) : (usage ?? next.usage);
+    cost = sumOrNull(cost, next.cost);
+    const after = hierarchyViolations(repaired.items, tree);
+    if (!after.length) {
+      repair.ok = true;
+      return { value: repaired, usage, cost, violations: after, repair, firstViolationList: violations };
+    }
+    if (round === REPAIR_MAX_ROUNDS) {
+      repair.failureClass = 'hierarchy';
+      repair.violations = after.length;
+      const error = fail('hierarchy', `${after.length} cards still rank above their parent after repair (first: ${after[0].child})`);
+      error.violations = violations;
+      error.repair = repair;
+      throw error;
+    }
+    current = repaired;
+    pending = after;
   }
-  const after = hierarchyViolations(repaired.items, tree);
-  if (after.length) {
-    repair.failureClass = 'hierarchy';
-    repair.violations = after.length;
-    const error = fail('hierarchy', `${after.length} cards still rank above their parent after repair (first: ${after[0].child})`);
-    error.violations = violations;
-    error.repair = repair;
-    throw error;
-  }
-  repair.ok = true;
-  return {
-    value: repaired,
-    usage: reply.usage && second.usage ? { first: reply.usage, repair: second.usage } : (reply.usage ?? second.usage),
-    cost: sumOrNull(reply.cost, second.cost),
-    violations: after,
-    repair,
-    firstViolationList: violations
-  };
-}
-
-// ---- commands ------------------------------------------------------------------------------------------------
-
-function parseArgs(argv) {
-  const options = {};
-  for (const arg of argv) {
-    if (!arg.startsWith('--')) continue;
-    const [key, ...rest] = arg.slice(2).split('=');
-    options[key] = rest.length ? rest.join('=') : true;
-  }
-  return options;
-}
-
-function assertOutsideRepo(out) {
-  const repo = path.resolve(__dirname, '..', '..');
-  const resolved = path.resolve(out);
-  if (resolved === repo || resolved.startsWith(repo + path.sep))
-    throw new Error('--out must not be inside the product repository (outputs contain private note text)');
+  throw new Error('unreachable');
 }
 
 function runCommand(options) {
