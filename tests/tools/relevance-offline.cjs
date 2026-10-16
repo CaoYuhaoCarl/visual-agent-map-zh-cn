@@ -37,7 +37,7 @@ const USELESS_ABOVE = 0.6;
 const TOOL_DIR = path.join(__dirname, 'relevance-offline');
 const LEVELS = ['beginner', 'intermediate', 'familiar'];
 const CONTEXT_LIMIT = 200;
-const PROMPT_FILES = { v1: 'prompt.md', v2: 'prompt-v2.md' };
+const PROMPT_FILES = { v1: 'prompt-v1.md', v2: 'prompt.md' };
 
 // ---- parsing -------------------------------------------------------------------------------------------------
 

@@ -153,7 +153,18 @@
 .vam-map-tools .vam-relevance-goal:not(:disabled):hover { color: var(--text-normal); }
 .vam-map-tools .vam-relevance-goal:disabled { cursor: default; }
 .vam-relevance-goal-input { flex: 1 1 auto; min-width: 0; box-sizing: border-box; font-size: var(--font-ui-small); }
-.vam-relevance-goal-input:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
+.vam-relevance-goal-input:focus-visible, .vam-relevance-context-input:focus-visible, .vam-relevance-level:focus-visible, .vam-relevance-grade-button:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
+/* The chip expands in place into goal, level, context and a quiet confirm button; it wraps to full width in a narrow pane. */
+.vam-relevance-setup { display: flex; flex: 1 1 auto; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; }
+.vam-relevance-setup > .vam-relevance-goal-input { flex: 1 1 100%; }
+.vam-relevance-setup-row { display: flex; flex: 1 1 100%; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; }
+.vam-relevance-setup .vam-relevance-level { flex: 0 1 auto; max-width: 100%; font-size: var(--font-ui-small); }
+.vam-relevance-context-input { flex: 1 1 12em; min-width: 0; box-sizing: border-box; font-size: var(--font-ui-small); }
+.vam-relevance-grade-button { flex: none; background: transparent; box-shadow: none; color: var(--text-muted); font-size: var(--font-ui-smaller); }
+.vam-relevance-grade-button:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+@media (max-width: 420px) {
+  .vam-relevance-setup .vam-relevance-level, .vam-relevance-context-input, .vam-relevance-grade-button { flex: 1 1 100%; }
+}
 .vam-relevance-changes { margin: 0; padding: 0; list-style: none; }
 .vam-relevance-change { padding: 10px 0; border-bottom: 1px solid var(--background-modifier-border); }
 .vam-relevance-change:last-child { border-bottom: 0; }

@@ -271,7 +271,7 @@ test('buildPrompt v1 has no level or context; v2 carries goal, level and context
 });
 
 test('v2 prompt carries the exact rules from the plan', () => {
-  const text = fs.readFileSync(path.join(__dirname, 'tools', 'relevance-offline', 'prompt-v2.md'), 'utf8');
+  const text = fs.readFileSync(path.join(__dirname, 'tools', 'relevance-offline', 'prompt.md'), 'utf8');
   for (const rule of [
     'Core is the smallest set of cards that together reach the goal.',
     'Siblings compete.',

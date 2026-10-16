@@ -64,7 +64,16 @@ import { listPresets, resolvePreset, resolveToneText } from "../../ai/prompt-pre
 import type { AiResult, Suggestion, TaskContext } from "../../ai/types";
 import { previewMetrics } from "../../ui/preview-utils";
 import { BUILTIN_SAMPLE_ID, builtInSample, SAMPLE_TOUR_VERSION } from "../../builtin-sample";
-import { normalizeRelevanceGoal, RELEVANCE_GOAL_MAX_LENGTH, type NoteRelevance } from "../../note-values";
+import {
+  normalizeRelevanceContext,
+  normalizeRelevanceGoal,
+  normalizeRelevanceLevel,
+  RELEVANCE_CONTEXT_MAX_LENGTH,
+  RELEVANCE_GOAL_MAX_LENGTH,
+  RELEVANCE_LEVELS,
+  type NoteRelevance,
+  type RelevanceLevel
+} from "../../note-values";
 import { RELEVANCE_LABEL, renderRelevanceTag } from "./relevance-tag";
 import { RelevanceSummaryModal } from "./relevance-summary-modal";
 import { PendingSuggestions } from "../../pending-suggestions";
@@ -250,6 +259,8 @@ export class VisualAgentMapView extends ItemView {
   private notes = new Map<string, Note>();
   /** Learning goal from the map file's frontmatter; shown only on mind maps (never AIM) and absent when not graded. */
   private relevanceGoal: string | undefined;
+  private relevanceLevel: RelevanceLevel | undefined;
+  private relevanceContext: string | undefined;
   private selected: string | null = null;
   private multiSelected = new Set<string>();
   /** Cards named by the open structure review; marked with a class, cleared when the review closes. */
@@ -565,13 +576,17 @@ export class VisualAgentMapView extends ItemView {
       if (isCurrent()) {
         this.notes = builtInSample(this.plugin.settings.language).notes;
         this.relevanceGoal = undefined;
+        this.relevanceLevel = undefined;
+        this.relevanceContext = undefined;
       }
       return;
     }
     let goal: string | undefined;
+    let level: RelevanceLevel | undefined;
+    let context: string | undefined;
     if (this.path && !this.map?.aim) {
       try {
-        goal = await this.plugin.repo.readRelevanceGoal(this.path);
+        ({ goal, level, context } = await this.plugin.repo.readRelevanceSetup(this.path));
       } catch {
         /* An unreadable goal is simply not shown. */
       }
@@ -588,6 +603,8 @@ export class VisualAgentMapView extends ItemView {
     if (!isCurrent()) return;
     this.notes = loaded;
     this.relevanceGoal = goal;
+    this.relevanceLevel = level;
+    this.relevanceContext = context;
     await this.hydrateFailedReportTargets(isCurrent);
   }
   private async hydrateFailedReportTargets(isCurrent: () => boolean): Promise<void> {
@@ -973,17 +990,26 @@ export class VisualAgentMapView extends ItemView {
   private renderRelevanceGoalControl(parent: HTMLElement): void {
     this.drawRelevanceChip(parent.createSpan("vam-relevance-goal-slot"), false);
   }
+  private relevanceLevelLabel(level: RelevanceLevel | undefined): string {
+    return t(`ui.relevance_level_${level ?? "none"}`);
+  }
   private drawRelevanceChip(slot: HTMLElement, focus: boolean): void {
     slot.empty();
     const goal = this.relevanceGoal;
-    const chip = slot.createEl("button", {
-      cls: `vam-relevance-goal${goal ? "" : " is-empty"}`,
-      text: goal ? t("ui.relevance_goal_0", goal) : t("ui.relevance_goal_set")
-    });
+    const level = this.relevanceLevel;
+    const label = goal
+      ? level
+        ? t("ui.relevance_goal_level_0_1", goal, this.relevanceLevelLabel(level))
+        : t("ui.relevance_goal_0", goal)
+      : t("ui.relevance_goal_set");
+    const chip = slot.createEl("button", { cls: `vam-relevance-goal${goal ? "" : " is-empty"}`, text: label });
     chip.setAttr("aria-description", t(goal ? "ui.relevance_goal_edit_hint" : "ui.relevance_goal_set_hint"));
-    setTooltip(chip, goal ?? t("ui.relevance_goal_set_hint"));
+    setTooltip(
+      chip,
+      goal ? [label, this.relevanceContext].filter(Boolean).join("\n") : t("ui.relevance_goal_set_hint")
+    );
     // The tooltip helper makes the goal alone the accessible name; keep the "Goal:" label a screen reader needs.
-    chip.setAttr("aria-label", goal ? t("ui.relevance_goal_0", goal) : t("ui.relevance_goal_set"));
+    chip.setAttr("aria-label", label);
     chip.disabled = this.plugin.relevanceGrades.get(this.path)?.status === "running";
     chip.addEventListener("click", event => {
       event.stopPropagation();
@@ -991,35 +1017,76 @@ export class VisualAgentMapView extends ItemView {
     });
     if (focus && !chip.disabled) chip.focus();
   }
+  /**
+   * The chip expands in place into one group: goal, level, context and a quiet "Grade with this" button. Enter in a
+   * text field or the button confirms; Esc, or focus leaving the whole group, cancels; Tab inside the group does not.
+   */
   private editRelevanceGoal(slot: HTMLElement): void {
+    if (this.plugin.relevanceGrades.get(this.path)?.status === "running") return;
     slot.empty();
-    const input = slot.createEl("input", { cls: "vam-relevance-goal-input", type: "text" });
+    const group = slot.createDiv({
+      cls: "vam-relevance-setup",
+      attr: { role: "group", "aria-label": t("ui.relevance_goal_label") }
+    });
+    const input = group.createEl("input", { cls: "vam-relevance-goal-input", type: "text" });
     input.value = this.relevanceGoal ?? "";
     input.maxLength = RELEVANCE_GOAL_MAX_LENGTH;
     input.setAttr("aria-label", t("ui.relevance_goal_label"));
     input.setAttr("placeholder", t("ui.relevance_goal_placeholder"));
+    const row = group.createDiv("vam-relevance-setup-row");
+    const levelSelect = row.createEl("select", { cls: "dropdown vam-relevance-level" });
+    levelSelect.setAttr("aria-label", t("ui.relevance_level_label"));
+    for (const value of ["", ...RELEVANCE_LEVELS])
+      levelSelect.createEl("option", { text: this.relevanceLevelLabel(normalizeRelevanceLevel(value)), value });
+    levelSelect.value = this.relevanceLevel ?? "";
+    const context = row.createEl("input", { cls: "vam-relevance-context-input", type: "text" });
+    context.value = this.relevanceContext ?? "";
+    context.maxLength = RELEVANCE_CONTEXT_MAX_LENGTH;
+    context.setAttr("aria-label", t("ui.relevance_context_label"));
+    context.setAttr("placeholder", t("ui.relevance_context_placeholder"));
+    const submitButton = group.createEl("button", {
+      cls: "vam-relevance-grade-button",
+      text: t("ui.relevance_grade_button")
+    });
     let finished = false;
-    // Enter confirms, Esc and leaving the field cancel; an empty field never reaches the AI.
+    // Confirm, Esc and leaving the group cancel; an empty goal never reaches the AI.
     const finish = (submit: boolean, refocus: boolean): void => {
       if (finished) return;
       finished = true;
       const value = input.value;
+      const level = normalizeRelevanceLevel(levelSelect.value);
+      const extra = context.value;
       this.drawRelevanceChip(slot, refocus);
-      if (submit) void this.submitRelevanceGoal(value);
+      if (submit) void this.submitRelevanceGoal(value, level, extra);
     };
-    input.addEventListener("keydown", event => {
+    const confirm = (): void => finish(true, !normalizeRelevanceGoal(input.value));
+    const keys = (event: KeyboardEvent, enterConfirms: boolean): void => {
       event.stopPropagation();
-      if (event.key === "Enter") {
+      if (event.key === "Enter" && enterConfirms) {
         // Enter that confirms an IME composition (Chinese input) is not the field's Enter.
         if (event.isComposing) return;
         event.preventDefault();
-        finish(true, !normalizeRelevanceGoal(input.value));
+        confirm();
       } else if (event.key === "Escape") {
         event.preventDefault();
         finish(false, true);
       }
+    };
+    input.addEventListener("keydown", event => keys(event, true));
+    context.addEventListener("keydown", event => keys(event, true));
+    levelSelect.addEventListener("keydown", event => keys(event, false));
+    submitButton.addEventListener("keydown", event => keys(event, false));
+    submitButton.addEventListener("click", event => {
+      event.stopPropagation();
+      confirm();
     });
-    input.addEventListener("blur", () => finish(false, false));
+    // Keep focus where it is while the button is pressed, so the pointer press cannot count as leaving the group.
+    submitButton.addEventListener("mousedown", event => event.preventDefault());
+    for (const control of [input, levelSelect, context, submitButton])
+      control.addEventListener("focusout", (event: FocusEvent) => {
+        const next = event.relatedTarget as Node | null;
+        if (!next || !group.contains(next)) finish(false, false);
+      });
     input.focus();
     input.select();
   }
@@ -1081,8 +1148,10 @@ export class VisualAgentMapView extends ItemView {
    * whole map is graded and the result is written in one step. Nothing is written when the AI is declined, stopped,
    * fails or returns anything but exactly one valid grade for every card.
    */
-  private async submitRelevanceGoal(raw: string): Promise<void> {
+  private async submitRelevanceGoal(raw: string, levelRaw?: RelevanceLevel, contextRaw?: string): Promise<void> {
     const goal = normalizeRelevanceGoal(raw);
+    const level = normalizeRelevanceLevel(levelRaw);
+    const context = contextRaw === undefined ? undefined : normalizeRelevanceContext(contextRaw);
     const mapPath = this.path;
     if (!goal || !this.relevanceGradeable()) return;
     if (this.plugin.relevanceGrades.get(mapPath)?.status === "running") return;
@@ -1102,10 +1171,18 @@ export class VisualAgentMapView extends ItemView {
     let basis: StructureNode[] = [];
     try {
       await this.plugin.mutate(async () => {
-        const { previous, next, changed } = await this.plugin.repo.writeRelevanceGoal(mapPath, goal);
+        const { previous, next, setupChanged } = await this.plugin.repo.writeRelevanceGoal(
+          mapPath,
+          goal,
+          level,
+          context
+        );
         if (this.path !== mapPath) return;
         this.relevanceGoal = goal;
-        if (!changed) return;
+        this.relevanceLevel = level;
+        this.relevanceContext = context;
+        // Goal, level and context are one undo step; none changed means nothing to undo.
+        if (!setupChanged) return;
         this.history.push({
           label: t("ui.relevance_goal_history_label"),
           undo: () => this.plugin.repo.restoreRelevanceGoal(mapPath, previous),
@@ -1121,6 +1198,8 @@ export class VisualAgentMapView extends ItemView {
         result = await this.plugin.relevanceGrade.grade(
           {
             goal,
+            ...(level ? { level } : {}),
+            ...(context ? { context } : {}),
             nodes: basis,
             language: settings.language,
             contentLanguage: chooseAimContentLanguage(settings.language, this.map.title),

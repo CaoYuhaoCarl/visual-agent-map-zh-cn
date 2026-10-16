@@ -1,7 +1,7 @@
 import { estimateTokens } from "../../../ai/context-builder";
 import { translate, uiLocale, type UiLanguage } from "../../../i18n";
 import type { ReasoningLevel } from "../../../ai/types";
-import type { RelevanceTier } from "../../../note-values";
+import type { RelevanceLevel, RelevanceTier } from "../../../note-values";
 import { renderTemplate, type StepDefinition } from "../../step-runner";
 import type { StructureNode } from "../structure-review/step";
 import languageEn from "./language.en.md";
@@ -15,6 +15,10 @@ export const RELEVANCE_GOAL_MAX_LENGTH = 200;
 export interface RelevanceGradeRequest {
   /** What the learner wants to achieve; sent as a JSON string and treated as untrusted data. */
   goal: string;
+  /** How much the learner already knows; sent as a JSON string, or `null` when not given. Untrusted data. */
+  level?: RelevanceLevel;
+  /** One line of the learner's conditions or what they already know; sent as a JSON string, or `null`. Untrusted data. */
+  context?: string;
   /** The whole map, parent before child. Cards whose `parentId` is null are context only and are never graded. */
   nodes: StructureNode[];
   language: UiLanguage;
@@ -66,6 +70,8 @@ export const RELEVANCE_GRADE_SCHEMA = {
 export const gradableNodes = (nodes: ReadonlyArray<StructureNode>): StructureNode[] =>
   nodes.filter(node => node.parentId !== null);
 
+const TIER_RANK: Record<RelevanceTier, number> = { core: 2, support: 1, side: 0 };
+
 const invalid = (locale: UiLanguage, detail: string): RelevanceGradeError =>
   new RelevanceGradeError("invalid", translate(locale, "error.relevance_grade_invalid", detail));
 
@@ -73,7 +79,8 @@ const invalid = (locale: UiLanguage, detail: string): RelevanceGradeError =>
  * Strict parser. The WHOLE reply is refused (with `RelevanceGradeError`, nothing written, no partial result) when it is
  * not JSON; is not exactly `{"items": [...]}`; has an item that is not an object with exactly `id`, `tier` and
  * `reason`; has a tier other than core, support or side; has a reason that is empty after trimming; repeats an id;
- * names an id that is not on the map or belongs to a top-level card; or leaves any gradable card out.
+ * names an id that is not on the map or belongs to a top-level card; leaves any gradable card out; or ranks a card
+ * above its parent (core > support > side; a top-level parent is context and not compared).
  * Nothing is coerced, dropped or truncated except surrounding whitespace in a reason.
  */
 export function parseRelevanceGrade(
@@ -115,13 +122,20 @@ export function parseRelevanceGrade(
   });
   const missing = [...gradable.keys()].filter(id => !seen.has(id));
   if (missing.length) throw invalid(locale, `missing ${missing.length}: ${missing.slice(0, 3).join(", ")}`);
+  const tierOf = new Map(items.map(item => [item.id, item.tier]));
+  for (const node of gradable.values()) {
+    const parentTier = node.parentId ? tierOf.get(node.parentId) : undefined;
+    const tier = tierOf.get(node.id);
+    if (parentTier && tier && TIER_RANK[tier] > TIER_RANK[parentTier])
+      throw invalid(locale, `hierarchy ${node.id}: ${tier} under ${parentTier} ${node.parentId}`);
+  }
   return { items };
 }
 
 /** Grade every card of a map against the learner's goal. Input is titles, summaries and structure; the reply is strict JSON. */
 export const relevanceGradeStep: StepDefinition<RelevanceGradeRequest, RelevanceGradeResult> = {
   id: "relevance-grade",
-  version: 1,
+  version: 2,
   render: request =>
     renderTemplate(template, {
       languageInstruction: renderTemplate(
@@ -129,6 +143,8 @@ export const relevanceGradeStep: StepDefinition<RelevanceGradeRequest, Relevance
         {}
       ),
       goal: JSON.stringify(request.goal),
+      level: JSON.stringify(request.level ?? null),
+      context: JSON.stringify(request.context ?? null),
       nodes: JSON.stringify(
         request.nodes.map(node => ({
           id: node.id,
