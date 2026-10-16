@@ -213,7 +213,7 @@ const refuseIfTooBig = (prompt: string, request: RelevanceGradeRequest): void =>
 /** Grade every card of a map against the learner's goal. Input is titles, summaries and structure; the reply is strict JSON. */
 export const relevanceGradeStep: StepDefinition<RelevanceGradeRequest, RelevanceGradeResult> = {
   id: "relevance-grade",
-  version: 4,
+  version: 5,
   render: gradePrompt,
   schema: RELEVANCE_GRADE_SCHEMA,
   policy: refuseIfTooBig,
