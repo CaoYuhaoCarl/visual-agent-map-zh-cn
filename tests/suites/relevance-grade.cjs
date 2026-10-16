@@ -219,7 +219,7 @@ integrationTest('relevance: Stop aborts the call, writes no note, keeps the goal
   assert.equal(h.bar(), undefined, 'the status can be dismissed'); assert.equal(h.chip().text, 'Goal: Goal');
 });
 
-integrationTest('relevance: while the AI usage confirmation is pending the bar says so, not "grading", the map stays locked, and Stop works', async () => {
+integrationTest('relevance: while the AI usage confirmation is pending the bar says so, not "grading", the map stays locked, the chip is disabled and a second submit is refused', async () => {
   const h = await harness();
   const gate = deferred();
   h.control.confirmGate = gate.promise;
@@ -255,7 +255,7 @@ integrationTest('relevance: a reply that is not exactly one valid grade per card
     await h.enter('Goal'); await h.settled();
     assert.equal(h.run().status, 'failed', name);
     // A hierarchy-only failure that survives both repair rounds shows a plain message instead of card ids.
-    if (name === 'a child above its parent') assert.equal(h.barText(), "Grading failed. No topic was changed. The AI's parent-child tiers were still inconsistent. Press Enter to try again.", name);
+    if (name === 'a child above its parent') assert.equal(h.barText(), "Grading failed. No topic was changed. The AI's parent-child tiers were still inconsistent. Click Goal, then press Enter to try again.", name);
     else assert.match(h.barText(), /^Grading failed\. No topic was changed\. The AI grading could not be used: /, name);
     assert.deepEqual(await graded(h), [], `${name}: no note written`);
     assert.deepEqual(h.barButtons(), ['Dismiss'], name);
@@ -595,7 +595,7 @@ integrationTest('relevance repair: still violating after TWO repair rounds write
   await h.enter('Goal'); await h.settled();
   assert.deepEqual(h.control.calls.map(c => c.step), ['relevance-grade', 'relevance-grade-repair', 'relevance-grade-repair'], 'at most two repair rounds');
   assert.equal(h.run().status, 'failed');
-  assert.equal(h.barText(), "Grading failed. No topic was changed. The AI's parent-child tiers were still inconsistent. Press Enter to try again.");
+  assert.equal(h.barText(), "Grading failed. No topic was changed. The AI's parent-child tiers were still inconsistent. Click Goal, then press Enter to try again.");
   assert.doesNotMatch(h.barText(), /hierarchy|[0-9a-f]{8}-[0-9a-f]{4}/, 'no card id or UUID in the user-facing text');
   assert.deepEqual(await graded(h), [], 'nothing written'); assert.equal(h.view.history.past.length, 1, 'only the goal step');
 });

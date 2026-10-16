@@ -1568,7 +1568,7 @@ var english = {
   "error.relevance_grade_over_budget": "The map is too large to grade at once. Nothing was changed.",
   "error.relevance_grade_stopped": "Grading stopped.",
   "error.relevance_grade_invalid": "The AI grading could not be used: {0}",
-  "error.relevance_grade_hierarchy": "The AI's parent-child tiers were still inconsistent. Press Enter to try again."
+  "error.relevance_grade_hierarchy": "The AI's parent-child tiers were still inconsistent. Click Goal, then press Enter to try again."
 };
 var SUPPORTED_LANGUAGES = [
   { id: "zh-TW", label: "\u7E41\u9AD4\u4E2D\u6587", name: "Traditional Chinese" },
@@ -3046,7 +3046,7 @@ var traditionalChinese = {
   "error.relevance_grade_over_budget": "\u5FC3\u667A\u5716\u592A\u5927\uFF0C\u7121\u6CD5\u4E00\u6B21\u5206\u7D1A\uFF0C\u6C92\u6709\u4EFB\u4F55\u6539\u8B8A\u3002",
   "error.relevance_grade_stopped": "\u5206\u7D1A\u5DF2\u505C\u6B62\u3002",
   "error.relevance_grade_invalid": "\u7121\u6CD5\u4F7F\u7528 AI \u7684\u5206\u7D1A\u7D50\u679C\uFF1A{0}",
-  "error.relevance_grade_hierarchy": "AI \u7684\u4E0A\u4E0B\u5C64\u5206\u7D1A\u4ECD\u4E0D\u4E00\u81F4\uFF0C\u8ACB\u518D\u6309\u4E00\u6B21 Enter \u91CD\u8A66"
+  "error.relevance_grade_hierarchy": "AI \u7684\u4E0A\u4E0B\u5C64\u5206\u7D1A\u4ECD\u4E0D\u4E00\u81F4\uFF0C\u8ACB\u9EDE\u300C\u76EE\u6A19\u300D\u518D\u6309 Enter \u91CD\u8A66"
 };
 var language = "en";
 function initialUiLanguage(saved) {

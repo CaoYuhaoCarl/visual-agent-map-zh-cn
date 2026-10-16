@@ -1467,7 +1467,7 @@ const english = {
   "error.relevance_grade_over_budget": "The map is too large to grade at once. Nothing was changed.",
   "error.relevance_grade_stopped": "Grading stopped.",
   "error.relevance_grade_invalid": "The AI grading could not be used: {0}",
-  "error.relevance_grade_hierarchy": "The AI's parent-child tiers were still inconsistent. Press Enter to try again.",
+  "error.relevance_grade_hierarchy": "The AI's parent-child tiers were still inconsistent. Click Goal, then press Enter to try again.",
 } as const;
 
 export type UiLanguage = "zh-TW" | "en";
@@ -2953,7 +2953,7 @@ const traditionalChinese: Record<TranslationKey, string> = {
   "error.relevance_grade_over_budget": "心智圖太大，無法一次分級，沒有任何改變。",
   "error.relevance_grade_stopped": "分級已停止。",
   "error.relevance_grade_invalid": "無法使用 AI 的分級結果：{0}",
-  "error.relevance_grade_hierarchy": "AI 的上下層分級仍不一致，請再按一次 Enter 重試",
+  "error.relevance_grade_hierarchy": "AI 的上下層分級仍不一致，請點「目標」再按 Enter 重試",
 };
 
 let language: UiLanguage = "en";
