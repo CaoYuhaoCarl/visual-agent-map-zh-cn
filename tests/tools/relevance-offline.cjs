@@ -3,10 +3,17 @@
 // Not bundled into main.js, no UI. See agents-spec/intents/relevance/INTENT.md (First step).
 //
 //   node tests/tools/relevance-offline.cjs run --map=<map dir> --vault=<vault root> --out=<runs dir> --slug=<slug>
-//        [--runs=2] [--label-depth=2|all] [--model=sonnet]
+//        [--runs=2] [--label-depth=2|all] [--model=sonnet] [--goal=<text>]
+//        [--prompt=v1|v2] [--level=beginner|intermediate|familiar] [--context=<text>] [--hierarchy=count|reject]
+//        v2 (default) sends level/context and rejects a reply that ranks a card above its parent (--hierarchy=reject,
+//        default); v1 is the old prompt (no level/context) and only counts such violations.
 //   node tests/tools/relevance-offline.cjs compare --out=<runs dir> --slug=<slug>
+//   node tests/tools/relevance-offline.cjs compare --out=<runs dir> --review     (reads owner-review.md back)
+//   node tests/tools/relevance-offline.cjs ab --out=<runs dir> --slugs=<a,b,...>  (writes ab.md; owner-review.md and
+//        owner-review-key.json when herbs/grammar/cooking v1+v2 arms are present)
 //   node tests/tools/relevance-offline.cjs apply --vault=<vault root> --map=<map dir> --out=<runs dir> --slug=<slug>
-//        writes relevance-tier / relevance-reason into node notes and relevance-goal into Map.md (those keys only).
+//        writes relevance-tier / relevance-reason into node notes and relevance-goal (+ relevance-level /
+//        relevance-context when the run has them) into Map.md (those keys only).
 //        Refuses the owner's live test vault (/private/tmp/vam-e2e-current) and anything under it.
 //
 // The vault is only read. Everything written (it contains note titles and summaries) goes to --out, which must
@@ -14,6 +21,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 
 const TIERS = ['core', 'support', 'side'];
@@ -27,6 +35,9 @@ const TITLE_LIMIT = 200;
 const STAMP_BELOW = 0.1;
 const USELESS_ABOVE = 0.6;
 const TOOL_DIR = path.join(__dirname, 'relevance-offline');
+const LEVELS = ['beginner', 'intermediate', 'familiar'];
+const CONTEXT_LIMIT = 200;
+const PROMPT_FILES = { v1: 'prompt.md', v2: 'prompt-v2.md' };
 
 // ---- parsing -------------------------------------------------------------------------------------------------
 
@@ -116,28 +127,101 @@ function gradedNodes(tree) {
   return tree.filter(n => n.depth > 0);
 }
 
+function fail(failureClass, message) {
+  const error = new Error(message);
+  error.failureClass = failureClass;
+  return error;
+}
+
 // Strict: missing ids, extra ids, duplicates, bad tier or empty reason all throw. Nothing is coerced.
 function validateReply(value, tree) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('reply is not an object');
-  if (typeof value.goal !== 'string' || !value.goal.trim()) throw new Error('missing goal');
-  if (!Array.isArray(value.items)) throw new Error('items is not an array');
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw fail('not-object', 'reply is not an object');
+  if (typeof value.goal !== 'string' || !value.goal.trim()) throw fail('goal', 'missing goal');
+  if (!Array.isArray(value.items)) throw fail('items', 'items is not an array');
   const expected = new Set(gradedNodes(tree).map(n => n.id));
   const seen = new Set();
   const extra = [];
   for (const item of value.items) {
-    if (!item || typeof item !== 'object') throw new Error('item is not an object');
-    if (typeof item.id !== 'string') throw new Error('item without id');
+    if (!item || typeof item !== 'object') throw fail('item', 'item is not an object');
+    if (typeof item.id !== 'string') throw fail('item', 'item without id');
     if (!expected.has(item.id)) extra.push(item.id);
-    if (seen.has(item.id)) throw new Error(`duplicate id ${item.id}`);
+    if (seen.has(item.id)) throw fail('duplicate', `duplicate id ${item.id}`);
     seen.add(item.id);
-    if (!TIERS.includes(item.tier)) throw new Error(`bad tier for ${item.id}: ${String(item.tier)}`);
-    if (typeof item.reason !== 'string' || !item.reason.trim()) throw new Error(`empty reason for ${item.id}`);
+    if (!TIERS.includes(item.tier)) throw fail('bad-tier', `bad tier for ${item.id}: ${String(item.tier)}`);
+    if (typeof item.reason !== 'string' || !item.reason.trim()) throw fail('empty-reason', `empty reason for ${item.id}`);
   }
   const missing = [...expected].filter(id => !seen.has(id));
   if (missing.length || extra.length)
-    throw new Error(`id mismatch: ${missing.length} missing, ${extra.length} extra`);
+    throw fail('id-mismatch', `id mismatch: ${missing.length} missing, ${extra.length} extra`);
   return value;
 }
+
+// A card must not rank above its parent (core > support > side). Only pairs whose parent is also graded count;
+// top-level cards are context, not graded. Returns the violating children, parent before child order of the tree.
+const TIER_RANK = { core: 0, support: 1, side: 2 };
+function hierarchyViolations(items, tree) {
+  const tierById = new Map(items.map(i => [i.id, i.tier]));
+  const byId = new Map(tree.map(n => [n.id, n]));
+  const result = [];
+  for (const node of gradedNodes(tree)) {
+    const parentTier = tierById.get(node.parentId);
+    const childTier = tierById.get(node.id);
+    if (!parentTier || !childTier) continue;
+    if (TIER_RANK[childTier] < TIER_RANK[parentTier])
+      result.push({
+        child: node.id,
+        childTitle: node.title,
+        childTier,
+        parent: node.parentId,
+        parentTitle: byId.get(node.parentId)?.title ?? '',
+        parentTier
+      });
+  }
+  return result;
+}
+
+// Sibling groups among graded cards (cards sharing a graded-tree parent), size >= 2.
+function siblingGroups(items, tree) {
+  const tierById = new Map(items.map(i => [i.id, i.tier]));
+  const byId = new Map(tree.map(n => [n.id, n]));
+  const groups = new Map();
+  for (const node of gradedNodes(tree)) {
+    if (!tierById.has(node.id)) continue;
+    groups.set(node.parentId, [...(groups.get(node.parentId) ?? []), node.id]);
+  }
+  const list = [];
+  for (const [parentId, ids] of groups) {
+    if (ids.length < 2) continue;
+    const tiers = ids.map(id => tierById.get(id));
+    list.push({
+      parent: parentId,
+      parentTitle: byId.get(parentId)?.title ?? '',
+      size: ids.length,
+      core: tiers.filter(t => t === 'core').length,
+      allCore: tiers.every(t => t === 'core')
+    });
+  }
+  return list;
+}
+
+function siblingMetrics(groups) {
+  const share = groups.length ? groups.reduce((s, g) => s + g.core / g.size, 0) / groups.length : 0;
+  const allCore3 = groups.filter(g => g.size >= 3 && g.allCore);
+  return { groups: groups.length, meanCoreShare: share, allCoreGroups3: allCore3.length, allCoreTitles: allCore3.map(g => g.parentTitle) };
+}
+
+// Rough prompt size: ASCII ~4 chars per token, everything else ~1 token per character (conservative for CJK).
+function estimateTokens(text) {
+  let ascii = 0;
+  let other = 0;
+  for (const ch of String(text)) {
+    if (ch.charCodeAt(0) < 128) ascii += 1;
+    else other += 1;
+  }
+  return Math.ceil(ascii / 4 + other);
+}
+
+const sha256 = text => crypto.createHash('sha256').update(text).digest('hex');
 
 // ---- metrics -------------------------------------------------------------------------------------------------
 
@@ -336,7 +420,7 @@ function callClaude(prompt, model) {
 }
 
 function fill(template, values) {
-  return Object.entries(values).reduce((text, [key, value]) => text.split(`{{${key}}}`).join(value), template);
+  return template.replace(/\{\{([A-Z_]+)\}\}/g, (all, key) => (key in values ? values[key] : all));
 }
 
 function draftGoal(title, model) {
@@ -347,15 +431,67 @@ function draftGoal(title, model) {
   return goal.trim();
 }
 
-function classify(goal, tree, model) {
-  const nodes = tree.map(({ id, title, summary, status, parentId, depth }) => ({ id, title, summary, status, parentId, depth }));
-  const prompt = fill(fs.readFileSync(path.join(TOOL_DIR, 'prompt.md'), 'utf8'), {
-    GOAL: goal,
-    NODES: JSON.stringify(nodes)
+function normalizeLevel(level) {
+  if (level === undefined || level === null || level === '' || level === true) return null;
+  if (!LEVELS.includes(level)) throw new Error(`--level must be one of ${LEVELS.join(', ')}`);
+  return level;
+}
+
+function normalizeContext(context) {
+  if (context === undefined || context === null || context === '' || context === true) return null;
+  return [...String(context).replace(/\s+/g, ' ').trim()].slice(0, CONTEXT_LIMIT).join('') || null;
+}
+
+function promptPath(version) {
+  const file = PROMPT_FILES[version];
+  if (!file) throw new Error('--prompt must be v1 or v2');
+  return path.join(TOOL_DIR, file);
+}
+
+function promptVersionLabel(version) {
+  return `${version}:${sha256(fs.readFileSync(promptPath(version), 'utf8')).slice(0, 12)}`;
+}
+
+function nodesForPrompt(tree) {
+  return tree.map(({ id, title, summary, status, parentId, depth }) => ({ id, title, summary, status, parentId, depth }));
+}
+
+// v1 puts the raw goal in the prompt and knows no level or context; v2 sends all three as JSON strings (or null).
+function buildPrompt({ version, goal, level, context, tree }) {
+  const template = fs.readFileSync(promptPath(version), 'utf8');
+  const nodes = JSON.stringify(nodesForPrompt(tree));
+  if (version === 'v1') return fill(template, { GOAL: goal, NODES: nodes });
+  return fill(template, {
+    GOAL: JSON.stringify(goal),
+    LEVEL: level ? JSON.stringify(level) : 'null',
+    CONTEXT: context ? JSON.stringify(context) : 'null',
+    NODES: nodes
   });
+}
+
+function classifyFailure(error) {
+  return error.failureClass || (error instanceof SyntaxError ? 'json' : 'call');
+}
+
+// One attempt. Throws an error carrying failureClass (and violations for a hierarchy rejection). `firstAttempt`
+// data is returned/attached so the caller can record violations even when the reply is rejected.
+function classify({ version, goal, level, context, tree, model, hierarchy }) {
+  const prompt = buildPrompt({ version, goal, level, context, tree });
   const reply = callClaude(prompt, model);
-  const value = validateReply(extractJson(reply.text), tree);
-  return { value, usage: reply.usage, cost: reply.cost };
+  let value;
+  try {
+    value = validateReply(extractJson(reply.text), tree);
+  } catch (error) {
+    error.failureClass = classifyFailure(error);
+    throw error;
+  }
+  const violations = hierarchyViolations(value.items, tree);
+  if (hierarchy === 'reject' && violations.length) {
+    const error = fail('hierarchy', `${violations.length} cards rank above their parent (first: ${violations[0].child})`);
+    error.violations = violations;
+    throw error;
+  }
+  return { value, usage: reply.usage, cost: reply.cost, violations };
 }
 
 // ---- commands ------------------------------------------------------------------------------------------------
@@ -383,41 +519,66 @@ function runCommand(options) {
   assertOutsideRepo(out);
   const model = options.model || 'sonnet';
   const runs = Number(options.runs || 2);
+  const version = options.prompt || 'v2';
+  promptPath(version);
+  const hierarchy = options.hierarchy || 'reject';
+  if (!['count', 'reject'].includes(hierarchy)) throw new Error('--hierarchy must be count or reject');
+  // v1 never sees level or context.
+  const level = version === 'v1' ? null : normalizeLevel(options.level);
+  const context = version === 'v1' ? null : normalizeContext(options.context);
   const labelDepth = !options['label-depth'] || options['label-depth'] === 'all' ? Infinity : Number(options['label-depth']);
   const { title, tree } = loadMap(map, vault);
   const dir = path.join(out, slug);
   fs.mkdirSync(dir, { recursive: true });
 
+  const inputHash = sha256(JSON.stringify(nodesForPrompt(tree)));
+  const promptVersion = promptVersionLabel(version);
   const goal = options.goal || draftGoal(title, model);
+  const promptTokens = estimateTokens(buildPrompt({ version, goal, level, context, tree }));
   const results = [];
   const failures = [];
+  const failedRuns = [];
   for (let i = 1; i <= runs; i += 1) {
     let outcome = null;
-    let lastError = null;
+    const attempts = [];
     for (let attempt = 1; attempt <= 2 && !outcome; attempt += 1) {
       try {
-        outcome = classify(goal, tree, model);
+        outcome = classify({ version, goal, level, context, tree, model, hierarchy });
+        attempts.push({ attempt, ok: true, failureClass: null, violations: outcome.violations });
       } catch (error) {
-        lastError = `attempt ${attempt}: ${error.message}`;
-        failures.push({ run: i, error: lastError });
+        const failureClass = classifyFailure(error);
+        attempts.push({ attempt, ok: false, failureClass, violations: error.violations ?? null, error: error.message });
+        failures.push({ run: i, attempt, failureClass, error: error.message });
       }
     }
+    const firstAttempt = attempts[0];
     if (!outcome) {
-      fs.writeFileSync(path.join(dir, `run-${i}.failed.json`), JSON.stringify({ goal, error: lastError }, null, 2));
+      failedRuns.push(i);
+      fs.writeFileSync(path.join(dir, `run-${i}.failed.json`), JSON.stringify({ goal, attempts }, null, 2));
       continue;
     }
-    const record = { map: title, model, goal, nodes: tree.length, graded: gradedNodes(tree).length, ...outcome.value, usage: outcome.usage, costUsd: outcome.cost };
+    const groups = siblingGroups(outcome.value.items, tree);
+    const record = {
+      map: title, model, goal, level, context, promptVersion, hierarchy, inputHash, nodes: tree.length,
+      graded: gradedNodes(tree).length, promptTokensEstimate: promptTokens, ...outcome.value, attempts,
+      firstAttempt: { ok: firstAttempt.ok, failureClass: firstAttempt.failureClass, violations: firstAttempt.violations },
+      parentChildViolations: outcome.violations, siblingGroups: groups, usage: outcome.usage, costUsd: outcome.cost
+    };
     fs.writeFileSync(path.join(dir, `run-${i}.json`), JSON.stringify(record, null, 2));
     results.push(record);
   }
 
-  const summary = { map: title, slug, goal, nodes: tree.length, graded: gradedNodes(tree).length, failures };
+  const summary = {
+    map: title, slug, goal, level, context, promptVersion, hierarchy, inputHash, nodes: tree.length,
+    graded: gradedNodes(tree).length, promptTokensEstimate: promptTokens, runsRequested: runs, runsAccepted: results.length,
+    failedRuns, failures
+  };
   if (results.length) {
     summary.distribution = results.map(r => tierDistribution(r.items.map(i => i.tier)));
-    fs.writeFileSync(
-      path.join(dir, 'labels.md'),
-      renderLabels({ title, goal, items: results[0].items, tree, labelDepth })
-    );
+    summary.siblingGroups = results.map(r => siblingMetrics(r.siblingGroups));
+    summary.parentChildViolations = results.map(r => r.parentChildViolations.length);
+    summary.firstAttemptViolations = results.map(r => (r.firstAttempt.violations ? r.firstAttempt.violations.length : null));
+    fs.writeFileSync(path.join(dir, 'labels.md'), renderLabels({ title, goal, items: results[0].items, tree, labelDepth }));
   }
   if (results.length >= 2) summary.stability = stability(results[0].items, results[1].items);
   fs.writeFileSync(path.join(dir, 'summary.json'), JSON.stringify(summary, null, 2));
@@ -488,7 +649,11 @@ function applyRun({ vault, mapDir, record }) {
     writes.push([file, { 'relevance-tier': item.tier, 'relevance-reason': clip(item.reason, 400) }]);
   }
   if (typeof record.goal !== 'string' || !record.goal.trim()) throw new Error('run has no goal');
-  writes.push([mapFile, { 'relevance-goal': clip(record.goal, 400) }]);
+  const mapValues = { 'relevance-goal': clip(record.goal, 400) };
+  if (LEVELS.includes(record.level)) mapValues['relevance-level'] = record.level;
+  const context = normalizeContext(record.context);
+  if (context) mapValues['relevance-context'] = context;
+  writes.push([mapFile, mapValues]);
   for (const [file, values] of writes) fs.writeFileSync(file, setFrontmatterKeys(fs.readFileSync(file, 'utf8'), values));
   return writes.length;
 }
@@ -501,19 +666,356 @@ function applyCommand(options) {
   process.stdout.write(`${slug}: wrote relevance to ${count} files (${count - 1} notes + Map.md)\n`);
 }
 
+// ---- A/B report ----------------------------------------------------------------------------------------------
+
+const ARM_ORDER = ['v1', 'v2', 'v2-nolevel'];
+
+function armOf(slug) {
+  const match = /^(.*)-(v1|v2-nolevel|v2)$/.exec(slug);
+  return match ? { map: match[1], arm: match[2] } : { map: slug, arm: '' };
+}
+
+function loadArm(out, slug) {
+  const dir = path.join(out, slug);
+  const summary = JSON.parse(fs.readFileSync(path.join(dir, 'summary.json'), 'utf8'));
+  const runs = [];
+  for (let i = 1; i <= (summary.runsRequested || 2); i += 1) {
+    const file = path.join(dir, `run-${i}.json`);
+    if (fs.existsSync(file)) runs.push(JSON.parse(fs.readFileSync(file, 'utf8')));
+  }
+  const failed = [];
+  for (let i = 1; i <= (summary.runsRequested || 2); i += 1) {
+    const file = path.join(dir, `run-${i}.failed.json`);
+    if (fs.existsSync(file)) failed.push(JSON.parse(fs.readFileSync(file, 'utf8')));
+  }
+  return { slug, summary, runs, failed };
+}
+
+const mean = values => (values.length ? values.reduce((s, v) => s + v, 0) / values.length : 0);
+
+// Per arm numbers used by both the report and the gates.
+function armStats(arm) {
+  const { runs, summary } = arm;
+  const graded = summary.graded || 0;
+  const perRun = runs.map(r => {
+    const dist = tierDistribution(r.items.map(i => i.tier));
+    const sib = siblingMetrics(r.siblingGroups || []);
+    return {
+      dist,
+      share: graded ? { core: dist.core / graded, support: dist.support / graded, side: dist.side / graded } : { core: 0, support: 0, side: 0 },
+      sibling: sib,
+      violations: (r.parentChildViolations || []).length,
+      firstAttempt: r.firstAttempt || null
+    };
+  });
+  const stab = runs.length >= 2 ? stability(runs[0].items, runs[1].items) : null;
+  return {
+    slug: arm.slug,
+    graded,
+    accepted: runs.length,
+    requested: summary.runsRequested || 2,
+    perRun,
+    stability: stab,
+    meanCoreShare: mean(perRun.map(p => p.share.core)),
+    meanSideShare: mean(perRun.map(p => p.share.side)),
+    meanSiblingShare: mean(perRun.map(p => p.sibling.meanCoreShare)),
+    meanAllCore3: mean(perRun.map(p => p.sibling.allCoreGroups3)),
+    firstAttemptViolations: perRun.map(p => (p.firstAttempt && p.firstAttempt.violations ? p.firstAttempt.violations.length : null)),
+    failureClasses: (summary.failures || []).map(f => f.failureClass),
+    promptTokens: summary.promptTokensEstimate,
+    usage: arm.runs.map(r => r.usage),
+    inputHash: summary.inputHash,
+    promptVersion: summary.promptVersion
+  };
+}
+
+function gate(id, pass, detail) {
+  return { id, pass, detail };
+}
+
+// Gates P1-P5 of the Phase 4 plan, v2 against v1. `stats` is {map: {v1, v2, 'v2-nolevel'}} of armStats.
+function evaluateGates(stats) {
+  const maps = Object.keys(stats);
+  const gates = [];
+  const need = (map, arm) => stats[map] && stats[map][arm];
+
+  const v2Arms = maps.map(m => need(m, 'v2')).filter(Boolean);
+  const v2Runs = v2Arms.reduce((s, a) => s + a.accepted, 0);
+  const v2Requested = v2Arms.reduce((s, a) => s + a.requested, 0);
+  const firstViolations = v2Arms.flatMap(a => a.firstAttemptViolations);
+  const p1 = v2Arms.length > 0 && v2Runs === v2Requested && firstViolations.every(v => v === 0);
+  gates.push(gate('P1', p1, `v2 accepted ${v2Runs}/${v2Requested}; first-attempt violations per run: ${v2Arms.map(a => `${a.slug}=[${a.firstAttemptViolations.join(',')}]`).join(' ')}`));
+
+  const p2parts = maps.filter(m => need(m, 'v1') && need(m, 'v2')).map(m => {
+    const v1 = stats[m].v1.stability;
+    const v2 = stats[m].v2.stability;
+    const tolerance = stats[m].v1.graded <= 20 ? 0.067 : 0.05;
+    const ok = !!v1 && !!v2 && v2.agreement >= v1.agreement - tolerance && v2.kappa >= 0.6;
+    return { m, ok, text: `${m}: v1 agr ${v1 ? pct(v1.agreement) : 'n/a'} / v2 agr ${v2 ? pct(v2.agreement) : 'n/a'} (tol ${tolerance}), v2 kappa ${v2 ? v2.kappa.toFixed(3) : 'n/a'}` };
+  });
+  gates.push(gate('P2', p2parts.length > 0 && p2parts.every(p => p.ok), p2parts.map(p => `${p.ok ? 'ok' : 'FAIL'} ${p.text}`).join('; ')));
+
+  const parts3 = [];
+  let p3 = true;
+  if (need('grammar', 'v1') && need('grammar', 'v2')) {
+    const drop = stats.grammar.v1.meanCoreShare - stats.grammar.v2.meanCoreShare;
+    const ok = drop >= 0.1 - 1e-9;
+    p3 = p3 && ok;
+    parts3.push(`${ok ? 'ok' : 'FAIL'} grammar core share v1 ${pct(stats.grammar.v1.meanCoreShare)} -> v2 ${pct(stats.grammar.v2.meanCoreShare)} (drop ${(drop * 100).toFixed(1)} pts)`);
+  } else p3 = false;
+  for (const m of ['grammar', 'cooking']) {
+    if (need(m, 'v1') && need(m, 'v2')) {
+      const a = stats[m].v1.meanAllCore3;
+      const b = stats[m].v2.meanAllCore3;
+      const ok = (a === 0 && b === 0) || b < a;
+      p3 = p3 && ok;
+      parts3.push(`${ok ? 'ok' : 'FAIL'} ${m} all-core groups>=3 v1 ${a.toFixed(1)} -> v2 ${b.toFixed(1)}`);
+    } else p3 = false;
+  }
+  gates.push(gate('P3', p3, parts3.join('; ')));
+
+  const parts4 = [];
+  let p4 = true;
+  if (need('herbs', 'v2')) {
+    const sides = stats.herbs.v2.perRun.map(p => p.dist.side);
+    const ok = sides.length > 0 && sides.every(n => n >= 1);
+    p4 = p4 && ok;
+    parts4.push(`${ok ? 'ok' : 'FAIL'} herbs v2 side count per run [${sides.join(',')}]`);
+  } else p4 = false;
+  for (const m of ['grammar', 'cooking']) {
+    if (need(m, 'v2')) {
+      const shares = stats[m].v2.perRun.map(p => p.share.side);
+      const ok = shares.length > 0 && shares.every(v => v >= 0.05);
+      p4 = p4 && ok;
+      parts4.push(`${ok ? 'ok' : 'FAIL'} ${m} v2 side share per run [${shares.map(pct).join(',')}]`);
+    } else p4 = false;
+  }
+  gates.push(gate('P4', p4, parts4.join('; ')));
+
+  // P5: exact once, non-empty reason, same language and one sentence are checked by hand against owner-review; the
+  // mechanical part (strict validation already guarantees exact-once and non-empty) plus the cooking token bound.
+  const cook = need('cooking', 'v2');
+  const tokenOk = !!cook && cook.promptTokens < 32000;
+  const accepted = v2Arms.every(a => a.accepted === a.requested);
+  gates.push(gate('P5', tokenOk && accepted, `strict validation passed for every accepted v2 run (${accepted ? 'yes' : 'no'}); cooking v2 prompt tokens ~${cook ? cook.promptTokens : 'n/a'} (< 32000)`));
+  return gates;
+}
+
+function renderArm(st) {
+  const lines = [];
+  lines.push(`#### ${st.slug}`);
+  lines.push('');
+  lines.push(`- 接受 ${st.accepted}/${st.requested} 次；graded ${st.graded}；prompt ${st.promptVersion}；inputHash ${String(st.inputHash).slice(0, 12)}；估計 prompt token ${st.promptTokens}`);
+  const tokens = st.usage.filter(Boolean).map(u => `in ${u.input_tokens ?? '?'}+cache ${(u.cache_creation_input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0)} / out ${u.output_tokens ?? '?'}`);
+  if (tokens.length) lines.push(`- 實際 usage（每次）: ${tokens.join(' | ')}`);
+  lines.push(`- 首次嘗試失敗類別: ${st.failureClasses.length ? st.failureClasses.join(', ') : '無'}；首次嘗試上下層違規（每次）: ${st.firstAttemptViolations.map(v => (v === null ? 'n/a' : v)).join(', ') || 'n/a'}`);
+  lines.push('');
+  lines.push('| run | core | support | side | 同層組(>=2) | 同層 core 平均占比 | 全 core 組(>=3) | 上下層違規(接受的) |');
+  lines.push('| --- | --- | --- | --- | --- | --- | --- | --- |');
+  st.perRun.forEach((p, i) => {
+    const d = p.dist;
+    lines.push(`| ${i + 1} | ${d.core} (${pct(p.share.core)}) | ${d.support} (${pct(p.share.support)}) | ${d.side} (${pct(p.share.side)}) | ${p.sibling.groups} | ${pct(p.sibling.meanCoreShare)} | ${p.sibling.allCoreGroups3} | ${p.violations} |`);
+  });
+  if (st.stability) lines.push(`\n兩次 agreement ${pct(st.stability.agreement)}，kappa ${st.stability.kappa.toFixed(3)}（n=${st.stability.n}）`);
+  st.perRun.forEach((p, i) => {
+    if (p.sibling.allCoreTitles.length) lines.push(`\nrun ${i + 1} 全 core 組（父卡）: ${p.sibling.allCoreTitles.join('；')}`);
+  });
+  lines.push('');
+  return lines.join('\n');
+}
+
+function renderAb(stats, gates) {
+  const lines = ['# Relevance Phase 4 A/B', '', '## Gates（v2 對 v1）', '', '| gate | 結果 | 數據 |', '| --- | --- | --- |'];
+  for (const g of gates) lines.push(`| ${g.id} | ${g.pass ? 'PASS' : 'FAIL'} | ${escapeCell(g.detail)} |`);
+  lines.push('', `整體: ${gates.every(g => g.pass) ? 'ALL PASS' : 'FAIL（停下，不改 prompt）'}`, '');
+  lines.push('P5 另有人工部分：理由為地圖語言、單句；見 owner-review 與抽樣。', '');
+  for (const map of Object.keys(stats)) {
+    lines.push(`## ${map}`, '');
+    for (const arm of ARM_ORDER) if (stats[map][arm]) lines.push(renderArm(stats[map][arm]));
+  }
+  return lines.join('\n');
+}
+
+function abCommand(options) {
+  const { out, slugs } = options;
+  if (!out || !slugs) throw new Error('ab needs --out --slugs');
+  const stats = {};
+  for (const slug of String(slugs).split(',').map(x => x.trim()).filter(Boolean)) {
+    const { map, arm } = armOf(slug);
+    if (!arm) throw new Error(`slug ${slug} must end with -v1, -v2 or -v2-nolevel`);
+    (stats[map] ||= {})[arm] = armStats(loadArm(out, slug));
+  }
+  const gates = evaluateGates(stats);
+  fs.writeFileSync(path.join(out, 'ab.md'), renderAb(stats, gates));
+  for (const g of gates) process.stdout.write(`${g.id} ${g.pass ? 'PASS' : 'FAIL'}: ${g.detail}\n`);
+  const reviewMaps = ['herbs', 'grammar', 'cooking'].filter(m => stats[m] && stats[m].v1 && stats[m].v2);
+  if (reviewMaps.length === 3) writeOwnerReview(out);
+}
+
+// ---- owner review (blind) ------------------------------------------------------------------------------------
+
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function seedOf(text) {
+  return parseInt(sha256(text).slice(0, 8), 16);
+}
+
+function shuffle(list, rand) {
+  const copy = [...list];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rand() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+// Picks `count` ids, preferring cards whose v1 and v2 run-1 tiers differ; tops up with a seeded random choice.
+function pickReviewCards(v1Items, v2Items, count, seed) {
+  const v2 = new Map(v2Items.map(i => [i.id, i]));
+  const rand = mulberry32(seed);
+  const both = v1Items.filter(i => v2.has(i.id));
+  const differing = shuffle(both.filter(i => i.tier !== v2.get(i.id).tier), rand);
+  const same = shuffle(both.filter(i => i.tier === v2.get(i.id).tier), rand);
+  return [...differing, ...same].slice(0, count).map(i => i.id);
+}
+
+const MAP_LABELS = { herbs: '養香草（placeholder 目標）', grammar: '英文文法（placeholder 目標）', cooking: '料理的科學（owner 目標）' };
+
+function writeOwnerReview(out) {
+  const lines = ['# Owner review（Phase 4 A/B）', '', '約 10–15 分鐘。每一欄填一次，留空表示略過。不會顯示哪個是舊／新標準。', ''];
+  const key = { version: 1, A: { slugs: ['herbs-v1', 'herbs-v2'] }, B: {} };
+  const herbs = loadArm(out, 'herbs-v2');
+  const herbsItems = herbs.runs[0].items;
+  // Titles/depth come from the run record (copied from the tree), parent order is preserved.
+  lines.push('## A. 養香草（盲標）', '');
+  lines.push(`目標: ${herbs.summary.goal}`, `程度: ${herbs.summary.level || '未指定'}`, `補充: ${herbs.summary.context || '無'}`, '');
+  lines.push('在最後一欄寫 core（必學）、support（需要時學）或 side（可跳過），也可寫中文或 1/2/3。第一欄 id 請勿修改。', '');
+  lines.push('| id | 卡片（縮排表樹狀） | 你的分級 |', '| --- | --- | --- |');
+  for (const item of herbsItems) lines.push(`| ${item.id} | ${'　'.repeat(Math.max(0, (item.depth || 1) - 1))}${escapeCell(item.title)} | |`);
+  lines.push('');
+
+  lines.push('## B. 兩種分級二選一', '', '每張卡有甲、乙兩個分級與理由；在最後一欄寫 甲、乙、都可、都不對。', '');
+  for (const slugBase of ['grammar', 'cooking']) {
+    const v1 = loadArm(out, `${slugBase}-v1`);
+    const v2 = loadArm(out, `${slugBase}-v2`);
+    const v1Items = v1.runs[0].items;
+    const v2Items = v2.runs[0].items;
+    const rand = mulberry32(seedOf(`${slugBase}:assign`));
+    const ids = pickReviewCards(v1Items, v2Items, 8, seedOf(`${slugBase}:pick`));
+    const v1By = new Map(v1Items.map(i => [i.id, i]));
+    const v2By = new Map(v2Items.map(i => [i.id, i]));
+    key.B[slugBase] = [];
+    lines.push(`### ${MAP_LABELS[slugBase]}`, '', `目標: ${v2.summary.goal}`, `程度: ${v2.summary.level || '未指定'}`, `補充: ${v2.summary.context || '無'}`, '');
+    lines.push('| id | 卡片 | 甲 | 乙 | 你的選擇 |', '| --- | --- | --- | --- | --- |');
+    for (const id of ids) {
+      const aIsV1 = rand() < 0.5;
+      const a = aIsV1 ? v1By.get(id) : v2By.get(id);
+      const b = aIsV1 ? v2By.get(id) : v1By.get(id);
+      key.B[slugBase].push({ id, a: aIsV1 ? 'v1' : 'v2' });
+      lines.push(`| ${id} | ${escapeCell(v2By.get(id).title)} | ${a.tier}：${escapeCell(a.reason)} | ${b.tier}：${escapeCell(b.reason)} | |`);
+    }
+    lines.push('');
+  }
+  fs.writeFileSync(path.join(out, 'owner-review.md'), lines.join('\n'));
+  fs.writeFileSync(path.join(out, 'owner-review-key.json'), JSON.stringify(key, null, 2));
+}
+
+function sectionRows(text, heading) {
+  const start = text.indexOf(heading);
+  if (start < 0) return [];
+  const rest = text.slice(start + heading.length);
+  const end = rest.search(/^#{2,3} /m);
+  const body = end < 0 ? rest : rest.slice(0, end);
+  const rows = [];
+  for (const line of body.split(/\r?\n/)) {
+    if (!line.startsWith('|')) continue;
+    const cells = splitRow(line);
+    if (!cells.length || cells[0] === 'id' || /^-+$/.test(cells[0])) continue;
+    rows.push(cells);
+  }
+  return rows;
+}
+
+const CHOICES = { '甲': 'a', '乙': 'b', '都可': 'both', '都不對': 'neither' };
+
+function compareReview(text, key, armTiers) {
+  const result = { A: null, B: {} };
+  const rowsA = sectionRows(text, '## A. 養香草（盲標）');
+  const ownerById = new Map(rowsA.filter(c => c.length >= 3 && c[2]).map(c => [c[0], parseTier(c[2])]));
+  const arms = {};
+  for (const slug of key.A.slugs) {
+    const aiById = armTiers[slug];
+    const pairs = [...ownerById.entries()].filter(([id, tier]) => tier && aiById.has(id)).map(([id, tier]) => [aiById.get(id), tier]);
+    arms[slug] = { labeled: pairs.length, agreement: agreement(pairs), kappa: cohenKappa(pairs) };
+  }
+  result.A = { rows: rowsA.length, labeled: ownerById.size, arms };
+  const sections = { grammar: '### 英文文法（placeholder 目標）', cooking: '### 料理的科學（owner 目標）' };
+  for (const [map, heading] of Object.entries(sections)) {
+    const rows = sectionRows(text, heading);
+    const assign = new Map((key.B[map] || []).map(e => [e.id, e.a]));
+    const tally = { v1: 0, v2: 0, both: 0, neither: 0, blank: 0, invalid: 0 };
+    for (const cells of rows) {
+      if (cells.length < 5 || !assign.has(cells[0])) continue;
+      const choice = cells[4].trim();
+      if (!choice) tally.blank += 1;
+      else if (!(choice in CHOICES)) tally.invalid += 1;
+      else {
+        const kind = CHOICES[choice];
+        if (kind === 'a') tally[assign.get(cells[0])] += 1;
+        else if (kind === 'b') tally[assign.get(cells[0]) === 'v1' ? 'v2' : 'v1'] += 1;
+        else tally[kind] += 1;
+      }
+    }
+    result.B[map] = tally;
+  }
+  return result;
+}
+
+function renderReviewCompare(result) {
+  const lines = ['# Owner review compare', '', '## A. herbs 盲標（AI vs owner，run-1）', ''];
+  lines.push(`已標註 ${result.A.labeled} / ${result.A.rows}`, '', '| arm | 已比對 | 準確度（一致率） | kappa |', '| --- | --- | --- | --- |');
+  for (const [slug, a] of Object.entries(result.A.arms)) lines.push(`| ${slug} | ${a.labeled} | ${pct(a.agreement)} | ${a.kappa.toFixed(3)} |`);
+  lines.push('', '## B. 偏好（v1 vs v2）', '', '| 地圖 | v1 | v2 | 都可 | 都不對 | 空白 | 無法辨識 |', '| --- | --- | --- | --- | --- | --- | --- |');
+  for (const [map, t] of Object.entries(result.B)) lines.push(`| ${map} | ${t.v1} | ${t.v2} | ${t.both} | ${t.neither} | ${t.blank} | ${t.invalid} |`);
+  return lines.join('\n') + '\n';
+}
+
+function compareReviewCommand(options) {
+  const { out } = options;
+  const text = fs.readFileSync(path.join(out, 'owner-review.md'), 'utf8');
+  const key = JSON.parse(fs.readFileSync(path.join(out, 'owner-review-key.json'), 'utf8'));
+  const armTiers = {};
+  for (const slug of key.A.slugs) armTiers[slug] = new Map(loadArm(out, slug).runs[0].items.map(i => [i.id, i.tier]));
+  const result = compareReview(text, key, armTiers);
+  fs.writeFileSync(path.join(out, 'owner-review-compare.md'), renderReviewCompare(result));
+  process.stdout.write(renderReviewCompare(result));
+}
+
 function main(argv) {
   const [command, ...rest] = argv;
   const options = parseArgs(rest);
   if (command === 'run') return runCommand(options);
-  if (command === 'compare') return compareCommand(options);
+  if (command === 'compare') return options.review ? compareReviewCommand(options) : compareCommand(options);
+  if (command === 'ab') return abCommand(options);
   if (command === 'apply') return applyCommand(options);
-  throw new Error('usage: relevance-offline.cjs run|compare|apply --out=<dir> --slug=<slug> [...]');
+  throw new Error('usage: relevance-offline.cjs run|compare|ab|apply --out=<dir> --slug=<slug> [...]');
 }
 
 module.exports = {
   TIERS, parseMap, parseFrontmatter, buildNodes, validateReply, extractJson, gradedNodes, confusion, agreement,
   cohenKappa, stability, tierDistribution, parseTier, renderLabels, parseLabels, compareLabels, renderCompare,
-  setFrontmatterKeys, applyRun, assertWritable
+  setFrontmatterKeys, applyRun, assertWritable, hierarchyViolations, siblingGroups, siblingMetrics, estimateTokens,
+  buildPrompt, normalizeLevel, normalizeContext, armOf, armStats, evaluateGates, renderAb, pickReviewCards, mulberry32,
+  compareReview, writeOwnerReview, loadArm, sha256, classifyFailure, fill
 };
 
 if (require.main === module) {

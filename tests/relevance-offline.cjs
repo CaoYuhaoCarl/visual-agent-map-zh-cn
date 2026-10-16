@@ -191,3 +191,264 @@ test('apply refuses the live test vault and anything under it', () => {
   const { mapDir } = makeVault();
   assert.throws(() => tool.applyRun({ vault: '/private/tmp/vam-e2e-current', mapDir, record }), /refusing/);
 });
+
+// ---- Phase 4: prompt v2, hierarchy, sibling metrics, A/B gates, owner review ---------------------------------
+
+const TREE2 = [
+  { id: 'r', title: 'Root', summary: '', status: '', depth: 0, parentId: null },
+  { id: 'a', title: 'A', summary: '', status: '', depth: 1, parentId: 'r' },
+  { id: 'a1', title: 'A1', summary: '', status: '', depth: 2, parentId: 'a' },
+  { id: 'a2', title: 'A2', summary: '', status: '', depth: 2, parentId: 'a' },
+  { id: 'a3', title: 'A3', summary: '', status: '', depth: 2, parentId: 'a' },
+  { id: 'b', title: 'B', summary: '', status: '', depth: 1, parentId: 'r' }
+];
+const it2 = (id, tier) => ({ id, title: id, depth: 1, tier, reason: 'r' });
+
+test('hierarchyViolations flags a child above its graded parent and ignores top-level parents', () => {
+  const ok = [it2('a', 'support'), it2('a1', 'support'), it2('a2', 'side'), it2('a3', 'support'), it2('b', 'core')];
+  assert.deepEqual(tool.hierarchyViolations(ok, TREE2), []);
+  const bad = [it2('a', 'support'), it2('a1', 'core'), it2('a2', 'side'), it2('a3', 'support'), it2('b', 'side')];
+  const v = tool.hierarchyViolations(bad, TREE2);
+  assert.deepEqual(v.map(x => [x.child, x.childTier, x.parent, x.parentTier]), [['a1', 'core', 'a', 'support']]);
+  const underSide = [it2('a', 'side'), it2('a1', 'support'), it2('a2', 'side'), it2('a3', 'side'), it2('b', 'core')];
+  assert.deepEqual(tool.hierarchyViolations(underSide, TREE2).map(x => x.child), ['a1']);
+  // a top-level card (depth 1, parent is the ungraded root) is never a violation, whatever its tier
+  assert.deepEqual(tool.hierarchyViolations([it2('a', 'core'), it2('b', 'core')], TREE2.slice(0, 2).concat(TREE2[5])), []);
+});
+
+test('siblingGroups and siblingMetrics count groups, core share and all-core groups of 3+', () => {
+  const items = [it2('a', 'core'), it2('a1', 'core'), it2('a2', 'core'), it2('a3', 'core'), it2('b', 'support')];
+  const groups = tool.siblingGroups(items, TREE2);
+  assert.deepEqual(groups.map(g => [g.parentTitle, g.size, g.core, g.allCore]), [['Root', 2, 1, false], ['A', 3, 3, true]]);
+  const m = tool.siblingMetrics(groups);
+  assert.equal(m.groups, 2);
+  assert.ok(Math.abs(m.meanCoreShare - 0.75) < 1e-9);
+  assert.equal(m.allCoreGroups3, 1);
+  assert.deepEqual(m.allCoreTitles, ['A']);
+  assert.equal(tool.siblingMetrics([]).meanCoreShare, 0);
+});
+
+test('validateReply tags a failure class and never loosens', () => {
+  const cls = fn => {
+    try {
+      fn();
+    } catch (error) {
+      return error.failureClass;
+    }
+    return null;
+  };
+  assert.equal(cls(() => tool.validateReply(reply([item('b', 'core'), item('c', 'side')]), TREE)), 'id-mismatch');
+  assert.equal(cls(() => tool.validateReply(reply([item('b', 'huge'), item('c', 'side'), item('d', 'side')]), TREE)), 'bad-tier');
+  assert.equal(cls(() => tool.validateReply(reply([item('b', 'core'), item('b', 'core'), item('c', 'side')]), TREE)), 'duplicate');
+  assert.equal(cls(() => tool.validateReply(reply([{ ...item('b', 'core'), reason: ' ' }, item('c', 'side'), item('d', 'side')]), TREE)), 'empty-reason');
+  assert.equal(tool.classifyFailure(new SyntaxError('x')), 'json');
+  assert.equal(tool.classifyFailure(new Error('x')), 'call');
+});
+
+test('normalizeLevel and normalizeContext', () => {
+  assert.equal(tool.normalizeLevel('beginner'), 'beginner');
+  assert.equal(tool.normalizeLevel(undefined), null);
+  assert.throws(() => tool.normalizeLevel('expert'), /--level/);
+  assert.equal(tool.normalizeContext('  a \n b '), 'a b');
+  assert.equal(tool.normalizeContext(''), null);
+  assert.equal([...tool.normalizeContext('x'.repeat(300))].length, 200);
+});
+
+test('buildPrompt v1 has no level or context; v2 carries goal, level and context as JSON and null when absent', () => {
+  const v1 = tool.buildPrompt({ version: 'v1', goal: 'learn {{NODES}}', level: 'beginner', context: 'c', tree: TREE2 });
+  assert.match(v1, /Learner goal: learn \{\{NODES\}\}/, 'a goal that looks like a placeholder is not re-expanded');
+  assert.doesNotMatch(v1, /Learner level/);
+  const v2 = tool.buildPrompt({ version: 'v2', goal: 'say "hi"', level: 'beginner', context: '半天日照', tree: TREE2 });
+  assert.match(v2, /Learner goal \(JSON string\): "say \\"hi\\""/);
+  assert.match(v2, /Learner level .*: "beginner"/);
+  assert.match(v2, /Learner context \(JSON string, or null\): "半天日照"/);
+  assert.match(v2, /"id":"a1"/);
+  const none = tool.buildPrompt({ version: 'v2', goal: 'g', level: null, context: null, tree: TREE2 });
+  assert.match(none, /Learner level .*: null\n/);
+  assert.match(none, /Learner context \(JSON string, or null\): null\n/);
+  assert.doesNotMatch(none, /\{\{[A-Z]+\}\}/);
+  assert.throws(() => tool.buildPrompt({ version: 'v9', goal: 'g', tree: TREE2 }), /--prompt/);
+});
+
+test('v2 prompt carries the exact rules from the plan', () => {
+  const text = fs.readFileSync(path.join(__dirname, 'tools', 'relevance-offline', 'prompt-v2.md'), 'utf8');
+  for (const rule of [
+    'Core is the smallest set of cards that together reach the goal.',
+    'Siblings compete.',
+    'A card never ranks above its parent: under a "support" parent every child is "support" or "side"; under a "side" parent every child is "side".',
+    'Do not aim for a fixed number or share of any tier; the goal decides.'
+  ])
+    assert.ok(text.includes(rule), rule);
+});
+
+test('estimateTokens counts ASCII at a quarter and other characters at one', () => {
+  assert.equal(tool.estimateTokens('abcdefgh'), 2);
+  assert.equal(tool.estimateTokens('中文'), 2);
+  assert.equal(tool.estimateTokens('abcd中'), 2);
+});
+
+function fakeArm(map, arm, { dists, agreement, kappa, firstViolations, accepted = 2, allCore = 0, siblingShare = 0.5, tokens = 1000, graded = 100 }) {
+  const perRun = dists.map((d, i) => ({
+    dist: d,
+    share: { core: d.core / graded, support: d.support / graded, side: d.side / graded },
+    sibling: { groups: 5, meanCoreShare: siblingShare, allCoreGroups3: allCore, allCoreTitles: [] },
+    violations: 0,
+    firstAttempt: { ok: true, failureClass: null, violations: Array.from({ length: firstViolations[i] }, () => ({})) }
+  }));
+  return {
+    slug: `${map}-${arm}`, graded, accepted, requested: 2, perRun,
+    stability: { agreement, kappa, n: graded, confusion: [] },
+    meanCoreShare: perRun.reduce((s, p) => s + p.share.core, 0) / perRun.length,
+    meanSideShare: 0, meanSiblingShare: siblingShare, meanAllCore3: allCore,
+    firstAttemptViolations: firstViolations, failureClasses: [], promptTokens: tokens, usage: [], inputHash: 'h', promptVersion: 'v'
+  };
+}
+
+function goodStats() {
+  const mk = (map, v1core, v2core, graded, v1all, v2all) => ({
+    v1: fakeArm(map, 'v1', { dists: [{ core: v1core, support: 20, side: 5 }, { core: v1core, support: 20, side: 5 }], agreement: 0.8, kappa: 0.7, firstViolations: [2, 3], allCore: v1all, graded }),
+    v2: fakeArm(map, 'v2', { dists: [{ core: v2core, support: 30, side: 10 }, { core: v2core, support: 30, side: 10 }], agreement: 0.78, kappa: 0.65, firstViolations: [0, 0], allCore: v2all, graded, tokens: 20000 })
+  });
+  return { herbs: mk('herbs', 8, 5, 15, 0, 0), grammar: mk('grammar', 65, 40, 90, 15, 4), cooking: mk('cooking', 50, 40, 100, 3, 1) };
+}
+
+test('evaluateGates passes a good v2 and names the failing gate otherwise', () => {
+  const gates = tool.evaluateGates(goodStats());
+  assert.deepEqual(gates.map(g => [g.id, g.pass]), [['P1', true], ['P2', true], ['P3', true], ['P4', true], ['P5', true]]);
+
+  let s = goodStats();
+  s.grammar.v2.firstAttemptViolations = [1, 0];
+  assert.equal(tool.evaluateGates(s).find(g => g.id === 'P1').pass, false);
+
+  s = goodStats();
+  s.cooking.v2.stability = { agreement: 0.7, kappa: 0.65, n: 100, confusion: [] };
+  assert.equal(tool.evaluateGates(s).find(g => g.id === 'P2').pass, false);
+  s = goodStats();
+  s.cooking.v2.stability = { agreement: 0.78, kappa: 0.55, n: 100, confusion: [] };
+  assert.equal(tool.evaluateGates(s).find(g => g.id === 'P2').pass, false);
+
+  s = goodStats();
+  s.grammar.v2 = fakeArm('grammar', 'v2', { dists: [{ core: 60, support: 25, side: 5 }, { core: 60, support: 25, side: 5 }], agreement: 0.8, kappa: 0.7, firstViolations: [0, 0], allCore: 4, graded: 90 });
+  assert.equal(tool.evaluateGates(s).find(g => g.id === 'P3').pass, false, 'core share not 10 points lower');
+  s = goodStats();
+  s.cooking.v2.meanAllCore3 = 3;
+  assert.equal(tool.evaluateGates(s).find(g => g.id === 'P3').pass, false, 'all-core groups not fewer');
+  s = goodStats();
+  s.cooking.v1.meanAllCore3 = 0;
+  s.cooking.v2.meanAllCore3 = 0;
+  assert.equal(tool.evaluateGates(s).find(g => g.id === 'P3').pass, true, 'both zero is fine');
+
+  s = goodStats();
+  s.herbs.v2.perRun[1].dist.side = 0;
+  assert.equal(tool.evaluateGates(s).find(g => g.id === 'P4').pass, false);
+  s = goodStats();
+  s.cooking.v2.perRun[0].share.side = 0.04;
+  assert.equal(tool.evaluateGates(s).find(g => g.id === 'P4').pass, false);
+
+  s = goodStats();
+  s.cooking.v2.promptTokens = 32000;
+  assert.equal(tool.evaluateGates(s).find(g => g.id === 'P5').pass, false);
+  s = goodStats();
+  s.herbs.v2.accepted = 1;
+  assert.equal(tool.evaluateGates(s).find(g => g.id === 'P1').pass, false);
+});
+
+test('herbs gets a wider agreement tolerance than the larger maps', () => {
+  const s = goodStats();
+  s.herbs.v1.stability = { agreement: 0.8, kappa: 0.7, n: 15, confusion: [] };
+  s.herbs.v2.stability = { agreement: 0.735, kappa: 0.7, n: 15, confusion: [] };
+  assert.equal(tool.evaluateGates(s).find(g => g.id === 'P2').pass, true);
+  s.cooking.v2.stability = { agreement: 0.745, kappa: 0.7, n: 100, confusion: [] };
+  assert.equal(tool.evaluateGates(s).find(g => g.id === 'P2').pass, false);
+});
+
+test('renderAb lists gates and per-arm numbers', () => {
+  const md = tool.renderAb(goodStats(), tool.evaluateGates(goodStats()));
+  assert.match(md, /\| P1 \| PASS \|/);
+  assert.match(md, /ALL PASS/);
+  assert.match(md, /#### grammar-v2/);
+  assert.deepEqual(tool.armOf('cooking-v2-nolevel'), { map: 'cooking', arm: 'v2-nolevel' });
+  assert.deepEqual(tool.armOf('herbs-v1'), { map: 'herbs', arm: 'v1' });
+});
+
+test('pickReviewCards prefers differing cards, is seeded and tops up', () => {
+  const v1 = [it2('x1', 'core'), it2('x2', 'core'), it2('x3', 'core'), it2('x4', 'core')];
+  const v2 = [it2('x1', 'core'), it2('x2', 'support'), it2('x3', 'core'), it2('x4', 'side')];
+  const picked = tool.pickReviewCards(v1, v2, 3, 7);
+  assert.equal(picked.length, 3);
+  assert.deepEqual(new Set(picked.slice(0, 2)), new Set(['x2', 'x4']));
+  assert.deepEqual(tool.pickReviewCards(v1, v2, 3, 7), picked);
+  assert.equal(tool.pickReviewCards(v1, v2, 10, 7).length, 4);
+  const r1 = tool.mulberry32(5);
+  const r2 = tool.mulberry32(5);
+  assert.equal(r1(), r2());
+});
+
+function writeArm(out, slug, summary, items) {
+  const dir = path.join(out, slug);
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'summary.json'), JSON.stringify({ runsRequested: 1, ...summary }));
+  fs.writeFileSync(path.join(dir, 'run-1.json'), JSON.stringify({ items }));
+}
+
+test('owner review is blind, keyed, and compare reads the owner answers back', () => {
+  const out = fs.mkdtempSync(path.join(os.tmpdir(), 'relevance-review-'));
+  const mk = (tiers, prefix) => tiers.map((tier, i) => ({ id: `${prefix}${i}`, title: `T${i} | x`, depth: 1, tier, reason: `reason ${tier}` }));
+  const herbs1 = mk(['core', 'core', 'support', 'side'], 'h');
+  const herbs2 = mk(['core', 'support', 'support', 'side'], 'h');
+  writeArm(out, 'herbs-v1', { goal: 'herb goal', level: null, context: null }, herbs1);
+  writeArm(out, 'herbs-v2', { goal: 'herb goal', level: 'beginner', context: '半天日照' }, herbs2);
+  const many = prefix => Array.from({ length: 12 }, (_, i) => ({ id: `${prefix}${i}`, title: `Card ${i}`, depth: 1, tier: i % 2 ? 'core' : 'support', reason: `why ${i}` }));
+  const alt = prefix => many(prefix).map((x, i) => (i < 5 ? { ...x, tier: x.tier === 'core' ? 'side' : 'core' } : x));
+  for (const m of ['grammar', 'cooking']) {
+    writeArm(out, `${m}-v1`, { goal: `${m} goal`, level: null, context: null }, many(m));
+    writeArm(out, `${m}-v2`, { goal: `${m} goal`, level: 'intermediate', context: null }, alt(m));
+  }
+  tool.writeOwnerReview(out);
+  const md = fs.readFileSync(path.join(out, 'owner-review.md'), 'utf8');
+  assert.doesNotMatch(md, /v1|v2/, 'arms are not named in the owner document');
+  const key = JSON.parse(fs.readFileSync(path.join(out, 'owner-review-key.json'), 'utf8'));
+  assert.equal(key.B.grammar.length, 8);
+  assert.equal(key.B.cooking.length, 8);
+  assert.ok(key.B.grammar.some(e => e.a === 'v1') && key.B.grammar.some(e => e.a === 'v2'), 'assignment is mixed');
+  // herbs table has no AI tiers at all
+  const herbsSection = md.slice(md.indexOf('## A.'), md.indexOf('## B.'));
+  assert.doesNotMatch(herbsSection.split('\n').filter(l => l.startsWith('| h')).join('\n'), /core|support|side/);
+
+  // fill in the answers: herbs = the v2 tiers; B: always pick the v2 side
+  let filled = md;
+  herbs2.forEach(h => {
+    filled = filled.replace(new RegExp(`(\\| ${h.id} \\| [^\\n]*\\|) \\|`), `$1 ${h.tier} |`);
+  });
+  const lines = filled.split('\n').map(line => {
+    const cells = line.startsWith('|') ? line.split('|').map(c => c.trim()) : null;
+    if (!cells) return line;
+    for (const m of ['grammar', 'cooking']) {
+      const entry = key.B[m].find(e => e.id === cells[1]);
+      if (entry) return line.replace(/\| \|$/, `| ${entry.a === 'v2' ? '甲' : '乙'} |`);
+    }
+    return line;
+  });
+  const armTiers = {
+    'herbs-v1': new Map(herbs1.map(i => [i.id, i.tier])),
+    'herbs-v2': new Map(herbs2.map(i => [i.id, i.tier]))
+  };
+  const result = tool.compareReview(lines.join('\n'), key, armTiers);
+  assert.equal(result.A.labeled, 4);
+  assert.equal(result.A.arms['herbs-v2'].agreement, 1);
+  assert.equal(result.A.arms['herbs-v1'].agreement, 0.75);
+  assert.deepEqual(result.B.grammar, { v1: 0, v2: 8, both: 0, neither: 0, blank: 0, invalid: 0 });
+  assert.equal(result.B.cooking.v2, 8);
+});
+
+test('applyRun writes level and context to Map.md when the run has them, and nothing when absent', () => {
+  const { vault, mapDir } = makeVault();
+  tool.applyRun({ vault, mapDir, record: { ...record, level: 'beginner', context: '陽台只有半天日照' } });
+  const text = fs.readFileSync(path.join(mapDir, 'Map.md'), 'utf8');
+  assert.equal(JSON.parse(text.match(/^relevance-level: (.*)$/m)[1]), 'beginner');
+  assert.equal(JSON.parse(text.match(/^relevance-context: (.*)$/m)[1]), '陽台只有半天日照');
+  const second = makeVault();
+  tool.applyRun({ vault: second.vault, mapDir: second.mapDir, record: { ...record, level: 'expert' } });
+  const plain = fs.readFileSync(path.join(second.mapDir, 'Map.md'), 'utf8');
+  assert.doesNotMatch(plain, /relevance-level|relevance-context/);
+});
