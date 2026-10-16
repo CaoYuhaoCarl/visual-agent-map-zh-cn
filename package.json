@@ -2,6 +2,7 @@
   "name": "visual-agent-map",
   "version": "0.21.0",
   "private": true,
+  "license": "Apache-2.0",
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "compile:sample": "node scripts/compile-sample.mjs",

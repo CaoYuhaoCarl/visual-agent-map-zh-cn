@@ -36,8 +36,8 @@ VAM has no telemetry and does not store API keys. AI tasks send relevant content
 
 ## Credits and license
 
-AIM's research approach is inspired by [MindSearch](https://github.com/InternLM/MindSearch) and [Chen et al. (2024)](https://arxiv.org/abs/2407.20183). VAM implements it independently; this does not imply affiliation or endorsement.
+AIM's research approach is inspired by [MindSearch](https://github.com/InternLM/MindSearch) and [Chen et al. (2024)](https://arxiv.org/abs/2407.20183). VAM implements it independently; this does not imply affiliation or endorsement. The code is licensed under Apache-2.0; the Visual Agent Map name and logo are not, so forks need their own name (see [NOTICE](NOTICE)).
 
-[Report an issue](https://github.com/kevcltsai/visual-agent-map/issues) · [Changelog](CHANGELOG.md) · [AGPL-3.0-only](LICENSE)
+[Report an issue](https://github.com/kevcltsai/visual-agent-map/issues) · [Changelog](CHANGELOG.md) · [Apache-2.0](LICENSE)
 
 Copyright © 2026 Kevin Tsai
