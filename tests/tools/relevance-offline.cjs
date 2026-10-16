@@ -456,10 +456,24 @@ function nodesForPrompt(tree) {
   return tree.map(({ id, title, summary, status, parentId, depth }) => ({ id, title, summary, status, parentId, depth }));
 }
 
+// v2 speaks position ids (c1..cN in tree order, top-level card included) for id and parentId, like the plugin's
+// relevance-grade step; the reply is mapped back to the real ids and a real id in the reply is refused. v1 keeps real ids.
+function positionLabels(tree) {
+  const toReal = new Map();
+  const toShort = new Map();
+  tree.forEach((node, index) => { toShort.set(node.id, `c${index + 1}`); toReal.set(`c${index + 1}`, node.id); });
+  return { toShort, toReal };
+}
+
+function shortNodesForPrompt(tree) {
+  const { toShort } = positionLabels(tree);
+  return nodesForPrompt(tree).map(n => ({ ...n, id: toShort.get(n.id), parentId: n.parentId === null ? null : toShort.get(n.parentId) ?? n.parentId }));
+}
+
 // v1 puts the raw goal in the prompt and knows no level or context; v2 sends all three as JSON strings (or null).
 function buildPrompt({ version, goal, level, context, tree }) {
   const template = fs.readFileSync(promptPath(version), 'utf8');
-  const nodes = JSON.stringify(nodesForPrompt(tree));
+  const nodes = JSON.stringify(version === 'v1' ? nodesForPrompt(tree) : shortNodesForPrompt(tree));
   if (version === 'v1') return fill(template, { GOAL: goal, NODES: nodes });
   return fill(template, {
     GOAL: JSON.stringify(goal),
@@ -474,15 +488,33 @@ function classifyFailure(error) {
 }
 
 // Builds the one repair prompt: the original prompt, the first reply and every violating pair.
-function buildRepairPrompt({ prompt, value, violations }) {
+function buildRepairPrompt({ prompt, value, violations, tree }) {
   const template = fs.readFileSync(path.join(TOOL_DIR, 'repair.md'), 'utf8');
-  const pairs = violations.map(v => ({ childId: v.child, childTier: v.childTier, parentId: v.parent, parentTier: v.parentTier }));
-  return fill(template, { PROMPT: prompt, PREVIOUS: JSON.stringify(value), VIOLATIONS: JSON.stringify(pairs) });
+  const { toShort } = positionLabels(tree);
+  const label = id => toShort.get(id) ?? id;
+  const pairs = violations.map(v => ({ childId: label(v.child), childTier: v.childTier, parentId: label(v.parent), parentTier: v.parentTier }));
+  const previous = { ...value, items: value.items.map(i => ({ ...i, id: label(i.id) })) };
+  return fill(template, { PROMPT: prompt, PREVIOUS: JSON.stringify(previous), VIOLATIONS: JSON.stringify(pairs) });
 }
 
-function parseReply(text, tree) {
+// Maps the position ids of a reply back to the real ids. Anything that is not a position id of this tree (a UUID, an
+// unknown label, a top-level label is still caught by validateReply) refuses the whole reply.
+function mapShortIds(value, tree) {
+  if (!value || typeof value !== 'object' || !Array.isArray(value.items)) return value;
+  const { toReal } = positionLabels(tree);
+  const items = value.items.map(item => {
+    if (!item || typeof item !== 'object' || typeof item.id !== 'string') return item;
+    const real = toReal.get(item.id);
+    if (real === undefined) throw fail('id-mismatch', `unknown id ${item.id}`);
+    return { ...item, id: real };
+  });
+  return { ...value, items };
+}
+
+function parseReply(text, tree, { shortIds = true } = {}) {
   try {
-    return validateReply(extractJson(text), tree);
+    const value = extractJson(text);
+    return validateReply(shortIds ? mapShortIds(value, tree) : value, tree);
   } catch (error) {
     error.failureClass = classifyFailure(error);
     throw error;
@@ -499,15 +531,16 @@ const sumOrNull = (a, b) => (typeof a === 'number' && typeof b === 'number' ? a 
 function classify({ version, goal, level, context, tree, model, hierarchy, call = callClaude }) {
   const prompt = buildPrompt({ version, goal, level, context, tree });
   const reply = call(prompt, model);
-  const value = parseReply(reply.text, tree);
+  const shortIds = version !== 'v1';
+  const value = parseReply(reply.text, tree, { shortIds });
   const violations = hierarchyViolations(value.items, tree);
   if (hierarchy !== 'reject' || !violations.length) return { value, usage: reply.usage, cost: reply.cost, violations, repair: null };
   const repair = { attempted: true, firstViolations: violations.length, ok: false, failureClass: null, violations: null };
   let repaired;
   let second;
   try {
-    second = call(buildRepairPrompt({ prompt, value, violations }), model);
-    repaired = parseReply(second.text, tree);
+    second = call(shortIds ? buildRepairPrompt({ prompt, value, violations, tree }) : buildRepairPrompt({ prompt, value, violations, tree: [] }), model);
+    repaired = parseReply(second.text, tree, { shortIds });
   } catch (error) {
     repair.failureClass = classifyFailure(error);
     error.repair = repair;
@@ -1068,7 +1101,7 @@ module.exports = {
   TIERS, parseMap, parseFrontmatter, buildNodes, validateReply, extractJson, gradedNodes, confusion, agreement,
   cohenKappa, stability, tierDistribution, parseTier, renderLabels, parseLabels, compareLabels, renderCompare,
   setFrontmatterKeys, applyRun, assertWritable, hierarchyViolations, siblingGroups, siblingMetrics, estimateTokens,
-  buildPrompt, normalizeLevel, normalizeContext, armOf, armStats, evaluateGates, renderAb, pickReviewCards, mulberry32,
+  buildPrompt, buildRepairPrompt, parseReply, positionLabels, normalizeLevel, normalizeContext, armOf, armStats, evaluateGates, renderAb, pickReviewCards, mulberry32,
   compareReview, writeOwnerReview, loadArm, sha256, classifyFailure, fill, classify, buildRepairPrompt
 };
 

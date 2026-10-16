@@ -262,7 +262,9 @@ test('buildPrompt v1 has no level or context; v2 carries goal, level and context
   assert.match(v2, /Learner goal \(JSON string\): "say \\"hi\\""/);
   assert.match(v2, /Learner level .*: "beginner"/);
   assert.match(v2, /Learner context \(JSON string, or null\): "半天日照"/);
-  assert.match(v2, /"id":"a1"/);
+  assert.match(v2, /"id":"c3"/, 'v2 speaks position ids');
+  assert.doesNotMatch(v2, /"id":"a1"/);
+  assert.match(v1, /"id":"a1"/, 'v1 keeps real ids');
   const none = tool.buildPrompt({ version: 'v2', goal: 'g', level: null, context: null, tree: TREE2 });
   assert.match(none, /Learner level .*: null\n/);
   assert.match(none, /Learner context \(JSON string, or null\): null\n/);
@@ -454,8 +456,10 @@ test('applyRun writes level and context to Map.md when the run has them, and not
 });
 
 // ---- one repair round under --hierarchy=reject (mirrors the plugin) ------------------------------------------------
+const L2 = { r: 'c1', a: 'c2', a1: 'c3', a2: 'c4', a3: 'c5', b: 'c6' };
+const shortIt = (id, tier) => ({ ...it2(id, tier), id: L2[id] ?? id });
 function replyOf(tiers) {
-  const items = Object.entries(tiers).map(([id, tier]) => it2(id, tier));
+  const items = Object.entries(tiers).map(([id, tier]) => shortIt(id, tier));
   return { text: JSON.stringify({ goal: 'g', items }), usage: { out: 1 }, cost: 0.5 };
 }
 const BAD = { a: 'side', a1: 'core', a2: 'side', a3: 'side', b: 'core' };
@@ -472,7 +476,8 @@ test('repair: a violation-only first reply gets one repair prompt with every pai
   const out = fx.run();
   assert.equal(fx.prompts.length, 2);
   assert.ok(fx.prompts[1].includes(tool.buildPrompt({ version: 'v2', goal: 'g', level: null, context: null, tree: TREE2 })), 'original prompt included');
-  assert.ok(fx.prompts[1].includes(JSON.stringify([{ childId: 'a1', childTier: 'core', parentId: 'a', parentTier: 'side' }])));
+  assert.ok(fx.prompts[1].includes(JSON.stringify([{ childId: 'c3', childTier: 'core', parentId: 'c2', parentTier: 'side' }])), 'the pair speaks position ids');
+  assert.deepEqual(out.value.items.map(i => i.id), ['a', 'a1', 'a2', 'a3', 'b'], 'the accepted result carries real ids');
   assert.deepEqual(out.value.items.map(i => i.tier), ['core', 'core', 'side', 'side', 'core']);
   assert.equal(out.repair.attempted, true); assert.equal(out.repair.ok, true); assert.equal(out.repair.firstViolations, 1);
   assert.equal(out.violations.length, 0); assert.equal(out.firstViolationList.length, 1); assert.equal(out.cost, 1);
@@ -488,11 +493,25 @@ test('repair: a repair that still violates or is malformed fails the attempt as 
 });
 
 test('repair: a non-hierarchy failure of the first reply, a clean reply, and --hierarchy=count make no repair call', () => {
-  const missing = classifyWith([{ text: JSON.stringify({ goal: 'g', items: [it2('a', 'core')] }) }, replyOf(FIXED)]);
+  const missing = classifyWith([{ text: JSON.stringify({ goal: 'g', items: [shortIt('a', 'core')] }) }, replyOf(FIXED)]);
   assert.throws(() => missing.run(), error => error.failureClass === 'id-mismatch');
   assert.equal(missing.prompts.length, 1);
   const clean = classifyWith([replyOf(FIXED)]);
   assert.equal(clean.run().repair, null); assert.equal(clean.prompts.length, 1);
   const count = classifyWith([replyOf(BAD)], 'count');
   assert.equal(count.run().violations.length, 1); assert.equal(count.prompts.length, 1);
+});
+
+test('short ids: the repair prompt carries no real id; a real id, an unknown label or a duplicated label in a reply is refused', () => {
+  const fx = classifyWith([replyOf(BAD), replyOf(FIXED)]);
+  fx.run();
+  assert.doesNotMatch(fx.prompts[1].split('Previous reply')[1], /"id":"(?:a|a1|a2|a3|b)"/);
+  const refused = items => classifyWith([{ text: JSON.stringify({ goal: 'g', items }) }]);
+  const base = Object.entries(FIXED).map(([id, tier]) => shortIt(id, tier));
+  for (const items of [
+    base.map(i => (i.id === 'c2' ? { ...i, id: 'a' } : i)),                  // a real id instead of its label
+    [...base, shortIt('ghost', 'core')],                                    // unknown label
+    base.map(i => (i.id === 'c3' ? { ...i, id: 'c4' } : i)),                 // c4 twice, c3 missing
+    base.map(i => (i.id === 'c3' ? { ...i, id: 'c1' } : i))                  // top-level label
+  ]) assert.throws(() => refused(items).run(), error => ['id-mismatch', 'duplicate'].includes(error.failureClass));
 });

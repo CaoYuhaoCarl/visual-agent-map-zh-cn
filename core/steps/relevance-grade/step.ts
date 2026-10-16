@@ -2,6 +2,7 @@ import { estimateTokens } from "../../../ai/context-builder";
 import { translate, uiLocale, type UiLanguage } from "../../../i18n";
 import type { ReasoningLevel } from "../../../ai/types";
 import type { RelevanceLevel, RelevanceTier } from "../../../note-values";
+import { positionIds } from "../../short-ids";
 import { renderTemplate, type StepDefinition } from "../../step-runner";
 import type { StructureNode } from "../structure-review/step";
 import languageEn from "./language.en.md";
@@ -96,6 +97,9 @@ const invalid = (locale: UiLanguage, detail: string): RelevanceGradeError =>
  * `reason`; has a tier other than core, support or side; has a reason that is empty after trimming; repeats an id;
  * names an id that is not on the map or belongs to a top-level card; leaves any gradable card out; or ranks a card
  * above its parent (core > support > side; a top-level parent is context and not compared).
+ * The reply uses the short position ids of {@link gradePrompt} (c1..cN, in map order); each is turned back into the real
+ * id here, so everything returned or reported (items, violations, error details) carries real ids. A real id (UUID) in
+ * the reply is not a position id and is refused like any unknown id.
  * Nothing is coerced, dropped or truncated except surrounding whitespace in a reason.
  */
 export function parseRelevanceGrade(
@@ -113,8 +117,8 @@ export function parseRelevanceGrade(
   if (!value || typeof value !== "object" || Array.isArray(value)) throw invalid(locale, "object");
   const body = value as Record<string, unknown>;
   if (Object.keys(body).length !== 1 || !Array.isArray(body.items)) throw invalid(locale, "items");
+  const ids = positionIds(tree.map(node => node.id));
   const gradable = new Map(gradableNodes(tree).map(node => [node.id, node]));
-  const known = new Set(tree.map(node => node.id));
   const seen = new Set<string>();
   const items: RelevanceGradeItem[] = [];
   body.items.forEach((entry: unknown, index: number) => {
@@ -124,12 +128,13 @@ export function parseRelevanceGrade(
     const keys = Object.keys(item);
     if (keys.length !== 3 || !["id", "tier", "reason"].every(key => keys.includes(key)))
       throw invalid(locale, `${where} keys`);
-    const { id, tier, reason } = item;
-    if (typeof id !== "string" || !id) throw invalid(locale, `${where} id`);
+    const { id: label, tier, reason } = item;
+    if (typeof label !== "string" || !label) throw invalid(locale, `${where} id`);
     if (typeof tier !== "string" || !(RELEVANCE_TIERS as readonly string[]).includes(tier))
       throw invalid(locale, `${where} tier`);
     if (typeof reason !== "string" || !reason.trim()) throw invalid(locale, `${where} reason`);
-    if (!known.has(id)) throw invalid(locale, `${where} id ${id}`);
+    const id = ids.real(label);
+    if (id === undefined) throw invalid(locale, `${where} id ${label}`);
     if (!gradable.has(id)) throw invalid(locale, `${where} top-level ${id}`);
     if (seen.has(id)) throw invalid(locale, `${where} duplicate ${id}`);
     seen.add(id);
@@ -173,21 +178,26 @@ export function relevanceHierarchyViolations(
 const languageLine = (request: RelevanceGradeRequest): string =>
   renderTemplate((request.contentLanguage ?? request.language) === "zh-TW" ? languageZh : languageEn, {});
 
+/** The cards as the model sees them: position ids (c1..cN in map order) for both `id` and `parentId`, no UUIDs. */
+const promptCards = (nodes: ReadonlyArray<StructureNode>) => {
+  const ids = positionIds(nodes.map(node => node.id));
+  const label = (id: string): string => ids.short(id) ?? id;
+  return nodes.map(node => ({
+    id: label(node.id),
+    title: node.title,
+    summary: node.summary,
+    parentId: node.parentId === null ? null : label(node.parentId),
+    depth: node.depth
+  }));
+};
+
 const gradePrompt = (request: RelevanceGradeRequest): string =>
   renderTemplate(template, {
     languageInstruction: languageLine(request),
     goal: JSON.stringify(request.goal),
     level: JSON.stringify(request.level ?? null),
     context: JSON.stringify(request.context ?? null),
-    nodes: JSON.stringify(
-      request.nodes.map(node => ({
-        id: node.id,
-        title: node.title,
-        summary: node.summary,
-        parentId: node.parentId,
-        depth: node.depth
-      }))
-    )
+    nodes: JSON.stringify(promptCards(request.nodes))
   });
 
 const refuseIfTooBig = (prompt: string, request: RelevanceGradeRequest): void => {
@@ -201,7 +211,7 @@ const refuseIfTooBig = (prompt: string, request: RelevanceGradeRequest): void =>
 /** Grade every card of a map against the learner's goal. Input is titles, summaries and structure; the reply is strict JSON. */
 export const relevanceGradeStep: StepDefinition<RelevanceGradeRequest, RelevanceGradeResult> = {
   id: "relevance-grade",
-  version: 2,
+  version: 3,
   render: gradePrompt,
   schema: RELEVANCE_GRADE_SCHEMA,
   policy: refuseIfTooBig,
@@ -213,16 +223,29 @@ export interface RelevanceRepairRequest extends RelevanceGradeRequest {
   previousReply: RelevanceGradeResult;
   violations: RelevanceHierarchyViolation[];
 }
+/** The repair prompt speaks position ids like the grade prompt: the reply and the pairs are converted before they are sent. */
+const repairPrompt = (request: RelevanceRepairRequest): string => {
+  const ids = positionIds(request.nodes.map(node => node.id));
+  const label = (id: string): string => ids.short(id) ?? id;
+  return renderTemplate(repairTemplate, {
+    originalPrompt: gradePrompt(request),
+    previousReply: JSON.stringify({
+      items: request.previousReply.items.map(item => ({ ...item, id: label(item.id) }))
+    }),
+    violations: JSON.stringify(
+      request.violations.map(violation => ({
+        ...violation,
+        childId: label(violation.childId),
+        parentId: label(violation.parentId)
+      }))
+    ),
+    languageInstruction: languageLine(request)
+  });
+};
 export const relevanceGradeRepairStep: StepDefinition<RelevanceRepairRequest, RelevanceGradeResult> = {
   id: "relevance-grade-repair",
-  version: 1,
-  render: request =>
-    renderTemplate(repairTemplate, {
-      originalPrompt: gradePrompt(request),
-      previousReply: JSON.stringify({ items: request.previousReply.items }),
-      violations: JSON.stringify(request.violations),
-      languageInstruction: languageLine(request)
-    }),
+  version: 2,
+  render: repairPrompt,
   schema: RELEVANCE_GRADE_SCHEMA,
   policy: refuseIfTooBig,
   // The same strict parser; a repair that still violates (or breaks anything else) fails the grade.

@@ -10,7 +10,10 @@ const { hasCls, element, find, findAll, button, tick } = dom;
 const MAP = 'Agent Workspace/Topics/map-a/Map.md';
 const tierFor = title => ({ Body: 'core', Mind: 'support', REM: 'side', Dreams: 'support', Extra: 'support' })[title] ?? 'support';
 // The default fake AI: a valid grade for every gradable card, with a reason that names the goal.
-const gradeAll = (request, pick = tierFor) => ({ items: request.nodes.filter(n => n.parentId !== null).map(n => ({ id: n.id, tier: pick(n.title), reason: `${n.title} for ${request.goal}.` })) });
+// The model speaks position ids (c1..cN in map order), never UUIDs.
+const labelOf = (request, id) => `c${request.nodes.findIndex(n => n.id === id) + 1}`;
+const nodeOfLabel = (request, label) => request.nodes[Number(label.slice(1)) - 1];
+const gradeAll = (request, pick = tierFor) => ({ items: request.nodes.filter(n => n.parentId !== null).map(n => ({ id: labelOf(request, n.id), tier: pick(n.title), reason: `${n.title} for ${request.goal}.` })) });
 
 async function harness({ language = 'en', mapTitle = 'Sleep map' } = {}) {
   const { repo, app, contents } = fixture(language);
@@ -127,10 +130,10 @@ integrationTest('relevance: changing the goal appends history and regrades; the 
   await h.enter('First goal'); await h.settled();
   // Second run: Body and Mind keep tier and reason, REM changes tier, Dreams changes only the reason.
   h.control.reply = async request => ({ items: request.nodes.filter(n => n.parentId !== null).map(n => {
-    if (n.title === 'Body') return { id: n.id, tier: 'core', reason: 'Body for First goal.' };
-    if (n.title === 'Mind') return { id: n.id, tier: 'support', reason: 'Mind for First goal.' };
-    if (n.title === 'REM') return { id: n.id, tier: 'core', reason: 'REM for First goal.' };
-    return { id: n.id, tier: 'support', reason: 'A new reason.' };
+    if (n.title === 'Body') return { id: labelOf(request, n.id), tier: 'core', reason: 'Body for First goal.' };
+    if (n.title === 'Mind') return { id: labelOf(request, n.id), tier: 'support', reason: 'Mind for First goal.' };
+    if (n.title === 'REM') return { id: labelOf(request, n.id), tier: 'core', reason: 'REM for First goal.' };
+    return { id: labelOf(request, n.id), tier: 'support', reason: 'A new reason.' };
   }) });
   await h.enter('Second goal'); await h.settled();
   assert.match(h.contents.get(MAP), /- "[\d-]+: First goal"\n  - "[\d-]+: Second goal"/);
@@ -222,12 +225,12 @@ integrationTest('relevance: a reply that is not exactly one valid grade per card
     'a missing card': r => { const o = gradeAll(r); o.items.pop(); return o; },
     'a duplicate card': r => { const o = gradeAll(r); o.items.push(o.items[0]); return o; },
     'an unknown card': r => { const o = gradeAll(r); o.items.push({ id: 'ghost', tier: 'core', reason: 'x' }); return o; },
-    'the top-level card': r => { const o = gradeAll(r); o.items.push({ id: r.nodes[0].id, tier: 'core', reason: 'x' }); return o; },
+    'the top-level card': r => { const o = gradeAll(r); o.items.push({ id: 'c1', tier: 'core', reason: 'x' }); return o; },
     'a bad tier': r => { const o = gradeAll(r); o.items[0].tier = 'must'; return o; },
     'a blank reason': r => { const o = gradeAll(r); o.items[0].reason = '  '; return o; },
     'an extra key': r => { const o = gradeAll(r); o.items[0].title = 'x'; return o; },
     'an extra top-level key': r => ({ ...gradeAll(r), goal: 'x' }),
-    'a child above its parent': r => { const o = gradeAll(r); o.items.find(i => r.nodes.find(n => n.id === i.id).title === 'Dreams').tier = 'core'; return o; }
+    'a child above its parent': r => { const o = gradeAll(r); o.items.find(i => nodeOfLabel(r, i.id).title === 'Dreams').tier = 'core'; return o; }
   };
   for (const [name, reply] of Object.entries(cases)) {
     const h = await harness();
@@ -542,7 +545,7 @@ integrationTest('relevance: the level and context keys survive map saves, read b
 });
 
 // ---- Repair round (v2.1) -----------------------------------------------------------------------------------------
-const dreamsAboveParent = request => { const o = gradeAll(request); o.items.find(i => request.nodes.find(n => n.id === i.id).title === 'Dreams').tier = 'core'; return o; };
+const dreamsAboveParent = request => { const o = gradeAll(request); o.items.find(i => nodeOfLabel(request, i.id).title === 'Dreams').tier = 'core'; return o; };
 
 integrationTest('relevance repair: a parent-child violation sends ONE repair request carrying the pairs; a valid repair is written as one history entry', async () => {
   const h = await harness();
@@ -552,12 +555,13 @@ integrationTest('relevance repair: a parent-child violation sends ONE repair req
     if (prepared.step.id === 'relevance-grade') return dreamsAboveParent(request);
     seen.push(h.barText());
     const o = gradeAll(request);
-    o.items.find(i => request.nodes.find(n => n.id === i.id).title === 'Dreams').reason = 'Dreams, fixed.';
+    o.items.find(i => nodeOfLabel(request, i.id).title === 'Dreams').reason = 'Dreams, fixed.';
     return o;
   };
   await h.enter('Goal'); await h.settled();
   assert.deepEqual(h.control.calls.map(c => c.step), ['relevance-grade', 'relevance-grade-repair']);
-  const mind = h.view.map.nodes.find(n => n.id === h.ids.b).id, dreams = h.view.map.nodes.find(n => n.id === h.ids.d).id;
+  const mind = labelOf(h.control.calls[0].request, h.ids.b), dreams = labelOf(h.control.calls[0].request, h.ids.d);
+  assert.doesNotMatch(h.control.calls[1].prompt, new RegExp(h.ids.b), 'the repair prompt carries no real id');
   assert.ok(h.control.calls[1].prompt.includes(JSON.stringify([{ childId: dreams, childTier: 'core', parentId: mind, parentTier: 'support' }])), 'the pair is in the repair prompt');
   assert.equal(seen[2], 'Fixing parent-child order…', 'the bar shows the repair text while it runs');
   assert.equal(h.run().status, 'done'); assert.equal(h.barText(), 'Graded 4 topics, 4 changed (0 skipped)');
