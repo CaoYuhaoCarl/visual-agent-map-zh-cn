@@ -75,6 +75,7 @@ import {
   type RelevanceLevel
 } from "../../note-values";
 import { RELEVANCE_LABEL, renderRelevanceTag } from "./relevance-tag";
+import { relevanceDisplayNodes } from "./relevance-order";
 import { RelevanceSummaryModal } from "./relevance-summary-modal";
 import { PendingSuggestions } from "../../pending-suggestions";
 import { createAimMap } from "../aim/create-map";
@@ -222,6 +223,8 @@ let cardLabelSequence = 0;
 const cardLabels = new WeakMap<HTMLElement, HTMLElement>();
 /** Identifies one relevance grading run, so a late result can tell it is no longer the current one. */
 let relevanceRunToken = 0;
+/** Maps whose cards are displayed sorted by relevance. Memory only: never written to a note or Map.md. */
+const relevanceSortedMaps = new Set<string>();
 /** Path data for the curve from a parent card's right edge to a child card's left edge. */
 function edgePathData(x1: number, y1: number, x2: number, y2: number): string {
   const bend = Math.max(60, Math.abs(x2 - x1) / 2);
@@ -988,10 +991,34 @@ export class VisualAgentMapView extends ItemView {
   }
   /** The goal as a quiet button in the map toolbar; clicking it swaps in a text field in place. */
   private renderRelevanceGoalControl(parent: HTMLElement): void {
-    this.drawRelevanceChip(parent.createSpan("vam-relevance-goal-slot"), false);
+    const slot = parent.createSpan("vam-relevance-goal-slot");
+    this.drawRelevanceChip(slot, false);
+    this.drawRelevanceSortToggle(parent);
   }
   private relevanceLevelLabel(level: RelevanceLevel | undefined): string {
     return t(`ui.relevance_level_${level ?? "none"}`);
+  }
+  /** Display-only toggle: within each sibling group show core, support, side, then ungraded. */
+  private relevanceSortOn(): boolean {
+    return this.relevanceGradeable() && relevanceSortedMaps.has(this.path);
+  }
+  private drawRelevanceSortToggle(parent: HTMLElement): void {
+    const on = this.relevanceSortOn();
+    const toggle = parent.createEl("button", {
+      cls: `vam-relevance-sort${on ? " is-active" : ""}`,
+      text: t("ui.relevance_sort")
+    });
+    toggle.setAttr("aria-pressed", String(on));
+    toggle.setAttr("aria-description", t("ui.relevance_sort_hint"));
+    setTooltip(toggle, t("ui.relevance_sort_hint"));
+    toggle.setAttr("aria-label", t("ui.relevance_sort"));
+    toggle.addEventListener("click", event => {
+      event.stopPropagation();
+      if (on) relevanceSortedMaps.delete(this.path);
+      else relevanceSortedMaps.add(this.path);
+      this.renderPreservingFocus();
+      this.fit();
+    });
   }
   private drawRelevanceChip(slot: HTMLElement, focus: boolean): void {
     slot.empty();
@@ -4534,7 +4561,11 @@ export class VisualAgentMapView extends ItemView {
     if (!this.map) return [];
     const superseded = supersededAimNodeIds(this.map);
     const shown = visibleNodes(this.map.nodes);
-    return superseded.size ? shown.filter(node => !superseded.has(node.id)) : shown;
+    const nodes = superseded.size ? shown.filter(node => !superseded.has(node.id)) : shown;
+    // A view only: these copies carry display positions and must never be written back to the map.
+    return this.relevanceSortOn()
+      ? relevanceDisplayNodes(nodes, id => this.notes.get(id)?.relevance?.tier, superseded)
+      : nodes;
   }
   /** Arrow keys walk the tree: left to the parent, right to the first child, up/down among siblings. */
   private keyboardNeighbor(node: MapNode, key: string): MapNode | undefined {
@@ -7132,6 +7163,8 @@ export class VisualAgentMapView extends ItemView {
         edges.update(position.x, position.y);
       };
       const move = (e: PointerEvent): void => {
+        // While sorted the card sits at a display position; saving a drag would write that, so cards stay put.
+        if (this.relevanceSortOn()) return;
         moved ||= Math.hypot(e.clientX - start.x, e.clientY - start.y) > 3;
         if (!moved) return;
         position = {

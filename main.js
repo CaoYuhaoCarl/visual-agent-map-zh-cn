@@ -592,6 +592,8 @@ var english = {
   "ui.relevance_description_0_1": "{0}: {1}",
   "ui.relevance_goal_0": "Goal: {0}",
   "ui.relevance_goal_set": "Set goal",
+  "ui.relevance_sort": "Sort by relevance",
+  "ui.relevance_sort_hint": "Show core topics first, then supporting, then side topics, within each group. Display only: nothing is saved or moved in your files.",
   "ui.relevance_goal_set_hint": "Set a goal and grade the topics by it",
   "ui.relevance_goal_edit_hint": "Change the goal and grade again",
   "ui.relevance_goal_label": "Map goal",
@@ -2070,6 +2072,8 @@ var traditionalChinese = {
   "ui.relevance_description_0_1": "{0}\uFF1A{1}",
   "ui.relevance_goal_0": "\u76EE\u6A19\uFF1A{0}",
   "ui.relevance_goal_set": "\u8A2D\u5B9A\u76EE\u6A19",
+  "ui.relevance_sort": "\u4F9D\u91CD\u8981\u5EA6\u6392\u5E8F",
+  "ui.relevance_sort_hint": "\u6BCF\u4E00\u7D44\u5167\u4F9D\u6838\u5FC3\u3001\u652F\u63F4\u3001\u65C1\u652F\u7684\u9806\u5E8F\u986F\u793A\u3002\u53EA\u6539\u756B\u9762\uFF0C\u4E0D\u6703\u5132\u5B58\u6216\u66F4\u52D5\u4F60\u7684\u6A94\u6848\u3002",
   "ui.relevance_goal_set_hint": "\u8A2D\u5B9A\u76EE\u6A19\uFF0C\u4F9D\u76EE\u6A19\u66FF\u8B70\u984C\u5206\u7D1A",
   "ui.relevance_goal_edit_hint": "\u4FEE\u6539\u76EE\u6A19\u4E26\u91CD\u65B0\u5206\u7D1A",
   "ui.relevance_goal_label": "\u5FC3\u667A\u5716\u76EE\u6A19",
@@ -14364,6 +14368,33 @@ function renderRelevanceTag(parent, tier, label) {
   return tag;
 }
 
+// experiences/visual-map/relevance-order.ts
+var RANK = { core: 0, support: 1, side: 2 };
+var UNGRADED = 3;
+function orderSiblingsByRelevance(siblings, tierOf) {
+  const rank = (node) => {
+    const tier = tierOf(node.id);
+    return tier ? RANK[tier] : UNGRADED;
+  };
+  const current = siblings.map((node, index) => ({ node, index })).sort((a, b) => a.node.y - b.node.y || a.node.x - b.node.x || a.index - b.index);
+  return current.sort((a, b) => rank(a.node) - rank(b.node)).map((item) => item.node);
+}
+function relevanceDisplayNodes(nodes, tierOf, hidden) {
+  var _a, _b;
+  const groups = /* @__PURE__ */ new Map();
+  for (const node of nodes) {
+    const key2 = (_a = node.parentId) != null ? _a : null;
+    groups.set(key2, [...(_b = groups.get(key2)) != null ? _b : [], node]);
+  }
+  const slot = /* @__PURE__ */ new Map();
+  for (const group of groups.values())
+    orderSiblingsByRelevance(group, tierOf).forEach((node, index) => slot.set(node.id, index));
+  const sequenced = nodes.map((node, index) => ({ node, index })).sort((a, b) => slot.get(a.node.id) - slot.get(b.node.id) || a.index - b.index).map((item) => item.node);
+  const laidOut = arrangeMap(sequenced, hidden);
+  const placed = new Map(laidOut.map((node) => [node.id, node]));
+  return nodes.map((node) => ({ ...node, x: placed.get(node.id).x, y: placed.get(node.id).y }));
+}
+
 // experiences/visual-map/relevance-summary-modal.ts
 var import_obsidian11 = require("obsidian");
 var RelevanceSummaryModal = class extends import_obsidian11.Modal {
@@ -25268,6 +25299,7 @@ function aimQuestionStatus(map, questionNodeId, activeQuestionNodeId) {
 var cardLabelSequence = 0;
 var cardLabels = /* @__PURE__ */ new WeakMap();
 var relevanceRunToken = 0;
+var relevanceSortedMaps = /* @__PURE__ */ new Set();
 function edgePathData(x1, y1, x2, y2) {
   const bend = Math.max(60, Math.abs(x2 - x1) / 2);
   return `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`;
@@ -25953,10 +25985,34 @@ ${request.requirements}` : preset.text,
   }
   /** The goal as a quiet button in the map toolbar; clicking it swaps in a text field in place. */
   renderRelevanceGoalControl(parent) {
-    this.drawRelevanceChip(parent.createSpan("vam-relevance-goal-slot"), false);
+    const slot = parent.createSpan("vam-relevance-goal-slot");
+    this.drawRelevanceChip(slot, false);
+    this.drawRelevanceSortToggle(parent);
   }
   relevanceLevelLabel(level) {
     return t(`ui.relevance_level_${level != null ? level : "none"}`);
+  }
+  /** Display-only toggle: within each sibling group show core, support, side, then ungraded. */
+  relevanceSortOn() {
+    return this.relevanceGradeable() && relevanceSortedMaps.has(this.path);
+  }
+  drawRelevanceSortToggle(parent) {
+    const on = this.relevanceSortOn();
+    const toggle = parent.createEl("button", {
+      cls: `vam-relevance-sort${on ? " is-active" : ""}`,
+      text: t("ui.relevance_sort")
+    });
+    toggle.setAttr("aria-pressed", String(on));
+    toggle.setAttr("aria-description", t("ui.relevance_sort_hint"));
+    (0, import_obsidian24.setTooltip)(toggle, t("ui.relevance_sort_hint"));
+    toggle.setAttr("aria-label", t("ui.relevance_sort"));
+    toggle.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (on) relevanceSortedMaps.delete(this.path);
+      else relevanceSortedMaps.add(this.path);
+      this.renderPreservingFocus();
+      this.fit();
+    });
   }
   drawRelevanceChip(slot, focus) {
     var _a;
@@ -29270,7 +29326,11 @@ ${request.requirements}` : preset.text,
     if (!this.map) return [];
     const superseded = supersededAimNodeIds(this.map);
     const shown = visibleNodes(this.map.nodes);
-    return superseded.size ? shown.filter((node) => !superseded.has(node.id)) : shown;
+    const nodes = superseded.size ? shown.filter((node) => !superseded.has(node.id)) : shown;
+    return this.relevanceSortOn() ? relevanceDisplayNodes(nodes, (id) => {
+      var _a, _b;
+      return (_b = (_a = this.notes.get(id)) == null ? void 0 : _a.relevance) == null ? void 0 : _b.tier;
+    }, superseded) : nodes;
   }
   /** Arrow keys walk the tree: left to the parent, right to the first child, up/down among siblings. */
   keyboardNeighbor(node, key2) {
@@ -31684,6 +31744,7 @@ ${note.detail.trim()}` : "",
       };
       const move = (e) => {
         var _a2;
+        if (this.relevanceSortOn()) return;
         moved || (moved = Math.hypot(e.clientX - start.x, e.clientY - start.y) > 3);
         if (!moved) return;
         position = {

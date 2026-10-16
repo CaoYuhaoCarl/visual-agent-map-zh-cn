@@ -154,6 +154,10 @@
 .vam-map-tools .vam-relevance-goal { display: block; min-width: 0; max-width: 100%; height: auto; padding: 2px 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; color: var(--text-muted); font-size: var(--font-ui-smaller); }
 .vam-map-tools .vam-relevance-goal:not(:disabled):hover { color: var(--text-normal); }
 .vam-map-tools .vam-relevance-goal:disabled { cursor: default; }
+.vam-map-tools .vam-relevance-sort { flex: 0 0 auto; height: auto; padding: 2px 6px; color: var(--text-muted); font-size: var(--font-ui-smaller); background: transparent; box-shadow: none; }
+.vam-map-tools .vam-relevance-sort:hover, .vam-map-tools .vam-relevance-sort.is-active { color: var(--text-normal); }
+.vam-map-tools .vam-relevance-sort.is-active { background: var(--background-modifier-hover); }
+.vam-map-tools .vam-relevance-sort:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
 .vam-relevance-goal-input { flex: 1 1 auto; min-width: 0; box-sizing: border-box; font-size: var(--font-ui-small); }
 .vam-relevance-goal-input:focus-visible, .vam-relevance-context-input:focus-visible, .vam-relevance-level:focus-visible, .vam-relevance-grade-button:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
 /* The chip expands in place into goal, level, context and a quiet confirm button; it wraps to full width in a narrow pane. */
