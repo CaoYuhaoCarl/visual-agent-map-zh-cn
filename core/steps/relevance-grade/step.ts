@@ -7,6 +7,7 @@ import type { StructureNode } from "../structure-review/step";
 import languageEn from "./language.en.md";
 import languageZh from "./language.zh.md";
 import template from "./prompt.md";
+import repairTemplate from "./repair.md";
 
 export const RELEVANCE_TIERS: readonly RelevanceTier[] = ["core", "support", "side"];
 export const RELEVANCE_GRADE_TOKEN_BUDGET = 32_000;
@@ -35,10 +36,24 @@ export interface RelevanceGradeItem {
 export interface RelevanceGradeResult {
   items: RelevanceGradeItem[];
 }
+/** One card graded above its parent (core > support > side). */
+export interface RelevanceHierarchyViolation {
+  childId: string;
+  childTier: RelevanceTier;
+  parentId: string;
+  parentTier: RelevanceTier;
+}
+/** Set on an "invalid" error whose ONLY problem is parent-child violations; carries what a repair round needs. */
+export interface RelevanceHierarchyFailure {
+  violations: RelevanceHierarchyViolation[];
+  /** The reply as the parser read it (trimmed reasons), otherwise valid and complete. */
+  reply: RelevanceGradeResult;
+}
 export class RelevanceGradeError extends Error {
   constructor(
     readonly code: "empty" | "over_budget" | "stopped" | "invalid",
-    message: string
+    message: string,
+    readonly hierarchy?: RelevanceHierarchyFailure
   ) {
     super(message);
     this.name = "RelevanceGradeError";
@@ -122,46 +137,94 @@ export function parseRelevanceGrade(
   });
   const missing = [...gradable.keys()].filter(id => !seen.has(id));
   if (missing.length) throw invalid(locale, `missing ${missing.length}: ${missing.slice(0, 3).join(", ")}`);
-  const tierOf = new Map(items.map(item => [item.id, item.tier]));
-  for (const node of gradable.values()) {
-    const parentTier = node.parentId ? tierOf.get(node.parentId) : undefined;
-    const tier = tierOf.get(node.id);
-    if (parentTier && tier && TIER_RANK[tier] > TIER_RANK[parentTier])
-      throw invalid(locale, `hierarchy ${node.id}: ${tier} under ${parentTier} ${node.parentId}`);
+  const violations = relevanceHierarchyViolations(items, tree);
+  if (violations.length) {
+    const first = violations[0];
+    const more = violations.length > 1 ? ` (+${violations.length - 1} more)` : "";
+    throw new RelevanceGradeError(
+      "invalid",
+      translate(
+        locale,
+        "error.relevance_grade_invalid",
+        `hierarchy ${first.childId}: ${first.childTier} under ${first.parentTier} ${first.parentId}${more}`
+      ),
+      { violations, reply: { items } }
+    );
   }
   return { items };
 }
+
+/** Every graded card ranked above its graded parent, in map order. A top-level parent is context and is not compared. */
+export function relevanceHierarchyViolations(
+  items: ReadonlyArray<RelevanceGradeItem>,
+  tree: ReadonlyArray<StructureNode>
+): RelevanceHierarchyViolation[] {
+  const tierOf = new Map(items.map(item => [item.id, item.tier]));
+  const violations: RelevanceHierarchyViolation[] = [];
+  for (const node of gradableNodes(tree)) {
+    const parentTier = node.parentId ? tierOf.get(node.parentId) : undefined;
+    const tier = tierOf.get(node.id);
+    if (node.parentId && parentTier && tier && TIER_RANK[tier] > TIER_RANK[parentTier])
+      violations.push({ childId: node.id, childTier: tier, parentId: node.parentId, parentTier });
+  }
+  return violations;
+}
+
+const languageLine = (request: RelevanceGradeRequest): string =>
+  renderTemplate((request.contentLanguage ?? request.language) === "zh-TW" ? languageZh : languageEn, {});
+
+const gradePrompt = (request: RelevanceGradeRequest): string =>
+  renderTemplate(template, {
+    languageInstruction: languageLine(request),
+    goal: JSON.stringify(request.goal),
+    level: JSON.stringify(request.level ?? null),
+    context: JSON.stringify(request.context ?? null),
+    nodes: JSON.stringify(
+      request.nodes.map(node => ({
+        id: node.id,
+        title: node.title,
+        summary: node.summary,
+        parentId: node.parentId,
+        depth: node.depth
+      }))
+    )
+  });
+
+const refuseIfTooBig = (prompt: string, request: RelevanceGradeRequest): void => {
+  const locale = uiLocale(request.language);
+  if (!gradableNodes(request.nodes).length)
+    throw new RelevanceGradeError("empty", translate(locale, "error.relevance_grade_empty"));
+  if (estimateTokens(prompt + JSON.stringify(RELEVANCE_GRADE_SCHEMA)) > RELEVANCE_GRADE_TOKEN_BUDGET)
+    throw new RelevanceGradeError("over_budget", translate(locale, "error.relevance_grade_over_budget"));
+};
 
 /** Grade every card of a map against the learner's goal. Input is titles, summaries and structure; the reply is strict JSON. */
 export const relevanceGradeStep: StepDefinition<RelevanceGradeRequest, RelevanceGradeResult> = {
   id: "relevance-grade",
   version: 2,
+  render: gradePrompt,
+  schema: RELEVANCE_GRADE_SCHEMA,
+  policy: refuseIfTooBig,
+  parse: (raw, request) => parseRelevanceGrade(raw, request.nodes, request.language)
+};
+
+/** The one repair round: the first reply was complete and valid except for the listed parent-child violations. */
+export interface RelevanceRepairRequest extends RelevanceGradeRequest {
+  previousReply: RelevanceGradeResult;
+  violations: RelevanceHierarchyViolation[];
+}
+export const relevanceGradeRepairStep: StepDefinition<RelevanceRepairRequest, RelevanceGradeResult> = {
+  id: "relevance-grade-repair",
+  version: 1,
   render: request =>
-    renderTemplate(template, {
-      languageInstruction: renderTemplate(
-        (request.contentLanguage ?? request.language) === "zh-TW" ? languageZh : languageEn,
-        {}
-      ),
-      goal: JSON.stringify(request.goal),
-      level: JSON.stringify(request.level ?? null),
-      context: JSON.stringify(request.context ?? null),
-      nodes: JSON.stringify(
-        request.nodes.map(node => ({
-          id: node.id,
-          title: node.title,
-          summary: node.summary,
-          parentId: node.parentId,
-          depth: node.depth
-        }))
-      )
+    renderTemplate(repairTemplate, {
+      originalPrompt: gradePrompt(request),
+      previousReply: JSON.stringify({ items: request.previousReply.items }),
+      violations: JSON.stringify(request.violations),
+      languageInstruction: languageLine(request)
     }),
   schema: RELEVANCE_GRADE_SCHEMA,
-  policy: (prompt, request) => {
-    const locale = uiLocale(request.language);
-    if (!gradableNodes(request.nodes).length)
-      throw new RelevanceGradeError("empty", translate(locale, "error.relevance_grade_empty"));
-    if (estimateTokens(prompt + JSON.stringify(RELEVANCE_GRADE_SCHEMA)) > RELEVANCE_GRADE_TOKEN_BUDGET)
-      throw new RelevanceGradeError("over_budget", translate(locale, "error.relevance_grade_over_budget"));
-  },
+  policy: refuseIfTooBig,
+  // The same strict parser; a repair that still violates (or breaks anything else) fails the grade.
   parse: (raw, request) => parseRelevanceGrade(raw, request.nodes, request.language)
 };

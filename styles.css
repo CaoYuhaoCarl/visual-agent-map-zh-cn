@@ -148,7 +148,9 @@
 .vam-node[data-relevance="side"] { opacity: .5; transition: border-color 160ms ease-out, box-shadow 160ms ease-out, opacity 160ms ease-out; }
 .vam-node[data-relevance="side"]:hover, .vam-node[data-relevance="side"]:focus-within, .vam-node[data-relevance="side"].is-selected { opacity: 1; }
 .vam-edge.vam-edge-side { opacity: .2; }
-.vam-map-tools > .vam-relevance-goal-slot { display: flex; flex: 1 0 100%; max-width: 360px; box-sizing: border-box; }
+/* The slot is always its own full-width row (a max-width here would let it share a row with the buttons); the 360px cap sits on what is inside. */
+.vam-map-tools > .vam-relevance-goal-slot { display: flex; flex: 1 0 100%; min-width: 0; max-width: 100%; box-sizing: border-box; overflow: hidden; }
+.vam-relevance-goal-slot > .vam-relevance-goal, .vam-relevance-goal-slot > .vam-relevance-setup { flex: 0 1 360px; min-width: 0; max-width: 100%; box-sizing: border-box; }
 .vam-map-tools .vam-relevance-goal { display: block; min-width: 0; max-width: 100%; height: auto; padding: 2px 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; color: var(--text-muted); font-size: var(--font-ui-smaller); }
 .vam-map-tools .vam-relevance-goal:not(:disabled):hover { color: var(--text-normal); }
 .vam-map-tools .vam-relevance-goal:disabled { cursor: default; }

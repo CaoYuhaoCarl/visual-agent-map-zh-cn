@@ -691,6 +691,16 @@
       "language": "zh-TW",
       "schema": false
     },
+    "relevance-grade-repair.en": {
+      "builder": "core/relevance-grade-service.ts relevanceGradeRepairStep.render (one hierarchy violation)",
+      "language": "en",
+      "schema": true
+    },
+    "relevance-grade-repair.zh": {
+      "builder": "core/relevance-grade-service.ts relevanceGradeRepairStep.render (one hierarchy violation)",
+      "language": "zh-TW",
+      "schema": true
+    },
     "relevance-grade.en": {
       "builder": "core/relevance-grade-service.ts buildRelevanceGradePrompt",
       "language": "en",

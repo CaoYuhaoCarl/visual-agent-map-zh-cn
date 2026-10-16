@@ -39,10 +39,11 @@ async function harness({ language = 'en', mapTitle = 'Sleep map' } = {}) {
     confirmAiUsage: async (_model, run) => { control.usageAsks++; if (control.decline) return false; await run(); return true; }
   });
   const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Modal, Notice: class { constructor(m) { notices.push(m); } }, setTooltip() {} } });
-  const { RelevanceGradeService } = load('core/relevance-grade-service.ts');
-  plugin.relevanceGrade = new RelevanceGradeService(async (request, signal) => {
-    control.calls.push({ request, signal });
-    const out = await control.reply(request, signal);
+  const gradeModule = load('core/relevance-grade-service.ts');
+  const { RelevanceGradeService } = gradeModule;
+  plugin.relevanceGrade = new RelevanceGradeService(async (request, signal, prepared) => {
+    control.calls.push({ request, signal, step: prepared.step.id, prompt: prepared.prompt });
+    const out = await control.reply(request, signal, prepared);
     return typeof out === 'string' ? out : JSON.stringify(out);
   });
   const view = new VisualAgentMapView({ app }, plugin);
@@ -59,7 +60,7 @@ async function harness({ language = 'en', mapTitle = 'Sleep map' } = {}) {
   const cards = new Map(view.map.nodes.map(n => [n.id, element('div', 'vam-node')]));
   for (const [id, card] of cards) view.cardEls.set(id, card);
   const h = {
-    repo, app, contents, view, plugin, ids, control, notices, opened, cards, rootEl,
+    repo, app, contents, view, plugin, ids, gradeModule, control, notices, opened, cards, rootEl,
     renders: () => renders,
     chip: () => find(rootEl, i => hasCls(i, 'vam-relevance-goal')),
     input: () => find(rootEl, i => hasCls(i, 'vam-relevance-goal-input')),
@@ -538,4 +539,72 @@ integrationTest('relevance: the level and context keys survive map saves, read b
   assert.deepEqual({ ...(await h.repo.readRelevanceSetup(MAP)), context: '' }, { goal: 'Goal', level: 'intermediate', context: '' });
   h.contents.set(MAP, h.contents.get(MAP).replace('relevance-level: "intermediate"', 'relevance-level: "expert"'));
   assert.equal((await h.repo.readRelevanceSetup(MAP)).level, undefined, 'an unrecognised level reads as not set');
+});
+
+// ---- Repair round (v2.1) -----------------------------------------------------------------------------------------
+const dreamsAboveParent = request => { const o = gradeAll(request); o.items.find(i => request.nodes.find(n => n.id === i.id).title === 'Dreams').tier = 'core'; return o; };
+
+integrationTest('relevance repair: a parent-child violation sends ONE repair request carrying the pairs; a valid repair is written as one history entry', async () => {
+  const h = await harness();
+  const seen = [];
+  h.control.reply = async (request, _signal, prepared) => {
+    seen.push(prepared.step.id);
+    if (prepared.step.id === 'relevance-grade') return dreamsAboveParent(request);
+    seen.push(h.barText());
+    const o = gradeAll(request);
+    o.items.find(i => request.nodes.find(n => n.id === i.id).title === 'Dreams').reason = 'Dreams, fixed.';
+    return o;
+  };
+  await h.enter('Goal'); await h.settled();
+  assert.deepEqual(h.control.calls.map(c => c.step), ['relevance-grade', 'relevance-grade-repair']);
+  const mind = h.view.map.nodes.find(n => n.id === h.ids.b).id, dreams = h.view.map.nodes.find(n => n.id === h.ids.d).id;
+  assert.ok(h.control.calls[1].prompt.includes(JSON.stringify([{ childId: dreams, childTier: 'core', parentId: mind, parentTier: 'support' }])), 'the pair is in the repair prompt');
+  assert.equal(seen[2], 'Fixing parent-child order…', 'the bar shows the repair text while it runs');
+  assert.equal(h.run().status, 'done'); assert.equal(h.barText(), 'Graded 4 topics, 4 changed (0 skipped)');
+  assert.deepEqual(await h.relevanceOf('d'), ['support', 'Dreams, fixed.']);
+  assert.equal(h.view.history.past.length, 2, 'goal step plus ONE grading step');
+  assert.equal(h.control.usageAsks, 1, 'one usage notice for both requests');
+});
+
+integrationTest('relevance repair: a repair that still violates writes nothing, sends no third request and shows the error bar', async () => {
+  const h = await harness();
+  h.control.reply = async request => dreamsAboveParent(request);
+  await h.enter('Goal'); await h.settled();
+  assert.equal(h.control.calls.length, 2, 'exactly one repair, never a third request');
+  assert.equal(h.run().status, 'failed'); assert.match(h.barText(), /^Grading failed\. No topic was changed\..*hierarchy/);
+  assert.deepEqual(await graded(h), [], 'nothing written'); assert.equal(h.view.history.past.length, 1, 'only the goal step');
+});
+
+integrationTest('relevance repair: a failure that is not only about hierarchy sends no repair request', async () => {
+  const h = await harness();
+  h.control.reply = async request => { const o = dreamsAboveParent(request); o.items.pop(); return o; };
+  await h.enter('Goal'); await h.settled();
+  assert.equal(h.control.calls.length, 1); assert.equal(h.run().status, 'failed'); assert.deepEqual(await graded(h), []);
+});
+
+integrationTest('relevance repair: Stop during the repair aborts it, writes nothing and a late repair reply is dropped', async () => {
+  const h = await harness();
+  const gate = deferred();
+  h.control.reply = async (request, _s, prepared) => prepared.step.id === 'relevance-grade' ? dreamsAboveParent(request) : gate.promise.then(() => gradeAll(request));
+  await h.enter('Goal'); await until(() => h.control.calls.length === 2);
+  assert.equal(h.barText(), 'Fixing parent-child order…'); assert.deepEqual(h.barButtons(), ['Stop']);
+  button(h.bar(), 'Stop').click();
+  assert.equal(h.control.calls[1].signal.aborted, true); assert.equal(h.run().status, 'stopped');
+  gate.resolve(); await tick(); await tick(); await tick();
+  assert.deepEqual(await graded(h), []); assert.equal(h.run().status, 'stopped'); assert.equal(h.view.history.past.length, 1);
+});
+
+integrationTest('relevance repair: an over-budget repair is refused with the over-budget message and nothing is sent or written', async () => {
+  const h = await harness();
+  // The grade request fits; the repair request (original prompt + first reply + pairs) is judged against the same budget.
+  const { relevanceGradeRepairStep, RelevanceGradeError } = h.gradeModule;
+  const original = relevanceGradeRepairStep.policy;
+  relevanceGradeRepairStep.policy = () => { throw new RelevanceGradeError('over_budget', 'The map is too large to grade at once. Nothing was changed.'); };
+  try {
+    h.control.reply = async request => dreamsAboveParent(request);
+    await h.enter('Goal'); await h.settled();
+  } finally { relevanceGradeRepairStep.policy = original; }
+  assert.equal(h.control.calls.length, 1, 'the repair request is never sent');
+  assert.equal(h.barText(), 'Grading failed. No topic was changed. The map is too large to grade at once. Nothing was changed.');
+  assert.deepEqual(await graded(h), []);
 });

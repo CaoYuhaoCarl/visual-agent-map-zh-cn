@@ -9,10 +9,13 @@ import {
   RELEVANCE_GRADE_SCHEMA,
   RELEVANCE_GRADE_TOKEN_BUDGET,
   RelevanceGradeError,
+  relevanceGradeRepairStep,
   relevanceGradeStep,
+  relevanceHierarchyViolations,
   type RelevanceGradeItem,
   type RelevanceGradeRequest,
-  type RelevanceGradeResult
+  type RelevanceGradeResult,
+  type RelevanceHierarchyFailure
 } from "./steps/relevance-grade/step";
 
 export {
@@ -21,7 +24,9 @@ export {
   RELEVANCE_GOAL_MAX_LENGTH,
   RELEVANCE_GRADE_SCHEMA,
   RELEVANCE_GRADE_TOKEN_BUDGET,
-  RelevanceGradeError
+  RelevanceGradeError,
+  relevanceGradeRepairStep,
+  relevanceHierarchyViolations
 };
 export type { RelevanceGradeItem, RelevanceGradeRequest, RelevanceGradeResult };
 /** A card whose grade a run changed (or set for the first time), with the values needed to undo or redo it. */
@@ -56,10 +61,17 @@ export interface RelevanceGradeRun {
   outcome?: RelevanceGradeOutcome;
   /** True once the notes are being written; Stop no longer applies because nothing can be half-applied. */
   writing?: boolean;
+  /** True while the one repair request (parent-child order) is in flight. */
+  repairing?: boolean;
   /** The history entry that undoes this run, so the status bar only offers Undo while it is still the latest. */
   historyEntry?: object;
 }
+/** Runs the grade step, and once more the repair step (whose request extends the grade request). */
 export type RelevanceGradeRunner = ProviderStepRunner<RelevanceGradeRequest, RelevanceGradeResult>;
+export interface RelevanceGradeHooks {
+  /** Called once, just before the single repair request is sent. */
+  onRepair?: () => void;
+}
 
 export function buildRelevanceGradePrompt(request: RelevanceGradeRequest): string {
   return relevanceGradeStep.render(request);
@@ -79,8 +91,14 @@ export class RelevanceGradeService {
   /**
    * Grade a map against a goal. Throws {@link RelevanceGradeError} (localized message, `code` for the reason) for a map
    * with nothing to grade, an over-budget map, a stop, or any reply that is not exactly one valid grade per card.
+   * When the first reply fails ONLY because cards rank above their parent, ONE repair request lists those pairs and
+   * asks for a complete corrected reply; the repair goes through the same strict parser, and if it fails the grade fails.
    */
-  async grade(request: RelevanceGradeRequest, signal: AbortSignal): Promise<RelevanceGradeResult> {
+  async grade(
+    request: RelevanceGradeRequest,
+    signal: AbortSignal,
+    hooks: RelevanceGradeHooks = {}
+  ): Promise<RelevanceGradeResult> {
     const stopped = (): RelevanceGradeError =>
       new RelevanceGradeError("stopped", translate(uiLocale(request.language), "error.relevance_grade_stopped"));
     if (signal.aborted) throw stopped();
@@ -90,6 +108,40 @@ export class RelevanceGradeService {
       raw = await this.run(request, signal, prepared);
     } catch (error) {
       if (signal.aborted && !(error instanceof RelevanceGradeError)) throw stopped();
+      if (error instanceof RelevanceGradeError && error.code === "stopped") throw stopped();
+      if (error instanceof RelevanceGradeError && error.hierarchy && !signal.aborted)
+        return this.repair(request, signal, hooks, error.hierarchy, stopped);
+      throw error;
+    }
+    if (signal.aborted) throw stopped();
+    try {
+      return prepared.parse(raw);
+    } catch (error) {
+      if (error instanceof RelevanceGradeError && error.hierarchy)
+        return this.repair(request, signal, hooks, error.hierarchy, stopped);
+      throw error;
+    }
+  }
+  private async repair(
+    request: RelevanceGradeRequest,
+    signal: AbortSignal,
+    hooks: RelevanceGradeHooks,
+    failure: RelevanceHierarchyFailure,
+    stopped: () => RelevanceGradeError
+  ): Promise<RelevanceGradeResult> {
+    // Rendered and budget-checked before anything is shown or sent: an over-budget repair is refused.
+    const prepared = prepareStep(relevanceGradeRepairStep, {
+      ...request,
+      previousReply: failure.reply,
+      violations: failure.violations
+    });
+    if (signal.aborted) throw stopped();
+    hooks.onRepair?.();
+    let raw: string;
+    try {
+      raw = await this.run(request, signal, prepared);
+    } catch (error) {
+      if (signal.aborted) throw stopped();
       if (error instanceof RelevanceGradeError && error.code === "stopped") throw stopped();
       throw error;
     }

@@ -1206,7 +1206,14 @@ export class VisualAgentMapView extends ItemView {
             model,
             reasoning: normalizeReasoningLevel(settings.cliReasoning)
           },
-          run.controller.signal
+          run.controller.signal,
+          {
+            onRepair: () => {
+              if (!this.relevanceRunIsCurrent(run, mapPath)) return;
+              run.repairing = true;
+              this.refreshRelevance();
+            }
+          }
         );
       });
       if (!this.relevanceRunIsCurrent(run, mapPath)) return;
@@ -1334,7 +1341,7 @@ export class VisualAgentMapView extends ItemView {
     bar.createSpan({ cls: "vam-aim-status-title", text: t("ui.relevance_history_label") });
     const outcome = run.outcome;
     const text = running
-      ? t("ui.relevance_running")
+      ? t(run.repairing ? "ui.relevance_repairing" : "ui.relevance_running")
       : run.status === "done" && outcome
         ? [
             t("ui.relevance_done_0_1_2", outcome.graded, outcome.changes.length, outcome.skipped),

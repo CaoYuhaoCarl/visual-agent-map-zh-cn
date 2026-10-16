@@ -452,3 +452,47 @@ test('applyRun writes level and context to Map.md when the run has them, and not
   const plain = fs.readFileSync(path.join(second.mapDir, 'Map.md'), 'utf8');
   assert.doesNotMatch(plain, /relevance-level|relevance-context/);
 });
+
+// ---- one repair round under --hierarchy=reject (mirrors the plugin) ------------------------------------------------
+function replyOf(tiers) {
+  const items = Object.entries(tiers).map(([id, tier]) => it2(id, tier));
+  return { text: JSON.stringify({ goal: 'g', items }), usage: { out: 1 }, cost: 0.5 };
+}
+const BAD = { a: 'side', a1: 'core', a2: 'side', a3: 'side', b: 'core' };
+const FIXED = { a: 'core', a1: 'core', a2: 'side', a3: 'side', b: 'core' };
+const classifyWith = (replies, hierarchy = 'reject') => {
+  const prompts = [];
+  const call = prompt => { prompts.push(prompt); const next = replies[prompts.length - 1]; if (next instanceof Error) throw next; return next; };
+  const args = { version: 'v2', goal: 'g', level: null, context: null, tree: TREE2, model: 'm', hierarchy, call };
+  return { prompts, run: () => tool.classify(args) };
+};
+
+test('repair: a violation-only first reply gets one repair prompt with every pair; a valid repair is accepted and recorded', () => {
+  const fx = classifyWith([replyOf(BAD), replyOf(FIXED)]);
+  const out = fx.run();
+  assert.equal(fx.prompts.length, 2);
+  assert.ok(fx.prompts[1].includes(tool.buildPrompt({ version: 'v2', goal: 'g', level: null, context: null, tree: TREE2 })), 'original prompt included');
+  assert.ok(fx.prompts[1].includes(JSON.stringify([{ childId: 'a1', childTier: 'core', parentId: 'a', parentTier: 'side' }])));
+  assert.deepEqual(out.value.items.map(i => i.tier), ['core', 'core', 'side', 'side', 'core']);
+  assert.equal(out.repair.attempted, true); assert.equal(out.repair.ok, true); assert.equal(out.repair.firstViolations, 1);
+  assert.equal(out.violations.length, 0); assert.equal(out.firstViolationList.length, 1); assert.equal(out.cost, 1);
+  assert.doesNotMatch(fx.prompts[1], /\{\{[A-Z_]+\}\}/);
+});
+
+test('repair: a repair that still violates or is malformed fails the attempt as hierarchy; there is no second round', () => {
+  for (const second of [replyOf(BAD), { text: 'nope' }, replyOf({ a: 'core', a1: 'core' })]) {
+    const fx = classifyWith([replyOf(BAD), second]);
+    assert.throws(() => fx.run(), error => error.failureClass === 'hierarchy' && error.repair.attempted === true && error.repair.ok === false && error.violations.length === 1);
+    assert.equal(fx.prompts.length, 2);
+  }
+});
+
+test('repair: a non-hierarchy failure of the first reply, a clean reply, and --hierarchy=count make no repair call', () => {
+  const missing = classifyWith([{ text: JSON.stringify({ goal: 'g', items: [it2('a', 'core')] }) }, replyOf(FIXED)]);
+  assert.throws(() => missing.run(), error => error.failureClass === 'id-mismatch');
+  assert.equal(missing.prompts.length, 1);
+  const clean = classifyWith([replyOf(FIXED)]);
+  assert.equal(clean.run().repair, null); assert.equal(clean.prompts.length, 1);
+  const count = classifyWith([replyOf(BAD)], 'count');
+  assert.equal(count.run().violations.length, 1); assert.equal(count.prompts.length, 1);
+});

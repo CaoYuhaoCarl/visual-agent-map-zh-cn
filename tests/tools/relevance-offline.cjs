@@ -473,25 +473,66 @@ function classifyFailure(error) {
   return error.failureClass || (error instanceof SyntaxError ? 'json' : 'call');
 }
 
-// One attempt. Throws an error carrying failureClass (and violations for a hierarchy rejection). `firstAttempt`
-// data is returned/attached so the caller can record violations even when the reply is rejected.
-function classify({ version, goal, level, context, tree, model, hierarchy }) {
-  const prompt = buildPrompt({ version, goal, level, context, tree });
-  const reply = callClaude(prompt, model);
-  let value;
+// Builds the one repair prompt: the original prompt, the first reply and every violating pair.
+function buildRepairPrompt({ prompt, value, violations }) {
+  const template = fs.readFileSync(path.join(TOOL_DIR, 'repair.md'), 'utf8');
+  const pairs = violations.map(v => ({ childId: v.child, childTier: v.childTier, parentId: v.parent, parentTier: v.parentTier }));
+  return fill(template, { PROMPT: prompt, PREVIOUS: JSON.stringify(value), VIOLATIONS: JSON.stringify(pairs) });
+}
+
+function parseReply(text, tree) {
   try {
-    value = validateReply(extractJson(reply.text), tree);
+    return validateReply(extractJson(text), tree);
   } catch (error) {
     error.failureClass = classifyFailure(error);
     throw error;
   }
+}
+
+const sumOrNull = (a, b) => (typeof a === 'number' && typeof b === 'number' ? a + b : (a ?? b ?? null));
+
+// One attempt. Throws an error carrying failureClass (and violations for a hierarchy rejection). Under
+// --hierarchy=reject a reply that is complete and valid except for parent-child violations gets ONE repair round
+// (as in the plugin): the repair reply goes through the same strict checks, and if it still violates, or breaks
+// anything else, the attempt fails. Any other failure of the first reply fails at once. `repair` records it.
+// `call` is injectable for tests.
+function classify({ version, goal, level, context, tree, model, hierarchy, call = callClaude }) {
+  const prompt = buildPrompt({ version, goal, level, context, tree });
+  const reply = call(prompt, model);
+  const value = parseReply(reply.text, tree);
   const violations = hierarchyViolations(value.items, tree);
-  if (hierarchy === 'reject' && violations.length) {
-    const error = fail('hierarchy', `${violations.length} cards rank above their parent (first: ${violations[0].child})`);
+  if (hierarchy !== 'reject' || !violations.length) return { value, usage: reply.usage, cost: reply.cost, violations, repair: null };
+  const repair = { attempted: true, firstViolations: violations.length, ok: false, failureClass: null, violations: null };
+  let repaired;
+  let second;
+  try {
+    second = call(buildRepairPrompt({ prompt, value, violations }), model);
+    repaired = parseReply(second.text, tree);
+  } catch (error) {
+    repair.failureClass = classifyFailure(error);
+    error.repair = repair;
+    error.failureClass = 'hierarchy';
     error.violations = violations;
     throw error;
   }
-  return { value, usage: reply.usage, cost: reply.cost, violations };
+  const after = hierarchyViolations(repaired.items, tree);
+  if (after.length) {
+    repair.failureClass = 'hierarchy';
+    repair.violations = after.length;
+    const error = fail('hierarchy', `${after.length} cards still rank above their parent after repair (first: ${after[0].child})`);
+    error.violations = violations;
+    error.repair = repair;
+    throw error;
+  }
+  repair.ok = true;
+  return {
+    value: repaired,
+    usage: reply.usage && second.usage ? { first: reply.usage, repair: second.usage } : (reply.usage ?? second.usage),
+    cost: sumOrNull(reply.cost, second.cost),
+    violations: after,
+    repair,
+    firstViolationList: violations
+  };
 }
 
 // ---- commands ------------------------------------------------------------------------------------------------
@@ -538,19 +579,24 @@ function runCommand(options) {
   const results = [];
   const failures = [];
   const failedRuns = [];
+  const allAttempts = [];
   for (let i = 1; i <= runs; i += 1) {
     let outcome = null;
     const attempts = [];
     for (let attempt = 1; attempt <= 2 && !outcome; attempt += 1) {
       try {
         outcome = classify({ version, goal, level, context, tree, model, hierarchy });
-        attempts.push({ attempt, ok: true, failureClass: null, violations: outcome.violations });
+        attempts.push({
+          attempt, ok: true, failureClass: null,
+          violations: outcome.firstViolationList ?? outcome.violations, repair: outcome.repair
+        });
       } catch (error) {
         const failureClass = classifyFailure(error);
-        attempts.push({ attempt, ok: false, failureClass, violations: error.violations ?? null, error: error.message });
+        attempts.push({ attempt, ok: false, failureClass, violations: error.violations ?? null, repair: error.repair ?? null, error: error.message });
         failures.push({ run: i, attempt, failureClass, error: error.message });
       }
     }
+    allAttempts.push(...attempts);
     const firstAttempt = attempts[0];
     if (!outcome) {
       failedRuns.push(i);
@@ -572,6 +618,14 @@ function runCommand(options) {
     map: title, slug, goal, level, context, promptVersion, hierarchy, inputHash, nodes: tree.length,
     graded: gradedNodes(tree).length, promptTokensEstimate: promptTokens, runsRequested: runs, runsAccepted: results.length,
     failedRuns, failures
+  };
+  // Repair rounds (one per attempt at most, only under --hierarchy=reject), counted over every attempt of every run.
+  const repairs = allAttempts.map(a => a.repair).filter(Boolean);
+  summary.repairs = {
+    attempted: repairs.length,
+    succeeded: repairs.filter(r => r.ok).length,
+    failed: repairs.filter(r => !r.ok).length,
+    firstViolations: repairs.map(r => r.firstViolations)
   };
   if (results.length) {
     summary.distribution = results.map(r => tierDistribution(r.items.map(i => i.tier)));
@@ -1015,7 +1069,7 @@ module.exports = {
   cohenKappa, stability, tierDistribution, parseTier, renderLabels, parseLabels, compareLabels, renderCompare,
   setFrontmatterKeys, applyRun, assertWritable, hierarchyViolations, siblingGroups, siblingMetrics, estimateTokens,
   buildPrompt, normalizeLevel, normalizeContext, armOf, armStats, evaluateGates, renderAb, pickReviewCards, mulberry32,
-  compareReview, writeOwnerReview, loadArm, sha256, classifyFailure, fill
+  compareReview, writeOwnerReview, loadArm, sha256, classifyFailure, fill, classify, buildRepairPrompt
 };
 
 if (require.main === module) {
