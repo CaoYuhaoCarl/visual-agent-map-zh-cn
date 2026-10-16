@@ -254,14 +254,13 @@ test('normalizeLevel and normalizeContext', () => {
   assert.equal([...tool.normalizeContext('x'.repeat(300))].length, 200);
 });
 
-test('buildPrompt v1 has no level or context; v2 carries goal and context as JSON and null when absent; the level is never sent', () => {
+test('buildPrompt v1 has no level or context; v2 carries goal, level and context as JSON and null when absent', () => {
   const v1 = tool.buildPrompt({ version: 'v1', goal: 'learn {{NODES}}', level: 'beginner', context: 'c', tree: TREE2 });
   assert.match(v1, /Learner goal: learn \{\{NODES\}\}/, 'a goal that looks like a placeholder is not re-expanded');
   assert.doesNotMatch(v1, /Learner level/);
   const v2 = tool.buildPrompt({ version: 'v2', goal: 'say "hi"', level: 'beginner', context: '半天日照', tree: TREE2 });
   assert.match(v2, /Learner goal \(JSON string\): "say \\"hi\\""/);
-  assert.match(v2, /Learner level .*: null\n/, 'the level is recorded but never sent to the AI');
-  assert.doesNotMatch(v2, /: "beginner"/);
+  assert.match(v2, /Learner level .*: "beginner"/);
   assert.match(v2, /Learner context \(JSON string, or null\): "半天日照"/);
   assert.match(v2, /"id":"c3"/, 'v2 speaks position ids');
   assert.doesNotMatch(v2, /"id":"a1"/);

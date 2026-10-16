@@ -35014,13 +35014,12 @@ var promptCards = (nodes) => {
   }));
 };
 var gradePrompt = (request) => {
-  var _a;
+  var _a, _b;
   return renderTemplate(prompt_default4, {
     languageInstruction: languageLine(request),
     goal: JSON.stringify(request.goal),
-    // The level is stored and shown but never sent to the AI: an undefined "intermediate" made grades unstable (grammar 78% vs 94% agreement without it).
-    level: "null",
-    context: JSON.stringify((_a = request.context) != null ? _a : null),
+    level: JSON.stringify((_a = request.level) != null ? _a : null),
+    context: JSON.stringify((_b = request.context) != null ? _b : null),
     nodes: JSON.stringify(promptCards(request.nodes))
   });
 };
@@ -35033,7 +35032,7 @@ var refuseIfTooBig = (prompt, request) => {
 };
 var relevanceGradeStep = {
   id: "relevance-grade",
-  version: 6,
+  version: 7,
   render: gradePrompt,
   schema: RELEVANCE_GRADE_SCHEMA,
   policy: refuseIfTooBig,

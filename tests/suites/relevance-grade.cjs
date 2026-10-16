@@ -480,7 +480,7 @@ integrationTest('relevance: goal, level and context are saved in one write, sent
   assert.match(frontmatterOf(h), /relevance-goal: "Grow herbs"\nrelevance-level: "beginner"\nrelevance-context: "Half a day of sun"/);
   const request = h.control.calls[0].request;
   assert.equal(request.goal, 'Grow herbs'); assert.equal(request.level, 'beginner'); assert.equal(request.context, 'Half a day of sun');
-  assert.match(load('core/relevance-grade-service.ts').buildRelevanceGradePrompt(request), /Learner level \(JSON string[^\n]*: null\nLearner context \(JSON string, or null\): "Half a day of sun"\n/);
+  assert.match(load('core/relevance-grade-service.ts').buildRelevanceGradePrompt(request), /Learner level \(JSON string[^\n]*: "beginner"\nLearner context \(JSON string, or null\): "Half a day of sun"\n/);
   assert.equal(h.view.history.past.length, 2, 'one setup step plus one grading step');
   assert.equal(h.chip().text, 'Goal: Grow herbs · Beginner'); assert.equal(h.chip().attrs['aria-label'], 'Goal: Grow herbs · Beginner');
   const history = h.contents.get(MAP).match(/^  - "/gm); assert.equal(history.length, 1, 'the history records the goal only');
