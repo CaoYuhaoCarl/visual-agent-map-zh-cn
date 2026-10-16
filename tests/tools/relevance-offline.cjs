@@ -589,6 +589,25 @@ function classify({ version, goal, level, context, tree, model, hierarchy, call 
   throw new Error('unreachable');
 }
 
+// ---- commands ------------------------------------------------------------------------------------------------
+
+function parseArgs(argv) {
+  const options = {};
+  for (const arg of argv) {
+    if (!arg.startsWith('--')) continue;
+    const [key, ...rest] = arg.slice(2).split('=');
+    options[key] = rest.length ? rest.join('=') : true;
+  }
+  return options;
+}
+
+function assertOutsideRepo(out) {
+  const repo = path.resolve(__dirname, '..', '..');
+  const resolved = path.resolve(out);
+  if (resolved === repo || resolved.startsWith(repo + path.sep))
+    throw new Error('--out must not be inside the product repository (outputs contain private note text)');
+}
+
 function runCommand(options) {
   const { map, vault, out, slug } = options;
   if (!map || !vault || !out || !slug) throw new Error('run needs --map --vault --out --slug');
@@ -1104,7 +1123,7 @@ module.exports = {
   cohenKappa, stability, tierDistribution, parseTier, renderLabels, parseLabels, compareLabels, renderCompare,
   setFrontmatterKeys, applyRun, assertWritable, hierarchyViolations, siblingGroups, siblingMetrics, estimateTokens,
   buildPrompt, buildRepairPrompt, parseReply, positionLabels, normalizeLevel, normalizeContext, armOf, armStats, evaluateGates, renderAb, pickReviewCards, mulberry32,
-  compareReview, writeOwnerReview, loadArm, sha256, classifyFailure, fill, classify, buildRepairPrompt
+  compareReview, writeOwnerReview, loadArm, sha256, classifyFailure, fill, classify, buildRepairPrompt, parseArgs, assertOutsideRepo
 };
 
 if (require.main === module) {

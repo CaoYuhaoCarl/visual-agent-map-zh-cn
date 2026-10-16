@@ -539,3 +539,9 @@ test('short ids: the repair prompt carries no real id; a real id, an unknown lab
     base.map(i => (i.id === 'c3' ? { ...i, id: 'c1' } : i))                  // top-level label
   ]) assert.throws(() => refused(items).run(), error => ['id-mismatch', 'duplicate'].includes(error.failureClass));
 });
+
+test('command line parsing and the output-location guard exist and work', () => {
+  assert.deepEqual(tool.parseArgs(['--out=/x/y=z', '--review', 'ignored', '--runs=2']), { out: '/x/y=z', review: true, runs: '2' });
+  assert.throws(() => tool.assertOutsideRepo(require('node:path').resolve(__dirname, '..', 'tests')), /must not be inside/);
+  assert.doesNotThrow(() => tool.assertOutsideRepo(require('node:os').tmpdir()));
+});
