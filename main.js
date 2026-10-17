@@ -26011,7 +26011,6 @@ ${request.requirements}` : preset.text,
       if (on) relevanceSortedMaps.delete(this.path);
       else relevanceSortedMaps.add(this.path);
       this.renderPreservingFocus();
-      this.fit();
     });
   }
   drawRelevanceChip(slot, focus) {

@@ -54,7 +54,7 @@ test('the toggle is display only: no repository, map or file write in its code p
   const start = src.indexOf('private drawRelevanceSortToggle');
   const body = src.slice(start, src.indexOf('private drawRelevanceChip', start));
   assert.ok(start > 0 && body.length > 0);
-  for (const forbidden of ['repo.', 'mapChange', 'enqueue', 'vault.', 'saveMap', 'updateNote', 'writeFile', 'process(']) assert.ok(!body.includes(forbidden), forbidden);
+  for (const forbidden of ['repo.', 'mapChange', 'enqueue', 'vault.', 'saveMap', 'updateNote', 'writeFile', 'process(', 'fit()', 'saveViewport']) assert.ok(!body.includes(forbidden), forbidden);
   const order = fs.readFileSync(path.resolve(__dirname, '../experiences/visual-map/relevance-order.ts'), 'utf8');
   assert.ok(!/repo|vault|writeFile/.test(order));
   assert.ok(/relevanceSortedMaps = new Set/.test(src), 'toggle state is memory only');

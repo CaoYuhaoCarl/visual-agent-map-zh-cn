@@ -1016,8 +1016,8 @@ export class VisualAgentMapView extends ItemView {
       event.stopPropagation();
       if (on) relevanceSortedMaps.delete(this.path);
       else relevanceSortedMaps.add(this.path);
+      // Do not refit the view here: that saves the viewport into Map.md, and this toggle must write nothing.
       this.renderPreservingFocus();
-      this.fit();
     });
   }
   private drawRelevanceChip(slot: HTMLElement, focus: boolean): void {
