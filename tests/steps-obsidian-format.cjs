@@ -243,3 +243,18 @@ test('owner-note math pattern (synthetic) is fixed by the result path and AIM-fr
   const raw = await service.askModel({ title: 'T', summary: '', rules: '', detail: '', task: 'X', ancestors: '', mode: 'decompose', researchMode: 'local', researchDepth: 'fast', visualMode: 'off', outputLanguage: 'zh-TW' }, 'gpt-6-luna', 'low').catch(() => null);
   if (raw) assert.ok(raw.detail.includes('\\[\n\\alpha'));
 });
+
+test('math normalizer keeps escaped link text; a prose regex bracket is a known LaTeX ambiguity', () => {
+  const n = normalizeMathDelimiters;
+  assert.equal(n('見 \\[link\\](https://example.org) 說明'), '見 \\[link\\](https://example.org) 說明');
+  assert.equal(n('\\[\nx\n\\](url)'), '\\[\nx\n\\](url)');
+  assert.equal(n('regex `\\[a-z\\]` 在程式碼內'), 'regex `\\[a-z\\]` 在程式碼內');
+  // Documented ambiguity: outside code, `\[a-z\]` is read as display math.
+  assert.equal(n('regex \\[a-z\\]'), 'regex $$a-z$$');
+});
+
+test('AIM interim detail normalizes math delimiters as well as headings', () => {
+  const { AimManualFlow } = load('experiences/aim/manual-flow.ts');
+  const out = AimManualFlow.prototype.interimDetail.call(null, ['# 標題\n\n速率 \\(k\\)', '', '\\[\nFo=\\frac{\\alpha t}{L^2}\n\\]']);
+  assert.equal(out, '### 標題\n\n速率 $k$\n\n$$\nFo=\\frac{\\alpha t}{L^2}\n$$');
+});

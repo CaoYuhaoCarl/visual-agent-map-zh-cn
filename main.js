@@ -11115,6 +11115,10 @@ function normalizeMathDelimiters(markdown) {
       display = token;
     } else if (token.kind === "]") {
       if (!display) continue;
+      if (lines[token.line][token.start + 2] === "(") {
+        display = null;
+        continue;
+      }
       if (display.line === token.line) {
         const inner = lines[token.line].slice(display.start + 2, token.start).trim();
         if (inner) edits.push({ line: token.line, start: display.start, end: token.start + 2, text: `$$${inner}$$` });
@@ -20937,7 +20941,7 @@ var _AimManualFlow = class _AimManualFlow {
   }
   /** An interim note's parts in order; its headings sit under the note's `## Detail` (nothing parses them later). */
   interimDetail(parts) {
-    return normalizeDetailHeadings(parts.filter((part) => part.trim()).join("\n\n"));
+    return normalizeMathDelimiters(normalizeDetailHeadings(parts.filter((part) => part.trim()).join("\n\n")));
   }
   /** The document a review stands for: the draft a final review rejected, never the reviewer's critique of it. */
   readerDetail(review) {

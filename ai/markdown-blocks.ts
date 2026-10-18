@@ -78,7 +78,8 @@ function maskInlineCode(line: string): string {
 /**
  * Obsidian renders math only as `$…$` and `$$…$$`. Models often write LaTeX's `\(…\)` and `\[…\]`, which markdown reads
  * as escaped brackets, so they are converted. Fenced code, inline code, escaped `\\[` and a delimiter without its
- * partner are left as written. A display block may span lines but never a blank line or a fence.
+ * partner are left as written, and so is `\[text\](url)`. Known ambiguity: a prose `\[a-z\]` regex outside code is
+ * indistinguishable from LaTeX and is converted; regexes belong in code spans, which stay untouched. A display block may span lines but never a blank line or a fence.
  */
 export function normalizeMathDelimiters(markdown: string): string {
   if (!/\\[[\]()]/.test(markdown)) return markdown;
@@ -116,6 +117,11 @@ export function normalizeMathDelimiters(markdown: string): string {
       display = token;
     } else if (token.kind === "]") {
       if (!display) continue;
+      if (lines[token.line][token.start + 2] === "(") {
+        // `\[text\](url)` is escaped markdown link text, not math.
+        display = null;
+        continue;
+      }
       if (display.line === token.line) {
         const inner = lines[token.line].slice(display.start + 2, token.start).trim();
         if (inner) edits.push({ line: token.line, start: display.start, end: token.start + 2, text: `$$${inner}$$` });
