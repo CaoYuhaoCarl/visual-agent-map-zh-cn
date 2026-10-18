@@ -12815,10 +12815,10 @@ ${marker4}` : ""}`;
     `## Current Summary
 
 ${summary.trim() || placeholder(language2)}`,
+    preview.trim() && !isPlaceholder(preview.trim()) ? calloutSection(previewHeading(language2), preview) : "",
     `## Detail
 
 ${detailBlock}`,
-    preview.trim() && !isPlaceholder(preview.trim()) ? calloutSection(previewHeading(language2), preview) : "",
     prompt.trim() ? calloutSection("Prompt", prompt) : "",
     rules.trim() ? `## Rules
 

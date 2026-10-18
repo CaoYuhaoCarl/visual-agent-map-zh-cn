@@ -328,8 +328,8 @@ export const isPlaceholder = (value: string): boolean =>
 const previewHeading = (language: NoteLanguage): NoteSection => translate(language, "detail.preview") as NoteSection;
 
 /**
- * Preview and Prompt are written as collapsed callouts after Detail (`> [!info]- 預覽`, `> [!info]- Prompt`) so the
- * note opens on the answer. Every read and write first turns these callouts back into the `## ` sections the rest
+ * Preview (right after the summary) and Prompt (after Detail) are written as collapsed callouts (`> [!info]- 預覽`,
+ * `> [!info]- Prompt`) so the note opens on the answer. Every read and write first turns these callouts back into the `## ` sections the rest
  * of this module works with; `noteBody` writes them as callouts again. Older notes keep their `## ` sections.
  */
 const CALLOUT_SECTION = /^> \[!info\][+-]? (預覽|Preview|Prompt)[ \t]*\r?$/;
@@ -548,14 +548,14 @@ function noteBody(
   }
   const { text: readerDetail, marker } = splitOpenItems(detail);
   const detailBlock = `${DETAIL_START}\n${detailWithVisualReferences(readerDetail, visualReferences, standardTemplate(language))}\n${DETAIL_END}${marker ? `\n\n${marker}` : ""}`;
-  // The answer comes first: summary, then Detail; Preview and the task text follow as collapsed callouts, and an empty
-  // (or placeholder) Preview and an empty Prompt are left out. Whether Preview was initialized stays in frontmatter.
+  // The answer comes first: summary, the Preview callout (it feeds the hover card), then Detail; the task text follows
+  // as a collapsed callout, and an empty (or placeholder) Preview and an empty Prompt are left out. Whether Preview was initialized stays in frontmatter.
   return (
     [
       `# ${title}`,
       `## Current Summary\n\n${summary.trim() || placeholder(language)}`,
-      `## Detail\n\n${detailBlock}`,
       preview.trim() && !isPlaceholder(preview.trim()) ? calloutSection(previewHeading(language), preview) : "",
+      `## Detail\n\n${detailBlock}`,
       prompt.trim() ? calloutSection("Prompt", prompt) : "",
       rules.trim() ? `## Rules\n\n${rules.trim()}` : "",
       newFindings.trim() ? `## Working Findings\n\n${newFindings.trim()}` : "",
