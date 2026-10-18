@@ -593,6 +593,7 @@ var english = {
   "ui.relevance_goal_0": "Goal: {0}",
   "ui.relevance_goal_set": "Set goal",
   "ui.relevance_sort": "Sort by relevance",
+  "ui.relevance_sorted_suffix": " (sorted by relevance)",
   "ui.relevance_sort_hint": "Show core topics first, then supporting, then side topics, within each group. Display only: nothing is saved or moved in your files. Dragging cards is paused while this is on.",
   "ui.relevance_goal_set_hint": "Set a goal and grade the topics by it",
   "ui.relevance_goal_edit_hint": "Change the goal and grade again",
@@ -2073,6 +2074,7 @@ var traditionalChinese = {
   "ui.relevance_goal_0": "\u76EE\u6A19\uFF1A{0}",
   "ui.relevance_goal_set": "\u8A2D\u5B9A\u76EE\u6A19",
   "ui.relevance_sort": "\u4F9D\u91CD\u8981\u5EA6\u6392\u5E8F",
+  "ui.relevance_sorted_suffix": "\uFF08\u5DF2\u4F9D\u91CD\u8981\u5EA6\u6392\u5E8F\uFF09",
   "ui.relevance_sort_hint": "\u6BCF\u4E00\u7D44\u5167\u4F9D\u6838\u5FC3\u3001\u652F\u63F4\u3001\u65C1\u652F\u7684\u9806\u5E8F\u986F\u793A\u3002\u53EA\u6539\u756B\u9762\uFF0C\u4E0D\u6703\u5132\u5B58\u6216\u66F4\u52D5\u4F60\u7684\u6A94\u6848\u3002\u958B\u555F\u6642\u66AB\u505C\u62D6\u66F3\u5361\u7247\u3002",
   "ui.relevance_goal_set_hint": "\u8A2D\u5B9A\u76EE\u6A19\uFF0C\u4F9D\u76EE\u6A19\u66FF\u8B70\u984C\u5206\u7D1A",
   "ui.relevance_goal_edit_hint": "\u4FEE\u6539\u76EE\u6A19\u4E26\u91CD\u65B0\u5206\u7D1A",
@@ -25320,6 +25322,7 @@ function aimQuestionStatus(map, questionNodeId, activeQuestionNodeId) {
 var cardLabelSequence = 0;
 var cardLabels = /* @__PURE__ */ new WeakMap();
 var relevanceRunToken = 0;
+var relevancePanelSeq = 0;
 var relevanceSortedMaps = /* @__PURE__ */ new Set();
 function edgePathData(x1, y1, x2, y2) {
   const bend = Math.max(60, Math.abs(x2 - x1) / 2);
@@ -25356,6 +25359,14 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian24.Ite
     __publicField(this, "structureHighlight", /* @__PURE__ */ new Set());
     /** True once this view has started a relevance grading run (so closing it has a run to abort). */
     __publicField(this, "startedRelevance", false);
+    __publicField(this, "relevancePanelId", `vam-relevance-panel-${++relevancePanelSeq}`);
+    __publicField(this, "relevancePanelOpen", false);
+    __publicField(this, "relevanceDraft", null);
+    __publicField(this, "relevanceToolsEl", null);
+    __publicField(this, "relevanceButtonEl", null);
+    __publicField(this, "relevancePanelEl", null);
+    __publicField(this, "relevancePanelGen", 0);
+    __publicField(this, "relevancePanelCleanup", null);
     __publicField(this, "history", new History());
     __publicField(this, "deletedMap", null);
     __publicField(this, "integrationTask", null);
@@ -25523,8 +25534,10 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian24.Ite
     }
   }
   async onClose() {
-    var _a, _b;
+    var _a, _b, _c;
     this.closed = true;
+    (_a = this.relevancePanelCleanup) == null ? void 0 : _a.call(this);
+    this.relevancePanelCleanup = null;
     this.abortRelevanceGrade();
     for (const task of this.synthesisTasks.values()) if (task.state === "running") task.controller.abort();
     this.synthesisTasks.clear();
@@ -25539,8 +25552,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian24.Ite
     this.stopAimProgress();
     if (this.refreshTimer !== null) window.clearTimeout(this.refreshTimer);
     if (this.hoverTimer !== null) window.clearTimeout(this.hoverTimer);
-    (_a = this.hoverCard) == null ? void 0 : _a.remove();
-    (_b = this.dragCleanup) == null ? void 0 : _b.call(this);
+    (_b = this.hoverCard) == null ? void 0 : _b.remove();
+    (_c = this.dragCleanup) == null ? void 0 : _c.call(this);
     if (this.viewportTimer !== null) {
       window.clearTimeout(this.viewportTimer);
       this.viewportTimer = null;
@@ -26009,11 +26022,26 @@ ${request.requirements}` : preset.text,
   relevanceGradeable() {
     return !this.builtIn && !!this.map && !this.map.aim && !!this.path;
   }
-  /** The goal as a quiet button in the map toolbar; clicking it swaps in a text field in place. */
+  /**
+   * One toolbar button, the same level as "Select topics": it shows the goal and opens a panel under it with the goal,
+   * level, context, a "Grade with this" button and the display-only sort switch.
+   */
   renderRelevanceGoalControl(parent) {
-    const slot = parent.createSpan("vam-relevance-goal-slot");
-    this.drawRelevanceChip(slot, false);
-    this.drawRelevanceSortToggle(parent);
+    var _a, _b, _c;
+    this.relevancePanelGen++;
+    (_a = this.relevancePanelCleanup) == null ? void 0 : _a.call(this);
+    this.relevancePanelCleanup = null;
+    this.relevancePanelEl = null;
+    this.relevanceToolsEl = parent;
+    this.drawRelevanceButton(parent);
+    if (!this.relevancePanelOpen) return;
+    if (((_b = this.plugin.relevanceGrades.get(this.path)) == null ? void 0 : _b.status) === "running") {
+      this.relevancePanelOpen = false;
+      this.relevanceDraft = null;
+      (_c = this.relevanceButtonEl) == null ? void 0 : _c.setAttr("aria-expanded", "false");
+      return;
+    }
+    this.drawRelevancePanel(false);
   }
   relevanceLevelLabel(level) {
     return t(`ui.relevance_level_${level != null ? level : "none"}`);
@@ -26022,57 +26050,87 @@ ${request.requirements}` : preset.text,
   relevanceSortOn() {
     return this.relevanceGradeable() && relevanceSortedMaps.has(this.path);
   }
-  drawRelevanceSortToggle(parent) {
-    const on = this.relevanceSortOn();
-    const toggle = parent.createEl("button", {
-      cls: `vam-relevance-sort${on ? " is-active" : ""}`,
-      text: t("ui.relevance_sort")
-    });
-    toggle.setAttr("aria-pressed", String(on));
-    toggle.setAttr("aria-description", t("ui.relevance_sort_hint"));
-    (0, import_obsidian24.setTooltip)(toggle, t("ui.relevance_sort_hint"));
-    toggle.setAttr("aria-label", t("ui.relevance_sort"));
-    toggle.addEventListener("click", (event) => {
-      event.stopPropagation();
-      if (on) relevanceSortedMaps.delete(this.path);
-      else relevanceSortedMaps.add(this.path);
-      this.renderPreservingFocus();
-    });
-  }
-  drawRelevanceChip(slot, focus) {
+  drawRelevanceButton(parent) {
     var _a;
-    slot.empty();
     const goal = this.relevanceGoal;
     const level = this.relevanceLevel;
+    const sorted = this.relevanceSortOn();
     const label = goal ? level ? t("ui.relevance_goal_level_0_1", goal, this.relevanceLevelLabel(level)) : t("ui.relevance_goal_0", goal) : t("ui.relevance_goal_set");
-    const chip = slot.createEl("button", { cls: `vam-relevance-goal${goal ? "" : " is-empty"}`, text: label });
-    chip.setAttr("aria-description", t(goal ? "ui.relevance_goal_edit_hint" : "ui.relevance_goal_set_hint"));
+    const button = this.button(parent, label, () => {
+      if (this.relevancePanelOpen) this.closeRelevancePanel(true);
+      else this.editRelevanceGoal();
+    });
+    button.addClass("vam-relevance-goal");
+    button.toggleClass("is-empty", !goal);
+    button.toggleClass("is-sorted", sorted);
+    button.setAttr("aria-haspopup", "true");
+    button.setAttr("aria-expanded", String(this.relevancePanelOpen));
+    button.setAttr("aria-controls", this.relevancePanelId);
+    button.setAttr("aria-description", t(goal ? "ui.relevance_goal_edit_hint" : "ui.relevance_goal_set_hint"));
     (0, import_obsidian24.setTooltip)(
-      chip,
+      button,
       goal ? [label, this.relevanceContext].filter(Boolean).join("\n") : t("ui.relevance_goal_set_hint")
     );
-    chip.setAttr("aria-label", label);
-    chip.disabled = ((_a = this.plugin.relevanceGrades.get(this.path)) == null ? void 0 : _a.status) === "running";
-    chip.addEventListener("click", (event) => {
-      event.stopPropagation();
-      this.editRelevanceGoal(slot);
-    });
-    if (focus && !chip.disabled) chip.focus();
+    button.setAttr("aria-label", sorted ? `${label}${t("ui.relevance_sorted_suffix")}` : label);
+    button.disabled = ((_a = this.plugin.relevanceGrades.get(this.path)) == null ? void 0 : _a.status) === "running";
+    button.addEventListener("mousedown", (event) => event.preventDefault());
+    if (sorted) {
+      const icon = button.createSpan("vam-relevance-sort-icon");
+      icon.setAttr("aria-hidden", "true");
+      (0, import_obsidian24.setIcon)(icon, "arrow-down-wide-narrow");
+    }
+    this.relevanceButtonEl = button;
+  }
+  closeRelevancePanel(refocus) {
+    var _a, _b, _c, _d, _e;
+    this.relevancePanelGen++;
+    (_a = this.relevancePanelCleanup) == null ? void 0 : _a.call(this);
+    this.relevancePanelCleanup = null;
+    (_b = this.relevancePanelEl) == null ? void 0 : _b.remove();
+    this.relevancePanelEl = null;
+    this.relevancePanelOpen = false;
+    this.relevanceDraft = null;
+    (_c = this.relevanceButtonEl) == null ? void 0 : _c.setAttr("aria-expanded", "false");
+    if (refocus && !((_d = this.relevanceButtonEl) == null ? void 0 : _d.disabled)) (_e = this.relevanceButtonEl) == null ? void 0 : _e.focus();
+  }
+  /** Open the goal panel under the toolbar button (no-op while a grading run is going). */
+  editRelevanceGoal() {
+    var _a, _b, _c, _d, _e;
+    if (((_a = this.plugin.relevanceGrades.get(this.path)) == null ? void 0 : _a.status) === "running") return;
+    if (!this.relevanceToolsEl) return;
+    this.relevancePanelOpen = true;
+    this.relevanceDraft = {
+      goal: (_b = this.relevanceGoal) != null ? _b : "",
+      level: (_c = this.relevanceLevel) != null ? _c : "",
+      context: (_d = this.relevanceContext) != null ? _d : ""
+    };
+    (_e = this.relevanceButtonEl) == null ? void 0 : _e.setAttr("aria-expanded", "true");
+    this.drawRelevancePanel(true);
   }
   /**
-   * The chip expands in place into one group: goal, level, context and a quiet "Grade with this" button. Enter in a
-   * text field or the button confirms; Esc, or focus leaving the whole group, cancels; Tab inside the group does not.
+   * The panel holds one group: goal, level, context and a "Grade with this" button, then the sort switch. Enter in a
+   * text field or the button confirms; Esc, a press outside, or focus leaving the panel closes it without submitting.
+   * Tab inside the panel does not. The sort switch does not close it.
    */
-  editRelevanceGoal(slot) {
-    var _a, _b, _c, _d;
-    if (((_a = this.plugin.relevanceGrades.get(this.path)) == null ? void 0 : _a.status) === "running") return;
-    slot.empty();
-    const group = slot.createDiv({
+  drawRelevancePanel(focus) {
+    var _a, _b, _c, _d, _e, _f;
+    const tools = this.relevanceToolsEl;
+    if (!tools) return;
+    (_a = this.relevancePanelEl) == null ? void 0 : _a.remove();
+    const gen = ++this.relevancePanelGen;
+    const draft = (_e = this.relevanceDraft) != null ? _e : this.relevanceDraft = {
+      goal: (_b = this.relevanceGoal) != null ? _b : "",
+      level: (_c = this.relevanceLevel) != null ? _c : "",
+      context: (_d = this.relevanceContext) != null ? _d : ""
+    };
+    const panel = tools.createDiv({ cls: "vam-relevance-panel", attr: { id: this.relevancePanelId } });
+    this.relevancePanelEl = panel;
+    const group = panel.createDiv({
       cls: "vam-relevance-setup",
       attr: { role: "group", "aria-label": t("ui.relevance_goal_label") }
     });
     const input = group.createEl("input", { cls: "vam-relevance-goal-input", type: "text" });
-    input.value = (_b = this.relevanceGoal) != null ? _b : "";
+    input.value = draft.goal;
     input.maxLength = RELEVANCE_GOAL_MAX_LENGTH;
     input.setAttr("aria-label", t("ui.relevance_goal_label"));
     input.setAttr("placeholder", t("ui.relevance_goal_placeholder"));
@@ -26081,24 +26139,43 @@ ${request.requirements}` : preset.text,
     levelSelect.setAttr("aria-label", t("ui.relevance_level_label"));
     for (const value of ["", ...RELEVANCE_LEVELS])
       levelSelect.createEl("option", { text: this.relevanceLevelLabel(normalizeRelevanceLevel(value)), value });
-    levelSelect.value = (_c = this.relevanceLevel) != null ? _c : "";
+    levelSelect.value = draft.level;
     const context = row.createEl("input", { cls: "vam-relevance-context-input", type: "text" });
-    context.value = (_d = this.relevanceContext) != null ? _d : "";
+    context.value = draft.context;
     context.maxLength = RELEVANCE_CONTEXT_MAX_LENGTH;
     context.setAttr("aria-label", t("ui.relevance_context_label"));
     context.setAttr("placeholder", t("ui.relevance_context_placeholder"));
     const submitButton = group.createEl("button", {
-      cls: "vam-relevance-grade-button",
+      cls: "vam-relevance-grade-button mod-cta",
       text: t("ui.relevance_grade_button")
     });
+    input.addEventListener("input", () => draft.goal = input.value);
+    context.addEventListener("input", () => draft.context = context.value);
+    levelSelect.addEventListener("change", () => draft.level = levelSelect.value);
+    panel.createDiv("vam-relevance-divider");
+    const on = this.relevanceSortOn();
+    const sort = panel.createEl("button", { cls: "vam-relevance-sort" });
+    sort.setAttr("aria-pressed", String(on));
+    const copy = sort.createSpan("vam-relevance-sort-copy");
+    copy.createSpan({ cls: "vam-relevance-sort-title", text: t("ui.relevance_sort") });
+    copy.createSpan({ cls: "vam-relevance-sort-hint", text: t("ui.relevance_sort_hint") });
+    const knob = sort.createSpan({ cls: `checkbox-container vam-relevance-switch${on ? " is-enabled" : ""}` });
+    knob.setAttr("aria-hidden", "true");
+    sort.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (on) relevanceSortedMaps.delete(this.path);
+      else relevanceSortedMaps.add(this.path);
+      this.renderPreservingFocus();
+    });
     let finished = false;
+    const alive = () => !finished && gen === this.relevancePanelGen;
     const finish = (submit, refocus) => {
-      if (finished) return;
+      if (!alive()) return;
       finished = true;
       const value = input.value;
       const level = normalizeRelevanceLevel(levelSelect.value);
       const extra = context.value;
-      this.drawRelevanceChip(slot, refocus);
+      this.closeRelevancePanel(refocus);
       if (submit) void this.submitRelevanceGoal(value, level, extra);
     };
     const confirm = () => finish(true, !normalizeRelevanceGoal(input.value));
@@ -26117,18 +26194,47 @@ ${request.requirements}` : preset.text,
     context.addEventListener("keydown", (event) => keys(event, true));
     levelSelect.addEventListener("keydown", (event) => keys(event, false));
     submitButton.addEventListener("keydown", (event) => keys(event, false));
+    sort.addEventListener("keydown", (event) => keys(event, false));
     submitButton.addEventListener("click", (event) => {
       event.stopPropagation();
       confirm();
     });
     submitButton.addEventListener("mousedown", (event) => event.preventDefault());
-    for (const control of [input, levelSelect, context, submitButton])
+    sort.addEventListener("mousedown", (event) => event.preventDefault());
+    for (const control of [input, levelSelect, context, submitButton, sort])
       control.addEventListener("focusout", (event) => {
         const next = event.relatedTarget;
-        if (!next || !group.contains(next)) finish(false, false);
+        if (!next || !panel.contains(next) && next !== this.relevanceButtonEl) finish(false, false);
       });
-    input.focus();
-    input.select();
+    const doc = (_f = this.contentEl) == null ? void 0 : _f.ownerDocument;
+    if (doc == null ? void 0 : doc.addEventListener) {
+      const outside = (event) => {
+        var _a2;
+        const target = event.target;
+        if (target && (panel.contains(target) || ((_a2 = this.relevanceButtonEl) == null ? void 0 : _a2.contains(target)))) return;
+        finish(false, false);
+      };
+      doc.addEventListener("pointerdown", outside, true);
+      this.relevancePanelCleanup = () => doc.removeEventListener("pointerdown", outside, true);
+    }
+    this.placeRelevancePanel(panel);
+    if (focus) {
+      input.focus();
+      input.select();
+    }
+  }
+  /** Keep the panel inside the map overlay: left-aligned under the button, shifted left when it would overflow. */
+  placeRelevancePanel(panel) {
+    const button = this.relevanceButtonEl;
+    const tools = this.relevanceToolsEl;
+    const overlay = tools == null ? void 0 : tools.parentElement;
+    if (!(button == null ? void 0 : button.getBoundingClientRect) || !(tools == null ? void 0 : tools.getBoundingClientRect) || !(overlay == null ? void 0 : overlay.getBoundingClientRect)) return;
+    const bounds = overlay.getBoundingClientRect();
+    const width = Math.max(0, Math.min(360, bounds.width - 32));
+    const from = button.getBoundingClientRect().left;
+    const left = Math.min(Math.max(from, bounds.left + 16), bounds.left + bounds.width - 16 - width);
+    panel.style.width = `${width}px`;
+    panel.style.left = `${left - tools.getBoundingClientRect().left - 1}px`;
   }
   relevanceRunIsCurrent(run, mapPath) {
     return !this.closed && this.path === mapPath && this.plugin.relevanceGrades.get(mapPath) === run && run.status === "running" && !run.controller.signal.aborted;
@@ -28842,6 +28948,7 @@ ${request.requirements}` : preset.text,
     const overlay = workspace.createDiv("vam-canvas-overlay");
     if (tools.childElementCount) overlay.appendChild(tools);
     else tools.remove();
+    if (this.relevancePanelEl) this.placeRelevancePanel(this.relevancePanelEl);
     this.hintEl = this.integrationMode || !this.plugin.settings.canvasHintSeen ? overlay.createSpan({
       cls: "vam-hint vam-canvas-hint",
       text: t(

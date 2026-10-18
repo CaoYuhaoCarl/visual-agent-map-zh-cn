@@ -223,6 +223,7 @@ let cardLabelSequence = 0;
 const cardLabels = new WeakMap<HTMLElement, HTMLElement>();
 /** Identifies one relevance grading run, so a late result can tell it is no longer the current one. */
 let relevanceRunToken = 0;
+let relevancePanelSeq = 0;
 /** Maps whose cards are displayed sorted by relevance. Memory only: never written to a note or Map.md. */
 const relevanceSortedMaps = new Set<string>();
 /** Path data for the curve from a parent card's right edge to a child card's left edge. */
@@ -270,6 +271,14 @@ export class VisualAgentMapView extends ItemView {
   private structureHighlight = new Set<string>();
   /** True once this view has started a relevance grading run (so closing it has a run to abort). */
   private startedRelevance = false;
+  private readonly relevancePanelId = `vam-relevance-panel-${++relevancePanelSeq}`;
+  private relevancePanelOpen = false;
+  private relevanceDraft: { goal: string; level: string; context: string } | null = null;
+  private relevanceToolsEl: HTMLElement | null = null;
+  private relevanceButtonEl: HTMLButtonElement | null = null;
+  private relevancePanelEl: HTMLElement | null = null;
+  private relevancePanelGen = 0;
+  private relevancePanelCleanup: (() => void) | null = null;
   private history = new History<Action>();
   private deletedMap: {
     path: string;
@@ -495,6 +504,8 @@ export class VisualAgentMapView extends ItemView {
   }
   async onClose(): Promise<void> {
     this.closed = true;
+    this.relevancePanelCleanup?.();
+    this.relevancePanelCleanup = null;
     this.abortRelevanceGrade();
     for (const task of this.synthesisTasks.values()) if (task.state === "running") task.controller.abort();
     this.synthesisTasks.clear();
@@ -992,11 +1003,26 @@ export class VisualAgentMapView extends ItemView {
   private relevanceGradeable(): boolean {
     return !this.builtIn && !!this.map && !this.map.aim && !!this.path;
   }
-  /** The goal as a quiet button in the map toolbar; clicking it swaps in a text field in place. */
+  /**
+   * One toolbar button, the same level as "Select topics": it shows the goal and opens a panel under it with the goal,
+   * level, context, a "Grade with this" button and the display-only sort switch.
+   */
   private renderRelevanceGoalControl(parent: HTMLElement): void {
-    const slot = parent.createSpan("vam-relevance-goal-slot");
-    this.drawRelevanceChip(slot, false);
-    this.drawRelevanceSortToggle(parent);
+    // A repaint drops the old DOM: stop its listeners and make sure its late focus events cannot close the new panel.
+    this.relevancePanelGen++;
+    this.relevancePanelCleanup?.();
+    this.relevancePanelCleanup = null;
+    this.relevancePanelEl = null;
+    this.relevanceToolsEl = parent;
+    this.drawRelevanceButton(parent);
+    if (!this.relevancePanelOpen) return;
+    if (this.plugin.relevanceGrades.get(this.path)?.status === "running") {
+      this.relevancePanelOpen = false;
+      this.relevanceDraft = null;
+      this.relevanceButtonEl?.setAttr("aria-expanded", "false");
+      return;
+    }
+    this.drawRelevancePanel(false);
   }
   private relevanceLevelLabel(level: RelevanceLevel | undefined): string {
     return t(`ui.relevance_level_${level ?? "none"}`);
@@ -1005,61 +1031,89 @@ export class VisualAgentMapView extends ItemView {
   private relevanceSortOn(): boolean {
     return this.relevanceGradeable() && relevanceSortedMaps.has(this.path);
   }
-  private drawRelevanceSortToggle(parent: HTMLElement): void {
-    const on = this.relevanceSortOn();
-    const toggle = parent.createEl("button", {
-      cls: `vam-relevance-sort${on ? " is-active" : ""}`,
-      text: t("ui.relevance_sort")
-    });
-    toggle.setAttr("aria-pressed", String(on));
-    toggle.setAttr("aria-description", t("ui.relevance_sort_hint"));
-    setTooltip(toggle, t("ui.relevance_sort_hint"));
-    toggle.setAttr("aria-label", t("ui.relevance_sort"));
-    toggle.addEventListener("click", event => {
-      event.stopPropagation();
-      if (on) relevanceSortedMaps.delete(this.path);
-      else relevanceSortedMaps.add(this.path);
-      // Do not refit the view here: that saves the viewport into Map.md, and this toggle must write nothing.
-      this.renderPreservingFocus();
-    });
-  }
-  private drawRelevanceChip(slot: HTMLElement, focus: boolean): void {
-    slot.empty();
+  private drawRelevanceButton(parent: HTMLElement): void {
     const goal = this.relevanceGoal;
     const level = this.relevanceLevel;
+    const sorted = this.relevanceSortOn();
     const label = goal
       ? level
         ? t("ui.relevance_goal_level_0_1", goal, this.relevanceLevelLabel(level))
         : t("ui.relevance_goal_0", goal)
       : t("ui.relevance_goal_set");
-    const chip = slot.createEl("button", { cls: `vam-relevance-goal${goal ? "" : " is-empty"}`, text: label });
-    chip.setAttr("aria-description", t(goal ? "ui.relevance_goal_edit_hint" : "ui.relevance_goal_set_hint"));
+    const button = this.button(parent, label, () => {
+      if (this.relevancePanelOpen) this.closeRelevancePanel(true);
+      else this.editRelevanceGoal();
+    });
+    button.addClass("vam-relevance-goal");
+    button.toggleClass("is-empty", !goal);
+    button.toggleClass("is-sorted", sorted);
+    button.setAttr("aria-haspopup", "true");
+    button.setAttr("aria-expanded", String(this.relevancePanelOpen));
+    button.setAttr("aria-controls", this.relevancePanelId);
+    button.setAttr("aria-description", t(goal ? "ui.relevance_goal_edit_hint" : "ui.relevance_goal_set_hint"));
     setTooltip(
-      chip,
+      button,
       goal ? [label, this.relevanceContext].filter(Boolean).join("\n") : t("ui.relevance_goal_set_hint")
     );
     // The tooltip helper makes the goal alone the accessible name; keep the "Goal:" label a screen reader needs.
-    chip.setAttr("aria-label", label);
-    chip.disabled = this.plugin.relevanceGrades.get(this.path)?.status === "running";
-    chip.addEventListener("click", event => {
-      event.stopPropagation();
-      this.editRelevanceGoal(slot);
-    });
-    if (focus && !chip.disabled) chip.focus();
+    button.setAttr("aria-label", sorted ? `${label}${t("ui.relevance_sorted_suffix")}` : label);
+    button.disabled = this.plugin.relevanceGrades.get(this.path)?.status === "running";
+    // Pressing the button must not move focus out of an open panel (that would count as leaving it).
+    button.addEventListener("mousedown", event => event.preventDefault());
+    if (sorted) {
+      const icon = button.createSpan("vam-relevance-sort-icon");
+      icon.setAttr("aria-hidden", "true");
+      setIcon(icon, "arrow-down-wide-narrow");
+    }
+    this.relevanceButtonEl = button;
+  }
+  private closeRelevancePanel(refocus: boolean): void {
+    this.relevancePanelGen++;
+    this.relevancePanelCleanup?.();
+    this.relevancePanelCleanup = null;
+    this.relevancePanelEl?.remove();
+    this.relevancePanelEl = null;
+    this.relevancePanelOpen = false;
+    this.relevanceDraft = null;
+    this.relevanceButtonEl?.setAttr("aria-expanded", "false");
+    if (refocus && !this.relevanceButtonEl?.disabled) this.relevanceButtonEl?.focus();
+  }
+  /** Open the goal panel under the toolbar button (no-op while a grading run is going). */
+  private editRelevanceGoal(): void {
+    if (this.plugin.relevanceGrades.get(this.path)?.status === "running") return;
+    if (!this.relevanceToolsEl) return;
+    this.relevancePanelOpen = true;
+    this.relevanceDraft = {
+      goal: this.relevanceGoal ?? "",
+      level: this.relevanceLevel ?? "",
+      context: this.relevanceContext ?? ""
+    };
+    this.relevanceButtonEl?.setAttr("aria-expanded", "true");
+    this.drawRelevancePanel(true);
   }
   /**
-   * The chip expands in place into one group: goal, level, context and a quiet "Grade with this" button. Enter in a
-   * text field or the button confirms; Esc, or focus leaving the whole group, cancels; Tab inside the group does not.
+   * The panel holds one group: goal, level, context and a "Grade with this" button, then the sort switch. Enter in a
+   * text field or the button confirms; Esc, a press outside, or focus leaving the panel closes it without submitting.
+   * Tab inside the panel does not. The sort switch does not close it.
    */
-  private editRelevanceGoal(slot: HTMLElement): void {
-    if (this.plugin.relevanceGrades.get(this.path)?.status === "running") return;
-    slot.empty();
-    const group = slot.createDiv({
+  private drawRelevancePanel(focus: boolean): void {
+    const tools = this.relevanceToolsEl;
+    if (!tools) return;
+    this.relevancePanelEl?.remove();
+    const gen = ++this.relevancePanelGen;
+    const draft = (this.relevanceDraft ??= {
+      goal: this.relevanceGoal ?? "",
+      level: this.relevanceLevel ?? "",
+      context: this.relevanceContext ?? ""
+    });
+    const panel = tools.createDiv({ cls: "vam-relevance-panel", attr: { id: this.relevancePanelId } });
+    this.relevancePanelEl = panel;
+    const group = panel.createDiv({
       cls: "vam-relevance-setup",
       attr: { role: "group", "aria-label": t("ui.relevance_goal_label") }
     });
     const input = group.createEl("input", { cls: "vam-relevance-goal-input", type: "text" });
-    input.value = this.relevanceGoal ?? "";
+    input.value = draft.goal;
     input.maxLength = RELEVANCE_GOAL_MAX_LENGTH;
     input.setAttr("aria-label", t("ui.relevance_goal_label"));
     input.setAttr("placeholder", t("ui.relevance_goal_placeholder"));
@@ -1068,25 +1122,46 @@ export class VisualAgentMapView extends ItemView {
     levelSelect.setAttr("aria-label", t("ui.relevance_level_label"));
     for (const value of ["", ...RELEVANCE_LEVELS])
       levelSelect.createEl("option", { text: this.relevanceLevelLabel(normalizeRelevanceLevel(value)), value });
-    levelSelect.value = this.relevanceLevel ?? "";
+    levelSelect.value = draft.level;
     const context = row.createEl("input", { cls: "vam-relevance-context-input", type: "text" });
-    context.value = this.relevanceContext ?? "";
+    context.value = draft.context;
     context.maxLength = RELEVANCE_CONTEXT_MAX_LENGTH;
     context.setAttr("aria-label", t("ui.relevance_context_label"));
     context.setAttr("placeholder", t("ui.relevance_context_placeholder"));
     const submitButton = group.createEl("button", {
-      cls: "vam-relevance-grade-button",
+      cls: "vam-relevance-grade-button mod-cta",
       text: t("ui.relevance_grade_button")
     });
+    input.addEventListener("input", () => (draft.goal = input.value));
+    context.addEventListener("input", () => (draft.context = context.value));
+    levelSelect.addEventListener("change", () => (draft.level = levelSelect.value));
+    // The sort switch: display only, an in-memory Set, no file write and no refit. It never closes the panel.
+    panel.createDiv("vam-relevance-divider");
+    const on = this.relevanceSortOn();
+    const sort = panel.createEl("button", { cls: "vam-relevance-sort" });
+    sort.setAttr("aria-pressed", String(on));
+    const copy = sort.createSpan("vam-relevance-sort-copy");
+    copy.createSpan({ cls: "vam-relevance-sort-title", text: t("ui.relevance_sort") });
+    copy.createSpan({ cls: "vam-relevance-sort-hint", text: t("ui.relevance_sort_hint") });
+    const knob = sort.createSpan({ cls: `checkbox-container vam-relevance-switch${on ? " is-enabled" : ""}` });
+    knob.setAttr("aria-hidden", "true");
+    sort.addEventListener("click", event => {
+      event.stopPropagation();
+      if (on) relevanceSortedMaps.delete(this.path);
+      else relevanceSortedMaps.add(this.path);
+      // Do not refit the view here: that saves the viewport into Map.md, and this toggle must write nothing.
+      this.renderPreservingFocus();
+    });
     let finished = false;
-    // Confirm, Esc and leaving the group cancel; an empty goal never reaches the AI.
+    const alive = (): boolean => !finished && gen === this.relevancePanelGen;
+    // Confirm, Esc and leaving the panel close it; an empty goal never reaches the AI.
     const finish = (submit: boolean, refocus: boolean): void => {
-      if (finished) return;
+      if (!alive()) return;
       finished = true;
       const value = input.value;
       const level = normalizeRelevanceLevel(levelSelect.value);
       const extra = context.value;
-      this.drawRelevanceChip(slot, refocus);
+      this.closeRelevancePanel(refocus);
       if (submit) void this.submitRelevanceGoal(value, level, extra);
     };
     const confirm = (): void => finish(true, !normalizeRelevanceGoal(input.value));
@@ -1106,19 +1181,48 @@ export class VisualAgentMapView extends ItemView {
     context.addEventListener("keydown", event => keys(event, true));
     levelSelect.addEventListener("keydown", event => keys(event, false));
     submitButton.addEventListener("keydown", event => keys(event, false));
+    sort.addEventListener("keydown", event => keys(event, false));
     submitButton.addEventListener("click", event => {
       event.stopPropagation();
       confirm();
     });
-    // Keep focus where it is while the button is pressed, so the pointer press cannot count as leaving the group.
+    // Keep focus where it is while the button is pressed, so the pointer press cannot count as leaving the panel.
     submitButton.addEventListener("mousedown", event => event.preventDefault());
-    for (const control of [input, levelSelect, context, submitButton])
+    sort.addEventListener("mousedown", event => event.preventDefault());
+    for (const control of [input, levelSelect, context, submitButton, sort])
       control.addEventListener("focusout", (event: FocusEvent) => {
         const next = event.relatedTarget as Node | null;
-        if (!next || !group.contains(next)) finish(false, false);
+        if (!next || (!panel.contains(next) && next !== this.relevanceButtonEl)) finish(false, false);
       });
-    input.focus();
-    input.select();
+    // A press anywhere else (the canvas, another card) closes it too; the toolbar button toggles it itself.
+    const doc = this.contentEl?.ownerDocument;
+    if (doc?.addEventListener) {
+      const outside = (event: Event): void => {
+        const target = event.target as Node | null;
+        if (target && (panel.contains(target) || this.relevanceButtonEl?.contains(target))) return;
+        finish(false, false);
+      };
+      doc.addEventListener("pointerdown", outside, true);
+      this.relevancePanelCleanup = () => doc.removeEventListener("pointerdown", outside, true);
+    }
+    this.placeRelevancePanel(panel);
+    if (focus) {
+      input.focus();
+      input.select();
+    }
+  }
+  /** Keep the panel inside the map overlay: left-aligned under the button, shifted left when it would overflow. */
+  private placeRelevancePanel(panel: HTMLElement): void {
+    const button = this.relevanceButtonEl;
+    const tools = this.relevanceToolsEl;
+    const overlay = tools?.parentElement;
+    if (!button?.getBoundingClientRect || !tools?.getBoundingClientRect || !overlay?.getBoundingClientRect) return;
+    const bounds = overlay.getBoundingClientRect();
+    const width = Math.max(0, Math.min(360, bounds.width - 32));
+    const from = button.getBoundingClientRect().left;
+    const left = Math.min(Math.max(from, bounds.left + 16), bounds.left + bounds.width - 16 - width);
+    panel.style.width = `${width}px`;
+    panel.style.left = `${left - tools.getBoundingClientRect().left - 1}px`;
   }
   private relevanceRunIsCurrent(run: RelevanceGradeRun, mapPath: string): boolean {
     return (
@@ -3996,6 +4100,7 @@ export class VisualAgentMapView extends ItemView {
     const overlay = workspace.createDiv("vam-canvas-overlay");
     if (tools.childElementCount) overlay.appendChild(tools);
     else tools.remove();
+    if (this.relevancePanelEl) this.placeRelevancePanel(this.relevancePanelEl);
     // The gesture hint goes away once the user has panned or zoomed; select mode always explains its own gestures.
     this.hintEl =
       this.integrationMode || !this.plugin.settings.canvasHintSeen

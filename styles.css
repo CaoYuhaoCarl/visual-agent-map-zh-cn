@@ -148,28 +148,37 @@
 .vam-node[data-relevance="side"] { opacity: .5; transition: border-color 160ms ease-out, box-shadow 160ms ease-out, opacity 160ms ease-out; }
 .vam-node[data-relevance="side"]:hover, .vam-node[data-relevance="side"]:focus-within, .vam-node[data-relevance="side"].is-selected { opacity: 1; }
 .vam-edge.vam-edge-side { opacity: .2; }
-/* The slot is always its own full-width row (a max-width here would let it share a row with the buttons); the 360px cap sits on what is inside. */
-.vam-map-tools > .vam-relevance-goal-slot { display: flex; flex: 1 0 100%; min-width: 0; max-width: 100%; box-sizing: border-box; overflow: hidden; }
-.vam-relevance-goal-slot > .vam-relevance-goal, .vam-relevance-goal-slot > .vam-relevance-setup { flex: 0 1 360px; min-width: 0; max-width: 100%; box-sizing: border-box; }
-.vam-map-tools .vam-relevance-goal { display: block; min-width: 0; max-width: 100%; height: auto; padding: 2px 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; color: var(--text-muted); font-size: var(--font-ui-smaller); }
-.vam-map-tools .vam-relevance-goal:not(:disabled):hover { color: var(--text-normal); }
+/* One toolbar button at the same level as "Select topics"; the goal is cut with an ellipsis so the row never wraps. The sort icon sits in padding reserved on the right. */
+.vam-map-tools .vam-relevance-goal { position: relative; display: inline-block; flex: 0 1 auto; min-width: 0; max-width: 14em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-top: 0; padding-bottom: 0; line-height: var(--input-height); }
+.vam-map-tools .vam-relevance-goal.is-sorted { padding-right: calc(var(--size-4-3) + 18px); }
 .vam-map-tools .vam-relevance-goal:disabled { cursor: default; }
-.vam-map-tools .vam-relevance-sort { flex: 0 0 auto; height: auto; padding: 2px 6px; color: var(--text-muted); font-size: var(--font-ui-smaller); background: transparent; box-shadow: none; }
-.vam-map-tools .vam-relevance-sort:hover, .vam-map-tools .vam-relevance-sort.is-active { color: var(--text-normal); }
-.vam-map-tools .vam-relevance-sort.is-active { background: var(--background-modifier-hover); }
-.vam-map-tools .vam-relevance-sort:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
-.vam-relevance-goal-input { flex: 1 1 auto; min-width: 0; box-sizing: border-box; font-size: var(--font-ui-small); }
-.vam-relevance-goal-input:focus-visible, .vam-relevance-context-input:focus-visible, .vam-relevance-level:focus-visible, .vam-relevance-grade-button:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
-/* The chip expands in place into goal, level, context and a quiet confirm button; it wraps to full width in a narrow pane. */
-.vam-relevance-setup { display: flex; flex: 1 1 auto; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; }
-.vam-relevance-setup > .vam-relevance-goal-input { flex: 1 1 100%; }
-.vam-relevance-setup-row { display: flex; flex: 1 1 100%; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; }
-.vam-relevance-setup .vam-relevance-level { flex: 0 1 auto; max-width: 100%; font-size: var(--font-ui-small); }
-.vam-relevance-context-input { flex: 1 1 12em; min-width: 0; box-sizing: border-box; font-size: var(--font-ui-small); }
-.vam-relevance-grade-button { flex: none; background: transparent; box-shadow: none; color: var(--text-muted); font-size: var(--font-ui-smaller); }
-.vam-relevance-grade-button:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.vam-relevance-sort-icon { position: absolute; top: 50%; right: var(--size-4-2); display: inline-flex; color: var(--text-accent); transform: translateY(-50%); pointer-events: none; }
+.vam-relevance-sort-icon .svg-icon { width: 14px; height: 14px; }
+/* The panel opens under that button, inside the overlay, on the same card surface as the toolbar. */
+.vam-relevance-panel { position: absolute; top: calc(100% + 6px); left: 0; z-index: 5; display: flex; flex-direction: column; gap: 10px; box-sizing: border-box; width: min(360px, calc(100vw - 32px)); max-width: calc(100vw - 32px); padding: 12px; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); background: var(--background-primary); box-shadow: var(--shadow-s); animation: vam-relevance-panel-in 150ms ease-out; }
+@keyframes vam-relevance-panel-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.vam-relevance-setup { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.vam-relevance-setup-row { display: flex; gap: 8px; min-width: 0; }
+.vam-relevance-goal-input, .vam-relevance-context-input { flex: 1 1 auto; min-width: 0; width: 100%; box-sizing: border-box; font-size: var(--font-ui-small); }
+.vam-relevance-goal-input::placeholder, .vam-relevance-context-input::placeholder { color: var(--text-muted); opacity: 1; }
+.vam-relevance-setup .vam-relevance-level { flex: 0 0 auto; max-width: 45%; font-size: var(--font-ui-small); }
+.vam-relevance-context-input { flex: 1 1 0; }
+.vam-relevance-goal-input:focus-visible, .vam-relevance-context-input:focus-visible, .vam-relevance-level:focus-visible, .vam-relevance-grade-button:focus-visible, .vam-relevance-sort:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
+.vam-relevance-grade-button { align-self: flex-end; font-size: var(--font-ui-small); }
+.vam-relevance-grade-button:active:not(:disabled) { transform: translateY(1px); }
+.vam-relevance-divider { height: 1px; background: var(--background-modifier-border); }
+/* The sort control is a real switch row: label, the explanation as secondary text, and Obsidian's own toggle. */
+.vam-relevance-panel .vam-relevance-sort { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; height: auto; padding: 6px 8px; margin: 0; background: transparent; box-shadow: none; text-align: left; white-space: normal; color: var(--text-normal); font-weight: var(--font-normal); }
+.vam-relevance-panel .vam-relevance-sort:hover { background: var(--background-modifier-hover); }
+.vam-relevance-panel .vam-relevance-sort:active { background: var(--background-modifier-active-hover); }
+.vam-relevance-sort-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.vam-relevance-sort-title { font-size: var(--font-ui-small); }
+.vam-relevance-sort-hint { font-size: var(--font-ui-smaller); color: var(--text-muted); line-height: 1.4; }
+.vam-relevance-switch { flex: none; pointer-events: none; }
 @media (max-width: 420px) {
-  .vam-relevance-setup .vam-relevance-level, .vam-relevance-context-input, .vam-relevance-grade-button { flex: 1 1 100%; }
+  .vam-relevance-setup-row { flex-direction: column; }
+  .vam-relevance-setup .vam-relevance-level { max-width: 100%; }
+  .vam-map-tools .vam-relevance-goal { max-width: 9em; }
 }
 .vam-relevance-changes { margin: 0; padding: 0; list-style: none; }
 .vam-relevance-change { padding: 10px 0; border-bottom: 1px solid var(--background-modifier-border); }
@@ -181,6 +190,7 @@
 .vam-relevance-arrow .svg-icon { width: 14px; height: 14px; }
 .vam-relevance-change-reason { margin: 4px 0 0; font-size: var(--font-ui-small); color: var(--text-muted); overflow-wrap: anywhere; }
 @media (prefers-reduced-motion: reduce) {
+  .vam-relevance-panel { animation: none; }
   /* Same selector weight as the scan animation rule above, otherwise that rule keeps winning. */
   .vam-status-running::before, .vam-node:not([data-aim-kind])[data-status="running"]::after { animation: none; }
   .vam-node:not([data-aim-kind])[data-status="running"]::after { background: var(--interactive-accent); }

@@ -95,7 +95,7 @@ integrationTest('relevance: Set goal -> field -> Enter writes the goal and its f
   assert.equal(h.chip().text, 'Set goal'); assert.ok(hasCls(h.chip(), 'is-empty')); assert.equal(h.bar(), undefined, 'no status bar before any run');
   h.chip().click();
   const input = h.input();
-  assert.equal(input.attrs['aria-label'], 'Map goal'); assert.equal(input.focused, true); assert.equal(h.chip(), undefined, 'the field replaces the chip in place');
+  assert.equal(input.attrs['aria-label'], 'Map goal'); assert.equal(input.focused, true); assert.equal(h.chip().attrs['aria-expanded'], 'true', 'the panel opens under the toolbar button, which stays');
   input.value = 'Sleep better\nthrough the night'; input.fire('keydown', { key: 'Enter' });
   assert.equal(h.run().status, 'running'); assert.ok(h.chip().disabled, 'the chip is disabled while grading');
   assert.equal(h.bar().attrs['aria-live'], 'polite'); assert.equal(h.barText(), 'Grading by goal…'); assert.deepEqual(h.barButtons(), ['Stop']);
@@ -639,6 +639,7 @@ integrationTest('relevance sort: adding a child while sorted saves coordinates f
   const { view } = h;
   // Give the cards tiers so the display order differs from the saved one.
   for (const [key, tier] of [['a', 'side'], ['b', 'core'], ['c', 'core'], ['d', 'support']]) view.notes.get(h.ids[key]).relevance = { tier, reason: 'r' };
+  open(h);
   const toggle = find(h.rootEl, i => hasCls(i, 'vam-relevance-sort'));
   assert.equal(toggle.attrs['aria-pressed'], 'false'); toggle.click();
   assert.equal(view.relevanceSortOn(), true);
@@ -655,4 +656,92 @@ integrationTest('relevance sort: adding a child while sorted saves coordinates f
   assert.equal(saved.y, Math.max(...siblingsBefore.map(n => n.y)) + 220, 'below the real siblings');
   const realAfter = (await h.saved()).find(n => n.id === real.id);
   assert.deepEqual([realAfter.x, realAfter.y], [real.x, real.y], 'the parent keeps its saved position');
+});
+
+// ---- Phase 6: one toolbar button + popover panel ------------------------------------------------------------------
+const panelOf = h => find(h.rootEl, i => hasCls(i, 'vam-relevance-panel'));
+const sortRow = h => find(h.rootEl, i => hasCls(i, 'vam-relevance-sort'));
+const fakeDoc = () => { const doc = { activeElement: null, listeners: {}, addEventListener(n, f) { (this.listeners[n] ??= []).push(f); }, removeEventListener(n, f) { this.listeners[n] = (this.listeners[n] ?? []).filter(x => x !== f); } }; return doc; };
+
+integrationTest('relevance toolbar: one button, label states, aria-expanded and aria-controls; no separate goal line or sort chip', async () => {
+  const h = await harness();
+  const chip = h.chip();
+  assert.equal(chip.text, 'Set goal'); assert.equal(chip.attrs['aria-expanded'], 'false'); assert.ok(chip.attrs['aria-controls']);
+  assert.equal(findAll(h.rootEl, i => i.tag === 'button' && hasCls(i, 'vam-relevance-goal')).length, 1);
+  assert.equal(sortRow(h), undefined, 'no sort chip in the toolbar; it lives in the panel');
+  assert.equal(findAll(h.rootEl, i => hasCls(i, 'vam-relevance-goal-slot')).length, 0);
+  chip.click();
+  assert.equal(h.chip().attrs['aria-expanded'], 'true'); assert.equal(panelOf(h).attrs.id, h.chip().attrs['aria-controls']);
+  h.chip().click();
+  assert.equal(panelOf(h), undefined, 'a second click closes it'); assert.equal(h.chip().attrs['aria-expanded'], 'false'); assert.equal(h.chip().focused, true);
+  h.view.relevanceGoal = 'Sleep better'; h.view.relevanceLevel = 'intermediate'; h.view.relevanceContext = 'Night shifts'; h.view.render();
+  assert.equal(h.chip().text, 'Goal: Sleep better · Some background'); assert.equal(h.chip().attrs['aria-label'], 'Goal: Sleep better · Some background');
+  assert.equal(h.chip().attrs['aria-description'], 'Change the goal and grade again');
+  assert.equal(h.chip().iconName, undefined);
+  assert.equal(findAll(h.chip(), i => hasCls(i, 'vam-relevance-sort-icon')).length, 0, 'no indicator while sorting is off');
+});
+
+integrationTest('relevance toolbar: the panel order is goal, level + context row, grade button, divider, sort switch row', async () => {
+  const h = await harness();
+  open(h);
+  const kids = panelOf(h).children;
+  assert.deepEqual(kids.map(c => c.cls.split(' ')[0]), ['vam-relevance-setup', 'vam-relevance-divider', 'vam-relevance-sort']);
+  assert.deepEqual(group(h).children.map(c => c.cls.split(' ')[0]), ['vam-relevance-goal-input', 'vam-relevance-setup-row', 'vam-relevance-grade-button']);
+  assert.ok(hasCls(gradeButton(h), 'mod-cta')); assert.equal(sortRow(h).tag, 'button');
+  assert.match(texts(sortRow(h)).join('|'), /Sort by relevance\|Show core topics first/);
+});
+const texts = root => findAll(root, i => i.text).map(i => i.text);
+
+integrationTest('relevance toolbar: Esc, an outside press and focus leaving each close the panel without submitting; the outside press and focus leaving do not steal focus', async () => {
+  const h = await harness();
+  const doc = fakeDoc(); h.rootEl.ownerDocument = doc; h.rootEl.root = doc;
+  open(h); h.input().value = 'Not submitted';
+  h.input().fire('keydown', { key: 'Escape' });
+  assert.equal(panelOf(h), undefined); assert.equal(h.chip().focused, true); assert.equal(doc.listeners.pointerdown.length, 0, 'the document listener is removed');
+  assert.equal(h.control.calls.length, 0); assert.equal(h.chip().attrs['aria-expanded'], 'false');
+  h.chip().focused = false;
+  open(h); assert.equal(doc.listeners.pointerdown.length, 1);
+  doc.listeners.pointerdown[0]({ target: panelOf(h) }); assert.ok(panelOf(h), 'a press inside the panel keeps it open');
+  doc.listeners.pointerdown[0]({ target: h.chip() }); assert.ok(panelOf(h), 'the toolbar button toggles it itself');
+  doc.listeners.pointerdown[0]({ target: element('div', 'vam-viewport') });
+  assert.equal(panelOf(h), undefined, 'a press on the canvas closes it'); assert.equal(h.chip().focused, false);
+  open(h); sortRow(h).fire('focusout', { relatedTarget: h.chip() }); assert.ok(panelOf(h), 'focus moving to the button is not leaving');
+  sortRow(h).fire('focusout', { relatedTarget: null }); assert.equal(panelOf(h), undefined);
+  assert.equal(h.control.calls.length, 0); assert.equal(h.control.usageAsks, 0); assert.equal(await h.repo.readRelevanceGoal(MAP), undefined, 'nothing was written');
+});
+
+integrationTest('relevance toolbar: submit closes the panel, disables the button while grading and submits once', async () => {
+  const h = await harness();
+  const gate = deferred(); h.control.reply = request => gate.promise.then(() => gradeAll(request));
+  open(h); h.input().value = 'Goal via panel'; gradeButton(h).click();
+  assert.equal(panelOf(h), undefined); assert.ok(h.chip().disabled); assert.equal(h.chip().attrs['aria-expanded'], 'false');
+  await until(() => h.control.calls.length); assert.equal(h.control.calls.length, 1);
+  gate.resolve(); await h.settled(); assert.equal(h.chip().text, 'Goal: Goal via panel');
+});
+
+integrationTest('relevance toolbar: toggling the sort switch inside the panel keeps the panel and your typing, shows the indicator and the accessible name, and writes nothing', async () => {
+  const h = await harness();
+  const { view } = h;
+  for (const [key, tier] of [['a', 'side'], ['b', 'core']]) view.notes.get(h.ids[key]).relevance = { tier, reason: 'r' };
+  const before = h.contents.get(MAP), writes = [];
+  const create = h.app.vault.create, modify = h.app.vault.modify; h.app.vault.create = (...a) => { writes.push(a[0]); return create.apply(h.app.vault, a); }; h.app.vault.modify = (...a) => { writes.push(a[0]); return modify.apply(h.app.vault, a); };
+  view.renderPreservingFocus = () => view.render();
+  open(h); h.input().value = 'Half typed'; h.input().fire('input');
+  sortRow(h).click();
+  assert.ok(panelOf(h), 'the panel stays open'); assert.equal(h.chip().attrs['aria-expanded'], 'true');
+  assert.equal(sortRow(h).attrs['aria-pressed'], 'true'); assert.equal(h.input().value, 'Half typed', 'the draft survives the repaint');
+  const icon = findAll(h.chip(), i => hasCls(i, 'vam-relevance-sort-icon'))[0];
+  assert.ok(icon, 'a drawn indicator on the button'); assert.equal(icon.iconName, 'arrow-down-wide-narrow'); assert.ok(hasCls(h.chip(), 'is-sorted'));
+  assert.equal(h.chip().attrs['aria-label'], 'Set goal (sorted by relevance)');
+  assert.equal(h.contents.get(MAP), before); assert.deepEqual(writes, [], 'no file write');
+  sortRow(h).click(); assert.equal(sortRow(h).attrs['aria-pressed'], 'false'); assert.equal(h.chip().attrs['aria-label'], 'Set goal');
+  assert.equal(findAll(h.chip(), i => hasCls(i, 'vam-relevance-sort-icon')).length, 0);
+  assert.equal(view.relevanceSortOn(), false); assert.deepEqual(writes, []);
+  h.app.vault.create = create; h.app.vault.modify = modify;
+});
+
+integrationTest('relevance toolbar: the zh-TW strings for the sorted state and the toolbar button', async () => {
+  const { translate } = load('i18n.ts');
+  assert.equal(translate('zh-TW', 'ui.relevance_sorted_suffix'), '（已依重要度排序）');
+  assert.equal(translate('en', 'ui.relevance_sorted_suffix'), ' (sorted by relevance)');
 });
