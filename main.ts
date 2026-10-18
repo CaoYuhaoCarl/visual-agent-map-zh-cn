@@ -1,4 +1,5 @@
 import { registerInternalMarkerPresentation } from "./experiences/markdown-context/internal-markers";
+import { registerMermaidZoom } from "./experiences/mermaid-zoom/register";
 import { CoffeeTablesView, COFFEE_TABLES_VIEW_TYPE, COFFEE_TABLES_NAME } from "./experiences/coffee-tables/view";
 import type { CoffeeRequest, CoffeeSession } from "./experiences/coffee-tables/types";
 import { CoffeeManager } from "./experiences/coffee-tables/engine";
@@ -325,6 +326,7 @@ export default class VisualAgentMapPlugin extends Plugin {
     };
     setUiLanguage(this.settings.language);
     registerInternalMarkerPresentation(this);
+    registerMermaidZoom(this);
     const markdownSelectionAi = new MarkdownSelectionAi(this.app, {
       model: () => this.settings.cliModel,
       autoOpen: () => this.settings.markdownSelectionAiAutoOpen,
