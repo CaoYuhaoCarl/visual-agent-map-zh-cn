@@ -4074,8 +4074,11 @@ export class VisualAgentMapView extends ItemView {
     }
     restoreRelevanceFocus();
   }
-  private renderNode(node: MapNode): void {
+  /** `shownNode` may be a display copy (sorted by relevance): it only supplies where the card is drawn. */
+  private renderNode(shownNode: MapNode): void {
     if (!this.stageEl) return;
+    // Every handler below acts on the real node, so nothing written to the map can carry display coordinates.
+    const node = this.map?.nodes.find(item => item.id === shownNode.id) ?? shownNode;
     const note = this.notes.get(node.id),
       card = this.stageEl.createDiv({
         cls: `vam-node${node.id === this.selected || this.multiSelected.has(node.id) ? " is-selected" : ""}`
@@ -4108,8 +4111,8 @@ export class VisualAgentMapView extends ItemView {
         : queued
           ? "queued"
           : (note?.status ?? "error");
-    card.style.left = `${node.x}px`;
-    card.style.top = `${node.y}px`;
+    card.style.left = `${shownNode.x}px`;
+    card.style.top = `${shownNode.y}px`;
     card.tabIndex = node.id === this.tabStopId ? 0 : -1;
     const header = card.createDiv("vam-node-header");
     this.labelCard(card, note?.title ?? t("ui.note_missing"));
@@ -4569,6 +4572,11 @@ export class VisualAgentMapView extends ItemView {
   }
   /** Arrow keys walk the tree: left to the parent, right to the first child, up/down among siblings. */
   private keyboardNeighbor(node: MapNode, key: string): MapNode | undefined {
+    const target = this.displayedNeighbor(node, key);
+    // The walk follows the displayed order; hand back the real node so nothing downstream sees display coordinates.
+    return target && (this.map?.nodes.find(item => item.id === target.id) ?? target);
+  }
+  private displayedNeighbor(node: MapNode, key: string): MapNode | undefined {
     if (!this.map || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(key)) return undefined;
     const shown = this.canvasNodes();
     const byY = (a: MapNode, b: MapNode): number => a.y - b.y || a.x - b.x;
@@ -5259,8 +5267,10 @@ export class VisualAgentMapView extends ItemView {
       }))
     ).open();
   }
-  private async addNode(parent: MapNode | null, suggestedTitle?: string, rebuildDerivedData = true): Promise<void> {
+  private async addNode(parentNode: MapNode | null, suggestedTitle?: string, rebuildDerivedData = true): Promise<void> {
     if (!this.map) return;
+    // The caller may hold a display copy (sorted by relevance); saved coordinates must come from the real node.
+    const parent = (parentNode && this.map.nodes.find(item => item.id === parentNode.id)) || parentNode;
     if (!suggestedTitle?.trim()) {
       new NameModal(this.app, parent ? t("ui.new_subtopic") : t("ui.my_core_topic"), "", title =>
         this.enqueue(() => this.addNode(parent, title))
@@ -7045,9 +7055,11 @@ export class VisualAgentMapView extends ItemView {
     viewport.addEventListener("pointerup", up);
     viewport.addEventListener("pointercancel", up);
   }
-  private focusNode(node: MapNode): void {
+  private focusNode(target: MapNode): void {
     if (!this.map || !this.viewportEl) return;
     const v = this.map.viewport;
+    // Centre on where the card is drawn, which differs from its saved position while sorted by relevance.
+    const node = this.relevanceSortOn() ? (this.canvasNodes().find(item => item.id === target.id) ?? target) : target;
     v.x = this.viewportEl.clientWidth / 2 - (node.x + 140) * v.zoom;
     v.y = this.viewportEl.clientHeight / 2 - (node.y + 80) * v.zoom;
     this.transform();

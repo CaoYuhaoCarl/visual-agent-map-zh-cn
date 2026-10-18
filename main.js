@@ -593,7 +593,7 @@ var english = {
   "ui.relevance_goal_0": "Goal: {0}",
   "ui.relevance_goal_set": "Set goal",
   "ui.relevance_sort": "Sort by relevance",
-  "ui.relevance_sort_hint": "Show core topics first, then supporting, then side topics, within each group. Display only: nothing is saved or moved in your files.",
+  "ui.relevance_sort_hint": "Show core topics first, then supporting, then side topics, within each group. Display only: nothing is saved or moved in your files. Dragging cards is paused while this is on.",
   "ui.relevance_goal_set_hint": "Set a goal and grade the topics by it",
   "ui.relevance_goal_edit_hint": "Change the goal and grade again",
   "ui.relevance_goal_label": "Map goal",
@@ -2073,7 +2073,7 @@ var traditionalChinese = {
   "ui.relevance_goal_0": "\u76EE\u6A19\uFF1A{0}",
   "ui.relevance_goal_set": "\u8A2D\u5B9A\u76EE\u6A19",
   "ui.relevance_sort": "\u4F9D\u91CD\u8981\u5EA6\u6392\u5E8F",
-  "ui.relevance_sort_hint": "\u6BCF\u4E00\u7D44\u5167\u4F9D\u6838\u5FC3\u3001\u652F\u63F4\u3001\u65C1\u652F\u7684\u9806\u5E8F\u986F\u793A\u3002\u53EA\u6539\u756B\u9762\uFF0C\u4E0D\u6703\u5132\u5B58\u6216\u66F4\u52D5\u4F60\u7684\u6A94\u6848\u3002",
+  "ui.relevance_sort_hint": "\u6BCF\u4E00\u7D44\u5167\u4F9D\u6838\u5FC3\u3001\u652F\u63F4\u3001\u65C1\u652F\u7684\u9806\u5E8F\u986F\u793A\u3002\u53EA\u6539\u756B\u9762\uFF0C\u4E0D\u6703\u5132\u5B58\u6216\u66F4\u52D5\u4F60\u7684\u6A94\u6848\u3002\u958B\u555F\u6642\u66AB\u505C\u62D6\u66F3\u5361\u7247\u3002",
   "ui.relevance_goal_set_hint": "\u8A2D\u5B9A\u76EE\u6A19\uFF0C\u4F9D\u76EE\u6A19\u66FF\u8B70\u984C\u5206\u7D1A",
   "ui.relevance_goal_edit_hint": "\u4FEE\u6539\u76EE\u6A19\u4E26\u91CD\u65B0\u5206\u7D1A",
   "ui.relevance_goal_label": "\u5FC3\u667A\u5716\u76EE\u6A19",
@@ -28889,9 +28889,11 @@ ${request.requirements}` : preset.text,
     }
     restoreRelevanceFocus();
   }
-  renderNode(node) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C, _D, _E, _F, _G, _H, _I;
+  /** `shownNode` may be a display copy (sorted by relevance): it only supplies where the card is drawn. */
+  renderNode(shownNode) {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C, _D, _E, _F, _G, _H, _I, _J, _K;
     if (!this.stageEl) return;
+    const node = (_b = (_a = this.map) == null ? void 0 : _a.nodes.find((item) => item.id === shownNode.id)) != null ? _b : shownNode;
     const note = this.notes.get(node.id), card = this.stageEl.createDiv({
       cls: `vam-node${node.id === this.selected || this.multiSelected.has(node.id) ? " is-selected" : ""}`
     });
@@ -28916,16 +28918,16 @@ ${request.requirements}` : preset.text,
     }
     card.dataset.nodeId = node.id;
     const queued = this.isResearchQueued(node);
-    card.dataset.status = ((_a = this.plugin.running) == null ? void 0 : _a.has(node.path)) || ((_b = this.plugin.quickExpandPending) == null ? void 0 : _b.has(node.path)) ? "running" : queued ? "queued" : (_c = note == null ? void 0 : note.status) != null ? _c : "error";
-    card.style.left = `${node.x}px`;
-    card.style.top = `${node.y}px`;
+    card.dataset.status = ((_c = this.plugin.running) == null ? void 0 : _c.has(node.path)) || ((_d = this.plugin.quickExpandPending) == null ? void 0 : _d.has(node.path)) ? "running" : queued ? "queued" : (_e = note == null ? void 0 : note.status) != null ? _e : "error";
+    card.style.left = `${shownNode.x}px`;
+    card.style.top = `${shownNode.y}px`;
     card.tabIndex = node.id === this.tabStopId ? 0 : -1;
     const header = card.createDiv("vam-node-header");
-    this.labelCard(card, (_d = note == null ? void 0 : note.title) != null ? _d : t("ui.note_missing"));
+    this.labelCard(card, (_f = note == null ? void 0 : note.title) != null ? _f : t("ui.note_missing"));
     if (this.integrationMode) {
       const select = header.createEl("input", { type: "checkbox" });
       select.checked = this.multiSelected.has(node.id);
-      select.setAttr("aria-label", (_e = note == null ? void 0 : note.title) != null ? _e : node.path);
+      select.setAttr("aria-label", (_g = note == null ? void 0 : note.title) != null ? _g : node.path);
       select.tabIndex = -1;
       this.cardChecks.set(node.id, select);
       select.addEventListener("click", (event) => {
@@ -28936,7 +28938,7 @@ ${request.requirements}` : preset.text,
       });
     }
     const batch = this.plugin.expansionBatches.get(node.path);
-    const active = ((_f = this.plugin.running) == null ? void 0 : _f.has(node.path)) || ((_g = this.plugin.quickExpandPending) == null ? void 0 : _g.has(node.path));
+    const active = ((_h = this.plugin.running) == null ? void 0 : _h.has(node.path)) || ((_i = this.plugin.quickExpandPending) == null ? void 0 : _i.has(node.path));
     const doc = this.map, aimData = doc == null ? void 0 : doc.aim;
     const aimProgress = !!aimData && (node.aimKind === "question" || node.aimKind === "topic" && aimData.branches.some((branch) => branch.questionNodeId === node.id && !branch.parentBranchId));
     if (doc && aimData && aimProgress) {
@@ -28957,31 +28959,31 @@ ${request.requirements}` : preset.text,
       const statusText = active ? t("ui.ai_running") : queued ? t("ui.research_queued") : (note == null ? void 0 : note.status) === "completed" ? t("ui.researched") : note ? topicStatusLabel(note.status, this.plugin.settings.language) : t("ui.note_missing");
       if (!note || note.status !== "completed" || active || queued) {
         const chip = header.createSpan({
-          cls: `vam-status vam-status-${active ? "running" : queued ? "queued" : (_h = note == null ? void 0 : note.status) != null ? _h : "error"}`,
+          cls: `vam-status vam-status-${active ? "running" : queued ? "queued" : (_j = note == null ? void 0 : note.status) != null ? _j : "error"}`,
           text: statusText
         });
         if (active) chip.setAttr("role", "status");
       }
       if (note) this.labelCard(card, t("ui.topic_card_label_0_1", note.title, statusText));
     }
-    const relevance = !node.aimKind && !((_i = this.map) == null ? void 0 : _i.aim) && !this.builtIn ? note == null ? void 0 : note.relevance : void 0;
+    const relevance = !node.aimKind && !((_k = this.map) == null ? void 0 : _k.aim) && !this.builtIn ? note == null ? void 0 : note.relevance : void 0;
     if (relevance) {
       const tierLabel = t(RELEVANCE_LABEL[relevance.tier]);
       card.dataset.relevance = relevance.tier;
       (0, import_obsidian24.setTooltip)(renderRelevanceTag(header, relevance.tier, tierLabel), relevance.reason);
       card.setAttr("aria-description", t("ui.relevance_description_0_1", tierLabel, relevance.reason));
-      const named = (_j = cardLabels.get(card)) == null ? void 0 : _j.textContent;
+      const named = (_l = cardLabels.get(card)) == null ? void 0 : _l.textContent;
       if (named) this.labelCard(card, t("ui.topic_card_label_0_1", named, tierLabel));
     }
     const errorDetails = [];
-    if ((_k = note == null ? void 0 : note.detailFormatIssues) == null ? void 0 : _k.length) {
+    if ((_m = note == null ? void 0 : note.detailFormatIssues) == null ? void 0 : _m.length) {
       const issue = header.createSpan({ cls: "vam-status vam-status-error", text: t("ui.detail_format_unmet") });
       issue.setAttr("title", note.detailFormatIssues.join("\n"));
       errorDetails.push(...note.detailFormatIssues);
     }
     if (batch) {
-      const currentNode = batch.currentPath ? (_l = this.map) == null ? void 0 : _l.nodes.find((item) => item.path === batch.currentPath) : void 0;
-      const currentTitle = currentNode ? (_m = this.notes.get(currentNode.id)) == null ? void 0 : _m.title : void 0;
+      const currentNode = batch.currentPath ? (_n = this.map) == null ? void 0 : _n.nodes.find((item) => item.path === batch.currentPath) : void 0;
+      const currentTitle = currentNode ? (_o = this.notes.get(currentNode.id)) == null ? void 0 : _o.title : void 0;
       const label = this.batchProgressLabel(
         t("ui.shallow_research_counts", batch.succeeded, batch.total),
         batch,
@@ -29003,21 +29005,21 @@ ${request.requirements}` : preset.text,
       }
       this.renderRetryFailedButton(header, node.path, batch);
     }
-    if (((_n = this.plugin.quickExpandPending) == null ? void 0 : _n.has(node.path)) && (batch == null ? void 0 : batch.status) !== "running") {
+    if (((_p = this.plugin.quickExpandPending) == null ? void 0 : _p.has(node.path)) && (batch == null ? void 0 : batch.status) !== "running") {
       this.button(header, t("ui.stop_research"), () => {
         var _a2;
         return (_a2 = this.plugin.activeTasks.get(node.path)) == null ? void 0 : _a2.abort();
       });
     }
-    const pendingCount = (_p = (_o = this.plugin.pendingSuggestions.get(node.path)) == null ? void 0 : _o.length) != null ? _p : 0;
-    if (pendingCount && !this.builtIn && !this.integrationMode && !((_q = this.map) == null ? void 0 : _q.aim))
+    const pendingCount = (_r = (_q = this.plugin.pendingSuggestions.get(node.path)) == null ? void 0 : _q.length) != null ? _r : 0;
+    if (pendingCount && !this.builtIn && !this.integrationMode && !((_s = this.map) == null ? void 0 : _s.aim))
       this.button(
         header,
         t("ui.view_0_expansion_suggestions", pendingCount),
         () => this.openNodePanel(node, "proposals")
       ).addClass("vam-badge-new");
     const synthesis = this.synthesisTasks.get(node.path);
-    if (synthesis && synthesis.mapPath === this.path && !this.builtIn && !this.integrationMode && !((_r = this.map) == null ? void 0 : _r.aim)) {
+    if (synthesis && synthesis.mapPath === this.path && !this.builtIn && !this.integrationMode && !((_t = this.map) == null ? void 0 : _t.aim)) {
       if (synthesis.state === "running") {
         if (synthesis.progress) header.createSpan({ cls: "vam-status vam-status-running", text: synthesis.progress });
         this.button(header, t("ui.stop_research"), () => synthesis.controller.abort());
@@ -29057,7 +29059,7 @@ ${request.requirements}` : preset.text,
       collapse.setAttr("aria-expanded", String(!node.collapsed));
     }
     if (!this.builtIn && !this.integrationMode) {
-      if (!((_s = this.map) == null ? void 0 : _s.aim)) {
+      if (!((_u = this.map) == null ? void 0 : _u.aim)) {
         const structure = this.button(tools, t("ui.node_tool_links"), () => this.openNodePanel(node, "structure"));
         structure.addClass("vam-node-tool", "vam-structure-tool");
         structure.setAttr("aria-label", t("ui.structure_and_links"));
@@ -29078,7 +29080,7 @@ ${request.requirements}` : preset.text,
         remove.addClass("vam-node-tool", "vam-remove-tool");
         remove.setAttr("aria-label", t("ui.remove_from_map"));
       }
-      if (((_t = this.map) == null ? void 0 : _t.aim) && node.aimKind === "synthesis" && this.map.aim.branches.some((branch) => branch.results.some((result) => result.nodeId === node.id))) {
+      if (((_v = this.map) == null ? void 0 : _v.aim) && node.aimKind === "synthesis" && this.map.aim.branches.some((branch) => branch.results.some((result) => result.nodeId === node.id))) {
         const next = this.button(
           header,
           t("ui.aim_new_question"),
@@ -29090,7 +29092,7 @@ ${request.requirements}` : preset.text,
         next.setAttr("title", t("ui.aim_new_question_hint"));
       }
       const assumptions = node.aimKind === "conclusion" && note ? readOpenItems(note.detail) : [];
-      if (((_u = this.map) == null ? void 0 : _u.aim) && assumptions.length) {
+      if (((_w = this.map) == null ? void 0 : _w.aim) && assumptions.length) {
         const correct = this.button(
           header,
           t("ui.aim_correct_assumption"),
@@ -29102,7 +29104,7 @@ ${request.requirements}` : preset.text,
         correct.addClass("vam-node-tool", "vam-pinned-tool");
         correct.setAttr("title", t("ui.aim_correct_assumption_hint"));
       }
-      if (((_v = this.map) == null ? void 0 : _v.aim) && node.aimKind === "conclusion") {
+      if (((_x = this.map) == null ? void 0 : _x.aim) && node.aimKind === "conclusion") {
         const steer = this.button(
           header,
           t("ui.aim_steer"),
@@ -29121,25 +29123,25 @@ ${request.requirements}` : preset.text,
     details.addClass("vam-node-tool", "vam-detail-button");
     if (this.builtIn) details.setAttr("title", t("ui.view_sample_content"));
     else details.setAttr("aria-label", t("ui.open_details_in_right_sidebar"));
-    if (!this.builtIn && !this.integrationMode && !((_w = this.map) == null ? void 0 : _w.aim))
+    if (!this.builtIn && !this.integrationMode && !((_y = this.map) == null ? void 0 : _y.aim))
       this.button(tools, t("ui.ai_explore"), () => this.openNextStep(node)).addClass("vam-node-tool", "vam-ai-explore");
-    if (!this.builtIn && !this.integrationMode && !((_x = this.map) == null ? void 0 : _x.aim)) {
+    if (!this.builtIn && !this.integrationMode && !((_z = this.map) == null ? void 0 : _z.aim)) {
       const add = this.button(card, "+", () => this.enqueue(() => this.addNode(node)));
       add.addClass("vam-add-child");
       add.setAttr("aria-label", t("ui.add_subtopic_manually"));
     }
-    const title = card.createEl("h3", { text: (_y = note == null ? void 0 : note.title) != null ? _y : node.path, cls: "vam-card-title" });
-    title.setAttr("title", (_z = note == null ? void 0 : note.title) != null ? _z : node.path);
+    const title = card.createEl("h3", { text: (_A = note == null ? void 0 : note.title) != null ? _A : node.path, cls: "vam-card-title" });
+    title.setAttr("title", (_B = note == null ? void 0 : note.title) != null ? _B : node.path);
     if (!note || !isPlaceholder(note.summary))
       card.createEl("p", {
         cls: "vam-card-summary",
-        text: (_A = note == null ? void 0 : note.summary) != null ? _A : t("ui.the_file_was_moved_or_deleted_you_can_remove_this_node_from")
+        text: (_C = note == null ? void 0 : note.summary) != null ? _C : t("ui.the_file_was_moved_or_deleted_you_can_remove_this_node_from")
       });
     if (errorDetails.length) {
       const error = card.createEl("p", { cls: "vam-card-error", text: errorDetails[0] });
       error.setAttr("title", errorDetails.join("\n"));
     }
-    if (node.aimKind === "conclusion" && ((_B = this.map) == null ? void 0 : _B.aim) && !this.builtIn) {
+    if (node.aimKind === "conclusion" && ((_D = this.map) == null ? void 0 : _D.aim) && !this.builtIn) {
       const branch = this.map.aim.branches.find((item) => item.results.some((result) => result.nodeId === node.id));
       const hasFollowup = this.map.nodes.some((item) => item.parentId === node.id && item.aimKind === "question");
       if (branch && !hasFollowup && countAimAnsweredQuestions(this.map, branch.id) < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION) {
@@ -29152,7 +29154,7 @@ ${request.requirements}` : preset.text,
         ).addClass("mod-cta");
       }
     }
-    if (node.aimKind === "topic" && ((_C = this.map) == null ? void 0 : _C.aim) && !this.map.nodes.some((item) => item.aimKind === "question")) {
+    if (node.aimKind === "topic" && ((_E = this.map) == null ? void 0 : _E.aim) && !this.map.nodes.some((item) => item.aimKind === "question")) {
       const initialBranch = this.map.aim.branches.find((item) => item.questionNodeId === node.id && !item.parentBranchId);
       const initialRuns = initialBranch ? this.map.aim.runs.filter((item) => item.branchId === initialBranch.id) : [];
       const activeInitialRun = initialRuns.some((run) => {
@@ -29188,11 +29190,11 @@ ${request.requirements}` : preset.text,
         );
       }
     }
-    if (node.aimKind === "question" && ((_D = this.map) == null ? void 0 : _D.aim)) {
+    if (node.aimKind === "question" && ((_F = this.map) == null ? void 0 : _F.aim)) {
       const branch = this.map.aim.branches.find((item) => item.questionNodeId === node.id);
       if (branch) {
         this.renderAimFailure(card, branch);
-        const labels = (_F = (_E = node.aimQuestion) == null ? void 0 : _E.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _F : branch.answerSnapshot.selections;
+        const labels = (_H = (_G = node.aimQuestion) == null ? void 0 : _G.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _H : branch.answerSnapshot.selections;
         const answer = [...labels, branch.answerSnapshot.freeText].filter(Boolean).join(" \u2014 ");
         card.createEl("p", {
           cls: "vam-aim-answer-snapshot",
@@ -29235,11 +29237,11 @@ ${request.requirements}` : preset.text,
         }
       }
     }
-    if (node.aimKind === "answer" && ((_G = this.map) == null ? void 0 : _G.aim)) {
+    if (node.aimKind === "answer" && ((_I = this.map) == null ? void 0 : _I.aim)) {
       const branch = this.map.aim.branches.find((item) => item.answerNodeId === node.id);
       const question = branch && this.map.nodes.find((item) => item.id === branch.questionNodeId);
       if (branch) {
-        const labels = (_I = (_H = question == null ? void 0 : question.aimQuestion) == null ? void 0 : _H.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _I : branch.answerSnapshot.selections;
+        const labels = (_K = (_J = question == null ? void 0 : question.aimQuestion) == null ? void 0 : _J.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _K : branch.answerSnapshot.selections;
         const answer = [...labels, branch.answerSnapshot.freeText].filter(Boolean).join(" \u2014 ");
         card.createEl("p", {
           cls: "vam-aim-answer-snapshot",
@@ -29333,6 +29335,11 @@ ${request.requirements}` : preset.text,
   }
   /** Arrow keys walk the tree: left to the parent, right to the first child, up/down among siblings. */
   keyboardNeighbor(node, key2) {
+    var _a, _b;
+    const target = this.displayedNeighbor(node, key2);
+    return target && ((_b = (_a = this.map) == null ? void 0 : _a.nodes.find((item) => item.id === target.id)) != null ? _b : target);
+  }
+  displayedNeighbor(node, key2) {
     if (!this.map || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(key2)) return void 0;
     const shown = this.canvasNodes();
     const byY = (a, b) => a.y - b.y || a.x - b.x;
@@ -29986,9 +29993,10 @@ ${request.requirements}` : preset.text,
       }))
     ).open();
   }
-  async addNode(parent, suggestedTitle, rebuildDerivedData = true) {
+  async addNode(parentNode, suggestedTitle, rebuildDerivedData = true) {
     var _a, _b;
     if (!this.map) return;
+    const parent = parentNode && this.map.nodes.find((item) => item.id === parentNode.id) || parentNode;
     if (!(suggestedTitle == null ? void 0 : suggestedTitle.trim())) {
       new NameModal(
         this.app,
@@ -31635,9 +31643,11 @@ ${note.detail.trim()}` : "",
     viewport.addEventListener("pointerup", up);
     viewport.addEventListener("pointercancel", up);
   }
-  focusNode(node) {
+  focusNode(target) {
+    var _a;
     if (!this.map || !this.viewportEl) return;
     const v = this.map.viewport;
+    const node = this.relevanceSortOn() ? (_a = this.canvasNodes().find((item) => item.id === target.id)) != null ? _a : target : target;
     v.x = this.viewportEl.clientWidth / 2 - (node.x + 140) * v.zoom;
     v.y = this.viewportEl.clientHeight / 2 - (node.y + 80) * v.zoom;
     this.transform();

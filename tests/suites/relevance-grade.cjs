@@ -633,3 +633,26 @@ integrationTest('relevance repair: an over-budget repair is refused with the ove
   assert.equal(h.barText(), 'Grading failed. No topic was changed. The map is too large to grade at once. Nothing was changed.');
   assert.deepEqual(await graded(h), []);
 });
+
+integrationTest('relevance sort: adding a child while sorted saves coordinates from the real parent, never from the display copy', async () => {
+  const h = await harness();
+  const { view } = h;
+  // Give the cards tiers so the display order differs from the saved one.
+  for (const [key, tier] of [['a', 'side'], ['b', 'core'], ['c', 'core'], ['d', 'support']]) view.notes.get(h.ids[key]).relevance = { tier, reason: 'r' };
+  const toggle = find(h.rootEl, i => hasCls(i, 'vam-relevance-sort'));
+  assert.equal(toggle.attrs['aria-pressed'], 'false'); toggle.click();
+  assert.equal(view.relevanceSortOn(), true);
+  const before = h.contents.get(MAP);
+  const real = view.map.nodes.find(n => n.id === h.ids.b);
+  const display = view.canvasNodes().find(n => n.id === h.ids.b);
+  assert.ok(display.x !== real.x || display.y !== real.y, 'the display copy is somewhere else');
+  assert.equal(h.contents.get(MAP), before, 'toggling wrote nothing');
+  const siblingsBefore = view.map.nodes.filter(n => n.parentId === real.id);
+  await view.addNode(display, 'Child while sorted');
+  const saved = (await h.saved()).find(n => n.parentId === real.id && !siblingsBefore.some(s => s.id === n.id));
+  assert.ok(saved, 'the child was added under the real parent');
+  assert.equal(saved.x, real.x + 340);
+  assert.equal(saved.y, Math.max(...siblingsBefore.map(n => n.y)) + 220, 'below the real siblings');
+  const realAfter = (await h.saved()).find(n => n.id === real.id);
+  assert.deepEqual([realAfter.x, realAfter.y], [real.x, real.y], 'the parent keeps its saved position');
+});
