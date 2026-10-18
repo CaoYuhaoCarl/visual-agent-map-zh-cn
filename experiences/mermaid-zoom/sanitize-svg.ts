@@ -62,6 +62,10 @@ function unsafeUrl(value: string): boolean {
   return compact.length > 0 && !compact.startsWith("#");
 }
 
+/** CSS that can name a resource through something other than a plain `url(#fragment)`. */
+const EXTERNAL_URL = /url\(\s*['"]?\s*(?!#)/i;
+const HARD_TO_VET = /\\|image-set\(|-webkit-image-set\(|expression\(/i;
+
 function cleanStyle(value: string): string {
   return value.replace(/@import[^;]*;?/gi, "").replace(/url\(\s*(['"]?)(?!#)[^)]*\1\s*\)/gi, "none");
 }
@@ -72,7 +76,12 @@ function cleanAttributes(node: SvgNode): void {
     if (lower.startsWith("on")) node.removeAttribute(name);
     else if ((lower === "href" || lower === "xlink:href" || lower === "src") && unsafeUrl(value))
       node.removeAttribute(name);
-    else if (lower === "style" && cleanStyle(value) !== value) node.setAttribute?.(name, cleanStyle(value));
+    else if (lower === "style") {
+      if (HARD_TO_VET.test(value)) node.removeAttribute(name);
+      else if (cleanStyle(value) !== value) node.setAttribute?.(name, cleanStyle(value));
+    }
+    // A presentation attribute (fill, filter, mask, marker-start, ...) may only point inside the clone.
+    else if (EXTERNAL_URL.test(value) || HARD_TO_VET.test(value)) node.removeAttribute(name);
   }
 }
 
@@ -88,7 +97,10 @@ function clean(node: SvgNode): void {
       continue;
     }
     cleanAttributes(child);
-    if (name === "style") child.textContent = cleanStyle(child.textContent ?? "");
+    // A stylesheet with escapes or image-set() cannot be vetted with a few patterns, so it is dropped; the diagram
+    // still shows with the viewer's own styling instead of risking a request to another host.
+    if (name === "style")
+      child.textContent = HARD_TO_VET.test(child.textContent ?? "") ? "" : cleanStyle(child.textContent ?? "");
     clean(child);
   }
 }

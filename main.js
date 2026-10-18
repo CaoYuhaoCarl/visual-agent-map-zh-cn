@@ -97,6 +97,7 @@ function registerInternalMarkerPresentation(plugin) {
 }
 
 // experiences/mermaid-zoom/register.ts
+var import_view2 = require("@codemirror/view");
 var import_obsidian3 = require("obsidian");
 
 // i18n.ts
@@ -3059,6 +3060,8 @@ function unsafeUrl(value) {
   const compact = Array.from(value).filter((ch) => ch.charCodeAt(0) > 32 && (ch.charCodeAt(0) < 127 || ch.charCodeAt(0) > 159)).join("").toLowerCase();
   return compact.length > 0 && !compact.startsWith("#");
 }
+var EXTERNAL_URL = /url\(\s*['"]?\s*(?!#)/i;
+var HARD_TO_VET = /\\|image-set\(|-webkit-image-set\(|expression\(/i;
 function cleanStyle(value) {
   return value.replace(/@import[^;]*;?/gi, "").replace(/url\(\s*(['"]?)(?!#)[^)]*\1\s*\)/gi, "none");
 }
@@ -3069,14 +3072,17 @@ function cleanAttributes(node) {
     if (lower.startsWith("on")) node.removeAttribute(name);
     else if ((lower === "href" || lower === "xlink:href" || lower === "src") && unsafeUrl(value))
       node.removeAttribute(name);
-    else if (lower === "style" && cleanStyle(value) !== value) (_a = node.setAttribute) == null ? void 0 : _a.call(node, name, cleanStyle(value));
+    else if (lower === "style") {
+      if (HARD_TO_VET.test(value)) node.removeAttribute(name);
+      else if (cleanStyle(value) !== value) (_a = node.setAttribute) == null ? void 0 : _a.call(node, name, cleanStyle(value));
+    } else if (EXTERNAL_URL.test(value) || HARD_TO_VET.test(value)) node.removeAttribute(name);
   }
 }
 function plainLabel(node) {
   return Array.from(node.children).every((child) => LABEL_HTML.has(child.localName) && plainLabel(child));
 }
 function clean(node) {
-  var _a;
+  var _a, _b;
   for (const child of Array.from(node.children)) {
     const name = child.localName.toLowerCase();
     if (REMOVED.has(name) || name === "foreignobject" && !plainLabel(child)) {
@@ -3084,7 +3090,8 @@ function clean(node) {
       continue;
     }
     cleanAttributes(child);
-    if (name === "style") child.textContent = cleanStyle((_a = child.textContent) != null ? _a : "");
+    if (name === "style")
+      child.textContent = HARD_TO_VET.test((_a = child.textContent) != null ? _a : "") ? "" : cleanStyle((_b = child.textContent) != null ? _b : "");
     clean(child);
   }
 }
@@ -3144,7 +3151,7 @@ function panBy(view, dx, dy) {
   return { ...view, x: view.x + dx, y: view.y + dy };
 }
 function wheelFactor(deltaY, ctrlKey, deltaMode = 0) {
-  const pixels = deltaMode === 1 ? deltaY * 16 : deltaY;
+  const pixels = deltaMode === 2 ? deltaY * 400 : deltaMode === 1 ? deltaY * 16 : deltaY;
   return Math.exp(-pixels * (ctrlKey ? 0.01 : 15e-4));
 }
 
@@ -3180,7 +3187,9 @@ var MermaidZoomModal = class extends import_obsidian2.Modal {
     contentEl.empty();
     contentEl.addClass("vam-mermaid-zoom-content");
     this.natural = naturalSize(this.source);
-    const clone2 = sanitizeSvgClone(this.source.cloneNode(true));
+    const inert = contentEl.ownerDocument.implementation.createHTMLDocument("");
+    const cleaned = sanitizeSvgClone(inert.importNode(this.source, true));
+    const clone2 = contentEl.ownerDocument.importNode(cleaned, true);
     clone2.setAttribute("width", String(this.natural.width));
     clone2.setAttribute("height", String(this.natural.height));
     const toolbar = contentEl.createDiv({ cls: "vam-mermaid-zoom-toolbar" });
@@ -3290,6 +3299,7 @@ var MermaidZoomModal = class extends import_obsidian2.Modal {
   }
   onPointerDown(event) {
     var _a, _b, _c;
+    if (event.button > 0) return;
     this.pointers.set(event.pointerId, this.local(event));
     (_b = (_a = this.viewport) == null ? void 0 : _a.setPointerCapture) == null ? void 0 : _b.call(_a, event.pointerId);
     (_c = this.viewport) == null ? void 0 : _c.addClass("is-dragging");
@@ -3395,33 +3405,100 @@ function decorateDiagram(app, host) {
     if (current) new MermaidZoomModal(app, current, button).open();
   });
 }
-function scan(app, element) {
-  const hosts = element.matches(".mermaid") ? [element] : [];
-  hosts.push(...Array.from(element.querySelectorAll(".mermaid")));
-  for (const host of hosts) decorateDiagram(app, host);
+function inForeignEmbed(section3, host) {
+  const embed = host.closest(".internal-embed, .markdown-embed");
+  return !!embed && embed !== section3 && section3.contains(embed);
 }
+function scan(app, section3) {
+  const hosts = section3.matches(".mermaid") ? [section3] : [];
+  hosts.push(...Array.from(section3.querySelectorAll(".mermaid")));
+  let done = 0;
+  for (const host of hosts) {
+    if (inForeignEmbed(section3, host) || !host.querySelector("svg")) continue;
+    decorateDiagram(app, host);
+    done++;
+  }
+  return done;
+}
+var WatchChild = class extends import_obsidian3.MarkdownRenderChild {
+  constructor(element, stop) {
+    super(element);
+    this.stop = stop;
+  }
+  onunload() {
+    this.stop();
+  }
+};
+var EditorWatcher = class {
+  constructor(app, dom, sourcePath, onDestroy) {
+    this.app = app;
+    this.dom = dom;
+    this.sourcePath = sourcePath;
+    this.onDestroy = onDestroy;
+    __publicField(this, "observer");
+    this.observer = new MutationObserver(() => this.scan());
+    this.observer.observe(dom, { childList: true, subtree: true });
+    this.scan();
+  }
+  scan() {
+    const path = this.sourcePath();
+    if (path && isVamSource(this.app, path)) scan(this.app, this.dom);
+  }
+  destroy() {
+    this.observer.disconnect();
+    this.onDestroy(this);
+  }
+};
 function registerMermaidZoom(plugin) {
   const observers = /* @__PURE__ */ new Set();
+  const editors = /* @__PURE__ */ new Set();
   plugin.register(() => {
     for (const observer of observers) observer.disconnect();
     observers.clear();
+    for (const watcher of Array.from(editors)) watcher.destroy();
   });
+  plugin.registerEditorExtension(
+    import_view2.ViewPlugin.fromClass(
+      class {
+        constructor(view) {
+          __publicField(this, "watcher");
+          this.watcher = new EditorWatcher(
+            plugin.app,
+            view.dom,
+            () => {
+              var _a, _b;
+              return (_b = (_a = view.state.field(import_obsidian3.editorInfoField, false)) == null ? void 0 : _a.file) == null ? void 0 : _b.path;
+            },
+            (done) => editors.delete(done)
+          );
+          editors.add(this.watcher);
+        }
+        update() {
+          this.watcher.scan();
+        }
+        destroy() {
+          this.watcher.destroy();
+        }
+      }
+    )
+  );
   plugin.registerMarkdownPostProcessor((element, context) => {
     if (!isVamSource(plugin.app, context.sourcePath)) return;
-    element.addClass(SCOPE_CLASS);
-    scan(plugin.app, element);
+    if (scan(plugin.app, element) > 0) return;
     const mayHoldDiagram = element.matches(".mermaid") || ["mermaid", "block-language-mermaid", "language-mermaid"].some((name) => element.querySelector(`.${name}`));
     if (!mayHoldDiagram) return;
+    const release = () => {
+      observer.disconnect();
+      observers.delete(observer);
+    };
     const observer = new MutationObserver(() => {
-      scan(plugin.app, element);
-      if (!element.isConnected) {
-        observer.disconnect();
-        observers.delete(observer);
-      }
+      if (scan(plugin.app, element) > 0 || !element.isConnected) release();
     });
     observer.observe(element, { childList: true, subtree: true });
     observers.add(observer);
+    context.addChild(new WatchChild(element, release));
   });
+  return { observerCount: () => observers.size, editorCount: () => editors.size };
 }
 
 // experiences/coffee-tables/customization-ui.ts
@@ -36287,6 +36364,8 @@ async function fitImageForClaude(dataUrl, signal) {
 var VisualAgentMapPlugin = class extends import_obsidian30.Plugin {
   constructor() {
     super(...arguments);
+    /** Diagnostics for the mermaid zoom viewer (observer count); read by UI checks only. */
+    __publicField(this, "mermaidZoom", null);
     __publicField(this, "settings", { ...DEFAULT_SETTINGS });
     __publicField(this, "repo");
     __publicField(this, "ready", Promise.resolve());
@@ -36493,7 +36572,7 @@ var VisualAgentMapPlugin = class extends import_obsidian30.Plugin {
     };
     setUiLanguage(this.settings.language);
     registerInternalMarkerPresentation(this);
-    registerMermaidZoom(this);
+    this.mermaidZoom = registerMermaidZoom(this);
     const markdownSelectionAi = new MarkdownSelectionAi(this.app, {
       model: () => this.settings.cliModel,
       autoOpen: () => this.settings.markdownSelectionAiAutoOpen,

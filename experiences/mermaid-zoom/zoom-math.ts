@@ -82,6 +82,7 @@ export function panBy(view: View, dx: number, dy: number): View {
 
 /** The zoom factor for one wheel event; a pinch gesture (ctrlKey) is reported in finer deltas, so it counts more. */
 export function wheelFactor(deltaY: number, ctrlKey: boolean, deltaMode = 0): number {
-  const pixels = deltaMode === 1 ? deltaY * 16 : deltaY;
+  // deltaMode: 0 pixels, 1 lines, 2 pages.
+  const pixels = deltaMode === 2 ? deltaY * 400 : deltaMode === 1 ? deltaY * 16 : deltaY;
   return Math.exp(-pixels * (ctrlKey ? 0.01 : 0.0015));
 }

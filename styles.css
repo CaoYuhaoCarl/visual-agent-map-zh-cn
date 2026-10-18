@@ -930,29 +930,29 @@ button.vam-template-section-header:hover { background: var(--background-modifier
 
 /* Mermaid timeline in VAM notes: mermaid colors each section from its own palette and picks black or white text, and
    Obsidian's dark theme then inverts the whole SVG with a filter, which leaves some boxes unreadable (low contrast, or dark
-   text on a near-black fill). The scope class is added only to diagrams in VAM notes. Here the filter is switched off and
+   text on a near-black fill). The scope class is added only to the diagram element of a VAM note (never to a section, so a note embedded in it is not restyled). Here the filter is switched off and
    each section becomes a tint of an Obsidian accent color over the page background with --text-normal on top, so contrast
    holds in dark and light themes. Mermaid writes its rules into the SVG under the SVG element id, which outranks a plain
    class selector; the :is() with an id argument raises this selector to id-level specificity (it counts the most specific
    argument whether or not it matches) so the rules win without needing to be forced. */
-.vam-mermaid-scope :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] { filter: none; }
-.vam-mermaid-scope :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .section--1 { --vam-timeline-accent: var(--color-red); }
-.vam-mermaid-scope :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .section-0 { --vam-timeline-accent: var(--color-orange); }
-.vam-mermaid-scope :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .section-1 { --vam-timeline-accent: var(--color-yellow); }
-.vam-mermaid-scope :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .section-2 { --vam-timeline-accent: var(--color-green); }
-.vam-mermaid-scope :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .section-3 { --vam-timeline-accent: var(--color-cyan); }
-.vam-mermaid-scope :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .section-4 { --vam-timeline-accent: var(--color-blue); }
-.vam-mermaid-scope :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .section-5 { --vam-timeline-accent: var(--color-purple); }
-.vam-mermaid-scope :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .section-6 { --vam-timeline-accent: var(--color-pink); }
-.vam-mermaid-scope :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .section-7 { --vam-timeline-accent: var(--color-red); }
-.vam-mermaid-scope :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .section-8 { --vam-timeline-accent: var(--color-orange); }
-.vam-mermaid-scope :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .section-9 { --vam-timeline-accent: var(--color-yellow); }
-.vam-mermaid-scope :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .section-10 { --vam-timeline-accent: var(--color-green); }
-.vam-mermaid-scope :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .section-11 { --vam-timeline-accent: var(--color-cyan); }
-.vam-mermaid-scope :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] text,
-.vam-mermaid-scope :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] tspan { fill: var(--text-normal); }
-.vam-mermaid-scope :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] line { stroke: var(--text-muted); }
-.vam-mermaid-scope :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] marker path { fill: var(--text-muted); stroke: var(--text-muted); }
-.vam-mermaid-scope :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .timeline-node path,
-.vam-mermaid-scope :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .timeline-node rect { fill: color-mix(in srgb, var(--vam-timeline-accent, var(--interactive-accent)) 26%, var(--background-primary)); }
-.vam-mermaid-scope :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .timeline-node line { stroke: var(--vam-timeline-accent, var(--interactive-accent)); }
+.mermaid.vam-mermaid-scope > :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] { filter: none; }
+.mermaid.vam-mermaid-scope > :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .section--1 { --vam-timeline-accent: var(--color-red); }
+.mermaid.vam-mermaid-scope > :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .section-0 { --vam-timeline-accent: var(--color-orange); }
+.mermaid.vam-mermaid-scope > :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .section-1 { --vam-timeline-accent: var(--color-yellow); }
+.mermaid.vam-mermaid-scope > :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .section-2 { --vam-timeline-accent: var(--color-green); }
+.mermaid.vam-mermaid-scope > :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .section-3 { --vam-timeline-accent: var(--color-cyan); }
+.mermaid.vam-mermaid-scope > :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .section-4 { --vam-timeline-accent: var(--color-blue); }
+.mermaid.vam-mermaid-scope > :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .section-5 { --vam-timeline-accent: var(--color-purple); }
+.mermaid.vam-mermaid-scope > :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .section-6 { --vam-timeline-accent: var(--color-pink); }
+.mermaid.vam-mermaid-scope > :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .section-7 { --vam-timeline-accent: var(--color-red); }
+.mermaid.vam-mermaid-scope > :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .section-8 { --vam-timeline-accent: var(--color-orange); }
+.mermaid.vam-mermaid-scope > :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .section-9 { --vam-timeline-accent: var(--color-yellow); }
+.mermaid.vam-mermaid-scope > :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .section-10 { --vam-timeline-accent: var(--color-green); }
+.mermaid.vam-mermaid-scope > :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .section-11 { --vam-timeline-accent: var(--color-cyan); }
+.mermaid.vam-mermaid-scope > :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] text,
+.mermaid.vam-mermaid-scope > :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] tspan { fill: var(--text-normal); }
+.mermaid.vam-mermaid-scope > :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] line { stroke: var(--text-muted); }
+.mermaid.vam-mermaid-scope > :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] marker path { fill: var(--text-muted); stroke: var(--text-muted); }
+.mermaid.vam-mermaid-scope > :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .timeline-node path,
+.mermaid.vam-mermaid-scope > :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .timeline-node rect { fill: color-mix(in srgb, var(--vam-timeline-accent, var(--interactive-accent)) 26%, var(--background-primary)); }
+.mermaid.vam-mermaid-scope > :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .timeline-node line { stroke: var(--vam-timeline-accent, var(--interactive-accent)); }

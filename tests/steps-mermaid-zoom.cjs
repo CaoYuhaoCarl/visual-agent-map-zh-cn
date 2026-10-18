@@ -40,6 +40,9 @@ class FakeNode {
   click() { this.fire('click'); }
   focus() { this.focused = true; }
   setPointerCapture() {}
+  get ownerDocument() { return FAKE_DOC; }
+  closest(sel) { for (let n = this; n; n = n.parent) if (n.is(sel)) return n; return null; }
+  contains(other) { for (let n = other; n; n = n.parent) if (n === this) return true; return false; }
   getBoundingClientRect() { return { left: 10, top: 20, width: this.clientWidth, height: this.clientHeight }; }
   is(sel) { return sel.split(',').some(part => { const p = part.trim(); return p.startsWith('.') ? this.classes.includes(p.slice(1)) : this.localName === p.toLowerCase(); }); }
   matches(sel) { return this.is(sel); }
@@ -61,7 +64,7 @@ function mockObsidian(files) {
     }, { get: (target, name) => (name in target ? target[name] : writeTrap[name]) }),
     metadataCache: { getFileCache: file => ({ frontmatter: files[file.path] }) }
   };
-  return { app, icons, writes, obsidian: { Modal: class { constructor(app) { this.app = app; this.titleEl = node('title'); this.contentEl = node('content'); this.modalEl = node('modal'); this.modalEl.appendChild(this.contentEl); this.closeCount = 0; } open() { this.onOpen?.(); } close() { this.closeCount++; this.onClose?.(); } }, setIcon: (el, icon) => { icons.push(icon); el.icon = icon; } } };
+  return { app, icons, writes, obsidian: { editorInfoField: {}, MarkdownRenderChild: class { constructor(el) { this.containerEl = el; } }, Modal: class { constructor(app) { this.app = app; this.titleEl = node('title'); this.contentEl = node('content'); this.modalEl = node('modal'); this.modalEl.appendChild(this.contentEl); this.closeCount = 0; } open() { this.onOpen?.(); } close() { this.closeCount++; this.onClose?.(); } }, setIcon: (el, icon) => { icons.push(icon); el.icon = icon; } } };
 }
 
 function loadRegister(files) {
@@ -70,13 +73,15 @@ function loadRegister(files) {
   class FakeObserver { constructor(cb) { this.cb = cb; this.disconnected = false; observers.push(this); } observe() {} disconnect() { this.disconnected = true; } }
   const mod = load('experiences/mermaid-zoom/register.ts', { obsidian: env.obsidian }, { MutationObserver: FakeObserver, window: FAKE_WINDOW });
   let processor = null; let unregister = null;
-  const plugin = { app: env.app, register: fn => { unregister = fn; }, registerMarkdownPostProcessor: fn => { processor = fn; } };
-  mod.registerMermaidZoom(plugin);
-  return { ...env, mod, observers, get processor() { return processor; }, get unregister() { return unregister; }, run: (el, sourcePath) => processor(el, { sourcePath }) };
+  const plugin = { app: env.app, registerEditorExtension() {}, register: fn => { unregister = fn; }, registerMarkdownPostProcessor: fn => { processor = fn; } };
+  const handle = mod.registerMermaidZoom(plugin);
+  const children = [];
+  return { ...env, handle, children, mod, observers, get processor() { return processor; }, get unregister() { return unregister; }, run: (el, sourcePath) => processor(el, { sourcePath, addChild: c => children.push(c) }) };
 }
 const diagramBlock = () => { const block = node('div', 'el-pre'); const host = node('div', 'mermaid'); block.appendChild(host); return { block, host }; };
 const addSvg = host => host.appendChild(svgOf('svg', { viewBox: '0 0 2400 300', id: 'mermaid-1' }, [svgOf('g')]));
 
+const FAKE_DOC = { implementation: { createHTMLDocument: () => ({ imported: [], importNode(n) { this.imported.push(n); return n.cloneNode(); } }) }, importNode: n => n.cloneNode() };
 const FAKE_WINDOW = { setTimeout: fn => { fn(); return 0; } };
 const FILES = { 'Topics/A/Note.md': { 'agent-map-node': true }, 'Topics/A/Map.md': { 'visual-agent-map': 'true' }, 'Other/plain.md': { title: 'x' }, 'Other/lookalike.md': { 'agent-map-node': 'yes' } };
 
@@ -98,6 +103,7 @@ test('mermaid zoom: a non-VAM note gets no button, no scope class and no observe
   ctx.run(block, 'Other/plain.md');
   assert.equal(block.querySelector('.vam-mermaid-zoom-btn'), null);
   assert.equal(block.classes.includes('vam-mermaid-scope'), false);
+  assert.equal(ctx.children.length, 0);
   assert.equal(host.classes.includes('vam-mermaid-scope'), false);
   assert.equal(ctx.observers.length, 0);
 });
@@ -113,7 +119,8 @@ test('mermaid zoom: a VAM diagram gets one keyboard-reachable button with an ari
   assert.equal(buttons[0].attrs.type, 'button');
   assert.equal(buttons[0].attrs.tabindex, undefined, 'a real button is focusable without tabindex');
   assert.equal(buttons[0].icon, 'maximize-2');
-  assert.ok(host.classes.includes('vam-mermaid-scope') && block.classes.includes('vam-mermaid-scope'));
+  assert.ok(host.classes.includes('vam-mermaid-scope'));
+  assert.equal(block.classes.includes('vam-mermaid-scope'), false, 'the section itself is not given the scope class');
   ctx.mod.decorateDiagram(ctx.app, host);
   assert.equal(block.querySelectorAll('button').length, 1, 'decorating again adds no second button');
 });
@@ -155,12 +162,12 @@ test('mermaid zoom: the button opens a viewer with a sanitized clone, and the no
   env.obsidian.Modal = class extends Base { open() { openModals.push(this); super.open(); } };
   const observers = [];
   const mod = load('experiences/mermaid-zoom/register.ts', { obsidian: env.obsidian }, { MutationObserver: class { constructor() {} observe() {} disconnect() {} }, window: FAKE_WINDOW });
-  let processor; mod.registerMermaidZoom({ app: env.app, register() {}, registerMarkdownPostProcessor: fn => { processor = fn; } });
+  let processor; mod.registerMermaidZoom({ app: env.app, registerEditorExtension() {}, register() {}, registerMarkdownPostProcessor: fn => { processor = fn; } });
   const { block, host } = diagramBlock(); const svg = addSvg(host);
   svg.appendChild(bare('script'));
   svg.attrs.onload = 'alert(1)';
   const before = JSON.stringify([svg.attrs, svg.children.map(c => c.tag)]);
-  processor(block, { sourcePath: 'Topics/A/Note.md' });
+  processor(block, { sourcePath: 'Topics/A/Note.md', addChild() {} });
   const button = block.querySelector('button');
   button.click();
   assert.equal(openModals.length, 1);
@@ -327,4 +334,138 @@ test('mermaid zoom: unloading the plugin disconnects every observer', () => {
   assert.equal(ctx.observers.length, 1);
   ctx.unregister();
   assert.ok(ctx.observers.every(o => o.disconnected));
+});
+
+// ---------- lifecycle and embeds ----------
+test('mermaid zoom: an observer is released as soon as the diagram has its button', () => {
+  const ctx = loadRegister(FILES);
+  const { block, host } = diagramBlock();
+  ctx.run(block, 'Topics/A/Note.md');
+  assert.equal(ctx.handle.observerCount(), 1);
+  addSvg(host);
+  ctx.observers[0].cb();
+  assert.equal(ctx.handle.observerCount(), 0);
+  assert.ok(ctx.observers[0].disconnected);
+});
+
+test('mermaid zoom: a section Obsidian unloads without any further mutation releases its observer', () => {
+  const ctx = loadRegister(FILES);
+  for (let i = 0; i < 5; i++) ctx.run(diagramBlock().block, 'Topics/A/Note.md');
+  assert.equal(ctx.handle.observerCount(), 5);
+  assert.equal(ctx.children.length, 5);
+  for (const child of ctx.children) child.onunload();
+  assert.equal(ctx.handle.observerCount(), 0);
+  assert.ok(ctx.observers.every(o => o.disconnected));
+  // a diagram that is already rendered never creates an observer
+  const done = diagramBlock(); addSvg(done.host);
+  ctx.run(done.block, 'Topics/A/Note.md');
+  assert.equal(ctx.handle.observerCount(), 0);
+});
+
+test('mermaid zoom: a plain note embedded in a VAM note is not decorated, even when its diagram renders later', () => {
+  const ctx = loadRegister(FILES);
+  const section = node('div', 'el-p');
+  const embed = section.createEl('div', 'internal-embed markdown-embed');
+  const host = embed.createDiv('mermaid');
+  ctx.run(section, 'Topics/A/Note.md');
+  addSvg(host);
+  if (ctx.observers[0]) ctx.observers[0].cb();
+  assert.equal(section.querySelectorAll('button').length, 0);
+  assert.equal(host.classes.includes('vam-mermaid-scope'), false);
+  // the same embed section is not turned into a scope either
+  assert.equal(section.classes.includes('vam-mermaid-scope'), false);
+});
+
+test('mermaid zoom: the timeline CSS targets only the diagram element, never a section', () => {
+  const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
+  const rules = css.split('\n').filter(line => line.includes('aria-roledescription="timeline"'));
+  assert.ok(rules.length > 10);
+  for (const rule of rules) assert.ok(rule.startsWith('.mermaid.vam-mermaid-scope > :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"]'), rule.slice(0, 80));
+  assert.doesNotMatch(css, /\.vam-mermaid-scope \{|\.vam-mermaid-scope :is/);
+  const view = fs.readFileSync(path.join(root, 'experiences/mermaid-zoom/viewer.ts'), 'utf8');
+  assert.match(view, /"vam-mermaid-zoom-stage mermaid vam-mermaid-scope"/, 'the viewer stage keeps the scope so the clone matches');
+});
+
+test('mermaid zoom: fit shows the whole diagram even below the readable minimum', () => {
+  const diagram = { width: 4800, height: 300 }, viewport = { width: 1000, height: 700 };
+  const fit = math.fitView(diagram, viewport);
+  assert.ok(fit.scale < math.MIN_READABLE_SCALE);
+  assert.ok(fit.x >= 0 && fit.x + diagram.width * fit.scale <= viewport.width + 1e-9);
+  assert.ok(fit.y >= 0 && fit.y + diagram.height * fit.scale <= viewport.height + 1e-9);
+  assert.ok(math.initialView(diagram, viewport).scale >= math.MIN_READABLE_SCALE, 'opening still keeps text readable');
+});
+
+test('mermaid zoom: wheel pages count, and only the primary button starts a drag', () => {
+  assert.ok(math.wheelFactor(1, false, 2) < math.wheelFactor(1, false, 1));
+  assert.ok(math.wheelFactor(1, false, 1) < math.wheelFactor(1, false, 0));
+  const { modal, viewport } = viewerHarness();
+  const before = modal.currentView();
+  viewport.fire('pointerdown', { pointerId: 3, button: 2, clientX: 50, clientY: 50 });
+  viewport.fire('pointermove', { pointerId: 3, button: 2, clientX: 90, clientY: 90 });
+  assert.equal(JSON.stringify(modal.currentView()), JSON.stringify(before), 'a right-button drag does not pan');
+  viewport.fire('pointerdown', { pointerId: 4, button: 0, clientX: 50, clientY: 50 });
+  viewport.fire('pointermove', { pointerId: 4, button: 0, clientX: 90, clientY: 90 });
+  assert.equal(modal.currentView().x, before.x + 40);
+});
+
+test('mermaid zoom: the viewer cleans the copy inside an inert document before adopting it', () => {
+  const { modal, source } = viewerHarness();
+  assert.ok(modal.contentEl.querySelector('.vam-mermaid-zoom-stage'));
+  assert.equal(modal.contentEl.ownerDocument.implementation.createHTMLDocument('').imported.length, 0, 'fresh inert documents start empty');
+  assert.ok(source);
+});
+
+test('sanitizer: stylesheets with escapes or image-set and presentation-attribute urls are dropped', () => {
+  const style = text => { const n = bare('style'); n.textContent = text; return n; };
+  const tree = bare('svg', {}, [
+    style('.a { background: \\75rl(https://evil.test/x) }'),
+    style('.a { fill: image-set("https://evil.test/x.png" 1x) }'),
+    style('.a { fill: red; } #m .b { stroke: url(#grad) }'),
+    bare('rect', { fill: 'url(https://evil.test/p.svg#x)', stroke: 'url(#ok)', filter: "url('//evil.test/f.svg#f')" }),
+    bare('g', { style: 'fill: url(https://evil.test/a)' }),
+    bare('g', { style: 'background: image-set(x 1x)' })
+  ]);
+  const out = sanitizeSvgClone(tree);
+  assert.equal(out.children[0].textContent, '');
+  assert.equal(out.children[1].textContent, '');
+  assert.match(out.children[2].textContent, /fill: red/);
+  assert.match(out.children[2].textContent, /url\(#grad\)/);
+  assert.equal(out.children[3].attrs.fill, undefined);
+  assert.equal(out.children[3].attrs.filter, undefined);
+  assert.equal(out.children[3].attrs.stroke, 'url(#ok)');
+  assert.ok(!/evil/.test(out.children[4].attrs.style ?? ''));
+  assert.equal(out.children[5].attrs.style, undefined);
+});
+
+// ---------- live preview: one watcher per editor view ----------
+test('mermaid zoom: a live-preview editor in a VAM note gets buttons, and the watcher ends with the editor', () => {
+  const ctx = loadRegister(FILES);
+  const dom = node('div', 'cm-editor');
+  const widget = dom.createDiv('cm-preview-code-block');
+  const host = widget.createDiv('mermaid');
+  let destroyed = 0;
+  const watcher = new ctx.mod.EditorWatcher(ctx.app, dom, () => 'Topics/A/Note.md', () => { destroyed++; });
+  assert.equal(host.querySelector('button'), null, 'nothing to decorate before mermaid renders');
+  addSvg(host);
+  ctx.observers.at(-1).cb();
+  assert.equal(host.querySelectorAll('button').length, 1);
+  assert.ok(host.classes.includes('vam-mermaid-scope'));
+  assert.equal(dom.classes.includes('vam-mermaid-scope'), false);
+  watcher.destroy();
+  assert.equal(destroyed, 1);
+  assert.ok(ctx.observers.at(-1).disconnected);
+});
+
+test('mermaid zoom: a live-preview editor of a non-VAM note, or an unknown file, is left alone; embeds are skipped', () => {
+  const ctx = loadRegister(FILES);
+  for (const file of ['Other/plain.md', undefined]) {
+    const dom = node('div', 'cm-editor'); const host = dom.createDiv('mermaid'); addSvg(host);
+    const watcher = new ctx.mod.EditorWatcher(ctx.app, dom, () => file, () => {});
+    ctx.observers.at(-1).cb();
+    assert.equal(host.querySelector('button'), null);
+    watcher.destroy();
+  }
+  const dom = node('div', 'cm-editor'); const embed = dom.createDiv('internal-embed'); const host = embed.createDiv('mermaid'); addSvg(host);
+  new ctx.mod.EditorWatcher(ctx.app, dom, () => 'Topics/A/Note.md', () => {});
+  assert.equal(host.querySelector('button'), null, 'an embedded note is judged by its own path, not the host note');
 });

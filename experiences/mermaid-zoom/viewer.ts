@@ -58,7 +58,10 @@ export class MermaidZoomModal extends Modal {
     contentEl.addClass("vam-mermaid-zoom-content");
 
     this.natural = naturalSize(this.source);
-    const clone = sanitizeSvgClone(this.source.cloneNode(true) as unknown as SvgNode) as unknown as SVGElement;
+    // Copy and clean inside an inert document (no scripts run, no images load), then adopt the cleaned result.
+    const inert = contentEl.ownerDocument.implementation.createHTMLDocument("");
+    const cleaned = sanitizeSvgClone(inert.importNode(this.source, true) as unknown as SvgNode);
+    const clone = contentEl.ownerDocument.importNode(cleaned as unknown as Node, true) as SVGElement;
     clone.setAttribute("width", String(this.natural.width));
     clone.setAttribute("height", String(this.natural.height));
 
@@ -181,6 +184,7 @@ export class MermaidZoomModal extends Modal {
   }
 
   private onPointerDown(event: PointerEvent): void {
+    if (event.button > 0) return;
     this.pointers.set(event.pointerId, this.local(event));
     this.viewport?.setPointerCapture?.(event.pointerId);
     this.viewport?.addClass("is-dragging");
