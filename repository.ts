@@ -315,8 +315,8 @@ function frontmatter(content: string): Record<string, unknown> {
   return yaml ? ((parseYaml(yaml) ?? {}) as Record<string, unknown>) : {};
 }
 
-/** A frontmatter value the relevance writers set: a string, a list of strings, or null to remove the key. */
-type FrontmatterValue = string | string[] | null;
+/** A frontmatter value the relevance writers set: a string, a list of strings, true, or null to remove the key. */
+type FrontmatterValue = string | string[] | boolean | null;
 /**
  * Sets or removes top-level frontmatter keys and leaves every other line, and the body, exactly as it was. A key that
  * is already there keeps its place; new keys go at the end. Strings are written as JSON strings, which are valid YAML
@@ -324,10 +324,12 @@ type FrontmatterValue = string | string[] | null;
  */
 export function setFrontmatterKeys(content: string, values: Record<string, FrontmatterValue>): string {
   const eol = content.includes("\r\n") ? "\r\n" : "\n";
-  const render = (key: string, value: string | string[]): string[] =>
-    Array.isArray(value)
-      ? [`${key}:`, ...value.map(item => `  - ${JSON.stringify(item)}`)]
-      : [`${key}: ${JSON.stringify(value)}`];
+  const render = (key: string, value: string | string[] | boolean): string[] =>
+    typeof value === "boolean"
+      ? [`${key}: ${value}`]
+      : Array.isArray(value)
+        ? [`${key}:`, ...value.map(item => `  - ${JSON.stringify(item)}`)]
+        : [`${key}: ${JSON.stringify(value)}`];
   const match = /^---\r?\n([\s\S]*?)\r?\n---(?=\r?\n|$)/.exec(content);
   if (!match) {
     const lines = Object.entries(values).flatMap(([key, value]) => (value === null ? [] : render(key, value)));
@@ -1201,16 +1203,19 @@ export class Repository {
   }
 
   /**
-   * Sets or removes only the two relevance keys of a note's frontmatter (`relevance-tier`, `relevance-reason`). The
-   * body and every other key stay as they were, and `updated` is not bumped: grading is not an edit of the note.
+   * Sets or removes only the relevance keys of a note's frontmatter (`relevance-tier`, `relevance-reason`,
+   * `relevance-manual`). An AI grade writes the tier and reason and removes the manual flag; a tier set by hand
+   * (`manual`) writes the tier and `relevance-manual: true` and removes the reason; null removes all three. The body
+   * and every other key stay as they were, and `updated` is not bumped: grading is not an edit of the note.
    */
   async writeRelevance(path: string, value: NoteRelevance | null): Promise<void> {
-    const reason = value ? value.reason.replace(/\s+/g, " ").trim() : "";
-    if (value && !reason) throw new Error("A relevance reason is required.");
+    const reason = value && !value.manual ? value.reason.replace(/\s+/g, " ").trim() : "";
+    if (value && !value.manual && !reason) throw new Error("A relevance reason is required.");
     await this.app.vault.process(this.file(path), content =>
       setFrontmatterKeys(content, {
         "relevance-tier": value ? value.tier : null,
-        "relevance-reason": value ? reason : null
+        "relevance-reason": value && !value.manual ? reason : null,
+        "relevance-manual": value?.manual ? true : null
       })
     );
   }

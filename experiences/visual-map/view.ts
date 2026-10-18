@@ -72,9 +72,10 @@ import {
   RELEVANCE_GOAL_MAX_LENGTH,
   RELEVANCE_LEVELS,
   type NoteRelevance,
-  type RelevanceLevel
+  type RelevanceLevel,
+  type RelevanceTier
 } from "../../note-values";
-import { RELEVANCE_LABEL, renderRelevanceTag } from "./relevance-tag";
+import { RELEVANCE_LABEL, renderRelevanceTagButton } from "./relevance-tag";
 import { relevanceDisplayNodes } from "./relevance-order";
 import { RelevanceSummaryModal } from "./relevance-summary-modal";
 import { PendingSuggestions } from "../../pending-suggestions";
@@ -1425,8 +1426,14 @@ export class VisualAgentMapView extends ItemView {
           continue;
         }
         const after = { tier: item.tier, reason: item.reason };
-        const before = note.relevance ? { tier: note.relevance.tier, reason: note.relevance.reason } : undefined;
-        if (before && before.tier === after.tier && before.reason === after.reason) {
+        const before = note.relevance
+          ? {
+              tier: note.relevance.tier,
+              reason: note.relevance.reason,
+              ...(note.relevance.manual ? { manual: true as const } : {})
+            }
+          : undefined;
+        if (before && !before.manual && before.tier === after.tier && before.reason === after.reason) {
           outcome.graded++;
           continue;
         }
@@ -1462,7 +1469,7 @@ export class VisualAgentMapView extends ItemView {
   private async restoreRelevance(changes: RelevanceGradeChange[], direction: "undo" | "redo"): Promise<void> {
     let skipped = 0;
     const same = (a: NoteRelevance | undefined, b: NoteRelevance | undefined): boolean =>
-      a === b || (!!a && !!b && a.tier === b.tier && a.reason === b.reason);
+      a === b || (!!a && !!b && a.tier === b.tier && a.reason === b.reason && !!a.manual === !!b.manual);
     for (const change of changes) {
       const expected = direction === "undo" ? change.after : change.before;
       const replacement = direction === "undo" ? change.before : change.after;
@@ -1478,6 +1485,40 @@ export class VisualAgentMapView extends ItemView {
       }
     }
     if (skipped) new Notice(t("ui.relevance_undo_skipped_0", skipped));
+  }
+  /**
+   * The tag's menu: the three tiers (a check on the current one) and Clear grade. Disabled while a grading run is
+   * in progress for this map, as the tag itself is.
+   */
+  private openRelevanceMenu(node: MapNode, current: RelevanceTier, anchor: HTMLElement): void {
+    if (this.plugin.relevanceGrades.get(this.path)?.status === "running") return;
+    const menu = new Menu();
+    for (const tier of ["core", "support", "side"] as const)
+      menu.addItem(item =>
+        item
+          .setTitle(t(RELEVANCE_LABEL[tier]))
+          .setChecked(tier === current)
+          .onClick(() => this.setManualRelevance(node, tier))
+      );
+    menu.addSeparator();
+    menu.addItem(item =>
+      item
+        .setTitle(t("ui.relevance_clear"))
+        .setIcon("x")
+        .onClick(() => this.setManualRelevance(node, null))
+    );
+    const rect = anchor.getBoundingClientRect();
+    menu.showAtPosition({ x: rect.left, y: rect.bottom });
+  }
+  /**
+   * Sets a card's tier by hand (or clears it) in the note's frontmatter and repaints in place. No AI call, no parent-
+   * child check, no viewport or Map.md write: only the three relevance keys of that one note change.
+   */
+  private setManualRelevance(node: MapNode, tier: RelevanceTier | null): void {
+    if (this.plugin.relevanceGrades.get(this.path)?.status === "running") return;
+    this.plugin.runMutation(() =>
+      this.plugin.repo.writeRelevance(node.path, tier ? { tier, reason: "", manual: true } : null)
+    );
   }
   private stopRelevanceGrade(): void {
     const run = this.plugin.relevanceGrades.get(this.path);
@@ -1506,7 +1547,7 @@ export class VisualAgentMapView extends ItemView {
         )
       : run.status === "done" && outcome
         ? [
-            t("ui.relevance_done_0_1_2", outcome.graded, outcome.changes.length, outcome.skipped),
+            t("ui.relevance_done_0_1_2", outcome.graded, this.visibleRelevanceChanges(outcome).length, outcome.skipped),
             outcome.failed ? t("ui.relevance_write_failed_0", outcome.failed) : ""
           ]
             .filter(Boolean)
@@ -1523,7 +1564,8 @@ export class VisualAgentMapView extends ItemView {
       return;
     }
     if (outcome?.changes.length) {
-      this.button(bar, t("ui.relevance_view_changes"), () => this.openRelevanceSummary(run));
+      if (this.visibleRelevanceChanges(outcome).length)
+        this.button(bar, t("ui.relevance_view_changes"), () => this.openRelevanceSummary(run));
       if (this.history.undoEntry && this.history.undoEntry === run.historyEntry)
         this.button(bar, t("ui.undo"), () => this.enqueue(() => this.travel(false)));
     }
@@ -1533,14 +1575,21 @@ export class VisualAgentMapView extends ItemView {
       (this.contentEl?.querySelector?.(".vam-relevance-goal") as HTMLElement | null | undefined)?.focus();
     });
   }
+  /** A hand-set tier the AI kept is cleared of its flag (and undoable) but is not news, so it is not counted or listed. */
+  private visibleRelevanceChanges(outcome: RelevanceGradeOutcome): RelevanceGradeChange[] {
+    return outcome.changes.filter(change => !(change.before?.manual && change.before.tier === change.after.tier));
+  }
   private openRelevanceSummary(run: RelevanceGradeRun): void {
-    const changes = run.outcome?.changes ?? [];
+    const changes = run.outcome ? this.visibleRelevanceChanges(run.outcome) : [];
+    // Cards the owner set by hand and the AI changed back come first, in their own section.
+    const reverted = changes.filter(change => change.before?.manual);
     new RelevanceSummaryModal(this.app, {
-      rows: changes.map(change => ({
+      rows: [...reverted, ...changes.filter(change => !change.before?.manual)].map(change => ({
         id: change.id,
         title: change.title,
         before: change.before,
-        after: change.after
+        after: change.after,
+        ...(change.before?.manual ? { reverted: true } : {})
       })),
       highlight: ids => this.highlightStructure(ids)
     }).open();
@@ -4312,8 +4361,19 @@ export class VisualAgentMapView extends ItemView {
     if (relevance) {
       const tierLabel = t(RELEVANCE_LABEL[relevance.tier]);
       card.dataset.relevance = relevance.tier;
-      setTooltip(renderRelevanceTag(header, relevance.tier, tierLabel), relevance.reason);
-      card.setAttr("aria-description", t("ui.relevance_description_0_1", tierLabel, relevance.reason));
+      const reasonText = relevance.manual ? t("ui.relevance_manual_reason") : relevance.reason;
+      setTooltip(
+        renderRelevanceTagButton(
+          header,
+          relevance.tier,
+          tierLabel,
+          t("ui.relevance_tag_label_0", tierLabel),
+          button => this.openRelevanceMenu(node, relevance.tier, button),
+          this.plugin.relevanceGrades.get(this.path)?.status === "running"
+        ),
+        reasonText
+      );
+      card.setAttr("aria-description", t("ui.relevance_description_0_1", tierLabel, reasonText));
       const named = cardLabels.get(card)?.textContent;
       if (named) this.labelCard(card, t("ui.topic_card_label_0_1", named, tierLabel));
     }

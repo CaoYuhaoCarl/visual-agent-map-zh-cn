@@ -5,17 +5,22 @@ export const managedHeadingValue = (value: string): string => value.replace(/\n/
 export type RelevanceTier = "core" | "support" | "side";
 export interface NoteRelevance {
   tier: RelevanceTier;
+  /** The AI's reason; always empty when `manual` is set. */
   reason: string;
+  /** True when the owner set this tier by hand (`relevance-manual: true`); such a tier has no AI reason. */
+  manual?: true;
 }
 const RELEVANCE_TIERS: readonly string[] = ["core", "support", "side"];
 /**
  * Offline-graded relevance read from note frontmatter (`relevance-tier`, `relevance-reason`). Both must be valid:
  * anything missing or unrecognised reads as no relevance at all, so the map looks exactly as it did without grading.
+ * A tier the owner set by hand (`relevance-manual: true`) needs only the tier and reads with an empty reason.
  */
 export function readRelevance(fm: Record<string, unknown>): NoteRelevance | undefined {
   const tier = fm["relevance-tier"],
     reason = fm["relevance-reason"];
   if (typeof tier !== "string" || !RELEVANCE_TIERS.includes(tier)) return undefined;
+  if (fm["relevance-manual"] === true) return { tier: tier as RelevanceTier, reason: "", manual: true };
   if (typeof reason !== "string" || !reason.trim()) return undefined;
   return { tier: tier as RelevanceTier, reason: reason.trim() };
 }

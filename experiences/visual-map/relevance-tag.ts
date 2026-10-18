@@ -21,3 +21,31 @@ export function renderRelevanceTag(parent: HTMLElement, tier: RelevanceTier, lab
   tag.createSpan({ text: label });
   return tag;
 }
+
+/**
+ * The same tag as a real button that changes the tier. It stays out of the tab order until its card has focus (the
+ * card's own tool buttons work the same way); `open` gets the button so the menu can open at it.
+ */
+export function renderRelevanceTagButton(
+  parent: HTMLElement,
+  tier: RelevanceTier,
+  label: string,
+  ariaLabel: string,
+  open: (button: HTMLButtonElement) => void,
+  disabled: boolean
+): HTMLButtonElement {
+  const tag = parent.createEl("button", { cls: "vam-relevance-tag vam-relevance-tag-button" });
+  tag.type = "button";
+  tag.dataset.tier = tier;
+  tag.tabIndex = -1;
+  tag.disabled = disabled;
+  tag.setAttr("aria-label", ariaLabel);
+  tag.setAttr("aria-haspopup", "menu");
+  setIcon(tag.createSpan({ cls: "vam-relevance-icon" }), RELEVANCE_ICON[tier]);
+  tag.createSpan({ text: label });
+  tag.addEventListener("click", event => {
+    event.stopPropagation();
+    if (!tag.disabled) open(tag);
+  });
+  return tag;
+}

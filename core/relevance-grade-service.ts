@@ -36,7 +36,7 @@ export interface RelevanceGradeChange {
   id: string;
   path: string;
   title: string;
-  before: { tier: RelevanceGradeItem["tier"]; reason: string } | undefined;
+  before: { tier: RelevanceGradeItem["tier"]; reason: string; manual?: true } | undefined;
   after: { tier: RelevanceGradeItem["tier"]; reason: string };
 }
 export interface RelevanceGradeOutcome {

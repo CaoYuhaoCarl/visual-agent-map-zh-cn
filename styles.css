@@ -140,6 +140,10 @@
 @keyframes vam-scan { from { background-position: -100% 0; } to { background-position: 200% 0; } }
 /* Offline relevance grading (mind maps only): a quiet icon + text tag, no fill. Side topics fade but stay in place. */
 .vam-relevance-tag { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; font-size: var(--font-ui-smaller); line-height: 1.4; white-space: nowrap; }
+button.vam-relevance-tag-button { appearance: none; margin: 0; padding: 0 4px; margin-left: -4px; border: 0; border-radius: var(--radius-s); background: transparent; box-shadow: none; height: auto; cursor: pointer; font-family: inherit; }
+button.vam-relevance-tag-button:hover:not(:disabled) { background: var(--background-modifier-hover); }
+button.vam-relevance-tag-button:focus-visible { outline: 2px solid var(--background-modifier-border-focus); outline-offset: 1px; }
+button.vam-relevance-tag-button:disabled { cursor: default; opacity: .7; }
 .vam-relevance-tag > .vam-relevance-icon { display: inline-flex; flex: none; }
 .vam-relevance-tag .svg-icon { width: 14px; height: 14px; }
 .vam-relevance-tag[data-tier="core"] { color: var(--text-accent); }
@@ -188,6 +192,7 @@
 .vam-relevance-ungraded { font-size: var(--font-ui-smaller); color: var(--text-muted); }
 .vam-relevance-arrow { display: inline-flex; color: var(--text-muted); }
 .vam-relevance-arrow .svg-icon { width: 14px; height: 14px; }
+.vam-relevance-reverted-title { margin: 8px 0 0; font-size: var(--font-ui-small); font-weight: 600; color: var(--text-muted); }
 .vam-relevance-change-reason { margin: 4px 0 0; font-size: var(--font-ui-small); color: var(--text-muted); overflow-wrap: anywhere; }
 @media (prefers-reduced-motion: reduce) {
   .vam-relevance-panel { animation: none; }

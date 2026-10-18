@@ -626,6 +626,11 @@ var english = {
   "ui.relevance_history_label": "Relevance grading",
   "ui.relevance_goal_history_label": "Map goal",
   "ui.relevance_undo_skipped_0": "{0} topics were edited after grading and were left as they are.",
+  "ui.relevance_tag_label_0": "Relevance: {0}, click to change",
+  "ui.relevance_clear": "Clear grade",
+  "ui.relevance_manual_reason": "You set this",
+  "ui.relevance_reverted_title": "You changed these; the AI changed them back this time",
+  "ui.relevance_reverted_0_1": "You set: {0} \u2192 AI: {1}",
   "ui.suggested": "Suggested",
   "ui.synthesis_web_default_hint": "Synthesis works from existing findings, so web search is off by default. You can turn it on under Data sources.",
   "ui.output_settings": "Output",
@@ -2108,6 +2113,11 @@ var traditionalChinese = {
   "ui.relevance_history_label": "\u95DC\u806F\u5EA6\u5206\u7D1A",
   "ui.relevance_goal_history_label": "\u5FC3\u667A\u5716\u76EE\u6A19",
   "ui.relevance_undo_skipped_0": "\u6709 {0} \u5F35\u8B70\u984C\u5728\u5206\u7D1A\u5F8C\u88AB\u7DE8\u8F2F\u904E\uFF0C\u5DF2\u4FDD\u6301\u539F\u6A23\u3002",
+  "ui.relevance_tag_label_0": "\u5206\u7D1A\uFF1A{0}\uFF0C\u9EDE\u64CA\u66F4\u6539",
+  "ui.relevance_clear": "\u6E05\u9664\u5206\u7D1A",
+  "ui.relevance_manual_reason": "\u4F60\u624B\u52D5\u8A2D\u5B9A",
+  "ui.relevance_reverted_title": "\u4F60\u6539\u904E\u3001\u9019\u6B21\u88AB AI \u6539\u56DE\u7684\u5361",
+  "ui.relevance_reverted_0_1": "\u4F60\u8A2D\uFF1A{0} \u2192 AI\uFF1A{1}",
   "ui.suggested": "\u5EFA\u8B70",
   "ui.synthesis_web_default_hint": "\u6574\u5408\u6703\u6839\u64DA\u5DF2\u6709\u7684\u7814\u7A76\u7D50\u679C\uFF0C\u6240\u4EE5\u9810\u8A2D\u4E0D\u641C\u5C0B\u7DB2\u8DEF\uFF1B\u9700\u8981\u6642\u53EF\u5728\u300C\u8CC7\u6599\u4F86\u6E90\u300D\u958B\u555F\u3002",
   "ui.output_settings": "\u8F38\u51FA\u8A2D\u5B9A",
@@ -12535,6 +12545,7 @@ var RELEVANCE_TIERS = ["core", "support", "side"];
 function readRelevance(fm) {
   const tier = fm["relevance-tier"], reason = fm["relevance-reason"];
   if (typeof tier !== "string" || !RELEVANCE_TIERS.includes(tier)) return void 0;
+  if (fm["relevance-manual"] === true) return { tier, reason: "", manual: true };
   if (typeof reason !== "string" || !reason.trim()) return void 0;
   return { tier, reason: reason.trim() };
 }
@@ -12712,7 +12723,7 @@ function frontmatter(content) {
 function setFrontmatterKeys(content, values) {
   var _a;
   const eol = content.includes("\r\n") ? "\r\n" : "\n";
-  const render = (key2, value) => Array.isArray(value) ? [`${key2}:`, ...value.map((item) => `  - ${JSON.stringify(item)}`)] : [`${key2}: ${JSON.stringify(value)}`];
+  const render = (key2, value) => typeof value === "boolean" ? [`${key2}: ${value}`] : Array.isArray(value) ? [`${key2}:`, ...value.map((item) => `  - ${JSON.stringify(item)}`)] : [`${key2}: ${JSON.stringify(value)}`];
   const match = /^---\r?\n([\s\S]*?)\r?\n---(?=\r?\n|$)/.exec(content);
   if (!match) {
     const lines = Object.entries(values).flatMap(([key2, value]) => value === null ? [] : render(key2, value));
@@ -13456,17 +13467,20 @@ ${body}`);
     return { goal: readRelevanceGoal(fm), level: readRelevanceLevel(fm), context: readRelevanceContext(fm) };
   }
   /**
-   * Sets or removes only the two relevance keys of a note's frontmatter (`relevance-tier`, `relevance-reason`). The
-   * body and every other key stay as they were, and `updated` is not bumped: grading is not an edit of the note.
+   * Sets or removes only the relevance keys of a note's frontmatter (`relevance-tier`, `relevance-reason`,
+   * `relevance-manual`). An AI grade writes the tier and reason and removes the manual flag; a tier set by hand
+   * (`manual`) writes the tier and `relevance-manual: true` and removes the reason; null removes all three. The body
+   * and every other key stay as they were, and `updated` is not bumped: grading is not an edit of the note.
    */
   async writeRelevance(path, value) {
-    const reason = value ? value.reason.replace(/\s+/g, " ").trim() : "";
-    if (value && !reason) throw new Error("A relevance reason is required.");
+    const reason = value && !value.manual ? value.reason.replace(/\s+/g, " ").trim() : "";
+    if (value && !value.manual && !reason) throw new Error("A relevance reason is required.");
     await this.app.vault.process(
       this.file(path),
       (content) => setFrontmatterKeys(content, {
         "relevance-tier": value ? value.tier : null,
-        "relevance-reason": value ? reason : null
+        "relevance-reason": value && !value.manual ? reason : null,
+        "relevance-manual": (value == null ? void 0 : value.manual) ? true : null
       })
     );
   }
@@ -14392,6 +14406,22 @@ function renderRelevanceTag(parent, tier, label) {
   tag.createSpan({ text: label });
   return tag;
 }
+function renderRelevanceTagButton(parent, tier, label, ariaLabel, open, disabled) {
+  const tag = parent.createEl("button", { cls: "vam-relevance-tag vam-relevance-tag-button" });
+  tag.type = "button";
+  tag.dataset.tier = tier;
+  tag.tabIndex = -1;
+  tag.disabled = disabled;
+  tag.setAttr("aria-label", ariaLabel);
+  tag.setAttr("aria-haspopup", "menu");
+  (0, import_obsidian10.setIcon)(tag.createSpan({ cls: "vam-relevance-icon" }), RELEVANCE_ICON[tier]);
+  tag.createSpan({ text: label });
+  tag.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (!tag.disabled) open(tag);
+  });
+  return tag;
+}
 
 // experiences/visual-map/relevance-order.ts
 var RANK = { core: 0, support: 1, side: 2 };
@@ -14428,13 +14458,33 @@ var RelevanceSummaryModal = class extends import_obsidian11.Modal {
     this.host = host;
   }
   onOpen() {
+    var _a, _b;
     this.modalEl.addClass("vam-relevance-summary-modal");
     this.titleEl.setText(t("ui.relevance_changes_title"));
+    const reverted = this.host.rows.filter((row) => row.reverted), others = this.host.rows.filter((row) => !row.reverted);
     if (!this.host.rows.length) this.contentEl.createEl("p", { cls: "vam-hint", text: t("ui.relevance_changes_none") });
-    else {
+    if (reverted.length) {
+      this.contentEl.createEl("h4", { cls: "vam-relevance-reverted-title", text: t("ui.relevance_reverted_title") });
+      const list = this.contentEl.createEl("ul", { cls: "vam-relevance-changes vam-relevance-reverted" });
+      list.setAttr("aria-label", t("ui.relevance_reverted_title"));
+      for (const row of reverted) {
+        const item = list.createEl("li", { cls: "vam-relevance-change" });
+        item.createDiv({ cls: "vam-relevance-change-title", text: row.title });
+        item.createDiv({
+          cls: "vam-relevance-change-tags",
+          text: t(
+            "ui.relevance_reverted_0_1",
+            t(RELEVANCE_LABEL[(_b = (_a = row.before) == null ? void 0 : _a.tier) != null ? _b : row.after.tier]),
+            t(RELEVANCE_LABEL[row.after.tier])
+          )
+        });
+        item.createEl("p", { cls: "vam-relevance-change-reason", text: row.after.reason });
+      }
+    }
+    if (others.length) {
       const list = this.contentEl.createEl("ul", { cls: "vam-relevance-changes" });
       list.setAttr("aria-label", t("ui.relevance_changes_title"));
-      for (const row of this.host.rows) {
+      for (const row of others) {
         const item = list.createEl("li", { cls: "vam-relevance-change" });
         item.createDiv({ cls: "vam-relevance-change-title", text: row.title });
         const tags = item.createDiv({ cls: "vam-relevance-change-tags" });
@@ -26417,8 +26467,12 @@ ${request.requirements}` : preset.text,
           continue;
         }
         const after = { tier: item.tier, reason: item.reason };
-        const before = note.relevance ? { tier: note.relevance.tier, reason: note.relevance.reason } : void 0;
-        if (before && before.tier === after.tier && before.reason === after.reason) {
+        const before = note.relevance ? {
+          tier: note.relevance.tier,
+          reason: note.relevance.reason,
+          ...note.relevance.manual ? { manual: true } : {}
+        } : void 0;
+        if (before && !before.manual && before.tier === after.tier && before.reason === after.reason) {
           outcome.graded++;
           continue;
         }
@@ -26453,7 +26507,7 @@ ${request.requirements}` : preset.text,
    */
   async restoreRelevance(changes, direction) {
     let skipped = 0;
-    const same2 = (a, b) => a === b || !!a && !!b && a.tier === b.tier && a.reason === b.reason;
+    const same2 = (a, b) => a === b || !!a && !!b && a.tier === b.tier && a.reason === b.reason && !!a.manual === !!b.manual;
     for (const change of changes) {
       const expected = direction === "undo" ? change.after : change.before;
       const replacement = direction === "undo" ? change.before : change.after;
@@ -26469,6 +26523,36 @@ ${request.requirements}` : preset.text,
       }
     }
     if (skipped) new import_obsidian24.Notice(t("ui.relevance_undo_skipped_0", skipped));
+  }
+  /**
+   * The tag's menu: the three tiers (a check on the current one) and Clear grade. Disabled while a grading run is
+   * in progress for this map, as the tag itself is.
+   */
+  openRelevanceMenu(node, current, anchor) {
+    var _a;
+    if (((_a = this.plugin.relevanceGrades.get(this.path)) == null ? void 0 : _a.status) === "running") return;
+    const menu = new import_obsidian24.Menu();
+    for (const tier of ["core", "support", "side"])
+      menu.addItem(
+        (item) => item.setTitle(t(RELEVANCE_LABEL[tier])).setChecked(tier === current).onClick(() => this.setManualRelevance(node, tier))
+      );
+    menu.addSeparator();
+    menu.addItem(
+      (item) => item.setTitle(t("ui.relevance_clear")).setIcon("x").onClick(() => this.setManualRelevance(node, null))
+    );
+    const rect = anchor.getBoundingClientRect();
+    menu.showAtPosition({ x: rect.left, y: rect.bottom });
+  }
+  /**
+   * Sets a card's tier by hand (or clears it) in the note's frontmatter and repaints in place. No AI call, no parent-
+   * child check, no viewport or Map.md write: only the three relevance keys of that one note change.
+   */
+  setManualRelevance(node, tier) {
+    var _a;
+    if (((_a = this.plugin.relevanceGrades.get(this.path)) == null ? void 0 : _a.status) === "running") return;
+    this.plugin.runMutation(
+      () => this.plugin.repo.writeRelevance(node.path, tier ? { tier, reason: "", manual: true } : null)
+    );
   }
   stopRelevanceGrade() {
     const run = this.plugin.relevanceGrades.get(this.path);
@@ -26491,7 +26575,7 @@ ${request.requirements}` : preset.text,
     const text11 = running ? t(
       run.awaitingUsage ? "ui.relevance_awaiting_usage" : run.repairing ? "ui.relevance_repairing" : "ui.relevance_running"
     ) : run.status === "done" && outcome ? [
-      t("ui.relevance_done_0_1_2", outcome.graded, outcome.changes.length, outcome.skipped),
+      t("ui.relevance_done_0_1_2", outcome.graded, this.visibleRelevanceChanges(outcome).length, outcome.skipped),
       outcome.failed ? t("ui.relevance_write_failed_0", outcome.failed) : ""
     ].filter(Boolean).join(" ") : (_a = run.message) != null ? _a : "";
     const tone = running ? " vam-status-running" : run.status === "failed" || (outcome == null ? void 0 : outcome.failed) ? " vam-status-error" : "";
@@ -26501,7 +26585,8 @@ ${request.requirements}` : preset.text,
       return;
     }
     if (outcome == null ? void 0 : outcome.changes.length) {
-      this.button(bar, t("ui.relevance_view_changes"), () => this.openRelevanceSummary(run));
+      if (this.visibleRelevanceChanges(outcome).length)
+        this.button(bar, t("ui.relevance_view_changes"), () => this.openRelevanceSummary(run));
       if (this.history.undoEntry && this.history.undoEntry === run.historyEntry)
         this.button(bar, t("ui.undo"), () => this.enqueue(() => this.travel(false)));
     }
@@ -26512,16 +26597,33 @@ ${request.requirements}` : preset.text,
       (_c = (_b = (_a2 = this.contentEl) == null ? void 0 : _a2.querySelector) == null ? void 0 : _b.call(_a2, ".vam-relevance-goal")) == null ? void 0 : _c.focus();
     });
   }
+  /** A hand-set tier the AI kept is cleared of its flag (and undoable) but is not news, so it is not counted or listed. */
+  visibleRelevanceChanges(outcome) {
+    return outcome.changes.filter((change) => {
+      var _a;
+      return !(((_a = change.before) == null ? void 0 : _a.manual) && change.before.tier === change.after.tier);
+    });
+  }
   openRelevanceSummary(run) {
-    var _a, _b;
-    const changes = (_b = (_a = run.outcome) == null ? void 0 : _a.changes) != null ? _b : [];
+    const changes = run.outcome ? this.visibleRelevanceChanges(run.outcome) : [];
+    const reverted = changes.filter((change) => {
+      var _a;
+      return (_a = change.before) == null ? void 0 : _a.manual;
+    });
     new RelevanceSummaryModal(this.app, {
-      rows: changes.map((change) => ({
-        id: change.id,
-        title: change.title,
-        before: change.before,
-        after: change.after
-      })),
+      rows: [...reverted, ...changes.filter((change) => {
+        var _a;
+        return !((_a = change.before) == null ? void 0 : _a.manual);
+      })].map((change) => {
+        var _a;
+        return {
+          id: change.id,
+          title: change.title,
+          before: change.before,
+          after: change.after,
+          ...((_a = change.before) == null ? void 0 : _a.manual) ? { reverted: true } : {}
+        };
+      }),
       highlight: (ids) => this.highlightStructure(ids)
     }).open();
   }
@@ -29047,7 +29149,7 @@ ${request.requirements}` : preset.text,
   }
   /** `shownNode` may be a display copy (sorted by relevance): it only supplies where the card is drawn. */
   renderNode(shownNode) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C, _D, _E, _F, _G, _H, _I, _J, _K;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C, _D, _E, _F, _G, _H, _I, _J, _K, _L;
     if (!this.stageEl) return;
     const node = (_b = (_a = this.map) == null ? void 0 : _a.nodes.find((item) => item.id === shownNode.id)) != null ? _b : shownNode;
     const note = this.notes.get(node.id), card = this.stageEl.createDiv({
@@ -29126,20 +29228,31 @@ ${request.requirements}` : preset.text,
     if (relevance) {
       const tierLabel = t(RELEVANCE_LABEL[relevance.tier]);
       card.dataset.relevance = relevance.tier;
-      (0, import_obsidian24.setTooltip)(renderRelevanceTag(header, relevance.tier, tierLabel), relevance.reason);
-      card.setAttr("aria-description", t("ui.relevance_description_0_1", tierLabel, relevance.reason));
-      const named = (_l = cardLabels.get(card)) == null ? void 0 : _l.textContent;
+      const reasonText = relevance.manual ? t("ui.relevance_manual_reason") : relevance.reason;
+      (0, import_obsidian24.setTooltip)(
+        renderRelevanceTagButton(
+          header,
+          relevance.tier,
+          tierLabel,
+          t("ui.relevance_tag_label_0", tierLabel),
+          (button) => this.openRelevanceMenu(node, relevance.tier, button),
+          ((_l = this.plugin.relevanceGrades.get(this.path)) == null ? void 0 : _l.status) === "running"
+        ),
+        reasonText
+      );
+      card.setAttr("aria-description", t("ui.relevance_description_0_1", tierLabel, reasonText));
+      const named = (_m = cardLabels.get(card)) == null ? void 0 : _m.textContent;
       if (named) this.labelCard(card, t("ui.topic_card_label_0_1", named, tierLabel));
     }
     const errorDetails = [];
-    if ((_m = note == null ? void 0 : note.detailFormatIssues) == null ? void 0 : _m.length) {
+    if ((_n = note == null ? void 0 : note.detailFormatIssues) == null ? void 0 : _n.length) {
       const issue = header.createSpan({ cls: "vam-status vam-status-error", text: t("ui.detail_format_unmet") });
       issue.setAttr("title", note.detailFormatIssues.join("\n"));
       errorDetails.push(...note.detailFormatIssues);
     }
     if (batch) {
-      const currentNode = batch.currentPath ? (_n = this.map) == null ? void 0 : _n.nodes.find((item) => item.path === batch.currentPath) : void 0;
-      const currentTitle = currentNode ? (_o = this.notes.get(currentNode.id)) == null ? void 0 : _o.title : void 0;
+      const currentNode = batch.currentPath ? (_o = this.map) == null ? void 0 : _o.nodes.find((item) => item.path === batch.currentPath) : void 0;
+      const currentTitle = currentNode ? (_p = this.notes.get(currentNode.id)) == null ? void 0 : _p.title : void 0;
       const label = this.batchProgressLabel(
         t("ui.shallow_research_counts", batch.succeeded, batch.total),
         batch,
@@ -29161,21 +29274,21 @@ ${request.requirements}` : preset.text,
       }
       this.renderRetryFailedButton(header, node.path, batch);
     }
-    if (((_p = this.plugin.quickExpandPending) == null ? void 0 : _p.has(node.path)) && (batch == null ? void 0 : batch.status) !== "running") {
+    if (((_q = this.plugin.quickExpandPending) == null ? void 0 : _q.has(node.path)) && (batch == null ? void 0 : batch.status) !== "running") {
       this.button(header, t("ui.stop_research"), () => {
         var _a2;
         return (_a2 = this.plugin.activeTasks.get(node.path)) == null ? void 0 : _a2.abort();
       });
     }
-    const pendingCount = (_r = (_q = this.plugin.pendingSuggestions.get(node.path)) == null ? void 0 : _q.length) != null ? _r : 0;
-    if (pendingCount && !this.builtIn && !this.integrationMode && !((_s = this.map) == null ? void 0 : _s.aim))
+    const pendingCount = (_s = (_r = this.plugin.pendingSuggestions.get(node.path)) == null ? void 0 : _r.length) != null ? _s : 0;
+    if (pendingCount && !this.builtIn && !this.integrationMode && !((_t = this.map) == null ? void 0 : _t.aim))
       this.button(
         header,
         t("ui.view_0_expansion_suggestions", pendingCount),
         () => this.openNodePanel(node, "proposals")
       ).addClass("vam-badge-new");
     const synthesis = this.synthesisTasks.get(node.path);
-    if (synthesis && synthesis.mapPath === this.path && !this.builtIn && !this.integrationMode && !((_t = this.map) == null ? void 0 : _t.aim)) {
+    if (synthesis && synthesis.mapPath === this.path && !this.builtIn && !this.integrationMode && !((_u = this.map) == null ? void 0 : _u.aim)) {
       if (synthesis.state === "running") {
         if (synthesis.progress) header.createSpan({ cls: "vam-status vam-status-running", text: synthesis.progress });
         this.button(header, t("ui.stop_research"), () => synthesis.controller.abort());
@@ -29215,7 +29328,7 @@ ${request.requirements}` : preset.text,
       collapse.setAttr("aria-expanded", String(!node.collapsed));
     }
     if (!this.builtIn && !this.integrationMode) {
-      if (!((_u = this.map) == null ? void 0 : _u.aim)) {
+      if (!((_v = this.map) == null ? void 0 : _v.aim)) {
         const structure = this.button(tools, t("ui.node_tool_links"), () => this.openNodePanel(node, "structure"));
         structure.addClass("vam-node-tool", "vam-structure-tool");
         structure.setAttr("aria-label", t("ui.structure_and_links"));
@@ -29236,7 +29349,7 @@ ${request.requirements}` : preset.text,
         remove.addClass("vam-node-tool", "vam-remove-tool");
         remove.setAttr("aria-label", t("ui.remove_from_map"));
       }
-      if (((_v = this.map) == null ? void 0 : _v.aim) && node.aimKind === "synthesis" && this.map.aim.branches.some((branch) => branch.results.some((result) => result.nodeId === node.id))) {
+      if (((_w = this.map) == null ? void 0 : _w.aim) && node.aimKind === "synthesis" && this.map.aim.branches.some((branch) => branch.results.some((result) => result.nodeId === node.id))) {
         const next = this.button(
           header,
           t("ui.aim_new_question"),
@@ -29248,7 +29361,7 @@ ${request.requirements}` : preset.text,
         next.setAttr("title", t("ui.aim_new_question_hint"));
       }
       const assumptions = node.aimKind === "conclusion" && note ? readOpenItems(note.detail) : [];
-      if (((_w = this.map) == null ? void 0 : _w.aim) && assumptions.length) {
+      if (((_x = this.map) == null ? void 0 : _x.aim) && assumptions.length) {
         const correct = this.button(
           header,
           t("ui.aim_correct_assumption"),
@@ -29260,7 +29373,7 @@ ${request.requirements}` : preset.text,
         correct.addClass("vam-node-tool", "vam-pinned-tool");
         correct.setAttr("title", t("ui.aim_correct_assumption_hint"));
       }
-      if (((_x = this.map) == null ? void 0 : _x.aim) && node.aimKind === "conclusion") {
+      if (((_y = this.map) == null ? void 0 : _y.aim) && node.aimKind === "conclusion") {
         const steer = this.button(
           header,
           t("ui.aim_steer"),
@@ -29279,25 +29392,25 @@ ${request.requirements}` : preset.text,
     details.addClass("vam-node-tool", "vam-detail-button");
     if (this.builtIn) details.setAttr("title", t("ui.view_sample_content"));
     else details.setAttr("aria-label", t("ui.open_details_in_right_sidebar"));
-    if (!this.builtIn && !this.integrationMode && !((_y = this.map) == null ? void 0 : _y.aim))
+    if (!this.builtIn && !this.integrationMode && !((_z = this.map) == null ? void 0 : _z.aim))
       this.button(tools, t("ui.ai_explore"), () => this.openNextStep(node)).addClass("vam-node-tool", "vam-ai-explore");
-    if (!this.builtIn && !this.integrationMode && !((_z = this.map) == null ? void 0 : _z.aim)) {
+    if (!this.builtIn && !this.integrationMode && !((_A = this.map) == null ? void 0 : _A.aim)) {
       const add = this.button(card, "+", () => this.enqueue(() => this.addNode(node)));
       add.addClass("vam-add-child");
       add.setAttr("aria-label", t("ui.add_subtopic_manually"));
     }
-    const title = card.createEl("h3", { text: (_A = note == null ? void 0 : note.title) != null ? _A : node.path, cls: "vam-card-title" });
-    title.setAttr("title", (_B = note == null ? void 0 : note.title) != null ? _B : node.path);
+    const title = card.createEl("h3", { text: (_B = note == null ? void 0 : note.title) != null ? _B : node.path, cls: "vam-card-title" });
+    title.setAttr("title", (_C = note == null ? void 0 : note.title) != null ? _C : node.path);
     if (!note || !isPlaceholder(note.summary))
       card.createEl("p", {
         cls: "vam-card-summary",
-        text: (_C = note == null ? void 0 : note.summary) != null ? _C : t("ui.the_file_was_moved_or_deleted_you_can_remove_this_node_from")
+        text: (_D = note == null ? void 0 : note.summary) != null ? _D : t("ui.the_file_was_moved_or_deleted_you_can_remove_this_node_from")
       });
     if (errorDetails.length) {
       const error = card.createEl("p", { cls: "vam-card-error", text: errorDetails[0] });
       error.setAttr("title", errorDetails.join("\n"));
     }
-    if (node.aimKind === "conclusion" && ((_D = this.map) == null ? void 0 : _D.aim) && !this.builtIn) {
+    if (node.aimKind === "conclusion" && ((_E = this.map) == null ? void 0 : _E.aim) && !this.builtIn) {
       const branch = this.map.aim.branches.find((item) => item.results.some((result) => result.nodeId === node.id));
       const hasFollowup = this.map.nodes.some((item) => item.parentId === node.id && item.aimKind === "question");
       if (branch && !hasFollowup && countAimAnsweredQuestions(this.map, branch.id) < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION) {
@@ -29310,7 +29423,7 @@ ${request.requirements}` : preset.text,
         ).addClass("mod-cta");
       }
     }
-    if (node.aimKind === "topic" && ((_E = this.map) == null ? void 0 : _E.aim) && !this.map.nodes.some((item) => item.aimKind === "question")) {
+    if (node.aimKind === "topic" && ((_F = this.map) == null ? void 0 : _F.aim) && !this.map.nodes.some((item) => item.aimKind === "question")) {
       const initialBranch = this.map.aim.branches.find((item) => item.questionNodeId === node.id && !item.parentBranchId);
       const initialRuns = initialBranch ? this.map.aim.runs.filter((item) => item.branchId === initialBranch.id) : [];
       const activeInitialRun = initialRuns.some((run) => {
@@ -29346,11 +29459,11 @@ ${request.requirements}` : preset.text,
         );
       }
     }
-    if (node.aimKind === "question" && ((_F = this.map) == null ? void 0 : _F.aim)) {
+    if (node.aimKind === "question" && ((_G = this.map) == null ? void 0 : _G.aim)) {
       const branch = this.map.aim.branches.find((item) => item.questionNodeId === node.id);
       if (branch) {
         this.renderAimFailure(card, branch);
-        const labels = (_H = (_G = node.aimQuestion) == null ? void 0 : _G.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _H : branch.answerSnapshot.selections;
+        const labels = (_I = (_H = node.aimQuestion) == null ? void 0 : _H.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _I : branch.answerSnapshot.selections;
         const answer = [...labels, branch.answerSnapshot.freeText].filter(Boolean).join(" \u2014 ");
         card.createEl("p", {
           cls: "vam-aim-answer-snapshot",
@@ -29393,11 +29506,11 @@ ${request.requirements}` : preset.text,
         }
       }
     }
-    if (node.aimKind === "answer" && ((_I = this.map) == null ? void 0 : _I.aim)) {
+    if (node.aimKind === "answer" && ((_J = this.map) == null ? void 0 : _J.aim)) {
       const branch = this.map.aim.branches.find((item) => item.answerNodeId === node.id);
       const question = branch && this.map.nodes.find((item) => item.id === branch.questionNodeId);
       if (branch) {
-        const labels = (_K = (_J = question == null ? void 0 : question.aimQuestion) == null ? void 0 : _J.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _K : branch.answerSnapshot.selections;
+        const labels = (_L = (_K = question == null ? void 0 : question.aimQuestion) == null ? void 0 : _K.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _L : branch.answerSnapshot.selections;
         const answer = [...labels, branch.answerSnapshot.freeText].filter(Boolean).join(" \u2014 ");
         card.createEl("p", {
           cls: "vam-aim-answer-snapshot",

@@ -31,7 +31,9 @@ async function harness({ language = 'en', mapTitle = 'Sleep map' } = {}) {
   await add('root', 'Sleep'); await add('a', 'Body', 'root'); await add('b', 'Mind', 'root'); await add('c', 'REM', 'a'); await add('d', 'Dreams', 'b');
   await app.vault.create(MAP, core.serializeMap(mapDoc));
   await repo.rebuildDerivedData();
-  const notices = [], opened = [];
+  const notices = [], opened = [], menus = [], tips = new Map();
+  // Records each menu (items with title, checked state and click handler, separators) and each tooltip.
+  class Menu { constructor() { this.items = []; menus.push(this); } addItem(cb) { const it = { separator: false }; this.items.push(it); cb({ setTitle(v) { it.title = v; return this; }, setChecked(v) { it.checked = v; return this; }, setIcon(v) { it.icon = v; return this; }, onClick(fn) { it.click = fn; return this; } }); return this; } addSeparator() { this.items.push({ separator: true }); return this; } showAtPosition(pos) { this.pos = pos; return this; } }
   const Base = dom.makeModal();
   class Modal extends Base { open() { opened.push(this); super.open(); } }
   const ctx = {};
@@ -39,9 +41,10 @@ async function harness({ language = 'en', mapTitle = 'Sleep map' } = {}) {
   const plugin = withExpansionCoordinator({
     repo, settings, running: new Set(), logs: { appendLog() {} }, rebuildDerivedData: () => repo.rebuildDerivedData(), relevanceGrades: new Map(),
     mutate: async work => { await work(); await ctx.view?.hydrate(); },
+    runMutation(work) { this.mutate(work).catch(() => {}); },
     confirmAiUsage: async (_model, run) => { control.usageAsks++; if (control.confirmGate) await control.confirmGate; if (control.decline) return false; await run(); return true; }
   });
-  const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Modal, Notice: class { constructor(m) { notices.push(m); } }, setTooltip() {} } });
+  const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Modal, Notice: class { constructor(m) { notices.push(m); } }, Menu, setTooltip(el, text) { tips.set(el, text); } } });
   const gradeModule = load('core/relevance-grade-service.ts');
   const { RelevanceGradeService } = gradeModule;
   plugin.relevanceGrade = new RelevanceGradeService(async (request, signal, prepared) => {
@@ -63,7 +66,7 @@ async function harness({ language = 'en', mapTitle = 'Sleep map' } = {}) {
   const cards = new Map(view.map.nodes.map(n => [n.id, element('div', 'vam-node')]));
   for (const [id, card] of cards) view.cardEls.set(id, card);
   const h = {
-    repo, app, contents, view, plugin, ids, gradeModule, control, notices, opened, cards, rootEl,
+    repo, app, contents, view, plugin, ids, gradeModule, control, notices, opened, cards, rootEl, menus, tips,
     renders: () => renders,
     chip: () => find(rootEl, i => hasCls(i, 'vam-relevance-goal')),
     input: () => find(rootEl, i => hasCls(i, 'vam-relevance-goal-input')),
@@ -780,4 +783,170 @@ integrationTest('relevance toolbar: Esc on the button closes the panel without s
   assert.equal(h.control.calls.length, 0); assert.equal(await h.repo.readRelevanceGoal(MAP), undefined);
   let stoppedAgain = 0; h.chip().fire('keydown', { key: 'Escape', stopPropagation() { stoppedAgain++; } });
   assert.equal(stoppedAgain, 0, 'Esc on a closed panel is left to Obsidian');
+});
+
+// ---- Phase 7: change a tier by hand from the card tag ----------------------------------------------------------------
+const pathOfKey = (h, key) => h.view.map.nodes.find(n => n.id === h.ids[key]).path;
+const rawNote = (h, key) => h.contents.get(pathOfKey(h, key));
+const manualKeys = /^relevance-(tier|reason|manual):.*\n/gm;
+// Draws one real card on a stage, the way render does, and returns its tag button.
+const paintCard = (h, key) => {
+  h.plugin.expansionBatches ??= new Map(); h.plugin.pendingSuggestions ??= new Map(); h.plugin.detailsShown ??= () => false;
+  h.view.builtIn = false; h.view.labelCard = () => {}; h.view.stageEl = element('stage'); h.view.cardEls = new Map(); h.view.tabStopId = null;
+  h.view.renderNode(h.view.map.nodes.find(n => n.id === h.ids[key]));
+  const card = h.view.stageEl.children[0];
+  card.matches = () => false;
+  const tag = find(card, i => hasCls(i, 'vam-relevance-tag-button'));
+  if (tag) tag.getBoundingClientRect = () => ({ left: 10, bottom: 20 });
+  return { card, tag };
+};
+const pick = (menu, title) => menu.items.find(i => i.title === title);
+const afterWrite = async () => { for (let i = 0; i < 12; i++) await tick(); };
+
+integrationTest('relevance manual: the tag is a keyboard-reachable button with an aria-label; its menu has the three tiers (current checked), a separator and Clear grade', async () => {
+  const h = await harness();
+  await h.enter('Goal'); await h.settled();
+  const { card, tag } = paintCard(h, 'a');
+  assert.equal(tag.tag, 'button'); assert.equal(tag.type, 'button'); assert.equal(tag.attrs['aria-label'], 'Relevance: Must learn, click to change');
+  assert.equal(tag.dataset.tier, 'core'); assert.equal(tag.disabled, false); assert.equal(tag.attrs['aria-haspopup'], 'menu');
+  assert.equal(tag.tabIndex, -1, 'in the tab order only while its card has focus, like the card tools');
+  card.fire('focusin', { target: card }); assert.equal(tag.tabIndex, 0, 'focusing the card makes the tag a tab stop');
+  // A native button turns Enter and Space into a click; the card's own Enter handler must not also open the card.
+  let detailsOpened = 0; h.view.openDetails = () => { detailsOpened++; };
+  card.fire('keydown', { key: 'Enter', target: tag }); card.fire('keydown', { key: ' ', target: tag });
+  assert.equal(detailsOpened, 0); assert.equal(h.menus.length, 0);
+  tag.click();
+  assert.equal(h.menus.length, 1);
+  const menu = h.menus[0];
+  assert.deepEqual(menu.items.map(i => i.separator ? '-' : i.title), ['Must learn', 'Learn when needed', 'Skippable', '-', 'Clear grade']);
+  assert.deepEqual(menu.items.slice(0, 3).map(i => i.checked), [true, false, false]);
+  assert.ok(menu.pos && 'x' in menu.pos && 'y' in menu.pos, 'opens at the tag');
+  assert.equal(h.view.selected, null, 'a click on the tag does not select the card'); assert.equal(detailsOpened, 0);
+  assert.equal(h.opened.length, 0);
+});
+
+integrationTest('relevance manual: a hand-set tier writes only tier + manual (reason removed), then change, then clear touch only those keys; no Map.md or viewport write', async () => {
+  const h = await harness();
+  await h.enter('Goal'); await h.settled();
+  const mapBefore = h.contents.get(MAP), viewportBefore = JSON.stringify(h.view.map.viewport);
+  let fits = 0, saves = 0; h.view.fit = () => { fits++; }; h.view.saveViewport = () => { saves++; };
+  const writes = [];
+  const create = h.app.vault.create, modify = h.app.vault.modify, process = h.app.vault.process;
+  h.app.vault.create = (...a) => { writes.push(a[0]); return create.apply(h.app.vault, a); };
+  h.app.vault.modify = (...a) => { writes.push(a[0]); return modify.apply(h.app.vault, a); };
+  h.app.vault.process = (file, ...a) => { writes.push(file.path); return process.call(h.app.vault, file, ...a); };
+  const start = rawNote(h, 'c');
+  assert.match(start, /relevance-reason:/);
+  const stripped = text => text.replace(manualKeys, '');
+  const before = h.view.map.nodes.length;
+  paintCard(h, 'c').tag.click(); pick(h.menus.at(-1), 'Must learn').click(); await afterWrite();
+  let now = rawNote(h, 'c');
+  assert.match(now, /^relevance-tier: "core"$/m); assert.match(now, /^relevance-manual: true$/m); assert.doesNotMatch(now, /relevance-reason/);
+  assert.equal(stripped(now), stripped(start), 'nothing else in the note changed');
+  assert.deepEqual(JSON.parse(JSON.stringify((await h.note('c')).relevance)), { tier: 'core', reason: '', manual: true });
+  // Change it again, to a third tier.
+  paintCard(h, 'c').tag.click(); pick(h.menus.at(-1), 'Learn when needed').click(); await afterWrite();
+  now = rawNote(h, 'c');
+  assert.equal(now.match(/^relevance-tier:/gm).length, 1); assert.match(now, /^relevance-tier: "support"$/m); assert.equal(now.match(/^relevance-manual:/gm).length, 1);
+  assert.equal(stripped(now), stripped(start));
+  // The menu for a card that is now manual checks the new tier.
+  paintCard(h, 'c').tag.click(); assert.deepEqual(h.menus.at(-1).items.slice(0, 3).map(i => i.checked), [false, true, false]);
+  pick(h.menus.at(-1), 'Clear grade').click(); await afterWrite();
+  now = rawNote(h, 'c');
+  assert.doesNotMatch(now, /relevance-(tier|reason|manual)/); assert.equal(now, stripped(start), 'clear removes all three keys and nothing else');
+  assert.equal(await h.note('c').then(n => n.relevance), undefined);
+  assert.equal(h.contents.get(MAP), mapBefore, 'Map.md untouched'); assert.equal(JSON.stringify(h.view.map.viewport), viewportBefore);
+  assert.equal(fits, 0, 'no refit'); assert.equal(saves, 0, 'no viewport save'); assert.equal(h.view.map.nodes.length, before);
+  assert.ok(writes.length > 0 && writes.every(p => p === pathOfKey(h, 'c')), 'only the one note was written');
+  assert.equal(h.control.calls.length, 1, 'no AI call for a manual change');
+  assert.equal(h.view.history.past.length, 2, 'goal and grading only');
+  h.app.vault.create = create; h.app.vault.modify = modify; h.app.vault.process = process;
+});
+
+integrationTest('relevance manual: the tag tooltip and description say you set it instead of an AI reason; parent-child order is not enforced', async () => {
+  const h = await harness();
+  await h.enter('Goal'); await h.settled();
+  assert.equal(h.tips.get(paintCard(h, 'a').tag), 'Body for Goal.');
+  // Parent (a) Skippable while its child (c) stays Skippable-or-higher: nothing is checked or repaired.
+  paintCard(h, 'a').tag.click(); pick(h.menus.at(-1), 'Skippable').click(); await afterWrite();
+  paintCard(h, 'c').tag.click(); pick(h.menus.at(-1), 'Must learn').click(); await afterWrite();
+  assert.equal((await h.note('a')).relevance.tier, 'side'); assert.equal((await h.note('c')).relevance.tier, 'core');
+  const { card, tag } = paintCard(h, 'a');
+  assert.equal(h.tips.get(tag), 'You set this');
+  assert.equal(card.attrs['aria-description'], 'Skippable: You set this');
+  assert.equal(h.control.calls.length, 1);
+  const { translate } = load('i18n.ts');
+  assert.equal(translate('zh-TW', 'ui.relevance_manual_reason'), '你手動設定');
+  assert.equal(translate('zh-TW', 'ui.relevance_tag_label_0').replace('{0}', '必學'), '分級：必學，點擊更改');
+  assert.equal(translate('zh-TW', 'ui.relevance_clear'), '清除分級');
+  assert.equal(translate('zh-TW', 'ui.relevance_reverted_title'), '你改過、這次被 AI 改回的卡');
+  assert.equal(translate('zh-TW', 'ui.relevance_reverted_0_1').replace('{0}', '可跳過').replace('{1}', '必學'), '你設：可跳過 → AI：必學');
+});
+
+integrationTest('relevance manual: the tag and its menu are disabled while this map is being graded', async () => {
+  const h = await harness();
+  await h.enter('Goal'); await h.settled();
+  const note = rawNote(h, 'a');
+  h.plugin.relevanceGrades.set(MAP, { status: 'running', token: 99, owner: {}, controller: new AbortController(), goal: 'g' });
+  const { tag } = paintCard(h, 'a');
+  assert.equal(tag.disabled, true); tag.click(); assert.equal(h.menus.length, 0, 'a disabled button opens nothing');
+  h.view.openRelevanceMenu(h.view.map.nodes.find(n => n.id === h.ids.a), 'core', tag); assert.equal(h.menus.length, 0, 'not even by calling the handler');
+  h.view.setManualRelevance(h.view.map.nodes.find(n => n.id === h.ids.a), 'side'); await afterWrite();
+  assert.equal(rawNote(h, 'a'), note, 'no write while running');
+  h.plugin.relevanceGrades.delete(MAP);
+  assert.equal(paintCard(h, 'a').tag.disabled, false);
+});
+
+integrationTest('relevance manual: readRelevance and the frontmatter writer handle relevance-manual', async () => {
+  const { readRelevance } = load('note-values.ts');
+  const plainOf = v => JSON.parse(JSON.stringify(v));
+  assert.deepEqual(plainOf(readRelevance({ 'relevance-tier': 'side', 'relevance-manual': true })), { tier: 'side', reason: '', manual: true });
+  assert.deepEqual(plainOf(readRelevance({ 'relevance-tier': 'side', 'relevance-reason': ' r ', 'relevance-manual': false })), { tier: 'side', reason: 'r' });
+  assert.equal(readRelevance({ 'relevance-tier': 'side' }), undefined, 'a tier alone still reads as nothing');
+  assert.equal(readRelevance({ 'relevance-tier': 'huge', 'relevance-manual': true }), undefined);
+  assert.equal(readRelevance({ 'relevance-tier': 'side', 'relevance-manual': 'true' }), undefined, 'only a real true counts');
+  const { repo } = fixture('en');
+  await assert.rejects(() => repo.writeRelevance('missing.md', { tier: 'core', reason: '' }), /reason is required|not found|missing/i);
+});
+
+integrationTest('relevance manual: the next run overwrites hand-set tiers, lists first the ones it changed back (not those it kept), and undo restores the flag exactly', async () => {
+  const h = await harness();
+  const set = async (key, value) => { await h.repo.writeRelevance(pathOfKey(h, key), value); };
+  await set('a', { tier: 'side', reason: '', manual: true });      // Body: AI will say core -> reverted
+  await set('b', { tier: 'support', reason: '', manual: true });   // Mind: AI will say support -> kept, flag cleared, not listed
+  await set('c', { tier: 'support', reason: 'Old AI reason.' });   // REM: not manual, AI says side -> ordinary change
+  await h.view.hydrate();
+  const rawBefore = Object.fromEntries(['a', 'b', 'c', 'd'].map(k => [k, rawNote(h, k)]));
+  await h.enter('Goal'); await h.settled();
+  // The AI overwrote every card and cleared the flag.
+  for (const key of ['a', 'b', 'c', 'd']) { assert.doesNotMatch(rawNote(h, key), /relevance-manual/); assert.match(rawNote(h, key), /relevance-reason:/); }
+  assert.deepEqual(await h.allRelevance(), { root: undefined, a: ['core', 'Body for Goal.'], b: ['support', 'Mind for Goal.'], c: ['side', 'REM for Goal.'], d: ['support', 'Dreams for Goal.'] });
+  assert.equal(h.barText(), 'Graded 4 topics, 3 changed (0 skipped)', 'the card the AI kept at your tier is not counted as a change');
+  button(h.bar(), 'View changes').click();
+  const modal = h.opened.at(-1);
+  const headings = findAll(modal.contentEl, i => i.tag === 'h4').map(i => i.text);
+  assert.deepEqual(headings, ['You changed these; the AI changed them back this time']);
+  const lists = findAll(modal.contentEl, i => i.tag === 'ul');
+  assert.equal(lists.length, 2); assert.ok(hasCls(lists[0], 'vam-relevance-reverted'), 'the reverted section is first');
+  const titles = list => findAll(list, i => hasCls(i, 'vam-relevance-change-title')).map(i => i.text);
+  assert.deepEqual(titles(lists[0]), ['Body']); assert.deepEqual(titles(lists[1]), ['REM', 'Dreams'], 'Mind (kept) and Body are not in the ordinary list');
+  assert.equal(find(lists[0], i => hasCls(i, 'vam-relevance-change-tags')).text, 'You set: Skippable → AI: Must learn');
+  assert.deepEqual([...h.cards].filter(([, card]) => hasCls(card, 'vam-structure-suggested')).map(([id]) => id).sort(), [h.ids.a, h.ids.c, h.ids.d].sort());
+  modal.close();
+  button(h.bar(), 'Undo').click(); await afterTravel(h);
+  for (const key of ['a', 'b', 'c', 'd']) assert.equal(rawNote(h, key), rawBefore[key], `${key} is back exactly, flag and missing reason included`);
+  assert.match(rawNote(h, 'a'), /relevance-manual: true/); assert.doesNotMatch(rawNote(h, 'a'), /relevance-reason/);
+  assert.deepEqual(JSON.parse(JSON.stringify((await h.note('a')).relevance)), { tier: 'side', reason: '', manual: true });
+  // Redo re-applies the AI result.
+  await h.view.travel(true); await h.view.travel(true);
+  assert.deepEqual(await h.relevanceOf('a'), ['core', 'Body for Goal.']); assert.doesNotMatch(rawNote(h, 'b'), /relevance-manual/);
+});
+
+integrationTest('relevance manual: an AI grade of a non-manual card is unchanged (no manual section, no flag written)', async () => {
+  const h = await harness();
+  await h.enter('Goal'); await h.settled();
+  for (const key of ['a', 'b', 'c', 'd']) assert.doesNotMatch(rawNote(h, key), /relevance-manual/);
+  button(h.bar(), 'View changes').click();
+  const modal = h.opened.at(-1);
+  assert.equal(findAll(modal.contentEl, i => i.tag === 'h4').length, 0); assert.equal(findAll(modal.contentEl, i => i.tag === 'ul').length, 1);
 });

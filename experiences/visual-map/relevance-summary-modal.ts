@@ -10,6 +10,8 @@ export interface RelevanceChangeRow {
   title: string;
   before: NoteRelevance | undefined;
   after: NoteRelevance;
+  /** True when the owner had set the tier by hand and this run set a different one. */
+  reverted?: boolean;
 }
 export interface RelevanceSummaryHost {
   rows: RelevanceChangeRow[];
@@ -32,11 +34,31 @@ export class RelevanceSummaryModal extends Modal {
   onOpen(): void {
     this.modalEl.addClass("vam-relevance-summary-modal");
     this.titleEl.setText(t("ui.relevance_changes_title"));
+    const reverted = this.host.rows.filter(row => row.reverted),
+      others = this.host.rows.filter(row => !row.reverted);
     if (!this.host.rows.length) this.contentEl.createEl("p", { cls: "vam-hint", text: t("ui.relevance_changes_none") });
-    else {
+    if (reverted.length) {
+      this.contentEl.createEl("h4", { cls: "vam-relevance-reverted-title", text: t("ui.relevance_reverted_title") });
+      const list = this.contentEl.createEl("ul", { cls: "vam-relevance-changes vam-relevance-reverted" });
+      list.setAttr("aria-label", t("ui.relevance_reverted_title"));
+      for (const row of reverted) {
+        const item = list.createEl("li", { cls: "vam-relevance-change" });
+        item.createDiv({ cls: "vam-relevance-change-title", text: row.title });
+        item.createDiv({
+          cls: "vam-relevance-change-tags",
+          text: t(
+            "ui.relevance_reverted_0_1",
+            t(RELEVANCE_LABEL[row.before?.tier ?? row.after.tier]),
+            t(RELEVANCE_LABEL[row.after.tier])
+          )
+        });
+        item.createEl("p", { cls: "vam-relevance-change-reason", text: row.after.reason });
+      }
+    }
+    if (others.length) {
       const list = this.contentEl.createEl("ul", { cls: "vam-relevance-changes" });
       list.setAttr("aria-label", t("ui.relevance_changes_title"));
-      for (const row of this.host.rows) {
+      for (const row of others) {
         const item = list.createEl("li", { cls: "vam-relevance-change" });
         item.createDiv({ cls: "vam-relevance-change-title", text: row.title });
         const tags = item.createDiv({ cls: "vam-relevance-change-tags" });
