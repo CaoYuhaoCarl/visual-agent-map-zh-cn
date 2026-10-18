@@ -35,6 +35,7 @@ Rules:
 6. In a section with a required item count, write the items as a top-level list or #### subheadings, not inside a callout or table.
 7. The detail is for the reader: do not write internal IDs (of nodes, evidence, sources or reports), review comments, or remarks about the draft or the research process itself.
 8. Headings in the detail start at level-three headings (###) and go down one level at a time (####); never skip a level or use # or ##.
+9. Use math only for real formulas: inline math as `$…$` with no spaces just inside the dollars, display math with `$$` on its own lines; never use `\(`, `\)`, `\[` or `\]`.
 
 Normal research: provide the main evidence, limitations, and open questions needed to support the conclusion. Search when external facts are needed. There is no fixed query or source count. Continue while a likely useful search can resolve a decision-relevant uncertainty; stop when the answer is sufficiently supported or further searches have low expected value. Identify unresolved gaps.
 

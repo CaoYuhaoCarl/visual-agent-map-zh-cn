@@ -188,3 +188,73 @@ test('each mermaid opening is judged on its own: an unclosed block in a list can
   const safeQuotedInList = '- > ```mermaid\n  > flowchart LR\n  > A --> B\n  > ```';
   assert.equal(parse(safeQuotedInList), safeQuotedInList);
 });
+
+// Math: Obsidian renders only `$…$` and `$$…$$`; the prompt asks for them and the result is normalized either way.
+const { normalizeMathDelimiters } = load('ai/markdown-blocks.ts');
+
+test('the Obsidian format prompt asks for dollar-delimited math in both languages', async () => {
+  const base = { title: 'T', summary: 'S', rules: '', detail: 'D', task: 'X', ancestors: '', researchMode: 'local', researchDepth: 'fast', visualMode: 'off', mode: 'task' };
+  for (const [language, rule] of [['en', 'inline math as `$…$` with no spaces just inside the dollars'], ['zh-TW', '行內用 `$…$`（錢字號內側不留空白）']]) {
+    const prompt = (await promptsFor({ ...base, outputLanguage: language }, { language })).at(-1).prompt;
+    assert.ok(prompt.includes(rule), `${language} states the math rule`);
+    for (const delimiter of ['`\\(`', '`\\)`', '`\\[`', '`\\]`']) assert.ok(prompt.includes(delimiter), `${language} forbids ${delimiter}`);
+  }
+});
+
+test('math normalizer converts LaTeX delimiters to dollar math', () => {
+  const n = normalizeMathDelimiters;
+  assert.equal(n('傅立葉數\n\\[\nFo=\\frac{\\alpha t}{L^2}\n\\]\n結束'), '傅立葉數\n$$\nFo=\\frac{\\alpha t}{L^2}\n$$\n結束');
+  assert.equal(n('\\[ Fo=\\frac{\\alpha t}{L^2} \\]'), '$$Fo=\\frac{\\alpha t}{L^2}$$');
+  assert.equal(n('導熱係數 \\(k\\) 越大'), '導熱係數 $k$ 越大');
+  assert.equal(n('時間 \\( t\\propto L^2/\\alpha \\) 成正比'), '時間 $t\\propto L^2/\\alpha$ 成正比');
+  assert.equal(n('\\(a\\) 與 \\(b\\)，且 \\[x^2\\]'), '$a$ 與 $b$，且 $$x^2$$');
+  assert.equal(n('> \\[\n> E=mc^2\n> \\]'), '> $$\n> E=mc^2\n> $$');
+});
+
+test('math normalizer leaves code, escapes, unmatched and dollar math alone', () => {
+  const n = normalizeMathDelimiters;
+  const fenced = '```latex\n\\[\nx\n\\]\n\\(k\\)\n```';
+  assert.equal(n(fenced), fenced);
+  assert.equal(n('~~~\n\\(k\\)\n~~~'), '~~~\n\\(k\\)\n~~~');
+  assert.equal(n('寫成 `\\(k\\)` 與 ``\\[x\\]``'), '寫成 `\\(k\\)` 與 ``\\[x\\]``');
+  assert.equal(n('`code` 之後 \\(k\\)'), '`code` 之後 $k$');
+  assert.equal(n('escaped \\\\[x\\\\] and \\\\(k\\\\)'), 'escaped \\\\[x\\\\] and \\\\(k\\\\)');
+  assert.equal(n('a lone \\[ bracket'), 'a lone \\[ bracket');
+  assert.equal(n('\\[\nno closing line\n\n之後 \\] 隔著空行'), '\\[\nno closing line\n\n之後 \\] 隔著空行');
+  assert.equal(n('a lone \\( paren'), 'a lone \\( paren');
+  assert.equal(n('a stray \\) and \\] alone'), 'a stray \\) and \\] alone');
+  const dollars = '行內 $k$ 與\n$$\nx^2\n$$';
+  assert.equal(n(dollars), dollars);
+  assert.equal(n(''), '');
+});
+
+test('owner-note math pattern (synthetic) is fixed by the result path and AIM-free summaries too', async () => {
+  const detail = ['### 熱擴散', '', '熱擴散係數 \\(\\alpha\\) 由 \\(k\\)、\\(\\rho\\)、\\(c_p\\) 決定。', '', '\\[', '\\alpha=\\frac{k}{\\rho c_p}', '\\]', '', '\\[', 'Fo=\\frac{\\alpha t}{L^2}', '\\]', '', '所以 \\(t\\propto L^2/\\alpha\\)。'].join('\n');
+  const runtime = { runTask: async () => JSON.stringify({ summary: '擴散時間 \\(t\\propto L^2/\\alpha\\)', detail, suggestions: [], visualReferences: [] }) };
+  const service = makeService(runtime, { language: 'zh-TW' });
+  const result = await service.askModel({ title: 'T', summary: '', rules: '', detail: '', task: 'X', ancestors: '', mode: 'task', researchMode: 'local', researchDepth: 'fast', visualMode: 'off', outputLanguage: 'zh-TW' }, 'gpt-6-luna', 'low');
+  assert.ok(result.detail.includes('熱擴散係數 $\\alpha$ 由 $k$、$\\rho$、$c_p$ 決定。'));
+  assert.ok(result.detail.includes('$$\n\\alpha=\\frac{k}{\\rho c_p}\n$$'));
+  assert.ok(result.detail.includes('$$\nFo=\\frac{\\alpha t}{L^2}\n$$'));
+  assert.ok(result.detail.includes('所以 $t\\propto L^2/\\alpha$。'));
+  assert.ok(!/\\[[\]()]/.test(result.detail));
+  assert.equal(result.summary, '擴散時間 $t\\propto L^2/\\alpha$');
+  // A decompose request is not reader-facing and is left as the model wrote it.
+  const raw = await service.askModel({ title: 'T', summary: '', rules: '', detail: '', task: 'X', ancestors: '', mode: 'decompose', researchMode: 'local', researchDepth: 'fast', visualMode: 'off', outputLanguage: 'zh-TW' }, 'gpt-6-luna', 'low').catch(() => null);
+  if (raw) assert.ok(raw.detail.includes('\\[\n\\alpha'));
+});
+
+test('math normalizer keeps escaped link text; a prose regex bracket is a known LaTeX ambiguity', () => {
+  const n = normalizeMathDelimiters;
+  assert.equal(n('見 \\[link\\](https://example.org) 說明'), '見 \\[link\\](https://example.org) 說明');
+  assert.equal(n('\\[\nx\n\\](url)'), '\\[\nx\n\\](url)');
+  assert.equal(n('regex `\\[a-z\\]` 在程式碼內'), 'regex `\\[a-z\\]` 在程式碼內');
+  // Documented ambiguity: outside code, `\[a-z\]` is read as display math.
+  assert.equal(n('regex \\[a-z\\]'), 'regex $$a-z$$');
+});
+
+test('AIM interim detail normalizes math delimiters as well as headings', () => {
+  const { AimManualFlow } = load('experiences/aim/manual-flow.ts');
+  const out = AimManualFlow.prototype.interimDetail.call(null, ['# 標題\n\n速率 \\(k\\)', '', '\\[\nFo=\\frac{\\alpha t}{L^2}\n\\]']);
+  assert.equal(out, '### 標題\n\n速率 $k$\n\n$$\nFo=\\frac{\\alpha t}{L^2}\n$$');
+});

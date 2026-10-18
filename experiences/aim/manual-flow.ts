@@ -92,7 +92,7 @@ import {
   renderBelowFloorReviewTask,
   renderUserConditionReviewTask
 } from "./steps/decision-quality-review/step";
-import { normalizeDetailHeadings } from "../../ai/markdown-blocks";
+import { normalizeDetailHeadings, normalizeMathDelimiters } from "../../ai/markdown-blocks";
 import { awaitingAnswerCallout, incompleteResearchWarning, rejectedDeliveryWarning } from "./rejected-warning";
 import { renderReportReviewTask } from "./steps/report-review/step";
 import { renderTargetedFollowupResearchTask } from "./steps/targeted-followup-research/step";
@@ -253,7 +253,7 @@ export class AimManualFlow {
 
   /** An interim note's parts in order; its headings sit under the note's `## Detail` (nothing parses them later). */
   private interimDetail(parts: readonly string[]): string {
-    return normalizeDetailHeadings(parts.filter(part => part.trim()).join("\n\n"));
+    return normalizeMathDelimiters(normalizeDetailHeadings(parts.filter(part => part.trim()).join("\n\n")));
   }
 
   /** The document a review stands for: the draft a final review rejected, never the reviewer's critique of it. */
