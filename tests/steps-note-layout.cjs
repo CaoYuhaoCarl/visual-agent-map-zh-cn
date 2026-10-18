@@ -55,19 +55,20 @@ test('P0: the open items marker is kept outside the Detail block and still read 
   assert.deepEqual([...readOpenItems((await repo.readNote(note.path)).detail)], ['Legacy']);
 });
 
-test('P1-a: the answer comes before Preview and Prompt, and an empty Prompt is left out', async () => {
+test('P1-a: summary, then Preview, then Detail, then Prompt; an empty Prompt is left out', async () => {
   const { repo, contents } = support.fixture('en');
   const note = await support.topicNote(repo);
   await repo.updateNote(note.path, { summary: 'One-line answer.', detail: '### Answer\n\nBody.' });
   let markdown = contents.get(note.path);
   const at = pattern => markdown.search(new RegExp(pattern, 'm'));
-  assert.ok(at('^## Current Summary') >= 0 && at('^## Current Summary') < at('^## Detail'), 'summary, then Detail');
-  assert.ok(at('^## Detail') < at('^> \\[!info\\]- Preview$'), 'Detail before Preview');
+  assert.ok(at('^## Current Summary') >= 0 && at('^## Current Summary') < at('^> \\[!info\\]- Preview$'), 'summary, then Preview');
+  assert.ok(at('^> \\[!info\\]- Preview$') < at('^## Detail'), 'Preview before Detail');
   assert.equal(at('Prompt'), -1, 'an empty Prompt is not written');
   assert.equal((await repo.readNote(note.path)).prompt, '');
   await repo.updateNote(note.path, { prompt: 'Research the route.' });
   markdown = contents.get(note.path);
   assert.ok(at('^> \\[!info\\]- Prompt$') > at('^## Detail'), 'a Prompt with text comes after Detail');
+  assert.ok(at('^> \\[!info\\]- Preview$') < at('^## Detail') && at('^## Detail') < at('^> \\[!info\\]- Prompt$'), 'Preview, Detail, Prompt');
   assert.equal((await repo.readNote(note.path)).prompt, 'Research the route.');
 });
 
@@ -83,7 +84,8 @@ test('P0: the rejected-document warning lists what to fix in reader wording, wit
   assert.equal(rejectedDeliveryWarning([], 'en'), '');
 });
 
-// P1-a (owner decision 2026-10-15): Preview and Prompt are collapsed callouts after Detail.
+// P1-a (owner decisions 2026-10-15 and 2026-10-19): Preview and Prompt are collapsed callouts; Preview follows the
+// summary, Prompt follows Detail.
 const body = markdown => markdown.replace(/^---\n[\s\S]*?\n---\n/, '');
 const calloutNote = async (language = 'zh-TW') => {
   const { repo, contents } = support.fixture(language);
@@ -91,14 +93,14 @@ const calloutNote = async (language = 'zh-TW') => {
   return { repo, contents, note, text: () => body(contents.get(note.path)) };
 };
 
-test('P1-a: Preview and Prompt are collapsed callouts after Detail; an empty Prompt and an empty Preview are left out', async () => {
+test('P1-a: Preview (after the summary) and Prompt (after Detail) are collapsed callouts; an empty Prompt and an empty Preview are left out', async () => {
   const { repo, note, text } = await calloutNote();
   assert.ok(!/預覽|Preview|Prompt/.test(text()), 'a new note shows neither an empty Preview nor an empty Prompt');
   await repo.updateNote(note.path, { summary: '一句結論。', detail: '### 答案\n\n內容。' });
-  assert.match(text(), /<!-- visual-agent-map:detail:end -->\n\n> \[!info\]- 預覽\n> 一句結論。\n/);
+  assert.match(text(), /## Current Summary\n\n一句結論。\n\n> \[!info\]- 預覽\n> 一句結論。\n\n## Detail\n/);
   assert.ok(!/^## (預覽|Preview|Prompt)\s*$/m.test(text()), 'no ## Preview or ## Prompt section');
   await repo.updateNote(note.path, { prompt: '研究路線。\n第二行。' });
-  assert.match(text(), /> \[!info\]- 預覽\n> 一句結論。\n\n> \[!info\]- Prompt\n> 研究路線。\n> 第二行。\n/);
+  assert.match(text(), /> \[!info\]- 預覽\n> 一句結論。\n\n## Detail[\s\S]*<!-- visual-agent-map:detail:end -->\n\n> \[!info\]- Prompt\n> 研究路線。\n> 第二行。\n/);
   const read = await repo.readNote(note.path);
   assert.equal(read.preview, '一句結論。');
   assert.equal(read.prompt, '研究路線。\n第二行。');
@@ -139,7 +141,7 @@ test('P1-a: notes in the older layouts read correctly; ## Preview after Detail b
   let read = await repo.readNote(note.path);
   assert.equal(read.preview, 'My preview.'); assert.equal(read.prompt, 'My task.');
   await repo.updateNote(note.path, { status: 'completed' });
-  assert.match(text(), /> \[!info\]- Preview\n> My preview\.\n\n> \[!info\]- Prompt\n> My task\./);
+  assert.match(text(), /## Current Summary\n\nS\.\n\n> \[!info\]- Preview\n> My preview\.\n\n## Detail[\s\S]*detail:end -->\n\n> \[!info\]- Prompt\n> My task\./);
   read = await repo.readNote(note.path);
   assert.equal(read.preview, 'My preview.'); assert.equal(read.prompt, 'My task.');
   const legacy = `${fm}# T\n\n## Current Summary\n\nS.\n\n## Prompt\n\nOld task.\n\n## Preview\n\nOld preview.\n\n## Detail\n\n<!-- visual-agent-map:detail:start -->\nD.\n<!-- visual-agent-map:detail:end -->\n`;
@@ -180,4 +182,40 @@ test('P1-a: callouts without a blank line between them, or with CRLF line ends, 
   contents.set(note.path, contents.get(note.path).replace(/\n/g, '\r\n'));
   read = await repo.readNote(note.path);
   assert.equal(read.preview, 'S1'); assert.equal(read.prompt, 'P');
+});
+
+test('P1-a (2026-10-19): an answer-first note with Preview after Detail moves Preview up on write; Preview, Detail and Prompt stay identical', async () => {
+  const { repo, contents, note, text } = await calloutNote('en');
+  const fm = contents.get(note.path).match(/^---\n[\s\S]*?\n---\n/)[0];
+  const old = `${fm}# T\n\n## Current Summary\n\nS.\n\n## Detail\n\n<!-- visual-agent-map:detail:start -->\n### A\n\nD line.\n<!-- visual-agent-map:detail:end -->\n\n> [!info]- Preview\n> My preview.\n> > quoted\n\n> [!info]- Prompt\n> My task.\n\n## Rules\n\nR.\n\n## Working Findings\n\nF.\n`;
+  contents.set(note.path, old);
+  const before = await repo.readNote(note.path);
+  await repo.updateNote(note.path, { status: 'completed' });
+  const after = await repo.readNote(note.path);
+  for (const key of ['preview', 'detail', 'prompt', 'summary', 'rules', 'newFindings']) assert.equal(after[key], before[key], key);
+  const expected = old.replace(/^---\n[\s\S]*?\n---\n/, '').replace('> [!info]- Preview\n> My preview.\n> > quoted\n\n', '').replace('## Detail', '> [!info]- Preview\n> My preview.\n> > quoted\n\n## Detail');
+  assert.equal(text(), expected, 'only the Preview position changes');
+  const again = text();
+  await repo.updateNote(note.path, { status: 'idea' });
+  assert.equal(text(), again, 'a second write is stable');
+});
+
+test('P0 (2026-10-19): the open items marker survives with Preview before Detail and a Prompt after it', async () => {
+  const { openItemsMarker, readOpenItems } = load('experiences/aim/manual-flow.ts', { obsidian });
+  const { repo, contents } = support.fixture('en');
+  const note = await support.topicNote(repo);
+  await repo.updateNote(note.path, { summary: 'S.', prompt: 'Task.', detail: `### Answer\n\nBody.\n\n${openItemsMarker(['Budget'])}` });
+  const markdown = contents.get(note.path);
+  assert.ok(markdown.indexOf('> [!info]- Preview') < markdown.indexOf('## Detail'));
+  assert.ok(markdown.indexOf('aim-open-items') > markdown.indexOf('detail:end') && markdown.indexOf('aim-open-items') < markdown.indexOf('> [!info]- Prompt'), 'marker sits between Detail and Prompt');
+  assert.deepEqual([...readOpenItems((await repo.readNote(note.path)).detail)], ['Budget']);
+  await repo.updateNote(note.path, { status: 'completed' });
+  assert.deepEqual([...readOpenItems((await repo.readNote(note.path)).detail)], ['Budget'], 'a content-neutral write keeps it');
+  assert.equal((await repo.readNote(note.path)).prompt, 'Task.');
+  // The same note in the older order (Preview after Detail and marker).
+  const older = markdown.replace(/> \[!info\]- Preview\n(?:>.*\n)*\n/, '').replace('> [!info]- Prompt', '> [!info]- Preview\n> S.\n\n> [!info]- Prompt');
+  contents.set(note.path, older);
+  assert.deepEqual([...readOpenItems((await repo.readNote(note.path)).detail)], ['Budget']);
+  await repo.updateNote(note.path, { status: 'idea' });
+  assert.deepEqual([...readOpenItems((await repo.readNote(note.path)).detail)], ['Budget']);
 });
