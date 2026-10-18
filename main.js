@@ -594,10 +594,11 @@ var english = {
   "ui.relevance_goal_set": "Set goal",
   "ui.relevance_sort": "Sort by relevance",
   "ui.relevance_sorted_suffix": " (sorted by relevance)",
-  "ui.relevance_sort_hint": "Show core topics first, then supporting, then side topics, within each group. Display only: nothing is saved or moved in your files. Dragging cards is paused while this is on.",
+  "ui.relevance_sort_hint": "Within each group, show Must learn first, then Learn when needed, then Skippable. Display only: nothing is saved or moved in your files. Dragging cards is paused while this is on.",
   "ui.relevance_goal_set_hint": "Set a goal and grade the topics by it",
   "ui.relevance_goal_edit_hint": "Change the goal and grade again",
   "ui.relevance_goal_label": "Map goal",
+  "ui.relevance_panel_label": "Goal",
   "ui.relevance_goal_placeholder": "What do you want to achieve with this map?",
   "ui.relevance_goal_level_0_1": "Goal: {0} \xB7 {1}",
   "ui.relevance_level_label": "Your level",
@@ -2075,10 +2076,11 @@ var traditionalChinese = {
   "ui.relevance_goal_set": "\u8A2D\u5B9A\u76EE\u6A19",
   "ui.relevance_sort": "\u4F9D\u91CD\u8981\u5EA6\u6392\u5E8F",
   "ui.relevance_sorted_suffix": "\uFF08\u5DF2\u4F9D\u91CD\u8981\u5EA6\u6392\u5E8F\uFF09",
-  "ui.relevance_sort_hint": "\u6BCF\u4E00\u7D44\u5167\u4F9D\u6838\u5FC3\u3001\u652F\u63F4\u3001\u65C1\u652F\u7684\u9806\u5E8F\u986F\u793A\u3002\u53EA\u6539\u756B\u9762\uFF0C\u4E0D\u6703\u5132\u5B58\u6216\u66F4\u52D5\u4F60\u7684\u6A94\u6848\u3002\u958B\u555F\u6642\u66AB\u505C\u62D6\u66F3\u5361\u7247\u3002",
+  "ui.relevance_sort_hint": "\u6BCF\u4E00\u7D44\u5167\u4F9D\u5FC5\u5B78\u3001\u9700\u8981\u6642\u5B78\u3001\u53EF\u8DF3\u904E\u7684\u9806\u5E8F\u986F\u793A\u3002\u53EA\u6539\u756B\u9762\uFF0C\u4E0D\u6703\u5132\u5B58\u6216\u66F4\u52D5\u4F60\u7684\u6A94\u6848\u3002\u958B\u555F\u6642\u66AB\u505C\u62D6\u66F3\u5361\u7247\u3002",
   "ui.relevance_goal_set_hint": "\u8A2D\u5B9A\u76EE\u6A19\uFF0C\u4F9D\u76EE\u6A19\u66FF\u8B70\u984C\u5206\u7D1A",
   "ui.relevance_goal_edit_hint": "\u4FEE\u6539\u76EE\u6A19\u4E26\u91CD\u65B0\u5206\u7D1A",
   "ui.relevance_goal_label": "\u5FC3\u667A\u5716\u76EE\u6A19",
+  "ui.relevance_panel_label": "\u76EE\u6A19",
   "ui.relevance_goal_placeholder": "\u4F60\u60F3\u7528\u9019\u5F35\u5716\u9054\u6210\u4EC0\u9EBC\uFF1F",
   "ui.relevance_goal_level_0_1": "\u76EE\u6A19\uFF1A{0} \xB7 {1}",
   "ui.relevance_level_label": "\u76EE\u524D\u7A0B\u5EA6",
@@ -26063,7 +26065,7 @@ ${request.requirements}` : preset.text,
     button.addClass("vam-relevance-goal");
     button.toggleClass("is-empty", !goal);
     button.toggleClass("is-sorted", sorted);
-    button.setAttr("aria-haspopup", "true");
+    button.setAttr("aria-haspopup", "dialog");
     button.setAttr("aria-expanded", String(this.relevancePanelOpen));
     button.setAttr("aria-controls", this.relevancePanelId);
     button.setAttr("aria-description", t(goal ? "ui.relevance_goal_edit_hint" : "ui.relevance_goal_set_hint"));
@@ -26074,6 +26076,19 @@ ${request.requirements}` : preset.text,
     button.setAttr("aria-label", sorted ? `${label}${t("ui.relevance_sorted_suffix")}` : label);
     button.disabled = ((_a = this.plugin.relevanceGrades.get(this.path)) == null ? void 0 : _a.status) === "running";
     button.addEventListener("mousedown", (event) => event.preventDefault());
+    button.addEventListener("focusout", (event) => {
+      var _a2;
+      if (!this.relevancePanelOpen || this.relevanceButtonEl !== button) return;
+      const next = event.relatedTarget;
+      if (next && (next === button || ((_a2 = this.relevancePanelEl) == null ? void 0 : _a2.contains(next)))) return;
+      this.closeRelevancePanel(false);
+    });
+    button.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape" || !this.relevancePanelOpen || this.relevanceButtonEl !== button) return;
+      event.preventDefault();
+      event.stopPropagation();
+      this.closeRelevancePanel(true);
+    });
     if (sorted) {
       const icon = button.createSpan("vam-relevance-sort-icon");
       icon.setAttr("aria-hidden", "true");
@@ -26123,7 +26138,10 @@ ${request.requirements}` : preset.text,
       level: (_c = this.relevanceLevel) != null ? _c : "",
       context: (_d = this.relevanceContext) != null ? _d : ""
     };
-    const panel = tools.createDiv({ cls: "vam-relevance-panel", attr: { id: this.relevancePanelId } });
+    const panel = tools.createDiv({
+      cls: "vam-relevance-panel",
+      attr: { id: this.relevancePanelId, role: "dialog", "aria-label": t("ui.relevance_panel_label") }
+    });
     this.relevancePanelEl = panel;
     const group = panel.createDiv({
       cls: "vam-relevance-setup",

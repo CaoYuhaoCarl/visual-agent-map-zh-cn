@@ -1047,7 +1047,7 @@ export class VisualAgentMapView extends ItemView {
     button.addClass("vam-relevance-goal");
     button.toggleClass("is-empty", !goal);
     button.toggleClass("is-sorted", sorted);
-    button.setAttr("aria-haspopup", "true");
+    button.setAttr("aria-haspopup", "dialog");
     button.setAttr("aria-expanded", String(this.relevancePanelOpen));
     button.setAttr("aria-controls", this.relevancePanelId);
     button.setAttr("aria-description", t(goal ? "ui.relevance_goal_edit_hint" : "ui.relevance_goal_set_hint"));
@@ -1060,6 +1060,19 @@ export class VisualAgentMapView extends ItemView {
     button.disabled = this.plugin.relevanceGrades.get(this.path)?.status === "running";
     // Pressing the button must not move focus out of an open panel (that would count as leaving it).
     button.addEventListener("mousedown", event => event.preventDefault());
+    // Focus leaving the button (Shift+Tab off it, or a click elsewhere) to outside the panel closes the panel too.
+    button.addEventListener("focusout", (event: FocusEvent) => {
+      if (!this.relevancePanelOpen || this.relevanceButtonEl !== button) return;
+      const next = event.relatedTarget as Node | null;
+      if (next && (next === button || this.relevancePanelEl?.contains(next))) return;
+      this.closeRelevancePanel(false);
+    });
+    button.addEventListener("keydown", event => {
+      if (event.key !== "Escape" || !this.relevancePanelOpen || this.relevanceButtonEl !== button) return;
+      event.preventDefault();
+      event.stopPropagation();
+      this.closeRelevancePanel(true);
+    });
     if (sorted) {
       const icon = button.createSpan("vam-relevance-sort-icon");
       icon.setAttr("aria-hidden", "true");
@@ -1106,7 +1119,10 @@ export class VisualAgentMapView extends ItemView {
       level: this.relevanceLevel ?? "",
       context: this.relevanceContext ?? ""
     });
-    const panel = tools.createDiv({ cls: "vam-relevance-panel", attr: { id: this.relevancePanelId } });
+    const panel = tools.createDiv({
+      cls: "vam-relevance-panel",
+      attr: { id: this.relevancePanelId, role: "dialog", "aria-label": t("ui.relevance_panel_label") }
+    });
     this.relevancePanelEl = panel;
     const group = panel.createDiv({
       cls: "vam-relevance-setup",

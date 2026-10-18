@@ -688,7 +688,7 @@ integrationTest('relevance toolbar: the panel order is goal, level + context row
   assert.deepEqual(kids.map(c => c.cls.split(' ')[0]), ['vam-relevance-setup', 'vam-relevance-divider', 'vam-relevance-sort']);
   assert.deepEqual(group(h).children.map(c => c.cls.split(' ')[0]), ['vam-relevance-goal-input', 'vam-relevance-setup-row', 'vam-relevance-grade-button']);
   assert.ok(hasCls(gradeButton(h), 'mod-cta')); assert.equal(sortRow(h).tag, 'button');
-  assert.match(texts(sortRow(h)).join('|'), /Sort by relevance\|Show core topics first/);
+  assert.match(texts(sortRow(h)).join('|'), /Sort by relevance\|Within each group, show Must learn first, then Learn when needed, then Skippable/);
 });
 const texts = root => findAll(root, i => i.text).map(i => i.text);
 
@@ -744,4 +744,40 @@ integrationTest('relevance toolbar: the zh-TW strings for the sorted state and t
   const { translate } = load('i18n.ts');
   assert.equal(translate('zh-TW', 'ui.relevance_sorted_suffix'), '（已依重要度排序）');
   assert.equal(translate('en', 'ui.relevance_sorted_suffix'), ' (sorted by relevance)');
+});
+
+integrationTest('relevance toolbar: the panel is a dialog; the sort hint uses the same tier words as the card tags (en and zh)', async () => {
+  const h = await harness();
+  assert.equal(h.chip().attrs['aria-haspopup'], 'dialog'); open(h);
+  assert.equal(panelOf(h).attrs.role, 'dialog'); assert.equal(panelOf(h).attrs['aria-label'], 'Goal');
+  const { translate } = load('i18n.ts');
+  for (const [lang, words] of [['en', ['Must learn', 'Learn when needed', 'Skippable']], ['zh-TW', ['必學', '需要時學', '可跳過']]]) {
+    const hint = translate(lang, 'ui.relevance_sort_hint');
+    assert.deepEqual(['core', 'support', 'side'].map(k => translate(lang, `ui.relevance_${k}`)), words);
+    let at = -1; for (const w of words) { const i = hint.indexOf(w); assert.ok(i > at, `${lang}: "${w}" in order`); at = i; }
+    assert.doesNotMatch(hint, /核心|支援|旁支|core topics|supporting|side topics/);
+  }
+  assert.equal(translate('zh-TW', 'ui.relevance_panel_label'), '目標');
+});
+
+integrationTest('relevance toolbar: focus leaving the button to outside both closes the panel without submitting', async () => {
+  const h = await harness();
+  open(h); h.input().value = 'Not submitted';
+  h.chip().fire('focusout', { relatedTarget: gradeButton(h) }); assert.ok(panelOf(h), 'moving into the panel keeps it open');
+  h.chip().fire('focusout', { relatedTarget: h.chip() }); assert.ok(panelOf(h), 'staying on the button keeps it open');
+  h.chip().fire('focusout', { relatedTarget: element('button') });
+  assert.equal(panelOf(h), undefined); assert.equal(h.chip().attrs['aria-expanded'], 'false');
+  assert.equal(h.control.calls.length, 0); assert.equal(await h.repo.readRelevanceGoal(MAP), undefined);
+  open(h); h.chip().fire('focusout', { relatedTarget: null }); assert.equal(panelOf(h), undefined, 'focus to nowhere closes it too');
+  h.chip().fire('focusout', { relatedTarget: null }); assert.equal(panelOf(h), undefined, 'nothing happens when it is already closed');
+});
+
+integrationTest('relevance toolbar: Esc on the button closes the panel without submitting and keeps focus on the button', async () => {
+  const h = await harness();
+  open(h); h.input().value = 'Not submitted'; h.chip().focused = false;
+  let stopped = 0; h.chip().fire('keydown', { key: 'Escape', stopPropagation() { stopped++; } });
+  assert.equal(panelOf(h), undefined); assert.equal(h.chip().focused, true); assert.equal(stopped, 1);
+  assert.equal(h.control.calls.length, 0); assert.equal(await h.repo.readRelevanceGoal(MAP), undefined);
+  let stoppedAgain = 0; h.chip().fire('keydown', { key: 'Escape', stopPropagation() { stoppedAgain++; } });
+  assert.equal(stoppedAgain, 0, 'Esc on a closed panel is left to Obsidian');
 });
