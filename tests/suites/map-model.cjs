@@ -1,5 +1,7 @@
 const assert = require('node:assert/strict');
 const { test, core, layout, node, map, plain, tree } = require('../support.cjs');
+// Cards without a measured height use the default, stacked with the fixed gap.
+const ROW = layout.DEFAULT_CARD_HEIGHT + layout.LAYOUT_GAP;
 test('rejects self links, descendant links, missing parent; allows detaching and reparenting', () => {
   assert.equal(core.canParent(tree(), 'a', 'a'), false);
   assert.equal(core.canParent(tree(), 'a', 'c'), false);
@@ -143,7 +145,7 @@ test('new tree layout keeps every existing node and places the new tree below th
   assert.deepEqual(plain(result.slice(0, 4)), plain(existing), 'existing nodes never move');
   const placed = result.slice(4);
   for (const item of placed) for (const fixed of existing) assert.ok(Math.abs(item.x - fixed.x) >= 300 || Math.abs(item.y - fixed.y) >= 190, `${item.id} overlaps ${fixed.id}`);
-  for (const item of placed) assert.ok(item.y >= 900 + 220, `${item.id} below the lowest node`);
+  for (const item of placed) assert.ok(item.y >= 900 + ROW, `${item.id} below the lowest node`);
   assert.equal(placed[0].x, 120, 'leftmost root column');
   assert.equal(placed[1].x, 120 + 360); assert.equal(placed[3].x, 120 + 720);
   assert.deepEqual(plain(layout.arrangeNewTree(existing, 'missing', new Set())), plain(existing));
@@ -218,21 +220,21 @@ test('full layout treats a collapsed topic as a leaf and leaves its hidden branc
   ];
   const at = (list, id) => list.find(item => item.id === id);
   const folded = layout.arrangeMap(nodes);
-  assert.equal(at(folded, 'next').y - at(folded, 'big').y, 220, 'the sibling sits one row below, not below six hidden rows');
+  assert.equal(at(folded, 'next').y - at(folded, 'big').y, ROW, 'the sibling sits one row below, not below six hidden rows');
   for (let index = 0; index < 6; index++) assert.deepEqual([at(folded, `hidden-${index}`).x, at(folded, `hidden-${index}`).y], [999, index]);
   const open = layout.arrangeMap(folded.map(item => ({ ...item, collapsed: false })));
-  assert.equal(at(open, 'next').y - at(open, 'hidden-5').y, 220, 'expanded, the branch takes its rows again');
+  assert.equal(at(open, 'next').y - at(open, 'hidden-5').y, ROW, 'expanded, the branch takes its rows again');
 });
 
 const aimNode = (id, parentId, aimKind, converges, collapsed = false) => ({ ...node(id, parentId, collapsed), aimKind, ...(converges ? { aimConvergesFromNodeIds: converges } : {}) });
 const noOverlap = placed => {
-  for (const a of placed) for (const b of placed) if (a.id < b.id && a.x === b.x) assert.ok(Math.abs(a.y - b.y) >= 220, `${a.id} and ${b.id} overlap`);
+  for (const a of placed) for (const b of placed) if (a.id < b.id && a.x === b.x) assert.ok(Math.abs(a.y - b.y) >= ROW, `${a.id} and ${b.id} overlap`);
 };
 const checkJoins = (source, placed) => {
   const at = id => placed.find(item => item.id === id);
   for (const join of source.filter(item => item.aimConvergesFromNodeIds?.length && item.aimKind !== 'question')) {
     const ys = join.aimConvergesFromNodeIds.map(id => at(id).y).sort((a, b) => a - b);
-    ys.forEach((y, index) => index && assert.equal(y - ys[index - 1], 220, `${join.id} sources are consecutive rows`));
+    ys.forEach((y, index) => index && assert.equal(y - ys[index - 1], ROW, `${join.id} sources are consecutive rows`));
     assert.equal(at(join.id).x, at(join.aimConvergesFromNodeIds[0]).x + 360, `${join.id} is one column right of its sources`);
     // Sibling joins stack by subtree height, so only a lone join is centered on its sources.
     if (source.filter(item => item.aimConvergesFromNodeIds?.join() === join.aimConvergesFromNodeIds.join() && item.aimKind !== 'question').length === 1)
@@ -249,8 +251,8 @@ const aimChain = () => [
 test('AIM convergence nodes are laid out after all their research sources', () => {
   const placed = layout.arrangeMap(aimChain());
   const at = id => placed.find(item => item.id === id);
-  assert.equal(at('R2').y - at('R1').y, 220);
-  assert.equal(at('R3').y - at('R2').y, 220);
+  assert.equal(at('R2').y - at('R1').y, ROW);
+  assert.equal(at('R3').y - at('R2').y, ROW);
   assert.equal(at('C').x, at('R1').x + 360);
   assert.ok(Math.abs(at('C').y - (at('R1').y + at('R3').y) / 2) <= 1);
   checkJoins(aimChain(), placed);
@@ -269,11 +271,11 @@ test('collapsing the primary source hides the convergence node and its subtree f
     const before = nodes.find(item => item.id === id), after = placed.find(item => item.id === id);
     assert.deepEqual([after.x, after.y], [before.x, before.y], `${id} keeps its coordinates`);
   }
-  assert.equal(placed.find(item => item.id === 'R3').y - placed.find(item => item.id === 'R1').y, 440);
+  assert.equal(placed.find(item => item.id === 'R3').y - placed.find(item => item.id === 'R1').y, 2 * ROW);
 });
 test('ordinary trees keep their exact full-layout coordinates', () => {
   const nodes = [node('r'), node('a', 'r'), node('b', 'r'), node('a1', 'a'), node('a2', 'a'), node('a3', 'a'), node('b1', 'b'), node('r2'), node('c', 'r2')];
-  assert.deepEqual(layout.arrangeMap(nodes).map(item => [item.id, item.x, item.y]), [['r', 80, 520], ['a', 440, 300], ['b', 440, 740], ['a1', 800, 80], ['a2', 800, 300], ['a3', 800, 520], ['b1', 800, 740], ['r2', 80, 960], ['c', 440, 960]]);
+  assert.deepEqual(layout.arrangeMap(nodes).map(item => [item.id, item.x, item.y]), [['r', 80, 488], ['a', 440, 284], ['b', 440, 692], ['a1', 800, 80], ['a2', 800, 284], ['a3', 800, 488], ['b1', 800, 692], ['r2', 80, 896], ['c', 440, 896]]);
 });
 
 const interimMap = (overrides = {}) => {
@@ -308,5 +310,54 @@ test('arrangeMap with a hidden set lays out as if the hidden nodes did not exist
   const bare = layout.arrangeMap(nodes.filter(item => !hidden.has(item.id)));
   for (const item of bare) assert.deepEqual([at(item.id).x, at(item.id).y], [item.x, item.y], `${item.id} is placed as without the hidden nodes`);
   for (const id of hidden) assert.deepEqual([at(id).x, at(id).y], [777, 999], `${id} keeps its stored coordinates`);
-  assert.equal(at('R2').y - at('R1').y, 220); assert.equal(at('R1').y, at('R1').y);
+  assert.equal(at('R2').y - at('R1').y, ROW); assert.equal(at('R1').y, at('R1').y);
+});
+
+test('card-height layout: short cards pack with exactly the gap, a tall card gets more space, unknown height falls back', () => {
+  const { LAYOUT_GAP, DEFAULT_CARD_HEIGHT } = layout;
+  const nodes = [node('r'), node('a', 'r'), node('b', 'r'), node('c', 'r')];
+  const at = (placed, id) => placed.find(item => item.id === id);
+  const heights = { r: 60, a: 60, b: 60, c: 60 };
+  const short = layout.arrangeMap(nodes, undefined, id => heights[id]);
+  assert.equal(at(short, 'b').y - at(short, 'a').y, 60 + LAYOUT_GAP, 'short cards are exactly one gap apart');
+  assert.equal(at(short, 'c').y - at(short, 'b').y, 60 + LAYOUT_GAP);
+  assert.equal(at(short, 'r').y, at(short, 'b').y, 'parent is centered on its children');
+  const tall = layout.arrangeMap(nodes, undefined, id => (id === 'a' ? 300 : 60));
+  assert.equal(at(tall, 'b').y - at(tall, 'a').y, 300 + LAYOUT_GAP, 'a tall card pushes its sibling down by its own height');
+  assert.equal(at(tall, 'c').y - at(tall, 'b').y, 60 + LAYOUT_GAP);
+  const unknown = layout.arrangeMap(nodes, undefined, id => (id === 'a' ? undefined : 60));
+  assert.equal(at(unknown, 'b').y - at(unknown, 'a').y, DEFAULT_CARD_HEIGHT + LAYOUT_GAP, 'unknown height uses the default');
+  const bad = layout.arrangeMap(nodes, undefined, id => (id === 'a' ? 0 : NaN));
+  assert.equal(at(bad, 'b').y - at(bad, 'a').y, DEFAULT_CARD_HEIGHT + LAYOUT_GAP, 'zero or NaN heights count as unknown');
+});
+test('card-height layout: a deep branch only takes the room it needs, so shallow siblings stay close', () => {
+  const nodes = [node('r'), node('a', 'r'), node('b', 'r'), ...[1, 2, 3].map(i => node(`a${i}`, 'a'))];
+  const placed = layout.arrangeMap(nodes, undefined, () => 60);
+  const at = id => placed.find(item => item.id === id);
+  assert.equal(at('a3').y - at('a1').y, 2 * 84);
+  assert.equal(at('b').y - at('a1').y, 3 * 84, 'b starts after the three-kid subtree (3 cards + 3 gaps), not after fixed rows');
+  assert.equal(at('a').y, at('a2').y, 'parent is centered on its kids');
+});
+test('card-height overlap checks use real heights plus the gap', () => {
+  const { LAYOUT_GAP } = layout;
+  const heightOf = id => (id === 'old' ? 400 : 60);
+  const base = [{ ...node('root'), x: 0, y: 0 }, { ...node('old', 'root'), x: 360, y: 0 }, { ...node('fresh', 'root'), x: 0, y: 0 }];
+  const branch = layout.arrangeNewBranch(base, 'root', new Set(['fresh']), heightOf);
+  assert.equal(branch[2].y, 400 + LAYOUT_GAP, 'the new card clears the tall card by exactly the gap');
+  const close = layout.arrangeNewBranch(base.map(item => (item.id === 'old' ? { ...item, y: 500 } : item)), 'root', new Set(['fresh']), heightOf);
+  assert.equal(close[2].y, 0 + 60 / 2 - 60 / 2, 'no push when the cards already clear each other');
+  const fixed = [{ ...node('r'), x: 80, y: 80 }, { ...node('low', 'r'), x: 440, y: 500 }, { ...node('n'), x: 0, y: 0 }];
+  const tree = layout.arrangeNewTree(fixed, 'n', new Set(['n']), id => (id === 'low' ? 250 : 60));
+  assert.equal(tree[2].y, 500 + 250 + LAYOUT_GAP, 'a new tree starts below the lowest real card bottom plus the gap');
+});
+
+test('medianHeight gives the typical rendered card height for unmeasured cards', () => {
+  assert.equal(layout.medianHeight([]), undefined, 'nothing rendered');
+  assert.equal(layout.medianHeight([0, NaN, -5]), undefined, 'unusable values are ignored');
+  assert.equal(layout.medianHeight([90, 60, 400]), 90, 'odd count: middle value, a tall outlier does not skew it');
+  assert.equal(layout.medianHeight([60, 80, 100, 400]), 90, 'even count: mean of the middle two');
+  const nodes = [node('r'), node('a', 'r'), node('b', 'r')];
+  const typical = layout.medianHeight([70, 70, 70]);
+  const placed = layout.arrangeMap(nodes, undefined, id => (id === 'r' ? 70 : typical));
+  assert.equal(placed.find(item => item.id === 'b').y - placed.find(item => item.id === 'a').y, 70 + layout.LAYOUT_GAP);
 });

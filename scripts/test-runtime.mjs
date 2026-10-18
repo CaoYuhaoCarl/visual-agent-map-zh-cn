@@ -5,9 +5,9 @@ import { setTimeout as delay } from "node:timers/promises";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { connectCdp, devToolsPortFile, trustExpression, waitForInstance } from "./obsidian-cdp.mjs";
-import { sourceFingerprint } from "./test-harness.mjs";
+import { canonicalVault, sourceFingerprint } from "./test-harness.mjs";
 
-const vault = resolve(process.argv[2] || "/private/tmp/vam-e2e-current");
+const vault = resolve(process.argv[2] || canonicalVault);
 const environmentPath = `${vault}/.vam-test-environment.json`;
 const reportPath = "/private/tmp/vam-runtime-last-report.json";
 const startedAt = new Date().toISOString();

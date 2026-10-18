@@ -7,7 +7,18 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { createTestVault, ensureSourceSelectionFixture } from "./create-onboarding-test-vault.mjs";
 
 export const root = fileURLToPath(new URL("..", import.meta.url));
-export const canonicalVault = process.platform === "darwin" ? "/private/tmp/vam-e2e-current" : join(tmpdir(), "vam-e2e-current");
+// The owner's vault must survive reboots (macOS clears /private/tmp), so it lives beside the main checkout, never under the temp session prefix.
+// Worktrees resolve to the same vault through the git common dir; VAM_OWNER_VAULT overrides.
+export function ownerVaultPath(checkout = root, env = process.env) {
+  if (env.VAM_OWNER_VAULT) return resolve(env.VAM_OWNER_VAULT);
+  let main = checkout;
+  try {
+    const common = execFileSync("git", ["-C", checkout, "rev-parse", "--git-common-dir"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    if (common) main = dirname(resolve(checkout, common));
+  } catch { /* no git: fall back to this checkout */ }
+  return join(dirname(resolve(main)), "vaults", "vam-e2e-current");
+}
+export const canonicalVault = ownerVaultPath();
 const assets = ["main.js", "manifest.json", "styles.css"];
 const marker = ".vam-test-environment.json";
 const obsidianApp = "/Applications/Obsidian.app";
@@ -167,7 +178,7 @@ export const sessionVaultPrefix = process.platform === "darwin" ? "/private/tmp/
 export function sessionVault(name) {
   if (!/^[a-z0-9][a-z0-9-]{0,31}$/.test(name ?? "")) throw new Error("--session needs a name of lowercase letters, digits and hyphens (at most 32).");
   const vault = `${sessionVaultPrefix}${name}`;
-  if ([canonicalVault, smokeVault].some(reserved => resolve(reserved) === resolve(vault))) throw new Error(`Session name "${name}" is reserved.`);
+  if (["current", "smoke"].includes(name) || [canonicalVault, smokeVault].some(reserved => resolve(reserved) === resolve(vault))) throw new Error(`Session name "${name}" is reserved.`);
   return vault;
 }
 

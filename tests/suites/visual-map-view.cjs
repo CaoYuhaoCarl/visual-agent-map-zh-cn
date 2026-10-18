@@ -1529,7 +1529,7 @@ integrationTest('collapse control: sets the flags, fits the map and is a single 
   view.autoLayout(); await view.pending;
   assert.equal(saved, writes + 1, 'one write'); assert.equal(at('b').x, at('a').x + 360, 'auto layout re-arranges the map'); assert.notEqual(at('c').y, -9999);
   const source = fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8');
-  assert.match(source, /n\.collapsed = !n\.collapsed;\s*map\.nodes = arrangeMap\(map\.nodes(?:, supersededAimNodeIds\(map\))?\);/, 'the card collapse button re-arranges in the same change');
+  assert.match(source, /n\.collapsed = !n\.collapsed;\s*map\.nodes = arrangeMap\(map\.nodes(?:, supersededAimNodeIds\(map\))?(?:, this\.cardHeightOf)?\);/, 'the card collapse button re-arranges in the same change');
 });
 integrationTest('Layout menu offers collapse all, expand all, levels 1 to 3, a separator and Auto layout', () => {
   const menus = [];

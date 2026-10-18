@@ -6,7 +6,7 @@
 
 **從一個問題出發，看見各個部分，再追你想探索的線索。** 建立視覺化研究地圖、讓 AIM 深入查證問題，或到 Coffee Tables 聊出新角度。想留下的內容都是 Vault 裡可編輯的 Markdown。
 
-[**開始使用**](#開始使用) · [查看 0.20.0 正式版](https://github.com/kevcltsai/visual-agent-map/releases/tag/0.20.0) · [安裝指南](INSTALL.md)
+[**開始使用**](#開始使用) · [查看 0.21.0 正式版](https://github.com/kevcltsai/visual-agent-map/releases/tag/0.21.0) · [安裝指南](INSTALL.md)
 
 ![Obsidian 中的 Visual Agent Map 研究地圖範例，顯示相連的議題卡片](assets/screenshots/map-overview.png)
 
@@ -36,8 +36,8 @@ VAM 不含遙測，也不儲存 API key。AI 任務會透過本機 CLI 將相關
 
 ## 致謝與授權
 
-AIM 的研究方式參考 [MindSearch](https://github.com/InternLM/MindSearch) 與 [Chen 等人（2024）的論文](https://arxiv.org/abs/2407.20183)。VAM 為獨立實作；此標註不代表隸屬或獲得原專案背書。
+AIM 的研究方式參考 [MindSearch](https://github.com/InternLM/MindSearch) 與 [Chen 等人（2024）的論文](https://arxiv.org/abs/2407.20183)。VAM 為獨立實作；此標註不代表隸屬或獲得原專案背書。程式碼採用 Apache-2.0 授權，但 Visual Agent Map 的名稱與標誌不在授權範圍內，fork 請使用自己的名稱（見 [NOTICE](NOTICE)）。
 
-[回報問題](https://github.com/kevcltsai/visual-agent-map/issues) · [版本紀錄](CHANGELOG.md) · [AGPL-3.0-only](LICENSE)
+[回報問題](https://github.com/kevcltsai/visual-agent-map/issues) · [版本紀錄](CHANGELOG.md) · [Apache-2.0](LICENSE)
 
 Copyright © 2026 Kevin Tsai

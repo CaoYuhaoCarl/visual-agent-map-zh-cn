@@ -1,5 +1,32 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- The license is now Apache-2.0 (previously AGPL-3.0-only). The Visual Agent Map name and logo are not covered by the license; see NOTICE. Versions 0.21.0 and earlier remain available under AGPL-3.0-only.
+
+## [0.21.0] - 2026-10-16
+
+### Added
+
+- Research details use richer Obsidian formatting where it helps: callouts for summaries, warnings and open questions, tables, task lists, highlights and simple mermaid flowcharts or timelines. Mermaid blocks that could run scripts, load links or images, or change styles are turned into plain code before anything is saved.
+
+### Changed
+
+- Notes now open on the answer: the summary and Detail come first, and Preview and Prompt follow as collapsed callouts (an empty Preview or Prompt is left out). Notes in the older layout keep their layout, and a Preview you edited is never replaced.
+- Reviewer rationale and stop reasons no longer appear in a note's Detail. A rejected delivery opens with a warning listing what to fill in, an interim result says what evidence is still missing, and a result waiting on you shows the question, all in plain words.
+- Headings inside a note's Detail start below `## Detail` and no longer skip levels.
+- Mermaid diagrams keep a readable size and scroll sideways when wider than the note, instead of shrinking; the AI draws top-down by default.
+- AI explore answers in the language of the topic, and structure suggestions follow the language of the map.
+- Mind map auto layout spaces cards by their real height plus a fixed gap, so maps are much more compact and cards no longer sit in oversized rows.
+
+### Fixed
+
+- AIM places its convergence nodes after all the research they draw on.
+- Interim research-gap results are hidden once an AIM run concludes.
+- The AIM final document keeps findings from earlier rounds that its outline refers to, so later days or sections no longer lose data.
+
 ## [0.20.0] - 2026-10-15
 
 ### Added

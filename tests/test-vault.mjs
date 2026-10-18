@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { canonicalVault, prepareTestVault, updateCurrentTestVault, verifyTestVault, root, main, sourceFingerprint, assertSourceUnchanged, prepareObsidianProfile, selectObsidianRuntime, sessionVault, sessionVaultPrefix } from '../scripts/test-harness.mjs';
+import { canonicalVault, prepareTestVault, updateCurrentTestVault, verifyTestVault, root, main, sourceFingerprint, assertSourceUnchanged, prepareObsidianProfile, selectObsidianRuntime, sessionVault, sessionVaultPrefix, ownerVaultPath } from '../scripts/test-harness.mjs';
 
 function environment(t) {
   const folder = mkdtempSync(join(tmpdir(), 'vam-harness-test-'));
@@ -217,4 +217,15 @@ test('session app profiles disable the CLI so a shared CLI socket never drives t
   const config = JSON.parse(readFileSync(join(prepareObsidianProfile(vault, undefined, { cli: false }), 'obsidian.json')));
   assert.equal(config.cli, false);
   assert.equal(Object.keys(config.vaults).length, 1);
+});
+
+test('owner vault is outside the temp session prefix, shared by worktrees, and overridable', () => {
+  assert.ok(!canonicalVault.startsWith(sessionVaultPrefix));
+  assert.ok(!canonicalVault.startsWith('/private/tmp/'));
+  assert.equal(canonicalVault, ownerVaultPath(root, {}));
+  assert.equal(ownerVaultPath(root, { VAM_OWNER_VAULT: '/somewhere/else' }), '/somewhere/else');
+  assert.equal(ownerVaultPath(root, {}).endsWith(join('vaults', 'vam-e2e-current')), true);
+  const main = execFileSync('git', ['-C', root, 'rev-parse', '--git-common-dir'], { encoding: 'utf8' }).trim();
+  assert.equal(canonicalVault, join(dirname(dirname(resolve(root, main))), 'vaults', 'vam-e2e-current'));
+  assert.equal(ownerVaultPath(join(root, 'scripts'), {}), canonicalVault);
 });
