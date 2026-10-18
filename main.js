@@ -14406,16 +14406,21 @@ function renderRelevanceTag(parent, tier, label) {
   tag.createSpan({ text: label });
   return tag;
 }
+var tagSeq = 0;
 function renderRelevanceTagButton(parent, tier, label, ariaLabel, open, disabled) {
   const tag = parent.createEl("button", { cls: "vam-relevance-tag vam-relevance-tag-button" });
   tag.type = "button";
   tag.dataset.tier = tier;
   tag.tabIndex = -1;
   tag.disabled = disabled;
+  const nameId = `vam-relevance-tag-name-${++tagSeq}`;
   tag.setAttr("aria-label", ariaLabel);
+  tag.setAttr("aria-labelledby", nameId);
   tag.setAttr("aria-haspopup", "menu");
   (0, import_obsidian10.setIcon)(tag.createSpan({ cls: "vam-relevance-icon" }), RELEVANCE_ICON[tier]);
-  tag.createSpan({ text: label });
+  const visible = tag.createSpan({ text: label });
+  visible.setAttr("aria-hidden", "true");
+  tag.createSpan({ cls: "vam-relevance-tag-name", text: ariaLabel, attr: { id: nameId } });
   tag.addEventListener("click", (event) => {
     event.stopPropagation();
     if (!tag.disabled) open(tag);

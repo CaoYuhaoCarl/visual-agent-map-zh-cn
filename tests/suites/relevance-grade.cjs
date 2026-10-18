@@ -808,6 +808,8 @@ integrationTest('relevance manual: the tag is a keyboard-reachable button with a
   await h.enter('Goal'); await h.settled();
   const { card, tag } = paintCard(h, 'a');
   assert.equal(tag.tag, 'button'); assert.equal(tag.type, 'button'); assert.equal(tag.attrs['aria-label'], 'Relevance: Must learn, click to change');
+  const nameEl = find(tag, i => hasCls(i, 'vam-relevance-tag-name'));
+  assert.equal(nameEl.text, 'Relevance: Must learn, click to change'); assert.equal(tag.attrs['aria-labelledby'], nameEl.attrs.id, 'the name survives setTooltip, which overwrites aria-label');
   assert.equal(tag.dataset.tier, 'core'); assert.equal(tag.disabled, false); assert.equal(tag.attrs['aria-haspopup'], 'menu');
   assert.equal(tag.tabIndex, -1, 'in the tab order only while its card has focus, like the card tools');
   card.fire('focusin', { target: card }); assert.equal(tag.tabIndex, 0, 'focusing the card makes the tag a tab stop');

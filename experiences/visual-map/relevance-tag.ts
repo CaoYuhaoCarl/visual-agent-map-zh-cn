@@ -22,6 +22,7 @@ export function renderRelevanceTag(parent: HTMLElement, tier: RelevanceTier, lab
   return tag;
 }
 
+let tagSeq = 0;
 /**
  * The same tag as a real button that changes the tier. It stays out of the tab order until its card has focus (the
  * card's own tool buttons work the same way); `open` gets the button so the menu can open at it.
@@ -39,10 +40,15 @@ export function renderRelevanceTagButton(
   tag.dataset.tier = tier;
   tag.tabIndex = -1;
   tag.disabled = disabled;
+  // Obsidian's setTooltip writes the tooltip text into aria-label, so the accessible name comes from a hidden span.
+  const nameId = `vam-relevance-tag-name-${++tagSeq}`;
   tag.setAttr("aria-label", ariaLabel);
+  tag.setAttr("aria-labelledby", nameId);
   tag.setAttr("aria-haspopup", "menu");
   setIcon(tag.createSpan({ cls: "vam-relevance-icon" }), RELEVANCE_ICON[tier]);
-  tag.createSpan({ text: label });
+  const visible = tag.createSpan({ text: label });
+  visible.setAttr("aria-hidden", "true");
+  tag.createSpan({ cls: "vam-relevance-tag-name", text: ariaLabel, attr: { id: nameId } });
   tag.addEventListener("click", event => {
     event.stopPropagation();
     if (!tag.disabled) open(tag);
