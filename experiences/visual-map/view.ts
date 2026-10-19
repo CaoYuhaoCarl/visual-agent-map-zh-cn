@@ -1,4 +1,5 @@
 import { chooseAimContentLanguage, resolveAimContentLanguage } from "../aim/content-language";
+import { backgroundResultNotice } from "../../ui/background-run";
 import { PromptPresetsModal } from "../../ui/modals/prompt-presets-modal";
 import { AimClarificationModal } from "../../ui/modals/aim-clarification-modal";
 import { withThinkingOrigin } from "./thinking-origin";
@@ -111,6 +112,7 @@ import {
   AgentTaskHandle,
   TaskSourceSettings,
   NextStepModal,
+  type BackgroundHooks,
   type QuickOutline,
   type SynthesisObserver,
   DraftReviewModal,
@@ -266,6 +268,12 @@ export class VisualAgentMapView extends ItemView {
   } | null = null;
   /** A multi-select synthesis step is starting (before its task exists), so a second request is refused. */
   private selectionStarting = false;
+  /**
+   * AI actions whose dialog hid itself and whose provider request is not accepted yet, keyed by node path (or
+   * `selection:<map path>`). The value is the dialog's controller, so a card or bar Stop pressed before acceptance
+   * reaches the run and no request is sent; the entry goes away once the run is accepted or ends.
+   */
+  private startingTasks = new Map<string, AbortController>();
   private synthesisTasks = new Map<
     string,
     {
@@ -466,6 +474,8 @@ export class VisualAgentMapView extends ItemView {
     this.closed = true;
     for (const task of this.synthesisTasks.values()) if (task.state === "running") task.controller.abort();
     this.synthesisTasks.clear();
+    for (const controller of this.startingTasks.values()) controller.abort();
+    this.startingTasks.clear();
     this.aimViewEpoch++;
     this.mapOpenEpoch++;
     const controller = this.aimController;
@@ -3342,7 +3352,22 @@ export class VisualAgentMapView extends ItemView {
     }
     if (this.deletedMap?.deleted)
       this.button(toolbar, t("ui.restore_deleted_map"), () => this.enqueue(() => this.restoreDeletedMapFromUi()));
-    if (this.integrationTask && this.integrationTask.mapPath === this.path) {
+    const startingSelection = this.startingTasks.get(this.selectionTaskKey());
+    if (
+      startingSelection &&
+      !(this.integrationTask?.mapPath === this.path && this.integrationTask.state === "running")
+    ) {
+      // The dialog hid itself and the run has not produced its task yet: the bar still shows it and offers Stop.
+      const state = this.contentEl.createDiv("vam-integration-progress");
+      state.setAttr("aria-live", "polite");
+      state.createSpan({ text: t("ui.integration_running") });
+      this.button(state, t("ui.stop_research"), () => this.startingTasks.get(this.selectionTaskKey())?.abort());
+    }
+    if (
+      this.integrationTask &&
+      this.integrationTask.mapPath === this.path &&
+      !(startingSelection && this.integrationTask.state !== "running")
+    ) {
       const task = this.integrationTask,
         state = this.contentEl.createDiv("vam-integration-progress");
       state.setAttr("aria-live", "polite");
@@ -3615,7 +3640,9 @@ export class VisualAgentMapView extends ItemView {
     // Research state drives the card's frame: frontier (idea), running, concluded, or failed.
     const queued = this.isResearchQueued(node);
     card.dataset.status =
-      this.plugin.running?.has(node.path) || this.plugin.quickExpandPending?.has(node.path)
+      this.plugin.running?.has(node.path) ||
+      this.plugin.quickExpandPending?.has(node.path) ||
+      this.startingTasks.has(node.path)
         ? "running"
         : queued
           ? "queued"
@@ -3640,7 +3667,10 @@ export class VisualAgentMapView extends ItemView {
       });
     }
     const batch = this.plugin.expansionBatches.get(node.path);
-    const active = this.plugin.running?.has(node.path) || this.plugin.quickExpandPending?.has(node.path);
+    const active =
+      this.plugin.running?.has(node.path) ||
+      this.plugin.quickExpandPending?.has(node.path) ||
+      this.startingTasks.has(node.path);
     const doc = this.map,
       aimData = doc?.aim;
     // An AIM question, and the AIM root topic that owns the first branch, show the branch progress instead of note state.
@@ -3717,8 +3747,23 @@ export class VisualAgentMapView extends ItemView {
       }
       this.renderRetryFailedButton(header, node.path, batch);
     }
-    if (this.plugin.quickExpandPending?.has(node.path) && batch?.status !== "running") {
-      this.button(header, t("ui.stop_research"), () => this.plugin.activeTasks.get(node.path)?.abort());
+    // One Stop for every AI run on this card: a dialog's run still starting, guided expand, and research. A batch and
+    // a synthesis show their own Stop; a child researched by a running batch is stopped through its batch.
+    const ownSynthesis = this.synthesisTasks.get(node.path);
+    const parentNode = node.parentId ? this.map?.nodes.find(item => item.id === node.parentId) : undefined;
+    const batchChild = !!parentNode && !!this.plugin.expansionCoordinator?.isRunning(parentNode.path);
+    const stoppable =
+      this.startingTasks.has(node.path) ||
+      this.plugin.quickExpandPending?.has(node.path) ||
+      (this.plugin.running?.has(node.path) && this.plugin.activeTasks.has(node.path) && !batchChild);
+    if (
+      stoppable &&
+      batch?.status !== "running" &&
+      !(ownSynthesis?.state === "running" && ownSynthesis.mapPath === this.path)
+    ) {
+      this.button(header, t("ui.stop_research"), () =>
+        (this.startingTasks.get(node.path) ?? this.plugin.activeTasks.get(node.path))?.abort()
+      );
     }
     const pendingCount = this.plugin.pendingSuggestions.get(node.path)?.length ?? 0;
     if (pendingCount && !this.builtIn && !this.integrationMode && !this.map?.aim)
@@ -4380,6 +4425,44 @@ export class VisualAgentMapView extends ItemView {
       synthesisLabel
     };
   }
+  /**
+   * What a Next Step dialog needs to hide itself once AI starts: the card shows running and Stop from `begin` until
+   * the provider accepts (`end`), and a result that arrives with the dialog closed is announced by one Notice.
+   */
+  private backgroundHooks(key: string, node?: MapNode): BackgroundHooks {
+    let own: AbortController | undefined;
+    return {
+      begin: controller => {
+        own = controller;
+        this.startingTasks.set(key, controller);
+        this.render();
+      },
+      end: () => {
+        if (own && this.startingTasks.get(key) === own) this.startingTasks.delete(key);
+        own = undefined;
+        if (!this.closed) this.render();
+      },
+      completed: kind => {
+        if (!node || this.closed) return;
+        const title = this.notes.get(node.id)?.title ?? node.path;
+        if (kind === "research")
+          backgroundResultNotice(t("ui.background_research_done_0", title), {
+            label: t("ui.background_view"),
+            open: () => this.openDetails(node)
+          });
+        else {
+          const count = this.plugin.pendingSuggestions.get(node.path)?.length ?? 0;
+          backgroundResultNotice(t("ui.background_expand_ready_0", title), {
+            label: t("ui.view_0_expansion_suggestions", count),
+            open: () => this.openNodePanel(node, "proposals")
+          });
+        }
+      }
+    };
+  }
+  private selectionTaskKey(): string {
+    return `selection:${this.path}`;
+  }
   private openNextStep(node: MapNode): void {
     this.enqueue(async () => {
       const note = await this.plugin.repo.readNote(node.path);
@@ -4431,10 +4514,15 @@ export class VisualAgentMapView extends ItemView {
           rules: note.rules,
           path: node.path,
           save: patch => this.plugin.mutate(() => this.noteChange(node, patch)),
-          running: this.plugin.running.has(node.path) || this.plugin.quickExpandPending.has(node.path),
-          stop: this.plugin.activeTasks.has(node.path)
-            ? () => this.plugin.activeTasks.get(node.path)?.abort()
-            : undefined,
+          running:
+            this.plugin.running.has(node.path) ||
+            this.plugin.quickExpandPending.has(node.path) ||
+            this.startingTasks.has(node.path),
+          stop:
+            this.startingTasks.has(node.path) || this.plugin.activeTasks.has(node.path)
+              ? () => (this.startingTasks.get(node.path) ?? this.plugin.activeTasks.get(node.path))?.abort()
+              : undefined,
+          background: this.backgroundHooks(node.path, node),
           quickOutline: this.quickOutline(node),
           structureReview: this.structureReviewEntry(node),
           sources,
@@ -5807,12 +5895,18 @@ export class VisualAgentMapView extends ItemView {
           node,
           runOptions,
           items => {
+            // A result that arrives after Stop or after the task was replaced is dropped.
+            if (controller.signal.aborted || this.synthesisTasks.get(path) !== task) return;
             outcome = "found";
             task.state = "directions";
             task.directions = items;
-            // Shown in the dialog when it is still open; otherwise the node badge and a Notice carry it.
+            // Shown in the dialog when it is still open; otherwise the node badge and one Notice carry it.
             if (observer?.isOpen() && observer.directions) observer.directions(items);
-            else new Notice(t("ui.choose_synthesis_direction"));
+            else
+              backgroundResultNotice(t("ui.background_synthesis_directions_ready"), {
+                label: t("ui.choose_synthesis_direction"),
+                open: () => this.openSynthesisDirections(node, task)
+              });
           },
           () => {},
           fail,
@@ -5824,6 +5918,7 @@ export class VisualAgentMapView extends ItemView {
           runOptions,
           direction ?? "",
           (result, save) => {
+            if (controller.signal.aborted || this.synthesisTasks.get(path) !== task) return;
             outcome = "drafted";
             task.state = "draft";
             task.draft = result;
@@ -5838,7 +5933,13 @@ export class VisualAgentMapView extends ItemView {
                 },
                 discard: () => this.discardSynthesis(node)
               });
-            else new Notice(t("ui.review_synthesis_draft"));
+            else
+              backgroundResultNotice(t("ui.background_synthesis_draft_ready"), {
+                label: t("ui.review_synthesis_draft"),
+                open: () => {
+                  if (this.synthesisTasks.get(path) === task) this.reviewSynthesisDraft(node);
+                }
+              });
           },
           fail,
           markAccepted
@@ -5851,6 +5952,12 @@ export class VisualAgentMapView extends ItemView {
       if (this.plugin.activeTasks.get(path) === controller) this.plugin.activeTasks.delete(path);
       this.render();
     }
+  }
+  /** Reopens the synthesis dialog at its waiting directions (from the Notice button), if they are still waiting. */
+  private openSynthesisDirections(node: MapNode, task: unknown): void {
+    const current = this.synthesisTasks.get(node.path);
+    if (current !== task || current?.state !== "directions" || current.mapPath !== this.path) return;
+    this.openNextStep(node);
   }
   private reviewSynthesisDraft(node: MapNode): void {
     const task = this.synthesisTasks.get(node.path);
@@ -5944,6 +6051,7 @@ export class VisualAgentMapView extends ItemView {
             ? t("ui.synthesis_of_0_and_1_more", names[0], names.length)
             : t("ui.synthesis_of_0", names.join(t("ui.list_separator")))),
         defaultDirection: t("ui.identify_shared_conclusions_key_differences_tradeoffs_and_ne"),
+        background: this.backgroundHooks(this.selectionTaskKey()),
         fields: {
           sources,
           templates: this.templateChoices(),
@@ -6122,7 +6230,13 @@ export class VisualAgentMapView extends ItemView {
       task.directions = angles;
       this.render();
       if (observer?.isOpen() && observer.directions) observer.directions(angles);
-      else new Notice(t("ui.choose_synthesis_direction"));
+      else
+        backgroundResultNotice(t("ui.background_synthesis_directions_ready"), {
+          label: t("ui.choose_synthesis_direction"),
+          open: () => {
+            if (this.integrationTask === task && task.state === "directions") this.openSelectionSynthesis(task);
+          }
+        });
     } catch (error) {
       fail(error);
     } finally {
@@ -6283,7 +6397,13 @@ export class VisualAgentMapView extends ItemView {
               ),
             discard: () => this.discardSelectionSynthesis()
           });
-        else new Notice(t("ui.review_synthesis_draft"));
+        else
+          backgroundResultNotice(t("ui.background_synthesis_draft_ready"), {
+            label: t("ui.review_synthesis_draft"),
+            open: () => {
+              if (this.integrationTask === task && task.state === "draft") this.reviewIntegratedDraft(task);
+            }
+          });
       } else if (review) this.reviewIntegratedDraft(task);
       else
         await this.saveIntegratedNode(

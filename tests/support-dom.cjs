@@ -56,4 +56,21 @@ function makeModal() {
   };
 }
 const tick = () => new Promise(resolve => setImmediate(resolve));
-module.exports = { hasCls, element, find, findAll, byLabel, button, buttons, texts, makeModal, tick };
+/** Obsidian's global createFragment: a fragment whose own text is its spans' text, so a Notice built from it reads as a string. */
+function createFragment(callback) {
+  const fragment = element('fragment');
+  fragment.toString = () => findAll(fragment, i => i.tag === 'span').map(i => i.text).join('');
+  callback?.(fragment);
+  return fragment;
+}
+/** A Notice stand-in that records plain messages and, for fragments, their text and buttons (`actions`, press with `.click()`). */
+function makeNotice(log = []) {
+  const all = [];
+  return class Notice {
+    static all = all;
+    constructor(message) { this.message = message; this.hidden = false; log.push(typeof message === 'string' ? message : String(message)); all.push(this); }
+    hide() { this.hidden = true; }
+    get actions() { return typeof this.message === 'string' ? [] : findAll(this.message, i => i.tag === 'button'); }
+  };
+}
+module.exports = { hasCls, element, find, findAll, byLabel, button, buttons, texts, makeModal, tick, createFragment, makeNotice };

@@ -83,6 +83,17 @@ export interface SynthesisObserver {
   directions?: (items: Suggestion[]) => void;
   drafted?: (draft: SynthesisDraft) => void;
 }
+/**
+ * What the view does for a dialog that hides itself once AI starts (see ui/background-run.ts). `begin` hands the
+ * dialog's controller to the view, which shows Stop for it on the card or bar until the provider accepts the request;
+ * `end` hands over to the view's own task state (accepted) or clears it (the run ended without being accepted).
+ */
+export interface BackgroundHooks {
+  begin: (controller: AbortController) => void;
+  end: () => void;
+  /** A result finished while the dialog is closed and has no task state of its own to announce it. */
+  completed?: (kind: "research" | "expand") => void;
+}
 export interface NextStepSettings {
   model: string;
   modelSource: ModelSource;
@@ -108,6 +119,7 @@ export interface NextStepSettings {
   quickOutline?: QuickOutline;
   /** 「檢視整張圖」 (root topic) or 「檢視這個分支」 (subtopic): opens the AI structure review instead of a step. */
   structureReview?: { label: string; open: () => void };
+  background?: BackgroundHooks;
 }
 export interface QuickOutline {
   presets: { id: string; name: string }[];
@@ -161,6 +173,7 @@ export interface SelectionSynthesis {
   fields: Pick<NextStepSettings, "sources" | "templates" | "currentTemplate" | "tones" | "currentTone">;
   /** Reopened from the selection bar with directions waiting. */
   pending?: { directions: Suggestion[]; discard: () => void };
+  background?: BackgroundHooks;
 }
 export function renderSynthesisContent(parent: HTMLElement, topics: string[]): HTMLSelectElement {
   const label = parent.createEl("label", { cls: "vam-field" });
@@ -225,6 +238,9 @@ export interface TaskSourceSettings {
 }
 export class NextStepModal extends Modal {
   private closed = false;
+  /** AI started and this dialog hid itself; closing no longer stops the run (Stop is on the card or bar). */
+  private detached = false;
+  private backgroundBegan = false;
   private runPending = false;
   /** Model and effort edits wait here; they are saved when a run starts, never when the dialog is cancelled. */
   private pendingSettings: NotePatch = {};
@@ -338,10 +354,33 @@ export class NextStepModal extends Modal {
   private requirements(): string {
     return this.requirementsInput?.value.trim() ?? "";
   }
+  private get background(): BackgroundHooks | undefined {
+    return this.modelSettings?.background ?? this.selectionFlow?.background;
+  }
+  /**
+   * Hides the dialog once AI starts: usage confirmed, settings saved and sources ready (so a validation error still
+   * shows in the dialog). The view takes over Stop for `controller` until the provider accepts the request.
+   */
+  private detach(controller: AbortController): void {
+    this.detached = true;
+    this.backgroundBegan = true;
+    this.background?.begin(controller);
+    this.close();
+  }
+  private endBackground(): void {
+    if (!this.backgroundBegan) return;
+    this.backgroundBegan = false;
+    this.background?.end();
+  }
+  /** True when a started run should stop: it was aborted, or its dialog closed before AI started. */
+  private dead(controller: AbortController): boolean {
+    return controller.signal.aborted || (this.closed && !this.detached);
+  }
   onClose(): void {
     this.closed = true;
-    // A run that the provider already accepted keeps going in the background; one still starting is stopped.
-    this.taskController?.abort();
+    // A run that the provider already accepted, or that hid this dialog, keeps going in the background; one still
+    // starting is stopped.
+    if (!this.detached) this.taskController?.abort();
     this.unsubscribeModels?.();
     this.reviewView?.dispose();
     this.reviewView = undefined;
@@ -482,7 +521,7 @@ export class NextStepModal extends Modal {
       cancel.onclick = () => controller.abort();
       try {
         await this.flushSettings();
-        if (this.closed || controller.signal.aborted) return;
+        if (this.dead(controller)) return;
         await work();
       } catch (error) {
         // A task already handed to the background can still fail after the dialog closed; say so.
@@ -494,6 +533,7 @@ export class NextStepModal extends Modal {
           controller.signal.aborted ? t("ui.ai_task_cancelled") : error instanceof Error ? error.message : String(error)
         );
       } finally {
+        this.endBackground();
         const backgroundTaskRunning = [...(this.plugin.activeTasks?.keys?.() ?? [])].some(
           path => !tasksBefore.has(path)
         );
@@ -542,7 +582,8 @@ export class NextStepModal extends Modal {
       const controller = this.taskController;
       if (!controller) return;
       const options = await buildOptions(controller.signal);
-      if (this.closed || controller.signal.aborted) return;
+      if (this.dead(controller)) return;
+      this.detach(controller);
       const cancel = panel.querySelector<HTMLButtonElement>(".vam-task-cancel");
       let outcome = false;
       let failedShown = false;
@@ -558,6 +599,7 @@ export class NextStepModal extends Modal {
             this.taskSignal = undefined;
             this.taskController = undefined;
           }
+          this.endBackground();
           if (cancel && !this.closed) {
             cancel.hidden = false;
             cancel.onclick = () => {
@@ -885,7 +927,7 @@ export class NextStepModal extends Modal {
       void this.run(research, confirm, async () => {
         const controller = this.taskController;
         const selected = await sharedSources?.picker.ready();
-        if (this.closed || !controller || controller.signal.aborted) return;
+        if (!controller || this.dead(controller)) return;
         const options: TaskOptions = {
           referenceGroups: selected?.groups ?? [],
           outputLanguage: languageSelect.value as Settings["language"],
@@ -901,6 +943,7 @@ export class NextStepModal extends Modal {
               research.querySelector<HTMLElement>(".vam-next-status")?.setText(message);
           }
         };
+        this.detach(controller);
         let launchAccepted = false;
         let launchFailed = false;
         const release = (): void => {
@@ -914,19 +957,25 @@ export class NextStepModal extends Modal {
           }
         };
         const accepted = (): void => {
-          if (this.closed || controller.signal.aborted || this.taskController !== controller) return;
+          if (controller.signal.aborted || this.taskController !== controller) return;
           this.taskSignal = undefined;
           this.taskController = undefined;
+          launchAccepted = true;
+          // The dialog already hid itself when AI started; the card shows the running state and Stop from here.
+          this.endBackground();
+          if (this.closed) return;
           const cancel = research.querySelector<HTMLButtonElement>(".vam-task-cancel");
           if (cancel) cancel.hidden = true;
-          launchAccepted = true;
           this.startedInBackground();
         };
         await this.research(
           options,
           "",
           () => {
-            if (this.closed) return;
+            if (this.closed) {
+              this.background?.completed?.("research");
+              return;
+            }
             release();
             this.close();
           },
@@ -1102,11 +1151,20 @@ export class NextStepModal extends Modal {
             this.outlineReview(expandPanel, nodes, expandButton, quickOutline.create, options, dropped);
             return;
           }
+          if (!this.pendingCount && this.taskController) this.detach(this.taskController);
           await this.expand(
             options,
             "",
-            (items, create) => this.proposals(expandPanel, items, create, expandButton, consumed, options),
+            (items, create) => {
+              // Hidden while it ran: the card badge holds the suggestions and a Notice says they are ready.
+              if (this.closed) this.background?.completed?.("expand");
+              else this.proposals(expandPanel, items, create, expandButton, consumed, options);
+            },
             (message, retryable) => {
+              if (this.closed) {
+                new Notice(message);
+                return;
+              }
               consumed();
               if (retryable === false) this.failed(expandPanel, expandButton, message);
               else this.failedAi(expandPanel, expandButton, message);
@@ -1115,7 +1173,8 @@ export class NextStepModal extends Modal {
             () => {
               this.taskSignal = undefined;
               this.taskController = undefined;
-              this.startedInBackground();
+              this.endBackground();
+              if (!this.closed) this.startedInBackground();
             }
           );
         },
