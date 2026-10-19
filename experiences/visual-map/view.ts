@@ -274,6 +274,8 @@ interface MergeTask {
   /** The request in flight (tests await it). */
   run?: Promise<void>;
 }
+/** How long the "merged, can undo" Notice stays, so its Undo button can be used. */
+const MERGE_DONE_NOTICE_MS = 15000;
 /** Unique ids for the hidden card labels; any view may render a card. */
 let cardLabelSequence = 0;
 const cardLabels = new WeakMap<HTMLElement, HTMLElement>();
@@ -1300,7 +1302,10 @@ export class VisualAgentMapView extends ItemView {
       const reason = staleReason(suggestion);
       if (reason) throw new Error(reason);
       const touched = [suggestion.targetId, suggestion.newParentId, suggestion.mergeIntoId];
-      if (touched.some(id => !!id && this.isMerging(id))) throw new Error(t("ui.merge_locked"));
+      if (touched.some(id => !!id && this.isMerging(id))) {
+        new Notice(t("ui.merge_locked"));
+        throw new Error(t("ui.merge_locked"));
+      }
     };
     const nodeOf = (id: string): MapNode => {
       const node = this.map?.nodes.find(item => item.id === id);
@@ -2694,6 +2699,10 @@ export class VisualAgentMapView extends ItemView {
       merge => merge !== except && merge.mapPath === this.path && merge.sources.some(source => source.id === nodeId)
     );
   }
+  /** A card and everything below it. */
+  private branchIds(id: string): string[] {
+    return [id, ...(this.map ? descendants(this.map.nodes, id) : [])];
+  }
   /** Refuses a change to merging cards with a Notice; true when `ids` hold none. */
   private mergeUnlocked(ids: Iterable<string>): boolean {
     for (const id of ids)
@@ -2716,7 +2725,7 @@ export class VisualAgentMapView extends ItemView {
     if (!this.map || this.map.aim || this.builtIn || this.mergeOpen || !this.multiSelected.size) return;
     // One AI merge per map: a running one is only reported.
     if (this.mergeTasks.has(this.path)) {
-      new Notice(t("ui.ai_running_ai"));
+      new Notice(t("ui.merge_locked"));
       return;
     }
     const check = this.mergeCheck();
@@ -2878,13 +2887,17 @@ export class VisualAgentMapView extends ItemView {
       const done = t("ui.merge_done_0", task.title);
       // The Undo button only while this merge is still the newest history step.
       if (entry && entry !== previous)
-        backgroundResultNotice(done, {
-          label: t("ui.undo"),
-          open: () => {
-            if (this.history.undoEntry === entry && !this.closed) this.enqueue(() => this.travel(false));
-          }
-        });
-      else new Notice(done);
+        backgroundResultNotice(
+          done,
+          {
+            label: t("ui.undo"),
+            open: () => {
+              if (this.history.undoEntry === entry && !this.closed) this.enqueue(() => this.travel(false));
+            }
+          },
+          MERGE_DONE_NOTICE_MS
+        );
+      else new Notice(done, MERGE_DONE_NOTICE_MS);
     } catch (error) {
       // Nothing was written (a write that fails midway has already rolled itself back); the task is forgotten.
       const live = this.mergeTasks.get(task.mapPath) === task;
@@ -3377,6 +3390,7 @@ export class VisualAgentMapView extends ItemView {
     );
   }
   private confirmRemoveSelected(): void {
+    if (!this.mergeUnlocked(this.selectedRoots().flatMap(root => this.branchIds(root.id)))) return;
     new ChoiceModal(
       this.app,
       t("ui.remove_selected_topics"),
@@ -3389,6 +3403,11 @@ export class VisualAgentMapView extends ItemView {
     node: MapNode,
     hooks: { run?: (work: () => Promise<void>) => void; dismissed?: () => void } = {}
   ): void {
+    // Refused at the door: the dialog does not open for a card that is merging (or has merging cards in its branch).
+    if (!this.mergeUnlocked(this.branchIds(node.id))) {
+      hooks.dismissed?.();
+      return;
+    }
     const run = hooks.run ?? ((work: () => Promise<void>) => this.enqueue(work));
     new ChoiceModal(
       this.app,
@@ -3478,6 +3497,7 @@ export class VisualAgentMapView extends ItemView {
   private chooseSelectedParent(copyNodes: boolean): void {
     if (!this.map) return;
     const roots = this.selectedRoots();
+    if (!this.mergeUnlocked(roots.flatMap(root => this.branchIds(root.id)))) return;
     new TopicTreeModal(
       this.app,
       copyNodes ? t("ui.copy_to") : t("ui.move_to"),
@@ -5842,6 +5862,7 @@ export class VisualAgentMapView extends ItemView {
     describe();
     apply.addEventListener("click", () => {
       const parentId = chosenParent || null;
+      if (!this.mergeUnlocked(parentId ? [node.id, parentId] : [node.id])) return;
       close?.();
       this.enqueue(async () => {
         if (!this.mergeUnlocked(parentId ? [node.id, parentId] : [node.id])) return;
@@ -8007,8 +8028,13 @@ export class VisualAgentMapView extends ItemView {
       };
       // A merging card stays where it is; the drop reports why.
       const locked = this.isMerging(node.id);
+      let warned = false;
       const move = (e: PointerEvent): void => {
         moved ||= Math.hypot(e.clientX - start.x, e.clientY - start.y) > 3;
+        if (moved && locked) {
+          if (!warned) new Notice(t("ui.merge_locked"));
+          warned = true;
+        }
         if (!moved || locked) return;
         position = {
           x: origin.x + (e.clientX - start.x) / this.map!.viewport.zoom,
@@ -8037,7 +8063,7 @@ export class VisualAgentMapView extends ItemView {
           return;
         }
         if (moved && locked) {
-          new Notice(t("ui.merge_locked"));
+          // The Notice already showed when the drag started.
         } else if (moved) {
           paint();
           this.enqueue(() =>

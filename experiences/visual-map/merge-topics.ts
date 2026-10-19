@@ -144,8 +144,9 @@ export class MergeTopicsModal extends Modal {
       cls: "vam-merge-desc"
     });
     let skipAi: HTMLInputElement | undefined;
+    let aiDescription: HTMLElement | undefined;
     if (this.ai) {
-      this.contentEl.createEl("p", {
+      aiDescription = this.contentEl.createEl("p", {
         text:
           this.parentName !== undefined
             ? t("ui.merge_into_parent_ai_desc", this.parentName, this.count - 1)
@@ -164,6 +165,7 @@ export class MergeTopicsModal extends Modal {
     const showName = (): void => {
       input.hidden = useAi();
       description.hidden = useAi();
+      if (aiDescription) aiDescription.hidden = !useAi();
       this.titleEl.setText(useAi() ? t("ui.merge_topics_history") : t("ui.merge_title_label"));
     };
     const confirm = actions.createEl("button", {

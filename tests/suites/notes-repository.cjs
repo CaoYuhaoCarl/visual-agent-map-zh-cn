@@ -716,7 +716,7 @@ const aiMergeHarness = async (options = {}) => {
   const h = await mergeHarness({ shim, globals: { createFragment: dom.createFragment }, ...options });
   h.repo.settings.cliModel = 'claude:sonnet'; h.plugin.settings.cliModel = 'claude:sonnet';
   let queue = Promise.resolve(); h.plugin.mutate = work => { const result = queue.then(work); queue = result.catch(() => {}); return result; };
-  h.notices = notices; h.asks = []; h.usage = []; h.started = 0; h.failures = [];
+  h.shim = shim; h.notices = notices; h.asks = []; h.usage = []; h.started = 0; h.failures = [];
   h.answer = async () => ({ summary: 'Merged one-liner', detail: '### Facts\n\nAlpha detail and Gamma detail', visualReferences: [], formatIssues: [], suggestions: [] });
   h.plugin.askModel = async (context, model, reasoning, signal) => { h.asks.push({ context, model, reasoning }); return h.answer(signal, context); };
   h.plugin.confirmAiUsage = async (model, run) => { h.usage.push(model); if (h.decline) return false; await run(); return true; };
@@ -1042,7 +1042,7 @@ integrationTest('AI merge: a second Merge press while the merge runs only report
   h.answer = () => new Promise(resolve => { release = () => resolve({ summary: 's', detail: 'd', visualReferences: [], formatIssues: [], suggestions: [] }); });
   const { task } = await h.begin(); await new Promise(r => setImmediate(r));
   h.view.multiSelected = new Set(h.sources.map(n => n.id));
-  h.view.openMerge(); assert.deepEqual(h.notices.slice(-1), ['AI running…']);
+  h.view.openMerge(); assert.deepEqual(h.notices.slice(-1), ['Merging; try again when it finishes'], 'the merge-specific Notice, not “AI running…”');
   assert.deepEqual(plain(h.view.mergeCheck()), { ok: false, reason: 'ui.merge_busy' }, 'the sources stay locked while it runs');
   release(); await h.untilSettled(task);
   assert.equal(h.view.mergeTasks.size, 0);
@@ -1097,6 +1097,29 @@ integrationTest('AI merge lock: while merging, delete, remove, move, copy and st
   assert.equal(h.view.mergeTasks.size, 0);
   h.notices.length = 0; await h.view.removeToUnassigned(h.kid, false);
   assert.equal(h.notices.includes(locked), false, 'after the merge the lock is gone');
+});
+integrationTest('AI merge lock at the door: Delete, Remove selected, Move to, Copy to, structure suggestions, Apply parent, Merge again and Drag show the Notice at once and open no dialog', async () => {
+  const h = await aiMergeHarness(); let release; const gate = new Promise(resolve => { release = resolve; });
+  const answer = h.answer; h.answer = async (...args) => { await gate; return answer(...args); };
+  let opened = 0; const open = h.shim.Modal.prototype.open; h.shim.Modal.prototype.open = function () { opened++; };
+  const { task } = await h.begin(); const [alpha, beta] = h.sources; const locked = 'Merging; try again when it finishes';
+  const seen = async (label, run) => { const count = h.notices.filter(m => m === locked).length; await run(); assert.equal(h.notices.filter(m => m === locked).length, count + 1, `${label}: Notice`); assert.equal(opened, 0, `${label}: no dialog`); };
+  await seen('Delete (card)', () => h.view.confirmRemoveNode(alpha));
+  await seen('Delete (a branch containing merging cards)', () => h.view.confirmRemoveNode(h.parent));
+  h.view.multiSelected = new Set([beta.id]);
+  await seen('Remove selected', () => h.view.confirmRemoveSelected());
+  await seen('Move to', () => h.view.chooseSelectedParent(false));
+  await seen('Copy to', () => h.view.chooseSelectedParent(true));
+  await seen('Merge again', () => { h.view.multiSelected = new Set(h.sources.map(n => n.id)); h.view.openMerge(); });
+  await assert.rejects(() => h.view.applyStructureSuggestion({ kind: 'reduce', targetId: alpha.id }, '', () => null), /Merging/);
+  assert.equal(opened, 0, 'a structure suggestion opens no dialog'); assert.ok(h.notices.filter(m => m === locked).length > 6);
+  // A card outside the merge still opens its delete dialog.
+  await h.view.confirmRemoveNode(h.kid); assert.equal(opened, 1);
+  h.shim.Modal.prototype.open = open; release(); await h.untilSettled(task);
+});
+integrationTest('AI merge: the completion Notice stays 15 s so its Undo can be used', async () => {
+  const h = await aiMergeHarness(); const { task } = await h.begin(); await h.untilSettled(task);
+  const notice = h.undoNotice(); assert.equal(notice.timeout, 15000);
 });
 integrationTest('AI merge lock: the shared check refuses only merging cards and shows one Notice', async () => {
   const h = await aiMergeHarness(); let release; const gate = new Promise(resolve => { release = resolve; });

@@ -190,8 +190,15 @@ test('merge dialog with content: AI is the default, the checkbox switches to the
   assert.ok(dom.texts(modal.contentEl).includes(label('ui.merge_no_ai')));
   assert.ok(dom.texts(modal.contentEl).includes(label('ui.merge_ai_desc').replace('{0}', '3')));
   assert.equal(main.text, label('ui.merge_with_ai'));
+  const desc = text => dom.find(modal.contentEl, i => i.text === text);
+  const aiDesc = label('ui.merge_ai_desc').replace('{0}', '3'), plainDesc = label('ui.merge_confirm_desc').replace('{0}', '3');
+  assert.equal(desc(aiDesc).hidden, false, 'AI on: the AI description shows'); assert.equal(desc(plainDesc).hidden, true);
   box.checked = true; box.change();
+  assert.equal(desc(aiDesc).hidden, true, 'ticked: the AI description is hidden'); assert.equal(desc(plainDesc).hidden, false, 'and the plain-merge one shows');
   assert.equal(main.text, label('ui.merge_confirm'));
+  box.checked = false; box.change();
+  assert.equal(desc(aiDesc).hidden, false, 'unticked: back to the AI description'); assert.equal(desc(plainDesc).hidden, true);
+  box.checked = true; box.change();
   main.click();
   assert.deepEqual(log.submitted, ['First']); assert.equal(started, 0, 'the skip option never calls AI');
 });

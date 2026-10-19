@@ -3694,9 +3694,9 @@ var import_obsidian5 = require("obsidian");
 
 // ui/background-run.ts
 var import_obsidian4 = require("obsidian");
-function backgroundResultNotice(message, action) {
+function backgroundResultNotice(message, action, timeout) {
   const make = window.createFragment;
-  if (!action || typeof make !== "function") return new import_obsidian4.Notice(message);
+  if (!action || typeof make !== "function") return new import_obsidian4.Notice(message, timeout);
   let notice;
   const fragment = make((el) => {
     el.createSpan({ text: message });
@@ -3705,7 +3705,7 @@ function backgroundResultNotice(message, action) {
       action.open();
     });
   });
-  notice = new import_obsidian4.Notice(fragment);
+  notice = new import_obsidian4.Notice(fragment, timeout);
   return notice;
 }
 function renderBackgroundStatus(parent, status) {
@@ -27006,8 +27006,9 @@ var MergeTopicsModal = class extends import_obsidian26.Modal {
       cls: "vam-merge-desc"
     });
     let skipAi;
+    let aiDescription;
     if (this.ai) {
-      this.contentEl.createEl("p", {
+      aiDescription = this.contentEl.createEl("p", {
         text: this.parentName !== void 0 ? t("ui.merge_into_parent_ai_desc", this.parentName, this.count - 1) : t("ui.merge_ai_desc", this.count),
         cls: "vam-merge-desc"
       });
@@ -27022,6 +27023,7 @@ var MergeTopicsModal = class extends import_obsidian26.Modal {
     const showName = () => {
       input.hidden = useAi();
       description.hidden = useAi();
+      if (aiDescription) aiDescription.hidden = !useAi();
       this.titleEl.setText(useAi() ? t("ui.merge_topics_history") : t("ui.merge_title_label"));
     };
     const confirm = actions.createEl("button", {
@@ -27134,6 +27136,7 @@ function aimQuestionStatus(map, questionNodeId, activeQuestionNodeId) {
   return "not_started";
 }
 var MERGE_GUARD_FIELDS = ["title", "summary", "detail", "status"];
+var MERGE_DONE_NOTICE_MS = 15e3;
 var cardLabelSequence = 0;
 var cardLabels = /* @__PURE__ */ new WeakMap();
 function edgePathData(x1, y1, x2, y2) {
@@ -28036,7 +28039,10 @@ ${request.requirements}` : preset.text,
       const reason = staleReason(suggestion);
       if (reason) throw new Error(reason);
       const touched = [suggestion.targetId, suggestion.newParentId, suggestion.mergeIntoId];
-      if (touched.some((id) => !!id && this.isMerging(id))) throw new Error(t("ui.merge_locked"));
+      if (touched.some((id) => !!id && this.isMerging(id))) {
+        new import_obsidian27.Notice(t("ui.merge_locked"));
+        throw new Error(t("ui.merge_locked"));
+      }
     };
     const nodeOf = (id) => {
       var _a;
@@ -29349,6 +29355,10 @@ ${request.requirements}` : preset.text,
       (merge) => merge !== except && merge.mapPath === this.path && merge.sources.some((source) => source.id === nodeId)
     );
   }
+  /** A card and everything below it. */
+  branchIds(id) {
+    return [id, ...this.map ? descendants(this.map.nodes, id) : []];
+  }
   /** Refuses a change to merging cards with a Notice; true when `ids` hold none. */
   mergeUnlocked(ids) {
     for (const id of ids)
@@ -29372,7 +29382,7 @@ ${request.requirements}` : preset.text,
     var _a, _b, _c, _d;
     if (!this.map || this.map.aim || this.builtIn || this.mergeOpen || !this.multiSelected.size) return;
     if (this.mergeTasks.has(this.path)) {
-      new import_obsidian27.Notice(t("ui.ai_running_ai"));
+      new import_obsidian27.Notice(t("ui.merge_locked"));
       return;
     }
     const check = this.mergeCheck();
@@ -29518,13 +29528,17 @@ ${request.requirements}` : preset.text,
       const entry = this.history.undoEntry;
       const done = t("ui.merge_done_0", task.title);
       if (entry && entry !== previous)
-        backgroundResultNotice(done, {
-          label: t("ui.undo"),
-          open: () => {
-            if (this.history.undoEntry === entry && !this.closed) this.enqueue(() => this.travel(false));
-          }
-        });
-      else new import_obsidian27.Notice(done);
+        backgroundResultNotice(
+          done,
+          {
+            label: t("ui.undo"),
+            open: () => {
+              if (this.history.undoEntry === entry && !this.closed) this.enqueue(() => this.travel(false));
+            }
+          },
+          MERGE_DONE_NOTICE_MS
+        );
+      else new import_obsidian27.Notice(done, MERGE_DONE_NOTICE_MS);
     } catch (error) {
       const live = this.mergeTasks.get(task.mapPath) === task;
       if (live) this.mergeTasks.delete(task.mapPath);
@@ -29953,6 +29967,7 @@ ${request.requirements}` : preset.text,
     );
   }
   confirmRemoveSelected() {
+    if (!this.mergeUnlocked(this.selectedRoots().flatMap((root) => this.branchIds(root.id)))) return;
     new ChoiceModal(
       this.app,
       t("ui.remove_selected_topics"),
@@ -29962,14 +29977,18 @@ ${request.requirements}` : preset.text,
   }
   /** The delete confirmation. `hooks` lets a caller run the chosen removal itself and hear about a cancel. */
   confirmRemoveNode(node, hooks = {}) {
-    var _a, _b;
-    const run = (_a = hooks.run) != null ? _a : (work) => this.enqueue(work);
+    var _a, _b, _c;
+    if (!this.mergeUnlocked(this.branchIds(node.id))) {
+      (_a = hooks.dismissed) == null ? void 0 : _a.call(hooks);
+      return;
+    }
+    const run = (_b = hooks.run) != null ? _b : (work) => this.enqueue(work);
     new ChoiceModal(
       this.app,
       t("ui.remove_from_map"),
       t("ui.the_note_will_move_to_this_topic_s_unassigned_folder_you_can"),
       [
-        ...!((_b = this.map) == null ? void 0 : _b.aim) || node.aimKind !== "question" ? [
+        ...!((_c = this.map) == null ? void 0 : _c.aim) || node.aimKind !== "question" ? [
           {
             label: t("ui.remove_only_this_node_children_become_roots"),
             warning: true,
@@ -30045,6 +30064,7 @@ ${request.requirements}` : preset.text,
   chooseSelectedParent(copyNodes) {
     if (!this.map) return;
     const roots = this.selectedRoots();
+    if (!this.mergeUnlocked(roots.flatMap((root) => this.branchIds(root.id)))) return;
     new TopicTreeModal(
       this.app,
       copyNodes ? t("ui.copy_to") : t("ui.move_to"),
@@ -32253,6 +32273,7 @@ ${request.requirements}` : preset.text,
     describe();
     apply.addEventListener("click", () => {
       const parentId = chosenParent || null;
+      if (!this.mergeUnlocked(parentId ? [node.id, parentId] : [node.id])) return;
       close == null ? void 0 : close();
       this.enqueue(async () => {
         if (!this.mergeUnlocked(parentId ? [node.id, parentId] : [node.id])) return;
@@ -34254,9 +34275,14 @@ ${note.detail.trim()}` : "",
         edges.update(position.x, position.y);
       };
       const locked = this.isMerging(node.id);
+      let warned = false;
       const move = (e) => {
         var _a2;
         moved || (moved = Math.hypot(e.clientX - start.x, e.clientY - start.y) > 3);
+        if (moved && locked) {
+          if (!warned) new import_obsidian27.Notice(t("ui.merge_locked"));
+          warned = true;
+        }
         if (!moved || locked) return;
         position = {
           x: origin.x + (e.clientX - start.x) / this.map.viewport.zoom,
@@ -34284,7 +34310,6 @@ ${note.detail.trim()}` : "",
           return;
         }
         if (moved && locked) {
-          new import_obsidian27.Notice(t("ui.merge_locked"));
         } else if (moved) {
           paint();
           this.enqueue(
