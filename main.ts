@@ -9,6 +9,7 @@ import type { TaskOptions } from "./experiences/visual-map/modals";
 import { t, setUiLanguage, translate, initialUiLanguage, type TranslationKey } from "./i18n";
 import {
   FileSystemAdapter,
+  loadMermaid,
   MarkdownView,
   requestUrl,
   Notice,
@@ -145,7 +146,17 @@ export default class VisualAgentMapPlugin extends Plugin {
     exchangeLoggingEnabled: () => this.settings.aiExchangeLoggingEnabled,
     exchanges: () => this.exchanges,
     codexRuntime: (directory: string, local: boolean) => this.runtime(directory, local),
-    claudeRuntime: (directory: string) => this.claudeCli(directory)
+    claudeRuntime: (directory: string) => this.claudeCli(directory),
+    mermaidParses: async (code: string): Promise<boolean> => {
+      // The same mermaid Obsidian renders with; a missing or failing parser refuses the diagram rather than trusting it.
+      try {
+        const mermaid = (await loadMermaid()) as { parse: (text: string) => Promise<unknown> };
+        await mermaid.parse(code);
+        return true;
+      } catch {
+        return false;
+      }
+    }
   };
   readonly aiTasks = new AiTaskService(this.aiTaskOptions);
   readonly core = new ThinkingCore(

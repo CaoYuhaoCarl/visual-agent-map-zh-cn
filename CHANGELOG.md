@@ -9,6 +9,7 @@
 - "Note style" replaces the separate content template and writing tone choices in the research dialogs, multi-topic research, outline import and the map menu. Pick Standard, Textbook, Key points, Plain language or Practical guide in one step; "Custom…" still lets you pick any template and tone, including your own. Nothing new is stored: maps and notes keep the same `detail-template` and `tone` values, and notes written without a choice stay exactly as before.
 - A built-in **Textbook** content template opens with 2–4 introductory paragraphs, then the six standard sections, a short self-check, and leaves out sections that have nothing to say. It is also listed in the template library (view, duplicate, set as default) and the workspace default setting.
 - Outline import with quick research now also takes a writing tone; for a new map it becomes the map's default tone, and for an import into an open map it is recorded on each created topic.
+- After AI finishes a topic note (research, continue, and synthesis that writes a note), one extra local AI call can add up to three mermaid diagrams where the content has a clear shape (stages, hierarchy, comparison, proportion, interaction, states or process) and no diagram yet. Every number in a diagram must already appear in the note and every diagram must parse; otherwise the note is left exactly as written. The call uses no web search or tools and appears as its own `chart.add` entry in the AI exchange log.
 
 ### Changed
 

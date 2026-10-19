@@ -50,6 +50,8 @@ export interface TaskContext {
   detailTemplate?: DetailTemplate;
   /** Resolved writing-tone text (trusted). Absent for the default academic tone, so prompts stay unchanged. */
   toneText?: string;
+  /** Trusted flag: after the note is written, run the chart step once. Never serialized into a prompt. */
+  addCharts?: boolean;
   /** internal: this request is the single count repair. */
   countRepair?: boolean;
   /** Select a phase-aware prompt builder for AIM requests. */

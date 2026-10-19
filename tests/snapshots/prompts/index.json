@@ -566,6 +566,26 @@
       "language": "zh-TW",
       "schema": true
     },
+    "chart.add-none.en": {
+      "builder": "core/steps/chart/step.ts chartStep (no existing diagram)",
+      "language": "en",
+      "schema": true
+    },
+    "chart.add-none.zh": {
+      "builder": "core/steps/chart/step.ts chartStep (no existing diagram)",
+      "language": "zh-TW",
+      "schema": true
+    },
+    "chart.add.en": {
+      "builder": "core/steps/chart/step.ts chartStep (one existing diagram, two remaining)",
+      "language": "en",
+      "schema": true
+    },
+    "chart.add.zh": {
+      "builder": "core/steps/chart/step.ts chartStep (one existing diagram, two remaining)",
+      "language": "zh-TW",
+      "schema": true
+    },
     "coffee.convergence.en": {
       "builder": "coffee-tables/convergence.ts convergencePrompt",
       "language": "en",

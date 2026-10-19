@@ -22,6 +22,8 @@ import { referenceTask } from "./steps/reference/step";
 import { taskResponseShape } from "./steps/task/schemas";
 import { repairCounts, sourceRegistry } from "./steps/task/fragments";
 import { createTaskStep, taskStepId, type TaskStepRole } from "./steps/task/step";
+import { chartStep, ChartRejected } from "./steps/chart/step";
+import { applyCharts, existingDiagrams, type ChartCode } from "./steps/chart/insert";
 import { readerFacingDetail } from "./steps/task/render";
 
 export { extractJsonObject } from "./steps/task/parse";
@@ -34,6 +36,8 @@ export interface AiTaskServiceOptions {
   exchanges: () => AiExchangeLog | null;
   codexRuntime: (directory: string, local: boolean) => CodexAppServerRuntime;
   claudeRuntime: (directory: string) => ClaudeCodeCliRuntime;
+  /** True when Obsidian's mermaid parses the diagram. Absent: the chart step skips the parse check. */
+  mermaidParses?: (code: string) => Promise<boolean>;
 }
 
 export class AiTaskService {
@@ -146,6 +150,7 @@ export class AiTaskService {
 
     // Set once the first request's entry is closed because the repair request replaced it; the catch must not reopen it.
     let supersededClosed = false;
+    let countIssues: ReturnType<typeof checkCounts> | undefined;
     let stage = t("log.stage_starting_ai");
     try {
       const controls = {
@@ -253,6 +258,27 @@ export class AiTaskService {
           }
         }
         result.formatIssues = issues;
+        countIssues = issues;
+      }
+      if (
+        input.addCharts &&
+        !input.countRepair &&
+        !input.intermediateDetail &&
+        input.promptProfile !== "aim" &&
+        (input.mode === "task" || input.mode === "synthesize")
+      ) {
+        stage = t("log.stage_adding_charts");
+        const withCharts = await this.addCharts(
+          input,
+          result.detail,
+          countIssues,
+          outputLanguage,
+          provider,
+          model,
+          signal,
+          sink
+        );
+        result = { ...result, detail: withCharts };
       }
       console.debug("Visual Agent Map AI metrics", {
         ...prepared.metrics,
@@ -267,6 +293,91 @@ export class AiTaskService {
           t("log.stage_failure_0_1", stage, error instanceof Error ? error.message : String(error))
         );
       throw error;
+    }
+  }
+
+  /**
+   * The chart step: one local, tool-free model call that proposes diagrams for the finished note. Any failure other than
+   * a stop leaves the detail unchanged, so a note is never worse for having been offered diagrams.
+   */
+  private async addCharts(
+    input: TaskContext,
+    detail: string,
+    countIssues: ReturnType<typeof checkCounts> | undefined,
+    language: UiLanguage,
+    provider: "claude" | "codex",
+    model: string,
+    signal: AbortSignal | undefined,
+    sink: ExchangeSink | null
+  ): Promise<string> {
+    const existing = existingDiagrams(detail);
+    const remaining = 3 - existing.count;
+    if (remaining <= 0 || !detail.trim()) return detail;
+    const pluginDirectory = this.options.pluginDirectory();
+    const step = prepareStep(chartStep, {
+      title: input.title,
+      detail,
+      language,
+      existingCount: existing.count,
+      existingTypes: existing.types,
+      remaining
+    });
+    let exchangeId = "";
+    const runner = new StepRunner(
+      runtimeStepProvider({
+        claude: () => this.options.claudeRuntime(pluginDirectory),
+        codex: local => this.options.codexRuntime(pluginDirectory, local),
+        exchanges: () => sink,
+        localCodex: true
+      })
+    );
+    const refuse = (code: ChartCode): string => {
+      console.warn("Visual Agent Map chart step", code);
+      if (exchangeId && this.options.exchangeLoggingEnabled())
+        this.options.exchanges()?.failed(exchangeId, translate(this.options.language(), "log.chart_not_added_0", code));
+      return detail;
+    };
+    try {
+      const { raw } = await runner.send(step, {
+        model,
+        effort: "low",
+        topic: input.title,
+        mode: input.mode ?? "task",
+        task: {
+          signal,
+          timeoutMs: 180_000,
+          timeoutMessage: translate(this.options.language(), "ui.ai_task_exceeded_0_minutes", 3),
+          webSearch: false,
+          textOnly: true,
+          searchBudget: 0
+        },
+        finish: "caller",
+        requestLog: "request",
+        onExchange: id => {
+          exchangeId = id;
+        }
+      });
+      if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+      const charts = step.parse(raw);
+      const applied = await applyCharts(detail, charts, { remaining, parses: this.options.mermaidParses });
+      if (!applied.ok) return refuse(applied.code);
+      const template = input.detailTemplate;
+      if (countIssues && template && input.detailFormat !== "adaptive") {
+        const after = checkCounts(canonicalDetail(applied.detail, language, template), template);
+        if (JSON.stringify(after) !== JSON.stringify(countIssues)) return refuse("counts_changed");
+      }
+      if (this.options.exchangeLoggingEnabled() && exchangeId) {
+        this.options.exchanges()?.parsed(exchangeId);
+        this.options.exchanges()?.completed(exchangeId);
+      }
+      return applied.detail;
+    } catch (error) {
+      if (signal?.aborted || (error instanceof Error && error.name === "AbortError")) {
+        if (exchangeId && this.options.exchangeLoggingEnabled())
+          this.options.exchanges()?.failed(exchangeId, error instanceof Error ? error.message : String(error));
+        throw error;
+      }
+      return refuse(error instanceof ChartRejected ? error.code : "runtime_error");
     }
   }
 

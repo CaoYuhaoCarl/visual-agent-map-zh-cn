@@ -7722,7 +7722,8 @@ export class VisualAgentMapView extends ItemView {
             researchMode: options?.researchMode ?? "local",
             researchDepth: options?.researchDepth ?? note.researchDepth,
             visualMode: options?.visualMode ?? note.visualMode,
-            detailTemplate
+            detailTemplate,
+            addCharts: true
           },
           note
         ),
@@ -8416,7 +8417,8 @@ export class VisualAgentMapView extends ItemView {
           researchMode: options?.researchMode ?? "local",
           researchDepth: options?.researchDepth ?? "normal",
           visualMode: options?.visualMode ?? "auto",
-          detailTemplate
+          detailTemplate,
+          addCharts: true
         },
         model,
         this.plugin.settings.cliReasoning,
@@ -9118,7 +9120,8 @@ export class VisualAgentMapView extends ItemView {
         visualMode: note.visualMode,
         ...this.toneField(note, overrides),
         ...overrides,
-        detailTemplate
+        detailTemplate,
+        addCharts: true
       },
       note
     );
