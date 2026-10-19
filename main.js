@@ -1303,6 +1303,10 @@ var english = {
   "coffee.stopped_your_previous_draft_is_preserved": "Stopped. Your previous draft is preserved.",
   "coffee.the_table_is_generating_reopen_it_after_it_finishes": "The table is generating. Reopen it after it finishes.",
   "coffee.organizing_a_research_question": "Organizing a research question\u2026",
+  "coffee.handoff_draft_ready": "The research question draft is ready.",
+  "coffee.handoff_bar_ready": "Draft ready",
+  "coffee.handoff_stopped": "Stopped. Your inputs are kept.",
+  "coffee.convergence_preview_ready": "The convergence preview is ready.",
   "coffee.review_and_edit_this_draft_then_create_the_research_map": "Review and edit this draft, then create the research map.",
   "coffee.ai_did_not_run_edit_the_draft_manually_or_retry": "AI did not run. Edit the draft manually or retry.",
   "coffee.enter_a_single_line_research_question": "Enter a single-line research question.",
@@ -2760,6 +2764,10 @@ var traditionalChinese = {
   "coffee.stopped_your_previous_draft_is_preserved": "\u5DF2\u505C\u6B62\uFF0C\u539F\u8349\u7A3F\u5DF2\u4FDD\u7559\u3002",
   "coffee.the_table_is_generating_reopen_it_after_it_finishes": "\u9019\u684C\u6B63\u5728\u751F\u6210\uFF0C\u8ACB\u5B8C\u6210\u5F8C\u91CD\u65B0\u958B\u555F\u3002",
   "coffee.organizing_a_research_question": "\u6B63\u5728\u6574\u7406\u7814\u7A76\u554F\u984C\u2026",
+  "coffee.handoff_draft_ready": "\u7814\u7A76\u554F\u984C\u8349\u7A3F\u5DF2\u5C31\u7DD2\u3002",
+  "coffee.handoff_bar_ready": "\u8349\u7A3F\u5DF2\u5C31\u7DD2",
+  "coffee.handoff_stopped": "\u5DF2\u505C\u6B62\uFF0C\u8F38\u5165\u5167\u5BB9\u5DF2\u4FDD\u7559\u3002",
+  "coffee.convergence_preview_ready": "\u6536\u6582\u9810\u89BD\u5DF2\u5C31\u7DD2\u3002",
   "coffee.review_and_edit_this_draft_then_create_the_research_map": "\u8ACB\u6AA2\u8996\u4E26\u7DE8\u8F2F\u8349\u7A3F\uFF0C\u518D\u5EFA\u7ACB\u7814\u7A76\u5730\u5716\u3002",
   "coffee.ai_did_not_run_edit_the_draft_manually_or_retry": "AI \u672A\u57F7\u884C\uFF0C\u53EF\u4EE5\u624B\u52D5\u7DE8\u8F2F\u8349\u7A3F\u6216\u91CD\u8A66\u3002",
   "coffee.enter_a_single_line_research_question": "\u8ACB\u8F38\u5165\u55AE\u884C\u7814\u7A76\u554F\u984C\u3002",
@@ -3545,7 +3553,47 @@ function registerMermaidZoom(plugin) {
 }
 
 // experiences/coffee-tables/customization-ui.ts
+var import_obsidian5 = require("obsidian");
+
+// ui/background-run.ts
 var import_obsidian4 = require("obsidian");
+function backgroundResultNotice(message, action) {
+  const make = window.createFragment;
+  if (!action || typeof make !== "function") return new import_obsidian4.Notice(message);
+  let notice;
+  const fragment = make((el) => {
+    el.createSpan({ text: message });
+    el.createEl("button", { text: action.label, cls: "vam-background-notice-action" }).addEventListener("click", () => {
+      notice == null ? void 0 : notice.hide();
+      action.open();
+    });
+  });
+  notice = new import_obsidian4.Notice(fragment);
+  return notice;
+}
+function renderBackgroundStatus(parent, status) {
+  const bar = parent.createDiv(`vam-aim-statusbar vam-background-statusbar${status.running ? " is-active" : ""}`);
+  bar.setAttr("aria-live", "polite");
+  bar.createSpan({ cls: "vam-aim-status-title", text: status.title });
+  bar.createSpan({
+    cls: `vam-aim-status-value ${status.running ? "vam-status-running" : ""}`.trim(),
+    text: status.value
+  });
+  if (status.running && status.onStop) {
+    const stop = bar.createEl("button", { text: t("ui.stop_research") });
+    stop.addEventListener("click", status.onStop);
+  }
+  if (status.review) {
+    const review = bar.createEl("button", { text: status.review.label, cls: "vam-badge-new" });
+    review.addEventListener("click", status.review.open);
+  }
+  if (!status.running && status.onDismiss) {
+    const dismiss = bar.createEl("button", { text: "\xD7" });
+    dismiss.setAttr("aria-label", t("ui.dismiss"));
+    dismiss.addEventListener("click", status.onDismiss);
+  }
+  return bar;
+}
 
 // experiences/coffee-tables/insights.ts
 var TITLES = {
@@ -4846,13 +4894,24 @@ function customizationFields(parent, initial, language2, changed = () => void 0)
   set(initial);
   return { read, set };
 }
-var CoffeeCustomizationModal = class extends import_obsidian4.Modal {
+function convergencePreviewMarks(engine) {
+  return [engine.session.convergenceDraft, engine.session.convergenceRawDraft];
+}
+function notifyConvergencePreview(engine, before, review) {
+  const [draft, raw] = convergencePreviewMarks(engine);
+  if (!draft && !raw) return;
+  if (draft === before[0] && raw === before[1]) return;
+  const t2 = (key2) => translate(uiLocale(engine.session.language), key2);
+  backgroundResultNotice(t2("coffee.convergence_preview_ready"), { label: t2("ui.background_review"), open: review });
+}
+var CoffeeCustomizationModal = class extends import_obsidian5.Modal {
   constructor(app, engine, saveDefault, reviewed, confirmRun) {
     super(app);
     this.engine = engine;
     this.saveDefault = saveDefault;
     this.reviewed = reviewed;
     this.confirmRun = confirmRun;
+    __publicField(this, "closed", false);
   }
   onOpen() {
     var _a, _b, _c, _d;
@@ -4888,26 +4947,38 @@ var CoffeeCustomizationModal = class extends import_obsidian4.Modal {
         errors.setText(issues.join("\n"));
         if (issues.length) return;
         for (const item of Array.from(actions.querySelectorAll("button"))) item.disabled = true;
-        void action(value).catch((error) => errors.setText(error instanceof Error ? error.message : String(error))).finally(() => {
+        void action(value).catch((error) => {
+          if (!this.closed) errors.setText(error instanceof Error ? error.message : String(error));
+        }).finally(() => {
+          if (this.closed) return;
           for (const item of Array.from(actions.querySelectorAll("button"))) item.disabled = false;
         });
       };
     };
     run(t2("coffee.apply_to_this_table"), async (value) => {
       await engine.setCustomization(style.value, value);
-      new import_obsidian4.Notice(t2("coffee.table_settings_saved"));
+      new import_obsidian5.Notice(t2("coffee.table_settings_saved"));
       this.close();
     });
     run(t2("coffee.default_for_new_tables"), async (value) => {
       await this.saveDefault(style.value, value);
-      new import_obsidian4.Notice(t2("coffee.saved_for_new_tables"));
+      new import_obsidian5.Notice(t2("coffee.saved_for_new_tables"));
     });
     run(t2("coffee.preview_convergence_once"), async (value) => {
-      await this.confirmRun(() => engine.previewConvergence(value));
-      if (engine.session.convergenceDraft || engine.session.convergenceRawDraft) {
+      const before = convergencePreviewMarks(engine);
+      let started = false;
+      await this.confirmRun(async () => {
+        if (this.closed) return;
+        started = true;
         this.close();
-        this.reviewed();
-      }
+        try {
+          await engine.previewConvergence(value);
+        } catch (error) {
+          new import_obsidian5.Notice(error instanceof Error ? error.message : String(error));
+          started = false;
+        }
+      });
+      if (started) notifyConvergencePreview(engine, before, this.reviewed);
     });
     content.createEl("small", {
       cls: "ct-muted",
@@ -4915,10 +4986,11 @@ var CoffeeCustomizationModal = class extends import_obsidian4.Modal {
     });
   }
   onClose() {
+    this.closed = true;
     this.contentEl.empty();
   }
 };
-var CoffeeConvergenceModal = class extends import_obsidian4.Modal {
+var CoffeeConvergenceModal = class extends import_obsidian5.Modal {
   constructor(app, engine) {
     super(app);
     this.engine = engine;
@@ -5018,8 +5090,748 @@ var CoffeeConvergenceModal = class extends import_obsidian4.Modal {
   }
 };
 
-// experiences/coffee-tables/view.ts
+// experiences/coffee-tables/handoff-modal.ts
 var import_obsidian6 = require("obsidian");
+var import_node_crypto2 = require("node:crypto");
+
+// core/thinking-artifact.ts
+function createThinkingArtifact(input) {
+  return { version: 1, ...input };
+}
+
+// core/experience-router.ts
+var HandoffWriteError = class extends Error {
+  constructor(message, paths) {
+    super(message);
+    this.paths = paths;
+    this.name = "HandoffWriteError";
+  }
+};
+function isHandoffWriteError(value) {
+  if (!value || typeof value !== "object") return false;
+  const item = value;
+  return item.name === "HandoffWriteError" && typeof item.message === "string" && Array.isArray(item.paths) && item.paths.every((path) => typeof path === "string");
+}
+var ExperienceRouter = class {
+  constructor() {
+    __publicField(this, "handlers", /* @__PURE__ */ new Map());
+  }
+  register(target, handler) {
+    if (this.handlers.has(target)) throw new Error(`Experience already registered: ${target}`);
+    this.handlers.set(target, handler);
+    return () => {
+      if (this.handlers.get(target) === handler) this.handlers.delete(target);
+    };
+  }
+  canHandoff(target) {
+    return this.handlers.has(target);
+  }
+  async handoff({ target, artifact, beforeWrite }) {
+    const handler = this.handlers.get(target);
+    if (!handler) throw new Error(`Experience is not available: ${target}`);
+    return await handler(artifact, beforeWrite);
+  }
+};
+
+// ai/task-policy.ts
+function normalizeReasoningLevel(value) {
+  return value === "auto" || value === "medium" || value === "high" ? value : "low";
+}
+function effectiveReasoningLevel(context, selected) {
+  if (selected !== "auto") return selected;
+  if (context.mode === "synthesize") return "medium";
+  return context.sourceContext && context.sourceContext.length > 6e3 ? "medium" : "low";
+}
+function researchGuidance(context, language2 = "zh-TW") {
+  const depth = translate(
+    language2,
+    context.researchDepth === "fast" ? "research.fast" : context.researchDepth === "deep" ? "research.deep" : "research.normal"
+  );
+  if (context.researchMode === "local") return `${depth} ${translate(language2, "research.local")}`;
+  return `${depth} ${translate(language2, "research.web")}`;
+}
+
+// experiences/coffee-tables/handoff-source.ts
+var import_node_crypto = require("node:crypto");
+function references(session) {
+  var _a, _b, _c;
+  return [
+    ...new Map(
+      [...(_a = session.referenceFiles) != null ? _a : [], ...(_c = (_b = session.guests) == null ? void 0 : _b.referenceFiles) != null ? _c : []].map((item) => [
+        JSON.stringify(item),
+        item
+      ])
+    ).values()
+  ];
+}
+function coffeeCommittedKey(session) {
+  var _a, _b, _c, _d, _e;
+  return JSON.stringify({
+    id: session.id,
+    topic: session.topic,
+    status: session.status,
+    language: session.language,
+    model: session.model,
+    reasoning: session.reasoning,
+    dirtyNotes: session.dirtyNotes === true,
+    dialogue: ((_a = session.rounds) != null ? _a : []).map((item) => ({ id: item.id, markdown: item.markdown, status: item.status })),
+    transcript: session.transcriptMarkdown,
+    questions: session.questions.filter((item) => item.status === "complete").map((item) => ({ id: item.id, question: item.question, answer: item.answer })),
+    interventions: (_b = session.interventions) != null ? _b : [],
+    insights: (_c = session.observerNotes) != null ? _c : [],
+    background: (_e = (_d = session.guests) == null ? void 0 : _d.background) != null ? _e : "",
+    references: references(session)
+  });
+}
+function insightText(item) {
+  return [item.summary, item.detail, item.question, item.proposedSolution, item.limitations].filter(Boolean).join("\n\n");
+}
+var normalize2 = (text11) => text11.normalize("NFKC").replace(/[*_`]/g, "").replace(/\s+/g, " ").trim();
+function buildCoffeeSource(session, insightId) {
+  var _a, _b, _c, _d, _e, _f;
+  const insights = baselineFromVersions((_a = session.observerNotes) != null ? _a : [], session.language);
+  const selected = insightId ? insights.find((item) => item.id === insightId) : void 0;
+  if (insightId && !selected) throw new Error("The selected insight changed; reopen the latest table.");
+  const dialogue = (((_b = session.rounds) == null ? void 0 : _b.length) ? session.rounds.filter((item) => item.markdown.trim()).map(
+    (item) => item.status === "completed" ? item.markdown : `Saved segment (${item.status}):
+${item.markdown}`
+  ) : [session.transcriptMarkdown]).filter(Boolean);
+  const answers = session.questions.filter((item) => item.status === "complete").map((item) => `${item.question}
+${item.answer}`);
+  const committed = [...dialogue, ...answers];
+  const unresolved = [], excerpts = [];
+  for (const source of (_c = selected == null ? void 0 : selected.sources) != null ? _c : []) {
+    const needle = normalize2(source);
+    let count = 0;
+    for (const text11 of committed) {
+      const haystack = normalize2(text11);
+      let at = 0;
+      while (needle && (at = haystack.indexOf(needle, at)) >= 0) {
+        count++;
+        at += needle.length;
+      }
+    }
+    if (count === 1) excerpts.push(source);
+    else unresolved.push(source);
+  }
+  const snapshotText = selected ? [
+    insightText(selected),
+    `Category: ${selected.category}`,
+    selected.sources.length ? `Original source annotations (not proof): ${JSON.stringify(selected.sources)}` : ""
+  ].filter(Boolean).join("\n\n") : ((_d = session.observerNotes) != null ? _d : []).join("\n\n") || "No cumulative insight snapshot was available.";
+  const status = [
+    "Simulated Coffee Tables discussion. All ideas are unverified candidates, not the user's conclusion.",
+    session.dirtyNotes ? "Observer notes are stale / not updated after conversation edits." : ""
+  ].filter(Boolean).join("\n");
+  const sourceSnapshot = [status, snapshotText].join("\n\n");
+  const content = selected ? [
+    session.topic,
+    status,
+    sourceSnapshot,
+    excerpts.length ? `Uniquely verified source excerpts:
+${excerpts.join("\n\n")}` : "No uniquely located dialogue source.",
+    unresolved.length ? `Unresolved source annotations (not verified excerpts):
+${JSON.stringify(unresolved)}` : ""
+  ].filter(Boolean).join("\n\n") : [
+    session.topic,
+    status,
+    ...committed,
+    ...((_e = session.interventions) != null ? _e : []).filter((item) => item.status === "sent" || item.status === void 0).map((item) => `Saved user intervention: ${item.text}`),
+    sourceSnapshot,
+    (_f = session.guests) == null ? void 0 : _f.background,
+    ...references(session).map((item) => `Background reference: ${item.name}
+${item.content}`)
+  ].filter(Boolean).join("\n\n");
+  return {
+    content,
+    sourceSnapshot,
+    question: (selected == null ? void 0 : selected.question) || (selected == null ? void 0 : selected.summary) || session.topic,
+    artifactId: (selected == null ? void 0 : selected.persistedId) ? selected.id : (0, import_node_crypto.randomUUID)(),
+    identityKind: (selected == null ? void 0 : selected.persistedId) ? "persisted-insight" : "snapshot"
+  };
+}
+
+// ai/providers/provider.ts
+var CLAUDE_MODEL_CHOICES = [
+  { id: "claude:sonnet", label: "Claude \xB7 Sonnet", model: "sonnet" },
+  { id: "claude:opus", label: "Claude \xB7 Opus", model: "opus" }
+];
+function providerForModel(model) {
+  return model.startsWith("claude:") ? "claude" : "codex";
+}
+function providerModelId(model) {
+  return providerForModel(model) === "claude" ? model.slice("claude:".length) : model;
+}
+
+// core/model-discovery.ts
+function syncModelSelect(select, models, label, missingLabel) {
+  const selected = select.value;
+  select.replaceChildren();
+  const unique2 = [...new Set(models)];
+  for (const id of unique2) select.add(new Option(label(id), id));
+  if (selected && !unique2.includes(selected)) {
+    const unavailable = new Option(`${label(selected)} (${missingLabel})`, selected);
+    unavailable.disabled = true;
+    select.add(unavailable);
+  }
+  select.value = selected;
+}
+var ModelDiscovery = class {
+  constructor(codexInstalled, loadCodex, claudeInstalled) {
+    this.codexInstalled = codexInstalled;
+    this.loadCodex = loadCodex;
+    this.claudeInstalled = claudeInstalled;
+    __publicField(this, "generation", { codex: 0, claude: 0 });
+    __publicField(this, "inFlight", /* @__PURE__ */ new Map());
+    __publicField(this, "listeners", /* @__PURE__ */ new Set());
+    __publicField(this, "states", {
+      codex: { provider: "codex", status: "idle", models: [] },
+      claude: { provider: "claude", status: "idle", models: [] }
+    });
+  }
+  state(provider) {
+    const state = this.states[provider];
+    return {
+      ...state,
+      models: [...state.models],
+      ...state.reasoningEfforts ? {
+        reasoningEfforts: Object.fromEntries(
+          Object.entries(state.reasoningEfforts).map(([id, efforts]) => [id, [...efforts]])
+        )
+      } : {}
+    };
+  }
+  subscribe(listener) {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+  invalidate(provider) {
+    this.generation[provider]++;
+    this.inFlight.delete(provider);
+    this.publish(provider, { provider, status: "missing", models: [] });
+  }
+  async refresh(provider) {
+    const running = this.inFlight.get(provider);
+    if (running) return running;
+    const generation = ++this.generation[provider];
+    if (provider === "claude") {
+      const state = this.claudeInstalled() ? { provider, status: "ready", models: CLAUDE_MODEL_CHOICES.map((choice2) => choice2.id) } : { provider, status: "missing", models: [] };
+      this.publish(provider, state);
+      return state;
+    }
+    if (!this.codexInstalled()) {
+      const state = { provider, status: "missing", models: [] };
+      this.publish(provider, state);
+      return state;
+    }
+    this.publish(provider, {
+      provider,
+      status: "loading",
+      models: this.states[provider].models,
+      reasoningEfforts: this.states[provider].reasoningEfforts
+    });
+    const request = this.loadCodex().then((catalog) => {
+      const models = Array.isArray(catalog) ? catalog : catalog.models;
+      const state = {
+        provider,
+        status: "ready",
+        models: [...new Set(models)],
+        ...!Array.isArray(catalog) ? { reasoningEfforts: catalog.reasoningEfforts } : {}
+      };
+      if (this.generation[provider] !== generation) return this.state(provider);
+      this.publish(provider, state);
+      return this.state(provider);
+    }).catch((error) => {
+      const state = {
+        provider,
+        status: "error",
+        models: this.states[provider].models,
+        reasoningEfforts: this.states[provider].reasoningEfforts,
+        error: error instanceof Error ? error.message : String(error)
+      };
+      if (this.generation[provider] !== generation) return this.state(provider);
+      this.publish(provider, state);
+      return this.state(provider);
+    }).finally(() => {
+      if (this.inFlight.get(provider) === request) this.inFlight.delete(provider);
+    });
+    this.inFlight.set(provider, request);
+    return request;
+  }
+  publish(provider, state) {
+    this.states[provider] = { ...state, models: [...state.models] };
+    for (const listener of this.listeners) listener(this.state(provider));
+  }
+};
+
+// experiences/coffee-tables/handoff-modal.ts
+var registries = /* @__PURE__ */ new WeakMap();
+function registry(plugin) {
+  var _a;
+  let found = registries.get(plugin);
+  if (!found) {
+    const created = { tasks: /* @__PURE__ */ new Map(), listeners: /* @__PURE__ */ new Set() };
+    found = created;
+    registries.set(plugin, created);
+    (_a = plugin.register) == null ? void 0 : _a.call(plugin, () => {
+      for (const task of created.tasks.values()) stopTask(plugin, task, false);
+      created.tasks.clear();
+    });
+  }
+  return found;
+}
+function notify(plugin) {
+  for (const listener of [...registry(plugin).listeners]) listener();
+}
+function coffeeHandoffTask(plugin, sessionId) {
+  return registry(plugin).tasks.get(sessionId);
+}
+function subscribeCoffeeHandoff(plugin, listener) {
+  const { listeners } = registry(plugin);
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+function dismissCoffeeHandoff(plugin, task) {
+  const { tasks } = registry(plugin);
+  if (tasks.get(task.sessionId) !== task || task.state === "running") return;
+  tasks.delete(task.sessionId);
+  notify(plugin);
+}
+function stopTask(plugin, task, announce) {
+  if (task.state !== "running") return;
+  task.epoch++;
+  task.state = "stopped";
+  task.message = translate(uiLocale(plugin.settings.language), "coffee.handoff_stopped");
+  task.controller.abort();
+  plugin.activeTasks.delete(`reframe-modal:${task.operationId}`);
+  if (announce) notify(plugin);
+}
+function stopCoffeeHandoff(plugin, task) {
+  if (registry(plugin).tasks.get(task.sessionId) !== task) return;
+  stopTask(plugin, task, true);
+}
+async function reopenCoffeeHandoff(plugin, task) {
+  var _a;
+  const { tasks } = registry(plugin);
+  if (tasks.get(task.sessionId) !== task || task.state === "running") return void 0;
+  try {
+    await task.store.assertHandoffSnapshot(task.snapshot);
+    const prefill = {
+      ...task.inputs,
+      ...task.state === "done" && task.draft ? { question: task.draft.question, context: task.draft.context, rationale: task.draft.rationale, method: "ai" } : { message: (_a = task.message) != null ? _a : "" }
+    };
+    const modal = await openCoffeeResearchHandoff(
+      plugin,
+      task.store,
+      task.snapshot.session,
+      task.path,
+      task.insightId,
+      prefill
+    );
+    if (tasks.get(task.sessionId) === task) {
+      tasks.delete(task.sessionId);
+      notify(plugin);
+    }
+    return modal;
+  } catch (error) {
+    new import_obsidian6.Notice(error instanceof Error ? error.message : String(error));
+    return void 0;
+  }
+}
+async function openCoffeeResearchHandoff(plugin, store, displayed, path, insightId, prefill) {
+  var _a, _b, _c, _d;
+  const waiting = coffeeHandoffTask(plugin, displayed.id);
+  if (!prefill && waiting) {
+    if (waiting.state === "running") throw new Error(translate(uiLocale(plugin.settings.language), "ui.ai_running_ai"));
+    if (waiting.insightId === insightId) return reopenCoffeeHandoff(plugin, waiting);
+    dismissCoffeeHandoff(plugin, waiting);
+  }
+  const displayedKey = coffeeCommittedKey(displayed);
+  if ((_b = (_a = plugin.coffeeManager) == null ? void 0 : _a.get(displayed.id)) == null ? void 0 : _b.busy) throw new Error("Wait for this table to finish.");
+  const snapshot = await store.handoffSnapshot(path, displayed.id);
+  if ((_d = (_c = plugin.coffeeManager) == null ? void 0 : _c.get(displayed.id)) == null ? void 0 : _d.busy) throw new Error("Wait for this table to finish.");
+  if (displayedKey !== coffeeCommittedKey(snapshot.session))
+    throw new Error("Coffee source differs from the displayed table; reopen the latest table.");
+  const modal = new CoffeeHandoffModal(
+    plugin.app,
+    plugin,
+    store,
+    snapshot,
+    buildCoffeeSource(snapshot.session, insightId),
+    path,
+    insightId,
+    prefill
+  );
+  plugin.register(() => modal.close());
+  modal.open();
+  return modal;
+}
+var CoffeeHandoffModal = class extends import_obsidian6.Modal {
+  constructor(app, plugin, store, snapshot, source, path = snapshot.path, insightId, prefill) {
+    super(app);
+    this.plugin = plugin;
+    this.store = store;
+    this.snapshot = snapshot;
+    this.source = source;
+    this.path = path;
+    this.insightId = insightId;
+    this.prefill = prefill;
+    __publicField(this, "operationId", (0, import_node_crypto2.randomUUID)());
+    __publicField(this, "controller", null);
+    __publicField(this, "epoch", 0);
+    __publicField(this, "closed", false);
+    /** Set once AI started and the dialog hid itself: from then on the registry task owns the run, not this dialog. */
+    __publicField(this, "detached", false);
+    __publicField(this, "creating", false);
+    __publicField(this, "blocked", false);
+    __publicField(this, "result");
+    __publicField(this, "method", "manual");
+    __publicField(this, "rationale", "");
+    __publicField(this, "question");
+    __publicField(this, "context");
+    __publicField(this, "model");
+    __publicField(this, "reasoning");
+    __publicField(this, "language");
+    __publicField(this, "organize");
+    __publicField(this, "stop");
+    __publicField(this, "create");
+    __publicField(this, "status");
+    __publicField(this, "locale");
+    __publicField(this, "unsubscribeModels");
+    this.locale = uiLocale(plugin.settings.language);
+  }
+  t(key2, ...values) {
+    return translate(this.locale, key2, ...values);
+  }
+  onOpen() {
+    this.titleEl.setText(this.t("coffee.take_to_visual_map_for_deeper_research"));
+    this.contentEl.addClass("ct-handoff-modal");
+    this.contentEl.createEl("p", {
+      text: this.t("coffee.edit_a_research_question_and_context_ai_organization_is")
+    });
+    this.question = this.field(this.t("coffee.research_question"), 3);
+    this.question.value = this.source.question;
+    this.context = this.field(this.t("coffee.research_context"), 8);
+    this.context.value = this.source.sourceSnapshot.replace(/<!--\s*(?:coffee-insight:v1:|source:)[\s\S]*?-->/g, "").replace(/[ \t]+\n/g, "\n");
+    const choices = this.contentEl.createDiv("ct-handoff-options");
+    this.model = this.select(choices, this.t("coffee.model"), [
+      .../* @__PURE__ */ new Set([this.snapshot.session.model, ...this.plugin.availableModels()])
+    ]);
+    this.model.value = this.snapshot.session.model;
+    const discovery = this.contentEl.createDiv("ct-handoff-status");
+    const discoveryText = discovery.createSpan({ attr: { role: "status", "aria-live": "polite" } });
+    const retry = discovery.createEl("button", { text: this.t("coffee.retry_model_discovery") });
+    const updateModels = () => {
+      const selected = this.model.value;
+      syncModelSelect(
+        this.model,
+        this.plugin.availableModels(),
+        (id) => this.plugin.modelLabel(id),
+        this.t("coffee.unavailable")
+      );
+      if (selected && !Array.from(this.model.options).some((option2) => option2.value === selected))
+        this.model.add(new Option(`${this.plugin.modelLabel(selected)} (${this.t("coffee.unavailable")})`, selected));
+      this.model.value = selected;
+      const codex = this.plugin.modelDiscoveryState("codex"), claude = this.plugin.modelDiscoveryState("claude");
+      discoveryText.setText(
+        `Codex: ${codex.status}${codex.error ? ` \xB7 ${codex.error}` : ""} | Claude CLI candidates: ${claude.status}`
+      );
+      retry.disabled = codex.status === "loading";
+    };
+    this.unsubscribeModels = this.plugin.subscribeModelDiscovery(updateModels);
+    retry.addEventListener("click", () => {
+      void this.plugin.refreshModelDiscovery("codex");
+      void this.plugin.refreshModelDiscovery("claude");
+    });
+    updateModels();
+    void this.plugin.refreshModelDiscovery("codex");
+    void this.plugin.refreshModelDiscovery("claude");
+    this.reasoning = this.select(choices, this.t("coffee.reasoning"), ["low", "medium", "high", "auto"]);
+    this.reasoning.value = normalizeReasoningLevel(this.snapshot.session.reasoning);
+    this.language = this.select(choices, this.t("coffee.output_language"), ["en", "zh-TW"]);
+    this.language.value = this.plugin.settings.language;
+    this.status = this.contentEl.createEl("p", {
+      cls: "ct-handoff-status",
+      attr: { role: "status", "aria-live": "polite" }
+    });
+    this.applyPrefill();
+    const actions = this.contentEl.createDiv("modal-button-container");
+    this.organize = actions.createEl("button", { text: this.t("coffee.organize_with_ai") });
+    this.stop = actions.createEl("button", { text: this.t("coffee.stop_organizing") });
+    this.stop.disabled = true;
+    const copy = actions.createEl("button", { text: this.t("coffee.copy_draft") });
+    this.create = actions.createEl("button", { text: this.t("coffee.create_research_map"), cls: "mod-cta" });
+    this.organize.onclick = () => {
+      void this.generate();
+    };
+    this.stop.onclick = () => {
+      this.cancel();
+      this.status.setText(this.t("coffee.stopped_your_previous_draft_is_preserved"));
+    };
+    copy.onclick = () => {
+      void navigator.clipboard.writeText([this.question.value, this.context.value, this.rationale].filter(Boolean).join("\n\n")).then(() => this.status.setText(this.t("ui.context_ai_copied"))).catch((error) => this.showError(error));
+    };
+    this.create.onclick = () => {
+      void this.submit();
+    };
+    this.question.focus();
+  }
+  /** Restores the inputs (and the AI draft) the dialog was hidden with. */
+  applyPrefill() {
+    const prefill = this.prefill;
+    if (!prefill) return;
+    this.question.value = prefill.question;
+    this.context.value = prefill.context;
+    if (prefill.model && !Array.from(this.model.options).some((option2) => option2.value === prefill.model))
+      this.model.add(
+        new Option(`${this.plugin.modelLabel(prefill.model)} (${this.t("coffee.unavailable")})`, prefill.model)
+      );
+    if (prefill.model) this.model.value = prefill.model;
+    this.reasoning.value = normalizeReasoningLevel(prefill.reasoning);
+    this.language.value = prefill.language;
+    if (prefill.rationale !== void 0) this.rationale = prefill.rationale;
+    if (prefill.method) this.method = prefill.method;
+    if (prefill.message !== void 0) this.status.setText(prefill.message);
+    else if (prefill.method === "ai")
+      this.status.setText(this.t("coffee.review_and_edit_this_draft_then_create_the_research_map"));
+  }
+  field(label, rows) {
+    const id = `ct-handoff-${(0, import_node_crypto2.randomUUID)()}`;
+    this.contentEl.createEl("label", { text: label, attr: { for: id } });
+    return this.contentEl.createEl("textarea", { attr: { id, rows: String(rows), "aria-label": label } });
+  }
+  select(parent, label, values) {
+    const id = `ct-handoff-${(0, import_node_crypto2.randomUUID)()}`;
+    const group = parent.createDiv();
+    group.createEl("label", { text: label, attr: { for: id } });
+    const select = group.createEl("select", { attr: { id, "aria-label": label } });
+    for (const value of values) select.createEl("option", { text: value, value });
+    return select;
+  }
+  refresh() {
+    const busy = this.controller !== null || this.creating;
+    for (const input of [this.question, this.context, this.model, this.reasoning, this.language])
+      input.disabled = busy || this.blocked || !!this.result;
+    this.organize.disabled = busy || this.blocked || !!this.result;
+    this.stop.disabled = !this.controller;
+    this.create.disabled = busy || this.blocked;
+  }
+  cancel() {
+    var _a;
+    this.epoch++;
+    (_a = this.controller) == null ? void 0 : _a.abort();
+    this.plugin.activeTasks.delete(`reframe-modal:${this.operationId}`);
+    this.controller = null;
+    if (!this.closed) this.refresh();
+  }
+  async assertSource() {
+    var _a, _b, _c, _d;
+    if (this.closed) throw new Error("Research handoff closed");
+    if ((_b = (_a = this.plugin.coffeeManager) == null ? void 0 : _a.get(this.snapshot.session.id)) == null ? void 0 : _b.busy)
+      throw new Error(this.t("coffee.the_table_is_generating_reopen_it_after_it_finishes"));
+    await this.store.assertHandoffSnapshot(this.snapshot);
+    if (this.closed) throw new Error("Research handoff closed");
+    if ((_d = (_c = this.plugin.coffeeManager) == null ? void 0 : _c.get(this.snapshot.session.id)) == null ? void 0 : _d.busy)
+      throw new Error(this.t("coffee.the_table_is_generating_reopen_it_after_it_finishes"));
+  }
+  showError(error) {
+    if (!this.closed) this.status.setText(error instanceof Error ? error.message : String(error));
+  }
+  async generate() {
+    if (this.controller || this.creating || this.blocked || this.result || this.closed || this.detached) return;
+    const running = coffeeHandoffTask(this.plugin, this.snapshot.session.id);
+    if ((running == null ? void 0 : running.state) === "running") {
+      this.status.setText(this.t("ui.ai_running_ai"));
+      return;
+    }
+    const controller = new AbortController(), epoch = ++this.epoch;
+    this.controller = controller;
+    this.plugin.activeTasks.set(`reframe-modal:${this.operationId}`, controller);
+    this.refresh();
+    const language2 = this.language.value === "zh-TW" ? "zh-TW" : "en";
+    const request = {
+      targetCore: "understand",
+      source: this.source.content,
+      question: this.question.value,
+      context: this.context.value,
+      model: this.model.value,
+      reasoning: normalizeReasoningLevel(this.reasoning.value),
+      language: language2
+    };
+    this.status.setText(this.t("coffee.organizing_a_research_question"));
+    try {
+      await this.assertSource();
+      const confirmed = await this.plugin.confirmAiUsage(request.model, async () => {
+        if (controller.signal.aborted || this.closed || epoch !== this.epoch) return;
+        const task = this.startBackground(controller, {
+          question: request.question,
+          context: request.context,
+          model: request.model,
+          reasoning: request.reasoning,
+          language: language2
+        });
+        this.detached = true;
+        this.close();
+        await this.runBackground(task, request);
+      });
+      if (!confirmed && !this.detached && epoch === this.epoch && !this.closed)
+        this.status.setText(this.t("coffee.ai_did_not_run_edit_the_draft_manually_or_retry"));
+    } catch (error) {
+      if (!this.detached && epoch === this.epoch) this.showError(error);
+    } finally {
+      if (!this.detached && epoch === this.epoch) {
+        this.controller = null;
+        this.plugin.activeTasks.delete(`reframe-modal:${this.operationId}`);
+        if (!this.closed) this.refresh();
+      }
+    }
+  }
+  startBackground(controller, inputs) {
+    const task = {
+      sessionId: this.snapshot.session.id,
+      operationId: this.operationId,
+      epoch: 0,
+      controller,
+      state: "running",
+      inputs,
+      store: this.store,
+      snapshot: this.snapshot,
+      path: this.path,
+      ...this.insightId ? { insightId: this.insightId } : {}
+    };
+    registry(this.plugin).tasks.set(task.sessionId, task);
+    notify(this.plugin);
+    return task;
+  }
+  /** Runs after the dialog hid itself: never touches the dialog; results land in the task and a Notice. */
+  async runBackground(task, request) {
+    const epoch = task.epoch;
+    const stale = () => {
+      if (task.epoch !== epoch || !this.isCurrent(task)) return true;
+      if (!task.controller.signal.aborted) return false;
+      task.state = "stopped";
+      task.message = this.t("coffee.handoff_stopped");
+      return true;
+    };
+    try {
+      const draft = await this.plugin.core.reframing.reframe(request, task.controller.signal);
+      if (stale()) return;
+      await this.assertTaskSource();
+      if (stale()) return;
+      task.draft = draft;
+      task.state = "done";
+      backgroundResultNotice(this.t("coffee.handoff_draft_ready"), {
+        label: this.t("ui.background_review"),
+        open: () => {
+          void reopenCoffeeHandoff(this.plugin, task);
+        }
+      });
+    } catch (error) {
+      if (stale()) return;
+      task.state = "failed";
+      task.message = error instanceof Error ? error.message : String(error);
+      new import_obsidian6.Notice(task.message);
+    } finally {
+      if (task.epoch === epoch) {
+        this.plugin.activeTasks.delete(`reframe-modal:${this.operationId}`);
+        notify(this.plugin);
+      }
+    }
+  }
+  isCurrent(task) {
+    return registry(this.plugin).tasks.get(task.sessionId) === task;
+  }
+  async assertTaskSource() {
+    const busy = () => {
+      var _a, _b;
+      return !!((_b = (_a = this.plugin.coffeeManager) == null ? void 0 : _a.get(this.snapshot.session.id)) == null ? void 0 : _b.busy);
+    };
+    if (busy()) throw new Error(this.t("coffee.the_table_is_generating_reopen_it_after_it_finishes"));
+    await this.store.assertHandoffSnapshot(this.snapshot);
+    if (busy()) throw new Error(this.t("coffee.the_table_is_generating_reopen_it_after_it_finishes"));
+  }
+  async submit() {
+    if (this.controller || this.creating || this.blocked || this.closed) return;
+    const title = this.question.value.trim();
+    if (!title || /[\r\n]/.test(title)) {
+      this.status.setText(this.t("coffee.enter_a_single_line_research_question"));
+      return;
+    }
+    this.creating = true;
+    this.refresh();
+    try {
+      if (this.result) {
+        await this.plugin.openResearchMap(this.result.targetPath);
+        this.close();
+        return;
+      }
+      await this.assertSource();
+      const path = this.snapshot.path;
+      const artifact = createThinkingArtifact({
+        id: this.operationId,
+        kind: "question",
+        title,
+        content: [this.context.value.trim(), this.rationale ? `Reframing rationale:
+${this.rationale}` : ""].filter(Boolean).join("\n\n"),
+        sourceSnapshot: this.source.sourceSnapshot,
+        origin: { experience: "coffee-tables", sessionId: this.snapshot.session.id, path },
+        sources: [
+          {
+            label: this.snapshot.session.topic,
+            path,
+            experience: "coffee-tables",
+            sessionId: this.snapshot.session.id,
+            artifactId: this.source.artifactId
+          }
+        ],
+        metadata: {
+          model: this.model.value,
+          reasoning: this.reasoning.value,
+          reframingMethod: this.method,
+          sourceIdentityKind: this.source.identityKind
+        }
+      });
+      const result = await this.plugin.core.experiences.handoff({
+        target: "visual-map",
+        artifact,
+        beforeWrite: () => this.assertSource()
+      });
+      if (!result) throw new Error("Research handoff did not return saved target paths");
+      this.result = result;
+      if (result.navigationError) {
+        this.status.setText(
+          `${this.t("coffee.saved_retry_only_opens_the_existing_map")}
+${result.targetPath}
+${result.navigationError}`
+        );
+        this.create.setText(this.t("coffee.open_saved_map"));
+      } else this.close();
+    } catch (error) {
+      if (isHandoffWriteError(error) && error.paths.length) {
+        this.blocked = true;
+        this.showError(
+          `${this.t("coffee.some_files_were_created_inspect_them_before_starting")}
+${error.paths.join("\n")}
+${error.message}`
+        );
+      } else this.showError(error);
+    } finally {
+      this.creating = false;
+      if (!this.closed) this.refresh();
+    }
+  }
+  onClose() {
+    var _a;
+    this.closed = true;
+    (_a = this.unsubscribeModels) == null ? void 0 : _a.call(this);
+    this.unsubscribeModels = void 0;
+    if (!this.detached) this.cancel();
+    this.contentEl.empty();
+  }
+};
+
+// experiences/coffee-tables/view.ts
+var import_obsidian8 = require("obsidian");
 
 // experiences/coffee-tables/step-provider.ts
 function coffeeStepProvider(runtime) {
@@ -6457,7 +7269,7 @@ var CoffeeManager = class {
 };
 
 // experiences/coffee-tables/storage.ts
-var import_obsidian5 = require("obsidian");
+var import_obsidian7 = require("obsidian");
 
 // experiences/coffee-tables/types.ts
 var DEFAULT_COUNTS = { experts: 4, "cross-domain": 1, generalist: 1, affected: 1 };
@@ -6730,8 +7542,8 @@ var CoffeeStorage = class {
     __publicField(this, "deletedIds", /* @__PURE__ */ new Set());
     __publicField(this, "folder");
     __publicField(this, "hidden");
-    this.folder = (0, import_obsidian5.normalizePath)(`${workspace}/Coffee Tables`);
-    this.hidden = (0, import_obsidian5.normalizePath)(`${this.folder}/.sessions`);
+    this.folder = (0, import_obsidian7.normalizePath)(`${workspace}/Coffee Tables`);
+    this.hidden = (0, import_obsidian7.normalizePath)(`${this.folder}/.sessions`);
   }
   warn(message, error) {
     this.onWarning(
@@ -6786,17 +7598,17 @@ var CoffeeStorage = class {
     if (parent && !this.vault.getAbstractFileByPath(parent)) await this.ensureFolder(parent);
     const current = this.vault.getAbstractFileByPath(path);
     if (current) {
-      if (!(current instanceof import_obsidian5.TFolder)) throw new Error(`Coffee Tables storage path is not a folder: ${path}`);
+      if (!(current instanceof import_obsidian7.TFolder)) throw new Error(`Coffee Tables storage path is not a folder: ${path}`);
       return;
     }
     try {
       await this.vault.createFolder(path);
     } catch (error) {
       const raced = this.vault.getAbstractFileByPath(path);
-      if (raced instanceof import_obsidian5.TFolder) return;
+      if (raced instanceof import_obsidian7.TFolder) return;
       if (await this.vault.adapter.exists(path)) {
         const refreshed = this.vault.getAbstractFileByPath(path);
-        if (!refreshed || refreshed instanceof import_obsidian5.TFolder) return;
+        if (!refreshed || refreshed instanceof import_obsidian7.TFolder) return;
       }
       throw error;
     }
@@ -7203,7 +8015,7 @@ ${session.observerDraftMarkdown}`);
           throw new Error(`Coffee Tables recovery stopped because ${side.filePath} is missing`);
         await this.ensureFolder(side.filePath.split("/").slice(0, -1).join("/"));
         await this.vault.create(side.filePath, journal.targetMarkdown);
-      } else if (!(file instanceof import_obsidian5.TFile) || contentHash(await this.vault.read(file)) !== journal.nextMarkdownHash) {
+      } else if (!(file instanceof import_obsidian7.TFile) || contentHash(await this.vault.read(file)) !== journal.nextMarkdownHash) {
         throw new Error(
           `Coffee Tables recovery found an outside change at ${side.filePath}; both files were preserved`
         );
@@ -7225,11 +8037,11 @@ ${session.observerDraftMarkdown}`);
       const move = side.moveJournal;
       if (!move || this.activeMoves.has(side.id)) continue;
       const source = this.vault.getAbstractFileByPath(move.previousPath), target = this.vault.getAbstractFileByPath(move.targetPath);
-      if (source instanceof import_obsidian5.TFile === target instanceof import_obsidian5.TFile)
+      if (source instanceof import_obsidian7.TFile === target instanceof import_obsidian7.TFile)
         throw new Error(
           `Coffee Tables move recovery found an ambiguous pair for ${side.topic}; both files were preserved`
         );
-      const filePath = target instanceof import_obsidian5.TFile ? move.targetPath : move.previousPath, { moveJournal: _moveJournal, ...committed } = side, next = JSON.stringify({ ...committed, filePath }, null, 2);
+      const filePath = target instanceof import_obsidian7.TFile ? move.targetPath : move.previousPath, { moveJournal: _moveJournal, ...committed } = side, next = JSON.stringify({ ...committed, filePath }, null, 2);
       await this.writeHidden(sidePath, next, raw);
       this.locations.set(side.id, filePath);
       this.sidecarOriginals.set(side.id, next);
@@ -7279,16 +8091,16 @@ ${session.observerDraftMarkdown}`);
   async load(idOrPath) {
     var _a;
     let file = this.vault.getAbstractFileByPath(idOrPath.includes("/") ? idOrPath : `${this.folder}/${idOrPath}.md`);
-    if (!(file instanceof import_obsidian5.TFile)) file = this.vault.getAbstractFileByPath(`${this.folder}/${idOrPath}.json`);
-    if (!(file instanceof import_obsidian5.TFile) && !idOrPath.includes("/")) {
+    if (!(file instanceof import_obsidian7.TFile)) file = this.vault.getAbstractFileByPath(`${this.folder}/${idOrPath}.json`);
+    if (!(file instanceof import_obsidian7.TFile) && !idOrPath.includes("/")) {
       try {
         const sideRaw2 = await this.readHidden(this.sidecarPath(idOrPath)), side2 = JSON.parse(sideRaw2);
         const linked = side2.filePath ? this.vault.getAbstractFileByPath(side2.filePath) : null;
-        if (linked instanceof import_obsidian5.TFile) file = linked;
+        if (linked instanceof import_obsidian7.TFile) file = linked;
       } catch (e) {
       }
     }
-    if (!(file instanceof import_obsidian5.TFile)) {
+    if (!(file instanceof import_obsidian7.TFile)) {
       const candidates = this.list().filter((item) => item.extension === "md"), sidecars = await this.hiddenPaths();
       for (const candidate of candidates) {
         try {
@@ -7303,12 +8115,12 @@ ${session.observerDraftMarkdown}`);
               break;
             }
           }
-          if (file instanceof import_obsidian5.TFile) break;
+          if (file instanceof import_obsidian7.TFile) break;
         } catch (e) {
         }
       }
     }
-    if (!(file instanceof import_obsidian5.TFile)) throw new Error("Coffee Tables session is missing");
+    if (!(file instanceof import_obsidian7.TFile)) throw new Error("Coffee Tables session is missing");
     const raw = await this.vault.read(file);
     let session;
     if (/^<!-- coffee-tables-data:/m.test(raw)) {
@@ -7443,7 +8255,7 @@ ${session.observerDraftMarkdown}`);
   }
   async inspectReadOnly(path) {
     const file = this.vault.getAbstractFileByPath(path);
-    if (!(file instanceof import_obsidian5.TFile)) throw new Error("Coffee Tables session is missing");
+    if (!(file instanceof import_obsidian7.TFile)) throw new Error("Coffee Tables session is missing");
     const raw = await this.vault.read(file);
     if (/^<!-- coffee-tables-data:/m.test(raw)) return this.parseV2(raw);
     const title = markdownTopic(raw);
@@ -7455,7 +8267,7 @@ ${session.observerDraftMarkdown}`);
   }
   async handoffSnapshot(path, id) {
     const file = this.vault.getAbstractFileByPath(path);
-    if (!(file instanceof import_obsidian5.TFile)) throw new Error("Coffee source moved or disappeared; reopen the table.");
+    if (!(file instanceof import_obsidian7.TFile)) throw new Error("Coffee source moved or disappeared; reopen the table.");
     const sidePath = this.sidecarPath(id);
     const markdown = await this.vault.read(file);
     const sidecar = await this.vault.adapter.exists(sidePath) ? await this.readHidden(sidePath) : null;
@@ -7470,12 +8282,12 @@ ${session.observerDraftMarkdown}`);
     const file = this.vault.getAbstractFileByPath(snapshot.path);
     const sidePath = this.sidecarPath(snapshot.session.id);
     const sidecar = await this.vault.adapter.exists(sidePath) ? await this.readHidden(sidePath) : null;
-    if (!(file instanceof import_obsidian5.TFile) || await this.vault.read(file) !== snapshot.markdown || sidecar !== snapshot.sidecar)
+    if (!(file instanceof import_obsidian7.TFile) || await this.vault.read(file) !== snapshot.markdown || sidecar !== snapshot.sidecar)
       throw new Error("Coffee source changed; keep your draft and reopen the latest table.");
   }
   async inspect(path) {
     const file = this.vault.getAbstractFileByPath(path);
-    if (!(file instanceof import_obsidian5.TFile)) throw new Error("Coffee Tables session is missing");
+    if (!(file instanceof import_obsidian7.TFile)) throw new Error("Coffee Tables session is missing");
     const raw = await this.vault.read(file);
     if (/^<!-- coffee-tables-data:/m.test(raw)) return this.parseV2(raw);
     const title = markdownTopic(raw);
@@ -7526,7 +8338,7 @@ ${session.observerDraftMarkdown}`);
         this.activeWrites.delete(session.id);
       }
     } else {
-      if (!(file instanceof import_obsidian5.TFile) || original === void 0) throw new Error("Reload this table before saving");
+      if (!(file instanceof import_obsidian7.TFile) || original === void 0) throw new Error("Reload this table before saving");
       const current = await this.vault.read(file);
       if (current !== original)
         throw new Error(
@@ -7584,7 +8396,7 @@ ${session.observerDraftMarkdown}`);
     }
     this.originals.set(session.id, clean4);
     this.locations.set(session.id, path);
-    if (this.renameFile && file instanceof import_obsidian5.TFile) {
+    if (this.renameFile && file instanceof import_obsidian7.TFile) {
       const next = this.titlePath(session.topic, session.id);
       if (next !== file.path) {
         await this.ensureFolder(next.split("/").slice(0, -1).join("/"));
@@ -7618,7 +8430,7 @@ ${session.observerDraftMarkdown}`);
   }
   async reload(path) {
     const markdownFile = this.vault.getAbstractFileByPath(path);
-    if (!(markdownFile instanceof import_obsidian5.TFile)) throw new Error("Coffee Tables session is missing");
+    if (!(markdownFile instanceof import_obsidian7.TFile)) throw new Error("Coffee Tables session is missing");
     const title = markdownTopic(await this.vault.read(markdownFile));
     const sidecars = await this.hiddenPaths(), records = [];
     for (const sidePath2 of sidecars) {
@@ -7649,7 +8461,7 @@ ${session.observerDraftMarkdown}`);
   async renameToTopic(id, topic) {
     var _a;
     const file = this.vault.getAbstractFileByPath((_a = this.locations.get(id)) != null ? _a : this.path(id));
-    if (file instanceof import_obsidian5.TFile && this.renameFile) {
+    if (file instanceof import_obsidian7.TFile && this.renameFile) {
       const target = this.titlePath(topic, id);
       if (target !== file.path) {
         await this.renameFile(file, target);
@@ -7660,7 +8472,7 @@ ${session.observerDraftMarkdown}`);
   async openMarkdown(id) {
     var _a;
     const file = this.vault.getAbstractFileByPath(id.includes("/") ? id : (_a = this.locations.get(id)) != null ? _a : this.path(id));
-    if (!(file instanceof import_obsidian5.TFile)) throw new Error("Coffee Tables Markdown note is missing");
+    if (!(file instanceof import_obsidian7.TFile)) throw new Error("Coffee Tables Markdown note is missing");
     return file;
   }
   async organizeExisting(busyIds = /* @__PURE__ */ new Set()) {
@@ -7694,9 +8506,9 @@ ${session.observerDraftMarkdown}`);
   }
   async cleanupEmptyTopicFolders() {
     const root = this.vault.getAbstractFileByPath(this.folder);
-    if (!(root instanceof import_obsidian5.TFolder)) return;
+    if (!(root instanceof import_obsidian7.TFolder)) return;
     for (const folder of [...root.children]) {
-      if (folder instanceof import_obsidian5.TFolder && /（[a-f0-9]{8}）$/.test(folder.name) && !folder.children.length && !(await this.vault.adapter.list(folder.path)).files.length && !(await this.vault.adapter.list(folder.path)).folders.length) {
+      if (folder instanceof import_obsidian7.TFolder && /（[a-f0-9]{8}）$/.test(folder.name) && !folder.children.length && !(await this.vault.adapter.list(folder.path)).files.length && !(await this.vault.adapter.list(folder.path)).folders.length) {
         if (this.trashFile) await this.trashFile(folder);
         else await this.vault.adapter.trashLocal(folder.path);
       }
@@ -7833,7 +8645,7 @@ ${session.observerDraftMarkdown}`);
       while (this.vault.getAbstractFileByPath(target)) target = `${stem}\uFF08${suffix++}\uFF09.md`;
     }
     const existingTarget = this.vault.getAbstractFileByPath(target);
-    if (existingTarget && (!(existingTarget instanceof import_obsidian5.TFile) || await this.vault.read(existingTarget) !== record.markdown)) {
+    if (existingTarget && (!(existingTarget instanceof import_obsidian7.TFile) || await this.vault.read(existingTarget) !== record.markdown)) {
       let suffix = 2;
       target = base;
       while (this.vault.getAbstractFileByPath(target)) target = `${stem}\uFF08${suffix++}\uFF09.md`;
@@ -8235,119 +9047,6 @@ function findRelatedSpeech(text11, targets) {
   return best.target.id;
 }
 
-// ai/providers/provider.ts
-var CLAUDE_MODEL_CHOICES = [
-  { id: "claude:sonnet", label: "Claude \xB7 Sonnet", model: "sonnet" },
-  { id: "claude:opus", label: "Claude \xB7 Opus", model: "opus" }
-];
-function providerForModel(model) {
-  return model.startsWith("claude:") ? "claude" : "codex";
-}
-function providerModelId(model) {
-  return providerForModel(model) === "claude" ? model.slice("claude:".length) : model;
-}
-
-// core/model-discovery.ts
-function syncModelSelect(select, models, label, missingLabel) {
-  const selected = select.value;
-  select.replaceChildren();
-  const unique2 = [...new Set(models)];
-  for (const id of unique2) select.add(new Option(label(id), id));
-  if (selected && !unique2.includes(selected)) {
-    const unavailable = new Option(`${label(selected)} (${missingLabel})`, selected);
-    unavailable.disabled = true;
-    select.add(unavailable);
-  }
-  select.value = selected;
-}
-var ModelDiscovery = class {
-  constructor(codexInstalled, loadCodex, claudeInstalled) {
-    this.codexInstalled = codexInstalled;
-    this.loadCodex = loadCodex;
-    this.claudeInstalled = claudeInstalled;
-    __publicField(this, "generation", { codex: 0, claude: 0 });
-    __publicField(this, "inFlight", /* @__PURE__ */ new Map());
-    __publicField(this, "listeners", /* @__PURE__ */ new Set());
-    __publicField(this, "states", {
-      codex: { provider: "codex", status: "idle", models: [] },
-      claude: { provider: "claude", status: "idle", models: [] }
-    });
-  }
-  state(provider) {
-    const state = this.states[provider];
-    return {
-      ...state,
-      models: [...state.models],
-      ...state.reasoningEfforts ? {
-        reasoningEfforts: Object.fromEntries(
-          Object.entries(state.reasoningEfforts).map(([id, efforts]) => [id, [...efforts]])
-        )
-      } : {}
-    };
-  }
-  subscribe(listener) {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  }
-  invalidate(provider) {
-    this.generation[provider]++;
-    this.inFlight.delete(provider);
-    this.publish(provider, { provider, status: "missing", models: [] });
-  }
-  async refresh(provider) {
-    const running = this.inFlight.get(provider);
-    if (running) return running;
-    const generation = ++this.generation[provider];
-    if (provider === "claude") {
-      const state = this.claudeInstalled() ? { provider, status: "ready", models: CLAUDE_MODEL_CHOICES.map((choice2) => choice2.id) } : { provider, status: "missing", models: [] };
-      this.publish(provider, state);
-      return state;
-    }
-    if (!this.codexInstalled()) {
-      const state = { provider, status: "missing", models: [] };
-      this.publish(provider, state);
-      return state;
-    }
-    this.publish(provider, {
-      provider,
-      status: "loading",
-      models: this.states[provider].models,
-      reasoningEfforts: this.states[provider].reasoningEfforts
-    });
-    const request = this.loadCodex().then((catalog) => {
-      const models = Array.isArray(catalog) ? catalog : catalog.models;
-      const state = {
-        provider,
-        status: "ready",
-        models: [...new Set(models)],
-        ...!Array.isArray(catalog) ? { reasoningEfforts: catalog.reasoningEfforts } : {}
-      };
-      if (this.generation[provider] !== generation) return this.state(provider);
-      this.publish(provider, state);
-      return this.state(provider);
-    }).catch((error) => {
-      const state = {
-        provider,
-        status: "error",
-        models: this.states[provider].models,
-        reasoningEfforts: this.states[provider].reasoningEfforts,
-        error: error instanceof Error ? error.message : String(error)
-      };
-      if (this.generation[provider] !== generation) return this.state(provider);
-      this.publish(provider, state);
-      return this.state(provider);
-    }).finally(() => {
-      if (this.inFlight.get(provider) === request) this.inFlight.delete(provider);
-    });
-    this.inFlight.set(provider, request);
-    return request;
-  }
-  publish(provider, state) {
-    this.states[provider] = { ...state, models: [...state.models] };
-    for (const listener of this.listeners) listener(this.state(provider));
-  }
-};
-
 // experiences/coffee-tables/view.ts
 var COFFEE_TABLES_NAME = "Coffee Tables";
 var COFFEE_TABLES_VIEW_TYPE = "coffee-tables-view";
@@ -8356,7 +9055,7 @@ function reasoningChoiceState(selected, efforts, discoveryStatus) {
   if (discoveryStatus !== "ready" && selected && !values.includes(selected)) values.push(selected);
   return { values, selected: values.includes(selected) ? selected : "auto" };
 }
-var CoffeeDeleteModal = class extends import_obsidian6.Modal {
+var CoffeeDeleteModal = class extends import_obsidian8.Modal {
   constructor(app, topic, locale) {
     super(app);
     this.topic = topic;
@@ -8397,7 +9096,7 @@ var CoffeeDeleteModal = class extends import_obsidian6.Modal {
     this.resolveResult = void 0;
   }
 };
-var CoffeeSummaryConfirmModal = class extends import_obsidian6.Modal {
+var CoffeeSummaryConfirmModal = class extends import_obsidian8.Modal {
   constructor(app, model, locale) {
     super(app);
     this.model = model;
@@ -8433,7 +9132,7 @@ var CoffeeSummaryConfirmModal = class extends import_obsidian6.Modal {
     this.contentEl.empty();
   }
 };
-var CoffeeStyleNameModal = class extends import_obsidian6.Modal {
+var CoffeeStyleNameModal = class extends import_obsidian8.Modal {
   constructor(app, initial, locale) {
     super(app);
     this.initial = initial;
@@ -8481,7 +9180,7 @@ var CoffeeStyleNameModal = class extends import_obsidian6.Modal {
     this.resolveResult = void 0;
   }
 };
-var CoffeePromptPreviewModal = class extends import_obsidian6.Modal {
+var CoffeePromptPreviewModal = class extends import_obsidian8.Modal {
   constructor(app, prompt, locale, fullPrompt) {
     super(app);
     this.prompt = prompt;
@@ -8642,7 +9341,7 @@ function defaults() {
 function total(counts) {
   return Object.values(counts).reduce((sum, count) => sum + count, 0);
 }
-var CoffeeTablesView = class extends import_obsidian6.ItemView {
+var CoffeeTablesView = class extends import_obsidian8.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.plugin = plugin;
@@ -8682,6 +9381,7 @@ var CoffeeTablesView = class extends import_obsidian6.ItemView {
     __publicField(this, "insightStates", /* @__PURE__ */ new Map());
     __publicField(this, "followUpGuests", []);
     __publicField(this, "modelUnsubscribe");
+    __publicField(this, "handoffUnsubscribe");
   }
   getViewType() {
     return COFFEE_TABLES_VIEW_TYPE;
@@ -8795,13 +9495,15 @@ var CoffeeTablesView = class extends import_obsidian6.ItemView {
     await this.home();
   }
   async onClose() {
-    var _a, _b;
+    var _a, _b, _c;
     this.closed = true;
     this.generation++;
     (_a = this.unsubscribe) == null ? void 0 : _a.call(this);
     this.unsubscribe = null;
     (_b = this.modelUnsubscribe) == null ? void 0 : _b.call(this);
     this.modelUnsubscribe = void 0;
+    (_c = this.handoffUnsubscribe) == null ? void 0 : _c.call(this);
+    this.handoffUnsubscribe = void 0;
     if (this.renderTimer !== null) window.clearTimeout(this.renderTimer);
     if (this.statusTimer !== null) window.clearInterval(this.statusTimer);
   }
@@ -8829,7 +9531,7 @@ var CoffeeTablesView = class extends import_obsidian6.ItemView {
     const button = parent.createEl("button", { text: label });
     button.disabled = disabled;
     button.addEventListener("click", () => {
-      void Promise.resolve().then(action).catch((error) => new import_obsidian6.Notice(error instanceof Error ? error.message : String(error)));
+      void Promise.resolve().then(action).catch((error) => new import_obsidian8.Notice(error instanceof Error ? error.message : String(error)));
     });
     return button;
   }
@@ -8875,7 +9577,7 @@ ${edit.guests.customPrompt}` : this.plugin.settings.language === "zh-TW" ? BUILT
         await this.store.recoverPendingCreates();
         await this.store.recoverMoves();
       } catch (error) {
-        new import_obsidian6.Notice(error instanceof Error ? error.message : String(error));
+        new import_obsidian8.Notice(error instanceof Error ? error.message : String(error));
       }
       this.recoveredPendingCreates = true;
     }
@@ -8900,7 +9602,7 @@ ${edit.guests.customPrompt}` : this.plugin.settings.language === "zh-TW" ? BUILT
     shell.dataset.pane = this.homePane;
     const title = home.createDiv("ct-home-title");
     const cup = title.createSpan({ cls: "ct-coffee-icon" });
-    (0, import_obsidian6.setIcon)(cup, "coffee");
+    (0, import_obsidian8.setIcon)(cup, "coffee");
     title.createEl("h2", { text: COFFEE_TABLES_NAME });
     home.createEl("p", {
       cls: "ct-intro",
@@ -9193,7 +9895,7 @@ ${old.customPrompt}` : (_M = selectedStyle == null ? void 0 : selectedStyle.prom
           tablePrompt(topic.value, this.plugin.settings.language, previewSettings)
         ).open();
       } catch (error) {
-        new import_obsidian6.Notice(error instanceof Error ? error.message : String(error));
+        new import_obsidian8.Notice(error instanceof Error ? error.message : String(error));
       }
     });
     const refreshStyleChoices = (selected) => {
@@ -9280,7 +9982,7 @@ ${old.customPrompt}` : (_M = selectedStyle == null ? void 0 : selectedStyle.prom
         fileInput.value = "";
       })().catch((error) => {
         fileInput.value = "";
-        new import_obsidian6.Notice(error instanceof Error ? error.message : String(error));
+        new import_obsidian8.Notice(error instanceof Error ? error.message : String(error));
       });
     });
     styleSelect.addEventListener("change", () => {
@@ -9307,7 +10009,7 @@ ${old.customPrompt}` : (_M = selectedStyle == null ? void 0 : selectedStyle.prom
       });
       refreshStyleChoices(item.id);
       snapshotForm();
-      new import_obsidian6.Notice(this.t("coffee.style_saved"));
+      new import_obsidian8.Notice(this.t("coffee.style_saved"));
     });
     this.button(styleActions, this.t("coffee.update_selected_style"), async () => {
       var _a2;
@@ -9330,7 +10032,7 @@ ${old.customPrompt}` : (_M = selectedStyle == null ? void 0 : selectedStyle.prom
       });
       refreshStyleChoices(item.id);
       snapshotForm();
-      new import_obsidian6.Notice(this.t("coffee.style_updated"));
+      new import_obsidian8.Notice(this.t("coffee.style_updated"));
     });
     this.button(styleActions, this.t("coffee.rename"), async () => {
       var _a2;
@@ -9369,7 +10071,7 @@ ${old.customPrompt}` : (_M = selectedStyle == null ? void 0 : selectedStyle.prom
       await this.saveCoffeeDefault(stylePrompt.value, customization.read());
       refreshStyleChoices("customization-default");
       snapshotForm();
-      new import_obsidian6.Notice(this.t("coffee.saved_for_new_tables_existing_tables_keep_their_settings"));
+      new import_obsidian8.Notice(this.t("coffee.saved_for_new_tables_existing_tables_keep_their_settings"));
     });
     this.button(styleActions, this.t("coffee.restore_built_in_text"), () => {
       styleSelect.value = builtinId;
@@ -9513,7 +10215,7 @@ ${old.customPrompt}` : (_M = selectedStyle == null ? void 0 : selectedStyle.prom
     const aside = shell.createDiv("ct-home-sidebar");
     const searchRow = aside.createDiv("ct-list-search");
     const searchIcon = searchRow.createSpan({ cls: "ct-search-icon", attr: { "aria-hidden": "true" } });
-    (0, import_obsidian6.setIcon)(searchIcon, "search");
+    (0, import_obsidian8.setIcon)(searchIcon, "search");
     const search = searchRow.createEl("input", {
       attr: {
         type: "search",
@@ -9621,8 +10323,8 @@ ${old.customPrompt}` : (_M = selectedStyle == null ? void 0 : selectedStyle.prom
             failures.push(`${item.topic}: ${error instanceof Error ? error.message : String(error)}`);
           }
         }
-        new import_obsidian6.Notice(this.t("coffee.deleted_tables", removed));
-        if (failures.length) new import_obsidian6.Notice(this.t("coffee.could_not_delete", failures.join("\n")), 1e4);
+        new import_obsidian8.Notice(this.t("coffee.deleted_tables", removed));
+        if (failures.length) new import_obsidian8.Notice(this.t("coffee.could_not_delete", failures.join("\n")), 1e4);
         this.app.workspace.requestSaveLayout();
       } finally {
         deletingTables = false;
@@ -9666,10 +10368,10 @@ ${old.customPrompt}` : (_M = selectedStyle == null ? void 0 : selectedStyle.prom
               failures.push(`${item.topic}: ${error instanceof Error ? error.message : String(error)}`);
             }
           }
-          new import_obsidian6.Notice(
+          new import_obsidian8.Notice(
             this.showArchivedTables ? this.t("coffee.unarchived_tables_count", moved) : this.t("coffee.archived_tables_count", moved)
           );
-          if (failures.length) new import_obsidian6.Notice(failures.join("\n"), 1e4);
+          if (failures.length) new import_obsidian8.Notice(failures.join("\n"), 1e4);
           this.app.workspace.requestSaveLayout();
         } finally {
           deletingTables = false;
@@ -9769,7 +10471,7 @@ ${old.customPrompt}` : (_M = selectedStyle == null ? void 0 : selectedStyle.prom
           });
         const notes = (_f2 = (_e2 = (_b2 = session.observerNotes) == null ? void 0 : _b2[0]) != null ? _e2 : (_d2 = (_c2 = session.rounds) == null ? void 0 : _c2.find((round) => round.notes)) == null ? void 0 : _d2.notes) != null ? _f2 : "";
         if (notes)
-          void import_obsidian6.MarkdownRenderer.render(
+          void import_obsidian8.MarkdownRenderer.render(
             this.app,
             notes,
             body.createDiv("ct-preview-notes markdown-rendered"),
@@ -10024,7 +10726,7 @@ ${timestamp.toLocaleString()}${item.model ? ` \xB7 ${item.model}` : ""}`
     this.button(header, this.t("coffee.open_new_table"), () => this.returnHome());
     header.createEl("p", { cls: "ct-muted", text: this.t("coffee.older_saved_table_read_only") });
     const scrolling = room.createDiv("ct-chat-scroll markdown-rendered");
-    void import_obsidian6.MarkdownRenderer.render(
+    void import_obsidian8.MarkdownRenderer.render(
       this.app,
       transcript,
       scrolling.createDiv({ cls: "ct-segment", attr: { "data-coffee-segment": "legacy" } }),
@@ -10033,7 +10735,7 @@ ${timestamp.toLocaleString()}${item.model ? ` \xB7 ${item.model}` : ""}`
     );
   }
   attach(session, startAtTop = true) {
-    var _a, _b, _c, _d, _e, _f, _g;
+    var _a, _b, _c, _d, _e, _f, _g, _h;
     this.legacyNavigation = null;
     this.navigationGeneration++;
     (_a = this.unsubscribe) == null ? void 0 : _a.call(this);
@@ -10051,9 +10753,34 @@ ${timestamp.toLocaleString()}${item.model ? ` \xB7 ${item.model}` : ""}`
       (value, summariesOnly) => this.store.save(value, summariesOnly)
     );
     this.unsubscribe = this.engine.subscribe(() => this.refresh());
-    if ((_e = (_d = this.plugin).isCoffeeOutlineSource) == null ? void 0 : _e.call(_d, this)) (_g = (_f = this.plugin).refreshCoffeeOutline) == null ? void 0 : _g.call(_f, this);
+    (_d = this.handoffUnsubscribe) == null ? void 0 : _d.call(this);
+    this.handoffUnsubscribe = subscribeCoffeeHandoff(this.plugin, () => {
+      if (!this.closed) this.render();
+    });
+    if ((_f = (_e = this.plugin).isCoffeeOutlineSource) == null ? void 0 : _f.call(_e, this)) (_h = (_g = this.plugin).refreshCoffeeOutline) == null ? void 0 : _h.call(_g, this);
     this.render();
     this.app.workspace.requestSaveLayout();
+  }
+  /** The background "organize with AI" run of the handoff dialog: progress and Stop, then Review and dismiss. */
+  renderHandoffStatus(parent, sessionId) {
+    var _a;
+    const task = coffeeHandoffTask(this.plugin, sessionId);
+    if (!task) return;
+    const running = task.state === "running";
+    renderBackgroundStatus(parent, {
+      title: this.t("coffee.organize_with_ai"),
+      value: running ? this.t("coffee.organizing_a_research_question") : task.state === "done" ? this.t("coffee.handoff_bar_ready") : (_a = task.message) != null ? _a : "",
+      running,
+      ...running ? { onStop: () => stopCoffeeHandoff(this.plugin, task) } : {
+        review: {
+          label: this.t("ui.background_review"),
+          open: () => {
+            void reopenCoffeeHandoff(this.plugin, task);
+          }
+        },
+        onDismiss: () => dismissCoffeeHandoff(this.plugin, task)
+      }
+    });
   }
   render() {
     var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m;
@@ -10226,7 +10953,7 @@ ${timestamp.toLocaleString()}${item.model ? ` \xB7 ${item.model}` : ""}`
             engine.session.language
           );
           if (validation) {
-            new import_obsidian6.Notice(validation);
+            new import_obsidian8.Notice(validation);
             return;
           }
           const invites = this.followUpGuests.map((item) => ({
@@ -10294,7 +11021,7 @@ ${timestamp.toLocaleString()}${item.model ? ` \xB7 ${item.model}` : ""}`
         this.button(composer, this.t("coffee.copy_draft"), async () => {
           var _a2;
           await navigator.clipboard.writeText((_a2 = engine.session.draftMarkdown) != null ? _a2 : "");
-          new import_obsidian6.Notice(this.t("coffee.draft_copied"));
+          new import_obsidian8.Notice(this.t("coffee.draft_copied"));
         });
       const savedDraft = !engine.persistenceFailed && !!engine.session.draftMarkdown;
       const message = composer.createEl("p", {
@@ -10398,6 +11125,7 @@ ${timestamp.toLocaleString()}${item.model ? ` \xB7 ${item.model}` : ""}`
       );
       handoff.addClass("mod-cta");
     }
+    if (!engine.session.id.startsWith("sample-")) this.renderHandoffStatus(insight, engine.session.id);
     if (!engine.session.id.startsWith("sample-")) {
       const controls = insight.createDiv("ct-customization-actions");
       const review = () => new CoffeeConvergenceModal(this.app, engine).open();
@@ -10419,8 +11147,9 @@ ${timestamp.toLocaleString()}${item.model ? ` \xB7 ${item.model}` : ""}`
         controls,
         this.t("coffee.preview_convergence"),
         async () => {
+          const before = convergencePreviewMarks(engine);
           await this.plugin.confirmAiUsage(engine.session.model, () => engine.previewConvergence());
-          if (engine.session.convergenceDraft || engine.session.convergenceRawDraft) review();
+          notifyConvergencePreview(engine, before, review);
         },
         engine.busy || engine.deleted || !notes[0]
       );
@@ -10690,7 +11419,7 @@ ${timestamp.toLocaleString()}${item.model ? ` \xB7 ${item.model}` : ""}`
             for (const source of item.sources)
               this.button(sources2, this.t("coffee.find_in_conversation"), () => {
                 if (!this.locateOutlineItem(source))
-                  new import_obsidian6.Notice(this.t("coffee.could_not_find_a_close_match_in_this_conversation"));
+                  new import_obsidian8.Notice(this.t("coffee.could_not_find_a_close_match_in_this_conversation"));
               });
           } else
             context.createEl("p", {
@@ -10765,7 +11494,7 @@ ${timestamp.toLocaleString()}${item.model ? ` \xB7 ${item.model}` : ""}`
   }
   renderMarkdown(markdown, target) {
     var _a, _b, _c;
-    const job = import_obsidian6.MarkdownRenderer.render(
+    const job = import_obsidian8.MarkdownRenderer.render(
       this.app,
       markdown,
       target,
@@ -10787,7 +11516,7 @@ ${timestamp.toLocaleString()}${item.model ? ` \xB7 ${item.model}` : ""}`
         attr: { "aria-hidden": "true" }
       });
       chip.createSpan({ cls: "ct-person-label", text: `${person.name} \xB7 ${person.role}` });
-      chip.addEventListener("click", () => new import_obsidian6.Notice(`${person.name}\uFF5C${person.role}
+      chip.addEventListener("click", () => new import_obsidian8.Notice(`${person.name}\uFF5C${person.role}
 ${person.bio}`));
     }
   }
@@ -10940,48 +11669,8 @@ function resolveAimContentLanguage(map, uiLanguage) {
   return chooseAimContentLanguage(uiLanguage, map == null ? void 0 : map.title);
 }
 
-// ui/background-run.ts
-var import_obsidian7 = require("obsidian");
-function backgroundResultNotice(message, action) {
-  const make = window.createFragment;
-  if (!action || typeof make !== "function") return new import_obsidian7.Notice(message);
-  let notice;
-  const fragment = make((el) => {
-    el.createSpan({ text: message });
-    el.createEl("button", { text: action.label, cls: "vam-background-notice-action" }).addEventListener("click", () => {
-      notice == null ? void 0 : notice.hide();
-      action.open();
-    });
-  });
-  notice = new import_obsidian7.Notice(fragment);
-  return notice;
-}
-function renderBackgroundStatus(parent, status) {
-  const bar = parent.createDiv(`vam-aim-statusbar vam-background-statusbar${status.running ? " is-active" : ""}`);
-  bar.setAttr("aria-live", "polite");
-  bar.createSpan({ cls: "vam-aim-status-title", text: status.title });
-  bar.createSpan({
-    cls: `vam-aim-status-value ${status.running ? "vam-status-running" : ""}`.trim(),
-    text: status.value
-  });
-  if (status.running && status.onStop) {
-    const stop = bar.createEl("button", { text: t("ui.stop_research") });
-    stop.addEventListener("click", status.onStop);
-  }
-  if (status.review) {
-    const review = bar.createEl("button", { text: status.review.label, cls: "vam-badge-new" });
-    review.addEventListener("click", status.review.open);
-  }
-  if (!status.running && status.onDismiss) {
-    const dismiss = bar.createEl("button", { text: "\xD7" });
-    dismiss.setAttr("aria-label", t("ui.dismiss"));
-    dismiss.addEventListener("click", status.onDismiss);
-  }
-  return bar;
-}
-
 // ui/modals/prompt-presets-modal.ts
-var import_obsidian8 = require("obsidian");
+var import_obsidian9 = require("obsidian");
 
 // ui/modals/action-bar.ts
 function modalActions(modal) {
@@ -11181,7 +11870,7 @@ function renderTonePresetsSetting(setting, app, plugin, refresh = () => {
     (button) => button.setButtonText(t("ui.tone_presets_manage")).onClick(() => new PromptPresetsModal(app, plugin, "tone", refresh).open())
   );
 }
-var PromptPresetsModal = class extends import_obsidian8.Modal {
+var PromptPresetsModal = class extends import_obsidian9.Modal {
   constructor(app, plugin, kind = "tone", onChanged = () => {
   }, initialId) {
     super(app);
@@ -11327,8 +12016,8 @@ var PromptPresetsModal = class extends import_obsidian8.Modal {
 };
 
 // ui/modals/aim-clarification-modal.ts
-var import_obsidian9 = require("obsidian");
-var AimClarificationModal = class extends import_obsidian9.Modal {
+var import_obsidian10 = require("obsidian");
+var AimClarificationModal = class extends import_obsidian10.Modal {
   constructor(app, questions, submit, english2, contentLanguage) {
     super(app);
     this.questions = questions;
@@ -11353,7 +12042,7 @@ var AimClarificationModal = class extends import_obsidian9.Modal {
     });
     const status = this.contentEl.createEl("p", { cls: "vam-hint", attr: { "aria-live": "polite" } });
     let pending = false;
-    new import_obsidian9.Setting(this.contentEl).addButton(
+    new import_obsidian10.Setting(this.contentEl).addButton(
       (button) => button.setButtonText(text11("ui.cancel")).onClick(() => {
         if (!pending) this.close();
       })
@@ -11605,8 +12294,8 @@ function withThinkingOrigin(context, note) {
 }
 
 // experiences/visual-map/view.ts
-var import_node_crypto11 = require("node:crypto");
-var import_obsidian25 = require("obsidian");
+var import_node_crypto13 = require("node:crypto");
+var import_obsidian26 = require("obsidian");
 
 // ai/markdown-blocks.ts
 function fencedLines(lines) {
@@ -12418,8 +13107,8 @@ ${ordered.join("\n")}
 }
 
 // ui/modals/name-modal.ts
-var import_obsidian10 = require("obsidian");
-var NameModal = class extends import_obsidian10.Modal {
+var import_obsidian11 = require("obsidian");
+var NameModal = class extends import_obsidian11.Modal {
   constructor(app, titleText, value, submit) {
     super(app);
     this.titleText = titleText;
@@ -12457,8 +13146,8 @@ var NameModal = class extends import_obsidian10.Modal {
 };
 
 // ui/modals/choice-modal.ts
-var import_obsidian11 = require("obsidian");
-var ChoiceModal = class extends import_obsidian11.Modal {
+var import_obsidian12 = require("obsidian");
+var ChoiceModal = class extends import_obsidian12.Modal {
   constructor(app, titleText, description, choices, dismissed) {
     super(app);
     this.titleText = titleText;
@@ -12476,7 +13165,7 @@ var ChoiceModal = class extends import_obsidian11.Modal {
     this.titleEl.setText(this.titleText);
     this.contentEl.createEl("p", { text: this.description, cls: "vam-modal-intro" });
     for (const choice2 of this.choices) {
-      const setting = new import_obsidian11.Setting(this.contentEl);
+      const setting = new import_obsidian12.Setting(this.contentEl);
       const run = () => {
         this.chosen = true;
         this.close();
@@ -12501,9 +13190,9 @@ var ChoiceModal = class extends import_obsidian11.Modal {
 };
 
 // experiences/aim/research-plan.ts
-var import_node_crypto = require("node:crypto");
+var import_node_crypto3 = require("node:crypto");
 function researchContentHash(report) {
-  return (0, import_node_crypto.createHash)("sha256").update(JSON.stringify({ summary: report.summary, detail: report.detail })).digest("hex");
+  return (0, import_node_crypto3.createHash)("sha256").update(JSON.stringify({ summary: report.summary, detail: report.detail })).digest("hex");
 }
 function hoistNestedValidity(item) {
   var _a;
@@ -13093,26 +13782,8 @@ function arrangeNewTree(nodes, rootId, newIds, heightOf) {
 }
 
 // repository.ts
-var import_obsidian12 = require("obsidian");
-var import_node_crypto2 = require("node:crypto");
-
-// ai/task-policy.ts
-function normalizeReasoningLevel(value) {
-  return value === "auto" || value === "medium" || value === "high" ? value : "low";
-}
-function effectiveReasoningLevel(context, selected) {
-  if (selected !== "auto") return selected;
-  if (context.mode === "synthesize") return "medium";
-  return context.sourceContext && context.sourceContext.length > 6e3 ? "medium" : "low";
-}
-function researchGuidance(context, language2 = "zh-TW") {
-  const depth = translate(
-    language2,
-    context.researchDepth === "fast" ? "research.fast" : context.researchDepth === "deep" ? "research.deep" : "research.normal"
-  );
-  if (context.researchMode === "local") return `${depth} ${translate(language2, "research.local")}`;
-  return `${depth} ${translate(language2, "research.web")}`;
-}
+var import_obsidian13 = require("obsidian");
+var import_node_crypto4 = require("node:crypto");
 
 // note-values.ts
 var managedSectionValue = (value) => value.trim();
@@ -13197,7 +13868,7 @@ function rebaseMapNotePaths(map, rebase) {
   for (const node of map.nodes) node.path = move(node.path);
   const aim = map.aim;
   if (!aim) return changed;
-  const hashSnapshot = (value) => (0, import_node_crypto2.createHash)("sha256").update(JSON.stringify(value)).digest("hex");
+  const hashSnapshot = (value) => (0, import_node_crypto4.createHash)("sha256").update(JSON.stringify(value)).digest("hex");
   for (const branch of aim.branches) {
     const snapshotBefore = JSON.stringify(branch.inputSnapshot);
     for (const result of branch.inputSnapshot.upstreamResults) result.notePath = move(result.notePath);
@@ -13261,7 +13932,7 @@ function safeName(title) {
 function frontmatter(content) {
   var _a, _b;
   const yaml = (_a = content.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)) == null ? void 0 : _a[1];
-  return yaml ? (_b = (0, import_obsidian12.parseYaml)(yaml)) != null ? _b : {} : {};
+  return yaml ? (_b = (0, import_obsidian13.parseYaml)(yaml)) != null ? _b : {} : {};
 }
 function noteTitle(content, fm, fallback) {
   var _a, _b;
@@ -13670,21 +14341,21 @@ var Repository = class {
   }
   file(path) {
     const file = this.app.vault.getAbstractFileByPath(path);
-    if (!(file instanceof import_obsidian12.TFile)) throw new Error(`${this.message("error.file_not_found")}: ${path}`);
+    if (!(file instanceof import_obsidian13.TFile)) throw new Error(`${this.message("error.file_not_found")}: ${path}`);
     return file;
   }
   hasNote(path) {
-    return this.app.vault.getAbstractFileByPath(path) instanceof import_obsidian12.TFile;
+    return this.app.vault.getAbstractFileByPath(path) instanceof import_obsidian13.TFile;
   }
   async folder(path) {
     let current = "";
-    for (const part of (0, import_obsidian12.normalizePath)(path).split("/").filter(Boolean)) {
+    for (const part of (0, import_obsidian13.normalizePath)(path).split("/").filter(Boolean)) {
       current = current ? `${current}/${part}` : part;
       if (!this.app.vault.getAbstractFileByPath(current)) await this.app.vault.createFolder(current);
     }
   }
   workspaceExists() {
-    return this.app.vault.getAbstractFileByPath(this.settings.workspaceFolder) instanceof import_obsidian12.TFolder;
+    return this.app.vault.getAbstractFileByPath(this.settings.workspaceFolder) instanceof import_obsidian13.TFolder;
   }
   async workspaceCandidates() {
     var _a;
@@ -13711,7 +14382,7 @@ var Repository = class {
     await this.folder(this.settings.aimFolder);
   }
   unique(folder, name) {
-    const base = (0, import_obsidian12.normalizePath)(`${folder}/${safeName(name)}`);
+    const base = (0, import_obsidian13.normalizePath)(`${folder}/${safeName(name)}`);
     let path = `${base}.md`, number = 2;
     while (this.pathTaken(path)) path = `${base} ${number++}.md`;
     return path;
@@ -13720,12 +14391,12 @@ var Repository = class {
   pathTaken(path) {
     if (this.app.vault.getAbstractFileByPath(path)) return true;
     const folder = this.app.vault.getAbstractFileByPath(parentPath(path));
-    if (!(folder instanceof import_obsidian12.TFolder)) return false;
+    if (!(folder instanceof import_obsidian13.TFolder)) return false;
     const lower = path.toLowerCase();
     return folder.children.some((child) => child.path.toLowerCase() === lower);
   }
   uniqueFolder(folder, name) {
-    const base = (0, import_obsidian12.normalizePath)(`${folder}/${safeName(name)}`);
+    const base = (0, import_obsidian13.normalizePath)(`${folder}/${safeName(name)}`);
     let path = base, number = 2;
     while (this.app.vault.getAbstractFileByPath(path)) path = `${base} ${number++}`;
     return path;
@@ -13909,7 +14580,7 @@ var Repository = class {
         textLanguage
       );
       return `---
-${(0, import_obsidian12.stringifyYaml)(fm)}---
+${(0, import_obsidian13.stringifyYaml)(fm)}---
 ${withReferenceLinks(body, fm, language2)}`;
     });
   }
@@ -13940,7 +14611,7 @@ ${originMarkdown(initial.thinkingOrigin)}` : "";
     await this.app.vault.create(
       path,
       `---
-${(0, import_obsidian12.stringifyYaml)(metadata)}---
+${(0, import_obsidian13.stringifyYaml)(metadata)}---
 ${noteBody(title, (_b = initial.summary) != null ? _b : placeholder(this.settings.language), this.settings.language, "", "", placeholder(this.settings.language), (_c = initial.detail) != null ? _c : "", "", "", origin)}`
     );
     return { id, path, parentId: null, x: 80, y: 80, collapsed: false };
@@ -13955,7 +14626,7 @@ ${noteBody(title, (_b = initial.summary) != null ? _b : placeholder(this.setting
       throw new Error("A reserved note must use a valid identity inside this map's Notes folder.");
     const existing = this.app.vault.getAbstractFileByPath(path);
     if (existing) {
-      if (existing instanceof import_obsidian12.TFile) {
+      if (existing instanceof import_obsidian13.TFile) {
         const fm = frontmatter(await this.app.vault.read(existing));
         if (marker2(fm["agent-map-node"]) && text5(fm["node-id"]) === id)
           return { id, path, parentId: null, x: 80, y: 80, collapsed: false };
@@ -13984,7 +14655,7 @@ ${originMarkdown(initial.thinkingOrigin)}` : "";
     await this.app.vault.create(
       path,
       `---
-${(0, import_obsidian12.stringifyYaml)(metadata)}---
+${(0, import_obsidian13.stringifyYaml)(metadata)}---
 ${noteBody(title, metadata.summary, this.settings.language, (_d = initial.prompt) != null ? _d : "", "", placeholder(textLanguage), (_e = initial.detail) != null ? _e : "", "", "", origin)}`
     );
     return { id, path, parentId: null, x: 80, y: 80, collapsed: false };
@@ -14003,7 +14674,7 @@ ${noteBody(title, metadata.summary, this.settings.language, (_d = initial.prompt
     metadata.title = title;
     const body = source.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "").replace(/^# .*$/m, `# ${title}`);
     await this.app.vault.create(path, `---
-${(0, import_obsidian12.stringifyYaml)(metadata)}---
+${(0, import_obsidian13.stringifyYaml)(metadata)}---
 ${body}`);
     return { id, path, parentId: null, x: 80, y: 80, collapsed: false };
   }
@@ -14116,7 +14787,7 @@ ${body}`);
     for (const { file, map } of await this.readableMaps()) {
       let changed = false;
       for (const node of [...map.nodes]) {
-        if (this.app.vault.getAbstractFileByPath(node.path) instanceof import_obsidian12.TFile) continue;
+        if (this.app.vault.getAbstractFileByPath(node.path) instanceof import_obsidian13.TFile) continue;
         const matches = (_d = candidates.get(node.id)) != null ? _d : [];
         if (matches.length !== 1) continue;
         const oldPath = node.path;
@@ -14140,9 +14811,9 @@ ${body}`);
     const broken = [];
     for (const containerPath of managedMapContainers(this.settings)) {
       const root = this.app.vault.getAbstractFileByPath(containerPath);
-      if (!(root instanceof import_obsidian12.TFolder)) continue;
+      if (!(root instanceof import_obsidian13.TFolder)) continue;
       for (const child of root.children) {
-        if (!(child instanceof import_obsidian12.TFolder) || this.app.vault.getAbstractFileByPath(`${child.path}/Map.md`)) continue;
+        if (!(child instanceof import_obsidian13.TFolder) || this.app.vault.getAbstractFileByPath(`${child.path}/Map.md`)) continue;
         const prefix = `${child.path}/Notes/`;
         const noteCount = this.app.vault.getMarkdownFiles().filter((file) => file.path.startsWith(prefix)).length;
         broken.push({ title: child.name, root: child.path, noteCount });
@@ -14185,12 +14856,12 @@ ${body}`);
       if (id) byId.set(id, file.path);
     }
     for (const node of [...map.nodes])
-      if (!(this.app.vault.getAbstractFileByPath(node.path) instanceof import_obsidian12.TFile) && byId.has(node.id))
+      if (!(this.app.vault.getAbstractFileByPath(node.path) instanceof import_obsidian13.TFile) && byId.has(node.id))
         rebaseMapNotePaths(map, moveNotePath(node.path, byId.get(node.id)));
     await this.moveExact(sourcePath, target);
     await this.saveMap(target, map);
     for (const node of map.nodes)
-      if (this.app.vault.getAbstractFileByPath(node.path) instanceof import_obsidian12.TFile)
+      if (this.app.vault.getAbstractFileByPath(node.path) instanceof import_obsidian13.TFile)
         await this.setLifecycle(node.path, map.id, map.id, "active");
     await this.rebuildDerivedData();
     return target;
@@ -14214,7 +14885,7 @@ ${body}`);
   }
   async moveUnique(path, folder) {
     await this.folder(folder);
-    const file = this.file(path), desired = (0, import_obsidian12.normalizePath)(`${folder}/${baseName(path)}`);
+    const file = this.file(path), desired = (0, import_obsidian13.normalizePath)(`${folder}/${baseName(path)}`);
     const target = this.app.vault.getAbstractFileByPath(desired) ? this.unique(folder, file.basename) : desired;
     await this.app.fileManager.renameFile(file, target);
     await this.replaceSourcePath(path, target);
@@ -14229,7 +14900,7 @@ ${body}`);
   }
   async renameNote(path, title, exactTarget) {
     await this.updateNote(path, { title });
-    const folder = parentPath(path), desired = exactTarget != null ? exactTarget : (0, import_obsidian12.normalizePath)(`${folder}/${safeName(title)}.md`);
+    const folder = parentPath(path), desired = exactTarget != null ? exactTarget : (0, import_obsidian13.normalizePath)(`${folder}/${safeName(title)}.md`);
     if (desired === path) return path;
     const target = exactTarget != null ? exactTarget : this.app.vault.getAbstractFileByPath(desired) ? this.unique(folder, title) : desired;
     await this.app.fileManager.renameFile(this.file(path), target);
@@ -14266,7 +14937,7 @@ ${body}`);
       let changed = false;
       for (const node of map.nodes) {
         const file = this.app.vault.getAbstractFileByPath(node.path);
-        if (!(file instanceof import_obsidian12.TFile) || !/^新的子議題(?: \d+)*$/.test(file.basename)) continue;
+        if (!(file instanceof import_obsidian13.TFile) || !/^新的子議題(?: \d+)*$/.test(file.basename)) continue;
         const note = await this.readNote(node.path);
         if (!note.title.trim() || safeName(note.title) === file.basename) continue;
         const oldPath = node.path, newPath = await this.renameNote(oldPath, note.title);
@@ -14314,7 +14985,7 @@ ${body}`);
     const nodeFiles = new Map((await this.markedFiles("agent-map-node")).map((file) => [file.path, file]));
     for (const path of ownership.keys()) {
       const file = this.app.vault.getAbstractFileByPath(path);
-      if (file instanceof import_obsidian12.TFile) nodeFiles.set(path, file);
+      if (file instanceof import_obsidian13.TFile) nodeFiles.set(path, file);
     }
     for (const file of nodeFiles.values()) {
       if (!inScope(file.path)) continue;
@@ -14398,7 +15069,7 @@ ${body}`);
       textLanguage
     );
     return `---
-${(0, import_obsidian12.stringifyYaml)(fm)}---
+${(0, import_obsidian13.stringifyYaml)(fm)}---
 ${withReferenceLinks(body, fm, language2)}`;
   }
   async ensureNodePresentation() {
@@ -14410,7 +15081,7 @@ ${withReferenceLinks(body, fm, language2)}`;
         if (!marker2(current["agent-map-node"]) || !ensureNoteCssClass(current)) return content;
         const body = content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "");
         return `---
-${(0, import_obsidian12.stringifyYaml)(current)}---
+${(0, import_obsidian13.stringifyYaml)(current)}---
 ${body}`;
       });
     }
@@ -14418,11 +15089,11 @@ ${body}`;
   async createMap(title, nodes = [], onRootCreated, aim) {
     const container = aim ? this.settings.aimFolder : this.settings.mindMapsFolder;
     await this.folder(container);
-    const preferredRoot = (0, import_obsidian12.normalizePath)(`${container}/${safeName(title)}`);
+    const preferredRoot = (0, import_obsidian13.normalizePath)(`${container}/${safeName(title)}`);
     const preferredFolder = this.app.vault.getAbstractFileByPath(preferredRoot);
-    const recoverEmptyAimFolder = !!(aim == null ? void 0 : aim.creationId) && preferredFolder instanceof import_obsidian12.TFolder && preferredFolder.children.length === 0;
+    const recoverEmptyAimFolder = !!(aim == null ? void 0 : aim.creationId) && preferredFolder instanceof import_obsidian13.TFolder && preferredFolder.children.length === 0;
     const root = recoverEmptyAimFolder ? preferredRoot : this.uniqueFolder(container, title);
-    const folder = recoverEmptyAimFolder && preferredFolder instanceof import_obsidian12.TFolder ? preferredFolder : await this.app.vault.createFolder(root);
+    const folder = recoverEmptyAimFolder && preferredFolder instanceof import_obsidian13.TFolder ? preferredFolder : await this.app.vault.createFolder(root);
     onRootCreated == null ? void 0 : onRootCreated(folder);
     if (!(aim == null ? void 0 : aim.creationId)) await this.ensureTopicFolders(root);
     const path = `${root}/Map.md`;
@@ -14456,13 +15127,13 @@ ${body}`;
    */
   async changeMapFolder(key2, path, busy = () => false, onProgress) {
     var _a;
-    const next = (0, import_obsidian12.normalizePath)(path), current = this.settings[key2];
+    const next = (0, import_obsidian13.normalizePath)(path), current = this.settings[key2];
     if (next === current) return /* @__PURE__ */ new Map();
     const problem = this.mapFolderProblem(key2, next);
     if (problem) throw new Error(this.message(problem));
     const old = this.app.vault.getAbstractFileByPath(current);
     let mapping = /* @__PURE__ */ new Map();
-    if (old instanceof import_obsidian12.TFolder) {
+    if (old instanceof import_obsidian13.TFolder) {
       const moves = [];
       for (const file of await this.mapFiles()) {
         const root = parentPath(file.path);
@@ -14474,7 +15145,7 @@ ${body}`;
           throw new Error(this.message("error.map_folder_unreadable"));
         }
         if (hasActiveAimAttempt(map) || busy(file.path)) throw new Error(this.message("error.organize_aim_busy"));
-        const toRoot = (0, import_obsidian12.normalizePath)(`${next}/${(_a = root.split("/").at(-1)) != null ? _a : safeName(map.title)}`);
+        const toRoot = (0, import_obsidian13.normalizePath)(`${next}/${(_a = root.split("/").at(-1)) != null ? _a : safeName(map.title)}`);
         if (this.app.vault.getAbstractFileByPath(toRoot)) throw new Error(this.message("error.map_folder_exists"));
         moves.push({ mapPath: file.path, title: map.title, kind: map.aim ? "aim" : "mind", fromRoot: root, toRoot });
       }
@@ -14484,7 +15155,7 @@ ${body}`;
       }
       mapping = await this.runTopicMoves(moves, [next], onProgress);
       const left = this.app.vault.getAbstractFileByPath(current);
-      if (left instanceof import_obsidian12.TFolder && left.children.length === 0) {
+      if (left instanceof import_obsidian13.TFolder && left.children.length === 0) {
         try {
           await this.app.fileManager.trashFile(left);
         } catch (e) {
@@ -14524,7 +15195,7 @@ ${body}`;
     const empty = [];
     for (const path of this.legacyCleanupFolders()) {
       const folder = this.app.vault.getAbstractFileByPath(path);
-      if (!(folder instanceof import_obsidian12.TFolder) || !folder.children.every((child) => moving.has(child.path))) continue;
+      if (!(folder instanceof import_obsidian13.TFolder) || !folder.children.every((child) => moving.has(child.path))) continue;
       if (await this.emptyOnDisk(path, moving)) empty.push(path);
     }
     return empty;
@@ -14535,7 +15206,7 @@ ${body}`;
     for (const path of this.legacyCleanupFolders()) {
       if (this.disposed) break;
       const folder = this.app.vault.getAbstractFileByPath(path);
-      if (!(folder instanceof import_obsidian12.TFolder) || folder.children.length) continue;
+      if (!(folder instanceof import_obsidian13.TFolder) || folder.children.length) continue;
       if (!await this.emptyOnDisk(path)) continue;
       try {
         await this.app.fileManager.trashFile(folder);
@@ -14567,7 +15238,7 @@ ${body}`;
       if (hasActiveAimAttempt(map)) plan.busy.push(map.title);
       const container = map.aim ? this.settings.aimFolder : this.settings.mindMapsFolder;
       if (container === this.settings.topicsFolder) continue;
-      const base = (0, import_obsidian12.normalizePath)(`${container}/${(_a = root.split("/").at(-1)) != null ? _a : safeName(map.title)}`);
+      const base = (0, import_obsidian13.normalizePath)(`${container}/${(_a = root.split("/").at(-1)) != null ? _a : safeName(map.title)}`);
       let toRoot = base, number = 2;
       while (this.app.vault.getAbstractFileByPath(toRoot) || reserved.has(toRoot)) toRoot = `${base} ${number++}`;
       reserved.add(toRoot);
@@ -14613,7 +15284,7 @@ ${body}`;
         const originalMap = await this.app.vault.read(this.file(move.mapPath));
         const newMapPath = await this.renameTopic(move.mapPath, move.title, move.toRoot, { rebuild: false });
         const journal = [];
-        if (!(this.app.vault.getAbstractFileByPath(move.toRoot) instanceof import_obsidian12.TFolder) || !(this.app.vault.getAbstractFileByPath(newMapPath) instanceof import_obsidian12.TFile))
+        if (!(this.app.vault.getAbstractFileByPath(move.toRoot) instanceof import_obsidian13.TFolder) || !(this.app.vault.getAbstractFileByPath(newMapPath) instanceof import_obsidian13.TFile))
           throw new Error(this.message("error.move_not_applied"));
         done.push({ move, newMapPath, originalMap, journal });
         mapping.set(move.mapPath, newMapPath);
@@ -14627,7 +15298,7 @@ ${body}`;
         try {
           for (const prior of [...journal].reverse()) {
             const file = this.app.vault.getAbstractFileByPath(prior.path);
-            if (file instanceof import_obsidian12.TFile) await this.app.vault.modify(file, prior.content);
+            if (file instanceof import_obsidian13.TFile) await this.app.vault.modify(file, prior.content);
           }
           await this.renameTopic(newMapPath, move.title, move.fromRoot, { rebuild: false });
           await this.app.vault.modify(this.file(`${move.fromRoot}/Map.md`), originalMap);
@@ -14675,9 +15346,9 @@ ${body}`;
   }
   async renameTopic(mapPath, title, targetRoot, options = {}) {
     const file = this.file(mapPath), root = file.parent;
-    if (!(root instanceof import_obsidian12.TFolder) || !(isManagedMapPath(this.settings, mapPath) || this.pendingContainers.some((c) => mapPath.startsWith(`${c}/`))))
+    if (!(root instanceof import_obsidian13.TFolder) || !(isManagedMapPath(this.settings, mapPath) || this.pendingContainers.some((c) => mapPath.startsWith(`${c}/`))))
       throw new Error(this.message("error.legacy_map_view_only"));
-    const desired = targetRoot ? (0, import_obsidian12.normalizePath)(targetRoot) : (0, import_obsidian12.normalizePath)(`${parentPath(root.path)}/${safeName(title)}`);
+    const desired = targetRoot ? (0, import_obsidian13.normalizePath)(targetRoot) : (0, import_obsidian13.normalizePath)(`${parentPath(root.path)}/${safeName(title)}`);
     if (desired !== root.path && this.app.vault.getAbstractFileByPath(desired))
       throw new Error(this.message("error.topic_folder_exists"));
     const originalRoot = root.path;
@@ -14697,7 +15368,7 @@ ${body}`;
       if (desired !== originalRoot) {
         await this.app.fileManager.renameFile(root, desired);
         moved = true;
-        if (!(this.app.vault.getAbstractFileByPath(desired) instanceof import_obsidian12.TFolder))
+        if (!(this.app.vault.getAbstractFileByPath(desired) instanceof import_obsidian13.TFolder))
           throw new Error(this.message("error.move_not_applied"));
       }
       const map = await this.readMap(next);
@@ -14711,10 +15382,10 @@ ${body}`;
       if (moved) {
         try {
           const movedRoot = this.app.vault.getAbstractFileByPath(desired);
-          if (!(movedRoot instanceof import_obsidian12.TFolder)) throw new Error("Renamed topic folder was not found for rollback.");
+          if (!(movedRoot instanceof import_obsidian13.TFolder)) throw new Error("Renamed topic folder was not found for rollback.");
           await this.app.fileManager.renameFile(movedRoot, originalRoot);
           const restoredMap = this.app.vault.getAbstractFileByPath(originalMapPath);
-          if (!(restoredMap instanceof import_obsidian12.TFile))
+          if (!(restoredMap instanceof import_obsidian13.TFile))
             throw new Error("Original Map.md was not found after restoring the topic folder.");
           await this.app.vault.modify(restoredMap, originalContent);
           await rebuild();
@@ -14724,7 +15395,7 @@ ${body}`;
             `Topic rename failed (${originalMessage}); rollback also failed (${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}).`
           );
         }
-      } else if (this.app.vault.getAbstractFileByPath(originalMapPath) instanceof import_obsidian12.TFile) {
+      } else if (this.app.vault.getAbstractFileByPath(originalMapPath) instanceof import_obsidian13.TFile) {
         await this.app.vault.modify(this.file(originalMapPath), originalContent);
         await rebuild();
       }
@@ -14936,7 +15607,7 @@ var PendingSuggestions = class extends Map {
 };
 
 // experiences/aim/create-map.ts
-var import_node_crypto3 = require("node:crypto");
+var import_node_crypto5 = require("node:crypto");
 
 // experiences/aim/outcome-expectations.ts
 var goals = ["auto", "execute", "understand", "explore", "custom"];
@@ -15024,7 +15695,7 @@ async function createAimMap(repository, model, input) {
     const configuredReasoning = (_e = input.reasoning) != null ? _e : repository.settings.cliReasoning;
     const reasoning = configuredReasoning === "medium" || configuredReasoning === "high" ? configuredReasoning : "low";
     draft = {
-      nodeId: (0, import_node_crypto3.randomUUID)(),
+      nodeId: (0, import_node_crypto5.randomUUID)(),
       notePath,
       title: topic,
       context: rootContext,
@@ -15383,7 +16054,7 @@ function limitOutline(nodes, limits) {
 }
 
 // experiences/visual-map/outline-import-modal.ts
-var import_obsidian13 = require("obsidian");
+var import_obsidian14 = require("obsidian");
 
 // experiences/visual-map/research-fields.ts
 var DEFAULT_RESEARCH_DEPTH = "normal";
@@ -15534,7 +16205,7 @@ var messageOf = (error) => {
   const message = error == null ? void 0 : error.message;
   return typeof message === "string" ? message : String(error);
 };
-var OutlineImportModal = class extends import_obsidian13.Modal {
+var OutlineImportModal = class extends import_obsidian14.Modal {
   constructor(app, create, models = { list: () => [], watch: () => () => {
   } }, templates = [], target = { map: "none" }, initialPlacement = "tree", generator, links = {}) {
     super(app);
@@ -15583,7 +16254,7 @@ var OutlineImportModal = class extends import_obsidian13.Modal {
     sourceHeader.createSpan({ text: t("ui.outline_import_text_label"), cls: "vam-outline-label" });
     const actions = sourceHeader.createDiv("vam-outline-actions");
     actions.createEl("button", { text: t("ui.outline_import_copy_format"), cls: "vam-outline-link" }).addEventListener("click", () => {
-      void navigator.clipboard.writeText(t("ui.outline_import_format")).then(() => new import_obsidian13.Notice(t("ui.outline_import_format_copied"))).catch(() => new import_obsidian13.Notice(t("ui.outline_import_copy_failed")));
+      void navigator.clipboard.writeText(t("ui.outline_import_format")).then(() => new import_obsidian14.Notice(t("ui.outline_import_format_copied"))).catch(() => new import_obsidian14.Notice(t("ui.outline_import_copy_failed")));
     });
     this.textarea = source.createEl("textarea", { cls: "vam-task-input vam-outline-text" });
     this.textarea.rows = 8;
@@ -15903,8 +16574,8 @@ var OutlineImportModal = class extends import_obsidian13.Modal {
 };
 
 // experiences/visual-map/multi-research-modal.ts
-var import_obsidian14 = require("obsidian");
-var MultiResearchModal = class extends import_obsidian14.Modal {
+var import_obsidian15 = require("obsidian");
+var MultiResearchModal = class extends import_obsidian15.Modal {
   constructor(app, names2, models, templates, submit, tones = [], manageTones, links = {}) {
     super(app);
     this.names = names2;
@@ -15981,13 +16652,13 @@ var MultiResearchModal = class extends import_obsidian14.Modal {
 };
 
 // experiences/visual-map/structure-review-modal.ts
-var import_obsidian19 = require("obsidian");
+var import_obsidian20 = require("obsidian");
 
 // experiences/visual-map/modals.ts
-var import_obsidian18 = require("obsidian");
+var import_obsidian19 = require("obsidian");
 
 // ui/reference-picker.ts
-var import_obsidian15 = require("obsidian");
+var import_obsidian16 = require("obsidian");
 var ReferencePicker = class {
   constructor(app, parent, topics, readTopic, currentTopicId, currentLabel, initialWeb = true, initialImages = true) {
     this.app = app;
@@ -16112,7 +16783,7 @@ var ReferencePicker = class {
         const details = card.createEl("details");
         const summary = details.createEl("summary");
         const disclosure = summary.createSpan({ cls: "vam-reference-disclosure" });
-        (0, import_obsidian15.setIcon)(disclosure, "file-text");
+        (0, import_obsidian16.setIcon)(disclosure, "file-text");
         const summaryText2 = summary.createSpan({ cls: "vam-reference-summary-text" });
         summaryText2.createEl("strong", { text: group.name });
         summaryText2.createSpan({ text: group.location, cls: "vam-hint vam-reference-location" });
@@ -16162,7 +16833,7 @@ var ReferencePicker = class {
   createSourceButton(parent, icon, key2) {
     const button = parent.createEl("button", { cls: "vam-reference-action" });
     const image = button.createSpan({ cls: "vam-reference-action-icon" });
-    (0, import_obsidian15.setIcon)(image, icon);
+    (0, import_obsidian16.setIcon)(image, icon);
     button.createSpan({ text: t(key2), cls: "vam-reference-action-label" });
     return button;
   }
@@ -16193,7 +16864,7 @@ var ReferencePicker = class {
   async selectTopic() {
     try {
       const topics = (await this.topics()).filter((topic) => topic.id !== this.currentTopicId);
-      const modal = new import_obsidian15.Modal(this.app);
+      const modal = new import_obsidian16.Modal(this.app);
       modal.titleEl.setText(t("ui.reference_select_mind_map"));
       if (!topics.length)
         modal.contentEl.createEl("p", { text: t("ui.reference_no_other_mind_maps"), cls: "vam-hint" });
@@ -16248,7 +16919,7 @@ var ReferencePicker = class {
         if (!yaml) return true;
         let metadata;
         try {
-          metadata = (0, import_obsidian15.parseYaml)(yaml);
+          metadata = (0, import_obsidian16.parseYaml)(yaml);
         } catch (error) {
           if (yaml.includes("agent-map-node")) throw error;
           return true;
@@ -16285,7 +16956,7 @@ var ReferencePicker = class {
     var _a;
     const nativePath = (_a = file.path) == null ? void 0 : _a.replace(/\\/g, "/");
     const adapter = this.app.vault.adapter;
-    const vaultRoot = adapter instanceof import_obsidian15.FileSystemAdapter ? adapter.getBasePath().replace(/\\/g, "/").replace(/\/$/, "") : "";
+    const vaultRoot = adapter instanceof import_obsidian16.FileSystemAdapter ? adapter.getBasePath().replace(/\\/g, "/").replace(/\/$/, "") : "";
     const isInVault = !!nativePath && !!vaultRoot && nativePath.startsWith(`${vaultRoot}/`);
     const path = isInVault ? nativePath.slice(vaultRoot.length + 1) : nativePath || (fromFolder ? file.webkitRelativePath : file.name) || file.name;
     return {
@@ -16307,7 +16978,7 @@ var ReferencePicker = class {
 };
 
 // ui/modals/debug-log-modal.ts
-var import_obsidian16 = require("obsidian");
+var import_obsidian17 = require("obsidian");
 
 // log-manager.ts
 var LogManager = class {
@@ -16535,7 +17206,7 @@ var AiExchangeLog = class {
 };
 
 // ui/modals/debug-log-modal.ts
-var DebugLogModal = class extends import_obsidian16.Modal {
+var DebugLogModal = class extends import_obsidian17.Modal {
   constructor(app, logs, exchanges, exchangeEnabled, setExchangeEnabled) {
     super(app);
     this.logs = logs;
@@ -16559,20 +17230,20 @@ var DebugLogModal = class extends import_obsidian16.Modal {
       cls: "vam-modal-intro",
       text: t("ui.logs_are_kept_in_memory_only_and_disappear_when_the_plugin_r")
     });
-    const actions = new import_obsidian16.Setting(this.contentEl);
+    const actions = new import_obsidian17.Setting(this.contentEl);
     actions.addButton((button) => button.setButtonText(t("ui.refresh_logs")).onClick(() => this.renderLogs()));
     actions.addButton(
       (button) => button.setButtonText(t("ui.copy_logs")).setCta().onClick(async () => {
         const text11 = formatDebugLogs(this.logs.getLogs());
         if (!text11) {
-          new import_obsidian16.Notice(t("ui.there_are_no_debug_logs_yet"));
+          new import_obsidian17.Notice(t("ui.there_are_no_debug_logs_yet"));
           return;
         }
         try {
           await navigator.clipboard.writeText(text11);
-          new import_obsidian16.Notice(t("ui.debug_log_copied"));
+          new import_obsidian17.Notice(t("ui.debug_log_copied"));
         } catch (e) {
-          new import_obsidian16.Notice(t("ui.unable_to_copy_the_debug_log"));
+          new import_obsidian17.Notice(t("ui.unable_to_copy_the_debug_log"));
         }
       })
     );
@@ -16597,7 +17268,7 @@ var DebugLogModal = class extends import_obsidian16.Modal {
       cls: "vam-modal-intro",
       text: this.exchangeEnabled() ? t("ui.up_to_20_exchanges_are_stored_in_this_vault_s_plugin_folder") : t("ui.ai_exchange_recording_is_off_enable_it_in_vam_settings")
     });
-    const exchangeActions = new import_obsidian16.Setting(this.contentEl);
+    const exchangeActions = new import_obsidian17.Setting(this.contentEl);
     if (this.setExchangeEnabled)
       exchangeActions.setName(t("ui.record_ai_exchanges")).addToggle(
         (toggle) => toggle.setValue(this.exchangeEnabled()).onChange(async (value) => {
@@ -16613,9 +17284,9 @@ var DebugLogModal = class extends import_obsidian16.Modal {
           await navigator.clipboard.writeText(
             ((_b2 = (_a2 = this.exchanges) == null ? void 0 : _a2.getEntries()) != null ? _b2 : []).map(formatAiExchange).join("\n\n---\n\n")
           );
-          new import_obsidian16.Notice(t("ui.ai_exchange_copied"));
+          new import_obsidian17.Notice(t("ui.ai_exchange_copied"));
         } catch (e) {
-          new import_obsidian16.Notice(t("ui.unable_to_copy_the_ai_exchange"));
+          new import_obsidian17.Notice(t("ui.unable_to_copy_the_ai_exchange"));
         }
       })
     );
@@ -16662,7 +17333,7 @@ var DebugLogModal = class extends import_obsidian16.Modal {
       if (exchange.error) item.createEl("pre", { text: `${t("ui.error")}: ${exchange.error}` });
       const copy = item.createEl("button", { text: t("ui.copy_this_exchange") });
       copy.addEventListener("click", () => {
-        void navigator.clipboard.writeText(formatAiExchange(exchange)).then(() => new import_obsidian16.Notice(t("ui.ai_exchange_copied"))).catch(() => new import_obsidian16.Notice(t("ui.unable_to_copy_the_ai_exchange")));
+        void navigator.clipboard.writeText(formatAiExchange(exchange)).then(() => new import_obsidian17.Notice(t("ui.ai_exchange_copied"))).catch(() => new import_obsidian17.Notice(t("ui.unable_to_copy_the_ai_exchange")));
       });
     }
   }
@@ -16684,7 +17355,7 @@ var DebugLogModal = class extends import_obsidian16.Modal {
 };
 
 // ui/modals/detail-templates-modal.ts
-var import_obsidian17 = require("obsidian");
+var import_obsidian18 = require("obsidian");
 var same = (a, b) => a.trim().toLocaleLowerCase() === b.trim().toLocaleLowerCase();
 var PURPOSES = [
   ["none", "ui.detail_section_kind_none"],
@@ -16730,7 +17401,7 @@ function renderDetailTemplatesSetting(setting, app, plugin, refresh = () => {
     (button) => button.setButtonText(t("ui.manage_detail_templates")).onClick(() => new DetailTemplatesModal(app, plugin, refresh).open())
   );
 }
-var DetailTemplatesModal = class extends import_obsidian17.Modal {
+var DetailTemplatesModal = class extends import_obsidian18.Modal {
   constructor(app, plugin, onChanged = () => {
   }, initialId) {
     super(app);
@@ -16975,7 +17646,7 @@ var DetailTemplatesModal = class extends import_obsidian17.Modal {
     });
     const icon = (glyph, label, run, disabled) => {
       const button = header.createEl("button", { cls: "clickable-icon" });
-      (0, import_obsidian17.setIcon)(button, glyph);
+      (0, import_obsidian18.setIcon)(button, glyph);
       button.setAttr("aria-label", label);
       button.setAttr("title", label);
       button.disabled = readOnly || disabled;
@@ -17150,7 +17821,7 @@ function reasoningLabel(level) {
 }
 var PartialChildBatchError = class extends Error {
 };
-var NextStepModal = class extends import_obsidian18.Modal {
+var NextStepModal = class extends import_obsidian19.Modal {
   constructor(app, topic, depth, childrenCount, pendingCount, plugin, research, expand, synthesize, modelSettings, selectionFlow) {
     super(app);
     this.topic = topic;
@@ -17405,7 +18076,7 @@ var NextStepModal = class extends import_obsidian18.Modal {
         await work();
       } catch (error) {
         if (this.closed && !controller.signal.aborted)
-          new import_obsidian18.Notice(error instanceof Error ? error.message : String(error));
+          new import_obsidian19.Notice(error instanceof Error ? error.message : String(error));
         this.failed(
           panel,
           button,
@@ -17495,7 +18166,7 @@ var NextStepModal = class extends import_obsidian18.Modal {
         direction,
         (message) => {
           if (this.closed) {
-            new import_obsidian18.Notice(message);
+            new import_obsidian19.Notice(message);
             return;
           }
           settle();
@@ -17520,7 +18191,7 @@ var NextStepModal = class extends import_obsidian18.Modal {
     button.disabled = false;
   }
   startedInBackground() {
-    new import_obsidian18.Notice(t("ui.task_started_in_background_0", this.topic));
+    new import_obsidian19.Notice(t("ui.task_started_in_background_0", this.topic));
     this.close();
   }
   failedAi(panel, button, message) {
@@ -17586,7 +18257,7 @@ var NextStepModal = class extends import_obsidian18.Modal {
                 return;
               }
               consumed();
-              new import_obsidian18.Notice(t("ui.subtopics_created"));
+              new import_obsidian19.Notice(t("ui.subtopics_created"));
               this.taskSignal = void 0;
               this.taskController = void 0;
               this.close();
@@ -17651,7 +18322,7 @@ var NextStepModal = class extends import_obsidian18.Modal {
             this.startedInBackground();
             return;
           }
-          new import_obsidian18.Notice(t("ui.subtopics_created"));
+          new import_obsidian19.Notice(t("ui.subtopics_created"));
           this.close();
         },
         false
@@ -17825,7 +18496,7 @@ var NextStepModal = class extends import_obsidian18.Modal {
           },
           (message) => {
             if (this.closed) {
-              new import_obsidian18.Notice(message);
+              new import_obsidian19.Notice(message);
               return;
             }
             release();
@@ -17999,7 +18670,7 @@ var NextStepModal = class extends import_obsidian18.Modal {
             },
             (message, retryable) => {
               if (this.closed) {
-                new import_obsidian18.Notice(message);
+                new import_obsidian19.Notice(message);
                 return;
               }
               consumed();
@@ -18486,7 +19157,7 @@ var DraftReviewView = class {
     this.confirm = confirm;
     this.discard = discard;
     this.close = close;
-    __publicField(this, "renderer", new import_obsidian18.Component());
+    __publicField(this, "renderer", new import_obsidian19.Component());
     __publicField(this, "disarm");
     __publicField(this, "intro");
   }
@@ -18527,7 +19198,7 @@ var DraftReviewView = class {
       const state = (_a2 = generations.get(target)) != null ? _a2 : { count: 0 };
       const generation = ++state.count;
       if (state.child) this.renderer.removeChild(state.child);
-      const child = this.renderer.addChild(new import_obsidian18.Component());
+      const child = this.renderer.addChild(new import_obsidian19.Component());
       state.child = child;
       generations.set(target, state);
       target.empty();
@@ -18537,7 +19208,7 @@ var DraftReviewView = class {
         target.setText(markdown);
       };
       try {
-        void import_obsidian18.MarkdownRenderer.render(this.app, markdown, target, (_b = this.review.sourcePath) != null ? _b : "", child).catch(fallback);
+        void import_obsidian19.MarkdownRenderer.render(this.app, markdown, target, (_b = this.review.sourcePath) != null ? _b : "", child).catch(fallback);
       } catch (e) {
         fallback();
       }
@@ -18597,7 +19268,7 @@ var DraftReviewView = class {
     this.renderer.unload();
   }
 };
-var DraftReviewModal = class extends import_obsidian18.Modal {
+var DraftReviewModal = class extends import_obsidian19.Modal {
   constructor(app, summary, detail, review, confirm, discard) {
     super(app);
     __publicField(this, "view");
@@ -18613,7 +19284,7 @@ var DraftReviewModal = class extends import_obsidian18.Modal {
     this.contentEl.empty();
   }
 };
-var ChildProposalModal = class extends import_obsidian18.Modal {
+var ChildProposalModal = class extends import_obsidian19.Modal {
   constructor(app, suggestions, submit) {
     super(app);
     this.suggestions = suggestions;
@@ -18646,7 +19317,7 @@ var ChildProposalModal = class extends import_obsidian18.Modal {
     });
   }
 };
-var MapConflictModal = class extends import_obsidian18.Modal {
+var MapConflictModal = class extends import_obsidian19.Modal {
   constructor(app, local, disk, resolve) {
     super(app);
     this.local = local;
@@ -18703,7 +19374,7 @@ var MapConflictModal = class extends import_obsidian18.Modal {
     if (!this.settled) this.resolve(clone(this.disk));
   }
 };
-var NoteCollectionModal = class extends import_obsidian18.Modal {
+var NoteCollectionModal = class extends import_obsidian19.Modal {
   constructor(app, titleText, files, actions) {
     super(app);
     this.titleText = titleText;
@@ -18723,10 +19394,10 @@ var NoteCollectionModal = class extends import_obsidian18.Modal {
           action.run(file);
         });
     }
-    new import_obsidian18.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.close")).onClick(() => this.close()));
+    new import_obsidian19.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.close")).onClick(() => this.close()));
   }
 };
-var TopicPickerModal = class extends import_obsidian18.Modal {
+var TopicPickerModal = class extends import_obsidian19.Modal {
   constructor(app, titleText, topics, choose) {
     super(app);
     this.titleText = titleText;
@@ -18736,14 +19407,14 @@ var TopicPickerModal = class extends import_obsidian18.Modal {
   onOpen() {
     this.titleEl.setText(this.titleText);
     for (const topic of this.topics)
-      new import_obsidian18.Setting(this.contentEl).setName(topic.title).setDesc(topic.root).addButton(
+      new import_obsidian19.Setting(this.contentEl).setName(topic.title).setDesc(topic.root).addButton(
         (button) => button.setButtonText(t("ui.select")).onClick(() => {
           this.close();
           this.choose(topic);
         })
       );
     if (!this.topics.length) this.contentEl.createEl("p", { text: t("ui.no_other_topics") });
-    new import_obsidian18.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => this.close()));
+    new import_obsidian19.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => this.close()));
   }
 };
 
@@ -18758,7 +19429,7 @@ var KIND = {
   move: "move",
   merge: "merge"
 };
-var StructureReviewModal = class extends import_obsidian19.Modal {
+var StructureReviewModal = class extends import_obsidian20.Modal {
   constructor(app, host) {
     super(app);
     this.host = host;
@@ -18935,10 +19606,10 @@ var StructureReviewModal = class extends import_obsidian19.Modal {
 };
 
 // core/provider-step-runner.ts
-var import_node_crypto5 = require("node:crypto");
+var import_node_crypto7 = require("node:crypto");
 
 // core/runtime-step-provider.ts
-var import_node_crypto4 = require("node:crypto");
+var import_node_crypto6 = require("node:crypto");
 function runtimeStepProvider(options) {
   return {
     async complete(call) {
@@ -18972,7 +19643,7 @@ function runtimeStepProvider(options) {
           return started ? (_a = options.exchanges()) == null ? void 0 : _a.failed(...args) : void 0;
         }
       };
-      const id = (0, import_node_crypto4.randomUUID)();
+      const id = (0, import_node_crypto6.randomUUID)();
       started == null ? void 0 : started.begin({
         id,
         startedAt: (/* @__PURE__ */ new Date()).toISOString(),
@@ -19013,7 +19684,7 @@ function runtimeStepProvider(options) {
 function providerStepRunner(options, activeTasks, config) {
   return async (request, signal, prepared) => {
     var _a, _b, _c;
-    const key2 = `${config.name}:${(0, import_node_crypto5.randomUUID)()}`, controller = new AbortController();
+    const key2 = `${config.name}:${(0, import_node_crypto7.randomUUID)()}`, controller = new AbortController();
     const abort = () => controller.abort();
     signal.addEventListener("abort", abort, { once: true });
     if (signal.aborted) controller.abort();
@@ -19460,8 +20131,8 @@ function renderTopicTree(parent, options) {
 }
 
 // ui/modals/topic-tree-modal.ts
-var import_obsidian20 = require("obsidian");
-var TopicTreeModal = class extends import_obsidian20.Modal {
+var import_obsidian21 = require("obsidian");
+var TopicTreeModal = class extends import_obsidian21.Modal {
   constructor(app, titleText, description, nodes, title, selectable, choose) {
     super(app);
     this.titleText = titleText;
@@ -19493,9 +20164,9 @@ var TopicTreeModal = class extends import_obsidian20.Modal {
 };
 
 // ui/modals/aim-start-modal.ts
-var import_obsidian21 = require("obsidian");
-var import_node_crypto6 = require("node:crypto");
-var AimStartModal = class extends import_obsidian21.Modal {
+var import_obsidian22 = require("obsidian");
+var import_node_crypto8 = require("node:crypto");
+var AimStartModal = class extends import_obsidian22.Modal {
   constructor(app, submit, models = [], defaultModel = "gpt-6-luna", defaultReasoning = "low", refreshModels) {
     super(app);
     this.submit = submit;
@@ -19503,7 +20174,7 @@ var AimStartModal = class extends import_obsidian21.Modal {
     this.defaultModel = defaultModel;
     this.defaultReasoning = defaultReasoning;
     this.refreshModels = refreshModels;
-    __publicField(this, "requestId", (0, import_node_crypto6.randomUUID)());
+    __publicField(this, "requestId", (0, import_node_crypto8.randomUUID)());
   }
   onOpen() {
     this.titleEl.setText(t("ui.aim_start_title"));
@@ -19640,7 +20311,7 @@ var AimStartModal = class extends import_obsidian21.Modal {
     answerCount.setAttr("aria-label", t("ui.aim_minimum_answers"));
     answerCountLabel.createEl("p", { cls: "vam-hint", text: t("ui.aim_answer_target_hint") });
     const newRequest = () => {
-      this.requestId = (0, import_node_crypto6.randomUUID)();
+      this.requestId = (0, import_node_crypto8.randomUUID)();
     };
     topic.addEventListener("input", newRequest);
     context.addEventListener("input", newRequest);
@@ -19670,7 +20341,7 @@ var AimStartModal = class extends import_obsidian21.Modal {
     const status = this.contentEl.createEl("p", { cls: "vam-hint", attr: { "aria-live": "polite" } });
     let pending = false;
     let cancelButton;
-    const create = new import_obsidian21.Setting(this.contentEl).addButton((button) => {
+    const create = new import_obsidian22.Setting(this.contentEl).addButton((button) => {
       cancelButton = button;
       button.setButtonText(t("ui.cancel")).onClick(() => this.close());
     }).addButton(
@@ -19748,10 +20419,10 @@ var AimStartModal = class extends import_obsidian21.Modal {
 };
 
 // ui/modals/aim-answer-modal.ts
-var import_obsidian22 = require("obsidian");
-var import_node_crypto7 = require("node:crypto");
-var AimAnswerModal = class extends import_obsidian22.Modal {
-  constructor(app, question, options, submit, requestId = (0, import_node_crypto7.randomUUID)()) {
+var import_obsidian23 = require("obsidian");
+var import_node_crypto9 = require("node:crypto");
+var AimAnswerModal = class extends import_obsidian23.Modal {
+  constructor(app, question, options, submit, requestId = (0, import_node_crypto9.randomUUID)()) {
     super(app);
     this.question = question;
     this.options = options;
@@ -19774,7 +20445,7 @@ var AimAnswerModal = class extends import_obsidian22.Modal {
       label.createSpan({ text: option2.label });
       boxes.set(option2.id, input);
       input.addEventListener("change", () => {
-        this.requestId = (0, import_node_crypto7.randomUUID)();
+        this.requestId = (0, import_node_crypto9.randomUUID)();
         if (input.checked && option2.id === "__aim_unknown__") {
           for (const [id, peer] of boxes) if (id !== option2.id) peer.checked = false;
         } else if (input.checked) {
@@ -19788,11 +20459,11 @@ var AimAnswerModal = class extends import_obsidian22.Modal {
     const freeText = freeTextLabel.createEl("textarea", { attr: { rows: "3" } });
     freeText.setAttr("aria-label", t("ui.aim_free_text"));
     freeText.addEventListener("input", () => {
-      this.requestId = (0, import_node_crypto7.randomUUID)();
+      this.requestId = (0, import_node_crypto9.randomUUID)();
     });
     const status = this.contentEl.createEl("p", { cls: "vam-hint", attr: { "aria-live": "polite" } });
     let pending = false, submitButton;
-    const setting = new import_obsidian22.Setting(this.contentEl).addButton(
+    const setting = new import_obsidian23.Setting(this.contentEl).addButton(
       (button) => button.setButtonText(t("ui.cancel")).onClick(() => {
         if (!pending) this.close();
       })
@@ -19821,8 +20492,8 @@ var AimAnswerModal = class extends import_obsidian22.Modal {
 };
 
 // ui/modals/aim-assumption-modal.ts
-var import_obsidian23 = require("obsidian");
-var AimAssumptionModal = class extends import_obsidian23.Modal {
+var import_obsidian24 = require("obsidian");
+var AimAssumptionModal = class extends import_obsidian24.Modal {
   constructor(app, assumptions, submit) {
     super(app);
     this.assumptions = assumptions;
@@ -19838,7 +20509,7 @@ var AimAssumptionModal = class extends import_obsidian23.Modal {
     const actualLabel = this.contentEl.createEl("label", { cls: "vam-field" });
     actualLabel.createSpan({ text: t("ui.aim_correct_assumption_actual") });
     const actual = actualLabel.createEl("textarea", { attr: { rows: "3" } });
-    new import_obsidian23.Setting(this.contentEl).addButton(
+    new import_obsidian24.Setting(this.contentEl).addButton(
       (button) => button.setButtonText(t("ui.aim_correct_assumption_submit")).setCta().onClick(() => {
         if (!actual.value.trim()) {
           actual.focus();
@@ -19856,8 +20527,8 @@ var AimAssumptionModal = class extends import_obsidian23.Modal {
 };
 
 // ui/modals/aim-steer-modal.ts
-var import_obsidian24 = require("obsidian");
-var AimSteerModal = class extends import_obsidian24.Modal {
+var import_obsidian25 = require("obsidian");
+var AimSteerModal = class extends import_obsidian25.Modal {
   constructor(app, submit) {
     super(app);
     this.submit = submit;
@@ -19868,7 +20539,7 @@ var AimSteerModal = class extends import_obsidian24.Modal {
     const label = this.contentEl.createEl("label", { cls: "vam-field" });
     label.createSpan({ text: t("ui.aim_steer_prompt") });
     const direction = label.createEl("textarea", { attr: { rows: "3" } });
-    new import_obsidian24.Setting(this.contentEl).addButton(
+    new import_obsidian25.Setting(this.contentEl).addButton(
       (button) => button.setButtonText(t("ui.aim_steer_submit")).setCta().onClick(() => {
         if (!direction.value.trim()) {
           direction.focus();
@@ -20005,7 +20676,7 @@ function deduplicateAimRequest(context) {
 }
 
 // experiences/aim/final-delivery.ts
-var import_node_crypto8 = require("node:crypto");
+var import_node_crypto10 = require("node:crypto");
 
 // experiences/aim/steps/delivery-outline/task.md
 var task_default = "You are the final-delivery Synthesizer. Design the actual document needed to answer the ORIGINAL user goal with all supplied conditions and outcome preferences. Previous research informs the outline; do not merely concatenate reports or reuse their headings. Return the outline in aim.sections: each section has heading, purpose (what the reader can do or understand after it), searchTask (specific web search needed, or empty if already supported), evidenceIds and dependencies (supplied source IDs). Choose a suitable structure, not a fixed template. Open with a section that gives the direct answer or recommendation. Give every section a distinct purpose so no two sections cover the same advice or caveats; gather the items the user must still confirm in at most one section; use no more sections than the answer needs (usually 3 to 5). Include concrete examples, resources, execution details or comparisons when required by this user. Map each section to the minimal supplied evidenceIds it needs. Dependencies also name supplied source IDs. Leave searchTask empty when mapped supplied reports already support the section; do not request a full search merely to repeat them. Identify exact source gaps for the deliverable. Earlier rounds are part of this answer: the user's earlier answers and their saved results (earlier documents and research) carry into this document, integrated with the current research. Update what the current research changes, and drop an earlier finding only when a later answer replaces it. Do not ask the user or deliver the document yet.\nSupplied evidence IDs and reports:\n{{sourceCatalog}}\n";
@@ -20057,7 +20728,7 @@ ${renderTemplate(open_items_default, { openItems })}` : task;
 
 // experiences/aim/final-delivery.ts
 var DOCUMENT_KEY = "document";
-var fingerprint = (value) => (0, import_node_crypto8.createHash)("sha256").update(JSON.stringify(value)).digest("hex");
+var fingerprint = (value) => (0, import_node_crypto10.createHash)("sha256").update(JSON.stringify(value)).digest("hex");
 function parseDeliveryOutline(detail) {
   const marker5 = detail.match(/<!--\s*aim-delivery-outline\s+([\s\S]*?)\s*-->/);
   if (!marker5) throw new Error("Final delivery outline is missing; no conclusion was saved.");
@@ -20347,7 +21018,7 @@ ${draft.detail}`
 }
 
 // experiences/aim/manual-flow.ts
-var import_node_crypto9 = require("node:crypto");
+var import_node_crypto11 = require("node:crypto");
 
 // experiences/aim/search-diagnostic.ts
 function createSearchDiagnostic(researchTurn) {
@@ -21661,7 +22332,7 @@ var OTHER_ROUTE_REUSE_LIMIT = 6;
 var SEARCH_NOT_PERFORMED = /did not perform web search|沒有實際執行網路搜尋/;
 var CHECKLIST_QUESTION_LIMIT = 5;
 var _AimManualFlow = class _AimManualFlow {
-  constructor(repository, runs, askModel, id = import_node_crypto9.randomUUID, persist = (operation) => operation(), limits = ACTIVE_AIM_FLOW_LIMITS) {
+  constructor(repository, runs, askModel, id = import_node_crypto11.randomUUID, persist = (operation) => operation(), limits = ACTIVE_AIM_FLOW_LIMITS) {
     this.repository = repository;
     this.runs = runs;
     this.askModel = askModel;
@@ -21892,7 +22563,7 @@ ${(_d = context.task) != null ? _d : ""}`
       readable.map(async (id) => {
         const ref = this.evidenceReports.get(id);
         const note = await this.repository.readNote(ref.path);
-        if ((0, import_node_crypto9.createHash)("sha256").update(note.detail).digest("hex") !== ref.hash)
+        if ((0, import_node_crypto11.createHash)("sha256").update(note.detail).digest("hex") !== ref.hash)
           throw new Error("AIM evidence changed after indexing; retry with the updated report.");
         return `Evidence ID: ${id}
 Full report:
@@ -23926,7 +24597,7 @@ ${note.detail}`
         });
         this.evidenceReports.set(`${result.nodeId}-v${result.version}`, {
           path: result.notePath,
-          hash: (0, import_node_crypto9.createHash)("sha256").update(note.detail).digest("hex")
+          hash: (0, import_node_crypto11.createHash)("sha256").update(note.detail).digest("hex")
         });
         if (this.evidenceReports.size > 512) {
           const oldest = [...this.evidenceReports.keys()][0];
@@ -24446,7 +25117,7 @@ ${dependencyReports}` : "")
     try {
       await this.persist(() => this.runs.recordResearchTurn(mapPath, synthesisHandle));
       const supplementalReports = [];
-      const sourceFingerprint = (0, import_node_crypto9.createHash)("sha256").update(
+      const sourceFingerprint = (0, import_node_crypto11.createHash)("sha256").update(
         JSON.stringify({
           detail: contextBase.detail,
           ancestors: contextBase.ancestors,
@@ -24486,7 +25157,7 @@ ${report.detail}`
         return [
           ...(_a2 = resumeDelivery == null ? void 0 : resumeDelivery.evidence) != null ? _a2 : initialDeliveryEvidence,
           ...supplementalReports.map((item) => ({
-            id: `followup-${(0, import_node_crypto9.createHash)("sha256").update(JSON.stringify(item.target)).digest("hex")}`,
+            id: `followup-${(0, import_node_crypto11.createHash)("sha256").update(JSON.stringify(item.target)).digest("hex")}`,
             hash: researchContentHash(item),
             detail: `## ${item.target.title}
 
@@ -24979,7 +25650,7 @@ ${beforeSearch.detail}`,
         const evidenceId = `${result.nodeId}-v${result.version}`;
         this.evidenceReports.set(evidenceId, {
           path: result.notePath,
-          hash: (0, import_node_crypto9.createHash)("sha256").update(note.detail).digest("hex")
+          hash: (0, import_node_crypto11.createHash)("sha256").update(note.detail).digest("hex")
         });
         if (this.evidenceReports.size > 512) {
           const oldest = [...this.evidenceReports.keys()][0];
@@ -24992,7 +25663,7 @@ ${evidenceCard(evidenceId, note.summary, note.detail)}`
         evidence.push(note);
         sources2.push({
           id: evidenceId,
-          hash: (0, import_node_crypto9.createHash)("sha256").update(note.detail).digest("hex"),
+          hash: (0, import_node_crypto11.createHash)("sha256").update(note.detail).digest("hex"),
           detail: `## ${note.title}
 
 ${note.summary}
@@ -25027,12 +25698,12 @@ __publicField(_AimManualFlow, "continuationRuns", /* @__PURE__ */ new Map());
 var AimManualFlow = _AimManualFlow;
 
 // experiences/aim/research-run-store.ts
-var import_node_crypto10 = require("node:crypto");
+var import_node_crypto12 = require("node:crypto");
 function isRunningAttempt(run, attempt, handle) {
   return run.currentAttemptId === handle.attemptId && attempt.status === "running" && attempt.inputSnapshotHash === handle.inputSnapshotHash;
 }
 var _AimRunStore = class _AimRunStore {
-  constructor(repository, id = import_node_crypto10.randomUUID, now = () => (/* @__PURE__ */ new Date()).toISOString()) {
+  constructor(repository, id = import_node_crypto12.randomUUID, now = () => (/* @__PURE__ */ new Date()).toISOString()) {
     this.repository = repository;
     this.id = id;
     this.now = now;
@@ -25818,7 +26489,7 @@ var _AimRunStore = class _AimRunStore {
     return state;
   }
   snapshotHash(value) {
-    return (0, import_node_crypto10.createHash)("sha256").update(JSON.stringify(value)).digest("hex");
+    return (0, import_node_crypto12.createHash)("sha256").update(JSON.stringify(value)).digest("hex");
   }
   liveKey(mapPath, runId, attemptId) {
     return `${mapPath}
@@ -25860,7 +26531,7 @@ function templateInLanguage(template, language2) {
 function formatIssuesPatch(issues, language2) {
   return { detailFormatIssues: (issues != null ? issues : []).map((issue) => countIssueText(issue, language2)) };
 }
-var originBaseline = (origin) => (0, import_node_crypto11.createHash)("sha256").update(origin != null ? origin : "").digest("hex");
+var originBaseline = (origin) => (0, import_node_crypto13.createHash)("sha256").update(origin != null ? origin : "").digest("hex");
 function aimQuestionStatus(map, questionNodeId, activeQuestionNodeId) {
   var _a, _b;
   if (activeQuestionNodeId === questionNodeId) return "running";
@@ -25913,9 +26584,9 @@ var AIM_STAGE_KEYS = {
 var documentReadyNotice = null;
 function showDocumentReady() {
   documentReadyNotice == null ? void 0 : documentReadyNotice.hide();
-  documentReadyNotice = new import_obsidian25.Notice(t("ui.aim_document_ready"), 6e4);
+  documentReadyNotice = new import_obsidian26.Notice(t("ui.aim_document_ready"), 6e4);
 }
-var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian25.ItemView {
+var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian26.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.plugin = plugin;
@@ -26414,7 +27085,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian25.Ite
     var _a;
     const target = prefill ? this.reopenedImportTarget(prefill.inputs) : this.outlineImportTarget();
     if (target.map !== "editable") {
-      new import_obsidian25.Notice(target.map === "aim" ? t("ui.outline_import_placement_aim") : t("ui.outline_import_placement_no_map"));
+      new import_obsidian26.Notice(target.map === "aim" ? t("ui.outline_import_placement_aim") : t("ui.outline_import_placement_no_map"));
       return;
     }
     const placement = prefill ? prefill.inputs.placement : target.selected ? "under" : "tree";
@@ -26491,7 +27162,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian25.Ite
             if (controller.signal.aborted || this.outlineDraftTask !== own || this.closed) return;
             own.state = "failed";
             own.message = errorMessage(error);
-            new import_obsidian25.Notice(own.message);
+            new import_obsidian26.Notice(own.message);
           }
           if (!this.closed) this.render();
         });
@@ -26630,7 +27301,7 @@ ${request.requirements}` : preset.text,
     const existing = this.structureReviewTask;
     if (existing && existing.mapPath === this.path) {
       if (existing.state === "running") {
-        new import_obsidian25.Notice(t("ui.ai_running_ai"));
+        new import_obsidian26.Notice(t("ui.ai_running_ai"));
         return;
       }
       if (existing.state === "done" && existing.scopeId === scopeId) {
@@ -26718,7 +27389,7 @@ ${request.requirements}` : preset.text,
             if (controller.signal.aborted || this.structureReviewTask !== own || this.closed) return;
             own.state = "failed";
             own.message = errorMessage(error);
-            new import_obsidian25.Notice(own.message);
+            new import_obsidian26.Notice(own.message);
           }
           if (!this.closed) this.render();
         });
@@ -26826,7 +27497,7 @@ ${request.requirements}` : preset.text,
   }
   /** The side option on "+ Topic": one topic by default, or a pasted outline for several at once. */
   openTopicMenu(event) {
-    const menu = new import_obsidian25.Menu();
+    const menu = new import_obsidian26.Menu();
     menu.addItem(
       (item) => item.setTitle(t("ui.paste_outline_add_many")).setIcon("list-tree").onClick(() => this.openOutlineImport())
     );
@@ -26862,7 +27533,7 @@ ${request.requirements}` : preset.text,
   }
   /** The zoom cluster's Layout menu: collapse or expand levels, then re-arrange the whole map. */
   openLayoutMenu(event) {
-    const menu = new import_obsidian25.Menu();
+    const menu = new import_obsidian26.Menu();
     const choices = [
       { title: t("ui.collapse_all"), icon: "chevrons-down-up", levels: 0 },
       { title: t("ui.expand_all"), icon: "chevrons-up-down", levels: null },
@@ -26911,7 +27582,7 @@ ${request.requirements}` : preset.text,
       );
     } catch (error) {
       if (!(error == null ? void 0 : error.mapCreated)) throw error;
-      new import_obsidian25.Notice(errorMessage(error));
+      new import_obsidian26.Notice(errorMessage(error));
       return;
     }
     let opened = true;
@@ -26929,7 +27600,7 @@ ${request.requirements}` : preset.text,
     } catch (e) {
       opened = false;
     }
-    if (result.failure) new import_obsidian25.Notice(t("ui.outline_import_partial", result.created, result.total, result.failure));
+    if (result.failure) new import_obsidian26.Notice(t("ui.outline_import_partial", result.created, result.total, result.failure));
     if (result.failure || !opened || !request.shallowResearch || result.nodes.length < 2) return;
     const root = result.nodes.find((node) => node.parentId === null);
     if (!root) return;
@@ -26945,7 +27616,7 @@ ${request.requirements}` : preset.text,
           visualMode: "off"
         });
       }
-    ).catch((error) => new import_obsidian25.Notice(errorMessage(error)));
+    ).catch((error) => new import_obsidian26.Notice(errorMessage(error)));
   }
   /** Adds the outline to the open map, as a new top-level tree or under the selected topic; existing nodes stay put. */
   async importOutlineIntoMap(request, placement) {
@@ -27020,7 +27691,7 @@ ${request.requirements}` : preset.text,
           });
         } catch (error) {
           state.saveFailed = true;
-          new import_obsidian25.Notice(
+          new import_obsidian26.Notice(
             t(
               "ui.outline_import_map_save_failed",
               `${errorMessage(error)} (${created.map((node) => node.path).join(", ")})`
@@ -27042,7 +27713,7 @@ ${request.requirements}` : preset.text,
     const outcome = state.result;
     if (!outcome) return;
     if (outcome.failure)
-      new import_obsidian25.Notice(t("ui.outline_import_partial", outcome.created.length, outcome.total, outcome.failure));
+      new import_obsidian26.Notice(t("ui.outline_import_partial", outcome.created.length, outcome.total, outcome.failure));
     if (outcome.failure || state.saveFailed || !written || !request.shallowResearch || !outcome.created.length) return;
     const owner = placement.kind === "under" ? placement.parentId : null;
     const several = owner !== null && (!!request.researchEveryTopic || request.nodes.filter((node) => node.parent === null).length > 1);
@@ -27064,7 +27735,7 @@ ${request.requirements}` : preset.text,
           ...request.detailTemplateId ? { detailTemplateId: request.detailTemplateId } : {}
         });
       }
-    ).catch((error) => new import_obsidian25.Notice(errorMessage(error)));
+    ).catch((error) => new import_obsidian26.Notice(errorMessage(error)));
   }
   openNewMindMapModal() {
     new NameModal(
@@ -27239,14 +27910,14 @@ ${request.requirements}` : preset.text,
           this.render();
           this.focusNode(question2);
         }
-        new import_obsidian25.Notice(t("ui.aim_waiting_user"));
-      } else if (result.status === "partial") new import_obsidian25.Notice(t("ui.aim_research_partial"));
+        new import_obsidian26.Notice(t("ui.aim_waiting_user"));
+      } else if (result.status === "partial") new import_obsidian26.Notice(t("ui.aim_research_partial"));
       else if (result.status === "completed") showDocumentReady();
-      else if (result.status === "in-progress") new import_obsidian25.Notice(t("ui.aim_research_already_running"));
+      else if (result.status === "in-progress") new import_obsidian26.Notice(t("ui.aim_research_already_running"));
     } catch (error) {
       if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
-      if (controller.signal.aborted) new import_obsidian25.Notice(t("ui.research_stopped_existing_content_was_preserved"));
-      else new import_obsidian25.Notice(error instanceof Error ? error.message : String(error));
+      if (controller.signal.aborted) new import_obsidian26.Notice(t("ui.research_stopped_existing_content_was_preserved"));
+      else new import_obsidian26.Notice(error instanceof Error ? error.message : String(error));
       const latest = await this.plugin.repo.readMap(mapPath);
       if (this.aimViewIsCurrent(epoch, mapPath)) {
         this.map = latest;
@@ -27297,7 +27968,7 @@ ${request.requirements}` : preset.text,
       for (let waited = 0; this.aimBusy && waited < 3e4; waited += 100)
         await new Promise((resolve) => window.setTimeout(resolve, 100));
       if (this.aimBusy) {
-        new import_obsidian25.Notice(t("ui.aim_research_already_running"));
+        new import_obsidian26.Notice(t("ui.aim_research_already_running"));
         return;
       }
     }
@@ -27314,7 +27985,7 @@ ${request.requirements}` : preset.text,
     const note = (_d = node && this.notes.get(node.id)) != null ? _d : topic && this.notes.get(topic.id);
     if (this.closed || !node || !note || !this.path || !((_e = this.map) == null ? void 0 : _e.aim)) return;
     if (this.aimBusy) {
-      new import_obsidian25.Notice(t("ui.aim_research_already_running"));
+      new import_obsidian26.Notice(t("ui.aim_research_already_running"));
       return;
     }
     const epoch = this.aimViewEpoch, mapPath = this.path, controller = new AbortController();
@@ -27330,12 +28001,12 @@ ${request.requirements}` : preset.text,
       this.map = await this.plugin.repo.readMap(mapPath);
       await this.hydrate(() => this.aimViewIsCurrent(epoch, mapPath));
       if (outcome.status === "completed") showDocumentReady();
-      else if (outcome.status === "partial") new import_obsidian25.Notice(t("ui.aim_research_partial"));
-      else if (outcome.status === "waiting-user") new import_obsidian25.Notice(t("ui.aim_waiting_user"));
+      else if (outcome.status === "partial") new import_obsidian26.Notice(t("ui.aim_research_partial"));
+      else if (outcome.status === "waiting-user") new import_obsidian26.Notice(t("ui.aim_waiting_user"));
     } catch (error) {
       if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
-      if (controller.signal.aborted) new import_obsidian25.Notice(t("ui.research_stopped_existing_content_was_preserved"));
-      else new import_obsidian25.Notice(error instanceof Error ? error.message : String(error));
+      if (controller.signal.aborted) new import_obsidian26.Notice(t("ui.research_stopped_existing_content_was_preserved"));
+      else new import_obsidian26.Notice(error instanceof Error ? error.message : String(error));
     } finally {
       if (this.aimController === controller) {
         this.aimBusy = false;
@@ -27408,7 +28079,7 @@ ${request.requirements}` : preset.text,
       }
       this.aimActivityKind = "planning";
       this.render();
-      const result = await this.planAimQuestion(node.id, (0, import_node_crypto11.randomUUID)(), parentBranchId, controller.signal);
+      const result = await this.planAimQuestion(node.id, (0, import_node_crypto13.randomUUID)(), parentBranchId, controller.signal);
       this.noticeDocumentReadyElsewhere(
         result.status === "question" ? void 0 : (_e = result.outcome) == null ? void 0 : _e.status,
         epoch,
@@ -27419,10 +28090,10 @@ ${request.requirements}` : preset.text,
         this.selected = result.node.id;
         this.render();
         this.focusNode(result.node);
-        new import_obsidian25.Notice(t("ui.aim_question_ready"));
+        new import_obsidian26.Notice(t("ui.aim_question_ready"));
       } else if (result.outcome) {
         const outcome = result.outcome;
-        if (outcome.status === "partial") new import_obsidian25.Notice(t("ui.aim_research_partial"));
+        if (outcome.status === "partial") new import_obsidian26.Notice(t("ui.aim_research_partial"));
         else if (outcome.status === "waiting-user") {
           const question = (_f = this.map) == null ? void 0 : _f.nodes.find((item) => item.id === outcome.questionNodeId);
           if (question) {
@@ -27430,15 +28101,15 @@ ${request.requirements}` : preset.text,
             this.render();
             this.focusNode(question);
           }
-          new import_obsidian25.Notice(t("ui.aim_waiting_user"));
+          new import_obsidian26.Notice(t("ui.aim_waiting_user"));
         } else if (outcome.status === "completed") showDocumentReady();
-        else if (outcome.status === "in-progress") new import_obsidian25.Notice(t("ui.aim_research_already_running"));
-        else new import_obsidian25.Notice(t("ui.aim_research_result_stale"));
-      } else new import_obsidian25.Notice(t("ui.aim_no_question_needed"));
+        else if (outcome.status === "in-progress") new import_obsidian26.Notice(t("ui.aim_research_already_running"));
+        else new import_obsidian26.Notice(t("ui.aim_research_result_stale"));
+      } else new import_obsidian26.Notice(t("ui.aim_no_question_needed"));
     } catch (error) {
       if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
-      if (controller.signal.aborted) new import_obsidian25.Notice(t("ui.research_stopped_existing_content_was_preserved"));
-      else new import_obsidian25.Notice(error instanceof Error ? error.message : String(error));
+      if (controller.signal.aborted) new import_obsidian26.Notice(t("ui.research_stopped_existing_content_was_preserved"));
+      else new import_obsidian26.Notice(error instanceof Error ? error.message : String(error));
     } finally {
       if (this.aimController === controller) {
         this.aimBusy = false;
@@ -27478,15 +28149,15 @@ ${request.requirements}` : preset.text,
           this.render();
           this.focusNode(question);
         }
-        new import_obsidian25.Notice(t("ui.aim_waiting_user"));
-      } else if (result.status === "partial") new import_obsidian25.Notice(t("ui.aim_research_partial"));
+        new import_obsidian26.Notice(t("ui.aim_waiting_user"));
+      } else if (result.status === "partial") new import_obsidian26.Notice(t("ui.aim_research_partial"));
       else if (result.status === "completed") showDocumentReady();
-      else if (result.status === "in-progress") new import_obsidian25.Notice(t("ui.aim_research_already_running"));
-      else new import_obsidian25.Notice(t("ui.aim_research_result_stale"));
+      else if (result.status === "in-progress") new import_obsidian26.Notice(t("ui.aim_research_already_running"));
+      else new import_obsidian26.Notice(t("ui.aim_research_result_stale"));
     } catch (error) {
       if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) return;
-      if (controller.signal.aborted) new import_obsidian25.Notice(t("ui.research_stopped_existing_content_was_preserved"));
-      else new import_obsidian25.Notice(error instanceof Error ? error.message : String(error));
+      if (controller.signal.aborted) new import_obsidian26.Notice(t("ui.research_stopped_existing_content_was_preserved"));
+      else new import_obsidian26.Notice(error instanceof Error ? error.message : String(error));
     } finally {
       if (this.aimController === controller) {
         this.aimBusy = false;
@@ -27525,13 +28196,13 @@ ${request.requirements}` : preset.text,
       if (!isCurrent()) return;
       if (result.status === "waiting-user") {
         this.selected = result.questionNodeId;
-        new import_obsidian25.Notice(t("ui.aim_waiting_user"));
-      } else if (result.status === "partial") new import_obsidian25.Notice(t("ui.aim_research_partial"));
+        new import_obsidian26.Notice(t("ui.aim_waiting_user"));
+      } else if (result.status === "partial") new import_obsidian26.Notice(t("ui.aim_research_partial"));
       else if (result.status === "completed") showDocumentReady();
-      else if (result.status === "in-progress") new import_obsidian25.Notice(t("ui.aim_research_already_running"));
+      else if (result.status === "in-progress") new import_obsidian26.Notice(t("ui.aim_research_already_running"));
     } catch (error) {
       if (!isCurrent()) return;
-      new import_obsidian25.Notice(
+      new import_obsidian26.Notice(
         controller.signal.aborted ? t("ui.research_stopped_existing_content_was_preserved") : error instanceof Error ? error.message : String(error)
       );
     } finally {
@@ -27545,7 +28216,7 @@ ${request.requirements}` : preset.text,
             }
           }
         } catch (error) {
-          if (isCurrent()) new import_obsidian25.Notice(error instanceof Error ? error.message : String(error));
+          if (isCurrent()) new import_obsidian26.Notice(error instanceof Error ? error.message : String(error));
         } finally {
           if (this.aimController === controller) {
             this.aimBusy = false;
@@ -27578,7 +28249,7 @@ ${request.requirements}` : preset.text,
         const current = (_a2 = this.map) == null ? void 0 : _a2.nodes.find((item) => item.id === node.id);
         if (current) this.openAimAnswer(current);
       }).catch((error) => {
-        if (this.aimViewIsCurrent(epoch, mapPath)) new import_obsidian25.Notice(error instanceof Error ? error.message : String(error));
+        if (this.aimViewIsCurrent(epoch, mapPath)) new import_obsidian26.Notice(error instanceof Error ? error.message : String(error));
       });
       return;
     }
@@ -27608,16 +28279,16 @@ ${request.requirements}` : preset.text,
               this.render();
               this.focusNode(question);
             }
-            new import_obsidian25.Notice(t("ui.aim_waiting_user"));
-          } else if (result.status === "partial") new import_obsidian25.Notice(t("ui.aim_research_partial"));
+            new import_obsidian26.Notice(t("ui.aim_waiting_user"));
+          } else if (result.status === "partial") new import_obsidian26.Notice(t("ui.aim_research_partial"));
           else if (result.status === "completed") showDocumentReady();
-          else if (result.status === "in-progress") new import_obsidian25.Notice(t("ui.aim_research_already_running"));
-          else new import_obsidian25.Notice(t("ui.aim_research_result_stale"));
+          else if (result.status === "in-progress") new import_obsidian26.Notice(t("ui.aim_research_already_running"));
+          else new import_obsidian26.Notice(t("ui.aim_research_result_stale"));
         } catch (error) {
           if (!this.aimViewIsCurrent(epoch, mapPath) || this.aimController !== controller) throw error;
           this.aimAnswerRequestIds.set(node.id, input.requestId);
-          if (controller.signal.aborted) new import_obsidian25.Notice(t("ui.research_stopped_existing_content_was_preserved"));
-          else new import_obsidian25.Notice(error instanceof Error ? error.message : String(error));
+          if (controller.signal.aborted) new import_obsidian26.Notice(t("ui.research_stopped_existing_content_was_preserved"));
+          else new import_obsidian26.Notice(error instanceof Error ? error.message : String(error));
           throw error;
         } finally {
           if (this.aimController === controller) {
@@ -27629,7 +28300,7 @@ ${request.requirements}` : preset.text,
           }
         }
       },
-      (_d = this.aimAnswerRequestIds.get(node.id)) != null ? _d : (0, import_node_crypto11.randomUUID)()
+      (_d = this.aimAnswerRequestIds.get(node.id)) != null ? _d : (0, import_node_crypto13.randomUUID)()
     ).open();
   }
   async openBuiltInSample(forceTour = false) {
@@ -27720,7 +28391,7 @@ ${request.requirements}` : preset.text,
     if (this.renderingCard) button.tabIndex = -1;
     button.setAttr("aria-label", label);
     button.dataset.icon = icon;
-    (0, import_obsidian25.setIcon)(button, icon);
+    (0, import_obsidian26.setIcon)(button, icon);
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       action(event);
@@ -27746,7 +28417,7 @@ ${request.requirements}` : preset.text,
   }
   /** The three ways to start a map sit together, so none reads as the only or the hidden option. */
   openNewMapMenu(event) {
-    const menu = new import_obsidian25.Menu();
+    const menu = new import_obsidian26.Menu();
     menu.addItem(
       (item) => item.setTitle(t("ui.new_mind_map")).setIcon("file-plus").onClick(
         () => new NameModal(
@@ -28534,7 +29205,7 @@ ${request.requirements}` : preset.text,
     this.updateHistoryButtons();
   }
   openDetails(node) {
-    void this.plugin.openDetails(this.plugin.repo.file(node.path)).catch((error) => new import_obsidian25.Notice(error instanceof Error ? error.message : String(error)));
+    void this.plugin.openDetails(this.plugin.repo.file(node.path)).catch((error) => new import_obsidian26.Notice(error instanceof Error ? error.message : String(error)));
   }
   async travel(redo) {
     const action = redo ? this.history.redo() : this.history.undo();
@@ -28569,7 +29240,7 @@ ${request.requirements}` : preset.text,
     var _a;
     if (this.builtIn) return;
     if (!this.path || !this.map || this.closed) return;
-    if (!(this.app.vault.getAbstractFileByPath(this.path) instanceof import_obsidian25.TFile)) {
+    if (!(this.app.vault.getAbstractFileByPath(this.path) instanceof import_obsidian26.TFile)) {
       this.map = null;
       this.path = "";
       this.history.clear();
@@ -28676,7 +29347,7 @@ ${request.requirements}` : preset.text,
   renameCurrentMap() {
     if (!this.map) return;
     if (this.aimActiveForPath(this.path)) {
-      new import_obsidian25.Notice(t("ui.aim_research_already_running"));
+      new import_obsidian26.Notice(t("ui.aim_research_already_running"));
       return;
     }
     new NameModal(
@@ -28686,11 +29357,11 @@ ${request.requirements}` : preset.text,
       (title) => this.enqueue(async () => {
         if (!this.map) return;
         if (this.aimActiveForPath(this.path)) {
-          new import_obsidian25.Notice(t("ui.aim_research_already_running"));
+          new import_obsidian26.Notice(t("ui.aim_research_already_running"));
           return;
         }
         if (!isManagedMapPath(this.plugin.settings, this.path)) {
-          new import_obsidian25.Notice(t("ui.legacy_map_view_only"));
+          new import_obsidian26.Notice(t("ui.legacy_map_view_only"));
           return;
         }
         const before = clone(this.map), beforeRoot = this.plugin.repo.topicRoot(this.path);
@@ -28774,7 +29445,7 @@ ${request.requirements}` : preset.text,
     const deleted = this.deletedMap;
     if (!deleted || deleted.deleted) return;
     const file = this.app.vault.getAbstractFileByPath(deleted.path);
-    if (!(file instanceof import_obsidian25.TFile) || await this.app.vault.read(file) !== deleted.content)
+    if (!(file instanceof import_obsidian26.TFile) || await this.app.vault.read(file) !== deleted.content)
       throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
     await this.app.fileManager.trashFile(file);
     deleted.deleted = true;
@@ -28888,7 +29559,7 @@ ${request.requirements}` : preset.text,
     const switcher = toolbar.createEl("button", { cls: "vam-map-switcher" });
     switcher.setAttr("aria-label", t("ui.switch_mind_map"));
     switcher.createSpan({ text: (_g = (_f = this.map) == null ? void 0 : _f.title) != null ? _g : "Visual Agent Map", cls: "vam-map-title" });
-    (0, import_obsidian25.setIcon)(switcher.createSpan("vam-map-switcher-icon"), "chevrons-up-down");
+    (0, import_obsidian26.setIcon)(switcher.createSpan("vam-map-switcher-icon"), "chevrons-up-down");
     switcher.addEventListener("click", () => this.openMapSwitcher());
     if (this.builtIn) toolbar.createSpan({ cls: "vam-readonly-badge", text: t("ui.official_sample_read_only") });
     if (this.map && !this.builtIn && !this.map.aim && this.map.nodes.length) this.renderResearchProgress(toolbar);
@@ -28902,13 +29573,13 @@ ${request.requirements}` : preset.text,
     } else if (this.map) {
       const newMap = headerActions.createEl("button", { cls: "vam-new-map" });
       newMap.createSpan({ text: t("ui.new_map") });
-      (0, import_obsidian25.setIcon)(newMap.createSpan("vam-new-map-icon"), "chevron-down");
+      (0, import_obsidian26.setIcon)(newMap.createSpan("vam-new-map-icon"), "chevron-down");
       newMap.addEventListener("click", (event) => {
         event.stopPropagation();
         this.openNewMapMenu(event);
       });
       this.iconButton(headerActions, "list-tree", t("ui.open_topic_outline"), () => {
-        void this.plugin.activateOutline().catch((error) => new import_obsidian25.Notice(String(error)));
+        void this.plugin.activateOutline().catch((error) => new import_obsidian26.Notice(String(error)));
       });
       const undo = this.iconButton(headerActions, "undo-2", t("ui.undo"), () => this.enqueue(() => this.travel(false)));
       undo.disabled = !this.history.canUndo;
@@ -29942,7 +30613,7 @@ ${request.requirements}` : preset.text,
     preview.createEl("strong", { text: note.title });
     const content = preview.createDiv("vam-hover-markdown");
     const path = (_d = (_c = (_b = this.map) == null ? void 0 : _b.nodes.find((node) => node.id === card.dataset.nodeId)) == null ? void 0 : _c.path) != null ? _d : "";
-    void import_obsidian25.MarkdownRenderer.render(this.app, note.preview || t("ui.no_preview_content_yet"), content, path, this);
+    void import_obsidian26.MarkdownRenderer.render(this.app, note.preview || t("ui.no_preview_content_yet"), content, path, this);
     const host = workspace.getBoundingClientRect(), rect = card.getBoundingClientRect();
     const availableWidth = Math.max(180, host.width - 24);
     const width = Math.min(size.max, Math.max(Math.min(size.min, availableWidth), availableWidth));
@@ -30014,7 +30685,7 @@ ${request.requirements}` : preset.text,
         const map = await this.plugin.repo.readMap(topic.mapPath);
         const files = map.nodes.map((node) => {
           const file = this.app.vault.getAbstractFileByPath(node.path);
-          if (!(file instanceof import_obsidian25.TFile) || file.extension.toLowerCase() !== "md")
+          if (!(file instanceof import_obsidian26.TFile) || file.extension.toLowerCase() !== "md")
             throw new Error(t("ui.reference_map_note_unavailable", node.path));
           return file;
         });
@@ -30177,7 +30848,7 @@ ${request.requirements}` : preset.text,
   }
   openNodePanel(node, mode) {
     const render = (content, close, host) => this.renderInspector(content, node, mode, close, host);
-    new class extends import_obsidian25.Modal {
+    new class extends import_obsidian26.Modal {
       onOpen() {
         this.modalEl.addClass("vam-topic-modal", "vam-review-modal");
         render(this.contentEl, () => this.close(), this.modalEl);
@@ -30203,7 +30874,7 @@ ${request.requirements}` : preset.text,
         panel.createEl("h3", { text: note.title });
         panel.createEl("p", { text: note.summary, cls: "vam-sample-summary" });
         const detail = panel.createDiv("vam-sample-detail");
-        void import_obsidian25.MarkdownRenderer.render(this.app, note.detail, detail, "", this);
+        void import_obsidian26.MarkdownRenderer.render(this.app, note.detail, detail, "", this);
         if (note.sourcePaths.length) {
           const sources2 = panel.createDiv("vam-reference-sources");
           sources2.createEl("strong", { text: t("ui.source_topics") });
@@ -30226,16 +30897,16 @@ ${request.requirements}` : preset.text,
             const file = this.app.vault.getAbstractFileByPath(path);
             this.button(
               sources2,
-              (_f = sourceNote == null ? void 0 : sourceNote.title) != null ? _f : file instanceof import_obsidian25.TFile ? file.basename : t("ui.0_moved", (_e = path.split("/").at(-1)) == null ? void 0 : _e.replace(/\.md$/, "")),
+              (_f = sourceNote == null ? void 0 : sourceNote.title) != null ? _f : file instanceof import_obsidian26.TFile ? file.basename : t("ui.0_moved", (_e = path.split("/").at(-1)) == null ? void 0 : _e.replace(/\.md$/, "")),
               () => {
                 close == null ? void 0 : close();
                 if (sourceNode) {
                   this.selected = sourceNode.id;
                   this.render();
                   this.focusNode(sourceNode);
-                } else if (file instanceof import_obsidian25.TFile) void this.plugin.openDetails(file);
+                } else if (file instanceof import_obsidian26.TFile) void this.plugin.openDetails(file);
               },
-              !(sourceNode || file instanceof import_obsidian25.TFile)
+              !(sourceNode || file instanceof import_obsidian26.TFile)
             );
           }
         }
@@ -30414,7 +31085,7 @@ ${request.requirements}` : preset.text,
   async repairMissingTopic() {
     const broken = await this.plugin.repo.brokenTopics();
     if (!broken.length) {
-      new import_obsidian25.Notice(t("ui.no_topics_with_a_missing_map_md"));
+      new import_obsidian26.Notice(t("ui.no_topics_with_a_missing_map_md"));
       return;
     }
     new ChoiceModal(
@@ -30470,7 +31141,7 @@ ${request.requirements}` : preset.text,
       this.plugin.settings.cliModel
     );
     if (!isManagedMapPath(this.plugin.settings, this.path)) {
-      new import_obsidian25.Notice(t("ui.legacy_map_view_only"));
+      new import_obsidian26.Notice(t("ui.legacy_map_view_only"));
       return;
     }
     const node = await this.plugin.repo.createNote(
@@ -30516,7 +31187,7 @@ ${request.requirements}` : preset.text,
         this.plugin.pendingResearchOptions.delete(parent.path);
         const message = t("ui.ai_proposed_duplicate_first_level_names_generate_the_proposa");
         if (failed) failed(message);
-        else new import_obsidian25.Notice(message);
+        else new import_obsidian26.Notice(message);
         return;
       }
       if (!found) {
@@ -30628,7 +31299,7 @@ ${request.requirements}` : preset.text,
       if (suggestions.length === 0) {
         const message = result.detail.trim() || t("ui.ai_does_not_recommend_decomposition_or_did_not_propose_3_to");
         if (failed) failed(message);
-        else new import_obsidian25.Notice(message);
+        else new import_obsidian26.Notice(message);
         return;
       }
       const latest = await this.plugin.repo.readNote(parent.path, (_f = this.map) != null ? _f : void 0);
@@ -30658,7 +31329,7 @@ ${request.requirements}` : preset.text,
         console.error("Visual Agent Map AI split", error);
         const message = this.plugin.recordFailure(t("log.ai_split_failed"), error);
         if (failed) failed(message, !partial);
-        else new import_obsidian25.Notice(message);
+        else new import_obsidian26.Notice(message);
       }
     } finally {
       releaseTask();
@@ -30684,7 +31355,7 @@ ${request.requirements}` : preset.text,
     if (new Set(roots).size !== roots.length) {
       this.plugin.pendingSuggestions.delete(parent.path);
       this.plugin.pendingResearchOptions.delete(parent.path);
-      new import_obsidian25.Notice(t("ui.ai_proposed_duplicate_first_level_names_generate_the_proposa"));
+      new import_obsidian26.Notice(t("ui.ai_proposed_duplicate_first_level_names_generate_the_proposa"));
       return;
     }
     new ChildProposalModal(this.app, suggestions.slice(0, 15), (items) => {
@@ -30711,7 +31382,7 @@ ${request.requirements}` : preset.text,
         if ((researchOptions == null ? void 0 : researchOptions.shallowResearch) && createdNodes.length)
           await this.startShallowResearch(parent, createdNodes, researchOptions);
       })().catch((error) => {
-        new import_obsidian25.Notice(error instanceof Error ? error.message : String(error));
+        new import_obsidian26.Notice(error instanceof Error ? error.message : String(error));
       });
     }).open();
   }
@@ -30851,7 +31522,7 @@ ${request.requirements}` : preset.text,
     if (!this.map || this.map.aim || this.builtIn || !this.multiSelected.size) return;
     const key2 = this.multiResearchKey();
     if (this.plugin.expansionCoordinator.isRunning(key2)) {
-      new import_obsidian25.Notice(t("ui.multi_research_already_running"));
+      new import_obsidian26.Notice(t("ui.multi_research_already_running"));
       return;
     }
     const selected = [...this.multiSelected].map((id) => this.map.nodes.find((node) => node.id === id)).filter((node) => !!node);
@@ -30859,16 +31530,16 @@ ${request.requirements}` : preset.text,
       await this.plugin.confirmAiUsage((_a = request.model) != null ? _a : this.plugin.settings.cliModel, async () => {
         var _a2;
         if (this.plugin.expansionCoordinator.isRunning(key2)) {
-          new import_obsidian25.Notice(t("ui.multi_research_already_running"));
+          new import_obsidian26.Notice(t("ui.multi_research_already_running"));
           return;
         }
         const busy = (node) => this.plugin.running.has(node.path) || this.plugin.quickExpandPending.has(node.path) || this.plugin.activeTasks.has(node.path);
         const nodes = selected.filter((node) => !busy(node));
         if (!nodes.length) {
-          new import_obsidian25.Notice(t("ui.multi_research_all_skipped"));
+          new import_obsidian26.Notice(t("ui.multi_research_all_skipped"));
           return;
         }
-        if (nodes.length < selected.length) new import_obsidian25.Notice(t("ui.multi_research_skipped", selected.length - nodes.length));
+        if (nodes.length < selected.length) new import_obsidian26.Notice(t("ui.multi_research_skipped", selected.length - nodes.length));
         if (request.model)
           for (const node of nodes)
             await this.plugin.repo.updateNote(node.path, { model: request.model, modelSource: "manual" });
@@ -30905,7 +31576,7 @@ ${request.requirements}` : preset.text,
               const state = this.plugin.expansionBatches.get(key2);
               if (state && state.status !== "running" && !reported) {
                 reported = true;
-                new import_obsidian25.Notice(
+                new import_obsidian26.Notice(
                   t(
                     state.status === "stopped" ? "ui.multi_research_stopped" : "ui.multi_research_finished",
                     state.succeeded,
@@ -30922,7 +31593,7 @@ ${request.requirements}` : preset.text,
         }
       });
     } catch (error) {
-      new import_obsidian25.Notice(errorMessage(error));
+      new import_obsidian26.Notice(errorMessage(error));
     }
   }
   /** Counts that cannot be misread: succeeded of total, failures, optional current topic and stopped marker. */
@@ -31085,7 +31756,7 @@ ${request.requirements}` : preset.text,
     const paths = [...section3.matchAll(/\[\[([^\]|#]+)(?:[|#][^\]]*)?\]\]/g)].map((match) => {
       var _a, _b;
       const link = match[1], direct = link.endsWith(".md") ? link : `${link}.md`;
-      if (this.app.vault.getAbstractFileByPath(direct) instanceof import_obsidian25.TFile) return direct;
+      if (this.app.vault.getAbstractFileByPath(direct) instanceof import_obsidian26.TFile) return direct;
       return (_b = (_a = this.app.metadataCache.getFirstLinkpathDest(link, ownerPath)) == null ? void 0 : _a.path) != null ? _b : direct;
     });
     return [...new Set(paths)];
@@ -31180,7 +31851,7 @@ ${request.requirements}` : preset.text,
     if (!children.length && !((_b = options == null ? void 0 : options.referenceGroups) == null ? void 0 : _b.some((group) => group.documents.length))) {
       const message = t("ui.choose_another_note_source_first");
       if (failed) failed(message);
-      else new import_obsidian25.Notice(message);
+      else new import_obsidian26.Notice(message);
       return;
     }
     const childSources = await this.topicReferenceGroup(
@@ -31206,7 +31877,7 @@ ${request.requirements}` : preset.text,
     if (!children.length && !selectedSources.some((group) => group.documents.length)) {
       const message = t("ui.the_selected_sources_contain_no_markdown_content_to_synthesi");
       if (failed) failed(message);
-      else new import_obsidian25.Notice(message);
+      else new import_obsidian26.Notice(message);
       return;
     }
     const language2 = this.plugin.settings.language;
@@ -31302,7 +31973,7 @@ ${request.requirements}` : preset.text,
         );
         await this.hydrate();
         this.render();
-        new import_obsidian25.Notice(t("ui.subtopic_synthesis_was_saved_to_current_understanding_and_ma"));
+        new import_obsidian26.Notice(t("ui.subtopic_synthesis_was_saved_to_current_understanding_and_ma"));
       });
       if (drafted) drafted(result, save);
       else
@@ -31322,13 +31993,13 @@ ${request.requirements}` : preset.text,
       if (((_i = options == null ? void 0 : options.signal) == null ? void 0 : _i.aborted) || error instanceof Error && error.name === "AbortError") {
         await this.plugin.repo.updateNote(node.path, { status: note.status });
         if (failed) failed(t("ui.research_stopped_existing_content_was_preserved"));
-        else new import_obsidian25.Notice(t("ui.research_stopped_existing_content_was_preserved"));
+        else new import_obsidian26.Notice(t("ui.research_stopped_existing_content_was_preserved"));
       } else {
         console.error("Visual Agent Map child integration", error);
         await this.plugin.repo.updateNote(node.path, { status: "error" });
         const message = this.plugin.recordFailure(t("log.child_integration_failed"), error);
         if (failed) failed(message);
-        else new import_obsidian25.Notice(message);
+        else new import_obsidian26.Notice(message);
       }
     } finally {
       this.plugin.running.delete(node.path);
@@ -31531,7 +32202,7 @@ ${request.requirements}` : preset.text,
           node,
           { ...task.options, continuesDirections: task.step === "draft" },
           task.step === "directions" ? null : task.direction,
-          (message) => new import_obsidian25.Notice(message),
+          (message) => new import_obsidian26.Notice(message),
           () => {
           }
         );
@@ -31541,12 +32212,12 @@ ${request.requirements}` : preset.text,
   /** Multi-select synthesis: the same dialog and flow as a single topic's, over the selected topics. */
   integrateSelected() {
     if (!this.map || this.multiSelected.size < 2) {
-      new import_obsidian25.Notice(t("ui.select_at_least_two_topics"));
+      new import_obsidian26.Notice(t("ui.select_at_least_two_topics"));
       return;
     }
     const task = this.integrationTask && this.integrationTask.mapPath === this.path ? this.integrationTask : null;
     if ((task == null ? void 0 : task.state) === "running") {
-      new import_obsidian25.Notice(t("ui.ai_running_ai"));
+      new import_obsidian26.Notice(t("ui.ai_running_ai"));
       return;
     }
     if ((task == null ? void 0 : task.state) === "draft") {
@@ -31773,7 +32444,7 @@ ${request.requirements}` : preset.text,
         task.sources,
         { ...task.options, synthesisTitle: task.title, continuesDirections: task.directions.length > 0 },
         task.step === "directions" ? null : task.goal,
-        (message) => new import_obsidian25.Notice(message),
+        (message) => new import_obsidian26.Notice(message),
         () => {
         }
       );
@@ -32025,7 +32696,7 @@ ${note.detail.trim()}` : "",
           this.focusNode(integrated);
         } catch (e) {
           this.render();
-          new import_obsidian25.Notice(t("ui.synthesis_saved_refresh_failed"));
+          new import_obsidian26.Notice(t("ui.synthesis_saved_refresh_failed"));
         }
         return;
       }
@@ -32383,7 +33054,7 @@ ${note.detail.trim()}` : "",
     const note = await this.plugin.repo.readNote(node.path, (_a = this.map) != null ? _a : void 0);
     const { template, missing } = this.resolveTopicTemplate(note, chosenId);
     if (note.detailTemplateId && missing.includes(note.detailTemplateId)) {
-      new import_obsidian25.Notice(t("ui.detail_template_missing_0", note.detailTemplateId));
+      new import_obsidian26.Notice(t("ui.detail_template_missing_0", note.detailTemplateId));
       await this.plugin.repo.updateNote(node.path, { detailTemplateId: "" });
     }
     return template;
@@ -32421,7 +33092,7 @@ ${note.detail.trim()}` : "",
     if (!((_b = overrides == null ? void 0 : overrides.task) != null ? _b : note.prompt)) {
       const message = t("ui.enter_a_question_or_task_for_ai_first");
       if (failed) failed(message);
-      else new import_obsidian25.Notice(message);
+      else new import_obsidian26.Notice(message);
       return null;
     }
     if (this.plugin.running.has(node.path)) {
@@ -32524,7 +33195,7 @@ ${note.detail.trim()}` : "",
             );
           if (stale) {
             if (failed) failed(t("ui.the_topic_changed_so_the_outdated_ai_result_was_not_saved"));
-            else new import_obsidian25.Notice(t("ui.the_topic_changed_so_the_outdated_ai_result_was_not_saved"));
+            else new import_obsidian26.Notice(t("ui.the_topic_changed_so_the_outdated_ai_result_was_not_saved"));
           }
           return;
         }
@@ -32563,7 +33234,7 @@ ${note.detail.trim()}` : "",
             await ((_g = (_f2 = this.plugin.pendingSuggestions).flush) == null ? void 0 : _g.call(_f2));
           } catch (error) {
             const message = this.plugin.recordFailure(t("log.expansion_suggestions_save_failed"), error);
-            new import_obsidian25.Notice(message);
+            new import_obsidian26.Notice(message);
           }
         }
         done == null ? void 0 : done(result);
@@ -32574,7 +33245,7 @@ ${note.detail.trim()}` : "",
         if (controller.signal.aborted || error instanceof Error && error.name === "AbortError") {
           await this.plugin.repo.updateNote(node.path, { status: note.status });
           if (failed) failed(t("ui.research_stopped_existing_content_was_preserved"));
-          else new import_obsidian25.Notice(t("ui.research_stopped_existing_content_was_preserved"));
+          else new import_obsidian26.Notice(t("ui.research_stopped_existing_content_was_preserved"));
           return;
         }
         console.error("Visual Agent Map AI task", error);
@@ -32586,7 +33257,7 @@ ${note.detail.trim()}` : "",
         await this.plugin.repo.updateNote(node.path, { status: "error" });
         const message = this.plugin.recordFailure(t("log.ai_task_failed"), error);
         if (failed) failed(message);
-        else new import_obsidian25.Notice(message);
+        else new import_obsidian26.Notice(message);
       })
     ).finally(() => {
       var _a2;
@@ -32613,7 +33284,7 @@ ${note.detail.trim()}` : "",
 var import_obsidian31 = require("obsidian");
 
 // ui/settings-tab.ts
-var import_obsidian26 = require("obsidian");
+var import_obsidian27 = require("obsidian");
 var CODEX_INSTALL_URL = "https://developers.openai.com/codex/cli/";
 var CLAUDE_INSTALL_URL = "https://code.claude.com/docs/en/setup";
 function bindMapFolderInput(plugin, key2, input) {
@@ -32645,7 +33316,7 @@ function bindMapFolderInput(plugin, key2, input) {
     if (event.key === "Enter") input.inputEl.blur();
   });
 }
-var CodexSetupModal = class extends import_obsidian26.Modal {
+var CodexSetupModal = class extends import_obsidian27.Modal {
   constructor(app, executable, recheck) {
     super(app);
     this.executable = executable;
@@ -32669,7 +33340,7 @@ var CodexSetupModal = class extends import_obsidian26.Modal {
       cls: "vam-setup-note"
     });
     this.contentEl.createEl("p", { text: t("ui.path_currently_checked_0", this.executable), cls: "vam-setup-path" });
-    new import_obsidian26.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.do_this_later")).onClick(() => this.close())).addButton(
+    new import_obsidian27.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.do_this_later")).onClick(() => this.close())).addButton(
       (button) => button.setButtonText(t("ui.i_ve_finished_check_again")).setCta().onClick(() => {
         this.close();
         this.recheck();
@@ -32677,7 +33348,7 @@ var CodexSetupModal = class extends import_obsidian26.Modal {
     );
   }
 };
-var AiUsageModal = class extends import_obsidian26.Modal {
+var AiUsageModal = class extends import_obsidian27.Modal {
   constructor(app, provider, resolve) {
     super(app);
     this.provider = provider;
@@ -32698,7 +33369,7 @@ var AiUsageModal = class extends import_obsidian26.Modal {
       this.close();
       this.resolve(confirmed);
     };
-    new import_obsidian26.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => finish(false))).addButton(
+    new import_obsidian27.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.cancel")).onClick(() => finish(false))).addButton(
       (button) => button.setButtonText(t("ui.understand_and_run")).setCta().onClick(() => finish(true))
     );
   }
@@ -32706,7 +33377,7 @@ var AiUsageModal = class extends import_obsidian26.Modal {
     if (!this.settled) this.resolve(false);
   }
 };
-var ClaudeSetupModal = class extends import_obsidian26.Modal {
+var ClaudeSetupModal = class extends import_obsidian27.Modal {
   constructor(app, executable, url, recheck) {
     super(app);
     this.executable = executable;
@@ -32726,7 +33397,7 @@ var ClaudeSetupModal = class extends import_obsidian26.Modal {
     });
     steps.createEl("li", { text: t("ui.return_to_vam_and_check_the_cli_path_again") });
     this.contentEl.createEl("p", { text: t("ui.path_currently_checked_0", this.executable), cls: "vam-setup-path" });
-    new import_obsidian26.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.do_this_later")).onClick(() => this.close())).addButton(
+    new import_obsidian27.Setting(this.contentEl).addButton((button) => button.setButtonText(t("ui.do_this_later")).onClick(() => this.close())).addButton(
       (button) => button.setButtonText(t("ui.check_again")).setCta().onClick(() => {
         this.close();
         this.recheck();
@@ -32734,7 +33405,7 @@ var ClaudeSetupModal = class extends import_obsidian26.Modal {
     );
   }
 };
-var VisualAgentMapSettingTab = class extends import_obsidian26.PluginSettingTab {
+var VisualAgentMapSettingTab = class extends import_obsidian27.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
@@ -32994,9 +33665,9 @@ var VisualAgentMapSettingTab = class extends import_obsidian26.PluginSettingTab 
 var import_node_path2 = require("node:path");
 
 // ui/outline-view.ts
-var import_obsidian27 = require("obsidian");
+var import_obsidian28 = require("obsidian");
 var OUTLINE_VIEW_TYPE = "visual-agent-map-outline";
-var OutlineView = class extends import_obsidian27.ItemView {
+var OutlineView = class extends import_obsidian28.ItemView {
   constructor(leaf, openNote) {
     super(leaf);
     this.openNote = openNote;
@@ -33127,7 +33798,7 @@ var OutlineView = class extends import_obsidian27.ItemView {
       if (item.status === "error") button.createEl("small", { text: t("ui.coffee_segment_incomplete") });
       button.addEventListener("click", () => {
         var _a2;
-        if (!((_a2 = this.locateCoffee) == null ? void 0 : _a2.call(this, item.id))) new import_obsidian27.Notice(t("ui.coffee_segment_no_content"));
+        if (!((_a2 = this.locateCoffee) == null ? void 0 : _a2.call(this, item.id))) new import_obsidian28.Notice(t("ui.coffee_segment_no_content"));
       });
     });
   }
@@ -33222,40 +33893,6 @@ function groupRibbonIcons(map, coffee) {
 
 // main.ts
 var import_node_crypto15 = require("node:crypto");
-
-// core/experience-router.ts
-var HandoffWriteError = class extends Error {
-  constructor(message, paths) {
-    super(message);
-    this.paths = paths;
-    this.name = "HandoffWriteError";
-  }
-};
-function isHandoffWriteError(value) {
-  if (!value || typeof value !== "object") return false;
-  const item = value;
-  return item.name === "HandoffWriteError" && typeof item.message === "string" && Array.isArray(item.paths) && item.paths.every((path) => typeof path === "string");
-}
-var ExperienceRouter = class {
-  constructor() {
-    __publicField(this, "handlers", /* @__PURE__ */ new Map());
-  }
-  register(target, handler) {
-    if (this.handlers.has(target)) throw new Error(`Experience already registered: ${target}`);
-    this.handlers.set(target, handler);
-    return () => {
-      if (this.handlers.get(target) === handler) this.handlers.delete(target);
-    };
-  }
-  canHandoff(target) {
-    return this.handlers.has(target);
-  }
-  async handoff({ target, artifact, beforeWrite }) {
-    const handler = this.handlers.get(target);
-    if (!handler) throw new Error(`Experience is not available: ${target}`);
-    return await handler(artifact, beforeWrite);
-  }
-};
 
 // core/thinking-core.ts
 var ThinkingCore = class {
@@ -35116,7 +35753,7 @@ ${value}`).join("\n\n");
 };
 
 // core/reframing-service.ts
-var import_node_crypto12 = require("node:crypto");
+var import_node_crypto14 = require("node:crypto");
 
 // core/steps/reframe/language.en.md
 var language_en_default3 = "Write in English.\n";
@@ -35167,7 +35804,7 @@ var reframeStep = {
 function providerReframeRunner(options, activeTasks) {
   return async (request, _prompt, _schema, signal, prepared) => {
     var _a, _b, _c;
-    const key2 = `reframe:${(0, import_node_crypto12.randomUUID)()}`, controller = new AbortController();
+    const key2 = `reframe:${(0, import_node_crypto14.randomUUID)()}`, controller = new AbortController();
     const abort = () => controller.abort();
     signal.addEventListener("abort", abort, { once: true });
     if (signal.aborted) controller.abort();
@@ -35441,402 +36078,6 @@ ${artifact.sourceSnapshot || "No insight snapshot was supplied."}`
   }
   return { paths: paths.filter(options.exists), targetPath, ...navigationError ? { navigationError } : {} };
 }
-
-// experiences/coffee-tables/handoff-modal.ts
-var import_obsidian28 = require("obsidian");
-var import_node_crypto14 = require("node:crypto");
-
-// core/thinking-artifact.ts
-function createThinkingArtifact(input) {
-  return { version: 1, ...input };
-}
-
-// experiences/coffee-tables/handoff-source.ts
-var import_node_crypto13 = require("node:crypto");
-function references(session) {
-  var _a, _b, _c;
-  return [
-    ...new Map(
-      [...(_a = session.referenceFiles) != null ? _a : [], ...(_c = (_b = session.guests) == null ? void 0 : _b.referenceFiles) != null ? _c : []].map((item) => [
-        JSON.stringify(item),
-        item
-      ])
-    ).values()
-  ];
-}
-function coffeeCommittedKey(session) {
-  var _a, _b, _c, _d, _e;
-  return JSON.stringify({
-    id: session.id,
-    topic: session.topic,
-    status: session.status,
-    language: session.language,
-    model: session.model,
-    reasoning: session.reasoning,
-    dirtyNotes: session.dirtyNotes === true,
-    dialogue: ((_a = session.rounds) != null ? _a : []).map((item) => ({ id: item.id, markdown: item.markdown, status: item.status })),
-    transcript: session.transcriptMarkdown,
-    questions: session.questions.filter((item) => item.status === "complete").map((item) => ({ id: item.id, question: item.question, answer: item.answer })),
-    interventions: (_b = session.interventions) != null ? _b : [],
-    insights: (_c = session.observerNotes) != null ? _c : [],
-    background: (_e = (_d = session.guests) == null ? void 0 : _d.background) != null ? _e : "",
-    references: references(session)
-  });
-}
-function insightText(item) {
-  return [item.summary, item.detail, item.question, item.proposedSolution, item.limitations].filter(Boolean).join("\n\n");
-}
-var normalize2 = (text11) => text11.normalize("NFKC").replace(/[*_`]/g, "").replace(/\s+/g, " ").trim();
-function buildCoffeeSource(session, insightId) {
-  var _a, _b, _c, _d, _e, _f;
-  const insights = baselineFromVersions((_a = session.observerNotes) != null ? _a : [], session.language);
-  const selected = insightId ? insights.find((item) => item.id === insightId) : void 0;
-  if (insightId && !selected) throw new Error("The selected insight changed; reopen the latest table.");
-  const dialogue = (((_b = session.rounds) == null ? void 0 : _b.length) ? session.rounds.filter((item) => item.markdown.trim()).map(
-    (item) => item.status === "completed" ? item.markdown : `Saved segment (${item.status}):
-${item.markdown}`
-  ) : [session.transcriptMarkdown]).filter(Boolean);
-  const answers = session.questions.filter((item) => item.status === "complete").map((item) => `${item.question}
-${item.answer}`);
-  const committed = [...dialogue, ...answers];
-  const unresolved = [], excerpts = [];
-  for (const source of (_c = selected == null ? void 0 : selected.sources) != null ? _c : []) {
-    const needle = normalize2(source);
-    let count = 0;
-    for (const text11 of committed) {
-      const haystack = normalize2(text11);
-      let at = 0;
-      while (needle && (at = haystack.indexOf(needle, at)) >= 0) {
-        count++;
-        at += needle.length;
-      }
-    }
-    if (count === 1) excerpts.push(source);
-    else unresolved.push(source);
-  }
-  const snapshotText = selected ? [
-    insightText(selected),
-    `Category: ${selected.category}`,
-    selected.sources.length ? `Original source annotations (not proof): ${JSON.stringify(selected.sources)}` : ""
-  ].filter(Boolean).join("\n\n") : ((_d = session.observerNotes) != null ? _d : []).join("\n\n") || "No cumulative insight snapshot was available.";
-  const status = [
-    "Simulated Coffee Tables discussion. All ideas are unverified candidates, not the user's conclusion.",
-    session.dirtyNotes ? "Observer notes are stale / not updated after conversation edits." : ""
-  ].filter(Boolean).join("\n");
-  const sourceSnapshot = [status, snapshotText].join("\n\n");
-  const content = selected ? [
-    session.topic,
-    status,
-    sourceSnapshot,
-    excerpts.length ? `Uniquely verified source excerpts:
-${excerpts.join("\n\n")}` : "No uniquely located dialogue source.",
-    unresolved.length ? `Unresolved source annotations (not verified excerpts):
-${JSON.stringify(unresolved)}` : ""
-  ].filter(Boolean).join("\n\n") : [
-    session.topic,
-    status,
-    ...committed,
-    ...((_e = session.interventions) != null ? _e : []).filter((item) => item.status === "sent" || item.status === void 0).map((item) => `Saved user intervention: ${item.text}`),
-    sourceSnapshot,
-    (_f = session.guests) == null ? void 0 : _f.background,
-    ...references(session).map((item) => `Background reference: ${item.name}
-${item.content}`)
-  ].filter(Boolean).join("\n\n");
-  return {
-    content,
-    sourceSnapshot,
-    question: (selected == null ? void 0 : selected.question) || (selected == null ? void 0 : selected.summary) || session.topic,
-    artifactId: (selected == null ? void 0 : selected.persistedId) ? selected.id : (0, import_node_crypto13.randomUUID)(),
-    identityKind: (selected == null ? void 0 : selected.persistedId) ? "persisted-insight" : "snapshot"
-  };
-}
-
-// experiences/coffee-tables/handoff-modal.ts
-async function openCoffeeResearchHandoff(plugin, store, displayed, path, insightId) {
-  var _a, _b, _c, _d;
-  const displayedKey = coffeeCommittedKey(displayed);
-  if ((_b = (_a = plugin.coffeeManager) == null ? void 0 : _a.get(displayed.id)) == null ? void 0 : _b.busy) throw new Error("Wait for this table to finish.");
-  const snapshot = await store.handoffSnapshot(path, displayed.id);
-  if ((_d = (_c = plugin.coffeeManager) == null ? void 0 : _c.get(displayed.id)) == null ? void 0 : _d.busy) throw new Error("Wait for this table to finish.");
-  if (displayedKey !== coffeeCommittedKey(snapshot.session))
-    throw new Error("Coffee source differs from the displayed table; reopen the latest table.");
-  const modal = new CoffeeHandoffModal(
-    plugin.app,
-    plugin,
-    store,
-    snapshot,
-    buildCoffeeSource(snapshot.session, insightId)
-  );
-  plugin.register(() => modal.close());
-  modal.open();
-  return modal;
-}
-var CoffeeHandoffModal = class extends import_obsidian28.Modal {
-  constructor(app, plugin, store, snapshot, source) {
-    super(app);
-    this.plugin = plugin;
-    this.store = store;
-    this.snapshot = snapshot;
-    this.source = source;
-    __publicField(this, "operationId", (0, import_node_crypto14.randomUUID)());
-    __publicField(this, "controller", null);
-    __publicField(this, "epoch", 0);
-    __publicField(this, "closed", false);
-    __publicField(this, "creating", false);
-    __publicField(this, "blocked", false);
-    __publicField(this, "result");
-    __publicField(this, "method", "manual");
-    __publicField(this, "rationale", "");
-    __publicField(this, "question");
-    __publicField(this, "context");
-    __publicField(this, "model");
-    __publicField(this, "reasoning");
-    __publicField(this, "language");
-    __publicField(this, "organize");
-    __publicField(this, "stop");
-    __publicField(this, "create");
-    __publicField(this, "status");
-    __publicField(this, "locale");
-    __publicField(this, "unsubscribeModels");
-    this.locale = uiLocale(plugin.settings.language);
-  }
-  t(key2, ...values) {
-    return translate(this.locale, key2, ...values);
-  }
-  onOpen() {
-    this.titleEl.setText(this.t("coffee.take_to_visual_map_for_deeper_research"));
-    this.contentEl.addClass("ct-handoff-modal");
-    this.contentEl.createEl("p", {
-      text: this.t("coffee.edit_a_research_question_and_context_ai_organization_is")
-    });
-    this.question = this.field(this.t("coffee.research_question"), 3);
-    this.question.value = this.source.question;
-    this.context = this.field(this.t("coffee.research_context"), 8);
-    this.context.value = this.source.sourceSnapshot.replace(/<!--\s*(?:coffee-insight:v1:|source:)[\s\S]*?-->/g, "").replace(/[ \t]+\n/g, "\n");
-    const choices = this.contentEl.createDiv("ct-handoff-options");
-    this.model = this.select(choices, this.t("coffee.model"), [
-      .../* @__PURE__ */ new Set([this.snapshot.session.model, ...this.plugin.availableModels()])
-    ]);
-    this.model.value = this.snapshot.session.model;
-    const discovery = this.contentEl.createDiv("ct-handoff-status");
-    const discoveryText = discovery.createSpan({ attr: { role: "status", "aria-live": "polite" } });
-    const retry = discovery.createEl("button", { text: this.t("coffee.retry_model_discovery") });
-    const updateModels = () => {
-      const selected = this.model.value;
-      syncModelSelect(
-        this.model,
-        this.plugin.availableModels(),
-        (id) => this.plugin.modelLabel(id),
-        this.t("coffee.unavailable")
-      );
-      if (selected && !Array.from(this.model.options).some((option2) => option2.value === selected))
-        this.model.add(new Option(`${this.plugin.modelLabel(selected)} (${this.t("coffee.unavailable")})`, selected));
-      this.model.value = selected;
-      const codex = this.plugin.modelDiscoveryState("codex"), claude = this.plugin.modelDiscoveryState("claude");
-      discoveryText.setText(
-        `Codex: ${codex.status}${codex.error ? ` \xB7 ${codex.error}` : ""} | Claude CLI candidates: ${claude.status}`
-      );
-      retry.disabled = codex.status === "loading";
-    };
-    this.unsubscribeModels = this.plugin.subscribeModelDiscovery(updateModels);
-    retry.addEventListener("click", () => {
-      void this.plugin.refreshModelDiscovery("codex");
-      void this.plugin.refreshModelDiscovery("claude");
-    });
-    updateModels();
-    void this.plugin.refreshModelDiscovery("codex");
-    void this.plugin.refreshModelDiscovery("claude");
-    this.reasoning = this.select(choices, this.t("coffee.reasoning"), ["low", "medium", "high", "auto"]);
-    this.reasoning.value = normalizeReasoningLevel(this.snapshot.session.reasoning);
-    this.language = this.select(choices, this.t("coffee.output_language"), ["en", "zh-TW"]);
-    this.language.value = this.plugin.settings.language;
-    this.status = this.contentEl.createEl("p", {
-      cls: "ct-handoff-status",
-      attr: { role: "status", "aria-live": "polite" }
-    });
-    const actions = this.contentEl.createDiv("modal-button-container");
-    this.organize = actions.createEl("button", { text: this.t("coffee.organize_with_ai") });
-    this.stop = actions.createEl("button", { text: this.t("coffee.stop_organizing") });
-    this.stop.disabled = true;
-    const copy = actions.createEl("button", { text: this.t("coffee.copy_draft") });
-    this.create = actions.createEl("button", { text: this.t("coffee.create_research_map"), cls: "mod-cta" });
-    this.organize.onclick = () => {
-      void this.generate();
-    };
-    this.stop.onclick = () => {
-      this.cancel();
-      this.status.setText(this.t("coffee.stopped_your_previous_draft_is_preserved"));
-    };
-    copy.onclick = () => {
-      void navigator.clipboard.writeText([this.question.value, this.context.value, this.rationale].filter(Boolean).join("\n\n")).then(() => this.status.setText(this.t("ui.context_ai_copied"))).catch((error) => this.showError(error));
-    };
-    this.create.onclick = () => {
-      void this.submit();
-    };
-    this.question.focus();
-  }
-  field(label, rows) {
-    const id = `ct-handoff-${(0, import_node_crypto14.randomUUID)()}`;
-    this.contentEl.createEl("label", { text: label, attr: { for: id } });
-    return this.contentEl.createEl("textarea", { attr: { id, rows: String(rows), "aria-label": label } });
-  }
-  select(parent, label, values) {
-    const id = `ct-handoff-${(0, import_node_crypto14.randomUUID)()}`;
-    const group = parent.createDiv();
-    group.createEl("label", { text: label, attr: { for: id } });
-    const select = group.createEl("select", { attr: { id, "aria-label": label } });
-    for (const value of values) select.createEl("option", { text: value, value });
-    return select;
-  }
-  refresh() {
-    const busy = this.controller !== null || this.creating;
-    for (const input of [this.question, this.context, this.model, this.reasoning, this.language])
-      input.disabled = busy || this.blocked || !!this.result;
-    this.organize.disabled = busy || this.blocked || !!this.result;
-    this.stop.disabled = !this.controller;
-    this.create.disabled = busy || this.blocked;
-  }
-  cancel() {
-    var _a;
-    this.epoch++;
-    (_a = this.controller) == null ? void 0 : _a.abort();
-    this.plugin.activeTasks.delete(`reframe-modal:${this.operationId}`);
-    this.controller = null;
-    if (!this.closed) this.refresh();
-  }
-  async assertSource() {
-    var _a, _b, _c, _d;
-    if (this.closed) throw new Error("Research handoff closed");
-    if ((_b = (_a = this.plugin.coffeeManager) == null ? void 0 : _a.get(this.snapshot.session.id)) == null ? void 0 : _b.busy)
-      throw new Error(this.t("coffee.the_table_is_generating_reopen_it_after_it_finishes"));
-    await this.store.assertHandoffSnapshot(this.snapshot);
-    if (this.closed) throw new Error("Research handoff closed");
-    if ((_d = (_c = this.plugin.coffeeManager) == null ? void 0 : _c.get(this.snapshot.session.id)) == null ? void 0 : _d.busy)
-      throw new Error(this.t("coffee.the_table_is_generating_reopen_it_after_it_finishes"));
-  }
-  showError(error) {
-    if (!this.closed) this.status.setText(error instanceof Error ? error.message : String(error));
-  }
-  async generate() {
-    if (this.controller || this.creating || this.blocked || this.result || this.closed) return;
-    const controller = new AbortController(), epoch = ++this.epoch;
-    this.controller = controller;
-    this.plugin.activeTasks.set(`reframe-modal:${this.operationId}`, controller);
-    this.refresh();
-    const request = {
-      targetCore: "understand",
-      source: this.source.content,
-      question: this.question.value,
-      context: this.context.value,
-      model: this.model.value,
-      reasoning: normalizeReasoningLevel(this.reasoning.value),
-      language: this.language.value === "zh-TW" ? "zh-TW" : "en"
-    };
-    this.status.setText(this.t("coffee.organizing_a_research_question"));
-    try {
-      await this.assertSource();
-      const confirmed = await this.plugin.confirmAiUsage(request.model, async () => {
-        if (controller.signal.aborted || this.closed || epoch !== this.epoch) return;
-        const draft = await this.plugin.core.reframing.reframe(request, controller.signal);
-        await this.assertSource();
-        if (controller.signal.aborted || this.closed || epoch !== this.epoch) return;
-        this.question.value = draft.question;
-        this.context.value = draft.context;
-        this.rationale = draft.rationale;
-        this.method = "ai";
-        this.status.setText(this.t("coffee.review_and_edit_this_draft_then_create_the_research_map"));
-      });
-      if (!confirmed && epoch === this.epoch && !this.closed)
-        this.status.setText(this.t("coffee.ai_did_not_run_edit_the_draft_manually_or_retry"));
-    } catch (error) {
-      if (epoch === this.epoch) this.showError(error);
-    } finally {
-      if (epoch === this.epoch) {
-        this.controller = null;
-        this.plugin.activeTasks.delete(`reframe-modal:${this.operationId}`);
-        if (!this.closed) this.refresh();
-      }
-    }
-  }
-  async submit() {
-    if (this.controller || this.creating || this.blocked || this.closed) return;
-    const title = this.question.value.trim();
-    if (!title || /[\r\n]/.test(title)) {
-      this.status.setText(this.t("coffee.enter_a_single_line_research_question"));
-      return;
-    }
-    this.creating = true;
-    this.refresh();
-    try {
-      if (this.result) {
-        await this.plugin.openResearchMap(this.result.targetPath);
-        this.close();
-        return;
-      }
-      await this.assertSource();
-      const path = this.snapshot.path;
-      const artifact = createThinkingArtifact({
-        id: this.operationId,
-        kind: "question",
-        title,
-        content: [this.context.value.trim(), this.rationale ? `Reframing rationale:
-${this.rationale}` : ""].filter(Boolean).join("\n\n"),
-        sourceSnapshot: this.source.sourceSnapshot,
-        origin: { experience: "coffee-tables", sessionId: this.snapshot.session.id, path },
-        sources: [
-          {
-            label: this.snapshot.session.topic,
-            path,
-            experience: "coffee-tables",
-            sessionId: this.snapshot.session.id,
-            artifactId: this.source.artifactId
-          }
-        ],
-        metadata: {
-          model: this.model.value,
-          reasoning: this.reasoning.value,
-          reframingMethod: this.method,
-          sourceIdentityKind: this.source.identityKind
-        }
-      });
-      const result = await this.plugin.core.experiences.handoff({
-        target: "visual-map",
-        artifact,
-        beforeWrite: () => this.assertSource()
-      });
-      if (!result) throw new Error("Research handoff did not return saved target paths");
-      this.result = result;
-      if (result.navigationError) {
-        this.status.setText(
-          `${this.t("coffee.saved_retry_only_opens_the_existing_map")}
-${result.targetPath}
-${result.navigationError}`
-        );
-        this.create.setText(this.t("coffee.open_saved_map"));
-      } else this.close();
-    } catch (error) {
-      if (isHandoffWriteError(error) && error.paths.length) {
-        this.blocked = true;
-        this.showError(
-          `${this.t("coffee.some_files_were_created_inspect_them_before_starting")}
-${error.paths.join("\n")}
-${error.message}`
-        );
-      } else this.showError(error);
-    } finally {
-      this.creating = false;
-      if (!this.closed) this.refresh();
-    }
-  }
-  onClose() {
-    var _a;
-    this.closed = true;
-    (_a = this.unsubscribeModels) == null ? void 0 : _a.call(this);
-    this.unsubscribeModels = void 0;
-    this.cancel();
-    this.contentEl.empty();
-  }
-};
 
 // experiences/markdown-context/selection-ai.ts
 var import_obsidian30 = require("obsidian");

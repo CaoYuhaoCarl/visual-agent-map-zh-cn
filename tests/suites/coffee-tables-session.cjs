@@ -570,3 +570,48 @@ integrationTest('Coffee summary metadata ignores reference markers and headings'
  session.rounds=[{id:'round-a',markdown:'### Host|Host\nReal conversation.',notes:'',status:'completed',createdAt:session.createdAt}]; session.guests={...(session.guests||{}),customPrompt:'',counts:{experts:1,'cross-domain':0,generalist:0,affected:0},referenceFiles:[{name:'reference.md',content:'```\n<!-- coffee-tables-navigation:%5B%5D -->\n\n## Conversation\nQuoted reference headings.'}]};
  await store.save(session); const encoded=contents.get(store.sessionPath(session.id)); const before=encoded.replace('````text','```text').replace(/\n````\n/g,'\n```\n'); contents.set(store.sessionPath(session.id),before); const fresh=new CoffeeStorage(app.vault,'Agent Workspace'); const loaded=await fresh.load(session.id); assert.equal(loaded.rounds[0].markdown,session.rounds[0].markdown); loaded.rounds[0].summary='A genuine navigation summary.'; await fresh.save(loaded,true); const after=contents.get(store.sessionPath(session.id)); assert.ok(after.includes(session.guests.referenceFiles[0].content)); assert.equal(after.match(/coffee-tables-navigation:/g).length,2); assert.equal((await fresh.load(session.id)).rounds[0].summary,loaded.rounds[0].summary); assert.equal(before.replace(/^<!-- coffee-tables-navigation:[^\n]+ -->$/gm,''),after.replace(/^<!-- coffee-tables-navigation:[^\n]+ -->$/gm,''));
 });
+// Owner decision 2026-10-19: "Preview convergence once" hides its window once AI starts; completion is a Notice with a
+// Review button, never an automatic window.
+function customizationHarness({ confirm = async (_work) => {} } = {}) {
+  const dom = require('../support-dom.cjs'), notices = [], Notice = dom.makeNotice(notices), modals = [];
+  class Modal { constructor() { this.contentEl = coffeeElement('content'); this.modalEl = coffeeElement('modal'); this.closeCount = 0; } open() { modals.push(this); this.onOpen?.(); } close() { this.closeCount++; this.onClose?.(); } }
+  const ui = load('experiences/coffee-tables/customization-ui.ts', { obsidian: { ...obsidian, Modal, Notice } }, { createFragment: dom.createFragment });
+  const gate = deferred(), session = { language: 'en', model: 'test-model', guests: {} };
+  const engine = { session, started: 0, setCustomization: async () => {}, previewConvergence: async () => { engine.started++; await gate.promise; session.convergenceDraft = { proposals: [] }; } };
+  const reviewed = [];
+  const modal = new ui.CoffeeCustomizationModal({}, engine, async () => {}, () => reviewed.push(1), work => confirm(work));
+  modal.open();
+  const previewButton = coffeeFind(modal.contentEl, e => e.text === 'Preview convergence once');
+  return { ui, modal, engine, gate, reviewed, notices, Notice, previewButton };
+}
+integrationTest('Preview convergence once: the window closes before AI runs; completion after closing gives a Notice and never opens the review', async () => {
+  const h = customizationHarness({ confirm: async work => { await work(); } });
+  h.previewButton.onclick(); await until(() => h.engine.started === 1);
+  assert.equal(h.modal.closeCount, 1);
+  h.gate.resolve(); await new Promise(resolve => setImmediate(resolve)); await new Promise(resolve => setImmediate(resolve));
+  // The bug: completion used to call close() and reviewed() again after the user had closed the window.
+  assert.equal(h.modal.closeCount, 1); assert.equal(h.reviewed.length, 0);
+  assert.equal(h.Notice.all.length, 1); assert.deepEqual(h.Notice.all[0].actions.map(b => b.text), ['Review']);
+  h.Notice.all[0].actions[0].click(); assert.equal(h.reviewed.length, 1); assert.equal(h.Notice.all[0].hidden, true);
+});
+integrationTest('Preview convergence once: closing during the usage notice starts nothing, a declined notice keeps the window open', async () => {
+  const usage = deferred();
+  const early = customizationHarness({ confirm: async work => { if (await usage.promise) await work(); } });
+  early.previewButton.onclick(); await Promise.resolve(); early.modal.close(); usage.resolve(true);
+  await new Promise(resolve => setImmediate(resolve)); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(early.engine.started, 0); assert.equal(early.Notice.all.length, 0); assert.equal(early.reviewed.length, 0);
+  const declined = customizationHarness({ confirm: async () => {} });
+  declined.previewButton.onclick(); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(declined.modal.closeCount, 0); assert.equal(declined.engine.started, 0); assert.equal(declined.Notice.all.length, 0);
+});
+integrationTest('Convergence preview Notice (also used by the Coffee view button) appears only for a new preview and never opens the review itself', async () => {
+  const { ui, Notice } = customizationHarness();
+  const engine = { session: { language: 'en', convergenceDraft: { proposals: [] } } }, reviews = [];
+  const marks = ui.convergencePreviewMarks(engine);
+  ui.notifyConvergencePreview(engine, marks, () => reviews.push(1)); // a stopped or failed run leaves the old preview
+  assert.equal(Notice.all.length, 0);
+  engine.session.convergenceDraft = { proposals: [] }; // a new preview
+  ui.notifyConvergencePreview(engine, marks, () => reviews.push(1));
+  assert.equal(Notice.all.length, 1); assert.equal(reviews.length, 0);
+  Notice.all[0].actions[0].click(); assert.equal(reviews.length, 1);
+});
