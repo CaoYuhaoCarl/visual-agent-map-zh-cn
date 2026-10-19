@@ -1373,6 +1373,7 @@ export class VisualAgentMapView extends ItemView {
     let basis: StructureNode[] = [];
     let mode: RelevanceMode = planned;
     let pins: RelevancePin[] = [];
+    const repairs: string[] = [];
     try {
       await this.plugin.mutate(async () => {
         const { previous, next, setupChanged } = await this.plugin.repo.writeRelevanceGoal(
@@ -1421,7 +1422,8 @@ export class VisualAgentMapView extends ItemView {
           ...(pins.length ? { pins } : {})
         };
         const hooks = {
-          onRepair: () => {
+          onRepair: (_round: number, kind: string) => {
+            repairs.push(kind);
             if (!this.relevanceRunIsCurrent(run, mapPath)) return;
             run.repairing = true;
             this.refreshRelevance();
@@ -1440,7 +1442,7 @@ export class VisualAgentMapView extends ItemView {
       if (!started) return this.finishRelevance(run, mapPath, "declined", t("ui.relevance_not_started"));
       const graded = result;
       if (!graded) return;
-      await this.plugin.mutate(() => this.applyRelevanceGrade(run, mapPath, basis, graded, { mode, pins }));
+      await this.plugin.mutate(() => this.applyRelevanceGrade(run, mapPath, basis, graded, { mode, pins, repairs }));
       this.refreshRelevance();
     } catch (error) {
       this.finishRelevance(run, mapPath, "failed", t("ui.relevance_failed_0", errorMessage(error)));
@@ -1456,7 +1458,7 @@ export class VisualAgentMapView extends ItemView {
     mapPath: string,
     basis: StructureNode[],
     graded: RelevanceGradeResult,
-    meta: { mode: RelevanceMode; pins: RelevancePin[] }
+    meta: { mode: RelevanceMode; pins: RelevancePin[]; repairs: string[] }
   ): Promise<void> {
     if (!this.relevanceRunIsCurrent(run, mapPath) || !this.map) return;
     const items: RelevanceGradeItem[] = graded.items;
@@ -1541,7 +1543,7 @@ export class VisualAgentMapView extends ItemView {
       outcome.pinned = pinned.size;
       this.plugin.logs.appendLog(
         "info",
-        `Relevance ${meta.mode}: pinned ${pinned.size}, pinnedIgnored ${graded.pinnedIgnored ?? 0}, anchorsDropped ${graded.anchorsDropped ?? 0}, unchangedIgnored ${graded.unchangedIgnored ?? 0}, written ${outcome.changes.length}, failed ${outcome.failed}, skipped ${outcome.skipped}, ${Date.now() - startedAt} ms`
+        `Relevance ${meta.mode}: repairs ${meta.repairs.length}${meta.repairs.length ? ` (${[...new Set(meta.repairs)].join(", ")})` : ""}, pinned ${pinned.size}, pinnedIgnored ${graded.pinnedIgnored ?? 0}, anchorsDropped ${graded.anchorsDropped ?? 0}, unchangedIgnored ${graded.unchangedIgnored ?? 0}, written ${outcome.changes.length}, failed ${outcome.failed}, skipped ${outcome.skipped}, ${Date.now() - startedAt} ms`
       );
       if (outcome.changes.length) {
         const changes = outcome.changes;

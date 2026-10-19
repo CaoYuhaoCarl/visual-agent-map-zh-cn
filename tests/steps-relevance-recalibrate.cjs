@@ -435,13 +435,79 @@ test('grade v9: the pinned prompt says only pinned cards may be left out and a b
   assert.equal(grade.buildRelevanceGradePrompt(request()).includes('bound'), false, 'the no-pin prompt is unchanged');
 });
 
-test('grade parser: leaving out a min=core ancestor fails as missing, not as hierarchy; the detail counts ignored pinned entries', () => {
-  const list = [pin('a11', 'core')];
-  const without = items(entry('a1', 'core'), entry('b'), entry('b1'), entry('s1'));
-  const error = errorOf(() => parseGrade(without, list));
-  assert.equal(error.code, 'invalid'); assert.equal(error.hierarchy, undefined);
+test('grade parser: leaving out only bounded cards is a repairable failure (missing), never a hierarchy one; unbounded gaps stay final', () => {
+  const list = [pin('a11', 'core')];   // a and a1 carry min=core
+  const error = errorOf(() => parseGrade(items(entry('a1', 'core'), entry('b'), entry('b1'), entry('s1')), list));
+  assert.equal(error.code, 'invalid');
+  assert.deepEqual(plain(error.hierarchy.missing), ['a']);
+  assert.deepEqual(plain(error.hierarchy.violations), []);
   assert.match(error.message, /missing 1: a$/);
   const withPinned = errorOf(() => parseGrade(items(entry('a1', 'core'), entry('a11', 'core'), entry('b'), entry('b1'), entry('s1')), list));
   assert.match(withPinned.message, /missing 1: a \(pinnedIgnored 1\)$/);
-  assert.equal(withPinned.hierarchy, undefined);
+  assert.match(withPinned.detail, /pinnedIgnored 1/);
+  // b has no bound: a gap there (alone or together with a bounded one) is a hard failure.
+  assert.equal(errorOf(() => parseGrade(items(entry('a'), entry('a1', 'core'), entry('b1'), entry('s1')), list)).hierarchy, undefined);
+  assert.equal(errorOf(() => parseGrade(items(entry('a1', 'core'), entry('b1'), entry('s1')), list)).hierarchy, undefined);
+});
+
+test('grade prompt v10: the pinned prompt lists the bounded cards that must still be included; no pins, no list', () => {
+  const prompt = grade.buildRelevanceGradePrompt(request({ pins: [pin('a11', 'core')] }));
+  assert.ok(prompt.includes('Cards with a bound that you must still include: c2, c3\n'));
+  assert.ok(grade.buildRelevanceGradePrompt(request({ pins: [pin('s1', 'core')] })).includes('you must still include: none\n'));
+  assert.doesNotMatch(grade.buildRelevanceGradePrompt(request()), /must still include/);
+});
+
+const missingFixture = (replies, pinsList = [pin('a11', 'core')]) => {
+  const calls = [], rounds = [];
+  const service = new grade.RelevanceGradeService(async (_req, _signal, prepared) => { calls.push(prepared); return replies[calls.length - 1]; });
+  return { calls, rounds, run: () => service.grade(request({ pins: pinsList }), new AbortController().signal, { onRepair: (round, kind) => rounds.push([round, kind]) }) };
+};
+const without = items(entry('a1', 'core'), entry('b'), entry('b1'), entry('s1'));
+const complete = items(entry('a', 'core'), entry('a1', 'core'), entry('b'), entry('b1'), entry('s1'));
+
+test('missing-bounded repair: one complete corrected reply is accepted; the repair prompt names the missing card, its title and bounds', async () => {
+  const fx = missingFixture([without, complete]);
+  const result = await fx.run();
+  assert.deepEqual(fx.calls.map(c => c.step.id), ['relevance-grade', 'relevance-grade-repair-missing']);
+  assert.deepEqual(fx.rounds, [[1, 'missing-bounded']]);
+  assert.deepEqual(plain(result.items.map(i => i.id)), ['a', 'a1', 'b', 'b1', 's1']);
+  const prompt = fx.calls[1].prompt;
+  assert.ok(prompt.includes('[{"id":"c2","title":"A","min":"core"}]'));
+  assert.ok(prompt.includes('a bound is not a pin'));
+  assert.ok(prompt.includes('ONE complete JSON object'));
+  assert.ok(prompt.includes('Original task'));
+});
+
+test('missing-bounded repair: a pinned card in the repair reply is still ignored and never part of the items', async () => {
+  const fx = missingFixture([without, items(entry('a'), entry('a1'), entry('a11', 'side'), entry('b'), entry('b1'), entry('s1'))]);
+  const result = await fx.run();
+  assert.equal(result.pinnedIgnored, 1);
+  assert.equal(plain(result.items.map(i => i.id)).includes('a11'), false);
+});
+
+test('missing-bounded repair: a repair that still leaves a card out fails the grade; no auto-fill, no third request', async () => {
+  const fx = missingFixture([without, without, without, complete]);
+  const error = await fx.run().then(() => assert.fail('should fail'), e => e);
+  assert.equal(error.code, 'invalid'); assert.match(error.message, /missing 1/);
+  assert.equal(fx.calls.length, 3, 'one request, then two rounds: the shared limit');
+  assert.deepEqual(fx.rounds.map(r => r[1]), ['missing-bounded', 'missing-bounded']);
+});
+
+test('missing-bounded repair: a gap in an unbounded card is a hard failure with no repair request', async () => {
+  const fx = missingFixture([items(entry('a'), entry('a1', 'core'), entry('b1'), entry('s1')), complete]);
+  await assert.rejects(fx.run(), error => error.code === 'invalid');
+  assert.equal(fx.calls.length, 1);
+});
+
+test('missing-bounded repair: the two-round limit is shared with hierarchy repairs', async () => {
+  const lowA1 = items(entry('a', 'core'), entry('a1', 'support'), entry('b'), entry('b1'), entry('s1'));   // a1 under pinned core a11: bounds violation
+  const fx = missingFixture([without, lowA1, complete]);
+  const result = await fx.run();
+  assert.deepEqual(fx.calls.map(c => c.step.id), ['relevance-grade', 'relevance-grade-repair-missing', 'relevance-grade-repair']);
+  assert.deepEqual(fx.rounds.map(r => r[1]), ['missing-bounded', 'hierarchy']);
+  assert.equal(result.items.length, 5);
+  const none = missingFixture([without, lowA1, lowA1, complete]);
+  const error = await none.run().then(() => assert.fail('should fail'), e => e);
+  assert.equal(error.message, translate('en', 'error.relevance_grade_hierarchy'));
+  assert.equal(none.calls.length, 3);
 });

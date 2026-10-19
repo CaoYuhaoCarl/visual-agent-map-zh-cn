@@ -22,6 +22,7 @@ import {
   RELEVANCE_GRADE_TOKEN_BUDGET,
   RELEVANCE_REPAIR_MAX_ROUNDS,
   RelevanceGradeError,
+  relevanceGradeMissingRepairStep,
   relevanceGradeRepairStep,
   relevanceGradeStep,
   relevanceHierarchyViolations,
@@ -43,6 +44,7 @@ export {
   RELEVANCE_REPAIR_MAX_ROUNDS,
   RelevanceGradeError,
   relevanceGradeRepairStep,
+  relevanceGradeMissingRepairStep,
   relevanceHierarchyViolations,
   parseRelevanceRecalibrate,
   RELEVANCE_RECALIBRATE_SCHEMA,
@@ -120,7 +122,7 @@ export interface RelevanceGradeRun {
 export type RelevanceGradeRunner = ProviderStepRunner<RelevanceGradeRequest, RelevanceGradeResult>;
 export interface RelevanceGradeHooks {
   /** Called just before each repair request is sent (at most {@link RELEVANCE_REPAIR_MAX_ROUNDS} times); `round` starts at 1. */
-  onRepair?: (round: number) => void;
+  onRepair?: (round: number, kind: "hierarchy" | "missing-bounded") => void;
 }
 
 export function buildRelevanceGradePrompt(request: RelevanceGradeRequest): string {
@@ -160,11 +162,12 @@ export class RelevanceGradeService {
       signal,
       hooks,
       relevanceGradeStep,
-      relevanceGradeRepairStep,
+      failure => (failure.missing ? relevanceGradeMissingRepairStep : relevanceGradeRepairStep),
       (failure): RelevanceRepairRequest => ({
         ...request,
         previousReply: failure.reply,
-        violations: failure.violations
+        violations: failure.violations,
+        ...(failure.missing ? { missing: failure.missing } : {})
       }),
       cardsToGrade(request).length === 0
     );
@@ -185,7 +188,7 @@ export class RelevanceGradeService {
       signal,
       hooks,
       relevanceRecalibrateStep,
-      relevanceRecalibrateRepairStep,
+      () => relevanceRecalibrateRepairStep,
       (failure): RelevanceRecalibrateRepairRequest => ({
         ...request,
         previousReply: failure.reply,
@@ -203,7 +206,7 @@ export class RelevanceGradeService {
     signal: AbortSignal,
     hooks: RelevanceGradeHooks,
     step: StepDefinition<Request, Output>,
-    repairStep: StepDefinition<Repair, Output>,
+    repairStep: (failure: RelevanceHierarchyFailure) => StepDefinition<Repair, Output>,
     repairRequest: (failure: RelevanceHierarchyFailure) => Repair,
     nothingToAsk: boolean
   ): Promise<Output> {
@@ -242,36 +245,41 @@ export class RelevanceGradeService {
     hooks: RelevanceGradeHooks,
     first: RelevanceHierarchyFailure,
     stopped: () => RelevanceGradeError,
-    repairStep: StepDefinition<Repair, Output>,
+    repairStep: (failure: RelevanceHierarchyFailure) => StepDefinition<Repair, Output>,
     repairRequest: (failure: RelevanceHierarchyFailure) => Repair,
     send: (prepared: PreparedStep<Repair, Output>) => Promise<string>
   ): Promise<Output> {
     let failure = first;
     for (let round = 1; ; round++) {
       // Rendered and budget-checked before anything is shown or sent: an over-budget repair is refused.
-      const prepared = prepareStep(repairStep, repairRequest(failure));
+      const prepared = prepareStep(repairStep(failure), repairRequest(failure));
       if (signal.aborted) throw stopped();
-      hooks.onRepair?.(round);
-      let raw: string;
+      hooks.onRepair?.(round, failure.missing ? "missing-bounded" : "hierarchy");
+      let raw = "";
+      let failed: Error | undefined;
       try {
         raw = await send(prepared);
       } catch (error) {
         if (signal.aborted) throw stopped();
         if (error instanceof RelevanceGradeError && error.code === "stopped") throw stopped();
-        throw error;
+        // The runner parses the reply too; a failure it found is judged below like one found here.
+        failed = error instanceof Error ? error : new Error(String(error));
       }
       if (signal.aborted) throw stopped();
       try {
+        if (failed) throw failed;
         return prepared.parse(raw);
       } catch (error) {
         if (!(error instanceof RelevanceGradeError) || !error.hierarchy) throw error;
         if (round >= RELEVANCE_REPAIR_MAX_ROUNDS)
-          throw new RelevanceGradeError(
-            "invalid",
-            translate(uiLocale(request.language), "error.relevance_grade_hierarchy"),
-            undefined,
-            error.message
-          );
+          throw error.hierarchy.missing
+            ? new RelevanceGradeError("invalid", error.message, undefined, error.detail ?? error.message)
+            : new RelevanceGradeError(
+                "invalid",
+                translate(uiLocale(request.language), "error.relevance_grade_hierarchy"),
+                undefined,
+                error.message
+              );
         failure = error.hierarchy;
       }
     }

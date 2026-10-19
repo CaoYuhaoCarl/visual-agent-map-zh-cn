@@ -701,6 +701,16 @@
       "language": "zh-TW",
       "schema": true
     },
+    "relevance-grade-repair-missing.en": {
+      "builder": "core/relevance-grade-service.ts relevanceGradeMissingRepairStep.render (a bounded card left out)",
+      "language": "en",
+      "schema": true
+    },
+    "relevance-grade-repair-missing.zh": {
+      "builder": "core/relevance-grade-service.ts relevanceGradeMissingRepairStep.render (a bounded card left out)",
+      "language": "zh-TW",
+      "schema": true
+    },
     "relevance-grade-repair-pinned.en": {
       "builder": "core/relevance-grade-service.ts relevanceGradeRepairStep.render (one pinned card, bounds violation)",
       "language": "en",

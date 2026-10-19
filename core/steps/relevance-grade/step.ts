@@ -20,6 +20,7 @@ import languageZh from "./language.zh.md";
 import template from "./prompt.md";
 import pinsTemplate from "./pins.md";
 import repairPinsNote from "./repair-pins.md";
+import repairMissingTemplate from "./repair-missing.md";
 import repairTemplate from "./repair.md";
 
 export type { PinConflict, RelevancePin };
@@ -69,6 +70,8 @@ export interface RelevanceHierarchyFailure {
   violations: RelevanceHierarchyViolation[];
   /** The reply as the parser read it (trimmed reasons), otherwise valid and complete. */
   reply: RelevanceGradeResult;
+  /** Set when cards are missing from the reply and every one of them is a non-pinned card with a bound. */
+  missing?: string[];
 }
 export class RelevanceGradeError extends Error {
   constructor(
@@ -217,11 +220,6 @@ export function parseRelevanceGrade(
     });
   });
   const missing = [...gradable.keys()].filter(id => !seen.has(id) && !pinned.has(id));
-  if (missing.length)
-    throw invalid(
-      locale,
-      `missing ${missing.length}: ${missing.slice(0, 3).join(", ")}${pinnedIgnored ? ` (pinnedIgnored ${pinnedIgnored})` : ""}`
-    );
   const pinBounds = relevancePinBounds(tree, pins);
   const violations = relevanceMergedViolations(tree, mergeRelevanceTiers({ items, pins }), pinBounds);
   const result: RelevanceGradeResult = {
@@ -230,6 +228,18 @@ export function parseRelevanceGrade(
     ...(anchorsDropped ? { anchorsDropped } : {}),
     ...(pinBounds.conflicts.length ? { conflicts: pinBounds.conflicts } : {})
   };
+  if (missing.length) {
+    const detail = `missing ${missing.length}: ${missing.slice(0, 3).join(", ")}${pinnedIgnored ? ` (pinnedIgnored ${pinnedIgnored})` : ""}`;
+    // Only cards that carry a bound (and are not pinned) may be sent back for one more try; any other gap is final.
+    if (missing.every(id => pinBounds.bounds.has(id)))
+      throw new RelevanceGradeError(
+        "invalid",
+        translate(locale, "error.relevance_grade_invalid", detail),
+        { violations, reply: result, missing },
+        detail
+      );
+    throw invalid(locale, detail);
+  }
   if (violations.length) throw hierarchyError(locale, violations, result);
   return result;
 }
@@ -260,7 +270,7 @@ export const languageLine = (request: RelevanceGradeRequest): string =>
 export const promptPinParts = (
   nodes: ReadonlyArray<StructureNode>,
   pinList: ReadonlyArray<RelevancePin> | undefined
-): { pins: string; bounds: string; pinned: Map<string, RelevanceTier> } | undefined => {
+): { pins: string; bounds: string; mustInclude: string; pinned: Map<string, RelevanceTier> } | undefined => {
   const pins = effectivePins(nodes, pinList);
   if (!pins.length) return undefined;
   const ids = positionIds(nodes.map(node => node.id));
@@ -273,6 +283,7 @@ export const promptPinParts = (
   return {
     pins: JSON.stringify(pins.map(pin => ({ id: label(pin.id), tier: pin.tier }))),
     bounds: JSON.stringify([...bounds].map(([id, bound]) => ({ id: label(id), ...boundOf(bound) }))),
+    mustInclude: bounds.size ? [...bounds.keys()].map(label).join(", ") : "none",
     pinned: new Map(pins.map(pin => [pin.id, pin.tier]))
   };
 };
@@ -295,7 +306,9 @@ const gradePrompt = (request: RelevanceGradeRequest): string => {
   const parts = promptPinParts(request.nodes, request.pins);
   return renderTemplate(template, {
     languageInstruction: languageLine(request),
-    pinsSection: parts ? `${renderTemplate(pinsTemplate, { pins: parts.pins, bounds: parts.bounds })}\n\n` : "",
+    pinsSection: parts
+      ? `${renderTemplate(pinsTemplate, { pins: parts.pins, bounds: parts.bounds, mustInclude: parts.mustInclude })}\n\n`
+      : "",
     goal: JSON.stringify(request.goal),
     level: JSON.stringify(request.level ?? null),
     context: JSON.stringify(request.context ?? null),
@@ -325,7 +338,7 @@ export const cardsToGrade = (request: RelevanceGradeRequest): StructureNode[] =>
 /** Grade every card of a map against the learner's goal. Input is titles, summaries and structure; the reply is strict JSON. */
 export const relevanceGradeStep: StepDefinition<RelevanceGradeRequest, RelevanceGradeResult> = {
   id: "relevance-grade",
-  version: 9,
+  version: 10,
   render: gradePrompt,
   schema: RELEVANCE_GRADE_SCHEMA,
   policy: (prompt, request) => refuseIfTooBig(prompt, request, RELEVANCE_GRADE_SCHEMA),
@@ -338,6 +351,8 @@ export const RELEVANCE_REPAIR_MAX_ROUNDS = 2;
 export interface RelevanceRepairRequest extends RelevanceGradeRequest {
   previousReply: RelevanceGradeResult;
   violations: RelevanceHierarchyViolation[];
+  /** Set for a missing-bounded repair: the cards the reply left out. */
+  missing?: string[];
 }
 /** Ancestors of a violating parent up to the top-level card, each with its tier in the merged result (null: no tier). */
 export const ancestorChain = (
@@ -404,5 +419,37 @@ export const relevanceGradeRepairStep: StepDefinition<RelevanceRepairRequest, Re
   policy: (prompt, request) => refuseIfTooBig(prompt, request, RELEVANCE_GRADE_SCHEMA),
   // The same strict parser; a repair that breaks anything but hierarchy fails the grade, and one that still violates
   // hierarchy gets another round until RELEVANCE_REPAIR_MAX_ROUNDS is used up.
+  parse: (raw, request) => parseRelevanceGrade(raw, request.nodes, request.language, request.pins)
+};
+
+/**
+ * A repair for a reply that left out cards with a bound: the original task, the reply so far, and each missing card
+ * with its title and bounds. The model must send the COMPLETE corrected reply; the same strict parser judges it.
+ */
+const repairMissingPrompt = (request: RelevanceRepairRequest): string => {
+  const ids = positionIds(request.nodes.map(node => node.id));
+  const label = (id: string): string => ids.short(id) ?? id;
+  const bounds = relevancePinBounds(request.nodes, effectivePins(request.nodes, request.pins)).bounds;
+  const titleOf = new Map(request.nodes.map(node => [node.id, node.title]));
+  return renderTemplate(repairMissingTemplate, {
+    originalPrompt: gradePrompt(request),
+    previousReply: JSON.stringify({ items: request.previousReply.items.map(item => promptItem(request.nodes, item)) }),
+    missing: JSON.stringify(
+      (request.missing ?? []).map(id => ({
+        id: label(id),
+        title: titleOf.get(id) ?? "",
+        ...(bounds.get(id)?.min ? { min: bounds.get(id)?.min } : {}),
+        ...(bounds.get(id)?.max ? { max: bounds.get(id)?.max } : {})
+      }))
+    ),
+    languageInstruction: languageLine(request)
+  });
+};
+export const relevanceGradeMissingRepairStep: StepDefinition<RelevanceRepairRequest, RelevanceGradeResult> = {
+  id: "relevance-grade-repair-missing",
+  version: 1,
+  render: repairMissingPrompt,
+  schema: RELEVANCE_GRADE_SCHEMA,
+  policy: (prompt, request) => refuseIfTooBig(prompt, request, RELEVANCE_GRADE_SCHEMA),
   parse: (raw, request) => parseRelevanceGrade(raw, request.nodes, request.language, request.pins)
 };
