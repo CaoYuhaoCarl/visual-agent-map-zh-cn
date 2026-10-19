@@ -603,8 +603,8 @@ var english = {
   "ui.research_progress_0_of_1": "Researched {0} / {1}",
   "ui.preview_card_size": "Hover preview size",
   "ui.preview_card_size_desc": "Scale of the note preview shown when you hover a topic on the map.",
-  "ui.drag_to_select_topics_hint": "Drag to box-select \xB7 Hold Option or Space and drag to pan \xB7 Click a topic to add or remove it",
-  "ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open": "Drag empty space to pan \xB7 Scroll to zoom \xB7 Arrow keys move between topics",
+  "ui.drag_to_select_topics_hint": "Drag to box-select \xB7 Hold Option and drag to deselect \xB7 Hold Space and drag, or use the middle button, to pan \xB7 Click a topic to add or remove it",
+  "ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open": "Drag empty space to pan \xB7 Shift-drag to box-select \xB7 Scroll to zoom \xB7 Arrow keys move between topics",
   "ui.clear": "Clear",
   "ui.next": "Next",
   "ui.select_topics": "Select several topics",
@@ -670,6 +670,8 @@ var english = {
   "ui.node_tool_links": "Structure",
   "ui.node_tool_rename": "Rename",
   "ui.node_tool_details": "Details",
+  "ui.select_subtopics": "Select subtopics",
+  "ui.select_subtopics_hint": "Select every direct subtopic of this topic",
   "ui.node_tool_remove": "Remove",
   "ui.the_file_was_moved_or_deleted_you_can_remove_this_node_from": "The file was moved or deleted. You can remove this node from the map.",
   "ui.remove_from_map": "Remove from map",
@@ -2048,8 +2050,8 @@ var traditionalChinese = {
   "ui.research_progress_0_of_1": "\u5DF2\u7814\u7A76 {0} / {1}",
   "ui.preview_card_size": "\u61F8\u505C\u9810\u89BD\u5927\u5C0F",
   "ui.preview_card_size_desc": "\u5728\u5FC3\u667A\u5716\u4E0A\u628A\u6ED1\u9F20\u79FB\u5230\u8B70\u984C\u6642\uFF0C\u7B46\u8A18\u9810\u89BD\u5361\u7684\u7E2E\u653E\u6BD4\u4F8B\u3002",
-  "ui.drag_to_select_topics_hint": "\u62D6\u66F3\u6846\u9078 \xB7 \u6309\u4F4F Option \u6216\u7A7A\u767D\u9375\u62D6\u66F3\u5E73\u79FB \xB7 \u9EDE\u8B70\u984C\u52A0\u5165\u6216\u79FB\u9664",
-  "ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open": "\u62D6\u66F3\u7A7A\u767D\u8655\u5E73\u79FB \xB7 \u6EFE\u8F2A\u7E2E\u653E \xB7 \u65B9\u5411\u9375\u5207\u63DB\u8B70\u984C",
+  "ui.drag_to_select_topics_hint": "\u62D6\u66F3\u6846\u9078 \xB7 \u6309\u4F4F Option \u62D6\u66F3\u6E1B\u9078 \xB7 \u6309\u4F4F\u7A7A\u767D\u9375\u62D6\u66F3\u6216\u7528\u4E2D\u9375\u5E73\u79FB \xB7 \u9EDE\u8B70\u984C\u52A0\u5165\u6216\u79FB\u9664",
+  "ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open": "\u62D6\u66F3\u7A7A\u767D\u8655\u5E73\u79FB \xB7 Shift\uFF0B\u62D6\u66F3\u6846\u9078 \xB7 \u6EFE\u8F2A\u7E2E\u653E \xB7 \u65B9\u5411\u9375\u5207\u63DB\u8B70\u984C",
   "ui.clear": "\u6E05\u9664",
   "ui.next": "\u4E0B\u4E00\u6B65",
   "ui.select_topics": "\u9078\u53D6\u591A\u500B\u8B70\u984C",
@@ -2115,6 +2117,8 @@ var traditionalChinese = {
   "ui.node_tool_links": "\u7D50\u69CB",
   "ui.node_tool_rename": "\u6539\u540D",
   "ui.node_tool_details": "\u8A73\u60C5",
+  "ui.select_subtopics": "\u9078\u53D6\u5B50\u8B70\u984C",
+  "ui.select_subtopics_hint": "\u9078\u53D6\u9019\u500B\u8B70\u984C\u5E95\u4E0B\u6240\u6709\u76F4\u5C6C\u5B50\u8B70\u984C",
   "ui.node_tool_remove": "\u79FB\u9664",
   "ui.the_file_was_moved_or_deleted_you_can_remove_this_node_from": "\u6A94\u6848\u5DF2\u79FB\u52D5\u6216\u522A\u9664\uFF0C\u53EF\u5F9E\u5716\u4E2D\u79FB\u9664\u6B64\u8B70\u984C\u3002",
   "ui.remove_from_map": "\u5F9E\u5716\u4E2D\u79FB\u9664",
@@ -25566,6 +25570,16 @@ __publicField(_AimRunStore, "liveAttempts", /* @__PURE__ */ new Set());
 __publicField(_AimRunStore, "repositoryLocks", /* @__PURE__ */ new WeakMap());
 var AimRunStore = _AimRunStore;
 
+// experiences/visual-map/canvas-gestures.ts
+function canvasPointerIntent(state) {
+  if (state.button === 1) return "pan";
+  if (state.button !== 0) return "ignore";
+  if (state.spaceHeld) return "pan";
+  if (state.integrationMode) return state.altKey ? "marquee-subtract" : "marquee-add";
+  if (state.shiftKey && !state.altKey) return "marquee-enter";
+  return "pan";
+}
+
 // experiences/visual-map/view.ts
 var VIEW_TYPE = "visual-agent-map-view";
 function errorMessage(error) {
@@ -28959,6 +28973,11 @@ ${request.requirements}` : preset.text,
               (title2) => this.enqueue(() => this.noteChange(node, { title: title2 }))
             ).open()
           ).addClass("vam-node-tool", "vam-rename-tool");
+        if (!node.collapsed && this.map.nodes.some((item) => item.parentId === node.id)) {
+          const select = this.button(tools, t("ui.select_subtopics"), () => this.selectSubtopics(node));
+          select.addClass("vam-node-tool", "vam-select-subtopics-tool");
+          select.setAttr("aria-label", t("ui.select_subtopics_hint"));
+        }
       }
       if (node.aimKind === "question") {
         const remove = this.button(tools, t("ui.node_tool_remove"), () => this.confirmRemoveNode(node));
@@ -29138,7 +29157,8 @@ ${request.requirements}` : preset.text,
     else card.addClass("is-readonly");
     card.addEventListener("click", (event) => {
       if (Date.now() < this.suppressClickUntil) return;
-      if (event.target.closest("button") || event.metaKey || event.ctrlKey) return;
+      if (event.target.closest("button")) return;
+      if ((event.metaKey || event.ctrlKey) && !this.integrationMode) return;
       if (this.integrationMode) {
         if (this.multiSelected.has(node.id)) this.multiSelected.delete(node.id);
         else this.multiSelected.add(node.id);
@@ -31468,8 +31488,12 @@ ${note.detail.trim()}` : "",
     this.transform();
     this.saveViewport();
   }
-  /** Drag-selects topics: every card the box touches joins the selection; existing picks stay. */
-  startMarquee(viewport, event) {
+  /**
+   * Drag-selects topics. `marquee-add` adds every card the box touches (existing picks stay); `marquee-subtract` removes
+   * them; `marquee-enter` is the normal-mode Shift+drag: boxed cards are selected and topic selection starts, and a box
+   * that touches nothing changes nothing.
+   */
+  startMarquee(viewport, event, mode = "marquee-add") {
     var _a, _b;
     const host = viewport.getBoundingClientRect();
     const startX = event.clientX, startY = event.clientY;
@@ -31500,7 +31524,8 @@ ${note.detail.trim()}` : "",
       for (const item of cards) {
         const hit = dragged && !!item.id && item.rect.left < right && item.rect.right > left && item.rect.top < bottom && item.rect.bottom > top;
         if (hit) hits.add(item.id);
-        item.card.toggleClass("is-marquee-hit", hit && !already.has(item.id));
+        if (mode === "marquee-subtract") item.card.toggleClass("is-marquee-remove", hit && already.has(item.id));
+        else item.card.toggleClass("is-marquee-hit", hit && !already.has(item.id));
       }
     };
     const up = () => {
@@ -31509,9 +31534,24 @@ ${note.detail.trim()}` : "",
       viewport.removeEventListener("pointercancel", up);
       viewport.removeClass("is-marquee");
       box.remove();
-      for (const item of cards) item.card.removeClass("is-marquee-hit");
+      for (const item of cards) {
+        item.card.removeClass("is-marquee-hit");
+        item.card.removeClass("is-marquee-remove");
+      }
       if (!hits.size) return;
+      if (mode === "marquee-subtract") {
+        const removed = [...hits].filter((id) => this.multiSelected.has(id));
+        if (!removed.length) return;
+        for (const id of removed) this.multiSelected.delete(id);
+        this.commitSelection(this.selected, this.selected, removed);
+        return;
+      }
       for (const id of hits) this.multiSelected.add(id);
+      if (mode === "marquee-enter") {
+        this.integrationMode = true;
+        if (!this.closed) this.render();
+        return;
+      }
       this.commitSelection(this.selected, this.selected, hits);
     };
     viewport.addEventListener("pointermove", move);
@@ -31566,12 +31606,18 @@ ${note.detail.trim()}` : "",
     );
     viewport.addEventListener("pointerdown", (event) => {
       if (event.target.closest(".vam-node") || !this.map) return;
-      const pan = event.button === 1 || event.button === 0 && (!this.integrationMode || this.spaceHeld || event.altKey);
-      if (event.button === 0 && !pan) {
-        this.startMarquee(viewport, event);
+      const intent = canvasPointerIntent({
+        button: event.button,
+        integrationMode: this.integrationMode,
+        spaceHeld: this.spaceHeld,
+        altKey: event.altKey,
+        shiftKey: event.shiftKey
+      });
+      if (intent === "marquee-enter" || intent === "marquee-add" || intent === "marquee-subtract") {
+        this.startMarquee(viewport, event, intent);
         return;
       }
-      if (!pan) return;
+      if (intent !== "pan") return;
       if (event.button === 1) event.preventDefault();
       const x = event.clientX, y = event.clientY, origin = { ...this.map.viewport };
       let moved = false;
@@ -31601,6 +31647,16 @@ ${note.detail.trim()}` : "",
       viewport.addEventListener("pointerup", up);
       viewport.addEventListener("pointercancel", up);
     });
+  }
+  /** Starts topic selection with exactly the card's direct subtopics picked (replacing any earlier selection). */
+  selectSubtopics(node) {
+    if (!this.map) return;
+    const ids = this.map.nodes.filter((item) => item.parentId === node.id).map((item) => item.id);
+    if (!ids.length) return;
+    this.multiSelected = new Set(ids);
+    this.selected = null;
+    this.integrationMode = true;
+    if (!this.closed) this.render();
   }
   enableDrag(card, node) {
     card.addEventListener("pointerdown", (event) => {
@@ -31665,9 +31721,15 @@ ${note.detail.trim()}` : "",
           );
         } else if (e.metaKey || e.ctrlKey) {
           const previous = this.selected, touched = [...this.multiSelected, node.id];
+          if (!this.multiSelected.size && previous && previous !== node.id) this.multiSelected.add(previous);
           if (this.multiSelected.has(node.id)) this.multiSelected.delete(node.id);
           else this.multiSelected.add(node.id);
           this.selected = node.id;
+          if (this.multiSelected.size >= 2) {
+            this.integrationMode = true;
+            if (!this.closed) this.render();
+            return;
+          }
           this.commitSelection(previous, node.id, touched);
         } else {
           const previous = this.selected, touched = [...this.multiSelected];

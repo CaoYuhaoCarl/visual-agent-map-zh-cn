@@ -103,6 +103,7 @@ import { AimRunStore } from "../aim/research-run-store";
 import type { AimProgressEvent } from "../aim/manual-flow-support";
 import { matchAimFailedReportTargets } from "../aim/retry-targets";
 import { aimRepairHint, aimTimedOut } from "../aim/failure-hint";
+import { canvasPointerIntent } from "./canvas-gestures";
 
 import {
   TaskOptions,
@@ -3751,7 +3752,7 @@ export class VisualAgentMapView extends ItemView {
     // Hover-only tools float above the card's top edge, so showing them (hover, focus, selection) never moves the card's
     // content. What must always show (status, stop and review actions, a folded branch's count) stays in the header.
     // Every tool is labelled: the toolbar floats, so its width never moves the card. Order: fold, structure, rename,
-    // details, then the AI action last.
+    // select subtopics, details, then the AI action last.
     const tools = card.createDiv("vam-node-tools");
     const count = descendants(this.map!.nodes, node.id).size;
     if (count && !this.builtIn) {
@@ -3782,6 +3783,12 @@ export class VisualAgentMapView extends ItemView {
               this.enqueue(() => this.noteChange(node, { title }))
             ).open()
           ).addClass("vam-node-tool", "vam-rename-tool");
+        // Select every direct subtopic in one press. A folded card hides them, so it offers Expand instead.
+        if (!node.collapsed && this.map!.nodes.some(item => item.parentId === node.id)) {
+          const select = this.button(tools, t("ui.select_subtopics"), () => this.selectSubtopics(node));
+          select.addClass("vam-node-tool", "vam-select-subtopics-tool");
+          select.setAttr("aria-label", t("ui.select_subtopics_hint"));
+        }
       }
       if (node.aimKind === "question") {
         const remove = this.button(tools, t("ui.node_tool_remove"), () => this.confirmRemoveNode(node));
@@ -3984,7 +3991,9 @@ export class VisualAgentMapView extends ItemView {
     else card.addClass("is-readonly");
     card.addEventListener("click", event => {
       if (Date.now() < this.suppressClickUntil) return;
-      if ((event.target as Element).closest("button") || event.metaKey || event.ctrlKey) return;
+      if ((event.target as Element).closest("button")) return;
+      // Outside selection mode, Cmd/Ctrl+click is handled on pointerup (enableDrag); inside it a click just toggles.
+      if ((event.metaKey || event.ctrlKey) && !this.integrationMode) return;
       if (this.integrationMode) {
         if (this.multiSelected.has(node.id)) this.multiSelected.delete(node.id);
         else this.multiSelected.add(node.id);
@@ -6486,8 +6495,16 @@ export class VisualAgentMapView extends ItemView {
     this.transform();
     this.saveViewport();
   }
-  /** Drag-selects topics: every card the box touches joins the selection; existing picks stay. */
-  private startMarquee(viewport: HTMLElement, event: PointerEvent): void {
+  /**
+   * Drag-selects topics. `marquee-add` adds every card the box touches (existing picks stay); `marquee-subtract` removes
+   * them; `marquee-enter` is the normal-mode Shift+drag: boxed cards are selected and topic selection starts, and a box
+   * that touches nothing changes nothing.
+   */
+  private startMarquee(
+    viewport: HTMLElement,
+    event: PointerEvent,
+    mode: "marquee-enter" | "marquee-add" | "marquee-subtract" = "marquee-add"
+  ): void {
     const host = viewport.getBoundingClientRect();
     const startX = event.clientX,
       startY = event.clientY;
@@ -6524,7 +6541,9 @@ export class VisualAgentMapView extends ItemView {
           item.rect.top < bottom &&
           item.rect.bottom > top;
         if (hit) hits.add(item.id);
-        item.card.toggleClass("is-marquee-hit", hit && !already.has(item.id));
+        // Removal is outlined differently (dashed) so it never reads as an addition by colour alone.
+        if (mode === "marquee-subtract") item.card.toggleClass("is-marquee-remove", hit && already.has(item.id));
+        else item.card.toggleClass("is-marquee-hit", hit && !already.has(item.id));
       }
     };
     const up = (): void => {
@@ -6533,9 +6552,24 @@ export class VisualAgentMapView extends ItemView {
       viewport.removeEventListener("pointercancel", up);
       viewport.removeClass("is-marquee");
       box.remove();
-      for (const item of cards) item.card.removeClass("is-marquee-hit");
+      for (const item of cards) {
+        item.card.removeClass("is-marquee-hit");
+        item.card.removeClass("is-marquee-remove");
+      }
       if (!hits.size) return;
+      if (mode === "marquee-subtract") {
+        const removed = [...hits].filter(id => this.multiSelected.has(id));
+        if (!removed.length) return;
+        for (const id of removed) this.multiSelected.delete(id);
+        this.commitSelection(this.selected, this.selected, removed);
+        return;
+      }
       for (const id of hits) this.multiSelected.add(id);
+      if (mode === "marquee-enter") {
+        this.integrationMode = true;
+        if (!this.closed) this.render();
+        return;
+      }
       this.commitSelection(this.selected, this.selected, hits);
     };
     viewport.addEventListener("pointermove", move);
@@ -6593,14 +6627,20 @@ export class VisualAgentMapView extends ItemView {
     );
     viewport.addEventListener("pointerdown", event => {
       if ((event.target as Element).closest(".vam-node") || !this.map) return;
-      // Topic selection turns a plain drag into a selection box; Option (Alt), Space or the middle button still pans.
-      const pan =
-        event.button === 1 || (event.button === 0 && (!this.integrationMode || this.spaceHeld || event.altKey));
-      if (event.button === 0 && !pan) {
-        this.startMarquee(viewport, event);
+      // Normal mode: a drag pans, Shift+drag draws a selection box. Topic selection mode: a drag adds to the selection,
+      // Option (Alt)+drag removes from it, and Space+drag or the middle button pans.
+      const intent = canvasPointerIntent({
+        button: event.button,
+        integrationMode: this.integrationMode,
+        spaceHeld: this.spaceHeld,
+        altKey: event.altKey,
+        shiftKey: event.shiftKey
+      });
+      if (intent === "marquee-enter" || intent === "marquee-add" || intent === "marquee-subtract") {
+        this.startMarquee(viewport, event, intent);
         return;
       }
-      if (!pan) return;
+      if (intent !== "pan") return;
       if (event.button === 1) event.preventDefault();
       const x = event.clientX,
         y = event.clientY,
@@ -6633,6 +6673,16 @@ export class VisualAgentMapView extends ItemView {
       viewport.addEventListener("pointerup", up);
       viewport.addEventListener("pointercancel", up);
     });
+  }
+  /** Starts topic selection with exactly the card's direct subtopics picked (replacing any earlier selection). */
+  private selectSubtopics(node: MapNode): void {
+    if (!this.map) return;
+    const ids = this.map.nodes.filter(item => item.parentId === node.id).map(item => item.id);
+    if (!ids.length) return;
+    this.multiSelected = new Set(ids);
+    this.selected = null;
+    this.integrationMode = true;
+    if (!this.closed) this.render();
   }
   private enableDrag(card: HTMLElement, node: MapNode): void {
     card.addEventListener("pointerdown", event => {
@@ -6701,9 +6751,17 @@ export class VisualAgentMapView extends ItemView {
         } else if (e.metaKey || e.ctrlKey) {
           const previous = this.selected,
             touched = [...this.multiSelected, node.id];
+          // "Click A, then Cmd+click B" selects both: the single selected card seeds the multi-selection.
+          if (!this.multiSelected.size && previous && previous !== node.id) this.multiSelected.add(previous);
           if (this.multiSelected.has(node.id)) this.multiSelected.delete(node.id);
           else this.multiSelected.add(node.id);
           this.selected = node.id;
+          // Two or more picked cards is topic selection: show its bar instead of leaving an invisible multi-selection.
+          if (this.multiSelected.size >= 2) {
+            this.integrationMode = true;
+            if (!this.closed) this.render();
+            return;
+          }
           this.commitSelection(previous, node.id, touched);
         } else {
           const previous = this.selected,

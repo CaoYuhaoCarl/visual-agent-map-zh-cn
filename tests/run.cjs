@@ -15,6 +15,7 @@ const suites = [
   'notes-repository.cjs',
   'expansion-and-synthesis.cjs',
   'visual-map-view.cjs',
+  'merge-topics.cjs',
   'i18n.cjs',
   'references.cjs',
   'outline-import.cjs',
