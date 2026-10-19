@@ -86,6 +86,19 @@ test('number rules: sourced numbers pass; midpoints, invented bounds and non-bod
   assert.equal(await code(withDiagram, [draft(P1, 'timeline\n  title T\n  31 days : Old')]), 'number_not_in_note');
 });
 
+test('V5 covers the first line after the type keyword, and tilde-fenced diagrams count', async () => {
+  const slice = '\n  "A" : 3';
+  assert.equal(await code(NOTE, [draft(P1, 'pie title 2024 survey 999' + slice, 'proportion')]), 'number_not_in_note');
+  assert.equal(await code(NOTE, [draft(P1, 'pie showData title 1234' + slice, 'proportion')]), 'number_not_in_note');
+  assert.equal(await code(NOTE, [draft(P1, 'pie title Days 3' + slice, 'proportion')]), 'ok');
+  assert.equal(await code(NOTE, [draft(P1, 'xychart-beta')]), 'ok');
+  assert.equal(await code(NOTE, [draft(P1, 'stateDiagram-v2\n  [*] --> A', 'states')]), 'ok');
+  assert.equal(await code(NOTE, [draft(P1, 'stateDiagram-v2 3', 'states')]), 'ok');
+  const tilde = P1 + '\n\n~~~mermaid\nflowchart TD\nA["31 days"]\n~~~';
+  assert.equal(insert.existingDiagrams(tilde).count, 1);
+  assert.equal(await code(tilde, [draft(P1, 'timeline\n  title T\n  31 days : Old')]), 'number_not_in_note');
+});
+
 test('other checks: unsafe or bad-header, parse, cap, fences in the body, CRLF', async () => {
   assert.equal(await code(NOTE, [draft(P1, 'timeline\n  title T\n  3 days : Larva\n  click A href "x"')]), 'unsafe_or_header');
   assert.equal(await code(NOTE, [draft(P1, '%%{init: {}}%%\ntimeline\n  title T')]), 'unsafe_or_header');

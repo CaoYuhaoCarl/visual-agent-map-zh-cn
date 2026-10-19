@@ -36978,7 +36978,7 @@ function existingDiagrams(detail) {
   var _a;
   const lines = detail.replace(/\r\n/g, "\n").split("\n"), types = [];
   for (let i = 0; i < lines.length; i++) {
-    if (/^\s*(`{3,})\s*mermaid\b/.test(lines[i])) {
+    if (/^\s*(`{3,}|~{3,})\s*mermaid\b/.test(lines[i])) {
       let j = i + 1;
       while (j < lines.length && !lines[j].trim()) j++;
       types.push(((_a = lines[j]) != null ? _a : "").trim().split(/\s+/)[0] || "?");
@@ -37045,7 +37045,7 @@ async function applyCharts(detail, charts, options) {
       }
       if (!ok) return fail("unparsable");
     }
-    const tokens2 = numberTokens(body.split("\n").slice(1).join("\n"));
+    const tokens2 = numberTokens(body.replace(/^\s*\S+/, ""));
     if (tokens2.some((n) => !noteNums.has(n))) return fail("number_not_in_note");
     const anchor = anchorCheck(lines, mask, chart.anchor);
     if (anchor.code) return fail(anchor.code);

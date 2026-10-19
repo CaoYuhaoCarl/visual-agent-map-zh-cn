@@ -65,7 +65,7 @@ export function existingDiagrams(detail: string): { count: number; types: string
   const lines = detail.replace(/\r\n/g, "\n").split("\n"),
     types: string[] = [];
   for (let i = 0; i < lines.length; i++) {
-    if (/^\s*(`{3,})\s*mermaid\b/.test(lines[i])) {
+    if (/^\s*(`{3,}|~{3,})\s*mermaid\b/.test(lines[i])) {
       let j = i + 1;
       while (j < lines.length && !lines[j].trim()) j++;
       types.push((lines[j] ?? "").trim().split(/\s+/)[0] || "?");
@@ -165,7 +165,7 @@ export async function applyCharts(
       }
       if (!ok) return fail("unparsable");
     }
-    const tokens = numberTokens(body.split("\n").slice(1).join("\n"));
+    const tokens = numberTokens(body.replace(/^\s*\S+/, ""));
     if (tokens.some(n => !noteNums.has(n))) return fail("number_not_in_note");
     const anchor = anchorCheck(lines, mask, chart.anchor);
     if (anchor.code) return fail(anchor.code);
