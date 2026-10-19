@@ -36218,9 +36218,9 @@ Cards (JSON array, parent before child; parentId is null for a top-level card):
 
 // core/steps/relevance-grade/pins.md
 var pins_default = `The learner pinned some cards. Pins (JSON array of {id, tier}): {{pins}}
-Pinned cards carry "pinned" in the cards below. A pinned tier is final: never output a pinned card. This replaces the rule above that every card must appear: every card whose parentId is not null and that is not pinned must still appear exactly once in "items".
+Pinned cards carry "pinned" in the cards below. A pinned tier is final: never output a pinned card. Only cards marked "pinned" may be left out of "items". Every other card whose parentId is not null must appear exactly once in "items", with a tier and its own reason. A card with a bound is not a pinned card: even when its bound leaves a single possible tier, it must still appear in "items", with a tier inside the bound and its own reason. Write each id only for its own card.
 Treat each pin as evidence of what the learner's goal really needs: cards that serve the same need as a card pinned higher may deserve a higher tier; cards inside or serving a branch pinned lower usually deserve lower.
-Stay within each card's bounds. Bounds (JSON array; "min" and "max" are the lowest and highest tier the card may have, core above support above side; a card not listed has no bound): {{bounds}}
+Stay within each card's bounds. Bounds (a bound is not a pin; JSON array; "min" and "max" are the lowest and highest tier the card may have, core above support above side; a card not listed has no bound): {{bounds}}
 When you set a card's tier because of a pinned card, add "anchor" with that pinned card's id to its item; otherwise leave "anchor" out or write null.
 Items may then also have the form {"id": "...", "tier": "core|support|side", "reason": "...", "anchor": "<pin id>" or null}.
 `;
@@ -36364,7 +36364,11 @@ function parseRelevanceGrade(raw, tree, language2 = "en", pinList = []) {
     });
   });
   const missing = [...gradable.keys()].filter((id) => !seen.has(id) && !pinned.has(id));
-  if (missing.length) throw invalid2(locale, `missing ${missing.length}: ${missing.slice(0, 3).join(", ")}`);
+  if (missing.length)
+    throw invalid2(
+      locale,
+      `missing ${missing.length}: ${missing.slice(0, 3).join(", ")}${pinnedIgnored ? ` (pinnedIgnored ${pinnedIgnored})` : ""}`
+    );
   const pinBounds = relevancePinBounds(tree, pins);
   const violations = relevanceMergedViolations(tree, mergeRelevanceTiers({ items, pins }), pinBounds);
   const result = {
@@ -36442,7 +36446,7 @@ var cardsToGrade = (request) => {
 };
 var relevanceGradeStep = {
   id: "relevance-grade",
-  version: 8,
+  version: 9,
   render: gradePrompt,
   schema: RELEVANCE_GRADE_SCHEMA,
   policy: (prompt, request) => refuseIfTooBig(prompt, request, RELEVANCE_GRADE_SCHEMA),

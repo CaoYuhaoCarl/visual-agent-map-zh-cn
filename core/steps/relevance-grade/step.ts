@@ -217,7 +217,11 @@ export function parseRelevanceGrade(
     });
   });
   const missing = [...gradable.keys()].filter(id => !seen.has(id) && !pinned.has(id));
-  if (missing.length) throw invalid(locale, `missing ${missing.length}: ${missing.slice(0, 3).join(", ")}`);
+  if (missing.length)
+    throw invalid(
+      locale,
+      `missing ${missing.length}: ${missing.slice(0, 3).join(", ")}${pinnedIgnored ? ` (pinnedIgnored ${pinnedIgnored})` : ""}`
+    );
   const pinBounds = relevancePinBounds(tree, pins);
   const violations = relevanceMergedViolations(tree, mergeRelevanceTiers({ items, pins }), pinBounds);
   const result: RelevanceGradeResult = {
@@ -321,7 +325,7 @@ export const cardsToGrade = (request: RelevanceGradeRequest): StructureNode[] =>
 /** Grade every card of a map against the learner's goal. Input is titles, summaries and structure; the reply is strict JSON. */
 export const relevanceGradeStep: StepDefinition<RelevanceGradeRequest, RelevanceGradeResult> = {
   id: "relevance-grade",
-  version: 8,
+  version: 9,
   render: gradePrompt,
   schema: RELEVANCE_GRADE_SCHEMA,
   policy: (prompt, request) => refuseIfTooBig(prompt, request, RELEVANCE_GRADE_SCHEMA),

@@ -425,3 +425,23 @@ test('i18n: the new relevance strings exist in English and Traditional Chinese w
   assert.equal(translate('zh-TW', 'ui.relevance_other_changes'), '其他調整');
   assert.equal(translate('en', 'ui.relevance_reverted_title'), 'ui.relevance_reverted_title', 'the dead "changed back" strings are gone');
 });
+
+test('grade v9: the pinned prompt says only pinned cards may be left out and a bound is not a pin', () => {
+  const prompt = grade.buildRelevanceGradePrompt(request({ pins: [pin('a11', 'core')] }));
+  assert.doesNotMatch(prompt, /replaces the rule/);
+  assert.ok(prompt.includes('A card with a bound is not a pinned card: even when its bound leaves a single possible tier, it must still appear in "items"'));
+  assert.ok(prompt.includes('Only cards marked "pinned" may be left out of "items"'));
+  assert.ok(prompt.includes('Bounds (a bound is not a pin;'));
+  assert.equal(grade.buildRelevanceGradePrompt(request()).includes('bound'), false, 'the no-pin prompt is unchanged');
+});
+
+test('grade parser: leaving out a min=core ancestor fails as missing, not as hierarchy; the detail counts ignored pinned entries', () => {
+  const list = [pin('a11', 'core')];
+  const without = items(entry('a1', 'core'), entry('b'), entry('b1'), entry('s1'));
+  const error = errorOf(() => parseGrade(without, list));
+  assert.equal(error.code, 'invalid'); assert.equal(error.hierarchy, undefined);
+  assert.match(error.message, /missing 1: a$/);
+  const withPinned = errorOf(() => parseGrade(items(entry('a1', 'core'), entry('a11', 'core'), entry('b'), entry('b1'), entry('s1')), list));
+  assert.match(withPinned.message, /missing 1: a \(pinnedIgnored 1\)$/);
+  assert.equal(withPinned.hierarchy, undefined);
+});
