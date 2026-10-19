@@ -10,7 +10,7 @@ export function effectiveReasoningLevel(
   selected: ReasoningLevel
 ): Exclude<ReasoningLevel, "auto"> {
   if (selected !== "auto") return selected;
-  if (context.mode === "synthesize") return "medium";
+  if (context.mode === "synthesize" || context.mode === "merge") return "medium";
   return context.sourceContext && context.sourceContext.length > 6_000 ? "medium" : "low";
 }
 

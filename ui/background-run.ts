@@ -44,6 +44,8 @@ export interface BackgroundStatus {
   running: boolean;
   /** Present while the run can still be stopped. */
   onStop?: () => void;
+  /** Text of the Stop button; defaults to the research Stop label. */
+  stopLabel?: string;
   /** Present once a result waits for review. */
   review?: BackgroundAction;
   /** Present once the run ended (done, failed or stopped): removes the bar. */
@@ -60,7 +62,7 @@ export function renderBackgroundStatus(parent: HTMLElement, status: BackgroundSt
     text: status.value
   });
   if (status.running && status.onStop) {
-    const stop = bar.createEl("button", { text: t("ui.stop_research") });
+    const stop = bar.createEl("button", { text: status.stopLabel ?? t("ui.stop_research") });
     stop.addEventListener("click", status.onStop);
   }
   if (status.review) {
