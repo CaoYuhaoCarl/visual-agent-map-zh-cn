@@ -563,3 +563,14 @@ test('mermaid zoom: the editor extension counts editors, reads the path through 
   assert.ok(ctx.observers.every(o => o.disconnected), 'unload disconnects every observer');
   void pluginB;
 });
+
+test('mermaid zoom: a cached embed block re-inserted whole (rendered while detached) still gets its button', () => {
+  const ctx = loadRegister(FILES);
+  const dom = node('div', 'cm-editor');
+  new ctx.mod.EditorWatcher(ctx.app, dom, () => 'Topics/A/Note.md', () => {});
+  const embed = node('div', 'cm-embed-block'); const host = embed.createDiv('mermaid'); addSvg(host);
+  dom.appendChild(embed);
+  assert.equal(host.querySelector('button'), null);
+  ctx.observers.at(-1).cb([{ addedNodes: [embed], target: dom }]);
+  assert.equal(host.querySelectorAll('button').length, 1);
+});

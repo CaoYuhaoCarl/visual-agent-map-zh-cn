@@ -84,7 +84,7 @@ class WatchChild extends MarkdownRenderChild {
 
 function isDiagramNode(node: Node): boolean {
   const el = node as Element;
-  return typeof el.matches === "function" && (el.matches("svg") || el.matches(".mermaid"));
+  return typeof el.matches === "function" && el.matches("svg, .mermaid, .cm-embed-block");
 }
 
 /** A DOM change matters only when a diagram (svg or .mermaid) was added, or it happened inside an embed block or a diagram. */

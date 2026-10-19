@@ -3431,7 +3431,7 @@ var WatchChild = class extends import_obsidian3.MarkdownRenderChild {
 };
 function isDiagramNode(node) {
   const el = node;
-  return typeof el.matches === "function" && (el.matches("svg") || el.matches(".mermaid"));
+  return typeof el.matches === "function" && el.matches("svg, .mermaid, .cm-embed-block");
 }
 function mutationTouchesDiagram(mutation) {
   var _a;
