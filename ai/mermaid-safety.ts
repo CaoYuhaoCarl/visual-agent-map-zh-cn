@@ -54,7 +54,7 @@ const UNSAFE_LINE: readonly RegExp[] = [
   /\b(?:fa|fab|fas|far|img):/i,
   /!\[/, // Markdown image
   /(?:^|;)\s*(?:callback|cssClass)\b/i, // class diagram callbacks and CSS classes
-  /^(?:properties|details)\b[^:]*:/i, // sequence actor menus (they carry links)
+  /(?:^|;)\s*(?:properties|details)\b[^:]*:/i, // sequence actor menus (they carry links)
   /::icon\s*\(/i, // mindmap icon (Font Awesome is not loaded in Obsidian)
   /\$(?:link|sprite|tags)\b/i, // C4 links, sprites and tags
   /\b(?:Update(?:Element|Rel|Boundary)Style|UpdateLayoutConfig|Add(?:Element|Rel|Boundary)Tag)\s*\(/, // C4 styling
@@ -96,7 +96,8 @@ export function unsafeMermaid(body: readonly string[]): boolean {
  * quoted inside another code block is checked as well, which only changes text that is never rendered.
  */
 export function neutralizeUnsafeMermaid(markdown: string): string {
-  const lines = markdown.split("\n");
+  // CRLF and a lone CR are line breaks to the renderer too; split on all of them so no fence, header or directive hides.
+  const lines = markdown.replace(/\r\n?/g, "\n").split("\n");
   lines.forEach((line, index) => {
     const fence = fenceOf(line);
     if (!fence || !/^mermaid\b/i.test(fence[2].trim())) return;

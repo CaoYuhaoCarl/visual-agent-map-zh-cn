@@ -34190,7 +34190,7 @@ var UNSAFE_LINE = [
   // Markdown image
   /(?:^|;)\s*(?:callback|cssClass)\b/i,
   // class diagram callbacks and CSS classes
-  /^(?:properties|details)\b[^:]*:/i,
+  /(?:^|;)\s*(?:properties|details)\b[^:]*:/i,
   // sequence actor menus (they carry links)
   /::icon\s*\(/i,
   // mindmap icon (Font Awesome is not loaded in Obsidian)
@@ -34221,7 +34221,7 @@ function unsafeMermaid(body) {
   return lines.some((line) => UNSAFE_LINE.some((pattern) => pattern.test(line)));
 }
 function neutralizeUnsafeMermaid(markdown) {
-  const lines = markdown.split("\n");
+  const lines = markdown.replace(/\r\n?/g, "\n").split("\n");
   lines.forEach((line, index) => {
     const fence = fenceOf(line);
     if (!fence || !/^mermaid\b/i.test(fence[2].trim())) return;

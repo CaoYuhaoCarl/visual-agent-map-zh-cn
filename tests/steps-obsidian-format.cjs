@@ -372,3 +372,35 @@ test('open syntax: nested and foldable callouts, details and inline HTML survive
   assert.equal(read.detail, detail);
   assert.equal(read.prompt, '真的');
 });
+
+test('mermaid safety: CRLF and lone CR cannot hide a fence, header or directive; a safe CRLF block stays mermaid', () => {
+  const blocks = [
+    ['```mermaid', 'flowchart LR', 'A-->B', 'click A href "javascript:alert(1)"', '```'],
+    ['```mermaid', 'classDiagram', 'class A', 'click A call alert()', '```']
+  ];
+  for (const lines of blocks) {
+    for (const eol of ['\r\n', '\r']) {
+      const out = neutralizeUnsafeMermaid(lines.join(eol));
+      assert.ok(!/```mermaid/.test(out) && out.startsWith('```text'), `${JSON.stringify(eol)}: neutralized`);
+      assert.ok(!out.includes('\r'), 'line breaks are normalized');
+    }
+  }
+  const header = 'classDiagram\rclass A\rclick A call alert()';
+  assert.ok(neutralizeUnsafeMermaid('```mermaid\r' + header + '\r```').startsWith('```text'));
+  // The fence line alone, the header line alone and a body line alone each end in CRLF/CR.
+  assert.ok(neutralizeUnsafeMermaid('```mermaid\r\nflowchart LR\nA-->B\nstyle A fill:red\n```').startsWith('```text'));
+  assert.ok(neutralizeUnsafeMermaid('```mermaid\nflowchart LR\r\nA-->B\nstyle A fill:red\n```').includes('```text'));
+  assert.ok(neutralizeUnsafeMermaid('```mermaid\nflowchart LR\nA-->B\rstyle A fill:red\n```').includes('```text'));
+  for (const eol of ['\r\n', '\r']) {
+    const safe = ['```mermaid', 'flowchart LR', 'A-->B', '```'].join(eol);
+    assert.equal(neutralizeUnsafeMermaid(safe), safe.replace(/\r\n?/g, '\n'));
+    assert.ok(neutralizeUnsafeMermaid(safe).startsWith('```mermaid'));
+  }
+});
+
+test('mermaid safety: sequence actor menus after a semicolon are neutralized', () => {
+  const body = ['sequenceDiagram', '  A->>B: hi; properties A: {"k":"v"}'];
+  assert.equal(parse('```mermaid\n' + body.join('\n') + '\n```'), '```text\n' + body.join('\n') + '\n```');
+  const details = ['sequenceDiagram', '  A->>B: hi; details A: /x'];
+  assert.equal(parse('```mermaid\n' + details.join('\n') + '\n```'), '```text\n' + details.join('\n') + '\n```');
+});
