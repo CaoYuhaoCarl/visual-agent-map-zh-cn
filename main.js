@@ -27319,10 +27319,11 @@ ${request.requirements}` : preset.text,
    * ungraded. A note that cannot be written is counted; the undo step covers only the notes actually written.
    */
   async applyRelevanceGrade(run, mapPath, basis, graded, meta) {
-    var _a, _b;
+    var _a, _b, _c, _d, _e;
     if (!this.relevanceRunIsCurrent(run, mapPath) || !this.map) return;
     const items = graded.items;
     run.writing = true;
+    const startedAt = Date.now();
     const repo = this.plugin.repo;
     const fresh = /* @__PURE__ */ new Map();
     for (const node of this.map.nodes) {
@@ -27362,7 +27363,8 @@ ${request.requirements}` : preset.text,
         };
       }),
       ...graded.pinnedIgnored ? { pinnedIgnored: graded.pinnedIgnored } : {},
-      ...graded.anchorsDropped ? { anchorsDropped: graded.anchorsDropped } : {}
+      ...graded.anchorsDropped ? { anchorsDropped: graded.anchorsDropped } : {},
+      ...graded.unchangedIgnored ? { unchangedIgnored: graded.unchangedIgnored } : {}
     };
     try {
       for (const base of basis) {
@@ -27401,6 +27403,10 @@ ${request.requirements}` : preset.text,
       }
     } finally {
       outcome.pinned = pinned.size;
+      this.plugin.logs.appendLog(
+        "info",
+        `Relevance ${meta.mode}: pinned ${pinned.size}, pinnedIgnored ${(_c = graded.pinnedIgnored) != null ? _c : 0}, anchorsDropped ${(_d = graded.anchorsDropped) != null ? _d : 0}, unchangedIgnored ${(_e = graded.unchangedIgnored) != null ? _e : 0}, written ${outcome.changes.length}, failed ${outcome.failed}, skipped ${outcome.skipped}, ${Date.now() - startedAt} ms`
+      );
       if (outcome.changes.length) {
         const changes = outcome.changes;
         const entry = {
@@ -27422,7 +27428,7 @@ ${request.requirements}` : preset.text,
    */
   async restoreRelevance(changes, direction) {
     let skipped = 0;
-    const same2 = (a, b) => a === b || !!a && !!b && a.tier === b.tier && a.reason === b.reason;
+    const same2 = (a, b) => a === b || !!a && !!b && a.tier === b.tier && a.reason === b.reason && !!a.manual === !!b.manual;
     for (const change of changes) {
       const expected = direction === "undo" ? change.after : change.before;
       const replacement = direction === "undo" ? change.before : change.after;
@@ -36216,6 +36222,7 @@ Pinned cards carry "pinned" in the cards below. A pinned tier is final: never ou
 Treat each pin as evidence of what the learner's goal really needs: cards that serve the same need as a card pinned higher may deserve a higher tier; cards inside or serving a branch pinned lower usually deserve lower.
 Stay within each card's bounds. Bounds (JSON array; "min" and "max" are the lowest and highest tier the card may have, core above support above side; a card not listed has no bound): {{bounds}}
 When you set a card's tier because of a pinned card, add "anchor" with that pinned card's id to its item; otherwise leave "anchor" out or write null.
+Items may then also have the form {"id": "...", "tier": "core|support|side", "reason": "...", "anchor": "<pin id>" or null}.
 `;
 
 // core/steps/relevance-grade/repair-pins.md

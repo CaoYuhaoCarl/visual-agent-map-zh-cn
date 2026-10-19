@@ -1461,6 +1461,7 @@ export class VisualAgentMapView extends ItemView {
     if (!this.relevanceRunIsCurrent(run, mapPath) || !this.map) return;
     const items: RelevanceGradeItem[] = graded.items;
     run.writing = true;
+    const startedAt = Date.now();
     const repo = this.plugin.repo;
     const fresh = new Map<string, Note>();
     for (const node of this.map.nodes) {
@@ -1495,7 +1496,8 @@ export class VisualAgentMapView extends ItemView {
         descendantTier: conflict.descendantTier
       })),
       ...(graded.pinnedIgnored ? { pinnedIgnored: graded.pinnedIgnored } : {}),
-      ...(graded.anchorsDropped ? { anchorsDropped: graded.anchorsDropped } : {})
+      ...(graded.anchorsDropped ? { anchorsDropped: graded.anchorsDropped } : {}),
+      ...(graded.unchangedIgnored ? { unchangedIgnored: graded.unchangedIgnored } : {})
     };
     try {
       for (const base of basis) {
@@ -1537,6 +1539,10 @@ export class VisualAgentMapView extends ItemView {
       }
     } finally {
       outcome.pinned = pinned.size;
+      this.plugin.logs.appendLog(
+        "info",
+        `Relevance ${meta.mode}: pinned ${pinned.size}, pinnedIgnored ${graded.pinnedIgnored ?? 0}, anchorsDropped ${graded.anchorsDropped ?? 0}, unchangedIgnored ${graded.unchangedIgnored ?? 0}, written ${outcome.changes.length}, failed ${outcome.failed}, skipped ${outcome.skipped}, ${Date.now() - startedAt} ms`
+      );
       if (outcome.changes.length) {
         const changes = outcome.changes;
         const entry: Action = {
@@ -1559,7 +1565,7 @@ export class VisualAgentMapView extends ItemView {
   private async restoreRelevance(changes: RelevanceGradeChange[], direction: "undo" | "redo"): Promise<void> {
     let skipped = 0;
     const same = (a: NoteRelevance | undefined, b: NoteRelevance | undefined): boolean =>
-      a === b || (!!a && !!b && a.tier === b.tier && a.reason === b.reason);
+      a === b || (!!a && !!b && a.tier === b.tier && a.reason === b.reason && !!a.manual === !!b.manual);
     for (const change of changes) {
       const expected = direction === "undo" ? change.after : change.before;
       const replacement = direction === "undo" ? change.before : change.after;

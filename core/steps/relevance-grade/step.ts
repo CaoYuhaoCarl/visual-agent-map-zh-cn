@@ -57,6 +57,8 @@ export interface RelevanceGradeResult {
   pinnedIgnored?: number;
   /** Anchors that were not a pinned card (treated as none). */
   anchorsDropped?: number;
+  /** Recalibration entries whose tier equalled the current one (ignored). */
+  unchangedIgnored?: number;
   /** Pinned cards ranked above a pinned ancestor; the edges between them were exempt from the parent-child rule. */
   conflicts?: PinConflict[];
 }

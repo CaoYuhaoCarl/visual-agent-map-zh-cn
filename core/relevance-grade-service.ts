@@ -92,6 +92,7 @@ export interface RelevanceGradeOutcome {
   /** Replies that named something that was not a pin, or sent a pinned card; recorded, never an error. */
   pinnedIgnored?: number;
   anchorsDropped?: number;
+  unchangedIgnored?: number;
 }
 /**
  * The one grading run a map can have at a time. It lives on the plugin, keyed by map path, so a second view of the

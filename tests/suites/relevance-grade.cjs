@@ -1172,3 +1172,15 @@ integrationTest('relevance pins: handing one card back (the tag menu) leaves it 
   item.click(); await afterWrite();
   assert.equal(await h.relevanceOf('c'), undefined);
 });
+
+integrationTest('relevance pins: undo never writes a card that was pinned after the run; it is skipped and counted', async () => {
+  const h = await harness();
+  await h.enter('Goal'); await h.settled();
+  await pinNote(h, 'c', 'side');
+  const pinned = rawNote(h, 'c');
+  button(h.bar(), 'Undo').click(); await afterTravel(h);
+  assert.equal(rawNote(h, 'c'), pinned, 'the pinned card is byte-identical');
+  assert.match(rawNote(h, 'c'), /relevance-manual: true/);
+  assert.equal(await h.relevanceOf('a'), undefined, 'the other cards were put back');
+  assert.deepEqual(h.notices, ['1 topics were edited after grading and were left as they are.']);
+});
