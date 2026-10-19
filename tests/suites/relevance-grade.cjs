@@ -911,37 +911,32 @@ integrationTest('relevance manual: readRelevance and the frontmatter writer hand
   await assert.rejects(() => repo.writeRelevance('missing.md', { tier: 'core', reason: '' }), /reason is required|not found|missing/i);
 });
 
-integrationTest('relevance manual: the next run overwrites hand-set tiers, lists first the ones it changed back (not those it kept), and undo restores the flag exactly', async () => {
+integrationTest('relevance manual: the AI never writes a pinned (hand-set) card, whether its tier differs or not; the flag stays; undo touches only written cards', async () => {
   const h = await harness();
   const set = async (key, value) => { await h.repo.writeRelevance(pathOfKey(h, key), value); };
-  await set('a', { tier: 'side', reason: '', manual: true });      // Body: AI will say core -> reverted
-  await set('b', { tier: 'support', reason: '', manual: true });   // Mind: AI will say support -> kept, flag cleared, not listed
+  await set('a', { tier: 'side', reason: '', manual: true });      // Body: AI will say core -> still untouched
+  await set('b', { tier: 'support', reason: '', manual: true });   // Mind: AI will say support (same tier) -> still untouched, flag kept
   await set('c', { tier: 'support', reason: 'Old AI reason.' });   // REM: not manual, AI says side -> ordinary change
   await h.view.hydrate();
   const rawBefore = Object.fromEntries(['a', 'b', 'c', 'd'].map(k => [k, rawNote(h, k)]));
   await h.enter('Goal'); await h.settled();
-  // The AI overwrote every card and cleared the flag.
-  for (const key of ['a', 'b', 'c', 'd']) { assert.doesNotMatch(rawNote(h, key), /relevance-manual/); assert.match(rawNote(h, key), /relevance-reason:/); }
-  assert.deepEqual(await h.allRelevance(), { root: undefined, a: ['core', 'Body for Goal.'], b: ['support', 'Mind for Goal.'], c: ['side', 'REM for Goal.'], d: ['support', 'Dreams for Goal.'] });
-  assert.equal(h.barText(), 'Graded 4 topics, 3 changed (0 skipped)', 'the card the AI kept at your tier is not counted as a change');
+  for (const key of ['a', 'b']) { assert.equal(rawNote(h, key), rawBefore[key], `${key} is byte-identical`); assert.match(rawNote(h, key), /relevance-manual: true/); assert.doesNotMatch(rawNote(h, key), /relevance-reason/); }
+  assert.deepEqual(await h.allRelevance(), { root: undefined, a: ['side', ''], b: ['support', ''], c: ['side', 'REM for Goal.'], d: ['support', 'Dreams for Goal.'] });
+  assert.equal(h.barText(), 'Graded 2 topics, 2 changed (0 skipped) Kept 2 you set.', 'pinned cards are neither graded, changed nor skipped');
   button(h.bar(), 'View changes').click();
   const modal = h.opened.at(-1);
-  const headings = findAll(modal.contentEl, i => i.tag === 'h4').map(i => i.text);
-  assert.deepEqual(headings, ['You changed these; the AI changed them back this time']);
+  assert.equal(findAll(modal.contentEl, i => i.tag === 'h4').length, 0, 'no "changed back" section: nothing of yours is changed');
   const lists = findAll(modal.contentEl, i => i.tag === 'ul');
-  assert.equal(lists.length, 2); assert.ok(hasCls(lists[0], 'vam-relevance-reverted'), 'the reverted section is first');
-  const titles = list => findAll(list, i => hasCls(i, 'vam-relevance-change-title')).map(i => i.text);
-  assert.deepEqual(titles(lists[0]), ['Body']); assert.deepEqual(titles(lists[1]), ['REM', 'Dreams'], 'Mind (kept) and Body are not in the ordinary list');
-  assert.equal(find(lists[0], i => hasCls(i, 'vam-relevance-change-tags')).text, 'You set: Skippable → AI: Must learn');
-  assert.deepEqual([...h.cards].filter(([, card]) => hasCls(card, 'vam-structure-suggested')).map(([id]) => id).sort(), [h.ids.a, h.ids.c, h.ids.d].sort());
+  assert.equal(lists.length, 1);
+  assert.deepEqual(findAll(lists[0], i => hasCls(i, 'vam-relevance-change-title')).map(i => i.text), ['REM', 'Dreams']);
   modal.close();
   button(h.bar(), 'Undo').click(); await afterTravel(h);
-  for (const key of ['a', 'b', 'c', 'd']) assert.equal(rawNote(h, key), rawBefore[key], `${key} is back exactly, flag and missing reason included`);
-  assert.match(rawNote(h, 'a'), /relevance-manual: true/); assert.doesNotMatch(rawNote(h, 'a'), /relevance-reason/);
-  assert.deepEqual(JSON.parse(JSON.stringify((await h.note('a')).relevance)), { tier: 'side', reason: '', manual: true });
-  // Redo re-applies the AI result.
+  for (const key of ['a', 'b', 'c', 'd']) assert.equal(rawNote(h, key), rawBefore[key], `${key} is back exactly`);
+  assert.match(rawNote(h, 'a'), /relevance-manual: true/);
+  // Redo re-applies only what was written; the pinned cards stay as they were.
   await h.view.travel(true); await h.view.travel(true);
-  assert.deepEqual(await h.relevanceOf('a'), ['core', 'Body for Goal.']); assert.doesNotMatch(rawNote(h, 'b'), /relevance-manual/);
+  assert.deepEqual(await h.relevanceOf('c'), ['side', 'REM for Goal.']);
+  for (const key of ['a', 'b']) assert.equal(rawNote(h, key), rawBefore[key]);
 });
 
 integrationTest('relevance manual: an AI grade of a non-manual card is unchanged (no manual section, no flag written)', async () => {

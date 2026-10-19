@@ -1413,7 +1413,7 @@ export class VisualAgentMapView extends ItemView {
     );
     const pathOf = new Map(this.map.nodes.map(node => [node.id, node.path]));
     const byId = new Map(items.map(item => [item.id, item]));
-    const outcome: RelevanceGradeOutcome = { graded: 0, changes: [], skipped: 0, failed: 0 };
+    const outcome: RelevanceGradeOutcome = { graded: 0, changes: [], skipped: 0, failed: 0, pinned: 0 };
     try {
       for (const base of basis) {
         const item = byId.get(base.id);
@@ -1423,6 +1423,11 @@ export class VisualAgentMapView extends ItemView {
           path = pathOf.get(base.id);
         if (!now || !note || !path || now.title !== base.title || now.parentId !== base.parentId) {
           outcome.skipped++;
+          continue;
+        }
+        if (note.relevance?.manual) {
+          // A hand-set (pinned) card is never written by the AI, whatever the AI said.
+          outcome.pinned++;
           continue;
         }
         const after = { tier: item.tier, reason: item.reason };
@@ -1548,6 +1553,7 @@ export class VisualAgentMapView extends ItemView {
       : run.status === "done" && outcome
         ? [
             t("ui.relevance_done_0_1_2", outcome.graded, this.visibleRelevanceChanges(outcome).length, outcome.skipped),
+            outcome.pinned ? t("ui.relevance_pinned_kept_0", outcome.pinned) : "",
             outcome.failed ? t("ui.relevance_write_failed_0", outcome.failed) : ""
           ]
             .filter(Boolean)

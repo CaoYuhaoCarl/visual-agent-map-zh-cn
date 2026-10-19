@@ -4,9 +4,13 @@
 //
 //   node tests/tools/relevance-offline.cjs run --map=<map dir> --vault=<vault root> --out=<runs dir> --slug=<slug>
 //        [--runs=2] [--label-depth=2|all] [--model=sonnet] [--goal=<text>]
-//        [--prompt=v1|v2] [--level=beginner|intermediate|familiar] [--context=<text>] [--hierarchy=count|reject]
-//        v2 (default) sends level/context and rejects a reply that ranks a card above its parent (--hierarchy=reject,
+//        [--prompt=product|legacy|v1|v2] [--lang=zh-TW|en] [--level=beginner|intermediate|familiar] [--context=<text>] [--hierarchy=count|reject]
+//        product (default) renders the product's core/steps/relevance-grade/*.md (no goal/title/depth in the reply);
+//        legacy (= v2) and v1 are the old tool copies, kept so Phase 4 runs stay reproducible.
+//        v2 sends level/context and rejects a reply that ranks a card above its parent (--hierarchy=reject,
 //        default); v1 is the old prompt (no level/context) and only counts such violations.
+//   node tests/tools/relevance-offline.cjs pins --baseline=<run file> --map=<map dir> --vault=<vault root> --out=<pins.json>
+//        (no AI: deterministic simulated pins for scenarios P, D, PD; see design section 6)
 //   node tests/tools/relevance-offline.cjs compare --out=<runs dir> --slug=<slug>
 //   node tests/tools/relevance-offline.cjs compare --out=<runs dir> --review     (reads owner-review.md back)
 //   node tests/tools/relevance-offline.cjs ab --out=<runs dir> --slugs=<a,b,...>  (writes ab.md; owner-review.md and
@@ -38,6 +42,9 @@ const TOOL_DIR = path.join(__dirname, 'relevance-offline');
 const LEVELS = ['beginner', 'intermediate', 'familiar'];
 const CONTEXT_LIMIT = 200;
 const PROMPT_FILES = { v1: 'prompt-v1.md', v2: 'prompt.md' };
+// The product's own prompt files; --prompt=product (the default) renders these like core/steps/relevance-grade/step.ts.
+const PRODUCT_DIR = path.join(__dirname, '..', '..', 'core', 'steps', 'relevance-grade');
+const PROMPT_SOURCES = { product: 'product', legacy: 'v2', v1: 'v1', v2: 'v2' };
 
 // ---- parsing -------------------------------------------------------------------------------------------------
 
@@ -134,9 +141,9 @@ function fail(failureClass, message) {
 }
 
 // Strict: missing ids, extra ids, duplicates, bad tier or empty reason all throw. Nothing is coerced.
-function validateReply(value, tree) {
+function validateReply(value, tree, { requireGoal = true } = {}) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw fail('not-object', 'reply is not an object');
-  if (typeof value.goal !== 'string' || !value.goal.trim()) throw fail('goal', 'missing goal');
+  if (requireGoal && (typeof value.goal !== 'string' || !value.goal.trim())) throw fail('goal', 'missing goal');
   if (!Array.isArray(value.items)) throw fail('items', 'items is not an array');
   const expected = new Set(gradedNodes(tree).map(n => n.id));
   const seen = new Set();
@@ -416,7 +423,7 @@ function callClaude(prompt, model) {
   if (proc.status !== 0) throw new Error(`claude exited ${proc.status}: ${(proc.stderr || proc.stdout || '').slice(0, 300)}`);
   const envelope = JSON.parse(proc.stdout);
   if (envelope.is_error) throw new Error(`claude error: ${String(envelope.result).slice(0, 300)}`);
-  return { text: String(envelope.result ?? ''), usage: envelope.usage ?? null, cost: envelope.total_cost_usd ?? null };
+  return { text: String(envelope.result ?? ''), usage: envelope.usage ?? null, cost: envelope.total_cost_usd ?? null, durationMs: typeof envelope.duration_ms === 'number' ? envelope.duration_ms : null };
 }
 
 function fill(template, values) {
@@ -443,13 +450,44 @@ function normalizeContext(context) {
 }
 
 function promptPath(version) {
+  if (version === 'product') return path.join(PRODUCT_DIR, 'prompt.md');
   const file = PROMPT_FILES[version];
   if (!file) throw new Error('--prompt must be v1 or v2');
   return path.join(TOOL_DIR, file);
 }
 
+// The prompt hash covers every file that shapes the text (product: prompt, repair and both language lines).
+function promptFiles(version) {
+  if (version === 'product') return ['prompt.md', 'repair.md', 'language.zh.md', 'language.en.md'].map(f => path.join(PRODUCT_DIR, f));
+  return [promptPath(version), ...(version === 'v1' ? [] : [path.join(TOOL_DIR, 'repair.md')])];
+}
+
+function promptHash(version) {
+  return sha256(promptFiles(version).map(f => fs.readFileSync(f, 'utf8')).join('\n--\n')).slice(0, 12);
+}
+
 function promptVersionLabel(version) {
-  return `${version}:${sha256(fs.readFileSync(promptPath(version), 'utf8')).slice(0, 12)}`;
+  return `${version}:${promptHash(version)}`;
+}
+
+// Mirror of core/step-runner.ts renderTemplate: one pass, unknown placeholder or unused variable throws, one trailing newline dropped.
+function renderTemplate(template, variables) {
+  const body = template.endsWith('\n') ? template.slice(0, -1) : template;
+  const used = new Set();
+  const text = body.replace(/\{\{([^{}]*)\}\}/g, (_m, name) => {
+    if (!Object.prototype.hasOwnProperty.call(variables, name)) throw new Error(`Prompt template uses unknown placeholder {{${name}}}`);
+    used.add(name);
+    return variables[name];
+  });
+  for (const name of Object.keys(variables)) if (!used.has(name)) throw new Error(`Prompt template variable "${name}" is not used by the template`);
+  return text;
+}
+
+const languageLine = language => renderTemplate(fs.readFileSync(path.join(PRODUCT_DIR, language === 'zh-TW' ? 'language.zh.md' : 'language.en.md'), 'utf8'), {});
+
+// Product cards: position ids, and only id/title/summary/parentId/depth (no status), as step.ts promptCards.
+function productNodesForPrompt(tree) {
+  return shortNodesForPrompt(tree).map(({ id, title, summary, parentId, depth }) => ({ id, title, summary, parentId, depth }));
 }
 
 function nodesForPrompt(tree) {
@@ -471,7 +509,15 @@ function shortNodesForPrompt(tree) {
 }
 
 // v1 puts the raw goal in the prompt and knows no level or context; v2 sends all three as JSON strings (or null).
-function buildPrompt({ version, goal, level, context, tree }) {
+function buildPrompt({ version, goal, level, context, tree, language = 'zh-TW' }) {
+  if (version === 'product')
+    return renderTemplate(fs.readFileSync(promptPath('product'), 'utf8'), {
+      languageInstruction: languageLine(language),
+      goal: JSON.stringify(goal),
+      level: JSON.stringify(level ?? null),
+      context: JSON.stringify(context ?? null),
+      nodes: JSON.stringify(productNodesForPrompt(tree))
+    });
   const template = fs.readFileSync(promptPath(version), 'utf8');
   const nodes = JSON.stringify(version === 'v1' ? nodesForPrompt(tree) : shortNodesForPrompt(tree));
   if (version === 'v1') return fill(template, { GOAL: goal, NODES: nodes });
@@ -491,7 +537,28 @@ const REPAIR_MAX_ROUNDS = 2;
 
 // Builds a repair prompt: the original prompt, the latest reply and every violating pair, each with the chain of
 // ancestors from the parent up to the top-level card and their tiers in that reply (null for the top-level card).
-function buildRepairPrompt({ prompt, value, violations, tree }) {
+function buildRepairPrompt({ prompt, value, violations, tree, version, language = 'zh-TW' }) {
+  if (version === 'product') {
+    const { toShort: short } = positionLabels(tree);
+    const lab = id => short.get(id) ?? id;
+    const parentMap = new Map(tree.map(n => [n.id, n.parentId]));
+    const tiers = new Map(value.items.map(i => [i.id, i.tier]));
+    const chainOf = parentId => {
+      const result = [];
+      const seen = new Set();
+      for (let id = parentId; id && !seen.has(id); id = parentMap.get(id)) {
+        seen.add(id);
+        result.push({ id: lab(id), tier: tiers.get(id) ?? null });
+      }
+      return result;
+    };
+    return renderTemplate(fs.readFileSync(path.join(PRODUCT_DIR, 'repair.md'), 'utf8'), {
+      originalPrompt: prompt,
+      previousReply: JSON.stringify({ items: value.items.map(i => ({ ...i, id: lab(i.id) })) }),
+      violations: JSON.stringify(violations.map(v => ({ childId: lab(v.child), childTier: v.childTier, parentId: lab(v.parent), parentTier: v.parentTier, ancestors: chainOf(v.parent) }))),
+      languageInstruction: languageLine(language)
+    });
+  }
   const template = fs.readFileSync(path.join(TOOL_DIR, 'repair.md'), 'utf8');
   const { toShort } = positionLabels(tree);
   const label = id => toShort.get(id) ?? id;
@@ -525,10 +592,10 @@ function mapShortIds(value, tree) {
   return { ...value, items };
 }
 
-function parseReply(text, tree, { shortIds = true } = {}) {
+function parseReply(text, tree, { shortIds = true, requireGoal = true } = {}) {
   try {
     const value = extractJson(text);
-    return validateReply(shortIds ? mapShortIds(value, tree) : value, tree);
+    return validateReply(shortIds ? mapShortIds(value, tree) : value, tree, { requireGoal });
   } catch (error) {
     error.failureClass = classifyFailure(error);
     throw error;
@@ -542,25 +609,27 @@ const sumOrNull = (a, b) => (typeof a === 'number' && typeof b === 'number' ? a 
 // REPAIR_MAX_ROUNDS repair rounds (as in the plugin): each round repairs the latest reply, goes through the same strict
 // checks, and a round that breaks anything but hierarchy, or a hierarchy failure after the last round, fails the
 // attempt. Any other failure of the first reply fails at once. `repair` records it. `call` is injectable for tests.
-function classify({ version, goal, level, context, tree, model, hierarchy, call = callClaude }) {
-  const prompt = buildPrompt({ version, goal, level, context, tree });
+function classify({ version, goal, level, context, tree, model, hierarchy, language = 'zh-TW', call = callClaude }) {
+  const prompt = buildPrompt({ version, goal, level, context, tree, language });
   const reply = call(prompt, model);
   const shortIds = version !== 'v1';
-  const value = parseReply(reply.text, tree, { shortIds });
+  const requireGoal = version !== 'product';
+  const value = parseReply(reply.text, tree, { shortIds, requireGoal });
   const violations = hierarchyViolations(value.items, tree);
-  if (hierarchy !== 'reject' || !violations.length) return { value, usage: reply.usage, cost: reply.cost, violations, repair: null };
+  if (hierarchy !== 'reject' || !violations.length) return { value, usage: reply.usage, cost: reply.cost, durationMs: reply.durationMs ?? null, violations, repair: null };
   const repair = { attempted: true, rounds: 0, firstViolations: violations.length, ok: false, failureClass: null, violations: null };
   let current = value;
   let pending = violations;
   let usage = reply.usage;
   let cost = reply.cost;
+  let durationMs = reply.durationMs ?? null;
   for (let round = 1; round <= REPAIR_MAX_ROUNDS; round += 1) {
     repair.rounds = round;
     let repaired;
     let next;
     try {
-      next = call(buildRepairPrompt({ prompt, value: current, violations: pending, tree: shortIds ? tree : [] }), model);
-      repaired = parseReply(next.text, tree, { shortIds });
+      next = call(buildRepairPrompt({ prompt, value: current, violations: pending, tree: shortIds ? tree : [], version, language }), model);
+      repaired = parseReply(next.text, tree, { shortIds, requireGoal });
     } catch (error) {
       repair.failureClass = classifyFailure(error);
       error.repair = repair;
@@ -570,10 +639,11 @@ function classify({ version, goal, level, context, tree, model, hierarchy, call 
     }
     usage = usage && next.usage ? (usage.first ? { ...usage, [`repair${round}`]: next.usage } : { first: usage, repair: next.usage }) : (usage ?? next.usage);
     cost = sumOrNull(cost, next.cost);
+    durationMs = sumOrNull(durationMs, next.durationMs ?? null);
     const after = hierarchyViolations(repaired.items, tree);
     if (!after.length) {
       repair.ok = true;
-      return { value: repaired, usage, cost, violations: after, repair, firstViolationList: violations };
+      return { value: repaired, usage, cost, durationMs, violations: after, repair, firstViolationList: violations };
     }
     if (round === REPAIR_MAX_ROUNDS) {
       repair.failureClass = 'hierarchy';
@@ -587,6 +657,124 @@ function classify({ version, goal, level, context, tree, model, hierarchy, call 
     pending = after;
   }
   throw new Error('unreachable');
+}
+
+// ---- simulated pins and recalibration metrics (no AI) -----------------------------------------------------------
+// Design: agents-spec/docs/history/tasks/2026-10-19-relevance-recalibrate/design.md section 6.
+
+function childrenIndex(tree) {
+  const children = new Map();
+  for (const n of tree) if (n.parentId !== null) children.set(n.parentId, [...(children.get(n.parentId) ?? []), n.id]);
+  return children;
+}
+
+function subtreeIds(rootId, children) {
+  const out = new Set();
+  const stack = [rootId];
+  while (stack.length) {
+    const id = stack.pop();
+    if (out.has(id)) continue;
+    out.add(id);
+    for (const c of children.get(id) ?? []) stack.push(c);
+  }
+  return out;
+}
+
+// Deterministic pins from a baseline (items: [{id, tier}]), in map (tree) order. A top-level card is a card with
+// parentId === null. D: first core card that is not top-level and has >= 2 children, pinned to side. P: first side
+// card whose parent is not top-level and that has >= 1 sibling (fallback: first support leaf), pinned to core, and
+// outside D's subtree. PD is both. An impossible scenario is recorded in `skipped` and left out of `scenarios`.
+function selectPins(tree, items) {
+  const tier = new Map(items.map(i => [i.id, i.tier]));
+  const byId = new Map(tree.map(n => [n.id, n]));
+  const children = childrenIndex(tree);
+  const graded = gradedNodes(tree);
+  const d = graded.find(n => tier.get(n.id) === 'core' && n.parentId !== null && (children.get(n.id) ?? []).length >= 2);
+  const dSubtree = d ? subtreeIds(d.id, children) : new Set();
+  const eligible = n => !dSubtree.has(n.id);
+  const isTop = id => byId.get(id)?.parentId === null;
+  let p = graded.find(n => eligible(n) && tier.get(n.id) === 'side' && !isTop(n.parentId) && (children.get(n.parentId) ?? []).length >= 2);
+  let pRule = 'side-with-sibling';
+  if (!p) {
+    p = graded.find(n => eligible(n) && tier.get(n.id) === 'support' && !(children.get(n.id) ?? []).length);
+    pRule = 'support-leaf';
+  }
+  const pin = (n, to) => ({ id: n.id, title: n.title, from: tier.get(n.id), tier: to });
+  const pPin = p ? pin(p, 'core') : null;
+  const dPin = d ? pin(d, 'side') : null;
+  const scenarios = {};
+  const skipped = {};
+  if (pPin) scenarios.P = [pPin]; else skipped.P = 'no side card with a non-top-level parent and a sibling, and no support leaf outside D';
+  if (dPin) scenarios.D = [dPin]; else skipped.D = 'no non-top-level core card with at least 2 children';
+  if (pPin && dPin) scenarios.PD = [pPin, dPin]; else skipped.PD = 'needs both P and D';
+  return { scenarios, skipped, pRule: p ? pRule : null };
+}
+
+// Cards near any pin: its ancestors, descendants and siblings (the pins themselves are not neighbours).
+function neighbourhood(tree, pinIds) {
+  const byId = new Map(tree.map(n => [n.id, n]));
+  const children = childrenIndex(tree);
+  const near = new Set();
+  for (const id of pinIds) {
+    for (let a = byId.get(id)?.parentId; a != null && !near.has(a); a = byId.get(a)?.parentId) near.add(a);
+    for (const x of subtreeIds(id, children)) near.add(x);
+    const parent = byId.get(id)?.parentId;
+    if (parent != null) for (const sib of children.get(parent) ?? []) near.add(sib);
+  }
+  for (const id of pinIds) near.delete(id);
+  return near;
+}
+
+const tiersOf = items => new Map(items.map(i => [i.id, i.tier]));
+
+// G1: pinned cards whose final tier differs from the pin (must be 0).
+function pinnedOverwritten(items, pins) {
+  const t = tiersOf(items);
+  return pins.filter(p => t.get(p.id) !== p.tier).length;
+}
+
+// G3: share of graded cards that are neither pinned nor near a pin and whose tier differs from the baseline.
+function unrelatedChangeRate(tree, pins, baselineItems, items) {
+  const pinIds = new Set(pins.map(p => p.id));
+  const near = neighbourhood(tree, pinIds);
+  const base = tiersOf(baselineItems);
+  const now = tiersOf(items);
+  const pool = gradedNodes(tree).filter(n => !pinIds.has(n.id) && !near.has(n.id) && base.has(n.id) && now.has(n.id));
+  const changed = pool.filter(n => base.get(n.id) !== now.get(n.id)).length;
+  return { total: pool.length, changed, rate: pool.length ? changed / pool.length : null };
+}
+
+function nonPinnedPairs(itemsA, itemsB, pinIds) {
+  const b = tiersOf(itemsB);
+  const pinned = new Set(pinIds);
+  return itemsA.filter(i => !pinned.has(i.id) && b.has(i.id)).map(i => [i.tier, b.get(i.id)]);
+}
+
+// G5: agreement of two runs over non-pinned cards.
+function nonPinnedAgreement(itemsA, itemsB, pinIds) {
+  const pairs = nonPinnedPairs(itemsA, itemsB, pinIds);
+  return { n: pairs.length, agreement: pairs.length ? agreement(pairs) : null };
+}
+
+// G7: share of non-pinned cards whose tier differs between two runs (the second run is the idempotence re-run).
+function nonPinnedChangeRate(itemsA, itemsB, pinIds) {
+  const pairs = nonPinnedPairs(itemsA, itemsB, pinIds);
+  const changed = pairs.filter(([a, b]) => a !== b).length;
+  return { n: pairs.length, changed, rate: pairs.length ? changed / pairs.length : null };
+}
+
+function pinsCommand(options) {
+  const { baseline, map, vault, out } = options;
+  if (!baseline || !map || !vault || !out) throw new Error('pins needs --baseline --map --vault --out');
+  assertOutsideRepo(out);
+  const run = JSON.parse(fs.readFileSync(baseline, 'utf8'));
+  const { tree } = loadMap(map, vault);
+  const inputHash = sha256(JSON.stringify(nodesForPrompt(tree)));
+  if (run.inputHash && run.inputHash !== inputHash) throw new Error('baseline inputHash does not match this map (the map changed since the baseline)');
+  const result = { baseline: path.resolve(baseline), inputHash, ...selectPins(tree, run.items) };
+  fs.mkdirSync(path.dirname(path.resolve(out)), { recursive: true });
+  fs.writeFileSync(out, JSON.stringify(result, null, 2));
+  process.stdout.write(`${JSON.stringify({ scenarios: Object.keys(result.scenarios), skipped: result.skipped }, null, 2)}\n`);
 }
 
 // ---- commands ------------------------------------------------------------------------------------------------
@@ -614,7 +802,11 @@ function runCommand(options) {
   assertOutsideRepo(out);
   const model = options.model || 'sonnet';
   const runs = Number(options.runs || 2);
-  const version = options.prompt || 'v2';
+  const source = options.prompt || 'product';
+  if (!PROMPT_SOURCES[source]) throw new Error('--prompt must be product, legacy, v1 or v2');
+  const version = PROMPT_SOURCES[source];
+  const language = options.lang || 'zh-TW';
+  if (!['zh-TW', 'en'].includes(language)) throw new Error('--lang must be zh-TW or en');
   promptPath(version);
   const hierarchy = options.hierarchy || 'reject';
   if (!['count', 'reject'].includes(hierarchy)) throw new Error('--hierarchy must be count or reject');
@@ -629,7 +821,7 @@ function runCommand(options) {
   const inputHash = sha256(JSON.stringify(nodesForPrompt(tree)));
   const promptVersion = promptVersionLabel(version);
   const goal = options.goal || draftGoal(title, model);
-  const promptTokens = estimateTokens(buildPrompt({ version, goal, level, context, tree }));
+  const promptTokens = estimateTokens(buildPrompt({ version, goal, level, context, tree, language }));
   const results = [];
   const failures = [];
   const failedRuns = [];
@@ -639,7 +831,7 @@ function runCommand(options) {
     const attempts = [];
     for (let attempt = 1; attempt <= 2 && !outcome; attempt += 1) {
       try {
-        outcome = classify({ version, goal, level, context, tree, model, hierarchy });
+        outcome = classify({ version, goal, level, context, tree, model, hierarchy, language });
         attempts.push({
           attempt, ok: true, failureClass: null,
           violations: outcome.firstViolationList ?? outcome.violations, repair: outcome.repair
@@ -659,17 +851,17 @@ function runCommand(options) {
     }
     const groups = siblingGroups(outcome.value.items, tree);
     const record = {
-      map: title, model, goal, level, context, promptVersion, hierarchy, inputHash, nodes: tree.length,
+      map: title, model, goal, level, context, promptVersion, promptSource: source, promptHash: promptHash(version), language, hierarchy, inputHash, nodes: tree.length,
       graded: gradedNodes(tree).length, promptTokensEstimate: promptTokens, ...outcome.value, attempts,
       firstAttempt: { ok: firstAttempt.ok, failureClass: firstAttempt.failureClass, violations: firstAttempt.violations },
-      parentChildViolations: outcome.violations, siblingGroups: groups, usage: outcome.usage, costUsd: outcome.cost
+      parentChildViolations: outcome.violations, siblingGroups: groups, usage: outcome.usage, costUsd: outcome.cost, duration_ms: outcome.durationMs ?? null
     };
     fs.writeFileSync(path.join(dir, `run-${i}.json`), JSON.stringify(record, null, 2));
     results.push(record);
   }
 
   const summary = {
-    map: title, slug, goal, level, context, promptVersion, hierarchy, inputHash, nodes: tree.length,
+    map: title, slug, goal, level, context, promptVersion, promptSource: source, promptHash: promptHash(version), language, hierarchy, inputHash, nodes: tree.length,
     graded: gradedNodes(tree).length, promptTokensEstimate: promptTokens, runsRequested: runs, runsAccepted: results.length,
     failedRuns, failures
   };
@@ -1115,7 +1307,8 @@ function main(argv) {
   if (command === 'compare') return options.review ? compareReviewCommand(options) : compareCommand(options);
   if (command === 'ab') return abCommand(options);
   if (command === 'apply') return applyCommand(options);
-  throw new Error('usage: relevance-offline.cjs run|compare|ab|apply --out=<dir> --slug=<slug> [...]');
+  if (command === 'pins') return pinsCommand(options);
+  throw new Error('usage: relevance-offline.cjs run|compare|ab|apply|pins --out=<dir> --slug=<slug> [...]');
 }
 
 module.exports = {
@@ -1123,6 +1316,7 @@ module.exports = {
   cohenKappa, stability, tierDistribution, parseTier, renderLabels, parseLabels, compareLabels, renderCompare,
   setFrontmatterKeys, applyRun, assertWritable, hierarchyViolations, siblingGroups, siblingMetrics, estimateTokens,
   buildPrompt, buildRepairPrompt, parseReply, positionLabels, normalizeLevel, normalizeContext, armOf, armStats, evaluateGates, renderAb, pickReviewCards, mulberry32,
+  selectPins, neighbourhood, pinnedOverwritten, unrelatedChangeRate, nonPinnedAgreement, nonPinnedChangeRate, renderTemplate, promptHash,
   compareReview, writeOwnerReview, loadArm, sha256, classifyFailure, fill, classify, buildRepairPrompt, parseArgs, assertOutsideRepo
 };
 

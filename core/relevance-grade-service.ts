@@ -47,6 +47,8 @@ export interface RelevanceGradeOutcome {
   skipped: number;
   /** Cards whose note could not be written. */
   failed: number;
+  /** Hand-set (pinned) cards the AI result was not written to. */
+  pinned: number;
 }
 /**
  * The one grading run a map can have at a time. It lives on the plugin, keyed by map path, so a second view of the

@@ -626,6 +626,7 @@ var english = {
   "ui.relevance_not_started": "Grading did not start. The goal was saved; no topic was changed.",
   "ui.relevance_failed_0": "Grading failed. No topic was changed. {0}",
   "ui.relevance_done_0_1_2": "Graded {0} topics, {1} changed ({2} skipped)",
+  "ui.relevance_pinned_kept_0": "Kept {0} you set.",
   "ui.relevance_write_failed_0": "{0} could not be saved.",
   "ui.relevance_view_changes": "View changes",
   "ui.relevance_changes_title": "Relevance changes",
@@ -2121,6 +2122,7 @@ var traditionalChinese = {
   "ui.relevance_not_started": "\u5206\u7D1A\u6C92\u6709\u958B\u59CB\u3002\u76EE\u6A19\u5DF2\u5132\u5B58\uFF0C\u6C92\u6709\u4EFB\u4F55\u8B70\u984C\u88AB\u6539\u8B8A\u3002",
   "ui.relevance_failed_0": "\u5206\u7D1A\u5931\u6557\uFF0C\u6C92\u6709\u4EFB\u4F55\u8B70\u984C\u88AB\u6539\u8B8A\u3002{0}",
   "ui.relevance_done_0_1_2": "\u5DF2\u5206\u7D1A {0} \u5F35\uFF0C{1} \u5F35\u8B8A\u52D5\uFF08{2} \u5F35\u7565\u904E\uFF09",
+  "ui.relevance_pinned_kept_0": "\u4FDD\u7559\u4F60\u8A2D\u5B9A\u7684 {0} \u5F35\u3002",
   "ui.relevance_write_failed_0": "\u6709 {0} \u5F35\u7121\u6CD5\u5132\u5B58\u3002",
   "ui.relevance_view_changes": "\u67E5\u770B\u8B8A\u52D5",
   "ui.relevance_changes_title": "\u95DC\u806F\u5EA6\u8B8A\u52D5",
@@ -27108,6 +27110,7 @@ ${request.requirements}` : preset.text,
    * ungraded. A note that cannot be written is counted; the undo step covers only the notes actually written.
    */
   async applyRelevanceGrade(run, mapPath, basis, items) {
+    var _a;
     if (!this.relevanceRunIsCurrent(run, mapPath) || !this.map) return;
     run.writing = true;
     const repo = this.plugin.repo;
@@ -27126,7 +27129,7 @@ ${request.requirements}` : preset.text,
     );
     const pathOf = new Map(this.map.nodes.map((node) => [node.id, node.path]));
     const byId = new Map(items.map((item) => [item.id, item]));
-    const outcome = { graded: 0, changes: [], skipped: 0, failed: 0 };
+    const outcome = { graded: 0, changes: [], skipped: 0, failed: 0, pinned: 0 };
     try {
       for (const base of basis) {
         const item = byId.get(base.id);
@@ -27134,6 +27137,10 @@ ${request.requirements}` : preset.text,
         const now = current.get(base.id), note = fresh.get(base.id), path = pathOf.get(base.id);
         if (!now || !note || !path || now.title !== base.title || now.parentId !== base.parentId) {
           outcome.skipped++;
+          continue;
+        }
+        if ((_a = note.relevance) == null ? void 0 : _a.manual) {
+          outcome.pinned++;
           continue;
         }
         const after = { tier: item.tier, reason: item.reason };
@@ -27246,6 +27253,7 @@ ${request.requirements}` : preset.text,
       run.awaitingUsage ? "ui.relevance_awaiting_usage" : run.repairing ? "ui.relevance_repairing" : "ui.relevance_running"
     ) : run.status === "done" && outcome ? [
       t("ui.relevance_done_0_1_2", outcome.graded, this.visibleRelevanceChanges(outcome).length, outcome.skipped),
+      outcome.pinned ? t("ui.relevance_pinned_kept_0", outcome.pinned) : "",
       outcome.failed ? t("ui.relevance_write_failed_0", outcome.failed) : ""
     ].filter(Boolean).join(" ") : (_a = run.message) != null ? _a : "";
     const tone = running ? " vam-status-running" : run.status === "failed" || (outcome == null ? void 0 : outcome.failed) ? " vam-status-error" : "";
