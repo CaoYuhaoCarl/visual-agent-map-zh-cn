@@ -27,6 +27,8 @@ import SynthesisDirectionsZH from "./synthesis-directions.zh.md";
 import SynthesisDirectionsEN from "./synthesis-directions.en.md";
 import SynthesisGoalZH from "./synthesis-goal.zh.md";
 import SynthesisGoalEN from "./synthesis-goal.en.md";
+import MergeGoalZH from "./merge-goal.zh.md";
+import MergeGoalEN from "./merge-goal.en.md";
 
 /**
  * Task text that Visual Map builds into the task of an AI request (expand, synthesize, research). Markdown files next to
@@ -48,6 +50,7 @@ const NO_SUMMARY_YET: FragmentPair = pair(NoSummaryYetZH, NoSummaryYetEN);
 const RESEARCH_TOPIC: FragmentPair = { zh: ResearchTopicZH, en: ResearchTopicEN };
 const SYNTHESIS_DIRECTIONS: FragmentPair = pair(SynthesisDirectionsZH, SynthesisDirectionsEN);
 const SYNTHESIS_GOAL: FragmentPair = pair(SynthesisGoalZH, SynthesisGoalEN);
+const MERGE_GOAL: FragmentPair = pair(MergeGoalZH, MergeGoalEN);
 
 export const researchTopicTask = (language: UiLanguage, title: string): string =>
   renderTemplate(inLanguage(RESEARCH_TOPIC, language), { title });
@@ -60,6 +63,8 @@ export function expansionTask(language: UiLanguage, existing: string, direction:
 
 export const synthesisDirectionsTask = (language: UiLanguage): string => inLanguage(SYNTHESIS_DIRECTIONS, language);
 export const synthesisGoalTask = (language: UiLanguage): string => inLanguage(SYNTHESIS_GOAL, language);
+/** The task of an AI merge of selected sibling topics into one (prompt.merge_goal). */
+export const mergeGoalTask = (language: UiLanguage): string => inLanguage(MERGE_GOAL, language);
 export const noSummaryYet = (language: UiLanguage): string => inLanguage(NO_SUMMARY_YET, language);
 export const labelCurrentSummary = (language: UiLanguage): string => inLanguage(LABEL_CURRENT_SUMMARY, language);
 export const labelVisualReferences = (language: UiLanguage): string => inLanguage(LABEL_VISUAL_REFERENCES, language);

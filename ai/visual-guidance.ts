@@ -6,7 +6,7 @@ import type { TaskContext } from "./types";
 export function visualGuidance(context: TaskContext, language: UiLanguage): string[] {
   const synthesis = context.mode === "synthesize";
   const maySearch = context.researchMode !== "local" && context.mode !== "decompose" && context.visualMode !== "off";
-  const mayReuse = synthesis;
+  const mayReuse = synthesis || context.mode === "merge";
   const instructions: string[] = [];
   if (!maySearch) {
     instructions.push(inLanguage(VISUAL_NONE, language));

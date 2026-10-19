@@ -110,12 +110,13 @@ test('the reference extract and reduce rounds are their own steps, followed by t
 });
 
 test('Visual Map task text comes from fragments and renders the same as the strings it replaced', () => {
-  const { expansionTask, researchTopicTask, synthesisGoalTask, noSummaryYet } = load('experiences/visual-map/steps/fragments.ts');
+  const { expansionTask, researchTopicTask, synthesisGoalTask, mergeGoalTask, noSummaryYet } = load('experiences/visual-map/steps/fragments.ts');
   for (const language of ['en', 'zh-TW']) {
     assert.match(researchTopicTask(language, 'My {0} topic'), /My \{0\} topic/, 'a title is never re-scanned for placeholders');
     assert.ok(expansionTask(language, '- a: b', 'Go deeper').startsWith('Go deeper\n'));
     assert.ok(expansionTask(language, '- a: b', '').includes('\n- a: b\n'));
     assert.ok(synthesisGoalTask(language).length > 10 && noSummaryYet(language).length > 2);
+    assert.ok(mergeGoalTask(language).length > 10 && mergeGoalTask(language) !== synthesisGoalTask(language));
   }
 });
 
