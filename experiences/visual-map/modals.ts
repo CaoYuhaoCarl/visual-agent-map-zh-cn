@@ -1145,7 +1145,9 @@ export class NextStepModal extends Modal {
             ...(templateId() ? { detailTemplateId: templateId() } : {}),
             ...(toneId() ? { toneId: toneId() } : {}),
             signal: this.taskSignal,
-            onProgress: message => expandPanel.querySelector<HTMLElement>(".vam-next-status")?.setText(message)
+            onProgress: message => {
+              if (!this.closed) expandPanel.querySelector<HTMLElement>(".vam-next-status")?.setText(message);
+            }
           };
           if (multiLayer) {
             if (!quickOutline) return;
@@ -1166,7 +1168,12 @@ export class NextStepModal extends Modal {
             const { nodes, dropped } = limitOutline(generated, limits);
             if (this.closed) {
               // Hidden while it ran: the card badge keeps the outline for review and a Notice says it is ready.
-              this.background?.outlineReady?.({ nodes, dropped, options });
+              // The closed dialog's signal and progress callback must not outlive it in the stored options.
+              this.background?.outlineReady?.({
+                nodes,
+                dropped,
+                options: { ...options, signal: undefined, onProgress: undefined }
+              });
               return;
             }
             this.outlineReview(expandPanel, nodes, expandButton, quickOutline.create, options, dropped);

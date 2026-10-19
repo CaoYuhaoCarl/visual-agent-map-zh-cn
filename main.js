@@ -1304,6 +1304,7 @@ var english = {
   "coffee.the_table_is_generating_reopen_it_after_it_finishes": "The table is generating. Reopen it after it finishes.",
   "coffee.organizing_a_research_question": "Organizing a research question\u2026",
   "coffee.handoff_draft_ready": "The research question draft is ready.",
+  "coffee.handoff_draft_discarded": "The earlier AI research question draft was discarded because you started a different handoff.",
   "coffee.handoff_bar_ready": "Draft ready",
   "coffee.handoff_stopped": "Stopped. Your inputs are kept.",
   "coffee.convergence_preview_ready": "The convergence preview is ready.",
@@ -2765,6 +2766,7 @@ var traditionalChinese = {
   "coffee.the_table_is_generating_reopen_it_after_it_finishes": "\u9019\u684C\u6B63\u5728\u751F\u6210\uFF0C\u8ACB\u5B8C\u6210\u5F8C\u91CD\u65B0\u958B\u555F\u3002",
   "coffee.organizing_a_research_question": "\u6B63\u5728\u6574\u7406\u7814\u7A76\u554F\u984C\u2026",
   "coffee.handoff_draft_ready": "\u7814\u7A76\u554F\u984C\u8349\u7A3F\u5DF2\u5C31\u7DD2\u3002",
+  "coffee.handoff_draft_discarded": "\u56E0\u70BA\u4F60\u958B\u59CB\u4E86\u53E6\u4E00\u500B\u4EA4\u63A5\uFF0C\u5148\u524D\u7684 AI \u7814\u7A76\u554F\u984C\u8349\u7A3F\u5DF2\u6368\u68C4\u3002",
   "coffee.handoff_bar_ready": "\u8349\u7A3F\u5DF2\u5C31\u7DD2",
   "coffee.handoff_stopped": "\u5DF2\u505C\u6B62\uFF0C\u8F38\u5165\u5167\u5BB9\u5DF2\u4FDD\u7559\u3002",
   "coffee.convergence_preview_ready": "\u6536\u6582\u9810\u89BD\u5DF2\u5C31\u7DD2\u3002",
@@ -5444,6 +5446,8 @@ async function openCoffeeResearchHandoff(plugin, store, displayed, path, insight
   if (!prefill && waiting) {
     if (waiting.state === "running") throw new Error(translate(uiLocale(plugin.settings.language), "ui.ai_running_ai"));
     if (waiting.insightId === insightId) return reopenCoffeeHandoff(plugin, waiting);
+    if (waiting.state === "done" && waiting.draft)
+      new import_obsidian6.Notice(translate(uiLocale(plugin.settings.language), "coffee.handoff_draft_discarded"));
     dismissCoffeeHandoff(plugin, waiting);
   }
   const displayedKey = coffeeCommittedKey(displayed);
@@ -18633,7 +18637,7 @@ var NextStepModal = class extends import_obsidian19.Modal {
             signal: this.taskSignal,
             onProgress: (message) => {
               var _a3;
-              return (_a3 = expandPanel.querySelector(".vam-next-status")) == null ? void 0 : _a3.setText(message);
+              if (!this.closed) (_a3 = expandPanel.querySelector(".vam-next-status")) == null ? void 0 : _a3.setText(message);
             }
           };
           if (multiLayer) {
@@ -18653,7 +18657,11 @@ var NextStepModal = class extends import_obsidian19.Modal {
             if (signal.aborted || this.closed && !this.detached) return;
             const { nodes, dropped } = limitOutline(generated, limits);
             if (this.closed) {
-              (_d2 = (_c2 = this.background) == null ? void 0 : _c2.outlineReady) == null ? void 0 : _d2.call(_c2, { nodes, dropped, options });
+              (_d2 = (_c2 = this.background) == null ? void 0 : _c2.outlineReady) == null ? void 0 : _d2.call(_c2, {
+                nodes,
+                dropped,
+                options: { ...options, signal: void 0, onProgress: void 0 }
+              });
               return;
             }
             this.outlineReview(expandPanel, nodes, expandButton, quickOutline.create, options, dropped);
@@ -30709,6 +30717,7 @@ ${request.requirements}` : preset.text,
    */
   backgroundHooks(key2, node) {
     let own;
+    const mapPath = this.path;
     return {
       begin: (controller) => {
         own = controller;
@@ -30722,8 +30731,8 @@ ${request.requirements}` : preset.text,
       },
       outlineReady: (outline) => {
         var _a, _b;
-        if (!node || this.closed) return;
-        this.quickOutlines.set(node.path, { mapPath: this.path, ...outline });
+        if (!node || this.closed || this.path !== mapPath) return;
+        this.quickOutlines.set(node.path, { mapPath, ...outline });
         const title = (_b = (_a = this.notes.get(node.id)) == null ? void 0 : _a.title) != null ? _b : node.path;
         const count = outlineProposals(outline.nodes).length;
         backgroundResultNotice(t("ui.background_outline_ready_0", title), {
@@ -30734,7 +30743,7 @@ ${request.requirements}` : preset.text,
       },
       completed: (kind) => {
         var _a, _b, _c, _d;
-        if (!node || this.closed) return;
+        if (!node || this.closed || this.path !== mapPath) return;
         const title = (_b = (_a = this.notes.get(node.id)) == null ? void 0 : _a.title) != null ? _b : node.path;
         if (kind === "research")
           backgroundResultNotice(t("ui.background_research_done_0", title), {
@@ -32439,10 +32448,11 @@ ${request.requirements}` : preset.text,
   }
   retrySelectionSynthesis(task) {
     if (task.state !== "failed" && task.state !== "cancelled") return;
+    const { signal: _staleSignal, onProgress: _staleProgress, ...retained } = task.options;
     void this.plugin.confirmAiUsage(this.plugin.settings.cliModel, async () => {
       await this.startSelectionSynthesis(
         task.sources,
-        { ...task.options, synthesisTitle: task.title, continuesDirections: task.directions.length > 0 },
+        { ...retained, synthesisTitle: task.title, continuesDirections: task.directions.length > 0 },
         task.step === "directions" ? null : task.goal,
         (message) => new import_obsidian26.Notice(message),
         () => {
@@ -32495,7 +32505,7 @@ ${note.detail.trim()}` : "",
       goal,
       rules,
       sources: sources2,
-      options: options != null ? options : { researchMode: "local", researchDepth: "normal", visualMode: "off" },
+      options: options ? { ...options, signal: void 0, onProgress: void 0 } : { researchMode: "local", researchDepth: "normal", visualMode: "off" },
       mapPath,
       mapId,
       sourceContent: JSON.stringify(sourceGroup.documents),

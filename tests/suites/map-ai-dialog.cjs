@@ -647,6 +647,8 @@ integrationTest('quick outline: Generate hides the dialog, the card runs with St
   assert.equal(providerSignal === undefined || providerSignal.aborted === false, true);
   assert.equal(actionNotices(h).length, 0, 'no result Notice yet');
   gate.resolve(); await until(() => h.view.quickOutlines.has(h.parent.path));
+  const storedOutline = h.view.quickOutlines.get(h.parent.path);
+  assert.equal(storedOutline.options.signal, undefined, 'the closed dialog signal is not stored'); assert.equal(storedOutline.options.onProgress, undefined, 'the closed dialog progress callback is not stored');
   assert.equal(h.view.startingTasks.size, 0, 'the card is released once the outline arrived');
   assert.equal(actionNotices(h).length, 1, 'exactly one result Notice'); assert.equal(actionNotices(h)[0].actions[0].text, 'Review outline (2)');
   assert.equal(h.modals.length, before + 1, 'no review window opens by itself');
@@ -839,4 +841,23 @@ integrationTest('multi-select synthesis: a request needs a name and two requests
   await second; assert.equal(failures.length, 1); assert.match(failures[0], /running/i);
   await until(() => h.calls.length === 1); gate.resolve(); await first;
   assert.equal(h.calls.length, 1); assert.equal(h.view.integrationTask.state, 'directions');
+});
+integrationTest('multi-select synthesis: Stop during the draft then Try again runs a fresh request instead of aborting at once (D2)', async () => {
+  const h = await synthesisHarness();
+  const modal = await h.openSelection();
+  const gate = h.hold();
+  visibleBar(modal, 'Skip suggestions and draft now').click(); await until(() => h.calls.length === 1); await tick();
+  h.view.integrationTask.controller.abort(); await until(() => h.calls[0].signal.aborted); await tick(); await tick();
+  assert.equal(h.view.integrationTask.state, 'cancelled'); gate.resolve();
+  h.view.retrySelectionSynthesis(h.view.integrationTask);
+  await until(() => h.calls.length === 2); await tick();
+  assert.equal(h.calls[1].signal.aborted, false, 'the retry does not inherit the stopped run signal');
+  assert.notEqual(h.view.integrationTask?.state, 'cancelled');
+});
+integrationTest('synthesis: a result for a map that is no longer open raises no Notice and stores nothing under the new map (Low 1)', async () => {
+  const h = await synthesisHarness();
+  const hooks = h.view.backgroundHooks(h.parent.path, h.parent);
+  h.view.path = 'Other map.md';
+  hooks.completed('research'); hooks.outlineReady({ nodes: [], dropped: 0, options: { researchMode: 'local', researchDepth: 'normal', visualMode: 'off' } });
+  assert.equal(h.notices.length, 0, 'no cross-map Notice'); assert.equal(h.view.quickOutlines.size, 0);
 });

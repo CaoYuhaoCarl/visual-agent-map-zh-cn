@@ -4694,6 +4694,8 @@ export class VisualAgentMapView extends ItemView {
    */
   private backgroundHooks(key: string, node?: MapNode): BackgroundHooks {
     let own: AbortController | undefined;
+    // The map this run started on: a result that lands after a map switch belongs to that map, not the open one.
+    const mapPath = this.path;
     return {
       begin: controller => {
         own = controller;
@@ -4706,8 +4708,8 @@ export class VisualAgentMapView extends ItemView {
         if (!this.closed) this.render();
       },
       outlineReady: outline => {
-        if (!node || this.closed) return;
-        this.quickOutlines.set(node.path, { mapPath: this.path, ...outline });
+        if (!node || this.closed || this.path !== mapPath) return;
+        this.quickOutlines.set(node.path, { mapPath, ...outline });
         const title = this.notes.get(node.id)?.title ?? node.path;
         const count = outlineProposals(outline.nodes).length;
         backgroundResultNotice(t("ui.background_outline_ready_0", title), {
@@ -4717,7 +4719,7 @@ export class VisualAgentMapView extends ItemView {
         this.render();
       },
       completed: kind => {
-        if (!node || this.closed) return;
+        if (!node || this.closed || this.path !== mapPath) return;
         const title = this.notes.get(node.id)?.title ?? node.path;
         if (kind === "research")
           backgroundResultNotice(t("ui.background_research_done_0", title), {
@@ -6543,10 +6545,12 @@ export class VisualAgentMapView extends ItemView {
   }
   private retrySelectionSynthesis(task: NonNullable<VisualAgentMapView["integrationTask"]>): void {
     if (task.state !== "failed" && task.state !== "cancelled") return;
+    // The stored options may carry the stopped run's aborted signal; a retry must start with its own.
+    const { signal: _staleSignal, onProgress: _staleProgress, ...retained } = task.options;
     void this.plugin.confirmAiUsage(this.plugin.settings.cliModel, async () => {
       await this.startSelectionSynthesis(
         task.sources,
-        { ...task.options, synthesisTitle: task.title, continuesDirections: task.directions.length > 0 },
+        { ...retained, synthesisTitle: task.title, continuesDirections: task.directions.length > 0 },
         task.step === "directions" ? null : task.goal,
         message => new Notice(message),
         () => {}
@@ -6612,7 +6616,9 @@ export class VisualAgentMapView extends ItemView {
       goal,
       rules,
       sources,
-      options: options ?? { researchMode: "local", researchDepth: "normal", visualMode: "off" },
+      options: options
+        ? { ...options, signal: undefined, onProgress: undefined }
+        : { researchMode: "local", researchDepth: "normal", visualMode: "off" },
       mapPath,
       mapId,
       sourceContent: JSON.stringify(sourceGroup.documents),

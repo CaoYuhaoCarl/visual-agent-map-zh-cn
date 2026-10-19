@@ -161,6 +161,9 @@ export async function openCoffeeResearchHandoff(
     // One background job per session: a running one blocks; a finished one is reviewed instead of starting over.
     if (waiting.state === "running") throw new Error(translate(uiLocale(plugin.settings.language), "ui.ai_running_ai"));
     if (waiting.insightId === insightId) return reopenCoffeeHandoff(plugin, waiting);
+    // A finished draft the owner never reviewed is not dropped silently.
+    if (waiting.state === "done" && waiting.draft)
+      new Notice(translate(uiLocale(plugin.settings.language), "coffee.handoff_draft_discarded"));
     dismissCoffeeHandoff(plugin, waiting);
   }
   const displayedKey = coffeeCommittedKey(displayed);

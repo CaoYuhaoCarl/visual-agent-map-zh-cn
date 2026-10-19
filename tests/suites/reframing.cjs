@@ -163,6 +163,14 @@ integrationTest('Reframing completion while the dialog is hidden gives one Notic
   assert.equal(handoffField(reopened,'Output language').value,'zh-TW');assert.equal(handoffField(reopened,'Model').value,task.inputs.model);assert.equal(reopened.rationale,'AI rationale');assert.equal(reopened.method,'ai');
   assert.equal(handoff.coffeeHandoffTask(plugin,data.session.id),undefined);
 });
+integrationTest('Starting a handoff for another insight announces the discarded finished AI draft', async () => {
+  const data=await reframingModalFixture(),{modal,plugin,handoff,notices}=data;
+  plugin.core.reframing={reframe:async()=>({question:'Q?',context:'C',rationale:'R'})};plugin.settings.language='en';
+  organizeButton(modal).onclick();await until(()=>handoff.coffeeHandoffTask(plugin,data.session.id)?.state==='done');
+  const before=notices.length;
+  await handoff.openCoffeeResearchHandoff(plugin,data.store,data.displayed,data.path,'idea');
+  assert.equal(notices.length,before+1);assert.match(notices.at(-1),/discarded/i);
+});
 integrationTest('Coffee handoff rechecks source after waiting in the write queue', async () => {
   const data=await reframingModalFixture();const gate=deferred();data.plugin.mutate=async work=>{await gate.promise;await work();};
   coffeeFind(data.modal.contentEl,e=>e.text==='Create research map').onclick();await until(()=>data.modal.creating);
