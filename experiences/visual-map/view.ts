@@ -6914,7 +6914,8 @@ export class VisualAgentMapView extends ItemView {
         integrationMode: this.integrationMode,
         spaceHeld: this.spaceHeld,
         altKey: event.altKey,
-        shiftKey: event.shiftKey
+        // The read-only sample and AIM maps have no topic selection, so Shift+drag there is a plain pan.
+        shiftKey: event.shiftKey && this.canSelectTopics()
       });
       if (intent === "marquee-enter" || intent === "marquee-add" || intent === "marquee-subtract") {
         this.startMarquee(viewport, event, intent);
@@ -6953,6 +6954,10 @@ export class VisualAgentMapView extends ItemView {
       viewport.addEventListener("pointerup", up);
       viewport.addEventListener("pointercancel", up);
     });
+  }
+  /** Topic selection (remove, move, copy, synthesize, merge) exists only on editable, non-AIM maps. */
+  private canSelectTopics(): boolean {
+    return !this.builtIn && !!this.map && !this.map.aim;
   }
   /** Starts topic selection with exactly the card's direct subtopics picked (replacing any earlier selection). */
   private selectSubtopics(node: MapNode): void {
@@ -7032,12 +7037,13 @@ export class VisualAgentMapView extends ItemView {
           const previous = this.selected,
             touched = [...this.multiSelected, node.id];
           // "Click A, then Cmd+click B" selects both: the single selected card seeds the multi-selection.
-          if (!this.multiSelected.size && previous && previous !== node.id) this.multiSelected.add(previous);
+          if (this.canSelectTopics() && !this.multiSelected.size && previous && previous !== node.id)
+            this.multiSelected.add(previous);
           if (this.multiSelected.has(node.id)) this.multiSelected.delete(node.id);
           else this.multiSelected.add(node.id);
           this.selected = node.id;
           // Two or more picked cards is topic selection: show its bar instead of leaving an invisible multi-selection.
-          if (this.multiSelected.size >= 2) {
+          if (this.canSelectTopics() && this.multiSelected.size >= 2) {
             this.integrationMode = true;
             if (!this.closed) this.render();
             return;

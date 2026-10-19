@@ -31948,7 +31948,8 @@ ${note.detail.trim()}` : "",
         integrationMode: this.integrationMode,
         spaceHeld: this.spaceHeld,
         altKey: event.altKey,
-        shiftKey: event.shiftKey
+        // The read-only sample and AIM maps have no topic selection, so Shift+drag there is a plain pan.
+        shiftKey: event.shiftKey && this.canSelectTopics()
       });
       if (intent === "marquee-enter" || intent === "marquee-add" || intent === "marquee-subtract") {
         this.startMarquee(viewport, event, intent);
@@ -31984,6 +31985,10 @@ ${note.detail.trim()}` : "",
       viewport.addEventListener("pointerup", up);
       viewport.addEventListener("pointercancel", up);
     });
+  }
+  /** Topic selection (remove, move, copy, synthesize, merge) exists only on editable, non-AIM maps. */
+  canSelectTopics() {
+    return !this.builtIn && !!this.map && !this.map.aim;
   }
   /** Starts topic selection with exactly the card's direct subtopics picked (replacing any earlier selection). */
   selectSubtopics(node) {
@@ -32058,11 +32063,12 @@ ${note.detail.trim()}` : "",
           );
         } else if (e.metaKey || e.ctrlKey) {
           const previous = this.selected, touched = [...this.multiSelected, node.id];
-          if (!this.multiSelected.size && previous && previous !== node.id) this.multiSelected.add(previous);
+          if (this.canSelectTopics() && !this.multiSelected.size && previous && previous !== node.id)
+            this.multiSelected.add(previous);
           if (this.multiSelected.has(node.id)) this.multiSelected.delete(node.id);
           else this.multiSelected.add(node.id);
           this.selected = node.id;
-          if (this.multiSelected.size >= 2) {
+          if (this.canSelectTopics() && this.multiSelected.size >= 2) {
             this.integrationMode = true;
             if (!this.closed) this.render();
             return;

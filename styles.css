@@ -964,3 +964,5 @@ button.vam-template-section-header:hover { background: var(--background-modifier
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .timeline-node path,
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .timeline-node rect { fill: color-mix(in srgb, var(--vam-timeline-accent, var(--interactive-accent)) 26%, var(--background-primary)); }
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-timeline, svg)[aria-roledescription="timeline"] .timeline-node line { stroke: var(--vam-timeline-accent, var(--interactive-accent)); }
+
+.vam-selection-bar button[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }

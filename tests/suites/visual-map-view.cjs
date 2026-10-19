@@ -1824,3 +1824,23 @@ integrationTest('merge dialog: Enter confirms once and is consumed; a second Mer
   queued.length = 0; view.mergeOpen = false; view.openMerge(); assert.equal(opened.length, 2);
   opened[1].close(); view.openMerge(); assert.equal(opened.length, 3);
 });
+integrationTest('the read-only sample and AIM maps never enter selection mode from Shift+drag or Cmd/Ctrl+click', () => {
+  for (const [name, setup] of [['sample', view => { view.builtIn = true; }], ['AIM', view => { view.map.aim = { branches: [] }; }]]) {
+    const fixture = selectionView(load); const { view } = fixture; setup(view);
+    fixture.build();
+    const cards = fixture.cards(); const target = { closest: () => null };
+    // Cards of these maps may not be draggable at all; the click handler must not start the mode either.
+    const tap = (id, extra = {}) => { const down = cards[id].handlers.get('pointerdown'); if (down) { down({ target, button: 0, clientX: 0, clientY: 0, pointerId: 1 }); cards[id].handlers.get('pointerup')({ type: 'pointerup', ...extra }); } view.suppressClickUntil = 0; cards[id].handlers.get('click')({ target, metaKey: false, ctrlKey: false, ...extra }); };
+    tap('a'); tap('b', { metaKey: true }); tap('c', { ctrlKey: true });
+    assert.equal(view.integrationMode, false, `${name}: Cmd/Ctrl+click does not start selection mode`);
+    for (const [id, [left, top, right, bottom]] of Object.entries({ root: [0, 0, 100, 50], a: [200, 0, 300, 50], b: [200, 100, 300, 150], c: [400, 0, 500, 50] })) cards[id].getBoundingClientRect = () => ({ left, top, right, bottom });
+    view.stageEl.querySelectorAll = () => Object.values(cards);
+    const viewport = selectionDom()('viewport'); viewport.clientWidth = 800; viewport.clientHeight = 600;
+    view.viewportEl = viewport; view.transform = () => {}; view.saveViewport = () => {}; view.plugin.saveSettings = async () => {}; view.setupPan();
+    viewport.handlers.get('pointerdown')({ target, button: 0, clientX: 150, clientY: -10, pointerId: 1, altKey: false, shiftKey: true, preventDefault() {} });
+    assert.equal(viewport.classes.has('is-marquee'), false, `${name}: Shift+drag draws no box`);
+    assert.equal(viewport.classes.has('is-panning'), true, `${name}: Shift+drag pans like a plain drag`);
+    viewport.handlers.get('pointermove')({ clientX: 350, clientY: 200 }); viewport.handlers.get('pointerup')({});
+    assert.equal(view.integrationMode, false);
+  }
+});
