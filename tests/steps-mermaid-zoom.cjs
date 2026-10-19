@@ -574,3 +574,18 @@ test('mermaid zoom: a cached embed block re-inserted whole (rendered while detac
   ctx.observers.at(-1).cb([{ addedNodes: [embed], target: dom }]);
   assert.equal(host.querySelectorAll('button').length, 1);
 });
+
+test('mermaid zoom css: live preview moves the button left of Obsidian\'s edit button; reading view stays top-right', () => {
+  const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ sel: m[1].trim(), body: m[2] }));
+  const base = rules.find(r => r.sel === '.vam-mermaid-zoom-btn');
+  assert.match(base.body, /top:\s*6px/); assert.match(base.body, /right:\s*6px/); assert.match(base.body, /position:\s*absolute/);
+  const lp = rules.find(r => r.sel === '.cm-embed-block .vam-mermaid-zoom-btn');
+  assert.ok(lp, 'a live-preview-only rule exists');
+  assert.match(lp.body, /right:\s*calc\(var\(--vam-embed-edit-right\)\s*\+\s*var\(--vam-embed-edit-width\)\s*\+\s*var\(--vam-embed-edit-gap\)\)/);
+  assert.match(lp.body, /width:\s*var\(--vam-embed-edit-width\)/); assert.match(lp.body, /height:\s*var\(--vam-embed-edit-height\)/);
+  const vars = rules.find(r => r.sel === '.cm-embed-block').body;
+  for (const v of ['top', 'right', 'width', 'height', 'gap']) assert.match(vars, new RegExp(`--vam-embed-edit-${v}:\\s*\\d+px`));
+  assert.equal(css.split('.vam-mermaid-zoomable:focus-within > .vam-mermaid-zoom-btn,').length - 1, 1, 'no duplicated selector');
+  assert.ok(rules.some(r => r.sel.includes('.cm-embed-block:hover .vam-mermaid-zoom-btn') && /opacity:\s*1/.test(r.body)), 'the group shows together on hover');
+});
