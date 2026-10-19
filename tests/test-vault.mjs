@@ -43,6 +43,26 @@ test('in-place plugin refresh updates only installed artifacts and preserves tes
   assert.equal(readFileSync(join(plugin, 'main.js'), 'utf8'), readFileSync(join(root, 'main.js'), 'utf8'));
 });
 
+test('owner vault update neither seeds nor requires fixture maps; other vaults still do', t => {
+  const { folder, vault } = environment(t);
+  const fixtures = ['Topics/Local Source Fixture', 'Topics/Taiwan Travel Regression (zh-TW test fixture)'];
+  prepareTestVault({ vault });
+  for (const f of fixtures) rmSync(join(vault, 'Agent Workspace', f), { recursive: true, force: true });
+  // Non-owner vault: verify still fails and update re-seeds the local-source fixture.
+  assert.throws(() => verifyTestVault(vault), /Fixture\/settings/);
+  assert.throws(() => updateCurrentTestVault({ vault }), /Fixture\/settings/);
+  // Owner vault: update does not create fixtures and verify passes without them.
+  const ownerFolder = join(folder, 'owner'); const owner = join(ownerFolder, 'current');
+  prepareTestVault({ vault: owner });
+  for (const f of fixtures) rmSync(join(owner, 'Agent Workspace', f), { recursive: true, force: true });
+  writeFileSync(join(owner, '.obsidian/plugins/visual-agent-map/main.js'), 'stale plugin build');
+  assert.throws(() => verifyTestVault(owner), /hash mismatch|Fixture\/settings/);
+  updateCurrentTestVault({ vault: owner, owner });
+  for (const f of fixtures) assert.equal(existsSync(join(owner, 'Agent Workspace', f)), false);
+  verifyTestVault(owner, root, owner);
+  assert.throws(() => verifyTestVault(owner), /Fixture\/settings/);
+});
+
 test('in-place refresh preserves complete user-modified source-selection fixtures', t => {
   const { vault } = environment(t); prepareTestVault({ vault });
   const fixture = join(vault, 'Agent Workspace/Topics/Local Source Fixture');
