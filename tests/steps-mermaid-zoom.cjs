@@ -430,6 +430,33 @@ test('callout scope: a live-preview watcher marks .cm-callout in a VAM note when
   assert.equal(other.classes.includes('vam-callout-scope'), false);
 });
 
+test('link scope: VAM links, footnote refs and back-references get the scope class; non-VAM and embedded-note links do not', () => {
+  const ctx = loadRegister(FILES);
+  const section = node('div', 'el-div');
+  const internal = section.createEl('a', 'internal-link');
+  const external = section.createEl('a', 'external-link');
+  const ref = section.createEl('a', 'footnote-link');
+  const back = section.createEl('a', 'footnote-backref');
+  const unmarked = section.createEl('a', 'tag');
+  const embed = section.createEl('div', 'internal-embed markdown-embed');
+  const foreign = embed.createEl('a', 'internal-link');
+  ctx.run(section, 'Topics/A/Note.md');
+  for (const link of [internal, external, ref, back]) assert.ok(link.classes.includes('vam-link-scope'));
+  assert.equal(unmarked.classes.includes('vam-link-scope'), false);
+  assert.equal(foreign.classes.includes('vam-link-scope'), false);
+  assert.equal(section.classes.includes('vam-link-scope'), false);
+  const plain = node('div', 'el-div'); const plainLink = plain.createEl('a', 'internal-link');
+  ctx.run(plain, 'Other/plain.md');
+  assert.equal(plainLink.classes.includes('vam-link-scope'), false);
+});
+
+test('link scope: the link CSS is scoped to .vam-link-scope, never the bare anchor, and has no !important', () => {
+  const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
+  const rules = css.split('\n').filter(line => line.includes('vam-link-scope'));
+  assert.ok(rules.length >= 3);
+  for (const rule of rules) assert.ok(/a\.vam-link-scope/.test(rule), rule);
+});
+
 test('mermaid zoom: the timeline CSS targets only the diagram element, never a section', () => {
   const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
   const rules = css.split('\n').filter(line => line.includes('aria-roledescription="timeline"'));

@@ -3468,6 +3468,7 @@ var MermaidZoomModal = class extends import_obsidian2.Modal {
 // experiences/mermaid-zoom/register.ts
 var SCOPE_CLASS = "vam-mermaid-scope";
 var CALLOUT_SCOPE_CLASS = "vam-callout-scope";
+var LINK_SCOPE_CLASS = "vam-link-scope";
 var ZOOMABLE_CLASS = "vam-mermaid-zoomable";
 var BUTTON_CLASS = "vam-mermaid-zoom-btn";
 function marker(value) {
@@ -3511,6 +3512,14 @@ function scanCallouts(section3) {
     if (!inForeignEmbed(section3, callout)) callout.addClass(CALLOUT_SCOPE_CLASS);
   }
 }
+function scanLinks(section3) {
+  const selector = ".internal-link, .external-link, .footnote-link, .footnote-backref";
+  const links = section3.matches(selector) ? [section3] : [];
+  links.push(...Array.from(section3.querySelectorAll(selector)));
+  for (const link of links) {
+    if (!inForeignEmbed(section3, link)) link.addClass(LINK_SCOPE_CLASS);
+  }
+}
 function scan(app, section3) {
   const hosts = section3.matches(".mermaid") ? [section3] : [];
   hosts.push(...Array.from(section3.querySelectorAll(".mermaid")));
@@ -3533,7 +3542,7 @@ var WatchChild = class extends import_obsidian3.MarkdownRenderChild {
 };
 function isDiagramNode(node) {
   const el = node;
-  return typeof el.matches === "function" && el.matches("svg, .mermaid, .cm-embed-block, .callout, .cm-callout");
+  return typeof el.matches === "function" && el.matches("svg, .mermaid, .cm-embed-block, .callout, .cm-callout, a");
 }
 function mutationTouchesDiagram(mutation) {
   var _a;
@@ -3561,6 +3570,7 @@ var EditorWatcher = class {
     this.lastPath = path;
     if (path && isVamSource(this.app, path)) {
       scanCallouts(this.dom);
+      scanLinks(this.dom);
       scan(this.app, this.dom);
     }
   }
@@ -3609,6 +3619,7 @@ function registerMermaidZoom(plugin) {
   plugin.registerMarkdownPostProcessor((element, context) => {
     if (!isVamSource(plugin.app, context.sourcePath)) return;
     scanCallouts(element);
+    scanLinks(element);
     if (scan(plugin.app, element) > 0) return;
     const mayHoldDiagram = element.matches(".mermaid") || ["mermaid", "block-language-mermaid", "language-mermaid"].some((name) => element.querySelector(`.${name}`));
     if (!mayHoldDiagram) return;
