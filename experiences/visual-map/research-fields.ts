@@ -1,5 +1,6 @@
 import { t } from "../../i18n";
 import type { ResearchDepth } from "../../ai/types";
+import { matchPreset, NOTE_STYLE_PRESETS } from "./note-style";
 
 /** Live model choices: the list fills in as model discovery finishes. */
 export interface ModelChoices {
@@ -174,6 +175,7 @@ export type ManageTones = ManageChoices;
 export interface FieldLinks {
   repair?: (model: string | undefined) => void;
   manageTemplates?: ManageChoices;
+  manageTones?: ManageChoices;
 }
 
 /**
@@ -187,7 +189,7 @@ export function toneField(
   manage?: ManageTones,
   /** Runs after the list was refreshed, so a summary that names the tone stays current. */
   changed: () => void = () => {}
-): () => string | undefined {
+): (() => string | undefined) & { set: (id: string | undefined) => void } {
   const { field, head } = linkedField(parent, t("ui.tone"));
   const select = field.createEl("select");
   select.setAttr("aria-label", t("ui.tone"));
@@ -207,5 +209,115 @@ export function toneField(
         changed();
       })
     );
-  return () => select.value || undefined;
+  const read = (): string | undefined => select.value || undefined;
+  return Object.assign(read, {
+    set: (id: string | undefined): void => {
+      select.value = id && tones.some(tone => tone.id === id) ? id : "";
+    }
+  });
+}
+
+const STYLE_KEEP = "";
+const STYLE_CUSTOM = "custom";
+const stylePreset = (id: string): string => `preset:${id}`;
+
+export interface NoteStyleFieldOptions {
+  templates: { id: string; name: string }[];
+  tones: { id: string; name: string }[];
+  /** First option: keeps what the topic, map or workspace says (nothing is sent). */
+  keepLabel: string;
+  /** Labels of the two selects inside "Custom…" (their first option keeps the current value). */
+  templateDefault: string;
+  toneDefault: string;
+  /** Names to show in the summary when "Custom…" leaves a select on its first option. */
+  currentTemplate?: string;
+  currentTone?: string;
+  /** Name of the style in force today; without it the first option shows no name and the summary falls back to the tone. */
+  currentStyle?: string;
+  manageTemplates?: ManageChoices;
+  manageTones?: ManageTones;
+  /** Runs after a choice or a refreshed list, so a summary that names the style stays current. */
+  changed?: () => void;
+}
+
+export interface NoteStyleField {
+  /** The template to send, or undefined to leave it as it is. */
+  templateId: () => string | undefined;
+  toneId: () => string | undefined;
+  /** What the field now means, as a collapsed summary shows it: the chosen option, or the first option's own label. */
+  label: () => string;
+  /** The style that will be in force: the chosen preset, the custom pair, or (first option) the current style. */
+  name: () => string;
+  /** Restores an earlier pair: a preset when it equals one, else "Custom…"; nothing set means the first option. */
+  set: (templateId: string | undefined, toneId: string | undefined) => void;
+}
+
+/**
+ * The one "Note style" select. Each preset sends both a content template and a writing tone; "Custom…" shows the two
+ * original selects (with their edit links) and sends their values. While the custom part is collapsed its values are not
+ * sent. The field never opens "Custom…" by itself.
+ */
+export function noteStyleField(parent: HTMLElement, options: NoteStyleFieldOptions): NoteStyleField {
+  const { field } = linkedField(parent, t("ui.note_style"));
+  const select = field.createEl("select");
+  select.setAttr("aria-label", t("ui.note_style"));
+  select.createEl("option", { value: STYLE_KEEP, text: options.keepLabel });
+  for (const preset of NOTE_STYLE_PRESETS)
+    select.createEl("option", { value: stylePreset(preset.id), text: t(preset.name) });
+  select.createEl("option", { value: STYLE_CUSTOM, text: t("ui.note_style_custom") });
+  const hint = field.createEl("p", { cls: "vam-hint", attr: { "aria-live": "polite" } });
+  const custom = field.createDiv("vam-note-style-custom");
+  custom.hidden = true;
+  const refresh = (notify = true): void => {
+    const preset = NOTE_STYLE_PRESETS.find(item => stylePreset(item.id) === select.value);
+    custom.hidden = select.value !== STYLE_CUSTOM;
+    const text = preset ? t(preset.hint) : select.value === STYLE_CUSTOM ? t("ui.note_style_custom_hint") : "";
+    hint.setText(text);
+    hint.hidden = !text;
+    if (notify) options.changed?.();
+  };
+  const templateId = templateField(custom, options.templates, options.templateDefault, options.manageTemplates, () =>
+    options.changed?.()
+  );
+  const toneId = toneField(custom, options.tones, options.toneDefault, options.manageTones, () => options.changed?.());
+  select.addEventListener("change", () => refresh());
+  refresh(false);
+  const chosenPreset = () => NOTE_STYLE_PRESETS.find(item => stylePreset(item.id) === select.value);
+  const nameOf = (
+    list: { id: string; name: string }[],
+    id: string | undefined,
+    fallback?: string
+  ): string | undefined => (id ? list.find(item => item.id === id)?.name : undefined) ?? fallback;
+  const customName = (): string =>
+    t(
+      "ui.note_style_custom_0_1",
+      nameOf(options.templates, templateId(), options.currentTemplate) ?? "",
+      nameOf(options.tones, toneId(), options.currentTone) ?? ""
+    );
+  return {
+    templateId: () => (select.value === STYLE_CUSTOM ? templateId() : chosenPreset()?.templateId),
+    toneId: () => (select.value === STYLE_CUSTOM ? toneId() : chosenPreset()?.toneId),
+    label: () => {
+      const preset = chosenPreset();
+      if (preset) return t(preset.name);
+      if (select.value !== STYLE_CUSTOM) return options.currentStyle ? options.keepLabel : (options.currentTone ?? "");
+      return customName();
+    },
+    name: () => {
+      const preset = chosenPreset();
+      if (preset) return t(preset.name);
+      if (select.value !== STYLE_CUSTOM) return options.currentStyle ?? options.currentTone ?? "";
+      return customName();
+    },
+    set: (nextTemplate, nextTone) => {
+      const preset = nextTemplate || nextTone ? matchPreset(nextTemplate, nextTone) : undefined;
+      if (preset) select.value = stylePreset(preset.id);
+      else if (nextTemplate || nextTone) {
+        select.value = STYLE_CUSTOM;
+        templateId.set(nextTemplate);
+        toneId.set(nextTone);
+      } else select.value = STYLE_KEEP;
+      refresh(false);
+    }
+  };
 }

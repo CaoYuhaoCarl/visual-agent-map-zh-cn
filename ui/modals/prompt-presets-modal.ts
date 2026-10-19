@@ -26,7 +26,7 @@ export function renderTonePresetsSetting(
 ): void {
   setting
     .setName(t("ui.tone_presets"))
-    .setDesc(t("ui.tone_presets_hint"))
+    .setDesc(t("ui.tone_presets_setting_desc"))
     .addButton(button =>
       button
         .setButtonText(t("ui.tone_presets_manage"))

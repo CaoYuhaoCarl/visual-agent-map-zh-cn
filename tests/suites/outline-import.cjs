@@ -253,6 +253,8 @@ test('outline modal: the content template select sits in the research options an
     assert.ok(select, 'inside the research options');
     assert.deepEqual(plain(select.children.map(c => [c.value, c.text])), [['', 'Use the workspace default'], ['standard', 'Standard'], ['t1', 'Template one']]);
     const textarea = h.find(modal.contentEl, item => item.tag === 'textarea'); textarea.value = '# R\n## A'; textarea.listeners.input();
+    const style = h.find(options, item => item.tag === 'select' && item['aria-label'] === 'Note style');
+    if (picked) { style.value = 'custom'; style.listeners.change(); }
     select.value = picked;
     const shallow = h.find(modal.contentEl, item => item.tag === 'input' && item.type === 'checkbox'); shallow.checked = shallowOn; shallow.listeners.change();
     h.find(modal.modalEl, item => item.tag === 'button' && item.text === 'Add to mind map').listeners.click();
@@ -977,4 +979,47 @@ integrationTest('importOutline under a manual parent: no chosen model, or the pa
   await h.view.importOutline({ nodes: api.parseOutline('# Sub\n## S1').nodes, source: null, shallowResearch: true, researchDepth: 'normal', model: 'parent-model', placement: { kind: 'under', parentId: h.oldRoot.id } });
   const saved = await h.repo.readMap(h.mapPath);
   for (const item of saved.nodes.filter(item => item.parentId !== null && item.id !== h.oldChild.id)) { const note = await h.repo.readNote(item.path, saved); assert.equal(note.modelSource, 'inherited'); assert.equal(note.model, 'parent-model'); }
+});
+
+integrationTest('importOutline: a chosen writing tone becomes the new map default next to the template (never a per-topic field)', async () => {
+  const { repo, app } = fixture('en');
+  const opened = [];
+  const plugin = { repo, settings: { ...require('../support.cjs').DEFAULT_SETTINGS, language: 'en', cliModel: 'gpt-6-luna' }, running: new Set(), activeTasks: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), confirmAiUsage: async (_m, run) => { await run(); return true; } };
+  const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Notice: class {} } });
+  const view = new VisualAgentMapView({ app }, plugin); view.render = () => {}; view.fit = () => {}; view.enqueue = work => work();
+  view.openMapInMutation = async path => { opened.push(path); view.path = path; view.map = await repo.readMap(path); };
+  view.startShallowResearch = async () => {};
+  const nodes = api.parseOutline('# R\n## A').nodes;
+  await view.importOutline({ nodes, source: null, shallowResearch: true, detailTemplateId: 'textbook', toneId: 'academic' });
+  const withBoth = await repo.readMap(opened[0]);
+  assert.equal(withBoth.detailTemplateId, 'textbook'); assert.equal(withBoth.toneId, 'academic');
+  for (const node of withBoth.nodes) { const note = await repo.readNote(node.path); assert.equal(note.detailTemplateId, undefined); assert.equal(note.toneId, undefined); }
+  await view.importOutline({ nodes, source: null, shallowResearch: true, toneId: 'plain' });
+  const toneOnly = await repo.readMap(opened[1]);
+  assert.equal(toneOnly.toneId, 'plain'); assert.equal(toneOnly.detailTemplateId, undefined);
+  await view.importOutline({ nodes, source: null, shallowResearch: false });
+  const none = await repo.readMap(opened[2]);
+  assert.equal(none.toneId, undefined); assert.equal(none.detailTemplateId, undefined);
+});
+
+integrationTest('importOutline into the open map: the chosen template and tone are recorded on each created topic and reach the shallow research, over the quick-explore tone; the map default is untouched', async () => {
+  const h = await placementHarness();
+  await h.view.importOutline({ nodes: api.parseOutline('# Sub\n## S1\n### S1a').nodes, source: null, shallowResearch: true, placement: { kind: 'under', parentId: h.oldChild.id }, detailTemplateId: 'textbook', toneId: 'plain', researchOptions: { toneId: 'magazine' } });
+  const saved = await h.repo.readMap(h.mapPath);
+  const fresh = saved.nodes.filter(item => item.id !== h.oldRoot.id && item.id !== h.oldChild.id);
+  assert.equal(fresh.length, 3);
+  for (const item of fresh) {
+    const note = await h.repo.readNote(item.path);
+    assert.equal(note.detailTemplateId, 'textbook'); assert.equal(note.toneId, 'plain');
+  }
+  assert.equal(saved.detailTemplateId, undefined); assert.equal(saved.toneId, undefined, 'an import never changes the map default');
+  assert.equal(h.researched.length, 1);
+  assert.equal(h.researched[0].options.toneId, 'plain', 'the dialog choice overrides researchOptions.toneId');
+  assert.equal(h.researched[0].options.detailTemplateId, 'textbook');
+  // Without a tone choice (quick explore keeps its own), nothing is recorded and researchOptions.toneId stands.
+  const second = await placementHarness();
+  await second.view.importOutline({ nodes: api.parseOutline('# Sub\n## S1').nodes, source: null, shallowResearch: true, placement: { kind: 'tree' }, researchOptions: { toneId: 'magazine' } });
+  assert.equal(second.researched[0].options.toneId, 'magazine');
+  const created = (await second.repo.readMap(second.mapPath)).nodes.filter(item => item.id !== second.oldRoot.id && item.id !== second.oldChild.id);
+  for (const item of created) assert.equal((await second.repo.readNote(item.path)).toneId, undefined);
 });

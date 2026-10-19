@@ -1509,13 +1509,13 @@ integrationTest('map action: the default content template for this map is set an
   const view = new VisualAgentMapView({ app: h.app }, h.plugin); view.path = h.mapPath; view.map = h.doc; view.render = () => {}; view.enqueue = work => work();
   view.chooseMapTemplate();
   const choices = opened.at(-1).choices;
-  assert.deepEqual(plain(choices.map(choice => choice.label)), ['Use the workspace default', 'Standard', 'Template A', 'Template B', 'Template C']);
-  assert.deepEqual(plain(choices.map(choice => choice.description ?? '')), ['Current setting', '', '', '', '']);
-  await choices[3].action();
+  assert.deepEqual(plain(choices.map(choice => choice.label)), ['Use the workspace default', 'Standard', 'Textbook', 'Template A', 'Template B', 'Template C']);
+  assert.deepEqual(plain(choices.map(choice => choice.description ?? '')), ['Current setting', '', '', '', '', '']);
+  await choices[4].action();
   await until(async () => (await h.repo.readMap(h.mapPath)).detailTemplateId === 'B');
   assert.equal(view.map.detailTemplateId, 'B');
   view.chooseMapTemplate();
-  assert.deepEqual(plain(opened.at(-1).choices.map(choice => choice.description ?? '')), ['', '', '', 'Current setting', ''], 'the current map value is marked');
+  assert.deepEqual(plain(opened.at(-1).choices.map(choice => choice.description ?? '')), ['', '', '', '', 'Current setting', ''], 'the current map value is marked');
   await choices[0].action();
   await until(async () => (await h.repo.readMap(h.mapPath)).detailTemplateId === undefined);
   assert.equal(view.map.detailTemplateId, undefined);
@@ -1526,9 +1526,13 @@ integrationTest('map actions offer the default content template only on non-AIM 
   const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Modal: class { constructor() {} open() { opened.push(this); } close() {} }, Notice: class {} } });
   const view = new VisualAgentMapView({ app: h.app }, h.plugin); view.path = h.mapPath; view.map = h.doc; view.render = () => {};
   const labels = () => { view.openMapActions(); return opened.at(-1).choices.map(choice => choice.label); };
-  assert.ok(labels().includes('Default content template for this map'));
+  const regular = labels();
+  assert.ok(regular.includes('Default note style for this map'), 'one note style entry replaces the template and tone entries');
+  assert.ok(!regular.includes('Default content template for this map') && !regular.includes('Default writing tone for this map'));
   view.map = { ...h.doc, aim: { runs: [] } };
-  assert.ok(!labels().includes('Default content template for this map'), 'templates do not apply to AIM maps');
+  const aim = labels();
+  assert.ok(!aim.includes('Default note style for this map') && !aim.includes('Default content template for this map'), 'templates do not apply to AIM maps');
+  assert.ok(aim.includes('Default writing tone for this map'), 'AIM maps keep their tone-only entry');
 });
 
 test('coordinator counts succeeded and failed children with failed paths; aborted children count as neither', async () => {
@@ -1664,4 +1668,54 @@ integrationTest('hydrate resolves inherited models from the loaded map without s
   await VisualAgentMapView.prototype.hydrate.call(f.view);
   assert.equal(mapReads, 0); assert.equal(scans, 0);
   assert.deepEqual(plain(f.mapDoc.nodes.map(n => f.view.notes.get(n.id).model)), ['claude:sonnet', 'claude:haiku', 'claude:haiku', 'claude:haiku']);
+});
+integrationTest('map action: one default note style sets or clears the template and tone together; AIM keeps its tone-only entry', async () => {
+  const opened = [];
+  const h = await templateHarness({ language: 'en', settings: { detailTemplates: sampleTemplates() } });
+  const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Modal: class { constructor() {} open() { opened.push(this); } close() {} }, Notice: class {} } });
+  const view = new VisualAgentMapView({ app: h.app }, h.plugin); view.path = h.mapPath; view.map = h.doc; view.render = () => {}; view.enqueue = work => work();
+  view.chooseMapStyle();
+  let modal = opened.at(-1);
+  assert.equal(modal.titleText, 'Default note style for this map'); assert.equal(modal.description, 'New topics, and topics without their own style, use it.');
+  assert.deepEqual(plain(modal.choices.map(choice => choice.label)), ['Use the default (Standard)', 'Standard (academic)', 'Textbook (intro, then sections)', 'Key points', 'Plain language', 'Practical guide', 'Custom…']);
+  assert.deepEqual(plain(modal.choices.map(choice => choice.description ?? '')), ['Current setting', '', '', '', '', '', 'Pick the template and tone separately'], 'no value stored: the default is current');
+  await modal.choices[2].action();
+  await until(async () => (await h.repo.readMap(h.mapPath)).detailTemplateId === 'textbook');
+  let saved = await h.repo.readMap(h.mapPath);
+  assert.equal(saved.detailTemplateId, 'textbook'); assert.equal(saved.toneId, 'academic', 'a preset always stores both values');
+  view.chooseMapStyle(); modal = opened.at(-1);
+  assert.deepEqual(plain(modal.choices.map(choice => choice.description ?? '')), ['', '', 'Current setting', '', '', '', 'Pick the template and tone separately'], 'the matching preset is marked');
+  await modal.choices[3].action();
+  await until(async () => (await h.repo.readMap(h.mapPath)).toneId === 'summary');
+  saved = await h.repo.readMap(h.mapPath);
+  assert.equal(saved.detailTemplateId, 'standard'); assert.equal(saved.toneId, 'summary');
+  // A pair that is not a preset is marked on Custom….
+  await h.repo.updateMap(h.mapPath, map => { map.detailTemplateId = 'A'; map.toneId = 'magazine'; }); view.map = await h.repo.readMap(h.mapPath);
+  view.chooseMapStyle(); modal = opened.at(-1);
+  assert.deepEqual(plain(modal.choices.map(choice => choice.description ?? '')), ['', '', '', '', '', '', 'Current setting']);
+  // Custom… opens a small dialog with the two original pickers.
+  const before = opened.length; modal.choices[6].action();
+  const custom = opened.at(-1); assert.equal(opened.length, before + 1);
+  assert.deepEqual(plain(custom.choices.map(choice => choice.label)), ['Default content template for this map', 'Default writing tone for this map']);
+  custom.choices[0].action(); assert.equal(opened.at(-1).titleText, 'Default content template for this map');
+  custom.choices[1].action(); assert.equal(opened.at(-1).titleText, 'Default writing tone for this map');
+  // Default clears both.
+  view.chooseMapStyle(); await opened.at(-1).choices[0].action();
+  await until(async () => (await h.repo.readMap(h.mapPath)).toneId === undefined);
+  saved = await h.repo.readMap(h.mapPath);
+  assert.equal(saved.detailTemplateId, undefined); assert.equal(saved.toneId, undefined);
+});
+integrationTest('Keep current (…) names the effective style: topic, then map, then default for the tone; a preset or "Custom: template · tone"', async () => {
+  const h = await templateHarness({ language: 'en', settings: { detailTemplates: sampleTemplates() } });
+  const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Notice: class {} } });
+  const view = new VisualAgentMapView({ app: h.app }, h.plugin); view.path = h.mapPath; view.map = { ...h.doc };
+  assert.equal(view.effectiveToneId({}), 'academic');
+  view.map.toneId = 'plain'; assert.equal(view.effectiveToneId({}), 'plain');
+  assert.equal(view.effectiveToneId({ toneId: 'guide' }), 'guide', 'the topic wins over the map');
+  assert.equal(view.effectiveToneId({ toneId: 'gone' }), 'plain', 'an unknown topic tone falls through like toneLabelFor');
+  assert.equal(view.currentStyleLabel('standard', 'academic'), 'Standard');
+  assert.equal(view.currentStyleLabel('textbook', 'academic'), 'Textbook');
+  assert.equal(view.currentStyleLabel('standard', 'plain'), 'Plain language');
+  assert.equal(view.currentStyleLabel('A', 'magazine'), 'Custom: Template A · Magazine column');
+  assert.equal(view.currentStyleLabel('textbook', 'plain'), 'Custom: Textbook · Plain explanation');
 });

@@ -3,7 +3,7 @@ import { t } from "../../i18n";
 import { parseOutline, type OutlineIssue, type OutlineNode } from "./outline-import";
 import type { ResearchDepth } from "../../ai/types";
 import type { TaskOptions } from "./modals";
-import { modelField, researchDepthField, templateField, type FieldLinks, type ModelChoices } from "./research-fields";
+import { modelField, noteStyleField, researchDepthField, type FieldLinks, type ModelChoices } from "./research-fields";
 import { actionStatus, armDiscard, modalActions } from "../../ui/modals/action-bar";
 import type { PromptPresetsHost } from "../../ui/modals/prompt-presets-modal";
 import {
@@ -58,6 +58,8 @@ export interface OutlineImportRequest {
    * used by the shallow research. Undefined uses the map/workspace default.
    */
   detailTemplateId?: string;
+  /** Writing tone, handled like the template: the new map's default, or recorded on each created topic. */
+  toneId?: string;
 }
 
 /** Everything the window held when AI generation started, so a reopened window shows the same choices. */
@@ -72,6 +74,7 @@ export interface OutlineDraftInputs {
   depth: ResearchDepth;
   model?: string;
   template?: string;
+  tone?: string;
 }
 
 /** What a reopened window starts from: the inputs of the run and its result (or why there is none). */
@@ -113,8 +116,9 @@ export class OutlineImportModal extends Modal {
   private depth: () => ResearchDepth = () => "fast";
   private model: () => string | undefined = () => undefined;
   private template: () => string | undefined = () => undefined;
+  private tone: () => string | undefined = () => undefined;
   private setModel: (id: string | undefined) => void = () => {};
-  private setTemplate: (id: string | undefined) => void = () => {};
+  private setStyle: (template: string | undefined, tone: string | undefined) => void = () => {};
   private setDepth: (depth: ResearchDepth) => void = () => {};
   private syncResearchOptions: () => void = () => {};
   private restoreResult: () => void = () => {};
@@ -133,7 +137,8 @@ export class OutlineImportModal extends Modal {
     private target: OutlineImportTarget = { map: "none" },
     initialPlacement: OutlinePlacement["kind"] = "tree",
     private generator?: OutlineGenerator,
-    private links: FieldLinks = {}
+    private links: FieldLinks = {},
+    private tones: { id: string; name: string }[] = []
   ) {
     super(app);
     // The outline always joins the open map (a new map starts from + New mind map); without a selection it becomes a new tree.
@@ -175,13 +180,18 @@ export class OutlineImportModal extends Modal {
     this.model = model.value;
     this.setModel = model.set;
     this.unwatch = model.dispose;
-    this.template = templateField(
-      researchOptions,
-      this.templates,
-      t("ui.detail_template_use_workspace"),
-      this.links.manageTemplates
-    );
-    this.setTemplate = (this.template as unknown as { set: (id: string | undefined) => void }).set;
+    const style = noteStyleField(researchOptions, {
+      templates: this.templates,
+      tones: this.tones,
+      keepLabel: t("ui.note_style_use_default"),
+      templateDefault: t("ui.detail_template_use_workspace"),
+      toneDefault: t("ui.tone_use_default"),
+      manageTemplates: this.links.manageTemplates,
+      manageTones: this.links.manageTones
+    });
+    this.template = style.templateId;
+    this.tone = style.toneId;
+    this.setStyle = style.set;
     const showOptions = (): void => researchOptions.toggleClass("is-hidden", !this.shallow.checked);
     this.shallow.addEventListener("change", showOptions);
     this.syncResearchOptions = showOptions;
@@ -203,7 +213,7 @@ export class OutlineImportModal extends Modal {
     this.syncResearchOptions();
     this.setDepth(inputs.depth);
     this.setModel(inputs.model);
-    this.setTemplate(inputs.template);
+    this.setStyle(inputs.template, inputs.tone);
   }
 
   /** "Put it in": a new map (default), this map as a new tree, or under the selected topic. */
@@ -379,6 +389,7 @@ export class OutlineImportModal extends Modal {
       const inputs = (): OutlineDraftInputs => {
         const model = this.model();
         const template = this.template();
+        const tone = this.tone();
         return {
           topic: topic.value.trim(),
           presetId: select.value,
@@ -388,7 +399,8 @@ export class OutlineImportModal extends Modal {
           shallow: this.shallow.checked,
           depth: this.depth(),
           ...(model ? { model } : {}),
-          ...(template ? { template } : {})
+          ...(template ? { template } : {}),
+          ...(tone ? { tone } : {})
         };
       };
       // Unsaved edits in the preset box are used for this run only.
@@ -477,6 +489,7 @@ export class OutlineImportModal extends Modal {
       const shallowResearch = this.shallow.checked;
       const model = shallowResearch ? this.model() : undefined;
       const detailTemplateId = shallowResearch ? this.template() : undefined;
+      const toneId = shallowResearch ? this.tone() : undefined;
       await this.create({
         nodes: this.nodes,
         placement: this.placementRequest(),
@@ -484,7 +497,8 @@ export class OutlineImportModal extends Modal {
         shallowResearch,
         ...(shallowResearch ? { researchDepth: this.depth() } : {}),
         ...(model ? { model } : {}),
-        ...(detailTemplateId ? { detailTemplateId } : {})
+        ...(detailTemplateId ? { detailTemplateId } : {}),
+        ...(toneId ? { toneId } : {})
       });
       this.close();
     } catch (error) {

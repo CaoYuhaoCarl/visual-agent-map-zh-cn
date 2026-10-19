@@ -3,9 +3,8 @@ import { t } from "../../i18n";
 import type { ResearchDepth, ResearchMode } from "../../ai/types";
 import {
   modelField,
+  noteStyleField,
   researchDepthField,
-  templateField,
-  toneField,
   type FieldLinks,
   type ManageTones,
   type ModelChoices
@@ -52,13 +51,15 @@ export class MultiResearchModal extends Modal {
     const depth = researchDepthField(this.contentEl);
     const model = modelField(this.contentEl, this.models, t("ui.multi_research_keep_topic_models"), this.links.repair);
     this.unwatch = model.dispose;
-    const template = templateField(
-      this.contentEl,
-      this.templates,
-      t("ui.detail_template_keep_each"),
-      this.links.manageTemplates
-    );
-    const tone = toneField(this.contentEl, this.tones, t("ui.tone_keep_each"), this.manageTones);
+    const style = noteStyleField(this.contentEl, {
+      templates: this.templates,
+      tones: this.tones,
+      keepLabel: t("ui.note_style_keep_each"),
+      templateDefault: t("ui.detail_template_keep_each"),
+      toneDefault: t("ui.tone_keep_each"),
+      manageTemplates: this.links.manageTemplates,
+      manageTones: this.manageTones
+    });
     const webLabel = this.contentEl.createEl("label", { cls: "vam-field vam-next-toggle" });
     const web = webLabel.createEl("input", { type: "checkbox" });
     web.checked = true;
@@ -92,8 +93,8 @@ export class MultiResearchModal extends Modal {
         requirements: requirements.value.trim(),
         imageSearch: web.checked && images.checked,
         ...(model.value() ? { model: model.value() } : {}),
-        ...(template() ? { detailTemplateId: template() } : {}),
-        ...(tone() ? { toneId: tone() } : {})
+        ...(style.templateId() ? { detailTemplateId: style.templateId() } : {}),
+        ...(style.toneId() ? { toneId: style.toneId() } : {})
       };
       this.close();
       this.submit(request);

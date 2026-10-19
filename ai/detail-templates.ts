@@ -1,6 +1,6 @@
 import { translate, type TranslationKey, type UiLanguage } from "../i18n";
 import { fencedLines } from "./markdown-blocks";
-import { customDetailRule, customDetailStructure } from "../core/steps/task/fragments";
+import { customDetailRule, customDetailStructure, textbookDetailStructure } from "../core/steps/task/fragments";
 
 export type DetailSectionRole = "none" | "sources" | "log";
 export interface DetailCount {
@@ -35,6 +35,8 @@ export interface CountIssue {
 }
 
 export const STANDARD_TEMPLATE_ID = "standard";
+/** Built-in template: the Standard sections, written as an intro followed by the sections; empty sections are omitted. */
+export const TEXTBOOK_TEMPLATE_ID = "textbook";
 const LANGUAGES: readonly UiLanguage[] = ["zh-TW", "en"];
 const STANDARD: readonly [string, TranslationKey, TranslationKey, DetailSectionRole][] = [
   ["core", "detail.core_conclusions", "detail.description_core_conclusions", "none"],
@@ -60,6 +62,23 @@ export function standardTemplate(language: UiLanguage): DetailTemplate {
       };
     })
   };
+}
+
+export function textbookTemplate(language: UiLanguage): DetailTemplate {
+  return {
+    ...standardTemplate(language),
+    id: TEXTBOOK_TEMPLATE_ID,
+    name: translate(language, "ui.detail_template_textbook")
+  };
+}
+
+export function isBuiltinTemplateId(id: string | undefined): boolean {
+  return id === STANDARD_TEMPLATE_ID || id === TEXTBOOK_TEMPLATE_ID;
+}
+
+/** The built-in templates, in menu order. */
+export function builtinTemplates(language: UiLanguage): DetailTemplate[] {
+  return [standardTemplate(language), textbookTemplate(language)];
 }
 
 export function copyTemplate(source: DetailTemplate, name: string, id: string): DetailTemplate {
@@ -180,15 +199,28 @@ function section(value: unknown): DetailSection | null {
 export function normalizeTemplates(value: unknown): DetailTemplate[] {
   if (!Array.isArray(value)) return [];
   const result: DetailTemplate[] = [];
+  const taken = new Set<string>(
+    value.flatMap(entry => {
+      const id = entry && typeof entry === "object" ? (entry as Partial<DetailTemplate>).id : undefined;
+      return typeof id === "string" ? [id] : [];
+    })
+  );
   for (const entry of value) {
     if (!entry || typeof entry !== "object") continue;
     const item = entry as Partial<DetailTemplate>;
     if (typeof item.id !== "string" || item.id === STANDARD_TEMPLATE_ID || typeof item.name !== "string") continue;
     if (result.some(existing => existing.id === item.id)) continue;
+    let id = item.id;
+    // A custom template saved under the built-in Textbook id keeps its content under a new id.
+    if (id === TEXTBOOK_TEMPLATE_ID) {
+      id = `custom-${TEXTBOOK_TEMPLATE_ID}`;
+      for (let n = 2; taken.has(id) || result.some(existing => existing.id === id); n++)
+        id = `custom-${TEXTBOOK_TEMPLATE_ID}-${n}`;
+    }
     if (!Array.isArray(item.sections)) continue;
     const sections = item.sections.map(section);
     if (sections.some(entry => !entry)) continue;
-    const template = { id: item.id, name: item.name, sections: withoutConflictingAliases(sections as DetailSection[]) };
+    const template = { id, name: item.name, sections: withoutConflictingAliases(sections as DetailSection[]) };
     if (validateTemplate(template, result).length) continue;
     result.push(template);
   }
@@ -204,6 +236,7 @@ export function resolveTemplate(
   for (const id of ids) {
     if (!id) continue;
     if (id === STANDARD_TEMPLATE_ID) return { template: standardTemplate(language), missing };
+    if (id === TEXTBOOK_TEMPLATE_ID) return { template: textbookTemplate(language), missing };
     const found = templates.find(template => template.id === id);
     if (found) return { template: found, missing };
     missing.push(id);
@@ -271,6 +304,14 @@ export function detailStructurePrompt(
   if (template.id === STANDARD_TEMPLATE_ID)
     return [
       standardText(headings),
+      ...template.sections.filter(section => section.description.trim()).map(description)
+    ].join("\n");
+  if (template.id === TEXTBOOK_TEMPLATE_ID)
+    return [
+      textbookDetailStructure(language, {
+        headings,
+        log: `### ${(template.sections.find(section => section.role === "log") ?? template.sections[template.sections.length - 1]).name}`
+      }),
       ...template.sections.filter(section => section.description.trim()).map(description)
     ].join("\n");
   const rules: string[] = [];

@@ -38,7 +38,7 @@ function harness(settings = {}) {
 
 test('template library: Standard row offers View, Duplicate and Set as default only; new template edits 6 sections', async () => {
   const h = harness();
-  assert.deepEqual(h.rowNames(), ['Standard']);
+  assert.deepEqual(h.rowNames(), ['Standard', 'Textbook']);
   assert.deepEqual(plain(h.rowButtons(h.rows()[0])), ['View', 'Duplicate', 'Set as default']);
   assert.ok(h.find(h.rows()[0], i => i.cls === 'vam-template-tag' && i.text === 'Default'));
   await h.click('New template');
@@ -67,7 +67,7 @@ test('template editor: rename tracks an alias, adds an exact-3 section, saves on
   assert.ok(saved[0].sections[0].aliases.includes(oldName));
   assert.equal(saved[0].sections[0].name, 'Main points');
   assert.deepEqual(saved[0].sections[6], { id: saved[0].sections[6].id, name: 'Examples', description: '', role: 'none', count: { mode: 'exact', n: 3 }, aliases: [] });
-  assert.deepEqual(h.rowNames(), ['Standard', 'Teach'], 'returns to the list');
+  assert.deepEqual(h.rowNames(), ['Standard', 'Textbook', 'Teach'], 'returns to the list');
 });
 
 test('template editor: Cancel discards the draft', async () => {
@@ -76,7 +76,7 @@ test('template editor: Cancel discards the draft', async () => {
   const input = h.field(h.sections()[0], 'Section heading'); input.value = 'Changed'; input.listeners.input();
   await h.click('Cancel');
   assert.equal(h.plugin.saves, 0); assert.deepEqual(plain(h.plugin.settings.detailTemplates), []);
-  assert.deepEqual(h.rowNames(), ['Standard']);
+  assert.deepEqual(h.rowNames(), ['Standard', 'Textbook']);
 });
 
 test('template editor: validation shows under the row, disables Save and clears when fixed', async () => {
@@ -134,7 +134,7 @@ test('template library: edit saves in place, duplicates get unique names, deleti
   confirm.choices[0].action(); await new Promise(r => setImmediate(r));
   assert.deepEqual(plain(h.plugin.settings.detailTemplates.map(t => t.name)), ['Teach copy', 'Teach copy 2']);
   assert.equal(h.plugin.settings.defaultDetailTemplateId, undefined);
-  assert.deepEqual(h.rowNames(), ['Standard', 'Teach copy', 'Teach copy 2']);
+  assert.deepEqual(h.rowNames(), ['Standard', 'Textbook', 'Teach copy', 'Teach copy 2']);
 });
 
 test('template library: Standard Duplicate and Set as default (undefined) work', async () => {
@@ -152,7 +152,7 @@ test('settings row: dropdown lists Standard and templates; Standard stores undef
   const setting = { setName(n) { this.name = n; return this; }, setDesc(d) { this.desc = d; return this; }, addDropdown(fn) { fn(dd); return this; }, addButton(fn) { fn(btn); return this; } };
   renderDetailTemplatesSetting(setting, {}, plugin);
   assert.equal(setting.name, 'Content templates');
-  assert.deepEqual(plain(dd.options), [['standard', 'Standard'], ['a', 'Teach']]); assert.equal(dd.value, 'a'); assert.equal(btn.text, 'Manage templates');
+  assert.deepEqual(plain(dd.options), [['standard', 'Standard'], ['textbook', 'Textbook'], ['a', 'Teach']]); assert.equal(dd.value, 'a'); assert.equal(btn.text, 'Manage templates');
   dd.change('standard'); assert.equal(plugin.settings.defaultDetailTemplateId, undefined); assert.equal(plugin.saves, 1);
   dd.change('a'); assert.equal(plugin.settings.defaultDetailTemplateId, 'a');
   assert.doesNotThrow(() => btn.click());
@@ -182,15 +182,15 @@ test('settings row refreshes when the library closes after create and delete', a
   const options = () => { const o = []; const dd = { addOption: (v, t) => { o.push(t); return dd; }, setValue() { return dd; }, onChange() { return dd; } };
     const setting = { setName() { return setting; }, setDesc() { return setting; }, addDropdown(fn) { fn(dd); return setting; }, addButton() { return setting; } };
     h.mod.renderDetailTemplatesSetting(setting, {}, h.plugin); return o; };
-  assert.deepEqual(options(), ['Standard']);
+  assert.deepEqual(options(), ['Standard', 'Textbook']);
   await click('New template'); await click('Save');
   modal.onClose(); assert.equal(refreshes, 1);
-  assert.deepEqual(options(), ['Standard', 'New template']);
+  assert.deepEqual(options(), ['Standard', 'Textbook', 'New template']);
   const row = h.find(modal.contentEl, i => i.cls === 'vam-template-row' && h.find(i, c => c.text === 'New template'));
   h.find(row, i => i.text === 'Delete').listeners.click();
   const confirm = h.opened[h.opened.length - 1]; confirm.choices[0].action(); await new Promise(r => setImmediate(r));
   modal.onClose(); assert.equal(refreshes, 2);
-  assert.deepEqual(options(), ['Standard']);
+  assert.deepEqual(options(), ['Standard', 'Textbook']);
 });
 
 test('template editor: an alias equal to any section current name is dropped (rename into a freed name)', async () => {
@@ -303,7 +303,7 @@ test('template library: View opens Standard read-only with its instructions and 
   assert.ok(h.isOpen(h.sections()[2]), 'sections can still be opened to read');
   assert.match(h.preview(), /exactly these six level-three headings/);
   await h.click('Close');
-  assert.deepEqual(h.rowNames(), ['Standard']); assert.equal(h.plugin.saves, 0);
+  assert.deepEqual(h.rowNames(), ['Standard', 'Textbook']); assert.equal(h.plugin.saves, 0);
 });
 
 test('template editor: icon buttons have labels and disabled ends; collapsed invalid rows show an issue badge', async () => {
@@ -334,4 +334,56 @@ test('template library: one fixed action bar per view and Delete marked as destr
   assert.equal(bars().length, 1);
   const teaching = h.rows().find(row => h.find(row, i => i.tag === 'strong').text === 'Teaching');
   assert.ok(h.find(teaching, i => i.tag === 'button' && i.text === 'Delete').cls.includes('vam-danger-text'));
+});
+
+test('template library: Textbook is a read-only built-in like Standard (View, Duplicate, Set as default, no Delete); its View shows the textbook instructions', async () => {
+  const h = harness();
+  const textbook = h.rows()[1];
+  assert.equal(h.find(textbook, i => i.tag === 'strong').text, 'Textbook');
+  assert.deepEqual(plain(h.rowButtons(textbook)), ['View', 'Duplicate', 'Set as default']);
+  h.all(textbook, i => i.tag === 'button' && i.text === 'View')[0].listeners.click(); await new Promise(r => setImmediate(r));
+  assert.equal(h.sections().length, 6);
+  assert.deepEqual(h.all(h.modal.contentEl, i => ['input', 'textarea', 'select'].includes(i.tag)).filter(i => !i.disabled).map(i => i['aria-label']), [], 'all fields disabled');
+  assert.equal(h.button('Save'), undefined);
+  assert.match(h.preview(), /Opening \(lead-in\)/);
+  assert.match(h.preview(), /Self-check/);
+  await h.click('Close');
+  assert.equal(h.plugin.saves, 0);
+});
+test('template library: Textbook can be the workspace default and a copy becomes an editable custom template', async () => {
+  const h = harness();
+  const press = async (row, text) => { h.all(row, i => i.tag === 'button' && i.text === text)[0].listeners.click(); await new Promise(r => setImmediate(r)); };
+  await press(h.rows()[1], 'Set as default');
+  assert.equal(h.plugin.settings.defaultDetailTemplateId, 'textbook');
+  assert.ok(h.find(h.rows()[1], i => i.cls === 'vam-template-tag'), 'Textbook carries the Default tag');
+  assert.equal(h.find(h.rows()[0], i => i.cls === 'vam-template-tag'), undefined);
+  await press(h.rows()[1], 'Duplicate');
+  assert.deepEqual(plain(h.plugin.settings.detailTemplates.map(t => [t.name, t.sections.length])), [['Textbook copy', 6]]);
+  assert.notEqual(h.plugin.settings.detailTemplates[0].id, 'textbook');
+  await press(h.rows()[0], 'Set as default');
+  assert.equal(h.plugin.settings.defaultDetailTemplateId, undefined, 'Standard stores undefined');
+});
+test('template editor: a new template cannot reuse the built-in name Textbook in either language', async () => {
+  const h = harness();
+  await h.click('New template');
+  const name = h.find(h.modal.contentEl, i => i['aria-label'] === 'Template name');
+  for (const bad of ['textbook', '教科書']) {
+    name.value = bad; name.listeners.input();
+    assert.equal(h.button('Save').disabled, true, bad);
+  }
+});
+test('template library: Duplicate of a built-in gets a unique name that treats Textbook as taken', async () => {
+  const h = harness({ detailTemplates: [{ id: 'x', name: 'Textbook copy', sections: [{ id: 's', name: 'S', description: '', role: 'none', aliases: [] }] }] });
+  h.all(h.rows()[1], i => i.tag === 'button' && i.text === 'Duplicate')[0].listeners.click(); await new Promise(r => setImmediate(r));
+  assert.deepEqual(plain(h.plugin.settings.detailTemplates.map(t => t.name)), ['Textbook copy', 'Textbook copy 2']);
+});
+test('settings row: the template row says it is used by "Custom…" in Note style; a stale default still shows Standard', () => {
+  const { renderDetailTemplatesSetting } = load('ui/modals/detail-templates-modal.ts', { obsidian: { ...obsidian, Modal: class { open() {} } } });
+  const render = settings => { const dd = { setValue(v) { this.value = v; return this; }, addOption() { return this; }, onChange() { return this; } };
+    const setting = { setName() { return setting; }, setDesc(d) { this.desc = d; return setting; }, addDropdown(fn) { fn(dd); return setting; }, addButton() { return setting; } };
+    renderDetailTemplatesSetting(setting, {}, { settings: { language: 'en', detailTemplates: [], ...settings }, saveSettings: async () => {} }); return { setting, dd }; };
+  const textbook = render({ defaultDetailTemplateId: 'textbook' });
+  assert.equal(textbook.dd.value, 'textbook');
+  assert.match(textbook.setting.desc, /Custom…/); assert.match(textbook.setting.desc, /Note style/);
+  assert.equal(render({ defaultDetailTemplateId: 'gone' }).dd.value, 'standard');
 });
