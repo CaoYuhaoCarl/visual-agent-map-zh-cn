@@ -104,6 +104,7 @@ import type { AimProgressEvent } from "../aim/manual-flow-support";
 import { matchAimFailedReportTargets } from "../aim/retry-targets";
 import { aimRepairHint, aimTimedOut } from "../aim/failure-hint";
 import { canvasPointerIntent } from "./canvas-gestures";
+import { mergedDetail, mergedStatus, mergeEligibility, MergeTopicsModal, type MergeEligibility } from "./merge-topics";
 
 import {
   TaskOptions,
@@ -197,6 +198,24 @@ interface FileMove {
   parkedPath: string;
   topicId: string;
   parkedState: TopicState;
+}
+/** One completed file move of a merge, with what a rollback needs to put the note and its lifecycle back. */
+interface MergeMove {
+  from: string;
+  to: string;
+  topicId: string;
+  restoreMapId: string;
+  restoreState: TopicState;
+}
+/** What a merge changed, kept by its history entry so undo and redo move the same files between fixed paths. */
+interface MergeState {
+  before: MapDocument;
+  after: MapDocument;
+  newId: string;
+  newActive: string;
+  /** Where the merged note waits while the merge is undone; chosen by the first undo, then reused. */
+  newParked: string | null;
+  sources: FileMove[];
 }
 /** Unique ids for the hidden card labels; any view may render a card. */
 let cardLabelSequence = 0;
@@ -2297,6 +2316,240 @@ export class VisualAgentMapView extends ItemView {
           !this.app.vault.getAbstractFileByPath(move.activePath)
         )
           await this.plugin.repo.moveExact(move.parkedPath, move.activePath);
+      throw error;
+    }
+  }
+  private mergeBusy(node: MapNode): boolean {
+    const batch = this.plugin.expansionBatches?.get(this.multiResearchKey()),
+      task = this.integrationTask;
+    return !!(
+      this.plugin.running?.has(node.path) ||
+      this.plugin.quickExpandPending?.has(node.path) ||
+      this.plugin.activeTasks?.has(node.path) ||
+      (batch?.status === "running" && (batch.currentPath === node.path || batch.queuedPaths.includes(node.path))) ||
+      (task?.state === "running" && task.mapPath === this.path && task.sources.some(source => source.id === node.id))
+    );
+  }
+  private mergeCheck(ids: Iterable<string> = this.multiSelected): MergeEligibility {
+    return mergeEligibility({
+      ids,
+      nodes: this.map?.nodes ?? [],
+      hasNote: id => this.notes.has(id),
+      busy: node => this.mergeBusy(node)
+    });
+  }
+  /** Asks for the merged topic's name, then merges in the write queue (which checks everything again). */
+  private openMerge(): void {
+    if (!this.map || this.map.aim || this.builtIn) return;
+    const check = this.mergeCheck();
+    if (!check.ok) {
+      new Notice(t(check.reason));
+      return;
+    }
+    const snapshot = {
+      path: this.path,
+      mapId: this.map.id,
+      sources: check.sources.map(source => ({ id: source.id, path: source.path }))
+    };
+    new MergeTopicsModal(this.app, snapshot.sources.length, this.notes.get(check.sources[0].id)?.title ?? "", title =>
+      this.enqueue(() => this.mergeSelected(title, snapshot))
+    ).open();
+  }
+  /** Puts moved notes back where they were and restores their lifecycle, newest move first. */
+  private async revertMergeMoves(moves: MergeMove[]): Promise<void> {
+    for (const move of [...moves].reverse()) {
+      if (this.app.vault.getAbstractFileByPath(move.to) && !this.app.vault.getAbstractFileByPath(move.from))
+        await this.plugin.repo.moveExact(move.to, move.from);
+      await this.plugin.repo.setLifecycle(move.from, move.topicId, move.restoreMapId, move.restoreState);
+    }
+  }
+  /**
+   * Replaces the selected sibling topics with one new topic: their Details become sections of the new Detail, their
+   * notes go to Unassigned, their subtopics move under the new topic. One history step; a failure puts everything back.
+   */
+  private async mergeSelected(
+    title: string,
+    snapshot: { path: string; mapId: string; sources: { id: string; path: string }[] }
+  ): Promise<void> {
+    if (
+      this.closed ||
+      !this.map ||
+      this.map.aim ||
+      this.builtIn ||
+      this.path !== snapshot.path ||
+      this.map.id !== snapshot.mapId
+    )
+      return;
+    const check = this.mergeCheck(snapshot.sources.map(source => source.id));
+    if (!check.ok) {
+      new Notice(t(check.reason));
+      return;
+    }
+    if (check.sources.some(node => snapshot.sources.find(source => source.id === node.id)?.path !== node.path)) {
+      new Notice(t("ui.merge_missing_note"));
+      return;
+    }
+    const sources = check.sources,
+      mapPath = this.path,
+      repo = this.plugin.repo,
+      before = clone(this.map),
+      sourceNotes: Note[] = [];
+    for (const source of sources) sourceNotes.push(await repo.readNote(source.path));
+    const detail = mergedDetail(
+      sources.map((_, index) => ({ title: sourceNotes[index].title, detail: sourceNotes[index].detail }))
+    );
+    const created = await repo.createNote(title, this.plugin.settings.cliModel, before, mapPath, "workspace", {
+      detail
+    });
+    const done: MergeMove[] = [],
+      moves: FileMove[] = [];
+    const after = clone(before);
+    try {
+      await repo.updateNote(created.path, {
+        sourcePaths: sources.map(source => source.path),
+        status: mergedStatus(detail)
+      });
+      for (const source of sources) {
+        const target = await repo.moveUnique(source.path, repo.topicFolder(mapPath, "Unassigned"));
+        done.push({
+          from: source.path,
+          to: target,
+          topicId: before.id,
+          restoreMapId: before.id,
+          restoreState: "active"
+        });
+        moves.push({ activePath: source.path, parkedPath: target, topicId: before.id, parkedState: "unassigned" });
+        await repo.setLifecycle(target, before.id, "", "unassigned");
+      }
+      const ids = new Set(sources.map(source => source.id)),
+        first = sources[0],
+        merged: MapNode = { ...created, parentId: check.parentId, x: first.x, y: first.y, collapsed: false },
+        adopted = new Set<string>();
+      for (const item of after.nodes)
+        if (item.parentId !== null && ids.has(item.parentId)) {
+          item.parentId = merged.id;
+          adopted.add(item.id);
+          for (const id of descendants(after.nodes, item.id)) adopted.add(id);
+        }
+      after.nodes = after.nodes.flatMap(item => (item.id === first.id ? [merged] : ids.has(item.id) ? [] : [item]));
+      if (adopted.size) after.nodes = arrangeNewBranch(after.nodes, merged.id, adopted, this.cardHeightOf);
+      await repo.saveMap(mapPath, after);
+    } catch (error) {
+      try {
+        await this.revertMergeMoves(done);
+        await repo.saveMap(mapPath, before);
+        const parked = await repo.moveUnique(created.path, repo.topicFolder(mapPath, "Unassigned"));
+        await repo.setLifecycle(parked, before.id, "", "unassigned");
+        this.map = before;
+        await this.plugin.rebuildDerivedData();
+        await this.hydrate();
+        this.render();
+      } catch (rollbackError) {
+        throw new AggregateError([error, rollbackError], t("error.merge_rollback_failed"));
+      }
+      throw error;
+    }
+    const state: MergeState = {
+      before,
+      after,
+      newId: created.id,
+      newActive: created.path,
+      newParked: null,
+      sources: moves
+    };
+    this.map = after;
+    this.history.push({
+      label: t("ui.merge_topics_history"),
+      undo: () => this.applyMerge(state, false),
+      redo: () => this.applyMerge(state, true)
+    });
+    this.integrationMode = false;
+    this.selected = created.id;
+    this.multiSelected.clear();
+    try {
+      await this.plugin.rebuildDerivedData();
+      await this.hydrate();
+      this.render();
+      const merged = this.map?.nodes.find(item => item.id === created.id);
+      if (merged) this.focusNode(merged);
+    } catch {
+      this.render();
+      new Notice(t("ui.merge_saved_refresh_failed"));
+    }
+  }
+  /** Undo (`merged` false) or redo (`merged` true) of a merge: the same notes move between the same two paths. */
+  private async applyMerge(state: MergeState, merged: boolean): Promise<void> {
+    const previous = clone(this.map!),
+      repo = this.plugin.repo,
+      mapPath = this.path,
+      topicId = state.before.id,
+      done: MergeMove[] = [];
+    const parkNew = async (): Promise<void> => {
+      const target = state.newParked
+        ? (await repo.moveExact(state.newActive, state.newParked), state.newParked)
+        : await repo.moveUnique(state.newActive, repo.topicFolder(mapPath, "Unassigned"));
+      state.newParked = target;
+      done.push({ from: state.newActive, to: target, topicId, restoreMapId: topicId, restoreState: "active" });
+      await repo.setLifecycle(target, topicId, "", "unassigned");
+    };
+    const unparkNew = async (): Promise<void> => {
+      await repo.moveExact(state.newParked!, state.newActive);
+      done.push({ from: state.newParked!, to: state.newActive, topicId, restoreMapId: "", restoreState: "unassigned" });
+      await repo.setLifecycle(state.newActive, topicId, topicId, "active");
+    };
+    const parkSources = async (): Promise<void> => {
+      for (const move of state.sources) {
+        await repo.moveExact(move.activePath, move.parkedPath);
+        done.push({
+          from: move.activePath,
+          to: move.parkedPath,
+          topicId,
+          restoreMapId: topicId,
+          restoreState: "active"
+        });
+        await repo.setLifecycle(move.parkedPath, topicId, "", "unassigned");
+      }
+    };
+    const unparkSources = async (): Promise<void> => {
+      for (const move of state.sources) {
+        await repo.moveExact(move.parkedPath, move.activePath);
+        done.push({
+          from: move.parkedPath,
+          to: move.activePath,
+          topicId,
+          restoreMapId: "",
+          restoreState: "unassigned"
+        });
+        await repo.setLifecycle(move.activePath, topicId, topicId, "active");
+      }
+    };
+    try {
+      if (merged) {
+        await parkSources();
+        await unparkNew();
+      } else {
+        await parkNew();
+        await unparkSources();
+      }
+      const next = clone(merged ? state.after : state.before);
+      next.viewport = clone(previous.viewport);
+      await repo.saveMap(mapPath, next);
+      this.map = next;
+      if (this.selected && !next.nodes.some(item => item.id === this.selected)) this.selected = null;
+      await this.plugin.rebuildDerivedData();
+      await this.hydrate();
+      this.render();
+    } catch (error) {
+      try {
+        await this.revertMergeMoves(done);
+        await repo.saveMap(mapPath, previous);
+        this.map = previous;
+        await this.plugin.rebuildDerivedData();
+        await this.hydrate();
+        this.render();
+      } catch (rollbackError) {
+        throw new AggregateError([error, rollbackError], t("error.merge_rollback_failed"));
+      }
       throw error;
     }
   }
@@ -5360,6 +5613,17 @@ export class VisualAgentMapView extends ItemView {
       () => this.integrateSelected(),
       count < 2
     ).addClass("mod-cta");
+    if (!this.map?.aim && !this.builtIn) {
+      // Not natively disabled: a disabled button cannot take focus, so keyboard and screen-reader users could not read why.
+      const check = this.mergeCheck(),
+        merge = this.button(selection, count > 1 ? t("ui.merge_0_topics", count) : t("ui.merge"), () =>
+          this.openMerge()
+        );
+      if (!check.ok) {
+        merge.setAttr("aria-disabled", "true");
+        merge.setAttr("title", t(check.reason));
+      }
+    }
     if (!this.map?.aim) {
       const running = this.plugin.expansionBatches.get(this.multiResearchKey())?.status === "running";
       this.button(

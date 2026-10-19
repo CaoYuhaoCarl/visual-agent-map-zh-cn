@@ -1172,9 +1172,9 @@ integrationTest('select mode: the selection bar names each action with the topic
     return bar.children.filter(child => child.tag === 'button').map(button => [button.text, button.disabled]);
   };
   const none = labels([]);
-  assert.deepEqual(none.slice(-2), [['Synthesize', true], ['Research', true]]);
-  assert.deepEqual(labels(['a']).slice(-2), [['Synthesize', true], ['Research 1 topic', false]]);
-  assert.deepEqual(labels(['a', 'b', 'c']).slice(-2), [['Synthesize 3 topics', false], ['Research 3 topics', false]]);
+  assert.deepEqual(none.slice(-3), [['Synthesize', true], ['Merge', false], ['Research', true]]);
+  assert.deepEqual(labels(['a']).slice(-3), [['Synthesize', true], ['Merge', false], ['Research 1 topic', false]]);
+  assert.deepEqual(labels(['a', 'b', 'c']).slice(-3), [['Synthesize 3 topics', false], ['Merge 3 topics', false], ['Research 3 topics', false]]);
   const { translate } = load('i18n.ts');
   assert.equal(translate('zh-TW', 'ui.synthesize_0_topics', 3), '整合 3 個議題'); assert.equal(translate('zh-TW', 'ui.research_0_topics', 3), '研究 3 個議題');
 });
@@ -1784,4 +1784,22 @@ integrationTest('selection gestures: hint texts, remove outline and the pan comm
   assert.equal(translate('zh-TW', 'ui.select_subtopics_hint'), '選取這個議題底下所有直屬子議題');
   const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
   assert.match(css, /\.vam-node\.is-marquee-remove \{ outline: 2px dashed/, 'removal is not signalled by colour alone');
+});
+
+integrationTest('select mode: the Merge button stays focusable, names the reason in its title, and Notices instead of merging', () => {
+  const fixture = selectionView(load); const { view } = fixture;
+  const { translate } = load('i18n.ts');
+  view.integrationMode = true; fixture.build();
+  const bar = ids => { view.multiSelected = new Set(ids); const el = view.renderSelectionBar(selectionDom()('div')); return el.children.find(child => child.tag === 'button' && /^Merge/.test(child.text)); };
+  const one = bar(['a']);
+  assert.equal(one.disabled, false, 'never natively disabled, so keyboard users can reach it');
+  assert.equal(one.attrs['aria-disabled'], 'true'); assert.equal(one.attrs.title, translate('en', 'ui.merge_needs_two'));
+  assert.equal(bar(['a', 'b']).attrs['aria-disabled'], undefined, 'siblings under root can merge');
+  assert.equal(bar(['a', 'b']).attrs.title, undefined);
+  assert.equal(bar(['b', 'c']).attrs.title, translate('en', 'ui.merge_needs_same_parent'));
+  assert.equal(bar(['a', 'c']).attrs.title, translate('en', 'ui.merge_ancestor_selected'));
+  view.plugin.running = new Set(['b.md']);
+  assert.equal(bar(['a', 'b']).attrs.title, translate('en', 'ui.merge_busy'));
+  view.map.aim = {}; const aim = view.renderSelectionBar(selectionDom()('div'));
+  assert.equal(aim.children.some(child => child.tag === 'button' && /^Merge/.test(child.text)), false, 'AIM maps have no merge button');
 });

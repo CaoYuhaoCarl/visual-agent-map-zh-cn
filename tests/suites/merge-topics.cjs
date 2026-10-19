@@ -29,3 +29,63 @@ test('canvas pointer intent: the middle button always pans and other buttons do 
     assert.equal(press({ button: 2, integrationMode }), 'ignore');
   }
 });
+
+// Merge topics, Phase 2 (structure merge): eligibility, Detail concatenation, reading order.
+const { mergeEligibility, mergedDetail, mergedStatus, readingOrder } = load('experiences/visual-map/merge-topics.ts', { obsidian: require('../support.cjs').obsidian });
+const { node: mnode, plain } = require('../support.cjs');
+const family = () => {
+  const root = mnode('root'), a = mnode('a', 'root'), b = mnode('b', 'root'), c = mnode('c', 'root'), a1 = mnode('a1', 'a'), r2 = mnode('r2');
+  return [root, a, b, c, a1, r2];
+};
+const check = (ids, over = {}) => plain(mergeEligibility({ ids, nodes: family(), hasNote: () => true, busy: () => false, ...over }));
+
+test('merge eligibility: needs two or more cards', () => {
+  assert.deepEqual(check([]), { ok: false, reason: 'ui.merge_needs_two' });
+  assert.deepEqual(check(['a']), { ok: false, reason: 'ui.merge_needs_two' });
+  assert.deepEqual(check(['a', 'ghost']), { ok: false, reason: 'ui.merge_needs_two' });
+});
+
+test('merge eligibility: siblings and all-root selections pass, other parents do not', () => {
+  const ok = check(['a', 'b']);
+  assert.equal(ok.ok, true); assert.equal(ok.parentId, 'root');
+  const roots = check(['root', 'r2']);
+  assert.equal(roots.ok, true); assert.equal(roots.parentId, null);
+  assert.deepEqual(check(['a1', 'b']), { ok: false, reason: 'ui.merge_needs_same_parent' });
+  assert.deepEqual(check(['root', 'a']), { ok: false, reason: 'ui.merge_ancestor_selected' });
+});
+
+test('merge eligibility: a topic with its own subtopic names the ancestor reason, not the parent reason', () => {
+  assert.deepEqual(check(['a', 'a1']), { ok: false, reason: 'ui.merge_ancestor_selected' });
+  assert.deepEqual(check(['root', 'a1', 'b']), { ok: false, reason: 'ui.merge_ancestor_selected' });
+});
+
+test('merge eligibility: a missing note or a running AI task blocks, in that order', () => {
+  assert.deepEqual(check(['a', 'b'], { hasNote: id => id !== 'b' }), { ok: false, reason: 'ui.merge_missing_note' });
+  assert.deepEqual(check(['a', 'b'], { busy: n => n.id === 'a' }), { ok: false, reason: 'ui.merge_busy' });
+  assert.deepEqual(check(['a', 'b'], { hasNote: () => false, busy: () => true }), { ok: false, reason: 'ui.merge_missing_note' });
+});
+
+test('merge eligibility returns the sources in reading order (y, then x)', () => {
+  const nodes = family();
+  Object.assign(nodes[1], { x: 400, y: 300 }); Object.assign(nodes[2], { x: 400, y: 100 }); Object.assign(nodes[3], { x: 100, y: 100 });
+  const result = mergeEligibility({ ids: ['a', 'b', 'c'], nodes, hasNote: () => true, busy: () => false });
+  assert.deepEqual(plain(result.sources.map(n => n.id)), ['c', 'b', 'a']);
+  assert.deepEqual(plain(readingOrder(nodes.slice(1, 4)).map(n => n.id)), ['c', 'b', 'a']);
+});
+
+test('merged Detail: ### title sections in order, empty sources skipped, inner headings kept', () => {
+  const detail = mergedDetail([
+    { title: 'First', detail: 'Alpha text' },
+    { title: 'Empty', detail: '  \n ' },
+    { title: 'Third', detail: '## Inner heading\n\nBody' }
+  ]);
+  assert.equal(detail, '### First\n\nAlpha text\n\n### Third\n\n## Inner heading\n\nBody');
+  assert.equal(mergedDetail([{ title: 'A', detail: '' }, { title: 'B', detail: '\n' }]), '');
+  assert.equal(mergedDetail([]), '');
+});
+
+test('merged status: completed when any content, idea when empty', () => {
+  assert.equal(mergedStatus('### A\n\nx'), 'completed');
+  assert.equal(mergedStatus(''), 'idea');
+  assert.equal(mergedStatus('  \n'), 'idea');
+});

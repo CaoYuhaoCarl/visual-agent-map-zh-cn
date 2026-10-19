@@ -612,3 +612,99 @@ integrationTest('legacy Visual References section moves into Detail before the S
     assert.match(detail, new RegExp(`### ${knowledge}\\n\\nK\\n\\n\\*\\*Pic\\*\\*\\n\\n!\\[Pic\\]\\(https://x/y\\.png\\)\\n\\nSource: https://x\\n\\n### ${sources}`), language);
   }
 });
+
+// Merge topics: structure merge with a real repository fixture.
+const mergeHarness = async ({ details = ['Alpha detail', '', 'Gamma detail'] } = {}) => {
+  const {repo,app,contents} = fixture(), path = await repo.createMap('Merge ops', []), mapDoc = await repo.readMap(path);
+  const names = ['Alpha', 'Beta', 'Gamma'], kids = {};
+  const parent = await repo.createNote('Parent','a',mapDoc,path,'workspace'); mapDoc.nodes.push(parent);
+  const sources = [];
+  for (const [index, name] of names.entries()) {
+    const n = await repo.createNote(name,'a',mapDoc,path,'workspace',{detail: details[index]}); n.parentId = parent.id; n.x = 400; n.y = 300 - index * 100; mapDoc.nodes.push(n); sources.push(n);
+  }
+  const kid = await repo.createNote('Alpha child','a',mapDoc,path,'workspace'); kid.parentId = sources[0].id; mapDoc.nodes.push(kid);
+  await repo.saveMap(path, mapDoc);
+  let pending=Promise.resolve();
+  const plugin={repo,settings:{...DEFAULT_SETTINGS},rebuildDerivedData:()=>repo.rebuildDerivedData(),mutate(work){pending=pending.then(work);return pending},running:new Set(),quickExpandPending:new Set(),activeTasks:new Map(),expansionBatches:new Map()};
+  const {VisualAgentMapView}=load('main.ts',{obsidian},{requestAnimationFrame:run=>{run();return 1},cancelAnimationFrame(){}}); const view=new VisualAgentMapView({app},plugin);
+  view.path=path;view.map=mapDoc;view.render=()=>{};view.focusNode=()=>{};view.drawEdges=()=>{};view.updateHistoryButtons=()=>{};
+  await view.hydrate();
+  const fm = file => { const text = contents.get(file) ?? ''; const get = key => text.match(new RegExp('^' + key + ': (.*)$', 'm'))?.[1]?.trim(); return { state: get('topic-state'), mapId: get('agent-map-id'), status: get('status') }; };
+  const shape = async () => { const m = await repo.readMap(path); return { nodes: m.nodes.map(n => [n.id, n.path, n.parentId]), files: Object.fromEntries(m.nodes.map(n => [n.path, fm(n.path)])), unassigned: (await repo.collectionFiles(path,'Unassigned')).map(f => f.path).sort() }; };
+  const merge = async title => { view.multiSelected = new Set(sources.map(n => n.id)); const sel = view.mergeCheck(); assert.equal(sel.ok, true); await view.mergeSelected(title, { path, mapId: mapDoc.id, sources: sel.sources.map(n => ({ id: n.id, path: n.path })) }); };
+  return {repo,app,contents,path,mapDoc,parent,sources,kid,view,plugin,fm,shape,merge};
+};
+integrationTest('merging sibling topics builds the new note, moves sources to Unassigned and re-parents their children', async () => {
+  const h = await mergeHarness(); const before = await h.shape(); const historyBefore = h.view.history.canUndo;
+  const sourceIds = h.sources.map(n => n.id), sourcePaths = h.sources.map(n => n.path);
+  await h.merge('Merged'); 
+  const m = await h.repo.readMap(h.path); const merged = m.nodes.find(n => !sourceIds.includes(n.id) && n.id !== h.parent.id && n.id !== h.kid.id);
+  assert.ok(merged); assert.equal(merged.parentId, h.parent.id); assert.ok(merged.path.includes('/Notes/'));
+  // Reading order is Gamma (y=100), Beta (200), Alpha (300): the new card sits where Gamma was.
+  assert.deepEqual([merged.x, merged.y], [400, 100]); assert.equal(m.nodes.findIndex(n => n.id === merged.id), 1);
+  assert.equal(m.nodes.some(n => sourceIds.includes(n.id)), false);
+  assert.equal(m.nodes.find(n => n.id === h.kid.id).parentId, merged.id);
+  const note = await h.repo.readNote(merged.path);
+  assert.equal(note.detail.trim(), '### Gamma\n\nGamma detail\n\n### Alpha\n\nAlpha detail'); assert.equal(h.fm(merged.path).status, 'completed');
+  const unassigned = (await h.repo.collectionFiles(h.path,'Unassigned')).map(f => f.path);
+  assert.equal(unassigned.length, 3);
+  for (const file of unassigned) { assert.equal(h.fm(file).state, 'unassigned'); }
+  assert.equal(note.sourcePaths.length, 3); assert.deepEqual([...note.sourcePaths].sort(), unassigned.slice().sort());
+  assert.equal(sourcePaths.some(p => h.app.vault.getAbstractFileByPath(p)), false);
+  assert.equal(h.view.selected, merged.id); assert.equal(h.view.integrationMode, false);
+  assert.equal(h.view.history.undoEntry.label, 'Merge topics');
+  assert.notEqual(historyBefore, undefined); assert.ok(before.nodes.length === 5);
+});
+integrationTest('merging empty topics gives an idea note with an empty Detail', async () => {
+  const h = await mergeHarness({ details: ['', '', ''] });
+  await h.merge('Blank merge');
+  const merged = (await h.repo.readMap(h.path)).nodes.find(n => n.path.includes('Blank merge'));
+  assert.equal(h.fm(merged.path).status, 'idea'); assert.equal((await h.repo.readNote(merged.path)).detail.trim(), '');
+});
+integrationTest('one undo restores the sources exactly; redo and a second undo repeat it', async () => {
+  const h = await mergeHarness(); const original = await h.shape();
+  await h.merge('Merged'); const merged = await h.shape();
+  assert.notDeepEqual(merged.nodes, original.nodes);
+  await h.view.travel(false); const undone = await h.shape();
+  assert.deepEqual(undone.nodes, original.nodes, 'ids, original full paths and parents are back');
+  for (const source of h.sources) assert.deepEqual(h.fm(source.path), { ...h.fm(source.path), state: 'active', mapId: h.mapDoc.id });
+  assert.equal(undone.unassigned.length, 1, 'only the merged note waits in Unassigned');
+  assert.equal(h.fm(undone.unassigned[0]).state, 'unassigned');
+  assert.equal((await h.repo.readMap(h.path)).nodes.find(n => n.id === h.kid.id).parentId, h.sources[0].id);
+  await h.view.travel(true); assert.deepEqual(await h.shape(), merged);
+  await h.view.travel(false); assert.deepEqual(await h.shape(), undone);
+  await h.view.travel(true); assert.deepEqual(await h.shape(), merged);
+  assert.equal(h.view.history.canUndo, true); h.view.history.undo(); assert.equal(h.view.history.canUndo, false, 'the merge was exactly one history entry');
+});
+integrationTest('a failure while moving a source rolls the files, lifecycle and map back and parks the new note', async () => {
+  const h = await mergeHarness(); const original = await h.shape(); const originalMap = JSON.stringify((await h.repo.readMap(h.path)).nodes);
+  const move = h.repo.moveUnique.bind(h.repo); let calls = 0;
+  h.repo.moveUnique = async (...args) => { calls++; if (calls === 2) throw new Error('disk full'); return move(...args); };
+  await assert.rejects(() => h.merge('Merged'), /disk full/);
+  h.repo.moveUnique = move;
+  const after = await h.shape();
+  assert.deepEqual(JSON.stringify((await h.repo.readMap(h.path)).nodes), originalMap);
+  for (const source of h.sources) { assert.ok(h.app.vault.getAbstractFileByPath(source.path)); assert.equal(h.fm(source.path).state, 'active'); assert.equal(h.fm(source.path).mapId, h.mapDoc.id); }
+  assert.equal(after.unassigned.length, 1, 'the new note is parked, not deleted');
+  assert.equal(h.fm(after.unassigned[0]).state, 'unassigned');
+  assert.equal(h.view.history.canUndo, false, 'no history entry after a failed merge');
+  assert.deepEqual(after.nodes, original.nodes);
+});
+integrationTest('a failed saveMap during a merge also restores everything', async () => {
+  const h = await mergeHarness(); const original = await h.shape();
+  const save = h.repo.saveMap.bind(h.repo); let calls = 0;
+  h.repo.saveMap = async (...args) => { calls++; if (calls === 1) throw new Error('map locked'); return save(...args); };
+  await assert.rejects(() => h.merge('Merged'), /map locked/);
+  h.repo.saveMap = save;
+  const after = await h.shape(); assert.deepEqual(after.nodes, original.nodes);
+  for (const source of h.sources) assert.equal(h.fm(source.path).state, 'active');
+  assert.equal(after.unassigned.length, 1); assert.equal(h.view.history.canUndo, false);
+});
+integrationTest('merge is refused while a selected topic has an AI task running, and writes nothing', async () => {
+  const h = await mergeHarness(); const original = await h.shape();
+  h.plugin.running.add(h.sources[1].path);
+  h.view.multiSelected = new Set(h.sources.map(n => n.id));
+  assert.deepEqual(plain(h.view.mergeCheck()), { ok: false, reason: 'ui.merge_busy' });
+  await h.view.mergeSelected('Merged', { path: h.path, mapId: h.mapDoc.id, sources: h.sources.map(n => ({ id: n.id, path: n.path })) });
+  assert.deepEqual(await h.shape(), original); assert.equal(h.view.history.canUndo, false);
+});
