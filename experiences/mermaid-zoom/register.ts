@@ -82,6 +82,19 @@ class WatchChild extends MarkdownRenderChild {
   }
 }
 
+function isDiagramNode(node: Node): boolean {
+  const el = node as Element;
+  return typeof el.matches === "function" && (el.matches("svg") || el.matches(".mermaid"));
+}
+
+/** A DOM change matters only when a diagram (svg or .mermaid) was added, or it happened inside an embed block or a diagram. */
+function mutationTouchesDiagram(mutation: MutationRecord): boolean {
+  if (Array.from(mutation.addedNodes).some(isDiagramNode)) return true;
+  const target = mutation.target as Element | null;
+  const element = target && typeof target.closest === "function" ? target : (target?.parentElement ?? null);
+  return !!element?.closest(".cm-embed-block, .mermaid");
+}
+
 /**
  * Live preview draws mermaid in an editor widget that Obsidian does not hand to markdown post processors, so each
  * editor gets one watcher instead. It lives exactly as long as its editor view (CodeMirror calls destroy), reads the
@@ -89,19 +102,27 @@ class WatchChild extends MarkdownRenderChild {
  */
 export class EditorWatcher {
   private readonly observer: MutationObserver;
+  private lastPath: string | undefined;
   constructor(
     private readonly app: App,
     private readonly dom: HTMLElement,
     private readonly sourcePath: () => string | undefined,
     private readonly onDestroy: (watcher: EditorWatcher) => void
   ) {
-    this.observer = new MutationObserver(() => this.scan());
+    this.observer = new MutationObserver(mutations => {
+      if (mutations.some(mutationTouchesDiagram)) this.scan();
+    });
     this.observer.observe(dom, { childList: true, subtree: true });
     this.scan();
   }
   scan(): void {
     const path = this.sourcePath();
+    this.lastPath = path;
     if (path && isVamSource(this.app, path)) scan(this.app, this.dom);
+  }
+  /** Editor state updates fire on every keystroke; rescan only when the editor now shows a different file. */
+  onUpdate(): void {
+    if (this.sourcePath() !== this.lastPath) this.scan();
   }
   destroy(): void {
     this.observer.disconnect();
@@ -144,7 +165,7 @@ export function registerMermaidZoom(plugin: Plugin): MermaidZoomHandle {
           editors.add(this.watcher);
         }
         update(): void {
-          this.watcher.scan();
+          this.watcher.onUpdate();
         }
         destroy(): void {
           this.watcher.destroy();

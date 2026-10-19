@@ -81,7 +81,9 @@ function loadRegister(files) {
 const diagramBlock = () => { const block = node('div', 'el-pre'); const host = node('div', 'mermaid'); block.appendChild(host); return { block, host }; };
 const addSvg = host => host.appendChild(svgOf('svg', { viewBox: '0 0 2400 300', id: 'mermaid-1' }, [svgOf('g')]));
 
-const FAKE_DOC = { implementation: { createHTMLDocument: () => ({ imported: [], importNode(n) { this.imported.push(n); return n.cloneNode(); } }) }, importNode: n => n.cloneNode() };
+const INERT_DOC = { imported: [], importNode(n) { this.imported.push(n); return n.cloneNode(); } };
+const DOC_CALLS = [];
+const FAKE_DOC = { implementation: { createHTMLDocument: () => { DOC_CALLS.push('createHTMLDocument'); return INERT_DOC; } }, importNode: n => { DOC_CALLS.push('importNode:live'); return n.cloneNode(); } };
 const FAKE_WINDOW = { setTimeout: fn => { fn(); return 0; } };
 const FILES = { 'Topics/A/Note.md': { 'agent-map-node': true }, 'Topics/A/Map.md': { 'visual-agent-map': 'true' }, 'Other/plain.md': { title: 'x' }, 'Other/lookalike.md': { 'agent-map-node': 'yes' } };
 
@@ -409,10 +411,23 @@ test('mermaid zoom: wheel pages count, and only the primary button starts a drag
 });
 
 test('mermaid zoom: the viewer cleans the copy inside an inert document before adopting it', () => {
-  const { modal, source } = viewerHarness();
+  DOC_CALLS.length = 0; INERT_DOC.imported.length = 0;
+  const env = mockObsidian(FILES);
+  const sanitized = [];
+  const viewerMod = load('experiences/mermaid-zoom/viewer.ts', { obsidian: env.obsidian }, { window: FAKE_WINDOW });
+  const source = svgOf('svg', { viewBox: '0 0 2400 300', onload: 'alert(1)' }, [svgOf('script')]);
+  const modal = new viewerMod.MermaidZoomModal(env.app, source, node('button'));
+  // Record what the live document is asked to import: it must already be the cleaned copy.
+  const liveImport = FAKE_DOC.importNode;
+  FAKE_DOC.importNode = n => { sanitized.push({ onload: n.attrs.onload, scripts: n.children.filter(c => c.tag === 'script').length, fromInert: INERT_DOC.imported.length === 1 && n !== source }); return liveImport(n); };
+  try { modal.open(); } finally { FAKE_DOC.importNode = liveImport; }
+  assert.equal(DOC_CALLS[0], 'createHTMLDocument');
+  assert.equal(INERT_DOC.imported.length, 1, 'the copy is made by the inert document');
+  assert.equal(INERT_DOC.imported[0], source, 'the inert document imports the original source');
+  assert.equal(sanitized.length, 1, 'the live document imports once');
+  assert.deepEqual(sanitized[0], { onload: undefined, scripts: 0, fromInert: true }, 'what the live document adopts was sanitized in the inert copy');
+  assert.equal(source.attrs.onload, 'alert(1)', 'the note SVG is untouched');
   assert.ok(modal.contentEl.querySelector('.vam-mermaid-zoom-stage'));
-  assert.equal(modal.contentEl.ownerDocument.implementation.createHTMLDocument('').imported.length, 0, 'fresh inert documents start empty');
-  assert.ok(source);
 });
 
 test('sanitizer: stylesheets with escapes or image-set and presentation-attribute urls are dropped', () => {
@@ -446,8 +461,8 @@ test('mermaid zoom: a live-preview editor in a VAM note gets buttons, and the wa
   let destroyed = 0;
   const watcher = new ctx.mod.EditorWatcher(ctx.app, dom, () => 'Topics/A/Note.md', () => { destroyed++; });
   assert.equal(host.querySelector('button'), null, 'nothing to decorate before mermaid renders');
-  addSvg(host);
-  ctx.observers.at(-1).cb();
+  const svg = addSvg(host);
+  ctx.observers.at(-1).cb([{ addedNodes: [svg], target: host }]);
   assert.equal(host.querySelectorAll('button').length, 1);
   assert.ok(host.classes.includes('vam-mermaid-scope'));
   assert.equal(dom.classes.includes('vam-mermaid-scope'), false);
@@ -461,11 +476,90 @@ test('mermaid zoom: a live-preview editor of a non-VAM note, or an unknown file,
   for (const file of ['Other/plain.md', undefined]) {
     const dom = node('div', 'cm-editor'); const host = dom.createDiv('mermaid'); addSvg(host);
     const watcher = new ctx.mod.EditorWatcher(ctx.app, dom, () => file, () => {});
-    ctx.observers.at(-1).cb();
+    ctx.observers.at(-1).cb([{ addedNodes: [host.children[0]], target: host }]);
     assert.equal(host.querySelector('button'), null);
     watcher.destroy();
   }
   const dom = node('div', 'cm-editor'); const embed = dom.createDiv('internal-embed'); const host = embed.createDiv('mermaid'); addSvg(host);
   new ctx.mod.EditorWatcher(ctx.app, dom, () => 'Topics/A/Note.md', () => {});
   assert.equal(host.querySelector('button'), null, 'an embedded note is judged by its own path, not the host note');
+});
+
+test('mermaid zoom: typing in the editor never scans; only diagram changes do', () => {
+  const ctx = loadRegister(FILES);
+  const dom = node('div', 'cm-editor');
+  const line = dom.createDiv('cm-line');
+  const embed = dom.createDiv('cm-embed-block');
+  const host = embed.createDiv('mermaid');
+  let queries = 0;
+  const count = n => { const original = n.querySelectorAll.bind(n); n.querySelectorAll = sel => { queries++; return original(sel); }; };
+  const watcher = new ctx.mod.EditorWatcher(ctx.app, dom, () => 'Topics/A/Note.md', () => {});
+  count(dom); count(embed); count(host);
+  const observer = ctx.observers.at(-1);
+  const text = { localName: '#text', parent: line, parentElement: line };
+  for (let i = 0; i < 20; i++) {
+    observer.cb([{ addedNodes: [text], target: line }, { addedNodes: [], target: text }]);
+    watcher.onUpdate();
+  }
+  assert.equal(queries, 0, 'plain text mutations and state updates never call querySelectorAll');
+  const svg = addSvg(host);
+  observer.cb([{ addedNodes: [svg], target: host }]);
+  assert.ok(queries > 0, 'an added svg does scan');
+  assert.equal(host.querySelectorAll('button').length, 1);
+  queries = 0;
+  observer.cb([{ addedNodes: [], target: embed }]);
+  assert.ok(queries > 0, 'a change inside an embed block scans');
+  queries = 0;
+  const other = { path: 'Topics/A/Map.md' };
+  const w2 = new ctx.mod.EditorWatcher(ctx.app, dom, () => other.path, () => {});
+  count(dom); queries = 0;
+  w2.onUpdate();
+  assert.equal(queries, 0, 'same file: no scan');
+  other.path = 'Topics/A/Note.md';
+  w2.onUpdate();
+  assert.ok(queries > 0, 'a changed file path scans');
+});
+
+// ---------- the ViewPlugin wrapper ----------
+function loadRegisterWithExtension() {
+  const env = mockObsidian(FILES);
+  const field = env.obsidian.editorInfoField;
+  const observers = [];
+  class FakeObserver { constructor(cb) { this.cb = cb; this.disconnected = false; observers.push(this); } observe() {} disconnect() { this.disconnected = true; } }
+  const mod = load('experiences/mermaid-zoom/register.ts', { obsidian: env.obsidian }, { MutationObserver: FakeObserver, window: FAKE_WINDOW });
+  let extension = null; let unregister = null;
+  const handle = mod.registerMermaidZoom({ app: env.app, registerEditorExtension: e => { extension = e; }, register: fn => { unregister = fn; }, registerMarkdownPostProcessor() {} });
+  const fakeView = (file) => {
+    const reads = [];
+    const view = { dom: node('div', 'cm-editor'), state: { field: (f, required) => { reads.push([f, required]); return { file: file() }; } } };
+    return { view, reads };
+  };
+  return { env, field, observers, handle, extension, unregister: () => unregister(), fakeView };
+}
+
+test('mermaid zoom: the editor extension counts editors, reads the path through editorInfoField, and unload disconnects all', () => {
+  const ctx = loadRegisterWithExtension();
+  assert.ok(ctx.extension, 'an editor extension was registered');
+  let file = { path: 'Topics/A/Note.md' };
+  const a = ctx.fakeView(() => file), b = ctx.fakeView(() => ({ path: 'Topics/A/Map.md' }));
+  const hostA = a.view.dom.createDiv('mermaid'); addSvg(hostA);
+  assert.equal(ctx.handle.editorCount(), 0);
+  const pluginA = ctx.extension.create(a.view);
+  assert.equal(ctx.handle.editorCount(), 1);
+  const pluginB = ctx.extension.create(b.view);
+  assert.equal(ctx.handle.editorCount(), 2);
+  assert.ok(a.reads.length > 0 && a.reads.every(([f, required]) => f === ctx.field && required === false), 'the path is read through editorInfoField, optionally');
+  assert.equal(hostA.querySelectorAll('button').length, 1, 'constructing the plugin scans the editor');
+  const readsBefore = a.reads.length;
+  file = { path: 'Topics/A/Map.md' };
+  pluginA.update();
+  assert.ok(a.reads.length > readsBefore, 'update re-reads the path');
+  pluginA.destroy();
+  assert.equal(ctx.handle.editorCount(), 1, 'destroying an editor drops its watcher');
+  assert.ok(ctx.observers[0].disconnected, 'its observer is disconnected');
+  assert.equal(ctx.observers[1].disconnected, false);
+  ctx.unregister();
+  assert.equal(ctx.handle.editorCount(), 0);
+  assert.ok(ctx.observers.every(o => o.disconnected), 'unload disconnects every observer');
+  void pluginB;
 });

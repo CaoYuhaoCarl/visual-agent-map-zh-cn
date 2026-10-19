@@ -3429,6 +3429,17 @@ var WatchChild = class extends import_obsidian3.MarkdownRenderChild {
     this.stop();
   }
 };
+function isDiagramNode(node) {
+  const el = node;
+  return typeof el.matches === "function" && (el.matches("svg") || el.matches(".mermaid"));
+}
+function mutationTouchesDiagram(mutation) {
+  var _a;
+  if (Array.from(mutation.addedNodes).some(isDiagramNode)) return true;
+  const target = mutation.target;
+  const element = target && typeof target.closest === "function" ? target : (_a = target == null ? void 0 : target.parentElement) != null ? _a : null;
+  return !!(element == null ? void 0 : element.closest(".cm-embed-block, .mermaid"));
+}
 var EditorWatcher = class {
   constructor(app, dom, sourcePath, onDestroy) {
     this.app = app;
@@ -3436,13 +3447,21 @@ var EditorWatcher = class {
     this.sourcePath = sourcePath;
     this.onDestroy = onDestroy;
     __publicField(this, "observer");
-    this.observer = new MutationObserver(() => this.scan());
+    __publicField(this, "lastPath");
+    this.observer = new MutationObserver((mutations) => {
+      if (mutations.some(mutationTouchesDiagram)) this.scan();
+    });
     this.observer.observe(dom, { childList: true, subtree: true });
     this.scan();
   }
   scan() {
     const path = this.sourcePath();
+    this.lastPath = path;
     if (path && isVamSource(this.app, path)) scan(this.app, this.dom);
+  }
+  /** Editor state updates fire on every keystroke; rescan only when the editor now shows a different file. */
+  onUpdate() {
+    if (this.sourcePath() !== this.lastPath) this.scan();
   }
   destroy() {
     this.observer.disconnect();
@@ -3474,7 +3493,7 @@ function registerMermaidZoom(plugin) {
           editors.add(this.watcher);
         }
         update() {
-          this.watcher.scan();
+          this.watcher.onUpdate();
         }
         destroy() {
           this.watcher.destroy();
