@@ -987,12 +987,12 @@ integrationTest('structure panel: a parent change waits for Apply, says what wil
   const find = (root, predicate) => all(root, predicate)[0];
   const { VisualAgentMapView } = load('main.ts', { obsidian });
   const nodes = [{ id: 'a', path: 'A.md', parentId: null }, { id: 'b', path: 'B.md', parentId: null }, { id: 'c', path: 'C.md', parentId: 'a' }];
-  const changes = []; let closed = 0, removed = 0;
+  const changes = []; let closed = 0, removed = 0, merging = false;
   const view = {
     builtIn: false, map: { nodes }, notes: new Map([['a', { title: 'Heat' }], ['b', { title: 'Water' }], ['c', { title: 'Pan', sourcePaths: [] }]]),
     app: { vault: { getAbstractFileByPath: () => null } }, referenceSourcePaths: () => [],
     button(parent, text, click) { const b = parent.createEl('button', { text }); b.click = click; return b; },
-    confirmRemoveNode() { removed++; }, enqueue(work) { work(); }, mapChange(change) { const copy = { nodes: nodes.map(n => ({ ...n })) }; change(copy); changes.push(copy.nodes.find(n => n.id === 'c').parentId); }
+    mergeUnlocked: () => !merging, confirmRemoveNode() { removed++; }, enqueue(work) { work(); }, mapChange(change) { const copy = { nodes: nodes.map(n => ({ ...n })) }; change(copy); changes.push(copy.nodes.find(n => n.id === 'c').parentId); }
   };
   const content = element('content'), host = element('modal');
   VisualAgentMapView.prototype.renderInspector.call(view, content, nodes[2], 'structure', () => { closed++; }, host);
@@ -1019,6 +1019,9 @@ integrationTest('structure panel: a parent change waits for Apply, says what wil
   assert.equal(closed, 1); assert.deepEqual(changes, [null]);
   buttons[0].click();
   assert.equal(removed, 1);
+  // A card that is merging cannot get a new parent from Apply.
+  merging = true; row('b').click(); apply.click();
+  assert.deepEqual(changes, [null], 'no parent change while the card is merging');
 });
 integrationTest('expansion suggestions panel uses the shared list, treats the topic as first-level parent and asks before discarding', async () => {
   const element = (tag, options = {}) => ({
@@ -1399,6 +1402,36 @@ integrationTest('dragging repaints only the edges touching the card, batched in 
   assert.equal(near.attrs[0][1], 'M 280 50 C 385 50, -35 90, 70 90', 'the edge ends at the card\'s new left edge'); assert.equal(childCard.style.left, '70px'); assert.equal(childCard.style.top, '40px');
   events.get('pointerup')({ type: 'pointerup' });
   assert.equal(view.dragging, false); assert.equal(events.has('pointermove'), false, 'listeners are removed');
+});
+integrationTest('AI merge shows on the cards ("Merging…" chip, running frame) and in the status bar with Stop, and clears with the task', () => {
+  const fixture = selectionView(load); const { view } = fixture;
+  const task = { mapPath: view.path, mapId: 'm', mapTitle: 'M', title: 'T', sources: [{ id: 'a', path: 'a.md' }, { id: 'b', path: 'b.md' }], parentId: 'root', targetId: null, model: 'x', sourceContent: '', controller: new AbortController(), state: 'running', progress: '' };
+  const chips = card => { const all = el => [el, ...el.children.flatMap(all)]; return all(card).filter(e => e.classes?.has('vam-status')).map(e => e.text); };
+  fixture.build(); let cards = fixture.cards();
+  assert.deepEqual(chips(cards.a), []); assert.notEqual(cards.a.dataset.status, 'running');
+  view.mergeTasks.set(view.path, task); fixture.build(); cards = fixture.cards();
+  for (const id of ['a', 'b']) { assert.deepEqual(chips(cards[id]), ['Merging…'], `${id} is marked`); assert.equal(cards[id].dataset.status, 'running'); }
+  for (const id of ['root', 'c']) { assert.equal(chips(cards[id]).includes('Merging…'), false, `${id} is not`); assert.notEqual(cards[id].dataset.status, 'running'); }
+  const make = selectionDom(); const bar = () => { const parent = make('div'); view.renderBackgroundBars(parent); return parent; };
+  const all = el => [el, ...el.children.flatMap(all)];
+  let texts = all(bar()).map(e => e.text).filter(Boolean);
+  assert.ok(texts.includes('Merging:')); assert.ok(texts.includes('a, b'), 'the topic names'); assert.ok(texts.includes('Stop merge'));
+  task.state = 'applying'; texts = all(bar()).map(e => e.text).filter(Boolean);
+  assert.ok(texts.includes('Merging:')); assert.equal(texts.includes('Stop merge'), false, 'no Stop once the result is being written');
+  const stop = (task.state = 'running', all(bar()).find(e => e.tag === 'button' && e.text === 'Stop merge')); stop.handlers.get('click')();
+  assert.equal(view.mergeTasks.size, 0); assert.equal(task.controller.signal.aborted, true);
+  fixture.build(); assert.deepEqual(chips(fixture.cards().a), []); assert.equal(texts.length > 0 && all(bar()).some(e => e.text === 'Merging:'), false, 'the bar is gone');
+});
+integrationTest('AI merge lock: a merging card cannot be dragged; other cards still can', () => {
+  for (const [merging, expected] of [[true, 0], [false, 1]]) {
+    const { view, b, events, down, frames } = dragFixture();
+    if (merging) view.mergeTasks.set(view.path, { mapPath: view.path, sources: [{ id: b.id, path: b.path }], controller: new AbortController(), state: 'running' });
+    const changes = []; view.mapChange = async change => { changes.push(change); };
+    down(); events.get('pointermove')({ clientX: 50, clientY: 20 });
+    assert.equal(frames.length, expected, merging ? 'the card does not follow the pointer' : 'the card moves');
+    events.get('pointerup')({ type: 'pointerup' });
+    assert.equal(changes.length, expected, merging ? 'no position is saved' : 'the position is saved');
+  }
 });
 integrationTest('lostpointercapture, pointercancel, a render mid-drag and closing the view all end the drag and drop the pending frame', async () => {
   for (const ending of ['lostpointercapture', 'pointercancel']) {

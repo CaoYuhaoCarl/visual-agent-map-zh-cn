@@ -229,20 +229,13 @@ test('merge dialog: the AI path hides the name field (the AI names the topic); s
   box.checked = false; box.change(); assert.equal(input.hidden, true); assert.equal(main.disabled, false);
 });
 
-test('draft review with a name field: prefilled, edited value is passed on confirm, empty name blocks confirm; other reviews have no field', async () => {
+test('draft review (still used by synthesis) has no name field: merging no longer reviews, the AI name is applied directly', async () => {
   const obsidian = { ...require('../support.cjs').obsidian, Modal: dom.makeModal(), Component: class { load() {} unload() {} addChild(c) { return c; } removeChild() {} }, MarkdownRenderer: { render: async () => {} }, setIcon: () => {} };
   const { DraftReviewModal } = load('main.ts', { obsidian });
   const got = [];
-  const modal = new DraftReviewModal({}, 'S', 'D', { intro: 'Intro', confirmLabel: 'Confirm', name: { label: 'Merged topic name', value: 'AI name' } }, (summary, detail, name) => { got.push([summary, detail, name]); });
+  const modal = new DraftReviewModal({}, 'S', 'D', { intro: 'Intro', confirmLabel: 'Confirm' }, (...args) => { got.push(args); });
   modal.open();
-  const field = dom.byLabel(modal.contentEl, 'Merged topic name'); const confirm = dom.button(modal.modalEl, 'Confirm');
-  assert.equal(field.value, 'AI name');
-  field.value = '   '; field.input(); assert.equal(confirm.disabled, true);
-  assert.ok(dom.texts(modal.modalEl).includes(label('ui.name_required')));
-  field.value = '  My own name  '; field.input(); assert.equal(confirm.disabled, false);
-  confirm.click(); await dom.tick();
-  assert.deepEqual(got, [['S', 'D', 'My own name']]);
-  const plain = new DraftReviewModal({}, 'S', 'D', { intro: 'Intro', confirmLabel: 'Confirm' }, () => {});
-  plain.open();
-  assert.equal(dom.find(plain.contentEl, i => i.tag === 'input'), undefined, 'no name field unless asked for');
+  assert.equal(dom.find(modal.contentEl, i => i.tag === 'input'), undefined, 'no name field');
+  dom.button(modal.modalEl, 'Confirm').click(); await dom.tick();
+  assert.deepEqual(got, [['S', 'D']]);
 });
