@@ -286,7 +286,7 @@ test('outline modal: copy format instructions; there is no vault file picker and
 integrationTest('importOutline creates the map, opens it, and starts shallow research only when asked', async () => {
   const { repo, app } = fixture('en');
   const opened = [], researched = [], notices = [];
-  const plugin = { repo, settings: { ...require('../support.cjs').DEFAULT_SETTINGS, language: 'en', cliModel: 'gpt-6-luna' }, running: new Set(), activeTasks: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), confirmAiUsage: async (_model, run) => { await run(); return true; } };
+  const plugin = { repo, settings: { ...require('../support.cjs').DEFAULT_SETTINGS, language: 'en', cliModel: 'gpt-6-luna' }, running: new Set(), activeTasks: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), releaseOutline() {}, confirmAiUsage: async (_model, run) => { await run(); return true; } };
   const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Notice: class { constructor(m) { notices.push(m); } } } });
   const view = new VisualAgentMapView({ app }, plugin); view.render = () => {}; view.fit = () => {};
   view.enqueue = work => work();
@@ -308,7 +308,7 @@ integrationTest('importOutline creates the map, opens it, and starts shallow res
 
 integrationTest('importOutline writes Reference Links (parent, children, map) into every new note', async () => {
   const { repo, app } = fixture('en');
-  const plugin = { repo, settings: { ...require('../support.cjs').DEFAULT_SETTINGS, language: 'en', cliModel: 'gpt-6-luna' }, running: new Set(), activeTasks: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), confirmAiUsage: async (_m, run) => { await run(); return true; } };
+  const plugin = { repo, settings: { ...require('../support.cjs').DEFAULT_SETTINGS, language: 'en', cliModel: 'gpt-6-luna' }, running: new Set(), activeTasks: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), releaseOutline() {}, confirmAiUsage: async (_m, run) => { await run(); return true; } };
   plugin.rebuildDerivedData = () => repo.rebuildDerivedData();
   const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Notice: class {} } });
   const view = new VisualAgentMapView({ app }, plugin); view.render = () => {}; view.fit = () => {}; view.enqueue = work => work();
@@ -327,7 +327,7 @@ integrationTest('importOutline reports a partial creation and does not start res
   const notices = [], researched = [];
   const create = repo.createNote.bind(repo); let calls = 0;
   repo.createNote = async (...args) => { calls++; if (calls === 2) throw new Error('disk full'); return create(...args); };
-  const plugin = { repo, settings: { ...require('../support.cjs').DEFAULT_SETTINGS, language: 'en', cliModel: 'gpt-6-luna' }, running: new Set(), activeTasks: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), confirmAiUsage: async (_m, run) => { await run(); return true; } };
+  const plugin = { repo, settings: { ...require('../support.cjs').DEFAULT_SETTINGS, language: 'en', cliModel: 'gpt-6-luna' }, running: new Set(), activeTasks: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), releaseOutline() {}, confirmAiUsage: async (_m, run) => { await run(); return true; } };
   const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Notice: class { constructor(m) { notices.push(m); } } } });
   const view = new VisualAgentMapView({ app }, plugin); view.render = () => {}; view.fit = () => {}; view.enqueue = work => work();
   view.openMapInMutation = async () => {}; view.startShallowResearch = async () => { researched.push(1); };
@@ -337,7 +337,7 @@ integrationTest('importOutline reports a partial creation and does not start res
 
 integrationTest('importOutline still saves the map when the view switched away during creation', async () => {
   const { repo, app } = fixture('en');
-  const plugin = { repo, settings: { ...require('../support.cjs').DEFAULT_SETTINGS, language: 'en', cliModel: 'gpt-6-luna' }, running: new Set(), activeTasks: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), confirmAiUsage: async () => true };
+  const plugin = { repo, settings: { ...require('../support.cjs').DEFAULT_SETTINGS, language: 'en', cliModel: 'gpt-6-luna' }, running: new Set(), activeTasks: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), releaseOutline() {}, confirmAiUsage: async () => true };
   const { VisualAgentMapView } = load('main.ts', { obsidian });
   const view = new VisualAgentMapView({ app }, plugin); view.render = () => {}; view.fit = () => {}; view.enqueue = work => work();
   let mapPath; view.openMapInMutation = async path => { mapPath = path; view.closed = true; };
@@ -392,7 +392,7 @@ function importHarness(overrides = {}) {
   const { repo, app } = fixture('en');
   const notices = [], calls = { opened: 0, researched: 0 };
   const NoticeClass = class { constructor(m) { notices.push(m); } };
-  const plugin = { repo, settings: { ...require('../support.cjs').DEFAULT_SETTINGS, language: 'en', cliModel: 'gpt-6-luna' }, running: new Set(), activeTasks: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), confirmAiUsage: async (_m, run) => { await run(); return true; }, ...overrides };
+  const plugin = { repo, settings: { ...require('../support.cjs').DEFAULT_SETTINGS, language: 'en', cliModel: 'gpt-6-luna' }, running: new Set(), activeTasks: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), releaseOutline() {}, confirmAiUsage: async (_m, run) => { await run(); return true; }, ...overrides };
   const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Notice: NoticeClass } });
   const view = new VisualAgentMapView({ app }, plugin); view.render = () => {}; view.fit = () => {}; view.enqueue = work => work();
   view.openMapInMutation = async () => { calls.opened++; };
@@ -477,7 +477,7 @@ integrationTest('importOutline: the chosen template becomes the map default and 
   const template = { id: 't1', name: 'Template one', sections: [
     { id: 's1', name: 'Findings', description: '', role: 'none', aliases: [] },
     { id: 's2', name: 'History', description: '', role: 'log', aliases: [] }] };
-  const plugin = { repo, settings: { ...require('../support.cjs').DEFAULT_SETTINGS, language: 'en', cliModel: 'gpt-6-luna', detailTemplates: [template] }, running: new Set(), activeTasks: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), confirmAiUsage: async (_m, run) => { await run(); return true; } };
+  const plugin = { repo, settings: { ...require('../support.cjs').DEFAULT_SETTINGS, language: 'en', cliModel: 'gpt-6-luna', detailTemplates: [template] }, running: new Set(), activeTasks: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), releaseOutline() {}, confirmAiUsage: async (_m, run) => { await run(); return true; } };
   repo.settings = plugin.settings;
   const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Notice: class {} } });
   const view = new VisualAgentMapView({ app }, plugin); view.render = () => {}; view.fit = () => {}; view.enqueue = work => work();
@@ -578,7 +578,7 @@ async function placementHarness(settingsOverrides = {}, obsidianOverrides = {}, 
   mapDoc.nodes.push(oldRoot, oldChild);
   await app.vault.create(mapPath, core.serializeMap(mapDoc));
   await repo.rebuildDerivedData();
-  const plugin = withExpansionCoordinator({ repo, settings, running: new Set(), rebuildDerivedData: () => repo.rebuildDerivedData(), mutate: async work => work(), confirmAiUsage: async (model, run) => { confirms.push(model); await run(); return true; } });
+  const plugin = withExpansionCoordinator({ repo, settings, running: new Set(), rebuildDerivedData: () => repo.rebuildDerivedData(), mutate: async work => work(), releaseOutline() {}, confirmAiUsage: async (model, run) => { confirms.push(model); await run(); return true; } });
   const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Notice: class { constructor(m) { notices.push(m); } }, ...obsidianOverrides } }, globals);
   const view = new VisualAgentMapView({ app }, plugin);
   view.path = mapPath; view.map = await repo.readMap(mapPath); view.contentEl = { querySelector: () => null }; view.render = () => {}; view.hydrate = async () => {};
@@ -984,7 +984,7 @@ integrationTest('importOutline under a manual parent: no chosen model, or the pa
 integrationTest('importOutline: a chosen writing tone becomes the new map default next to the template (never a per-topic field)', async () => {
   const { repo, app } = fixture('en');
   const opened = [];
-  const plugin = { repo, settings: { ...require('../support.cjs').DEFAULT_SETTINGS, language: 'en', cliModel: 'gpt-6-luna' }, running: new Set(), activeTasks: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), confirmAiUsage: async (_m, run) => { await run(); return true; } };
+  const plugin = { repo, settings: { ...require('../support.cjs').DEFAULT_SETTINGS, language: 'en', cliModel: 'gpt-6-luna' }, running: new Set(), activeTasks: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), releaseOutline() {}, confirmAiUsage: async (_m, run) => { await run(); return true; } };
   const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Notice: class {} } });
   const view = new VisualAgentMapView({ app }, plugin); view.render = () => {}; view.fit = () => {}; view.enqueue = work => work();
   view.openMapInMutation = async path => { opened.push(path); view.path = path; view.map = await repo.readMap(path); };

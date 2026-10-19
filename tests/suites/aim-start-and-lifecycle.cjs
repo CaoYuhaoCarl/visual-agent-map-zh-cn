@@ -189,7 +189,7 @@ integrationTest('opening a map recovers questionDraft and post-report asks witho
   const openThroughSerialQueue = async (repo, mapPath) => {
     let queue = Promise.resolve(), mutationCalls = 0, aiCalls = 0;
     const plugin = {
-      repo, settings: { ...DEFAULT_SETTINGS, cliModel: 'gpt-6-luna' }, closeStaleDetails() {}, syncOutline() {},
+      repo, settings: { ...DEFAULT_SETTINGS, cliModel: 'gpt-6-luna' }, closeStaleDetails() {}, syncOutline() {}, releaseOutline() {},
       askModel: async () => { aiCalls++; throw new Error('opening a persisted map must recover without Planner work'); },
       mutate: work => { mutationCalls++; const current = queue.then(work); queue = current.catch(() => {}); return current; }
     };
@@ -297,7 +297,7 @@ integrationTest('Visual Map close fences late Planner rendering and reopen start
   let resolvePlanner, call = 0, renders = 0;
   const plugin = { repo, settings: { language: 'zh-TW', cliModel: 'gpt-6-luna' }, ready: Promise.resolve(), mutate: async work => work(),
     askModel: async () => { call++; if (call === 1) return new Promise(resolve => { resolvePlanner = () => resolve({ summary: '晚到問題？', detail: '不應寫回關閉的 View。', suggestions: [{ title: 'A', task: '', contribution: '', parentTitle: '' }, { title: 'B', task: '', contribution: '', parentTitle: '' }], visualReferences: [] }); }); return { summary: '重新開啟後的問題？', detail: '新生命週期。', suggestions: [{ title: 'A', task: '', contribution: '', parentTitle: '' }, { title: 'B', task: '', contribution: '', parentTitle: '' }], visualReferences: [] }; },
-    syncOutline() {}, consumeFirstInstallSample: () => false };
+    syncOutline() {}, releaseOutline() {}, consumeFirstInstallSample: () => false };
   const { VisualAgentMapView } = load('main.ts', { obsidian }); const view = new VisualAgentMapView({ app: {} }, plugin);
   view.contentEl = { addClass() {}, tabIndex: 0 }; view.registerDomEvent = () => {};
   view.path = created.mapPath; view.map = created.map; view.notes.set(created.root.id, await repo.readNote(created.root.path)); view.selected = created.root.id; view.render = () => { renders++; };
@@ -321,7 +321,7 @@ integrationTest('Visual Map close during Planner question save lets the started 
   const realSaveMap = repo.saveMap.bind(repo); let mapWrites = 0, announceMapCommit;
   const mapCommitted = new Promise(resolve => { announceMapCommit = resolve; });
   repo.saveMap = async (...args) => { const result = await realSaveMap(...args); if (++mapWrites === 2) announceMapCommit(); return result; };
-  const plugin = { repo, settings: { language: 'zh-TW', cliModel: 'gpt-6-luna' }, mutate: async work => work(), syncOutline() {},
+  const plugin = { repo, settings: { language: 'zh-TW', cliModel: 'gpt-6-luna' }, mutate: async work => work(), syncOutline() {}, releaseOutline() {},
     askModel: async () => ({ summary: '偏好熟度？', detail: '請使用者選擇。', suggestions: [{ title: '偏紅', task: '', contribution: '', parentTitle: '' }, { title: '較熟', task: '', contribution: '', parentTitle: '' }], visualReferences: [] }) };
   const { VisualAgentMapView } = load('main.ts', { obsidian }); const view = new VisualAgentMapView({ app: {} }, plugin);
   view.path = created.mapPath; view.map = created.map; view.notes.set(created.root.id, await repo.readNote(created.root.path)); view.selected = created.root.id;
@@ -341,7 +341,7 @@ integrationTest('AIM answer modal from an older View lifecycle cannot submit aft
   const planned = await planner.planNextQuestion(created.mapPath, created.root.id, 'gpt-6-luna', 'low', 'stale-modal-question');
   let modal, modelCalls = 0;
   class CapturingModal { constructor(app) { this.app = app; } open() { modal = this; } close() {} }
-  const plugin = { repo, settings: { language: 'zh-TW', cliModel: 'gpt-6-luna' }, ready: Promise.resolve(), mutate: async work => work(), syncOutline() {},
+  const plugin = { repo, settings: { language: 'zh-TW', cliModel: 'gpt-6-luna' }, ready: Promise.resolve(), mutate: async work => work(), syncOutline() {}, releaseOutline() {},
     askModel: async () => { modelCalls++; return { summary: '不應啟動', detail: 'stale modal', suggestions: [], visualReferences: [] }; } };
   const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Modal: CapturingModal } });
   const view = new VisualAgentMapView({ app: {} }, plugin); view.contentEl = { addClass() {}, tabIndex: 0 }; view.registerDomEvent = () => {};
@@ -358,7 +358,7 @@ integrationTest('AIM start modal from an older View lifecycle cannot create or r
   class CapturingModal { constructor(app, ...args) { this.app = app; this.args = args; } open() { modal = this; } close() {} }
   const realCreate = repo.createMap.bind(repo);
   repo.createMap = async (...args) => { createCalls++; return realCreate(...args); };
-  const plugin = { repo, settings: { language: 'zh-TW', cliModel: 'gpt-5.6-luna', cliReasoning: 'medium' }, availableModels: () => ['gpt-6-luna'], ready: Promise.resolve(), mutate: async work => work(), closeStaleDetails() {}, syncOutline() {},
+  const plugin = { repo, settings: { language: 'zh-TW', cliModel: 'gpt-5.6-luna', cliReasoning: 'medium' }, availableModels: () => ['gpt-6-luna'], ready: Promise.resolve(), mutate: async work => work(), closeStaleDetails() {}, syncOutline() {}, releaseOutline() {},
     rebuildDerivedData: async () => { rebuildCalls++; } };
   const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Modal: CapturingModal } });
   const view = new VisualAgentMapView({ app: { workspace: { requestSaveLayout() {} } } }, plugin);
@@ -377,7 +377,7 @@ integrationTest('Visual Map ignores an earlier asynchronous open after close and
   const readMap = repo.readMap.bind(repo); let releaseStale, signalStaleRead;
   const staleReadStarted = new Promise(resolve => { signalStaleRead = resolve; });
   repo.readMap = async path => { if (path === stalePath) { signalStaleRead(); await new Promise(resolve => { releaseStale = resolve; }); } return readMap(path); };
-  const plugin = { repo, settings: { language: 'zh-TW', cliModel: 'gpt-6-luna' }, ready: Promise.resolve(), mutate: async work => work(), closeStaleDetails() {}, syncOutline() {} };
+  const plugin = { repo, settings: { language: 'zh-TW', cliModel: 'gpt-6-luna' }, ready: Promise.resolve(), mutate: async work => work(), closeStaleDetails() {}, syncOutline() {}, releaseOutline() {} };
   const app = { workspace: { requestSaveLayout() {} } };
   const { VisualAgentMapView } = load('main.ts', { obsidian }); const view = new VisualAgentMapView({ app }, plugin);
   view.contentEl = { addClass() {}, tabIndex: 0 }; view.registerDomEvent = () => {}; view.path = currentPath; let renders = 0; view.render = () => { renders++; };
@@ -440,6 +440,7 @@ integrationTest('Visual Map wires Manual Planner and answer submissions through 
     repo,
     mutate: async work => work(),
     syncOutline: (map, notes) => outlinedMaps.push({ map: plain(map), noteIds: [...notes.keys()] }),
+    releaseOutline() {},
     askModel: async (context, _model, _reasoning, _signal, _onExchange, _onAccepted, onWebSearchEvent) => {
       askCalls++;
       if (aimPhase(context, 'saved-evidence-review')) return savedEvidenceNeedsSearch();
@@ -475,7 +476,7 @@ integrationTest('Visual Map permits telemetry gaps but keeps an explicit no-sear
     const created = await createAimMap(repo, 'gpt-6-luna', { requestId: `search-status-map-${suffix}`, topic: `牛排熟度 ${suffix}`, context: '' });
     const planner = new AimManualFlow(repo, new AimRunStore(repo), async () => ({ summary: '想要哪種熟度？', detail: '', suggestions: [{ title: '偏紅' }, { title: '較熟' }], visualReferences: [] }));
     const planned = await planner.planNextQuestion(created.mapPath, created.root.id, 'gpt-6-luna', 'low', `search-status-question-${suffix}`);
-    const plugin = { repo, settings: { ...DEFAULT_SETTINGS }, mutate: async work => work(), syncOutline() {}, askModel: async context => aimPhase(context, 'saved-evidence-review') ? savedEvidenceNeedsSearch() : aimPhase(context, 'decision-quality-review') ? auditEcho(context) : aimPhase(context, 'research-plan')
+    const plugin = { repo, settings: { ...DEFAULT_SETTINGS }, mutate: async work => work(), syncOutline() {}, releaseOutline() {}, askModel: async context => aimPhase(context, 'saved-evidence-review') ? savedEvidenceNeedsSearch() : aimPhase(context, 'decision-quality-review') ? auditEcho(context) : aimPhase(context, 'research-plan')
       ? { summary: '兩個研究面向', detail: '<!-- aim-plan {"subtopics":[{"id":"safety","title":"食安依據","task":"查詢安全溫度","expectedValue":"確認安全條件"},{"id":"method","title":"操作方法","task":"查詢料理方式","expectedValue":"補足操作步驟"}]} -->', suggestions: [], visualReferences: [] }
       : aimPhase(context, 'report-review') ? plannerReview('ask_user', { rationale: '牛排厚度會改變加熱時間和溫度控制，無法從已提供的偏好推斷。', question: '牛排大約有多厚？' }, '來源報告提供熟度限制；請補充厚度以細化操作建議。', '在得知厚度前不推定固定時間。', ['薄於 2 公分', '約 2–4 公分', '厚於 4 公分'])
       : context.researchMode === 'local' ? plannerReview('conclude', { rationale: '既有條件足夠。', stopReason: '不需要新增問題。' }, '條件式結論', '保留限制。') : report };
@@ -537,7 +538,7 @@ integrationTest('Visual Map reopen recovers a pending Note/Map commit and marks 
   await assert.rejects(store.commitResult(mapPath, attempt, draft.id, { summary: 'saved summary', detail: 'Searcher report and Planner conclusion.' }), /injected interruption/);
   repo.saveMap = saveMap; store.releaseAttempt(mapPath, attempt);
   app.workspace = { requestSaveLayout() {} };
-  const { VisualAgentMapView } = load('main.ts', { obsidian }); const plugin = { repo, settings: { ...DEFAULT_SETTINGS }, mutate: async work => work(), closeStaleDetails() {}, syncOutline() {} };
+  const { VisualAgentMapView } = load('main.ts', { obsidian }); const plugin = { repo, settings: { ...DEFAULT_SETTINGS }, mutate: async work => work(), closeStaleDetails() {}, syncOutline() {}, releaseOutline() {} };
   const view = new VisualAgentMapView({ app }, plugin); view.render = () => {}; view.hydrate = async () => {};
   await view.openMap(mapPath);
   let saved = await repo.readMap(mapPath), committed = saved.aim.branches[0].results[0];
@@ -566,7 +567,7 @@ integrationTest('Visual Map close cancels unfinished AIM work but lets an alread
   };
   const { repo, mapPath, question } = await makeQuestion();
   let releaseSearcher, searcherStarted; const searcherReady = new Promise(resolve => { searcherStarted = resolve; });
-  const plugin = { repo, settings: { language: 'zh-TW', cliModel: 'gpt-6-luna' }, mutate: async work => work(), syncOutline() {},
+  const plugin = { repo, settings: { language: 'zh-TW', cliModel: 'gpt-6-luna' }, mutate: async work => work(), syncOutline() {}, releaseOutline() {},
     askModel: async (context, _model, _reasoning, _signal, _onExchange, _onAccepted, onWebSearchEvent) => {
       if (aimPhase(context, 'saved-evidence-review')) return savedEvidenceNeedsSearch();
       if (aimPhase(context, 'research-plan')) return { summary: '安全與操作面向', detail: '<!-- aim-plan {"subtopics":[{"id":"a","title":"安全溫度","task":"查詢安全溫度","expectedValue":"保留安全條件"},{"id":"b","title":"烹調方法","task":"查詢烹調方法","expectedValue":"提供實作方式"}]} -->', suggestions: [], visualReferences: [] };
@@ -593,7 +594,7 @@ integrationTest('Visual Map close cancels unfinished AIM work but lets an alread
     if (patch.status === 'completed') { commitStarted(); await new Promise(resolve => { releaseCommit = resolve; }); }
     return updateNote(path, patch);
   };
-  const commitPlugin = { repo: second.repo, settings: { language: 'zh-TW', cliModel: 'gpt-6-luna' }, mutate: async work => work(), syncOutline() {},
+  const commitPlugin = { repo: second.repo, settings: { language: 'zh-TW', cliModel: 'gpt-6-luna' }, mutate: async work => work(), syncOutline() {}, releaseOutline() {},
     askModel: async (context, _model, _reasoning, _signal, _onExchange, _onAccepted, onWebSearchEvent) => aimPhase(context, 'saved-evidence-review') ? savedEvidenceNeedsSearch() : aimPhase(context, 'research-plan')
       ? { summary: '安全與操作面向', detail: '<!-- aim-plan {"subtopics":[{"id":"a","title":"安全溫度","task":"查詢安全溫度","expectedValue":"保留安全條件"},{"id":"b","title":"烹調方法","task":"查詢烹調方法","expectedValue":"提供實作方式"}]} -->', suggestions: [], visualReferences: [] }
       : aimPhase(context, 'decision-quality-review') ? auditEcho(context)

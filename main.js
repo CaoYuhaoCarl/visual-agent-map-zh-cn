@@ -27353,6 +27353,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian27.Ite
   async onClose() {
     var _a, _b;
     this.closed = true;
+    this.plugin.releaseOutline(this);
     for (const task of this.synthesisTasks.values()) if (task.state === "running") task.controller.abort();
     this.synthesisTasks.clear();
     for (const controller2 of this.startingTasks.values()) controller2.abort();
@@ -27422,7 +27423,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian27.Ite
       target.setSelectionRange(selection[0], selection[1]);
   }
   syncOutline() {
-    this.plugin.syncOutline(this.builtIn ? null : this.map, this.notes, this.builtIn);
+    this.plugin.syncOutline(this.builtIn ? null : this.map, this.notes, this.builtIn, this);
   }
   enqueue(work) {
     void this.plugin.mutate(work).catch(() => {
@@ -30828,7 +30829,7 @@ ${request.requirements}` : preset.text,
     this.aimProgressEls.clear();
     (_a = this.dragCleanup) == null ? void 0 : _a.call(this);
     if (this.closed) return;
-    this.plugin.syncOutline(this.builtIn ? null : this.map, this.notes, this.builtIn);
+    this.plugin.syncOutline(this.builtIn ? null : this.map, this.notes, this.builtIn, this);
     if (this.hoverTimer !== null) {
       window.clearTimeout(this.hoverTimer);
       this.hoverTimer = null;
@@ -30869,7 +30870,7 @@ ${request.requirements}` : preset.text,
         this.openNewMapMenu(event);
       });
       this.iconButton(headerActions, "list-tree", t("ui.open_topic_outline"), () => {
-        void this.plugin.activateOutline().catch((error) => new import_obsidian27.Notice(String(error)));
+        void this.plugin.activateOutline(this).catch((error) => new import_obsidian27.Notice(String(error)));
       });
       const undo = this.iconButton(headerActions, "undo-2", t("ui.undo"), () => this.enqueue(() => this.travel(false)));
       undo.disabled = !this.history.canUndo;
@@ -38716,6 +38717,7 @@ var VisualAgentMapPlugin = class extends import_obsidian32.Plugin {
     __publicField(this, "coffeeStorage", null);
     __publicField(this, "coffeeOutlineActive", false);
     __publicField(this, "coffeeOutlineSource", null);
+    __publicField(this, "outlineSourceView", null);
     __publicField(this, "outlineMap", null);
     __publicField(this, "outlineTitles", /* @__PURE__ */ new Map());
     __publicField(this, "outlineSample", false);
@@ -38768,7 +38770,12 @@ var VisualAgentMapPlugin = class extends import_obsidian32.Plugin {
   views() {
     return this.app.workspace.getLeavesOfType(VIEW_TYPE).map((leaf) => leaf.view).filter((view) => view instanceof VisualAgentMapView);
   }
-  syncOutline(map, notes, sample = false) {
+  /** A map view passes itself as `source`; only the outline's source view may update it, so background tabs never win. */
+  syncOutline(map, notes, sample = false, source) {
+    if (source) {
+      if (this.outlineSourceView && this.outlineSourceView !== source) return;
+      this.outlineSourceView = source;
+    }
     const titles = new Map([...notes].map(([id, note]) => [id, note.title]));
     this.outlineMap = map;
     this.outlineTitles = titles;
@@ -38804,6 +38811,20 @@ var VisualAgentMapPlugin = class extends import_obsidian32.Plugin {
         if (!this.coffeeOutlineActive) leaf.view.setMap(this.outlineMap, this.outlineTitles, this.outlineSample);
       }
   }
+  /** Called when a map view closes: the outline falls back to another open map, or empties. */
+  releaseOutline(view) {
+    var _a;
+    if (this.outlineSourceView !== view) return;
+    this.outlineSourceView = null;
+    const views = this.views().filter((other) => other !== view);
+    const next = (_a = views.find((other) => other === this.app.workspace.getActiveViewOfType(VisualAgentMapView))) != null ? _a : views[0];
+    if (next) this.useOutlineSource(next);
+    else this.syncOutline(null, /* @__PURE__ */ new Map());
+  }
+  useOutlineSource(view) {
+    this.outlineSourceView = view;
+    view.syncOutline();
+  }
   isCoffeeOutlineSource(view) {
     return this.coffeeOutlineSource === view;
   }
@@ -38820,8 +38841,8 @@ var VisualAgentMapPlugin = class extends import_obsidian32.Plugin {
           }
         );
   }
-  async activateOutline() {
-    var _a, _b;
+  async activateOutline(source) {
+    var _a, _b, _c, _d;
     const activeCoffeeView = this.app.workspace.getActiveViewOfType(CoffeeTablesView);
     if (activeCoffeeView) this.syncCoffeeOutline(activeCoffeeView);
     let leaf = (_a = this.app.workspace.getLeavesOfType(OUTLINE_VIEW_TYPE)[0]) != null ? _a : null;
@@ -38829,9 +38850,25 @@ var VisualAgentMapPlugin = class extends import_obsidian32.Plugin {
     if (!leaf) throw new Error(t("ui.could_not_open_the_left_sidebar"));
     await leaf.setViewState({ type: OUTLINE_VIEW_TYPE, active: true });
     this.syncCoffeeOutline((_b = this.coffeeOutlineSource) != null ? _b : void 0);
-    const mapView = this.views()[0];
-    if (mapView) mapView.syncOutline();
+    const mapView = (_d = (_c = source != null ? source : this.app.workspace.getActiveViewOfType(VisualAgentMapView)) != null ? _c : this.outlineSourceView) != null ? _d : this.views()[0];
+    if (mapView) this.useOutlineSource(mapView);
     await this.app.workspace.revealLeaf(leaf);
+  }
+  onActiveLeafChange(leaf) {
+    this.styleNodeLeaf(leaf);
+    if ((leaf == null ? void 0 : leaf.view) instanceof OutlineView) return;
+    if ((leaf == null ? void 0 : leaf.view) instanceof CoffeeTablesView) {
+      this.syncCoffeeOutline(leaf.view);
+      return;
+    }
+    this.syncCoffeeOutline();
+    if ((leaf == null ? void 0 : leaf.view) instanceof VisualAgentMapView) {
+      this.useOutlineSource(leaf.view);
+      return;
+    }
+    if (!((leaf == null ? void 0 : leaf.view) instanceof import_obsidian32.MarkdownView) || !leaf.view.file || !this.isMap(leaf.view.file)) return;
+    const path = leaf.view.file.path;
+    void leaf.setViewState({ type: VIEW_TYPE, state: { file: path }, active: true }).catch((error) => new import_obsidian32.Notice(error instanceof Error ? error.message : String(error)));
   }
   async onload() {
     var _a, _b;
@@ -39071,20 +39108,7 @@ var VisualAgentMapPlugin = class extends import_obsidian32.Plugin {
           );
       })
     );
-    this.registerEvent(
-      this.app.workspace.on("active-leaf-change", (leaf) => {
-        this.styleNodeLeaf(leaf);
-        if ((leaf == null ? void 0 : leaf.view) instanceof OutlineView) return;
-        if ((leaf == null ? void 0 : leaf.view) instanceof CoffeeTablesView) {
-          this.syncCoffeeOutline(leaf.view);
-          return;
-        }
-        this.syncCoffeeOutline();
-        if (!((leaf == null ? void 0 : leaf.view) instanceof import_obsidian32.MarkdownView) || !leaf.view.file || !this.isMap(leaf.view.file)) return;
-        const path = leaf.view.file.path;
-        void leaf.setViewState({ type: VIEW_TYPE, state: { file: path }, active: true }).catch((error) => new import_obsidian32.Notice(error instanceof Error ? error.message : String(error)));
-      })
-    );
+    this.registerEvent(this.app.workspace.on("active-leaf-change", (leaf) => this.onActiveLeafChange(leaf)));
     this.registerEvent(
       this.app.workspace.on("file-open", (file) => {
         var _a2;

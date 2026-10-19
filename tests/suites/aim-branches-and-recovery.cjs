@@ -264,7 +264,7 @@ integrationTest('native RunStore failed Searcher diagnostic enables the saved-re
 
   const { VisualAgentMapView } = load('main.ts', { obsidian });
   const calls = [];
-  const view = new VisualAgentMapView({ app }, { repo, settings: { ...DEFAULT_SETTINGS, language: 'en' }, mutate: async work => work(), syncOutline() {}, askModel: async context => {
+  const view = new VisualAgentMapView({ app }, { repo, settings: { ...DEFAULT_SETTINGS, language: 'en' }, mutate: async work => work(), syncOutline() {}, releaseOutline() {}, askModel: async context => {
     calls.push(context);
     assert.equal(context.researchMode, 'local', 'reviewing a retained report does not repeat its search');
     return plannerReview('ask_user', { rationale: 'The retained report supports only a conditional answer, while the requested preference is still unknown.', question: 'Which option should the result prioritize?' }, 'Keep the saved report conditional until the user chooses.', 'Do not infer a preference from a failed Searcher attempt.', ['Option A', 'Option B']);
