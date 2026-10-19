@@ -22,10 +22,10 @@ export interface BackgroundAction {
  * One Notice that reports a finished background run. With an action it carries a single button; pressing it runs
  * `open()` and hides the Notice. Without the host's fragment helper (tests, non-Obsidian hosts) it is a plain message.
  */
-export function backgroundResultNotice(message: string, action?: BackgroundAction): Notice {
+export function backgroundResultNotice(message: string, action?: BackgroundAction, timeout?: number): Notice {
   // The fragment helper is a host global; a host without it (tests) gets the plain message.
   const make = (window as { createFragment?: typeof createFragment }).createFragment;
-  if (!action || typeof make !== "function") return new Notice(message);
+  if (!action || typeof make !== "function") return new Notice(message, timeout);
   let notice: Notice | undefined;
   const fragment = make(el => {
     el.createSpan({ text: message });
@@ -34,7 +34,7 @@ export function backgroundResultNotice(message: string, action?: BackgroundActio
       action.open();
     });
   });
-  notice = new Notice(fragment);
+  notice = new Notice(fragment, timeout);
   return notice;
 }
 

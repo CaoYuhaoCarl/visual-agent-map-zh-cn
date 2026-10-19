@@ -26,7 +26,11 @@ const hash = data => createHash("sha256").update(data).digest("hex");
 const hashes = folder => Object.fromEntries(assets.map(name => [name, hash(readFileSync(join(folder, name)))]));
 const json = path => JSON.parse(readFileSync(path, "utf8"));
 
-export function verifyTestVault(vault, artifact = root) {
+// The owner's canonical vault holds their own maps; the regression fixture maps are neither seeded into nor required of it.
+// Session and --prepare vaults keep both. `owner` is a parameter only so tests can designate a temp vault.
+const isOwnerVault = (vault, owner = canonicalVault) => resolve(vault) === resolve(owner);
+
+export function verifyTestVault(vault, artifact = root, owner = canonicalVault) {
   const record = json(join(vault, marker));
   const plugin = join(vault, ".obsidian/plugins/visual-agent-map");
   const manifest = json(join(plugin, "manifest.json"));
@@ -35,8 +39,11 @@ export function verifyTestVault(vault, artifact = root) {
   if (JSON.stringify(enabled) !== JSON.stringify([manifest.id])) throw new Error("Plugin enablement mismatch.");
   if (record.profile !== "onboarding") {
     const settings = json(join(plugin, "data.json"));
-    if (!settings.workspaceInitialized || settings.workspaceFolder !== record.workspaceRoot || !existsSync(join(vault, settings.workspaceFolder, "Topics/Taiwan Travel Regression (zh-TW test fixture)/Map.md"))) throw new Error("Fixture/settings mismatch.");
-    if (!existsSync(join(vault, settings.workspaceFolder, "Topics/Local Source Fixture/Map.md"))) throw new Error("Local-source fixture missing.");
+    if (!settings.workspaceInitialized || settings.workspaceFolder !== record.workspaceRoot) throw new Error("Fixture/settings mismatch.");
+    if (!isOwnerVault(vault, owner)) {
+      if (!existsSync(join(vault, settings.workspaceFolder, "Topics/Taiwan Travel Regression (zh-TW test fixture)/Map.md"))) throw new Error("Fixture/settings mismatch.");
+      if (!existsSync(join(vault, settings.workspaceFolder, "Topics/Local Source Fixture/Map.md"))) throw new Error("Local-source fixture missing.");
+    }
   }
   return record;
 }
@@ -67,7 +74,7 @@ export function prepareTestVault({ vault = canonicalVault, artifact = root, prof
 }
 
 // Refresh only installed code in an owned Vault. Preserve every fixture, note, and attachment.
-export function updateCurrentTestVault({ vault = canonicalVault, artifact = root, source = {} } = {}) {
+export function updateCurrentTestVault({ vault = canonicalVault, artifact = root, source = {}, owner = canonicalVault } = {}) {
   if (!existsSync(vault) || lstatSync(vault).isSymbolicLink() || !lstatSync(vault).isDirectory() || !existsSync(join(vault, marker))) throw new Error("Refusing to update a missing or unowned test vault.");
   const recordPath = join(vault, marker), record = json(recordPath);
   if (record.owner !== realpathSync(root) || record.kind !== "vam-disposable-test-vault") throw new Error("Refusing to update a test vault owned by another checkout.");
@@ -76,7 +83,7 @@ export function updateCurrentTestVault({ vault = canonicalVault, artifact = root
   if (!existsSync(plugin) || lstatSync(plugin).isSymbolicLink() || !lstatSync(plugin).isDirectory()) throw new Error("Refusing an invalid installed plugin directory.");
   const installedManifest = json(join(plugin, "manifest.json"));
   if (manifest.id !== "visual-agent-map" || installedManifest.id !== manifest.id || installedManifest.version !== record.version) throw new Error("Installed plugin identity/version does not match the owned test-vault record.");
-  if (record.profile !== "onboarding") ensureSourceSelectionFixture(vault, record.workspaceRoot, { preserveExisting: true });
+  if (record.profile !== "onboarding" && !isOwnerVault(vault, owner)) ensureSourceSelectionFixture(vault, record.workspaceRoot, { preserveExisting: true });
   const staging = mkdtempSync(join(plugin, ".vam-update-")), replaced = [];
   try {
     for (const name of assets) copyFileSync(join(artifact, name), join(staging, name));
@@ -88,7 +95,7 @@ export function updateCurrentTestVault({ vault = canonicalVault, artifact = root
       for (const name of assets) { renameSync(join(staging, name), join(plugin, name)); replaced.push(name); }
       writeFileSync(join(staging, marker), JSON.stringify({ ...record, version: manifest.version, hashes: newHashes, source }, null, 2));
       renameSync(join(staging, marker), recordPath);
-      return verifyTestVault(vault, artifact);
+      return verifyTestVault(vault, artifact, owner);
     } catch (error) {
       for (const name of replaced.reverse()) {
         const previous = join(staging, `${name}.previous`);
