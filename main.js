@@ -689,29 +689,24 @@ var english = {
   "ui.merge_ancestor_selected": "Only topics at the same level, or one parent topic with its direct subtopics, can be merged",
   "ui.merge_parent_direct_only": "Only a parent topic and its direct subtopics can be merged",
   "ui.merge_into_parent_desc": "The content of {1} subtopic cards is added to \u201C{0}\u201D, which keeps its place on the map. The subtopic notes move to this map's Unassigned folder and their own subtopics move under \u201C{0}\u201D; Undo restores them.",
-  "ui.merge_into_parent_ai_desc": "AI merges the content of \u201C{0}\u201D and {1} subtopic cards into one: every piece of information is kept, duplicates are removed and no new conclusions are added. AI also decides the topic's name (you can rename it when you review). You review the draft first; \u201C{0}\u201D keeps its place on the map and its Summary and Detail are replaced only after you confirm. The subtopic notes move to Unassigned; Undo restores everything.",
-  "ui.merge_into_parent_intro": "Confirming replaces the Summary and Detail of \u201C{0}\u201D with the merged content, and {1} subtopic cards move to Unassigned. Undo restores them.",
+  "ui.merge_into_parent_ai_desc": "AI merges the content of \u201C{0}\u201D and {1} subtopic cards into one: every piece of information is kept, duplicates are removed and no new conclusions are added. AI also decides the topic's name. There is no draft to review: the result is applied when AI finishes, and \u201C{0}\u201D keeps its place on the map with its Summary and Detail replaced. The subtopic notes move to Unassigned; Undo restores everything.",
   "ui.merge_target_changed": "The merged topic was edited after the merge, so Undo or Redo was not applied.",
   "ui.merge_busy": "An AI task is running on a selected topic; merge after it finishes",
   "ui.merge_missing_note": "A selected topic's note is missing, so it cannot be merged",
   "ui.merge_title_label": "Name of the merged topic",
   "ui.merge_ai_untitled": "(AI names the merged topic)",
-  "ui.merge_draft_name": "Merged topic name",
   "ui.merge_confirm_desc": "{0} cards become 1 new topic that replaces them. The original notes move to this map's Unassigned folder; Undo restores them.",
   "ui.merge_confirm": "Merge",
   "ui.merge_topics_history": "Merge topics",
-  "ui.merge_ai_desc": "AI names the merged topic (you can rename it when you review) and merges the content of {0} cards into one: every piece of information is kept, duplicates are removed and no new conclusions are added. You review the draft first; the cards are replaced only after you confirm. The original notes move to Unassigned; Undo restores them.",
+  "ui.merge_ai_desc": "AI names the merged topic and merges the content of {0} cards into one: every piece of information is kept, duplicates are removed and no new conclusions are added. There is no draft to review: the cards are marked \u201CMerging\u2026\u201D and replaced when AI finishes. The original notes move to Unassigned; Undo restores them. You can rename the topic afterwards.",
   "ui.merge_no_ai": "Skip AI and join the original text as is",
   "ui.merge_with_ai": "Merge with AI",
-  "ui.merge_bar_title_0": "Merging \u201C{0}\u201D",
-  "ui.merge_ai_running": "AI is merging\u2026",
   "ui.merge_stop": "Stop merge",
-  "ui.merge_draft_ready_0": "The merge draft for \u201C{0}\u201D is ready",
-  "ui.review_merge_draft": "Review merge draft",
-  "ui.merge_draft_intro": "Confirming creates the topic named below and replaces {1} cards. The original notes move to Unassigned; Undo restores them.",
-  "ui.confirm_merge": "Confirm merge",
-  "ui.merge_draft_stale": "A source topic changed or left the map, so the merge draft was not saved",
-  "ui.merge_open_map_first_0": "Open the map \u201C{0}\u201D first to review the merge draft",
+  "ui.merging": "Merging\u2026",
+  "ui.merge_bar_title": "Merging:",
+  "ui.merge_locked": "Merging; try again when it finishes",
+  "ui.merge_done_0": "Merged into \u201C{0}\u201D. You can undo.",
+  "ui.merge_draft_stale": "A source topic changed or left the map, so nothing was merged",
   "log.merge_failed": "AI merge failed",
   "ui.merge_saved_refresh_failed": "Merged, but the view failed to refresh. Reopen the map.",
   "error.merge_rollback_failed": "Merge failed and could not be fully undone. Check the Unassigned folder.",
@@ -2271,29 +2266,24 @@ var traditionalChinese = {
   "ui.merge_ancestor_selected": "\u53EA\u80FD\u5408\u4F75\u540C\u4E00\u5C64\u7684\u8B70\u984C\uFF0C\u6216\u4E00\u500B\u6BCD\u8B70\u984C\u548C\u5B83\u7684\u76F4\u5C6C\u5B50\u8B70\u984C",
   "ui.merge_parent_direct_only": "\u53EA\u80FD\u5408\u4F75\u6BCD\u8B70\u984C\u548C\u5B83\u7684\u76F4\u5C6C\u5B50\u8B70\u984C",
   "ui.merge_into_parent_desc": "{1} \u5F35\u5B50\u8B70\u984C\u5361\u7684\u5167\u5BB9\u6703\u4F75\u9032\u300C{0}\u300D\u4E26\u4FDD\u7559\u5B83\u5728\u5716\u4E0A\u7684\u4F4D\u7F6E\uFF1B\u5B50\u8B70\u984C\u7684\u539F\u7B46\u8A18\u79FB\u5230\u9019\u5F35\u5716\u7684 Unassigned\uFF0C\u5B83\u5011\u5E95\u4E0B\u7684\u5B50\u8B70\u984C\u6539\u639B\u5230\u300C{0}\u300D\uFF1B\u53EF\u4EE5\u7528\u5FA9\u539F\u9084\u539F\u3002",
-  "ui.merge_into_parent_ai_desc": "AI \u6703\u628A\u300C{0}\u300D\u548C {1} \u5F35\u5B50\u8B70\u984C\u5361\u7684\u5167\u5BB9\u5408\u4F75\u6210\u4E00\u7BC7\uFF1A\u4FDD\u7559\u5168\u90E8\u8CC7\u8A0A\u3001\u53BB\u9664\u91CD\u8907\u3001\u4E0D\u52A0\u5165\u65B0\u7D50\u8AD6\uFF0C\u4E26\u6C7A\u5B9A\u8B70\u984C\u540D\u7A31\uFF08\u6AA2\u95B1\u6642\u53EF\u4EE5\u6539\u540D\uFF09\u3002\u5B8C\u6210\u5F8C\u5148\u8B93\u4F60\u6AA2\u95B1\u8349\u7A3F\uFF0C\u78BA\u8A8D\u5F8C\u624D\u53D6\u4EE3\u5B83\u7684 Summary \u548C Detail\uFF0C\u300C{0}\u300D\u4FDD\u7559\u5728\u5716\u4E0A\u7684\u4F4D\u7F6E\uFF1B\u5B50\u8B70\u984C\u7684\u539F\u7B46\u8A18\u79FB\u5230 Unassigned\uFF0C\u53EF\u4EE5\u7528\u5FA9\u539F\u9084\u539F\u3002",
-  "ui.merge_into_parent_intro": "\u78BA\u8A8D\u5F8C\u6703\u7528\u5408\u4F75\u5167\u5BB9\u53D6\u4EE3\u300C{0}\u300D\u7684 Summary \u548C Detail\uFF0C{1} \u5F35\u5B50\u8B70\u984C\u5361\u79FB\u5230 Unassigned\uFF1B\u53EF\u4EE5\u7528\u5FA9\u539F\u9084\u539F\u3002",
+  "ui.merge_into_parent_ai_desc": "AI \u6703\u628A\u300C{0}\u300D\u548C {1} \u5F35\u5B50\u8B70\u984C\u5361\u7684\u5167\u5BB9\u5408\u4F75\u6210\u4E00\u7BC7\uFF1A\u4FDD\u7559\u5168\u90E8\u8CC7\u8A0A\u3001\u53BB\u9664\u91CD\u8907\u3001\u4E0D\u52A0\u5165\u65B0\u7D50\u8AD6\uFF0C\u4E26\u6C7A\u5B9A\u8B70\u984C\u540D\u7A31\u3002\u4E0D\u9700\u8981\u6AA2\u95B1\u8349\u7A3F\uFF1AAI \u5B8C\u6210\u5F8C\u76F4\u63A5\u5957\u7528\uFF0C\u53D6\u4EE3\u5B83\u7684 Summary \u548C Detail\uFF0C\u300C{0}\u300D\u4FDD\u7559\u5728\u5716\u4E0A\u7684\u4F4D\u7F6E\uFF1B\u5B50\u8B70\u984C\u7684\u539F\u7B46\u8A18\u79FB\u5230 Unassigned\uFF0C\u53EF\u4EE5\u7528\u5FA9\u539F\u9084\u539F\u3002",
   "ui.merge_target_changed": "\u5408\u4F75\u5F8C\u7684\u8B70\u984C\u5DF2\u88AB\u4FEE\u6539\uFF0C\u5FA9\u539F\u6216\u91CD\u505A\u672A\u57F7\u884C\u3002",
   "ui.merge_busy": "\u6709\u8B70\u984C\u6B63\u5728\u57F7\u884C AI \u4EFB\u52D9\uFF0C\u5B8C\u6210\u5F8C\u624D\u80FD\u5408\u4F75",
   "ui.merge_missing_note": "\u6709\u8B70\u984C\u7684\u7B46\u8A18\u627E\u4E0D\u5230\uFF0C\u7121\u6CD5\u5408\u4F75",
   "ui.merge_title_label": "\u5408\u4F75\u5F8C\u7684\u8B70\u984C\u540D\u7A31",
   "ui.merge_ai_untitled": "\uFF08\u7531 AI \u66FF\u5408\u4F75\u5F8C\u7684\u8B70\u984C\u547D\u540D\uFF09",
-  "ui.merge_draft_name": "\u5408\u4F75\u5F8C\u7684\u8B70\u984C\u540D\u7A31",
   "ui.merge_confirm_desc": "{0} \u5F35\u5361\u6703\u5408\u4F75\u6210 1 \u5F35\u65B0\u8B70\u984C\u4E26\u53D6\u4EE3\u539F\u672C\u7684\u5361\uFF1B\u539F\u7B46\u8A18\u79FB\u5230\u9019\u5F35\u5716\u7684 Unassigned\uFF0C\u53EF\u4EE5\u7528\u5FA9\u539F\u9084\u539F\u3002",
   "ui.merge_confirm": "\u5408\u4F75",
   "ui.merge_topics_history": "\u5408\u4F75\u8B70\u984C",
-  "ui.merge_ai_desc": "AI \u6703\u66FF\u5408\u4F75\u5F8C\u7684\u8B70\u984C\u547D\u540D\uFF08\u6AA2\u95B1\u6642\u53EF\u4EE5\u6539\u540D\uFF09\uFF0C\u4E26\u628A {0} \u5F35\u5361\u7684\u5167\u5BB9\u5408\u4F75\u6210\u4E00\u7BC7\uFF1A\u4FDD\u7559\u6BCF\u5F35\u5361\u7684\u5168\u90E8\u8CC7\u8A0A\u3001\u53BB\u9664\u91CD\u8907\u3001\u4E0D\u52A0\u5165\u65B0\u7D50\u8AD6\u3002\u5B8C\u6210\u5F8C\u5148\u8B93\u4F60\u6AA2\u95B1\u8349\u7A3F\uFF0C\u78BA\u8A8D\u5F8C\u624D\u53D6\u4EE3\u539F\u5361\uFF1B\u539F\u7B46\u8A18\u79FB\u5230 Unassigned\uFF0C\u53EF\u4EE5\u7528\u5FA9\u539F\u9084\u539F\u3002",
+  "ui.merge_ai_desc": "AI \u6703\u66FF\u5408\u4F75\u5F8C\u7684\u8B70\u984C\u547D\u540D\uFF0C\u4E26\u628A {0} \u5F35\u5361\u7684\u5167\u5BB9\u5408\u4F75\u6210\u4E00\u7BC7\uFF1A\u4FDD\u7559\u6BCF\u5F35\u5361\u7684\u5168\u90E8\u8CC7\u8A0A\u3001\u53BB\u9664\u91CD\u8907\u3001\u4E0D\u52A0\u5165\u65B0\u7D50\u8AD6\u3002\u4E0D\u9700\u8981\u6AA2\u95B1\u8349\u7A3F\uFF1AAI \u5B8C\u6210\u524D\u5361\u7247\u6703\u6A19\u793A\u300C\u5408\u4F75\u4E2D\u2026\u300D\uFF0C\u5B8C\u6210\u5F8C\u76F4\u63A5\u53D6\u4EE3\u539F\u5361\uFF1B\u539F\u7B46\u8A18\u79FB\u5230 Unassigned\uFF0C\u53EF\u4EE5\u7528\u5FA9\u539F\u9084\u539F\uFF1B\u4E4B\u5F8C\u53EF\u4EE5\u7528\u300C\u6539\u540D\u300D\u6539\u8B70\u984C\u540D\u7A31\u3002",
   "ui.merge_no_ai": "\u4E0D\u7528 AI\uFF0C\u76F4\u63A5\u628A\u539F\u6587\u63A5\u5728\u4E00\u8D77",
   "ui.merge_with_ai": "\u7528 AI \u5408\u4F75",
-  "ui.merge_bar_title_0": "\u5408\u4F75\u8B70\u984C\u300C{0}\u300D",
-  "ui.merge_ai_running": "AI \u6B63\u5728\u5408\u4F75\u2026",
   "ui.merge_stop": "\u505C\u6B62\u5408\u4F75",
-  "ui.merge_draft_ready_0": "\u300C{0}\u300D\u7684\u5408\u4F75\u8349\u7A3F\u5B8C\u6210\u4E86",
-  "ui.review_merge_draft": "\u6AA2\u95B1\u5408\u4F75\u8349\u7A3F",
-  "ui.merge_draft_intro": "\u78BA\u8A8D\u5F8C\u6703\u5EFA\u7ACB\u4E0B\u65B9\u540D\u7A31\u7684\u8B70\u984C\u4E26\u53D6\u4EE3 {1} \u5F35\u5361\uFF1B\u539F\u7B46\u8A18\u79FB\u5230 Unassigned\uFF0C\u53EF\u4EE5\u7528\u5FA9\u539F\u9084\u539F\u3002",
-  "ui.confirm_merge": "\u78BA\u8A8D\u5408\u4F75",
-  "ui.merge_draft_stale": "\u4F86\u6E90\u8B70\u984C\u5DF2\u8B8A\u66F4\u6216\u4E0D\u5728\u5716\u4E0A\uFF0C\u5408\u4F75\u8349\u7A3F\u6C92\u6709\u5BEB\u5165",
-  "ui.merge_open_map_first_0": "\u8ACB\u5148\u6253\u958B\u300C{0}\u300D\u9019\u5F35\u5716\u518D\u6AA2\u95B1\u5408\u4F75\u8349\u7A3F",
+  "ui.merging": "\u5408\u4F75\u4E2D\u2026",
+  "ui.merge_bar_title": "\u5408\u4F75\u4E2D\uFF1A",
+  "ui.merge_locked": "\u5408\u4F75\u4E2D\uFF0C\u5B8C\u6210\u5F8C\u518D\u64CD\u4F5C",
+  "ui.merge_done_0": "\u5DF2\u5408\u4F75\u6210\u300C{0}\u300D\uFF0C\u53EF\u5FA9\u539F",
+  "ui.merge_draft_stale": "\u4F86\u6E90\u8B70\u984C\u5DF2\u8B8A\u66F4\u6216\u4E0D\u5728\u5716\u4E0A\uFF0C\u6C92\u6709\u5408\u4F75",
   "log.merge_failed": "AI \u5408\u4F75\u5931\u6557",
   "ui.merge_saved_refresh_failed": "\u5DF2\u5408\u4F75\uFF0C\u4F46\u756B\u9762\u66F4\u65B0\u5931\u6557\uFF0C\u8ACB\u91CD\u65B0\u958B\u555F\u5FC3\u667A\u5716",
   "error.merge_rollback_failed": "\u5408\u4F75\u5931\u6557\uFF0C\u4E14\u7121\u6CD5\u5B8C\u5168\u9084\u539F\uFF0C\u8ACB\u6AA2\u67E5 Unassigned \u8CC7\u6599\u593E",
@@ -3824,9 +3814,9 @@ var import_obsidian5 = require("obsidian");
 
 // ui/background-run.ts
 var import_obsidian4 = require("obsidian");
-function backgroundResultNotice(message, action) {
+function backgroundResultNotice(message, action, timeout) {
   const make = window.createFragment;
-  if (!action || typeof make !== "function") return new import_obsidian4.Notice(message);
+  if (!action || typeof make !== "function") return new import_obsidian4.Notice(message, timeout);
   let notice;
   const fragment = make((el) => {
     el.createSpan({ text: message });
@@ -3835,7 +3825,7 @@ function backgroundResultNotice(message, action) {
       action.open();
     });
   });
-  notice = new import_obsidian4.Notice(fragment);
+  notice = new import_obsidian4.Notice(fragment, timeout);
   return notice;
 }
 function renderBackgroundStatus(parent, status) {
@@ -20115,13 +20105,6 @@ var DraftReviewView = class {
       current.createEl("summary", { text: t("ui.current_summary") });
       current.createEl("p", { text: this.review.currentSummary });
     }
-    let nameInput;
-    if (this.review.name) {
-      const row = content.createDiv("vam-draft-section");
-      row.createEl("h4", { text: this.review.name.label });
-      nameInput = row.createEl("input", { type: "text", value: this.review.name.value, cls: "vam-name-input" });
-      nameInput.setAttr("aria-label", this.review.name.label);
-    }
     const toolbar = content.createDiv("vam-draft-toolbar");
     toolbar.createEl("strong", { text: t("ui.ai_draft") });
     const toggle = toolbar.createEl("button", { text: t("ui.edit_draft"), cls: "vam-draft-toggle" });
@@ -20195,19 +20178,10 @@ var DraftReviewView = class {
     const cancelButton = actions.createEl("button", { text: t("ui.cancel") });
     cancelButton.addEventListener("click", () => this.close());
     const confirm = actions.createEl("button", { text: this.review.confirmLabel, cls: "mod-cta" });
-    const checkName = () => {
-      if (!nameInput) return;
-      const empty = !nameInput.value.trim();
-      confirm.disabled = empty;
-      status.setText(empty ? t("ui.name_required") : "");
-    };
-    nameInput == null ? void 0 : nameInput.addEventListener("input", checkName);
     confirm.addEventListener("click", () => {
-      var _a2;
-      if (nameInput && !nameInput.value.trim()) return checkName();
       confirm.disabled = true;
       cancelButton.disabled = true;
-      void Promise.resolve(this.confirm(summary.input.value, detail.input.value, (_a2 = nameInput == null ? void 0 : nameInput.value.trim()) != null ? _a2 : "")).then(
+      void Promise.resolve(this.confirm(summary.input.value, detail.input.value)).then(
         () => this.close(),
         (error) => {
           status.setText(error instanceof Error ? error.message : String(error));
@@ -27569,8 +27543,9 @@ var MergeTopicsModal = class extends import_obsidian28.Modal {
       cls: "vam-merge-desc"
     });
     let skipAi;
+    let aiDescription;
     if (this.ai) {
-      this.contentEl.createEl("p", {
+      aiDescription = this.contentEl.createEl("p", {
         text: this.parentName !== void 0 ? t("ui.merge_into_parent_ai_desc", this.parentName, this.count - 1) : t("ui.merge_ai_desc", this.count),
         cls: "vam-merge-desc"
       });
@@ -27585,6 +27560,7 @@ var MergeTopicsModal = class extends import_obsidian28.Modal {
     const showName = () => {
       input.hidden = useAi();
       description.hidden = useAi();
+      if (aiDescription) aiDescription.hidden = !useAi();
       this.titleEl.setText(useAi() ? t("ui.merge_topics_history") : t("ui.merge_title_label"));
     };
     const confirm = actions.createEl("button", {
@@ -27697,6 +27673,7 @@ function aimQuestionStatus(map, questionNodeId, activeQuestionNodeId) {
   return "not_started";
 }
 var MERGE_GUARD_FIELDS = ["title", "summary", "detail", "status"];
+var MERGE_DONE_NOTICE_MS = 15e3;
 var cardLabelSequence = 0;
 var cardLabels = /* @__PURE__ */ new WeakMap();
 var relevanceRunToken = 0;
@@ -28384,7 +28361,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian29.Ite
   }
   /** The status bars for background AI work on the open map: structure review and AI outline generation. */
   renderBackgroundBars(parent) {
-    var _a, _b, _c, _d, _e;
+    var _a, _b, _c, _d;
     const review = this.structureReviewTask;
     if (review && review.mapPath === this.path) {
       const running = review.state === "running";
@@ -28428,14 +28405,15 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian29.Ite
     }
     const merge = this.mergeTasks.get(this.path);
     if (merge) {
-      const running = merge.state === "running";
+      const names2 = merge.sources.map((source) => {
+        var _a2, _b2;
+        return (_b2 = (_a2 = this.notes.get(source.id)) == null ? void 0 : _a2.title) != null ? _b2 : source.path;
+      });
       renderBackgroundStatus(parent, {
-        title: t("ui.merge_bar_title_0", merge.title),
-        value: running ? merge.progress || t("ui.merge_ai_running") : merge.state === "draft" ? t("ui.merge_draft_ready_0", merge.title) : (_e = merge.message) != null ? _e : t("ui.merge_draft_stale"),
-        running,
-        ...running ? { onStop: () => this.stopMergeTask(merge), stopLabel: t("ui.merge_stop") } : {},
-        ...merge.state === "draft" ? { review: { label: t("ui.review_merge_draft"), open: () => this.reviewMergeDraft(merge) } } : {},
-        onDismiss: () => this.stopMergeTask(merge)
+        title: t("ui.merge_bar_title"),
+        value: names2.join(t("ui.list_separator")),
+        running: true,
+        ...merge.state === "running" ? { onStop: () => this.stopMergeTask(merge), stopLabel: t("ui.merge_stop") } : {}
       });
     }
   }
@@ -29334,6 +29312,11 @@ ${request.requirements}` : preset.text,
     const guard = () => {
       const reason = staleReason(suggestion);
       if (reason) throw new Error(reason);
+      const touched = [suggestion.targetId, suggestion.newParentId, suggestion.mergeIntoId];
+      if (touched.some((id) => !!id && this.isMerging(id))) {
+        new import_obsidian29.Notice(t("ui.merge_locked"));
+        throw new Error(t("ui.merge_locked"));
+      }
     };
     const nodeOf = (id) => {
       var _a;
@@ -29391,6 +29374,7 @@ ${request.requirements}` : preset.text,
   }
   /** Moves one topic and its branch under a new parent, in one undo step. */
   async moveTopic(node, parent) {
+    if (!this.mergeUnlocked([node.id, parent.id])) return;
     await this.mapChange((map) => {
       if (!canParent(map.nodes, node.id, parent.id)) throw new Error(t("ui.circular_links_are_not_allowed"));
       map.nodes.find((item) => item.id === node.id).parentId = parent.id;
@@ -30584,6 +30568,7 @@ ${request.requirements}` : preset.text,
   async removeToUnassigned(node, branch, adopterId) {
     if (!this.map) return;
     const before = clone(this.map), ids = branch ? /* @__PURE__ */ new Set([node.id, ...descendants(before.nodes, node.id)]) : /* @__PURE__ */ new Set([node.id]);
+    if (!this.mergeUnlocked(adopterId ? [...ids, adopterId] : ids)) return;
     const removableQuestions = new Set(
       node.aimKind === "question" ? before.nodes.filter((item) => ids.has(item.id) && item.aimKind === "question").map((item) => item.id) : []
     );
@@ -30634,11 +30619,29 @@ ${request.requirements}` : preset.text,
     }
   }
   mergeBusy(node, except) {
-    var _a, _b, _c, _d, _e, _f, _g, _h;
+    var _a, _b, _c, _d, _e, _f;
     const batch = (_a = this.plugin.expansionBatches) == null ? void 0 : _a.get(this.multiResearchKey()), task = this.integrationTask;
-    return !!(((_c = (_b = this.plugin.relevanceGrades) == null ? void 0 : _b.get(this.path)) == null ? void 0 : _c.status) === "running" || ((_d = this.plugin.running) == null ? void 0 : _d.has(node.path)) || ((_e = this.plugin.quickExpandPending) == null ? void 0 : _e.has(node.path)) || ((_f = this.plugin.activeTasks) == null ? void 0 : _f.has(node.path)) || (batch == null ? void 0 : batch.status) === "running" && (batch.currentPath === node.path || batch.queuedPaths.includes(node.path)) || (task == null ? void 0 : task.state) === "running" && task.mapPath === this.path && task.sources.some((source) => source.id === node.id) || [...(_h = (_g = this.mergeTasks) == null ? void 0 : _g.values()) != null ? _h : []].some(
-      (merge) => merge !== except && merge.state !== "failed" && merge.mapPath === this.path && merge.sources.some((source) => source.id === node.id)
-    ));
+    return !!(((_c = (_b = this.plugin.relevanceGrades) == null ? void 0 : _b.get(this.path)) == null ? void 0 : _c.status) === "running" || ((_d = this.plugin.running) == null ? void 0 : _d.has(node.path)) || ((_e = this.plugin.quickExpandPending) == null ? void 0 : _e.has(node.path)) || ((_f = this.plugin.activeTasks) == null ? void 0 : _f.has(node.path)) || (batch == null ? void 0 : batch.status) === "running" && (batch.currentPath === node.path || batch.queuedPaths.includes(node.path)) || (task == null ? void 0 : task.state) === "running" && task.mapPath === this.path && task.sources.some((source) => source.id === node.id) || this.isMerging(node.id, except));
+  }
+  /** True while an AI merge on this map still holds the card (running or being written): the card is locked. */
+  isMerging(nodeId, except) {
+    var _a, _b;
+    return [...(_b = (_a = this.mergeTasks) == null ? void 0 : _a.values()) != null ? _b : []].some(
+      (merge) => merge !== except && merge.mapPath === this.path && merge.sources.some((source) => source.id === nodeId)
+    );
+  }
+  /** A card and everything below it. */
+  branchIds(id) {
+    return [id, ...this.map ? descendants(this.map.nodes, id) : []];
+  }
+  /** Refuses a change to merging cards with a Notice; true when `ids` hold none. */
+  mergeUnlocked(ids) {
+    for (const id of ids)
+      if (this.isMerging(id)) {
+        new import_obsidian29.Notice(t("ui.merge_locked"));
+        return false;
+      }
+    return true;
   }
   mergeCheck(ids = this.multiSelected, except) {
     var _a, _b;
@@ -30653,16 +30656,10 @@ ${request.requirements}` : preset.text,
   openMerge() {
     var _a, _b, _c, _d;
     if (!this.map || this.map.aim || this.builtIn || this.mergeOpen || !this.multiSelected.size) return;
-    const existing = this.mergeTasks.get(this.path);
-    if ((existing == null ? void 0 : existing.state) === "running") {
-      new import_obsidian29.Notice(t("ui.ai_running_ai"));
+    if (this.mergeTasks.has(this.path)) {
+      new import_obsidian29.Notice(t("ui.merge_locked"));
       return;
     }
-    if ((existing == null ? void 0 : existing.state) === "draft") {
-      this.reviewMergeDraft(existing);
-      return;
-    }
-    if (existing) this.mergeTasks.delete(this.path);
     const check = this.mergeCheck();
     if (!check.ok) {
       new import_obsidian29.Notice(t(check.reason));
@@ -30708,9 +30705,9 @@ ${request.requirements}` : preset.text,
     );
   }
   /**
-   * Starts the AI merge from the dialog. Nothing is written: the usage notice comes first (declining leaves the dialog
-   * open and starts nothing); once accepted, `started` hides the dialog and the task lives on the status bar until
-   * its draft is confirmed. Resolves false when AI did not start.
+   * Starts the AI merge from the dialog. The usage notice comes first (declining leaves the dialog open and starts
+   * nothing); once accepted, `started` hides the dialog and the task lives on the cards and the status bar until the
+   * merged result is written (no draft review). Resolves false when AI did not start.
    */
   async startMergeDraft(title, snapshot, started, signal) {
     var _a;
@@ -30795,27 +30792,35 @@ ${request.requirements}` : preset.text,
       if (!this.isLiveMergeTask(task)) return;
       const latest = await this.topicReferenceGroup(task.sources, "strong", { origin: false });
       if (!this.isLiveMergeTask(task)) return;
-      if (JSON.stringify(latest.documents) !== task.sourceContent) {
-        task.state = "failed";
-        task.message = t("ui.merge_draft_stale");
-        this.render();
-        return;
-      }
-      task.state = "draft";
+      if (JSON.stringify(latest.documents) !== task.sourceContent) throw new Error(t("ui.merge_draft_stale"));
+      task.state = "applying";
       task.title = mergeTitleFromResult(result, task.title);
       task.draft = result;
       task.progress = "";
       this.render();
-      backgroundResultNotice(t("ui.merge_draft_ready_0", task.title), {
-        label: t("ui.review_merge_draft"),
-        open: () => this.reviewMergeDraft(task)
-      });
+      const previous = this.history.undoEntry;
+      await this.confirmMergeDraft(task, result.summary, result.detail);
+      const entry = this.history.undoEntry;
+      const done = t("ui.merge_done_0", task.title);
+      if (entry && entry !== previous)
+        backgroundResultNotice(
+          done,
+          {
+            label: t("ui.undo"),
+            open: () => {
+              if (this.history.undoEntry === entry && !this.closed) this.enqueue(() => this.travel(false));
+            }
+          },
+          MERGE_DONE_NOTICE_MS
+        );
+      else new import_obsidian29.Notice(done, MERGE_DONE_NOTICE_MS);
     } catch (error) {
-      if (!this.isLiveMergeTask(task)) return;
-      task.state = "failed";
-      task.message = this.plugin.recordFailure(t("log.merge_failed"), error);
-      new import_obsidian29.Notice(task.message);
-      this.render();
+      const live = this.mergeTasks.get(task.mapPath) === task;
+      if (live) this.mergeTasks.delete(task.mapPath);
+      if (!this.closed) this.render();
+      if (task.controller.signal.aborted || this.closed) return;
+      const stale = error instanceof Error && error.message === t("ui.merge_draft_stale");
+      new import_obsidian29.Notice(stale ? t("ui.merge_draft_stale") : this.plugin.recordFailure(t("log.merge_failed"), error));
     }
   }
   /** Stop, or clear a finished one: the run is aborted and forgotten, so a late result changes nothing. */
@@ -30824,36 +30829,13 @@ ${request.requirements}` : preset.text,
     task.controller.abort();
     this.render();
   }
-  reviewMergeDraft(task) {
-    var _a, _b;
-    if (this.mergeTasks.get(task.mapPath) !== task || task.state !== "draft" || !task.draft || this.closed) return;
-    if (this.path !== task.mapPath) {
-      new import_obsidian29.Notice(t("ui.merge_open_map_first_0", task.mapTitle));
-      return;
-    }
-    const draft = task.draft;
-    new DraftReviewModal(
-      this.app,
-      draft.summary,
-      draft.detail,
-      {
-        intro: task.targetId ? t("ui.merge_into_parent_intro", (_b = (_a = this.notes.get(task.targetId)) == null ? void 0 : _a.title) != null ? _b : task.title, task.sources.length - 1) : t("ui.merge_draft_intro", task.title, task.sources.length),
-        confirmLabel: t("ui.confirm_merge"),
-        title: t("ui.review_merge_draft"),
-        name: { label: t("ui.merge_draft_name"), value: task.title }
-      },
-      // Return the write so a failure keeps the dialog, and the user's edits, open with the error.
-      (summary, detail, name) => this.confirmMergeDraft(task, summary, detail, name),
-      () => this.stopMergeTask(task)
-    ).open();
-  }
-  /** Writes a reviewed AI merge draft (the user's edited summary and Detail) through the write queue. */
-  confirmMergeDraft(task, summary, detail, name) {
+  /** Writes the AI merge result through the write queue, which checks the snapshot and the sources again. */
+  confirmMergeDraft(task, summary, detail) {
     const draft = task.draft;
     if (!draft) return Promise.reject(new Error(t("ui.merge_draft_stale")));
     return this.plugin.mutate(
       () => this.mergeSelected(
-        (name == null ? void 0 : name.trim()) || task.title,
+        task.title,
         { path: task.mapPath, mapId: task.mapId, targetId: task.targetId, sources: task.sources },
         {
           summary,
@@ -30881,18 +30863,13 @@ ${request.requirements}` : preset.text,
   async mergeSelected(title, snapshot, content) {
     var _a, _b, _c;
     const stale = () => {
-      if (content && this.mergeTasks.get(snapshot.path) === content.task) {
-        content.task.state = "failed";
-        content.task.message = t("ui.merge_draft_stale");
-        if (!this.closed) this.render();
-      }
       throw new Error(t("ui.merge_draft_stale"));
     };
     if (this.closed || !this.map || this.map.aim || this.builtIn || this.path !== snapshot.path || this.map.id !== snapshot.mapId) {
       if (content) stale();
       return;
     }
-    if (content && (this.mergeTasks.get(snapshot.path) !== content.task || content.task.state !== "draft")) stale();
+    if (content && (this.mergeTasks.get(snapshot.path) !== content.task || content.task.state !== "applying")) stale();
     const check = this.mergeCheck(
       snapshot.sources.map((source) => source.id),
       content == null ? void 0 : content.task
@@ -31265,6 +31242,7 @@ ${request.requirements}` : preset.text,
     );
   }
   confirmRemoveSelected() {
+    if (!this.mergeUnlocked(this.selectedRoots().flatMap((root) => this.branchIds(root.id)))) return;
     new ChoiceModal(
       this.app,
       t("ui.remove_selected_topics"),
@@ -31274,14 +31252,18 @@ ${request.requirements}` : preset.text,
   }
   /** The delete confirmation. `hooks` lets a caller run the chosen removal itself and hear about a cancel. */
   confirmRemoveNode(node, hooks = {}) {
-    var _a, _b;
-    const run = (_a = hooks.run) != null ? _a : (work) => this.enqueue(work);
+    var _a, _b, _c;
+    if (!this.mergeUnlocked(this.branchIds(node.id))) {
+      (_a = hooks.dismissed) == null ? void 0 : _a.call(hooks);
+      return;
+    }
+    const run = (_b = hooks.run) != null ? _b : (work) => this.enqueue(work);
     new ChoiceModal(
       this.app,
       t("ui.remove_from_map"),
       t("ui.the_note_will_move_to_this_topic_s_unassigned_folder_you_can"),
       [
-        ...!((_b = this.map) == null ? void 0 : _b.aim) || node.aimKind !== "question" ? [
+        ...!((_c = this.map) == null ? void 0 : _c.aim) || node.aimKind !== "question" ? [
           {
             label: t("ui.remove_only_this_node_children_become_roots"),
             warning: true,
@@ -31309,6 +31291,7 @@ ${request.requirements}` : preset.text,
           if (branchIds.has(item.id) && item.aimKind === "question") removableQuestions.add(item.id);
       }
     }
+    if (!this.mergeUnlocked(ids)) return;
     this.assertAimReferencesRemain(before, ids, false, removableQuestions);
     const removed = before.nodes.filter((node) => ids.has(node.id)), moves = [];
     try {
@@ -31356,6 +31339,7 @@ ${request.requirements}` : preset.text,
   chooseSelectedParent(copyNodes) {
     if (!this.map) return;
     const roots = this.selectedRoots();
+    if (!this.mergeUnlocked(roots.flatMap((root) => this.branchIds(root.id)))) return;
     new TopicTreeModal(
       this.app,
       copyNodes ? t("ui.copy_to") : t("ui.move_to"),
@@ -31371,6 +31355,7 @@ ${request.requirements}` : preset.text,
   }
   async moveSelected(target) {
     const roots = this.selectedRoots();
+    if (!this.mergeUnlocked([target.id, ...roots.map((root) => root.id)])) return;
     this.assertAimReferencesRemain(this.map, new Set(roots.map((root) => root.id)), true);
     await this.mapChange((map) => {
       let offset = 0;
@@ -31453,7 +31438,10 @@ ${request.requirements}` : preset.text,
   async copySelected(target) {
     var _a;
     if (!this.map) return;
-    const roots = this.selectedRoots(), before = clone(this.map), copies = [], replacement = /* @__PURE__ */ new Map();
+    const roots = this.selectedRoots(), before = clone(this.map);
+    if (!this.mergeUnlocked([target.id, ...roots.flatMap((root) => [root.id, ...descendants(before.nodes, root.id)])]))
+      return;
+    const copies = [], replacement = /* @__PURE__ */ new Map();
     try {
       for (const root of roots) {
         const branch = [];
@@ -32570,7 +32558,8 @@ ${request.requirements}` : preset.text,
     }
     card.dataset.nodeId = node.id;
     const queued = this.isResearchQueued(node);
-    card.dataset.status = ((_c = this.plugin.running) == null ? void 0 : _c.has(node.path)) || ((_d = this.plugin.quickExpandPending) == null ? void 0 : _d.has(node.path)) || this.startingTasks.has(node.path) ? "running" : queued ? "queued" : (_e = note == null ? void 0 : note.status) != null ? _e : "error";
+    const merging = this.isMerging(node.id);
+    card.dataset.status = merging || ((_c = this.plugin.running) == null ? void 0 : _c.has(node.path)) || ((_d = this.plugin.quickExpandPending) == null ? void 0 : _d.has(node.path)) || this.startingTasks.has(node.path) ? "running" : queued ? "queued" : (_e = note == null ? void 0 : note.status) != null ? _e : "error";
     card.style.left = `${shownNode.x}px`;
     card.style.top = `${shownNode.y}px`;
     card.tabIndex = node.id === this.tabStopId ? 0 : -1;
@@ -32590,7 +32579,7 @@ ${request.requirements}` : preset.text,
       });
     }
     const batch = this.plugin.expansionBatches.get(node.path);
-    const active = ((_h = this.plugin.running) == null ? void 0 : _h.has(node.path)) || ((_i = this.plugin.quickExpandPending) == null ? void 0 : _i.has(node.path)) || this.startingTasks.has(node.path);
+    const active = merging || ((_h = this.plugin.running) == null ? void 0 : _h.has(node.path)) || ((_i = this.plugin.quickExpandPending) == null ? void 0 : _i.has(node.path)) || this.startingTasks.has(node.path);
     const doc = this.map, aimData = doc == null ? void 0 : doc.aim;
     const aimProgress = !!aimData && (node.aimKind === "question" || node.aimKind === "topic" && aimData.branches.some((branch) => branch.questionNodeId === node.id && !branch.parentBranchId));
     if (doc && aimData && aimProgress) {
@@ -32608,7 +32597,7 @@ ${request.requirements}` : preset.text,
         text: status === "not_started" && aimData.branches.some((branch) => branch.questionNodeId === node.id) ? t("ui.aim_answered_not_started") : t(key2[status])
       });
     } else if (!node.aimKind || active || queued || !note || note.status !== "completed") {
-      const statusText = active ? t("ui.ai_running") : queued ? t("ui.research_queued") : (note == null ? void 0 : note.status) === "completed" ? t("ui.researched") : note ? topicStatusLabel(note.status, this.plugin.settings.language) : t("ui.note_missing");
+      const statusText = merging ? t("ui.merging") : active ? t("ui.ai_running") : queued ? t("ui.research_queued") : (note == null ? void 0 : note.status) === "completed" ? t("ui.researched") : note ? topicStatusLabel(note.status, this.plugin.settings.language) : t("ui.note_missing");
       if (!note || note.status !== "completed" || active || queued) {
         const chip = header.createSpan({
           cls: `vam-status vam-status-${active ? "running" : queued ? "queued" : (_j = note == null ? void 0 : note.status) != null ? _j : "error"}`,
@@ -33273,7 +33262,7 @@ ${request.requirements}` : preset.text,
           cls: `vam-status vam-status-${note.status}`,
           text: topicStatusLabel(note.status, this.plugin.settings.language)
         });
-    } else if (!((_b = this.plugin.running) == null ? void 0 : _b.has(node.path)) && !((_c = this.plugin.quickExpandPending) == null ? void 0 : _c.has(node.path)) && !this.isResearchQueued(node)) {
+    } else if (!this.isMerging(node.id) && !((_b = this.plugin.running) == null ? void 0 : _b.has(node.path)) && !((_c = this.plugin.quickExpandPending) == null ? void 0 : _c.has(node.path)) && !this.isResearchQueued(node)) {
       const label = note.status === "completed" ? t("ui.researched") : topicStatusLabel(note.status, this.plugin.settings.language);
       card.dataset.status = note.status;
       this.labelCard(card, t("ui.topic_card_label_0_1", note.title, label));
@@ -33595,13 +33584,15 @@ ${request.requirements}` : preset.text,
     describe();
     apply.addEventListener("click", () => {
       const parentId = chosenParent || null;
+      if (!this.mergeUnlocked(parentId ? [node.id, parentId] : [node.id])) return;
       close == null ? void 0 : close();
-      this.enqueue(
-        () => this.mapChange((map) => {
+      this.enqueue(async () => {
+        if (!this.mergeUnlocked(parentId ? [node.id, parentId] : [node.id])) return;
+        await this.mapChange((map) => {
           if (!canParent(map.nodes, node.id, parentId)) throw new Error(t("ui.circular_links_are_not_allowed"));
           map.nodes.find((n) => n.id === node.id).parentId = parentId;
-        })
-      );
+        });
+      });
     });
   }
   renderPendingProposals(panel, node, note, close, host) {
@@ -35597,11 +35588,17 @@ ${note.detail.trim()}` : "",
         card.style.top = `${position.y}px`;
         edges.update(position.x, position.y);
       };
+      const locked = this.isMerging(node.id);
+      let warned = false;
       const move = (e) => {
         var _a2;
         if (this.relevanceSortOn()) return;
         moved || (moved = Math.hypot(e.clientX - start.x, e.clientY - start.y) > 3);
-        if (!moved) return;
+        if (moved && locked) {
+          if (!warned) new import_obsidian29.Notice(t("ui.merge_locked"));
+          warned = true;
+        }
+        if (!moved || locked) return;
         position = {
           x: origin.x + (e.clientX - start.x) / this.map.viewport.zoom,
           y: origin.y + (e.clientY - start.y) / this.map.viewport.zoom
@@ -35627,7 +35624,8 @@ ${note.detail.trim()}` : "",
           edges.update(origin.x, origin.y);
           return;
         }
-        if (moved) {
+        if (moved && locked) {
+        } else if (moved) {
           paint();
           this.enqueue(
             () => this.mapChange((map) => {

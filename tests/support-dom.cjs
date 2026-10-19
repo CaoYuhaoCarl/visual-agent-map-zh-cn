@@ -69,7 +69,7 @@ function makeNotice(log = []) {
   const all = [];
   return class Notice {
     static all = all;
-    constructor(message) { this.message = message; this.hidden = false; log.push(typeof message === 'string' ? message : String(message)); all.push(this); }
+    constructor(message, timeout) { this.message = message; this.timeout = timeout; this.hidden = false; log.push(typeof message === 'string' ? message : String(message)); all.push(this); }
     hide() { this.hidden = true; }
     get actions() { return typeof this.message === 'string' ? [] : findAll(this.message, i => i.tag === 'button'); }
   };
