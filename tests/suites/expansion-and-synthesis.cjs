@@ -1192,15 +1192,15 @@ integrationTest('multi research with a chosen model saves it on each started top
     const note = await h.repo.readNote(node.path);
     assert.equal(note.model, 'model-b'); assert.equal(note.modelSource, 'manual');
   }
-  assert.equal((await h.repo.readNote(h.nodes[2].path)).model, 'model-a');
+  assert.equal((await h.repo.readNote(h.nodes[2].path)).model, h.repo.settings.cliModel, 'a workspace topic follows the current workspace model, not its creation snapshot');
   h.finish.get('A')(); h.finish.get('B')();
 });
-integrationTest('multi research without a chosen model keeps each topic model', async () => {
+integrationTest('multi research without a chosen model runs a workspace topic on the current workspace model', async () => {
   const h = await multiResearchHarness(['A']);
   h.view.multiSelected = new Set([h.nodes[0].id]);
   await h.view.startMultiResearch(h.request); await until(() => h.runs.length === 1);
   const note = await h.repo.readNote(h.nodes[0].path);
-  assert.equal(note.model, 'model-a'); assert.equal(note.modelSource, 'workspace');
+  assert.equal(note.model, h.repo.settings.cliModel); assert.equal(note.modelSource, 'workspace');
   h.finish.get('A')();
 });
 integrationTest('multi research keeps selection mode when nothing starts', async () => {
@@ -1620,4 +1620,48 @@ integrationTest('multi research status bar stays after failures with retry and d
   clean.view.multiSelected = new Set([clean.nodes[0].id]); await clean.view.startMultiResearch(clean.request); await until(() => clean.runs.length === 1);
   clean.finish.get('A')(); await until(() => clean.plugin.expansionBatches.get(clean.key).status === 'completed');
   const root = badgeElement(); clean.view.renderMultiResearchStatus(root); assert.equal(root.children.length, 0);
+});
+async function staleModelView(sources, askModel) {
+  const { repo, app } = fixture(); repo.settings.cliModel = 'claude:sonnet';
+  const mapPath = 'Agent Workspace/Topics/map-a/Map.md', mapDoc = { id: 'map-a', title: 'map-a', version: 1, nodes: [], viewport: { x: 0, y: 0, zoom: 1 } };
+  await repo.ensureTopicFolders('Agent Workspace/Topics/map-a'); await app.vault.create(mapPath, core.serializeMap(mapDoc));
+  const nodes = [];
+  for (const [index, [source, model]] of sources.entries()) { const created = await repo.createNote(`T${index}`, model ?? 'gpt-5.6-luna', mapDoc, mapPath, source); created.parentId = index ? nodes[index - 1].id : null; mapDoc.nodes.push(created); nodes.push(created); }
+  await repo.saveMap(mapPath, mapDoc);
+  const plugin = withExpansionCoordinator({ repo, settings: { ...DEFAULT_SETTINGS, cliModel: 'claude:sonnet' }, running: new Set(), pendingSuggestions: new Map(), pendingResearchOptions: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), askModel });
+  const { VisualAgentMapView } = load('main.ts', { obsidian });
+  const view = new VisualAgentMapView({ app }, plugin); view.path = mapPath; view.map = mapDoc; view.contentEl = { querySelector: () => null }; view.render = () => {}; view.hydrate = async () => {}; view.focusNode = () => {}; view.ancestorContext = async () => '';
+  return { repo, view, nodes, mapDoc };
+}
+integrationTest('expand and integrate call the runtime with the resolved model, not the stale stored snapshot', async () => {
+  const models = [];
+  const f = await staleModelView([['workspace'], ['workspace']], async (_context, model) => { models.push(model); return { summary: '', detail: '', visualReferences: [], suggestions: [{ title: 'S', task: 'Explore', contribution: '', parentTitle: '' }] }; });
+  const options = { researchMode: 'local', researchDepth: 'fast', visualMode: 'off', referenceGroups: [] };
+  await f.view.proposeChildren(f.nodes[0], options, '', () => {}, message => assert.fail(message));
+  await f.view.proposeIntegrationDirections(f.nodes[0], options, () => {}, () => {}, message => assert.fail(message));
+  assert.deepEqual(plain(models), ['claude:sonnet', 'claude:sonnet']);
+});
+integrationTest('expand under a manual ancestor runs on the manual model; a new subtopic of a manual topic inherits it', async () => {
+  const models = [];
+  const f = await staleModelView([['manual', 'claude:haiku'], ['inherited']], async (_context, model) => { models.push(model); return { summary: '', detail: '', visualReferences: [], suggestions: [{ title: 'S', task: 'Explore', contribution: '', parentTitle: '' }] }; });
+  await f.view.proposeChildren(f.nodes[1], { researchMode: 'local', researchDepth: 'fast', visualMode: 'off', referenceGroups: [] }, '', () => {}, message => assert.fail(message));
+  assert.deepEqual(plain(models), ['claude:haiku']);
+  await f.view.addNode(f.mapDoc.nodes[1], 'Fresh child');
+  const added = f.view.map.nodes.at(-1), note = await f.repo.readNote(added.path);
+  assert.equal(note.modelSource, 'inherited'); assert.equal(note.model, 'claude:haiku');
+  const workspaceParent = await staleModelView([['workspace']], async () => ({}));
+  await workspaceParent.view.addNode(workspaceParent.mapDoc.nodes[0], 'Fresh child');
+  assert.equal((await workspaceParent.repo.readNote(workspaceParent.view.map.nodes.at(-1).path)).model, 'claude:sonnet');
+});
+integrationTest('hydrate resolves inherited models from the loaded map without scanning maps per node', async () => {
+  const f = await staleModelView([['workspace'], ['manual', 'claude:haiku'], ['inherited'], ['inherited']], async () => ({}));
+  let mapReads = 0, scans = 0;
+  const readMap = f.repo.readMap.bind(f.repo), mapFiles = f.repo.mapFiles.bind(f.repo);
+  f.repo.readMap = async path => { mapReads++; return readMap(path); };
+  f.repo.mapFiles = async () => { scans++; return mapFiles(); };
+  const { VisualAgentMapView } = load('main.ts', { obsidian });
+  f.view.builtIn = false; f.view.hydrateFailedReportTargets = async () => {};
+  await VisualAgentMapView.prototype.hydrate.call(f.view);
+  assert.equal(mapReads, 0); assert.equal(scans, 0);
+  assert.deepEqual(plain(f.mapDoc.nodes.map(n => f.view.notes.get(n.id).model)), ['claude:sonnet', 'claude:haiku', 'claude:haiku', 'claude:haiku']);
 });

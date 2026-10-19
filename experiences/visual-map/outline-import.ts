@@ -288,7 +288,8 @@ async function createOutlineNotes(
   nodes: OutlineNode[],
   rootDetail: string,
   parentId: string | null,
-  detailTemplateId?: string
+  detailTemplateId?: string,
+  manualModel = false
 ): Promise<{ created: MapNode[]; failure?: string }> {
   const created: MapNode[] = [];
   for (const node of nodes) {
@@ -299,7 +300,7 @@ async function createOutlineNotes(
         model,
         map,
         mapPath,
-        top && parentId === null ? "workspace" : "inherited",
+        manualModel ? "manual" : top && parentId === null ? "workspace" : "inherited",
         top ? { detail: rootDetail } : {}
       );
       note.parentId = top ? parentId : created[node.parent!].id;
@@ -319,7 +320,8 @@ export async function createOutlineMap(
   nodes: OutlineNode[],
   source: string | null,
   now = new Date(),
-  template?: DetailTemplate
+  template?: DetailTemplate,
+  manualModel = false
 ): Promise<OutlineCreateResult> {
   const language = repository.settings.language;
   const detailTemplate = template ?? standardTemplate(language);
@@ -333,7 +335,17 @@ export async function createOutlineMap(
     throw Object.assign(new Error(errorText(error)), { mapCreated: true });
   }
   const rootDetail = outlineRootDetail(language, detailTemplate, source, now);
-  const { created, failure } = await createOutlineNotes(repository, map, mapPath, model, nodes, rootDetail, null);
+  const { created, failure } = await createOutlineNotes(
+    repository,
+    map,
+    mapPath,
+    model,
+    nodes,
+    rootDetail,
+    null,
+    undefined,
+    manualModel
+  );
   map.nodes = arrangeMap(created);
   try {
     await repository.saveMap(mapPath, map);
@@ -376,7 +388,8 @@ export async function addOutlineToMap(
   parentId: string | null,
   template: DetailTemplate,
   detailTemplateId?: string,
-  now = new Date()
+  now = new Date(),
+  manualModel = false
 ): Promise<OutlineAddResult> {
   const language = repository.settings.language;
   if (!nodes.length) throw new Error(translate(language, "ui.outline_error_no_headings"));
@@ -389,7 +402,8 @@ export async function addOutlineToMap(
     nodes,
     rootDetail,
     parentId,
-    detailTemplateId
+    detailTemplateId,
+    manualModel
   );
   return { created, total: nodes.length, ...(failure ? { failure } : {}) };
 }

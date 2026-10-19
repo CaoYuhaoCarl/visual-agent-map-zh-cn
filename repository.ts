@@ -853,13 +853,63 @@ export class Repository {
     for (const name of ["Notes", "Unassigned", "Archive"]) await this.folder(`${root}/${name}`);
   }
 
-  async readNote(path: string): Promise<Note> {
+  /**
+   * The model a topic actually runs on. The stored `model:` is a creation-time snapshot and is never rewritten:
+   * manual keeps it, workspace follows the current setting, inherited uses the nearest manual ancestor's stored model
+   * and otherwise the current setting.
+   */
+  private async effectiveModel(
+    path: string,
+    stored: string | undefined,
+    source: ModelSource,
+    map?: MapDocument
+  ): Promise<string> {
+    const current = this.settings.cliModel;
+    if (source === "manual") return stored || current;
+    if (source === "workspace") return current;
+    let owner = map?.nodes.some(node => node.path === path) ? map : undefined;
+    if (!owner) {
+      for (const file of await this.mapFiles()) {
+        if (!path.startsWith(`${this.topicRoot(file.path)}/`)) continue;
+        try {
+          const candidate = await this.readMap(file.path);
+          if (candidate.nodes.some(node => node.path === path)) {
+            owner = candidate;
+            break;
+          }
+        } catch {
+          /* An unreadable map cannot supply ancestors. */
+        }
+      }
+    }
+    const seen = new Set<string>();
+    let node = owner?.nodes.find(item => item.path === path);
+    while (node && node.parentId && !seen.has(node.id)) {
+      seen.add(node.id);
+      const parent = owner!.nodes.find(item => item.id === node!.parentId);
+      if (!parent) break;
+      try {
+        const fm = frontmatter(await this.app.vault.read(this.file(parent.path)));
+        if (fm["model-source"] === "manual" && text(fm.model)) return text(fm.model);
+      } catch {
+        /* A missing ancestor note is skipped. */
+      }
+      node = parent;
+    }
+    return current;
+  }
+
+  async readNote(path: string, map?: MapDocument): Promise<Note> {
     const file = this.file(path),
       content = decodeCalloutSections(upgradeLegacyAimText(await this.app.vault.read(file))),
       fm = frontmatter(content);
     const status = text(fm.status, "idea");
     const normalized = status === "review" || status === "accepted" ? "completed" : status;
     const source = text(fm["model-source"], "workspace");
+    const modelSource: ModelSource = ["workspace", "inherited", "manual"].includes(source)
+      ? (source as ModelSource)
+      : "workspace";
+    const model = await this.effectiveModel(path, text(fm.model), modelSource, map);
     const state = text(
       fm["topic-state"],
       path.includes("/Archive/") ? "archived" : path.includes("/Unassigned/") ? "unassigned" : "active"
@@ -876,8 +926,8 @@ export class Repository {
       preview: [previewSection(content), section(content, "User Notes")].filter(Boolean).join("\n\n"),
       previewSection: previewSection(content),
       previewInitialized: fm["preview-initialized"] === true,
-      model: text(fm.model, this.settings.cliModel),
-      modelSource: ["workspace", "inherited", "manual"].includes(source) ? (source as ModelSource) : "workspace",
+      model,
+      modelSource,
       reasoning: normalizeReasoningLevel(fm["reasoning-level"] ?? this.settings.cliReasoning),
       researchMode: fm["research-mode"] === "local" ? "local" : "research",
       researchDepth:
