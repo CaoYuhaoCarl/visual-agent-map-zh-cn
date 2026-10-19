@@ -559,7 +559,7 @@ async function placementHarness(settingsOverrides = {}, obsidianOverrides = {}) 
   const mapPath = 'Agent Workspace/Topics/map-a/Map.md';
   const mapDoc = { id: 'map-a', title: 'Existing', version: 1, nodes: [], viewport: { x: 0, y: 0, zoom: 1 } };
   await repo.ensureTopicFolders('Agent Workspace/Topics/map-a');
-  const oldRoot = await repo.createNote('Old root', 'parent-model', mapDoc, mapPath, 'workspace');
+  const oldRoot = await repo.createNote('Old root', 'parent-model', mapDoc, mapPath, 'manual');
   const oldChild = await repo.createNote('Old child', 'parent-model', mapDoc, mapPath, 'inherited');
   Object.assign(oldRoot, { x: 80, y: 80 }); Object.assign(oldChild, { parentId: oldRoot.id, x: 440, y: 80 });
   mapDoc.nodes.push(oldRoot, oldChild);
@@ -830,4 +830,20 @@ test('the outline prompt states the chosen levels and size after the preset only
   assert.ok(zh.indexOf('Preset') < zh.indexOf('展開 3 層'), 'the limits follow the preset, so they override it');
   assert.match(buildOutlineGeneratePrompt({ ...base, language: 'en', limits: { levels: 2, maxTopics: 15 } }), /expand 2 levels of sub-headings/);
   assert.doesNotMatch(buildOutlineGeneratePrompt({ ...base, language: 'en' }), /Levels and size for this run/);
+});
+
+integrationTest('importOutline under a manual parent: a shallow-research model equal to the workspace model but different from the parent is kept as a manual choice', async () => {
+  const h = await placementHarness({ cliModel: 'claude:sonnet' });
+  await h.view.importOutline({ nodes: api.parseOutline('# Sub\n## S1').nodes, source: null, shallowResearch: true, researchDepth: 'normal', model: 'claude:sonnet', placement: { kind: 'under', parentId: h.oldRoot.id } });
+  const saved = await h.repo.readMap(h.mapPath);
+  const fresh = saved.nodes.filter(item => item.parentId !== null && item.id !== h.oldChild.id);
+  assert.equal(fresh.length, 2);
+  for (const item of fresh) { const note = await h.repo.readNote(item.path, saved); assert.equal(note.modelSource, 'manual'); assert.equal(note.model, 'claude:sonnet'); }
+  assert.deepEqual(h.confirms, ['claude:sonnet']);
+});
+integrationTest('importOutline under a manual parent: no chosen model, or the parent model itself, stays inherited', async () => {
+  const h = await placementHarness({ cliModel: 'claude:sonnet' });
+  await h.view.importOutline({ nodes: api.parseOutline('# Sub\n## S1').nodes, source: null, shallowResearch: true, researchDepth: 'normal', model: 'parent-model', placement: { kind: 'under', parentId: h.oldRoot.id } });
+  const saved = await h.repo.readMap(h.mapPath);
+  for (const item of saved.nodes.filter(item => item.parentId !== null && item.id !== h.oldChild.id)) { const note = await h.repo.readNote(item.path, saved); assert.equal(note.modelSource, 'inherited'); assert.equal(note.model, 'parent-model'); }
 });

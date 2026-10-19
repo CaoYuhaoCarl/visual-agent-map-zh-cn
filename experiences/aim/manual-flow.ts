@@ -1124,9 +1124,9 @@ export class AimManualFlow {
       if (sameOrdinalFailures.length !== 1 || sameOrdinalFailures[0].id !== run.id)
         throw new Error("The native diagnostic attempt number is ambiguous across failed runs in this map.");
     }
-    const parent = await this.repository.readNote(questionNode.path);
+    const parent = await this.repository.readNote(questionNode.path, map);
     const topicNode = map.nodes.find(node => node.aimKind === "topic"),
-      topic = topicNode ? await this.repository.readNote(topicNode.path) : parent;
+      topic = topicNode ? await this.repository.readNote(topicNode.path, map) : parent;
     const lineage = await this.branchLineage(map, branch.parentBranchId);
     const questionHistory = await this.questionHistory(map, branch.id);
     const explorationTarget = map.aim?.minimumAnswersBeforeConclusion ?? 2;
@@ -1497,11 +1497,11 @@ export class AimManualFlow {
     const priorRef = branch?.results.find(item => item.runId === run.id && item.attemptId === priorAttempt.id);
     if (!branch || !questionNode || !priorRef)
       throw new Error("The partial result or its answer branch is missing; it cannot be continued safely.");
-    const priorNote = await this.repository.readNote(priorRef.notePath),
-      parent = await this.repository.readNote(questionNode.path);
+    const priorNote = await this.repository.readNote(priorRef.notePath, map),
+      parent = await this.repository.readNote(questionNode.path, map);
     const topicNode =
       map.nodes.find(item => item.aimKind === "topic") ?? map.nodes.find(item => item.parentId === null);
-    const topicNote = topicNode ? await this.repository.readNote(topicNode.path) : parent;
+    const topicNote = topicNode ? await this.repository.readNote(topicNode.path, map) : parent;
     const lineage = await this.branchLineage(map, branch.parentBranchId);
     const savedResearchNodeIds = [
       ...new Set(
@@ -2079,7 +2079,7 @@ export class AimManualFlow {
     const parent = await this.repository.readNote(parentNode.path);
     const motherNode = map.nodes.find(node => node.aimKind === "topic");
     const mother =
-      motherNode && motherNode.id !== parentNode.id ? await this.repository.readNote(motherNode.path) : parent;
+      motherNode && motherNode.id !== parentNode.id ? await this.repository.readNote(motherNode.path, map) : parent;
     const lineage = await this.branchLineage(map, parentBranchId);
     const explorationTarget = state.minimumAnswersBeforeConclusion ?? 2;
     const answeredQuestionCount = this.answerCountInLineage(map, parentBranchId);
@@ -2552,8 +2552,8 @@ export class AimManualFlow {
     const topicNode =
       map.nodes.find(node => node.aimKind === "topic") ?? map.nodes.find(node => node.parentId === null);
     const topicNote = topicNode
-      ? await this.repository.readNote(topicNode.path)
-      : await this.repository.readNote(question.path);
+      ? await this.repository.readNote(topicNode.path, map)
+      : await this.repository.readNote(question.path, map);
     const lineage = await this.branchLineage(map, branch.parentBranchId);
     const labels =
       question.aimQuestion?.options
@@ -2592,9 +2592,9 @@ export class AimManualFlow {
     const topicNode =
       map.nodes.find(node => node.aimKind === "topic") ?? map.nodes.find(node => node.parentId === null);
     const topicNote = topicNode
-      ? await this.repository.readNote(topicNode.path)
-      : await this.repository.readNote(parent.path);
-    const parentNote = await this.repository.readNote(parent.path);
+      ? await this.repository.readNote(topicNode.path, map)
+      : await this.repository.readNote(parent.path, map);
+    const parentNote = await this.repository.readNote(parent.path, map);
     const lineage = await this.branchLineage(map, branch.parentBranchId);
     const labels =
       parent.aimQuestion?.options
@@ -2641,10 +2641,10 @@ export class AimManualFlow {
     const answerLabels = selectedOptions.map(option => option!.label);
     if (selections.includes(AIM_UNKNOWN_OPTION_ID) && selections.length > 1)
       throw new Error("Unknown / no preference cannot be combined with another selected option.");
-    const parent = await this.repository.readNote(questionNode.path);
+    const parent = await this.repository.readNote(questionNode.path, map);
     const topicNode =
       map.nodes.find(node => node.aimKind === "topic") ?? map.nodes.find(node => node.parentId === null);
-    const topicNote = topicNode ? await this.repository.readNote(topicNode.path) : parent;
+    const topicNote = topicNode ? await this.repository.readNote(topicNode.path, map) : parent;
     const parentBranchId = contract.parentBranchId ?? null;
     const lineage = await this.branchLineage(map, parentBranchId);
     const inheritedBranch = parentBranchId ? map.aim?.branches.find(branch => branch.id === parentBranchId) : undefined;
@@ -3885,7 +3885,7 @@ export class AimManualFlow {
       draft.model,
       map,
       mapPath,
-      "workspace",
+      "inherited",
       draft.notePath,
       draft.nodeId,
       {

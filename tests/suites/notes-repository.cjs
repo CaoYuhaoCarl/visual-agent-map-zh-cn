@@ -7,7 +7,7 @@ integrationTest('editing note fields preserves latest AI detail and unrelated fr
   const { repo, contents } = fixture(); const n = await topicNote(repo);
   contents.set(n.path, contents.get(n.path).replace('---\n', '---\ncustom: retain me\n'));
   await repo.updateNote(n.path, { detail: '## Nested heading\n\nAI result with $& and ```code```', newFindings: 'Fresh research', status: 'review' });
-  await repo.updateNote(n.path, { title: '修改標題', model: 'model-b', reasoning: 'high', prompt: 'A task with $&' });
+  await repo.updateNote(n.path, { title: '修改標題', model: 'model-b', modelSource: 'manual', reasoning: 'high', prompt: 'A task with $&' });
   const result = await repo.readNote(n.path);
   assert.equal(result.detail, '## Nested heading\n\nAI result with $& and ```code```'); assert.equal(result.prompt, 'A task with $&'); assert.equal(result.model, 'model-b'); assert.equal(result.status, 'completed');
   assert.equal(result.reasoning, 'high');
@@ -707,4 +707,51 @@ integrationTest('merge is refused while a selected topic has an AI task running,
   assert.deepEqual(plain(h.view.mergeCheck()), { ok: false, reason: 'ui.merge_busy' });
   await h.view.mergeSelected('Merged', { path: h.path, mapId: h.mapDoc.id, sources: h.sources.map(n => ({ id: n.id, path: n.path })) });
   assert.deepEqual(await h.shape(), original); assert.equal(h.view.history.canUndo, false);
+});
+async function modelTree(sources, stored = 'gpt-5.6-luna') {
+  const { repo, app, contents } = fixture(); repo.settings.cliModel = 'claude:sonnet';
+  const mapPath = 'Agent Workspace/Topics/map-a/Map.md', mapDoc = { id: 'map-a', title: 'map-a', version: 1, nodes: [], viewport: { x: 0, y: 0, zoom: 1 } };
+  await repo.ensureTopicFolders('Agent Workspace/Topics/map-a'); await app.vault.create(mapPath, core.serializeMap(mapDoc));
+  const nodes = [];
+  for (const [index, [source, model]] of sources.entries()) {
+    const created = await repo.createNote(`T${index}`, model ?? stored, mapDoc, mapPath, source);
+    created.parentId = index ? nodes[index - 1].id : null; mapDoc.nodes.push(created); nodes.push(created);
+  }
+  await repo.saveMap(mapPath, mapDoc);
+  return { repo, contents, nodes, mapDoc, mapPath };
+}
+integrationTest('a workspace topic runs on the current workspace model; the stored snapshot is never rewritten', async () => {
+  const { repo, contents, nodes } = await modelTree([['workspace']]);
+  const before = contents.get(nodes[0].path);
+  const note = await repo.readNote(nodes[0].path);
+  assert.equal(note.model, 'claude:sonnet'); assert.equal(note.modelSource, 'workspace');
+  assert.match(before, /model: gpt-5\.6-luna/);
+  assert.equal(contents.get(nodes[0].path), before);
+  repo.settings.cliModel = 'claude:opus';
+  assert.equal((await repo.readNote(nodes[0].path)).model, 'claude:opus');
+});
+integrationTest('an inherited topic uses the nearest manual ancestor model, otherwise the current workspace model', async () => {
+  const withManual = await modelTree([['workspace'], ['manual', 'claude:haiku'], ['inherited'], ['inherited']]);
+  assert.equal((await withManual.repo.readNote(withManual.nodes[3].path)).model, 'claude:haiku');
+  assert.equal((await withManual.repo.readNote(withManual.nodes[2].path)).model, 'claude:haiku');
+  assert.equal((await withManual.repo.readNote(withManual.nodes[1].path)).model, 'claude:haiku');
+  assert.equal((await withManual.repo.readNote(withManual.nodes[0].path)).model, 'claude:sonnet');
+  const none = await modelTree([['workspace'], ['inherited'], ['inherited']]);
+  assert.equal((await none.repo.readNote(none.nodes[2].path)).model, 'claude:sonnet');
+  const nested = await modelTree([['manual', 'claude:opus'], ['inherited'], ['manual', 'claude:haiku'], ['inherited']]);
+  assert.equal((await nested.repo.readNote(nested.nodes[3].path)).model, 'claude:haiku');
+  assert.equal((await nested.repo.readNote(nested.nodes[1].path)).model, 'claude:opus');
+});
+integrationTest('a manual topic keeps its stored model', async () => {
+  const { repo, nodes } = await modelTree([['manual', 'gpt-5.6-luna']]);
+  const note = await repo.readNote(nodes[0].path);
+  assert.equal(note.model, 'gpt-5.6-luna'); assert.equal(note.modelSource, 'manual');
+});
+integrationTest('model resolution survives a parent cycle and a missing parent', async () => {
+  const cycle = await modelTree([['inherited'], ['inherited']]);
+  cycle.mapDoc.nodes[0].parentId = cycle.mapDoc.nodes[1].id;
+  assert.equal((await cycle.repo.readNote(cycle.nodes[1].path, cycle.mapDoc)).model, 'claude:sonnet');
+  const orphan = await modelTree([['inherited'], ['inherited']]);
+  orphan.mapDoc.nodes[1].parentId = 'missing';
+  assert.equal((await orphan.repo.readNote(orphan.nodes[1].path, orphan.mapDoc)).model, 'claude:sonnet');
 });

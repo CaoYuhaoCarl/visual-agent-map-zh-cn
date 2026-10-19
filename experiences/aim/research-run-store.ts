@@ -747,7 +747,7 @@ export class AimRunStore {
       map.aim = state;
       await this.repository.saveMap(mapPath, map);
       const contentLanguage = resolveAimContentLanguage(map, this.repository.settings.language);
-      await this.repository.createNoteAt(title, model, map, mapPath, "workspace", notePath, nodeId, {
+      await this.repository.createNoteAt(title, model, map, mapPath, "inherited", notePath, nodeId, {
         summary: translate(contentLanguage, "note.aim_result_pending"),
         reasoning: reasoning ?? draft.reasoning,
         contentLanguage
@@ -890,7 +890,7 @@ export class AimRunStore {
             draft.model ?? "gpt-6-luna",
             map,
             mapPath,
-            "workspace",
+            "inherited",
             draft.notePath,
             draft.nodeId,
             {
