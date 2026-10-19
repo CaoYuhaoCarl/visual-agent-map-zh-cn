@@ -1,9 +1,12 @@
 # Changelog
 
-## [Unreleased]
+## [0.22.0] - 2026-10-20
 
 ### Added
 
+- Quick topic selection on mind maps: select a topic's subtopics in one step, shift-drag to select an area, cmd-click on the selection bar to add to the selection, and option-drag to deselect. It is only available on editable maps that are not AIM maps.
+- Merge selected sibling topics into one topic, as a single history step you can undo. For topics with content, AI merges them: it chooses the merged name and the merged Summary and Detail, and the result is applied directly. While it runs the selected cards show "Merging..." and are locked against delete, remove, move, copy, drag and structure suggestions; locked actions are blocked, and a Notice after the merge lets you undo it.
+- Merge a parent topic with its direct subtopics into the parent. The parent keeps its card, place and note; the selected subtopics move to Unassigned and their children move under the parent. One history step with undo and redo.
 - AI notes can use any offline mermaid diagram type Obsidian supports (sequence, gantt, pie, xychart, quadrant, mindmap, ER, state, sankey and more); unsafe diagram syntax is still shown as plain code.
 - AI notes may use any callout type (including foldable `[!type]-` / `[!type]+` and one level of nesting) and the HTML Obsidian renders (`<details>`, `<sup>`, `<sub>`, `<kbd>`, `<mark>`); the writing rules no longer restrict syntax Obsidian supports.
 - "Note style" replaces the separate content template and writing tone choices in the research dialogs, multi-topic research, outline import and the map menu. Pick Standard, Textbook, Key points, Plain language or Practical guide in one step; "Custom…" still lets you pick any template and tone, including your own. Nothing new is stored: maps and notes keep the same `detail-template` and `tone` values, and notes written without a choice stay exactly as before.
@@ -13,18 +16,29 @@
 
 ### Changed
 
+- AI dialogs now close once AI starts and the work continues in the background: Next Step research, guided expand and synthesis, quick outline, structure review, AI outline generation, Coffee handoff organize and the one-time convergence preview. Stop moves to the card, the selection bar or the status bar, and when the work finishes you get one Notice with a button to review the result. No review screen opens by itself.
+- A topic's model now follows the workspace model setting, or the nearest ancestor topic whose model you set by hand, instead of a snapshot taken when the topic was created. A topic that inherits shows "Follows upper topic"; AIM subtopics inherit the AIM model; a model you set by hand is kept.
+- The Preview callout now sits right after Current Summary, so a note reads summary, Preview, Detail, Prompt. Older notes move their Preview up the next time AI writes to them.
+- VAM notes get an enlarge button on rendered mermaid diagrams. It opens a read-only viewer with wheel and pinch zoom, drag to pan and keyboard control, and timeline diagrams keep readable text in light and dark themes. In Live Preview the button sits beside Obsidian's own edit button instead of covering it.
 - Callouts and the mindmap, treemap, gantt, C4, venn, pie and xychart diagrams in VAM notes now stay readable in light and dark themes: callout titles and links keep at least 4.5:1 contrast and those diagrams follow your theme colors instead of mermaid's fixed palette. Other notes and your theme are untouched.
 - Links, footnote references and footnote back-arrows (↩︎) in the body of VAM notes now keep at least 4.5:1 contrast in light and dark themes; an unresolved link is shown with a dashed underline. Other notes are untouched.
 - The license is now Apache-2.0 (previously AGPL-3.0-only). The Visual Agent Map name and logo are not covered by the license; see NOTICE. Versions 0.21.0 and earlier remain available under AGPL-3.0-only.
 - The settings rows for content templates and writing tones now say they are used when you pick "Custom…" in Note style.
 
-### Limitations
-
-- Downgrading after choosing the Textbook template: older versions do not know the `textbook` template. They report it as missing and clear `detail-template: textbook` on a topic the next time AI updates it; maps and the workspace default that use it fall back to Standard. A custom template you saved under the id `textbook` is kept under the id `custom-textbook`.
-
 ### Fixed
 
 - Diagrams Obsidian renders before their section is on screen no longer miss the zoom button and the readable-diagram styling.
+- Math in AI notes is written with `$` delimiters so Obsidian renders it; existing `\(...\)` and `\[...\]` forms are converted, and link text that contains escaped characters is left alone.
+- The Outline panel follows the map you are working in instead of the first map tab; background tabs no longer overwrite it, and closing the source map falls back to another open map.
+- Retrying a selection synthesis after pressing Stop works, AI results that finish while you are on another map are no longer lost or applied to the wrong map, and a Coffee handoff draft you discarded now says so.
+- Pressing Enter in the merge dialog no longer reopens the dialog.
+
+### Limitations
+
+- Downgrading after choosing the Textbook template: older versions do not know the `textbook` template. They report it as missing and clear `detail-template: textbook` on a topic the next time AI updates it; maps and the workspace default that use it fall back to Standard. A custom template you saved under the id `textbook` is kept under the id `custom-textbook`.
+- AI merge applies the merged content directly, and the program does not check that it keeps only facts from the sources before replacing the topic. Undo is available right after the merge.
+- The mindmap diagram in notes may still have low contrast in some cases, Gantt charts use fixed black and white colors, and third-party themes are untested.
+- In Live Preview source mode, link colors in VAM notes are not adjusted; the contrast fix applies to the rendered note.
 
 ## [0.21.0] - 2026-10-16
 

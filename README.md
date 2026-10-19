@@ -6,13 +6,13 @@
 
 **Start with a question. See the pieces. Follow the ideas worth exploring.** Build a visual research map, let AIM investigate a question, or talk through a new idea in Coffee Tables. Everything you keep is editable Markdown in your vault.
 
-[**Get started**](#get-started) · [See the 0.21.0 release](https://github.com/kevcltsai/visual-agent-map/releases/tag/0.21.0) · [Installation guide](INSTALL.md)
+[**Get started**](#get-started) · [See the 0.22.0 release](https://github.com/kevcltsai/visual-agent-map/releases/tag/0.22.0) · [Installation guide](INSTALL.md)
 
 ![Example Visual Agent Map research map with connected topic cards in Obsidian](assets/screenshots/map-overview.png)
 
 ## Three ways to explore
 
-- **Visual maps.** Break a question into topics and research any branch with AI. Draft a multi-level outline, review suggestions before adding them, and research several topics in the background. Manual mapping needs no AI.
+- **Visual maps.** Break a question into topics and research any branch with AI. Draft a multi-level outline, review suggestions before adding them, pick a note style such as Textbook, merge related topics, and research several topics in the background. Manual mapping needs no AI.
 - **AIM — Adaptive Inquiry Map.** Give it your question and background, answer the opening questions once, and let it run. Watch each subtopic on the map and finish with a document backed by sources.
 - **Coffee Tables.** Bring an unfinished idea to a conversation with simulated AI guests, then revisit the observer's insights.
 

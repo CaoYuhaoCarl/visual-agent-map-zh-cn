@@ -6,13 +6,13 @@
 
 **從一個問題出發，看見各個部分，再追你想探索的線索。** 建立視覺化研究地圖、讓 AIM 深入查證問題，或到 Coffee Tables 聊出新角度。想留下的內容都是 Vault 裡可編輯的 Markdown。
 
-[**開始使用**](#開始使用) · [查看 0.21.0 正式版](https://github.com/kevcltsai/visual-agent-map/releases/tag/0.21.0) · [安裝指南](INSTALL.md)
+[**開始使用**](#開始使用) · [查看 0.22.0 正式版](https://github.com/kevcltsai/visual-agent-map/releases/tag/0.22.0) · [安裝指南](INSTALL.md)
 
 ![Obsidian 中的 Visual Agent Map 研究地圖範例，顯示相連的議題卡片](assets/screenshots/map-overview.png)
 
 ## 三種探索方式
 
-- **視覺化地圖。** 把問題拆成議題，用 AI 深入任何一個分支。可以草擬多層大綱、先看過建議再決定是否加入，也能在背景同時研究多個議題。手動繪圖不需要 AI。
+- **視覺化地圖。** 把問題拆成議題，用 AI 深入任何一個分支。可以草擬多層大綱、先看過建議再決定是否加入，可以選擇筆記風格（例如教科書）、合併相關議題，也能在背景同時研究多個議題。手動繪圖不需要 AI。
 - **AIM — Adaptive Inquiry Map。** 給它你的問題與背景，一次回答開頭的條件問題後就能放著跑。在地圖上看各子議題的進度，最後得到附有來源的文件。
 - **Coffee Tables。** 把未成形的想法帶來，與模擬的 AI 來賓對談，再回看觀察者整理的洞見。
 
