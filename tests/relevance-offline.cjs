@@ -545,3 +545,93 @@ test('command line parsing and the output-location guard exist and work', () => 
   assert.throws(() => tool.assertOutsideRepo(require('node:path').resolve(__dirname, '..', 'tests')), /must not be inside/);
   assert.doesNotThrow(() => tool.assertOutsideRepo(require('node:os').tmpdir()));
 });
+
+// ---- product prompt source, simulated pins and recalibration metrics (no AI) ----
+
+const PT = (id, parentId, depth) => ({ id, title: id.toUpperCase(), summary: `${id} summary`, status: 'idea', parentId, depth });
+const PIN_TREE = [
+  PT('r', null, 0), PT('a', 'r', 1), PT('a1', 'a', 2), PT('a2', 'a', 2), PT('b', 'r', 1), PT('b1', 'b', 2), PT('b2', 'b', 2),
+  PT('s', null, 0), PT('s1', 's', 1), PT('s11', 's1', 2), PT('s2', 's', 1)
+];
+const items = map => Object.entries(map).map(([id, tier]) => ({ id, tier, reason: 'x' }));
+const PIN_BASE = items({ a: 'core', a1: 'core', a2: 'side', b: 'support', b1: 'side', b2: 'support', s1: 'core', s11: 'support', s2: 'side' });
+
+test('product prompt source renders exactly what the product step renders (grade and repair), legacy stays reachable', () => {
+  const { load } = require('./support-replay.cjs');
+  const { relevanceGradeStep, relevanceGradeRepairStep } = load('core/steps/relevance-grade/step.ts');
+  for (const language of ['zh-TW', 'en']) {
+    const args = { goal: 'Cook a steak', level: 'beginner', context: '半天日照', tree: PIN_TREE, language };
+    const expected = relevanceGradeStep.render({ goal: args.goal, level: args.level, context: args.context, nodes: PIN_TREE, language, model: 'm', reasoning: 'low' });
+    assert.equal(tool.buildPrompt({ version: 'product', ...args }), expected);
+    const prompt = tool.buildPrompt({ version: 'product', ...args });
+    const previous = items({ a: 'support', a1: 'core', a2: 'side', b: 'support', b1: 'side', b2: 'support', s1: 'core', s11: 'support', s2: 'side' });
+    const violations = tool.hierarchyViolations(previous, PIN_TREE);
+    const repair = relevanceGradeRepairStep.render({
+      goal: args.goal, level: args.level, context: args.context, nodes: PIN_TREE, language, model: 'm', reasoning: 'low',
+      previousReply: { items: previous },
+      violations: violations.map(v => ({ childId: v.child, childTier: v.childTier, parentId: v.parent, parentTier: v.parentTier }))
+    });
+    assert.equal(tool.buildRepairPrompt({ prompt, value: { items: previous }, violations, tree: PIN_TREE, version: 'product', language }), repair);
+  }
+  assert.match(tool.buildPrompt({ version: 'v2', goal: 'g', level: null, context: null, tree: PIN_TREE }), /"goal"/);
+  assert.match(tool.promptHash('product'), /^[0-9a-f]{12}$/);
+  assert.notEqual(tool.promptHash('product'), tool.promptHash('v2'));
+});
+
+test('classify with the product prompt accepts a goal-less reply, records duration_ms, and sums it over a repair round', () => {
+  const ok = { items: PIN_BASE.map(i => ({ id: tool.positionLabels(PIN_TREE).toShort.get(i.id), tier: i.tier, reason: 'r' })) };
+  const bad = { items: ok.items.map(i => (i.id === 'c3' ? { ...i, tier: 'core' } : i.id === 'c2' ? { ...i, tier: 'side' } : i)) };
+  const replies = [JSON.stringify(bad), JSON.stringify(ok)];
+  const calls = [];
+  const out = tool.classify({ version: 'product', goal: 'g', level: null, context: null, tree: PIN_TREE, model: 'm', hierarchy: 'reject', call: p => { calls.push(p); return { text: replies[calls.length - 1], usage: null, cost: null, durationMs: 100 * calls.length }; } });
+  assert.equal(calls.length, 2);
+  assert.equal(out.durationMs, 300);
+  assert.equal(out.repair.ok, true);
+});
+
+test('selectPins: P/D/PD follow the design rules and P stays outside D\'s subtree', () => {
+  const r = tool.selectPins(PIN_TREE, PIN_BASE);
+  assert.deepEqual(r.scenarios.D.map(p => [p.id, p.tier]), [['a', 'side']]);
+  assert.deepEqual(r.scenarios.P.map(p => [p.id, p.from, p.tier]), [['b1', 'side', 'core']], 'a2 is the first side card but sits inside D\'s subtree');
+  assert.deepEqual(r.scenarios.PD.map(p => p.id), ['b1', 'a']);
+  assert.equal(r.pRule, 'side-with-sibling');
+  assert.deepEqual(r.skipped, {});
+});
+
+test('selectPins: P falls back to the first support leaf, skips impossible scenarios and records why', () => {
+  const noSide = items({ a: 'core', a1: 'core', a2: 'support', b: 'support', b1: 'support', b2: 'support', s1: 'core', s11: 'support', s2: 'support' });
+  const r = tool.selectPins(PIN_TREE, noSide);
+  assert.equal(r.pRule, 'support-leaf');
+  assert.deepEqual(r.scenarios.P.map(p => p.id), ['b1'], 'a2 is inside D (a), so the next support leaf b1');
+  const none = tool.selectPins(PIN_TREE, items({ a: 'support', a1: 'support', a2: 'side', b: 'support', b1: 'side', b2: 'side', s1: 'support', s11: 'side', s2: 'side' }));
+  assert.equal(none.scenarios.D, undefined);
+  assert.ok(none.skipped.D && none.skipped.PD);
+  assert.deepEqual(none.scenarios.P.map(p => p.id), ['a2'], 'with no D, nothing is excluded: a2 (parent a, non-top-level, has a sibling)');
+  const flat = tool.selectPins([PT('r', null, 0), PT('x', 'r', 1), PT('y', 'r', 1)], items({ x: 'core', y: 'core' }));
+  assert.deepEqual(Object.keys(flat.scenarios), []);
+  assert.deepEqual(Object.keys(flat.skipped).sort(), ['D', 'P', 'PD']);
+});
+
+test('neighbourhood: ancestors, descendants and siblings of a pin, never the pin itself', () => {
+  assert.deepEqual([...tool.neighbourhood(PIN_TREE, new Set(['b1']))].sort(), ['b', 'b2', 'r']);
+  assert.deepEqual([...tool.neighbourhood(PIN_TREE, new Set(['a']))].sort(), ['a1', 'a2', 'b', 'r']);
+  assert.deepEqual([...tool.neighbourhood(PIN_TREE, new Set(['s1']))].sort(), ['s', 's11', 's2']);
+});
+
+test('metrics: G1 pinned-overwritten, G3 unrelated change rate, G5 agreement and G7 change rate ignore pins', () => {
+  const pins = [{ id: 'b1', tier: 'core' }, { id: 'a', tier: 'side' }];
+  const merged = items({ a: 'side', a1: 'side', a2: 'side', b: 'core', b1: 'core', b2: 'support', s1: 'core', s11: 'support', s2: 'side' });
+  assert.equal(tool.pinnedOverwritten(merged, pins), 0);
+  assert.equal(tool.pinnedOverwritten(items({ a: 'core', b1: 'core' }), pins), 1);
+  assert.equal(tool.pinnedOverwritten(items({ b1: 'core' }), pins), 1, 'a missing pinned card counts as overwritten');
+  // Unrelated = graded, not pinned, not near a pin: s1, s11, s2. Nothing there changed.
+  assert.deepEqual(tool.unrelatedChangeRate(PIN_TREE, pins, PIN_BASE, merged), { total: 3, changed: 0, rate: 0 });
+  const drifted = items({ a: 'side', a1: 'side', a2: 'side', b: 'core', b1: 'core', b2: 'support', s1: 'support', s11: 'support', s2: 'side' });
+  assert.deepEqual(tool.unrelatedChangeRate(PIN_TREE, pins, PIN_BASE, drifted), { total: 3, changed: 1, rate: 1 / 3 });
+  assert.deepEqual(tool.unrelatedChangeRate(PIN_TREE, [], [], []), { total: 0, changed: 0, rate: null });
+  const other = items({ a: 'core', a1: 'core', a2: 'side', b: 'support', b1: 'side', b2: 'side', s1: 'core', s11: 'support', s2: 'side' });
+  assert.deepEqual(tool.nonPinnedAgreement(merged, other, ['a', 'b1']), { n: 7, agreement: 4 / 7 });
+  assert.deepEqual(tool.nonPinnedChangeRate(merged, other, ['a', 'b1']), { n: 7, changed: 3, rate: 3 / 7 });
+  assert.deepEqual(tool.nonPinnedChangeRate(merged, merged, []), { n: 9, changed: 0, rate: 0 });
+  assert.equal(tool.nonPinnedAgreement([], [], []).agreement, null);
+});
