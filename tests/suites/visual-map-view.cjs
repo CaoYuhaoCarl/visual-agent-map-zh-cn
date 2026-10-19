@@ -1803,3 +1803,24 @@ integrationTest('select mode: the Merge button stays focusable, names the reason
   view.map.aim = {}; const aim = view.renderSelectionBar(selectionDom()('div'));
   assert.equal(aim.children.some(child => child.tag === 'button' && /^Merge/.test(child.text)), false, 'AIM maps have no merge button');
 });
+integrationTest('merge dialog: Enter confirms once and is consumed; a second Merge press while it is open or queued does nothing', () => {
+  const make = selectionDom(); const opened = [];
+  class FakeModal { constructor(app) { this.app = app; const el = () => { const e = make('div'); e.setText = text => { e.text = text; }; const create = e.createEl.bind(e); e.createEl = (name, init = {}) => { const child = create(name, init); child.value = init.value; child.focus = () => {}; child.select = () => {}; child.createEl = e.createEl; child.setText = e.setText; child.createSpan = e.createSpan; return child; }; return e; }; this.titleEl = el(); this.contentEl = el(); this.modalEl = el(); this.closed = 0; } open() { opened.push(this); this.onOpen(); } close() { this.closed++; this.onClose?.(); } }
+  const shim = { ...obsidian, Modal: FakeModal };
+  const fixture = selectionView(load, {}, shim); const { view } = fixture;
+  view.app = {}; const queued = []; view.enqueue = work => queued.push(work);
+  view.integrationMode = true; fixture.build();
+  view.multiSelected = new Set();
+  view.openMerge(); assert.equal(opened.length, 0, 'empty selection is a no-op');
+  view.multiSelected = new Set(['a', 'b']);
+  view.openMerge(); view.openMerge(); assert.equal(opened.length, 1, 'a second press while the dialog is open is ignored');
+  const modal = opened[0]; const input = modal.contentEl.children.find(c => c.tag === 'input');
+  let prevented = 0, run = 0;
+  input.handlers.get('keydown')({ key: 'Enter', isComposing: false, preventDefault() { prevented++; } });
+  assert.equal(prevented, 1, 'the Enter is consumed so it cannot click the button that regains focus');
+  assert.equal(queued.length, 1); assert.equal(modal.closed, 1);
+  view.openMerge(); assert.equal(opened.length, 1, 'still ignored while the merge write is queued');
+  // A cancelled dialog frees the button again.
+  queued.length = 0; view.mergeOpen = false; view.openMerge(); assert.equal(opened.length, 2);
+  opened[1].close(); view.openMerge(); assert.equal(opened.length, 3);
+});

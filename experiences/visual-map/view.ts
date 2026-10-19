@@ -286,6 +286,8 @@ export class VisualAgentMapView extends ItemView {
   } | null = null;
   /** A multi-select synthesis step is starting (before its task exists), so a second request is refused. */
   private selectionStarting = false;
+  /** A merge dialog is open or its write is queued; a second Merge press (or the Enter that confirmed) is ignored. */
+  private mergeOpen = false;
   private synthesisTasks = new Map<
     string,
     {
@@ -2340,7 +2342,7 @@ export class VisualAgentMapView extends ItemView {
   }
   /** Asks for the merged topic's name, then merges in the write queue (which checks everything again). */
   private openMerge(): void {
-    if (!this.map || this.map.aim || this.builtIn) return;
+    if (!this.map || this.map.aim || this.builtIn || this.mergeOpen || !this.multiSelected.size) return;
     const check = this.mergeCheck();
     if (!check.ok) {
       new Notice(t(check.reason));
@@ -2351,8 +2353,22 @@ export class VisualAgentMapView extends ItemView {
       mapId: this.map.id,
       sources: check.sources.map(source => ({ id: source.id, path: source.path }))
     };
-    new MergeTopicsModal(this.app, snapshot.sources.length, this.notes.get(check.sources[0].id)?.title ?? "", title =>
-      this.enqueue(() => this.mergeSelected(title, snapshot))
+    this.mergeOpen = true;
+    new MergeTopicsModal(
+      this.app,
+      snapshot.sources.length,
+      this.notes.get(check.sources[0].id)?.title ?? "",
+      title =>
+        this.enqueue(async () => {
+          try {
+            await this.mergeSelected(title, snapshot);
+          } finally {
+            this.mergeOpen = false;
+          }
+        }),
+      () => {
+        this.mergeOpen = false;
+      }
     ).open();
   }
   /** Puts moved notes back where they were and restores their lifecycle, newest move first. */

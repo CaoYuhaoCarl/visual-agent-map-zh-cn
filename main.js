@@ -25634,11 +25634,14 @@ function mergedStatus(detail) {
   return detail.trim() ? "completed" : "idea";
 }
 var MergeTopicsModal = class extends import_obsidian24.Modal {
-  constructor(app, count, value, submit) {
+  constructor(app, count, value, submit, cancelled = () => {
+  }) {
     super(app);
     this.count = count;
     this.value = value;
     this.submit = submit;
+    this.cancelled = cancelled;
+    __publicField(this, "submitted", false);
   }
   onOpen() {
     this.titleEl.setText(t("ui.merge_title_label"));
@@ -25652,6 +25655,7 @@ var MergeTopicsModal = class extends import_obsidian24.Modal {
     const save = () => {
       const value = input.value.trim();
       if (!value) return;
+      this.submitted = true;
       this.close();
       this.submit(value);
     };
@@ -25662,12 +25666,18 @@ var MergeTopicsModal = class extends import_obsidian24.Modal {
     };
     input.addEventListener("input", check);
     input.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" && !event.isComposing) save();
+      if (event.key === "Enter" && !event.isComposing) {
+        event.preventDefault();
+        save();
+      }
     });
     confirm.addEventListener("click", save);
     check();
     input.focus();
     input.select();
+  }
+  onClose() {
+    if (!this.submitted) this.cancelled();
   }
 };
 
@@ -25754,6 +25764,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian25.Ite
     __publicField(this, "integrationTask", null);
     /** A multi-select synthesis step is starting (before its task exists), so a second request is refused. */
     __publicField(this, "selectionStarting", false);
+    /** A merge dialog is open or its write is queued; a second Merge press (or the Enter that confirmed) is ignored. */
+    __publicField(this, "mergeOpen", false);
     __publicField(this, "synthesisTasks", /* @__PURE__ */ new Map());
     __publicField(this, "viewportEl", null);
     __publicField(this, "stageEl", null);
@@ -27684,7 +27696,7 @@ ${request.requirements}` : preset.text,
   /** Asks for the merged topic's name, then merges in the write queue (which checks everything again). */
   openMerge() {
     var _a, _b;
-    if (!this.map || this.map.aim || this.builtIn) return;
+    if (!this.map || this.map.aim || this.builtIn || this.mergeOpen || !this.multiSelected.size) return;
     const check = this.mergeCheck();
     if (!check.ok) {
       new import_obsidian25.Notice(t(check.reason));
@@ -27695,11 +27707,21 @@ ${request.requirements}` : preset.text,
       mapId: this.map.id,
       sources: check.sources.map((source) => ({ id: source.id, path: source.path }))
     };
+    this.mergeOpen = true;
     new MergeTopicsModal(
       this.app,
       snapshot.sources.length,
       (_b = (_a = this.notes.get(check.sources[0].id)) == null ? void 0 : _a.title) != null ? _b : "",
-      (title) => this.enqueue(() => this.mergeSelected(title, snapshot))
+      (title) => this.enqueue(async () => {
+        try {
+          await this.mergeSelected(title, snapshot);
+        } finally {
+          this.mergeOpen = false;
+        }
+      }),
+      () => {
+        this.mergeOpen = false;
+      }
     ).open();
   }
   /** Puts moved notes back where they were and restores their lifecycle, newest move first. */

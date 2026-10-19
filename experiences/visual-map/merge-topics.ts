@@ -59,11 +59,13 @@ export function mergedStatus(detail: string): "completed" | "idea" {
 
 /** Asks for the merged topic's name and confirms what will happen before any file is touched. */
 export class MergeTopicsModal extends Modal {
+  private submitted = false;
   constructor(
     app: App,
     private count: number,
     private value: string,
-    private submit: (title: string) => void
+    private submit: (title: string) => void,
+    private cancelled: () => void = () => {}
   ) {
     super(app);
   }
@@ -79,6 +81,7 @@ export class MergeTopicsModal extends Modal {
     const save = (): void => {
       const value = input.value.trim();
       if (!value) return;
+      this.submitted = true;
       this.close();
       this.submit(value);
     };
@@ -90,11 +93,18 @@ export class MergeTopicsModal extends Modal {
     input.addEventListener("input", check);
     input.addEventListener("keydown", event => {
       // Enter while an input method is composing only confirms the characters.
-      if (event.key === "Enter" && !event.isComposing) save();
+      // preventDefault: the close moves focus back to the Merge button, and this same key press must not click it.
+      if (event.key === "Enter" && !event.isComposing) {
+        event.preventDefault();
+        save();
+      }
     });
     confirm.addEventListener("click", save);
     check();
     input.focus();
     input.select();
+  }
+  onClose(): void {
+    if (!this.submitted) this.cancelled();
   }
 }
