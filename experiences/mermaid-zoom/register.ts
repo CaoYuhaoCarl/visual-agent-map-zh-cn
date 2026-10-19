@@ -12,6 +12,8 @@ import { MermaidZoomModal } from "./viewer";
 
 /** Class on each rendered diagram that belongs to a VAM note; the timeline contrast CSS is scoped to it. */
 export const SCOPE_CLASS = "vam-mermaid-scope";
+/** Class on each callout that belongs to a VAM note; the callout contrast CSS is scoped to it. */
+export const CALLOUT_SCOPE_CLASS = "vam-callout-scope";
 export const ZOOMABLE_CLASS = "vam-mermaid-zoomable";
 export const BUTTON_CLASS = "vam-mermaid-zoom-btn";
 
@@ -56,6 +58,15 @@ function inForeignEmbed(section: HTMLElement, host: HTMLElement): boolean {
   return !!embed && embed !== section && section.contains(embed);
 }
 
+/** Gives every callout of `section` that belongs to it the callout scope class. Idempotent; embedded notes are judged by their own path. */
+function scanCallouts(section: HTMLElement): void {
+  const callouts = section.matches(".callout, .cm-callout") ? [section] : [];
+  callouts.push(...Array.from(section.querySelectorAll<HTMLElement>(".callout, .cm-callout")));
+  for (const callout of callouts) {
+    if (!inForeignEmbed(section, callout)) callout.addClass(CALLOUT_SCOPE_CLASS);
+  }
+}
+
 /** Decorates every rendered diagram of `section` that belongs to it; returns how many it has handled. */
 function scan(app: App, section: HTMLElement): number {
   const hosts = section.matches(".mermaid") ? [section] : [];
@@ -84,7 +95,7 @@ class WatchChild extends MarkdownRenderChild {
 
 function isDiagramNode(node: Node): boolean {
   const el = node as Element;
-  return typeof el.matches === "function" && el.matches("svg, .mermaid, .cm-embed-block");
+  return typeof el.matches === "function" && el.matches("svg, .mermaid, .cm-embed-block, .callout, .cm-callout");
 }
 
 /** A DOM change matters only when a diagram (svg or .mermaid) was added, or it happened inside an embed block or a diagram. */
@@ -92,7 +103,7 @@ function mutationTouchesDiagram(mutation: MutationRecord): boolean {
   if (Array.from(mutation.addedNodes).some(isDiagramNode)) return true;
   const target = mutation.target as Element | null;
   const element = target && typeof target.closest === "function" ? target : (target?.parentElement ?? null);
-  return !!element?.closest(".cm-embed-block, .mermaid");
+  return !!element?.closest(".cm-embed-block, .mermaid, .cm-callout");
 }
 
 /**
@@ -118,7 +129,10 @@ export class EditorWatcher {
   scan(): void {
     const path = this.sourcePath();
     this.lastPath = path;
-    if (path && isVamSource(this.app, path)) scan(this.app, this.dom);
+    if (path && isVamSource(this.app, path)) {
+      scanCallouts(this.dom);
+      scan(this.app, this.dom);
+    }
   }
   /** Editor state updates fire on every keystroke; rescan only when the editor now shows a different file. */
   onUpdate(): void {
@@ -175,6 +189,7 @@ export function registerMermaidZoom(plugin: Plugin): MermaidZoomHandle {
   );
   plugin.registerMarkdownPostProcessor((element: HTMLElement, context: MarkdownPostProcessorContext) => {
     if (!isVamSource(plugin.app, context.sourcePath)) return;
+    scanCallouts(element);
     if (scan(plugin.app, element) > 0) return;
     const mayHoldDiagram =
       element.matches(".mermaid") ||
@@ -184,8 +199,12 @@ export function registerMermaidZoom(plugin: Plugin): MermaidZoomHandle {
       observer.disconnect();
       observers.delete(observer);
     };
+    // Obsidian renders sections it has not attached yet (below the fold), so a detached section is not abandoned: it is
+    // released once its diagram is decorated, once it was attached and then removed, or when its render child unloads.
+    let attached = element.isConnected;
     const observer = new MutationObserver(() => {
-      if (scan(plugin.app, element) > 0 || !element.isConnected) release();
+      if (element.isConnected) attached = true;
+      if (scan(plugin.app, element) > 0 || (attached && !element.isConnected)) release();
     });
     observer.observe(element, { childList: true, subtree: true });
     observers.add(observer);

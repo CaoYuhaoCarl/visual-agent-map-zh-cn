@@ -3467,6 +3467,7 @@ var MermaidZoomModal = class extends import_obsidian2.Modal {
 
 // experiences/mermaid-zoom/register.ts
 var SCOPE_CLASS = "vam-mermaid-scope";
+var CALLOUT_SCOPE_CLASS = "vam-callout-scope";
 var ZOOMABLE_CLASS = "vam-mermaid-zoomable";
 var BUTTON_CLASS = "vam-mermaid-zoom-btn";
 function marker(value) {
@@ -3503,6 +3504,13 @@ function inForeignEmbed(section3, host) {
   const embed = host.closest(".internal-embed, .markdown-embed");
   return !!embed && embed !== section3 && section3.contains(embed);
 }
+function scanCallouts(section3) {
+  const callouts = section3.matches(".callout, .cm-callout") ? [section3] : [];
+  callouts.push(...Array.from(section3.querySelectorAll(".callout, .cm-callout")));
+  for (const callout of callouts) {
+    if (!inForeignEmbed(section3, callout)) callout.addClass(CALLOUT_SCOPE_CLASS);
+  }
+}
 function scan(app, section3) {
   const hosts = section3.matches(".mermaid") ? [section3] : [];
   hosts.push(...Array.from(section3.querySelectorAll(".mermaid")));
@@ -3525,14 +3533,14 @@ var WatchChild = class extends import_obsidian3.MarkdownRenderChild {
 };
 function isDiagramNode(node) {
   const el = node;
-  return typeof el.matches === "function" && el.matches("svg, .mermaid, .cm-embed-block");
+  return typeof el.matches === "function" && el.matches("svg, .mermaid, .cm-embed-block, .callout, .cm-callout");
 }
 function mutationTouchesDiagram(mutation) {
   var _a;
   if (Array.from(mutation.addedNodes).some(isDiagramNode)) return true;
   const target = mutation.target;
   const element = target && typeof target.closest === "function" ? target : (_a = target == null ? void 0 : target.parentElement) != null ? _a : null;
-  return !!(element == null ? void 0 : element.closest(".cm-embed-block, .mermaid"));
+  return !!(element == null ? void 0 : element.closest(".cm-embed-block, .mermaid, .cm-callout"));
 }
 var EditorWatcher = class {
   constructor(app, dom, sourcePath, onDestroy) {
@@ -3551,7 +3559,10 @@ var EditorWatcher = class {
   scan() {
     const path = this.sourcePath();
     this.lastPath = path;
-    if (path && isVamSource(this.app, path)) scan(this.app, this.dom);
+    if (path && isVamSource(this.app, path)) {
+      scanCallouts(this.dom);
+      scan(this.app, this.dom);
+    }
   }
   /** Editor state updates fire on every keystroke; rescan only when the editor now shows a different file. */
   onUpdate() {
@@ -3597,6 +3608,7 @@ function registerMermaidZoom(plugin) {
   );
   plugin.registerMarkdownPostProcessor((element, context) => {
     if (!isVamSource(plugin.app, context.sourcePath)) return;
+    scanCallouts(element);
     if (scan(plugin.app, element) > 0) return;
     const mayHoldDiagram = element.matches(".mermaid") || ["mermaid", "block-language-mermaid", "language-mermaid"].some((name) => element.querySelector(`.${name}`));
     if (!mayHoldDiagram) return;
@@ -3604,8 +3616,10 @@ function registerMermaidZoom(plugin) {
       observer.disconnect();
       observers.delete(observer);
     };
+    let attached = element.isConnected;
     const observer = new MutationObserver(() => {
-      if (scan(plugin.app, element) > 0 || !element.isConnected) release();
+      if (element.isConnected) attached = true;
+      if (scan(plugin.app, element) > 0 || attached && !element.isConnected) release();
     });
     observer.observe(element, { childList: true, subtree: true });
     observers.add(observer);
