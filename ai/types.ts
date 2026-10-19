@@ -23,7 +23,7 @@ export interface Suggestion {
   parentTitle?: string;
   thinkingOriginBaseline?: string;
 }
-export type AiTaskKind = "task" | "decompose" | "synthesize";
+export type AiTaskKind = "task" | "decompose" | "synthesize" | "merge";
 export type PromptProfile = "aim";
 export type AiResponseContract = "aim-gap-audit" | "aim-delivery-acceptance";
 export interface TaskContext {
@@ -36,6 +36,8 @@ export interface TaskContext {
   workingFindings?: string;
   sourceContext?: string;
   referenceGroups?: ReferenceGroup[];
+  /** "direct": send the reference documents themselves when they fit one batch, instead of extracting findings first. */
+  referenceDelivery?: "direct";
   onProgress?: (message: string) => void;
   signal?: AbortSignal;
   outputLanguage?: UiLanguage;

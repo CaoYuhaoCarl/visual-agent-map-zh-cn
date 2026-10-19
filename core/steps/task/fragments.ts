@@ -32,6 +32,8 @@ import LabelFindingsZH from "./label-findings.zh.md";
 import LabelFindingsEN from "./label-findings.en.md";
 import OutputLanguageZH from "./output-language.zh.md";
 import OutputLanguageEN from "./output-language.en.md";
+import MergeZH from "./merge.zh.md";
+import MergeEN from "./merge.en.md";
 import SynthesizeZH from "./synthesize.zh.md";
 import SynthesizeEN from "./synthesize.en.md";
 import VisualAutoZH from "./visual-auto.zh.md";
@@ -59,6 +61,8 @@ export const JSON_CONTRACT: FragmentPair = pair(JsonZH, JsonEN);
 export const LABEL_DETAIL: FragmentPair = pair(LabelDetailZH, LabelDetailEN);
 export const LABEL_FINDINGS: FragmentPair = pair(LabelFindingsZH, LabelFindingsEN);
 export const OUTPUT_LANGUAGE: FragmentPair = pair(OutputLanguageZH, OutputLanguageEN);
+/** Merge mode: organize only what the sources say (no synthesis of agreements, tradeoffs or open questions). */
+export const MERGE: FragmentPair = pair(MergeZH, MergeEN);
 export const SYNTHESIZE: FragmentPair = pair(SynthesizeZH, SynthesizeEN);
 export const VISUAL_AUTO: FragmentPair = pair(VisualAutoZH, VisualAutoEN);
 export const VISUAL_EMBED: FragmentPair = pair(VisualEmbedZH, VisualEmbedEN);

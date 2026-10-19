@@ -755,7 +755,7 @@ integrationTest('AI merge: the model sees the sources but no Thinking Origin, wi
   const { context } = h.asks[0]; assert.equal(h.asks.length, 1);
   const text = JSON.stringify(context.referenceGroups);
   assert.match(text, /Alpha detail/); assert.match(text, /Gamma detail/); assert.doesNotMatch(text, /SECRET-ORIGIN-TEXT/);
-  assert.equal(context.referenceGroups.length, 1); assert.equal(context.mode, 'synthesize'); assert.equal(context.researchMode, 'local'); assert.equal(context.visualMode, 'off');
+  assert.equal(context.referenceGroups.length, 1); assert.equal(context.mode, 'merge'); assert.equal(context.researchMode, 'local'); assert.equal(context.visualMode, 'off'); assert.equal(context.referenceDelivery, 'direct');
   assert.equal(context.task, load('experiences/visual-map/steps/fragments.ts').mergeGoalTask(h.plugin.settings.language));
   // Integration still sends the Origin (the option defaults on).
   const group = await h.view.topicReferenceGroup(h.sources, 'strong');

@@ -811,22 +811,12 @@
       "language": "zh-TW",
       "schema": true
     },
-    "view.merge-draft.en.1": {
+    "view.merge-draft.en": {
       "builder": "VisualAgentMapView merge-draft TaskContext through AiTaskService",
       "language": "en",
       "schema": true
     },
-    "view.merge-draft.en.2": {
-      "builder": "VisualAgentMapView merge-draft TaskContext through AiTaskService",
-      "language": "en",
-      "schema": true
-    },
-    "view.merge-draft.zh.1": {
-      "builder": "VisualAgentMapView merge-draft TaskContext through AiTaskService",
-      "language": "zh-TW",
-      "schema": true
-    },
-    "view.merge-draft.zh.2": {
+    "view.merge-draft.zh": {
       "builder": "VisualAgentMapView merge-draft TaskContext through AiTaskService",
       "language": "zh-TW",
       "schema": true

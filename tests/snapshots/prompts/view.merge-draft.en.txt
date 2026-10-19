@@ -10,7 +10,7 @@ For every important factual claim based on local material, keep its [S#] marker 
 
 Return JSON only, without a Markdown code fence. Use this exact shape: {"summary":"...","detail":"...","suggestions":[{"title":"...","task":"...","contribution":"...","parentTitle":""}],"visualReferences":[{"title":"...","imageUrl":"https://...","sourceUrl":"https://...","description":"...","palette":["navy","white"],"formula":"..."}]}. Return an empty visualReferences array when there are no visual references.
 
-General task: summary is one new insight for the mind map, within 80 characters. Detail replaces the old Detail with a complete knowledge page that incorporates valid existing content and new findings, removes duplication, and retains valid sources. Provide suggestions only if the topic is too complex; otherwise return an empty array.
+Merge mode: combine the source topics into one page by organizing only what the sources already say. summary is one sentence of at most 80 characters, based only on the sources. detail keeps every piece of information from each source (facts, numbers, conditions, examples, source links and open questions) and removes only duplicates, placed under the headings below. Do not add comparisons, trends, causal claims, judgements, recommendations, inferences or open questions the sources do not contain; a section the sources have nothing for says "No new content this time" and is not filled in by you. Where sources contradict each other, show both side by side and name the topic each comes from. Keep the sources' tables, images and links, and do not add callouts, task lists, charts or highlights they do not have. The section descriptions below only decide where source content goes; they are not a request to write more.
 
 The detail must use exactly these six level-three headings in order: ### Core conclusions, ### Key knowledge, ### Evidence and sources, ### Tradeoffs and limitations, ### Open questions, ### Update log. Add only one line summarizing this update in Update log; do not repeat the full answer. Write 'No new content this time' in sections with nothing applicable. Follow any requested count for the core conclusions.
 ### Core conclusions: Answer the research question directly, 3–5 points by default; give the conclusion first, then the reason.
@@ -20,15 +20,19 @@ The detail must use exactly these six level-three headings in order: ### Core co
 ### Open questions: Questions not yet verified or lacking data that are worth researching next.
 ### Update log: Add only one line saying what this update changed.
 
-Quick overview: answer the core question first and briefly list key evidence and gaps; do not conduct a full investigation. Use only the provided topic and source context. Do not search the web or read other files. If the available evidence cannot support an answer, explicitly write "Insufficient information" and identify what is missing; do not present model memory or invented sources as verified facts.
+Normal research: provide the main evidence, limitations, and open questions needed to support the conclusion. Use only the provided topic and source context. Do not search the web or read other files. If the available evidence cannot support an answer, explicitly write "Insufficient information" and identify what is missing; do not present model memory or invented sources as verified facts.
 
 Do not search for new images; return an empty visualReferences array unless synthesis can reuse a relevant image already included in the provided source context.
+
+When reusing one, preserve its original image and source URLs.
+
+Embed useful images directly in relevant detail paragraphs with source-page links. In synthesis, reuse source images only when they help explain the integrated findings. Do not create a separate image collection or invent sources.
 
 Current topic:
 Merged child
 
 Current summary:
-
+No summary yet
 
 Existing Detail (integrate and replace fully, do not append unchanged):
 (none)
@@ -60,8 +64,12 @@ Current summary: Second summary
 Full knowledge:
 Second detail
 
+Source registry (retain these identities in citations):
+[S1] Vault note (wikilink): Agent Workspace/Topics/map-a/Notes/Child topic.md
+[S2] Vault note (wikilink): Agent Workspace/Topics/map-a/Notes/Second child.md
+
 Ancestor topic context:
 (none)
 
 Current task:
-Extract relevant facts, evidence, disagreements, and limitations from every supplied source section. Do not omit a section because it seems less relevant. Preserve its [S#] identifier beside each extracted claim, and include a source mapping that lists every supplied [S#] with its exact original path. Keep source headings when they help identify a section. The final answer needs this mapping to cite the original file. Do not infer beyond the text.
+Merge the provided source topics into this one topic. Keep every piece of information from each source (facts, numbers, conditions, examples, source links and open questions) and remove only duplicates. Do not add conclusions, comparisons, judgements or recommendations the sources do not contain. Where sources contradict each other, show both and name the topic each comes from. summary is one sentence of at most 80 characters, based only on the sources. detail is the complete knowledge page. Return an empty suggestions array.

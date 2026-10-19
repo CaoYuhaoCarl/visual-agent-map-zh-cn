@@ -643,6 +643,7 @@ var english = {
   "ui.merge_with_ai": "Merge with AI",
   "ui.merge_bar_title_0": "Merging \u201C{0}\u201D",
   "ui.merge_ai_running": "AI is merging\u2026",
+  "ui.merge_stop": "Stop merge",
   "ui.merge_draft_ready_0": "The merge draft for \u201C{0}\u201D is ready",
   "ui.review_merge_draft": "Review merge draft",
   "ui.merge_draft_intro": "Confirming creates \u201C{0}\u201D and replaces {1} cards. The original notes move to Unassigned; Undo restores them.",
@@ -2132,6 +2133,7 @@ var traditionalChinese = {
   "ui.merge_with_ai": "\u7528 AI \u5408\u4F75",
   "ui.merge_bar_title_0": "\u5408\u4F75\u8B70\u984C\u300C{0}\u300D",
   "ui.merge_ai_running": "AI \u6B63\u5728\u5408\u4F75\u2026",
+  "ui.merge_stop": "\u505C\u6B62\u5408\u4F75",
   "ui.merge_draft_ready_0": "\u300C{0}\u300D\u7684\u5408\u4F75\u8349\u7A3F\u5B8C\u6210\u4E86",
   "ui.review_merge_draft": "\u6AA2\u95B1\u5408\u4F75\u8349\u7A3F",
   "ui.merge_draft_intro": "\u78BA\u8A8D\u5F8C\u6703\u5EFA\u7ACB\u300C{0}\u300D\u4E26\u53D6\u4EE3 {1} \u5F35\u5361\uFF1B\u539F\u7B46\u8A18\u79FB\u5230 Unassigned\uFF0C\u53EF\u4EE5\u7528\u5FA9\u539F\u9084\u539F\u3002",
@@ -3628,6 +3630,7 @@ function backgroundResultNotice(message, action) {
   return notice;
 }
 function renderBackgroundStatus(parent, status) {
+  var _a;
   const bar = parent.createDiv(`vam-aim-statusbar vam-background-statusbar${status.running ? " is-active" : ""}`);
   bar.setAttr("aria-live", "polite");
   bar.createSpan({ cls: "vam-aim-status-title", text: status.title });
@@ -3636,7 +3639,7 @@ function renderBackgroundStatus(parent, status) {
     text: status.value
   });
   if (status.running && status.onStop) {
-    const stop = bar.createEl("button", { text: t("ui.stop_research") });
+    const stop = bar.createEl("button", { text: (_a = status.stopLabel) != null ? _a : t("ui.stop_research") });
     stop.addEventListener("click", status.onStop);
   }
   if (status.review) {
@@ -5195,7 +5198,7 @@ function normalizeReasoningLevel(value) {
 }
 function effectiveReasoningLevel(context, selected) {
   if (selected !== "auto") return selected;
-  if (context.mode === "synthesize") return "medium";
+  if (context.mode === "synthesize" || context.mode === "merge") return "medium";
   return context.sourceContext && context.sourceContext.length > 6e3 ? "medium" : "low";
 }
 function researchGuidance(context, language2 = "zh-TW") {
@@ -12579,6 +12582,13 @@ var output_language_zh_default = "\u65B0\u7522\u751F\u7684\u5167\u5BB9\u9810\u8A
 // core/steps/task/output-language.en.md
 var output_language_en_default = "Write newly generated content in English by default, including summaries, detail text, suggestion titles, tasks, contributions, and image descriptions. The six standard Detail headings must follow the interface language. Preserve quoted source text and proper names. Follow a different output language only when the current task or topic AI rules explicitly request it.\n";
 
+// core/steps/task/merge.zh.md
+var merge_zh_default = "\u9019\u662F Merge \u6A21\u5F0F\uFF1A\u628A\u4F86\u6E90\u8B70\u984C\u5408\u4F75\u6210\u4E00\u7BC7\uFF0C\u53EA\u6574\u7406\u4F86\u6E90\u88E1\u5DF2\u7D93\u5BEB\u7684\u5167\u5BB9\u3002summary \u662F\u4E00\u53E5 80 \u5B57\u5167\u3001\u53EA\u6839\u64DA\u4F86\u6E90\u7684\u5408\u4F75\u5F8C\u76EE\u524D\u7406\u89E3\u3002detail \u4FDD\u7559\u6BCF\u500B\u4F86\u6E90\u7684\u5168\u90E8\u8CC7\u8A0A\uFF08\u4E8B\u5BE6\u3001\u6578\u5B57\u3001\u689D\u4EF6\u3001\u4F8B\u5B50\u3001\u4F86\u6E90\u9023\u7D50\u8207\u5F85\u78BA\u8A8D\u4E8B\u9805\uFF09\uFF0C\u53EA\u522A\u9664\u91CD\u8907\uFF0C\u4E26\u653E\u9032\u4E0B\u5217\u6A19\u984C\u4E4B\u4E0B\u3002\u4E0D\u5F97\u65B0\u589E\u4F86\u6E90\u6C92\u6709\u7684\u6BD4\u8F03\u3001\u8DA8\u52E2\u3001\u56E0\u679C\u3001\u8A55\u50F9\u3001\u5EFA\u8B70\u3001\u63A8\u8AD6\u6216\u5F85\u78BA\u8A8D\u4E8B\u9805\uFF1B\u4F86\u6E90\u6C92\u6709\u5BEB\u7684\u6BB5\u843D\u5C31\u5BEB\u300C\u9019\u6B21\u6C92\u6709\u65B0\u5167\u5BB9\u300D\uFF0C\u4E0D\u8981\u81EA\u5DF1\u88DC\u3002\u4F86\u6E90\u5F7C\u6B64\u77DB\u76FE\u6642\u4E26\u5217\u5448\u73FE\u4E26\u8A3B\u660E\u51FA\u81EA\u54EA\u500B\u8B70\u984C\u3002\u4FDD\u7559\u4F86\u6E90\u539F\u6709\u7684\u8868\u683C\u3001\u5716\u7247\u8207\u9023\u7D50\uFF0C\u4E0D\u65B0\u589E\u4F86\u6E90\u6C92\u6709\u7684\u63D0\u793A\u6846\u3001\u5F85\u8FA6\u6E05\u55AE\u3001\u5716\u8868\u6216\u91CD\u9EDE\u6A19\u793A\u3002\u4E0B\u5217\u6A19\u984C\u7684\u8AAA\u660E\u53EA\u7528\u4F86\u6C7A\u5B9A\u4F86\u6E90\u5167\u5BB9\u653E\u54EA\u4E00\u6BB5\uFF0C\u4E0D\u662F\u8981\u4F60\u88DC\u5BEB\u5167\u5BB9\u3002\n";
+
+// core/steps/task/merge.en.md
+var merge_en_default = `Merge mode: combine the source topics into one page by organizing only what the sources already say. summary is one sentence of at most 80 characters, based only on the sources. detail keeps every piece of information from each source (facts, numbers, conditions, examples, source links and open questions) and removes only duplicates, placed under the headings below. Do not add comparisons, trends, causal claims, judgements, recommendations, inferences or open questions the sources do not contain; a section the sources have nothing for says "No new content this time" and is not filled in by you. Where sources contradict each other, show both side by side and name the topic each comes from. Keep the sources' tables, images and links, and do not add callouts, task lists, charts or highlights they do not have. The section descriptions below only decide where source content goes; they are not a request to write more.
+`;
+
 // core/steps/task/synthesize.zh.md
 var synthesize_zh_default = "\u9019\u662F Synthesize \u6A21\u5F0F\uFF1Asummary \u5FC5\u9808\u662F\u9AD8\u54C1\u8CEA\u6574\u5408\u7D50\u8AD6\uFF0C80 \u5B57\u5167\uFF1Bdetail \u5FC5\u9808\u6574\u5408\u4F86\u6E90\u5B8C\u6574\u77E5\u8B58\u3001\u6536\u6582\u91CD\u8907\u5167\u5BB9\u3001\u6E05\u695A\u5448\u73FE\u5171\u8B58\u3001\u5206\u6B67\u3001\u53D6\u6368\u8207\u672A\u89E3\u554F\u984C\uFF1B\u82E5\u4ECB\u9762\u63D0\u4F9B\u78BA\u8A8D\u8349\u7A3F\uFF0C\u78BA\u8A8D\u5F8C\u624D\u6703\u5BEB\u56DE\u3002\n";
 
@@ -12627,6 +12637,7 @@ var JSON_CONTRACT = pair4(json_zh_default, json_en_default);
 var LABEL_DETAIL = pair4(label_detail_zh_default, label_detail_en_default);
 var LABEL_FINDINGS = pair4(label_findings_zh_default, label_findings_en_default);
 var OUTPUT_LANGUAGE = pair4(output_language_zh_default, output_language_en_default);
+var MERGE = pair4(merge_zh_default, merge_en_default);
 var SYNTHESIZE = pair4(synthesize_zh_default, synthesize_en_default);
 var VISUAL_AUTO = pair4(visual_auto_zh_default, visual_auto_en_default);
 var VISUAL_EMBED = pair4(visual_embed_zh_default, visual_embed_en_default);
@@ -27445,7 +27456,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian27.Ite
         title: t("ui.merge_bar_title_0", merge.title),
         value: running ? merge.progress || t("ui.merge_ai_running") : merge.state === "draft" ? t("ui.merge_draft_ready_0", merge.title) : (_e = merge.message) != null ? _e : t("ui.merge_draft_stale"),
         running,
-        ...running ? { onStop: () => this.stopMergeTask(merge) } : {},
+        ...running ? { onStop: () => this.stopMergeTask(merge), stopLabel: t("ui.merge_stop") } : {},
         ...merge.state === "draft" ? { review: { label: t("ui.review_merge_draft"), open: () => this.reviewMergeDraft(merge) } } : {},
         onDismiss: () => this.stopMergeTask(merge)
       });
@@ -29076,13 +29087,15 @@ ${request.requirements}` : preset.text,
           task: mergeGoalTask(language2),
           ancestors: "",
           referenceGroups: [sourceGroup],
+          // Within budget the sources go in as written (one request); only over-budget sources are extracted first.
+          referenceDelivery: "direct",
           onProgress: (message) => {
             if (!this.isLiveMergeTask(task)) return;
             task.progress = message;
             this.render();
           },
           outputLanguage: language2,
-          mode: "synthesize",
+          mode: "merge",
           researchMode: "local",
           researchDepth: "normal",
           visualMode: "off",
@@ -36230,7 +36243,7 @@ function parseAiResult(raw, label, language2, strictGapAudit = false, webResearc
 function visualGuidance(context, language2) {
   const synthesis = context.mode === "synthesize";
   const maySearch = context.researchMode !== "local" && context.mode !== "decompose" && context.visualMode !== "off";
-  const mayReuse = synthesis;
+  const mayReuse = synthesis || context.mode === "merge";
   const instructions = [];
   if (!maySearch) {
     instructions.push(inLanguage(VISUAL_NONE, language2));
@@ -36247,7 +36260,7 @@ function readerFacingDetail(context) {
 }
 function generalTaskPrompt(context, language2) {
   var _a;
-  const modeFragment = context.mode === "task" ? GENERAL_TASK : context.mode === "decompose" ? DECOMPOSE : context.mode === "synthesize" ? SYNTHESIZE : DEFAULT_TASK;
+  const modeFragment = context.mode === "task" ? GENERAL_TASK : context.mode === "decompose" ? DECOMPOSE : context.mode === "synthesize" ? SYNTHESIZE : context.mode === "merge" ? MERGE : DEFAULT_TASK;
   const none = inLanguage(NONE, language2);
   return [
     inLanguage(OUTPUT_LANGUAGE, language2),
@@ -36264,7 +36277,8 @@ function generalTaskPrompt(context, language2) {
         language2,
         (headings) => detailStructure(language2, headings)
       ),
-      readerFacingDetail(context) ? inLanguage(OBSIDIAN_FORMAT, language2) : ""
+      // A merge keeps the sources' own formatting; the syntax suggestions would invite callouts the sources lack.
+      readerFacingDetail(context) && context.mode !== "merge" ? inLanguage(OBSIDIAN_FORMAT, language2) : ""
     ].filter(Boolean).join("\n\n") : "",
     researchGuidance(context, language2),
     ...visualGuidance(context, language2),
@@ -36334,7 +36348,8 @@ var AiTaskService = class {
         acceptedOnce = true;
         onRequestAccepted();
       } : void 0;
-      const findings = await this.extractReferenceFindings(context, model, reasoning, signal, accepted);
+      const direct = context.referenceDelivery === "direct" ? referenceBatches(referenceGroups) : [];
+      const findings = direct.length === 1 ? direct[0] : await this.extractReferenceFindings(context, model, reasoning, signal, accepted);
       context = {
         ...context,
         sourceContext: [context.sourceContext, findings, sourceRegistry(referenceCatalog(referenceGroups))].filter(Boolean).join("\n\n"),

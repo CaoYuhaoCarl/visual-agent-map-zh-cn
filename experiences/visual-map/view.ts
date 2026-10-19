@@ -1048,7 +1048,7 @@ export class VisualAgentMapView extends ItemView {
             ? t("ui.merge_draft_ready_0", merge.title)
             : (merge.message ?? t("ui.merge_draft_stale")),
         running,
-        ...(running ? { onStop: () => this.stopMergeTask(merge) } : {}),
+        ...(running ? { onStop: () => this.stopMergeTask(merge), stopLabel: t("ui.merge_stop") } : {}),
         ...(merge.state === "draft"
           ? { review: { label: t("ui.review_merge_draft"), open: () => this.reviewMergeDraft(merge) } }
           : {}),
@@ -2786,13 +2786,15 @@ export class VisualAgentMapView extends ItemView {
           task: mergeGoalTask(language),
           ancestors: "",
           referenceGroups: [sourceGroup],
+          // Within budget the sources go in as written (one request); only over-budget sources are extracted first.
+          referenceDelivery: "direct",
           onProgress: message => {
             if (!this.isLiveMergeTask(task)) return;
             task.progress = message;
             this.render();
           },
           outputLanguage: language,
-          mode: "synthesize",
+          mode: "merge",
           researchMode: "local",
           researchDepth: "normal",
           visualMode: "off",
