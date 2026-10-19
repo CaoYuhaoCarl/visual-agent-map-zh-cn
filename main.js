@@ -686,7 +686,12 @@ var english = {
   "ui.merge_0_topics": "Merge {0} topics",
   "ui.merge_needs_two": "Select at least 2 topics to merge",
   "ui.merge_needs_same_parent": "Only topics under the same parent (or all top-level topics) can be merged",
-  "ui.merge_ancestor_selected": "The selection includes a topic and one of its subtopics, so it cannot be merged",
+  "ui.merge_ancestor_selected": "Only topics at the same level, or one parent topic with its direct subtopics, can be merged",
+  "ui.merge_parent_direct_only": "Only a parent topic and its direct subtopics can be merged",
+  "ui.merge_into_parent_desc": "The content of {1} subtopic cards is added to \u201C{0}\u201D, which keeps its place on the map. The subtopic notes move to this map's Unassigned folder and their own subtopics move under \u201C{0}\u201D; Undo restores them.",
+  "ui.merge_into_parent_ai_desc": "AI merges the content of \u201C{0}\u201D and {1} subtopic cards into one: every piece of information is kept, duplicates are removed and no new conclusions are added. AI also decides the topic's name (you can rename it when you review). You review the draft first; \u201C{0}\u201D keeps its place on the map and its Summary and Detail are replaced only after you confirm. The subtopic notes move to Unassigned; Undo restores everything.",
+  "ui.merge_into_parent_intro": "Confirming replaces the Summary and Detail of \u201C{0}\u201D with the merged content, and {1} subtopic cards move to Unassigned. Undo restores them.",
+  "ui.merge_target_changed": "The merged topic was edited after the merge, so Undo or Redo was not applied.",
   "ui.merge_busy": "An AI task is running on a selected topic; merge after it finishes",
   "ui.merge_missing_note": "A selected topic's note is missing, so it cannot be merged",
   "ui.merge_title_label": "Name of the merged topic",
@@ -2263,7 +2268,12 @@ var traditionalChinese = {
   "ui.merge_0_topics": "\u5408\u4F75 {0} \u500B\u8B70\u984C",
   "ui.merge_needs_two": "\u9078 2 \u500B\u4EE5\u4E0A\u8B70\u984C\u624D\u80FD\u5408\u4F75",
   "ui.merge_needs_same_parent": "\u53EA\u80FD\u5408\u4F75\u540C\u4E00\u500B\u6BCD\u8B70\u984C\u5E95\u4E0B\u7684\u8B70\u984C\uFF08\u6216\u90FD\u662F\u6700\u4E0A\u5C64\u8B70\u984C\uFF09",
-  "ui.merge_ancestor_selected": "\u9078\u53D6\u4E2D\u540C\u6642\u6709\u6BCD\u8B70\u984C\u548C\u5B83\u7684\u5B50\u8B70\u984C\uFF0C\u7121\u6CD5\u5408\u4F75",
+  "ui.merge_ancestor_selected": "\u53EA\u80FD\u5408\u4F75\u540C\u4E00\u5C64\u7684\u8B70\u984C\uFF0C\u6216\u4E00\u500B\u6BCD\u8B70\u984C\u548C\u5B83\u7684\u76F4\u5C6C\u5B50\u8B70\u984C",
+  "ui.merge_parent_direct_only": "\u53EA\u80FD\u5408\u4F75\u6BCD\u8B70\u984C\u548C\u5B83\u7684\u76F4\u5C6C\u5B50\u8B70\u984C",
+  "ui.merge_into_parent_desc": "{1} \u5F35\u5B50\u8B70\u984C\u5361\u7684\u5167\u5BB9\u6703\u4F75\u9032\u300C{0}\u300D\u4E26\u4FDD\u7559\u5B83\u5728\u5716\u4E0A\u7684\u4F4D\u7F6E\uFF1B\u5B50\u8B70\u984C\u7684\u539F\u7B46\u8A18\u79FB\u5230\u9019\u5F35\u5716\u7684 Unassigned\uFF0C\u5B83\u5011\u5E95\u4E0B\u7684\u5B50\u8B70\u984C\u6539\u639B\u5230\u300C{0}\u300D\uFF1B\u53EF\u4EE5\u7528\u5FA9\u539F\u9084\u539F\u3002",
+  "ui.merge_into_parent_ai_desc": "AI \u6703\u628A\u300C{0}\u300D\u548C {1} \u5F35\u5B50\u8B70\u984C\u5361\u7684\u5167\u5BB9\u5408\u4F75\u6210\u4E00\u7BC7\uFF1A\u4FDD\u7559\u5168\u90E8\u8CC7\u8A0A\u3001\u53BB\u9664\u91CD\u8907\u3001\u4E0D\u52A0\u5165\u65B0\u7D50\u8AD6\uFF0C\u4E26\u6C7A\u5B9A\u8B70\u984C\u540D\u7A31\uFF08\u6AA2\u95B1\u6642\u53EF\u4EE5\u6539\u540D\uFF09\u3002\u5B8C\u6210\u5F8C\u5148\u8B93\u4F60\u6AA2\u95B1\u8349\u7A3F\uFF0C\u78BA\u8A8D\u5F8C\u624D\u53D6\u4EE3\u5B83\u7684 Summary \u548C Detail\uFF0C\u300C{0}\u300D\u4FDD\u7559\u5728\u5716\u4E0A\u7684\u4F4D\u7F6E\uFF1B\u5B50\u8B70\u984C\u7684\u539F\u7B46\u8A18\u79FB\u5230 Unassigned\uFF0C\u53EF\u4EE5\u7528\u5FA9\u539F\u9084\u539F\u3002",
+  "ui.merge_into_parent_intro": "\u78BA\u8A8D\u5F8C\u6703\u7528\u5408\u4F75\u5167\u5BB9\u53D6\u4EE3\u300C{0}\u300D\u7684 Summary \u548C Detail\uFF0C{1} \u5F35\u5B50\u8B70\u984C\u5361\u79FB\u5230 Unassigned\uFF1B\u53EF\u4EE5\u7528\u5FA9\u539F\u9084\u539F\u3002",
+  "ui.merge_target_changed": "\u5408\u4F75\u5F8C\u7684\u8B70\u984C\u5DF2\u88AB\u4FEE\u6539\uFF0C\u5FA9\u539F\u6216\u91CD\u505A\u672A\u57F7\u884C\u3002",
   "ui.merge_busy": "\u6709\u8B70\u984C\u6B63\u5728\u57F7\u884C AI \u4EFB\u52D9\uFF0C\u5B8C\u6210\u5F8C\u624D\u80FD\u5408\u4F75",
   "ui.merge_missing_note": "\u6709\u8B70\u984C\u7684\u7B46\u8A18\u627E\u4E0D\u5230\uFF0C\u7121\u6CD5\u5408\u4F75",
   "ui.merge_title_label": "\u5408\u4F75\u5F8C\u7684\u8B70\u984C\u540D\u7A31",
@@ -27487,14 +27497,30 @@ function mergeEligibility(input) {
   const picked = input.nodes.filter((node) => wanted.has(node.id));
   if (wanted.size < 2 || picked.length < 2 || picked.length !== wanted.size)
     return { ok: false, reason: "ui.merge_needs_two" };
-  for (const node of picked)
-    if (descendants(input.nodes, node.id).size && picked.some((other) => descendants(input.nodes, node.id).has(other.id)))
-      return { ok: false, reason: "ui.merge_ancestor_selected" };
+  const related = picked.filter((node) => {
+    const below = descendants(input.nodes, node.id);
+    return below.size && picked.some((other) => below.has(other.id));
+  });
+  let target = null;
+  if (related.length) {
+    const tops = picked.filter((node) => !picked.some((other) => descendants(input.nodes, other.id).has(node.id)));
+    if (tops.length !== 1) return { ok: false, reason: "ui.merge_ancestor_selected" };
+    if (picked.some((node) => node !== tops[0] && node.parentId !== tops[0].id))
+      return { ok: false, reason: "ui.merge_parent_direct_only" };
+    target = tops[0];
+  }
+  if (target) {
+    const children = picked.filter((node) => node !== target);
+    if (children.some((node) => !input.hasNote(node.id)) || !input.hasNote(target.id))
+      return { ok: false, reason: "ui.merge_missing_note" };
+    if (picked.some((node) => input.busy(node))) return { ok: false, reason: "ui.merge_busy" };
+    return { ok: true, sources: [target, ...readingOrder(children)], parentId: target.parentId, targetId: target.id };
+  }
   const parentId = picked[0].parentId;
   if (picked.some((node) => node.parentId !== parentId)) return { ok: false, reason: "ui.merge_needs_same_parent" };
   if (picked.some((node) => !input.hasNote(node.id))) return { ok: false, reason: "ui.merge_missing_note" };
   if (picked.some((node) => input.busy(node))) return { ok: false, reason: "ui.merge_busy" };
-  return { ok: true, sources: readingOrder(picked), parentId };
+  return { ok: true, sources: readingOrder(picked), parentId, targetId: null };
 }
 function mergedDetail(sources2) {
   return sources2.filter((source) => source.detail.trim()).map((source) => `### ${source.title}
@@ -27522,13 +27548,14 @@ function mergeTitleFromResult(result, fallback) {
 }
 var MergeTopicsModal = class extends import_obsidian28.Modal {
   constructor(app, count, value, submit, cancelled = () => {
-  }, ai) {
+  }, ai, parentName) {
     super(app);
     this.count = count;
     this.value = value;
     this.submit = submit;
     this.cancelled = cancelled;
     this.ai = ai;
+    this.parentName = parentName;
     __publicField(this, "submitted", false);
     __publicField(this, "detached", false);
     __publicField(this, "controller", new AbortController());
@@ -27538,12 +27565,15 @@ var MergeTopicsModal = class extends import_obsidian28.Modal {
     const input = this.contentEl.createEl("input", { type: "text", value: this.value, cls: "vam-name-input" });
     input.setAttr("aria-label", t("ui.merge_title_label"));
     const description = this.contentEl.createEl("p", {
-      text: t("ui.merge_confirm_desc", this.count),
+      text: this.parentName !== void 0 ? t("ui.merge_into_parent_desc", this.parentName, this.count - 1) : t("ui.merge_confirm_desc", this.count),
       cls: "vam-merge-desc"
     });
     let skipAi;
     if (this.ai) {
-      this.contentEl.createEl("p", { text: t("ui.merge_ai_desc", this.count), cls: "vam-merge-desc" });
+      this.contentEl.createEl("p", {
+        text: this.parentName !== void 0 ? t("ui.merge_into_parent_ai_desc", this.parentName, this.count - 1) : t("ui.merge_ai_desc", this.count),
+        cls: "vam-merge-desc"
+      });
       const label = this.contentEl.createEl("label", { cls: "vam-merge-skip-ai" });
       skipAi = label.createEl("input", { type: "checkbox" });
       label.createSpan({ text: t("ui.merge_no_ai") });
@@ -27666,6 +27696,7 @@ function aimQuestionStatus(map, questionNodeId, activeQuestionNodeId) {
   if (statuses.includes("cancelled")) return "cancelled";
   return "not_started";
 }
+var MERGE_GUARD_FIELDS = ["title", "summary", "detail", "status"];
 var cardLabelSequence = 0;
 var cardLabels = /* @__PURE__ */ new WeakMap();
 var relevanceRunToken = 0;
@@ -30620,7 +30651,7 @@ ${request.requirements}` : preset.text,
   }
   /** Asks for the merged topic's name, then merges in the write queue (which checks everything again). */
   openMerge() {
-    var _a, _b;
+    var _a, _b, _c, _d;
     if (!this.map || this.map.aim || this.builtIn || this.mergeOpen || !this.multiSelected.size) return;
     const existing = this.mergeTasks.get(this.path);
     if ((existing == null ? void 0 : existing.state) === "running") {
@@ -30641,6 +30672,7 @@ ${request.requirements}` : preset.text,
       path: this.path,
       mapId: this.map.id,
       parentId: check.parentId,
+      targetId: check.targetId,
       sources: check.sources.map((source) => ({ id: source.id, path: source.path }))
     };
     const withContent = hasMergeContent(check.sources.map((source) => this.notes.get(source.id)));
@@ -30659,10 +30691,14 @@ ${request.requirements}` : preset.text,
       () => {
         this.mergeOpen = false;
       },
-      withContent ? { start: (title, started, signal) => this.startMergeDraft(title, snapshot, started, signal) } : void 0
+      withContent ? { start: (title, started, signal) => this.startMergeDraft(title, snapshot, started, signal) } : void 0,
+      check.targetId ? (_d = (_c = this.notes.get(check.targetId)) == null ? void 0 : _c.title) != null ? _d : "" : void 0
     ).open();
   }
-  /** The model of a merged topic: the common parent's model like a new subtopic, else the workspace model. */
+  /**
+   * The model of a merged topic: the common parent's model like a new subtopic, else the workspace model. In parent mode
+   * the parent topic itself is the one whose model counts.
+   */
   async mergeModel(parentId) {
     var _a, _b;
     const parent = parentId ? (_a = this.map) == null ? void 0 : _a.nodes.find((node) => node.id === parentId) : void 0;
@@ -30677,30 +30713,33 @@ ${request.requirements}` : preset.text,
    * its draft is confirmed. Resolves false when AI did not start.
    */
   async startMergeDraft(title, snapshot, started, signal) {
+    var _a;
     const stillValid = () => {
+      var _a2;
       const check = this.mergeCheck(snapshot.sources.map((source) => source.id));
-      return !this.closed && !!this.map && this.path === snapshot.path && this.map.id === snapshot.mapId && check.ok && check.sources.every((node) => {
-        var _a;
-        return ((_a = snapshot.sources.find((source) => source.id === node.id)) == null ? void 0 : _a.path) === node.path;
+      return !this.closed && !!this.map && this.path === snapshot.path && this.map.id === snapshot.mapId && check.ok && check.targetId === ((_a2 = snapshot.targetId) != null ? _a2 : null) && check.sources.every((node) => {
+        var _a3;
+        return ((_a3 = snapshot.sources.find((source) => source.id === node.id)) == null ? void 0 : _a3.path) === node.path;
       });
     };
     if (!stillValid()) {
       new import_obsidian29.Notice(t("ui.merge_draft_stale"));
       return false;
     }
-    const model = await this.mergeModel(snapshot.parentId);
+    const model = await this.mergeModel((_a = snapshot.targetId) != null ? _a : snapshot.parentId);
     let began = false;
     const accepted = await this.plugin.confirmAiUsage(model, async () => {
-      var _a, _b;
+      var _a2, _b, _c;
       if (signal.aborted || !stillValid()) return;
       began = true;
       const task = {
         mapPath: snapshot.path,
         mapId: snapshot.mapId,
-        mapTitle: (_b = (_a = this.map) == null ? void 0 : _a.title) != null ? _b : "",
+        mapTitle: (_b = (_a2 = this.map) == null ? void 0 : _a2.title) != null ? _b : "",
         title,
         sources: snapshot.sources,
         parentId: snapshot.parentId,
+        targetId: (_c = snapshot.targetId) != null ? _c : null,
         model,
         sourceContent: "",
         controller: new AbortController(),
@@ -30786,6 +30825,7 @@ ${request.requirements}` : preset.text,
     this.render();
   }
   reviewMergeDraft(task) {
+    var _a, _b;
     if (this.mergeTasks.get(task.mapPath) !== task || task.state !== "draft" || !task.draft || this.closed) return;
     if (this.path !== task.mapPath) {
       new import_obsidian29.Notice(t("ui.merge_open_map_first_0", task.mapTitle));
@@ -30797,7 +30837,7 @@ ${request.requirements}` : preset.text,
       draft.summary,
       draft.detail,
       {
-        intro: t("ui.merge_draft_intro", task.title, task.sources.length),
+        intro: task.targetId ? t("ui.merge_into_parent_intro", (_b = (_a = this.notes.get(task.targetId)) == null ? void 0 : _a.title) != null ? _b : task.title, task.sources.length - 1) : t("ui.merge_draft_intro", task.title, task.sources.length),
         confirmLabel: t("ui.confirm_merge"),
         title: t("ui.review_merge_draft"),
         name: { label: t("ui.merge_draft_name"), value: task.title }
@@ -30814,7 +30854,7 @@ ${request.requirements}` : preset.text,
     return this.plugin.mutate(
       () => this.mergeSelected(
         (name == null ? void 0 : name.trim()) || task.title,
-        { path: task.mapPath, mapId: task.mapId, sources: task.sources },
+        { path: task.mapPath, mapId: task.mapId, targetId: task.targetId, sources: task.sources },
         {
           summary,
           detail,
@@ -30839,7 +30879,7 @@ ${request.requirements}` : preset.text,
    * notes go to Unassigned, their subtopics move under the new topic. One history step; a failure puts everything back.
    */
   async mergeSelected(title, snapshot, content) {
-    var _a, _b;
+    var _a, _b, _c;
     const stale = () => {
       if (content && this.mergeTasks.get(snapshot.path) === content.task) {
         content.task.state = "failed";
@@ -30862,7 +30902,7 @@ ${request.requirements}` : preset.text,
       new import_obsidian29.Notice(t(check.reason));
       return;
     }
-    if (check.sources.some((node) => {
+    if (((_a = snapshot.targetId) != null ? _a : null) !== check.targetId || check.sources.some((node) => {
       var _a2;
       return ((_a2 = snapshot.sources.find((source) => source.id === node.id)) == null ? void 0 : _a2.path) !== node.path;
     })) {
@@ -30879,6 +30919,7 @@ ${request.requirements}` : preset.text,
       }
       if (latest !== content.sourceContent) stale();
     }
+    if (check.targetId) return this.mergeIntoParent(title, check.sources, content, before);
     let detail = "";
     if (!content) {
       const sourceNotes = [];
@@ -30887,7 +30928,7 @@ ${request.requirements}` : preset.text,
         sources2.map((_, index) => ({ title: sourceNotes[index].title, detail: sourceNotes[index].detail }))
       );
     }
-    const model = (_a = content == null ? void 0 : content.task.model) != null ? _a : await this.mergeModel(check.parentId);
+    const model = (_b = content == null ? void 0 : content.task.model) != null ? _b : await this.mergeModel(check.parentId);
     const created = await repo.createNote(
       title,
       model,
@@ -30978,11 +31019,171 @@ ${request.requirements}` : preset.text,
       await this.plugin.rebuildDerivedData();
       await this.hydrate();
       this.render();
-      const merged = (_b = this.map) == null ? void 0 : _b.nodes.find((item) => item.id === created.id);
+      const merged = (_c = this.map) == null ? void 0 : _c.nodes.find((item) => item.id === created.id);
+      if (merged) this.focusNode(merged);
+    } catch (e) {
+      this.render();
+      new import_obsidian27.Notice(t("ui.merge_saved_refresh_failed"));
+    }
+  }
+  /** The note's exact text, and a verbatim write of it (undo of a merge into a parent restores the original this way). */
+  async readNoteText(path) {
+    return this.app.vault.read(this.plugin.repo.file(path));
+  }
+  async writeNoteText(path, text11) {
+    await this.app.vault.process(this.plugin.repo.file(path), () => text11);
+  }
+  mergeGuardOf(note) {
+    return { title: note.title, summary: note.summary, detail: note.detail, status: note.status };
+  }
+  sameMergeGuard(a, b) {
+    return MERGE_GUARD_FIELDS.every((field) => JSON.stringify(a[field]) === JSON.stringify(b[field]));
+  }
+  /**
+   * Merge into a parent topic (`sources[0]`): the parent keeps its card, id, path, place and other properties; its
+   * Summary and Detail become the merged content (its own content is a source too), the selected subtopics go to
+   * Unassigned and their subtopics move under the parent. One history step; a failure puts everything back, including
+   * the parent's exact text.
+   */
+  async mergeIntoParent(title, sources2, content, before) {
+    var _a;
+    const [target, ...children] = sources2, mapPath = this.path, repo = this.plugin.repo, language2 = this.plugin.settings.language, detailTemplate = this.mapDetailTemplate(language2);
+    const beforeText = await this.readNoteText(target.path), sourceNotes = [];
+    for (const source of sources2) sourceNotes.push(await repo.readNote(source.path, before));
+    const guardBefore = this.mergeGuardOf(sourceNotes[0]), name = title.trim(), sourcePaths = [.../* @__PURE__ */ new Set([...sourceNotes[0].sourcePaths, ...children.map((child) => child.path)])];
+    let patch;
+    if (content) {
+      const references2 = visualReferencesMarkdown(content.visualReferences, language2);
+      patch = {
+        summary: content.summary,
+        detail: canonicalDetail(content.detail, language2, detailTemplate),
+        status: "completed",
+        sourcePaths,
+        ...references2.trim() ? { visualReferences: references2 } : {},
+        ...formatIssuesPatch(content.formatIssues, language2)
+      };
+    } else {
+      const detail = mergedDetail(sourceNotes.map((note) => ({ title: note.title, detail: note.detail })));
+      patch = { detail, status: mergedStatus(detail), sourcePaths };
+    }
+    if (name && name !== sourceNotes[0].title) patch.title = name;
+    const done = [], moves = [], after = clone(before);
+    try {
+      await repo.updateNote(target.path, patch, { detailTemplate });
+      for (const child of children) {
+        const parked = await repo.moveUnique(child.path, repo.topicFolder(mapPath, "Unassigned"));
+        done.push({
+          from: child.path,
+          to: parked,
+          topicId: before.id,
+          restoreMapId: before.id,
+          restoreState: "active"
+        });
+        moves.push({ activePath: child.path, parkedPath: parked, topicId: before.id, parkedState: "unassigned" });
+        await repo.setLifecycle(parked, before.id, "", "unassigned");
+      }
+      const ids = new Set(children.map((child) => child.id)), adopted = /* @__PURE__ */ new Set();
+      for (const item of after.nodes)
+        if (item.parentId !== null && ids.has(item.parentId)) {
+          item.parentId = target.id;
+          adopted.add(item.id);
+          for (const id of descendants(after.nodes, item.id)) adopted.add(id);
+        }
+      after.nodes = after.nodes.filter((item) => !ids.has(item.id));
+      if (adopted.size) after.nodes = arrangeNewBranch(after.nodes, target.id, adopted, this.cardHeightOf);
+      await repo.saveMap(mapPath, after);
+    } catch (error) {
+      try {
+        await this.revertMergeMoves(done);
+        await this.writeNoteText(target.path, beforeText);
+        await repo.saveMap(mapPath, before);
+        this.map = before;
+        await this.plugin.rebuildDerivedData();
+        await this.hydrate();
+        this.render();
+      } catch (rollbackError) {
+        throw new AggregateError([error, rollbackError], t("error.merge_rollback_failed"));
+      }
+      throw error;
+    }
+    const state = {
+      before,
+      after,
+      targetPath: target.path,
+      beforeText,
+      patch,
+      detailTemplate,
+      guardBefore,
+      guardAfter: this.mergeGuardOf(await repo.readNote(target.path)),
+      sources: moves
+    };
+    this.map = after;
+    if (content && this.mergeTasks.get(mapPath) === content.task) this.mergeTasks.delete(mapPath);
+    this.history.push({
+      label: t("ui.merge_topics_history"),
+      undo: () => this.applyParentMerge(state, false),
+      redo: () => this.applyParentMerge(state, true)
+    });
+    this.integrationMode = false;
+    this.selected = target.id;
+    this.multiSelected.clear();
+    try {
+      await this.plugin.rebuildDerivedData();
+      await this.hydrate();
+      this.render();
+      const merged = (_a = this.map) == null ? void 0 : _a.nodes.find((item) => item.id === target.id);
       if (merged) this.focusNode(merged);
     } catch (e) {
       this.render();
       new import_obsidian29.Notice(t("ui.merge_saved_refresh_failed"));
+    }
+  }
+  /**
+   * Undo (`merged` false) or redo (`merged` true) of a merge into a parent. The parent's visible content must still be
+   * what the merge left (or what it replaced) before any file moves; undo writes the original text back verbatim.
+   */
+  async applyParentMerge(state, merged) {
+    const repo = this.plugin.repo, previous = clone(this.map), mapPath = this.path, topicId = state.before.id, done = [];
+    const latest = this.mergeGuardOf(await repo.readNote(state.targetPath));
+    if (!this.sameMergeGuard(latest, merged ? state.guardBefore : state.guardAfter))
+      throw new Error(t("ui.merge_target_changed"));
+    const priorText = await this.readNoteText(state.targetPath);
+    try {
+      if (merged) await repo.updateNote(state.targetPath, state.patch, { detailTemplate: state.detailTemplate });
+      for (const move of state.sources) {
+        const from = merged ? move.activePath : move.parkedPath, to = merged ? move.parkedPath : move.activePath;
+        await repo.moveExact(from, to);
+        done.push({
+          from,
+          to,
+          topicId,
+          restoreMapId: merged ? topicId : "",
+          restoreState: merged ? "active" : "unassigned"
+        });
+        await repo.setLifecycle(to, topicId, merged ? "" : topicId, merged ? "unassigned" : "active");
+      }
+      if (!merged) await this.writeNoteText(state.targetPath, state.beforeText);
+      const next = clone(merged ? state.after : state.before);
+      next.viewport = clone(previous.viewport);
+      await repo.saveMap(mapPath, next);
+      this.map = next;
+      if (this.selected && !next.nodes.some((item) => item.id === this.selected)) this.selected = null;
+      await this.plugin.rebuildDerivedData();
+      await this.hydrate();
+      this.render();
+    } catch (error) {
+      try {
+        await this.revertMergeMoves(done);
+        await this.writeNoteText(state.targetPath, priorText);
+        await repo.saveMap(mapPath, previous);
+        this.map = previous;
+        await this.plugin.rebuildDerivedData();
+        await this.hydrate();
+        this.render();
+      } catch (rollbackError) {
+        throw new AggregateError([error, rollbackError], t("error.merge_rollback_failed"));
+      }
+      throw error;
     }
   }
   /** Undo (`merged` false) or redo (`merged` true) of a merge: the same notes move between the same two paths. */

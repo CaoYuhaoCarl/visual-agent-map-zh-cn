@@ -259,6 +259,22 @@ interface MergeState {
   newParked: string | null;
   sources: FileMove[];
 }
+/** The note fields a parent-mode undo or redo checks before touching anything: what the user can see and edit. */
+const MERGE_GUARD_FIELDS = ["title", "summary", "detail", "status"] as const;
+type MergeGuard = Pick<Note, (typeof MERGE_GUARD_FIELDS)[number]>;
+/** What a merge into a parent topic changed: the parent keeps its card, only its note content and the subtopics move. */
+interface ParentMergeState {
+  before: MapDocument;
+  after: MapDocument;
+  /** The parent topic's note, and its exact text before the merge (undo writes it back verbatim). */
+  targetPath: string;
+  beforeText: string;
+  patch: NotePatch;
+  detailTemplate: DetailTemplate;
+  guardBefore: MergeGuard;
+  guardAfter: MergeGuard;
+  sources: FileMove[];
+}
 /** The AI merge that hid its dialog: owned by the view, one per map. It writes nothing until the draft is confirmed. */
 interface MergeTask {
   mapPath: string;
@@ -268,6 +284,8 @@ interface MergeTask {
   title: string;
   sources: { id: string; path: string }[];
   parentId: string | null;
+  /** Parent mode: the parent topic that keeps its card (first of `sources`); null when a new topic replaces siblings. */
+  targetId: string | null;
   model: string;
   /** The sources as sent to the model (JSON of the reference documents); compared again before the draft is saved. */
   sourceContent: string;
@@ -3528,6 +3546,7 @@ export class VisualAgentMapView extends ItemView {
       path: this.path,
       mapId: this.map.id,
       parentId: check.parentId,
+      targetId: check.targetId,
       sources: check.sources.map(source => ({ id: source.id, path: source.path }))
     };
     const withContent = hasMergeContent(check.sources.map(source => this.notes.get(source.id)));
@@ -3549,10 +3568,14 @@ export class VisualAgentMapView extends ItemView {
       },
       withContent
         ? { start: (title, started, signal) => this.startMergeDraft(title, snapshot, started, signal) }
-        : undefined
+        : undefined,
+      check.targetId ? (this.notes.get(check.targetId)?.title ?? "") : undefined
     ).open();
   }
-  /** The model of a merged topic: the common parent's model like a new subtopic, else the workspace model. */
+  /**
+   * The model of a merged topic: the common parent's model like a new subtopic, else the workspace model. In parent mode
+   * the parent topic itself is the one whose model counts.
+   */
   private async mergeModel(parentId: string | null): Promise<string> {
     const parent = parentId ? this.map?.nodes.find(node => node.id === parentId) : undefined;
     return resolveMergeModel(
@@ -3567,7 +3590,13 @@ export class VisualAgentMapView extends ItemView {
    */
   private async startMergeDraft(
     title: string,
-    snapshot: { path: string; mapId: string; parentId: string | null; sources: { id: string; path: string }[] },
+    snapshot: {
+      path: string;
+      mapId: string;
+      parentId: string | null;
+      targetId?: string | null;
+      sources: { id: string; path: string }[];
+    },
     started: () => void,
     signal: AbortSignal
   ): Promise<boolean> {
@@ -3579,6 +3608,7 @@ export class VisualAgentMapView extends ItemView {
         this.path === snapshot.path &&
         this.map.id === snapshot.mapId &&
         check.ok &&
+        check.targetId === (snapshot.targetId ?? null) &&
         check.sources.every(node => snapshot.sources.find(source => source.id === node.id)?.path === node.path)
       );
     };
@@ -3586,7 +3616,7 @@ export class VisualAgentMapView extends ItemView {
       new Notice(t("ui.merge_draft_stale"));
       return false;
     }
-    const model = await this.mergeModel(snapshot.parentId);
+    const model = await this.mergeModel(snapshot.targetId ?? snapshot.parentId);
     let began = false;
     const accepted = await this.plugin.confirmAiUsage(model, async () => {
       if (signal.aborted || !stillValid()) return;
@@ -3598,6 +3628,7 @@ export class VisualAgentMapView extends ItemView {
         title,
         sources: snapshot.sources,
         parentId: snapshot.parentId,
+        targetId: snapshot.targetId ?? null,
         model,
         sourceContent: "",
         controller: new AbortController(),
@@ -3694,7 +3725,9 @@ export class VisualAgentMapView extends ItemView {
       draft.summary,
       draft.detail,
       {
-        intro: t("ui.merge_draft_intro", task.title, task.sources.length),
+        intro: task.targetId
+          ? t("ui.merge_into_parent_intro", this.notes.get(task.targetId)?.title ?? task.title, task.sources.length - 1)
+          : t("ui.merge_draft_intro", task.title, task.sources.length),
         confirmLabel: t("ui.confirm_merge"),
         title: t("ui.review_merge_draft"),
         name: { label: t("ui.merge_draft_name"), value: task.title }
@@ -3711,7 +3744,7 @@ export class VisualAgentMapView extends ItemView {
     return this.plugin.mutate(() =>
       this.mergeSelected(
         name?.trim() || task.title,
-        { path: task.mapPath, mapId: task.mapId, sources: task.sources },
+        { path: task.mapPath, mapId: task.mapId, targetId: task.targetId, sources: task.sources },
         {
           summary,
           detail,
@@ -3737,7 +3770,7 @@ export class VisualAgentMapView extends ItemView {
    */
   private async mergeSelected(
     title: string,
-    snapshot: { path: string; mapId: string; sources: { id: string; path: string }[] },
+    snapshot: { path: string; mapId: string; targetId?: string | null; sources: { id: string; path: string }[] },
     content?: {
       summary: string;
       detail: string;
@@ -3777,7 +3810,10 @@ export class VisualAgentMapView extends ItemView {
       new Notice(t(check.reason));
       return;
     }
-    if (check.sources.some(node => snapshot.sources.find(source => source.id === node.id)?.path !== node.path)) {
+    if (
+      (snapshot.targetId ?? null) !== check.targetId ||
+      check.sources.some(node => snapshot.sources.find(source => source.id === node.id)?.path !== node.path)
+    ) {
       if (content) stale();
       new Notice(t("ui.merge_missing_note"));
       return;
@@ -3796,6 +3832,7 @@ export class VisualAgentMapView extends ItemView {
       }
       if (latest !== content.sourceContent) stale();
     }
+    if (check.targetId) return this.mergeIntoParent(title, check.sources, content, before);
     let detail = "";
     if (!content) {
       const sourceNotes: Note[] = [];
@@ -3904,6 +3941,193 @@ export class VisualAgentMapView extends ItemView {
     } catch {
       this.render();
       new Notice(t("ui.merge_saved_refresh_failed"));
+    }
+  }
+  /** The note's exact text, and a verbatim write of it (undo of a merge into a parent restores the original this way). */
+  private async readNoteText(path: string): Promise<string> {
+    return this.app.vault.read(this.plugin.repo.file(path));
+  }
+  private async writeNoteText(path: string, text: string): Promise<void> {
+    await this.app.vault.process(this.plugin.repo.file(path), () => text);
+  }
+  private mergeGuardOf(note: Note): MergeGuard {
+    return { title: note.title, summary: note.summary, detail: note.detail, status: note.status };
+  }
+  private sameMergeGuard(a: MergeGuard, b: MergeGuard): boolean {
+    return MERGE_GUARD_FIELDS.every(field => JSON.stringify(a[field]) === JSON.stringify(b[field]));
+  }
+  /**
+   * Merge into a parent topic (`sources[0]`): the parent keeps its card, id, path, place and other properties; its
+   * Summary and Detail become the merged content (its own content is a source too), the selected subtopics go to
+   * Unassigned and their subtopics move under the parent. One history step; a failure puts everything back, including
+   * the parent's exact text.
+   */
+  private async mergeIntoParent(
+    title: string,
+    sources: MapNode[],
+    content:
+      | {
+          summary: string;
+          detail: string;
+          visualReferences: AiResult["visualReferences"];
+          formatIssues: AiResult["formatIssues"];
+          task: MergeTask;
+        }
+      | undefined,
+    before: MapDocument
+  ): Promise<void> {
+    const [target, ...children] = sources,
+      mapPath = this.path,
+      repo = this.plugin.repo,
+      language = this.plugin.settings.language,
+      detailTemplate = this.mapDetailTemplate(language);
+    const beforeText = await this.readNoteText(target.path),
+      sourceNotes: Note[] = [];
+    for (const source of sources) sourceNotes.push(await repo.readNote(source.path, before));
+    const guardBefore = this.mergeGuardOf(sourceNotes[0]),
+      name = title.trim(),
+      sourcePaths = [...new Set([...sourceNotes[0].sourcePaths, ...children.map(child => child.path)])];
+    let patch: NotePatch;
+    if (content) {
+      const references = visualReferencesMarkdown(content.visualReferences, language);
+      patch = {
+        summary: content.summary,
+        detail: canonicalDetail(content.detail, language, detailTemplate),
+        status: "completed",
+        sourcePaths,
+        ...(references.trim() ? { visualReferences: references } : {}),
+        ...formatIssuesPatch(content.formatIssues, language)
+      };
+    } else {
+      const detail = mergedDetail(sourceNotes.map(note => ({ title: note.title, detail: note.detail })));
+      patch = { detail, status: mergedStatus(detail), sourcePaths };
+    }
+    if (name && name !== sourceNotes[0].title) patch.title = name;
+    const done: MergeMove[] = [],
+      moves: FileMove[] = [],
+      after = clone(before);
+    try {
+      await repo.updateNote(target.path, patch, { detailTemplate });
+      for (const child of children) {
+        const parked = await repo.moveUnique(child.path, repo.topicFolder(mapPath, "Unassigned"));
+        done.push({
+          from: child.path,
+          to: parked,
+          topicId: before.id,
+          restoreMapId: before.id,
+          restoreState: "active"
+        });
+        moves.push({ activePath: child.path, parkedPath: parked, topicId: before.id, parkedState: "unassigned" });
+        await repo.setLifecycle(parked, before.id, "", "unassigned");
+      }
+      const ids = new Set(children.map(child => child.id)),
+        adopted = new Set<string>();
+      for (const item of after.nodes)
+        if (item.parentId !== null && ids.has(item.parentId)) {
+          item.parentId = target.id;
+          adopted.add(item.id);
+          for (const id of descendants(after.nodes, item.id)) adopted.add(id);
+        }
+      after.nodes = after.nodes.filter(item => !ids.has(item.id));
+      if (adopted.size) after.nodes = arrangeNewBranch(after.nodes, target.id, adopted, this.cardHeightOf);
+      await repo.saveMap(mapPath, after);
+    } catch (error) {
+      try {
+        await this.revertMergeMoves(done);
+        await this.writeNoteText(target.path, beforeText);
+        await repo.saveMap(mapPath, before);
+        this.map = before;
+        await this.plugin.rebuildDerivedData();
+        await this.hydrate();
+        this.render();
+      } catch (rollbackError) {
+        throw new AggregateError([error, rollbackError], t("error.merge_rollback_failed"));
+      }
+      throw error;
+    }
+    const state: ParentMergeState = {
+      before,
+      after,
+      targetPath: target.path,
+      beforeText,
+      patch,
+      detailTemplate,
+      guardBefore,
+      guardAfter: this.mergeGuardOf(await repo.readNote(target.path)),
+      sources: moves
+    };
+    this.map = after;
+    if (content && this.mergeTasks.get(mapPath) === content.task) this.mergeTasks.delete(mapPath);
+    this.history.push({
+      label: t("ui.merge_topics_history"),
+      undo: () => this.applyParentMerge(state, false),
+      redo: () => this.applyParentMerge(state, true)
+    });
+    this.integrationMode = false;
+    this.selected = target.id;
+    this.multiSelected.clear();
+    try {
+      await this.plugin.rebuildDerivedData();
+      await this.hydrate();
+      this.render();
+      const merged = this.map?.nodes.find(item => item.id === target.id);
+      if (merged) this.focusNode(merged);
+    } catch {
+      this.render();
+      new Notice(t("ui.merge_saved_refresh_failed"));
+    }
+  }
+  /**
+   * Undo (`merged` false) or redo (`merged` true) of a merge into a parent. The parent's visible content must still be
+   * what the merge left (or what it replaced) before any file moves; undo writes the original text back verbatim.
+   */
+  private async applyParentMerge(state: ParentMergeState, merged: boolean): Promise<void> {
+    const repo = this.plugin.repo,
+      previous = clone(this.map!),
+      mapPath = this.path,
+      topicId = state.before.id,
+      done: MergeMove[] = [];
+    const latest = this.mergeGuardOf(await repo.readNote(state.targetPath));
+    if (!this.sameMergeGuard(latest, merged ? state.guardBefore : state.guardAfter))
+      throw new Error(t("ui.merge_target_changed"));
+    const priorText = await this.readNoteText(state.targetPath);
+    try {
+      if (merged) await repo.updateNote(state.targetPath, state.patch, { detailTemplate: state.detailTemplate });
+      for (const move of state.sources) {
+        const from = merged ? move.activePath : move.parkedPath,
+          to = merged ? move.parkedPath : move.activePath;
+        await repo.moveExact(from, to);
+        done.push({
+          from,
+          to,
+          topicId,
+          restoreMapId: merged ? topicId : "",
+          restoreState: merged ? "active" : "unassigned"
+        });
+        await repo.setLifecycle(to, topicId, merged ? "" : topicId, merged ? "unassigned" : "active");
+      }
+      if (!merged) await this.writeNoteText(state.targetPath, state.beforeText);
+      const next = clone(merged ? state.after : state.before);
+      next.viewport = clone(previous.viewport);
+      await repo.saveMap(mapPath, next);
+      this.map = next;
+      if (this.selected && !next.nodes.some(item => item.id === this.selected)) this.selected = null;
+      await this.plugin.rebuildDerivedData();
+      await this.hydrate();
+      this.render();
+    } catch (error) {
+      try {
+        await this.revertMergeMoves(done);
+        await this.writeNoteText(state.targetPath, priorText);
+        await repo.saveMap(mapPath, previous);
+        this.map = previous;
+        await this.plugin.rebuildDerivedData();
+        await this.hydrate();
+        this.render();
+      } catch (rollbackError) {
+        throw new AggregateError([error, rollbackError], t("error.merge_rollback_failed"));
+      }
+      throw error;
     }
   }
   /** Undo (`merged` false) or redo (`merged` true) of a merge: the same notes move between the same two paths. */

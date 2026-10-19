@@ -51,12 +51,44 @@ test('merge eligibility: siblings and all-root selections pass, other parents do
   const roots = check(['root', 'r2']);
   assert.equal(roots.ok, true); assert.equal(roots.parentId, null);
   assert.deepEqual(check(['a1', 'b']), { ok: false, reason: 'ui.merge_needs_same_parent' });
-  assert.deepEqual(check(['root', 'a']), { ok: false, reason: 'ui.merge_ancestor_selected' });
+  // A parent with its direct subtopic is no longer blocked: it merges into the parent (see the parent-mode tests below).
+  assert.equal(check(['root', 'a']).ok, true);
 });
 
 test('merge eligibility: a topic with its own subtopic names the ancestor reason, not the parent reason', () => {
-  assert.deepEqual(check(['a', 'a1']), { ok: false, reason: 'ui.merge_ancestor_selected' });
-  assert.deepEqual(check(['root', 'a1', 'b']), { ok: false, reason: 'ui.merge_ancestor_selected' });
+  // Two separate parent/subtopic groups (a+a1 and root+b) stay blocked with the ancestor reason.
+  assert.deepEqual(check(['a', 'a1', 'r2', 'r2c'], { nodes: [...family(), mnode('r2c', 'r2')] }), { ok: false, reason: 'ui.merge_ancestor_selected' });
+  assert.deepEqual(check(['root', 'a', 'a1', 'r2', 'r2c'], { nodes: [...family(), mnode('r2c', 'r2')] }), { ok: false, reason: 'ui.merge_ancestor_selected' });
+});
+
+test('merge eligibility, parent mode: one parent plus direct subtopics merges into the parent, parent first', () => {
+  const nodes = family();
+  Object.assign(nodes[1], { x: 400, y: 300 }); Object.assign(nodes[2], { x: 400, y: 100 }); Object.assign(nodes[3], { x: 100, y: 200 });
+  const result = plain(mergeEligibility({ ids: ['c', 'a', 'root', 'b'], nodes, hasNote: () => true, busy: () => false }));
+  assert.equal(result.ok, true); assert.equal(result.targetId, 'root'); assert.equal(result.parentId, null);
+  assert.deepEqual(result.sources.map(n => n.id), ['root', 'b', 'c', 'a'], 'parent first, then subtopics in reading order');
+  const one = check(['root', 'c']); assert.equal(one.ok, true); assert.equal(one.targetId, 'root'); assert.deepEqual(one.sources.map(n => n.id), ['root', 'c']);
+  // A subtopic with its own subtopic selected (without the topic above it) is the parent of that selection.
+  const sub = check(['a', 'a1']); assert.equal(sub.ok, true); assert.equal(sub.targetId, 'a'); assert.equal(sub.parentId, 'root');
+  assert.equal(check(['a', 'b']).targetId, null, 'sibling mode has no target');
+  assert.equal(check(['root', 'r2']).targetId, null);
+});
+
+test('merge eligibility, parent mode: grandchildren, other branches and a second parent are blocked with their own reason', () => {
+  assert.deepEqual(check(['root', 'a', 'a1']), { ok: false, reason: 'ui.merge_parent_direct_only' });
+  assert.deepEqual(check(['root', 'a1']), { ok: false, reason: 'ui.merge_parent_direct_only' });
+  assert.deepEqual(check(['root', 'a', 'r2']), { ok: false, reason: 'ui.merge_ancestor_selected' }, 'a parent topic plus one of its siblings is two groups');
+  assert.deepEqual(check(['root', 'a1', 'b', 'c']), { ok: false, reason: 'ui.merge_parent_direct_only' });
+  const nodes = [...family(), mnode('r2c', 'r2')];
+  assert.deepEqual(check(['root', 'a', 'r2', 'r2c'], { nodes }), { ok: false, reason: 'ui.merge_ancestor_selected' });
+});
+
+test('merge eligibility, parent mode: missing note and busy cover the parent and the subtopics', () => {
+  assert.deepEqual(check(['root', 'a'], { hasNote: id => id !== 'root' }), { ok: false, reason: 'ui.merge_missing_note' });
+  assert.deepEqual(check(['root', 'a'], { hasNote: id => id !== 'a' }), { ok: false, reason: 'ui.merge_missing_note' });
+  assert.deepEqual(check(['root', 'a'], { busy: n => n.id === 'root' }), { ok: false, reason: 'ui.merge_busy' });
+  assert.deepEqual(check(['root', 'a', 'b'], { busy: n => n.id === 'b' }), { ok: false, reason: 'ui.merge_busy' });
+  assert.deepEqual(check(['root', 'a'], { hasNote: () => false, busy: () => true }), { ok: false, reason: 'ui.merge_missing_note' });
 });
 
 test('merge eligibility: a missing note or a running AI task blocks, in that order', () => {
