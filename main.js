@@ -690,10 +690,12 @@ var english = {
   "ui.merge_busy": "An AI task is running on a selected topic; merge after it finishes",
   "ui.merge_missing_note": "A selected topic's note is missing, so it cannot be merged",
   "ui.merge_title_label": "Name of the merged topic",
+  "ui.merge_ai_untitled": "(AI names the merged topic)",
+  "ui.merge_draft_name": "Merged topic name",
   "ui.merge_confirm_desc": "{0} cards become 1 new topic that replaces them. The original notes move to this map's Unassigned folder; Undo restores them.",
   "ui.merge_confirm": "Merge",
   "ui.merge_topics_history": "Merge topics",
-  "ui.merge_ai_desc": "AI merges the content of {0} cards into one: every piece of information is kept, duplicates are removed and no new conclusions are added. You review the draft first; the cards are replaced only after you confirm. The original notes move to Unassigned; Undo restores them.",
+  "ui.merge_ai_desc": "AI names the merged topic (you can rename it when you review) and merges the content of {0} cards into one: every piece of information is kept, duplicates are removed and no new conclusions are added. You review the draft first; the cards are replaced only after you confirm. The original notes move to Unassigned; Undo restores them.",
   "ui.merge_no_ai": "Skip AI and join the original text as is",
   "ui.merge_with_ai": "Merge with AI",
   "ui.merge_bar_title_0": "Merging \u201C{0}\u201D",
@@ -701,7 +703,7 @@ var english = {
   "ui.merge_stop": "Stop merge",
   "ui.merge_draft_ready_0": "The merge draft for \u201C{0}\u201D is ready",
   "ui.review_merge_draft": "Review merge draft",
-  "ui.merge_draft_intro": "Confirming creates \u201C{0}\u201D and replaces {1} cards. The original notes move to Unassigned; Undo restores them.",
+  "ui.merge_draft_intro": "Confirming creates the topic named below and replaces {1} cards. The original notes move to Unassigned; Undo restores them.",
   "ui.confirm_merge": "Confirm merge",
   "ui.merge_draft_stale": "A source topic changed or left the map, so the merge draft was not saved",
   "ui.merge_open_map_first_0": "Open the map \u201C{0}\u201D first to review the merge draft",
@@ -2240,10 +2242,12 @@ var traditionalChinese = {
   "ui.merge_busy": "\u6709\u8B70\u984C\u6B63\u5728\u57F7\u884C AI \u4EFB\u52D9\uFF0C\u5B8C\u6210\u5F8C\u624D\u80FD\u5408\u4F75",
   "ui.merge_missing_note": "\u6709\u8B70\u984C\u7684\u7B46\u8A18\u627E\u4E0D\u5230\uFF0C\u7121\u6CD5\u5408\u4F75",
   "ui.merge_title_label": "\u5408\u4F75\u5F8C\u7684\u8B70\u984C\u540D\u7A31",
+  "ui.merge_ai_untitled": "\uFF08\u7531 AI \u66FF\u5408\u4F75\u5F8C\u7684\u8B70\u984C\u547D\u540D\uFF09",
+  "ui.merge_draft_name": "\u5408\u4F75\u5F8C\u7684\u8B70\u984C\u540D\u7A31",
   "ui.merge_confirm_desc": "{0} \u5F35\u5361\u6703\u5408\u4F75\u6210 1 \u5F35\u65B0\u8B70\u984C\u4E26\u53D6\u4EE3\u539F\u672C\u7684\u5361\uFF1B\u539F\u7B46\u8A18\u79FB\u5230\u9019\u5F35\u5716\u7684 Unassigned\uFF0C\u53EF\u4EE5\u7528\u5FA9\u539F\u9084\u539F\u3002",
   "ui.merge_confirm": "\u5408\u4F75",
   "ui.merge_topics_history": "\u5408\u4F75\u8B70\u984C",
-  "ui.merge_ai_desc": "AI \u6703\u628A {0} \u5F35\u5361\u7684\u5167\u5BB9\u5408\u4F75\u6210\u4E00\u7BC7\uFF1A\u4FDD\u7559\u6BCF\u5F35\u5361\u7684\u5168\u90E8\u8CC7\u8A0A\u3001\u53BB\u9664\u91CD\u8907\u3001\u4E0D\u52A0\u5165\u65B0\u7D50\u8AD6\u3002\u5B8C\u6210\u5F8C\u5148\u8B93\u4F60\u6AA2\u95B1\u8349\u7A3F\uFF0C\u78BA\u8A8D\u5F8C\u624D\u53D6\u4EE3\u539F\u5361\uFF1B\u539F\u7B46\u8A18\u79FB\u5230 Unassigned\uFF0C\u53EF\u4EE5\u7528\u5FA9\u539F\u9084\u539F\u3002",
+  "ui.merge_ai_desc": "AI \u6703\u66FF\u5408\u4F75\u5F8C\u7684\u8B70\u984C\u547D\u540D\uFF08\u6AA2\u95B1\u6642\u53EF\u4EE5\u6539\u540D\uFF09\uFF0C\u4E26\u628A {0} \u5F35\u5361\u7684\u5167\u5BB9\u5408\u4F75\u6210\u4E00\u7BC7\uFF1A\u4FDD\u7559\u6BCF\u5F35\u5361\u7684\u5168\u90E8\u8CC7\u8A0A\u3001\u53BB\u9664\u91CD\u8907\u3001\u4E0D\u52A0\u5165\u65B0\u7D50\u8AD6\u3002\u5B8C\u6210\u5F8C\u5148\u8B93\u4F60\u6AA2\u95B1\u8349\u7A3F\uFF0C\u78BA\u8A8D\u5F8C\u624D\u53D6\u4EE3\u539F\u5361\uFF1B\u539F\u7B46\u8A18\u79FB\u5230 Unassigned\uFF0C\u53EF\u4EE5\u7528\u5FA9\u539F\u9084\u539F\u3002",
   "ui.merge_no_ai": "\u4E0D\u7528 AI\uFF0C\u76F4\u63A5\u628A\u539F\u6587\u63A5\u5728\u4E00\u8D77",
   "ui.merge_with_ai": "\u7528 AI \u5408\u4F75",
   "ui.merge_bar_title_0": "\u5408\u4F75\u8B70\u984C\u300C{0}\u300D",
@@ -2251,7 +2255,7 @@ var traditionalChinese = {
   "ui.merge_stop": "\u505C\u6B62\u5408\u4F75",
   "ui.merge_draft_ready_0": "\u300C{0}\u300D\u7684\u5408\u4F75\u8349\u7A3F\u5B8C\u6210\u4E86",
   "ui.review_merge_draft": "\u6AA2\u95B1\u5408\u4F75\u8349\u7A3F",
-  "ui.merge_draft_intro": "\u78BA\u8A8D\u5F8C\u6703\u5EFA\u7ACB\u300C{0}\u300D\u4E26\u53D6\u4EE3 {1} \u5F35\u5361\uFF1B\u539F\u7B46\u8A18\u79FB\u5230 Unassigned\uFF0C\u53EF\u4EE5\u7528\u5FA9\u539F\u9084\u539F\u3002",
+  "ui.merge_draft_intro": "\u78BA\u8A8D\u5F8C\u6703\u5EFA\u7ACB\u4E0B\u65B9\u540D\u7A31\u7684\u8B70\u984C\u4E26\u53D6\u4EE3 {1} \u5F35\u5361\uFF1B\u539F\u7B46\u8A18\u79FB\u5230 Unassigned\uFF0C\u53EF\u4EE5\u7528\u5FA9\u539F\u9084\u539F\u3002",
   "ui.confirm_merge": "\u78BA\u8A8D\u5408\u4F75",
   "ui.merge_draft_stale": "\u4F86\u6E90\u8B70\u984C\u5DF2\u8B8A\u66F4\u6216\u4E0D\u5728\u5716\u4E0A\uFF0C\u5408\u4F75\u8349\u7A3F\u6C92\u6709\u5BEB\u5165",
   "ui.merge_open_map_first_0": "\u8ACB\u5148\u6253\u958B\u300C{0}\u300D\u9019\u5F35\u5716\u518D\u6AA2\u95B1\u5408\u4F75\u8349\u7A3F",
@@ -12446,10 +12450,10 @@ var synthesis_goal_zh_default = "\u6839\u64DA\u63D0\u4F9B\u7684\u76F4\u5C6C\u5B5
 var synthesis_goal_en_default = "Using the direct subtopics and selected note sources, update the parent topic's summary and structured knowledge. Merge duplicates and clearly identify agreements, differences, tradeoffs, and open questions.\n";
 
 // experiences/visual-map/steps/merge-goal.zh.md
-var merge_goal_zh_default = "\u628A\u63D0\u4F9B\u7684\u4F86\u6E90\u8B70\u984C\u5408\u4F75\u6210\u9019\u4E00\u500B\u8B70\u984C\uFF1A\u4FDD\u7559\u6BCF\u500B\u4F86\u6E90\u7684\u5168\u90E8\u8CC7\u8A0A\uFF08\u4E8B\u5BE6\u3001\u6578\u5B57\u3001\u689D\u4EF6\u3001\u4F8B\u5B50\u3001\u4F86\u6E90\u9023\u7D50\u8207\u5F85\u78BA\u8A8D\u4E8B\u9805\uFF09\uFF0C\u53EA\u522A\u9664\u91CD\u8907\u7684\u90E8\u5206\uFF1B\u4E0D\u52A0\u5165\u4F86\u6E90\u6C92\u6709\u7684\u7D50\u8AD6\u3001\u6BD4\u8F03\u3001\u8A55\u50F9\u6216\u5EFA\u8B70\uFF1B\u4F86\u6E90\u5F7C\u6B64\u77DB\u76FE\u6642\u4E26\u5217\u5448\u73FE\u4E26\u8A3B\u660E\u51FA\u81EA\u54EA\u500B\u8B70\u984C\u3002summary \u662F\u4E00\u53E5 80 \u5B57\u5167\u3001\u53EA\u6839\u64DA\u4F86\u6E90\u7684\u5408\u4F75\u5F8C\u76EE\u524D\u7406\u89E3\u3002detail \u662F\u5B8C\u6574\u77E5\u8B58\u9801\u3002suggestions \u56DE\u50B3\u7A7A\u9663\u5217\u3002\n";
+var merge_goal_zh_default = '\u628A\u63D0\u4F9B\u7684\u4F86\u6E90\u8B70\u984C\u5408\u4F75\u6210\u9019\u4E00\u500B\u8B70\u984C\uFF1A\u4FDD\u7559\u6BCF\u500B\u4F86\u6E90\u7684\u5168\u90E8\u8CC7\u8A0A\uFF08\u4E8B\u5BE6\u3001\u6578\u5B57\u3001\u689D\u4EF6\u3001\u4F8B\u5B50\u3001\u4F86\u6E90\u9023\u7D50\u8207\u5F85\u78BA\u8A8D\u4E8B\u9805\uFF09\uFF0C\u53EA\u522A\u9664\u91CD\u8907\u7684\u90E8\u5206\uFF1B\u4E0D\u52A0\u5165\u4F86\u6E90\u6C92\u6709\u7684\u7D50\u8AD6\u3001\u6BD4\u8F03\u3001\u8A55\u50F9\u6216\u5EFA\u8B70\uFF1B\u4F86\u6E90\u5F7C\u6B64\u77DB\u76FE\u6642\u4E26\u5217\u5448\u73FE\u4E26\u8A3B\u660E\u51FA\u81EA\u54EA\u500B\u8B70\u984C\u3002summary \u662F\u4E00\u53E5 80 \u5B57\u5167\u3001\u53EA\u6839\u64DA\u4F86\u6E90\u7684\u5408\u4F75\u5F8C\u76EE\u524D\u7406\u89E3\u3002detail \u662F\u5B8C\u6574\u77E5\u8B58\u9801\u3002suggestions \u53EA\u56DE\u50B3\u4E00\u7B46\uFF0C\u683C\u5F0F {"title":"\u5408\u4F75\u5F8C\u7684\u8B70\u984C\u540D\u7A31","task":"","contribution":"","parentTitle":""}\uFF1Btitle \u662F\u4F60\u66FF\u5408\u4F75\u5F8C\u9019\u500B\u8B70\u984C\u53D6\u7684\u540D\u7A31\uFF1A20 \u5B57\u5167\u3001\u6982\u62EC\u6240\u6709\u4F86\u6E90\u3001\u4F7F\u7528\u8F38\u51FA\u8A9E\u8A00\u3001\u4E0D\u52A0\u5F15\u865F\u3002\n';
 
 // experiences/visual-map/steps/merge-goal.en.md
-var merge_goal_en_default = "Merge the provided source topics into this one topic. Keep every piece of information from each source (facts, numbers, conditions, examples, source links and open questions) and remove only duplicates. Do not add conclusions, comparisons, judgements or recommendations the sources do not contain. Where sources contradict each other, show both and name the topic each comes from. summary is one sentence of at most 80 characters, based only on the sources. detail is the complete knowledge page. Return an empty suggestions array.\n";
+var merge_goal_en_default = 'Merge the provided source topics into this one topic. Keep every piece of information from each source (facts, numbers, conditions, examples, source links and open questions) and remove only duplicates. Do not add conclusions, comparisons, judgements or recommendations the sources do not contain. Where sources contradict each other, show both and name the topic each comes from. summary is one sentence of at most 80 characters, based only on the sources. detail is the complete knowledge page. Return exactly one suggestion, shaped {"title":"the merged topic name","task":"","contribution":"","parentTitle":""}; title is the name you give the merged topic: concise (at most 8 words), covering all sources, in the output language, without quotation marks.\n';
 
 // experiences/visual-map/steps/fragments.ts
 var text3 = (template) => renderTemplate(template, {});
@@ -19808,6 +19812,13 @@ var DraftReviewView = class {
       current.createEl("summary", { text: t("ui.current_summary") });
       current.createEl("p", { text: this.review.currentSummary });
     }
+    let nameInput;
+    if (this.review.name) {
+      const row = content.createDiv("vam-draft-section");
+      row.createEl("h4", { text: this.review.name.label });
+      nameInput = row.createEl("input", { type: "text", value: this.review.name.value, cls: "vam-name-input" });
+      nameInput.setAttr("aria-label", this.review.name.label);
+    }
     const toolbar = content.createDiv("vam-draft-toolbar");
     toolbar.createEl("strong", { text: t("ui.ai_draft") });
     const toggle = toolbar.createEl("button", { text: t("ui.edit_draft"), cls: "vam-draft-toggle" });
@@ -19881,10 +19892,19 @@ var DraftReviewView = class {
     const cancelButton = actions.createEl("button", { text: t("ui.cancel") });
     cancelButton.addEventListener("click", () => this.close());
     const confirm = actions.createEl("button", { text: this.review.confirmLabel, cls: "mod-cta" });
+    const checkName = () => {
+      if (!nameInput) return;
+      const empty = !nameInput.value.trim();
+      confirm.disabled = empty;
+      status.setText(empty ? t("ui.name_required") : "");
+    };
+    nameInput == null ? void 0 : nameInput.addEventListener("input", checkName);
     confirm.addEventListener("click", () => {
+      var _a2;
+      if (nameInput && !nameInput.value.trim()) return checkName();
       confirm.disabled = true;
       cancelButton.disabled = true;
-      void Promise.resolve(this.confirm(summary.input.value, detail.input.value)).then(
+      void Promise.resolve(this.confirm(summary.input.value, detail.input.value, (_a2 = nameInput == null ? void 0 : nameInput.value.trim()) != null ? _a2 : "")).then(
         () => this.close(),
         (error) => {
           status.setText(error instanceof Error ? error.message : String(error));
@@ -27200,6 +27220,13 @@ function hasMergeContent(notes) {
 function resolveMergeModel(parentModel, workspaceModel) {
   return inheritModel(parentModel, workspaceModel);
 }
+var MERGE_TITLE_MAX = 60;
+function mergeTitleFromResult(result, fallback) {
+  var _a, _b, _c;
+  const raw = ((_c = (_b = (_a = result.suggestions) == null ? void 0 : _a[0]) == null ? void 0 : _b.title) != null ? _c : "").replace(/\s+/g, " ").trim();
+  const name = raw.replace(/^["'“”‘’「」『』]+|["'“”‘’「」『』]+$/g, "").trim();
+  return name && name.length <= MERGE_TITLE_MAX ? name : fallback;
+}
 var MergeTopicsModal = class extends import_obsidian28.Modal {
   constructor(app, count, value, submit, cancelled = () => {
   }, ai) {
@@ -27217,7 +27244,10 @@ var MergeTopicsModal = class extends import_obsidian28.Modal {
     this.titleEl.setText(t("ui.merge_title_label"));
     const input = this.contentEl.createEl("input", { type: "text", value: this.value, cls: "vam-name-input" });
     input.setAttr("aria-label", t("ui.merge_title_label"));
-    this.contentEl.createEl("p", { text: t("ui.merge_confirm_desc", this.count), cls: "vam-merge-desc" });
+    const description = this.contentEl.createEl("p", {
+      text: t("ui.merge_confirm_desc", this.count),
+      cls: "vam-merge-desc"
+    });
     let skipAi;
     if (this.ai) {
       this.contentEl.createEl("p", { text: t("ui.merge_ai_desc", this.count), cls: "vam-merge-desc" });
@@ -27229,6 +27259,11 @@ var MergeTopicsModal = class extends import_obsidian28.Modal {
     const status = actionStatus(actions);
     actions.createEl("button", { text: t("ui.cancel") }).addEventListener("click", () => this.close());
     const useAi = () => !!this.ai && !(skipAi == null ? void 0 : skipAi.checked);
+    const showName = () => {
+      input.hidden = useAi();
+      description.hidden = useAi();
+      this.titleEl.setText(useAi() ? t("ui.merge_topics_history") : t("ui.merge_title_label"));
+    };
     const confirm = actions.createEl("button", {
       text: useAi() ? t("ui.merge_with_ai") : t("ui.merge_confirm"),
       cls: useAi() ? "mod-cta" : "mod-warning"
@@ -27236,12 +27271,12 @@ var MergeTopicsModal = class extends import_obsidian28.Modal {
     let pending = false;
     const save = () => {
       const value = input.value.trim();
-      if (!value || pending) return;
+      if (!value && !useAi() || pending) return;
       if (useAi() && this.ai) {
         pending = true;
         confirm.disabled = true;
         this.ai.start(
-          value,
+          value || this.value.trim(),
           () => {
             this.detached = true;
             this.close();
@@ -27258,7 +27293,7 @@ var MergeTopicsModal = class extends import_obsidian28.Modal {
       this.submit(value);
     };
     const check = () => {
-      const empty = !input.value.trim();
+      const empty = !useAi() && !input.value.trim();
       confirm.disabled = empty || pending;
       if (!pending) status.setText(empty ? t("ui.name_required") : "");
     };
@@ -27266,6 +27301,8 @@ var MergeTopicsModal = class extends import_obsidian28.Modal {
       confirm.setText(useAi() ? t("ui.merge_with_ai") : t("ui.merge_confirm"));
       confirm.toggleClass("mod-cta", useAi());
       confirm.toggleClass("mod-warning", !useAi());
+      showName();
+      check();
     });
     input.addEventListener("input", check);
     input.addEventListener("keydown", (event) => {
@@ -27275,9 +27312,12 @@ var MergeTopicsModal = class extends import_obsidian28.Modal {
       }
     });
     confirm.addEventListener("click", save);
+    showName();
     check();
-    input.focus();
-    input.select();
+    if (!useAi()) {
+      input.focus();
+      input.select();
+    }
   }
   onClose() {
     if (this.detached) return;
@@ -30369,7 +30409,7 @@ ${request.requirements}` : preset.text,
       task.sourceContent = JSON.stringify(sourceGroup.documents);
       const result = await this.plugin.askModel(
         {
-          title: task.title,
+          title: t("ui.merge_ai_untitled"),
           summary: noSummaryYet(language2),
           rules: "",
           detail: "",
@@ -30404,6 +30444,7 @@ ${request.requirements}` : preset.text,
         return;
       }
       task.state = "draft";
+      task.title = mergeTitleFromResult(result, task.title);
       task.draft = result;
       task.progress = "";
       this.render();
@@ -30439,20 +30480,21 @@ ${request.requirements}` : preset.text,
       {
         intro: t("ui.merge_draft_intro", task.title, task.sources.length),
         confirmLabel: t("ui.confirm_merge"),
-        title: t("ui.review_merge_draft")
+        title: t("ui.review_merge_draft"),
+        name: { label: t("ui.merge_draft_name"), value: task.title }
       },
       // Return the write so a failure keeps the dialog, and the user's edits, open with the error.
-      (summary, detail) => this.confirmMergeDraft(task, summary, detail),
+      (summary, detail, name) => this.confirmMergeDraft(task, summary, detail, name),
       () => this.stopMergeTask(task)
     ).open();
   }
   /** Writes a reviewed AI merge draft (the user's edited summary and Detail) through the write queue. */
-  confirmMergeDraft(task, summary, detail) {
+  confirmMergeDraft(task, summary, detail, name) {
     const draft = task.draft;
     if (!draft) return Promise.reject(new Error(t("ui.merge_draft_stale")));
     return this.plugin.mutate(
       () => this.mergeSelected(
-        task.title,
+        (name == null ? void 0 : name.trim()) || task.title,
         { path: task.mapPath, mapId: task.mapId, sources: task.sources },
         {
           summary,

@@ -116,6 +116,23 @@ test('mergeGoalTask: both languages keep all information, drop duplicates, add n
   assert.notEqual(en, synthesisGoalTask('en'));
 });
 
+test('mergeGoalTask: both languages ask for exactly one suggestion whose title is the merged topic name', () => {
+  const { mergeGoalTask } = load('experiences/visual-map/steps/fragments.ts');
+  assert.match(mergeGoalTask('en'), /exactly one suggestion/); assert.match(mergeGoalTask('en'), /title is the name you give the merged topic/); assert.doesNotMatch(mergeGoalTask('en'), /empty suggestions/);
+  assert.match(mergeGoalTask('zh-TW'), /suggestions 只回傳一筆/); assert.match(mergeGoalTask('zh-TW'), /title 是你替合併後這個議題取的名稱/); assert.doesNotMatch(mergeGoalTask('zh-TW'), /空陣列/);
+});
+
+test('mergeTitleFromResult: the first suggestion title, tidied; missing, blank or over-long falls back to the first source title', () => {
+  const name = (suggestions, fallback = 'First') => phase2.mergeTitleFromResult({ suggestions }, fallback);
+  assert.equal(name([{ title: 'Heat transfer' }]), 'Heat transfer');
+  assert.equal(name([{ title: '  “Heat\n transfer”  ' }, { title: 'Second' }]), 'Heat transfer', 'quotes and line breaks removed, only the first used');
+  assert.equal(name([{ title: '「熱傳遞」' }]), '熱傳遞');
+  assert.equal(name([]), 'First'); assert.equal(phase2.mergeTitleFromResult({}, 'First'), 'First');
+  assert.equal(name([{ title: '   ' }]), 'First'); assert.equal(name([{ title: '""' }]), 'First');
+  assert.equal(name([{ title: 'x'.repeat(phase2.MERGE_TITLE_MAX) }]), 'x'.repeat(phase2.MERGE_TITLE_MAX));
+  assert.equal(name([{ title: 'x'.repeat(phase2.MERGE_TITLE_MAX + 1) }]), 'First');
+});
+
 const mergeModal = (ai, over = {}) => {
   const log = { submitted: [], cancelled: 0 };
   const modal = new phase2.MergeTopicsModal({}, 3, 'First', title => log.submitted.push(title), () => { log.cancelled++; }, ai);
@@ -167,4 +184,33 @@ test('merge dialog AI path: closing before AI starts aborts the pending start an
   modal.close();
   assert.equal(signal.aborted, true); assert.equal(log.cancelled, 1);
   release(false); await dom.tick();
+});
+
+test('merge dialog: the AI path hides the name field (the AI names the topic); skipping AI shows it again and still needs a name', async () => {
+  const calls = [];
+  const { modal, input, box, main } = mergeModal({ start: async title => { calls.push(title); return false; } });
+  assert.equal(input.hidden, true); assert.equal(main.disabled, false);
+  input.value = ''; input.input(); assert.equal(main.disabled, false, 'no typed name is needed with AI');
+  main.click(); await dom.tick(); assert.deepEqual(calls, ['First'], 'the first source title is only the fallback name');
+  box.checked = true; box.change();
+  assert.equal(input.hidden, false); assert.equal(main.disabled, true, 'the plain merge needs a name');
+  box.checked = false; box.change(); assert.equal(input.hidden, true); assert.equal(main.disabled, false);
+});
+
+test('draft review with a name field: prefilled, edited value is passed on confirm, empty name blocks confirm; other reviews have no field', async () => {
+  const obsidian = { ...require('../support.cjs').obsidian, Modal: dom.makeModal(), Component: class { load() {} unload() {} addChild(c) { return c; } removeChild() {} }, MarkdownRenderer: { render: async () => {} }, setIcon: () => {} };
+  const { DraftReviewModal } = load('main.ts', { obsidian });
+  const got = [];
+  const modal = new DraftReviewModal({}, 'S', 'D', { intro: 'Intro', confirmLabel: 'Confirm', name: { label: 'Merged topic name', value: 'AI name' } }, (summary, detail, name) => { got.push([summary, detail, name]); });
+  modal.open();
+  const field = dom.byLabel(modal.contentEl, 'Merged topic name'); const confirm = dom.button(modal.modalEl, 'Confirm');
+  assert.equal(field.value, 'AI name');
+  field.value = '   '; field.input(); assert.equal(confirm.disabled, true);
+  assert.ok(dom.texts(modal.modalEl).includes(label('ui.name_required')));
+  field.value = '  My own name  '; field.input(); assert.equal(confirm.disabled, false);
+  confirm.click(); await dom.tick();
+  assert.deepEqual(got, [['S', 'D', 'My own name']]);
+  const plain = new DraftReviewModal({}, 'S', 'D', { intro: 'Intro', confirmLabel: 'Confirm' }, () => {});
+  plain.open();
+  assert.equal(dom.find(plain.contentEl, i => i.tag === 'input'), undefined, 'no name field unless asked for');
 });

@@ -1722,6 +1722,8 @@ export interface DraftReview {
   sourcePath?: string;
   /** Dialog title; defaults to the synthesis draft title. */
   title?: string;
+  /** Merge only: an editable name for the new topic, prefilled with the AI's choice; confirming needs a non-empty name. */
+  name?: { label: string; value: string };
 }
 /**
  * Reviews an AI draft inside any dialog: rendered by default, editable on demand, and clear about what it changes.
@@ -1736,7 +1738,7 @@ export class DraftReviewView {
     private summary: string,
     private detail: string,
     private review: DraftReview,
-    private confirm: (summary: string, detail: string) => void | Promise<void>,
+    private confirm: (summary: string, detail: string, name: string) => void | Promise<void>,
     private discard: (() => void) | undefined,
     private close: () => void
   ) {}
@@ -1752,6 +1754,13 @@ export class DraftReviewView {
       const current = content.createEl("details", { cls: "vam-draft-current" });
       current.createEl("summary", { text: t("ui.current_summary") });
       current.createEl("p", { text: this.review.currentSummary });
+    }
+    let nameInput: HTMLInputElement | undefined;
+    if (this.review.name) {
+      const row = content.createDiv("vam-draft-section");
+      row.createEl("h4", { text: this.review.name.label });
+      nameInput = row.createEl("input", { type: "text", value: this.review.name.value, cls: "vam-name-input" });
+      nameInput.setAttr("aria-label", this.review.name.label);
     }
     const toolbar = content.createDiv("vam-draft-toolbar");
     toolbar.createEl("strong", { text: t("ui.ai_draft") });
@@ -1827,10 +1836,18 @@ export class DraftReviewView {
     const cancelButton = actions.createEl("button", { text: t("ui.cancel") });
     cancelButton.addEventListener("click", () => this.close());
     const confirm = actions.createEl("button", { text: this.review.confirmLabel, cls: "mod-cta" });
+    const checkName = (): void => {
+      if (!nameInput) return;
+      const empty = !nameInput.value.trim();
+      confirm.disabled = empty;
+      status.setText(empty ? t("ui.name_required") : "");
+    };
+    nameInput?.addEventListener("input", checkName);
     confirm.addEventListener("click", () => {
+      if (nameInput && !nameInput.value.trim()) return checkName();
       confirm.disabled = true;
       cancelButton.disabled = true;
-      void Promise.resolve(this.confirm(summary.input.value, detail.input.value)).then(
+      void Promise.resolve(this.confirm(summary.input.value, detail.input.value, nameInput?.value.trim() ?? "")).then(
         () => this.close(),
         error => {
           status.setText(error instanceof Error ? error.message : String(error));
@@ -1854,7 +1871,7 @@ export class DraftReviewModal extends Modal {
     summary: string,
     detail: string,
     review: DraftReview,
-    confirm: (summary: string, detail: string) => void | Promise<void>,
+    confirm: (summary: string, detail: string, name: string) => void | Promise<void>,
     discard?: () => void
   ) {
     super(app);
