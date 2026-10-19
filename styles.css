@@ -971,9 +971,9 @@ button.vam-template-section-header:hover { background: var(--background-modifier
 .callout.vam-callout-scope > .callout-title { color: color-mix(in srgb, rgb(var(--callout-color)) 52%, var(--text-normal)); }
 .callout.vam-callout-scope > .callout-title .callout-icon,
 .callout.vam-callout-scope > .callout-title .callout-fold { color: rgb(var(--callout-color)); }
-.callout.vam-callout-scope > .callout-content a { color: color-mix(in srgb, var(--link-color) 55%, var(--text-normal)); }
-.callout.vam-callout-scope > .callout-content a:hover { color: color-mix(in srgb, var(--link-color-hover) 55%, var(--text-normal)); }
-.callout.vam-callout-scope > .callout-content a.is-unresolved { color: color-mix(in srgb, var(--link-unresolved-color) 55%, var(--text-normal)); }
+.callout.vam-callout-scope > .callout-content a:not(:is(.markdown-embed, .internal-embed) a) { color: color-mix(in srgb, var(--link-color) 55%, var(--text-normal)); }
+.callout.vam-callout-scope > .callout-content a:not(:is(.markdown-embed, .internal-embed) a):hover { color: color-mix(in srgb, var(--link-color-hover) 55%, var(--text-normal)); }
+.callout.vam-callout-scope > .callout-content a.is-unresolved:not(:is(.markdown-embed, .internal-embed) a) { color: color-mix(in srgb, var(--link-unresolved-color) 55%, var(--text-normal)); }
 
 /* Other mermaid diagrams in VAM notes whose default palette is unreadable (light text on pale fills, or dark-theme inversion
    that turns fills and text dark together): same approach as the timeline. The filter is switched off, fills become tints of
@@ -1009,7 +1009,8 @@ button.vam-template-section-header:hover { background: var(--background-modifier
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-mindmap, svg)[aria-roledescription="mindmap"] .section-edge-11 { stroke: color-mix(in srgb, var(--color-green) 70%, var(--background-primary)); }
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-mindmap, svg)[aria-roledescription="mindmap"] :is(.nodeLabel, .nodeLabel p, text, tspan) { color: var(--text-normal); fill: var(--text-normal); }
 /* Gantt: mermaid forces black text on active, done and critical bars with a forced flag, so bars are light chips in both themes
-   (accent mixed with white, black text); text outside the bars follows the theme. */
+   (accent mixed with white, black text); text outside the bars follows the theme, except active, done and critical labels, which mermaid forces to near-black:
+   those get a white halo (paint-order stroke) so they stay readable on a dark page. */
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] { filter: none; }
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] .section { opacity: 1; }
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] :is(.section0, .section2) { fill: color-mix(in srgb, var(--text-normal) 6%, var(--background-primary)); }
@@ -1018,6 +1019,7 @@ button.vam-template-section-header:hover { background: var(--background-modifier
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] .grid :is(.tick line, .domain) { stroke: var(--background-modifier-border); }
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] text { fill: var(--text-normal); }
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] text.taskText { fill: black; }
+.mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] text:is([class*="activeText"], [class*="doneText"], [class*="activeCritText"], [class*="doneCritText"])[class*="Outside"] { paint-order: stroke; stroke: white; stroke-width: 3px; stroke-linejoin: round; }
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] .task { fill: color-mix(in srgb, var(--color-blue) 40%, white); stroke: var(--color-blue); }
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] .task[class*="active"] { fill: color-mix(in srgb, var(--color-blue) 16%, white); }
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] .task[class*="done"] { fill: color-mix(in srgb, var(--text-faint) 30%, white); stroke: var(--text-faint); }
