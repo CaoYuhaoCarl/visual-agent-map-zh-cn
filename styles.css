@@ -968,8 +968,15 @@ button.vam-template-section-header:hover { background: var(--background-modifier
 .vam-mermaid-zoom-btn { position: absolute; top: 6px; right: 6px; z-index: 2; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-s); background: var(--background-primary); color: var(--text-muted); box-shadow: var(--shadow-s); opacity: 0; transition: opacity 0.12s ease; cursor: pointer; }
 .vam-mermaid-zoomable:hover > .vam-mermaid-zoom-btn,
 .vam-mermaid-zoomable:focus-within > .vam-mermaid-zoom-btn,
-.vam-mermaid-zoomable:focus-within > .vam-mermaid-zoom-btn,
 .vam-mermaid-zoom-btn:focus-visible { opacity: 1; }
+/* Live preview: Obsidian draws its own edit-block button (.embed-actions > .edit-block-button) in the top-right of
+   .cm-embed-block. Measured in Obsidian: .embed-actions is absolute at top 4px / right 4px, 28px wide, 24px tall. Those
+   numbers are Obsidian's and cannot be read from CSS, so they are held in the variables below; our button sits one gap
+   to its left with the same height and top. Reading view has no .cm-embed-block, so it keeps top-right. */
+.cm-embed-block { --vam-embed-edit-top: 4px; --vam-embed-edit-right: 4px; --vam-embed-edit-width: 28px; --vam-embed-edit-height: 24px; --vam-embed-edit-gap: 4px; }
+.cm-embed-block .vam-mermaid-zoom-btn { top: var(--vam-embed-edit-top); right: calc(var(--vam-embed-edit-right) + var(--vam-embed-edit-width) + var(--vam-embed-edit-gap)); width: var(--vam-embed-edit-width); height: var(--vam-embed-edit-height); }
+.cm-embed-block:hover .vam-mermaid-zoom-btn,
+.cm-embed-block:focus-within .vam-mermaid-zoom-btn { opacity: 1; }
 .vam-mermaid-zoom-btn:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
 @media (hover: none) { .vam-mermaid-zoom-btn { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .vam-mermaid-zoom-btn { transition: none; } }
