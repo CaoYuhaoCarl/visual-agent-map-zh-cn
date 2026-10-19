@@ -41062,7 +41062,7 @@ var VisualAgentMapPlugin = class extends import_obsidian34.Plugin {
       claudeRuntime: (directory) => this.claudeCli(directory),
       mermaidParses: async (code) => {
         try {
-          const mermaid = await (0, import_obsidian32.loadMermaid)();
+          const mermaid = await (0, import_obsidian34.loadMermaid)();
           await mermaid.parse(code);
           return true;
         } catch (e) {
