@@ -2,14 +2,27 @@ import { estimateTokens } from "../../../ai/context-builder";
 import { translate, uiLocale, type UiLanguage } from "../../../i18n";
 import type { ReasoningLevel } from "../../../ai/types";
 import type { RelevanceLevel, RelevanceTier } from "../../../note-values";
+import {
+  mergeRelevanceTiers,
+  relevanceMergedViolations,
+  relevancePinBounds,
+  TIER_RANK,
+  type PinBound,
+  type RelevancePin,
+  type PinConflict,
+  type TierViolation
+} from "../../../experiences/visual-map/relevance-pins";
 import { positionIds } from "../../short-ids";
 import { renderTemplate, type StepDefinition } from "../../step-runner";
 import type { StructureNode } from "../structure-review/step";
 import languageEn from "./language.en.md";
 import languageZh from "./language.zh.md";
 import template from "./prompt.md";
+import pinsTemplate from "./pins.md";
+import repairPinsNote from "./repair-pins.md";
 import repairTemplate from "./repair.md";
 
+export type { PinConflict, RelevancePin };
 export const RELEVANCE_TIERS: readonly RelevanceTier[] = ["core", "support", "side"];
 export const RELEVANCE_GRADE_TOKEN_BUDGET = 32_000;
 export const RELEVANCE_GOAL_MAX_LENGTH = 200;
@@ -28,22 +41,27 @@ export interface RelevanceGradeRequest {
   contentLanguage?: UiLanguage;
   model: string;
   reasoning: ReasoningLevel;
+  /** Cards the learner set by hand. Their tier is final: the AI never grades them, but they steer the cards around them. */
+  pins?: RelevancePin[];
 }
 export interface RelevanceGradeItem {
   id: string;
   tier: RelevanceTier;
   reason: string;
+  /** The pinned card this tier follows from, when the AI named one that really is pinned. */
+  anchor?: string;
 }
 export interface RelevanceGradeResult {
   items: RelevanceGradeItem[];
+  /** Entries for pinned cards the AI sent anyway (ignored). */
+  pinnedIgnored?: number;
+  /** Anchors that were not a pinned card (treated as none). */
+  anchorsDropped?: number;
+  /** Pinned cards ranked above a pinned ancestor; the edges between them were exempt from the parent-child rule. */
+  conflicts?: PinConflict[];
 }
 /** One card graded above its parent (core > support > side). */
-export interface RelevanceHierarchyViolation {
-  childId: string;
-  childTier: RelevanceTier;
-  parentId: string;
-  parentTier: RelevanceTier;
-}
+export type RelevanceHierarchyViolation = TierViolation;
 /** Set on an "invalid" error whose ONLY problem is parent-child violations; carries what a repair round needs. */
 export interface RelevanceHierarchyFailure {
   violations: RelevanceHierarchyViolation[];
@@ -75,7 +93,8 @@ export const RELEVANCE_GRADE_SCHEMA = {
         properties: {
           id: { type: "string", minLength: 1 },
           tier: { type: "string", enum: [...RELEVANCE_TIERS] },
-          reason: { type: "string", minLength: 1 }
+          reason: { type: "string", minLength: 1 },
+          anchor: { type: ["string", "null"] }
         },
         required: ["id", "tier", "reason"]
       }
@@ -88,17 +107,51 @@ export const RELEVANCE_GRADE_SCHEMA = {
 export const gradableNodes = (nodes: ReadonlyArray<StructureNode>): StructureNode[] =>
   nodes.filter(node => node.parentId !== null);
 
-const TIER_RANK: Record<RelevanceTier, number> = { core: 2, support: 1, side: 0 };
-
-const invalid = (locale: UiLanguage, detail: string): RelevanceGradeError =>
+export const invalid = (locale: UiLanguage, detail: string): RelevanceGradeError =>
   new RelevanceGradeError("invalid", translate(locale, "error.relevance_grade_invalid", detail));
+
+/** The pins that name a gradable card of this map, in map order, one per card (the last entry for a card wins). */
+export function effectivePins(
+  tree: ReadonlyArray<StructureNode>,
+  pins: ReadonlyArray<RelevancePin> | undefined
+): RelevancePin[] {
+  if (!pins?.length) return [];
+  const tier = new Map<string, RelevanceTier>();
+  const gradable = new Set(gradableNodes(tree).map(node => node.id));
+  for (const pin of pins) if (gradable.has(pin.id)) tier.set(pin.id, pin.tier);
+  return tree
+    .filter(node => tier.has(node.id))
+    .map(node => ({ id: node.id, tier: tier.get(node.id) as RelevanceTier }));
+}
+
+/** The failure for a reply whose only problem is parent-child order (or a pin's bounds); a repair round can fix it. */
+export function hierarchyError(
+  locale: UiLanguage,
+  violations: TierViolation[],
+  reply: RelevanceGradeResult
+): RelevanceGradeError {
+  const first = violations[0];
+  const more = violations.length > 1 ? ` (+${violations.length - 1} more)` : "";
+  return new RelevanceGradeError(
+    "invalid",
+    translate(
+      locale,
+      "error.relevance_grade_invalid",
+      `hierarchy ${first.childId}: ${first.childTier} under ${first.parentTier} ${first.parentId}${more}`
+    ),
+    { violations, reply }
+  );
+}
 
 /**
  * Strict parser. The WHOLE reply is refused (with `RelevanceGradeError`, nothing written, no partial result) when it is
- * not JSON; is not exactly `{"items": [...]}`; has an item that is not an object with exactly `id`, `tier` and
- * `reason`; has a tier other than core, support or side; has a reason that is empty after trimming; repeats an id;
- * names an id that is not on the map or belongs to a top-level card; leaves any gradable card out; or ranks a card
- * above its parent (core > support > side; a top-level parent is context and not compared).
+ * not JSON; is not exactly `{"items": [...]}`; has an item that is not an object with `id`, `tier` and `reason` (and
+ * optionally `anchor`, a string or null); has a tier other than core, support or side; has a reason that is empty after
+ * trimming; repeats an id; names an id that is not on the map or belongs to a top-level card; leaves any gradable card
+ * that is not pinned out; or, once the pins are merged in, ranks a card above its parent (core > support > side; a
+ * top-level parent is context and not compared) or outside the bounds the pins give it.
+ * Pinned cards are the learner's and are not graded: an entry for one is ignored and counted. An `anchor` that is not
+ * a pinned card is treated as none and counted.
  * The reply uses the short position ids of {@link gradePrompt} (c1..cN, in map order); each is turned back into the real
  * id here, so everything returned or reported (items, violations, error details) carries real ids. A real id (UUID) in
  * the reply is not a position id and is refused like any unknown id.
@@ -107,7 +160,8 @@ const invalid = (locale: UiLanguage, detail: string): RelevanceGradeError =>
 export function parseRelevanceGrade(
   raw: string,
   tree: ReadonlyArray<StructureNode>,
-  language: UiLanguage = "en"
+  language: UiLanguage = "en",
+  pinList: ReadonlyArray<RelevancePin> = []
 ): RelevanceGradeResult {
   const locale = uiLocale(language);
   let value: unknown;
@@ -121,44 +175,57 @@ export function parseRelevanceGrade(
   if (Object.keys(body).length !== 1 || !Array.isArray(body.items)) throw invalid(locale, "items");
   const ids = positionIds(tree.map(node => node.id));
   const gradable = new Map(gradableNodes(tree).map(node => [node.id, node]));
+  const pins = effectivePins(tree, pinList);
+  const pinned = new Set(pins.map(pin => pin.id));
   const seen = new Set<string>();
   const items: RelevanceGradeItem[] = [];
+  let pinnedIgnored = 0;
+  let anchorsDropped = 0;
   body.items.forEach((entry: unknown, index: number) => {
     const where = `#${index + 1}`;
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw invalid(locale, where);
     const item = entry as Record<string, unknown>;
     const keys = Object.keys(item);
-    if (keys.length !== 3 || !["id", "tier", "reason"].every(key => keys.includes(key)))
+    const withAnchor = keys.includes("anchor");
+    if (keys.length !== (withAnchor ? 4 : 3) || !["id", "tier", "reason"].every(key => keys.includes(key)))
       throw invalid(locale, `${where} keys`);
-    const { id: label, tier, reason } = item;
+    const { id: label, tier, reason, anchor } = item;
     if (typeof label !== "string" || !label) throw invalid(locale, `${where} id`);
     if (typeof tier !== "string" || !(RELEVANCE_TIERS as readonly string[]).includes(tier))
       throw invalid(locale, `${where} tier`);
     if (typeof reason !== "string" || !reason.trim()) throw invalid(locale, `${where} reason`);
+    if (withAnchor && anchor !== null && typeof anchor !== "string") throw invalid(locale, `${where} anchor`);
     const id = ids.real(label);
     if (id === undefined) throw invalid(locale, `${where} id ${label}`);
     if (!gradable.has(id)) throw invalid(locale, `${where} top-level ${id}`);
     if (seen.has(id)) throw invalid(locale, `${where} duplicate ${id}`);
     seen.add(id);
-    items.push({ id, tier: tier as RelevanceTier, reason: reason.replace(/\s+/g, " ").trim() });
+    if (pinned.has(id)) {
+      pinnedIgnored++;
+      return;
+    }
+    const anchorId = typeof anchor === "string" ? ids.real(anchor) : undefined;
+    const anchored = anchorId !== undefined && pinned.has(anchorId);
+    if (typeof anchor === "string" && !anchored) anchorsDropped++;
+    items.push({
+      id,
+      tier: tier as RelevanceTier,
+      reason: reason.replace(/\s+/g, " ").trim(),
+      ...(anchored ? { anchor: anchorId } : {})
+    });
   });
-  const missing = [...gradable.keys()].filter(id => !seen.has(id));
+  const missing = [...gradable.keys()].filter(id => !seen.has(id) && !pinned.has(id));
   if (missing.length) throw invalid(locale, `missing ${missing.length}: ${missing.slice(0, 3).join(", ")}`);
-  const violations = relevanceHierarchyViolations(items, tree);
-  if (violations.length) {
-    const first = violations[0];
-    const more = violations.length > 1 ? ` (+${violations.length - 1} more)` : "";
-    throw new RelevanceGradeError(
-      "invalid",
-      translate(
-        locale,
-        "error.relevance_grade_invalid",
-        `hierarchy ${first.childId}: ${first.childTier} under ${first.parentTier} ${first.parentId}${more}`
-      ),
-      { violations, reply: { items } }
-    );
-  }
-  return { items };
+  const pinBounds = relevancePinBounds(tree, pins);
+  const violations = relevanceMergedViolations(tree, mergeRelevanceTiers({ items, pins }), pinBounds);
+  const result: RelevanceGradeResult = {
+    items,
+    ...(pinnedIgnored ? { pinnedIgnored } : {}),
+    ...(anchorsDropped ? { anchorsDropped } : {}),
+    ...(pinBounds.conflicts.length ? { conflicts: pinBounds.conflicts } : {})
+  };
+  if (violations.length) throw hierarchyError(locale, violations, result);
+  return result;
 }
 
 /** Every graded card ranked above its graded parent, in map order. A top-level parent is context and is not compared. */
@@ -177,11 +244,35 @@ export function relevanceHierarchyViolations(
   return violations;
 }
 
-const languageLine = (request: RelevanceGradeRequest): string =>
+export const languageLine = (request: RelevanceGradeRequest): string =>
   renderTemplate((request.contentLanguage ?? request.language) === "zh-TW" ? languageZh : languageEn, {});
 
+/**
+ * The pins and bounds as the model sees them (position ids), or undefined when nothing is pinned.
+ * `bounds` lists only cards whose range the pins narrowed.
+ */
+export const promptPinParts = (
+  nodes: ReadonlyArray<StructureNode>,
+  pinList: ReadonlyArray<RelevancePin> | undefined
+): { pins: string; bounds: string; pinned: Map<string, RelevanceTier> } | undefined => {
+  const pins = effectivePins(nodes, pinList);
+  if (!pins.length) return undefined;
+  const ids = positionIds(nodes.map(node => node.id));
+  const label = (id: string): string => ids.short(id) ?? id;
+  const bounds = relevancePinBounds(nodes, pins).bounds;
+  const boundOf = (bound: PinBound) => ({
+    ...(bound.min ? { min: bound.min } : {}),
+    ...(bound.max ? { max: bound.max } : {})
+  });
+  return {
+    pins: JSON.stringify(pins.map(pin => ({ id: label(pin.id), tier: pin.tier }))),
+    bounds: JSON.stringify([...bounds].map(([id, bound]) => ({ id: label(id), ...boundOf(bound) }))),
+    pinned: new Map(pins.map(pin => [pin.id, pin.tier]))
+  };
+};
+
 /** The cards as the model sees them: position ids (c1..cN in map order) for both `id` and `parentId`, no UUIDs. */
-const promptCards = (nodes: ReadonlyArray<StructureNode>) => {
+const promptCards = (nodes: ReadonlyArray<StructureNode>, pinned: ReadonlyMap<string, RelevanceTier>) => {
   const ids = positionIds(nodes.map(node => node.id));
   const label = (id: string): string => ids.short(id) ?? id;
   return nodes.map(node => ({
@@ -189,35 +280,50 @@ const promptCards = (nodes: ReadonlyArray<StructureNode>) => {
     title: node.title,
     summary: node.summary,
     parentId: node.parentId === null ? null : label(node.parentId),
-    depth: node.depth
+    depth: node.depth,
+    ...(pinned.has(node.id) ? { pinned: pinned.get(node.id) } : {})
   }));
 };
 
-const gradePrompt = (request: RelevanceGradeRequest): string =>
-  renderTemplate(template, {
+const gradePrompt = (request: RelevanceGradeRequest): string => {
+  const parts = promptPinParts(request.nodes, request.pins);
+  return renderTemplate(template, {
     languageInstruction: languageLine(request),
+    pinsSection: parts ? `${renderTemplate(pinsTemplate, { pins: parts.pins, bounds: parts.bounds })}\n\n` : "",
     goal: JSON.stringify(request.goal),
     level: JSON.stringify(request.level ?? null),
     context: JSON.stringify(request.context ?? null),
-    nodes: JSON.stringify(promptCards(request.nodes))
+    nodes: JSON.stringify(promptCards(request.nodes, parts?.pinned ?? new Map()))
   });
+};
 
-const refuseIfTooBig = (prompt: string, request: RelevanceGradeRequest): void => {
+/** The error for a map with nothing to grade or too much to send. */
+export const refuseIfTooBig = (prompt: string, request: RelevanceGradeRequest, schema: unknown): void => {
   const locale = uiLocale(request.language);
   if (!gradableNodes(request.nodes).length)
     throw new RelevanceGradeError("empty", translate(locale, "error.relevance_grade_empty"));
-  if (estimateTokens(prompt + JSON.stringify(RELEVANCE_GRADE_SCHEMA)) > RELEVANCE_GRADE_TOKEN_BUDGET)
+  if (estimateTokens(prompt + JSON.stringify(schema)) > RELEVANCE_GRADE_TOKEN_BUDGET)
     throw new RelevanceGradeError("over_budget", translate(locale, "error.relevance_grade_over_budget"));
+};
+
+/** Pinned cards ranked above a pinned ancestor in this request (the learner's own disagreement). */
+export const pinConflicts = (request: RelevanceGradeRequest): PinConflict[] =>
+  relevancePinBounds(request.nodes, effectivePins(request.nodes, request.pins)).conflicts;
+
+/** Cards the model must grade: every gradable card that is not pinned. Empty means there is nothing to ask. */
+export const cardsToGrade = (request: RelevanceGradeRequest): StructureNode[] => {
+  const pinned = new Set(effectivePins(request.nodes, request.pins).map(pin => pin.id));
+  return gradableNodes(request.nodes).filter(node => !pinned.has(node.id));
 };
 
 /** Grade every card of a map against the learner's goal. Input is titles, summaries and structure; the reply is strict JSON. */
 export const relevanceGradeStep: StepDefinition<RelevanceGradeRequest, RelevanceGradeResult> = {
   id: "relevance-grade",
-  version: 7,
+  version: 8,
   render: gradePrompt,
   schema: RELEVANCE_GRADE_SCHEMA,
-  policy: refuseIfTooBig,
-  parse: (raw, request) => parseRelevanceGrade(raw, request.nodes, request.language)
+  policy: (prompt, request) => refuseIfTooBig(prompt, request, RELEVANCE_GRADE_SCHEMA),
+  parse: (raw, request) => parseRelevanceGrade(raw, request.nodes, request.language, request.pins)
 };
 
 /** The most repair rounds one grade may use; each round fixes only parent-child violations of the latest reply. */
@@ -227,48 +333,70 @@ export interface RelevanceRepairRequest extends RelevanceGradeRequest {
   previousReply: RelevanceGradeResult;
   violations: RelevanceHierarchyViolation[];
 }
+/** Ancestors of a violating parent up to the top-level card, each with its tier in the merged result (null: no tier). */
+export const ancestorChain = (
+  nodes: ReadonlyArray<StructureNode>,
+  tiers: ReadonlyMap<string, RelevanceTier>,
+  parentId: string
+): Array<{ id: string; tier: RelevanceTier | null }> => {
+  const ids = positionIds(nodes.map(node => node.id));
+  const label = (id: string): string => ids.short(id) ?? id;
+  const parentOf = new Map(nodes.map(node => [node.id, node.parentId]));
+  const result: Array<{ id: string; tier: RelevanceTier | null }> = [];
+  const seen = new Set<string>();
+  for (let id: string | null | undefined = parentId; id && !seen.has(id); id = parentOf.get(id)) {
+    seen.add(id);
+    result.push({ id: label(id), tier: tiers.get(id) ?? null });
+  }
+  return result;
+};
+/** The violations as the repair prompt shows them: position ids and the ancestor chain with merged tiers. */
+export const promptViolations = (
+  nodes: ReadonlyArray<StructureNode>,
+  tiers: ReadonlyMap<string, RelevanceTier>,
+  violations: ReadonlyArray<RelevanceHierarchyViolation>
+) => {
+  const ids = positionIds(nodes.map(node => node.id));
+  const label = (id: string): string => ids.short(id) ?? id;
+  return violations.map(violation => ({
+    ...violation,
+    childId: label(violation.childId),
+    parentId: label(violation.parentId),
+    ancestors: ancestorChain(nodes, tiers, violation.parentId)
+  }));
+};
+/** An item as the model reads it back: position ids (its anchor too). */
+export const promptItem = (nodes: ReadonlyArray<StructureNode>, item: RelevanceGradeItem) => {
+  const ids = positionIds(nodes.map(node => node.id));
+  const label = (id: string): string => ids.short(id) ?? id;
+  const { anchor, ...rest } = item;
+  return { ...rest, id: label(item.id), ...(anchor ? { anchor: label(anchor) } : {}) };
+};
+
 /**
  * The repair prompt speaks position ids like the grade prompt: the reply and the pairs are converted before they are sent.
  * Each pair also carries the chain of ancestors from the parent up to the top-level card with each one's tier in the
  * previous reply (the top-level card is context only, so its tier is null): raising a parent may need its ancestors raised.
+ * Pinned cards count with their pinned tier in those chains.
  */
 const repairPrompt = (request: RelevanceRepairRequest): string => {
-  const ids = positionIds(request.nodes.map(node => node.id));
-  const label = (id: string): string => ids.short(id) ?? id;
-  const parentOf = new Map(request.nodes.map(node => [node.id, node.parentId]));
-  const tierOf = new Map(request.previousReply.items.map(item => [item.id, item.tier]));
-  const chain = (parentId: string): Array<{ id: string; tier: RelevanceTier | null }> => {
-    const result: Array<{ id: string; tier: RelevanceTier | null }> = [];
-    const seen = new Set<string>();
-    for (let id: string | null | undefined = parentId; id && !seen.has(id); id = parentOf.get(id)) {
-      seen.add(id);
-      result.push({ id: label(id), tier: tierOf.get(id) ?? null });
-    }
-    return result;
-  };
+  const pins = effectivePins(request.nodes, request.pins);
+  const tiers = mergeRelevanceTiers({ items: request.previousReply.items, pins });
   return renderTemplate(repairTemplate, {
     originalPrompt: gradePrompt(request),
-    previousReply: JSON.stringify({
-      items: request.previousReply.items.map(item => ({ ...item, id: label(item.id) }))
-    }),
-    violations: JSON.stringify(
-      request.violations.map(violation => ({
-        ...violation,
-        childId: label(violation.childId),
-        parentId: label(violation.parentId),
-        ancestors: chain(violation.parentId)
-      }))
-    ),
+    previousReply: JSON.stringify({ items: request.previousReply.items.map(item => promptItem(request.nodes, item)) }),
+    violations: JSON.stringify(promptViolations(request.nodes, tiers, request.violations)),
+    pinsNote: pins.length ? `${renderTemplate(repairPinsNote, {})}\n` : "",
     languageInstruction: languageLine(request)
   });
 };
 export const relevanceGradeRepairStep: StepDefinition<RelevanceRepairRequest, RelevanceGradeResult> = {
   id: "relevance-grade-repair",
-  version: 3,
+  version: 4,
   render: repairPrompt,
   schema: RELEVANCE_GRADE_SCHEMA,
-  policy: refuseIfTooBig,
+  policy: (prompt, request) => refuseIfTooBig(prompt, request, RELEVANCE_GRADE_SCHEMA),
   // The same strict parser; a repair that breaks anything but hierarchy fails the grade, and one that still violates
   // hierarchy gets another round until RELEVANCE_REPAIR_MAX_ROUNDS is used up.
-  parse: (raw, request) => parseRelevanceGrade(raw, request.nodes, request.language)
+  parse: (raw, request) => parseRelevanceGrade(raw, request.nodes, request.language, request.pins)
 };

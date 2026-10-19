@@ -513,6 +513,7 @@ function buildPrompt({ version, goal, level, context, tree, language = 'zh-TW' }
   if (version === 'product')
     return renderTemplate(fs.readFileSync(promptPath('product'), 'utf8'), {
       languageInstruction: languageLine(language),
+      pinsSection: '',
       goal: JSON.stringify(goal),
       level: JSON.stringify(level ?? null),
       context: JSON.stringify(context ?? null),
@@ -556,6 +557,7 @@ function buildRepairPrompt({ prompt, value, violations, tree, version, language 
       originalPrompt: prompt,
       previousReply: JSON.stringify({ items: value.items.map(i => ({ ...i, id: lab(i.id) })) }),
       violations: JSON.stringify(violations.map(v => ({ childId: lab(v.child), childTier: v.childTier, parentId: lab(v.parent), parentTier: v.parentTier, ancestors: chainOf(v.parent) }))),
+      pinsNote: '',
       languageInstruction: languageLine(language)
     });
   }
