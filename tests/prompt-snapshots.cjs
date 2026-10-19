@@ -126,7 +126,7 @@ test('collect snapshots: Visual Map expansion and synthesis tasks', async () => 
     for (const { kind, context } of contexts) {
       if (seen.has(kind)) continue; seen.add(kind);
       assert.ok(context.task.length > 0);
-      await recordContext(`view.${kind}.${tag}`, `VisualAgentMapView ${kind} TaskContext through AiTaskService`, language, { ...context, onProgress: undefined, signal: undefined });
+      await recordContext(`view.${kind}.${tag}`, `VisualAgentMapView ${kind} TaskContext through AiTaskService`, language, { ...context, onProgress: undefined, signal: undefined, addCharts: undefined }); // the chart step is a separate call, snapshotted as chart.add below
     }
     assert.ok(seen.has('guided') && seen.has('synthesis-directions') && seen.has('merge-draft'), `view cases captured: ${[...seen].join(',')}`);
   }
@@ -178,6 +178,16 @@ test('collect snapshots: Coffee Tables, Reframe, Markdown context', async () => 
   const sentByPanel = await runPanel({ markdown: 'Intro line.\nSelected sentence here.\nOutro line.', selected: 'Selected sentence here.', replies: [planReply, 'Shorter.'] });
   assert.equal(sentByPanel.length, 2, 'the panel asked for a plan, then for the transformation');
   record('markdown-context.run-prompt', 'markdown-context/selection-ai.ts runPrompt via the panel (transform action, not localized)', 'none', sentByPanel[1]);
+});
+
+test('collect snapshots: chart step (chart.add@1)', () => {
+  const { chartStep } = loadModule('core/steps/chart/step.ts');
+  for (const [language, tag] of LANGUAGES) {
+    const detail = language === 'en' ? 'Larvae hatch in 3 days.\n\n```mermaid\nflowchart TD\nA["Egg"] --> B["Larva"]\n```\n\nThe pupa stage lasts 5 days.' : '幼蟲 3 天孵化。\n\n```mermaid\nflowchart TD\nA["卵"] --> B["幼蟲"]\n```\n\n蛹期持續 5 天。';
+    record(`chart.add.${tag}`, 'core/steps/chart/step.ts chartStep (one existing diagram, two remaining)', language, chartStep.render({ title: 'Topic T', detail, language, existingCount: 1, existingTypes: ['flowchart'], remaining: 2 }), chartStep.schema);
+  }
+  record('chart.add-none.en', 'core/steps/chart/step.ts chartStep (no existing diagram)', 'en', chartStep.render({ title: 'Topic T', detail: 'Plain text.', language: 'en', existingCount: 0, existingTypes: [], remaining: 3 }), chartStep.schema);
+  record('chart.add-none.zh', 'core/steps/chart/step.ts chartStep (no existing diagram)', 'zh-TW', chartStep.render({ title: 'Topic T', detail: '純文字。', language: 'zh-TW', existingCount: 0, existingTypes: [], remaining: 3 }), chartStep.schema);
 });
 
 test('collect snapshots: preset instruction strings composed directly from i18n', () => {
