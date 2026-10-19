@@ -1179,9 +1179,10 @@ export class VisualAgentMapView extends ItemView {
         }
         const { map, path, parent } = current;
         // A model chosen for the shallow research becomes the new topics' model; otherwise they inherit like new children.
-        model =
-          (request.shallowResearch && request.model) ||
-          (parent ? inheritModel((await repo.readNote(parent.path)).model, settings.cliModel) : settings.cliModel);
+        const baseModel = parent
+          ? inheritModel((await repo.readNote(parent.path, map)).model, settings.cliModel)
+          : settings.cliModel;
+        model = (request.shallowResearch && request.model) || baseModel;
         // A template chosen here is recorded on each new topic: an import never changes this map's default.
         const template = this.mapDetailTemplate(settings.language, request.detailTemplateId);
         const result = await addOutlineToMap(
@@ -1195,7 +1196,7 @@ export class VisualAgentMapView extends ItemView {
           template,
           request.detailTemplateId,
           undefined,
-          Boolean(request.shallowResearch && request.model && request.model !== settings.cliModel)
+          Boolean(request.shallowResearch && request.model && request.model !== baseModel)
         );
         state.result = result;
         const created = result.created;
@@ -1754,7 +1755,13 @@ export class VisualAgentMapView extends ItemView {
     try {
       if (timeoutMs && branch)
         await this.plugin.mutate(() => this.aimRuns.configureRetryTimeout(mapPath, branch.id, timeoutMs));
-      const result = await this.aimManual.continuePartial(mapPath, runId, undefined, undefined, controller.signal);
+      const result = await this.aimManual.continuePartial(
+        mapPath,
+        runId,
+        this.notes.get(questionNodeId)?.model,
+        this.notes.get(questionNodeId)?.reasoning,
+        controller.signal
+      );
       this.noticeDocumentReadyElsewhere(result.status, epoch, mapPath);
       if (!isCurrent()) return;
       // Select the new question so the toolbar answers it, not the previously selected one; the finally block re-renders after reloading the map.

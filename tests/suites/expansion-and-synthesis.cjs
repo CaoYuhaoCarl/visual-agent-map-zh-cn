@@ -1195,7 +1195,7 @@ integrationTest('multi research with a chosen model saves it on each started top
   assert.equal((await h.repo.readNote(h.nodes[2].path)).model, h.repo.settings.cliModel, 'a workspace topic follows the current workspace model, not its creation snapshot');
   h.finish.get('A')(); h.finish.get('B')();
 });
-integrationTest('multi research without a chosen model keeps each topic model', async () => {
+integrationTest('multi research without a chosen model runs a workspace topic on the current workspace model', async () => {
   const h = await multiResearchHarness(['A']);
   h.view.multiSelected = new Set([h.nodes[0].id]);
   await h.view.startMultiResearch(h.request); await until(() => h.runs.length === 1);

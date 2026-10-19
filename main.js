@@ -24660,7 +24660,7 @@ ${beforeSearch.detail}`,
       draft.model,
       map,
       mapPath,
-      "workspace",
+      "inherited",
       draft.notePath,
       draft.nodeId,
       {
@@ -25349,7 +25349,7 @@ var _AimRunStore = class _AimRunStore {
       map.aim = state;
       await this.repository.saveMap(mapPath, map);
       const contentLanguage = resolveAimContentLanguage(map, this.repository.settings.language);
-      await this.repository.createNoteAt(title, model, map, mapPath, "workspace", notePath, nodeId, {
+      await this.repository.createNoteAt(title, model, map, mapPath, "inherited", notePath, nodeId, {
         summary: translate(contentLanguage, "note.aim_result_pending"),
         reasoning: reasoning != null ? reasoning : draft.reasoning,
         contentLanguage
@@ -25454,7 +25454,7 @@ var _AimRunStore = class _AimRunStore {
             (_d = draft.model) != null ? _d : "gpt-6-luna",
             map,
             mapPath,
-            "workspace",
+            "inherited",
             draft.notePath,
             draft.nodeId,
             {
@@ -26559,7 +26559,8 @@ ${request.requirements}` : preset.text,
           return;
         }
         const { map, path, parent } = current;
-        model = request.shallowResearch && request.model || (parent ? inheritModel((await repo.readNote(parent.path)).model, settings.cliModel) : settings.cliModel);
+        const baseModel = parent ? inheritModel((await repo.readNote(parent.path, map)).model, settings.cliModel) : settings.cliModel;
+        model = request.shallowResearch && request.model || baseModel;
         const template = this.mapDetailTemplate(settings.language, request.detailTemplateId);
         const result = await addOutlineToMap(
           repo,
@@ -26572,7 +26573,7 @@ ${request.requirements}` : preset.text,
           template,
           request.detailTemplateId,
           void 0,
-          Boolean(request.shallowResearch && request.model && request.model !== settings.cliModel)
+          Boolean(request.shallowResearch && request.model && request.model !== baseModel)
         );
         state.result = result;
         const created = result.created;
@@ -27082,7 +27083,7 @@ ${request.requirements}` : preset.text,
     }
   }
   async continueAimResearch(questionNodeId, runId, timeoutMs) {
-    var _a;
+    var _a, _b, _c;
     const mapPath = this.path, epoch = this.aimViewEpoch;
     if (this.closed || !mapPath || !((_a = this.map) == null ? void 0 : _a.aim) || this.aimBusy || this.builtIn) return;
     const run = this.map.aim.runs.find((item) => item.id === runId);
@@ -27098,7 +27099,13 @@ ${request.requirements}` : preset.text,
     try {
       if (timeoutMs && branch)
         await this.plugin.mutate(() => this.aimRuns.configureRetryTimeout(mapPath, branch.id, timeoutMs));
-      const result = await this.aimManual.continuePartial(mapPath, runId, void 0, void 0, controller.signal);
+      const result = await this.aimManual.continuePartial(
+        mapPath,
+        runId,
+        (_b = this.notes.get(questionNodeId)) == null ? void 0 : _b.model,
+        (_c = this.notes.get(questionNodeId)) == null ? void 0 : _c.reasoning,
+        controller.signal
+      );
       this.noticeDocumentReadyElsewhere(result.status, epoch, mapPath);
       if (!isCurrent()) return;
       if (result.status === "waiting-user") {

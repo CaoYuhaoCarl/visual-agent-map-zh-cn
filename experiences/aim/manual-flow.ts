@@ -3885,7 +3885,7 @@ export class AimManualFlow {
       draft.model,
       map,
       mapPath,
-      "workspace",
+      "inherited",
       draft.notePath,
       draft.nodeId,
       {
