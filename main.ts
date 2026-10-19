@@ -1,4 +1,5 @@
 import { registerInternalMarkerPresentation } from "./experiences/markdown-context/internal-markers";
+import { registerMermaidZoom, type MermaidZoomHandle } from "./experiences/mermaid-zoom/register";
 import { CoffeeTablesView, COFFEE_TABLES_VIEW_TYPE, COFFEE_TABLES_NAME } from "./experiences/coffee-tables/view";
 import type { CoffeeRequest, CoffeeSession } from "./experiences/coffee-tables/types";
 import { CoffeeManager } from "./experiences/coffee-tables/engine";
@@ -118,6 +119,8 @@ async function fitImageForClaude(dataUrl: string, signal: AbortSignal): Promise<
 }
 
 export default class VisualAgentMapPlugin extends Plugin {
+  /** Diagnostics for the mermaid zoom viewer (observer count); read by UI checks only. */
+  mermaidZoom: MermaidZoomHandle | null = null;
   settings: Settings = { ...DEFAULT_SETTINGS };
   repo!: Repository;
   ready: Promise<void> = Promise.resolve();
@@ -335,6 +338,7 @@ export default class VisualAgentMapPlugin extends Plugin {
     };
     setUiLanguage(this.settings.language);
     registerInternalMarkerPresentation(this);
+    this.mermaidZoom = registerMermaidZoom(this);
     const markdownSelectionAi = new MarkdownSelectionAi(this.app, {
       model: () => this.settings.cliModel,
       autoOpen: () => this.settings.markdownSelectionAiAutoOpen,
