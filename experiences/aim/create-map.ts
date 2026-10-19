@@ -85,7 +85,8 @@ export async function createAimMap(
       draft.model ?? model,
       map,
       mapPath,
-      "workspace",
+      // A model picked in the start dialog that differs from the workspace default is the owner's choice: keep it.
+      (draft.model ?? model) === repository.settings.cliModel ? "workspace" : "manual",
       draft.notePath,
       draft.nodeId,
       {

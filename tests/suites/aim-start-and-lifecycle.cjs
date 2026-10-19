@@ -766,3 +766,32 @@ integrationTest('AIM start stores the content language once and keeps it when th
     assert.equal((await repo.readMap(again.mapPath)).aim.contentLanguage, item.expected, 'resume keeps the stored value');
   }
 });
+async function aimChildModel(rootModel, cliModel) {
+  const { repo } = fixture(); repo.settings.cliModel = 'gpt-5.6-luna';
+  const { createAimMap } = load('experiences/aim/create-map.ts');
+  const created = await createAimMap(repo, rootModel, { requestId: `aim-model-${rootModel}`, topic: '如何安排一週的居家運動？', context: '', model: rootModel, reasoning: 'low' });
+  repo.settings.cliModel = cliModel;
+  const { AimRunStore } = load('experiences/aim/research-run-store.ts'); const { AimManualFlow } = load('experiences/aim/manual-flow.ts');
+  const question = await new AimManualFlow(repo, new AimRunStore(repo), async () => ({ summary: '熟度？', detail: '個人條件。', suggestions: [{ title: 'A' }, { title: 'B' }], visualReferences: [] })).planNextQuestion(created.mapPath, created.root.id, rootModel, 'low', 'model-q');
+  const map = await repo.readMap(created.mapPath);
+  return { repo, created, question, map, rootNote: await repo.readNote(created.root.path, map), childNote: await repo.readNote(question.node.path, map) };
+}
+integrationTest('AIM children follow a manually chosen AIM start model and otherwise the current workspace model', async () => {
+  const manual = await aimChildModel('claude:opus', 'claude:sonnet');
+  assert.equal(manual.rootNote.modelSource, 'manual'); assert.equal(manual.childNote.modelSource, 'inherited');
+  assert.equal(manual.childNote.model, 'claude:opus', 'questions, retries and follow-ups run on the AIM start model');
+  assert.equal((await manual.repo.readNote(manual.question.node.path)).model, 'claude:opus', 'also without a map in hand');
+  const workspace = await aimChildModel('gpt-5.6-luna', 'claude:sonnet');
+  assert.equal(workspace.rootNote.modelSource, 'workspace'); assert.equal(workspace.childNote.model, 'claude:sonnet');
+});
+integrationTest('AIM partial continuation runs on the question note model, not the old attempt model', async () => {
+  const { VisualAgentMapView } = load('main.ts', { obsidian });
+  const calls = [];
+  const view = new VisualAgentMapView({ app: {} }, { settings: { ...DEFAULT_SETTINGS }, mutate: async work => work(), repo: { readMap: async () => { throw new Error('stop'); } } });
+  view.path = 'Map.md'; view.closed = false; view.builtIn = false; view.aimViewEpoch = 1; view.render = () => {}; view.aimViewIsCurrent = () => false;
+  view.map = { aim: { runs: [{ id: 'run-1', branchId: 'b1' }], branches: [{ id: 'b1', questionNodeId: 'q1' }] } };
+  view.notes = new Map([['q1', { model: 'claude:sonnet', reasoning: 'high' }]]);
+  view.aimManual = { continuePartial: async (...args) => { calls.push(args.slice(0, 4)); return { status: 'partial' }; } };
+  await view.continueAimResearch('q1', 'run-1');
+  assert.deepEqual(plain(calls), [['Map.md', 'run-1', 'claude:sonnet', 'high']]);
+});

@@ -613,7 +613,7 @@ export class VisualAgentMapView extends ItemView {
     for (const node of this.map?.nodes ?? []) {
       if (!isCurrent()) return;
       try {
-        loaded.set(node.id, await this.plugin.repo.readNote(node.path));
+        loaded.set(node.id, await this.plugin.repo.readNote(node.path, this.map ?? undefined));
       } catch {
         /* A missing note remains visible and removable on the map. */
       }
@@ -639,7 +639,7 @@ export class VisualAgentMapView extends ItemView {
       if (!file.path.startsWith(`${notesFolder}/`)) continue;
       if (!isCurrent()) return;
       try {
-        candidates.push({ path: file.path, note: await this.plugin.repo.readNote(file.path) });
+        candidates.push({ path: file.path, note: await this.plugin.repo.readNote(file.path, this.map ?? undefined) });
       } catch {
         /* Unreadable notes cannot authorize a retry action. */
       }
@@ -887,7 +887,7 @@ export class VisualAgentMapView extends ItemView {
     return {
       presets: listPresets(settings.promptPresets, "outline", settings.language).map(({ id, name }) => ({ id, name })),
       generate: async (request, signal): Promise<OutlineNode[]> => {
-        const note = await this.plugin.repo.readNote(node.path);
+        const note = await this.plugin.repo.readNote(node.path, this.map ?? undefined);
         const { preset } = resolvePreset(settings.promptPresets, "outline", request.presetId, request.language);
         const result = await this.plugin.outlineGeneration.generate(
           {
@@ -1749,7 +1749,15 @@ export class VisualAgentMapView extends ItemView {
     );
     let result: Awaited<ReturnType<typeof createOutlineMap>>;
     try {
-      result = await createOutlineMap(this.plugin.repo, model, request.nodes, request.source, undefined, template);
+      result = await createOutlineMap(
+        this.plugin.repo,
+        model,
+        request.nodes,
+        request.source,
+        undefined,
+        template,
+        Boolean(request.shallowResearch && request.model && request.model !== settings.cliModel)
+      );
     } catch (error) {
       // Once the map folder exists the import window must close, so a retry cannot create a second map.
       if (!(error as { mapCreated?: unknown } | null)?.mapCreated) throw error;
@@ -1831,9 +1839,10 @@ export class VisualAgentMapView extends ItemView {
         }
         const { map, path, parent } = current;
         // A model chosen for the shallow research becomes the new topics' model; otherwise they inherit like new children.
-        model =
-          (request.shallowResearch && request.model) ||
-          (parent ? inheritModel((await repo.readNote(parent.path)).model, settings.cliModel) : settings.cliModel);
+        const baseModel = parent
+          ? inheritModel((await repo.readNote(parent.path, map)).model, settings.cliModel)
+          : settings.cliModel;
+        model = (request.shallowResearch && request.model) || baseModel;
         // A template chosen here is recorded on each new topic: an import never changes this map's default.
         const template = this.mapDetailTemplate(settings.language, request.detailTemplateId);
         const result = await addOutlineToMap(
@@ -1845,14 +1854,16 @@ export class VisualAgentMapView extends ItemView {
           request.source,
           parent?.id ?? null,
           template,
-          request.detailTemplateId
+          request.detailTemplateId,
+          undefined,
+          Boolean(request.shallowResearch && request.model && request.model !== baseModel)
         );
         state.result = result;
         const created = result.created;
         if (!created.length) return;
         for (const node of created) {
           try {
-            this.notes.set(node.id, await repo.readNote(node.path));
+            this.notes.set(node.id, await repo.readNote(node.path, { ...map, nodes: [...map.nodes, ...created] }));
           } catch {
             // The note exists; the view reloads it on the next hydrate.
           }
@@ -2261,7 +2272,7 @@ export class VisualAgentMapView extends ItemView {
             async answers => {
               if (!this.aimViewIsCurrent(epoch, mapPath)) throw new Error("Reopen the original AIM map to continue.");
               await this.plugin.mutate(async () => {
-                const latest = await this.plugin.repo.readNote(node.path);
+                const latest = await this.plugin.repo.readNote(node.path, this.map ?? undefined);
                 if (!latest.detail.includes("<!-- aim-intake-complete -->")) {
                   await this.plugin.repo.updateNote(
                     node.path,
@@ -2286,7 +2297,7 @@ export class VisualAgentMapView extends ItemView {
           return;
         }
         await this.plugin.mutate(async () => {
-          const latest = await this.plugin.repo.readNote(node.path);
+          const latest = await this.plugin.repo.readNote(node.path, this.map ?? undefined);
           await this.plugin.repo.updateNote(
             node.path,
             { detail: latest.detail + "\n\n<!-- aim-intake-complete -->" },
@@ -2404,7 +2415,13 @@ export class VisualAgentMapView extends ItemView {
     try {
       if (timeoutMs && branch)
         await this.plugin.mutate(() => this.aimRuns.configureRetryTimeout(mapPath, branch.id, timeoutMs));
-      const result = await this.aimManual.continuePartial(mapPath, runId, undefined, undefined, controller.signal);
+      const result = await this.aimManual.continuePartial(
+        mapPath,
+        runId,
+        this.notes.get(questionNodeId)?.model,
+        this.notes.get(questionNodeId)?.reasoning,
+        controller.signal
+      );
       this.noticeDocumentReadyElsewhere(result.status, epoch, mapPath);
       if (!isCurrent()) return;
       // Select the new question so the toolbar answers it, not the previously selected one; the finally block re-renders after reloading the map.
@@ -3277,7 +3294,7 @@ export class VisualAgentMapView extends ItemView {
   private async claimToCurrent(file: TFile): Promise<void> {
     if (!this.map) return;
     const before = clone(this.map),
-      previous = await this.plugin.repo.readNote(file.path),
+      previous = await this.plugin.repo.readNote(file.path, this.map ?? undefined),
       original = file.path;
     const target = await this.plugin.repo.moveUnique(original, this.plugin.repo.topicFolder(this.path, "Notes"));
     await this.plugin.repo.setLifecycle(target, this.map.id, this.map.id, "active");
@@ -3321,7 +3338,7 @@ export class VisualAgentMapView extends ItemView {
   private async relinkMissingNode(node: MapNode, file: TFile): Promise<void> {
     if (!this.map) return;
     const before = clone(this.map),
-      previous = await this.plugin.repo.readNote(file.path),
+      previous = await this.plugin.repo.readNote(file.path, this.map ?? undefined),
       original = file.path;
     const target = await this.plugin.repo.moveUnique(original, this.plugin.repo.topicFolder(this.path, "Notes"));
     await this.plugin.repo.setLifecycle(target, this.map.id, this.map.id, "active");
@@ -3360,7 +3377,7 @@ export class VisualAgentMapView extends ItemView {
     state: "unassigned" | "archived"
   ): Promise<void> {
     if (!this.map) return;
-    const before = await this.plugin.repo.readNote(file.path),
+    const before = await this.plugin.repo.readNote(file.path, this.map ?? undefined),
       original = file.path;
     const target = await this.plugin.repo.moveUnique(original, this.plugin.repo.topicFolder(this.path, collection));
     await this.plugin.repo.setLifecycle(target, this.map.id, "", state);
@@ -3381,7 +3398,7 @@ export class VisualAgentMapView extends ItemView {
     this.render();
   }
   private async transferToTopic(file: TFile, topic: TopicInfo): Promise<void> {
-    const before = await this.plugin.repo.readNote(file.path),
+    const before = await this.plugin.repo.readNote(file.path, this.map ?? undefined),
       original = file.path,
       folder = `${topic.root}/Unassigned`;
     const target = await this.plugin.repo.moveUnique(original, folder);
@@ -3403,7 +3420,7 @@ export class VisualAgentMapView extends ItemView {
     this.render();
   }
   private async transferAndAdd(file: TFile, topic: TopicInfo): Promise<void> {
-    const previous = await this.plugin.repo.readNote(file.path),
+    const previous = await this.plugin.repo.readNote(file.path, this.map ?? undefined),
       original = file.path,
       before = await this.plugin.repo.readMap(topic.mapPath);
     const target = await this.plugin.repo.moveUnique(original, `${topic.root}/Notes`);
@@ -3438,7 +3455,7 @@ export class VisualAgentMapView extends ItemView {
     this.render();
   }
   private async noteChange(node: MapNode, patch: NotePatch): Promise<void> {
-    const current = await this.plugin.repo.readNote(node.path),
+    const current = await this.plugin.repo.readNote(node.path, this.map ?? undefined),
       before: NotePatch = {};
     for (const key of Object.keys(patch) as (keyof Note)[]) (before as Record<string, unknown>)[key] = current[key];
     if (Object.keys(patch).every(key => current[key as keyof Note] === patch[key as keyof Note])) return;
@@ -3467,7 +3484,7 @@ export class VisualAgentMapView extends ItemView {
       undo: () => this.plugin.repo.updateNote(node.path, before),
       redo: () => this.plugin.repo.updateNote(node.path, patch)
     });
-    this.notes.set(node.id, await this.plugin.repo.readNote(node.path));
+    this.notes.set(node.id, await this.plugin.repo.readNote(node.path, this.map ?? undefined));
     this.render();
   }
   private recordNoteWrite(path: string, before: Note, after: Note, fields: (keyof NotePatch)[], label: string): void {
@@ -5082,7 +5099,7 @@ export class VisualAgentMapView extends ItemView {
   }
   private openNextStep(node: MapNode): void {
     this.enqueue(async () => {
-      const note = await this.plugin.repo.readNote(node.path);
+      const note = await this.plugin.repo.readNote(node.path, this.map ?? undefined);
       const currentLabel = t("ui.reference_current_topic_included", note.title);
       const synthesisLabel = t("ui.reference_synthesis_topics_included", note.title);
       const sources = this.taskSourceSettings(currentLabel, this.map?.id, synthesisLabel);
@@ -5098,7 +5115,7 @@ export class VisualAgentMapView extends ItemView {
         this.plugin.pendingSuggestions.get(node.path)?.length ?? 0,
         this.plugin,
         async (options, focus, done, failed, accepted) => {
-          const latest = await this.plugin.repo.readNote(node.path);
+          const latest = await this.plugin.repo.readNote(node.path, this.map ?? undefined);
           const task = researchTopicTask(this.plugin.settings.language, latest.title);
           const detailTemplate = await this.detailTemplateFor(node, options.detailTemplateId, options.toneId);
           await this.runAgent(
@@ -5467,7 +5484,7 @@ export class VisualAgentMapView extends ItemView {
       return;
     }
     const model = inheritModel(
-      parent ? (await this.plugin.repo.readNote(parent.path)).model : undefined,
+      parent ? (await this.plugin.repo.readNote(parent.path, this.map ?? undefined)).model : undefined,
       this.plugin.settings.cliModel
     );
     if (!isManagedMapPath(this.plugin.settings, this.path)) {
@@ -5482,14 +5499,17 @@ export class VisualAgentMapView extends ItemView {
       parent ? "inherited" : "workspace"
     );
     if (parent) {
-      const parentNote = await this.plugin.repo.readNote(parent.path);
+      const parentNote = await this.plugin.repo.readNote(parent.path, this.map ?? undefined);
       await this.plugin.repo.updateNote(node.path, { reasoning: parentNote.reasoning });
     }
     node.parentId = parent?.id ?? null;
     node.x = parent ? parent.x + 340 : 80;
     const siblings = this.map.nodes.filter(n => n.parentId === node.parentId);
     node.y = siblings.length ? Math.max(...siblings.map(n => n.y)) + 220 : (parent?.y ?? 80);
-    this.notes.set(node.id, await this.plugin.repo.readNote(node.path));
+    this.notes.set(
+      node.id,
+      await this.plugin.repo.readNote(node.path, { ...this.map, nodes: [...this.map.nodes, node] })
+    );
     this.selected = node.id;
     await this.mapChange(map => {
       map.nodes.push(node);
@@ -5594,7 +5614,7 @@ export class VisualAgentMapView extends ItemView {
     this.plugin.activeTasks.set(parent.path, controller);
     this.render();
     try {
-      const note = await this.plugin.repo.readNote(parent.path);
+      const note = await this.plugin.repo.readNote(parent.path, this.map ?? undefined);
       if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
       const outputLanguage = options?.outputLanguage ?? this.plugin.settings.language;
       const existing =
@@ -5640,7 +5660,7 @@ export class VisualAgentMapView extends ItemView {
         else new Notice(message);
         return;
       }
-      const latest = await this.plugin.repo.readNote(parent.path);
+      const latest = await this.plugin.repo.readNote(parent.path, this.map ?? undefined);
       if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
       if (latest.thinkingOrigin !== note.thinkingOrigin)
         throw new Error(t("ui.the_topic_changed_so_the_outdated_ai_result_was_not_saved"));
@@ -5676,7 +5696,7 @@ export class VisualAgentMapView extends ItemView {
     }
   }
   private async assertSuggestionOrigin(parent: MapNode, suggestions: Suggestion[]): Promise<void> {
-    const origin = (await this.plugin.repo.readNote(parent.path)).thinkingOrigin ?? "";
+    const origin = (await this.plugin.repo.readNote(parent.path, this.map ?? undefined)).thinkingOrigin ?? "";
     if (
       suggestions.every(
         item =>
@@ -5822,7 +5842,7 @@ export class VisualAgentMapView extends ItemView {
     choices: TaskOptions
   ): Promise<void> {
     const detailTemplate = await this.detailTemplateFor(child, choices.detailTemplateId, choices.toneId);
-    const note = await this.plugin.repo.readNote(child.path);
+    const note = await this.plugin.repo.readNote(child.path, this.map ?? undefined);
     const outputLanguage =
       choices.outputLanguage ?? chooseAimContentLanguage(this.plugin.settings.language, note.title);
     let started = false;
@@ -6100,7 +6120,7 @@ export class VisualAgentMapView extends ItemView {
     const ancestors: string[] = [];
     const language = this.plugin.settings?.language ?? "zh-TW";
     for (const n of chain) {
-      const info = await this.plugin.repo.readNote(n.path);
+      const info = await this.plugin.repo.readNote(n.path, this.map ?? undefined);
       ancestors.push(`- ${info.title}\n  ${labelCurrentSummary(language)}: ${info.summary}`);
     }
     return ancestors.join("\n");
@@ -6145,7 +6165,7 @@ export class VisualAgentMapView extends ItemView {
       failed(t("ui.choose_another_note_source_first"));
       return;
     }
-    const note = await this.plugin.repo.readNote(node.path);
+    const note = await this.plugin.repo.readNote(node.path, this.map ?? undefined);
     this.plugin.running.add(node.path);
     this.render();
     try {
@@ -6220,7 +6240,7 @@ export class VisualAgentMapView extends ItemView {
       failed?.(t("ui.ai_running_ai"));
       return;
     }
-    const note = await this.plugin.repo.readNote(node.path);
+    const note = await this.plugin.repo.readNote(node.path, this.map ?? undefined);
     const children = this.map.nodes.filter(item => item.parentId === node.id);
     if (!children.length && !options?.referenceGroups?.some(group => group.documents.length)) {
       const message = t("ui.choose_another_note_source_first");
@@ -6318,7 +6338,7 @@ export class VisualAgentMapView extends ItemView {
           );
           if (JSON.stringify(currentSources.documents) !== sourceSnapshot)
             throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
-          const latest = await this.plugin.repo.readNote(node.path);
+          const latest = await this.plugin.repo.readNote(node.path, this.map ?? undefined);
           if (
             JSON.stringify([
               latest.title,
@@ -6356,7 +6376,7 @@ export class VisualAgentMapView extends ItemView {
             },
             { detailTemplate }
           );
-          const saved = await this.plugin.repo.readNote(node.path);
+          const saved = await this.plugin.repo.readNote(node.path, this.map ?? undefined);
           this.recordNoteWrite(
             node.path,
             { ...latest, status: note.status },
@@ -6585,7 +6605,7 @@ export class VisualAgentMapView extends ItemView {
   private retrySynthesis(node: MapNode): void {
     const task = this.synthesisTasks.get(node.path);
     if (!task || (task.state !== "failed" && task.state !== "cancelled")) return;
-    void this.plugin.repo.readNote(node.path).then(note =>
+    void this.plugin.repo.readNote(node.path, this.map ?? undefined).then(note =>
       this.plugin.confirmAiUsage(note.model, async () => {
         await this.startSynthesis(
           node,
@@ -6856,7 +6876,9 @@ export class VisualAgentMapView extends ItemView {
     mode: "strong" | "summary" = "strong"
   ): Promise<ReferenceGroup> {
     const language = this.plugin.settings?.language ?? "zh-TW";
-    const notes = await Promise.all(sources.map(source => this.plugin.repo.readNote(source.path)));
+    const notes = await Promise.all(
+      sources.map(source => this.plugin.repo.readNote(source.path, this.map ?? undefined))
+    );
     const documents = sources.map((source, index) => {
       const note = notes[index];
       const finding = note.newFindings.trim();
@@ -7506,7 +7528,7 @@ export class VisualAgentMapView extends ItemView {
   private async detailTemplateFor(node: MapNode, chosenId?: string, chosenToneId?: string): Promise<DetailTemplate> {
     if (chosenToneId) await this.plugin.repo.updateNote(node.path, { toneId: chosenToneId });
     if (chosenId) await this.plugin.repo.updateNote(node.path, { detailTemplateId: chosenId });
-    const note = await this.plugin.repo.readNote(node.path);
+    const note = await this.plugin.repo.readNote(node.path, this.map ?? undefined);
     const { template, missing } = this.resolveTopicTemplate(note, chosenId);
     if (note.detailTemplateId && missing.includes(note.detailTemplateId)) {
       new Notice(t("ui.detail_template_missing_0", note.detailTemplateId));
@@ -7546,7 +7568,7 @@ export class VisualAgentMapView extends ItemView {
     onLaunchAccepted?: () => void
   ): Promise<AgentTaskHandle | null> {
     const taskPath = node.path;
-    const note = await this.plugin.repo.readNote(node.path);
+    const note = await this.plugin.repo.readNote(node.path, this.map ?? undefined);
     if (!(overrides?.task ?? note.prompt)) {
       const message = t("ui.enter_a_question_or_task_for_ai_first");
       if (failed) failed(message);
@@ -7644,7 +7666,7 @@ export class VisualAgentMapView extends ItemView {
       )
       .then(result =>
         this.plugin.mutate(async () => {
-          const latest = await this.plugin.repo.readNote(node.path);
+          const latest = await this.plugin.repo.readNote(node.path, this.map ?? undefined);
           const stale =
             latest.thinkingOrigin !== note.thinkingOrigin ||
             latest.title !== note.title ||
@@ -7688,7 +7710,7 @@ export class VisualAgentMapView extends ItemView {
             },
             { detailTemplate: context.detailTemplate }
           );
-          const saved = await this.plugin.repo.readNote(node.path);
+          const saved = await this.plugin.repo.readNote(node.path, this.map ?? undefined);
           this.recordNoteWrite(
             node.path,
             { ...latest, status: note.status },
