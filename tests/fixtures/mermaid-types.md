@@ -98,7 +98,7 @@ gantt
 ### pie
 
 ```mermaid
-pie title "示意比例"
+pie title 示意比例
   "甲" : 40
   "乙" : 35
   "丙" : 25
@@ -108,7 +108,7 @@ pie title "示意比例"
 
 ```mermaid
 quadrantChart
-  title "示意定位"
+  title 示意定位
   x-axis "低成本" --> "高成本"
   y-axis "低效益" --> "高效益"
   quadrant-1 "優先"
@@ -201,11 +201,11 @@ C4Deployment
 
 ```mermaid
 mindmap
-  root((主題))
-    分支甲
-      細節一
-    分支乙
-      細節二
+  root(("主題"))
+    a["分支甲"]
+      a1["細節一"]
+    b["分支乙"]
+      b1["細節二"]
 ```
 
 ### timeline
