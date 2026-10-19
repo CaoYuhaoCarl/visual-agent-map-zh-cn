@@ -335,6 +335,40 @@ test('mermaid types: the prompt bullets name only types the sanitizer keeps', ()
     const tokens = bullet.match(/[A-Za-z][A-Za-z0-9-]*/g).filter(token => /^[a-z]+[A-Z]|-beta$|-v2$/.test(token) || plain.has(token));
     assert.ok(tokens.length >= 8, `${lang}: bullet names several types`);
     for (const token of tokens) assert.ok(DIAGRAM_TYPES.includes(token), `${lang}: ${token} is in DIAGRAM_TYPES`);
-    for (const token of ['flowchart', 'sequenceDiagram', 'xychart-beta', 'sankey-beta']) assert.ok(bullet.includes(token), `${lang}: ${token}`);
+    for (const token of lang === 'en' ? ['flowchart', 'sequenceDiagram', 'xychart-beta', 'sankey-beta'] : ['flowchart', 'sequenceDiagram', 'xychart-beta']) assert.ok(bullet.includes(token), `${lang}: ${token}`);
+    assert.equal(bullet.includes('sankey-beta'), lang === 'en', `${lang}: the sankey hint is English-only (sankey labels are ASCII only)`);
   }
+});
+
+const OPEN_SYNTAX = {
+  nested: ['> [!note] 背景', '> 外層說明', '>', '> > [!warning] 內層', '> > 小心這個例外'].join('\n'),
+  foldable: ['> [!note]- 完整推導', '> 第一步', '> 第二步', '', '> [!tip]+ 展開的提示', '> 先回想再看答案'].join('\n'),
+  details: ['<details>', '<summary>延伸說明</summary>', '', '- **重點**一', '- 重點二', '', '```js', 'const a = 1;', '```', '', '</details>'].join('\n'),
+  inlineHtml: '水是 H<sub>2</sub>O，面積用 m<sup>2</sup>，按 <kbd>Ctrl</kbd> + <kbd>C</kbd> 複製，重點是 <mark>間隔</mark>。'
+};
+
+test('open syntax: nested and foldable callouts, details and inline HTML survive parse, canonical sections, the write and the read byte for byte', async () => {
+  const { repo } = support.fixture('zh-TW');
+  for (const [name, text] of Object.entries(OPEN_SYNTAX)) {
+    const detail = ['### 核心結論', '', text, '', '### 關鍵知識', '', '一般段落。'].join('\n');
+    assert.equal(parse(detail), detail, `${name}: parse keeps it`);
+    const canonical = canonicalDetail(parse(detail), 'zh-TW');
+    assert.ok(canonical.includes(text), `${name}: canonicalDetail keeps it byte for byte`);
+    assert.equal(canonicalDetail(canonical, 'zh-TW'), canonical, `${name}: canonicalDetail is stable`);
+    const node = await support.topicNote(repo);
+    await repo.updateNote(node.path, { detail: canonical, preview: '預覽內容', prompt: '提示內容' });
+    const read = await repo.readNote(node.path);
+    assert.equal(read.detail, canonical, `${name}: read returns the written detail`);
+    assert.equal(read.preview, '預覽內容', `${name}: Preview callout still parses`);
+    assert.equal(read.prompt, '提示內容', `${name}: Prompt callout still parses`);
+    assert.equal(neutralizeUnsafeMermaid(canonical), canonical, `${name}: sanitizer leaves it alone`);
+  }
+  // All four together, and a Prompt-looking callout inside the detail does not become the Prompt section.
+  const all = Object.values(OPEN_SYNTAX).join('\n\n');
+  const detail = canonicalDetail(parse(['### 核心結論', '', all, '', '> [!info]- Prompt', '> 假的'].join('\n')), 'zh-TW');
+  const node = await support.topicNote(repo);
+  await repo.updateNote(node.path, { detail, prompt: '真的' });
+  const read = await repo.readNote(node.path);
+  assert.equal(read.detail, detail);
+  assert.equal(read.prompt, '真的');
 });

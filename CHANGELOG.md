@@ -5,6 +5,7 @@
 ### Added
 
 - AI notes can use any offline mermaid diagram type Obsidian supports (sequence, gantt, pie, xychart, quadrant, mindmap, ER, state, sankey and more); unsafe diagram syntax is still shown as plain code.
+- AI notes may use any callout type (including foldable `[!type]-` / `[!type]+` and one level of nesting) and the HTML Obsidian renders (`<details>`, `<sup>`, `<sub>`, `<kbd>`, `<mark>`); the writing rules no longer restrict syntax Obsidian supports.
 
 ### Changed
 

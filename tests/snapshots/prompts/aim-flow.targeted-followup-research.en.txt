@@ -13,9 +13,11 @@ Research the single assigned evidence gap. Report search status accurately, dist
 The detail is rendered in Obsidian. Choose the syntax below by the shape of the content; do not write the whole page as paragraphs or bullet lists:
 
 - Core conclusion or key definition: a `> [!summary]` callout, 1–3 sentences; add the reasons or conditions the summary leaves out instead of repeating the summary word for word.
-- Risks, common misconceptions, limitations: `> [!warning]`.
+- Risks, common misconceptions, limitations: `> [!warning]`; serious risks: `> [!danger]`.
 - Assumptions to verify or open questions: `> [!question]`.
 - Practical tips or examples: `> [!tip]` or `> [!example]`.
+- Background or supplementary material: `> [!note]` or `> [!info]`; direct quotations: `> [!quote]`; confirmed conclusions: `> [!success]`; things that failed or did not work: `> [!failure]`; to-dos: `> [!todo]`; abstracts: `> [!abstract]`; known bugs: `> [!bug]`.
+- Long supplementary content (full derivations, extended explanations): a foldable callout, `> [!note]-` collapsed by default, `> [!note]+` expanded.
 - Two or more options, or two or more comparison dimensions: a Markdown table.
 - Diagrams: one ```mermaid``` block of any type Obsidian supports; pick the one that best fits the content's shape: a process or cause and effect → flowchart (TD by default; LR only for a short chain of at most 4 nodes), interaction between parties → sequenceDiagram; change over time → timeline, a schedule → gantt; proportions → pie; trends or numeric comparison → xychart-beta; positions on two dimensions → quadrantChart; hierarchy → mindmap or treemap-beta; entity relationships → erDiagram or classDiagram; state changes → stateDiagram-v2; flows of quantity → sankey-beta.
 - What the user should do next, learning actions: a `- [ ]` task list.
@@ -23,10 +25,10 @@ The detail is rendered in Obsidian. Choose the syntax below by the shape of the 
 
 Rules:
 1. When no syntax fits the content's shape, write a plain paragraph. Do not force syntax for looks; every syntax must make the content easier to understand.
-2. Use at most two kinds of special syntax per section; do not nest callouts.
-3. Each mermaid diagram has at most 12 nodes, data points or items (pie at most 8 slices, quadrantChart at most 10 points); its first line names the type in full, including -beta where the type has it (for example xychart-beta, sankey-beta). Use text labels only, and wrap titles and labels containing parentheses or punctuation in double quotes. Never write lines that start with click, link, callback, class, style or classDef, and never use :::, <<…>>, HTML tags such as <br>, %%{}%% or --- configuration, URLs, images or ::icon icons.
+2. Use at most two kinds of special syntax per section; callouts may nest at most one level, and only when it clearly helps.
+3. Each mermaid diagram has at most 12 nodes, data points or items (pie at most 8 slices, quadrantChart at most 10 points); its first line names the type in full, including -beta where the type has it (for example xychart-beta, sankey-beta); sankey-beta labels may use only English letters, digits and spaces, so use a flowchart or a table when you need non-English labels. Use text labels only, and wrap titles and labels containing parentheses or punctuation in double quotes. Never write lines that start with click, link, callback, class, style or classDef, and never use :::, <<…>>, HTML tags such as <br>, %%{}%% or --- configuration, URLs, images or ::icon icons.
 4. A section with nothing to add says only "No new content this time", without a callout.
-5. Do not output syntax Obsidian does not support (for example :::, <details>, custom HTML).
+5. You may use HTML that Obsidian renders (for example <details>/<summary>, <sup>, <sub>, <kbd>, <mark>, and <br> outside mermaid); never use <iframe>, <form>, <object>, <embed>, <script>, <style> or on… event attributes, and do not output syntax Obsidian does not support (for example :::).
 6. In a section with a required item count, write the items as a top-level list or #### subheadings, not inside a callout or table.
 7. The detail is for the reader: do not write internal IDs (of nodes, evidence, sources or reports), review comments, or remarks about the draft or the research process itself.
 8. Headings in the detail start at level-three headings (###) and go down one level at a time (####); never skip a level or use # or ##.
