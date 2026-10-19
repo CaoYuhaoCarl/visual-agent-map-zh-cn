@@ -1058,3 +1058,14 @@ button.vam-template-section-header:hover { background: var(--background-modifier
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-xychart, svg)[aria-roledescription="xychart"] [class^="bar-plot"] rect { fill: color-mix(in srgb, var(--interactive-accent) 55%, var(--background-primary)); stroke: var(--interactive-accent); stroke-width: 1px; }
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-xychart, svg)[aria-roledescription="xychart"] [class^="line-plot"] path { stroke: var(--color-orange); }
 .vam-selection-bar button[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+
+/* Links in the body of VAM notes: Obsidian's default link color is 4.09:1 in the light theme, an unresolved link is 2.53:1
+   (its color at 0.7 opacity), and a footnote back-reference is --text-faint (2.3:1 light, 2.97:1 dark). register.ts adds
+   the scope class to each link element of a VAM note (never to a link in an embedded note), so other notes keep Obsidian's
+   own look. Colors are mixed toward --text-normal so contrast follows the active theme; links keep the theme underline,
+   and an unresolved link keeps its own hue and gets a dashed underline, so it still differs from a resolved one. */
+.markdown-rendered a.vam-link-scope { color: color-mix(in srgb, var(--link-color) 72%, var(--text-normal)); }
+.markdown-rendered a.vam-link-scope:hover { color: color-mix(in srgb, var(--link-color-hover) 72%, var(--text-normal)); }
+.markdown-rendered a.vam-link-scope.is-unresolved { color: color-mix(in srgb, var(--link-unresolved-color) 60%, var(--text-normal)); opacity: 1; text-decoration-style: dashed; }
+.markdown-rendered a.vam-link-scope.footnote-backref { color: var(--text-muted); }
+.markdown-rendered a.vam-link-scope.footnote-backref:hover { color: var(--text-normal); }

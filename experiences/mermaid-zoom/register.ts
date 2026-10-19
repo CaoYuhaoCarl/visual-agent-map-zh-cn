@@ -14,6 +14,8 @@ import { MermaidZoomModal } from "./viewer";
 export const SCOPE_CLASS = "vam-mermaid-scope";
 /** Class on each callout that belongs to a VAM note; the callout contrast CSS is scoped to it. */
 export const CALLOUT_SCOPE_CLASS = "vam-callout-scope";
+/** Class on each link (and footnote ref or back-reference) that belongs to a VAM note; the link contrast CSS is scoped to it. */
+export const LINK_SCOPE_CLASS = "vam-link-scope";
 export const ZOOMABLE_CLASS = "vam-mermaid-zoomable";
 export const BUTTON_CLASS = "vam-mermaid-zoom-btn";
 
@@ -67,6 +69,19 @@ function scanCallouts(section: HTMLElement): void {
   }
 }
 
+/**
+ * Gives every link of `section` that belongs to it the link scope class. The links are marked one by one (not the
+ * section) because a section can hold an embedded note that is judged by its own path. Idempotent.
+ */
+function scanLinks(section: HTMLElement): void {
+  const selector = ".internal-link, .external-link, .footnote-link, .footnote-backref";
+  const links = section.matches(selector) ? [section] : [];
+  links.push(...Array.from(section.querySelectorAll<HTMLElement>(selector)));
+  for (const link of links) {
+    if (!inForeignEmbed(section, link)) link.addClass(LINK_SCOPE_CLASS);
+  }
+}
+
 /** Decorates every rendered diagram of `section` that belongs to it; returns how many it has handled. */
 function scan(app: App, section: HTMLElement): number {
   const hosts = section.matches(".mermaid") ? [section] : [];
@@ -95,7 +110,7 @@ class WatchChild extends MarkdownRenderChild {
 
 function isDiagramNode(node: Node): boolean {
   const el = node as Element;
-  return typeof el.matches === "function" && el.matches("svg, .mermaid, .cm-embed-block, .callout, .cm-callout");
+  return typeof el.matches === "function" && el.matches("svg, .mermaid, .cm-embed-block, .callout, .cm-callout, a");
 }
 
 /** A DOM change matters only when a diagram (svg or .mermaid) was added, or it happened inside an embed block or a diagram. */
@@ -131,6 +146,7 @@ export class EditorWatcher {
     this.lastPath = path;
     if (path && isVamSource(this.app, path)) {
       scanCallouts(this.dom);
+      scanLinks(this.dom);
       scan(this.app, this.dom);
     }
   }
@@ -190,6 +206,7 @@ export function registerMermaidZoom(plugin: Plugin): MermaidZoomHandle {
   plugin.registerMarkdownPostProcessor((element: HTMLElement, context: MarkdownPostProcessorContext) => {
     if (!isVamSource(plugin.app, context.sourcePath)) return;
     scanCallouts(element);
+    scanLinks(element);
     if (scan(plugin.app, element) > 0) return;
     const mayHoldDiagram =
       element.matches(".mermaid") ||
