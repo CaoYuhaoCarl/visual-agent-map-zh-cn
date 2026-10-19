@@ -401,7 +401,11 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
     generate: async request => { quickRequest = request; return outlineOf('# Parent\n## Food\n### Breakfast'); },
     create
   });
-  const quickModal = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, modal.expand, async () => {}, { ...modelSettings, sources: undefined, quickOutline: quickOutline() });
+  // Owner decision 2026-10-19: pressing Generate hides the dialog; the finished outline waits in the view and the
+  // dialog reopens straight at its review (with the generated nodes and the dialog's options).
+  let readyOutline; const outlineHooks = { begins: 0, ends: 0 };
+  const quickBackground = { begin: () => { outlineHooks.begins++; }, end: () => { outlineHooks.ends++; }, outlineReady: outline => { readyOutline = outline; } };
+  const quickModal = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, modal.expand, async () => {}, { ...modelSettings, sources: undefined, quickOutline: quickOutline(), background: quickBackground });
   quickModal.onOpen(); find(quickModal.contentEl, item => item.cls === 'vam-next-cards').children[1].click(); button(quickModal.contentEl, 'Quickly explore a map').click();
   find(quickModal.contentEl, item => item['aria-label'] === 'Answer language for this task').value = 'zh-TW';
   find(quickModal.contentEl, item => item.tag === 'textarea').value = 'Keep it short';
@@ -409,29 +413,45 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   assert.equal(all(quickModal.contentEl, item => item.tag === 'input' && item.type === 'number').length, 2, 'levels and size fields');
   assert.ok(find(quickModal.contentEl, item => item['aria-label'] === 'Outline preset'));
   const expandCallsBeforeQuick = expandCalls;
+  const closedBeforeQuick = closed;
   button(quickModal.modalEl, 'Generate outline').click(); await tick(); await tick();
   assert.equal(quickRequest.language, 'zh-TW'); assert.equal(quickRequest.requirements, 'Keep it short'); assert.equal(quickRequest.presetId, 'knowledge-tree');
-  assert.equal(expandCalls, expandCallsBeforeQuick, 'the old multi-layer expansion is not called'); assert.equal(quickCreated, undefined); assert.equal(closed, 1);
-  button(quickModal.contentEl, 'Create subtopics (2)').click(); await tick(); await tick();
+  assert.equal(expandCalls, expandCallsBeforeQuick, 'the old multi-layer expansion is not called'); assert.equal(quickCreated, undefined);
+  assert.equal(closed, closedBeforeQuick + 1, 'the dialog hid itself once the outline started');
+  assert.deepEqual(outlineHooks, { begins: 1, ends: 1 }, 'the card shows the run until it finishes');
+  assert.ok(readyOutline, 'the finished outline is handed to the view'); assert.equal(readyOutline.nodes.length, 3);
+  assert.equal(find(quickModal.contentEl, item => /^Create subtopics/.test(item.text ?? '')), undefined, 'nothing is written into the hidden dialog');
+  let outlineDiscarded = 0;
+  const reopenedQuick = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, modal.expand, async () => {}, { ...modelSettings, sources: undefined, quickOutline: quickOutline(), pendingOutline: { ...readyOutline, discard: () => { outlineDiscarded++; } } });
+  reopenedQuick.onOpen();
+  assert.deepEqual(all(reopenedQuick.contentEl, item => item.cls?.includes('vam-proposal-title')).map(item => item.value), ['Food', 'Breakfast'], 'reopening goes straight to the review');
+  button(reopenedQuick.contentEl, 'Create subtopics (2)').click(); await tick(); await tick();
   assert.deepEqual(plain(quickCreated.map(node => [node.title, node.parent])), [['Food', null], ['Breakfast', 0]]);
-  assert.equal(quickOptions.researchDepth, 'fast'); assert.equal(quickOptions.shallowResearch, false); assert.equal(closed, 2);
+  assert.equal(quickOptions.researchDepth, 'fast'); assert.equal(quickOptions.shallowResearch, false); assert.equal(closed, closedBeforeQuick + 2); assert.equal(outlineDiscarded, 1, 'creating consumes the waiting outline');
   assert.equal(quickOptions.researchMode, 'local'); assert.equal(quickOptions.referenceGroups.length, 0); assert.equal(quickOptions.outputLanguage, 'zh-TW');
   // A failure while creating keeps the dialog open with the reason, and the review can be confirmed again.
-  const partial = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => {}, async () => {}, { ...modelSettings, quickOutline: quickOutline(async () => { throw new Error('部分子議題已建立，請重新開啟視窗。'); }) });
-  partial.onOpen(); find(partial.contentEl, item => item.cls === 'vam-next-cards').children[1].click(); button(partial.contentEl, 'Quickly explore a map').click();
+  // The same hidden-then-reopened path for the create step: generate in one dialog, review and create in the next.
+  const generateThenReopen = async (create, prepare = () => {}) => {
+    let ready; const first = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => {}, async () => {}, { ...modelSettings, quickOutline: quickOutline(create), background: { begin() {}, end() {}, outlineReady: outline => { ready = outline; } } });
+    first.onOpen(); find(first.contentEl, item => item.cls === 'vam-next-cards').children[1].click(); button(first.contentEl, 'Quickly explore a map').click();
+    prepare(first);
+    button(first.modalEl, 'Generate outline').click(); await tick(); await tick();
+    const reopened = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => {}, async () => {}, { ...modelSettings, quickOutline: quickOutline(create), pendingOutline: { ...ready, discard() {} } });
+    reopened.onOpen();
+    return reopened;
+  };
+  const partial = await generateThenReopen(async () => { throw new Error('部分子議題已建立，請重新開啟視窗。'); });
   const closedBeforePartial = closed;
-  button(partial.modalEl, 'Generate outline').click(); await tick(); await tick();
   button(partial.contentEl, 'Create subtopics (2)').click(); await tick(); await tick();
   assert.equal(closed, closedBeforePartial); assert.equal(button(partial.contentEl, 'Create subtopics (2)').disabled, false); assert.match(all(partial.contentEl, item => item.cls.includes('vam-next-research'))[1].querySelector('.vam-next-status').text, /部分子議題已建立/);
   // With shallow research the dialog closes once the topics exist and the research continues in the background.
   const startedNotices = () => notices.filter(message => message === 'Started “Parent” in the background; progress shows on its card.').length;
   const startedBefore = startedNotices();
   let createSignal;
-  const acceptedModal = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => {}, async () => {}, { ...modelSettings, quickOutline: quickOutline(async (_nodes, options) => { createSignal = options.signal; quickOptions = options; }) });
-  acceptedModal.onOpen(); find(acceptedModal.contentEl, item => item.cls === 'vam-next-cards').children[1].click(); button(acceptedModal.contentEl, 'Quickly explore a map').click();
-  const shallowBox = find(acceptedModal.contentEl, item => item.tag === 'input' && item.type === 'checkbox' && item.parent?.cls?.includes('vam-next-toggle'));
-  shallowBox.checked = true; shallowBox.change();
-  button(acceptedModal.modalEl, 'Generate outline').click(); await tick(); await tick();
+  const acceptedModal = await generateThenReopen(async (_nodes, options) => { createSignal = options.signal; quickOptions = options; }, first => {
+    const shallowBox = find(first.contentEl, item => item.tag === 'input' && item.type === 'checkbox' && item.parent?.cls?.includes('vam-next-toggle'));
+    shallowBox.checked = true; shallowBox.change();
+  });
   button(acceptedModal.contentEl, 'Create subtopics (2)').click();
   await until(() => acceptedModal.closed);
   assert.equal(quickOptions.shallowResearch, true); assert.equal(createSignal.aborted, false); assert.equal(acceptedModal.taskSignal, undefined);
@@ -490,10 +510,11 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   assert.match(emptyPanel.children[0].text, /no direct subtopics/i);
   button(empty.modalEl, 'Get synthesis suggestions first').click(); await tick();
   assert.equal(synthCalls, 1); assert.equal(emptyOptions, undefined);
+  const closedBeforeFailing = closed;
   const failing = new NextStepModal({}, 'Parent', 'normal', 1, 1, plugin, async () => {}, async (_options, _direction, _found, failed) => failed('Provider failed'), async () => {});
   failing.onOpen(); find(failing.contentEl, item => item.cls === 'vam-next-cards').children[1].click();
   button(failing.modalEl, 'Review AI subtopic suggestions').click(); await tick();
-  assert.equal(all(failing.contentEl, item => item.cls.includes('vam-next-research'))[1].querySelector('.vam-next-status').text, 'Provider failed'); assert.equal(closed, 3);
+  assert.equal(all(failing.contentEl, item => item.cls.includes('vam-next-research'))[1].querySelector('.vam-next-status').text, 'Provider failed'); assert.equal(closed, closedBeforeFailing); closed = 3; // the absolute counts below start again from the original 3
   const startedBeforeFailures = startedNotices();
   const failedResearch = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async (_options, _focus, _done, failed) => failed('Cannot start'), async () => {}, async () => {});
   failedResearch.onOpen(); button(failedResearch.modalEl, 'Confirm research task').click(); await tick();
@@ -523,33 +544,34 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   button(pendingModal.contentEl, 'Create subtopics (1)').click(); await tick();
   assert.equal(pendingModal.closed, true, 'creating the reviewed subtopics ends the guided expansion'); closed -= 1;
   assert.equal(pendingCalls, 1); assert.equal(button(pendingModal.contentEl, 'Understand and run'), undefined);
-  // C2: a slow outline keeps the dialog open until it is reviewed; the shallow-research choice reaches the create step.
-  let finishQuick, delayedOptions, delayedNodes;
-  const delayed = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => assert.fail('old quick expansion'), async () => {}, { ...modelSettings, quickOutline: {
-    presets: [{ id: 'knowledge-tree', name: 'Knowledge tree generator' }],
+  // C2 (owner decision 2026-10-19): a slow outline runs with the dialog hidden; the outline waits for review and a
+  // reopened dialog carries the shallow-research choice to the create step.
+  let finishQuick, delayedOptions, delayedNodes, delayedReady, delayedStops = 0;
+  const delayedOutline = { presets: [{ id: 'knowledge-tree', name: 'Knowledge tree generator' }],
     generate: () => new Promise(resolve => { finishQuick = () => resolve(outlineOf('# Parent\n## A\n### A1\n## B')); }),
-    create: async (nodes, options) => { delayedNodes = nodes; delayedOptions = options; }
-  } });
+    create: async (nodes, options) => { delayedNodes = nodes; delayedOptions = options; } };
+  const delayed = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => assert.fail('old quick expansion'), async () => {}, { ...modelSettings, quickOutline: delayedOutline, background: { begin: () => { delayedStops++; }, end: () => { delayedStops--; }, outlineReady: outline => { delayedReady = outline; } } });
   delayed.onOpen(); find(delayed.contentEl, item => item.cls === 'vam-next-cards').children[1].click(); button(delayed.contentEl, 'Quickly explore a map').click();
   const shallow = find(all(delayed.contentEl, item => item.cls === 'vam-next-adjust-section')[1], item => item.tag === 'input' && item.type === 'checkbox');
   shallow.checked = true;
   button(delayed.modalEl, 'Generate outline').click(); await tick();
-  assert.equal(closed, 4); assert.equal(delayedNodes, undefined);
+  assert.equal(closed, 5, 'the dialog hides as soon as the outline starts'); assert.equal(delayedNodes, undefined); assert.equal(delayedStops, 1, 'the card shows it running until the outline arrives');
   finishQuick(); await tick(); await tick();
-  assert.equal(closed, 4, 'the outline is reviewed before anything is created');
-  button(delayed.contentEl, 'Create subtopics (3)').click(); await until(() => delayed.closed);
-  assert.equal(closed, 5); assert.equal(delayedNodes.length, 3); assert.equal(delayedOptions.shallowResearch, true);
-  // A rejected outline (for example over the heading limit) says why and creates nothing.
-  const invalid = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => assert.fail('over-limit task started'), async () => {}, { ...modelSettings, quickOutline: {
+  assert.equal(closed, 5); assert.equal(delayedStops, 0); assert.equal(delayedNodes, undefined, 'the outline is reviewed before anything is created');
+  const delayedReview = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => assert.fail('old quick expansion'), async () => {}, { ...modelSettings, quickOutline: delayedOutline, pendingOutline: { ...delayedReady, discard() {} } });
+  delayedReview.onOpen();
+  button(delayedReview.contentEl, 'Create subtopics (3)').click(); await until(() => delayedReview.closed);
+  assert.equal(closed, 6); assert.equal(delayedNodes.length, 3); assert.equal(delayedOptions.shallowResearch, true);
+  // A failed outline (for example over the heading limit) after the dialog hid becomes a Notice and creates nothing.
+  const invalid = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => assert.fail('over-limit task started'), async () => {}, { ...modelSettings, background: { begin() {}, end() {}, outlineReady: () => assert.fail('no outline') }, quickOutline: {
     presets: [{ id: 'knowledge-tree', name: 'Knowledge tree generator' }],
     generate: async () => { throw new Error('The AI outline has 101 headings; the limit is 100.'); },
     create: async () => assert.fail('nothing to create')
   } });
   invalid.onOpen(); find(invalid.contentEl, item => item.cls === 'vam-next-cards').children[1].click(); button(invalid.contentEl, 'Quickly explore a map').click();
   button(invalid.modalEl, 'Generate outline').click(); await tick(); await tick();
-  assert.match(all(invalid.contentEl, item => item.cls.includes('vam-next-research'))[1].querySelector('.vam-next-status').text, /101 headings/);
-  assert.equal(button(invalid.modalEl, 'Generate outline').disabled, false);
-  assert.equal(closed, 5);
+  await until(() => notices.some(message => /101 headings/.test(message)));
+  assert.equal(closed, 7); closed = 5;
   let finishGuided, guidedFinished = false;
   const guidedModal = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async (_options, _direction, found) => {
     await new Promise(resolve => { finishGuided = resolve; });
@@ -579,18 +601,18 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   assert.equal(checkedModels.at(-1), 'model-b');
   assert.equal(researchAfterSave, true);
   const closedBeforeCancel = closed;
-  // C2: Cancel while the quick-explore outline is generated aborts it and creates nothing.
-  const cancelModal = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => assert.fail('old quick expansion'), async () => {}, { ...modelSettings, quickOutline: {
+  // C2 (owner decision 2026-10-19): Stop moves to the card; stopping the hidden outline aborts it and creates nothing.
+  let cardStop, cancelSignal, cancelReady = 0;
+  const cancelModal = new NextStepModal({}, 'Parent', 'normal', 1, 0, plugin, async () => {}, async () => assert.fail('old quick expansion'), async () => {}, { ...modelSettings, background: { begin: controller => { cardStop = controller; }, end() {}, outlineReady: () => { cancelReady++; } }, quickOutline: {
     presets: [{ id: 'knowledge-tree', name: 'Knowledge tree generator' }],
-    generate: (_request, signal) => new Promise((_resolve, reject) => signal.addEventListener('abort', () => { const error = new Error('aborted'); error.name = 'AbortError'; reject(error); }, { once: true })),
+    generate: (_request, signal) => new Promise((_resolve, reject) => { cancelSignal = signal; signal.addEventListener('abort', () => { const error = new Error('aborted'); error.name = 'AbortError'; reject(error); }, { once: true }); }),
     create: async () => assert.fail('cancel creates nothing')
   } });
   cancelModal.onOpen(); find(cancelModal.contentEl, item => item.cls === 'vam-next-cards').children[1].click();
   button(cancelModal.contentEl, 'Quickly explore a map').click(); button(cancelModal.modalEl, 'Generate outline').click(); await tick();
-  const taskCancel = find(cancelModal.contentEl, item => item.cls === 'vam-task-cancel');
-  assert.equal(taskCancel.hidden, false); taskCancel.onclick(); await tick();
-  assert.match(find(all(cancelModal.contentEl, item => item.cls.includes('vam-next-research'))[1], item => item.cls.includes('vam-next-status')).text, /cancelled/i);
-  assert.equal(closed, closedBeforeCancel);
+  assert.equal(closed, closedBeforeCancel + 1, 'the dialog hid itself'); assert.equal(cancelSignal.aborted, false, 'hiding the dialog does not stop the AI');
+  cardStop.abort(); await tick(); await tick();
+  assert.equal(cancelSignal.aborted, true); assert.equal(cancelReady, 0, 'a stopped outline is never handed to the view');
 });
 test('external map conflict UI retains file, screen, and manual merge choices', () => {
   const source = fs.readFileSync(path.join(root, 'experiences/visual-map/modals.ts'), 'utf8');
@@ -721,12 +743,16 @@ integrationTest('Next Step modal: the content template choice goes into research
   button(picked.modalEl, 'Confirm research task').click(); await tick();
   assert.equal(seen.research.detailTemplateId, 'A');
   // C2: quick explore is an AI outline reviewed in the dialog; the template choice reaches its create step.
-  const quickModal = open('quick', { ...settings, quickOutline: { presets: [{ id: 'knowledge-tree', name: 'Knowledge tree generator' }], generate: async () => plain(load('experiences/visual-map/outline-import.ts', { obsidian }).parseOutline('# Parent\n## A').nodes), create: async (_nodes, options) => { seen.expand = options; } } });
+  // Owner decision 2026-10-19: Generate hides the dialog; the template choice rides along to the reopened review's create step.
+  let ready;
+  const quickOutline = { presets: [{ id: 'knowledge-tree', name: 'Knowledge tree generator' }], generate: async () => plain(load('experiences/visual-map/outline-import.ts', { obsidian }).parseOutline('# Parent\n## A').nodes), create: async (_nodes, options) => { seen.expand = options; } };
+  const quickModal = open('quick', { ...settings, quickOutline, background: { begin() {}, end() {}, outlineReady: outline => { ready = outline; } } });
   templateSelect(quickModal).value = 'A';
   cardsOf(quickModal).children[1].click();
   button(quickModal.contentEl, 'Quickly explore a map').click();
   button(quickModal.modalEl, 'Generate outline').click(); await tick(); await tick();
-  button(quickModal.contentEl, 'Create subtopics (1)').click(); await tick(); await tick();
+  const reviewModal = open('review', { ...settings, quickOutline, pendingOutline: { ...ready, discard() {} } });
+  button(reviewModal.contentEl, 'Create subtopics (1)').click(); await tick(); await tick();
   assert.equal(seen.expand.detailTemplateId, 'A');
   const synthModal = open('synth', settings);
   templateSelect(synthModal).value = 'A';

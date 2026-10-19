@@ -117,6 +117,13 @@ var english = {
   "ui.integration_running": "Integrating selected topics\u2026",
   "ui.integration_draft_ready": "Integration draft ready for review.",
   "ui.background_view": "View",
+  "ui.background_review": "Review",
+  "ui.background_outline_ready_0": "Quick outline is ready: {0}",
+  "ui.review_outline_0": "Review outline ({0})",
+  "ui.structure_review_ready_0": "Structure review finished: {0} suggestions.",
+  "ui.structure_review_view_0": "View {0} suggestions",
+  "ui.outline_ai_ready": "The AI outline is ready.",
+  "ui.outline_ai_bar_ready": "Outline ready",
   "ui.background_research_done_0": "Research finished: {0}",
   "ui.background_expand_ready_0": "Subtopic suggestions are ready: {0}",
   "ui.background_synthesis_directions_ready": "Synthesis directions are ready.",
@@ -1567,6 +1574,13 @@ var traditionalChinese = {
   "ui.integration_running": "\u6B63\u5728\u6574\u5408\u5DF2\u9078\u8B70\u984C\u2026",
   "ui.integration_draft_ready": "\u6574\u5408\u8349\u7A3F\u5DF2\u5C31\u7DD2\uFF0C\u8ACB\u6AA2\u95B1\u3002",
   "ui.background_view": "\u6AA2\u8996",
+  "ui.background_review": "\u6AA2\u95B1",
+  "ui.background_outline_ready_0": "\u5FEB\u901F\u5927\u7DB1\u5DF2\u5C31\u7DD2\uFF1A{0}",
+  "ui.review_outline_0": "\u6AA2\u95B1\u5927\u7DB1 ({0})",
+  "ui.structure_review_ready_0": "\u7D50\u69CB\u6AA2\u8996\u5B8C\u6210\uFF1A{0} \u689D\u5EFA\u8B70\u3002",
+  "ui.structure_review_view_0": "\u6AA2\u8996 {0} \u689D\u5EFA\u8B70",
+  "ui.outline_ai_ready": "AI \u5927\u7DB1\u5DF2\u5C31\u7DD2\u3002",
+  "ui.outline_ai_bar_ready": "\u5927\u7DB1\u5DF2\u5C31\u7DD2",
   "ui.background_research_done_0": "\u7814\u7A76\u5B8C\u6210\uFF1A{0}",
   "ui.background_expand_ready_0": "\u5B50\u4E3B\u984C\u5EFA\u8B70\u5DF2\u5C31\u7DD2\uFF1A{0}",
   "ui.background_synthesis_directions_ready": "\u6574\u5408\u65B9\u5411\u5DF2\u5C31\u7DD2\u3002",
@@ -10942,6 +10956,29 @@ function backgroundResultNotice(message, action) {
   notice = new import_obsidian7.Notice(fragment);
   return notice;
 }
+function renderBackgroundStatus(parent, status) {
+  const bar = parent.createDiv(`vam-aim-statusbar vam-background-statusbar${status.running ? " is-active" : ""}`);
+  bar.setAttr("aria-live", "polite");
+  bar.createSpan({ cls: "vam-aim-status-title", text: status.title });
+  bar.createSpan({
+    cls: `vam-aim-status-value ${status.running ? "vam-status-running" : ""}`.trim(),
+    text: status.value
+  });
+  if (status.running && status.onStop) {
+    const stop = bar.createEl("button", { text: t("ui.stop_research") });
+    stop.addEventListener("click", status.onStop);
+  }
+  if (status.review) {
+    const review = bar.createEl("button", { text: status.review.label, cls: "vam-badge-new" });
+    review.addEventListener("click", status.review.open);
+  }
+  if (!status.running && status.onDismiss) {
+    const dismiss = bar.createEl("button", { text: "\xD7" });
+    dismiss.setAttr("aria-label", t("ui.dismiss"));
+    dismiss.addEventListener("click", status.onDismiss);
+  }
+  return bar;
+}
 
 // ui/modals/prompt-presets-modal.ts
 var import_obsidian8 = require("obsidian");
@@ -15425,7 +15462,16 @@ function modelField(parent, models, defaultLabel, repair) {
   fill();
   if (repair) fieldLink(head, t("ui.connection_repair"), () => repair(model.value || void 0));
   const dispose = models.watch(fill);
-  return { value: () => model.value || void 0, dispose };
+  return {
+    value: () => model.value || void 0,
+    // A model that is not (yet) in the list stays selected as an extra option, so a restored choice is not lost.
+    set: (id) => {
+      if (id && !Array.from(model.children).some((option2) => option2.value === id))
+        model.createEl("option", { value: id, text: id });
+      model.value = id != null ? id : "";
+    },
+    dispose
+  };
 }
 function templateField(parent, templates, defaultLabel, manage, changed = () => {
 }) {
@@ -15450,7 +15496,12 @@ function templateField(parent, templates, defaultLabel, manage, changed = () => 
         changed();
       })
     );
-  return () => select.value || void 0;
+  const read = () => select.value || void 0;
+  return Object.assign(read, {
+    set: (id) => {
+      select.value = id && templates.some((template) => template.id === id) ? id : "";
+    }
+  });
 }
 function toneField(parent, tones, defaultLabel, manage, changed = () => {
 }) {
@@ -15503,6 +15554,18 @@ var OutlineImportModal = class extends import_obsidian13.Modal {
     __publicField(this, "depth", () => "fast");
     __publicField(this, "model", () => void 0);
     __publicField(this, "template", () => void 0);
+    __publicField(this, "setModel", () => {
+    });
+    __publicField(this, "setTemplate", () => {
+    });
+    __publicField(this, "setDepth", () => {
+    });
+    __publicField(this, "syncResearchOptions", () => {
+    });
+    __publicField(this, "restoreResult", () => {
+    });
+    /** AI generation started and this window hid itself; closing no longer stops it (the status bar has Stop). */
+    __publicField(this, "detached", false);
     __publicField(this, "unwatch");
     __publicField(this, "placement", "tree");
     __publicField(this, "generation");
@@ -15510,6 +15573,7 @@ var OutlineImportModal = class extends import_obsidian13.Modal {
     this.placement = initialPlacement === "under" && target.selected ? "under" : "tree";
   }
   onOpen() {
+    var _a;
     this.titleEl.setText(t("ui.outline_import"));
     this.modalEl.addClass("vam-outline-import-modal");
     this.contentEl.createEl("p", { text: t("ui.outline_import_hint"), cls: "vam-hint vam-outline-intro" });
@@ -15532,9 +15596,12 @@ var OutlineImportModal = class extends import_obsidian13.Modal {
     this.shallow = shallowLabel.createEl("input", { type: "checkbox" });
     shallowLabel.createSpan({ text: t("ui.outline_import_shallow") });
     const researchOptions = research.createDiv("vam-outline-research-options");
-    this.depth = researchDepthField(researchOptions, { initial: "fast" }).value;
+    const depth = researchDepthField(researchOptions, { initial: "fast" });
+    this.depth = depth.value;
+    this.setDepth = depth.set;
     const model = modelField(researchOptions, this.models, t("ui.workspace_default"), this.links.repair);
     this.model = model.value;
+    this.setModel = model.set;
     this.unwatch = model.dispose;
     this.template = templateField(
       researchOptions,
@@ -15542,8 +15609,10 @@ var OutlineImportModal = class extends import_obsidian13.Modal {
       t("ui.detail_template_use_workspace"),
       this.links.manageTemplates
     );
+    this.setTemplate = this.template.set;
     const showOptions = () => researchOptions.toggleClass("is-hidden", !this.shallow.checked);
     this.shallow.addEventListener("change", showOptions);
+    this.syncResearchOptions = showOptions;
     showOptions();
     const footer = modalActions(this);
     this.status = actionStatus(footer);
@@ -15551,6 +15620,17 @@ var OutlineImportModal = class extends import_obsidian13.Modal {
     this.createButton = footer.createEl("button", { text: t("ui.outline_import_add"), cls: "mod-cta" });
     this.createButton.addEventListener("click", () => void this.submit());
     this.refresh();
+    const prefill = (_a = this.generator) == null ? void 0 : _a.prefill;
+    if (prefill) this.restoreChoices(prefill.inputs);
+    this.restoreResult();
+  }
+  /** The research choices of a run that started from this window, put back on a reopened one. */
+  restoreChoices(inputs) {
+    this.shallow.checked = inputs.shallow;
+    this.syncResearchOptions();
+    this.setDepth(inputs.depth);
+    this.setModel(inputs.model);
+    this.setTemplate(inputs.template);
   }
   /** "Put it in": a new map (default), this map as a new tree, or under the selected topic. */
   placementField() {
@@ -15597,7 +15677,7 @@ var OutlineImportModal = class extends import_obsidian13.Modal {
     var _a, _b, _c;
     (_a = this.unwatch) == null ? void 0 : _a.call(this);
     this.unwatch = void 0;
-    (_b = this.generation) == null ? void 0 : _b.abort();
+    if (!this.detached) (_b = this.generation) == null ? void 0 : _b.abort();
     this.generation = void 0;
     (_c = this.disarm) == null ? void 0 : _c.call(this);
   }
@@ -15606,7 +15686,7 @@ var OutlineImportModal = class extends import_obsidian13.Modal {
    * box below, where it is previewed and can be edited before anything is added.
    */
   aiSection(parent, generator) {
-    var _a, _b;
+    var _a, _b, _c;
     const host = generator.presets;
     const language2 = host.settings.language;
     const custom = () => {
@@ -15646,6 +15726,7 @@ var OutlineImportModal = class extends import_obsidian13.Modal {
     const generate = generateRow.createEl("button", { text: t("ui.outline_ai_run"), cls: "mod-cta" });
     const status = generateRow.createSpan({ cls: "vam-hint vam-outline-ai-status", attr: { "aria-live": "polite" } });
     const current = () => presets().find((item) => item.id === select.value);
+    const prefill = generator.prefill;
     const fill = (selectedId) => {
       select.empty();
       for (const preset of presets()) select.createEl("option", { value: preset.id, text: preset.name });
@@ -15715,21 +15796,54 @@ var OutlineImportModal = class extends import_obsidian13.Modal {
       this.generation = controller;
       generate.setText(t("ui.outline_ai_stop"));
       status.setText(t("ui.outline_ai_running"));
-      void generator.generate({ topic: topic.value.trim(), presetText: text11.value }, controller.signal).then((markdown) => {
+      const inputs = () => {
+        const model = this.model();
+        const template = this.template();
+        return {
+          topic: topic.value.trim(),
+          presetId: select.value,
+          presetText: text11.value,
+          placement: this.placement,
+          target: this.target,
+          shallow: this.shallow.checked,
+          depth: this.depth(),
+          ...model ? { model } : {},
+          ...template ? { template } : {}
+        };
+      };
+      void generator.generate({ topic: topic.value.trim(), presetText: text11.value }, controller.signal, () => {
+        const snapshot = inputs();
+        this.detached = true;
+        this.close();
+        return snapshot;
+      }).then((markdown) => {
+        if (this.detached) return;
         if (controller.signal.aborted) throw new Error(t("ui.outline_ai_stopped"));
         this.textarea.value = markdown.trimEnd();
         this.refresh();
         status.setText(t("ui.outline_ai_filled", this.nodes.length));
       }).catch((error) => {
-        if (this.generation !== controller) return;
+        if (this.detached || this.generation !== controller) return;
         status.setText(controller.signal.aborted ? t("ui.outline_ai_stopped") : messageOf(error));
       }).finally(() => {
-        if (this.generation !== controller) return;
+        if (this.detached || this.generation !== controller) return;
         this.generation = void 0;
         generate.setText(t("ui.outline_ai_run"));
       });
     });
-    fill(DEFAULT_OUTLINE_PRESET_ID);
+    fill((_c = prefill == null ? void 0 : prefill.inputs.presetId) != null ? _c : DEFAULT_OUTLINE_PRESET_ID);
+    if (prefill) {
+      section3.open = true;
+      topic.value = prefill.inputs.topic;
+      text11.value = prefill.inputs.presetText;
+      this.restoreResult = () => {
+        if (prefill.markdown !== void 0) {
+          this.textarea.value = prefill.markdown.trimEnd();
+          this.refresh();
+          status.setText(t("ui.outline_ai_filled", this.nodes.length));
+        } else if (prefill.message) status.setText(prefill.message);
+      };
+    }
   }
   issueText(issue) {
     return t(issue.key, ...issue.values);
@@ -17072,6 +17186,7 @@ var NextStepModal = class extends import_obsidian18.Modal {
   suggestedMode() {
     const settings = this.modelSettings;
     if (settings == null ? void 0 : settings.synthesisPending) return "synthesize";
+    if (settings == null ? void 0 : settings.pendingOutline) return "expand";
     if ((settings == null ? void 0 : settings.topicStatus) !== "completed") return "research";
     if (!this.childrenCount) return "expand";
     return settings.childrenCompleted === this.childrenCount ? "synthesize" : "research";
@@ -17525,12 +17640,13 @@ var NextStepModal = class extends import_obsidian18.Modal {
         panel,
         confirm,
         async () => {
-          var _a3;
+          var _a3, _b, _c;
           options.signal = this.taskSignal;
           (_a3 = status()) == null ? void 0 : _a3.setText(t("ui.creating_subtopics"));
           await create(proposalOutline(picked), options);
           this.taskSignal = void 0;
           this.taskController = void 0;
+          (_c = (_b = this.modelSettings) == null ? void 0 : _b.pendingOutline) == null ? void 0 : _c.discard();
           if (options.shallowResearch) {
             this.startedInBackground();
             return;
@@ -17544,7 +17660,7 @@ var NextStepModal = class extends import_obsidian18.Modal {
     (_a = status()) == null ? void 0 : _a.setText(t("ui.quick_outline_review_hint"));
   }
   onOpen() {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y;
     this.modalEl.addClass("vam-next-modal");
     const selection = this.selectionFlow;
     this.titleEl.setText(t(selection ? "ui.confirm_topic_synthesis" : "ui.how_would_you_like_to_explore_next"));
@@ -17831,7 +17947,7 @@ var NextStepModal = class extends import_obsidian18.Modal {
         expandPanel,
         expandButton,
         async () => {
-          var _a2, _b2;
+          var _a2, _b2, _c2, _d2;
           const selected = await (sharedSources == null ? void 0 : sharedSources.picker.ready());
           const options = {
             referenceGroups: (_a2 = selected == null ? void 0 : selected.groups) != null ? _a2 : [],
@@ -17852,19 +17968,23 @@ var NextStepModal = class extends import_obsidian18.Modal {
           if (multiLayer) {
             if (!quickOutline) return;
             const signal = this.taskSignal;
-            if (!signal) return;
+            const controller = this.taskController;
+            if (!signal || !controller) return;
             const limits = { levels: quickLevels(), maxTopics: quickTopics() };
-            const generated = await quickOutline.generate(
-              {
-                presetId: presetSelect.value,
-                requirements: this.requirements(),
-                language: (_b2 = options.outputLanguage) != null ? _b2 : this.plugin.settings.language,
-                limits
-              },
-              signal
-            );
-            if (this.closed || signal.aborted) return;
+            const request = {
+              presetId: presetSelect.value,
+              requirements: this.requirements(),
+              language: (_b2 = options.outputLanguage) != null ? _b2 : this.plugin.settings.language,
+              limits
+            };
+            this.detach(controller);
+            const generated = await quickOutline.generate(request, signal);
+            if (signal.aborted || this.closed && !this.detached) return;
             const { nodes, dropped } = limitOutline(generated, limits);
+            if (this.closed) {
+              (_d2 = (_c2 = this.background) == null ? void 0 : _c2.outlineReady) == null ? void 0 : _d2.call(_c2, { nodes, dropped, options });
+              return;
+            }
             this.outlineReview(expandPanel, nodes, expandButton, quickOutline.create, options, dropped);
             return;
           }
@@ -18177,8 +18297,29 @@ var NextStepModal = class extends import_obsidian18.Modal {
     if (pendingDirections) showDirections(pendingDirections.directions);
     else checkName();
     show(initialMode);
+    const waitingOutline = (_x = this.modelSettings) == null ? void 0 : _x.pendingOutline;
+    if (waitingOutline && quickOutline) {
+      shallow.checked = !!waitingOutline.options.shallowResearch;
+      shallowHint.hidden = !shallow.checked;
+      setExpandMode(true);
+      const reviewOptions = {
+        ...waitingOutline.options,
+        onProgress: (message) => {
+          var _a2;
+          return (_a2 = expandPanel.querySelector(".vam-next-status")) == null ? void 0 : _a2.setText(message);
+        }
+      };
+      this.outlineReview(
+        expandPanel,
+        waitingOutline.nodes,
+        expandButton,
+        quickOutline.create,
+        reviewOptions,
+        waitingOutline.dropped
+      );
+    }
     (titleInput != null ? titleInput : cardFor[initialMode]).focus();
-    ((_x = this.renderModelSettings(adjustBody)) != null ? _x : adjustBody).createEl("p", {
+    ((_y = this.renderModelSettings(adjustBody)) != null ? _y : adjustBody).createEl("p", {
       text: t("ui.if_an_ai_task_exceeds_3_minutes_vam_attempts_to_interrupt_it"),
       cls: "vam-hint"
     });
@@ -18623,9 +18764,12 @@ var StructureReviewModal = class extends import_obsidian19.Modal {
     this.host = host;
     __publicField(this, "controller");
     __publicField(this, "closed", false);
+    /** AI started and this window hid itself; closing no longer cancels the review. */
+    __publicField(this, "detached", false);
     __publicField(this, "entries", []);
   }
   onOpen() {
+    var _a;
     this.modalEl.addClass("vam-structure-review-modal");
     this.titleEl.setText(t(this.host.scope === "map" ? "ui.structure_review_map" : "ui.structure_review_branch"));
     this.contentEl.createEl("p", { cls: "vam-modal-intro", text: t("ui.structure_review_intro") });
@@ -18634,6 +18778,13 @@ var StructureReviewModal = class extends import_obsidian19.Modal {
     const status = actionStatus(footer);
     const close = footer.createEl("button", { text: t("ui.close") });
     close.addEventListener("click", () => this.close());
+    if (this.host.initial) {
+      this.showSuggestions(result, this.host.initial);
+      ((_a = Array.from(result.querySelectorAll(".vam-structure-apply")).find(
+        (button) => !button.disabled
+      )) != null ? _a : close).focus();
+      return;
+    }
     const start = footer.createEl("button", { text: t("ui.structure_review_start"), cls: "mod-cta" });
     start.addEventListener("click", () => {
       if (this.controller) {
@@ -18650,15 +18801,18 @@ var StructureReviewModal = class extends import_obsidian19.Modal {
         start.setText(t("ui.structure_review_start"));
         start.addClass("mod-cta");
       };
-      void this.host.review(controller.signal).then((review) => {
-        var _a, _b;
+      void this.host.review(controller.signal, () => {
+        this.detached = true;
+        this.close();
+      }).then((review) => {
+        var _a2, _b;
         if (this.closed) return;
         if (controller.signal.aborted) {
           ready(t("ui.structure_review_cancelled"));
           return;
         }
         status.setText("");
-        const hadFocus = ((_a = start.ownerDocument) == null ? void 0 : _a.activeElement) === start;
+        const hadFocus = ((_a2 = start.ownerDocument) == null ? void 0 : _a2.activeElement) === start;
         start.remove();
         this.showSuggestions(result, review);
         if (hadFocus)
@@ -18675,11 +18829,12 @@ var StructureReviewModal = class extends import_obsidian19.Modal {
     close.focus();
   }
   onClose() {
-    var _a;
+    var _a, _b, _c;
     this.closed = true;
-    (_a = this.controller) == null ? void 0 : _a.abort();
+    if (!this.detached) (_a = this.controller) == null ? void 0 : _a.abort();
     this.controller = void 0;
     this.host.highlight([]);
+    if (this.host.initial) (_c = (_b = this.host).consumed) == null ? void 0 : _c.call(_b);
   }
   targets() {
     return this.entries.filter((entry) => !entry.applied && !this.host.staleReason(entry.suggestion)).flatMap(({ suggestion }) => [
@@ -25782,6 +25937,12 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian25.Ite
      * reaches the run and no request is sent; the entry goes away once the run is accepted or ends.
      */
     __publicField(this, "startingTasks", /* @__PURE__ */ new Map());
+    /** Quick outlines generated while their dialog was closed, keyed by node path; kept in memory until created. */
+    __publicField(this, "quickOutlines", /* @__PURE__ */ new Map());
+    /** The AI structure review that hid its window. The view owns it: Stop, the result and the highlights. */
+    __publicField(this, "structureReviewTask", null);
+    /** The AI outline generation that hid the import window, with the window's inputs so it can be reopened. */
+    __publicField(this, "outlineDraftTask", null);
     __publicField(this, "synthesisTasks", /* @__PURE__ */ new Map());
     __publicField(this, "viewportEl", null);
     __publicField(this, "stageEl", null);
@@ -25950,6 +26111,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian25.Ite
     this.synthesisTasks.clear();
     for (const controller2 of this.startingTasks.values()) controller2.abort();
     this.startingTasks.clear();
+    this.dropMapBackground();
     this.aimViewEpoch++;
     this.mapOpenEpoch++;
     const controller = this.aimController;
@@ -26065,6 +26227,17 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian25.Ite
     for (const [questionNodeId, target] of matchAimFailedReportTargets(map, candidates))
       this.aimFailedReports.set(questionNodeId, target);
   }
+  /** Background AI work that belongs to the open map: stopped and forgotten when the view closes or another map opens. */
+  dropMapBackground() {
+    this.quickOutlines.clear();
+    const review = this.structureReviewTask;
+    const draft = this.outlineDraftTask;
+    this.structureReviewTask = null;
+    this.outlineDraftTask = null;
+    review == null ? void 0 : review.controller.abort();
+    draft == null ? void 0 : draft.controller.abort();
+    this.highlightStructure([]);
+  }
   async openMap(path) {
     await this.plugin.mutate(() => this.openMapInMutation(path));
   }
@@ -26116,6 +26289,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian25.Ite
       if (!isCurrent()) return;
     }
     if (this.builtIn || this.path !== path) this.plugin.closeStaleDetails();
+    if (this.path !== path) this.dropMapBackground();
     this.builtIn = false;
     this.path = path;
     this.map = map;
@@ -26236,14 +26410,14 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian25.Ite
     return [standardTemplate(settings.language), ...settings.detailTemplates].map(({ id, name }) => ({ id, name }));
   }
   /** Adds an outline to the open map: under the selected topic, else as a new tree. A new map starts from + New mind map. */
-  openOutlineImport() {
+  openOutlineImport(prefill) {
     var _a;
-    const target = this.outlineImportTarget();
+    const target = prefill ? this.reopenedImportTarget(prefill.inputs) : this.outlineImportTarget();
     if (target.map !== "editable") {
       new import_obsidian25.Notice(target.map === "aim" ? t("ui.outline_import_placement_aim") : t("ui.outline_import_placement_no_map"));
       return;
     }
-    const placement = target.selected ? "under" : "tree";
+    const placement = prefill ? prefill.inputs.placement : target.selected ? "under" : "tree";
     new OutlineImportModal(
       this.app,
       (request) => this.importOutline(request),
@@ -26251,36 +26425,137 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian25.Ite
       this.templateChoices(),
       target,
       placement,
-      this.outlineGenerator((_a = target.selected) == null ? void 0 : _a.title),
+      this.outlineGenerator(prefill ? prefill.inputs.topic : (_a = target.selected) == null ? void 0 : _a.title, prefill),
       this.fieldLinks()
     ).open();
   }
-  /** The AI outline generator for the import window: workspace model, after the usual AI usage check. */
-  outlineGenerator(initialTopic) {
+  /** The import target a reopened window keeps: its selected topic while that topic is still on the map. */
+  reopenedImportTarget(inputs) {
+    var _a, _b, _c;
+    const current = this.outlineImportTarget();
+    const selected = inputs.target.selected;
+    if (current.map !== "editable" || !selected) return current;
+    const node = (_a = this.map) == null ? void 0 : _a.nodes.find((item) => item.id === selected.id);
+    return node ? { map: "editable", selected: { id: node.id, title: (_c = (_b = this.notes.get(node.id)) == null ? void 0 : _b.title) != null ? _c : node.path } } : { map: "editable" };
+  }
+  /**
+   * The AI outline generator for the import window: workspace model, after the usual AI usage check. Once AI starts
+   * the window hides itself and this view owns the run (status bar with Stop); the result waits there for review.
+   */
+  outlineGenerator(initialTopic, prefill) {
     return {
       presets: this.plugin,
       initialTopic,
-      generate: async (request, signal) => {
+      ...prefill ? { prefill } : {},
+      generate: async (request, signal, started) => {
+        var _a, _b;
+        if (((_a = this.outlineDraftTask) == null ? void 0 : _a.state) === "running") throw new Error(t("ui.ai_running_ai"));
         const settings = this.plugin.settings;
         const model = settings.cliModel;
-        let markdown;
-        const started = await this.plugin.confirmAiUsage(model, async () => {
-          const result = await this.plugin.outlineGeneration.generate(
-            {
-              ...request,
-              language: settings.language,
-              contentLanguage: chooseAimContentLanguage(settings.language, request.topic),
-              model,
-              reasoning: normalizeReasoningLevel(settings.cliReasoning)
-            },
-            signal
-          );
-          markdown = result.markdown;
+        const controller = new AbortController();
+        const forward = () => controller.abort();
+        signal.addEventListener("abort", forward, { once: true });
+        const run = {};
+        const ran = await this.plugin.confirmAiUsage(model, async () => {
+          if (signal.aborted) return;
+          const inputs = started();
+          signal.removeEventListener("abort", forward);
+          const own = {
+            mapPath: this.path,
+            controller,
+            state: "running",
+            inputs
+          };
+          run.task = own;
+          this.outlineDraftTask = own;
+          if (!this.closed) this.render();
+          try {
+            const result = await this.plugin.outlineGeneration.generate(
+              {
+                ...request,
+                language: settings.language,
+                contentLanguage: chooseAimContentLanguage(settings.language, request.topic),
+                model,
+                reasoning: normalizeReasoningLevel(settings.cliReasoning)
+              },
+              controller.signal
+            );
+            if (controller.signal.aborted || this.outlineDraftTask !== own || this.closed) return;
+            own.state = "done";
+            own.markdown = result.markdown;
+            backgroundResultNotice(t("ui.outline_ai_ready"), {
+              label: t("ui.background_review"),
+              open: () => this.reopenOutlineDraft(own)
+            });
+          } catch (error) {
+            if (controller.signal.aborted || this.outlineDraftTask !== own || this.closed) return;
+            own.state = "failed";
+            own.message = errorMessage(error);
+            new import_obsidian25.Notice(own.message);
+          }
+          if (!this.closed) this.render();
         });
-        if (!started || markdown === void 0) throw new Error(t("ui.outline_ai_not_started"));
-        return markdown;
+        signal.removeEventListener("abort", forward);
+        if (!ran || !run.task) throw new Error(t("ui.outline_ai_not_started"));
+        return (_b = run.task.markdown) != null ? _b : "";
       }
     };
+  }
+  /** Reopens the import window from a finished, failed or stopped AI outline; the waiting task is consumed. */
+  reopenOutlineDraft(task) {
+    var _a;
+    if (this.outlineDraftTask !== task || task.state === "running" || this.closed) return;
+    this.outlineDraftTask = null;
+    this.render();
+    this.openOutlineImport({
+      inputs: task.inputs,
+      ...task.state === "done" && task.markdown !== void 0 ? { markdown: task.markdown } : { message: (_a = task.message) != null ? _a : t("ui.outline_ai_stopped") }
+    });
+  }
+  /** The status bars for background AI work on the open map: structure review and AI outline generation. */
+  renderBackgroundBars(parent) {
+    var _a, _b, _c, _d;
+    const review = this.structureReviewTask;
+    if (review && review.mapPath === this.path) {
+      const running = review.state === "running";
+      const count = (_b = (_a = review.result) == null ? void 0 : _a.suggestions.length) != null ? _b : 0;
+      renderBackgroundStatus(parent, {
+        title: t(review.scopeId ? "ui.structure_review_branch" : "ui.structure_review_map"),
+        value: running ? t("ui.structure_review_running") : review.state === "done" ? t("ui.structure_review_ready_0", count) : (_c = review.message) != null ? _c : "",
+        running,
+        ...running ? { onStop: () => this.stopStructureReview(review) } : {},
+        ...review.state === "done" && review.result ? {
+          review: {
+            label: t("ui.structure_review_view_0", count),
+            open: () => this.reopenStructureReview(review)
+          }
+        } : {},
+        onDismiss: () => {
+          if (this.structureReviewTask === review) this.structureReviewTask = null;
+          this.render();
+        }
+      });
+    }
+    const draft = this.outlineDraftTask;
+    if (draft && draft.mapPath === this.path) {
+      const running = draft.state === "running";
+      renderBackgroundStatus(parent, {
+        title: t("ui.outline_ai_generate"),
+        value: running ? t("ui.outline_ai_running") : draft.state === "done" ? t("ui.outline_ai_bar_ready") : (_d = draft.message) != null ? _d : t("ui.outline_ai_stopped"),
+        running,
+        ...running ? {
+          onStop: () => {
+            draft.state = "stopped";
+            draft.controller.abort();
+            this.render();
+          }
+        } : { review: { label: t("ui.background_review"), open: () => this.reopenOutlineDraft(draft) } },
+        onDismiss: () => {
+          if (this.outlineDraftTask === draft) this.outlineDraftTask = null;
+          this.render();
+        }
+      });
+    }
   }
   /** Quick explore in the Next Step dialog: the same generator, reviewed in the dialog, then added under the topic. */
   quickOutline(node) {
@@ -26352,6 +26627,17 @@ ${request.requirements}` : preset.text,
   openStructureReview(scopeId) {
     var _a, _b;
     if (!this.map || this.outlineImportTarget().map !== "editable") return;
+    const existing = this.structureReviewTask;
+    if (existing && existing.mapPath === this.path) {
+      if (existing.state === "running") {
+        new import_obsidian25.Notice(t("ui.ai_running_ai"));
+        return;
+      }
+      if (existing.state === "done" && existing.scopeId === scopeId) {
+        this.reopenStructureReview(existing);
+        return;
+      }
+    }
     const mapPath = this.path;
     const tree = () => this.path === mapPath && this.map ? buildStructureReviewNodes(this.map.nodes, (id) => this.describeForReview(id), scopeId) : [];
     const nodes = tree();
@@ -26368,36 +26654,90 @@ ${request.requirements}` : preset.text,
         return t("ui.structure_review_stale_changed");
       return t("ui.structure_review_stale_structure");
     };
-    new StructureReviewModal(this.app, {
+    const showWindow = (extra) => new StructureReviewModal(this.app, {
       scope: scopeId ? "branch" : "map",
-      review: async (signal) => {
-        const settings = this.plugin.settings;
-        const model = settings.cliModel;
-        let result;
-        const started = await this.plugin.confirmAiUsage(model, async () => {
-          result = await this.plugin.structureReview.review(
-            {
-              rootQuestion,
-              nodes,
-              language: settings.language,
-              contentLanguage: chooseAimContentLanguage(settings.language, rootQuestion),
-              model,
-              reasoning: normalizeReasoningLevel(settings.cliReasoning)
-            },
-            signal
-          );
-        });
-        if (!started || !result) throw new Error(t("ui.structure_review_not_started"));
-        return result;
-      },
       titleOf: (id) => {
         var _a2, _b2;
         return (_b2 = (_a2 = this.describeForReview(id)) == null ? void 0 : _a2.title) != null ? _b2 : "";
       },
       staleReason,
       apply: (suggestion, title) => this.applyStructureSuggestion(suggestion, title, staleReason),
-      highlight: (ids) => this.highlightStructure(ids)
+      highlight: (ids) => this.highlightStructure(ids),
+      ...extra
     }).open();
+    const reopen = (result, task) => showWindow({
+      review: async () => result,
+      initial: result,
+      consumed: () => {
+        if (this.structureReviewTask === task) this.structureReviewTask = null;
+        if (!this.closed) this.render();
+      }
+    });
+    showWindow({
+      review: async (signal, started) => {
+        const settings = this.plugin.settings;
+        const model = settings.cliModel;
+        const controller = new AbortController();
+        const forward = () => controller.abort();
+        signal.addEventListener("abort", forward, { once: true });
+        const run = { began: false };
+        await this.plugin.confirmAiUsage(model, async () => {
+          if (signal.aborted) return;
+          run.began = true;
+          signal.removeEventListener("abort", forward);
+          const own = {
+            mapPath,
+            scopeId,
+            controller,
+            state: "running",
+            reopen: (result) => reopen(result, own)
+          };
+          this.structureReviewTask = own;
+          if (!this.closed) this.render();
+          started();
+          try {
+            const review = await this.plugin.structureReview.review(
+              {
+                rootQuestion,
+                nodes,
+                language: settings.language,
+                contentLanguage: chooseAimContentLanguage(settings.language, rootQuestion),
+                model,
+                reasoning: normalizeReasoningLevel(settings.cliReasoning)
+              },
+              controller.signal
+            );
+            if (controller.signal.aborted || this.structureReviewTask !== own || this.closed) return;
+            own.state = "done";
+            own.result = review;
+            backgroundResultNotice(t("ui.structure_review_ready_0", review.suggestions.length), {
+              label: t("ui.structure_review_view_0", review.suggestions.length),
+              open: () => this.reopenStructureReview(own)
+            });
+          } catch (error) {
+            if (controller.signal.aborted || this.structureReviewTask !== own || this.closed) return;
+            own.state = "failed";
+            own.message = errorMessage(error);
+            new import_obsidian25.Notice(own.message);
+          }
+          if (!this.closed) this.render();
+        });
+        signal.removeEventListener("abort", forward);
+        if (!run.began) throw new Error(t("ui.structure_review_not_started"));
+        return { suggestions: [], rejected: [] };
+      }
+    });
+  }
+  /** Opens the window on a finished review's suggestions (no Start); closing it drops the waiting result. */
+  reopenStructureReview(task) {
+    if (this.structureReviewTask !== task || task.state !== "done" || !task.result || this.closed) return;
+    task.reopen(task.result);
+  }
+  /** Stop on the status bar: the run is aborted and forgotten, so its late result changes nothing. */
+  stopStructureReview(task) {
+    if (this.structureReviewTask === task) this.structureReviewTask = null;
+    task.controller.abort();
+    this.render();
   }
   /** Marks the suggested cards in place; an empty list clears every mark. */
   highlightStructure(ids) {
@@ -26594,22 +26934,18 @@ ${request.requirements}` : preset.text,
     const root = result.nodes.find((node) => node.parentId === null);
     if (!root) return;
     const children = result.nodes.filter((node) => node.parentId !== null);
-    try {
-      await this.plugin.confirmAiUsage(
-        model,
-        () => {
-          var _a2;
-          return this.startShallowResearch(root, children, {
-            researchMode: "research",
-            researchDepth: (_a2 = request.researchDepth) != null ? _a2 : "fast",
-            referenceGroups: [],
-            visualMode: "off"
-          });
-        }
-      );
-    } catch (error) {
-      new import_obsidian25.Notice(errorMessage(error));
-    }
+    void this.plugin.confirmAiUsage(
+      model,
+      () => {
+        var _a2;
+        return this.startShallowResearch(root, children, {
+          researchMode: "research",
+          researchDepth: (_a2 = request.researchDepth) != null ? _a2 : "fast",
+          referenceGroups: [],
+          visualMode: "off"
+        });
+      }
+    ).catch((error) => new import_obsidian25.Notice(errorMessage(error)));
   }
   /** Adds the outline to the open map, as a new top-level tree or under the selected topic; existing nodes stay put. */
   async importOutlineIntoMap(request, placement) {
@@ -26715,24 +27051,20 @@ ${request.requirements}` : preset.text,
     const ids = new Set((several ? outcome.created : outcome.created.slice(1)).map((node) => node.id));
     const children = ((_c = (_b = this.map) == null ? void 0 : _b.nodes) != null ? _c : []).filter((node) => ids.has(node.id));
     if (!children.length) return;
-    try {
-      await this.plugin.confirmAiUsage(
-        model,
-        () => {
-          var _a2;
-          return this.startShallowResearch(top, children, {
-            researchMode: "research",
-            referenceGroups: [],
-            visualMode: "off",
-            ...request.researchOptions,
-            researchDepth: (_a2 = request.researchDepth) != null ? _a2 : "fast",
-            ...request.detailTemplateId ? { detailTemplateId: request.detailTemplateId } : {}
-          });
-        }
-      );
-    } catch (error) {
-      new import_obsidian25.Notice(errorMessage(error));
-    }
+    void this.plugin.confirmAiUsage(
+      model,
+      () => {
+        var _a2;
+        return this.startShallowResearch(top, children, {
+          researchMode: "research",
+          referenceGroups: [],
+          visualMode: "off",
+          ...request.researchOptions,
+          researchDepth: (_a2 = request.researchDepth) != null ? _a2 : "fast",
+          ...request.detailTemplateId ? { detailTemplateId: request.detailTemplateId } : {}
+        });
+      }
+    ).catch((error) => new import_obsidian25.Notice(errorMessage(error)));
   }
   openNewMindMapModal() {
     new NameModal(
@@ -28848,6 +29180,7 @@ ${request.requirements}` : preset.text,
         this.button(actions, t("ui.check_codex"), () => this.enqueue(() => this.plugin.recheckCodex()));
     }
     if (!this.builtIn && !this.map.aim) this.renderMultiResearchStatus(this.contentEl);
+    if (!this.builtIn && !this.map.aim) this.renderBackgroundBars(this.contentEl);
     const tools = createDiv("vam-map-tools");
     if (!this.builtIn) {
       const aimMode = !!this.map.aim;
@@ -28956,7 +29289,7 @@ ${request.requirements}` : preset.text,
     }
   }
   renderNode(node) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C, _D, _E, _F, _G, _H, _I, _J;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C, _D, _E, _F, _G, _H, _I, _J, _K;
     if (!this.stageEl) return;
     const note = this.notes.get(node.id), card = this.stageEl.createDiv({
       cls: `vam-node${node.id === this.selected || this.multiSelected.has(node.id) ? " is-selected" : ""}`
@@ -29081,8 +29414,15 @@ ${request.requirements}` : preset.text,
         t("ui.view_0_expansion_suggestions", pendingCount),
         () => this.openNodePanel(node, "proposals")
       ).addClass("vam-badge-new");
+    const waitingOutline = this.quickOutlines.get(node.path);
+    if (waitingOutline && waitingOutline.mapPath === this.path && !this.builtIn && !this.integrationMode && !((_s = this.map) == null ? void 0 : _s.aim))
+      this.button(
+        header,
+        t("ui.review_outline_0", outlineProposals(waitingOutline.nodes).length),
+        () => this.openNextStep(node)
+      ).addClass("vam-badge-new");
     const synthesis = this.synthesisTasks.get(node.path);
-    if (synthesis && synthesis.mapPath === this.path && !this.builtIn && !this.integrationMode && !((_s = this.map) == null ? void 0 : _s.aim)) {
+    if (synthesis && synthesis.mapPath === this.path && !this.builtIn && !this.integrationMode && !((_t = this.map) == null ? void 0 : _t.aim)) {
       if (synthesis.state === "running") {
         if (synthesis.progress) header.createSpan({ cls: "vam-status vam-status-running", text: synthesis.progress });
         this.button(header, t("ui.stop_research"), () => synthesis.controller.abort());
@@ -29122,7 +29462,7 @@ ${request.requirements}` : preset.text,
       collapse.setAttr("aria-expanded", String(!node.collapsed));
     }
     if (!this.builtIn && !this.integrationMode) {
-      if (!((_t = this.map) == null ? void 0 : _t.aim)) {
+      if (!((_u = this.map) == null ? void 0 : _u.aim)) {
         const structure = this.button(tools, t("ui.node_tool_links"), () => this.openNodePanel(node, "structure"));
         structure.addClass("vam-node-tool", "vam-structure-tool");
         structure.setAttr("aria-label", t("ui.structure_and_links"));
@@ -29143,7 +29483,7 @@ ${request.requirements}` : preset.text,
         remove.addClass("vam-node-tool", "vam-remove-tool");
         remove.setAttr("aria-label", t("ui.remove_from_map"));
       }
-      if (((_u = this.map) == null ? void 0 : _u.aim) && node.aimKind === "synthesis" && this.map.aim.branches.some((branch) => branch.results.some((result) => result.nodeId === node.id))) {
+      if (((_v = this.map) == null ? void 0 : _v.aim) && node.aimKind === "synthesis" && this.map.aim.branches.some((branch) => branch.results.some((result) => result.nodeId === node.id))) {
         const next = this.button(
           header,
           t("ui.aim_new_question"),
@@ -29155,7 +29495,7 @@ ${request.requirements}` : preset.text,
         next.setAttr("title", t("ui.aim_new_question_hint"));
       }
       const assumptions = node.aimKind === "conclusion" && note ? readOpenItems(note.detail) : [];
-      if (((_v = this.map) == null ? void 0 : _v.aim) && assumptions.length) {
+      if (((_w = this.map) == null ? void 0 : _w.aim) && assumptions.length) {
         const correct = this.button(
           header,
           t("ui.aim_correct_assumption"),
@@ -29167,7 +29507,7 @@ ${request.requirements}` : preset.text,
         correct.addClass("vam-node-tool", "vam-pinned-tool");
         correct.setAttr("title", t("ui.aim_correct_assumption_hint"));
       }
-      if (((_w = this.map) == null ? void 0 : _w.aim) && node.aimKind === "conclusion") {
+      if (((_x = this.map) == null ? void 0 : _x.aim) && node.aimKind === "conclusion") {
         const steer = this.button(
           header,
           t("ui.aim_steer"),
@@ -29186,25 +29526,25 @@ ${request.requirements}` : preset.text,
     details.addClass("vam-node-tool", "vam-detail-button");
     if (this.builtIn) details.setAttr("title", t("ui.view_sample_content"));
     else details.setAttr("aria-label", t("ui.open_details_in_right_sidebar"));
-    if (!this.builtIn && !this.integrationMode && !((_x = this.map) == null ? void 0 : _x.aim))
+    if (!this.builtIn && !this.integrationMode && !((_y = this.map) == null ? void 0 : _y.aim))
       this.button(tools, t("ui.ai_explore"), () => this.openNextStep(node)).addClass("vam-node-tool", "vam-ai-explore");
-    if (!this.builtIn && !this.integrationMode && !((_y = this.map) == null ? void 0 : _y.aim)) {
+    if (!this.builtIn && !this.integrationMode && !((_z = this.map) == null ? void 0 : _z.aim)) {
       const add = this.button(card, "+", () => this.enqueue(() => this.addNode(node)));
       add.addClass("vam-add-child");
       add.setAttr("aria-label", t("ui.add_subtopic_manually"));
     }
-    const title = card.createEl("h3", { text: (_z = note == null ? void 0 : note.title) != null ? _z : node.path, cls: "vam-card-title" });
-    title.setAttr("title", (_A = note == null ? void 0 : note.title) != null ? _A : node.path);
+    const title = card.createEl("h3", { text: (_A = note == null ? void 0 : note.title) != null ? _A : node.path, cls: "vam-card-title" });
+    title.setAttr("title", (_B = note == null ? void 0 : note.title) != null ? _B : node.path);
     if (!note || !isPlaceholder(note.summary))
       card.createEl("p", {
         cls: "vam-card-summary",
-        text: (_B = note == null ? void 0 : note.summary) != null ? _B : t("ui.the_file_was_moved_or_deleted_you_can_remove_this_node_from")
+        text: (_C = note == null ? void 0 : note.summary) != null ? _C : t("ui.the_file_was_moved_or_deleted_you_can_remove_this_node_from")
       });
     if (errorDetails.length) {
       const error = card.createEl("p", { cls: "vam-card-error", text: errorDetails[0] });
       error.setAttr("title", errorDetails.join("\n"));
     }
-    if (node.aimKind === "conclusion" && ((_C = this.map) == null ? void 0 : _C.aim) && !this.builtIn) {
+    if (node.aimKind === "conclusion" && ((_D = this.map) == null ? void 0 : _D.aim) && !this.builtIn) {
       const branch = this.map.aim.branches.find((item) => item.results.some((result) => result.nodeId === node.id));
       const hasFollowup = this.map.nodes.some((item) => item.parentId === node.id && item.aimKind === "question");
       if (branch && !hasFollowup && countAimAnsweredQuestions(this.map, branch.id) < MIN_ANSWERED_QUESTIONS_BEFORE_CONCLUSION) {
@@ -29217,7 +29557,7 @@ ${request.requirements}` : preset.text,
         ).addClass("mod-cta");
       }
     }
-    if (node.aimKind === "topic" && ((_D = this.map) == null ? void 0 : _D.aim) && !this.map.nodes.some((item) => item.aimKind === "question")) {
+    if (node.aimKind === "topic" && ((_E = this.map) == null ? void 0 : _E.aim) && !this.map.nodes.some((item) => item.aimKind === "question")) {
       const initialBranch = this.map.aim.branches.find((item) => item.questionNodeId === node.id && !item.parentBranchId);
       const initialRuns = initialBranch ? this.map.aim.runs.filter((item) => item.branchId === initialBranch.id) : [];
       const activeInitialRun = initialRuns.some((run) => {
@@ -29253,11 +29593,11 @@ ${request.requirements}` : preset.text,
         );
       }
     }
-    if (node.aimKind === "question" && ((_E = this.map) == null ? void 0 : _E.aim)) {
+    if (node.aimKind === "question" && ((_F = this.map) == null ? void 0 : _F.aim)) {
       const branch = this.map.aim.branches.find((item) => item.questionNodeId === node.id);
       if (branch) {
         this.renderAimFailure(card, branch);
-        const labels = (_G = (_F = node.aimQuestion) == null ? void 0 : _F.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _G : branch.answerSnapshot.selections;
+        const labels = (_H = (_G = node.aimQuestion) == null ? void 0 : _G.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _H : branch.answerSnapshot.selections;
         const answer = [...labels, branch.answerSnapshot.freeText].filter(Boolean).join(" \u2014 ");
         card.createEl("p", {
           cls: "vam-aim-answer-snapshot",
@@ -29300,11 +29640,11 @@ ${request.requirements}` : preset.text,
         }
       }
     }
-    if (node.aimKind === "answer" && ((_H = this.map) == null ? void 0 : _H.aim)) {
+    if (node.aimKind === "answer" && ((_I = this.map) == null ? void 0 : _I.aim)) {
       const branch = this.map.aim.branches.find((item) => item.answerNodeId === node.id);
       const question = branch && this.map.nodes.find((item) => item.id === branch.questionNodeId);
       if (branch) {
-        const labels = (_J = (_I = question == null ? void 0 : question.aimQuestion) == null ? void 0 : _I.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _J : branch.answerSnapshot.selections;
+        const labels = (_K = (_J = question == null ? void 0 : question.aimQuestion) == null ? void 0 : _J.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _K : branch.answerSnapshot.selections;
         const answer = [...labels, branch.answerSnapshot.freeText].filter(Boolean).join(" \u2014 ");
         card.createEl("p", {
           cls: "vam-aim-answer-snapshot",
@@ -29709,6 +30049,18 @@ ${request.requirements}` : preset.text,
         own = void 0;
         if (!this.closed) this.render();
       },
+      outlineReady: (outline) => {
+        var _a, _b;
+        if (!node || this.closed) return;
+        this.quickOutlines.set(node.path, { mapPath: this.path, ...outline });
+        const title = (_b = (_a = this.notes.get(node.id)) == null ? void 0 : _a.title) != null ? _b : node.path;
+        const count = outlineProposals(outline.nodes).length;
+        backgroundResultNotice(t("ui.background_outline_ready_0", title), {
+          label: t("ui.review_outline_0", count),
+          open: () => this.openNextStep(node)
+        });
+        this.render();
+      },
       completed: (kind) => {
         var _a, _b, _c, _d;
         if (!node || this.closed) return;
@@ -29789,6 +30141,19 @@ ${request.requirements}` : preset.text,
           } : void 0,
           background: this.backgroundHooks(node.path, node),
           quickOutline: this.quickOutline(node),
+          pendingOutline: (() => {
+            const waiting = this.quickOutlines.get(node.path);
+            if (!waiting || waiting.mapPath !== this.path) return void 0;
+            return {
+              nodes: waiting.nodes,
+              dropped: waiting.dropped,
+              options: waiting.options,
+              discard: () => {
+                if (this.quickOutlines.get(node.path) === waiting) this.quickOutlines.delete(node.path);
+                if (!this.closed) this.render();
+              }
+            };
+          })(),
           structureReview: this.structureReviewEntry(node),
           sources: sources2,
           templates: this.templateChoices(),

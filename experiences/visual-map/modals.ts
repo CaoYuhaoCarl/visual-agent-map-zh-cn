@@ -93,6 +93,17 @@ export interface BackgroundHooks {
   end: () => void;
   /** A result finished while the dialog is closed and has no task state of its own to announce it. */
   completed?: (kind: "research" | "expand") => void;
+  /** A quick outline finished while the dialog is closed: the view keeps it for review and announces it. */
+  outlineReady?: (outline: Omit<PendingOutline, "discard">) => void;
+}
+/** A generated quick outline waiting for review: the dialog reopens straight at its review with these. */
+export interface PendingOutline {
+  nodes: OutlineNode[];
+  /** Headings the AI wrote beyond the chosen levels or size; they were left out. */
+  dropped: number;
+  options: TaskOptions;
+  /** Called once the reviewed outline was created: drops the waiting result. */
+  discard: () => void;
 }
 export interface NextStepSettings {
   model: string;
@@ -117,6 +128,8 @@ export interface NextStepSettings {
   childrenCompleted?: number;
   /** Quick explore: an AI outline from a preset, reviewed in this dialog before any subtopic is created. */
   quickOutline?: QuickOutline;
+  /** A quick outline generated while the dialog was closed; opening the dialog goes straight to its review. */
+  pendingOutline?: PendingOutline;
   /** 「檢視整張圖」 (root topic) or 「檢視這個分支」 (subtopic): opens the AI structure review instead of a step. */
   structureReview?: { label: string; open: () => void };
   background?: BackgroundHooks;
@@ -289,6 +302,7 @@ export class NextStepModal extends Modal {
   private suggestedMode(): "research" | "expand" | "synthesize" {
     const settings = this.modelSettings;
     if (settings?.synthesisPending) return "synthesize";
+    if (settings?.pendingOutline) return "expand";
     if (settings?.topicStatus !== "completed") return "research";
     if (!this.childrenCount) return "expand";
     return settings.childrenCompleted === this.childrenCount ? "synthesize" : "research";
@@ -784,6 +798,7 @@ export class NextStepModal extends Modal {
           await create(proposalOutline(picked), options);
           this.taskSignal = undefined;
           this.taskController = undefined;
+          this.modelSettings?.pendingOutline?.discard();
           if (options.shallowResearch) {
             this.startedInBackground();
             return;
@@ -1135,19 +1150,25 @@ export class NextStepModal extends Modal {
           if (multiLayer) {
             if (!quickOutline) return;
             const signal = this.taskSignal;
-            if (!signal) return;
+            const controller = this.taskController;
+            if (!signal || !controller) return;
             const limits = { levels: quickLevels(), maxTopics: quickTopics() };
-            const generated = await quickOutline.generate(
-              {
-                presetId: presetSelect.value,
-                requirements: this.requirements(),
-                language: options.outputLanguage ?? this.plugin.settings.language,
-                limits
-              },
-              signal
-            );
-            if (this.closed || signal.aborted) return;
+            const request = {
+              presetId: presetSelect.value,
+              requirements: this.requirements(),
+              language: options.outputLanguage ?? this.plugin.settings.language,
+              limits
+            };
+            // Usage confirmed, settings saved and sources ready: hide the dialog; the card shows running and Stop.
+            this.detach(controller);
+            const generated = await quickOutline.generate(request, signal);
+            if (signal.aborted || (this.closed && !this.detached)) return;
             const { nodes, dropped } = limitOutline(generated, limits);
+            if (this.closed) {
+              // Hidden while it ran: the card badge keeps the outline for review and a Notice says it is ready.
+              this.background?.outlineReady?.({ nodes, dropped, options });
+              return;
+            }
             this.outlineReview(expandPanel, nodes, expandButton, quickOutline.create, options, dropped);
             return;
           }
@@ -1464,6 +1485,25 @@ export class NextStepModal extends Modal {
     if (pendingDirections) showDirections(pendingDirections.directions);
     else checkName();
     show(initialMode);
+    const waitingOutline = this.modelSettings?.pendingOutline;
+    if (waitingOutline && quickOutline) {
+      // Reopened from the card badge or the Notice: straight into the review of the outline generated in the background.
+      shallow.checked = !!waitingOutline.options.shallowResearch;
+      shallowHint.hidden = !shallow.checked;
+      setExpandMode(true);
+      const reviewOptions: TaskOptions = {
+        ...waitingOutline.options,
+        onProgress: message => expandPanel.querySelector<HTMLElement>(".vam-next-status")?.setText(message)
+      };
+      this.outlineReview(
+        expandPanel,
+        waitingOutline.nodes,
+        expandButton,
+        quickOutline.create,
+        reviewOptions,
+        waitingOutline.dropped
+      );
+    }
     // A selection shows no mode cards, so its name field takes the focus.
     (titleInput ?? cardFor[initialMode]).focus();
     (this.renderModelSettings(adjustBody) ?? adjustBody).createEl("p", {

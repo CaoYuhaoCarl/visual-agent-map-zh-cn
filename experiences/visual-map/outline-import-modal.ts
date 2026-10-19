@@ -60,12 +60,46 @@ export interface OutlineImportRequest {
   detailTemplateId?: string;
 }
 
+/** Everything the window held when AI generation started, so a reopened window shows the same choices. */
+export interface OutlineDraftInputs {
+  topic: string;
+  presetId: string;
+  /** The preset box as it was, including edits that were never saved. */
+  presetText: string;
+  placement: OutlinePlacement["kind"];
+  target: OutlineImportTarget;
+  shallow: boolean;
+  depth: ResearchDepth;
+  model?: string;
+  template?: string;
+}
+
+/** What a reopened window starts from: the inputs of the run and its result (or why there is none). */
+export interface OutlineDraftPrefill {
+  inputs: OutlineDraftInputs;
+  /** The generated outline, put in the outline box. */
+  markdown?: string;
+  /** Why the run ended without an outline (failed or stopped), shown next to the button. */
+  message?: string;
+}
+
 /** The AI outline generator as the import window uses it; without it the window has no AI section. */
 export interface OutlineGenerator {
   presets: PromptPresetsHost;
-  /** Generates heading-only Markdown for the topic (asking about AI usage first); rejects with a readable reason. */
-  generate: (request: { topic: string; presetText: string }, signal: AbortSignal) => Promise<string>;
+  /**
+   * Generates heading-only Markdown for the topic (asking about AI usage first); rejects with a readable reason. The
+   * host calls `started` once AI actually starts (usage confirmed): the window then hides itself, `started` returns
+   * the window's inputs for the host to keep, and the host carries the run on in the background, so the returned
+   * promise is no longer read.
+   */
+  generate: (
+    request: { topic: string; presetText: string },
+    signal: AbortSignal,
+    started: () => OutlineDraftInputs
+  ) => Promise<string>;
   initialTopic?: string;
+  /** Opened again from the status bar or the Notice: the window starts from this run's inputs and result. */
+  prefill?: OutlineDraftPrefill;
 }
 
 export class OutlineImportModal extends Modal {
@@ -79,6 +113,13 @@ export class OutlineImportModal extends Modal {
   private depth: () => ResearchDepth = () => "fast";
   private model: () => string | undefined = () => undefined;
   private template: () => string | undefined = () => undefined;
+  private setModel: (id: string | undefined) => void = () => {};
+  private setTemplate: (id: string | undefined) => void = () => {};
+  private setDepth: (depth: ResearchDepth) => void = () => {};
+  private syncResearchOptions: () => void = () => {};
+  private restoreResult: () => void = () => {};
+  /** AI generation started and this window hid itself; closing no longer stops it (the status bar has Stop). */
+  private detached = false;
   private unwatch?: () => void;
   private placement: OutlinePlacement["kind"] = "tree";
   private generation?: AbortController;
@@ -127,9 +168,12 @@ export class OutlineImportModal extends Modal {
     this.shallow = shallowLabel.createEl("input", { type: "checkbox" });
     shallowLabel.createSpan({ text: t("ui.outline_import_shallow") });
     const researchOptions = research.createDiv("vam-outline-research-options");
-    this.depth = researchDepthField(researchOptions, { initial: "fast" }).value;
+    const depth = researchDepthField(researchOptions, { initial: "fast" });
+    this.depth = depth.value;
+    this.setDepth = depth.set;
     const model = modelField(researchOptions, this.models, t("ui.workspace_default"), this.links.repair);
     this.model = model.value;
+    this.setModel = model.set;
     this.unwatch = model.dispose;
     this.template = templateField(
       researchOptions,
@@ -137,8 +181,10 @@ export class OutlineImportModal extends Modal {
       t("ui.detail_template_use_workspace"),
       this.links.manageTemplates
     );
+    this.setTemplate = (this.template as unknown as { set: (id: string | undefined) => void }).set;
     const showOptions = (): void => researchOptions.toggleClass("is-hidden", !this.shallow.checked);
     this.shallow.addEventListener("change", showOptions);
+    this.syncResearchOptions = showOptions;
     showOptions();
     const footer = modalActions(this);
     this.status = actionStatus(footer);
@@ -146,6 +192,18 @@ export class OutlineImportModal extends Modal {
     this.createButton = footer.createEl("button", { text: t("ui.outline_import_add"), cls: "mod-cta" });
     this.createButton.addEventListener("click", () => void this.submit());
     this.refresh();
+    const prefill = this.generator?.prefill;
+    if (prefill) this.restoreChoices(prefill.inputs);
+    this.restoreResult();
+  }
+
+  /** The research choices of a run that started from this window, put back on a reopened one. */
+  private restoreChoices(inputs: OutlineDraftInputs): void {
+    this.shallow.checked = inputs.shallow;
+    this.syncResearchOptions();
+    this.setDepth(inputs.depth);
+    this.setModel(inputs.model);
+    this.setTemplate(inputs.template);
   }
 
   /** "Put it in": a new map (default), this map as a new tree, or under the selected topic. */
@@ -202,7 +260,7 @@ export class OutlineImportModal extends Modal {
   onClose(): void {
     this.unwatch?.();
     this.unwatch = undefined;
-    this.generation?.abort();
+    if (!this.detached) this.generation?.abort();
     this.generation = undefined;
     this.disarm?.();
   }
@@ -248,6 +306,7 @@ export class OutlineImportModal extends Modal {
     const generate = generateRow.createEl("button", { text: t("ui.outline_ai_run"), cls: "mod-cta" });
     const status = generateRow.createSpan({ cls: "vam-hint vam-outline-ai-status", attr: { "aria-live": "polite" } });
     const current = (): PromptPreset | undefined => presets().find(item => item.id === select.value);
+    const prefill = generator.prefill;
     const fill = (selectedId: string): void => {
       select.empty();
       for (const preset of presets()) select.createEl("option", { value: preset.id, text: preset.name });
@@ -316,26 +375,63 @@ export class OutlineImportModal extends Modal {
       this.generation = controller;
       generate.setText(t("ui.outline_ai_stop"));
       status.setText(t("ui.outline_ai_running"));
+      // Everything the window holds right now, kept by the host when AI starts so a reopened window matches it.
+      const inputs = (): OutlineDraftInputs => {
+        const model = this.model();
+        const template = this.template();
+        return {
+          topic: topic.value.trim(),
+          presetId: select.value,
+          presetText: text.value,
+          placement: this.placement,
+          target: this.target,
+          shallow: this.shallow.checked,
+          depth: this.depth(),
+          ...(model ? { model } : {}),
+          ...(template ? { template } : {})
+        };
+      };
       // Unsaved edits in the preset box are used for this run only.
       void generator
-        .generate({ topic: topic.value.trim(), presetText: text.value }, controller.signal)
+        .generate({ topic: topic.value.trim(), presetText: text.value }, controller.signal, () => {
+          // AI started: hide this window; the host owns the run from here (Stop is on its status bar).
+          const snapshot = inputs();
+          this.detached = true;
+          this.close();
+          return snapshot;
+        })
         .then(markdown => {
+          if (this.detached) return;
           if (controller.signal.aborted) throw new Error(t("ui.outline_ai_stopped"));
           this.textarea.value = markdown.trimEnd();
           this.refresh();
           status.setText(t("ui.outline_ai_filled", this.nodes.length));
         })
         .catch(error => {
-          if (this.generation !== controller) return;
+          if (this.detached || this.generation !== controller) return;
           status.setText(controller.signal.aborted ? t("ui.outline_ai_stopped") : messageOf(error));
         })
         .finally(() => {
-          if (this.generation !== controller) return;
+          if (this.detached || this.generation !== controller) return;
           this.generation = undefined;
           generate.setText(t("ui.outline_ai_run"));
         });
     });
-    fill(DEFAULT_OUTLINE_PRESET_ID);
+    fill(prefill?.inputs.presetId ?? DEFAULT_OUTLINE_PRESET_ID);
+    if (prefill) {
+      section.open = true;
+      topic.value = prefill.inputs.topic;
+      // Preset edits that were never saved come back as they were typed.
+      text.value = prefill.inputs.presetText;
+      // The outline box is built after this section, so the result is put in once the window is complete.
+      this.restoreResult = () => {
+        if (prefill.markdown !== undefined) {
+          this.textarea.value = prefill.markdown.trimEnd();
+          this.refresh();
+          status.setText(t("ui.outline_ai_filled", this.nodes.length));
+        } else if (prefill.message) status.setText(prefill.message);
+      };
+    }
   }
 
   private issueText(issue: OutlineIssue): string {

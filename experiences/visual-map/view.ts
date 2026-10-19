@@ -1,5 +1,5 @@
 import { chooseAimContentLanguage, resolveAimContentLanguage } from "../aim/content-language";
-import { backgroundResultNotice } from "../../ui/background-run";
+import { backgroundResultNotice, renderBackgroundStatus } from "../../ui/background-run";
 import { PromptPresetsModal } from "../../ui/modals/prompt-presets-modal";
 import { AimClarificationModal } from "../../ui/modals/aim-clarification-modal";
 import { withThinkingOrigin } from "./thinking-origin";
@@ -70,6 +70,8 @@ import { createAimMap } from "../aim/create-map";
 import { addOutlineToMap, createOutlineMap, type OutlineNode } from "./outline-import";
 import {
   OutlineImportModal,
+  type OutlineDraftInputs,
+  type OutlineDraftPrefill,
   type OutlineGenerator,
   type OutlineImportRequest,
   type OutlineImportTarget,
@@ -113,6 +115,8 @@ import {
   TaskSourceSettings,
   NextStepModal,
   type BackgroundHooks,
+  type PendingOutline,
+  outlineProposals,
   type QuickOutline,
   type SynthesisObserver,
   DraftReviewModal,
@@ -274,6 +278,31 @@ export class VisualAgentMapView extends ItemView {
    * reaches the run and no request is sent; the entry goes away once the run is accepted or ends.
    */
   private startingTasks = new Map<string, AbortController>();
+  /** Quick outlines generated while their dialog was closed, keyed by node path; kept in memory until created. */
+  private quickOutlines = new Map<
+    string,
+    { mapPath: string; nodes: OutlineNode[]; dropped: number; options: TaskOptions }
+  >();
+  /** The AI structure review that hid its window. The view owns it: Stop, the result and the highlights. */
+  private structureReviewTask: {
+    mapPath: string;
+    scopeId: string | null;
+    controller: AbortController;
+    state: "running" | "done" | "failed";
+    result?: StructureReviewResult;
+    message?: string;
+    /** Reopens the window with the result (staleness and apply still check the map as it is then). */
+    reopen: (result: StructureReviewResult) => void;
+  } | null = null;
+  /** The AI outline generation that hid the import window, with the window's inputs so it can be reopened. */
+  private outlineDraftTask: {
+    mapPath: string;
+    controller: AbortController;
+    state: "running" | "done" | "failed" | "stopped";
+    inputs: OutlineDraftInputs;
+    markdown?: string;
+    message?: string;
+  } | null = null;
   private synthesisTasks = new Map<
     string,
     {
@@ -476,6 +505,7 @@ export class VisualAgentMapView extends ItemView {
     this.synthesisTasks.clear();
     for (const controller of this.startingTasks.values()) controller.abort();
     this.startingTasks.clear();
+    this.dropMapBackground();
     this.aimViewEpoch++;
     this.mapOpenEpoch++;
     const controller = this.aimController;
@@ -597,6 +627,17 @@ export class VisualAgentMapView extends ItemView {
     for (const [questionNodeId, target] of matchAimFailedReportTargets(map, candidates))
       this.aimFailedReports.set(questionNodeId, target);
   }
+  /** Background AI work that belongs to the open map: stopped and forgotten when the view closes or another map opens. */
+  private dropMapBackground(): void {
+    this.quickOutlines.clear();
+    const review = this.structureReviewTask;
+    const draft = this.outlineDraftTask;
+    this.structureReviewTask = null;
+    this.outlineDraftTask = null;
+    review?.controller.abort();
+    draft?.controller.abort();
+    this.highlightStructure([]);
+  }
   async openMap(path: string): Promise<void> {
     await this.plugin.mutate(() => this.openMapInMutation(path));
   }
@@ -648,6 +689,7 @@ export class VisualAgentMapView extends ItemView {
       if (!isCurrent()) return;
     }
     if (this.builtIn || this.path !== path) this.plugin.closeStaleDetails();
+    if (this.path !== path) this.dropMapBackground();
     this.builtIn = false;
     this.path = path;
     this.map = map;
@@ -781,13 +823,13 @@ export class VisualAgentMapView extends ItemView {
     return [standardTemplate(settings.language), ...settings.detailTemplates].map(({ id, name }) => ({ id, name }));
   }
   /** Adds an outline to the open map: under the selected topic, else as a new tree. A new map starts from + New mind map. */
-  openOutlineImport(): void {
-    const target = this.outlineImportTarget();
+  openOutlineImport(prefill?: OutlineDraftPrefill): void {
+    const target = prefill ? this.reopenedImportTarget(prefill.inputs) : this.outlineImportTarget();
     if (target.map !== "editable") {
       new Notice(target.map === "aim" ? t("ui.outline_import_placement_aim") : t("ui.outline_import_placement_no_map"));
       return;
     }
-    const placement = target.selected ? "under" : "tree";
+    const placement = prefill ? prefill.inputs.placement : target.selected ? "under" : "tree";
     new OutlineImportModal(
       this.app,
       request => this.importOutline(request),
@@ -795,36 +837,151 @@ export class VisualAgentMapView extends ItemView {
       this.templateChoices(),
       target,
       placement,
-      this.outlineGenerator(target.selected?.title),
+      this.outlineGenerator(prefill ? prefill.inputs.topic : target.selected?.title, prefill),
       this.fieldLinks()
     ).open();
   }
-  /** The AI outline generator for the import window: workspace model, after the usual AI usage check. */
-  private outlineGenerator(initialTopic?: string): OutlineGenerator {
+  /** The import target a reopened window keeps: its selected topic while that topic is still on the map. */
+  private reopenedImportTarget(inputs: OutlineDraftInputs): OutlineImportTarget {
+    const current = this.outlineImportTarget();
+    const selected = inputs.target.selected;
+    if (current.map !== "editable" || !selected) return current;
+    const node = this.map?.nodes.find(item => item.id === selected.id);
+    return node
+      ? { map: "editable", selected: { id: node.id, title: this.notes.get(node.id)?.title ?? node.path } }
+      : { map: "editable" };
+  }
+  /**
+   * The AI outline generator for the import window: workspace model, after the usual AI usage check. Once AI starts
+   * the window hides itself and this view owns the run (status bar with Stop); the result waits there for review.
+   */
+  private outlineGenerator(initialTopic?: string, prefill?: OutlineDraftPrefill): OutlineGenerator {
     return {
       presets: this.plugin,
       initialTopic,
-      generate: async (request, signal) => {
+      ...(prefill ? { prefill } : {}),
+      generate: async (request, signal, started) => {
+        if (this.outlineDraftTask?.state === "running") throw new Error(t("ui.ai_running_ai"));
         const settings = this.plugin.settings;
         const model = settings.cliModel;
-        let markdown: string | undefined;
-        const started = await this.plugin.confirmAiUsage(model, async () => {
-          const result = await this.plugin.outlineGeneration.generate(
-            {
-              ...request,
-              language: settings.language,
-              contentLanguage: chooseAimContentLanguage(settings.language, request.topic),
-              model,
-              reasoning: normalizeReasoningLevel(settings.cliReasoning)
-            },
-            signal
-          );
-          markdown = result.markdown;
+        const controller = new AbortController();
+        // Closing the window before AI starts (usage notice still open) stops the run; after that only Stop does.
+        const forward = (): void => controller.abort();
+        signal.addEventListener("abort", forward, { once: true });
+        const run: { task?: NonNullable<VisualAgentMapView["outlineDraftTask"]> } = {};
+        const ran = await this.plugin.confirmAiUsage(model, async () => {
+          if (signal.aborted) return;
+          const inputs = started();
+          signal.removeEventListener("abort", forward);
+          const own: NonNullable<VisualAgentMapView["outlineDraftTask"]> = {
+            mapPath: this.path,
+            controller,
+            state: "running",
+            inputs
+          };
+          run.task = own;
+          this.outlineDraftTask = own;
+          if (!this.closed) this.render();
+          try {
+            const result = await this.plugin.outlineGeneration.generate(
+              {
+                ...request,
+                language: settings.language,
+                contentLanguage: chooseAimContentLanguage(settings.language, request.topic),
+                model,
+                reasoning: normalizeReasoningLevel(settings.cliReasoning)
+              },
+              controller.signal
+            );
+            // Stopped, replaced or the view closed meanwhile: the late result is dropped.
+            if (controller.signal.aborted || this.outlineDraftTask !== own || this.closed) return;
+            own.state = "done";
+            own.markdown = result.markdown;
+            backgroundResultNotice(t("ui.outline_ai_ready"), {
+              label: t("ui.background_review"),
+              open: () => this.reopenOutlineDraft(own)
+            });
+          } catch (error) {
+            if (controller.signal.aborted || this.outlineDraftTask !== own || this.closed) return;
+            own.state = "failed";
+            own.message = errorMessage(error);
+            new Notice(own.message);
+          }
+          if (!this.closed) this.render();
         });
-        if (!started || markdown === undefined) throw new Error(t("ui.outline_ai_not_started"));
-        return markdown;
+        signal.removeEventListener("abort", forward);
+        if (!ran || !run.task) throw new Error(t("ui.outline_ai_not_started"));
+        return run.task.markdown ?? "";
       }
     };
+  }
+  /** Reopens the import window from a finished, failed or stopped AI outline; the waiting task is consumed. */
+  private reopenOutlineDraft(task: NonNullable<VisualAgentMapView["outlineDraftTask"]>): void {
+    if (this.outlineDraftTask !== task || task.state === "running" || this.closed) return;
+    this.outlineDraftTask = null;
+    this.render();
+    this.openOutlineImport({
+      inputs: task.inputs,
+      ...(task.state === "done" && task.markdown !== undefined
+        ? { markdown: task.markdown }
+        : { message: task.message ?? t("ui.outline_ai_stopped") })
+    });
+  }
+  /** The status bars for background AI work on the open map: structure review and AI outline generation. */
+  private renderBackgroundBars(parent: HTMLElement): void {
+    const review = this.structureReviewTask;
+    if (review && review.mapPath === this.path) {
+      const running = review.state === "running";
+      const count = review.result?.suggestions.length ?? 0;
+      renderBackgroundStatus(parent, {
+        title: t(review.scopeId ? "ui.structure_review_branch" : "ui.structure_review_map"),
+        value: running
+          ? t("ui.structure_review_running")
+          : review.state === "done"
+            ? t("ui.structure_review_ready_0", count)
+            : (review.message ?? ""),
+        running,
+        ...(running ? { onStop: () => this.stopStructureReview(review) } : {}),
+        ...(review.state === "done" && review.result
+          ? {
+              review: {
+                label: t("ui.structure_review_view_0", count),
+                open: () => this.reopenStructureReview(review)
+              }
+            }
+          : {}),
+        onDismiss: () => {
+          if (this.structureReviewTask === review) this.structureReviewTask = null;
+          this.render();
+        }
+      });
+    }
+    const draft = this.outlineDraftTask;
+    if (draft && draft.mapPath === this.path) {
+      const running = draft.state === "running";
+      renderBackgroundStatus(parent, {
+        title: t("ui.outline_ai_generate"),
+        value: running
+          ? t("ui.outline_ai_running")
+          : draft.state === "done"
+            ? t("ui.outline_ai_bar_ready")
+            : (draft.message ?? t("ui.outline_ai_stopped")),
+        running,
+        ...(running
+          ? {
+              onStop: () => {
+                draft.state = "stopped";
+                draft.controller.abort();
+                this.render();
+              }
+            }
+          : { review: { label: t("ui.background_review"), open: () => this.reopenOutlineDraft(draft) } }),
+        onDismiss: () => {
+          if (this.outlineDraftTask === draft) this.outlineDraftTask = null;
+          this.render();
+        }
+      });
+    }
   }
   /** Quick explore in the Next Step dialog: the same generator, reviewed in the dialog, then added under the topic. */
   private quickOutline(node: MapNode): QuickOutline {
@@ -891,6 +1048,18 @@ export class VisualAgentMapView extends ItemView {
   /** AI structure review of the whole map (`scopeId` null) or one branch; each suggestion is applied on its own. */
   openStructureReview(scopeId: string | null): void {
     if (!this.map || this.outlineImportTarget().map !== "editable") return;
+    const existing = this.structureReviewTask;
+    if (existing && existing.mapPath === this.path) {
+      // One background review at a time; a finished one for this scope reopens instead of starting again.
+      if (existing.state === "running") {
+        new Notice(t("ui.ai_running_ai"));
+        return;
+      }
+      if (existing.state === "done" && existing.scopeId === scopeId) {
+        this.reopenStructureReview(existing);
+        return;
+      }
+    }
     const mapPath = this.path;
     const tree = (): ReturnType<typeof buildStructureReviewNodes> =>
       this.path === mapPath && this.map
@@ -909,33 +1078,99 @@ export class VisualAgentMapView extends ItemView {
         return t("ui.structure_review_stale_changed");
       return t("ui.structure_review_stale_structure");
     };
-    new StructureReviewModal(this.app, {
-      scope: scopeId ? "branch" : "map",
-      review: async signal => {
+    const showWindow = (
+      extra: Partial<ConstructorParameters<typeof StructureReviewModal>[1]> & {
+        review: ConstructorParameters<typeof StructureReviewModal>[1]["review"];
+      }
+    ): void =>
+      new StructureReviewModal(this.app, {
+        scope: scopeId ? "branch" : "map",
+        titleOf: id => this.describeForReview(id)?.title ?? "",
+        staleReason,
+        apply: (suggestion, title) => this.applyStructureSuggestion(suggestion, title, staleReason),
+        highlight: ids => this.highlightStructure(ids),
+        ...extra
+      }).open();
+    const reopen = (
+      result: StructureReviewResult,
+      task: NonNullable<VisualAgentMapView["structureReviewTask"]>
+    ): void =>
+      showWindow({
+        review: async () => result,
+        initial: result,
+        consumed: () => {
+          if (this.structureReviewTask === task) this.structureReviewTask = null;
+          if (!this.closed) this.render();
+        }
+      });
+    showWindow({
+      review: async (signal, started) => {
         const settings = this.plugin.settings;
         const model = settings.cliModel;
-        let result: StructureReviewResult | undefined;
-        const started = await this.plugin.confirmAiUsage(model, async () => {
-          result = await this.plugin.structureReview.review(
-            {
-              rootQuestion,
-              nodes,
-              language: settings.language,
-              contentLanguage: chooseAimContentLanguage(settings.language, rootQuestion),
-              model,
-              reasoning: normalizeReasoningLevel(settings.cliReasoning)
-            },
-            signal
-          );
+        const controller = new AbortController();
+        // Closing the window before AI starts (usage notice still open) cancels; after that only Stop does.
+        const forward = (): void => controller.abort();
+        signal.addEventListener("abort", forward, { once: true });
+        const run: { began: boolean } = { began: false };
+        await this.plugin.confirmAiUsage(model, async () => {
+          if (signal.aborted) return;
+          run.began = true;
+          signal.removeEventListener("abort", forward);
+          const own: NonNullable<VisualAgentMapView["structureReviewTask"]> = {
+            mapPath,
+            scopeId,
+            controller,
+            state: "running",
+            reopen: result => reopen(result, own)
+          };
+          this.structureReviewTask = own;
+          if (!this.closed) this.render();
+          started();
+          try {
+            const review = await this.plugin.structureReview.review(
+              {
+                rootQuestion,
+                nodes,
+                language: settings.language,
+                contentLanguage: chooseAimContentLanguage(settings.language, rootQuestion),
+                model,
+                reasoning: normalizeReasoningLevel(settings.cliReasoning)
+              },
+              controller.signal
+            );
+            // Stopped, replaced or the view closed meanwhile: the late result is dropped.
+            if (controller.signal.aborted || this.structureReviewTask !== own || this.closed) return;
+            own.state = "done";
+            own.result = review;
+            backgroundResultNotice(t("ui.structure_review_ready_0", review.suggestions.length), {
+              label: t("ui.structure_review_view_0", review.suggestions.length),
+              open: () => this.reopenStructureReview(own)
+            });
+          } catch (error) {
+            if (controller.signal.aborted || this.structureReviewTask !== own || this.closed) return;
+            own.state = "failed";
+            own.message = errorMessage(error);
+            new Notice(own.message);
+          }
+          if (!this.closed) this.render();
         });
-        if (!started || !result) throw new Error(t("ui.structure_review_not_started"));
-        return result;
-      },
-      titleOf: id => this.describeForReview(id)?.title ?? "",
-      staleReason,
-      apply: (suggestion, title) => this.applyStructureSuggestion(suggestion, title, staleReason),
-      highlight: ids => this.highlightStructure(ids)
-    }).open();
+        signal.removeEventListener("abort", forward);
+        if (!run.began) throw new Error(t("ui.structure_review_not_started"));
+        // The window already hid itself; the result lives on the status bar.
+        return { suggestions: [], rejected: [] };
+      }
+    });
+  }
+  /** Opens the window on a finished review's suggestions (no Start); closing it drops the waiting result. */
+  private reopenStructureReview(task: NonNullable<VisualAgentMapView["structureReviewTask"]>): void {
+    if (this.structureReviewTask !== task || task.state !== "done" || !task.result || this.closed) return;
+    task.reopen(task.result);
+  }
+  /** Stop on the status bar: the run is aborted and forgotten, so its late result changes nothing. */
+  private stopStructureReview(task: NonNullable<VisualAgentMapView["structureReviewTask"]>): void {
+    if (this.structureReviewTask === task) this.structureReviewTask = null;
+    task.controller.abort();
+    this.render();
   }
   /** Marks the suggested cards in place; an empty list clears every mark. */
   highlightStructure(ids: string[]): void {
@@ -1137,18 +1372,18 @@ export class VisualAgentMapView extends ItemView {
     const root = result.nodes.find(node => node.parentId === null);
     if (!root) return;
     const children = result.nodes.filter(node => node.parentId !== null);
-    try {
-      await this.plugin.confirmAiUsage(model, () =>
+    // The import window closes once the topics exist: the research runs in the background (Stop is on the batch badge)
+    // and an error becomes a Notice instead of keeping the window waiting.
+    void this.plugin
+      .confirmAiUsage(model, () =>
         this.startShallowResearch(root, children, {
           researchMode: "research",
           researchDepth: request.researchDepth ?? "fast",
           referenceGroups: [],
           visualMode: "off"
         })
-      );
-    } catch (error) {
-      new Notice(errorMessage(error));
-    }
+      )
+      .catch(error => new Notice(errorMessage(error)));
   }
   /** Adds the outline to the open map, as a new top-level tree or under the selected topic; existing nodes stay put. */
   private async importOutlineIntoMap(
@@ -1274,8 +1509,9 @@ export class VisualAgentMapView extends ItemView {
     const ids = new Set((several ? outcome.created : outcome.created.slice(1)).map(node => node.id));
     const children = (this.map?.nodes ?? []).filter(node => ids.has(node.id));
     if (!children.length) return;
-    try {
-      await this.plugin.confirmAiUsage(model, () =>
+    // The import window closes once the topics exist; the research runs in the background (Stop is on the batch badge).
+    void this.plugin
+      .confirmAiUsage(model, () =>
         this.startShallowResearch(top, children, {
           researchMode: "research",
           referenceGroups: [],
@@ -1284,10 +1520,8 @@ export class VisualAgentMapView extends ItemView {
           researchDepth: request.researchDepth ?? "fast",
           ...(request.detailTemplateId ? { detailTemplateId: request.detailTemplateId } : {})
         })
-      );
-    } catch (error) {
-      new Notice(errorMessage(error));
-    }
+      )
+      .catch(error => new Notice(errorMessage(error)));
   }
   private openNewMindMapModal(): void {
     new NameModal(this.app, t("ui.new_mind_map"), t("ui.new_mind_map_from_sample"), title =>
@@ -3512,6 +3746,7 @@ export class VisualAgentMapView extends ItemView {
         this.button(actions, t("ui.check_codex"), () => this.enqueue(() => this.plugin.recheckCodex()));
     }
     if (!this.builtIn && !this.map.aim) this.renderMultiResearchStatus(this.contentEl);
+    if (!this.builtIn && !this.map.aim) this.renderBackgroundBars(this.contentEl);
     const tools = createDiv("vam-map-tools");
     if (!this.builtIn) {
       const aimMode = !!this.map.aim;
@@ -3786,6 +4021,17 @@ export class VisualAgentMapView extends ItemView {
     if (pendingCount && !this.builtIn && !this.integrationMode && !this.map?.aim)
       this.button(header, t("ui.view_0_expansion_suggestions", pendingCount), () =>
         this.openNodePanel(node, "proposals")
+      ).addClass("vam-badge-new");
+    const waitingOutline = this.quickOutlines.get(node.path);
+    if (
+      waitingOutline &&
+      waitingOutline.mapPath === this.path &&
+      !this.builtIn &&
+      !this.integrationMode &&
+      !this.map?.aim
+    )
+      this.button(header, t("ui.review_outline_0", outlineProposals(waitingOutline.nodes).length), () =>
+        this.openNextStep(node)
       ).addClass("vam-badge-new");
     const synthesis = this.synthesisTasks.get(node.path);
     if (synthesis && synthesis.mapPath === this.path && !this.builtIn && !this.integrationMode && !this.map?.aim) {
@@ -4459,6 +4705,17 @@ export class VisualAgentMapView extends ItemView {
         own = undefined;
         if (!this.closed) this.render();
       },
+      outlineReady: outline => {
+        if (!node || this.closed) return;
+        this.quickOutlines.set(node.path, { mapPath: this.path, ...outline });
+        const title = this.notes.get(node.id)?.title ?? node.path;
+        const count = outlineProposals(outline.nodes).length;
+        backgroundResultNotice(t("ui.background_outline_ready_0", title), {
+          label: t("ui.review_outline_0", count),
+          open: () => this.openNextStep(node)
+        });
+        this.render();
+      },
       completed: kind => {
         if (!node || this.closed) return;
         const title = this.notes.get(node.id)?.title ?? node.path;
@@ -4541,6 +4798,19 @@ export class VisualAgentMapView extends ItemView {
               : undefined,
           background: this.backgroundHooks(node.path, node),
           quickOutline: this.quickOutline(node),
+          pendingOutline: ((): PendingOutline | undefined => {
+            const waiting = this.quickOutlines.get(node.path);
+            if (!waiting || waiting.mapPath !== this.path) return undefined;
+            return {
+              nodes: waiting.nodes,
+              dropped: waiting.dropped,
+              options: waiting.options,
+              discard: () => {
+                if (this.quickOutlines.get(node.path) === waiting) this.quickOutlines.delete(node.path);
+                if (!this.closed) this.render();
+              }
+            };
+          })(),
           structureReview: this.structureReviewEntry(node),
           sources,
           templates: this.templateChoices(),

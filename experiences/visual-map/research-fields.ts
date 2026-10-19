@@ -97,7 +97,7 @@ export function modelField(
   models: ModelChoices,
   defaultLabel: string,
   repair?: (model: string | undefined) => void
-): { value: () => string | undefined; dispose: () => void } {
+): { value: () => string | undefined; set: (id: string | undefined) => void; dispose: () => void } {
   const { field, head } = linkedField(parent, t("ui.model"));
   const model = field.createEl("select");
   model.setAttr("aria-label", t("ui.model"));
@@ -112,7 +112,16 @@ export function modelField(
   fill();
   if (repair) fieldLink(head, t("ui.connection_repair"), () => repair(model.value || undefined));
   const dispose = models.watch(fill);
-  return { value: () => model.value || undefined, dispose };
+  return {
+    value: () => model.value || undefined,
+    // A model that is not (yet) in the list stays selected as an extra option, so a restored choice is not lost.
+    set: id => {
+      if (id && !Array.from(model.children).some(option => (option as HTMLOptionElement).value === id))
+        model.createEl("option", { value: id, text: id });
+      model.value = id ?? "";
+    },
+    dispose
+  };
 }
 
 /**
@@ -127,7 +136,7 @@ export function templateField(
   manage?: ManageChoices,
   /** Runs after the list was refreshed, so a summary that names the template stays current. */
   changed: () => void = () => {}
-): () => string | undefined {
+): (() => string | undefined) & { set: (id: string | undefined) => void } {
   const { field, head } = linkedField(parent, t("ui.detail_template"));
   const select = field.createEl("select");
   select.setAttr("aria-label", t("ui.detail_template"));
@@ -147,7 +156,12 @@ export function templateField(
         changed();
       })
     );
-  return () => select.value || undefined;
+  const read = (): string | undefined => select.value || undefined;
+  return Object.assign(read, {
+    set: (id: string | undefined): void => {
+      select.value = id && templates.some(template => template.id === id) ? id : "";
+    }
+  });
 }
 
 /** Opens a library (tones, templates) at `selected` when given, and reports the refreshed list once it closes. */
