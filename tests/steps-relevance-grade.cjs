@@ -435,6 +435,33 @@ test('service repair: through the real provider runner both exchanges are logged
   assert.equal(fx.calls[1][1], 'gpt-6-luna'); assert.equal(fx.calls[1][2], 'low', 'same model and reasoning');
 });
 
+const realRunnerService = fx => new grade.RelevanceGradeService(grade.providerRelevanceGradeRunner(fx.options, fx.active));
+
+test('service repair through the real runner: two bad replies then a good one succeed; all three exchanges are logged', async () => {
+  const replies = [badDeep(), badDeep(), goodDeep()];
+  const fx = serviceFixture(() => replies.shift());
+  const result = await realRunnerService(fx).grade(repairRequest(), new AbortController().signal);
+  assert.equal(result.items.length, 4); assert.equal(fx.calls.length, 3); assert.equal(fx.active.size, 0);
+  assert.deepEqual(plain(fx.log.getEntries().map(e => [e.step, e.status])), [['relevance-grade@10', 'failed'], ['relevance-grade-repair@4', 'failed'], ['relevance-grade-repair@4', 'completed']]);
+});
+
+test('service repair through the real runner: three bad replies throw the translated hierarchy message after exactly 3 requests', async () => {
+  const fx = serviceFixture(() => badDeep());
+  await assert.rejects(realRunnerService(fx).grade(repairRequest(), new AbortController().signal), error => error.code === 'invalid' && error.message === translate('en', 'error.relevance_grade_hierarchy'));
+  assert.equal(fx.calls.length, 3);
+});
+
+test('service repair through the real runner: a bounded card left out three times throws the missing message after 3 requests', async () => {
+  const node = (id, parentId, depth) => ({ id, title: id.toUpperCase(), summary: '', status: 'idea', parentId, depth });
+  const nodes = [node('r', null, 0), node('a', 'r', 1), node('a1', 'a', 2), node('b', 'r', 1)];   // a1 pinned core: a has min=core
+  const only = reply({ id: 'c4', tier: 'core', reason: 'Needed.' });                                // b only; a is missing
+  const fx = serviceFixture(() => only);
+  const error = await realRunnerService(fx).grade(request({ nodes, pins: [{ id: 'a1', tier: 'core' }] }), new AbortController().signal).then(() => null, e => e);
+  assert.equal(error.code, 'invalid'); assert.match(error.message, /missing 1/);
+  assert.equal(fx.calls.length, 3);
+  assert.deepEqual(plain(fx.log.getEntries().map(e => e.step)), ['relevance-grade@10', 'relevance-grade-repair-missing@1', 'relevance-grade-repair-missing@1']);
+});
+
 test('i18n: the repair status text exists in both languages', () => {
   assert.equal(translate('zh-TW', 'ui.relevance_repairing'), '修正上下層一致中…');
   assert.equal(translate('en', 'ui.relevance_repairing'), 'Fixing parent-child order…');
