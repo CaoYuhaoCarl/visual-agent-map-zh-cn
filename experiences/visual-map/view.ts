@@ -80,6 +80,7 @@ import {
 import { RELEVANCE_LABEL, renderRelevanceTagButton } from "./relevance-tag";
 import { relevanceDisplayNodes } from "./relevance-order";
 import { RelevanceSummaryModal } from "./relevance-summary-modal";
+import { relevanceMode, relevanceModeAfterWrite, type RelevanceMode, type RelevancePin } from "./relevance-pins";
 import { PendingSuggestions } from "../../pending-suggestions";
 import { createAimMap } from "../aim/create-map";
 import { addOutlineToMap, createOutlineMap, type OutlineNode } from "./outline-import";
@@ -1463,13 +1464,43 @@ export class VisualAgentMapView extends ItemView {
     context.maxLength = RELEVANCE_CONTEXT_MAX_LENGTH;
     context.setAttr("aria-label", t("ui.relevance_context_label"));
     context.setAttr("placeholder", t("ui.relevance_context_placeholder"));
+    // One button; its words follow the mode the click would run in (the same pure check the click uses).
+    const pinCount = this.relevancePinList().length;
+    const planMode = (): RelevanceMode =>
+      relevanceMode(
+        { goal: input.value, level: levelSelect.value, context: context.value },
+        { goal: this.relevanceGoal, level: this.relevanceLevel, context: this.relevanceContext },
+        this.relevanceAiGrades().length > 0
+      );
     const submitButton = group.createEl("button", {
       cls: "vam-relevance-grade-button mod-cta",
-      text: t("ui.relevance_grade_button")
+      text: t(planMode() === "recalibrate" ? "ui.relevance_recalibrate_button" : "ui.relevance_grade_button")
     });
-    input.addEventListener("input", () => (draft.goal = input.value));
-    context.addEventListener("input", () => (draft.context = context.value));
-    levelSelect.addEventListener("change", () => (draft.level = levelSelect.value));
+    const showMode = (): void =>
+      submitButton.setText(
+        t(planMode() === "recalibrate" ? "ui.relevance_recalibrate_button" : "ui.relevance_grade_button")
+      );
+    input.addEventListener("input", () => {
+      draft.goal = input.value;
+      showMode();
+    });
+    context.addEventListener("input", () => {
+      draft.context = context.value;
+      showMode();
+    });
+    levelSelect.addEventListener("change", () => {
+      draft.level = levelSelect.value;
+      showMode();
+    });
+    let unpinAllButton: HTMLButtonElement | undefined;
+    if (pinCount) {
+      const pinsRow = panel.createDiv("vam-relevance-pins-row");
+      pinsRow.createSpan({ text: t("ui.relevance_pins_note_0", pinCount) });
+      unpinAllButton = pinsRow.createEl("button", {
+        cls: "vam-relevance-unpin-all",
+        text: t("ui.relevance_unpin_all")
+      });
+    }
     // The sort switch: display only, an in-memory Set, no file write and no refit. It never closes the panel.
     panel.createDiv("vam-relevance-divider");
     const on = this.relevanceSortOn();
@@ -1496,8 +1527,9 @@ export class VisualAgentMapView extends ItemView {
       const value = input.value;
       const level = normalizeRelevanceLevel(levelSelect.value);
       const extra = context.value;
+      const planned = planMode();
       this.closeRelevancePanel(refocus);
-      if (submit) void this.submitRelevanceGoal(value, level, extra);
+      if (submit) void this.submitRelevanceGoal(value, level, extra, planned);
     };
     const confirm = (): void => finish(true, !normalizeRelevanceGoal(input.value));
     const keys = (event: KeyboardEvent, enterConfirms: boolean): void => {
@@ -1516,15 +1548,29 @@ export class VisualAgentMapView extends ItemView {
     context.addEventListener("keydown", event => keys(event, true));
     levelSelect.addEventListener("keydown", event => keys(event, false));
     submitButton.addEventListener("keydown", event => keys(event, false));
+    unpinAllButton?.addEventListener("keydown", event => keys(event, false));
     sort.addEventListener("keydown", event => keys(event, false));
     submitButton.addEventListener("click", event => {
       event.stopPropagation();
       confirm();
     });
+    unpinAllButton?.addEventListener("click", event => {
+      event.stopPropagation();
+      finish(false, true);
+      this.unpinAllRelevance();
+    });
+    unpinAllButton?.addEventListener("mousedown", event => event.preventDefault());
     // Keep focus where it is while the button is pressed, so the pointer press cannot count as leaving the panel.
     submitButton.addEventListener("mousedown", event => event.preventDefault());
     sort.addEventListener("mousedown", event => event.preventDefault());
-    for (const control of [input, levelSelect, context, submitButton, sort])
+    for (const control of [
+      input,
+      levelSelect,
+      context,
+      submitButton,
+      ...(unpinAllButton ? [unpinAllButton] : []),
+      sort
+    ])
       control.addEventListener("focusout", (event: FocusEvent) => {
         const next = event.relatedTarget as Node | null;
         if (!next || (!panel.contains(next) && next !== this.relevanceButtonEl)) finish(false, false);
@@ -1617,7 +1663,12 @@ export class VisualAgentMapView extends ItemView {
    * whole map is graded and the result is written in one step. Nothing is written when the AI is declined, stopped,
    * fails or returns anything but exactly one valid grade for every card.
    */
-  private async submitRelevanceGoal(raw: string, levelRaw?: RelevanceLevel, contextRaw?: string): Promise<void> {
+  private async submitRelevanceGoal(
+    raw: string,
+    levelRaw?: RelevanceLevel,
+    contextRaw?: string,
+    planned: RelevanceMode = "full"
+  ): Promise<void> {
     const goal = normalizeRelevanceGoal(raw);
     const level = normalizeRelevanceLevel(levelRaw);
     const context = contextRaw === undefined ? undefined : normalizeRelevanceContext(contextRaw);
@@ -1638,6 +1689,9 @@ export class VisualAgentMapView extends ItemView {
     const settings = this.plugin.settings;
     let result: RelevanceGradeResult | undefined;
     let basis: StructureNode[] = [];
+    let mode: RelevanceMode = planned;
+    let pins: RelevancePin[] = [];
+    const repairs: string[] = [];
     try {
       await this.plugin.mutate(async () => {
         const { previous, next, setupChanged } = await this.plugin.repo.writeRelevanceGoal(
@@ -1650,6 +1704,8 @@ export class VisualAgentMapView extends ItemView {
         this.relevanceGoal = goal;
         this.relevanceLevel = level;
         this.relevanceContext = context;
+        // The repository has the last word: a setup that changed after all is graded in full.
+        mode = relevanceModeAfterWrite(planned, setupChanged);
         // Goal, level and context are one undo step; none changed means nothing to undo.
         if (!setupChanged) return;
         this.history.push({
@@ -1670,32 +1726,41 @@ export class VisualAgentMapView extends ItemView {
         run.awaitingUsage = false;
         this.refreshRelevance();
         basis = buildStructureReviewNodes(this.map.nodes, id => this.describeForReview(id));
-        result = await this.plugin.relevanceGrade.grade(
-          {
-            goal,
-            ...(level ? { level } : {}),
-            ...(context ? { context } : {}),
-            nodes: basis,
-            language: settings.language,
-            contentLanguage: chooseAimContentLanguage(settings.language, this.map.title),
-            model,
-            reasoning: normalizeReasoningLevel(settings.cliReasoning)
-          },
-          run.controller.signal,
-          {
-            onRepair: () => {
-              if (!this.relevanceRunIsCurrent(run, mapPath)) return;
-              run.repairing = true;
-              this.refreshRelevance();
-            }
+        // Pinned (hand-set) cards are the learner's: the AI sees them as anchors and never grades them.
+        pins = this.relevancePinList();
+        const request = {
+          goal,
+          ...(level ? { level } : {}),
+          ...(context ? { context } : {}),
+          nodes: basis,
+          language: settings.language,
+          contentLanguage: chooseAimContentLanguage(settings.language, this.map.title),
+          model,
+          reasoning: normalizeReasoningLevel(settings.cliReasoning),
+          ...(pins.length ? { pins } : {})
+        };
+        const hooks = {
+          onRepair: (_round: number, kind: string) => {
+            repairs.push(kind);
+            if (!this.relevanceRunIsCurrent(run, mapPath)) return;
+            run.repairing = true;
+            this.refreshRelevance();
           }
-        );
+        };
+        result =
+          mode === "recalibrate"
+            ? await this.plugin.relevanceGrade.recalibrate(
+                { ...request, previous: this.relevanceAiGrades() },
+                run.controller.signal,
+                hooks
+              )
+            : await this.plugin.relevanceGrade.grade(request, run.controller.signal, hooks);
       });
       if (!this.relevanceRunIsCurrent(run, mapPath)) return;
       if (!started) return this.finishRelevance(run, mapPath, "declined", t("ui.relevance_not_started"));
       const graded = result;
       if (!graded) return;
-      await this.plugin.mutate(() => this.applyRelevanceGrade(run, mapPath, basis, graded.items));
+      await this.plugin.mutate(() => this.applyRelevanceGrade(run, mapPath, basis, graded, { mode, pins, repairs }));
       this.refreshRelevance();
     } catch (error) {
       this.finishRelevance(run, mapPath, "failed", t("ui.relevance_failed_0", errorMessage(error)));
@@ -1710,10 +1775,13 @@ export class VisualAgentMapView extends ItemView {
     run: RelevanceGradeRun,
     mapPath: string,
     basis: StructureNode[],
-    items: RelevanceGradeItem[]
+    graded: RelevanceGradeResult,
+    meta: { mode: RelevanceMode; pins: RelevancePin[]; repairs: string[] }
   ): Promise<void> {
     if (!this.relevanceRunIsCurrent(run, mapPath) || !this.map) return;
+    const items: RelevanceGradeItem[] = graded.items;
     run.writing = true;
+    const startedAt = Date.now();
     const repo = this.plugin.repo;
     const fresh = new Map<string, Note>();
     for (const node of this.map.nodes) {
@@ -1731,7 +1799,26 @@ export class VisualAgentMapView extends ItemView {
     );
     const pathOf = new Map(this.map.nodes.map(node => [node.id, node.path]));
     const byId = new Map(items.map(item => [item.id, item]));
-    const outcome: RelevanceGradeOutcome = { graded: 0, changes: [], skipped: 0, failed: 0 };
+    const titleOf = new Map(basis.map(base => [base.id, base.title]));
+    const pinned = new Set(meta.pins.map(pin => pin.id));
+    const outcome: RelevanceGradeOutcome = {
+      graded: 0,
+      changes: [],
+      skipped: 0,
+      failed: 0,
+      pinned: 0,
+      mode: meta.mode,
+      pins: meta.pins.map(pin => ({ id: pin.id, title: titleOf.get(pin.id) ?? "", tier: pin.tier })),
+      conflicts: (graded.conflicts ?? []).map(conflict => ({
+        ancestor: titleOf.get(conflict.ancestorId) ?? "",
+        ancestorTier: conflict.ancestorTier,
+        descendant: titleOf.get(conflict.descendantId) ?? "",
+        descendantTier: conflict.descendantTier
+      })),
+      ...(graded.pinnedIgnored ? { pinnedIgnored: graded.pinnedIgnored } : {}),
+      ...(graded.anchorsDropped ? { anchorsDropped: graded.anchorsDropped } : {}),
+      ...(graded.unchangedIgnored ? { unchangedIgnored: graded.unchangedIgnored } : {})
+    };
     try {
       for (const base of basis) {
         const item = byId.get(base.id);
@@ -1743,28 +1830,39 @@ export class VisualAgentMapView extends ItemView {
           outcome.skipped++;
           continue;
         }
+        if (note.relevance?.manual) {
+          // A hand-set (pinned) card is never written by the AI, whatever the AI said.
+          pinned.add(base.id);
+          continue;
+        }
         const after = { tier: item.tier, reason: item.reason };
-        const before = note.relevance
-          ? {
-              tier: note.relevance.tier,
-              reason: note.relevance.reason,
-              ...(note.relevance.manual ? { manual: true as const } : {})
-            }
-          : undefined;
-        if (before && !before.manual && before.tier === after.tier && before.reason === after.reason) {
+        const before = note.relevance ? { tier: note.relevance.tier, reason: note.relevance.reason } : undefined;
+        if (before && before.tier === after.tier && before.reason === after.reason) {
           outcome.graded++;
           continue;
         }
         try {
           await repo.writeRelevance(path, after);
           outcome.graded++;
-          outcome.changes.push({ id: base.id, path, title: note.title, before, after });
+          outcome.changes.push({
+            id: base.id,
+            path,
+            title: note.title,
+            before,
+            after,
+            ...(item.anchor ? { anchor: item.anchor } : {})
+          });
         } catch (error) {
           outcome.failed++;
           this.plugin.logs.appendLog("error", t("log.operation_failed_0", errorMessage(error)));
         }
       }
     } finally {
+      outcome.pinned = pinned.size;
+      this.plugin.logs.appendLog(
+        "info",
+        `Relevance ${meta.mode}: repairs ${meta.repairs.length}${meta.repairs.length ? ` (${[...new Set(meta.repairs)].join(", ")})` : ""}, pinned ${pinned.size}, pinnedIgnored ${graded.pinnedIgnored ?? 0}, anchorsDropped ${graded.anchorsDropped ?? 0}, unchangedIgnored ${graded.unchangedIgnored ?? 0}, written ${outcome.changes.length}, failed ${outcome.failed}, skipped ${outcome.skipped}, ${Date.now() - startedAt} ms`
+      );
       if (outcome.changes.length) {
         const changes = outcome.changes;
         const entry: Action = {
@@ -1819,14 +1917,66 @@ export class VisualAgentMapView extends ItemView {
           .onClick(() => this.setManualRelevance(node, tier))
       );
     menu.addSeparator();
-    menu.addItem(item =>
+    menu.addItem(item => {
       item
         .setTitle(t("ui.relevance_clear"))
         .setIcon("x")
-        .onClick(() => this.setManualRelevance(node, null))
-    );
+        .onClick(() => this.setManualRelevance(node, null));
+      // The menu has no second line; the hint rides on the item as a tooltip where the host exposes its element.
+      (item as unknown as { dom?: HTMLElement }).dom?.setAttribute?.("title", t("ui.relevance_clear_hint"));
+    });
     const rect = anchor.getBoundingClientRect();
     menu.showAtPosition({ x: rect.left, y: rect.bottom });
+  }
+  /** The gradable cards whose tier the learner set by hand (pinned), in map order, from the notes this view holds. */
+  private relevancePinList(): RelevancePin[] {
+    const pins: RelevancePin[] = [];
+    for (const node of this.map?.nodes ?? []) {
+      const relevance = node.parentId === null ? undefined : this.notes.get(node.id)?.relevance;
+      if (relevance?.manual) pins.push({ id: node.id, tier: relevance.tier });
+    }
+    return pins;
+  }
+  /** The gradable cards with an AI tier (not pinned): what a recalibration starts from. */
+  private relevanceAiGrades(): RelevancePin[] {
+    const grades: RelevancePin[] = [];
+    for (const node of this.map?.nodes ?? []) {
+      const relevance = node.parentId === null ? undefined : this.notes.get(node.id)?.relevance;
+      if (relevance && !relevance.manual) grades.push({ id: node.id, tier: relevance.tier });
+    }
+    return grades;
+  }
+  /**
+   * Hands every pinned card back to the AI: the three relevance keys go, one mutation, one undo step. Undo puts the
+   * pins back on cards that are still ungraded.
+   */
+  private unpinAllRelevance(): void {
+    if (this.plugin.relevanceGrades.get(this.path)?.status === "running") return;
+    const paths = new Map((this.map?.nodes ?? []).map(node => [node.id, node.path]));
+    const entries = this.relevancePinList().flatMap(pin => {
+      const path = paths.get(pin.id);
+      return path ? [{ path, tier: pin.tier }] : [];
+    });
+    if (!entries.length) return;
+    this.plugin.runMutation(async () => {
+      const repo = this.plugin.repo;
+      for (const entry of entries) await repo.writeRelevance(entry.path, null);
+      this.history.push({
+        label: t("ui.relevance_unpin_all_history_label"),
+        undo: async () => {
+          for (const entry of entries)
+            if (!(await repo.readNote(entry.path)).relevance)
+              await repo.writeRelevance(entry.path, { tier: entry.tier, reason: "", manual: true });
+        },
+        redo: async () => {
+          for (const entry of entries) {
+            const latest = (await repo.readNote(entry.path)).relevance;
+            if (latest?.manual && latest.tier === entry.tier) await repo.writeRelevance(entry.path, null);
+          }
+        }
+      });
+      this.updateHistoryButtons();
+    });
   }
   /**
    * Sets a card's tier by hand (or clears it) in the note's frontmatter and repaints in place. No AI call, no parent-
@@ -1865,7 +2015,8 @@ export class VisualAgentMapView extends ItemView {
         )
       : run.status === "done" && outcome
         ? [
-            t("ui.relevance_done_0_1_2", outcome.graded, this.visibleRelevanceChanges(outcome).length, outcome.skipped),
+            this.relevanceDoneText(outcome),
+            outcome.pinned && outcome.mode !== "recalibrate" ? t("ui.relevance_pinned_kept_0", outcome.pinned) : "",
             outcome.failed ? t("ui.relevance_write_failed_0", outcome.failed) : ""
           ]
             .filter(Boolean)
@@ -1881,9 +2032,8 @@ export class VisualAgentMapView extends ItemView {
       if (!run.writing) this.button(bar, t("ui.relevance_stop"), () => this.stopRelevanceGrade());
       return;
     }
-    if (outcome?.changes.length) {
-      if (this.visibleRelevanceChanges(outcome).length)
-        this.button(bar, t("ui.relevance_view_changes"), () => this.openRelevanceSummary(run));
+    if (outcome?.changes.length || outcome?.conflicts?.length) {
+      this.button(bar, t("ui.relevance_view_changes"), () => this.openRelevanceSummary(run));
       if (this.history.undoEntry && this.history.undoEntry === run.historyEntry)
         this.button(bar, t("ui.undo"), () => this.enqueue(() => this.travel(false)));
     }
@@ -1893,22 +2043,27 @@ export class VisualAgentMapView extends ItemView {
       (this.contentEl?.querySelector?.(".vam-relevance-goal") as HTMLElement | null | undefined)?.focus();
     });
   }
-  /** A hand-set tier the AI kept is cleared of its flag (and undoable) but is not news, so it is not counted or listed. */
-  private visibleRelevanceChanges(outcome: RelevanceGradeOutcome): RelevanceGradeChange[] {
-    return outcome.changes.filter(change => !(change.before?.manual && change.before.tier === change.after.tier));
+  /** The status line of a finished run: a recalibration counts its moves against the pins; a full grade counts cards. */
+  private relevanceDoneText(outcome: RelevanceGradeOutcome): string {
+    if (outcome.mode !== "recalibrate")
+      return t("ui.relevance_done_0_1_2", outcome.graded, outcome.changes.length, outcome.skipped);
+    if (!outcome.changes.length) return t("ui.relevance_recalibrate_none");
+    return outcome.pinned
+      ? t("ui.relevance_recalibrated_0_1", outcome.pinned, outcome.changes.length)
+      : t("ui.relevance_done_0_1_2", outcome.graded, outcome.changes.length, outcome.skipped);
   }
   private openRelevanceSummary(run: RelevanceGradeRun): void {
-    const changes = run.outcome ? this.visibleRelevanceChanges(run.outcome) : [];
-    // Cards the owner set by hand and the AI changed back come first, in their own section.
-    const reverted = changes.filter(change => change.before?.manual);
+    const outcome = run.outcome;
     new RelevanceSummaryModal(this.app, {
-      rows: [...reverted, ...changes.filter(change => !change.before?.manual)].map(change => ({
+      rows: (outcome?.changes ?? []).map(change => ({
         id: change.id,
         title: change.title,
         before: change.before,
         after: change.after,
-        ...(change.before?.manual ? { reverted: true } : {})
+        ...(change.anchor ? { anchor: change.anchor } : {})
       })),
+      pins: outcome?.pins ?? [],
+      conflicts: outcome?.conflicts ?? [],
       highlight: ids => this.highlightStructure(ids)
     }).open();
   }
