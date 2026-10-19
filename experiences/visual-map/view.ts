@@ -34,6 +34,7 @@ import {
   labelFullKnowledge,
   labelOldFindings,
   labelVisualReferences,
+  mergeGoalTask,
   noSummaryYet,
   researchTopicTask,
   synthesisDirectionsTask,
@@ -107,6 +108,16 @@ import { AimRunStore } from "../aim/research-run-store";
 import type { AimProgressEvent } from "../aim/manual-flow-support";
 import { matchAimFailedReportTargets } from "../aim/retry-targets";
 import { aimRepairHint, aimTimedOut } from "../aim/failure-hint";
+import { canvasPointerIntent } from "./canvas-gestures";
+import {
+  hasMergeContent,
+  mergedDetail,
+  mergedStatus,
+  mergeEligibility,
+  MergeTopicsModal,
+  resolveMergeModel,
+  type MergeEligibility
+} from "./merge-topics";
 
 import {
   TaskOptions,
@@ -206,6 +217,43 @@ interface FileMove {
   topicId: string;
   parkedState: TopicState;
 }
+/** One completed file move of a merge, with what a rollback needs to put the note and its lifecycle back. */
+interface MergeMove {
+  from: string;
+  to: string;
+  topicId: string;
+  restoreMapId: string;
+  restoreState: TopicState;
+}
+/** What a merge changed, kept by its history entry so undo and redo move the same files between fixed paths. */
+interface MergeState {
+  before: MapDocument;
+  after: MapDocument;
+  newId: string;
+  newActive: string;
+  /** Where the merged note waits while the merge is undone; chosen by the first undo, then reused. */
+  newParked: string | null;
+  sources: FileMove[];
+}
+/** The AI merge that hid its dialog: owned by the view, one per map. It writes nothing until the draft is confirmed. */
+interface MergeTask {
+  mapPath: string;
+  mapId: string;
+  mapTitle: string;
+  title: string;
+  sources: { id: string; path: string }[];
+  parentId: string | null;
+  model: string;
+  /** The sources as sent to the model (JSON of the reference documents); compared again before the draft is saved. */
+  sourceContent: string;
+  controller: AbortController;
+  state: "running" | "draft" | "failed";
+  progress: string;
+  message?: string;
+  draft?: AiResult;
+  /** The request in flight (tests await it). */
+  run?: Promise<void>;
+}
 /** Unique ids for the hidden card labels; any view may render a card. */
 let cardLabelSequence = 0;
 const cardLabels = new WeakMap<HTMLElement, HTMLElement>();
@@ -275,6 +323,11 @@ export class VisualAgentMapView extends ItemView {
   } | null = null;
   /** A multi-select synthesis step is starting (before its task exists), so a second request is refused. */
   private selectionStarting = false;
+  /** A merge dialog is open or its write is queued; a second Merge press (or the Enter that confirmed) is ignored. */
+  private mergeOpen = false;
+  /** AI merges that hid their dialog, keyed by map path (one per map). */
+  private mergeTasks = new Map<string, MergeTask>();
+
   /**
    * AI actions whose dialog hid itself and whose provider request is not accepted yet, keyed by node path (or
    * `selection:<map path>`). The value is the dialog's controller, so a card or bar Stop pressed before acceptance
@@ -508,6 +561,8 @@ export class VisualAgentMapView extends ItemView {
     this.synthesisTasks.clear();
     for (const controller of this.startingTasks.values()) controller.abort();
     this.startingTasks.clear();
+    for (const task of this.mergeTasks.values()) task.controller.abort();
+    this.mergeTasks.clear();
     this.dropMapBackground();
     this.aimViewEpoch++;
     this.mapOpenEpoch++;
@@ -1003,6 +1058,24 @@ export class VisualAgentMapView extends ItemView {
           if (this.outlineDraftTask === draft) this.outlineDraftTask = null;
           this.render();
         }
+      });
+    }
+    const merge = this.mergeTasks.get(this.path);
+    if (merge) {
+      const running = merge.state === "running";
+      renderBackgroundStatus(parent, {
+        title: t("ui.merge_bar_title_0", merge.title),
+        value: running
+          ? merge.progress || t("ui.merge_ai_running")
+          : merge.state === "draft"
+            ? t("ui.merge_draft_ready_0", merge.title)
+            : (merge.message ?? t("ui.merge_draft_stale")),
+        running,
+        ...(running ? { onStop: () => this.stopMergeTask(merge), stopLabel: t("ui.merge_stop") } : {}),
+        ...(merge.state === "draft"
+          ? { review: { label: t("ui.review_merge_draft"), open: () => this.reviewMergeDraft(merge) } }
+          : {}),
+        onDismiss: () => this.stopMergeTask(merge)
       });
     }
   }
@@ -2587,6 +2660,507 @@ export class VisualAgentMapView extends ItemView {
       throw error;
     }
   }
+  private mergeBusy(node: MapNode, except?: MergeTask): boolean {
+    const batch = this.plugin.expansionBatches?.get(this.multiResearchKey()),
+      task = this.integrationTask;
+    return !!(
+      this.plugin.running?.has(node.path) ||
+      this.plugin.quickExpandPending?.has(node.path) ||
+      this.plugin.activeTasks?.has(node.path) ||
+      (batch?.status === "running" && (batch.currentPath === node.path || batch.queuedPaths.includes(node.path))) ||
+      (task?.state === "running" && task.mapPath === this.path && task.sources.some(source => source.id === node.id)) ||
+      [...(this.mergeTasks?.values() ?? [])].some(
+        merge =>
+          merge !== except &&
+          merge.state !== "failed" &&
+          merge.mapPath === this.path &&
+          merge.sources.some(source => source.id === node.id)
+      )
+    );
+  }
+  private mergeCheck(ids: Iterable<string> = this.multiSelected, except?: MergeTask): MergeEligibility {
+    return mergeEligibility({
+      ids,
+      nodes: this.map?.nodes ?? [],
+      hasNote: id => this.notes.has(id),
+      busy: node => this.mergeBusy(node, except)
+    });
+  }
+  /** Asks for the merged topic's name, then merges in the write queue (which checks everything again). */
+  private openMerge(): void {
+    if (!this.map || this.map.aim || this.builtIn || this.mergeOpen || !this.multiSelected.size) return;
+    // One AI merge per map: a running one is only reported, a finished draft is reviewed, a failed one is cleared.
+    const existing = this.mergeTasks.get(this.path);
+    if (existing?.state === "running") {
+      new Notice(t("ui.ai_running_ai"));
+      return;
+    }
+    if (existing?.state === "draft") {
+      this.reviewMergeDraft(existing);
+      return;
+    }
+    if (existing) this.mergeTasks.delete(this.path);
+    const check = this.mergeCheck();
+    if (!check.ok) {
+      new Notice(t(check.reason));
+      return;
+    }
+    const snapshot = {
+      path: this.path,
+      mapId: this.map.id,
+      parentId: check.parentId,
+      sources: check.sources.map(source => ({ id: source.id, path: source.path }))
+    };
+    const withContent = hasMergeContent(check.sources.map(source => this.notes.get(source.id)));
+    this.mergeOpen = true;
+    new MergeTopicsModal(
+      this.app,
+      snapshot.sources.length,
+      this.notes.get(check.sources[0].id)?.title ?? "",
+      title =>
+        this.enqueue(async () => {
+          try {
+            await this.mergeSelected(title, snapshot);
+          } finally {
+            this.mergeOpen = false;
+          }
+        }),
+      () => {
+        this.mergeOpen = false;
+      },
+      withContent
+        ? { start: (title, started, signal) => this.startMergeDraft(title, snapshot, started, signal) }
+        : undefined
+    ).open();
+  }
+  /** The model of a merged topic: the common parent's model like a new subtopic, else the workspace model. */
+  private async mergeModel(parentId: string | null): Promise<string> {
+    const parent = parentId ? this.map?.nodes.find(node => node.id === parentId) : undefined;
+    return resolveMergeModel(
+      parent ? (await this.plugin.repo.readNote(parent.path, this.map ?? undefined)).model : undefined,
+      this.plugin.settings.cliModel
+    );
+  }
+  /**
+   * Starts the AI merge from the dialog. Nothing is written: the usage notice comes first (declining leaves the dialog
+   * open and starts nothing); once accepted, `started` hides the dialog and the task lives on the status bar until
+   * its draft is confirmed. Resolves false when AI did not start.
+   */
+  private async startMergeDraft(
+    title: string,
+    snapshot: { path: string; mapId: string; parentId: string | null; sources: { id: string; path: string }[] },
+    started: () => void,
+    signal: AbortSignal
+  ): Promise<boolean> {
+    const stillValid = (): boolean => {
+      const check = this.mergeCheck(snapshot.sources.map(source => source.id));
+      return (
+        !this.closed &&
+        !!this.map &&
+        this.path === snapshot.path &&
+        this.map.id === snapshot.mapId &&
+        check.ok &&
+        check.sources.every(node => snapshot.sources.find(source => source.id === node.id)?.path === node.path)
+      );
+    };
+    if (!stillValid()) {
+      new Notice(t("ui.merge_draft_stale"));
+      return false;
+    }
+    const model = await this.mergeModel(snapshot.parentId);
+    let began = false;
+    const accepted = await this.plugin.confirmAiUsage(model, async () => {
+      if (signal.aborted || !stillValid()) return;
+      began = true;
+      const task: MergeTask = {
+        mapPath: snapshot.path,
+        mapId: snapshot.mapId,
+        mapTitle: this.map?.title ?? "",
+        title,
+        sources: snapshot.sources,
+        parentId: snapshot.parentId,
+        model,
+        sourceContent: "",
+        controller: new AbortController(),
+        state: "running",
+        progress: ""
+      };
+      this.mergeTasks.set(snapshot.path, task);
+      this.mergeOpen = false;
+      started();
+      this.render();
+      task.run = this.runMergeDraft(task);
+    });
+    if (accepted && !began && !signal.aborted) new Notice(t("ui.merge_draft_stale"));
+    return began;
+  }
+  private isLiveMergeTask(task: MergeTask): boolean {
+    return this.mergeTasks.get(task.mapPath) === task && !task.controller.signal.aborted && !this.closed;
+  }
+  /** The model call of an AI merge; a stopped, replaced or late run changes nothing. */
+  private async runMergeDraft(task: MergeTask): Promise<void> {
+    const language = this.plugin.settings.language;
+    try {
+      const sourceGroup = await this.topicReferenceGroup(task.sources, "strong", { origin: false });
+      if (!this.isLiveMergeTask(task)) return;
+      task.sourceContent = JSON.stringify(sourceGroup.documents);
+      const result = await this.plugin.askModel(
+        {
+          title: task.title,
+          summary: noSummaryYet(language),
+          rules: "",
+          detail: "",
+          task: mergeGoalTask(language),
+          ancestors: "",
+          referenceGroups: [sourceGroup],
+          // Within budget the sources go in as written (one request); only over-budget sources are extracted first.
+          referenceDelivery: "direct",
+          onProgress: message => {
+            if (!this.isLiveMergeTask(task)) return;
+            task.progress = message;
+            this.render();
+          },
+          outputLanguage: language,
+          mode: "merge",
+          researchMode: "local",
+          researchDepth: "normal",
+          visualMode: "off",
+          detailTemplate: this.mapDetailTemplate(language)
+        },
+        task.model,
+        this.plugin.settings.cliReasoning,
+        task.controller.signal
+      );
+      if (!this.isLiveMergeTask(task)) return;
+      const latest = await this.topicReferenceGroup(task.sources, "strong", { origin: false });
+      if (!this.isLiveMergeTask(task)) return;
+      if (JSON.stringify(latest.documents) !== task.sourceContent) {
+        task.state = "failed";
+        task.message = t("ui.merge_draft_stale");
+        this.render();
+        return;
+      }
+      task.state = "draft";
+      task.draft = result;
+      task.progress = "";
+      this.render();
+      backgroundResultNotice(t("ui.merge_draft_ready_0", task.title), {
+        label: t("ui.review_merge_draft"),
+        open: () => this.reviewMergeDraft(task)
+      });
+    } catch (error) {
+      if (!this.isLiveMergeTask(task)) return;
+      task.state = "failed";
+      task.message = this.plugin.recordFailure(t("log.merge_failed"), error);
+      new Notice(task.message);
+      this.render();
+    }
+  }
+  /** Stop, or clear a finished one: the run is aborted and forgotten, so a late result changes nothing. */
+  private stopMergeTask(task: MergeTask): void {
+    if (this.mergeTasks.get(task.mapPath) === task) this.mergeTasks.delete(task.mapPath);
+    task.controller.abort();
+    this.render();
+  }
+  private reviewMergeDraft(task: MergeTask): void {
+    if (this.mergeTasks.get(task.mapPath) !== task || task.state !== "draft" || !task.draft || this.closed) return;
+    if (this.path !== task.mapPath) {
+      new Notice(t("ui.merge_open_map_first_0", task.mapTitle));
+      return;
+    }
+    const draft = task.draft;
+    new DraftReviewModal(
+      this.app,
+      draft.summary,
+      draft.detail,
+      {
+        intro: t("ui.merge_draft_intro", task.title, task.sources.length),
+        confirmLabel: t("ui.confirm_merge"),
+        title: t("ui.review_merge_draft")
+      },
+      // Return the write so a failure keeps the dialog, and the user's edits, open with the error.
+      (summary, detail) => this.confirmMergeDraft(task, summary, detail),
+      () => this.stopMergeTask(task)
+    ).open();
+  }
+  /** Writes a reviewed AI merge draft (the user's edited summary and Detail) through the write queue. */
+  private confirmMergeDraft(task: MergeTask, summary: string, detail: string): Promise<void> {
+    const draft = task.draft;
+    if (!draft) return Promise.reject(new Error(t("ui.merge_draft_stale")));
+    return this.plugin.mutate(() =>
+      this.mergeSelected(
+        task.title,
+        { path: task.mapPath, mapId: task.mapId, sources: task.sources },
+        {
+          summary,
+          detail,
+          visualReferences: draft.visualReferences,
+          formatIssues: draft.formatIssues,
+          sourceContent: task.sourceContent,
+          task
+        }
+      )
+    );
+  }
+  /** Puts moved notes back where they were and restores their lifecycle, newest move first. */
+  private async revertMergeMoves(moves: MergeMove[]): Promise<void> {
+    for (const move of [...moves].reverse()) {
+      if (this.app.vault.getAbstractFileByPath(move.to) && !this.app.vault.getAbstractFileByPath(move.from))
+        await this.plugin.repo.moveExact(move.to, move.from);
+      await this.plugin.repo.setLifecycle(move.from, move.topicId, move.restoreMapId, move.restoreState);
+    }
+  }
+  /**
+   * Replaces the selected sibling topics with one new topic: their Details become sections of the new Detail, their
+   * notes go to Unassigned, their subtopics move under the new topic. One history step; a failure puts everything back.
+   */
+  private async mergeSelected(
+    title: string,
+    snapshot: { path: string; mapId: string; sources: { id: string; path: string }[] },
+    content?: {
+      summary: string;
+      detail: string;
+      visualReferences: AiResult["visualReferences"];
+      formatIssues: AiResult["formatIssues"];
+      sourceContent: string;
+      task: MergeTask;
+    }
+  ): Promise<void> {
+    // A confirmed AI draft that no longer fits fails loudly and writes nothing; the plain merge just does nothing.
+    const stale = (): never => {
+      if (content && this.mergeTasks.get(snapshot.path) === content.task) {
+        content.task.state = "failed";
+        content.task.message = t("ui.merge_draft_stale");
+        if (!this.closed) this.render();
+      }
+      throw new Error(t("ui.merge_draft_stale"));
+    };
+    if (
+      this.closed ||
+      !this.map ||
+      this.map.aim ||
+      this.builtIn ||
+      this.path !== snapshot.path ||
+      this.map.id !== snapshot.mapId
+    ) {
+      if (content) stale();
+      return;
+    }
+    if (content && (this.mergeTasks.get(snapshot.path) !== content.task || content.task.state !== "draft")) stale();
+    const check = this.mergeCheck(
+      snapshot.sources.map(source => source.id),
+      content?.task
+    );
+    if (!check.ok) {
+      if (content) stale();
+      new Notice(t(check.reason));
+      return;
+    }
+    if (check.sources.some(node => snapshot.sources.find(source => source.id === node.id)?.path !== node.path)) {
+      if (content) stale();
+      new Notice(t("ui.merge_missing_note"));
+      return;
+    }
+    const sources = check.sources,
+      mapPath = this.path,
+      repo = this.plugin.repo,
+      before = clone(this.map),
+      language = this.plugin.settings.language;
+    if (content) {
+      let latest: string | undefined;
+      try {
+        latest = JSON.stringify((await this.topicReferenceGroup(sources, "strong", { origin: false })).documents);
+      } catch {
+        /* An unreadable source is a changed source. */
+      }
+      if (latest !== content.sourceContent) stale();
+    }
+    let detail = "";
+    if (!content) {
+      const sourceNotes: Note[] = [];
+      for (const source of sources) sourceNotes.push(await repo.readNote(source.path, before));
+      detail = mergedDetail(
+        sources.map((_, index) => ({ title: sourceNotes[index].title, detail: sourceNotes[index].detail }))
+      );
+    }
+    const model = content?.task.model ?? (await this.mergeModel(check.parentId));
+    const created = await repo.createNote(
+      title,
+      model,
+      before,
+      mapPath,
+      check.parentId ? "inherited" : "workspace",
+      content ? undefined : { detail }
+    );
+    const done: MergeMove[] = [],
+      moves: FileMove[] = [];
+    const after = clone(before);
+    try {
+      if (content) {
+        const detailTemplate = this.mapDetailTemplate(language);
+        await repo.updateNote(
+          created.path,
+          {
+            summary: content.summary,
+            detail: canonicalDetail(content.detail, language, detailTemplate),
+            visualReferences: visualReferencesMarkdown(content.visualReferences, language),
+            prompt: mergeGoalTask(language),
+            sourcePaths: sources.map(source => source.path),
+            status: "completed",
+            ...formatIssuesPatch(content.formatIssues, language)
+          },
+          { detailTemplate }
+        );
+      } else
+        await repo.updateNote(created.path, {
+          sourcePaths: sources.map(source => source.path),
+          status: mergedStatus(detail)
+        });
+      for (const source of sources) {
+        const target = await repo.moveUnique(source.path, repo.topicFolder(mapPath, "Unassigned"));
+        done.push({
+          from: source.path,
+          to: target,
+          topicId: before.id,
+          restoreMapId: before.id,
+          restoreState: "active"
+        });
+        moves.push({ activePath: source.path, parkedPath: target, topicId: before.id, parkedState: "unassigned" });
+        await repo.setLifecycle(target, before.id, "", "unassigned");
+      }
+      const ids = new Set(sources.map(source => source.id)),
+        first = sources[0],
+        merged: MapNode = { ...created, parentId: check.parentId, x: first.x, y: first.y, collapsed: false },
+        adopted = new Set<string>();
+      for (const item of after.nodes)
+        if (item.parentId !== null && ids.has(item.parentId)) {
+          item.parentId = merged.id;
+          adopted.add(item.id);
+          for (const id of descendants(after.nodes, item.id)) adopted.add(id);
+        }
+      after.nodes = after.nodes.flatMap(item => (item.id === first.id ? [merged] : ids.has(item.id) ? [] : [item]));
+      if (adopted.size) after.nodes = arrangeNewBranch(after.nodes, merged.id, adopted, this.cardHeightOf);
+      await repo.saveMap(mapPath, after);
+    } catch (error) {
+      try {
+        await this.revertMergeMoves(done);
+        await repo.saveMap(mapPath, before);
+        const parked = await repo.moveUnique(created.path, repo.topicFolder(mapPath, "Unassigned"));
+        await repo.setLifecycle(parked, before.id, "", "unassigned");
+        this.map = before;
+        await this.plugin.rebuildDerivedData();
+        await this.hydrate();
+        this.render();
+      } catch (rollbackError) {
+        throw new AggregateError([error, rollbackError], t("error.merge_rollback_failed"));
+      }
+      throw error;
+    }
+    const state: MergeState = {
+      before,
+      after,
+      newId: created.id,
+      newActive: created.path,
+      newParked: null,
+      sources: moves
+    };
+    this.map = after;
+    if (content && this.mergeTasks.get(mapPath) === content.task) this.mergeTasks.delete(mapPath);
+    this.history.push({
+      label: t("ui.merge_topics_history"),
+      undo: () => this.applyMerge(state, false),
+      redo: () => this.applyMerge(state, true)
+    });
+    this.integrationMode = false;
+    this.selected = created.id;
+    this.multiSelected.clear();
+    try {
+      await this.plugin.rebuildDerivedData();
+      await this.hydrate();
+      this.render();
+      const merged = this.map?.nodes.find(item => item.id === created.id);
+      if (merged) this.focusNode(merged);
+    } catch {
+      this.render();
+      new Notice(t("ui.merge_saved_refresh_failed"));
+    }
+  }
+  /** Undo (`merged` false) or redo (`merged` true) of a merge: the same notes move between the same two paths. */
+  private async applyMerge(state: MergeState, merged: boolean): Promise<void> {
+    const previous = clone(this.map!),
+      repo = this.plugin.repo,
+      mapPath = this.path,
+      topicId = state.before.id,
+      done: MergeMove[] = [];
+    const parkNew = async (): Promise<void> => {
+      const target = state.newParked
+        ? (await repo.moveExact(state.newActive, state.newParked), state.newParked)
+        : await repo.moveUnique(state.newActive, repo.topicFolder(mapPath, "Unassigned"));
+      state.newParked = target;
+      done.push({ from: state.newActive, to: target, topicId, restoreMapId: topicId, restoreState: "active" });
+      await repo.setLifecycle(target, topicId, "", "unassigned");
+    };
+    const unparkNew = async (): Promise<void> => {
+      await repo.moveExact(state.newParked!, state.newActive);
+      done.push({ from: state.newParked!, to: state.newActive, topicId, restoreMapId: "", restoreState: "unassigned" });
+      await repo.setLifecycle(state.newActive, topicId, topicId, "active");
+    };
+    const parkSources = async (): Promise<void> => {
+      for (const move of state.sources) {
+        await repo.moveExact(move.activePath, move.parkedPath);
+        done.push({
+          from: move.activePath,
+          to: move.parkedPath,
+          topicId,
+          restoreMapId: topicId,
+          restoreState: "active"
+        });
+        await repo.setLifecycle(move.parkedPath, topicId, "", "unassigned");
+      }
+    };
+    const unparkSources = async (): Promise<void> => {
+      for (const move of state.sources) {
+        await repo.moveExact(move.parkedPath, move.activePath);
+        done.push({
+          from: move.parkedPath,
+          to: move.activePath,
+          topicId,
+          restoreMapId: "",
+          restoreState: "unassigned"
+        });
+        await repo.setLifecycle(move.activePath, topicId, topicId, "active");
+      }
+    };
+    try {
+      if (merged) {
+        await parkSources();
+        await unparkNew();
+      } else {
+        await parkNew();
+        await unparkSources();
+      }
+      const next = clone(merged ? state.after : state.before);
+      next.viewport = clone(previous.viewport);
+      await repo.saveMap(mapPath, next);
+      this.map = next;
+      if (this.selected && !next.nodes.some(item => item.id === this.selected)) this.selected = null;
+      await this.plugin.rebuildDerivedData();
+      await this.hydrate();
+      this.render();
+    } catch (error) {
+      try {
+        await this.revertMergeMoves(done);
+        await repo.saveMap(mapPath, previous);
+        this.map = previous;
+        await this.plugin.rebuildDerivedData();
+        await this.hydrate();
+        this.render();
+      } catch (rollbackError) {
+        throw new AggregateError([error, rollbackError], t("error.merge_rollback_failed"));
+      }
+      throw error;
+    }
+  }
   private selectedRoots(): MapNode[] {
     if (!this.map) return [];
     return this.map.nodes.filter(
@@ -4128,7 +4702,7 @@ export class VisualAgentMapView extends ItemView {
     // Hover-only tools float above the card's top edge, so showing them (hover, focus, selection) never moves the card's
     // content. What must always show (status, stop and review actions, a folded branch's count) stays in the header.
     // Every tool is labelled: the toolbar floats, so its width never moves the card. Order: fold, structure, rename,
-    // details, then the AI action last.
+    // select subtopics, details, then the AI action last.
     const tools = card.createDiv("vam-node-tools");
     const count = descendants(this.map!.nodes, node.id).size;
     if (count && !this.builtIn) {
@@ -4159,6 +4733,12 @@ export class VisualAgentMapView extends ItemView {
               this.enqueue(() => this.noteChange(node, { title }))
             ).open()
           ).addClass("vam-node-tool", "vam-rename-tool");
+        // Select every direct subtopic in one press. A folded card hides them, so it offers Expand instead.
+        if (!node.collapsed && this.map!.nodes.some(item => item.parentId === node.id)) {
+          const select = this.button(tools, t("ui.select_subtopics"), () => this.selectSubtopics(node));
+          select.addClass("vam-node-tool", "vam-select-subtopics-tool");
+          select.setAttr("aria-label", t("ui.select_subtopics_hint"));
+        }
       }
       if (node.aimKind === "question") {
         const remove = this.button(tools, t("ui.node_tool_remove"), () => this.confirmRemoveNode(node));
@@ -4361,7 +4941,9 @@ export class VisualAgentMapView extends ItemView {
     else card.addClass("is-readonly");
     card.addEventListener("click", event => {
       if (Date.now() < this.suppressClickUntil) return;
-      if ((event.target as Element).closest("button") || event.metaKey || event.ctrlKey) return;
+      if ((event.target as Element).closest("button")) return;
+      // Outside selection mode, Cmd/Ctrl+click is handled on pointerup (enableDrag); inside it a click just toggles.
+      if ((event.metaKey || event.ctrlKey) && !this.integrationMode) return;
       if (this.integrationMode) {
         if (this.multiSelected.has(node.id)) this.multiSelected.delete(node.id);
         else this.multiSelected.add(node.id);
@@ -5801,6 +6383,17 @@ export class VisualAgentMapView extends ItemView {
       () => this.integrateSelected(),
       count < 2
     ).addClass("mod-cta");
+    if (!this.map?.aim && !this.builtIn) {
+      // Not natively disabled: a disabled button cannot take focus, so keyboard and screen-reader users could not read why.
+      const check = this.mergeCheck(),
+        merge = this.button(selection, count > 1 ? t("ui.merge_0_topics", count) : t("ui.merge"), () =>
+          this.openMerge()
+        );
+      if (!check.ok) {
+        merge.setAttr("aria-disabled", "true");
+        merge.setAttr("title", t(check.reason));
+      }
+    }
     if (!this.map?.aim) {
       const running = this.plugin.expansionBatches.get(this.multiResearchKey())?.status === "running";
       this.button(
@@ -6629,8 +7222,10 @@ export class VisualAgentMapView extends ItemView {
     });
   }
   private async topicReferenceGroup(
-    sources: MapNode[],
-    mode: "strong" | "summary" = "strong"
+    sources: Pick<MapNode, "path">[],
+    mode: "strong" | "summary" = "strong",
+    /** `origin: false` leaves each note's Thinking Origin out (an AI merge never sends it). */
+    options: { origin?: boolean } = {}
   ): Promise<ReferenceGroup> {
     const language = this.plugin.settings?.language ?? "zh-TW";
     const notes = await Promise.all(
@@ -6647,7 +7242,7 @@ export class VisualAgentMapView extends ItemView {
         visuals ? `${labelVisualReferences(language)}\n${visuals}` : "",
         mode === "strong" && note.detail.trim() ? `${labelFullKnowledge(language)}\n${note.detail.trim()}` : "",
         finding ? `${labelOldFindings(language)} ${finding}` : "",
-        note.thinkingOrigin ? thinkingOriginDocumentBlock(note.thinkingOrigin) : ""
+        note.thinkingOrigin && options.origin !== false ? thinkingOriginDocumentBlock(note.thinkingOrigin) : ""
       ]
         .filter(Boolean)
         .join("\n\n");
@@ -6975,8 +7570,16 @@ export class VisualAgentMapView extends ItemView {
     this.transform();
     this.saveViewport();
   }
-  /** Drag-selects topics: every card the box touches joins the selection; existing picks stay. */
-  private startMarquee(viewport: HTMLElement, event: PointerEvent): void {
+  /**
+   * Drag-selects topics. `marquee-add` adds every card the box touches (existing picks stay); `marquee-subtract` removes
+   * them; `marquee-enter` is the normal-mode Shift+drag: boxed cards are selected and topic selection starts, and a box
+   * that touches nothing changes nothing.
+   */
+  private startMarquee(
+    viewport: HTMLElement,
+    event: PointerEvent,
+    mode: "marquee-enter" | "marquee-add" | "marquee-subtract" = "marquee-add"
+  ): void {
     const host = viewport.getBoundingClientRect();
     const startX = event.clientX,
       startY = event.clientY;
@@ -7013,7 +7616,9 @@ export class VisualAgentMapView extends ItemView {
           item.rect.top < bottom &&
           item.rect.bottom > top;
         if (hit) hits.add(item.id);
-        item.card.toggleClass("is-marquee-hit", hit && !already.has(item.id));
+        // Removal is outlined differently (dashed) so it never reads as an addition by colour alone.
+        if (mode === "marquee-subtract") item.card.toggleClass("is-marquee-remove", hit && already.has(item.id));
+        else item.card.toggleClass("is-marquee-hit", hit && !already.has(item.id));
       }
     };
     const up = (): void => {
@@ -7022,9 +7627,24 @@ export class VisualAgentMapView extends ItemView {
       viewport.removeEventListener("pointercancel", up);
       viewport.removeClass("is-marquee");
       box.remove();
-      for (const item of cards) item.card.removeClass("is-marquee-hit");
+      for (const item of cards) {
+        item.card.removeClass("is-marquee-hit");
+        item.card.removeClass("is-marquee-remove");
+      }
       if (!hits.size) return;
+      if (mode === "marquee-subtract") {
+        const removed = [...hits].filter(id => this.multiSelected.has(id));
+        if (!removed.length) return;
+        for (const id of removed) this.multiSelected.delete(id);
+        this.commitSelection(this.selected, this.selected, removed);
+        return;
+      }
       for (const id of hits) this.multiSelected.add(id);
+      if (mode === "marquee-enter") {
+        this.integrationMode = true;
+        if (!this.closed) this.render();
+        return;
+      }
       this.commitSelection(this.selected, this.selected, hits);
     };
     viewport.addEventListener("pointermove", move);
@@ -7082,14 +7702,21 @@ export class VisualAgentMapView extends ItemView {
     );
     viewport.addEventListener("pointerdown", event => {
       if ((event.target as Element).closest(".vam-node") || !this.map) return;
-      // Topic selection turns a plain drag into a selection box; Option (Alt), Space or the middle button still pans.
-      const pan =
-        event.button === 1 || (event.button === 0 && (!this.integrationMode || this.spaceHeld || event.altKey));
-      if (event.button === 0 && !pan) {
-        this.startMarquee(viewport, event);
+      // Normal mode: a drag pans, Shift+drag draws a selection box. Topic selection mode: a drag adds to the selection,
+      // Option (Alt)+drag removes from it, and Space+drag or the middle button pans.
+      const intent = canvasPointerIntent({
+        button: event.button,
+        integrationMode: this.integrationMode,
+        spaceHeld: this.spaceHeld,
+        altKey: event.altKey,
+        // The read-only sample and AIM maps have no topic selection, so Shift+drag there is a plain pan.
+        shiftKey: event.shiftKey && this.canSelectTopics()
+      });
+      if (intent === "marquee-enter" || intent === "marquee-add" || intent === "marquee-subtract") {
+        this.startMarquee(viewport, event, intent);
         return;
       }
-      if (!pan) return;
+      if (intent !== "pan") return;
       if (event.button === 1) event.preventDefault();
       const x = event.clientX,
         y = event.clientY,
@@ -7122,6 +7749,20 @@ export class VisualAgentMapView extends ItemView {
       viewport.addEventListener("pointerup", up);
       viewport.addEventListener("pointercancel", up);
     });
+  }
+  /** Topic selection (remove, move, copy, synthesize, merge) exists only on editable, non-AIM maps. */
+  private canSelectTopics(): boolean {
+    return !this.builtIn && !!this.map && !this.map.aim;
+  }
+  /** Starts topic selection with exactly the card's direct subtopics picked (replacing any earlier selection). */
+  private selectSubtopics(node: MapNode): void {
+    if (!this.map) return;
+    const ids = this.map.nodes.filter(item => item.parentId === node.id).map(item => item.id);
+    if (!ids.length) return;
+    this.multiSelected = new Set(ids);
+    this.selected = null;
+    this.integrationMode = true;
+    if (!this.closed) this.render();
   }
   private enableDrag(card: HTMLElement, node: MapNode): void {
     card.addEventListener("pointerdown", event => {
@@ -7190,9 +7831,18 @@ export class VisualAgentMapView extends ItemView {
         } else if (e.metaKey || e.ctrlKey) {
           const previous = this.selected,
             touched = [...this.multiSelected, node.id];
+          // "Click A, then Cmd+click B" selects both: the single selected card seeds the multi-selection.
+          if (this.canSelectTopics() && !this.multiSelected.size && previous && previous !== node.id)
+            this.multiSelected.add(previous);
           if (this.multiSelected.has(node.id)) this.multiSelected.delete(node.id);
           else this.multiSelected.add(node.id);
           this.selected = node.id;
+          // Two or more picked cards is topic selection: show its bar instead of leaving an invisible multi-selection.
+          if (this.canSelectTopics() && this.multiSelected.size >= 2) {
+            this.integrationMode = true;
+            if (!this.closed) this.render();
+            return;
+          }
           this.commitSelection(previous, node.id, touched);
         } else {
           const previous = this.selected,

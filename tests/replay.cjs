@@ -440,6 +440,38 @@ test('parse-layer replay: a recorded live log converts without a manifest and re
   } finally { fs.rmSync(directory, { recursive: true, force: true }); }
 });
 
+// Merge mode: one request when the sources fit, extraction only when they do not, and a prompt that cannot ask for synthesis.
+const mergeReply = JSON.stringify({ summary: 'S', detail: 'D', suggestions: [], visualReferences: [] });
+const mergeContext = (content, over = {}) => ({ title: 'T', summary: 'No summary yet', rules: '', detail: '', task: 'MERGE-TASK', ancestors: '', mode: 'merge', researchMode: 'local', researchDepth: 'normal', visualMode: 'off', referenceDelivery: 'direct', referenceGroups: [{ id: 'g', name: 'Sources', location: 'Map.md', documents: [{ path: 'Notes/A.md', content }, { path: 'Notes/B.md', content: 'second source' }] }], ...over });
+test('merge request: sources that fit one batch go in as written in a single task.run request', async () => {
+  const runtime = replayRuntime([{ response: mergeReply }]);
+  await makeService(runtime, { language: 'en' }).askModel(mergeContext('first source facts: 42 degrees'), 'claude:sonnet', 'low');
+  assert.equal(runtime.calls.length, 1, 'no extraction pass');
+  assert.match(runtime.calls[0].prompt, /first source facts: 42 degrees/); assert.match(runtime.calls[0].prompt, /second source/);
+});
+test('merge request: sources over the batch budget are still extracted first, and a normal synthesis always is', async () => {
+  const big = 'x'.repeat(20_000);
+  const runtime = replayRuntime([{ response: JSON.stringify({ summary: '', detail: 'finding', suggestions: [], visualReferences: [] }) }, { response: JSON.stringify({ summary: '', detail: 'finding', suggestions: [], visualReferences: [] }) }, { response: JSON.stringify({ summary: '', detail: 'finding', suggestions: [], visualReferences: [] }) }, { response: mergeReply }]);
+  await makeService(runtime, { language: 'en' }).askModel(mergeContext(big), 'claude:sonnet', 'low');
+  assert.ok(runtime.calls.length >= 2, 'extraction then the task');
+  const synth = replayRuntime([{ response: JSON.stringify({ summary: '', detail: 'finding', suggestions: [], visualReferences: [] }) }, { response: mergeReply }]);
+  await makeService(synth, { language: 'en' }).askModel(mergeContext('short', { mode: 'synthesize', referenceDelivery: undefined }), 'claude:sonnet', 'low');
+  assert.equal(synth.calls.length, 2, 'synthesize keeps its extraction pass');
+});
+test('merge prompt never asks for synthesis (agreements, tradeoffs, open questions) or for added callouts; synthesize still does', async () => {
+  for (const [language, ask, forbid] of [['en', /agreements, disagreements, tradeoffs/, /Practical tips or examples/], ['zh-TW', /共識、分歧、取捨/, /實用提醒|實用技巧/]]) {
+    const merge = replayRuntime([{ response: mergeReply }]), synth = replayRuntime([{ response: JSON.stringify({ summary: '', detail: 'finding', suggestions: [], visualReferences: [] }) }, { response: mergeReply }]);
+    await makeService(merge, { language }).askModel(mergeContext('a'), 'claude:sonnet', 'low');
+    await makeService(synth, { language }).askModel(mergeContext('a', { mode: 'synthesize', referenceDelivery: undefined }), 'claude:sonnet', 'low');
+    const mergePrompt = merge.calls.at(-1).prompt, synthPrompt = synth.calls.at(-1).prompt;
+    assert.doesNotMatch(mergePrompt, ask, `${language}: merge prompt has no synthesize instruction`); assert.match(synthPrompt, ask, `${language}: synthesize unchanged`);
+    assert.doesNotMatch(mergePrompt, /Synthesize mode|這是 Synthesize 模式/);
+    assert.match(mergePrompt, /Merge mode|這是 Merge 模式/); assert.match(mergePrompt, /MERGE-TASK/);
+    assert.match(mergePrompt, language === 'en' ? /Do not add comparisons, trends/ : /不得新增來源沒有的比較、趨勢/);
+    assert.doesNotMatch(mergePrompt, /\[!tip\]/, `${language}: no callout suggestions`); assert.match(synthPrompt, /\[!tip\]/);
+  }
+});
+
 const corpusDirectory = process.env.VAM_REPLAY_CORPUS;
 if (corpusDirectory) {
   const files = fs.readdirSync(corpusDirectory).filter(file => file.endsWith('.replay.json')).sort();

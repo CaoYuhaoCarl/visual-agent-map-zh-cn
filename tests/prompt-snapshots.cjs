@@ -113,13 +113,22 @@ test('collect snapshots: Visual Map expansion and synthesis tasks', async () => 
     await view.proposeIntegrationDirections(parent, { researchMode: 'local', researchDepth: 'normal', visualMode: 'off', requirements: 'Only compare cost', referenceGroups: [], outputLanguage: language }, (_items, draft) => { choose = draft; }, () => {}, message => { throw new Error(message); });
     contexts.kind = 'synthesis-draft-default-goal';
     if (choose) await choose('').catch(() => {});
+    // AI merge of two sibling topics (prompt.merge_goal): the sources go in as one reference group, without Thinking Origin.
+    const second = await repo.createNote('Second child', 'model-a', mapDoc, mapPath, 'workspace'); second.parentId = parent.id; mapDoc.nodes.push(second);
+    await repo.updateNote(second.path, { summary: 'Second summary', detail: 'Second detail', thinkingOrigin: 'Origin never sent' });
+    view.notes = new Map(await Promise.all(mapDoc.nodes.map(async item => [item.id, await repo.readNote(item.path, mapDoc)])));
+    plugin.confirmAiUsage = async (_model, run) => { await run(); return true; };
+    contexts.kind = 'merge-draft';
+    await view.startMergeDraft('Merged child', { path: mapPath, mapId: 'map-a', parentId: parent.id, sources: [child, second].map(item => ({ id: item.id, path: item.path })) }, () => {}, new AbortController().signal);
+    await view.mergeTasks.get(mapPath).run;
+    assert.doesNotMatch(JSON.stringify(contexts.at(-1).context), /Origin never sent/);
     const seen = new Set();
     for (const { kind, context } of contexts) {
       if (seen.has(kind)) continue; seen.add(kind);
       assert.ok(context.task.length > 0);
       await recordContext(`view.${kind}.${tag}`, `VisualAgentMapView ${kind} TaskContext through AiTaskService`, language, { ...context, onProgress: undefined, signal: undefined });
     }
-    assert.ok(seen.has('guided') && seen.has('synthesis-directions'), `view cases captured: ${[...seen].join(',')}`);
+    assert.ok(seen.has('guided') && seen.has('synthesis-directions') && seen.has('merge-draft'), `view cases captured: ${[...seen].join(',')}`);
   }
 });
 

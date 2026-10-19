@@ -1724,6 +1724,8 @@ export interface DraftReview {
   currentSummary?: string;
   confirmLabel: string;
   sourcePath?: string;
+  /** Dialog title; defaults to the synthesis draft title. */
+  title?: string;
 }
 /**
  * Reviews an AI draft inside any dialog: rendered by default, editable on demand, and clear about what it changes.
@@ -1850,6 +1852,7 @@ export class DraftReviewView {
 /** The draft review as a dialog of its own: used when a finished draft is opened from its node badge or selection bar. */
 export class DraftReviewModal extends Modal {
   private view: DraftReviewView;
+  private title?: string;
   constructor(
     app: App,
     summary: string,
@@ -1859,11 +1862,12 @@ export class DraftReviewModal extends Modal {
     discard?: () => void
   ) {
     super(app);
+    this.title = review.title;
     this.view = new DraftReviewView(app, summary, detail, review, confirm, discard, () => this.close());
   }
   onOpen(): void {
     this.modalEl.addClass("vam-draft-modal");
-    this.titleEl.setText(t("ui.review_synthesis_draft"));
+    this.titleEl.setText(this.title ?? t("ui.review_synthesis_draft"));
     this.view.mount(this.contentEl, reviewActions(this));
   }
   onClose(): void {

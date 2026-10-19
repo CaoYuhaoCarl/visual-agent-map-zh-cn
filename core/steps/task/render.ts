@@ -29,6 +29,7 @@ import {
   JSON_CONTRACT,
   LABEL_DETAIL,
   LABEL_FINDINGS,
+  MERGE,
   OUTPUT_LANGUAGE,
   SYNTHESIZE
 } from "./fragments";
@@ -49,7 +50,9 @@ export function generalTaskPrompt(context: TaskContext, language: UiLanguage): s
         ? DECOMPOSE
         : context.mode === "synthesize"
           ? SYNTHESIZE
-          : DEFAULT_TASK;
+          : context.mode === "merge"
+            ? MERGE
+            : DEFAULT_TASK;
   const none = inLanguage(NONE, language);
   return [
     inLanguage(OUTPUT_LANGUAGE, language),
@@ -67,7 +70,8 @@ export function generalTaskPrompt(context: TaskContext, language: UiLanguage): s
             : detailStructurePrompt(context.detailTemplate ?? standardTemplate(language), language, headings =>
                 detailStructure(language, headings)
               ),
-          readerFacingDetail(context) ? inLanguage(OBSIDIAN_FORMAT, language) : ""
+          // A merge keeps the sources' own formatting; the syntax suggestions would invite callouts the sources lack.
+          readerFacingDetail(context) && context.mode !== "merge" ? inLanguage(OBSIDIAN_FORMAT, language) : ""
         ]
           .filter(Boolean)
           .join("\n\n")

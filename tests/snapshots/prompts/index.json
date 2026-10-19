@@ -821,6 +821,16 @@
       "language": "zh-TW",
       "schema": true
     },
+    "view.merge-draft.en": {
+      "builder": "VisualAgentMapView merge-draft TaskContext through AiTaskService",
+      "language": "en",
+      "schema": true
+    },
+    "view.merge-draft.zh": {
+      "builder": "VisualAgentMapView merge-draft TaskContext through AiTaskService",
+      "language": "zh-TW",
+      "schema": true
+    },
     "view.synthesis-directions.en.1": {
       "builder": "VisualAgentMapView synthesis-directions TaskContext through AiTaskService",
       "language": "en",

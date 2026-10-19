@@ -1224,9 +1224,9 @@ integrationTest('select mode: the selection bar names each action with the topic
     return bar.children.filter(child => child.tag === 'button').map(button => [button.text, button.disabled]);
   };
   const none = labels([]);
-  assert.deepEqual(none.slice(-2), [['Synthesize', true], ['Research', true]]);
-  assert.deepEqual(labels(['a']).slice(-2), [['Synthesize', true], ['Research 1 topic', false]]);
-  assert.deepEqual(labels(['a', 'b', 'c']).slice(-2), [['Synthesize 3 topics', false], ['Research 3 topics', false]]);
+  assert.deepEqual(none.slice(-3), [['Synthesize', true], ['Merge', false], ['Research', true]]);
+  assert.deepEqual(labels(['a']).slice(-3), [['Synthesize', true], ['Merge', false], ['Research 1 topic', false]]);
+  assert.deepEqual(labels(['a', 'b', 'c']).slice(-3), [['Synthesize 3 topics', false], ['Merge 3 topics', false], ['Research 3 topics', false]]);
   const { translate } = load('i18n.ts');
   assert.equal(translate('zh-TW', 'ui.synthesize_0_topics', 3), '整合 3 個議題'); assert.equal(translate('zh-TW', 'ui.research_0_topics', 3), '研究 3 個議題');
 });
@@ -1326,8 +1326,8 @@ integrationTest('canvas hint: a solid chip that goes away after the first zoom o
   const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
   assert.match(css, /^\.vam-canvas-overlay > \.vam-canvas-hint \{ position: absolute;[^}]*border: 1px solid var\(--background-modifier-border\);[^}]*background: var\(--background-primary\);/m, 'a solid chip with a border');
   const { translate } = load('i18n.ts');
-  assert.equal(translate('zh-TW', 'ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open'), '拖曳空白處平移 · 滾輪縮放 · 方向鍵切換議題');
-  assert.equal(translate('zh-TW', 'ui.drag_to_select_topics_hint'), '拖曳框選 · 按住 Option 或空白鍵拖曳平移 · 點議題加入或移除');
+  assert.equal(translate('zh-TW', 'ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open'), '拖曳空白處平移 · Shift＋拖曳框選 · 滾輪縮放 · 方向鍵切換議題');
+  assert.equal(translate('zh-TW', 'ui.drag_to_select_topics_hint'), '拖曳框選 · 按住 Option 拖曳減選 · 按住空白鍵拖曳或用中鍵平移 · 點議題加入或移除');
 });
 integrationTest('a viewport-only write skips the note re-read, while a content write still synchronizes', async () => {
   const { plugin, view, counts } = viewportFixture();
@@ -1432,7 +1432,7 @@ integrationTest('startup opens no topic outline, including on first install, whi
   }
   assert.match(fs.readFileSync(path.join(root, 'main.ts'), 'utf8'), /addLocalizedCommand\("open-topic-outline"/);
 });
-integrationTest('card tools: labelled actions wait for hover, focus or selection, in the order Collapse, Structure, Rename, Details, AI explore', () => {
+integrationTest('card tools: labelled actions wait for hover, focus or selection, in the order Collapse, Structure, Rename, Select subtopics, Details, AI explore', () => {
   const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
   // The tools float over the card's top edge, hidden until hover, focus or selection, and take no space.
   assert.match(css, /^\.vam-node > \.vam-node-tools \{ position: absolute;[^}]*bottom: calc\(100% - 6px\);[^}]*opacity: 0; pointer-events: none;[^}]*width: max-content;/m);
@@ -1447,11 +1447,11 @@ integrationTest('card tools: labelled actions wait for hover, focus or selection
     return tools.children.filter(child => child.tag === 'button');
   };
   const buttons = toolsOf();
-  assert.deepEqual(buttons.map(button => button.text), ['Collapse', 'Structure', 'Rename', 'Details', 'AI explore']);
+  assert.deepEqual(buttons.map(button => button.text), ['Collapse', 'Structure', 'Rename', 'Select subtopics', 'Details', 'AI explore']);
   const explore = buttons.at(-1);
   assert.ok(explore.classes.has('vam-ai-explore')); assert.equal(explore.attrs['aria-label'], undefined, 'the visible text is the accessible name (WCAG 2.5.3)');
   assert.equal(buttons.filter(button => button.classes.has('vam-ai-explore')).length, 1, 'one AI button');
-  assert.equal(buttons[1].attrs['aria-label'], 'Structure and links'); assert.equal(buttons[3].attrs['aria-label'], 'Open details in right sidebar');
+  assert.equal(buttons[1].attrs['aria-label'], 'Structure and links'); assert.equal(buttons[3].attrs['aria-label'], 'Select every direct subtopic of this topic'); assert.equal(buttons[4].attrs['aria-label'], 'Open details in right sidebar');
   assert.equal(buttons[2].attrs['aria-label'], undefined);
   // A leaf has no Collapse; the sample keeps only Details; select mode keeps only Details.
   assert.deepEqual(toolsOf(({ view }) => { view.map.nodes = view.map.nodes.filter(item => item.id !== 'c'); }).map(button => button.text), ['Structure', 'Rename', 'Details', 'AI explore']);
@@ -1737,4 +1737,178 @@ integrationTest('AIM canvas treats superseded interim results as hidden (behavio
   const source = fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8');
   assert.equal((source.match(/visibleNodes\(this\.map/g) ?? []).length, 1, 'only canvasNodes() calls visibleNodes on the map');
   assert.equal((source.match(/arrangeMap\(map\.nodes\)/g) ?? []).length, 0, 'every arrangeMap call passes the hidden set');
+});
+
+// ---- Merge topics, Phase 1: quick selection (select subtopics, Shift-drag, Cmd-click, Option-drag) ----
+integrationTest('Select subtopics: shown only for an unfolded, non-AIM card that has direct subtopics, and it picks exactly those', () => {
+  const toolTexts = (setup = () => {}, id = 'a') => {
+    const fixture = selectionView(load); setup(fixture); fixture.build();
+    const tools = fixture.cards()[id].children.find(child => child.classes.has('vam-node-tools'));
+    return { fixture, buttons: tools.children.filter(child => child.tag === 'button') };
+  };
+  const has = (setup, id) => toolTexts(setup, id).buttons.some(button => button.text === 'Select subtopics');
+  assert.equal(has(), true, 'a has the direct subtopic c');
+  assert.equal(has(undefined, 'b'), false, 'a leaf has none');
+  assert.equal(has(({ doc, view }) => { doc.nodes.find(n => n.id === 'a').collapsed = true; }), false, 'a folded card hides its subtopics and offers Expand instead');
+  assert.equal(has(({ view }) => { view.integrationMode = true; }), false, 'not while selecting');
+  assert.equal(has(({ view }) => { view.builtIn = true; }), false, 'not in the sample');
+  assert.equal(has(({ view }) => { view.map.aim = { branches: [] }; }), false, 'not in an AIM map');
+  // Root has direct children a and b but not grandchild c; the button replaces any earlier selection.
+  const { fixture, buttons } = toolTexts(undefined, 'root');
+  const { view } = fixture;
+  view.multiSelected = new Set(['c']); view.selected = 'b';
+  buttons.find(button => button.text === 'Select subtopics').handlers.get('click')({ stopPropagation() {} });
+  assert.deepEqual([...view.multiSelected].sort(), ['a', 'b']); assert.equal(view.selected, null);
+  assert.equal(view.integrationMode, true); assert.equal(fixture.renders(), 1);
+});
+integrationTest('Cmd/Ctrl+click: the first click on a second card enters selection mode, seeds the selected card, and the mode keeps toggling', () => {
+  for (const key of ['metaKey', 'ctrlKey']) {
+    const fixture = selectionView(load); const { view } = fixture;
+    fixture.build();
+    const cards = fixture.cards();
+    const target = { closest: () => null };
+    const tap = (id, extra = {}) => { cards[id].handlers.get('pointerdown')({ target, button: 0, clientX: 0, clientY: 0, pointerId: 1 }); cards[id].handlers.get('pointerup')({ type: 'pointerup', ...extra }); };
+    tap('a');
+    assert.equal(view.selected, 'a');
+    tap('b', { [key]: true });
+    assert.deepEqual([...view.multiSelected].sort(), ['a', 'b'], 'the plain-selected card A joins B');
+    assert.equal(view.integrationMode, true); assert.equal(fixture.renders(), 1, 'the selection bar appears via a render');
+    // Inside the mode a Cmd/Ctrl+click toggles instead of being swallowed.
+    const click = id => { view.suppressClickUntil = 0; cards[id].handlers.get('click')({ target, metaKey: key === 'metaKey', ctrlKey: key === 'ctrlKey' }); };
+    click('c');
+    assert.deepEqual([...view.multiSelected].sort(), ['a', 'b', 'c']);
+    click('a');
+    assert.deepEqual([...view.multiSelected].sort(), ['b', 'c']);
+  }
+  // A single Cmd+click with nothing selected stays a one-card selection and does not enter the mode.
+  const lone = selectionView(load); lone.build();
+  const cards = lone.cards();
+  cards.b.handlers.get('pointerdown')({ target: { closest: () => null }, button: 0, clientX: 0, clientY: 0, pointerId: 1 });
+  cards.b.handlers.get('pointerup')({ type: 'pointerup', metaKey: true });
+  assert.equal(lone.view.integrationMode, false); assert.deepEqual([...lone.view.multiSelected], ['b']); assert.equal(lone.renders(), 0);
+});
+integrationTest('box selection: Shift+drag enters selection mode, an empty box changes nothing, Option+drag removes picks, Space and the middle button pan', () => {
+  const fixture = selectionView(load); const { view } = fixture;
+  fixture.build();
+  const cards = fixture.cards();
+  const rects = { root: [0, 0, 100, 50], a: [200, 0, 300, 50], b: [200, 100, 300, 150], c: [400, 0, 500, 50] };
+  for (const [id, [left, top, right, bottom]] of Object.entries(rects)) cards[id].getBoundingClientRect = () => ({ left, top, right, bottom });
+  view.stageEl.querySelectorAll = () => Object.values(cards);
+  const viewport = selectionDom()('viewport'); viewport.clientWidth = 800; viewport.clientHeight = 600;
+  view.viewportEl = viewport; view.transform = () => {}; view.saveViewport = () => {}; fixture.view.plugin.saveSettings = async () => {};
+  view.setupPan();
+  const down = (over = {}) => viewport.handlers.get('pointerdown')({ target: { closest: () => null }, button: 0, clientX: 150, clientY: -10, pointerId: 1, altKey: false, shiftKey: false, preventDefault() {}, ...over });
+  const drag = (x, y) => { viewport.handlers.get('pointermove')({ clientX: x, clientY: y }); viewport.handlers.get('pointerup')({}); };
+  // A plain drag in normal mode still pans (no box, viewport moves).
+  down(); viewport.handlers.get('pointermove')({ clientX: 170, clientY: 30 });
+  assert.equal(viewport.classes.has('is-marquee'), false); assert.equal(view.map.viewport.x, 20); assert.equal(view.map.viewport.y, 40);
+  viewport.handlers.get('pointerup')({}); view.map.viewport.x = 0; view.map.viewport.y = 0; fixture.renders();
+  const before = fixture.renders();
+  // Shift+drag over nothing: no state change.
+  down({ shiftKey: true, clientX: 600, clientY: 300 }); drag(650, 340);
+  assert.equal(view.integrationMode, false); assert.equal(view.multiSelected.size, 0); assert.equal(fixture.renders(), before);
+  // Shift+drag over a and b: enters the mode with both picked.
+  down({ shiftKey: true }); drag(350, 200);
+  assert.equal(view.integrationMode, true); assert.deepEqual([...view.multiSelected].sort(), ['a', 'b']);
+  assert.equal(fixture.renders(), before + 1);
+  // Inside the mode, Option+drag removes only the boxed picks and previews them with is-marquee-remove.
+  view.multiSelected = new Set(['a', 'b', 'c']);
+  down({ altKey: true, clientX: 150, clientY: 90 }); viewport.handlers.get('pointermove')({ clientX: 350, clientY: 200 });
+  assert.equal(cards.b.classes.has('is-marquee-remove'), true); assert.equal(cards.a.classes.has('is-marquee-remove'), false);
+  viewport.handlers.get('pointerup')({});
+  assert.equal(cards.b.classes.has('is-marquee-remove'), false, 'the preview clears'); assert.deepEqual([...view.multiSelected].sort(), ['a', 'c']);
+  // Option+drag over cards that are not picked changes nothing.
+  down({ altKey: true, clientX: 150, clientY: 90 }); drag(350, 200);
+  assert.deepEqual([...view.multiSelected].sort(), ['a', 'c']);
+  // Plain drag adds; Space+drag and the middle button pan instead of boxing.
+  down({ clientX: 150, clientY: 90 }); drag(350, 200);
+  assert.deepEqual([...view.multiSelected].sort(), ['a', 'b', 'c']);
+  view.spaceHeld = true; down(); assert.equal(viewport.classes.has('is-marquee'), false); assert.equal(viewport.classes.has('is-panning'), true); viewport.handlers.get('pointerup')({});
+  view.spaceHeld = false; viewport.classes.delete('is-panning');
+  down({ button: 1 }); assert.equal(viewport.classes.has('is-panning'), true); assert.equal(viewport.classes.has('is-marquee'), false);
+  viewport.handlers.get('pointerup')({});
+});
+integrationTest('selection gestures: hint texts, remove outline and the pan comment match the new gesture table', () => {
+  const { translate } = load('i18n.ts');
+  assert.equal(translate('en', 'ui.drag_to_select_topics_hint'), 'Drag to box-select · Hold Option and drag to deselect · Hold Space and drag, or use the middle button, to pan · Click a topic to add or remove it');
+  assert.equal(translate('en', 'ui.drag_empty_space_to_pan_scroll_to_zoom_click_a_node_to_open'), 'Drag empty space to pan · Shift-drag to box-select · Scroll to zoom · Arrow keys move between topics');
+  assert.equal(translate('zh-TW', 'ui.select_subtopics'), '選取子議題'); assert.equal(translate('en', 'ui.select_subtopics'), 'Select subtopics');
+  assert.equal(translate('zh-TW', 'ui.select_subtopics_hint'), '選取這個議題底下所有直屬子議題');
+  const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
+  assert.match(css, /\.vam-node\.is-marquee-remove \{ outline: 2px dashed/, 'removal is not signalled by colour alone');
+});
+
+integrationTest('select mode: the Merge button stays focusable, names the reason in its title, and Notices instead of merging', () => {
+  const fixture = selectionView(load); const { view } = fixture;
+  const { translate } = load('i18n.ts');
+  view.integrationMode = true; fixture.build();
+  const bar = ids => { view.multiSelected = new Set(ids); const el = view.renderSelectionBar(selectionDom()('div')); return el.children.find(child => child.tag === 'button' && /^Merge/.test(child.text)); };
+  const one = bar(['a']);
+  assert.equal(one.disabled, false, 'never natively disabled, so keyboard users can reach it');
+  assert.equal(one.attrs['aria-disabled'], 'true'); assert.equal(one.attrs.title, translate('en', 'ui.merge_needs_two'));
+  assert.equal(bar(['a', 'b']).attrs['aria-disabled'], undefined, 'siblings under root can merge');
+  assert.equal(bar(['a', 'b']).attrs.title, undefined);
+  assert.equal(bar(['b', 'c']).attrs.title, translate('en', 'ui.merge_needs_same_parent'));
+  assert.equal(bar(['a', 'c']).attrs.title, translate('en', 'ui.merge_ancestor_selected'));
+  view.plugin.running = new Set(['b.md']);
+  assert.equal(bar(['a', 'b']).attrs.title, translate('en', 'ui.merge_busy'));
+  view.map.aim = {}; const aim = view.renderSelectionBar(selectionDom()('div'));
+  assert.equal(aim.children.some(child => child.tag === 'button' && /^Merge/.test(child.text)), false, 'AIM maps have no merge button');
+});
+integrationTest('merge dialog: Enter confirms once and is consumed; a second Merge press while it is open or queued does nothing', () => {
+  const make = selectionDom(); const opened = [];
+  class FakeModal { constructor(app) { this.app = app; const el = () => { const e = make('div'); e.setText = text => { e.text = text; }; const create = e.createEl.bind(e); e.createEl = (name, init = {}) => { const child = create(name, init); child.value = init.value; child.focus = () => {}; child.select = () => {}; child.createEl = e.createEl; child.setText = e.setText; child.createSpan = e.createSpan; return child; }; return e; }; this.titleEl = el(); this.contentEl = el(); this.modalEl = el(); this.closed = 0; } open() { opened.push(this); this.onOpen(); } close() { this.closed++; this.onClose?.(); } }
+  const shim = { ...obsidian, Modal: FakeModal };
+  const fixture = selectionView(load, {}, shim); const { view } = fixture;
+  view.app = {}; const queued = []; view.enqueue = work => queued.push(work);
+  view.integrationMode = true; fixture.build();
+  view.multiSelected = new Set();
+  view.openMerge(); assert.equal(opened.length, 0, 'empty selection is a no-op');
+  view.multiSelected = new Set(['a', 'b']);
+  view.openMerge(); view.openMerge(); assert.equal(opened.length, 1, 'a second press while the dialog is open is ignored');
+  const modal = opened[0]; const input = modal.contentEl.children.find(c => c.tag === 'input');
+  let prevented = 0, run = 0;
+  input.handlers.get('keydown')({ key: 'Enter', isComposing: false, preventDefault() { prevented++; } });
+  assert.equal(prevented, 1, 'the Enter is consumed so it cannot click the button that regains focus');
+  assert.equal(queued.length, 1); assert.equal(modal.closed, 1);
+  view.openMerge(); assert.equal(opened.length, 1, 'still ignored while the merge write is queued');
+  // A cancelled dialog frees the button again.
+  queued.length = 0; view.mergeOpen = false; view.openMerge(); assert.equal(opened.length, 2);
+  opened[1].close(); view.openMerge(); assert.equal(opened.length, 3);
+});
+integrationTest('merge dialog offers AI only when a selected card has Detail, and an AI merge in progress blocks a second dialog', () => {
+  const make = selectionDom(); const opened = [];
+  class FakeModal { constructor(app) { this.app = app; const el = () => { const e = make('div'); e.setText = text => { e.text = text; }; const create = e.createEl.bind(e); e.createEl = (name, init = {}) => { const child = create(name, init); child.value = init.value; child.type = init.type; child.focus = () => {}; child.select = () => {}; child.createEl = e.createEl; child.setText = e.setText; child.createSpan = e.createSpan; return child; }; return e; }; this.titleEl = el(); this.contentEl = el(); this.modalEl = el(); } open() { opened.push(this); this.onOpen(); } close() { this.onClose?.(); } }
+  const fixture = selectionView(load, {}, { ...obsidian, Modal: FakeModal }); const { view } = fixture;
+  view.app = {}; view.enqueue = () => {}; view.integrationMode = true; fixture.build();
+  const checkbox = modal => modal.contentEl.children.flatMap(function walk(c) { return [c, ...c.children.flatMap(walk)]; }).find(c => c.type === 'checkbox');
+  view.multiSelected = new Set(['a', 'b']);
+  view.openMerge(); assert.equal(checkbox(opened[0]), undefined, 'no content: the plain structure merge');
+  opened[0].close();
+  view.notes.get('b').detail = 'Has content';
+  view.openMerge(); assert.ok(checkbox(opened[1]), 'content: the AI merge with its skip option');
+  opened[1].close();
+  // A running merge on this map only reports itself; its sources stay locked after it fails or finishes a draft.
+  view.mergeTasks.set(view.path, { mapPath: view.path, state: 'running', sources: [{ id: 'a', path: 'a' }, { id: 'b', path: 'b' }], controller: new AbortController() });
+  view.openMerge(); assert.equal(opened.length, 2, 'no second dialog while a merge is running');
+});
+integrationTest('the read-only sample and AIM maps never enter selection mode from Shift+drag or Cmd/Ctrl+click', () => {
+  for (const [name, setup] of [['sample', view => { view.builtIn = true; }], ['AIM', view => { view.map.aim = { branches: [] }; }]]) {
+    const fixture = selectionView(load); const { view } = fixture; setup(view);
+    fixture.build();
+    const cards = fixture.cards(); const target = { closest: () => null };
+    // Cards of these maps may not be draggable at all; the click handler must not start the mode either.
+    const tap = (id, extra = {}) => { const down = cards[id].handlers.get('pointerdown'); if (down) { down({ target, button: 0, clientX: 0, clientY: 0, pointerId: 1 }); cards[id].handlers.get('pointerup')({ type: 'pointerup', ...extra }); } view.suppressClickUntil = 0; cards[id].handlers.get('click')({ target, metaKey: false, ctrlKey: false, ...extra }); };
+    tap('a'); tap('b', { metaKey: true }); tap('c', { ctrlKey: true });
+    assert.equal(view.integrationMode, false, `${name}: Cmd/Ctrl+click does not start selection mode`);
+    for (const [id, [left, top, right, bottom]] of Object.entries({ root: [0, 0, 100, 50], a: [200, 0, 300, 50], b: [200, 100, 300, 150], c: [400, 0, 500, 50] })) cards[id].getBoundingClientRect = () => ({ left, top, right, bottom });
+    view.stageEl.querySelectorAll = () => Object.values(cards);
+    const viewport = selectionDom()('viewport'); viewport.clientWidth = 800; viewport.clientHeight = 600;
+    view.viewportEl = viewport; view.transform = () => {}; view.saveViewport = () => {}; view.plugin.saveSettings = async () => {}; view.setupPan();
+    viewport.handlers.get('pointerdown')({ target, button: 0, clientX: 150, clientY: -10, pointerId: 1, altKey: false, shiftKey: true, preventDefault() {} });
+    assert.equal(viewport.classes.has('is-marquee'), false, `${name}: Shift+drag draws no box`);
+    assert.equal(viewport.classes.has('is-panning'), true, `${name}: Shift+drag pans like a plain drag`);
+    viewport.handlers.get('pointermove')({ clientX: 350, clientY: 200 }); viewport.handlers.get('pointerup')({});
+    assert.equal(view.integrationMode, false);
+  }
 });
