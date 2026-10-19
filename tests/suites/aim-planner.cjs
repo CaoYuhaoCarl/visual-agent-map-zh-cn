@@ -520,7 +520,7 @@ integrationTest('Planner reviews a saved Searcher diagnostic on a new fenced att
       return response;
     };
     const { VisualAgentMapView } = load('main.ts', { obsidian });
-    const view = new VisualAgentMapView({ app }, { repo, settings: { ...DEFAULT_SETTINGS, language: 'en' }, mutate: async work => work(), syncOutline() {}, askModel: ask });
+    const view = new VisualAgentMapView({ app }, { repo, settings: { ...DEFAULT_SETTINGS, language: 'en' }, mutate: async work => work(), syncOutline() {}, releaseOutline() {}, askModel: ask });
     view.path = mapPath; view.map = await repo.readMap(mapPath); view.render = () => {};
     await view.hydrateFailedReportTargets(() => true);
     assert.equal(view.aimFailedReports.get(question.id)?.runId, 'run-saved-report', 'the current failed attempt exposes its unique saved search report');
@@ -603,7 +603,7 @@ integrationTest('saved-report Planner repair failure and cancellation do not pub
     const controller = new AbortController(); let repairStarted;
     const repairGate = new Promise(resolve => { repairStarted = resolve; });
     const calls = []; let searches = 0;
-    const plugin = { repo, settings: { ...DEFAULT_SETTINGS, language: 'en' }, mutate: async work => work(), syncOutline() {}, askModel: async context => {
+    const plugin = { repo, settings: { ...DEFAULT_SETTINGS, language: 'en' }, mutate: async work => work(), syncOutline() {}, releaseOutline() {}, askModel: async context => {
       calls.push(context);
       if (context.researchMode === 'research') { searches++; throw new Error('Saved-report retry unexpectedly repeated research.'); }
       if (calls.length === 1) return malformed;

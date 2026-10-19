@@ -79,7 +79,7 @@ test('concurrent language changes are ignored until the first save and refresh c
 test('built-in Sample language refresh preserves selected topic and view state', async () => {
   const { VisualAgentMapView } = load('main.ts', { obsidian });
   const { builtInSample } = load('builtin-sample.ts');
-  const plugin = { settings: { language: 'zh-TW' }, syncOutline() {} };
+  const plugin = { settings: { language: 'zh-TW' }, syncOutline() {}, releaseOutline() {} };
   const view = new VisualAgentMapView({ app: {} }, plugin);
   view.builtIn = true; view.map = builtInSample('en').map; view.notes = builtInSample('en').notes;
   view.map.viewport = { x: -128, y: 74, zoom: 0.83 };

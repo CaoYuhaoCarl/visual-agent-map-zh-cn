@@ -621,6 +621,7 @@ export class VisualAgentMapView extends ItemView {
   }
   async onClose(): Promise<void> {
     this.closed = true;
+    this.plugin.releaseOutline(this);
     this.relevancePanelCleanup?.();
     this.relevancePanelCleanup = null;
     this.abortRelevanceGrade();
@@ -701,7 +702,7 @@ export class VisualAgentMapView extends ItemView {
       (target as HTMLInputElement).setSelectionRange(selection[0], selection[1]);
   }
   syncOutline(): void {
-    this.plugin.syncOutline(this.builtIn ? null : this.map, this.notes, this.builtIn);
+    this.plugin.syncOutline(this.builtIn ? null : this.map, this.notes, this.builtIn, this);
   }
   private enqueue(work: () => Promise<void>): void {
     void this.plugin.mutate(work).catch(() => {});
@@ -5109,7 +5110,7 @@ export class VisualAgentMapView extends ItemView {
     // The dragged card is about to be replaced, so its pointer events would never arrive and the drag would stay "on".
     this.dragCleanup?.();
     if (this.closed) return;
-    this.plugin.syncOutline(this.builtIn ? null : this.map, this.notes, this.builtIn);
+    this.plugin.syncOutline(this.builtIn ? null : this.map, this.notes, this.builtIn, this);
     if (this.hoverTimer !== null) {
       window.clearTimeout(this.hoverTimer);
       this.hoverTimer = null;
@@ -5152,7 +5153,7 @@ export class VisualAgentMapView extends ItemView {
         this.openNewMapMenu(event);
       });
       this.iconButton(headerActions, "list-tree", t("ui.open_topic_outline"), () => {
-        void this.plugin.activateOutline().catch(error => new Notice(String(error)));
+        void this.plugin.activateOutline(this).catch(error => new Notice(String(error)));
       });
       const undo = this.iconButton(headerActions, "undo-2", t("ui.undo"), () => this.enqueue(() => this.travel(false)));
       undo.disabled = !this.history.canUndo;

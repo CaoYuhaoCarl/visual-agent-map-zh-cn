@@ -1298,7 +1298,7 @@ const viewportFixture = () => {
   const note = { title: 'T', summary: '', status: 'completed' };
   const repo = { updateMap: async (_path, change) => { counts.updateMap++; change(doc); }, readMap: async () => { counts.readMap++; return JSON.parse(JSON.stringify(doc)); }, readNote: async () => { counts.readNote++; return { ...note }; } };
   const plugin = Object.create(Plugin.prototype);
-  Object.assign(plugin, { queue: Promise.resolve(), writing: 0, logs: { appendLog() {} }, repo, settings: { ...DEFAULT_SETTINGS }, expansionBatches: new Map(), pendingSuggestions: new Map(), syncOutline() {}, detailsShown: () => false, setOutlineActive() {} });
+  Object.assign(plugin, { queue: Promise.resolve(), writing: 0, logs: { appendLog() {} }, repo, settings: { ...DEFAULT_SETTINGS }, expansionBatches: new Map(), pendingSuggestions: new Map(), syncOutline() {}, releaseOutline() {}, detailsShown: () => false, setOutlineActive() {} });
   const app = { vault: { getAbstractFileByPath: () => new obsidian.TFile('m/Map.md') } };
   const view = new VisualAgentMapView({ app }, plugin);
   view.app = app; view.path = 'm/Map.md'; view.map = doc; view.render = () => {};
@@ -1464,6 +1464,43 @@ integrationTest('startup opens no topic outline, including on first install, whi
     assert.deepEqual(calls, firstInstall ? ['sample'] : [], 'only the sample may open at startup, never the outline');
   }
   assert.match(fs.readFileSync(path.join(root, 'main.ts'), 'utf8'), /addLocalizedCommand\("open-topic-outline"/);
+});
+const outlineFixture = () => {
+  const { default: Plugin, VisualAgentMapView } = load('main.ts', { obsidian });
+  const handlers = {}, titled = title => ({ ...map([node('a')]), title });
+  const mapView = (plugin, title) => { const view = Object.create(VisualAgentMapView.prototype); Object.assign(view, { plugin, map: titled(title), notes: new Map(), builtIn: false }); return view; };
+  const plugin = Object.create(Plugin.prototype), state = { views: [], active: null };
+  const leaf = { setViewState: async () => {} };
+  Object.assign(plugin, { outlineTitles: new Map(), outlineSample: false, outlineSourceView: null, coffeeOutlineActive: false, coffeeOutlineSource: null, logs: { appendLog() {} },
+    app: { workspace: { getLeavesOfType: type => type === 'visual-agent-map' ? state.views.map(view => ({ view })) : [], getActiveViewOfType: () => state.active, getLeftLeaf: () => leaf, revealLeaf: async () => {} } } });
+  plugin.views = () => state.views;
+  const a = mapView(plugin, 'Map A'), b = mapView(plugin, 'Map B');
+  state.views = [a, b]; state.active = b;
+  return { plugin, a, b, state, title: () => plugin.outlineMap?.title ?? null };
+};
+integrationTest('topic outline follows the active mind map: the header button and the command show the active map, not the first tab', async () => {
+  const { plugin, a, b, title } = outlineFixture();
+  await plugin.activateOutline();
+  assert.equal(title(), 'Map B', 'no argument: the active map view');
+  await plugin.activateOutline(a);
+  assert.equal(title(), 'Map A', 'a header button passes its own view');
+});
+integrationTest('topic outline: a background map tab re-rendering does not overwrite the outline source', async () => {
+  const { plugin, a, b, title } = outlineFixture();
+  await plugin.activateOutline(b);
+  a.syncOutline(); assert.equal(title(), 'Map B', 'map A is in the background');
+  b.map = { ...b.map, title: 'Map B edited' }; b.syncOutline(); assert.equal(title(), 'Map B edited', 'the source still updates');
+});
+integrationTest('topic outline: switching to another map tab re-syncs the outline, and closing the source falls back', () => {
+  const { plugin, a, b, state, title } = outlineFixture();
+  plugin.styleNodeLeaf = () => {}; plugin.syncCoffeeOutline = () => {};
+  plugin.useOutlineSource(a); assert.equal(title(), 'Map A');
+  state.active = b; plugin.onActiveLeafChange({ view: b });
+  assert.equal(title(), 'Map B', 'active-leaf-change to a map view makes it the source');
+  state.views = [a]; plugin.releaseOutline(b);
+  assert.equal(title(), 'Map A', 'closing the source falls back to the remaining map');
+  state.views = []; plugin.releaseOutline(a);
+  assert.equal(plugin.outlineMap, null, 'no map left: the outline empties');
 });
 integrationTest('card tools: labelled actions wait for hover, focus or selection, in the order Collapse, Structure, Rename, Select subtopics, Details, AI explore', () => {
   const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');

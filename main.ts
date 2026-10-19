@@ -185,6 +185,7 @@ export default class VisualAgentMapPlugin extends Plugin {
   coffeeStorage: CoffeeStorage | null = null;
   private coffeeOutlineActive = false;
   private coffeeOutlineSource: CoffeeTablesView | null = null;
+  private outlineSourceView: VisualAgentMapView | null = null;
   private outlineMap: MapDocument | null = null;
   private outlineTitles = new Map<string, string>();
   private outlineSample = false;
@@ -239,7 +240,12 @@ export default class VisualAgentMapPlugin extends Plugin {
       .map(leaf => leaf.view)
       .filter((view): view is VisualAgentMapView => view instanceof VisualAgentMapView);
   }
-  syncOutline(map: MapDocument | null, notes: Map<string, Note>, sample = false): void {
+  /** A map view passes itself as `source`; only the outline's source view may update it, so background tabs never win. */
+  syncOutline(map: MapDocument | null, notes: Map<string, Note>, sample = false, source?: VisualAgentMapView): void {
+    if (source) {
+      if (this.outlineSourceView && this.outlineSourceView !== source) return;
+      this.outlineSourceView = source;
+    }
     const titles = new Map([...notes].map(([id, note]) => [id, note.title]));
     this.outlineMap = map;
     this.outlineTitles = titles;
@@ -270,6 +276,19 @@ export default class VisualAgentMapPlugin extends Plugin {
         if (!this.coffeeOutlineActive) leaf.view.setMap(this.outlineMap, this.outlineTitles, this.outlineSample);
       }
   }
+  /** Called when a map view closes: the outline falls back to another open map, or empties. */
+  releaseOutline(view: VisualAgentMapView): void {
+    if (this.outlineSourceView !== view) return;
+    this.outlineSourceView = null;
+    const views = this.views().filter(other => other !== view);
+    const next = views.find(other => other === this.app.workspace.getActiveViewOfType(VisualAgentMapView)) ?? views[0];
+    if (next) this.useOutlineSource(next);
+    else this.syncOutline(null, new Map());
+  }
+  private useOutlineSource(view: VisualAgentMapView): void {
+    this.outlineSourceView = view;
+    view.syncOutline();
+  }
   isCoffeeOutlineSource(view: CoffeeTablesView): boolean {
     return this.coffeeOutlineSource === view;
   }
@@ -286,7 +305,7 @@ export default class VisualAgentMapPlugin extends Plugin {
           }
         );
   }
-  async activateOutline(): Promise<void> {
+  async activateOutline(source?: VisualAgentMapView): Promise<void> {
     const activeCoffeeView = this.app.workspace.getActiveViewOfType(CoffeeTablesView);
     if (activeCoffeeView) this.syncCoffeeOutline(activeCoffeeView);
     let leaf: WorkspaceLeaf | null = this.app.workspace.getLeavesOfType(OUTLINE_VIEW_TYPE)[0] ?? null;
@@ -294,9 +313,28 @@ export default class VisualAgentMapPlugin extends Plugin {
     if (!leaf) throw new Error(t("ui.could_not_open_the_left_sidebar"));
     await leaf.setViewState({ type: OUTLINE_VIEW_TYPE, active: true });
     this.syncCoffeeOutline(this.coffeeOutlineSource ?? undefined);
-    const mapView = this.views()[0];
-    if (mapView) mapView.syncOutline();
+    const mapView =
+      source ?? this.app.workspace.getActiveViewOfType(VisualAgentMapView) ?? this.outlineSourceView ?? this.views()[0];
+    if (mapView) this.useOutlineSource(mapView);
     await this.app.workspace.revealLeaf(leaf);
+  }
+  onActiveLeafChange(leaf: WorkspaceLeaf | null): void {
+    this.styleNodeLeaf(leaf);
+    if (leaf?.view instanceof OutlineView) return;
+    if (leaf?.view instanceof CoffeeTablesView) {
+      this.syncCoffeeOutline(leaf.view);
+      return;
+    }
+    this.syncCoffeeOutline();
+    if (leaf?.view instanceof VisualAgentMapView) {
+      this.useOutlineSource(leaf.view);
+      return;
+    }
+    if (!(leaf?.view instanceof MarkdownView) || !leaf.view.file || !this.isMap(leaf.view.file)) return;
+    const path = leaf.view.file.path;
+    void leaf
+      .setViewState({ type: VIEW_TYPE, state: { file: path }, active: true })
+      .catch(error => new Notice(error instanceof Error ? error.message : String(error)));
   }
   async onload(): Promise<void> {
     announceTestOverrides(message => new Notice(message, 0));
@@ -549,22 +587,7 @@ export default class VisualAgentMapPlugin extends Plugin {
           );
       })
     );
-    this.registerEvent(
-      this.app.workspace.on("active-leaf-change", leaf => {
-        this.styleNodeLeaf(leaf);
-        if (leaf?.view instanceof OutlineView) return;
-        if (leaf?.view instanceof CoffeeTablesView) {
-          this.syncCoffeeOutline(leaf.view);
-          return;
-        }
-        this.syncCoffeeOutline();
-        if (!(leaf?.view instanceof MarkdownView) || !leaf.view.file || !this.isMap(leaf.view.file)) return;
-        const path = leaf.view.file.path;
-        void leaf
-          .setViewState({ type: VIEW_TYPE, state: { file: path }, active: true })
-          .catch(error => new Notice(error instanceof Error ? error.message : String(error)));
-      })
-    );
+    this.registerEvent(this.app.workspace.on("active-leaf-change", leaf => this.onActiveLeafChange(leaf)));
     this.registerEvent(
       this.app.workspace.on("file-open", file => {
         for (const leaf of this.app.workspace.getLeavesOfType("markdown")) this.styleNodeLeaf(leaf);
