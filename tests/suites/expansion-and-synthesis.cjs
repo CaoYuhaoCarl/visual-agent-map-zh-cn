@@ -1653,3 +1653,15 @@ integrationTest('expand under a manual ancestor runs on the manual model; a new 
   await workspaceParent.view.addNode(workspaceParent.mapDoc.nodes[0], 'Fresh child');
   assert.equal((await workspaceParent.repo.readNote(workspaceParent.view.map.nodes.at(-1).path)).model, 'claude:sonnet');
 });
+integrationTest('hydrate resolves inherited models from the loaded map without scanning maps per node', async () => {
+  const f = await staleModelView([['workspace'], ['manual', 'claude:haiku'], ['inherited'], ['inherited']], async () => ({}));
+  let mapReads = 0, scans = 0;
+  const readMap = f.repo.readMap.bind(f.repo), mapFiles = f.repo.mapFiles.bind(f.repo);
+  f.repo.readMap = async path => { mapReads++; return readMap(path); };
+  f.repo.mapFiles = async () => { scans++; return mapFiles(); };
+  const { VisualAgentMapView } = load('main.ts', { obsidian });
+  f.view.builtIn = false; f.view.hydrateFailedReportTargets = async () => {};
+  await VisualAgentMapView.prototype.hydrate.call(f.view);
+  assert.equal(mapReads, 0); assert.equal(scans, 0);
+  assert.deepEqual(plain(f.mapDoc.nodes.map(n => f.view.notes.get(n.id).model)), ['claude:sonnet', 'claude:haiku', 'claude:haiku', 'claude:haiku']);
+});

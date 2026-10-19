@@ -867,7 +867,7 @@ export class Repository {
     const current = this.settings.cliModel;
     if (source === "manual") return stored || current;
     if (source === "workspace") return current;
-    let owner = map;
+    let owner = map?.nodes.some(node => node.path === path) ? map : undefined;
     if (!owner) {
       for (const file of await this.mapFiles()) {
         if (!path.startsWith(`${this.topicRoot(file.path)}/`)) continue;

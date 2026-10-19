@@ -13685,7 +13685,7 @@ var Repository = class {
     const current = this.settings.cliModel;
     if (source === "manual") return stored || current;
     if (source === "workspace") return current;
-    let owner = map;
+    let owner = (map == null ? void 0 : map.nodes.some((node2) => node2.path === path)) ? map : void 0;
     if (!owner) {
       for (const file of await this.mapFiles()) {
         if (!path.startsWith(`${this.topicRoot(file.path)}/`)) continue;
@@ -22269,8 +22269,8 @@ ${delivery.evidence}` },
       if (sameOrdinalFailures.length !== 1 || sameOrdinalFailures[0].id !== run.id)
         throw new Error("The native diagnostic attempt number is ambiguous across failed runs in this map.");
     }
-    const parent = await this.repository.readNote(questionNode.path);
-    const topicNode = map.nodes.find((node) => node.aimKind === "topic"), topic = topicNode ? await this.repository.readNote(topicNode.path) : parent;
+    const parent = await this.repository.readNote(questionNode.path, map);
+    const topicNode = map.nodes.find((node) => node.aimKind === "topic"), topic = topicNode ? await this.repository.readNote(topicNode.path, map) : parent;
     const lineage = await this.branchLineage(map, branch.parentBranchId);
     const questionHistory = await this.questionHistory(map, branch.id);
     const explorationTarget = (_f = (_e = map.aim) == null ? void 0 : _e.minimumAnswersBeforeConclusion) != null ? _f : 2;
@@ -22608,9 +22608,9 @@ ${runId}`, fingerprint2 = JSON.stringify({ model, reasoning });
     const priorRef = branch == null ? void 0 : branch.results.find((item) => item.runId === run.id && item.attemptId === priorAttempt.id);
     if (!branch || !questionNode || !priorRef)
       throw new Error("The partial result or its answer branch is missing; it cannot be continued safely.");
-    const priorNote = await this.repository.readNote(priorRef.notePath), parent = await this.repository.readNote(questionNode.path);
+    const priorNote = await this.repository.readNote(priorRef.notePath, map), parent = await this.repository.readNote(questionNode.path, map);
     const topicNode = (_b = map.nodes.find((item) => item.aimKind === "topic")) != null ? _b : map.nodes.find((item) => item.parentId === null);
-    const topicNote = topicNode ? await this.repository.readNote(topicNode.path) : parent;
+    const topicNote = topicNode ? await this.repository.readNote(topicNode.path, map) : parent;
     const lineage = await this.branchLineage(map, branch.parentBranchId);
     const savedResearchNodeIds = [
       ...new Set(
@@ -23126,7 +23126,7 @@ ${requestId}`, fingerprint2 = JSON.stringify({ parentNodeId, parentBranchId, mod
       throw new Error("A new follow-up question must attach to a saved synthesis or conclusion in its answer branch.");
     const parent = await this.repository.readNote(parentNode.path);
     const motherNode = map.nodes.find((node) => node.aimKind === "topic");
-    const mother = motherNode && motherNode.id !== parentNode.id ? await this.repository.readNote(motherNode.path) : parent;
+    const mother = motherNode && motherNode.id !== parentNode.id ? await this.repository.readNote(motherNode.path, map) : parent;
     const lineage = await this.branchLineage(map, parentBranchId);
     const explorationTarget = (_c = state.minimumAnswersBeforeConclusion) != null ? _c : 2;
     const answeredQuestionCount = this.answerCountInLineage(map, parentBranchId);
@@ -23501,7 +23501,7 @@ ${input.requestId}`;
     const question = map.nodes.find((node) => node.id === branch.questionNodeId);
     if (!question) throw new Error("The saved answer's question is missing.");
     const topicNode = (_b = map.nodes.find((node) => node.aimKind === "topic")) != null ? _b : map.nodes.find((node) => node.parentId === null);
-    const topicNote = topicNode ? await this.repository.readNote(topicNode.path) : await this.repository.readNote(question.path);
+    const topicNote = topicNode ? await this.repository.readNote(topicNode.path, map) : await this.repository.readNote(question.path, map);
     const lineage = await this.branchLineage(map, branch.parentBranchId);
     const labels = (_d = (_c = question.aimQuestion) == null ? void 0 : _c.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _d : branch.answerSnapshot.selections;
     return this.runSubtopicWorkflow(
@@ -23528,8 +23528,8 @@ ${input.requestId}`;
     const parent = map.nodes.find((node) => node.id === branch.questionNodeId);
     if (!parent) throw new Error("The saved answer branch's topic or question is missing.");
     const topicNode = (_b = map.nodes.find((node) => node.aimKind === "topic")) != null ? _b : map.nodes.find((node) => node.parentId === null);
-    const topicNote = topicNode ? await this.repository.readNote(topicNode.path) : await this.repository.readNote(parent.path);
-    const parentNote = await this.repository.readNote(parent.path);
+    const topicNote = topicNode ? await this.repository.readNote(topicNode.path, map) : await this.repository.readNote(parent.path, map);
+    const parentNote = await this.repository.readNote(parent.path, map);
     const lineage = await this.branchLineage(map, branch.parentBranchId);
     const labels = (_d = (_c = parent.aimQuestion) == null ? void 0 : _c.options.filter((option2) => branch.answerSnapshot.selections.includes(option2.id)).map((option2) => option2.label)) != null ? _d : branch.answerSnapshot.selections;
     return this.runSubtopicWorkflow(
@@ -23562,9 +23562,9 @@ ${input.requestId}`;
     const answerLabels = selectedOptions.map((option2) => option2.label);
     if (selections.includes(AIM_UNKNOWN_OPTION_ID) && selections.length > 1)
       throw new Error("Unknown / no preference cannot be combined with another selected option.");
-    const parent = await this.repository.readNote(questionNode.path);
+    const parent = await this.repository.readNote(questionNode.path, map);
     const topicNode = (_a = map.nodes.find((node) => node.aimKind === "topic")) != null ? _a : map.nodes.find((node) => node.parentId === null);
-    const topicNote = topicNode ? await this.repository.readNote(topicNode.path) : parent;
+    const topicNote = topicNode ? await this.repository.readNote(topicNode.path, map) : parent;
     const parentBranchId = (_b = contract.parentBranchId) != null ? _b : null;
     const lineage = await this.branchLineage(map, parentBranchId);
     const inheritedBranch = parentBranchId ? (_c = map.aim) == null ? void 0 : _c.branches.find((branch2) => branch2.id === parentBranchId) : void 0;
@@ -25939,7 +25939,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian24.Ite
     if (!this.builtIn && this.map && this.path) await this.plugin.repo.saveMap(this.path, this.map);
   }
   async hydrate(isCurrent = () => true) {
-    var _a, _b;
+    var _a, _b, _c;
     this.aimFailedReports.clear();
     if (this.builtIn) {
       if (isCurrent()) this.notes = builtInSample(this.plugin.settings.language).notes;
@@ -25949,7 +25949,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian24.Ite
     for (const node of (_b = (_a = this.map) == null ? void 0 : _a.nodes) != null ? _b : []) {
       if (!isCurrent()) return;
       try {
-        loaded.set(node.id, await this.plugin.repo.readNote(node.path));
+        loaded.set(node.id, await this.plugin.repo.readNote(node.path, (_c = this.map) != null ? _c : void 0));
       } catch (e) {
       }
     }
@@ -25958,12 +25958,13 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian24.Ite
     await this.hydrateFailedReportTargets(isCurrent);
   }
   async hydrateFailedReportTargets(isCurrent) {
+    var _a;
     const map = this.map, mapPath = this.path;
     if (!mapPath || !(map == null ? void 0 : map.aim)) return;
     const failed = map.aim.runs.some(
       (run) => {
-        var _a;
-        return ((_a = run.attempts.find((item) => item.id === run.currentAttemptId)) == null ? void 0 : _a.status) === "failed";
+        var _a2;
+        return ((_a2 = run.attempts.find((item) => item.id === run.currentAttemptId)) == null ? void 0 : _a2.status) === "failed";
       }
     );
     if (!failed) return;
@@ -25972,7 +25973,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian24.Ite
       if (!file.path.startsWith(`${notesFolder}/`)) continue;
       if (!isCurrent()) return;
       try {
-        candidates.push({ path: file.path, note: await this.plugin.repo.readNote(file.path) });
+        candidates.push({ path: file.path, note: await this.plugin.repo.readNote(file.path, (_a = this.map) != null ? _a : void 0) });
       } catch (e) {
       }
     }
@@ -26204,8 +26205,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian24.Ite
     return {
       presets: listPresets(settings.promptPresets, "outline", settings.language).map(({ id, name }) => ({ id, name })),
       generate: async (request, signal) => {
-        var _a;
-        const note = await this.plugin.repo.readNote(node.path);
+        var _a, _b;
+        const note = await this.plugin.repo.readNote(node.path, (_a = this.map) != null ? _a : void 0);
         const { preset } = resolvePreset(settings.promptPresets, "outline", request.presetId, request.language);
         const result = await this.plugin.outlineGeneration.generate(
           {
@@ -26215,7 +26216,7 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian24.Ite
 ${request.requirements}` : preset.text,
             language: request.language,
             model: note.model,
-            reasoning: normalizeReasoningLevel((_a = note.reasoning) != null ? _a : settings.cliReasoning),
+            reasoning: normalizeReasoningLevel((_b = note.reasoning) != null ? _b : settings.cliReasoning),
             limits: request.limits
           },
           signal
@@ -26958,7 +26959,8 @@ ${request.requirements}` : preset.text,
             async (answers) => {
               if (!this.aimViewIsCurrent(epoch, mapPath)) throw new Error("Reopen the original AIM map to continue.");
               await this.plugin.mutate(async () => {
-                const latest = await this.plugin.repo.readNote(node.path);
+                var _a2;
+                const latest = await this.plugin.repo.readNote(node.path, (_a2 = this.map) != null ? _a2 : void 0);
                 if (!latest.detail.includes("<!-- aim-intake-complete -->")) {
                   await this.plugin.repo.updateNote(
                     node.path,
@@ -26978,7 +26980,8 @@ ${request.requirements}` : preset.text,
           return;
         }
         await this.plugin.mutate(async () => {
-          const latest = await this.plugin.repo.readNote(node.path);
+          var _a2;
+          const latest = await this.plugin.repo.readNote(node.path, (_a2 = this.map) != null ? _a2 : void 0);
           await this.plugin.repo.updateNote(
             node.path,
             { detail: latest.detail + "\n\n<!-- aim-intake-complete -->" },
@@ -27908,8 +27911,9 @@ ${request.requirements}` : preset.text,
     }
   }
   async claimToCurrent(file) {
+    var _a;
     if (!this.map) return;
-    const before = clone(this.map), previous = await this.plugin.repo.readNote(file.path), original = file.path;
+    const before = clone(this.map), previous = await this.plugin.repo.readNote(file.path, (_a = this.map) != null ? _a : void 0), original = file.path;
     const target = await this.plugin.repo.moveUnique(original, this.plugin.repo.topicFolder(this.path, "Notes"));
     await this.plugin.repo.setLifecycle(target, this.map.id, this.map.id, "active");
     const node = {
@@ -27950,8 +27954,9 @@ ${request.requirements}` : preset.text,
     this.focusNode(node);
   }
   async relinkMissingNode(node, file) {
+    var _a;
     if (!this.map) return;
-    const before = clone(this.map), previous = await this.plugin.repo.readNote(file.path), original = file.path;
+    const before = clone(this.map), previous = await this.plugin.repo.readNote(file.path, (_a = this.map) != null ? _a : void 0), original = file.path;
     const target = await this.plugin.repo.moveUnique(original, this.plugin.repo.topicFolder(this.path, "Notes"));
     await this.plugin.repo.setLifecycle(target, this.map.id, this.map.id, "active");
     const after = clone(before), replacement = after.nodes.find((item) => item.id === node.id);
@@ -27983,8 +27988,9 @@ ${request.requirements}` : preset.text,
     this.render();
   }
   async parkFile(file, collection, state) {
+    var _a;
     if (!this.map) return;
-    const before = await this.plugin.repo.readNote(file.path), original = file.path;
+    const before = await this.plugin.repo.readNote(file.path, (_a = this.map) != null ? _a : void 0), original = file.path;
     const target = await this.plugin.repo.moveUnique(original, this.plugin.repo.topicFolder(this.path, collection));
     await this.plugin.repo.setLifecycle(target, this.map.id, "", state);
     await this.plugin.rebuildDerivedData();
@@ -28004,7 +28010,8 @@ ${request.requirements}` : preset.text,
     this.render();
   }
   async transferToTopic(file, topic) {
-    const before = await this.plugin.repo.readNote(file.path), original = file.path, folder = `${topic.root}/Unassigned`;
+    var _a;
+    const before = await this.plugin.repo.readNote(file.path, (_a = this.map) != null ? _a : void 0), original = file.path, folder = `${topic.root}/Unassigned`;
     const target = await this.plugin.repo.moveUnique(original, folder);
     await this.plugin.repo.setLifecycle(target, topic.id, "", "unassigned");
     await this.plugin.rebuildDerivedData();
@@ -28024,7 +28031,8 @@ ${request.requirements}` : preset.text,
     this.render();
   }
   async transferAndAdd(file, topic) {
-    const previous = await this.plugin.repo.readNote(file.path), original = file.path, before = await this.plugin.repo.readMap(topic.mapPath);
+    var _a;
+    const previous = await this.plugin.repo.readNote(file.path, (_a = this.map) != null ? _a : void 0), original = file.path, before = await this.plugin.repo.readMap(topic.mapPath);
     const target = await this.plugin.repo.moveUnique(original, `${topic.root}/Notes`);
     await this.plugin.repo.setLifecycle(target, topic.id, topic.id, "active");
     const node = {
@@ -28057,8 +28065,8 @@ ${request.requirements}` : preset.text,
     this.render();
   }
   async noteChange(node, patch) {
-    var _a, _b;
-    const current = await this.plugin.repo.readNote(node.path), before = {};
+    var _a, _b, _c, _d;
+    const current = await this.plugin.repo.readNote(node.path, (_a = this.map) != null ? _a : void 0), before = {};
     for (const key2 of Object.keys(patch)) before[key2] = current[key2];
     if (Object.keys(patch).every((key2) => current[key2] === patch[key2])) return;
     await this.plugin.repo.updateNote(node.path, patch);
@@ -28079,12 +28087,12 @@ ${request.requirements}` : preset.text,
       "sourcePaths",
       "referencePaths"
     ].some((key2) => key2 in patch))
-      (_b = (_a = this.plugin.activeTasks) == null ? void 0 : _a.get(node.path)) == null ? void 0 : _b.abort();
+      (_c = (_b = this.plugin.activeTasks) == null ? void 0 : _b.get(node.path)) == null ? void 0 : _c.abort();
     this.history.push({
       undo: () => this.plugin.repo.updateNote(node.path, before),
       redo: () => this.plugin.repo.updateNote(node.path, patch)
     });
-    this.notes.set(node.id, await this.plugin.repo.readNote(node.path));
+    this.notes.set(node.id, await this.plugin.repo.readNote(node.path, (_d = this.map) != null ? _d : void 0));
     this.render();
   }
   recordNoteWrite(path, before, after, fields, label) {
@@ -29578,24 +29586,25 @@ ${request.requirements}` : preset.text,
   }
   openNextStep(node) {
     this.enqueue(async () => {
-      var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j;
-      const note = await this.plugin.repo.readNote(node.path);
+      var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k;
+      const note = await this.plugin.repo.readNote(node.path, (_a = this.map) != null ? _a : void 0);
       const currentLabel = t("ui.reference_current_topic_included", note.title);
       const synthesisLabel = t("ui.reference_synthesis_topics_included", note.title);
-      const sources2 = this.taskSourceSettings(currentLabel, (_a = this.map) == null ? void 0 : _a.id, synthesisLabel);
-      sources2.synthesisTopics = (_c = (_b = this.map) == null ? void 0 : _b.nodes.filter((item) => item.parentId === node.id).map((item) => {
+      const sources2 = this.taskSourceSettings(currentLabel, (_b = this.map) == null ? void 0 : _b.id, synthesisLabel);
+      sources2.synthesisTopics = (_d = (_c = this.map) == null ? void 0 : _c.nodes.filter((item) => item.parentId === node.id).map((item) => {
         var _a2, _b2;
         return (_b2 = (_a2 = this.notes.get(item.id)) == null ? void 0 : _a2.title) != null ? _b2 : item.path;
-      })) != null ? _c : [];
+      })) != null ? _d : [];
       new NextStepModal(
         this.app,
         note.title,
         note.researchDepth,
-        (_e = (_d = this.map) == null ? void 0 : _d.nodes.filter((item) => item.parentId === node.id).length) != null ? _e : 0,
-        (_g = (_f = this.plugin.pendingSuggestions.get(node.path)) == null ? void 0 : _f.length) != null ? _g : 0,
+        (_f = (_e = this.map) == null ? void 0 : _e.nodes.filter((item) => item.parentId === node.id).length) != null ? _f : 0,
+        (_h = (_g = this.plugin.pendingSuggestions.get(node.path)) == null ? void 0 : _g.length) != null ? _h : 0,
         this.plugin,
         async (options, focus, done, failed, accepted) => {
-          const latest = await this.plugin.repo.readNote(node.path);
+          var _a2;
+          const latest = await this.plugin.repo.readNote(node.path, (_a2 = this.map) != null ? _a2 : void 0);
           const task = researchTopicTask(this.plugin.settings.language, latest.title);
           const detailTemplate = await this.detailTemplateFor(node, options.detailTemplateId, options.toneId);
           await this.runAgent(
@@ -29622,7 +29631,7 @@ ${request.requirements}` : preset.text,
         {
           model: note.model,
           modelSource: note.modelSource,
-          reasoning: (_h = note.reasoning) != null ? _h : this.plugin.settings.cliReasoning,
+          reasoning: (_i = note.reasoning) != null ? _i : this.plugin.settings.cliReasoning,
           rules: note.rules,
           path: node.path,
           save: (patch) => this.plugin.mutate(() => this.noteChange(node, patch)),
@@ -29641,10 +29650,10 @@ ${request.requirements}` : preset.text,
           // Only a label: a missing topic template is reported at the next AI update, not when the dialog opens.
           currentTemplate: this.resolveTopicTemplate(note).template.name,
           topicStatus: note.status,
-          childrenCompleted: (_j = (_i = this.map) == null ? void 0 : _i.nodes.filter((item) => {
+          childrenCompleted: (_k = (_j = this.map) == null ? void 0 : _j.nodes.filter((item) => {
             var _a2;
             return item.parentId === node.id && ((_a2 = this.notes.get(item.id)) == null ? void 0 : _a2.status) === "completed";
-          }).length) != null ? _j : 0,
+          }).length) != null ? _k : 0,
           synthesisPending: (() => {
             const pending = this.synthesisTasks.get(node.path);
             return (pending == null ? void 0 : pending.state) === "directions" && pending.mapPath === this.path ? { directions: pending.directions, discard: () => this.discardSynthesis(node) } : void 0;
@@ -29932,7 +29941,7 @@ ${request.requirements}` : preset.text,
     ).open();
   }
   async addNode(parent, suggestedTitle, rebuildDerivedData = true) {
-    var _a, _b;
+    var _a, _b, _c, _d;
     if (!this.map) return;
     if (!(suggestedTitle == null ? void 0 : suggestedTitle.trim())) {
       new NameModal(
@@ -29944,7 +29953,7 @@ ${request.requirements}` : preset.text,
       return;
     }
     const model = inheritModel(
-      parent ? (await this.plugin.repo.readNote(parent.path)).model : void 0,
+      parent ? (await this.plugin.repo.readNote(parent.path, (_a = this.map) != null ? _a : void 0)).model : void 0,
       this.plugin.settings.cliModel
     );
     if (!isManagedMapPath(this.plugin.settings, this.path)) {
@@ -29959,13 +29968,13 @@ ${request.requirements}` : preset.text,
       parent ? "inherited" : "workspace"
     );
     if (parent) {
-      const parentNote = await this.plugin.repo.readNote(parent.path);
+      const parentNote = await this.plugin.repo.readNote(parent.path, (_b = this.map) != null ? _b : void 0);
       await this.plugin.repo.updateNote(node.path, { reasoning: parentNote.reasoning });
     }
-    node.parentId = (_a = parent == null ? void 0 : parent.id) != null ? _a : null;
+    node.parentId = (_c = parent == null ? void 0 : parent.id) != null ? _c : null;
     node.x = parent ? parent.x + 340 : 80;
     const siblings = this.map.nodes.filter((n) => n.parentId === node.parentId);
-    node.y = siblings.length ? Math.max(...siblings.map((n) => n.y)) + 220 : (_b = parent == null ? void 0 : parent.y) != null ? _b : 80;
+    node.y = siblings.length ? Math.max(...siblings.map((n) => n.y)) + 220 : (_d = parent == null ? void 0 : parent.y) != null ? _d : 80;
     this.notes.set(
       node.id,
       await this.plugin.repo.readNote(node.path, { ...this.map, nodes: [...this.map.nodes, node] })
@@ -29979,7 +29988,7 @@ ${request.requirements}` : preset.text,
     this.focusNode(node);
   }
   async proposeChildren(parent, options, direction = "", found, failed, acceptedCallback) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k;
     if (this.plugin.expansionCoordinator.isRunning(parent.path)) {
       failed == null ? void 0 : failed(t("ui.ai_running_ai"));
       return;
@@ -30067,10 +30076,10 @@ ${request.requirements}` : preset.text,
     this.plugin.activeTasks.set(parent.path, controller);
     this.render();
     try {
-      const note = await this.plugin.repo.readNote(parent.path);
+      const note = await this.plugin.repo.readNote(parent.path, (_a = this.map) != null ? _a : void 0);
       if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
-      const outputLanguage = (_a = options == null ? void 0 : options.outputLanguage) != null ? _a : this.plugin.settings.language;
-      const existing = ((_b = this.map) == null ? void 0 : _b.nodes.filter((item) => item.parentId === parent.id).map((item) => {
+      const outputLanguage = (_b = options == null ? void 0 : options.outputLanguage) != null ? _b : this.plugin.settings.language;
+      const existing = ((_c = this.map) == null ? void 0 : _c.nodes.filter((item) => item.parentId === parent.id).map((item) => {
         const child = this.notes.get(item.id);
         return `- ${(child == null ? void 0 : child.title) || item.path}: ${(child == null ? void 0 : child.summary) || noSummaryYet(outputLanguage)}`;
       }).join("\n")) || inLanguage(NONE, outputLanguage);
@@ -30088,8 +30097,8 @@ ${request.requirements}` : preset.text,
             outputLanguage: options == null ? void 0 : options.outputLanguage,
             ...this.toneField(note, options),
             mode: "decompose",
-            researchMode: (_c = options == null ? void 0 : options.researchMode) != null ? _c : "research",
-            researchDepth: (_d = options == null ? void 0 : options.researchDepth) != null ? _d : note.researchDepth,
+            researchMode: (_d = options == null ? void 0 : options.researchMode) != null ? _d : "research",
+            researchDepth: (_e = options == null ? void 0 : options.researchDepth) != null ? _e : note.researchDepth,
             visualMode: "off"
           },
           note
@@ -30109,7 +30118,7 @@ ${request.requirements}` : preset.text,
         else new import_obsidian24.Notice(message);
         return;
       }
-      const latest = await this.plugin.repo.readNote(parent.path);
+      const latest = await this.plugin.repo.readNote(parent.path, (_f = this.map) != null ? _f : void 0);
       if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
       if (latest.thinkingOrigin !== note.thinkingOrigin)
         throw new Error(t("ui.the_topic_changed_so_the_outdated_ai_result_was_not_saved"));
@@ -30118,14 +30127,14 @@ ${request.requirements}` : preset.text,
         thinkingOriginBaseline: originBaseline(note.thinkingOrigin)
       }));
       this.plugin.pendingSuggestions.set(parent.path, pendingItems);
-      await ((_f = (_e = this.plugin.pendingSuggestions).flush) == null ? void 0 : _f.call(_e));
+      await ((_h = (_g = this.plugin.pendingSuggestions).flush) == null ? void 0 : _h.call(_g));
       if (controller.signal.aborted) {
         this.plugin.pendingSuggestions.delete(parent.path);
-        await ((_h = (_g = this.plugin.pendingSuggestions).flush) == null ? void 0 : _h.call(_g));
+        await ((_j = (_i = this.plugin.pendingSuggestions).flush) == null ? void 0 : _j.call(_i));
         throw new DOMException("Aborted", "AbortError");
       }
       if (options == null ? void 0 : options.shallowResearch) this.plugin.pendingResearchOptions.set(parent.path, this.researchChoices(options));
-      else (_i = this.plugin.pendingResearchOptions) == null ? void 0 : _i.delete(parent.path);
+      else (_k = this.plugin.pendingResearchOptions) == null ? void 0 : _k.delete(parent.path);
       present(pendingItems);
     } catch (error) {
       const partial = error instanceof PartialChildBatchError;
@@ -30145,15 +30154,15 @@ ${request.requirements}` : preset.text,
     }
   }
   async assertSuggestionOrigin(parent, suggestions) {
-    var _a, _b, _c;
-    const origin = (_a = (await this.plugin.repo.readNote(parent.path)).thinkingOrigin) != null ? _a : "";
+    var _a, _b, _c, _d;
+    const origin = (_b = (await this.plugin.repo.readNote(parent.path, (_a = this.map) != null ? _a : void 0)).thinkingOrigin) != null ? _b : "";
     if (suggestions.every(
       (item) => item.thinkingOriginBaseline === originBaseline(origin) || item.thinkingOriginBaseline === void 0 && !origin
     ))
       return;
     this.plugin.pendingSuggestions.delete(parent.path);
     this.plugin.pendingResearchOptions.delete(parent.path);
-    await ((_c = (_b = this.plugin.pendingSuggestions).flush) == null ? void 0 : _c.call(_b));
+    await ((_d = (_c = this.plugin.pendingSuggestions).flush) == null ? void 0 : _d.call(_c));
     throw new Error(t("ui.the_topic_changed_so_the_outdated_ai_result_was_not_saved"));
   }
   openChildSuggestions(parent, suggestions) {
@@ -30269,10 +30278,10 @@ ${request.requirements}` : preset.text,
     );
   }
   async researchChild(child, batchSignal, accepted, choices) {
-    var _a, _b;
+    var _a, _b, _c;
     const detailTemplate = await this.detailTemplateFor(child, choices.detailTemplateId, choices.toneId);
-    const note = await this.plugin.repo.readNote(child.path);
-    const outputLanguage = (_a = choices.outputLanguage) != null ? _a : chooseAimContentLanguage(this.plugin.settings.language, note.title);
+    const note = await this.plugin.repo.readNote(child.path, (_a = this.map) != null ? _a : void 0);
+    const outputLanguage = (_b = choices.outputLanguage) != null ? _b : chooseAimContentLanguage(this.plugin.settings.language, note.title);
     let started = false;
     let failure;
     const handle = await this.runAgent(
@@ -30284,7 +30293,7 @@ ${request.requirements}` : preset.text,
       {
         detailTemplate,
         rules: "",
-        referenceGroups: (_b = choices.referenceGroups) != null ? _b : [],
+        referenceGroups: (_c = choices.referenceGroups) != null ? _c : [],
         signal: batchSignal,
         outputLanguage,
         researchMode: choices.researchMode,
@@ -30530,7 +30539,7 @@ ${request.requirements}` : preset.text,
     }
   }
   async ancestorContext(node) {
-    var _a, _b, _c;
+    var _a, _b, _c, _d;
     const chain = [], seen = /* @__PURE__ */ new Set([node.id]);
     let parent = node.parentId;
     while (parent && !seen.has(parent)) {
@@ -30543,7 +30552,7 @@ ${request.requirements}` : preset.text,
     const ancestors = [];
     const language2 = (_c = (_b = this.plugin.settings) == null ? void 0 : _b.language) != null ? _c : "zh-TW";
     for (const n of chain) {
-      const info = await this.plugin.repo.readNote(n.path);
+      const info = await this.plugin.repo.readNote(n.path, (_d = this.map) != null ? _d : void 0);
       ancestors.push(`- ${info.title}
   ${labelCurrentSummary(language2)}: ${info.summary}`);
     }
@@ -30569,7 +30578,7 @@ ${request.requirements}` : preset.text,
     return [...new Set(paths)];
   }
   async proposeIntegrationDirections(node, options, found, drafted, failed, accepted) {
-    var _a, _b, _c, _d;
+    var _a, _b, _c, _d, _e;
     if (!this.map) {
       failed(t("ui.no_mind_map_is_available"));
       return;
@@ -30583,7 +30592,7 @@ ${request.requirements}` : preset.text,
       failed(t("ui.choose_another_note_source_first"));
       return;
     }
-    const note = await this.plugin.repo.readNote(node.path);
+    const note = await this.plugin.repo.readNote(node.path, (_b = this.map) != null ? _b : void 0);
     this.plugin.running.add(node.path);
     this.render();
     try {
@@ -30591,7 +30600,7 @@ ${request.requirements}` : preset.text,
         children,
         (options == null ? void 0 : options.synthesisContent) === "summary" ? "summary" : "strong"
       );
-      const selectedSources = (_b = options.referenceGroups) != null ? _b : [];
+      const selectedSources = (_c = options.referenceGroups) != null ? _c : [];
       if (!children.length && !selectedSources.some((group) => group.documents.length)) {
         failed(t("ui.the_selected_sources_contain_no_markdown_content_to_synthesi"));
         return;
@@ -30624,7 +30633,7 @@ ${request.requirements}` : preset.text,
         accepted
       );
       accepted == null ? void 0 : accepted();
-      if ((_c = options.signal) == null ? void 0 : _c.aborted) throw new DOMException("Aborted", "AbortError");
+      if ((_d = options.signal) == null ? void 0 : _d.aborted) throw new DOMException("Aborted", "AbortError");
       const angles = result.suggestions.slice(0, 2);
       if (!angles.length) {
         failed(t("ui.ai_did_not_suggest_a_synthesis_direction_please_retry"));
@@ -30635,7 +30644,7 @@ ${request.requirements}` : preset.text,
         (direction) => this.plugin.mutate(() => this.integrateChildren(node, options, direction, drafted, failed))
       );
     } catch (error) {
-      if (((_d = options.signal) == null ? void 0 : _d.aborted) || error instanceof Error && error.name === "AbortError") {
+      if (((_e = options.signal) == null ? void 0 : _e.aborted) || error instanceof Error && error.name === "AbortError") {
         failed(t("ui.research_stopped_existing_content_was_preserved"));
         return;
       }
@@ -30648,14 +30657,14 @@ ${request.requirements}` : preset.text,
     }
   }
   async integrateChildren(node, options, direction = "", drafted, failed, accepted) {
-    var _a, _b, _c, _d, _e, _f, _g, _h;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i;
     if (!this.map || this.plugin.running.has(node.path)) {
       failed == null ? void 0 : failed(t("ui.ai_running_ai"));
       return;
     }
-    const note = await this.plugin.repo.readNote(node.path);
+    const note = await this.plugin.repo.readNote(node.path, (_a = this.map) != null ? _a : void 0);
     const children = this.map.nodes.filter((item) => item.parentId === node.id);
-    if (!children.length && !((_a = options == null ? void 0 : options.referenceGroups) == null ? void 0 : _a.some((group) => group.documents.length))) {
+    if (!children.length && !((_b = options == null ? void 0 : options.referenceGroups) == null ? void 0 : _b.some((group) => group.documents.length))) {
       const message = t("ui.choose_another_note_source_first");
       if (failed) failed(message);
       else new import_obsidian24.Notice(message);
@@ -30680,7 +30689,7 @@ ${request.requirements}` : preset.text,
       note.referencePaths,
       note.thinkingOrigin
     ]);
-    const selectedSources = (_b = options == null ? void 0 : options.referenceGroups) != null ? _b : [];
+    const selectedSources = (_c = options == null ? void 0 : options.referenceGroups) != null ? _c : [];
     if (!children.length && !selectedSources.some((group) => group.documents.length)) {
       const message = t("ui.the_selected_sources_contain_no_markdown_content_to_synthesi");
       if (failed) failed(message);
@@ -30691,7 +30700,7 @@ ${request.requirements}` : preset.text,
     const task = direction || synthesisGoalTask(language2);
     const detailTemplate = templateInLanguage(
       await this.detailTemplateFor(node, options == null ? void 0 : options.detailTemplateId, options == null ? void 0 : options.toneId),
-      (_c = options == null ? void 0 : options.outputLanguage) != null ? _c : language2
+      (_d = options == null ? void 0 : options.outputLanguage) != null ? _d : language2
     );
     this.plugin.running.add(node.path);
     await this.plugin.repo.updateNote(node.path, { status: "running" });
@@ -30712,9 +30721,9 @@ ${request.requirements}` : preset.text,
             outputLanguage: options == null ? void 0 : options.outputLanguage,
             ...this.toneField(note, options),
             mode: "synthesize",
-            researchMode: (_d = options == null ? void 0 : options.researchMode) != null ? _d : "local",
-            researchDepth: (_e = options == null ? void 0 : options.researchDepth) != null ? _e : note.researchDepth,
-            visualMode: (_f = options == null ? void 0 : options.visualMode) != null ? _f : note.visualMode,
+            researchMode: (_e = options == null ? void 0 : options.researchMode) != null ? _e : "local",
+            researchDepth: (_f = options == null ? void 0 : options.researchDepth) != null ? _f : note.researchDepth,
+            visualMode: (_g = options == null ? void 0 : options.visualMode) != null ? _g : note.visualMode,
             detailTemplate
           },
           note
@@ -30726,10 +30735,10 @@ ${request.requirements}` : preset.text,
         accepted
       );
       accepted == null ? void 0 : accepted();
-      if ((_g = options == null ? void 0 : options.signal) == null ? void 0 : _g.aborted) throw new DOMException("Aborted", "AbortError");
+      if ((_h = options == null ? void 0 : options.signal) == null ? void 0 : _h.aborted) throw new DOMException("Aborted", "AbortError");
       await this.plugin.repo.updateNote(node.path, { status: note.status });
       const save = async (summary, detail) => this.plugin.mutate(async () => {
-        var _a2, _b2, _c2;
+        var _a2, _b2, _c2, _d2, _e2;
         if (((_a2 = options == null ? void 0 : options.signal) == null ? void 0 : _a2.aborted) || this.path !== mapPath || ((_b2 = this.map) == null ? void 0 : _b2.id) !== mapId || this.map.nodes.filter((item) => item.parentId === node.id).map((item) => item.id).sort().join("|") !== childIds)
           throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
         const currentSources = await this.topicReferenceGroup(
@@ -30738,7 +30747,7 @@ ${request.requirements}` : preset.text,
         );
         if (JSON.stringify(currentSources.documents) !== sourceSnapshot)
           throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
-        const latest = await this.plugin.repo.readNote(node.path);
+        const latest = await this.plugin.repo.readNote(node.path, (_c2 = this.map) != null ? _c2 : void 0);
         if (JSON.stringify([
           latest.title,
           latest.summary,
@@ -30754,7 +30763,7 @@ ${request.requirements}` : preset.text,
           throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
         const canonical = canonicalDetail(
           detail,
-          (_c2 = options == null ? void 0 : options.outputLanguage) != null ? _c2 : this.plugin.settings.language,
+          (_d2 = options == null ? void 0 : options.outputLanguage) != null ? _d2 : this.plugin.settings.language,
           detailTemplate
         );
         const issues = result.formatIssues && detail !== result.detail ? checkCounts(canonical, detailTemplate) : result.formatIssues;
@@ -30770,7 +30779,7 @@ ${request.requirements}` : preset.text,
           },
           { detailTemplate }
         );
-        const saved = await this.plugin.repo.readNote(node.path);
+        const saved = await this.plugin.repo.readNote(node.path, (_e2 = this.map) != null ? _e2 : void 0);
         this.recordNoteWrite(
           node.path,
           { ...latest, status: note.status },
@@ -30797,7 +30806,7 @@ ${request.requirements}` : preset.text,
           save
         ).open();
     } catch (error) {
-      if (((_h = options == null ? void 0 : options.signal) == null ? void 0 : _h.aborted) || error instanceof Error && error.name === "AbortError") {
+      if (((_i = options == null ? void 0 : options.signal) == null ? void 0 : _i.aborted) || error instanceof Error && error.name === "AbortError") {
         await this.plugin.repo.updateNote(node.path, { status: note.status });
         if (failed) failed(t("ui.research_stopped_existing_content_was_preserved"));
         else new import_obsidian24.Notice(t("ui.research_stopped_existing_content_was_preserved"));
@@ -30982,9 +30991,10 @@ ${request.requirements}` : preset.text,
     this.render();
   }
   retrySynthesis(node) {
+    var _a;
     const task = this.synthesisTasks.get(node.path);
     if (!task || task.state !== "failed" && task.state !== "cancelled") return;
-    void this.plugin.repo.readNote(node.path).then(
+    void this.plugin.repo.readNote(node.path, (_a = this.map) != null ? _a : void 0).then(
       (note) => this.plugin.confirmAiUsage(note.model, async () => {
         await this.startSynthesis(
           node,
@@ -31234,7 +31244,12 @@ ${request.requirements}` : preset.text,
   async topicReferenceGroup(sources2, mode = "strong") {
     var _a, _b, _c, _d;
     const language2 = (_b = (_a = this.plugin.settings) == null ? void 0 : _a.language) != null ? _b : "zh-TW";
-    const notes = await Promise.all(sources2.map((source) => this.plugin.repo.readNote(source.path)));
+    const notes = await Promise.all(
+      sources2.map((source) => {
+        var _a2;
+        return this.plugin.repo.readNote(source.path, (_a2 = this.map) != null ? _a2 : void 0);
+      })
+    );
     const documents = sources2.map((source, index) => {
       const note = notes[index];
       const finding = note.newFindings.trim();
@@ -31818,9 +31833,10 @@ ${note.detail.trim()}` : "",
    * Only an explicit choice is written to the topic; a topic template that no longer exists is reported once and cleared.
    */
   async detailTemplateFor(node, chosenId, chosenToneId) {
+    var _a;
     if (chosenToneId) await this.plugin.repo.updateNote(node.path, { toneId: chosenToneId });
     if (chosenId) await this.plugin.repo.updateNote(node.path, { detailTemplateId: chosenId });
-    const note = await this.plugin.repo.readNote(node.path);
+    const note = await this.plugin.repo.readNote(node.path, (_a = this.map) != null ? _a : void 0);
     const { template, missing } = this.resolveTopicTemplate(note, chosenId);
     if (note.detailTemplateId && missing.includes(note.detailTemplateId)) {
       new import_obsidian24.Notice(t("ui.detail_template_missing_0", note.detailTemplateId));
@@ -31855,10 +31871,10 @@ ${note.detail.trim()}` : "",
     );
   }
   async runAgent(node, done, failed, overrides, onLaunchAccepted) {
-    var _a, _b, _c, _d, _e;
+    var _a, _b, _c, _d, _e, _f;
     const taskPath = node.path;
-    const note = await this.plugin.repo.readNote(node.path);
-    if (!((_a = overrides == null ? void 0 : overrides.task) != null ? _a : note.prompt)) {
+    const note = await this.plugin.repo.readNote(node.path, (_a = this.map) != null ? _a : void 0);
+    if (!((_b = overrides == null ? void 0 : overrides.task) != null ? _b : note.prompt)) {
       const message = t("ui.enter_a_question_or_task_for_ai_first");
       if (failed) failed(message);
       else new import_obsidian24.Notice(message);
@@ -31869,8 +31885,8 @@ ${note.detail.trim()}` : "",
       return null;
     }
     const detailTemplate = templateInLanguage(
-      (_b = overrides == null ? void 0 : overrides.detailTemplate) != null ? _b : await this.detailTemplateFor(node),
-      (_c = overrides == null ? void 0 : overrides.outputLanguage) != null ? _c : this.plugin.settings.language
+      (_c = overrides == null ? void 0 : overrides.detailTemplate) != null ? _c : await this.detailTemplateFor(node),
+      (_d = overrides == null ? void 0 : overrides.outputLanguage) != null ? _d : this.plugin.settings.language
     );
     const context = withThinkingOrigin(
       {
@@ -31897,8 +31913,8 @@ ${note.detail.trim()}` : "",
     this.plugin.running.add(node.path);
     const controller = new AbortController();
     const abortFromTaskModal = () => controller.abort();
-    if ((_d = overrides == null ? void 0 : overrides.signal) == null ? void 0 : _d.aborted) controller.abort();
-    else (_e = overrides == null ? void 0 : overrides.signal) == null ? void 0 : _e.addEventListener("abort", abortFromTaskModal, { once: true });
+    if ((_e = overrides == null ? void 0 : overrides.signal) == null ? void 0 : _e.aborted) controller.abort();
+    else (_f = overrides == null ? void 0 : overrides.signal) == null ? void 0 : _f.addEventListener("abort", abortFromTaskModal, { once: true });
     this.plugin.activeTasks.set(taskPath, controller);
     const releaseStartup = () => {
       var _a2;
@@ -31952,13 +31968,13 @@ ${note.detail.trim()}` : "",
       markAccepted
     ).then(
       (result) => this.plugin.mutate(async () => {
-        var _a2, _b2, _c2, _d2, _e2;
-        const latest = await this.plugin.repo.readNote(node.path);
+        var _a2, _b2, _c2, _d2, _e2, _f2, _g;
+        const latest = await this.plugin.repo.readNote(node.path, (_a2 = this.map) != null ? _a2 : void 0);
         const stale = latest.thinkingOrigin !== note.thinkingOrigin || latest.title !== note.title || latest.prompt !== note.prompt || latest.rules !== note.rules || latest.detail !== note.detail || latest.summary !== note.summary || latest.model !== note.model || latest.reasoning !== note.reasoning || latest.researchMode !== note.researchMode || latest.researchDepth !== note.researchDepth || latest.visualMode !== note.visualMode || latest.sourcePaths.join("\n") !== note.sourcePaths.join("\n") || JSON.stringify(latest.referencePaths) !== JSON.stringify(note.referencePaths);
         if (controller.signal.aborted || stale) {
           await this.plugin.repo.updateNote(node.path, { status: note.status });
           if (exchangeId && this.plugin.settings.aiExchangeLoggingEnabled)
-            (_a2 = this.plugin.exchanges) == null ? void 0 : _a2.failed(
+            (_b2 = this.plugin.exchanges) == null ? void 0 : _b2.failed(
               exchangeId,
               t(stale ? "log.stale_result_not_written" : "log.stopped_result_not_written")
             );
@@ -31974,7 +31990,7 @@ ${note.detail.trim()}` : "",
             summary: result.summary,
             detail: canonicalDetail(
               result.detail,
-              (_b2 = context.outputLanguage) != null ? _b2 : this.plugin.settings.language,
+              (_c2 = context.outputLanguage) != null ? _c2 : this.plugin.settings.language,
               context.detailTemplate
             ),
             visualReferences: visualReferencesMarkdown(result.visualReferences, language2),
@@ -31984,7 +32000,7 @@ ${note.detail.trim()}` : "",
           },
           { detailTemplate: context.detailTemplate }
         );
-        const saved = await this.plugin.repo.readNote(node.path);
+        const saved = await this.plugin.repo.readNote(node.path, (_d2 = this.map) != null ? _d2 : void 0);
         this.recordNoteWrite(
           node.path,
           { ...latest, status: note.status },
@@ -31992,7 +32008,7 @@ ${note.detail.trim()}` : "",
           ["summary", "detail", "visualReferences", "newFindings", "previewSection", "previewInitialized", "status"],
           t("ui.research_task")
         );
-        if (exchangeId && this.plugin.settings.aiExchangeLoggingEnabled) (_c2 = this.plugin.exchanges) == null ? void 0 : _c2.completed(exchangeId);
+        if (exchangeId && this.plugin.settings.aiExchangeLoggingEnabled) (_e2 = this.plugin.exchanges) == null ? void 0 : _e2.completed(exchangeId);
         for (const view of this.plugin.views()) if (view !== this) view.history.clear();
         if (result.suggestions.length) {
           this.plugin.pendingSuggestions.set(
@@ -32000,7 +32016,7 @@ ${note.detail.trim()}` : "",
             result.suggestions.slice(0, 7).map((item) => ({ ...item, thinkingOriginBaseline: originBaseline(note.thinkingOrigin) }))
           );
           try {
-            await ((_e2 = (_d2 = this.plugin.pendingSuggestions).flush) == null ? void 0 : _e2.call(_d2));
+            await ((_g = (_f2 = this.plugin.pendingSuggestions).flush) == null ? void 0 : _g.call(_f2));
           } catch (error) {
             const message = this.plugin.recordFailure(t("log.expansion_suggestions_save_failed"), error);
             new import_obsidian24.Notice(message);
