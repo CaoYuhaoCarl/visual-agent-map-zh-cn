@@ -168,10 +168,11 @@ async function reframingModalFixture(insightId) {
   const opened=[];plugin.activateView=async p=>{opened.push(p);};plugin.openResearchMap=async p=>{opened.push(p);};plugin.mutate=async work=>work();
   const {receiveVisualMapHandoff}=load('experiences/visual-map/handoff.ts',{obsidian});
   plugin.core.experiences.register('visual-map',(artifact,beforeWrite)=>receiveVisualMapHandoff(artifact,{repo,defaultModel:()=>plugin.settings.cliModel,exists:p=>!!app.vault.getAbstractFileByPath(p),mutate:work=>plugin.mutate(work),navigate:p=>plugin.activateView(p),beforeWrite}));
-  class Modal {constructor(){this.titleEl=coffeeElement('title');this.contentEl=coffeeElement('content');}open(){this.onOpen?.();}close(){this.didClose=true;this.onClose?.();}}
-  const {openCoffeeResearchHandoff}=load('experiences/coffee-tables/handoff-modal.ts',{obsidian:{...obsidian,Modal}});
-  const modal=await openCoffeeResearchHandoff(plugin,store,displayed,path,insightId);
-  return {...data,plugin,store,session:displayed,path,modal,opened};
+  const modals=[];class Modal {constructor(){this.titleEl=coffeeElement('title');this.contentEl=coffeeElement('content');}open(){modals.push(this);this.onOpen?.();}close(){this.didClose=true;this.onClose?.();}}
+  const dom=require('./support-dom.cjs'), notices=[], Notice=dom.makeNotice(notices);
+  const handoff=load('experiences/coffee-tables/handoff-modal.ts',{obsidian:{...obsidian,Modal,Notice}},{createFragment:dom.createFragment});
+  const modal=await handoff.openCoffeeResearchHandoff(plugin,store,displayed,path,insightId);
+  return {...data,plugin,store,session:displayed,path,modal,opened,handoff,notices,Notice,displayed,insightId,modals};
 }
 // Current AIM coverage scenarios: verify outcomes rather than exact prompt wording/call counts.
 function coverageModel({ failSearch = false, unavailableDelivery = false, clarifyConflict = false } = {}) {

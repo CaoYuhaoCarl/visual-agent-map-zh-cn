@@ -1,4 +1,18 @@
-import { customizationFields, CoffeeCustomizationModal, CoffeeConvergenceModal } from "./customization-ui";
+import {
+  customizationFields,
+  CoffeeCustomizationModal,
+  CoffeeConvergenceModal,
+  convergencePreviewMarks,
+  notifyConvergencePreview
+} from "./customization-ui";
+import {
+  coffeeHandoffTask,
+  dismissCoffeeHandoff,
+  reopenCoffeeHandoff,
+  stopCoffeeHandoff,
+  subscribeCoffeeHandoff
+} from "./handoff-modal";
+import { renderBackgroundStatus } from "../../ui/background-run";
 import { defaultCustomization, validateCustomization, type CoffeeCustomization } from "./customization";
 import { coffeeSegments, extractSegmentSummary, type CoffeeNavigationSnapshot } from "./segments";
 import {
@@ -419,6 +433,7 @@ export class CoffeeTablesView extends ItemView {
   private insightStates = new Map<string, { query: string; expanded: Set<string>; collapsed: Set<string> }>();
   private followUpGuests: Array<{ id: string; name: string; category: GuestCategory; description: string }> = [];
   private modelUnsubscribe?: () => void;
+  private handoffUnsubscribe?: () => void;
   constructor(
     leaf: WorkspaceLeaf,
     private plugin: VisualAgentMapPlugin
@@ -547,6 +562,8 @@ export class CoffeeTablesView extends ItemView {
     this.unsubscribe = null;
     this.modelUnsubscribe?.();
     this.modelUnsubscribe = undefined;
+    this.handoffUnsubscribe?.();
+    this.handoffUnsubscribe = undefined;
     if (this.renderTimer !== null) window.clearTimeout(this.renderTimer);
     if (this.statusTimer !== null) window.clearInterval(this.statusTimer);
   }
@@ -1877,9 +1894,39 @@ export class CoffeeTablesView extends ItemView {
         (value, summariesOnly) => this.store.save(value, summariesOnly)
       );
     this.unsubscribe = this.engine.subscribe(() => this.refresh());
+    this.handoffUnsubscribe?.();
+    this.handoffUnsubscribe = subscribeCoffeeHandoff(this.plugin, () => {
+      if (!this.closed) this.render();
+    });
     if (this.plugin.isCoffeeOutlineSource?.(this)) this.plugin.refreshCoffeeOutline?.(this);
     this.render();
     this.app.workspace.requestSaveLayout();
+  }
+  /** The background "organize with AI" run of the handoff dialog: progress and Stop, then Review and dismiss. */
+  private renderHandoffStatus(parent: HTMLElement, sessionId: string): void {
+    const task = coffeeHandoffTask(this.plugin, sessionId);
+    if (!task) return;
+    const running = task.state === "running";
+    renderBackgroundStatus(parent, {
+      title: this.t("coffee.organize_with_ai"),
+      value: running
+        ? this.t("coffee.organizing_a_research_question")
+        : task.state === "done"
+          ? this.t("coffee.handoff_bar_ready")
+          : (task.message ?? ""),
+      running,
+      ...(running
+        ? { onStop: () => stopCoffeeHandoff(this.plugin, task) }
+        : {
+            review: {
+              label: this.t("ui.background_review"),
+              open: () => {
+                void reopenCoffeeHandoff(this.plugin, task);
+              }
+            },
+            onDismiss: () => dismissCoffeeHandoff(this.plugin, task)
+          })
+    });
   }
   private render(): void {
     const engine = this.engine;
@@ -2245,6 +2292,7 @@ export class CoffeeTablesView extends ItemView {
       );
       handoff.addClass("mod-cta");
     }
+    if (!engine.session.id.startsWith("sample-")) this.renderHandoffStatus(insight, engine.session.id);
     if (!engine.session.id.startsWith("sample-")) {
       const controls = insight.createDiv("ct-customization-actions");
       const review = (): void => new CoffeeConvergenceModal(this.app, engine).open();
@@ -2267,8 +2315,10 @@ export class CoffeeTablesView extends ItemView {
         controls,
         this.t("coffee.preview_convergence"),
         async () => {
+          const before = convergencePreviewMarks(engine);
           await this.plugin.confirmAiUsage(engine.session.model, () => engine.previewConvergence());
-          if (engine.session.convergenceDraft || engine.session.convergenceRawDraft) review();
+          // Completion is a Notice with a review button; the review never opens by itself.
+          notifyConvergencePreview(engine, before, review);
         },
         engine.busy || engine.deleted || !notes[0]
       );

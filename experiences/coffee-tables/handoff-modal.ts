@@ -1,4 +1,4 @@
-import { Modal, type App } from "obsidian";
+import { Modal, Notice, type App } from "obsidian";
 import { randomUUID } from "node:crypto";
 import type VisualAgentMapPlugin from "../../main";
 import { translate, uiLocale, type TranslationKey, type UiLanguage } from "../../i18n";
@@ -9,14 +9,163 @@ import { buildCoffeeSource, coffeeCommittedKey, type CoffeeSource } from "./hand
 import type { CoffeeSession } from "./types";
 import type { CoffeeHandoffSnapshot, CoffeeStorage } from "./storage";
 import { syncModelSelect } from "../../core/model-discovery";
+import type { ReframeRequest } from "../../core/reframing-service";
+import { backgroundResultNotice } from "../../ui/background-run";
+
+/** What the user typed or chose when AI organizing started; the reopened dialog restores it unchanged. */
+export interface CoffeeHandoffInputs {
+  question: string;
+  context: string;
+  model: string;
+  reasoning: string;
+  language: "en" | "zh-TW";
+}
+
+/** Fields the dialog is reopened with: the original inputs, plus the AI draft when one finished. */
+export interface CoffeeHandoffPrefill extends CoffeeHandoffInputs {
+  rationale?: string;
+  method?: "manual" | "ai";
+  /** Shown in the status line (failure or Stop). */
+  message?: string;
+}
+
+/**
+ * One background "organize with AI" run per Coffee session. The dialog hides itself once AI starts, so the plugin
+ * (not the dialog) owns the controller, the inputs and the finished draft until the user reviews, dismisses or stops.
+ */
+export interface CoffeeHandoffTask {
+  sessionId: string;
+  operationId: string;
+  /** Bumped by Stop and plugin unload; a run whose epoch no longer matches drops its result. */
+  epoch: number;
+  controller: AbortController;
+  state: "running" | "done" | "failed" | "stopped";
+  inputs: CoffeeHandoffInputs;
+  draft?: { question: string; context: string; rationale: string };
+  message?: string;
+  store: CoffeeStorage;
+  snapshot: CoffeeHandoffSnapshot;
+  path: string;
+  insightId?: string;
+}
+
+interface HandoffRegistry {
+  tasks: Map<string, CoffeeHandoffTask>;
+  listeners: Set<() => void>;
+}
+
+const registries = new WeakMap<object, HandoffRegistry>();
+
+function registry(plugin: VisualAgentMapPlugin): HandoffRegistry {
+  let found = registries.get(plugin);
+  if (!found) {
+    const created: HandoffRegistry = { tasks: new Map(), listeners: new Set() };
+    found = created;
+    registries.set(plugin, created);
+    // Plugin unload aborts every background run; nothing may write after that.
+    plugin.register?.(() => {
+      for (const task of created.tasks.values()) stopTask(plugin, task, false);
+      created.tasks.clear();
+    });
+  }
+  return found;
+}
+
+function notify(plugin: VisualAgentMapPlugin): void {
+  for (const listener of [...registry(plugin).listeners]) listener();
+}
+
+/** The background run (running, finished, failed or stopped) for a Coffee session, if any. */
+export function coffeeHandoffTask(plugin: VisualAgentMapPlugin, sessionId: string): CoffeeHandoffTask | undefined {
+  return registry(plugin).tasks.get(sessionId);
+}
+
+/** Subscribes to registry changes (the Coffee view re-renders its status bar); returns the unsubscribe. */
+export function subscribeCoffeeHandoff(plugin: VisualAgentMapPlugin, listener: () => void): () => void {
+  const { listeners } = registry(plugin);
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+export function dismissCoffeeHandoff(plugin: VisualAgentMapPlugin, task: CoffeeHandoffTask): void {
+  const { tasks } = registry(plugin);
+  if (tasks.get(task.sessionId) !== task || task.state === "running") return;
+  tasks.delete(task.sessionId);
+  notify(plugin);
+}
+
+function stopTask(plugin: VisualAgentMapPlugin, task: CoffeeHandoffTask, announce: boolean): void {
+  if (task.state !== "running") return;
+  task.epoch++;
+  task.state = "stopped";
+  task.message = translate(uiLocale(plugin.settings.language), "coffee.handoff_stopped");
+  task.controller.abort();
+  plugin.activeTasks.delete(`reframe-modal:${task.operationId}`);
+  if (announce) notify(plugin);
+}
+
+/** Stop from the status bar: aborts the request (before or after the provider accepted it) and writes nothing. */
+export function stopCoffeeHandoff(plugin: VisualAgentMapPlugin, task: CoffeeHandoffTask): void {
+  if (registry(plugin).tasks.get(task.sessionId) !== task) return;
+  stopTask(plugin, task, true);
+}
+
+/**
+ * Reopens the dialog from a finished, failed or stopped background run with its inputs (and the AI draft) restored.
+ * The source is re-checked first; if it changed since the run started, the existing error is shown and nothing is
+ * opened or written.
+ */
+export async function reopenCoffeeHandoff(
+  plugin: VisualAgentMapPlugin,
+  task: CoffeeHandoffTask
+): Promise<CoffeeHandoffModal | undefined> {
+  const { tasks } = registry(plugin);
+  if (tasks.get(task.sessionId) !== task || task.state === "running") return undefined;
+  try {
+    await task.store.assertHandoffSnapshot(task.snapshot);
+    const prefill: CoffeeHandoffPrefill = {
+      ...task.inputs,
+      ...(task.state === "done" && task.draft
+        ? { question: task.draft.question, context: task.draft.context, rationale: task.draft.rationale, method: "ai" }
+        : { message: task.message ?? "" })
+    };
+    const modal = await openCoffeeResearchHandoff(
+      plugin,
+      task.store,
+      task.snapshot.session,
+      task.path,
+      task.insightId,
+      prefill
+    );
+    if (tasks.get(task.sessionId) === task) {
+      tasks.delete(task.sessionId);
+      notify(plugin);
+    }
+    return modal;
+  } catch (error) {
+    new Notice(error instanceof Error ? error.message : String(error));
+    return undefined;
+  }
+}
 
 export async function openCoffeeResearchHandoff(
   plugin: VisualAgentMapPlugin,
   store: CoffeeStorage,
   displayed: CoffeeSession,
   path: string,
-  insightId?: string
-): Promise<CoffeeHandoffModal> {
+  insightId?: string,
+  prefill?: CoffeeHandoffPrefill
+): Promise<CoffeeHandoffModal | undefined> {
+  const waiting = coffeeHandoffTask(plugin, displayed.id);
+  if (!prefill && waiting) {
+    // One background job per session: a running one blocks; a finished one is reviewed instead of starting over.
+    if (waiting.state === "running") throw new Error(translate(uiLocale(plugin.settings.language), "ui.ai_running_ai"));
+    if (waiting.insightId === insightId) return reopenCoffeeHandoff(plugin, waiting);
+    // A finished draft the owner never reviewed is not dropped silently.
+    if (waiting.state === "done" && waiting.draft)
+      new Notice(translate(uiLocale(plugin.settings.language), "coffee.handoff_draft_discarded"));
+    dismissCoffeeHandoff(plugin, waiting);
+  }
   const displayedKey = coffeeCommittedKey(displayed);
   if (plugin.coffeeManager?.get(displayed.id)?.busy) throw new Error("Wait for this table to finish.");
   const snapshot = await store.handoffSnapshot(path, displayed.id);
@@ -28,7 +177,10 @@ export async function openCoffeeResearchHandoff(
     plugin,
     store,
     snapshot,
-    buildCoffeeSource(snapshot.session, insightId)
+    buildCoffeeSource(snapshot.session, insightId),
+    path,
+    insightId,
+    prefill
   );
   plugin.register(() => modal.close());
   modal.open();
@@ -40,6 +192,8 @@ export class CoffeeHandoffModal extends Modal {
   private controller: AbortController | null = null;
   private epoch = 0;
   private closed = false;
+  /** Set once AI started and the dialog hid itself: from then on the registry task owns the run, not this dialog. */
+  private detached = false;
   private creating = false;
   private blocked = false;
   private result?: ExperienceHandoffResult;
@@ -61,7 +215,10 @@ export class CoffeeHandoffModal extends Modal {
     private readonly plugin: VisualAgentMapPlugin,
     private readonly store: CoffeeStorage,
     private readonly snapshot: CoffeeHandoffSnapshot,
-    private readonly source: CoffeeSource
+    private readonly source: CoffeeSource,
+    private readonly path: string = snapshot.path,
+    private readonly insightId?: string,
+    private readonly prefill?: CoffeeHandoffPrefill
   ) {
     super(app);
     this.locale = uiLocale(plugin.settings.language);
@@ -123,6 +280,7 @@ export class CoffeeHandoffModal extends Modal {
       cls: "ct-handoff-status",
       attr: { role: "status", "aria-live": "polite" }
     });
+    this.applyPrefill();
     const actions = this.contentEl.createDiv("modal-button-container");
     this.organize = actions.createEl("button", { text: this.t("coffee.organize_with_ai") });
     this.stop = actions.createEl("button", { text: this.t("coffee.stop_organizing") });
@@ -146,6 +304,25 @@ export class CoffeeHandoffModal extends Modal {
       void this.submit();
     };
     this.question.focus();
+  }
+  /** Restores the inputs (and the AI draft) the dialog was hidden with. */
+  private applyPrefill(): void {
+    const prefill = this.prefill;
+    if (!prefill) return;
+    this.question.value = prefill.question;
+    this.context.value = prefill.context;
+    if (prefill.model && !Array.from(this.model.options).some(option => option.value === prefill.model))
+      this.model.add(
+        new Option(`${this.plugin.modelLabel(prefill.model)} (${this.t("coffee.unavailable")})`, prefill.model)
+      );
+    if (prefill.model) this.model.value = prefill.model;
+    this.reasoning.value = normalizeReasoningLevel(prefill.reasoning);
+    this.language.value = prefill.language;
+    if (prefill.rationale !== undefined) this.rationale = prefill.rationale;
+    if (prefill.method) this.method = prefill.method;
+    if (prefill.message !== undefined) this.status.setText(prefill.message);
+    else if (prefill.method === "ai")
+      this.status.setText(this.t("coffee.review_and_edit_this_draft_then_create_the_research_map"));
   }
   private field(label: string, rows: number): HTMLTextAreaElement {
     const id = `ct-handoff-${randomUUID()}`;
@@ -188,12 +365,18 @@ export class CoffeeHandoffModal extends Modal {
     if (!this.closed) this.status.setText(error instanceof Error ? error.message : String(error));
   }
   private async generate(): Promise<void> {
-    if (this.controller || this.creating || this.blocked || this.result || this.closed) return;
+    if (this.controller || this.creating || this.blocked || this.result || this.closed || this.detached) return;
+    const running = coffeeHandoffTask(this.plugin, this.snapshot.session.id);
+    if (running?.state === "running") {
+      this.status.setText(this.t("ui.ai_running_ai"));
+      return;
+    }
     const controller = new AbortController(),
       epoch = ++this.epoch;
     this.controller = controller;
     this.plugin.activeTasks.set(`reframe-modal:${this.operationId}`, controller);
     this.refresh();
+    const language = this.language.value === "zh-TW" ? ("zh-TW" as const) : ("en" as const);
     const request = {
       targetCore: "understand" as const,
       source: this.source.content,
@@ -201,33 +384,98 @@ export class CoffeeHandoffModal extends Modal {
       context: this.context.value,
       model: this.model.value,
       reasoning: normalizeReasoningLevel(this.reasoning.value),
-      language: this.language.value === "zh-TW" ? ("zh-TW" as const) : ("en" as const)
+      language
     };
     this.status.setText(this.t("coffee.organizing_a_research_question"));
     try {
       await this.assertSource();
       const confirmed = await this.plugin.confirmAiUsage(request.model, async () => {
         if (controller.signal.aborted || this.closed || epoch !== this.epoch) return;
-        const draft = await this.plugin.core.reframing!.reframe(request, controller.signal);
-        await this.assertSource();
-        if (controller.signal.aborted || this.closed || epoch !== this.epoch) return;
-        this.question.value = draft.question;
-        this.context.value = draft.context;
-        this.rationale = draft.rationale;
-        this.method = "ai";
-        this.status.setText(this.t("coffee.review_and_edit_this_draft_then_create_the_research_map"));
+        // AI starts now: the plugin takes over the run and the dialog hides. The inputs are snapshotted first.
+        const task = this.startBackground(controller, {
+          question: request.question,
+          context: request.context,
+          model: request.model,
+          reasoning: request.reasoning,
+          language
+        });
+        this.detached = true;
+        this.close();
+        await this.runBackground(task, request);
       });
-      if (!confirmed && epoch === this.epoch && !this.closed)
+      if (!confirmed && !this.detached && epoch === this.epoch && !this.closed)
         this.status.setText(this.t("coffee.ai_did_not_run_edit_the_draft_manually_or_retry"));
     } catch (error) {
-      if (epoch === this.epoch) this.showError(error);
+      if (!this.detached && epoch === this.epoch) this.showError(error);
     } finally {
-      if (epoch === this.epoch) {
+      if (!this.detached && epoch === this.epoch) {
         this.controller = null;
         this.plugin.activeTasks.delete(`reframe-modal:${this.operationId}`);
         if (!this.closed) this.refresh();
       }
     }
+  }
+  private startBackground(controller: AbortController, inputs: CoffeeHandoffInputs): CoffeeHandoffTask {
+    const task: CoffeeHandoffTask = {
+      sessionId: this.snapshot.session.id,
+      operationId: this.operationId,
+      epoch: 0,
+      controller,
+      state: "running",
+      inputs,
+      store: this.store,
+      snapshot: this.snapshot,
+      path: this.path,
+      ...(this.insightId ? { insightId: this.insightId } : {})
+    };
+    registry(this.plugin).tasks.set(task.sessionId, task);
+    notify(this.plugin);
+    return task;
+  }
+  /** Runs after the dialog hid itself: never touches the dialog; results land in the task and a Notice. */
+  private async runBackground(task: CoffeeHandoffTask, request: ReframeRequest): Promise<void> {
+    const epoch = task.epoch;
+    // Dropped when Stop, a dismissal or a newer run replaced this one; an abort from elsewhere (runtime reset) ends it as stopped.
+    const stale = (): boolean => {
+      if (task.epoch !== epoch || !this.isCurrent(task)) return true;
+      if (!task.controller.signal.aborted) return false;
+      task.state = "stopped";
+      task.message = this.t("coffee.handoff_stopped");
+      return true;
+    };
+    try {
+      const draft = await this.plugin.core.reframing!.reframe(request, task.controller.signal);
+      if (stale()) return;
+      await this.assertTaskSource();
+      if (stale()) return;
+      task.draft = draft;
+      task.state = "done";
+      backgroundResultNotice(this.t("coffee.handoff_draft_ready"), {
+        label: this.t("ui.background_review"),
+        open: () => {
+          void reopenCoffeeHandoff(this.plugin, task);
+        }
+      });
+    } catch (error) {
+      if (stale()) return;
+      task.state = "failed";
+      task.message = error instanceof Error ? error.message : String(error);
+      new Notice(task.message);
+    } finally {
+      if (task.epoch === epoch) {
+        this.plugin.activeTasks.delete(`reframe-modal:${this.operationId}`);
+        notify(this.plugin);
+      }
+    }
+  }
+  private isCurrent(task: CoffeeHandoffTask): boolean {
+    return registry(this.plugin).tasks.get(task.sessionId) === task;
+  }
+  private async assertTaskSource(): Promise<void> {
+    const busy = (): boolean => !!this.plugin.coffeeManager?.get(this.snapshot.session.id)?.busy;
+    if (busy()) throw new Error(this.t("coffee.the_table_is_generating_reopen_it_after_it_finishes"));
+    await this.store.assertHandoffSnapshot(this.snapshot);
+    if (busy()) throw new Error(this.t("coffee.the_table_is_generating_reopen_it_after_it_finishes"));
   }
   private async submit(): Promise<void> {
     if (this.controller || this.creating || this.blocked || this.closed) return;
@@ -300,7 +548,8 @@ export class CoffeeHandoffModal extends Modal {
     this.closed = true;
     this.unsubscribeModels?.();
     this.unsubscribeModels = undefined;
-    this.cancel();
+    // After AI started the plugin task owns the run: hiding the dialog must not abort it.
+    if (!this.detached) this.cancel();
     this.contentEl.empty();
   }
 }
