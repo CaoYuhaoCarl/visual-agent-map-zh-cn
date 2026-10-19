@@ -12,12 +12,17 @@
 
 ### Changed
 
+- Callouts and the mindmap, treemap, gantt, C4, venn, pie and xychart diagrams in VAM notes now stay readable in light and dark themes: callout titles and links keep at least 4.5:1 contrast and those diagrams follow your theme colors instead of mermaid's fixed palette. Other notes and your theme are untouched.
 - The license is now Apache-2.0 (previously AGPL-3.0-only). The Visual Agent Map name and logo are not covered by the license; see NOTICE. Versions 0.21.0 and earlier remain available under AGPL-3.0-only.
 - The settings rows for content templates and writing tones now say they are used when you pick "Custom…" in Note style.
 
 ### Limitations
 
 - Downgrading after choosing the Textbook template: older versions do not know the `textbook` template. They report it as missing and clear `detail-template: textbook` on a topic the next time AI updates it; maps and the workspace default that use it fall back to Standard. A custom template you saved under the id `textbook` is kept under the id `custom-textbook`.
+
+### Fixed
+
+- Diagrams Obsidian renders before their section is on screen no longer miss the zoom button and the readable-diagram styling.
 
 ## [0.21.0] - 2026-10-16
 
