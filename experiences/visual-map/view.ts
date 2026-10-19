@@ -34,6 +34,7 @@ import {
   labelFullKnowledge,
   labelOldFindings,
   labelVisualReferences,
+  mergeGoalTask,
   noSummaryYet,
   researchTopicTask,
   synthesisDirectionsTask,
@@ -107,7 +108,15 @@ import type { AimProgressEvent } from "../aim/manual-flow-support";
 import { matchAimFailedReportTargets } from "../aim/retry-targets";
 import { aimRepairHint, aimTimedOut } from "../aim/failure-hint";
 import { canvasPointerIntent } from "./canvas-gestures";
-import { mergedDetail, mergedStatus, mergeEligibility, MergeTopicsModal, type MergeEligibility } from "./merge-topics";
+import {
+  hasMergeContent,
+  mergedDetail,
+  mergedStatus,
+  mergeEligibility,
+  MergeTopicsModal,
+  resolveMergeModel,
+  type MergeEligibility
+} from "./merge-topics";
 
 import {
   TaskOptions,
@@ -223,6 +232,25 @@ interface MergeState {
   newParked: string | null;
   sources: FileMove[];
 }
+/** The AI merge that hid its dialog: owned by the view, one per map. It writes nothing until the draft is confirmed. */
+interface MergeTask {
+  mapPath: string;
+  mapId: string;
+  mapTitle: string;
+  title: string;
+  sources: { id: string; path: string }[];
+  parentId: string | null;
+  model: string;
+  /** The sources as sent to the model (JSON of the reference documents); compared again before the draft is saved. */
+  sourceContent: string;
+  controller: AbortController;
+  state: "running" | "draft" | "failed";
+  progress: string;
+  message?: string;
+  draft?: AiResult;
+  /** The request in flight (tests await it). */
+  run?: Promise<void>;
+}
 /** Unique ids for the hidden card labels; any view may render a card. */
 let cardLabelSequence = 0;
 const cardLabels = new WeakMap<HTMLElement, HTMLElement>();
@@ -294,6 +322,8 @@ export class VisualAgentMapView extends ItemView {
   private selectionStarting = false;
   /** A merge dialog is open or its write is queued; a second Merge press (or the Enter that confirmed) is ignored. */
   private mergeOpen = false;
+  /** AI merges that hid their dialog, keyed by map path (one per map). */
+  private mergeTasks = new Map<string, MergeTask>();
 
   /**
    * AI actions whose dialog hid itself and whose provider request is not accepted yet, keyed by node path (or
@@ -528,6 +558,8 @@ export class VisualAgentMapView extends ItemView {
     this.synthesisTasks.clear();
     for (const controller of this.startingTasks.values()) controller.abort();
     this.startingTasks.clear();
+    for (const task of this.mergeTasks.values()) task.controller.abort();
+    this.mergeTasks.clear();
     this.dropMapBackground();
     this.aimViewEpoch++;
     this.mapOpenEpoch++;
@@ -1003,6 +1035,24 @@ export class VisualAgentMapView extends ItemView {
           if (this.outlineDraftTask === draft) this.outlineDraftTask = null;
           this.render();
         }
+      });
+    }
+    const merge = this.mergeTasks.get(this.path);
+    if (merge) {
+      const running = merge.state === "running";
+      renderBackgroundStatus(parent, {
+        title: t("ui.merge_bar_title_0", merge.title),
+        value: running
+          ? merge.progress || t("ui.merge_ai_running")
+          : merge.state === "draft"
+            ? t("ui.merge_draft_ready_0", merge.title)
+            : (merge.message ?? t("ui.merge_draft_stale")),
+        running,
+        ...(running ? { onStop: () => this.stopMergeTask(merge) } : {}),
+        ...(merge.state === "draft"
+          ? { review: { label: t("ui.review_merge_draft"), open: () => this.reviewMergeDraft(merge) } }
+          : {}),
+        onDismiss: () => this.stopMergeTask(merge)
       });
     }
   }
@@ -2583,7 +2633,7 @@ export class VisualAgentMapView extends ItemView {
       throw error;
     }
   }
-  private mergeBusy(node: MapNode): boolean {
+  private mergeBusy(node: MapNode, except?: MergeTask): boolean {
     const batch = this.plugin.expansionBatches?.get(this.multiResearchKey()),
       task = this.integrationTask;
     return !!(
@@ -2591,20 +2641,38 @@ export class VisualAgentMapView extends ItemView {
       this.plugin.quickExpandPending?.has(node.path) ||
       this.plugin.activeTasks?.has(node.path) ||
       (batch?.status === "running" && (batch.currentPath === node.path || batch.queuedPaths.includes(node.path))) ||
-      (task?.state === "running" && task.mapPath === this.path && task.sources.some(source => source.id === node.id))
+      (task?.state === "running" && task.mapPath === this.path && task.sources.some(source => source.id === node.id)) ||
+      [...(this.mergeTasks?.values() ?? [])].some(
+        merge =>
+          merge !== except &&
+          merge.state !== "failed" &&
+          merge.mapPath === this.path &&
+          merge.sources.some(source => source.id === node.id)
+      )
     );
   }
-  private mergeCheck(ids: Iterable<string> = this.multiSelected): MergeEligibility {
+  private mergeCheck(ids: Iterable<string> = this.multiSelected, except?: MergeTask): MergeEligibility {
     return mergeEligibility({
       ids,
       nodes: this.map?.nodes ?? [],
       hasNote: id => this.notes.has(id),
-      busy: node => this.mergeBusy(node)
+      busy: node => this.mergeBusy(node, except)
     });
   }
   /** Asks for the merged topic's name, then merges in the write queue (which checks everything again). */
   private openMerge(): void {
     if (!this.map || this.map.aim || this.builtIn || this.mergeOpen || !this.multiSelected.size) return;
+    // One AI merge per map: a running one is only reported, a finished draft is reviewed, a failed one is cleared.
+    const existing = this.mergeTasks.get(this.path);
+    if (existing?.state === "running") {
+      new Notice(t("ui.ai_running_ai"));
+      return;
+    }
+    if (existing?.state === "draft") {
+      this.reviewMergeDraft(existing);
+      return;
+    }
+    if (existing) this.mergeTasks.delete(this.path);
     const check = this.mergeCheck();
     if (!check.ok) {
       new Notice(t(check.reason));
@@ -2613,8 +2681,10 @@ export class VisualAgentMapView extends ItemView {
     const snapshot = {
       path: this.path,
       mapId: this.map.id,
+      parentId: check.parentId,
       sources: check.sources.map(source => ({ id: source.id, path: source.path }))
     };
+    const withContent = hasMergeContent(check.sources.map(source => this.notes.get(source.id)));
     this.mergeOpen = true;
     new MergeTopicsModal(
       this.app,
@@ -2630,8 +2700,178 @@ export class VisualAgentMapView extends ItemView {
         }),
       () => {
         this.mergeOpen = false;
-      }
+      },
+      withContent
+        ? { start: (title, started, signal) => this.startMergeDraft(title, snapshot, started, signal) }
+        : undefined
     ).open();
+  }
+  /** The model of a merged topic: the common parent's model like a new subtopic, else the workspace model. */
+  private async mergeModel(parentId: string | null): Promise<string> {
+    const parent = parentId ? this.map?.nodes.find(node => node.id === parentId) : undefined;
+    return resolveMergeModel(
+      parent ? (await this.plugin.repo.readNote(parent.path, this.map ?? undefined)).model : undefined,
+      this.plugin.settings.cliModel
+    );
+  }
+  /**
+   * Starts the AI merge from the dialog. Nothing is written: the usage notice comes first (declining leaves the dialog
+   * open and starts nothing); once accepted, `started` hides the dialog and the task lives on the status bar until
+   * its draft is confirmed. Resolves false when AI did not start.
+   */
+  private async startMergeDraft(
+    title: string,
+    snapshot: { path: string; mapId: string; parentId: string | null; sources: { id: string; path: string }[] },
+    started: () => void,
+    signal: AbortSignal
+  ): Promise<boolean> {
+    const stillValid = (): boolean => {
+      const check = this.mergeCheck(snapshot.sources.map(source => source.id));
+      return (
+        !this.closed &&
+        !!this.map &&
+        this.path === snapshot.path &&
+        this.map.id === snapshot.mapId &&
+        check.ok &&
+        check.sources.every(node => snapshot.sources.find(source => source.id === node.id)?.path === node.path)
+      );
+    };
+    if (!stillValid()) {
+      new Notice(t("ui.merge_draft_stale"));
+      return false;
+    }
+    const model = await this.mergeModel(snapshot.parentId);
+    let began = false;
+    const accepted = await this.plugin.confirmAiUsage(model, async () => {
+      if (signal.aborted || !stillValid()) return;
+      began = true;
+      const task: MergeTask = {
+        mapPath: snapshot.path,
+        mapId: snapshot.mapId,
+        mapTitle: this.map?.title ?? "",
+        title,
+        sources: snapshot.sources,
+        parentId: snapshot.parentId,
+        model,
+        sourceContent: "",
+        controller: new AbortController(),
+        state: "running",
+        progress: ""
+      };
+      this.mergeTasks.set(snapshot.path, task);
+      this.mergeOpen = false;
+      started();
+      this.render();
+      task.run = this.runMergeDraft(task);
+    });
+    if (accepted && !began && !signal.aborted) new Notice(t("ui.merge_draft_stale"));
+    return began;
+  }
+  private isLiveMergeTask(task: MergeTask): boolean {
+    return this.mergeTasks.get(task.mapPath) === task && !task.controller.signal.aborted && !this.closed;
+  }
+  /** The model call of an AI merge; a stopped, replaced or late run changes nothing. */
+  private async runMergeDraft(task: MergeTask): Promise<void> {
+    const language = this.plugin.settings.language;
+    try {
+      const sourceGroup = await this.topicReferenceGroup(task.sources, "strong", { origin: false });
+      if (!this.isLiveMergeTask(task)) return;
+      task.sourceContent = JSON.stringify(sourceGroup.documents);
+      const result = await this.plugin.askModel(
+        {
+          title: task.title,
+          summary: noSummaryYet(language),
+          rules: "",
+          detail: "",
+          task: mergeGoalTask(language),
+          ancestors: "",
+          referenceGroups: [sourceGroup],
+          onProgress: message => {
+            if (!this.isLiveMergeTask(task)) return;
+            task.progress = message;
+            this.render();
+          },
+          outputLanguage: language,
+          mode: "synthesize",
+          researchMode: "local",
+          researchDepth: "normal",
+          visualMode: "off",
+          detailTemplate: this.mapDetailTemplate(language)
+        },
+        task.model,
+        this.plugin.settings.cliReasoning,
+        task.controller.signal
+      );
+      if (!this.isLiveMergeTask(task)) return;
+      const latest = await this.topicReferenceGroup(task.sources, "strong", { origin: false });
+      if (!this.isLiveMergeTask(task)) return;
+      if (JSON.stringify(latest.documents) !== task.sourceContent) {
+        task.state = "failed";
+        task.message = t("ui.merge_draft_stale");
+        this.render();
+        return;
+      }
+      task.state = "draft";
+      task.draft = result;
+      task.progress = "";
+      this.render();
+      backgroundResultNotice(t("ui.merge_draft_ready_0", task.title), {
+        label: t("ui.review_merge_draft"),
+        open: () => this.reviewMergeDraft(task)
+      });
+    } catch (error) {
+      if (!this.isLiveMergeTask(task)) return;
+      task.state = "failed";
+      task.message = this.plugin.recordFailure(t("log.merge_failed"), error);
+      new Notice(task.message);
+      this.render();
+    }
+  }
+  /** Stop, or clear a finished one: the run is aborted and forgotten, so a late result changes nothing. */
+  private stopMergeTask(task: MergeTask): void {
+    if (this.mergeTasks.get(task.mapPath) === task) this.mergeTasks.delete(task.mapPath);
+    task.controller.abort();
+    this.render();
+  }
+  private reviewMergeDraft(task: MergeTask): void {
+    if (this.mergeTasks.get(task.mapPath) !== task || task.state !== "draft" || !task.draft || this.closed) return;
+    if (this.path !== task.mapPath) {
+      new Notice(t("ui.merge_open_map_first_0", task.mapTitle));
+      return;
+    }
+    const draft = task.draft;
+    new DraftReviewModal(
+      this.app,
+      draft.summary,
+      draft.detail,
+      {
+        intro: t("ui.merge_draft_intro", task.title, task.sources.length),
+        confirmLabel: t("ui.confirm_merge"),
+        title: t("ui.review_merge_draft")
+      },
+      // Return the write so a failure keeps the dialog, and the user's edits, open with the error.
+      (summary, detail) => this.confirmMergeDraft(task, summary, detail),
+      () => this.stopMergeTask(task)
+    ).open();
+  }
+  /** Writes a reviewed AI merge draft (the user's edited summary and Detail) through the write queue. */
+  private confirmMergeDraft(task: MergeTask, summary: string, detail: string): Promise<void> {
+    const draft = task.draft;
+    if (!draft) return Promise.reject(new Error(t("ui.merge_draft_stale")));
+    return this.plugin.mutate(() =>
+      this.mergeSelected(
+        task.title,
+        { path: task.mapPath, mapId: task.mapId, sources: task.sources },
+        {
+          summary,
+          detail,
+          visualReferences: draft.visualReferences,
+          formatIssues: draft.formatIssues,
+          sourceContent: task.sourceContent,
+          task
+        }
+      )
+    );
   }
   /** Puts moved notes back where they were and restores their lifecycle, newest move first. */
   private async revertMergeMoves(moves: MergeMove[]): Promise<void> {
@@ -2647,8 +2887,25 @@ export class VisualAgentMapView extends ItemView {
    */
   private async mergeSelected(
     title: string,
-    snapshot: { path: string; mapId: string; sources: { id: string; path: string }[] }
+    snapshot: { path: string; mapId: string; sources: { id: string; path: string }[] },
+    content?: {
+      summary: string;
+      detail: string;
+      visualReferences: AiResult["visualReferences"];
+      formatIssues: AiResult["formatIssues"];
+      sourceContent: string;
+      task: MergeTask;
+    }
   ): Promise<void> {
+    // A confirmed AI draft that no longer fits fails loudly and writes nothing; the plain merge just does nothing.
+    const stale = (): never => {
+      if (content && this.mergeTasks.get(snapshot.path) === content.task) {
+        content.task.state = "failed";
+        content.task.message = t("ui.merge_draft_stale");
+        if (!this.closed) this.render();
+      }
+      throw new Error(t("ui.merge_draft_stale"));
+    };
     if (
       this.closed ||
       !this.map ||
@@ -2656,14 +2913,22 @@ export class VisualAgentMapView extends ItemView {
       this.builtIn ||
       this.path !== snapshot.path ||
       this.map.id !== snapshot.mapId
-    )
+    ) {
+      if (content) stale();
       return;
-    const check = this.mergeCheck(snapshot.sources.map(source => source.id));
+    }
+    if (content && (this.mergeTasks.get(snapshot.path) !== content.task || content.task.state !== "draft")) stale();
+    const check = this.mergeCheck(
+      snapshot.sources.map(source => source.id),
+      content?.task
+    );
     if (!check.ok) {
+      if (content) stale();
       new Notice(t(check.reason));
       return;
     }
     if (check.sources.some(node => snapshot.sources.find(source => source.id === node.id)?.path !== node.path)) {
+      if (content) stale();
       new Notice(t("ui.merge_missing_note"));
       return;
     }
@@ -2671,22 +2936,57 @@ export class VisualAgentMapView extends ItemView {
       mapPath = this.path,
       repo = this.plugin.repo,
       before = clone(this.map),
-      sourceNotes: Note[] = [];
-    for (const source of sources) sourceNotes.push(await repo.readNote(source.path));
-    const detail = mergedDetail(
-      sources.map((_, index) => ({ title: sourceNotes[index].title, detail: sourceNotes[index].detail }))
+      language = this.plugin.settings.language;
+    if (content) {
+      let latest: string | undefined;
+      try {
+        latest = JSON.stringify((await this.topicReferenceGroup(sources, "strong", { origin: false })).documents);
+      } catch {
+        /* An unreadable source is a changed source. */
+      }
+      if (latest !== content.sourceContent) stale();
+    }
+    let detail = "";
+    if (!content) {
+      const sourceNotes: Note[] = [];
+      for (const source of sources) sourceNotes.push(await repo.readNote(source.path, before));
+      detail = mergedDetail(
+        sources.map((_, index) => ({ title: sourceNotes[index].title, detail: sourceNotes[index].detail }))
+      );
+    }
+    const model = content?.task.model ?? (await this.mergeModel(check.parentId));
+    const created = await repo.createNote(
+      title,
+      model,
+      before,
+      mapPath,
+      check.parentId ? "inherited" : "workspace",
+      content ? undefined : { detail }
     );
-    const created = await repo.createNote(title, this.plugin.settings.cliModel, before, mapPath, "workspace", {
-      detail
-    });
     const done: MergeMove[] = [],
       moves: FileMove[] = [];
     const after = clone(before);
     try {
-      await repo.updateNote(created.path, {
-        sourcePaths: sources.map(source => source.path),
-        status: mergedStatus(detail)
-      });
+      if (content) {
+        const detailTemplate = this.mapDetailTemplate(language);
+        await repo.updateNote(
+          created.path,
+          {
+            summary: content.summary,
+            detail: canonicalDetail(content.detail, language, detailTemplate),
+            visualReferences: visualReferencesMarkdown(content.visualReferences, language),
+            prompt: mergeGoalTask(language),
+            sourcePaths: sources.map(source => source.path),
+            status: "completed",
+            ...formatIssuesPatch(content.formatIssues, language)
+          },
+          { detailTemplate }
+        );
+      } else
+        await repo.updateNote(created.path, {
+          sourcePaths: sources.map(source => source.path),
+          status: mergedStatus(detail)
+        });
       for (const source of sources) {
         const target = await repo.moveUnique(source.path, repo.topicFolder(mapPath, "Unassigned"));
         done.push({
@@ -2736,6 +3036,7 @@ export class VisualAgentMapView extends ItemView {
       sources: moves
     };
     this.map = after;
+    if (content && this.mergeTasks.get(mapPath) === content.task) this.mergeTasks.delete(mapPath);
     this.history.push({
       label: t("ui.merge_topics_history"),
       undo: () => this.applyMerge(state, false),
@@ -6848,8 +7149,10 @@ export class VisualAgentMapView extends ItemView {
     });
   }
   private async topicReferenceGroup(
-    sources: MapNode[],
-    mode: "strong" | "summary" = "strong"
+    sources: Pick<MapNode, "path">[],
+    mode: "strong" | "summary" = "strong",
+    /** `origin: false` leaves each note's Thinking Origin out (an AI merge never sends it). */
+    options: { origin?: boolean } = {}
   ): Promise<ReferenceGroup> {
     const language = this.plugin.settings?.language ?? "zh-TW";
     const notes = await Promise.all(
@@ -6866,7 +7169,7 @@ export class VisualAgentMapView extends ItemView {
         visuals ? `${labelVisualReferences(language)}\n${visuals}` : "",
         mode === "strong" && note.detail.trim() ? `${labelFullKnowledge(language)}\n${note.detail.trim()}` : "",
         finding ? `${labelOldFindings(language)} ${finding}` : "",
-        note.thinkingOrigin ? thinkingOriginDocumentBlock(note.thinkingOrigin) : ""
+        note.thinkingOrigin && options.origin !== false ? thinkingOriginDocumentBlock(note.thinkingOrigin) : ""
       ]
         .filter(Boolean)
         .join("\n\n");

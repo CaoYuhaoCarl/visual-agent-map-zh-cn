@@ -1872,6 +1872,22 @@ integrationTest('merge dialog: Enter confirms once and is consumed; a second Mer
   queued.length = 0; view.mergeOpen = false; view.openMerge(); assert.equal(opened.length, 2);
   opened[1].close(); view.openMerge(); assert.equal(opened.length, 3);
 });
+integrationTest('merge dialog offers AI only when a selected card has Detail, and an AI merge in progress blocks a second dialog', () => {
+  const make = selectionDom(); const opened = [];
+  class FakeModal { constructor(app) { this.app = app; const el = () => { const e = make('div'); e.setText = text => { e.text = text; }; const create = e.createEl.bind(e); e.createEl = (name, init = {}) => { const child = create(name, init); child.value = init.value; child.type = init.type; child.focus = () => {}; child.select = () => {}; child.createEl = e.createEl; child.setText = e.setText; child.createSpan = e.createSpan; return child; }; return e; }; this.titleEl = el(); this.contentEl = el(); this.modalEl = el(); } open() { opened.push(this); this.onOpen(); } close() { this.onClose?.(); } }
+  const fixture = selectionView(load, {}, { ...obsidian, Modal: FakeModal }); const { view } = fixture;
+  view.app = {}; view.enqueue = () => {}; view.integrationMode = true; fixture.build();
+  const checkbox = modal => modal.contentEl.children.flatMap(function walk(c) { return [c, ...c.children.flatMap(walk)]; }).find(c => c.type === 'checkbox');
+  view.multiSelected = new Set(['a', 'b']);
+  view.openMerge(); assert.equal(checkbox(opened[0]), undefined, 'no content: the plain structure merge');
+  opened[0].close();
+  view.notes.get('b').detail = 'Has content';
+  view.openMerge(); assert.ok(checkbox(opened[1]), 'content: the AI merge with its skip option');
+  opened[1].close();
+  // A running merge on this map only reports itself; its sources stay locked after it fails or finishes a draft.
+  view.mergeTasks.set(view.path, { mapPath: view.path, state: 'running', sources: [{ id: 'a', path: 'a' }, { id: 'b', path: 'b' }], controller: new AbortController() });
+  view.openMerge(); assert.equal(opened.length, 2, 'no second dialog while a merge is running');
+});
 integrationTest('the read-only sample and AIM maps never enter selection mode from Shift+drag or Cmd/Ctrl+click', () => {
   for (const [name, setup] of [['sample', view => { view.builtIn = true; }], ['AIM', view => { view.map.aim = { branches: [] }; }]]) {
     const fixture = selectionView(load); const { view } = fixture; setup(view);

@@ -811,6 +811,26 @@
       "language": "zh-TW",
       "schema": true
     },
+    "view.merge-draft.en.1": {
+      "builder": "VisualAgentMapView merge-draft TaskContext through AiTaskService",
+      "language": "en",
+      "schema": true
+    },
+    "view.merge-draft.en.2": {
+      "builder": "VisualAgentMapView merge-draft TaskContext through AiTaskService",
+      "language": "en",
+      "schema": true
+    },
+    "view.merge-draft.zh.1": {
+      "builder": "VisualAgentMapView merge-draft TaskContext through AiTaskService",
+      "language": "zh-TW",
+      "schema": true
+    },
+    "view.merge-draft.zh.2": {
+      "builder": "VisualAgentMapView merge-draft TaskContext through AiTaskService",
+      "language": "zh-TW",
+      "schema": true
+    },
     "view.synthesis-directions.en.1": {
       "builder": "VisualAgentMapView synthesis-directions TaskContext through AiTaskService",
       "language": "en",
