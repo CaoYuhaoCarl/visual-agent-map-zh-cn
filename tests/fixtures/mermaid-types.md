@@ -272,9 +272,9 @@ kanban
 
 ```mermaid
 architecture-beta
-  group api(cloud)[API]
-  service db(database)[資料庫] in api
-  service srv(server)[伺服器] in api
+  group api(cloud)["API"]
+  service db(database)["資料庫"] in api
+  service srv(server)["伺服器"] in api
   db:L -- R:srv
 ```
 

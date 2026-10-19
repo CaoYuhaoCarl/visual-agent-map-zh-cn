@@ -343,7 +343,7 @@ test('mermaid types: the prompt bullets name only types the sanitizer keeps', ()
 const OPEN_SYNTAX = {
   nested: ['> [!note] 背景', '> 外層說明', '>', '> > [!warning] 內層', '> > 小心這個例外'].join('\n'),
   foldable: ['> [!note]- 完整推導', '> 第一步', '> 第二步', '', '> [!tip]+ 展開的提示', '> 先回想再看答案'].join('\n'),
-  details: ['<details>', '<summary>延伸說明</summary>', '', '- **重點**一', '- 重點二', '', '```js', 'const a = 1;', '```', '', '</details>'].join('\n'),
+  details: ['<details>', '<summary>延伸說明</summary>', '補充說明第一行，<kbd>Ctrl</kbd> 加 <mark>C</mark>。', '補充說明第二行。', '</details>'].join('\n'),
   inlineHtml: '水是 H<sub>2</sub>O，面積用 m<sup>2</sup>，按 <kbd>Ctrl</kbd> + <kbd>C</kbd> 複製，重點是 <mark>間隔</mark>。'
 };
 
