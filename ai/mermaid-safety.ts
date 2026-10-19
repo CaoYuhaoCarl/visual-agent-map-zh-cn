@@ -1,10 +1,46 @@
 /**
  * Mermaid blocks in a model-written detail are rendered by Obsidian, so the prompt's limits are enforced here too:
- * only flowchart/graph and timeline diagrams with text nodes and arrows. A block that breaks a limit (click or link
- * directives, HTML tags, init/config, URLs, images, icons, styles) keeps its text but loses the `mermaid` info
- * string, so Obsidian shows it as plain code and never renders it.
+ * only flowchart/graph or a type in DIAGRAM_TYPES, with text labels. A block that breaks a limit (click, link,
+ * callback or cssClass directives, HTML tags, init/config, URLs, images, icons, styles, sequence actor menus,
+ * mindmap icons, C4 links/sprites/tags/styling, quadrant point styling) keeps its text but loses the `mermaid` info
+ * string, so Obsidian shows it as plain code and never renders it. An unknown header is neutralized too.
  */
-const ALLOWED_DIAGRAM = /^(?:flowchart|graph)(?:\s+(?:LR|RL|TD|TB|BT))?\s*;?\s*$|^timeline\b/i;
+/** Diagram types the mermaid in Obsidian 1.14.4 (11.13.0) detects and draws offline; checked against the bundle 2026-10-19. */
+export const DIAGRAM_TYPES: readonly string[] = [
+  "sequenceDiagram",
+  "classDiagram",
+  "classDiagram-v2",
+  "stateDiagram",
+  "stateDiagram-v2",
+  "erDiagram",
+  "journey",
+  "gantt",
+  "pie",
+  "quadrantChart",
+  "requirementDiagram",
+  "gitGraph",
+  "C4Context",
+  "C4Container",
+  "C4Component",
+  "C4Dynamic",
+  "C4Deployment",
+  "mindmap",
+  "timeline",
+  "sankey-beta",
+  "xychart-beta",
+  "block-beta",
+  "packet-beta",
+  "kanban",
+  "architecture-beta",
+  "radar-beta",
+  "treemap-beta",
+  "venn-beta",
+  "ishikawa",
+  "ishikawa-beta"
+];
+const FLOWCHART_HEADER = /^(?:flowchart|graph)(?:\s+(?:LR|RL|TD|TB|BT))?\s*;?\s*$/i;
+const TYPE_HEADER = new RegExp(`^(?:${DIAGRAM_TYPES.map(t => t.replace(/[-]/g, "\\-")).join("|")})(?![\\w-])`);
+const allowedHeader = (header: string): boolean => FLOWCHART_HEADER.test(header) || TYPE_HEADER.test(header);
 const UNSAFE_LINE: readonly RegExp[] = [
   // A directive starts a line or follows a `;` statement separator.
   /(?:^|;)\s*(?:click|call|href|link|links|style|classDef|class|linkStyle|interpolate)\b/i,
@@ -16,7 +52,13 @@ const UNSAFE_LINE: readonly RegExp[] = [
   /:::/, // class shorthand
   /@\{/, // shape/image/icon metadata
   /\b(?:fa|fab|fas|far|img):/i,
-  /!\[/ // Markdown image
+  /!\[/, // Markdown image
+  /(?:^|;)\s*(?:callback|cssClass)\b/i, // class diagram callbacks and CSS classes
+  /^(?:properties|details)\b[^:]*:/i, // sequence actor menus (they carry links)
+  /::icon\s*\(/i, // mindmap icon (Font Awesome is not loaded in Obsidian)
+  /\$(?:link|sprite|tags)\b/i, // C4 links, sprites and tags
+  /\b(?:Update(?:Element|Rel|Boundary)Style|UpdateLayoutConfig|Add(?:Element|Rel|Boundary)Tag)\s*\(/, // C4 styling
+  /\]\s*(?:radius|color|stroke-color|stroke-width)\s*:/i // quadrantChart point styling
 ];
 
 const FENCE = /^(`{3,}|~{3,})(.*)$/;
@@ -42,7 +84,7 @@ export function unsafeMermaid(body: readonly string[]): boolean {
   // A leading `---` block is Mermaid front-matter configuration.
   if (lines[0] === "---") return true;
   const header = lines.find(line => !line.startsWith("%%"));
-  if (!header || !ALLOWED_DIAGRAM.test(header)) return true;
+  if (!header || !allowedHeader(header)) return true;
   return lines.some(line => UNSAFE_LINE.some(pattern => pattern.test(line)));
 }
 

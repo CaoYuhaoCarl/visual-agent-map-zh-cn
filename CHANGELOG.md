@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- AI notes can use any offline mermaid diagram type Obsidian supports (sequence, gantt, pie, xychart, quadrant, mindmap, ER, state, sankey and more); unsafe diagram syntax is still shown as plain code.
+
 ### Changed
 
 - The license is now Apache-2.0 (previously AGPL-3.0-only). The Visual Agent Map name and logo are not covered by the license; see NOTICE. Versions 0.21.0 and earlier remain available under AGPL-3.0-only.

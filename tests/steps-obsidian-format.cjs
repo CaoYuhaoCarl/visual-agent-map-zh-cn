@@ -258,3 +258,83 @@ test('AIM interim detail normalizes math delimiters as well as headings', () => 
   const out = AimManualFlow.prototype.interimDetail.call(null, ['# 標題\n\n速率 \\(k\\)', '', '\\[\nFo=\\frac{\\alpha t}{L^2}\n\\]']);
   assert.equal(out, '### 標題\n\n速率 $k$\n\n$$\nFo=\\frac{\\alpha t}{L^2}\n$$');
 });
+
+// Every offline mermaid type Obsidian draws is kept as a mermaid block; anything else, and any unsafe line, is not.
+const nodeFs = require('node:fs');
+const nodePath = require('node:path');
+const { DIAGRAM_TYPES } = load('ai/mermaid-safety.ts');
+const repoRoot = nodePath.join(__dirname, '..');
+const typesFixture = nodeFs.readFileSync(nodePath.join(repoRoot, 'tests/fixtures/mermaid-types.md'), 'utf8');
+const fixtureBlocks = [...typesFixture.matchAll(/^```mermaid\n([\s\S]*?)\n```$/gm)].map(match => match[1].split('\n'));
+const fixtureHeader = lines => lines[0].trim().split(/\s/)[0];
+
+test('mermaid types: the safe fixture keeps every block as mermaid, one block per type plus flowchart and graph', () => {
+  assert.equal(neutralizeUnsafeMermaid(typesFixture), typesFixture);
+  const headers = fixtureBlocks.map(fixtureHeader);
+  for (const type of DIAGRAM_TYPES) assert.equal(headers.filter(header => header === type).length, 1, `${type}: exactly one fixture block`);
+  for (const header of headers) assert.ok(DIAGRAM_TYPES.includes(header) || header === 'flowchart' || header === 'graph', `${header} is in DIAGRAM_TYPES`);
+  assert.ok(headers.includes('flowchart') && headers.includes('graph'));
+  assert.equal(headers.length, DIAGRAM_TYPES.length + 2);
+});
+
+test('mermaid types: generic unsafe lines neutralize a block of every type', () => {
+  const generic = {
+    init: ['%%{init: {}}%%'], br: ['A["<br>x"]'], url: ['https://x'], click: ['click A "x"'], style: ['style A fill:red'],
+    classDef: ['classDef x fill:red'], shorthand: ['A:::x']
+  };
+  for (const lines of fixtureBlocks) {
+    const [header, ...rest] = lines;
+    for (const [name, extra] of Object.entries(generic)) {
+      const body = [header, ...rest, ...extra];
+      assert.equal(parse('```mermaid\n' + body.join('\n') + '\n```'), '```text\n' + body.join('\n') + '\n```', `${fixtureHeader(lines)} + ${name}`);
+    }
+    const front = ['---', 'config:', '  theme: dark', '---', header, ...rest];
+    assert.equal(parse('```mermaid\n' + front.join('\n') + '\n```'), '```text\n' + front.join('\n') + '\n```', `${fixtureHeader(lines)} + front-matter`);
+  }
+});
+
+test('mermaid types: type-specific unsafe syntax is neutralized', () => {
+  const cases = {
+    'sequence link': ['sequenceDiagram', '  link A: x @ /x'],
+    'sequence links': ['sequenceDiagram', '  links A: {"x":"/x"}'],
+    'sequence properties': ['sequenceDiagram', '  properties A: {"k":"v"}'],
+    'sequence details': ['sequenceDiagram', '  details A: /x'],
+    'class callback': ['classDiagram', '  A : x', '  callback A "fn"'],
+    'class cssClass': ['classDiagram', '  A : x', '  cssClass "A" x'],
+    'class interface': ['classDiagram', '  <<interface>> A'],
+    'class body': ['classDiagram', '  class A {', '    x', '  }'],
+    'gantt click call': ['gantt', '  dateFormat YYYY-MM-DD', '  a : a1, 2026-01-01, 1d', '  click a call fn()'],
+    'gantt click href': ['gantt', '  dateFormat YYYY-MM-DD', '  a : a1, 2026-01-01, 1d', '  click a href "/x"'],
+    'C4 link': ['C4Context', '  Person(a, "A", $link="/x")'],
+    'C4 sprite': ['C4Context', '  Person(a, "A", $sprite="x")'],
+    'C4 tags': ['C4Context', '  Person(a, "A", $tags="x")'],
+    'C4 style': ['C4Context', '  Person(a, "A")', '  UpdateElementStyle(a, $bgColor="red")'],
+    'C4 tag': ['C4Context', '  AddElementTag("x", $bgColor="red")'],
+    'mindmap icon': ['mindmap', '  root', '    a', '    ::icon(fa fa-book)'],
+    'quadrant point style': ['quadrantChart', '  x-axis "a" --> "b"', '  Point A: [0.3, 0.6] radius: 10, color: #ff0000'],
+    'kanban metadata': ['kanban', '  todo', '    t1[任務]@{ ticket: 1 }']
+  };
+  for (const [name, body] of Object.entries(cases)) {
+    assert.equal(parse('```mermaid\n' + body.join('\n') + '\n```'), '```text\n' + body.join('\n') + '\n```', name);
+  }
+});
+
+test('mermaid types: unknown or near-miss headers are neutralized', () => {
+  for (const header of ['hello', 'Pie', 'pie-chart', 'flowchart-elk TD', 'zenuml', 'info', 'xychart', 'sankey', 'Timeline', 'flowchart FOO']) {
+    const body = [header, '  A --> B'];
+    assert.equal(parse('```mermaid\n' + body.join('\n') + '\n```'), '```text\n' + body.join('\n') + '\n```', header);
+  }
+});
+
+test('mermaid types: the prompt bullets name only types the sanitizer keeps', () => {
+  const plain = new Set(['timeline', 'gantt', 'pie', 'mindmap']);
+  for (const [lang, marker] of [['zh', '- 圖表：'], ['en', '- Diagrams:']]) {
+    const text = nodeFs.readFileSync(nodePath.join(repoRoot, `core/steps/_shared/obsidian-format.${lang}.md`), 'utf8');
+    const bullet = text.split('\n').find(line => line.startsWith(marker));
+    assert.ok(bullet, `${lang}: diagram bullet`);
+    const tokens = bullet.match(/[A-Za-z][A-Za-z0-9-]*/g).filter(token => /^[a-z]+[A-Z]|-beta$|-v2$/.test(token) || plain.has(token));
+    assert.ok(tokens.length >= 8, `${lang}: bullet names several types`);
+    for (const token of tokens) assert.ok(DIAGRAM_TYPES.includes(token), `${lang}: ${token} is in DIAGRAM_TYPES`);
+    for (const token of ['flowchart', 'sequenceDiagram', 'xychart-beta', 'sankey-beta']) assert.ok(bullet.includes(token), `${lang}: ${token}`);
+  }
+});
