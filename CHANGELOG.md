@@ -35,9 +35,10 @@
 
 ### Limitations
 
-- Downgrading after choosing the Textbook template: older versions do not know the `textbook` template. They report it as missing and clear `detail-template: textbook` on a topic the next time AI updates it; maps and the workspace default that use it fall back to Standard. A custom template you saved under the id `textbook` is kept under the id `custom-textbook`.
+- Downgrading after choosing the Textbook template: older versions do not know the `textbook` template. They report it as missing and clear `detail-template: textbook` on a topic the next time AI updates it; maps and the workspace default that use it fall back to Standard. A custom template you saved under the id `textbook` is kept under the id `custom-textbook`, and topics or maps that used the id `textbook` now get the built-in Textbook template.
 - AI merge applies the merged content directly, and the program does not check that it keeps only facts from the sources before replacing the topic. Undo is available right after the merge.
-- The mindmap diagram in notes may still have low contrast in some cases, Gantt charts use fixed black and white colors, and third-party themes are untested.
+- Gantt task bars keep fixed light colors with black text in both themes, and third-party themes are untested.
+- The diagram step is not yet used by AIM and cannot be turned off; it sometimes picks a less fitting diagram type (for example a mindmap for proportions).
 - In Live Preview source mode, link colors in VAM notes are not adjusted; the contrast fix applies to the rendered note.
 
 ## [0.21.0] - 2026-10-16
