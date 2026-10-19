@@ -1,4 +1,5 @@
 import { Modal, Notice, type App } from "obsidian";
+import { backgroundResultNotice } from "../../ui/background-run";
 import { translate, uiLocale, type TranslationKey } from "../../i18n";
 import type { CoffeeEngine } from "./engine";
 import { baselineFromVersions } from "./insights";
@@ -126,7 +127,25 @@ export function customizationFields(
   return { read, set };
 }
 
+/** The saved convergence preview (parsed draft or raw response) as identities, to tell whether a run produced a new one. */
+export function convergencePreviewMarks(engine: CoffeeEngine): [unknown, unknown] {
+  return [engine.session.convergenceDraft, engine.session.convergenceRawDraft];
+}
+
+/**
+ * Reports a finished one-time convergence preview: one Notice with a review button, only when the run produced a new
+ * preview (a stopped or failed run leaves the old one untouched). The review screen never opens by itself.
+ */
+export function notifyConvergencePreview(engine: CoffeeEngine, before: [unknown, unknown], review: () => void): void {
+  const [draft, raw] = convergencePreviewMarks(engine);
+  if (!draft && !raw) return;
+  if (draft === before[0] && raw === before[1]) return;
+  const t = (key: TranslationKey): string => translate(uiLocale(engine.session.language), key);
+  backgroundResultNotice(t("coffee.convergence_preview_ready"), { label: t("ui.background_review"), open: review });
+}
+
 export class CoffeeCustomizationModal extends Modal {
+  private closed = false;
   constructor(
     app: App,
     private engine: CoffeeEngine,
@@ -174,8 +193,11 @@ export class CoffeeCustomizationModal extends Modal {
         if (issues.length) return;
         for (const item of Array.from(actions.querySelectorAll("button"))) item.disabled = true;
         void action(value)
-          .catch(error => errors.setText(error instanceof Error ? error.message : String(error)))
+          .catch(error => {
+            if (!this.closed) errors.setText(error instanceof Error ? error.message : String(error));
+          })
           .finally(() => {
+            if (this.closed) return;
             for (const item of Array.from(actions.querySelectorAll("button"))) item.disabled = false;
           });
       };
@@ -190,11 +212,23 @@ export class CoffeeCustomizationModal extends Modal {
       new Notice(t("coffee.saved_for_new_tables"));
     });
     run(t("coffee.preview_convergence_once"), async value => {
-      await this.confirmRun(() => engine.previewConvergence(value));
-      if (engine.session.convergenceDraft || engine.session.convergenceRawDraft) {
+      const before = convergencePreviewMarks(engine);
+      let started = false;
+      await this.confirmRun(async () => {
+        // The user closed this window while the usage notice was open: nothing starts.
+        if (this.closed) return;
+        // AI starts now: the window hides and the preview continues in the background (engine busy / Stop stay).
+        started = true;
         this.close();
-        this.reviewed();
-      }
+        try {
+          await engine.previewConvergence(value);
+        } catch (error) {
+          new Notice(error instanceof Error ? error.message : String(error));
+          started = false;
+        }
+      });
+      // Completion never reopens a window or the review by itself; a Notice offers the review.
+      if (started) notifyConvergencePreview(engine, before, this.reviewed);
     });
     content.createEl("small", {
       cls: "ct-muted",
@@ -202,6 +236,7 @@ export class CoffeeCustomizationModal extends Modal {
     });
   }
   onClose(): void {
+    this.closed = true;
     this.contentEl.empty();
   }
 }

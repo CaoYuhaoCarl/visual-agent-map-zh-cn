@@ -18,8 +18,16 @@ const messageOf = (error: unknown): string => {
 export interface StructureReviewHost {
   /** Whole map (root card) or one branch (a subtopic). */
   scope: "map" | "branch";
-  /** Runs the review (asking about AI usage first); rejects with a readable reason. */
-  review: (signal: AbortSignal) => Promise<StructureReviewResult>;
+  /**
+   * Runs the review (asking about AI usage first); rejects with a readable reason. The host calls `started` once AI
+   * actually starts (usage confirmed): this window then closes itself and the host carries the run on in the
+   * background, so the returned promise is no longer read.
+   */
+  review: (signal: AbortSignal, started: () => void) => Promise<StructureReviewResult>;
+  /** A finished review reopened from the status bar or the Notice: shown straight away, with no Start. */
+  initial?: StructureReviewResult;
+  /** Called when a reopened window closes, so the host drops the waiting result. */
+  consumed?: () => void;
   /** The card's title on the map today. */
   titleOf: (id: string) => string;
   /** Why the suggestion can no longer be applied, or null when it still matches the map. */
@@ -44,6 +52,8 @@ const KIND: Record<StructureSuggestionKind, ProposalKind> = {
 export class StructureReviewModal extends Modal {
   private controller?: AbortController;
   private closed = false;
+  /** AI started and this window hid itself; closing no longer cancels the review. */
+  private detached = false;
   private entries: { suggestion: StructureSuggestion; applied: boolean }[] = [];
 
   constructor(
@@ -62,6 +72,15 @@ export class StructureReviewModal extends Modal {
     const status = actionStatus(footer);
     const close = footer.createEl("button", { text: t("ui.close") });
     close.addEventListener("click", () => this.close());
+    if (this.host.initial) {
+      this.showSuggestions(result, this.host.initial);
+      (
+        Array.from(result.querySelectorAll<HTMLButtonElement>(".vam-structure-apply")).find(
+          button => !button.disabled
+        ) ?? close
+      ).focus();
+      return;
+    }
     const start = footer.createEl("button", { text: t("ui.structure_review_start"), cls: "mod-cta" });
     start.addEventListener("click", () => {
       if (this.controller) {
@@ -79,7 +98,11 @@ export class StructureReviewModal extends Modal {
         start.addClass("mod-cta");
       };
       void this.host
-        .review(controller.signal)
+        .review(controller.signal, () => {
+          // AI started: hide this window; the host owns the run from here (Stop is on its status bar).
+          this.detached = true;
+          this.close();
+        })
         .then(review => {
           if (this.closed) return;
           // A review that still arrived after Cancel is dropped, and Start is offered again.
@@ -113,9 +136,10 @@ export class StructureReviewModal extends Modal {
 
   onClose(): void {
     this.closed = true;
-    this.controller?.abort();
+    if (!this.detached) this.controller?.abort();
     this.controller = undefined;
     this.host.highlight([]);
+    if (this.host.initial) this.host.consumed?.();
   }
 
   private targets(): string[] {

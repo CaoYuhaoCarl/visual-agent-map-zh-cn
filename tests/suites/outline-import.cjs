@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
-const { test, integrationTest, fixture, load, plain, obsidian } = require('../support.cjs');
+const { test, integrationTest, fixture, load, plain, obsidian, until } = require('../support.cjs');
+const dom = require('../support-dom.cjs');
 const rawApi = load('experiences/visual-map/outline-import.ts', { obsidian });
 const api = { ...rawApi, parseOutline: input => plain(rawApi.parseOutline(input)) };
 const titles = parse => parse.nodes.map(node => `${'>'.repeat(node.level)}${node.title}@${node.parent ?? '-'}`);
@@ -405,14 +406,24 @@ integrationTest('importOutline: an open failure still completes (one Notice from
   assert.equal(creates, 1); assert.deepEqual(notices, ['mutate notice']); assert.deepEqual(h.notices, []); assert.equal(h.calls.researched, 0);
 });
 
-integrationTest('importOutline: a shallow-research start failure only shows a Notice', async () => {
+integrationTest('importOutline: a shallow-research start failure only shows a Notice, and the import no longer waits for the research', async () => {
+  // Owner decision 2026-10-19: the import window closes once the topics exist; the research runs in the background.
   const h = importHarness();
   h.view.startShallowResearch = async () => { throw new Error('no cli'); };
   await h.view.importOutline({ nodes: api.parseOutline('# R\n## A').nodes, source: null, shallowResearch: true });
+  await until(() => h.notices.length === 1);
   assert.deepEqual(h.notices, ['no cli']);
   const g = importHarness({ confirmAiUsage: async () => { throw new Error('confirm broke'); } });
   await g.view.importOutline({ nodes: api.parseOutline('# R\n## A').nodes, source: null, shallowResearch: true });
+  await until(() => g.notices.length === 1);
   assert.deepEqual(g.notices, ['confirm broke']);
+  // A research batch that runs for a long time does not hold the import (and so its window) open.
+  let finishResearch; const slow = importHarness();
+  slow.view.startShallowResearch = () => new Promise(resolve => { finishResearch = resolve; });
+  let imported = false;
+  await slow.view.importOutline({ nodes: api.parseOutline('# R\n## A').nodes, source: null, shallowResearch: true }).then(() => { imported = true; });
+  assert.equal(imported, true, 'importOutline resolved while the research is still running');
+  finishResearch();
 });
 
 integrationTest('importOutline: a Map.md save failure becomes a Notice with the paths instead of a rejection', async () => {
@@ -550,7 +561,7 @@ test('outline modal: placement labels in Traditional Chinese', () => {
   assert.equal(translate('zh-TW', 'ui.outline_import_selected_missing'), '選取的議題已不在心智圖上。');
 });
 
-async function placementHarness(settingsOverrides = {}, obsidianOverrides = {}) {
+async function placementHarness(settingsOverrides = {}, obsidianOverrides = {}, globals = {}) {
   const { repo, app } = fixture('en');
   const { core, DEFAULT_SETTINGS, withExpansionCoordinator } = require('../support.cjs');
   const notices = [], researched = [], confirms = [];
@@ -566,7 +577,7 @@ async function placementHarness(settingsOverrides = {}, obsidianOverrides = {}) 
   await app.vault.create(mapPath, core.serializeMap(mapDoc));
   await repo.rebuildDerivedData();
   const plugin = withExpansionCoordinator({ repo, settings, running: new Set(), rebuildDerivedData: () => repo.rebuildDerivedData(), mutate: async work => work(), confirmAiUsage: async (model, run) => { confirms.push(model); await run(); return true; } });
-  const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Notice: class { constructor(m) { notices.push(m); } }, ...obsidianOverrides } });
+  const { VisualAgentMapView } = load('main.ts', { obsidian: { ...obsidian, Notice: class { constructor(m) { notices.push(m); } }, ...obsidianOverrides } }, globals);
   const view = new VisualAgentMapView({ app }, plugin);
   view.path = mapPath; view.map = await repo.readMap(mapPath); view.contentEl = { querySelector: () => null }; view.render = () => {}; view.hydrate = async () => {};
   view.startShallowResearch = async (parent, children, options) => { researched.push({ parent: parent.id, children: children.map(child => child.id), options }); };
@@ -783,25 +794,31 @@ integrationTest('quick explore from the view: the generator gets the topic, pres
   assert.equal(h.view.history.canUndo, true);
 });
 
-integrationTest('the import window generator asks about AI usage first and says so when it does not start', async () => {
+const draftInputs = (over = {}) => ({ topic: 'T', presetId: 'knowledge-tree', presetText: 'p', placement: 'tree', target: { map: 'editable' }, shallow: false, depth: 'fast', ...over });
+integrationTest('the import window generator asks about AI usage first, hides the window only once AI starts, and says so when it does not start', async () => {
   const h = await placementHarness();
-  const calls = [];
-  h.plugin.outlineGeneration = { generate: async request => { calls.push(request); return { markdown: '# T\n## A\n', nodes: [] }; } };
+  const calls = [], order = [];
+  h.plugin.outlineGeneration = { generate: async request => { order.push('provider'); calls.push(request); return { markdown: '# T\n## A\n', nodes: [] }; } };
+  const confirm = h.plugin.confirmAiUsage;
+  h.plugin.confirmAiUsage = async (model, run) => { order.push('confirm'); return confirm(model, run); };
   const generator = h.view.outlineGenerator('Topic');
   assert.equal(generator.initialTopic, 'Topic'); assert.equal(generator.presets, h.plugin);
-  assert.equal(await generator.generate({ topic: 'T', presetText: 'p' }, new AbortController().signal), '# T\n## A\n');
+  assert.equal(await generator.generate({ topic: 'T', presetText: 'p' }, new AbortController().signal, () => { order.push('started'); return draftInputs(); }), '# T\n## A\n');
+  assert.deepEqual(order, ['confirm', 'started', 'provider'], 'the window hides after usage is confirmed and before the provider call');
   assert.equal(calls[0].model, 'gpt-6-luna'); assert.equal(calls[0].language, 'en'); assert.deepEqual(h.confirms, ['gpt-6-luna']);
+  // Declined: nothing starts, the window is never told to hide.
   h.plugin.confirmAiUsage = async () => false;
-  await assert.rejects(generator.generate({ topic: 'T', presetText: 'p' }, new AbortController().signal), /did not start/);
-  assert.equal(calls.length, 1);
+  let startedCalls = 0;
+  await assert.rejects(generator.generate({ topic: 'T', presetText: 'p' }, new AbortController().signal, () => { startedCalls++; return draftInputs(); }), /did not start/);
+  assert.equal(calls.length, 1); assert.equal(startedCalls, 0);
 });
 integrationTest('the import window generator answers in the typed topic language, not the interface language', async () => {
   const h = await placementHarness();
   const calls = [];
   h.plugin.outlineGeneration = { generate: async request => { calls.push(request); return { markdown: '# T\n', nodes: [] }; } };
   const generator = h.view.outlineGenerator();
-  await generator.generate({ topic: '要如何在陽台養香草', presetText: 'p' }, new AbortController().signal);
-  await generator.generate({ topic: 'Balcony herbs', presetText: 'p' }, new AbortController().signal);
+  await generator.generate({ topic: '要如何在陽台養香草', presetText: 'p' }, new AbortController().signal, () => draftInputs());
+  await generator.generate({ topic: 'Balcony herbs', presetText: 'p' }, new AbortController().signal, () => draftInputs());
   assert.deepEqual(calls.map(c => c.language), ['en', 'en'], 'errors stay in the interface language');
   assert.deepEqual(calls.map(c => c.contentLanguage), ['zh-TW', 'en']);
   const { outlineGenerateStep } = load('core/steps/outline-generate/step.ts', { obsidian });
@@ -810,6 +827,120 @@ integrationTest('the import window generator answers in the typed topic language
   assert.doesNotMatch(outlineGenerateStep.render({ ...calls[1], topic: 'Balcony herbs', presetText: 'p', model: 'm', reasoning: 'low' }), /Traditional Chinese/);
   assert.doesNotMatch((() => { try { outlineGenerateStep.parse('', calls[0]); } catch (e) { return e.message; } return ''; })(), /[\u4e00-\u9fff]/);
 });
+
+// ---- Background AI outline: the view owns the run once the import window hides ---------------------------------------
+async function draftHarness() {
+  const log = [], modals = [];
+  const Notice = dom.makeNotice(log);
+  const Base = dom.makeModal();
+  class Modal extends Base { open() { modals.push(this); super.open(); } }
+  const h = await placementHarness({}, { Modal, Notice, FuzzySuggestModal: class {} }, { createFragment: dom.createFragment });
+  Object.assign(h.plugin, { availableModels: () => ['model-x'], modelLabel: model => model, subscribeModelDiscovery: () => () => {}, refreshModelDiscovery: async () => {} });
+  const gates = [], calls = [];
+  const ignoreAbort = { value: false };
+  h.plugin.outlineGeneration = { generate: (request, signal) => new Promise((resolve, reject) => {
+    calls.push({ request, signal });
+    const gate = { resolve: markdown => resolve({ markdown, nodes: [] }), reject };
+    gates.push(gate);
+    signal.addEventListener('abort', () => { if (!ignoreAbort.value) reject(Object.assign(new Error('aborted'), { name: 'AbortError' })); });
+  }) };
+  const press = label => { const action = Notice.all.flatMap(n => n.actions).find(b => b.text === label); assert.ok(action, `notice button ${label}`); action.click(); };
+  const bar = () => { const parent = dom.element('div'); h.view.renderBackgroundBars(parent); return parent; };
+  const start = async (inputs = draftInputs()) => {
+    const ctl = new AbortController();
+    let startedCalls = 0;
+    const generator = h.view.outlineGenerator('T');
+    const run = generator.generate({ topic: inputs.topic, presetText: inputs.presetText }, ctl.signal, () => { startedCalls++; return inputs; });
+    await until(() => gates.length);
+    return { run, ctl, startedCalls: () => startedCalls };
+  };
+  return { ...h, log, modals, Notice, gates, calls, ignoreAbort, press, bar, start };
+}
+integrationTest('outline AI in the background: the status bar shows running and Stop; Stop aborts the provider and nothing arrives later (b, f)', async () => {
+  const h = await draftHarness();
+  const { run, startedCalls } = await h.start();
+  assert.equal(startedCalls(), 1); assert.equal(h.view.outlineDraftTask.state, 'running');
+  assert.equal(dom.find(h.bar(), i => i.tag === 'span' && i.text === 'AI is writing the outline…') !== undefined, true);
+  h.ignoreAbort.value = true; // a provider that ignores Stop and still answers
+  dom.button(h.bar(), 'Stop research').click();
+  assert.equal(h.calls[0].signal.aborted, true, 'Stop aborts the provider call');
+  assert.equal(h.view.outlineDraftTask.state, 'stopped');
+  h.gates[0].resolve('# T\n## Late\n'); await run;
+  assert.equal(h.view.outlineDraftTask.markdown, undefined, 'a result that arrives after Stop is dropped');
+  assert.equal(h.Notice.all.length, 0, 'no Notice for a stopped run');
+  assert.equal(h.modals.length, 0);
+});
+integrationTest('outline AI in the background: completion is one Notice with a Review button and a status-bar entry; no window opens by itself (d)', async () => {
+  const h = await draftHarness();
+  const { run } = await h.start();
+  h.gates[0].resolve('# T\n## A\n'); await run;
+  assert.equal(h.view.outlineDraftTask.state, 'done');
+  assert.equal(h.Notice.all.filter(n => n.actions.length).length, 1); assert.match(h.log[0], /AI outline is ready/);
+  assert.equal(h.modals.length, 0, 'the import window is never reopened automatically');
+  assert.ok(dom.button(h.bar(), 'Review'), 'the status bar keeps a Review entry');
+  assert.ok(dom.button(h.bar(), '×'), 'and can be dismissed');
+});
+integrationTest('outline AI in the background: Review reopens the window with every earlier input and the AI result in the outline box (e)', async () => {
+  const h = await draftHarness();
+  const inputs = draftInputs({ topic: 'Balcony herbs', presetId: 'knowledge-tree', presetText: 'Unsaved preset edit', placement: 'under', target: { map: 'editable', selected: { id: h.oldRoot.id, title: 'Old root' } }, shallow: true, depth: 'deep' });
+  const { run } = await h.start(inputs);
+  h.gates[0].resolve('# T\n## A\n### A1\n'); await run;
+  h.press('Review');
+  const modal = h.modals.at(-1);
+  assert.equal(h.view.outlineDraftTask, null, 'reopening consumes the waiting result');
+  const text = dom.find(modal.contentEl, i => dom.hasCls(i, 'vam-outline-text'));
+  assert.equal(text.value, '# T\n## A\n### A1', 'the AI result is in the outline box');
+  assert.equal(dom.byLabel(modal.contentEl, 'Research topic').value, 'Balcony herbs');
+  assert.equal(dom.byLabel(modal.contentEl, 'Preset instructions').value, 'Unsaved preset edit', 'the unsaved preset text is back');
+  const radios = dom.findAll(modal.contentEl, i => i.type === 'radio');
+  assert.equal(radios.find(r => r.checked && r.value === 'under') !== undefined, true, 'placement under the topic is back');
+  assert.equal(dom.find(modal.contentEl, i => i.type === 'checkbox' && dom.hasCls(i.parent ?? {}, 'vam-outline-check')).checked, true, 'shallow research is back');
+  assert.equal(dom.find(modal.contentEl, i => i.type === 'radio' && i.value === 'deep').checked, true, 'research depth is back');
+  assert.ok(dom.find(modal.contentEl, i => i.text === '3 topics, 3 levels'), 'previewed like pasted text');
+});
+integrationTest('outline AI in the background: a failure is a Notice plus a failed status entry; Review reopens with the inputs and the reason', async () => {
+  const h = await draftHarness();
+  const { run } = await h.start(draftInputs({ topic: 'Keep me', presetText: 'edit' }));
+  h.gates[0].reject(new Error('The provider failed')); await run;
+  assert.equal(h.view.outlineDraftTask.state, 'failed'); assert.ok(h.log.some(m => /provider failed/.test(m)));
+  assert.equal(h.modals.length, 0);
+  dom.button(h.bar(), 'Review').click();
+  const modal = h.modals.at(-1);
+  assert.equal(dom.byLabel(modal.contentEl, 'Research topic').value, 'Keep me');
+  assert.equal(dom.find(modal.contentEl, i => dom.hasCls(i, 'vam-outline-text')).value, '', 'no result to show');
+  assert.ok(dom.find(modal.contentEl, i => dom.hasCls(i, 'vam-outline-ai-status') && /provider failed/.test(i.text)));
+});
+integrationTest('outline AI in the background: closing the window before AI starts stops it; after it started only Stop does; a second run is refused while one runs (c)', async () => {
+  const h = await draftHarness();
+  // Before the usage notice is answered the window can still cancel.
+  let release; h.plugin.confirmAiUsage = (model, run) => new Promise(resolve => { release = async () => { await run(); resolve(true); }; });
+  const ctl = new AbortController(); let startedCalls = 0;
+  const pending = h.view.outlineGenerator('T').generate({ topic: 'T', presetText: 'p' }, ctl.signal, () => { startedCalls++; return draftInputs(); });
+  ctl.abort(); release();
+  await assert.rejects(pending, /did not start/);
+  assert.equal(startedCalls, 0); assert.equal(h.calls.length, 0, 'no provider request after cancelling before the start');
+  // After it started, aborting the window's own signal (closing the window) no longer reaches the provider.
+  h.plugin.confirmAiUsage = async (_m, run) => { await run(); return true; };
+  const second = await h.start(); 
+  second.ctl.abort();
+  assert.equal(h.calls[0].signal.aborted, false, 'the hidden run is not tied to the window any more');
+  await assert.rejects(h.view.outlineGenerator('T').generate({ topic: 'T2', presetText: 'p' }, new AbortController().signal, () => draftInputs()), /running/i);
+  h.gates[0].resolve('# T\n'); await second.run;
+});
+integrationTest('outline AI in the background: view close or another map aborts the run and clears the status (g)', async () => {
+  const h = await draftHarness();
+  const { run } = await h.start();
+  await h.view.onClose();
+  assert.equal(h.calls[0].signal.aborted, true); assert.equal(h.view.outlineDraftTask, null);
+  h.gates[0].resolve('# T\n## Late\n'); await run;
+  assert.equal(h.Notice.all.length, 0, 'a result after the view closed is dropped');
+  const other = await draftHarness();
+  const second = await other.start();
+  other.view.dropMapBackground();
+  assert.equal(other.calls[0].signal.aborted, true); assert.equal(other.view.outlineDraftTask, null);
+  second.run.catch(() => {});
+});
+
 test('limitOutline keeps the chosen levels below the root and the chosen number of topics, parents before children', () => {
   const { parseOutline, limitOutline } = load('experiences/visual-map/outline-import.ts', { obsidian });
   const nodes = parseOutline('# Root\n## A\n### A1\n#### A1x\n### A2\n## B\n### B1').nodes;

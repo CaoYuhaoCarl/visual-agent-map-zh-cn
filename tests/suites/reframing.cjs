@@ -36,15 +36,31 @@ test('Visual Map origin is source context including decomposition and rejects si
   assert.match(joined.sourceContext, /Selected sources/); assert.match(joined.sourceContext,/Candidate analogy/); assert.equal(joined.rules,'');
   const prepared = load('ai/context-builder.ts').buildPreparedTaskContext(joined,'m'); assert.match(prepared.context.sourceContext,/Candidate analogy/);
 });
-integrationTest('Coffee reframing stops late results and preserves drafts on invalid/failed requests', async () => {
-  const data=await reframingModalFixture('idea'),{modal,plugin}=data;const pending=deferred();
-  plugin.core.reframing={reframe:()=>pending.promise};
-  const context=coffeeFind(modal.contentEl,e=>e.attrs['aria-label']==='Research context'), old=context.value;
-  coffeeFind(modal.contentEl,e=>e.text==='Organize with AI').onclick();await until(()=>modal.controller);
-  coffeeFind(modal.contentEl,e=>e.text==='Stop').onclick();pending.resolve({question:'late',context:'late result',rationale:'late'});await new Promise(resolve=>setImmediate(resolve));
-  assert.equal(context.value,old);assert.equal(plugin.activeTasks.size,0);assert.equal(data.opened.length,0);
+// Owner decision 2026-10-19: the dialog hides once AI starts; Stop moves to the status bar; late results are dropped.
+const handoffField=(modal,label)=>coffeeFind(modal.contentEl,e=>e.attrs['aria-label']===label);
+const organizeButton=modal=>coffeeFind(modal.contentEl,e=>e.text==='Organize with AI');
+integrationTest('Coffee reframing: the dialog hides once AI starts, Stop drops late results and reopening keeps the original inputs', async () => {
+  const data=await reframingModalFixture('idea'),{modal,plugin,handoff,notices,modals}=data;const pending=deferred();let request;
+  plugin.core.reframing={reframe:(input,signal)=>{request={input,signal};return pending.promise;}};
+  const context=handoffField(modal,'Research context'),old=context.value,question=handoffField(modal,'Research question'),oldQuestion=question.value;
+  organizeButton(modal).onclick();await until(()=>request);
+  // The dialog is hidden, hiding it does not abort, and the plugin task (not the dialog) owns the run.
+  assert.equal(modal.didClose,true);assert.equal(request.signal.aborted,false);assert.equal(plugin.activeTasks.size,1);
+  const task=handoff.coffeeHandoffTask(plugin,data.session.id);assert.equal(task.state,'running');assert.equal(task.inputs.question,oldQuestion);
+  handoff.stopCoffeeHandoff(plugin,task);
+  assert.equal(request.signal.aborted,true);assert.equal(plugin.activeTasks.size,0);assert.equal(task.state,'stopped');
+  pending.resolve({question:'late',context:'late result',rationale:'late'});await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(task.draft,undefined);assert.equal(context.value,old);assert.equal(notices.length,0);assert.equal(data.opened.length,0);assert.equal(modals.length,1);
+  // Reopening after Stop restores the original inputs and says it stopped; nothing was written.
+  const reopened=await handoff.reopenCoffeeHandoff(plugin,task);
+  assert.equal(modals.length,2);assert.equal(handoffField(reopened,'Research context').value,old);assert.equal(handoffField(reopened,'Research question').value,oldQuestion);assert.match(reopened.status.text,/Stopped/);
+  assert.equal(handoff.coffeeHandoffTask(plugin,data.session.id),undefined);assert.equal((await data.repo.mapFiles()).length,0);
+  // A failure after the dialog hid becomes a Notice and a failed entry; the reopened dialog keeps the inputs.
   plugin.core.reframing={reframe:async()=>{throw Error('invalid response');}};
-  coffeeFind(modal.contentEl,e=>e.text==='Organize with AI').onclick();await until(()=>!modal.controller);assert.equal(context.value,old);assert.match(modal.status.text,/invalid/);
+  organizeButton(reopened).onclick();await until(()=>handoff.coffeeHandoffTask(plugin,data.session.id)?.state==='failed');
+  assert.equal(notices.length,1);assert.match(notices[0],/invalid response/);assert.equal(plugin.activeTasks.size,0);
+  const again=await handoff.reopenCoffeeHandoff(plugin,handoff.coffeeHandoffTask(plugin,data.session.id));
+  assert.equal(handoffField(again,'Research context').value,old);assert.equal(handoffField(again,'Research question').value,oldQuestion);assert.match(again.status.text,/invalid/);
 });
 integrationTest('Coffee reframing checks Markdown/sidecar changes and busy state before creating', async () => {
   for (const kind of ['markdown','sidecar','busy']) {
@@ -98,17 +114,62 @@ integrationTest('Editing Thinking Origin during root research fences stale resul
   const handle=await view.runAgent(n);assert.ok(handle);assert.equal(accepted,true);await repo.updateNote(n.path,{thinkingOrigin:'User corrected source'});pending.resolve({summary:'Stale',detail:'Stale',suggestions:[]});await handle.finished;
   const note=await repo.readNote(n.path);assert.equal(note.detail,'Keep');assert.equal(note.thinkingOrigin,'User corrected source');
 });
-integrationTest('Reframing close/reset and declined usage confirmation never apply late drafts', async () => {
-  for(const action of ['close','reset','decline']){
-    const data=await reframingModalFixture(),{modal,plugin}=data;const pending=deferred();let request;
-    plugin.core.reframing={reframe:(input,signal)=>{request={input,signal};return pending.promise;}};
-    if(action==='decline')plugin.confirmAiUsage=async()=>false;
-    const question=coffeeFind(modal.contentEl,e=>e.attrs['aria-label']==='Research question'),before=question.value;
-    coffeeFind(modal.contentEl,e=>e.text==='Organize with AI').onclick();
-    if(action==='decline'){await until(()=>!modal.controller);assert.equal(request,undefined);assert.match(modal.status.text,/did not run/);continue;}
-    await until(()=>request);if(action==='close')modal.close();else plugin.resetCodexRuntime();
-    assert.equal(request.signal.aborted,true);pending.resolve({question:'Late',context:'Late',rationale:'Late'});await new Promise(resolve=>setImmediate(resolve));assert.equal(question.value,before);assert.equal(data.opened.length,0);assert.equal(plugin.activeTasks.size,0);
-  }
+integrationTest('Reframing hides only after usage is confirmed; decline or closing first starts nothing; a runtime reset ends the background run as stopped', async () => {
+  // Decline: the dialog stays open and no request is made.
+  const declined=await reframingModalFixture();let calls=0;
+  declined.plugin.core.reframing={reframe:()=>{calls++;return new Promise(()=>{});}};declined.plugin.confirmAiUsage=async()=>false;
+  organizeButton(declined.modal).onclick();await until(()=>!declined.modal.controller);
+  assert.equal(calls,0);assert.equal(declined.modal.didClose,undefined);assert.match(declined.modal.status.text,/did not run/);assert.equal(declined.handoff.coffeeHandoffTask(declined.plugin,declined.session.id),undefined);
+  // The usage notice is still open: the dialog is still visible; closing it before confirming cancels.
+  const early=await reframingModalFixture();const gate=deferred();let earlyCalls=0;
+  early.plugin.core.reframing={reframe:()=>{earlyCalls++;return new Promise(()=>{});}};
+  early.plugin.confirmAiUsage=async(_m,run)=>{const ok=await gate.promise;if(ok)await run();return ok;};
+  organizeButton(early.modal).onclick();await until(()=>early.plugin.activeTasks.size===1);
+  assert.equal(early.modal.didClose,undefined);assert.equal(early.handoff.coffeeHandoffTask(early.plugin,early.session.id),undefined);
+  early.modal.close();gate.resolve(true);await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(earlyCalls,0);assert.equal(early.plugin.activeTasks.size,0);assert.equal(early.handoff.coffeeHandoffTask(early.plugin,early.session.id),undefined);
+  // Confirmed: hides; a runtime reset aborts and the late draft is never applied.
+  const data=await reframingModalFixture(),{modal,plugin,handoff,notices}=data;const pending=deferred();let request;
+  plugin.core.reframing={reframe:(input,signal)=>{request={input,signal};return pending.promise;}};
+  const question=handoffField(modal,'Research question'),before=question.value;
+  organizeButton(modal).onclick();await until(()=>request);
+  assert.equal(modal.didClose,true);plugin.resetCodexRuntime();
+  assert.equal(request.signal.aborted,true);pending.resolve({question:'Late',context:'Late',rationale:'Late'});await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(question.value,before);assert.equal(data.opened.length,0);assert.equal(plugin.activeTasks.size,0);assert.equal(notices.length,0);
+  const task=handoff.coffeeHandoffTask(plugin,data.session.id);assert.equal(task.state,'stopped');assert.equal(task.draft,undefined);
+  // Pressing again while a run is in the background is refused with the existing running text.
+  const busy=await reframingModalFixture();busy.plugin.core.reframing={reframe:()=>new Promise(()=>{})};
+  organizeButton(busy.modal).onclick();await until(()=>busy.handoff.coffeeHandoffTask(busy.plugin,busy.session.id)?.state==='running');
+  await assert.rejects(busy.handoff.openCoffeeResearchHandoff(busy.plugin,busy.store,busy.displayed,busy.path),/AI running/);
+});
+integrationTest('Reframing completion while the dialog is hidden gives one Notice with a Review button; reopening restores inputs and the AI result; a changed source writes nothing', async () => {
+  const data=await reframingModalFixture(),{modal,plugin,handoff,notices,modals,Notice}=data;
+  plugin.core.reframing={reframe:async()=>({question:'Which evidence separates access from affordability?',context:'AI context',rationale:'AI rationale'})};
+  plugin.settings.language='en';
+  handoffField(modal,'Output language').value='zh-TW';handoffField(modal,'Research question').value='My own question';
+  organizeButton(modal).onclick();await until(()=>handoff.coffeeHandoffTask(plugin,data.session.id)?.state==='done');
+  // Exactly one Notice with one button; no dialog opened by itself.
+  assert.equal(notices.length,1);assert.equal(Notice.all.length,1);assert.deepEqual(Notice.all[0].actions.map(b=>b.text),['Review']);assert.equal(modals.length,1);
+  // The source changes after the run: reopening shows the existing error, opens nothing, writes nothing, keeps the entry.
+  const task=handoff.coffeeHandoffTask(plugin,data.session.id);
+  data.contents.set(data.path,data.contents.get(data.path)+'\nChanged while hidden');
+  Notice.all[0].actions[0].click();await until(()=>notices.length===2);
+  assert.equal(modals.length,1);assert.equal((await data.repo.mapFiles()).length,0);assert.equal(handoff.coffeeHandoffTask(plugin,data.session.id),task);
+  // Source restored: the Notice button reopens the dialog with the AI result and the prior model / reasoning / language.
+  data.contents.set(data.path,data.contents.get(data.path).replace('\nChanged while hidden',''));
+  Notice.all[0].actions[0].click();await until(()=>modals.length===2);
+  const reopened=modals[1];
+  assert.equal(handoffField(reopened,'Research question').value,'Which evidence separates access from affordability?');assert.equal(handoffField(reopened,'Research context').value,'AI context');
+  assert.equal(handoffField(reopened,'Output language').value,'zh-TW');assert.equal(handoffField(reopened,'Model').value,task.inputs.model);assert.equal(reopened.rationale,'AI rationale');assert.equal(reopened.method,'ai');
+  assert.equal(handoff.coffeeHandoffTask(plugin,data.session.id),undefined);
+});
+integrationTest('Starting a handoff for another insight announces the discarded finished AI draft', async () => {
+  const data=await reframingModalFixture(),{modal,plugin,handoff,notices}=data;
+  plugin.core.reframing={reframe:async()=>({question:'Q?',context:'C',rationale:'R'})};plugin.settings.language='en';
+  organizeButton(modal).onclick();await until(()=>handoff.coffeeHandoffTask(plugin,data.session.id)?.state==='done');
+  const before=notices.length;
+  await handoff.openCoffeeResearchHandoff(plugin,data.store,data.displayed,data.path,'idea');
+  assert.equal(notices.length,before+1);assert.match(notices.at(-1),/discarded/i);
 });
 integrationTest('Coffee handoff rechecks source after waiting in the write queue', async () => {
   const data=await reframingModalFixture();const gate=deferred();data.plugin.mutate=async work=>{await gate.promise;await work();};
