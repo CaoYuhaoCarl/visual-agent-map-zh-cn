@@ -31023,7 +31023,7 @@ ${request.requirements}` : preset.text,
       if (merged) this.focusNode(merged);
     } catch (e) {
       this.render();
-      new import_obsidian27.Notice(t("ui.merge_saved_refresh_failed"));
+      new import_obsidian29.Notice(t("ui.merge_saved_refresh_failed"));
     }
   }
   /** The note's exact text, and a verbatim write of it (undo of a merge into a parent restores the original this way). */
