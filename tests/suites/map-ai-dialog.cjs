@@ -103,7 +103,7 @@ integrationTest('multi-select research dialog: the tone picker defaults to keepi
   button(modal.modalEl, 'Start research (2)').click();
   assert.equal('toneId' in submitted[0], false, 'keeping each topic omits the field');
   const second = new MultiResearchModal({}, ['A', 'B'], models, [], request => submitted.push(request), [{ id: 'plain', name: 'Plain' }]);
-  second.open(); byLabel(second.contentEl, 'Writing tone').value = 'plain'; button(second.modalEl, 'Start research (2)').click();
+  second.open(); byLabel(second.contentEl, 'Note style').value = 'custom'; byLabel(second.contentEl, 'Note style').fire('change'); byLabel(second.contentEl, 'Writing tone').value = 'plain'; button(second.modalEl, 'Start research (2)').click();
   assert.equal(submitted[1].toneId, 'plain');
 });
 
@@ -193,6 +193,7 @@ integrationTest('Next Step: the tone select defaults to keeping the topic tone a
   const tone = byLabel(h.modal.contentEl, 'Writing tone');
   assert.deepEqual(plain(tone.children.map(o => o.text)), ['Keep current (Academic rigor)', 'Plain explanation', 'Academic rigor']);
   assert.ok(button(h.modal.contentEl, 'Edit tones…'), 'the tone picker offers an edit link to the tone library');
+  const style = byLabel(h.modal.contentEl, 'Note style'); style.value = 'custom'; style.fire('change');
   tone.value = 'plain'; tone.fire('change');
   assert.ok(find(h.modal.contentEl, i => hasCls(i, 'vam-next-source-summary') && /Plain explanation/.test(i.text)), 'the output summary names the chosen tone');
   button(h.actions(), 'Confirm research task').click(); await tick(); await tick();
@@ -236,8 +237,8 @@ integrationTest('one-click dialog: research is open then one confirm; the summar
   const depths = findAll(adjust, i => i.tag === 'input' && i.type === 'radio');
   depths[2].checked = true; depths[2].fire('change');
   assert.equal(summaryOf(h), 'Deep research · Web search · English · Magazine column');
-  byLabel(h.modal.contentEl, 'Writing tone').value = 'plain'; byLabel(h.modal.contentEl, 'Writing tone').fire('change');
-  assert.equal(summaryOf(h), 'Deep research · Web search · English · Plain explanation');
+  byLabel(h.modal.contentEl, 'Note style').value = 'preset:plain'; byLabel(h.modal.contentEl, 'Note style').fire('change');
+  assert.equal(summaryOf(h), 'Deep research · Web search · English · Plain language');
   byLabel(h.modal.contentEl, 'Answer language for this task').value = 'zh-TW'; byLabel(h.modal.contentEl, 'Answer language for this task').fire('change');
   assert.match(summaryOf(h), /繁體中文/);
   // One click on the primary action runs it and closes: with the opening click that is two clicks in all.
@@ -772,6 +773,7 @@ integrationTest('multi-select synthesis: the chosen content template reaches the
   h.plugin.settings.detailTemplates = [{ id: 't1', name: 'Brief', sections: [section('key', 'Key points'), section('more', 'Further')] }];
   const modal = await h.openSelection();
   const name = byLabel(modal.contentEl, 'New topic name'); name.value = 'Cooking water'; name.input();
+  const style = byLabel(modal.contentEl, 'Note style'); style.value = 'custom'; style.fire('change');
   const select = byLabel(modal.contentEl, 'Content template'); select.value = 't1'; select.change?.();
   visibleBar(modal, 'Skip suggestions and draft now').click();
   await until(() => h.view.integrationTask?.state === 'draft');
@@ -860,4 +862,103 @@ integrationTest('synthesis: a result for a map that is no longer open raises no 
   h.view.path = 'Other map.md';
   hooks.completed('research'); hooks.outlineReady({ nodes: [], dropped: 0, options: { researchMode: 'local', researchDepth: 'normal', visualMode: 'off' } });
   assert.equal(h.notices.length, 0, 'no cross-map Notice'); assert.equal(h.view.quickOutlines.size, 0);
+});
+
+// ---- Note style picker ------------------------------------------------------------------------------------------------
+const styleSelect = root => byLabel(root, 'Note style');
+const pick = (select, value) => { select.value = value; select.fire('change'); };
+integrationTest('Next Step: the Note style select lists the presets, hints what each gives and starts on "Keep current" with Custom… collapsed', async () => {
+  const h = nextStepHarness({ modelSettings: { tones, currentTone: 'Academic rigor', currentStyle: 'Standard', templates: [{ id: 'standard', name: 'Standard' }, { id: 'textbook', name: 'Textbook' }], currentTemplate: 'Standard' } });
+  const select = styleSelect(h.modal.contentEl);
+  assert.deepEqual(plain(select.children.map(o => [o.value, o.text])), [['', 'Keep current (Standard)'], ['preset:standard', 'Standard (academic)'], ['preset:textbook', 'Textbook (intro, then sections)'], ['preset:summary', 'Key points'], ['preset:plain', 'Plain language'], ['preset:guide', 'Practical guide'], ['custom', 'Custom…']]);
+  const custom = find(h.modal.contentEl, i => hasCls(i, 'vam-note-style-custom'));
+  assert.equal(custom.hidden, true, 'the custom selects start collapsed');
+  pick(select, 'preset:textbook');
+  assert.equal(custom.hidden, true);
+  assert.ok(find(h.modal.contentEl, i => i.text === 'Opens with 2–4 intro paragraphs, then the six sections; empty sections are left out.'), 'the hint line describes the choice');
+  pick(select, 'custom'); assert.equal(custom.hidden, false);
+  assert.ok(find(h.modal.contentEl, i => i.text === 'Pick a content template and a writing tone yourself, including your own.'));
+  pick(select, 'preset:plain'); assert.equal(custom.hidden, true);
+  pick(select, ''); assert.equal(find(h.modal.contentEl, i => i.text === 'Six sections in everyday words; jargon is explained the first time it appears.'), undefined, 'the first option has no hint');
+});
+integrationTest('Next Step: a preset sends both the template and the tone (even Standard + academic); keeping sends neither', async () => {
+  const sent = async value => {
+    const h = nextStepHarness({ modelSettings: { tones, currentTone: 'Academic rigor', currentStyle: 'Standard' } });
+    if (value !== undefined) pick(styleSelect(h.modal.contentEl), value);
+    button(h.actions(), 'Confirm research task').click(); await tick(); await tick();
+    return h.calls.research[0];
+  };
+  const keep = await sent(undefined);
+  assert.equal('detailTemplateId' in keep, false); assert.equal('toneId' in keep, false);
+  const standard = await sent('preset:standard');
+  assert.equal(standard.detailTemplateId, 'standard'); assert.equal(standard.toneId, 'academic');
+  const textbook = await sent('preset:textbook');
+  assert.equal(textbook.detailTemplateId, 'textbook'); assert.equal(textbook.toneId, 'academic');
+  const summary = await sent('preset:summary');
+  assert.equal(summary.detailTemplateId, 'standard'); assert.equal(summary.toneId, 'summary');
+  assert.equal((await sent('preset:plain')).toneId, 'plain'); assert.equal((await sent('preset:guide')).toneId, 'guide');
+});
+integrationTest('Next Step: Custom… sends its two selects; collapsing it again sends only the preset, never the hidden custom values', async () => {
+  const h = nextStepHarness({ modelSettings: { tones, templates: [{ id: 'standard', name: 'Standard' }, { id: 'mine', name: 'Mine' }], currentTone: 'Academic rigor', currentTemplate: 'Standard', currentStyle: 'Standard' } });
+  const select = styleSelect(h.modal.contentEl);
+  pick(select, 'custom');
+  byLabel(h.modal.contentEl, 'Content template').value = 'mine'; byLabel(h.modal.contentEl, 'Content template').fire('change');
+  byLabel(h.modal.contentEl, 'Writing tone').value = 'magazine'; byLabel(h.modal.contentEl, 'Writing tone').fire('change');
+  assert.ok(find(h.modal.contentEl, i => hasCls(i, 'vam-next-source-summary') && /Custom: Mine · Magazine column/.test(i.text)), 'the output summary names the custom pair');
+  pick(select, 'preset:summary');
+  button(h.actions(), 'Confirm research task').click(); await tick(); await tick();
+  assert.equal(h.calls.research[0].detailTemplateId, 'standard'); assert.equal(h.calls.research[0].toneId, 'summary');
+  const second = nextStepHarness({ modelSettings: { tones, templates: [{ id: 'standard', name: 'Standard' }, { id: 'mine', name: 'Mine' }], currentTone: 'Academic rigor', currentTemplate: 'Standard', currentStyle: 'Standard' } });
+  pick(styleSelect(second.modal.contentEl), 'custom');
+  byLabel(second.modal.contentEl, 'Content template').value = 'mine'; byLabel(second.modal.contentEl, 'Writing tone').value = 'magazine';
+  button(second.actions(), 'Confirm research task').click(); await tick(); await tick();
+  assert.equal(second.calls.research[0].detailTemplateId, 'mine'); assert.equal(second.calls.research[0].toneId, 'magazine');
+  const back = nextStepHarness({ modelSettings: { tones, templates: [{ id: 'standard', name: 'Standard' }, { id: 'mine', name: 'Mine' }], currentTone: 'Academic rigor', currentTemplate: 'Standard', currentStyle: 'Standard' } });
+  pick(styleSelect(back.modal.contentEl), 'custom'); byLabel(back.modal.contentEl, 'Content template').value = 'mine';
+  pick(styleSelect(back.modal.contentEl), '');
+  button(back.actions(), 'Confirm research task').click(); await tick(); await tick();
+  assert.equal('detailTemplateId' in back.calls.research[0], false, 'a collapsed custom choice is not sent'); assert.equal('toneId' in back.calls.research[0], false);
+});
+integrationTest('Next Step: when the current style is custom the first option names it and Custom… does not open by itself', () => {
+  const h = nextStepHarness({ modelSettings: { tones, currentTone: 'Magazine column', currentTemplate: 'Mine', currentStyle: 'Custom: Mine · Magazine column' } });
+  const select = styleSelect(h.modal.contentEl);
+  assert.equal(select.children[0].text, 'Keep current (Custom: Mine · Magazine column)'); assert.equal(select.value, '');
+  assert.equal(find(h.modal.contentEl, i => hasCls(i, 'vam-note-style-custom')).hidden, true);
+  assert.equal(summaryOf(h).endsWith('Custom: Mine · Magazine column'), true, 'the summary names the style, not only the tone');
+});
+integrationTest('multi-select research dialog: one Note style field with "Each topic\'s current style" first; presets send both values', () => {
+  const Modal = dom.makeModal();
+  const { MultiResearchModal } = load('experiences/visual-map/multi-research-modal.ts', { obsidian: { ...obsidian, Modal } });
+  const submitted = []; const models = { list: () => [], watch: () => () => {} };
+  const modal = new MultiResearchModal({}, ['A', 'B'], models, [{ id: 'standard', name: 'Standard' }], request => submitted.push(request), [{ id: 'plain', name: 'Plain' }]);
+  modal.open();
+  const select = styleSelect(modal.contentEl);
+  assert.equal(select.children[0].text, "Each topic's current style");
+  assert.equal(findAll(modal.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Note style').length, 1);
+  pick(select, 'preset:textbook'); button(modal.modalEl, 'Start research (2)').click();
+  assert.equal(submitted[0].detailTemplateId, 'textbook'); assert.equal(submitted[0].toneId, 'academic');
+});
+integrationTest('outline import dialog: first option is "Use the default (Standard)"; the style is sent only with quick research and restored on reopen', async () => {
+  const Modal = dom.makeModal();
+  const { OutlineImportModal } = load('experiences/visual-map/outline-import-modal.ts', { obsidian: { ...obsidian, Modal } });
+  const requests = [];
+  const open = (shallowOn, value, prefill) => {
+    const modal = new OutlineImportModal({ vault: { getMarkdownFiles: () => [] } }, async request => { requests.push(request); }, undefined, [{ id: 'standard', name: 'Standard' }], { map: 'none' }, 'tree', undefined, {}, [{ id: 'plain', name: 'Plain' }]);
+    modal.open();
+    const select = styleSelect(modal.contentEl);
+    if (value) pick(select, value);
+    const textarea = find(modal.contentEl, i => i.tag === 'textarea'); textarea.value = '# R\n## A'; textarea.fire('input');
+    const shallow = find(modal.contentEl, i => i.tag === 'input' && i.type === 'checkbox'); shallow.checked = shallowOn; shallow.fire('change');
+    button(modal.modalEl, 'Add to mind map').click();
+    return { modal, select };
+  };
+  const first = open(false, 'preset:textbook'); await tick();
+  assert.equal(first.select.children[0].text, 'Use the default (Standard)');
+  assert.equal('detailTemplateId' in requests[0], false); assert.equal('toneId' in requests[0], false, 'ignored while quick research is off');
+  open(true, 'preset:textbook'); await tick();
+  assert.equal(requests[1].detailTemplateId, 'textbook'); assert.equal(requests[1].toneId, 'academic');
+  open(true, 'preset:plain'); await tick();
+  assert.equal(requests[2].detailTemplateId, 'standard'); assert.equal(requests[2].toneId, 'plain');
+  open(true, undefined); await tick();
+  assert.equal('toneId' in requests[3], false); assert.equal('detailTemplateId' in requests[3], false);
 });

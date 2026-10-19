@@ -36,11 +36,10 @@ import {
   linkedField,
   researchDepthDescription,
   researchDepthField,
-  templateField,
-  toneField
+  noteStyleField
 } from "./research-fields";
 import { DetailTemplatesModal } from "../../ui/modals/detail-templates-modal";
-import { standardTemplate } from "../../ai/detail-templates";
+import { builtinTemplates } from "../../ai/detail-templates";
 
 export { researchDepthDescription };
 
@@ -121,6 +120,8 @@ export interface NextStepSettings {
   tones?: { id: string; name: string }[];
   /** Name of the tone the topic resolves to today (shown as the "keep" option). */
   currentTone?: string;
+  /** Name of the note style (template + tone) the topic resolves to today, shown in "Keep current (…)". */
+  currentStyle?: string;
   /** The topic's summary today, shown beside a draft that would replace it. */
   currentSummary?: string;
   /** The topic's research state and how many of its direct children are researched, for the suggested mode. */
@@ -183,7 +184,10 @@ export interface SelectionSynthesis {
   initialTitle: string;
   /** The direction used when the AI suggestions are skipped. */
   defaultDirection: string;
-  fields: Pick<NextStepSettings, "sources" | "templates" | "currentTemplate" | "tones" | "currentTone">;
+  fields: Pick<
+    NextStepSettings,
+    "sources" | "templates" | "currentTemplate" | "tones" | "currentTone" | "currentStyle"
+  >;
   /** Reopened from the selection bar with directions waiting. */
   pending?: { directions: Suggestion[]; discard: () => void };
   background?: BackgroundHooks;
@@ -295,7 +299,8 @@ export class NextStepModal extends Modal {
   }
   /** Where the shared fields (data sources, template, tone) come from: the topic's settings, or the selection's. */
   private get info():
-    Pick<NextStepSettings, "sources" | "templates" | "currentTemplate" | "tones" | "currentTone"> | undefined {
+    | Pick<NextStepSettings, "sources" | "templates" | "currentTemplate" | "tones" | "currentTone" | "currentStyle">
+    | undefined {
     return this.modelSettings ?? this.selectionFlow?.fields;
   }
   /** Suggests the next step from where the topic stands: frontier → research, settled leaf → expand, settled branch → synthesize. */
@@ -1427,36 +1432,35 @@ export class NextStepModal extends Modal {
       languageSelect.createEl("option", { value: option.id, text: option.label });
     languageSelect.value = chooseAimContentLanguage(this.plugin.settings.language, this.topic);
     languageSelect.setAttr("aria-label", t("ui.output_language"));
-    const templateId = templateField(
-      compactSettings,
-      this.info?.templates ?? [],
-      t("ui.detail_template_keep_0", this.info?.currentTemplate ?? ""),
-      (selected, refreshed) => {
+    const style = noteStyleField(compactSettings, {
+      templates: this.info?.templates ?? [],
+      tones: this.info?.tones ?? [],
+      keepLabel: t("ui.note_style_keep_0", this.info?.currentStyle ?? ""),
+      templateDefault: t("ui.detail_template_keep_0", this.info?.currentTemplate ?? ""),
+      toneDefault: t("ui.tone_keep_0", this.info?.currentTone ?? ""),
+      currentTemplate: this.info?.currentTemplate,
+      currentTone: this.info?.currentTone,
+      currentStyle: this.info?.currentStyle,
+      manageTemplates: (selected, refreshed) => {
         const settings = this.plugin.settings;
         const choices = (): { id: string; name: string }[] =>
-          [standardTemplate(settings.language), ...settings.detailTemplates].map(({ id, name }) => ({ id, name }));
+          builtinTemplates(settings.language)
+            .concat(settings.detailTemplates)
+            .map(({ id, name }) => ({ id, name }));
         new DetailTemplatesModal(this.app, this.plugin, () => refreshed(choices()), selected).open();
       },
-      () => refreshSummary()
-    );
-    const toneId = toneField(
-      compactSettings,
-      this.info?.tones ?? [],
-      t("ui.tone_keep_0", this.info?.currentTone ?? ""),
-      (selected, refreshed) => {
+      manageTones: (selected, refreshed) => {
         const settings = this.plugin.settings;
         const choices = (): { id: string; name: string }[] =>
           listPresets(settings.promptPresets, "tone", settings.language).map(({ id, name }) => ({ id, name }));
         new PromptPresetsModal(this.app, this.plugin, "tone", () => refreshed(choices()), selected).open();
       },
-      () => refreshSummary()
-    );
-    const pickedName = (picked: string | undefined, choices?: { id: string; name: string }[]): string | undefined =>
-      picked ? choices?.find(item => item.id === picked)?.name : undefined;
+      changed: () => refreshSummary()
+    });
+    const templateId = style.templateId;
+    const toneId = style.toneId;
     const describeOutput = (): void => {
-      const template = pickedName(templateId(), this.info?.templates) ?? this.info?.currentTemplate;
-      const tone = pickedName(toneId(), this.info?.tones) ?? this.info?.currentTone;
-      outputValue.setText([supportedLanguageLabel(languageSelect.value), template, tone].filter(Boolean).join(" · "));
+      outputValue.setText([supportedLanguageLabel(languageSelect.value), style.label()].filter(Boolean).join(" · "));
     };
     const depthName = (depth: ResearchDepth): string =>
       t(depth === "fast" ? "ui.quick" : depth === "deep" ? "ui.deep" : "ui.standard");
@@ -1483,8 +1487,8 @@ export class NextStepModal extends Modal {
       const network = sharedSources?.picker.selection();
       if (network) parts.push(t(network.webSearch ? "ui.next_summary_web_on" : "ui.next_summary_web_off"));
       parts.push(supportedLanguageLabel(languageSelect.value));
-      const tone = pickedName(toneId(), this.info?.tones) ?? this.info?.currentTone;
-      if (tone) parts.push(tone);
+      const styleName = style.name();
+      if (styleName) parts.push(styleName);
       summaryEl.setText(parts.join(" · "));
     };
     // Select, checkbox and radio changes bubble up, so one listener keeps the summary current.

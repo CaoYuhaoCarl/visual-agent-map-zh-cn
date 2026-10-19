@@ -4,8 +4,10 @@ import { modalActions } from "./action-bar";
 import type { Settings } from "../../repository";
 import {
   STANDARD_TEMPLATE_ID,
+  builtinTemplates,
   copyTemplate,
   detailStructurePrompt,
+  isBuiltinTemplateId,
   standardTemplate,
   validateTemplate,
   withoutConflictingAliases,
@@ -47,10 +49,12 @@ function countSummary(section: DetailSection): string {
   );
 }
 
-/** The default the workspace really resolves to: a missing or stale id means Standard. */
+/** The default the workspace really resolves to: a missing or stale id means Standard; Textbook is built in. */
 function workspaceDefaultId(settings: Settings): string {
   const id = settings.defaultDetailTemplateId;
-  return id && settings.detailTemplates.some(template => template.id === id) ? id : STANDARD_TEMPLATE_ID;
+  return id && (isBuiltinTemplateId(id) || settings.detailTemplates.some(template => template.id === id))
+    ? id
+    : STANDARD_TEMPLATE_ID;
 }
 
 function option(select: HTMLSelectElement, value: string, text: string): void {
@@ -64,12 +68,11 @@ export function renderDetailTemplatesSetting(
   plugin: DetailTemplatesHost,
   refresh: () => void = () => {}
 ): void {
-  const standard = standardTemplate(plugin.settings.language);
   setting
     .setName(t("ui.detail_templates"))
-    .setDesc(t("ui.detail_templates_hint"))
+    .setDesc(t("ui.detail_templates_setting_desc"))
     .addDropdown(dropdown => {
-      dropdown.addOption(STANDARD_TEMPLATE_ID, standard.name);
+      for (const builtin of builtinTemplates(plugin.settings.language)) dropdown.addOption(builtin.id, builtin.name);
       for (const template of plugin.settings.detailTemplates) dropdown.addOption(template.id, template.name);
       dropdown.setValue(workspaceDefaultId(plugin.settings));
       dropdown.onChange(value => {
@@ -89,7 +92,7 @@ export class DetailTemplatesModal extends Modal {
     app: App,
     private plugin: DetailTemplatesHost,
     private onChanged: () => void = () => {},
-    /** Opens straight into this template (edit, or view for Standard), as from a dialog's template picker. */
+    /** Opens straight into this template (edit, or view for a built-in one), as from a dialog's template picker. */
     private initialId?: string
   ) {
     super(app);
@@ -110,11 +113,11 @@ export class DetailTemplatesModal extends Modal {
   onOpen(): void {
     this.titleEl.setText(t("ui.detail_templates"));
     const initial = this.initialId
-      ? [standardTemplate(this.settings.language), ...this.settings.detailTemplates].find(
+      ? [...builtinTemplates(this.settings.language), ...this.settings.detailTemplates].find(
           template => template.id === this.initialId
         )
       : undefined;
-    if (initial) this.showEditor(initial, false, initial.id === STANDARD_TEMPLATE_ID);
+    if (initial) this.showEditor(initial, false, isBuiltinTemplateId(initial.id));
     else this.showList();
   }
 
@@ -128,7 +131,7 @@ export class DetailTemplatesModal extends Modal {
 
   private uniqueName(base: string): string {
     const taken = (name: string) =>
-      same(name, standardTemplate(this.settings.language).name) ||
+      builtinTemplates(this.settings.language).some(builtin => same(name, builtin.name)) ||
       this.settings.detailTemplates.some(template => same(template.name, name));
     let name = base;
     for (let n = 2; taken(name); n++) name = `${base} ${n}`;
@@ -140,9 +143,8 @@ export class DetailTemplatesModal extends Modal {
     contentEl.empty();
     contentEl.createEl("p", { text: t("ui.detail_templates_hint"), cls: "vam-modal-intro" });
     const defaultId = workspaceDefaultId(this.settings);
-    const standard = standardTemplate(this.settings.language);
-    for (const template of [standard, ...this.settings.detailTemplates]) {
-      const isStandard = template.id === STANDARD_TEMPLATE_ID;
+    for (const template of [...builtinTemplates(this.settings.language), ...this.settings.detailTemplates]) {
+      const isStandard = isBuiltinTemplateId(template.id);
       const row = contentEl.createDiv("vam-template-row");
       const info = row.createDiv("vam-template-info");
       info.createEl("strong", { text: template.name });
@@ -239,7 +241,9 @@ export class DetailTemplatesModal extends Modal {
       .addEventListener("click", () => this.showList());
     const save = readOnly ? null : footer.createEl("button", { text: t("ui.save"), cls: "mod-cta" });
 
-    const builtInNames = (["en", "zh-TW"] as const).map(language => standardTemplate(language).name);
+    const builtInNames = (["en", "zh-TW"] as const).flatMap(language =>
+      builtinTemplates(language).map(builtin => builtin.name)
+    );
     const check = (): TemplateIssue[] => {
       if (readOnly) return [];
       const issues = validateTemplate(draft, others);

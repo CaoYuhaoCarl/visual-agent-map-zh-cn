@@ -188,3 +188,79 @@ test('resolveDetailReferences: sources alias equal to another section name does 
   const placed = refs.resolveDetailReferences('### A\n\nfact [S1]\n\n### Notes\n\nN\n\n### Refs\n\nE', [{ id: 'g', name: 'g', location: '', documents: [{ path: 'Notes/X.md', content: 'x' }] }], '', t);
   assert.match(placed, /### Notes\n\nN\n\n### Refs\n\nE\n\n\[\^1\]: \[\[Notes\/X\.md\|X\]\]/);
 });
+
+// ---- Textbook built-in template (note style picker) ----------------------------------------------------------------
+test('textbook template: same six sections as Standard, own id and localized name; built-in helpers list both', () => {
+  const zh = api.textbookTemplate('zh-TW'), en = api.textbookTemplate('en');
+  assert.equal(zh.id, 'textbook'); assert.equal(api.TEXTBOOK_TEMPLATE_ID, 'textbook');
+  assert.equal(zh.name, '教科書'); assert.equal(en.name, 'Textbook');
+  assert.deepEqual(plain(zh.sections), plain(api.standardTemplate('zh-TW').sections));
+  assert.deepEqual(plain(api.builtinTemplates('en').map(t => t.id)), ['standard', 'textbook']);
+  assert.equal(api.isBuiltinTemplateId('textbook'), true); assert.equal(api.isBuiltinTemplateId('standard'), true);
+  assert.equal(api.isBuiltinTemplateId('mine'), false); assert.equal(api.isBuiltinTemplateId(undefined), false);
+});
+test('resolveTemplate: textbook is a known built-in, never reported as missing, and follows the language', () => {
+  const zh = api.resolveTemplate([], ['textbook'], 'zh-TW');
+  assert.equal(zh.template.id, 'textbook'); assert.equal(zh.template.name, '教科書'); assert.deepEqual(plain(zh.missing), []);
+  assert.equal(api.resolveTemplate([], [undefined, 'textbook', 'standard'], 'en').template.name, 'Textbook');
+});
+test('normalizeTemplates: a custom template saved with the id textbook keeps its content under custom-textbook (numbered when taken, idempotent)', () => {
+  const mine = api.copyTemplate(api.standardTemplate('en'), 'Mine', 'textbook');
+  const once = plain(api.normalizeTemplates([mine]));
+  assert.deepEqual(once.map(t => [t.id, t.name, t.sections.length]), [['custom-textbook', 'Mine', 6]]);
+  assert.deepEqual(plain(api.normalizeTemplates(once)), once, 'idempotent');
+  const taken = api.copyTemplate(api.standardTemplate('en'), 'Taken', 'custom-textbook');
+  const both = plain(api.normalizeTemplates([mine, taken]));
+  assert.deepEqual(both.map(t => [t.id, t.name]), [['custom-textbook-2', 'Mine'], ['custom-textbook', 'Taken']]);
+  assert.deepEqual(plain(api.normalizeTemplates(both)).map(t => t.id), ['custom-textbook-2', 'custom-textbook']);
+});
+test('detailStructurePrompt: textbook states the intro, six headings in order, omit-empty override and the self-check before the update log', () => {
+  const none = () => { throw new Error('standard sentence must not be used'); };
+  for (const [language, names, intro, omit, selfCheck] of [
+    ['zh-TW', ['核心結論', '關鍵知識', '證據與來源', '取捨與限制', '待確認事項', '更新紀錄'], /開頭（導讀）：2–4 個流暢的段落，不加任何標題/, /不要保留標題，也不要寫「本次無新增內容」；這一條優先於後面格式規則/, /在「### 更新紀錄」之前（也就是它上面）加一小塊「\*\*自我檢核\*\*」/],
+    ['en', ['Core conclusions', 'Key knowledge', 'Evidence and sources', 'Tradeoffs and limitations', 'Open questions', 'Update log'], /Opening \(lead-in\): 2–4 flowing paragraphs with no heading at all/, /this rule overrides the later formatting rule/, /Just before "### Update log" \(that is, above it\) add a short block led by bold "\*\*Self-check\*\*"/]
+  ]) {
+    const prompt = api.detailStructurePrompt(api.textbookTemplate(language), language, none);
+    assert.match(prompt, intro); assert.match(prompt, omit); assert.match(prompt, selfCheck);
+    assert.ok(prompt.includes(names.map(n => `### ${n}`).join(', ')), 'six headings in order');
+    assert.match(prompt, /> \[!warning\]/);
+    assert.equal(prompt.split('\n').filter(l => l.startsWith('### ')).length, 6, 'each section adds its description rule');
+    assert.doesNotMatch(prompt, /寫作要求|Writing requirements/, 'formatting rules come from the shared Obsidian format, not this fragment');
+  }
+  // A duplicate of Textbook is an ordinary custom template: the custom sentence, not the textbook fragment.
+  const copy = api.copyTemplate(api.textbookTemplate('en'), 'Copy', 'c1');
+  assert.match(api.detailStructurePrompt(copy, 'en', none), /^The detail must use exactly these 6 level-three headings/);
+});
+test('canonicalDetail textbook: the text before the first heading stays on top as the intro, not merged into the first section', () => {
+  const tb = api.textbookTemplate('en');
+  const out = utils.canonicalDetail('Intro one.\n\nIntro two.\n\n### Core conclusions\n\nC\n\n### Update log\n\n- x', 'en', tb);
+  assert.equal(out, 'Intro one.\n\nIntro two.\n\n### Core conclusions\n\nC\n\n### Update log\n\n- x');
+  assert.equal(utils.canonicalDetail(out, 'en', tb), out, 'idempotent');
+});
+test('canonicalDetail textbook: no heading at all means the whole text is the intro; headings keep template order and aliases', () => {
+  const tb = api.textbookTemplate('zh-TW');
+  assert.equal(utils.canonicalDetail('只有一段導讀。', 'zh-TW', tb), '只有一段導讀。');
+  const out = utils.canonicalDetail('### Key knowledge\n\nK\n\n### 核心結論\n\nC', 'zh-TW', tb);
+  assert.equal(out, '### 核心結論\n\nC\n\n### 關鍵知識\n\nK');
+});
+test('canonicalDetail textbook: empty sections and "no new content" placeholders (either language) are omitted with their heading', () => {
+  const tb = api.textbookTemplate('en');
+  const out = utils.canonicalDetail('Intro\n\n### Core conclusions\n\nC\n\n### Key knowledge\n\n\n### Evidence and sources\n\nNo new information in this task.\n\n### Tradeoffs and limitations\n\n本次無新增內容。\n\n### Open questions\n\n本次無新增內容\n\n### Update log\n\n- x', 'en', tb);
+  assert.equal(out, 'Intro\n\n### Core conclusions\n\nC\n\n### Update log\n\n- x');
+  assert.doesNotMatch(out, /No new information|無新增/);
+});
+test('canonicalDetail textbook: source footnotes go to the sources section, or the end when it is omitted; sources stay kept when they have definitions', () => {
+  const tb = api.textbookTemplate('en');
+  const withSources = utils.canonicalDetail('Intro\n\n### Core conclusions\n\nfact[^1]\n\n[^1]: [[Notes/X|X]]\n\n### Update log\n\n- x', 'en', tb);
+  assert.equal(withSources, 'Intro\n\n### Core conclusions\n\nfact[^1]\n\n### Evidence and sources\n\n[^1]: [[Notes/X|X]]\n\n### Update log\n\n- x');
+  const noSources = { id: 'textbook', name: 'T', sections: [{ id: 'a', name: 'A', description: '', role: 'none', aliases: [] }, { id: 'b', name: 'B', description: '', role: 'log', aliases: [] }] };
+  const atEnd = utils.canonicalDetail('### A\n\nfact[^1]\n\n[^1]: [[Notes/X|X]]\n\n### B\n\n- log', 'en', noSources);
+  assert.equal(atEnd, '### A\n\nfact[^1]\n\n### B\n\n- log\n\n[^1]: [[Notes/X|X]]');
+});
+test('canonicalDetail: Standard and custom templates still fold leading text into the first section and fill empty sections (byte-identical regression)', () => {
+  assert.equal(utils.canonicalDetail('Lead\n\n### Key knowledge\n\nK', 'en'),
+    '### Core conclusions\n\nLead\n\n### Key knowledge\n\nK\n\n### Evidence and sources\n\nNo new information in this task.\n\n### Tradeoffs and limitations\n\nNo new information in this task.\n\n### Open questions\n\nNo new information in this task.\n\n### Update log\n\nNo new information in this task.');
+  assert.equal(utils.canonicalDetail('Only text', 'zh-TW').split('\n\n')[1], 'Only text');
+  const custom = api.copyTemplate(api.standardTemplate('en'), 'Custom', 'c1');
+  assert.ok(utils.canonicalDetail('Lead\n\n### Core conclusions\n\nC', 'en', custom).startsWith('### Core conclusions\n\nLead\n\nC\n\n### Key knowledge\n\nNo new information in this task.'));
+});
