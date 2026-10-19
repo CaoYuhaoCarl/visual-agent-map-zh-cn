@@ -67,10 +67,24 @@ export function resolveMergeModel(parentModel: string | undefined, workspaceMode
   return inheritModel(parentModel, workspaceModel);
 }
 
+/** The longest merged-topic name the AI may choose; a longer one is not a name, so the first source's title is used. */
+export const MERGE_TITLE_MAX = 60;
+
+/**
+ * The merged topic's name from the same AI reply as the merge: the title of its first suggestion, one line and without
+ * wrapping quotes. A missing, blank or over-long title falls back to `fallback` (the first source card's title).
+ */
+export function mergeTitleFromResult(result: { suggestions?: { title?: string }[] }, fallback: string): string {
+  const raw = (result.suggestions?.[0]?.title ?? "").replace(/\s+/g, " ").trim();
+  const name = raw.replace(/^["'“”‘’「」『』]+|["'“”‘’「」『』]+$/g, "").trim();
+  return name && name.length <= MERGE_TITLE_MAX ? name : fallback;
+}
+
 /** What the dialog needs to start an AI merge; the host owns the usage notice and the background task. */
 export interface MergeAiHost {
   /**
-   * Starts the AI merge. `started` runs once the usage notice is accepted: the dialog hides itself there (detach rule,
+   * Starts the AI merge; `title` is only the fallback name (the AI names the topic, the user can rename it on review).
+   * `started` runs once the usage notice is accepted: the dialog hides itself there (detach rule,
    * see ui/background-run.ts). Resolves false when AI did not start, so the dialog stays open.
    */
   start: (title: string, started: () => void, signal: AbortSignal) => Promise<boolean>;
@@ -96,7 +110,10 @@ export class MergeTopicsModal extends Modal {
     this.titleEl.setText(t("ui.merge_title_label"));
     const input = this.contentEl.createEl("input", { type: "text", value: this.value, cls: "vam-name-input" });
     input.setAttr("aria-label", t("ui.merge_title_label"));
-    this.contentEl.createEl("p", { text: t("ui.merge_confirm_desc", this.count), cls: "vam-merge-desc" });
+    const description = this.contentEl.createEl("p", {
+      text: t("ui.merge_confirm_desc", this.count),
+      cls: "vam-merge-desc"
+    });
     let skipAi: HTMLInputElement | undefined;
     if (this.ai) {
       this.contentEl.createEl("p", { text: t("ui.merge_ai_desc", this.count), cls: "vam-merge-desc" });
@@ -108,6 +125,12 @@ export class MergeTopicsModal extends Modal {
     const status = actionStatus(actions);
     actions.createEl("button", { text: t("ui.cancel") }).addEventListener("click", () => this.close());
     const useAi = (): boolean => !!this.ai && !skipAi?.checked;
+    // With AI the name comes from the AI and is edited on the review screen, so the field is only for the plain merge.
+    const showName = (): void => {
+      input.hidden = useAi();
+      description.hidden = useAi();
+      this.titleEl.setText(useAi() ? t("ui.merge_topics_history") : t("ui.merge_title_label"));
+    };
     const confirm = actions.createEl("button", {
       text: useAi() ? t("ui.merge_with_ai") : t("ui.merge_confirm"),
       cls: useAi() ? "mod-cta" : "mod-warning"
@@ -115,13 +138,13 @@ export class MergeTopicsModal extends Modal {
     let pending = false;
     const save = (): void => {
       const value = input.value.trim();
-      if (!value || pending) return;
+      if ((!value && !useAi()) || pending) return;
       if (useAi() && this.ai) {
         pending = true;
         confirm.disabled = true;
         this.ai
           .start(
-            value,
+            value || this.value.trim(),
             () => {
               // Detach rule: from here the dialog no longer cancels anything; Stop lives on the status bar.
               this.detached = true;
@@ -141,7 +164,7 @@ export class MergeTopicsModal extends Modal {
       this.submit(value);
     };
     const check = (): void => {
-      const empty = !input.value.trim();
+      const empty = !useAi() && !input.value.trim();
       confirm.disabled = empty || pending;
       if (!pending) status.setText(empty ? t("ui.name_required") : "");
     };
@@ -149,6 +172,8 @@ export class MergeTopicsModal extends Modal {
       confirm.setText(useAi() ? t("ui.merge_with_ai") : t("ui.merge_confirm"));
       confirm.toggleClass("mod-cta", useAi());
       confirm.toggleClass("mod-warning", !useAi());
+      showName();
+      check();
     });
     input.addEventListener("input", check);
     input.addEventListener("keydown", event => {
@@ -160,9 +185,12 @@ export class MergeTopicsModal extends Modal {
       }
     });
     confirm.addEventListener("click", save);
+    showName();
     check();
-    input.focus();
-    input.select();
+    if (!useAi()) {
+      input.focus();
+      input.select();
+    }
   }
   onClose(): void {
     if (this.detached) return;

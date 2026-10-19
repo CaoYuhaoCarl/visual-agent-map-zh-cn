@@ -731,7 +731,7 @@ const aiMergeHarness = async (options = {}) => {
     return { began, task: h.view.mergeTasks.get(h.path), snapshot };
   };
   h.untilSettled = async task => { await task.run; };
-  h.confirm = (task, summary = task.draft.summary, detail = task.draft.detail) => h.view.confirmMergeDraft(task, summary, detail);
+  h.confirm = (task, summary = task.draft.summary, detail = task.draft.detail, name) => h.view.confirmMergeDraft(task, summary, detail, name);
   return h;
 };
 const abortable = signal => new Promise((_, reject) => signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' }))));
@@ -782,6 +782,38 @@ integrationTest('AI merge: confirming writes the draft through the structure mer
   await h.view.travel(true); assert.deepEqual(await h.shape(), done);
   await h.view.travel(false); assert.deepEqual((await h.shape()).nodes, original.nodes);
   h.view.history.undo(); assert.equal(h.view.history.canUndo, false, 'exactly one history entry');
+});
+integrationTest('AI merge: the AI names the topic in the same single request; the review name is what the note and card get', async () => {
+  const h = await aiMergeHarness();
+  h.answer = async () => ({ summary: 'S', detail: '### Facts\n\nAlpha detail', visualReferences: [], formatIssues: [], suggestions: [{ title: 'AI chosen name', task: '', contribution: '', parentTitle: '' }] });
+  const { task } = await h.begin('Fallback title'); await h.untilSettled(task);
+  assert.equal(h.asks.length, 1, 'no extra AI call for the name'); assert.notEqual(h.asks[0].context.title, 'Fallback title');
+  assert.equal(task.state, 'draft'); assert.equal(task.title, 'AI chosen name');
+  assert.deepEqual(h.notices.filter(m => /merge draft/.test(m)), ['The merge draft for “AI chosen name” is ready']);
+  await h.confirm(task, 'S', '### Facts\n\nAlpha detail', '  Renamed by user  ');
+  const m = await h.repo.readMap(h.path); const merged = m.nodes.find(n => n.path.includes('Renamed by user')); assert.ok(merged);
+  assert.equal(m.nodes.some(n => n.path.includes('AI chosen name')), false);
+  assert.equal((await h.repo.readNote(merged.path)).title, 'Renamed by user');
+  assert.match(h.contents.get(merged.path), /^# Renamed by user$/m);
+});
+integrationTest('AI merge: confirming without editing keeps the AI name; a blank edit falls back to it', async () => {
+  for (const name of [undefined, '   ']) {
+    const h = await aiMergeHarness();
+    h.answer = async () => ({ summary: 'S', detail: 'D', visualReferences: [], formatIssues: [], suggestions: [{ title: 'AI chosen name', task: '', contribution: '', parentTitle: '' }] });
+    const { task } = await h.begin('Fallback title'); await h.untilSettled(task);
+    await h.confirm(task, 'S', 'D', name);
+    assert.ok((await h.repo.readMap(h.path)).nodes.some(n => n.path.includes('AI chosen name')));
+  }
+});
+integrationTest('AI merge: a missing, blank or over-long AI name falls back to the first source title', async () => {
+  for (const suggestions of [[], [{ title: '  ', task: '', contribution: '', parentTitle: '' }], [{ title: 'x'.repeat(200), task: '', contribution: '', parentTitle: '' }]]) {
+    const h = await aiMergeHarness();
+    h.answer = async () => ({ summary: 'S', detail: 'D', visualReferences: [], formatIssues: [], suggestions });
+    const { task } = await h.begin('Fallback title'); await h.untilSettled(task);
+    assert.equal(task.state, 'draft'); assert.equal(task.title, 'Fallback title');
+    await h.confirm(task);
+    assert.ok((await h.repo.readMap(h.path)).nodes.some(n => n.path.includes('Fallback title')));
+  }
 });
 integrationTest('AI merge model: the nearest manual parent model is used for the usage notice, the request and the new note; a workspace parent follows the workspace model', async () => {
   const manual = await aiMergeHarness({ parentModel: 'claude:haiku', parentSource: 'manual' });

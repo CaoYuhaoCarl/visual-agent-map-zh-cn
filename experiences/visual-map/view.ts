@@ -112,6 +112,7 @@ import {
   hasMergeContent,
   mergedDetail,
   mergedStatus,
+  mergeTitleFromResult,
   mergeEligibility,
   MergeTopicsModal,
   resolveMergeModel,
@@ -237,6 +238,7 @@ interface MergeTask {
   mapPath: string;
   mapId: string;
   mapTitle: string;
+  /** The fallback name (first source's title) until the AI names the topic; then the AI's name. */
   title: string;
   sources: { id: string; path: string }[];
   parentId: string | null;
@@ -2779,7 +2781,7 @@ export class VisualAgentMapView extends ItemView {
       task.sourceContent = JSON.stringify(sourceGroup.documents);
       const result = await this.plugin.askModel(
         {
-          title: task.title,
+          title: t("ui.merge_ai_untitled"),
           summary: noSummaryYet(language),
           rules: "",
           detail: "",
@@ -2814,6 +2816,7 @@ export class VisualAgentMapView extends ItemView {
         return;
       }
       task.state = "draft";
+      task.title = mergeTitleFromResult(result, task.title);
       task.draft = result;
       task.progress = "";
       this.render();
@@ -2849,20 +2852,21 @@ export class VisualAgentMapView extends ItemView {
       {
         intro: t("ui.merge_draft_intro", task.title, task.sources.length),
         confirmLabel: t("ui.confirm_merge"),
-        title: t("ui.review_merge_draft")
+        title: t("ui.review_merge_draft"),
+        name: { label: t("ui.merge_draft_name"), value: task.title }
       },
       // Return the write so a failure keeps the dialog, and the user's edits, open with the error.
-      (summary, detail) => this.confirmMergeDraft(task, summary, detail),
+      (summary, detail, name) => this.confirmMergeDraft(task, summary, detail, name),
       () => this.stopMergeTask(task)
     ).open();
   }
   /** Writes a reviewed AI merge draft (the user's edited summary and Detail) through the write queue. */
-  private confirmMergeDraft(task: MergeTask, summary: string, detail: string): Promise<void> {
+  private confirmMergeDraft(task: MergeTask, summary: string, detail: string, name?: string): Promise<void> {
     const draft = task.draft;
     if (!draft) return Promise.reject(new Error(t("ui.merge_draft_stale")));
     return this.plugin.mutate(() =>
       this.mergeSelected(
-        task.title,
+        name?.trim() || task.title,
         { path: task.mapPath, mapId: task.mapId, sources: task.sources },
         {
           summary,
