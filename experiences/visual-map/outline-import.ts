@@ -289,7 +289,8 @@ async function createOutlineNotes(
   rootDetail: string,
   parentId: string | null,
   detailTemplateId?: string,
-  manualModel = false
+  manualModel = false,
+  toneId?: string
 ): Promise<{ created: MapNode[]; failure?: string }> {
   const created: MapNode[] = [];
   for (const node of nodes) {
@@ -305,7 +306,11 @@ async function createOutlineNotes(
       );
       note.parentId = top ? parentId : created[node.parent!].id;
       created.push(note);
-      if (detailTemplateId) await repository.updateNote(note.path, { detailTemplateId });
+      if (detailTemplateId || toneId)
+        await repository.updateNote(note.path, {
+          ...(detailTemplateId ? { detailTemplateId } : {}),
+          ...(toneId ? { toneId } : {})
+        });
     } catch (error) {
       return { created, failure: errorText(error) };
     }
@@ -375,8 +380,8 @@ export interface OutlineAddResult {
 
 /**
  * Creates the outline's notes in an existing map's topic folder, its root under `parentId` (null for a new
- * top-level tree). The caller writes the returned nodes into the map. A chosen template is recorded on each
- * created topic; the map's own default is never changed.
+ * top-level tree). The caller writes the returned nodes into the map. A chosen template and tone are recorded on
+ * each created topic; the map's own default is never changed.
  */
 export async function addOutlineToMap(
   repository: Repository,
@@ -389,7 +394,8 @@ export async function addOutlineToMap(
   template: DetailTemplate,
   detailTemplateId?: string,
   now = new Date(),
-  manualModel = false
+  manualModel = false,
+  toneId?: string
 ): Promise<OutlineAddResult> {
   const language = repository.settings.language;
   if (!nodes.length) throw new Error(translate(language, "ui.outline_error_no_headings"));
@@ -403,7 +409,8 @@ export async function addOutlineToMap(
     rootDetail,
     parentId,
     detailTemplateId,
-    manualModel
+    manualModel,
+    toneId
   );
   return { created, total: nodes.length, ...(failure ? { failure } : {}) };
 }

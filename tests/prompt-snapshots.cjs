@@ -36,6 +36,7 @@ test('collect snapshots: AiTaskService general task prompt', async () => {
     await recordContext(`service.decompose-deep.${tag}`, 'AiTaskService instructions: mode decompose, deep research', language, { ...ctx, mode: 'decompose', researchDepth: 'deep' });
     await recordContext(`service.synthesize-local.${tag}`, 'AiTaskService instructions: mode synthesize, local, visual off', language, { ...ctx, mode: 'synthesize', researchMode: 'local', visualMode: 'off' });
     await recordContext(`service.task-tone.${tag}`, 'AiTaskService instructions: mode task with a resolved tone text (B1)', language, { ...ctx, toneText: language === 'en' ? 'Tone: example voice. Write warmly.' : '寫作語氣：範例語氣。請溫暖地寫作。' });
+    await recordContext(`service.task-textbook.${tag}`, 'AiTaskService instructions: mode task with the built-in Textbook template (intro, six sections, empty sections omitted)', language, { ...ctx, detailTemplate: loadModule('ai/detail-templates.ts').textbookTemplate(language) });
     await recordContext(`service.default-adaptive.${tag}`, 'AiTaskService instructions: no mode, adaptive detail, no sources', language, { ...ctx, mode: undefined, detailFormat: 'adaptive', sourceContext: undefined, workingFindings: undefined, detail: '', rules: '', ancestors: '' });
     await recordContext(`service.reference-groups.${tag}`, 'AiTaskService reference extraction then task', language, { ...ctx, sourceContext: undefined, referenceGroups: [{ id: 'g1', name: 'Group', location: '/refs', documents: [{ path: '/refs/a.md', content: 'Reference body A' }] }] });
   }

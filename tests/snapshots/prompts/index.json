@@ -751,6 +751,16 @@
       "language": "zh-TW",
       "schema": true
     },
+    "service.task-textbook.en": {
+      "builder": "AiTaskService instructions: mode task with the built-in Textbook template (intro, six sections, empty sections omitted)",
+      "language": "en",
+      "schema": true
+    },
+    "service.task-textbook.zh": {
+      "builder": "AiTaskService instructions: mode task with the built-in Textbook template (intro, six sections, empty sections omitted)",
+      "language": "zh-TW",
+      "schema": true
+    },
     "service.task-tone.en": {
       "builder": "AiTaskService instructions: mode task with a resolved tone text (B1)",
       "language": "en",

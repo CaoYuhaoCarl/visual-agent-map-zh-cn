@@ -55,13 +55,14 @@ import { canonicalDetail, visualReferencesMarkdown } from "../../ai/result-utils
 import {
   checkCounts,
   countIssueText,
+  builtinTemplates,
+  isBuiltinTemplateId,
   resolveTemplate,
-  standardTemplate,
-  STANDARD_TEMPLATE_ID,
   type CountIssue,
   type DetailTemplate
 } from "../../ai/detail-templates";
-import { listPresets, resolvePreset, resolveToneText } from "../../ai/prompt-presets";
+import { DEFAULT_TONE_ID, listPresets, resolvePreset, resolveToneText } from "../../ai/prompt-presets";
+import { matchPreset, NOTE_STYLE_PRESETS, styleLabel } from "./note-style";
 import type { AiResult, Suggestion, TaskContext } from "../../ai/types";
 import { previewMetrics } from "../../ui/preview-utils";
 import { BUILTIN_SAMPLE_ID, builtInSample, SAMPLE_TOUR_VERSION } from "../../builtin-sample";
@@ -138,9 +139,11 @@ function errorMessage(error: unknown): string {
   const message = (error as { message?: unknown } | null)?.message;
   return typeof message === "string" ? message : String(error);
 }
-/** The built-in Standard template follows the output language, as the fixed Detail headings always did. */
+/** The built-in Standard and Textbook templates follow the output language, as the fixed Detail headings always did. */
 function templateInLanguage(template: DetailTemplate, language: UiLanguage): DetailTemplate {
-  return template.id === STANDARD_TEMPLATE_ID ? standardTemplate(language) : template;
+  return isBuiltinTemplateId(template.id)
+    ? builtinTemplates(language).find(item => item.id === template.id)!
+    : template;
 }
 /** Unmet section counts to store on the topic; undefined (no count check ran) clears an earlier mark. */
 function formatIssuesPatch(
@@ -814,13 +817,32 @@ export class VisualAgentMapView extends ItemView {
     return {
       repair: model => this.plugin.repairConnection(model),
       manageTemplates: (selected, refreshed) =>
-        new DetailTemplatesModal(this.app, this.plugin, () => refreshed(this.templateChoices()), selected).open()
+        new DetailTemplatesModal(this.app, this.plugin, () => refreshed(this.templateChoices()), selected).open(),
+      manageTones: (selected, refreshed) =>
+        new PromptPresetsModal(this.app, this.plugin, "tone", () => refreshed(this.toneChoices()), selected).open()
     };
   }
-  /** Built-in Standard plus the workspace's custom templates, for the template selects. */
+  /** Built-in Standard and Textbook plus the workspace's custom templates, for the template selects. */
   private templateChoices(): { id: string; name: string }[] {
     const settings = this.plugin.settings;
-    return [standardTemplate(settings.language), ...settings.detailTemplates].map(({ id, name }) => ({ id, name }));
+    return [...builtinTemplates(settings.language), ...settings.detailTemplates].map(({ id, name }) => ({ id, name }));
+  }
+  /** "Keep current (…)" name of the note style a topic (or this map) resolves to: a preset, else "Custom: …". */
+  private currentStyleLabel(templateId: string, toneId: string): string {
+    const names = (list: { id: string; name: string }[]) => (id: string) =>
+      list.find(item => item.id === id)?.name ?? id;
+    return styleLabel(
+      templateId,
+      toneId,
+      { template: names(this.templateChoices()), tone: names(this.toneChoices()) },
+      this.plugin.settings.language
+    );
+  }
+  /** The tone id a topic resolves to now (topic override, else map default, else academic), as toneLabelFor names it. */
+  private effectiveToneId(note: Pick<Note, "toneId">): string {
+    const settings = this.plugin.settings;
+    const known = listPresets(settings.promptPresets, "tone", settings.language);
+    return [note.toneId, this.map?.toneId].find(id => known.some(item => item.id === id)) ?? DEFAULT_TONE_ID;
   }
   /** Adds an outline to the open map: under the selected topic, else as a new tree. A new map starts from + New mind map. */
   openOutlineImport(prefill?: OutlineDraftPrefill): void {
@@ -838,7 +860,8 @@ export class VisualAgentMapView extends ItemView {
       target,
       placement,
       this.outlineGenerator(prefill ? prefill.inputs.topic : target.selected?.title, prefill),
-      this.fieldLinks()
+      this.fieldLinks(),
+      this.toneChoices()
     ).open();
   }
   /** The import target a reopened window keeps: its selected topic while that topic is still on the map. */
@@ -1353,11 +1376,13 @@ export class VisualAgentMapView extends ItemView {
     let opened = true;
     try {
       await this.plugin.mutate(async () => {
-        // The template chosen for the import becomes the new map's default, not a per-topic field.
+        // The template and tone chosen for the import become the new map's defaults, not per-topic fields.
         const chosenTemplate = request.detailTemplateId;
-        if (chosenTemplate)
+        const chosenTone = request.toneId;
+        if (chosenTemplate || chosenTone)
           await this.plugin.repo.updateMap(result.mapPath, map => {
-            map.detailTemplateId = chosenTemplate;
+            if (chosenTemplate) map.detailTemplateId = chosenTemplate;
+            if (chosenTone) map.toneId = chosenTone;
           });
         // Notes and Map.md were written directly; derive their Reference Links (map, parent, children) like any map change.
         await this.plugin.rebuildDerivedData();
@@ -1441,7 +1466,8 @@ export class VisualAgentMapView extends ItemView {
           template,
           request.detailTemplateId,
           undefined,
-          Boolean(request.shallowResearch && request.model && request.model !== baseModel)
+          Boolean(request.shallowResearch && request.model && request.model !== baseModel),
+          request.toneId
         );
         state.result = result;
         const created = result.created;
@@ -1518,7 +1544,8 @@ export class VisualAgentMapView extends ItemView {
           visualMode: "off",
           ...request.researchOptions,
           researchDepth: request.researchDepth ?? "fast",
-          ...(request.detailTemplateId ? { detailTemplateId: request.detailTemplateId } : {})
+          ...(request.detailTemplateId ? { detailTemplateId: request.detailTemplateId } : {}),
+          ...(request.toneId ? { toneId: request.toneId } : {})
         })
       )
       .catch(error => new Notice(errorMessage(error)));
@@ -3163,15 +3190,15 @@ export class VisualAgentMapView extends ItemView {
         description: t("ui.manage_notes_that_are_currently_outside_the_mind_map"),
         action: () => this.enqueue(() => this.openOrganizer())
       });
-    // Content templates do not apply to AIM maps.
+    // One note style (content template + writing tone) for regular maps; templates do not apply to AIM maps.
     if (this.map && !this.builtIn && !this.map.aim)
       choices.push({
-        label: t("ui.detail_template_map_default"),
-        description: t("ui.detail_template_map_default_desc"),
-        action: () => this.chooseMapTemplate()
+        label: t("ui.note_style_map_default"),
+        description: t("ui.note_style_map_default_desc"),
+        action: () => this.chooseMapStyle()
       });
     // Writing tone applies to the notes AI writes; AIM maps use it for their research and final report.
-    if (this.map && !this.builtIn)
+    if (this.map && !this.builtIn && this.map.aim)
       choices.push({
         label: t("ui.tone_map_default"),
         description: t("ui.tone_map_default_desc"),
@@ -3190,6 +3217,48 @@ export class VisualAgentMapView extends ItemView {
         action: () => this.deleteCurrentMap()
       });
     new ChoiceModal(this.app, t("ui.more_mind_map_actions"), t("ui.additional_map_management_actions"), choices).open();
+  }
+  /** The map's default note style: both stored values (template and tone) are set or cleared together. */
+  private chooseMapStyle(): void {
+    const apply = (templateId: string | undefined, toneId: string | undefined): void =>
+      this.enqueue(() =>
+        this.mapChange(map => {
+          if (templateId) map.detailTemplateId = templateId;
+          else delete map.detailTemplateId;
+          if (toneId) map.toneId = toneId;
+          else delete map.toneId;
+        }, false)
+      );
+    const templateId = this.map?.detailTemplateId;
+    const toneId = this.map?.toneId;
+    const unset = !templateId && !toneId;
+    const matched = unset ? undefined : matchPreset(templateId, toneId);
+    const current = { description: t("ui.detail_template_current") };
+    new ChoiceModal(this.app, t("ui.note_style_map_default"), t("ui.note_style_map_default_desc"), [
+      { label: t("ui.note_style_use_default"), ...(unset ? current : {}), action: () => apply(undefined, undefined) },
+      ...NOTE_STYLE_PRESETS.map(preset => ({
+        label: t(preset.name),
+        ...(matched?.id === preset.id ? current : {}),
+        action: () => apply(preset.templateId, preset.toneId)
+      })),
+      {
+        label: t("ui.note_style_custom"),
+        description: unset || matched ? t("ui.note_style_custom_choose") : current.description,
+        action: () =>
+          new ChoiceModal(this.app, t("ui.note_style_custom"), t("ui.note_style_custom_choose"), [
+            {
+              label: t("ui.detail_template_map_default"),
+              description: t("ui.detail_template_map_default_desc"),
+              action: () => this.chooseMapTemplate()
+            },
+            {
+              label: t("ui.tone_map_default"),
+              description: t("ui.tone_map_default_desc"),
+              action: () => this.chooseMapTone()
+            }
+          ]).open()
+      }
+    ]).open();
   }
   private chooseMapTone(): void {
     const apply = (id: string | undefined): void =>
@@ -4818,6 +4887,7 @@ export class VisualAgentMapView extends ItemView {
           templates: this.templateChoices(),
           tones: this.toneChoices(),
           currentTone: this.toneLabelFor(note),
+          currentStyle: this.currentStyleLabel(this.resolveTopicTemplate(note).template.id, this.effectiveToneId(note)),
           currentSummary: note.summary,
           // Only a label: a missing topic template is reported at the next AI update, not when the dialog opens.
           currentTemplate: this.resolveTopicTemplate(note).template.name,
@@ -6349,7 +6419,8 @@ export class VisualAgentMapView extends ItemView {
           templates: this.templateChoices(),
           currentTemplate: this.mapDetailTemplate(settings.language).name,
           tones: this.toneChoices(),
-          currentTone: this.toneLabelFor({})
+          currentTone: this.toneLabelFor({}),
+          currentStyle: this.currentStyleLabel(this.mapDetailTemplate(settings.language).id, this.effectiveToneId({}))
         },
         ...(pending
           ? { pending: { directions: pending.directions, discard: () => this.discardSelectionSynthesis() } }

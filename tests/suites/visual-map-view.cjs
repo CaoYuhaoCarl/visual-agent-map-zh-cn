@@ -683,6 +683,8 @@ test('multi research modal: defaults, options and immediate close on start', () 
   find(m2.contentEl, i => i.tag === 'input' && i.type === 'checkbox').checked = false;
   const second3 = radios(m2.contentEl)[2]; second3.checked = true; second3.listeners.change();
   find(m2.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Model').value = 'm1';
+  // The template select lives under "Custom…" of the Note style select.
+  const style2 = find(m2.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Note style'); style2.value = 'custom'; style2.listeners.change();
   find(m2.contentEl, i => i.tag === 'select' && i['aria-label'] === 'Content template').value = 'A';
   find(m2.contentEl, i => i.tag === 'textarea').value = '  only 2025  ';
   find(m2.modalEl, i => i.tag === 'button' && i.text === 'Start research (1)').listeners.click();
@@ -732,6 +734,8 @@ integrationTest('Next Step modal: the content template choice goes into research
     return modal;
   };
   const templateSelect = modal => find(modal.contentEl, item => item.tag === 'select' && item['aria-label'] === 'Content template');
+  // The template select sits under "Custom…" of the Note style select.
+  const customStyle = modal => { const style = find(modal.contentEl, item => item.tag === 'select' && item['aria-label'] === 'Note style'); style.value = 'custom'; style.fire('change'); };
   const cardsOf = modal => find(modal.contentEl, item => item.cls === 'vam-next-cards');
   // Owner decision 2026-10-19: a research press hides the dialog, so each choice runs on its own fresh dialog.
   const modal = open('keep', settings);
@@ -739,7 +743,7 @@ integrationTest('Next Step modal: the content template choice goes into research
   button(modal.modalEl, 'Confirm research task').click(); await tick();
   assert.equal('detailTemplateId' in seen.research, false, 'keep-current sends no choice');
   const picked = open('picked', settings);
-  templateSelect(picked).value = 'A';
+  customStyle(picked); templateSelect(picked).value = 'A';
   button(picked.modalEl, 'Confirm research task').click(); await tick();
   assert.equal(seen.research.detailTemplateId, 'A');
   // C2: quick explore is an AI outline reviewed in the dialog; the template choice reaches its create step.
@@ -747,7 +751,7 @@ integrationTest('Next Step modal: the content template choice goes into research
   let ready;
   const quickOutline = { presets: [{ id: 'knowledge-tree', name: 'Knowledge tree generator' }], generate: async () => plain(load('experiences/visual-map/outline-import.ts', { obsidian }).parseOutline('# Parent\n## A').nodes), create: async (_nodes, options) => { seen.expand = options; } };
   const quickModal = open('quick', { ...settings, quickOutline, background: { begin() {}, end() {}, outlineReady: outline => { ready = outline; } } });
-  templateSelect(quickModal).value = 'A';
+  customStyle(quickModal); templateSelect(quickModal).value = 'A';
   cardsOf(quickModal).children[1].click();
   button(quickModal.contentEl, 'Quickly explore a map').click();
   button(quickModal.modalEl, 'Generate outline').click(); await tick(); await tick();
@@ -755,7 +759,7 @@ integrationTest('Next Step modal: the content template choice goes into research
   button(reviewModal.contentEl, 'Create subtopics (1)').click(); await tick(); await tick();
   assert.equal(seen.expand.detailTemplateId, 'A');
   const synthModal = open('synth', settings);
-  templateSelect(synthModal).value = 'A';
+  customStyle(synthModal); templateSelect(synthModal).value = 'A';
   cardsOf(synthModal).children[2].click();
   const synthPanel = all(synthModal.contentEl, item => item.cls.includes('vam-next-research'))[2];
   button(synthModal.modalEl, 'Get synthesis suggestions first').click(); await tick();

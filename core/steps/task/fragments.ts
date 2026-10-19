@@ -14,6 +14,8 @@ import CustomRuleExactZH from "./custom-detail-rule-exact.zh.md";
 import CustomRuleExactEN from "./custom-detail-rule-exact.en.md";
 import CustomRuleMinZH from "./custom-detail-rule-min.zh.md";
 import CustomRuleMinEN from "./custom-detail-rule-min.en.md";
+import TextbookDetailStructureZH from "./textbook-detail-structure.zh.md";
+import TextbookDetailStructureEN from "./textbook-detail-structure.en.md";
 import RepairCountsZH from "./repair-counts.zh.md";
 import RepairCountsEN from "./repair-counts.en.md";
 import DecomposeZH from "./decompose.zh.md";
@@ -98,4 +100,13 @@ export function repairCounts(language: UiLanguage, issues: string): string {
 }
 export function sourceRegistry(catalog: string): string {
   return renderTemplate(SourceRegistryTemplate, { catalog });
+}
+
+const TEXTBOOK_DETAIL_STRUCTURE_TEMPLATE: FragmentPair = {
+  zh: TextbookDetailStructureZH,
+  en: TextbookDetailStructureEN
+};
+/** The Textbook template's structure text: lead-in, `{{headings}}` in order, omit-empty override, self-check before `{{log}}`. */
+export function textbookDetailStructure(language: UiLanguage, values: { headings: string; log: string }): string {
+  return renderTemplate(inLanguage(TEXTBOOK_DETAIL_STRUCTURE_TEMPLATE, language), values);
 }

@@ -6,10 +6,18 @@
 
 - AI notes can use any offline mermaid diagram type Obsidian supports (sequence, gantt, pie, xychart, quadrant, mindmap, ER, state, sankey and more); unsafe diagram syntax is still shown as plain code.
 - AI notes may use any callout type (including foldable `[!type]-` / `[!type]+` and one level of nesting) and the HTML Obsidian renders (`<details>`, `<sup>`, `<sub>`, `<kbd>`, `<mark>`); the writing rules no longer restrict syntax Obsidian supports.
+- "Note style" replaces the separate content template and writing tone choices in the research dialogs, multi-topic research, outline import and the map menu. Pick Standard, Textbook, Key points, Plain language or Practical guide in one step; "Custom…" still lets you pick any template and tone, including your own. Nothing new is stored: maps and notes keep the same `detail-template` and `tone` values, and notes written without a choice stay exactly as before.
+- A built-in **Textbook** content template opens with 2–4 introductory paragraphs, then the six standard sections, a short self-check, and leaves out sections that have nothing to say. It is also listed in the template library (view, duplicate, set as default) and the workspace default setting.
+- Outline import with quick research now also takes a writing tone; for a new map it becomes the map's default tone, and for an import into an open map it is recorded on each created topic.
 
 ### Changed
 
 - The license is now Apache-2.0 (previously AGPL-3.0-only). The Visual Agent Map name and logo are not covered by the license; see NOTICE. Versions 0.21.0 and earlier remain available under AGPL-3.0-only.
+- The settings rows for content templates and writing tones now say they are used when you pick "Custom…" in Note style.
+
+### Limitations
+
+- Downgrading after choosing the Textbook template: older versions do not know the `textbook` template. They report it as missing and clear `detail-template: textbook` on a topic the next time AI updates it; maps and the workspace default that use it fall back to Standard. A custom template you saved under the id `textbook` is kept under the id `custom-textbook`.
 
 ## [0.21.0] - 2026-10-16
 

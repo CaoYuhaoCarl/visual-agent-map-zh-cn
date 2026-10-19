@@ -2,7 +2,7 @@ import type { VisualReference } from "../repository";
 import { translate, type UiLanguage } from "../i18n";
 import type { AiResult } from "./types";
 import { fencedLines } from "./markdown-blocks";
-import { sectionLookup, standardTemplate, type DetailTemplate } from "./detail-templates";
+import { sectionLookup, standardTemplate, TEXTBOOK_TEMPLATE_ID, type DetailTemplate } from "./detail-templates";
 
 export { fencedLines } from "./markdown-blocks";
 
@@ -53,6 +53,33 @@ export function sourceFootnoteDefinition(line: string): { label: string; target:
     : null;
 }
 
+/**
+ * Textbook layout: the text before the first heading stays on top as the intro, and a section that is empty (or only says
+ * there is nothing new, in either language) is left out with its heading. Source footnotes still join the sources section.
+ */
+function textbookDetail(
+  template: DetailTemplate,
+  leading: string[],
+  sections: Map<number, string[]>,
+  footnotes: string[],
+  sourcesIndex: number
+): string {
+  if (footnotes.length && sourcesIndex >= 0) {
+    const evidence = (sections.get(sourcesIndex) ?? []).join("\n").trim();
+    sections.set(sourcesIndex, [[evidence, footnotes.join("\n")].filter(Boolean).join("\n\n")]);
+  }
+  const placeholders = new Set(
+    (["zh-TW", "en"] as const).map(locale => translate(locale, "note.no_new_information").replace(/[.。]$/, ""))
+  );
+  const blocks = [leading.join("\n").trim()];
+  template.sections.forEach((section, index) => {
+    const body = sections.get(index)?.join("\n").trim() ?? "";
+    if (body && !placeholders.has(body.replace(/[.。]$/, ""))) blocks.push(`### ${section.name}\n\n${body}`);
+  });
+  if (footnotes.length && sourcesIndex < 0) blocks.push(footnotes.join("\n"));
+  return blocks.filter(Boolean).join("\n\n");
+}
+
 export function canonicalDetail(
   value: string,
   language: UiLanguage = "zh-TW",
@@ -83,6 +110,7 @@ export function canonicalDetail(
     }
     (current === null ? leading : sections.get(current)!).push(line);
   }
+  if (template.id === TEXTBOOK_TEMPLATE_ID) return textbookDetail(template, leading, sections, footnotes, sourcesIndex);
   if (sections.size === 0) sections.set(0, [leading.join("\n").trim()]);
   else if (leading.join("\n").trim()) sections.set(0, [leading.join("\n").trim(), ...(sections.get(0) ?? [])]);
   if (footnotes.length && sourcesIndex >= 0) {
