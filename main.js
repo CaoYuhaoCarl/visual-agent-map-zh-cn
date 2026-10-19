@@ -681,7 +681,7 @@ var english = {
   "ui.model": "Model",
   "ui.codex_provider_label": "Codex",
   "ui.workspace_default": "Workspace default",
-  "ui.inherited_at_creation": "Inherited at creation",
+  "ui.inherited_at_creation": "Follows upper topic",
   "ui.manually_selected": "Manually selected",
   "ui.this_node_s_note_is_missing_relink_an_unassigned_note_or_rem": "This node's note is missing. Relink an unassigned note or remove it from the map.",
   "ui.relink_note": "Relink note",
@@ -2126,7 +2126,7 @@ var traditionalChinese = {
   "ui.model": "\u4F7F\u7528\u6A21\u578B",
   "ui.codex_provider_label": "Codex",
   "ui.workspace_default": "\u5DE5\u4F5C\u5340\u9810\u8A2D",
-  "ui.inherited_at_creation": "\u5EFA\u7ACB\u6642\u7E7C\u627F",
+  "ui.inherited_at_creation": "\u8DDF\u96A8\u4E0A\u5C64\u8B70\u984C",
   "ui.manually_selected": "\u624B\u52D5\u6307\u5B9A",
   "ui.this_node_s_note_is_missing_relink_an_unassigned_note_or_rem": "\u6B64\u8B70\u984C\u7684\u7B46\u8A18\u4E0D\u5B58\u5728\uFF0C\u53EF\u91CD\u65B0\u9023\u7D50\u672A\u6B78\u985E\u7B46\u8A18\u6216\u5F9E\u5716\u4E2D\u79FB\u9664\u3002",
   "ui.relink_note": "\u91CD\u65B0\u9023\u7D50\u7B46\u8A18",
@@ -13676,12 +13676,52 @@ var Repository = class {
     await this.folder(root);
     for (const name of ["Notes", "Unassigned", "Archive"]) await this.folder(`${root}/${name}`);
   }
-  async readNote(path) {
+  /**
+   * The model a topic actually runs on. The stored `model:` is a creation-time snapshot and is never rewritten:
+   * manual keeps it, workspace follows the current setting, inherited uses the nearest manual ancestor's stored model
+   * and otherwise the current setting.
+   */
+  async effectiveModel(path, stored, source, map) {
+    const current = this.settings.cliModel;
+    if (source === "manual") return stored || current;
+    if (source === "workspace") return current;
+    let owner = map;
+    if (!owner) {
+      for (const file of await this.mapFiles()) {
+        if (!path.startsWith(`${this.topicRoot(file.path)}/`)) continue;
+        try {
+          const candidate = await this.readMap(file.path);
+          if (candidate.nodes.some((node2) => node2.path === path)) {
+            owner = candidate;
+            break;
+          }
+        } catch (e) {
+        }
+      }
+    }
+    const seen = /* @__PURE__ */ new Set();
+    let node = owner == null ? void 0 : owner.nodes.find((item) => item.path === path);
+    while (node && node.parentId && !seen.has(node.id)) {
+      seen.add(node.id);
+      const parent = owner.nodes.find((item) => item.id === node.parentId);
+      if (!parent) break;
+      try {
+        const fm = frontmatter(await this.app.vault.read(this.file(parent.path)));
+        if (fm["model-source"] === "manual" && text5(fm.model)) return text5(fm.model);
+      } catch (e) {
+      }
+      node = parent;
+    }
+    return current;
+  }
+  async readNote(path, map) {
     var _a;
     const file = this.file(path), content = decodeCalloutSections(upgradeLegacyAimText(await this.app.vault.read(file))), fm = frontmatter(content);
     const status = text5(fm.status, "idea");
     const normalized = status === "review" || status === "accepted" ? "completed" : status;
     const source = text5(fm["model-source"], "workspace");
+    const modelSource = ["workspace", "inherited", "manual"].includes(source) ? source : "workspace";
+    const model = await this.effectiveModel(path, text5(fm.model), modelSource, map);
     const state = text5(
       fm["topic-state"],
       path.includes("/Archive/") ? "archived" : path.includes("/Unassigned/") ? "unassigned" : "active"
@@ -13698,8 +13738,8 @@ var Repository = class {
       preview: [previewSection(content), section2(content, "User Notes")].filter(Boolean).join("\n\n"),
       previewSection: previewSection(content),
       previewInitialized: fm["preview-initialized"] === true,
-      model: text5(fm.model, this.settings.cliModel),
-      modelSource: ["workspace", "inherited", "manual"].includes(source) ? source : "workspace",
+      model,
+      modelSource,
       reasoning: normalizeReasoningLevel((_a = fm["reasoning-level"]) != null ? _a : this.settings.cliReasoning),
       researchMode: fm["research-mode"] === "local" ? "local" : "research",
       researchDepth: fm["research-depth"] === "fast" || fm["research-depth"] === "deep" ? fm["research-depth"] : "normal",
@@ -14882,7 +14922,7 @@ ${details.join("\n")}`);
 
 // experiences/aim/create-map.ts
 async function createAimMap(repository, model, input) {
-  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k;
+  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l;
   const topic = input.topic.trim();
   if (!topic) throw new Error("AIM topic is required.");
   const requestId = (_a = input.requestId) == null ? void 0 : _a.trim();
@@ -14937,7 +14977,8 @@ async function createAimMap(repository, model, input) {
       (_i = draft.model) != null ? _i : model,
       map,
       mapPath,
-      "workspace",
+      // A model picked in the start dialog that differs from the workspace default is the owner's choice: keep it.
+      ((_j = draft.model) != null ? _j : model) === repository.settings.cliModel ? "workspace" : "manual",
       draft.notePath,
       draft.nodeId,
       {
@@ -14945,7 +14986,7 @@ async function createAimMap(repository, model, input) {
         detail: draft.context ? `${translate(contentLanguage, "note.aim_user_context")}
 
 ${draft.context}` : "",
-        reasoning: (_k = (_j = draft.reasoning) != null ? _j : input.reasoning) != null ? _k : "low",
+        reasoning: (_l = (_k = draft.reasoning) != null ? _k : input.reasoning) != null ? _l : "low",
         contentLanguage
       }
     );
@@ -15172,7 +15213,7 @@ function outlineRootDetail(language2, template, source, now) {
 
 - ${log}`, language2, template);
 }
-async function createOutlineNotes(repository, map, mapPath, model, nodes, rootDetail, parentId, detailTemplateId) {
+async function createOutlineNotes(repository, map, mapPath, model, nodes, rootDetail, parentId, detailTemplateId, manualModel = false) {
   const created = [];
   for (const node of nodes) {
     try {
@@ -15182,7 +15223,7 @@ async function createOutlineNotes(repository, map, mapPath, model, nodes, rootDe
         model,
         map,
         mapPath,
-        top && parentId === null ? "workspace" : "inherited",
+        manualModel ? "manual" : top && parentId === null ? "workspace" : "inherited",
         top ? { detail: rootDetail } : {}
       );
       note.parentId = top ? parentId : created[node.parent].id;
@@ -15194,7 +15235,7 @@ async function createOutlineNotes(repository, map, mapPath, model, nodes, rootDe
   }
   return { created };
 }
-async function createOutlineMap(repository, model, nodes, source, now = /* @__PURE__ */ new Date(), template) {
+async function createOutlineMap(repository, model, nodes, source, now = /* @__PURE__ */ new Date(), template, manualModel = false) {
   const language2 = repository.settings.language;
   const detailTemplate = template != null ? template : standardTemplate(language2);
   if (!nodes.length) throw new Error(translate(language2, "ui.outline_error_no_headings"));
@@ -15206,7 +15247,17 @@ async function createOutlineMap(repository, model, nodes, source, now = /* @__PU
     throw Object.assign(new Error(errorText(error)), { mapCreated: true });
   }
   const rootDetail = outlineRootDetail(language2, detailTemplate, source, now);
-  const { created, failure } = await createOutlineNotes(repository, map, mapPath, model, nodes, rootDetail, null);
+  const { created, failure } = await createOutlineNotes(
+    repository,
+    map,
+    mapPath,
+    model,
+    nodes,
+    rootDetail,
+    null,
+    void 0,
+    manualModel
+  );
   map.nodes = arrangeMap(created);
   try {
     await repository.saveMap(mapPath, map);
@@ -15225,7 +15276,7 @@ async function createOutlineMap(repository, model, nodes, source, now = /* @__PU
   }
   return { mapPath, nodes: map.nodes, created: created.length, total: nodes.length, ...failure ? { failure } : {} };
 }
-async function addOutlineToMap(repository, map, mapPath, model, nodes, source, parentId, template, detailTemplateId, now = /* @__PURE__ */ new Date()) {
+async function addOutlineToMap(repository, map, mapPath, model, nodes, source, parentId, template, detailTemplateId, now = /* @__PURE__ */ new Date(), manualModel = false) {
   const language2 = repository.settings.language;
   if (!nodes.length) throw new Error(translate(language2, "ui.outline_error_no_headings"));
   const rootDetail = outlineRootDetail(language2, template, source, now);
@@ -15237,7 +15288,8 @@ async function addOutlineToMap(repository, map, mapPath, model, nodes, source, p
     nodes,
     rootDetail,
     parentId,
-    detailTemplateId
+    detailTemplateId,
+    manualModel
   );
   return { created, total: nodes.length, ...failure ? { failure } : {} };
 }
@@ -26424,7 +26476,15 @@ ${request.requirements}` : preset.text,
     );
     let result;
     try {
-      result = await createOutlineMap(this.plugin.repo, model, request.nodes, request.source, void 0, template);
+      result = await createOutlineMap(
+        this.plugin.repo,
+        model,
+        request.nodes,
+        request.source,
+        void 0,
+        template,
+        Boolean(request.shallowResearch && request.model && request.model !== settings.cliModel)
+      );
     } catch (error) {
       if (!(error == null ? void 0 : error.mapCreated)) throw error;
       new import_obsidian24.Notice(errorMessage(error));
@@ -26509,14 +26569,16 @@ ${request.requirements}` : preset.text,
           request.source,
           (_a2 = parent == null ? void 0 : parent.id) != null ? _a2 : null,
           template,
-          request.detailTemplateId
+          request.detailTemplateId,
+          void 0,
+          Boolean(request.shallowResearch && request.model && request.model !== settings.cliModel)
         );
         state.result = result;
         const created = result.created;
         if (!created.length) return;
         for (const node of created) {
           try {
-            this.notes.set(node.id, await repo.readNote(node.path));
+            this.notes.set(node.id, await repo.readNote(node.path, { ...map, nodes: [...map.nodes, ...created] }));
           } catch (e) {
           }
         }
@@ -29904,7 +29966,10 @@ ${request.requirements}` : preset.text,
     node.x = parent ? parent.x + 340 : 80;
     const siblings = this.map.nodes.filter((n) => n.parentId === node.parentId);
     node.y = siblings.length ? Math.max(...siblings.map((n) => n.y)) + 220 : (_b = parent == null ? void 0 : parent.y) != null ? _b : 80;
-    this.notes.set(node.id, await this.plugin.repo.readNote(node.path));
+    this.notes.set(
+      node.id,
+      await this.plugin.repo.readNote(node.path, { ...this.map, nodes: [...this.map.nodes, node] })
+    );
     this.selected = node.id;
     await this.mapChange((map) => {
       map.nodes.push(node);

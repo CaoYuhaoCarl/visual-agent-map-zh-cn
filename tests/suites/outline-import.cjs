@@ -559,7 +559,7 @@ async function placementHarness(settingsOverrides = {}, obsidianOverrides = {}) 
   const mapPath = 'Agent Workspace/Topics/map-a/Map.md';
   const mapDoc = { id: 'map-a', title: 'Existing', version: 1, nodes: [], viewport: { x: 0, y: 0, zoom: 1 } };
   await repo.ensureTopicFolders('Agent Workspace/Topics/map-a');
-  const oldRoot = await repo.createNote('Old root', 'parent-model', mapDoc, mapPath, 'workspace');
+  const oldRoot = await repo.createNote('Old root', 'parent-model', mapDoc, mapPath, 'manual');
   const oldChild = await repo.createNote('Old child', 'parent-model', mapDoc, mapPath, 'inherited');
   Object.assign(oldRoot, { x: 80, y: 80 }); Object.assign(oldChild, { parentId: oldRoot.id, x: 440, y: 80 });
   mapDoc.nodes.push(oldRoot, oldChild);

@@ -1089,7 +1089,15 @@ export class VisualAgentMapView extends ItemView {
     );
     let result: Awaited<ReturnType<typeof createOutlineMap>>;
     try {
-      result = await createOutlineMap(this.plugin.repo, model, request.nodes, request.source, undefined, template);
+      result = await createOutlineMap(
+        this.plugin.repo,
+        model,
+        request.nodes,
+        request.source,
+        undefined,
+        template,
+        Boolean(request.shallowResearch && request.model && request.model !== settings.cliModel)
+      );
     } catch (error) {
       // Once the map folder exists the import window must close, so a retry cannot create a second map.
       if (!(error as { mapCreated?: unknown } | null)?.mapCreated) throw error;
@@ -1185,14 +1193,16 @@ export class VisualAgentMapView extends ItemView {
           request.source,
           parent?.id ?? null,
           template,
-          request.detailTemplateId
+          request.detailTemplateId,
+          undefined,
+          Boolean(request.shallowResearch && request.model && request.model !== settings.cliModel)
         );
         state.result = result;
         const created = result.created;
         if (!created.length) return;
         for (const node of created) {
           try {
-            this.notes.set(node.id, await repo.readNote(node.path));
+            this.notes.set(node.id, await repo.readNote(node.path, { ...map, nodes: [...map.nodes, ...created] }));
           } catch {
             // The note exists; the view reloads it on the next hydrate.
           }
@@ -4787,7 +4797,10 @@ export class VisualAgentMapView extends ItemView {
     node.x = parent ? parent.x + 340 : 80;
     const siblings = this.map.nodes.filter(n => n.parentId === node.parentId);
     node.y = siblings.length ? Math.max(...siblings.map(n => n.y)) + 220 : (parent?.y ?? 80);
-    this.notes.set(node.id, await this.plugin.repo.readNote(node.path));
+    this.notes.set(
+      node.id,
+      await this.plugin.repo.readNote(node.path, { ...this.map, nodes: [...this.map.nodes, node] })
+    );
     this.selected = node.id;
     await this.mapChange(map => {
       map.nodes.push(node);
