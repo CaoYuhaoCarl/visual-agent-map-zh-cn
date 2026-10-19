@@ -7,12 +7,19 @@ import { actionStatus, modalActions } from "../../ui/modals/action-bar";
 export type MergeBlock =
   | "ui.merge_needs_two"
   | "ui.merge_ancestor_selected"
+  | "ui.merge_parent_direct_only"
   | "ui.merge_needs_same_parent"
   | "ui.merge_missing_note"
   | "ui.merge_busy";
 
 export type MergeEligibility =
-  { ok: true; sources: MapNode[]; parentId: string | null } | { ok: false; reason: MergeBlock };
+  /**
+   * `targetId` is the parent topic that keeps its identity and receives the merge (parent mode); null for sibling
+   * mode, where a new topic replaces the sources. In parent mode `sources` lists the parent first, then its selected
+   * direct subtopics in reading order, and `parentId` is the parent topic's own parent.
+   */
+  | { ok: true; sources: MapNode[]; parentId: string | null; targetId: string | null }
+  | { ok: false; reason: MergeBlock };
 
 /** Cards in reading order (top to bottom, then left to right). */
 export function readingOrder(nodes: MapNode[]): MapNode[] {
@@ -34,14 +41,31 @@ export function mergeEligibility(input: {
   const picked = input.nodes.filter(node => wanted.has(node.id));
   if (wanted.size < 2 || picked.length < 2 || picked.length !== wanted.size)
     return { ok: false, reason: "ui.merge_needs_two" };
-  for (const node of picked)
-    if (descendants(input.nodes, node.id).size && picked.some(other => descendants(input.nodes, node.id).has(other.id)))
-      return { ok: false, reason: "ui.merge_ancestor_selected" };
+  // A selection that includes a topic with its own subtopic is only allowed as one parent plus its direct subtopics.
+  const related = picked.filter(node => {
+    const below = descendants(input.nodes, node.id);
+    return below.size && picked.some(other => below.has(other.id));
+  });
+  let target: MapNode | null = null;
+  if (related.length) {
+    const tops = picked.filter(node => !picked.some(other => descendants(input.nodes, other.id).has(node.id)));
+    if (tops.length !== 1) return { ok: false, reason: "ui.merge_ancestor_selected" };
+    if (picked.some(node => node !== tops[0] && node.parentId !== tops[0].id))
+      return { ok: false, reason: "ui.merge_parent_direct_only" };
+    target = tops[0];
+  }
+  if (target) {
+    const children = picked.filter(node => node !== target);
+    if (children.some(node => !input.hasNote(node.id)) || !input.hasNote(target.id))
+      return { ok: false, reason: "ui.merge_missing_note" };
+    if (picked.some(node => input.busy(node))) return { ok: false, reason: "ui.merge_busy" };
+    return { ok: true, sources: [target, ...readingOrder(children)], parentId: target.parentId, targetId: target.id };
+  }
   const parentId = picked[0].parentId;
   if (picked.some(node => node.parentId !== parentId)) return { ok: false, reason: "ui.merge_needs_same_parent" };
   if (picked.some(node => !input.hasNote(node.id))) return { ok: false, reason: "ui.merge_missing_note" };
   if (picked.some(node => input.busy(node))) return { ok: false, reason: "ui.merge_busy" };
-  return { ok: true, sources: readingOrder(picked), parentId };
+  return { ok: true, sources: readingOrder(picked), parentId, targetId: null };
 }
 
 /** The new note's Detail: each source with content, in order, under `### <title>`; empty sources are skipped. */
@@ -102,7 +126,9 @@ export class MergeTopicsModal extends Modal {
     private submit: (title: string) => void,
     private cancelled: () => void = () => {},
     /** Present when a source has content: the dialog then offers an AI merge, on by default. */
-    private ai?: MergeAiHost
+    private ai?: MergeAiHost,
+    /** Parent mode: the parent topic that keeps its identity; `count` then includes it. */
+    private parentName?: string
   ) {
     super(app);
   }
@@ -111,12 +137,21 @@ export class MergeTopicsModal extends Modal {
     const input = this.contentEl.createEl("input", { type: "text", value: this.value, cls: "vam-name-input" });
     input.setAttr("aria-label", t("ui.merge_title_label"));
     const description = this.contentEl.createEl("p", {
-      text: t("ui.merge_confirm_desc", this.count),
+      text:
+        this.parentName !== undefined
+          ? t("ui.merge_into_parent_desc", this.parentName, this.count - 1)
+          : t("ui.merge_confirm_desc", this.count),
       cls: "vam-merge-desc"
     });
     let skipAi: HTMLInputElement | undefined;
     if (this.ai) {
-      this.contentEl.createEl("p", { text: t("ui.merge_ai_desc", this.count), cls: "vam-merge-desc" });
+      this.contentEl.createEl("p", {
+        text:
+          this.parentName !== undefined
+            ? t("ui.merge_into_parent_ai_desc", this.parentName, this.count - 1)
+            : t("ui.merge_ai_desc", this.count),
+        cls: "vam-merge-desc"
+      });
       const label = this.contentEl.createEl("label", { cls: "vam-merge-skip-ai" });
       skipAi = label.createEl("input", { type: "checkbox" });
       label.createSpan({ text: t("ui.merge_no_ai") });

@@ -1849,7 +1849,10 @@ integrationTest('select mode: the Merge button stays focusable, names the reason
   assert.equal(bar(['a', 'b']).attrs['aria-disabled'], undefined, 'siblings under root can merge');
   assert.equal(bar(['a', 'b']).attrs.title, undefined);
   assert.equal(bar(['b', 'c']).attrs.title, translate('en', 'ui.merge_needs_same_parent'));
-  assert.equal(bar(['a', 'c']).attrs.title, translate('en', 'ui.merge_ancestor_selected'));
+  assert.equal(bar(['a', 'c']).attrs['aria-disabled'], undefined, 'a parent with its direct subtopic can merge into the parent');
+  assert.equal(bar(['a', 'c']).attrs.title, undefined);
+  assert.equal(bar(['root', 'a', 'c']).attrs.title, translate('en', 'ui.merge_parent_direct_only'));
+  assert.equal(bar(['root', 'c']).attrs.title, translate('en', 'ui.merge_parent_direct_only'));
   view.plugin.running = new Set(['b.md']);
   assert.equal(bar(['a', 'b']).attrs.title, translate('en', 'ui.merge_busy'));
   view.map.aim = {}; const aim = view.renderSelectionBar(selectionDom()('div'));

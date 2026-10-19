@@ -796,6 +796,146 @@ integrationTest('AI merge: the AI names the topic in the same single request; th
   assert.equal((await h.repo.readNote(merged.path)).title, 'Renamed by user');
   assert.match(h.contents.get(merged.path), /^# Renamed by user$/m);
 });
+// Merge into a parent topic: the parent keeps its card; the selected direct subtopics are merged into its note.
+const parentOf = async (h, withOrigin = true) => {
+  await h.repo.updateNote(h.parent.path, { summary: 'Parent summary', detail: 'Parent detail', prompt: 'Parent prompt', ...(withOrigin ? { thinkingOrigin: 'PARENT-ORIGIN' } : {}) });
+  h.parent.x = 100; h.parent.y = 250; await h.repo.saveMap(h.path, { ...h.mapDoc, nodes: h.mapDoc.nodes }); await h.view.hydrate();
+  h.view.map = await h.repo.readMap(h.path); await h.repo.rebuildDerivedData(); await h.view.hydrate();
+};
+const parentSnapshot = (h, kids = [h.sources[0], h.sources[2]]) => {
+  h.view.multiSelected = new Set([h.parent.id, ...kids.map(n => n.id)]);
+  const check = h.view.mergeCheck(); assert.equal(check.ok, true); assert.equal(check.targetId, h.parent.id); assert.equal(check.sources[0].id, h.parent.id);
+  return { path: h.path, mapId: h.mapDoc.id, parentId: check.parentId, targetId: check.targetId, sources: check.sources.map(n => ({ id: n.id, path: n.path })) };
+};
+const parentMerge = (h, title, kids) => h.view.mergeSelected(title, parentSnapshot(h, kids));
+integrationTest('parent merge (structure): the parent keeps its card, id, path, place, Prompt and Origin; subtopics go to Unassigned and their children move up', async () => {
+  const h = await mergeHarness({ origin: 'SECRET' }); await parentOf(h);
+  const original = await h.shape(); const originalMap = (await h.repo.readMap(h.path)).nodes;
+  const parentBefore = originalMap.find(n => n.id === h.parent.id);
+  await parentMerge(h, 'Parent');
+  const m = await h.repo.readMap(h.path); const parent = m.nodes.find(n => n.id === h.parent.id);
+  assert.deepEqual([parent.path, parent.x, parent.y, parent.parentId, parent.collapsed], [parentBefore.path, parentBefore.x, parentBefore.y, parentBefore.parentId, parentBefore.collapsed]);
+  assert.equal(m.nodes.some(n => n.id === h.sources[0].id || n.id === h.sources[2].id), false);
+  assert.equal(m.nodes.find(n => n.id === h.sources[1].id).parentId, h.parent.id, 'the unselected subtopic is untouched');
+  assert.equal(m.nodes.find(n => n.id === h.kid.id).parentId, h.parent.id, 'a selected subtopic’s child moves under the parent');
+  const note = await h.repo.readNote(parent.path);
+  assert.equal(note.detail.trim(), '### Parent\n\nParent detail\n\n### Gamma\n\nGamma detail\n\n### Alpha\n\nAlpha detail');
+  assert.equal(note.summary, 'Parent summary'); assert.equal(note.prompt, 'Parent prompt'); assert.equal(note.thinkingOrigin, 'PARENT-ORIGIN'); assert.equal(note.title, 'Parent');
+  const unassigned = (await h.repo.collectionFiles(h.path, 'Unassigned')).map(f => f.path);
+  assert.equal(unassigned.length, 2); assert.deepEqual([...note.sourcePaths].sort(), unassigned.slice().sort());
+  for (const file of unassigned) assert.equal(h.fm(file).state, 'unassigned');
+  assert.equal(h.view.history.undoEntry.label, 'Merge topics'); assert.equal(h.view.selected, h.parent.id);
+  assert.notDeepEqual((await h.shape()).nodes, original.nodes);
+});
+integrationTest('parent merge (structure): a new name changes only the title, never the path or id', async () => {
+  const h = await mergeHarness(); await parentOf(h); const path = h.parent.path;
+  await parentMerge(h, '  Renamed parent ');
+  const parent = (await h.repo.readMap(h.path)).nodes.find(n => n.id === h.parent.id);
+  assert.equal(parent.path, path); assert.equal((await h.repo.readNote(path)).title, 'Renamed parent'); assert.match(h.contents.get(path), /^# Renamed parent$/m);
+});
+integrationTest('parent merge: one undo restores the parent text byte for byte; redo and a second undo repeat it', async () => {
+  const h = await mergeHarness(); await parentOf(h);
+  const text = h.contents.get(h.parent.path); const original = await h.shape();
+  await parentMerge(h, 'Renamed parent'); const merged = await h.shape(); const mergedText = h.contents.get(h.parent.path);
+  assert.notEqual(mergedText, text);
+  await h.view.travel(false);
+  assert.equal(h.contents.get(h.parent.path), text, 'the parent file is exactly as before'); assert.deepEqual(await h.shape(), original);
+  assert.equal((await h.repo.readMap(h.path)).nodes.find(n => n.id === h.kid.id).parentId, h.sources[0].id);
+  for (const source of h.sources) assert.equal(h.fm(source.path).state, 'active');
+  await h.view.travel(true); assert.deepEqual(await h.shape(), merged); assert.equal((await h.repo.readNote(h.parent.path)).title, 'Renamed parent');
+  await h.view.travel(false); assert.equal(h.contents.get(h.parent.path), text); assert.deepEqual(await h.shape(), original);
+  h.view.history.undo(); assert.equal(h.view.history.canUndo, false, 'the merge was exactly one history entry');
+});
+integrationTest('parent merge: undo and redo are refused, before any file moves, when the parent was edited since', async () => {
+  const h = await mergeHarness(); await parentOf(h);
+  await parentMerge(h, 'Parent'); const merged = await h.shape();
+  await h.repo.updateNote(h.parent.path, { summary: 'Edited later' }); const editedText = h.contents.get(h.parent.path);
+  await assert.rejects(() => h.view.travel(false), /merged topic was edited/);
+  assert.deepEqual(await h.shape(), merged); assert.equal(h.contents.get(h.parent.path), editedText); assert.equal(h.view.history.canUndo, true, 'the entry is still undoable');
+  await h.repo.updateNote(h.parent.path, { detail: 'Detail edited later' }); 
+  await assert.rejects(() => h.view.travel(false), /merged topic was edited/);
+  assert.deepEqual(await h.shape(), merged);
+});
+integrationTest('parent merge: redo is refused when the parent was edited after the undo', async () => {
+  const h = await mergeHarness(); await parentOf(h);
+  await parentMerge(h, 'Parent'); await h.view.travel(false); const undone = await h.shape();
+  await h.repo.updateNote(h.parent.path, { summary: 'Edited after undo' });
+  await assert.rejects(() => h.view.travel(true), /merged topic was edited/);
+  assert.deepEqual(await h.shape(), undone); assert.equal((await h.repo.readNote(h.parent.path)).summary, 'Edited after undo');
+});
+integrationTest('parent merge: a failure while moving a subtopic puts the parent text, files and map back, with no history', async () => {
+  const h = await mergeHarness(); await parentOf(h);
+  const text = h.contents.get(h.parent.path); const original = await h.shape(); const originalMap = JSON.stringify((await h.repo.readMap(h.path)).nodes);
+  const move = h.repo.moveUnique.bind(h.repo); let calls = 0;
+  h.repo.moveUnique = async (...args) => { calls++; if (calls === 2) throw new Error('disk full'); return move(...args); };
+  await assert.rejects(() => parentMerge(h, 'Renamed parent'), /disk full/);
+  h.repo.moveUnique = move;
+  assert.equal(h.contents.get(h.parent.path), text, 'the parent file is exactly as before'); assert.deepEqual(await h.shape(), original);
+  assert.equal(JSON.stringify((await h.repo.readMap(h.path)).nodes), originalMap); assert.equal(h.view.history.canUndo, false);
+  for (const source of h.sources) assert.equal(h.fm(source.path).state, 'active');
+});
+integrationTest('parent merge: a failed saveMap also restores the parent text and files', async () => {
+  const h = await mergeHarness(); await parentOf(h);
+  const text = h.contents.get(h.parent.path); const original = await h.shape();
+  const save = h.repo.saveMap.bind(h.repo); let calls = 0;
+  h.repo.saveMap = async (...args) => { calls++; if (calls === 1) throw new Error('map locked'); return save(...args); };
+  await assert.rejects(() => parentMerge(h, 'Parent'), /map locked/);
+  h.repo.saveMap = save;
+  assert.equal(h.contents.get(h.parent.path), text); assert.deepEqual(await h.shape(), original); assert.equal(h.view.history.canUndo, false);
+});
+integrationTest('parent merge: busy on the parent or a subtopic is refused and writes nothing', async () => {
+  const h = await mergeHarness(); await parentOf(h); const original = await h.shape(); const text = h.contents.get(h.parent.path);
+  h.plugin.running.add(h.parent.path);
+  h.view.multiSelected = new Set([h.parent.id, h.sources[0].id]);
+  assert.deepEqual(plain(h.view.mergeCheck()), { ok: false, reason: 'ui.merge_busy' });
+  await h.view.mergeSelected('Parent', { path: h.path, mapId: h.mapDoc.id, targetId: h.parent.id, sources: [h.parent, h.sources[0]].map(n => ({ id: n.id, path: n.path })) });
+  assert.deepEqual(await h.shape(), original); assert.equal(h.contents.get(h.parent.path), text); assert.equal(h.view.history.canUndo, false);
+});
+const parentBegin = async (h, title) => {
+  const snapshot = parentSnapshot(h);
+  const began = await h.view.startMergeDraft(title, snapshot, () => { h.started++; }, new AbortController().signal);
+  return { began, task: h.view.mergeTasks.get(h.path), snapshot };
+};
+integrationTest('parent merge (AI): one request with the parent first and no Thinking Origin; the draft replaces Summary and Detail only; undo restores the text', async () => {
+  const h = await aiMergeHarness({ origin: 'SECRET-ORIGIN-TEXT', parentModel: 'claude:haiku', parentSource: 'manual' }); await parentOf(h);
+  const text = h.contents.get(h.parent.path); const original = await h.shape();
+  h.answer = async () => ({ summary: 'Merged one-liner', detail: '### Facts\n\nParent detail and Gamma detail', visualReferences: [], formatIssues: [], suggestions: [{ title: 'Parent', task: '', contribution: '', parentTitle: '' }] });
+  const { began, task } = await parentBegin(h, 'Parent'); assert.equal(began, true); await h.untilSettled(task);
+  assert.equal(h.asks.length, 1); assert.equal(h.asks[0].model, 'claude:haiku', 'the parent topic’s own model'); assert.deepEqual(h.usage, ['claude:haiku']);
+  const group = h.asks[0].context.referenceGroups[0]; assert.equal(group.documents[0].path, h.parent.path); assert.equal(group.documents.length, 3);
+  assert.doesNotMatch(JSON.stringify(h.asks[0].context), /SECRET-ORIGIN-TEXT|PARENT-ORIGIN/); assert.match(JSON.stringify(group.documents[0]), /Parent detail/);
+  assert.equal(task.state, 'draft'); assert.equal(task.targetId, h.parent.id); assert.equal(task.title, 'Parent');
+  await h.confirm(task, 'Edited summary', '### Facts\n\nEdited by the user');
+  const note = await h.repo.readNote(h.parent.path);
+  assert.equal(note.summary, 'Edited summary'); assert.match(note.detail, /Edited by the user/); assert.equal(note.title, 'Parent'); assert.equal(h.fm(h.parent.path).status, 'completed');
+  assert.equal(note.prompt, 'Parent prompt', 'the parent’s own Prompt is kept'); assert.equal(note.thinkingOrigin, 'PARENT-ORIGIN'); assert.equal(note.model, 'claude:haiku');
+  assert.equal(h.view.mergeTasks.size, 0); assert.equal((await h.repo.readMap(h.path)).nodes.find(n => n.id === h.parent.id).path, h.parent.path);
+  assert.equal((await h.repo.collectionFiles(h.path, 'Unassigned')).length, 2);
+  const done = await h.shape();
+  await h.view.travel(false); assert.equal(h.contents.get(h.parent.path), text); assert.deepEqual(await h.shape(), original);
+  await h.view.travel(true); assert.deepEqual(await h.shape(), done); assert.equal((await h.repo.readNote(h.parent.path)).summary, 'Edited summary');
+  await h.view.travel(false); assert.equal(h.contents.get(h.parent.path), text);
+});
+integrationTest('parent merge (AI): the AI’s different name renames the parent’s title only; a review name overrides it', async () => {
+  for (const [review, expected] of [[undefined, 'AI parent name'], ['Typed name', 'Typed name']]) {
+    const h = await aiMergeHarness(); await parentOf(h); const path = h.parent.path;
+    h.answer = async () => ({ summary: 'S', detail: '### Facts\n\nx', visualReferences: [], formatIssues: [], suggestions: [{ title: 'AI parent name', task: '', contribution: '', parentTitle: '' }] });
+    const { task } = await parentBegin(h, 'Parent'); await h.untilSettled(task);
+    assert.equal(task.title, 'AI parent name'); assert.equal(h.asks.length, 1);
+    await h.confirm(task, 'S', '### Facts\n\nx', review);
+    assert.equal((await h.repo.readMap(h.path)).nodes.find(n => n.id === h.parent.id).path, path);
+    assert.equal((await h.repo.readNote(path)).title, expected); assert.match(h.contents.get(path), new RegExp(`^# ${expected}$`, 'm'));
+  }
+});
+integrationTest('parent merge (AI): editing the parent while the AI runs makes the draft stale and writes nothing', async () => {
+  for (const edit of [h => h.repo.updateNote(h.parent.path, { detail: 'Edited during the run' }), h => h.repo.updateNote(h.sources[0].path, { detail: 'Child edited during the run' })]) {
+    const h = await aiMergeHarness(); await parentOf(h); const before = h.files(); const original = await h.shape();
+    let release; const gate = new Promise(resolve => { release = resolve; });
+    h.answer = async () => { await gate; return { summary: 'S', detail: 'D', visualReferences: [], formatIssues: [], suggestions: [] }; };
+    const { task } = await parentBegin(h, 'Parent'); await edit(h); const edited = h.files(); release(); await h.untilSettled(task);
+    assert.equal(task.state, 'failed'); assert.equal(task.message, 'A source topic changed or left the map, so the merge draft was not saved'); assert.deepEqual(h.files(), edited); assert.notDeepEqual(edited, before); assert.deepEqual((await h.shape()).nodes, original.nodes); assert.equal(h.view.history.canUndo, false);
+  }
+});
 integrationTest('AI merge: confirming without editing keeps the AI name; a blank edit falls back to it', async () => {
   for (const name of [undefined, '   ']) {
     const h = await aiMergeHarness();
