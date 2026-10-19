@@ -378,6 +378,58 @@ test('mermaid zoom: a plain note embedded in a VAM note is not decorated, even w
   assert.equal(section.classes.includes('vam-mermaid-scope'), false);
 });
 
+test('mermaid zoom: a section rendered while detached is still decorated when its diagram appears; one removed after attaching is released', () => {
+  const ctx = loadRegister(FILES);
+  const { block, host } = diagramBlock();
+  block.isConnected = false;
+  ctx.run(block, 'Topics/A/Note.md');
+  assert.equal(ctx.observers.length, 1);
+  ctx.observers[0].cb();
+  assert.equal(ctx.observers[0].disconnected, false, 'a detached section keeps waiting');
+  addSvg(host);
+  ctx.observers[0].cb();
+  assert.ok(host.classes.includes('vam-mermaid-scope'));
+  assert.equal(ctx.observers[0].disconnected, true);
+  const second = diagramBlock();
+  ctx.run(second.block, 'Topics/A/Note.md');
+  second.block.isConnected = true;
+  ctx.observers[1].cb();
+  second.block.isConnected = false;
+  ctx.observers[1].cb();
+  assert.equal(ctx.observers[1].disconnected, true, 'attached and then removed without a diagram: released');
+});
+
+test('callout scope: VAM callouts get the scope class, non-VAM and embedded-note callouts do not, and the section is never marked', () => {
+  const ctx = loadRegister(FILES);
+  const section = node('div', 'el-div');
+  const callout = section.createDiv('callout');
+  const embed = section.createEl('div', 'internal-embed markdown-embed');
+  const foreign = embed.createDiv('callout');
+  ctx.run(section, 'Topics/A/Note.md');
+  assert.ok(callout.classes.includes('vam-callout-scope'));
+  assert.equal(foreign.classes.includes('vam-callout-scope'), false);
+  assert.equal(section.classes.includes('vam-callout-scope'), false);
+  const plain = node('div', 'el-div'); const plainCallout = plain.createDiv('callout');
+  ctx.run(plain, 'Other/plain.md');
+  assert.equal(plainCallout.classes.includes('vam-callout-scope'), false);
+  const own = node('div', 'callout'); ctx.run(own, 'Topics/A/Note.md');
+  assert.ok(own.classes.includes('vam-callout-scope'), 'a section that is itself a callout is marked');
+});
+
+test('callout scope: a live-preview watcher marks .cm-callout in a VAM note when one is added', () => {
+  const ctx = loadRegister(FILES);
+  const dom = node('div', 'cm-editor');
+  new ctx.mod.EditorWatcher(ctx.app, dom, () => 'Topics/A/Note.md', () => {});
+  const callout = dom.createDiv('cm-callout');
+  ctx.observers.at(-1).cb([{ addedNodes: [callout], target: dom }]);
+  assert.ok(callout.classes.includes('vam-callout-scope'));
+  const plainDom = node('div', 'cm-editor');
+  new ctx.mod.EditorWatcher(ctx.app, plainDom, () => 'Other/plain.md', () => {});
+  const other = plainDom.createDiv('cm-callout');
+  ctx.observers.at(-1).cb([{ addedNodes: [other], target: plainDom }]);
+  assert.equal(other.classes.includes('vam-callout-scope'), false);
+});
+
 test('mermaid zoom: the timeline CSS targets only the diagram element, never a section', () => {
   const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
   const rules = css.split('\n').filter(line => line.includes('aria-roledescription="timeline"'));

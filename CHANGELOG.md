@@ -9,7 +9,12 @@
 
 ### Changed
 
+- Callouts and the mindmap, treemap, gantt, C4, venn, pie and xychart diagrams in VAM notes now stay readable in light and dark themes: callout titles and links keep at least 4.5:1 contrast and those diagrams follow your theme colors instead of mermaid's fixed palette. Other notes and your theme are untouched.
 - The license is now Apache-2.0 (previously AGPL-3.0-only). The Visual Agent Map name and logo are not covered by the license; see NOTICE. Versions 0.21.0 and earlier remain available under AGPL-3.0-only.
+
+### Fixed
+
+- Diagrams Obsidian renders before their section is on screen no longer miss the zoom button and the readable-diagram styling.
 
 ## [0.21.0] - 2026-10-16
 
