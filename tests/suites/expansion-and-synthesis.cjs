@@ -995,6 +995,29 @@ integrationTest('direct synthesis write: Undo is verbatim when the parent alread
   await f.view.history.undo().undo();
   assert.deepEqual(plain(await f.repo.readNote(f.parent.path)), plain(before));
 });
+integrationTest('a note without title/summary keys is normalized when synthesis starts (status write), not by the content write; Undo restores every recorded field', async () => {
+  const gate = deferred();
+  const f = await backgroundSynthesisFixture(async (call, _signal, onAccepted) => { onAccepted(); if (call === 2) await gate.promise; return call === 1 ? f.directionsResult : f.draftResult; });
+  const vault = f.repo.app.vault, file = f.repo.file(f.parent.path);
+  // A note whose frontmatter has no title or summary key (hand-made or imported).
+  await vault.process(file, text => text.replace(/^title: .*\n/m, '').replace(/^summary: .*\n/m, ''));
+  const head = text => text.split('\n---')[0];
+  assert.doesNotMatch(head(await vault.read(file)), /^title:|^summary:/m);
+  await f.view.startSynthesis(f.parent, f.options(), null, message => assert.fail(message), () => {});
+  assert.doesNotMatch(head(await vault.read(file)), /^title:/m, 'the directions step does not write the note');
+  let accepted = 0;
+  const drafting = f.view.startSynthesis(f.parent, f.options(), 'Find shared constraints', message => assert.fail(message), () => accepted++);
+  await until(() => accepted === 1);
+  // Evidence: the normalization comes from the "running" status write at the start of the draft step, before any content is written.
+  assert.match(head(await vault.read(file)), /^title:/m);
+  const before = await f.repo.readNote(f.parent.path);
+  gate.resolve(); await drafting;
+  assert.equal((await f.repo.readNote(f.parent.path)).summary, 'Draft summary');
+  await f.view.history.undo().undo();
+  const restored = await f.repo.readNote(f.parent.path);
+  assert.deepEqual(plain({ ...restored, status: 0 }), plain({ ...before, status: 0 }));
+  assert.equal(restored.status, 'completed');
+});
 integrationTest('multi-select synthesis: Stop while the sources are re-read after the AI result writes nothing', async () => {
   const { repo, app } = fixture(), a = await topicNote(repo, 'Selected A', 'model-a'), b = await topicNote(repo, 'Selected B', 'model-a');
   const mapPath = 'Agent Workspace/Topics/map-a/Map.md';

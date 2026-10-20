@@ -493,7 +493,7 @@ integrationTest('Next Step reviews first expansion proposals in place and keeps 
   assert.equal(directionBox.value ?? directionBox.text, 'Find tradeoffs');
   button(pendingPanel, 'Choose this direction').click();
   directionBox.value = 'Edited direction';
-  button(pendingModal2.modalEl, 'Get synthesis draft').click(); await tick(); await tick();
+  button(pendingModal2.modalEl, 'Start synthesis').click(); await tick(); await tick();
   assert.deepEqual(draftCalls, ['Edited direction']); assert.equal(draftStageOptions.continuesDirections, true); assert.equal(discarded, 0);
   // Owner decision 2026-10-19: the draft step hides the dialog too; the finished draft is reviewed from the card badge or the Notice (view tests), never rendered here.
   assert.equal(pendingModal2.closed, true, 'pressing the draft button hides the dialog');
@@ -928,7 +928,7 @@ integrationTest('merge dialog (the shared synthesis dialog) names the topic afte
   const name = find(modal.contentEl, item => item.tag === 'input' && item['aria-label'] === 'New topic name');
   assert.equal(name.value, 'Synthesis: Heat, Water');
   assert.equal(find(modal.contentEl, item => item.cls.includes('vam-next-cards')).cls.includes('is-hidden'), true, 'a selection has no research or expand steps to pick');
-  const next = button(modal.modalEl, 'Get synthesis suggestions first'), skip = button(modal.modalEl, 'Skip suggestions and draft now');
+  const next = button(modal.modalEl, 'Get synthesis suggestions first'), skip = button(modal.modalEl, 'Skip suggestions and synthesize now');
   const status = dom.findAll(modal.contentEl, item => item.cls.includes('vam-next-research'))[2].querySelector('.vam-next-status');
   assert.equal(next.disabled, false); assert.equal(skip.disabled, false); assert.equal(status.text, '');
   name.value = '  '; name.input();
