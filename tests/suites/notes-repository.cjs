@@ -1279,3 +1279,44 @@ integrationTest('relevance goal keys survive every later map save (writeMapConte
   assert.equal(contents.get(mapPath).match(/- "/g).length, 2);
   assert.equal((await repo.readMap(mapPath)).title, 'Cooking again');
 });
+integrationTest('math repair rewrites note bodies only, skips changed notes, and is idempotent', async () => {
+  const { repo, contents, files, app } = fixture();
+  const { planMathRepair, applyMathRepair, repairNoteMath } = load('experiences/visual-map/math-repair.ts');
+  const a = await topicNote(repo, 'A', 'model-a', 'map-a'); const b = await topicNote(repo, 'B', 'model-a', 'map-b'); const c = await topicNote(repo, 'C', 'model-a', 'map-c');
+  const math = 'Energy \\(E=mc^2\\) and\n\\[\na+b\n\\]\n\n`\\(code\\)`\n\n```\n\\(fenced\\)\n```\n\n\\[text\\](url)\n';
+  contents.set(a.path, contents.get(a.path) + '\n' + math);
+  contents.set(b.path, contents.get(b.path) + '\n' + math);
+  const fmOf = text => text.match(/^---\n[\s\S]*?\n---\n/)[0];
+  const frontA = fmOf(contents.get(a.path)).replace('---\n', '---\nnote: \\(keep\\)\n');
+  contents.set(a.path, contents.get(a.path).replace(fmOf(contents.get(a.path)), frontA));
+  // A non-VAM file with math is not offered.
+  files.set('Other/plain.md', Object.assign(new obsidian.TFile('Other/plain.md'), {})); contents.set('Other/plain.md', math);
+  const topicFiles = await repo.markedFiles('agent-map-node');
+  assert.equal(topicFiles.some(f => f.path === 'Other/plain.md'), false);
+  const plan = await planMathRepair(app.vault, topicFiles);
+  assert.equal(plan.items.length, 2); assert.ok(plan.examples.length <= 5);
+  // Cancel: planning alone writes nothing.
+  assert.equal(contents.get('Other/plain.md'), math); assert.ok(contents.get(a.path).includes('\\(E=mc^2\\)'));
+  // b changes on disk between preview and write -> skipped.
+  contents.set(b.path, contents.get(b.path) + '\nedited later\n');
+  const beforeFront = fmOf(contents.get(a.path)); const beforeC = contents.get(c.path);
+  const result = await applyMathRepair(app.vault, plan);
+  assert.deepEqual(plain(result), { changed: 1, skipped: 1 });
+  const after = contents.get(a.path);
+  assert.equal(fmOf(after), beforeFront, 'frontmatter byte-identical');
+  assert.ok(after.includes('Energy $E=mc^2$ and\n$$\na+b\n$$'));
+  assert.ok(after.includes('`\\(code\\)`') && after.includes('```\n\\(fenced\\)\n```') && after.includes('\\[text\\](url)'));
+  assert.ok(contents.get(b.path).includes('\\(E=mc^2\\)'), 'changed note untouched');
+  assert.equal(contents.get(c.path), beforeC); assert.equal(contents.get('Other/plain.md'), math);
+  // Idempotent: a second pass over the repaired note finds nothing, and the repair is a fixed point.
+  assert.equal(repairNoteMath(after), after);
+  const again = await planMathRepair(app.vault, [files.get(a.path)]);
+  assert.equal(again.items.length, 0);
+});
+integrationTest('math repair keeps CRLF frontmatter byte-identical and handles notes without frontmatter', () => {
+  const { repairNoteMath } = load('experiences/visual-map/math-repair.ts');
+  const crlf = '---\r\ntitle: \\(x\\)\r\n---\r\nSee \\(a\\)\r\n';
+  assert.equal(repairNoteMath(crlf), '---\r\ntitle: \\(x\\)\r\n---\r\nSee $a$\r\n');
+  assert.equal(repairNoteMath('See \\(a\\)'), 'See $a$');
+  assert.equal(repairNoteMath('No math here'), 'No math here');
+});
