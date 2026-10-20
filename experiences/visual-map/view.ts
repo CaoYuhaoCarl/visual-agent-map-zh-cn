@@ -80,6 +80,7 @@ import {
 } from "../../note-values";
 import { RELEVANCE_LABEL, renderRelevanceTagButton } from "./relevance-tag";
 import { relevanceDisplayNodes } from "./relevance-order";
+import { fitViewport, focusViewport, initialViewport, insetFromRects } from "./viewport-inset";
 import { RelevanceSummaryModal } from "./relevance-summary-modal";
 import { relevanceMode, relevanceModeAfterWrite, type RelevanceMode, type RelevancePin } from "./relevance-pins";
 import { PendingSuggestions } from "../../pending-suggestions";
@@ -5550,6 +5551,7 @@ export class VisualAgentMapView extends ItemView {
       if (!this.map.aim) this.button(emptyMap, t("ui.topic"), () => this.enqueue(() => this.addNode(null)));
     }
     this.setupPan();
+    this.applyInitialViewport();
     this.transform();
     this.drawEdges();
     if (this.builtIn && this.selected) {
@@ -6136,7 +6138,7 @@ export class VisualAgentMapView extends ItemView {
       rect &&
       (rect.left < view.left || rect.right > view.right || rect.top < view.top || rect.bottom > view.bottom)
     )
-      this.focusNode(target);
+      this.focusNode(target, false);
     if (this.builtIn) {
       this.focusNodeId = target.id;
       this.selectSampleNode(target.id);
@@ -8749,15 +8751,30 @@ export class VisualAgentMapView extends ItemView {
     viewport.addEventListener("pointerup", up);
     viewport.addEventListener("pointercancel", up);
   }
-  private focusNode(target: MapNode): void {
+  /** Safe area under the floating toolbar, measured so a wrapped toolbar is covered too. */
+  private canvasInset(): number {
+    const canvas = this.viewportEl?.getBoundingClientRect?.();
+    const tools = this.contentEl?.querySelector<HTMLElement>(".vam-map-tools")?.getBoundingClientRect?.();
+    return canvas ? insetFromRects(canvas.top, tools) : 0;
+  }
+  /** Lifts a never-moved default viewport below the toolbar. In memory only; it is saved with the next real pan or zoom. */
+  private applyInitialViewport(): void {
+    if (!this.map) return;
+    this.map.viewport = initialViewport(this.map.viewport, this.canvasInset());
+  }
+  /** `persist` false is keyboard navigation: the camera follows in memory and Map.md is not written. */
+  private focusNode(target: MapNode, persist = true): void {
     if (!this.map || !this.viewportEl) return;
-    const v = this.map.viewport;
     // Centre on where the card is drawn, which differs from its saved position while sorted by relevance.
     const node = this.relevanceSortOn() ? (this.canvasNodes().find(item => item.id === target.id) ?? target) : target;
-    v.x = this.viewportEl.clientWidth / 2 - (node.x + 140) * v.zoom;
-    v.y = this.viewportEl.clientHeight / 2 - (node.y + 80) * v.zoom;
+    this.map.viewport = focusViewport(
+      this.map.viewport,
+      { x: node.x + 140, y: node.y + 80 },
+      { width: this.viewportEl.clientWidth, height: this.viewportEl.clientHeight },
+      this.canvasInset()
+    );
     this.transform();
-    this.saveViewport();
+    if (persist) this.saveViewport();
   }
   private fit(): void {
     if (!this.map || !this.viewportEl) return;
@@ -8773,14 +8790,11 @@ export class VisualAgentMapView extends ItemView {
             (this.stageEl?.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(n.id)}"]`)?.offsetHeight ?? 180)
         )
       );
-    const width = this.viewportEl.clientWidth,
-      height = this.viewportEl.clientHeight;
-    const zoom = Math.max(0.25, Math.min(1.2, (width - 80) / (maxX - minX), (height - 80) / (maxY - minY)));
-    this.map.viewport = {
-      zoom,
-      x: (width - (maxX - minX) * zoom) / 2 - minX * zoom,
-      y: (height - (maxY - minY) * zoom) / 2 - minY * zoom
-    };
+    this.map.viewport = fitViewport(
+      { minX, minY, maxX, maxY },
+      { width: this.viewportEl.clientWidth, height: this.viewportEl.clientHeight },
+      this.canvasInset()
+    );
     this.transform();
     this.saveViewport();
   }
