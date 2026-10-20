@@ -14324,8 +14324,23 @@ function anchorCheck(lines, mask, anchor) {
   if (tableLines !== 0 && tableLines !== blk.length) return { code: "anchor_bad_block", block };
   return { code: null, block };
 }
+var SEQ_ALIAS = /^(\s*(?:participant|actor)\s+\S+\s+as\s+)"([^"]+)"(\s*)$/;
+var SEQ_MESSAGE = /^(\s*[^:\n]*?(?:-->>|->>|--x|-x|--\)|-\)|-->|->)[^:\n]*:\s*)"([^"]+)"(\s*)$/;
+var SEQ_NOTE = /^(\s*note\s+(?:left of|right of|over)\s+[^:]+:\s*)"([^"]+)"(\s*)$/i;
+function stripSequenceQuotes(body) {
+  const lines = body.split("\n");
+  const first = lines.find((l) => l.trim() !== "");
+  if (first === void 0 || !/^\s*sequenceDiagram\b/.test(first)) return body;
+  return lines.map((line) => {
+    for (const re of [SEQ_ALIAS, SEQ_NOTE, SEQ_MESSAGE]) {
+      const m = re.exec(line);
+      if (m) return m[1] + m[2] + m[3];
+    }
+    return line;
+  }).join("\n");
+}
 function normBody(body) {
-  return body.replace(/\r\n/g, "\n").trim();
+  return stripSequenceQuotes(body.replace(/\r\n/g, "\n").trim());
 }
 async function applyCharts(detail, charts, options) {
   if (charts.length > options.remaining) return { ok: false, code: "over_cap", index: 0 };

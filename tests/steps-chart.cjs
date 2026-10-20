@@ -297,3 +297,41 @@ test('mermaidParses returning false leaves the detail unchanged', async () => {
   assert.deepEqual(warns, [['Visual Agent Map chart step', 'unparsable']]);
   assert.equal(chartEntry(log).status, 'failed');
 });
+
+test('sequenceDiagram: wrapping double quotes in aliases, messages and notes are removed; other types untouched', async () => {
+  const quoted = [
+    'sequenceDiagram',
+    '  participant U as "User"',
+    '  actor S as "Server side"',
+    '  U->>S: "Send 3 days"',
+    '  S-->>U: "Reply"',
+    '  Note over U,S: "Wait 5 days"',
+    '  Note right of S: plain'
+  ].join('\n');
+  const plain = quoted.replace(/"/g, '');
+  const r = await apply(NOTE, [draft(P1, quoted, 'process')]);
+  assert.equal(r.ok, true);
+  assert.ok(r.detail.includes('```mermaid\n' + plain + '\n```'));
+  assert.ok(!r.detail.includes('"User"'));
+  const already = await apply(NOTE, [draft(P1, plain, 'process')]);
+  assert.equal(already.detail, r.detail);
+  const flow = 'flowchart TD\n  A["3 days"] -->|"x"| B["5 days"]';
+  const f = await apply(NOTE, [draft(P1, flow, 'process')]);
+  assert.ok(f.detail.includes(flow));
+  const pie = 'pie\n  title "x"\n  "a" : 3';
+  const p = await apply(NOTE, [draft(P1, pie, 'comparison')]);
+  assert.ok(p.detail.includes(pie));
+});
+
+test('sequenceDiagram: inner quotes or empty quotes are left alone', async () => {
+  const body = [
+    'sequenceDiagram',
+    '  participant U as "a" and "b"',
+    '  U->>U: "a" and "b"',
+    '  Note over U: "a" and "b"',
+    '  U->>U:""'
+  ].join('\n');
+  const r = await apply(NOTE, [draft(P1, body, 'process')]);
+  assert.equal(r.ok, true);
+  assert.ok(r.detail.includes('```mermaid\n' + body + '\n```'));
+});
