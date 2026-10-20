@@ -14326,9 +14326,9 @@ function anchorCheck(lines, mask, anchor) {
   if (tableLines !== 0 && tableLines !== blk.length) return { code: "anchor_bad_block", block };
   return { code: null, block };
 }
-var SEQ_ALIAS = /^(\s*(?:participant|actor)\s+\S+\s+as\s+)"(.*)"(\s*)$/;
-var SEQ_MESSAGE = /^(\s*[^:\n]*?(?:-->>|->>|--x|-x|--\)|-\)|-->|->)[^:\n]*:\s*)"(.*)"(\s*)$/;
-var SEQ_NOTE = /^(\s*note\s+(?:left of|right of|over)\s+[^:]+:\s*)"(.*)"(\s*)$/i;
+var SEQ_ALIAS = /^(\s*(?:participant|actor)\s+\S+\s+as\s+)"([^"]+)"(\s*)$/;
+var SEQ_MESSAGE = /^(\s*[^:\n]*?(?:-->>|->>|--x|-x|--\)|-\)|-->|->)[^:\n]*:\s*)"([^"]+)"(\s*)$/;
+var SEQ_NOTE = /^(\s*note\s+(?:left of|right of|over)\s+[^:]+:\s*)"([^"]+)"(\s*)$/i;
 function stripSequenceQuotes(body) {
   const lines = body.split("\n");
   const first = lines.find((l) => l.trim() !== "");

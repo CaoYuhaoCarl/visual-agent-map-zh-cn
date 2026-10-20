@@ -121,9 +121,9 @@ function anchorCheck(
   return { code: null, block };
 }
 
-const SEQ_ALIAS = /^(\s*(?:participant|actor)\s+\S+\s+as\s+)"(.*)"(\s*)$/;
-const SEQ_MESSAGE = /^(\s*[^:\n]*?(?:-->>|->>|--x|-x|--\)|-\)|-->|->)[^:\n]*:\s*)"(.*)"(\s*)$/;
-const SEQ_NOTE = /^(\s*note\s+(?:left of|right of|over)\s+[^:]+:\s*)"(.*)"(\s*)$/i;
+const SEQ_ALIAS = /^(\s*(?:participant|actor)\s+\S+\s+as\s+)"([^"]+)"(\s*)$/;
+const SEQ_MESSAGE = /^(\s*[^:\n]*?(?:-->>|->>|--x|-x|--\)|-\)|-->|->)[^:\n]*:\s*)"([^"]+)"(\s*)$/;
+const SEQ_NOTE = /^(\s*note\s+(?:left of|right of|over)\s+[^:]+:\s*)"([^"]+)"(\s*)$/i;
 
 /**
  * sequenceDiagram only: Mermaid renders wrapping double quotes in participant aliases and message/note text

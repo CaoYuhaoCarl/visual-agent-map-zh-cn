@@ -322,3 +322,16 @@ test('sequenceDiagram: wrapping double quotes in aliases, messages and notes are
   const p = await apply(NOTE, [draft(P1, pie, 'comparison')]);
   assert.ok(p.detail.includes(pie));
 });
+
+test('sequenceDiagram: inner quotes or empty quotes are left alone', async () => {
+  const body = [
+    'sequenceDiagram',
+    '  participant U as "a" and "b"',
+    '  U->>U: "a" and "b"',
+    '  Note over U: "a" and "b"',
+    '  U->>U:""'
+  ].join('\n');
+  const r = await apply(NOTE, [draft(P1, body, 'process')]);
+  assert.equal(r.ok, true);
+  assert.ok(r.detail.includes('```mermaid\n' + body + '\n```'));
+});
