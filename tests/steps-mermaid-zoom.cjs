@@ -457,6 +457,66 @@ test('link scope: the link CSS is scoped to .vam-link-scope, never the bare anch
   for (const rule of rules) assert.ok(/a\.vam-link-scope/.test(rule), rule);
 });
 
+test('editor link scope: the watcher reports VAM notes only, and the plugin provides the class through editorAttributes, not by touching the element', () => {
+  const ctx = loadRegister(FILES);
+  const dom = node('div', 'cm-editor');
+  const watcher = new ctx.mod.EditorWatcher(ctx.app, dom, () => 'Topics/A/Note.md', () => {});
+  assert.equal(watcher.isVam, true);
+  assert.equal(dom.classes.includes('vam-editor-scope'), false, 'the element class is left to CodeMirror');
+  const plainDom = node('div', 'cm-editor');
+  assert.equal(new ctx.mod.EditorWatcher(ctx.app, plainDom, () => 'Other/plain.md', () => {}).isVam, false);
+  const src = fs.readFileSync(path.join(root, 'experiences/mermaid-zoom/register.ts'), 'utf8');
+  assert.match(src, /EditorView\.editorAttributes\.of\(/);
+  assert.doesNotMatch(src, /(toggleClass|addClass|removeClass)\(EDITOR_SCOPE_CLASS/);
+});
+
+test('editor link scope: the class survives CodeMirror rewriting the editor class (focus, theme) and follows a file switch', () => {
+  const ctx = loadRegisterWithExtension();
+  let file = { path: 'Topics/A/Note.md' };
+  const { view } = ctx.fakeView(() => file);
+  const plugin = ctx.extension.create(view);
+  // CodeMirror merges the facet's attributes on every update; emulate that merge after it rewrites the class attribute
+  const facetClass = () => (plugin.isVam ? 'vam-editor-scope' : '');
+  const cmRewrite = () => { view.dom.cls = ['cm-editor', 'cm-focused', 'theme-dark', facetClass()].filter(Boolean).join(' '); };
+  cmRewrite();
+  assert.ok(view.dom.classes.includes('vam-editor-scope'));
+  cmRewrite();
+  assert.ok(view.dom.classes.includes('vam-editor-scope'), 'still there after a focus or theme rewrite');
+  file = { path: 'Other/plain.md' };
+  plugin.update();
+  cmRewrite();
+  assert.equal(view.dom.classes.includes('vam-editor-scope'), false, 'a non-VAM file drops it');
+});
+
+test('link CSS: editor rules are scoped to .vam-editor-scope; no text-decoration-style anywhere in styles.css', () => {
+  const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
+  const rules = css.split('\n').filter(line => line.includes(' { ') && /\.cm-hmd-internal-link|\.cm-link|\.cm-url/.test(line));
+  assert.ok(rules.length >= 3);
+  for (const rule of rules) assert.ok(rule.includes('.vam-editor-scope'), rule);
+  assert.equal(/text-decoration-style/.test(css), false);
+});
+
+test('editor unresolved link: the opacity wrapper and the underline colour are overridden with enough specificity', () => {
+  const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
+  assert.ok(css.includes('.markdown-source-view.mod-cm6 .vam-editor-scope .is-unresolved { opacity: 1; }'));
+  assert.ok(/\.markdown-source-view\.mod-cm6 \.vam-editor-scope :is\([^)]*\.is-unresolved \.cm-underline\) \{ color: color-mix/.test(css));
+});
+
+test('gantt CSS: active and done chips are light in dark themes, because mermaid forces near-black text on them', () => {
+  const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
+  for (const kind of ['active', 'done']) {
+    assert.ok(css.split('\n').some(l => l.startsWith('.theme-dark ') && l.includes(`.task[class*="${kind}"] {`) && l.includes('var(--text-normal))')), kind);
+  }
+  assert.equal(/!important/.test(css), false);
+});
+
+test('gantt CSS: bar and label colors come from theme variables, not black or white', () => {
+  const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
+  const rules = css.split('\n').filter(line => line.includes('aria-roledescription="gantt"') && /taskText|\.task|Outside/.test(line));
+  assert.ok(rules.length >= 6);
+  for (const rule of rules) assert.equal(/\b(black|white)\b|#fff|#000/i.test(rule), false, rule);
+});
+
 test('mermaid zoom: the timeline CSS targets only the diagram element, never a section', () => {
   const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
   const rules = css.split('\n').filter(line => line.includes('aria-roledescription="timeline"'));

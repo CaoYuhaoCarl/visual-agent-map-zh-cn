@@ -1,4 +1,4 @@
-import { ViewPlugin, type EditorView } from "@codemirror/view";
+import { EditorView, ViewPlugin } from "@codemirror/view";
 import {
   editorInfoField,
   MarkdownRenderChild,
@@ -16,6 +16,8 @@ export const SCOPE_CLASS = "vam-mermaid-scope";
 export const CALLOUT_SCOPE_CLASS = "vam-callout-scope";
 /** Class on each link (and footnote ref or back-reference) that belongs to a VAM note; the link contrast CSS is scoped to it. */
 export const LINK_SCOPE_CLASS = "vam-link-scope";
+/** Class on the editor (live preview and source mode) of a VAM note, set through CodeMirror's editorAttributes (CodeMirror rewrites the class attribute of its own element); the editor link contrast CSS is scoped to it. */
+export const EDITOR_SCOPE_CLASS = "vam-editor-scope";
 export const ZOOMABLE_CLASS = "vam-mermaid-zoomable";
 export const BUTTON_CLASS = "vam-mermaid-zoom-btn";
 
@@ -129,6 +131,8 @@ function mutationTouchesDiagram(mutation: MutationRecord): boolean {
 export class EditorWatcher {
   private readonly observer: MutationObserver;
   private lastPath: string | undefined;
+  /** Whether the file shown is a VAM note; the editor-attributes facet reads it to put the scope class on the editor. */
+  isVam = false;
   constructor(
     private readonly app: App,
     private readonly dom: HTMLElement,
@@ -144,7 +148,8 @@ export class EditorWatcher {
   scan(): void {
     const path = this.sourcePath();
     this.lastPath = path;
-    if (path && isVamSource(this.app, path)) {
+    this.isVam = !!path && isVamSource(this.app, path);
+    if (path && this.isVam) {
       scanCallouts(this.dom);
       scanLinks(this.dom);
       scan(this.app, this.dom);
@@ -194,12 +199,19 @@ export function registerMermaidZoom(plugin: Plugin): MermaidZoomHandle {
           );
           editors.add(this.watcher);
         }
+        get isVam(): boolean {
+          return this.watcher.isVam;
+        }
         update(): void {
           this.watcher.onUpdate();
         }
         destroy(): void {
           this.watcher.destroy();
         }
+      },
+      {
+        provide: plugin =>
+          EditorView.editorAttributes.of(view => (view.plugin(plugin)?.isVam ? { class: EDITOR_SCOPE_CLASS } : null))
       }
     )
   );
