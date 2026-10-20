@@ -16479,6 +16479,36 @@ function relevanceDisplayNodes(nodes, tierOf, hidden) {
   return nodes.map((node) => ({ ...node, x: placed.get(node.id).x, y: placed.get(node.id).y }));
 }
 
+// experiences/visual-map/viewport-inset.ts
+var INSET_GAP = 8;
+var DEFAULT_VIEWPORT = { x: 40, y: 40, zoom: 1 };
+function insetFromRects(canvasTop, toolsRect) {
+  if (!toolsRect || !(toolsRect.bottom > toolsRect.top)) return 0;
+  return Math.max(0, Math.ceil(toolsRect.bottom - canvasTop)) + INSET_GAP;
+}
+function initialViewport(viewport, inset) {
+  const pristine = viewport.x === DEFAULT_VIEWPORT.x && viewport.y === DEFAULT_VIEWPORT.y && viewport.zoom === DEFAULT_VIEWPORT.zoom;
+  return pristine && inset > viewport.y ? { ...viewport, y: inset } : viewport;
+}
+function focusViewport(viewport, point, size, inset) {
+  const zoom = viewport.zoom;
+  return {
+    zoom,
+    x: size.width / 2 - point.x * zoom,
+    y: inset + (size.height - inset) / 2 - point.y * zoom
+  };
+}
+function fitViewport(bounds, size, inset) {
+  const availableHeight = Math.max(1, size.height - inset);
+  const w = bounds.maxX - bounds.minX, h = bounds.maxY - bounds.minY;
+  const zoom = Math.max(0.25, Math.min(1.2, (size.width - 80) / w, (availableHeight - 80) / h));
+  return {
+    zoom,
+    x: (size.width - w * zoom) / 2 - bounds.minX * zoom,
+    y: inset + (availableHeight - h * zoom) / 2 - bounds.minY * zoom
+  };
+}
+
 // experiences/visual-map/relevance-summary-modal.ts
 var import_obsidian15 = require("obsidian");
 var RelevanceSummaryModal = class extends import_obsidian15.Modal {
@@ -32921,6 +32951,7 @@ ${request.requirements}` : preset.text,
       if (!this.map.aim) this.button(emptyMap, t("ui.topic"), () => this.enqueue(() => this.addNode(null)));
     }
     this.setupPan();
+    this.applyInitialViewport();
     this.transform();
     this.drawEdges();
     if (this.builtIn && this.selected) {
@@ -33430,7 +33461,7 @@ ${request.requirements}` : preset.text,
     const card = (_b = this.cardEls.get(target.id)) != null ? _b : (_a = this.stageEl) == null ? void 0 : _a.querySelector(`[data-node-id="${CSS.escape(target.id)}"]`);
     const view = (_c = this.viewportEl) == null ? void 0 : _c.getBoundingClientRect(), rect = card == null ? void 0 : card.getBoundingClientRect();
     if (view && rect && (rect.left < view.left || rect.right > view.right || rect.top < view.top || rect.bottom > view.bottom))
-      this.focusNode(target);
+      this.focusNode(target, false);
     if (this.builtIn) {
       this.focusNodeId = target.id;
       this.selectSampleNode(target.id);
@@ -35861,15 +35892,31 @@ ${note.detail.trim()}` : "",
     viewport.addEventListener("pointerup", up);
     viewport.addEventListener("pointercancel", up);
   }
-  focusNode(target) {
+  /** Safe area under the floating toolbar, measured so a wrapped toolbar is covered too. */
+  canvasInset() {
+    var _a, _b, _c, _d, _e;
+    const canvas = (_b = (_a = this.viewportEl) == null ? void 0 : _a.getBoundingClientRect) == null ? void 0 : _b.call(_a);
+    const tools = (_e = (_d = (_c = this.contentEl) == null ? void 0 : _c.querySelector(".vam-map-tools")) == null ? void 0 : _d.getBoundingClientRect) == null ? void 0 : _e.call(_d);
+    return canvas ? insetFromRects(canvas.top, tools) : 0;
+  }
+  /** Lifts a never-moved default viewport below the toolbar. In memory only; it is saved with the next real pan or zoom. */
+  applyInitialViewport() {
+    if (!this.map) return;
+    this.map.viewport = initialViewport(this.map.viewport, this.canvasInset());
+  }
+  /** `persist` false is keyboard navigation: the camera follows in memory and Map.md is not written. */
+  focusNode(target, persist = true) {
     var _a;
     if (!this.map || !this.viewportEl) return;
-    const v = this.map.viewport;
     const node = this.relevanceSortOn() ? (_a = this.canvasNodes().find((item) => item.id === target.id)) != null ? _a : target : target;
-    v.x = this.viewportEl.clientWidth / 2 - (node.x + 140) * v.zoom;
-    v.y = this.viewportEl.clientHeight / 2 - (node.y + 80) * v.zoom;
+    this.map.viewport = focusViewport(
+      this.map.viewport,
+      { x: node.x + 140, y: node.y + 80 },
+      { width: this.viewportEl.clientWidth, height: this.viewportEl.clientHeight },
+      this.canvasInset()
+    );
     this.transform();
-    this.saveViewport();
+    if (persist) this.saveViewport();
   }
   fit() {
     if (!this.map || !this.viewportEl) return;
@@ -35884,13 +35931,11 @@ ${note.detail.trim()}` : "",
         }
       )
     );
-    const width = this.viewportEl.clientWidth, height = this.viewportEl.clientHeight;
-    const zoom = Math.max(0.25, Math.min(1.2, (width - 80) / (maxX - minX), (height - 80) / (maxY - minY)));
-    this.map.viewport = {
-      zoom,
-      x: (width - (maxX - minX) * zoom) / 2 - minX * zoom,
-      y: (height - (maxY - minY) * zoom) / 2 - minY * zoom
-    };
+    this.map.viewport = fitViewport(
+      { minX, minY, maxX, maxY },
+      { width: this.viewportEl.clientWidth, height: this.viewportEl.clientHeight },
+      this.canvasInset()
+    );
     this.transform();
     this.saveViewport();
   }
