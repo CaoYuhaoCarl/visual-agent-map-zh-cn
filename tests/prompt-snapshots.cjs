@@ -109,10 +109,11 @@ test('collect snapshots: Visual Map expansion and synthesis tasks', async () => 
     await view.proposeChildren(parent, options, '', () => {}, () => {}).catch(() => {});
     contexts.kind = 'synthesis-directions';
     contexts.suggestions = [{ title: 'Direction one', task: 't', contribution: 'c' }];
-    let choose;
-    await view.proposeIntegrationDirections(parent, { researchMode: 'local', researchDepth: 'normal', visualMode: 'off', requirements: 'Only compare cost', referenceGroups: [], outputLanguage: language }, (_items, draft) => { choose = draft; }, () => {}, message => { throw new Error(message); });
+    const synthesisOptions = { researchMode: 'local', researchDepth: 'normal', visualMode: 'off', requirements: 'Only compare cost', referenceGroups: [], outputLanguage: language };
+    await view.proposeIntegrationDirections(parent, synthesisOptions, () => {}, message => { throw new Error(message); });
     contexts.kind = 'synthesis-draft-default-goal';
-    if (choose) await choose('').catch(() => {});
+    // The draft step (no chosen direction) is written directly; the prompt it sends is what is snapshotted.
+    await view.integrateChildren(parent, synthesisOptions, '', () => {}, message => { throw new Error(message); });
     // AI merge of two sibling topics (prompt.merge_goal): the sources go in as one reference group, without Thinking Origin.
     const second = await repo.createNote('Second child', 'model-a', mapDoc, mapPath, 'workspace'); second.parentId = parent.id; mapDoc.nodes.push(second);
     await repo.updateNote(second.path, { summary: 'Second summary', detail: 'Second detail', thinkingOrigin: 'Origin never sent' });

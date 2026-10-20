@@ -717,7 +717,8 @@ integrationTest('synthesis directions and draft are separate steps; only confirm
   const view = new VisualAgentMapView({ app }, plugin); view.path = mapPath; view.map = mapDoc; view.render = () => {}; view.hydrate = async () => {}; view.ancestorContext = async () => '';
   let choose, save;
   const options = { requirements: 'Only compare cost', researchMode: 'local', researchDepth: 'normal', visualMode: 'off', referenceGroups: [{ id: 'picked', name: 'Picked', location: '/refs', documents: [{ path: '/refs/selected.md', content: 'Selected note content', external: true }] }] };
-  await view.proposeIntegrationDirections(parent, options, (items, draft) => { assert.equal(items[0].title, 'Common ground'); choose = draft; }, (_result, commit) => { save = commit; }, message => assert.fail(message));
+  choose = direction => view.integrateChildren(parent, options, direction, (_result, commit) => { save = commit; }, message => assert.fail(message));
+  await view.proposeIntegrationDirections(parent, options, items => { assert.equal(items[0].title, 'Common ground'); }, message => assert.fail(message));
   assert.equal(contexts.length, 1); assert.equal(contexts[0].referenceGroups.flatMap(group => group.documents).some(document => document.path === '/refs/selected.md'), true); assert.notEqual((await repo.readNote(parent.path)).summary, 'Draft summary');
   await choose('Find shared constraints');
   assert.equal(contexts[1].task, 'Find shared constraints\n\nOnly compare cost');
@@ -751,7 +752,8 @@ integrationTest('synthesis content is explicit for one, three and four children,
     const view = new VisualAgentMapView({ app }, plugin); view.map = map([parent, ...children, grandchild, unrelated]); view.render = () => {}; view.hydrate = async () => {}; view.ancestorContext = async () => '';
     let draft, save;
     const options = { researchMode: 'local', researchDepth: 'normal', visualMode: 'off', requirements: 'Respect the budget', referenceGroups: [selected], ...(choice ? { synthesisContent: choice } : {}) };
-    await view.proposeIntegrationDirections(parent, options, (_items, next) => { draft = next; }, (_result, commit) => { save = commit; }, message => assert.fail(message));
+    draft = direction => view.integrateChildren(parent, options, direction, (_result, commit) => { save = commit; }, message => assert.fail(message));
+    await view.proposeIntegrationDirections(parent, options, () => {}, message => assert.fail(message));
     await draft('Compare evidence');
     assert.equal(typeof save, 'function'); assert.equal(contexts.length, 2);
     for (const context of contexts) {
@@ -798,7 +800,7 @@ integrationTest('multi-select synthesis honors content choice and leaves unselec
       throw new Error('Stop before any write');
     } };
     const view = new VisualAgentMapView({ app }, plugin); view.map = map([a, b, excluded]); view.render = () => {};
-    await assert.rejects(view.createIntegratedNode('Draft', [a, b], 'Compare', '', { synthesisContent: choice, requirements: 'This run only', referenceGroups: [extra] }, true), /Stop before any write/);
+    await assert.rejects(view.createIntegratedNode('Draft', [a, b], 'Compare', '', { synthesisContent: choice, requirements: 'This run only', referenceGroups: [extra] }), /Stop before any write/);
     assert.deepEqual(new Map(contents), before);
   }
 });
@@ -821,7 +823,8 @@ integrationTest('explicit full Markdown wins over overlapping automatic summarie
   const view = new VisualAgentMapView({ app }, plugin); view.map = map([parent, a, b]); view.render = () => {}; view.hydrate = async () => {}; view.ancestorContext = async () => '';
   const options = { synthesisContent: 'summary', referenceGroups: [extra], researchMode: 'local', researchDepth: 'normal', visualMode: 'off' };
   let draft;
-  await view.proposeIntegrationDirections(parent, options, (_items, next) => { draft = next; }, () => {}, message => assert.fail(message));
+  draft = direction => view.integrateChildren(parent, options, direction, () => {}, message => assert.fail(message));
+  await view.proposeIntegrationDirections(parent, options, () => {}, message => assert.fail(message));
   await draft('Compare');
   view.saveIntegratedNode = async () => {};
   await view.createIntegratedNode('Combined', [a, b], 'Compare', '', options);
@@ -836,15 +839,17 @@ integrationTest('synthesis can use selected notes when a topic has no children',
   const view = new VisualAgentMapView({ app }, plugin); view.map = map([parent]); view.render = () => {}; view.hydrate = async () => {}; view.ancestorContext = async () => '';
   const empty = { researchMode: 'local', researchDepth: 'normal', visualMode: 'off', referenceGroups: [] };
   let failure = '';
-  await view.proposeIntegrationDirections(parent, empty, () => assert.fail('missing sources'), () => {}, message => { failure = message; });
+  await view.proposeIntegrationDirections(parent, empty, () => assert.fail('missing sources'), message => { failure = message; });
   assert.match(failure, /Choose another note source first/);
   assert.equal(contexts.length, 0);
-  await view.proposeIntegrationDirections(parent, { ...empty, referenceGroups: [{ id: 'empty', name: 'Empty', location: '', documents: [] }] }, () => assert.fail('empty source'), () => {}, message => { failure = message; });
+  await view.proposeIntegrationDirections(parent, { ...empty, referenceGroups: [{ id: 'empty', name: 'Empty', location: '', documents: [] }] }, () => assert.fail('empty source'), message => { failure = message; });
   assert.match(failure, /Choose another note source first/);
   assert.equal(contexts.length, 0);
   let draft, save;
   const selectedGroup = { id: 'selected', name: 'Selected', location: '/refs', documents: [{ path: '/refs/selected.md', content: 'Selected note content', external: true }] };
-  await view.proposeIntegrationDirections(parent, { ...empty, referenceGroups: [selectedGroup] }, (_items, next) => { draft = next; }, (_result, commit) => { save = commit; }, message => assert.fail(message));
+  const groupOptions = { ...empty, referenceGroups: [selectedGroup] };
+  draft = direction => view.integrateChildren(parent, groupOptions, direction, (_result, commit) => { save = commit; }, message => assert.fail(message));
+  await view.proposeIntegrationDirections(parent, groupOptions, () => {}, message => assert.fail(message));
   assert.ok(contexts[0].referenceGroups.flatMap(group => group.documents).some(document => document.path === '/refs/selected.md'));
   await draft('Combine notes');
   assert.ok(contexts[1].referenceGroups.flatMap(group => group.documents).some(document => document.path === '/refs/selected.md'));
@@ -958,19 +963,77 @@ integrationTest('closing the modal after dispatch does not abort background synt
   assert.equal(task.state, 'directions'); assert.equal(task.directions[0].title, 'Common ground'); assert.equal(f.plugin.activeTasks.size, 0); assert.equal(f.plugin.running.size, 0); assert.deepEqual(failures, []);
   assert.equal((await f.repo.readNote(f.parent.path)).summary, 'Existing conclusion');
   await f.view.startSynthesis(f.parent, f.options(), 'Find shared constraints', message => failures.push(message), () => {});
-  assert.equal(f.contexts[1].task, 'Find shared constraints'); assert.equal(task.state, 'draft'); assert.equal(task.draft.summary, 'Draft summary'); assert.equal((await f.repo.readNote(f.parent.path)).summary, 'Existing conclusion');
-  await task.save('Edited summary', 'Edited detail');
+  // No draft review step: the AI result is written as soon as it passes the fences.
+  assert.equal(f.contexts[1].task, 'Find shared constraints'); assert.equal(f.view.synthesisTasks.has(f.parent.path), false);
   const saved = await f.repo.readNote(f.parent.path);
-  assert.equal(saved.summary, 'Edited summary'); assert.match(saved.detail, /Edited detail/); assert.equal(saved.status, 'completed'); assert.deepEqual(failures, []);
+  assert.equal(saved.summary, 'Draft summary'); assert.match(saved.detail, /Draft detail/); assert.equal(saved.status, 'completed'); assert.deepEqual(failures, []);
 });
-integrationTest('a synthesis draft is refused when the parent topic changed after the draft was made', async () => {
+integrationTest('direct synthesis write: Undo restores the parent note verbatim, Redo rewrites it, and a later edit blocks Undo', async () => {
   const f = await backgroundSynthesisFixture(async call => call === 1 ? f.directionsResult : f.draftResult);
+  const before = await f.repo.readNote(f.parent.path);
   await f.view.startSynthesis(f.parent, f.options(), null, message => assert.fail(message), () => {});
   await f.view.startSynthesis(f.parent, f.options(), 'Find shared constraints', message => assert.fail(message), () => {});
-  const task = f.view.synthesisTasks.get(f.parent.path); assert.equal(task.state, 'draft');
-  await f.repo.updateNote(f.parent.path, { summary: 'Edited meanwhile' });
-  await assert.rejects(task.save('Edited summary', 'Edited detail'), /the synthesis draft was not saved/i);
-  assert.equal((await f.repo.readNote(f.parent.path)).summary, 'Edited meanwhile');
+  assert.equal(f.view.synthesisTasks.has(f.parent.path), false);
+  assert.equal((await f.repo.readNote(f.parent.path)).summary, 'Draft summary');
+  await f.view.history.undo().undo();
+  const restored = await f.repo.readNote(f.parent.path);
+  assert.deepEqual(plain(restored), plain(before));
+  await f.view.history.redo().redo();
+  assert.equal((await f.repo.readNote(f.parent.path)).summary, 'Draft summary');
+  await f.repo.updateNote(f.parent.path, { summary: 'Edited after the write' });
+  await assert.rejects(f.view.history.undo().undo(), /the synthesis draft was not saved/i);
+  assert.equal((await f.repo.readNote(f.parent.path)).summary, 'Edited after the write');
+});
+integrationTest('direct synthesis write: Undo is verbatim when the parent already carried format issues', async () => {
+  const f = await backgroundSynthesisFixture(async call => call === 1 ? f.directionsResult : { ...f.draftResult, formatIssues: [{ section: 'Examples', mode: 'exact', n: 3, actual: 1 }] });
+  await f.repo.updateNote(f.parent.path, { detailFormatIssues: ['Old: needs exactly 2, has 0'] });
+  const before = await f.repo.readNote(f.parent.path);
+  assert.deepEqual(plain(before.detailFormatIssues), ['Old: needs exactly 2, has 0']);
+  await f.view.startSynthesis(f.parent, f.options(), null, message => assert.fail(message), () => {});
+  await f.view.startSynthesis(f.parent, f.options(), 'Find shared constraints', message => assert.fail(message), () => {});
+  assert.notDeepEqual(plain((await f.repo.readNote(f.parent.path)).detailFormatIssues), plain(before.detailFormatIssues));
+  await f.view.history.undo().undo();
+  assert.deepEqual(plain(await f.repo.readNote(f.parent.path)), plain(before));
+});
+integrationTest('a note without title/summary keys is normalized when synthesis starts (status write), not by the content write; Undo restores every recorded field', async () => {
+  const gate = deferred();
+  const f = await backgroundSynthesisFixture(async (call, _signal, onAccepted) => { onAccepted(); if (call === 2) await gate.promise; return call === 1 ? f.directionsResult : f.draftResult; });
+  const vault = f.repo.app.vault, file = f.repo.file(f.parent.path);
+  // A note whose frontmatter has no title or summary key (hand-made or imported).
+  await vault.process(file, text => text.replace(/^title: .*\n/m, '').replace(/^summary: .*\n/m, ''));
+  const head = text => text.split('\n---')[0];
+  assert.doesNotMatch(head(await vault.read(file)), /^title:|^summary:/m);
+  await f.view.startSynthesis(f.parent, f.options(), null, message => assert.fail(message), () => {});
+  assert.doesNotMatch(head(await vault.read(file)), /^title:/m, 'the directions step does not write the note');
+  let accepted = 0;
+  const drafting = f.view.startSynthesis(f.parent, f.options(), 'Find shared constraints', message => assert.fail(message), () => accepted++);
+  await until(() => accepted === 1);
+  // Evidence: the normalization comes from the "running" status write at the start of the draft step, before any content is written.
+  assert.match(head(await vault.read(file)), /^title:/m);
+  const before = await f.repo.readNote(f.parent.path);
+  gate.resolve(); await drafting;
+  assert.equal((await f.repo.readNote(f.parent.path)).summary, 'Draft summary');
+  await f.view.history.undo().undo();
+  const restored = await f.repo.readNote(f.parent.path);
+  assert.deepEqual(plain({ ...restored, status: 0 }), plain({ ...before, status: 0 }));
+  assert.equal(restored.status, 'completed');
+});
+integrationTest('multi-select synthesis: Stop while the sources are re-read after the AI result writes nothing', async () => {
+  const { repo, app } = fixture(), a = await topicNote(repo, 'Selected A', 'model-a'), b = await topicNote(repo, 'Selected B', 'model-a');
+  const mapPath = 'Agent Workspace/Topics/map-a/Map.md';
+  const mapDoc = { id: 'map-a', title: 'map-a', version: 1, nodes: [a, b], viewport: { x: 0, y: 0, zoom: 1 } };
+  await app.vault.create(mapPath, core.serializeMap(mapDoc));
+  const { VisualAgentMapView } = load('main.ts', { obsidian });
+  const plugin = { repo, settings: { ...DEFAULT_SETTINGS }, running: new Set(), mutate: async work => work(), recordFailure: (_l, error) => error.message, rebuildDerivedData: async () => {}, askModel: async () => ({ summary: 'S', detail: 'D', visualReferences: [], suggestions: [] }) };
+  const view = new VisualAgentMapView({ app }, plugin); view.path = mapPath; view.map = mapDoc; view.render = () => {}; view.hydrate = async () => {}; view.focusNode = () => {};
+  const controller = new AbortController();
+  const original = view.topicReferenceGroup.bind(view); let reads = 0;
+  view.topicReferenceGroup = async (...args) => { const group = await original(...args); if (++reads === 2) controller.abort(); return group; };
+  await view.createIntegratedNode('Combined', [a, b], 'Compare', '', { researchMode: 'local', researchDepth: 'normal', visualMode: 'off', referenceGroups: [] }, { controller });
+  assert.equal(reads, 2);
+  assert.equal((await repo.readMap(mapPath)).nodes.length, 2, 'no topic was created');
+  assert.equal(view.history.undoEntry, undefined);
+  assert.equal(view.integrationTask.state, 'cancelled');
 });
 integrationTest('Stop on the node cancels background synthesis and preserves the topic', async () => {
   const f = await backgroundSynthesisFixture((_call, signal, onAccepted) => new Promise((_resolve, reject) => { onAccepted(); signal.addEventListener('abort', () => { const error = new Error('cancelled'); error.name = 'AbortError'; reject(error); }, { once: true }); }));
@@ -1001,12 +1064,12 @@ integrationTest('a parent topic edited while the draft AI call is pending refuse
   const f = await backgroundSynthesisFixture(async (call, _signal, onAccepted) => { onAccepted(); if (call === 2) await gate.promise; return call === 1 ? f.directionsResult : f.draftResult; });
   await f.view.startSynthesis(f.parent, f.options(), null, message => assert.fail(message), () => {});
   let accepted = 0;
-  const drafting = f.view.startSynthesis(f.parent, f.options(), 'Find shared constraints', message => assert.fail(message), () => accepted++);
+  const drafting = f.view.startSynthesis(f.parent, f.options(), 'Find shared constraints', () => {}, () => accepted++);
   await until(() => accepted === 1);
   await f.repo.updateNote(f.parent.path, { summary: 'Edited while drafting' });
   gate.resolve(); await drafting;
-  const task = f.view.synthesisTasks.get(f.parent.path); assert.equal(task.state, 'draft');
-  await assert.rejects(task.save('Edited summary', 'Edited detail'), /the synthesis draft was not saved/i);
+  const task = f.view.synthesisTasks.get(f.parent.path); assert.equal(task.state, 'failed'); assert.match(task.progress, /the synthesis draft was not saved/i);
+  assert.equal(f.view.history.undoEntry, undefined, 'a refused write records no history step');
   const after = await f.repo.readNote(f.parent.path); assert.equal(after.summary, 'Edited while drafting'); assert.equal(after.detail, 'Existing knowledge');
 });
 integrationTest('aborting before dispatch acceptance leaves a cancelled synthesis on the node and no running state', async () => {
@@ -1337,8 +1400,7 @@ integrationTest('synthesis and integrated topics save with the template', async 
   await h.view.startSynthesis(h.topic, options(), null, message => assert.fail(message), () => {});
   await h.view.startSynthesis(h.topic, options(), 'Compare them', message => assert.fail(message), () => {});
   assert.equal(h.contexts.at(-1).detailTemplate.id, 'X');
-  const task = h.view.synthesisTasks.get(h.topic.path);
-  await task.save(task.draft.summary, task.draft.detail);
+  assert.equal(h.view.synthesisTasks.has(h.topic.path), false, 'written directly');
   const parent = await h.repo.readNote(h.topic.path);
   assert.ok(parent.detail.indexOf('### First part') < parent.detail.indexOf('### Second part'), parent.detail);
   assert.ok(!/### Core conclusions/.test(parent.detail), parent.detail);
@@ -1420,18 +1482,13 @@ async function synthesisWithIssues({ settings, mapTemplate, draft }) {
   const options = () => ({ researchMode: 'local', researchDepth: 'normal', visualMode: 'off', referenceGroups: [] });
   await h.view.startSynthesis(h.topic, options(), null, message => assert.fail(message), () => {});
   await h.view.startSynthesis(h.topic, options(), 'Compare them', message => assert.fail(message), () => {});
-  return { ...h, task: h.view.synthesisTasks.get(h.topic.path) };
+  return h;
 }
 const unmetDraft = { summary: 'Synth', detail: '### Main\n\nM\n\n### Examples\n\n- one', visualReferences: [], suggestions: [], formatIssues: [{ section: 'Examples', mode: 'exact', n: 3, actual: 1 }] };
-integrationTest('synthesis stores the draft format issues, rechecks an edited draft, and clears them without a count check', async () => {
+integrationTest('synthesis stores the result format issues and clears the old mark without a count check', async () => {
   const unedited = await synthesisWithIssues({ settings: { detailTemplates: [countedTemplate()] }, mapTemplate: 'K', draft: unmetDraft });
-  await unedited.task.save(unedited.task.draft.summary, unedited.task.draft.detail);
   assert.deepEqual(plain((await unedited.repo.readNote(unedited.topic.path)).detailFormatIssues), ['Examples: needs exactly 3, has 1']);
-  const edited = await synthesisWithIssues({ settings: { detailTemplates: [countedTemplate()] }, mapTemplate: 'K', draft: unmetDraft });
-  await edited.task.save(edited.task.draft.summary, '### Main\n\nM\n\n### Examples\n\n- one\n- two\n- three');
-  assert.deepEqual(plain((await edited.repo.readNote(edited.topic.path)).detailFormatIssues), [], 'edited draft meets the count');
   const uncounted = await synthesisWithIssues({ settings: {}, draft: { summary: 'Synth', detail: '### Core conclusions\n\nC', visualReferences: [], suggestions: [] } });
-  await uncounted.task.save(uncounted.task.draft.summary, `${uncounted.task.draft.detail}\n\nEdited`);
   const note = await uncounted.repo.readNote(uncounted.topic.path);
   assert.equal(note.summary, 'Synth');
   assert.deepEqual(plain(note.detailFormatIssues), [], 'no count check ran: the old mark is cleared');
@@ -1642,7 +1699,7 @@ integrationTest('expand and integrate call the runtime with the resolved model, 
   const f = await staleModelView([['workspace'], ['workspace']], async (_context, model) => { models.push(model); return { summary: '', detail: '', visualReferences: [], suggestions: [{ title: 'S', task: 'Explore', contribution: '', parentTitle: '' }] }; });
   const options = { researchMode: 'local', researchDepth: 'fast', visualMode: 'off', referenceGroups: [] };
   await f.view.proposeChildren(f.nodes[0], options, '', () => {}, message => assert.fail(message));
-  await f.view.proposeIntegrationDirections(f.nodes[0], options, () => {}, () => {}, message => assert.fail(message));
+  await f.view.proposeIntegrationDirections(f.nodes[0], options, () => {}, message => assert.fail(message));
   assert.deepEqual(plain(models), ['claude:sonnet', 'claude:sonnet']);
 });
 integrationTest('expand under a manual ancestor runs on the manual model; a new subtopic of a manual topic inherits it', async () => {
