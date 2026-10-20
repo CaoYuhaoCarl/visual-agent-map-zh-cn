@@ -121,8 +121,31 @@ function anchorCheck(
   return { code: null, block };
 }
 
+const SEQ_ALIAS = /^(\s*(?:participant|actor)\s+\S+\s+as\s+)"(.*)"(\s*)$/;
+const SEQ_MESSAGE = /^(\s*[^:\n]*?(?:-->>|->>|--x|-x|--\)|-\)|-->|->)[^:\n]*:\s*)"(.*)"(\s*)$/;
+const SEQ_NOTE = /^(\s*note\s+(?:left of|right of|over)\s+[^:]+:\s*)"(.*)"(\s*)$/i;
+
+/**
+ * sequenceDiagram only: Mermaid renders wrapping double quotes in participant aliases and message/note text
+ * literally, so one wrapping pair is removed there. Other diagram types keep their quotes.
+ */
+function stripSequenceQuotes(body: string): string {
+  const lines = body.split("\n");
+  const first = lines.find(l => l.trim() !== "");
+  if (first === undefined || !/^\s*sequenceDiagram\b/.test(first)) return body;
+  return lines
+    .map(line => {
+      for (const re of [SEQ_ALIAS, SEQ_NOTE, SEQ_MESSAGE]) {
+        const m = re.exec(line);
+        if (m) return m[1] + m[2] + m[3];
+      }
+      return line;
+    })
+    .join("\n");
+}
+
 function normBody(body: string): string {
-  return body.replace(/\r\n/g, "\n").trim();
+  return stripSequenceQuotes(body.replace(/\r\n/g, "\n").trim());
 }
 
 export interface ApplyChartsOptions {
