@@ -40895,6 +40895,7 @@ var SelectionAiPanel = class extends import_obsidian33.Component {
         result = await this.run(request, this.model, controller.signal, void 0, plan.action === "research");
         insertAfter = plan.action === "research" || plan.action === "diagram";
         if (plan.action === "diagram") {
+          result = result.replace(/\r\n?/g, "\n");
           if (!/^```mermaid[ \t]*\n(?:(?!```)[\s\S])+\n```$/.test(result.trim()) || unsafeMermaid(result.trim().split("\n").slice(1, -1)) || /(?:%%\{|@\{|\bimg\s*:|\bimage\s*:|\burl\s*\(|https?:|data:|file:|javascript:)/i.test(result))
             throw new Error(t("ui.context_ai_invalid_diagram"));
           this.previewChild = new import_obsidian33.Component();

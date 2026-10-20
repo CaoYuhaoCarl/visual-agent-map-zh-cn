@@ -698,6 +698,8 @@ class SelectionAiPanel extends Component {
         result = await this.run(request, this.model, controller.signal, undefined, plan.action === "research");
         insertAfter = plan.action === "research" || plan.action === "diagram";
         if (plan.action === "diagram") {
+          // CRLF and a lone CR are line breaks to the renderer too; normalize so no directive hides on a "line" the check never saw.
+          result = result.replace(/\r\n?/g, "\n");
           if (
             !/^```mermaid[ \t]*\n(?:(?!```)[\s\S])+\n```$/.test(result.trim()) ||
             unsafeMermaid(result.trim().split("\n").slice(1, -1)) ||

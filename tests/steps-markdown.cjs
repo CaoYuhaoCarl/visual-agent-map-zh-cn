@@ -139,6 +139,8 @@ test('the diagram action accepts safe mermaid (classDiagram annotation, sequence
     const { output } = await outcome(body);
     assert.equal(output, '```mermaid\n' + body + '\n```', `${name} is accepted`);
   }
+  // A safe block written with CRLF is accepted and stored with plain line breaks.
+  assert.equal((await outcome('flowchart LR\r\n  A --> B')).output, '```mermaid\nflowchart LR\n  A --> B\n```');
   const rejected = {
     script: 'flowchart LR\n  A["<script>alert(1)</script>"] --> B',
     img: 'flowchart LR\n  A["<img src=x>"] --> B',
@@ -151,6 +153,14 @@ test('the diagram action accepts safe mermaid (classDiagram annotation, sequence
     annotationOutsideClass: 'flowchart LR\n  A["<<interface>>"] --> B',
     annotationSpaces: 'classDiagram\n  << interface >> A',
     annotationJoin: 'classDiagram\n  <<<<x>>script>> A',
+    crClick: 'flowchart LR\n  A --> B\r  click A call alert(1)',
+    crHref: 'flowchart LR\n  A --> B\r  click A href "/x"',
+    crStyle: 'flowchart LR\n  A --> B\r  style A fill:#f00',
+    crClassDef: 'flowchart LR\n  A --> B\r  classDef x fill:#f00',
+    crCssClass: 'classDiagram\n  A : x\r  cssClass "A" x',
+    crlfClick: 'flowchart LR\r\n  A --> B\r\n  click A call alert(1)',
+    crlfHref: 'flowchart LR\r\n  A --> B\r\n  click A href "/x"',
+    crlfStyle: 'flowchart LR\r\n  A --> B\r\n  style A fill:#f00',
     classDirective: 'classDiagram\n  class A foo',
     classLabelHtml: 'classDiagram\n  class A["<img src=x>"]',
     classOutside: 'flowchart LR\n  class A',
