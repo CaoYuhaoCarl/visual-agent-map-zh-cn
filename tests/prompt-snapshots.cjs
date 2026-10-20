@@ -100,7 +100,7 @@ test('collect snapshots: Visual Map expansion and synthesis tasks', async () => 
     await repo.updateNote(child.path, { summary: 'Child summary', detail: 'Child detail', newFindings: 'Child finding', visualReferences: '![diagram](https://example.org/diagram.png)' });
     const contexts = [];
     const plugin = support.withExpansionCoordinator({ repo, settings: { ...support.DEFAULT_SETTINGS, language }, running: new Set(), pendingSuggestions: new Map(), pendingResearchOptions: new Map(), rebuildDerivedData: async () => {}, mutate: async work => work(), recordFailure: (_label, error) => error.message,
-      askModel: async context => { contexts.push({ kind: contexts.kind, context }); return { summary: 'S', detail: 'D', visualReferences: [], suggestions: contexts.suggestions ?? [] }; } });
+      askModel: async context => { contexts.push({ kind: contexts.kind === 'merge-draft' && context.detail ? 'merge-repair' : contexts.kind, context }); return { summary: 'S', detail: 'D', visualReferences: [], suggestions: contexts.suggestions ?? [] }; } });
     const view = new VisualAgentMapView({ app }, plugin); view.path = mapPath; view.map = mapDoc; view.contentEl = { querySelector: () => null }; view.render = () => {}; view.hydrate = async () => {}; view.focusNode = () => {}; view.ancestorContext = async () => 'Ancestor chain A';
     const options = { researchMode: 'research', researchDepth: 'fast', visualMode: 'off', referenceGroups: [], shallowResearch: false, outputLanguage: language };
     contexts.kind = 'guided';
@@ -128,7 +128,7 @@ test('collect snapshots: Visual Map expansion and synthesis tasks', async () => 
       assert.ok(context.task.length > 0);
       await recordContext(`view.${kind}.${tag}`, `VisualAgentMapView ${kind} TaskContext through AiTaskService`, language, { ...context, onProgress: undefined, signal: undefined, addCharts: undefined }); // the chart step is a separate call, snapshotted as chart.add below
     }
-    assert.ok(seen.has('guided') && seen.has('synthesis-directions') && seen.has('merge-draft'), `view cases captured: ${[...seen].join(',')}`);
+    assert.ok(seen.has('guided') && seen.has('synthesis-directions') && seen.has('merge-draft') && seen.has('merge-repair'), `view cases captured: ${[...seen].join(',')}`);
   }
 });
 

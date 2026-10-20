@@ -28,6 +28,8 @@ import {
 } from "../../map-model";
 import { arrangeMap, arrangeNewBranch, arrangeNewTree, medianHeight } from "../../map-layout";
 import { inLanguage, NONE } from "../../core/steps/_shared/fragments";
+import { mergeRepair } from "../../core/steps/task/fragments";
+import { checkMergePreservation, findingList, type MergeCheckResult } from "../../core/steps/task/merge-check";
 import {
   expansionTask,
   labelCurrentSummary,
@@ -3672,46 +3674,86 @@ export class VisualAgentMapView extends ItemView {
       const sourceGroup = await this.topicReferenceGroup(task.sources, "strong", { origin: false });
       if (!this.isLiveMergeTask(task)) return;
       task.sourceContent = JSON.stringify(sourceGroup.documents);
-      const result = await this.plugin.askModel(
-        {
-          title: t("ui.merge_ai_untitled"),
-          summary: noSummaryYet(language),
-          rules: "",
-          detail: "",
-          task: mergeGoalTask(language),
-          ancestors: "",
-          referenceGroups: [sourceGroup],
-          // Within budget the sources go in as written (one request); only over-budget sources are extracted first.
-          referenceDelivery: "direct",
-          onProgress: message => {
-            if (!this.isLiveMergeTask(task)) return;
-            task.progress = message;
-            this.render();
-          },
-          outputLanguage: language,
-          mode: "merge",
-          researchMode: "local",
-          researchDepth: "normal",
-          visualMode: "off",
-          detailTemplate: this.mapDetailTemplate(language)
+      const request: TaskContext = {
+        title: t("ui.merge_ai_untitled"),
+        summary: noSummaryYet(language),
+        rules: "",
+        detail: "",
+        task: mergeGoalTask(language),
+        ancestors: "",
+        referenceGroups: [sourceGroup],
+        // Within budget the sources go in as written (one request); only over-budget sources are extracted first.
+        referenceDelivery: "direct",
+        onProgress: message => {
+          if (!this.isLiveMergeTask(task)) return;
+          task.progress = message;
+          this.render();
         },
-        task.model,
-        this.plugin.settings.cliReasoning,
-        task.controller.signal
-      );
-      if (!this.isLiveMergeTask(task)) return;
-      const latest = await this.topicReferenceGroup(task.sources, "strong", { origin: false });
-      if (!this.isLiveMergeTask(task)) return;
-      if (JSON.stringify(latest.documents) !== task.sourceContent) throw new Error(t("ui.merge_draft_stale"));
-      task.state = "applying";
+        outputLanguage: language,
+        mode: "merge",
+        researchMode: "local",
+        researchDepth: "normal",
+        visualMode: "off",
+        detailTemplate: this.mapDetailTemplate(language)
+      };
+      const ask = (context: TaskContext): Promise<AiResult> =>
+        this.plugin.askModel(context, task.model, this.plugin.settings.cliReasoning, task.controller.signal);
+      /** The sources must still be what the model was given; a change during any request fails with the stale message. */
+      const sourcesUnchanged = async (): Promise<boolean> => {
+        if (!this.isLiveMergeTask(task)) return false;
+        const latest = await this.topicReferenceGroup(task.sources, "strong", { origin: false });
+        if (!this.isLiveMergeTask(task)) return false;
+        if (JSON.stringify(latest.documents) !== task.sourceContent) throw new Error(t("ui.merge_draft_stale"));
+        return true;
+      };
+      let result = await ask(request);
+      if (!(await sourcesUnchanged())) return;
       task.title = mergeTitleFromResult(result, task.title);
+      // Programmatic content check, one repair round; whatever is still wrong then is applied with a warning.
+      let check = await this.checkMergeResult(task, result);
+      if (!check.ok) {
+        try {
+          const repaired = await ask({
+            ...request,
+            summary: result.summary,
+            detail: result.detail,
+            task: mergeRepair(
+              language,
+              findingList(check.missing, inLanguage(NONE, language)),
+              findingList(check.added, inLanguage(NONE, language)),
+              task.title
+            )
+          });
+          if (!(await sourcesUnchanged())) return;
+          const again = await this.checkMergeResult(task, repaired);
+          // A repair that made it worse is not used.
+          if (again.missing.length + again.added.length <= check.missing.length + check.added.length) {
+            result = repaired;
+            check = again;
+            task.title = mergeTitleFromResult(result, task.title);
+          }
+        } catch (error) {
+          if (task.controller.signal.aborted || this.closed || !this.isLiveMergeTask(task)) throw error;
+          if (error instanceof Error && error.message === t("ui.merge_draft_stale")) throw error;
+          this.plugin.recordFailure(t("log.merge_failed"), error);
+        }
+      }
+      task.state = "applying";
       task.draft = result;
       task.progress = "";
       this.render();
       const previous = this.history.undoEntry;
       await this.confirmMergeDraft(task, result.summary, result.detail);
       const entry = this.history.undoEntry;
-      const done = t("ui.merge_done_0", task.title);
+      let done = t("ui.merge_done_0", task.title);
+      if (!check.ok) {
+        const found = check.missing.length + check.added.length;
+        this.plugin.recordFailure(
+          t("log.merge_check_warning"),
+          `${task.title}: missing ${JSON.stringify(check.missing)}; added ${JSON.stringify(check.added)}`
+        );
+        done = `${done} ${t("ui.merge_check_warning_0", String(found))}`;
+      }
       // The Undo button only while this merge is still the newest history step.
       if (entry && entry !== previous)
         backgroundResultNotice(
@@ -3740,6 +3782,22 @@ export class VisualAgentMapView extends ItemView {
     if (this.mergeTasks.get(task.mapPath) === task) this.mergeTasks.delete(task.mapPath);
     task.controller.abort();
     this.render();
+  }
+  /** Compares the merged summary and Detail with what the sources hold (numbers, links, embeds; no invented numbers). */
+  private async checkMergeResult(task: MergeTask, result: AiResult): Promise<MergeCheckResult> {
+    const notes = await Promise.all(
+      task.sources.map(source => this.plugin.repo.readNote(source.path, this.map ?? undefined))
+    );
+    return checkMergePreservation({
+      sourceTexts: notes.flatMap(note => [note.summary, note.detail, note.newFindings]),
+      sourceLinkTexts: notes.map(note => note.visualReferences),
+      allowedTexts: task.sources.map(source => source.path),
+      logHeadings: this.mapDetailTemplate(this.plugin.settings.language)
+        .sections.filter(section => section.role === "log")
+        .flatMap(section => [section.name, ...section.aliases]),
+      mergedTexts: [result.summary, result.detail],
+      mergedLinkTexts: result.visualReferences.map(reference => `${reference.imageUrl} ${reference.sourceUrl}`)
+    });
   }
   /** Writes the AI merge result through the write queue, which checks the snapshot and the sources again. */
   private confirmMergeDraft(task: MergeTask, summary: string, detail: string): Promise<void> {

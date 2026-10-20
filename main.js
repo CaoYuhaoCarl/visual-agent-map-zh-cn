@@ -706,6 +706,8 @@ var english = {
   "ui.merge_bar_title": "Merging:",
   "ui.merge_locked": "Merging; try again when it finishes",
   "ui.merge_done_0": "Merged into \u201C{0}\u201D. You can undo.",
+  "ui.merge_check_warning_0": "{0} item(s) of source content may be missing or changed in the merge.",
+  "log.merge_check_warning": "AI merge check: source content not preserved",
   "ui.merge_draft_stale": "A source topic changed or left the map, so nothing was merged",
   "log.merge_failed": "AI merge failed",
   "ui.merge_saved_refresh_failed": "Merged, but the view failed to refresh. Reopen the map.",
@@ -2285,6 +2287,8 @@ var traditionalChinese = {
   "ui.merge_bar_title": "\u5408\u4F75\u4E2D\uFF1A",
   "ui.merge_locked": "\u5408\u4F75\u4E2D\uFF0C\u5B8C\u6210\u5F8C\u518D\u64CD\u4F5C",
   "ui.merge_done_0": "\u5DF2\u5408\u4F75\u6210\u300C{0}\u300D\uFF0C\u53EF\u5FA9\u539F",
+  "ui.merge_check_warning_0": "\u5408\u4F75\u5F8C\u6709 {0} \u9805\u4F86\u6E90\u5167\u5BB9\u53EF\u80FD\u907A\u6F0F",
+  "log.merge_check_warning": "AI \u5408\u4F75\u6AA2\u67E5\uFF1A\u4F86\u6E90\u5167\u5BB9\u672A\u5B8C\u6574\u4FDD\u7559",
   "ui.merge_draft_stale": "\u4F86\u6E90\u8B70\u984C\u5DF2\u8B8A\u66F4\u6216\u4E0D\u5728\u5716\u4E0A\uFF0C\u6C92\u6709\u5408\u4F75",
   "log.merge_failed": "AI \u5408\u4F75\u5931\u6557",
   "ui.merge_saved_refresh_failed": "\u5DF2\u5408\u4F75\uFF0C\u4F46\u756B\u9762\u66F4\u65B0\u5931\u6557\uFF0C\u8ACB\u91CD\u65B0\u958B\u555F\u5FC3\u667A\u5716",
@@ -4593,8 +4597,8 @@ ${zh ? "\u660E\u78BA\u4FDD\u7559" : "Explicitly preserve"}: ${customization.pres
 }
 function parseConvergenceProposals(raw, baselineIds) {
   const json = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
-  const decoded = JSON.parse(json);
-  const proposalsValue = Array.isArray(decoded) ? decoded : decoded && typeof decoded === "object" ? decoded.proposals : void 0;
+  const decoded2 = JSON.parse(json);
+  const proposalsValue = Array.isArray(decoded2) ? decoded2 : decoded2 && typeof decoded2 === "object" ? decoded2.proposals : void 0;
   if (!Array.isArray(proposalsValue)) throw new Error("Convergence response must contain a proposals array");
   const expected = new Set(baselineIds), accounted = /* @__PURE__ */ new Set();
   const proposals = proposalsValue.map((value) => {
@@ -12798,6 +12802,12 @@ var merge_zh_default = "\u9019\u662F Merge \u6A21\u5F0F\uFF1A\u628A\u4F86\u6E90\
 var merge_en_default = `Merge mode: combine the source topics into one page by organizing only what the sources already say. summary is one sentence of at most 80 characters, based only on the sources. detail keeps every piece of information from each source (facts, numbers, conditions, examples, source links and open questions) and removes only duplicates, placed under the headings below. Do not add comparisons, trends, causal claims, judgements, recommendations, inferences or open questions the sources do not contain; a section the sources have nothing for says "No new content this time" and is not filled in by you. Where sources contradict each other, show both side by side and name the topic each comes from. Keep the sources' tables, images and links, and do not add callouts, task lists, charts or highlights they do not have. The section descriptions below only decide where source content goes; they are not a request to write more.
 `;
 
+// core/steps/task/merge-repair.zh.md
+var merge_repair_zh_default = '\u4E0A\u4E00\u7248\u5408\u4F75\u7684 summary \u8207 detail\uFF08\u4E0A\u65B9\u7684\u73FE\u6709 Detail\uFF09\u5728\u4E0B\u5217\u5730\u65B9\u8207\u4F86\u6E90\u8B70\u984C\u4E0D\u7B26\u3002\u8ACB\u5C0D\u7167\u4F86\u6E90\u5167\u5BB9\uFF0C\u53EA\u4FEE\u6B63\u9019\u4E9B\u9805\u76EE\uFF0C\u7136\u5F8C\u5B8C\u6574\u56DE\u50B3 summary \u8207 detail\u3002\n\u4F86\u6E90\u6709\u3001\u4F46\u5408\u4F75\u5F8C detail \u7F3A\u5C11\u7684\u6578\u5B57\u3001\u9023\u7D50\u6216\u5D4C\u5165\uFF08\u8ACB\u653E\u56DE\u4F86\u6E90\u4F7F\u7528\u5B83\u7684\u4F4D\u7F6E\uFF0C\u5BEB\u6CD5\u8207\u4F86\u6E90\u5B8C\u5168\u76F8\u540C\uFF09\uFF1A\n{{missing}}\n\u5408\u4F75\u5F8C detail \u51FA\u73FE\u3001\u4F46\u6C92\u6709\u4EFB\u4F55\u4F86\u6E90\u5305\u542B\u7684\u6578\u5B57\uFF08\u8ACB\u522A\u9664\uFF0C\u6216\u6539\u5BEB\u6210\u4F86\u6E90\u5BE6\u969B\u7684\u8AAA\u6CD5\uFF09\uFF1A\n{{added}}\n\u4E0D\u8981\u65B0\u589E\u5176\u4ED6\u5167\u5BB9\u3002\u6A19\u984C\u3001[S#] \u6A19\u8A18\u8207\u5DF2\u7D93\u6B63\u78BA\u7684\u90E8\u5206\u7DAD\u6301\u539F\u6A23\u3002suggestions \u53EA\u56DE\u50B3\u4E00\u7B46\uFF0C\u683C\u5F0F {"title":"{{title}}","task":"","contribution":"","parentTitle":""}\u3002\n';
+
+// core/steps/task/merge-repair.en.md
+var merge_repair_en_default = 'The previous merged summary and detail (shown above as the current Detail) do not match the source topics in these places. Check each point against the source content and repair only these points; then return the complete summary and detail again.\nNumbers, links or embeds that the sources have but the merged detail is missing (put each back where the source uses it, exactly as the source writes it):\n{{missing}}\nNumbers in the merged detail that no source contains (remove them, or write what the source actually says):\n{{added}}\nDo not add anything else. Keep the headings, the [S#] markers and everything that is already correct. Return exactly one suggestion, shaped {"title":"{{title}}","task":"","contribution":"","parentTitle":""}.\n';
+
 // core/steps/task/synthesize.zh.md
 var synthesize_zh_default = "\u9019\u662F Synthesize \u6A21\u5F0F\uFF1Asummary \u5FC5\u9808\u662F\u9AD8\u54C1\u8CEA\u6574\u5408\u7D50\u8AD6\uFF0C80 \u5B57\u5167\uFF1Bdetail \u5FC5\u9808\u6574\u5408\u4F86\u6E90\u5B8C\u6574\u77E5\u8B58\u3001\u6536\u6582\u91CD\u8907\u5167\u5BB9\u3001\u6E05\u695A\u5448\u73FE\u5171\u8B58\u3001\u5206\u6B67\u3001\u53D6\u6368\u8207\u672A\u89E3\u554F\u984C\uFF1B\u82E5\u4ECB\u9762\u63D0\u4F9B\u78BA\u8A8D\u8349\u7A3F\uFF0C\u78BA\u8A8D\u5F8C\u624D\u6703\u5BEB\u56DE\u3002\n";
 
@@ -12872,6 +12882,10 @@ function customDetailRule(kind, language2, values) {
 var REPAIR_COUNTS_TEMPLATE = { zh: repair_counts_zh_default, en: repair_counts_en_default };
 function repairCounts(language2, issues) {
   return renderTemplate(inLanguage(REPAIR_COUNTS_TEMPLATE, language2), { issues });
+}
+var MERGE_REPAIR_TEMPLATE = { zh: merge_repair_zh_default, en: merge_repair_en_default };
+function mergeRepair(language2, missing, added, title) {
+  return renderTemplate(inLanguage(MERGE_REPAIR_TEMPLATE, language2), { missing, added, title });
 }
 function sourceRegistry(catalog) {
   return renderTemplate(source_registry_default, { catalog });
@@ -14131,6 +14145,318 @@ function arrangeNewTree(nodes, rootId, newIds, heightOf) {
     const point = placed.get(node.id);
     return point ? { ...node, x: point.x, y: Math.round(point.y) } : node;
   });
+}
+
+// ai/mermaid-safety.ts
+var DIAGRAM_TYPES = [
+  "sequenceDiagram",
+  "classDiagram",
+  "classDiagram-v2",
+  "stateDiagram",
+  "stateDiagram-v2",
+  "erDiagram",
+  "journey",
+  "gantt",
+  "pie",
+  "quadrantChart",
+  "requirementDiagram",
+  "gitGraph",
+  "C4Context",
+  "C4Container",
+  "C4Component",
+  "C4Dynamic",
+  "C4Deployment",
+  "mindmap",
+  "timeline",
+  "sankey-beta",
+  "xychart-beta",
+  "block-beta",
+  "packet-beta",
+  "kanban",
+  "architecture-beta",
+  "radar-beta",
+  "treemap-beta",
+  "venn-beta",
+  "ishikawa",
+  "ishikawa-beta"
+];
+var FLOWCHART_HEADER = /^(?:flowchart|graph)(?:\s+(?:LR|RL|TD|TB|BT))?\s*;?\s*$/i;
+var TYPE_HEADER = new RegExp(`^(?:${DIAGRAM_TYPES.map((t2) => t2.replace(/[-]/g, "\\-")).join("|")})(?![\\w-])`);
+var allowedHeader = (header) => FLOWCHART_HEADER.test(header) || TYPE_HEADER.test(header);
+var UNSAFE_LINE = [
+  // A directive starts a line or follows a `;` statement separator.
+  /(?:^|;)\s*(?:click|call|href|link|links|style|classDef|class|linkStyle|interpolate)\b/i,
+  /%%\s*\{/,
+  // init or config directive
+  /<\s*\/?\s*[a-z!?]/i,
+  // HTML tag, comment or processing instruction
+  /\b[a-z][a-z0-9+.-]*:\/\//i,
+  // URL with a scheme
+  /\b(?:javascript|vbscript|data|mailto|file):/i,
+  /\bwww\./i,
+  /:::/,
+  // class shorthand
+  /@\{/,
+  // shape/image/icon metadata
+  /\b(?:fa|fab|fas|far|img):/i,
+  /!\[/,
+  // Markdown image
+  /(?:^|;)\s*(?:callback|cssClass)\b/i,
+  // class diagram callbacks and CSS classes
+  /(?:^|;)\s*(?:properties|details)\b[^:]*:/i,
+  // sequence actor menus (they carry links)
+  /::icon\s*\(/i,
+  // mindmap icon (Font Awesome is not loaded in Obsidian)
+  /\$(?:link|sprite|tags)\b/i,
+  // C4 links, sprites and tags
+  /\b(?:Update(?:Element|Rel|Boundary)Style|UpdateLayoutConfig|Add(?:Element|Rel|Boundary)Tag)\s*\(/,
+  // C4 styling
+  /\]\s*(?:radius|color|stroke-color|stroke-width)\s*:/i
+  // quadrantChart point styling
+];
+var FENCE = /^(`{3,}|~{3,})(.*)$/;
+var PREFIX = /^(?:[ \t]+|>|(?:[-*+]|\d+[.)])(?=[ \t])|\[[ xX]\](?=[ \t]))/;
+function core(line) {
+  let rest = line;
+  for (let match = PREFIX.exec(rest); match; match = PREFIX.exec(rest)) rest = rest.slice(match[0].length);
+  return rest;
+}
+function fenceOf(line) {
+  const fence = FENCE.exec(core(line));
+  return fence && !(fence[1][0] === "`" && fence[2].includes("`")) ? fence : null;
+}
+function unsafeMermaid(body) {
+  const lines = body.map((line) => line.trim()).filter(Boolean);
+  if (!lines.length) return false;
+  if (lines[0] === "---") return true;
+  const header = lines.find((line) => !line.startsWith("%%"));
+  if (!header || !allowedHeader(header)) return true;
+  return lines.some((line) => UNSAFE_LINE.some((pattern) => pattern.test(line)));
+}
+function neutralizeUnsafeMermaid(markdown) {
+  const lines = markdown.replace(/\r\n?/g, "\n").split("\n");
+  lines.forEach((line, index) => {
+    const fence = fenceOf(line);
+    if (!fence || !/^mermaid\b/i.test(fence[2].trim())) return;
+    const body = [];
+    for (let next = index + 1; next < lines.length; next++) {
+      const content = core(lines[next]);
+      const close = FENCE.exec(content);
+      if (close && close[1][0] === fence[1][0] && close[1].length >= fence[1].length && !close[2].trim()) break;
+      body.push(content);
+    }
+    if (unsafeMermaid(body)) lines[index] = line.replace(/mermaid/i, "text");
+  });
+  return lines.join("\n");
+}
+
+// core/steps/chart/insert.ts
+var CHART_SHAPES = [
+  "stages",
+  "hierarchy",
+  "comparison",
+  "proportion",
+  "interaction",
+  "states",
+  "process"
+];
+function numberTokens(text11) {
+  const s = text11.normalize("NFKC"), out = [];
+  const re = /\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?/g;
+  let m;
+  while (m = re.exec(s)) {
+    const p = m.index > 0 ? s[m.index - 1] : "", pp = m.index > 1 ? s[m.index - 2] : "";
+    if (/[A-Za-z_]/.test(p)) continue;
+    if (p === "-" && /[A-Za-z]/.test(pp)) continue;
+    out.push(m[0].replace(/,/g, ""));
+  }
+  return out;
+}
+function noteNumbers(detail) {
+  let t2 = detail.replace(/\r\n/g, "\n");
+  t2 = t2.replace(/^[ \t]*(`{3,}|~{3,})[ \t]*mermaid[^\n]*\n[\s\S]*?\n[ \t]*\1[ \t]*$/gm, "");
+  t2 = t2.replace(/\]\([^)]*\)/g, "]").replace(/https?:\/\/\S+/g, "").replace(/\[\^[^\]]*\]/g, "").replace(/<!--[\s\S]*?-->/g, "");
+  return new Set(numberTokens(t2));
+}
+function existingDiagrams(detail) {
+  var _a;
+  const lines = detail.replace(/\r\n/g, "\n").split("\n"), types = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (/^\s*(`{3,}|~{3,})\s*mermaid\b/.test(lines[i])) {
+      let j = i + 1;
+      while (j < lines.length && !lines[j].trim()) j++;
+      types.push(((_a = lines[j]) != null ? _a : "").trim().split(/\s+/)[0] || "?");
+    }
+  }
+  return { count: types.length, types };
+}
+function fenceMask(lines) {
+  const mask = new Array(lines.length).fill(false);
+  let open = null;
+  lines.forEach((l, i) => {
+    const m = /^\s*(`{3,}|~{3,})/.exec(l);
+    if (open) {
+      mask[i] = true;
+      if (m && m[1][0] === open[0] && m[1].length >= open.length && l.trim() === m[1]) open = null;
+    } else if (m) {
+      mask[i] = true;
+      open = m[1];
+    }
+  });
+  return mask;
+}
+function blockOf(lines, mask, idx) {
+  let a = idx, b = idx;
+  while (a > 0 && lines[a - 1].trim() && !mask[a - 1]) a--;
+  while (b < lines.length - 1 && lines[b + 1].trim() && !mask[b + 1]) b++;
+  return [a, b];
+}
+var BAD_LINE = /^\s*(>|#{1,6}\s|[-*+]\s|\d+[.)]\s|\$\$|<|\[\^|```|~~~)/;
+function anchorCheck(lines, mask, anchor) {
+  const hits = [], a = anchor.trim();
+  lines.forEach((l, i) => {
+    if (!mask[i] && l.trim() === a) hits.push(i);
+  });
+  if (hits.length === 0) return { code: "anchor_missing" };
+  if (hits.length > 1) return { code: "anchor_not_unique" };
+  const block = blockOf(lines, mask, hits[0]);
+  const blk = lines.slice(block[0], block[1] + 1);
+  if (blk.some((l) => BAD_LINE.test(l))) return { code: "anchor_bad_block", block };
+  const tableLines = blk.filter((l) => /^\s*\|/.test(l)).length;
+  if (tableLines !== 0 && tableLines !== blk.length) return { code: "anchor_bad_block", block };
+  return { code: null, block };
+}
+function normBody(body) {
+  return body.replace(/\r\n/g, "\n").trim();
+}
+async function applyCharts(detail, charts, options) {
+  if (charts.length > options.remaining) return { ok: false, code: "over_cap", index: 0 };
+  const lines = detail.split("\n"), mask = fenceMask(lines), noteNums = noteNumbers(detail);
+  const used = /* @__PURE__ */ new Set(), items = [];
+  for (let index = 0; index < charts.length; index++) {
+    const chart = charts[index], body = normBody(chart.mermaid);
+    const fail = (code) => ({ ok: false, code, index });
+    const nonBlank = body.split("\n").filter((l) => l.trim()).length;
+    if (body.includes("```") || body.includes("~~~") || nonBlank > 30 || body.length > 1500) return fail("bad_body");
+    const fence = "```mermaid\n" + body + "\n```";
+    if (neutralizeUnsafeMermaid(fence) !== fence) return fail("unsafe_or_header");
+    if (options.parses) {
+      let ok = true;
+      try {
+        ok = await options.parses(body);
+      } catch (e) {
+        ok = false;
+      }
+      if (!ok) return fail("unparsable");
+    }
+    const tokens2 = numberTokens(body.replace(/^\s*\S+/, ""));
+    if (tokens2.some((n) => !noteNums.has(n))) return fail("number_not_in_note");
+    const anchor = anchorCheck(lines, mask, chart.anchor);
+    if (anchor.code) return fail(anchor.code);
+    const block = anchor.block;
+    const key2 = block.join("-");
+    if (used.has(key2)) return fail("anchor_shared");
+    used.add(key2);
+    items.push({ body, block });
+  }
+  const out = [...lines];
+  for (const item of [...items].sort((a, b) => b.block[1] - a.block[1])) {
+    const end = item.block[1];
+    const cr = lines[end].endsWith("\r") ? "\r" : "";
+    const segment = ["", "```mermaid", ...item.body.split("\n"), "```"];
+    const next = lines[end + 1];
+    if (next !== void 0 && next.trim() !== "") segment.push("");
+    out.splice(end + 1, 0, ...segment.map((line) => line + cr));
+  }
+  const final = out.join("\n");
+  if (neutralizeUnsafeMermaid(detail) === detail && neutralizeUnsafeMermaid(final) !== final)
+    return { ok: false, code: "unsafe_or_header", index: 0 };
+  return { ok: true, detail: final };
+}
+
+// core/steps/task/merge-check.ts
+var UPDATE_LOG_HEADING = /^(#{1,6})[ \t]+.*(?:更新紀錄|更新记录|Update log)/i;
+var HEADING = /^(#{1,6})[ \t]+\S/;
+function withoutUpdateLog(text11, logHeadings) {
+  const names2 = new Set(logHeadings.map((name) => name.trim().toLocaleLowerCase()).filter(Boolean));
+  const isLog = (line) => {
+    const match = UPDATE_LOG_HEADING.exec(line);
+    if (match) return match;
+    const heading = /^(#{1,6})[ \t]+(.*?)[ \t]*#*[ \t]*$/.exec(line);
+    return heading && names2.has(heading[2].trim().toLocaleLowerCase()) ? heading : null;
+  };
+  const lines = text11.replace(/\r\n/g, "\n").split("\n"), kept = [];
+  let skipping = 0;
+  for (const line of lines) {
+    const heading = HEADING.exec(line);
+    if (skipping && heading && heading[1].length <= skipping) skipping = 0;
+    if (!skipping) {
+      const log = isLog(line);
+      if (log) {
+        skipping = log[1].length;
+        continue;
+      }
+      kept.push(line);
+    }
+  }
+  return kept.join("\n");
+}
+function withoutListMarkers(text11) {
+  return text11.replace(/^([ \t]*(?:>[ \t]*)*(?:#{1,6}[ \t]+)?(?:[-*+][ \t]+)?)\d+[.)、．][ \t]+/gm, "$1");
+}
+function normalNumber(token) {
+  const value = Number(token);
+  return Number.isFinite(value) && token.length < 16 ? String(value) : token;
+}
+function numbersOf(texts2, logHeadings) {
+  const out = /* @__PURE__ */ new Set();
+  for (const text11 of texts2) {
+    const body = withoutListMarkers(withoutUpdateLog(text11, logHeadings)).replace(/!?\[\[[^\]]*\]\]/g, "");
+    for (const token of noteNumbers(body)) out.add(normalNumber(token));
+  }
+  return out;
+}
+function decoded(value) {
+  try {
+    return decodeURIComponent(value);
+  } catch (e) {
+    return value;
+  }
+}
+function linksOf(texts2) {
+  const out = /* @__PURE__ */ new Map();
+  const add = (kind, raw) => {
+    const shown = raw.trim().replace(/[.,;:!?*_'"]+$/, "");
+    const key2 = decoded(shown).toLowerCase().replace(/\/+$/, "").replace(/\.md$/, "");
+    if (key2) out.set(`${kind}${key2}`, shown);
+  };
+  for (const text11 of texts2) {
+    for (const match of text11.matchAll(/https?:\/\/[^\s<>"'`)\]]+/g)) add("", match[0]);
+    for (const match of text11.matchAll(/!?\[\[([^\]|#]+)(?:[#|][^\]]*)?\]\]/g)) add("wiki:", match[1]);
+    for (const match of text11.matchAll(/\]\(\s*<?([^)\s>]+)/g)) {
+      const target = match[1];
+      if (/^(?:https?:|mailto:|#)/i.test(target)) continue;
+      add("link:", target);
+    }
+  }
+  return out;
+}
+function checkMergePreservation(input) {
+  var _a, _b, _c, _d;
+  const logs = (_a = input.logHeadings) != null ? _a : [];
+  const missing = [], added = [];
+  const sourceNumbers = numbersOf(input.sourceTexts, logs), mergedNumbers = numbersOf(input.mergedTexts, logs), allowed = numbersOf((_b = input.allowedTexts) != null ? _b : [], logs);
+  for (const token of sourceNumbers) if (!mergedNumbers.has(token)) missing.push(token);
+  for (const token of mergedNumbers) if (!sourceNumbers.has(token) && !allowed.has(token)) added.push(token);
+  const sourceLinks = linksOf([...input.sourceTexts, ...(_c = input.sourceLinkTexts) != null ? _c : []]), mergedLinks = linksOf([...input.mergedTexts, ...(_d = input.mergedLinkTexts) != null ? _d : []]);
+  for (const [key2, shown] of sourceLinks) if (!mergedLinks.has(key2)) missing.push(shown);
+  return { ok: !missing.length && !added.length, missing, added };
+}
+function findingList(items, none, limit = 30) {
+  if (!items.length) return none;
+  const lines = items.slice(0, limit).map((item) => `- ${item}`);
+  if (items.length > limit) lines.push(`- \u2026 (+${items.length - limit})`);
+  return lines.join("\n");
 }
 
 // repository.ts
@@ -16575,7 +16901,7 @@ ${draft.context}` : "",
 // experiences/visual-map/outline-import.ts
 var OUTLINE_NODE_LIMIT = 100;
 var OUTLINE_TITLE_LIMIT = 200;
-var HEADING = /^ {0,3}(#{1,6})(?:[ \t]+(.*?))?[ \t]*$/;
+var HEADING2 = /^ {0,3}(#{1,6})(?:[ \t]+(.*?))?[ \t]*$/;
 var FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})(.*)$/;
 var FENCE_CLOSE = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
 var MARKDOWN_FENCE = /^ {0,3}(`{3,}|~{3,})[ \t]*(markdown|md)?[ \t]*$/i;
@@ -16621,9 +16947,9 @@ function unwrapFencedOutline(lines) {
       continue;
     }
     const inner = lines.slice(index + 1, close);
-    if (!labelled[2] && inner.some((line) => line.trim() !== "" && !HEADING.test(line))) return lines;
+    if (!labelled[2] && inner.some((line) => line.trim() !== "" && !HEADING2.test(line))) return lines;
     const outside = [...lines.slice(0, index), ...lines.slice(close + 1)];
-    if (!inner.some((line) => HEADING.test(line)) || outside.some((line) => HEADING.test(line))) return lines;
+    if (!inner.some((line) => HEADING2.test(line)) || outside.some((line) => HEADING2.test(line))) return lines;
     return lines.map((line, position) => position === index || position === close ? "" : line);
   }
   return lines;
@@ -16695,7 +17021,7 @@ function parseOutline(input) {
       blankLines++;
       continue;
     }
-    const heading = HEADING.exec(line);
+    const heading = HEADING2.exec(line);
     if (!heading) {
       ignoredLines++;
       continue;
@@ -30779,46 +31105,82 @@ ${request.requirements}` : preset.text,
       const sourceGroup = await this.topicReferenceGroup(task.sources, "strong", { origin: false });
       if (!this.isLiveMergeTask(task)) return;
       task.sourceContent = JSON.stringify(sourceGroup.documents);
-      const result = await this.plugin.askModel(
-        {
-          title: t("ui.merge_ai_untitled"),
-          summary: noSummaryYet(language2),
-          rules: "",
-          detail: "",
-          task: mergeGoalTask(language2),
-          ancestors: "",
-          referenceGroups: [sourceGroup],
-          // Within budget the sources go in as written (one request); only over-budget sources are extracted first.
-          referenceDelivery: "direct",
-          onProgress: (message) => {
-            if (!this.isLiveMergeTask(task)) return;
-            task.progress = message;
-            this.render();
-          },
-          outputLanguage: language2,
-          mode: "merge",
-          researchMode: "local",
-          researchDepth: "normal",
-          visualMode: "off",
-          detailTemplate: this.mapDetailTemplate(language2)
+      const request = {
+        title: t("ui.merge_ai_untitled"),
+        summary: noSummaryYet(language2),
+        rules: "",
+        detail: "",
+        task: mergeGoalTask(language2),
+        ancestors: "",
+        referenceGroups: [sourceGroup],
+        // Within budget the sources go in as written (one request); only over-budget sources are extracted first.
+        referenceDelivery: "direct",
+        onProgress: (message) => {
+          if (!this.isLiveMergeTask(task)) return;
+          task.progress = message;
+          this.render();
         },
-        task.model,
-        this.plugin.settings.cliReasoning,
-        task.controller.signal
-      );
-      if (!this.isLiveMergeTask(task)) return;
-      const latest = await this.topicReferenceGroup(task.sources, "strong", { origin: false });
-      if (!this.isLiveMergeTask(task)) return;
-      if (JSON.stringify(latest.documents) !== task.sourceContent) throw new Error(t("ui.merge_draft_stale"));
-      task.state = "applying";
+        outputLanguage: language2,
+        mode: "merge",
+        researchMode: "local",
+        researchDepth: "normal",
+        visualMode: "off",
+        detailTemplate: this.mapDetailTemplate(language2)
+      };
+      const ask = (context) => this.plugin.askModel(context, task.model, this.plugin.settings.cliReasoning, task.controller.signal);
+      const sourcesUnchanged = async () => {
+        if (!this.isLiveMergeTask(task)) return false;
+        const latest = await this.topicReferenceGroup(task.sources, "strong", { origin: false });
+        if (!this.isLiveMergeTask(task)) return false;
+        if (JSON.stringify(latest.documents) !== task.sourceContent) throw new Error(t("ui.merge_draft_stale"));
+        return true;
+      };
+      let result = await ask(request);
+      if (!await sourcesUnchanged()) return;
       task.title = mergeTitleFromResult(result, task.title);
+      let check = await this.checkMergeResult(task, result);
+      if (!check.ok) {
+        try {
+          const repaired = await ask({
+            ...request,
+            summary: result.summary,
+            detail: result.detail,
+            task: mergeRepair(
+              language2,
+              findingList(check.missing, inLanguage(NONE, language2)),
+              findingList(check.added, inLanguage(NONE, language2)),
+              task.title
+            )
+          });
+          if (!await sourcesUnchanged()) return;
+          const again = await this.checkMergeResult(task, repaired);
+          if (again.missing.length + again.added.length <= check.missing.length + check.added.length) {
+            result = repaired;
+            check = again;
+            task.title = mergeTitleFromResult(result, task.title);
+          }
+        } catch (error) {
+          if (task.controller.signal.aborted || this.closed || !this.isLiveMergeTask(task)) throw error;
+          if (error instanceof Error && error.message === t("ui.merge_draft_stale")) throw error;
+          this.plugin.recordFailure(t("log.merge_failed"), error);
+        }
+      }
+      task.state = "applying";
       task.draft = result;
       task.progress = "";
       this.render();
       const previous = this.history.undoEntry;
       await this.confirmMergeDraft(task, result.summary, result.detail);
       const entry = this.history.undoEntry;
-      const done = t("ui.merge_done_0", task.title);
+      let done = t("ui.merge_done_0", task.title);
+      if (!check.ok) {
+        const found = check.missing.length + check.added.length;
+        this.plugin.recordFailure(
+          t("log.merge_check_warning"),
+          `${task.title}: missing ${JSON.stringify(check.missing)}; added ${JSON.stringify(check.added)}`
+        );
+        done = `${done} ${t("ui.merge_check_warning_0", String(found))}`;
+      }
       if (entry && entry !== previous)
         backgroundResultNotice(
           done,
@@ -30845,6 +31207,23 @@ ${request.requirements}` : preset.text,
     if (this.mergeTasks.get(task.mapPath) === task) this.mergeTasks.delete(task.mapPath);
     task.controller.abort();
     this.render();
+  }
+  /** Compares the merged summary and Detail with what the sources hold (numbers, links, embeds; no invented numbers). */
+  async checkMergeResult(task, result) {
+    const notes = await Promise.all(
+      task.sources.map((source) => {
+        var _a;
+        return this.plugin.repo.readNote(source.path, (_a = this.map) != null ? _a : void 0);
+      })
+    );
+    return checkMergePreservation({
+      sourceTexts: notes.flatMap((note) => [note.summary, note.detail, note.newFindings]),
+      sourceLinkTexts: notes.map((note) => note.visualReferences),
+      allowedTexts: task.sources.map((source) => source.path),
+      logHeadings: this.mapDetailTemplate(this.plugin.settings.language).sections.filter((section3) => section3.role === "log").flatMap((section3) => [section3.name, ...section3.aliases]),
+      mergedTexts: [result.summary, result.detail],
+      mergedLinkTexts: result.visualReferences.map((reference) => `${reference.imageUrl} ${reference.sourceUrl}`)
+    });
   }
   /** Writes the AI merge result through the write queue, which checks the snapshot and the sources again. */
   confirmMergeDraft(task, summary, detail) {
@@ -38019,109 +38398,6 @@ ${context.sourceContext}` : "",
   return blocks.filter(Boolean).join("\n\n");
 }
 
-// ai/mermaid-safety.ts
-var DIAGRAM_TYPES = [
-  "sequenceDiagram",
-  "classDiagram",
-  "classDiagram-v2",
-  "stateDiagram",
-  "stateDiagram-v2",
-  "erDiagram",
-  "journey",
-  "gantt",
-  "pie",
-  "quadrantChart",
-  "requirementDiagram",
-  "gitGraph",
-  "C4Context",
-  "C4Container",
-  "C4Component",
-  "C4Dynamic",
-  "C4Deployment",
-  "mindmap",
-  "timeline",
-  "sankey-beta",
-  "xychart-beta",
-  "block-beta",
-  "packet-beta",
-  "kanban",
-  "architecture-beta",
-  "radar-beta",
-  "treemap-beta",
-  "venn-beta",
-  "ishikawa",
-  "ishikawa-beta"
-];
-var FLOWCHART_HEADER = /^(?:flowchart|graph)(?:\s+(?:LR|RL|TD|TB|BT))?\s*;?\s*$/i;
-var TYPE_HEADER = new RegExp(`^(?:${DIAGRAM_TYPES.map((t2) => t2.replace(/[-]/g, "\\-")).join("|")})(?![\\w-])`);
-var allowedHeader = (header) => FLOWCHART_HEADER.test(header) || TYPE_HEADER.test(header);
-var UNSAFE_LINE = [
-  // A directive starts a line or follows a `;` statement separator.
-  /(?:^|;)\s*(?:click|call|href|link|links|style|classDef|class|linkStyle|interpolate)\b/i,
-  /%%\s*\{/,
-  // init or config directive
-  /<\s*\/?\s*[a-z!?]/i,
-  // HTML tag, comment or processing instruction
-  /\b[a-z][a-z0-9+.-]*:\/\//i,
-  // URL with a scheme
-  /\b(?:javascript|vbscript|data|mailto|file):/i,
-  /\bwww\./i,
-  /:::/,
-  // class shorthand
-  /@\{/,
-  // shape/image/icon metadata
-  /\b(?:fa|fab|fas|far|img):/i,
-  /!\[/,
-  // Markdown image
-  /(?:^|;)\s*(?:callback|cssClass)\b/i,
-  // class diagram callbacks and CSS classes
-  /(?:^|;)\s*(?:properties|details)\b[^:]*:/i,
-  // sequence actor menus (they carry links)
-  /::icon\s*\(/i,
-  // mindmap icon (Font Awesome is not loaded in Obsidian)
-  /\$(?:link|sprite|tags)\b/i,
-  // C4 links, sprites and tags
-  /\b(?:Update(?:Element|Rel|Boundary)Style|UpdateLayoutConfig|Add(?:Element|Rel|Boundary)Tag)\s*\(/,
-  // C4 styling
-  /\]\s*(?:radius|color|stroke-color|stroke-width)\s*:/i
-  // quadrantChart point styling
-];
-var FENCE = /^(`{3,}|~{3,})(.*)$/;
-var PREFIX = /^(?:[ \t]+|>|(?:[-*+]|\d+[.)])(?=[ \t])|\[[ xX]\](?=[ \t]))/;
-function core(line) {
-  let rest = line;
-  for (let match = PREFIX.exec(rest); match; match = PREFIX.exec(rest)) rest = rest.slice(match[0].length);
-  return rest;
-}
-function fenceOf(line) {
-  const fence = FENCE.exec(core(line));
-  return fence && !(fence[1][0] === "`" && fence[2].includes("`")) ? fence : null;
-}
-function unsafeMermaid(body) {
-  const lines = body.map((line) => line.trim()).filter(Boolean);
-  if (!lines.length) return false;
-  if (lines[0] === "---") return true;
-  const header = lines.find((line) => !line.startsWith("%%"));
-  if (!header || !allowedHeader(header)) return true;
-  return lines.some((line) => UNSAFE_LINE.some((pattern) => pattern.test(line)));
-}
-function neutralizeUnsafeMermaid(markdown) {
-  const lines = markdown.replace(/\r\n?/g, "\n").split("\n");
-  lines.forEach((line, index) => {
-    const fence = fenceOf(line);
-    if (!fence || !/^mermaid\b/i.test(fence[2].trim())) return;
-    const body = [];
-    for (let next = index + 1; next < lines.length; next++) {
-      const content = core(lines[next]);
-      const close = FENCE.exec(content);
-      if (close && close[1][0] === fence[1][0] && close[1].length >= fence[1].length && !close[2].trim()) break;
-      body.push(content);
-    }
-    if (unsafeMermaid(body)) lines[index] = line.replace(/mermaid/i, "text");
-  });
-  return lines.join("\n");
-}
-
 // core/steps/task/parse.ts
 function extractJsonObject(raw) {
   const candidates = [];
@@ -38277,130 +38553,6 @@ function createTaskStep(id, schema) {
     render: ({ context, language: language2 }) => taskPrompt(context, language2),
     parse: (raw, input) => parseAiResult(raw, input.providerLabel, input.language, input.strictGapAudit, input.webResearch, input.contract)
   };
-}
-
-// core/steps/chart/insert.ts
-var CHART_SHAPES = [
-  "stages",
-  "hierarchy",
-  "comparison",
-  "proportion",
-  "interaction",
-  "states",
-  "process"
-];
-function numberTokens(text11) {
-  const s = text11.normalize("NFKC"), out = [];
-  const re = /\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?/g;
-  let m;
-  while (m = re.exec(s)) {
-    const p = m.index > 0 ? s[m.index - 1] : "", pp = m.index > 1 ? s[m.index - 2] : "";
-    if (/[A-Za-z_]/.test(p)) continue;
-    if (p === "-" && /[A-Za-z]/.test(pp)) continue;
-    out.push(m[0].replace(/,/g, ""));
-  }
-  return out;
-}
-function noteNumbers(detail) {
-  let t2 = detail.replace(/\r\n/g, "\n");
-  t2 = t2.replace(/^[ \t]*(`{3,}|~{3,})[ \t]*mermaid[^\n]*\n[\s\S]*?\n[ \t]*\1[ \t]*$/gm, "");
-  t2 = t2.replace(/\]\([^)]*\)/g, "]").replace(/https?:\/\/\S+/g, "").replace(/\[\^[^\]]*\]/g, "").replace(/<!--[\s\S]*?-->/g, "");
-  return new Set(numberTokens(t2));
-}
-function existingDiagrams(detail) {
-  var _a;
-  const lines = detail.replace(/\r\n/g, "\n").split("\n"), types = [];
-  for (let i = 0; i < lines.length; i++) {
-    if (/^\s*(`{3,}|~{3,})\s*mermaid\b/.test(lines[i])) {
-      let j = i + 1;
-      while (j < lines.length && !lines[j].trim()) j++;
-      types.push(((_a = lines[j]) != null ? _a : "").trim().split(/\s+/)[0] || "?");
-    }
-  }
-  return { count: types.length, types };
-}
-function fenceMask(lines) {
-  const mask = new Array(lines.length).fill(false);
-  let open = null;
-  lines.forEach((l, i) => {
-    const m = /^\s*(`{3,}|~{3,})/.exec(l);
-    if (open) {
-      mask[i] = true;
-      if (m && m[1][0] === open[0] && m[1].length >= open.length && l.trim() === m[1]) open = null;
-    } else if (m) {
-      mask[i] = true;
-      open = m[1];
-    }
-  });
-  return mask;
-}
-function blockOf(lines, mask, idx) {
-  let a = idx, b = idx;
-  while (a > 0 && lines[a - 1].trim() && !mask[a - 1]) a--;
-  while (b < lines.length - 1 && lines[b + 1].trim() && !mask[b + 1]) b++;
-  return [a, b];
-}
-var BAD_LINE = /^\s*(>|#{1,6}\s|[-*+]\s|\d+[.)]\s|\$\$|<|\[\^|```|~~~)/;
-function anchorCheck(lines, mask, anchor) {
-  const hits = [], a = anchor.trim();
-  lines.forEach((l, i) => {
-    if (!mask[i] && l.trim() === a) hits.push(i);
-  });
-  if (hits.length === 0) return { code: "anchor_missing" };
-  if (hits.length > 1) return { code: "anchor_not_unique" };
-  const block = blockOf(lines, mask, hits[0]);
-  const blk = lines.slice(block[0], block[1] + 1);
-  if (blk.some((l) => BAD_LINE.test(l))) return { code: "anchor_bad_block", block };
-  const tableLines = blk.filter((l) => /^\s*\|/.test(l)).length;
-  if (tableLines !== 0 && tableLines !== blk.length) return { code: "anchor_bad_block", block };
-  return { code: null, block };
-}
-function normBody(body) {
-  return body.replace(/\r\n/g, "\n").trim();
-}
-async function applyCharts(detail, charts, options) {
-  if (charts.length > options.remaining) return { ok: false, code: "over_cap", index: 0 };
-  const lines = detail.split("\n"), mask = fenceMask(lines), noteNums = noteNumbers(detail);
-  const used = /* @__PURE__ */ new Set(), items = [];
-  for (let index = 0; index < charts.length; index++) {
-    const chart = charts[index], body = normBody(chart.mermaid);
-    const fail = (code) => ({ ok: false, code, index });
-    const nonBlank = body.split("\n").filter((l) => l.trim()).length;
-    if (body.includes("```") || body.includes("~~~") || nonBlank > 30 || body.length > 1500) return fail("bad_body");
-    const fence = "```mermaid\n" + body + "\n```";
-    if (neutralizeUnsafeMermaid(fence) !== fence) return fail("unsafe_or_header");
-    if (options.parses) {
-      let ok = true;
-      try {
-        ok = await options.parses(body);
-      } catch (e) {
-        ok = false;
-      }
-      if (!ok) return fail("unparsable");
-    }
-    const tokens2 = numberTokens(body.replace(/^\s*\S+/, ""));
-    if (tokens2.some((n) => !noteNums.has(n))) return fail("number_not_in_note");
-    const anchor = anchorCheck(lines, mask, chart.anchor);
-    if (anchor.code) return fail(anchor.code);
-    const block = anchor.block;
-    const key2 = block.join("-");
-    if (used.has(key2)) return fail("anchor_shared");
-    used.add(key2);
-    items.push({ body, block });
-  }
-  const out = [...lines];
-  for (const item of [...items].sort((a, b) => b.block[1] - a.block[1])) {
-    const end = item.block[1];
-    const cr = lines[end].endsWith("\r") ? "\r" : "";
-    const segment = ["", "```mermaid", ...item.body.split("\n"), "```"];
-    const next = lines[end + 1];
-    if (next !== void 0 && next.trim() !== "") segment.push("");
-    out.splice(end + 1, 0, ...segment.map((line) => line + cr));
-  }
-  const final = out.join("\n");
-  if (neutralizeUnsafeMermaid(detail) === detail && neutralizeUnsafeMermaid(final) !== final)
-    return { ok: false, code: "unsafe_or_header", index: 0 };
-  return { ok: true, detail: final };
 }
 
 // core/steps/chart/chart.en.md

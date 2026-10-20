@@ -813,6 +813,88 @@ integrationTest('AI merge: the AI names the topic in the same single request; th
   assert.equal((await h.repo.readNote(merged.path)).title, 'AI chosen name');
   assert.match(h.contents.get(merged.path), /^# AI chosen name$/m);
 });
+// Merge content check: a program compares numbers, links and embeds with the sources; one repair request, then apply with a warning.
+const checkedDetails = ['Alpha 42 units, see https://example.org/a', '', 'Gamma 7 units, see [[Notes/Other]]'];
+const good = { summary: 'Merged one-liner', detail: '### Facts\n\nAlpha 42 units https://example.org/a and Gamma 7 units [[Notes/Other]]', visualReferences: [], formatIssues: [], suggestions: [] };
+const lossy = { ...good, detail: '### Facts\n\nAlpha units and Gamma 7 units [[Notes/Other]] plus 99 invented' };
+const warnings = h => h.notices.filter(m => /may be missing or changed/.test(m));
+integrationTest('AI merge check: a faithful result is applied with one request and no warning', async () => {
+  const h = await aiMergeHarness({ details: checkedDetails }); h.answer = async () => good;
+  const { task } = await h.begin(); await h.untilSettled(task);
+  assert.equal(h.asks.length, 1); assert.deepEqual(warnings(h), []); assert.ok(await h.mergedNode('AI merged'));
+  assert.deepEqual(h.failures, []);
+});
+integrationTest('AI merge check: the log section of a custom template (renamed) is exempt, so a dated log line is no false positive', async () => {
+  const h = await aiMergeHarness({ details: ['Alpha 42 units\n\n### 變更歷史\n- 2026-10-01：建立', '', 'Gamma 7 units'] });
+  const original = h.view.mapDetailTemplate.bind(h.view);
+  h.view.mapDetailTemplate = (...args) => { const template = original(...args); return { ...template, sections: template.sections.map(section => section.role === 'log' ? { ...section, name: '變更歷史', aliases: [] } : section) }; };
+  h.answer = async () => ({ ...good, detail: 'Alpha 42 units Gamma 7 units\n\n### 變更歷史\n- 2026-10-20：合併 2 個議題' });
+  const { task } = await h.begin(); await h.untilSettled(task);
+  assert.equal(h.asks.length, 1); assert.deepEqual(warnings(h), []); assert.ok(await h.mergedNode('AI merged'));
+});
+integrationTest('AI merge check: a dropped number or link and an invented number trigger one repair request, which then applies cleanly', async () => {
+  const h = await aiMergeHarness({ details: checkedDetails }); let calls = 0;
+  h.answer = async () => (++calls === 1 ? lossy : good);
+  const { task } = await h.begin(); await h.untilSettled(task);
+  assert.equal(h.asks.length, 2, 'the merge plus exactly one repair');
+  const repair = h.asks[1].context;
+  assert.equal(repair.mode, 'merge'); assert.equal(repair.researchMode, 'local'); assert.equal(repair.visualMode, 'off'); assert.equal(repair.detail, lossy.detail); assert.equal(repair.referenceGroups.length, 1);
+  assert.match(repair.task, /- 42\n/); assert.match(repair.task, /- https:\/\/example\.org\/a\n/); assert.match(repair.task, /- 99\n/); assert.doesNotMatch(repair.task, /- 7\n/);
+  assert.deepEqual(warnings(h), []); assert.deepEqual(h.failures, []);
+  const merged = await h.mergedNode('AI merged'); assert.match((await h.repo.readNote(merged.path)).detail, /Alpha 42 units/);
+  assert.equal(h.view.history.undoEntry.label, 'Merge topics'); assert.deepEqual(h.notices.filter(m => /Merged into/.test(m)).length, 1);
+});
+integrationTest('AI merge check: still failing after the repair applies anyway, with a warning Notice that has Undo and the tokens in the failure log', async () => {
+  const h = await aiMergeHarness({ details: checkedDetails }); const original = await h.shape();
+  h.answer = async () => lossy;
+  const { task } = await h.begin(); await h.untilSettled(task);
+  assert.equal(h.asks.length, 2, 'never a second repair');
+  assert.ok(await h.mergedNode('AI merged'), 'not blocked: the merge is applied');
+  assert.deepEqual(warnings(h), ['Merged into “AI merged”. You can undo. 3 item(s) of source content may be missing or changed in the merge.']);
+  assert.deepEqual(h.failures, ['AI merge check: source content not preserved']);
+  const notice = h.undoNotice(); assert.ok(notice, 'the warning Notice carries Undo');
+  notice.actions.find(a => a.text === 'Undo').click(); await h.plugin.mutate(async () => {});
+  assert.deepEqual((await h.shape()).nodes, original.nodes); assert.equal(h.view.history.canUndo, false);
+});
+integrationTest('AI merge check: a repair that fails or makes it worse keeps the first result and still applies', async () => {
+  const worse = { ...lossy, detail: '### Facts\n\n1234 5678 only' };
+  for (const second of ['throw', worse]) {
+    const h = await aiMergeHarness({ details: checkedDetails }); let calls = 0;
+    h.answer = async () => { if (++calls === 1) return lossy; if (second === 'throw') throw new Error('provider down'); return second; };
+    const { task } = await h.begin(); await h.untilSettled(task);
+    assert.equal(h.asks.length, 2); const merged = await h.mergedNode('AI merged'); assert.ok(merged);
+    assert.match((await h.repo.readNote(merged.path)).detail, /99 invented/, 'the first result, not the worse repair');
+    assert.equal(warnings(h).length, 1);
+  }
+});
+integrationTest('AI merge check: Stop, closing the view or a source edit during the repair writes nothing', async () => {
+  for (const scenario of ['stop', 'close', 'stale']) {
+    const h = await aiMergeHarness({ details: checkedDetails }); const files = h.files(); const original = await h.shape(); let calls = 0, entered;
+    const reached = new Promise(resolve => { entered = resolve; });
+    h.answer = (signal) => {
+      if (++calls === 1) return Promise.resolve(lossy);
+      entered();
+      if (scenario === 'stale') return h.repo.updateNote(h.sources[0].path, { detail: 'Changed during the repair' }).then(() => good);
+      return abortable(signal);
+    };
+    const { task } = await h.begin(); await reached;
+    if (scenario === 'stop') h.view.stopMergeTask(task);
+    if (scenario === 'close') { h.view.closed = true; for (const t of h.view.mergeTasks.values()) t.controller.abort(); }
+    await h.untilSettled(task);
+    assert.equal(h.view.mergeTasks.size, 0, scenario); assert.equal(h.view.history.canUndo, false, scenario); assert.deepEqual((await h.shape()).nodes, original.nodes, scenario);
+    if (scenario === 'stale') { assert.deepEqual(h.notices.filter(m => /nothing was merged/.test(m)), ['A source topic changed or left the map, so nothing was merged']); assert.notDeepEqual(h.files(), files); }
+    else { assert.deepEqual(h.files(), files, scenario); assert.equal(h.notices.length, 0, scenario); }
+    assert.equal(h.asks.length, 2, scenario);
+  }
+});
+integrationTest('AI merge check, parent mode: the warning path applies directly and Undo restores the parent verbatim', async () => {
+  const h = await aiMergeHarness({ details: checkedDetails }); await parentOf(h);
+  const text = h.contents.get(h.parent.path); const original = await h.shape();
+  h.answer = async () => ({ ...lossy, suggestions: [{ title: 'Parent', task: '', contribution: '', parentTitle: '' }] });
+  const { task } = await parentBegin(h, 'Parent'); await h.untilSettled(task);
+  assert.equal(h.asks.length, 2); assert.equal(warnings(h).length, 1); assert.match((await h.repo.readNote(h.parent.path)).detail, /99 invented/);
+  await h.view.travel(false); assert.equal(h.contents.get(h.parent.path), text); assert.deepEqual(await h.shape(), original);
+});
 // Merge into a parent topic: the parent keeps its card; the selected direct subtopics are merged into its note.
 const parentOf = async (h, withOrigin = true) => {
   await h.repo.updateNote(h.parent.path, { summary: 'Parent summary', detail: 'Parent detail', prompt: 'Parent prompt', ...(withOrigin ? { thinkingOrigin: 'PARENT-ORIGIN' } : {}) });
