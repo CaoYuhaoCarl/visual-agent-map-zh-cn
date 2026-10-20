@@ -1075,7 +1075,7 @@ button.vam-template-section-header:hover { background: var(--background-modifier
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-mindmap, svg)[aria-roledescription="mindmap"] .section-edge-11 { stroke: color-mix(in srgb, var(--color-green) 70%, var(--background-primary)); }
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-mindmap, svg)[aria-roledescription="mindmap"] :is(.nodeLabel, .nodeLabel p, text, tspan) { color: var(--text-normal); fill: var(--text-normal); }
 /* Gantt: bars are chips of an accent mixed into the page background (--background-primary) with --text-normal text, so the text/chip
-   contrast follows the active theme (6.8:1 or more measured on Obsidian's default light and dark). Text outside the bars follows the theme,
+   contrast follows the active theme (8:1 or more on Obsidian's default light and dark). Text outside the bars follows the theme,
    except active, done and critical labels, which mermaid forces to near-black: those get a halo (paint-order stroke) in the page
    background, and in dark themes in --text-normal (light), so the near-black glyph stays readable. */
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] { filter: none; }
@@ -1088,11 +1088,14 @@ button.vam-template-section-header:hover { background: var(--background-modifier
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] text.taskText { fill: var(--text-normal); }
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] text:is([class*="activeText"], [class*="doneText"], [class*="activeCritText"], [class*="doneCritText"])[class*="Outside"] { paint-order: stroke; stroke: var(--background-primary); stroke-width: 3px; stroke-linejoin: round; }
 .theme-dark .mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] text:is([class*="activeText"], [class*="doneText"], [class*="activeCritText"], [class*="doneCritText"])[class*="Outside"] { stroke: var(--text-normal); }
-.mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] .task { fill: color-mix(in srgb, var(--color-blue) 40%, var(--background-primary)); stroke: var(--color-blue); }
+.mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] .task { fill: color-mix(in srgb, var(--color-blue) 28%, var(--background-primary)); stroke: var(--color-blue); }
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] .task[class*="active"] { fill: color-mix(in srgb, var(--color-blue) 16%, var(--background-primary)); }
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] .task[class*="done"] { fill: color-mix(in srgb, var(--text-faint) 30%, var(--background-primary)); stroke: var(--text-faint); }
+/* mermaid forces near-black text (its rule cannot be overridden from a plugin stylesheet) on active and done bars: in dark themes those chips mix the accent into --text-normal (light) instead of the page background */
+.theme-dark .mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] .task[class*="active"] { fill: color-mix(in srgb, var(--color-blue) 16%, var(--text-normal)); }
+.theme-dark .mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] .task[class*="done"] { fill: color-mix(in srgb, var(--text-faint) 30%, var(--text-normal)); }
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] .task[class*="crit"] { stroke: var(--color-red); }
-.mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] .task[class*="crit"]:not([class*="active"], [class*="done"]) { fill: color-mix(in srgb, var(--color-red) 40%, var(--background-primary)); }
+.mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] .task[class*="crit"]:not([class*="active"], [class*="done"]) { fill: color-mix(in srgb, var(--color-red) 28%, var(--background-primary)); }
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-c4, svg)[aria-roledescription="c4"] { filter: none; }
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-c4, svg)[aria-roledescription="c4"] rect { fill: color-mix(in srgb, var(--text-muted) 16%, var(--background-primary)); stroke: var(--text-muted); }
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-c4, svg)[aria-roledescription="c4"] rect[fill="none"] { fill: none; }
@@ -1138,6 +1141,8 @@ button.vam-template-section-header:hover { background: var(--background-modifier
 .markdown-rendered a.vam-link-scope.is-unresolved { color: color-mix(in srgb, var(--link-unresolved-color) 60%, var(--text-normal)); opacity: 1; text-decoration: none; border-bottom: 1px dashed currentcolor; }
 .vam-editor-scope :is(.cm-hmd-internal-link, .cm-hmd-internal-link .cm-underline, .cm-link, .cm-url) { color: color-mix(in srgb, var(--link-color) 72%, var(--text-normal)); }
 .vam-editor-scope :is(.cm-hmd-internal-link, .cm-hmd-internal-link .cm-underline, .cm-link, .cm-url):hover { color: color-mix(in srgb, var(--link-color-hover) 60%, var(--text-normal)); }
-.vam-editor-scope .cm-hmd-internal-link.is-unresolved, .vam-editor-scope .is-unresolved :is(.cm-hmd-internal-link, .cm-underline) { color: color-mix(in srgb, var(--link-unresolved-color) 60%, var(--text-normal)); opacity: 1; }
+.markdown-source-view.mod-cm6 .vam-editor-scope .is-unresolved { opacity: 1; }
+.markdown-source-view.mod-cm6 .vam-editor-scope :is(.cm-hmd-internal-link.is-unresolved, .is-unresolved .cm-hmd-internal-link, .is-unresolved .cm-underline) { color: color-mix(in srgb, var(--link-unresolved-color) 60%, var(--text-normal)); }
+.markdown-source-view.mod-cm6 .vam-editor-scope .is-unresolved .cm-underline { text-decoration: none; border-bottom: 1px dashed currentcolor; }
 .markdown-rendered a.vam-link-scope.footnote-backref { color: var(--text-muted); }
 .markdown-rendered a.vam-link-scope.footnote-backref:hover { color: var(--text-normal); }

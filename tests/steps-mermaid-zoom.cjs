@@ -473,8 +473,22 @@ test('link CSS: editor rules are scoped to .vam-editor-scope; no text-decoration
   const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
   const rules = css.split('\n').filter(line => line.includes(' { ') && /\.cm-hmd-internal-link|\.cm-link|\.cm-url/.test(line));
   assert.ok(rules.length >= 3);
-  for (const rule of rules) assert.ok(rule.startsWith('.vam-editor-scope'), rule);
+  for (const rule of rules) assert.ok(rule.includes('.vam-editor-scope'), rule);
   assert.equal(/text-decoration-style/.test(css), false);
+});
+
+test('editor unresolved link: the opacity wrapper and the underline colour are overridden with enough specificity', () => {
+  const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
+  assert.ok(css.includes('.markdown-source-view.mod-cm6 .vam-editor-scope .is-unresolved { opacity: 1; }'));
+  assert.ok(/\.markdown-source-view\.mod-cm6 \.vam-editor-scope :is\([^)]*\.is-unresolved \.cm-underline\) \{ color: color-mix/.test(css));
+});
+
+test('gantt CSS: active and done chips are light in dark themes, because mermaid forces near-black text on them', () => {
+  const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
+  for (const kind of ['active', 'done']) {
+    assert.ok(css.split('\n').some(l => l.startsWith('.theme-dark ') && l.includes(`.task[class*="${kind}"] {`) && l.includes('var(--text-normal))')), kind);
+  }
+  assert.equal(/!important/.test(css), false);
 });
 
 test('gantt CSS: bar and label colors come from theme variables, not black or white', () => {
