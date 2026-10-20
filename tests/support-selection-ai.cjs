@@ -38,7 +38,7 @@ class Setting {
  * Select `selected` inside `markdown`, open the panel, press the first preset button and answer every model call
  * with the next entry of `replies`. Returns the prompts of the prepared steps the panel passed to `run`, in order.
  */
-async function runPanel({ markdown, selected, replies, steps = false }) {
+async function runPanel({ markdown, selected, replies, steps = false, outcome = false }) {
   const obsidian = { Component, MarkdownView, MarkdownRenderer: { render: async () => {} }, Notice: class {}, Setting, setIcon() {}, Platform: { isMacOS: true }, requestUrl: async () => ({ json: {} }) };
   const globals = {
     HTMLElement: FakeElement, HTMLImageElement: class {}, HTMLTextAreaElement: class {}, HTMLButtonElement: class {},
@@ -60,7 +60,8 @@ async function runPanel({ markdown, selected, replies, steps = false }) {
   presets.children[0].listeners.click[0]();
   for (let turn = 0; turn < 50 && sent.length < replies.length; turn++) await new Promise(resolve => setImmediate(resolve));
   await new Promise(resolve => setImmediate(resolve));
-  return sent;
+  if (!outcome) return sent;
+  return { sent, output: panel.descendants().find(item => item.cls === 'vam-context-ai-output').value, status: panel.descendants().filter(item => item.cls.split(' ').includes('vam-context-ai-status')).map(item => item.textContent).join('|') };
 }
 function assert(value, message) { if (!value) throw new Error(message); }
 

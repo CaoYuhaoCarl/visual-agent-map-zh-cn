@@ -1,6 +1,7 @@
 import { Component, MarkdownRenderer, MarkdownView, Notice, Platform, setIcon, type App, type Editor } from "obsidian";
 import { getUiLanguage, t } from "../../i18n";
 import type { PreparedStep } from "../../core/step-runner";
+import { unsafeMermaid } from "../../ai/mermaid-safety";
 import { prepareStep } from "../../core/step-runner";
 import { imageMarkdown, type ImageCandidate } from "./action-plan";
 import { imageSearchStep } from "./steps/image-search/step";
@@ -697,11 +698,12 @@ class SelectionAiPanel extends Component {
         result = await this.run(request, this.model, controller.signal, undefined, plan.action === "research");
         insertAfter = plan.action === "research" || plan.action === "diagram";
         if (plan.action === "diagram") {
+          // CRLF and a lone CR are line breaks to the renderer too; normalize so no directive hides on a "line" the check never saw.
+          result = result.replace(/\r\n?/g, "\n");
           if (
             !/^```mermaid[ \t]*\n(?:(?!```)[\s\S])+\n```$/.test(result.trim()) ||
-            /(?:<|>\s*<|\bclick\b|%%\{|@\{|\bimg\s*:|\bimage\s*:|\burl\s*\(|https?:|data:|file:|javascript:)/i.test(
-              result
-            )
+            unsafeMermaid(result.trim().split("\n").slice(1, -1)) ||
+            /(?:%%\{|@\{|\bimg\s*:|\bimage\s*:|\burl\s*\(|https?:|data:|file:|javascript:)/i.test(result)
           )
             throw new Error(t("ui.context_ai_invalid_diagram"));
           this.previewChild = new Component();

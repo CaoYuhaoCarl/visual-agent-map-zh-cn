@@ -14238,6 +14238,8 @@ var UNSAFE_LINE = [
   /\]\s*(?:radius|color|stroke-color|stroke-width)\s*:/i
   // quadrantChart point styling
 ];
+var CLASS_ANNOTATION = /<<[A-Za-z][A-Za-z0-9_]*>>/g;
+var CLASS_DECLARATION = /^class\s+[A-Za-z_][A-Za-z0-9_-]*(?:~[A-Za-z0-9_, ]*~)?(?=\s*(?:\{|\["[^"\]]*"\])?\s*$)/;
 var FENCE = /^(`{3,}|~{3,})(.*)$/;
 var PREFIX = /^(?:[ \t]+|>|(?:[-*+]|\d+[.)])(?=[ \t])|\[[ xX]\](?=[ \t]))/;
 function core(line) {
@@ -14255,7 +14257,11 @@ function unsafeMermaid(body) {
   if (lines[0] === "---") return true;
   const header = lines.find((line) => !line.startsWith("%%"));
   if (!header || !allowedHeader(header)) return true;
-  return lines.some((line) => UNSAFE_LINE.some((pattern) => pattern.test(line)));
+  const classDiagram = /^classDiagram(?:-v2)?(?![\w-])/.test(header);
+  return lines.some((line) => {
+    const text11 = classDiagram ? line.replace(CLASS_ANNOTATION, " ").replace(CLASS_DECLARATION, "C") : line;
+    return UNSAFE_LINE.some((pattern) => pattern.test(text11));
+  });
 }
 function neutralizeUnsafeMermaid(markdown) {
   const lines = markdown.replace(/\r\n?/g, "\n").split("\n");
@@ -41174,9 +41180,8 @@ var SelectionAiPanel = class extends import_obsidian33.Component {
         result = await this.run(request, this.model, controller.signal, void 0, plan.action === "research");
         insertAfter = plan.action === "research" || plan.action === "diagram";
         if (plan.action === "diagram") {
-          if (!/^```mermaid[ \t]*\n(?:(?!```)[\s\S])+\n```$/.test(result.trim()) || /(?:<|>\s*<|\bclick\b|%%\{|@\{|\bimg\s*:|\bimage\s*:|\burl\s*\(|https?:|data:|file:|javascript:)/i.test(
-            result
-          ))
+          result = result.replace(/\r\n?/g, "\n");
+          if (!/^```mermaid[ \t]*\n(?:(?!```)[\s\S])+\n```$/.test(result.trim()) || unsafeMermaid(result.trim().split("\n").slice(1, -1)) || /(?:%%\{|@\{|\bimg\s*:|\bimage\s*:|\burl\s*\(|https?:|data:|file:|javascript:)/i.test(result))
             throw new Error(t("ui.context_ai_invalid_diagram"));
           this.previewChild = new import_obsidian33.Component();
           this.previewChild.load();
