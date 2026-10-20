@@ -36,6 +36,8 @@ import OutputLanguageZH from "./output-language.zh.md";
 import OutputLanguageEN from "./output-language.en.md";
 import MergeZH from "./merge.zh.md";
 import MergeEN from "./merge.en.md";
+import MergeRepairZH from "./merge-repair.zh.md";
+import MergeRepairEN from "./merge-repair.en.md";
 import SynthesizeZH from "./synthesize.zh.md";
 import SynthesizeEN from "./synthesize.en.md";
 import VisualAutoZH from "./visual-auto.zh.md";
@@ -101,6 +103,11 @@ const REPAIR_COUNTS_TEMPLATE: FragmentPair = { zh: RepairCountsZH, en: RepairCou
 /** The single follow-up request that asks the model to fix sections whose item counts missed the template. */
 export function repairCounts(language: UiLanguage, issues: string): string {
   return renderTemplate(inLanguage(REPAIR_COUNTS_TEMPLATE, language), { issues });
+}
+const MERGE_REPAIR_TEMPLATE: FragmentPair = { zh: MergeRepairZH, en: MergeRepairEN };
+/** The single follow-up request of an AI merge whose result lost or invented numbers, links or embeds. */
+export function mergeRepair(language: UiLanguage, missing: string, added: string, title: string): string {
+  return renderTemplate(inLanguage(MERGE_REPAIR_TEMPLATE, language), { missing, added, title });
 }
 export function sourceRegistry(catalog: string): string {
   return renderTemplate(SourceRegistryTemplate, { catalog });
