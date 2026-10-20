@@ -64,12 +64,6 @@ export interface TaskOptions {
   /** The synthesis draft step retried after chosen directions; it continues them even when the last draft failed. */
   continuesDirections?: boolean;
 }
-/** A synthesis draft the dialog may review in place: confirming saves it, discarding drops the pending run. */
-export interface SynthesisDraft {
-  result: AiResult;
-  confirm: (summary: string, detail: string) => Promise<void>;
-  discard: () => void;
-}
 /**
  * How the view reports a synthesis run to the dialog that started it. While the dialog is open the next stage is
  * shown there; once it is closed the run falls back to the node badge (or selection bar) and a Notice, and nothing is
@@ -80,7 +74,8 @@ export interface SynthesisObserver {
   /** The provider accepted the request; `cancel` stops the run from now on. */
   accepted?: (cancel: () => void) => void;
   directions?: (items: Suggestion[]) => void;
-  drafted?: (draft: SynthesisDraft) => void;
+  /** The result was written straight into the map (there is no draft review step); the dialog can close. */
+  written?: () => void;
 }
 /**
  * What the view does for a dialog that hides itself once AI starts (see ui/background-run.ts). `begin` hands the
@@ -261,8 +256,6 @@ export class NextStepModal extends Modal {
   private runPending = false;
   /** Model and effort edits wait here; they are saved when a run starts, never when the dialog is cancelled. */
   private pendingSettings: NotePatch = {};
-  /** The finished synthesis draft is being reviewed in this dialog. */
-  private reviewView?: DraftReviewView;
   constructor(
     app: App,
     private topic: string,
@@ -401,8 +394,6 @@ export class NextStepModal extends Modal {
     // starting is stopped.
     if (!this.detached) this.taskController?.abort();
     this.unsubscribeModels?.();
-    this.reviewView?.dispose();
-    this.reviewView = undefined;
   }
   /** Saves the model and effort chosen in this dialog, once, at the moment a run actually starts. */
   private async flushSettings(): Promise<void> {
@@ -595,7 +586,7 @@ export class NextStepModal extends Modal {
     button: HTMLButtonElement,
     direction: string | null,
     buildOptions: (signal: AbortSignal) => TaskOptions | Promise<TaskOptions>,
-    flow: { directions: (items: Suggestion[]) => void; drafted: (draft: SynthesisDraft) => void }
+    flow: { directions: (items: Suggestion[]) => void; written: () => void }
   ): void {
     void this.run(panel, button, async () => {
       const controller = this.taskController;
@@ -632,10 +623,10 @@ export class NextStepModal extends Modal {
           settle();
           flow.directions(items);
         },
-        drafted: draft => {
+        written: () => {
           outcome = true;
           settle();
-          flow.drafted(draft);
+          flow.written();
         }
       };
       await this.synthesize(
@@ -1291,36 +1282,8 @@ export class NextStepModal extends Modal {
       syncSynthesisStage();
       refreshSummary();
     };
-    const showReview = (draft: SynthesisDraft): void => {
-      if (this.closed) return;
-      for (const child of Array.from(this.contentEl.children)) child.addClass("is-hidden");
-      actions.addClass("is-hidden");
-      this.titleEl.setText(t("ui.review_synthesis_draft"));
-      const host = this.contentEl.createDiv("vam-next-review");
-      const review: DraftReview = selection
-        ? {
-            intro: t("ui.draft_creates_0", titleInput?.value.trim() ?? ""),
-            confirmLabel: t("ui.confirm_new_synthesis_topic")
-          }
-        : {
-            intro: t("ui.draft_replaces_0", this.topic),
-            currentSummary: this.modelSettings?.currentSummary,
-            confirmLabel: t("ui.confirm_update_to_parent_topic"),
-            sourcePath: this.modelSettings?.path
-          };
-      const view = new DraftReviewView(
-        this.app,
-        draft.result.summary,
-        draft.result.detail,
-        review,
-        draft.confirm,
-        draft.discard,
-        () => this.close()
-      );
-      this.reviewView = view;
-      view.mount(host, modalActions(this));
-    };
-    const flow = { directions: showDirections, drafted: showReview };
+    // The result is written by the view (no draft review step); the dialog has nothing left to show.
+    const flow = { directions: showDirections, written: () => this.close() };
     const needsName = (): boolean => !!titleInput && !titleInput.value.trim();
     const checkName = (): void => {
       if (!titleInput || stage !== "setup") return;

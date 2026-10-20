@@ -299,6 +299,16 @@ interface MergeTask {
 }
 /** How long the "merged, can undo" Notice stays, so its Undo button can be used. */
 const MERGE_DONE_NOTICE_MS = 15000;
+/**
+ * Writes an AI synthesis result into the parent topic. `save` re-checks the map, sources and parent note and throws
+ * (writing nothing) when anything changed; the caller decides whether the run may still write before calling it.
+ */
+type SynthesisWrite = (
+  result: AiResult,
+  save: (summary: string, detail: string) => Promise<void>,
+  summary: string,
+  detail: string
+) => void | Promise<void>;
 /** Unique ids for the hidden card labels; any view may render a card. */
 let cardLabelSequence = 0;
 const cardLabels = new WeakMap<HTMLElement, HTMLElement>();
@@ -378,7 +388,8 @@ export class VisualAgentMapView extends ItemView {
     mapId: string;
     sourceContent: string;
     controller: AbortController;
-    state: "running" | "directions" | "draft" | "failed" | "cancelled";
+    /** `applying`: the AI result passed its fences and is being written (no Stop; nothing to review). */
+    state: "running" | "directions" | "draft" | "applying" | "failed" | "cancelled";
     /** The step this run is on: the AI's suggested directions, or the draft itself. */
     step: "directions" | "draft";
     directions: Suggestion[];
@@ -428,15 +439,13 @@ export class VisualAgentMapView extends ItemView {
     {
       mapPath: string;
       mapId: string;
-      state: "running" | "directions" | "draft" | "failed" | "cancelled";
+      state: "running" | "directions" | "failed" | "cancelled";
       step: "directions" | "draft";
       controller: AbortController;
       progress: string;
       options: TaskOptions;
       directions: Suggestion[];
       direction: string;
-      draft?: AiResult;
-      save?: (summary: string, detail: string) => Promise<void>;
     }
   >();
   private viewportEl: HTMLElement | null = null;
@@ -3726,6 +3735,22 @@ export class VisualAgentMapView extends ItemView {
       new Notice(stale ? t("ui.merge_draft_stale") : this.plugin.recordFailure(t("log.merge_failed"), error));
     }
   }
+  /** A done Notice with Undo while the write is still the newest history step (the merge pattern). */
+  private undoNotice(message: string, previous: Action | undefined): void {
+    const entry = this.history.undoEntry;
+    if (entry && entry !== previous)
+      backgroundResultNotice(
+        message,
+        {
+          label: t("ui.undo"),
+          open: () => {
+            if (this.history.undoEntry === entry && !this.closed) this.enqueue(() => this.travel(false));
+          }
+        },
+        MERGE_DONE_NOTICE_MS
+      );
+    else new Notice(message, MERGE_DONE_NOTICE_MS);
+  }
   /** Stop, or clear a finished one: the run is aborted and forgotten, so a late result changes nothing. */
   private stopMergeTask(task: MergeTask): void {
     if (this.mergeTasks.get(task.mapPath) === task) this.mergeTasks.delete(task.mapPath);
@@ -5317,13 +5342,15 @@ export class VisualAgentMapView extends ItemView {
         text:
           task.state === "running"
             ? task.progress || t("ui.integration_running")
-            : task.state === "directions"
-              ? t("ui.choose_synthesis_direction")
-              : task.state === "draft"
-                ? t("ui.integration_draft_ready")
-                : task.state === "failed"
-                  ? task.progress || t("ui.integration_failed")
-                  : t("ui.research_stopped_existing_content_was_preserved")
+            : task.state === "applying"
+              ? t("ui.integration_running")
+              : task.state === "directions"
+                ? t("ui.choose_synthesis_direction")
+                : task.state === "draft"
+                  ? t("ui.integration_draft_ready")
+                  : task.state === "failed"
+                    ? task.progress || t("ui.integration_failed")
+                    : t("ui.research_stopped_existing_content_was_preserved")
       });
       if (task.state === "running")
         this.button(state, t("ui.stop_research"), () => {
@@ -5765,10 +5792,6 @@ export class VisualAgentMapView extends ItemView {
         this.button(header, t("ui.stop_research"), () => synthesis.controller.abort());
       } else if (synthesis.state === "directions")
         this.button(header, t("ui.choose_synthesis_direction"), () => this.openNextStep(node)).addClass(
-          "vam-badge-new"
-        );
-      else if (synthesis.state === "draft")
-        this.button(header, t("ui.review_synthesis_draft"), () => this.reviewSynthesisDraft(node)).addClass(
           "vam-badge-new"
         );
       else {
@@ -7565,7 +7588,7 @@ export class VisualAgentMapView extends ItemView {
     node: MapNode,
     options: TaskOptions,
     found: (items: Suggestion[], draft: (direction: string) => Promise<void>) => void,
-    drafted: (result: AiResult, save: (summary: string, detail: string) => Promise<void>) => void,
+    drafted: SynthesisWrite,
     failed: (message: string) => void,
     accepted?: () => void
   ): Promise<void> {
@@ -7649,7 +7672,7 @@ export class VisualAgentMapView extends ItemView {
     node: MapNode,
     options?: TaskOptions,
     direction = "",
-    drafted?: (result: AiResult, save: (summary: string, detail: string) => Promise<void>) => void,
+    drafted?: SynthesisWrite,
     failed?: (message: string) => void,
     accepted?: () => void
   ): Promise<void> {
@@ -7741,6 +7764,7 @@ export class VisualAgentMapView extends ItemView {
         this.plugin.mutate(async () => {
           if (
             options?.signal?.aborted ||
+            this.closed ||
             this.path !== mapPath ||
             this.map?.id !== mapId ||
             this.map.nodes
@@ -7804,22 +7828,29 @@ export class VisualAgentMapView extends ItemView {
           );
           await this.hydrate();
           this.render();
-          new Notice(t("ui.subtopic_synthesis_was_saved_to_current_understanding_and_ma"));
         });
-      if (drafted) drafted(result, save);
-      else
-        new DraftReviewModal(
-          this.app,
-          result.summary,
-          result.detail,
-          {
-            intro: t("ui.draft_replaces_0", note.title),
-            currentSummary: note.summary,
-            confirmLabel: t("ui.confirm_update_to_parent_topic"),
-            sourcePath: node.path
-          },
-          save
-        ).open();
+      // The result is written directly (no draft review); a write that fails or finds the topic changed writes
+      // nothing and is reported, without marking the parent topic as failed.
+      try {
+        await (
+          drafted ??
+          (async (_result, write, summary, detail) => {
+            const previous = this.history.undoEntry;
+            await write(summary, detail);
+            this.undoNotice(t("ui.synthesis_written_0", note.title), previous);
+          })
+        )(result, save, result.summary, result.detail);
+      } catch (error) {
+        if (options?.signal?.aborted || (error instanceof Error && error.name === "AbortError")) {
+          if (failed) failed(t("ui.research_stopped_existing_content_was_preserved"));
+          else new Notice(t("ui.research_stopped_existing_content_was_preserved"));
+        } else {
+          console.error("VAM synthesis write", error);
+          const message = this.plugin.recordFailure(t("log.child_integration_failed"), error);
+          if (failed) failed(message);
+          else new Notice(message);
+        }
+      }
     } catch (error) {
       if (options?.signal?.aborted || (error instanceof Error && error.name === "AbortError")) {
         await this.plugin.repo.updateNote(node.path, { status: note.status });
@@ -7857,7 +7888,7 @@ export class VisualAgentMapView extends ItemView {
       failed(t("ui.ai_running_ai"));
       return;
     }
-    if (step === "directions" && (existing?.state === "directions" || existing?.state === "draft")) {
+    if (step === "directions" && existing?.state === "directions") {
       failed(t("ui.synthesis_pending_review_first"));
       return;
     }
@@ -7866,10 +7897,6 @@ export class VisualAgentMapView extends ItemView {
       // a draft that is still waiting for review.
       if (existing && (existing.mapPath !== this.path || existing.mapId !== this.map.id)) {
         failed(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
-        return;
-      }
-      if (existing?.state === "draft") {
-        failed(t("ui.synthesis_pending_review_first"));
         return;
       }
     }
@@ -7900,8 +7927,6 @@ export class VisualAgentMapView extends ItemView {
     task.controller = controller;
     task.progress = "";
     task.direction = direction ?? "";
-    task.draft = undefined;
-    task.save = undefined;
     this.synthesisTasks.set(path, task);
     this.plugin.activeTasks.set(path, controller);
     const runOptions: TaskOptions = {
@@ -7916,7 +7941,7 @@ export class VisualAgentMapView extends ItemView {
       }
     };
     let launched = false;
-    let outcome: "found" | "drafted" | "failed" | null = null;
+    let outcome: "found" | "written" | "failed" | null = null;
     const markAccepted = (): void => {
       if (launched || controller.signal.aborted) return;
       launched = true;
@@ -7969,29 +7994,15 @@ export class VisualAgentMapView extends ItemView {
           node,
           runOptions,
           direction ?? "",
-          (result, save) => {
+          async (_result, save, summary, detail) => {
+            // Stop, close or a replaced task before the write: nothing is written.
             if (controller.signal.aborted || this.synthesisTasks.get(path) !== task) return;
-            outcome = "drafted";
-            task.state = "draft";
-            task.draft = result;
-            task.save = save;
-            if (observer?.isOpen() && observer.drafted)
-              observer.drafted({
-                result,
-                confirm: async (summary, detail) => {
-                  await save(summary, detail);
-                  if (this.synthesisTasks.get(path) === task) this.synthesisTasks.delete(path);
-                  this.render();
-                },
-                discard: () => this.discardSynthesis(node)
-              });
-            else
-              backgroundResultNotice(t("ui.background_synthesis_draft_ready"), {
-                label: t("ui.review_synthesis_draft"),
-                open: () => {
-                  if (this.synthesisTasks.get(path) === task) this.reviewSynthesisDraft(node);
-                }
-              });
+            const previous = this.history.undoEntry;
+            await save(summary, detail);
+            outcome = "written";
+            if (this.synthesisTasks.get(path) === task) this.synthesisTasks.delete(path);
+            this.undoNotice(t("ui.synthesis_written_0", this.notes.get(node.id)?.title ?? ""), previous);
+            if (observer?.isOpen()) observer.written?.();
           },
           fail,
           markAccepted
@@ -8010,28 +8021,6 @@ export class VisualAgentMapView extends ItemView {
     const current = this.synthesisTasks.get(node.path);
     if (current !== task || current?.state !== "directions" || current.mapPath !== this.path) return;
     this.openNextStep(node);
-  }
-  private reviewSynthesisDraft(node: MapNode): void {
-    const task = this.synthesisTasks.get(node.path);
-    if (!task || task.state !== "draft" || !task.draft || !task.save) return;
-    const note = this.notes.get(node.id);
-    new DraftReviewModal(
-      this.app,
-      task.draft.summary,
-      task.draft.detail,
-      {
-        intro: t("ui.draft_replaces_0", note?.title ?? ""),
-        currentSummary: note?.summary,
-        confirmLabel: t("ui.confirm_update_to_parent_topic"),
-        sourcePath: node.path
-      },
-      async (summary, detail) => {
-        await task.save!(summary, detail);
-        if (this.synthesisTasks.get(node.path) === task) this.synthesisTasks.delete(node.path);
-        this.render();
-      },
-      () => this.discardSynthesis(node)
-    ).open();
   }
   private discardSynthesis(node: MapNode): void {
     const task = this.synthesisTasks.get(node.path);
@@ -8436,48 +8425,24 @@ export class VisualAgentMapView extends ItemView {
       );
       if (JSON.stringify(latest.documents) !== task.sourceContent)
         throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
-      task.state = "draft";
       task.draft = result;
+      if (review && !flow) {
+        task.state = "draft";
+        this.render();
+        this.reviewIntegratedDraft(task);
+        return;
+      }
+      // The result is written directly (no draft review). The fences above and in saveIntegratedNode (stop, stale
+      // sources, map switch, view closed) leave every failure with zero writes.
+      if (this.closed) throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
+      task.state = "applying";
       this.render();
-      if (flow) {
-        // Shown in the dialog that asked for it while that is open; otherwise the selection bar and a Notice carry it.
-        if (flow.observer?.isOpen() && flow.observer.drafted)
-          flow.observer.drafted({
-            result,
-            confirm: (summary, detail) =>
-              this.plugin.mutate(() =>
-                this.saveIntegratedNode(
-                  title,
-                  sources,
-                  goal,
-                  rules,
-                  model,
-                  { ...result, summary, detail },
-                  options?.outputLanguage ?? language,
-                  task
-                )
-              ),
-            discard: () => this.discardSelectionSynthesis()
-          });
-        else
-          backgroundResultNotice(t("ui.background_synthesis_draft_ready"), {
-            label: t("ui.review_synthesis_draft"),
-            open: () => {
-              if (this.integrationTask === task && task.state === "draft") this.reviewIntegratedDraft(task);
-            }
-          });
-      } else if (review) this.reviewIntegratedDraft(task);
-      else
-        await this.saveIntegratedNode(
-          title,
-          sources,
-          goal,
-          rules,
-          model,
-          result,
-          options?.outputLanguage ?? language,
-          task
-        );
+      const previous = this.history.undoEntry;
+      const write = (): Promise<void> =>
+        this.saveIntegratedNode(title, sources, goal, rules, model, result, options?.outputLanguage ?? language, task);
+      await (flow ? this.plugin.mutate(write) : write());
+      this.undoNotice(t("ui.synthesis_new_topic_0", title), previous);
+      if (flow?.observer?.isOpen()) flow.observer.written?.();
     } catch (error) {
       if (this.integrationTask !== task) return;
       if (flow && controller.signal.aborted && flow.observer?.isOpen()) {
@@ -8533,9 +8498,10 @@ export class VisualAgentMapView extends ItemView {
     if (
       !this.map ||
       this.integrationTask !== task ||
+      this.closed ||
       this.path !== task.mapPath ||
       this.map.id !== task.mapId ||
-      task.state !== "draft"
+      (task.state !== "draft" && task.state !== "applying")
     )
       throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
     const latest = await this.topicReferenceGroup(
@@ -8569,7 +8535,35 @@ export class VisualAgentMapView extends ItemView {
       await this.mapChange(map => {
         map.nodes.push(integrated);
       });
-      if (this.history.undoEntry) this.history.undoEntry.label = t("ui.confirm_new_synthesis_topic");
+      const entry = this.history.undoEntry;
+      if (entry) {
+        entry.label = t("ui.confirm_new_synthesis_topic");
+        // Undo takes the new topic off the map and parks its note in Unassigned; Redo brings both back.
+        const mapUndo = entry.undo,
+          mapRedo = entry.redo;
+        let parked = "";
+        entry.undo = async () => {
+          parked = await this.plugin.repo.moveUnique(
+            integrated.path,
+            this.plugin.repo.topicFolder(this.path, "Unassigned")
+          );
+          await this.plugin.repo.setLifecycle(parked, this.map!.id, "", "unassigned");
+          try {
+            await mapUndo();
+          } catch (error) {
+            await this.plugin.repo.moveExact(parked, integrated.path);
+            await this.plugin.repo.setLifecycle(integrated.path, this.map!.id, this.map!.id, "active");
+            throw error;
+          }
+        };
+        entry.redo = async () => {
+          if (parked) {
+            await this.plugin.repo.moveExact(parked, integrated.path);
+            await this.plugin.repo.setLifecycle(integrated.path, this.map!.id, this.map!.id, "active");
+          }
+          await mapRedo();
+        };
+      }
       this.integrationTask = null;
       this.selected = integrated.id;
       this.multiSelected.clear();

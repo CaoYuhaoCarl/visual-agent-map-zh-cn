@@ -958,19 +958,26 @@ integrationTest('closing the modal after dispatch does not abort background synt
   assert.equal(task.state, 'directions'); assert.equal(task.directions[0].title, 'Common ground'); assert.equal(f.plugin.activeTasks.size, 0); assert.equal(f.plugin.running.size, 0); assert.deepEqual(failures, []);
   assert.equal((await f.repo.readNote(f.parent.path)).summary, 'Existing conclusion');
   await f.view.startSynthesis(f.parent, f.options(), 'Find shared constraints', message => failures.push(message), () => {});
-  assert.equal(f.contexts[1].task, 'Find shared constraints'); assert.equal(task.state, 'draft'); assert.equal(task.draft.summary, 'Draft summary'); assert.equal((await f.repo.readNote(f.parent.path)).summary, 'Existing conclusion');
-  await task.save('Edited summary', 'Edited detail');
+  // No draft review step: the AI result is written as soon as it passes the fences.
+  assert.equal(f.contexts[1].task, 'Find shared constraints'); assert.equal(f.view.synthesisTasks.has(f.parent.path), false);
   const saved = await f.repo.readNote(f.parent.path);
-  assert.equal(saved.summary, 'Edited summary'); assert.match(saved.detail, /Edited detail/); assert.equal(saved.status, 'completed'); assert.deepEqual(failures, []);
+  assert.equal(saved.summary, 'Draft summary'); assert.match(saved.detail, /Draft detail/); assert.equal(saved.status, 'completed'); assert.deepEqual(failures, []);
 });
-integrationTest('a synthesis draft is refused when the parent topic changed after the draft was made', async () => {
+integrationTest('direct synthesis write: Undo restores the parent note verbatim, Redo rewrites it, and a later edit blocks Undo', async () => {
   const f = await backgroundSynthesisFixture(async call => call === 1 ? f.directionsResult : f.draftResult);
+  const before = await f.repo.readNote(f.parent.path);
   await f.view.startSynthesis(f.parent, f.options(), null, message => assert.fail(message), () => {});
   await f.view.startSynthesis(f.parent, f.options(), 'Find shared constraints', message => assert.fail(message), () => {});
-  const task = f.view.synthesisTasks.get(f.parent.path); assert.equal(task.state, 'draft');
-  await f.repo.updateNote(f.parent.path, { summary: 'Edited meanwhile' });
-  await assert.rejects(task.save('Edited summary', 'Edited detail'), /the synthesis draft was not saved/i);
-  assert.equal((await f.repo.readNote(f.parent.path)).summary, 'Edited meanwhile');
+  assert.equal(f.view.synthesisTasks.has(f.parent.path), false);
+  assert.equal((await f.repo.readNote(f.parent.path)).summary, 'Draft summary');
+  await f.view.history.undo().undo();
+  const restored = await f.repo.readNote(f.parent.path);
+  assert.deepEqual(plain(restored), plain(before));
+  await f.view.history.redo().redo();
+  assert.equal((await f.repo.readNote(f.parent.path)).summary, 'Draft summary');
+  await f.repo.updateNote(f.parent.path, { summary: 'Edited after the write' });
+  await assert.rejects(f.view.history.undo().undo(), /the synthesis draft was not saved/i);
+  assert.equal((await f.repo.readNote(f.parent.path)).summary, 'Edited after the write');
 });
 integrationTest('Stop on the node cancels background synthesis and preserves the topic', async () => {
   const f = await backgroundSynthesisFixture((_call, signal, onAccepted) => new Promise((_resolve, reject) => { onAccepted(); signal.addEventListener('abort', () => { const error = new Error('cancelled'); error.name = 'AbortError'; reject(error); }, { once: true }); }));
@@ -1001,12 +1008,12 @@ integrationTest('a parent topic edited while the draft AI call is pending refuse
   const f = await backgroundSynthesisFixture(async (call, _signal, onAccepted) => { onAccepted(); if (call === 2) await gate.promise; return call === 1 ? f.directionsResult : f.draftResult; });
   await f.view.startSynthesis(f.parent, f.options(), null, message => assert.fail(message), () => {});
   let accepted = 0;
-  const drafting = f.view.startSynthesis(f.parent, f.options(), 'Find shared constraints', message => assert.fail(message), () => accepted++);
+  const drafting = f.view.startSynthesis(f.parent, f.options(), 'Find shared constraints', () => {}, () => accepted++);
   await until(() => accepted === 1);
   await f.repo.updateNote(f.parent.path, { summary: 'Edited while drafting' });
   gate.resolve(); await drafting;
-  const task = f.view.synthesisTasks.get(f.parent.path); assert.equal(task.state, 'draft');
-  await assert.rejects(task.save('Edited summary', 'Edited detail'), /the synthesis draft was not saved/i);
+  const task = f.view.synthesisTasks.get(f.parent.path); assert.equal(task.state, 'failed'); assert.match(task.progress, /the synthesis draft was not saved/i);
+  assert.equal(f.view.history.undoEntry, undefined, 'a refused write records no history step');
   const after = await f.repo.readNote(f.parent.path); assert.equal(after.summary, 'Edited while drafting'); assert.equal(after.detail, 'Existing knowledge');
 });
 integrationTest('aborting before dispatch acceptance leaves a cancelled synthesis on the node and no running state', async () => {
@@ -1337,8 +1344,7 @@ integrationTest('synthesis and integrated topics save with the template', async 
   await h.view.startSynthesis(h.topic, options(), null, message => assert.fail(message), () => {});
   await h.view.startSynthesis(h.topic, options(), 'Compare them', message => assert.fail(message), () => {});
   assert.equal(h.contexts.at(-1).detailTemplate.id, 'X');
-  const task = h.view.synthesisTasks.get(h.topic.path);
-  await task.save(task.draft.summary, task.draft.detail);
+  assert.equal(h.view.synthesisTasks.has(h.topic.path), false, 'written directly');
   const parent = await h.repo.readNote(h.topic.path);
   assert.ok(parent.detail.indexOf('### First part') < parent.detail.indexOf('### Second part'), parent.detail);
   assert.ok(!/### Core conclusions/.test(parent.detail), parent.detail);
@@ -1420,18 +1426,13 @@ async function synthesisWithIssues({ settings, mapTemplate, draft }) {
   const options = () => ({ researchMode: 'local', researchDepth: 'normal', visualMode: 'off', referenceGroups: [] });
   await h.view.startSynthesis(h.topic, options(), null, message => assert.fail(message), () => {});
   await h.view.startSynthesis(h.topic, options(), 'Compare them', message => assert.fail(message), () => {});
-  return { ...h, task: h.view.synthesisTasks.get(h.topic.path) };
+  return h;
 }
 const unmetDraft = { summary: 'Synth', detail: '### Main\n\nM\n\n### Examples\n\n- one', visualReferences: [], suggestions: [], formatIssues: [{ section: 'Examples', mode: 'exact', n: 3, actual: 1 }] };
-integrationTest('synthesis stores the draft format issues, rechecks an edited draft, and clears them without a count check', async () => {
+integrationTest('synthesis stores the result format issues and clears the old mark without a count check', async () => {
   const unedited = await synthesisWithIssues({ settings: { detailTemplates: [countedTemplate()] }, mapTemplate: 'K', draft: unmetDraft });
-  await unedited.task.save(unedited.task.draft.summary, unedited.task.draft.detail);
   assert.deepEqual(plain((await unedited.repo.readNote(unedited.topic.path)).detailFormatIssues), ['Examples: needs exactly 3, has 1']);
-  const edited = await synthesisWithIssues({ settings: { detailTemplates: [countedTemplate()] }, mapTemplate: 'K', draft: unmetDraft });
-  await edited.task.save(edited.task.draft.summary, '### Main\n\nM\n\n### Examples\n\n- one\n- two\n- three');
-  assert.deepEqual(plain((await edited.repo.readNote(edited.topic.path)).detailFormatIssues), [], 'edited draft meets the count');
   const uncounted = await synthesisWithIssues({ settings: {}, draft: { summary: 'Synth', detail: '### Core conclusions\n\nC', visualReferences: [], suggestions: [] } });
-  await uncounted.task.save(uncounted.task.draft.summary, `${uncounted.task.draft.detail}\n\nEdited`);
   const note = await uncounted.repo.readNote(uncounted.topic.path);
   assert.equal(note.summary, 'Synth');
   assert.deepEqual(plain(note.detailFormatIssues), [], 'no count check ran: the old mark is cleared');

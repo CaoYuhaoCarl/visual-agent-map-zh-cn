@@ -462,7 +462,7 @@ async function synthesisHarness({ language = 'en' } = {}) {
   view = new VisualAgentMapView({ app }, plugin);
   view.path = mapPath; view.map = doc; view.contentEl = { querySelector: () => null }; view.render = () => {}; view.ancestorContext = async () => ''; view.focusNode = () => {};
   view.enqueue = work => work();
-  view.hydrate = async () => { view.notes = new Map(await Promise.all(doc.nodes.map(async n => [n.id, await repo.readNote(n.path)]))); };
+  view.hydrate = async () => { view.notes = new Map(await Promise.all(view.map.nodes.map(async n => [n.id, await repo.readNote(n.path)]))); };
   await view.hydrate();
   const hold = () => { const gate = deferred(); gates.push(gate); return gate; };
   const openSingle = async () => { const before = modals.length; view.openNextStep(parent); await until(() => modals.length === before + 1); const modal = modals.at(-1); dom.findAll(modal.contentEl, i => hasCls(i, 'vam-next-cards'))[0].children[2].click(); return modal; };
@@ -470,6 +470,7 @@ async function synthesisHarness({ language = 'en' } = {}) {
   const openSelection = async () => { const before = modals.length; view.multiSelected = new Set(kids.map(k => k.id)); view.integrationMode = true; view.integrateSelected(); await until(() => modals.length === before + 1); return modals.at(-1); };
   return { openSelection, repo, app, view, plugin, doc, parent, kids, calls, notices, Notice, knobs, modals, hold, openSingle, note, mapPath };
 }
+const untilAsync = async predicate => { for (let i = 0; i < 200; i++) { if (await predicate()) return; await new Promise(r => setImmediate(r)); } throw new Error('condition not reached'); };
 const panelOf = (modal, index = 2) => findAll(modal.contentEl, i => hasCls(i, 'vam-next-research'))[index];
 const barButton = (modal, text) => findAll(modal.modalEl, i => i.tag === 'button' && i.text === text && !hasCls(i, 'is-hidden'))[0];
 const visibleBar = (modal, text) => { const b = button(modal.modalEl, text); return b && !b.hidden ? b : undefined; };
@@ -509,34 +510,28 @@ integrationTest('synthesis: pressing hides the dialog; directions return by one 
   button(panelOf(again), 'Choose this direction').click();
   box.value = 'Edited direction';
   visibleBar(again, 'Get synthesis draft').click();
-  await until(() => h.view.synthesisTasks.get(h.parent.path)?.state === 'draft');
-  assert.equal(h.calls.length, 2); assert.equal(h.calls[1].directions, false); assert.equal(h.calls[1].context.task, 'Edited direction');
-  assert.equal(again.closeCount, 1); assert.equal(h.modals.length, 2, 'the finished draft does not open a review by itself');
-  assert.equal(find(again.contentEl, i => hasCls(i, 'vam-next-review')), undefined);
-  assert.equal((await h.note()).summary, 'Existing conclusion', 'the draft is not written until it is confirmed');
-  assert.equal(actionNotices(h).filter(n => n.actions[0].text === 'Review synthesis draft').length, 1, 'exactly one draft Notice');
-  pressNotice(h, 'Review synthesis draft');
-  assert.equal(h.modals.length, 3, 'the Notice button opens the review');
-  const review = h.modals[2];
-  findAll(review.contentEl, i => i.tag === 'textarea')[0].value = 'Edited summary';
-  button(review.modalEl, 'Confirm update to parent topic').click(); await tick(); await tick();
+  await until(() => !h.view.synthesisTasks.has(h.parent.path) && h.calls.length === 2);
+  await untilAsync(async () => (await h.note()).summary === 'Draft summary');
+  assert.equal(h.calls[1].directions, false); assert.equal(h.calls[1].context.task, 'Edited direction');
+  assert.equal(again.closeCount, 1); assert.equal(h.modals.length, 2, 'no draft review opens: the result is written directly');
   const saved = await h.note();
-  assert.equal(saved.summary, 'Edited summary'); assert.match(saved.detail, /Draft detail/); assert.equal(saved.status, 'completed');
-  assert.equal(h.view.synthesisTasks.size, 0, 'a confirmed draft leaves no pending task');
+  assert.match(saved.detail, /Draft detail/); assert.equal(saved.status, 'completed');
+  assert.equal(actionNotices(h).filter(n => n.actions[0].text === 'Review synthesis draft').length, 0, 'there is no review Notice');
+  assert.equal(actionNotices(h).filter(n => n.actions[0].text === 'Undo').length, 1, 'one done Notice with Undo');
+  pressNotice(h, 'Undo'); await tick(); await tick(); await tick();
+  assert.equal((await h.note()).summary, 'Existing conclusion', 'Undo restores the parent');
 });
-integrationTest('synthesis: skipping the suggestions drafts directly, hides the dialog, and the review waits on its Notice', async () => {
+integrationTest('synthesis: skipping the suggestions writes the parent directly and hides the dialog; there is no review', async () => {
   const h = await synthesisHarness();
   const modal = await h.openSingle();
   visibleBar(modal, 'Skip suggestions and draft now').click();
-  await until(() => h.view.synthesisTasks.get(h.parent.path)?.state === 'draft');
+  await untilAsync(async () => (await h.note()).summary === 'Draft summary');
   assert.equal(h.calls.length, 1); assert.equal(h.calls[0].directions, false);
-  assert.equal((await h.note()).summary, 'Existing conclusion');
-  assert.equal(modal.closeCount, 1); assert.equal(h.modals.length, 1, 'no review opens by itself');
-  assert.equal(find(modal.contentEl, i => hasCls(i, 'vam-next-review')), undefined);
-  assert.equal(actionNotices(h).length, 1); pressNotice(h, 'Review synthesis draft');
-  assert.equal(h.modals.length, 2);
+  assert.equal(modal.closeCount, 1); assert.equal(h.modals.length, 1, 'no review opens');
+  assert.equal(h.view.synthesisTasks.size, 0);
+  assert.equal(actionNotices(h).length, 1); assert.equal(actionNotices(h)[0].actions[0].text, 'Undo');
 });
-integrationTest('synthesis: the hidden dialog is never aborted or written; the result waits on the node and its badge reopens the same flow', async () => {
+integrationTest('synthesis: the hidden dialog is never aborted or written into; the draft is written directly, with no review', async () => {
   const h = await synthesisHarness();
   const modal = await h.openSingle();
   const gate = h.hold();
@@ -547,18 +542,16 @@ integrationTest('synthesis: the hidden dialog is never aborted or written; the r
   gate.resolve(); await until(() => h.view.synthesisTasks.get(h.parent.path)?.state === 'directions');
   assert.equal(findAll(modal.contentEl, i => hasCls(i, 'vam-next-angle')).length, 0, 'nothing was written into the hidden dialog');
   assert.equal(actionNotices(h).length, 1, 'the Notice and badge carry the result');
-  // Reopening shows the waiting directions in stage 2; the draft then arrives after a second hide and takes the badge path.
   const again = await h.openSingle();
-  assert.equal(h.modals.length, 2);
   assert.equal(findAll(again.contentEl, i => hasCls(i, 'vam-next-angle')).length, 2);
   const second = h.hold();
   visibleBar(again, 'Get synthesis draft').click(); await until(() => h.calls.length === 2);
   assert.equal(again.closeCount, 1);
-  second.resolve(); await until(() => h.view.synthesisTasks.get(h.parent.path)?.state === 'draft');
-  assert.equal(find(again.contentEl, i => hasCls(i, 'vam-next-review')), undefined, 'the draft was not rendered into the hidden dialog');
-  assert.equal((await h.note()).summary, 'Existing conclusion', 'a pending draft writes nothing');
-  h.view.reviewSynthesisDraft(h.parent);
-  assert.equal(h.modals.length, 3, 'the badge opens the existing review dialog');
+  assert.equal((await h.note()).summary, 'Existing conclusion', 'nothing is written before the result arrives');
+  second.resolve(); await untilAsync(async () => (await h.note()).summary === 'Draft summary');
+  assert.equal(find(again.contentEl, i => hasCls(i, 'vam-next-review')), undefined, 'nothing was rendered into the hidden dialog');
+  assert.equal(h.modals.length, 2); assert.equal(h.view.synthesisTasks.size, 0);
+  assert.ok(actionNotices(h).some(n => n.actions[0].text === 'Undo'));
 });
 integrationTest('synthesis: Stop on the card stops the accepted run, writes nothing and leaves the cancelled badge to retry or discard', async () => {
   const h = await synthesisHarness();
@@ -704,18 +697,16 @@ integrationTest('synthesis: two requests for the same topic start one run', asyn
   gate.resolve(); await first;
   assert.equal(h.view.synthesisTasks.get(h.parent.path).state, 'directions');
 });
-integrationTest('synthesis: a draft is never written when the topic changed while it was being made', async () => {
+integrationTest('synthesis: nothing is written when the topic changed while the result was being made', async () => {
   const h = await synthesisHarness();
   const modal = await h.openSingle();
-  visibleBar(modal, 'Skip suggestions and draft now').click();
-  await until(() => h.view.synthesisTasks.get(h.parent.path)?.state === 'draft');
-  pressNotice(h, 'Review synthesis draft');
-  const review = h.modals.at(-1);
+  const gate = h.hold();
+  visibleBar(modal, 'Skip suggestions and draft now').click(); await until(() => h.calls.length === 1);
   await h.repo.updateNote(h.parent.path, { summary: 'Edited elsewhere' });
-  button(review.modalEl, 'Confirm update to parent topic').click(); await tick(); await tick();
-  assert.equal((await h.note()).summary, 'Edited elsewhere', 'the stale draft did not overwrite it');
-  assert.ok(findAll(review.modalEl, i => hasCls(i, 'vam-next-status')).some(i => /changed/i.test(i.text)), 'the review keeps the draft and says why');
-  assert.equal(review.closeCount, 0);
+  gate.resolve(); await until(() => h.view.synthesisTasks.get(h.parent.path)?.state === 'failed');
+  assert.equal((await h.note()).summary, 'Edited elsewhere', 'the stale result did not overwrite it');
+  assert.equal(h.view.history.undoEntry, undefined, 'no history step');
+  assert.equal(actionNotices(h).filter(n => n.actions[0].text === 'Undo').length, 0);
 });
 
 // Fields that belong to the run itself: both dialogs must show exactly these (the name is the selection's own extra).
@@ -753,19 +744,22 @@ integrationTest('multi-select synthesis: pressing hides the dialog; directions, 
   const before = (await h.repo.readMap(h.mapPath)).nodes.length;
   button(panelOf(again), 'Choose this direction').click();
   visibleBar(again, 'Get synthesis draft').click();
-  await until(() => h.view.integrationTask?.state === 'draft');
+  await untilAsync(async () => (await h.repo.readMap(h.mapPath)).nodes.length === before + 1);
   assert.equal(h.calls[1].context.task, 'Find shared constraints'); assert.equal(h.calls[1].directions, false);
-  assert.equal((await h.repo.readMap(h.mapPath)).nodes.length, before, 'nothing is created before the draft is confirmed');
-  assert.equal(h.modals.length, 2, 'the finished draft does not open a review by itself'); assert.equal(again.closeCount, 1);
-  assert.equal(actionNotices(h).filter(n => n.actions[0].text === 'Review synthesis draft').length, 1);
-  pressNotice(h, 'Review synthesis draft');
-  assert.equal(h.modals.length, 3);
-  button(h.modals[2].modalEl, 'Confirm new synthesis topic').click(); await tick(); await tick(); await tick();
+  assert.equal(h.modals.length, 2, 'no review opens: the topic is created directly'); assert.equal(again.closeCount, 1);
+  assert.equal(actionNotices(h).filter(n => n.actions[0].text === 'Review synthesis draft').length, 0);
   const saved = await h.repo.readMap(h.mapPath);
-  assert.equal(saved.nodes.length, before + 1);
   const created = await h.repo.readNote(saved.nodes.at(-1).path);
   assert.equal(created.title, 'Cooking water'); assert.equal(created.summary, 'Draft summary'); assert.equal(created.status, 'completed');
   assert.equal(h.view.integrationTask, null);
+  assert.equal(actionNotices(h).filter(n => n.actions[0].text === 'Undo').length, 1);
+  const createdPath = saved.nodes.at(-1).path;
+  pressNotice(h, 'Undo'); await tick(); await tick(); await tick();
+  assert.equal((await h.repo.readMap(h.mapPath)).nodes.length, before, 'Undo removes the new topic from the map');
+  assert.ok(!h.app.vault.getAbstractFileByPath(createdPath), 'and its note leaves the topic folder (parked in Unassigned)');
+  await h.view.history.redo().redo();
+  assert.equal((await h.repo.readMap(h.mapPath)).nodes.length, before + 1, 'Redo brings it back');
+  assert.equal((await h.repo.readNote(createdPath)).title, 'Cooking water');
 });
 integrationTest('multi-select synthesis: the chosen content template reaches the draft and the saved topic', async () => {
   const h = await synthesisHarness();
@@ -776,10 +770,8 @@ integrationTest('multi-select synthesis: the chosen content template reaches the
   const style = byLabel(modal.contentEl, 'Note style'); style.value = 'custom'; style.fire('change');
   const select = byLabel(modal.contentEl, 'Content template'); select.value = 't1'; select.change?.();
   visibleBar(modal, 'Skip suggestions and draft now').click();
-  await until(() => h.view.integrationTask?.state === 'draft');
+  await untilAsync(async () => (await h.repo.readMap(h.mapPath)).nodes.length === 3 + 1);
   assert.equal(h.calls.at(-1).context.detailTemplate?.id, 't1', 'the draft is written for the chosen template');
-  pressNotice(h, 'Review synthesis draft');
-  button(h.modals.at(-1).modalEl, 'Confirm new synthesis topic').click(); await tick(); await tick(); await tick();
   const saved = await h.repo.readMap(h.mapPath);
   assert.match((await h.repo.readNote(saved.nodes.at(-1).path)).detail, /Key points/, 'the saved topic uses the chosen template');
 });
@@ -802,13 +794,23 @@ integrationTest('multi-select synthesis: Stop on the bar writes nothing and show
   visibleBar(second, 'Skip suggestions and draft now').click(); await until(() => h.calls.length === 2);
   assert.equal(second.closeCount, 1); assert.equal(h.calls[1].signal.aborted, false);
   second.close(); assert.equal(h.calls[1].signal.aborted, false, 'closing the hidden dialog again does not abort');
-  draftGate.resolve(); await until(() => h.view.integrationTask?.state === 'draft');
+  assert.equal((await h.repo.readMap(h.mapPath)).nodes.length, notesBefore, 'nothing is created before the result arrives');
+  draftGate.resolve(); await untilAsync(async () => (await h.repo.readMap(h.mapPath)).nodes.length === notesBefore + 1);
   assert.equal(find(second.contentEl, i => hasCls(i, 'vam-next-review')), undefined);
-  assert.equal(actionNotices(h).length, 1); assert.equal(actionNotices(h)[0].actions[0].text, 'Review synthesis draft');
-  assert.equal((await h.repo.readMap(h.mapPath)).nodes.length, notesBefore, 'a pending draft creates nothing');
-  h.view.integrateSelected();
-  assert.equal(h.modals.length, 3, 'the waiting draft opens the existing review dialog');
-  assert.ok(button(h.modals.at(-1).modalEl, 'Confirm new synthesis topic'));
+  assert.equal(actionNotices(h).length, 1); assert.equal(actionNotices(h)[0].actions[0].text, 'Undo');
+  assert.equal(h.modals.length, 2, 'no review dialog opens'); assert.equal(h.view.integrationTask, null);
+});
+integrationTest('multi-select synthesis: nothing is created when a source changed while the result was being made', async () => {
+  const h = await synthesisHarness();
+  const modal = await h.openSelection();
+  const before = (await h.repo.readMap(h.mapPath)).nodes.length;
+  const gate = h.hold();
+  visibleBar(modal, 'Skip suggestions and draft now').click(); await until(() => h.calls.length === 1);
+  await h.repo.updateNote(h.kids[0].path, { summary: 'Edited elsewhere' });
+  gate.resolve(); await until(() => h.view.integrationTask?.state === 'failed');
+  assert.equal((await h.repo.readMap(h.mapPath)).nodes.length, before);
+  assert.equal(h.view.history.undoEntry, undefined);
+  assert.equal(actionNotices(h).filter(n => n.actions[0].text === 'Undo').length, 0);
 });
 integrationTest('multi-select synthesis: Stop before the provider accepts sends no request; a late result after Stop is dropped', async () => {
   const h = await synthesisHarness();

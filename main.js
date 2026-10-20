@@ -706,6 +706,8 @@ var english = {
   "ui.merge_bar_title": "Merging:",
   "ui.merge_locked": "Merging; try again when it finishes",
   "ui.merge_done_0": "Merged into \u201C{0}\u201D. You can undo.",
+  "ui.synthesis_written_0": "Synthesis written to \u201C{0}\u201D. You can undo.",
+  "ui.synthesis_new_topic_0": "Created synthesis topic \u201C{0}\u201D. You can undo.",
   "ui.merge_draft_stale": "A source topic changed or left the map, so nothing was merged",
   "log.merge_failed": "AI merge failed",
   "ui.merge_saved_refresh_failed": "Merged, but the view failed to refresh. Reopen the map.",
@@ -2285,6 +2287,8 @@ var traditionalChinese = {
   "ui.merge_bar_title": "\u5408\u4F75\u4E2D\uFF1A",
   "ui.merge_locked": "\u5408\u4F75\u4E2D\uFF0C\u5B8C\u6210\u5F8C\u518D\u64CD\u4F5C",
   "ui.merge_done_0": "\u5DF2\u5408\u4F75\u6210\u300C{0}\u300D\uFF0C\u53EF\u5FA9\u539F",
+  "ui.synthesis_written_0": "\u5DF2\u6574\u5408\u4E26\u5BEB\u5165\u300C{0}\u300D\uFF0C\u53EF\u5FA9\u539F",
+  "ui.synthesis_new_topic_0": "\u5DF2\u5EFA\u7ACB\u6574\u5408\u8B70\u984C\u300C{0}\u300D\uFF0C\u53EF\u5FA9\u539F",
   "ui.merge_draft_stale": "\u4F86\u6E90\u8B70\u984C\u5DF2\u8B8A\u66F4\u6216\u4E0D\u5728\u5716\u4E0A\uFF0C\u6C92\u6709\u5408\u4F75",
   "log.merge_failed": "AI \u5408\u4F75\u5931\u6557",
   "ui.merge_saved_refresh_failed": "\u5DF2\u5408\u4F75\uFF0C\u4F46\u756B\u9762\u66F4\u65B0\u5931\u6557\uFF0C\u8ACB\u91CD\u65B0\u958B\u555F\u5FC3\u667A\u5716",
@@ -18777,8 +18781,6 @@ var NextStepModal = class extends import_obsidian21.Modal {
     __publicField(this, "runPending", false);
     /** Model and effort edits wait here; they are saved when a run starts, never when the dialog is cancelled. */
     __publicField(this, "pendingSettings", {});
-    /** The finished synthesis draft is being reviewed in this dialog. */
-    __publicField(this, "reviewView");
     __publicField(this, "taskSignal");
     __publicField(this, "taskController");
     __publicField(this, "unsubscribeModels");
@@ -18878,12 +18880,10 @@ var NextStepModal = class extends import_obsidian21.Modal {
     return controller.signal.aborted || this.closed && !this.detached;
   }
   onClose() {
-    var _a, _b, _c;
+    var _a, _b;
     this.closed = true;
     if (!this.detached) (_a = this.taskController) == null ? void 0 : _a.abort();
     (_b = this.unsubscribeModels) == null ? void 0 : _b.call(this);
-    (_c = this.reviewView) == null ? void 0 : _c.dispose();
-    this.reviewView = void 0;
   }
   /** Saves the model and effort chosen in this dialog, once, at the moment a run actually starts. */
   async flushSettings() {
@@ -19091,10 +19091,10 @@ var NextStepModal = class extends import_obsidian21.Modal {
           settle();
           flow.directions(items);
         },
-        drafted: (draft) => {
+        written: () => {
           outcome = true;
           settle();
-          flow.drafted(draft);
+          flow.written();
         }
       };
       await this.synthesize(
@@ -19702,35 +19702,7 @@ var NextStepModal = class extends import_obsidian21.Modal {
       syncSynthesisStage();
       refreshSummary();
     };
-    const showReview = (draft) => {
-      var _a2, _b2, _c2;
-      if (this.closed) return;
-      for (const child of Array.from(this.contentEl.children)) child.addClass("is-hidden");
-      actions.addClass("is-hidden");
-      this.titleEl.setText(t("ui.review_synthesis_draft"));
-      const host = this.contentEl.createDiv("vam-next-review");
-      const review = selection ? {
-        intro: t("ui.draft_creates_0", (_a2 = titleInput == null ? void 0 : titleInput.value.trim()) != null ? _a2 : ""),
-        confirmLabel: t("ui.confirm_new_synthesis_topic")
-      } : {
-        intro: t("ui.draft_replaces_0", this.topic),
-        currentSummary: (_b2 = this.modelSettings) == null ? void 0 : _b2.currentSummary,
-        confirmLabel: t("ui.confirm_update_to_parent_topic"),
-        sourcePath: (_c2 = this.modelSettings) == null ? void 0 : _c2.path
-      };
-      const view = new DraftReviewView(
-        this.app,
-        draft.result.summary,
-        draft.result.detail,
-        review,
-        draft.confirm,
-        draft.discard,
-        () => this.close()
-      );
-      this.reviewView = view;
-      view.mount(host, modalActions(this));
-    };
-    const flow = { directions: showDirections, drafted: showReview };
+    const flow = { directions: showDirections, written: () => this.close() };
     const needsName = () => !!titleInput && !titleInput.value.trim();
     const checkName = () => {
       var _a2;
@@ -30828,6 +30800,22 @@ ${request.requirements}` : preset.text,
       new import_obsidian29.Notice(stale ? t("ui.merge_draft_stale") : this.plugin.recordFailure(t("log.merge_failed"), error));
     }
   }
+  /** A done Notice with Undo while the write is still the newest history step (the merge pattern). */
+  undoNotice(message, previous) {
+    const entry = this.history.undoEntry;
+    if (entry && entry !== previous)
+      backgroundResultNotice(
+        message,
+        {
+          label: t("ui.undo"),
+          open: () => {
+            if (this.history.undoEntry === entry && !this.closed) this.enqueue(() => this.travel(false));
+          }
+        },
+        MERGE_DONE_NOTICE_MS
+      );
+    else new import_obsidian29.Notice(message, MERGE_DONE_NOTICE_MS);
+  }
   /** Stop, or clear a finished one: the run is aborted and forgotten, so a late result changes nothing. */
   stopMergeTask(task) {
     if (this.mergeTasks.get(task.mapPath) === task) this.mergeTasks.delete(task.mapPath);
@@ -32301,7 +32289,7 @@ ${request.requirements}` : preset.text,
       const task = this.integrationTask, state = this.contentEl.createDiv("vam-integration-progress");
       state.setAttr("aria-live", "polite");
       state.createSpan({
-        text: task.state === "running" ? task.progress || t("ui.integration_running") : task.state === "directions" ? t("ui.choose_synthesis_direction") : task.state === "draft" ? t("ui.integration_draft_ready") : task.state === "failed" ? task.progress || t("ui.integration_failed") : t("ui.research_stopped_existing_content_was_preserved")
+        text: task.state === "running" ? task.progress || t("ui.integration_running") : task.state === "applying" ? t("ui.integration_running") : task.state === "directions" ? t("ui.choose_synthesis_direction") : task.state === "draft" ? t("ui.integration_draft_ready") : task.state === "failed" ? task.progress || t("ui.integration_failed") : t("ui.research_stopped_existing_content_was_preserved")
       });
       if (task.state === "running")
         this.button(state, t("ui.stop_research"), () => {
@@ -32697,10 +32685,6 @@ ${request.requirements}` : preset.text,
         this.button(header, t("ui.stop_research"), () => synthesis.controller.abort());
       } else if (synthesis.state === "directions")
         this.button(header, t("ui.choose_synthesis_direction"), () => this.openNextStep(node)).addClass(
-          "vam-badge-new"
-        );
-      else if (synthesis.state === "draft")
-        this.button(header, t("ui.review_synthesis_draft"), () => this.reviewSynthesisDraft(node)).addClass(
           "vam-badge-new"
         );
       else {
@@ -34470,7 +34454,7 @@ ${request.requirements}` : preset.text,
     }
   }
   async integrateChildren(node, options, direction = "", drafted, failed, accepted) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j;
     if (!this.map || this.plugin.running.has(node.path)) {
       failed == null ? void 0 : failed(t("ui.ai_running_ai"));
       return;
@@ -34553,7 +34537,7 @@ ${request.requirements}` : preset.text,
       await this.plugin.repo.updateNote(node.path, { status: note.status });
       const save = async (summary, detail) => this.plugin.mutate(async () => {
         var _a2, _b2, _c2, _d2, _e2;
-        if (((_a2 = options == null ? void 0 : options.signal) == null ? void 0 : _a2.aborted) || this.path !== mapPath || ((_b2 = this.map) == null ? void 0 : _b2.id) !== mapId || this.map.nodes.filter((item) => item.parentId === node.id).map((item) => item.id).sort().join("|") !== childIds)
+        if (((_a2 = options == null ? void 0 : options.signal) == null ? void 0 : _a2.aborted) || this.closed || this.path !== mapPath || ((_b2 = this.map) == null ? void 0 : _b2.id) !== mapId || this.map.nodes.filter((item) => item.parentId === node.id).map((item) => item.id).sort().join("|") !== childIds)
           throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
         const currentSources = await this.topicReferenceGroup(
           children,
@@ -34603,24 +34587,26 @@ ${request.requirements}` : preset.text,
         );
         await this.hydrate();
         this.render();
-        new import_obsidian29.Notice(t("ui.subtopic_synthesis_was_saved_to_current_understanding_and_ma"));
       });
-      if (drafted) drafted(result, save);
-      else
-        new DraftReviewModal(
-          this.app,
-          result.summary,
-          result.detail,
-          {
-            intro: t("ui.draft_replaces_0", note.title),
-            currentSummary: note.summary,
-            confirmLabel: t("ui.confirm_update_to_parent_topic"),
-            sourcePath: node.path
-          },
-          save
-        ).open();
+      try {
+        await (drafted != null ? drafted : async (_result, write, summary, detail) => {
+          const previous = this.history.undoEntry;
+          await write(summary, detail);
+          this.undoNotice(t("ui.synthesis_written_0", note.title), previous);
+        })(result, save, result.summary, result.detail);
+      } catch (error) {
+        if (((_i = options == null ? void 0 : options.signal) == null ? void 0 : _i.aborted) || error instanceof Error && error.name === "AbortError") {
+          if (failed) failed(t("ui.research_stopped_existing_content_was_preserved"));
+          else new import_obsidian29.Notice(t("ui.research_stopped_existing_content_was_preserved"));
+        } else {
+          console.error("VAM synthesis write", error);
+          const message = this.plugin.recordFailure(t("log.child_integration_failed"), error);
+          if (failed) failed(message);
+          else new import_obsidian29.Notice(message);
+        }
+      }
     } catch (error) {
-      if (((_i = options == null ? void 0 : options.signal) == null ? void 0 : _i.aborted) || error instanceof Error && error.name === "AbortError") {
+      if (((_j = options == null ? void 0 : options.signal) == null ? void 0 : _j.aborted) || error instanceof Error && error.name === "AbortError") {
         await this.plugin.repo.updateNote(node.path, { status: note.status });
         if (failed) failed(t("ui.research_stopped_existing_content_was_preserved"));
         else new import_obsidian29.Notice(t("ui.research_stopped_existing_content_was_preserved"));
@@ -34649,17 +34635,13 @@ ${request.requirements}` : preset.text,
       failed(t("ui.ai_running_ai"));
       return;
     }
-    if (step === "directions" && ((existing == null ? void 0 : existing.state) === "directions" || (existing == null ? void 0 : existing.state) === "draft")) {
+    if (step === "directions" && (existing == null ? void 0 : existing.state) === "directions") {
       failed(t("ui.synthesis_pending_review_first"));
       return;
     }
     if (step === "draft") {
       if (existing && (existing.mapPath !== this.path || existing.mapId !== this.map.id)) {
         failed(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
-        return;
-      }
-      if ((existing == null ? void 0 : existing.state) === "draft") {
-        failed(t("ui.synthesis_pending_review_first"));
         return;
       }
     }
@@ -34685,8 +34667,6 @@ ${request.requirements}` : preset.text,
     task.controller = controller;
     task.progress = "";
     task.direction = direction != null ? direction : "";
-    task.draft = void 0;
-    task.save = void 0;
     this.synthesisTasks.set(path, task);
     this.plugin.activeTasks.set(path, controller);
     const runOptions = {
@@ -34751,29 +34731,15 @@ ${request.requirements}` : preset.text,
           node,
           runOptions,
           direction != null ? direction : "",
-          (result, save) => {
+          async (_result, save, summary, detail) => {
+            var _a, _b, _c;
             if (controller.signal.aborted || this.synthesisTasks.get(path) !== task) return;
-            outcome = "drafted";
-            task.state = "draft";
-            task.draft = result;
-            task.save = save;
-            if ((observer == null ? void 0 : observer.isOpen()) && observer.drafted)
-              observer.drafted({
-                result,
-                confirm: async (summary, detail) => {
-                  await save(summary, detail);
-                  if (this.synthesisTasks.get(path) === task) this.synthesisTasks.delete(path);
-                  this.render();
-                },
-                discard: () => this.discardSynthesis(node)
-              });
-            else
-              backgroundResultNotice(t("ui.background_synthesis_draft_ready"), {
-                label: t("ui.review_synthesis_draft"),
-                open: () => {
-                  if (this.synthesisTasks.get(path) === task) this.reviewSynthesisDraft(node);
-                }
-              });
+            const previous = this.history.undoEntry;
+            await save(summary, detail);
+            outcome = "written";
+            if (this.synthesisTasks.get(path) === task) this.synthesisTasks.delete(path);
+            this.undoNotice(t("ui.synthesis_written_0", (_b = (_a = this.notes.get(node.id)) == null ? void 0 : _a.title) != null ? _b : ""), previous);
+            if (observer == null ? void 0 : observer.isOpen()) (_c = observer.written) == null ? void 0 : _c.call(observer);
           },
           fail,
           markAccepted
@@ -34792,29 +34758,6 @@ ${request.requirements}` : preset.text,
     const current = this.synthesisTasks.get(node.path);
     if (current !== task || (current == null ? void 0 : current.state) !== "directions" || current.mapPath !== this.path) return;
     this.openNextStep(node);
-  }
-  reviewSynthesisDraft(node) {
-    var _a;
-    const task = this.synthesisTasks.get(node.path);
-    if (!task || task.state !== "draft" || !task.draft || !task.save) return;
-    const note = this.notes.get(node.id);
-    new DraftReviewModal(
-      this.app,
-      task.draft.summary,
-      task.draft.detail,
-      {
-        intro: t("ui.draft_replaces_0", (_a = note == null ? void 0 : note.title) != null ? _a : ""),
-        currentSummary: note == null ? void 0 : note.summary,
-        confirmLabel: t("ui.confirm_update_to_parent_topic"),
-        sourcePath: node.path
-      },
-      async (summary, detail) => {
-        await task.save(summary, detail);
-        if (this.synthesisTasks.get(node.path) === task) this.synthesisTasks.delete(node.path);
-        this.render();
-      },
-      () => this.discardSynthesis(node)
-    ).open();
   }
   discardSynthesis(node) {
     const task = this.synthesisTasks.get(node.path);
@@ -35114,7 +35057,7 @@ ${note.detail.trim()}` : "",
     };
   }
   async createIntegratedNode(title, sources2, goal, rules, options, review = false, flow) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l;
     if (!this.map || sources2.length < 2) return;
     const controller = (_a = flow == null ? void 0 : flow.controller) != null ? _a : new AbortController();
     const mapPath = this.path, mapId = this.map.id;
@@ -35183,52 +35126,27 @@ ${note.detail.trim()}` : "",
       );
       if (JSON.stringify(latest.documents) !== task.sourceContent)
         throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
-      task.state = "draft";
       task.draft = result;
+      if (review && !flow) {
+        task.state = "draft";
+        this.render();
+        this.reviewIntegratedDraft(task);
+        return;
+      }
+      if (this.closed) throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
+      task.state = "applying";
       this.render();
-      if (flow) {
-        if (((_i = flow.observer) == null ? void 0 : _i.isOpen()) && flow.observer.drafted)
-          flow.observer.drafted({
-            result,
-            confirm: (summary, detail) => this.plugin.mutate(
-              () => {
-                var _a2;
-                return this.saveIntegratedNode(
-                  title,
-                  sources2,
-                  goal,
-                  rules,
-                  model,
-                  { ...result, summary, detail },
-                  (_a2 = options == null ? void 0 : options.outputLanguage) != null ? _a2 : language2,
-                  task
-                );
-              }
-            ),
-            discard: () => this.discardSelectionSynthesis()
-          });
-        else
-          backgroundResultNotice(t("ui.background_synthesis_draft_ready"), {
-            label: t("ui.review_synthesis_draft"),
-            open: () => {
-              if (this.integrationTask === task && task.state === "draft") this.reviewIntegratedDraft(task);
-            }
-          });
-      } else if (review) this.reviewIntegratedDraft(task);
-      else
-        await this.saveIntegratedNode(
-          title,
-          sources2,
-          goal,
-          rules,
-          model,
-          result,
-          (_j = options == null ? void 0 : options.outputLanguage) != null ? _j : language2,
-          task
-        );
+      const previous = this.history.undoEntry;
+      const write = () => {
+        var _a2;
+        return this.saveIntegratedNode(title, sources2, goal, rules, model, result, (_a2 = options == null ? void 0 : options.outputLanguage) != null ? _a2 : language2, task);
+      };
+      await (flow ? this.plugin.mutate(write) : write());
+      this.undoNotice(t("ui.synthesis_new_topic_0", title), previous);
+      if ((_i = flow == null ? void 0 : flow.observer) == null ? void 0 : _i.isOpen()) (_k = (_j = flow.observer).written) == null ? void 0 : _k.call(_j);
     } catch (error) {
       if (this.integrationTask !== task) return;
-      if (flow && controller.signal.aborted && ((_k = flow.observer) == null ? void 0 : _k.isOpen())) {
+      if (flow && controller.signal.aborted && ((_l = flow.observer) == null ? void 0 : _l.isOpen())) {
         if (task.directions.length) task.state = "directions";
         else this.integrationTask = null;
         this.render();
@@ -35266,7 +35184,7 @@ ${note.detail.trim()}` : "",
     ).open();
   }
   async saveIntegratedNode(title, sources2, goal, rules, model, result, language2, task) {
-    if (!this.map || this.integrationTask !== task || this.path !== task.mapPath || this.map.id !== task.mapId || task.state !== "draft")
+    if (!this.map || this.integrationTask !== task || this.closed || this.path !== task.mapPath || this.map.id !== task.mapId || task.state !== "draft" && task.state !== "applying")
       throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
     const latest = await this.topicReferenceGroup(
       sources2,
@@ -35299,7 +35217,33 @@ ${note.detail.trim()}` : "",
       await this.mapChange((map) => {
         map.nodes.push(integrated);
       });
-      if (this.history.undoEntry) this.history.undoEntry.label = t("ui.confirm_new_synthesis_topic");
+      const entry = this.history.undoEntry;
+      if (entry) {
+        entry.label = t("ui.confirm_new_synthesis_topic");
+        const mapUndo = entry.undo, mapRedo = entry.redo;
+        let parked = "";
+        entry.undo = async () => {
+          parked = await this.plugin.repo.moveUnique(
+            integrated.path,
+            this.plugin.repo.topicFolder(this.path, "Unassigned")
+          );
+          await this.plugin.repo.setLifecycle(parked, this.map.id, "", "unassigned");
+          try {
+            await mapUndo();
+          } catch (error) {
+            await this.plugin.repo.moveExact(parked, integrated.path);
+            await this.plugin.repo.setLifecycle(integrated.path, this.map.id, this.map.id, "active");
+            throw error;
+          }
+        };
+        entry.redo = async () => {
+          if (parked) {
+            await this.plugin.repo.moveExact(parked, integrated.path);
+            await this.plugin.repo.setLifecycle(integrated.path, this.map.id, this.map.id, "active");
+          }
+          await mapRedo();
+        };
+      }
       this.integrationTask = null;
       this.selected = integrated.id;
       this.multiSelected.clear();
