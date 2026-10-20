@@ -6,7 +6,7 @@ import { withThinkingOrigin } from "./thinking-origin";
 import { createHash, randomUUID } from "node:crypto";
 import type VisualAgentMapPlugin from "../../main";
 import { t, topicStatusLabel, translate, type TranslationKey, type UiLanguage } from "../../i18n";
-import { MarkdownRenderer, ItemView, Menu, Modal, Notice, TFile, WorkspaceLeaf, setIcon } from "obsidian";
+import { MarkdownRenderer, ItemView, Menu, Modal, Notice, TFile, WorkspaceLeaf, setIcon, setTooltip } from "obsidian";
 import { readMarkdownFile, type ReferenceGroup } from "../../ai/reference-materials";
 import { NameModal } from "../../ui/modals/name-modal";
 import { ChoiceModal } from "../../ui/modals/choice-modal";
@@ -67,6 +67,21 @@ import { matchPreset, NOTE_STYLE_PRESETS, styleLabel } from "./note-style";
 import type { AiResult, Suggestion, TaskContext } from "../../ai/types";
 import { previewMetrics } from "../../ui/preview-utils";
 import { BUILTIN_SAMPLE_ID, builtInSample, SAMPLE_TOUR_VERSION } from "../../builtin-sample";
+import {
+  normalizeRelevanceContext,
+  normalizeRelevanceGoal,
+  normalizeRelevanceLevel,
+  RELEVANCE_CONTEXT_MAX_LENGTH,
+  RELEVANCE_GOAL_MAX_LENGTH,
+  RELEVANCE_LEVELS,
+  type NoteRelevance,
+  type RelevanceLevel,
+  type RelevanceTier
+} from "../../note-values";
+import { RELEVANCE_LABEL, renderRelevanceTagButton } from "./relevance-tag";
+import { relevanceDisplayNodes } from "./relevance-order";
+import { RelevanceSummaryModal } from "./relevance-summary-modal";
+import { relevanceMode, relevanceModeAfterWrite, type RelevanceMode, type RelevancePin } from "./relevance-pins";
 import { PendingSuggestions } from "../../pending-suggestions";
 import { createAimMap } from "../aim/create-map";
 import { addOutlineToMap, createOutlineMap, type OutlineNode } from "./outline-import";
@@ -84,9 +99,17 @@ import { StructureReviewModal } from "./structure-review-modal";
 import {
   buildStructureReviewNodes,
   isSuggestionStale,
+  type StructureNode,
   type StructureReviewResult,
   type StructureSuggestion
 } from "../../core/structure-review-service";
+import type {
+  RelevanceGradeChange,
+  RelevanceGradeItem,
+  RelevanceGradeOutcome,
+  RelevanceGradeResult,
+  RelevanceGradeRun
+} from "../../core/relevance-grade-service";
 import { renderTopicTree } from "../../ui/topic-tree";
 import { TopicTreeModal } from "../../ui/modals/topic-tree-modal";
 import type { FieldLinks, ModelChoices } from "./research-fields";
@@ -279,6 +302,11 @@ const MERGE_DONE_NOTICE_MS = 15000;
 /** Unique ids for the hidden card labels; any view may render a card. */
 let cardLabelSequence = 0;
 const cardLabels = new WeakMap<HTMLElement, HTMLElement>();
+/** Identifies one relevance grading run, so a late result can tell it is no longer the current one. */
+let relevanceRunToken = 0;
+let relevancePanelSeq = 0;
+/** Maps whose cards are displayed sorted by relevance. Memory only: never written to a note or Map.md. */
+const relevanceSortedMaps = new Set<string>();
 /** Path data for the curve from a parent card's right edge to a child card's left edge. */
 function edgePathData(x1: number, y1: number, x2: number, y2: number): string {
   const bend = Math.max(60, Math.abs(x2 - x1) / 2);
@@ -314,10 +342,24 @@ export class VisualAgentMapView extends ItemView {
   private map: MapDocument | null = null;
   private path = "";
   private notes = new Map<string, Note>();
+  /** Learning goal from the map file's frontmatter; shown only on mind maps (never AIM) and absent when not graded. */
+  private relevanceGoal: string | undefined;
+  private relevanceLevel: RelevanceLevel | undefined;
+  private relevanceContext: string | undefined;
   private selected: string | null = null;
   private multiSelected = new Set<string>();
   /** Cards named by the open structure review; marked with a class, cleared when the review closes. */
   private structureHighlight = new Set<string>();
+  /** True once this view has started a relevance grading run (so closing it has a run to abort). */
+  private startedRelevance = false;
+  private readonly relevancePanelId = `vam-relevance-panel-${++relevancePanelSeq}`;
+  private relevancePanelOpen = false;
+  private relevanceDraft: { goal: string; level: string; context: string } | null = null;
+  private relevanceToolsEl: HTMLElement | null = null;
+  private relevanceButtonEl: HTMLButtonElement | null = null;
+  private relevancePanelEl: HTMLElement | null = null;
+  private relevancePanelGen = 0;
+  private relevancePanelCleanup: (() => void) | null = null;
   private history = new History<Action>();
   private deletedMap: {
     path: string;
@@ -580,6 +622,9 @@ export class VisualAgentMapView extends ItemView {
   async onClose(): Promise<void> {
     this.closed = true;
     this.plugin.releaseOutline(this);
+    this.relevancePanelCleanup?.();
+    this.relevancePanelCleanup = null;
+    this.abortRelevanceGrade();
     for (const task of this.synthesisTasks.values()) if (task.state === "running") task.controller.abort();
     this.synthesisTasks.clear();
     for (const controller of this.startingTasks.values()) controller.abort();
@@ -668,8 +713,23 @@ export class VisualAgentMapView extends ItemView {
   private async hydrate(isCurrent: () => boolean = () => true): Promise<void> {
     this.aimFailedReports.clear();
     if (this.builtIn) {
-      if (isCurrent()) this.notes = builtInSample(this.plugin.settings.language).notes;
+      if (isCurrent()) {
+        this.notes = builtInSample(this.plugin.settings.language).notes;
+        this.relevanceGoal = undefined;
+        this.relevanceLevel = undefined;
+        this.relevanceContext = undefined;
+      }
       return;
+    }
+    let goal: string | undefined;
+    let level: RelevanceLevel | undefined;
+    let context: string | undefined;
+    if (this.path && !this.map?.aim) {
+      try {
+        ({ goal, level, context } = await this.plugin.repo.readRelevanceSetup(this.path));
+      } catch {
+        /* An unreadable goal is simply not shown. */
+      }
     }
     const loaded = new Map<string, Note>();
     for (const node of this.map?.nodes ?? []) {
@@ -682,6 +742,9 @@ export class VisualAgentMapView extends ItemView {
     }
     if (!isCurrent()) return;
     this.notes = loaded;
+    this.relevanceGoal = goal;
+    this.relevanceLevel = level;
+    this.relevanceContext = context;
     await this.hydrateFailedReportTargets(isCurrent);
   }
   private async hydrateFailedReportTargets(isCurrent: () => boolean): Promise<void> {
@@ -733,7 +796,10 @@ export class VisualAgentMapView extends ItemView {
       await this.persistViewport();
       if (!isCurrent()) return;
     }
-    if (path !== this.path) this.stopAimProgress();
+    if (path !== this.path) {
+      this.stopAimProgress();
+      this.abortRelevanceGrade();
+    }
     let map = await this.plugin.repo.readMap(path);
     if (!isCurrent()) return;
     if (map.aim?.creationId && map.aim.rootDraft) {
@@ -1289,6 +1355,755 @@ export class VisualAgentMapView extends ItemView {
     for (const id of new Set([...this.structureHighlight, ...next]))
       this.cardEls.get(id)?.toggleClass("vam-structure-suggested", next.has(id));
     this.structureHighlight = next;
+  }
+  // ---- Relevance grading: goal chip, status bar and change summary ----------------------------------------------
+  /** Mind maps only: not the built-in sample and not an AIM map. */
+  private relevanceGradeable(): boolean {
+    return !this.builtIn && !!this.map && !this.map.aim && !!this.path;
+  }
+  /**
+   * One toolbar button, the same level as "Select topics": it shows the goal and opens a panel under it with the goal,
+   * level, context, a "Grade with this" button and the display-only sort switch.
+   */
+  private renderRelevanceGoalControl(parent: HTMLElement): void {
+    // A repaint drops the old DOM: stop its listeners and make sure its late focus events cannot close the new panel.
+    this.relevancePanelGen++;
+    this.relevancePanelCleanup?.();
+    this.relevancePanelCleanup = null;
+    this.relevancePanelEl = null;
+    this.relevanceToolsEl = parent;
+    this.drawRelevanceButton(parent);
+    if (!this.relevancePanelOpen) return;
+    if (this.plugin.relevanceGrades.get(this.path)?.status === "running") {
+      this.relevancePanelOpen = false;
+      this.relevanceDraft = null;
+      this.relevanceButtonEl?.setAttr("aria-expanded", "false");
+      return;
+    }
+    this.drawRelevancePanel(false);
+  }
+  private relevanceLevelLabel(level: RelevanceLevel | undefined): string {
+    return t(`ui.relevance_level_${level ?? "none"}`);
+  }
+  /** Display-only toggle: within each sibling group show core, support, side, then ungraded. */
+  private relevanceSortOn(): boolean {
+    return this.relevanceGradeable() && relevanceSortedMaps.has(this.path);
+  }
+  private drawRelevanceButton(parent: HTMLElement): void {
+    const goal = this.relevanceGoal;
+    const level = this.relevanceLevel;
+    const sorted = this.relevanceSortOn();
+    const label = goal
+      ? level
+        ? t("ui.relevance_goal_level_0_1", goal, this.relevanceLevelLabel(level))
+        : t("ui.relevance_goal_0", goal)
+      : t("ui.relevance_goal_set");
+    const button = this.button(parent, label, () => {
+      if (this.relevancePanelOpen) this.closeRelevancePanel(true);
+      else this.editRelevanceGoal();
+    });
+    button.addClass("vam-relevance-goal");
+    button.toggleClass("is-empty", !goal);
+    button.toggleClass("is-sorted", sorted);
+    button.setAttr("aria-haspopup", "dialog");
+    button.setAttr("aria-expanded", String(this.relevancePanelOpen));
+    button.setAttr("aria-controls", this.relevancePanelId);
+    button.setAttr("aria-description", t(goal ? "ui.relevance_goal_edit_hint" : "ui.relevance_goal_set_hint"));
+    setTooltip(
+      button,
+      goal ? [label, this.relevanceContext].filter(Boolean).join("\n") : t("ui.relevance_goal_set_hint")
+    );
+    // The tooltip helper makes the goal alone the accessible name; keep the "Goal:" label a screen reader needs.
+    button.setAttr("aria-label", sorted ? `${label}${t("ui.relevance_sorted_suffix")}` : label);
+    button.disabled = this.plugin.relevanceGrades.get(this.path)?.status === "running";
+    // Pressing the button must not move focus out of an open panel (that would count as leaving it).
+    button.addEventListener("mousedown", event => event.preventDefault());
+    // Focus leaving the button (Shift+Tab off it, or a click elsewhere) to outside the panel closes the panel too.
+    button.addEventListener("focusout", (event: FocusEvent) => {
+      if (!this.relevancePanelOpen || this.relevanceButtonEl !== button) return;
+      const next = event.relatedTarget as Node | null;
+      if (next && (next === button || this.relevancePanelEl?.contains(next))) return;
+      this.closeRelevancePanel(false);
+    });
+    button.addEventListener("keydown", event => {
+      if (event.key !== "Escape" || !this.relevancePanelOpen || this.relevanceButtonEl !== button) return;
+      event.preventDefault();
+      event.stopPropagation();
+      this.closeRelevancePanel(true);
+    });
+    if (sorted) {
+      const icon = button.createSpan("vam-relevance-sort-icon");
+      icon.setAttr("aria-hidden", "true");
+      setIcon(icon, "arrow-down-wide-narrow");
+    }
+    this.relevanceButtonEl = button;
+  }
+  private closeRelevancePanel(refocus: boolean): void {
+    this.relevancePanelGen++;
+    this.relevancePanelCleanup?.();
+    this.relevancePanelCleanup = null;
+    this.relevancePanelEl?.remove();
+    this.relevancePanelEl = null;
+    this.relevancePanelOpen = false;
+    this.relevanceDraft = null;
+    this.relevanceButtonEl?.setAttr("aria-expanded", "false");
+    if (refocus && !this.relevanceButtonEl?.disabled) this.relevanceButtonEl?.focus();
+  }
+  /** Open the goal panel under the toolbar button (no-op while a grading run is going). */
+  private editRelevanceGoal(): void {
+    if (this.plugin.relevanceGrades.get(this.path)?.status === "running") return;
+    if (!this.relevanceToolsEl) return;
+    this.relevancePanelOpen = true;
+    this.relevanceDraft = {
+      goal: this.relevanceGoal ?? "",
+      level: this.relevanceLevel ?? "",
+      context: this.relevanceContext ?? ""
+    };
+    this.relevanceButtonEl?.setAttr("aria-expanded", "true");
+    this.drawRelevancePanel(true);
+  }
+  /**
+   * The panel holds one group: goal, level, context and a "Grade with this" button, then the sort switch. Enter in a
+   * text field or the button confirms; Esc, a press outside, or focus leaving the panel closes it without submitting.
+   * Tab inside the panel does not. The sort switch does not close it.
+   */
+  private drawRelevancePanel(focus: boolean): void {
+    const tools = this.relevanceToolsEl;
+    if (!tools) return;
+    this.relevancePanelEl?.remove();
+    const gen = ++this.relevancePanelGen;
+    const draft = (this.relevanceDraft ??= {
+      goal: this.relevanceGoal ?? "",
+      level: this.relevanceLevel ?? "",
+      context: this.relevanceContext ?? ""
+    });
+    const panel = tools.createDiv({
+      cls: "vam-relevance-panel",
+      attr: { id: this.relevancePanelId, role: "dialog", "aria-label": t("ui.relevance_panel_label") }
+    });
+    this.relevancePanelEl = panel;
+    const group = panel.createDiv({
+      cls: "vam-relevance-setup",
+      attr: { role: "group", "aria-label": t("ui.relevance_goal_label") }
+    });
+    const input = group.createEl("input", { cls: "vam-relevance-goal-input", type: "text" });
+    input.value = draft.goal;
+    input.maxLength = RELEVANCE_GOAL_MAX_LENGTH;
+    input.setAttr("aria-label", t("ui.relevance_goal_label"));
+    input.setAttr("placeholder", t("ui.relevance_goal_placeholder"));
+    const row = group.createDiv("vam-relevance-setup-row");
+    const levelSelect = row.createEl("select", { cls: "dropdown vam-relevance-level" });
+    levelSelect.setAttr("aria-label", t("ui.relevance_level_label"));
+    for (const value of ["", ...RELEVANCE_LEVELS])
+      levelSelect.createEl("option", { text: this.relevanceLevelLabel(normalizeRelevanceLevel(value)), value });
+    levelSelect.value = draft.level;
+    const context = row.createEl("input", { cls: "vam-relevance-context-input", type: "text" });
+    context.value = draft.context;
+    context.maxLength = RELEVANCE_CONTEXT_MAX_LENGTH;
+    context.setAttr("aria-label", t("ui.relevance_context_label"));
+    context.setAttr("placeholder", t("ui.relevance_context_placeholder"));
+    // One button; its words follow the mode the click would run in (the same pure check the click uses).
+    const pinCount = this.relevancePinList().length;
+    const planMode = (): RelevanceMode =>
+      relevanceMode(
+        { goal: input.value, level: levelSelect.value, context: context.value },
+        { goal: this.relevanceGoal, level: this.relevanceLevel, context: this.relevanceContext },
+        this.relevanceAiGrades().length > 0
+      );
+    const submitButton = group.createEl("button", {
+      cls: "vam-relevance-grade-button mod-cta",
+      text: t(planMode() === "recalibrate" ? "ui.relevance_recalibrate_button" : "ui.relevance_grade_button")
+    });
+    const showMode = (): void =>
+      submitButton.setText(
+        t(planMode() === "recalibrate" ? "ui.relevance_recalibrate_button" : "ui.relevance_grade_button")
+      );
+    input.addEventListener("input", () => {
+      draft.goal = input.value;
+      showMode();
+    });
+    context.addEventListener("input", () => {
+      draft.context = context.value;
+      showMode();
+    });
+    levelSelect.addEventListener("change", () => {
+      draft.level = levelSelect.value;
+      showMode();
+    });
+    let unpinAllButton: HTMLButtonElement | undefined;
+    if (pinCount) {
+      const pinsRow = panel.createDiv("vam-relevance-pins-row");
+      pinsRow.createSpan({ text: t("ui.relevance_pins_note_0", pinCount) });
+      unpinAllButton = pinsRow.createEl("button", {
+        cls: "vam-relevance-unpin-all",
+        text: t("ui.relevance_unpin_all")
+      });
+    }
+    // The sort switch: display only, an in-memory Set, no file write and no refit. It never closes the panel.
+    panel.createDiv("vam-relevance-divider");
+    const on = this.relevanceSortOn();
+    const sort = panel.createEl("button", { cls: "vam-relevance-sort" });
+    sort.setAttr("aria-pressed", String(on));
+    const copy = sort.createSpan("vam-relevance-sort-copy");
+    copy.createSpan({ cls: "vam-relevance-sort-title", text: t("ui.relevance_sort") });
+    copy.createSpan({ cls: "vam-relevance-sort-hint", text: t("ui.relevance_sort_hint") });
+    const knob = sort.createSpan({ cls: `checkbox-container vam-relevance-switch${on ? " is-enabled" : ""}` });
+    knob.setAttr("aria-hidden", "true");
+    sort.addEventListener("click", event => {
+      event.stopPropagation();
+      if (on) relevanceSortedMaps.delete(this.path);
+      else relevanceSortedMaps.add(this.path);
+      // Do not refit the view here: that saves the viewport into Map.md, and this toggle must write nothing.
+      this.renderPreservingFocus();
+    });
+    let finished = false;
+    const alive = (): boolean => !finished && gen === this.relevancePanelGen;
+    // Confirm, Esc and leaving the panel close it; an empty goal never reaches the AI.
+    const finish = (submit: boolean, refocus: boolean): void => {
+      if (!alive()) return;
+      finished = true;
+      const value = input.value;
+      const level = normalizeRelevanceLevel(levelSelect.value);
+      const extra = context.value;
+      const planned = planMode();
+      this.closeRelevancePanel(refocus);
+      if (submit) void this.submitRelevanceGoal(value, level, extra, planned);
+    };
+    const confirm = (): void => finish(true, !normalizeRelevanceGoal(input.value));
+    const keys = (event: KeyboardEvent, enterConfirms: boolean): void => {
+      event.stopPropagation();
+      if (event.key === "Enter" && enterConfirms) {
+        // Enter that confirms an IME composition (Chinese input) is not the field's Enter.
+        if (event.isComposing) return;
+        event.preventDefault();
+        confirm();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        finish(false, true);
+      }
+    };
+    input.addEventListener("keydown", event => keys(event, true));
+    context.addEventListener("keydown", event => keys(event, true));
+    levelSelect.addEventListener("keydown", event => keys(event, false));
+    submitButton.addEventListener("keydown", event => keys(event, false));
+    unpinAllButton?.addEventListener("keydown", event => keys(event, false));
+    sort.addEventListener("keydown", event => keys(event, false));
+    submitButton.addEventListener("click", event => {
+      event.stopPropagation();
+      confirm();
+    });
+    unpinAllButton?.addEventListener("click", event => {
+      event.stopPropagation();
+      finish(false, true);
+      this.unpinAllRelevance();
+    });
+    unpinAllButton?.addEventListener("mousedown", event => event.preventDefault());
+    // Keep focus where it is while the button is pressed, so the pointer press cannot count as leaving the panel.
+    submitButton.addEventListener("mousedown", event => event.preventDefault());
+    sort.addEventListener("mousedown", event => event.preventDefault());
+    for (const control of [
+      input,
+      levelSelect,
+      context,
+      submitButton,
+      ...(unpinAllButton ? [unpinAllButton] : []),
+      sort
+    ])
+      control.addEventListener("focusout", (event: FocusEvent) => {
+        const next = event.relatedTarget as Node | null;
+        if (!next || (!panel.contains(next) && next !== this.relevanceButtonEl)) finish(false, false);
+      });
+    // A press anywhere else (the canvas, another card) closes it too; the toolbar button toggles it itself.
+    const doc = this.contentEl?.ownerDocument;
+    if (doc?.addEventListener) {
+      const outside = (event: Event): void => {
+        const target = event.target as Node | null;
+        if (target && (panel.contains(target) || this.relevanceButtonEl?.contains(target))) return;
+        finish(false, false);
+      };
+      doc.addEventListener("pointerdown", outside, true);
+      this.relevancePanelCleanup = () => doc.removeEventListener("pointerdown", outside, true);
+    }
+    this.placeRelevancePanel(panel);
+    if (focus) {
+      input.focus();
+      input.select();
+    }
+  }
+  /** Keep the panel inside the map overlay: left-aligned under the button, shifted left when it would overflow. */
+  private placeRelevancePanel(panel: HTMLElement): void {
+    const button = this.relevanceButtonEl;
+    const tools = this.relevanceToolsEl;
+    const overlay = tools?.parentElement;
+    if (!button?.getBoundingClientRect || !tools?.getBoundingClientRect || !overlay?.getBoundingClientRect) return;
+    const bounds = overlay.getBoundingClientRect();
+    const width = Math.max(0, Math.min(360, bounds.width - 32));
+    const from = button.getBoundingClientRect().left;
+    const left = Math.min(Math.max(from, bounds.left + 16), bounds.left + bounds.width - 16 - width);
+    panel.style.width = `${width}px`;
+    panel.style.left = `${left - tools.getBoundingClientRect().left - 1}px`;
+  }
+  private relevanceRunIsCurrent(run: RelevanceGradeRun, mapPath: string): boolean {
+    return (
+      !this.closed &&
+      this.path === mapPath &&
+      this.plugin.relevanceGrades.get(mapPath) === run &&
+      run.status === "running" &&
+      !run.controller.signal.aborted
+    );
+  }
+  /** View closed or map switched: stop this view's run and forget it. A late result then fails every fence. */
+  private abortRelevanceGrade(mapPath = this.path): void {
+    if (!this.startedRelevance) return;
+    const run = this.plugin.relevanceGrades.get(mapPath);
+    if (!run || run.owner !== this) return;
+    this.plugin.relevanceGrades.delete(mapPath);
+    run.controller.abort();
+  }
+  private finishRelevance(
+    run: RelevanceGradeRun,
+    mapPath: string,
+    status: "failed" | "declined",
+    message: string
+  ): void {
+    if (!this.relevanceRunIsCurrent(run, mapPath)) return;
+    run.status = status;
+    run.message = message;
+    this.refreshRelevance();
+  }
+  /**
+   * Call before a repaint: when the keyboard is inside the relevance status bar, the returned function (call it after
+   * the repaint) moves focus to what is left of it (its first button, else the goal chip) so it never falls to the page.
+   */
+  private keepRelevanceBarFocus(): () => void {
+    const bar = this.contentEl?.querySelector?.(".vam-relevance-statusbar") as HTMLElement | null | undefined;
+    const active = this.contentEl?.ownerDocument?.activeElement ?? null;
+    if (!bar || !active || !bar.contains?.(active)) return () => {};
+    return () => {
+      const target =
+        (this.contentEl?.querySelector?.(".vam-relevance-statusbar")?.querySelector?.("button") as
+          HTMLElement | null | undefined) ??
+        (this.contentEl?.querySelector?.(".vam-relevance-goal") as HTMLElement | null | undefined);
+      target?.focus();
+    };
+  }
+  /** Repaints the map and keeps the keyboard in the status bar when it had it (its buttons come and go). */
+  private refreshRelevance(focusBar = false): void {
+    if (this.closed) return;
+    const bar = this.contentEl?.querySelector?.(".vam-relevance-statusbar") as HTMLElement | null | undefined;
+    const hadFocus = !!bar && !!bar.contains?.(this.contentEl.ownerDocument?.activeElement ?? null);
+    this.render();
+    if (focusBar || hadFocus)
+      (this.contentEl?.querySelector?.(".vam-relevance-statusbar button") as HTMLElement | null | undefined)?.focus();
+  }
+  /**
+   * Enter in the goal field. The goal is saved first (its own undo step), then, after the usage confirmation, the
+   * whole map is graded and the result is written in one step. Nothing is written when the AI is declined, stopped,
+   * fails or returns anything but exactly one valid grade for every card.
+   */
+  private async submitRelevanceGoal(
+    raw: string,
+    levelRaw?: RelevanceLevel,
+    contextRaw?: string,
+    planned: RelevanceMode = "full"
+  ): Promise<void> {
+    const goal = normalizeRelevanceGoal(raw);
+    const level = normalizeRelevanceLevel(levelRaw);
+    const context = contextRaw === undefined ? undefined : normalizeRelevanceContext(contextRaw);
+    const mapPath = this.path;
+    if (!goal || !this.relevanceGradeable()) return;
+    if (this.plugin.relevanceGrades.get(mapPath)?.status === "running") return;
+    const run: RelevanceGradeRun = {
+      token: ++relevanceRunToken,
+      owner: this,
+      controller: new AbortController(),
+      goal,
+      status: "running"
+    };
+    // Claim the map before the first await, so a second Enter cannot start another run.
+    this.plugin.relevanceGrades.set(mapPath, run);
+    this.startedRelevance = true;
+    this.refreshRelevance(true);
+    const settings = this.plugin.settings;
+    let result: RelevanceGradeResult | undefined;
+    let basis: StructureNode[] = [];
+    let mode: RelevanceMode = planned;
+    let pins: RelevancePin[] = [];
+    const repairs: string[] = [];
+    try {
+      await this.plugin.mutate(async () => {
+        const { previous, next, setupChanged } = await this.plugin.repo.writeRelevanceGoal(
+          mapPath,
+          goal,
+          level,
+          context
+        );
+        if (this.path !== mapPath) return;
+        this.relevanceGoal = goal;
+        this.relevanceLevel = level;
+        this.relevanceContext = context;
+        // The repository has the last word: a setup that changed after all is graded in full.
+        mode = relevanceModeAfterWrite(planned, setupChanged);
+        // Goal, level and context are one undo step; none changed means nothing to undo.
+        if (!setupChanged) return;
+        this.history.push({
+          label: t("ui.relevance_goal_history_label"),
+          undo: () => this.plugin.repo.restoreRelevanceGoal(mapPath, previous),
+          redo: () => this.plugin.repo.restoreRelevanceGoal(mapPath, next)
+        });
+        this.updateHistoryButtons();
+      });
+      const model = settings.cliModel;
+      // The run stays "running" (the map is locked and Stop works) but the bar must not claim grading while the
+      // usage notice waits for an answer.
+      run.awaitingUsage = true;
+      this.refreshRelevance();
+      const started = await this.plugin.confirmAiUsage(model, async () => {
+        // Stopped, or the map changed, while the usage dialog was open.
+        if (!this.relevanceRunIsCurrent(run, mapPath) || !this.map) return;
+        run.awaitingUsage = false;
+        this.refreshRelevance();
+        basis = buildStructureReviewNodes(this.map.nodes, id => this.describeForReview(id));
+        // Pinned (hand-set) cards are the learner's: the AI sees them as anchors and never grades them.
+        pins = this.relevancePinList();
+        const request = {
+          goal,
+          ...(level ? { level } : {}),
+          ...(context ? { context } : {}),
+          nodes: basis,
+          language: settings.language,
+          contentLanguage: chooseAimContentLanguage(settings.language, this.map.title),
+          model,
+          reasoning: normalizeReasoningLevel(settings.cliReasoning),
+          ...(pins.length ? { pins } : {})
+        };
+        const hooks = {
+          onRepair: (_round: number, kind: string) => {
+            repairs.push(kind);
+            if (!this.relevanceRunIsCurrent(run, mapPath)) return;
+            run.repairing = true;
+            this.refreshRelevance();
+          }
+        };
+        result =
+          mode === "recalibrate"
+            ? await this.plugin.relevanceGrade.recalibrate(
+                { ...request, previous: this.relevanceAiGrades() },
+                run.controller.signal,
+                hooks
+              )
+            : await this.plugin.relevanceGrade.grade(request, run.controller.signal, hooks);
+      });
+      if (!this.relevanceRunIsCurrent(run, mapPath)) return;
+      if (!started) return this.finishRelevance(run, mapPath, "declined", t("ui.relevance_not_started"));
+      const graded = result;
+      if (!graded) return;
+      await this.plugin.mutate(() => this.applyRelevanceGrade(run, mapPath, basis, graded, { mode, pins, repairs }));
+      this.refreshRelevance();
+    } catch (error) {
+      this.finishRelevance(run, mapPath, "failed", t("ui.relevance_failed_0", errorMessage(error)));
+    }
+  }
+  /**
+   * Writes the grades as one undo step. Each card is checked against what the AI was shown: a card deleted, renamed
+   * or moved meanwhile is skipped (its old grade stays), and cards added meanwhile are not in the result so they stay
+   * ungraded. A note that cannot be written is counted; the undo step covers only the notes actually written.
+   */
+  private async applyRelevanceGrade(
+    run: RelevanceGradeRun,
+    mapPath: string,
+    basis: StructureNode[],
+    graded: RelevanceGradeResult,
+    meta: { mode: RelevanceMode; pins: RelevancePin[]; repairs: string[] }
+  ): Promise<void> {
+    if (!this.relevanceRunIsCurrent(run, mapPath) || !this.map) return;
+    const items: RelevanceGradeItem[] = graded.items;
+    run.writing = true;
+    const startedAt = Date.now();
+    const repo = this.plugin.repo;
+    const fresh = new Map<string, Note>();
+    for (const node of this.map.nodes) {
+      try {
+        fresh.set(node.id, await repo.readNote(node.path));
+      } catch {
+        /* A card whose note cannot be read counts as changed and is skipped below. */
+      }
+    }
+    const current = new Map(
+      buildStructureReviewNodes(this.map.nodes, id => {
+        const note = fresh.get(id);
+        return note ? { title: note.title, summary: "", status: "" } : undefined;
+      }).map(node => [node.id, node])
+    );
+    const pathOf = new Map(this.map.nodes.map(node => [node.id, node.path]));
+    const byId = new Map(items.map(item => [item.id, item]));
+    const titleOf = new Map(basis.map(base => [base.id, base.title]));
+    const pinned = new Set(meta.pins.map(pin => pin.id));
+    const outcome: RelevanceGradeOutcome = {
+      graded: 0,
+      changes: [],
+      skipped: 0,
+      failed: 0,
+      pinned: 0,
+      mode: meta.mode,
+      pins: meta.pins.map(pin => ({ id: pin.id, title: titleOf.get(pin.id) ?? "", tier: pin.tier })),
+      conflicts: (graded.conflicts ?? []).map(conflict => ({
+        ancestor: titleOf.get(conflict.ancestorId) ?? "",
+        ancestorTier: conflict.ancestorTier,
+        descendant: titleOf.get(conflict.descendantId) ?? "",
+        descendantTier: conflict.descendantTier
+      })),
+      ...(graded.pinnedIgnored ? { pinnedIgnored: graded.pinnedIgnored } : {}),
+      ...(graded.anchorsDropped ? { anchorsDropped: graded.anchorsDropped } : {}),
+      ...(graded.unchangedIgnored ? { unchangedIgnored: graded.unchangedIgnored } : {})
+    };
+    try {
+      for (const base of basis) {
+        const item = byId.get(base.id);
+        if (!item) continue;
+        const now = current.get(base.id),
+          note = fresh.get(base.id),
+          path = pathOf.get(base.id);
+        if (!now || !note || !path || now.title !== base.title || now.parentId !== base.parentId) {
+          outcome.skipped++;
+          continue;
+        }
+        if (note.relevance?.manual) {
+          // A hand-set (pinned) card is never written by the AI, whatever the AI said.
+          pinned.add(base.id);
+          continue;
+        }
+        const after = { tier: item.tier, reason: item.reason };
+        const before = note.relevance ? { tier: note.relevance.tier, reason: note.relevance.reason } : undefined;
+        if (before && before.tier === after.tier && before.reason === after.reason) {
+          outcome.graded++;
+          continue;
+        }
+        try {
+          await repo.writeRelevance(path, after);
+          outcome.graded++;
+          outcome.changes.push({
+            id: base.id,
+            path,
+            title: note.title,
+            before,
+            after,
+            ...(item.anchor ? { anchor: item.anchor } : {})
+          });
+        } catch (error) {
+          outcome.failed++;
+          this.plugin.logs.appendLog("error", t("log.operation_failed_0", errorMessage(error)));
+        }
+      }
+    } finally {
+      outcome.pinned = pinned.size;
+      this.plugin.logs.appendLog(
+        "info",
+        `Relevance ${meta.mode}: repairs ${meta.repairs.length}${meta.repairs.length ? ` (${[...new Set(meta.repairs)].join(", ")})` : ""}, pinned ${pinned.size}, pinnedIgnored ${graded.pinnedIgnored ?? 0}, anchorsDropped ${graded.anchorsDropped ?? 0}, unchangedIgnored ${graded.unchangedIgnored ?? 0}, written ${outcome.changes.length}, failed ${outcome.failed}, skipped ${outcome.skipped}, ${Date.now() - startedAt} ms`
+      );
+      if (outcome.changes.length) {
+        const changes = outcome.changes;
+        const entry: Action = {
+          label: t("ui.relevance_history_label"),
+          undo: () => this.restoreRelevance(changes, "undo"),
+          redo: () => this.restoreRelevance(changes, "redo")
+        };
+        this.history.push(entry);
+        run.historyEntry = entry;
+        this.updateHistoryButtons();
+      }
+      run.outcome = outcome;
+      run.status = "done";
+    }
+  }
+  /**
+   * Undo or redo a grading run. A note is only put back when it still holds exactly what the run wrote (or, for redo,
+   * what it replaced); a note the owner edited since is left alone and counted in a Notice.
+   */
+  private async restoreRelevance(changes: RelevanceGradeChange[], direction: "undo" | "redo"): Promise<void> {
+    let skipped = 0;
+    const same = (a: NoteRelevance | undefined, b: NoteRelevance | undefined): boolean =>
+      a === b || (!!a && !!b && a.tier === b.tier && a.reason === b.reason && !!a.manual === !!b.manual);
+    for (const change of changes) {
+      const expected = direction === "undo" ? change.after : change.before;
+      const replacement = direction === "undo" ? change.before : change.after;
+      try {
+        const latest = (await this.plugin.repo.readNote(change.path)).relevance;
+        if (!same(latest, expected)) {
+          skipped++;
+          continue;
+        }
+        await this.plugin.repo.writeRelevance(change.path, replacement ?? null);
+      } catch {
+        skipped++;
+      }
+    }
+    if (skipped) new Notice(t("ui.relevance_undo_skipped_0", skipped));
+  }
+  /**
+   * The tag's menu: the three tiers (a check on the current one) and Clear grade. Disabled while a grading run is
+   * in progress for this map, as the tag itself is.
+   */
+  private openRelevanceMenu(node: MapNode, current: RelevanceTier, anchor: HTMLElement): void {
+    if (this.plugin.relevanceGrades.get(this.path)?.status === "running") return;
+    const menu = new Menu();
+    for (const tier of ["core", "support", "side"] as const)
+      menu.addItem(item =>
+        item
+          .setTitle(t(RELEVANCE_LABEL[tier]))
+          .setChecked(tier === current)
+          .onClick(() => this.setManualRelevance(node, tier))
+      );
+    menu.addSeparator();
+    menu.addItem(item => {
+      item
+        .setTitle(t("ui.relevance_clear"))
+        .setIcon("x")
+        .onClick(() => this.setManualRelevance(node, null));
+      // The menu has no second line; the hint rides on the item as a tooltip where the host exposes its element.
+      (item as unknown as { dom?: HTMLElement }).dom?.setAttribute?.("title", t("ui.relevance_clear_hint"));
+    });
+    const rect = anchor.getBoundingClientRect();
+    menu.showAtPosition({ x: rect.left, y: rect.bottom });
+  }
+  /** The gradable cards whose tier the learner set by hand (pinned), in map order, from the notes this view holds. */
+  private relevancePinList(): RelevancePin[] {
+    const pins: RelevancePin[] = [];
+    for (const node of this.map?.nodes ?? []) {
+      const relevance = node.parentId === null ? undefined : this.notes.get(node.id)?.relevance;
+      if (relevance?.manual) pins.push({ id: node.id, tier: relevance.tier });
+    }
+    return pins;
+  }
+  /** The gradable cards with an AI tier (not pinned): what a recalibration starts from. */
+  private relevanceAiGrades(): RelevancePin[] {
+    const grades: RelevancePin[] = [];
+    for (const node of this.map?.nodes ?? []) {
+      const relevance = node.parentId === null ? undefined : this.notes.get(node.id)?.relevance;
+      if (relevance && !relevance.manual) grades.push({ id: node.id, tier: relevance.tier });
+    }
+    return grades;
+  }
+  /**
+   * Hands every pinned card back to the AI: the three relevance keys go, one mutation, one undo step. Undo puts the
+   * pins back on cards that are still ungraded.
+   */
+  private unpinAllRelevance(): void {
+    if (this.plugin.relevanceGrades.get(this.path)?.status === "running") return;
+    const paths = new Map((this.map?.nodes ?? []).map(node => [node.id, node.path]));
+    const entries = this.relevancePinList().flatMap(pin => {
+      const path = paths.get(pin.id);
+      return path ? [{ path, tier: pin.tier }] : [];
+    });
+    if (!entries.length) return;
+    this.plugin.runMutation(async () => {
+      const repo = this.plugin.repo;
+      for (const entry of entries) await repo.writeRelevance(entry.path, null);
+      this.history.push({
+        label: t("ui.relevance_unpin_all_history_label"),
+        undo: async () => {
+          for (const entry of entries)
+            if (!(await repo.readNote(entry.path)).relevance)
+              await repo.writeRelevance(entry.path, { tier: entry.tier, reason: "", manual: true });
+        },
+        redo: async () => {
+          for (const entry of entries) {
+            const latest = (await repo.readNote(entry.path)).relevance;
+            if (latest?.manual && latest.tier === entry.tier) await repo.writeRelevance(entry.path, null);
+          }
+        }
+      });
+      this.updateHistoryButtons();
+    });
+  }
+  /**
+   * Sets a card's tier by hand (or clears it) in the note's frontmatter and repaints in place. No AI call, no parent-
+   * child check, no viewport or Map.md write: only the three relevance keys of that one note change.
+   */
+  private setManualRelevance(node: MapNode, tier: RelevanceTier | null): void {
+    if (this.plugin.relevanceGrades.get(this.path)?.status === "running") return;
+    this.plugin.runMutation(() =>
+      this.plugin.repo.writeRelevance(node.path, tier ? { tier, reason: "", manual: true } : null)
+    );
+  }
+  private stopRelevanceGrade(): void {
+    const run = this.plugin.relevanceGrades.get(this.path);
+    if (!run || run.status !== "running" || run.writing) return;
+    run.status = "stopped";
+    run.message = t("ui.relevance_stopped");
+    run.controller.abort();
+    this.refreshRelevance();
+  }
+  /** Status bar under the toolbar, same place and look as the AIM and multi-research bars. */
+  private renderRelevanceStatus(parent: HTMLElement): void {
+    const run = this.plugin.relevanceGrades.get(this.path);
+    if (!run) return;
+    const running = run.status === "running";
+    const bar = parent.createDiv(`vam-aim-statusbar vam-relevance-statusbar${running ? " is-active" : ""}`);
+    bar.setAttr("aria-live", "polite");
+    bar.createSpan({ cls: "vam-aim-status-title", text: t("ui.relevance_history_label") });
+    const outcome = run.outcome;
+    const text = running
+      ? t(
+          run.awaitingUsage
+            ? "ui.relevance_awaiting_usage"
+            : run.repairing
+              ? "ui.relevance_repairing"
+              : "ui.relevance_running"
+        )
+      : run.status === "done" && outcome
+        ? [
+            this.relevanceDoneText(outcome),
+            outcome.pinned && outcome.mode !== "recalibrate" ? t("ui.relevance_pinned_kept_0", outcome.pinned) : "",
+            outcome.failed ? t("ui.relevance_write_failed_0", outcome.failed) : ""
+          ]
+            .filter(Boolean)
+            .join(" ")
+        : (run.message ?? "");
+    const tone = running
+      ? " vam-status-running"
+      : run.status === "failed" || outcome?.failed
+        ? " vam-status-error"
+        : "";
+    bar.createSpan({ cls: `vam-aim-status-value${tone}`, text });
+    if (running) {
+      if (!run.writing) this.button(bar, t("ui.relevance_stop"), () => this.stopRelevanceGrade());
+      return;
+    }
+    if (outcome?.changes.length || outcome?.conflicts?.length) {
+      this.button(bar, t("ui.relevance_view_changes"), () => this.openRelevanceSummary(run));
+      if (this.history.undoEntry && this.history.undoEntry === run.historyEntry)
+        this.button(bar, t("ui.undo"), () => this.enqueue(() => this.travel(false)));
+    }
+    this.iconButton(bar, "x", t("ui.dismiss"), () => {
+      this.plugin.relevanceGrades.delete(this.path);
+      this.render();
+      (this.contentEl?.querySelector?.(".vam-relevance-goal") as HTMLElement | null | undefined)?.focus();
+    });
+  }
+  /** The status line of a finished run: a recalibration counts its moves against the pins; a full grade counts cards. */
+  private relevanceDoneText(outcome: RelevanceGradeOutcome): string {
+    if (outcome.mode !== "recalibrate")
+      return t("ui.relevance_done_0_1_2", outcome.graded, outcome.changes.length, outcome.skipped);
+    if (!outcome.changes.length) return t("ui.relevance_recalibrate_none");
+    return outcome.pinned
+      ? t("ui.relevance_recalibrated_0_1", outcome.pinned, outcome.changes.length)
+      : t("ui.relevance_done_0_1_2", outcome.graded, outcome.changes.length, outcome.skipped);
+  }
+  private openRelevanceSummary(run: RelevanceGradeRun): void {
+    const outcome = run.outcome;
+    new RelevanceSummaryModal(this.app, {
+      rows: (outcome?.changes ?? []).map(change => ({
+        id: change.id,
+        title: change.title,
+        before: change.before,
+        after: change.after,
+        ...(change.anchor ? { anchor: change.anchor } : {})
+      })),
+      pins: outcome?.pins ?? [],
+      conflicts: outcome?.conflicts ?? [],
+      highlight: ids => this.highlightStructure(ids)
+    }).open();
   }
   /**
    * Applies one structure suggestion as one undo step, after checking again that it still fits the map. Remove and
@@ -2259,6 +3074,7 @@ export class VisualAgentMapView extends ItemView {
       await this.persistViewport();
     }
     if (!isCurrent()) return;
+    this.abortRelevanceGrade();
     const sample = builtInSample(this.plugin.settings.language);
     if (!this.builtIn) this.plugin.closeStaleDetails();
     this.builtIn = true;
@@ -2686,6 +3502,7 @@ export class VisualAgentMapView extends ItemView {
     const batch = this.plugin.expansionBatches?.get(this.multiResearchKey()),
       task = this.integrationTask;
     return !!(
+      this.plugin.relevanceGrades?.get(this.path)?.status === "running" ||
       this.plugin.running?.has(node.path) ||
       this.plugin.quickExpandPending?.has(node.path) ||
       this.plugin.activeTasks?.has(node.path) ||
@@ -4309,6 +5126,7 @@ export class VisualAgentMapView extends ItemView {
     }
     const focusedCard = activeDocument.activeElement?.closest<HTMLElement>(".vam-node");
     if (focusedCard && this.contentEl.contains(focusedCard)) this.focusNodeId ??= focusedCard.dataset.nodeId ?? null;
+    const restoreRelevanceFocus = this.keepRelevanceBarFocus();
     this.contentEl.empty();
     const toolbar = this.contentEl.createDiv("vam-toolbar");
     const switcher = toolbar.createEl("button", { cls: "vam-map-switcher" });
@@ -4619,6 +5437,7 @@ export class VisualAgentMapView extends ItemView {
         this.button(actions, t("ui.check_codex"), () => this.enqueue(() => this.plugin.recheckCodex()));
     }
     if (!this.builtIn && !this.map.aim) this.renderMultiResearchStatus(this.contentEl);
+    if (!this.builtIn && !this.map.aim) this.renderRelevanceStatus(this.contentEl);
     if (!this.builtIn && !this.map.aim) this.renderBackgroundBars(this.contentEl);
     const tools = createDiv("vam-map-tools");
     if (!this.builtIn) {
@@ -4642,6 +5461,7 @@ export class VisualAgentMapView extends ItemView {
         );
         integrate.setAttr("aria-pressed", String(this.integrationMode));
         if (this.integrationMode) integrate.addClass("is-active");
+        this.renderRelevanceGoalControl(tools);
       }
     }
     const workspace = this.contentEl.createDiv("vam-workspace");
@@ -4651,6 +5471,7 @@ export class VisualAgentMapView extends ItemView {
     const overlay = workspace.createDiv("vam-canvas-overlay");
     if (tools.childElementCount) overlay.appendChild(tools);
     else tools.remove();
+    if (this.relevancePanelEl) this.placeRelevancePanel(this.relevancePanelEl);
     // The gesture hint goes away once the user has panned or zoomed; select mode always explains its own gestures.
     this.hintEl =
       this.integrationMode || !this.plugin.settings.canvasHintSeen
@@ -4735,9 +5556,13 @@ export class VisualAgentMapView extends ItemView {
       const node = this.map.nodes.find(n => n.id === this.selected);
       if (node) this.renderInspector(workspace, node);
     }
+    restoreRelevanceFocus();
   }
-  private renderNode(node: MapNode): void {
+  /** `shownNode` may be a display copy (sorted by relevance): it only supplies where the card is drawn. */
+  private renderNode(shownNode: MapNode): void {
     if (!this.stageEl) return;
+    // Every handler below acts on the real node, so nothing written to the map can carry display coordinates.
+    const node = this.map?.nodes.find(item => item.id === shownNode.id) ?? shownNode;
     const note = this.notes.get(node.id),
       card = this.stageEl.createDiv({
         cls: `vam-node${node.id === this.selected || this.multiSelected.has(node.id) ? " is-selected" : ""}`
@@ -4774,8 +5599,8 @@ export class VisualAgentMapView extends ItemView {
         : queued
           ? "queued"
           : (note?.status ?? "error");
-    card.style.left = `${node.x}px`;
-    card.style.top = `${node.y}px`;
+    card.style.left = `${shownNode.x}px`;
+    card.style.top = `${shownNode.y}px`;
     card.tabIndex = node.id === this.tabStopId ? 0 : -1;
     const header = card.createDiv("vam-node-header");
     this.labelCard(card, note?.title ?? t("ui.note_missing"));
@@ -4845,6 +5670,28 @@ export class VisualAgentMapView extends ItemView {
         if (active) chip.setAttr("role", "status");
       }
       if (note) this.labelCard(card, t("ui.topic_card_label_0_1", note.title, statusText));
+    }
+    // Offline relevance grading: mind maps only, and only a valid tier shows anything. Side topics fade (see styles.css)
+    // but are never hidden, moved or collapsed.
+    const relevance = !node.aimKind && !this.map?.aim && !this.builtIn ? note?.relevance : undefined;
+    if (relevance) {
+      const tierLabel = t(RELEVANCE_LABEL[relevance.tier]);
+      card.dataset.relevance = relevance.tier;
+      const reasonText = relevance.manual ? t("ui.relevance_manual_reason") : relevance.reason;
+      setTooltip(
+        renderRelevanceTagButton(
+          header,
+          relevance.tier,
+          tierLabel,
+          t("ui.relevance_tag_label_0", tierLabel),
+          button => this.openRelevanceMenu(node, relevance.tier, button),
+          this.plugin.relevanceGrades.get(this.path)?.status === "running"
+        ),
+        reasonText
+      );
+      card.setAttr("aria-description", t("ui.relevance_description_0_1", tierLabel, reasonText));
+      const named = cardLabels.get(card)?.textContent;
+      if (named) this.labelCard(card, t("ui.topic_card_label_0_1", named, tierLabel));
     }
     // Failure reasons are shown on the card, not only in a hover tooltip.
     const errorDetails: string[] = [];
@@ -5256,10 +6103,19 @@ export class VisualAgentMapView extends ItemView {
     if (!this.map) return [];
     const superseded = supersededAimNodeIds(this.map);
     const shown = visibleNodes(this.map.nodes);
-    return superseded.size ? shown.filter(node => !superseded.has(node.id)) : shown;
+    const nodes = superseded.size ? shown.filter(node => !superseded.has(node.id)) : shown;
+    // A view only: these copies carry display positions and must never be written back to the map.
+    return this.relevanceSortOn()
+      ? relevanceDisplayNodes(nodes, id => this.notes.get(id)?.relevance?.tier, superseded)
+      : nodes;
   }
   /** Arrow keys walk the tree: left to the parent, right to the first child, up/down among siblings. */
   private keyboardNeighbor(node: MapNode, key: string): MapNode | undefined {
+    const target = this.displayedNeighbor(node, key);
+    // The walk follows the displayed order; hand back the real node so nothing downstream sees display coordinates.
+    return target && (this.map?.nodes.find(item => item.id === target.id) ?? target);
+  }
+  private displayedNeighbor(node: MapNode, key: string): MapNode | undefined {
     if (!this.map || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(key)) return undefined;
     const shown = this.canvasNodes();
     const byY = (a: MapNode, b: MapNode): number => a.y - b.y || a.x - b.x;
@@ -6023,8 +6879,10 @@ export class VisualAgentMapView extends ItemView {
       }))
     ).open();
   }
-  private async addNode(parent: MapNode | null, suggestedTitle?: string, rebuildDerivedData = true): Promise<void> {
+  private async addNode(parentNode: MapNode | null, suggestedTitle?: string, rebuildDerivedData = true): Promise<void> {
     if (!this.map) return;
+    // The caller may hold a display copy (sorted by relevance); saved coordinates must come from the real node.
+    const parent = (parentNode && this.map.nodes.find(item => item.id === parentNode.id)) || parentNode;
     if (!suggestedTitle?.trim()) {
       new NameModal(this.app, parent ? t("ui.new_subtopic") : t("ui.my_core_topic"), "", title =>
         this.enqueue(() => this.addNode(parent, title))
@@ -7891,9 +8749,11 @@ export class VisualAgentMapView extends ItemView {
     viewport.addEventListener("pointerup", up);
     viewport.addEventListener("pointercancel", up);
   }
-  private focusNode(node: MapNode): void {
+  private focusNode(target: MapNode): void {
     if (!this.map || !this.viewportEl) return;
     const v = this.map.viewport;
+    // Centre on where the card is drawn, which differs from its saved position while sorted by relevance.
+    const node = this.relevanceSortOn() ? (this.canvasNodes().find(item => item.id === target.id) ?? target) : target;
     v.x = this.viewportEl.clientWidth / 2 - (node.x + 140) * v.zoom;
     v.y = this.viewportEl.clientHeight / 2 - (node.y + 80) * v.zoom;
     this.transform();
@@ -8033,6 +8893,8 @@ export class VisualAgentMapView extends ItemView {
       const locked = this.isMerging(node.id);
       let warned = false;
       const move = (e: PointerEvent): void => {
+        // While sorted the card sits at a display position; saving a drag would write that, so cards stay put.
+        if (this.relevanceSortOn()) return;
         moved ||= Math.hypot(e.clientX - start.x, e.clientY - start.y) > 3;
         if (moved && locked) {
           if (!warned) new Notice(t("ui.merge_locked"));
@@ -8174,6 +9036,8 @@ export class VisualAgentMapView extends ItemView {
         );
         path.addClass("vam-edge");
         if (parentId !== node.parentId) path.addClass("vam-edge-convergence");
+        if (!this.map.aim && !this.builtIn && this.notes.get(node.id)?.relevance?.tier === "side")
+          path.addClass("vam-edge-side");
         this.edgesEl.appendChild(path);
         this.edgeEls.set(`${parentId}\u0000${node.id}`, path);
       }

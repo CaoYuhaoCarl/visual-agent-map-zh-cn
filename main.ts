@@ -68,6 +68,11 @@ import { announceTestOverrides } from "./experiences/aim/flow-limits";
 import { ReframingService, providerReframeRunner } from "./core/reframing-service";
 import { OutlineGenerationService, providerOutlineRunner } from "./core/outline-generation-service";
 import { StructureReviewService, providerStructureReviewRunner } from "./core/structure-review-service";
+import {
+  RelevanceGradeService,
+  providerRelevanceGradeRunner,
+  type RelevanceGradeRun
+} from "./core/relevance-grade-service";
 import { receiveVisualMapHandoff } from "./experiences/visual-map/handoff";
 import { openCoffeeResearchHandoff } from "./experiences/coffee-tables/handoff-modal";
 import { MarkdownSelectionAi } from "./experiences/markdown-context/selection-ai";
@@ -165,6 +170,11 @@ export default class VisualAgentMapPlugin extends Plugin {
   readonly structureReview = new StructureReviewService(
     providerStructureReviewRunner(this.aiTaskOptions, this.activeTasks)
   );
+  readonly relevanceGrade = new RelevanceGradeService(
+    providerRelevanceGradeRunner(this.aiTaskOptions, this.activeTasks)
+  );
+  /** The relevance grading run of each map, by map path. A view shows it; only one run per map. */
+  readonly relevanceGrades = new Map<string, RelevanceGradeRun>();
   exchanges: AiExchangeLog | null = null;
   readonly modelDiscovery = new ModelDiscovery(
     () => this.codexDiagnostic().installed,

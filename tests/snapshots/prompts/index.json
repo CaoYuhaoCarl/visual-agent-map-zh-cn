@@ -711,6 +711,76 @@
       "language": "zh-TW",
       "schema": false
     },
+    "relevance-grade-pinned.en": {
+      "builder": "core/relevance-grade-service.ts buildRelevanceGradePrompt (one pinned card)",
+      "language": "en",
+      "schema": true
+    },
+    "relevance-grade-pinned.zh": {
+      "builder": "core/relevance-grade-service.ts buildRelevanceGradePrompt (one pinned card)",
+      "language": "zh-TW",
+      "schema": true
+    },
+    "relevance-grade-repair-missing.en": {
+      "builder": "core/relevance-grade-service.ts relevanceGradeMissingRepairStep.render (a bounded card left out)",
+      "language": "en",
+      "schema": true
+    },
+    "relevance-grade-repair-missing.zh": {
+      "builder": "core/relevance-grade-service.ts relevanceGradeMissingRepairStep.render (a bounded card left out)",
+      "language": "zh-TW",
+      "schema": true
+    },
+    "relevance-grade-repair-pinned.en": {
+      "builder": "core/relevance-grade-service.ts relevanceGradeRepairStep.render (one pinned card, bounds violation)",
+      "language": "en",
+      "schema": true
+    },
+    "relevance-grade-repair-pinned.zh": {
+      "builder": "core/relevance-grade-service.ts relevanceGradeRepairStep.render (one pinned card, bounds violation)",
+      "language": "zh-TW",
+      "schema": true
+    },
+    "relevance-grade-repair.en": {
+      "builder": "core/relevance-grade-service.ts relevanceGradeRepairStep.render (one hierarchy violation)",
+      "language": "en",
+      "schema": true
+    },
+    "relevance-grade-repair.zh": {
+      "builder": "core/relevance-grade-service.ts relevanceGradeRepairStep.render (one hierarchy violation)",
+      "language": "zh-TW",
+      "schema": true
+    },
+    "relevance-grade.en": {
+      "builder": "core/relevance-grade-service.ts buildRelevanceGradePrompt",
+      "language": "en",
+      "schema": true
+    },
+    "relevance-grade.zh": {
+      "builder": "core/relevance-grade-service.ts buildRelevanceGradePrompt",
+      "language": "zh-TW",
+      "schema": true
+    },
+    "relevance-recalibrate-repair.en": {
+      "builder": "core/relevance-grade-service.ts relevanceRecalibrateRepairStep.render (bounds violation)",
+      "language": "en",
+      "schema": true
+    },
+    "relevance-recalibrate-repair.zh": {
+      "builder": "core/relevance-grade-service.ts relevanceRecalibrateRepairStep.render (bounds violation)",
+      "language": "zh-TW",
+      "schema": true
+    },
+    "relevance-recalibrate.en": {
+      "builder": "core/relevance-grade-service.ts relevanceRecalibrateStep.render (one pinned card, one card not graded yet)",
+      "language": "en",
+      "schema": true
+    },
+    "relevance-recalibrate.zh": {
+      "builder": "core/relevance-grade-service.ts relevanceRecalibrateStep.render (one pinned card, one card not graded yet)",
+      "language": "zh-TW",
+      "schema": true
+    },
     "service.decompose-deep.en": {
       "builder": "AiTaskService instructions: mode decompose, deep research",
       "language": "en",

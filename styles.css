@@ -140,11 +140,74 @@
 @property --vam-orbit { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
 @keyframes vam-orbit { to { --vam-orbit: 360deg; } }
 @keyframes vam-scan { from { background-position: -100% 0; } to { background-position: 200% 0; } }
+/* Offline relevance grading (mind maps only): a quiet icon + text tag, no fill. Side topics fade but stay in place. */
+.vam-relevance-tag { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; font-size: var(--font-ui-smaller); line-height: 1.4; white-space: nowrap; }
+button.vam-relevance-tag-button { position: relative; appearance: none; margin: 0; padding: 0 4px; margin-left: -4px; border: 0; border-radius: var(--radius-s); background: transparent; box-shadow: none; height: auto; cursor: pointer; font-family: inherit; }
+.vam-relevance-tag-name { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+button.vam-relevance-tag-button:hover:not(:disabled) { background: var(--background-modifier-hover); }
+button.vam-relevance-tag-button:focus-visible { outline: 2px solid var(--background-modifier-border-focus); outline-offset: 1px; }
+button.vam-relevance-tag-button:disabled { cursor: default; opacity: .7; }
+.vam-relevance-tag > .vam-relevance-icon { display: inline-flex; flex: none; }
+.vam-relevance-tag .svg-icon { width: 14px; height: 14px; }
+.vam-relevance-tag[data-tier="core"] { color: var(--text-accent); }
+.vam-relevance-tag[data-tier="support"] { color: var(--text-muted); }
+.vam-relevance-tag[data-tier="side"] { color: var(--text-faint); }
+.vam-node[data-relevance="side"] { opacity: .5; transition: border-color 160ms ease-out, box-shadow 160ms ease-out, opacity 160ms ease-out; }
+.vam-node[data-relevance="side"]:hover, .vam-node[data-relevance="side"]:focus-within, .vam-node[data-relevance="side"].is-selected { opacity: 1; }
+.vam-edge.vam-edge-side { opacity: .2; }
+/* One toolbar button at the same level as "Select topics"; the goal is cut with an ellipsis so the row never wraps. The sort icon sits in padding reserved on the right. */
+.vam-map-tools .vam-relevance-goal { position: relative; display: inline-block; flex: 0 1 auto; min-width: 0; max-width: 14em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-top: 0; padding-bottom: 0; line-height: var(--input-height); }
+.vam-map-tools .vam-relevance-goal.is-sorted { padding-right: calc(var(--size-4-3) + 18px); }
+.vam-map-tools .vam-relevance-goal:disabled { cursor: default; }
+.vam-relevance-sort-icon { position: absolute; top: 50%; right: var(--size-4-2); display: inline-flex; color: var(--text-accent); transform: translateY(-50%); pointer-events: none; }
+.vam-relevance-sort-icon .svg-icon { width: 14px; height: 14px; }
+/* The panel opens under that button, inside the overlay, on the same card surface as the toolbar. */
+.vam-relevance-panel { position: absolute; top: calc(100% + 6px); left: 0; z-index: 5; display: flex; flex-direction: column; gap: 10px; box-sizing: border-box; width: min(360px, calc(100vw - 32px)); max-width: calc(100vw - 32px); padding: 12px; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); background: var(--background-primary); box-shadow: var(--shadow-s); animation: vam-relevance-panel-in 150ms ease-out; }
+@keyframes vam-relevance-panel-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.vam-relevance-setup { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.vam-relevance-setup-row { display: flex; gap: 8px; min-width: 0; }
+.vam-relevance-goal-input, .vam-relevance-context-input { flex: 1 1 auto; min-width: 0; width: 100%; box-sizing: border-box; font-size: var(--font-ui-small); }
+.vam-relevance-goal-input::placeholder, .vam-relevance-context-input::placeholder { color: var(--text-muted); opacity: 1; }
+.vam-relevance-setup .vam-relevance-level { flex: 0 0 auto; max-width: 45%; font-size: var(--font-ui-small); }
+.vam-relevance-context-input { flex: 1 1 0; }
+.vam-relevance-goal-input:focus-visible, .vam-relevance-context-input:focus-visible, .vam-relevance-level:focus-visible, .vam-relevance-grade-button:focus-visible, .vam-relevance-sort:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
+.vam-relevance-grade-button { align-self: flex-end; font-size: var(--font-ui-small); }
+.vam-relevance-grade-button:active:not(:disabled) { transform: translateY(1px); }
+.vam-relevance-divider { height: 1px; background: var(--background-modifier-border); }
+/* The sort control is a real switch row: label, the explanation as secondary text, and Obsidian's own toggle. */
+.vam-relevance-panel .vam-relevance-sort { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; height: auto; padding: 6px 8px; margin: 0; background: transparent; box-shadow: none; text-align: left; white-space: normal; color: var(--text-normal); font-weight: var(--font-normal); }
+.vam-relevance-panel .vam-relevance-sort:hover { background: var(--background-modifier-hover); }
+.vam-relevance-panel .vam-relevance-sort:active { background: var(--background-modifier-active-hover); }
+.vam-relevance-sort-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.vam-relevance-sort-title { font-size: var(--font-ui-small); }
+.vam-relevance-sort-hint { font-size: var(--font-ui-smaller); color: var(--text-muted); line-height: 1.4; }
+.vam-relevance-switch { flex: none; pointer-events: none; }
+@media (max-width: 420px) {
+  .vam-relevance-setup-row { flex-direction: column; }
+  .vam-relevance-setup .vam-relevance-level { max-width: 100%; }
+  .vam-map-tools .vam-relevance-goal { max-width: 9em; }
+}
+.vam-relevance-changes { margin: 0; padding: 0; list-style: none; }
+.vam-relevance-change { padding: 10px 0; border-bottom: 1px solid var(--background-modifier-border); }
+.vam-relevance-change:last-child { border-bottom: 0; }
+.vam-relevance-change-title { font-weight: 600; overflow-wrap: anywhere; }
+.vam-relevance-change-tags { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; margin-top: 4px; }
+.vam-relevance-ungraded { font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.vam-relevance-arrow { display: inline-flex; color: var(--text-muted); }
+.vam-relevance-arrow .svg-icon { width: 14px; height: 14px; }
+.vam-relevance-anchor-title, .vam-relevance-other-title, .vam-relevance-conflicts-title { margin: 12px 0 0; font-size: var(--font-ui-small); font-weight: 600; color: var(--text-muted); }
+.vam-relevance-conflicts { margin: 4px 0 0; padding: 0; list-style: none; }
+.vam-relevance-conflict { padding: 6px 0; font-size: var(--font-ui-small); color: var(--text-muted); overflow-wrap: anywhere; }
+.vam-relevance-pins-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; font-size: var(--font-ui-small); color: var(--text-muted); }
+.vam-relevance-unpin-all { font-size: var(--font-ui-small); }
+.vam-relevance-unpin-all:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
+.vam-relevance-change-reason { margin: 4px 0 0; font-size: var(--font-ui-small); color: var(--text-muted); overflow-wrap: anywhere; }
 @media (prefers-reduced-motion: reduce) {
+  .vam-relevance-panel { animation: none; }
   /* Same selector weight as the scan animation rule above, otherwise that rule keeps winning. */
   .vam-status-running::before, .vam-node:not([data-aim-kind])[data-status="running"]::after { animation: none; }
   .vam-node:not([data-aim-kind])[data-status="running"]::after { background: var(--interactive-accent); }
-  .vam-node, .vam-node .vam-add-child, .vam-node > .vam-node-tools { transition: none; }
+  .vam-node, .vam-node[data-relevance="side"], .vam-node .vam-add-child, .vam-node > .vam-node-tools { transition: none; }
 }
 .theme-dark .vam-viewport { background-color: var(--background-primary); }
 .theme-dark .vam-node { --vam-card-bg: var(--background-secondary); }
@@ -308,7 +371,8 @@
 .vam-proposal-field > span { color: var(--text-muted); font-weight: 500; text-align: left; }
 .vam-proposal-field > input, .vam-proposal-field > textarea { width: 100%; min-width: 0; box-sizing: border-box; }
 .vam-proposal textarea { resize: vertical; }
-.vam-node.vam-structure-suggested { box-shadow: 0 0 0 3px var(--background-primary), 0 0 0 6px var(--color-orange); }
+/* The research-frame status rules (idea: box-shadow none) are more specific than the bare class, so name the status too. */
+.vam-node.vam-structure-suggested, .vam-node:not([data-aim-kind])[data-status].vam-structure-suggested { box-shadow: 0 0 0 3px var(--background-primary), 0 0 0 6px var(--color-orange); }
 .vam-next-structure { display: flex; align-items: center; gap: var(--size-4-2); flex-wrap: wrap; margin: var(--size-4-2) 0 var(--size-4-1); }
 .vam-next-structure-label { font-size: var(--font-ui-small); font-weight: 600; }
 .vam-next-structure-hint { margin: 0 0 var(--size-4-2); font-size: var(--font-ui-smaller); }
