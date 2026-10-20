@@ -61,6 +61,9 @@ const UNSAFE_LINE: readonly RegExp[] = [
   /\]\s*(?:radius|color|stroke-color|stroke-width)\s*:/i // quadrantChart point styling
 ];
 
+/** A classDiagram annotation such as `<<interface>>`, `<<abstract>>` or `<<Service>>`; letters, digits and `_` only. */
+const CLASS_ANNOTATION = /<<[A-Za-z][A-Za-z0-9_]*>>/g;
+
 const FENCE = /^(`{3,}|~{3,})(.*)$/;
 /** One layer of line prefix: indentation, a blockquote marker, or a list/task marker. */
 const PREFIX = /^(?:[ \t]+|>|(?:[-*+]|\d+[.)])(?=[ \t])|\[[ xX]\](?=[ \t]))/;
@@ -85,7 +88,13 @@ export function unsafeMermaid(body: readonly string[]): boolean {
   if (lines[0] === "---") return true;
   const header = lines.find(line => !line.startsWith("%%"));
   if (!header || !allowedHeader(header)) return true;
-  return lines.some(line => UNSAFE_LINE.some(pattern => pattern.test(line)));
+  // Only a classDiagram annotation (`<<interface>>`) is exempt from the HTML-tag rule: the exact token `<<word>>` is
+  // swapped for a space before testing, so any other `<` (also one left behind or joined by the swap) is still checked.
+  const classDiagram = /^classDiagram(?:-v2)?(?![\w-])/.test(header);
+  return lines.some(line => {
+    const text = classDiagram ? line.replace(CLASS_ANNOTATION, " ") : line;
+    return UNSAFE_LINE.some(pattern => pattern.test(text));
+  });
 }
 
 /**

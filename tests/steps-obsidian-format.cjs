@@ -301,7 +301,7 @@ test('mermaid types: type-specific unsafe syntax is neutralized', () => {
     'sequence details': ['sequenceDiagram', '  details A: /x'],
     'class callback': ['classDiagram', '  A : x', '  callback A "fn"'],
     'class cssClass': ['classDiagram', '  A : x', '  cssClass "A" x'],
-    'class interface': ['classDiagram', '  <<interface>> A'],
+    'class html tag': ['classDiagram', '  <interface> A'],
     'class body': ['classDiagram', '  class A {', '    x', '  }'],
     'gantt click call': ['gantt', '  dateFormat YYYY-MM-DD', '  a : a1, 2026-01-01, 1d', '  click a call fn()'],
     'gantt click href': ['gantt', '  dateFormat YYYY-MM-DD', '  a : a1, 2026-01-01, 1d', '  click a href "/x"'],
@@ -403,4 +403,28 @@ test('mermaid safety: sequence actor menus after a semicolon are neutralized', (
   assert.equal(parse('```mermaid\n' + body.join('\n') + '\n```'), '```text\n' + body.join('\n') + '\n```');
   const details = ['sequenceDiagram', '  A->>B: hi; details A: /x'];
   assert.equal(parse('```mermaid\n' + details.join('\n') + '\n```'), '```text\n' + details.join('\n') + '\n```');
+});
+
+test('classDiagram annotations <<word>> stay mermaid; every other angle bracket is still unsafe', () => {
+  const block = lines => '```mermaid\n' + lines.join('\n') + '\n```';
+  const keep = [
+    ['classDiagram', '  <<interface>> Shape', '  Shape <|-- Duck'],
+    ['classDiagram-v2', '  <<abstract>> A', '  Animal : <<Service>>'],
+    ['sequenceDiagram', '  A->>B: hi', '  B-->>A: ok'],
+    ['flowchart LR', '  A <--> B']
+  ];
+  for (const lines of keep) assert.equal(neutralizeUnsafeMermaid(block(lines)), block(lines), lines[0]);
+  const reject = [
+    ['classDiagram', '  <<interface>> A', '  B <script>'],
+    ['classDiagram', '  <<a><b>> A'],
+    ['classDiagram', '  << interface >> A'],
+    ['classDiagram', '  <<<<x>>script>> A'],
+    ['classDiagram', '  <<interface>> A', '  click A "x"'],
+    ['classDiagram', '  <<img src=x>> A'],
+    ['flowchart LR', '  A["<<interface>>"] --> B'],
+    ['sequenceDiagram', '  A->>B: <<x>>'],
+    ['classDiagram', '  A <-- <!-- x -->'],
+    ['classDiagram', '  <<interface>> A', '  B["<img src=x>"]']
+  ];
+  for (const lines of reject) assert.equal(neutralizeUnsafeMermaid(block(lines)), block(lines).replace('```mermaid', '```text'), lines.join(' / '));
 });

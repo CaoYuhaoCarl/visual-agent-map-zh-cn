@@ -1,6 +1,7 @@
 import { Component, MarkdownRenderer, MarkdownView, Notice, Platform, setIcon, type App, type Editor } from "obsidian";
 import { getUiLanguage, t } from "../../i18n";
 import type { PreparedStep } from "../../core/step-runner";
+import { unsafeMermaid } from "../../ai/mermaid-safety";
 import { prepareStep } from "../../core/step-runner";
 import { imageMarkdown, type ImageCandidate } from "./action-plan";
 import { imageSearchStep } from "./steps/image-search/step";
@@ -699,9 +700,8 @@ class SelectionAiPanel extends Component {
         if (plan.action === "diagram") {
           if (
             !/^```mermaid[ \t]*\n(?:(?!```)[\s\S])+\n```$/.test(result.trim()) ||
-            /(?:<|>\s*<|\bclick\b|%%\{|@\{|\bimg\s*:|\bimage\s*:|\burl\s*\(|https?:|data:|file:|javascript:)/i.test(
-              result
-            )
+            unsafeMermaid(result.trim().split("\n").slice(1, -1)) ||
+            /(?:%%\{|@\{|\bimg\s*:|\bimage\s*:|\burl\s*\(|https?:|data:|file:|javascript:)/i.test(result)
           )
             throw new Error(t("ui.context_ai_invalid_diagram"));
           this.previewChild = new Component();

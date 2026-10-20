@@ -124,3 +124,36 @@ test('translated image is written in place of the clicked copy, below it, or at 
   const table = `| a | b |\n| - | - |\n| ${embed} | x |\n| c | d |\n\nAfter\n`;
   assert.equal((await write(table, one, 'new')).content, `| a | b |\n| - | - |\n| ${embed} | x |\n| c | d |\n\n![[egg-zh-TW.png]]\n\nAfter\n`);
 });
+
+test('the diagram action accepts safe mermaid (classDiagram annotation, sequence arrows) and rejects unsafe blocks', async () => {
+  const plan = JSON.stringify({ action: 'diagram', query: '', instruction: 'Draw it', placement: 'after', captionInstruction: '' });
+  const outcome = async body => runPanel({ markdown: 'A.\nSelected.\nB.', selected: 'Selected.', replies: [plan, '```mermaid\n' + body + '\n```'], outcome: true });
+  const accepted = {
+    classAnnotation: 'classDiagram\n  <<interface>> Shape\n  <<abstract>> Duck\n  Shape : +draw()\n  Shape <|-- Duck',
+    classInline: 'classDiagram\n  Animal <|-- Duck\n  <<Service>> Animal',
+    sequence: 'sequenceDiagram\n  A->>B: hi\n  B-->>A: ok\n  A<<->>B: both',
+    bidirectional: 'flowchart LR\n  A <--> B\n  B --> C'
+  };
+  for (const [name, body] of Object.entries(accepted)) {
+    const { output } = await outcome(body);
+    assert.equal(output, '```mermaid\n' + body + '\n```', `${name} is accepted`);
+  }
+  const rejected = {
+    script: 'flowchart LR\n  A["<script>alert(1)</script>"] --> B',
+    img: 'flowchart LR\n  A["<img src=x>"] --> B',
+    comment: 'flowchart LR\n  A --> B <!-- x -->',
+    click: 'flowchart LR\n  A --> B\n  click A "x"',
+    url: 'flowchart LR\n  A["https://evil.example"] --> B',
+    init: '%%{init: {}}%%\nflowchart LR\n  A --> B',
+    annotationScript: 'classDiagram\n  <<interface>> A\n  B <script>',
+    annotationTagInside: 'classDiagram\n  <<a><b>> A',
+    annotationOutsideClass: 'flowchart LR\n  A["<<interface>>"] --> B',
+    annotationSpaces: 'classDiagram\n  << interface >> A',
+    annotationJoin: 'classDiagram\n  <<<<x>>script>> A',
+    annotationClick: 'classDiagram\n  <<interface>> A\n  click A "x"'
+  };
+  for (const [name, body] of Object.entries(rejected)) {
+    const { output } = await outcome(body);
+    assert.equal(output, '', `${name} is rejected`);
+  }
+});
