@@ -1074,9 +1074,10 @@ button.vam-template-section-header:hover { background: var(--background-modifier
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-mindmap, svg)[aria-roledescription="mindmap"] .section-11 :is(rect, circle, path, polygon) { fill: color-mix(in srgb, var(--color-green) 26%, var(--background-primary)); }
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-mindmap, svg)[aria-roledescription="mindmap"] .section-edge-11 { stroke: color-mix(in srgb, var(--color-green) 70%, var(--background-primary)); }
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-mindmap, svg)[aria-roledescription="mindmap"] :is(.nodeLabel, .nodeLabel p, text, tspan) { color: var(--text-normal); fill: var(--text-normal); }
-/* Gantt: mermaid forces black text on active, done and critical bars with a forced flag, so bars are light chips in both themes
-   (accent mixed with white, black text); text outside the bars follows the theme, except active, done and critical labels, which mermaid forces to near-black:
-   those get a white halo (paint-order stroke) so they stay readable on a dark page. */
+/* Gantt: bars are chips of an accent mixed into the page background (--background-primary) with --text-normal text, so the text/chip
+   contrast follows the active theme (6.8:1 or more measured on Obsidian's default light and dark). Text outside the bars follows the theme,
+   except active, done and critical labels, which mermaid forces to near-black: those get a halo (paint-order stroke) in the page
+   background, and in dark themes in --text-normal (light), so the near-black glyph stays readable. */
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] { filter: none; }
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] .section { opacity: 1; }
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] :is(.section0, .section2) { fill: color-mix(in srgb, var(--text-normal) 6%, var(--background-primary)); }
@@ -1084,13 +1085,14 @@ button.vam-template-section-header:hover { background: var(--background-modifier
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] .exclude-range { fill: var(--background-secondary); }
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] .grid :is(.tick line, .domain) { stroke: var(--background-modifier-border); }
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] text { fill: var(--text-normal); }
-.mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] text.taskText { fill: black; }
-.mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] text:is([class*="activeText"], [class*="doneText"], [class*="activeCritText"], [class*="doneCritText"])[class*="Outside"] { paint-order: stroke; stroke: white; stroke-width: 3px; stroke-linejoin: round; }
-.mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] .task { fill: color-mix(in srgb, var(--color-blue) 40%, white); stroke: var(--color-blue); }
-.mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] .task[class*="active"] { fill: color-mix(in srgb, var(--color-blue) 16%, white); }
-.mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] .task[class*="done"] { fill: color-mix(in srgb, var(--text-faint) 30%, white); stroke: var(--text-faint); }
+.mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] text.taskText { fill: var(--text-normal); }
+.mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] text:is([class*="activeText"], [class*="doneText"], [class*="activeCritText"], [class*="doneCritText"])[class*="Outside"] { paint-order: stroke; stroke: var(--background-primary); stroke-width: 3px; stroke-linejoin: round; }
+.theme-dark .mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] text:is([class*="activeText"], [class*="doneText"], [class*="activeCritText"], [class*="doneCritText"])[class*="Outside"] { stroke: var(--text-normal); }
+.mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] .task { fill: color-mix(in srgb, var(--color-blue) 40%, var(--background-primary)); stroke: var(--color-blue); }
+.mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] .task[class*="active"] { fill: color-mix(in srgb, var(--color-blue) 16%, var(--background-primary)); }
+.mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] .task[class*="done"] { fill: color-mix(in srgb, var(--text-faint) 30%, var(--background-primary)); stroke: var(--text-faint); }
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] .task[class*="crit"] { stroke: var(--color-red); }
-.mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] .task[class*="crit"]:not([class*="active"], [class*="done"]) { fill: color-mix(in srgb, var(--color-red) 40%, white); }
+.mermaid.vam-mermaid-scope > :is(#vam-mermaid-gantt, svg)[aria-roledescription="gantt"] .task[class*="crit"]:not([class*="active"], [class*="done"]) { fill: color-mix(in srgb, var(--color-red) 40%, var(--background-primary)); }
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-c4, svg)[aria-roledescription="c4"] { filter: none; }
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-c4, svg)[aria-roledescription="c4"] rect { fill: color-mix(in srgb, var(--text-muted) 16%, var(--background-primary)); stroke: var(--text-muted); }
 .mermaid.vam-mermaid-scope > :is(#vam-mermaid-c4, svg)[aria-roledescription="c4"] rect[fill="none"] { fill: none; }
@@ -1127,9 +1129,15 @@ button.vam-template-section-header:hover { background: var(--background-modifier
    (its color at 0.7 opacity), and a footnote back-reference is --text-faint (2.3:1 light, 2.97:1 dark). register.ts adds
    the scope class to each link element of a VAM note (never to a link in an embedded note), so other notes keep Obsidian's
    own look. Colors are mixed toward --text-normal so contrast follows the active theme; links keep the theme underline,
-   and an unresolved link keeps its own hue and gets a dashed underline, so it still differs from a resolved one. */
+   an unresolved link keeps its own hue and swaps the underline for a dashed bottom border (the CSS lint of the community-plugin scan flags
+   the dashed text-decoration style as partially supported), so it still differs from a resolved one. The hover color is mixed 60%
+   (the 72% mix measured 4.33:1 on light). Live preview and source mode draw links as CodeMirror spans, not anchors; register.ts
+   puts .vam-editor-scope on the editor of a VAM note and the same mixes apply to .cm-hmd-internal-link, .cm-link and .cm-url. */
 .markdown-rendered a.vam-link-scope { color: color-mix(in srgb, var(--link-color) 72%, var(--text-normal)); }
-.markdown-rendered a.vam-link-scope:hover { color: color-mix(in srgb, var(--link-color-hover) 72%, var(--text-normal)); }
-.markdown-rendered a.vam-link-scope.is-unresolved { color: color-mix(in srgb, var(--link-unresolved-color) 60%, var(--text-normal)); opacity: 1; text-decoration-style: dashed; }
+.markdown-rendered a.vam-link-scope:hover { color: color-mix(in srgb, var(--link-color-hover) 60%, var(--text-normal)); }
+.markdown-rendered a.vam-link-scope.is-unresolved { color: color-mix(in srgb, var(--link-unresolved-color) 60%, var(--text-normal)); opacity: 1; text-decoration: none; border-bottom: 1px dashed currentcolor; }
+.vam-editor-scope :is(.cm-hmd-internal-link, .cm-hmd-internal-link .cm-underline, .cm-link, .cm-url) { color: color-mix(in srgb, var(--link-color) 72%, var(--text-normal)); }
+.vam-editor-scope :is(.cm-hmd-internal-link, .cm-hmd-internal-link .cm-underline, .cm-link, .cm-url):hover { color: color-mix(in srgb, var(--link-color-hover) 60%, var(--text-normal)); }
+.vam-editor-scope .cm-hmd-internal-link.is-unresolved, .vam-editor-scope .is-unresolved :is(.cm-hmd-internal-link, .cm-underline) { color: color-mix(in srgb, var(--link-unresolved-color) 60%, var(--text-normal)); opacity: 1; }
 .markdown-rendered a.vam-link-scope.footnote-backref { color: var(--text-muted); }
 .markdown-rendered a.vam-link-scope.footnote-backref:hover { color: var(--text-normal); }

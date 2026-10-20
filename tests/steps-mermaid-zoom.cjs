@@ -457,6 +457,33 @@ test('link scope: the link CSS is scoped to .vam-link-scope, never the bare anch
   for (const rule of rules) assert.ok(/a\.vam-link-scope/.test(rule), rule);
 });
 
+test('editor link scope: the editor of a VAM note gets .vam-editor-scope, another note and a destroyed watcher do not', () => {
+  const ctx = loadRegister(FILES);
+  const dom = node('div', 'cm-editor');
+  const watcher = new ctx.mod.EditorWatcher(ctx.app, dom, () => 'Topics/A/Note.md', () => {});
+  assert.ok(dom.classes.includes('vam-editor-scope'));
+  watcher.destroy();
+  assert.equal(dom.classes.includes('vam-editor-scope'), false);
+  const plainDom = node('div', 'cm-editor');
+  new ctx.mod.EditorWatcher(ctx.app, plainDom, () => 'Other/plain.md', () => {});
+  assert.equal(plainDom.classes.includes('vam-editor-scope'), false);
+});
+
+test('link CSS: editor rules are scoped to .vam-editor-scope; no text-decoration-style anywhere in styles.css', () => {
+  const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
+  const rules = css.split('\n').filter(line => line.includes(' { ') && /\.cm-hmd-internal-link|\.cm-link|\.cm-url/.test(line));
+  assert.ok(rules.length >= 3);
+  for (const rule of rules) assert.ok(rule.startsWith('.vam-editor-scope'), rule);
+  assert.equal(/text-decoration-style/.test(css), false);
+});
+
+test('gantt CSS: bar and label colors come from theme variables, not black or white', () => {
+  const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
+  const rules = css.split('\n').filter(line => line.includes('aria-roledescription="gantt"') && /taskText|\.task|Outside/.test(line));
+  assert.ok(rules.length >= 6);
+  for (const rule of rules) assert.equal(/\b(black|white)\b|#fff|#000/i.test(rule), false, rule);
+});
+
 test('mermaid zoom: the timeline CSS targets only the diagram element, never a section', () => {
   const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
   const rules = css.split('\n').filter(line => line.includes('aria-roledescription="timeline"'));

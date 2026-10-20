@@ -3643,6 +3643,7 @@ var MermaidZoomModal = class extends import_obsidian2.Modal {
 var SCOPE_CLASS = "vam-mermaid-scope";
 var CALLOUT_SCOPE_CLASS = "vam-callout-scope";
 var LINK_SCOPE_CLASS = "vam-link-scope";
+var EDITOR_SCOPE_CLASS = "vam-editor-scope";
 var ZOOMABLE_CLASS = "vam-mermaid-zoomable";
 var BUTTON_CLASS = "vam-mermaid-zoom-btn";
 function marker(value) {
@@ -3742,7 +3743,9 @@ var EditorWatcher = class {
   scan() {
     const path = this.sourcePath();
     this.lastPath = path;
-    if (path && isVamSource(this.app, path)) {
+    const isVam = !!path && isVamSource(this.app, path);
+    this.dom.toggleClass(EDITOR_SCOPE_CLASS, isVam);
+    if (path && isVam) {
       scanCallouts(this.dom);
       scanLinks(this.dom);
       scan(this.app, this.dom);
@@ -3754,6 +3757,7 @@ var EditorWatcher = class {
   }
   destroy() {
     this.observer.disconnect();
+    this.dom.removeClass(EDITOR_SCOPE_CLASS);
     this.onDestroy(this);
   }
 };
