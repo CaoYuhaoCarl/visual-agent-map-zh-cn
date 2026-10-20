@@ -138,7 +138,8 @@ export class OutlineImportModal extends Modal {
     initialPlacement: OutlinePlacement["kind"] = "tree",
     private generator?: OutlineGenerator,
     private links: FieldLinks = {},
-    private tones: { id: string; name: string }[] = []
+    private tones: { id: string; name: string }[] = [],
+    private defaultStyleLabel = ""
   ) {
     super(app);
     // The outline always joins the open map (a new map starts from + New mind map); without a selection it becomes a new tree.
@@ -183,7 +184,7 @@ export class OutlineImportModal extends Modal {
     const style = noteStyleField(researchOptions, {
       templates: this.templates,
       tones: this.tones,
-      keepLabel: t("ui.note_style_use_default"),
+      keepLabel: t("ui.note_style_use_default_0", this.defaultStyleLabel),
       templateDefault: t("ui.detail_template_use_workspace"),
       toneDefault: t("ui.tone_use_default"),
       manageTemplates: this.links.manageTemplates,

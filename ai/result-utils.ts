@@ -68,9 +68,12 @@ function textbookDetail(
     const evidence = (sections.get(sourcesIndex) ?? []).join("\n").trim();
     sections.set(sourcesIndex, [[evidence, footnotes.join("\n")].filter(Boolean).join("\n\n")]);
   }
-  const placeholders = new Set(
-    (["zh-TW", "en"] as const).map(locale => translate(locale, "note.no_new_information").replace(/[.。]$/, ""))
-  );
+  // The note placeholder in both languages, plus the "No new content this time" wording the prompts ask the model to write.
+  const placeholders = new Set([
+    ...(["zh-TW", "en"] as const).map(locale => translate(locale, "note.no_new_information").replace(/[.。]$/, "")),
+    "No new content this time",
+    "本次無新增內容"
+  ]);
   const blocks = [leading.join("\n").trim()];
   template.sections.forEach((section, index) => {
     const body = sections.get(index)?.join("\n").trim() ?? "";

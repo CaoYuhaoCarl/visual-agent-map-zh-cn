@@ -943,7 +943,7 @@ integrationTest('outline import dialog: first option is "Use the default (Standa
   const { OutlineImportModal } = load('experiences/visual-map/outline-import-modal.ts', { obsidian: { ...obsidian, Modal } });
   const requests = [];
   const open = (shallowOn, value, prefill) => {
-    const modal = new OutlineImportModal({ vault: { getMarkdownFiles: () => [] } }, async request => { requests.push(request); }, undefined, [{ id: 'standard', name: 'Standard' }], { map: 'none' }, 'tree', undefined, {}, [{ id: 'plain', name: 'Plain' }]);
+    const modal = new OutlineImportModal({ vault: { getMarkdownFiles: () => [] } }, async request => { requests.push(request); }, undefined, [{ id: 'standard', name: 'Standard' }], { map: 'none' }, 'tree', undefined, {}, [{ id: 'plain', name: 'Plain' }], 'Standard');
     modal.open();
     const select = styleSelect(modal.contentEl);
     if (value) pick(select, value);

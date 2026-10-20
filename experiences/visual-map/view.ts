@@ -59,6 +59,7 @@ import {
   builtinTemplates,
   isBuiltinTemplateId,
   resolveTemplate,
+  STANDARD_TEMPLATE_ID,
   type CountIssue,
   type DetailTemplate
 } from "../../ai/detail-templates";
@@ -982,6 +983,13 @@ export class VisualAgentMapView extends ItemView {
       this.plugin.settings.language
     );
   }
+  /** Name of the workspace default note style (default template, academic tone) for "Use the default (…)". */
+  private defaultStyleLabel(): string {
+    return this.currentStyleLabel(
+      this.plugin.settings.defaultDetailTemplateId ?? STANDARD_TEMPLATE_ID,
+      DEFAULT_TONE_ID
+    );
+  }
   /** The tone id a topic resolves to now (topic override, else map default, else academic), as toneLabelFor names it. */
   private effectiveToneId(note: Pick<Note, "toneId">): string {
     const settings = this.plugin.settings;
@@ -1005,7 +1013,8 @@ export class VisualAgentMapView extends ItemView {
       placement,
       this.outlineGenerator(prefill ? prefill.inputs.topic : target.selected?.title, prefill),
       this.fieldLinks(),
-      this.toneChoices()
+      this.toneChoices(),
+      this.defaultStyleLabel()
     ).open();
   }
   /** The import target a reopened window keeps: its selected topic while that topic is still on the map. */
@@ -4856,7 +4865,11 @@ export class VisualAgentMapView extends ItemView {
     const matched = unset ? undefined : matchPreset(templateId, toneId);
     const current = { description: t("ui.detail_template_current") };
     new ChoiceModal(this.app, t("ui.note_style_map_default"), t("ui.note_style_map_default_desc"), [
-      { label: t("ui.note_style_use_default"), ...(unset ? current : {}), action: () => apply(undefined, undefined) },
+      {
+        label: t("ui.note_style_use_default_0", this.defaultStyleLabel()),
+        ...(unset ? current : {}),
+        action: () => apply(undefined, undefined)
+      },
       ...NOTE_STYLE_PRESETS.map(preset => ({
         label: t(preset.name),
         ...(matched?.id === preset.id ? current : {}),

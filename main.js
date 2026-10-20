@@ -1067,7 +1067,7 @@ var english = {
   "ui.note_style": "Note style",
   "ui.note_style_keep_0": "Keep current ({0})",
   "ui.note_style_keep_each": "Each topic's current style",
-  "ui.note_style_use_default": "Use the default (Standard)",
+  "ui.note_style_use_default_0": "Use the default ({0})",
   "ui.note_style_custom": "Custom\u2026",
   "ui.note_style_custom_0_1": "Custom: {0} \xB7 {1}",
   "ui.note_style_standard": "Standard (academic)",
@@ -2646,7 +2646,7 @@ var traditionalChinese = {
   "ui.note_style": "\u7B46\u8A18\u98A8\u683C",
   "ui.note_style_keep_0": "\u6CBF\u7528\u76EE\u524D\uFF08{0}\uFF09",
   "ui.note_style_keep_each": "\u6CBF\u7528\u5404\u8B70\u984C\u76EE\u524D\u7684\u98A8\u683C",
-  "ui.note_style_use_default": "\u4F7F\u7528\u9810\u8A2D\uFF08\u6A19\u6E96\uFF09",
+  "ui.note_style_use_default_0": "\u4F7F\u7528\u9810\u8A2D\uFF08{0}\uFF09",
   "ui.note_style_custom": "\u81EA\u8A02\u2026",
   "ui.note_style_custom_0_1": "\u81EA\u8A02\uFF1A{0} \xB7 {1}",
   "ui.note_style_standard": "\u6A19\u6E96\uFF08\u5B78\u8853\u56B4\u8B39\uFF09",
@@ -13169,9 +13169,11 @@ function textbookDetail(template, leading, sections, footnotes, sourcesIndex) {
     const evidence = ((_a = sections.get(sourcesIndex)) != null ? _a : []).join("\n").trim();
     sections.set(sourcesIndex, [[evidence, footnotes.join("\n")].filter(Boolean).join("\n\n")]);
   }
-  const placeholders = new Set(
-    ["zh-TW", "en"].map((locale) => translate(locale, "note.no_new_information").replace(/[.。]$/, ""))
-  );
+  const placeholders = /* @__PURE__ */ new Set([
+    ...["zh-TW", "en"].map((locale) => translate(locale, "note.no_new_information").replace(/[.。]$/, "")),
+    "No new content this time",
+    "\u672C\u6B21\u7121\u65B0\u589E\u5167\u5BB9"
+  ]);
   const blocks = [leading.join("\n").trim()];
   template.sections.forEach((section3, index) => {
     var _a2, _b;
@@ -17130,7 +17132,7 @@ var messageOf = (error) => {
 };
 var OutlineImportModal = class extends import_obsidian16.Modal {
   constructor(app, create, models = { list: () => [], watch: () => () => {
-  } }, templates = [], target = { map: "none" }, initialPlacement = "tree", generator, links = {}, tones = []) {
+  } }, templates = [], target = { map: "none" }, initialPlacement = "tree", generator, links = {}, tones = [], defaultStyleLabel = "") {
     super(app);
     this.create = create;
     this.models = models;
@@ -17139,6 +17141,7 @@ var OutlineImportModal = class extends import_obsidian16.Modal {
     this.generator = generator;
     this.links = links;
     this.tones = tones;
+    this.defaultStyleLabel = defaultStyleLabel;
     __publicField(this, "textarea");
     __publicField(this, "preview");
     __publicField(this, "createButton");
@@ -17202,7 +17205,7 @@ var OutlineImportModal = class extends import_obsidian16.Modal {
     const style = noteStyleField(researchOptions, {
       templates: this.templates,
       tones: this.tones,
-      keepLabel: t("ui.note_style_use_default"),
+      keepLabel: t("ui.note_style_use_default_0", this.defaultStyleLabel),
       templateDefault: t("ui.detail_template_use_workspace"),
       toneDefault: t("ui.tone_use_default"),
       manageTemplates: this.links.manageTemplates,
@@ -28253,6 +28256,14 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian29.Ite
       this.plugin.settings.language
     );
   }
+  /** Name of the workspace default note style (default template, academic tone) for "Use the default (…)". */
+  defaultStyleLabel() {
+    var _a;
+    return this.currentStyleLabel(
+      (_a = this.plugin.settings.defaultDetailTemplateId) != null ? _a : STANDARD_TEMPLATE_ID,
+      DEFAULT_TONE_ID
+    );
+  }
   /** The tone id a topic resolves to now (topic override, else map default, else academic), as toneLabelFor names it. */
   effectiveToneId(note) {
     var _a, _b;
@@ -28278,7 +28289,8 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian29.Ite
       placement,
       this.outlineGenerator(prefill ? prefill.inputs.topic : (_a = target.selected) == null ? void 0 : _a.title, prefill),
       this.fieldLinks(),
-      this.toneChoices()
+      this.toneChoices(),
+      this.defaultStyleLabel()
     ).open();
   }
   /** The import target a reopened window keeps: its selected topic while that topic is still on the map. */
@@ -31849,7 +31861,11 @@ ${request.requirements}` : preset.text,
     const matched = unset ? void 0 : matchPreset(templateId, toneId);
     const current = { description: t("ui.detail_template_current") };
     new ChoiceModal(this.app, t("ui.note_style_map_default"), t("ui.note_style_map_default_desc"), [
-      { label: t("ui.note_style_use_default"), ...unset ? current : {}, action: () => apply(void 0, void 0) },
+      {
+        label: t("ui.note_style_use_default_0", this.defaultStyleLabel()),
+        ...unset ? current : {},
+        action: () => apply(void 0, void 0)
+      },
       ...NOTE_STYLE_PRESETS.map((preset) => ({
         label: t(preset.name),
         ...(matched == null ? void 0 : matched.id) === preset.id ? current : {},

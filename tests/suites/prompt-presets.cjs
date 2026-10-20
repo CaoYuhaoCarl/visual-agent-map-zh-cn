@@ -139,7 +139,11 @@ test('note style: every preset has a full name and hint in both languages; the m
   }
   assert.equal(translate('zh-TW', 'ui.note_style'), '筆記風格'); assert.equal(translate('en', 'ui.note_style'), 'Note style');
   assert.equal(translate('en', 'ui.note_style_custom_0_1', 'A', 'B'), 'Custom: A · B'); assert.equal(translate('zh-TW', 'ui.note_style_custom_0_1', 'A', 'B'), '自訂：A · B');
-  assert.equal(translate('zh-TW', 'ui.note_style_keep_each'), '沿用各議題目前的風格'); assert.equal(translate('en', 'ui.note_style_use_default'), 'Use the default (Standard)');
+  assert.equal(translate('zh-TW', 'ui.note_style_keep_each'), '沿用各議題目前的風格'); assert.equal(translate('en', 'ui.note_style_use_default_0', 'Standard'), 'Use the default (Standard)');
+  assert.equal(translate('zh-TW', 'ui.note_style_use_default_0', '教科書'), '使用預設（教科書）');
+  const names = { template: id => id === 'mine' ? 'My notes' : id, tone: id => id };
+  assert.equal(translate('zh-TW', 'ui.note_style_use_default_0', style.styleLabel('textbook', 'academic', names, 'zh-TW')), '使用預設（教科書）');
+  assert.equal(translate('zh-TW', 'ui.note_style_use_default_0', style.styleLabel('mine', 'academic', names, 'zh-TW')), '使用預設（自訂：My notes · academic）');
 });
 test('tone settings row: the description points at "Custom…" in Note style', () => {
   const { obsidian } = require('../support.cjs');
