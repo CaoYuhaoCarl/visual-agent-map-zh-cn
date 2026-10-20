@@ -249,6 +249,11 @@ test('canonicalDetail textbook: empty sections and "no new content" placeholders
   assert.equal(out, 'Intro\n\n### Core conclusions\n\nC\n\n### Update log\n\n- x');
   assert.doesNotMatch(out, /No new information|無新增/);
 });
+test('canonicalDetail textbook: "No new content this time" (en) and the zh prompt wording are omitted too, with trailing period', () => {
+  const tb = api.textbookTemplate('en');
+  const out = utils.canonicalDetail('Intro\n\n### Core conclusions\n\nC\n\n### Key knowledge\n\nNo new content this time\n\n### Evidence and sources\n\nNo new content this time.\n\n### Tradeoffs and limitations\n\n本次無新增內容\n\n### Open questions\n\n本次無新增內容。', 'en', tb);
+  assert.equal(out, 'Intro\n\n### Core conclusions\n\nC');
+});
 test('canonicalDetail textbook: source footnotes go to the sources section, or the end when it is omitted; sources stay kept when they have definitions', () => {
   const tb = api.textbookTemplate('en');
   const withSources = utils.canonicalDetail('Intro\n\n### Core conclusions\n\nfact[^1]\n\n[^1]: [[Notes/X|X]]\n\n### Update log\n\n- x', 'en', tb);
