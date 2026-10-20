@@ -155,7 +155,6 @@ import {
   outlineProposals,
   type QuickOutline,
   type SynthesisObserver,
-  DraftReviewModal,
   armDiscard,
   renderProposalList,
   ChildProposalModal,
@@ -389,12 +388,11 @@ export class VisualAgentMapView extends ItemView {
     sourceContent: string;
     controller: AbortController;
     /** `applying`: the AI result passed its fences and is being written (no Stop; nothing to review). */
-    state: "running" | "directions" | "draft" | "applying" | "failed" | "cancelled";
+    state: "running" | "directions" | "applying" | "failed" | "cancelled";
     /** The step this run is on: the AI's suggested directions, or the draft itself. */
     step: "directions" | "draft";
     directions: Suggestion[];
     progress: string;
-    draft?: AiResult;
   } | null = null;
   /** A multi-select synthesis step is starting (before its task exists), so a second request is refused. */
   private selectionStarting = false;
@@ -5346,11 +5344,9 @@ export class VisualAgentMapView extends ItemView {
               ? t("ui.integration_running")
               : task.state === "directions"
                 ? t("ui.choose_synthesis_direction")
-                : task.state === "draft"
-                  ? t("ui.integration_draft_ready")
-                  : task.state === "failed"
-                    ? task.progress || t("ui.integration_failed")
-                    : t("ui.research_stopped_existing_content_was_preserved")
+                : task.state === "failed"
+                  ? task.progress || t("ui.integration_failed")
+                  : t("ui.research_stopped_existing_content_was_preserved")
       });
       if (task.state === "running")
         this.button(state, t("ui.stop_research"), () => {
@@ -5360,10 +5356,6 @@ export class VisualAgentMapView extends ItemView {
         });
       if (task.state === "directions")
         this.button(state, t("ui.choose_synthesis_direction"), () => this.openSelectionSynthesis(task)).addClass(
-          "vam-badge-new"
-        );
-      if (task.state === "draft")
-        this.button(state, t("ui.review_synthesis_draft"), () => this.reviewIntegratedDraft(task)).addClass(
           "vam-badge-new"
         );
       if (task.state === "failed" || task.state === "cancelled") {
@@ -7587,8 +7579,7 @@ export class VisualAgentMapView extends ItemView {
   private async proposeIntegrationDirections(
     node: MapNode,
     options: TaskOptions,
-    found: (items: Suggestion[], draft: (direction: string) => Promise<void>) => void,
-    drafted: SynthesisWrite,
+    found: (items: Suggestion[]) => void,
     failed: (message: string) => void,
     accepted?: () => void
   ): Promise<void> {
@@ -7652,9 +7643,7 @@ export class VisualAgentMapView extends ItemView {
         failed(t("ui.ai_did_not_suggest_a_synthesis_direction_please_retry"));
         return;
       }
-      found(angles, direction =>
-        this.plugin.mutate(() => this.integrateChildren(node, options, direction, drafted, failed))
-      );
+      found(angles);
     } catch (error) {
       if (options.signal?.aborted || (error instanceof Error && error.name === "AbortError")) {
         failed(t("ui.research_stopped_existing_content_was_preserved"));
@@ -7823,7 +7812,16 @@ export class VisualAgentMapView extends ItemView {
             node.path,
             { ...latest, status: note.status },
             saved,
-            ["summary", "detail", "visualReferences", "newFindings", "previewSection", "previewInitialized", "status"],
+            [
+              "summary",
+              "detail",
+              "visualReferences",
+              "newFindings",
+              "previewSection",
+              "previewInitialized",
+              "status",
+              "detailFormatIssues"
+            ],
             t("ui.synthesize_subtopics")
           );
           await this.hydrate();
@@ -7985,7 +7983,6 @@ export class VisualAgentMapView extends ItemView {
                 open: () => this.openSynthesisDirections(node, task)
               });
           },
-          () => {},
           fail,
           markAccepted
         );
@@ -8052,10 +8049,6 @@ export class VisualAgentMapView extends ItemView {
     const task = this.integrationTask && this.integrationTask.mapPath === this.path ? this.integrationTask : null;
     if (task?.state === "running") {
       new Notice(t("ui.ai_running_ai"));
-      return;
-    }
-    if (task?.state === "draft") {
-      this.reviewIntegratedDraft(task);
       return;
     }
     this.openSelectionSynthesis(task?.state === "directions" ? task : null);
@@ -8129,7 +8122,7 @@ export class VisualAgentMapView extends ItemView {
       failed(t("ui.ai_running_ai"));
       return;
     }
-    if ((step === "directions" && existing?.state === "directions") || existing?.state === "draft") {
+    if ((step === "directions" && existing?.state === "directions") || existing?.state === "applying") {
       failed(t("ui.synthesis_pending_review_first"));
       return;
     }
@@ -8196,7 +8189,7 @@ export class VisualAgentMapView extends ItemView {
     };
     try {
       if (step === "draft") {
-        await this.createIntegratedNode(title, sources, direction ?? "", "", runOptions, false, {
+        await this.createIntegratedNode(title, sources, direction ?? "", "", runOptions, {
           observer,
           accepted: markAccepted,
           controller,
@@ -8347,7 +8340,6 @@ export class VisualAgentMapView extends ItemView {
     goal: string,
     rules: string,
     options?: TaskOptions,
-    review = false,
     flow?: {
       observer?: SynthesisObserver;
       accepted?: () => void;
@@ -8425,15 +8417,10 @@ export class VisualAgentMapView extends ItemView {
       );
       if (JSON.stringify(latest.documents) !== task.sourceContent)
         throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
-      task.draft = result;
-      if (review && !flow) {
-        task.state = "draft";
-        this.render();
-        this.reviewIntegratedDraft(task);
-        return;
-      }
       // The result is written directly (no draft review). The fences above and in saveIntegratedNode (stop, stale
       // sources, map switch, view closed) leave every failure with zero writes.
+      // Stop pressed while the sources were re-read still wins: nothing is written.
+      if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
       if (this.closed) throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
       task.state = "applying";
       this.render();
@@ -8462,29 +8449,6 @@ export class VisualAgentMapView extends ItemView {
       if (!controller.signal.aborted) throw error;
     }
   }
-  private reviewIntegratedDraft(task: NonNullable<VisualAgentMapView["integrationTask"]>): void {
-    if (!task.draft) return;
-    new DraftReviewModal(
-      this.app,
-      task.draft.summary,
-      task.draft.detail,
-      { intro: t("ui.draft_creates_0", task.title), confirmLabel: t("ui.confirm_new_synthesis_topic") },
-      // Return the save so a failure keeps the dialog, and the user's edits, open with the error.
-      (summary, detail) =>
-        this.plugin.mutate(() =>
-          this.saveIntegratedNode(
-            task.title,
-            task.sources,
-            task.goal,
-            task.rules,
-            this.plugin.settings.cliModel,
-            { ...task.draft!, summary, detail },
-            task.options.outputLanguage ?? this.plugin.settings.language,
-            task
-          )
-        )
-    ).open();
-  }
   private async saveIntegratedNode(
     title: string,
     sources: MapNode[],
@@ -8499,9 +8463,10 @@ export class VisualAgentMapView extends ItemView {
       !this.map ||
       this.integrationTask !== task ||
       this.closed ||
+      task.controller.signal.aborted ||
       this.path !== task.mapPath ||
       this.map.id !== task.mapId ||
-      (task.state !== "draft" && task.state !== "applying")
+      task.state !== "applying"
     )
       throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
     const latest = await this.topicReferenceGroup(

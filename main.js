@@ -32289,7 +32289,7 @@ ${request.requirements}` : preset.text,
       const task = this.integrationTask, state = this.contentEl.createDiv("vam-integration-progress");
       state.setAttr("aria-live", "polite");
       state.createSpan({
-        text: task.state === "running" ? task.progress || t("ui.integration_running") : task.state === "applying" ? t("ui.integration_running") : task.state === "directions" ? t("ui.choose_synthesis_direction") : task.state === "draft" ? t("ui.integration_draft_ready") : task.state === "failed" ? task.progress || t("ui.integration_failed") : t("ui.research_stopped_existing_content_was_preserved")
+        text: task.state === "running" ? task.progress || t("ui.integration_running") : task.state === "applying" ? t("ui.integration_running") : task.state === "directions" ? t("ui.choose_synthesis_direction") : task.state === "failed" ? task.progress || t("ui.integration_failed") : t("ui.research_stopped_existing_content_was_preserved")
       });
       if (task.state === "running")
         this.button(state, t("ui.stop_research"), () => {
@@ -32299,10 +32299,6 @@ ${request.requirements}` : preset.text,
         });
       if (task.state === "directions")
         this.button(state, t("ui.choose_synthesis_direction"), () => this.openSelectionSynthesis(task)).addClass(
-          "vam-badge-new"
-        );
-      if (task.state === "draft")
-        this.button(state, t("ui.review_synthesis_draft"), () => this.reviewIntegratedDraft(task)).addClass(
           "vam-badge-new"
         );
       if (task.state === "failed" || task.state === "cancelled") {
@@ -34374,7 +34370,7 @@ ${request.requirements}` : preset.text,
     });
     return [...new Set(paths)];
   }
-  async proposeIntegrationDirections(node, options, found, drafted, failed, accepted) {
+  async proposeIntegrationDirections(node, options, found, failed, accepted) {
     var _a, _b, _c, _d, _e;
     if (!this.map) {
       failed(t("ui.no_mind_map_is_available"));
@@ -34436,10 +34432,7 @@ ${request.requirements}` : preset.text,
         failed(t("ui.ai_did_not_suggest_a_synthesis_direction_please_retry"));
         return;
       }
-      found(
-        angles,
-        (direction) => this.plugin.mutate(() => this.integrateChildren(node, options, direction, drafted, failed))
-      );
+      found(angles);
     } catch (error) {
       if (((_e = options.signal) == null ? void 0 : _e.aborted) || error instanceof Error && error.name === "AbortError") {
         failed(t("ui.research_stopped_existing_content_was_preserved"));
@@ -34582,7 +34575,16 @@ ${request.requirements}` : preset.text,
           node.path,
           { ...latest, status: note.status },
           saved,
-          ["summary", "detail", "visualReferences", "newFindings", "previewSection", "previewInitialized", "status"],
+          [
+            "summary",
+            "detail",
+            "visualReferences",
+            "newFindings",
+            "previewSection",
+            "previewInitialized",
+            "status",
+            "detailFormatIssues"
+          ],
           t("ui.synthesize_subtopics")
         );
         await this.hydrate();
@@ -34721,8 +34723,6 @@ ${request.requirements}` : preset.text,
                 open: () => this.openSynthesisDirections(node, task)
               });
           },
-          () => {
-          },
           fail,
           markAccepted
         );
@@ -34793,10 +34793,6 @@ ${request.requirements}` : preset.text,
       new import_obsidian29.Notice(t("ui.ai_running_ai"));
       return;
     }
-    if ((task == null ? void 0 : task.state) === "draft") {
-      this.reviewIntegratedDraft(task);
-      return;
-    }
     this.openSelectionSynthesis((task == null ? void 0 : task.state) === "directions" ? task : null);
   }
   /** Opens the synthesis dialog for the selected topics, or for the waiting task's topics with its directions. */
@@ -34857,7 +34853,7 @@ ${request.requirements}` : preset.text,
       failed(t("ui.ai_running_ai"));
       return;
     }
-    if (step === "directions" && (existing == null ? void 0 : existing.state) === "directions" || (existing == null ? void 0 : existing.state) === "draft") {
+    if (step === "directions" && (existing == null ? void 0 : existing.state) === "directions" || (existing == null ? void 0 : existing.state) === "applying") {
       failed(t("ui.synthesis_pending_review_first"));
       return;
     }
@@ -34914,7 +34910,7 @@ ${request.requirements}` : preset.text,
     };
     try {
       if (step === "draft") {
-        await this.createIntegratedNode(title, sources2, direction != null ? direction : "", "", runOptions, false, {
+        await this.createIntegratedNode(title, sources2, direction != null ? direction : "", "", runOptions, {
           observer,
           accepted: markAccepted,
           controller,
@@ -35056,7 +35052,7 @@ ${note.detail.trim()}` : "",
       documents
     };
   }
-  async createIntegratedNode(title, sources2, goal, rules, options, review = false, flow) {
+  async createIntegratedNode(title, sources2, goal, rules, options, flow) {
     var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l;
     if (!this.map || sources2.length < 2) return;
     const controller = (_a = flow == null ? void 0 : flow.controller) != null ? _a : new AbortController();
@@ -35126,13 +35122,7 @@ ${note.detail.trim()}` : "",
       );
       if (JSON.stringify(latest.documents) !== task.sourceContent)
         throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
-      task.draft = result;
-      if (review && !flow) {
-        task.state = "draft";
-        this.render();
-        this.reviewIntegratedDraft(task);
-        return;
-      }
+      if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
       if (this.closed) throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
       task.state = "applying";
       this.render();
@@ -35158,33 +35148,8 @@ ${note.detail.trim()}` : "",
       if (!controller.signal.aborted) throw error;
     }
   }
-  reviewIntegratedDraft(task) {
-    if (!task.draft) return;
-    new DraftReviewModal(
-      this.app,
-      task.draft.summary,
-      task.draft.detail,
-      { intro: t("ui.draft_creates_0", task.title), confirmLabel: t("ui.confirm_new_synthesis_topic") },
-      // Return the save so a failure keeps the dialog, and the user's edits, open with the error.
-      (summary, detail) => this.plugin.mutate(
-        () => {
-          var _a;
-          return this.saveIntegratedNode(
-            task.title,
-            task.sources,
-            task.goal,
-            task.rules,
-            this.plugin.settings.cliModel,
-            { ...task.draft, summary, detail },
-            (_a = task.options.outputLanguage) != null ? _a : this.plugin.settings.language,
-            task
-          );
-        }
-      )
-    ).open();
-  }
   async saveIntegratedNode(title, sources2, goal, rules, model, result, language2, task) {
-    if (!this.map || this.integrationTask !== task || this.closed || this.path !== task.mapPath || this.map.id !== task.mapId || task.state !== "draft" && task.state !== "applying")
+    if (!this.map || this.integrationTask !== task || this.closed || task.controller.signal.aborted || this.path !== task.mapPath || this.map.id !== task.mapId || task.state !== "applying")
       throw new Error(t("ui.the_topic_changed_the_synthesis_draft_was_not_saved"));
     const latest = await this.topicReferenceGroup(
       sources2,
