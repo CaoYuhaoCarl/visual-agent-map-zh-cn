@@ -38071,6 +38071,7 @@ var UNSAFE_LINE = [
   // quadrantChart point styling
 ];
 var CLASS_ANNOTATION = /<<[A-Za-z][A-Za-z0-9_]*>>/g;
+var CLASS_DECLARATION = /^class\s+[A-Za-z_][A-Za-z0-9_-]*(?:~[A-Za-z0-9_, ]*~)?(?=\s*(?:\{|\["[^"\]]*"\])?\s*$)/;
 var FENCE = /^(`{3,}|~{3,})(.*)$/;
 var PREFIX = /^(?:[ \t]+|>|(?:[-*+]|\d+[.)])(?=[ \t])|\[[ xX]\](?=[ \t]))/;
 function core(line) {
@@ -38090,7 +38091,7 @@ function unsafeMermaid(body) {
   if (!header || !allowedHeader(header)) return true;
   const classDiagram = /^classDiagram(?:-v2)?(?![\w-])/.test(header);
   return lines.some((line) => {
-    const text11 = classDiagram ? line.replace(CLASS_ANNOTATION, " ") : line;
+    const text11 = classDiagram ? line.replace(CLASS_ANNOTATION, " ").replace(CLASS_DECLARATION, "C") : line;
     return UNSAFE_LINE.some((pattern) => pattern.test(text11));
   });
 }

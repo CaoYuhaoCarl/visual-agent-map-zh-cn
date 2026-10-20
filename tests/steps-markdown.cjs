@@ -132,6 +132,7 @@ test('the diagram action accepts safe mermaid (classDiagram annotation, sequence
     classAnnotation: 'classDiagram\n  <<interface>> Shape\n  <<abstract>> Duck\n  Shape : +draw()\n  Shape <|-- Duck',
     classInline: 'classDiagram\n  Animal <|-- Duck\n  <<Service>> Animal',
     sequence: 'sequenceDiagram\n  A->>B: hi\n  B-->>A: ok\n  A<<->>B: both',
+    classDecl: 'classDiagram\n  class Shape {\n    <<interface>>\n    +draw() void\n  }\n  class Duck~T~\n  Shape <|-- Duck',
     bidirectional: 'flowchart LR\n  A <--> B\n  B --> C'
   };
   for (const [name, body] of Object.entries(accepted)) {
@@ -150,6 +151,9 @@ test('the diagram action accepts safe mermaid (classDiagram annotation, sequence
     annotationOutsideClass: 'flowchart LR\n  A["<<interface>>"] --> B',
     annotationSpaces: 'classDiagram\n  << interface >> A',
     annotationJoin: 'classDiagram\n  <<<<x>>script>> A',
+    classDirective: 'classDiagram\n  class A foo',
+    classLabelHtml: 'classDiagram\n  class A["<img src=x>"]',
+    classOutside: 'flowchart LR\n  class A',
     annotationClick: 'classDiagram\n  <<interface>> A\n  click A "x"'
   };
   for (const [name, body] of Object.entries(rejected)) {
