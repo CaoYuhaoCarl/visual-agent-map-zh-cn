@@ -3734,6 +3734,8 @@ var EditorWatcher = class {
     this.onDestroy = onDestroy;
     __publicField(this, "observer");
     __publicField(this, "lastPath");
+    /** Whether the file shown is a VAM note; the editor-attributes facet reads it to put the scope class on the editor. */
+    __publicField(this, "isVam", false);
     this.observer = new MutationObserver((mutations) => {
       if (mutations.some(mutationTouchesDiagram)) this.scan();
     });
@@ -3743,9 +3745,8 @@ var EditorWatcher = class {
   scan() {
     const path = this.sourcePath();
     this.lastPath = path;
-    const isVam = !!path && isVamSource(this.app, path);
-    this.dom.toggleClass(EDITOR_SCOPE_CLASS, isVam);
-    if (path && isVam) {
+    this.isVam = !!path && isVamSource(this.app, path);
+    if (path && this.isVam) {
       scanCallouts(this.dom);
       scanLinks(this.dom);
       scan(this.app, this.dom);
@@ -3757,7 +3758,6 @@ var EditorWatcher = class {
   }
   destroy() {
     this.observer.disconnect();
-    this.dom.removeClass(EDITOR_SCOPE_CLASS);
     this.onDestroy(this);
   }
 };
@@ -3785,12 +3785,21 @@ function registerMermaidZoom(plugin) {
           );
           editors.add(this.watcher);
         }
+        get isVam() {
+          return this.watcher.isVam;
+        }
         update() {
           this.watcher.onUpdate();
         }
         destroy() {
           this.watcher.destroy();
         }
+      },
+      {
+        provide: (plugin2) => import_view2.EditorView.editorAttributes.of((view) => {
+          var _a;
+          return ((_a = view.plugin(plugin2)) == null ? void 0 : _a.isVam) ? { class: EDITOR_SCOPE_CLASS } : null;
+        })
       }
     )
   );

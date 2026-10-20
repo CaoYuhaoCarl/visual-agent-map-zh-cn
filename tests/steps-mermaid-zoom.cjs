@@ -457,16 +457,35 @@ test('link scope: the link CSS is scoped to .vam-link-scope, never the bare anch
   for (const rule of rules) assert.ok(/a\.vam-link-scope/.test(rule), rule);
 });
 
-test('editor link scope: the editor of a VAM note gets .vam-editor-scope, another note and a destroyed watcher do not', () => {
+test('editor link scope: the watcher reports VAM notes only, and the plugin provides the class through editorAttributes, not by touching the element', () => {
   const ctx = loadRegister(FILES);
   const dom = node('div', 'cm-editor');
   const watcher = new ctx.mod.EditorWatcher(ctx.app, dom, () => 'Topics/A/Note.md', () => {});
-  assert.ok(dom.classes.includes('vam-editor-scope'));
-  watcher.destroy();
-  assert.equal(dom.classes.includes('vam-editor-scope'), false);
+  assert.equal(watcher.isVam, true);
+  assert.equal(dom.classes.includes('vam-editor-scope'), false, 'the element class is left to CodeMirror');
   const plainDom = node('div', 'cm-editor');
-  new ctx.mod.EditorWatcher(ctx.app, plainDom, () => 'Other/plain.md', () => {});
-  assert.equal(plainDom.classes.includes('vam-editor-scope'), false);
+  assert.equal(new ctx.mod.EditorWatcher(ctx.app, plainDom, () => 'Other/plain.md', () => {}).isVam, false);
+  const src = fs.readFileSync(path.join(root, 'experiences/mermaid-zoom/register.ts'), 'utf8');
+  assert.match(src, /EditorView\.editorAttributes\.of\(/);
+  assert.doesNotMatch(src, /(toggleClass|addClass|removeClass)\(EDITOR_SCOPE_CLASS/);
+});
+
+test('editor link scope: the class survives CodeMirror rewriting the editor class (focus, theme) and follows a file switch', () => {
+  const ctx = loadRegisterWithExtension();
+  let file = { path: 'Topics/A/Note.md' };
+  const { view } = ctx.fakeView(() => file);
+  const plugin = ctx.extension.create(view);
+  // CodeMirror merges the facet's attributes on every update; emulate that merge after it rewrites the class attribute
+  const facetClass = () => (plugin.isVam ? 'vam-editor-scope' : '');
+  const cmRewrite = () => { view.dom.cls = ['cm-editor', 'cm-focused', 'theme-dark', facetClass()].filter(Boolean).join(' '); };
+  cmRewrite();
+  assert.ok(view.dom.classes.includes('vam-editor-scope'));
+  cmRewrite();
+  assert.ok(view.dom.classes.includes('vam-editor-scope'), 'still there after a focus or theme rewrite');
+  file = { path: 'Other/plain.md' };
+  plugin.update();
+  cmRewrite();
+  assert.equal(view.dom.classes.includes('vam-editor-scope'), false, 'a non-VAM file drops it');
 });
 
 test('link CSS: editor rules are scoped to .vam-editor-scope; no text-decoration-style anywhere in styles.css', () => {
