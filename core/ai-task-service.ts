@@ -313,9 +313,12 @@ export class AiTaskService {
     language: UiLanguage;
     model: string;
     signal?: AbortSignal;
+    /** Called once, right before the step starts; never when diagrams are off. */
+    onStart?: () => void;
   }): Promise<string> {
     if (!this.diagramsOn()) return request.detail;
     if (request.signal?.aborted) throw new DOMException("Aborted", "AbortError");
+    request.onStart?.();
     const input: TaskContext = {
       title: request.title,
       summary: "",

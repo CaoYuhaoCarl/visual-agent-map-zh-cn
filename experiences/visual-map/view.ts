@@ -328,7 +328,8 @@ const AIM_STAGE_KEYS: Record<string, Parameters<typeof t>[0]> = {
   "delivery-outline": "ui.aim_stage_delivery-outline",
   "delivery-research": "ui.aim_stage_delivery-research",
   "delivery-writing": "ui.aim_stage_delivery-writing",
-  "delivery-acceptance": "ui.aim_stage_delivery-acceptance"
+  "delivery-acceptance": "ui.aim_stage_delivery-acceptance",
+  "add-diagrams": "ui.aim_stage_add-diagrams"
 };
 
 /** One "document ready" notice at a time: a new one replaces the last, and it closes itself after a minute. */

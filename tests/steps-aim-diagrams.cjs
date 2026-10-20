@@ -141,3 +141,36 @@ test('setting off: a normal task with addCharts makes no chart call; on makes on
   assert.equal(await run(false), 1);
   assert.equal(await run(true), 2);
 });
+
+test('progress: the add-diagrams stage is emitted when the step runs and not when diagrams are off', async () => {
+  const stages = [];
+  const on = await conclude(flow => {
+    flow.onProgress = event => event.kind === 'stage' && stages.push(event.stage);
+    flow.addDiagrams = async request => {
+      request.onStart?.();
+      return request.detail;
+    };
+  });
+  assert.equal(on.outcome.status, 'completed');
+  assert.equal(stages.filter(stage => stage === 'add-diagrams').length, 1);
+  assert.ok(stages.indexOf('add-diagrams') > -1);
+  stages.length = 0;
+  await conclude(flow => {
+    flow.onProgress = event => event.kind === 'stage' && stages.push(event.stage);
+    flow.addDiagrams = async request => request.detail; // what the plugin does when the setting is off: onStart is never called
+  });
+  assert.ok(!stages.includes('add-diagrams'));
+  // The real service: onStart fires once when on, never when off.
+  const runtime = { runTask: async () => JSON.stringify({ charts: [] }) };
+  for (const [enabled, expected] of [[true, 1], [false, 0]]) {
+    let started = 0;
+    const service = new AiTaskService({
+      pluginDirectory: () => '/plugin', language: () => 'en', defaultReasoning: () => 'low',
+      exchangeLoggingEnabled: () => false, exchanges: () => null,
+      codexRuntime: () => runtime, claudeRuntime: () => runtime, diagramsEnabled: () => enabled
+    });
+    await service.addDiagramsToDetail({ title: 'T', detail: 'Para.', language: 'en', model: 'claude:sonnet', onStart: () => started++ });
+    assert.equal(started, expected);
+  }
+  assert.match(fs.readFileSync(path.join(root, 'experiences/visual-map/view.ts'), 'utf8'), /"add-diagrams": "ui\.aim_stage_add-diagrams"/);
+});

@@ -330,6 +330,7 @@ var english = {
   "ui.aim_stage_delivery-research": "Checking sources for the document",
   "ui.aim_stage_delivery-writing": "Writing the document",
   "ui.aim_stage_delivery-acceptance": "Checking the document",
+  "ui.aim_stage_add-diagrams": "Adding diagrams",
   "ui.aim_stage_with_elapsed_0_1": "{0} \xB7 {1}",
   "ui.aim_eta_hint": "Usually 3\u20135 minutes. You can leave this; a notice appears when it is done.",
   "ui.aim_waiting_user": "The Planner saved a follow-up question. Your answer is needed to continue.",
@@ -1911,6 +1912,7 @@ var traditionalChinese = {
   "ui.aim_stage_delivery-research": "\u88DC\u67E5\u6587\u4EF6\u8CC7\u6599\u4E2D",
   "ui.aim_stage_delivery-writing": "\u64B0\u5BEB\u6587\u4EF6\u4E2D",
   "ui.aim_stage_delivery-acceptance": "\u9A57\u6536\u6587\u4EF6\u4E2D",
+  "ui.aim_stage_add-diagrams": "\u52A0\u5165\u5716\u8868\u4E2D",
   "ui.aim_stage_with_elapsed_0_1": "{0}\u30FB{1}",
   "ui.aim_eta_hint": "\u901A\u5E38 3\u20135 \u5206\u9418\uFF0C\u53EF\u4EE5\u5148\u53BB\u505A\u5225\u7684\uFF0C\u5B8C\u6210\u6642\u6703\u901A\u77E5\u4F60\u3002",
   "ui.aim_waiting_user": "Planner \u5DF2\u4FDD\u5B58\u5F8C\u7E8C\u554F\u984C\uFF1B\u9700\u8981\u4F60\u56DE\u7B54\u5F8C\u624D\u80FD\u7E7C\u7E8C\u3002",
@@ -23369,7 +23371,13 @@ var _AimManualFlow = class _AimManualFlow {
   /** A conclusion note keeps its open items in a hidden marker, so the user can correct them later. */
   async concludedDetail(review, charts) {
     var _a;
-    const body = this.addDiagrams ? await this.addDiagrams({ ...charts, detail: review.detail }) : review.detail;
+    const { mapPath, branchId, ...request } = charts;
+    const body = this.addDiagrams ? await this.addDiagrams({
+      ...request,
+      detail: review.detail,
+      // Called only when the step really runs (the setting is on), so the UI never shows a stage that is skipped.
+      onStart: () => this.emitProgress({ kind: "stage", mapPath, branchId, stage: "add-diagrams" })
+    }) : review.detail;
     return ((_a = review.openItems) == null ? void 0 : _a.length) ? `${body}
 
 ${openItemsMarker(review.openItems.map((item) => item.title))}` : body;
@@ -24341,7 +24349,14 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
         if (!await saveReports()) return { status: "stale", branchId: branch.id };
       }
       if (!finalReview) throw new Error("Planner review did not produce a validated decision.");
-      const detail = finalReview.decision === "conclude" ? await this.concludedDetail(finalReview, { title: topic.title, language: language2, model, signal }) : this.interimDetail([
+      const detail = finalReview.decision === "conclude" ? await this.concludedDetail(finalReview, {
+        title: topic.title,
+        language: language2,
+        model,
+        signal,
+        mapPath,
+        branchId: branch.id
+      }) : this.interimDetail([
         this.interimNotice(finalReview, language2),
         this.readerDetail(finalReview),
         translate(language2, "note.aim_supporting_research"),
@@ -24781,7 +24796,14 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
       }
       if (!draft || !review) throw new Error("Continuation ended without a persisted Planner decision.");
       const finalDraft = draft, finalReview = review;
-      const detail = finalReview.decision === "conclude" ? await this.concludedDetail(finalReview, { title: topicNote.title, language: language2, model: modelToUse, signal }) : this.interimDetail([
+      const detail = finalReview.decision === "conclude" ? await this.concludedDetail(finalReview, {
+        title: topicNote.title,
+        language: language2,
+        model: modelToUse,
+        signal,
+        mapPath,
+        branchId: branch.id
+      }) : this.interimDetail([
         this.interimNotice(finalReview, language2),
         finalReview.decision === "research_more" ? translate(language2, "note.aim_research_status_partial") : translate(language2, "note.aim_interim_result"),
         this.readerDetail(finalReview),
@@ -26423,7 +26445,14 @@ ${beforeSearch.detail}`,
         reportDetail,
         translate(language2, "note.aim_source_boundary"),
         translate(language2, "note.aim_source_boundary_claims")
-      ]) : await this.concludedDetail(finalReview, { title: topicNote.title, language: language2, model, signal });
+      ]) : await this.concludedDetail(finalReview, {
+        title: topicNote.title,
+        language: language2,
+        model,
+        signal,
+        mapPath,
+        branchId
+      });
       const presentation = isPartial ? {
         title: translate(language2, "note.aim_needs_followup"),
         kind: "synthesis"
@@ -27702,7 +27731,8 @@ var AIM_STAGE_KEYS = {
   "delivery-outline": "ui.aim_stage_delivery-outline",
   "delivery-research": "ui.aim_stage_delivery-research",
   "delivery-writing": "ui.aim_stage_delivery-writing",
-  "delivery-acceptance": "ui.aim_stage_delivery-acceptance"
+  "delivery-acceptance": "ui.aim_stage_delivery-acceptance",
+  "add-diagrams": "ui.aim_stage_add-diagrams"
 };
 var documentReadyNotice = null;
 function showDocumentReady() {
@@ -38680,9 +38710,10 @@ var AiTaskService = class {
    * detail unchanged when diagrams are off or the step fails; only a stop throws.
    */
   async addDiagramsToDetail(request) {
-    var _a;
+    var _a, _b;
     if (!this.diagramsOn()) return request.detail;
     if ((_a = request.signal) == null ? void 0 : _a.aborted) throw new DOMException("Aborted", "AbortError");
+    (_b = request.onStart) == null ? void 0 : _b.call(request);
     const input = {
       title: request.title,
       summary: "",

@@ -1520,6 +1520,7 @@ export default class VisualAgentMapPlugin extends Plugin {
     language: UiLanguage;
     model: string;
     signal?: AbortSignal;
+    onStart?: () => void;
   }): Promise<string> {
     return this.aiTasks.addDiagramsToDetail(request);
   }

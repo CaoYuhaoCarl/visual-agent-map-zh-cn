@@ -175,6 +175,7 @@ export class AimManualFlow {
     language: UiLanguage;
     model: string;
     signal?: AbortSignal;
+    onStart?: () => void;
   }) => Promise<string>;
 
   private emitProgress(event: AimProgressEvent): void {
@@ -273,11 +274,26 @@ export class AimManualFlow {
   /** A conclusion note keeps its open items in a hidden marker, so the user can correct them later. */
   private async concludedDetail(
     review: PlannerReview,
-    charts: { title: string; language: UiLanguage; model: string; signal?: AbortSignal }
+    charts: {
+      title: string;
+      language: UiLanguage;
+      model: string;
+      signal?: AbortSignal;
+      mapPath: string;
+      branchId: string;
+    }
   ): Promise<string> {
     // The chart step sees the final conclusion body only (not interim notes, not the hidden marker); it returns the body
     // unchanged when diagrams are off or any check fails, and throws only when the user stopped.
-    const body = this.addDiagrams ? await this.addDiagrams({ ...charts, detail: review.detail }) : review.detail;
+    const { mapPath, branchId, ...request } = charts;
+    const body = this.addDiagrams
+      ? await this.addDiagrams({
+          ...request,
+          detail: review.detail,
+          // Called only when the step really runs (the setting is on), so the UI never shows a stage that is skipped.
+          onStart: () => this.emitProgress({ kind: "stage", mapPath, branchId, stage: "add-diagrams" })
+        })
+      : review.detail;
     return review.openItems?.length ? `${body}\n\n${openItemsMarker(review.openItems.map(item => item.title))}` : body;
   }
 
@@ -1361,7 +1377,14 @@ export class AimManualFlow {
       if (!finalReview) throw new Error("Planner review did not produce a validated decision.");
       const detail =
         finalReview.decision === "conclude"
-          ? await this.concludedDetail(finalReview, { title: topic.title, language, model, signal })
+          ? await this.concludedDetail(finalReview, {
+              title: topic.title,
+              language,
+              model,
+              signal,
+              mapPath,
+              branchId: branch.id
+            })
           : this.interimDetail([
               this.interimNotice(finalReview, language),
               this.readerDetail(finalReview),
@@ -1848,7 +1871,14 @@ export class AimManualFlow {
         finalReview = review;
       const detail =
         finalReview.decision === "conclude"
-          ? await this.concludedDetail(finalReview, { title: topicNote.title, language, model: modelToUse, signal })
+          ? await this.concludedDetail(finalReview, {
+              title: topicNote.title,
+              language,
+              model: modelToUse,
+              signal,
+              mapPath,
+              branchId: branch.id
+            })
           : this.interimDetail([
               this.interimNotice(finalReview, language),
               finalReview.decision === "research_more"
@@ -3799,7 +3829,14 @@ export class AimManualFlow {
               translate(language, "note.aim_source_boundary"),
               translate(language, "note.aim_source_boundary_claims")
             ])
-          : await this.concludedDetail(finalReview, { title: topicNote.title, language, model, signal });
+          : await this.concludedDetail(finalReview, {
+              title: topicNote.title,
+              language,
+              model,
+              signal,
+              mapPath,
+              branchId
+            });
       const presentation = isPartial
         ? {
             title: translate(language, "note.aim_needs_followup"),
