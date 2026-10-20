@@ -824,6 +824,14 @@ integrationTest('AI merge check: a faithful result is applied with one request a
   assert.equal(h.asks.length, 1); assert.deepEqual(warnings(h), []); assert.ok(await h.mergedNode('AI merged'));
   assert.deepEqual(h.failures, []);
 });
+integrationTest('AI merge check: the log section of a custom template (renamed) is exempt, so a dated log line is no false positive', async () => {
+  const h = await aiMergeHarness({ details: ['Alpha 42 units\n\n### 變更歷史\n- 2026-10-01：建立', '', 'Gamma 7 units'] });
+  const original = h.view.mapDetailTemplate.bind(h.view);
+  h.view.mapDetailTemplate = (...args) => { const template = original(...args); return { ...template, sections: template.sections.map(section => section.role === 'log' ? { ...section, name: '變更歷史', aliases: [] } : section) }; };
+  h.answer = async () => ({ ...good, detail: 'Alpha 42 units Gamma 7 units\n\n### 變更歷史\n- 2026-10-20：合併 2 個議題' });
+  const { task } = await h.begin(); await h.untilSettled(task);
+  assert.equal(h.asks.length, 1); assert.deepEqual(warnings(h), []); assert.ok(await h.mergedNode('AI merged'));
+});
 integrationTest('AI merge check: a dropped number or link and an invented number trigger one repair request, which then applies cleanly', async () => {
   const h = await aiMergeHarness({ details: checkedDetails }); let calls = 0;
   h.answer = async () => (++calls === 1 ? lossy : good);

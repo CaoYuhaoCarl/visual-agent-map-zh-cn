@@ -14375,14 +14375,21 @@ async function applyCharts(detail, charts, options) {
 // core/steps/task/merge-check.ts
 var UPDATE_LOG_HEADING = /^(#{1,6})[ \t]+.*(?:更新紀錄|更新记录|Update log)/i;
 var HEADING = /^(#{1,6})[ \t]+\S/;
-function withoutUpdateLog(text11) {
+function withoutUpdateLog(text11, logHeadings) {
+  const names2 = new Set(logHeadings.map((name) => name.trim().toLocaleLowerCase()).filter(Boolean));
+  const isLog = (line) => {
+    const match = UPDATE_LOG_HEADING.exec(line);
+    if (match) return match;
+    const heading = /^(#{1,6})[ \t]+(.*?)[ \t]*#*[ \t]*$/.exec(line);
+    return heading && names2.has(heading[2].trim().toLocaleLowerCase()) ? heading : null;
+  };
   const lines = text11.replace(/\r\n/g, "\n").split("\n"), kept = [];
   let skipping = 0;
   for (const line of lines) {
     const heading = HEADING.exec(line);
     if (skipping && heading && heading[1].length <= skipping) skipping = 0;
     if (!skipping) {
-      const log = UPDATE_LOG_HEADING.exec(line);
+      const log = isLog(line);
       if (log) {
         skipping = log[1].length;
         continue;
@@ -14399,10 +14406,10 @@ function normalNumber(token) {
   const value = Number(token);
   return Number.isFinite(value) && token.length < 16 ? String(value) : token;
 }
-function numbersOf(texts2) {
+function numbersOf(texts2, logHeadings) {
   const out = /* @__PURE__ */ new Set();
   for (const text11 of texts2) {
-    const body = withoutListMarkers(withoutUpdateLog(text11)).replace(/!?\[\[[^\]]*\]\]/g, "");
+    const body = withoutListMarkers(withoutUpdateLog(text11, logHeadings)).replace(/!?\[\[[^\]]*\]\]/g, "");
     for (const token of noteNumbers(body)) out.add(normalNumber(token));
   }
   return out;
@@ -14433,12 +14440,13 @@ function linksOf(texts2) {
   return out;
 }
 function checkMergePreservation(input) {
-  var _a, _b, _c;
+  var _a, _b, _c, _d;
+  const logs = (_a = input.logHeadings) != null ? _a : [];
   const missing = [], added = [];
-  const sourceNumbers = numbersOf(input.sourceTexts), mergedNumbers = numbersOf(input.mergedTexts), allowed = numbersOf((_a = input.allowedTexts) != null ? _a : []);
+  const sourceNumbers = numbersOf(input.sourceTexts, logs), mergedNumbers = numbersOf(input.mergedTexts, logs), allowed = numbersOf((_b = input.allowedTexts) != null ? _b : [], logs);
   for (const token of sourceNumbers) if (!mergedNumbers.has(token)) missing.push(token);
   for (const token of mergedNumbers) if (!sourceNumbers.has(token) && !allowed.has(token)) added.push(token);
-  const sourceLinks = linksOf([...input.sourceTexts, ...(_b = input.sourceLinkTexts) != null ? _b : []]), mergedLinks = linksOf([...input.mergedTexts, ...(_c = input.mergedLinkTexts) != null ? _c : []]);
+  const sourceLinks = linksOf([...input.sourceTexts, ...(_c = input.sourceLinkTexts) != null ? _c : []]), mergedLinks = linksOf([...input.mergedTexts, ...(_d = input.mergedLinkTexts) != null ? _d : []]);
   for (const [key2, shown] of sourceLinks) if (!mergedLinks.has(key2)) missing.push(shown);
   return { ok: !missing.length && !added.length, missing, added };
 }
@@ -31200,6 +31208,7 @@ ${request.requirements}` : preset.text,
       sourceTexts: notes.flatMap((note) => [note.summary, note.detail, note.newFindings]),
       sourceLinkTexts: notes.map((note) => note.visualReferences),
       allowedTexts: task.sources.map((source) => source.path),
+      logHeadings: this.mapDetailTemplate(this.plugin.settings.language).sections.filter((section3) => section3.role === "log").flatMap((section3) => [section3.name, ...section3.aliases]),
       mergedTexts: [result.summary, result.detail],
       mergedLinkTexts: result.visualReferences.map((reference) => `${reference.imageUrl} ${reference.sourceUrl}`)
     });

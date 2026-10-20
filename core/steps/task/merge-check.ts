@@ -17,6 +17,8 @@ export interface MergeCheckInput {
   mergedLinkTexts?: string[];
   /** Text whose numbers a merge may legitimately repeat (the source note paths). */
   allowedTexts?: string[];
+  /** Names and aliases of the template's log section, besides the built-in 更新紀錄 / Update log. */
+  logHeadings?: string[];
 }
 
 export interface MergeCheckResult {
@@ -32,7 +34,14 @@ const UPDATE_LOG_HEADING = /^(#{1,6})[ \t]+.*(?:更新紀錄|更新记录|Update
 const HEADING = /^(#{1,6})[ \t]+\S/;
 
 /** A section called Update log holds dated entries of its own; the merge replaces it with one new line. */
-function withoutUpdateLog(text: string): string {
+function withoutUpdateLog(text: string, logHeadings: string[]): string {
+  const names = new Set(logHeadings.map(name => name.trim().toLocaleLowerCase()).filter(Boolean));
+  const isLog = (line: string): RegExpExecArray | null => {
+    const match = UPDATE_LOG_HEADING.exec(line);
+    if (match) return match;
+    const heading = /^(#{1,6})[ \t]+(.*?)[ \t]*#*[ \t]*$/.exec(line);
+    return heading && names.has(heading[2].trim().toLocaleLowerCase()) ? heading : null;
+  };
   const lines = text.replace(/\r\n/g, "\n").split("\n"),
     kept: string[] = [];
   let skipping = 0;
@@ -40,7 +49,7 @@ function withoutUpdateLog(text: string): string {
     const heading = HEADING.exec(line);
     if (skipping && heading && heading[1].length <= skipping) skipping = 0;
     if (!skipping) {
-      const log = UPDATE_LOG_HEADING.exec(line);
+      const log = isLog(line);
       if (log) {
         skipping = log[1].length;
         continue;
@@ -62,10 +71,10 @@ function normalNumber(token: string): string {
   return Number.isFinite(value) && token.length < 16 ? String(value) : token;
 }
 
-function numbersOf(texts: string[]): Set<string> {
+function numbersOf(texts: string[], logHeadings: string[]): Set<string> {
   const out = new Set<string>();
   for (const text of texts) {
-    const body = withoutListMarkers(withoutUpdateLog(text)).replace(/!?\[\[[^\]]*\]\]/g, "");
+    const body = withoutListMarkers(withoutUpdateLog(text, logHeadings)).replace(/!?\[\[[^\]]*\]\]/g, "");
     for (const token of noteNumbers(body)) out.add(normalNumber(token));
   }
   return out;
@@ -100,11 +109,12 @@ function linksOf(texts: string[]): Map<string, string> {
 }
 
 export function checkMergePreservation(input: MergeCheckInput): MergeCheckResult {
+  const logs = input.logHeadings ?? [];
   const missing: string[] = [],
     added: string[] = [];
-  const sourceNumbers = numbersOf(input.sourceTexts),
-    mergedNumbers = numbersOf(input.mergedTexts),
-    allowed = numbersOf(input.allowedTexts ?? []);
+  const sourceNumbers = numbersOf(input.sourceTexts, logs),
+    mergedNumbers = numbersOf(input.mergedTexts, logs),
+    allowed = numbersOf(input.allowedTexts ?? [], logs);
   for (const token of sourceNumbers) if (!mergedNumbers.has(token)) missing.push(token);
   for (const token of mergedNumbers) if (!sourceNumbers.has(token) && !allowed.has(token)) added.push(token);
   const sourceLinks = linksOf([...input.sourceTexts, ...(input.sourceLinkTexts ?? [])]),

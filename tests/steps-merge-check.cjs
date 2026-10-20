@@ -72,3 +72,11 @@ test('repair fragment: both languages list the findings and the topic name, with
     assert.match(text, /- 4\.18/); assert.match(text, /- 4711/); assert.match(text, /"title":"Name"/); assert.doesNotMatch(text, /\{\{/);
   }
 });
+
+test('a renamed log section of a custom template is exempt; the section right after it is still checked', () => {
+  const source = ['### 變更歷史\n- 2026-10-01：建立'], merged = ['### 變更歷史\n- 2026-10-20：合併 2 個議題'];
+  assert.equal(check(source, merged).ok, false, 'unknown name: nothing tells it from content');
+  assert.equal(check(source, merged, { logHeadings: ['變更歷史'] }).ok, true);
+  assert.equal(check(source, merged, { logHeadings: ['Changes', '變更歷史'] }).ok, true, 'aliases work the same');
+  assert.deepEqual(check(['### 變更歷史\n- 2026-10-01：建立\n### 結論\n5'], ['### 變更歷史\n- 2026-10-20：合併\n### 結論\n6'], { logHeadings: ['變更歷史'] }), { ok: false, missing: ['5'], added: ['6'] });
+});

@@ -3783,6 +3783,9 @@ export class VisualAgentMapView extends ItemView {
       sourceTexts: notes.flatMap(note => [note.summary, note.detail, note.newFindings]),
       sourceLinkTexts: notes.map(note => note.visualReferences),
       allowedTexts: task.sources.map(source => source.path),
+      logHeadings: this.mapDetailTemplate(this.plugin.settings.language)
+        .sections.filter(section => section.role === "log")
+        .flatMap(section => [section.name, ...section.aliases]),
       mergedTexts: [result.summary, result.detail],
       mergedLinkTexts: result.visualReferences.map(reference => `${reference.imageUrl} ${reference.sourceUrl}`)
     });
