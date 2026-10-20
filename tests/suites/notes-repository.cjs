@@ -1324,3 +1324,18 @@ integrationTest('math repair keeps a leading BOM and treats the frontmatter afte
   const { repairNoteMath } = load('experiences/visual-map/math-repair.ts');
   assert.equal(repairNoteMath('﻿---\ntitle: \\(x\\)\n---\nSee \\(a\\)\n'), '﻿---\ntitle: \\(x\\)\n---\nSee $a$\n');
 });
+integrationTest('math repair repairs a BOM note when read() drops the BOM but process() keeps it, and a second run finds nothing', async () => {
+  const { repo, contents, files, app } = fixture();
+  const { planMathRepair, applyMathRepair } = load('experiences/visual-map/math-repair.ts');
+  const n = await topicNote(repo, 'Bom', 'model-a', 'map-bom');
+  const text = contents.get(n.path) + '\nSee \\(a\\)\n';
+  contents.set(n.path, '﻿' + text);
+  const vault = { ...app.vault, read: async file => contents.get(file.path).replace(/^﻿/, '') };
+  const plan = await planMathRepair(vault, [files.get(n.path)]);
+  assert.equal(plan.items.length, 1);
+  assert.deepEqual(plain(await applyMathRepair(vault, plan)), { changed: 1, skipped: 0 });
+  const after = contents.get(n.path);
+  assert.ok(after.startsWith('﻿---\n') && after.endsWith('See $a$\n'));
+  assert.equal(after.match(/^﻿---\n[\s\S]*?\n---\n/)[0], ('﻿' + text).match(/^﻿---\n[\s\S]*?\n---\n/)[0]);
+  assert.equal((await planMathRepair(vault, [files.get(n.path)])).items.length, 0);
+});

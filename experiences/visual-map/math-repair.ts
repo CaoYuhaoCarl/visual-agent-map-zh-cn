@@ -29,6 +29,9 @@ export function repairNoteMath(content: string): string {
   return head + normalizeMathDelimiters(body);
 }
 
+/** Obsidian's `vault.read` drops a leading BOM that the `vault.process` callback still sees; compare without it. */
+const withoutBom = (text: string): string => text.replace(/^\uFEFF/, "");
+
 /** Reads every given note and lists those the repair would change. Writes nothing. */
 export async function planMathRepair(vault: Vault, files: TFile[]): Promise<MathRepairPlan> {
   const items: MathRepairItem[] = [];
@@ -46,7 +49,7 @@ export async function applyMathRepair(vault: Vault, plan: MathRepairPlan): Promi
   for (const { file, original } of plan.items) {
     let wrote = false;
     await vault.process(file, current => {
-      if (current !== original) return current;
+      if (withoutBom(current) !== withoutBom(original)) return current;
       const next = repairNoteMath(current);
       if (next === current) return current;
       wrote = true;

@@ -13548,6 +13548,7 @@ var ChoiceModal = class extends import_obsidian12.Modal {
     const cancel = modalActions(this).createEl("button", { text: t("ui.cancel") });
     cancel.addEventListener("click", () => this.close());
     cancel.focus();
+    window.setTimeout(() => cancel.focus(), 0);
   }
 };
 
@@ -35997,6 +35998,7 @@ function repairNoteMath(content) {
   const { head, body } = splitFrontmatter(content);
   return head + normalizeMathDelimiters(body);
 }
+var withoutBom = (text11) => text11.replace(/^\uFEFF/, "");
 async function planMathRepair(vault, files) {
   const items = [];
   for (const file of [...files].sort((a, b) => a.path.localeCompare(b.path))) {
@@ -36011,7 +36013,7 @@ async function applyMathRepair(vault, plan) {
   for (const { file, original } of plan.items) {
     let wrote = false;
     await vault.process(file, (current) => {
-      if (current !== original) return current;
+      if (withoutBom(current) !== withoutBom(original)) return current;
       const next = repairNoteMath(current);
       if (next === current) return current;
       wrote = true;
