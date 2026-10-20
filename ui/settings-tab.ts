@@ -343,6 +343,20 @@ export class VisualAgentMapSettingTab extends PluginSettingTab {
         }
       },
       {
+        name: t("ui.add_diagrams_after_research"),
+        render: setting => {
+          setting
+            .setName(t("ui.add_diagrams_after_research"))
+            .setDesc(t("ui.add_diagrams_after_research_desc"))
+            .addToggle(toggle =>
+              toggle.setValue(this.plugin.settings.addDiagramsAfterResearch).onChange(async value => {
+                this.plugin.settings.addDiagramsAfterResearch = value;
+                await this.plugin.saveSettings();
+              })
+            );
+        }
+      },
+      {
         name: t("ui.preview_card_size"),
         render: setting => {
           setting

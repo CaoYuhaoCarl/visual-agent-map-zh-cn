@@ -522,6 +522,7 @@ export class VisualAgentMapView extends ItemView {
       }
     );
     this.aimManual.onProgress = event => this.onAimProgress(event);
+    this.aimManual.addDiagrams = request => plugin.addAimDiagrams(request);
     // openMapInMutation already owns the repository queue. Startup recovery must persist
     // directly within that scope instead of attempting to enqueue the same operation again.
     this.aimRecovery = new AimManualFlow(
@@ -530,6 +531,7 @@ export class VisualAgentMapView extends ItemView {
       (context, model, reasoning, signal, onWebSearchEvent) =>
         plugin.askModel(context, model, reasoning, signal, undefined, undefined, onWebSearchEvent)
     );
+    this.aimRecovery.addDiagrams = request => plugin.addAimDiagrams(request);
   }
   getViewType(): string {
     return VIEW_TYPE;
