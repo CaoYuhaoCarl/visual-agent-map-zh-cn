@@ -1,5 +1,32 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Settings: **Add diagrams after research** (on by default). When on, the final conclusion of an AIM run also gets the diagram step (while it runs the stage shows "Adding diagrams"); turn it off to skip the diagram step everywhere, including normal research. A conclusion whose diagrams fail validation is left exactly as written.
+- Command **Fix math formulas in VAM notes**: rewrites `\(...\)` and `\[...\]` in the body of VAM topic notes in your workspace folder to `$...$` and `$$...$$`. It never runs by itself; a confirmation shows how many notes will change and a few example paths. Frontmatter, code blocks, inline code and link text are left alone, a note you edited after the preview is skipped, and undo is only through Obsidian's File recovery.
+- AI merge now checks the result against its sources: numbers, URLs, `[[wikilinks]]`, footnote targets and images that were in the sources must still be there, and no number may appear that is in no source. If the check fails, AI gets one repair round (the cards keep showing "Merging..."). If it still fails, the merge is applied and a Notice says how many source items may be missing, with Undo.
+
+### Changed
+
+- Synthesis (Integrate subtopics, and Integrate N topics) no longer stops at a draft review. After the direction step, the result is written directly (to the parent, or as a new synthesis topic) and a Notice lets you undo it. Stop, closing the view or switching maps before the write leaves everything unchanged.
+- The "Use the default (...)" row in the Note style pickers and the "current setting" mark in the map menu now name and follow the real workspace default, such as "Use the default (Textbook)".
+- Textbook notes in English also drop sections that only say "No new content this time", as the Chinese form already did.
+- Contrast: links, unresolved links and link hover in the editor (Live Preview and source mode) of VAM notes, and gantt text and task bars in light and dark themes, are at least 4.5:1 on the default themes. An unresolved link is marked with a dashed bottom border instead of a dashed underline, so no partially supported `text-decoration` CSS remains. Other notes are untouched.
+- The map toolbar no longer covers a card's Stop button: the default view, Show all and focus keep the map below the toolbar, including when it wraps.
+
+### Fixed
+
+- A diagram in a selection action is no longer rejected just because it contains `<`: arrows such as `<|--`, `->>`, `<-->`, and classDiagram `<<interface>>` annotations and `class` declarations now pass, while HTML tags, `<!--`, `click`, URLs and `%%{init` are still refused. AI notes accept the same classDiagram annotations and declarations.
+- Quoted participant names and message text in sequence diagrams no longer show literal quote marks.
+- Moving between topic cards with the arrow keys no longer writes the map's viewport by itself. A later unrelated change to the map still saves the viewport as it is in memory.
+
+### Limitations
+
+- The merge check covers numbers and links only; "no new conclusions" is still enforced by the prompt alone.
+- Synthesis has no draft review any more; a written result can only be undone through the Undo Notice, the history, or Obsidian's File recovery.
+
 ## [0.22.0] - 2026-10-20
 
 ### Added
