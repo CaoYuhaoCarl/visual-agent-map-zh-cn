@@ -38,6 +38,8 @@ export interface AiTaskServiceOptions {
   claudeRuntime: (directory: string) => ClaudeCodeCliRuntime;
   /** True when Obsidian's mermaid parses the diagram. Absent: the chart step skips the parse check. */
   mermaidParses?: (code: string) => Promise<boolean>;
+  /** The "Add diagrams after research" setting. Absent: diagrams are on. */
+  diagramsEnabled?: () => boolean;
 }
 
 export class AiTaskService {
@@ -262,6 +264,7 @@ export class AiTaskService {
       }
       if (
         input.addCharts &&
+        this.diagramsOn() &&
         !input.countRepair &&
         !input.intermediateDetail &&
         input.promptProfile !== "aim" &&
@@ -294,6 +297,62 @@ export class AiTaskService {
         );
       throw error;
     }
+  }
+
+  private diagramsOn(): boolean {
+    return this.options.diagramsEnabled?.() !== false;
+  }
+
+  /**
+   * The chart step for a finished AIM conclusion (its final detail only, never interim or gap-audit text). Returns the
+   * detail unchanged when diagrams are off or the step fails; only a stop throws.
+   */
+  async addDiagramsToDetail(request: {
+    title: string;
+    detail: string;
+    language: UiLanguage;
+    model: string;
+    signal?: AbortSignal;
+    /** Called once, right before the step starts; never when diagrams are off. */
+    onStart?: () => void;
+  }): Promise<string> {
+    if (!this.diagramsOn()) return request.detail;
+    if (request.signal?.aborted) throw new DOMException("Aborted", "AbortError");
+    request.onStart?.();
+    const input: TaskContext = {
+      title: request.title,
+      summary: "",
+      rules: "",
+      detail: request.detail,
+      task: "",
+      ancestors: "",
+      mode: "task",
+      detailFormat: "adaptive",
+      outputLanguage: request.language
+    };
+    const exchanges = this.options.exchangeLoggingEnabled() ? this.options.exchanges() : null;
+    const record =
+      <Args extends unknown[]>(write: (...args: Args) => void) =>
+      (...args: Args): void => {
+        if (this.options.exchangeLoggingEnabled()) write(...args);
+      };
+    const sink: ExchangeSink | null = exchanges && {
+      begin: entry => exchanges.begin(entry),
+      sent: record((id: string, body: string, prompt?: string) => exchanges.sent(id, body, prompt)),
+      received: record((id: string, body: string) => exchanges.received(id, body)),
+      completed: record((id: string) => exchanges.completed(id)),
+      failed: record((id: string, error: string) => exchanges.failed(id, error))
+    };
+    return this.addCharts(
+      input,
+      request.detail,
+      undefined,
+      request.language,
+      providerForModel(request.model),
+      request.model,
+      request.signal,
+      sink
+    );
   }
 
   /**

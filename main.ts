@@ -6,7 +6,7 @@ import { CoffeeManager } from "./experiences/coffee-tables/engine";
 import { CoffeeStorage } from "./experiences/coffee-tables/storage";
 import { VisualAgentMapView, VIEW_TYPE } from "./experiences/visual-map/view";
 import type { TaskOptions } from "./experiences/visual-map/modals";
-import { t, setUiLanguage, translate, initialUiLanguage, type TranslationKey } from "./i18n";
+import { t, setUiLanguage, translate, initialUiLanguage, type TranslationKey, type UiLanguage } from "./i18n";
 import {
   FileSystemAdapter,
   loadMermaid,
@@ -145,6 +145,7 @@ export default class VisualAgentMapPlugin extends Plugin {
     defaultReasoning: () => this.settings.cliReasoning,
     exchangeLoggingEnabled: () => this.settings.aiExchangeLoggingEnabled,
     exchanges: () => this.exchanges,
+    diagramsEnabled: () => this.settings.addDiagramsAfterResearch,
     codexRuntime: (directory: string, local: boolean) => this.runtime(directory, local),
     claudeRuntime: (directory: string) => this.claudeCli(directory),
     mermaidParses: async (code: string): Promise<boolean> => {
@@ -381,6 +382,7 @@ export default class VisualAgentMapPlugin extends Plugin {
       claudeUsageNoticeSeen: saved?.claudeUsageNoticeSeen === true,
       aiExchangeLoggingEnabled: saved?.aiExchangeLoggingEnabled === true,
       markdownSelectionAiAutoOpen: saved?.markdownSelectionAiAutoOpen !== false,
+      addDiagramsAfterResearch: saved?.addDiagramsAfterResearch !== false,
       workspaceInitialized: saved ? saved.workspaceInitialized !== false : false,
       sampleTourVersionSeen: saved?.sampleTourVersionSeen ?? 0,
       canvasHintSeen: saved?.canvasHintSeen === true
@@ -1510,6 +1512,17 @@ export default class VisualAgentMapPlugin extends Plugin {
     onWebSearchEvent?: (event: CodexWebSearchEvent) => void
   ): Promise<AiResult> {
     return this.aiTasks.askModel(context, model, reasoning, signal, onExchange, onRequestAccepted, onWebSearchEvent);
+  }
+  /** The chart step for a finished AIM conclusion; the setting is checked inside, so off returns the detail untouched. */
+  async addAimDiagrams(request: {
+    title: string;
+    detail: string;
+    language: UiLanguage;
+    model: string;
+    signal?: AbortSignal;
+    onStart?: () => void;
+  }): Promise<string> {
+    return this.aiTasks.addDiagramsToDetail(request);
   }
   private pluginDirectory(): string {
     const adapter = this.app.vault.adapter;

@@ -91,6 +91,8 @@ export interface Settings {
   claudeUsageNoticeSeen: boolean;
   aiExchangeLoggingEnabled: boolean;
   markdownSelectionAiAutoOpen: boolean;
+  /** Add diagrams after research (default on): the chart step after a note or an AIM conclusion is written. */
+  addDiagramsAfterResearch: boolean;
   workspaceInitialized: boolean;
   sampleTourVersionSeen: number;
   canvasHintSeen: boolean;
@@ -186,6 +188,7 @@ export const DEFAULT_SETTINGS: Settings = {
   claudeUsageNoticeSeen: false,
   aiExchangeLoggingEnabled: false,
   markdownSelectionAiAutoOpen: true,
+  addDiagramsAfterResearch: true,
   workspaceInitialized: false,
   sampleTourVersionSeen: 0,
   canvasHintSeen: false

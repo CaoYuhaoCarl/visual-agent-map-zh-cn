@@ -341,7 +341,8 @@ const AIM_STAGE_KEYS: Record<string, Parameters<typeof t>[0]> = {
   "delivery-outline": "ui.aim_stage_delivery-outline",
   "delivery-research": "ui.aim_stage_delivery-research",
   "delivery-writing": "ui.aim_stage_delivery-writing",
-  "delivery-acceptance": "ui.aim_stage_delivery-acceptance"
+  "delivery-acceptance": "ui.aim_stage_delivery-acceptance",
+  "add-diagrams": "ui.aim_stage_add-diagrams"
 };
 
 /** One "document ready" notice at a time: a new one replaces the last, and it closes itself after a minute. */
@@ -533,6 +534,7 @@ export class VisualAgentMapView extends ItemView {
       }
     );
     this.aimManual.onProgress = event => this.onAimProgress(event);
+    this.aimManual.addDiagrams = request => plugin.addAimDiagrams(request);
     // openMapInMutation already owns the repository queue. Startup recovery must persist
     // directly within that scope instead of attempting to enqueue the same operation again.
     this.aimRecovery = new AimManualFlow(
@@ -541,6 +543,7 @@ export class VisualAgentMapView extends ItemView {
       (context, model, reasoning, signal, onWebSearchEvent) =>
         plugin.askModel(context, model, reasoning, signal, undefined, undefined, onWebSearchEvent)
     );
+    this.aimRecovery.addDiagrams = request => plugin.addAimDiagrams(request);
   }
   getViewType(): string {
     return VIEW_TYPE;

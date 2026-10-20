@@ -520,7 +520,7 @@ integrationTest('Planner reviews a saved Searcher diagnostic on a new fenced att
       return response;
     };
     const { VisualAgentMapView } = load('main.ts', { obsidian });
-    const view = new VisualAgentMapView({ app }, { repo, settings: { ...DEFAULT_SETTINGS, language: 'en' }, mutate: async work => work(), syncOutline() {}, releaseOutline() {}, askModel: ask });
+    const view = new VisualAgentMapView({ app }, { repo, settings: { ...DEFAULT_SETTINGS, language: 'en' }, mutate: async work => work(), syncOutline() {}, releaseOutline() {}, addAimDiagrams: async request => request.detail, askModel: ask });
     view.path = mapPath; view.map = await repo.readMap(mapPath); view.render = () => {};
     await view.hydrateFailedReportTargets(() => true);
     assert.equal(view.aimFailedReports.get(question.id)?.runId, 'run-saved-report', 'the current failed attempt exposes its unique saved search report');

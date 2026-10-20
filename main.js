@@ -328,6 +328,7 @@ var english = {
   "ui.aim_stage_delivery-research": "Checking sources for the document",
   "ui.aim_stage_delivery-writing": "Writing the document",
   "ui.aim_stage_delivery-acceptance": "Checking the document",
+  "ui.aim_stage_add-diagrams": "Adding diagrams",
   "ui.aim_stage_with_elapsed_0_1": "{0} \xB7 {1}",
   "ui.aim_eta_hint": "Usually 3\u20135 minutes. You can leave this; a notice appears when it is done.",
   "ui.aim_waiting_user": "The Planner saved a follow-up question. Your answer is needed to continue.",
@@ -984,6 +985,8 @@ var english = {
   "ui.ai_exchanges": "AI exchanges",
   "ui.markdown_selection_ai_auto_open": "Show \u201CUse AI on selection\u201D automatically",
   "ui.markdown_selection_ai_auto_open_desc": "When on, selecting text in a Markdown note shows the \u201CUse AI on selection\u201D button, and clicking an image in a note shows the \u201CTranslate image\u201D button. When off, open it from the command palette or a hotkey.",
+  "ui.add_diagrams_after_research": "Add diagrams after research",
+  "ui.add_diagrams_after_research_desc": "When on, after a note or an AIM conclusion is written, the AI may add up to three Mermaid diagrams to it. When off, no diagram step runs. Diagrams that fail validation are never added.",
   "ui.record_ai_exchanges": "Record AI exchanges",
   "ui.when_enabled_the_20_most_recent_full_requests_and_raw_replie": "When enabled, the 1,000 most recent full requests and raw replies are saved in this Vault's plugin folder. They may contain private notes. View and clear them in the debug log.",
   "ui.up_to_20_exchanges_are_stored_in_this_vault_s_plugin_folder": "Up to 1,000 exchanges are stored in this Vault's plugin folder and may contain private notes.",
@@ -1905,6 +1908,7 @@ var traditionalChinese = {
   "ui.aim_stage_delivery-research": "\u88DC\u67E5\u6587\u4EF6\u8CC7\u6599\u4E2D",
   "ui.aim_stage_delivery-writing": "\u64B0\u5BEB\u6587\u4EF6\u4E2D",
   "ui.aim_stage_delivery-acceptance": "\u9A57\u6536\u6587\u4EF6\u4E2D",
+  "ui.aim_stage_add-diagrams": "\u52A0\u5165\u5716\u8868\u4E2D",
   "ui.aim_stage_with_elapsed_0_1": "{0}\u30FB{1}",
   "ui.aim_eta_hint": "\u901A\u5E38 3\u20135 \u5206\u9418\uFF0C\u53EF\u4EE5\u5148\u53BB\u505A\u5225\u7684\uFF0C\u5B8C\u6210\u6642\u6703\u901A\u77E5\u4F60\u3002",
   "ui.aim_waiting_user": "Planner \u5DF2\u4FDD\u5B58\u5F8C\u7E8C\u554F\u984C\uFF1B\u9700\u8981\u4F60\u56DE\u7B54\u5F8C\u624D\u80FD\u7E7C\u7E8C\u3002",
@@ -2561,6 +2565,8 @@ var traditionalChinese = {
   "ui.ai_exchanges": "AI \u5F80\u8FD4\u7D00\u9304",
   "ui.markdown_selection_ai_auto_open": "\u81EA\u52D5\u986F\u793A\u300C\u7528 AI \u8655\u7406\u9078\u53D6\u6587\u5B57\u300D",
   "ui.markdown_selection_ai_auto_open_desc": "\u958B\u555F\u6642\uFF0C\u5728 Markdown \u7B46\u8A18\u9078\u53D6\u6587\u5B57\u6703\u51FA\u73FE\u300C\u7528 AI \u8655\u7406\u9078\u53D6\u6587\u5B57\u300D\u6309\u9215\uFF0C\u9EDE\u7B46\u8A18\u88E1\u7684\u5716\u7247\u6703\u51FA\u73FE\u300C\u751F\u6210\u7FFB\u8B6F\u5716\u7247\u300D\u6309\u9215\u3002\u95DC\u9589\u5F8C\uFF0C\u53EF\u5F9E\u547D\u4EE4\u9762\u677F\u6216\u5FEB\u6377\u9375\u958B\u555F\u3002",
+  "ui.add_diagrams_after_research": "\u7814\u7A76\u5F8C\u52A0\u5165\u5716\u8868",
+  "ui.add_diagrams_after_research_desc": "\u958B\u555F\u6642\uFF0C\u7B46\u8A18\u6216 AIM \u7D50\u8AD6\u5BEB\u597D\u5F8C\uFF0CAI \u53EF\u52A0\u5165\u6700\u591A\u4E09\u5F35 Mermaid \u5716\u8868\u3002\u95DC\u9589\u5F8C\u4E0D\u57F7\u884C\u5716\u8868\u6B65\u9A5F\u3002\u672A\u901A\u904E\u9A57\u8B49\u7684\u5716\u8868\u4E0D\u6703\u52A0\u5165\u3002",
   "ui.record_ai_exchanges": "\u8A18\u9304 AI \u5F80\u8FD4\u5167\u5BB9",
   "ui.when_enabled_the_20_most_recent_full_requests_and_raw_replie": "\u958B\u555F\u5F8C\uFF0C\u6700\u8FD1 1,000 \u6B21\u5B8C\u6574\u8ACB\u6C42\u8207\u539F\u59CB\u56DE\u8986\u6703\u4FDD\u5B58\u5728\u6B64 Vault \u7684\u5916\u639B\u8CC7\u6599\u593E\uFF0C\u53EF\u80FD\u5305\u542B\u79C1\u4EBA\u7B46\u8A18\u3002\u53EF\u5F9E\u5075\u932F\u65E5\u8A8C\u67E5\u770B\u4E26\u6E05\u9664\u3002",
   "ui.up_to_20_exchanges_are_stored_in_this_vault_s_plugin_folder": "\u7D00\u9304\u4FDD\u5B58\u5728\u6B64 Vault \u7684\u5916\u639B\u8CC7\u6599\u593E\uFF0C\u6700\u591A 1,000 \u6B21\uFF1B\u53EF\u80FD\u5305\u542B\u79C1\u4EBA\u7B46\u8A18\u5167\u5BB9\u3002",
@@ -14534,6 +14540,7 @@ var DEFAULT_SETTINGS = {
   claudeUsageNoticeSeen: false,
   aiExchangeLoggingEnabled: false,
   markdownSelectionAiAutoOpen: true,
+  addDiagramsAfterResearch: true,
   workspaceInitialized: false,
   sampleTourVersionSeen: 0,
   canvasHintSeen: false
@@ -23601,6 +23608,8 @@ var _AimManualFlow = class _AimManualFlow {
     __publicField(this, "deliveryRejections", /* @__PURE__ */ new WeakMap());
     /** The map view's live progress listener; set by the view, absent in tests and recovery flows. */
     __publicField(this, "onProgress");
+    /** The chart step for a finished conclusion; set by the view (it checks the "Add diagrams" setting). Absent in tests. */
+    __publicField(this, "addDiagrams");
   }
   emitProgress(event) {
     var _a;
@@ -23679,11 +23688,18 @@ var _AimManualFlow = class _AimManualFlow {
     return (_b = (_a = this.deliveryRejections.get(review)) == null ? void 0 : _a.detail) != null ? _b : review.detail;
   }
   /** A conclusion note keeps its open items in a hidden marker, so the user can correct them later. */
-  concludedDetail(review) {
+  async concludedDetail(review, charts) {
     var _a;
-    return ((_a = review.openItems) == null ? void 0 : _a.length) ? `${review.detail}
+    const { mapPath, branchId, ...request } = charts;
+    const body = this.addDiagrams ? await this.addDiagrams({
+      ...request,
+      detail: review.detail,
+      // Called only when the step really runs (the setting is on), so the UI never shows a stage that is skipped.
+      onStart: () => this.emitProgress({ kind: "stage", mapPath, branchId, stage: "add-diagrams" })
+    }) : review.detail;
+    return ((_a = review.openItems) == null ? void 0 : _a.length) ? `${body}
 
-${openItemsMarker(review.openItems.map((item) => item.title))}` : review.detail;
+${openItemsMarker(review.openItems.map((item) => item.title))}` : body;
   }
   /**
    * A rejected final delivery given as the answer: the document that was written, opened by a warning that names the
@@ -24652,7 +24668,14 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
         if (!await saveReports()) return { status: "stale", branchId: branch.id };
       }
       if (!finalReview) throw new Error("Planner review did not produce a validated decision.");
-      const detail = finalReview.decision === "conclude" ? this.concludedDetail(finalReview) : this.interimDetail([
+      const detail = finalReview.decision === "conclude" ? await this.concludedDetail(finalReview, {
+        title: topic.title,
+        language: language2,
+        model,
+        signal,
+        mapPath,
+        branchId: branch.id
+      }) : this.interimDetail([
         this.interimNotice(finalReview, language2),
         this.readerDetail(finalReview),
         translate(language2, "note.aim_supporting_research"),
@@ -25092,7 +25115,14 @@ Conditions: ${JSON.stringify(branch.inputSnapshot.conditions)}`,
       }
       if (!draft || !review) throw new Error("Continuation ended without a persisted Planner decision.");
       const finalDraft = draft, finalReview = review;
-      const detail = finalReview.decision === "conclude" ? this.concludedDetail(finalReview) : this.interimDetail([
+      const detail = finalReview.decision === "conclude" ? await this.concludedDetail(finalReview, {
+        title: topicNote.title,
+        language: language2,
+        model: modelToUse,
+        signal,
+        mapPath,
+        branchId: branch.id
+      }) : this.interimDetail([
         this.interimNotice(finalReview, language2),
         finalReview.decision === "research_more" ? translate(language2, "note.aim_research_status_partial") : translate(language2, "note.aim_interim_result"),
         this.readerDetail(finalReview),
@@ -26734,7 +26764,14 @@ ${beforeSearch.detail}`,
         reportDetail,
         translate(language2, "note.aim_source_boundary"),
         translate(language2, "note.aim_source_boundary_claims")
-      ]) : this.concludedDetail(finalReview);
+      ]) : await this.concludedDetail(finalReview, {
+        title: topicNote.title,
+        language: language2,
+        model,
+        signal,
+        mapPath,
+        branchId
+      });
       const presentation = isPartial ? {
         title: translate(language2, "note.aim_needs_followup"),
         kind: "synthesis"
@@ -28013,7 +28050,8 @@ var AIM_STAGE_KEYS = {
   "delivery-outline": "ui.aim_stage_delivery-outline",
   "delivery-research": "ui.aim_stage_delivery-research",
   "delivery-writing": "ui.aim_stage_delivery-writing",
-  "delivery-acceptance": "ui.aim_stage_delivery-acceptance"
+  "delivery-acceptance": "ui.aim_stage_delivery-acceptance",
+  "add-diagrams": "ui.aim_stage_add-diagrams"
 };
 var documentReadyNotice = null;
 function showDocumentReady() {
@@ -28141,11 +28179,13 @@ var VisualAgentMapView = class _VisualAgentMapView extends import_obsidian29.Ite
       }
     );
     this.aimManual.onProgress = (event) => this.onAimProgress(event);
+    this.aimManual.addDiagrams = (request) => plugin.addAimDiagrams(request);
     this.aimRecovery = new AimManualFlow(
       plugin.repo,
       this.aimRuns,
       (context, model, reasoning, signal, onWebSearchEvent) => plugin.askModel(context, model, reasoning, signal, void 0, void 0, onWebSearchEvent)
     );
+    this.aimRecovery.addDiagrams = (request) => plugin.addAimDiagrams(request);
   }
   getViewType() {
     return VIEW_TYPE;
@@ -36574,6 +36614,17 @@ var VisualAgentMapSettingTab = class extends import_obsidian30.PluginSettingTab 
         }
       },
       {
+        name: t("ui.add_diagrams_after_research"),
+        render: (setting) => {
+          setting.setName(t("ui.add_diagrams_after_research")).setDesc(t("ui.add_diagrams_after_research_desc")).addToggle(
+            (toggle) => toggle.setValue(this.plugin.settings.addDiagramsAfterResearch).onChange(async (value) => {
+              this.plugin.settings.addDiagramsAfterResearch = value;
+              await this.plugin.saveSettings();
+            })
+          );
+        }
+      },
+      {
         name: t("ui.preview_card_size"),
         render: (setting) => {
           setting.setName(t("ui.preview_card_size")).setDesc(t("ui.preview_card_size_desc")).addSlider(
@@ -38731,7 +38782,7 @@ var AiTaskService = class {
         result.formatIssues = issues;
         countIssues = issues;
       }
-      if (input.addCharts && !input.countRepair && !input.intermediateDetail && input.promptProfile !== "aim" && (input.mode === "task" || input.mode === "synthesize")) {
+      if (input.addCharts && this.diagramsOn() && !input.countRepair && !input.intermediateDetail && input.promptProfile !== "aim" && (input.mode === "task" || input.mode === "synthesize")) {
         stage = t("log.stage_adding_charts");
         const withCharts = await this.addCharts(
           input,
@@ -38759,6 +38810,52 @@ var AiTaskService = class {
         );
       throw error;
     }
+  }
+  diagramsOn() {
+    var _a, _b;
+    return ((_b = (_a = this.options).diagramsEnabled) == null ? void 0 : _b.call(_a)) !== false;
+  }
+  /**
+   * The chart step for a finished AIM conclusion (its final detail only, never interim or gap-audit text). Returns the
+   * detail unchanged when diagrams are off or the step fails; only a stop throws.
+   */
+  async addDiagramsToDetail(request) {
+    var _a, _b;
+    if (!this.diagramsOn()) return request.detail;
+    if ((_a = request.signal) == null ? void 0 : _a.aborted) throw new DOMException("Aborted", "AbortError");
+    (_b = request.onStart) == null ? void 0 : _b.call(request);
+    const input = {
+      title: request.title,
+      summary: "",
+      rules: "",
+      detail: request.detail,
+      task: "",
+      ancestors: "",
+      mode: "task",
+      detailFormat: "adaptive",
+      outputLanguage: request.language
+    };
+    const exchanges = this.options.exchangeLoggingEnabled() ? this.options.exchanges() : null;
+    const record = (write) => (...args) => {
+      if (this.options.exchangeLoggingEnabled()) write(...args);
+    };
+    const sink = exchanges && {
+      begin: (entry) => exchanges.begin(entry),
+      sent: record((id, body, prompt) => exchanges.sent(id, body, prompt)),
+      received: record((id, body) => exchanges.received(id, body)),
+      completed: record((id) => exchanges.completed(id)),
+      failed: record((id, error) => exchanges.failed(id, error))
+    };
+    return this.addCharts(
+      input,
+      request.detail,
+      void 0,
+      request.language,
+      providerForModel(request.model),
+      request.model,
+      request.signal,
+      sink
+    );
   }
   /**
    * The chart step: one local, tool-free model call that proposes diagrams for the finished note. Any failure other than
@@ -41169,6 +41266,7 @@ var VisualAgentMapPlugin = class extends import_obsidian34.Plugin {
       defaultReasoning: () => this.settings.cliReasoning,
       exchangeLoggingEnabled: () => this.settings.aiExchangeLoggingEnabled,
       exchanges: () => this.exchanges,
+      diagramsEnabled: () => this.settings.addDiagramsAfterResearch,
       codexRuntime: (directory, local) => this.runtime(directory, local),
       claudeRuntime: (directory) => this.claudeCli(directory),
       mermaidParses: async (code) => {
@@ -41396,6 +41494,7 @@ var VisualAgentMapPlugin = class extends import_obsidian34.Plugin {
       claudeUsageNoticeSeen: (saved == null ? void 0 : saved.claudeUsageNoticeSeen) === true,
       aiExchangeLoggingEnabled: (saved == null ? void 0 : saved.aiExchangeLoggingEnabled) === true,
       markdownSelectionAiAutoOpen: (saved == null ? void 0 : saved.markdownSelectionAiAutoOpen) !== false,
+      addDiagramsAfterResearch: (saved == null ? void 0 : saved.addDiagramsAfterResearch) !== false,
       workspaceInitialized: saved ? saved.workspaceInitialized !== false : false,
       sampleTourVersionSeen: (_b = saved == null ? void 0 : saved.sampleTourVersionSeen) != null ? _b : 0,
       canvasHintSeen: (saved == null ? void 0 : saved.canvasHintSeen) === true
@@ -42439,6 +42538,10 @@ ${t("ui.organize_link_wait_hint")}`;
   }
   async askModel(context, model, reasoning, signal, onExchange, onRequestAccepted, onWebSearchEvent) {
     return this.aiTasks.askModel(context, model, reasoning, signal, onExchange, onRequestAccepted, onWebSearchEvent);
+  }
+  /** The chart step for a finished AIM conclusion; the setting is checked inside, so off returns the detail untouched. */
+  async addAimDiagrams(request) {
+    return this.aiTasks.addDiagramsToDetail(request);
   }
   pluginDirectory() {
     const adapter = this.app.vault.adapter;
