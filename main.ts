@@ -5,6 +5,7 @@ import type { CoffeeRequest, CoffeeSession } from "./experiences/coffee-tables/t
 import { CoffeeManager } from "./experiences/coffee-tables/engine";
 import { CoffeeStorage } from "./experiences/coffee-tables/storage";
 import { VisualAgentMapView, VIEW_TYPE } from "./experiences/visual-map/view";
+import { planMathRepair, applyMathRepair } from "./experiences/visual-map/math-repair";
 import type { TaskOptions } from "./experiences/visual-map/modals";
 import { t, setUiLanguage, translate, initialUiLanguage, type TranslationKey, type UiLanguage } from "./i18n";
 import {
@@ -545,6 +546,11 @@ export default class VisualAgentMapPlugin extends Plugin {
         new Notice(t("ui.topic_note_display_repaired"));
       });
     });
+    this.addLocalizedCommand("fix-math-formulas", "ui.fix_math_formulas", () => {
+      void this.offerFixMathFormulas().catch(
+        error => new Notice(error instanceof Error ? error.message : String(error))
+      );
+    });
     this.addLocalizedCommand("organize-workspace-folders", "ui.organize_workspace_folders", () => {
       void this.offerOrganizeWorkspaceFolders().catch(
         error => new Notice(error instanceof Error ? error.message : String(error))
@@ -779,6 +785,37 @@ export default class VisualAgentMapPlugin extends Plugin {
           })
       }
     ]).open();
+  }
+  /** Previews the notes whose math delimiters would change; nothing is written until the learner confirms. */
+  async offerFixMathFormulas(): Promise<void> {
+    const prefix = `${this.settings.workspaceFolder}/`;
+    const files = (await this.repo.markedFiles("agent-map-node")).filter(file => file.path.startsWith(prefix));
+    const plan = await planMathRepair(this.app.vault, files);
+    if (!plan.items.length) {
+      new Notice(t("ui.fix_math_none"));
+      return;
+    }
+    new ChoiceModal(
+      this.app,
+      t("ui.fix_math_formulas"),
+      t("ui.fix_math_preview_0_1", plan.items.length, plan.examples.join(", ")),
+      [
+        {
+          label: t("ui.fix_math_start"),
+          action: () =>
+            void applyMathRepair(this.app.vault, plan)
+              .then(
+                result =>
+                  new Notice(
+                    result.skipped
+                      ? t("ui.fix_math_done_0_1", result.changed, result.skipped)
+                      : t("ui.fix_math_done_0", result.changed)
+                  )
+              )
+              .catch(error => new Notice(error instanceof Error ? error.message : String(error)))
+        }
+      ]
+    ).open();
   }
   async repairWorkspace(): Promise<void> {
     await this.repo.ensureWorkspace();

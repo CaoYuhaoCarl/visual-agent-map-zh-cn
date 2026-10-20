@@ -55,5 +55,7 @@ export class ChoiceModal extends Modal {
     cancel.addEventListener("click", () => this.close());
     // Start on Cancel, so a stray Enter never runs a choice, least of all a destructive one.
     cancel.focus();
+    // Obsidian may move focus to the first button after onOpen; take it back so Enter never runs a choice.
+    window.setTimeout(() => cancel.focus(), 0);
   }
 }

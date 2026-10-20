@@ -846,6 +846,12 @@ var english = {
   "error.move_not_applied": "A folder move did not take effect on disk, so the operation was stopped and restored.",
   "error.plugin_unloaded": "Visual Agent Map was unloaded, so the operation stopped before its next step.",
   "error.legacy_map_view_only": "This map uses the pre-0.4 structure and is view-only.",
+  "ui.fix_math_formulas": "Fix math formulas in VAM notes",
+  "ui.fix_math_none": "No VAM note needs its math formulas fixed.",
+  "ui.fix_math_preview_0_1": "{0} VAM note(s) write math as \\(\u2026\\) or \\[\u2026\\], which Obsidian does not render. They will be rewritten to $\u2026$ and $$\u2026$$ in the note body only; frontmatter and code are left alone. Examples: {1}. This cannot be undone here; use Obsidian's File recovery to restore a note.",
+  "ui.fix_math_start": "Fix formulas",
+  "ui.fix_math_done_0": "Fixed math formulas in {0} note(s).",
+  "ui.fix_math_done_0_1": "Fixed math formulas in {0} note(s); skipped {1} that changed since the preview.",
   "ui.organize_workspace_folders": "Organize workspace folders",
   "ui.organize_nothing_to_do": "No maps in the legacy Topics folder need organizing.",
   "ui.organize_only_skipped_0": "Nothing can be moved: {0} unreadable map(s) were skipped and left untouched.",
@@ -2426,6 +2432,12 @@ var traditionalChinese = {
   "error.move_not_applied": "\u8CC7\u6599\u593E\u642C\u79FB\u6C92\u6709\u5BE6\u969B\u751F\u6548\uFF0C\u64CD\u4F5C\u5DF2\u505C\u6B62\u4E26\u9084\u539F\u3002",
   "error.plugin_unloaded": "Visual Agent Map \u5DF2\u5378\u8F09\uFF0C\u64CD\u4F5C\u5728\u4E0B\u4E00\u6B65\u4E4B\u524D\u505C\u6B62\u3002",
   "error.legacy_map_view_only": "\u6B64\u5FC3\u667A\u5716\u4F7F\u7528 0.4 \u524D\u7684\u820A\u7D50\u69CB\uFF0C\u53EA\u80FD\u6AA2\u8996\u3002",
+  "ui.fix_math_formulas": "\u4FEE\u6B63 VAM \u7B46\u8A18\u88E1\u7684\u6578\u5B78\u516C\u5F0F",
+  "ui.fix_math_none": "\u6C92\u6709\u9700\u8981\u4FEE\u6B63\u6578\u5B78\u516C\u5F0F\u7684 VAM \u7B46\u8A18\u3002",
+  "ui.fix_math_preview_0_1": "\u6709 {0} \u4EFD VAM \u7B46\u8A18\u7528 \\(\u2026\\) \u6216 \\[\u2026\\] \u5BEB\u6578\u5B78\u5F0F\uFF0CObsidian \u4E0D\u6703\u986F\u793A\u3002\u5C07\u53EA\u5728\u7B46\u8A18\u5167\u6587\u628A\u5B83\u5011\u6539\u6210 $\u2026$ \u8207 $$\u2026$$\uFF1Bfrontmatter \u8207\u7A0B\u5F0F\u78BC\u4E0D\u6703\u52D5\u3002\u4F8B\u5982\uFF1A{1}\u3002\u9019\u88E1\u7121\u6CD5\u5FA9\u539F\uFF0C\u8981\u9084\u539F\u8ACB\u7528 Obsidian \u7684\u300C\u6A94\u6848\u5FA9\u539F\u300D\u3002",
+  "ui.fix_math_start": "\u4FEE\u6B63\u516C\u5F0F",
+  "ui.fix_math_done_0": "\u5DF2\u4FEE\u6B63 {0} \u4EFD\u7B46\u8A18\u7684\u6578\u5B78\u516C\u5F0F\u3002",
+  "ui.fix_math_done_0_1": "\u5DF2\u4FEE\u6B63 {0} \u4EFD\u7B46\u8A18\u7684\u6578\u5B78\u516C\u5F0F\uFF1B\u6709 {1} \u4EFD\u5728\u9810\u89BD\u5F8C\u88AB\u6539\u52D5\uFF0C\u5DF2\u7565\u904E\u3002",
   "ui.organize_workspace_folders": "\u6574\u7406\u5DE5\u4F5C\u5340\u8CC7\u6599\u593E",
   "ui.organize_nothing_to_do": "\u820A Topics \u8CC7\u6599\u593E\u5167\u6C92\u6709\u9700\u8981\u6574\u7406\u7684\u5FC3\u667A\u5716\u3002",
   "ui.organize_only_skipped_0": "\u6C92\u6709\u53EF\u642C\u79FB\u7684\u9805\u76EE\uFF1A\u6709 {0} \u4EFD\u7121\u6CD5\u8B80\u53D6\u7684\u5FC3\u667A\u5716\u5DF2\u7565\u904E\uFF0C\u4E14\u4E0D\u6703\u88AB\u52D5\u5230\u3002",
@@ -13563,6 +13575,7 @@ var ChoiceModal = class extends import_obsidian12.Modal {
     const cancel = modalActions(this).createEl("button", { text: t("ui.cancel") });
     cancel.addEventListener("click", () => this.close());
     cancel.focus();
+    window.setTimeout(() => cancel.focus(), 0);
   }
 };
 
@@ -36380,6 +36393,43 @@ ${note.detail.trim()}` : "",
   }
 };
 
+// experiences/visual-map/math-repair.ts
+function splitFrontmatter(content) {
+  var _a, _b;
+  const head = (_b = (_a = content.match(/^\uFEFF?---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/)) == null ? void 0 : _a[0]) != null ? _b : "";
+  return { head, body: content.slice(head.length) };
+}
+function repairNoteMath(content) {
+  const { head, body } = splitFrontmatter(content);
+  return head + normalizeMathDelimiters(body);
+}
+var withoutBom = (text11) => text11.replace(/^\uFEFF/, "");
+async function planMathRepair(vault, files) {
+  const items = [];
+  for (const file of [...files].sort((a, b) => a.path.localeCompare(b.path))) {
+    const original = await vault.read(file);
+    if (repairNoteMath(original) !== original) items.push({ file, original });
+  }
+  return { items, examples: items.slice(0, 5).map((item) => item.file.path) };
+}
+async function applyMathRepair(vault, plan) {
+  let changed = 0;
+  let skipped = 0;
+  for (const { file, original } of plan.items) {
+    let wrote = false;
+    await vault.process(file, (current) => {
+      if (withoutBom(current) !== withoutBom(original)) return current;
+      const next = repairNoteMath(current);
+      if (next === current) return current;
+      wrote = true;
+      return next;
+    });
+    if (wrote) changed++;
+    else skipped++;
+  }
+  return { changed, skipped };
+}
+
 // main.ts
 var import_obsidian34 = require("obsidian");
 
@@ -41681,6 +41731,11 @@ var VisualAgentMapPlugin = class extends import_obsidian34.Plugin {
         new import_obsidian34.Notice(t("ui.topic_note_display_repaired"));
       });
     });
+    this.addLocalizedCommand("fix-math-formulas", "ui.fix_math_formulas", () => {
+      void this.offerFixMathFormulas().catch(
+        (error) => new import_obsidian34.Notice(error instanceof Error ? error.message : String(error))
+      );
+    });
     this.addLocalizedCommand("organize-workspace-folders", "ui.organize_workspace_folders", () => {
       void this.offerOrganizeWorkspaceFolders().catch(
         (error) => new import_obsidian34.Notice(error instanceof Error ? error.message : String(error))
@@ -41909,6 +41964,31 @@ ${t("ui.organize_link_wait_hint")}`;
         })
       }
     ]).open();
+  }
+  /** Previews the notes whose math delimiters would change; nothing is written until the learner confirms. */
+  async offerFixMathFormulas() {
+    const prefix = `${this.settings.workspaceFolder}/`;
+    const files = (await this.repo.markedFiles("agent-map-node")).filter((file) => file.path.startsWith(prefix));
+    const plan = await planMathRepair(this.app.vault, files);
+    if (!plan.items.length) {
+      new import_obsidian34.Notice(t("ui.fix_math_none"));
+      return;
+    }
+    new ChoiceModal(
+      this.app,
+      t("ui.fix_math_formulas"),
+      t("ui.fix_math_preview_0_1", plan.items.length, plan.examples.join(", ")),
+      [
+        {
+          label: t("ui.fix_math_start"),
+          action: () => void applyMathRepair(this.app.vault, plan).then(
+            (result) => new import_obsidian34.Notice(
+              result.skipped ? t("ui.fix_math_done_0_1", result.changed, result.skipped) : t("ui.fix_math_done_0", result.changed)
+            )
+          ).catch((error) => new import_obsidian34.Notice(error instanceof Error ? error.message : String(error)))
+        }
+      ]
+    ).open();
   }
   async repairWorkspace() {
     await this.repo.ensureWorkspace();
