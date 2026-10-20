@@ -14,7 +14,7 @@
 - The "Use the default (...)" row in the Note style pickers and the "current setting" mark in the map menu now name and follow the real workspace default, such as "Use the default (Textbook)".
 - Textbook notes in English also drop sections that only say "No new content this time", as the Chinese form already did.
 - Contrast: links, unresolved links and link hover in the editor (Live Preview and source mode) of VAM notes, and gantt text and task bars in light and dark themes, are at least 4.5:1 on the default themes. An unresolved link is marked with a dashed bottom border instead of a dashed underline, so no partially supported `text-decoration` CSS remains. Other notes are untouched.
-- The map toolbar no longer covers a card's Stop button: the default view, Show all and focus keep the map below the toolbar, including when it wraps.
+- New maps' default view, Show all and focusing a card leave room below the map toolbar, so it is less likely to cover a card's Stop button.
 
 ### Fixed
 
@@ -24,6 +24,7 @@
 
 ### Limitations
 
+- Saved viewports are not moved: on a map whose saved view puts a card at the very top, the toolbar can still cover that card's Stop button. The view also isn't re-adjusted if the toolbar wraps later, until the next Show all or focus.
 - The merge check covers numbers and links only; "no new conclusions" is still enforced by the prompt alone.
 - Synthesis has no draft review any more; a written result can only be undone through the Undo Notice, the history, or Obsidian's File recovery.
 
