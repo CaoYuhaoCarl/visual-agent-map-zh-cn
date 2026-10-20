@@ -35990,7 +35990,7 @@ ${note.detail.trim()}` : "",
 // experiences/visual-map/math-repair.ts
 function splitFrontmatter(content) {
   var _a, _b;
-  const head = (_b = (_a = content.match(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/)) == null ? void 0 : _a[0]) != null ? _b : "";
+  const head = (_b = (_a = content.match(/^\uFEFF?---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/)) == null ? void 0 : _a[0]) != null ? _b : "";
   return { head, body: content.slice(head.length) };
 }
 function repairNoteMath(content) {

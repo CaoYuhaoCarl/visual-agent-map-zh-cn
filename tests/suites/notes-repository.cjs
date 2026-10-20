@@ -1320,3 +1320,7 @@ integrationTest('math repair keeps CRLF frontmatter byte-identical and handles n
   assert.equal(repairNoteMath('See \\(a\\)'), 'See $a$');
   assert.equal(repairNoteMath('No math here'), 'No math here');
 });
+integrationTest('math repair keeps a leading BOM and treats the frontmatter after it as frontmatter', () => {
+  const { repairNoteMath } = load('experiences/visual-map/math-repair.ts');
+  assert.equal(repairNoteMath('﻿---\ntitle: \\(x\\)\n---\nSee \\(a\\)\n'), '﻿---\ntitle: \\(x\\)\n---\nSee $a$\n');
+});

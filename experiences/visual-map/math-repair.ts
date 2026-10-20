@@ -19,7 +19,7 @@ export interface MathRepairResult {
 
 /** The text with its leading frontmatter block (delimiter lines and the newline after the closing one) split off. */
 export function splitFrontmatter(content: string): { head: string; body: string } {
-  const head = content.match(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/)?.[0] ?? "";
+  const head = content.match(/^\uFEFF?---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/)?.[0] ?? "";
   return { head, body: content.slice(head.length) };
 }
 
