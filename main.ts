@@ -838,10 +838,14 @@ export default class VisualAgentMapPlugin extends Plugin {
       (session, summariesOnly) => storage.save(session, summariesOnly)
     );
   }
-  /** After the workspace folder changes: let the old manager finish and flush into the old folder, then rebuild and re-point open views. */
+  /**
+   * After the workspace folder changes: build the new storage and manager first (coffeeManager is never null), re-point
+   * open views, then let the old manager finish and flush into the old folder through its own storage.
+   */
   private async rebuildCoffee(): Promise<void> {
     const previous = this.coffeeManager;
-    this.coffeeManager = null;
+    this.buildCoffee();
+    for (const view of this.coffeeViews()) view.rebindStorage();
     try {
       await previous?.stop();
     } catch (error) {
@@ -850,8 +854,6 @@ export default class VisualAgentMapPlugin extends Plugin {
         `Coffee Tables did not stop cleanly: ${error instanceof Error ? error.message : String(error)}`
       );
     }
-    this.buildCoffee();
-    for (const view of this.coffeeViews()) view.rebindStorage();
   }
   private connectWorkspace(root: string): void {
     this.settings.workspaceFolder = root;

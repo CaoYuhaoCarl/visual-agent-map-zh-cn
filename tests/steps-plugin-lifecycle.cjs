@@ -20,11 +20,24 @@ test('reconnecting to another workspace rebuilds Coffee Tables storage and manag
   const oldManager = plugin.coffeeManager;
   assert.equal(plugin.coffeeStorage.folder, 'Old Workspace/Coffee Tables');
   let stopped = 0;
-  oldManager.stop = async () => { stopped++; };
+  const gate = S.deferred();
+  let duringStop;
+  oldManager.stop = async () => {
+    stopped++;
+    duringStop = { manager: plugin.coffeeManager, folder: plugin.coffeeStorage.folder };
+    await gate.promise;
+  };
   const rebound = [];
   plugin.coffeeViews = () => [{ rebindStorage: () => rebound.push(plugin.coffeeStorage.folder) }];
   plugin.settings.workspaceFolder = 'New Workspace';
-  await plugin.rebuildCoffee();
+  const rebuilding = plugin.rebuildCoffee();
+  await delay(10);
+  assert.ok(duringStop, 'the old manager is being stopped');
+  assert.ok(duringStop.manager && duringStop.manager !== oldManager, 'while the old manager stops, coffeeManager is the new one, never null');
+  assert.equal(duringStop.folder, 'New Workspace/Coffee Tables');
+  assert.deepEqual(rebound, ['New Workspace/Coffee Tables'], 'views are re-pointed before the old stop finishes');
+  gate.resolve();
+  await rebuilding;
   assert.equal(stopped, 1, 'the old manager was stopped (in-flight work awaited) before replacement');
   assert.notEqual(plugin.coffeeManager, oldManager);
   assert.equal(plugin.coffeeStorage.folder, 'New Workspace/Coffee Tables');
@@ -60,4 +73,29 @@ test('unload clears the pending external reconciliation so no repo work runs aft
   assert.equal(plugin.externalReconcilePaths.size, 0);
   await delay(700);
   assert.equal(mutated, 0, 'the 500 ms reconcile timer never fired after unload');
+});
+
+test('Reconnect existing workspace (offerWorkspaceReconnect) rebuilds Coffee Tables for the chosen folder', async () => {
+  const modals = [];
+  const obsidian = { ...S.obsidian, Modal: class { constructor(app) { this.app = app; } open() { modals.push(this); } close() {} } };
+  const { default: ReconnectPlugin } = S.load('main.ts', { obsidian });
+  const plugin = new ReconnectPlugin();
+  plugin.app = { vault: {}, fileManager: {} };
+  plugin.logs = { appendLog() {} };
+  plugin.settings.workspaceFolder = 'Old Workspace';
+  plugin.buildCoffee();
+  const oldManager = plugin.coffeeManager;
+  const rebound = [];
+  plugin.coffeeViews = () => [{ rebindStorage: () => rebound.push(plugin.coffeeStorage.folder) }];
+  plugin.views = () => [];
+  plugin.saveSettings = async () => {};
+  plugin.mutate = work => work();
+  plugin.repo = { rebuildDerivedData: async () => {} };
+  await plugin.offerWorkspaceReconnect(['New Workspace']);
+  assert.equal(modals.length, 1);
+  await modals[0].choices[0].action();
+  assert.equal(plugin.settings.workspaceFolder, 'New Workspace');
+  assert.equal(plugin.coffeeStorage.folder, 'New Workspace/Coffee Tables');
+  assert.notEqual(plugin.coffeeManager, oldManager);
+  assert.deepEqual(rebound, ['New Workspace/Coffee Tables']);
 });

@@ -1179,7 +1179,7 @@ export class AimManualFlow {
     };
     const reasoning = effectiveReasoningLevel(
       taskDefaults,
-      normalizeReasoningLevel(diagnostic.reasoning ?? priorAttempt.reasoningLevel ?? "low")
+      normalizeReasoningLevel(priorAttempt.reasoningLevel ?? diagnostic.reasoning ?? "low")
     );
     const handle = await this.persist(() =>
       this.runs.startAttempt(mapPath, branch.id, run.id, {

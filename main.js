@@ -24522,7 +24522,7 @@ ${delivery.evidence}` },
     };
     const reasoning = effectiveReasoningLevel(
       taskDefaults,
-      normalizeReasoningLevel((_h = (_g = diagnostic.reasoning) != null ? _g : priorAttempt.reasoningLevel) != null ? _h : "low")
+      normalizeReasoningLevel((_h = (_g = priorAttempt.reasoningLevel) != null ? _g : diagnostic.reasoning) != null ? _h : "low")
     );
     const handle = await this.persist(
       () => this.runs.startAttempt(mapPath, branch.id, run.id, {
@@ -42023,10 +42023,14 @@ ${t("ui.organize_link_wait_hint")}`;
       (session, summariesOnly) => storage.save(session, summariesOnly)
     );
   }
-  /** After the workspace folder changes: let the old manager finish and flush into the old folder, then rebuild and re-point open views. */
+  /**
+   * After the workspace folder changes: build the new storage and manager first (coffeeManager is never null), re-point
+   * open views, then let the old manager finish and flush into the old folder through its own storage.
+   */
   async rebuildCoffee() {
     const previous = this.coffeeManager;
-    this.coffeeManager = null;
+    this.buildCoffee();
+    for (const view of this.coffeeViews()) view.rebindStorage();
     try {
       await (previous == null ? void 0 : previous.stop());
     } catch (error) {
@@ -42035,8 +42039,6 @@ ${t("ui.organize_link_wait_hint")}`;
         `Coffee Tables did not stop cleanly: ${error instanceof Error ? error.message : String(error)}`
       );
     }
-    this.buildCoffee();
-    for (const view of this.coffeeViews()) view.rebindStorage();
   }
   connectWorkspace(root) {
     this.settings.workspaceFolder = root;
