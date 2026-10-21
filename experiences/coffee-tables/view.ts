@@ -555,6 +555,15 @@ export class CoffeeTablesView extends ItemView {
     this.contentEl.addClass("ct-view");
     await this.home();
   }
+  /** The plugin rebuilt its Coffee Tables storage (workspace folder changed): re-read it and return to the table list. */
+  rebindStorage(): void {
+    if (this.closed) return;
+    this.store = this.plugin.coffeeStorage ?? new CoffeeStorage(this.app.vault, this.plugin.settings.workspaceFolder);
+    this.recoveredPendingCreates = false;
+    this.suppressStateRestore = true;
+    this.homeEdit = null;
+    void this.home();
+  }
   async onClose(): Promise<void> {
     this.closed = true;
     this.generation++;

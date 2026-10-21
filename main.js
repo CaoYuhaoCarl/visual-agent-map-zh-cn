@@ -9785,6 +9785,16 @@ var CoffeeTablesView = class extends import_obsidian8.ItemView {
     this.contentEl.addClass("ct-view");
     await this.home();
   }
+  /** The plugin rebuilt its Coffee Tables storage (workspace folder changed): re-read it and return to the table list. */
+  rebindStorage() {
+    var _a;
+    if (this.closed) return;
+    this.store = (_a = this.plugin.coffeeStorage) != null ? _a : new CoffeeStorage(this.app.vault, this.plugin.settings.workspaceFolder);
+    this.recoveredPendingCreates = false;
+    this.suppressStateRestore = true;
+    this.homeEdit = null;
+    void this.home();
+  }
   async onClose() {
     var _a, _b, _c;
     this.closed = true;
@@ -24495,7 +24505,7 @@ ${delivery.evidence}` },
     const explorationTarget = (_f = (_e = map.aim) == null ? void 0 : _e.minimumAnswersBeforeConclusion) != null ? _f : 2;
     const answeredQuestionCount = this.answerCountInLineage(map, branch.id);
     const floor = this.floorFor(topic.detail, map);
-    const model = diagnostic.model || priorAttempt.model || "gpt-6-luna";
+    const model = priorAttempt.model || diagnostic.model || "gpt-6-luna";
     const taskDefaults = {
       timeoutMs: branch.retryTimeoutMs,
       title: topic.title,
@@ -41666,17 +41676,7 @@ var VisualAgentMapPlugin = class extends import_obsidian34.Plugin {
       )
     );
     this.registerView(COFFEE_TABLES_VIEW_TYPE, (leaf) => new CoffeeTablesView(leaf, this));
-    this.coffeeStorage = new CoffeeStorage(
-      this.app.vault,
-      this.settings.workspaceFolder,
-      (file, path) => this.app.fileManager.renameFile(file, path),
-      (file) => this.app.fileManager.trashFile(file),
-      (message) => this.logs.appendLog("warn", message)
-    );
-    this.coffeeManager = new CoffeeManager(
-      (request) => this.runCoffeeRequest(request),
-      (session, summariesOnly) => this.coffeeStorage.save(session, summariesOnly)
-    );
+    this.buildCoffee();
     const openCoffee = () => {
       void this.activateCoffeeTables().catch((error) => new import_obsidian34.Notice(String(error)));
     };
@@ -42008,6 +42008,36 @@ ${t("ui.organize_link_wait_hint")}`;
     for (const view of this.views()) await view.refreshFromPlugin();
     new import_obsidian34.Notice(t("ui.vam_data_has_been_refreshed"));
   }
+  /** Builds Coffee Tables storage and manager for the current workspace folder (CoffeeStorage fixes its folder at construction). */
+  buildCoffee() {
+    const storage = new CoffeeStorage(
+      this.app.vault,
+      this.settings.workspaceFolder,
+      (file, path) => this.app.fileManager.renameFile(file, path),
+      (file) => this.app.fileManager.trashFile(file),
+      (message) => this.logs.appendLog("warn", message)
+    );
+    this.coffeeStorage = storage;
+    this.coffeeManager = new CoffeeManager(
+      (request) => this.runCoffeeRequest(request),
+      (session, summariesOnly) => storage.save(session, summariesOnly)
+    );
+  }
+  /** After the workspace folder changes: let the old manager finish and flush into the old folder, then rebuild and re-point open views. */
+  async rebuildCoffee() {
+    const previous = this.coffeeManager;
+    this.coffeeManager = null;
+    try {
+      await (previous == null ? void 0 : previous.stop());
+    } catch (error) {
+      this.logs.appendLog(
+        "warn",
+        `Coffee Tables did not stop cleanly: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+    this.buildCoffee();
+    for (const view of this.coffeeViews()) view.rebindStorage();
+  }
   connectWorkspace(root) {
     this.settings.workspaceFolder = root;
     this.settings.topicsFolder = `${root}/Topics`;
@@ -42033,6 +42063,7 @@ ${t("ui.organize_link_wait_hint")}`;
         action: () => this.mutate(async () => {
           this.connectWorkspace(root);
           await this.saveSettings();
+          await this.rebuildCoffee();
           await this.repo.rebuildDerivedData();
           for (const view of this.views()) await view.refreshFromPlugin();
           new import_obsidian34.Notice(t("ui.reconnected_workspace_0", root));
@@ -42205,6 +42236,9 @@ ${t("ui.organize_link_wait_hint")}`;
     (_a = this.repo) == null ? void 0 : _a.dispose();
     void ((_b = this.coffeeManager) == null ? void 0 : _b.stop());
     this.coffeeManager = null;
+    if (this.externalReconcileTimer !== null) window.clearTimeout(this.externalReconcileTimer);
+    this.externalReconcileTimer = null;
+    this.externalReconcilePaths.clear();
     this.resetCodexRuntime();
   }
   async saveSettings() {

@@ -475,17 +475,7 @@ export default class VisualAgentMapPlugin extends Plugin {
       )
     );
     this.registerView(COFFEE_TABLES_VIEW_TYPE, leaf => new CoffeeTablesView(leaf, this));
-    this.coffeeStorage = new CoffeeStorage(
-      this.app.vault,
-      this.settings.workspaceFolder,
-      (file, path) => this.app.fileManager.renameFile(file, path),
-      file => this.app.fileManager.trashFile(file),
-      message => this.logs.appendLog("warn", message)
-    );
-    this.coffeeManager = new CoffeeManager(
-      request => this.runCoffeeRequest(request),
-      (session, summariesOnly) => this.coffeeStorage!.save(session, summariesOnly)
-    );
+    this.buildCoffee();
     const openCoffee = (): void => {
       void this.activateCoffeeTables().catch((error: unknown) => new Notice(String(error)));
     };
@@ -832,6 +822,37 @@ export default class VisualAgentMapPlugin extends Plugin {
     for (const view of this.views()) await view.refreshFromPlugin();
     new Notice(t("ui.vam_data_has_been_refreshed"));
   }
+  /** Builds Coffee Tables storage and manager for the current workspace folder (CoffeeStorage fixes its folder at construction). */
+  private buildCoffee(): void {
+    const storage = new CoffeeStorage(
+      this.app.vault,
+      this.settings.workspaceFolder,
+      (file, path) => this.app.fileManager.renameFile(file, path),
+      file => this.app.fileManager.trashFile(file),
+      message => this.logs.appendLog("warn", message)
+    );
+    this.coffeeStorage = storage;
+    // Bound to its own storage so a manager that is still stopping never flushes into a newer workspace folder.
+    this.coffeeManager = new CoffeeManager(
+      request => this.runCoffeeRequest(request),
+      (session, summariesOnly) => storage.save(session, summariesOnly)
+    );
+  }
+  /** After the workspace folder changes: let the old manager finish and flush into the old folder, then rebuild and re-point open views. */
+  private async rebuildCoffee(): Promise<void> {
+    const previous = this.coffeeManager;
+    this.coffeeManager = null;
+    try {
+      await previous?.stop();
+    } catch (error) {
+      this.logs.appendLog(
+        "warn",
+        `Coffee Tables did not stop cleanly: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+    this.buildCoffee();
+    for (const view of this.coffeeViews()) view.rebindStorage();
+  }
   private connectWorkspace(root: string): void {
     this.settings.workspaceFolder = root;
     this.settings.topicsFolder = `${root}/Topics`;
@@ -858,6 +879,7 @@ export default class VisualAgentMapPlugin extends Plugin {
           this.mutate(async () => {
             this.connectWorkspace(root);
             await this.saveSettings();
+            await this.rebuildCoffee();
             await this.repo.rebuildDerivedData();
             for (const view of this.views()) await view.refreshFromPlugin();
             new Notice(t("ui.reconnected_workspace_0", root));
@@ -1048,6 +1070,10 @@ export default class VisualAgentMapPlugin extends Plugin {
     this.repo?.dispose();
     void this.coffeeManager?.stop();
     this.coffeeManager = null;
+    // A pending external-delete reconcile must not touch the disposed repo after unload.
+    if (this.externalReconcileTimer !== null) window.clearTimeout(this.externalReconcileTimer);
+    this.externalReconcileTimer = null;
+    this.externalReconcilePaths.clear();
     this.resetCodexRuntime();
   }
   async saveSettings(): Promise<void> {

@@ -1161,7 +1161,8 @@ export class AimManualFlow {
     const explorationTarget = map.aim?.minimumAnswersBeforeConclusion ?? 2;
     const answeredQuestionCount = this.answerCountInLineage(map, branch.id);
     const floor = this.floorFor(topic.detail, map);
-    const model = diagnostic.model || priorAttempt.model || "gpt-6-luna";
+    // The attempt's own model wins: readNote().model is always filled (it follows the workspace model).
+    const model = priorAttempt.model || diagnostic.model || "gpt-6-luna";
     const taskDefaults: TaskContext = {
       timeoutMs: branch.retryTimeoutMs,
       title: topic.title,
