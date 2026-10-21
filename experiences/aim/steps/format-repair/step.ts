@@ -1,4 +1,5 @@
 import { renderTemplate } from "../../../../core/step-runner";
+import type { UiLanguage } from "../../../../i18n";
 import stateQuestionTemplate from "./task.state-question.md";
 import imposedOptionsTemplate from "./task.imposed-options.md";
 import missingChoicesTemplate from "./task.missing-choices.md";
@@ -9,6 +10,7 @@ import noDecisionVariant from "./variant.no-decision.md";
 import contextTemplate from "./context.md";
 import defaultRationale from "./default-rationale.md";
 import defaultRationaleZh from "./default-rationale.zh.md";
+import defaultRationaleZhCn from "./default-rationale.zh-CN.md";
 
 /** Task texts of the `aim.format-repair` step. The repair count and rules stay in the Planner review flow. */
 export interface ImposedAskRepair {
@@ -68,5 +70,9 @@ export function renderGeneralRepair(repair: GeneralRepair): string {
 export const CLARIFICATION_REQUIRED_RATIONALE = renderTemplate(defaultRationale, {});
 
 /** The same rationale in the AIM content language (it is shown to the model and may land in a question note). */
-export const clarificationRequiredRationale = (language?: "en" | "zh-TW"): string =>
-  language === "zh-TW" ? renderTemplate(defaultRationaleZh, {}) : CLARIFICATION_REQUIRED_RATIONALE;
+export const clarificationRequiredRationale = (language?: UiLanguage): string =>
+  language === "zh-CN"
+    ? renderTemplate(defaultRationaleZhCn, {})
+    : language === "zh-TW"
+      ? renderTemplate(defaultRationaleZh, {})
+      : CLARIFICATION_REQUIRED_RATIONALE;

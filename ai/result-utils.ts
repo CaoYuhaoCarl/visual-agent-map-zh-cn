@@ -1,5 +1,5 @@
 import type { VisualReference } from "../repository";
-import { translate, type UiLanguage } from "../i18n";
+import { translate, SUPPORTED_LANGUAGES, type UiLanguage } from "../i18n";
 import type { AiResult } from "./types";
 import { fencedLines } from "./markdown-blocks";
 import { sectionLookup, standardTemplate, TEXTBOOK_TEMPLATE_ID, type DetailTemplate } from "./detail-templates";
@@ -45,8 +45,8 @@ export function sourceFootnoteDefinition(line: string): { label: string; target:
   const match = /^\[\^([^\]\s]+)\]:[ \t]*(.*)$/.exec(line);
   if (!match) return null;
   const target = match[2].trim();
-  const external = (["zh-TW", "en"] as const).some(locale =>
-    target.startsWith(translate(locale, "note.external_source_0", "").trim())
+  const external = SUPPORTED_LANGUAGES.some(({ id }) =>
+    target.startsWith(translate(id, "note.external_source_0", "").trim())
   );
   return match[1].startsWith("src-") || /^\[\[[^\]]+\]\]$/.test(target) || external
     ? { label: match[1], target }
@@ -68,11 +68,12 @@ function textbookDetail(
     const evidence = (sections.get(sourcesIndex) ?? []).join("\n").trim();
     sections.set(sourcesIndex, [[evidence, footnotes.join("\n")].filter(Boolean).join("\n\n")]);
   }
-  // The note placeholder in both languages, plus the "No new content this time" wording the prompts ask the model to write.
+  // Localized note placeholders, plus the "No new content this time" wording the prompts ask the model to write.
   const placeholders = new Set([
-    ...(["zh-TW", "en"] as const).map(locale => translate(locale, "note.no_new_information").replace(/[.。]$/, "")),
+    ...SUPPORTED_LANGUAGES.map(({ id }) => translate(id, "note.no_new_information").replace(/[.。]$/, "")),
     "No new content this time",
-    "本次無新增內容"
+    "本次無新增內容",
+    "本次无新增内容"
   ]);
   const blocks = [leading.join("\n").trim()];
   template.sections.forEach((section, index) => {

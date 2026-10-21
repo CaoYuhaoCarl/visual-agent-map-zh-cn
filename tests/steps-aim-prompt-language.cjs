@@ -11,19 +11,25 @@ const support = require('./support.cjs');
 const { captureAimPhaseVariants } = require('./support-aim-flow-capture.cjs');
 
 const read = name => fs.readFileSync(path.join(__dirname, '..', 'core', 'steps', 'aim', name), 'utf8').trim();
-const LANGUAGE_LINE = { en: read('language.en.md'), 'zh-TW': read('language.zh.md') };
-const TOPIC = { en: 'Plan a 5-day Taipei trip', 'zh-TW': '東京五天自由行怎麼排' };
+const LANGUAGE_LINE = { en: read('language.en.md'), 'zh-TW': read('language.zh.md'), 'zh-CN': read('language.zh-CN.md') };
+const TOPIC = { en: 'Plan a 5-day Taipei trip', 'zh-TW': '東京五天自由行怎麼排', 'zh-CN': '东京五天自由行怎么排' };
 // Variants captured from fixtures whose repository/map is English by construction (fake `{settings:{language:'en'}}` repos or
 // English fixture maps). Their flow-set outputLanguage is not the topic's, so the test sets it explicitly like the snapshots do.
 const SYNTHETIC_ENGLISH_FIXTURE = new Set(['evidence-reuse-audit', 'subtopic-research-update', 'subtopic-research-reuse-rejected', 'research-plan-repair', 'topic-root-research-plan', 'topic-root-report-review', 'saved-report-review', 'saved-report-followup-search',
   'format-repair-state-question', 'format-repair-imposed-options', 'format-repair-missing-choices', 'format-repair-answered-without-target', 'format-repair-preserve-decision', 'format-repair-no-decision']);
 // Instructions that would tell the model to answer in the other language. Each pattern is scanned on every line after the first.
 const CONFLICTING_INSTRUCTION = {
-  'zh-TW': [/\bin English\b/i, /\bEnglish only\b/i, /\banswer in English\b/i, /輸出語言：English/],
-  en: [/用中文/, /以(繁體)?中文(回答|撰寫|輸出)/, /\bin (Traditional )?Chinese\b/i, /Traditional Chinese/i, /輸出語言：繁體中文/, /繁體中文（台灣）/]
+  'zh-TW': [/\bin English\b/i, /\bEnglish only\b/i, /\banswer in English\b/i, /輸出語言：English/, /Simplified Chinese/i, /简体中文/],
+  'zh-CN': [/\bin English\b/i, /\bEnglish only\b/i, /\banswer in English\b/i, /Traditional Chinese/i, /繁體中文/, /繁体中文/],
+  en: [/用中文/, /以(繁體)?中文(回答|撰寫|輸出)/, /\bin (Traditional |Simplified )?Chinese\b/i, /Traditional Chinese/i, /Simplified Chinese/i, /輸出語言：繁體中文/, /繁體中文（台灣）/, /简体中文/]
 };
 // The fixed frame ends where the data blocks begin (the first block that is present).
 const FRAME_END = { en: /^(Current topic|Current summary|Current detail and supplied reports|Topic AI rules \(highest priority\)|Previous findings|Source context|Ancestor topic context|Current task):$/, 'zh-TW': /^(目前議題|目前理解|目前內容與提供的報告|目前議題的 AI 規則（優先遵守）|先前發現|整合來源背景|祖先議題背景|目前任務):$/ };
+const cnLabels = [
+  ...['topic', 'summary', 'rules', 'sources', 'ancestors', 'task'].map(name => fs.readFileSync(path.join(__dirname, '..', 'core', 'steps', '_shared', `label-${name}.zh-CN.md`), 'utf8').trim()),
+  read('label-detail.zh-CN.md'), read('label-findings.zh-CN.md')
+];
+FRAME_END['zh-CN'] = new RegExp(`^(${cnLabels.map(label => label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')}):$`);
 
 async function gather(content, ui) {
   const found = new Map();
@@ -53,7 +59,7 @@ function auditPrompt(prompt, content, label) {
   const end = lines.findIndex(line => FRAME_END[content].test(line));
   assert.ok(end > 1, `${label}: the frame must end at the first data block heading`);
   const frame = lines.slice(1, end).join('\n');
-  if (content === 'zh-TW') {
+  if (content !== 'en') {
     assert.match(frame, /[㐀-鿿]/, `${label}: zh frame has no Chinese text`);
     assert.doesNotMatch(frame, /(?:[A-Za-z]+ ){4,}[A-Za-z]+/, `${label}: zh frame contains an English sentence`);
   } else {
@@ -62,7 +68,7 @@ function auditPrompt(prompt, content, label) {
 }
 
 const covered = new Set(), exported = new Map();
-for (const content of ['zh-TW', 'en']) for (const ui of ['en', 'zh-TW']) {
+for (const content of ['zh-TW', 'zh-CN', 'en']) for (const ui of ['en', 'zh-TW', 'zh-CN']) {
   test(`AIM prompt language: every phase prompt of a ${content} content map under ${ui} interface follows the content language`, async () => {
     const variants = await gather(content, ui);
     assert.ok(variants.size >= 35, `expected the full AIM phase set, saw ${variants.size}: ${[...variants.keys()].join(', ')}`);

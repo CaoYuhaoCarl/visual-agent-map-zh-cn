@@ -2833,7 +2833,7 @@ export class VisualAgentMapView extends ItemView {
               await this.hydrate();
               void this.planAimFromSelection(node.id);
             },
-            this.plugin.settings.language === "en",
+            this.plugin.settings.language,
             contentLanguage
           ).open();
           return;
@@ -8532,7 +8532,7 @@ export class VisualAgentMapView extends ItemView {
     rules: string,
     model: string,
     result: AiResult,
-    language: "zh-TW" | "en",
+    language: UiLanguage,
     task: NonNullable<VisualAgentMapView["integrationTask"]>
   ): Promise<void> {
     if (

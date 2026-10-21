@@ -1,4 +1,4 @@
-// Byte-exact prompt (and provider response schema) snapshots, English and Traditional Chinese.
+// Byte-exact prompt (and provider response schema) snapshots for every supported language.
 // Compare mode is the default: any difference fails. UPDATE_PROMPT_SNAPSHOTS=1 rewrites tests/snapshots/prompts.
 // tests/snapshots/prompts/index.json is the coverage table (snapshot -> builder/flow -> language -> i18n keys).
 const { test } = require('node:test');
@@ -12,7 +12,7 @@ const { captureAimPhaseVariants } = require('./support-aim-flow-capture.cjs');
 
 const directory = path.join(__dirname, 'snapshots', 'prompts');
 const update = process.env.UPDATE_PROMPT_SNAPSHOTS === '1';
-const LANGUAGES = [['en', 'en'], ['zh-TW', 'zh']];
+const LANGUAGES = [['en', 'en'], ['zh-TW', 'zh'], ['zh-CN', 'zh-CN']];
 const snapshots = new Map(); // name -> { prompt, schema, builder, language }
 
 function record(name, builder, language, prompt, schema) {

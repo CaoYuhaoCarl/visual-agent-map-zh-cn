@@ -1,6 +1,9 @@
 # Install Visual Agent Map
 
-This guide takes you from installation to your first editable VAM map. VAM is requires **Obsidian Desktop 1.13.7 or later**; the tested environment is **macOS with Obsidian 1.13.7**.
+This guide takes you from installation to your first editable VAM map.
+VAM requires **Obsidian Desktop 1.13.7 or later**; the tested environment is **macOS with Obsidian 1.13.7**.
+
+[English](#install-visual-agent-map) · [繁體中文](#安裝-visual-agent-map) · [简体中文快速开始](#简体中文快速开始)
 
 ## What you need
 
@@ -27,9 +30,13 @@ Do not install files from the repository's `main` branch into a production vault
 
 ## 2. Start your first map
 
-1. Explore the built-in read-only sample and its five-step tour. A fresh install starts in English regardless of Obsidian's language. You can choose Traditional Chinese in VAM settings; that choice is saved across restarts.
+1. Explore the built-in read-only sample and its five-step tour.
+   A fresh install starts in English regardless of Obsidian's language.
+   Choose **English**, **繁體中文**, or **简体中文** under **Settings → Visual Agent Map → Interface language**; your choice is saved across restarts.
 2. Select **Duplicate to my workspace** to start from the sample, or **Create empty mind map**. You can edit either map without an AI service.
-3. Changing VAM's interface language also changes the built-in sample. Existing maps and notes keep their original titles and writing.
+3. Changing VAM's interface language updates VAM and Coffee Tables labels and built-in samples.
+   Existing maps, notes, conversations, and custom prompts keep their original text.
+   AI answer language is selected separately for each task.
 
 ## 3. Prepare an AI service
 
@@ -106,9 +113,12 @@ VAM 不需要專屬 API key。獨立 CLI 不需要 npm；只有從原始碼建�
 
 ## 2. 開始第一張心智圖
 
-1. 先探索內建唯讀範例與五步導覽。全新安裝預設英文，與 Obsidian 語言無關；可在 VAM 設定選擇繁體中文，選擇會跨重啟保留。
+1. 先探索內建唯讀範例與五步導覽。
+   全新安裝預設英文，與 Obsidian 語言無關；可在 **Settings → Visual Agent Map → 介面語言** 選擇 **English**、**繁體中文** 或 **简体中文**，選擇會跨重啟保留。
 2. 選擇 **複製到我的工作區**，或選擇 **建立空白心智圖**。沒有 AI 服務也能編輯。
-3. 切換 VAM 介面語言也會更換內建唯讀範例。既有地圖與筆記的名稱及內容不會改變。
+3. 切換 VAM 介面語言會更新 VAM 與 Coffee Tables 的介面文字及內建範例。
+   既有地圖、筆記、對談及自訂提示詞保留原文。
+   每次 AI 任務的回答語言可另外選擇。
 
 ## 3. 為 AI 任務準備服務
 
@@ -153,3 +163,25 @@ AI 從網路找到的圖片不一定能自由使用，請查看各自的來源�
 新的心智圖會建立在工作區資料夾內的 `Mind Maps/`，新的 AIM 會建立在 `AIM/`（資料夾名稱可在設定中修改，會一併重新命名既有資料夾，執行時設定視窗會關閉，Obsidian 可能會逐份詢問連結處理方式）。`Topics/` 內既有的地圖維持原位、照常可用；VAM 不會自行搬動它們。要搬移請執行「整理工作區資料夾」指令，它會先顯示預覽，任一步失敗會還原全部。收件匣（Inbox）不再由 VAM 管理：既有 `Inbox/` 內的筆記原封不動。當「整理工作區資料夾」讓舊的 `Topics/` 或 `Inbox/` 資料夾完全清空時，會把該空資料夾移到垃圾桶（依你的 Obsidian 垃圾桶設定）；仍有任何內容的資料夾絕不會被動到。以 0.4 前舊結構儲存的地圖（不在上述資料夾內）仍可開啟與檢視，但不能改名、不能修改結構，也不會被整理。若搬移進行中關閉了 Obsidian 或停用了 VAM，部分地圖可能已在新資料夾但 VAM 內的路徑尚未更新；請執行「重新整理 VAM 資料」（會先修復這些路徑），或再次執行「整理工作區資料夾」。
 
 Coffee Tables 把接續對談所需的資料存在隱藏資料夾 `Coffee Tables/.sessions`。Obsidian Sync 不同步隱藏資料夾，因此在其他裝置上可以閱讀同步過去的對談，但無法接著聊；請回到開始對談的裝置繼續。
+
+---
+
+## 简体中文快速开始
+
+1. 在 Obsidian 桌面版 **设置 → 第三方插件 → 浏览** 搜索 **Visual Agent Map**，安装并启用。
+   需要 Obsidian **1.13.7 或更新版本**。
+   手动安装时，从同一份 [正式发布](https://github.com/kevcltsai/visual-agent-map/releases) 下载 `main.js`、`manifest.json` 和 `styles.css`，放入 `<你的仓库>/.obsidian/plugins/visual-agent-map/` 后重新加载 Obsidian。
+2. 在 **Settings → Visual Agent Map → Interface language** 选择 **简体中文**。
+   全新安装默认英文；选择会保存，且不受 Obsidian 语言影响。
+3. 浏览只读的台湾旅行示例，选择 **复制到我的工作区** 或 **创建空白思维导图** 开始编辑。
+   手动编辑不需要 AI 服务。
+4. 使用 AI 前，安装并登录 [Codex CLI](https://developers.openai.com/codex/cli/) 或 [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview)，再回到 VAM 设置检查 CLI 路径和可用模型。
+   VAM 不会自行安装或更新 CLI，也不需要单独的 API key。
+
+界面语言控制 VAM 与 Coffee Tables 的界面文字及内置示例。
+已有地图、笔记、对话与自定义提示词不会自动翻译；每次 AI 任务的回答语言可单独选择。
+AI 任务会通过本机 CLI 将相关内容发送给服务商，可能使用账号额度或产生费用。
+VAM 没有遥测；AI 请求与回复日志默认关闭，启用后可能包含私人笔记内容。
+Coffee Tables 的接续数据保存在隐藏的 `Coffee Tables/.sessions` 文件夹，Obsidian Sync 不会同步它；请在开始对话的设备上继续聊天。
+
+完整的故障排除、数据权限和已知限制见上方英文及繁体中文章节。

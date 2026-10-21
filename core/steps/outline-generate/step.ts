@@ -8,13 +8,17 @@ import {
   type OutlineNode
 } from "../../../experiences/visual-map/outline-import";
 import { renderTemplate, type StepDefinition } from "../../step-runner";
+import { inLanguage } from "../_shared/fragments";
 import languageEn from "./language.en.md";
 import languageZh from "./language.zh.md";
+import languageCn from "./language.zh-CN.md";
 import limitsEn from "./limits.en.md";
 import limitsZh from "./limits.zh.md";
+import limitsCn from "./limits.zh-CN.md";
 import template from "./prompt.md";
 import topicLineEn from "./topic-line.en.md";
 import topicLineZh from "./topic-line.zh.md";
+import topicLineCn from "./topic-line.zh-CN.md";
 
 export interface OutlineGenerateRequest {
   topic: string;
@@ -46,8 +50,8 @@ export class OutlineGenerateError extends Error {
   }
 }
 
-/** The topic placeholders a preset may contain (Traditional Chinese and English); the English one is case-insensitive. */
-export const OUTLINE_TOPIC_PLACEHOLDERS: readonly string[] = ["{填入研究主題}", "{research topic}"];
+/** The topic placeholders a preset may contain; the English one is case-insensitive. */
+export const OUTLINE_TOPIC_PLACEHOLDERS: readonly string[] = ["{填入研究主題}", "{research topic}", "{填入研究主题}"];
 export const OUTLINE_GENERATE_TOKEN_BUDGET = 32_000;
 const PLACEHOLDER_PATTERN = new RegExp(
   OUTLINE_TOPIC_PLACEHOLDERS.map(item => item.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"),
@@ -62,7 +66,9 @@ export function applyTopicToPreset(presetText: string, topic: string, language: 
   const quoted = JSON.stringify(topic.trim());
   PLACEHOLDER_PATTERN.lastIndex = 0;
   if (PLACEHOLDER_PATTERN.test(presetText)) return presetText.replace(PLACEHOLDER_PATTERN, () => quoted);
-  const line = renderTemplate(language === "zh-TW" ? topicLineZh : topicLineEn, { topic: quoted });
+  const line = renderTemplate(inLanguage({ zh: topicLineZh, en: topicLineEn, cn: topicLineCn }, language), {
+    topic: quoted
+  });
   return `${presetText.trimEnd()}\n\n${line}`;
 }
 
@@ -114,10 +120,10 @@ export const outlineGenerateStep: StepDefinition<OutlineGenerateRequest, Outline
   render: request => {
     const content = request.contentLanguage ?? request.language;
     return renderTemplate(template, {
-      languageInstruction: renderTemplate(content === "zh-TW" ? languageZh : languageEn, {}),
+      languageInstruction: renderTemplate(inLanguage({ zh: languageZh, en: languageEn, cn: languageCn }, content), {}),
       preset: request.limits
         ? `${applyTopicToPreset(request.presetText, request.topic, content)}\n\n${renderTemplate(
-            content === "zh-TW" ? limitsZh : limitsEn,
+            inLanguage({ zh: limitsZh, en: limitsEn, cn: limitsCn }, content),
             { levels: String(request.limits.levels), maxTopics: String(request.limits.maxTopics) }
           )}`
         : applyTopicToPreset(request.presetText, request.topic, content)

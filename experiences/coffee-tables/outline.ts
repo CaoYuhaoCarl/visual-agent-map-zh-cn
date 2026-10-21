@@ -27,7 +27,7 @@ export interface CoffeeOutlineSnapshot {
   sections: CoffeeOutlineSection[];
 }
 
-const ROOT_HEADING = /^(?:觀察者整理|observer(?:[’']s)? notes)$/i;
+const ROOT_HEADING = /^(?:觀察者整理|观察者整理|observer(?:[’']s)? notes)$/i;
 const LIST_ITEM = /^(\s*)(?:[-+*]|\d+[.)])\s+(.+?)\s*$/;
 const CJK_EDGE = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
 const SOURCE_REFERENCE = /\s*<!--\s*source:\s*([\s\S]*?)\s*-->\s*$/i;
@@ -64,6 +64,7 @@ function plainMarkdown(value: string): string {
 }
 
 export function parseCoffeeOutline(markdown: string): CoffeeOutlineSection[] {
+  const fallbackTitle = /^# 观察者整理\s*$/m.test(markdown) ? "观察者整理" : "觀察者整理";
   const sections: CoffeeOutlineSection[] = [];
   let current: CoffeeOutlineSection | null = null;
   let listStack: OutlineListEntry[] = [];
@@ -73,7 +74,7 @@ export function parseCoffeeOutline(markdown: string): CoffeeOutlineSection[] {
 
   const ensureSection = (): CoffeeOutlineSection => {
     if (!current) {
-      current = { id: `section-${sections.length}`, title: "觀察者整理", depth: 2, items: [] };
+      current = { id: `section-${sections.length}`, title: fallbackTitle, depth: 2, items: [] };
       sections.push(current);
     }
     return current;
@@ -101,7 +102,7 @@ export function parseCoffeeOutline(markdown: string): CoffeeOutlineSection[] {
     const source = splitSourceReference(rawText);
     if (parent) {
       const value = plainMarkdown(source.text).replace(
-        /^(?:脈絡|來賓的理由|脈絡與分歧|context|reasoning|原疑問|疑問|question|可能解方|possible solution|條件與限制|限制|conditions and limits)：?\s*/i,
+        /^(?:脈絡|來賓的理由|脈絡與分歧|脉络|嘉宾的理由|来宾的理由|脉络与分歧|context|reasoning|原疑問|疑問|原疑问|疑问|question|可能解方|可能解法|可能解决方案|possible solution|條件與限制|条件与限制|限制|conditions and limits)：?\s*/i,
         ""
       );
       parent.context = [parent.context, value].filter(Boolean).join(" ");
@@ -188,6 +189,16 @@ function normalizeText(value: string): string {
 }
 
 const STOPWORDS = new Set([
+  "这个",
+  "这些",
+  "不过",
+  "还是",
+  "因为",
+  "问题",
+  "观察",
+  "对话",
+  "嘉宾",
+  "来宾",
   "以及",
   "是否",
   "如何",

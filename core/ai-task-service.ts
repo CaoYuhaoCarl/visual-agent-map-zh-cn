@@ -80,7 +80,9 @@ export class AiTaskService {
     }
 
     if (estimateTokens(input.sourceContext) > 32_000) throw new Error(t("ui.source_context_exceeds_budget"));
-    let context = input;
+    // A UI switch during asynchronous reference processing must not change this task's answer language.
+    const outputLanguage = input.outputLanguage ?? this.options.language();
+    let context: TaskContext = { ...input, outputLanguage };
     let accepted = onRequestAccepted;
     const referenceGroups = context.referenceGroups ?? [];
     if (referenceGroups.some(group => group.documents.length)) {
@@ -117,7 +119,6 @@ export class AiTaskService {
     }
     context = prepared.context;
     const pluginDirectory = this.options.pluginDirectory();
-    const outputLanguage = context.outputLanguage ?? this.options.language();
     const shape = taskResponseShape(context);
     const step = prepareStep(createTaskStep(taskStepId(context, role), shape.schema), {
       context,
@@ -227,6 +228,7 @@ export class AiTaskService {
             const repaired = await this.execute(
               {
                 ...input,
+                outputLanguage,
                 detail: result.detail,
                 summary: result.summary,
                 task: repairCounts(
@@ -447,6 +449,7 @@ export class AiTaskService {
     signal?: AbortSignal,
     onRequestAccepted?: () => void
   ): Promise<string> {
+    const outputLanguage = context.outputLanguage ?? this.options.language();
     let working = referenceBatches(context.referenceGroups ?? []);
     let round = 0;
     while (true) {
@@ -462,7 +465,8 @@ export class AiTaskService {
             summary: "",
             rules: "",
             detail: "",
-            task: referenceTask(round === 1 ? "extract" : "reduce", this.options.language()),
+            task: referenceTask(round === 1 ? "extract" : "reduce", outputLanguage),
+            outputLanguage,
             ancestors: "",
             sourceContext: batches[index],
             mode: "task",

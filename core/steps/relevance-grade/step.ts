@@ -14,9 +14,11 @@ import {
 } from "../../../experiences/visual-map/relevance-pins";
 import { positionIds } from "../../short-ids";
 import { renderTemplate, type StepDefinition } from "../../step-runner";
+import { inLanguage } from "../_shared/fragments";
 import type { StructureNode } from "../structure-review/step";
 import languageEn from "./language.en.md";
 import languageZh from "./language.zh.md";
+import languageCn from "./language.zh-CN.md";
 import template from "./prompt.md";
 import pinsTemplate from "./pins.md";
 import repairPinsNote from "./repair-pins.md";
@@ -261,7 +263,10 @@ export function relevanceHierarchyViolations(
 }
 
 export const languageLine = (request: RelevanceGradeRequest): string =>
-  renderTemplate((request.contentLanguage ?? request.language) === "zh-TW" ? languageZh : languageEn, {});
+  renderTemplate(
+    inLanguage({ zh: languageZh, en: languageEn, cn: languageCn }, request.contentLanguage ?? request.language),
+    {}
+  );
 
 /**
  * The pins and bounds as the model sees them (position ids), or undefined when nothing is pinned.

@@ -1,6 +1,7 @@
 import { translate, uiLocale } from "../../i18n";
 import type { CoffeeInsightCategory } from "./insights";
 import { GUIDANCE_DETAIL_LEVEL, GUIDANCE_MERGE_LEVEL } from "./steps/_shared/fragments";
+import { coffeeLanguageKey, coffeeText } from "./language";
 
 export type CoffeePreserveRule = "disagreements" | "conditions" | "counterexamples" | "questions" | "sources";
 export interface CoffeeCustomization {
@@ -37,14 +38,19 @@ const PROTECTED_METADATA = /coffee-insight\s*:|coffee-tables-complete|<!--\s*sou
 const MARKDOWN_INJECTION = /<!--|^\s{0,3}#{1,6}\s|^\s*coffee-insight\s*:/im;
 
 export function defaultCustomization(language: string): CoffeeCustomization {
-  const zh = language === "zh-TW";
   return {
-    observerPrompt: zh
-      ? "整理具體洞見與脈絡，保留不同理由、成立條件與尚未解決的問題；不補充對談未提及的事實。"
-      : "Capture concrete insights with context. Keep differing reasons, conditions and unresolved questions; do not add facts absent from the conversation.",
-    convergencePrompt: zh
-      ? "讓每項整理仍能看出原本的想法與來由；只有內容確實重疊時才合併。"
-      : "Keep each item recognizable with its original reasoning. Merge items only when their substance overlaps.",
+    observerPrompt: coffeeText(
+      language,
+      "Capture concrete insights with context. Keep differing reasons, conditions and unresolved questions; do not add facts absent from the conversation.",
+      "整理具體洞見與脈絡，保留不同理由、成立條件與尚未解決的問題；不補充對談未提及的事實。",
+      "整理具体洞见与脉络，保留不同理由、成立条件与尚未解决的问题；不补充对谈未提及的事实。"
+    ),
+    convergencePrompt: coffeeText(
+      language,
+      "Keep each item recognizable with its original reasoning. Merge items only when their substance overlaps.",
+      "讓每項整理仍能看出原本的想法與來由；只有內容確實重疊時才合併。",
+      "让每项整理仍能看出原本的想法与来由；只有内容确实重叠时才合并。"
+    ),
     mergeLevel: "balanced",
     detailLevel: "standard",
     preserve: [...PRESERVE_RULES]
@@ -127,26 +133,34 @@ export function validateConvergenceText(summary: string, detail: string, languag
 }
 
 export function observerGuidance(language: string, customization: CoffeeCustomization): string {
-  const zh = language === "zh-TW";
-  const preserveLabels: Record<CoffeePreserveRule, string> = zh
-    ? {
-        disagreements: "歧見",
-        conditions: "成立條件",
-        counterexamples: "反例",
-        questions: "未解問題",
-        sources: "來源脈絡"
-      }
-    : {
-        disagreements: "disagreements",
-        conditions: "conditions",
-        counterexamples: "counterexamples",
-        questions: "open questions",
-        sources: "source context"
-      };
-  const key = zh ? "zh" : "en";
+  const preserveLabels: Record<CoffeePreserveRule, string> =
+    language === "zh-CN"
+      ? {
+          disagreements: "分歧",
+          conditions: "成立条件",
+          counterexamples: "反例",
+          questions: "未解问题",
+          sources: "来源脉络"
+        }
+      : language === "zh-TW"
+        ? {
+            disagreements: "歧見",
+            conditions: "成立條件",
+            counterexamples: "反例",
+            questions: "未解問題",
+            sources: "來源脈絡"
+          }
+        : {
+            disagreements: "disagreements",
+            conditions: "conditions",
+            counterexamples: "counterexamples",
+            questions: "open questions",
+            sources: "source context"
+          };
+  const key = coffeeLanguageKey(language);
   const merge = GUIDANCE_MERGE_LEVEL[key][customization.mergeLevel];
   const detail = GUIDANCE_DETAIL_LEVEL[key][customization.detailLevel];
-  return `${zh ? "使用者觀察者偏好" : "User observer preferences"}:\n${customization.observerPrompt.trim()}\n${merge}\n${detail}\n${zh ? "明確保留" : "Explicitly preserve"}: ${customization.preserve.map(rule => preserveLabels[rule]).join("、") || (zh ? "依洞見脈絡判斷" : "as supported by the insight context")}.`;
+  return `${coffeeText(language, "User observer preferences", "使用者觀察者偏好", "用户观察者偏好")}:\n${customization.observerPrompt.trim()}\n${merge}\n${detail}\n${coffeeText(language, "Explicitly preserve", "明確保留", "明确保留")}: ${customization.preserve.map(rule => preserveLabels[rule]).join("、") || coffeeText(language, "as supported by the insight context", "依洞見脈絡判斷", "依洞见脉络判断")}.`;
 }
 
 export function parseConvergenceProposals(raw: string, baselineIds: string[]): CoffeeConvergenceProposal[] {

@@ -1,7 +1,10 @@
+import type { UiLanguage } from "../../i18n";
+export { COFFEE_SAMPLE_ZH_CN } from "./sample.zh-CN";
+
 export interface CoffeeSample {
   title: string;
   topic: string;
-  language: "zh-TW" | "en";
+  language: UiLanguage;
   markdown: string;
   question: string;
   answer: string;

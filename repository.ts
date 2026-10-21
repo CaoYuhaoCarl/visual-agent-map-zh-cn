@@ -1,7 +1,7 @@
 import { App, TFile, TFolder, normalizePath, parseYaml, stringifyYaml } from "obsidian";
 import { resolveAimContentLanguage } from "./experiences/aim/content-language";
 import { createHash } from "node:crypto";
-import { t, translate, type TranslationKey } from "./i18n";
+import { t, translate, isUiLanguage, SUPPORTED_LANGUAGES, type TranslationKey, type UiLanguage } from "./i18n";
 import { MapDocument, MapNode, serializeMap, parseMap, type AimReuseRecord } from "./map-model";
 import type { CoffeeStyle } from "./experiences/coffee-tables/types";
 import type { ReasoningLevel, ResearchDepth, ResearchMode, VisualMode } from "./ai/types";
@@ -68,7 +68,7 @@ export interface Settings {
   /** Custom tone/outline presets; built-ins live in ai/prompt-presets.ts. Absent = none. */
   promptPresets?: PromptPreset[];
   defaultCoffeeStyleId?: string;
-  language: "zh-TW" | "en";
+  language: UiLanguage;
   workspaceFolder: string;
   /** Legacy container (pre-0.19): maps here stay openable; new maps go to mindMapsFolder / aimFolder. */
   topicsFolder: string;
@@ -388,14 +388,15 @@ type NoteSection =
   | "Working Findings"
   | "New Findings"
   | "預覽"
+  | "预览"
   | "Preview"
   | "User Notes";
 type NoteLanguage = Settings["language"];
 const noteContentLanguage = (fm: Record<string, unknown>): NoteLanguage | undefined =>
-  fm["content-language"] === "en" || fm["content-language"] === "zh-TW" ? fm["content-language"] : undefined;
+  isUiLanguage(fm["content-language"]) ? fm["content-language"] : undefined;
 const placeholder = (language: NoteLanguage): string => translate(language, "detail.no_conclusion_yet");
 export const isPlaceholder = (value: string): boolean =>
-  value === translate("zh-TW", "detail.no_conclusion_yet") || value === translate("en", "detail.no_conclusion_yet");
+  SUPPORTED_LANGUAGES.some(({ id }) => value === translate(id, "detail.no_conclusion_yet"));
 const previewHeading = (language: NoteLanguage): NoteSection => translate(language, "detail.preview") as NoteSection;
 
 /**
@@ -403,7 +404,7 @@ const previewHeading = (language: NoteLanguage): NoteSection => translate(langua
  * `> [!info]- Prompt`) so the note opens on the answer. Every read and write first turns these callouts back into the `## ` sections the rest
  * of this module works with; `noteBody` writes them as callouts again. Older notes keep their `## ` sections.
  */
-const CALLOUT_SECTION = /^> \[!info\][+-]? (預覽|Preview|Prompt)[ \t]*\r?$/;
+const CALLOUT_SECTION = /^> \[!info\][+-]? (預覽|预览|Preview|Prompt)[ \t]*\r?$/;
 function decodeCalloutSections(content: string): string {
   const lines = content.split("\n");
   const code = fencedLines(lines);
@@ -442,7 +443,9 @@ function calloutSection(title: string, value: string): string {
   return [`> [!info]- ${title}`, ...lines.map(line => (line ? `> ${line}` : ">"))].join("\n");
 }
 const previewSection = (content: string): string =>
-  [...new Set([section(content, "Preview"), section(content, "預覽")].filter(Boolean))].join("\n\n");
+  [...new Set([section(content, "Preview"), section(content, "預覽"), section(content, "预览")].filter(Boolean))].join(
+    "\n\n"
+  );
 
 function sectionBounds(content: string, heading: NoteSection): { start: number; end: number } | null {
   if (heading === "Detail") {
@@ -536,7 +539,10 @@ function ensurePreview(content: string, language: NoteLanguage, textLanguage: No
   const legacy = section(content, "User Notes");
   const preview = previewSection(content);
   const merged = [isPlaceholder(preview) ? placeholder(textLanguage) : preview, legacy].filter(Boolean).join("\n\n");
-  const clean = removeSection(removeSection(removeSection(content, "User Notes"), "預覽"), "Preview");
+  const clean = removeSection(
+    removeSection(removeSection(removeSection(content, "User Notes"), "預覽"), "预览"),
+    "Preview"
+  );
   return replaceSection(clean, previewHeading(language), merged);
 }
 
@@ -665,6 +671,7 @@ function normalizeBodyOrder(
     "Prompt",
     "Rules",
     "預覽",
+    "预览",
     "Preview",
     "Detail",
     "Visual References",
@@ -694,28 +701,28 @@ function normalizeBodyOrder(
 
 const REFERENCE_LABELS = ["所屬主題", "所屬心智圖", "母議題", "子議題", "來源議題", "狀態"];
 const ENGLISH_REFERENCE_LABELS = ["Topic", "Mind map", "Parent topic", "Child topics", "Source topic", "Status"];
+const REFERENCE_LABELS_BY_LANGUAGE: Record<NoteLanguage, readonly string[]> = {
+  "zh-TW": REFERENCE_LABELS,
+  "zh-CN": ["所属主题", "所属思维导图", "父议题", "子议题", "来源议题", "状态"],
+  en: ENGLISH_REFERENCE_LABELS
+};
+const REFERENCE_STATES: Record<NoteLanguage, readonly string[]> = {
+  "zh-TW": ["無", "已封存", "未歸類"],
+  "zh-CN": ["无", "已归档", "未分类"],
+  en: ["None", "Archived", "Unassigned"]
+};
 function localizeReference(value: string, language: NoteLanguage): string {
-  const match =
-    /^(所屬主題|所屬心智圖|母議題|子議題|來源議題|狀態|Topic|Mind map|Parent topic|Child topics|Source topic|Status)[：:]\s*(.*)$/.exec(
-      value
-    );
+  const match = /^([^：:]+)[：:]\s*(.*)$/.exec(value);
   if (!match) return value;
-  const index = (REFERENCE_LABELS.includes(match[1]) ? REFERENCE_LABELS : ENGLISH_REFERENCE_LABELS).indexOf(match[1]);
-  const labels = language === "en" ? ENGLISH_REFERENCE_LABELS : REFERENCE_LABELS;
-  const plain =
-    match[2] === "無" || match[2] === "None"
-      ? language === "en"
-        ? "None"
-        : "無"
-      : match[2] === "已封存" || match[2] === "Archived"
-        ? language === "en"
-          ? "Archived"
-          : "已封存"
-        : match[2] === "未歸類" || match[2] === "Unassigned"
-          ? language === "en"
-            ? "Unassigned"
-            : "未歸類"
-          : match[2];
+  const index = Object.values(REFERENCE_LABELS_BY_LANGUAGE)
+    .map(labels => labels.indexOf(match[1]))
+    .find(index => index >= 0);
+  if (index === undefined) return value;
+  const labels = REFERENCE_LABELS_BY_LANGUAGE[language];
+  const state = Object.values(REFERENCE_STATES)
+    .map(states => states.indexOf(match[2]))
+    .find(index => index >= 0);
+  const plain = state === undefined ? match[2] : REFERENCE_STATES[language][state];
   return `${labels[index]}${language === "en" ? ": " : "："}${plain}`;
 }
 
@@ -727,14 +734,14 @@ function derivedLabelLanguage(content: string, fm: Record<string, unknown>): Not
   if (Array.isArray(fm["agent-map-references"]))
     for (const entry of fm["agent-map-references"]) {
       const label = /^([^：:]+)[：:]/.exec(String(entry))?.[1];
-      if (label && REFERENCE_LABELS.includes(label)) return "zh-TW";
-      if (label && ENGLISH_REFERENCE_LABELS.includes(label)) return "en";
+      for (const { id } of SUPPORTED_LANGUAGES)
+        if (label && REFERENCE_LABELS_BY_LANGUAGE[id].includes(label)) return id;
     }
   if (/^(?:## |> \[!info\][+-]? )預覽[ \t]*$/m.test(content)) return "zh-TW";
+  if (/^(?:## |> \[!info\][+-]? )预览[ \t]*$/m.test(content)) return "zh-CN";
   if (/^(?:## |> \[!info\][+-]? )Preview[ \t]*$/m.test(content)) return "en";
   const summary = section(content, "Current Summary");
-  if (summary === placeholder("zh-TW")) return "zh-TW";
-  if (summary === placeholder("en")) return "en";
+  for (const { id } of SUPPORTED_LANGUAGES) if (summary === placeholder(id)) return id;
   return undefined;
 }
 
@@ -1753,7 +1760,7 @@ export class Repository {
       if (!body.includes(DETAIL_START)) body = replaceSection(body, "Detail", section(body, "Detail"));
       const parent = owner.node.parentId ? owner.map.nodes.find(item => item.id === owner.node.parentId) : undefined;
       const children = owner.map.nodes.filter(item => item.parentId === owner.node.id);
-      fm["agent-map-references"] =
+      fm["agent-map-references"] = (
         language === "en"
           ? [
               `Topic: [[${noteLink(owner.mapPath)}|${owner.map.title}]]`,
@@ -1770,10 +1777,11 @@ export class Repository {
               children.length
                 ? `子議題：${children.map(child => `[[${noteLink(child.path)}]]`).join("、")}`
                 : "子議題：無"
-            ];
+            ]
+      ).map(value => localizeReference(value, language));
       body = withoutReference(body);
     } else if (topic && (state === "unassigned" || state === "archived")) {
-      fm["agent-map-references"] =
+      fm["agent-map-references"] = (
         language === "en"
           ? [
               `Topic: [[${noteLink(topic.mapPath)}|${topic.map.title}]]`,
@@ -1782,7 +1790,8 @@ export class Repository {
           : [
               `所屬主題：[[${noteLink(topic.mapPath)}|${topic.map.title}]]`,
               `狀態：${state === "archived" ? "已封存" : "未歸類"}`
-            ];
+            ]
+      ).map(value => localizeReference(value, language));
       body = withoutReference(body);
     } else {
       delete fm["agent-map-references"];

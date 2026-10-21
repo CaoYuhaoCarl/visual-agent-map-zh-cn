@@ -1,7 +1,16 @@
 import { Modal, Notice, type App } from "obsidian";
 import { randomUUID } from "node:crypto";
 import type VisualAgentMapPlugin from "../../main";
-import { translate, uiLocale, type TranslationKey, type UiLanguage } from "../../i18n";
+import {
+  translate,
+  uiLocale,
+  isUiLanguage,
+  supportedLanguageLabel,
+  SUPPORTED_LANGUAGES,
+  type TranslationKey,
+  type UiLanguage
+} from "../../i18n";
+import { coffeeText } from "./language";
 import { createThinkingArtifact } from "../../core/thinking-artifact";
 import { isHandoffWriteError, type ExperienceHandoffResult } from "../../core/experience-router";
 import { normalizeReasoningLevel } from "../../ai/task-policy";
@@ -18,7 +27,7 @@ export interface CoffeeHandoffInputs {
   context: string;
   model: string;
   reasoning: string;
-  language: "en" | "zh-TW";
+  language: UiLanguage;
 }
 
 /** Fields the dialog is reopened with: the original inputs, plus the AI draft when one finished. */
@@ -260,7 +269,9 @@ export class CoffeeHandoffModal extends Modal {
       const codex = this.plugin.modelDiscoveryState("codex"),
         claude = this.plugin.modelDiscoveryState("claude");
       discoveryText.setText(
-        `Codex: ${codex.status}${codex.error ? ` · ${codex.error}` : ""} | Claude CLI candidates: ${claude.status}`
+        this.locale === "zh-CN"
+          ? `${this.t("ui.codex_provider_label")}: ${this.t(`ui.model_status_${codex.status}`)}${codex.error ? ` · ${codex.error}` : ""} | ${this.t("coffee.claude_cli_candidates")}: ${this.t(`ui.model_status_${claude.status}`)}`
+          : `Codex: ${codex.status}${codex.error ? ` · ${codex.error}` : ""} | Claude CLI candidates: ${claude.status}`
       );
       retry.disabled = codex.status === "loading";
     };
@@ -273,8 +284,22 @@ export class CoffeeHandoffModal extends Modal {
     void this.plugin.refreshModelDiscovery("codex");
     void this.plugin.refreshModelDiscovery("claude");
     this.reasoning = this.select(choices, this.t("coffee.reasoning"), ["low", "medium", "high", "auto"]);
+    if (this.locale === "zh-CN") {
+      const labels: Record<string, TranslationKey> = {
+        low: "coffee.reasoning_low",
+        medium: "coffee.reasoning_medium",
+        high: "coffee.reasoning_high",
+        auto: "coffee.reasoning_auto"
+      };
+      for (const option of Array.from(this.reasoning.options)) option.text = this.t(labels[option.value]);
+    }
     this.reasoning.value = normalizeReasoningLevel(this.snapshot.session.reasoning);
-    this.language = this.select(choices, this.t("coffee.output_language"), ["en", "zh-TW"]);
+    this.language = this.select(choices, this.t("coffee.output_language"), [
+      "en",
+      ...SUPPORTED_LANGUAGES.filter(item => item.id !== "en").map(item => item.id)
+    ]);
+    for (const option of Array.from(this.language.options))
+      if (this.locale === "zh-CN" || option.value === "zh-CN") option.text = supportedLanguageLabel(option.value);
     this.language.value = this.plugin.settings.language;
     this.status = this.contentEl.createEl("p", {
       cls: "ct-handoff-status",
@@ -371,12 +396,23 @@ export class CoffeeHandoffModal extends Modal {
       this.status.setText(this.t("ui.ai_running_ai"));
       return;
     }
+    const language = this.language.value;
+    if (!isUiLanguage(language)) {
+      this.showError(
+        coffeeText(
+          this.locale,
+          "Choose a supported output language.",
+          "請選擇支援的輸出語言。",
+          "请选择支持的输出语言。"
+        )
+      );
+      return;
+    }
     const controller = new AbortController(),
       epoch = ++this.epoch;
     this.controller = controller;
     this.plugin.activeTasks.set(`reframe-modal:${this.operationId}`, controller);
     this.refresh();
-    const language = this.language.value === "zh-TW" ? ("zh-TW" as const) : ("en" as const);
     const request = {
       targetCore: "understand" as const,
       source: this.source.content,
@@ -498,7 +534,12 @@ export class CoffeeHandoffModal extends Modal {
         id: this.operationId,
         kind: "question",
         title,
-        content: [this.context.value.trim(), this.rationale ? `Reframing rationale:\n${this.rationale}` : ""]
+        content: [
+          this.context.value.trim(),
+          this.rationale
+            ? `${this.language.value === "zh-CN" ? "问题重构理由" : "Reframing rationale"}:\n${this.rationale}`
+            : ""
+        ]
           .filter(Boolean)
           .join("\n\n"),
         sourceSnapshot: this.source.sourceSnapshot,

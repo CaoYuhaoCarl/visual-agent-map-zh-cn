@@ -38,6 +38,12 @@ test('every AIM step markdown file is either prompt-only or explicitly classifie
   const overrides = new Map(inventory.markdown.overrides.map(entry => [entry.file, entry]));
   for (const file of overrides.keys()) assert.ok(files.includes(file), `${file} no longer exists`);
   for (const file of files) assert.ok(file.startsWith('experiences/aim/steps/') || overrides.has(file), `${file} is a markdown file outside experiences/aim/steps and must be classified`);
-  // The language twin of every data template must exist.
-  for (const file of overrides.keys()) if (!file.endsWith('.zh.md')) assert.ok(overrides.has(file.replace(/\.md$/, '.zh.md')), `${file} needs a .zh.md twin`);
+  // Every data template must have all three language variants classified, including Simplified Chinese.
+  for (const file of overrides.keys()) {
+    const base = file.replace(/\.(?:zh|zh-CN)\.md$/, '.md');
+    for (const suffix of ['.md', '.zh.md', '.zh-CN.md']) {
+      const twin = base.replace(/\.md$/, suffix);
+      assert.ok(overrides.has(twin), `${file} needs a ${suffix} twin`);
+    }
+  }
 });

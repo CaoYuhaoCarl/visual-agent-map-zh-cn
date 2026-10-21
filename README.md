@@ -1,6 +1,6 @@
 # Visual Agent Map
 
-**English** · [繁體中文](README.zh-TW.md)
+**English** · [繁體中文](README.zh-TW.md) · [简体中文](README.zh-CN.md)
 
 ### Explore big questions with visual AI research in Obsidian
 
@@ -23,6 +23,17 @@
 3. Choose **＋ New map → New AIM** to try AIM.
 
 Setup details, troubleshooting, and known limitations are in [INSTALL.md](INSTALL.md).
+
+## Languages
+
+Choose **English**, **繁體中文**, or **简体中文** under **Settings → Visual Agent Map → Interface language**.
+Fresh installs default to English; your choice is saved independently of Obsidian's language.
+VAM and Coffee Tables interface labels and built-in samples follow this setting.
+Existing maps, notes, conversations, and custom prompts are never automatically translated.
+AI answer language is selected separately for each task.
+AIM chooses its content language from the question, then the background, when creating a map.
+Chinese text with no clear script signal follows a Chinese interface choice, or the existing Traditional Chinese fallback when the interface is English.
+Once saved, the map's content language does not change when the interface language changes.
 
 ## Contributing checks
 

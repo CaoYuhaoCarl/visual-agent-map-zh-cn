@@ -1,4 +1,4 @@
-import { translate, type TranslationKey, type UiLanguage } from "../i18n";
+import { translate, SUPPORTED_LANGUAGES, type TranslationKey, type UiLanguage } from "../i18n";
 import { fencedLines } from "./markdown-blocks";
 import { customDetailRule, customDetailStructure, textbookDetailStructure } from "../core/steps/task/fragments";
 
@@ -37,7 +37,6 @@ export interface CountIssue {
 export const STANDARD_TEMPLATE_ID = "standard";
 /** Built-in template: the Standard sections, written as an intro followed by the sections; empty sections are omitted. */
 export const TEXTBOOK_TEMPLATE_ID = "textbook";
-const LANGUAGES: readonly UiLanguage[] = ["zh-TW", "en"];
 const STANDARD: readonly [string, TranslationKey, TranslationKey, DetailSectionRole][] = [
   ["core", "detail.core_conclusions", "detail.description_core_conclusions", "none"],
   ["knowledge", "detail.key_knowledge", "detail.description_key_knowledge", "none"],
@@ -58,7 +57,7 @@ export function standardTemplate(language: UiLanguage): DetailTemplate {
         name,
         description: translate(language, descriptionKey),
         role,
-        aliases: LANGUAGES.map(locale => translate(locale, key)).filter(alias => alias !== name)
+        aliases: [...new Set(SUPPORTED_LANGUAGES.map(({ id }) => translate(id, key)))].filter(alias => alias !== name)
       };
     })
   };

@@ -7,13 +7,13 @@ test('standard template: six sections, language names, roles, other-language ali
   assert.deepEqual(plain(zh.sections.map(s => s.name)), ['核心結論', '關鍵知識', '證據與來源', '取捨與限制', '待確認事項', '更新紀錄']);
   assert.deepEqual(plain(en.sections.map(s => s.name)), ['Core conclusions', 'Key knowledge', 'Evidence and sources', 'Tradeoffs and limitations', 'Open questions', 'Update log']);
   assert.deepEqual(plain(zh.sections.map(s => s.role)), ['none', 'none', 'sources', 'none', 'none', 'log']);
-  assert.deepEqual(plain(zh.sections[2].aliases), ['Evidence and sources']);
+  assert.deepEqual(plain(zh.sections[2].aliases), ['证据与来源', 'Evidence and sources']);
   assert.equal(zh.id, 'standard');
 });
-test('copyTemplate keeps both-language names as aliases so old notes still match', () => {
+test('copyTemplate keeps all language names as aliases so old notes still match', () => {
   const copy = api.copyTemplate(api.standardTemplate('zh-TW'), '教學', 't1');
   assert.equal(copy.id, 't1'); assert.equal(copy.name, '教學');
-  assert.deepEqual(plain(api.sectionKeys(copy.sections[0])), ['核心結論', 'core conclusions']);
+  assert.deepEqual(plain(api.sectionKeys(copy.sections[0])), ['核心結論', '核心结论', 'core conclusions']);
   copy.sections[0].name = 'X'; assert.equal(api.standardTemplate('zh-TW').sections[0].name, '核心結論');
 });
 test('validateTemplate reports every limit', () => {

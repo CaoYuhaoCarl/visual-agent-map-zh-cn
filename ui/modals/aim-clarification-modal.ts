@@ -7,14 +7,14 @@ export class AimClarificationModal extends Modal {
     app: App,
     private questions: string[],
     private submit: (answers: string) => Promise<void>,
-    private english: boolean,
+    private language: UiLanguage,
     /** Language of the note text this modal writes (blank-answer placeholder); the modal UI stays in the interface language. */
     private contentLanguage: UiLanguage
   ) {
     super(app);
   }
   onOpen(): void {
-    const text = (key: TranslationKey): string => translate(this.english ? "en" : "zh-TW", key);
+    const text = (key: TranslationKey): string => translate(this.language, key);
     this.titleEl.setText(text("ui.aim_clarify_title"));
     this.contentEl.createEl("p", {
       text: text("ui.aim_clarify_intro")

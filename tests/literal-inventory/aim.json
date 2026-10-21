@@ -383,6 +383,11 @@
         "file": "experiences/aim/steps/format-repair/default-rationale.zh.md",
         "class": "content",
         "reason": "Chinese twin of default-rationale.md selected by clarificationRequiredRationale(language)"
+      },
+      {
+        "file": "experiences/aim/steps/format-repair/default-rationale.zh-CN.md",
+        "class": "content",
+        "reason": "Simplified Chinese twin of default-rationale.md selected by clarificationRequiredRationale(language)"
       }
     ]
   }

@@ -7,7 +7,7 @@ import type { AiResult, TaskContext } from "../../ai/types";
 import { resolveToneText } from "../../ai/prompt-presets";
 import { reportedSearchFailure } from "../../ai/result-utils";
 import { createSearchDiagnostic } from "./search-diagnostic";
-import { aimTimedOut } from "./failure-hint";
+import { aimTimedOut, aimSearchNotPerformed } from "./failure-hint";
 import type { MapDocument, MapNode, AimBranchRecord, AimQuestionDraft } from "../../map-model";
 import type { Repository } from "../../repository";
 import { AimRunStore, type CommitResult } from "./research-run-store";
@@ -134,10 +134,8 @@ export function readOpenItems(detail: string): string[] {
 const AIM_INTAKE_COMPLETE = "<!-- aim-intake-complete -->";
 /** With the intake checklist, one answered question can precede a conclusion. */
 const CHECKLIST_FLOOR = 1;
-/** The runtime's translated "provider did not run web search" error, in either interface language. */
 /** At most this many saved reports from other routes of the map are offered for reuse. */
 const OTHER_ROUTE_REUSE_LIMIT = 6;
-const SEARCH_NOT_PERFORMED = /did not perform web search|沒有實際執行網路搜尋/;
 /** With the intake checklist, after this many answers what is still unknown becomes an assumption to confirm. */
 const CHECKLIST_QUESTION_LIMIT = 5;
 
@@ -3374,7 +3372,7 @@ export class AimManualFlow {
               error instanceof SubtopicSearchUnavailable ||
               // Read the message without instanceof: the runtime's error may come from another realm. A subtopic
               // that ran past its time limit is skipped the same way, so one slow search cannot end the run.
-              SEARCH_NOT_PERFORMED.test(String((error as { message?: unknown } | null)?.message ?? error)) ||
+              aimSearchNotPerformed(String((error as { message?: unknown } | null)?.message ?? error)) ||
               aimTimedOut(String((error as { message?: unknown } | null)?.message ?? error));
             if (searchSkipped && !taskSignal.aborted) {
               this.emitProgress({ kind: "subtopic", mapPath, branchId, subtopicId: target.id, state: "skipped" });
@@ -3723,7 +3721,7 @@ export class AimManualFlow {
         } catch (error) {
           await this.persist(() => this.runs.recordSearchDiagnostic(mapPath, synthesisHandle, diagnostic));
           const message = String((error as { message?: unknown } | null)?.message ?? error);
-          if (signal?.aborted || !(SEARCH_NOT_PERFORMED.test(message) || aimTimedOut(message))) throw error;
+          if (signal?.aborted || !(aimSearchNotPerformed(message) || aimTimedOut(message))) throw error;
         }
         await this.persist(() => this.runs.recordSearchDiagnostic(mapPath, synthesisHandle, diagnostic));
         throwIfAborted(signal);

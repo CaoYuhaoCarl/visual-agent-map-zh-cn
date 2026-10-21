@@ -1,4 +1,4 @@
-import { translate } from "../../i18n";
+import { translate, uiLocale } from "../../i18n";
 import type { CoffeeSession } from "./types";
 
 export interface TableListItem {
@@ -85,12 +85,13 @@ export function formatTableTime(timestamp: number, now = Date.now(), language = 
     date.getFullYear() === yesterday.getFullYear() &&
     date.getMonth() === yesterday.getMonth() &&
     date.getDate() === yesterday.getDate();
-  const zh = language.toLowerCase().startsWith("zh");
+  const locale = uiLocale(language),
+    zh = locale === "zh-TW" || locale === "zh-CN";
   if (sameDay || isYesterday) {
-    const day = translate(zh ? "zh-TW" : "en", sameDay ? "coffee.today" : "coffee.yesterday");
-    return `${day} ${new Intl.DateTimeFormat(zh ? "zh-TW" : "en", { hour: "2-digit", minute: "2-digit", hour12: !zh }).format(date)}`;
+    const day = translate(locale, sameDay ? "coffee.today" : "coffee.yesterday");
+    return `${day} ${new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit", hour12: !zh }).format(date)}`;
   }
-  return new Intl.DateTimeFormat(zh ? "zh-TW" : "en", {
+  return new Intl.DateTimeFormat(locale, {
     month: "short",
     day: "numeric",
     ...(date.getFullYear() !== today.getFullYear() ? { year: "numeric" } : {})

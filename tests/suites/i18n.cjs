@@ -14,6 +14,47 @@ test('first install defaults to English regardless of Obsidian language while sa
   assert.equal(initialUiLanguage('invalid'), 'en');
   assert.equal(initialUiLanguage('en'), 'en');
   assert.equal(initialUiLanguage('zh-TW'), 'zh-TW');
+  assert.equal(initialUiLanguage('zh-CN'), 'zh-CN');
+});
+test('supported UI languages normalize exact saved identifiers without coercing unknown values', () => {
+  const { isUiLanguage, uiLocale, initialUiLanguage, SUPPORTED_LANGUAGES, supportedLanguageLabel } = load('i18n.ts');
+  assert.deepEqual(plain(SUPPORTED_LANGUAGES), [
+    { id: 'zh-TW', label: '繁體中文', name: 'Traditional Chinese' },
+    { id: 'zh-CN', label: '简体中文', name: 'Simplified Chinese' },
+    { id: 'en', label: 'English', name: 'English' }
+  ]);
+  for (const language of ['en', 'zh-TW', 'zh-CN']) {
+    assert.equal(isUiLanguage(language), true);
+    assert.equal(uiLocale(language), language);
+    assert.equal(initialUiLanguage(language), language);
+  }
+  for (const value of [undefined, null, '', 'invalid', 'zh-cn', 'zh', 'en-US', 0, false, {}, [], Symbol('zh-CN'), { toString() { throw new Error('must not coerce language'); } }]) {
+    assert.equal(isUiLanguage(value), false);
+    assert.equal(uiLocale(value), 'en');
+    assert.equal(initialUiLanguage(value), 'en');
+  }
+  assert.equal(supportedLanguageLabel('zh-CN'), '简体中文');
+  assert.equal(supportedLanguageLabel('unknown'), 'unknown');
+});
+test('Simplified Chinese routes to static translations and preserves interpolated user content', () => {
+  const { translate, t, setUiLanguage, getUiLanguage, topicStatusLabel } = load('i18n.ts');
+  assert.equal(translate('zh-CN', 'ui.interface_language'), '界面语言');
+  assert.equal(translate('zh-CN', 'detail.core_conclusions'), '核心结论');
+  assert.equal(translate('zh-CN', 'ui.expand_0'), '展开 {0}');
+  assert.equal(translate('zh-CN', 'ui.expand_0', 3), '展开 3');
+  assert.equal(translate('zh-CN', 'missing.runtime.key'), 'missing.runtime.key');
+  assert.equal(translate('zh-CN', 'ui.topic_card_label_0_1', '繁體筆記 / saved user text', false), '繁體筆記 / saved user text，false');
+  assert.match(translate('zh-CN', 'ui.language_changed_content_preserved'), /简体中文/);
+  assert.doesNotMatch(translate('zh-CN', 'ui.language_changed_content_preserved'), /繁体中文/);
+  assert.equal(topicStatusLabel('idea', 'zh-CN'), '待研究');
+  assert.equal(topicStatusLabel('running', 'zh-CN'), 'AI 运行中');
+  assert.equal(topicStatusLabel('completed', 'zh-CN'), 'AI 完成');
+  assert.equal(topicStatusLabel('error', 'zh-CN'), '运行错误');
+  setUiLanguage('zh-CN');
+  assert.equal(getUiLanguage(), 'zh-CN');
+  assert.equal(t('ui.interface_language'), '界面语言');
+  setUiLanguage('en');
+  assert.equal(t('ui.interface_language'), 'Interface language');
 });
 test('language change saves before applying and refreshes all views without mutating notes', async () => {
   const { default: Plugin, VisualAgentMapSettingTab } = load('main.ts', { obsidian });
@@ -143,10 +184,14 @@ test('runtime, service and log messages carry no inline Chinese text', () => {
 test('all user-facing translations use stable semantic keys', () => {
   const dictionary = fs.readFileSync(path.join(root, 'i18n.ts'), 'utf8');
   const english = dictionary.slice(dictionary.indexOf('const english = {'), dictionary.indexOf('} as const;'));
-  const chinese = dictionary.slice(dictionary.indexOf('const traditionalChinese:'), dictionary.lastIndexOf('};'));
+  const chinese = dictionary.match(/const traditionalChinese: Record<TranslationKey, string> = \{([\s\S]*?)\n\};/)?.[1];
+  const simplified = dictionary.match(/const simplifiedChinese: Record<TranslationKey, string> = \{([\s\S]*?)\n\};/)?.[1];
+  assert.ok(chinese, 'Traditional Chinese must be a static complete dictionary');
+  assert.ok(simplified, 'Simplified Chinese must be a static complete dictionary');
   const extract = value => new Set([...value.matchAll(/^  "((?:[^"\\]|\\.)+)":/gm)].map(match => match[1]));
   const keys = extract(english);
   assert.deepEqual([...extract(chinese)].sort(), [...keys].sort(), 'every locale must define exactly the same semantic keys');
+  assert.deepEqual([...extract(simplified)].sort(), [...keys].sort(), 'Simplified Chinese must define exactly the same semantic keys');
   const tsFiles = dir => fs.readdirSync(path.join(root, dir), { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? tsFiles(`${dir}/${entry.name}`) : entry.name.endsWith('.ts') ? [`${dir}/${entry.name}`] : []);
   // Coffee Tables prompt, transcript and Markdown-format modules hold conversation content, not interface text.
   const coffeeContent = /^experiences\/coffee-tables\/(prompts|engine|convergence|storage|insights|types|topics|samples|outline|segments)\.ts$/;
@@ -171,10 +216,20 @@ test('all user-facing translations use stable semantic keys', () => {
   const englishValues = dictionaryValues(english), chineseValues = dictionaryValues(chinese);
   const placeholders = value => [...value.matchAll(/\{\d+\}/g)].map(match => match[0]).sort();
   for (const [key, value] of englishValues) assert.deepEqual(placeholders(chineseValues.get(key)), placeholders(value), `${key} placeholders must match between locales`);
+  for (const [locale, source] of [['en', english], ['zh-TW', chinese], ['zh-CN', simplified]]) {
+    const entries = [...source.matchAll(/^  "((?:[^"\\]|\\.)+)": "((?:[^"\\]|\\.)*)",?$/gm)];
+    const values = dictionaryValues(source);
+    assert.equal(entries.length, keys.size, `${locale}: exactly one static string must be defined for each key`);
+    assert.equal(values.size, entries.length, `${locale}: duplicate keys are not allowed`);
+    for (const [key, value] of englishValues) {
+      assert.ok(values.get(key)?.trim(), `${locale}: ${key} must not be empty`);
+      assert.deepEqual(placeholders(values.get(key)), placeholders(value), `${locale}: ${key} placeholders must match English`);
+    }
+  }
 });
-test('the sample tour names the controls exactly as the map labels them, in both languages', () => {
+test('the sample tour names the controls exactly as the map labels them, in all languages', () => {
   const { translate } = load('i18n.ts');
-  for (const lang of ['en', 'zh-TW']) {
+  for (const lang of ['en', 'zh-TW', 'zh-CN']) {
     const tr = key => translate(lang, key);
     for (const key of ['ui.collapse', 'ui.node_tool_links', 'ui.node_tool_rename', 'ui.node_tool_details', 'ui.ai_explore'])
       assert.ok(tr('ui.tour_2_body').includes(tr(key)), `${lang}: tour step 2 names ${tr(key)}`);

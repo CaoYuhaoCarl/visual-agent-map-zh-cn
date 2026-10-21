@@ -46,15 +46,21 @@ function insightText(item: CoffeeInsight): string {
 }
 const normalize = (text: string): string => text.normalize("NFKC").replace(/[*_`]/g, "").replace(/\s+/g, " ").trim();
 export function buildCoffeeSource(session: CoffeeSession, insightId?: string): CoffeeSource {
+  const text = (english: string, simplified: string): string => (session.language === "zh-CN" ? simplified : english);
   const insights = baselineFromVersions(session.observerNotes ?? [], session.language);
   const selected = insightId ? insights.find(item => item.id === insightId) : undefined;
-  if (insightId && !selected) throw new Error("The selected insight changed; reopen the latest table.");
+  if (insightId && !selected)
+    throw new Error(
+      text("The selected insight changed; reopen the latest table.", "所选洞见已变更，请重新打开最新桌聊。")
+    );
   const dialogue = (
     session.rounds?.length
       ? session.rounds
           .filter(item => item.markdown.trim())
           .map(item =>
-            item.status === "completed" ? item.markdown : `Saved segment (${item.status}):\n${item.markdown}`
+            item.status === "completed"
+              ? item.markdown
+              : `${text("Saved segment", "已保存的段落")} (${item.status}):\n${item.markdown}`
           )
       : [session.transcriptMarkdown]
   ).filter(Boolean);
@@ -81,15 +87,26 @@ export function buildCoffeeSource(session: CoffeeSession, insightId?: string): C
   const snapshotText = selected
     ? [
         insightText(selected),
-        `Category: ${selected.category}`,
-        selected.sources.length ? `Original source annotations (not proof): ${JSON.stringify(selected.sources)}` : ""
+        `${text("Category", "类别")}: ${selected.category}`,
+        selected.sources.length
+          ? `${text("Original source annotations (not proof)", "原始来源标注（并非证据）")}: ${JSON.stringify(selected.sources)}`
+          : ""
       ]
         .filter(Boolean)
         .join("\n\n")
-    : (session.observerNotes ?? []).join("\n\n") || "No cumulative insight snapshot was available.";
+    : (session.observerNotes ?? []).join("\n\n") ||
+      text("No cumulative insight snapshot was available.", "没有可用的累计洞见快照。");
   const status = [
-    "Simulated Coffee Tables discussion. All ideas are unverified candidates, not the user's conclusion.",
-    session.dirtyNotes ? "Observer notes are stale / not updated after conversation edits." : ""
+    text(
+      "Simulated Coffee Tables discussion. All ideas are unverified candidates, not the user's conclusion.",
+      "这是 Coffee Tables 模拟讨论。所有想法均未经验证，不代表用户的结论。"
+    ),
+    session.dirtyNotes
+      ? text(
+          "Observer notes are stale / not updated after conversation edits.",
+          "观察者整理已过时，尚未根据对谈编辑更新。"
+        )
+      : ""
   ]
     .filter(Boolean)
     .join("\n");
@@ -100,9 +117,11 @@ export function buildCoffeeSource(session: CoffeeSession, insightId?: string): C
         status,
         sourceSnapshot,
         excerpts.length
-          ? `Uniquely verified source excerpts:\n${excerpts.join("\n\n")}`
-          : "No uniquely located dialogue source.",
-        unresolved.length ? `Unresolved source annotations (not verified excerpts):\n${JSON.stringify(unresolved)}` : ""
+          ? `${text("Uniquely verified source excerpts", "已唯一定位的来源摘录")}:\n${excerpts.join("\n\n")}`
+          : text("No uniquely located dialogue source.", "没有可唯一定位的对谈来源。"),
+        unresolved.length
+          ? `${text("Unresolved source annotations (not verified excerpts)", "未能定位的来源标注（并非已验证摘录）")}:\n${JSON.stringify(unresolved)}`
+          : ""
       ]
         .filter(Boolean)
         .join("\n\n")
@@ -112,10 +131,10 @@ export function buildCoffeeSource(session: CoffeeSession, insightId?: string): C
         ...committed,
         ...(session.interventions ?? [])
           .filter(item => item.status === "sent" || item.status === undefined)
-          .map(item => `Saved user intervention: ${item.text}`),
+          .map(item => `${text("Saved user intervention", "已保存的用户介入")}: ${item.text}`),
         sourceSnapshot,
         session.guests?.background,
-        ...references(session).map(item => `Background reference: ${item.name}\n${item.content}`)
+        ...references(session).map(item => `${text("Background reference", "背景参考")}: ${item.name}\n${item.content}`)
       ]
         .filter(Boolean)
         .join("\n\n");

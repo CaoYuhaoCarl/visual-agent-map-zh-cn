@@ -3,12 +3,14 @@ import { renderTemplate } from "../../step-runner";
 import { inLanguage, type FragmentPair } from "../_shared/fragments";
 import ExtractZH from "./extract.zh.md";
 import ExtractEN from "./extract.en.md";
+import ExtractCN from "./extract.zh-CN.md";
 import ReduceZH from "./reduce.zh.md";
 import ReduceEN from "./reduce.en.md";
+import ReduceCN from "./reduce.zh-CN.md";
 
 const text = (template: string): string => renderTemplate(template, {});
-const EXTRACT: FragmentPair = { zh: text(ExtractZH), en: text(ExtractEN) };
-const REDUCE: FragmentPair = { zh: text(ReduceZH), en: text(ReduceEN) };
+const EXTRACT: FragmentPair = { zh: text(ExtractZH), en: text(ExtractEN), cn: text(ExtractCN) };
+const REDUCE: FragmentPair = { zh: text(ReduceZH), en: text(ReduceEN), cn: text(ReduceCN) };
 
 /**
  * The task text of the two reference rounds. Round one extracts evidence from every source section

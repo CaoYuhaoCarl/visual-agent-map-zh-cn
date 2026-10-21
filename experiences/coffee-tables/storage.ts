@@ -11,6 +11,7 @@ import {
 import { splitObserverNotes } from "./engine";
 import { baselineFromVersions, serializeInsightNotes } from "./insights";
 import { t } from "../../i18n";
+import { coffeeText } from "./language";
 
 export interface CoffeeHandoffSnapshot {
   session: CoffeeSession;
@@ -19,11 +20,11 @@ export interface CoffeeHandoffSnapshot {
   sidecar: string | null;
 }
 
-const CATEGORY_LABELS: Record<string, [string, string]> = {
-  experts: ["主題專家", "Topic experts"],
-  "cross-domain": ["跨領域專家", "Cross-domain experts"],
-  generalist: ["好奇的通才", "Curious generalists"],
-  affected: ["受影響者", "Affected perspectives"]
+const CATEGORY_LABELS: Record<string, [string, string, string]> = {
+  experts: ["主題專家", "Topic experts", "主题专家"],
+  "cross-domain": ["跨領域專家", "Cross-domain experts", "跨领域专家"],
+  generalist: ["好奇的通才", "Curious generalists", "好奇的通才"],
+  affected: ["受影響者", "Affected perspectives", "受影响者"]
 };
 const markdownTopic = (raw: string): string | undefined => {
   let body = raw.replace(/^\uFEFF/, "");
@@ -72,7 +73,7 @@ function conversationBoundary(raw: string): { index: number; heading: string; na
       else if (match[1][0] === fence[0] && match[1].length >= fence.length && !line.slice(match[0].length).trim())
         fence = "";
     }
-    if (!fence && /^## (?:對話紀錄|Conversation)\s*$/.test(line)) {
+    if (!fence && /^## (?:對話紀錄|对话记录|Conversation)\s*$/.test(line)) {
       const navigation = /<!-- coffee-tables-navigation:([^\n]+) -->[\r\n]*$/.exec(raw.slice(0, offset));
       return { index: offset, heading: line, ...(navigation ? { navigation } : {}) };
     }
@@ -287,17 +288,17 @@ export class CoffeeStorage {
   }
   private parseMarkdown(raw: string, side: Sidecar): CoffeeSession {
     const title = markdownTopic(raw) ?? side.topic;
-    const settingsMatch = /^## (?:開桌設定|Table settings)\s*\n([\s\S]*?)(?=^## |$(?![\s\S]))/m.exec(raw);
+    const settingsMatch = /^## (?:開桌設定|开桌设置|Table settings)\s*\n([\s\S]*?)(?=^## |$(?![\s\S]))/m.exec(raw);
     const boundary = conversationBoundary(raw);
     const afterTranscript = raw.slice(boundary.index + boundary.heading.length);
     const tailHeadings = [
-      ...afterTranscript.matchAll(/^## (?:觀察者整理|Observer notes|未完成草稿|Unfinished drafts)\s*$/gm)
+      ...afterTranscript.matchAll(/^## (?:觀察者整理|观察者整理|Observer notes|未完成草稿|Unfinished drafts)\s*$/gm)
     ];
     const contentEnd = tailHeadings.length ? tailHeadings[0].index : afterTranscript.length;
     const conversation = afterTranscript.slice(0, contentEnd).trim();
     const markers = [
       ...conversation.matchAll(
-        /^## (對談第 (\d+) 段|追問第 (\d+) 題|使用者介入第 (\d+) 則|Conversation part (\d+)|Follow-up (\d+)|User note (\d+))\s*$/gm
+        /^## ((?:對談|对谈)第 (\d+) 段|追[問问]第 (\d+) [題题]|(?:使用者|用户)介入第 (\d+) [則则]|Conversation part (\d+)|Follow-up (\d+)|User note (\d+))\s*$/gm
       )
     ];
     if (!markers.length && conversation)
@@ -313,9 +314,9 @@ export class CoffeeStorage {
         start = marker.index + marker[0].length,
         end = markers[i + 1]?.index ?? conversation.length,
         body = conversation.slice(start, end).trim();
-      const roundMatch = /對談第 (\d+) 段|Conversation part (\d+)/.exec(marker[1]),
-        qMatch = /追問第 (\d+) 題|Follow-up (\d+)/.exec(marker[1]),
-        interventionMatch = /使用者介入第 (\d+) 則|User note (\d+)/.exec(marker[1]);
+      const roundMatch = /(?:對談|对谈)第 (\d+) 段|Conversation part (\d+)/.exec(marker[1]),
+        qMatch = /追[問问]第 (\d+) [題题]|Follow-up (\d+)/.exec(marker[1]),
+        interventionMatch = /(?:使用者|用户)介入第 (\d+) [則则]|User note (\d+)/.exec(marker[1]);
       if (roundMatch) {
         const nth = Number(roundMatch[1] ?? roundMatch[2]) - 1,
           persistedId = /^<!-- coffee-tables-round:([a-zA-Z0-9-]+) -->$/m.exec(body)?.[1],
@@ -324,7 +325,7 @@ export class CoffeeStorage {
           roundInterventions = (side.interventions ?? [])
             .filter(item => item.roundId === roundId)
             .sort((a, b) => (a.afterTurn ?? 0) - (b.afterTurn ?? 0));
-        const inputPattern = /^> \*\*你（插話）\*\*：([^\n]*(?:\n> [^\n]*)*)/gm,
+        const inputPattern = /^> \*\*你（插[話话]）\*\*：([^\n]*(?:\n> [^\n]*)*)/gm,
           inputs = [...body.matchAll(inputPattern)];
         inputs.forEach((input, index) => {
           if (roundInterventions[index])
@@ -354,7 +355,7 @@ export class CoffeeStorage {
           meta = [...questionsById.values()][nth];
         if (!meta) throw new Error("A follow-up is missing its hidden session record");
         const answerAt = /^### (?:桌上回答|Table response)\s*$/m.exec(body);
-        const inviteAt = /^### (?:邀請來賓|Invited guests)\s*$/m.exec(body);
+        const inviteAt = /^### (?:邀請來賓|邀请嘉宾|Invited guests)\s*$/m.exec(body);
         const questionEnd =
           [answerAt?.index, inviteAt?.index].filter((at): at is number => at !== undefined).sort((a, b) => a - b)[0] ??
           body.length;
@@ -375,12 +376,13 @@ export class CoffeeStorage {
         item.text = body;
       } else throw new Error("Unknown Coffee Tables conversation section");
     }
-    const notesStart = /^## (?:觀察者整理|Observer notes)\s*$/m.exec(raw);
-    const draftStart = /^## (?:未完成草稿|Unfinished drafts)\s*$/m.exec(raw);
+    // Reference files can contain these headings verbatim. Only inspect the note's own sections.
+    const notesStart = /^## (?:觀察者整理|观察者整理|Observer notes)\s*$/m.exec(afterTranscript);
+    const draftStart = /^## (?:未完成草稿|Unfinished drafts)\s*$/m.exec(afterTranscript);
     const notesBlock = notesStart
-      ? raw.slice(
+      ? afterTranscript.slice(
           notesStart.index + notesStart[0].length,
-          draftStart && draftStart.index > notesStart.index ? draftStart.index : raw.length
+          draftStart && draftStart.index > notesStart.index ? draftStart.index : afterTranscript.length
         )
       : "";
     const latestStart = /^### (?:最新版本|Latest)\s*$/m.exec(notesBlock),
@@ -403,9 +405,9 @@ export class CoffeeStorage {
       .filter(Boolean);
     const settings = settingsMatch?.[1] ?? "";
     const model = /^- (?:模型|Model): (.+)$/m.exec(settings)?.[1] ?? side.model;
-    const reasoning = /^- (?:推理強度|Reasoning): (.+)$/m.exec(settings)?.[1] ?? side.reasoning;
+    const reasoning = /^- (?:推理[強强]度|Reasoning): (.+)$/m.exec(settings)?.[1] ?? side.reasoning;
     const custom =
-      /^### (?:這桌的額外要求|Additional requests)\s*\n([\s\S]*?)(?=^### |$(?![\s\S]))/m
+      /^### (?:這桌的額外要求|这桌的额外要求|Additional requests)\s*\n([\s\S]*?)(?=^### |$(?![\s\S]))/m
         .exec(settings)?.[1]
         ?.split("\n")
         .map(line => line.replace(/^> ?/, ""))
@@ -508,29 +510,32 @@ export class CoffeeStorage {
     return parseSession(JSON.stringify(session)) as CoffeeSession;
   }
   private encode(session: CoffeeSession): string {
-    const zh = session.language === "zh-TW",
-      count = session.guests?.counts ?? { experts: 4, "cross-domain": 1, generalist: 1, affected: 1 };
-    const t = (zhText: string, enText: string): string => (zh ? zhText : enText);
+    const count = session.guests?.counts ?? { experts: 4, "cross-domain": 1, generalist: 1, affected: 1 };
+    const t = (zhText: string, enText: string, cnText: string): string =>
+      coffeeText(session.language, enText, zhText, cnText);
     const lines = [
       `# ${session.topic}`,
       "",
-      `## ${t("開桌設定", "Table settings")}`,
+      `## ${t("開桌設定", "Table settings", "开桌设置")}`,
       "",
-      `- ${t("模型", "Model")}: ${session.model}`,
-      `- ${t("推理強度", "Reasoning")}: ${session.reasoning}`,
-      `- ${t("主持人", "Hosts")}: ${session.guests?.hostCount ?? 2}`,
-      `- ${t("主題專家", "Topic experts")}: ${count.experts}`,
-      `- ${t("跨領域專家", "Cross-domain experts")}: ${count["cross-domain"]}`,
-      `- ${t("好奇的通才", "Curious generalists")}: ${count.generalist}`,
-      `- ${t("受影響者", "Affected perspectives")}: ${count.affected}`
+      `- ${t("模型", "Model", "模型")}: ${session.model}`,
+      `- ${t("推理強度", "Reasoning", "推理强度")}: ${session.reasoning}`,
+      `- ${t("主持人", "Hosts", "主持人")}: ${session.guests?.hostCount ?? 2}`,
+      `- ${t("主題專家", "Topic experts", "主题专家")}: ${count.experts}`,
+      `- ${t("跨領域專家", "Cross-domain experts", "跨领域专家")}: ${count["cross-domain"]}`,
+      `- ${t("好奇的通才", "Curious generalists", "好奇的通才")}: ${count.generalist}`,
+      `- ${t("受影響者", "Affected perspectives", "受影响者")}: ${count.affected}`
     ];
     for (const guest of session.guests?.guests ?? [])
-      lines.push(`- ${t("指定來賓", "Guest")}: ${t(...CATEGORY_LABELS[guest.category])} — ${guest.description}`);
-    if (session.guests?.background) lines.push(`- ${t("補充背景", "Background")}: ${session.guests.background}`);
+      lines.push(
+        `- ${t("指定來賓", "Guest", "指定嘉宾")}: ${t(...CATEGORY_LABELS[guest.category])}${session.language === "zh-CN" ? " - " : " \u2014 "}${guest.description}`
+      );
+    if (session.guests?.background)
+      lines.push(`- ${t("補充背景", "Background", "补充背景")}: ${session.guests.background}`);
     if (session.guests?.stylePrompt?.trim())
       lines.push(
         "",
-        `### ${t("聊天室風格", "Conversation style")}`,
+        `### ${t("聊天室風格", "Conversation style", "聊天室风格")}`,
         "",
         ...session.guests.stylePrompt.split("\n").map(line => `> ${line}`),
         `<!-- coffee-tables-style:${encodeURIComponent(JSON.stringify({ id: session.guests.styleId, name: session.guests.styleName, prompt: session.guests.stylePrompt }))} -->`
@@ -538,7 +543,7 @@ export class CoffeeStorage {
     else if (session.guests?.customPrompt.trim())
       lines.push(
         "",
-        `### ${t("這桌的額外要求", "Additional requests")}`,
+        `### ${t("這桌的額外要求", "Additional requests", "这桌的额外要求")}`,
         "",
         ...session.guests.customPrompt.split("\n").map(line => `> ${line}`)
       );
@@ -546,7 +551,7 @@ export class CoffeeStorage {
       const files = session.guests.referenceFiles;
       lines.push(
         "",
-        `## ${t("背景參考資料", "Background references")}`,
+        `## ${t("背景參考資料", "Background references", "背景参考资料")}`,
         "",
         `<!-- coffee-tables-references:${encodeURIComponent(JSON.stringify(files))} -->`
       );
@@ -554,7 +559,7 @@ export class CoffeeStorage {
         const fence = "`".repeat(Math.max(3, ...[...file.content.matchAll(/`+/g)].map(match => match[0].length + 1)));
         lines.push(
           "",
-          `### ${t(`文件 ${index + 1}：${file.name}`, `File ${index + 1}: ${file.name}`)}`,
+          `### ${t(`文件 ${index + 1}：${file.name}`, `File ${index + 1}: ${file.name}`, `文件 ${index + 1}：${file.name}`)}`,
           "",
           `${fence}text`,
           file.content,
@@ -566,20 +571,20 @@ export class CoffeeStorage {
       `<!-- coffee-tables-navigation:${encodeURIComponent(JSON.stringify([...(session.rounds ?? []).map(item => ({ id: `round:${item.id}`, summary: item.summary, kind: item.kind })), ...session.questions.map(item => ({ id: `question:${item.id}`, summary: item.summary }))]))} -->`,
       ""
     );
-    lines.push("", `## ${t("對話紀錄", "Conversation")}`, "");
+    lines.push("", `## ${t("對話紀錄", "Conversation", "对话记录")}`, "");
     const events: Array<{ at: string; lines: string[] }> = [];
     let roundNumber = 0;
     for (const round of session.rounds ?? []) {
       const attached = (session.interventions ?? [])
           .filter(item => item.roundId === round.id)
           .sort((a, b) => (a.afterTurn ?? 0) - (b.afterTurn ?? 0)),
-        body = interleaveInterventions(round.markdown, attached);
+        body = interleaveInterventions(round.markdown, attached, session.language);
       if (!body) continue;
       roundNumber++;
       events.push({
         at: round.createdAt,
         lines: [
-          `## ${t(`對談第 ${roundNumber} 段`, `Conversation part ${roundNumber}`)}`,
+          `## ${t(`對談第 ${roundNumber} 段`, `Conversation part ${roundNumber}`, `对谈第 ${roundNumber} 段`)}`,
           "",
           `<!-- coffee-tables-round:${round.id} -->`,
           "",
@@ -592,7 +597,7 @@ export class CoffeeStorage {
       const invitations = question.invitedGuests?.length
         ? [
             "",
-            `### ${t("邀請來賓", "Invited guests")}`,
+            `### ${t("邀請來賓", "Invited guests", "邀请嘉宾")}`,
             "",
             ...question.invitedGuests.map(
               guest => `- **${guest.name}｜${t(...CATEGORY_LABELS[guest.category])}**：${guest.description}`
@@ -602,13 +607,13 @@ export class CoffeeStorage {
       events.push({
         at: question.createdAt ?? session.createdAt,
         lines: [
-          `## ${t(`追問第 ${i + 1} 題`, `Follow-up ${i + 1}`)}`,
+          `## ${t(`追問第 ${i + 1} 題`, `Follow-up ${i + 1}`, `追问第 ${i + 1} 题`)}`,
           "",
           question.question,
           "",
-          `### ${t("桌上回答", "Table response")}`,
+          `### ${t("桌上回答", "Table response", "桌上回答")}`,
           "",
-          question.answer || question.draftAnswer || t("（尚未回答）", "(No answer yet.)"),
+          question.answer || question.draftAnswer || t("（尚未回答）", "(No answer yet.)", "（尚未回答）"),
           ...invitations
         ]
       });
@@ -618,7 +623,11 @@ export class CoffeeStorage {
       if (item.roundId) continue;
       events.push({
         at: item.createdAt,
-        lines: [`## ${t(`使用者介入第 ${i + 1} 則`, `User note ${i + 1}`)}`, "", demoteRootHeadings(item.text)]
+        lines: [
+          `## ${t(`使用者介入第 ${i + 1} 則`, `User note ${i + 1}`, `用户介入第 ${i + 1} 则`)}`,
+          "",
+          demoteRootHeadings(item.text)
+        ]
       });
     }
     events.sort((a, b) => a.at.localeCompare(b.at));
@@ -628,26 +637,32 @@ export class CoffeeStorage {
       : (session.observerNotes ?? []);
     const insights = baselineFromVersions(currentNotes, session.language);
     if (insights.length)
-      lines.push(`## ${t("觀察者整理", "Observer notes")}`, "", serializeInsightNotes(insights, session.language));
+      lines.push(
+        `## ${t("觀察者整理", "Observer notes", "观察者整理")}`,
+        "",
+        serializeInsightNotes(insights, session.language)
+      );
     const drafts = [
       ...(session.rounds ?? [])
         .filter(round => round.draftMarkdown)
         .map(
           (round, index) =>
-            `### ${t(`對談第 ${index + 1} 段草稿`, `Conversation part ${index + 1} draft`)}\n\n${round.draftMarkdown}`
+            `### ${t(`對談第 ${index + 1} 段草稿`, `Conversation part ${index + 1} draft`, `对谈第 ${index + 1} 段草稿`)}\n\n${round.draftMarkdown}`
         ),
       ...session.questions
         .filter(question => question.draftAnswer)
         .map(
           (question, index) =>
-            `### ${t(`追問草稿 ${index + 1}`, `Follow-up draft ${index + 1}`)}\n\n${question.draftAnswer}`
+            `### ${t(`追問草稿 ${index + 1}`, `Follow-up draft ${index + 1}`, `追问草稿 ${index + 1}`)}\n\n${question.draftAnswer}`
         )
     ];
     if (session.observerDraftMarkdown)
-      drafts.push(`### ${t("觀察者整理草稿", "Observer notes draft")}\n\n${session.observerDraftMarkdown}`);
+      drafts.push(
+        `### ${t("觀察者整理草稿", "Observer notes draft", "观察者整理草稿")}\n\n${session.observerDraftMarkdown}`
+      );
     if (drafts.length || (session.draftMarkdown && !(session.rounds ?? []).some(round => round.draftMarkdown)))
       lines.push(
-        `## ${t("未完成草稿", "Unfinished drafts")}`,
+        `## ${t("未完成草稿", "Unfinished drafts", "未完成草稿")}`,
         "",
         ...(session.draftMarkdown && !(session.rounds ?? []).some(round => round.draftMarkdown)
           ? [session.draftMarkdown]
@@ -738,8 +753,7 @@ export class CoffeeStorage {
     if (!match) throw new Error("Legacy Coffee Tables metadata is missing");
     const stored = JSON.parse(decodeURIComponent(match[1])) as Record<string, unknown>,
       id = String(stored.id),
-      lang = stored.language === "zh-TW",
-      conversationTitle = lang ? "## 對談" : "## Conversation",
+      conversationTitle = coffeeText(String(stored.language), "## Conversation", "## 對談", "## 对谈"),
       startAt = raw.indexOf(conversationTitle, match.index + match[0].length),
       endAt = raw.indexOf(`<!-- coffee-tables-transcript-end:${id} -->`, startAt);
     if (startAt < 0 || endAt < startAt || stored.version !== 2)
@@ -1521,7 +1535,11 @@ function conversationHash(
     })
   );
 }
-function interleaveInterventions(markdown: string, interventions: NonNullable<CoffeeSession["interventions"]>): string {
+function interleaveInterventions(
+  markdown: string,
+  interventions: NonNullable<CoffeeSession["interventions"]>,
+  language: CoffeeSession["language"]
+): string {
   if (!interventions.length) return demoteRootHeadings(markdown);
   const chunks = markdown.split(/(?=^### .+$)/gm),
     output: string[] = [];
@@ -1533,7 +1551,9 @@ function interleaveInterventions(markdown: string, interventions: NonNullable<Co
         const quoted = item.text
           .trim()
           .split("\n")
-          .map((line, index) => (index === 0 ? `> **你（插話）**：${line}` : `> ${line}`))
+          .map((line, index) =>
+            index === 0 ? `> **${language === "zh-CN" ? "你（插话）" : "你（插話）"}**：${line}` : `> ${line}`
+          )
           .join("\n");
         output.push("", quoted, "");
         inserted.add(item.id);

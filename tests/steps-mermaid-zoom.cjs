@@ -138,12 +138,14 @@ test('mermaid zoom: a diagram that renders later gets its button when the SVG ap
   assert.equal(block.querySelectorAll('button').length, 1);
 });
 
-test('mermaid zoom: i18n has the labels in both languages', () => {
+test('mermaid zoom: i18n has the labels in all three languages', () => {
   const src = fs.readFileSync(path.join(root, 'i18n.ts'), 'utf8');
   for (const key of ['ui.mermaid_zoom_open', 'ui.mermaid_zoom_title', 'ui.mermaid_zoom_in', 'ui.mermaid_zoom_out', 'ui.mermaid_zoom_fit', 'ui.mermaid_zoom_actual', 'ui.mermaid_zoom_canvas_label', 'ui.mermaid_zoom_hint'])
-    assert.equal(src.split(`"${key}"`).length - 1, 2, key);
+    assert.equal(src.split(`"${key}"`).length - 1, 3, key);
   assert.match(src, /"ui\.mermaid_zoom_open": "放大圖表"/);
   assert.match(src, /"ui\.mermaid_zoom_fit": "符合視窗"/);
+  assert.match(src, /"ui\.mermaid_zoom_open": "放大图表"/);
+  assert.match(src, /"ui\.mermaid_zoom_fit": "适应窗口"/);
 });
 
 // ---------- the modal ----------

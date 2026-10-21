@@ -14,7 +14,7 @@ import type {
 } from "../../map-model";
 import type { Repository } from "../../repository";
 import { managedHeadingValue, managedSectionValue } from "../../note-values";
-import { translate } from "../../i18n";
+import { translate, SUPPORTED_LANGUAGES } from "../../i18n";
 import { resolveAimContentLanguage } from "./content-language";
 
 export interface NewAnswerBranch {
@@ -1002,10 +1002,9 @@ export class AimRunStore {
     await this.repository.updateNote(
       draft.notePath,
       {
-        title: [
-          translate("en", "note.aim_unpublished_diagnostic"),
-          translate("zh-TW", "note.aim_unpublished_diagnostic")
-        ].some(marker => note.title.includes(marker))
+        title: SUPPORTED_LANGUAGES.some(({ id }) =>
+          note.title.includes(translate(id, "note.aim_unpublished_diagnostic"))
+        )
           ? note.title
           : `${note.title}${translate(language, "note.aim_unpublished_diagnostic")}`,
         summary: translate(language, "note.aim_unpublished_diagnostic_summary_0", draft.attemptId),

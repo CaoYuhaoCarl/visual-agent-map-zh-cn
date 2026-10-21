@@ -1,4 +1,5 @@
 import type { AiResult } from "../../ai/types";
+import type { UiLanguage } from "../../i18n";
 import { DEFAULT_AIM_FLOW_LIMITS } from "./flow-limits";
 import {
   clarificationRequiredRationale,
@@ -84,7 +85,7 @@ function extractExplicitOptions(body: string, question: string): string[] {
       if (inOptions && options.length) break;
       continue;
     }
-    if (/^(?:#{1,6}\s*)?(?:answer\s+options|options|選項|可選答案)\s*[:：]?\s*$/i.test(trimmed)) {
+    if (/^(?:#{1,6}\s*)?(?:answer\s+options|options|選項|选项|可選答案|可选答案)\s*[:：]?\s*$/i.test(trimmed)) {
       inOptions = true;
       continue;
     }
@@ -172,7 +173,7 @@ export interface PlannerReviewRecoveryContext {
   /** Fixed rationale supplied by the workflow when it imposes a decision. */
   requiredDecisionRationale?: string;
   /** AIM content language, used only for fixed fallback wording. */
-  outputLanguage?: "en" | "zh-TW";
+  outputLanguage?: UiLanguage;
 }
 
 /** Return an explicitly written interrogative from the current response without deriving one from evidence. */
@@ -185,7 +186,7 @@ export function extractPlannerQuestionCandidate(result: Pick<AiResult, "detail" 
   const body = marked?.body ?? result.detail;
   const lines = body.split(/\r?\n/).map(line => line.trim());
   // The label may be emphasised ("**問題：**…"); the emphasis is formatting, not part of the question.
-  const label = /^(?:\*\*|__)?(?:question|問題)\s*[:：]\s*(?:\*\*|__)?\s*/i;
+  const label = /^(?:\*\*|__)?(?:question|問題|问题)\s*[:：]\s*(?:\*\*|__)?\s*/i;
   const labeledQuestion = lines.find(line => label.test(line) && /[?？]\s*$/.test(line.replace(label, "")));
   if (labeledQuestion) return labeledQuestion.replace(label, "").trim();
   const bodyQuestion = lines

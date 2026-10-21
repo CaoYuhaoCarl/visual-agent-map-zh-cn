@@ -728,7 +728,7 @@ test('AIM content language detector follows the character rules and falls back t
   const { detectAimContentLanguage, chooseAimContentLanguage, resolveAimContentLanguage } = load('experiences/aim/content-language.ts');
   const cases = [
     ['東京五天自由行怎麼排', 'zh-TW'], ['Plan a 5-day Taipei trip', 'en'], ['Python 的 async 怎麼用', 'zh-TW'],
-    ['What does 侘寂 mean', 'en'], ['东京五天自由行怎么排', 'zh-TW'], ['東京の旅行', 'unsupported'], ['한국 여행', 'unsupported'], ['🍜', undefined], ['2026', undefined], ['', undefined]
+    ['What does 侘寂 mean', 'en'], ['东京五天自由行怎么排', 'zh-CN'], ['東京の旅行', 'unsupported'], ['한국 여행', 'unsupported'], ['🍜', undefined], ['2026', undefined], ['', undefined]
   ];
   for (const [text, expected] of cases) assert.equal(detectAimContentLanguage(text), expected, text);
   for (const ui of ['en', 'zh-TW']) {

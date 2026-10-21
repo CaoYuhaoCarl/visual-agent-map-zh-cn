@@ -124,6 +124,65 @@
       "file": "experiences/coffee-tables/prompts.ts",
       "text": "End with a one-sentence summary",
       "reason": "display-only opening preview shown to the user; never sent to a model"
+    },
+    {
+      "file": "experiences/coffee-tables/sample.zh-CN.ts",
+      "reason": "static Simplified Chinese built-in sample conversation data, matching the existing samples.ts exception"
+    },
+    {
+      "file": "experiences/coffee-tables/customization.ts",
+      "text": "整理具体洞见与脉络",
+      "reason": "Simplified Chinese default observer preference shown and editable in the customization UI"
+    },
+    {
+      "file": "experiences/coffee-tables/customization.ts",
+      "text": "让每项整理仍能看出",
+      "reason": "Simplified Chinese default convergence preference shown and editable in the customization UI"
+    },
+    {
+      "file": "experiences/coffee-tables/engine.ts",
+      "text": "固定的洞见必须保持原样",
+      "reason": "Simplified Chinese user-facing convergence error, matching the existing localized error exception"
+    },
+    {
+      "file": "experiences/coffee-tables/engine.ts",
+      "text": "生成预览期间",
+      "reason": "Simplified Chinese user-facing stale-preview error; not a provider prompt"
+    },
+    {
+      "file": "experiences/coffee-tables/engine.ts",
+      "text": "合并预览格式无效",
+      "reason": "Simplified Chinese user-facing validation error; not a provider prompt"
+    },
+    {
+      "file": "experiences/coffee-tables/engine.ts",
+      "text": "无法生成合并预览",
+      "reason": "Simplified Chinese user-facing convergence failure; not a provider prompt"
+    },
+    {
+      "file": "experiences/coffee-tables/engine.ts",
+      "text": "生成因 Obsidian 关闭而停止",
+      "reason": "Simplified Chinese stopped-session status shown on reopening, matching the existing English status exception"
+    },
+    {
+      "file": "experiences/coffee-tables/prompt-parts.ts",
+      "text": "观察者整理整桌不断发展的洞见",
+      "reason": "must equal the Simplified Chinese built-in style paragraph so cleanChatStyle can strip it; matching constant, not prompt assembly"
+    },
+    {
+      "file": "experiences/coffee-tables/prompts.ts",
+      "text": "观察者整理：保留完整洞见",
+      "reason": "Simplified Chinese display-only opening preview shown to the user; never sent to a model"
+    },
+    {
+      "file": "experiences/coffee-tables/prompts.ts",
+      "text": "最后以一句话概括",
+      "reason": "Simplified Chinese display-only opening preview shown to the user; never sent to a model"
+    },
+    {
+      "file": "experiences/coffee-tables/types.ts",
+      "text": "> 较早版本的模拟对谈",
+      "reason": "Simplified Chinese banner written into a migrated legacy transcript, not a provider prompt"
     }
   ]
 }

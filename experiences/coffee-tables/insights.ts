@@ -1,3 +1,6 @@
+import type { UiLanguage } from "../../i18n";
+import { coffeeText } from "./language";
+
 export type CoffeeInsightCategory =
   "connections" | "questions" | "disagreements" | "directions" | "assumptions" | "solutions";
 
@@ -15,7 +18,15 @@ export interface CoffeeInsight {
   mergedIds: string[];
 }
 
-const TITLES: Record<string, Record<CoffeeInsightCategory, string>> = {
+const TITLES: Record<UiLanguage, Record<CoffeeInsightCategory, string>> = {
+  "zh-CN": {
+    connections: "意外联系",
+    questions: "值得继续想的问题",
+    disagreements: "核心分歧",
+    directions: "探索方向",
+    assumptions: "值得查证的假设",
+    solutions: "疑问与可能解决方案"
+  },
   "zh-TW": {
     connections: "意外連結",
     questions: "值得繼續想的問題",
@@ -34,6 +45,21 @@ const TITLES: Record<string, Record<CoffeeInsightCategory, string>> = {
   }
 };
 const CATEGORY_ALIASES: Record<string, CoffeeInsightCategory> = {
+  意外联系: "connections",
+  意外连结: "connections",
+  意外连接: "connections",
+  值得继续想的问题: "questions",
+  值得查证的假设: "assumptions",
+  疑问与可能解法: "solutions",
+  疑问与可能解决方案: "solutions",
+  疑问与可能解方: "solutions",
+  最大讨论转折: "connections",
+  最新转折: "connections",
+  被推翻或修正的假设: "assumptions",
+  修正过的假设: "assumptions",
+  修正后的假设: "assumptions",
+  值得继续追问的问题: "questions",
+  尚未解决的核心分歧: "disagreements",
   意外連結: "connections",
   值得繼續想的問題: "questions",
   核心分歧: "disagreements",
@@ -63,7 +89,7 @@ const CATEGORY_ALIASES: Record<string, CoffeeInsightCategory> = {
 const MARKER = /<!--\s*coffee-insight:(v1:([^\s>]+)|(keep|update|merge):([^\s>]+))\s*-->/i;
 const ALL_MARKERS = /<!--\s*coffee-insight:(v1:([^\s>]+)|(keep|update|merge):([^\s>]+))\s*-->/gi;
 const SOURCE_MARKER = /<!--\s*source:\s*([\s\S]*?)\s*-->/gi;
-const ROOT = /^# (?:觀察者整理|Observer(?:[’']s)? notes)\s*$/im;
+const ROOT = /^# (?:觀察者整理|观察者整理|Observer(?:[’']s)? notes)\s*$/im;
 const ID_PATTERN = /^[a-zA-Z0-9_-]{1,100}$/;
 
 function newId(): string {
@@ -89,7 +115,7 @@ function normalize(value: string): string {
 function unique(values: string[]): string[] {
   return [...new Set(values.map(value => value.trim()).filter(Boolean))];
 }
-function categoryTitle(category: CoffeeInsightCategory, language: "zh-TW" | "en"): string {
+function categoryTitle(category: CoffeeInsightCategory, language: UiLanguage): string {
   return TITLES[language][category];
 }
 function splitInsightText(value: string): { summary: string; metadata: string[]; sources: string[] } {
@@ -178,17 +204,17 @@ function parseOne(markdown: string): CoffeeInsight[] {
           continue;
         }
         const labeled =
-          /^(脈絡|來賓的理由|脈絡與分歧|Context|Reasoning|原疑問|疑問|Question|可能解方|Possible solution|條件與限制|限制|Conditions and limits)[：:]\s*(.*)$/i.exec(
+          /^(脈絡|來賓的理由|脈絡與分歧|脉络|嘉宾的理由|来宾的理由|脉络与分歧|Context|Reasoning|原疑問|疑問|原疑问|疑问|Question|可能解方|可能解法|可能解决方案|Possible solution|條件與限制|条件与限制|限制|Conditions and limits)[：:]\s*(.*)$/i.exec(
             value.summary
           );
         if (labeled) {
           const label = labeled[1].toLocaleLowerCase(),
             body = labeled[2].trim();
-          if (["原疑問", "疑問", "question"].includes(label))
+          if (["原疑問", "疑問", "原疑问", "疑问", "question"].includes(label))
             current.question = [current.question, body].filter(Boolean).join("\n");
-          else if (["可能解方", "possible solution"].includes(label))
+          else if (["可能解方", "可能解法", "可能解决方案", "possible solution"].includes(label))
             current.proposedSolution = [current.proposedSolution, body].filter(Boolean).join("\n");
-          else if (["條件與限制", "限制", "conditions and limits"].includes(label))
+          else if (["條件與限制", "条件与限制", "限制", "conditions and limits"].includes(label))
             current.limitations = [current.limitations, body].filter(Boolean).join("\n");
           else current.detail = [current.detail, body].filter(Boolean).join("\n");
         } else current.detail = [current.detail, value.summary].filter(Boolean).join("\n");
@@ -231,18 +257,18 @@ function parseOne(markdown: string): CoffeeInsight[] {
       if (detail && !detail.startsWith("<!--")) {
         const text = detail.replace(/^>\s?/, ""),
           labeled =
-            /^(脈絡|來賓的理由|脈絡與分歧|Context|Reasoning|原疑問|疑問|Question|可能解方|Possible solution|條件與限制|限制|Conditions and limits)[：:]\s*(.*)$/i.exec(
+            /^(脈絡|來賓的理由|脈絡與分歧|脉络|嘉宾的理由|来宾的理由|脉络与分歧|Context|Reasoning|原疑問|疑問|原疑问|疑问|Question|可能解方|可能解法|可能解决方案|Possible solution|條件與限制|条件与限制|限制|Conditions and limits)[：:]\s*(.*)$/i.exec(
               text
             );
         if (!labeled) current.detail = [current.detail, text].filter(Boolean).join("\n");
         else {
           const label = labeled[1].toLocaleLowerCase(),
             value = labeled[2].trim();
-          if (["原疑問", "疑問", "question"].includes(label))
+          if (["原疑問", "疑問", "原疑问", "疑问", "question"].includes(label))
             current.question = [current.question, value].filter(Boolean).join("\n");
-          else if (["可能解方", "possible solution"].includes(label))
+          else if (["可能解方", "可能解法", "可能解决方案", "possible solution"].includes(label))
             current.proposedSolution = [current.proposedSolution, value].filter(Boolean).join("\n");
-          else if (["條件與限制", "限制", "conditions and limits"].includes(label))
+          else if (["條件與限制", "条件与限制", "限制", "conditions and limits"].includes(label))
             current.limitations = [current.limitations, value].filter(Boolean).join("\n");
           else current.detail = [current.detail, value].filter(Boolean).join("\n");
         }
@@ -267,7 +293,7 @@ function parseOne(markdown: string): CoffeeInsight[] {
   return items;
 }
 
-export function baselineFromVersions(versions: string[], language: "zh-TW" | "en"): CoffeeInsight[] {
+export function baselineFromVersions(versions: string[], language: UiLanguage): CoffeeInsight[] {
   const result: CoffeeInsight[] = [];
   const byText = new Map<string, CoffeeInsight>();
   for (const version of versions) {
@@ -322,7 +348,7 @@ export function baselineFromVersions(versions: string[], language: "zh-TW" | "en
 export function mergeInsightUpdates(
   current: CoffeeInsight[],
   generated: string,
-  language: "zh-TW" | "en"
+  language: UiLanguage
 ): CoffeeInsight[] {
   const baseline = current.map(item => ({ ...item, sources: [...item.sources], mergedIds: [...item.mergedIds] }));
   const parsed = parseOne(generated);
@@ -387,8 +413,8 @@ export function mergeInsightUpdates(
   return active;
 }
 
-export function serializeInsightNotes(insights: CoffeeInsight[], language: "zh-TW" | "en"): string {
-  const root = language === "zh-TW" ? "觀察者整理" : "Observer’s notes";
+export function serializeInsightNotes(insights: CoffeeInsight[], language: UiLanguage): string {
+  const root = coffeeText(language, "Observer’s notes", "觀察者整理", "观察者整理");
   const lines = [`# ${root}`, ""];
   const order: CoffeeInsightCategory[] = [
     "connections",
@@ -409,19 +435,25 @@ export function serializeInsightNotes(insights: CoffeeInsight[], language: "zh-T
         .join("");
       lines.push(`- ${item.summary} <!-- coffee-insight:v1:id=${item.id}${merged} -->${sources}`);
       if (item.detail)
-        lines.push(`  - ${language === "zh-TW" ? "脈絡" : "Context"}：${item.detail.split(/\r?\n/).join(" ")}`);
+        lines.push(`  - ${coffeeText(language, "Context", "脈絡", "脉络")}：${item.detail.split(/\r?\n/).join(" ")}`);
       if (category === "solutions") {
-        for (const [label, value] of language === "zh-TW"
+        for (const [label, value] of language === "zh-CN"
           ? [
-              ["原疑問", item.question],
-              ["可能解方", item.proposedSolution],
-              ["條件與限制", item.limitations]
+              ["原疑问", item.question],
+              ["可能解决方案", item.proposedSolution],
+              ["条件与限制", item.limitations]
             ]
-          : [
-              ["Question", item.question],
-              ["Possible solution", item.proposedSolution],
-              ["Conditions and limits", item.limitations]
-            ]) {
+          : language === "zh-TW"
+            ? [
+                ["原疑問", item.question],
+                ["可能解方", item.proposedSolution],
+                ["條件與限制", item.limitations]
+              ]
+            : [
+                ["Question", item.question],
+                ["Possible solution", item.proposedSolution],
+                ["Conditions and limits", item.limitations]
+              ]) {
           if (value) lines.push(`  - ${label}：${value}`);
         }
       }
@@ -431,7 +463,7 @@ export function serializeInsightNotes(insights: CoffeeInsight[], language: "zh-T
   return lines.join("\n").trim();
 }
 
-export function parseInsightNotes(markdown: string, language: "zh-TW" | "en"): CoffeeInsight[] {
+export function parseInsightNotes(markdown: string, language: UiLanguage): CoffeeInsight[] {
   void language;
   return parseOne(markdown);
 }

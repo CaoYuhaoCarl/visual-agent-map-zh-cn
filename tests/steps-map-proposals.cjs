@@ -17,14 +17,16 @@ const { translate } = load('i18n.ts');
 
 const outlineRequest = (extra = {}) => ({ topic: 'Sleep and memory', presetText: 'Make a tree for {填入研究主題}.', language: 'en', model: 'gpt-6-luna', reasoning: 'low', ...extra });
 
-test('topic placeholders (zh and en) are replaced everywhere, a missing placeholder appends a labelled line', () => {
+test('topic placeholders in all languages are replaced everywhere, a missing placeholder appends a labelled line', () => {
   const { applyTopicToPreset, OUTLINE_TOPIC_PLACEHOLDERS } = outline;
-  assert.deepEqual(JSON.parse(JSON.stringify(OUTLINE_TOPIC_PLACEHOLDERS)), ['{填入研究主題}', '{research topic}']);
+  assert.deepEqual(JSON.parse(JSON.stringify(OUTLINE_TOPIC_PLACEHOLDERS)), ['{填入研究主題}', '{research topic}', '{填入研究主题}']);
   assert.equal(applyTopicToPreset('A {填入研究主題} B {填入研究主題}', 'T', 'en'), 'A "T" B "T"');
   assert.equal(applyTopicToPreset('A {Research Topic} B', 'T', 'en'), 'A "T" B');
+  assert.equal(applyTopicToPreset('A {填入研究主题} B', 'T', 'zh-CN'), 'A "T" B');
   assert.equal(applyTopicToPreset('A {填入研究主題}', "$& $1 \n{填入研究主題}", 'en'), 'A "$& $1 \\n{填入研究主題}"', 'topic is inserted verbatim as a JSON string');
   assert.equal(applyTopicToPreset('No slot.\n', 'T', 'en'), 'No slot.\n\nResearch topic: "T"');
   assert.equal(applyTopicToPreset('沒有欄位', 'T', 'zh-TW'), '沒有欄位\n\n研究主題："T"');
+  assert.equal(applyTopicToPreset('没有占位符', 'T', 'zh-CN'), '没有占位符\n\n研究主题："T"');
 });
 
 test('outline prompt carries the preset with the topic as quoted data and the untrusted-data wording', () => {

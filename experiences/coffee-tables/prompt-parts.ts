@@ -3,12 +3,17 @@ import type { CoffeeGuestInvitation } from "./types";
 import { baselineFromVersions, serializeInsightNotes } from "./insights";
 import { renderTemplate } from "../../core/step-runner";
 import { observerGuidance } from "./customization";
+import { coffeeLanguageKey } from "./language";
 import {
+  BUILTIN_STYLE_CN,
   CONTEXT_EXISTING_INSIGHTS,
+  CONTEXT_EXISTING_INSIGHTS_CN,
   CONTEXT_INVITED_GUESTS,
   CONTEXT_REFERENCE,
+  CONTEXT_REFERENCE_CN,
   INSIGHT_UPDATE_FOOTER,
   OBSERVER_FORMAT_TEMPLATE,
+  OBSERVER_FORMAT_TEMPLATE_CN,
   OBSERVER_REFRESH_ONLY,
   OBSERVER_SOURCE,
   OBSERVER_TITLES
@@ -16,6 +21,18 @@ import {
 
 export const MAX_COFFEE_CONTEXT_CHARS = 180_000;
 export const BUILTIN_COFFEE_STYLE_NAME = "自然交流與跨域探索";
+export const BUILTIN_COFFEE_STYLE_NAME_CN = "自然交流与跨领域探索";
+export const BUILTIN_COFFEE_STYLE_PROMPT_CN = BUILTIN_STYLE_CN;
+export function builtinCoffeeStyleName(language: string): string {
+  return language === "zh-CN" ? BUILTIN_COFFEE_STYLE_NAME_CN : BUILTIN_COFFEE_STYLE_NAME;
+}
+export function builtinCoffeeStylePrompt(language: string): string {
+  return language === "zh-CN"
+    ? BUILTIN_COFFEE_STYLE_PROMPT_CN
+    : language === "zh-TW"
+      ? BUILTIN_COFFEE_STYLE_PROMPT
+      : BUILTIN_COFFEE_STYLE_PROMPT_EN;
+}
 export const BUILTIN_COFFEE_STYLE_PROMPT_EN = `Use natural, conversational English, plain language and everyday examples. Let participants respond to, question, challenge and revise one another instead of taking turns delivering essays. Hosts should connect ideas without summarizing every turn. With two hosts, one notices contradictions and one asks curious follow-up questions; one host combines both; multiple hosts divide these roles without repetitive summaries. Explain similarities and limits when making cross-domain analogies. For an opening, aim for 10–18 concise turns; for each continuation, add roughly 8–12 concise turns. Explore different angles and unresolved questions, end naturally when ideas begin repeating, and do not force every guest to speak. During continuations, resume naturally from the last sentence without a preamble, process notes or repeated introductions. During follow-ups, let the most relevant guests respond, prioritize anyone the user names, preserve disagreements and focus on the question without replaying the whole discussion. The observer records the table’s evolving insights: unexpected connections, questions worth pursuing, core disagreements, directions to explore, assumptions to verify, and guests’ questions with possible responses. Add no new facts and do not decide for the user.
 
 For an opening, write 2–4 distinct, substantive insights in each of the first five categories: Unexpected connections, Questions worth pursuing, Core disagreements, Directions to explore, and Assumptions to verify. Add the sixth category, Questions and possible solutions, when the table has discussed a guest’s question and a possible response. Each insight starts with a concise one- or two-sentence thought that expresses the connection, tension or turn in thinking, not a retelling of a speech. Expand it with the concrete context, participants’ reasons, examples, applicable conditions and unresolved limits. Avoid generic summaries, repeated points and vague filler. Explain both the similarity and limits of an analogy, preserve differing reasons, and distinguish imagined examples from verified facts.
@@ -33,6 +50,9 @@ export const BUILTIN_COFFEE_STYLE_PROMPT = `請用自然、口語的繁體中文
 /** Assemble every persisted conversational event in timestamp order. Drafts are
  * first-class context so a retry can continue without silently losing text. */
 export function assembleCoffeeContext(session: CoffeeSession): string {
+  const cn = session.language === "zh-CN",
+    labels = cn ? LABELS_CN : LABELS,
+    interventionLabel = cn ? "用户介入：" : "使用者介入：";
   const events: Array<{ at: number; order: number; text: string }> = [];
   let order = 0;
   const add = (at: string | undefined, text: string): void => {
@@ -52,7 +72,7 @@ export function assembleCoffeeContext(session: CoffeeSession): string {
       if (!attached.length || !/^###\s+/m.test(source)) {
         add(
           round.createdAt,
-          [source, ...attached.map(item => `使用者介入：${item.text}`)].filter(Boolean).join("\n\n")
+          [source, ...attached.map(item => `${interventionLabel}${item.text}`)].filter(Boolean).join("\n\n")
         );
         continue;
       }
@@ -62,7 +82,7 @@ export function assembleCoffeeContext(session: CoffeeSession): string {
         nextIntervention = 0;
       const inject = (limit: number): void => {
         while (nextIntervention < attached.length && (attached[nextIntervention].afterTurn ?? 0) <= limit)
-          output.push(`使用者介入：${attached[nextIntervention++].text}`);
+          output.push(`${interventionLabel}${attached[nextIntervention++].text}`);
       };
       for (const part of parts) {
         if (/^###\s+/.test(part)) {
@@ -82,19 +102,20 @@ export function assembleCoffeeContext(session: CoffeeSession): string {
   for (const question of session.questions) {
     if (question.status === "pending" && !question.answer && !question.draftAnswer) continue;
     const guests = question.invitedGuests?.length
-      ? `\n本題加入並留桌的來賓：\n${question.invitedGuests.map(guest => `- ${guest.name}｜${LABELS[guest.category]}：${guest.description}`).join("\n")}`
+      ? `\n${cn ? "本题加入并留桌的嘉宾：" : "本題加入並留桌的來賓："}\n${question.invitedGuests.map(guest => `- ${guest.name}｜${labels[guest.category]}：${guest.description}`).join("\n")}`
       : "";
     add(
       question.createdAt,
-      `使用者追問：${question.question}${guests}\n桌上回答：${question.answer || question.draftAnswer || "（回答尚未完成）"}`
+      `${cn ? "用户追问：" : "使用者追問："}${question.question}${guests}\n桌上回答：${question.answer || question.draftAnswer || "（回答尚未完成）"}`
     );
   }
   for (const intervention of session.interventions ?? [])
-    if (!attachedInterventions.has(intervention.id)) add(intervention.createdAt, `使用者介入：${intervention.text}`);
+    if (!attachedInterventions.has(intervention.id))
+      add(intervention.createdAt, `${interventionLabel}${intervention.text}`);
   events.sort((a, b) => a.at - b.at || a.order - b.order);
   const existingInsights = baselineFromVersions(session.observerNotes ?? [], session.language);
   const notes = existingInsights.length
-    ? `${CONTEXT_EXISTING_INSIGHTS}\n${serializeInsightNotes(existingInsights, session.language)}`
+    ? `${cn ? CONTEXT_EXISTING_INSIGHTS_CN : CONTEXT_EXISTING_INSIGHTS}\n${serializeInsightNotes(existingInsights, session.language)}`
     : "";
   return [...events.map(item => item.text), notes].filter(Boolean).join("\n\n");
 }
@@ -104,20 +125,27 @@ const LABELS = {
   generalist: "好奇的通才 generalist",
   affected: "受影響者"
 } as const;
-export function names(guests: GuestSettings, invited: CoffeeGuestInvitation[] = []): string[] {
+const LABELS_CN = {
+  experts: "主题专家",
+  "cross-domain": "跨领域专家",
+  generalist: "好奇的通才 generalist",
+  affected: "受影响者"
+} as const;
+export function names(guests: GuestSettings, invited: CoffeeGuestInvitation[] = [], language = "zh-TW"): string[] {
+  const labels = language === "zh-CN" ? LABELS_CN : LABELS;
   return (["experts", "cross-domain", "generalist", "affected"] as const).flatMap(category => [
     ...Array.from({ length: guests.counts[category] }, (_, index) => {
       const named = guests.guests.filter(item => item.category === category)[index];
-      return named ? `${LABELS[category]}：${named.description}` : LABELS[category];
+      return named ? `${labels[category]}：${named.description}` : labels[category];
     }),
     ...invited
       .filter(item => item.category === category)
-      .map(item => `${LABELS[category]}：${item.name}（${item.description}）`)
+      .map(item => `${labels[category]}：${item.name}（${item.description}）`)
   ]);
 }
 export function conversationStyle(language: string, settings?: GuestSettings): string {
   if (typeof settings?.stylePrompt === "string") return settings.stylePrompt.trim();
-  const builtin = language === "zh-TW" ? BUILTIN_COFFEE_STYLE_PROMPT : BUILTIN_COFFEE_STYLE_PROMPT_EN;
+  const builtin = builtinCoffeeStylePrompt(language);
   return settings?.customPrompt.trim() ? `${builtin}\n\n${settings.customPrompt.trim()}` : builtin;
 }
 export { OBSERVER_TITLES };
@@ -126,9 +154,9 @@ export function observerFormat(
   refreshOnly = false,
   customization?: GuestSettings["customization"]
 ): string {
-  const key = language === "zh-TW" ? "zh" : "en";
+  const key = coffeeLanguageKey(language);
   const preferences = customization ? `${observerGuidance(language, customization)}\n` : "";
-  return renderTemplate(OBSERVER_FORMAT_TEMPLATE, {
+  return renderTemplate(language === "zh-CN" ? OBSERVER_FORMAT_TEMPLATE_CN : OBSERVER_FORMAT_TEMPLATE, {
     operation: refreshOnly ? `${OBSERVER_REFRESH_ONLY[key]}\n` : "",
     preferences,
     source: OBSERVER_SOURCE[key],
@@ -139,20 +167,23 @@ export function observerFormat(
 export function invitationContext(invitedGuests: CoffeeGuestInvitation[], language: string): string {
   if (!invitedGuests.length) return "";
   const role: Record<CoffeeGuestInvitation["category"], string> =
-    language === "zh-TW"
-      ? { experts: "主題專家", "cross-domain": "跨領域專家", generalist: "好奇的通才", affected: "受影響者" }
-      : {
-          experts: "Topic expert",
-          "cross-domain": "Cross-domain expert",
-          generalist: "Curious generalist",
-          affected: "Affected perspective"
-        };
-  return `${CONTEXT_INVITED_GUESTS[language === "zh-TW" ? "zh" : "en"]}\n${invitedGuests.map(guest => `- ${guest.name}｜${role[guest.category]}：${guest.description}`).join("\n")}`;
+    language === "zh-CN"
+      ? { experts: "主题专家", "cross-domain": "跨领域专家", generalist: "好奇的通才", affected: "受影响者" }
+      : language === "zh-TW"
+        ? { experts: "主題專家", "cross-domain": "跨領域專家", generalist: "好奇的通才", affected: "受影響者" }
+        : {
+            experts: "Topic expert",
+            "cross-domain": "Cross-domain expert",
+            generalist: "Curious generalist",
+            affected: "Affected perspective"
+          };
+  return `${CONTEXT_INVITED_GUESTS[coffeeLanguageKey(language)]}\n${invitedGuests.map(guest => `- ${guest.name}｜${role[guest.category]}：${guest.description}`).join("\n")}`;
 }
 /** Remove the legacy internal protocol passage from editable conversation styles. */
 export function readableCoffeeStyle(style: string): string {
   return style
     .replace(/既有洞見有程式維持的穩定識別碼：[\s\S]*?程式會保留未提及項目。/g, "")
+    .replace(/既有洞见有程序维持的稳定标识码：[\s\S]*?程序会保留未提及项目。/g, "")
     .replace(/Existing insights have stable program IDs:[\s\S]*?the program retains omitted items\./g, "");
 }
 /** Strip only the observer-specific text shipped in the built-in styles. */
@@ -161,6 +192,8 @@ export function cleanChatStyle(style: string): string {
     "觀察者整理整桌不斷發展的洞見：意外連結、值得繼續想的問題、核心分歧、探索方向、待查證假設，以及來賓提出疑問時對談中出現的可能回應。不添加新事實，也不替使用者下結論。";
   const enObserverIntro =
     "The observer records the table’s evolving insights: unexpected connections, questions worth pursuing, core disagreements, directions to explore, assumptions to verify, and guests’ questions with possible responses. Add no new facts and do not decide for the user.";
+  const cnObserverIntro =
+    "观察者整理整桌不断发展的洞见：意外联系、值得继续想的问题、核心分歧、探索方向、待查证假设，以及嘉宾提出疑问时对谈中出现的可能回应。\n不添加新事实，也不替用户下结论。";
   const paragraphs = style
     .split(/\n\s*\n/)
     .map(value => value.trim())
@@ -172,7 +205,10 @@ export function cleanChatStyle(style: string): string {
       BUILTIN_COFFEE_STYLE_PROMPT.split(/\n\s*\n/)[3]?.trim(),
       BUILTIN_COFFEE_STYLE_PROMPT_EN.split(/\n\s*\n/)[1]?.trim(),
       BUILTIN_COFFEE_STYLE_PROMPT_EN.split(/\n\s*\n/)[2]?.trim(),
-      BUILTIN_COFFEE_STYLE_PROMPT_EN.split(/\n\s*\n/)[3]?.trim()
+      BUILTIN_COFFEE_STYLE_PROMPT_EN.split(/\n\s*\n/)[3]?.trim(),
+      ...BUILTIN_COFFEE_STYLE_PROMPT_CN.split(/\n\s*\n/)
+        .slice(1)
+        .map(value => value.trim())
     ].filter((value): value is string => !!value)
   );
   const chatText = readableCoffeeStyle(
@@ -185,19 +221,23 @@ export function cleanChatStyle(style: string): string {
     .map(paragraph =>
       paragraph
         .replace(zhObserverIntro, "")
+        .replace(cnObserverIntro, "")
         .replace(enObserverIntro, "")
         .replace("觀察者整理涵蓋整桌。", "")
+        .replace("观察者整理涵盖整桌。", "")
         .replace("Observer notes cover the whole table. ", "")
         .replace(/既有洞見有程式維持的穩定識別碼：[\s\S]*?程式會保留未提及項目。/, "")
+        .replace(/既有洞见有程序维持的稳定标识码：[\s\S]*?程序会保留未提及项目。/, "")
         .replace(/Existing insights have stable program IDs:[\s\S]*?the program retains omitted items\./, "")
         .replace(/對談中提出的解方只是可能回應，[\s\S]*$/, "")
+        .replace(/对谈中提出的解法只是可能回应，[\s\S]*$/, "")
         .replace(/A possible response is a discussed answer,[\s\S]*$/, "")
         .trim()
     )
     .filter(Boolean)
     .join("\n\n");
 }
-export function formatReferenceContext(files: Array<{ name: string; content: string }>): string {
+export function formatReferenceContext(files: Array<{ name: string; content: string }>, language = "zh-TW"): string {
   if (!files.length) return "";
-  return `\n\n${CONTEXT_REFERENCE}\n${files.map((file, index) => `\n[文件 ${index + 1}：${file.name}]\n${file.content}`).join("\n")}`;
+  return `\n\n${language === "zh-CN" ? CONTEXT_REFERENCE_CN : CONTEXT_REFERENCE}\n${files.map((file, index) => `\n[文件 ${index + 1}：${file.name}]\n${file.content}`).join("\n")}`;
 }

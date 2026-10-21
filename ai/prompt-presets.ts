@@ -1,18 +1,25 @@
-import type { UiLanguage } from "../i18n";
+import { uiLocale, type UiLanguage } from "../i18n";
 import PlainZH from "./prompt-presets/plain.zh.md";
 import PlainEN from "./prompt-presets/plain.en.md";
+import PlainCN from "./prompt-presets/plain.zh-CN.md";
 import MagazineZH from "./prompt-presets/magazine.zh.md";
 import MagazineEN from "./prompt-presets/magazine.en.md";
+import MagazineCN from "./prompt-presets/magazine.zh-CN.md";
 import SummaryZH from "./prompt-presets/summary.zh.md";
 import SummaryEN from "./prompt-presets/summary.en.md";
+import SummaryCN from "./prompt-presets/summary.zh-CN.md";
 import GuideZH from "./prompt-presets/guide.zh.md";
 import GuideEN from "./prompt-presets/guide.en.md";
+import GuideCN from "./prompt-presets/guide.zh-CN.md";
 import AcademicZH from "./prompt-presets/academic.zh.md";
 import AcademicEN from "./prompt-presets/academic.en.md";
+import AcademicCN from "./prompt-presets/academic.zh-CN.md";
 import AutoZH from "./prompt-presets/auto.zh.md";
 import AutoEN from "./prompt-presets/auto.en.md";
+import AutoCN from "./prompt-presets/auto.zh-CN.md";
 import KnowledgeTreeZH from "./prompt-presets/knowledge-tree.zh.md";
 import KnowledgeTreeEN from "./prompt-presets/knowledge-tree.en.md";
+import KnowledgeTreeCN from "./prompt-presets/knowledge-tree.zh-CN.md";
 
 /**
  * Prompt presets: reusable text a user picks instead of retyping. `tone` presets steer the writing voice of notes;
@@ -34,6 +41,7 @@ export const DEFAULT_OUTLINE_PRESET_ID = "knowledge-tree";
 /** The outline preset's topic placeholder, per language; the outline generator replaces it with the topic. */
 export const OUTLINE_TOPIC_PLACEHOLDER: Readonly<Record<UiLanguage, string>> = {
   "zh-TW": "{填入研究主題}",
+  "zh-CN": "{填入研究主题}",
   en: "{research topic}"
 };
 
@@ -45,32 +53,64 @@ interface BuiltinDefinition {
   name: Readonly<Record<UiLanguage, string>>;
   zh: string;
   en: string;
+  cn: string;
 }
 const BUILTINS: readonly BuiltinDefinition[] = [
-  { id: "plain", kind: "tone", name: { "zh-TW": "白話說明", en: "Plain explanation" }, zh: PlainZH, en: PlainEN },
+  {
+    id: "plain",
+    kind: "tone",
+    name: { "zh-TW": "白話說明", "zh-CN": "白话说明", en: "Plain explanation" },
+    zh: PlainZH,
+    en: PlainEN,
+    cn: PlainCN
+  },
   {
     id: "magazine",
     kind: "tone",
-    name: { "zh-TW": "雜誌專欄", en: "Magazine column" },
+    name: { "zh-TW": "雜誌專欄", "zh-CN": "杂志专栏", en: "Magazine column" },
     zh: MagazineZH,
-    en: MagazineEN
+    en: MagazineEN,
+    cn: MagazineCN
   },
-  { id: "summary", kind: "tone", name: { "zh-TW": "重點摘要", en: "Key-point summary" }, zh: SummaryZH, en: SummaryEN },
-  { id: "guide", kind: "tone", name: { "zh-TW": "實用指南", en: "Practical guide" }, zh: GuideZH, en: GuideEN },
+  {
+    id: "summary",
+    kind: "tone",
+    name: { "zh-TW": "重點摘要", "zh-CN": "重点摘要", en: "Key-point summary" },
+    zh: SummaryZH,
+    en: SummaryEN,
+    cn: SummaryCN
+  },
+  {
+    id: "guide",
+    kind: "tone",
+    name: { "zh-TW": "實用指南", "zh-CN": "实用指南", en: "Practical guide" },
+    zh: GuideZH,
+    en: GuideEN,
+    cn: GuideCN
+  },
   {
     id: DEFAULT_TONE_ID,
     kind: "tone",
-    name: { "zh-TW": "學術嚴謹", en: "Academic rigor" },
+    name: { "zh-TW": "學術嚴謹", "zh-CN": "学术严谨", en: "Academic rigor" },
     zh: AcademicZH,
-    en: AcademicEN
+    en: AcademicEN,
+    cn: AcademicCN
   },
-  { id: AUTO_TONE_ID, kind: "tone", name: { "zh-TW": "AI 建議", en: "AI choice" }, zh: AutoZH, en: AutoEN },
+  {
+    id: AUTO_TONE_ID,
+    kind: "tone",
+    name: { "zh-TW": "AI 建議", "zh-CN": "AI 建议", en: "AI choice" },
+    zh: AutoZH,
+    en: AutoEN,
+    cn: AutoCN
+  },
   {
     id: DEFAULT_OUTLINE_PRESET_ID,
     kind: "outline",
-    name: { "zh-TW": "知識樹生成器", en: "Knowledge tree generator" },
+    name: { "zh-TW": "知識樹生成器", "zh-CN": "知识树生成器", en: "Knowledge tree generator" },
     zh: KnowledgeTreeZH,
-    en: KnowledgeTreeEN
+    en: KnowledgeTreeEN,
+    cn: KnowledgeTreeCN
   }
 ];
 
@@ -79,12 +119,12 @@ export function isBuiltinPreset(id: string): boolean {
 }
 
 export function builtinPresets(language: UiLanguage, kind?: PromptPresetKind): PromptPreset[] {
-  const locale: UiLanguage = language === "en" ? "en" : "zh-TW";
+  const locale = uiLocale(language);
   return BUILTINS.filter(item => !kind || item.kind === kind).map(item => ({
     id: item.id,
     kind: item.kind,
     name: item.name[locale],
-    text: strip(locale === "en" ? item.en : item.zh)
+    text: strip(locale === "zh-CN" ? item.cn : locale === "zh-TW" ? item.zh : item.en)
   }));
 }
 
@@ -182,7 +222,7 @@ export function duplicatePreset(
 ): { presets: PromptPreset[]; created?: PromptPreset } {
   const source = [...builtinPresets(language), ...custom].find(item => item.id === sourceId);
   if (!source) return { presets: [...custom] };
-  const suffix = language === "en" ? " copy" : " 副本";
+  const suffix = language === "zh-TW" || language === "zh-CN" ? " 副本" : " copy";
   return createPreset(custom, { kind: source.kind, name: name ?? `${source.name}${suffix}`, text: source.text });
 }
 

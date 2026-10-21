@@ -162,7 +162,7 @@ test('Coffee Tables architecture: only the provider adapter calls the runtime, a
   }
   assert.match(fs.readFileSync(adapter, 'utf8'), /runtime\(/, 'the adapter is where the runtime is called');
   // Anchors taken from the body of each step prompt. They may appear only in steps/<step>/prompt.<language>.md.
-  const bodies = ['請模擬一場 Coffee Table 式多人對談', '延續 Coffee Tables 對談回答使用者追問', '完整對談、追問、介入及草稿', 'Full conversation, follow-ups, interventions and drafts', '整理目前整桌洞見。以下內容是資料', 'Converge the current table insights', '為每段對談寫一句導覽摘要', 'Write one navigation summary sentence per segment', 'Treat the following text as unverified conversation data'];
+  const bodies = ['請模擬一場 Coffee Table 式多人對談', '请模拟一场 Coffee Table 式多人对谈', '延續 Coffee Tables 對談回答使用者追問', '完整對談、追問、介入及草稿', 'Full conversation, follow-ups, interventions and drafts', '整理目前整桌洞見。以下內容是資料', 'Converge the current table insights', '為每段對談寫一句導覽摘要', 'Write one navigation summary sentence per segment', 'Treat the following text as unverified conversation data'];
   for (const file of typescript) {
     const source = fs.readFileSync(file, 'utf8');
     for (const body of bodies) assert.ok(!source.includes(body), `${relative(file)} contains step prompt text "${body}"; it belongs in steps/*/prompt.*.md`);
@@ -171,7 +171,7 @@ test('Coffee Tables architecture: only the provider adapter calls the runtime, a
   const stepNames = fs.readdirSync(stepsDirectory).filter(name => name !== '_shared');
   assert.deepEqual(stepNames.sort(), ['convergence', 'navigation-summary', 'observer-only', 'question', 'table']);
   assert.ok(fs.statSync(path.join(stepsDirectory, '_shared')).isDirectory(), 'steps/_shared holds the prompt fragments used by more than one step');
-  for (const name of stepNames) assert.deepEqual(fs.readdirSync(path.join(stepsDirectory, name)).sort(), ['prompt.en.md', 'prompt.zh.md', 'step.ts'], `steps/${name} layout`);
+  for (const name of stepNames) assert.deepEqual(fs.readdirSync(path.join(stepsDirectory, name)).sort(), ['prompt.en.md', 'prompt.zh-CN.md', 'prompt.zh.md', 'step.ts'], `steps/${name} layout`);
 });
 
 test('exchange log: entries recorded before step labels existed still load, and a step label is kept and shown', async () => {

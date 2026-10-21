@@ -1,5 +1,5 @@
 import { App, Modal, setIcon, type Setting } from "obsidian";
-import { t, type TranslationKey } from "../../i18n";
+import { t, SUPPORTED_LANGUAGES, type TranslationKey } from "../../i18n";
 import { modalActions } from "./action-bar";
 import type { Settings } from "../../repository";
 import {
@@ -241,9 +241,7 @@ export class DetailTemplatesModal extends Modal {
       .addEventListener("click", () => this.showList());
     const save = readOnly ? null : footer.createEl("button", { text: t("ui.save"), cls: "mod-cta" });
 
-    const builtInNames = (["en", "zh-TW"] as const).flatMap(language =>
-      builtinTemplates(language).map(builtin => builtin.name)
-    );
+    const builtInNames = SUPPORTED_LANGUAGES.flatMap(({ id }) => builtinTemplates(id).map(builtin => builtin.name));
     const check = (): TemplateIssue[] => {
       if (readOnly) return [];
       const issues = validateTemplate(draft, others);

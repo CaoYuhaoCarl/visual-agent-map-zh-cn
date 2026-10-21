@@ -1,4 +1,5 @@
 import { SEGMENT_SUMMARY } from "./steps/_shared/fragments";
+import { coffeeLanguageKey } from "./language";
 import type { CoffeeSession } from "./types";
 export interface CoffeeSegment {
   id: string;
@@ -25,7 +26,11 @@ export function coffeeSegments(session: CoffeeSession): CoffeeSegment[] {
       round.markdown || round.draftMarkdown || "",
       ...(session.interventions ?? [])
         .filter(item => item.roundId === round.id)
-        .map(item => `User intervention after turn ${item.afterTurn ?? 0} (${item.status ?? "sent"}): ${item.text}`)
+        .map(item =>
+          session.language === "zh-CN"
+            ? `第 ${item.afterTurn ?? 0} 次发言后的用户介入（${item.status ?? "sent"}）：${item.text}`
+            : `User intervention after turn ${item.afterTurn ?? 0} (${item.status ?? "sent"}): ${item.text}`
+        )
     ]
       .filter(Boolean)
       .join("\n\n"),
@@ -68,7 +73,7 @@ export function extractSegmentSummary(markdown: string): { markdown: string; sum
   return { markdown: clean.trim(), ...(summary ? { summary } : {}) };
 }
 export function segmentSummaryInstruction(language: string): string {
-  return `\n${SEGMENT_SUMMARY[language === "zh-TW" ? "zh" : "en"]}`;
+  return `\n${SEGMENT_SUMMARY[coffeeLanguageKey(language)]}`;
 }
 export function parseSummaryBatch(response: string, allowed: string[]): Array<{ id: string; summary: string }> {
   const raw = response

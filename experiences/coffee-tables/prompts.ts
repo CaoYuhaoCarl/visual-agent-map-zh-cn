@@ -39,7 +39,9 @@ export function openingPromptPreview(topic: string, language: string, guests: Gu
   const guidance = guests.customization ? `${observerGuidance(language, guests.customization)}\n` : "";
   const readableNotes = zh
     ? `\n\n${guidance}觀察者整理：保留完整洞見與脈絡，引用具體發言；跨段綜合時說明沒有單一來源。更新時保留仍有價值的洞見，修正或合併重疊內容。\n${OBSERVER_TITLES.zh}\n\n最後以一句話概括本次對談的主題與思考轉折，使用聊天室語言。`
-    : `\n\n${guidance}Observer notes: retain complete insights and context, cite specific dialogue, and identify cross-turn synthesis without a single source. Preserve valuable insights when updating, revising or combining overlapping ideas.\n${OBSERVER_TITLES.en}\n\nEnd with a one-sentence summary of this segment’s topic and turn in thinking, in the conversation language.`;
+    : language === "zh-CN"
+      ? `\n\n${guidance}观察者整理：保留完整洞见与脉络，引用具体发言；跨段综合时说明没有单一来源。更新时保留仍有价值的洞见，修正或合并重叠内容。\n${OBSERVER_TITLES["zh-CN"]}\n\n最后以一句话概括本次对谈的主题与思考转折，使用简体中文。`
+      : `\n\n${guidance}Observer notes: retain complete insights and context, cite specific dialogue, and identify cross-turn synthesis without a single source. Preserve valuable insights when updating, revising or combining overlapping ideas.\n${OBSERVER_TITLES.en}\n\nEnd with a one-sentence summary of this segment’s topic and turn in thinking, in the conversation language.`;
   const protocol = observerFormat(language, false, guests.customization) + segmentSummaryInstruction(language);
   return prompt.slice(0, -protocol.length) + readableNotes;
 }

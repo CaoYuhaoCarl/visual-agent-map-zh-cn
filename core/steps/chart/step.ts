@@ -1,8 +1,10 @@
 import type { UiLanguage } from "../../../i18n";
 import { renderTemplate, type StepDefinition } from "../../step-runner";
+import { inLanguage } from "../_shared/fragments";
 import { CHART_SHAPES, type ChartCode, type ChartDraft } from "./insert";
 import templateEn from "./chart.en.md";
 import templateZh from "./chart.zh.md";
+import templateCn from "./chart.zh-CN.md";
 
 export interface ChartRequest {
   title: string;
@@ -79,13 +81,11 @@ export const chartStep: StepDefinition<ChartRequest, ChartDraft[]> = {
   version: 1,
   schema: CHART_SCHEMA,
   render: request =>
-    renderTemplate(request.language === "en" ? templateEn : templateZh, {
+    renderTemplate(inLanguage({ en: templateEn, zh: templateZh, cn: templateCn }, request.language), {
       existingCount: String(request.existingCount),
       existingTypes: request.existingTypes.length
         ? request.existingTypes.join(request.language === "en" ? ", " : "、")
-        : request.language === "en"
-          ? "none"
-          : "無",
+        : inLanguage({ en: "none", zh: "無", cn: "无" }, request.language),
       remaining: String(request.remaining),
       title: request.title,
       detail: request.detail

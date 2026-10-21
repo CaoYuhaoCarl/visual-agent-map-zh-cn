@@ -1,10 +1,10 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { test, integrationTest, root, load, core, map, TFolder, obsidian, DEFAULT_SETTINGS, fixture } = require('../support.cjs');
-test('built-in Taiwan sample is bilingual, read-only source data with exploration and synthesis roots', () => {
+const { test, integrationTest, root, load, plain, core, map, TFolder, obsidian, DEFAULT_SETTINGS, fixture } = require('../support.cjs');
+test('built-in Taiwan sample supports every UI language with read-only exploration and synthesis roots', () => {
   const sample = load('builtin-sample.ts');
-  for (const language of ['zh-TW', 'en']) {
+  for (const language of ['zh-TW', 'zh-CN', 'en']) {
     assert.deepEqual(Array.from(sample.validateBuiltInSample(language)), []);
     const data = sample.builtInSample(language);
     assert.equal(data.map.nodes.filter(node => node.parentId === null).length, 2);
@@ -12,19 +12,60 @@ test('built-in Taiwan sample is bilingual, read-only source data with exploratio
     assert.equal(data.map.nodes.length, 12); assert.equal(data.assets.size, 5);
   }
   assert.notEqual(sample.builtInSample('zh-TW').map.title, sample.builtInSample('en').map.title);
+  assert.equal(sample.builtInSample('zh-CN').map.title, '示例：台湾旅行规划');
 });
-test('official samples teach per-run requirements without active Rules in both languages', () => {
+test('official samples teach per-run requirements without active Rules in every language', () => {
   const sample = load('builtin-sample.ts');
   assert.equal(sample.SAMPLE_CONTENT_VERSION, 3); assert.equal(sample.SAMPLE_TOUR_VERSION, 3);
-  for (const locale of ['en', 'zh-TW']) {
+  for (const locale of ['en', 'zh-TW', 'zh-CN']) {
     const data = sample.builtInSample(locale, false);
     for (const note of data.notes.values()) {
       assert.equal(note.rules, '');
-      assert.match(note.detail, locale === 'en' ? /Requirements for this run[\s\S]*Additional requirements/ : /本次任務要求[\s\S]*本次附加要求/);
+      assert.match(note.detail, locale === 'en' ? /Requirements for this run[\s\S]*Additional requirements/ : locale === 'zh-TW' ? /本次任務要求[\s\S]*本次附加要求/ : /本次任务要求[\s\S]*本次附加要求/);
     }
     const root = data.notes.get('explore');
-    assert.match(root.detail, locale === 'en' ? /Nine days; favor public transport; no more than two priorities per day/ : /九天八夜；以大眾運輸為主；每天最多安排兩個重點/);
+    assert.match(root.detail, locale === 'en' ? /Nine days; favor public transport; no more than two priorities per day/ : locale === 'zh-TW' ? /九天八夜；以大眾運輸為主；每天最多安排兩個重點/ : /九天八夜；以公共交通为主；每天最多安排两个重点/);
   }
+});
+test('all sample locales preserve node identities, topology, source paths and bundled assets', () => {
+  const { builtInSample } = load('builtin-sample.ts');
+  const { SUPPORTED_LANGUAGES } = load('i18n.ts');
+  const compiled = JSON.parse(fs.readFileSync(path.join(root, 'samples/taiwan-travel/compiled.json'), 'utf8'));
+  assert.deepEqual(Object.keys(compiled.locales).sort(), Array.from(SUPPORTED_LANGUAGES, language => language.id).sort());
+  const english = builtInSample('en', false);
+  for (const { id: locale } of SUPPORTED_LANGUAGES) {
+    const sample = builtInSample(locale, false);
+    assert.equal(sample.map.id, english.map.id);
+    assert.deepEqual(plain(sample.map.nodes), plain(english.map.nodes), locale);
+    assert.deepEqual(plain(sample.map.viewport), plain(english.map.viewport), locale);
+    assert.deepEqual(Array.from(sample.assets.keys()), Array.from(english.assets.keys()), locale);
+    for (const node of sample.map.nodes) {
+      const note = sample.notes.get(node.id), original = english.notes.get(node.id);
+      assert.deepEqual(Array.from(note.sourcePaths), Array.from(original.sourcePaths), `${locale}: ${node.id} sources`);
+      assert.equal(note.status, original.status, `${locale}: ${node.id} status`);
+      for (const field of ['title', 'summary', 'preview', 'detail']) assert.ok(note[field].trim(), `${locale}: ${node.id} ${field}`);
+      assert.deepEqual(Array.from(note.detail.matchAll(/\.\.\/Attachments\/[^)\s]+/g), match => match[0]), Array.from(original.detail.matchAll(/\.\.\/Attachments\/[^)\s]+/g), match => match[0]), `${locale}: ${node.id} detail assets`);
+    }
+  }
+});
+test('Simplified Chinese sample is static Markdown and loading it never mutates source data', () => {
+  const { builtInSample } = load('builtin-sample.ts');
+  const sample = builtInSample('zh-CN', false);
+  for (const node of sample.map.nodes) {
+    const markdown = fs.readFileSync(path.join(root, 'samples/taiwan-travel/zh-CN', node.path), 'utf8');
+    assert.match(markdown, /^## 预览$/m);
+    assert.doesNotMatch(markdown, /[體灣範議題預覽務筆記執儲讀]/u);
+    assert.equal(sample.notes.get(node.id).title, markdown.match(/^# (.+)$/m)[1]);
+  }
+  sample.map.nodes[0].path = 'changed.md';
+  sample.map.viewport.x = 999;
+  sample.notes.get('journey').sourcePaths.push('changed.md');
+  sample.notes.get('explore').detail = 'changed';
+  const reloaded = builtInSample('zh-CN', false);
+  assert.equal(reloaded.map.nodes[0].path, 'Notes/explore.md');
+  assert.equal(reloaded.map.viewport.x, 40);
+  assert.equal(reloaded.notes.get('journey').sourcePaths.length, 6);
+  assert.match(reloaded.notes.get('explore').detail, /本次任务要求/);
 });
 integrationTest('workspace repair creates only the configured base folders and is idempotent', async () => {
   const { repo, app } = fixture();

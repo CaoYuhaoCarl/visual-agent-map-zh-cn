@@ -166,7 +166,7 @@ test('Coffee shared fragments: every language pair exists and each fragment is u
   const directory = path.join(root, 'experiences', 'coffee-tables', 'steps', '_shared');
   const names = fs.readdirSync(directory);
   const pairs = names.filter(name => /\.(zh|en)\.md$/.test(name)).map(name => name.replace(/\.(zh|en)\.md$/, ''));
-  for (const base of new Set(pairs)) for (const language of ['zh', 'en']) assert.ok(names.includes(`${base}.${language}.md`), `${base}.${language}.md is missing`);
+  for (const base of new Set(pairs)) for (const language of ['zh', 'zh-CN', 'en']) assert.ok(names.includes(`${base}.${language}.md`), `${base}.${language}.md is missing`);
   const fragments = fs.readFileSync(path.join(directory, 'fragments.ts'), 'utf8');
   for (const name of names.filter(item => item.endsWith('.md'))) assert.ok(fragments.includes(`./${name}`), `${name} is not imported by fragments.ts`);
 });

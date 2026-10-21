@@ -41,14 +41,14 @@ import {
   type NamedGuest
 } from "./types";
 import {
-  BUILTIN_COFFEE_STYLE_NAME,
-  BUILTIN_COFFEE_STYLE_PROMPT,
-  BUILTIN_COFFEE_STYLE_PROMPT_EN,
+  builtinCoffeeStyleName,
+  builtinCoffeeStylePrompt,
   openingPromptPreview,
   cleanChatStyle,
   tablePrompt
 } from "./prompts";
-import { COFFEE_SAMPLE_EN, COFFEE_SAMPLE_ZH } from "./samples";
+import { COFFEE_SAMPLE_EN, COFFEE_SAMPLE_ZH, COFFEE_SAMPLE_ZH_CN } from "./samples";
+import { coffeeText } from "./language";
 import {
   effectiveTableStatus,
   formatTableTime,
@@ -62,7 +62,7 @@ import { COFFEE_TOPICS, coffeeTopicText, pickCoffeeTopic } from "./topics";
 import { findRelatedSpeech, type CoffeeSpeechTarget } from "./outline";
 import { baselineFromVersions } from "./insights";
 import { validateGuestInvitations } from "./guest-invitations";
-import { syncModelSelect } from "../../core/model-discovery";
+import { syncModelSelect, type ModelDiscoveryStatus } from "../../core/model-discovery";
 import { providerForModel } from "../../ai/providers/provider";
 
 export const COFFEE_TABLES_NAME = "Coffee Tables";
@@ -302,7 +302,7 @@ function categoryLabel(category: string, language: string): string {
 }
 export function parseGuests(markdown: string): Array<{ name: string; role: string; bio: string }> {
   return [...markdown.matchAll(/^- \*\*(.+?)\s*[｜|]\s*(.+?)\*\*[：:]\s*(.+)$/gm)].map(match =>
-    /主持人|觀察者|專家|藝人|當事人/.test(match[1])
+    /主持人|觀察者|專家|藝人|當事人|观察者|专家|艺人|当事人/.test(match[1])
       ? { name: match[2].trim(), role: match[1].trim(), bio: match[3].trim() }
       : { name: match[1].trim(), role: match[2].trim(), bio: match[3].trim() }
   );
@@ -334,15 +334,15 @@ export function rosterFor(
   const roleKey = (role: string): string =>
     /主持|host/i.test(role)
       ? "host"
-      : /觀察|observer/i.test(role)
+      : /觀察|观察|observer/i.test(role)
         ? "observer"
-        : /跨領域|cross.domain/i.test(role)
+        : /跨領域|跨领域|cross.domain/i.test(role)
           ? "cross-domain"
           : /通才|generalist/i.test(role)
             ? "generalist"
-            : /受影響|當事|affected|lived/i.test(role)
+            : /受影響|當事|受影响|当事|affected|lived/i.test(role)
               ? "affected"
-              : /專家|expert/i.test(role)
+              : /專家|专家|expert/i.test(role)
                 ? "experts"
                 : "";
   const used = new Map<string, number>();
@@ -371,7 +371,10 @@ export function liveRosterFor(
   return rosterFor(session, [...history, draftMarkdown].filter(Boolean).join("\n"));
 }
 export function parseSpeeches(markdown: string): Array<{ name: string; role: string; text: string }> {
-  const body = extractSegmentSummary(markdown).markdown.split(/^# (?:觀察者整理|Observer(?:[’']s)? notes)\s*$/m, 1)[0];
+  const body = extractSegmentSummary(markdown).markdown.split(
+    /^# (?:觀察者整理|观察者整理|Observer(?:[’']s)? notes)\s*$/m,
+    1
+  )[0];
   const people = parseGuests(body),
     roles = new Map(people.map(person => [person.name, person.role]));
   return [...body.matchAll(/^###\s+([^\n]+)\n([\s\S]*?)(?=^###\s|$(?![\s\S]))/gm)]
@@ -380,7 +383,7 @@ export function parseSpeeches(markdown: string): Array<{ name: string; role: str
       const person = people.find(entry => entry.name === name);
       return { name, role: explicitRole || person?.role || roles.get(name) || "", text: match[2].trim() };
     })
-    .filter(item => item.text && item.role && !/^(觀察者整理|Observer(?:[’']s)? notes)$/.test(item.name));
+    .filter(item => item.text && item.role && !/^(觀察者整理|观察者整理|Observer(?:[’']s)? notes)$/.test(item.name));
 }
 function isCoffeeReference(value: unknown): value is CoffeeReference {
   return (
@@ -512,6 +515,9 @@ export class CoffeeTablesView extends ItemView {
   private t(key: TranslationKey, ...values: unknown[]): string {
     return translate(uiLocale(this.plugin.settings.language), key, ...values);
   }
+  private discoveryStatusLabel(status: ModelDiscoveryStatus): string {
+    return this.plugin.settings.language === "zh-CN" ? this.t(`ui.model_status_${status}`) : status;
+  }
   async refreshForLanguageChange(): Promise<void> {
     if (this.closed) return;
     if (this.engine) {
@@ -630,14 +636,12 @@ export class CoffeeTablesView extends ItemView {
         custom: edit.guests?.customPrompt ?? "",
         customization: JSON.stringify(edit.guests?.customization ?? defaultCustomization(edit.language)),
         styleId: edit.guests?.styleId ?? "builtin",
-        styleName: edit.guests?.styleName ?? BUILTIN_COFFEE_STYLE_NAME,
+        styleName: edit.guests?.styleName ?? builtinCoffeeStyleName(this.plugin.settings.language),
         stylePrompt:
           edit.guests?.stylePrompt ??
           (edit.guests?.customPrompt
-            ? `${this.plugin.settings.language === "zh-TW" ? BUILTIN_COFFEE_STYLE_PROMPT : BUILTIN_COFFEE_STYLE_PROMPT_EN}\n\n${edit.guests.customPrompt}`
-            : this.plugin.settings.language === "zh-TW"
-              ? BUILTIN_COFFEE_STYLE_PROMPT
-              : BUILTIN_COFFEE_STYLE_PROMPT_EN),
+            ? `${builtinCoffeeStylePrompt(this.plugin.settings.language)}\n\n${edit.guests.customPrompt}`
+            : builtinCoffeeStylePrompt(this.plugin.settings.language)),
         refs: JSON.stringify(edit.guests?.referenceFiles ?? []),
         invites: JSON.stringify(priorGuests),
         ...Object.fromEntries(
@@ -712,8 +716,7 @@ export class CoffeeTablesView extends ItemView {
         pickCoffeeTopic(this.plugin.settings.language, this.homeForm.previousTopic ?? ""));
     if (!edit && !topicWasEdited && !ideaId)
       this.homeForm.topicIdeaId =
-        COFFEE_TOPICS.find(item => item[this.plugin.settings.language === "en" ? "en" : "zh"] === topic.value)?.id ??
-        "";
+        COFFEE_TOPICS.find(item => coffeeTopicText(item.id, this.plugin.settings.language) === topic.value)?.id ?? "";
     const ideas = setup.createEl("details", { cls: "ct-topic-ideas" });
     ideas.open = this.homeForm.topicIdeasOpen === "true";
     ideas.addEventListener("toggle", () => {
@@ -722,7 +725,7 @@ export class CoffeeTablesView extends ItemView {
     ideas.createEl("summary", { text: this.t("coffee.browse_20_topic_ideas") });
     const ideaList = ideas.createDiv("ct-topic-list");
     for (const item of COFFEE_TOPICS) {
-      const value = item[this.plugin.settings.language === "en" ? "en" : "zh"];
+      const value = coffeeTopicText(item.id, this.plugin.settings.language)!;
       this.button(ideaList, value, () => {
         topic.value = value;
         this.homeForm.topicIdeaId = item.id;
@@ -734,8 +737,7 @@ export class CoffeeTablesView extends ItemView {
       const previous = topic.value;
       topic.value = pickCoffeeTopic(this.plugin.settings.language, previous);
       this.homeForm.topicIdeaId =
-        COFFEE_TOPICS.find(item => item[this.plugin.settings.language === "en" ? "en" : "zh"] === topic.value)?.id ??
-        "";
+        COFFEE_TOPICS.find(item => coffeeTopicText(item.id, this.plugin.settings.language) === topic.value)?.id ?? "";
       this.homeForm.topicEdited = "false";
       this.homeForm.previousTopic = previous;
       snapshotForm();
@@ -792,7 +794,9 @@ export class CoffeeTablesView extends ItemView {
     this.modelUnsubscribe = this.plugin.subscribeModelDiscovery(state => {
       if (this.closed || generation !== this.generation) return;
       setModels(this.plugin.availableModels());
-      modelStatus.setText(`${state.provider}: ${state.status}${state.error ? ` · ${state.error}` : ""}`);
+      modelStatus.setText(
+        `${state.provider}: ${this.discoveryStatusLabel(state.status)}${state.error ? ` · ${state.error}` : ""}`
+      );
       retryModels.disabled = state.status === "loading";
       start.disabled = !this.plugin.availableModels().includes(model.value);
     });
@@ -927,9 +931,8 @@ export class CoffeeTablesView extends ItemView {
       this.homeForm.stylePrompt ??
       old?.stylePrompt ??
       (old?.customPrompt
-        ? `${this.plugin.settings.language === "zh-TW" ? BUILTIN_COFFEE_STYLE_PROMPT : BUILTIN_COFFEE_STYLE_PROMPT_EN}\n\n${old.customPrompt}`
-        : (selectedStyle?.prompt ??
-          (this.plugin.settings.language === "zh-TW" ? BUILTIN_COFFEE_STYLE_PROMPT : BUILTIN_COFFEE_STYLE_PROMPT_EN)));
+        ? `${builtinCoffeeStylePrompt(this.plugin.settings.language)}\n\n${old.customPrompt}`
+        : (selectedStyle?.prompt ?? builtinCoffeeStylePrompt(this.plugin.settings.language)));
     const styleNameLabel = styleFields.createEl("label", { text: this.t("coffee.style_name") });
     const styleNameInput = styleNameLabel.createEl("input", {
       attr: {
@@ -940,7 +943,10 @@ export class CoffeeTablesView extends ItemView {
       }
     });
     styleNameInput.value =
-      this.homeForm.styleName ?? old?.styleName ?? selectedStyle?.name ?? BUILTIN_COFFEE_STYLE_NAME;
+      this.homeForm.styleName ??
+      old?.styleName ??
+      selectedStyle?.name ??
+      builtinCoffeeStyleName(this.plugin.settings.language);
     const stylePromptLabel = styleSection.createEl("label", {
       cls: "ct-style-prompt-label",
       text: this.t("coffee.how_to_chat")
@@ -1005,7 +1011,7 @@ export class CoffeeTablesView extends ItemView {
       styleSelect.empty();
       styleSelect.createEl("option", {
         value: builtinId,
-        text: `${BUILTIN_COFFEE_STYLE_NAME} · ${this.t("coffee.built_in")}`
+        text: `${builtinCoffeeStyleName(this.plugin.settings.language)} · ${this.t("coffee.built_in")}`
       });
       for (const item of this.plugin.settings.coffeeStyles ?? [])
         styleSelect.createEl("option", { value: item.id, text: item.name });
@@ -1088,11 +1094,8 @@ export class CoffeeTablesView extends ItemView {
     });
     styleSelect.addEventListener("change", () => {
       const item = this.plugin.settings.coffeeStyles?.find(style => style.id === styleSelect.value);
-      stylePrompt.value = cleanChatStyle(
-        item?.prompt ??
-          (this.plugin.settings.language === "zh-TW" ? BUILTIN_COFFEE_STYLE_PROMPT : BUILTIN_COFFEE_STYLE_PROMPT_EN)
-      );
-      styleNameInput.value = item?.name ?? BUILTIN_COFFEE_STYLE_NAME;
+      stylePrompt.value = cleanChatStyle(item?.prompt ?? builtinCoffeeStylePrompt(this.plugin.settings.language));
+      styleNameInput.value = item?.name ?? builtinCoffeeStyleName(this.plugin.settings.language);
       customization.set(item?.customization);
       snapshotForm();
     });
@@ -1158,10 +1161,8 @@ export class CoffeeTablesView extends ItemView {
           this.plugin.settings.defaultCoffeeStyleId = undefined;
       });
       refreshStyleChoices(builtinId);
-      stylePrompt.value = cleanChatStyle(
-        this.plugin.settings.language === "zh-TW" ? BUILTIN_COFFEE_STYLE_PROMPT : BUILTIN_COFFEE_STYLE_PROMPT_EN
-      );
-      styleNameInput.value = BUILTIN_COFFEE_STYLE_NAME;
+      stylePrompt.value = cleanChatStyle(builtinCoffeeStylePrompt(this.plugin.settings.language));
+      styleNameInput.value = builtinCoffeeStyleName(this.plugin.settings.language);
       customization.set(defaultCustomization(this.plugin.settings.language));
       snapshotForm();
     });
@@ -1173,10 +1174,8 @@ export class CoffeeTablesView extends ItemView {
     });
     this.button(styleActions, this.t("coffee.restore_built_in_text"), () => {
       styleSelect.value = builtinId;
-      styleNameInput.value = BUILTIN_COFFEE_STYLE_NAME;
-      stylePrompt.value = cleanChatStyle(
-        this.plugin.settings.language === "zh-TW" ? BUILTIN_COFFEE_STYLE_PROMPT : BUILTIN_COFFEE_STYLE_PROMPT_EN
-      );
+      styleNameInput.value = builtinCoffeeStyleName(this.plugin.settings.language);
+      stylePrompt.value = cleanChatStyle(builtinCoffeeStylePrompt(this.plugin.settings.language));
       snapshotForm();
     });
 
@@ -1307,8 +1306,10 @@ export class CoffeeTablesView extends ItemView {
         if (this.closed || generation !== this.generation) return;
         setModels(available);
         updateAdvancedSummary();
+        const codex = this.plugin.modelDiscoveryState("codex"),
+          claude = this.plugin.modelDiscoveryState("claude");
         modelStatus.setText(
-          `${this.t("ui.codex_provider_label")}: ${this.plugin.modelDiscoveryState("codex").status} · ${this.t("coffee.claude_cli_candidates")}: ${this.plugin.modelDiscoveryState("claude").status}`
+          `${this.t("ui.codex_provider_label")}: ${this.discoveryStatusLabel(codex.status)} · ${this.t("coffee.claude_cli_candidates")}: ${this.discoveryStatusLabel(claude.status)}`
         );
         model.disabled = false;
         reasoning.disabled = false;
@@ -1320,12 +1321,14 @@ export class CoffeeTablesView extends ItemView {
       });
     const samples = home.createDiv("ct-home-section");
     samples.createEl("h3", { text: this.t("coffee.see_a_sample_conversation") });
-    for (const sample of [COFFEE_SAMPLE_ZH, COFFEE_SAMPLE_EN])
+    for (const sample of [COFFEE_SAMPLE_ZH, COFFEE_SAMPLE_ZH_CN, COFFEE_SAMPLE_EN])
       this.button(
         samples,
-        sample.language === "en"
-          ? this.t("coffee.english_sample_should_our_company_adopt_ai")
-          : this.t("coffee.traditional_chinese_sample_should_our_company_adopt_ai"),
+        sample.language === "zh-CN"
+          ? this.t("coffee.simplified_chinese_sample_should_our_company_adopt_ai")
+          : sample.language === "en"
+            ? this.t("coffee.english_sample_should_our_company_adopt_ai")
+            : this.t("coffee.traditional_chinese_sample_should_our_company_adopt_ai"),
         async () => this.openSample(sample.language)
       ).addClass("ct-session-link");
     const preview = home.createDiv("ct-preview is-hidden");
@@ -1788,16 +1791,21 @@ export class CoffeeTablesView extends ItemView {
       this.plugin.settings.defaultCoffeeStyleId = id;
     });
   }
-  private async openSample(language: "zh-TW" | "en"): Promise<void> {
-    const sample = language === "en" ? COFFEE_SAMPLE_EN : COFFEE_SAMPLE_ZH,
+  private async openSample(language: UiLanguage): Promise<void> {
+    const sample = language === "zh-CN" ? COFFEE_SAMPLE_ZH_CN : language === "en" ? COFFEE_SAMPLE_EN : COFFEE_SAMPLE_ZH,
       now = new Date().toISOString();
     const roles = new Map(parseGuests(sample.markdown).map(person => [person.name, person.role]));
     const markdown = sample.markdown.replace(
       /^###\s+([^\n|｜]+)$/gm,
-      (heading, name: string) => `### ${name}｜${roles.get(name.trim()) ?? "Guest"}`
+      (heading, name: string) => `### ${name}｜${roles.get(name.trim()) ?? (language === "zh-CN" ? "嘉宾" : "Guest")}`
     );
-    const session = createSession(sample.topic, "Built-in sample", "—", language);
-    session.id = `sample-${language === "en" ? "en" : "zh"}`;
+    const session = createSession(
+      sample.topic,
+      language === "zh-CN" ? "内置示例" : "Built-in sample",
+      language === "zh-CN" ? "-" : "\u2014",
+      language
+    );
+    session.id = `sample-${language === "zh-CN" ? "zh-CN" : language === "en" ? "en" : "zh"}`;
     session.createdAt = now;
     session.updatedAt = now;
     session.status = "completed";
@@ -1808,7 +1816,7 @@ export class CoffeeTablesView extends ItemView {
     session.observerNotes = [observerNotes(markdown)];
     session.questions = [
       {
-        id: `sample-question-${language === "en" ? "en" : "zh"}`,
+        id: `sample-question-${language === "zh-CN" ? "zh-CN" : language === "en" ? "en" : "zh"}`,
         question: sample.question,
         answer: sample.answer,
         status: "complete",
@@ -1993,7 +2001,7 @@ export class CoffeeTablesView extends ItemView {
     this.button(actions, this.t("coffee.open_new_table"), () => this.returnHome());
     header.createEl("p", {
       cls: "ct-muted",
-      text: `${this.plugin.modelLabel(engine.session.model)} · ${this.t("coffee.ai_simulated_perspectives")} · ${engine.session.language === "en" ? this.t("coffee.conversation_english") : this.t("coffee.conversation_traditional_chinese")}`
+      text: `${this.plugin.modelLabel(engine.session.model)} · ${this.t("coffee.ai_simulated_perspectives")} · ${engine.session.language === "zh-CN" ? coffeeText(this.plugin.settings.language, "Conversation: Simplified Chinese", "對談語言：簡體中文", "对谈语言：简体中文") : engine.session.language === "en" ? this.t("coffee.conversation_english") : this.t("coffee.conversation_traditional_chinese")}`
     });
     const roster = fixed.createDiv("ct-roster"),
       status = fixed.createDiv({ cls: "ct-status", attr: { role: "status", "aria-live": "polite" } });
@@ -2830,7 +2838,7 @@ export class CoffeeTablesView extends ItemView {
   }
 }
 function observerNotes(markdown: string): string {
-  return markdown.match(/^# (?:觀察者整理|Observer(?:[’']s)? notes)[\s\S]*$/m)?.[0] ?? "";
+  return markdown.match(/^# (?:觀察者整理|观察者整理|Observer(?:[’']s)? notes)[\s\S]*$/m)?.[0] ?? "";
 }
 function initials(name: string): string {
   return [...name.replace(/[^\p{L}\p{N}]/gu, "")].slice(0, 2).join("") || "•";

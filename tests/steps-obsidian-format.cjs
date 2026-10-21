@@ -328,7 +328,7 @@ test('mermaid types: unknown or near-miss headers are neutralized', () => {
 
 test('mermaid types: the prompt bullets name only types the sanitizer keeps', () => {
   const plain = new Set(['timeline', 'gantt', 'pie', 'mindmap']);
-  for (const [lang, marker] of [['zh', '- 圖表：'], ['en', '- Diagrams:']]) {
+  for (const [lang, marker] of [['zh', '- 圖表：'], ['zh-CN', '- 图表：'], ['en', '- Diagrams:']]) {
     const text = nodeFs.readFileSync(nodePath.join(repoRoot, `core/steps/_shared/obsidian-format.${lang}.md`), 'utf8');
     const bullet = text.split('\n').find(line => line.startsWith(marker));
     assert.ok(bullet, `${lang}: diagram bullet`);

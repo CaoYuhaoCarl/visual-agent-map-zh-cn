@@ -10,8 +10,10 @@ import type { CoffeeInsight } from "../../insights";
 import { MAX_COFFEE_CONTEXT_CHARS } from "../../prompt-parts";
 import type { CoffeeSession } from "../../types";
 import { DETAIL_LEVEL, MERGE_LEVEL } from "../_shared/fragments";
+import { coffeeLanguageKey, coffeeText } from "../../language";
 import en from "./prompt.en.md";
 import zh from "./prompt.zh.md";
+import cn from "./prompt.zh-CN.md";
 
 export interface ConvergenceInput {
   session: CoffeeSession;
@@ -20,7 +22,6 @@ export interface ConvergenceInput {
 }
 
 function variables({ session, baseline, customization }: ConvergenceInput): Record<string, string> {
-  const zhTw = session.language === "zh-TW";
   const pinned = new Set(session.pinnedInsightIds ?? []);
   const items = baseline.map(item => ({
     id: item.id,
@@ -33,7 +34,7 @@ function variables({ session, baseline, customization }: ConvergenceInput): Reco
     limitations: item.limitations,
     pinned: pinned.has(item.id)
   }));
-  const key = zhTw ? "zh" : "en";
+  const key = coffeeLanguageKey(session.language);
   const level = MERGE_LEVEL[key][customization.mergeLevel];
   const detail = DETAIL_LEVEL[key][customization.detailLevel];
   return {
@@ -66,13 +67,16 @@ export function parseConvergenceResponse(
 export const convergenceStep: StepDefinition<ConvergenceInput, CoffeeConvergenceProposal[]> = {
   id: "coffee.convergence",
   version: 1,
-  render: input => renderTemplate(input.session.language === "zh-TW" ? zh : en, variables(input)),
+  render: input => renderTemplate(coffeeText(input.session.language, en, zh, cn), variables(input)),
   policy: (prompt, input) => {
     if (prompt.length > MAX_COFFEE_CONTEXT_CHARS)
       throw new Error(
-        input.session.language === "zh-TW"
-          ? "洞見內容太長，無法安全地產生預覽；原有內容已保留。"
-          : "The insights are too long to prepare safely; existing content is preserved."
+        coffeeText(
+          input.session.language,
+          "The insights are too long to prepare safely; existing content is preserved.",
+          "洞見內容太長，無法安全地產生預覽；原有內容已保留。",
+          "洞见内容太长，无法安全地产生预览；原有内容已保留。"
+        )
       );
   },
   parse: (raw, input) => parseConvergenceResponse(raw, input)

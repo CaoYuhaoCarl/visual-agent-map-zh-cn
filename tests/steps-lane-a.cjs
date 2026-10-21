@@ -109,9 +109,42 @@ test('the reference extract and reduce rounds are their own steps, followed by t
   assert.equal(progress.at(-1), '');
 });
 
+test('reference extraction and reduction keep an explicitly selected Simplified Chinese output under an English UI', async () => {
+  const { referenceTask } = load('core/steps/reference/step.ts');
+  const extract = referenceTask('extract', 'zh-CN'), reduce = referenceTask('reduce', 'zh-CN');
+  const big = JSON.stringify({ summary: 'S', detail: 'e'.repeat(10_000), suggestions: [], visualReferences: [] });
+  const fake = runtime(prompt => prompt.includes(extract) ? big : GOOD);
+  const documents = [1, 2, 3, 4].map(n => ({ path: `n${n}.md`, content: 'x'.repeat(14_000) }));
+  await makeService(fake, { language: 'en' }).askModel(context({ outputLanguage: 'zh-CN', referenceGroups: [{ id: 'g', name: 'g', location: 'l', documents }] }), 'test-model', 'low');
+  assert.equal(fake.calls.length, 9);
+  for (const call of fake.calls) assert.match(call.prompt, /^新产生的内容默认使用简体中文/);
+  assert.ok(fake.calls[0].prompt.includes(extract));
+  assert.ok(fake.calls[4].prompt.includes(reduce));
+});
+
+test('a task keeps its default output language through references and count repair even if the UI switches meanwhile', async () => {
+  const { AiTaskService } = load('core/ai-task-service.ts');
+  let language = 'zh-CN';
+  const fake = runtime((_prompt, call) => {
+    language = 'en';
+    return call === 1 ? GOOD : JSON.stringify({ summary: 'S', detail: `### 结论\n\n- one${call === 3 ? '\n- two' : ''}`, suggestions: [], visualReferences: [] });
+  });
+  const service = new AiTaskService({
+    pluginDirectory: () => '/plugin', language: () => language, defaultReasoning: () => 'low',
+    exchangeLoggingEnabled: () => false, exchanges: () => null, codexRuntime: () => fake, claudeRuntime: () => fake
+  });
+  const input = context({ detailTemplate: { id: 'counted', name: 'Counted', sections: [{ id: 'core', name: '结论', description: '', role: 'none', aliases: [], count: { mode: 'exact', n: 2 } }] }, referenceGroups: [{ id: 'g', name: 'g', location: 'l', documents: [{ path: 'source.md', content: 'Source text' }] }] });
+  const result = await service.askModel(input, 'test-model', 'low');
+  assert.equal(fake.calls.length, 3);
+  for (const call of fake.calls) assert.match(call.prompt, /^新产生的内容默认使用简体中文/);
+  assert.match(result.detail, /- one\n- two/);
+  assert.deepEqual(Array.from(result.formatIssues), []);
+  assert.equal(input.outputLanguage, undefined, 'do not mutate the caller\'s task context');
+});
+
 test('Visual Map task text comes from fragments and renders the same as the strings it replaced', () => {
   const { expansionTask, researchTopicTask, synthesisGoalTask, mergeGoalTask, noSummaryYet } = load('experiences/visual-map/steps/fragments.ts');
-  for (const language of ['en', 'zh-TW']) {
+  for (const language of ['en', 'zh-TW', 'zh-CN']) {
     assert.match(researchTopicTask(language, 'My {0} topic'), /My \{0\} topic/, 'a title is never re-scanned for placeholders');
     assert.ok(expansionTask(language, '- a: b', 'Go deeper').startsWith('Go deeper\n'));
     assert.ok(expansionTask(language, '- a: b', '').includes('\n- a: b\n'));
@@ -120,15 +153,15 @@ test('Visual Map task text comes from fragments and renders the same as the stri
   }
 });
 
-test('the lane keys are gone from i18n.ts and every fragment has a zh and an en file that a module imports', () => {
+test('the lane keys are gone from i18n.ts and every fragment has all three language files imported by a module', () => {
   const source = fs.readFileSync(path.join(root, 'i18n.ts'), 'utf8');
   const removed = 'research_topic direct_expansion guided_expansion expansion_direction existing_subtopics avoid_duplicates synthesis_directions synthesis_goal preliminary_map label_current_summary label_visual_references label_full_knowledge label_old_findings no_summary_yet output_language reference_extract reference_reduce json detail_structure adaptive_detail_structure general_task decompose synthesize default_task label_detail label_findings visual_none visual_preserve visual_on visual_auto visual_embed role source_safety reference_citations local_first label_topic label_summary label_rules label_sources label_ancestors label_task none'.split(' ');
   assert.equal(removed.length, 42);
   for (const key of removed) assert.doesNotMatch(source, new RegExp(`"prompt\\.${key}":`), `prompt.${key} must live in a fragment`);
   for (const directory of ['core/steps/_shared', 'core/steps/task', 'core/steps/reference', 'experiences/visual-map/steps']) {
     const names = fs.readdirSync(path.join(root, directory));
-    for (const base of new Set(names.filter(name => /\.(zh|en)\.md$/.test(name)).map(name => name.replace(/\.(zh|en)\.md$/, ''))))
-      for (const language of ['zh', 'en']) assert.ok(names.includes(`${base}.${language}.md`), `${directory}/${base}.${language}.md is missing`);
+    for (const base of new Set(names.filter(name => /\.(zh|zh-CN|en)\.md$/.test(name)).map(name => name.replace(/\.(zh|zh-CN|en)\.md$/, ''))))
+      for (const language of ['zh', 'zh-CN', 'en']) assert.ok(names.includes(`${base}.${language}.md`), `${directory}/${base}.${language}.md is missing`);
     const modules = names.filter(name => name.endsWith('.ts')).map(name => fs.readFileSync(path.join(root, directory, name), 'utf8')).join('\n');
     for (const name of names.filter(item => item.endsWith('.md'))) assert.ok(modules.includes(`./${name}`), `${directory}/${name} is not imported by a module in the directory`);
   }

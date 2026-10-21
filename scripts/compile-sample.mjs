@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const sampleRoot = join(root, "samples/taiwan-travel");
+const previewHeadings = { "zh-TW": "預覽", "zh-CN": "预览", en: "Preview" };
 
 function section(markdown, name) {
   const marker = `## ${name}\n`, start = markdown.indexOf(marker);
@@ -40,7 +41,7 @@ function compileLocale(locale) {
       summary: section(markdown, "Current Summary"),
       prompt: section(markdown, "Prompt"),
       rules: section(markdown, "Rules"),
-      preview: section(markdown, locale === "en" ? "Preview" : "預覽"),
+      preview: section(markdown, previewHeadings[locale]),
       detail: section(markdown, "Detail"),
       status: field(markdown, "status") || "completed",
       sourcePaths: list(field(markdown, "source-notes"))
@@ -54,9 +55,11 @@ for (const name of readdirSync(join(sampleRoot, "Attachments")).filter(name => n
   assets[name] = `data:image/webp;base64,${readFileSync(join(sampleRoot, "Attachments", name)).toString("base64")}`;
 }
 
-const locales = { "zh-TW": compileLocale("zh-TW"), en: compileLocale("en") };
+const locales = Object.fromEntries(Object.keys(previewHeadings).map(locale => [locale, compileLocale(locale)]));
 const topology = sample => sample.nodes.map(({ id, path, parentId, x, y, collapsed }) => ({ id, path, parentId, x, y, collapsed }));
-if (JSON.stringify(topology(locales["zh-TW"])) !== JSON.stringify(topology(locales.en))) throw new Error("Sample locale topology must match exactly");
+for (const [locale, sample] of Object.entries(locales)) {
+  if (JSON.stringify(topology(sample)) !== JSON.stringify(topology(locales.en))) throw new Error(`Sample locale topology must match exactly: ${locale}`);
+}
 const totalBytes = Object.keys(assets).reduce((sum, name) => sum + statSync(join(sampleRoot, "Attachments", name)).size, 0);
 if (totalBytes > 1_200_000) throw new Error(`Sample attachments exceed 1.2 MB: ${totalBytes}`);
 const output = { contentVersion: 3, locales, assets };

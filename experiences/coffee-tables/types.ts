@@ -1,4 +1,4 @@
-import type { UiLanguage } from "../../i18n";
+import { isUiLanguage, type UiLanguage } from "../../i18n";
 import type { CoffeeCustomization, CoffeeConvergenceDraft } from "./customization";
 import { normalizeCustomization } from "./customization";
 
@@ -363,7 +363,7 @@ export function parseSession(raw: string): AnyCoffeeSession {
     !/^[a-zA-Z0-9-]+$/.test(value.id) ||
     typeof value.topic !== "string" ||
     !value.topic.trim() ||
-    !["en", "zh-TW"].includes(String(value.language)) ||
+    !isUiLanguage(value.language) ||
     !["ready", "generating", "completed", "error"].includes(String(value.status)) ||
     typeof value.model !== "string" ||
     typeof value.reasoning !== "string" ||
@@ -447,18 +447,26 @@ export function parseSession(raw: string): AnyCoffeeSession {
   return session;
 }
 export function copyLegacySession(legacy: LegacyCoffeeSession): CoffeeSession {
-  const lines = [`# ${legacy.topic}`, "", "> 較早版本的模擬對談；以下內容照原紀錄保留。", ""];
+  const cn = legacy.language === "zh-CN";
+  const lines = [
+    `# ${legacy.topic}`,
+    "",
+    cn ? "> 较早版本的模拟对谈；以下内容按原记录保留。" : "> 較早版本的模擬對談；以下內容照原紀錄保留。",
+    ""
+  ];
   for (const message of legacy.messages) {
     const person = legacy.participants.find(entry => entry.id === message.speakerId);
     lines.push(
-      `### ${person ? `${person.name} · ${person.role}` : message.speakerId === "user" ? "使用者" : message.speakerId}`,
+      `### ${person ? `${person.name} · ${person.role}` : message.speakerId === "user" ? (cn ? "用户" : "使用者") : message.speakerId}`,
       "",
       message.text,
       ""
     );
   }
   if (legacy.notes) {
-    const titles = ["意外連結", "值得繼續想的問題", "核心分歧", "探索方向", "值得查證的假設"];
+    const titles = cn
+      ? ["意外联系", "值得继续想的问题", "核心分歧", "探索方向", "值得查证的假设"]
+      : ["意外連結", "值得繼續想的問題", "核心分歧", "探索方向", "值得查證的假設"];
     ["connections", "questions", "disagreements", "directions", "assumptions"].forEach((key, index) =>
       lines.push(
         `### ${titles[index]}`,
